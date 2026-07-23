@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Rust Release"
+  short_description: "Build and locate reproducible Rust release binaries"
+  default_prompt: "Use $build-rust-release to build and locate the current platform release artifact."

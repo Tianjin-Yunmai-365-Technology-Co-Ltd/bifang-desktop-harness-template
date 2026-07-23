@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add TUI Adapter"
+  short_description: "Add an async Tokio Ratatui adapter"
+  default_prompt: "Use $add-tui-adapter to add the approved async-first Tokio, Ratatui, tui-realm, and tui-realm-stdlib TUI interface."

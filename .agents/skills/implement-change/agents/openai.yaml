@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement Change"
+  short_description: "Execute an approved plan with scoped code and tests"
+  default_prompt: "Use $implement-change to execute the approved work plan and prepare it for verification."

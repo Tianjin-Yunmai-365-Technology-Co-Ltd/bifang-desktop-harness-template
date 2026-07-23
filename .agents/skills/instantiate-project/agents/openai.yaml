@@ -1,0 +1,4 @@
+interface:
+  display_name: "Instantiate Project"
+  short_description: "Create a clean project with its own Git root"
+  default_prompt: "Use $instantiate-project to create a downstream project without Harness development memory and finish with an independent clean Git repository at my explicit target directory."

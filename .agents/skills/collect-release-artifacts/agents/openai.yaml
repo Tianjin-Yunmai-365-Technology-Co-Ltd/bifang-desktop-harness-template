@@ -1,0 +1,4 @@
+interface:
+  display_name: "Collect Release Artifacts"
+  short_description: "Refresh root release files safely"
+  default_prompt: "Use $collect-release-artifacts to safely clear the project-root release directory and collect only this project's latest completed build results."

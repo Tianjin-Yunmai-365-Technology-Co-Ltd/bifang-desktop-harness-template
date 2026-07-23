@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add CLI Adapter"
+  short_description: "Add an async-first Tokio CLI adapter"
+  default_prompt: "Use $add-cli-adapter to add the approved async-first Tokio CLI interface to this downstream project."

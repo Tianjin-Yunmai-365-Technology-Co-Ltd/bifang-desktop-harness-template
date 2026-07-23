@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Web Adapter"
+  short_description: "Add the fixed React-stack WEB adapter"
+  default_prompt: "Use $add-web-adapter to add the approved React, Mantine UI, TanStack, and Jotai WEB interface."

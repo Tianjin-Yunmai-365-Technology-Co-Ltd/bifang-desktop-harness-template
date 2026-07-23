@@ -1,0 +1,4 @@
+interface:
+  display_name: "Initialize Rust Project"
+  short_description: "Scaffold Rust and finish with clean Git"
+  default_prompt: "Use $initialize-rust-project to gate tools, scaffold async-first Rust interfaces, ignore the root release directory, prune initialization capabilities, and verify an independent clean Git repository."

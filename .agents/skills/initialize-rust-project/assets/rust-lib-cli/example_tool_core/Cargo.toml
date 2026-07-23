@@ -1,0 +1,13 @@
+[package]
+name = "example_tool_core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Neutral scaffold status core for a newly initialized project"
+
+[lib]
+name = "example_tool_core"
+path = "src/lib.rs"
+
+[dev-dependencies]
+tokio.workspace = true

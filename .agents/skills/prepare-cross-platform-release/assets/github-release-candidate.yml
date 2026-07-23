@@ -1,0 +1,139 @@
+name: release-candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Approved Cargo version without the v prefix"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      PRODUCT_NAME: example-tool
+      VERSION: ${{ inputs.version }}
+      CARGO_TARGET_DIR: target
+      RUSTUP_TOOLCHAIN: 1.90.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select project MSRV
+        run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
+      - name: Validate candidate version
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--locked", "--format-version", "1", "--no-deps"], text=True))
+          versions = {
+              package["version"]
+              for package in metadata["packages"]
+              if any(target["name"] == os.environ["PRODUCT_NAME"] and "bin" in target["kind"] for target in package["targets"])
+          }
+          if versions != {os.environ["VERSION"]}:
+              raise SystemExit(f"candidate version mismatch: Cargo={sorted(versions)}, input={os.environ['VERSION']}")
+          PY
+      - name: Verify candidate
+        shell: bash
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+          python - <<'PY'
+          import subprocess, sys
+          command = ["cargo", "test", "--workspace", "--all-targets", "--all-features", "--locked", "--", "--list"]
+          result = subprocess.run(command, text=True, capture_output=True)
+          sys.stdout.write(result.stdout)
+          sys.stderr.write(result.stderr)
+          if result.returncode:
+              raise SystemExit(result.returncode)
+          count = sum(line.rstrip().endswith(": test") for line in result.stdout.splitlines())
+          if count == 0:
+              raise SystemExit("no tests discovered")
+          print(f"discovered {count} tests")
+          PY
+          cargo test --workspace --all-targets --all-features --locked
+          cargo build --workspace --release --locked
+      - name: Smoke candidate with timeout
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, pathlib, subprocess
+          suffix = ".exe" if os.environ["RUNNER_OS"] == "Windows" else ""
+          binary = pathlib.Path("target/release") / f'{os.environ["PRODUCT_NAME"]}{suffix}'
+          if not binary.is_file():
+              raise SystemExit(f"missing release binary: {binary}")
+          try:
+              result = subprocess.run([str(binary), "--version"], text=True, capture_output=True, timeout=30)
+          except subprocess.TimeoutExpired as error:
+              raise SystemExit(f"smoke test timed out after {error.timeout} seconds") from error
+          if result.returncode:
+              raise SystemExit(f"smoke test failed with {result.returncode}: {result.stderr}")
+          output = result.stdout.strip()
+          if not output.endswith(f' {os.environ["VERSION"]}'):
+              raise SystemExit(f"version mismatch: {output}")
+          print(output)
+          PY
+      - name: Package Unix candidate
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/release/${PRODUCT_NAME}"
+          test -f "$binary"
+          platform="$(printf '%s' "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')"
+          arch="$(printf '%s' "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')"
+          archive="${PRODUCT_NAME}-v${VERSION}-${platform}-${arch}.tar.gz"
+          mkdir -p dist
+          tar -czf "dist/${archive}" -C target/release "$PRODUCT_NAME"
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd dist && sha256sum "$archive" > "${archive}.sha256")
+          else
+            (cd dist && shasum -a 256 "$archive" > "${archive}.sha256")
+          fi
+      - name: Package Windows candidate
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $binary = "target/release/$env:PRODUCT_NAME.exe"
+          if (-not (Test-Path $binary)) { throw "Missing release binary: $binary" }
+          $platform = $env:RUNNER_OS.ToLowerInvariant()
+          $arch = $env:RUNNER_ARCH.ToLowerInvariant()
+          $archive = "$env:PRODUCT_NAME-v$env:VERSION-$platform-$arch.zip"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path $binary -DestinationPath "dist/$archive"
+          $hash = (Get-FileHash "dist/$archive" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $archive" | Set-Content "dist/$archive.sha256" -Encoding ascii
+      - name: Record candidate manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, pathlib, platform, subprocess
+          dist = pathlib.Path("dist")
+          archive = next(p for p in dist.iterdir() if p.suffix not in {".sha256", ".json"})
+          manifest = {
+              "version": os.environ["VERSION"],
+              "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "runnerOs": os.environ["RUNNER_OS"],
+              "runnerArch": os.environ["RUNNER_ARCH"],
+              "host": platform.platform(),
+              "archive": archive.name,
+              "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+              "tests": "passed",
+              "smoke": "passed",
+          }
+          (dist / f"{archive.name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-${{ runner.arch }}-release-candidate
+          path: dist/
+          if-no-files-found: error

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Define Product"
+  short_description: "Define product intent, scope, constraints, and success criteria"
+  default_prompt: "Use $define-product to turn this product idea into a bounded MVP specification."

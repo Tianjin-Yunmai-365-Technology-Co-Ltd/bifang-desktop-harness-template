@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Change"
+  short_description: "Plan a scoped repository change with risks and verification"
+  default_prompt: "Use $plan-change to prepare an implementation-ready plan for this change."

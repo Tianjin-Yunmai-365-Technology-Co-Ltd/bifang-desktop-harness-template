@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Release"
+  short_description: "Check version consistency and prepare a traceable release"
+  default_prompt: "Use $prepare-release to assess and prepare the next project release."

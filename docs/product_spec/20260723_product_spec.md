@@ -1,0 +1,207 @@
+# Agent-first Harness 模板产品规格
+
+> 记忆日期：2026-07-23
+
+> 状态：Approved
+>
+> 批准日期：2026-07-21
+>
+> 批准者：项目负责人（本次人工确认）
+>
+> 最近范围确认：2026-07-23（Rust adapter 异步优先、GUI 无签名构建与统一 release 收集目录）
+
+## 一句话目标
+
+为以 AI Agent 为第一消费者、人类为第二消费者的跨平台小工具提供一套无代码、可持续演进的仓库 Harness，使项目在实现前具有明确边界，在交付时具有可重复验证和人工复核闭环。
+
+## 真实问题
+
+- 核心用户：使用 AI Agent 创建和维护小工具的项目负责人
+- 主要消费者：AI Agent；人类负责方向确认、风险审批和最终复核
+- 当前做法：依赖临时提示、聊天上下文或每个项目临时建立规则
+- 主要痛点：项目意图和边界容易漂移，验证口径不一致，跨会话接手时丢失上下文
+- 实际使用频率：每次立项、变更、验证、发布和跨会话交接时
+
+## 输入与输出
+
+- 输入：项目意图、范围、平台要求、风险约束、实现结果和人工决策
+- 输出：版本化的代理规则、项目 Skills、规格、状态、计划、验证证据、决策和发布约束
+- 可观察的结果反馈：Agent 能从仓库恢复上下文，按稳定流程执行，并给出明确的通过、失败、待审批或未验证状态
+
+## MVP 范围
+
+### 包含
+
+- 不实现具体产品的 Harness 文档骨架和渐进披露入口。
+- 面向 AI Agent 的任务型 Skills。
+- 用于从 Harness 建立干净下游仓库并重置模板身份、批准和验证历史的实例化 Skill。
+- 下游 scaffold 验证完成后，删除实例化与初始化 Skills、模板专用 validator/方法论文档、活动初始化说明和相关门禁入口；生成后的仓库是终端项目根，不能继续派生新项目。
+- 下游 `AGENTS.md` 永久保留非空的 Skills 地图和约束地图。裁剪只删除不适用条目，不得删除整个地图；Skills 地图必须与实际保留目录一致，约束地图必须保留硬规则来源和禁止继续派生的边界。
+- 新下游项目实例化前必须要求用户提供完整目标项目目录路径。相对路径以当前 Harness 根目录为基准解析为绝对路径；解析后的目录 basename 必须与项目标识一致。目标可以位于 Harness 内或外，但必须不存在或为空，不得是 Harness 根目录或其祖先，也不得经符号链接解析到被禁止位置。复制完成后，该目录成为后续初始化、代码修改、构建、验收和发布准备的唯一项目根目录。
+- 每个下游项目必须在自己的项目根初始化独立 Git 仓库，初始分支为 `main`。即使目标位于父 Git 仓库内，下游的 Git top-level 也必须精确等于项目根；源 Harness 的 `.git` 不得复制。Scaffold 验证与一次性裁剪后创建且只创建一个本地初始化基线 commit，随后验证 `HEAD` 可解析、remote 为空且 `git status --porcelain=v1 --untracked-files=all` 无输出；不得自动 tag、配置 remote 或 push。
+- 实例化不得复制或预创建 Harness 的 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`，包括索引、日期正文和空占位目录。Product Spec 与首个 ADR 由 `$define-product` 在首项产品需求获确认时创建，Work Plan 由 `$plan-change` 在首个真实计划时创建，Changelog 由 `$implement-change` 在首次真实可见变更时创建。
+- 新下游实例化只要求项目名称、跨平台安全的 ASCII `snake_case` 标识、完整目标目录、负责人和目标平台；产品目的、核心输入输出、成功路径、最高风险失败与副作用能力允许在实例化和中性脚手架初始化时保持 `待确定`。
+- 用于执行已批准计划、同步最小实现与测试并交给验收的实施 Skill。
+- 初始化询问 `CLI/TUI/MCP/GUI/WEB` 接口组合，允许多选；用户未选择任何接口时默认 CLI。CLI 不再是不可替代的首版要求。
+- 以 Rust 2024、MSRV 1.90.0 和 Cargo workspace 作为下游项目初始化默认值；1.90.0 是最低兼容版本而非精确版本锁，1.90.0 及以上 stable 均可通过环境门禁；workspace 至少包含独立 shared core，并只登记用户选择的 adapter members。
+- Rust scaffold 直接写入当前下游项目根；core 与五类接口确定性派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`、`_web`。
+- Product Spec 尚未创建或仍为 `Draft` 时允许先创建中性 core 与所选 adapter；只允许无业务副作用的 scaffold status。CLI JSON 返回 `productDefinitionRequired=true`，其他接口提供等价可观察状态。
+- CLI、TUI、MCP、GUI、WEB 分别由独立 Skills 实施，adapter 之间不得互相依赖、启动或解析输出。
+- 初始化询问是否关闭 superpowers，并把 `enabled`/`disabled` 写入 `docs/AGENT_POLICY.md`；`disabled` 时后续不得调用 `superpowers:*` Skills。
+- 中性脚手架完成后必须在同一项目根使用 `$define-product` 完善并批准产品目的、核心输入输出、成功路径、最高风险失败与副作用能力；随后通过 `$plan-change` 与 `$implement-change` 删除或替换中性状态操作并实现业务。
+- CLI、TUI、MCP、GUI 的 Rust adapter 必须从 Tokio 支撑的 async 入口进入：CLI/TUI/MCP 默认使用 current-thread Tokio runtime，GUI 复用 Tauri 的 Tokio-backed singleton async runtime 和普通 `async fn` commands，不创建嵌套 runtime。I/O、等待、计时、进程、协议和命令处理默认优先异步；只有经测量确认的 CPU 密集操作才考虑受控 `spawn_blocking`、专用线程或多线程 runtime，并记录取消、任务所有权、并发上限与资源预算。同步阻塞依赖应替换为异步能力或进入范围/硬规则例外确认，不得静默用线程包裹。core 可以提供 runtime-neutral 的 async API，只有真实业务需要 Tokio 原语时才直接依赖 Tokio。
+- 下游初始化在 Rust 1.90 MSRV、目标平台、最小 feature 集和验证门槛内，优先选择当前可用的较新稳定依赖；提交锁文件保证可复现，并在初始化、模板发布准备和依赖变更时重新检查可用更新。
+- 独立的 `$check-development-environment` 在下游首次代码开发前执行并在初始化裁剪后保留；当前宿主、接口选择或工具链要求变化时重新执行。
+- Rust 始终是阻断式开发环境门禁；Windows 同时检测 Rust MSVC 目标需要的 Build Tools，缺失时自动安装微软签名的 Visual Studio Build Tools C++ workload 并复验。
+- 只有初始化选择包含 GUI 或 WEB 时，开发环境门禁才检测 Node.js 与 pnpm；缺失时从约定官方来源自动安装并复验。其他接口组合把二者明确记为 `not-required`，不得探测、安装或升级。
+- 提供不依赖 Node.js 或 Python 的宿主原生门禁入口：macOS/Linux 使用 POSIX shell，Windows 使用 PowerShell；输出稳定状态字段和退出码，并验证官方下载制品或 registry 完整性后才允许继续。
+- Cargo workspace 统一声明全部共享外部依赖和 workspace 内 crate 路径依赖；所有 member 只能通过 `workspace = true` 继承，不得各自保存版本或路径来源。
+- 当前平台可复现构建、发布前门槛、Windows/macOS/Linux 原生候选构建和发布结果提取 Skills。
+- GUI 本地构建、测试、产物存在和启动冒烟不以签名身份、证书或 notarization 为前置；若用户选择的真实分发渠道要求签名，则签名与渠道验证仍是发布阻断门禁。
+- 发布结果统一收集到项目根 `release/`。收集前必须安全清空该目录历史内容，只复制属于当前项目、当前版本、当前源码 commit 和明确构建 run 的最新已完成结果；歧义、碰撞、缺失或额外文件均失败。初始化必须把 `/release/` 写入项目根 `.gitignore`。
+- `$add-cli-adapter`、`$add-tui-adapter`、`$add-mcp-adapter`、`$add-gui-adapter`、`$add-web-adapter` 五个独立 Skills；它们基于 shared core 与产品契约实施对应 adapter。
+- `$add-tui-adapter` 固定使用 Ratatui、tui-realm 与 tui-realm-stdlib，提供统一的终端渲染、组件化状态流和成熟标准组件库；Draft scaffold 也不得改用其他 TUI 技术族。
+- `$add-web-adapter` 与 `$add-gui-adapter` 的前端固定使用执行时最新兼容稳定的 React + TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。TanStack Query 管理异步/服务端状态，Jotai 只管理确需跨组件共享的客户端/交互状态，不复制 core、持久存储或 Query cache 的权威数据。
+- GUI 被选择时，首次真实 GUI 开发前必须运行 `$prepare-gui-app-identity`，让用户确认应用显示名、窗口标题、简述、应用标识和图标路径。图标支持按产品信息自动生成、确定性 Plan B、或用户上传后标准化与高清处理；最终由用户选择并批准。
+- 固定技术族之外的构建器、后端框架、测试框架、表单/图标扩展、持久化、认证和部署技术不预选；只在真实产品开发出现需求时按项目约束推荐并通过依赖准入。
+- `$test-final-artifact-e2e` 使用 Computer Use 操作真实最终产物，覆盖核心成功路径与最高风险失败路径并记录可观察证据。
+- 最小可编译的 Lib + CLI 与候选 CI workflow 示例 assets；它们只演示边界和扩展点，不承载具体产品业务。
+- 统一的 CLI JSON 信封、错误结构和基础退出码契约。
+- Windows、macOS 和 Linux 三个平台约束。
+- 当前运行系统上的编译、非空单元测试、最终产物存在性和产物启动冒烟测试四项交付门槛。
+- 允许下游项目通过决策记录申请规则例外，但必须记录理由、风险、适用范围和恢复标准。
+- 高风险或需人工判断时的审批、人工复核和重新验证循环。
+- 项目状态、重要决策、技术债、验证证据和发布信息的仓库记忆。
+- Product Spec、Product Status 和 Work Plan 分别写入 `docs/product_spec/YYYYMMDD_product_spec.md`、`docs/project_status/YYYYMMDD_product_status.md` 与 `docs/work_plan/YYYYMMDD_work_plan.md`；同一天持续整理同一文件。
+- 三类日期记忆在新自然日首次写入时必须读取前一份，将仍有效事实和当日变化综合重写为完整当前快照；不得只记录增量，当前事实始终取各目录日期最新的文件。
+- 每个已确认需求形成独立 ADR 条目，并按确认日期聚合到 `docs/adr/YYYYMMDD_ADR.md`；同一天持续更新同一文件。
+- 用户或维护者可感知的实际变化按日期记录到 `docs/changelog/YYYYMMDD_CHANGELOG.md`；需求确认但尚未实施时不得写成已交付。
+- 每次需求确认和代码变更都检查相关设计文档、产品规格、计划、测试、验证与 Changelog 的同步状态；不适用时留下可审计理由。
+- 不依赖第三方 Python 包的 Harness 自动一致性校验入口。
+- 以 [`docs/ENGINEERING_RULES.md`](../ENGINEERING_RULES.md) 为唯一详细来源的文件拆分、中文业务注释、文档、测试、例外与机械检查规则。
+
+### 不包含
+
+- 不提供任何具体产品的源码或业务实现；初始化资产只包含明确标注为 Draft 的中性状态操作，不包含示例业务或猜测的输入输出。
+- 不强制所有下游产品永久使用同一种语言；Rust 是可通过范围闸门替换的初始化默认值。
+- 不提供模板自身的可执行产品；bundled core+CLI 仅是默认选择的中性验证 asset。
+- 不因为默认 CLI 而给已经明确选择 TUI、MCP、GUI 或 WEB 的项目附加 CLI。
+- 不把 E2E Skill 当作单元测试、构建、产物存在检查或人工最终复核的替代品。
+- 不通过人工批准跳过失败的编译、单元测试、产物存在性或启动冒烟检查。
+- 不允许把中性脚手架的编译、测试或冒烟证据当作产品成功路径、最高风险失败、真实验收或发布证据。
+- 不允许 Agent 因页面简单、Draft 状态、既有偏好或减少依赖而静默省略或替换固定的 TUI/React 前端技术族；任何偏离必须走硬规则例外 ADR。
+- 不把初始化基线 commit 写成“产品已实现”或“已有可发布 source commit”；remote、push、tag、签名与发布仍需后续独立授权或工作流。
+
+## 前提与约束
+
+- 目标平台：Windows、macOS、Linux
+- 外部依赖：模板自身无运行时依赖；下游开发始终要求 Rust，GUI/WEB 开发额外要求 Node.js 与 pnpm；其他接口不因此增加 Node.js、pnpm 或 Python 依赖。Rust 依赖见 `docs/RUST_CLI_TEMPLATE.md`，其中 Rust adapter 默认使用 Tokio；项目新增或替换依赖时必须记录版本、替代复杂度和缺失时的失败方式。依赖新鲜度以“满足 MSRV、平台、feature 与验证约束的较新稳定版”为准，不以预发布版或未经验证的最新版覆盖兼容性约束
+- 权限：Agent 只使用完成当前任务所需的最小权限；高风险和破坏性操作必须提示人工审批
+- 输入限制：实例化与中性脚手架阶段只要求身份、路径、负责人、平台、接口选择和 superpowers 策略；产品目的、核心输入输出与风险未知时保留为 `待确定`
+- 工程规则：所有下游人工维护的数据结构、接口、函数、方法和测试使用有业务意义的中文注释；文件与文档行数采用非阻断软审查阈值，语义质量不以注释比例或字符数判定
+- 隐私与安全要求：日志、CLI 输出和项目记忆不得泄露密钥、令牌或不必要的本机隐私路径
+- 交付限制：Harness 根目录不实现具体产品；示例代码仅位于 Skill assets；跨平台约束不得依赖单一 Shell、单一操作系统路径或仅在一个平台成立的默认值
+- 默认工具链：下游项目初始化采用 `docs/RUST_CLI_TEMPLATE.md`；更换语言属于需记录的范围决定
+- 版本控制：Git 是阻断式初始化前提；目标根必须通过 `git rev-parse --show-toplevel` 证明为独立 top-level，并使用 `main` 初始分支。初始化收尾必须以用户已有 Git 身份创建本地基线 commit，并验证 `HEAD`、空 remote 与空 porcelain 状态；身份缺失、Git 不兼容、提交失败、状态不干净或 top-level 不一致时停止，不自动安装、伪造身份、修改全局配置或静默继承父仓库
+- 接口技术硬规则：TUI 使用 Ratatui + tui-realm + tui-realm-stdlib；WEB/GUI 前端使用 React + TypeScript + Mantine UI + TanStack Router + TanStack Query + Jotai。真实调用时解析满足项目 MSRV、Node、浏览器/WebView、三平台、安全和验证门槛的最新兼容稳定版，并由 manifest 与锁文件固定；版本“最新”不授权采用预发布版、提高工具链约束或跳过验证
+- 命名输入：当前产品规格必须提供跨平台安全的 ASCII `snake_case` 项目标识；用户提供的目标项目目录 basename 必须与该标识一致；core 与接口目录、Cargo package、Rust crate 和真实二进制只从该标识派生，不接受独立名称造成漂移
+- 验证平台：每次任务只强制验证 Agent 当前实际运行的系统；未实际运行的目标平台必须明确记为 `Unverified`
+
+## 最短闭环
+
+1. 人类提供项目身份、完整目标目录、负责人和目标平台。
+2. Agent 实例化项目、排除 Harness 的 ADR/Changelog/Product Spec/Work Plan、建立以项目根为 top-level 的独立 Git 仓库、记录 superpowers 策略，并可创建中性 core + 所选 adapter workspace；未选择 adapter 时默认 CLI。
+3. Scaffold 验证后，Agent 裁剪下游实例化/初始化能力和模板专用内容，保留开发环境 Skill 以及 `AGENTS.md` 的 Skills/约束地图；创建一个本地初始化基线 commit，并验证无 remote、工作树干净。
+4. Agent 在已初始化项目内使用 `$define-product` 首次创建 Product Spec 与 ADR，完善并取得产品目的、核心输入输出、边界和风险批准；GUI 首次开发还需由 `$prepare-gui-app-identity` 补齐应用资料与图标决策。
+5. Agent 规划并实施业务，替换中性操作，产出可检查结果和证据。
+6. 检查通过时进入人工复核；修正后重新运行完整验证循环。
+
+## 可靠性要求
+
+- 必须避免的数据损失：不得覆盖用户修改、已发布版本或无法恢复的数据。
+- 必须区分的成功与失败：未执行、执行失败、部分验证和全部验证通过必须明确区分。
+- 外部依赖失败时的行为：报告依赖、失败证据和影响；不得将其误报为项目通过。
+- 重试与恢复要求：人工复核或修复后重新运行受影响检查，并最终重跑完整交付门槛。
+- 破坏性操作的审批方式：执行前说明目标、影响和恢复方式，等待人工明确批准。
+- 审批边界：Agent 可在已授权任务范围内诊断、修复和重跑；破坏性操作、范围变化和最终完成声明必须由人工审批或复核。
+- 验证豁免：人工审批授权继续操作，不等同于豁免编译、测试、产物存在性或启动冒烟验证。
+- 例外机制：偏离模板硬约束时，必须在当日 ADR 记录例外理由、风险、适用范围和恢复标准。
+
+## 模板自身成功标准
+
+- [ ] AI Agent 能仅根据仓库入口定位产品规格、当前状态、活跃计划、验证记录和相关 Skill。
+- [ ] 模板事实来源、项目 Skills、可选 CLI 契约和 Rust 初始化基线之间不存在相互冲突的硬规则。
+- [ ] 初始化中性资产能够形成 core Lib 单向被 CLI 依赖的 Cargo workspace，并通过格式、lint、测试、release 构建和真实产物冒烟检查。
+- [ ] 初始化明确询问 CLI/TUI/MCP/GUI/WEB，允许多选，无选择时仅默认 CLI；五类接口均有独立 Skill 且无 adapter 间前置依赖。
+- [ ] 实例化和 Rust 初始化不要求产品目的或核心输入输出；Draft 下游能先生成仅含 `scaffold status` 的中性 workspace，并明确报告仍需产品定义。
+- [ ] 初始化中性资产由 Tokio 驱动 CLI async 入口，core 的默认生产依赖不绑定 adapter 或 runtime，并通过 async 核心路径测试。
+- [ ] CLI/TUI/MCP Skills 强制 current-thread Tokio async 入口，GUI Skill 强制复用 Tauri Tokio runtime 与 async commands；仅测量确认的 CPU 密集任务允许考虑受控线程边界。
+- [ ] GUI Skill 能在缺少签名材料时完成本地 build/test/smoke 并明确记录 unsigned，同时不会把该结果误报为满足实际渠道签名门禁。
+- [ ] 初始化确保 `/release/` 位于根 `.gitignore`；制品收集只刷新 canonical 根 `release/`，清除历史后仅保留当前项目、版本、commit 和明确 run 的最新已完成结果。
+- [ ] 初始化中性资产的直接依赖在检查时没有遗漏满足 Rust 1.90、三平台和既定 feature 约束的较新稳定版本；锁文件记录实际解析版本，若未采用更新版本则公开原因与影响。
+- [ ] 独立开发环境 Skill 对 Rust、Windows MSVC Build Tools，以及 GUI/WEB 条件下的 Node.js 与 pnpm 产生可审计结果；必需项缺失时自动安装并复验。
+- [ ] 下游 scaffold 验证后不再包含实例化/初始化 Skills、模板专用 validator/方法论文档或活动派生入口，但仍保留开发环境、产品开发、验证和适用 adapter Skills。
+- [ ] 模板与下游 `AGENTS.md` 都包含非空 Skills 地图和约束地图；下游裁剪后的条目与真实保留能力一致。
+- [ ] GUI 下游首次真实开发会阻断式收集窗口/应用资料，并让用户在自动生成、确定性 Plan B、上传标准化/高清三种图标路径中选择。
+- [ ] superpowers 选择持久记录于 `docs/AGENT_POLICY.md`，关闭后实际开发流程会拒绝 `superpowers:*` Skills。
+- [ ] Unix/Windows 门禁脚本覆盖既有环境不修改、缺失安装、只读缺失、已有 Rust 不兼容、安装失败和制品校验失败；未在原生宿主执行的平台保持 `Unverified`。
+- [ ] 初始化中性资产的全部 member 依赖都从根 `[workspace.dependencies]` 继承，包括 workspace 内 crate 的路径引用；自动校验能拒绝 member 中分散的版本或路径来源。
+- [ ] 候选 workflow 只生成可追溯结果，不包含未经授权的 tag、release 或 publish 行为。
+- [ ] 模板自身的文档验证已记录；不把不适用的下游编译、测试或产物门槛伪装为通过。
+- [ ] 高风险失败不会被误报为成功，未执行或不适用的验证会公开记录。
+- [ ] 自动 Harness 校验能够发现缺失文件、Skill 声明/结构不一致、损坏的本地链接和候选 workflow 关键门禁缺失。
+- [ ] Agent 能从入口定位唯一工程规则来源，并在下游实现中审查文件职责、中文业务注释、测试组织和规则例外；软阈值不会被误报为硬失败。
+- [ ] Agent 能定位 Product Spec、Product Status、Work Plan 的最新日期文件；同日只更新一份，新日从前一份综合出完整快照。
+- [ ] Agent 能在需求确认后定位或创建唯一当日 ADR，并在代码或维护流程变更后更新唯一当日 Changelog；被日期目录替代的旧单文件入口不存在。
+- [ ] 自动 Harness 校验能够拒绝五类日期记忆目录、索引、日期命名规则、新日综合规则或关键工作流引用的缺失。
+- [ ] 实例化流程不会把模板的产品批准、人工复核、平台验证或发布证据继承为下游事实。
+- [ ] 实例化流程不会迁移或预创建 ADR、Changelog、Product Spec、Work Plan；对应目录和首份正文由下游产品开发的拥有者 Skill 首次创建。
+- [ ] 实例化流程只写入用户明确提供并通过安全检查的目标目录，复制不会递归进入目标目录；进入下游后，初始化、实现和验收不会另建第二个项目树。
+- [ ] 初始化完成后的下游 `HEAD` 指向唯一的本地基线 commit，Git top-level 精确等于项目根，分支为 `main`，remote 为空，porcelain 状态为空。
+
+## 下游项目继承的成功标准
+
+- [ ] 选择 CLI 的下游提供完全非交互的 CLI 并遵守 `docs/CLI_CONTRACT.md`；未选择 CLI 时该项明确为不适用。
+- [ ] 中性脚手架阶段与产品交付阶段严格区分；产品发布或完成声明前，中性 `scaffold status` 已被真实业务命令替换，产品成功与失败测试不复用脚手架证据。
+- [ ] 默认 Rust shared core 与所选 adapters 符合 `docs/RUST_CLI_TEMPLATE.md`；CLI 章节仅在选择 CLI 时适用。
+- [ ] 下游初始化直接使用当前项目根；core 与五类 adapter 使用 `_core/_cli/_tui/_mcp/_gui/_web` 确定性后缀，workspace 只登记实际选择。
+- [ ] 当前项目根目录包含创建于首次 Rust 初始化的 workspace `Cargo.toml`，其 members 覆盖所有现有 crate，并能在同一根目录持续纳管未来新增库与 adapter。
+- [ ] 所有业务规则、领域类型和领域错误位于独立 core Lib；每个 adapter 只处理自身输入输出、调用 core 和错误映射。
+- [ ] CLI/TUI/MCP 使用 Tokio current-thread async 入口，GUI 复用 Tauri Tokio async runtime；I/O 与等待型工作保持异步，只有测量确认的 CPU 密集任务才考虑受控线程边界，core 直接使用 Tokio 类型或原语时有真实业务依据和决策记录。
+- [ ] 首次开发前 Rust 门禁通过；Windows 的 MSVC Build Tools 门禁通过；仅 GUI/WEB 的 Node.js 与 pnpm 门禁通过。自动安装失败时停止并保留证据。
+- [ ] 下游不能再调用实例化/初始化能力派生项目，且 `AGENTS.md` 仍可定位全部保留 Skills 与硬约束来源。
+- [ ] 下游项目在 Agent 当前实际运行的系统中成功编译。
+- [ ] 下游项目存在有效单元测试，至少覆盖核心成功路径和最高风险失败路径，且完整测试套件全部通过；零测试不算通过。
+- [ ] 当前系统声明的最终产物确实存在于约定位置。
+- [ ] 当前发布候选统一位于被 Git ignore 的根 `release/`，目录与当前项目、版本、源码 commit 和明确 build run 的选定结果精确一致且无历史文件。
+- [ ] 当前系统的最终产物能够通过所选接口的已记录只读入口完成启动冒烟测试，并在限定时间内以预期状态结束。
+- [ ] `$test-final-artifact-e2e` 能通过 Computer Use 对真实最终产物执行核心成功与最高风险失败场景，记录步骤、观察、截图或等价证据、清理和未验证范围。
+- [ ] 未实际运行验证的 Windows、macOS 或 Linux 平台明确标记为 `Unverified`，不得推断为已验证。
+- [ ] 任一门槛失败时不声明完成；Agent 可在原任务范围内修复并重跑，高风险、范围变化和最终完成声明由人工复核。
+- [ ] 最终人工复核记录保存在 `docs/VERIFICATION.md`，包含复核人、日期、范围、结论和剩余风险。
+
+## 版本与维护
+
+- 初始版本：`0.1.0`（当前未发布）
+- 版本事实来源：模板以 `docs/RELEASE.md` 为唯一来源；下游 Rust 项目以根 `Cargo.toml` 的 `[workspace.package].version` 为唯一来源
+- 提升规则：Agent 可按 Semantic Versioning 提出建议，但版本是否提升及提升到何版本由用户决定
+- 维护状态：Active
+- 反馈入口：待确定
+
+## 已知风险与未来候选
+
+### 已知风险
+
+- 各平台实际构建命令只能由下游项目确定，模板无法提供统一命令。
+- 单次任务只验证当前系统，无法证明其他目标平台真实可执行；发布说明必须披露验证平台范围。
+- 冒烟测试只证明产物可以启动并响应，不能替代真实核心流程验收。
+- 指令型实例化与实施 Skills 仍需在真实下游项目中前向验证；未运行前不能把流程设计视为真实交付证据。
+
+### 未来候选
+
+- 由 `$add-mcp-adapter` 在真实下游项目中按需实现 stdio MCP；默认技术族为官方 Rust SDK `rmcp`、Tokio 和最小 stdio server feature，具体版本须满足项目 MSRV、三平台和验证门槛。
+- 由 `$add-gui-adapter` 在真实下游项目中按需实现 Tauri 2 人类桌面 GUI；前端使用固定 React 技术族，仍默认只打包本地内容，不启用远程内容或平台常驻能力。
+- MCP/GUI 的具体工具、页面、源码、依赖版本、权限和发布资产只在下游用户明确决定增加对应支持后完善；固定技术族之外的选型留到真实开发时推荐。
+- 远程公开 WEB 部署、账户系统或云托管，除非另行通过范围闸门。
+- 正式自动发布、制品签名、registry publish 和软件商店分发。
+- 最终产物签名与安装验证。

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare GUI App Identity"
+  short_description: "Fill in GUI window metadata and pick or process the app icon"
+  default_prompt: "Use $prepare-gui-app-identity before the first product GUI development task to approve window metadata and icon assets."

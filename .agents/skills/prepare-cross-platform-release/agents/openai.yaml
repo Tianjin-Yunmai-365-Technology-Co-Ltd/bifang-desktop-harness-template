@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Cross-Platform Release"
+  short_description: "Prepare auditable Windows, macOS, and Linux release automation"
+  default_prompt: "Use $prepare-cross-platform-release to prepare a gated cross-platform release workflow."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add GUI Adapter"
+  short_description: "Add an async Tauri GUI that builds unsigned"
+  default_prompt: "Use $add-gui-adapter to add the approved async-first Tauri 2 GUI with the fixed React stack and unsigned local-build support."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Delivery"
+  short_description: "Collect completion evidence for a change or release candidate"
+  default_prompt: "Use $verify-delivery to verify this work and record the available evidence."
