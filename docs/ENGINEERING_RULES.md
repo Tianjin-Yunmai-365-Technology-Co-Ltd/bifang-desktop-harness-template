@@ -86,6 +86,7 @@
 |---|---|
 | `README.md` | 用户入口、用途、真实使用方式和维护状态 |
 | `AGENTS.md` | Agent 地图、硬约束摘要、阅读顺序和验证入口 |
+| `Version.md` | Harness 模板当前版本、初始版本与发布状态；下游 Rust 项目不继承此事实来源 |
 | `docs/product_spec/README.md` | Product Spec 日期规则和索引 |
 | `docs/product_spec/YYYYMMDD_product_spec.md` | 当日完整产品目标、范围、约束和成功标准；最新日期文件是当前规格 |
 | `docs/AGENT_POLICY.md` | 下游 Agent 能力开关及其持久执行语义 |
@@ -101,7 +102,7 @@
 | `docs/adr/YYYYMMDD_ADR.md` | 当日已确认需求、重要取舍和规则例外的唯一正文 |
 | `docs/VERIFICATION.md` | 真实命令、结果、环境、遗漏项和人工复核 |
 | `docs/TECH_DEBT.md` | 已知但不在当前任务解决的问题、影响和复核条件 |
-| `docs/RELEASE.md` | 版本与发布要求 |
+| `docs/RELEASE.md` | Semantic Versioning、版本同步和发布要求；不重复保存 Harness 当前版本事实 |
 | `docs/changelog/README.md` | Changelog 规则与日期文件索引 |
 | `docs/changelog/YYYYMMDD_CHANGELOG.md` | 当日用户和维护者可感知变化的唯一正文 |
 

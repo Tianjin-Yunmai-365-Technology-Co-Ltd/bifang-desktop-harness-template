@@ -20,6 +20,7 @@ WORKFLOW = (
 )
 INITIALIZE_SKILL = SKILLS_ROOT / "initialize-rust-project"
 INSTANTIATE_SKILL = SKILLS_ROOT / "instantiate-project" / "SKILL.md"
+RENAME_IDENTITY_SKILL = SKILLS_ROOT / "rename-project-identity"
 ENVIRONMENT_SKILL = SKILLS_ROOT / "check-development-environment"
 GUI_IDENTITY_SKILL = SKILLS_ROOT / "prepare-gui-app-identity" / "SKILL.md"
 MCP_SKILL = SKILLS_ROOT / "add-mcp-adapter" / "SKILL.md"
@@ -42,6 +43,7 @@ PREREQUISITE_UNIX = ENVIRONMENT_SKILL / "scripts" / "development-environment-gat
 PREREQUISITE_WINDOWS = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.ps1"
 PREREQUISITE_TESTS = ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates.py"
 ENGINEERING_RULES = ROOT / "docs" / "ENGINEERING_RULES.md"
+VERSION_FILE = ROOT / "Version.md"
 GITIGNORE = ROOT / ".gitignore"
 PRODUCT_SPEC_DIR = ROOT / "docs" / "product_spec"
 PRODUCT_STATUS_DIR = ROOT / "docs" / "project_status"
@@ -70,7 +72,10 @@ WORK_PLAN = latest_matching_file(WORK_PLAN_DIR, WORK_PLAN_PATTERN)
 REQUIRED_FILES = (
     ".gitignore",
     "AGENTS.md",
+    "LICENSE.zh-CN.md",
+    "LICENSE.en.md",
     "README.md",
+    "Version.md",
     "docs/CLI_CONTRACT.md",
     "docs/AGENT_POLICY.md",
     "docs/ENGINEERING_RULES.md",
@@ -87,6 +92,8 @@ REQUIRED_FILES = (
     ".agents/skills/check-development-environment/scripts/development-environment-gates.sh",
     ".agents/skills/check-development-environment/scripts/development-environment-gates.ps1",
     ".agents/skills/check-development-environment/scripts/test_development_environment_gates.py",
+    ".agents/skills/rename-project-identity/scripts/rename_project_identity.py",
+    ".agents/skills/rename-project-identity/scripts/test_rename_project_identity.py",
     ".agents/skills/add-tui-adapter/references/tui-baseline.md",
     ".agents/skills/add-web-adapter/references/react-frontend-baseline.md",
     ".agents/skills/add-gui-adapter/references/gui-baseline.md",
@@ -110,6 +117,7 @@ EXPECTED_SKILLS = {
     "prepare-cross-platform-release",
     "prepare-release",
     "prepare-gui-app-identity",
+    "rename-project-identity",
     "test-final-artifact-e2e",
     "verify-delivery",
 }
@@ -418,6 +426,16 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "create exactly one local baseline commit",
             "Do not run the template-wide Harness validator in the selectively copied target",
             "intentional absence of four Harness memory streams",
+            "LICENSE.zh-CN.md",
+            "LICENSE.en.md",
+            "byte-for-byte",
+            "$rename-project-identity",
+            "entire maintained destination tree",
+            "Applicable Project Name",
+            "all other legal text must remain byte-equivalent",
+            "retain `$rename-project-identity`",
+            "Harness-only root `Version.md`",
+            "root `Cargo.toml`",
         ),
         SKILLS_ROOT / "instantiate-project" / "agents" / "openai.yaml": (
             "Create a clean project with its own Git root",
@@ -467,6 +485,11 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "root-anchored `/release/`",
             "Tokio current-thread async entries",
             "Tauri's Tokio-backed async runtime",
+            "LICENSE.zh-CN.md",
+            "LICENSE.en.md",
+            "retain both inherited proprietary commercial license files",
+            "$rename-project-identity",
+            "contains the old Harness identity",
         ),
         ENVIRONMENT_SKILL / "SKILL.md": (
             "before the first code-changing development task",
@@ -569,6 +592,8 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "Never clean or write outside",
         ),
         PREPARE_RELEASE_SKILL: (
+            "root `Version.md`",
+            "must not inherit the Harness `Version.md`",
             "$collect-release-artifacts",
             "<project-root>/release",
             "historical, stale, foreign-project, ambiguous or extra files",
@@ -685,6 +710,56 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "$check-development-environment",
             "$prepare-gui-app-identity",
             "不得继续派生项目",
+            "LICENSE.zh-CN.md",
+            "LICENSE.en.md",
+            "$rename-project-identity",
+        ),
+        ROOT / "LICENSE.zh-CN.md": (
+            "本协议不是开源许可证",
+            "终端下游与禁止继续衍生",
+            "知识产权",
+            "第三方材料",
+            "以中文版本为准",
+            "适用项目名称：Agent-first Harness 项目模板",
+            "仅将该名称替换",
+        ),
+        ROOT / "LICENSE.en.md": (
+            "This is not an open-source license",
+            "Terminal Downstream Project; No Further Derivation",
+            "intellectual property rights",
+            "Third-Party Materials",
+            "the Chinese version controls",
+            "Applicable Project Name: Agent-first Harness 项目模板",
+            "only this name must be replaced",
+        ),
+        RENAME_IDENTITY_SKILL / "SKILL.md": (
+            "--old-display-name",
+            "--old-id",
+            "--old-kebab",
+            "--apply",
+            "--rename-root",
+            "path escapes",
+            "symlinks",
+            "LICENSE.zh-CN.md",
+            "LICENSE.en.md",
+            "residual",
+        ),
+        RENAME_IDENTITY_SKILL / "agents" / "openai.yaml": (
+            "Rename Project Identity",
+            "$rename-project-identity",
+        ),
+        RENAME_IDENTITY_SKILL / "scripts" / "rename_project_identity.py": (
+            "EXCLUDED_DIRECTORIES",
+            "--apply",
+            "symbolic link is not allowed",
+            "destination already exists",
+            "residuals",
+        ),
+        RENAME_IDENTITY_SKILL / "scripts" / "test_rename_project_identity.py": (
+            "test_preview_then_apply_renames_content_paths_and_licenses",
+            "test_existing_destination_blocks_without_overwrite",
+            "test_symbolic_link_blocks_before_write",
+            "test_explicit_root_rename_moves_project_without_overwrite",
         ),
         GITIGNORE: (
             "/target/",
@@ -1133,6 +1208,55 @@ def validate_current_descriptions(errors: list[str]) -> None:
             )
 
 
+def validate_version_contract(errors: list[str]) -> None:
+    """确认 Harness 1.0.0 只有一个版本事实源，当前摘要与下游排除契约一致。"""
+    required_fragments = {
+        VERSION_FILE: (
+            "当前版本：`1.0.0`",
+            "初始版本：`1.0.0`",
+            "发布状态：Unreleased",
+            "唯一事实来源",
+            "docs/RELEASE.md",
+        ),
+        ROOT / "README.md": (
+            "当前版本：1.0.0",
+            "[`Version.md`](Version.md)",
+        ),
+        PRODUCT_SPEC: (
+            "当前版本：`1.0.0`",
+            "唯一事实来源为根 `Version.md`",
+        ),
+        ROOT / "docs" / "RELEASE.md": (
+            "[`Version.md`](../Version.md) 中记录的 `1.0.0`",
+            "模板版本事实来源：根目录 `Version.md`",
+            "本文件只维护版本与发布规则",
+        ),
+        PREPARE_RELEASE_SKILL: (
+            "The Harness template uses root `Version.md`",
+            "must not inherit the Harness `Version.md`",
+        ),
+        INSTANTIATE_SKILL: (
+            "Harness-only root `Version.md`",
+            "root `Cargo.toml`",
+        ),
+    }
+    for path, fragments in required_fragments.items():
+        if not path.is_file():
+            fail(errors, f"missing version contract file: {display_path(path)}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(
+                    errors,
+                    f"version contract missing in {display_path(path)}: {fragment}",
+                )
+
+    release_text = (ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")
+    if "模板版本事实来源：本文件" in release_text:
+        fail(errors, "docs/RELEASE.md still claims to be the Harness version fact source")
+
+
 def source_files_for_soft_review() -> list[Path]:
     """枚举本仓库人工维护的源码，用于非阻断行数和临时标记审查。"""
     suffixes = {".py", ".ps1", ".rs", ".sh"}
@@ -1204,6 +1328,7 @@ def main() -> int:
     validate_initialization_contract(errors)
     validate_engineering_contract(errors)
     validate_current_descriptions(errors)
+    validate_version_contract(errors)
     validate_soft_review_prompts(warnings)
     for warning in warnings:
         print(f"WARNING: {warning}", file=sys.stderr)

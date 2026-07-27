@@ -27,6 +27,7 @@
 | CLI 机器接口（仅选择 CLI 时） | `docs/CLI_CONTRACT.md` |
 | Rust shared core、adapter、MSRV 与依赖 | `docs/RUST_CLI_TEMPLATE.md` |
 | 当前进度与下一步 | `docs/project_status/README.md` 与日期最新的 `YYYYMMDD_product_status.md` |
+| Harness 当前版本与发布状态 | `Version.md` |
 | Agent 能力开关 | `docs/AGENT_POLICY.md` |
 | 当前实施步骤 | `docs/work_plan/README.md` 与日期最新的 `YYYYMMDD_work_plan.md` |
 | 文件、注释、文档、测试与例外规则 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) |
@@ -63,6 +64,8 @@
 - 选择 CLI 时必须支持完全非交互运行和 `--json`，并遵守 `docs/CLI_CONTRACT.md`；未选择 CLI 的项目不适用该契约。
 - `$instantiate-project` 或 `$initialize-rust-project` 必须询问是否关闭 superpowers，并将最终值写入 `docs/AGENT_POLICY.md`。值为 `disabled` 时，后续 Agent 不得调用或遵循任何 `superpowers:*` Skill。
 - 下游中性 scaffold 验证完成后必须删除 `$instantiate-project`、`$initialize-rust-project`、模板专用 validator/方法论文档及活动初始化入口；生成后的下游是终端项目根，不得继续派生项目。`$check-development-environment` 必须保留。
+- Harness 与下游采用非开源的企业专有商业许可。`$instantiate-project` 必须先逐字节复制根目录 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`，再通过 `$rename-project-identity` 仅把两种语言的适用项目名改为目标项目；其余法律条款不得改变，初始化裁剪不得删除、弱化或替换。
+- 派生下游时必须调用 `$rename-project-identity` 全量处理项目展示名、ASCII `snake_case` 标识、kebab-case 前缀、项目自有配置、维护路径、文档、Skills 和 Licenses；先预览、后显式应用，并对旧身份残留、路径碰撞和符号链接执行阻断检查。该 Skill 在下游保留，现有产品后续改名仍须先通过产品范围与计划闸门。
 - 若选择 GUI，首次真实 GUI 开发前必须调用 `$prepare-gui-app-identity`，由用户确认窗口名称等应用资料并选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
 - GUI 的本地构建、测试、产物存在与启动冒烟不得强制要求签名身份、证书、notarization 或 updater key；无签名结果必须明确标记。用户选择的实际分发渠道若要求签名，仍作为独立发布阻断门禁。
 - 初始化必须把 `/release/` 写入项目根 `.gitignore`。`$collect-release-artifacts` 每次收集前必须只清理 canonical 项目根下非符号链接的精确 `release/` 内容，再仅复制属于当前项目、当前版本、当前源码 commit 与明确 build run 的最新已完成结果；不得混入其他项目、旧版本、旧 run、未完成或来源不明文件。
@@ -88,6 +91,7 @@
 本节与后续“约束地图”是 `AGENTS.md` 的永久结构。模板实例化和下游裁剪只能删除不再适用的条目，不得删除整个章节，也不得保留指向已删除 Skill 的条目。
 
 - 从本 Harness 建立新的完整下游仓库、重置模板身份与历史：使用 `$instantiate-project`。
+- 派生时全量重置项目身份，或对现有项目执行已批准的产品改名：使用 `$rename-project-identity`。
 - 新项目、需求模糊、范围变化：使用 `$define-product`。
 - 已确认需求，需要拆解实现：使用 `$plan-change`。
 - 已有批准计划，需要实施代码、测试和项目记忆变更：使用 `$implement-change`。
@@ -123,6 +127,8 @@
 | 已确认需求与不可逆取舍 | `docs/adr/README.md` 与最新日期 ADR |
 | 开发环境 | `$check-development-environment` |
 | 下游派生边界 | Harness 可调用 `$instantiate-project` 一次；完成初始化的下游必须删除实例化/初始化能力并禁止继续派生 |
+| 项目身份与前缀 | `$rename-project-identity`；覆盖项目自有配置、路径、文档、Skills 与两份许可证的项目名 |
+| 商业许可与知识产权 | 根目录 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`；下游只替换适用项目名并保留其余条款 |
 
 模板自身发生文档、Skill 或候选 workflow 变更时，运行 `python3 scripts/validate_harness.py`。该命令成功不替代 Rust asset 验证、真实下游验收或人工最终复核。
 
@@ -137,4 +143,4 @@
 
 ## 当前限制
 
-本模板的产品规格已于 2026-07-21 获得人工批准，并于 2026-07-22 确认下游必须拥有独立 Git 根、可以先建立中性 Rust shared core 与所选接口，再定义产品目的与核心输入输出；接口可从 CLI/TUI/MCP/GUI/WEB 独立选择，无选择时默认 CLI。模板根目录没有具体产品、版本 manifest 或发布物；bundled core+CLI 资产仅验证默认 CLI 路径，不构成对所有下游的 CLI 强制。中性脚手架证据不等同于下游产品交付证据。
+本模板的产品规格已于 2026-07-21 获得人工批准，并于 2026-07-22 确认下游必须拥有独立 Git 根、可以先建立中性 Rust shared core 与所选接口，再定义产品目的与核心输入输出；接口可从 CLI/TUI/MCP/GUI/WEB 独立选择，无选择时默认 CLI。模板根目录没有具体产品或发布物；`Version.md` 仅记录 Harness 模板自身版本，不替代下游 Rust 的 Cargo 版本事实。bundled core+CLI 资产仅验证默认 CLI 路径，不构成对所有下游的 CLI 强制。中性脚手架证据不等同于下游产品交付证据。

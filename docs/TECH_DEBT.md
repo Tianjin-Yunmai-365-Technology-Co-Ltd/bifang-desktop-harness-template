@@ -5,7 +5,7 @@
 | ID | 项目 | 影响 | 处理条件 | 状态 |
 |---|---|---|---|---|
 | LIM-001 | 产品规格曾处于 Draft | 在批准前不能视为稳定模板契约 | 已于 2026-07-21 获得项目负责人批准 | Closed |
-| LIM-002 | 尚无版本事实来源 | 无法进行版本一致性检查 | 模板已指定 `docs/RELEASE.md`，下游 Rust 项目已指定 `Cargo.toml` | Closed |
+| LIM-002 | 尚无版本事实来源 | 无法进行版本一致性检查 | Harness 模板已指定根 `Version.md`，下游 Rust 项目已指定根 `Cargo.toml`；`docs/RELEASE.md` 只保存规则 | Closed |
 | LIM-003 | 模板曾无自动文档校验命令 | 已新增 `python3 scripts/validate_harness.py` 检查必需文件、Skills、链接和 workflow 关键门禁 | 后续随新规则同步维护检查项 | Closed |
 | LIM-004 | 反馈入口尚未确定 | 用户无法通过持久渠道反馈 | 项目负责人指定真实入口 | Open |
 | LIM-005 | P0：实例化仍缺少确定性复制/重置实现 | `$instantiate-project` 已规定路径、身份、历史与独立 Git 边界，但完整复制和重置仍依赖 Agent 逐步执行，可能在真实下游遗漏字段 | 建立跨平台确定性实例化实现，并在 Harness 内/外目标、父 Git、碰撞、符号链接和失败回滚场景前向验证 | Mitigated |
@@ -23,6 +23,7 @@
 | LIM-017 | P1：缺少统一依赖维护与供应链复核 Skill | Rust 与 React 技术族已有准入规则，但版本检查、锁文件升级、许可证/漏洞/废弃依赖和回滚证据仍分散 | 在真实 Cargo+npm 维护任务中固化 `$maintain-dependencies` 的输入、检查、变更和验证契约 | Open |
 | LIM-018 | P2：跨接口安全验收入口尚未统一 | MCP、WEB、GUI 各自约束权限、CSP、网络和状态边界，但缺少一次性交付前威胁面复核和证据矩阵 | 出现首个含外部输入、网络或平台权限的真实产品时，评估新增 `$review-security` 或扩展 `$verify-delivery` | Open |
 | LIM-019 | 一次性下游裁剪与 GUI identity 流程尚无真实前向证据 | 规则和 validator 可检查模板契约，但尚未证明真实下游能在自删除后保留正确地图，也未证明三种图标路径与 Tauri 平台资产都可用 | 在首个真实下游分别验证 CLI-only 与 GUI 初始化裁剪；GUI 路径验证自动生成、Plan B、上传标准化中的实际选择和最终平台图标 | Open |
+| LIM-020 | bundled CLI 测试不符合精确 Rust 1.90 rustfmt | 2026-07-27 验收发现 `example_tool_cli/tests/cli.rs` 的 5 处链式调用换行导致 `cargo fmt --check` 返回 1；check、Clippy、7 个测试、release build 和真实冒烟均通过，但 Harness 完整格式门槛失败 | 在独立维护变更中按 Rust 1.90 rustfmt 更新该文件，重跑完整 asset 与 Harness 验证，并确认不覆盖用户工作 | Open |
 
 ## 记录规则
 

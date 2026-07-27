@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rename Project Identity"
+  short_description: "Rename product identity across the whole project"
+  default_prompt: "Use $rename-project-identity to safely rename this project across configuration, Skills, documentation, and licenses."

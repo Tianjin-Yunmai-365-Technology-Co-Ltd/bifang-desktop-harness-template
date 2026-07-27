@@ -7,13 +7,13 @@
 - 维护状态：Active
 - 产品名称：Agent-first Harness 项目模板
 - 产品规格：Approved（2026-07-21）
-- 当前版本：0.1.0（未发布）
+- 当前版本：1.0.0（未发布；事实来源见 [`Version.md`](Version.md)）
 - 源码：尚未创建
 - 反馈入口：待确定
 
 ## 开始一个项目
 
-1. 使用 `$instantiate-project`，提供项目名称、ASCII `snake_case` 标识、完整目标目录、负责人和目标平台，在该位置建立下游项目、初始化以项目根为 top-level 的独立 Git 仓库，并排除 Harness 的 ADR、Changelog、Product Spec 与 Work Plan；这些项目记忆在后续真实开发首次需要时创建。
+1. 使用 `$instantiate-project`，提供项目名称、ASCII `snake_case` 标识、完整目标目录、负责人和目标平台；流程调用 `$rename-project-identity` 全量重写项目自有配置、Skills、文档、路径和两份 License 的适用项目名，再建立以项目根为 top-level 的独立 Git 仓库，并排除 Harness 的 ADR、Changelog、Product Spec 与 Work Plan。
 2. 进入目标目录并使用 `$initialize-rust-project`，选择需要的 CLI/TUI/MCP/GUI/WEB 接口并决定是否关闭 superpowers；无接口选择时默认 CLI。初始化创建 shared core 与所选接口的中性 scaffold status，验证后删除下游中的实例化/初始化 Skills、模板专用文档和门禁入口，创建一个本地初始化基线 commit，并验证独立 Git 无 remote、工作树干净。
 3. 在已初始化的项目中先由 `$check-development-environment` 确认当前宿主工具链：始终检查 Rust，只有 GUI/WEB 项目额外检查 Node.js 与 pnpm。随后使用 `$define-product` 明确唯一目标、核心输入输出、范围、成功标准和最高风险失败路径。
 4. 使用 `$plan-change` 建立可验证的执行计划，再使用 `$implement-change` 以真实业务命令替换中性 `scaffold status`，同步项目状态、ADR、验证与 Changelog。
@@ -24,6 +24,8 @@
 | 文件 | 作用 |
 |---|---|
 | `AGENTS.md` | 编码代理的首要项目指引 |
+| `Version.md` | Harness 模板当前版本、初始版本与发布状态的唯一事实来源 |
+| `LICENSE.zh-CN.md` / `LICENSE.en.md` | 非开源的企业专有商业许可；覆盖项目、知识产权和终端下游限制 |
 | `docs/product_spec/README.md` | Product Spec 按日完整快照规则与索引；当前规格取日期最新文件 |
 | `docs/AGENT_POLICY.md` | superpowers 等 Agent 能力开关 |
 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | 文件拆分、中文注释、文档、测试和例外规则 |
@@ -42,6 +44,7 @@
 
 - `$define-product`：把真实需求整理为有边界的 MVP 规格。
 - `$instantiate-project`：从 Harness 建立干净下游仓库、初始化独立 Git 根并重置模板历史。
+- `$rename-project-identity`：预览并统一修改项目展示名、标识前缀、配置、维护路径、Skills 与两份 License 的适用项目名。
 - `$plan-change`：为已确认范围的变更建立执行计划。
 - `$implement-change`：按已批准计划实施最小代码、测试和项目记忆变更。
 - `$initialize-rust-project`：确保独立 Git 根，询问接口组合与 superpowers 策略，创建中性 scaffold，调用独立开发环境门禁并在验证后裁剪下游初始化能力。
@@ -75,6 +78,7 @@
 - 下游依赖在 MSRV、目标平台、最小 feature 与验证约束内优先采用较新稳定版本，并以锁文件保证可复现；版本新不替代兼容与回归验证。
 - 下游开发环境把 Rust 作为始终阻断的门禁，Windows 同时检查 MSVC Build Tools；仅 GUI/WEB 把 Node.js 与 pnpm 加入阻断门禁。缺失项从约定官方来源自动安装并复验。
 - scaffold 验证结束后，下游删除实例化/初始化能力及模板专用入口，不能继续派生；`AGENTS.md` 永久保留非空 Skills 地图与约束地图。
+- 模板及其收费下游采用企业专有商业许可而非开源协议；实例化先原样复制中英文两份许可证，再仅把适用项目名改为目标项目，其他法律条款保持不变并永久保留。
 - 项目实例化必须询问完整目标项目目录路径；路径解析后 basename 必须与项目标识一致，目标可以位于 Harness 内或外，但必须不存在或为空，并通过覆盖、递归复制与符号链接安全检查。
 - 每个下游项目必须初始化独立 Git 仓库并使用 `main` 初始分支；即使位于父仓库内，Git top-level 也必须是下游项目根。实例化不复制源历史；初始化收尾只创建一个本地基线 commit，随后验证无 remote 且 porcelain 状态为空，不自动 push 或 tag。
 - 实例化完整排除 Harness 的 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`，不复制索引、日期正文或空占位；对应项目记忆由下游开发流程首次真实使用时创建。

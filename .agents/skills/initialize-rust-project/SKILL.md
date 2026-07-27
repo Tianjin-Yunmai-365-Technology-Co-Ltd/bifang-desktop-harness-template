@@ -23,7 +23,8 @@ Create a reusable shared core and only the interfaces the user selects. CLI is o
 12. Finalize the downstream repository only after all scaffold checks finish:
     - remove `.agents/skills/instantiate-project/` completely and remove `.agents/skills/initialize-rust-project/` completely;
     - remove template-only `scripts/validate_harness.py`, `docs/HARNESS_ENGINEERING.md`, initialization walkthroughs, initialization gate descriptions, Harness identity/history, and any route that could instantiate or initialize another project;
-    - retain `$check-development-environment`, `$prepare-gui-app-identity`, product-development, adapter, verification and release Skills that remain applicable;
+    - retain `$rename-project-identity`, `$check-development-environment`, `$prepare-gui-app-identity`, product-development, adapter, verification and release Skills that remain applicable;
+    - retain both inherited proprietary commercial license files `LICENSE.zh-CN.md` and `LICENSE.en.md` with the target project name established by `$rename-project-identity`; fail finalization if either file is missing, contains the old Harness identity, is otherwise altered after the approved rename, or is scheduled for deletion;
     - rewrite `AGENTS.md` for the generated project while preserving nonempty `## Skills 地图` and `## 约束地图` sections. The Skills map must list every retained project Skill and first-development trigger. The constraint map must link every retained hard-rule source and explicitly prohibit downstream derivation;
     - search the downstream root and fail finalization if an active reference to `$instantiate-project`, `$initialize-rust-project`, their directories, or initialization-only gates remains outside historical evidence.
 13. After pruning, when this run follows `$instantiate-project`, confirm `docs/adr/`, `docs/changelog/`, `docs/product_spec/`, and `docs/work_plan/` remain absent. On a directly initialized pre-existing downstream, preserve any project-owned memory already present and never delete it to satisfy this check. Stage the complete initialized downstream tree and create exactly one local baseline commit with message `chore: initialize project`, using the user's existing Git identity. If author identity is unavailable, stop and request it; do not fabricate an identity or change global Git configuration.
@@ -42,6 +43,7 @@ Create a reusable shared core and only the interfaces the user selects. CLI is o
 - `docs/AGENT_POLICY.md` is persistent project policy, not transient chat context.
 - Product Spec, Work Plan, ADR, and Changelog are downstream development memory, not initialization payload.
 - A finalized downstream project cannot instantiate or initialize another project from itself.
+- A finalized downstream project preserves both inherited proprietary commercial license files and remains subject to their terminal-downstream restriction.
 - `AGENTS.md` always retains nonempty Skills and constraint maps; pruning may remove map entries but never either map.
 - Initialization completes only with one real local baseline commit and an empty porcelain status in the independent repository.
 - The project-root `.gitignore` contains `/release/`, and release collection owns that ignored directory.

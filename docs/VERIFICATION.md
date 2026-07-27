@@ -12,13 +12,72 @@
 
 | 层级 | 方法 | 当前要求 |
 |---|---|---|
-| 文件与链接 | `python3 scripts/validate_harness.py` | 23 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
-| Skills | validator + 逐份语义审查 | 18 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
+| 文件与链接 | `python3 scripts/validate_harness.py` | 28 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
+| Skills | validator + 逐份语义审查 | 19 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
 | 当前描述 | validator 正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
 | 开发环境门禁 | Python 11 个隔离测试 + shell/PowerShell 静态或原生检查 | Rust-only 与 GUI/WEB 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计 |
 | Rust asset | 精确 Rust 1.90 | fmt、locked check、Clippy、7 个测试、locked release build、真实成功与失败冒烟 |
 | Workflow asset | validator + YAML 解析 + 禁止行为扫描 | 三平台候选结构完整，不自动发布或提升写权限 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
+
+## 2026-07-27 全部文档审计与 Harness 1.0.0 版本事实
+
+### 审计范围与修复
+
+- 当前宿主：macOS 26.5.2（Build 25F84），arm64；Git top-level 为当前 Harness 根，分支为 `master`，审计起点 commit 为 `f04d8de04bf184ec4ef5c7bc6d812d2e3645a441`，工作树包含项目负责人此前未提交的许可证、身份改名 Skill 与当日项目记忆变更，本次全部基于现状继续且未回退。
+- 使用包含隐藏目录的文件枚举审计 56 份 Markdown，覆盖根入口、双语许可证、全部当前/历史项目记忆、工程与发布规则，以及 `.agents/skills` 下全部 `SKILL.md` 和 reference 文档。
+- 修复当前版本冲突：新增根 `Version.md`，将 Harness 当前版本、初始版本与发布状态设为 `1.0.0`、`1.0.0`、`Unreleased`；`docs/RELEASE.md` 只保留版本/发布规则，README、AGENTS、当前 Product Spec、工程规则、方法论、技术债、`$prepare-release` 和 Changelog 均链接或摘要该唯一事实。
+- 修复下游继承冲突：`$instantiate-project` 明确读取但不复制 Harness 专用 `Version.md`，初始化后的 Rust 下游继续只使用根 `Cargo.toml`；validator 同时检查版本文件、当前摘要、发布 Skill 和实例化排除契约。
+- 当前规则残留扫描覆盖旧 CLI 强制、旧 Git 无提交/无嵌套仓库、旧命名格式、旧版本事实源和“无版本 manifest”描述，未发现仍有效文档残留。唯一旧 `no-auto-commit` 命中位于历史 ADR 对被替代规则的风险说明；三处本机绝对路径位于既有真实验证证据。两类均按历史事实不可改写规则保留。
+- 历史 Product Spec、ADR、Changelog 和验证中的 `0.1.0` 保留为当时 Harness 或 bundled Rust asset 的真实事实；`docs/RUST_CLI_TEMPLATE.md` 与 `$instantiate-project` 中的下游 `0.1.0` 也是独立 Cargo 基线，不被错误提升为 Harness `1.0.0`。
+
+### 自动检查证据
+
+- 使用 Skill Creator 自带 Python 环境逐项运行 `quick_validate.py .agents/skills/<skill>`：19 个项目 Skills 全部通过。
+- `python3 .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py`：4 个隔离测试全部通过。
+- `python3 .agents/skills/check-development-environment/scripts/test_development_environment_gates.py`：11 个隔离测试全部通过。
+- `python3 -m py_compile scripts/validate_harness.py .agents/skills/rename-project-identity/scripts/rename_project_identity.py .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py`：通过。
+- `python3 scripts/validate_harness.py`：通过；检查 28 个必需文件、19 个 Skills、全部本地 Markdown 链接、五类日期记忆和初始化/版本/工程/环境/workspace/workflow 门禁。唯一软提示为 validator 1350 行，超过 800 行拆分审查阈值；本次只增加同一确定性契约检查，未把脚本结构重构混入文档审计。
+- `git diff --check`：通过。
+- 版本门禁隔离负向测试：在两个不含 `.git` 的任务临时副本中分别移走 `Version.md`、把其中 `1.0.0` 机械替换为 `1.0.1`；validator 均返回 1，并分别报告缺失必需文件和精确版本契约缺失。临时副本未写入仓库。
+
+### Bundled Rust asset 与结论
+
+- 精确 Rust 1.90.0 的 `cargo fmt --all -- --check`：失败，仍为 `example_tool_cli/tests/cli.rs` 的 5 处既存链式调用换行差异，与 LIM-020 完全一致；本次未修改非文档资产或扩大范围。
+- 使用独立临时 `CARGO_TARGET_DIR` 在精确 Rust 1.90.0 运行 locked workspace check、Clippy `-D warnings`、测试枚举、7 个非空测试、locked release build 和真实二进制冒烟：全部通过。`--version` 返回 `example_tool_cli 0.1.0`；中性状态返回 `productDefinitionRequired=true`；未批准的 `run --json` 返回退出码 2 和 `INVALID_ARGUMENT`。
+- Agent 结论：`Partially verified`。56 份 Markdown 的链接和当前规则审计、19 个 Skill 结构、版本正负向门禁、开发环境与改名测试、除既存 rustfmt 外的 bundled asset 闭环均有通过证据；LIM-020、真实下游、Windows/Linux 和本次人工最终复核仍阻止 `Verified`。
+- 发布就绪：`Not ready`。`1.0.0` 仍为 `Unreleased`；本次没有创建 tag、发布物、签名或 Release，且 Harness 发布清单中的 rustfmt、当前人工最终复核、发布渠道/反馈入口和候选制品证据尚未全部满足。
+
+## 2026-07-27 企业专有商业许可、下游命名与全量改名
+
+### 实施与静态证据
+
+- 根目录新增 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`。两份文件均明确不是开源许可证，覆盖项目与知识产权、有限付费授权、终端下游与禁止继续衍生、源码保密、第三方材料、终止、责任和争议解决；冲突时中文优先，签署的商业文件只对明确冲突事项优先。
+- 审计结论：旧 `$instantiate-project` 只强制重写 README/保留项目记忆并搜索残留 Harness 身份；Skills、配置和路径缺少统一执行器，两份 License 更被要求保持与 Harness 完全相同，因此并非所有位置都强制使用目标项目名。
+- `$rename-project-identity` 现在以展示名、snake_case 标识、kebab-case 前缀和额外精确映射统一处理维护文本与路径，覆盖配置、文档、Skills 和 Licenses；默认预览，`--apply` 后复扫旧身份，并拒绝目标碰撞和符号链接。
+- `$instantiate-project` 要求先把两份许可证逐字节复制到下游根，再只替换双语适用项目名；`$initialize-rust-project` 要求裁剪后保留改名 Skill 和已命名为目标项目的两份文件，旧 Harness 身份、缺失、后续更改或计划删除均阻断。
+- AGENTS、README、Product Spec、Product Status、Work Plan、ADR、RELEASE、validator 和 Changelog 已同步全量身份与商业许可边界。
+
+### 自动检查证据
+
+- 当前宿主：macOS 26.5.2（Build 25F84），arm64。
+- `python3 -m py_compile scripts/validate_harness.py .agents/skills/rename-project-identity/scripts/rename_project_identity.py .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py`：通过。
+- 使用 Skill Creator 自带 Python 环境运行 `quick_validate.py .agents/skills/rename-project-identity`：通过。系统 `python3` 和工作区 bundled Python 均因缺少 PyYAML 首次无法执行该校验，随后在 Skill Creator 环境成功重跑；Skill 本身未发生结构失败。
+- 使用同一 Skill Creator Python 对 `.agents/skills/*` 逐项运行 `quick_validate.py`：19 个项目 Skills 全部通过。
+- `python3 .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py`：4 个测试全部通过，覆盖预览不写盘后全量应用、License/Skill/配置/路径同步改名与可执行位保留、目标路径碰撞不覆盖、符号链接写入前阻断，以及显式项目根改名。
+- `python3 scripts/validate_harness.py`：通过；检查 27 个必需文件、19 个 Skills、本地 Markdown 链接、五类日期记忆、初始化/身份改名/工程/环境/workspace/workflow 门禁和两份许可证关键条款。唯一软提示为 validator 1294 行，超过 800 行审查阈值。
+- bundled core+CLI 在精确 Rust 1.90.0 下的 locked check、Clippy `-D warnings`、测试枚举、7 个非空测试、locked tests、release build 和真实二进制成功/失败冒烟均通过；`--version` 返回 `example_tool_cli 0.1.0`，`scaffold status --json` 返回 `productDefinitionRequired=true`，未批准的 `run --json` 返回退出码 2 和结构化 `INVALID_ARGUMENT`。
+- `rustup run 1.90.0 cargo fmt --all -- --check`：失败。`example_tool_cli/tests/cli.rs` 有 5 处既存链式调用换行与 Rust 1.90 rustfmt 结果不一致；本次改名任务未修改该文件，因此未扩张范围修复，已登记 LIM-020。该失败使 Harness 整体验收不能标记为 `Verified`。
+- 缺失文件负向测试：在任务专用隔离副本把 `LICENSE.en.md` 移出原路径，validator 非零退出，并报告 `missing required file: LICENSE.en.md` 与 `missing initialization contract file: LICENSE.en.md`。
+- 关键条款负向测试：在另一个隔离副本移除英文标题 `Terminal Downstream Project; No Further Derivation`，validator 非零退出，并精确报告缺失条款。
+- 两个隔离副本验证后移入当前用户废纸篓，可恢复；未修改真实下游、remote、tag、发布物或第三方依赖。
+
+### 结论与未验证范围
+
+- Agent 结论：`Partially verified`。许可证文本、项目记忆、实例化/初始化/全量改名契约、Skill 隔离测试、结构校验、正向 validator、既有许可证隔离负向门禁及除格式外的 Rust asset 检查通过；精确 Rust 1.90 rustfmt 存量失败和真实下游证据缺失阻止 `Verified`。
+- 通用许可证尚未由许可方律师针对真实公司主体、客户和目标司法辖区复核，不能替代签署的商业合同或法律意见。
+- 真实 `$instantiate-project` 的复制后全量改名、未显式前缀映射、裁剪后保留、最终安装包携带，以及实际第三方依赖许可证/NOTICE 清单仍为 `Unverified`。
+- 本次不改变 bundled Rust asset、依赖或接口运行行为；为完整 Harness 复核仍重跑其门槛并如实记录上述格式失败，未把无关修复混入改名范围。
 
 ## 2026-07-23 Tokio 异步优先、GUI unsigned build 与根 release 刷新
 
@@ -56,7 +115,7 @@
 
 ### 自动检查证据
 
-- `/Users/manonloki/.codex/venvs/skill-creator/bin/python .../quick_validate.py`：`instantiate-project`、`initialize-rust-project`、`define-product`、`plan-change`、`implement-change` 五个受影响 Skill 均通过。
+- 使用 Skill Creator 自带 Python 环境运行 `quick_validate.py`：`instantiate-project`、`initialize-rust-project`、`define-product`、`plan-change`、`implement-change` 五个受影响 Skill 均通过。
 - `python3 -m py_compile scripts/validate_harness.py`：通过。
 - `python3 scripts/validate_harness.py`：通过；检查 23 个必需固定入口、18 个 Skills、本地 Markdown 链接、五类 Harness 日期记忆、初始化 clean Git/记忆排除契约、工程规则、环境门禁、workspace 继承和候选 workflow。唯一软提示为 validator 1143 行，超过 800 行审查阈值。
 - 隔离 Git 判定：在任务专用临时父 Git 仓库内创建独立子项目，复制一个受控文件，初始化 `main`，使用当前已有 Git 身份创建一个基线 commit；断言子项目 top-level 精确独立、分支为 `main`、commit 数为 1、remote 数为 0、porcelain 状态为空，且四类记忆目录均不存在。命令成功退出，测试目录随后移入系统废纸篓，可恢复。
@@ -195,7 +254,7 @@
 
 - 当前 stable 1.97.1：`cargo fmt --all -- --check`、Clippy `-D warnings`、locked tests、测试枚举和 locked release build 均通过。共发现并执行 7 个测试：CLI 黑盒 6 个、core 1 个。
 - 首次 release 冒烟错误使用相对 `./target/release/example_tool_cli`，因本机 Cargo 配置把 target 目录设为共享路径而返回 127；构建本身已成功，资产未失败。随后按 Cargo metadata 解析真实 target directory 重跑。
-- 当前 stable 真实产物 `/Users/manonloki/cargo-target/release/example_tool_cli`：`--version` 返回 `0.1.0`；`scaffold status --json` 返回成功信封和 `productDefinitionRequired=true`；未批准的 `execute --json` 返回退出码 2、stdout 为空、stderr 非空。
+- 当前 stable 真实产物（路径由 Cargo metadata 解析）：`--version` 返回 `0.1.0`；`scaffold status --json` 返回成功信封和 `productDefinitionRequired=true`；未批准的 `execute --json` 返回退出码 2、stdout 为空、stderr 非空。
 - `cargo update --workspace --dry-run`：报告锁定 0 个更新，当前 registry 解析下没有遗漏 Rust 1.85 兼容更新；未修改锁文件。
 - 精确 Rust 1.85.0：locked check、Clippy `-D warnings`、7 个测试、locked release build 和相同成功/失败真实产物冒烟全部通过。macOS arm64 的声明 MSRV 证据因此为 `Passed`。
 
