@@ -165,6 +165,22 @@ class ValidateHarnessWorkflowTests(unittest.TestCase):
             errors,
         )
 
+    def test_rejects_removed_heavy_check_failure_branch(self) -> None:
+        """固定验收脚本返回非零时必须保留显式失败分支并阻断打包。"""
+        mutated = self._base_workflow().replace(
+            '          if result.returncode:\n              print("heavy-check stdout:")\n',
+            '          if False:\n              print("heavy-check stdout:")\n',
+            1,
+        )
+        errors = self._validate(mutated)
+        self.assertTrue(
+            any(
+                "heavy-check failure gate missing: if result.returncode:" in error
+                for error in errors
+            ),
+            errors,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

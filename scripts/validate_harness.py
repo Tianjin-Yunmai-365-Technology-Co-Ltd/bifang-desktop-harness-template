@@ -509,6 +509,18 @@ def validate_workflow(errors: list[str]) -> None:
     elif not any("if: success()" in line for line in upload_block):
         fail(errors, "workflow upload step should be guarded by success()")
 
+    heavy_block = "\n".join(_step_block("Optional heavy checks"))
+    heavy_failure_patterns = (
+        'if [ ! -f "${HEAVY_CHECK_PATH}" ]; then',
+        "except subprocess.TimeoutExpired:",
+        'raise SystemExit("Heavy acceptance checks timed out")',
+        "if result.returncode:",
+        "Heavy acceptance checks failed",
+    )
+    for pattern in heavy_failure_patterns:
+        if pattern not in heavy_block:
+            fail(errors, f"workflow heavy-check failure gate missing: {pattern}")
+
     decision_guard_patterns = (
         'if [[ "${{ inputs.run_e2e }}" != "true" ]]; then',
         'status="${{ steps.heavy-checks.outputs.status }}"',
