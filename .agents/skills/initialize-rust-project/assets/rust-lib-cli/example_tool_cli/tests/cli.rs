@@ -43,10 +43,7 @@ fn reports_neutral_scaffold_status_as_json() {
 /// 验证未获批准的业务命令不会被中性脚手架误当作可执行产品能力。
 #[test]
 fn rejects_unapproved_business_commands() {
-    let output = cmd()
-        .args(["run", "--json"])
-        .output()
-        .unwrap();
+    let output = cmd().args(["run", "--json"]).output().unwrap();
 
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stderr.is_empty());
@@ -60,10 +57,7 @@ fn rejects_unapproved_business_commands() {
 /// 验证缺少 `status` 子命令时，显式 JSON 请求仍得到机器信封而不是 clap 文本。
 #[test]
 fn reports_missing_status_subcommand_as_json() {
-    let output = cmd()
-        .args(["scaffold", "--json"])
-        .output()
-        .unwrap();
+    let output = cmd().args(["scaffold", "--json"]).output().unwrap();
 
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stderr.is_empty());
@@ -77,10 +71,7 @@ fn reports_missing_status_subcommand_as_json() {
 /// 验证真实二进制从 workspace 版本事实来源暴露预期版本。
 #[test]
 fn reports_the_workspace_version() {
-    let output = cmd()
-        .arg("--version")
-        .output()
-        .unwrap();
+    let output = cmd().arg("--version").output().unwrap();
 
     assert!(output.status.success());
     assert_eq!(
@@ -92,10 +83,7 @@ fn reports_the_workspace_version() {
 /// 验证人类模式只输出中性生命周期提示，不伪装成业务结果。
 #[test]
 fn reports_human_scaffold_status() {
-    let output = cmd()
-        .args(["scaffold", "status"])
-        .output()
-        .unwrap();
+    let output = cmd().args(["scaffold", "status"]).output().unwrap();
 
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
@@ -108,10 +96,7 @@ fn reports_human_scaffold_status() {
 /// 验证真实二进制提供只读帮助入口，并保持成功状态与干净 stderr。
 #[test]
 fn exposes_a_read_only_help_entrypoint() {
-    let output = cmd()
-        .arg("--help")
-        .output()
-        .unwrap();
+    let output = cmd().arg("--help").output().unwrap();
 
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
