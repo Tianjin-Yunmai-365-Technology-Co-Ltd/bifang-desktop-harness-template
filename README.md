@@ -18,7 +18,7 @@
 3. 在已初始化的项目中先由 `$check-development-environment` 确认当前宿主工具链：始终检查 Rust，只有 GUI/WEB 项目额外检查 Node.js 与 pnpm。随后使用 `$define-product` 明确唯一目标、核心输入输出、范围、成功标准和最高风险失败路径。
 4. 每个会修改仓库或执行交付工作的任务开始前，由 Agent 询问是否启用并行 Worktree + Subagent；用户同意且任务可安全拆分时使用 `$run-parallel-worktrees`，否则保持单 Agent。
 5. 使用 `$plan-change` 建立可验证的执行计划，再使用 `$implement-change` 以真实业务命令替换中性 `scaffold status`。开发轮次运行非空单元测试和变更相关验证。
-6. 用户准备发布或要求交付验收时使用 `$verify-delivery`，重新运行最终产物、启动冒烟、适用 E2E 和人工复核所需的完整门禁。
+6. 用户发起最终产物构建或发布准备时使用 `$verify-delivery`：在首次发布构建前逐项询问本次是否启用 Computer Use E2E 等手动验收；基础编译、非空单元测试、相关集成/契约、产物存在性和只读启动冒烟始终不可跳过。已启用或产品/渠道要求的手动验收在产物构建后、打包或发布动作前执行，失败即阻断后续打包。
 
 ## 项目入口
 
@@ -53,7 +53,7 @@
 - `$check-development-environment`：下游首次开发前检查并自动补齐 Rust；GUI/WEB 额外检查并补齐 Node.js 与 pnpm。该 Skill 在初始化裁剪后仍保留。
 - `$prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，并让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
 - `$build-rust-release`：构建、定位并冒烟验证当前平台 Rust CLI 发布产物。
-- `$verify-delivery`：在用户要求交付验收或准备发布时执行完整门槛并记录完成证据。
+- `$verify-delivery`：复核交付证据，并在用户发起构建或发布准备时执行不可跳过的基础门禁；不会自行启用重型手动验收。
 - `$prepare-cross-platform-release`：准备 Windows、macOS、Linux 原生 Rust CLI 候选构建矩阵。
 - `$collect-release-artifacts`：提取并核验归档、SHA-256、manifest 和平台证据。
 - `$prepare-release`：检查版本一致性并准备可追溯发布。
@@ -62,7 +62,7 @@
 - `$add-cli-adapter`：增加独立、非交互且 Agent-ready 的 CLI adapter。
 - `$add-tui-adapter`：增加独立的键盘驱动终端 UI adapter。
 - `$add-web-adapter`：增加独立的本地优先 WEB adapter。
-- `$test-final-artifact-e2e`：通过 Computer Use 对真实最终产物执行可观察 E2E 验收。
+- `$test-final-artifact-e2e`：仅在本次构建/发布任务由用户启用，或产品/渠道明确要求时，通过 Computer Use 对真实最终产物执行可观察 E2E 验收。
 
 模板维护者可运行 `python3 scripts/validate_harness.py`，自动检查必需文件、Skill 结构和声明、本地 Markdown 链接，以及候选 workflow 的关键安全与交付门禁。
 
@@ -94,8 +94,9 @@
 - 跨平台自动化默认只生成候选产物和证据；正式发布仍需独立授权。
 - 目标平台为 Windows、macOS 和 Linux。
 - 选择 CLI 时必须遵守统一 JSON 信封、错误结构、输出流和基础退出码契约。
-- 每轮开发运行非空单元测试和变更相关的格式、lint、静态、集成、契约或最小只读冒烟检查；最终产物、完整冒烟、E2E、跨平台候选和人工复核延迟到发布或交付验收阶段。
-- 最低发布/交付门槛仍是在当前系统完成编译、非空单元测试、最终产物存在检查和产物启动冒烟测试。
+- 每轮开发运行非空单元测试和变更相关的格式、lint、静态、集成、契约或最小只读冒烟检查；最终产物、完整冒烟、跨平台候选和人工复核延迟到构建或发布准备阶段。
+- Computer Use E2E 及同类重型、交互式或真实环境验收只在用户发起构建/发布任务时，于首次发布构建前逐项询问；选择仅对当前任务有效。未启用且没有产品/渠道硬要求时记录 `Not run` 与风险后可继续，已启用后失败、超时、取消或未执行都阻断打包。
+- 最低发布/交付门槛仍是在当前系统完成编译、非空单元测试、相关集成/契约验证、最终产物存在检查和产物启动冒烟测试；这些基础门禁不能由用户选择跳过。
 - 单元测试必须覆盖核心成功路径和最高风险失败路径。
 - 其他目标平台未实际验证时必须标记为 `Unverified`。
 - 模板约束允许有审计记录的例外，记录必须包含理由、风险和恢复标准。

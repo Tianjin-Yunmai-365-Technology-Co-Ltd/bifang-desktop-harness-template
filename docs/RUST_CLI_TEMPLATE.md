@@ -230,7 +230,8 @@ cargo build --workspace --release --locked
 
 - 普通实现轮次运行非空单元测试与变更相关的格式、Clippy、check、集成/契约或最小只读冒烟；不得把该证据写成发布就绪。
 - `$build-rust-release` 当前负责 Rust CLI 在当前平台的 locked release 构建、产物定位和冒烟证据；TUI/MCP/GUI/WEB 使用各自 adapter Skill 的构建与产物门槛。
-- 用户要求交付验收或准备发布时，`$verify-delivery` 负责重新执行发布前完整门槛；零测试或缺少关键路径覆盖均失败。
+- 用户发起最终产物构建或发布准备时，`$verify-delivery` 在首次 release build 前逐项询问本次手动验收选择，再重新执行不可跳过的编译、非空单元测试、相关集成/契约、最终产物存在性和真实产物只读启动冒烟门禁；普通交付状态复核不自动触发构建或 E2E。
+- 用户当次启用或产品/渠道要求的 `$test-final-artifact-e2e` 在 release 产物构建后、任何打包/收集/签名/上传/发布前执行；失败、超时、取消或选择后未执行均阻断后续动作。未启用且非硬要求时记录 `Not run` 与风险。
 - `$prepare-cross-platform-release` 当前负责 Rust CLI 的 Windows/macOS/Linux 原生候选矩阵；其他接口的统一跨平台打包仍是已公开限制，默认不正式发布。
 - `$collect-release-artifacts` 负责提取并核验平台归档、相邻 SHA-256、manifest 和验证证据。
 - `$collect-release-artifacts` 每次先安全清理精确的项目根 `release/` 历史内容，再只复制当前项目、版本、源码 commit 与明确 build run 对应的最新已完成结果；初始化确保 `/release/` 已写入根 `.gitignore`。
@@ -239,7 +240,7 @@ cargo build --workspace --release --locked
 - `$add-gui-adapter` 只在下游用户明确批准后增加依赖 core 的 Tauri 2 桌面 adapter；Skill 不自带实现 asset。
 - `$add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；`$add-web-adapter` 和 Tauri GUI 前端固定采用 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。Skills 不自带实现 asset，实际版本在调用时核验并锁定。
 - `$add-cli-adapter`、`$add-tui-adapter` 与 `$add-web-adapter` 分别拥有对应接口边界。
-- `$test-final-artifact-e2e` 通过 Computer Use 验收真实最终产物，不替代构建和单元测试。
+- `$test-final-artifact-e2e` 通过 Computer Use 验收真实最终产物，不替代构建和单元测试，也不得脱离本次构建/发布任务的用户选择或产品/渠道硬要求自动运行。
 
 候选归档命名为 `<product>-v<version>-<platform>-<arch>.<ext>`。每个归档必须有 `<archive>.sha256` 和 manifest；manifest 至少包含 version、source commit、平台、架构/target、归档名、SHA-256、测试和冒烟结果。
 
