@@ -129,6 +129,24 @@ class ParallelWorktreesTests(unittest.TestCase):
             [str(worktree / "src" / "new_file.rs")],
         )
 
+    def test_guard_rejects_missing_write_target(self) -> None:
+        """验证未声明任何写入目标时拒绝通过，避免上下文检查被误当作写入授权。"""
+        created, payload = self.helper("create", "--task", "feature", "--unit", "guarded")
+        self.assertEqual(created.returncode, 0, created.stderr)
+        worktree = Path(str(payload["worktreePath"]))
+
+        unscoped, unscoped_payload = self.helper(
+            "guard",
+            "--task",
+            "feature",
+            "--unit",
+            "guarded",
+            cwd=worktree,
+        )
+
+        self.assertEqual(unscoped.returncode, 4)
+        self.assertEqual(unscoped_payload["error"]["code"], "write_target_required")
+
     def test_guard_rejects_wrong_cwd_and_detached_branch(self) -> None:
         """验证从主工作树调用或单元处于 detached HEAD 时均机械阻断。"""
         created, payload = self.helper("create", "--task", "feature", "--unit", "guarded")
@@ -141,6 +159,8 @@ class ParallelWorktreesTests(unittest.TestCase):
             "feature",
             "--unit",
             "guarded",
+            "--write-target",
+            "owned.txt",
         )
         self.assertEqual(wrong_cwd.returncode, 4)
         self.assertEqual(wrong_cwd_payload["error"]["code"], "unit_cwd_mismatch")
@@ -152,6 +172,8 @@ class ParallelWorktreesTests(unittest.TestCase):
             "feature",
             "--unit",
             "guarded",
+            "--write-target",
+            "owned.txt",
             cwd=worktree,
         )
         self.assertEqual(wrong_branch.returncode, 4)
@@ -176,6 +198,8 @@ class ParallelWorktreesTests(unittest.TestCase):
             "feature",
             "--unit",
             "guarded",
+            "--write-target",
+            "owned.txt",
             cwd=worktree,
         )
 
