@@ -193,6 +193,12 @@ def find_exact_worktree(identity: UnitIdentity) -> dict[str, str | bool]:
 
 def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str, object]:
     """核验单元实际目录、登记、Git 根、分支与声明写入目标均处于所有权边界。"""
+    if not raw_write_targets:
+        raise WorkflowError(
+            "write_target_required",
+            "unit guard requires at least one --write-target",
+            4,
+        )
     actual_cwd = require_exact_cwd(
         identity.worktree_path,
         "unit_cwd_mismatch",
