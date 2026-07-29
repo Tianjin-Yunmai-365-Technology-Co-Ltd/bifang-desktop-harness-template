@@ -50,8 +50,9 @@
 - LIM-022：`Closed`。单一入口从 1622 行降至 68 行，最大领域模块 682 行，入口/正负向测试和完整 validator 通过。
 - LIM-021：`Mitigated`。helper 范围内的 cwd、Git、分支和目标越界已机械阻断；绕过 helper 的 Codex 宿主写入仍不能由仓库脚本禁止，不能标为 `Closed`。
 - LIM-004、LIM-005、LIM-007 至 LIM-019 仍受反馈入口、真实下游、Windows/Linux、GitHub runner、非 CLI 产物、渠道/合同或采用数据等原处理条件阻断，本地文档或单元测试不能替代。
-- Agent 结论：`Partially verified`。本地可执行的代码、格式、静态、单元、Skill 与 Harness 契约检查通过，但当前人工最终复核尚未签署，外部平台/真实下游债项和发布级检查仍缺证据。
-- Release build、最终产物存在性/启动冒烟、Computer Use E2E、真实 GitHub Windows/macOS/Linux 候选、非 CLI 下游、打包、签名、上传、tag、发布和本次人工最终复核均为 `Not run` 或 `Unverified`；`1.0.0` 继续为 `Unreleased`。
+- 本次技术债收口交付结论：`Verified`。本地可执行的代码、格式、静态、单元、Skill 与 Harness 契约检查通过，且项目负责人已在本文件 2026-07-29 人工复核记录中明确批准当前范围。
+- Harness 整体结论：`Partially verified`。人工批准不替代仍开放技术债所需的外部平台、真实下游或发布级技术证据。
+- Release build、最终产物存在性/启动冒烟、Computer Use E2E、真实 GitHub Windows/macOS/Linux 候选、非 CLI 下游、打包、签名、上传、tag 和发布仍为 `Not run` 或 `Unverified`；`1.0.0` 继续为 `Unreleased`。
 
 ## 2026-07-29 发布构建前手动验收门禁（整合实现）
 
@@ -407,6 +408,17 @@
 - Agent 结论：`Partially verified`。当前 macOS 证据已在仓库内完整记录，其他设备由项目负责人报告通过且人工验收完成；若需要把总体结论提升为可独立审计的 `Verified`，仍需归档外部设备的环境与逐项结果。
 
 ## 人工复核
+
+### 2026-07-29 当前技术债收口最终复核
+
+- 复核人：项目负责人（当前用户，本次人工确认）
+- 日期：2026-07-29
+- 人工确认：项目负责人明确声明“我授权 人工复合完毕 全部通过并提交”，据此记录其已完成本次范围的人工复核并批准提交。
+- 复核基线：`master` 提交 `30425b952bad114d52caa94026cbbd02ece7566b`，以及本文件“2026-07-29 当前技术债收口与证据复核”所列命令、结果、失败重跑和清理证据。
+- 范围：LIM-020 Rust 1.90 格式修复、LIM-022 validator 领域拆分、LIM-021 helper 层机械缓解、相关测试与文档同步、本次 Worktree/临时分支清理，以及仍开放或缓解技术债和未运行发布检查的准确披露。
+- 结论：`Approved`；本次技术债收口交付在上述范围内为 `Verified`。
+- 已知并接受的剩余风险：LIM-021 仍为 `Mitigated`；LIM-004、LIM-005、LIM-007 至 LIM-019 保持原状态；Windows/Linux、真实 GitHub runner、非 CLI 下游和宿主级写入隔离仍缺可独立审计证据；上一发布门禁任务的三个 Worktree 仍受保守祖先门禁阻断；`initialization.py` 的 682 行职责审查提示继续保留。
+- 审批边界：本次人工批准不把未执行检查改写为通过，不改变 `1.0.0` 的 `Unreleased` 状态，也不授权 release build、Computer Use E2E、打包、签名、上传、tag、发布、强制 Worktree 删除或其他新的外部副作用。
 
 ### 2026-07-23 项目负责人最终复核
 

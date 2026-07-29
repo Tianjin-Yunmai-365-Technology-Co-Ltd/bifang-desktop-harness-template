@@ -30,4 +30,5 @@
 - Worktree 助手 4 个隔离单元测试、20 个 Skills 的 Skill Creator 校验、Python 编译检查、Harness validator 正向检查和两项隔离负向契约检查已通过。
 - 候选 workflow 门禁 10 个测试、开发环境 11 个测试、身份改名 4 个测试和 Worktree 助手 4 个测试全部通过；20 个项目 Skills 全量校验、Python 编译、YAML 解析、31 个必需文件的 Harness validator 与 `git diff --check` 均通过。
 - 本次技术债收口中，validator 11 个测试、Worktree helper 10 个测试、开发环境 11 个测试、身份改名 4 个测试、20 个 Skills、完整 Harness validator 和精确 Rust 1.90 fmt/check/Clippy/7 个测试全部通过；LIM-020、LIM-022 关闭，LIM-021 保持 `Mitigated`。
-- 本轮不是发布准备；bundled Rust release build、最终产物启动冒烟、Computer Use E2E、真实 GitHub 三平台候选、打包、产物收集、签名、上传、发布和人工最终复核均未运行，不构成 Harness 发布就绪证据。
+- 项目负责人已于 2026-07-29 完成本次技术债收口范围的人工复核并记录为 `Approved`，范围内交付结论为 `Verified`。
+- 本轮不是发布准备；bundled Rust release build、最终产物启动冒烟、Computer Use E2E、真实 GitHub 三平台候选、打包、产物收集、签名、上传和发布均未运行，Harness 整体仍为 `Partially verified`，不构成发布就绪证据。

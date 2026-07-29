@@ -6,7 +6,7 @@
 
 - 产品规格：Approved；2026-07-29 已批准逐任务授权的并行 Worktree/Subagent 前台协作、开发/发布验证分层，以及发布构建前逐项选择的手动验收门禁。
 - Harness 版本：根 `Version.md` 记录 `1.0.0` / `Unreleased`；模板没有具体产品业务代码或最终应用产物。
-- 当前变更：技术债收口任务已完成本地可执行范围。LIM-020 与 LIM-022 已关闭；LIM-021 已在 Worktree helper 范围内机械缓解，但宿主级绕过仍未解决，保持 `Mitigated`。外部前置条件未满足的债项继续开放；版本保持 `Unreleased`。
+- 当前变更：技术债收口任务已完成本地可执行范围并于 2026-07-29 获得项目负责人人工批准，本次范围交付结论为 `Verified`。LIM-020 与 LIM-022 已关闭；LIM-021 已在 Worktree helper 范围内机械缓解，但宿主级绕过仍未解决，保持 `Mitigated`。外部前置条件未满足的债项继续开放，Harness 整体仍为 `Partially verified`，版本保持 `Unreleased`。
 - 当前计划：见 [`docs/work_plan/20260729_work_plan.md`](../work_plan/20260729_work_plan.md)。
 
 ## 已完成且仍有效
@@ -34,6 +34,7 @@
 - Harness validator 已保留 68 行单一入口并拆为 6 个领域模块；11 个入口/正负向测试和完整 validator 通过，最大模块 682 行，仅保留非阻断职责审查提示。
 - Worktree helper 新增 `guard`，机械校验实际 cwd、Git 根、登记 Worktree、分支和解析后写入目标；10 个成功/故意越界测试通过，能力边界明确不替代宿主 sandbox。
 - 本次三个 Subagent 单元已完成 guard 复核、整合与总验证；三个 Worktree 和对应临时分支已清理，无必需 Subagent 留在后台。
+- 项目负责人已明确确认本次人工复核完毕并批准全部当前范围；审批记录、复核基线、剩余风险和非发布边界已写入 `docs/VERIFICATION.md`。
 
 ## 未完成与剩余风险
 
@@ -48,7 +49,6 @@
 
 ## 下一步
 
-1. 项目负责人依据 `docs/VERIFICATION.md` 的实际证据签署或拒绝本次最终人工审批；Agent 不代签。
-2. 后续在 Codex 宿主或 sandbox 层强制 Subagent 可写根，复验绕过 helper 的越界场景后再决定是否关闭 LIM-021。
-3. 在真实下游、Windows/Linux 和 GitHub runner 条件具备时，分别建立任务处理仍开放的外部证据债项。
-4. 用户发起构建或发布准备时，重新选择本次手动验收项并执行不可跳过的完整发布基础闭环。
+1. 后续在 Codex 宿主或 sandbox 层强制 Subagent 可写根，复验绕过 helper 的越界场景后再决定是否关闭 LIM-021。
+2. 在真实下游、Windows/Linux 和 GitHub runner 条件具备时，分别建立任务处理仍开放的外部证据债项。
+3. 用户发起构建或发布准备时，重新选择本次手动验收项并执行不可跳过的完整发布基础闭环。
