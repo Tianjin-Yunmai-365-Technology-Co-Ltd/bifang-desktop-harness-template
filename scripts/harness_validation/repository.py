@@ -1,0 +1,225 @@
+"""校验 Harness 仓库结构、日期记忆、Skills 元数据与本地链接。"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from urllib.parse import unquote
+
+from .context import *  # noqa: F403
+
+def validate_required_files(errors: list[str]) -> None:
+    """确认所有规范文档、脚本和门禁入口真实存在。"""
+    for relative in REQUIRED_FILES:
+        if not (ROOT / relative).is_file():
+            fail(errors, f"missing required file: {relative}")
+
+def validate_daily_project_memory(errors: list[str]) -> None:
+    """校验五类按日项目记忆的唯一事实来源、命名、索引和工作流入口。"""
+    forbidden_legacy_files = (
+        ROOT / "CHANGELOG.md",
+        ROOT / "docs" / "DECISIONS.md",
+        ROOT / "docs" / "PRODUCT_SPEC.md",
+        ROOT / "docs" / "PROJECT_STATUS.md",
+        ROOT / "docs" / "WORK_PLAN.md",
+    )
+    for path in forbidden_legacy_files:
+        if path.exists():
+            fail(errors, f"legacy growing log must be removed: {display_path(path)}")
+
+    product_is_approved = PRODUCT_SPEC.is_file() and bool(
+        re.search(r"状态[：:]\s*Approved", PRODUCT_SPEC.read_text(encoding="utf-8"))
+    )
+    daily_contracts = (
+        (PRODUCT_SPEC_DIR, PRODUCT_SPEC_PATTERN, "Product Spec", True),
+        (PRODUCT_STATUS_DIR, PRODUCT_STATUS_PATTERN, "Product Status", True),
+        (WORK_PLAN_DIR, WORK_PLAN_PATTERN, "Work Plan", True),
+        (ADR_DIR, re.compile(r"^\d{8}_ADR\.md$"), "ADR", product_is_approved),
+        (
+            CHANGELOG_DIR,
+            re.compile(r"^\d{8}_CHANGELOG\.md$"),
+            "Changelog",
+            product_is_approved,
+        ),
+    )
+    for directory, filename_pattern, label, dated_file_required in daily_contracts:
+        if not directory.is_dir():
+            fail(errors, f"missing daily {label} directory: {display_path(directory)}")
+            continue
+        index = directory / "README.md"
+        if not index.is_file():
+            fail(errors, f"missing daily {label} index: {display_path(index)}")
+            index_text = ""
+        else:
+            index_text = index.read_text(encoding="utf-8")
+        daily_files: list[Path] = []
+        for path in sorted(directory.glob("*.md")):
+            if path.name == "README.md":
+                continue
+            if not filename_pattern.fullmatch(path.name):
+                fail(errors, f"invalid daily {label} filename: {display_path(path)}")
+                continue
+            daily_files.append(path)
+            if path.name not in index_text:
+                fail(errors, f"daily {label} file missing from index: {display_path(path)}")
+        if dated_file_required and not daily_files:
+            fail(errors, f"no dated {label} file found in {display_path(directory)}")
+
+    required_fragments = {
+        PRODUCT_SPEC_DIR / "README.md": (
+            "YYYYMMDD_product_spec.md",
+            "同一天只维护一份 Product Spec",
+            "读取前一份 Product Spec",
+            "完整的当前规格",
+        ),
+        PRODUCT_STATUS_DIR / "README.md": (
+            "YYYYMMDD_product_status.md",
+            "同一天只维护一份 Product Status",
+            "读取前一份 Product Status",
+            "完整的当前状态",
+        ),
+        WORK_PLAN_DIR / "README.md": (
+            "YYYYMMDD_work_plan.md",
+            "同一天只维护一份 Work Plan",
+            "读取前一份 Work Plan",
+            "完整的当前计划",
+        ),
+        ADR_DIR / "README.md": (
+            "YYYYMMDD_ADR.md",
+            "同一天不得新建第二个 ADR 文件",
+            "独立 `ADR-YYYYMMDD-NNN` 条目",
+        ),
+        CHANGELOG_DIR / "README.md": (
+            "YYYYMMDD_CHANGELOG.md",
+            "同一天的实际变化持续更新同一文件",
+            "尚未实施的需求只进入 ADR 和计划",
+        ),
+        SKILLS_ROOT / "define-product" / "SKILL.md": (
+            "the latest dated Product Spec",
+            "synthesize complete current snapshots",
+            "the latest dated ADR",
+        ),
+        SKILLS_ROOT / "plan-change" / "SKILL.md": (
+            "the latest dated Product Status",
+            "synthesize its still-valid content",
+            "the latest dated ADR",
+        ),
+        SKILLS_ROOT / "implement-change" / "SKILL.md": (
+            "the latest dated Work Plan",
+            "synthesize it from the previous dated file",
+            "the latest dated ADR",
+            "docs/changelog/YYYYMMDD_CHANGELOG.md",
+        ),
+        SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
+            "latest dated Product Spec",
+            "latest dated Work Plan",
+            "the latest dated ADR",
+            "docs/changelog/YYYYMMDD_CHANGELOG.md",
+        ),
+        SKILLS_ROOT / "prepare-release" / "SKILL.md": ("docs/changelog/README.md",),
+    }
+    for path, fragments in required_fragments.items():
+        if not path.is_file():
+            fail(errors, f"missing daily project-memory contract file: {display_path(path)}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(
+                    errors,
+                    f"daily project-memory rule missing in {display_path(path)}: {fragment}",
+                )
+
+def parse_frontmatter(path: Path, errors: list[str]) -> dict[str, str]:
+    """解析 Skill 的最小 YAML frontmatter，并拒绝缺失或额外字段。"""
+    text = path.read_text(encoding="utf-8")
+    match = re.match(r"\A---\n(.*?)\n---\n", text, flags=re.DOTALL)
+    if not match:
+        fail(errors, f"missing YAML frontmatter: {path.relative_to(ROOT)}")
+        return {}
+
+    fields: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        key, separator, value = line.partition(":")
+        if not separator:
+            fail(errors, f"invalid frontmatter line in {path.relative_to(ROOT)}: {line}")
+            continue
+        fields[key.strip()] = value.strip()
+    if set(fields) != {"name", "description"}:
+        fail(
+            errors,
+            f"frontmatter must contain only name/description: {path.relative_to(ROOT)}",
+        )
+    return fields
+
+def yaml_string(text: str, key: str) -> str | None:
+    """从受控 UI 元数据中提取一个双引号字符串字段。"""
+    match = re.search(rf'^\s*{re.escape(key)}:\s*"([^"]*)"\s*$', text, re.MULTILINE)
+    return match.group(1) if match else None
+
+def validate_skills(errors: list[str]) -> None:
+    """校验 Skill 集合、frontmatter、UI 元数据和入口声明保持一致。"""
+    actual = {path.name for path in SKILLS_ROOT.iterdir() if path.is_dir()}
+    if actual != EXPECTED_SKILLS:
+        fail(
+            errors,
+            f"skill set mismatch: missing={sorted(EXPECTED_SKILLS - actual)}, "
+            f"extra={sorted(actual - EXPECTED_SKILLS)}",
+        )
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    for skill in sorted(actual):
+        skill_dir = SKILLS_ROOT / skill
+        skill_file = skill_dir / "SKILL.md"
+        metadata_file = skill_dir / "agents" / "openai.yaml"
+        if not skill_file.is_file():
+            fail(errors, f"missing SKILL.md: {skill}")
+            continue
+        if not metadata_file.is_file():
+            fail(errors, f"missing agents/openai.yaml: {skill}")
+            continue
+
+        fields = parse_frontmatter(skill_file, errors)
+        if fields.get("name") != skill:
+            fail(errors, f"skill name does not match directory: {skill}")
+        if not fields.get("description"):
+            fail(errors, f"empty skill description: {skill}")
+        if "TODO" in skill_file.read_text(encoding="utf-8"):
+            fail(errors, f"unresolved TODO in skill: {skill}")
+
+        metadata = metadata_file.read_text(encoding="utf-8")
+        display_name = yaml_string(metadata, "display_name")
+        short_description = yaml_string(metadata, "short_description")
+        default_prompt = yaml_string(metadata, "default_prompt")
+        if not display_name:
+            fail(errors, f"missing display_name: {skill}")
+        if not short_description or not 25 <= len(short_description) <= 64:
+            fail(errors, f"short_description length must be 25-64: {skill}")
+        if not default_prompt or f"${skill}" not in default_prompt:
+            fail(errors, f"default_prompt must mention ${skill}: {skill}")
+
+        if f"`${skill}`" not in readme and f"`${'$'}{skill}`" not in readme:
+            fail(errors, f"README does not declare skill: {skill}")
+        if f"${skill}" not in agents:
+            fail(errors, f"AGENTS routing does not mention skill: {skill}")
+
+def validate_markdown_links(errors: list[str]) -> None:
+    """解析仓库内 Markdown 链接，并拒绝指向不存在本地目标的引用。"""
+    link_pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+    markdown_files = sorted(ROOT.rglob("*.md"))
+    for path in markdown_files:
+        text = path.read_text(encoding="utf-8")
+        for raw_target in link_pattern.findall(text):
+            target = raw_target.strip().strip("<>")
+            if target.startswith(("http://", "https://", "mailto:", "#")):
+                continue
+            target = unquote(target.split("#", 1)[0])
+            if not target:
+                continue
+            resolved = (path.parent / target).resolve()
+            if not resolved.exists():
+                fail(
+                    errors,
+                    f"broken local link in {path.relative_to(ROOT)}: {raw_target}",
+                )

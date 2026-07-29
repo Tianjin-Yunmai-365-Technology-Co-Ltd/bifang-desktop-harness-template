@@ -3,12 +3,30 @@
 from __future__ import annotations
 
 import contextlib
+import subprocess
+import sys
 import tempfile
 import unittest
 from collections.abc import Iterator
 from pathlib import Path
 
 import scripts.validate_harness as validate_harness
+
+
+class ValidateHarnessEntrypointTests(unittest.TestCase):
+    """覆盖拆分后单一命令入口的真实导入路径与稳定成功输出。"""
+
+    def test_direct_script_entrypoint_succeeds(self) -> None:
+        """从仓库根直接执行历史命令时应完成全部领域校验并返回成功。"""
+        result = subprocess.run(
+            [sys.executable, "scripts/validate_harness.py"],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Harness validation passed:", result.stdout)
 
 
 @contextlib.contextmanager
