@@ -102,6 +102,7 @@ REQUIRED_FILES = (
     ".agents/skills/add-gui-adapter/references/gui-baseline.md",
     ".agents/skills/run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py",
+    "scripts/test_validate_harness.py",
     "scripts/validate_harness.py",
 )
 
@@ -365,7 +366,7 @@ def validate_markdown_links(errors: list[str]) -> None:
 
 
 def validate_workflow(errors: list[str]) -> None:
-    """确认候选 workflow 保留三平台验证门禁且没有未经授权的发布行为。"""
+    """确认候选 workflow 保留三平台、手动验收和打包前阻断门禁。"""
     if not WORKFLOW.is_file():
         fail(errors, f"missing workflow asset: {display_path(WORKFLOW)}")
         return
@@ -373,12 +374,17 @@ def validate_workflow(errors: list[str]) -> None:
     lines = text.splitlines()
 
     def first_line_index(fragment: str) -> int:
+        """返回首个片段所在行；缺失时用 -1 参与稳定的顺序检查。"""
         return next(
             (index for index, line in enumerate(lines) if fragment in line),
             -1,
         )
 
     required_fragments = (
+        "workflow_dispatch:",
+        "confirm_release:",
+        "run_e2e:",
+        "fail-fast: true",
         "os: [ubuntu-latest, macos-latest, windows-latest]",
         "contents: read",
         "rustup toolchain install 1.90.0",
@@ -395,23 +401,33 @@ def validate_workflow(errors: list[str]) -> None:
         "status=not_run",
         "Validate heavy-check decision",
         "steps.heavy-checks-decision.outputs.status",
+        "HEAVY_CHECK_PATH: .github/scripts/release-candidate-heavy-check.sh",
     )
     for fragment in required_fragments:
         if fragment not in text:
             fail(errors, f"workflow gate missing: {fragment}")
 
-    forbidden_fragments = (
+    forbidden_publishing_fragments = (
         "contents: write",
         "cargo publish",
         "gh release create",
         "git tag",
         "actions/create-release",
-        "e2e_command",
-        "selected",
     )
-    for fragment in forbidden_fragments:
+    for fragment in forbidden_publishing_fragments:
         if fragment in text:
             fail(errors, f"workflow contains unauthorized publishing behavior: {fragment}")
+
+    forbidden_gate_fragments = (
+        "e2e_command",
+        "E2E_COMMAND",
+        "status=selected",
+        '"selected"',
+        "fail-fast: false",
+    )
+    for fragment in forbidden_gate_fragments:
+        if fragment in text:
+            fail(errors, f"workflow contains unsafe release-gate behavior: {fragment}")
 
     if "Validate heavy-check decision" not in text:
         fail(errors, "workflow missing heavy-check decision gate step")
@@ -426,7 +442,7 @@ def validate_workflow(errors: list[str]) -> None:
 
     heavy_idx = first_line_index("- name: Optional heavy checks")
     decision_idx = first_line_index("- name: Validate heavy-check decision")
-    package_idx = min(
+    package_indices = tuple(
         idx
         for idx in (
             first_line_index("- name: Package Unix candidate"),
@@ -434,6 +450,7 @@ def validate_workflow(errors: list[str]) -> None:
         )
         if idx != -1
     )
+    package_idx = min(package_indices) if package_indices else -1
     if heavy_idx == -1 or decision_idx == -1 or package_idx == -1:
         fail(errors, "workflow missing heavy-check gate, decision, or package boundary")
     elif not (heavy_idx < decision_idx < package_idx):
@@ -446,6 +463,7 @@ def validate_workflow(errors: list[str]) -> None:
         fail(errors, "workflow heavy checks must call approved heavy-check script")
 
     def _step_block(name: str, *, uses: str | None = None) -> list[str]:
+        """按 YAML 缩进提取一个命名步骤或 action 步骤，供局部门禁检查。"""
         if uses:
             for index, line in enumerate(lines):
                 if line.strip() == f"- uses: {uses}":
@@ -476,11 +494,14 @@ def validate_workflow(errors: list[str]) -> None:
 
     package_unix_block = _step_block("Package Unix candidate")
     package_windows_block = _step_block("Package Windows candidate")
-    if not any("if:" in line and "success()" in line for line in package_unix_block + package_windows_block):
-        fail(
-            errors,
-            "workflow package steps should be guarded by success()",
-        )
+    for platform, block in (
+        ("Unix", package_unix_block),
+        ("Windows", package_windows_block),
+    ):
+        if not block:
+            fail(errors, f"workflow {platform} package step not found")
+        elif not any("if:" in line and "success()" in line for line in block):
+            fail(errors, f"workflow {platform} package step should be guarded by success()")
 
     upload_block = _step_block("", uses="actions/upload-artifact@v4")
     if not upload_block:
@@ -493,8 +514,9 @@ def validate_workflow(errors: list[str]) -> None:
         'status="${{ steps.heavy-checks.outputs.status }}"',
         'if [[ "${status}" != "passed" ]]; then',
     )
+    decision_block = "\n".join(_step_block("Validate heavy-check decision"))
     for pattern in decision_guard_patterns:
-        if pattern not in text:
+        if pattern not in decision_block:
             fail(errors, f"workflow heavy-check decision logic missing: {pattern}")
 
 
@@ -690,7 +712,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
         COLLECT_RELEASE_SKILL: (
             "<canonical-project-root>/release",
             "latest completed result",
-            "Build and validate the complete source manifest before cleanup",
+            "Build and validate the complete source manifest plus gate-evidence manifest before cleanup",
             "Immediately before copying",
             "remove every existing entry",
             "Copy only the selected current source-manifest files",
@@ -1233,14 +1255,17 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "同步等待全部必需结果",
             "重叠写入必须转为串行",
             "每轮开发必须执行非空单元测试",
-            "默认延迟到用户明确准备发布",
+            "用户发起最终产物构建或发布准备",
+            "不得在日常开发、普通交付复核或发布链路修改中自动触发",
+            "失败、超时、取消或选择后未执行均阻断",
         ),
         ROOT / "README.md": (
             "询问是否启用并行 Worktree + Subagent",
             "$run-parallel-worktrees",
             "保持单 Agent",
             "开发轮次运行非空单元测试和变更相关验证",
-            "用户准备发布或要求交付验收",
+            "用户发起最终产物构建或发布准备",
+            "未启用且没有产品/渠道硬要求时记录 `Not run`",
         ),
         PARALLEL_SKILL / "SKILL.md": (
             "Do not inherit approval from another task",
@@ -1250,6 +1275,8 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "Do not finish the main task",
             "never auto-stash or auto-commit",
             "deliberately retains the branch",
+            "only when the user initiates a final-artifact build or release preparation",
+            "Heavy or interactive acceptance additionally requires",
         ),
         PARALLEL_WORKTREE_SCRIPT: (
             '"rev-parse", "--show-toplevel"',
@@ -1277,37 +1304,47 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "task-level collaboration gate",
             "$run-parallel-worktrees",
             "non-empty unit tests plus change-related",
-            "Do not automatically run production artifacts",
+            "A delivery-status review or release-path change runs only",
+            "Enter release-stage execution only when the user initiates",
             "only when the user also requests delivery acceptance",
         ),
         SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
-            "Use only when the user asks",
+            "only an explicit build/release request starts real release gates",
             "implementation-only",
             "return to `$implement-change` development-loop verification",
+            "Heavy acceptance such as Computer Use E2E",
+            "never automatic here",
         ),
         E2E_SKILL: (
-            "release- or delivery-stage",
-            "Use only after the user requests acceptance or prepares a release",
-            "do not use for ordinary development loops",
+            "explicitly selected release-stage",
+            "current final-artifact build or release task",
+            "`enabled` by the user or `required`",
+            "report the check as `Not run`",
         ),
         PREPARE_RELEASE_SKILL: (
             "user explicitly intends to prepare a release",
             "development-loop evidence alone cannot satisfy",
+            "release-stage gate selection before build/package start",
         ),
         ENGINEERING_RULES: (
             "### 5.3 开发验证与发布验收分层",
             "每轮开发必须运行非空单元测试",
             "日常开发默认不重复运行发布级整体验收",
-            "必须基于当前源码重新运行当前系统完整闭环",
+            "修改发布链路时运行相应的单元、静态和隔离契约检查",
+            "只有用户发起最终产物构建或发布准备时",
+            "失败、超时、取消或选择后未执行均为门禁失败",
         ),
         ROOT / "docs" / "RELEASE.md": (
-            "普通文档、Skill、脚本或 workflow 开发轮次",
+            "## 发布构建与手动验收顺序",
+            "仅要求复核已有交付证据时",
+            "所有 `required` 或 `enabled` 项在打包前通过",
             "历史开发证据不能替代候选源码上的重新验收",
             "每轮普通开发不重复最终产物",
         ),
         ROOT / "docs" / "VERIFICATION.md": (
             "开发轮次记录非空单元测试和变更相关验证",
             "开发证据不得写成发布就绪",
+            "失败、超时、取消或未执行都属于阻断",
             f"{len(EXPECTED_SKILLS)} 个 Skills",
         ),
     }

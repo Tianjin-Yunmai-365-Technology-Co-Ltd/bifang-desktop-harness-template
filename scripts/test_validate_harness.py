@@ -1,17 +1,19 @@
-"""Unit tests for :mod:`scripts.validate_harness` workflow validation helpers."""
+"""候选发布工作流手动验收与打包阻断门禁的确定性单元测试。"""
 
 from __future__ import annotations
 
 import contextlib
 import tempfile
 import unittest
+from collections.abc import Iterator
 from pathlib import Path
 
 import scripts.validate_harness as validate_harness
 
 
 @contextlib.contextmanager
-def _with_workflow(contents: str):
+def _with_workflow(contents: str) -> Iterator[Path]:
+    """把 validator 临时指向隔离 workflow，并在场景结束后恢复真实入口。"""
     with tempfile.TemporaryDirectory() as tmp_dir:
         path = Path(tmp_dir) / "workflow.yml"
         path.write_text(contents, encoding="utf-8")
@@ -24,86 +26,143 @@ def _with_workflow(contents: str):
 
 
 class ValidateHarnessWorkflowTests(unittest.TestCase):
-    """Cover the positive/negative cases that keep release gates deterministic."""
+    """覆盖候选 workflow 的正常契约和最高风险门禁回归。"""
 
     @staticmethod
     def _base_workflow() -> str:
+        """读取仓库当前标准 workflow，确保正负场景共享真实基线。"""
         return validate_harness.WORKFLOW.read_text(encoding="utf-8")
 
     @staticmethod
     def _validate(contents: str) -> list[str]:
+        """在隔离文件上运行 workflow validator 并返回全部稳定错误。"""
         errors: list[str] = []
         with _with_workflow(contents):
             validate_harness.validate_workflow(errors)
         return errors
 
+    @staticmethod
+    def _slice(contents: str, start_marker: str, end_marker: str) -> tuple[int, int, str]:
+        """按稳定步骤标记提取连续区块，供删除或顺序回归场景使用。"""
+        start = contents.index(start_marker)
+        end = contents.index(end_marker, start)
+        return start, end, contents[start:end]
+
     def test_positive_workflow_is_valid(self) -> None:
-        """当前标准 workflow 应当通过 validator。"""
+        """当前标准 workflow 应当通过全部发布门禁。"""
         errors = self._validate(self._base_workflow())
         self.assertEqual(errors, [], "\n".join(errors))
 
     def test_rejects_injected_e2e_command_input(self) -> None:
-        """禁止把 e2e_command 作为可注入参数带入轻量检验。"""
-        mutated = self._base_workflow().replace(
-            '      run_e2e:\n        description: "Run user-approved heavy acceptance checks (for example e2e) during this candidate build"\n        required: false\n        type: boolean\n        default: false\n',
-            '      run_e2e:\n'
-            '        description: "Run user-approved heavy acceptance checks (for example e2e) during this candidate build"\n'
-            '        required: false\n'
-            '        type: boolean\n'
-            '        default: false\n'
-            '      e2e_command:\n'
-            '        description: "Injected command run when enabled"\n'
-            '        required: false\n'
-            '        type: string\n',
+        """禁止 workflow_dispatch 恢复可注入的任意 E2E 命令输入。"""
+        marker = "      version:\n"
+        injected = (
+            "      e2e_command:\n"
+            '        description: "Injected command"\n'
+            "        required: false\n"
+            "        type: string\n"
         )
-        mutated += "\n      - name: Optional heavy checks\n        if: ${{ inputs.run_e2e == true }}\n        shell: bash\n        env:\n          E2E_COMMAND: ${{ inputs.e2e_command }}\n        run: |\n          bash -lc \"${E2E_COMMAND}\"\n"
-        errors = self._validate(mutated)
-        self.assertTrue(any("workflow contains unauthorized publishing behavior: e2e_command" in e for e in errors))
-
-    def test_rejects_missing_heavy_check_decision(self) -> None:
-        """缺少 heavy-check decision 步骤会导致验证失败。"""
-        marker = "      - name: Validate heavy-check decision"
-        start = self._base_workflow().index(marker)
-        package_marker = "      - name: Package Unix candidate"
-        end = self._base_workflow().index(package_marker)
-        mutated = self._base_workflow().replace(
-            self._base_workflow()[start:end],
-            "",
-        )
+        mutated = self._base_workflow().replace(marker, injected + marker, 1)
         errors = self._validate(mutated)
         self.assertTrue(
-            any("heavy-check decision gate must be placed between heavy checks and package" in e for e in errors)
-            or any("workflow missing heavy-check decision gate step" in e for e in errors),
+            any("unsafe release-gate behavior: e2e_command" in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_missing_heavy_check_decision(self) -> None:
+        """缺少独立决策步骤时，已选择但未执行的验收不能越过打包门禁。"""
+        base = self._base_workflow()
+        start, end, _ = self._slice(
+            base,
+            "      - name: Validate heavy-check decision",
+            "      - name: Package Unix candidate",
+        )
+        errors = self._validate(base[:start] + base[end:])
+        self.assertTrue(
+            any("heavy-check decision" in error for error in errors),
+            errors,
         )
 
     def test_rejects_decision_after_packaging(self) -> None:
-        """decision 步骤移到打包之后时应被拒绝。"""
+        """决策步骤被移到打包之后时必须返回顺序错误而不是跳过测试。"""
         base = self._base_workflow()
-        moved_block = (
-            "      - name: Validate heavy-check decision\n"
-            "        id: heavy-checks-decision\n"
-            "        shell: bash\n"
-            "        run: |\n"
-            "          echo \"status=passed\" >> \"${GITHUB_OUTPUT}\"\n"
-            "\n"
+        start, end, decision_block = self._slice(
+            base,
+            "      - name: Validate heavy-check decision",
+            "      - name: Package Unix candidate",
         )
-        if moved_block not in base:
-            self.skipTest("expected decision block not found")
-        without_decision = base.replace(moved_block, "", 1)
+        without_decision = base[:start] + base[end:]
         insert_at = without_decision.index("      - name: Record candidate manifest")
-        mutated = without_decision[:insert_at] + moved_block + without_decision[insert_at:]
-        errors = self._validate(mutated)
-        self.assertTrue(any("heavy-check decision gate must be placed between heavy checks and package" in e for e in errors))
-
-    def test_rejects_package_or_upload_without_success_guard(self) -> None:
-        """没有 success() 时，打包或上传步骤不能通过审核。"""
-        mutated = self._base_workflow().replace("        if: runner.os != 'Windows' && success()\n", "")
-        mutated = mutated.replace("        if: runner.os == 'Windows' && success()\n", "")
-        mutated = mutated.replace("        if: success()\n", "", 1)
+        mutated = without_decision[:insert_at] + decision_block + without_decision[insert_at:]
         errors = self._validate(mutated)
         self.assertTrue(
-            any("workflow package steps should be guarded by success()" in e for e in errors)
-            or any("workflow upload step should be guarded by success()" in e for e in errors),
+            any("must be placed between heavy checks and package" in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_each_package_step_without_success_guard(self) -> None:
+        """Unix 或 Windows 任一打包步骤丢失 success() 都必须独立失败。"""
+        cases = {
+            "Unix": "        if: runner.os != 'Windows' && success()\n",
+            "Windows": "        if: runner.os == 'Windows' && success()\n",
+        }
+        for platform, guard in cases.items():
+            with self.subTest(platform=platform):
+                mutated = self._base_workflow().replace(guard, "", 1)
+                errors = self._validate(mutated)
+                self.assertTrue(
+                    any(
+                        f"workflow {platform} package step should be guarded by success()"
+                        in error
+                        for error in errors
+                    ),
+                    errors,
+                )
+
+    def test_rejects_upload_without_success_guard(self) -> None:
+        """上传步骤不得在前序测试或手动验收失败后继续运行。"""
+        mutated = self._base_workflow().replace(
+            "      - uses: actions/upload-artifact@v4\n        if: success()\n",
+            "      - uses: actions/upload-artifact@v4\n",
+            1,
+        )
+        errors = self._validate(mutated)
+        self.assertTrue(
+            any("workflow upload step should be guarded by success()" in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_missing_package_steps_without_crashing(self) -> None:
+        """两个打包步骤同时缺失时应累计门禁错误，不得由 min() 抛出异常。"""
+        base = self._base_workflow()
+        start, end, _ = self._slice(
+            base,
+            "      - name: Package Unix candidate",
+            "      - name: Record candidate manifest",
+        )
+        errors = self._validate(base[:start] + base[end:])
+        self.assertTrue(any("package" in error for error in errors), errors)
+
+    def test_rejects_selected_as_terminal_manifest_status(self) -> None:
+        """`selected` 不能作为可上传候选的最终手动验收状态。"""
+        mutated = self._base_workflow() + '\n# forbidden regression: "selected"\n'
+        errors = self._validate(mutated)
+        self.assertTrue(
+            any('unsafe release-gate behavior: "selected"' in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_disabled_matrix_fail_fast(self) -> None:
+        """矩阵任一平台失败后不得显式要求其他平台继续候选流程。"""
+        mutated = self._base_workflow().replace(
+            "      fail-fast: true\n",
+            "      fail-fast: false\n",
+            1,
+        )
+        errors = self._validate(mutated)
+        self.assertTrue(
+            any("unsafe release-gate behavior: fail-fast: false" in error for error in errors),
+            errors,
         )
 
 
