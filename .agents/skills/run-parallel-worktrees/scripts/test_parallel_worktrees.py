@@ -41,13 +41,18 @@ class ParallelWorktreesTests(unittest.TestCase):
             text=True,
         )
 
-    def helper(self, *args: str) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
+    def helper(
+        self,
+        *args: str,
+        cwd: Path | None = None,
+    ) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
         """运行助手并解析其唯一 JSON 输出。"""
         result = subprocess.run(
             ["python3", str(SCRIPT), *args, "--project-root", str(self.root)],
             check=False,
             capture_output=True,
             text=True,
+            cwd=cwd or self.root,
         )
         return result, json.loads(result.stdout)
 
@@ -84,6 +89,136 @@ class ParallelWorktreesTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 4)
         self.assertEqual(payload["error"]["code"], "base_worktree_dirty")
+
+    def test_project_operation_rejects_actual_cwd_outside_project_root(self) -> None:
+        """验证显式项目参数不能掩盖错误 cwd，项目级操作必须从项目根发起。"""
+        result, payload = self.helper(
+            "create",
+            "--task",
+            "feature",
+            "--unit",
+            "core",
+            cwd=Path(self.temp.name),
+        )
+
+        self.assertEqual(result.returncode, 4)
+        self.assertEqual(payload["error"]["code"], "project_cwd_mismatch")
+
+    def test_guard_accepts_exact_unit_context_and_owned_write_target(self) -> None:
+        """验证受管单元在精确 cwd、Git 根、分支和内部目标同时匹配时通过。"""
+        created, payload = self.helper("create", "--task", "feature", "--unit", "guarded")
+        self.assertEqual(created.returncode, 0, created.stderr)
+        worktree = Path(str(payload["worktreePath"]))
+
+        guarded, guard_payload = self.helper(
+            "guard",
+            "--task",
+            "feature",
+            "--unit",
+            "guarded",
+            "--write-target",
+            "src/new_file.rs",
+            cwd=worktree,
+        )
+
+        self.assertEqual(guarded.returncode, 0, guarded.stderr)
+        self.assertTrue(guard_payload["guarded"])
+        self.assertEqual(guard_payload["branch"], "codex/feature/guarded")
+        self.assertEqual(
+            guard_payload["writeTargets"],
+            [str(worktree / "src" / "new_file.rs")],
+        )
+
+    def test_guard_rejects_wrong_cwd_and_detached_branch(self) -> None:
+        """验证从主工作树调用或单元处于 detached HEAD 时均机械阻断。"""
+        created, payload = self.helper("create", "--task", "feature", "--unit", "guarded")
+        self.assertEqual(created.returncode, 0, created.stderr)
+        worktree = Path(str(payload["worktreePath"]))
+
+        wrong_cwd, wrong_cwd_payload = self.helper(
+            "guard",
+            "--task",
+            "feature",
+            "--unit",
+            "guarded",
+        )
+        self.assertEqual(wrong_cwd.returncode, 4)
+        self.assertEqual(wrong_cwd_payload["error"]["code"], "unit_cwd_mismatch")
+
+        self.git("checkout", "--detach", cwd=worktree)
+        wrong_branch, wrong_branch_payload = self.helper(
+            "guard",
+            "--task",
+            "feature",
+            "--unit",
+            "guarded",
+            cwd=worktree,
+        )
+        self.assertEqual(wrong_branch.returncode, 4)
+        self.assertEqual(wrong_branch_payload["error"]["code"], "unit_branch_mismatch")
+
+    def test_guard_rejects_git_root_mismatch(self) -> None:
+        """验证单元失去自身 Git 元数据并继承父仓库时不会被误认为受管 Worktree。"""
+        created, payload = self.helper("create", "--task", "feature", "--unit", "guarded")
+        self.assertEqual(created.returncode, 0, created.stderr)
+        worktree = Path(str(payload["worktreePath"]))
+        (worktree / ".git").unlink()
+        subprocess.run(
+            ["git", "init", "-b", "unexpected", str(worktree.parent)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        mismatched, mismatch_payload = self.helper(
+            "guard",
+            "--task",
+            "feature",
+            "--unit",
+            "guarded",
+            cwd=worktree,
+        )
+
+        self.assertEqual(mismatched.returncode, 4)
+        self.assertEqual(mismatch_payload["error"]["code"], "unit_git_root_mismatch")
+
+    def test_guard_rejects_write_target_and_symlink_escape(self) -> None:
+        """验证绝对越界目标和经现有符号链接逃逸的目标均被拒绝。"""
+        created, payload = self.helper("create", "--task", "feature", "--unit", "guarded")
+        self.assertEqual(created.returncode, 0, created.stderr)
+        worktree = Path(str(payload["worktreePath"]))
+        outside = Path(self.temp.name) / "outside"
+        outside.mkdir()
+
+        escaped, escaped_payload = self.helper(
+            "guard",
+            "--task",
+            "feature",
+            "--unit",
+            "guarded",
+            "--write-target",
+            str(outside / "changed.txt"),
+            cwd=worktree,
+        )
+        self.assertEqual(escaped.returncode, 4)
+        self.assertEqual(escaped_payload["error"]["code"], "write_target_outside_worktree")
+
+        (worktree / "escape").symlink_to(outside, target_is_directory=True)
+        symlinked, symlinked_payload = self.helper(
+            "guard",
+            "--task",
+            "feature",
+            "--unit",
+            "guarded",
+            "--write-target",
+            "escape/changed.txt",
+            cwd=worktree,
+        )
+        self.assertEqual(symlinked.returncode, 4)
+        self.assertEqual(
+            symlinked_payload["error"]["code"],
+            "write_target_outside_worktree",
+        )
 
     def test_create_rejects_unsafe_identifier_and_existing_path(self) -> None:
         """验证路径穿越标识与预先存在的目标目录都不会被覆盖。"""
