@@ -15,35 +15,43 @@
 
 | 层级 | 方法 | 当前要求 |
 |---|---|---|
-| 文件与链接 | `python3 scripts/validate_harness.py` | 28 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
+| 文件与链接 | `python3 scripts/validate_harness.py` | 31 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
 | Skills | validator + 逐份语义审查 | 20 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
 | 并行协作 | Worktree 助手隔离单元测试 + validator 契约检查 | 逐任务授权、独立 Worktree/分支、脏基线阻断、前台状态、同步等待与保守清理 |
 | 当前描述 | validator 正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
 | 开发环境门禁 | Python 11 个隔离测试 + shell/PowerShell 静态或原生检查 | Rust-only 与 GUI/WEB 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计 |
 | Rust asset | 精确 Rust 1.90 | 发布准备时执行 fmt、locked check、Clippy、7 个测试、locked release build、真实成功与失败冒烟；普通维护按变更相关性选择 |
 | 发布前手动验收 | 选择/硬要求记录 + Skills/workflow/validator 契约检查 | 仅构建/发布任务询问；产物构建后、打包前执行；失败、超时、取消或未执行阻断，未启用可选项记录风险 |
-| Workflow asset | validator + YAML 解析 + 禁止行为扫描 | 三平台候选结构完整，不自动发布或提升写权限 |
+| Workflow asset | validator + YAML 解析 + 禁止行为扫描 | 仅手动触发、固定受审验收入口、三平台候选结构完整，失败时禁止打包，不自动发布或提升写权限 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
 
-## 2026-07-29 发布构建前手动验收门禁（政策契约单元）
+## 2026-07-29 发布构建前手动验收门禁（整合实现）
 
 ### 范围与环境
 
-- 在独立 Worktree 的 `codex/agile-release-gates/policy-contract` 分支工作，基线为 `e636253e0c5b92987c24592dc260cd21c9e17b42`；开始时工作树干净。
-- 本单元只修改 AGENTS、README、当日 Product Spec/Status/Plan/ADR/Changelog、工程/验证/发布规则和必要 Rust 基线摘要；没有修改 `.agents/skills/`、候选 workflow 或 `scripts/`。
-- 本轮是发布链路规则开发，但用户没有发起最终产物构建或发布准备；根据 ADR-20260729-003，不因修改发布规则自动运行 release build、Computer Use E2E、打包或外部发布动作。
+- 当前宿主：macOS 26.5.2（Build 25F84），arm64；最终开发检查基于干净的 `master` 提交 `a7312bbc42db4a2aeb43bfd5d315c5afdc181dd6`。
+- 用户要求先保存既有工作，基线提交为 `2468641`；政策、Skills 与 workflow/validator 单元随后完成整合。政策 Worktree 提交 `0b0855e` 以 `5224ece` 合入，Skills Worktree 提交 `ba70172` 以 `be1c716` 合入，workflow/validator 由主分支审查修复后形成 `27e4ef8` 与 `a7312bb`。
+- 用户没有发起最终产物构建或发布准备，因此本轮没有出现发布构建前的验收选择提示，也没有运行 E2E、release build 或打包；这与 ADR-20260729-003 的触发边界一致。
+- 三个任务 Worktree 和对应分支均保持干净；因 cherry-pick 或串行替代提交，它们不是 `master` 的祖先，按保守清理规则没有自动移除。
+- 一个 Subagent 两次绕过声明的 Worktree 所有权直接提交主分支；相关差异已逐项审查、修复和复验，宿主缺少机械隔离的问题登记为 LIM-021。
 
 ### 已执行检查
 
-- 使用 `rg` 对当前政策入口执行正向语义扫描，确认“首次发布构建前选择”“选择仅对当前任务有效”“基础门禁不可跳过”“失败/超时/取消/选后未执行阻断”和“打包/上传/收集/签名前执行”均有明确当前契约。
-- 使用 `rg` 执行冲突残留扫描；修正 ADR-20260729-002 中把交付复核或发布链路修改视为 E2E 自动触发条件的旧表述后，当前入口不再包含该活动语义。
-- `git diff --check`：通过；未发现空白错误。
+- 使用 Skill Creator venv 的 `quick_validate.py` 对 `.agents/skills/*` 全量运行：20 个项目 Skills 全部通过。
+- `python3 -m unittest scripts.test_validate_harness`：通过，10 个测试全部成功。覆盖正向 workflow、任意命令输入、验收决策缺失/错序、Unix/Windows 各自的打包保护、上传保护、打包步骤缺失、非法 `selected` 终态、`fail-fast: false` 和重型验收非零失败分支。
+- `python3 .agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py`：通过，4 个隔离测试全部成功。
+- `python3 .agents/skills/check-development-environment/scripts/test_development_environment_gates.py`：通过，11 个隔离测试全部成功。
+- `python3 .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py`：通过，4 个测试全部成功。
+- 相关 Python 文件使用 `PYTHONPYCACHEPREFIX=/private/tmp/...` 执行 `py_compile`：通过；候选 workflow 使用 Ruby `YAML.safe_load`：通过。
+- `python3 scripts/validate_harness.py`：通过，检查 31 个必需文件、20 个 Skills、本地链接、日期记忆和手动验收/打包门禁；唯一非阻断提示为 validator 1622 行，已登记 LIM-022。
+- `git diff --check` 与 `git status --short`：通过；最终开发检查时主工作树干净。
+- 验证过程中的失败均已修复并重跑：首次 Python 编译因默认缓存目录权限失败，改用任务临时缓存后通过；最初 workflow 测试存在跳过和弱断言，补强为 10 个真实正负向场景；整合后 validator 指出的 10 处旧契约残留已同步更新；新增失败传播测试曾修改错误分支，修正注入位置后通过。
 
 ### 结论与未运行范围
 
-- 政策契约单元的文件范围和语义检查通过；这只能证明文档边界已形成，不能单独证明 Skills、workflow 或 validator 已落实打包阻断。
-- 非空单元测试、Harness validator、隔离负向回归与跨单元整合检查由后续整合阶段执行，当前为 `Not run`，不得提前写成通过。
-- release build、最终产物存在性/启动冒烟、Computer Use E2E、真实设备或外部环境验收、跨平台候选、打包、产物收集、签名、上传、发布与人工最终复核均为 `Not run`；版本仍为 `1.0.0` / `Unreleased`。
+- 开发结论：政策、Skills、workflow/validator 和机械回归的整合检查通过；这证明当前 Harness 契约与静态候选流程已落实门禁，但不等同于发布就绪。
+- release build、最终产物存在性/启动冒烟、Computer Use E2E、真实 GitHub Windows/macOS/Linux 候选、真实下游固定重型验收入口、打包、产物收集、签名、上传、tag、发布与人工最终复核均为 `Not run`；版本仍为 `1.0.0` / `Unreleased`。
+- Windows、Linux、真实 GitHub runner、非 CLI 下游和 Subagent 宿主级写入隔离仍为 `Unverified`；三个干净但未被祖先关系证明已整合的任务 Worktree 继续保留，等待用户决定收口方式。
 
 ## 2026-07-29 并行 Worktree/Subagent 与分层验证门禁
 

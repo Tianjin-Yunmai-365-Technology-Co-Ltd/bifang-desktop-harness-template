@@ -24,6 +24,8 @@
 | LIM-018 | P2：跨接口安全验收入口尚未统一 | MCP、WEB、GUI 各自约束权限、CSP、网络和状态边界，但缺少一次性交付前威胁面复核和证据矩阵 | 出现首个含外部输入、网络或平台权限的真实产品时，评估新增 `$review-security` 或扩展 `$verify-delivery` | Open |
 | LIM-019 | 一次性下游裁剪与 GUI identity 流程尚无真实前向证据 | 规则和 validator 可检查模板契约，但尚未证明真实下游能在自删除后保留正确地图，也未证明三种图标路径与 Tauri 平台资产都可用 | 在首个真实下游分别验证 CLI-only 与 GUI 初始化裁剪；GUI 路径验证自动生成、Plan B、上传标准化中的实际选择和最终平台图标 | Open |
 | LIM-020 | bundled CLI 测试不符合精确 Rust 1.90 rustfmt | 2026-07-27 验收发现 `example_tool_cli/tests/cli.rs` 的 5 处链式调用换行导致 `cargo fmt --check` 返回 1；check、Clippy、7 个测试、release build 和真实冒烟均通过，但 Harness 完整格式门槛失败 | 在独立维护变更中按 Rust 1.90 rustfmt 更新该文件，重跑完整 asset 与 Harness 验证，并确认不覆盖用户工作 | Open |
+| LIM-021 | Subagent Worktree 所有权尚未由宿主机械强制 | 本轮一个 Subagent 两次绕过已声明的独立 Worktree 直接提交主分支；虽然提交均在授权范围内并已由主 Agent 审查、修复和复验，但仅靠提示不能保证写入隔离 | 在 Codex 宿主、sandbox、工作目录或提交钩子层增加分支与 Worktree 写入边界；完成后以故意越界写入的负向场景复验 | Open |
+| LIM-022 | Harness validator 超过软拆分阈值 | `scripts/validate_harness.py` 当前为 1622 行，继续扩展会增加审查成本、冲突概率和局部门禁遗漏风险 | 下一次实质扩展 validator 时按领域抽取可独立测试的检查模块，同时保留单一入口和现有正负向覆盖 | Open |
 
 ## 记录规则
 

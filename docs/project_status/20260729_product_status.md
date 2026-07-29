@@ -6,7 +6,7 @@
 
 - 产品规格：Approved；2026-07-29 已批准逐任务授权的并行 Worktree/Subagent 前台协作、开发/发布验证分层，以及发布构建前逐项选择的手动验收门禁。
 - Harness 版本：根 `Version.md` 记录 `1.0.0` / `Unreleased`；模板没有具体产品业务代码或最终应用产物。
-- 当前变更：发布构建前手动验收门禁正在通过并行 Worktree 单元实施；政策契约与当日项目记忆已更新，Skills、workflow/validator 单元及整合验证仍待汇合。当前任务不构建发布产物、不执行 E2E 或打包。
+- 当前变更：发布构建前手动验收门禁已完成政策、Skills、workflow/validator 和机械回归整合；开发门禁通过。当前任务没有发起最终产物构建或发布准备，因此未执行 E2E、release build 或打包，版本保持 `Unreleased`。
 - 当前计划：见 [`docs/work_plan/20260729_work_plan.md`](../work_plan/20260729_work_plan.md)。
 
 ## 已完成且仍有效
@@ -26,19 +26,23 @@
 - 新增 `$run-parallel-worktrees`、安全 Worktree 助手、4 个隔离单元测试和 UI 元数据；20 个项目 Skills 全部通过 Skill Creator 校验。
 - AGENTS、README、实例化/初始化、规划/实施/验收/发布和五类 adapter Skills 已同步任务级授权、下游保留、可见状态、同步等待与拒绝回退。
 - 工程规则、Rust 基线、验证、发布和 validator 已同步开发门禁与发布门禁分层；正向 validator 和两项隔离负向回归通过。
+- 14 个直接相关 Skills 已统一为“证据复核不自动构建/E2E；只在用户发起构建或发布准备时逐项选择”；全部 20 个项目 Skills 再次通过 Skill Creator 校验。
+- 候选 workflow 只接受手动 dispatch 和显式构建确认；可选重型验收使用仓库维护的固定入口，禁止 dispatch 任意命令输入，缺失入口时 fail closed。选择后未通过、基础门禁失败或矩阵任一平台失败都会阻止对应打包/上传路径继续。
+- 新增 10 个 workflow validator 单元测试，覆盖正向契约、命令注入、决策缺失/错序、Unix/Windows 打包与上传门禁、打包步骤缺失、非法终态、矩阵继续运行和重型检查非零失败；另有 Worktree 4 项、环境 11 项、身份改名 4 项测试通过。
+- Harness validator 已通过 31 个必需文件、20 个 Skills、五类日期记忆和手动验收/打包门禁；YAML 解析、Python 编译与空白检查通过。
 
 ## 未完成与剩余风险
 
-- 相关 Skills、候选 workflow 和 Harness validator 的实现单元尚待整合；当前政策文本不能单独证明执行路径已机械阻止错误打包。
-- 本轮尚未运行整合后的 Harness validator 或隔离负向门禁；这些结果只能在实际执行后进入验证记录。
 - 尚未在真实 Codex Subagent 宿主中执行一次多 Worktree 前台协作 E2E；不同宿主的状态展示能力仍可能不同。
-- 并行拆分质量和更新频率需要实际使用数据校准；Worktree 残留与语义冲突需要机械检查和保守清理策略。
+- 本轮观察到一个 Subagent 两次绕过声明的 Worktree 所有权直接提交主分支；提交均在范围内并经主 Agent 审查、修复和复验，但当前宿主尚未机械强制写入边界，见 LIM-021。
+- 三个任务 Worktree 均干净，但因主分支采用 cherry-pick 或串行替代提交，其分支不是 `master` 的祖先；按保守清理规则没有自动移除，后续需由用户决定如何收口。
 - Windows/Linux、PowerShell 原生执行和非 CLI 下游的既有 `Unverified` 边界继续存在。
-- validator 为 1473 行并触发非阻断软拆分审查；本轮没有扩大范围做结构重构。
+- 候选 workflow 只完成静态、单元和 YAML 解析验证，尚未在真实 GitHub 三平台 runner 或真实下游固定重型验收脚本上执行。
+- validator 为 1622 行并触发非阻断软拆分审查；本轮没有扩大范围做结构重构，见 LIM-022。
 
 ## 下一步
 
-1. 整合 Skills 与 workflow/validator 单元，执行语义审查、非空单元测试、Harness validator 和针对门禁回归的隔离负向检查。
-2. 在下一项适用任务开始前询问用户是否启用并行模式；用真实任务校准拆分、可见更新和整合体验。
-3. 用户发起构建或发布准备时，先询问本次具体手动验收项，再运行不可跳过的基础门禁；只有启用或硬要求时才在产物构建后、打包前执行 E2E 等验收。
+1. 用户发起构建或发布准备时，先询问本次具体手动验收项，再运行不可跳过的基础门禁；只有启用或硬要求时才在产物构建后、打包前执行 E2E 等验收。
+2. 首个真实下游启用候选 workflow 时，在 GitHub Windows/macOS/Linux runner 上验证固定重型验收入口、失败阻断和完整矩阵状态。
+3. 在下一项适用任务开始前重新询问是否启用并行模式；结合 LIM-021 决定是否增加宿主级写入边界检查。
 4. 如真实发布前失败反复指向同一基础检查，按 ADR-20260729-002 将该检查前移到相关开发轮次。
