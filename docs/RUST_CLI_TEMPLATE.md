@@ -228,8 +228,9 @@ cargo build --workspace --release --locked
 
 ## 构建、候选发布与结果文件
 
+- 普通实现轮次运行非空单元测试与变更相关的格式、Clippy、check、集成/契约或最小只读冒烟；不得把该证据写成发布就绪。
 - `$build-rust-release` 当前负责 Rust CLI 在当前平台的 locked release 构建、产物定位和冒烟证据；TUI/MCP/GUI/WEB 使用各自 adapter Skill 的构建与产物门槛。
-- `$verify-delivery` 负责发布前完整门槛；零测试或缺少关键路径覆盖均失败。
+- 用户要求交付验收或准备发布时，`$verify-delivery` 负责重新执行发布前完整门槛；零测试或缺少关键路径覆盖均失败。
 - `$prepare-cross-platform-release` 当前负责 Rust CLI 的 Windows/macOS/Linux 原生候选矩阵；其他接口的统一跨平台打包仍是已公开限制，默认不正式发布。
 - `$collect-release-artifacts` 负责提取并核验平台归档、相邻 SHA-256、manifest 和验证证据。
 - `$collect-release-artifacts` 每次先安全清理精确的项目根 `release/` 历史内容，再只复制当前项目、版本、源码 commit 与明确 build run 对应的最新已完成结果；初始化确保 `/release/` 已写入根 `.gitignore`。

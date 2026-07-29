@@ -3,7 +3,8 @@
 ## 验证原则
 
 - 只记录真实执行的命令、环境、结果和未覆盖范围。
-- Harness 根目录没有具体产品；下游产品的编译、业务测试、最终产品产物和业务验收为 `Not applicable`，但 bundled assets 的对应检查仍必须执行。
+- 开发轮次记录非空单元测试和变更相关验证；最终产物、完整启动冒烟、E2E、跨平台候选、归档与人工复核仅在交付验收、发布准备或发布链路变更时运行。开发证据不得写成发布就绪。
+- Harness 根目录没有具体产品；下游产品的编译、业务测试、最终产品产物和业务验收为 `Not applicable`。bundled assets 的完整 release 检查在 Harness 发布准备时执行；普通 Harness 维护只执行本次变更相关检查。
 - 零测试不构成通过；测试必须覆盖核心成功路径和最高风险失败路径。
 - 只对真实运行的系统和工具链给出通过结论；其他平台与宿主标记为 `Unverified`。
 - 人工批准不能把失败或未执行的检查改判为通过；Agent 不代替人类签署最终复核。
@@ -13,12 +14,59 @@
 | 层级 | 方法 | 当前要求 |
 |---|---|---|
 | 文件与链接 | `python3 scripts/validate_harness.py` | 28 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
-| Skills | validator + 逐份语义审查 | 19 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
+| Skills | validator + 逐份语义审查 | 20 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
+| 并行协作 | Worktree 助手隔离单元测试 + validator 契约检查 | 逐任务授权、独立 Worktree/分支、脏基线阻断、前台状态、同步等待与保守清理 |
 | 当前描述 | validator 正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
 | 开发环境门禁 | Python 11 个隔离测试 + shell/PowerShell 静态或原生检查 | Rust-only 与 GUI/WEB 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计 |
-| Rust asset | 精确 Rust 1.90 | fmt、locked check、Clippy、7 个测试、locked release build、真实成功与失败冒烟 |
+| Rust asset | 精确 Rust 1.90 | 发布准备时执行 fmt、locked check、Clippy、7 个测试、locked release build、真实成功与失败冒烟；普通维护按变更相关性选择 |
 | Workflow asset | validator + YAML 解析 + 禁止行为扫描 | 三平台候选结构完整，不自动发布或提升写权限 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
+
+## 2026-07-29 并行 Worktree/Subagent 与分层验证门禁
+
+### 范围与环境
+
+- 当前宿主：macOS 26.5.2（Build 25F84），arm64；Git top-level 为 Harness 根，分支为 `master`，HEAD 为 `98d672073fdb5b2f137cf4cc5b616eeecc4cad0f`。
+- 开始与结束检查均确认工作树包含项目负责人此前未提交的 2026-07-28 项目记忆、两份 DOCX 和共享入口修改；本次基于现状继续，没有 reset、stash、自动 commit、分支切换、Worktree 创建、remote、tag 或发布操作。
+- 本轮是 Harness Skill、脚本、文档与 validator 开发，不是发布准备或交付整体验收；验证范围按 ADR-20260729-002 限定为单元测试与变更相关检查。
+
+### 自动检查证据
+
+- `python3 .agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py`：通过，4 个隔离测试全部成功。覆盖干净基线创建与已整合清理、脏基线（含未跟踪文件）阻断、路径穿越与既有目标阻断、脏或未整合 Worktree 阻断；成功清理故意保留分支。
+- `python3 -m py_compile scripts/validate_harness.py .agents/skills/run-parallel-worktrees/scripts/parallel_worktrees.py .agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py`：通过。
+- Skill Creator `quick_validate.py` 首次分别使用系统 Python 与 Codex bundled workspace Python，均因缺少 PyYAML 失败，未形成 Skill 结构结论；随后使用现有 Skill Creator venv Python 对 `.agents/skills/*` 全量运行，20 个项目 Skills 全部通过。
+- `python3 scripts/validate_harness.py` 首轮非零退出，准确指出新 2026-07-29 Product Spec 过度压缩并遗漏 20 项仍有效初始化/技术栈事实；补齐完整快照后重跑通过，检查 30 个必需文件、20 个 Skills、本地链接、五类日期记忆、初始化、工程、并行 Worktree、分层验证、环境、workspace 与 workflow 门禁。
+- Harness validator 隔离负向检查：在 `TemporaryDirectory` 副本中分别删除同步等待关键契约、把当前验证矩阵从 20 个 Skills 退回 19 个；两次均非零退出并报告对应缺失片段，临时副本由受控生命周期自动清理。
+- `python3 .agents/skills/run-parallel-worktrees/scripts/parallel_worktrees.py inspect --project-root <Harness 根>`：成功返回当前 `master`、上述 HEAD、`clean=false` 和仅主工作树；只读检查没有创建 Worktree。
+
+### 结论与未运行范围
+
+- 开发结论：本轮单元测试与变更相关验证通过；validator 唯一非阻断提示为 `scripts/validate_harness.py` 1473 行，超过 800 行软拆分阈值。本轮新增逻辑仍属于同一确定性 Harness 契约入口，未把结构重构扩大进当前能力变更。
+- 发布级检查 `Not run`：精确 Rust 1.90 bundled asset 的完整 fmt/check/Clippy/release build/真实二进制冒烟、Computer Use E2E、真实多 Subagent/Worktree 前台协作、跨平台候选、归档和人工最终复核。本轮不得据此声称 `Verified` 或发布就绪。
+- Windows、Linux、非 CLI 下游、不同 Codex 宿主的 Subagent 状态展示、长期 Worktree 残留管理和真实并行整合冲突仍为 `Unverified`。
+
+## 2026-07-28 开源与闭源商业化调研报告
+
+### 范围与来源
+
+- 当前宿主：macOS，arm64；调研核对日期为 2026-07-28。
+- 资料范围包括 Stack Overflow 2025 Developer Survey、JetBrains 2026 AI 开发工具调查、Anthropic 软件开发研究，以及 GitHub Spec Kit、OpenSpec、Agent OS、Claude Code memory、cargo-generate、Cookiecutter、Copier、create-tauri-app、Electron、Deskfast、Electron Starter Template 和 Tauri 的官方资料。
+- 根目录产出 `Agent-first_Harness_开源路线商业化调研报告.docx` 与 `Agent-first_Harness_闭源路线商业化调研报告.docx`。报告将公开事实、分析推断、实验价格和法律边界分别标记，未把竞品宣传内容当作本项目已验证需求。
+
+### 文档结构与视觉证据
+
+- `unzip -t` 分别检查两份 DOCX：均报告 `No errors detected in compressed data`。
+- 使用 Documents Skill 的 `a11y_audit.py` 检查两份 DOCX：高等级 0、中等级 0、低等级 15。全部低等级项均为来源章节直接显示完整 URL；为保证打印版和脱离超链接后的证据可核验而有意保留。
+- 使用 LibreOffice 和 Noto Sans CJK SC 渲染检查：开源报告 9 页、闭源报告 11 页。逐页以原始分辨率检查封面、正文、表格、编号、页眉页脚、来源超链接和免责声明，未发现文本截断、表格越界、重叠、空白异常或编号跨章节串联。
+- 初次渲染发现运行环境缺少可用 CJK 字体、步骤编号在不同章节间延续；补充任务专用字体配置并为每组步骤创建独立编号后重新生成、重新渲染和完整复查，最终文件通过上述检查。
+
+### 仓库验证、结论与边界
+
+- `python3 scripts/validate_harness.py`：通过；检查 28 个必需文件、19 个 Skills、本地 Markdown 链接、五类日期记忆、初始化/工程/环境/workspace/workflow 门禁。唯一非阻断提示为 validator 1350 行，超过 800 行原则拆分阈值；本次未修改该脚本。
+- `git diff --check`：通过，未发现 Markdown 空白错误。
+- Agent 结论：`Partially verified`。两份研究文档的结构、可访问性和 macOS 渲染闭环已检查；用户尚未完成内容与商业假设的人工最终复核。
+- Harness 根产品编译、业务单元测试、最终应用产物和启动冒烟：`Not applicable`。本次只新增策略研究 DOCX 和项目记忆，不修改产品代码、Rust asset、接口或运行行为。
+- Windows Word、其他办公套件、打印机输出、真实客户付费、价格弹性、退款率、支持成本、合同适用性和私有组件实现均为 `Unverified`。正式销售前需要在目标环境复核文件并由专业律师审核许可与交易文件。
 
 ## 2026-07-27 全部文档审计与 Harness 1.0.0 版本事实
 

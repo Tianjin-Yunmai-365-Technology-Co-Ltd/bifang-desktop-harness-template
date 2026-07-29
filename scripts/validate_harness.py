@@ -32,6 +32,9 @@ TUI_BASELINE = SKILLS_ROOT / "add-tui-adapter" / "references" / "tui-baseline.md
 REACT_BASELINE = SKILLS_ROOT / "add-web-adapter" / "references" / "react-frontend-baseline.md"
 GUI_BASELINE = SKILLS_ROOT / "add-gui-adapter" / "references" / "gui-baseline.md"
 E2E_SKILL = SKILLS_ROOT / "test-final-artifact-e2e" / "SKILL.md"
+PARALLEL_SKILL = SKILLS_ROOT / "run-parallel-worktrees"
+PARALLEL_WORKTREE_SCRIPT = PARALLEL_SKILL / "scripts" / "parallel_worktrees.py"
+PARALLEL_WORKTREE_TESTS = PARALLEL_SKILL / "scripts" / "test_parallel_worktrees.py"
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "prepare-release" / "SKILL.md"
 BUILD_RELEASE_SKILL = SKILLS_ROOT / "build-rust-release" / "SKILL.md"
@@ -97,6 +100,8 @@ REQUIRED_FILES = (
     ".agents/skills/add-tui-adapter/references/tui-baseline.md",
     ".agents/skills/add-web-adapter/references/react-frontend-baseline.md",
     ".agents/skills/add-gui-adapter/references/gui-baseline.md",
+    ".agents/skills/run-parallel-worktrees/scripts/parallel_worktrees.py",
+    ".agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py",
     "scripts/validate_harness.py",
 )
 
@@ -118,6 +123,7 @@ EXPECTED_SKILLS = {
     "prepare-release",
     "prepare-gui-app-identity",
     "rename-project-identity",
+    "run-parallel-worktrees",
     "test-final-artifact-e2e",
     "verify-delivery",
 }
@@ -434,6 +440,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "Applicable Project Name",
             "all other legal text must remain byte-equivalent",
             "retain `$rename-project-identity`",
+            "$run-parallel-worktrees",
             "Harness-only root `Version.md`",
             "root `Cargo.toml`",
         ),
@@ -489,6 +496,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "LICENSE.en.md",
             "retain both inherited proprietary commercial license files",
             "$rename-project-identity",
+            "$run-parallel-worktrees",
             "contains the old Harness identity",
         ),
         ENVIRONMENT_SKILL / "SKILL.md": (
@@ -1115,6 +1123,122 @@ def validate_engineering_contract(errors: list[str]) -> None:
                 )
 
 
+def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
+    """校验逐任务并行授权、前台协作、安全 Worktree 与验证分层契约。"""
+    required_fragments = {
+        ROOT / "AGENTS.md": (
+            "每个会修改仓库或执行交付工作的任务",
+            "授权只对当前任务有效",
+            "$run-parallel-worktrees",
+            "独立 Git Worktree",
+            "启动、阻塞、阶段完成、整合和验证",
+            "同步等待全部必需结果",
+            "重叠写入必须转为串行",
+            "每轮开发必须执行非空单元测试",
+            "默认延迟到用户明确准备发布",
+        ),
+        ROOT / "README.md": (
+            "询问是否启用并行 Worktree + Subagent",
+            "$run-parallel-worktrees",
+            "保持单 Agent",
+            "开发轮次运行非空单元测试和变更相关验证",
+            "用户准备发布或要求交付验收",
+        ),
+        PARALLEL_SKILL / "SKILL.md": (
+            "Do not inherit approval from another task",
+            "at least two independent scopes",
+            "Show the user the work-unit map",
+            "Wait synchronously for every required Subagent result",
+            "Do not finish the main task",
+            "never auto-stash or auto-commit",
+            "deliberately retains the branch",
+        ),
+        PARALLEL_WORKTREE_SCRIPT: (
+            '"rev-parse", "--show-toplevel"',
+            'f"codex/{safe_task}/{safe_unit}"',
+            "base_worktree_dirty",
+            "worktree_path_exists",
+            "worktree_branch_mismatch",
+            "worktree_dirty",
+            "branch_not_integrated",
+            '"worktree", "remove"',
+        ),
+        PARALLEL_WORKTREE_TESTS: (
+            "test_create_and_remove_integrated_clean_worktree",
+            "test_create_rejects_dirty_base_including_untracked_files",
+            "test_create_rejects_unsafe_identifier_and_existing_path",
+            "test_remove_rejects_dirty_or_unintegrated_worktree",
+        ),
+        SKILLS_ROOT / "plan-change" / "SKILL.md": (
+            "task-level collaboration gate",
+            "$run-parallel-worktrees",
+            "Do not inherit an earlier task's approval",
+            "Separate the development-loop gate from release acceptance",
+        ),
+        SKILLS_ROOT / "implement-change" / "SKILL.md": (
+            "task-level collaboration gate",
+            "$run-parallel-worktrees",
+            "non-empty unit tests plus change-related",
+            "Do not automatically run production artifacts",
+            "only when the user also requests delivery acceptance",
+        ),
+        SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
+            "Use only when the user asks",
+            "implementation-only",
+            "return to `$implement-change` development-loop verification",
+        ),
+        E2E_SKILL: (
+            "release- or delivery-stage",
+            "Use only after the user requests acceptance or prepares a release",
+            "do not use for ordinary development loops",
+        ),
+        PREPARE_RELEASE_SKILL: (
+            "user explicitly intends to prepare a release",
+            "development-loop evidence alone cannot satisfy",
+        ),
+        ENGINEERING_RULES: (
+            "### 5.3 开发验证与发布验收分层",
+            "每轮开发必须运行非空单元测试",
+            "日常开发默认不重复运行发布级整体验收",
+            "必须基于当前源码重新运行当前系统完整闭环",
+        ),
+        ROOT / "docs" / "RELEASE.md": (
+            "普通文档、Skill、脚本或 workflow 开发轮次",
+            "历史开发证据不能替代候选源码上的重新验收",
+            "每轮普通开发不重复最终产物",
+        ),
+        ROOT / "docs" / "VERIFICATION.md": (
+            "开发轮次记录非空单元测试和变更相关验证",
+            "开发证据不得写成发布就绪",
+            f"{len(EXPECTED_SKILLS)} 个 Skills",
+        ),
+    }
+    helper_text = ""
+    for path, fragments in required_fragments.items():
+        if not path.is_file():
+            fail(errors, f"missing parallel/tiered contract file: {display_path(path)}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if path == PARALLEL_WORKTREE_SCRIPT:
+            helper_text = text
+        for fragment in fragments:
+            if fragment not in text:
+                fail(
+                    errors,
+                    f"parallel/tiered rule missing in {display_path(path)}: {fragment}",
+                )
+
+    forbidden_helper_fragments = (
+        "git stash",
+        "git commit",
+        "--force",
+        '"branch", "-D"',
+    )
+    for fragment in forbidden_helper_fragments:
+        if fragment in helper_text:
+            fail(errors, f"unsafe parallel helper behavior present: {fragment}")
+
+
 def validate_current_descriptions(errors: list[str]) -> None:
     """拒绝已被当前接口、Git 与治理规则替代的规范描述重新进入有效事实源。"""
     current_files = (
@@ -1327,6 +1451,7 @@ def main() -> int:
     validate_workflow(errors)
     validate_initialization_contract(errors)
     validate_engineering_contract(errors)
+    validate_parallel_and_tiered_verification(errors)
     validate_current_descriptions(errors)
     validate_version_contract(errors)
     validate_soft_review_prompts(warnings)
@@ -1340,7 +1465,7 @@ def main() -> int:
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
         f"{len(EXPECTED_SKILLS)} skills, local Markdown links, five daily project-memory streams, "
-        "initialization gates, engineering rules, executable prerequisite gates, workspace dependency inheritance, "
+        "initialization gates, engineering rules, parallel worktree gates, tiered verification, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."
     )
     return 0

@@ -18,7 +18,7 @@ Add the smallest browser-accessible interface over the shared core. WEB is indep
 7. Bind to loopback by default, use ephemeral or explicit ports, deny broad cross-origin access, serve local assets, validate all inputs, and keep secrets out of frontend state and URLs.
 8. Use TanStack Router as the only application router, TanStack Query for server/async state and cache, and Jotai only for cross-component client/interaction state. Do not copy Query data, core state or durable records into atoms.
 9. Test core mappings, routes/API schemas, query loading/error/refetch behavior, client-state transitions, highest-risk failure, authorization boundary, input validation, browser keyboard/accessibility behavior, and shutdown. Run a real browser acceptance flow when available.
-10. Run format, typecheck, lint, non-empty tests, locked production build, artifact existence, and bounded server startup/shutdown smoke. Use `$test-final-artifact-e2e` with Computer Use for final browser flows, then hand delivery judgment to `$verify-delivery`.
+10. During ordinary implementation, run format, typecheck, lint, non-empty tests, relevant build checks, and targeted browser/API tests. When the user requests delivery acceptance or prepares a release, additionally run the locked production build, artifact existence, bounded server startup/shutdown smoke and `$test-final-artifact-e2e` for final browser flows, then hand delivery judgment to `$verify-delivery`.
 
 ## Hard Boundaries
 

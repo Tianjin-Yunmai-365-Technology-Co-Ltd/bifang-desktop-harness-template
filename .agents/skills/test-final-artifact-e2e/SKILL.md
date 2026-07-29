@@ -1,6 +1,6 @@
 ---
 name: test-final-artifact-e2e
-description: Execute end-to-end acceptance against a real final CLI, TUI, MCP host, GUI, or WEB artifact by using Computer Use for observable user interaction. Use after a final artifact exists, not for unit tests, source-only previews, or simulated completion claims.
+description: Execute release- or delivery-stage end-to-end acceptance against a real final CLI, TUI, MCP host, GUI, or WEB artifact by using Computer Use for observable user interaction. Use only after the user requests acceptance or prepares a release and a final artifact exists; do not use for ordinary development loops, unit tests, source previews, or simulated completion claims.
 ---
 
 # Test Final Artifact E2E

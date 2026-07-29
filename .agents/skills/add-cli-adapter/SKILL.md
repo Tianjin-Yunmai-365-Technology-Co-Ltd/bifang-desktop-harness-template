@@ -15,8 +15,8 @@ Add the smallest Agent-ready command interface over the shared core. CLI is the 
 4. Use a Tokio current-thread async entry with only the minimum required features. Keep the command-to-core path async by default for I/O, waiting, timers, processes and other latency-bound work; do not enable `rt-multi-thread` merely because Tokio is present. Consider `spawn_blocking`, dedicated threads or a multi-thread runtime only for measured CPU-intensive work, and record ownership, cancellation, concurrency limits, resource budget and tests. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception; do not silently wrap them in threads.
 5. Implement complete non-interactive and `--json` behavior from `docs/CLI_CONTRACT.md`. Do not make a TUI code path the only way to invoke core operations.
 6. Test the real binary: success, highest-risk failure, JSON parsing, stdout/stderr separation, exit codes, `--help`/`--version`, and refusal to wait for input. During `Draft`, also reject unapproved business commands.
-7. Run discovered format, lint, non-empty tests, locked build, artifact existence, and read-only binary smoke checks. Record current-platform evidence and mark other platforms `Unverified`.
-8. Update product memory and hand acceptance to `$verify-delivery`; use `$test-final-artifact-e2e` only when CLI interaction requires a real terminal UI flow that black-box process tests cannot cover.
+7. During ordinary implementation, run discovered format, lint, non-empty tests, locked check/build checks needed by the change, and targeted real-binary black-box tests. Do not claim release readiness from development evidence.
+8. When the user requests delivery acceptance or prepares a release, run the locked production build, artifact existence, read-only binary smoke, and applicable `$test-final-artifact-e2e`, then hand the complete evidence to `$verify-delivery`. Record current-platform evidence and mark other platforms `Unverified`.
 
 ## Boundaries
 

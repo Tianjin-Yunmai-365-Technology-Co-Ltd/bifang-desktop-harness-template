@@ -16,8 +16,9 @@
 1. 使用 `$instantiate-project`，提供项目名称、ASCII `snake_case` 标识、完整目标目录、负责人和目标平台；流程调用 `$rename-project-identity` 全量重写项目自有配置、Skills、文档、路径和两份 License 的适用项目名，再建立以项目根为 top-level 的独立 Git 仓库，并排除 Harness 的 ADR、Changelog、Product Spec 与 Work Plan。
 2. 进入目标目录并使用 `$initialize-rust-project`，选择需要的 CLI/TUI/MCP/GUI/WEB 接口并决定是否关闭 superpowers；无接口选择时默认 CLI。初始化创建 shared core 与所选接口的中性 scaffold status，验证后删除下游中的实例化/初始化 Skills、模板专用文档和门禁入口，创建一个本地初始化基线 commit，并验证独立 Git 无 remote、工作树干净。
 3. 在已初始化的项目中先由 `$check-development-environment` 确认当前宿主工具链：始终检查 Rust，只有 GUI/WEB 项目额外检查 Node.js 与 pnpm。随后使用 `$define-product` 明确唯一目标、核心输入输出、范围、成功标准和最高风险失败路径。
-4. 使用 `$plan-change` 建立可验证的执行计划，再使用 `$implement-change` 以真实业务命令替换中性 `scaffold status`，同步项目状态、ADR、验证与 Changelog。
-5. 使用 `$verify-delivery` 验证真实产品；开发、验证和发布全过程遵循 `AGENTS.md` 及相应项目 Skill。
+4. 每个会修改仓库或执行交付工作的任务开始前，由 Agent 询问是否启用并行 Worktree + Subagent；用户同意且任务可安全拆分时使用 `$run-parallel-worktrees`，否则保持单 Agent。
+5. 使用 `$plan-change` 建立可验证的执行计划，再使用 `$implement-change` 以真实业务命令替换中性 `scaffold status`。开发轮次运行非空单元测试和变更相关验证。
+6. 用户准备发布或要求交付验收时使用 `$verify-delivery`，重新运行最终产物、启动冒烟、适用 E2E 和人工复核所需的完整门禁。
 
 ## 项目入口
 
@@ -47,11 +48,12 @@
 - `$rename-project-identity`：预览并统一修改项目展示名、标识前缀、配置、维护路径、Skills 与两份 License 的适用项目名。
 - `$plan-change`：为已确认范围的变更建立执行计划。
 - `$implement-change`：按已批准计划实施最小代码、测试和项目记忆变更。
+- `$run-parallel-worktrees`：在当前任务获得明确授权后，用独立 Worktree/分支协调前台可见的 Subagent 并行工作。
 - `$initialize-rust-project`：确保独立 Git 根，询问接口组合与 superpowers 策略，创建中性 scaffold，调用独立开发环境门禁并在验证后裁剪下游初始化能力。
 - `$check-development-environment`：下游首次开发前检查并自动补齐 Rust；GUI/WEB 额外检查并补齐 Node.js 与 pnpm。该 Skill 在初始化裁剪后仍保留。
 - `$prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，并让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
 - `$build-rust-release`：构建、定位并冒烟验证当前平台 Rust CLI 发布产物。
-- `$verify-delivery`：执行发布前门槛并记录完成证据。
+- `$verify-delivery`：在用户要求交付验收或准备发布时执行完整门槛并记录完成证据。
 - `$prepare-cross-platform-release`：准备 Windows、macOS、Linux 原生 Rust CLI 候选构建矩阵。
 - `$collect-release-artifacts`：提取并核验归档、SHA-256、manifest 和平台证据。
 - `$prepare-release`：检查版本一致性并准备可追溯发布。
@@ -92,7 +94,8 @@
 - 跨平台自动化默认只生成候选产物和证据；正式发布仍需独立授权。
 - 目标平台为 Windows、macOS 和 Linux。
 - 选择 CLI 时必须遵守统一 JSON 信封、错误结构、输出流和基础退出码契约。
-- 最低交付门槛是在当前系统完成编译、非空单元测试、最终产物存在检查和产物启动冒烟测试。
+- 每轮开发运行非空单元测试和变更相关的格式、lint、静态、集成、契约或最小只读冒烟检查；最终产物、完整冒烟、E2E、跨平台候选和人工复核延迟到发布或交付验收阶段。
+- 最低发布/交付门槛仍是在当前系统完成编译、非空单元测试、最终产物存在检查和产物启动冒烟测试。
 - 单元测试必须覆盖核心成功路径和最高风险失败路径。
 - 其他目标平台未实际验证时必须标记为 `Unverified`。
 - 模板约束允许有审计记录的例外，记录必须包含理由、风险和恢复标准。
@@ -103,4 +106,5 @@
 - CLI、TUI、MCP、GUI、WEB 均有独立 adapter Skill；任何一种都不以另一 adapter 为前置条件。
 - 初始化会把 superpowers 选择写入 `docs/AGENT_POLICY.md`；关闭后，后续开发不得调用 `superpowers:*` Skills。
 - 检查失败或需要人工判断时进入审批与人工复核，修正后重新运行验证循环。
+- 并行授权逐任务询问且不继承；写入型 Subagent 使用独立 Worktree，主 Agent 公开阶段状态并同步等待所有必需结果。
 - 模板自身始终保持无具体业务代码。

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run Parallel Worktrees"
+  short_description: "Coordinate visible Subagents in isolated Git worktrees"
+  default_prompt: "Use $run-parallel-worktrees to coordinate this task with visible Subagents in isolated Git worktrees."

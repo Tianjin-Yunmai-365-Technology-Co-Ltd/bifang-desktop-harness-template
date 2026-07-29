@@ -18,8 +18,8 @@ Add a focused Ratatui terminal interface over the shared core without requiring 
 7. For a `Draft` project expose only neutral scaffold status and navigation; do not invent business screens or side effects. For an approved product, implement only planned views and actions. Keep terminal events, rendering state, component messages and key bindings outside core.
 8. Prefer tui-realm-stdlib components for ordinary input, selection, tables, lists, labels, paragraphs, tabs, gauges and charts. Create a project component only when the standard library cannot express an approved behavior; record why composition or styling was insufficient.
 9. Test component messages and state transitions, async event/task cancellation, keyboard navigation, resize and small-terminal behavior, error/empty/loading states, highest-risk action confirmation, restoration of terminal state after normal exit and failure, and core mappings.
-10. Run format, lint, non-empty tests, locked build, artifact existence, and bounded startup/exit smoke checks. Use `$test-final-artifact-e2e` with Computer Use when final terminal interaction must be observed in the real packaged artifact.
-11. Update project memory and hand the result to `$verify-delivery`.
+10. During ordinary implementation, run format, lint, non-empty tests, relevant locked check/build checks, and targeted terminal-state tests. Do not claim release readiness from development evidence.
+11. When the user requests delivery acceptance or prepares a release, run the production build, artifact existence, bounded startup/exit smoke and applicable `$test-final-artifact-e2e`, then hand the result to `$verify-delivery`. Update project memory in either path.
 
 ## Hard Boundaries
 
