@@ -3,9 +3,23 @@ name: release-candidate
 on:
   workflow_dispatch:
     inputs:
+      confirm_release:
+        description: "I confirm this is an authorized release-candidate build and packaging may run"
+        required: true
+        type: boolean
+        default: false
       version:
         description: "Approved Cargo version without the v prefix"
         required: true
+        type: string
+      run_e2e:
+        description: "Run user-approved heavy acceptance checks (for example e2e) during this candidate build"
+        required: false
+        type: boolean
+        default: false
+      e2e_command:
+        description: "Command to run when run_e2e is enabled; leave empty when run_e2e is false"
+        required: false
         type: string
 
 permissions:
@@ -28,6 +42,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Select project MSRV
         run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
+      - name: Confirm authorized release preflight
+        shell: bash
+        run: |
+          if [[ "${{ inputs.confirm_release }}" != "true" ]]; then
+            echo "Release candidate preflight not confirmed"
+            echo "::error::Please set confirm_release=true before running this workflow."
+            exit 1
+          fi
       - name: Validate candidate version
         shell: bash
         run: |
@@ -82,6 +104,18 @@ jobs:
               raise SystemExit(f"version mismatch: {output}")
           print(output)
           PY
+      - name: Optional heavy checks
+        if: ${{ inputs.run_e2e == true }}
+        shell: bash
+        env:
+          E2E_COMMAND: ${{ inputs.e2e_command }}
+        run: |
+          set -euo pipefail
+          if [ -z "${E2E_COMMAND}" ]; then
+            echo "::error::run_e2e is true but e2e_command is empty."
+            exit 1
+          fi
+          bash -lc "${E2E_COMMAND}"
       - name: Package Unix candidate
         if: runner.os != 'Windows'
         shell: bash
@@ -114,11 +148,15 @@ jobs:
           "$hash  $archive" | Set-Content "dist/$archive.sha256" -Encoding ascii
       - name: Record candidate manifest
         shell: bash
+        env:
+          E2E_ENABLED: ${{ inputs.run_e2e }}
+          E2E_COMMAND: ${{ inputs.e2e_command }}
         run: |
           python - <<'PY'
           import hashlib, json, os, pathlib, platform, subprocess
           dist = pathlib.Path("dist")
           archive = next(p for p in dist.iterdir() if p.suffix not in {".sha256", ".json"})
+          e2e_enabled = os.environ.get("E2E_ENABLED", "false").lower() == "true"
           manifest = {
               "version": os.environ["VERSION"],
               "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
@@ -129,6 +167,7 @@ jobs:
               "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
               "tests": "passed",
               "smoke": "passed",
+              "heavyChecks": "passed" if e2e_enabled else "not_run",
           }
           (dist / f"{archive.name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
           PY
