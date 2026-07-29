@@ -370,6 +370,14 @@ def validate_workflow(errors: list[str]) -> None:
         fail(errors, f"missing workflow asset: {display_path(WORKFLOW)}")
         return
     text = WORKFLOW.read_text(encoding="utf-8")
+    lines = text.splitlines()
+
+    def first_line_index(fragment: str) -> int:
+        return next(
+            (index for index, line in enumerate(lines) if fragment in line),
+            -1,
+        )
+
     required_fragments = (
         "os: [ubuntu-latest, macos-latest, windows-latest]",
         "contents: read",
@@ -383,6 +391,10 @@ def validate_workflow(errors: list[str]) -> None:
         "actions/upload-artifact@v4",
         '"sourceCommit"',
         '"sha256"',
+        "status=passed",
+        "status=not_run",
+        "Validate heavy-check decision",
+        "steps.heavy-checks-decision.outputs.status",
     )
     for fragment in required_fragments:
         if fragment not in text:
@@ -394,10 +406,96 @@ def validate_workflow(errors: list[str]) -> None:
         "gh release create",
         "git tag",
         "actions/create-release",
+        "e2e_command",
+        "selected",
     )
     for fragment in forbidden_fragments:
         if fragment in text:
             fail(errors, f"workflow contains unauthorized publishing behavior: {fragment}")
+
+    if "Validate heavy-check decision" not in text:
+        fail(errors, "workflow missing heavy-check decision gate step")
+
+    preflight_idx = first_line_index("Confirm authorized release preflight")
+    checkout_idx = first_line_index("actions/checkout@v4")
+    toolchain_idx = first_line_index("Select project MSRV")
+    if preflight_idx == -1 or checkout_idx == -1 or toolchain_idx == -1:
+        fail(errors, "workflow missing required preflight/checkout/toolchain steps")
+    elif not (preflight_idx < checkout_idx < toolchain_idx):
+        fail(errors, "release preflight must run before checkout and MSRV setup")
+
+    heavy_idx = first_line_index("- name: Optional heavy checks")
+    decision_idx = first_line_index("- name: Validate heavy-check decision")
+    package_idx = min(
+        idx
+        for idx in (
+            first_line_index("- name: Package Unix candidate"),
+            first_line_index("- name: Package Windows candidate"),
+        )
+        if idx != -1
+    )
+    if heavy_idx == -1 or decision_idx == -1 or package_idx == -1:
+        fail(errors, "workflow missing heavy-check gate, decision, or package boundary")
+    elif not (heavy_idx < decision_idx < package_idx):
+        fail(errors, "heavy-check decision gate must be placed between heavy checks and package")
+
+    if (
+        "- name: Optional heavy checks" in text
+        and "HEAVY_CHECK_PATH: .github/scripts/release-candidate-heavy-check.sh" not in text
+    ):
+        fail(errors, "workflow heavy checks must call approved heavy-check script")
+
+    def _step_block(name: str, *, uses: str | None = None) -> list[str]:
+        if uses:
+            for index, line in enumerate(lines):
+                if line.strip() == f"- uses: {uses}":
+                    start = index
+                    break
+            else:
+                return []
+        else:
+            for index, line in enumerate(lines):
+                if line.strip() == f"- name: {name}":
+                    start = index
+                    break
+            else:
+                return []
+
+        base_indent = len(lines[start]) - len(lines[start].lstrip())
+        next_index = start + 1
+        while next_index < len(lines):
+            line = lines[next_index]
+            indent = len(line) - len(line.lstrip())
+            if line.strip() == "":
+                next_index += 1
+                continue
+            if indent <= base_indent:
+                break
+            next_index += 1
+        return lines[start:next_index]
+
+    package_unix_block = _step_block("Package Unix candidate")
+    package_windows_block = _step_block("Package Windows candidate")
+    if not any("if:" in line and "success()" in line for line in package_unix_block + package_windows_block):
+        fail(
+            errors,
+            "workflow package steps should be guarded by success()",
+        )
+
+    upload_block = _step_block("", uses="actions/upload-artifact@v4")
+    if not upload_block:
+        fail(errors, "workflow upload step not found")
+    elif not any("if: success()" in line for line in upload_block):
+        fail(errors, "workflow upload step should be guarded by success()")
+
+    decision_guard_patterns = (
+        'if [[ "${{ inputs.run_e2e }}" != "true" ]]; then',
+        'status="${{ steps.heavy-checks.outputs.status }}"',
+        'if [[ "${status}" != "passed" ]]; then',
+    )
+    for pattern in decision_guard_patterns:
+        if pattern not in text:
+            fail(errors, f"workflow heavy-check decision logic missing: {pattern}")
 
 
 def validate_initialization_contract(errors: list[str]) -> None:

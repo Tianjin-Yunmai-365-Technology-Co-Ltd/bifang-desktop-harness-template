@@ -17,10 +17,6 @@ on:
         required: false
         type: boolean
         default: false
-      e2e_command:
-        description: "Command to run when run_e2e is enabled; leave empty when run_e2e is false"
-        required: false
-        type: string
 
 permissions:
   contents: read
@@ -39,9 +35,6 @@ jobs:
       CARGO_TARGET_DIR: target
       RUSTUP_TOOLCHAIN: 1.90.0
     steps:
-      - uses: actions/checkout@v4
-      - name: Select project MSRV
-        run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
       - name: Confirm authorized release preflight
         shell: bash
         run: |
@@ -50,6 +43,9 @@ jobs:
             echo "::error::Please set confirm_release=true before running this workflow."
             exit 1
           fi
+      - uses: actions/checkout@v4
+      - name: Select project MSRV
+        run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
       - name: Validate candidate version
         shell: bash
         run: |
@@ -105,19 +101,62 @@ jobs:
           print(output)
           PY
       - name: Optional heavy checks
+        id: heavy-checks
         if: ${{ inputs.run_e2e == true }}
         shell: bash
         env:
-          E2E_COMMAND: ${{ inputs.e2e_command }}
+          HEAVY_CHECK_PATH: .github/scripts/release-candidate-heavy-check.sh
+          HEAVY_CHECK_TIMEOUT_SECONDS: "300"
         run: |
-          set -euo pipefail
-          if [ -z "${E2E_COMMAND}" ]; then
-            echo "::error::run_e2e is true but e2e_command is empty."
+          if [ ! -f "${HEAVY_CHECK_PATH}" ]; then
+            echo "::error::run_e2e=true is set, but no reviewed heavy-check script exists at ${HEAVY_CHECK_PATH}."
             exit 1
           fi
-          bash -lc "${E2E_COMMAND}"
+          python - <<'PY'
+          import os
+          import pathlib
+          import subprocess
+          import sys
+          script = pathlib.Path(os.environ["HEAVY_CHECK_PATH"])
+          if not script.exists():
+              raise SystemExit(f"Missing heavy-check script: {script}")
+          try:
+              result = subprocess.run(
+                  ["bash", str(script)],
+                  text=True,
+                  capture_output=True,
+                  timeout=int(os.environ["HEAVY_CHECK_TIMEOUT_SECONDS"]),
+                  check=False,
+              )
+          except subprocess.TimeoutExpired:
+              raise SystemExit("Heavy acceptance checks timed out")
+          if result.returncode:
+              print("heavy-check stdout:")
+              print(result.stdout)
+              print("heavy-check stderr:")
+              print(result.stderr)
+              raise SystemExit(f"Heavy acceptance checks failed (exit={result.returncode})")
+          print(result.stdout)
+          print(result.stderr)
+          PY
+          echo "status=passed" >> "${GITHUB_OUTPUT}"
+      - name: Validate heavy-check decision
+        id: heavy-checks-decision
+        shell: bash
+        run: |
+          if [[ "${{ inputs.run_e2e }}" != "true" ]]; then
+            echo "status=not_run" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          status="${{ steps.heavy-checks.outputs.status }}"
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          if [[ "${status}" != "passed" ]]; then
+            echo "::error::run_e2e=true requires heavy-check status=passed."
+            exit 1
+          fi
       - name: Package Unix candidate
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && success()
         shell: bash
         run: |
           set -euo pipefail
@@ -134,7 +173,7 @@ jobs:
             (cd dist && shasum -a 256 "$archive" > "${archive}.sha256")
           fi
       - name: Package Windows candidate
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && success()
         shell: pwsh
         run: |
           $binary = "target/release/$env:PRODUCT_NAME.exe"
@@ -150,13 +189,18 @@ jobs:
         shell: bash
         env:
           E2E_ENABLED: ${{ inputs.run_e2e }}
-          E2E_COMMAND: ${{ inputs.e2e_command }}
+          E2E_STATUS: ${{ steps.heavy-checks-decision.outputs.status }}
         run: |
           python - <<'PY'
           import hashlib, json, os, pathlib, platform, subprocess
           dist = pathlib.Path("dist")
           archive = next(p for p in dist.iterdir() if p.suffix not in {".sha256", ".json"})
           e2e_enabled = os.environ.get("E2E_ENABLED", "false").lower() == "true"
+          e2e_status = os.environ.get("E2E_STATUS", "")
+          if e2e_enabled and e2e_status != "passed":
+              raise SystemExit(f"heavyChecks must be passed when run_e2e=true, got {e2e_status!r}")
+          if not e2e_status:
+              e2e_status = "not_run"
           manifest = {
               "version": os.environ["VERSION"],
               "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
@@ -167,11 +211,12 @@ jobs:
               "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
               "tests": "passed",
               "smoke": "passed",
-              "heavyChecks": "passed" if e2e_enabled else "not_run",
+              "heavyChecks": e2e_status,
           }
           (dist / f"{archive.name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
           PY
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: ${{ runner.os }}-${{ runner.arch }}-release-candidate
           path: dist/
