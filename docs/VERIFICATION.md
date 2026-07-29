@@ -17,13 +17,41 @@
 |---|---|---|
 | 文件与链接 | `python3 scripts/validate_harness.py` | 31 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
 | Skills | validator + 逐份语义审查 | 20 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
-| 并行协作 | Worktree 助手隔离单元测试 + validator 契约检查 | 逐任务授权、独立 Worktree/分支、脏基线阻断、前台状态、同步等待与保守清理 |
+| 并行协作 | Worktree 助手 10 个隔离单元测试 + validator 契约检查 | 逐任务授权、独立 Worktree/分支、写入目标 guard、脏基线阻断、前台状态、同步等待与保守清理 |
 | 当前描述 | validator 正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
 | 开发环境门禁 | Python 11 个隔离测试 + shell/PowerShell 静态或原生检查 | Rust-only 与 GUI/WEB 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计 |
 | Rust asset | 精确 Rust 1.90 | 发布准备时执行 fmt、locked check、Clippy、7 个测试、locked release build、真实成功与失败冒烟；普通维护按变更相关性选择 |
 | 发布前手动验收 | 选择/硬要求记录 + Skills/workflow/validator 契约检查 | 仅构建/发布任务询问；产物构建后、打包前执行；失败、超时、取消或未执行阻断，未启用可选项记录风险 |
 | Workflow asset | validator + YAML 解析 + 禁止行为扫描 | 仅手动触发、固定受审验收入口、三平台候选结构完整，失败时禁止打包，不自动发布或提升写权限 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
+
+## 2026-07-29 当前技术债收口与证据复核
+
+### 范围、整合与环境
+
+- 当前宿主：macOS 26.5.2（Build 25F84），arm64；Git top-level 为 Harness 根，分支为 `master`。用户批准本任务使用并行 Worktree + Subagent，并要求结束后清理。
+- 三个独立单元分别提交 bundled Rust 格式 `b303e1e`、validator 拆分 `027a2ce`、Worktree helper `772e6ff` + `09cdb01`；主分支先 cherry-pick 审查后的内容，再以无内容差异 merge 保留单元祖先关系。
+- 三个单元在整合后的 helper 上再次通过实际 cwd、Git 根、登记 Worktree、分支和声明目标 guard；随后均按保守门禁移除 Worktree 并删除对应临时分支。上一任务的三个干净 Worktree 因分支祖先条件仍不满足而保留，未强制删除。
+- 本轮是 Harness 维护与证据复核，不是最终产物构建或发布准备；没有授权 release build、最终产物冒烟、Computer Use E2E、打包、产物收集、签名、上传、tag 或发布。
+
+### 已执行检查与修复
+
+- 精确 Rust 1.90：`cargo fmt --all -- --check`、locked workspace check、Clippy `-D warnings` 全部通过；测试枚举确认 CLI 6 个、core 1 个，共 7 个非空测试，locked tests 7/7 通过。构建缓存使用任务专用 `/private/tmp` 目录并在命令结束时清理。
+- `python3 -m unittest scripts.test_validate_harness`：11 个测试通过，覆盖真实直接命令入口以及候选 workflow 的成功和最高风险失败路径。
+- `python3 .agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py`：10 个测试通过，覆盖创建/清理、脏基线、错误项目 cwd、正确 guard、空目标、错误单元 cwd、Git 根、detached 分支、绝对越界与符号链接逃逸。
+- 开发环境门禁 11 个测试、身份改名 4 个测试全部通过；Skill Creator venv 的 `quick_validate.py` 对 20 个项目 Skills 全量通过。
+- Python 编译首轮因沙箱禁止写入 `.agents/.../__pycache__` 非零失败；设置 `PYTHONPYCACHEPREFIX=/private/tmp/codex-tech-debt-pycache` 后对入口、领域模块和 Worktree helper/测试重跑通过，任务缓存随后删除。
+- `python3 scripts/validate_harness.py`：通过，检查 31 个必需文件、20 个 Skills、本地链接、五类日期记忆及全部当前门禁；唯一非阻断提示为 `scripts/harness_validation/initialization.py` 682 行，低于 800 行原则拆分阈值但保留 >400 行职责审查。
+- `git diff --check`：通过。整合审查未发现秘密、占位符、不相关修改、行为性 Rust 差异或新增第三方依赖。
+
+### 技术债结论与未运行范围
+
+- LIM-020：`Closed`。原 5 处 Rust 1.90 rustfmt 失败已修复，并有 fmt/check/Clippy/7 个测试证据。
+- LIM-022：`Closed`。单一入口从 1622 行降至 68 行，最大领域模块 682 行，入口/正负向测试和完整 validator 通过。
+- LIM-021：`Mitigated`。helper 范围内的 cwd、Git、分支和目标越界已机械阻断；绕过 helper 的 Codex 宿主写入仍不能由仓库脚本禁止，不能标为 `Closed`。
+- LIM-004、LIM-005、LIM-007 至 LIM-019 仍受反馈入口、真实下游、Windows/Linux、GitHub runner、非 CLI 产物、渠道/合同或采用数据等原处理条件阻断，本地文档或单元测试不能替代。
+- Agent 结论：`Partially verified`。本地可执行的代码、格式、静态、单元、Skill 与 Harness 契约检查通过，但当前人工最终复核尚未签署，外部平台/真实下游债项和发布级检查仍缺证据。
+- Release build、最终产物存在性/启动冒烟、Computer Use E2E、真实 GitHub Windows/macOS/Linux 候选、非 CLI 下游、打包、签名、上传、tag、发布和本次人工最终复核均为 `Not run` 或 `Unverified`；`1.0.0` 继续为 `Unreleased`。
 
 ## 2026-07-29 发布构建前手动验收门禁（整合实现）
 

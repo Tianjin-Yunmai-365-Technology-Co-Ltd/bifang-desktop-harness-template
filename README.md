@@ -48,7 +48,7 @@
 - `$rename-project-identity`：预览并统一修改项目展示名、标识前缀、配置、维护路径、Skills 与两份 License 的适用项目名。
 - `$plan-change`：为已确认范围的变更建立执行计划。
 - `$implement-change`：按已批准计划实施最小代码、测试和项目记忆变更。
-- `$run-parallel-worktrees`：在当前任务获得明确授权后，用独立 Worktree/分支协调前台可见的 Subagent 并行工作。
+- `$run-parallel-worktrees`：在当前任务获得明确授权后，用独立 Worktree/分支协调前台可见的 Subagent，并在写入前以 helper `guard` 校验单元 cwd、Git 根、分支和目标路径边界。
 - `$initialize-rust-project`：确保独立 Git 根，询问接口组合与 superpowers 策略，创建中性 scaffold，调用独立开发环境门禁并在验证后裁剪下游初始化能力。
 - `$check-development-environment`：下游首次开发前检查并自动补齐 Rust；GUI/WEB 额外检查并补齐 Node.js 与 pnpm。该 Skill 在初始化裁剪后仍保留。
 - `$prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，并让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
@@ -107,5 +107,5 @@
 - CLI、TUI、MCP、GUI、WEB 均有独立 adapter Skill；任何一种都不以另一 adapter 为前置条件。
 - 初始化会把 superpowers 选择写入 `docs/AGENT_POLICY.md`；关闭后，后续开发不得调用 `superpowers:*` Skills。
 - 检查失败或需要人工判断时进入审批与人工复核，修正后重新运行验证循环。
-- 并行授权逐任务询问且不继承；写入型 Subagent 使用独立 Worktree，主 Agent 公开阶段状态并同步等待所有必需结果。
+- 并行授权逐任务询问且不继承；写入型 Subagent 使用独立 Worktree，并在写入前声明目标通过 helper 边界检查；该检查不替代宿主 sandbox。主 Agent 公开阶段状态并同步等待所有必需结果。
 - 模板自身始终保持无具体业务代码。
