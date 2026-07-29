@@ -26,7 +26,14 @@ Execute one approved task as visible, isolated work units without leaving requir
    ```
 
    The helper requires an independent Git top-level and a clean, committed baseline. If it blocks, report the reason and ask the user how to handle their changes; never auto-stash or auto-commit.
-5. Assign each writing Subagent only its prepared Worktree and declared ownership. Tell it that other agents are working concurrently, it must preserve others' changes, must not widen scope, and must return changed files, checks, blockers, and integration notes. Read-only Subagents may omit a Worktree when they cannot write.
+5. Run `create`, `inspect`, and `remove` from the exact project root. Before a writing Subagent edits or stages declared targets, run the guard from the exact unit Worktree and pass each target with a repeated `--write-target`:
+
+   ```text
+   python3 <absolute-project-root>/.agents/skills/run-parallel-worktrees/scripts/parallel_worktrees.py guard --project-root <absolute-project-root> --task <task> --unit <unit> --write-target <owned-path>
+   ```
+
+   The guard fails closed unless the process `cwd`, registered Worktree, Git top-level, current branch, and resolved write targets match the unit identity. It catches helper misuse and path or symlink escape, but does not claim to replace a Codex-host sandbox or prevent writes that bypass the helper entirely.
+6. Assign each writing Subagent only its prepared Worktree and declared ownership. Tell it that other agents are working concurrently, it must preserve others' changes, must not widen scope, and must return changed files, checks, blockers, and integration notes. Read-only Subagents may omit a Worktree when they cannot write.
 
 ## Visible Foreground Execution
 

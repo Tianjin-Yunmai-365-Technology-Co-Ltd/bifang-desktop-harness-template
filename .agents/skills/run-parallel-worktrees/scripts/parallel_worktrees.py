@@ -91,6 +91,14 @@ def unit_identity(project_root: Path, task: str, unit: str) -> UnitIdentity:
     )
 
 
+def require_exact_cwd(expected: Path, code: str, context: str) -> Path:
+    """要求进程真实工作目录精确匹配受管目录，避免仅凭参数跨边界操作。"""
+    actual = Path.cwd().resolve()
+    if actual != expected:
+        raise WorkflowError(code, f"{context} must run from {expected}, actual cwd is {actual}", 4)
+    return actual
+
+
 def parsed_worktrees(project_root: Path) -> list[dict[str, str | bool]]:
     """把 Git porcelain Worktree 列表转换为可审计的稳定对象。"""
     records: list[dict[str, str | bool]] = []
@@ -183,6 +191,61 @@ def find_exact_worktree(identity: UnitIdentity) -> dict[str, str | bool]:
     raise WorkflowError("worktree_not_found", f"managed worktree not found: {identity.worktree_path}", 4)
 
 
+def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str, object]:
+    """核验单元实际目录、登记、Git 根、分支与声明写入目标均处于所有权边界。"""
+    actual_cwd = require_exact_cwd(
+        identity.worktree_path,
+        "unit_cwd_mismatch",
+        "unit guard",
+    )
+    actual_root = Path(
+        run_git(actual_cwd, "rev-parse", "--show-toplevel").stdout.strip()
+    ).resolve()
+    if actual_root != identity.worktree_path:
+        raise WorkflowError(
+            "unit_git_root_mismatch",
+            f"unit Git top-level is {actual_root}, expected {identity.worktree_path}",
+            4,
+        )
+    branch = run_git(
+        actual_cwd,
+        "symbolic-ref",
+        "--quiet",
+        "--short",
+        "HEAD",
+        check=False,
+    )
+    actual_branch = branch.stdout.strip() if branch.returncode == 0 else None
+    if actual_branch != identity.branch:
+        raise WorkflowError(
+            "unit_branch_mismatch",
+            f"unit branch is {actual_branch or 'detached HEAD'}, expected {identity.branch}",
+            4,
+        )
+    find_exact_worktree(identity)
+
+    write_targets: list[str] = []
+    for raw_target in raw_write_targets:
+        candidate = Path(raw_target)
+        target = (candidate if candidate.is_absolute() else actual_cwd / candidate).resolve()
+        if target != identity.worktree_path and identity.worktree_path not in target.parents:
+            raise WorkflowError(
+                "write_target_outside_worktree",
+                f"write target {target} is outside managed worktree {identity.worktree_path}",
+                4,
+            )
+        write_targets.append(str(target))
+    return {
+        "guarded": True,
+        "projectRoot": str(identity.project_root),
+        "task": identity.task,
+        "unit": identity.unit,
+        "branch": identity.branch,
+        "worktreePath": str(identity.worktree_path),
+        "writeTargets": write_targets,
+    }
+
+
 def remove_unit(identity: UnitIdentity, integrated_into: str) -> dict[str, object]:
     """仅移除已整合且干净的精确 Worktree，并故意保留分支。"""
     validate_identifier("integration ref", integrated_into) if "/" not in integrated_into else None
@@ -220,15 +283,17 @@ def remove_unit(identity: UnitIdentity, integrated_into: str) -> dict[str, objec
 
 
 def parser() -> argparse.ArgumentParser:
-    """构建 create、inspect 与 remove 三个低风险子命令。"""
+    """构建 create、guard、inspect 与 remove 四个低风险子命令。"""
     root = argparse.ArgumentParser(description=__doc__)
     commands = root.add_subparsers(dest="command", required=True)
-    for name in ("inspect", "create", "remove"):
+    for name in ("inspect", "create", "guard", "remove"):
         command = commands.add_parser(name)
         command.add_argument("--project-root", required=True)
         if name != "inspect":
             command.add_argument("--task", required=True)
             command.add_argument("--unit", required=True)
+        if name == "guard":
+            command.add_argument("--write-target", action="append", default=[])
         if name == "remove":
             command.add_argument("--integrated-into", required=True)
     return root
@@ -239,12 +304,20 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = parser().parse_args(argv)
         project_root = canonical_project_root(args.project_root)
+        if args.command != "guard":
+            require_exact_cwd(
+                project_root,
+                "project_cwd_mismatch",
+                f"{args.command} operation",
+            )
         if args.command == "inspect":
             payload = {"ok": True, "operation": "inspect", **inspect_project(project_root)}
         else:
             identity = unit_identity(project_root, args.task, args.unit)
             if args.command == "create":
                 result = create_unit(identity)
+            elif args.command == "guard":
+                result = guard_unit(identity, args.write_target)
             else:
                 result = remove_unit(identity, args.integrated_into)
             payload = {"ok": True, "operation": args.command, **result}
