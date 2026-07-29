@@ -20,6 +20,7 @@ Build one platform at a time and distinguish a produced binary from a verified r
 ## Boundaries
 
 - A local build verifies only the current host unless a configured cross-toolchain actually produced and ran the target artifact.
+- This skill may produce the real artifact needed by later heavy acceptance, but it does not ask for or run Computer Use E2E or other interactive release checks.
 - Do not package, sign, upload, tag, publish, or modify versions in this skill.
 - Do not copy Cargo intermediates such as `deps`, `incremental`, `.d`, or build-script output into release results.
 - If a target binary cannot run on the current host, mark its smoke status `Unverified`; never substitute file existence for execution.

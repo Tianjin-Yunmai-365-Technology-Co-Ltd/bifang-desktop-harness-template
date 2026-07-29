@@ -40,7 +40,7 @@ Execute one approved task as visible, isolated work units without leaving requir
 1. Inspect each returned diff and evidence in its Worktree. Reject unrelated edits, missing tests, stale comments, secrets, absolute local paths, or unsupported claims.
 2. Integrate in the declared dependency order using a reversible Git operation appropriate to the repository. Resolve semantic conflicts in the owning unit or serially in the integration Worktree; never let two Subagents race on the conflict.
 3. Run the current development-loop gate after integration: non-empty unit tests plus change-related format, lint, static, integration, contract, or minimal read-only smoke checks selected by risk.
-4. Run release-level build, final-artifact smoke, Computer Use E2E, cross-platform candidates, archives, and human final review only when the user asks for delivery acceptance, prepares a release, or this task directly changes the release path.
+4. Run release-level build, final-artifact smoke, Computer Use E2E, cross-platform candidates, archives, and human final review only when the user initiates a final-artifact build or release preparation. Evidence-only delivery review and release-path maintenance use relevant static, unit, and isolated contract checks without starting those real release actions. Heavy or interactive acceptance additionally requires the current task's explicit `enabled` or product/channel `required` selection.
 5. Report integrated units, checks, skipped release gates, residual branches/Worktrees, unverified scope, and remaining risk.
 
 ## Conservative Retirement
