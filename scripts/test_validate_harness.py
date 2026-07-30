@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import scripts.validate_harness as validate_harness
+from scripts.harness_validation import governance
 
 
 class ValidateHarnessEntrypointTests(unittest.TestCase):
@@ -27,6 +28,47 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Harness validation passed:", result.stdout)
+
+    def test_rejects_obsolete_all_task_parallel_prompt(self) -> None:
+        """旧的全修改/交付任务询问规则重新出现时应被当前描述门禁拒绝。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "policy.md"
+            path.write_text(
+                "每个会修改仓库或执行交付工作的任务都必须询问并行模式。",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance.validate_stale_fragments(errors, (path,))
+        self.assertTrue(any("stale current description" in error for error in errors), errors)
+
+    def test_rejects_obsolete_design_stage_parallel_prompt(self) -> None:
+        """设计与计划阶段重新进入并行询问范围时应被当前描述门禁拒绝。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "policy.md"
+            path.write_text(
+                "仅在产品定义或范围设计、实施计划设计，以及代码或实现变更阶段询问。",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance.validate_stale_fragments(errors, (path,))
+        self.assertTrue(any("stale current description" in error for error in errors), errors)
+
+    def test_rejects_invalid_harness_datetime_version(self) -> None:
+        """12 位但不是有效年月日时分的 Harness 版本必须被拒绝。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "Version.md"
+            path.write_text(
+                "# 版本\n\n- 当前版本：`202613401299`\n",
+                encoding="utf-8",
+            )
+            original = governance.VERSION_FILE
+            governance.VERSION_FILE = path
+            try:
+                errors: list[str] = []
+                governance.validate_version_contract(errors)
+            finally:
+                governance.VERSION_FILE = original
+        self.assertTrue(any("not a valid Shanghai datetime" in error for error in errors), errors)
 
 
 @contextlib.contextmanager

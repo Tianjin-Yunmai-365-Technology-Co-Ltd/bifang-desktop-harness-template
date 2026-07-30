@@ -1,6 +1,6 @@
 ---
 name: run-parallel-worktrees
-description: Coordinate an explicitly approved task across visible Subagents using isolated Git worktrees and codex/ branches. Use only after the user approves parallel Worktree + Subagent mode for the current repository-changing or delivery task, and only when at least two write scopes can be separated safely; also use to inspect or conservatively retire worktrees created by this workflow.
+description: Coordinate an explicitly approved coding or implementation task across visible Subagents using isolated Git worktrees and codex/ branches. Use only after the user approves parallel Worktree + Subagent mode for the current code/implementation task and at least two write scopes can be separated safely; also use to inspect or conservatively retire worktrees created by this workflow.
 ---
 
 # Run Parallel Worktrees
@@ -9,8 +9,8 @@ Execute one approved task as visible, isolated work units without leaving requir
 
 ## Authorization Gate
 
-1. Before substantive execution of each repository-changing or delivery task, ask once whether to enable parallel Worktree + Subagent mode. Do not inherit approval from another task.
-2. Skip the question for pure Q&A, read-only investigation, or an immediate safety action needed to prevent harm.
+1. Before substantive code or implementation work, ask once whether to enable parallel Worktree + Subagent mode. Do not inherit approval from another task.
+2. Do not ask during product definition, scope design, implementation planning, documentation-only maintenance, pure Q&A, read-only investigation, verification review, build, release preparation, delivery work, or an immediate safety action needed to prevent harm.
 3. Use the single-Agent current-worktree path when the user declines, does not answer, or the task cannot be split into at least two independent scopes.
 4. Treat approval as permission to prepare local Worktrees and invoke Subagents for this task only. It does not authorize commit, merge, deletion, push, publication, credentials, or new external effects beyond the original task.
 

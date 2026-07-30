@@ -17,13 +17,69 @@
 |---|---|---|
 | 文件与链接 | `python3 scripts/validate_harness.py` | 31 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
 | Skills | validator + 逐份语义审查 | 20 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
-| 并行协作 | Worktree 助手 10 个隔离单元测试 + validator 契约检查 | 逐任务授权、独立 Worktree/分支、写入目标 guard、脏基线阻断、前台状态、同步等待与保守清理 |
+| 并行协作 | Worktree 助手 10 个隔离单元测试 + validator 契约检查 | 仅编码/实现阶段逐任务授权，产品/范围设计、实施计划设计和其他阶段不询问；独立 Worktree/分支、写入目标 guard、脏基线阻断、前台状态、同步等待与保守清理 |
+| Harness 版本 | validator 正向与非法日期负向测试 | `Version.md` 的当前版本是上海时区合法 `YYYYMMDDHHMM`，当前摘要一致且下游 SemVer 不受污染 |
 | 当前描述 | validator 正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
 | 开发环境门禁 | Python 11 个隔离测试 + shell/PowerShell 静态或原生检查 | Rust-only 与 GUI/WEB 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计 |
 | Rust asset | 精确 Rust 1.90 | 发布准备时执行 fmt、locked check、Clippy、7 个测试、locked release build、真实成功与失败冒烟；普通维护按变更相关性选择 |
 | 发布前手动验收 | 选择/硬要求记录 + Skills/workflow/validator 契约检查 | 仅构建/发布任务询问；产物构建后、打包前执行；失败、超时、取消或未执行阻断，未启用可选项记录风险 |
 | Workflow asset | validator + YAML 解析 + 禁止行为扫描 | 仅手动触发、固定受审验收入口、三平台候选结构完整，失败时禁止打包，不自动发布或提升写权限 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
+
+## 2026-07-30 Harness 时间版本与仅编码阶段并行规则
+
+### 范围与环境
+
+- 当前宿主：macOS，arm64；Git top-level 为 Harness 根，分支为 `master`，变更基于工作树中上一轮尚未提交的协作规则改动继续完成，没有 reset、stash、覆盖或拆分用户已有修改。
+- 项目负责人在本次会话明确拒绝并行模式，要求今后只在编码时使用 Worktree + Subagent，并批准 Harness 采用 `YYYYMMDDHHMM` 日期时间版本；本次使用单 Agent 当前工作树流程。
+- Harness 当前版本确定为上海时区 `202607301002`，`1.0.0` 仅保留为迁移前旧版本标识；下游 Rust 项目继续使用根 `Cargo.toml` 的独立 SemVer。
+
+### 已执行检查
+
+- `PYTHONPYCACHEPREFIX=/private/tmp/codex-harness-version-pycache python3 -m unittest scripts.test_validate_harness`：14 个测试通过；覆盖完整入口、候选 workflow、旧全任务并行规则、旧设计阶段并行规则和非法时间版本负向场景。
+- `PYTHONPYCACHEPREFIX=/private/tmp/codex-harness-version-pycache python3 -m py_compile scripts/validate_harness.py scripts/harness_validation/*.py scripts/test_validate_harness.py`：通过。
+- Skill Creator 现有 venv 的 `quick_validate.py` 检查 `.agents/skills/*`：20 个项目 Skills 全部通过。
+- `python3 .agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py`：10 个测试通过。
+- `python3 .agents/skills/check-development-environment/scripts/test_development_environment_gates.py`：11 个测试通过。
+- `python3 .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py`：4 个测试通过。
+- `python3 scripts/validate_harness.py`：通过，检查 31 个必需文件、20 个 Skills、本地 Markdown 链接、五类日期项目记忆和全部当前门禁；唯一非阻断提示为 `scripts/harness_validation/initialization.py` 682 行，继续接受 >400 行职责审查。
+- `git diff --check`：通过；当前事实源残留扫描只在 validator 拒绝列表与负向测试中保留旧规则文字。
+
+### 人工复核与结论
+
+- 复核人：项目负责人（本次会话用户，未提供个人姓名）。
+- 复核日期：2026-07-30。
+- 复核范围：当前工作树全部变更，包括上一轮协作触发规则、此次仅编码阶段收窄、Harness 时间版本规则、相关 Skills、validator、项目记忆和验证边界。
+- 人工结论：Approved。该结论由用户明确表示“所有部分人工审核通过”，本记录仅转录用户结论，不由 Agent 代签。
+- 当前范围结论：`Verified`。所有本地必需单元、结构、静态和 Harness 契约检查通过，并已有真实人工批准记录。
+- Harness 整体结论：`Partially verified`。Windows/Linux、真实下游、非 CLI adapter、真实 GitHub runner、发布制品和仍开放技术债所需的外部证据不因本次人工批准而自动变为通过。
+
+### 未运行范围
+
+- 本次授权提交并推送当前源码，但没有发起最终产物构建或正式发布准备；release build、最终产物存在性/启动冒烟、Computer Use E2E、跨平台候选、打包、产物收集、签名、tag 和正式发布均为 `Not run`。
+- `202607301002` 仍为 `Unreleased`；推送 Git 提交不等于创建 tag、发布物或发布版本。
+
+## 2026-07-30 并行协作询问收窄至设计与编码阶段
+
+### 范围与环境
+
+- 当前宿主：macOS，arm64；Git top-level 为 Harness 根，分支为 `master`。用户明确拒绝本任务使用并行 Worktree + Subagent，因此全程使用单 Agent 当前工作树流程。
+- 本次修改协作政策、相关 Skills、validator 回归和项目记忆，不修改业务代码、bundled Rust asset、依赖、接口行为、发布 workflow 或许可证。
+- 触发范围确定为产品/范围设计、实施计划设计和代码/实现变更；纯文档维护、问答、只读调查、验证复核、构建、发布准备、交付工作和即时安全处置不询问。
+
+### 已执行检查
+
+- `PYTHONPYCACHEPREFIX=/private/tmp/codex-stage-gate-pycache python3 -m unittest scripts.test_validate_harness`：12 个测试通过；新增负向场景证明旧的“所有仓库修改或交付任务”规则重新进入当前事实源时会被拒绝。
+- `PYTHONPYCACHEPREFIX=/private/tmp/codex-stage-gate-pycache python3 -m py_compile scripts/validate_harness.py scripts/harness_validation/*.py scripts/test_validate_harness.py`：通过。
+- 使用 Skill Creator 现有 venv 的 `quick_validate.py` 检查 `.agents/skills/*`：20 个项目 Skills 全部通过。
+- `python3 scripts/validate_harness.py`：通过，检查 31 个必需文件、20 个 Skills、本地 Markdown 链接、五类日期项目记忆和全部当前门禁；唯一非阻断提示为 `scripts/harness_validation/initialization.py` 682 行，继续接受 >400 行职责审查。
+- `git diff --check`：通过；当前事实源扫描未发现旧触发语句残留，validator 中的同文字面量仅用于回归拒绝列表。
+
+### 结论与未运行范围
+
+- 开发结论：设计/编码阶段触发及其他阶段排除规则已在政策、Skills、当前项目记忆和机械检查中一致落实；这不是人工最终复核或发布就绪结论。
+- Release build、最终产物存在性/启动冒烟、Computer Use E2E、真实多 Worktree/Subagent 前向协作、Windows/Linux、真实 GitHub runner、打包、签名、上传、tag 和发布均为 `Not run` 或 `Unverified`。
+- 混合任务仍依赖 Agent 按任务目的识别尚未完成的设计/编码阶段；若出现重复歧义，应通过新 ADR 细化，而不是重新按任意仓库写入触发。
 
 ## 2026-07-29 当前技术债收口与证据复核
 

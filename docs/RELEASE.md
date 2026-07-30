@@ -2,8 +2,9 @@
 
 ## 当前状态
 
-- 当前版本：[`Version.md`](../Version.md) 中记录的 `1.0.0`（未发布）
-- 初始版本：[`Version.md`](../Version.md) 中记录的 `1.0.0`
+- 当前版本：[`Version.md`](../Version.md) 中记录的 `202607301002`（未发布）
+- 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
+- 旧版本标识：[`Version.md`](../Version.md) 中记录的 `1.0.0`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
 - 下游 Rust 项目版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`
 - 发布渠道：待确定
@@ -11,7 +12,14 @@
 
 ## 版本规则
 
-使用 Semantic Versioning 2.0.0：
+Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYYYMMDDHHMM`：
+
+- 版本值取项目负责人确认该版本时的本地年月日时分。
+- 12 位数字按时间先后可直接排序；不包含秒、时区后缀或预发布后缀。
+- 同一分钟内如需产生第二个不同版本，必须等待下一分钟，不得追加未约定字符。
+- `1.0.0` 只作为迁移前旧版本标识保留，不再用于新的 Harness 版本。
+
+下游产品默认使用 Semantic Versioning 2.0.0：
 
 - MAJOR：用户依赖的接口或行为存在不兼容变化。
 - MINOR：向后兼容地增加能力。
@@ -19,13 +27,13 @@
 
 已发布版本不得静默覆盖。任何发布内容变化都必须产生新版本。
 
-Agent 可以根据上述语义建议版本变化，但是否提升版本以及提升到哪个版本由用户决定。未经用户明确决定，不得修改版本、创建 tag 或把 `Unreleased` 条目移动到正式版本。
+Agent 可以按对应方案建议 Harness 时间版本或下游 SemVer 变化，但是否改变版本以及最终值由用户决定。未经用户明确决定，不得修改版本、创建 tag 或把 `Unreleased` 条目移动到正式版本。
 
 ## 发布物命名
 
 Harness 模板若发布源码归档，使用：
 
-`agent-first-harness-template-vMAJOR.MINOR.PATCH.扩展名`
+`agent-first-harness-template-vYYYYMMDDHHMM.扩展名`
 
 下游可执行产品在确定产品名和平台后使用：
 
@@ -104,7 +112,7 @@ GUI 的本地 production build、产物存在和启动冒烟不要求签名身�
 
 ## 发布记录模板
 
-- 版本：vX.Y.Z
+- 版本：Harness 使用 `vYYYYMMDDHHMM`；下游默认使用 `vX.Y.Z`
 - 日期：YYYY-MM-DD
 - 源码 commit：待填写
 - 发布物：待填写

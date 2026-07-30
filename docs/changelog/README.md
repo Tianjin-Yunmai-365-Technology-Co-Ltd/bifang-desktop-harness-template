@@ -1,6 +1,6 @@
 # Changelog 索引
 
-本目录是用户和维护者可感知变化的唯一正文来源，分类参考 Keep a Changelog，版本遵循 Semantic Versioning 2.0.0。
+本目录是用户和维护者可感知变化的唯一正文来源，分类参考 Keep a Changelog。Harness 版本使用 `Version.md` 声明的上海时区 `YYYYMMDDHHMM`；下游产品默认遵循 Semantic Versioning 2.0.0。
 
 ## 写入规则
 
@@ -13,6 +13,7 @@
 
 ## 日期文件
 
+- [2026-07-30](20260730_CHANGELOG.md)
 - [2026-07-29](20260729_CHANGELOG.md)
 - [2026-07-28](20260728_CHANGELOG.md)
 - [2026-07-27](20260727_CHANGELOG.md)

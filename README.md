@@ -7,7 +7,7 @@
 - 维护状态：Active
 - 产品名称：Agent-first Harness 项目模板
 - 产品规格：Approved（2026-07-21）
-- 当前版本：1.0.0（未发布；事实来源见 [`Version.md`](Version.md)）
+- 当前版本：202607301002（上海时区 `YYYYMMDDHHMM`，未发布；事实来源见 [`Version.md`](Version.md)）
 - 源码：尚未创建
 - 反馈入口：待确定
 
@@ -16,7 +16,7 @@
 1. 使用 `$instantiate-project`，提供项目名称、ASCII `snake_case` 标识、完整目标目录、负责人和目标平台；流程调用 `$rename-project-identity` 全量重写项目自有配置、Skills、文档、路径和两份 License 的适用项目名，再建立以项目根为 top-level 的独立 Git 仓库，并排除 Harness 的 ADR、Changelog、Product Spec 与 Work Plan。
 2. 进入目标目录并使用 `$initialize-rust-project`，选择需要的 CLI/TUI/MCP/GUI/WEB 接口并决定是否关闭 superpowers；无接口选择时默认 CLI。初始化创建 shared core 与所选接口的中性 scaffold status，验证后删除下游中的实例化/初始化 Skills、模板专用文档和门禁入口，创建一个本地初始化基线 commit，并验证独立 Git 无 remote、工作树干净。
 3. 在已初始化的项目中先由 `$check-development-environment` 确认当前宿主工具链：始终检查 Rust，只有 GUI/WEB 项目额外检查 Node.js 与 pnpm。随后使用 `$define-product` 明确唯一目标、核心输入输出、范围、成功标准和最高风险失败路径。
-4. 每个会修改仓库或执行交付工作的任务开始前，由 Agent 询问是否启用并行 Worktree + Subagent；用户同意且任务可安全拆分时使用 `$run-parallel-worktrees`，否则保持单 Agent。
+4. 仅在代码或实现变更阶段，由 Agent 询问是否启用并行 Worktree + Subagent；产品定义、范围设计、实施计划设计、纯文档维护、验证复核、构建、发布准备和交付阶段不询问。用户同意且编码任务可安全拆分时使用 `$run-parallel-worktrees`，否则保持单 Agent。
 5. 使用 `$plan-change` 建立可验证的执行计划，再使用 `$implement-change` 以真实业务命令替换中性 `scaffold status`。开发轮次运行非空单元测试和变更相关验证。
 6. 用户发起最终产物构建或发布准备时使用 `$verify-delivery`：在首次发布构建前逐项询问本次是否启用 Computer Use E2E 等手动验收；基础编译、非空单元测试、相关集成/契约、产物存在性和只读启动冒烟始终不可跳过。已启用或产品/渠道要求的手动验收在产物构建后、打包或发布动作前执行，失败即阻断后续打包。
 
@@ -25,7 +25,7 @@
 | 文件 | 作用 |
 |---|---|
 | `AGENTS.md` | 编码代理的首要项目指引 |
-| `Version.md` | Harness 模板当前版本、初始版本与发布状态的唯一事实来源 |
+| `Version.md` | Harness 模板当前时间版本、时间版本起始值、旧版本标识与发布状态的唯一事实来源 |
 | `LICENSE.zh-CN.md` / `LICENSE.en.md` | 非开源的企业专有商业许可；覆盖项目、知识产权和终端下游限制 |
 | `docs/product_spec/README.md` | Product Spec 按日完整快照规则与索引；当前规格取日期最新文件 |
 | `docs/AGENT_POLICY.md` | superpowers 等 Agent 能力开关 |
@@ -107,5 +107,5 @@
 - CLI、TUI、MCP、GUI、WEB 均有独立 adapter Skill；任何一种都不以另一 adapter 为前置条件。
 - 初始化会把 superpowers 选择写入 `docs/AGENT_POLICY.md`；关闭后，后续开发不得调用 `superpowers:*` Skills。
 - 检查失败或需要人工判断时进入审批与人工复核，修正后重新运行验证循环。
-- 并行授权逐任务询问且不继承；写入型 Subagent 使用独立 Worktree，并在写入前声明目标通过 helper 边界检查；该检查不替代宿主 sandbox。主 Agent 公开阶段状态并同步等待所有必需结果。
+- 仅编码/实现阶段的并行授权逐任务询问且不继承；产品/范围设计、实施计划设计及其他非编码阶段不询问。写入型 Subagent 使用独立 Worktree，并在写入前声明目标通过 helper 边界检查；该检查不替代宿主 sandbox。主 Agent 公开阶段状态并同步等待所有必需结果。
 - 模板自身始终保持无具体业务代码。

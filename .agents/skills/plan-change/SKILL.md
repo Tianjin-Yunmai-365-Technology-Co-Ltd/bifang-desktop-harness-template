@@ -9,11 +9,11 @@ Produce a short plan whose steps each end in a verifiable outcome.
 
 ## Workflow
 
-1. Apply the task-level collaboration gate in `AGENTS.md` before substantive planning. Ask once whether to enable parallel Worktree + Subagent mode for this task; when approved and safely divisible, use `$run-parallel-worktrees`. Otherwise plan in the current worktree with one Agent. Do not inherit an earlier task's approval.
+1. Create implementation plans in the current worktree with one Agent. Do not ask for or start parallel Worktree + Subagent mode during planning; the collaboration gate applies only when a later task begins code or implementation changes.
 2. Read `docs/product_spec/README.md` and the latest dated Product Spec, `docs/project_status/README.md` and the latest dated Product Status, `docs/ENGINEERING_RULES.md`, `docs/adr/README.md`, the latest dated ADR, any older ADR explicitly referenced by it, and the repository areas implicated by the request.
 3. Confirm the request is inside the approved scope. Route scope changes through `$define-product` before planning implementation.
 4. Map current behavior and preserve existing user changes.
-5. Define the exact in-scope and out-of-scope boundaries for this change. When parallel mode is approved, identify at least two independent work units, exact write ownership, dependencies, integration order, and checks; convert overlap to serial work.
+5. Define the exact in-scope and out-of-scope boundaries for this change. When the plan could support later parallel coding, identify separable implementation units, exact write ownership, dependencies, integration order, and checks without starting Worktrees or Subagents; convert overlap to serial work.
 6. Order steps by dependency. For each step, name the expected result and its verification.
 7. Identify data-loss, compatibility, security, dependency, and rollback risks in proportion to the change.
 8. Separate the development-loop gate from release acceptance. Require non-empty unit tests and change-related checks for implementation. A delivery-status review or release-path change schedules evidence inspection plus relevant static, unit, and isolated contract checks, not real final artifacts, full smoke, Computer Use E2E, cross-platform candidates, archives, or human final review. Schedule those release-stage actions only when the user initiates a final-artifact build or release preparation. For any heavy or interactive acceptance in that stage, require a fresh user selection before the first release build, default unselected optional checks to `Not run`, and treat selected checks as blocking gates if they fail or remain unrun.

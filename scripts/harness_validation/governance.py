@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from .context import *  # noqa: F403
 
 def validate_engineering_contract(errors: list[str]) -> None:
@@ -52,10 +55,12 @@ def validate_engineering_contract(errors: list[str]) -> None:
                 )
 
 def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
-    """校验逐任务并行授权、前台协作、安全 Worktree 与验证分层契约。"""
+    """校验仅编码阶段并行授权、前台协作、安全 Worktree 与验证分层契约。"""
     required_fragments = {
         ROOT / "AGENTS.md": (
-            "每个会修改仓库或执行交付工作的任务",
+            "仅在代码或实现变更阶段",
+            "产品定义、范围设计、实施计划设计",
+            "验证复核、构建、发布准备、交付工作",
             "授权只对当前任务有效",
             "$run-parallel-worktrees",
             "独立 Git Worktree",
@@ -68,7 +73,9 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "失败、超时、取消或选择后未执行均阻断",
         ),
         ROOT / "README.md": (
-            "询问是否启用并行 Worktree + Subagent",
+            "仅在代码或实现变更阶段",
+            "产品定义、范围设计、实施计划设计",
+            "验证复核、构建、发布准备和交付阶段不询问",
             "$run-parallel-worktrees",
             "保持单 Agent",
             "开发轮次运行非空单元测试和变更相关验证",
@@ -77,6 +84,8 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
         ),
         PARALLEL_SKILL / "SKILL.md": (
             "Do not inherit approval from another task",
+            "Do not ask during product definition, scope design, implementation planning",
+            "verification review, build, release preparation, delivery work",
             "at least two independent scopes",
             "Show the user the work-unit map",
             "Wait synchronously for every required Subagent result",
@@ -103,18 +112,21 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "test_remove_rejects_dirty_or_unintegrated_worktree",
         ),
         SKILLS_ROOT / "plan-change" / "SKILL.md": (
-            "task-level collaboration gate",
-            "$run-parallel-worktrees",
-            "Do not inherit an earlier task's approval",
+            "current worktree with one Agent",
+            "Do not ask for or start parallel Worktree + Subagent mode during planning",
             "Separate the development-loop gate from release acceptance",
         ),
         SKILLS_ROOT / "implement-change" / "SKILL.md": (
-            "task-level collaboration gate",
+            "coding-stage collaboration gate",
             "$run-parallel-worktrees",
             "non-empty unit tests plus change-related",
             "A delivery-status review or release-path change runs only",
             "Enter release-stage execution only when the user initiates",
             "only when the user also requests delivery acceptance",
+        ),
+        SKILLS_ROOT / "define-product" / "SKILL.md": (
+            "current worktree with one Agent",
+            "Do not ask for or start parallel Worktree + Subagent mode during product definition",
         ),
         SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
             "only an explicit build/release request starts real release gates",
@@ -181,20 +193,15 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
         if fragment in helper_text:
             fail(errors, f"unsafe parallel helper behavior present: {fragment}")
 
-def validate_current_descriptions(errors: list[str]) -> None:
-    """拒绝已被当前接口、Git 与治理规则替代的规范描述重新进入有效事实源。"""
-    current_files = (
-        ROOT / "README.md",
-        ROOT / "AGENTS.md",
-        PRODUCT_SPEC,
-        PRODUCT_STATUS,
-        ROOT / "docs" / "RUST_CLI_TEMPLATE.md",
-        ROOT / "docs" / "HARNESS_ENGINEERING.md",
-        ROOT / "docs" / "RELEASE.md",
-        ENGINEERING_RULES,
-        *(path / "SKILL.md" for path in sorted(SKILLS_ROOT.iterdir()) if path.is_dir()),
-    )
+def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None:
+    """拒绝旧接口、Git 或协作触发规则重新进入指定当前事实源。"""
     stale_fragments = (
+        "每个会修改仓库或执行交付工作的任务",
+        "Before substantive execution of each repository-changing or delivery task",
+        "current repository-changing or delivery task",
+        "仅在产品定义或范围设计、实施计划设计，以及代码或实现变更阶段",
+        "仅在产品定义/范围设计、实施计划设计和代码/实现变更阶段",
+        "Before substantive product/scope design, implementation planning, or code/implementation work",
         "所有 Agent-first 项目必须证明 CLI 闭环",
         "CLI 永远是最小 MVP",
         "CLI 不可替代",
@@ -210,7 +217,7 @@ def validate_current_descriptions(errors: list[str]) -> None:
         "<项目标识>-MCP",
         "<项目标识>-gui",
     )
-    for path in current_files:
+    for path in paths:
         if not path.is_file():
             continue
         text = path.read_text(encoding="utf-8")
@@ -220,6 +227,22 @@ def validate_current_descriptions(errors: list[str]) -> None:
                     errors,
                     f"stale current description in {display_path(path)}: {fragment}",
                 )
+
+
+def validate_current_descriptions(errors: list[str]) -> None:
+    """拒绝已被当前接口、Git 与治理规则替代的规范描述重新进入有效事实源。"""
+    current_files = (
+        ROOT / "README.md",
+        ROOT / "AGENTS.md",
+        PRODUCT_SPEC,
+        PRODUCT_STATUS,
+        ROOT / "docs" / "RUST_CLI_TEMPLATE.md",
+        ROOT / "docs" / "HARNESS_ENGINEERING.md",
+        ROOT / "docs" / "RELEASE.md",
+        ENGINEERING_RULES,
+        *(path / "SKILL.md" for path in sorted(SKILLS_ROOT.iterdir()) if path.is_dir()),
+    )
+    validate_stale_fragments(errors, current_files)
 
     msrv_fragments = {
         PRODUCT_SPEC: (
@@ -274,30 +297,64 @@ def validate_current_descriptions(errors: list[str]) -> None:
             )
 
 def validate_version_contract(errors: list[str]) -> None:
-    """确认 Harness 1.0.0 只有一个版本事实源，当前摘要与下游排除契约一致。"""
+    """确认 Harness 时间版本合法、只有一个事实源且不污染下游版本。"""
+    if not VERSION_FILE.is_file():
+        fail(errors, f"missing version contract file: {display_path(VERSION_FILE)}")
+        return
+
+    version_text = VERSION_FILE.read_text(encoding="utf-8")
+    match = re.search(r"当前版本：`(\d{12})`", version_text)
+    if not match:
+        fail(errors, "Version.md current Harness version must be 12 digits in YYYYMMDDHHMM")
+        current_version = "__invalid__"
+    else:
+        current_version = match.group(1)
+        try:
+            parsed = datetime.strptime(current_version, "%Y%m%d%H%M").replace(
+                tzinfo=ZoneInfo("Asia/Shanghai")
+            )
+        except ValueError:
+            fail(
+                errors,
+                "Version.md current Harness version is not a valid Shanghai datetime: "
+                f"{current_version}",
+            )
+        else:
+            if parsed.strftime("%Y%m%d%H%M") != current_version:
+                fail(errors, f"Version.md current Harness version is not canonical: {current_version}")
+
     required_fragments = {
         VERSION_FILE: (
-            "当前版本：`1.0.0`",
-            "初始版本：`1.0.0`",
+            f"当前版本：`{current_version}`",
+            "时间版本起始值：`202607301002`",
+            "旧版本标识：`1.0.0`",
+            "版本时区：`Asia/Shanghai`",
+            "版本格式：`YYYYMMDDHHMM`",
             "发布状态：Unreleased",
             "唯一事实来源",
             "docs/RELEASE.md",
         ),
         ROOT / "README.md": (
-            "当前版本：1.0.0",
+            f"当前版本：{current_version}",
+            "上海时区 `YYYYMMDDHHMM`",
             "[`Version.md`](Version.md)",
         ),
         PRODUCT_SPEC: (
-            "当前版本：`1.0.0`",
+            f"当前版本：`{current_version}`",
+            "上海时区格式为 `YYYYMMDDHHMM`",
             "唯一事实来源为根 `Version.md`",
         ),
         ROOT / "docs" / "RELEASE.md": (
-            "[`Version.md`](../Version.md) 中记录的 `1.0.0`",
+            f"[`Version.md`](../Version.md) 中记录的 `{current_version}`",
+            "`Asia/Shanghai`",
+            "`YYYYMMDDHHMM`",
             "模板版本事实来源：根目录 `Version.md`",
             "本文件只维护版本与发布规则",
         ),
         PREPARE_RELEASE_SKILL: (
             "The Harness template uses root `Version.md`",
+            "`YYYYMMDDHHMM`",
+            "`Asia/Shanghai`",
             "must not inherit the Harness `Version.md`",
         ),
         INSTANTIATE_SKILL: (
