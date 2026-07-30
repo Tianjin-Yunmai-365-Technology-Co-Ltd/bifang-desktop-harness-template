@@ -8,6 +8,7 @@
 - Harness 版本：根 `Version.md` 记录 `202607301002` / `Unreleased`，`1.0.0` 仅保留为旧版本标识；模板没有具体产品业务代码或最终应用产物。
 - 当前变更：协作询问、版本规则、相关 Skills、validator 和项目记忆已按单 Agent 当前工作树流程同步；本地必需检查全部通过，项目负责人已批准当前工作树全部变更。不改变 Worktree 隔离、前台可见性、验证分层、下游 SemVer 或发布门禁。
 - 当前计划：见 [`docs/work_plan/20260730_work_plan.md`](../work_plan/20260730_work_plan.md)。
+- Git 状态：主实现提交 `daecc6c` 已推送到 `origin/master`；本次未创建 tag 或正式发布。
 
 ## 已完成且仍有效
 
