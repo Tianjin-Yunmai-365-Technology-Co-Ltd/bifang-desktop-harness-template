@@ -55,7 +55,9 @@
 
 ### M1 入口与未运行范围
 
-- TODO-A01 至 TODO-D03 已全部完成；开发阶段只运行非空单元/回归、结构、语法、静态与契约检查，没有运行冒烟或 E2E。当前候选等待首次提交后绑定精确源码 commit 重跑完整门禁，完成前状态为 `Ready for commit-bound verification`。
+- TODO-A01 至 TODO-D03 已全部完成；开发阶段只运行非空单元/回归、结构、语法、静态与契约检查，没有运行冒烟或 E2E。
+- 首次源码候选提交为 `d9e7e81bbb9c77ce7542902010c54f413f836faa`。提交后确认工作树为空，并在该精确 commit 上重新执行升级器 27 个、validator 34 个、环境 12 个、Worktree helper 10 个、身份改名 4 个测试，以及 20 个 Skills、20 个 Python 文件、完整 Harness validator、workflow YAML、全部 POSIX shell、`git diff --check` 和 clean-tree 门禁；全部通过。
+- commit-bound M1 自动技术结论：`Technically accepted`。候选包含真实维护 CLI 与实际 subprocess plan/apply/record 场景，不以 Mock、内部函数调用或中性 scaffold 代替；如果后续生产逻辑变化，必须建立新候选并重新执行完整 M1。
 - M1 的交付物是维护 CLI、validator、Skills 和可执行治理规则，不存在需要启动交互的 GUI/TUI/MCP/CLI 产品最终产物；`milestone_smoke` 与 Computer Use E2E 在进入里程碑后判定为 `Not applicable`，记录为 `Not run`。27 个真实 subprocess CLI fixture 是维护场景功能证据，不被改名为冒烟或 E2E。
 - PowerShell 可执行文件在当前 macOS 宿主不可用，原生 PowerShell 检查为 `Not run`；Windows 行为仅有 Python 回归和脚本文本契约。Windows/Linux、真实 GitHub runners、真实客户下游、非 CLI adapter、Tauri 构建与长期升级仍为 `Unverified`。
 - 没有执行 Rust release build、跨平台候选运行、ready 制品收集、签名、tag、发布或上传。用户授权提交和推送当前源码，不等于人工最终复核或正式发布授权。

@@ -24,6 +24,6 @@
 
 ## Verification boundary
 
-- Todo 开发检查已通过，M1 维护候选等待提交后绑定精确源码 commit 复验；真实客户下游、Windows/Linux、PowerShell 原生执行、真实 GitHub runners 和长期升级仍为 `Unverified`。
+- M1 维护候选已绑定源码 commit `d9e7e81bbb9c77ce7542902010c54f413f836faa` 完成自动技术验收；真实客户下游、Windows/Linux、PowerShell 原生执行、真实 GitHub runners 和长期升级仍为 `Unverified`。
 - 本次维护里程碑不包含产品 GUI/TUI/MCP/CLI 最终产物，冒烟与 Computer Use E2E 判定为 `Not applicable`，没有执行。
 - Harness 仍为 `202607301002` / `Unreleased`；本次不创建 release build、签名、tag、发布物或正式发布，人工最终复核仍待项目负责人明确签署。

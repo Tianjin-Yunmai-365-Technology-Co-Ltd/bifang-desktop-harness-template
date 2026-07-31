@@ -6,8 +6,8 @@
 
 - 产品规格：Approved；2026-07-31 已确认 TodoList/验证里程碑闭环、真实完整产物验收、失败回编码、下游 Harness 升级和四项项目级 Agent 策略。
 - Harness 版本：根 `Version.md` 仍记录 `202607301002` / `Unreleased`；本轮尚未进入版本或发布准备。
-- 当前变更阶段：TODO-A01 至 TODO-D03 已完成，开发检查通过，验证里程碑 M1 候选已就绪；提交后仍须把完整检查重新绑定到精确源码 commit，人工最终复核保持 `Awaiting human review`。
-- 工作区现状：2026-07-30 独立 WEB 移除、GUI/环境门禁调整与 2026-07-31 治理/升级能力已在同一现有工作树完成；用户已授权全部检查通过后提交并推送当前 `master`，未授权 tag、发布或制品上传。
+- 当前变更阶段：TODO-A01 至 TODO-D03 已完成；验证里程碑 M1 已绑定源码 commit `d9e7e81bbb9c77ce7542902010c54f413f836faa` 完成自动技术验收，人工最终复核保持 `Awaiting human review`。
+- 工作区现状：2026-07-30 独立 WEB 移除、GUI/环境门禁调整与 2026-07-31 治理/升级能力已形成候选提交；当前只补记 commit-bound 证据。用户已授权提交全部变更并推送当前 `master`，未授权 tag、发布或制品上传。
 - 当前计划：见 [`docs/work_plan/20260731_work_plan.md`](../work_plan/20260731_work_plan.md)。
 
 ## 本次已交付
@@ -25,7 +25,7 @@
 - Harness validator：34 个正负向单元测试通过；覆盖策略占位元数据、重复/缺字段 Todo、未完成 Todo 伪验收、注释绕过、额外 workflow 输入/步骤、可变 action tag 与弱化 ownership。
 - 相关既有回归：开发环境门禁 12 个、Worktree helper 10 个、身份改名 4 个测试全部通过；20 个项目 Skills 结构有效。
 - 完整 Harness validator、Python 无缓存语法编译、POSIX shell 语法、workflow YAML 安全解析和 `git diff --check` 通过；完整命令和软提示记录在 `docs/VERIFICATION.md`。
-- M1 不包含可交互产品最终产物，里程碑冒烟与 Computer Use E2E 均判定为 `Not applicable`，没有在开发或普通验证流程误运行；commit-bound 技术结论将在提交后复验并记录。
+- M1 不包含可交互产品最终产物，里程碑冒烟与 Computer Use E2E 均判定为 `Not applicable`，没有在开发或普通验证流程误运行；全部自动证据已在干净的精确候选 commit 上重跑通过。
 
 ## 未完成与剩余风险
 
@@ -38,6 +38,6 @@
 
 ## 下一步
 
-1. 按用户已给出的授权提交当前工作树全部变更并推送当前 `master`；Git 提交/推送不等于人工里程碑签署或发布。
+1. 提交 commit-bound 验证记录，并按用户已给出的授权把候选与证据提交一起推送当前 `master`；Git 提交/推送不等于人工里程碑签署或发布。
 2. 项目负责人复核 `docs/VERIFICATION.md` 的范围、自动证据与剩余风险后，明确给出人工最终结论；届时再写入复核人、日期和结论。
 3. 首个真实下游采用 `$upgrade-harness` 时记录有/无旧 lock 的前向证据；在 Windows/Linux 与真实 GitHub runners 补齐平台证据。
