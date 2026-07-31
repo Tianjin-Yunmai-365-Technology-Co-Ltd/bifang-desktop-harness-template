@@ -5,7 +5,7 @@ description: Add an optional non-interactive CLI adapter to an initialized downs
 
 # Add CLI Adapter
 
-Add the smallest Agent-ready command interface over the shared core. CLI is the default only when initialization receives no interface selection; it is never silently added beside an explicit TUI, MCP, GUI, or WEB selection.
+Add the smallest Agent-ready command interface over the shared core. CLI is the default only when initialization receives no interface selection; it is never silently added beside an explicit TUI, MCP, or GUI selection.
 
 ## Workflow
 
@@ -16,7 +16,7 @@ Add the smallest Agent-ready command interface over the shared core. CLI is the 
 5. Implement complete non-interactive and `--json` behavior from `docs/CLI_CONTRACT.md`. Do not make a TUI code path the only way to invoke core operations.
 6. Test the real binary: success, highest-risk failure, JSON parsing, stdout/stderr separation, exit codes, `--help`/`--version`, and refusal to wait for input. During `Draft`, also reject unapproved business commands.
 7. During ordinary implementation, run discovered format, lint, non-empty tests, locked check/build checks needed by the change, and targeted real-binary black-box tests. Do not claim release readiness from development evidence.
-8. When the user initiates a final-artifact build or prepares a release, first capture this run's release-stage selection before the production build starts. Always run the locked production build, artifact existence, and read-only binary smoke. Run `$test-final-artifact-e2e` only when the user explicitly selected it for this run or an approved product/channel rule makes it mandatory; never assume prior approval. If a selected E2E check fails, times out, is cancelled, or is not executed after selection, block packaging and hand the failed evidence to `$verify-delivery`. If it was not selected and is not mandatory, record `Not run` plus residual risk. A delivery-status review only inspects existing evidence and does not start these actions. Record current-platform evidence and mark other platforms `Unverified`.
+8. During Todo implementation run non-empty core/CLI unit and black-box contract tests plus relevant format, lint and check commands; do not run smoke/E2E. After the batch is `done`, build and locate the real binary as a milestone candidate, then hand it to `$verify-delivery`. Only that milestone reads persistent smoke/E2E policy or hard requirements; failures reopen Todo and return to implementation. Record current-platform evidence and mark others `Unverified`.
 
 ## Boundaries
 

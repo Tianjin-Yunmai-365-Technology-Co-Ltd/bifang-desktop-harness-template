@@ -39,7 +39,7 @@ Harness 模板若发布源码归档，使用：
 
 `产品名-vMAJOR.MINOR.PATCH-平台-架构.扩展名`
 
-实际生成归档时同时生成相邻的 `<archive>.sha256` 和 manifest。manifest 至少包含版本、源码 commit、平台、架构或 target、归档名、SHA-256、测试结果和冒烟结果。不得在发布物尚不存在时制造校验值或示例发布物。
+实际生成归档时同时生成相邻的 `<archive>.sha256` 和 manifest。仅用于验收传输的 pending candidate manifest 至少包含版本、源码 commit、平台、架构或 target、归档名、SHA-256、测试结果和 `milestoneAcceptance: pending`；转为 ready/发布归档时，manifest 还必须包含最终里程碑结论，以及按策略/硬要求解析的冒烟/E2E 状态（含 `Not run` / `Not applicable`）。不得在发布物尚不存在时制造校验值或示例发布物。
 
 ## 许可证与第三方声明
 
@@ -50,29 +50,29 @@ Harness 模板若发布源码归档，使用：
 
 所有下游发布候选统一收集到项目根 `release/`。该目录是被 `.gitignore` 忽略的刷新目录，不是历史归档：每次收集前必须先验证 canonical 项目根、拒绝 `release` 符号链接和路径越界，完成当前项目/版本/源码 commit/build run 的来源清单后清空精确 `release/` 内既有内容，再只复制选定的最新已完成结果。不得依赖含糊的 provider “latest” 或单独依赖 mtime，不得混入其他项目、旧版本、旧 run、未完成、重复、额外或来源不明文件。
 
-## 发布构建与手动验收顺序
+## 里程碑验收与发布顺序
 
-1. 只有用户发起最终产物构建或发布准备时，才进入本顺序。仅要求复核已有交付证据时，记录缺失项和风险，不自动启动 release build、Computer Use E2E 或其他真实环境验收。
-2. 在首次发布构建前，列出本次可能适用的 Computer Use E2E、真实设备、真实宿主交互及其他重型验收，逐项记录 `required`、`enabled` 或 `not enabled`。用户选择只对当前任务有效；产品规格或发布渠道明确要求的项目只能是 `required`。
-3. 无论手动验收选择如何，先基于当前源码通过代码编译、非空单元测试、相关集成/契约验证，再构建最终产物并完成存在性检查和真实产物的有限时只读启动冒烟。任一基础门禁失败都禁止打包、上传、产物收集、签名和发布。
-4. 对 `required` 或 `enabled` 的手动验收，在所需最终产物构建后、任何打包、上传、产物收集、签名或发布动作前执行。通过后才允许继续；失败、超时、取消或选择后未执行均阻断当前任务，同一任务不得通过改为 `not enabled` 绕过。
-5. `not enabled` 且没有产品/渠道硬要求的项目记录 `Not run`、原因和剩余风险后可以继续。人工选择只授权执行或跳过可选项，不能把未执行、失败或硬要求改判为通过。
+1. Work Plan 当前批次全部 Todo 为 `done` 且非空单元测试、相关集成/契约检查通过后，才可生成完整真实里程碑候选。常规 build 只生成候选，不运行冒烟/E2E。
+2. `$verify-delivery` 在验证里程碑读取 `docs/AGENT_POLICY.md`、产品/渠道硬要求和当前候选的适用性，记录冒烟/E2E 为 `required`、`enabled`、`disabled` 或 `Not applicable`。项目级选择跨任务复用；只有策略缺失/冲突、无法建立可运行性或需要新增外部授权时询问。
+3. 对 `required` 或 `enabled` 的检查，在真实候选构建后、制品收集为 ready、发布/分发打包、签名、发布上传或正式发布前执行。步骤 1 完成后允许 CI 先生成并上传 `milestoneAcceptance: pending` 的 candidate transport bundle 供跨平台验收；它不得被当作 ready 或发布物。失败、超时、取消或未执行会拒绝里程碑并重开 Todo，返回编码修复。
+4. 里程碑通过并取得项目要求的人工复核后，`$prepare-release` 才可准备版本和发布元数据。发布流程检查候选 commit、版本、hash、manifest 与已验收产物一致，不自行运行冒烟/E2E。
+5. 若打包、签名或渠道处理改变产物字节、启动器、依赖或运行行为，结果成为新的里程碑候选，必须回到步骤 2；不得用旧产物证据替代。
 
 ## Harness 模板发布检查清单
 
-本清单只在用户发起 Harness 最终产物构建或准备发布时作为完整基础门禁执行。普通文档、Skill、脚本、workflow 开发或只读交付复核只运行/检查与请求相称的证据，并把本清单中未运行项明确记录为 `Not run`；历史开发证据不能替代候选源码上的重新验收。
+本清单在 Harness 维护 Todo 全部完成并进入验证里程碑后执行。普通文档、Skill、脚本或 workflow 开发只运行非空单元测试与相关检查，不运行冒烟/E2E；历史开发证据不能替代当前候选的里程碑证据。
 
 模板自身无应用代码，不使用下游的编译、单元测试、CLI 和二进制冒烟门槛。模板发布必须满足：
 
 - [ ] 产品规格状态为 Approved。
 - [ ] README、AGENTS、项目记忆文档和全部声明的项目 Skills 完整存在。
 - [ ] `python3 scripts/validate_harness.py` 成功，且输出对应当前候选源码。
-- [ ] Rust 初始化中性资产通过当前系统的格式、lint、非空测试、release 构建和真实二进制冒烟验证。
+- [ ] Rust 初始化中性资产通过当前系统的格式、lint 和非空测试；它是 scaffold 资产而非产品里程碑，不用冒烟证明产品交付。
 - [ ] Rust 初始化中性资产在声明的最低版本 Rust 1.90.0 上完成可用工具链验证，或明确阻止发布并保持 `Unverified`；这不限制开发或运行环境使用更高 stable。
 - [ ] 候选 workflow 示例通过静态检查，且不包含未经授权的 tag、release、publish 或写权限。
-- [ ] 版本、Rust 默认值、五类独立 adapter、默认 CLI、Agent policy、E2E 与验证适用性在事实来源中一致。
+- [ ] 版本、Rust 默认值、四类独立 adapter、默认 CLI、Agent policy、Todo/里程碑和验收适用性在事实来源中一致。
 - [ ] `docs/VERIFICATION.md` 包含本次文档检查证据、未执行项和剩余风险。
-- [ ] 发布构建前已逐项记录重型手动验收的 `required` / `enabled` / `not enabled` 状态；所有 `required` 或 `enabled` 项在打包前通过，未启用的可选项记录 `Not run` 与风险。
+- [ ] 验证里程碑已按持久策略记录冒烟/E2E 的 `required` / `enabled` / `disabled` / `Not applicable`；所有 `required` 或 `enabled` 项通过，未运行项和风险准确记录。
 - [ ] `docs/VERIFICATION.md` 包含真实的人类最终复核记录和结论。
 - [ ] `Version.md`、按日 Changelog 汇总、Git tag 和源码归档中的版本一致。
 - [ ] `docs/changelog/` 的日期文件中存在对应版本条目。
@@ -80,17 +80,18 @@ Harness 模板若发布源码归档，使用：
 - [ ] 若生成源码归档，其来源 commit 和 SHA-256 已记录。
 - [ ] 已知重要问题已在 `docs/TECH_DEBT.md` 中公开。
 
-Harness 根目录没有具体产品，因此下游四项门槛不适用于模板发布；理由必须记录。Skill 中的 Rust 中性资产有独立的格式、lint、测试、构建和冒烟门槛，不能因其不是正式产品而跳过。模板未来在根目录加入可执行产品时，应重新通过范围闸门并增加相应门槛。
+Harness 根目录没有具体产品，因此下游产物门槛不适用于模板发布；理由必须记录。Skill 中的 Rust 中性资产有独立的格式、lint 和非空测试门槛，但不得把 scaffold 构建或启动冒烟当作产品验收。模板未来在根目录加入可执行产品时，应重新通过范围闸门并定义真实里程碑。
 
 ## 下游项目发布检查清单
 
-本清单在用户发起最终产物构建或准备发布时触发，并基于当前源码重新执行。仅要求交付状态复核时检查已有证据并公开缺口，不自动运行构建或手动验收。每轮普通开发不重复最终产物、完整启动冒烟、E2E、跨平台候选、归档和人工复核，但仍必须通过非空单元测试与变更相关验证。
+本清单只接受已通过验证里程碑的真实候选。普通 Todo 开发、构建、收集和发布准备不运行冒烟/E2E，但仍必须通过非空单元测试与变更相关验证。
 
 - [ ] 项目根是独立 Git top-level，当前发布源码已有可解析 commit；父仓库、unborn HEAD 或未记录的工作区修改不得替代发布源码身份。
 - [ ] 产品规格状态为 Approved。
 - [ ] 中性 `scaffold status` 已由获批的真实业务命令和测试删除或替换，不再返回 `productDefinitionRequired=true`。
-- [ ] 所有不可跳过、产品/渠道必需或用户当次启用的验证已通过，未启用的可选项和风险已记录。
-- [ ] Agent 当前系统的编译、非空单元测试、相关集成/契约、产物存在性和最终产物启动冒烟测试均有通过证据；任一失败时不存在后续打包动作。
+- [ ] Work Plan 当前批次全部 Todo 为 `done`，不存在已知未实现逻辑或未修复行为偏差。
+- [ ] 候选是完整、可运行、符合批准场景的真实产物，不是 Mock、stub、占位、scaffold 或开发预览。
+- [ ] Agent 当前系统的编译、非空单元测试、相关集成/契约和产物存在性均有通过证据。
 - [ ] 单元测试覆盖核心成功路径和最高风险失败路径。
 - [ ] 若选择 CLI，其统一 JSON 信封、错误结构、输出流和退出码契约验证通过；未选择时明确为不适用。
 - [ ] Windows、macOS、Linux 各平台的实际验证状态已公开；未运行的平台明确标记为 `Unverified`。
@@ -102,13 +103,13 @@ Harness 根目录没有具体产品，因此下游四项门槛不适用于模板
 - [ ] 发布物来自目标源码 commit，且其 SHA-256 已记录。
 - [ ] 每个平台归档、相邻 SHA-256 和 manifest 一致，必需平台/架构恰好出现一次。
 - [ ] 项目根 `release/` 已由 `$collect-release-artifacts` 为当前版本、源码 commit 和明确 build run 刷新，目录内容与选定来源 manifest 精确一致且无历史文件。
-- [ ] 产品规格或发布渠道明确要求的真实目标环境核心流程验收已通过；没有硬要求且用户未启用时，准确记录为 `Not run` 并公开风险。
-- [ ] 发布构建前已逐项记录 Computer Use E2E 等手动验收的 `required` / `enabled` / `not enabled` 状态；所有 `required` 或 `enabled` 项在最终产物构建后、打包/上传/收集/签名/发布前通过，失败、超时、取消或未执行时可靠阻断。
+- [ ] 验证里程碑按持久策略、产品/渠道硬要求和适用性解析冒烟/E2E；所有 `required` 或 `enabled` 项通过，`disabled`/`Not applicable` 项及风险准确记录。
+- [ ] 任一验收失败曾重开 Todo 返回编码并完成回归测试，没有以 `Partially verified` 代替仍缺失的批准逻辑。
 - [ ] 已知重要问题已在 `docs/TECH_DEBT.md` 中向用户公开。
 
 Rust 下游项目默认使用 `docs/RUST_CLI_TEMPLATE.md` 中记录的 workspace 命令和 release 产物布局；只有真实文件和命令存在后才能写入验证记录。候选矩阵生成不等于正式发布；创建 tag、GitHub Release、registry publish、签名或上传仍需独立授权。
 
-GUI 的本地 production build、产物存在和启动冒烟不要求签名身份、证书、notarization 或 updater key；缺失时把结果明确记录为 unsigned。若批准的分发渠道是 macOS 直接分发/App Store、Microsoft Store、要求避免 Windows SmartScreen 警告的下载渠道或 Tauri updater，则按该渠道真实要求完成签名/公证/更新签名前不得宣布渠道发布就绪。Linux 普通部署不因缺少签名自动失败，除非项目批准的渠道另有要求。
+GUI 的本地 production build 和产物存在检查不要求签名身份、证书、notarization 或 updater key；验证里程碑按策略执行启动冒烟时同样允许 unsigned 产物，并把结果明确记录为 unsigned。若批准的分发渠道是 macOS 直接分发/App Store、Microsoft Store、要求避免 Windows SmartScreen 警告的下载渠道或 Tauri updater，则按该渠道真实要求完成签名/公证/更新签名前不得宣布渠道发布就绪。Linux 普通部署不因缺少签名自动失败，除非项目批准的渠道另有要求。
 
 ## 发布记录模板
 

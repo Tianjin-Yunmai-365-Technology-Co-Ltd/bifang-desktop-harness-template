@@ -5,7 +5,7 @@ description: Add an optional Rust stdio MCP server adapter to an initialized dow
 
 # Add MCP Adapter
 
-Add the smallest approved stdio MCP surface directly over the shared core. MCP is independent of CLI, TUI, GUI, and WEB.
+Add the smallest approved stdio MCP surface directly over the shared core. MCP is independent of CLI, TUI, and GUI.
 
 ## Workflow
 
@@ -19,7 +19,7 @@ Add the smallest approved stdio MCP surface directly over the shared core. MCP i
 8. Expose only approved core-loop tools. Validate structured inputs before invoking core, map domain errors without losing stable codes, keep protocol traffic exclusively on stdout, and send diagnostics only to stderr. Consider `spawn_blocking`, dedicated threads or a multi-thread runtime only for measured CPU-intensive work, with explicit ownership, cancellation, timeout, concurrency limits, resource budget and tests. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception. Do not add HTTP, OAuth, client, sampling, prompts, resources, or background services without separate approved requirements.
 9. Test tool discovery, the core success path, the highest-risk failure path, invalid schema input, stable errors, stdout/stderr separation, clean EOF shutdown, cancellation or timeout where applicable, and any approval/risk behavior the target hosts actually support.
 10. During ordinary implementation, run discovered formatting, lint, non-empty tests, relevant locked check/build checks, and targeted protocol/binary tests. Do not claim release readiness from development evidence.
-11. When the user initiates a final-artifact build or prepares a release, first capture this run's release-stage selection before the production build starts. Always run the locked release build, final-artifact existence, and real binary smoke. Run MCP inspector, target-host acceptance, or `$test-final-artifact-e2e` only when the user explicitly selected the relevant check for this run or an approved product/channel rule makes it mandatory; never assume prior approval. If a selected host or E2E acceptance check fails, times out, is cancelled, or is not executed after selection, block packaging and use `$verify-delivery` with the failed evidence. If such a check was not selected and is not mandatory, record `Not run` plus residual risk. A delivery-status review only inspects existing evidence and does not start these actions. In either path update affected product memory and mark untested hosts/platforms `Unverified`; do not claim human approval.
+11. During Todo implementation run non-empty core/MCP unit, protocol and stdio contract tests plus relevant format, lint and check commands; do not run binary smoke, host E2E or Computer Use. After the batch is `done`, build and locate the real server as a milestone candidate, then use `$verify-delivery`. That milestone alone resolves binary smoke, inspector/host acceptance and `$test-final-artifact-e2e` from persistent policy/hard requirements; failures reopen Todo. Mark untested hosts/platforms `Unverified`.
 
 ## Hard Boundaries
 

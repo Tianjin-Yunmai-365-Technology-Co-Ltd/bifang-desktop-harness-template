@@ -1,35 +1,36 @@
 ---
 name: implement-change
-description: Execute an approved repository work plan with the smallest scoped code, tests, documentation, project-memory changes, and development-loop verification. Use after $plan-change when the user asks to implement, build, fix, or complete a planned change; hand off to delivery verification only when acceptance or release preparation is also requested.
+description: Execute the active Work Plan TodoList through implementation and non-empty unit/regression tests, iterating until the current batch is complete. Use after $plan-change for coding, fixes, or when milestone acceptance reopens Todo because expected logic is missing or behavior deviates.
 ---
 
 # Implement Change
 
-Turn one approved plan into reviewable implementation without widening product scope or claiming delivery completion.
+Complete the current Todo batch without widening scope or prematurely entering milestone acceptance.
 
 ## Workflow
 
-1. Apply the coding-stage collaboration gate in `AGENTS.md` before substantive code or implementation changes. Ask once whether to enable parallel Worktree + Subagent mode for this task; when approved and the current plan has safely independent ownership, use `$run-parallel-worktrees`. Otherwise implement in the current worktree with one Agent. Never inherit approval from a prior task. Documentation-only maintenance, verification review, build, release preparation, and delivery work do not use this gate.
-2. Read `AGENTS.md`, `docs/product_spec/README.md` and the latest dated Product Spec, `docs/ENGINEERING_RULES.md`, `docs/project_status/README.md` and the latest dated Product Status, `docs/work_plan/README.md` and the latest dated Work Plan, `docs/adr/README.md`, the latest dated ADR and the older ADRs it explicitly references, verification records, technical debt, and the files named or implicated by the plan.
-3. Confirm the product specification is approved, the plan is current, the user's request authorizes implementation, and all scope-changing decisions are resolved. Route product changes through `$define-product` and multi-step replanning through `$plan-change` before editing.
-4. Inspect repository and worktree state. In a downstream project, require the canonical `git rev-parse --show-toplevel` to equal the current project root; a parent repository is not a valid substitute. Record branch, commit or unborn-HEAD state, and `git status --short`. Preserve user changes, identify overlaps, and stop rather than overwrite work whose intent cannot be safely reconciled.
-5. Trace the existing execution path and tests before choosing files. Implement only the smallest change that completes the approved outcome; do not add speculative abstractions, adapters, dependencies, commands, or platform capabilities.
-6. Keep business rules in the shared core and interface concerns in their adapter. For Rust projects, preserve the workspace, Tokio, MSRV, dependency, CLI contract, and cross-platform invariants in `docs/RUST_CLI_TEMPLATE.md`. When the plan requires invoking an external program or reading/writing files, read [references/capability-external-command.md](references/capability-external-command.md) or [references/capability-file-operations.md](references/capability-file-operations.md) before implementing.
-7. Apply the approved file and module boundaries. Add meaningful Chinese business comments to every created or modified maintained data structure, interface, function, method, and test, using only the explicit exemptions in `docs/ENGINEERING_RULES.md`; do not generate comments that merely restate code.
-8. Add or update tests with the implementation. Cover the core success path and highest-risk failure introduced or affected by the change; add CLI black-box coverage when machine behavior changes. Zero relevant tests is not an acceptable handoff.
-9. Run the development-loop gate from narrow to broad: non-empty unit tests plus change-related format, lint, static, integration, contract, or minimal read-only smoke checks selected by risk. Fix ordinary failures within the authorized scope; do not defer a failing required check. A delivery-status review or release-path change runs only the relevant static, unit, and isolated contract checks; neither condition authorizes a production artifact, full startup smoke, Computer Use E2E, cross-platform candidate, archive, or human final review. Enter release-stage execution only when the user initiates a final-artifact build or release preparation. Before that build starts, record a fresh per-run selection for every heavy interactive acceptance; omitted optional checks remain `Not run`, never implied passes.
-10. Update affected product behavior, today's complete Product Status and Work Plan snapshots, today's ADR when implementation resolves a decision, verification evidence, technical debt, release notes, and Changelog. On the first user- or maintainer-visible downstream change, create `docs/changelog/README.md` and today's `docs/changelog/YYYYMMDD_CHANGELOG.md`; never create Changelog content during neutral initialization. If a Product Spec, Product Status, or Work Plan file is first created on a later date, synthesize it from the previous dated file and today's changes rather than writing an increment. Re-check relevant design documents even for code-only changes; if a document or Changelog update is not applicable, record the reason in the plan or verification evidence. Do not rewrite unrelated history or close risks without evidence.
-11. Inspect the final diff for placeholders, secrets, absolute local paths, unrelated edits, stale comments, and claims unsupported by executed checks. Treat soft line thresholds as review prompts rather than automatic failures.
-12. Report the development evidence directly when the user requested implementation only. Hand the result to `$verify-delivery` only when the user also requests delivery acceptance, completion review, or release preparation. Use `$build-rust-release` only when a current-platform final artifact is in scope and `$prepare-release` only after acceptance evidence exists.
+1. Read `docs/AGENT_POLICY.md`. If `parallel_worktree_subagents` is `enabled`, use `$run-parallel-worktrees` only when the active batch has at least two independent write scopes and a clean committed baseline; otherwise choose the single-Agent current-worktree path without asking again. If the policy is `disabled`, use single Agent. Ask only for missing/invalid policy or genuinely unresolved applicability.
+2. Read `AGENTS.md`, the latest dated Product Spec, latest dated Product Status, latest dated Work Plan, the latest dated ADR and its live references, `docs/ENGINEERING_RULES.md`, Verification, Tech Debt and every file implicated by the active Todo.
+3. Confirm the Product Spec is approved, the plan contains Todo batches and verification milestones, and the user's request authorizes implementation. Route new product boundaries through `$define-product` and replan.
+4. Verify the canonical Git root, branch, commit/unborn state and `git status --short`. Preserve user changes and stop rather than overwrite ambiguous overlap.
+5. Select the first `pending`, `in_progress` or repairable `blocked` Todo whose dependencies are `done`. Mark only that Todo `in_progress`; do not silently mark later items complete.
+6. Trace the execution path and existing tests. Implement the smallest complete behavior described by the Todo; do not leave Mock, stub, placeholder, scaffold behavior or a source-only fragment where the Todo requires a real user scenario.
+7. Preserve shared-core/adapter, Rust/Tokio/MSRV/dependency, CLI contract, cross-platform, file-boundary and Chinese-comment rules. Read the applicable capability reference before external commands or file operations.
+8. Add or update non-empty tests with the implementation. Cover the core success path and highest-risk failure or reproduced deviation; a milestone-found defect requires a regression test that fails before the repair and passes after it.
+9. Run the Todo development gate from narrow to broad: unit/regression tests plus relevant format, lint, static, integration and contract checks. Do not run smoke or E2E in this Skill, even when project policy enables them.
+10. Fix ordinary failures inside the approved scope and rerun affected checks. Mark the Todo `done` only when implementation and all required development checks pass; otherwise keep it `in_progress`/`blocked` with exact evidence.
+11. Continue through the current batch while actionable non-`done` Todo remain. Do not stop at a partial implementation merely because one check passes.
+12. When every Todo in the batch is `done`, update the Work Plan and Product Status to make the milestone entry condition visible. If the active goal includes completion or acceptance, hand the complete real candidate to `$verify-delivery`; otherwise report it as ready for that milestone without running smoke/E2E.
+13. If `$verify-delivery` rejects the milestone for missing logic or behavior deviation, preserve its evidence, reopen or add the specific Todo, return here, implement the correction, add regression coverage and repeat until the batch can re-enter the complete milestone.
+14. Update affected design docs and today's complete project-memory snapshots, including `docs/changelog/YYYYMMDD_CHANGELOG.md` when behavior or maintenance flow changed. Update Verification and Tech Debt as applicable. On a new date, synthesize each current snapshot from the previous dated file. Inspect the final diff for secrets, absolute local paths, unrelated edits, stale comments and unsupported claims.
 
 ## Boundaries
 
 - One active plan maps to one bounded implementation outcome.
-- User authorization to implement does not authorize publishing, destructive migration, credential use, or new external side effects.
-- Compilation or tests alone are development evidence, not delivery acceptance or release readiness.
-- Do not mark human review `Approved` or turn unexecuted platform checks into passing evidence.
-- Record newly discovered out-of-scope work in `docs/TECH_DEBT.md` instead of implementing it opportunistically.
+- Implementation authorization does not authorize destructive migration, credential use, publication, packaging, signing or external side effects outside the approved Todo.
+- Compilation or tests prove Todo implementation, not milestone acceptance.
+- Never turn missing required logic into `Partially verified`; keep or reopen a Todo and continue.
 
 ## Completion
 
-Report changed files and behavior, tests added, development checks executed, failures repaired, release-level checks not run, unverified platforms, remaining risks, and whether a `$verify-delivery` handoff was requested. Do not issue a release or delivery verdict from this Skill.
+Report Todo statuses, changed behavior/files, tests, development checks, repaired failures, milestone readiness, unverified scope and remaining risks. Do not issue a milestone or release verdict from this Skill.

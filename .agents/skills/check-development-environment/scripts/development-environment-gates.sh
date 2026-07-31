@@ -10,7 +10,7 @@ FRONTEND_REQUIRED=0
 
 # 输出稳定的命令入口说明，避免调用方误把只读模式当成首次开发安装模式。
 usage() {
-    printf '%s\n' "Usage: development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI,WEB"
+    printf '%s\n' "Usage: development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -29,8 +29,14 @@ while [ "$#" -gt 0 ]; do
 done
 
 normalized_interfaces=$(printf '%s' "$INTERFACES" | tr '[:lower:]' '[:upper:]' | tr -d ' ')
+for interface in $(printf '%s' "$normalized_interfaces" | tr ',' ' '); do
+    case "$interface" in
+        CLI|TUI|MCP|GUI) ;;
+        *) printf 'Unsupported interface: %s\n' "$interface" >&2; usage >&2; exit 2 ;;
+    esac
+done
 case ",$normalized_interfaces," in
-    *,GUI,*|*,WEB,*) FRONTEND_REQUIRED=1 ;;
+    *,GUI,*) FRONTEND_REQUIRED=1 ;;
 esac
 
 PROBE_PATH=${AFH_PREREQ_PATH:-${PATH}}
@@ -252,10 +258,10 @@ install_node() {
     TEMP_DIR=
 }
 
-# 仅在 GUI/WEB 项目缺失 pnpm 时，通过 Node 自带 npm 安装官方 registry 的稳定 pnpm。
+# 仅在 GUI 项目缺失 pnpm 时，通过 Node 自带 npm 安装官方 registry 的稳定 pnpm。
 install_pnpm() {
     npm_path=$(find_tool npm 2>/dev/null || true)
-    [ -n "$npm_path" ] || fail 28 "npm is required to install pnpm for GUI/WEB development"
+    [ -n "$npm_path" ] || fail 28 "npm is required to install pnpm for GUI development"
     pnpm_home=${AFH_PNPM_HOME:-${HOME:?HOME is required}/.local/share/agent-first-pnpm}
     mkdir -p "$pnpm_home" || fail 28 "could not create pnpm install root"
     printf 'Installing missing pnpm from the official npm registry into a user-level directory.\n' >&2

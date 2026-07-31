@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upgrade Harness"
+  short_description: "Safely update downstream Harness engineering"
+  default_prompt: "Use $upgrade-harness to preview and safely apply a downstream Harness engineering update."

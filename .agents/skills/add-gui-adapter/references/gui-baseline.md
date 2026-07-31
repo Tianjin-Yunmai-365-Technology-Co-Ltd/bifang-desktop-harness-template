@@ -1,6 +1,6 @@
 # Tauri desktop GUI baseline
 
-Read this reference only after an explicit downstream request has passed the GUI scope gate. Also read the shared [React frontend baseline](../../add-web-adapter/references/react-frontend-baseline.md).
+Read this reference only after an explicit downstream request has passed the GUI scope gate. Also read the GUI-owned [React frontend baseline](react-frontend-baseline.md).
 
 ## Fixed defaults
 
@@ -47,9 +47,9 @@ Record:
 - Unapproved WebView calls are denied by capability/permission configuration.
 - Concurrent GUI/other-adapter access observes the same data without corruption.
 - A locked frontend production build and locked Tauri build both succeed.
-- Missing signing identity, certificate, notarization credentials or updater key does not block a build or local smoke test; record the result as unsigned. A distribution channel that requires signing remains a separate release blocker.
+- Missing signing identity, certificate, notarization credentials or updater key does not block a build or milestone-stage local smoke test; record the result as unsigned. A distribution channel that requires signing remains a separate release blocker.
 - The real packaged or release-mode application starts and renders the critical route on the current platform.
-- Each claimed installer or native platform has actual build and smoke evidence; otherwise mark it `Unverified`.
+- Each claimed installer or native platform has actual build and accepted-milestone evidence. Smoke/E2E evidence is required only when persistent policy or a hard requirement selected it; otherwise record `Not run` and risk.
 
 ## Exception and recommendation boundary
 

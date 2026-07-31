@@ -1,33 +1,33 @@
 ---
 name: test-final-artifact-e2e
-description: Execute explicitly selected release-stage end-to-end acceptance against a real final CLI, TUI, MCP host, GUI, or WEB artifact by using Computer Use for observable user interaction. Use only when the current final-artifact build or release task records this check as enabled or required and a final artifact exists; do not use for ordinary development, evidence-only review, source previews, or simulated completion claims.
+description: Execute milestone-stage end-to-end acceptance against a complete real CLI, TUI, MCP host, or GUI artifact through Computer Use. Use only from $verify-delivery after every Todo is done and persistent project policy enables E2E or an approved product/channel rule requires it; never use during planning, coding, ordinary builds, collection, or release metadata work.
 ---
 
 # Test Final Artifact E2E
 
-Verify the packaged or release-mode artifact through the same visible interaction path a real user or host will use.
+Verify an accepted-scope scenario through the same visible interaction path a real user or host uses.
 
 ## Workflow
 
-1. Read `AGENTS.md`, the approved product success criteria, project status, active plan, `docs/VERIFICATION.md`, release record, and the applicable interface Skill.
-2. Require the current final-artifact build or release task to record this exact check as `enabled` by the user or `required` by an approved product/channel rule before launching any scenario. Do not inherit that state from `$verify-delivery`, `$prepare-release`, a prior release attempt, or workflow defaults. If neither state exists, stop and report the check as `Not run`.
-3. Require a real final artifact and record how it was located from the build or package metadata. Do not substitute a dev preview, source invocation, mocked backend, or assumed path.
-4. Define a bounded scenario set from approved acceptance criteria: at least the core success path and highest-risk failure path. State prerequisites, reversible test data, expected observations, cleanup, and timeout before launching.
-5. Start the artifact using its real launcher. Use the installed `computer-use` Skill for GUI, browser, terminal, or host UI interaction; inspect fresh app state before every action and re-inspect after each action before choosing coordinates or elements.
-6. Prefer accessibility-tree element actions. Use coordinates only when necessary and only from the latest screenshot. Never treat a click or keystroke as proof; verify the resulting state, output, persisted data, or error presentation.
-7. Capture concise evidence for each scenario: artifact identity/version, platform, steps, expected result, observed result, screenshots where useful, exit or shutdown behavior, and pass/fail. Redact secrets and unnecessary personal paths.
-8. Stop on destructive, production, credential, payment, publication, or irreversible actions unless separately approved. Use isolated data and clean up only test-owned state.
-9. Record failures truthfully in `docs/VERIFICATION.md`; do not repair product code inside this Skill. Route defects to `$plan-change` and `$implement-change`, then rerun affected scenarios and the complete final set.
-10. Mark every operating system, display configuration, browser, terminal, MCP host, or packaging format not actually exercised as `Unverified`. Human final review remains separate.
+1. Read the approved success criteria, active Todo/milestone Work Plan, `docs/AGENT_POLICY.md`, `docs/VERIFICATION.md` and applicable interface Skill.
+2. Require every Todo in the milestone batch to be `done` and `$verify-delivery` to have entered milestone acceptance. If not, stop and report `Not run`.
+3. Require `milestone_e2e: enabled` or an approved product/channel `required` rule. `disabled` records `Not run` unless overridden by a hard requirement; missing/invalid/`pending` policy requires user resolution.
+4. Require a complete real artifact located from build metadata. Reject a dev preview, source invocation, Mock backend, scaffold, placeholder or assumed path.
+5. Define bounded scenarios from approved criteria: at least the core success path and highest-risk failure path. State prerequisites, isolated reversible data, expected observations, cleanup and timeout.
+6. Start the real artifact and use the installed `computer-use` Skill for GUI, browser, terminal or host UI interaction. Inspect fresh state before and after every action; prefer accessibility-tree actions and use coordinates only from the latest screenshot.
+7. Verify resulting state, output, persisted data or error presentation; a click or keystroke is not evidence by itself.
+8. Capture artifact/version, source commit, platform, steps, expected/observed results, screenshots when useful, shutdown, cleanup and pass/fail. Redact secrets and unnecessary personal paths.
+9. Stop before credentials, payment, production, publication or irreversible actions unless separately authorized.
+10. On any failure, timeout, cancellation or selected-but-unrun scenario, record evidence, reject the milestone, reopen/add a repair Todo and return to `$implement-change`. After repair, rerun the complete milestone scenario set.
+11. Mark unexercised operating systems, displays, browsers, terminals, MCP hosts and package formats `Unverified`. Human final review remains separate.
 
 ## Interface Coverage
 
-- CLI: use real terminal invocation, validate prompts only when interaction is approved, output streams, exit status, cancellation, and shutdown.
-- TUI: validate keyboard navigation, focus, resize, error recovery, and terminal restoration.
-- MCP: interact through the approved real host UI and verify discovery, invocation, errors, cancellation, and clean disconnect.
-- GUI: validate launch, complete user loop, accessibility state, errors, persistence, and clean quit.
-- WEB: launch the production server/artifact, use a real supported browser, validate binding, navigation, accessibility, errors, and shutdown.
+- CLI: real binary invocation, output streams, exit status, cancellation and shutdown.
+- TUI: keyboard navigation, focus, resize, error recovery and terminal restoration.
+- MCP: approved real host discovery, invocation, errors, cancellation and clean disconnect.
+- GUI: launch, complete user loop, accessibility state, errors, persistence and clean quit.
 
 ## Completion
 
-Report the exact artifact tested, environment, explicit opt-in source for this run, scenarios, observable evidence, passes, failures, skipped cases, cleanup, unverified scope, and verification handoff. If the check was not opted in, report `Not run` rather than implying a pass. Never sign the human-review field.
+Report the exact artifact, policy/hard-requirement source, scenarios, observable evidence, cleanup, passes, failures, reopened Todo and unverified scope. Never sign the human-review field.

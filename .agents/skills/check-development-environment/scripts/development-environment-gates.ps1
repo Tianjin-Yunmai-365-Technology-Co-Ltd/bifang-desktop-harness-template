@@ -18,7 +18,12 @@ $CargoBin = $null
 $NodeBin = $null
 $PnpmBin = $null
 $NormalizedInterfaces = @($Interfaces | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToUpperInvariant() })
-$FrontendRequired = @($NormalizedInterfaces | Where-Object { $_ -in @("GUI", "WEB") }).Count -gt 0
+$UnsupportedInterfaces = @($NormalizedInterfaces | Where-Object { $_ -and $_ -notin @("CLI", "TUI", "MCP", "GUI") })
+if ($UnsupportedInterfaces.Count -gt 0) {
+    [Console]::Error.WriteLine("Unsupported interface: $($UnsupportedInterfaces -join ',')")
+    exit 2
+}
+$FrontendRequired = $NormalizedInterfaces -contains "GUI"
 $TemporaryDirectories = [System.Collections.Generic.List[string]]::new()
 
 # 使用稳定退出码结束门禁，调用方可以据此区分具体失败阶段。
@@ -207,10 +212,10 @@ function Install-MissingNode {
     $script:NodeChange = "installed"
 }
 
-# 仅为 GUI/WEB 项目通过 Node 自带 npm 安装官方 registry 的稳定 pnpm。
+# 仅为 GUI 项目通过 Node 自带 npm 安装官方 registry 的稳定 pnpm。
 function Install-MissingPnpm {
     $npm = Resolve-GateCommand "npm"
-    if (-not $npm) { Stop-Gate 28 "npm is required to install pnpm for GUI/WEB development" }
+    if (-not $npm) { Stop-Gate 28 "npm is required to install pnpm for GUI development" }
     $pnpmHome = if ($env:AFH_PNPM_HOME) { $env:AFH_PNPM_HOME } else { Join-Path $env:LOCALAPPDATA "AgentFirstHarness\Pnpm" }
     New-Item -ItemType Directory -Force -Path $pnpmHome | Out-Null
     [Console]::Error.WriteLine("Installing missing pnpm from the official npm registry into a user-level directory.")

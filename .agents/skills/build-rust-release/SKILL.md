@@ -1,30 +1,25 @@
 ---
 name: build-rust-release
-description: Build a downstream Rust library-and-CLI workspace reproducibly for the current host or an explicitly configured target, locate the real final binary, smoke-test it, and record build evidence. Use for release builds, artifact-path discovery, or diagnosing a missing Rust release binary.
+description: Build a downstream Rust library-and-CLI workspace reproducibly for the current host or an explicitly configured target and locate the real binary without running smoke or E2E. Use when a completed Todo needs a milestone candidate, for release builds, artifact-path discovery, or diagnosing a missing Rust artifact.
 ---
 
 # Build Rust Release
 
-Build one platform at a time and distinguish a produced binary from a verified release.
+Build one real candidate at a time and keep build evidence separate from milestone acceptance.
 
 ## Workflow
 
-1. Read `Cargo.toml`, `docs/RUST_CLI_TEMPLATE.md`, `docs/VERIFICATION.md`, and the active plan. Discover the CLI package and binary names from Cargo metadata; never infer them from the directory name.
-2. Require the downstream project root to be its independent Git top-level and require `HEAD` to resolve to a real source commit for release evidence. Confirm `Cargo.lock` exists and the installed toolchain is not older than `rust-version`. Record `rustc -vV`, `cargo --version`, host OS, architecture, source commit, branch, and whether the worktree is dirty. When claiming MSRV compatibility, repeat the required checks with the exact declared MSRV; a newer compiler is insufficient evidence.
-3. Run the repository-recorded formatting, lint, and test commands before a release build. Treat zero tests or missing required-path coverage as a failed gate.
-4. Build with the repository's real command. For the default template use `cargo build --release --locked --workspace`; add `--target <triple>` only when the target and linker are explicitly configured.
-5. Resolve the output root from Cargo configuration or `CARGO_TARGET_DIR`. Locate the declared binary in `target/release` for a host build or `target/<triple>/release` for a target build. Require `.exe` only for Windows.
-6. Invoke the real binary with the recorded read-only smoke command and timeout. Verify `--version` matches the workspace version.
-7. Record the exact binary path, size, platform, architecture/target, version, source commit, build command, smoke command, and result in `docs/VERIFICATION.md`. Do not copy it into a candidate directory here.
+1. Read `Cargo.toml`, `docs/RUST_CLI_TEMPLATE.md`, Verification and the active Todo/milestone Work Plan. Discover package and binary names from Cargo metadata.
+2. Require the downstream project root to be its independent Git top-level and `HEAD` to resolve to the candidate source commit. Confirm `Cargo.lock`, `rust-version`, host, architecture, branch and dirty state.
+3. Require the current build Todo and its dependencies to be `done`. Run repository-recorded format, lint and non-empty test commands before the release build; zero tests fails.
+4. Build with the repository's real command. For the default template use `cargo build --release --locked --workspace`; add an explicit target only when its linker/toolchain is configured.
+5. Resolve the output root from Cargo configuration or `CARGO_TARGET_DIR`, locate the declared binary and validate regular-file existence, size, platform and version metadata. Do not infer paths from repository folder names.
+6. Record exact artifact path, size, platform, target, version, source commit and build command in Verification.
+7. Do not launch the binary, run smoke/E2E, package, collect, sign, upload, tag, publish or change versions. Hand the artifact identity to `$verify-delivery` when the full Todo batch is ready for milestone acceptance.
 
 ## Boundaries
 
-- A local build verifies only the current host unless a configured cross-toolchain actually produced and ran the target artifact.
-- This skill may produce the real artifact needed by later heavy acceptance, but it does not ask for or run Computer Use E2E or other interactive release checks.
-- Do not package, sign, upload, tag, publish, or modify versions in this skill.
-- Do not copy Cargo intermediates such as `deps`, `incremental`, `.d`, or build-script output into release results.
-- If a target binary cannot run on the current host, mark its smoke status `Unverified`; never substitute file existence for execution.
-
-## Result
-
-Hand the verified binary path and build identity to `$collect-release-artifacts`, which safely refreshes the project-root `release/` directory. Use `$verify-delivery` for the full pre-release gate and `$prepare-cross-platform-release` when Windows, macOS, and Linux evidence is required.
+- A produced binary is a milestone candidate, not an accepted or verified release.
+- A local build proves only the current toolchain/target; mark other platforms `Unverified`.
+- If a target cannot run on the current host, record that fact for milestone applicability; do not substitute file existence for runtime evidence.
+- Use `$prepare-cross-platform-release` for a configured candidate matrix and `$collect-release-artifacts` only after milestone evidence permits collection as ready.

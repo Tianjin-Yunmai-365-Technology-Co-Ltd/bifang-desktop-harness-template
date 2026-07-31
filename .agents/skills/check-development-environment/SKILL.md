@@ -1,6 +1,6 @@
 ---
 name: check-development-environment
-description: Check and install the downstream development toolchain on first development, with Rust always required and Node.js plus pnpm required only for GUI or WEB.
+description: Check and install the downstream development toolchain on first development, with Rust always required and Node.js plus pnpm required for GUI.
 ---
 
 # Check Development Environment
@@ -13,7 +13,7 @@ Establish the development toolchain without depending on initialization Skills t
 2. Run before the first code-changing development task. Run again when the selected interfaces, MSRV, frontend toolchain policy, host system, or recorded environment evidence changes. Do not rerun merely because a new chat starts when current-host evidence still matches.
 3. Read [references/development-environment-gates.md](references/development-environment-gates.md). On macOS/Linux run `scripts/development-environment-gates.sh --install-missing --interfaces <comma-separated-selection>`; on Windows run `scripts/development-environment-gates.ps1 -Interfaces <selection>`.
 4. Rust is always blocking. On Windows the MSVC C++ workload required by the Rust target is also blocking. Missing prerequisites are installed from the verified official sources encoded by the gate and then reprobed; an existing incompatible toolchain is never silently replaced.
-5. Node.js and pnpm are blocking only when the recorded interface selection contains `GUI` or `WEB`. For projects without either interface, report both as `not-required` and do not probe, install, upgrade, or add them.
+5. Node.js and pnpm are blocking only when the recorded interface selection contains `GUI`. For projects without GUI, report both as `not-required` and do not probe, install, upgrade, or add them.
 6. Record the host, selected-interface fingerprint, observed versions, installation changes, final status, and any unverified platforms in `docs/VERIFICATION.md`. Do not record unnecessary home-directory paths or secrets.
 7. Stop the development task when a required gate is blocked. A successful gate authorizes development but is not build, test, artifact, acceptance, or human-review evidence.
 

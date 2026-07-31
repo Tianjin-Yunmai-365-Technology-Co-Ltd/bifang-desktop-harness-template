@@ -2,10 +2,117 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .context import *  # noqa: F403
+
+
+def validate_agent_policy(
+    errors: list[str],
+    policy_path: Path = AGENT_POLICY,
+    *,
+    allow_pending: bool = True,
+) -> None:
+    """校验四项项目级偏好的稳定 schema、值域和持久执行语义。"""
+    if not policy_path.is_file():
+        fail(errors, f"missing Agent policy: {display_path(policy_path)}")
+        return
+
+    text = policy_path.read_text(encoding="utf-8")
+    match = re.match(r"\A---\n(.*?)\n---\n", text, flags=re.DOTALL)
+    if not match:
+        fail(errors, f"missing Agent policy YAML frontmatter: {display_path(policy_path)}")
+        return
+
+    fields: dict[str, str] = {}
+    for line in match.group(1).splitlines():
+        key, separator, value = line.partition(":")
+        key = key.strip()
+        if not separator or not key:
+            fail(errors, f"invalid Agent policy frontmatter line: {line}")
+            continue
+        if key in fields:
+            fail(errors, f"duplicate Agent policy field: {key}")
+            continue
+        fields[key] = value.strip()
+
+    expected_fields = {
+        "schema_version",
+        "confirmed_by",
+        "confirmed_at",
+        "decision_mode",
+        "superpowers",
+        "parallel_worktree_subagents",
+        "milestone_smoke",
+        "milestone_e2e",
+    }
+    if set(fields) != expected_fields:
+        fail(
+            errors,
+            "Agent policy fields mismatch: "
+            f"missing={sorted(expected_fields - set(fields))}, "
+            f"extra={sorted(set(fields) - expected_fields)}",
+        )
+
+    if fields.get("schema_version") != "1":
+        fail(errors, "Agent policy schema_version must be 1")
+    if fields.get("decision_mode") != "reuse_then_infer_then_ask":
+        fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask")
+    for field in (
+        "superpowers",
+        "parallel_worktree_subagents",
+        "milestone_smoke",
+        "milestone_e2e",
+    ):
+        if fields.get(field) not in {"enabled", "disabled", "pending"}:
+            fail(errors, f"Agent policy {field} must be enabled, disabled, or pending")
+        elif not allow_pending and fields.get(field) == "pending":
+            fail(errors, f"initialized downstream Agent policy must resolve {field}")
+    for field in ("confirmed_by", "confirmed_at"):
+        if not fields.get(field):
+            fail(errors, f"Agent policy {field} must not be empty")
+    if not allow_pending:
+        confirmed_by = fields.get("confirmed_by", "").strip()
+        if confirmed_by.lower() in {"pending", "unknown", "unset", "n/a"}:
+            fail(
+                errors,
+                "initialized downstream Agent policy confirmed_by must identify "
+                "a real confirmation source",
+            )
+        confirmed_at = fields.get("confirmed_at", "").strip()
+        if confirmed_at.lower() in {"pending", "unknown", "unset", "n/a"}:
+            fail(
+                errors,
+                "initialized downstream Agent policy confirmed_at must be resolved",
+            )
+        else:
+            try:
+                datetime.fromisoformat(confirmed_at.replace("Z", "+00:00"))
+            except ValueError:
+                fail(
+                    errors,
+                    "initialized downstream Agent policy confirmed_at must be "
+                    "a calendar-valid ISO date or RFC3339 timestamp",
+                )
+
+    required_body_fragments = (
+        "下游项目 Agent 能力与里程碑验收偏好的唯一持久事实来源",
+        "完成初始化的下游四项选择只能是 `enabled` 或 `disabled`",
+        "一次收集",
+        "后续任务不得仅因进入类似场景而重复询问",
+        "先复用、再判断、最后询问",
+        "冒烟/E2E 不得在产品定义、计划、Todo 编码",
+    )
+    for fragment in required_body_fragments:
+        if fragment not in text:
+            fail(
+                errors,
+                f"Agent policy persistence rule missing in {display_path(policy_path)}: {fragment}",
+            )
+
 
 def validate_engineering_contract(errors: list[str]) -> None:
     """确认工程规则唯一来源、关键入口和执行型 Skills 已建立确定性引用。"""
@@ -22,7 +129,12 @@ def validate_engineering_contract(errors: list[str]) -> None:
         ),
         ROOT / "AGENTS.md": ("docs/ENGINEERING_RULES.md",),
         ROOT / "README.md": ("docs/ENGINEERING_RULES.md",),
-        ROOT / "docs" / "AGENT_POLICY.md": ("superpowers: disabled",),
+        AGENT_POLICY: (
+            "superpowers:",
+            "parallel_worktree_subagents:",
+            "milestone_smoke:",
+            "milestone_e2e:",
+        ),
         PRODUCT_SPEC: ("docs/ENGINEERING_RULES.md",),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": ("docs/ENGINEERING_RULES.md",),
         SKILLS_ROOT / "plan-change" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
@@ -36,7 +148,6 @@ def validate_engineering_contract(errors: list[str]) -> None:
         SKILLS_ROOT / "add-gui-adapter" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
         CLI_SKILL: ("docs/ENGINEERING_RULES.md",),
         TUI_SKILL: ("engineering rules",),
-        WEB_SKILL: ("engineering rules",),
         E2E_SKILL: ("docs/VERIFICATION.md",),
         RUST_ASSET / "example_tool_core" / "src" / "lib.rs": (
             "#![deny(missing_docs)]",
@@ -55,45 +166,54 @@ def validate_engineering_contract(errors: list[str]) -> None:
                 )
 
 def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
-    """校验仅编码阶段并行授权、前台协作、安全 Worktree 与验证分层契约。"""
+    """校验持久协作策略、Todo 循环、真实里程碑与阶段禁令。"""
     required_fragments = {
         ROOT / "AGENTS.md": (
-            "仅在代码或实现变更阶段",
-            "产品定义、范围设计、实施计划设计",
-            "验证复核、构建、发布准备、交付工作",
-            "授权只对当前任务有效",
+            "下游初始化时一次确认",
+            "parallel_worktree_subagents: enabled",
             "$run-parallel-worktrees",
             "独立 Git Worktree",
-            "启动、阻塞、阶段完成、整合和验证",
             "同步等待全部必需结果",
-            "重叠写入必须转为串行",
-            "每轮开发必须执行非空单元测试",
-            "用户发起最终产物构建或发布准备",
-            "不得在日常开发、普通交付复核或发布链路修改中自动触发",
-            "失败、超时、取消或选择后未执行均阻断",
+            "重叠写入转为串行",
+            "Todo 批次和验证里程碑",
+            "pending",
+            "in_progress",
+            "blocked",
+            "done",
+            "每轮 Todo 开发必须执行非空单元测试",
+            "Todo 开发、普通验证、常规构建、制品收集和发布元数据流程不得运行冒烟或 E2E",
+            "Mock、stub、占位页面、中性 scaffold",
+            "重开或新增具体 Todo",
+            "返回 `$implement-change`",
+            "$upgrade-harness",
         ),
         ROOT / "README.md": (
-            "仅在代码或实现变更阶段",
-            "产品定义、范围设计、实施计划设计",
-            "验证复核、构建、发布准备和交付阶段不询问",
-            "$run-parallel-worktrees",
-            "保持单 Agent",
-            "开发轮次运行非空单元测试和变更相关验证",
-            "用户发起最终产物构建或发布准备",
-            "未启用且没有产品/渠道硬要求时记录 `Not run`",
+            "一次确认 Superpowers、Worktree/Subagent、验证里程碑冒烟和验证里程碑 E2E",
+            "TodoList",
+            "Todo 未完成时不进入里程碑",
+            "Mock、占位或 scaffold 会被拒绝",
+            "缺失和偏差会重开 Todo 返回编码",
+            "冒烟/E2E 只在这里按持久策略",
+            "$upgrade-harness",
+            "dry-run 和三方比较",
+        ),
+        AGENT_POLICY: (
+            "decision_mode: reuse_then_infer_then_ask",
+            "parallel_worktree_subagents:",
+            "milestone_smoke:",
+            "milestone_e2e:",
+            "后续任务不得仅因进入类似场景而重复询问",
+            "冒烟/E2E 不得在产品定义、计划、Todo 编码",
         ),
         PARALLEL_SKILL / "SKILL.md": (
-            "Do not inherit approval from another task",
-            "Do not ask during product definition, scope design, implementation planning",
-            "verification review, build, release preparation, delivery work",
-            "at least two independent scopes",
-            "Show the user the work-unit map",
-            "Wait synchronously for every required Subagent result",
-            "Do not finish the main task",
-            "never auto-stash or auto-commit",
-            "deliberately retains the branch",
-            "only when the user initiates a final-artifact build or release preparation",
-            "Heavy or interactive acceptance additionally requires",
+            "parallel_worktree_subagents: enabled",
+            "permission, not a requirement",
+            "at least two active Todo",
+            "non-overlapping write ownership",
+            "Wait synchronously for every required result",
+            "Never auto-stash or auto-commit",
+            "The helper retains the branch",
+            "Do not run smoke/E2E during Todo implementation",
         ),
         PARALLEL_WORKTREE_SCRIPT: (
             '"rev-parse", "--show-toplevel"',
@@ -112,60 +232,92 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "test_remove_rejects_dirty_or_unintegrated_worktree",
         ),
         SKILLS_ROOT / "plan-change" / "SKILL.md": (
-            "current worktree with one Agent",
-            "Do not ask for or start parallel Worktree + Subagent mode during planning",
-            "Separate the development-loop gate from release acceptance",
+            "Todo batches",
+            "pending",
+            "in_progress",
+            "blocked",
+            "done",
+            "must not schedule smoke, E2E",
+            "explicit rejection of Mock",
+            "returns to `$implement-change`",
         ),
         SKILLS_ROOT / "implement-change" / "SKILL.md": (
-            "coding-stage collaboration gate",
+            "parallel_worktree_subagents",
             "$run-parallel-worktrees",
-            "non-empty unit tests plus change-related",
-            "A delivery-status review or release-path change runs only",
-            "Enter release-stage execution only when the user initiates",
-            "only when the user also requests delivery acceptance",
-        ),
-        SKILLS_ROOT / "define-product" / "SKILL.md": (
-            "current worktree with one Agent",
-            "Do not ask for or start parallel Worktree + Subagent mode during product definition",
+            "unit/regression tests",
+            "Do not run smoke or E2E in this Skill",
+            "Continue through the current batch",
+            "reopen or add the specific Todo",
+            "return here",
         ),
         SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
-            "only an explicit build/release request starts real release gates",
-            "implementation-only",
-            "return to `$implement-change` development-loop verification",
-            "Heavy acceptance such as Computer Use E2E",
-            "never automatic here",
+            "every Todo in the candidate's batch to be `done`",
+            "Reject source snippets, Mock, stub, placeholder, neutral scaffold",
+            "milestone_smoke",
+            "milestone_e2e",
+            "reopen or add a concrete Todo",
+            "immediately return to `$implement-change`",
         ),
         E2E_SKILL: (
-            "explicitly selected release-stage",
-            "current final-artifact build or release task",
-            "`enabled` by the user or `required`",
-            "report the check as `Not run`",
+            "every Todo in the milestone batch to be `done`",
+            "entered milestone acceptance",
+            "complete real artifact",
+            "reopen/add a repair Todo",
+            "return to `$implement-change`",
+        ),
+        BUILD_RELEASE_SKILL: (
+            "without running smoke or E2E",
+            "Do not launch the binary",
+            "Hand the artifact identity to `$verify-delivery`",
+        ),
+        CROSS_PLATFORM_RELEASE_SKILL: (
+            "never runs smoke or E2E",
+            "confirm_candidate_build",
+            "milestoneAcceptance: pending",
+            "Do not include smoke, E2E",
+        ),
+        COLLECT_RELEASE_SKILL: (
+            "Milestone accepted",
+            "without executing any binary",
+            "Collection must never launch smoke/E2E itself",
         ),
         PREPARE_RELEASE_SKILL: (
-            "user explicitly intends to prepare a release",
-            "development-loop evidence alone cannot satisfy",
-            "release-stage gate selection before build/package start",
+            "already `Milestone accepted` candidate",
+            "do not run either test here",
+            "Never run smoke/E2E from release preparation",
         ),
         ENGINEERING_RULES: (
-            "### 5.3 开发验证与发布验收分层",
-            "每轮开发必须运行非空单元测试",
-            "日常开发默认不重复运行发布级整体验收",
-            "修改发布链路时运行相应的单元、静态和隔离契约检查",
-            "只有用户发起最终产物构建或发布准备时",
-            "失败、超时、取消或选择后未执行均为门禁失败",
+            "### 5.3 Todo 开发与验证里程碑分层",
+            "Todo 开发循环必须运行非空单元测试",
+            "任一 Todo 非 `done` 时禁止进入验证里程碑",
+            "Mock、stub、占位页面、中性 scaffold",
+            "重开或新增具体 Todo 并返回实现",
         ),
         ROOT / "docs" / "RELEASE.md": (
-            "## 发布构建与手动验收顺序",
-            "仅要求复核已有交付证据时",
-            "所有 `required` 或 `enabled` 项在打包前通过",
-            "历史开发证据不能替代候选源码上的重新验收",
-            "每轮普通开发不重复最终产物",
+            "## 里程碑验收与发布顺序",
+            "当前批次全部 Todo 为 `done`",
+            "常规 build 只生成候选，不运行冒烟/E2E",
+            "拒绝里程碑并重开 Todo",
+            "发布流程检查候选 commit、版本、hash、manifest 与已验收产物一致，不自行运行冒烟/E2E",
         ),
-        ROOT / "docs" / "VERIFICATION.md": (
-            "开发轮次记录非空单元测试和变更相关验证",
-            "开发证据不得写成发布就绪",
-            "失败、超时、取消或未执行都属于阻断",
-            f"{len(EXPECTED_SKILLS)} 个 Skills",
+        UPGRADE_SKILL / "SKILL.md": (
+            ".harness/upstream-lock.json",
+            "dry-run",
+            "Review every classification",
+            "protected",
+            "merge-sections",
+            "Do not run smoke or E2E during the upgrade Todo loop",
+            "--source-root <clean-harness-source-root>",
+            "--path <one-reviewed-update-path>",
+            "Normal `managed` updates must finish before `managed-self`",
+        ),
+        UPGRADE_POLICY: (
+            "managed",
+            "managed-self",
+            "merge-sections",
+            "conditional",
+            "protected",
+            "tombstone",
         ),
     }
     helper_text = ""
@@ -202,6 +354,10 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "仅在产品定义或范围设计、实施计划设计，以及代码或实现变更阶段",
         "仅在产品定义/范围设计、实施计划设计和代码/实现变更阶段",
         "Before substantive product/scope design, implementation planning, or code/implementation work",
+        "授权只对当前任务有效",
+        "选择只对当前任务有效",
+        "不得跨任务继承",
+        "最小只读冒烟",
         "所有 Agent-first 项目必须证明 CLI 闭环",
         "CLI 永远是最小 MVP",
         "CLI 不可替代",

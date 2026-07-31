@@ -3,8 +3,8 @@ name: release-candidate
 on:
   workflow_dispatch:
     inputs:
-      confirm_release:
-        description: "I confirm this is an authorized release-candidate build and packaging may run"
+      confirm_candidate_build:
+        description: "I confirm this is an authorized native milestone-candidate build"
         required: true
         type: boolean
         default: false
@@ -12,11 +12,6 @@ on:
         description: "Approved Cargo version without the v prefix"
         required: true
         type: string
-      run_e2e:
-        description: "Run user-approved heavy acceptance checks (for example e2e) during this candidate build"
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -35,15 +30,15 @@ jobs:
       CARGO_TARGET_DIR: target
       RUSTUP_TOOLCHAIN: 1.90.0
     steps:
-      - name: Confirm authorized release preflight
+      - name: Confirm authorized candidate preflight
         shell: bash
         run: |
-          if [[ "${{ inputs.confirm_release }}" != "true" ]]; then
-            echo "Release candidate preflight not confirmed"
-            echo "::error::Please set confirm_release=true before running this workflow."
+          if [[ "${{ inputs.confirm_candidate_build }}" != "true" ]]; then
+            echo "Milestone candidate build not confirmed"
+            echo "::error::Please set confirm_candidate_build=true before running this workflow."
             exit 1
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Select project MSRV
         run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
       - name: Validate candidate version
@@ -80,81 +75,6 @@ jobs:
           PY
           cargo test --workspace --all-targets --all-features --locked
           cargo build --workspace --release --locked
-      - name: Smoke candidate with timeout
-        shell: bash
-        run: |
-          python - <<'PY'
-          import os, pathlib, subprocess
-          suffix = ".exe" if os.environ["RUNNER_OS"] == "Windows" else ""
-          binary = pathlib.Path("target/release") / f'{os.environ["PRODUCT_NAME"]}{suffix}'
-          if not binary.is_file():
-              raise SystemExit(f"missing release binary: {binary}")
-          try:
-              result = subprocess.run([str(binary), "--version"], text=True, capture_output=True, timeout=30)
-          except subprocess.TimeoutExpired as error:
-              raise SystemExit(f"smoke test timed out after {error.timeout} seconds") from error
-          if result.returncode:
-              raise SystemExit(f"smoke test failed with {result.returncode}: {result.stderr}")
-          output = result.stdout.strip()
-          if not output.endswith(f' {os.environ["VERSION"]}'):
-              raise SystemExit(f"version mismatch: {output}")
-          print(output)
-          PY
-      - name: Optional heavy checks
-        id: heavy-checks
-        if: ${{ inputs.run_e2e == true }}
-        shell: bash
-        env:
-          HEAVY_CHECK_PATH: .github/scripts/release-candidate-heavy-check.sh
-          HEAVY_CHECK_TIMEOUT_SECONDS: "300"
-        run: |
-          if [ ! -f "${HEAVY_CHECK_PATH}" ]; then
-            echo "::error::run_e2e=true is set, but no reviewed heavy-check script exists at ${HEAVY_CHECK_PATH}."
-            exit 1
-          fi
-          python - <<'PY'
-          import os
-          import pathlib
-          import subprocess
-          import sys
-          script = pathlib.Path(os.environ["HEAVY_CHECK_PATH"])
-          if not script.exists():
-              raise SystemExit(f"Missing heavy-check script: {script}")
-          try:
-              result = subprocess.run(
-                  ["bash", str(script)],
-                  text=True,
-                  capture_output=True,
-                  timeout=int(os.environ["HEAVY_CHECK_TIMEOUT_SECONDS"]),
-                  check=False,
-              )
-          except subprocess.TimeoutExpired:
-              raise SystemExit("Heavy acceptance checks timed out")
-          if result.returncode:
-              print("heavy-check stdout:")
-              print(result.stdout)
-              print("heavy-check stderr:")
-              print(result.stderr)
-              raise SystemExit(f"Heavy acceptance checks failed (exit={result.returncode})")
-          print(result.stdout)
-          print(result.stderr)
-          PY
-          echo "status=passed" >> "${GITHUB_OUTPUT}"
-      - name: Validate heavy-check decision
-        id: heavy-checks-decision
-        shell: bash
-        run: |
-          if [[ "${{ inputs.run_e2e }}" != "true" ]]; then
-            echo "status=not_run" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          status="${{ steps.heavy-checks.outputs.status }}"
-          echo "status=${status}" >> "${GITHUB_OUTPUT}"
-          if [[ "${status}" != "passed" ]]; then
-            echo "::error::run_e2e=true requires heavy-check status=passed."
-            exit 1
-          fi
       - name: Package Unix candidate
         if: runner.os != 'Windows' && success()
         shell: bash
@@ -187,20 +107,11 @@ jobs:
           "$hash  $archive" | Set-Content "dist/$archive.sha256" -Encoding ascii
       - name: Record candidate manifest
         shell: bash
-        env:
-          E2E_ENABLED: ${{ inputs.run_e2e }}
-          E2E_STATUS: ${{ steps.heavy-checks-decision.outputs.status }}
         run: |
           python - <<'PY'
           import hashlib, json, os, pathlib, platform, subprocess
           dist = pathlib.Path("dist")
           archive = next(p for p in dist.iterdir() if p.suffix not in {".sha256", ".json"})
-          e2e_enabled = os.environ.get("E2E_ENABLED", "false").lower() == "true"
-          e2e_status = os.environ.get("E2E_STATUS", "")
-          if e2e_enabled and e2e_status != "passed":
-              raise SystemExit(f"heavyChecks must be passed when run_e2e=true, got {e2e_status!r}")
-          if not e2e_status:
-              e2e_status = "not_run"
           manifest = {
               "version": os.environ["VERSION"],
               "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
@@ -210,12 +121,11 @@ jobs:
               "archive": archive.name,
               "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
               "tests": "passed",
-              "smoke": "passed",
-              "heavyChecks": e2e_status,
+              "milestoneAcceptance": "pending",
           }
           (dist / f"{archive.name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
           PY
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: success()
         with:
           name: ${{ runner.os }}-${{ runner.arch }}-release-candidate

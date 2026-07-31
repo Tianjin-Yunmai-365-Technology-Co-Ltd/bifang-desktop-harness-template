@@ -1,35 +1,47 @@
 ---
 name: verify-delivery
-description: Review delivery evidence for a repository change or release candidate and record it against product success criteria. Use when the user asks to verify delivery or completion, initiates a final-artifact build or release preparation, or a change directly affects the release path; only an explicit build/release request starts real release gates, and heavy acceptance remains separately selected.
+description: Accept or reject a complete real milestone artifact after every Todo in its batch is done, using approved scenarios and persistent smoke/E2E policy. Use for milestone acceptance, completion review, or before release preparation; reject Mock or incomplete results and route implementation gaps back to the Todo coding loop.
 ---
 
 # Verify Delivery
 
-Distinguish evidence from assumptions and prevent unverified work from being reported as complete.
+Verify a complete milestone artifact, not a partial implementation or a collection of passing checks.
 
-## Workflow
+## Entry Gate
 
-1. Read the relevant success criteria in the latest dated Product Spec indexed by `docs/product_spec/README.md`, `docs/ENGINEERING_RULES.md`, the latest dated Work Plan indexed by `docs/work_plan/README.md`, `docs/adr/README.md`, the latest dated ADR and its relevant historical references, and the verification matrix in `docs/VERIFICATION.md`. Read `docs/CLI_CONTRACT.md`, `docs/RUST_CLI_TEMPLATE.md`, and `docs/RELEASE.md` when a downstream release candidate is in scope.
-2. Confirm the user requested delivery acceptance, completion review, a final-artifact build, or release preparation, or that the change directly affects the release path. If the request is implementation-only, return to `$implement-change` development-loop verification. Treat evidence-only review and release-path maintenance as inspection plus relevant static, unit, and isolated contract checks; they do not authorize real release builds, Computer Use E2E, packaging, collection, signing, upload, or publication.
-3. Identify whether the deliverable is the documentation-only Harness template or an implemented downstream project, then inspect the actual change and its highest-risk behavior. For a downstream project, require its canonical Git top-level to equal the project root and record branch, source commit or unborn-HEAD state, and dirty status; a missing or inherited parent boundary is `Not verified`.
-4. Discover verification commands from repository configuration and documentation. Never invent commands.
-5. Identify the current operating system. For evidence-only review or release-path maintenance, run only the repository's relevant static, unit, and isolated contract checks and report missing release evidence. When the user explicitly initiates a final-artifact build or release preparation, run the mandatory release gates: repository-recorded compile/build validation, non-empty unit tests, change-required integration or contract checks, final-artifact existence, and read-only startup/smoke checks. For the Harness template, `python3 scripts/validate_harness.py` is always a relevant structural check; bundled release assets are built only in that explicit release stage. Heavy acceptance such as Computer Use E2E, full browser flows, host-driven MCP acceptance, or other interactive real-environment checks is never automatic here.
-6. Test the core success path and any failure path that could cause data loss, false success, unsafe retry, or permission failure.
-7. Confirm valid unit tests cover the core success path and the highest-risk failure path. Treat zero tests or either missing path as not verified unless an approved exception record defines an alternative.
-8. Record each executed check with date, operating system, result, and meaningful output. When a heavy acceptance check was not explicitly selected for this task/run, record it as `Not run` plus residual risk instead of implying success. Mark other target platforms `Unverified`; never infer cross-platform success.
-9. Allow diagnosis and repair inside the authorized task. Request human approval before destructive operations, scope changes, or new external side effects.
-10. Validate the CLI JSON envelope, error structure, output streams, non-interactive behavior, and exit-code consistency when a CLI exists.
-11. Review maintained code semantically against the approved file boundaries and Chinese business-comment requirements. Treat soft line thresholds as prompts, verify any retained over-threshold file has a recorded rationale, and do not use comment counts or character counts as evidence of quality.
-12. Confirm the requirement has an ADR entry, relevant design documents reflect the implemented behavior, and actual user/maintainer-visible changes appear in today's `docs/changelog/YYYYMMDD_CHANGELOG.md`. Mark a document or check `Not applicable` only when the corresponding deliverable does not exist and record the reason; never use it to bypass a downstream required gate. Update `docs/VERIFICATION.md`, today's complete `docs/project_status/YYYYMMDD_product_status.md` snapshot, and relevant technical debt; when the Product Status date changes, synthesize the new file from the previous snapshot and current evidence. Prepare the evidence for human review, but never sign the reviewer field or mark the human verdict `Approved`.
-13. When the current request explicitly initiates a final-artifact build or release preparation for a Rust CLI candidate, use `$build-rust-release` on the current platform and `$collect-release-artifacts` for produced or downloaded files. For TUI, MCP, GUI, or WEB, use the applicable adapter's recorded production build and artifact contract until a separately approved cross-interface release workflow exists. In evidence-only review, inspect existing artifacts instead of creating or collecting new ones. Call `$test-final-artifact-e2e` only when the current task/run explicitly enabled it or an approved product/channel requirement makes that acceptance mandatory; never auto-call it merely because `$verify-delivery` ran. Treat every selected heavy check as a required gate for that candidate: if it fails, times out, is cancelled, or is left unrun after selection, the candidate is `Not verified` and packaging, collection-as-ready, signing, upload, or publish readiness stays blocked. If a heavy check was not selected and no hard requirement demands it, keep the omission visible as `Not run` with residual risk. Verify archive/checksum/manifest agreement and require native test and smoke evidence for every platform claimed as verified.
+1. Read the latest dated Product Spec, `docs/AGENT_POLICY.md`, latest dated Work Plan, the latest dated ADR, `docs/ENGINEERING_RULES.md`, Verification and applicable interface/build rules.
+2. Require every Todo in the candidate's batch to be `done` with non-empty unit/regression and related development evidence. If any Todo is non-`done`, stop milestone execution and return to `$implement-change`; do not run smoke/E2E.
+3. Require a complete real artifact bound to the approved milestone, source commit, version/build identity and current environment. Reject source snippets, Mock, stub, placeholder, neutral scaffold, dev preview, assumed artifact path and internal-function-only evidence.
 
-## Completion Verdict
+## Milestone Workflow
 
-Use one verdict:
+1. State the approved core success path, highest-risk failure path, real inputs/outputs and observable acceptance result. Separate external prerequisites from product logic.
+2. Discover real repository commands and artifact locations; never invent them. Build/locate the candidate without running smoke/E2E in the build Skill.
+3. Re-run current-candidate compile/build checks, non-empty unit/regression tests, required integration/contract checks and artifact existence. Zero tests or missing required-path coverage rejects the milestone unless an approved exception defines alternative evidence.
+4. Resolve optional runtime checks in this order:
+   - product, channel and safety hard requirements;
+   - a stricter current-task user constraint;
+   - `milestone_smoke` and `milestone_e2e` from `docs/AGENT_POLICY.md`;
+   - applicability to the actual interface and artifact.
+5. `enabled` means run when applicable; `disabled` means record `Not run` and residual risk unless a hard requirement overrides it. `pending`, missing/invalid policy, conflicting requirements, inability to establish that the artifact is runnable, or new credential/production/irreversible authority requires user input.
+6. Run applicable smoke only against the real artifact with a bounded read-only entry. Call `$test-final-artifact-e2e` only here when E2E is enabled or required and a real artifact exists. A CI candidate transport bundle already marked `milestoneAcceptance: pending` may exist solely to move the candidate into this milestone; execute selected checks before collection as ready, release/distribution packaging, signing, release upload or publication.
+7. Capture exact candidate, platform, commands/scenarios, expected/observed results, cleanup, skipped checks and unverified platforms. Do not infer cross-platform success.
+8. Review maintained code against file boundaries and Chinese business-comment rules. Confirm Product Spec, design docs and `docs/changelog/YYYYMMDD_CHANGELOG.md` match the actual behavior.
 
-- `Verified`: all required success criteria have evidence and the repository contains a real human approval record.
-- `Partially verified`: available checks pass, but named required evidence is missing.
-- `Not verified`: a required check failed or the core result cannot be established.
+## Rejection And Repair Loop
 
-Never equate compilation, test count, or a zero exit code alone with user acceptance. Report remaining risk alongside the verdict.
-A user-selected heavy acceptance check counts as required evidence for that candidate even when similar checks are optional in other runs.
+1. Reject the milestone when the artifact is missing/incomplete/not runnable, still contains Mock/scaffold behavior, deviates from an approved scenario, or any required/enabled check fails, times out, is cancelled or remains unrun.
+2. Preserve failure evidence in `docs/VERIFICATION.md`.
+3. For an approved-scope implementation gap, reopen or add a concrete Todo with the expected behavior and regression test, mark the milestone rejected, and immediately return to `$implement-change`. After repair, require the full batch to be `done` and rerun the complete milestone.
+4. Route a newly discovered product boundary to `$define-product`; request approval for destructive operations or new external side effects. External unavailable platforms may remain `Unverified` only when they are outside the current milestone's required scope.
+5. Never use `Partially verified` as an acceptance verdict while required product logic remains missing or wrong.
+
+## Verdict
+
+Use one milestone verdict:
+
+- `Milestone accepted`: every required scenario and selected gate passed, and any required human review is recorded.
+- `Awaiting human review`: automated evidence passed but the project requires an unsigned human verdict.
+- `Milestone rejected`: a required condition failed; reopened Todo and repair routing are recorded.
+
+Acceptance does not authorize tag, push, publication, signing, upload or destructive cleanup.

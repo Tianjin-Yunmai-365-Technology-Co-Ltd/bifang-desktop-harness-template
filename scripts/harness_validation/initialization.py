@@ -16,9 +16,9 @@ def validate_initialization_contract(errors: list[str]) -> None:
     required_fragments = {
         INSTANTIATE_SKILL: (
             "full target project directory path",
-            "required user input",
+            "The target directory is required",
             "ASCII snake_case project identifier",
-            "Product purpose, core input/output",
+            "product purpose, core input/output",
             "may remain unresolved",
             "resolved target basename",
             "symlink resolutions",
@@ -38,7 +38,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "docs/work_plan/",
             "create exactly one local baseline commit",
             "Do not run the template-wide Harness validator in the selectively copied target",
-            "intentional absence of four Harness memory streams",
+            "Do not create Product Spec, Work Plan, ADR or Changelog merely for instantiation",
             "LICENSE.zh-CN.md",
             "LICENSE.en.md",
             "byte-for-byte",
@@ -48,6 +48,8 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "all other legal text must remain byte-equivalent",
             "retain `$rename-project-identity`",
             "$run-parallel-worktrees",
+            "$upgrade-harness",
+            "parallel Worktree/Subagent, milestone smoke, and milestone E2E",
             "Harness-only root `Version.md`",
             "root `Cargo.toml`",
         ),
@@ -58,25 +60,24 @@ def validate_initialization_contract(errors: list[str]) -> None:
         ),
         skill_file: (
             "$check-development-environment",
-            "Only a selection containing `GUI` or `WEB` adds blocking Node.js and pnpm gates.",
+            "Only a selection containing `GUI` adds blocking Node.js and pnpm gates.",
             "remove `.agents/skills/instantiate-project/`",
             "remove `.agents/skills/initialize-rust-project/`",
             "## Skills 地图",
             "## 约束地图",
             "workspace = true",
-            "exactly `CLI`, `TUI`, `MCP`, `GUI`, and `WEB`",
+            "exactly `CLI`, `TUI`, `MCP`, and `GUI`",
             "If the user makes no selection, record `CLI`",
             "Do not silently add CLI",
             "docs/AGENT_POLICY.md",
-            "superpowers: disabled",
+            "Superpowers, parallel Worktree/Subagent, milestone smoke and milestone E2E",
+            "do not default an absent answer or leave `pending`",
             "$add-cli-adapter",
             "$add-tui-adapter",
             "$add-mcp-adapter",
             "$add-gui-adapter",
-            "$add-web-adapter",
             "_cli",
             "_tui",
-            "_web",
             "scaffold status",
             "productDefinitionRequired=true",
             "$define-product",
@@ -104,6 +105,8 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "retain both inherited proprietary commercial license files",
             "$rename-project-identity",
             "$run-parallel-worktrees",
+            "$upgrade-harness",
+            "do not run smoke/E2E during neutral initialization",
             "contains the old Harness identity",
         ),
         ENVIRONMENT_SKILL / "SKILL.md": (
@@ -128,14 +131,14 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "$implement-change",
         ),
         SKILLS_ROOT / "implement-change" / "SKILL.md": (
-            "git rev-parse --show-toplevel",
-            "unborn-HEAD",
+            "canonical Git root",
+            "branch, commit/unborn state",
             "git status --short",
         ),
         SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
-            "canonical Git top-level",
-            "unborn-HEAD",
-            "Not verified",
+            "source commit",
+            "version/build identity",
+            "Unverified",
         ),
         SKILLS_ROOT / "build-rust-release" / "SKILL.md": (
             "independent Git top-level",
@@ -181,25 +184,10 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "Tokio current-thread async entry",
             "measured CPU-intensive",
         ),
-        GUI_SKILL: (
-            "Tauri's Tokio-backed singleton async runtime",
-            "plain `async fn` Tauri commands",
-            "measured CPU-intensive",
-            "Missing signing identity",
-            "record the artifact as unsigned",
-            "distribution target requires signing",
-        ),
-        GUI_BASELINE: (
-            "Tokio-backed singleton async runtime",
-            "plain `async fn`",
-            "Missing signing identity",
-            "record the result as unsigned",
-            "distribution channel that requires signing",
-        ),
         COLLECT_RELEASE_SKILL: (
             "<canonical-project-root>/release",
             "latest completed result",
-            "Build and validate the complete source manifest plus gate-evidence manifest before cleanup",
+            "Build and validate the complete source manifest plus milestone-evidence manifest before cleanup",
             "Immediately before copying",
             "remove every existing entry",
             "Copy only the selected current source-manifest files",
@@ -211,27 +199,16 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "must not inherit the Harness `Version.md`",
             "$collect-release-artifacts",
             "<project-root>/release",
-            "historical, stale, foreign-project, ambiguous or extra files",
+            "historical, stale, pending, foreign, ambiguous or extra files",
         ),
         BUILD_RELEASE_SKILL: (
             "$collect-release-artifacts",
-            "project-root `release/` directory",
+            "Do not launch the binary",
         ),
         CROSS_PLATFORM_RELEASE_SKILL: (
-            "$collect-release-artifacts",
-            "project-root `release/` directory",
-            "clear historical contents",
-        ),
-        WEB_SKILL: (
-            "<project-id>_web",
-            "Do not require or invoke another adapter",
-            "React + TypeScript",
-            "Mantine UI",
-            "TanStack Router",
-            "TanStack Query",
-            "Jotai",
-            "hard-rule exception",
-            "references/react-frontend-baseline.md",
+            "confirm_candidate_build",
+            "milestoneAcceptance: pending",
+            "Do not include smoke, E2E",
         ),
         REACT_BASELINE: (
             "React and TypeScript",
@@ -243,15 +220,26 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "latest mutually compatible stable releases",
         ),
         GUI_SKILL: (
+            "Tauri's Tokio-backed singleton async runtime",
+            "plain `async fn` Tauri commands",
+            "measured CPU-intensive",
+            "Missing signing identity",
+            "record the artifact as unsigned",
+            "distribution target requires signing",
             "Do not ask for another target directory",
             "<project-id>_gui",
             "React, TypeScript, Mantine UI, TanStack Router, TanStack Query and Jotai",
             "hard-rule exception",
-            "React frontend baseline",
+            "references/react-frontend-baseline.md",
             "$prepare-gui-app-identity",
             "docs/GUI_APP_PROFILE.md",
         ),
         GUI_BASELINE: (
+            "Tokio-backed singleton async runtime",
+            "plain `async fn`",
+            "Missing signing identity",
+            "record the result as unsigned",
+            "distribution channel that requires signing",
             "Tauri 2",
             "React + TypeScript",
             "Mantine UI",
@@ -260,10 +248,12 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "Jotai",
             "hard rules",
         ),
-        E2E_SKILL: ("Computer Use", "real final artifact", "highest-risk failure path"),
-        ROOT / "docs" / "AGENT_POLICY.md": (
-            "superpowers: enabled",
-            "superpowers: disabled",
+        E2E_SKILL: ("Computer Use", "complete real artifact", "highest-risk failure path"),
+        AGENT_POLICY: (
+            "superpowers:",
+            "parallel_worktree_subagents:",
+            "milestone_smoke:",
+            "milestone_e2e:",
             "`superpowers:`",
         ),
         gate_file: (
@@ -280,14 +270,13 @@ def validate_initialization_contract(errors: list[str]) -> None:
         ),
         rust_baseline: (
             "$check-development-environment",
-            "只有 GUI/WEB 选择才增加 Node.js 与 pnpm 阻断门禁",
+            "只有 GUI 选择才增加 Node.js 与 pnpm 阻断门禁",
             "example_tool_core = { path = \"example_tool_core\" }",
             "<项目标识>_core",
             "<项目标识>_cli",
             "_tui",
             "_mcp",
             "_gui",
-            "_web",
             "所有第三方依赖和 workspace 内 crate 路径都集中在根",
             "首次 scaffold 在当前项目根创建 `Cargo.toml`",
             "scaffold status",
@@ -301,7 +290,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "完整目标项目目录路径",
             "basename 必须与项目标识一致",
             "唯一项目根目录",
-            "CLI/TUI/MCP/GUI/WEB",
+            "CLI/TUI/MCP/GUI",
             "未选择任何接口时默认 CLI",
             "docs/AGENT_POLICY.md",
             "scaffold status",
@@ -403,6 +392,35 @@ def validate_initialization_contract(errors: list[str]) -> None:
                     f"initialization gate missing in {display_path(path)}: {fragment}",
                 )
 
+    removed_web_skill = SKILLS_ROOT / "add-web-adapter"
+    if removed_web_skill.is_file() or any(
+        path.is_file() for path in removed_web_skill.rglob("*")
+    ):
+        fail(errors, f"removed standalone WEB skill still exists: {display_path(removed_web_skill)}")
+
+    removed_web_fragments = {
+        skill_file: ("`WEB`", "$add-web-adapter", "_web"),
+        INSTANTIATE_SKILL: ("CLI/TUI/MCP/GUI/WEB",),
+        ROOT / "AGENTS.md": ("$add-web-adapter", "CLI/TUI/MCP/GUI/WEB", "_web"),
+        ROOT / "README.md": ("$add-web-adapter", "CLI/TUI/MCP/GUI/WEB", "_web"),
+        ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
+            "$add-web-adapter",
+            "CLI/TUI/MCP/GUI/WEB",
+            "_web",
+        ),
+        E2E_SKILL: ("GUI, or WEB artifact", "- WEB:"),
+    }
+    for path, fragments in removed_web_fragments.items():
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment in text:
+                fail(
+                    errors,
+                    f"removed standalone WEB contract remains in {display_path(path)}: {fragment}",
+                )
+
     forbidden_regressions = {
         INSTANTIATE_SKILL: (
             "full target project directory path, one-line problem",
@@ -415,10 +433,6 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "CLI as the required",
         ),
         MCP_SKILL: ("Keep CLI mandatory", "required CLI"),
-        WEB_SKILL: (
-            "choose the smallest maintained stack",
-            "do not add a frontend framework solely for a neutral screen",
-        ),
         GUI_SKILL: (
             "Keep CLI mandatory",
             "required CLI",
@@ -501,7 +515,6 @@ def validate_initialization_contract(errors: list[str]) -> None:
         TUI_SKILL,
         MCP_SKILL,
         GUI_SKILL,
-        WEB_SKILL,
         rust_baseline,
         PRODUCT_SPEC,
         ROOT / "docs" / "CLI_CONTRACT.md",
@@ -541,6 +554,9 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "SHASUMS256.txt",
             "Node.js SHA-256 verification failed",
             "--interfaces",
+            "CLI,TUI,MCP,GUI",
+            "CLI|TUI|MCP|GUI",
+            "Unsupported interface",
             "gate.pnpm.status=",
             "pnpm@latest",
             "not-required",
@@ -559,6 +575,9 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "gate.msvc.change=$MsvcChange",
             "Test-MsvcPrerequisite",
             "[string[]]$Interfaces",
+            '@("CLI", "TUI", "MCP", "GUI")',
+            '$FrontendRequired = $NormalizedInterfaces -contains "GUI"',
+            "Unsupported interface",
             "Install-MissingPnpm",
             "gate.pnpm.status=",
             "not-required",
@@ -573,6 +592,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "test_rust_installer_failure_blocks_the_gate",
             "test_rust_checksum_mismatch_blocks_the_gate",
             "test_node_checksum_mismatch_blocks_the_gate",
+            "test_removed_web_interface_is_rejected",
             "test_windows_msvc_gate_installs_signed_build_tools",
         ),
     }

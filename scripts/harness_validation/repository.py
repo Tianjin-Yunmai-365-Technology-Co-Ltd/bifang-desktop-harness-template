@@ -83,6 +83,10 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "同一天只维护一份 Work Plan",
             "读取前一份 Work Plan",
             "完整的当前计划",
+            "Todo` 批次和对应验证里程碑",
+            "当前批次任一 Todo 非 `done` 时",
+            "Mock、stub、占位、中性 scaffold",
+            "重开或新增 Todo 并返回编码",
         ),
         ADR_DIR / "README.md": (
             "YYYYMMDD_ADR.md",
@@ -100,13 +104,13 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "the latest dated ADR",
         ),
         SKILLS_ROOT / "plan-change" / "SKILL.md": (
-            "the latest dated Product Status",
+            "latest dated Product Status",
             "synthesize its still-valid content",
             "the latest dated ADR",
         ),
         SKILLS_ROOT / "implement-change" / "SKILL.md": (
-            "the latest dated Work Plan",
-            "synthesize it from the previous dated file",
+            "latest dated Work Plan",
+            "synthesize each current snapshot from the previous dated file",
             "the latest dated ADR",
             "docs/changelog/YYYYMMDD_CHANGELOG.md",
         ),
@@ -129,6 +133,99 @@ def validate_daily_project_memory(errors: list[str]) -> None:
                     errors,
                     f"daily project-memory rule missing in {display_path(path)}: {fragment}",
                 )
+
+
+def validate_work_plan_contract(
+    errors: list[str],
+    plan_path: Path = WORK_PLAN,
+) -> None:
+    """确认活动计划具有可机读 Todo 状态、里程碑准入和失败回流。"""
+    if not plan_path.is_file():
+        fail(errors, f"missing active Work Plan: {display_path(plan_path)}")
+        return
+
+    text = plan_path.read_text(encoding="utf-8")
+    required_fragments = (
+        "## Todo",
+        "## 验证里程碑",
+        "pending",
+        "in_progress",
+        "blocked",
+        "`done`",
+        "完整真实",
+        "Mock",
+        "scaffold",
+        "重开",
+        "返回 `$implement-change`",
+    )
+    for fragment in required_fragments:
+        if fragment not in text:
+            fail(
+                errors,
+                f"Work Plan Todo/milestone contract missing in {display_path(plan_path)}: {fragment}",
+            )
+
+    heading_pattern = re.compile(
+        r"^###\s+(TODO-[A-Z0-9-]+)(.*?)$",
+        flags=re.MULTILINE,
+    )
+    heading_matches = list(heading_pattern.finditer(text))
+    todo_ids = [match.group(1) for match in heading_matches]
+    if not todo_ids:
+        fail(errors, f"active Work Plan has no stable Todo IDs: {display_path(plan_path)}")
+    duplicates = sorted(
+        todo_id for todo_id in set(todo_ids) if todo_ids.count(todo_id) > 1
+    )
+    if duplicates:
+        fail(
+            errors,
+            "active Work Plan contains duplicate Todo IDs: " + ", ".join(duplicates),
+        )
+
+    unfinished: set[str] = set()
+    for index, match in enumerate(heading_matches):
+        todo_id = match.group(1)
+        heading_suffix = match.group(2)
+        states = re.findall(
+            r"[（(](pending|in_progress|blocked|done)[）)]",
+            heading_suffix,
+        )
+        if len(states) != 1:
+            fail(
+                errors,
+                f"Todo {todo_id} heading must carry exactly one explicit state",
+            )
+        elif states[0] != "done":
+            unfinished.add(todo_id)
+        block_end = (
+            heading_matches[index + 1].start()
+            if index + 1 < len(heading_matches)
+            else len(text)
+        )
+        block = text[match.end() : block_end]
+        field_patterns = {
+            "expected behavior": r"(?:预期行为|Expected behavior)\s*[：:]",
+            "ownership/boundary": r"(?:影响边界|Ownership/Boundary)\s*[：:]",
+            "verification": r"(?:完成验证|Verification)\s*[：:]",
+        }
+        for label, pattern in field_patterns.items():
+            if not re.search(pattern, block, flags=re.IGNORECASE):
+                fail(errors, f"Todo {todo_id} is missing per-item {label}")
+
+    accepted_while_unfinished = re.search(
+        r"(?:里程碑|验收)(?:状态|结论)?\s*[：:]\s*(?:accepted|已验收|通过)"
+        r"|(?:Milestone|Acceptance)\s+(?:status\s*[：:]\s*)?(?:accepted|passed)"
+        r"|^#{1,6}\s+.*(?:里程碑|Milestone).*[（(](?:accepted|已验收|通过)[）)]",
+        text,
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    if unfinished and accepted_while_unfinished:
+        fail(
+            errors,
+            "active Work Plan marks a milestone accepted while Todo remains non-done: "
+            + ", ".join(sorted(unfinished)),
+        )
+
 
 def parse_frontmatter(path: Path, errors: list[str]) -> dict[str, str]:
     """解析 Skill 的最小 YAML frontmatter，并拒绝缺失或额外字段。"""

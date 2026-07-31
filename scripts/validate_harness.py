@@ -12,6 +12,7 @@ if __package__ in {None, ""}:
 
 from scripts.harness_validation.context import EXPECTED_SKILLS, REQUIRED_FILES, WORKFLOW
 from scripts.harness_validation.governance import (
+    validate_agent_policy,
     validate_current_descriptions,
     validate_engineering_contract,
     validate_parallel_and_tiered_verification,
@@ -23,8 +24,10 @@ from scripts.harness_validation.repository import (
     validate_markdown_links,
     validate_required_files,
     validate_skills,
+    validate_work_plan_contract,
 )
 from scripts.harness_validation.review import validate_soft_review_prompts
+from scripts.harness_validation.upgrade import validate_upgrade_contract
 from scripts.harness_validation.workflow import validate_workflow as _validate_workflow
 
 
@@ -39,10 +42,13 @@ def main() -> int:
     warnings: list[str] = []
     validate_required_files(errors)
     validate_daily_project_memory(errors)
+    validate_work_plan_contract(errors)
     validate_skills(errors)
     validate_markdown_links(errors)
     validate_workflow(errors)
+    validate_upgrade_contract(errors)
     validate_initialization_contract(errors)
+    validate_agent_policy(errors)
     validate_engineering_contract(errors)
     validate_parallel_and_tiered_verification(errors)
     validate_current_descriptions(errors)
@@ -58,7 +64,8 @@ def main() -> int:
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
         f"{len(EXPECTED_SKILLS)} skills, local Markdown links, five daily project-memory streams, "
-        "initialization gates, engineering rules, parallel worktree gates, tiered verification, executable prerequisite gates, workspace dependency inheritance, "
+        "Todo/milestone gates, persistent Agent policy, initialization gates, engineering rules, "
+        "parallel worktree gates, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."
     )
     return 0

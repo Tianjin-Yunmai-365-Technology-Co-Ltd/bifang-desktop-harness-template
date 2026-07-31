@@ -3,10 +3,11 @@
 ## 验证原则
 
 - 只记录真实执行的命令、环境、结果和未覆盖范围。
-- 开发轮次记录非空单元测试和变更相关验证；最终产物、完整启动冒烟、跨平台候选、归档与人工复核只在用户发起构建或发布准备时运行。开发证据不得写成发布就绪，普通交付状态复核或发布链路修改不自动触发真实发布动作。
-- Computer Use E2E 及同类重型、交互式或真实环境验收只有在本次构建/发布任务由用户启用，或产品/渠道明确要求时运行。选择必须在首次发布构建前记录；已启用或必需项目在最终产物构建后、打包前的失败、超时、取消或未执行都属于阻断，未启用且非硬要求时记录 `Not run`、原因和风险。
-- 构建/发布任务的编译、非空单元测试、相关集成/契约、最终产物存在性和真实产物只读启动冒烟始终不可跳过；任一失败都不能继续打包、上传、产物收集、签名或发布。
-- Harness 根目录没有具体产品；下游产品的编译、业务测试、最终产品产物和业务验收为 `Not applicable`。bundled assets 的完整 release 检查在 Harness 发布准备时执行；普通 Harness 维护只执行本次变更相关检查。
+- Todo 开发轮次记录非空单元/回归测试和变更相关验证；任一 Todo 非 `done` 时持续实现，不进入验证里程碑，不运行冒烟/E2E，也不产生已验收结论。
+- 只有当前批次 Todo 全部 `done` 后，才能对绑定批准场景、源码 commit、运行环境和可观察结果的完整真实产物执行验证里程碑。源码片段、Mock、stub、占位、中性 scaffold、开发预览和仅内部函数证据不具备验收资格。
+- 验证里程碑按 `docs/AGENT_POLICY.md` 的持久 `milestone_smoke`/`milestone_e2e`、产品/渠道硬要求和实际适用性决定冒烟/E2E。产品定义、计划、Todo 编码、普通静态复核、常规构建、制品收集和发布元数据流程不得运行二者。
+- 必需门禁或已启用的冒烟/E2E 失败、超时、取消或未执行时拒绝里程碑，保存证据，重开或新增具体 Todo 并返回编码修复；只有全部 Todo 再次 `done` 才能重跑完整里程碑。
+- Harness 根目录没有具体下游产品；维护里程碑验收的是可执行治理闭环、validator 和维护脚本，不把中性 bundled asset 当作产品里程碑。真实下游产品与未运行平台按事实标为 `Unverified`。
 - 零测试不构成通过；测试必须覆盖核心成功路径和最高风险失败路径。
 - 只对真实运行的系统和工具链给出通过结论；其他平台与宿主标记为 `Unverified`。
 - 人工批准不能把失败或未执行的检查改判为通过；Agent 不代替人类签署最终复核。
@@ -15,16 +16,75 @@
 
 | 层级 | 方法 | 当前要求 |
 |---|---|---|
-| 文件与链接 | `python3 scripts/validate_harness.py` | 31 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
-| Skills | validator + 逐份语义审查 | 20 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致 |
-| 并行协作 | Worktree 助手 10 个隔离单元测试 + validator 契约检查 | 仅编码/实现阶段逐任务授权，产品/范围设计、实施计划设计和其他阶段不询问；独立 Worktree/分支、写入目标 guard、脏基线阻断、前台状态、同步等待与保守清理 |
+| 文件与链接 | `python3 scripts/validate_harness.py` | 38 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
+| Skills | validator + Skill Creator 校验 + 逐份语义审查 | 20 个 Skills、UI 元数据、references、scripts 和 assets 与事实源一致；独立 WEB Skill 不得存在，`$upgrade-harness` 必须存在并保留 |
+| 持久 Agent 策略 | schema 正负向单元测试 + 初始化契约 | Superpowers、Worktree/Subagent、里程碑冒烟/E2E 一次写入；下游基线不得残留 `pending`；后续先复用、再判断、最后询问 |
+| Todo 与里程碑 | Work Plan 结构门禁 + 状态正负向单元测试 | Todo 有稳定 ID/状态，任一非 `done` 项禁止 accepted 里程碑；失败重开 Todo 返回实现 |
+| 并行协作 | Worktree 助手 10 个隔离单元测试 + validator 契约检查 | 持久策略启用且至少两个独立写入范围时自主采用；否则单 Agent；独立 Worktree/分支、写入目标 guard、前台状态、同步等待与保守清理 |
 | Harness 版本 | validator 正向与非法日期负向测试 | `Version.md` 的当前版本是上海时区合法 `YYYYMMDDHHMM`，当前摘要一致且下游 SemVer 不受污染 |
 | 当前描述 | validator 正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
-| 开发环境门禁 | Python 11 个隔离测试 + shell/PowerShell 静态或原生检查 | Rust-only 与 GUI/WEB 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计 |
-| Rust asset | 精确 Rust 1.90 | 发布准备时执行 fmt、locked check、Clippy、7 个测试、locked release build、真实成功与失败冒烟；普通维护按变更相关性选择 |
-| 发布前手动验收 | 选择/硬要求记录 + Skills/workflow/validator 契约检查 | 仅构建/发布任务询问；产物构建后、打包前执行；失败、超时、取消或未执行阻断，未启用可选项记录风险 |
-| Workflow asset | validator + YAML 解析 + 禁止行为扫描 | 仅手动触发、固定受审验收入口、三平台候选结构完整，失败时禁止打包，不自动发布或提升写权限 |
+| 开发环境门禁 | Python 12 个隔离测试 + shell/PowerShell 静态或原生检查 | Rust-only 与 GUI 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计；WEB 参数稳定拒绝 |
+| Harness 升级 | 真实 CLI + 27 个隔离 Git fixture 单元测试 | plan/apply/record、三方比较、bootstrap、来源与控制状态绑定、权限、protected/tombstone、符号链接与碰撞 fail closed；真实下游仍需前向证据 |
+| Rust asset | 精确 Rust 1.90 | 仅在对应 Todo/里程碑或发布范围需要时执行 fmt、locked check、Clippy、非空测试与 build；冒烟/E2E 仍只属于验证里程碑 |
+| 里程碑运行验收 | 持久策略/硬要求解析 + 真实产物场景证据 | 只在 Todo 全部完成后考虑冒烟/E2E；失败、超时、取消或已选未执行会拒绝里程碑并回编码 |
+| Workflow asset | 全文件 SHA-256 + YAML/步骤/输入/guard 契约 | 只生成三平台 `milestoneAcceptance: pending` 候选，使用不可变 action commit，包含非空测试/build/打包，禁止冒烟、E2E、发布和写权限提升 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
+
+## 2026-07-31 Todo/里程碑闭环、持久策略与 Harness 升级能力
+
+### 范围、候选与环境
+
+- 当前宿主：macOS 26.5.2（Build 25F84），arm64；Git top-level 为 Harness 根，分支为 `master`。当前工作树同时包含 2026-07-30 独立 WEB 移除与 GUI/环境门禁调整，以及 2026-07-31 的治理、策略、升级器和 validator 变更；本轮基于现状继续，没有 reset、stash 或覆盖既有修改。
+- Harness 源的四项策略保持 `pending`，因为它们只等待未来下游初始化一次确认；本次不把 Harness 源误当成已初始化下游，也不重复询问逐任务策略。现有脏基线不能安全拆为继承精确状态的独立写入 Worktree，因此当前工作树串行实施，三个只读 Subagent 分别审计文档、升级器和 validator。
+- 验证对象是完整 Harness 维护候选：统一 Todo/里程碑规则、可解析 Agent 策略、全部相关 Skills、真实 `$upgrade-harness` CLI、生产 ownership/lock 协议、候选 workflow 与完整 validator。它不是具体下游产品，不以 bundled scaffold、Mock 或 Markdown 声明单独作为验收产物。
+
+### Todo 开发检查与失败修复
+
+- `python3 -B .agents/skills/upgrade-harness/scripts/test_harness_upgrade.py -v`：最终 27 个隔离 Git fixture 全部通过。测试通过 subprocess 实际调用 `plan`、`apply`、`record`，覆盖上游单改、本地保留、双方冲突、bootstrap、人工新增/合并、删除、来源/目标 Git 漂移、控制文件漂移、权限 mode、保护清单弱化、符号链接/空目录 tombstone、全量 preflight 与 self-update 顺序。
+- 特殊权限新用例首次使用 setuid 位时，macOS 文件系统清除了该位，测试没有实际触发生产门禁；改用可观察 sticky 位并增加文件系统能力判断后，针对性重跑与最终 27/27 均通过。该失败属于夹具可观察性，不是把失败门禁改判为通过。
+- `python3 -B -m unittest scripts.test_validate_harness -v`：34 个正负向测试全部通过。新增覆盖无效/占位策略确认元数据、重复或缺字段 Todo、未完成 Todo 伪验收、注释伪装命令/guard、额外 workflow 输入与步骤、非法 YAML、可变 action tag、accepted manifest 和弱化升级 ownership。
+- `python3 -B .agents/skills/check-development-environment/scripts/test_development_environment_gates.py -v`：12 个测试通过；Rust-only、GUI 条件 Node.js/pnpm、校验失败、Windows 静态契约和已移除 WEB 参数保持有效。
+- `python3 -B .agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py -v`：10 个测试通过；`python3 -B .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py -v`：4 个测试通过。
+- `$upgrade-harness` 生产实现按职责拆为入口、core、mutation 和 policy 模块，分别为 96、760、558、69 行，均未超过 800 行硬阈值；测试夹具 753 行。validator 的升级领域独立检查生产语法、清单最低保护与 `managed-self` 规则顺序。
+- 候选 workflow 全文件 SHA-256 固定为 `8457d75d6e1f3664ab6d5e1cadf81c6dadceed0a630688f685a86c5554213a39`；checkout 固定到 `11d5960a326750d5838078e36cf38b85af677262`，upload-artifact 固定到 `ea165f8d65b6e75b540449e92b4886f43607fa02`。validator 在解析 YAML 后校验精确输入、步骤、顺序、guard、权限和 pending manifest，不能由注释或附加运行步骤绕过。
+- Skill Creator venv 的 `quick_validate.py` 对 `.agents/skills/*` 全量运行：20 个项目 Skills 全部通过。系统 Python 不作为本轮结构结论来源。
+- 对 `scripts/` 与 `.agents/skills/` 下 20 个 Python 文件使用无字节码 `compile(..., "exec")`：通过；Ruby `YAML.safe_load` 解析候选 workflow：通过；全部 POSIX `.sh` 执行 `sh -n`：通过。
+- 当前宿主没有 `pwsh`，所以 PowerShell 原生解析为 `Not run`；开发环境 12 个测试中的 Windows 静态契约仍通过，但不能替代真实 Windows 运行。
+- `python3 -B scripts/validate_harness.py`：通过，检查 38 个必需文件、20 个 Skills、本地 Markdown 链接、五类日期记忆和全部当前门禁。7 个非阻断职责审查提示涉及 Verification、升级器 core/mutation/测试、governance、initialization 和 validator 测试；生产模块均低于 800 行硬阈值，集中测试/证据文档当前也没有新的独立职责要求拆分。
+- `git diff --check`：通过；候选 workflow 实测 SHA-256 与受审常量一致。提交前状态只包含本轮与上一批已记录变更，没有生成缓存、构建产物、release、tag 或外部制品。
+
+### M1 入口与未运行范围
+
+- TODO-A01 至 TODO-D03 已全部完成；开发阶段只运行非空单元/回归、结构、语法、静态与契约检查，没有运行冒烟或 E2E。当前候选等待首次提交后绑定精确源码 commit 重跑完整门禁，完成前状态为 `Ready for commit-bound verification`。
+- M1 的交付物是维护 CLI、validator、Skills 和可执行治理规则，不存在需要启动交互的 GUI/TUI/MCP/CLI 产品最终产物；`milestone_smoke` 与 Computer Use E2E 在进入里程碑后判定为 `Not applicable`，记录为 `Not run`。27 个真实 subprocess CLI fixture 是维护场景功能证据，不被改名为冒烟或 E2E。
+- PowerShell 可执行文件在当前 macOS 宿主不可用，原生 PowerShell 检查为 `Not run`；Windows 行为仅有 Python 回归和脚本文本契约。Windows/Linux、真实 GitHub runners、真实客户下游、非 CLI adapter、Tauri 构建与长期升级仍为 `Unverified`。
+- 没有执行 Rust release build、跨平台候选运行、ready 制品收集、签名、tag、发布或上传。用户授权提交和推送当前源码，不等于人工最终复核或正式发布授权。
+- 人工最终复核：`Awaiting human review`。项目负责人尚未为本里程碑明确签署复核人、日期和结论，Agent 不代签。
+
+## 2026-07-30 移除独立 WEB 并保留 Tauri GUI Web 技术栈
+
+### 范围与环境
+
+- 当前宿主：macOS，arm64；Git top-level 为 Harness 根，分支为 `master`。编码前已询问本任务是否启用并行 Worktree + Subagent，未收到授权，因此按规则使用单 Agent 当前工作树流程。
+- 当前接口集合从 CLI/TUI/MCP/GUI/WEB 收缩为 CLI/TUI/MCP/GUI；删除独立 `$add-web-adapter`、`_web` 命名、初始化分派、环境触发和发布/E2E入口。
+- Tauri GUI 保留 React、TypeScript、Mantine UI、TanStack Router、TanStack Query、Jotai、pnpm、锁文件、Node/WebView 兼容、CSP/能力最小化、非空测试和 production build 契约；原共享 React baseline 已迁入 GUI Skill 自有 references。
+
+### 已执行检查与失败修复
+
+- `python3 .agents/skills/check-development-environment/scripts/test_development_environment_gates.py`：12 个测试全部通过。覆盖 Rust-only、GUI 已有/缺失工具、校验失败、Windows 静态契约，以及已移除 `WEB` 参数返回退出码 2 的最高风险回归。
+- `python3 scripts/test_validate_harness.py`：15 个测试全部通过。新增正向场景确认独立 WEB Skill 不存在，同时 GUI 自有 baseline 仍包含固定六项技术栈、`pnpm-lock.yaml` 与 WebView 约束。
+- `python3 scripts/validate_harness.py`：通过，检查 31 个必需文件、19 个 Skills、本地 Markdown 链接、五类日期项目记忆、初始化/工程/并行/分层验证/环境/workspace/workflow 契约；非阻断提示为 `scripts/harness_validation/initialization.py` 699 行的职责审查，以及更新验证证据后 `docs/VERIFICATION.md` 514 行的文档拆分审查，两者均未超过 800 行原则拆分阈值。
+- Skill Creator `quick_validate.py` 首次使用系统 Python 时因缺少 PyYAML 返回 1，未形成 Skill 结构结论；改用现有 `/Users/manonloki/.codex/venvs/skill-creator/bin/python` 后对 `.agents/skills/*` 全量运行，19 个现存 Skills 全部通过。
+- `sh -n .agents/skills/check-development-environment/scripts/development-environment-gates.sh`：通过。
+- 首次 Python 编译使用默认缓存路径时，沙箱拒绝写入 `.agents/.../__pycache__` 并返回 1；改用 `PYTHONPYCACHEPREFIX=/private/tmp/agent-first-harness-pycache` 后，对 validator 入口、领域模块、validator 测试和环境门禁测试执行 `py_compile` 通过。失败属于缓存写入边界，不是源码语法失败。
+- 首次完整 validator 准确报告删除后的空 WEB Skill 目录、旧 Skill 清单和 GUI baseline 文本断言；已删除空目录、更新 Skill 集合/基线路径与断言后重跑通过。
+
+### 开发结论与未运行范围
+
+- 开发证据证明当前可执行入口、Skills、当前事实源和 validator 不再支持独立 WEB，同时 Tauri GUI 的固定 Web 前端技术栈与 Node.js/pnpm 门禁仍有直接正向契约与单元测试保护。
+- 历史日期 Product Spec、Status、ADR、Changelog 和 Verification 保留当时支持五接口的真实记录；它们不是当前入口。ADR-20260730-004 与最新 Product Spec 是移除决定的当前事实。
+- 本次不是最终产物构建或发布准备；release build、最终产物存在性/启动冒烟、Computer Use E2E、真实 Tauri 构建、Windows/Linux 原生脚本、跨平台候选、打包、签名、tag 和发布均为 `Not run` 或 `Unverified`。
+- 本节是 Agent 开发验证记录，不是人工最终复核；项目版本仍为 `202607301002` / `Unreleased`。
 
 ## 2026-07-30 Harness 时间版本与仅编码阶段并行规则
 

@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-07-30（并行协作仅限编码/实现阶段；Harness 采用上海时区时间版本）
+> 最近范围确认：2026-07-30（移除独立 WEB 支持；保留 Tauri GUI 的 Web 前端技术选型）
 
 ## 一句话目标
 
@@ -27,8 +27,8 @@
 - Harness 只提供文档、项目 Skills、中性资产和验证入口，不实现具体业务。
 - `$instantiate-project` 只执行一次，要求展示名、ASCII `snake_case` 标识、完整目标项目目录路径、负责人和目标平台；目标必须不存在或为空，解析后的 basename 必须与项目标识一致，复制后该目录是初始化、开发、验证和发布准备的唯一项目根目录。
 - 下游具有独立 Git 仓库、`main` 初始分支、无 remote 的唯一初始化基线 commit；`git rev-parse --show-toplevel` 必须精确等于项目根，复制不得包含源 `.git` 或 Harness 的日期项目记忆。
-- 下游默认采用 Rust 2024、Rust 1.90 MSRV（即 MSRV 1.90.0）、shared core 与用户从 CLI/TUI/MCP/GUI/WEB 独立选择的 adapters；1.90.0 是最低兼容版本而非精确版本锁，未选择任何接口时默认 CLI。
-- TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；GUI/WEB 前端固定采用 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。偏离必须形成硬规则例外 ADR。
+- 下游默认采用 Rust 2024、Rust 1.90 MSRV（即 MSRV 1.90.0）、shared core 与用户从 CLI/TUI/MCP/GUI 独立选择的 adapters；1.90.0 是最低兼容版本而非精确版本锁，未选择任何接口时默认 CLI。
+- TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。偏离必须形成硬规则例外 ADR。
 - Product Spec 缺失或为 Draft 时仅允许无业务副作用的 `scaffold status`，CLI JSON 返回 `productDefinitionRequired=true`；完整 scaffold 验证后删除实例化、初始化和模板专用派生入口，同时保留非空 Skills 地图和约束地图。
 - `docs/AGENT_POLICY.md` 是 superpowers 能力开关的唯一来源；GUI 首次真实开发前调用 `$prepare-gui-app-identity`。
 - `$rename-project-identity` 负责展示名、标识、路径、配置、Skills、文档和双语许可证项目名的全量改名，保留法律条款。
@@ -47,7 +47,7 @@
 
 ### 分层开发、验证与发布
 
-- 首次代码开发前调用 `$check-development-environment`；Rust 始终阻断，Windows 同时检查 MSVC，GUI/WEB 额外检查 Node.js 与 pnpm。
+- 首次代码开发前调用 `$check-development-environment`；Rust 始终阻断，Windows 同时检查 MSVC，GUI 额外检查 Node.js 与 pnpm。
 - 每轮开发执行非空单元测试与变更相关的必要验证，包括按风险选择的格式、lint、静态、目标集成/契约测试和最小只读冒烟。
 - 每轮开发不重复执行发布级整体验收；普通交付状态复核和发布链路修改不得自动触发重型真实环境验收。
 - Computer Use E2E 及同类重型验收只能在用户发起构建/发布任务后，于首次发布构建前逐项选择；产品规格或渠道硬要求不得跳过。
@@ -64,6 +64,8 @@
 ## 不包含
 
 - 不在 Harness 根实现具体产品、账户、支付、云托管、远程部署或业务命令。
+- 不提供可独立选择、生成、开发、构建或发布的 WEB adapter；浏览器服务、独立 Web 应用和公网 Web 部署均不属于当前 Harness 范围。
+- 不因移除独立 WEB 而移除、替换或弱化 Tauri GUI 的本地 WebView 前端及其 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai 技术硬规则。
 - 不在产品定义、范围设计、实施计划设计、纯文档维护、问答、只读调查、验证复核、构建、发布准备或交付阶段询问 Worktree/Subagent，也不因这些阶段产生仓库写入而扩大触发范围。
 - 不自动为所有编码任务启用并行模式，不在用户未同意时创建 Worktree/Subagent，不把不可拆分任务强行并行。
 - 不承诺逐行直播 Subagent 内部推理；可见性针对计划、所有权、状态、阻塞、结果、整合和验证证据。
@@ -93,7 +95,9 @@
 - [ ] 构建或发布准备按当前源码执行不可跳过的基础闭环；所有必需或当次启用的手动验收在打包前通过。
 - [ ] 规则、相关 Skills、validator、README、AGENTS、项目记忆和验证文档保持一致。
 - [ ] `Version.md` 中的 Harness 当前版本为上海时区合法 `YYYYMMDDHHMM`，README、发布规则、当前规格、Changelog 和 validator 摘要一致；下游 SemVer 不受影响。
-- [ ] 双语许可证、独立下游 Git 根、一次性初始化裁剪、五类 adapter 和身份改名等既有成功标准继续有效。
+- [ ] 初始化、Skills、设计文档和 validator 只把 CLI/TUI/MCP/GUI 作为可选 adapters，不再暴露独立 WEB 入口、`_web` 目录或 WEB 发布/验收契约。
+- [ ] Tauri GUI 仍要求 Node.js、pnpm，以及 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai；GUI Skill 自包含所需前端基线，不依赖被删除的 WEB Skill 路径。
+- [ ] 双语许可证、独立下游 Git 根、一次性初始化裁剪、四类 adapter 和身份改名等既有成功标准继续有效。
 
 ## 当前版本与未来候选
 

@@ -151,7 +151,7 @@ class PrerequisiteGateTests(unittest.TestCase):
         )
 
     def test_existing_rust_only_project_does_not_probe_frontend_tools(self) -> None:
-        """非 GUI/WEB 项目只要求 Rust，Node.js 与 pnpm 必须标为不需要。"""
+        """非 GUI 项目只要求 Rust，Node.js 与 pnpm 必须标为不需要。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
@@ -282,13 +282,21 @@ class PrerequisiteGateTests(unittest.TestCase):
                 root,
                 "--install-missing",
                 "--interfaces",
-                "WEB",
+                "GUI",
                 probe=probe,
                 AFH_NODE_DIST_BASE=node_dist,
                 AFH_ALLOW_FILE_URLS="1",
             )
             self.assertEqual(result.returncode, 26)
             self.assertIn("SHA-256 verification failed", result.stderr)
+
+    def test_removed_web_interface_is_rejected(self) -> None:
+        """已移除的 WEB 接口必须被参数门禁拒绝，不能静默降级为 Rust-only。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            result = self.run_gate(root, "--check-only", "--interfaces", "WEB")
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Unsupported interface: WEB", result.stderr)
 
     def test_windows_msvc_gate_installs_signed_build_tools(self) -> None:
         """Windows 脚本必须验证微软签名、安装 C++ workload 并在成功前重新探测。"""
@@ -304,6 +312,8 @@ class PrerequisiteGateTests(unittest.TestCase):
             "if (-not (Test-MsvcPrerequisite))",
             '"gate.msvc.status=passed"',
             '"gate.msvc.change=$MsvcChange"',
+            '@("CLI", "TUI", "MCP", "GUI")',
+            '$FrontendRequired = $NormalizedInterfaces -contains "GUI"',
         )
         for fragment in required:
             self.assertIn(fragment, text)

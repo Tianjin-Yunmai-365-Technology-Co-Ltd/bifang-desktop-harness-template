@@ -22,9 +22,8 @@ MCP_SKILL = SKILLS_ROOT / "add-mcp-adapter" / "SKILL.md"
 GUI_SKILL = SKILLS_ROOT / "add-gui-adapter" / "SKILL.md"
 CLI_SKILL = SKILLS_ROOT / "add-cli-adapter" / "SKILL.md"
 TUI_SKILL = SKILLS_ROOT / "add-tui-adapter" / "SKILL.md"
-WEB_SKILL = SKILLS_ROOT / "add-web-adapter" / "SKILL.md"
 TUI_BASELINE = SKILLS_ROOT / "add-tui-adapter" / "references" / "tui-baseline.md"
-REACT_BASELINE = SKILLS_ROOT / "add-web-adapter" / "references" / "react-frontend-baseline.md"
+REACT_BASELINE = SKILLS_ROOT / "add-gui-adapter" / "references" / "react-frontend-baseline.md"
 GUI_BASELINE = SKILLS_ROOT / "add-gui-adapter" / "references" / "gui-baseline.md"
 E2E_SKILL = SKILLS_ROOT / "test-final-artifact-e2e" / "SKILL.md"
 PARALLEL_SKILL = SKILLS_ROOT / "run-parallel-worktrees"
@@ -36,11 +35,20 @@ BUILD_RELEASE_SKILL = SKILLS_ROOT / "build-rust-release" / "SKILL.md"
 CROSS_PLATFORM_RELEASE_SKILL = (
     SKILLS_ROOT / "prepare-cross-platform-release" / "SKILL.md"
 )
+UPGRADE_SKILL = SKILLS_ROOT / "upgrade-harness"
+UPGRADE_SCRIPT = UPGRADE_SKILL / "scripts" / "harness_upgrade.py"
+UPGRADE_CORE = UPGRADE_SKILL / "scripts" / "harness_upgrade_core.py"
+UPGRADE_MUTATION = UPGRADE_SKILL / "scripts" / "harness_upgrade_mutation.py"
+UPGRADE_POLICY_MODULE = UPGRADE_SKILL / "scripts" / "harness_upgrade_policy.py"
+UPGRADE_TESTS = UPGRADE_SKILL / "scripts" / "test_harness_upgrade.py"
+UPGRADE_OWNERSHIP = UPGRADE_SKILL / "references" / "ownership-manifest.json"
+UPGRADE_POLICY = UPGRADE_SKILL / "references" / "ownership-policy.md"
 RUST_ASSET = INITIALIZE_SKILL / "assets" / "rust-lib-cli"
 PREREQUISITE_UNIX = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.sh"
 PREREQUISITE_WINDOWS = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.ps1"
 PREREQUISITE_TESTS = ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates.py"
 ENGINEERING_RULES = ROOT / "docs" / "ENGINEERING_RULES.md"
+AGENT_POLICY = ROOT / "docs" / "AGENT_POLICY.md"
 VERSION_FILE = ROOT / "Version.md"
 GITIGNORE = ROOT / ".gitignore"
 PRODUCT_SPEC_DIR = ROOT / "docs" / "product_spec"
@@ -93,10 +101,17 @@ REQUIRED_FILES = (
     ".agents/skills/rename-project-identity/scripts/rename_project_identity.py",
     ".agents/skills/rename-project-identity/scripts/test_rename_project_identity.py",
     ".agents/skills/add-tui-adapter/references/tui-baseline.md",
-    ".agents/skills/add-web-adapter/references/react-frontend-baseline.md",
+    ".agents/skills/add-gui-adapter/references/react-frontend-baseline.md",
     ".agents/skills/add-gui-adapter/references/gui-baseline.md",
     ".agents/skills/run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py",
+    ".agents/skills/upgrade-harness/references/ownership-manifest.json",
+    ".agents/skills/upgrade-harness/references/ownership-policy.md",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_core.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_mutation.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_policy.py",
+    ".agents/skills/upgrade-harness/scripts/test_harness_upgrade.py",
     "scripts/test_validate_harness.py",
     "scripts/validate_harness.py",
 )
@@ -106,7 +121,6 @@ EXPECTED_SKILLS = {
     "add-gui-adapter",
     "add-mcp-adapter",
     "add-tui-adapter",
-    "add-web-adapter",
     "build-rust-release",
     "check-development-environment",
     "collect-release-artifacts",
@@ -121,6 +135,7 @@ EXPECTED_SKILLS = {
     "rename-project-identity",
     "run-parallel-worktrees",
     "test-final-artifact-e2e",
+    "upgrade-harness",
     "verify-delivery",
 }
 
@@ -136,4 +151,3 @@ def display_path(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
-
