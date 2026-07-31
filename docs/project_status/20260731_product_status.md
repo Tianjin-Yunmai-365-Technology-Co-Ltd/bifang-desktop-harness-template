@@ -7,7 +7,7 @@
 - 产品规格：Approved；2026-07-31 已确认 TodoList/验证里程碑闭环、真实完整产物验收、失败回编码、下游 Harness 升级和四项项目级 Agent 策略。
 - Harness 版本：根 `Version.md` 仍记录 `202607301002` / `Unreleased`；本轮尚未进入版本或发布准备。
 - 当前变更阶段：TODO-A01 至 TODO-D03 已完成；验证里程碑 M1 已绑定源码 commit `d9e7e81bbb9c77ce7542902010c54f413f836faa` 完成自动技术验收，人工最终复核保持 `Awaiting human review`。
-- 工作区现状：2026-07-30 独立 WEB 移除、GUI/环境门禁调整与 2026-07-31 治理/升级能力已形成候选提交；当前只补记 commit-bound 证据。用户已授权提交全部变更并推送当前 `master`，未授权 tag、发布或制品上传。
+- Git 同步状态：源码候选 `d9e7e81bbb9c77ce7542902010c54f413f836faa` 与 commit-bound 验证记录 `736f1fa19e76d7bd212c0894613e746506854121` 已推送到 `origin/master`；本状态收尾也纳入同一授权同步。未创建 tag、发布或制品上传。
 - 当前计划：见 [`docs/work_plan/20260731_work_plan.md`](../work_plan/20260731_work_plan.md)。
 
 ## 本次已交付
@@ -38,6 +38,6 @@
 
 ## 下一步
 
-1. 提交 commit-bound 验证记录，并按用户已给出的授权把候选与证据提交一起推送当前 `master`；Git 提交/推送不等于人工里程碑签署或发布。
-2. 项目负责人复核 `docs/VERIFICATION.md` 的范围、自动证据与剩余风险后，明确给出人工最终结论；届时再写入复核人、日期和结论。
-3. 首个真实下游采用 `$upgrade-harness` 时记录有/无旧 lock 的前向证据；在 Windows/Linux 与真实 GitHub runners 补齐平台证据。
+1. 项目负责人复核 `docs/VERIFICATION.md` 的范围、自动证据与剩余风险后，明确给出人工最终结论；届时再写入复核人、日期和结论。
+2. 首个真实下游采用 `$upgrade-harness` 时记录有/无旧 lock 的前向证据；在 Windows/Linux 与真实 GitHub runners 补齐平台证据。
+3. 进入版本或发布准备前另行调用 `$prepare-release`；本次 Git 同步不等于里程碑人工签署、tag 或正式发布。
