@@ -20,6 +20,11 @@ if str(ROOT) not in sys.path:
 
 import scripts.validate_harness as validate_harness
 from scripts.harness_validation import governance, repository, upgrade
+from scripts.harness_validation_test_support import (
+    TODO_TOKEN as SHARED_TODO_TOKEN,
+    read_repo_text,
+    run_validator_on_tempfile,
+)
 
 
 class ValidateHarnessEntrypointTests(unittest.TestCase):
@@ -95,20 +100,16 @@ class ValidateAgentPolicyTests(unittest.TestCase):
 
     @staticmethod
     def _current_policy() -> str:
-        return (ROOT / "docs/AGENT_POLICY.md").read_text(encoding="utf-8")
+        return read_repo_text("docs/AGENT_POLICY.md")
 
     @staticmethod
     def _validate(contents: str, *, allow_pending: bool = True) -> list[str]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            path = Path(tmp_dir) / "AGENT_POLICY.md"
-            path.write_text(contents, encoding="utf-8")
-            errors: list[str] = []
-            governance.validate_agent_policy(
-                errors,
-                path,
-                allow_pending=allow_pending,
-            )
-            return errors
+        return run_validator_on_tempfile(
+            governance.validate_agent_policy,
+            "AGENT_POLICY.md",
+            contents,
+            allow_pending=allow_pending,
+        )
 
     def test_source_policy_is_valid(self) -> None:
         """Harness 源可以保留尚待下游首次确认的 pending。"""
@@ -172,7 +173,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
 class ValidateWorkPlanTests(unittest.TestCase):
     """覆盖 Todo 状态、里程碑准入和未完成时禁止验收。"""
 
-    TODO_TOKEN = "TO" + "DO-A01"
+    TODO_TOKEN = SHARED_TODO_TOKEN
 
     @staticmethod
     def _valid_plan() -> str:
@@ -199,12 +200,11 @@ class ValidateWorkPlanTests(unittest.TestCase):
 
     @staticmethod
     def _validate(contents: str) -> list[str]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            path = Path(tmp_dir) / "20260731_work_plan.md"
-            path.write_text(contents, encoding="utf-8")
-            errors: list[str] = []
-            repository.validate_work_plan_contract(errors, path)
-            return errors
+        return run_validator_on_tempfile(
+            repository.validate_work_plan_contract,
+            "20260731_work_plan.md",
+            contents,
+        )
 
     def test_valid_todo_and_milestone_plan(self) -> None:
         """带稳定状态和回流语义的活动计划应通过。"""

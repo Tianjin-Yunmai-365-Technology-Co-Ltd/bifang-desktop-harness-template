@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -162,6 +163,12 @@ EXPECTED_SKILLS = {
     "upgrade-harness",
     "verify-delivery",
 }
+
+
+@lru_cache(maxsize=None)
+def read_text_cached(path: Path) -> str:
+    """按路径缓存读取文本文件，避免同一次校验运行内对同一文件的重复磁盘 I/O。"""
+    return path.read_text(encoding="utf-8")
 
 
 def fail(errors: list[str], message: str) -> None:

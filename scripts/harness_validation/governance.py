@@ -21,7 +21,7 @@ def validate_agent_policy(
         fail(errors, f"missing Agent policy: {display_path(policy_path)}")
         return
 
-    text = policy_path.read_text(encoding="utf-8")
+    text = read_text_cached(policy_path)
     match = re.match(r"\A---\n(.*?)\n---\n", text, flags=re.DOTALL)
     if not match:
         fail(errors, f"missing Agent policy YAML frontmatter: {display_path(policy_path)}")
@@ -405,7 +405,7 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
     for path in paths:
         if not path.is_file():
             continue
-        text = path.read_text(encoding="utf-8")
+        text = read_text_cached(path)
         for fragment in stale_fragments:
             if fragment in text:
                 fail(

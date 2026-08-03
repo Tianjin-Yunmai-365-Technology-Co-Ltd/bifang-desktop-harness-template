@@ -4,9 +4,26 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import unquote
 
 from .context import *  # noqa: F403
+
+
+class _WorkPlanPathRules(NamedTuple):
+    """给定任务路径下，Work Plan 允许出现的验收章节与结论声明。"""
+
+    milestone_section_allowed: bool
+    verdict_allowed: bool
+
+
+_WORK_PLAN_PATH_RULES: dict[str | None, _WorkPlanPathRules] = {
+    "标准": _WorkPlanPathRules(milestone_section_allowed=False, verdict_allowed=False),
+    "里程碑": _WorkPlanPathRules(milestone_section_allowed=True, verdict_allowed=True),
+}
+_DEFAULT_WORK_PLAN_PATH_RULES = _WorkPlanPathRules(
+    milestone_section_allowed=False, verdict_allowed=False
+)
 
 def validate_required_files(errors: list[str]) -> None:
     """确认所有规范文档、脚本和门禁入口真实存在。"""
@@ -51,7 +68,7 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             fail(errors, f"missing daily {label} index: {display_path(index)}")
             index_text = ""
         else:
-            index_text = index.read_text(encoding="utf-8")
+            index_text = read_text_cached(index)
         daily_files: list[Path] = []
         for path in sorted(directory.glob("*.md")):
             if path.name == "README.md":
@@ -123,7 +140,7 @@ def validate_daily_project_memory(errors: list[str]) -> None:
         if not path.is_file():
             fail(errors, f"missing daily project-memory contract file: {display_path(path)}")
             continue
-        text = path.read_text(encoding="utf-8")
+        text = read_text_cached(path)
         for fragment in fragments:
             if fragment not in text:
                 fail(
@@ -144,7 +161,7 @@ def validate_work_plan_contract(
             fail(errors, f"missing active Work Plan: {display_path(plan_path)}")
         return
 
-    text = plan_path.read_text(encoding="utf-8")
+    text = read_text_cached(plan_path)
     path_match = re.search(
         r"当前任务路径\s*[：:]\s*`?(快速|标准|里程碑)`?",
         text,
@@ -210,12 +227,13 @@ def validate_work_plan_contract(
     milestone_matches = list(
         re.finditer(r"^##\s+验证里程碑\b.*$", text, flags=re.MULTILINE)
     )
-    if path_kind == "里程碑" and not milestone_matches:
+    path_rules = _WORK_PLAN_PATH_RULES.get(path_kind, _DEFAULT_WORK_PLAN_PATH_RULES)
+    if path_rules.milestone_section_allowed and not milestone_matches:
         fail(
             errors,
             f"milestone path is missing ## 验证里程碑 in {display_path(plan_path)}",
         )
-    if milestone_matches and path_kind != "里程碑":
+    if milestone_matches and not path_rules.milestone_section_allowed:
         fail(errors, "only a milestone path may contain a 验证里程碑 section")
     if milestone_matches:
         milestone_fragments = ("候选", "`done`", "$implement-change")
@@ -236,23 +254,23 @@ def validate_work_plan_contract(
                 f"Work Plan milestone lacks substitute rejection: {display_path(plan_path)}",
             )
 
-    accepted_status_pattern = re.compile(
-        r"^\s*(?:[-*]\s*)?"
-        r"(?:(?:当前)?(?:里程碑|验收|技术验收)?(?:状态|结论)"
-        r"|(?:Milestone|Acceptance)\s+(?:status|verdict))"
-        r"\s*[：:]\s*`?"
-        r"(?:Technically\s+accepted|Milestone\s+accepted|accepted|passed|已验收|通过)\b",
-        flags=re.IGNORECASE | re.MULTILINE,
+    verdict_patterns = (
+        re.compile(
+            r"^\s*(?:[-*]\s*)?"
+            r"(?:(?:当前)?(?:里程碑|验收|技术验收)?(?:状态|结论)"
+            r"|(?:Milestone|Acceptance)\s+(?:status|verdict))"
+            r"\s*[：:]\s*`?"
+            r"(?:Technically\s+accepted|Milestone\s+accepted|accepted|passed|已验收|通过)\b",
+            flags=re.IGNORECASE | re.MULTILINE,
+        ),
+        re.compile(
+            r"^\s*(?:[-*]\s*)?"
+            r"(?:(?:发布|候选)(?:状态|结论)|发布就绪|Release\s+readiness)"
+            r"\s*[：:]\s*`?(?:ready|已就绪|可发布)\b",
+            flags=re.IGNORECASE | re.MULTILINE,
+        ),
     )
-    release_ready_pattern = re.compile(
-        r"^\s*(?:[-*]\s*)?"
-        r"(?:(?:发布|候选)(?:状态|结论)|发布就绪|Release\s+readiness)"
-        r"\s*[：:]\s*`?(?:ready|已就绪|可发布)\b",
-        flags=re.IGNORECASE | re.MULTILINE,
-    )
-    if path_kind != "里程碑" and (
-        accepted_status_pattern.search(text) or release_ready_pattern.search(text)
-    ):
+    if not path_rules.verdict_allowed and any(pattern.search(text) for pattern in verdict_patterns):
         fail(
             errors,
             "only a milestone path may record an accepted milestone or release-ready verdict",
@@ -271,9 +289,8 @@ def validate_work_plan_contract(
             if previous_milestone_end <= position < milestone.start()
             and state != "done"
         )
-        if batch_unfinished and (
-            accepted_status_pattern.search(milestone_block)
-            or release_ready_pattern.search(milestone_block)
+        if batch_unfinished and any(
+            pattern.search(milestone_block) for pattern in verdict_patterns
         ):
             fail(
                 errors,

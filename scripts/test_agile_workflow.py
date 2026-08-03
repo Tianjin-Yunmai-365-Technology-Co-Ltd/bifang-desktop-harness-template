@@ -13,6 +13,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.harness_validation import governance, initialization, repository
+from scripts.harness_validation_test_support import (
+    TODO_TOKEN as SHARED_TODO_TOKEN,
+    read_repo_text,
+    run_validator_on_tempfile,
+)
 
 
 class AgileAgentPolicyTests(unittest.TestCase):
@@ -20,25 +25,27 @@ class AgileAgentPolicyTests(unittest.TestCase):
 
     @staticmethod
     def _current_policy() -> str:
-        return (ROOT / "docs/AGENT_POLICY.md").read_text(encoding="utf-8")
+        return read_repo_text("docs/AGENT_POLICY.md")
 
     @staticmethod
     def _validate(contents: str, *, allow_pending: bool = True) -> list[str]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            path = Path(tmp_dir) / "AGENT_POLICY.md"
-            path.write_text(contents, encoding="utf-8")
-            errors: list[str] = []
-            governance.validate_agent_policy(errors, path, allow_pending=allow_pending)
-            return errors
+        return run_validator_on_tempfile(
+            governance.validate_agent_policy,
+            "AGENT_POLICY.md",
+            contents,
+            allow_pending=allow_pending,
+        )
 
     @classmethod
     def _resolved_policy(cls, values: dict[str, str]) -> str:
         """把 Harness 源策略物化为带真实确认元数据的下游策略。"""
-        resolved = cls._current_policy().replace(
-            "confirmed_by: pending", "confirmed_by: project-owner", 1
-        )
-        resolved = resolved.replace("confirmed_at: pending", "confirmed_at: 2026-08-03", 1)
-        for field, value in values.items():
+        resolved = cls._current_policy()
+        merged_fields = {
+            "confirmed_by": "project-owner",
+            "confirmed_at": "2026-08-03",
+            **values,
+        }
+        for field, value in merged_fields.items():
             resolved, replacements = re.subn(
                 rf"(?m)^{re.escape(field)}: (?:pending|enabled|disabled)$",
                 f"{field}: {value}",
@@ -89,27 +96,17 @@ class AgileAgentPolicyTests(unittest.TestCase):
 
     def test_neutral_initialization_does_not_create_verification_memory(self) -> None:
         """中性初始化只能返回环境证据，不能复制或新建验证历史。"""
-        instantiate = (ROOT / ".agents/skills/instantiate-project/SKILL.md").read_text(
-            encoding="utf-8"
-        )
-        initialize = (ROOT / ".agents/skills/initialize-rust-project/SKILL.md").read_text(
-            encoding="utf-8"
-        )
-        environment = (
-            ROOT / ".agents/skills/check-development-environment/SKILL.md"
-        ).read_text(encoding="utf-8")
+        instantiate = read_repo_text(".agents/skills/instantiate-project/SKILL.md")
+        initialize = read_repo_text(".agents/skills/initialize-rust-project/SKILL.md")
+        environment = read_repo_text(".agents/skills/check-development-environment/SKILL.md")
         self.assertIn("历史验证正文", instantiate)
         self.assertIn("不创建或更新 `docs/VERIFICATION.md`", initialize)
         self.assertIn("绝不得创建或更新 `docs/VERIFICATION.md`", environment)
 
     def test_public_scaffold_replacement_and_product_rename_are_milestones(self) -> None:
         """首次公开接口和现有产品改名不能从标准路径绕过验收。"""
-        initialize = (ROOT / ".agents/skills/initialize-rust-project/SKILL.md").read_text(
-            encoding="utf-8"
-        )
-        rename = (ROOT / ".agents/skills/rename-project-identity/SKILL.md").read_text(
-            encoding="utf-8"
-        )
+        initialize = read_repo_text(".agents/skills/initialize-rust-project/SKILL.md")
+        rename = read_repo_text(".agents/skills/rename-project-identity/SKILL.md")
         self.assertIn("任何适配器首次替换中性状态", initialize)
         self.assertIn("都必须进入里程碑路径", initialize)
         self.assertIn("现有产品改名", rename)
@@ -120,7 +117,7 @@ class AgileAgentPolicyTests(unittest.TestCase):
 class AgileWorkPlanTests(unittest.TestCase):
     """覆盖快速无计划、标准精简计划与里程碑声明隔离。"""
 
-    TODO_TOKEN = "TO" + "DO-A01"
+    TODO_TOKEN = SHARED_TODO_TOKEN
 
     @classmethod
     def _standard_plan(cls) -> str:
@@ -140,12 +137,11 @@ class AgileWorkPlanTests(unittest.TestCase):
 
     @staticmethod
     def _validate(contents: str) -> list[str]:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            path = Path(tmp_dir) / "20260803_work_plan.md"
-            path.write_text(contents, encoding="utf-8")
-            errors: list[str] = []
-            repository.validate_work_plan_contract(errors, path)
-            return errors
+        return run_validator_on_tempfile(
+            repository.validate_work_plan_contract,
+            "20260803_work_plan.md",
+            contents,
+        )
 
     def test_missing_plan_is_valid_for_quick_path(self) -> None:
         """快速路径没有活动 Work Plan 时不应被全局门禁拒绝。"""
