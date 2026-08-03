@@ -7,7 +7,7 @@
 - 产品规格：Approved；2026-08-03 已确认 Rust CLI 构建默认三平台、派发前条件不足时回退当前平台、条件签名和根 `release/` 构建结果目录。
 - Harness 版本：根 `Version.md` 仍记录 `202607301002` / `Unreleased`；本轮不进入版本或正式发布准备。
 - 当前变更阶段：TODO-A01 至 TODO-D03 已全部完成；构建 Skill 优化 M1 与文档/Skills 中文化 M2 均绑定源码提交 `d2cb44f293fec888d7e66c38345b4df8baa4ebaf` 完成自动复验，并于 2026-08-03 获得项目负责人批准，结论均为 `Milestone accepted`。
-- Git 状态：候选已提交到 `master`；项目负责人已授权提交审批记录并推送 `origin/master`。未创建 Worktree、标签、真实远端构建或发布上传。
+- Git 状态：实现候选提交 `d2cb44f293fec888d7e66c38345b4df8baa4ebaf` 与审批记录提交 `1fb3182b505e4b3befb6ec01efa281d74ad93222` 已以非强制方式成功推送到 `origin/master`；未创建 Worktree、标签、真实远端构建或发布上传。
 - 当前计划：见 [`docs/work_plan/20260803_work_plan.md`](../work_plan/20260803_work_plan.md)。
 
 ## 本次范围
@@ -36,5 +36,5 @@
 
 ## 下一步
 
-1. 按项目负责人授权提交审批记录并推送 `origin/master`，随后确认本地与上游提交一致且工作树干净。
+1. 当前批准范围没有剩余必需实施步骤；推送后复核本地 `master` 与 `origin/master` 一致且工作树干净。
 2. 若用户另行要求版本或正式发布，再按 `$prepare-release` 执行；当前批准不自动扩张到标签、远端矩阵、签名、公证或发布。

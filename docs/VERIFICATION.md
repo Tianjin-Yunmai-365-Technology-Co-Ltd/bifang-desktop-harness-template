@@ -593,6 +593,7 @@
 - 冒烟/E2E：这些里程碑交付物是 Harness 源码、维护 CLI、Skills、校验器和文档，不是需要启动交互的最终产品；项目负责人同时批准其 `Not applicable` 判断。未运行产品冒烟或 Computer Use E2E，不将其记为通过。
 - 已知并接受的剩余风险：当前 macOS 没有 `pwsh`，3 个 PowerShell 原生用例跳过；Windows/Linux、真实 GitHub 三平台运行器、提供方取回、真实签名钩子/凭据、TUI/MCP/GUI 统一跨平台候选和长期真实下游仍为 `Unverified`；完整 Harness 校验器的 8 个文件拆分提示继续为非阻断审查项。
 - 审批边界：本次明确授权提交和推送当前源码及审批记录；不授权创建标签、修改 `Unreleased` 状态、触发远端矩阵、配置或使用真实签名凭据、公证、正式发布或发布上传。
+- 推送证据：`git push origin master` 以非强制快进方式成功把 `origin/master` 从 `3f8f289` 更新到审批记录提交 `1fb3182b505e4b3befb6ec01efa281d74ad93222`；本状态同步记录属于同一已授权推送链，不扩大审批边界。
 
 ### 2026-07-29 当前技术债收口最终复核
 
