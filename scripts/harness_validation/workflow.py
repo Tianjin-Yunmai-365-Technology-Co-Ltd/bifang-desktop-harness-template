@@ -16,17 +16,25 @@ UPLOAD_USE = (
     "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
 )
 EXPECTED_WORKFLOW_SHA256 = (
-    "8457d75d6e1f3664ab6d5e1cadf81c6dadceed0a630688f685a86c5554213a39"
+    "64eeaf240ff2403ffe5efee156a59a65c744f2480287b0cfa320b25b66501b50"
 )
-EXPECTED_INPUTS = {"confirm_candidate_build", "version"}
+EXPECTED_INPUTS = {"confirm_candidate_build", "source_commit", "version"}
 EXPECTED_NAMED_STEPS = (
-    "Confirm authorized candidate preflight",
-    "Select project MSRV",
-    "Validate candidate version",
-    "Verify candidate",
-    "Package Unix candidate",
-    "Package Windows candidate",
-    "Record candidate manifest",
+    "确认已授权候选预检",
+    "选择 Python 运行时",
+    "验证已检出源码",
+    "选择项目 MSRV",
+    "验证候选版本",
+    "准备 Unix 发布目录",
+    "准备 Windows 发布目录",
+    "验证候选",
+    "尝试 Unix 签名",
+    "尝试 Windows 签名",
+    "打包 Unix 候选",
+    "打包 Windows 候选",
+    "解析候选制品",
+    "记录候选清单",
+    "提交候选制品集合",
 )
 EXPECTED_ACTION_STEPS = (CHECKOUT_USE, UPLOAD_USE)
 
@@ -71,22 +79,51 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
             -1,
         )
 
+    def first_named_step_index(name: str) -> int:
+        """按完整步骤名返回首个活动 YAML 行，避免中文名称的前缀碰撞。"""
+
+        expected = f"- name: {name}"
+        return next(
+            (
+                index
+                for index, line in enumerate(semantic_lines)
+                if line.strip() == expected
+            ),
+            -1,
+        )
+
     required_fragments = (
         "workflow_dispatch:",
-        "fail-fast: true",
+        "fail-fast: false",
         "os: [ubuntu-latest, macos-latest, windows-latest]",
         "contents: read",
         "rustup toolchain install 1.90.0",
         "--component rustfmt",
         "--component clippy",
         '"cargo", "metadata", "--locked"',
-        "no tests discovered",
+        "未发现测试",
         "cargo test --workspace --all-targets --all-features --locked",
         "cargo build --workspace --release --locked",
+        "prepare-release-directory.sh",
+        "prepare-release-directory.ps1",
+        ".release-signing/sign-candidate.sh",
+        ".release-signing/sign-candidate.ps1",
         CHECKOUT_USE,
         UPLOAD_USE,
+        "ref: ${{ inputs.source_commit }}",
+        "persist-credentials: false",
+        "source_commit 必须是由小写十六进制字符组成的 40 字符 SHA",
+        "候选验证需要 Python 3 运行时",
+        '"$PYTHON_COMMAND" -',
+        "steps.candidate_artifact.outputs.archive_name",
+        "最终候选文件集异常",
+        "os.rename(stage.name, \"release\"",
+        "已提交的发布文件集不是精确的普通文件候选集合",
+        '"buildMode": "cross-platform-native"',
         '"sourceCommit"',
         '"sha256"',
+        '"signingStatus"',
+        '"signingEvidence"',
         '"milestoneAcceptance": "pending"',
     )
     for fragment in required_fragments:
@@ -110,7 +147,11 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         '"smoke"',
         '"heavyChecks"',
         '"milestoneAcceptance": "accepted"',
-        "fail-fast: false",
+        "fail-fast: true",
+        "continue-on-error:",
+        "|| true",
+        "dist/",
+        "path: release/",
     )
     for fragment in forbidden_fragments:
         if fragment in semantic_text:
@@ -172,13 +213,21 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}", action):
             fail(errors, f"workflow action is not pinned to a full commit SHA: {action}")
 
-    preflight_idx = first_line_index("Confirm authorized candidate preflight")
+    preflight_idx = first_named_step_index("确认已授权候选预检")
     checkout_idx = first_line_index(CHECKOUT_USE)
-    toolchain_idx = first_line_index("Select project MSRV")
-    if preflight_idx == -1 or checkout_idx == -1 or toolchain_idx == -1:
-        fail(errors, "workflow missing required candidate preflight/checkout/toolchain steps")
-    elif not (preflight_idx < checkout_idx < toolchain_idx):
-        fail(errors, "candidate preflight must run before checkout and MSRV setup")
+    python_idx = first_named_step_index("选择 Python 运行时")
+    source_verify_idx = first_named_step_index("验证已检出源码")
+    toolchain_idx = first_named_step_index("选择项目 MSRV")
+    if (
+        preflight_idx == -1
+        or checkout_idx == -1
+        or python_idx == -1
+        or source_verify_idx == -1
+        or toolchain_idx == -1
+    ):
+        fail(errors, "workflow missing required candidate preflight/checkout/source/toolchain steps")
+    elif not (preflight_idx < checkout_idx < python_idx < source_verify_idx < toolchain_idx):
+        fail(errors, "candidate preflight, Python selection and pinned checkout verification must precede MSRV setup")
 
     def step_block(name: str = "", *, uses: str = "") -> list[str]:
         """按步骤缩进提取一个命名步骤或固定 SHA action 步骤。"""
@@ -188,7 +237,14 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
             (
                 index
                 for index, line in enumerate(semantic_lines)
-                if line.strip().startswith(expected)
+                if (
+                    re.fullmatch(
+                        rf"{re.escape(expected)}(?:\s+#.*)?",
+                        line.strip(),
+                    )
+                    if uses
+                    else line.strip() == expected
+                )
             ),
             -1,
         )
@@ -206,47 +262,138 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
             end += 1
         return semantic_lines[start:end]
 
-    verify_idx = first_line_index("- name: Verify candidate")
-    package_indices = (
-        first_line_index("- name: Package Unix candidate"),
-        first_line_index("- name: Package Windows candidate"),
+    checkout_block = {line.strip() for line in step_block(uses=CHECKOUT_USE)}
+    for required in (
+        "ref: ${{ inputs.source_commit }}",
+        "fetch-depth: 1",
+        "persist-credentials: false",
+    ):
+        if required not in checkout_block:
+            fail(errors, f"workflow checkout must bind the approved source commit: {required}")
+
+    python_block = "\n".join(step_block("选择 Python 运行时"))
+    for required in ("command -v python3", "command -v python", "PYTHON_COMMAND", "GITHUB_ENV"):
+        if required not in python_block:
+            fail(errors, f"workflow Python runtime selection step missing: {required}")
+
+    source_verify_block = "\n".join(step_block("验证已检出源码"))
+    for required in (
+        "[0-9a-f]{40}",
+        'subprocess.check_output(["git", "rev-parse", "HEAD"]',
+        "observed != expected",
+    ):
+        if required not in source_verify_block:
+            fail(errors, f"workflow source verification step missing: {required}")
+    if '"$PYTHON_COMMAND" -' not in source_verify_block:
+        fail(errors, "workflow source verification must use the selected Python runtime")
+
+    prepare_indices = (
+        first_named_step_index("准备 Unix 发布目录"),
+        first_named_step_index("准备 Windows 发布目录"),
     )
-    manifest_idx = first_line_index("- name: Record candidate manifest")
+    verify_idx = first_named_step_index("验证候选")
+    signing_indices = (
+        first_named_step_index("尝试 Unix 签名"),
+        first_named_step_index("尝试 Windows 签名"),
+    )
+    package_indices = (
+        first_named_step_index("打包 Unix 候选"),
+        first_named_step_index("打包 Windows 候选"),
+    )
+    resolve_idx = first_named_step_index("解析候选制品")
+    manifest_idx = first_named_step_index("记录候选清单")
+    commit_idx = first_named_step_index("提交候选制品集合")
     upload_idx = first_line_index(UPLOAD_USE)
     if (
-        verify_idx == -1
+        any(index == -1 for index in prepare_indices)
+        or verify_idx == -1
+        or any(index == -1 for index in signing_indices)
         or any(index == -1 for index in package_indices)
+        or resolve_idx == -1
         or manifest_idx == -1
+        or commit_idx == -1
         or upload_idx == -1
     ):
         fail(errors, "workflow missing verify/package/manifest/upload boundary")
     elif not (
-        verify_idx
+        max(prepare_indices)
+        < verify_idx
+        < min(signing_indices)
+        <= max(signing_indices)
         < min(package_indices)
         <= max(package_indices)
+        < resolve_idx
         < manifest_idx
+        < commit_idx
         < upload_idx
     ):
         fail(
             errors,
-            "candidate workflow must verify, package, record a pending manifest, then upload",
+            "candidate workflow must clean release, verify, sign conditionally, package in staging, record a pending manifest, atomically commit the exact artifact set, then upload",
         )
 
-    verify_block = "\n".join(step_block("Verify candidate"))
+    verify_block = "\n".join(step_block("验证候选"))
     for command in (
         "cargo test --workspace --all-targets --all-features --locked",
         "cargo build --workspace --release --locked",
     ):
         if command not in verify_block:
-            fail(errors, f"workflow Verify candidate step missing active command: {command}")
+            fail(errors, f"workflow 的“验证候选”步骤缺少有效命令：{command}")
 
-    manifest_block = "\n".join(step_block("Record candidate manifest"))
+    manifest_block = "\n".join(step_block("记录候选清单"))
     if '"milestoneAcceptance": "pending"' not in manifest_block:
         fail(errors, "workflow manifest step must actively record pending acceptance")
+    for field in (
+        '"signingStatus"',
+        '"signingReason"',
+        '"signingEvidence"',
+        '"buildRun"',
+        '"target"',
+    ):
+        if field not in manifest_block:
+            fail(errors, f"workflow manifest step missing candidate field: {field}")
+    for fragment in (
+        'archive_name = os.environ["CANDIDATE_ARCHIVE"]',
+        "observed_before != expected_before",
+        "observed_after != expected_after",
+        "候选校验和与归档字节不匹配",
+    ):
+        if fragment not in manifest_block:
+            fail(errors, f"workflow manifest step missing exact artifact-set gate: {fragment}")
+
+    commit_block = "\n".join(step_block("提交候选制品集合"))
+    for fragment in (
+        "os.lstat(path)",
+        "os.rmdir(\"release\", dir_fd=root_fd)",
+        'os.rename(stage.name, "release", src_dir_fd=root_fd, dst_dir_fd=root_fd)',
+        "os.rmdir(release)",
+        "os.rename(stage, release)",
+        "提交前候选暂存目录文件集发生变化",
+        "已提交的发布文件集不是精确的普通文件候选集合",
+    ):
+        if fragment not in commit_block:
+            fail(errors, f"workflow candidate commit step missing atomic boundary: {fragment}")
+
+    for name in ("尝试 Unix 签名", "尝试 Windows 签名"):
+        signing_block = "\n".join(step_block(name))
+        for fragment in (
+            "probe",
+            "sign",
+            "verify",
+            "SIGNING_STATUS",
+            "SIGNING_EVIDENCE",
+            "unsigned",
+        ):
+            if fragment not in signing_block:
+                fail(errors, f"workflow {name} step missing signing contract: {fragment}")
 
     expected_guards = {
-        "Package Unix candidate": "if: runner.os != 'Windows' && success()",
-        "Package Windows candidate": "if: runner.os == 'Windows' && success()",
+        "准备 Unix 发布目录": "if: runner.os != 'Windows' && success()",
+        "准备 Windows 发布目录": "if: runner.os == 'Windows' && success()",
+        "尝试 Unix 签名": "if: runner.os != 'Windows' && success()",
+        "尝试 Windows 签名": "if: runner.os == 'Windows' && success()",
+        "打包 Unix 候选": "if: runner.os != 'Windows' && success()",
+        "打包 Windows 候选": "if: runner.os == 'Windows' && success()",
     }
     for name, expected_guard in expected_guards.items():
         block = step_block(name)
@@ -260,3 +407,12 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         fail(errors, "workflow upload step not found")
     elif "if: success()" not in {line.strip() for line in upload_block}:
         fail(errors, "workflow upload step must use exact if: success() guard")
+    else:
+        upload_lines = {line.strip() for line in upload_block}
+        expected_uploads = {
+            "release/${{ steps.candidate_artifact.outputs.archive_name }}",
+            "release/${{ steps.candidate_artifact.outputs.archive_name }}.sha256",
+            "release/${{ steps.candidate_artifact.outputs.archive_name }}.manifest.json",
+        }
+        if not expected_uploads.issubset(upload_lines):
+            fail(errors, "workflow upload step must publish the exact declared archive/checksum/manifest paths")

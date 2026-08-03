@@ -1,4 +1,4 @@
 interface:
-  display_name: "Verify Delivery"
-  short_description: "Collect completion evidence for a change or release candidate"
-  default_prompt: "Use $verify-delivery to verify this work and record the available evidence."
+  display_name: "验证交付"
+  short_description: "依据已批准场景和持久策略验收或拒绝完整真实里程碑产物"
+  default_prompt: "使用 $verify-delivery 验收或拒绝完整真实里程碑产物，并记录可追溯证据。"

@@ -1,43 +1,43 @@
 ---
 name: add-gui-adapter
-description: Add an optional Tauri 2 GUI with the fixed React, TypeScript, Mantine UI, TanStack Router/Query, and Jotai frontend stack to an initialized shared core.
+description: 为已初始化的共享核心增加可选的 Tauri 2 GUI，并使用固定的 React、TypeScript、Mantine UI、TanStack Router/Query 和 Jotai 前端技术栈。在初始化时选择 GUI 或后续明确批准 GUI 时使用。
 ---
 
-# Add GUI Adapter
+# 增加 GUI 适配器
 
-Add the smallest approved Tauri 2 desktop interface directly over the shared core. GUI is independent of CLI, TUI, and MCP.
+直接在共享核心之上增加最小的已批准 Tauri 2 桌面接口。GUI 与 CLI、TUI 和 MCP 相互独立。
 
-## Workflow
+## 工作流程
 
-1. Read `AGENTS.md`, `README.md`, `docs/product_spec/README.md` and the latest dated Product Spec, `docs/ENGINEERING_RULES.md`, `docs/project_status/README.md` and the latest dated Product Status, `docs/work_plan/README.md` and the latest dated Work Plan, `docs/RUST_CLI_TEMPLATE.md`, and relevant decisions, verification, and release records.
-2. Confirm that the current working directory is a real downstream Rust workspace with a shared core and that GUI is recorded in the initialization selection or approved product scope. A `Draft` project may receive only a neutral scaffold-status GUI without business actions. If it is the documentation-only Harness or core is absent, stop. Do not ask for another target directory and do not require CLI.
-3. Read [references/gui-baseline.md](references/gui-baseline.md) and [references/react-frontend-baseline.md](references/react-frontend-baseline.md) completely before selecting dependencies or designing screens.
-4. Before the first product GUI development task, require an approved `docs/GUI_APP_PROFILE.md` produced by `$prepare-gui-app-identity`. It must cover the application display name, primary window title, description, application identifier, and the user-selected icon path. A temporary neutral scaffold icon may unblock non-packaging development only when packaging/release remains explicitly blocked.
-5. Identify the approved human scenario, minimum screens and actions, state and error presentation, keyboard and accessibility requirements, refresh/concurrency semantics, platform integration, privacy boundary, and intended distribution format. Ask only about missing choices that materially change scope.
-6. Use `$plan-change` before editing. Keep the GUI adapter independent from CLI parsing and MCP protocol code.
-7. Inspect official registries and documentation at execution time. Use the latest compatible stable Tauri 2 plus React, TypeScript, Mantine UI, TanStack Router, TanStack Query and Jotai versions that satisfy the Rust MSRV, Node and pnpm policy, target WebViews/platforms, security and locked verification gates. These are hard rules for Draft and Approved GUI projects; an incompatible stack blocks implementation until a hard-rule exception is recorded.
-8. Add the desktop app boundary in `<project-id>_gui`, using that identifier for its Cargo package, Rust crate and real application binary. Do not ask for independent binary names; human-facing names come from the approved GUI profile. Reuse Tauri's Tokio-backed singleton async runtime; do not create a nested Tokio runtime. The Tauri Rust adapter may depend on core; core must not depend on Tauri, WebView, React, route, query, command, window or frontend-state types. Apply the engineering rules to maintained Rust/frontend code and tests.
-9. Expose narrow typed plain `async fn` Tauri commands that validate input, call async core APIs and map results. Keep I/O, waiting, timers and process calls async. Consider Tauri's async runtime `spawn_blocking` or a separately approved thread boundary only for measured CPU-intensive work, with ownership, cancellation, concurrency limits, resource budget and tests. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception. Use an explicit CSP plus the minimum capability, permission and scope set for named windows/webviews. Load only packaged local content by default.
-10. Implement only the approved management loop. Use Mantine UI for components/layout, TanStack Router for navigation, TanStack Query for command-backed asynchronous state and Jotai only for cross-component client interaction state. Do not mirror Query/core/durable data into atoms.
-11. Keep stable resource IDs distinct from view positions, make selection and batch scope explicit, show truthful empty/loading/error states, and obtain all durable state from the shared core/store.
-12. Test Rust async command mappings, task cancellation, the core success path, highest-risk failure, routes, query lifecycle, Jotai transitions, frontend interaction, keyboard navigation, accessibility semantics, capability denials, concurrent refresh/write behavior and version/about information. Use visual QA when layout is part of acceptance.
-13. During Todo implementation run Rust/frontend formatting, typecheck, lint, non-empty tests, relevant check/build checks and targeted component/accessibility tests; do not launch startup smoke or E2E. After the batch is `done`, create and locate the locked desktop production artifact as a milestone candidate, then use `$verify-delivery`. That milestone alone resolves startup smoke and approved UI E2E from persistent policy/hard requirements. A selected/required failure reopens Todo. Missing signing identity, certificate, notarization credentials or updater key does not block local milestone verification; record the artifact as unsigned. Verify only native platforms with actual evidence.
-14. If the approved distribution target requires signing, notarization, Store submission or signed updater artifacts, keep release readiness blocked until that separate channel gate passes. Do not convert an unsigned build success into distribution readiness.
-15. Update product, status, plan, decisions, verification, release notes and Changelog where affected. Add packaging or release automation only through separately authorized release work. Use `$verify-delivery` only for user-requested acceptance or release preparation; do not claim human approval.
+1. 读取 `AGENTS.md`、`README.md`、`docs/product_spec/README.md` 及日期最新的产品规格、`docs/ENGINEERING_RULES.md`、`docs/project_status/README.md` 及日期最新的产品状态、`docs/work_plan/README.md` 及日期最新的工作计划、`docs/RUST_CLI_TEMPLATE.md`，以及相关决定、验证和发布记录。
+2. 确认当前工作目录是真实下游 Rust 工作区，具有共享核心，且初始化选择或已批准产品范围中记录了 GUI。`Draft` 项目只能获得不含业务操作的中性脚手架状态 GUI。若当前目录只是文档 Harness，或缺少核心，则停止。不得要求另选目标目录，也不得要求 CLI。
+3. 选择依赖或设计页面前，完整阅读 [references/gui-baseline.md](references/gui-baseline.md) 和 [references/react-frontend-baseline.md](references/react-frontend-baseline.md)。
+4. 首次真实产品 GUI 开发任务前，要求存在由 `$prepare-gui-app-identity` 生成且已批准的 `docs/GUI_APP_PROFILE.md`。它必须覆盖应用显示名称、主窗口标题、说明、应用标识符和用户选择的图标路径。只有在明确阻断打包/发布时，临时中性脚手架图标才能解除非打包开发的阻断。
+5. 识别已批准的人类使用场景、最小页面和操作、状态与错误展示、键盘与无障碍要求、刷新/并发语义、平台集成、隐私边界和预期分发格式。只询问会实质改变范围的缺失选择。
+6. 编辑前使用 `$plan-change`。GUI 适配器必须与 CLI 解析和 MCP 协议代码相互独立。
+7. 执行时检查官方软件包仓库和文档。使用满足 Rust MSRV、Node 与 pnpm 策略、目标 WebView/平台、安全和锁定验证门禁的最新兼容稳定 Tauri 2、React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai 版本。这些技术对 `Draft` 和 `Approved` GUI 项目都是硬规则；技术栈不兼容时必须阻断实施，直到记录硬规则例外。
+8. 在 `<project-id>_gui` 中增加桌面应用边界，并将该标识用于 Cargo 软件包、Rust crate 和真实应用二进制。不得要求独立二进制名称；面向用户的名称来自已批准 GUI 资料。复用 Tauri 基于 Tokio 的单例异步运行时；不得创建嵌套 Tokio 运行时。Tauri Rust 适配器可以依赖核心；核心不得依赖 Tauri、WebView、React、路由、查询、命令、窗口或前端状态类型。维护的 Rust/前端代码和测试必须遵守工程规则。
+9. 公开窄而有类型的普通 `async fn` Tauri 命令，用于验证输入、调用异步核心 API 并映射结果。I/O、等待、计时器和进程调用保持异步。只有测量确认的 CPU 密集工作才可考虑 Tauri 异步运行时的 `spawn_blocking` 或另行批准的线程边界，并记录所有权、取消、并发上限、资源预算和测试。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程。为命名窗口/WebView 使用明确 CSP 及最小能力、权限和作用域集合。默认只加载打包的本地内容。
+10. 只实现已批准管理闭环。使用 Mantine UI 负责组件/布局，TanStack Router 负责导航，TanStack Query 负责命令支撑的异步状态，Jotai 只负责跨组件客户端交互状态。不得把 Query/核心/持久数据镜像到 atom 中。
+11. 稳定资源 ID 必须与视图位置分离，选择范围和批处理范围必须明确，真实展示空/加载/错误状态，并从共享核心/存储获取全部持久状态。
+12. 测试 Rust 异步命令映射、任务取消、核心成功路径、最高风险失败、路由、查询生命周期、Jotai 转换、前端交互、键盘导航、无障碍语义、能力拒绝、并发刷新/写入行为，以及版本/关于信息。布局属于验收范围时使用视觉质量检查。
+13. Todo 实施期间，运行 Rust/前端格式化、类型检查、代码规范检查、非空测试、相关检查/构建和有针对性的组件/无障碍测试；不得启动冒烟或 E2E。批次达到 `done` 后，创建并定位锁定的桌面生产制品作为里程碑候选，再使用 `$verify-delivery`。只有该里程碑可以根据持久策略/硬要求决定是否执行启动冒烟和已批准的界面 E2E。已选择/必需的检查失败会重开 Todo。缺少签名身份、证书、公证凭据或更新器密钥不阻断本地里程碑验证；将制品记录为 `unsigned`。只能验证具有真实证据的原生平台。
+14. 若已批准分发目标要求签名、公证、商店提交或签名更新器制品，在独立渠道门禁通过前，发布就绪状态必须保持受阻。不得把 `unsigned` 构建成功转化为分发就绪。
+15. 按影响更新产品、状态、计划、决定、验证、发布说明和变更记录。只有另行授权发布工作后才能增加打包或发布自动化。仅在用户请求验收或发布准备时使用 `$verify-delivery`；不得声称已获人工批准。
 
-## Hard Boundaries
+## 硬边界
 
-- Keep GUI independent and behaviorally consistent with every selected adapter through the same core and error model.
-- Never automate the CLI or parse CLI output from the GUI.
-- Never place business rules, durable state, migrations or platform-independent validation in React components, routes, queries, atoms or event handlers.
-- Do not create a second store or frontend-owned copy of authoritative data.
-- Do not replace any fixed React frontend library because the GUI is small or another stack is familiar. Deviations require a hard-rule exception ADR.
-- Do not enable remote URLs, broad Tauri permissions, plugins, sidecars, tray, autostart, updater or platform integrations without an approved need.
-- Do not add another router, server-state cache, general-purpose global store or optional frontend package without a real project requirement.
-- Do not block Tauri's Tokio runtime with synchronous I/O, sleeps, process waits or CPU-heavy commands, and do not create a nested runtime.
-- Do not require signing material merely to compile, test or build a local milestone candidate; milestone smoke may use an unsigned artifact. Distribution-channel signing requirements remain separate release gates.
-- Do not bundle GUI starter assets in this Skill; derive screens from the real downstream product contract when invoked.
+- GUI 必须保持独立，并通过相同核心和错误模型与每个已选适配器保持行为一致。
+- 绝不能从 GUI 自动操作 CLI 或解析 CLI 输出。
+- 绝不能把业务规则、持久状态、迁移或平台无关验证放入 React 组件、路由、查询、atom 或事件处理器。
+- 不得创建第二套存储或由前端拥有的权威数据副本。
+- 不得仅因 GUI 较小或熟悉其他技术栈就替换任何固定 React 前端库。偏离必须形成硬规则例外 ADR。
+- 未经批准的真实需要，不得启用远程 URL、宽泛 Tauri 权限、插件、伴随进程、托盘、自动启动、更新器或平台集成。
+- 没有真实项目需求时，不得增加其他路由器、服务器状态缓存、通用全局存储或可选前端包。
+- 不得用同步 I/O、休眠、进程等待或 CPU 密集命令阻塞 Tauri 的 Tokio 运行时，也不得创建嵌套运行时。
+- 不得仅为编译、测试或构建本地里程碑候选而要求签名材料；里程碑冒烟可以使用 unsigned 制品。分发渠道签名要求仍是独立发布门禁。
+- 不得在本 Skill 中捆绑 GUI 起始资产；调用时应从真实下游产品契约派生页面。
 
-## Completion Output
+## 完成输出
 
-Report resolved Tauri/frontend versions, screens and commands, Mantine components, Router/Query/Jotai ownership, core mappings, capability/CSP boundary, interaction/accessibility checks, commands run, verified platforms, unverified areas and remaining risks.
+报告已解析的 Tauri/前端版本、页面和命令、Mantine 组件、Router/Query/Jotai 所有权、核心映射、能力/CSP 边界、交互/无障碍检查、运行过的命令、已验证平台、未验证范围和剩余风险。

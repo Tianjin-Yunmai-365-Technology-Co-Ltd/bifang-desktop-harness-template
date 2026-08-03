@@ -11,22 +11,22 @@
 
 ## 已完成且仍有效
 
-- 2026-07-23 前的 Rust 1.90、独立 Git 根、按日项目记忆、一次性初始化裁剪、条件开发环境、GUI identity、Tokio current-thread、GUI unsigned build 和根 `release/` 规则继续有效。
+- 2026-07-23 前的 Rust 1.90、独立 Git 根、按日项目记忆、一次性初始化裁剪、条件开发环境、GUI 身份、Tokio current-thread、GUI `unsigned` 构建和根 `release/` 规则继续有效。
 - CLI/TUI/MCP/GUI/WEB 独立可选，无选择时默认 CLI；TUI 与 React 前端技术族保持固定。
-- 当前 macOS 上 Harness、开发环境隔离测试和 bundled core+CLI 的历史验证已完成并记录；其他设备结果仍保留“项目负责人报告通过但详细证据未归档”的边界。
+- 当前 macOS 上 Harness、开发环境隔离测试和随附的核心+CLI 的历史验证已完成并记录；其他设备结果仍保留“项目负责人报告通过但详细证据未归档”的边界。
 - 项目负责人已明确选择非开源的专有商业许可，收费下游禁止继续衍生，并授权生成中英文两份许可证及随下游复制。
 
 ## 本次已完成
 
 - 已确认根 `Version.md` 作为 Harness 当前版本、初始版本和发布状态的唯一事实来源，初始值为 `1.0.0` / `Unreleased`；`docs/RELEASE.md` 仅保留规则，下游 Rust 仍只使用根 `Cargo.toml`。
-- 已建立 ADR-20260727-003 和当前 Work Plan，明确全量 Markdown 审计边界、历史证据保留规则、validator 回归门禁及非强制 push 范围。
-- 已审计 56 份 Markdown（含全部项目 Skill 与 references），修复当前版本事实、发布规则职责、下游版本继承和“无版本 manifest”残留；旧日期文档与验证中的 `0.1.0`、旧规则说明和本机路径只在属于真实历史证据时保留。
-- 19 个 Skill 结构、4 个身份改名测试、11 个开发环境门禁测试、Python 语法、Harness validator、版本缺失/错误负向注入、Git diff、Rust 1.90 locked check/Clippy/7 个测试/release build/真实冒烟均通过。
+- 已建立 ADR-20260727-003 和当前工作计划，明确全量 Markdown 审计边界、历史证据保留规则、校验器回归门禁及非强制 push 范围。
+- 已审计 56 份 Markdown（含全部项目 Skill 与参考资料），修复当前版本事实、发布规则职责、下游版本继承和“无版本清单”残留；旧日期文档与验证中的 `0.1.0`、旧规则说明和本机路径只在属于真实历史证据时保留。
+- 19 个 Skill 结构、4 个身份改名测试、11 个开发环境门禁测试、Python 语法、Harness 校验器、版本缺失/错误负向注入、Git 差异、Rust 1.90 锁定依赖检查/Clippy/7 个测试/发布构建/真实冒烟均通过。
 - 创建 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，覆盖项目、知识产权、有限商业授权、终端下游、保密、第三方材料、终止、责任和争议边界，并增加双语适用项目名称。
 - 审计确认旧派生流程未强制所有文档、Skills、配置和 License 全部改成目标项目名；许可证原样继承规则尤其与该目标冲突。
-- 新增 `$rename-project-identity` 及确定性脚本，覆盖展示名、snake/kebab 前缀、额外精确映射、维护文本、内部路径与显式项目根改名，默认预览且显式应用；四个隔离测试已覆盖成功、碰撞、符号链接失败和根目录改名路径。
+- 新增 `$rename-project-identity` 及确定性脚本，覆盖展示名、snake_case/kebab-case 前缀、额外精确映射、维护文本、内部路径与显式项目根改名，默认预览且显式应用；四个隔离测试已覆盖成功、碰撞、符号链接失败和根目录改名路径。
 - 更新 `$instantiate-project`、`$initialize-rust-project`：许可证先原样复制，再只替换适用项目名；全量身份改名成为派生门禁，改名 Skill 在下游保留。
-- 同步 README、AGENTS、Product Spec、ADR、Work Plan、RELEASE、validator、验证和 Changelog。
+- 同步 README、AGENTS、产品规格、ADR、工作计划、发布、校验器、验证和变更记录。
 
 ## 未验证与剩余风险
 
@@ -34,8 +34,8 @@
 - 尚未执行真实 `$instantiate-project` 的端到端复制、全量改名与裁剪；当前为 Skill 隔离测试和确定性 Harness 门禁证据。
 - 未显式提供的缩写、Bundle ID、反向域名和环境变量前缀不能安全推断，必须在真实项目中通过额外精确映射输入。
 - 当前及未来第三方依赖仍需在实际分发前生成许可证/NOTICE 清单并逐项确认兼容性。
-- 精确 Rust 1.90 的 bundled CLI `cargo fmt --check` 存在 5 处既存换行差异；其他 Rust asset 门槛通过，问题已登记为 LIM-020，未混入本次身份改名范围。
-- Harness `1.0.0` 仍为 `Unreleased`；本次未创建 tag、发布物、签名或 Release，且当前人工最终复核、反馈入口和完整发布清单仍未满足，因此发布状态为 `Not ready`。
+- 精确 Rust 1.90 的随附 CLI `cargo fmt --check` 存在 5 处既存换行差异；其他 Rust 资产门槛通过，问题已登记为 LIM-020，未混入本次身份改名范围。
+- Harness `1.0.0` 仍为 `Unreleased`；本次未创建 tag、发布物、签名或发布，且当前人工最终复核、反馈入口和完整发布清单仍未满足，因此发布状态为 `Not ready`。
 - Windows/Linux、真实非 CLI 下游、跨接口分发和外部设备详细证据继续为 `Unverified`。
 
 ## 下一步

@@ -71,8 +71,8 @@
 - Harness 与下游采用非开源的企业专有商业许可。`$instantiate-project` 必须先逐字节复制根目录 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`，再通过 `$rename-project-identity` 仅把两种语言的适用项目名改为目标项目；其余法律条款不得改变，初始化裁剪不得删除、弱化或替换。
 - 派生下游时必须调用 `$rename-project-identity` 全量处理项目展示名、ASCII `snake_case` 标识、kebab-case 前缀、项目自有配置、维护路径、文档、Skills 和 Licenses；先预览、后显式应用，并对旧身份残留、路径碰撞和符号链接执行阻断检查。该 Skill 在下游保留，现有产品后续改名仍须先通过产品范围与计划闸门。
 - 若选择 GUI，首次真实 GUI 开发前必须调用 `$prepare-gui-app-identity`，由用户确认窗口名称等应用资料并选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
-- GUI 的本地构建、测试和产物存在检查不得强制要求签名身份、证书、notarization 或 updater key；验证里程碑按策略执行启动冒烟时同样不以签名材料为前提，并明确标记 unsigned。用户选择的实际分发渠道若要求签名，仍作为独立发布阻断门禁。
-- 初始化必须把 `/release/` 写入项目根 `.gitignore`。`$collect-release-artifacts` 每次收集前必须只清理 canonical 项目根下非符号链接的精确 `release/` 内容，再仅复制属于当前项目、当前版本、当前源码 commit 与明确 build run 的最新已完成结果；不得混入其他项目、旧版本、旧 run、未完成或来源不明文件。
+- 构建在项目已有批准的非交互签名 hook/命令、工具和已授权凭据时必须尝试签名并验证；尝试失败不得静默回退 unsigned。条件缺失时明确记录 unsigned，只有产品或渠道要求签名才阻断。不得自动创建、索取、导出或输出签名凭据；签名后再次改变字节的公证或重打包仍生成新的验收候选。
+- 初始化必须把 `/release/` 精确一次写入项目根 `.gitignore`。每次 `$build-rust-release` 在任何构建命令前，必须先验证 canonical 独立 Git 根，拒绝 `release` 符号链接/reparse point 与路径越界，原子隔离旧目录并创建全新空目录；不得通过活动 destination 原地递归删除。签名后的 archive/hash/manifest 必须先在同根唯一 staging 形成精确文件集，再以不跟随链接的目录级原子替换提交到 `release/`。远端 workflow 必须绑定并复核 40 位 commit，只上传 manifest 声明的精确文件；`release/` 可包含 `pending` 候选，目录存在不代表 ready。
 - 跨平台设计不得默认单一 Shell、路径分隔符、文件权限模型或仅在一个平台存在的系统能力。
 - 仓库中没有明确命令时，不得虚构构建、测试或发布命令。
 - 每次需求确认后，在当日 `docs/adr/YYYYMMDD_ADR.md` 增加独立 ADR 条目；同一天共享并持续更新同一文件，同时检查当日 Product Spec、Product Status 和 Work Plan 是否需要同步。三者在新自然日首次写入时必须读取各自前一份并综合重写完整当前快照。
@@ -83,7 +83,7 @@
 - 每轮 Todo 开发必须执行非空单元测试和变更相关的必要验证；按风险选择格式、lint、静态检查和目标集成/契约测试。Todo 开发、普通验证、常规构建、制品收集和发布元数据流程不得运行冒烟或 E2E。检查失败不得延迟到下一轮，也不得把开发证据误报为里程碑已验收。
 - 当前批次 Todo 全部为 `done` 且开发检查通过后，才可进入验证里程碑。候选必须是绑定批准场景、源码 commit、运行环境和可观察结果的完整真实产物；源码片段、Mock、stub、占位页面、中性 scaffold、开发预览或仅调用内部函数的结果不具备验收资格。
 - 冒烟与 E2E 只允许由 `$verify-delivery` 在验证里程碑读取 `milestone_smoke`、`milestone_e2e`、产品/渠道硬要求和实际适用性后决定。`disabled` 的可选项记录 `Not run` 与风险；硬要求不得跳过。需要凭据、生产数据、支付、发布或不可逆副作用时仍须独立授权。
-- 验证里程碑必须重新执行基于当前候选源码的编译/构建、非空单元测试、相关集成/契约和真实产物存在性检查。Todo 全部完成后，CI 可为跨平台验收传输生成并上传明确标记 `milestoneAcceptance: pending` 的 candidate transport bundle；它不是 ready/发布物且不得进入收集、签名或分发。按策略启用或硬要求的冒烟/E2E 必须在收集为 ready、发布/分发打包、签名、发布上传或正式发布前执行。
+- 验证里程碑必须重新执行基于当前候选源码的编译/构建、非空单元测试、相关集成/契约和真实产物存在性检查。Todo 全部完成后，构建可在条件具备时先签名，并把明确标记 `milestoneAcceptance: pending` 的候选放入根 `release/` 或上传用于验收传输；它不是 ready/发布物。按策略启用或硬要求的冒烟/E2E 必须针对这些最终字节执行，并在标记 ready、发布上传或正式发布前通过。
 - 任一必需门禁或已启用冒烟/E2E 失败、超时、取消或未执行时，里程碑拒绝；保存证据，重开或新增具体 Todo，返回 `$implement-change` 实现缺失逻辑、修复偏差并增加回归测试。只有所有 Todo 再次 `done` 后才能重新验收完整里程碑。
 - 发布或交付完成声明至少要求：全部批准 Todo 完成，完整真实里程碑产物存在，必需场景证据通过，按策略/硬要求选择的里程碑检查通过，并取得项目规定的人工最终复核。
 - 单元测试数量为零时不得记为通过。测试至少覆盖核心成功路径和最高风险失败路径；没有适用单元测试的例外必须按决策记录流程说明理由、风险和替代验证。
@@ -110,9 +110,9 @@
 - 初始化 Rust 工具链、shared core、接口选择和四项持久 Agent 策略：使用 `$initialize-rust-project`。
 - 下游首次开发或接口/宿主工具链变化时：使用 `$check-development-environment`；Rust 始终检查，GUI 额外检查 Node.js 与 pnpm。
 - 选择 GUI 后首次真实 GUI 开发：使用 `$prepare-gui-app-identity` 补齐窗口资料并由用户选择图标路径。
-- 构建当前平台 Rust CLI release 产物：使用 `$build-rust-release`；其他接口当前按各自 adapter Skill 的构建与产物门槛执行。
-- 准备 Windows、macOS、Linux Rust CLI 候选构建矩阵：使用 `$prepare-cross-platform-release`；其他接口的跨平台发布能力仍未统一。
-- 提取和核验发布结果文件：使用 `$collect-release-artifacts`。
+- 构建 Rust CLI 候选：使用 `$build-rust-release`；默认先走 Windows、macOS、Linux 原生矩阵，跨平台预检不可用才回退当前平台，并在构建前刷新根 `release/`、条件具备时尝试签名。其他接口当前按各自 adapter Skill 的构建与产物门槛执行。
+- 默认 Windows、macOS、Linux Rust CLI 候选矩阵：使用 `$prepare-cross-platform-release`；矩阵启动后的真实失败不得伪装成当前平台回退，其他接口的统一跨平台发布能力仍未完成。
+- 提取和核验本次构建结果：使用 `$collect-release-artifacts`，保留 manifest 的 pending/rejected/accepted 状态，不凭目录存在判断 ready。
 - 已初始化下游需要同步新版 Harness 工程规则或保留 Skills：使用 `$upgrade-harness`；默认 dry-run，保护项目事实和本地修改。
 - 下游明确增加 stdio MCP 支持：使用 `$add-mcp-adapter`。
 - 下游明确增加桌面 GUI 支持：使用 `$add-gui-adapter`。

@@ -148,7 +148,7 @@ class ParallelWorktreesTests(unittest.TestCase):
         self.assertEqual(unscoped_payload["error"]["code"], "write_target_required")
 
     def test_guard_rejects_wrong_cwd_and_detached_branch(self) -> None:
-        """验证从主工作树调用或单元处于 detached HEAD 时均机械阻断。"""
+        """验证从主工作树调用或单元处于 HEAD 分离状态时均机械阻断。"""
         created, payload = self.helper("create", "--task", "feature", "--unit", "guarded")
         self.assertEqual(created.returncode, 0, created.stderr)
         worktree = Path(str(payload["worktreePath"]))

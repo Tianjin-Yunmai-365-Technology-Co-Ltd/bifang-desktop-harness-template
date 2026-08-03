@@ -1,4 +1,4 @@
 interface:
-  display_name: "Rename Project Identity"
-  short_description: "Rename product identity across the whole project"
-  default_prompt: "Use $rename-project-identity to safely rename this project across configuration, Skills, documentation, and licenses."
+  display_name: "重命名项目身份"
+  short_description: "在配置、代码路径、文档、Skills 和许可证中安全改名"
+  default_prompt: "使用 $rename-project-identity，在配置、Skills、文档和许可证中安全重命名此项目。"

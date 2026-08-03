@@ -1,42 +1,42 @@
-# File Operations Capability
+# 文件操作能力
 
-Use this recipe only when the approved core loop reads or writes files. The existence of this reference does not place file operations in every initialized project.
+仅当已批准的核心闭环读取或写入文件时使用本指引。本参考的存在不代表每个已初始化项目都具有文件操作能力。
 
-## Scope Gate
+## 范围闸门
 
-Confirm all of the following before implementation:
+实施前必须确认以下全部事实：
 
-- The product specification names the file or directory input/output.
-- Read-only versus mutating behavior is explicit.
-- Overwrite, collision, partial-write, permission and recovery behavior are defined.
-- The highest-risk data-loss path has an observable expected result.
+- 产品规格已明确文件或目录输入/输出。
+- 已明确区分只读和变更行为。
+- 已定义覆盖、冲突、部分写入、权限和恢复行为。
+- 最高风险数据丢失路径具有可观察的预期结果。
 
-If these facts are unresolved, stop and return to `$define-product`.
+如果这些事实尚未解决，必须停止并返回 `$define-product`。
 
-## Boundary
+## 边界
 
-- Paths crossing the core boundary use `PathBuf`, `Path` or `OsString`; do not assume UTF-8 or concatenate separators manually.
-- Domain validation and overwrite policy belong in core.
-- User prompts, confirmation flags, JSON rendering and exit-code mapping belong in the adapter.
-- Tokio remains the async standard. Enable only the `fs` feature for async filesystem APIs and `io-util` only when async reader/writer extension traits are actually used.
-- Do not add a filesystem abstraction trait until at least two implementations or a concrete testability problem exists.
+- 跨越核心边界的路径必须使用 `PathBuf`、`Path` 或 `OsString`；不得假设 UTF-8，也不得手动拼接路径分隔符。
+- 领域验证和覆盖策略属于核心。
+- 用户提示、确认标志、JSON 渲染和退出码映射属于适配器。
+- Tokio 继续作为异步标准。异步文件系统 API 仅启用 `fs` 特性；只有实际使用异步读取器/写入器扩展特征时才启用 `io-util`。
+- 在至少存在两个实现或一个具体可测试性问题前，不得增加文件系统抽象特征。
 
-## Mutation Safety
+## 变更安全
 
-- Reads must distinguish not found, permission denied, invalid input and malformed content where the product can act differently.
-- Writes must not overwrite an existing target without an explicit approved policy and CLI flag.
-- When partial output would be harmful, write to a sibling temporary file, flush as required by the product reliability target, and replace the destination only after success.
-- Cleanup must not recursively target unresolved variables, broad directories or paths outside the approved operation.
-- Error messages and JSON details must not expose unnecessary absolute host paths.
+- 当产品可以采取不同处理方式时，读取必须区分未找到、权限被拒绝、输入无效和内容格式错误。
+- 未经明确批准的策略和 CLI 标志，写入不得覆盖现有目标。
+- 如果部分输出会造成损害，必须先写入同级临时文件，按照产品可靠性目标完成必要刷新，并且仅在成功后替换目标。
+- 清理不得递归作用于未解析变量、宽泛目录或已批准操作范围之外的路径。
+- 错误消息和 JSON 详情不得暴露不必要的绝对宿主路径。
 
-## Required Verification
+## 必需验证
 
-- Core success-path test for the approved file transformation or validation.
-- Highest-risk failure test, normally collision, partial write, invalid content or permission failure.
-- CLI black-box test for JSON output, stderr separation and stable exit code.
-- Cross-platform tests must construct paths with platform APIs. Untested platforms remain `Unverified`.
-- Mutating acceptance tests operate only in an isolated temporary directory and verify both output and preservation of pre-existing data.
+- 为已批准的文件转换或验证提供核心成功路径测试。
+- 提供最高风险失败测试，通常覆盖冲突、部分写入、无效内容或权限失败。
+- 为 JSON 输出、标准错误分流和稳定退出码提供 CLI 黑盒测试。
+- 跨平台测试必须使用平台 API 构造路径。未经测试的平台必须保持 `Unverified`。
+- 变更型验收测试只能在隔离的临时目录中运行，并且必须同时验证输出和原有数据得到保留。
 
-## Exit Condition
+## 退出条件
 
-If the product no longer reads or writes files, remove the capability-specific feature, dependency, tests and code. Preserve only the general path and data-loss rules inherited from the Harness.
+如果产品不再读取或写入文件，必须删除该能力专用的特性、依赖、测试和代码。仅保留继承自 Harness 的通用路径和数据丢失规则。

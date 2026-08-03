@@ -4,8 +4,8 @@
 
 ## 调用模式
 
-- 产品规格仍为 `Draft` 的中性 Rust scaffold 只允许 `scaffold status`；其成功 JSON 数据包含 `productDefinitionRequired=true`。该命令是生命周期提示，不是业务命令，必须在产品定义获批后的实施中被删除或替换。
-- CLI 的目录、Cargo package、Rust crate 和真实二进制名称由当前 ASCII `snake_case` 项目标识确定性派生为 `<项目标识>_cli`；初始化不得另行询问或配置 binary 名称。
+- 产品规格仍为 `Draft` 的中性 Rust 脚手架只允许 `scaffold status`；其成功 JSON 数据包含 `productDefinitionRequired=true`。该命令是生命周期提示，不是业务命令，必须在产品定义获批后的实施中被删除或替换。
+- CLI 的目录、Cargo 包、Rust crate 和真实二进制文件名称由当前 ASCII `snake_case` 项目标识确定性派生为 `<项目标识>_cli`；初始化不得另行询问或配置二进制文件名称。
 - 所有核心操作必须支持完全非交互调用。
 - 所有核心操作必须支持 `--json`。
 - JSON 模式的标准输出只能包含一个完整 JSON 文档，不得混入日志、进度条、颜色或解释文本。
@@ -40,7 +40,7 @@
 失败时，`error` 至少包含：
 
 - `code`：稳定、机器可判断的大写错误码，格式为 `^[A-Z][A-Z0-9_]*$`。
-- `message`：简短的人类可读说明，不包含秘密或不必要的本机路径。
+- `message`：简短的人类可读说明，不包含敏感信息或不必要的本机路径。
 - `details`：可选的结构化上下文；不得作为唯一错误标识。
 
 ## 一致性规则
@@ -79,7 +79,7 @@
   "data": null,
   "error": {
     "code": "RESOURCE_NOT_FOUND",
-    "message": "Requested resource was not found.",
+    "message": "未找到请求的资源。",
     "details": {
       "id": "example-123"
     }

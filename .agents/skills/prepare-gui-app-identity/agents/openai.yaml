@@ -1,4 +1,4 @@
 interface:
-  display_name: "Prepare GUI App Identity"
-  short_description: "Fill in GUI window metadata and pick or process the app icon"
-  default_prompt: "Use $prepare-gui-app-identity before the first product GUI development task to approve window metadata and icon assets."
+  display_name: "准备 GUI 应用身份"
+  short_description: "补齐 GUI 窗口元数据并选择、生成或处理应用图标资产"
+  default_prompt: "在首次产品 GUI 开发任务前使用 $prepare-gui-app-identity，确认窗口元数据和图标资产。"

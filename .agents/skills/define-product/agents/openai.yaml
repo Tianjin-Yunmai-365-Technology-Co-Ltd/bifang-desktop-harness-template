@@ -1,4 +1,4 @@
 interface:
-  display_name: "Define Product"
-  short_description: "Define product intent, scope, constraints, and success criteria"
-  default_prompt: "Use $define-product to turn this product idea into a bounded MVP specification."
+  display_name: "定义产品"
+  short_description: "明确产品意图、范围、约束、非目标和可衡量的成功标准"
+  default_prompt: "使用 $define-product，把这个产品想法整理成边界明确的 MVP 规格。"

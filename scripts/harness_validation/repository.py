@@ -68,24 +68,24 @@ def validate_daily_project_memory(errors: list[str]) -> None:
     required_fragments = {
         PRODUCT_SPEC_DIR / "README.md": (
             "YYYYMMDD_product_spec.md",
-            "同一天只维护一份 Product Spec",
-            "读取前一份 Product Spec",
+            "同一天只维护一份产品规格",
+            "读取前一份产品规格",
             "完整的当前规格",
         ),
         PRODUCT_STATUS_DIR / "README.md": (
             "YYYYMMDD_product_status.md",
-            "同一天只维护一份 Product Status",
-            "读取前一份 Product Status",
+            "同一天只维护一份产品状态",
+            "读取前一份产品状态",
             "完整的当前状态",
         ),
         WORK_PLAN_DIR / "README.md": (
             "YYYYMMDD_work_plan.md",
-            "同一天只维护一份 Work Plan",
-            "读取前一份 Work Plan",
+            "同一天只维护一份工作计划",
+            "读取前一份工作计划",
             "完整的当前计划",
             "Todo` 批次和对应验证里程碑",
             "当前批次任一 Todo 非 `done` 时",
-            "Mock、stub、占位、中性 scaffold",
+            "模拟实现、桩实现、占位、中性脚手架",
             "重开或新增 Todo 并返回编码",
         ),
         ADR_DIR / "README.md": (
@@ -99,25 +99,25 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "尚未实施的需求只进入 ADR 和计划",
         ),
         SKILLS_ROOT / "define-product" / "SKILL.md": (
-            "the latest dated Product Spec",
-            "synthesize complete current snapshots",
-            "the latest dated ADR",
+            "日期最新的产品规格",
+            "综合重写完整的当前快照",
+            "日期最新的 ADR",
         ),
         SKILLS_ROOT / "plan-change" / "SKILL.md": (
-            "latest dated Product Status",
-            "synthesize its still-valid content",
-            "the latest dated ADR",
+            "日期最新的产品状态",
+            "从前一份快照综合重写其中仍有效的内容",
+            "日期最新的 ADR",
         ),
         SKILLS_ROOT / "implement-change" / "SKILL.md": (
-            "latest dated Work Plan",
-            "synthesize each current snapshot from the previous dated file",
-            "the latest dated ADR",
+            "日期最新的工作计划",
+            "从前一份日期文件综合重写每份当前快照",
+            "日期最新的 ADR",
             "docs/changelog/YYYYMMDD_CHANGELOG.md",
         ),
         SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
-            "latest dated Product Spec",
-            "latest dated Work Plan",
-            "the latest dated ADR",
+            "日期最新的产品规格",
+            "日期最新的工作计划",
+            "日期最新的 ADR",
             "docs/changelog/YYYYMMDD_CHANGELOG.md",
         ),
         SKILLS_ROOT / "prepare-release" / "SKILL.md": ("docs/changelog/README.md",),
@@ -153,8 +153,8 @@ def validate_work_plan_contract(
         "blocked",
         "`done`",
         "完整真实",
-        "Mock",
-        "scaffold",
+        "模拟实现",
+        "脚手架",
         "重开",
         "返回 `$implement-change`",
     )
@@ -182,7 +182,7 @@ def validate_work_plan_contract(
             "active Work Plan contains duplicate Todo IDs: " + ", ".join(duplicates),
         )
 
-    unfinished: set[str] = set()
+    todo_states: list[tuple[int, str, str | None]] = []
     for index, match in enumerate(heading_matches):
         todo_id = match.group(1)
         heading_suffix = match.group(2)
@@ -195,8 +195,10 @@ def validate_work_plan_contract(
                 errors,
                 f"Todo {todo_id} heading must carry exactly one explicit state",
             )
-        elif states[0] != "done":
-            unfinished.add(todo_id)
+            state = None
+        else:
+            state = states[0]
+        todo_states.append((match.start(), todo_id, state))
         block_end = (
             heading_matches[index + 1].start()
             if index + 1 < len(heading_matches)
@@ -212,19 +214,38 @@ def validate_work_plan_contract(
             if not re.search(pattern, block, flags=re.IGNORECASE):
                 fail(errors, f"Todo {todo_id} is missing per-item {label}")
 
-    accepted_while_unfinished = re.search(
-        r"(?:里程碑|验收)(?:状态|结论)?\s*[：:]\s*(?:accepted|已验收|通过)"
-        r"|(?:Milestone|Acceptance)\s+(?:status\s*[：:]\s*)?(?:accepted|passed)"
-        r"|^#{1,6}\s+.*(?:里程碑|Milestone).*[（(](?:accepted|已验收|通过)[）)]",
-        text,
+    milestone_matches = list(
+        re.finditer(r"^##\s+验证里程碑\b.*$", text, flags=re.MULTILINE)
+    )
+    accepted_status_pattern = re.compile(
+        r"^\s*(?:[-*]\s*)?"
+        r"(?:(?:当前)?(?:里程碑|验收|技术验收)?(?:状态|结论)"
+        r"|(?:Milestone|Acceptance)\s+(?:status|verdict))"
+        r"\s*[：:]\s*`?"
+        r"(?:Technically\s+accepted|Milestone\s+accepted|accepted|passed|已验收|通过)\b",
         flags=re.IGNORECASE | re.MULTILINE,
     )
-    if unfinished and accepted_while_unfinished:
-        fail(
-            errors,
-            "active Work Plan marks a milestone accepted while Todo remains non-done: "
-            + ", ".join(sorted(unfinished)),
+    previous_milestone_end = 0
+    for index, milestone in enumerate(milestone_matches):
+        milestone_end = (
+            milestone_matches[index + 1].start()
+            if index + 1 < len(milestone_matches)
+            else len(text)
         )
+        milestone_block = text[milestone.end() : milestone_end]
+        batch_unfinished = sorted(
+            todo_id
+            for position, todo_id, state in todo_states
+            if previous_milestone_end <= position < milestone.start()
+            and state != "done"
+        )
+        if batch_unfinished and accepted_status_pattern.search(milestone_block):
+            fail(
+                errors,
+                "active Work Plan marks a milestone accepted while Todo remains non-done: "
+                + ", ".join(batch_unfinished),
+            )
+        previous_milestone_end = milestone.end()
 
 
 def parse_frontmatter(path: Path, errors: list[str]) -> dict[str, str]:

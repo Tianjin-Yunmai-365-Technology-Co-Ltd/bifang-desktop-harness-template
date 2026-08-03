@@ -1,4 +1,4 @@
 interface:
-  display_name: "Add MCP Adapter"
-  short_description: "Add an async Tokio stdio MCP adapter"
-  default_prompt: "Use $add-mcp-adapter to add approved async-first Tokio stdio MCP support to this Rust project."
+  display_name: "添加 MCP 适配器"
+  short_description: "为 Rust 下游项目增加异步优先的 Tokio stdio MCP 适配器"
+  default_prompt: "使用 $add-mcp-adapter，为此 Rust 项目增加已批准的异步优先 Tokio stdio MCP 支持。"

@@ -1,31 +1,31 @@
 ---
 name: prepare-gui-app-identity
-description: Collect and approve GUI application identity, window metadata, and icon assets before the first product GUI development task.
+description: 在首次产品 GUI 开发任务前，收集并批准 GUI 应用身份、窗口元数据和图标资产。
 ---
 
-# Prepare GUI App Identity
+# 准备 GUI 应用身份
 
-Collect the human-facing application identity before the first real GUI development change. A neutral scaffold is not product GUI development.
+在首次真实 GUI 开发变更前收集面向用户的应用身份。中性脚手架不属于产品 GUI 开发。
 
-## Workflow
+## 工作流程
 
-1. Read `AGENTS.md`, `docs/product_spec/README.md` and the latest dated Product Spec, `docs/project_status/README.md` and the latest dated Product Status, `docs/ENGINEERING_RULES.md`, selected interfaces, and relevant ADRs. Confirm `GUI` is selected and the product purpose is approved.
-2. Before the first product GUI plan or implementation, ask the user to confirm the application display name, primary window title, short description, application identifier/bundle identifier, icon direction, and any brand colors or source assets. Ask only for missing values and do not infer legal or brand ownership.
-3. Offer exactly these icon paths and let the user choose:
-   - **Automatic generation**: derive several icon directions from approved app information, present previews, obtain a choice, and retain the chosen master.
-   - **Plan B**: create a simple deterministic fallback such as a monogram or geometric mark from the approved name and colors, then obtain approval.
-   - **User upload**: inspect the supplied image, preserve the original, normalize crop, padding, transparency and sRGB color, and use an image-editing/upscaling capability to produce a clean high-resolution master without stretching or inventing brand details.
-4. Produce or approve one square 1024×1024 lossless master before platform variants. Generate the platform icon set through the actual Tauri toolchain or another documented deterministic converter; do not hand-author binary icon files or claim visual approval without showing the result.
-5. Record approved values, chosen icon path, source/provenance, master path, platform variants, and unresolved distribution metadata in `docs/GUI_APP_PROFILE.md`. Add the consequential identity choice to the current ADR and link the profile from project status.
-6. Hand the approved profile to `$plan-change` and `$add-gui-adapter`. If the user defers the icon choice, retain the neutral scaffold icon, mark it explicitly temporary, and block production packaging or release claims while allowing non-packaging business development.
+1. 读取 `AGENTS.md`、`docs/product_spec/README.md` 与日期最新的产品规格、`docs/project_status/README.md` 与日期最新的产品状态、`docs/ENGINEERING_RULES.md`、已选接口及相关 ADR。确认已选择 `GUI`，且产品目的已经批准。
+2. 在首次产品 GUI 规划或实施前，请用户确认应用展示名称、主窗口标题、简短描述、应用标识符或包标识符、图标方向，以及任何品牌色或源资产。只询问缺失值，不得推断法律权属或品牌权属。
+3. 只提供以下三种图标路径，并由用户选择：
+   - **自动生成**：根据已批准的应用信息生成多个图标方向，展示预览，取得选择，并保留选中的母版。
+   - **确定性备选方案**：根据已批准的名称和颜色创建简洁、确定性的备用图标，例如字母组合或几何标记，然后取得批准。
+   - **用户上传**：检查用户提供的图像，保留原图，规范裁剪、留白、透明度和 sRGB 色彩，并通过图像编辑或高清处理能力生成干净的高分辨率母版，不得拉伸图像或虚构品牌细节。
+4. 先制作或批准一份 1024×1024 的正方形无损母版，再生成平台变体。通过真实 Tauri 工具链或另一种有文档记录的确定性转换器生成平台图标集；不得手工编写二进制图标文件，也不得在未展示结果时声称已完成视觉批准。
+5. 在 `docs/GUI_APP_PROFILE.md` 中记录已批准值、所选图标路径、来源与溯源、母版路径、平台变体，以及尚未解决的分发元数据。将具有重要影响的身份选择写入当前 ADR，并从产品状态链接该资料。
+6. 将已批准资料交给 `$plan-change` 和 `$add-gui-adapter`。如果用户推迟图标选择，则保留中性脚手架图标并明确标记为临时图标；允许不涉及打包的业务开发，但阻止生产打包或发布声明。
 
-## Boundaries
+## 边界
 
-- Do not silently reuse the Harness logo, a generated draft, or an uploaded low-resolution file as the shipping icon.
-- Do not fabricate trademark ownership, store metadata, signing identity, publisher identity, or legal notices.
-- Icon generation or editing must use an available image-generation/editing capability when selected; if unavailable, use Plan B or request an upload instead of pretending generation occurred.
-- This Skill is retained after initialization and is triggered once for first product GUI development, then again only when the approved GUI identity changes.
+- 不得静默复用 Harness 徽标、生成草稿或用户上传的低分辨率文件作为正式发布图标。
+- 不得虚构商标权属、商店元数据、签名身份、发布者身份或法律声明。
+- 选择生成或编辑图标时，必须使用可用的图像生成或编辑能力；如果该能力不可用，则使用确定性备选方案或请求用户上传，不得假装已经生成。
+- 本 Skill 在初始化后保留；首次产品 GUI 开发时触发一次，此后只有已批准的 GUI 身份发生变化时才再次触发。
 
-## Completion
+## 完成输出
 
-Report approved and unresolved metadata, the user-selected icon path, master and platform asset evidence, profile location, packaging blocks, and the next GUI planning action.
+报告已批准和未解决的元数据、用户选择的图标路径、母版与平台资产证据、资料位置、打包阻断项，以及下一项 GUI 规划操作。

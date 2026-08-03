@@ -38,7 +38,7 @@ def fake_frontend_tools(bin_dir: Path) -> None:
 
 
 def node_tuple() -> tuple[str, str]:
-    """把当前测试宿主映射为 Node 官方归档命名，确保 fixture 与真实分支一致。"""
+    """把当前测试宿主映射为 Node 官方归档命名，确保测试夹具与真实分支一致。"""
     system = platform.system()
     machine = platform.machine().lower()
     node_platform = {"Darwin": "darwin", "Linux": "linux"}[system]
@@ -240,7 +240,7 @@ class PrerequisiteGateTests(unittest.TestCase):
             fake_existing_tools(probe, rust="1.89.0")
             result = self.run_gate(root, "--install-missing", probe=probe)
             self.assertEqual(result.returncode, 21)
-            self.assertIn("below MSRV", result.stderr)
+            self.assertIn("低于 MSRV", result.stderr)
 
     def test_rust_installer_failure_blocks_the_gate(self) -> None:
         """Rust 安装器失败必须保留非零结论，不能继续生成项目。"""
@@ -254,7 +254,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_ALLOW_FILE_URLS="1",
             )
             self.assertEqual(result.returncode, 22)
-            self.assertIn("Rust installation failed", result.stderr)
+            self.assertIn("Rust 安装失败", result.stderr)
 
     def test_rust_checksum_mismatch_blocks_the_gate(self) -> None:
         """rustup-init 摘要不匹配时必须在执行安装器前阻断，防止未验证制品运行。"""
@@ -268,7 +268,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_ALLOW_FILE_URLS="1",
             )
             self.assertEqual(result.returncode, 22)
-            self.assertIn("rustup-init SHA-256 verification failed", result.stderr)
+            self.assertIn("rustup-init SHA-256 校验失败", result.stderr)
             self.assertFalse((root / "cargo").exists())
 
     def test_node_checksum_mismatch_blocks_the_gate(self) -> None:
@@ -288,7 +288,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_ALLOW_FILE_URLS="1",
             )
             self.assertEqual(result.returncode, 26)
-            self.assertIn("SHA-256 verification failed", result.stderr)
+            self.assertIn("SHA-256 校验失败", result.stderr)
 
     def test_removed_web_interface_is_rejected(self) -> None:
         """已移除的 WEB 接口必须被参数门禁拒绝，不能静默降级为 Rust-only。"""
@@ -296,10 +296,10 @@ class PrerequisiteGateTests(unittest.TestCase):
             root = Path(temporary)
             result = self.run_gate(root, "--check-only", "--interfaces", "WEB")
             self.assertEqual(result.returncode, 2)
-            self.assertIn("Unsupported interface: WEB", result.stderr)
+            self.assertIn("不支持的接口：WEB", result.stderr)
 
     def test_windows_msvc_gate_installs_signed_build_tools(self) -> None:
-        """Windows 脚本必须验证微软签名、安装 C++ workload 并在成功前重新探测。"""
+        """Windows 脚本必须验证微软签名、安装 C++ 工作负载并在成功前重新探测。"""
         text = WINDOWS_SCRIPT.read_text(encoding="utf-8")
         required = (
             "https://aka.ms/vs/17/release/vs_BuildTools.exe",

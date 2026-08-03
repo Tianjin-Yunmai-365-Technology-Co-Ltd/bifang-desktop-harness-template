@@ -1,38 +1,38 @@
 ---
 name: collect-release-artifacts
-description: Retrieve, safely refresh, consolidate, and validate the current downstream project's latest completed release result files in the project-root release directory. Use after local or CI builds, when downloading workflow artifacts, or when preparing a release candidate for human review.
+description: 在项目根 release 目录中取回、安全合并并验证当前下游项目已完成的本地或原生 CI 构建结果，同时保留每个候选的 pending、rejected 或 accepted 里程碑状态。用于本地或 CI 构建完成后、下载工作流产物时，或准备供人工复核的发布候选时。
 ---
 
-# Collect Release Artifacts
+# 收集发布产物
 
-Create one reviewable current release-candidate directory without rebuilding or publishing.
+创建一个可复核的当前构建结果目录，不重新构建、签名、执行或发布候选。
 
-## Workflow
+## 工作流程
 
-1. Read `docs/RELEASE.md`, the accepted milestone evidence, persistent policy resolution, and every user-supplied completed build result. Require the canonical Git top-level to equal the project root. Determine project, version, source commit, platform matrix, artifact names, checksums, build identity and exact accepted-candidate identity before touching the destination.
-2. Retrieve artifacts through the repository's configured provider or accept user-supplied local result directories. For every expected platform/architecture and artifact class, select the latest completed result that matches the current project, version, source commit and explicit build/run identity. Never interpret a provider's ambiguous “latest”, filesystem mtime alone, another project, another commit, an incomplete run or an unverified directory as the selected result; stop on ambiguity.
-3. Build and validate the complete source manifest plus milestone-evidence manifest before cleanup. Require every source file to exist, be regular, remain outside the destination, and match project/version/commit/build plus a `Milestone accepted` result. Reject missing, extra, duplicate, empty, stale, cross-project, colliding or merely `pending` candidates.
-4. Resolve the destination as exactly `<canonical-project-root>/release`. Reject a symlink at `release`, any canonical escape from the project root, a destination equal to the project root, or any unresolved/broad target. Create the directory when absent. Immediately before copying, enumerate and remove every existing entry inside that exact directory so no historical result survives; this user-authorized cleanup applies nowhere else.
-5. Copy only the selected current source-manifest files directly into `release/`. Flatten provider wrapper directories only after filename collision checks. Keep only declared end-user binaries or archives, adjacent checksum files, manifests, and explicitly required verification evidence.
-6. Recompute every archive SHA-256 locally and compare it with both the adjacent checksum file and manifest. Validate that every manifest agrees on project, version, source commit and build/run identity and that each required platform/architecture appears exactly once.
-7. Inspect archive contents without executing any binary; reject absolute paths, parent traversal or unexpected payloads. Validate existing milestone smoke/E2E evidence only when policy or hard requirements selected it. Collection must never launch smoke/E2E itself.
-8. Re-enumerate `release/` and require exact equality with the selected source manifest: no historical, temporary, undeclared or partial file may remain. Write or update release evidence in `docs/VERIFICATION.md`: cleanup inventory, source runs, commit, copied files, sizes, hashes, platform results, local checks, CI checks, missing combinations and remaining risks.
+1. 读取 `docs/RELEASE.md`、活动构建请求、可用里程碑证据、持久策略解析结果，以及用户提供的每项已完成构建结果。要求规范化的 Git 顶层目录等于项目根。在接触目标目录前，确定项目、版本、源码提交、平台矩阵、产物名称、校验和、构建标识、签名状态和候选里程碑状态。
+2. 通过仓库配置的提供方取回产物，或接受用户提供的本地结果目录。对于每个预期平台/架构和产物类别，选择与当前项目、版本、源码提交和明确构建标识匹配的已完成结果。绝不得把含糊的提供方“最新”结果、单独的文件系统修改时间（mtime）、其他项目/提交、不完整运行或未经验证的目录视为已选结果。
+3. 复制前构建并验证完整源清单。要求每个源文件都存在、属于普通文件、位于目标目录之外，并匹配项目/版本/提交/构建。只有为 `$build-rust-release` 收集构建结果时，才接受 `milestoneAcceptance: pending`；必须保留该精确状态，绝不得称其为已就绪。发布准备仍要求匹配的 `Milestone accepted` 证据。拒绝缺失、额外、重复、空、过时、跨项目或发生冲突的文件。
+4. 将目标目录精确解析为 `<canonical-project-root>/release`。遇到符号链接/重解析点、规范化后路径越界、非目录或目标等于项目根时必须拒绝。`$build-rust-release` 必须已在构建开始前安全清理该目录。如果本 Skill 针对已完成的外部构建独立调用，必须在复制前立即运行同一个随附 release 目录辅助程序，确保刷新后的目录不保留历史条目。该授权不适用于任何其他位置。
+5. 仅把已选择的当前源清单文件直接复制到 `release/`。只有完成文件名冲突检查后，才可展平提供方包装目录。仅保留声明的最终用户二进制文件或归档、相邻校验和/签名文件、清单和明确要求的验证证据；绝不得复制 Cargo 中间产物。
+6. 在本地重新计算每个归档的 SHA-256，并与相邻校验和及清单比较。验证各清单的 `project`、`version`、`sourceCommit`、`buildRun`、`buildMode`、`platform`、`architecture`、`target`、`host`、`archive`、`sha256`、`tests`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 和 `milestoneAcceptance` 字段一致；要求每个预期平台/架构精确出现一次。不得尝试新签名。对于就地签名，要求存在已记录的固定钩子验证结果，并要求 `detachedFiles` 列表为空；项目声明独立签名证据时，明确要求每个被引用的普通文件及其校验和存在。
+7. 检查归档内容但不得执行二进制文件；拒绝绝对路径、父目录穿越和非预期载荷。只有项目策略或硬要求选择了里程碑冒烟/E2E 时，才验证已有对应证据。收集过程绝不得自行启动冒烟/E2E。
+8. 重新枚举 `release/`，并要求其与已选源清单精确相等：不得保留任何历史、临时、未声明或部分文件。在 `docs/VERIFICATION.md` 中更新清理清单、源运行、提交、已复制文件、大小、哈希、签名状态、里程碑状态、平台结果、缺失组合和剩余风险。
 
-## Output Contract
+## 输出契约
 
-The project-root `release/` directory contains only the current project's latest selected:
+项目根 `release/` 目录只能包含本次构建调用选中的以下文件：
 
-- one archive per declared platform/architecture;
-- one adjacent `<archive>.sha256` per archive;
-- one manifest per platform or one aggregate manifest with equivalent fields;
-- optional test/log evidence named and referenced by the manifest.
+- 每个成功构建的平台/架构对应一个归档或声明的二进制文件；
+- 每个归档对应一个相邻的 `<archive>.sha256` 校验和，以及任何声明的独立签名；
+- 每个平台对应一个清单，或一个包含等价字段的聚合清单；
+- 由清单命名并引用的可选测试/日志证据。
 
-Never include Cargo intermediates, credentials, absolute local paths, caches, or unredacted environment dumps.
+每个清单必须保留 `pending`、`rejected` 或 `accepted` 中的一种状态；目录存在绝不得提升该状态。绝不得包含凭据、绝对本机路径、缓存或未遮盖的环境转储。
 
-## Boundaries
+## 边界
 
-- Collection does not prove the build was trustworthy and does not replace `$verify-delivery`.
-- Do not publish, upload, sign, tag, or change version files.
-- Never clean or write outside the exact non-symlink `<canonical-project-root>/release` directory. Resolve and validate both the destination and complete source manifest before deleting historical contents.
-- Cleanup is intentional and destructive: old release candidates in `release/` are removed on every collection and are not preserved by this Skill.
-- If any expected result is missing/inconsistent, the milestone is not accepted, or a selected/required milestone check lacks a passing terminal state, preserve evidence, mark the candidate incomplete and stop before readiness.
+- 收集不能证明构建可信，也不能替代 `$verify-delivery`。
+- 不得构建、发布、上传到发布渠道、签名、创建标签或更改版本文件。
+- 绝不得在精确且非符号链接的 `<canonical-project-root>/release` 目录之外清理或写入。
+- 清理是有意的破坏性操作：`release/` 中的历史构建结果会被删除，不会归档。
+- 即使存在其他文件，缺失或不一致的必需结果、未通过的必需里程碑门禁仍必须阻断就绪状态。

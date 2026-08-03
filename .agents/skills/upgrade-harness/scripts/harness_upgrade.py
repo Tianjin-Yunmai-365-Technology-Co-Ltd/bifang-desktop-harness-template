@@ -29,19 +29,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    plan = commands.add_parser("plan", help="Generate a read-only three-way update plan")
+    plan = commands.add_parser("plan", help="生成只读三方更新 plan")
     add_shared_arguments(plan)
     plan.add_argument("--output", type=Path)
 
     apply_command = commands.add_parser(
         "apply",
-        help="Apply approved updates to existing unchanged managed files",
+        help="把已批准更新应用到既有且未变化的 managed 文件",
     )
     apply_command.add_argument("--plan", type=Path, required=True)
     apply_command.add_argument("--approval", required=True)
     apply_command.add_argument("--path", required=True)
 
-    record = commands.add_parser("record", help="Record the reviewed Harness baseline")
+    record = commands.add_parser("record", help="记录已复核的 Harness 基线")
     record.add_argument("--plan", type=Path, required=True)
     record.add_argument("--source-version", required=True)
     record.add_argument("--source-commit", required=True)

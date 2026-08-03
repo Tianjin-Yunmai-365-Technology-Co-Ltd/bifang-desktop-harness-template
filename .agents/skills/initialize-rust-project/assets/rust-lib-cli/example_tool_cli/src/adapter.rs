@@ -57,7 +57,7 @@ struct Envelope<T> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct StatusData {
-    /// 标识 core Lib 与 CLI workspace 已完成初始化。
+    /// 标识核心库与 CLI 工作区已完成初始化。
     initialized: bool,
     /// 标识仍需在当前项目中定义产品目的与核心输入输出。
     product_definition_required: bool,
@@ -84,7 +84,7 @@ struct Meta {
     timestamp: String,
 }
 
-/// 执行中性 CLI adapter 的完整调用流程并返回稳定进程状态。
+/// 执行中性 CLI 适配器的完整调用流程并返回稳定进程状态。
 ///
 /// 该函数在产品定义前只接受 `scaffold status`，参数解析失败时仍为显式 JSON 请求提供机器
 /// 信封。除写入标准输出或标准错误外，不读取文件、网络、凭据或外部进程。
@@ -132,7 +132,7 @@ pub async fn run() -> ExitCode {
                     0,
                 )
             } else {
-                println!("Project scaffold initialized; product definition is required.");
+                println!("项目脚手架已初始化；仍需定义产品。");
                 ExitCode::SUCCESS
             }
         }
@@ -155,7 +155,7 @@ fn write_json<T: Serialize>(envelope: Envelope<T>, exit_code: u8) -> ExitCode {
     let stdout = std::io::stdout();
     let mut output = stdout.lock();
     if serde_json::to_writer(&mut output, &envelope).is_err() || writeln!(output).is_err() {
-        eprintln!("failed to write JSON result");
+        eprintln!("写入 JSON 结果失败");
         return ExitCode::from(70);
     }
 

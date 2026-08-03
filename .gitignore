@@ -12,8 +12,10 @@
 /.vite/
 **/.vite/
 
-# 当前项目发布结果；由 collect-release-artifacts 每次刷新
+# 当前构建结果；由 build-rust-release 在每次构建前原子刷新
 /release/
+# 原子刷新或候选提交被中断时可能遗留的同根 staging
+/.release-clean.*
 
 # 本地环境变量；允许提交公开示例
 .env

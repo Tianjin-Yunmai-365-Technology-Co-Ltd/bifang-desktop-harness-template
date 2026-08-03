@@ -27,9 +27,9 @@ milestone_e2e: pending
 
 - `$instantiate-project` 或直接调用的 `$initialize-rust-project` 必须一次收集 Superpowers、Worktree/Subagent、里程碑冒烟和里程碑 E2E 四项选择，并原子写入本文件。
 - 同一实例化/初始化工作流只询问一次；后续步骤复用已记录值，后续任务不得仅因进入类似场景而重复询问。
-- `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线 commit 前，四项选择、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
-- 初始化首次写入发生在下游 ADR 尚未创建前，不要求为了 bootstrap 预建 ADR。初始化后的永久策略变更必须由用户确认，并在当日 ADR 记录原因、影响和恢复条件。
-- 临时任务约束可以记录在当前 Work Plan/Verification，但不得静默改写本文件。
+- `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，四项选择、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
+- 初始化首次写入发生在下游 ADR 尚未创建前，不要求为了引导预建 ADR。初始化后的永久策略变更必须由用户确认，并在当日 ADR 记录原因、影响和恢复条件。
+- 临时任务约束可以记录在当前工作计划/验证记录中，但不得静默改写本文件。
 
 ## 执行优先级
 
@@ -44,5 +44,5 @@ milestone_e2e: pending
 ## 不受影响的能力
 
 - 本文件不关闭 `.agents/skills/` 中的项目 Skills，也不关闭 Codex 基础工具或安全规则。
-- Worktree/Subagent 启用后仍必须满足独立 Git 根、干净已提交基线、文件所有权、`codex/` 分支、helper `guard`、前台状态和同步等待规则。
+- Worktree/Subagent 启用后仍必须满足独立 Git 根、干净已提交基线、文件所有权、`codex/` 分支、辅助程序 `guard`、前台状态和同步等待规则。
 - 冒烟/E2E 不得在产品定义、计划、Todo 编码、普通静态复核、常规构建、制品收集或发布元数据流程中运行。

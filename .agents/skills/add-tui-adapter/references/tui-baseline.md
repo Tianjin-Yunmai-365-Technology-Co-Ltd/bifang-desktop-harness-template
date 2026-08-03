@@ -1,36 +1,36 @@
-# Ratatui TUI baseline
+# Ratatui TUI 基线
 
-Read this reference only after TUI is selected during initialization or approved later.
+仅在初始化时选择 TUI 或后续批准 TUI 后阅读本参考。
 
-## Fixed stack
+## 固定技术栈
 
-- Use Ratatui as the terminal rendering and widget foundation.
-- Use tui-realm as the component, event, message and application-state framework over Ratatui.
-- Use tui-realm-stdlib as the standard component library. Start with its maintained components for common controls such as inputs, text areas, checkboxes, radio/select controls, lists, tables, labels, paragraphs, tabs, gauges and charts.
-- Use the terminal backend supported by the selected compatible stable stack and approved target terminals. Do not add multiple backends without a tested requirement.
-- Resolve actual stable versions at execution time. The selected Ratatui, tui-realm and tui-realm-stdlib releases must be mutually compatible and satisfy the project's Rust MSRV, Windows/macOS/Linux targets and locked verification.
+- 使用 Ratatui 作为终端渲染和控件基础。
+- 使用 tui-realm 作为建立在 Ratatui 之上的组件、事件、消息和应用状态框架。
+- 使用 tui-realm-stdlib 作为标准组件库。常见控件优先从其维护中的组件开始，包括输入框、文本区、复选框、单选/选择控件、列表、表格、标签、段落、选项卡、仪表和图表。
+- 使用所选兼容稳定技术栈和已批准目标终端支持的终端后端。没有经过测试的需求时不得增加多个后端。
+- 执行时解析实际稳定版本。所选 Ratatui、tui-realm 和 tui-realm-stdlib 版本必须彼此兼容，并满足项目的 Rust MSRV、Windows/macOS/Linux 目标和锁定验证要求。
 
-The fixed stack applies even to neutral Draft scaffold status. “Latest” means the latest compatible stable combination that passes all constraints; it does not mean a prerelease, an unverified Git revision, a silent MSRV increase or separate incompatible latest versions.
+固定技术栈同样适用于中性的 `Draft` 脚手架状态。“最新”是指通过全部约束的最新兼容稳定组合，不是预发布版、未经验证的 Git 修订、静默提高 MSRV，或彼此不兼容的各自最新版本。
 
-## Architecture rules
+## 架构规则
 
-- Core owns domain state and errors. The TUI adapter maps core results into view models and tui-realm messages.
-- tui-realm owns focus, component lifecycle, subscriptions and UI messages; do not leak these types into core.
-- Ratatui widgets render presentation state. Do not make the frame, terminal backend or screen coordinates authoritative domain state.
-- Reuse tui-realm-stdlib before creating project components. A custom component must correspond to an approved interaction the standard library cannot express through composition, properties or styling.
-- Keep stable resource IDs separate from list/table indices and current focus.
-- Bound event polling and background work, define cancellation and shutdown, and restore the terminal on normal exit, error and panic paths.
-- Start the adapter through a Tokio current-thread async entry. Prefer async terminal event polling, channels, timers and boundary operations; never block the event/render loop with synchronous waits.
-- Consider `spawn_blocking`, dedicated threads or a multi-thread runtime only for measured CPU-intensive work, with ownership, cancellation, backpressure, concurrency limits and resource-budget evidence. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception.
+- 核心拥有领域状态和错误。TUI 适配器把核心结果映射为视图模型和 tui-realm 消息。
+- tui-realm 拥有焦点、组件生命周期、订阅和 UI 消息；不得让这些类型泄漏到核心中。
+- Ratatui 控件负责渲染展示状态。不得把帧、终端后端或屏幕坐标当作权威领域状态。
+- 创建项目组件前先复用 tui-realm-stdlib。自定义组件必须对应一项标准库无法通过组合、属性或样式表达的已批准交互。
+- 稳定资源 ID 必须与列表/表格索引及当前焦点分离。
+- 限制事件轮询和后台工作，定义取消与关闭行为，并在正常退出、错误和 panic 路径上恢复终端。
+- 通过 Tokio current-thread 异步入口启动适配器。优先使用异步终端事件轮询、通道、计时器和边界操作；绝不以同步等待阻塞事件/渲染循环。
+- 只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并提供所有权、取消、背压、并发上限和资源预算证据。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程。
 
-## Required evidence
+## 必需证据
 
-- Record evaluated and selected crate versions, feature sets, MSRV/platform compatibility and lockfile result.
-- Unit-test messages, focus and state transitions without requiring a real terminal where practical.
-- Test resize, minimum supported dimensions, Unicode width, empty/loading/error states and high-risk confirmations.
-- Exercise the real release artifact in a representative terminal and verify bounded quit plus terminal restoration.
-- Mark every untested terminal/backend/platform `Unverified`.
+- 记录评估过和选定的 crate 版本、特性集、MSRV/平台兼容性及锁文件结果。
+- 在可行时不依赖真实终端，对消息、焦点和状态转换进行单元测试。
+- 测试尺寸变化、最小支持尺寸、Unicode 宽度、空/加载/错误状态和高风险确认。
+- 在有代表性的终端中运行真实发布制品，并验证有界退出和终端恢复。
+- 每个未测试的终端/后端/平台都标记为 `Unverified`。
 
-## Exception boundary
+## 例外边界
 
-Ratatui, tui-realm and tui-realm-stdlib are hard rules. If their compatible stable releases cannot meet an approved product, accessibility, MSRV, platform or security requirement, stop and record a hard-rule exception ADR containing the failed constraint, alternatives, risks, substitute verification and recovery/migration criteria. Do not silently substitute another framework or component library.
+Ratatui、tui-realm 和 tui-realm-stdlib 是硬规则。若其兼容稳定版本无法满足已批准的产品、无障碍、MSRV、平台或安全要求，必须停止并记录硬规则例外 ADR，其中包含未满足的约束、替代方案、风险、替代验证以及恢复/迁移标准。不得静默替换为其他框架或组件库。

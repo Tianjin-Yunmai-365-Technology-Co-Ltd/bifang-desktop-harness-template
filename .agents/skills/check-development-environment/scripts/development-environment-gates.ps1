@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [switch]$CheckOnly,
@@ -20,7 +20,7 @@ $PnpmBin = $null
 $NormalizedInterfaces = @($Interfaces | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToUpperInvariant() })
 $UnsupportedInterfaces = @($NormalizedInterfaces | Where-Object { $_ -and $_ -notin @("CLI", "TUI", "MCP", "GUI") })
 if ($UnsupportedInterfaces.Count -gt 0) {
-    [Console]::Error.WriteLine("Unsupported interface: $($UnsupportedInterfaces -join ',')")
+    [Console]::Error.WriteLine("不支持的接口：$($UnsupportedInterfaces -join ',')")
     exit 2
 }
 $FrontendRequired = $NormalizedInterfaces -contains "GUI"
@@ -29,7 +29,7 @@ $TemporaryDirectories = [System.Collections.Generic.List[string]]::new()
 # 使用稳定退出码结束门禁，调用方可以据此区分具体失败阶段。
 function Stop-Gate {
     param([int]$Code, [string]$Message)
-    [Console]::Error.WriteLine("ERROR: $Message")
+    [Console]::Error.WriteLine("错误：$Message")
     exit $Code
 }
 
@@ -57,7 +57,7 @@ function Get-OfficialFile {
         Copy-Item -LiteralPath ([Uri]$Uri).LocalPath -Destination $Destination
         return
     }
-    Stop-Gate 24 "unsupported download URL scheme: $Uri"
+    Stop-Gate 24 "不支持的下载 URL 协议：$Uri"
 }
 
 # 建立并登记本进程专用临时目录，finally 只清理这些已知目标。
@@ -72,16 +72,16 @@ function New-GateTemporaryDirectory {
 function Test-RustVersion {
     param([string]$RustcPath, [string]$CargoPath)
     $rustText = (& $RustcPath --version 2>$null)
-    if ($LASTEXITCODE -ne 0) { Stop-Gate 21 "rustc probe failed" }
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 21 "rustc 探测失败" }
     $cargoText = (& $CargoPath --version 2>$null)
-    if ($LASTEXITCODE -ne 0) { Stop-Gate 21 "cargo probe failed" }
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 21 "cargo 探测失败" }
     if ($rustText -notmatch '^rustc (\d+)\.(\d+)\.\d+(?:\s|$)') {
-        Stop-Gate 21 "existing Rust toolchain is not a recognized stable release: $rustText"
+        Stop-Gate 21 "现有 Rust 工具链不是可识别的稳定发布版：$rustText"
     }
     $rustMajor = [int]$Matches[1]
     $rustMinor = [int]$Matches[2]
     if ($rustMajor -lt $MinimumRustMajor -or ($rustMajor -eq $MinimumRustMajor -and $rustMinor -lt $MinimumRustMinor)) {
-        Stop-Gate 21 "existing Rust is below MSRV $MinimumRustMajor.$MinimumRustMinor.0`: $rustText"
+        Stop-Gate 21 "现有 Rust 低于 MSRV $MinimumRustMajor.$MinimumRustMinor.0：$rustText"
     }
     $script:RustVersion = $rustText
     $script:CargoVersion = $cargoText
@@ -93,21 +93,21 @@ function Install-MissingRust {
     $target = switch ($architecture) {
         "x64" { "x86_64-pc-windows-msvc" }
         "arm64" { "aarch64-pc-windows-msvc" }
-        default { Stop-Gate 22 "unsupported Windows architecture for rustup: $architecture" }
+        default { Stop-Gate 22 "rustup 不支持此 Windows 架构：$architecture" }
     }
     $base = if ($env:AFH_RUSTUP_DIST_BASE) { $env:AFH_RUSTUP_DIST_BASE.TrimEnd('/') } else { "https://static.rust-lang.org/rustup/dist" }
     $temporary = New-GateTemporaryDirectory
     $installer = Join-Path $temporary "rustup-init.exe"
     $checksumFile = Join-Path $temporary "rustup-init.exe.sha256"
     $releaseBase = "$base/$target"
-    [Console]::Error.WriteLine("Installing missing Rust stable from $releaseBase into the current user's rustup directories.")
+    [Console]::Error.WriteLine("正在从 $releaseBase 把缺失的 Rust stable 安装到当前用户的 rustup 目录。")
     Get-OfficialFile "$releaseBase/rustup-init.exe" $installer
     Get-OfficialFile "$releaseBase/rustup-init.exe.sha256" $checksumFile
     $expected = ((Get-Content -LiteralPath $checksumFile -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
     $actual = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $expected) { Stop-Gate 22 "rustup-init SHA-256 verification failed" }
+    if ($actual -ne $expected) { Stop-Gate 22 "rustup-init SHA-256 校验失败" }
     & $installer -y --profile minimal --default-toolchain stable
-    if ($LASTEXITCODE -ne 0) { Stop-Gate 22 "Rust installation failed" }
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 22 "Rust 安装失败" }
     $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $HOME ".cargo" }
     $script:CargoBin = Join-Path $cargoHome "bin"
     $script:ProbePath = "$CargoBin$([IO.Path]::PathSeparator)$ProbePath"
@@ -125,17 +125,17 @@ function Test-MsvcPrerequisite {
     return $false
 }
 
-# 下载并运行微软签名的 Build Tools bootstrapper，再由调用方重新探测 C++ workload。
+# 下载并运行微软签名的 Build Tools 引导程序，再由调用方重新探测 C++ 工作负载。
 function Install-MissingMsvc {
     $temporary = New-GateTemporaryDirectory
     $installer = Join-Path $temporary "vs_BuildTools.exe"
     $source = if ($env:AFH_VS_BUILDTOOLS_URL) { $env:AFH_VS_BUILDTOOLS_URL } else { "https://aka.ms/vs/17/release/vs_BuildTools.exe" }
-    [Console]::Error.WriteLine("Installing missing Microsoft Visual Studio Build Tools C++ workload from $source.")
+    [Console]::Error.WriteLine("正在从 $source 安装缺失的 Microsoft Visual Studio Build Tools C++ 工作负载。")
     Get-OfficialFile $source $installer
     if ($env:AFH_SKIP_AUTHENTICODE -ne "1") {
         $signature = Get-AuthenticodeSignature -FilePath $installer
         if ($signature.Status -ne "Valid" -or $signature.SignerCertificate.Subject -notmatch "Microsoft Corporation") {
-            Stop-Gate 27 "Visual Studio Build Tools bootstrapper does not have a valid Microsoft signature"
+            Stop-Gate 27 "Visual Studio Build Tools 引导程序没有有效的 Microsoft 签名"
         }
     }
     $arguments = @(
@@ -148,7 +148,7 @@ function Install-MissingMsvc {
     )
     $process = Start-Process -FilePath $installer -ArgumentList $arguments -Wait -PassThru
     if ($process.ExitCode -notin @(0, 3010)) {
-        Stop-Gate 27 "Visual Studio Build Tools installation failed with exit code $($process.ExitCode)"
+        Stop-Gate 27 "Visual Studio Build Tools 安装失败，退出码为 $($process.ExitCode)"
     }
     $script:MsvcChange = "installed"
 }
@@ -159,7 +159,7 @@ function Install-MissingNode {
     $nodeArchitecture = switch ($architecture) {
         "x64" { "x64" }
         "arm64" { "arm64" }
-        default { Stop-Gate 26 "unsupported Windows architecture for Node.js: $architecture" }
+        default { Stop-Gate 26 "Node.js 不支持此 Windows 架构：$architecture" }
     }
     $base = if ($env:AFH_NODE_DIST_BASE) { $env:AFH_NODE_DIST_BASE.TrimEnd('/') } else { "https://nodejs.org/dist" }
     $temporary = New-GateTemporaryDirectory
@@ -167,34 +167,34 @@ function Install-MissingNode {
     Get-OfficialFile "$base/index.json" $indexPath
     $index = Get-Content -LiteralPath $indexPath -Raw | ConvertFrom-Json
     $release = @($index | Where-Object { $_.lts -and $_.lts -ne $false })[0]
-    if (-not $release) { Stop-Gate 26 "Node.js release index contains no supported LTS" }
+    if (-not $release) { Stop-Gate 26 "Node.js 发布版本索引中没有受支持的 LTS" }
     $version = [string]$release.version
     $archiveName = "node-$version-win-$nodeArchitecture.zip"
     $releaseBase = "$base/$version"
     $archive = Join-Path $temporary $archiveName
     $checksums = Join-Path $temporary "SHASUMS256.txt"
-    [Console]::Error.WriteLine("Installing missing Node.js $version LTS from $releaseBase into a user-level directory.")
+    [Console]::Error.WriteLine("正在从 $releaseBase 把缺失的 Node.js $version LTS 安装到用户级目录。")
     Get-OfficialFile "$releaseBase/$archiveName" $archive
     Get-OfficialFile "$releaseBase/SHASUMS256.txt" $checksums
     $escapedName = [Regex]::Escape($archiveName)
     $checksumLine = Get-Content -LiteralPath $checksums | Where-Object { $_ -match "^([0-9a-fA-F]{64})\s+$escapedName$" } | Select-Object -First 1
-    if (-not $checksumLine) { Stop-Gate 26 "Node.js checksum list does not contain $archiveName" }
+    if (-not $checksumLine) { Stop-Gate 26 "Node.js 校验和列表不包含 $archiveName" }
     $checksumLine -match '^([0-9a-fA-F]{64})' | Out-Null
     $expected = $Matches[1].ToLowerInvariant()
     $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $expected) { Stop-Gate 26 "Node.js SHA-256 verification failed" }
+    if ($actual -ne $expected) { Stop-Gate 26 "Node.js SHA-256 校验失败" }
     $nodeHome = if ($env:AFH_NODE_HOME) { $env:AFH_NODE_HOME } else { Join-Path $env:LOCALAPPDATA "AgentFirstHarness\Node" }
     $installDirectory = Join-Path $nodeHome $version
     if (Test-Path -LiteralPath $installDirectory) {
         if (-not (Test-Path -LiteralPath (Join-Path $installDirectory "node.exe") -PathType Leaf)) {
-            Stop-Gate 26 "Node.js target already exists but is not usable: $installDirectory"
+            Stop-Gate 26 "Node.js 目标已存在但不可用：$installDirectory"
         }
     } else {
         New-Item -ItemType Directory -Force -Path $nodeHome | Out-Null
         Expand-Archive -LiteralPath $archive -DestinationPath $temporary
         $extracted = Join-Path $temporary "node-$version-win-$nodeArchitecture"
         if (-not (Test-Path -LiteralPath (Join-Path $extracted "node.exe") -PathType Leaf)) {
-            Stop-Gate 26 "Node.js archive does not contain the expected executable"
+            Stop-Gate 26 "Node.js 归档不包含预期可执行文件"
         }
         Move-Item -LiteralPath $extracted -Destination $installDirectory
     }
@@ -212,15 +212,15 @@ function Install-MissingNode {
     $script:NodeChange = "installed"
 }
 
-# 仅为 GUI 项目通过 Node 自带 npm 安装官方 registry 的稳定 pnpm。
+# 仅为 GUI 项目通过 Node 自带 npm 安装官方软件包仓库中的稳定 pnpm。
 function Install-MissingPnpm {
     $npm = Resolve-GateCommand "npm"
-    if (-not $npm) { Stop-Gate 28 "npm is required to install pnpm for GUI development" }
+    if (-not $npm) { Stop-Gate 28 "为 GUI 开发安装 pnpm 需要 npm" }
     $pnpmHome = if ($env:AFH_PNPM_HOME) { $env:AFH_PNPM_HOME } else { Join-Path $env:LOCALAPPDATA "AgentFirstHarness\Pnpm" }
     New-Item -ItemType Directory -Force -Path $pnpmHome | Out-Null
-    [Console]::Error.WriteLine("Installing missing pnpm from the official npm registry into a user-level directory.")
+    [Console]::Error.WriteLine("正在从官方 npm 软件包仓库把缺失的 pnpm 安装到用户级目录。")
     & $npm install --global --prefix $pnpmHome pnpm@latest
-    if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm installation failed" }
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm 安装失败" }
     $script:PnpmBin = $pnpmHome
     $script:ProbePath = "$PnpmBin$([IO.Path]::PathSeparator)$ProbePath"
     $env:PATH = $script:ProbePath
@@ -244,7 +244,7 @@ try {
         $pnpm = Resolve-GateCommand "pnpm"
         if ($node) {
             $NodeVersion = (& $node --version 2>$null)
-            if ($LASTEXITCODE -ne 0) { Stop-Gate 23 "Node.js probe failed" }
+            if ($LASTEXITCODE -ne 0) { Stop-Gate 23 "Node.js 探测失败" }
             $nodeMissing = $false
         } else {
             $NodeVersion = "Missing"
@@ -252,7 +252,7 @@ try {
         }
         if ($pnpm) {
             $PnpmVersion = (& $pnpm --version 2>$null)
-            if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm probe failed" }
+            if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm 探测失败" }
             $pnpmMissing = $false
         } else {
             $PnpmVersion = "Missing"
@@ -282,28 +282,28 @@ try {
         Install-MissingRust
         $rustc = Resolve-GateCommand "rustc"
         $cargo = Resolve-GateCommand "cargo"
-        if (-not $rustc -or -not $cargo) { Stop-Gate 22 "Rust install completed without callable rustc and cargo" }
+        if (-not $rustc -or -not $cargo) { Stop-Gate 22 "Rust 安装完成后仍无法调用 rustc 和 cargo" }
         Test-RustVersion $rustc $cargo
     }
     if ($msvcMissing) {
         Install-MissingMsvc
         if (-not (Test-MsvcPrerequisite)) {
-            Stop-Gate 27 "Visual Studio Build Tools installation completed but the MSVC C++ workload is still unavailable"
+            Stop-Gate 27 "Visual Studio Build Tools 安装完成后 MSVC C++ 工作负载仍不可用"
         }
     }
     if ($nodeMissing) {
         Install-MissingNode
         $node = Resolve-GateCommand "node"
-        if (-not $node) { Stop-Gate 26 "Node.js install completed without a callable node executable" }
+        if (-not $node) { Stop-Gate 26 "Node.js 安装完成后仍无法调用 node 可执行文件" }
         $NodeVersion = (& $node --version 2>$null)
-        if ($LASTEXITCODE -ne 0) { Stop-Gate 26 "installed Node.js probe failed" }
+        if ($LASTEXITCODE -ne 0) { Stop-Gate 26 "已安装 Node.js 的探测失败" }
     }
     if ($pnpmMissing) {
         Install-MissingPnpm
         $pnpm = Resolve-GateCommand "pnpm"
-        if (-not $pnpm) { Stop-Gate 28 "pnpm install completed without a callable pnpm executable" }
+        if (-not $pnpm) { Stop-Gate 28 "pnpm 安装完成后仍无法调用 pnpm 可执行文件" }
         $PnpmVersion = (& $pnpm --version 2>$null)
-        if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "installed pnpm probe failed" }
+        if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "已安装 pnpm 的探测失败" }
     }
 
     $changed = if ($RustChange -eq "installed" -or $NodeChange -eq "installed" -or $PnpmChange -eq "installed" -or $MsvcChange -eq "installed") { "true" } else { "false" }

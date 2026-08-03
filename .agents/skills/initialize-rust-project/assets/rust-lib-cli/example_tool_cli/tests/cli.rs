@@ -13,7 +13,7 @@ fn parse_single_json_document(output: &[u8]) -> serde_json::Value {
     serde_json::from_slice(output).unwrap()
 }
 
-/// 校验每个机器响应都携带稳定 schema、中性逻辑命令和 UTC 时间戳。
+/// 校验每个机器响应都携带稳定模式定义、中性逻辑命令和 UTC 时间戳。
 fn assert_metadata(value: &serde_json::Value) {
     assert_eq!(value["meta"]["schemaVersion"], "1");
     assert_eq!(value["meta"]["command"], "scaffold.status");
@@ -89,7 +89,7 @@ fn reports_human_scaffold_status() {
     assert!(output.stderr.is_empty());
     assert_eq!(
         String::from_utf8(output.stdout).unwrap(),
-        "Project scaffold initialized; product definition is required.\n"
+        "项目脚手架已初始化；仍需定义产品。\n"
     );
 }
 

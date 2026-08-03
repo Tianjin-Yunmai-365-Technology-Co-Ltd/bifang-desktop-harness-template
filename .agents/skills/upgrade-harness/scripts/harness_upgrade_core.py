@@ -48,13 +48,13 @@ def canonical_directory(path: Path, label: str) -> Path:
     """解析并校验一个非符号链接目录。"""
 
     if path.is_symlink():
-        raise UpgradeError(f"{label} must not be a symlink: {path}")
+        raise UpgradeError(f"{label}不得是符号链接：{path}")
     try:
         resolved = path.resolve(strict=True)
     except OSError as exc:
-        raise UpgradeError(f"cannot resolve {label} {path}: {exc}") from exc
+        raise UpgradeError(f"无法解析{label} {path}：{exc}") from exc
     if not resolved.is_dir():
-        raise UpgradeError(f"{label} is not a directory: {resolved}")
+        raise UpgradeError(f"{label}不是目录：{resolved}")
     return resolved
 
 
@@ -68,10 +68,10 @@ def safe_relative_path(raw: str) -> str:
         or ".." in candidate.parts
         or "\x00" in raw
     ):
-        raise UpgradeError(f"unsafe relative path: {raw!r}")
+        raise UpgradeError(f"相对路径不安全：{raw!r}")
     normalized = candidate.as_posix()
     if normalized in {".", ""} or normalized != raw.replace("\\", "/"):
-        raise UpgradeError(f"non-canonical relative path: {raw!r}")
+        raise UpgradeError(f"相对路径不是规范形式：{raw!r}")
     return normalized
 
 
@@ -86,7 +86,7 @@ def assert_safe_path(
 
     absolute = lexical_absolute(path)
     if not is_within(absolute, root):
-        raise UpgradeError(f"{label} escapes declared root: {absolute}")
+        raise UpgradeError(f"{label}越出声明根目录：{absolute}")
     relative = absolute.relative_to(root)
     cursor = root
     parts = relative.parts
@@ -95,16 +95,16 @@ def assert_safe_path(
         exists = os.path.lexists(cursor)
         if not exists:
             if index != len(parts) - 1 and not final_may_be_missing:
-                raise UpgradeError(f"{label} parent is missing: {cursor}")
+                raise UpgradeError(f"{label}的父路径缺失：{cursor}")
             break
         observed = os.lstat(cursor)
         is_junction = bool(
             hasattr(os.path, "isjunction") and os.path.isjunction(cursor)
         )
         if stat.S_ISLNK(observed.st_mode) or is_junction:
-            raise UpgradeError(f"{label} contains a symlink or junction: {cursor}")
+            raise UpgradeError(f"{label}包含符号链接或目录联接：{cursor}")
         if index != len(parts) - 1 and not stat.S_ISDIR(observed.st_mode):
-            raise UpgradeError(f"{label} parent is not a directory: {cursor}")
+            raise UpgradeError(f"{label}的父路径不是目录：{cursor}")
     return absolute
 
 
@@ -112,13 +112,13 @@ def load_json(path: Path, label: str) -> dict[str, Any]:
     """读取非符号链接 JSON 对象并稳定报告语法或顶层类型错误。"""
 
     if path.is_symlink() or not path.is_file():
-        raise UpgradeError(f"{label} must be a regular non-symlink file: {path}")
+        raise UpgradeError(f"{label}必须是非符号链接的普通文件：{path}")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise UpgradeError(f"cannot read {label} {path}: {exc}") from exc
+        raise UpgradeError(f"无法读取{label} {path}：{exc}") from exc
     if not isinstance(value, dict):
-        raise UpgradeError(f"{label} must contain a JSON object: {path}")
+        raise UpgradeError(f"{label}必须包含 JSON 对象：{path}")
     return value
 
 
@@ -127,11 +127,11 @@ def snapshot_fd(file_descriptor: int) -> Snapshot:
 
     observed = os.fstat(file_descriptor)
     if not stat.S_ISREG(observed.st_mode):
-        raise UpgradeError("snapshot source is not a regular file")
+        raise UpgradeError("快照来源不是普通文件")
     permission_mode = stat.S_IMODE(observed.st_mode)
     if permission_mode & ~0o777:
         raise UpgradeError(
-            f"snapshot source uses unsupported special permission bits: {oct(permission_mode)}"
+            f"快照来源使用了不受支持的特殊权限位：{oct(permission_mode)}"
         )
     digest = hashlib.sha256()
     os.lseek(file_descriptor, 0, os.SEEK_SET)
@@ -153,7 +153,7 @@ def snapshot_file(path: Path) -> Snapshot:
     try:
         file_descriptor = os.open(path, flags)
     except OSError as exc:
-        raise UpgradeError(f"cannot open regular file {path}: {exc}") from exc
+        raise UpgradeError(f"无法打开普通文件 {path}：{exc}") from exc
     try:
         return snapshot_fd(file_descriptor)
     finally:
@@ -166,7 +166,7 @@ def validate_snapshot(value: Any, label: str) -> Snapshot | None:
     if value is None:
         return None
     if not isinstance(value, dict) or set(value) != {"sha256", "mode"}:
-        raise UpgradeError(f"invalid snapshot for {label}")
+        raise UpgradeError(f"{label}的快照非法")
     digest = value.get("sha256")
     mode = value.get("mode")
     if (
@@ -177,11 +177,11 @@ def validate_snapshot(value: Any, label: str) -> Snapshot | None:
         or mode < 0
         or mode > 0o777
     ):
-        raise UpgradeError(f"invalid snapshot for {label}")
+        raise UpgradeError(f"{label}的快照非法")
     return {"sha256": digest, "mode": mode}
 
 
-def require_git_root(root: Path, label: str = "target") -> dict[str, str | int | bool]:
+def require_git_root(root: Path, label: str = "目标") -> dict[str, str | int | bool]:
     """确认独立且已有提交的 Git 根，并绑定分支、HEAD 与工作区状态。"""
 
     def git_output(*arguments: str, allow_failure: bool = False) -> str:
@@ -193,7 +193,7 @@ def require_git_root(root: Path, label: str = "target") -> dict[str, str | int |
         )
         if result.returncode != 0 and not allow_failure:
             raise UpgradeError(
-                f"{label} Git command failed ({' '.join(arguments)}): "
+                f"{label} Git 命令失败（{' '.join(arguments)}）："
                 f"{result.stderr.strip()}"
             )
         return result.stdout.strip() if result.returncode == 0 else "unborn"
@@ -201,7 +201,7 @@ def require_git_root(root: Path, label: str = "target") -> dict[str, str | int |
     observed_root = Path(git_output("rev-parse", "--show-toplevel")).resolve(strict=True)
     if observed_root != root:
         raise UpgradeError(
-            f"{label} Git top-level mismatch: expected {root}, got {observed_root}"
+            f"{label} Git 顶层目录不匹配：预期 {root}，实际 {observed_root}"
         )
     common_raw = Path(git_output("rev-parse", "--git-common-dir"))
     common = (
@@ -212,7 +212,7 @@ def require_git_root(root: Path, label: str = "target") -> dict[str, str | int |
     common_stat = common.stat()
     head = git_output("rev-parse", "--verify", "HEAD", allow_failure=True)
     if head == "unborn":
-        raise UpgradeError(f"{label} Git repository must have an existing HEAD commit")
+        raise UpgradeError(f"{label} Git 仓库必须已有 HEAD 提交")
     status_result = subprocess.run(
         [
             "git",
@@ -228,7 +228,7 @@ def require_git_root(root: Path, label: str = "target") -> dict[str, str | int |
     )
     if status_result.returncode != 0:
         raise UpgradeError(
-            f"{label} Git status failed: "
+            f"{label} Git 状态检查失败："
             f"{status_result.stderr.decode('utf-8', errors='replace').strip()}"
         )
     status_digest = hashlib.sha256(status_result.stdout).hexdigest()
@@ -251,32 +251,32 @@ def require_source_identity(
 ) -> tuple[Path, dict[str, str | int | bool]]:
     """验证来源 Harness 根、已提交版本和干净工作区，并返回可审计身份。"""
 
-    source = canonical_directory(source_root, "source Harness root")
-    identity = require_git_root(source, "source Harness")
+    source = canonical_directory(source_root, "源 Harness 根目录")
+    identity = require_git_root(source, "源 Harness")
     if identity["dirty"]:
-        raise UpgradeError("source Harness Git worktree must be clean")
+        raise UpgradeError("源 Harness Git 工作树必须保持干净")
     if expected_commit != identity["head"]:
         raise UpgradeError(
-            "source commit does not match source Harness HEAD: "
-            f"expected {expected_commit}, got {identity['head']}"
+            "源 commit 与源 Harness HEAD 不匹配："
+            f"预期 {expected_commit}，实际 {identity['head']}"
         )
     version_file = source / "Version.md"
     assert_safe_path(
         source,
         version_file,
-        "source Harness Version.md",
+        "源 Harness Version.md",
         final_may_be_missing=False,
     )
     if version_file.is_symlink() or not version_file.is_file():
-        raise UpgradeError("source Harness Version.md must be a regular file")
+        raise UpgradeError("源 Harness Version.md 必须是普通文件")
     match = VERSION_PATTERN.search(version_file.read_text(encoding="utf-8"))
     if not match:
-        raise UpgradeError("source Harness Version.md has no current version")
+        raise UpgradeError("源 Harness Version.md 没有当前版本")
     observed_version = match.group(1)
     if expected_version != observed_version:
         raise UpgradeError(
-            "source version does not match source Harness Version.md: "
-            f"expected {expected_version}, got {observed_version}"
+            "源版本与源 Harness Version.md 不匹配："
+            f"预期 {expected_version}，实际 {observed_version}"
         )
     return source, identity
 
@@ -293,32 +293,32 @@ def require_control_paths(
         observed_ownership = ownership_path.resolve(strict=True)
     except OSError as exc:
         raise UpgradeError(
-            f"cannot resolve ownership manifest {ownership_path}: {exc}"
+            f"无法解析所有权 manifest {ownership_path}：{exc}"
         ) from exc
     if observed_ownership != expected_ownership:
         raise UpgradeError(
-            f"ownership manifest must be exactly {expected_ownership}"
+            f"所有权 manifest 必须精确位于 {expected_ownership}"
         )
     assert_safe_path(
         target,
         observed_ownership,
-        "ownership manifest",
+        "所有权 manifest",
         final_may_be_missing=False,
     )
     if not observed_ownership.is_file():
-        raise UpgradeError(f"ownership manifest is missing: {observed_ownership}")
+        raise UpgradeError(f"缺少所有权 manifest：{observed_ownership}")
 
     expected_lock = target / LOCK_RELATIVE
     try:
         observed_lock = lock_path.resolve(strict=False)
     except OSError as exc:
-        raise UpgradeError(f"cannot resolve upstream lock {lock_path}: {exc}") from exc
+        raise UpgradeError(f"无法解析上游 lock {lock_path}：{exc}") from exc
     if observed_lock != expected_lock:
-        raise UpgradeError(f"lock must be exactly {expected_lock}")
+        raise UpgradeError(f"lock 必须精确位于 {expected_lock}")
     assert_safe_path(
         target,
         observed_lock,
-        "upstream lock",
+        "上游 lock",
         final_may_be_missing=True,
     )
     return observed_ownership, observed_lock
@@ -327,36 +327,36 @@ def require_control_paths(
 def load_ownership(path: Path) -> tuple[str, list[tuple[str, str]]]:
     """加载有序所有权规则；具体规则必须位于兜底规则之前。"""
 
-    data = load_json(path, "ownership manifest")
+    data = load_json(path, "所有权 manifest")
     if data.get("schema_version") != 1:
-        raise UpgradeError("ownership manifest schema_version must be 1")
+        raise UpgradeError("所有权 manifest 的 schema_version 必须为 1")
     default_mode = data.get("default_mode")
     if default_mode != "protected":
-        raise UpgradeError("ownership manifest default_mode must be protected")
+        raise UpgradeError("所有权 manifest 的 default_mode 必须为 protected")
     raw_rules = data.get("rules")
     if not isinstance(raw_rules, list) or not raw_rules:
-        raise UpgradeError("ownership manifest rules must be a non-empty list")
+        raise UpgradeError("所有权 manifest 的 rules 必须是非空列表")
     rules: list[tuple[str, str]] = []
     seen_patterns: set[str] = set()
     for index, item in enumerate(raw_rules):
         if not isinstance(item, dict) or set(item) != {"pattern", "mode"}:
-            raise UpgradeError(f"ownership rule {index} must contain pattern/mode")
+            raise UpgradeError(f"所有权规则 {index} 必须包含 pattern/mode")
         pattern = item.get("pattern")
         mode = item.get("mode")
         if not isinstance(pattern, str) or not pattern:
-            raise UpgradeError(f"ownership rule {index} has invalid pattern")
+            raise UpgradeError(f"所有权规则 {index} 的 pattern 非法")
         if pattern in seen_patterns:
-            raise UpgradeError(f"duplicate ownership rule pattern: {pattern}")
+            raise UpgradeError(f"所有权规则的 pattern 重复：{pattern}")
         if mode not in VALID_MODES:
-            raise UpgradeError(f"ownership rule {index} has invalid mode: {mode!r}")
+            raise UpgradeError(f"所有权规则 {index} 的 mode 非法：{mode!r}")
         seen_patterns.add(pattern)
         rules.append((pattern, mode))
     observed_rules = dict(rules)
     for pattern, expected_mode in MINIMUM_OWNERSHIP_RULES.items():
         if observed_rules.get(pattern) != expected_mode:
             raise UpgradeError(
-                "ownership manifest weakens required protection: "
-                f"{pattern} must be {expected_mode}"
+                "所有权 manifest 削弱了必需保护："
+                f"{pattern} 必须为 {expected_mode}"
             )
     self_index = next(
         index
@@ -370,7 +370,7 @@ def load_ownership(path: Path) -> tuple[str, list[tuple[str, str]]]:
     )
     if self_index >= generic_index:
         raise UpgradeError(
-            "managed-self ownership rule must precede the generic managed rule"
+            "managed-self 所有权规则必须位于通用 managed 规则之前"
         )
     return default_mode, rules
 
@@ -441,7 +441,7 @@ def scan_tree(
             try:
                 observed = child.lstat()
             except OSError as exc:
-                raise UpgradeError(f"cannot inspect {child}: {exc}") from exc
+                raise UpgradeError(f"无法检查 {child}：{exc}") from exc
             is_junction = bool(
                 hasattr(os.path, "isjunction") and os.path.isjunction(child)
             )
@@ -461,22 +461,22 @@ def load_lock(path: Path) -> dict[str, Any] | None:
 
     if not os.path.lexists(path):
         return None
-    data = load_json(path, "upstream lock")
+    data = load_json(path, "上游 lock")
     if data.get("schema_version") != SCHEMA_VERSION:
         raise UpgradeError(
-            f"upstream lock schema_version must be {SCHEMA_VERSION}"
+            f"上游 lock 的 schema_version 必须为 {SCHEMA_VERSION}"
         )
     entries = data.get("entries")
     if not isinstance(entries, dict):
-        raise UpgradeError("upstream lock entries must be an object")
+        raise UpgradeError("上游 lock 的 entries 必须是 object")
     for raw_path, entry in entries.items():
         path_key = safe_relative_path(raw_path)
         if path_key != raw_path or not isinstance(entry, dict):
-            raise UpgradeError(f"invalid upstream lock entry: {raw_path!r}")
+            raise UpgradeError(f"上游 lock entry 非法：{raw_path!r}")
         if set(entry) != {"mode", "candidate", "target"}:
-            raise UpgradeError(f"invalid upstream lock fields for {raw_path}")
+            raise UpgradeError(f"{raw_path} 的上游 lock 字段非法")
         if entry.get("mode") not in VALID_MODES:
-            raise UpgradeError(f"invalid upstream lock mode for {raw_path}")
+            raise UpgradeError(f"{raw_path} 的上游 lock mode 非法")
         validate_snapshot(entry.get("candidate"), f"{raw_path}.candidate")
         validate_snapshot(entry.get("target"), f"{raw_path}.target")
     return data
@@ -556,14 +556,14 @@ def build_plan(
         source_version,
         source_commit,
     )
-    candidate = canonical_directory(candidate_root, "candidate root")
-    target = canonical_directory(target_root, "target root")
+    candidate = canonical_directory(candidate_root, "候选根目录")
+    target = canonical_directory(target_root, "目标根目录")
     roots = (source, candidate, target)
     for index, left in enumerate(roots):
         for right in roots[index + 1 :]:
             if left == right or left in right.parents or right in left.parents:
                 raise UpgradeError(
-                    "source, candidate, and target roots must be separate and non-nested"
+                    "源、候选和目标根目录必须彼此独立且不能嵌套"
                 )
     git_identity = require_git_root(target)
     ownership, lock_file = require_control_paths(target, ownership_path, lock_path)
@@ -580,7 +580,7 @@ def build_plan(
     entries = {} if lock is None else lock["entries"]
 
     problems = [
-        f"candidate contains symlink, special file, or Git metadata: {path}"
+        f"候选包含符号链接、特殊文件或 Git 元数据：{path}"
         for path in candidate_unsafe
     ]
     for path, is_directory in candidate_nodes.items():
@@ -590,7 +590,7 @@ def build_plan(
             rules=rules,
         )
         if mode in {"protected", "tombstone"}:
-            problems.append(f"candidate contains forbidden {mode} path: {path}")
+            problems.append(f"候选包含禁止的 {mode} 路径：{path}")
     for path, is_directory in target_nodes.items():
         mode = explicit_ownership_mode_for_node(
             path,
@@ -598,7 +598,7 @@ def build_plan(
             rules=rules,
         )
         if mode == "tombstone":
-            problems.append(f"target contains tombstone path: {path}")
+            problems.append(f"目标包含 tombstone 路径：{path}")
 
     relevant = set(candidate_files) | set(entries)
     for path in target_files:
@@ -607,7 +607,7 @@ def build_plan(
 
     for unsafe in target_unsafe:
         if any(path == unsafe or path.startswith(f"{unsafe}/") for path in relevant):
-            problems.append(f"target relevant path is symlink or special file: {unsafe}")
+            problems.append(f"目标相关路径是符号链接或特殊文件：{unsafe}")
 
     actions: list[dict[str, Any]] = []
     for raw_path in sorted(relevant):
@@ -618,7 +618,7 @@ def build_plan(
         baseline = entries.get(path)
         if baseline is not None and baseline.get("mode") != mode:
             problems.append(
-                f"ownership mode changed for {path}: "
+                f"{path} 的所有权 mode 已变化："
                 f"{baseline.get('mode')} -> {mode}"
             )
         if mode == "tombstone":
@@ -695,13 +695,13 @@ def build_plan(
 def write_new_plan(path: Path, value: dict[str, Any], forbidden_roots: tuple[Path, ...]) -> None:
     """只在候选/目标之外独占创建新计划，禁止覆盖任何现有文件。"""
 
-    parent = canonical_directory(path.parent, "plan output parent")
+    parent = canonical_directory(path.parent, "plan 输出父目录")
     output = parent / path.name
     for root in forbidden_roots:
         if is_within(output, root):
-            raise UpgradeError(f"plan output must remain outside {root}: {output}")
+            raise UpgradeError(f"plan 输出必须位于 {root} 之外：{output}")
     if os.path.lexists(output):
-        raise UpgradeError(f"plan output already exists; refusing overwrite: {output}")
+        raise UpgradeError(f"plan 输出已存在，拒绝覆盖：{output}")
     payload = json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     if hasattr(os, "O_NOFOLLOW"):
@@ -723,15 +723,15 @@ def write_new_plan(path: Path, value: dict[str, Any], forbidden_roots: tuple[Pat
             finally:
                 os.close(parent_descriptor)
     except OSError as exc:
-        raise UpgradeError(f"cannot create plan output {output}: {exc}") from exc
+        raise UpgradeError(f"无法创建 plan 输出 {output}：{exc}") from exc
 
 
 def load_reviewed_plan(plan_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     """重算计划并要求与受审 JSON 完全一致，拒绝篡改与状态漂移。"""
 
-    reviewed = load_json(plan_path, "upgrade plan")
+    reviewed = load_json(plan_path, "升级 plan")
     if reviewed.get("schema_version") != SCHEMA_VERSION:
-        raise UpgradeError(f"upgrade plan schema_version must be {SCHEMA_VERSION}")
+        raise UpgradeError(f"升级 plan 的 schema_version 必须为 {SCHEMA_VERSION}")
     required = {
         "source_root",
         "source_version",
@@ -742,7 +742,7 @@ def load_reviewed_plan(plan_path: Path) -> tuple[dict[str, Any], dict[str, Any]]
         "lock_path",
     }
     if not required.issubset(reviewed):
-        raise UpgradeError("upgrade plan is missing provenance fields")
+        raise UpgradeError("升级 plan 缺少 provenance 字段")
     recomputed = build_plan(
         Path(reviewed["source_root"]),
         reviewed["source_version"],
@@ -754,7 +754,7 @@ def load_reviewed_plan(plan_path: Path) -> tuple[dict[str, Any], dict[str, Any]]
     )
     if reviewed != recomputed:
         raise UpgradeError(
-            "reviewed plan no longer matches source, ownership, lock, Git identity, "
-            "candidate, or target; generate and review a new plan"
+            "已复核 plan 不再匹配源、所有权、lock、Git 身份、候选或目标；"
+            "请生成并复核新 plan"
         )
     return reviewed, recomputed

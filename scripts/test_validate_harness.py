@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 from collections.abc import Iterator
 from pathlib import Path
@@ -41,7 +44,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             ROOT / ".agents/skills/add-gui-adapter/references/react-frontend-baseline.md"
         ).read_text(encoding="utf-8")
         for fragment in (
-            "React and TypeScript",
+            "React 和 TypeScript",
             "Mantine UI",
             "TanStack Router",
             "TanStack Query",
@@ -188,7 +191,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 ## 验证里程碑 M1
 
 - 进入条件：Todo 全部 `done`。
-- 候选必须是完整真实产物，Mock 与 scaffold 不可验收。
+- 候选必须是完整真实产物，模拟实现与脚手架不可验收。
 - 失败时重开 Todo 并返回 `$implement-change`。
 """
 
@@ -252,6 +255,35 @@ class ValidateWorkPlanTests(unittest.TestCase):
             errors,
         )
 
+    def test_allows_explicit_not_run_with_negative_acceptance_sentence(self) -> None:
+        """否定句提到验收结论时，不得把未运行状态误判为已验收。"""
+
+        plan = self._valid_plan() + (
+            "\n- 当前状态：`Not run`；因此不产生 `Milestone accepted` 结论。\n"
+        )
+        self.assertEqual(self._validate(plan), [])
+
+    def test_scopes_each_milestone_to_its_preceding_todo_batch(self) -> None:
+        """前一批已验收时，后一批未完成 Todo 不得反向污染其结论。"""
+
+        first_batch = self._valid_plan().replace("（pending）", "（done）", 1)
+        first_batch += "\n- 里程碑状态：accepted\n\n"
+        second_batch = f"""## Todo 批次 B
+
+### TO{''}DO-B01（pending）：后续行为
+
+- 预期行为：实现后续行为。
+- 影响边界：只修改后续范围。
+- 完成验证：运行非空单元测试。
+
+## 验证里程碑 M2
+
+- 当前状态：`Not run`。
+- 候选必须是完整真实产物，模拟实现与脚手架不可验收。
+- 失败时重开 Todo 并返回 `$implement-change`。
+"""
+        self.assertEqual(self._validate(first_batch + second_batch), [])
+
 
 @contextlib.contextmanager
 def _with_workflow(contents: str) -> Iterator[Path]:
@@ -286,6 +318,18 @@ class ValidateHarnessWorkflowTests(unittest.TestCase):
         start = contents.index(start_marker)
         end = contents.index(end_marker, start)
         return start, end, contents[start:end]
+
+    @staticmethod
+    def _run_script(contents: str, step_name: str) -> str:
+        """提取受审 workflow 命名步骤的真实 run block，供前向 subprocess 测试。"""
+        start = contents.index(f"      - name: {step_name}\n")
+        end = contents.find("\n      - ", start + 1)
+        if end == -1:
+            end = len(contents)
+        block = contents[start:end]
+        marker = "        run: |\n"
+        script_start = block.index(marker) + len(marker)
+        return textwrap.dedent(block[script_start:])
 
     def test_positive_workflow_is_valid(self) -> None:
         """当前标准 workflow 只构建 pending 候选并应通过。"""
@@ -349,8 +393,8 @@ class ValidateHarnessWorkflowTests(unittest.TestCase):
         base = self._base_workflow()
         start, end, _ = self._slice(
             base,
-            "      - name: Package Unix candidate",
-            "      - name: Record candidate manifest",
+            "      - name: 打包 Unix 候选",
+            "      - name: 记录候选清单",
         )
         errors = self._validate(base[:start] + base[end:])
         self.assertTrue(any("package" in error for error in errors), errors)
@@ -360,28 +404,233 @@ class ValidateHarnessWorkflowTests(unittest.TestCase):
         base = self._base_workflow()
         start, end, package_block = self._slice(
             base,
-            "      - name: Package Unix candidate",
-            "      - name: Record candidate manifest",
+            "      - name: 打包 Unix 候选",
+            "      - name: 记录候选清单",
         )
         without_package = base[:start] + base[end:]
-        insert_at = without_package.index("      - name: Verify candidate")
+        insert_at = without_package.index("      - name: 验证候选\n")
         errors = self._validate(
             without_package[:insert_at] + package_block + without_package[insert_at:]
         )
-        self.assertTrue(any("must verify, package" in error for error in errors), errors)
+        self.assertTrue(any("must clean release, verify" in error for error in errors), errors)
 
-    def test_rejects_disabled_matrix_fail_fast(self) -> None:
-        """任一平台失败后不得显式要求其他平台继续候选流程。"""
+    def test_rejects_enabled_matrix_fail_fast(self) -> None:
+        """默认三平台构建必须收集每个平台终态，不能首错即取消其余平台。"""
         mutated = self._base_workflow().replace(
-            "      fail-fast: true\n",
             "      fail-fast: false\n",
+            "      fail-fast: true\n",
             1,
         )
         errors = self._validate(mutated)
         self.assertTrue(
-            any("forbidden candidate behavior: fail-fast: false" in e for e in errors),
+            any("forbidden candidate behavior: fail-fast: true" in e for e in errors),
             errors,
         )
+
+    def test_rejects_release_cleanup_after_build_or_missing(self) -> None:
+        """两个平台清理步骤都必须位于测试和 release build 之前。"""
+        base = self._base_workflow()
+        start, end, cleanup_block = self._slice(
+            base,
+            "      - name: 准备 Unix 发布目录",
+            "      - name: 验证候选",
+        )
+        without_cleanup = base[:start] + base[end:]
+        errors = self._validate(without_cleanup)
+        self.assertTrue(any("release" in error for error in errors), errors)
+
+        insert_at = without_cleanup.index("      - name: 尝试 Unix 签名")
+        errors = self._validate(
+            without_cleanup[:insert_at] + cleanup_block + without_cleanup[insert_at:]
+        )
+        self.assertTrue(any("must clean release, verify" in error for error in errors), errors)
+
+    def test_rejects_missing_conditional_signing_and_manifest_status(self) -> None:
+        """构建成功后必须评估签名，并在 manifest 保留签名状态。"""
+        base = self._base_workflow()
+        start, end, _ = self._slice(
+            base,
+            "      - name: 尝试 Unix 签名",
+            "      - name: 打包 Unix 候选",
+        )
+        errors = self._validate(base[:start] + base[end:])
+        self.assertTrue(any("sign" in error for error in errors), errors)
+
+        without_status = base.replace('              "signingStatus": os.environ["SIGNING_STATUS"],\n', "", 1)
+        errors = self._validate(without_status)
+        self.assertTrue(any("signingStatus" in error for error in errors), errors)
+
+    def test_rejects_swallowed_signing_failure_and_non_release_upload(self) -> None:
+        """签名错误不能被软化，上传也必须使用精确 release 文件白名单。"""
+        swallowed = self._base_workflow().replace(
+            "      - name: 尝试 Unix 签名\n",
+            "      - name: 尝试 Unix 签名\n        continue-on-error: true\n",
+            1,
+        )
+        errors = self._validate(swallowed)
+        self.assertTrue(any("continue-on-error" in error for error in errors), errors)
+
+        wrong_path = self._base_workflow().replace(
+            "            release/${{ steps.candidate_artifact.outputs.archive_name }}.sha256\n",
+            "            output/${{ steps.candidate_artifact.outputs.archive_name }}.sha256\n",
+            1,
+        )
+        errors = self._validate(wrong_path)
+        self.assertTrue(any("exact declared" in error for error in errors), errors)
+
+    def test_rejects_unpinned_source_commit_checkout(self) -> None:
+        """候选与签名钩子必须绑定显式批准的 40 位源码提交。"""
+        base = self._base_workflow()
+        without_ref = base.replace("          ref: ${{ inputs.source_commit }}\n", "", 1)
+        errors = self._validate(without_ref)
+        self.assertTrue(any("source commit" in error for error in errors), errors)
+
+        without_verification = base.replace("      - name: 验证已检出源码\n", "      - name: 观察已检出源码\n", 1)
+        errors = self._validate(without_verification)
+        self.assertTrue(any("source" in error for error in errors), errors)
+
+    def test_rejects_missing_signing_evidence_and_exact_artifact_set_gate(self) -> None:
+        """manifest 不能只信任签名状态，也不能从 release 中猜测候选文件。"""
+        base = self._base_workflow()
+        without_evidence = base.replace(
+            '              "signingEvidence": {\n',
+            '              "omittedEvidence": {\n',
+            1,
+        )
+        errors = self._validate(without_evidence)
+        self.assertTrue(any("signingEvidence" in error for error in errors), errors)
+
+        without_exact_set = base.replace(
+            "          if observed_after != expected_after:\n",
+            "          if False:\n",
+            1,
+        )
+        errors = self._validate(without_exact_set)
+        self.assertTrue(any("exact artifact-set" in error for error in errors), errors)
+
+    def test_rejects_missing_atomic_candidate_commit(self) -> None:
+        """staging 结果必须以不跟随 release 链接的目录级原子提交收口。"""
+        base = self._base_workflow()
+        start, end, _ = self._slice(
+            base,
+            "      - name: 提交候选制品集合",
+            "      - uses: actions/upload-artifact",
+        )
+        errors = self._validate(base[:start] + base[end:])
+        self.assertTrue(any("commit" in error or "atomic" in error for error in errors), errors)
+
+    def test_manifest_and_atomic_commit_run_against_real_files(self) -> None:
+        """真实执行 workflow 内嵌脚本，覆盖三件套成功路径与结构化签名证据。"""
+        workflow = self._base_workflow()
+        manifest_script = self._run_script(workflow, "记录候选清单")
+        commit_script = self._run_script(workflow, "提交候选制品集合")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            release = root / "release"
+            release.mkdir()
+            stage = root / ".release-clean.candidate.test"
+            stage.mkdir()
+            archive_name = "example-tool-v1.2.3-linux-x64.tar.gz"
+            archive = stage / archive_name
+            archive.write_bytes(b"candidate-bytes")
+            digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+            (stage / f"{archive_name}.sha256").write_text(
+                f"{digest}  {archive_name}\n",
+                encoding="ascii",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GITHUB_WORKSPACE": str(root),
+                    "CANDIDATE_ARCHIVE": archive_name,
+                    "CANDIDATE_STAGE": str(stage),
+                    "PRODUCT_NAME": "example-tool",
+                    "VERSION": "1.2.3",
+                    "SOURCE_COMMIT": "a" * 40,
+                    "BUILD_RUN_ID": "fixture-1",
+                    "RUNNER_OS": "Linux",
+                    "RUNNER_ARCH": "X64",
+                    "SIGNING_STATUS": "signed",
+                    "SIGNING_REASON": "configured-hook-succeeded",
+                    "SIGNING_EVIDENCE": "configured-hook-verify-exit-0",
+                    "PYTHON_COMMAND": sys.executable,
+                }
+            )
+
+            manifest_result = subprocess.run(
+                ["bash", "-c", manifest_script],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(manifest_result.returncode, 0, manifest_result.stderr)
+            manifest = json.loads(
+                (stage / f"{archive_name}.manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(manifest["sha256"], digest)
+            self.assertEqual(
+                manifest["signingEvidence"]["verification"],
+                "configured-hook-verify-exit-0",
+            )
+
+            commit_result = subprocess.run(
+                ["bash", "-c", commit_script],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(commit_result.returncode, 0, commit_result.stderr)
+            self.assertFalse(stage.exists())
+            self.assertEqual(
+                {path.name for path in release.iterdir()},
+                {archive_name, f"{archive_name}.sha256", f"{archive_name}.manifest.json"},
+            )
+
+    def test_atomic_commit_rejects_extra_staging_file_before_replacing_release(self) -> None:
+        """staging 多出文件时必须在删除空 release 前失败。"""
+        script = self._run_script(self._base_workflow(), "提交候选制品集合")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            release = root / "release"
+            release.mkdir()
+            stage = root / ".release-clean.candidate.test"
+            stage.mkdir()
+            archive_name = "example-tool-v1.2.3-linux-x64.tar.gz"
+            for name in (
+                archive_name,
+                f"{archive_name}.sha256",
+                f"{archive_name}.manifest.json",
+                "unexpected.txt",
+            ):
+                (stage / name).write_text("fixture", encoding="utf-8")
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GITHUB_WORKSPACE": str(root),
+                    "CANDIDATE_ARCHIVE": archive_name,
+                    "CANDIDATE_STAGE": str(stage),
+                    "PYTHON_COMMAND": sys.executable,
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", "-c", script],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("提交前候选暂存目录文件集发生变化", result.stderr)
+            self.assertTrue(release.is_dir())
+            self.assertEqual(list(release.iterdir()), [])
+            self.assertTrue(stage.is_dir())
 
     def test_rejects_commented_out_test_command(self) -> None:
         """注释中保留命令文本不能冒充活动的 cargo test。"""
@@ -417,11 +666,11 @@ class ValidateHarnessWorkflowTests(unittest.TestCase):
         errors = self._validate(mutated)
         self.assertTrue(errors)
 
-    def test_rejects_invalid_yaml_and_arbitrary_dispatch_input(self) -> None:
-        """完整模板摘要必须拒绝非法 YAML 与未审输入。"""
+    def test_rejects_unreviewed_workflow_bytes_and_arbitrary_dispatch_input(self) -> None:
+        """全文件摘要必须拒绝未审字节与未审 dispatch 输入。"""
 
-        invalid_yaml = self._base_workflow() + "\n:\n"
-        self.assertTrue(self._validate(invalid_yaml))
+        unreviewed_bytes = self._base_workflow() + "\n:\n"
+        self.assertTrue(self._validate(unreviewed_bytes))
         marker = "      version:\n"
         extra_input = "      arbitrary_command:\n        type: string\n"
         self.assertTrue(

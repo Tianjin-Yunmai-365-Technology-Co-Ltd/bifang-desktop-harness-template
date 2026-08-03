@@ -1,46 +1,46 @@
-# Tauri GUI React frontend baseline
+# Tauri GUI React 前端基线
 
-This is the frontend baseline for Tauri GUI adapters.
+这是 Tauri GUI 适配器的前端基线。
 
-## Fixed stack
+## 固定技术栈
 
-- React and TypeScript for frontend application and component code.
-- Mantine UI (`@mantine/core` and `@mantine/hooks`) for the component and theme foundation. Add other Mantine packages only when an approved screen needs them.
-- TanStack Router (`@tanstack/react-router`) as the only application routing system.
-- TanStack Query (`@tanstack/react-query`) for command-backed and other asynchronous resource state, including request lifecycle, caching and invalidation.
-- Jotai (`jotai`) for client-only state that genuinely needs to be shared across components.
+- 使用 React 和 TypeScript 编写前端应用和组件代码。
+- 使用 Mantine UI（`@mantine/core` 和 `@mantine/hooks`）作为组件和主题基础。只有已批准页面需要时才增加其他 Mantine 包。
+- 使用 TanStack Router（`@tanstack/react-router`）作为唯一应用路由系统。
+- 使用 TanStack Query（`@tanstack/react-query`）管理命令支撑及其他异步资源状态，包括请求生命周期、缓存和失效。
+- 使用 Jotai（`jotai`）管理确实需要跨组件共享的纯客户端状态。
 
-Use the latest mutually compatible stable releases available when the adapter is implemented. “Latest” never authorizes prereleases, an unsupported Node/WebView target, skipping a migration, ignoring security advisories or bypassing the locked production build.
+实施适配器时使用可用的最新、彼此兼容稳定版本。“最新”绝不授权使用预发布版、不受支持的 Node/WebView 目标、跳过迁移、忽略安全通告或绕过锁定生产构建。
 
-## State ownership
+## 状态所有权
 
-| State | Owner |
+| 状态 | 所有者 |
 |---|---|
-| URL, route params, validated search params and navigation | TanStack Router |
-| Command-backed data, request status, cache, retries and invalidation | TanStack Query |
-| Local component-only interaction | React component state |
-| Cross-component client/interaction state with no core authority | Jotai |
-| Domain rules, durable records and authoritative application state | Shared core/store behind Tauri commands |
+| URL、路由参数、已验证搜索参数和导航 | TanStack Router |
+| 命令支撑的数据、请求状态、缓存、重试和失效 | TanStack Query |
+| 仅限本地组件的交互 | React 组件状态 |
+| 不具备核心权威性的跨组件客户端/交互状态 | Jotai |
+| 领域规则、持久记录和权威应用状态 | Tauri 命令背后的共享核心/存储 |
 
-Do not mirror a Query result into Jotai, place durable domain state in atoms, or use route state as a second persistence layer. Derive views from the owning source.
+不得把 Query 结果镜像到 Jotai，不得在 atom 中放置持久领域状态，也不得把路由状态用作第二持久层。视图必须从所有权来源派生。
 
-## UI and architecture
+## UI 与架构
 
-- Start with Mantine components, layout primitives, focus behavior and theme tokens. A custom component must represent an approved interaction or styling need that Mantine composition cannot express.
-- Keep route definitions and loaders narrow. Integrate TanStack Router loaders with TanStack Query where prefetching prevents waterfalls, but keep a single QueryClient/cache.
-- Use Jotai only after local component state or URL/search state is insufficient; keep atoms small and purpose-named.
-- Frontend code consumes narrow typed Tauri commands. It does not contain business rules, migrations, platform-independent validation or a second durable store.
-- Package local frontend assets in Tauri. Remote content, telemetry, cookies, authentication and network access require explicit scope.
+- 优先使用 Mantine 组件、布局原语、焦点行为和主题令牌。自定义组件必须代表 Mantine 组合无法表达的已批准交互或样式需求。
+- 保持路由定义和加载器轻量。当预取能防止瀑布请求时，将 TanStack Router 加载器与 TanStack Query 集成，但只保留一个 QueryClient/缓存。
+- 只有本地组件状态或 URL/搜索状态不足时才使用 Jotai；atom 应保持小而且按用途命名。
+- 前端代码使用窄而有类型的 Tauri 命令。它不包含业务规则、迁移、平台无关验证或第二套持久存储。
+- 在 Tauri 中打包本地前端资产。远程内容、遥测、Cookie、身份验证和网络访问需要明确范围。
 
-## Required evidence
+## 必需证据
 
-- Use pnpm, record its version, and commit `pnpm-lock.yaml` with the selected package versions and Node/WebView compatibility evidence.
-- Run formatting, TypeScript typecheck, lint, non-empty component/route/query/state tests and a locked production build.
-- Test route not-found/error boundaries, Query loading/error/refetch/invalidation, Jotai transitions, keyboard-only use and relevant accessibility semantics.
-- Use the real built frontend in the packaged or release-mode Tauri application for the approved critical flow during release-stage acceptance.
+- 使用 pnpm，记录其版本，并提交包含选定包版本和 Node/WebView 兼容证据的 `pnpm-lock.yaml`。
+- 运行格式化、TypeScript 类型检查、代码规范检查、非空组件/路由/查询/状态测试和锁定生产构建。
+- 测试路由未找到/错误边界、Query 加载/错误/重新获取/失效、Jotai 转换、纯键盘使用和相关无障碍语义。
+- 发布阶段验收期间，在已打包或发布模式 Tauri 应用中使用真实构建前端完成已批准关键流程。
 
-## Recommendation boundary
+## 推荐边界
 
-The fixed stack also fixes pnpm as the package manager. It does not preselect the build tool, schema/validation library, form library, icons, charts, test runner, mocking library or persistence. Recommend those only when a real downstream requirement makes the choice necessary, and apply dependency admission and verification rules.
+固定技术栈同时固定 pnpm 作为包管理器。它不预选构建工具、模式定义/验证库、表单库、图标、图表、测试运行器、模拟库或持久化方案。只有真实下游需求使选择成为必要时才推荐，并应用依赖准入和验证规则。
 
-Any replacement of a fixed-stack library requires a hard-rule exception ADR with the failed constraint, risk, scope, alternative evidence and recovery/migration criteria.
+替换任何固定技术栈库都必须形成硬规则例外 ADR，其中包含未满足的约束、风险、范围、替代证据和恢复/迁移标准。

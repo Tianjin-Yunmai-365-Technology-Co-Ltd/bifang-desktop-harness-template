@@ -50,7 +50,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--rename-root",
         action="store_true",
-        help="把 basename 等于旧标识的项目根目录改为新标识",
+        help="把目录基本名称等于旧标识的项目根目录改为新标识",
     )
     return parser.parse_args()
 
@@ -64,19 +64,19 @@ def build_replacements(args: argparse.Namespace) -> list[tuple[str, str]]:
     ]
     for raw in args.replace:
         if "=" not in raw:
-            raise ValueError(f"invalid --replace value: {raw!r}")
+            raise ValueError(f"--replace 值非法：{raw!r}")
         old, new = raw.split("=", 1)
         pairs.append((old, new))
 
     normalized: dict[str, str] = {}
     for old, new in pairs:
         if not old or not new:
-            raise ValueError("replacement values must be non-empty")
+            raise ValueError("替换值不得为空")
         if old == new:
-            raise ValueError(f"old and new values must differ: {old!r}")
+            raise ValueError(f"旧值和新值必须不同：{old!r}")
         previous = normalized.get(old)
         if previous is not None and previous != new:
-            raise ValueError(f"conflicting replacements for {old!r}")
+            raise ValueError(f"以下旧值存在冲突的替换映射：{old!r}")
         normalized[old] = new
     return sorted(normalized.items(), key=lambda pair: len(pair[0]), reverse=True)
 
@@ -100,7 +100,7 @@ def inventory(root: Path) -> tuple[list[Path], list[Path], list[str]]:
             path = current_path / name
             relative = path.relative_to(root).as_posix()
             if path.is_symlink():
-                raise ValueError(f"symbolic link is not allowed: {relative}")
+                raise ValueError(f"不允许符号链接：{relative}")
             if name in EXCLUDED_DIRECTORIES and (name != "release" or current_path == root):
                 excluded.append(relative + "/")
             else:
@@ -111,7 +111,7 @@ def inventory(root: Path) -> tuple[list[Path], list[Path], list[str]]:
             path = current_path / name
             relative = path.relative_to(root).as_posix()
             if path.is_symlink():
-                raise ValueError(f"symbolic link is not allowed: {relative}")
+                raise ValueError(f"不允许符号链接：{relative}")
             files.append(path)
     return files, directories, excluded
 
@@ -162,10 +162,10 @@ def plan_changes(
     destinations: set[Path] = set()
     for source, destination in path_changes:
         if destination in destinations:
-            raise ValueError(f"multiple paths would map to {destination.relative_to(root)}")
+            raise ValueError(f"多个路径将映射到同一目标：{destination.relative_to(root)}")
         destinations.add(destination)
         if destination.exists() and destination not in sources:
-            raise ValueError(f"destination already exists: {destination.relative_to(root)}")
+            raise ValueError(f"目标已存在：{destination.relative_to(root)}")
     return content_changes, path_changes, excluded, skipped_binary
 
 
@@ -191,10 +191,10 @@ def plan_root_rename(root: Path, old_id: str, new_id: str, enabled: bool) -> Pat
     if not enabled:
         return None
     if root.name != old_id:
-        raise ValueError("--rename-root requires the project root basename to equal --old-id")
+        raise ValueError("--rename-root 要求项目根目录基本名称与 --old-id 相同")
     destination = root.with_name(new_id)
     if destination.exists():
-        raise ValueError(f"root rename destination already exists: {destination}")
+        raise ValueError(f"根目录重命名目标已存在：{destination}")
     return destination
 
 
@@ -221,11 +221,11 @@ def main() -> int:
     root = args.root.expanduser().resolve()
     original_root = root
     if not root.is_dir():
-        raise ValueError(f"project root is not a directory: {root}")
+        raise ValueError(f"项目根目录不是目录：{root}")
     if not SNAKE_CASE.fullmatch(args.old_id) or not SNAKE_CASE.fullmatch(args.new_id):
-        raise ValueError("--old-id and --new-id must be ASCII snake_case")
+        raise ValueError("--old-id 和 --new-id 必须是 ASCII snake_case")
     if not KEBAB_CASE.fullmatch(args.old_kebab) or not KEBAB_CASE.fullmatch(args.new_kebab):
-        raise ValueError("--old-kebab and --new-kebab must be lowercase kebab-case")
+        raise ValueError("--old-kebab 和 --new-kebab 必须是小写 kebab-case")
 
     replacements = build_replacements(args)
     root_destination = plan_root_rename(root, args.old_id, args.new_id, args.rename_root)

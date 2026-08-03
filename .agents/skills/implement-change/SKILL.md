@@ -1,36 +1,36 @@
 ---
 name: implement-change
-description: Execute the active Work Plan TodoList through implementation and non-empty unit/regression tests, iterating until the current batch is complete. Use after $plan-change for coding, fixes, or when milestone acceptance reopens Todo because expected logic is missing or behavior deviates.
+description: 通过实现和非空单元/回归测试执行活动工作计划的 TodoList，持续迭代直到当前批次完成。用于在 $plan-change 之后进行编码或修复，或在里程碑验收因预期逻辑缺失或行为偏差而重开 Todo 时。
 ---
 
-# Implement Change
+# 实施变更
 
-Complete the current Todo batch without widening scope or prematurely entering milestone acceptance.
+完成当前 Todo 批次，不得扩大范围或过早进入里程碑验收。
 
-## Workflow
+## 工作流程
 
-1. Read `docs/AGENT_POLICY.md`. If `parallel_worktree_subagents` is `enabled`, use `$run-parallel-worktrees` only when the active batch has at least two independent write scopes and a clean committed baseline; otherwise choose the single-Agent current-worktree path without asking again. If the policy is `disabled`, use single Agent. Ask only for missing/invalid policy or genuinely unresolved applicability.
-2. Read `AGENTS.md`, the latest dated Product Spec, latest dated Product Status, latest dated Work Plan, the latest dated ADR and its live references, `docs/ENGINEERING_RULES.md`, Verification, Tech Debt and every file implicated by the active Todo.
-3. Confirm the Product Spec is approved, the plan contains Todo batches and verification milestones, and the user's request authorizes implementation. Route new product boundaries through `$define-product` and replan.
-4. Verify the canonical Git root, branch, commit/unborn state and `git status --short`. Preserve user changes and stop rather than overwrite ambiguous overlap.
-5. Select the first `pending`, `in_progress` or repairable `blocked` Todo whose dependencies are `done`. Mark only that Todo `in_progress`; do not silently mark later items complete.
-6. Trace the execution path and existing tests. Implement the smallest complete behavior described by the Todo; do not leave Mock, stub, placeholder, scaffold behavior or a source-only fragment where the Todo requires a real user scenario.
-7. Preserve shared-core/adapter, Rust/Tokio/MSRV/dependency, CLI contract, cross-platform, file-boundary and Chinese-comment rules. Read the applicable capability reference before external commands or file operations.
-8. Add or update non-empty tests with the implementation. Cover the core success path and highest-risk failure or reproduced deviation; a milestone-found defect requires a regression test that fails before the repair and passes after it.
-9. Run the Todo development gate from narrow to broad: unit/regression tests plus relevant format, lint, static, integration and contract checks. Do not run smoke or E2E in this Skill, even when project policy enables them.
-10. Fix ordinary failures inside the approved scope and rerun affected checks. Mark the Todo `done` only when implementation and all required development checks pass; otherwise keep it `in_progress`/`blocked` with exact evidence.
-11. Continue through the current batch while actionable non-`done` Todo remain. Do not stop at a partial implementation merely because one check passes.
-12. When every Todo in the batch is `done`, update the Work Plan and Product Status to make the milestone entry condition visible. If the active goal includes completion or acceptance, hand the complete real candidate to `$verify-delivery`; otherwise report it as ready for that milestone without running smoke/E2E.
-13. If `$verify-delivery` rejects the milestone for missing logic or behavior deviation, preserve its evidence, reopen or add the specific Todo, return here, implement the correction, add regression coverage and repeat until the batch can re-enter the complete milestone.
-14. Update affected design docs and today's complete project-memory snapshots, including `docs/changelog/YYYYMMDD_CHANGELOG.md` when behavior or maintenance flow changed. Update Verification and Tech Debt as applicable. On a new date, synthesize each current snapshot from the previous dated file. Inspect the final diff for secrets, absolute local paths, unrelated edits, stale comments and unsupported claims.
+1. 读取 `docs/AGENT_POLICY.md`。如果 `parallel_worktree_subagents` 为 `enabled`，仅当活动批次至少有两个独立写入范围且存在干净的已提交基线时，才使用 `$run-parallel-worktrees`；否则无需再次询问，直接选择单 Agent 当前工作树路径。如果策略为 `disabled`，使用单 Agent。仅当策略缺失、非法或确实无法判断适用性时才询问。
+2. 读取 `AGENTS.md`、日期最新的产品规格、日期最新的产品状态、日期最新的工作计划、日期最新的 ADR 及其仍有效引用、`docs/ENGINEERING_RULES.md`、验证记录、技术债，以及活动 Todo 涉及的每个文件。
+3. 确认产品规格已获批准、计划包含 Todo 批次和验证里程碑，并且用户请求授权实施。新的产品边界必须转交 `$define-product` 并重新规划。
+4. 验证规范化 Git 根、分支、提交/未创建提交状态和 `git status --short`。保留用户修改；遇到无法明确处理的重叠时必须停止，不得覆盖。
+5. 选择依赖均为 `done` 的第一个 `pending`、`in_progress` 或可修复的 `blocked` Todo。仅将该 Todo 标记为 `in_progress`；不得静默把后续项目标记为完成。
+6. 追踪执行路径和现有测试。实现 Todo 描述的最小完整行为；Todo 要求真实用户场景时，不得留下模拟实现、桩实现、占位、脚手架行为或仅有源码的片段。
+7. 保持共享核心/适配器、Rust/Tokio/MSRV/依赖、CLI 契约、跨平台、文件边界和中文注释规则。执行外部命令或文件操作前，必须读取适用的能力参考。
+8. 随实现新增或更新非空测试。覆盖核心成功路径和最高风险失败路径或已复现偏差；里程碑发现的缺陷必须增加一项修复前失败、修复后通过的回归测试。
+9. 按从窄到宽的顺序执行 Todo 开发门禁：单元/回归测试，以及相关的格式化、代码规范检查、静态、集成和契约检查。即使项目策略启用了冒烟或 E2E，也不得在本 Skill 中执行。
+10. 修复已批准范围内的普通失败，并重新运行受影响检查。只有实现和所有必需开发检查均通过后，才可把 Todo 标记为 `done`；否则必须保持为 `in_progress`/`blocked`，并记录精确证据。
+11. 当前批次仍有可执行的非 `done` Todo 时必须继续处理。不得仅因一项检查通过就在部分实现处停止。
+12. 批次中的每个 Todo 均为 `done` 后，更新工作计划和产品状态，使里程碑准入条件清晰可见。如果当前目标包含完成或验收，把完整真实候选交给 `$verify-delivery`；否则仅报告其已可进入该里程碑，不得运行冒烟/E2E。
+13. 如果 `$verify-delivery` 因逻辑缺失或行为偏差拒绝里程碑，保留其证据，重开或新增对应的具体 Todo，返回本 Skill，实施修正并增加回归覆盖；重复该循环，直到批次能够重新进入完整里程碑验收。
+14. 更新受影响的设计文档和当天的完整项目记忆快照；行为或维护流程发生变化时必须包含 `docs/changelog/YYYYMMDD_CHANGELOG.md`。按适用性更新验证记录和技术债。进入新日期时，必须从前一份日期文件综合重写每份当前快照。检查最终差异中是否存在敏感信息、绝对本机路径、无关修改、过时注释和无依据声明。
 
-## Boundaries
+## 边界
 
-- One active plan maps to one bounded implementation outcome.
-- Implementation authorization does not authorize destructive migration, credential use, publication, packaging, signing or external side effects outside the approved Todo.
-- Compilation or tests prove Todo implementation, not milestone acceptance.
-- Never turn missing required logic into `Partially verified`; keep or reopen a Todo and continue.
+- 一项活动计划对应一个有边界的实施结果。
+- 实施授权不授权执行已批准 Todo 之外的破坏性迁移、凭据使用、发布、打包、签名或外部副作用。
+- 编译或测试只能证明 Todo 实现，不代表里程碑已验收。
+- 绝不得把缺失的必需逻辑改判为 `Partially verified`；必须保留或重开 Todo 并继续处理。
 
-## Completion
+## 完成输出
 
-Report Todo statuses, changed behavior/files, tests, development checks, repaired failures, milestone readiness, unverified scope and remaining risks. Do not issue a milestone or release verdict from this Skill.
+报告 Todo 状态、已变更行为/文件、测试、开发检查、已修复失败、里程碑就绪状态、未验证范围和剩余风险。不得由本 Skill 给出里程碑或发布结论。

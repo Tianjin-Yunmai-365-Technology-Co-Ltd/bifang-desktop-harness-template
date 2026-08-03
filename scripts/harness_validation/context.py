@@ -32,6 +32,24 @@ PARALLEL_WORKTREE_TESTS = PARALLEL_SKILL / "scripts" / "test_parallel_worktrees.
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "prepare-release" / "SKILL.md"
 BUILD_RELEASE_SKILL = SKILLS_ROOT / "build-rust-release" / "SKILL.md"
+BUILD_RELEASE_POSIX_HELPER = (
+    SKILLS_ROOT
+    / "build-rust-release"
+    / "scripts"
+    / "prepare-release-directory.sh"
+)
+BUILD_RELEASE_POWERSHELL_HELPER = (
+    SKILLS_ROOT
+    / "build-rust-release"
+    / "scripts"
+    / "prepare-release-directory.ps1"
+)
+BUILD_RELEASE_HELPER_TESTS = (
+    SKILLS_ROOT
+    / "build-rust-release"
+    / "scripts"
+    / "test_prepare_release_directory.py"
+)
 CROSS_PLATFORM_RELEASE_SKILL = (
     SKILLS_ROOT / "prepare-cross-platform-release" / "SKILL.md"
 )
@@ -105,6 +123,9 @@ REQUIRED_FILES = (
     ".agents/skills/add-gui-adapter/references/gui-baseline.md",
     ".agents/skills/run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py",
+    ".agents/skills/build-rust-release/scripts/prepare-release-directory.sh",
+    ".agents/skills/build-rust-release/scripts/prepare-release-directory.ps1",
+    ".agents/skills/build-rust-release/scripts/test_prepare_release_directory.py",
     ".agents/skills/upgrade-harness/references/ownership-manifest.json",
     ".agents/skills/upgrade-harness/references/ownership-policy.md",
     ".agents/skills/upgrade-harness/scripts/harness_upgrade.py",
@@ -113,6 +134,8 @@ REQUIRED_FILES = (
     ".agents/skills/upgrade-harness/scripts/harness_upgrade_policy.py",
     ".agents/skills/upgrade-harness/scripts/test_harness_upgrade.py",
     "scripts/test_validate_harness.py",
+    "scripts/test_release_validation.py",
+    "scripts/harness_validation/release.py",
     "scripts/validate_harness.py",
 )
 

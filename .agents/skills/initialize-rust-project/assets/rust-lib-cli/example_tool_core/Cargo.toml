@@ -3,7 +3,7 @@ name = "example_tool_core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Neutral scaffold status core for a newly initialized project"
+description = "新初始化项目的中性脚手架状态核心"
 
 [lib]
 name = "example_tool_core"

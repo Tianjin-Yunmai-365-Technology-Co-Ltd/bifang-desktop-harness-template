@@ -1,4 +1,4 @@
 interface:
-  display_name: "Prepare Release"
-  short_description: "Check version consistency and prepare a traceable release"
-  default_prompt: "Use $prepare-release to assess and prepare the next project release."
+  display_name: "准备发布"
+  short_description: "检查版本、候选产物和验收证据一致性并准备可追溯发布"
+  default_prompt: "使用 $prepare-release 评估并准备项目的下一次发布。"

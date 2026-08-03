@@ -1,42 +1,42 @@
-# External Command Capability
+# 外部命令能力
 
-Use this recipe only when the approved core loop must invoke a program that cannot be replaced by a library or operating-system facility with a smaller failure surface.
+仅当已批准的核心闭环必须调用某个程序，并且无法用失败面更小的库或操作系统能力替代时，才使用本指引。
 
-## Scope Gate
+## 范围闸门
 
-Confirm all of the following before implementation:
+实施前必须确认以下全部事实：
 
-- The external program, supported versions and discovery method are explicit.
-- Arguments and allowed executable paths are bounded; arbitrary shell text is not accepted as a shortcut.
-- Timeout, cancellation, exit-status, stdout/stderr and side-effect behavior are defined.
-- Missing executable and failed execution have stable user-visible errors.
+- 已明确外部程序、支持版本和发现方法。
+- 参数和允许的可执行文件路径有明确边界；不得把任意命令解释器文本作为捷径。
+- 已定义超时、取消、退出状态、标准输出/标准错误和副作用行为。
+- 缺少可执行文件和执行失败具有稳定的用户可见错误。
 
-If these facts are unresolved, stop and return to `$define-product`.
+如果这些事实尚未解决，必须停止并返回 `$define-product`。
 
-## Boundary
+## 边界
 
-- Use `tokio::process::Command` and enable only Tokio's `process` feature. Add `time` only when the approved behavior includes a timeout.
-- Invoke the executable directly with an argument vector. Do not construct `sh -c`, `cmd /C`, PowerShell or another shell command line unless shell semantics are the explicit product requirement.
-- Executable discovery, process spawning and raw I/O stay in an adapter or infrastructure module. Core owns the domain request and interpretation of the normalized result.
-- Do not expose `tokio::process::Child`, `JoinHandle` or operating-system process handles in the public domain API.
+- 使用 `tokio::process::Command`，并且只启用 Tokio 的 `process` 特性。仅当已批准行为包含超时时才增加 `time`。
+- 使用参数向量直接调用可执行文件。除非命令解释器语义是明确的产品需求，否则不得构造 `sh -c`、`cmd /C`、PowerShell 或其他命令解释器命令行。
+- 可执行文件发现、进程启动和原始 I/O 必须保留在适配器或基础设施模块中。核心负责领域请求和对标准化结果的解释。
+- 不得在公开的领域 API 中暴露 `tokio::process::Child`、`JoinHandle` 或操作系统进程句柄。
 
-## Failure And Safety Rules
+## 失败与安全规则
 
-- A missing executable maps to the external dependency category and base exit code `6`.
-- A launched process returning failure maps according to the product's stable domain error; do not report it as successful merely because spawning succeeded.
-- Bound captured output when the child can produce untrusted or large data.
-- Define child ownership on timeout or cancellation. Do not leave an untracked background process.
-- Destructive child operations require explicit approval semantics inherited from the CLI contract.
-- Never include secrets or unnecessary full command lines in logs or JSON errors.
+- 缺少可执行文件必须映射到外部依赖类别和基础退出码 `6`。
+- 已启动进程返回失败时，必须根据产品的稳定领域错误进行映射；不得仅因进程成功启动就将其报告为成功。
+- 子进程可能产生不可信或大量数据时，必须限制捕获的输出。
+- 必须定义超时或取消时的子进程所有权。不得遗留未跟踪的后台进程。
+- 破坏性子进程操作必须继承 CLI 契约中的显式批准语义。
+- 日志或 JSON 错误中绝不得包含敏感信息或不必要的完整命令行。
 
-## Required Verification
+## 必需验证
 
-- Unit test the core interpretation of normalized successful and failed process results.
-- Black-box test the real adapter with a controlled fixture executable where portable and safe.
-- Test missing dependency, non-zero status, timeout when applicable, and invalid arguments.
-- Verify stdout/stderr separation and stable JSON/exit-code behavior.
-- Test only on the current native platform unless real evidence is collected elsewhere; mark other platforms `Unverified`.
+- 对标准化成功和失败进程结果的核心解释进行单元测试。
+- 在具备可移植性且安全时，使用受控测试夹具可执行文件对真实适配器进行黑盒测试。
+- 测试依赖缺失、非零状态、适用时的超时和无效参数。
+- 验证标准输出/标准错误分流以及稳定的 JSON/退出码行为。
+- 除非已在其他平台收集真实证据，否则仅测试当前原生平台；其他平台必须标记为 `Unverified`。
 
-## Exit Condition
+## 退出条件
 
-If a reliable library replaces the external program or the core loop no longer invokes it, remove Tokio `process`/`time` features and the process adapter. Do not retain a generic command runner for hypothetical reuse.
+如果可靠的库替代了外部程序，或核心闭环不再调用该程序，必须删除 Tokio `process`/`time` 特性和进程适配器。不得为假想复用保留通用命令执行器。

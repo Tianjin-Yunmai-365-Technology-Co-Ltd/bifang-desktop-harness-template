@@ -1,0 +1,189 @@
+"""验证 POSIX 发布目录清理辅助程序的路径边界与完整刷新行为。"""
+
+from __future__ import annotations
+
+import subprocess
+import shutil
+import tempfile
+import unittest
+from pathlib import Path
+
+SCRIPT = Path(__file__).with_name("prepare-release-directory.sh")
+POWERSHELL_SCRIPT = Path(__file__).with_name("prepare-release-directory.ps1")
+
+
+class PrepareReleaseDirectoryTests(unittest.TestCase):
+    """覆盖精确根目录清理、符号链接拒绝和 Git 边界拒绝。"""
+
+    def _git_root(self, parent: Path) -> Path:
+        """建立无需提交的独立 Git 根，供破坏性清理测试隔离使用。"""
+        root = parent / "project"
+        root.mkdir()
+        subprocess.run(
+            ["git", "init", "--initial-branch=main", str(root)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return root
+
+    def _run(self, root: Path) -> subprocess.CompletedProcess[str]:
+        """调用 POSIX 辅助程序并返回完整结果，便于同时断言成功与失败。"""
+        return subprocess.run(
+            ["bash", str(SCRIPT), str(root)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    def _run_powershell(self, root: Path) -> subprocess.CompletedProcess[str]:
+        """在可用宿主上调用 PowerShell 辅助程序。"""
+        return subprocess.run(
+            [
+                "pwsh",
+                "-NoProfile",
+                "-File",
+                str(POWERSHELL_SCRIPT),
+                "-ProjectRoot",
+                str(root),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    def _directory_link(self, link: Path, target: Path) -> None:
+        """创建不需要管理员权限的 Windows 目录联接，其他系统创建目录符号链接。"""
+        if shutil.which("cmd") and subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+            check=False,
+            capture_output=True,
+            text=True,
+        ).returncode == 0:
+            return
+        link.symlink_to(target, target_is_directory=True)
+
+    def test_cleans_every_entry_without_deleting_release_directory(self) -> None:
+        """普通、隐藏、嵌套和内部符号链接条目都应清除，外部目标保持不变。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            parent = Path(tmp_dir)
+            root = self._git_root(parent)
+            release = root / "release"
+            release.mkdir()
+            (release / "old.txt").write_text("old", encoding="utf-8")
+            (release / ".hidden").write_text("old", encoding="utf-8")
+            (release / "nested").mkdir()
+            (release / "nested" / "old.txt").write_text("old", encoding="utf-8")
+            external = parent / "external.txt"
+            external.write_text("keep", encoding="utf-8")
+            (release / "external-link").symlink_to(external)
+
+            result = self._run(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(release.is_dir())
+            self.assertEqual(list(release.iterdir()), [])
+            self.assertEqual(external.read_text(encoding="utf-8"), "keep")
+            self.assertIn("release.cleaned=true", result.stdout)
+
+    def test_rejects_release_symlink_without_touching_target(self) -> None:
+        """根 release 指向外部目录时必须在删除前失败并保留目标内容。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            parent = Path(tmp_dir)
+            root = self._git_root(parent)
+            external = parent / "external"
+            external.mkdir()
+            marker = external / "keep.txt"
+            marker.write_text("keep", encoding="utf-8")
+            (root / "release").symlink_to(external, target_is_directory=True)
+
+            result = self._run(root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("符号链接", result.stderr)
+            self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+
+    def test_rejects_directory_that_is_not_git_top_level(self) -> None:
+        """父仓库内子目录不能冒充规范化项目根并获得清理权限。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = self._git_root(Path(tmp_dir))
+            nested = root / "nested"
+            nested.mkdir()
+
+            result = self._run(nested)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("独立 Git 顶层目录", result.stderr)
+            self.assertFalse((nested / "release").exists())
+
+    def test_windows_helper_keeps_reparse_and_force_cleanup_gates(self) -> None:
+        """无法在当前 macOS 原生执行 PowerShell 时，仍锁定 Windows 高风险门禁文本。"""
+        text = POWERSHELL_SCRIPT.read_text(encoding="utf-8")
+        for fragment in (
+            "独立 Git 顶层目录",
+            "[IO.FileAttributes]::ReparsePoint",
+            "[IO.Directory]::Move",
+            "[IO.Directory]::Delete($item.FullName, $false)",
+            "[IO.File]::Delete($item.FullName)",
+            "原子刷新期间 release 发生变化",
+            "Remove-TreeWithoutFollowingReparsePoint",
+            "release.cleaned=true",
+        ):
+            self.assertIn(fragment, text)
+
+    @unittest.skipUnless(shutil.which("pwsh"), "当前环境没有可用的 pwsh")
+    def test_windows_helper_cleans_without_following_child_reparse_point(self) -> None:
+        """PowerShell 实际执行时应原子刷新目录且不触及子级链接目标。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            parent = Path(tmp_dir)
+            root = self._git_root(parent)
+            release = root / "release"
+            release.mkdir()
+            (release / "old.txt").write_text("old", encoding="utf-8")
+            external = parent / "external"
+            external.mkdir()
+            marker = external / "keep.txt"
+            marker.write_text("keep", encoding="utf-8")
+            self._directory_link(release / "external-link", external)
+
+            result = self._run_powershell(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(list(release.iterdir()), [])
+            self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+
+    @unittest.skipUnless(shutil.which("pwsh"), "当前环境没有可用的 pwsh")
+    def test_windows_helper_rejects_root_reparse_point(self) -> None:
+        """PowerShell 实际执行时应拒绝根发布目录联接或符号链接。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            parent = Path(tmp_dir)
+            root = self._git_root(parent)
+            external = parent / "external"
+            external.mkdir()
+            marker = external / "keep.txt"
+            marker.write_text("keep", encoding="utf-8")
+            self._directory_link(root / "release", external)
+
+            result = self._run_powershell(root)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("重解析点", result.stderr)
+            self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+
+    @unittest.skipUnless(shutil.which("pwsh"), "当前环境没有可用的 pwsh")
+    def test_windows_helper_rejects_non_git_top_level(self) -> None:
+        """PowerShell 实际执行时不能清理父仓库内的普通子目录。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = self._git_root(Path(tmp_dir))
+            nested = root / "nested"
+            nested.mkdir()
+
+            result = self._run_powershell(nested)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("独立 Git 顶层目录", result.stderr)
+            self.assertFalse((nested / "release").exists())
+
+
+if __name__ == "__main__":
+    unittest.main()

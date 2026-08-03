@@ -53,10 +53,10 @@
 - `$initialize-rust-project`：确保独立 Git 根，一次收集接口组合与四项持久策略，创建中性 scaffold，并在验证后裁剪初始化能力。
 - `$check-development-environment`：下游首次开发前检查并自动补齐 Rust；GUI 额外检查并补齐 Node.js 与 pnpm。该 Skill 在初始化裁剪后仍保留。
 - `$prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，并让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
-- `$build-rust-release`：构建并定位当前平台 Rust CLI 真实产物；本 Skill 不运行冒烟/E2E。
+- `$build-rust-release`：构建 Rust CLI 候选时默认采用 Windows、macOS、Linux 原生矩阵；跨平台预检不满足才回退当前平台。构建前安全清空根 `release/`，条件具备时尝试签名，最终候选、hash 与 manifest 统一写入该目录；本 Skill 不运行冒烟/E2E。
 - `$verify-delivery`：只在 Todo 批次完成后验收真实里程碑产物，并按持久策略/硬要求决定冒烟与 E2E；失败时重开 Todo。
-- `$prepare-cross-platform-release`：准备 Windows、macOS、Linux 原生 Rust CLI 候选构建矩阵。
-- `$collect-release-artifacts`：提取并核验归档、SHA-256、manifest 和平台证据。
+- `$prepare-cross-platform-release`：提供默认 Windows、macOS、Linux 原生 Rust CLI 候选矩阵和逐平台清理/条件签名门禁。
+- `$collect-release-artifacts`：提取并核验归档、SHA-256、签名状态、manifest 和平台证据，同时保留候选的 `pending`/`rejected`/`accepted` 状态。
 - `$upgrade-harness`：以 dry-run、来源锁和三方比较安全更新下游 Harness 工程层。
 - `$prepare-release`：检查版本一致性并准备可追溯发布。
 - `$add-mcp-adapter`：仅在下游用户明确批准后，为现有 shared core 增加最小 Rust stdio MCP adapter。
@@ -88,8 +88,8 @@
 - 项目实例化阶段只要求身份、路径、负责人和目标平台；产品目的、核心输入输出、成功标准和风险可以留待已初始化项目中的 `$define-product` 完善。
 - 项目标识使用 ASCII `snake_case`。core 与 CLI/TUI/MCP/GUI 目录分别派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`；根 workspace 只登记实际选择的 adapters。
 - 初始化 Skill 携带 macOS/Linux shell 与 Windows PowerShell 门禁脚本；它们验证官方制品、复探安装结果并输出稳定 `gate.*` 状态。
-- GUI 无需签名材料即可完成本地构建和测试；验证里程碑按策略执行启动验证时也可使用 unsigned 产物，真实分发渠道需要签名时仍单独阻断发布。
-- 初始化把 `/release/` 写入根 `.gitignore`；发布结果收集每次安全清空根 `release/` 历史内容，只保留当前项目、版本、源码 commit 和明确 build run 的最新已完成文件。
+- 构建会在项目已有批准的非交互签名 hook、工具和已授权凭据时尝试签名并验证；签名尝试失败会使该平台构建失败。条件不满足时记录 unsigned，只有真实分发渠道要求签名才阻断发布。
+- 初始化把 `/release/` 精确一次写入根 `.gitignore`；每次构建在任何 build 命令前原子隔离旧目录并创建全新空目录，签名后的 archive/hash/manifest 先在同根 staging 形成完整三件套，再以目录级原子替换提交到 `release/`。远端 workflow 绑定批准的 40 位 commit，并只传输 manifest 声明的精确文件；目录存在不代表候选已验收或可发布。
 - `Draft` 规格下的中性初始化不得推测业务、增加业务能力或作为产品交付证据；它只允许 `scaffold status`，并在 JSON 中返回 `productDefinitionRequired=true`。
 - 根 Cargo workspace 统一声明第三方依赖和内部 crate 路径，所有 member 只通过 `workspace = true` 继承。
 - 跨平台自动化默认只生成候选产物和证据；正式发布仍需独立授权。

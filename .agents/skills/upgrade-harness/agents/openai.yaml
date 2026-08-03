@@ -1,4 +1,4 @@
 interface:
-  display_name: "Upgrade Harness"
-  short_description: "Safely update downstream Harness engineering"
-  default_prompt: "Use $upgrade-harness to preview and safely apply a downstream Harness engineering update."
+  display_name: "升级 Harness"
+  short_description: "安全预览并更新下游项目保留的 Harness 工程层"
+  default_prompt: "使用 $upgrade-harness，预览并安全应用下游 Harness 工程更新。"

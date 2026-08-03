@@ -1,37 +1,37 @@
 ---
 name: add-mcp-adapter
-description: Add an optional Rust stdio MCP server adapter to an initialized downstream project with a shared core. Use when MCP is selected during initialization or explicitly approved later; do not require CLI or another interface adapter.
+description: 为具有共享核心的已初始化下游项目增加可选的 Rust stdio MCP 服务器适配器。在初始化时选择 MCP 或后续明确批准 MCP 时使用；不得要求 CLI 或其他接口适配器。
 ---
 
-# Add MCP Adapter
+# 增加 MCP 适配器
 
-Add the smallest approved stdio MCP surface directly over the shared core. MCP is independent of CLI, TUI, and GUI.
+直接在共享核心之上增加最小的已批准 stdio MCP 接口。MCP 与 CLI、TUI 和 GUI 相互独立。
 
-## Workflow
+## 工作流程
 
-1. Read `AGENTS.md`, `README.md`, `docs/product_spec/README.md` and the latest dated Product Spec, `docs/ENGINEERING_RULES.md`, `docs/project_status/README.md` and the latest dated Product Status, `docs/work_plan/README.md` and the latest dated Work Plan, `docs/RUST_CLI_TEMPLATE.md`, and relevant decisions and verification records.
-2. Confirm that the current working directory is a real downstream Rust workspace with a shared core and that MCP is recorded in the initialization selection or approved product scope. A `Draft` project may expose only a neutral scaffold-status tool without business actions. If it is the documentation-only Harness or core is absent, stop. Do not ask for another target directory and do not require CLI.
-3. Read [references/mcp-baseline.md](references/mcp-baseline.md) completely before selecting dependencies or designing tools. Also read the MCP subsection of `docs/RUST_CLI_TEMPLATE.md` for the minimal hard rules on tool-schema/source-of-truth contract consistency and naming/description basics before implementing.
-4. Identify the target MCP hosts, the minimum tool-supported user loop, each tool-to-core mapping, input/output schema, stable error mapping, side effects, permissions, risk annotations, timeout, cancellation, and shutdown behavior. Ask only about missing choices that materially change scope.
-5. Use `$plan-change` before editing. Keep the MCP adapter independent from CLI parsing and GUI code.
-6. Inspect the registry and official MCP Rust SDK documentation at execution time. Prefer the current compatible stable `rmcp` release with default features disabled and only the approved server, macros, and stdio transport features. Do not assume MSRV from an absent `rust-version`; prove compatibility with the project's real MSRV toolchain.
-7. Add one independently testable MCP binary crate in `<project-id>_mcp`, where `<project-id>` is the approved ASCII snake_case current project identifier. Use the same `<project-id>_mcp` for its Cargo package, Rust crate, and real binary; do not ask for independent names. Start stdio serving from a Tokio current-thread async entry and keep transport, tool and core calls async by default. Do not enable `rt-multi-thread` for ordinary protocol concurrency. The adapter may depend on core; core must not depend on MCP, `rmcp`, transport types, or protocol schemas. Apply the file boundaries and meaningful Chinese business-comment requirements from `docs/ENGINEERING_RULES.md` to all maintained adapter code and tests.
-8. Expose only approved core-loop tools. Validate structured inputs before invoking core, map domain errors without losing stable codes, keep protocol traffic exclusively on stdout, and send diagnostics only to stderr. Consider `spawn_blocking`, dedicated threads or a multi-thread runtime only for measured CPU-intensive work, with explicit ownership, cancellation, timeout, concurrency limits, resource budget and tests. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception. Do not add HTTP, OAuth, client, sampling, prompts, resources, or background services without separate approved requirements.
-9. Test tool discovery, the core success path, the highest-risk failure path, invalid schema input, stable errors, stdout/stderr separation, clean EOF shutdown, cancellation or timeout where applicable, and any approval/risk behavior the target hosts actually support.
-10. During ordinary implementation, run discovered formatting, lint, non-empty tests, relevant locked check/build checks, and targeted protocol/binary tests. Do not claim release readiness from development evidence.
-11. During Todo implementation run non-empty core/MCP unit, protocol and stdio contract tests plus relevant format, lint and check commands; do not run binary smoke, host E2E or Computer Use. After the batch is `done`, build and locate the real server as a milestone candidate, then use `$verify-delivery`. That milestone alone resolves binary smoke, inspector/host acceptance and `$test-final-artifact-e2e` from persistent policy/hard requirements; failures reopen Todo. Mark untested hosts/platforms `Unverified`.
+1. 读取 `AGENTS.md`、`README.md`、`docs/product_spec/README.md` 及日期最新的产品规格、`docs/ENGINEERING_RULES.md`、`docs/project_status/README.md` 及日期最新的产品状态、`docs/work_plan/README.md` 及日期最新的工作计划、`docs/RUST_CLI_TEMPLATE.md`，以及相关决定和验证记录。
+2. 确认当前工作目录是真实下游 Rust 工作区，具有共享核心，且初始化选择或已批准产品范围中记录了 MCP。`Draft` 项目只能公开不含业务操作的中性脚手架状态工具。若当前目录只是文档 Harness，或缺少核心，则停止。不得要求另选目标目录，也不得要求 CLI。
+3. 选择依赖或设计工具前，完整阅读 [references/mcp-baseline.md](references/mcp-baseline.md)。实施前还要阅读 `docs/RUST_CLI_TEMPLATE.md` 的 MCP 小节，了解工具模式定义/事实来源契约一致性以及命名/说明基础规则的最小硬要求。
+4. 识别目标 MCP 宿主、工具支持的最小用户闭环、每个工具到核心的映射、输入/输出模式定义、稳定错误映射、副作用、权限、风险注解、超时、取消和关闭行为。只询问会实质改变范围的缺失选择。
+5. 编辑前使用 `$plan-change`。MCP 适配器必须与 CLI 解析和 GUI 代码相互独立。
+6. 执行时检查软件包仓库和 MCP Rust SDK 官方文档。优先使用当前兼容稳定的 `rmcp` 版本，关闭默认特性，只启用已批准的服务器、宏和 stdio 传输特性。缺少 `rust-version` 不能视为 MSRV 兼容依据；必须使用项目真实 MSRV 工具链证明兼容性。
+7. 在 `<project-id>_mcp` 中增加一个可独立测试的 MCP 二进制 crate，其中 `<project-id>` 是当前已批准的 ASCII snake_case 项目标识。Cargo 软件包、Rust crate 和真实二进制统一使用 `<project-id>_mcp`；不得要求独立名称。从 Tokio current-thread 异步入口启动 stdio 服务，传输、工具和核心调用默认保持异步。不得为普通协议并发启用 `rt-multi-thread`。适配器可以依赖核心；核心不得依赖 MCP、`rmcp`、传输类型或协议模式定义。所有维护的适配器代码和测试都必须遵守 `docs/ENGINEERING_RULES.md` 的文件边界与有意义中文业务注释要求。
+8. 只公开已批准核心闭环所需的工具。调用核心前验证结构化输入，映射领域错误时不得丢失稳定错误码，协议流量只能写入标准输出，诊断只能写入标准错误。只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并明确记录所有权、取消、超时、并发上限、资源预算和测试。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程。没有独立批准需求时，不得增加 HTTP、OAuth、客户端、采样、提示、资源或后台服务。
+9. 测试工具发现、核心成功路径、最高风险失败路径、违反模式定义的输入、稳定错误、标准输出/标准错误分离、EOF 干净关闭、适用时的取消或超时，以及目标宿主实际支持的任何审批/风险行为。
+10. 普通实现期间，运行可发现的格式化、代码规范检查、非空测试、相关锁定检查/构建，以及有针对性的协议/二进制测试。不得用开发证据声称发布就绪。
+11. Todo 实施期间，运行非空的核心/MCP 单元测试、协议测试和 stdio 契约测试，以及相关格式化、代码规范检查和检查命令；不得运行二进制冒烟、宿主 E2E 或 Computer Use。批次达到 `done` 后，构建并定位真实服务器作为里程碑候选，再使用 `$verify-delivery`。只有该里程碑可以根据持久策略/硬要求决定是否执行二进制冒烟、检查器/宿主验收和 `$test-final-artifact-e2e`；失败会重开 Todo。未测试宿主/平台标记为 `Unverified`。
 
-## Hard Boundaries
+## 硬边界
 
-- Keep MCP independent and behaviorally consistent with every selected adapter through the same core and error model.
-- Never implement MCP by spawning the CLI and parsing its output.
-- Never mirror every core function automatically; one tool must represent one clear approved action.
-- Treat MCP annotations as descriptive hints, not authorization enforcement.
-- Do not create a second store, configuration source, permission model, or business layer.
-- Do not broaden filesystem, process, network, or destructive permissions beyond the approved tool operation.
-- Do not block the Tokio stdio runtime with synchronous I/O, sleeps, process waits or CPU-heavy tool work.
-- Do not bundle generic MCP boilerplate assets in this Skill; derive the adapter from the real downstream contract when invoked.
+- MCP 必须保持独立，并通过相同核心和错误模型与每个已选适配器保持行为一致。
+- 绝不能通过启动 CLI 并解析其输出来实现 MCP。
+- 绝不能自动镜像每个核心函数；一个工具必须代表一个清晰的已批准操作。
+- MCP 注解只作为说明性提示，不作为授权强制机制。
+- 不得创建第二套存储、配置来源、权限模型或业务层。
+- 不得把文件系统、进程、网络或破坏性权限扩张到已批准工具操作之外。
+- 不得用同步 I/O、休眠、进程等待或 CPU 密集工具工作阻塞 Tokio stdio 运行时。
+- 不得在本 Skill 中捆绑通用 MCP 样板资产；调用时应从真实下游契约派生适配器。
 
-## Completion Output
+## 完成输出
 
-Report the tools added, core mappings, dependency/features selected, protocol and security checks, commands actually run, verified hosts/platforms, unverified areas, and remaining risks.
+报告新增工具、核心映射、选定依赖/特性、协议和安全检查、实际运行的命令、已验证宿主/平台、未验证范围和剩余风险。

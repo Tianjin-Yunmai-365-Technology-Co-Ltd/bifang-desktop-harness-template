@@ -4,12 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       confirm_candidate_build:
-        description: "I confirm this is an authorized native milestone-candidate build"
+        description: "我确认这是已授权的原生里程碑候选构建"
         required: true
         type: boolean
         default: false
       version:
-        description: "Approved Cargo version without the v prefix"
+        description: "已批准且不含 v 前缀的 Cargo 版本"
+        required: true
+        type: string
+      source_commit:
+        description: "已批准的 40 字符源码提交 SHA"
         required: true
         type: string
 
@@ -19,7 +23,7 @@ permissions:
 jobs:
   build:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -27,24 +31,53 @@ jobs:
     env:
       PRODUCT_NAME: example-tool
       VERSION: ${{ inputs.version }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      BUILD_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
       CARGO_TARGET_DIR: target
       RUSTUP_TOOLCHAIN: 1.90.0
     steps:
-      - name: Confirm authorized candidate preflight
+      - name: 确认已授权候选预检
         shell: bash
         run: |
           if [[ "${{ inputs.confirm_candidate_build }}" != "true" ]]; then
-            echo "Milestone candidate build not confirmed"
-            echo "::error::Please set confirm_candidate_build=true before running this workflow."
+            echo "尚未确认里程碑候选构建"
+            echo "::error::运行此工作流前请设置 confirm_candidate_build=true。"
             exit 1
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Select project MSRV
-        run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
-      - name: Validate candidate version
+        with:
+          ref: ${{ inputs.source_commit }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: 选择 Python 运行时
         shell: bash
         run: |
-          python - <<'PY'
+          if command -v python3 >/dev/null 2>&1; then
+            echo "PYTHON_COMMAND=python3" >> "$GITHUB_ENV"
+          elif command -v python >/dev/null 2>&1; then
+            echo "PYTHON_COMMAND=python" >> "$GITHUB_ENV"
+          else
+            echo "::error::候选验证需要 Python 3 运行时"
+            exit 1
+          fi
+      - name: 验证已检出源码
+        shell: bash
+        run: |
+          "$PYTHON_COMMAND" - <<'PY'
+          import os, re, subprocess
+          expected = os.environ["SOURCE_COMMIT"]
+          if not re.fullmatch(r"[0-9a-f]{40}", expected):
+              raise SystemExit("source_commit 必须是由小写十六进制字符组成的 40 字符 SHA")
+          observed = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          if observed != expected:
+              raise SystemExit(f"检出源码不匹配：预期={expected}，实际={observed}")
+          PY
+      - name: 选择项目 MSRV
+        run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
+      - name: 验证候选版本
+        shell: bash
+        run: |
+          "$PYTHON_COMMAND" - <<'PY'
           import json, os, subprocess
           metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--locked", "--format-version", "1", "--no-deps"], text=True))
           versions = {
@@ -53,14 +86,22 @@ jobs:
               if any(target["name"] == os.environ["PRODUCT_NAME"] and "bin" in target["kind"] for target in package["targets"])
           }
           if versions != {os.environ["VERSION"]}:
-              raise SystemExit(f"candidate version mismatch: Cargo={sorted(versions)}, input={os.environ['VERSION']}")
+              raise SystemExit(f"候选版本不匹配：Cargo={sorted(versions)}，输入={os.environ['VERSION']}")
           PY
-      - name: Verify candidate
+      - name: 准备 Unix 发布目录
+        if: runner.os != 'Windows' && success()
+        shell: bash
+        run: bash .agents/skills/build-rust-release/scripts/prepare-release-directory.sh "$GITHUB_WORKSPACE"
+      - name: 准备 Windows 发布目录
+        if: runner.os == 'Windows' && success()
+        shell: pwsh
+        run: '& ".agents/skills/build-rust-release/scripts/prepare-release-directory.ps1" -ProjectRoot $env:GITHUB_WORKSPACE'
+      - name: 验证候选
         shell: bash
         run: |
           cargo fmt --all -- --check
           cargo clippy --workspace --all-targets --all-features -- -D warnings
-          python - <<'PY'
+          "$PYTHON_COMMAND" - <<'PY'
           import subprocess, sys
           command = ["cargo", "test", "--workspace", "--all-targets", "--all-features", "--locked", "--", "--list"]
           result = subprocess.run(command, text=True, capture_output=True)
@@ -70,12 +111,77 @@ jobs:
               raise SystemExit(result.returncode)
           count = sum(line.rstrip().endswith(": test") for line in result.stdout.splitlines())
           if count == 0:
-              raise SystemExit("no tests discovered")
-          print(f"discovered {count} tests")
+              raise SystemExit("未发现测试")
+          print(f"发现 {count} 个测试")
           PY
           cargo test --workspace --all-targets --all-features --locked
           cargo build --workspace --release --locked
-      - name: Package Unix candidate
+      - name: 尝试 Unix 签名
+        if: runner.os != 'Windows' && success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/release/${PRODUCT_NAME}"
+          hook=".release-signing/sign-candidate.sh"
+          status="unsigned"
+          reason="hook-not-configured"
+          evidence="not-applicable"
+          if [[ -f "$hook" ]]; then
+            set +e
+            bash "$hook" probe "$binary" >/dev/null 2>&1
+            probe_status=$?
+            set -e
+            if [[ $probe_status -eq 0 ]]; then
+              if ! bash "$hook" sign "$binary" >/dev/null 2>&1; then
+                echo "::error::已配置的签名尝试失败"
+                exit 1
+              fi
+              if ! bash "$hook" verify "$binary" >/dev/null 2>&1; then
+                echo "::error::已签名候选验证失败"
+                exit 1
+              fi
+              status="signed"
+              reason="configured-hook-succeeded"
+              evidence="configured-hook-verify-exit-0"
+            elif [[ $probe_status -eq 3 ]]; then
+              reason="signing-conditions-unavailable"
+            else
+              echo "::error::签名探测失败，退出码为 $probe_status"
+              exit 1
+            fi
+          fi
+          printf 'SIGNING_STATUS=%s\nSIGNING_REASON=%s\nSIGNING_EVIDENCE=%s\n' "$status" "$reason" "$evidence" >> "$GITHUB_ENV"
+      - name: 尝试 Windows 签名
+        if: runner.os == 'Windows' && success()
+        shell: pwsh
+        run: |
+          $binary = "target/release/$env:PRODUCT_NAME.exe"
+          $hook = ".release-signing/sign-candidate.ps1"
+          $status = "unsigned"
+          $reason = "hook-not-configured"
+          $evidence = "not-applicable"
+          if (Test-Path -LiteralPath $hook -PathType Leaf) {
+            & pwsh -NoProfile -File $hook probe $binary *> $null
+            $probeStatus = $LASTEXITCODE
+            if ($probeStatus -eq 0) {
+              & pwsh -NoProfile -File $hook sign $binary *> $null
+              if ($LASTEXITCODE -ne 0) { throw "已配置的签名尝试失败" }
+              & pwsh -NoProfile -File $hook verify $binary *> $null
+              if ($LASTEXITCODE -ne 0) { throw "已签名候选验证失败" }
+              $status = "signed"
+              $reason = "configured-hook-succeeded"
+              $evidence = "configured-hook-verify-exit-0"
+            } elseif ($probeStatus -eq 3) {
+              $reason = "signing-conditions-unavailable"
+            } else {
+              throw "签名探测失败，退出码为 $probeStatus"
+            }
+          }
+          "SIGNING_STATUS=$status" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SIGNING_REASON=$reason" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SIGNING_EVIDENCE=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: 打包 Unix 候选
+        id: package_unix
         if: runner.os != 'Windows' && success()
         shell: bash
         run: |
@@ -85,49 +191,169 @@ jobs:
           platform="$(printf '%s' "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')"
           arch="$(printf '%s' "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')"
           archive="${PRODUCT_NAME}-v${VERSION}-${platform}-${arch}.tar.gz"
-          mkdir -p dist
-          tar -czf "dist/${archive}" -C target/release "$PRODUCT_NAME"
+          stage="$(mktemp -d "${GITHUB_WORKSPACE}/.release-clean.candidate.XXXXXX")"
+          chmod 700 "$stage"
+          tar -czf "${stage}/${archive}" -C target/release "$PRODUCT_NAME"
           if command -v sha256sum >/dev/null 2>&1; then
-            (cd dist && sha256sum "$archive" > "${archive}.sha256")
+            (cd "$stage" && sha256sum "$archive" > "${archive}.sha256")
           else
-            (cd dist && shasum -a 256 "$archive" > "${archive}.sha256")
+            (cd "$stage" && shasum -a 256 "$archive" > "${archive}.sha256")
           fi
-      - name: Package Windows candidate
+          printf 'archive_name=%s\nstage_path=%s\n' "$archive" "$stage" >> "$GITHUB_OUTPUT"
+      - name: 打包 Windows 候选
+        id: package_windows
         if: runner.os == 'Windows' && success()
         shell: pwsh
         run: |
           $binary = "target/release/$env:PRODUCT_NAME.exe"
-          if (-not (Test-Path $binary)) { throw "Missing release binary: $binary" }
+          if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) { throw "缺少发布二进制文件：$binary" }
           $platform = $env:RUNNER_OS.ToLowerInvariant()
           $arch = $env:RUNNER_ARCH.ToLowerInvariant()
           $archive = "$env:PRODUCT_NAME-v$env:VERSION-$platform-$arch.zip"
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Compress-Archive -Path $binary -DestinationPath "dist/$archive"
-          $hash = (Get-FileHash "dist/$archive" -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $archive" | Set-Content "dist/$archive.sha256" -Encoding ascii
-      - name: Record candidate manifest
+          $stage = Join-Path $env:GITHUB_WORKSPACE (".release-clean.candidate." + [Guid]::NewGuid().ToString("N"))
+          [IO.Directory]::CreateDirectory($stage) | Out-Null
+          Compress-Archive -LiteralPath $binary -DestinationPath (Join-Path $stage $archive)
+          $hash = (Get-FileHash (Join-Path $stage $archive) -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $archive" | Set-Content (Join-Path $stage "$archive.sha256") -Encoding ascii
+          "archive_name=$archive" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "stage_path=$stage" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: 解析候选制品
+        id: candidate_artifact
         shell: bash
+        env:
+          UNIX_ARCHIVE: ${{ steps.package_unix.outputs.archive_name }}
+          WINDOWS_ARCHIVE: ${{ steps.package_windows.outputs.archive_name }}
+          UNIX_STAGE: ${{ steps.package_unix.outputs.stage_path }}
+          WINDOWS_STAGE: ${{ steps.package_windows.outputs.stage_path }}
         run: |
-          python - <<'PY'
+          "$PYTHON_COMMAND" - <<'PY'
+          import os, pathlib
+          pairs = [
+              pair
+              for pair in (
+                  (os.environ.get("UNIX_ARCHIVE", ""), os.environ.get("UNIX_STAGE", "")),
+                  (os.environ.get("WINDOWS_ARCHIVE", ""), os.environ.get("WINDOWS_STAGE", "")),
+              )
+              if pair[0] or pair[1]
+          ]
+          if len(pairs) != 1 or not all(pairs[0]) or pathlib.PurePath(pairs[0][0]).name != pairs[0][0]:
+              raise SystemExit(f"预期恰好一个安全的候选归档/暂存目录组合，实际为 {pairs!r}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"archive_name={pairs[0][0]}\nstage_path={pairs[0][1]}\n")
+          PY
+      - name: 记录候选清单
+        shell: bash
+        env:
+          CANDIDATE_ARCHIVE: ${{ steps.candidate_artifact.outputs.archive_name }}
+          CANDIDATE_STAGE: ${{ steps.candidate_artifact.outputs.stage_path }}
+        run: |
+          "$PYTHON_COMMAND" - <<'PY'
           import hashlib, json, os, pathlib, platform, subprocess
-          dist = pathlib.Path("dist")
-          archive = next(p for p in dist.iterdir() if p.suffix not in {".sha256", ".json"})
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          release = pathlib.Path(os.environ["CANDIDATE_STAGE"])
+          if release.is_symlink() or not release.is_dir():
+              raise SystemExit("候选暂存目录必须是普通目录")
+          if release.parent.resolve() != root or not release.name.startswith(".release-clean.candidate."):
+              raise SystemExit("候选暂存目录越出项目根目录")
+          archive_name = os.environ["CANDIDATE_ARCHIVE"]
+          if pathlib.PurePath(archive_name).name != archive_name:
+              raise SystemExit("候选归档名称不安全")
+          archive = release / archive_name
+          checksum = release / f"{archive_name}.sha256"
+          expected_before = {archive_name, checksum.name}
+          observed_before = {path.name for path in release.iterdir()}
+          if observed_before != expected_before:
+              raise SystemExit(f"生成清单前的候选文件集异常：预期={sorted(expected_before)}，实际={sorted(observed_before)}")
+          if any(path.is_symlink() or not path.is_file() for path in (archive, checksum)):
+              raise SystemExit("候选归档和校验和必须是非符号链接的普通文件")
+          digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+          checksum_parts = checksum.read_text(encoding="ascii").strip().split()
+          if not checksum_parts or checksum_parts[0].lower() != digest:
+              raise SystemExit("候选校验和与归档字节不匹配")
+          host_target = next(line.split(":", 1)[1].strip() for line in subprocess.check_output(["rustc", "-vV"], text=True).splitlines() if line.startswith("host:"))
           manifest = {
+              "project": os.environ["PRODUCT_NAME"],
               "version": os.environ["VERSION"],
-              "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
-              "runnerOs": os.environ["RUNNER_OS"],
-              "runnerArch": os.environ["RUNNER_ARCH"],
+              "sourceCommit": os.environ["SOURCE_COMMIT"],
+              "buildRun": os.environ["BUILD_RUN_ID"],
+              "buildMode": "cross-platform-native",
+              "platform": os.environ["RUNNER_OS"],
+              "architecture": os.environ["RUNNER_ARCH"],
+              "target": host_target,
               "host": platform.platform(),
               "archive": archive.name,
-              "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+              "sha256": digest,
               "tests": "passed",
+              "signingStatus": os.environ["SIGNING_STATUS"],
+              "signingReason": os.environ["SIGNING_REASON"],
+              "signingEvidence": {
+                  "verification": os.environ["SIGNING_EVIDENCE"],
+                  "detachedFiles": [],
+              },
               "milestoneAcceptance": "pending",
           }
-          (dist / f"{archive.name}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          manifest_path = release / f"{archive.name}.manifest.json"
+          manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          expected_after = expected_before | {manifest_path.name}
+          observed_after = {path.name for path in release.iterdir()}
+          if observed_after != expected_after:
+              raise SystemExit(f"最终候选文件集异常：预期={sorted(expected_after)}，实际={sorted(observed_after)}")
+          PY
+      - name: 提交候选制品集合
+        shell: bash
+        env:
+          CANDIDATE_ARCHIVE: ${{ steps.candidate_artifact.outputs.archive_name }}
+          CANDIDATE_STAGE: ${{ steps.candidate_artifact.outputs.stage_path }}
+        run: |
+          "$PYTHON_COMMAND" - <<'PY'
+          import os, pathlib, stat
+          root = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          release = root / "release"
+          stage = pathlib.Path(os.environ["CANDIDATE_STAGE"])
+          archive = os.environ["CANDIDATE_ARCHIVE"]
+          expected = {archive, f"{archive}.sha256", f"{archive}.manifest.json"}
+          reparse_flag = 0x400
+
+          def require_plain_directory(path):
+              observed = os.lstat(path)
+              if stat.S_ISLNK(observed.st_mode) or getattr(observed, "st_file_attributes", 0) & reparse_flag:
+                  raise SystemExit(f"拒绝重解析目录：{path}")
+              if not stat.S_ISDIR(observed.st_mode):
+                  raise SystemExit(f"预期为目录：{path}")
+
+          require_plain_directory(release)
+          require_plain_directory(stage)
+          if stage.parent.resolve() != root or not stage.name.startswith(".release-clean.candidate."):
+              raise SystemExit("候选暂存目录越出项目根目录")
+          if any(release.iterdir()):
+              raise SystemExit("构建前刷新后发布目录发生变化")
+          if {path.name for path in stage.iterdir()} != expected:
+              raise SystemExit("提交前候选暂存目录文件集发生变化")
+
+          if os.name == "nt":
+              os.rmdir(release)
+              os.rename(stage, release)
+          else:
+              root_fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+              try:
+                  os.rmdir("release", dir_fd=root_fd)
+                  os.rename(stage.name, "release", src_dir_fd=root_fd, dst_dir_fd=root_fd)
+              finally:
+                  os.close(root_fd)
+
+          require_plain_directory(release)
+          if release.resolve() != root / "release":
+              raise SystemExit("已提交的发布目录越出项目根目录")
+          committed = list(release.iterdir())
+          if {path.name for path in committed} != expected or any(path.is_symlink() or not path.is_file() for path in committed):
+              raise SystemExit("已提交的发布文件集不是精确的普通文件候选集合")
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: success()
         with:
           name: ${{ runner.os }}-${{ runner.arch }}-release-candidate
-          path: dist/
+          path: |
+            release/${{ steps.candidate_artifact.outputs.archive_name }}
+            release/${{ steps.candidate_artifact.outputs.archive_name }}.sha256
+            release/${{ steps.candidate_artifact.outputs.archive_name }}.manifest.json
           if-no-files-found: error

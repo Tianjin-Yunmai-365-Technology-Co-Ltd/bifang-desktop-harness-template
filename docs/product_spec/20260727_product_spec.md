@@ -17,7 +17,7 @@
 - 核心用户：使用 AI Agent 创建、交付和维护企业收费小工具的项目负责人。
 - 主要问题：项目意图、工程约束、验证口径、商业授权和终端下游边界容易在跨会话或项目交付中丢失。
 - 输入：项目身份、目标目录、接口组合、产品意图、风险、实现、验证证据、商业授权决定和人工审批。
-- 输出：独立终端项目根、shared core 与所选 adapter、项目记忆、验证证据，以及法律条款不变但已命名为目标项目的中英文企业专有商业许可证。
+- 输出：独立终端项目根、共享核心与所选适配器、项目记忆、验证证据，以及法律条款不变但已命名为目标项目的中英文企业专有商业许可证。
 - 可观察结果：Agent 能从仓库恢复上下文；客户只能在付费商业文件授权范围内使用下游，不能从下游继续派生项目。
 
 ## MVP 包含
@@ -25,11 +25,11 @@
 ### Harness 与生命周期
 
 - 本仓库只提供 Harness 文档、项目 Skills、中性资产和验证入口，不实现具体产品业务。
-- `$instantiate-project` 只执行一次，要求项目名称、ASCII `snake_case` 标识、完整目标项目目录路径、负责人和目标平台；解析后 `basename 必须与项目标识一致`，目标必须不存在或为空。
+- `$instantiate-project` 只执行一次，要求项目名称、ASCII `snake_case` 标识、完整目标项目目录路径、负责人和目标平台；解析后的目录基本名称必须与项目标识一致，目标必须不存在或为空。
 - 复制完成后目标目录是后续初始化、开发、验证和发布准备的唯一项目根目录。
-- 每个下游建立独立 Git 仓库，初始分支为 `main`；`git rev-parse --show-toplevel` 必须精确等于项目根，无 remote，初始化收尾只有一个本地基线 commit 且工作树为空。
+- 每个下游建立独立 Git 仓库，初始分支为 `main`；`git rev-parse --show-toplevel` 必须精确等于项目根，无远端，初始化收尾只有一个本地基线提交且工作树为空。
 - 实例化不复制或预创建 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`；它们由对应下游开发 Skill 首次真实使用时创建。
-- Scaffold 完整验证后删除实例化/初始化 Skills、模板 validator、方法论文档和活动派生入口；下游必须保留非空 Skills 地图和约束地图，并明确禁止继续派生项目。
+- 脚手架完整验证后删除实例化/初始化 Skills、模板校验器、方法论文档和活动派生入口；下游必须保留非空 Skills 地图和约束地图，并明确禁止继续派生项目。
 - `$rename-project-identity` 在实例化复制后统一替换展示名、`snake_case` 标识、kebab-case 前缀、项目自有配置、维护路径、Skills 和两份许可证的项目名称；默认先预览，显式应用后残留旧身份必须为零。该 Skill 在下游保留，用于未来获批的产品改名。
 
 ### 商业许可与知识产权
@@ -43,22 +43,22 @@
 
 ### 中性 Rust 与接口
 
-- 下游默认使用 Rust 2024、Rust 1.90 MSRV（即 MSRV 1.90.0）、Cargo workspace 和独立 shared core；1.90.0 是最低兼容版本而非精确版本锁，根 `[workspace.dependencies]` 是 member 依赖版本、来源、内部路径和基线 feature 的唯一来源。
-- 接口从 `CLI/TUI/MCP/GUI/WEB` 独立多选；未选择任何接口时默认 CLI，不得为显式选择附加其他 adapter。
-- core 与 adapter 目录确定性派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`、`_web`，workspace 只登记实际选择。
-- Product Spec 缺失或为 Draft 时只允许中性 `scaffold status`；CLI JSON 返回 `productDefinitionRequired=true`，其他接口提供等价状态，不得猜测业务。
-- CLI/TUI/MCP 使用 Tokio current-thread async 入口；GUI 复用 Tauri Tokio-backed runtime；I/O 与等待优先异步，仅测量确认的 CPU 密集工作才可进入受控线程边界。
+- 下游默认使用 Rust 2024、Rust 1.90 MSRV（即 MSRV 1.90.0）、Cargo 工作区和独立共享核心；1.90.0 是最低兼容版本而非精确版本锁，根 `[workspace.dependencies]` 是成员依赖版本、来源、内部路径和基线特性的唯一来源。
+- 接口从 `CLI/TUI/MCP/GUI/WEB` 独立多选；未选择任何接口时默认 CLI，不得为显式选择附加其他适配器。
+- 核心与适配器目录确定性派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`、`_web`，工作区只登记实际选择。
+- 产品规格缺失或为 Draft 时只允许中性 `scaffold status`；CLI JSON 返回 `productDefinitionRequired=true`，其他接口提供等价状态，不得猜测业务。
+- CLI/TUI/MCP 使用 Tokio current-thread 异步入口；GUI 复用由 Tokio 支撑的 Tauri 运行时；I/O 与等待优先异步，仅测量确认的 CPU 密集工作才可进入受控线程边界。
 - TUI 固定使用 Ratatui、tui-realm 与 tui-realm-stdlib；WEB/GUI 前端固定使用 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。偏离必须形成硬规则例外 ADR。
-- GUI 首次真实开发前运行 `$prepare-gui-app-identity`；GUI 本地 build/test/smoke 不以签名材料为前置，实际分发渠道需要签名时仍单独阻断。
+- GUI 首次真实开发前运行 `$prepare-gui-app-identity`；GUI 本地构建/测试/冒烟不以签名材料为前置，实际分发渠道需要签名时仍单独阻断。
 - `docs/AGENT_POLICY.md` 是 superpowers 能力开关的唯一来源；初始化必须记录 `enabled` 或 `disabled`，关闭后不得调用 `superpowers:*` Skills。
 
 ### 开发、验证与发布
 
 - 首次代码开发前调用 `$check-development-environment`：Rust 始终阻断，Windows 同时检查 MSVC；仅 GUI/WEB 增加 Node.js 与 pnpm 阻断。
-- 业务规则位于 core，adapter 只负责自身输入输出、调用 core 和错误映射；文件、注释、文档、测试和例外统一遵守 `docs/ENGINEERING_RULES.md`，人工维护的数据结构、接口、函数、方法和测试使用有业务意义的中文注释。
+- 业务规则位于核心，适配器只负责自身输入输出、调用核心和错误映射；文件、注释、文档、测试和例外统一遵守 `docs/ENGINEERING_RULES.md`，人工维护的数据结构、接口、函数、方法和测试使用有业务意义的中文注释。
 - 当前系统交付至少要求成功编译、非空单元测试、最终产物存在和真实产物启动冒烟；测试覆盖核心成功路径和最高风险失败路径。
 - 未实际验证的平台标记 `Unverified`，Agent 不代替人类签署最终完成结论。
-- 发布候选刷新到根 `/release/`，只包含当前项目、版本、源码 commit 和明确 build run 的最新完成结果；实际分发物同时携带适用的许可证、第三方许可证和 NOTICE 信息。
+- 发布候选刷新到根 `/release/`，只包含当前项目、版本、源码提交和明确的构建/运行身份所对应的当前完成结果；实际分发物同时携带适用的许可证、第三方许可证和 NOTICE 信息。
 - Harness 模板以根 `Version.md` 作为当前版本、初始版本与发布状态的唯一事实来源；该文件不复制到使用 Cargo 版本事实的下游 Rust 项目。
 
 ## 不包含
@@ -68,8 +68,8 @@
 - 不在仓库通用许可证中确定具体客户、价格、计费单位、期限、支持 SLA 或跨境交易条款。
 - 不声称通用许可证模板替代正式法律意见、签署的商业合同、第三方许可证审计或软件著作权权属证明。
 - 不因本项目的专有许可删除、覆盖或限制第三方组件许可证依法授予的权利。
-- 不允许下游恢复初始化能力或继续生成项目，不把中性 scaffold 证据当作真实产品交付证据。
-- 不自动 tag、配置 remote、push、发布、签名或上传制品。
+- 不允许下游恢复初始化能力或继续生成项目，不把中性脚手架证据当作真实产品交付证据。
+- 不自动创建标签、配置远端、推送、发布、签名或上传制品。
 
 ## 可靠性与风险约束
 
@@ -77,18 +77,18 @@
 - 许可证缺失、两种语言项目名不等于当前项目、核心权利不一致、改名影响非身份法律条款或初始化裁剪删除许可证时，Harness 验证和下游完成门禁必须失败。
 - 第三方依赖引入前必须检查许可证兼容性；本许可证不能把不兼容依赖变成可专有分发。
 - 商业文件应明确许可方、被许可方、授权范围、费用、期限、违约、责任上限、适用法律和争议解决；正式销售前由专业律师复核。
-- 重要、难以逆转或偏离硬规则的决定进入当日 ADR；实际变更同步状态、验证和 Changelog。
+- 重要、难以逆转或偏离硬规则的决定进入当日 ADR；实际变更同步状态、验证和变更记录。
 
 ## 成功标准
 
 - [ ] 根目录存在内容完整且相互一致的 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，明确不是开源协议、知识产权归属、有限付费授权、禁止继续衍生、第三方材料、终止和争议边界。
-- [ ] `$instantiate-project` 明确先原样复制再只改两份许可证的目标项目名，`$initialize-rust-project` 明确保留改名后的两份许可证，validator 能拒绝缺失、旧项目名残留或关键条款回归。
-- [ ] `$rename-project-identity` 能先预览再一次性修改项目自有配置、路径、文档、Skills 和 Licenses，并拒绝覆盖、符号链接与残留旧身份。
+- [ ] `$instantiate-project` 明确先原样复制再只改两份许可证的目标项目名，`$initialize-rust-project` 明确保留改名后的两份许可证，校验器能拒绝缺失、旧项目名残留或关键条款回归。
+- [ ] `$rename-project-identity` 能先预览再一次性修改项目自有配置、路径、文档、Skills 和许可证，并拒绝覆盖、符号链接与残留旧身份。
 - [ ] 下游裁剪后不存在活动派生入口，但两份许可证、Skills 地图和约束地图继续存在。
-- [ ] 下游能在未定义业务时建立中性 shared core 与所选接口；定义产品后按 plan/implement/verify 闭环替换中性状态。
+- [ ] 下游能在未定义业务时建立中性共享核心与所选接口；定义产品后按计划/实现/验证闭环替换中性状态。
 - [ ] 当前系统编译、非空测试、最终产物和启动冒烟真实通过；其他平台不被误报。
 - [ ] 正式商用前完成法务复核和第三方许可证清单，不把模板文本误当作已签客户合同。
-- [ ] `Version.md`、README、当前 Product Spec、发布规则和 Changelog 对 Harness 版本的摘要一致，历史验证中的旧版本证据不被改写。
+- [ ] `Version.md`、README、当前产品规格、发布规则和变更记录对 Harness 版本的摘要一致，历史验证中的旧版本证据不被改写。
 
 ## 当前版本与未来候选
 

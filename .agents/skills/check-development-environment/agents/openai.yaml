@@ -1,4 +1,4 @@
 interface:
-  display_name: "Check Development Environment"
-  short_description: "Check and auto-install required host toolchain before first dev"
-  default_prompt: "Use $check-development-environment before first development and install only the toolchain required by the recorded interfaces."
+  display_name: "检查开发环境"
+  short_description: "在首次开发前检查并自动安装已选接口必需的宿主工具链"
+  default_prompt: "首次开发前使用 $check-development-environment，并且只安装已记录接口所需的工具链。"

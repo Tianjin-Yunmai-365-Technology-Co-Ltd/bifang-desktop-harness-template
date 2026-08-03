@@ -1,42 +1,42 @@
 ---
 name: plan-change
-description: Create or revise an implementation-ready TodoList and verification milestones for a scoped repository change. Use when an approved requirement spans implementation work, affects several project areas, needs risk analysis, or must persist across sessions before coding and acceptance.
+description: 为范围明确的仓库变更创建或修订可直接实施的 TodoList 和验证里程碑。用于已批准需求涉及实施工作、影响多个项目区域、需要风险分析，或必须在编码和验收前跨会话持久保存时。
 ---
 
-# Plan Change
+# 规划变更
 
-Turn one approved scope into Todo batches whose completion gates real milestone acceptance.
+将一个已批准范围拆成 Todo 批次，并以批次完成状态作为真实里程碑验收的准入门禁。
 
-## Workflow
+## 工作流程
 
-1. Work in the current worktree during planning. Do not start coding, Worktrees, smoke or E2E.
-2. Read the latest dated Product Spec, latest dated Product Status, `docs/AGENT_POLICY.md`, `docs/ENGINEERING_RULES.md`, the latest dated ADR, implicated repository areas and the current Work Plan when present.
-3. Confirm the request is inside approved scope. Route scope changes through `$define-product`.
-4. Map current behavior, tests and user changes. Preserve existing work and identify exact overlaps.
-5. Define in-scope and out-of-scope boundaries. Resolve every choice that would materially change product behavior; expose unresolved blockers.
-6. Split work into dependency-ordered Todo batches. Every Todo must have:
-   - a stable ID;
-   - one observable expected behavior;
-   - exact file/module ownership or investigation boundary;
-   - dependencies and risks;
-   - a non-empty unit/regression test or an approved exception;
-   - related static/integration/contract checks;
-   - one status from `pending`, `in_progress`, `blocked`, `done`.
-7. Keep a Todo non-`done` until its implementation and required checks pass. If any Todo in the current batch is non-`done`, the plan must remain in the coding loop and must not schedule smoke, E2E, packaging, publication or milestone acceptance.
-8. Define one verification milestone per releasable batch. Each milestone must state:
-   - entry condition: every Todo in its batch is `done`;
-   - the complete real artifact and source commit to accept;
-   - approved success and highest-risk failure scenarios;
-   - explicit rejection of Mock, stub, placeholder, scaffold, source snippet and dev preview substitutes;
-   - compile/build, non-empty unit, integration/contract and artifact-existence evidence;
-   - `milestone_smoke` and `milestone_e2e` resolution from project policy, hard requirements and applicability;
-   - failure routing that reopens/adds Todo and returns to `$implement-change`.
-9. Read `parallel_worktree_subagents` only to record the likely implementation path. `enabled` permits later autonomous use only when at least two non-overlapping write scopes and a safe Git baseline exist; `disabled` selects single Agent. Ask only when the policy is missing/invalid or applicability cannot be resolved.
-10. On the first downstream plan, create the Work Plan index and today's dated file. Otherwise update today's complete plan and Product Status snapshot. New-date files synthesize its still-valid content from the previous snapshot. Ensure the confirmed requirement has a current ADR entry.
+1. 规划期间在当前工作树中工作。不得开始编码、创建 Worktree、执行冒烟或 E2E。
+2. 读取日期最新的产品规格、日期最新的产品状态、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、日期最新的 ADR、受影响的仓库区域，以及存在时的当前工作计划。
+3. 确认请求位于已批准范围内。范围变更必须通过 `$define-product`。
+4. 梳理当前行为、测试和用户修改。保留既有工作并识别精确重叠范围。
+5. 定义范围内和范围外边界。解决所有会实质改变产品行为的选择；明确暴露尚未解决的阻断项。
+6. 按依赖顺序把工作拆成 Todo 批次。每个 Todo 必须包含：
+   - 稳定 ID；
+   - 一个可观察的预期行为；
+   - 精确的文件/模块所有权或调查边界；
+   - 依赖和风险；
+   - 非空单元/回归测试，或一项已批准例外；
+   - 相关静态、集成或契约检查；
+   - `pending`、`in_progress`、`blocked`、`done` 中的一种状态。
+7. 在 Todo 的实现和必需检查通过前，必须保持其为非 `done` 状态。当前批次存在任何非 `done` Todo 时，计划必须停留在编码循环中，并且不得安排冒烟、E2E、打包、发布或里程碑验收。
+8. 为每个可交付批次定义一个验证里程碑。每个里程碑必须说明：
+   - 准入条件：该批次的每个 Todo 均为 `done`；
+   - 待验收的完整真实产物和源码提交；
+   - 已批准的成功场景和最高风险失败场景；
+   - 明确拒绝使用模拟实现、桩实现、占位内容、脚手架、源码片段和开发预览作为替代品；
+   - 编译/构建、非空单元测试、集成/契约检查和真实产物存在性证据；
+   - 根据项目策略、硬要求和适用性解析 `milestone_smoke` 与 `milestone_e2e`；
+   - 失败时重开或新增 Todo，并返回 `$implement-change` 的回流路径。
+9. 读取 `parallel_worktree_subagents` 仅用于记录可能采用的实施路径。只有存在至少两个不重叠写入范围和安全 Git 基线时，`enabled` 才允许后续自主使用并行路径；`disabled` 选择单 Agent。仅当策略缺失、非法或无法判断适用性时才询问。
+10. 首次创建下游计划时，创建工作计划索引和当天的日期文件。否则更新当天的完整计划和产品状态快照。新日期文件必须从前一份快照综合重写其中仍有效的内容。确保已确认需求在当前 ADR 中拥有对应条目。
 
-## Quality Rules
+## 质量规则
 
-- Use repository facts; do not invent files, commands, APIs, dependencies or artifacts.
-- Keep current plan content about active Todo and milestone gates. Put executed results in Product Status, Verification, ADR and Changelog.
-- Prefer the smallest complete scenario over a partial implementation or speculative infrastructure.
-- A plan is not complete merely because it has steps; its milestone must be able to distinguish a real runnable result from a Mock.
+- 使用仓库事实；不得编造文件、命令、API、依赖或产物。
+- 当前计划内容必须聚焦活动 Todo 和里程碑门禁。已执行结果必须写入产品状态、验证记录、ADR 和变更记录。
+- 优先选择最小完整场景，不得选择部分实现或推测性基础设施。
+- 计划不能仅因拥有步骤就算完成；其里程碑必须能够区分真实可运行结果和模拟实现。

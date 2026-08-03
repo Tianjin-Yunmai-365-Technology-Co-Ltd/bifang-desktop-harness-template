@@ -1,31 +1,32 @@
 ---
 name: prepare-release
-description: Assess and prepare a traceable release using the repository's declared version scheme. Harness uses an Asia/Shanghai YYYYMMDDHHMM time version; downstream products use Semantic Versioning unless their approved specification says otherwise.
+description: 使用仓库声明的版本方案评估并准备可追溯发布。Harness 使用 Asia/Shanghai 时区的 YYYYMMDDHHMM 时间版本；除非已批准规格另有规定，下游产品使用语义化版本。
 ---
 
-# Prepare Release
+# 准备发布
 
-Prepare release metadata and evidence without publishing or tagging unless the user explicitly authorizes those mutations.
+准备发布元数据和证据；除非用户明确授权对应变更，否则不得发布或创建标签。
 
-## Workflow
+## 工作流程
 
-1. Read `Version.md` when it exists, `docs/RELEASE.md`, `docs/changelog/README.md`, all dated Changelog files contributing to the candidate version, `docs/product_spec/README.md` and the latest dated Product Spec, and the latest verification record.
-2. Confirm the user intends to prepare a release. Require an already `Milestone accepted` candidate from `$verify-delivery`; development evidence, a build or a `pending` candidate is insufficient. Require the independent Git top-level and `HEAD` to match the accepted source commit. Inspect persistent smoke/E2E policy resolution and results, but do not run either test here.
-3. Apply the declared scheme. For the Harness, generate a 12-digit `YYYYMMDDHHMM` value from the version-decision time in `Asia/Shanghai`; if another version already used that minute, wait for the next minute rather than inventing a suffix. For downstream SemVer products, recommend MAJOR for breaking behavior, MINOR for compatible capability, or PATCH for compatible fixes. Obtain the user's version decision before changing any version-bearing file.
-4. Locate the declared version fact source and compare every version-bearing location. The Harness template uses root `Version.md` and its time-version scheme; a downstream Rust project uses root `Cargo.toml`, normally uses SemVer, and must not inherit the Harness `Version.md`. Stop if the relevant fact source has not been designated.
-5. Consolidate meaningful `Unreleased` entries from the dated Changelog files into a dated version section without creating a root-level Changelog or duplicating entries across date files. Retain a fresh `Unreleased` section in today's Changelog when further work is expected.
-6. Require `$collect-release-artifacts` to refresh `<project-root>/release` only from builds whose exact candidate identity has accepted milestone evidence. Validate archives/binaries, SHA-256, manifests, version, commit, build, tests, milestone verdict and any policy-selected smoke/E2E result; reject historical, stale, pending, foreign, ambiguous or extra files.
-7. Update release and project status records with evidence and known issues.
+1. 读取存在时的 `Version.md`、`docs/RELEASE.md`、`docs/changelog/README.md`、所有为候选版本提供内容的日期变更记录文件、`docs/product_spec/README.md`、日期最新的产品规格，以及日期最新的验证记录。
+2. 确认用户确实要准备发布。要求存在由 `$verify-delivery` 给出的 `Milestone accepted` 候选；开发证据、一次构建或 `pending` 候选均不充分。要求独立 Git 顶层目录和 `HEAD` 与已验收源码提交匹配；尚未生成的 `HEAD` 无法标识发布源码。检查持久冒烟/E2E 策略的解析结果和执行结果，但不得在此运行任一测试。
+3. 应用已声明的版本方案。对于 Harness，根据 `Asia/Shanghai` 时区的版本决定时间生成 12 位 `YYYYMMDDHHMM` 值；如果已有版本使用该分钟，必须等待下一分钟，不得编造后缀。对于下游 SemVer 产品，破坏性行为推荐 MAJOR，兼容能力推荐 MINOR，兼容修复推荐 PATCH。更改任何含版本信息的文件前，必须取得用户的版本决定。
+4. 找到已声明的版本事实源，并比较每个含版本信息的位置。Harness 模板使用根 `Version.md` 及其时间版本方案；下游 Rust 项目使用根 `Cargo.toml`，通常使用 SemVer，并且不得继承 Harness `Version.md`。尚未指定相关事实源时必须停止。
+5. 把日期变更记录文件中有意义的 `Unreleased` 条目合并到一个带日期的版本章节，不得创建根级变更记录，也不得在不同日期文件间重复条目。预计仍有后续工作时，在当天变更记录中保留全新的 `Unreleased` 章节。
+6. 要求 `$build-rust-release` 或 `$collect-release-artifacts` 已针对精确构建标识安全刷新 `<project-root>/release`。验证归档/二进制文件、SHA-256、清单、版本、提交、构建、测试、`signingStatus`、`signingReason`、结构化 `signingEvidence`、里程碑结论，以及项目策略选择的任何冒烟/E2E 结果；拒绝历史、过时、`pending`、`rejected`、外来、含糊或额外文件。目录存在绝不表示已满足发布就绪条件。
+7. 使用证据和已知问题更新发布及项目状态记录。
 
-## Release Gate
+## 发布门禁
 
-Declare `Ready` only when all required checklist items in `docs/RELEASE.md` are satisfied. Otherwise declare `Not ready` and list exact blockers.
+只有满足 `docs/RELEASE.md` 中全部必需检查项时，才声明 `Ready`。否则必须声明 `Not ready` 并列出精确阻断项。
 
-- Never overwrite a published version.
-- Never fabricate a tag, commit, checksum, artifact, date, or validation result.
-- Never publish, push, tag, or upload solely because this skill was invoked; require explicit user authorization.
-- Never treat a successful candidate workflow or complete artifact directory as authorization to publish it.
-- Never run smoke/E2E from release preparation or treat an unselected check as passing. Preserve `Not run` with residual risk and block readiness when policy/product/channel made a check required.
-- Never assess an old `release/` snapshot as current merely because its files exist; collection must bind it to the selected version, source commit and build/run evidence.
-- Never change a Harness time version or downstream SemVer value solely because the calculated next value appears obvious; the user owns the version decision.
-- Describe changes in user language rather than as a raw commit list.
+- 绝不得覆盖已发布版本。
+- 绝不得编造标签、提交、校验和、产物、日期或验证结果。
+- 绝不得仅因调用本 Skill 就发布、推送、创建标签或上传；必须取得用户明确授权。
+- 绝不得把候选工作流成功或产物目录完整视为发布授权。
+- 绝不得在发布准备中运行冒烟/E2E，也不得把未选择的检查视为通过。保留 `Not run` 及其剩余风险；项目策略、产品或渠道要求该检查时，必须阻断就绪状态。
+- 不得在此重试或配置签名。渠道要求的签名必须已经属于精确的已验收候选；后续改变字节的签名、公证或重新打包必须把新字节交回 `$verify-delivery`。
+- 绝不得仅因旧 `release/` 快照中的文件仍存在，就把它评估为当前结果；收集过程必须把它绑定到已选版本、源码提交和构建证据。
+- 绝不得仅因计算出的下一版本值看似明显，就更改 Harness 时间版本或下游 SemVer 值；版本决定属于用户。
+- 使用面向用户的语言描述变更，不得仅提供原始提交列表。

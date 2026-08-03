@@ -3,7 +3,7 @@ name = "example_tool_cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
-description = "Thin neutral scaffold CLI for a newly initialized project"
+description = "新初始化项目的轻量中性脚手架 CLI"
 
 [[bin]]
 name = "example_tool_cli"

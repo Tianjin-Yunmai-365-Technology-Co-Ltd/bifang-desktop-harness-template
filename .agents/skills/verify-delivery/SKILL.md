@@ -1,47 +1,49 @@
 ---
 name: verify-delivery
-description: Accept or reject a complete real milestone artifact after every Todo in its batch is done, using approved scenarios and persistent smoke/E2E policy. Use for milestone acceptance, completion review, or before release preparation; reject Mock or incomplete results and route implementation gaps back to the Todo coding loop.
+description: 批次中的每个 Todo 均完成后，使用已批准场景和持久冒烟/E2E 策略验收或拒绝完整真实里程碑产物。用于里程碑验收、完成复核或发布准备前；拒绝模拟实现或不完整结果，并把实现缺口送回 Todo 编码循环。
 ---
 
-# Verify Delivery
+# 验证交付
 
-Verify a complete milestone artifact, not a partial implementation or a collection of passing checks.
+验证完整里程碑产物，不验证部分实现或一组通过的检查。
 
-## Entry Gate
+## 准入门禁
 
-1. Read the latest dated Product Spec, `docs/AGENT_POLICY.md`, latest dated Work Plan, the latest dated ADR, `docs/ENGINEERING_RULES.md`, Verification and applicable interface/build rules.
-2. Require every Todo in the candidate's batch to be `done` with non-empty unit/regression and related development evidence. If any Todo is non-`done`, stop milestone execution and return to `$implement-change`; do not run smoke/E2E.
-3. Require a complete real artifact bound to the approved milestone, source commit, version/build identity and current environment. Reject source snippets, Mock, stub, placeholder, neutral scaffold, dev preview, assumed artifact path and internal-function-only evidence.
+1. 读取日期最新的产品规格、`docs/AGENT_POLICY.md`、日期最新的工作计划、日期最新的 ADR、`docs/ENGINEERING_RULES.md`、验证记录，以及适用的接口/构建规则。
+2. 要求候选批次中的每个 Todo 均为 `done`，并具有非空单元/回归测试和相关开发证据。存在任何非 `done` Todo 时，必须停止里程碑执行并返回 `$implement-change`；不得运行冒烟/E2E。
+3. 要求存在与已批准里程碑、源码提交、版本/构建标识和当前环境绑定的完整真实产物。拒绝源码片段、模拟实现、桩实现、占位内容、中性脚手架、开发预览、推测的产物路径和仅调用内部函数的证据。
 
-## Milestone Workflow
+## 里程碑工作流程
 
-1. State the approved core success path, highest-risk failure path, real inputs/outputs and observable acceptance result. Separate external prerequisites from product logic.
-2. Discover real repository commands and artifact locations; never invent them. Build/locate the candidate without running smoke/E2E in the build Skill.
-3. Re-run current-candidate compile/build checks, non-empty unit/regression tests, required integration/contract checks and artifact existence. Zero tests or missing required-path coverage rejects the milestone unless an approved exception defines alternative evidence.
-4. Resolve optional runtime checks in this order:
-   - product, channel and safety hard requirements;
-   - a stricter current-task user constraint;
-   - `milestone_smoke` and `milestone_e2e` from `docs/AGENT_POLICY.md`;
-   - applicability to the actual interface and artifact.
-5. `enabled` means run when applicable; `disabled` means record `Not run` and residual risk unless a hard requirement overrides it. `pending`, missing/invalid policy, conflicting requirements, inability to establish that the artifact is runnable, or new credential/production/irreversible authority requires user input.
-6. Run applicable smoke only against the real artifact with a bounded read-only entry. Call `$test-final-artifact-e2e` only here when E2E is enabled or required and a real artifact exists. A CI candidate transport bundle already marked `milestoneAcceptance: pending` may exist solely to move the candidate into this milestone; execute selected checks before collection as ready, release/distribution packaging, signing, release upload or publication.
-7. Capture exact candidate, platform, commands/scenarios, expected/observed results, cleanup, skipped checks and unverified platforms. Do not infer cross-platform success.
-8. Review maintained code against file boundaries and Chinese business-comment rules. Confirm Product Spec, design docs and `docs/changelog/YYYYMMDD_CHANGELOG.md` match the actual behavior.
+1. 说明已批准的核心成功路径、最高风险失败路径、真实输入/输出和可观察验收结果。区分外部前置项与产品逻辑。
+2. 发现仓库真实命令和产物位置；绝不得编造。在构建 Skill 中不得运行冒烟/E2E，只构建或定位候选。验证由当前构建标识放入项目根 `release/` 的精确已签名或明确 unsigned 字节、校验和及清单。
+3. 针对当前候选重新运行编译/构建检查、非空单元/回归测试、必需集成/契约检查和产物存在性检查。发现测试数为零或缺少必需路径覆盖时，必须拒绝里程碑，除非已批准例外定义了替代证据。
+4. 按以下顺序解析可选运行时检查：
+   - 产品、渠道和安全硬要求；
+   - 当前任务中更严格的用户约束；
+   - `docs/AGENT_POLICY.md` 中的 `milestone_smoke` 和 `milestone_e2e`；
+   - 对真实接口和产物的适用性。
+5. `enabled` 表示适用时必须运行；`disabled` 表示记录 `Not run` 和剩余风险，除非硬要求覆盖该值。策略为 `pending`、缺失或非法，要求发生冲突，无法确认产物可运行，或需要新的凭据、生产环境或不可逆操作授权时，必须请求用户输入。
+6. 仅通过有边界的只读入口，对真实产物运行适用冒烟。只有在 E2E 已启用或为必需项且真实产物存在时，才可在此调用 `$test-final-artifact-e2e`。已标记为 `milestoneAcceptance: pending` 的构建结果可以仅为进入本里程碑而存在于项目根 `release/`；必须在把它标记为就绪、上传到发布渠道或发布前执行已选检查。后续签名、公证或重新打包改变字节或运行时行为时，必须把结果视为新候选并重新执行本里程碑。
+7. 记录精确候选、平台、命令/场景、预期/观测结果、清理、跳过的检查和未验证平台。不得推断跨平台成功。
+8. 按文件边界和中文业务注释规则复核人工维护代码。确认产品规格、设计文档和 `docs/changelog/YYYYMMDD_CHANGELOG.md` 与实际行为一致。
 
-## Rejection And Repair Loop
+## 拒绝与修复循环
 
-1. Reject the milestone when the artifact is missing/incomplete/not runnable, still contains Mock/scaffold behavior, deviates from an approved scenario, or any required/enabled check fails, times out, is cancelled or remains unrun.
-2. Preserve failure evidence in `docs/VERIFICATION.md`.
-3. For an approved-scope implementation gap, reopen or add a concrete Todo with the expected behavior and regression test, mark the milestone rejected, and immediately return to `$implement-change`. After repair, require the full batch to be `done` and rerun the complete milestone.
-4. Route a newly discovered product boundary to `$define-product`; request approval for destructive operations or new external side effects. External unavailable platforms may remain `Unverified` only when they are outside the current milestone's required scope.
-5. Never use `Partially verified` as an acceptance verdict while required product logic remains missing or wrong.
+1. 产物缺失、不完整、不可运行，仍包含模拟/脚手架行为，偏离已批准场景，或任何必需/已启用检查失败、超时、取消或未执行时，必须拒绝里程碑。
+2. 在 `docs/VERIFICATION.md` 中保留失败证据。
+3. 对已批准范围内的实现缺口，重开或新增一个包含预期行为和回归测试的具体 Todo，把里程碑标记为已拒绝，并立即返回 `$implement-change`。修复后，要求完整批次重新达到 `done`，并重新运行完整里程碑。
+4. 新发现的产品边界必须转交 `$define-product`；破坏性操作或新的外部副作用必须请求批准。只有不可用的外部平台不属于当前里程碑必需范围时，才可以保持 `Unverified`。
+5. 必需产品逻辑仍然缺失或错误时，绝不得使用 `Partially verified` 作为验收结论。
 
-## Verdict
+## 结论
 
-Use one milestone verdict:
+只能使用以下一种里程碑结论：
 
-- `Milestone accepted`: every required scenario and selected gate passed, and any required human review is recorded.
-- `Awaiting human review`: automated evidence passed but the project requires an unsigned human verdict.
-- `Milestone rejected`: a required condition failed; reopened Todo and repair routing are recorded.
+- `Milestone accepted`：每个必需场景和已选门禁均已通过，并且任何必需人工复核均已记录。
+- `Awaiting human review`：自动证据已通过，但项目要求的人工结论尚未签署。
+- `Milestone rejected`：一项必需条件失败；已记录重开的 Todo 和修复回流路径。
 
-Acceptance does not authorize tag, push, publication, signing, upload or destructive cleanup.
+在不改变产物字节的情况下，保持每份匹配的 `release/` 清单同步：`Awaiting human review` 必须保持 `milestoneAcceptance: pending` 并引用自动证据；`Milestone rejected` 必须记录 `rejected` 及其失败证据；只有 `Milestone accepted` 才能记录 `accepted`，并附带已解析的冒烟/E2E 和签名证据。绝不得根据目录存在推断状态转换。
+
+验收不授权创建 tag、push、发布、新签名工作、上传或破坏性清理。

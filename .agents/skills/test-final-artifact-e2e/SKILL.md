@@ -1,33 +1,33 @@
 ---
 name: test-final-artifact-e2e
-description: Execute milestone-stage end-to-end acceptance against a complete real CLI, TUI, MCP host, or GUI artifact through Computer Use. Use only from $verify-delivery after every Todo is done and persistent project policy enables E2E or an approved product/channel rule requires it; never use during planning, coding, ordinary builds, collection, or release metadata work.
+description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI 产物执行里程碑阶段端到端验收。仅可由 $verify-delivery 在每个 Todo 均为 done，且持久项目策略启用 E2E 或已批准产品/渠道规则要求 E2E 时调用；绝不得在规划、编码、常规构建、收集或发布元数据工作中使用。
 ---
 
-# Test Final Artifact E2E
+# 测试最终产物 E2E
 
-Verify an accepted-scope scenario through the same visible interaction path a real user or host uses.
+通过真实用户或宿主使用的同一可见交互路径，验证已批准范围内的场景。
 
-## Workflow
+## 工作流程
 
-1. Read the approved success criteria, active Todo/milestone Work Plan, `docs/AGENT_POLICY.md`, `docs/VERIFICATION.md` and applicable interface Skill.
-2. Require every Todo in the milestone batch to be `done` and `$verify-delivery` to have entered milestone acceptance. If not, stop and report `Not run`.
-3. Require `milestone_e2e: enabled` or an approved product/channel `required` rule. `disabled` records `Not run` unless overridden by a hard requirement; missing/invalid/`pending` policy requires user resolution.
-4. Require a complete real artifact located from build metadata. Reject a dev preview, source invocation, Mock backend, scaffold, placeholder or assumed path.
-5. Define bounded scenarios from approved criteria: at least the core success path and highest-risk failure path. State prerequisites, isolated reversible data, expected observations, cleanup and timeout.
-6. Start the real artifact and use the installed `computer-use` Skill for GUI, browser, terminal or host UI interaction. Inspect fresh state before and after every action; prefer accessibility-tree actions and use coordinates only from the latest screenshot.
-7. Verify resulting state, output, persisted data or error presentation; a click or keystroke is not evidence by itself.
-8. Capture artifact/version, source commit, platform, steps, expected/observed results, screenshots when useful, shutdown, cleanup and pass/fail. Redact secrets and unnecessary personal paths.
-9. Stop before credentials, payment, production, publication or irreversible actions unless separately authorized.
-10. On any failure, timeout, cancellation or selected-but-unrun scenario, record evidence, reject the milestone, reopen/add a repair Todo and return to `$implement-change`. After repair, rerun the complete milestone scenario set.
-11. Mark unexercised operating systems, displays, browsers, terminals, MCP hosts and package formats `Unverified`. Human final review remains separate.
+1. 读取已批准的成功标准、活动 Todo/里程碑工作计划、`docs/AGENT_POLICY.md`、`docs/VERIFICATION.md` 和适用的接口 Skill。
+2. 要求里程碑批次中的每个 Todo 均为 `done`，并且 `$verify-delivery` 已进入里程碑验收。否则必须停止并报告 `Not run`。
+3. 要求 `milestone_e2e: enabled`，或存在已批准产品/渠道的 `required` 规则。除非硬要求覆盖，`disabled` 必须记录 `Not run`；策略缺失、非法或为 `pending` 时，必须由用户解决。
+4. 要求通过构建元数据定位完整真实产物。拒绝开发预览、源码调用、模拟后端、脚手架、占位内容或推测路径。
+5. 根据已批准标准定义有边界的场景：至少包含核心成功路径和最高风险失败路径。说明前置条件、隔离且可逆的数据、预期观测结果、清理和超时。
+6. 启动真实产物，并使用已安装的 `computer-use` Skill 与 GUI、浏览器、终端或宿主界面交互。每项操作前后都必须检查全新状态；优先使用无障碍树操作，只有依据最新截图才可使用坐标。
+7. 验证产生的状态、输出、持久化数据或错误呈现；单独一次点击或按键不构成证据。
+8. 记录产物/版本、源码提交、平台、步骤、预期/观测结果、适用时的截图、关闭、清理和通过/失败结果。遮盖敏感信息和不必要的个人路径。
+9. 除非另行获得授权，否则必须在凭据、支付、生产、发布或不可逆操作前停止。
+10. 任何失败、超时、取消或已选但未运行的场景出现时，必须记录证据、拒绝里程碑、重开或新增修复 Todo，并返回 `$implement-change`。修复后，重新运行完整里程碑场景集。
+11. 将未实际执行的操作系统、显示环境、浏览器、终端、MCP 宿主和软件包格式标记为 `Unverified`。人工最终复核仍是独立步骤。
 
-## Interface Coverage
+## 接口覆盖
 
-- CLI: real binary invocation, output streams, exit status, cancellation and shutdown.
-- TUI: keyboard navigation, focus, resize, error recovery and terminal restoration.
-- MCP: approved real host discovery, invocation, errors, cancellation and clean disconnect.
-- GUI: launch, complete user loop, accessibility state, errors, persistence and clean quit.
+- CLI：真实二进制文件调用、输出流、退出状态、取消和关闭。
+- TUI：键盘导航、焦点、尺寸调整、错误恢复和终端还原。
+- MCP：已批准真实宿主的发现、调用、错误、取消和干净断开。
+- GUI：启动、完整用户闭环、无障碍状态、错误、持久化和干净退出。
 
-## Completion
+## 完成输出
 
-Report the exact artifact, policy/hard-requirement source, scenarios, observable evidence, cleanup, passes, failures, reopened Todo and unverified scope. Never sign the human-review field.
+报告精确产物、策略/硬要求来源、场景、可观察证据、清理、通过项、失败项、已重开的 Todo 和未验证范围。绝不得签署人工复核字段。

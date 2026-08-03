@@ -1,4 +1,4 @@
 interface:
-  display_name: "Run Parallel Worktrees"
-  short_description: "Coordinate visible Subagents in isolated Git worktrees"
-  default_prompt: "Use $run-parallel-worktrees to coordinate this task with visible Subagents in isolated Git worktrees."
+  display_name: "运行并行 Worktree"
+  short_description: "在隔离 Git Worktree 中协调可见 Subagent 并行实施任务"
+  default_prompt: "使用 $run-parallel-worktrees，在隔离的 Git Worktree 中通过可见 Subagent 协调此任务。"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""使用隔离 Git fixture 验证 Harness 升级成功路径与保护绕过回归。"""
+"""使用隔离 Git 测试夹具验证 Harness 升级成功路径与保护绕过回归。"""
 
 from __future__ import annotations
 
@@ -100,7 +100,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def write(self, root: Path, relative: str, content: str) -> None:
-        """在 fixture 根内写普通文件。"""
+        """在测试夹具根目录内写普通文件。"""
 
         path = root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -154,7 +154,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         return plan, plan_path
 
     def bootstrap(self) -> None:
-        """经显式审核计划建立 fixture 的首份共同基线。"""
+        """经显式审核计划建立测试夹具的首份共同基线。"""
 
         _, plan_path = self.create_plan(expected=2, name="bootstrap")
         self.run_tool(
@@ -346,7 +346,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         target_plan = self.plan(expected=2)
         self.assertEqual("tombstone_present", self.classification(target_plan, TOMBSTONE))
 
-    @unittest.skipIf(not hasattr(Path, "symlink_to"), "platform lacks symlink support")
+    @unittest.skipIf(not hasattr(Path, "symlink_to"), "当前平台不支持符号链接")
     def test_target_tombstone_symlink_and_empty_directory_block(self) -> None:
         """tombstone 即使不是普通文件也必须阻断 bootstrap。"""
 
@@ -355,7 +355,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         (self.target / TOMBSTONE).symlink_to(outside)
         plan = self.plan(expected=2)
         self.assertTrue(
-            any("target contains tombstone path: Version.md" in item for item in plan["problems"]),
+            any("目标包含 tombstone 路径：Version.md" in item for item in plan["problems"]),
             plan,
         )
         (self.target / TOMBSTONE).unlink()
@@ -389,7 +389,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         )
         self.assertFalse(self.lock.exists())
 
-    @unittest.skipIf(not hasattr(Path, "symlink_to"), "platform lacks symlink support")
+    @unittest.skipIf(not hasattr(Path, "symlink_to"), "当前平台不支持符号链接")
     def test_candidate_symlink_blocks_plan_and_bootstrap_record(self) -> None:
         """候选符号链接既阻断计划，也不能被 bootstrap 常量绕过。"""
 
@@ -481,7 +481,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         )
         self.assertEqual("keep", (self.target / PROTECTED).read_text(encoding="utf-8"))
 
-    @unittest.skipIf(not hasattr(Path, "symlink_to"), "platform lacks symlink support")
+    @unittest.skipIf(not hasattr(Path, "symlink_to"), "当前平台不支持符号链接")
     def test_target_parent_symlink_after_plan_cannot_escape(self) -> None:
         """plan 后父目录被换成外链时，apply 不得修改仓库外文件。"""
 
@@ -558,7 +558,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         lock["entries"][MANAGED]["mode"] = "merge-sections"
         self.lock.write_text(json.dumps(lock), encoding="utf-8")
         plan = self.plan(expected=2)
-        self.assertTrue(any("ownership mode changed" in item for item in plan["problems"]))
+        self.assertTrue(any("所有权 mode 已变化" in item for item in plan["problems"]))
 
     def test_weakened_ownership_manifest_is_rejected(self) -> None:
         """生产最小 tombstone/protected/self-update 规则不得被下游清单弱化。"""
@@ -569,7 +569,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         ]
         self.ownership.write_text(json.dumps(manifest), encoding="utf-8")
         result = self.run_tool("plan", *self.shared_arguments(), expected=2)
-        self.assertIn("weakens required protection", result["error"])
+        self.assertIn("削弱了必需保护", result["error"])
 
     def test_source_provenance_is_bound_to_clean_git_head(self) -> None:
         """plan 绑定真实来源 HEAD，record 不能改写，来源漂移会使计划失效。"""
@@ -588,10 +588,10 @@ class HarnessUpgradeTests(unittest.TestCase):
             "record-verified-baseline",
             expected=2,
         )
-        self.assertIn("must exactly match", result["error"])
+        self.assertIn("必须与已复核 plan 精确匹配", result["error"])
         self.write(self.source, "untracked.txt", "drift")
         result = self.run_tool("plan", *self.shared_arguments(), expected=2)
-        self.assertIn("must be clean", result["error"])
+        self.assertIn("必须保持干净", result["error"])
 
     def test_control_file_drift_blocks_apply_before_write(self) -> None:
         """受审后 ownership 字节变化必须使计划失效且不修改目标。"""
@@ -618,7 +618,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         )
         self.assertEqual("v1", (self.target / MANAGED).read_text(encoding="utf-8"))
 
-    @unittest.skipUnless(hasattr(os, "chmod"), "platform lacks chmod")
+    @unittest.skipUnless(hasattr(os, "chmod"), "当前平台不支持 chmod")
     def test_permission_mode_changes_follow_three_way_rules(self) -> None:
         """上游 mode 单改可应用，本地 mode 单改必须保留。"""
 
@@ -646,7 +646,7 @@ class HarnessUpgradeTests(unittest.TestCase):
         plan = self.plan()
         self.assertEqual("preserve_local", self.classification(plan, MANAGED))
 
-    @unittest.skipUnless(hasattr(os, "chmod"), "platform lacks chmod")
+    @unittest.skipUnless(hasattr(os, "chmod"), "当前平台不支持 chmod")
     def test_special_permission_bits_are_rejected(self) -> None:
         """setuid/setgid/sticky 等特殊位不进入跨平台来源锁。"""
 
@@ -654,9 +654,9 @@ class HarnessUpgradeTests(unittest.TestCase):
         os.chmod(self.candidate / MANAGED, 0o1755)
         observed_mode = stat.S_IMODE((self.candidate / MANAGED).stat().st_mode)
         if not observed_mode & ~0o777:
-            self.skipTest("filesystem clears special permission bits")
+            self.skipTest("文件系统会清除特殊权限位")
         result = self.run_tool("plan", *self.shared_arguments(), expected=2)
-        self.assertIn("unsupported special permission bits", result["error"])
+        self.assertIn("不受支持的特殊权限位", result["error"])
 
     def test_full_preflight_prevents_partial_apply(self) -> None:
         """后项在 plan 后变化时，前项不得先被更新。"""

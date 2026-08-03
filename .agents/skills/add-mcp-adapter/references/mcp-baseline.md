@@ -1,53 +1,53 @@
-# Rust stdio MCP baseline
+# Rust stdio MCP 基线
 
-Read this reference only after an explicit downstream request has passed the MCP scope gate.
+仅在明确的下游请求通过 MCP 范围闸门后阅读本参考。
 
-## Fixed defaults
+## 固定默认值
 
-- Use the official Rust MCP SDK family, `rmcp`, with Tokio.
-- Start stdio serving from a Tokio current-thread async entry and keep transport/tool/core calls async by default. Ordinary concurrent requests do not justify `rt-multi-thread`.
-- Use a local stdio server managed by the MCP host; do not listen on a port.
-- Disable default features and enable only the server, macros, and stdio transport capabilities required by the approved tool set.
-- Keep a separate MCP binary boundary when Cargo must enforce protocol dependencies and process lifecycle.
-- Make the adapter depend on shared core. Never make core depend on MCP or invoke core through CLI text.
-- Resolve and lock the actual compatible stable versions when invoked. An undeclared crate MSRV is unknown, not compatible evidence.
+- 将官方 Rust MCP SDK 系列 `rmcp` 与 Tokio 配合使用。
+- 从 Tokio current-thread 异步入口启动 stdio 服务，传输/工具/核心调用默认保持异步。普通并发请求不足以成为启用 `rt-multi-thread` 的理由。
+- 使用由 MCP 宿主管理的本地 stdio 服务器；不得监听端口。
+- 关闭默认特性，只启用已批准工具集所需的服务器、宏和 stdio 传输能力。
+- 当 Cargo 必须强制隔离协议依赖和进程生命周期时，保留独立 MCP 二进制边界。
+- 适配器依赖共享核心。绝不能让核心依赖 MCP，也不能通过 CLI 文本调用核心。
+- 调用时解析并锁定实际兼容稳定版本。crate 未声明 MSRV 表示未知，不能作为兼容证据。
 
-## Required design inputs
+## 必需设计输入
 
-For every tool, record:
+每个工具都要记录：
 
-- stable name and concise purpose;
-- target host or hosts;
-- strict input schema and structured result;
-- shared-core operation and domain error mapping;
-- read/write/execute/destructive behavior;
-- idempotency and external/open-world reach;
-- required approval or hard authorization control;
-- timeout, cancellation, retry, and partial-result behavior;
-- sensitive inputs or outputs that must be redacted.
+- 稳定名称和简洁用途；
+- 目标宿主；
+- 严格输入模式定义和结构化结果；
+- 共享核心操作和领域错误映射；
+- 读/写/执行/破坏性行为；
+- 幂等性及外部开放世界触达范围；
+- 必需审批或硬授权控制；
+- 超时、取消、重试和部分结果行为；
+- 必须遮盖的敏感输入或输出。
 
-## Protocol and security rules
+## 协议与安全规则
 
-- Reserve stdout for MCP protocol messages and write diagnostics to stderr.
-- Treat tool annotations as hints; enforce permissions in core/platform boundaries.
-- Prefer stable resource IDs and allow callers to ignore future result fields.
-- Keep the tool count limited to the real core loop.
-- Reject invalid input before side effects.
-- Make destructive or non-retryable effects explicit in descriptions and policy.
-- Exit cleanly when stdin closes; do not survive as an orphaned background process.
-- Do not block the stdio runtime with synchronous I/O, sleeps, process waits or CPU-heavy work. Consider `spawn_blocking`, dedicated threads or a multi-thread runtime only for measured CPU-intensive work with bounded concurrency and cancellation evidence. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception.
+- 标准输出专用于 MCP 协议消息，诊断写入标准错误。
+- 工具注解只作为提示；权限必须在核心/平台边界强制执行。
+- 优先使用稳定资源 ID，并允许调用方忽略未来新增的结果字段。
+- 工具数量必须限制在真实核心闭环所需范围内。
+- 产生副作用前拒绝无效输入。
+- 在说明和策略中明确标注破坏性或不可重试的影响。
+- stdin 关闭时干净退出；不得作为孤立后台进程继续存活。
+- 不得用同步 I/O、休眠、进程等待或 CPU 密集工作阻塞 stdio 运行时。只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并提供有界并发和取消证据。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程。
 
-## Minimum evidence
+## 最低证据
 
-- Tool discovery returns only the approved tools and schemas.
-- A target client can invoke the core success path.
-- The highest-risk domain failure retains its stable error identity.
-- Malformed arguments and permission denial do not produce side effects.
-- stdout remains protocol-clean while diagnostics use stderr.
-- EOF, cancellation, and timeout behavior are bounded where applicable.
-- The actual release binary starts under a real inspector or target host when available.
-- Rust MSRV and each claimed native platform have actual evidence; otherwise mark them `Unverified`.
+- 工具发现只能返回已批准工具及其模式定义。
+- 目标客户端能够调用核心成功路径。
+- 最高风险领域失败保留稳定错误标识。
+- 格式错误的参数和权限拒绝不得产生副作用。
+- 标准输出保持协议纯净，诊断使用标准错误。
+- 适用时，EOF、取消和超时行为必须有界。
+- 条件具备时，实际发布二进制能在真实检查器或目标宿主下启动。
+- Rust MSRV 和每个声称支持的原生平台都有实际证据；否则标记为 `Unverified`。
 
-## Exit conditions
+## 退出条件
 
-Evaluate a different SDK or transport only when the official SDK cannot meet the approved protocol, MSRV, host, or platform requirement. Remote or Streamable HTTP support is a separate scope decision involving lifecycle, authentication, networking, and deployment.
+只有官方 SDK 无法满足已批准的协议、MSRV、宿主或平台要求时，才能评估其他 SDK 或传输方式。远程或 Streamable HTTP 支持属于独立范围决定，涉及生命周期、身份验证、网络和部署。

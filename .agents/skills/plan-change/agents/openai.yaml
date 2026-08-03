@@ -1,4 +1,4 @@
 interface:
-  display_name: "Plan Change"
-  short_description: "Plan a scoped repository change with risks and verification"
-  default_prompt: "Use $plan-change to prepare an implementation-ready plan for this change."
+  display_name: "规划变更"
+  short_description: "为限定范围的仓库变更制定风险明确且可验证的实施计划"
+  default_prompt: "使用 $plan-change，为此变更准备可直接实施的工作计划。"

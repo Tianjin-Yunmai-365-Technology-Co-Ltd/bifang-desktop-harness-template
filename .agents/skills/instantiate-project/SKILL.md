@@ -1,46 +1,46 @@
 ---
 name: instantiate-project
-description: Create a clean downstream project at a user-provided target directory, including safety checks, selective rule copying, mandatory independent Git initialization, and handoff to neutral Rust initialization.
+description: 在用户提供的目标目录中创建干净的下游项目，包括安全检查、选择性复制规则、强制初始化独立 Git 仓库，以及移交给中性 Rust 初始化流程。
 ---
 
-# Instantiate Project
+# 实例化项目
 
-Create a downstream repository that inherits long-lived Harness rules without inheriting the Harness project's identity, dated project memory, approval, verification claims, or Git history.
+创建一个继承 Harness 长期规则、但不继承 Harness 项目身份、按日期保存的项目记忆、批准结论、验证声明或 Git 历史的下游仓库。
 
-## Workflow
+## 工作流程
 
-1. Read the source `AGENTS.md`, `README.md`, `Version.md`, `docs/product_spec/README.md` and the latest dated Product Spec, `docs/ENGINEERING_RULES.md`, `docs/project_status/README.md` and the latest dated Product Status, `docs/VERIFICATION.md`, `docs/adr/README.md`, the latest dated ADR, `docs/TECH_DEBT.md`, `docs/RELEASE.md`, and `docs/changelog/README.md`.
-2. Confirm the downstream project display name, cross-platform-safe ASCII snake_case project identifier, deterministically derived lowercase kebab-case prefix, full target project directory path, owner, and target platforms. Once, ask the user to choose `enabled` or `disabled` for Superpowers, parallel Worktree/Subagent, milestone smoke, and milestone E2E; record all four plus the confirmation source/date for `docs/AGENT_POLICY.md`. Do not silently default or leave `pending`. The target directory is required; product purpose, core input/output, success criteria, highest-risk failure, side-effect capabilities, and interface selection may remain unresolved.
-3. Run the Harness validation command in the source root when Python 3 is available; otherwise record it as `Not run (optional Python unavailable)`. Then run `git --version` before writing. Git is a blocking prerequisite and must support `git init --initial-branch=main`. Do not install or upgrade Git implicitly; stop with the observed failure when it is missing or incompatible.
-4. Resolve the current Harness root and the user-provided target directory to explicit absolute paths. Resolve a relative target against the current Harness root. Require the resolved target basename to equal `<project-id>`. Reject the Harness root itself, every ancestor of the Harness root, and symlink resolutions to any forbidden location. The target may otherwise be inside or outside the Harness root.
-5. Inventory the resolved target directory before writing. It must be absent or empty, including hidden entries; preserve user files and stop on every collision. Never delete, merge into, or overwrite an existing repository merely to make it resemble the template.
-6. Snapshot the maintained source-file list before creating or populating the target directory, then copy only that fixed file list without recursively traversing the source again, so copying a Harness into a target inside it cannot recurse. Exclude the target itself, other downstream projects, source `.git`, build outputs, caches, temporary files, `dist/`, local tool state, generated evidence, and the Harness-only root `Version.md`; the initialized Rust downstream gets its version fact from root `Cargo.toml`. Also exclude `docs/adr/`, `docs/changelog/`, `docs/product_spec/`, and `docs/work_plan/` in full: do not copy their indexes, dated files, or create empty replacements during instantiation. Keep `.gitignore`, long-lived normative documents, project Skills, their intentional assets, and both root license files `LICENSE.zh-CN.md` and `LICENSE.en.md`. Copy both license files byte-for-byte as the initial transfer; their legal terms may not be replaced, weakened, summarized, or removed during identity reset.
-7. Invoke `$rename-project-identity` in preview mode and then apply the reviewed mapping across the entire maintained destination tree. Replace the Harness display name, snake_case identifier, kebab-case prefix, sample package prefixes, project-owned configuration, retained Skills, and the Applicable Project Name in both root licenses with the confirmed target identity. The license edit is limited to the exact bilingual project-name tokens; all other legal text must remain byte-equivalent to the copied source. Resolve every applicable residual identity hit before continuing, and retain `$rename-project-identity` for future approved product renames.
-8. Atomically write all four confirmed policy values to `docs/AGENT_POLICY.md`; require `schema_version: 1`, `decision_mode: reuse_then_infer_then_ask`, real `confirmed_by`/`confirmed_at`, and no `pending`. Reset project status, interface selection, verification history, human-review fields, release record, technical debt and Harness provenance to truthful downstream starting states. Do not create Product Spec, Work Plan, ADR or Changelog merely for instantiation.
-9. Preserve baseline constraints in inherited normative documents, but do not present Harness decision dates or approvals as decisions made by the downstream owner. Rewrite downstream `AGENTS.md` and retained Skills so missing not-yet-born memory directories are treated as expected initial state and are created only by their owning development workflow.
-10. Set version facts consistently. Use `0.1.0` only when the inherited baseline applies and the user has not approved another initial version. Leave feedback channel, release channel, and artifact format as explicit unknowns when not decided.
-11. Search the destination for residual Harness identity, historical approval dates, completed verification claims, absolute source-machine paths, and sample identifiers such as `example-tool`. Resolve every applicable hit or document why it is intentionally retained. The project name in both licenses must equal the confirmed target display name. The generic definitions of `Software`, `Licensor`, `Licensee`, and `Downstream Project` and every non-identity legal term are intentional and must remain unchanged unless qualified legal counsel approves a replacement commercial license.
-12. Change the working directory to the resolved target and run `git init --initial-branch=main .`. This is required even when a parent directory is already a Git repository: the downstream project must own an independent nested boundary. Do not copy source history and do not create a tag, remote, hosted repository, push, signature, or global Git configuration.
-13. Verify the new boundary before any downstream action: `git rev-parse --is-inside-work-tree` must return `true`; the canonical path from `git rev-parse --show-toplevel` must equal the resolved target; `git symbolic-ref --short HEAD` must return `main`; `git remote` must be empty; and `git rev-parse --verify HEAD` must fail because the initialization baseline commit is created only after the scaffold and one-time pruning finish. Record `git status --porcelain=v1 --untracked-files=all` as expected pre-finalization evidence.
-14. Do not run the template-wide Harness validator in the selectively copied target. Verify destination inventory, exclusions, rewritten identity, retained links and policy schema, then use `$initialize-rust-project` to ask for `CLI/TUI/MCP/GUI`, reuse all four recorded policy choices without asking again, default to CLI only when no interface is selected, and create the neutral workspace while Product Spec is absent.
-15. Require `$initialize-rust-project` to finalize the repository after scaffold checks: remove initialization Skills, template-only validator/methodology and active initialization instructions; preserve `$rename-project-identity`, `$check-development-environment`, `$upgrade-harness`, `$run-parallel-worktrees` and applicable development Skills. Preserve nonempty Skills/constraint maps and persistent-policy semantics in `AGENTS.md`. When the exact rendered retained-engineering candidate and source version/commit are available from this workflow, use `$upgrade-harness record --bootstrap` to create `.harness/upstream-lock.json`; otherwise leave it absent and record that first upgrade requires bootstrap audit rather than fabricating provenance. Verify no derivation route or policy `pending` remains, create exactly one local baseline commit, and require a clean porcelain result before `$define-product`.
+1. 读取源项目的 `AGENTS.md`、`README.md`、`Version.md`、`docs/product_spec/README.md` 和日期最新的产品规格、`docs/ENGINEERING_RULES.md`、`docs/project_status/README.md` 和日期最新的产品状态、`docs/VERIFICATION.md`、`docs/adr/README.md`、日期最新的 ADR、`docs/TECH_DEBT.md`、`docs/RELEASE.md`，以及 `docs/changelog/README.md`。
+2. 确认下游项目展示名称、跨平台安全的 ASCII `snake_case` 项目标识、确定性派生的小写 kebab-case 前缀、完整目标项目目录路径、负责人和目标平台。一次性要求用户分别为 Superpowers、并行 Worktree/Subagent、里程碑冒烟和里程碑 E2E 选择 `enabled` 或 `disabled`；记录全部四项以及写入 `docs/AGENT_POLICY.md` 所需的确认来源和日期。不得静默设置默认值或遗留 `pending`。目标目录是必填项；产品目的、核心输入/输出、成功标准、最高风险失败、具备副作用的能力以及接口选择可以继续保持未确定。
+3. 当 Python 3 可用时，在源项目根目录运行 Harness 验证命令；否则记录为 `Not run`（可选 Python 不可用）。随后在写入任何内容之前运行 `git --version`。Git 是阻断性前置条件，并且必须支持 `git init --initial-branch=main`。不得隐式安装或升级 Git；Git 缺失或不兼容时，必须携带观察到的失败停止执行。
+4. 将当前 Harness 根目录和用户提供的目标目录解析为明确的绝对路径。相对目标路径必须相对于当前 Harness 根目录解析。解析后的目标目录基本名称必须等于 `<project-id>`。拒绝以 Harness 根目录自身、Harness 根目录的任何祖先目录，以及通过符号链接解析到任何禁止位置的路径作为目标。除这些限制外，目标可以位于 Harness 根目录内部或外部。
+5. 写入前清点解析后的目标目录。目标必须不存在或为空，包括不存在任何隐藏条目；必须保留用户文件，并在发生任何冲突时停止。绝不为了让现有仓库看起来像模板而删除、合并写入或覆盖它。
+6. 在创建或填充目标目录之前，对受维护的源文件列表生成快照；随后只复制该固定文件列表，不得再次递归遍历源目录，以免将 Harness 复制到其内部目标时发生递归。排除目标目录自身、其他下游项目、源 `.git`、构建输出、缓存、临时文件、`dist/`、本地工具状态、生成的证据，以及仅属于 Harness 的根目录 `Version.md`；初始化后的 Rust 下游项目从根 `Cargo.toml` 获取版本事实。还必须完整排除 `docs/adr/`、`docs/changelog/`、`docs/product_spec/` 和 `docs/work_plan/`：实例化期间不得复制其索引、日期文件，也不得创建空白替代目录或文件。保留 `.gitignore`、长期规范性文档、项目 Skills、这些 Skills 有意保留的资产，以及根目录的两份许可证文件 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`。初次传输时必须逐字节复制两份许可证文件；身份重置期间不得替换、削弱、概述或删除其中的法律条款。
+7. 先以预览模式调用 `$rename-project-identity`，随后在整个受维护的目标树中应用复核后的映射。把 Harness 展示名称、snake_case 标识、kebab-case 前缀、示例包前缀、项目自有配置、保留的 Skills，以及根目录两份许可证中的 `Applicable Project Name` 替换为已确认的目标身份。许可证编辑仅限精确的双语项目名称词元；所有其他法律文本必须与复制后的源文件保持字节等价。继续之前必须解决每一个适用的身份残留，并保留 `$rename-project-identity` 供未来已批准的产品改名使用。
+8. 将四项已确认策略值原子写入 `docs/AGENT_POLICY.md`；必须使用 `schema_version: 1`、`decision_mode: reuse_then_infer_then_ask`、真实的 `confirmed_by`/`confirmed_at`，且不得存在 `pending`。把产品状态、接口选择、验证历史、人工复核字段、发布记录、技术债和 Harness 溯源重置为真实的下游起始状态。不得仅为实例化创建产品规格、工作计划、ADR 或变更记录。
+9. 在继承的规范性文档中保留基线约束，但不得把 Harness 的决策日期或批准结论表述为下游负责人作出的决定。重写下游 `AGENTS.md` 和保留的 Skills，使尚未产生的项目记忆目录被视为预期的初始状态，并且仅由各自负责的开发工作流在需要时创建。
+10. 一致设置版本事实。仅当继承的基线适用且用户没有批准其他初始版本时使用 `0.1.0`。反馈渠道、发布渠道和产物格式尚未决定时，必须明确保持为未知。
+11. 在目标目录中搜索残留的 Harness 身份、历史批准日期、已完成验证声明、源机器绝对路径，以及 `example-tool` 等示例标识。解决每一个适用命中，或者记录其有意保留的原因。两份许可证中的项目名称必须等于已确认的目标展示名称。`Software`、`Licensor`、`Licensee` 和 `Downstream Project` 的通用定义以及所有非身份法律条款都属于有意保留内容，除非具备资格的法律顾问批准替换商业许可证，否则必须保持不变。
+12. 将工作目录切换到解析后的目标目录，并运行 `git init --initial-branch=main .`。即使父目录已经是 Git 仓库，此操作也必须执行：下游项目必须拥有独立的嵌套仓库边界。不得复制源历史，也不得创建标签、远端、托管仓库、推送、签名或全局 Git 配置。
+13. 在执行任何下游操作之前验证新边界：`git rev-parse --is-inside-work-tree` 必须返回 `true`；`git rev-parse --show-toplevel` 返回的规范化路径必须等于解析后的目标目录；`git symbolic-ref --short HEAD` 必须返回 `main`；`git remote` 必须为空；`git rev-parse --verify HEAD` 必须失败，因为初始化基线提交只有在脚手架和一次性裁剪全部完成后才能创建。把 `git status --porcelain=v1 --untracked-files=all` 的结果记录为最终完成前的预期证据。
+14. 不得在经过选择性复制的目标目录中运行模板级 Harness 验证器。验证目标目录清单、排除项、改写后的身份、保留链接和策略模式定义，随后使用 `$initialize-rust-project` 询问用户选择 `CLI/TUI/MCP/GUI`，复用全部四项已记录策略而不得再次询问，仅当用户未选择任何接口时默认使用 CLI，并在产品规格尚不存在时创建中性工作区。
+15. 必须要求 `$initialize-rust-project` 在脚手架检查完成后收尾仓库：删除初始化 Skills、模板专用验证器/方法论文档以及活动初始化指令；保留 `$rename-project-identity`、`$check-development-environment`、`$upgrade-harness`、`$run-parallel-worktrees` 和仍适用的开发 Skills。在 `AGENTS.md` 中保留非空的 Skills/约束地图以及持久策略语义。如果本工作流能够取得精确渲染后的保留工程层候选以及源版本/提交，则使用 `$upgrade-harness record --bootstrap` 创建 `.harness/upstream-lock.json`；否则必须保持该文件不存在，并记录首次升级需要初始基线审计，不得伪造溯源。验证没有残留派生路径或策略 `pending`，创建恰好一个本地基线提交，并在进入 `$define-product` 前要求 Git 简洁状态为空。
 
-## Reset Invariants
+## 重置不变量
 
-- Never carry an `Approved` product status, human reviewer identity, verification verdict, source commit, checksum, release date, or platform result from the Harness into a new downstream project.
-- Never migrate or pre-create `docs/adr/`, `docs/changelog/`, `docs/product_spec/`, or `docs/work_plan/`; their owning downstream development Skills create them on first real use.
-- Never claim Windows, macOS, or Linux evidence that was produced for the illustrative asset rather than the downstream product.
-- Never copy the source `.git` directory or fabricate history. Always create a new independent repository at the resolved target root.
-- Never choose or derive the target location on the user's behalf. Write only to the user-provided target after resolving and validating it.
-- Never use the Harness root or one of its ancestors as the target, overwrite a non-empty directory, accept a basename that differs from the project identifier, or follow a symlink into a forbidden location.
-- After handoff, treat the resolved target as both the sole project root and Git top-level. Do not inherit a parent Git boundary or create a second project tree elsewhere.
-- The initialization request authorizes exactly one local baseline commit after successful scaffold verification and pruning. It does not authorize a remote, push, tag, release, signing key, global Git configuration change, or hosted repository creation.
-- Keep shared-core, selected-interface, Chinese business-comment, documentation, testing, validation, exception, and human-review rules unless the downstream owner approves a recorded exception.
-- Enforce all four `docs/AGENT_POLICY.md` values. Later work reuses them and asks only when policy is missing/invalid, requirements conflict, or applicability cannot be determined.
-- The generated repository is terminal: it must not retain `$instantiate-project`, `$initialize-rust-project`, or another active route for deriving projects.
-- The generated repository must contain `LICENSE.zh-CN.md` and `LICENSE.en.md`; only their exact bilingual Applicable Project Name differs from the source Harness, while all other legal terms remain unchanged. Initialization pruning must not delete or further alter either file.
-- `AGENTS.md` must retain nonempty Skills/constraint maps, `$upgrade-harness`, and the persistent-policy decision rules after pruning.
+- 绝不得把 Harness 中的 `Approved` 产品状态、人工复核人身份、验证结论、源码提交、校验和、发布日期或平台结果带入新的下游项目。
+- 绝不得迁移或预创建 `docs/adr/`、`docs/changelog/`、`docs/product_spec/` 或 `docs/work_plan/`；这些内容必须在下游首次真实使用时由各自负责的开发 Skills 创建。
+- 绝不得声称示例资产产生的 Windows、macOS 或 Linux 证据属于下游产品。
+- 绝不得复制源 `.git` 目录或伪造历史。必须始终在解析后的目标根目录创建新的独立仓库。
+- 绝不得代替用户选择或派生目标位置。只有在解析并验证用户提供的目标路径后，才能向该路径写入。
+- 绝不得把 Harness 根目录或其任何祖先目录作为目标，不得覆盖非空目录，不得接受基本名称与项目标识不同的目标，也不得跟随符号链接进入禁止位置。
+- 完成移交后，必须把解析后的目标目录同时视为唯一项目根目录和 Git 顶层目录。不得继承父级 Git 边界，也不得在其他位置创建第二份项目树。
+- 初始化请求仅授权在脚手架验证和裁剪成功后创建恰好一个本地基线提交。该请求不授权创建远端、推送、标签、发布、签名密钥、全局 Git 配置变更或托管仓库。
+- 必须保留共享核心、已选接口、中文业务注释、文档、测试、验证、例外和人工复核规则，除非下游负责人批准并记录例外。
+- 必须执行 `docs/AGENT_POLICY.md` 中全部四项策略值。后续工作必须复用这些值，并且仅在策略缺失/非法、需求冲突或无法判断适用性时询问。
+- 生成的仓库是终端项目：不得保留 `$instantiate-project`、`$initialize-rust-project` 或任何其他活动的项目派生入口。
+- 生成的仓库必须包含 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`；与源 Harness 相比，只有其中精确的双语 `Applicable Project Name` 可以不同，所有其他法律条款都必须保持不变。初始化裁剪不得删除或进一步修改任一文件。
+- 裁剪后，`AGENTS.md` 必须继续保留非空的 Skills/约束地图、`$upgrade-harness` 以及持久策略决策规则。
 
-## Completion
+## 完成要求
 
-Report the source/target roots, copied/excluded files, identity/history reset, Git boundary, four confirmed policy values, optional Harness provenance lock or required future bootstrap audit, baseline commit, clean state, unresolved product facts, source Harness validation and next Skill. Neutral scaffolding may precede product approval, but it is not a milestone artifact.
+报告源根目录和目标根目录、复制和排除的文件、身份与历史重置、Git 边界、四项已确认策略值、可选的 Harness 溯源锁或未来必须执行的初始基线审计、基线提交、干净状态、尚未确定的产品事实、源 Harness 验证结果以及下一个 Skill。中性脚手架可以先于产品批准建立，但它不是里程碑产物。

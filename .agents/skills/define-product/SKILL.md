@@ -1,27 +1,27 @@
 ---
 name: define-product
-description: Define or revise this repository's product intent, MVP boundaries, constraints, and measurable success criteria. Use when starting a project, turning an idea into a specification, resolving ambiguous requirements, changing scope, or deciding whether a requested feature belongs in the current version.
+description: 定义或修订本仓库的产品意图、MVP 边界、约束和可衡量的成功标准。用于启动项目、把想法整理为规格、解决含糊需求、变更范围，或判断请求的功能是否属于当前版本。
 ---
 
-# Define Product
+# 定义产品
 
-Turn a real problem into an approved, testable product boundary before business implementation begins. A neutral scaffold may already exist.
+在业务实现开始前，将真实问题转化为经批准且可测试的产品边界。此时可以已经存在中性脚手架。
 
-## Workflow
+## 工作流程
 
-1. Perform product and scope design in the current worktree with one Agent. Do not ask for or start parallel Worktree + Subagent mode during product definition; the collaboration gate applies only when a later task begins code or implementation changes.
-2. Read `docs/project_status/README.md` and the latest dated Product Status. If `docs/product_spec/` or `docs/adr/` already exists, read its index, the latest dated Product Spec, and the latest dated ADR; their absence is the expected state immediately after initialization. Follow explicit links from the latest ADR to older decisions that still constrain the request. Inspect whether `$initialize-rust-project` created a neutral `scaffold status` workspace; treat that workspace as an existing structural constraint, not as evidence of product intent.
-3. Extract the core user, primary consumer, real scenario, input, output, and pain point from available evidence.
-4. Ask only for missing information whose alternatives would materially change scope. Mark non-blocking unknowns as `待确定`; never invent them.
-5. Express one outcome-focused goal without naming an implementation technology.
-6. Define `包含`, `不包含`, assumptions, constraints, reliability requirements, and objectively observable success criteria.
-7. Apply the scope gate to every proposed capability: include it only when the core loop cannot complete without it or reliability would otherwise be unacceptable.
-8. After the user confirms the first downstream requirement, create `docs/product_spec/README.md`, today's `docs/product_spec/YYYYMMDD_product_spec.md`, `docs/adr/README.md`, and today's `docs/adr/YYYYMMDD_ADR.md`; then update today's `docs/project_status/YYYYMMDD_product_status.md`. On later dates, read the previous Product Spec and Product Status and synthesize complete current snapshots with the confirmed change; on the same date, update existing files. Give each confirmed requirement an independent ADR entry; append to the existing daily ADR instead of creating another file for the same date. When a neutral workspace exists, set the next action to `$plan-change` and `$implement-change`, explicitly replacing `scaffold status` with approved product commands and tests.
+1. 在当前工作树中由一个 Agent 完成产品和范围设计。产品定义期间不得请求或启动并行 Worktree + Subagent 模式；协作门禁仅适用于后续任务开始代码或实现变更时。
+2. 读取 `docs/project_status/README.md` 和日期最新的产品状态。如果 `docs/product_spec/` 或 `docs/adr/` 已存在，读取其索引、日期最新的产品规格和日期最新的 ADR；初始化刚完成时它们不存在是预期状态。沿日期最新 ADR 中的显式链接追溯仍约束当前请求的旧决定。检查 `$initialize-rust-project` 是否创建了中性 `scaffold status` 工作区；将该工作区视为既有结构约束，不得将其视为产品意图的证据。
+3. 从已有证据中提取核心用户、首要消费者、真实场景、输入、输出和痛点。
+4. 仅询问不同答案会实质改变范围的缺失信息。将非阻断未知项标记为 `待确定`；绝不得编造。
+5. 表述一个聚焦结果且不点名实现技术的目标。
+6. 定义 `包含`、`不包含`、假设、约束、可靠性要求和客观可观察的成功标准。
+7. 对每项拟议能力执行范围闸门：仅当缺少该能力会导致核心闭环无法完成，或可靠性降至不可接受时，才将其纳入范围。
+8. 用户确认第一项下游需求后，创建 `docs/product_spec/README.md`、当天的 `docs/product_spec/YYYYMMDD_product_spec.md`、`docs/adr/README.md` 和当天的 `docs/adr/YYYYMMDD_ADR.md`；随后更新当天的 `docs/project_status/YYYYMMDD_product_status.md`。在后续日期，读取前一份产品规格和产品状态，并结合已确认变更综合重写完整的当前快照；同一日期则更新现有文件。每项已确认需求必须拥有独立的 ADR 条目；将其追加到当天已有 ADR 中，不得为同一日期另建文件。存在中性工作区时，将下一步设为 `$plan-change` 和 `$implement-change`，明确用经批准的产品命令和测试替换 `scaffold status`。
 
-## Output Rules
+## 输出规则
 
-- Preserve explicit non-goals.
-- Separate current requirements from future candidates.
-- Do not reinterpret an already initialized stack as a product decision, select additional technology, or create business implementation artifacts unless the user separately requests implementation.
-- Do not mark the specification `Approved` without explicit user confirmation.
-- End with unresolved decisions and the next concrete action.
+- 保留明确的非目标。
+- 区分当前需求和未来候选。
+- 除非用户另行请求实施，否则不得把已经初始化的技术栈重新解释为产品决定、选择额外技术或创建业务实现产物。
+- 未经用户明确确认，不得把规格标记为 `Approved`。
+- 最后列出尚未解决的决定和下一项具体行动。

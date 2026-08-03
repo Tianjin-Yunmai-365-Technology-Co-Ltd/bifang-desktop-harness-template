@@ -46,15 +46,15 @@ def assert_current_snapshot(
     )
     if expected is None:
         if os.path.lexists(path):
-            raise UpgradeError(f"{label} unexpectedly exists: {relative}")
+            raise UpgradeError(f"{label}意外存在：{relative}")
         return path
     if not path.is_file() or path.is_symlink():
-        raise UpgradeError(f"{label} is not a regular file: {relative}")
+        raise UpgradeError(f"{label}不是普通文件：{relative}")
     observed = snapshot_file(path)
     if observed != expected:
         raise UpgradeError(
-            f"{label} changed after planning: {relative}; "
-            f"expected {expected}, got {observed}"
+            f"{label}在 plan 后发生变化：{relative}；"
+            f"预期 {expected}，实际 {observed}"
         )
     return path
 
@@ -62,36 +62,36 @@ def assert_current_snapshot(
 def assert_plan_still_current(plan: dict[str, Any]) -> None:
     """在写入前重验控制文件、Git 身份以及计划覆盖的两棵文件树。"""
 
-    candidate = canonical_directory(Path(plan["candidate_root"]), "candidate root")
-    target = canonical_directory(Path(plan["target_root"]), "target root")
+    candidate = canonical_directory(Path(plan["candidate_root"]), "候选根目录")
+    target = canonical_directory(Path(plan["target_root"]), "目标根目录")
     ownership = Path(plan["ownership_path"])
     if snapshot_file(ownership) != validate_snapshot(
         plan["ownership_snapshot"],
         "ownership_snapshot",
     ):
-        raise UpgradeError("ownership manifest changed after planning")
+        raise UpgradeError("所有权 manifest 在 plan 后发生变化")
     lock_path = Path(plan["lock_path"])
     expected_lock = validate_snapshot(plan["lock_snapshot"], "lock_snapshot")
     if expected_lock is None:
         if os.path.lexists(lock_path):
-            raise UpgradeError("upstream lock appeared after planning")
+            raise UpgradeError("上游 lock 在 plan 后出现")
     elif snapshot_file(lock_path) != expected_lock:
-        raise UpgradeError("upstream lock changed after planning")
+        raise UpgradeError("上游 lock 在 plan 后发生变化")
     if require_git_root(target) != plan["target_git"]:
-        raise UpgradeError("target Git identity or worktree state changed after planning")
+        raise UpgradeError("目标 Git 身份或工作树状态在 plan 后发生变化")
     for item in plan["actions"]:
         relative = safe_relative_path(item["path"])
         assert_current_snapshot(
             candidate,
             relative,
             validate_snapshot(item.get("candidate"), f"{relative}.candidate"),
-            "candidate",
+            "候选",
         )
         assert_current_snapshot(
             target,
             relative,
             validate_snapshot(item.get("target"), f"{relative}.target"),
-            "target",
+            "目标",
         )
 
 
@@ -100,7 +100,7 @@ def open_parent_descriptor(root: Path, relative: str) -> tuple[int, str]:
 
     parts = Path(relative).parts
     if not parts:
-        raise UpgradeError(f"invalid file path: {relative}")
+        raise UpgradeError(f"文件路径非法：{relative}")
     flags = os.O_RDONLY
     if hasattr(os, "O_DIRECTORY"):
         flags |= os.O_DIRECTORY
@@ -113,7 +113,7 @@ def open_parent_descriptor(root: Path, relative: str) -> tuple[int, str]:
             observed = os.fstat(next_descriptor)
             if not stat.S_ISDIR(observed.st_mode):
                 os.close(next_descriptor)
-                raise UpgradeError(f"parent is not a directory: {relative}")
+                raise UpgradeError(f"父路径不是目录：{relative}")
             os.close(descriptor)
             descriptor = next_descriptor
         return descriptor, parts[-1]
@@ -142,12 +142,12 @@ def replace_existing_posix(
             read_flags |= os.O_NOFOLLOW
         source_descriptor = os.open(source_name, read_flags, dir_fd=source_parent)
         if snapshot_fd(source_descriptor) != candidate_snapshot:
-            raise UpgradeError(f"candidate changed during apply: {relative}")
+            raise UpgradeError(f"候选在 apply 期间发生变化：{relative}")
 
         target_descriptor = os.open(target_name, read_flags, dir_fd=target_parent)
         try:
             if snapshot_fd(target_descriptor) != target_snapshot:
-                raise UpgradeError(f"target changed during apply: {relative}")
+                raise UpgradeError(f"目标在 apply 期间发生变化：{relative}")
         finally:
             os.close(target_descriptor)
 
@@ -175,14 +175,14 @@ def replace_existing_posix(
         finally:
             os.close(temporary_descriptor)
         if copied_digest.hexdigest() != candidate_snapshot["sha256"]:
-            raise UpgradeError(f"candidate changed while copying: {relative}")
+            raise UpgradeError(f"候选在复制期间发生变化：{relative}")
         if stat.S_IMODE(os.fstat(source_descriptor).st_mode) != candidate_snapshot["mode"]:
-            raise UpgradeError(f"candidate mode changed while copying: {relative}")
+            raise UpgradeError(f"候选 mode 在复制期间发生变化：{relative}")
 
         target_descriptor = os.open(target_name, read_flags, dir_fd=target_parent)
         try:
             if snapshot_fd(target_descriptor) != target_snapshot:
-                raise UpgradeError(f"target changed before replace: {relative}")
+                raise UpgradeError(f"目标在 replace 前发生变化：{relative}")
         finally:
             os.close(target_descriptor)
         os.replace(
@@ -214,9 +214,9 @@ def replace_existing_portable(
     """在无 dir_fd 平台以双重边界复验和同目录原子替换更新文件。"""
 
     if snapshot_file(source) != candidate_snapshot:
-        raise UpgradeError(f"candidate changed during apply: {source}")
+        raise UpgradeError(f"候选在 apply 期间发生变化：{source}")
     if snapshot_file(destination) != target_snapshot:
-        raise UpgradeError(f"target changed during apply: {destination}")
+        raise UpgradeError(f"目标在 apply 期间发生变化：{destination}")
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as stream:
@@ -227,9 +227,9 @@ def replace_existing_portable(
             os.fsync(stream.fileno())
         os.chmod(temporary, int(candidate_snapshot["mode"]))
         if snapshot_file(temporary) != candidate_snapshot:
-            raise UpgradeError(f"candidate changed while copying: {source}")
+            raise UpgradeError(f"候选在复制期间发生变化：{source}")
         if snapshot_file(destination) != target_snapshot:
-            raise UpgradeError(f"target changed before replace: {destination}")
+            raise UpgradeError(f"目标在 replace 前发生变化：{destination}")
         os.replace(temporary, destination)
         temporary = None
     finally:
@@ -241,10 +241,10 @@ def apply_plan(plan_path: Path, approval: str, selected_path: str) -> dict[str, 
     """重算计划后一次只替换一个既有受管文件，避免批量部分应用。"""
 
     if approval != "apply-managed-changes":
-        raise UpgradeError("apply requires --approval apply-managed-changes")
+        raise UpgradeError("apply 要求传入 --approval apply-managed-changes")
     plan, _ = load_reviewed_plan(plan_path)
     if plan["blocked"]:
-        raise UpgradeError("upgrade plan is blocked; resolve conflicts before apply")
+        raise UpgradeError("升级 plan 已被阻断；请在 apply 前解决 conflict")
     pending = [
         item
         for item in plan["actions"]
@@ -256,12 +256,12 @@ def apply_plan(plan_path: Path, approval: str, selected_path: str) -> dict[str, 
             item.get("mode") not in AUTO_MODES
             or item.get("classification") != "update"
         ):
-            raise UpgradeError(f"plan contains unsafe auto action: {relative}")
+            raise UpgradeError(f"plan 包含不安全的自动操作：{relative}")
     selected = safe_relative_path(selected_path)
     matches = [item for item in pending if item["path"] == selected]
     if len(matches) != 1:
         raise UpgradeError(
-            f"--path must name exactly one reviewed auto-applicable update: {selected}"
+            f"--path 必须精确指定一个已复核且可自动应用的 update：{selected}"
         )
     item = matches[0]
     if item["mode"] == "managed-self":
@@ -270,8 +270,8 @@ def apply_plan(plan_path: Path, approval: str, selected_path: str) -> dict[str, 
         ]
         if normal_pending:
             raise UpgradeError(
-                "managed-self updates must wait until all normal managed updates "
-                "are resolved: " + ", ".join(sorted(normal_pending))
+                "managed-self 更新必须等待全部普通 managed 更新解决后再执行："
+                + ", ".join(sorted(normal_pending))
             )
         self_pending = sorted(
             action["path"]
@@ -283,29 +283,29 @@ def apply_plan(plan_path: Path, approval: str, selected_path: str) -> dict[str, 
         )
         if selected != self_pending[0]:
             raise UpgradeError(
-                f"managed-self update order requires {self_pending[0]} before {selected}"
+                f"managed-self 更新顺序要求先处理 {self_pending[0]}，再处理 {selected}"
             )
 
     assert_plan_still_current(plan)
-    candidate = canonical_directory(Path(plan["candidate_root"]), "candidate root")
-    target = canonical_directory(Path(plan["target_root"]), "target root")
+    candidate = canonical_directory(Path(plan["candidate_root"]), "候选根目录")
+    target = canonical_directory(Path(plan["target_root"]), "目标根目录")
     candidate_snapshot = validate_snapshot(
         item.get("candidate"), f"{selected}.candidate"
     )
     target_snapshot = validate_snapshot(item.get("target"), f"{selected}.target")
     if candidate_snapshot is None or target_snapshot is None:
-        raise UpgradeError(f"update requires two existing files: {selected}")
+        raise UpgradeError(f"update 要求两个文件都已存在：{selected}")
     source = assert_current_snapshot(
         candidate,
         selected,
         candidate_snapshot,
-        "candidate",
+        "候选",
     )
     destination = assert_current_snapshot(
         target,
         selected,
         target_snapshot,
-        "target",
+        "目标",
     )
     if os.name == "posix":
         replace_existing_posix(
@@ -326,7 +326,7 @@ def apply_plan(plan_path: Path, approval: str, selected_path: str) -> dict[str, 
 
 
 def write_all(file_descriptor: int, payload: bytes) -> None:
-    """把完整 payload 写入描述符，避免短写造成截断 lock。"""
+    """把完整载荷写入描述符，避免短写造成锁文件截断。"""
 
     remaining = memoryview(payload)
     while remaining:
@@ -357,7 +357,7 @@ def write_lock_posix(target: Path, payload: bytes) -> None:
             dir_fd=root_descriptor,
         )
         if not stat.S_ISDIR(os.fstat(harness_descriptor).st_mode):
-            raise UpgradeError(".harness is not a stable directory")
+            raise UpgradeError(".harness 不是稳定目录")
         write_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
         if hasattr(os, "O_NOFOLLOW"):
             write_flags |= os.O_NOFOLLOW
@@ -382,7 +382,7 @@ def write_lock_posix(target: Path, payload: bytes) -> None:
         except FileNotFoundError:
             observed = None
         if observed is not None and not stat.S_ISREG(observed.st_mode):
-            raise UpgradeError("upstream lock is not a regular file")
+            raise UpgradeError("上游 lock 不是普通文件")
         os.replace(
             temporary_name,
             "upstream-lock.json",
@@ -408,7 +408,7 @@ def write_lock_atomic(target: Path, lock_path: Path, value: dict[str, Any]) -> N
     assert_safe_path(
         target,
         lock_path,
-        "upstream lock",
+        "上游 lock",
         final_may_be_missing=True,
     )
     payload = (
@@ -424,7 +424,7 @@ def write_lock_atomic(target: Path, lock_path: Path, value: dict[str, Any]) -> N
     assert_safe_path(
         target,
         harness_directory,
-        "upstream lock directory",
+        "上游 lock 目录",
         final_may_be_missing=False,
     )
     temporary: Path | None = None
@@ -437,11 +437,11 @@ def write_lock_atomic(target: Path, lock_path: Path, value: dict[str, Any]) -> N
         assert_safe_path(
             target,
             lock_path,
-            "upstream lock",
+            "上游 lock",
             final_may_be_missing=True,
         )
         if lock_path.is_symlink():
-            raise UpgradeError(f"refusing to replace symlink lock: {lock_path}")
+            raise UpgradeError(f"拒绝替换符号链接 lock：{lock_path}")
         os.replace(temporary, lock_path)
         temporary = None
     finally:
@@ -454,15 +454,15 @@ def record_lock(args: argparse.Namespace) -> dict[str, Any]:
 
     expected = "bootstrap-verified-baseline" if args.bootstrap else "record-verified-baseline"
     if args.approval != expected:
-        raise UpgradeError(f"record requires --approval {expected}")
+        raise UpgradeError(f"record 要求传入 --approval {expected}")
     plan, _ = load_reviewed_plan(args.plan)
-    target = canonical_directory(Path(plan["target_root"]), "target root")
+    target = canonical_directory(Path(plan["target_root"]), "目标根目录")
     if (
         args.source_version != plan["source_version"]
         or args.source_commit != plan["source_commit"]
     ):
         raise UpgradeError(
-            "record source version/commit must exactly match the reviewed plan"
+            "record 的源版本/commit 必须与已复核 plan 精确匹配"
         )
     assert_plan_still_current(plan)
     lock_path = Path(plan["lock_path"])
@@ -476,45 +476,44 @@ def record_lock(args: argparse.Namespace) -> dict[str, Any]:
     resolved_manual = {safe_relative_path(path) for path in args.resolved_manual}
     if resolved_manual != manual_paths:
         raise UpgradeError(
-            "record requires exact --resolved-manual paths for reviewed mixed "
-            f"ownership actions: expected={sorted(manual_paths)}, "
-            f"got={sorted(resolved_manual)}"
+            "record 要求 --resolved-manual 精确列出已复核混合所有权操作的路径："
+            f"预期={sorted(manual_paths)}，实际={sorted(resolved_manual)}"
         )
     if plan["problems"]:
-        raise UpgradeError("cannot record a plan with path or ownership problems")
+        raise UpgradeError("存在路径或所有权问题的 plan 不能 record")
 
     if args.bootstrap:
         if plan["baseline"] != "missing" or existing_lock is not None:
-            raise UpgradeError("bootstrap recording requires an absent lock")
+            raise UpgradeError("bootstrap record 要求 lock 不存在")
         for item in plan["actions"]:
             classification = item["classification"]
             if classification in {"protected_candidate", "tombstone_candidate", "tombstone_present"}:
-                raise UpgradeError(f"bootstrap contains forbidden path: {item['path']}")
+                raise UpgradeError(f"bootstrap 包含禁止路径：{item['path']}")
             if item["mode"] in AUTO_MODES:
                 if classification in {"add", "delete", "update", "conflict", "collision"}:
                     raise UpgradeError(
-                        f"bootstrap managed path is unresolved: {item['path']}"
+                        f"bootstrap 的 managed 路径尚未解决：{item['path']}"
                     )
                 if (
                     classification == "bootstrap_conflict"
                     and item["candidate"] != item["target"]
                 ):
                     raise UpgradeError(
-                        f"bootstrap managed overlap must converge first: {item['path']}"
+                        f"bootstrap 的 managed 重叠项必须先收敛：{item['path']}"
                     )
                 if item["blocked"] and classification != "bootstrap_conflict":
                     raise UpgradeError(
-                        f"bootstrap contains non-reviewable blocker: {item['path']}"
+                        f"bootstrap 包含不可复核的 blocker：{item['path']}"
                     )
             elif classification == "manual_add":
                 raise UpgradeError(
-                    f"bootstrap mixed path must be created and replanned: {item['path']}"
+                    f"bootstrap 的 mixed 路径必须先创建并重新生成 plan：{item['path']}"
                 )
     else:
         if plan["baseline"] != "loaded" or existing_lock is None:
-            raise UpgradeError("non-bootstrap recording requires an existing lock")
+            raise UpgradeError("非 bootstrap record 要求已有 lock")
         if plan["blocked"]:
-            raise UpgradeError("cannot record a blocked upgrade plan")
+            raise UpgradeError("不能 record 已阻断的升级 plan")
         unresolved = [
             item["path"]
             for item in plan["actions"]
@@ -522,7 +521,7 @@ def record_lock(args: argparse.Namespace) -> dict[str, Any]:
         ]
         if unresolved:
             raise UpgradeError(
-                "managed actions remain unresolved: " + ", ".join(unresolved)
+                "仍有 managed 操作未解决：" + ", ".join(unresolved)
             )
 
     previous_entries = {} if existing_lock is None else existing_lock["entries"]

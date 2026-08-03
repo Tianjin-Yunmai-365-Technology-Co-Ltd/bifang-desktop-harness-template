@@ -26,6 +26,7 @@ from scripts.harness_validation.repository import (
     validate_skills,
     validate_work_plan_contract,
 )
+from scripts.harness_validation.release import validate_release_contract
 from scripts.harness_validation.review import validate_soft_review_prompts
 from scripts.harness_validation.upgrade import validate_upgrade_contract
 from scripts.harness_validation.workflow import validate_workflow as _validate_workflow
@@ -46,6 +47,7 @@ def main() -> int:
     validate_skills(errors)
     validate_markdown_links(errors)
     validate_workflow(errors)
+    validate_release_contract(errors)
     validate_upgrade_contract(errors)
     validate_initialization_contract(errors)
     validate_agent_policy(errors)
@@ -64,7 +66,7 @@ def main() -> int:
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
         f"{len(EXPECTED_SKILLS)} skills, local Markdown links, five daily project-memory streams, "
-        "Todo/milestone gates, persistent Agent policy, initialization gates, engineering rules, "
+        "Todo/milestone gates, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
         "parallel worktree gates, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."
     )

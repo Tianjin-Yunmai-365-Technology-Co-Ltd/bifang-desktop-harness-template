@@ -1,26 +1,26 @@
 ---
 name: rename-project-identity
-description: Rename an initialized or newly instantiated project's display name and product prefixes across maintained configuration, source paths, documentation, project Skills, and the two root licenses. Use during downstream instantiation, an approved product rename, or when residual template/sample identity must be removed repository-wide.
+description: 在受维护的配置、源代码路径、文档、项目 Skills 和根目录两份许可证中重命名已初始化或刚实例化项目的展示名称和产品前缀。用于下游实例化、已批准的产品改名，或需要在整个仓库中清除残留模板或示例身份时。
 ---
 
-# Rename Project Identity
+# 重命名项目身份
 
-Apply one auditable identity mapping across the canonical project root. Replace identity tokens only; never rewrite license rights, historical verification results, third-party notices, generated artifacts, or unrelated prose.
+在规范化后的项目根目录中应用一套可审计的身份映射。只替换身份词元；绝不重写许可证权利、历史验证结果、第三方声明、生成产物或无关正文。
 
-## Required Inputs
+## 必需输入
 
-- canonical project root;
-- old and new display names;
-- old and new ASCII `snake_case` project identifiers;
-- old and new lowercase kebab-case prefixes;
-- any additional exact prefix mappings required by real configuration, such as an application identifier or environment-variable prefix.
+- 规范化后的项目根目录；
+- 旧展示名称和新展示名称；
+- 旧 ASCII `snake_case` 项目标识和新 ASCII `snake_case` 项目标识；
+- 旧小写 kebab-case 前缀和新小写 kebab-case 前缀；
+- 真实配置所需的其他精确前缀映射，例如应用标识符或环境变量前缀。
 
-## Workflow
+## 工作流程
 
-1. Read `AGENTS.md`, the current product identity source, `docs/ENGINEERING_RULES.md`, current Product Status, current Work Plan when present, latest ADR when present, both root licenses, and the files reported by an exact old-name search.
-2. Confirm that the rename is approved. During `$instantiate-project`, the identity supplied by the user is approval for resetting copied Harness identity. For an existing product, route an unapproved identity change through `$define-product` and `$plan-change` before writing.
-3. Resolve the canonical project root and inspect Git top-level, branch, commit state, remotes, and `git status --short`. Preserve existing changes and stop when overlapping edits cannot be reconciled.
-4. Run the bundled script without `--apply` first. Supply all three standard identity forms and each known extra exact mapping. Review the JSON plan, especially collisions, skipped binary files, excluded paths, License edits, Skill edits, and path renames.
+1. 读取 `AGENTS.md`、当前产品身份事实来源、`docs/ENGINEERING_RULES.md`、当前产品状态、存在时的当前工作计划、存在时日期最新的 ADR、根目录两份许可证，以及精确搜索旧名称后报告的文件。
+2. 确认改名已获批准。在 `$instantiate-project` 期间，用户提供的身份即构成重置所复制 Harness 身份的批准。对于现有产品，任何尚未批准的身份变更都必须在写入前通过 `$define-product` 和 `$plan-change`。
+3. 解析并验证规范化后的项目根目录，并检查 Git 顶层目录、分支、提交状态、远端和 `git status --short`。必须保留现有修改；当重叠编辑无法协调时停止执行。
+4. 首先运行自带脚本，但不得添加 `--apply`。提供全部三种标准身份形式以及每个已知的额外精确映射。复核 JSON 计划，尤其是路径冲突、跳过的二进制文件、排除路径、许可证编辑、Skill 编辑和路径改名。
 
    ```text
    python3 .agents/skills/rename-project-identity/scripts/rename_project_identity.py \
@@ -30,21 +30,21 @@ Apply one auditable identity mapping across the canonical project root. Replace 
      --old-kebab <old-kebab> --new-kebab <new-kebab>
    ```
 
-5. Reject collisions, path escapes, symlinks, undecodable maintained text that contains an identity, ambiguous partial prefixes, or a mapping that would change third-party or generated content. Excluded directories are `.git`, build/cache/output directories, dependency stores, and root `release/`; do not weaken these exclusions to force a clean result.
-6. Re-run the reviewed command with `--apply`. The script replaces text first, then renames files and directories deepest-first. For an approved existing-project identifier change, add `--rename-root` only when the canonical root basename equals the old identifier; the script rejects an existing sibling destination. A newly instantiated target already has the new basename and must not use this option. The script updates `LICENSE.zh-CN.md` and `LICENSE.en.md` only by exact identity substitution; any legal wording change requires separate approval and bilingual legal review.
-7. Search the entire maintained tree for every old token and common sample identities. Resolve every applicable residual. Intentional generic examples must not reuse the real old project identity; rewrite them as explicit placeholders instead of allowlisting silent residue.
-8. Run affected formatters, parsers, tests, builds, Skill validation, local-link checks, and the repository validator. For Rust, regenerate `Cargo.lock` with Cargo when package/path names changed; do not hand-edit checksums. For a Harness change, run `python3 scripts/validate_harness.py`.
-9. Synchronize current product identity, Product Status, Work Plan, ADR, verification evidence, Changelog, release naming, GUI application profile, package metadata, and retained Skills. Do not falsify immutable evidence: when historical command output contains the old name, preserve the quoted evidence and add an explicit identity-history note rather than rewriting the observed result.
-10. Inspect the final diff and report changed content, renamed paths, exclusions, remaining old-name hits, checks executed, unverified platforms, and rollback instructions. Do not commit, tag, push, publish, or modify external systems without separate authorization.
+5. 必须拒绝路径冲突、路径越界、符号链接、包含身份但无法解码的受维护文本、含义不明确的部分前缀，以及会修改第三方内容或生成内容的映射。排除目录包括 `.git`、构建、缓存和输出目录、依赖存储和根目录 `release/`；不得为了强行得到干净结果而削弱这些排除规则。
+6. 使用 `--apply` 重新运行已复核的命令。脚本必须先替换文本，再按路径深度从深到浅重命名文件和目录。对于已批准的现有项目标识变更，仅当规范化后的根目录基本名称等于旧标识时才能添加 `--rename-root`；如果同级目标已经存在，脚本必须拒绝执行。新实例化目标已经使用新的基本名称，绝不得使用该选项。脚本只能通过精确身份替换更新 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`；任何法律措辞变更都需要单独批准和双语法律复核。
+7. 在整个受维护目录树中搜索每一个旧词元和常见示例身份。解决每一个适用残留。有意保留的通用示例不得继续使用真实的旧项目身份；必须把它们改写为明确的占位符，而不得通过允许列表静默保留残留。
+8. 运行受影响的格式化工具、解析器、测试、构建、Skill 验证、本地链接检查和仓库验证器。对于 Rust，如果包或路径名称发生变化，必须使用 Cargo 重新生成 `Cargo.lock`；不得手工编辑校验和。对于 Harness 变更，运行 `python3 scripts/validate_harness.py`。
+9. 同步当前产品身份、产品状态、工作计划、ADR、验证记录、变更记录、发布命名、GUI 应用资料、包元数据和保留的 Skills。不得篡改不可变证据：如果历史命令输出包含旧名称，必须保留引用的证据，并添加明确的身份历史说明，而不得改写观察到的结果。
+10. 检查最终差异，并报告变更内容、已重命名路径、排除项、剩余旧名称命中、已执行检查、未验证平台和回滚说明。未经单独授权，不得提交、创建标签、推送、发布或修改外部系统。
 
-## Invariants
+## 不变量
 
-- `LICENSE.zh-CN.md` and `LICENSE.en.md` name the current project consistently while retaining equivalent legal terms and the Chinese-control rule.
-- Project-owned configuration, package/crate names, application identifiers, Skills, current documentation, release prefixes, and maintained source paths contain no stale product prefix.
-- `.git`, dependencies, generated output, caches, vendored third-party content, and `release/` are not bulk-edited.
-- No destination path is overwritten and no symlink is followed.
-- A display-name change does not silently change the ASCII project identifier, application identifier, legal entity, version, product scope, or release authorization.
+- `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 必须一致使用当前项目名称，同时保留等价法律条款和中文文本优先规则。
+- 项目自有配置、包或 crate 名称、应用标识符、Skills、当前文档、发布前缀和受维护源代码路径中不得残留过期的产品前缀。
+- 不得批量编辑 `.git`、依赖、生成输出、缓存、供应商化第三方内容和 `release/`。
+- 不得覆盖任何目标路径，也不得跟随任何符号链接。
+- 展示名称变更不得静默改变 ASCII 项目标识、应用标识符、法律实体、版本、产品范围或发布授权。
 
-## Completion
+## 完成要求
 
-Report the exact mapping, dry-run and apply summaries, License/Skill coverage, renamed paths, residual-search result, validation evidence, existing user changes preserved, and any identity form that remains `Unverified`.
+报告精确映射、试运行和应用摘要、许可证与 Skill 覆盖范围、已重命名路径、残留搜索结果、验证证据、保留的现有用户修改，以及仍为 `Unverified` 的任何身份形式。

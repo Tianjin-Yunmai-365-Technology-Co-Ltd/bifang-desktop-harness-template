@@ -1,31 +1,31 @@
 ---
 name: add-cli-adapter
-description: Add an optional non-interactive CLI adapter to an initialized downstream project. Use when CLI is selected during initialization or explicitly approved later; do not require CLI when another interface was selected.
+description: 为已初始化的下游项目增加可选的非交互式 CLI 适配器。在初始化时选择 CLI 或后续明确批准 CLI 时使用；选择其他接口时不得要求同时存在 CLI。
 ---
 
-# Add CLI Adapter
+# 增加 CLI 适配器
 
-Add the smallest Agent-ready command interface over the shared core. CLI is the default only when initialization receives no interface selection; it is never silently added beside an explicit TUI, MCP, or GUI selection.
+在共享核心之上增加最小且适合 Agent 使用的命令接口。只有初始化未收到任何接口选择时才默认使用 CLI；明确选择 TUI、MCP 或 GUI 时，绝不静默附加 CLI。
 
-## Workflow
+## 工作流程
 
-1. Read `AGENTS.md`, `docs/product_spec/README.md` and the latest dated Product Spec, `docs/ENGINEERING_RULES.md`, `docs/project_status/README.md` and the latest dated Product Status, `docs/CLI_CONTRACT.md`, `docs/RUST_CLI_TEMPLATE.md`, `docs/work_plan/README.md` and the latest dated Work Plan, and relevant ADRs.
-2. Confirm CLI is in the recorded interface selection. Work only in the current project root and derive `<project-id>_cli`; never ask for another directory or binary name.
-3. Require an initialized shared core. A `Draft` product may receive only the neutral `scaffold status` adapter with `productDefinitionRequired=true`; an approved product receives only its planned commands.
-4. Use a Tokio current-thread async entry with only the minimum required features. Keep the command-to-core path async by default for I/O, waiting, timers, processes and other latency-bound work; do not enable `rt-multi-thread` merely because Tokio is present. Consider `spawn_blocking`, dedicated threads or a multi-thread runtime only for measured CPU-intensive work, and record ownership, cancellation, concurrency limits, resource budget and tests. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception; do not silently wrap them in threads.
-5. Implement complete non-interactive and `--json` behavior from `docs/CLI_CONTRACT.md`. Do not make a TUI code path the only way to invoke core operations.
-6. Test the real binary: success, highest-risk failure, JSON parsing, stdout/stderr separation, exit codes, `--help`/`--version`, and refusal to wait for input. During `Draft`, also reject unapproved business commands.
-7. During ordinary implementation, run discovered format, lint, non-empty tests, locked check/build checks needed by the change, and targeted real-binary black-box tests. Do not claim release readiness from development evidence.
-8. During Todo implementation run non-empty core/CLI unit and black-box contract tests plus relevant format, lint and check commands; do not run smoke/E2E. After the batch is `done`, build and locate the real binary as a milestone candidate, then hand it to `$verify-delivery`. Only that milestone reads persistent smoke/E2E policy or hard requirements; failures reopen Todo and return to implementation. Record current-platform evidence and mark others `Unverified`.
+1. 读取 `AGENTS.md`、`docs/product_spec/README.md` 及日期最新的产品规格、`docs/ENGINEERING_RULES.md`、`docs/project_status/README.md` 及日期最新的产品状态、`docs/CLI_CONTRACT.md`、`docs/RUST_CLI_TEMPLATE.md`、`docs/work_plan/README.md` 及日期最新的工作计划，以及相关 ADR。
+2. 确认已记录的接口选择包含 CLI。只能在当前项目根目录中工作，并确定性派生 `<project-id>_cli`；绝不要求另选目录或二进制名称。
+3. 要求已存在初始化完成的共享核心。`Draft` 产品只能获得中性的 `scaffold status` 适配器，并返回 `productDefinitionRequired=true`；已批准产品只能获得计划内命令。
+4. 使用 Tokio current-thread 异步入口，并只启用最低所需特性。I/O、等待、计时器、进程及其他延迟型工作从命令到核心的路径默认保持异步；不得仅因使用 Tokio 就启用 `rt-multi-thread`。只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并记录所有权、取消、并发上限、资源预算和测试。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程；不得静默用线程包裹。
+5. 完整实现 `docs/CLI_CONTRACT.md` 规定的非交互行为和 `--json` 行为。不得把 TUI 代码路径作为调用核心操作的唯一方式。
+6. 测试真实二进制：成功路径、最高风险失败路径、JSON 解析、标准输出/标准错误分离、退出码、`--help`/`--version`，以及拒绝等待输入。处于 `Draft` 时还要拒绝未批准的业务命令。
+7. 普通实现期间，运行仓库中可发现的格式化、代码规范检查、非空测试、变更所需的锁定检查/构建，以及有针对性的真实二进制黑盒测试。不得用开发证据声称发布就绪。
+8. Todo 实施期间，运行非空的核心/CLI 单元测试和黑盒契约测试，以及相关格式化、代码规范检查和检查命令；不得运行冒烟/E2E。批次达到 `done` 后，构建并定位真实二进制作为里程碑候选，再交给 `$verify-delivery`。只有该里程碑可以读取持久冒烟/E2E 策略或硬要求；失败会重开 Todo 并返回实施。记录当前平台证据，其他平台标记为 `Unverified`。
 
-## Boundaries
+## 边界
 
-- CLI depends on core; core never depends on CLI, clap, terminal I/O, or process exit state.
-- CLI is optional after an explicit interface selection and must not be added merely to satisfy an old Harness rule.
-- Do not parse another adapter's output or duplicate business rules.
-- Do not block the async runtime with synchronous I/O, sleeps, process waits or CPU-heavy loops. A thread-based boundary requires measured CPU-intensive work; a blocking-only dependency must be replaced or approved as an exception.
-- The bundled `rust-lib-cli` asset is a neutral CLI validation asset, not a requirement for projects that select other interfaces.
+- CLI 依赖核心；核心绝不依赖 CLI、clap、终端 I/O 或进程退出状态。
+- 明确选择接口后，CLI 是可选项；不得仅为满足旧 Harness 规则而增加 CLI。
+- 不得解析其他适配器的输出，也不得重复实现业务规则。
+- 不得用同步 I/O、休眠、进程等待或 CPU 密集循环阻塞异步运行时。线程边界必须有测量确认的 CPU 密集工作依据；仅支持阻塞调用的依赖必须替换，或按例外获得批准。
+- 随附的 `rust-lib-cli` 资产是中性 CLI 验证资产，不是选择其他接口的项目必须具备的内容。
 
-## Completion
+## 完成输出
 
-Report commands, core mappings, output contract, tests, artifact path, verified platform, unverified platforms, and remaining risks.
+报告命令、核心映射、输出契约、测试、制品路径、已验证平台、未验证平台和剩余风险。

@@ -1,36 +1,36 @@
 ---
 name: add-tui-adapter
-description: Add an optional Ratatui terminal adapter with tui-realm and its mature standard component library to an initialized downstream project. Use when TUI is selected during initialization or approved later.
+description: 为已初始化的下游项目增加可选的 Ratatui 终端适配器，并使用 tui-realm 及其成熟的标准组件库。在初始化时选择 TUI 或后续批准 TUI 时使用。
 ---
 
-# Add TUI Adapter
+# 增加 TUI 适配器
 
-Add a focused Ratatui terminal interface over the shared core without requiring or automating a CLI adapter.
+在共享核心之上增加职责聚焦的 Ratatui 终端接口，不要求也不自动创建 CLI 适配器。
 
-## Workflow
+## 工作流程
 
-1. Read `AGENTS.md`, `README.md`, `docs/product_spec/README.md` and the latest dated Product Spec, `docs/ENGINEERING_RULES.md` (engineering rules), `docs/project_status/README.md` and the latest dated Product Status, `docs/work_plan/README.md` and the latest dated Work Plan, `docs/RUST_CLI_TEMPLATE.md`, and relevant ADRs and verification records.
-2. Confirm TUI is recorded in scope and identify the minimum interactive loop, target terminals, keyboard behavior, resize behavior, accessibility expectations, and safe quit/recovery behavior.
-3. Work in `<project-id>_tui` inside the current root. Require shared core, but do not require CLI, MCP, or GUI.
-4. Read [references/tui-baseline.md](references/tui-baseline.md) completely. Use Ratatui for rendering, tui-realm for the component/event architecture, and tui-realm-stdlib as the mature standard component library. This stack is a hard rule for Draft and Approved projects.
-5. At execution time resolve the latest compatible stable Ratatui, tui-realm and tui-realm-stdlib combination that satisfies the declared MSRV, target terminals/platforms, minimum features and full verification gates. Record evaluated versions and lock the result. If no compatible combination exists, stop and use the hard-rule exception process; do not silently choose another TUI stack.
-6. Run the TUI event loop from a Tokio current-thread async entry. Prefer async event polling, channels, timers, process/file/network calls and core operations; never perform synchronous waiting on the render/event thread. Consider `spawn_blocking`, dedicated threads or a multi-thread runtime only for measured CPU-intensive work, with explicit ownership, cancellation, backpressure, concurrency limits, resource budget and tests. Replace blocking-only dependencies with async capabilities or stop for a scope/hard-rule exception.
-7. For a `Draft` project expose only neutral scaffold status and navigation; do not invent business screens or side effects. For an approved product, implement only planned views and actions. Keep terminal events, rendering state, component messages and key bindings outside core.
-8. Prefer tui-realm-stdlib components for ordinary input, selection, tables, lists, labels, paragraphs, tabs, gauges and charts. Create a project component only when the standard library cannot express an approved behavior; record why composition or styling was insufficient.
-9. Test component messages and state transitions, async event/task cancellation, keyboard navigation, resize and small-terminal behavior, error/empty/loading states, highest-risk action confirmation, restoration of terminal state after normal exit and failure, and core mappings.
-10. During ordinary implementation, run format, lint, non-empty tests, relevant locked check/build checks, and targeted terminal-state tests. Do not claim release readiness from development evidence.
-11. During Todo implementation run non-empty core/TUI unit and interaction-state tests plus relevant format, lint and check commands; do not run smoke/E2E. After the batch is `done`, build and locate the real TUI binary as a milestone candidate, then hand it to `$verify-delivery`. That milestone alone may run startup smoke or `$test-final-artifact-e2e` from persistent policy/hard requirements; failures reopen Todo and return to implementation.
+1. 读取 `AGENTS.md`、`README.md`、`docs/product_spec/README.md` 及日期最新的产品规格、`docs/ENGINEERING_RULES.md`（工程规则）、`docs/project_status/README.md` 及日期最新的产品状态、`docs/work_plan/README.md` 及日期最新的工作计划、`docs/RUST_CLI_TEMPLATE.md`，以及相关 ADR 和验证记录。
+2. 确认范围记录包含 TUI，并识别最小交互闭环、目标终端、键盘行为、窗口尺寸变化行为、无障碍预期，以及安全退出/恢复行为。
+3. 在当前根目录内的 `<project-id>_tui` 中工作。要求存在共享核心，但不要求 CLI、MCP 或 GUI。
+4. 完整阅读 [references/tui-baseline.md](references/tui-baseline.md)。使用 Ratatui 负责渲染，使用 tui-realm 负责组件/事件架构，并将 tui-realm-stdlib 用作成熟的标准组件库。此技术栈对 `Draft` 和 `Approved` 项目都是硬规则。
+5. 执行时解析满足已声明 MSRV、目标终端/平台、最小特性集和完整验证门禁的最新兼容稳定 Ratatui、tui-realm 与 tui-realm-stdlib 组合。记录评估过的版本并锁定结果。若不存在兼容组合，停止并进入硬规则例外流程；不得静默改用其他 TUI 技术栈。
+6. 从 Tokio current-thread 异步入口运行 TUI 事件循环。优先使用异步事件轮询、通道、计时器、进程/文件/网络调用和核心操作；绝不在渲染/事件线程执行同步等待。只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并明确记录所有权、取消、背压、并发上限、资源预算和测试。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程。
+7. `Draft` 项目只能公开中性脚手架状态和导航；不得臆造业务页面或副作用。已批准产品只能实现计划内视图和操作。终端事件、渲染状态、组件消息和按键绑定必须留在核心之外。
+8. 普通输入、选择、表格、列表、标签、段落、选项卡、仪表和图表优先使用 tui-realm-stdlib 组件。只有标准库无法表达某项已批准行为时才创建项目组件，并记录组合或样式为何不足。
+9. 测试组件消息和状态转换、异步事件/任务取消、键盘导航、尺寸变化和小终端行为、错误/空/加载状态、最高风险操作确认、正常退出和失败后的终端状态恢复，以及核心映射。
+10. 普通实现期间，运行格式化、代码规范检查、非空测试、相关锁定检查/构建和有针对性的终端状态测试。不得用开发证据声称发布就绪。
+11. Todo 实施期间，运行非空的核心/TUI 单元测试和交互状态测试，以及相关格式化、代码规范检查和检查命令；不得运行冒烟/E2E。批次达到 `done` 后，构建并定位真实 TUI 二进制作为里程碑候选，再交给 `$verify-delivery`。只有该里程碑可以根据持久策略/硬要求运行启动冒烟或 `$test-final-artifact-e2e`；失败会重开 Todo 并返回实施。
 
-## Hard Boundaries
+## 硬边界
 
-- TUI depends on core; core does not depend on Ratatui, tui-realm, terminal backends, component messages or presentation state.
-- Do not spawn or scrape CLI output to implement TUI behavior.
-- Do not replace the fixed TUI stack because the interface is small or another library is familiar. A deviation requires an ADR hard-rule exception with risks, alternative evidence and recovery criteria.
-- Do not add mouse support, themes, dashboards, background services, terminal-specific shortcuts or third-party component extensions without an approved need.
-- Do not copy standard components into project code merely to restyle them; prefer supported composition and properties.
-- Do not block the Tokio runtime or terminal event loop with synchronous I/O, sleeps, process waits or CPU-heavy rendering/data work.
-- Untested terminals and operating systems remain `Unverified`.
+- TUI 依赖核心；核心不依赖 Ratatui、tui-realm、终端后端、组件消息或展示状态。
+- 不得通过启动 CLI 或抓取其输出来实现 TUI 行为。
+- 不得仅因界面较小或熟悉其他库就替换固定 TUI 技术栈。偏离必须形成 ADR 硬规则例外，并记录风险、替代证据和恢复标准。
+- 未经批准的真实需要，不得增加鼠标支持、主题、仪表盘、后台服务、终端专用快捷键或第三方组件扩展。
+- 不得仅为改样式就把标准组件复制到项目代码中；优先使用受支持的组合方式和属性。
+- 不得用同步 I/O、休眠、进程等待或 CPU 密集的渲染/数据工作阻塞 Tokio 运行时或终端事件循环。
+- 未测试的终端和操作系统保持 `Unverified`。
 
-## Completion
+## 完成输出
 
-Report resolved Ratatui/tui-realm/tui-realm-stdlib versions and features, reused and custom components, views, key flows, core mappings, terminal restoration evidence, tests, artifact, verified environments, unverified areas, and remaining risks.
+报告已解析的 Ratatui/tui-realm/tui-realm-stdlib 版本与特性、复用和自定义组件、视图、关键流程、核心映射、终端恢复证据、测试、制品、已验证环境、未验证范围和剩余风险。

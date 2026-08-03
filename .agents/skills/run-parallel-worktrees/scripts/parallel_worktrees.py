@@ -45,21 +45,21 @@ def run_git(project_root: Path, *args: str, check: bool = True) -> subprocess.Co
         text=True,
     )
     if check and result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip() or "git command failed"
+        detail = result.stderr.strip() or result.stdout.strip() or "Git 命令失败"
         raise WorkflowError("git_failed", detail, 3)
     return result
 
 
 def canonical_project_root(raw_root: str) -> Path:
-    """确认显式目录存在且自身就是独立 Git top-level。"""
+    """确认显式目录存在且自身就是独立 Git 顶层目录。"""
     root = Path(raw_root).expanduser().resolve()
     if not root.is_dir():
-        raise WorkflowError("project_root_missing", f"project root is not a directory: {root}")
+        raise WorkflowError("project_root_missing", f"项目根目录不是目录：{root}")
     top = Path(run_git(root, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
     if top != root:
         raise WorkflowError(
             "project_root_not_git_top_level",
-            f"project root {root} inherits Git top-level {top}",
+            f"项目根目录 {root} 继承了 Git 顶层目录 {top}",
         )
     return root
 
@@ -69,19 +69,19 @@ def validate_identifier(label: str, value: str) -> str:
     if not IDENTIFIER.fullmatch(value):
         raise WorkflowError(
             "invalid_identifier",
-            f"{label} must match {IDENTIFIER.pattern}: {value!r}",
+            f"{label} 必须匹配 {IDENTIFIER.pattern}：{value!r}",
         )
     return value
 
 
 def unit_identity(project_root: Path, task: str, unit: str) -> UnitIdentity:
     """从已校验输入派生项目外的隔离目录和 codex/ 分支。"""
-    safe_task = validate_identifier("task", task)
-    safe_unit = validate_identifier("unit", unit)
+    safe_task = validate_identifier("任务", task)
+    safe_unit = validate_identifier("单元", unit)
     worktree_root = project_root.parent / ".codex-worktrees" / project_root.name
     worktree_path = (worktree_root / safe_task / safe_unit).resolve()
     if worktree_root.resolve() not in worktree_path.parents:
-        raise WorkflowError("worktree_path_outside_root", f"unsafe worktree path: {worktree_path}")
+        raise WorkflowError("worktree_path_outside_root", f"Worktree 路径不安全：{worktree_path}")
     return UnitIdentity(
         project_root=project_root,
         task=safe_task,
@@ -95,7 +95,7 @@ def require_exact_cwd(expected: Path, code: str, context: str) -> Path:
     """要求进程真实工作目录精确匹配受管目录，避免仅凭参数跨边界操作。"""
     actual = Path.cwd().resolve()
     if actual != expected:
-        raise WorkflowError(code, f"{context} must run from {expected}, actual cwd is {actual}", 4)
+        raise WorkflowError(code, f"{context} 必须从 {expected} 运行，实际 cwd 为 {actual}", 4)
     return actual
 
 
@@ -136,11 +136,11 @@ def create_unit(identity: UnitIdentity) -> dict[str, object]:
     if not state["clean"]:
         raise WorkflowError(
             "base_worktree_dirty",
-            "base worktree has tracked or untracked changes; do not auto-stash or auto-commit",
+            "基线工作树存在已跟踪或未跟踪修改；不得自动贮藏工作树修改或提交",
             4,
         )
     if state["head"] is None:
-        raise WorkflowError("base_head_missing", "base repository has no committed HEAD", 4)
+        raise WorkflowError("base_head_missing", "基线仓库没有已提交的 HEAD", 4)
     branch_exists = run_git(
         identity.project_root,
         "show-ref",
@@ -150,9 +150,9 @@ def create_unit(identity: UnitIdentity) -> dict[str, object]:
         check=False,
     )
     if branch_exists.returncode == 0:
-        raise WorkflowError("branch_exists", f"branch already exists: {identity.branch}", 4)
+        raise WorkflowError("branch_exists", f"分支已存在：{identity.branch}", 4)
     if identity.worktree_path.exists() or identity.worktree_path.is_symlink():
-        raise WorkflowError("worktree_path_exists", f"worktree path already exists: {identity.worktree_path}", 4)
+        raise WorkflowError("worktree_path_exists", f"Worktree 路径已存在：{identity.worktree_path}", 4)
     identity.worktree_path.parent.mkdir(parents=True, exist_ok=True)
     run_git(
         identity.project_root,
@@ -184,11 +184,11 @@ def find_exact_worktree(identity: UnitIdentity) -> dict[str, str | bool]:
         if record.get("branch") != expected_branch:
             raise WorkflowError(
                 "worktree_branch_mismatch",
-                f"worktree path belongs to {record.get('branch')}, expected {expected_branch}",
+                f"Worktree 路径属于 {record.get('branch')}，预期为 {expected_branch}",
                 4,
             )
         return record
-    raise WorkflowError("worktree_not_found", f"managed worktree not found: {identity.worktree_path}", 4)
+    raise WorkflowError("worktree_not_found", f"未找到受管 Worktree：{identity.worktree_path}", 4)
 
 
 def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str, object]:
@@ -196,7 +196,7 @@ def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str
     if not raw_write_targets:
         raise WorkflowError(
             "write_target_required",
-            "unit guard requires at least one --write-target",
+            "单元 guard 至少需要一个 --write-target",
             4,
         )
     actual_cwd = require_exact_cwd(
@@ -210,7 +210,7 @@ def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str
     if actual_root != identity.worktree_path:
         raise WorkflowError(
             "unit_git_root_mismatch",
-            f"unit Git top-level is {actual_root}, expected {identity.worktree_path}",
+            f"单元 Git 顶层目录为 {actual_root}，预期为 {identity.worktree_path}",
             4,
         )
     branch = run_git(
@@ -225,7 +225,7 @@ def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str
     if actual_branch != identity.branch:
         raise WorkflowError(
             "unit_branch_mismatch",
-            f"unit branch is {actual_branch or 'detached HEAD'}, expected {identity.branch}",
+            f"单元分支为 {actual_branch or 'HEAD 分离状态'}，预期为 {identity.branch}",
             4,
         )
     find_exact_worktree(identity)
@@ -237,7 +237,7 @@ def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str
         if target != identity.worktree_path and identity.worktree_path not in target.parents:
             raise WorkflowError(
                 "write_target_outside_worktree",
-                f"write target {target} is outside managed worktree {identity.worktree_path}",
+                f"写入目标 {target} 位于受管 Worktree {identity.worktree_path} 之外",
                 4,
             )
         write_targets.append(str(target))
@@ -254,7 +254,7 @@ def guard_unit(identity: UnitIdentity, raw_write_targets: list[str]) -> dict[str
 
 def remove_unit(identity: UnitIdentity, integrated_into: str) -> dict[str, object]:
     """仅移除已整合且干净的精确 Worktree，并故意保留分支。"""
-    validate_identifier("integration ref", integrated_into) if "/" not in integrated_into else None
+    validate_identifier("整合引用", integrated_into) if "/" not in integrated_into else None
     find_exact_worktree(identity)
     unit_status = run_git(
         identity.worktree_path,
@@ -263,7 +263,7 @@ def remove_unit(identity: UnitIdentity, integrated_into: str) -> dict[str, objec
         "--untracked-files=all",
     ).stdout
     if unit_status.strip():
-        raise WorkflowError("worktree_dirty", "managed worktree contains tracked or untracked changes", 4)
+        raise WorkflowError("worktree_dirty", "受管 Worktree 包含已跟踪或未跟踪修改", 4)
     integrated = run_git(
         identity.project_root,
         "merge-base",
@@ -275,7 +275,7 @@ def remove_unit(identity: UnitIdentity, integrated_into: str) -> dict[str, objec
     if integrated.returncode != 0:
         raise WorkflowError(
             "branch_not_integrated",
-            f"{identity.branch} is not an ancestor of {integrated_into}",
+            f"{identity.branch} 不是 {integrated_into} 的祖先",
             4,
         )
     run_git(identity.project_root, "worktree", "remove", str(identity.worktree_path))
@@ -314,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
             require_exact_cwd(
                 project_root,
                 "project_cwd_mismatch",
-                f"{args.command} operation",
+                f"{args.command} 操作",
             )
         if args.command == "inspect":
             payload = {"ok": True, "operation": "inspect", **inspect_project(project_root)}

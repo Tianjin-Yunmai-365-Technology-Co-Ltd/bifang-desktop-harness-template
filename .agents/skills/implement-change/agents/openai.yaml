@@ -1,4 +1,4 @@
 interface:
-  display_name: "Implement Change"
-  short_description: "Execute an approved plan with scoped code and tests"
-  default_prompt: "Use $implement-change to execute the approved work plan and prepare it for verification."
+  display_name: "实施变更"
+  short_description: "按照已批准工作计划实施有边界的代码变更并补充非空测试"
+  default_prompt: "使用 $implement-change 执行已批准的工作计划，并准备相关验证证据。"
