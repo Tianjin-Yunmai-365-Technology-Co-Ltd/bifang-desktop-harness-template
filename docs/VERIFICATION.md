@@ -56,9 +56,9 @@
 ### 前向行为推演与结论边界
 
 - 三个独立只读前向场景已复核：派发前提供方不可用时选择 macOS 回退并把 Windows/Linux 标为 `Unverified`；矩阵启动后 Windows 失败时整体失败且不合并 macOS/Linux 部分结果；签名探测就绪后签名返回非零时平台失败、目录保持空且不生成候选清单/校验和。三者均符合新契约，但不是实际提供方或签名工具运行证据。
-- Todo 开发阶段没有运行产品冒烟或 Computer Use E2E。本任务不产生可交互最终产品，且当前尚无绑定本轮完整变更的源码提交，因此没有进入 M1 里程碑验收，也没有记录 `Milestone accepted`。
+- Todo 开发阶段没有运行产品冒烟或 Computer Use E2E。本任务不产生可交互最终产品；完整候选随后绑定源码提交 `d2cb44f293fec888d7e66c38345b4df8baa4ebaf`，并在该精确提交上重新执行全部适用验收检查。
 - 未运行真实 Rust 发布构建、GitHub Windows/macOS/Linux 运行器、提供方制品取回、PowerShell 辅助程序、真实签名钩子/凭据、签名后平台验证、公证、创建标签、发布或上传。Windows/Linux、真实三平台、签名成功/失败通路和 TUI/MCP/GUI 构建均为 `Unverified`。
-- 人工最终复核：`Awaiting human review`。Agent 自动检查与当前实现完成不代替项目负责人签署。
+- 人工最终复核：项目负责人于 2026-08-03 明确批准全部当前范围和剩余风险；M1 结论为 `Milestone accepted`。批准不把未运行的真实三平台、PowerShell 或签名检查改判为通过。
 
 ## 2026-08-03 Docs 与 Skills 中文化
 
@@ -80,7 +80,7 @@
 
 ### 结论与未运行范围
 
-- 自动技术结论：`Passed`；M2 当前为 `Awaiting human review`，Agent 不代替项目负责人签署翻译质量的人工最终复核。
+- 自动技术结论：`Passed`；项目负责人于 2026-08-03 完成人工翻译质量复核并接受已记录边界，M2 结论为 `Milestone accepted`。
 - 本次表达层变更不产生可交互产品产物，里程碑冒烟与 E2E 均为 `Not applicable`，未运行。没有触发真实 Windows/macOS/Linux 远端矩阵、真实 PowerShell、签名、公证、标签、正式发布或上传。
 - Windows PowerShell 原生运行仍为 `Unverified`；固定英文机器词元继续存在是维护可执行性和历史事实精确性的必要边界，不应机械替换。
 
@@ -114,8 +114,8 @@
 - 与提交绑定的 M1 自动技术结论：`Technically accepted`。候选包含真实维护 CLI 与实际通过子进程调用 `plan`/`apply`/`record` 的场景，不以模拟实现、内部函数调用或中性脚手架代替；如果后续生产逻辑变化，必须建立新候选并重新执行完整 M1。
 - M1 的交付物是维护 CLI、校验器、Skills 和可执行治理规则，不存在需要启动交互的 GUI/TUI/MCP/CLI 产品最终产物；`milestone_smoke` 与 Computer Use E2E 在进入里程碑后判定为 `Not applicable`，记录为 `Not run`。27 个真实子进程 CLI 测试夹具是维护场景功能证据，不被改名为冒烟或 E2E。
 - PowerShell 可执行文件在当前 macOS 宿主不可用，原生 PowerShell 检查为 `Not run`；Windows 行为仅有 Python 回归和脚本文本契约。Windows/Linux、真实 GitHub 运行器、真实客户下游、非 CLI 适配器、Tauri 构建与长期升级仍为 `Unverified`。
-- 没有执行 Rust 发布构建、跨平台候选运行、`ready` 制品收集、签名、创建标签、发布或上传。用户授权提交和推送当前源码，不等于人工最终复核或正式发布授权。
-- 人工最终复核：`Awaiting human review`。项目负责人尚未为本里程碑明确签署复核人、日期和结论，Agent 不代签。
+- 没有执行 Rust 发布构建、跨平台候选运行、`ready` 制品收集、签名、创建标签、发布或上传。当时用户授权提交和推送当前源码，并未同时构成人工最终复核或正式发布授权；该历史边界保持不变。
+- 人工最终复核：本节原结论为 `Awaiting human review`；项目负责人于 2026-08-03 追加批准该里程碑及已记录剩余风险，当前结论为 `Milestone accepted`。正式发布仍未获授权。
 
 ## 2026-07-30 移除独立 WEB 并保留 Tauri GUI Web 技术栈
 
@@ -580,6 +580,19 @@
 - Agent 结论：`Partially verified`。当前 macOS 证据已在仓库内完整记录，其他设备由项目负责人报告通过且人工验收完成；若需要把总体结论提升为可独立审计的 `Verified`，仍需归档外部设备的环境与逐项结果。
 
 ## 人工复核
+
+### 2026-08-03 构建 Skill 优化、Docs/Skills 中文化与待复核里程碑统一批准
+
+- 复核人：项目负责人（当前用户，本次人工确认）。
+- 日期：2026-08-03。
+- 人工确认：项目负责人明确要求“将一切批准，并提交代码并推送”，据此批准当前全部待人工复核范围、已记录剩余风险，以及把审批记录提交并推送到 `origin/master`。
+- 复核基线：`master` 源码候选提交 `d2cb44f293fec888d7e66c38345b4df8baa4ebaf`；提交后工作树为空，并在该精确提交上重新执行本文件 2026-08-03 两节所列完整自动检查。
+- 范围：2026-08-03 构建 Skill 默认三平台/派发前回退、根 `release/` 安全刷新、条件签名与精确候选文件集；Docs 与 20 个项目 Skills 中文化；以及此前仍为 `Awaiting human review` 的 2026-07-31 Todo/里程碑闭环、持久策略与 Harness 升级能力 M1。
+- 自动证据：Harness/发布单元回归 50/50；身份改名 4/4、开发环境 12/12、Harness 升级 27/27、并行 Worktree 10/10、发布目录当前可运行用例 4/4；20/20 Skill 结构；精确 Rust 1.90 格式、检查、Clippy、7/7 测试和发布配置构建；23 个 Python 文件语法、21 个 YAML 文件解析、全部 POSIX Shell 语法、PowerShell BOM、工作流摘要、完整 Harness 校验器、差异和干净工作树门禁均通过。
+- 里程碑结论：2026-07-31 M1、2026-08-03 构建 Skill 优化 M1、2026-08-03 中文化 M2 均为 `Milestone accepted`。
+- 冒烟/E2E：这些里程碑交付物是 Harness 源码、维护 CLI、Skills、校验器和文档，不是需要启动交互的最终产品；项目负责人同时批准其 `Not applicable` 判断。未运行产品冒烟或 Computer Use E2E，不将其记为通过。
+- 已知并接受的剩余风险：当前 macOS 没有 `pwsh`，3 个 PowerShell 原生用例跳过；Windows/Linux、真实 GitHub 三平台运行器、提供方取回、真实签名钩子/凭据、TUI/MCP/GUI 统一跨平台候选和长期真实下游仍为 `Unverified`；完整 Harness 校验器的 8 个文件拆分提示继续为非阻断审查项。
+- 审批边界：本次明确授权提交和推送当前源码及审批记录；不授权创建标签、修改 `Unreleased` 状态、触发远端矩阵、配置或使用真实签名凭据、公证、正式发布或发布上传。
 
 ### 2026-07-29 当前技术债收口最终复核
 

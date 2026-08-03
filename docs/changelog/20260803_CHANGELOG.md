@@ -27,4 +27,4 @@
 - 本次通过 Harness/发布单元回归 50 项、五组 Skill 辅助程序测试中 57 项可运行用例、20 个 Skill 结构检查、精确 Rust 1.90 的 7 个非空测试与构建、23 个 Python 文件语法、21 个 YAML 文件解析、全部 POSIX Shell 语法、PowerShell BOM、完整 Harness 校验器、英文自然语言残留审计和差异检查；当前宿主无 `pwsh`，3 个 PowerShell 运行用例明确跳过。
 - 当前工作流 SHA-256 为 `64eeaf240ff2403ffe5efee156a59a65c744f2480287b0cfa320b25b66501b50`；完整 Harness 校验器检查 43 个必需文件和 20 个 Skills，报告 8 个非阻断拆分审查提示。
 - 未触发真实 GitHub Windows/macOS/Linux 矩阵，未运行真实签名工具或使用凭据，也未执行发布构建、冒烟、Computer Use E2E、创建标签、正式发布或上传。
-- Harness 仍为 `202607301002` / `Unreleased`；本记录不是里程碑验收或人工最终复核。
+- Harness 仍为 `202607301002` / `Unreleased`；项目负责人已于 2026-08-03 批准 M1、M2、已记录剩余风险及提交/推送操作，但未授权创建标签或正式发布。

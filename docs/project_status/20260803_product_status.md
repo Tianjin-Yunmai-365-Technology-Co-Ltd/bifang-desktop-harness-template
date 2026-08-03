@@ -6,8 +6,8 @@
 
 - 产品规格：Approved；2026-08-03 已确认 Rust CLI 构建默认三平台、派发前条件不足时回退当前平台、条件签名和根 `release/` 构建结果目录。
 - Harness 版本：根 `Version.md` 仍记录 `202607301002` / `Unreleased`；本轮不进入版本或正式发布准备。
-- 当前变更阶段：TODO-A01 至 TODO-C02 已全部完成且开发检查通过，验证里程碑 M1 未运行；文档/Skills 中文化的 TODO-D01 至 TODO-D03 也已完成，验证里程碑 M2 的自动技术证据通过，当前为 `Awaiting human review`，人工翻译质量复核尚未签署。
-- Git 状态：基于 `master` 当前工作树实施，未创建 Worktree、提交、标签、远端变更、推送、真实远端构建或发布上传。
+- 当前变更阶段：TODO-A01 至 TODO-D03 已全部完成；构建 Skill 优化 M1 与文档/Skills 中文化 M2 均绑定源码提交 `d2cb44f293fec888d7e66c38345b4df8baa4ebaf` 完成自动复验，并于 2026-08-03 获得项目负责人批准，结论均为 `Milestone accepted`。
+- Git 状态：候选已提交到 `master`；项目负责人已授权提交审批记录并推送 `origin/master`。未创建 Worktree、标签、真实远端构建或发布上传。
 - 当前计划：见 [`docs/work_plan/20260803_work_plan.md`](../work_plan/20260803_work_plan.md)。
 
 ## 本次范围
@@ -29,12 +29,12 @@
 ## 未完成与剩余风险
 
 - Windows PowerShell 辅助程序、真实 GitHub Windows/macOS/Linux 运行器、提供方取回、真实签名钩子/凭据和已签名二进制文件验证均为 `Unverified`。
-- 中文化自动检查已完成，但项目负责人尚未签署 M2 的人工翻译质量复核。
+- 中文化自动检查与项目负责人的 M2 人工翻译质量复核均已完成。
 - 当前工作流仍以单一 Rust CLI 二进制文件为产物模型；LIM-015 的 TUI/MCP/GUI 缺口尚未解决。
-- 2026-07-31 M1 的人工最终复核历史状态仍为 `Awaiting human review`，本轮不会改写该事实。
+- 2026-07-31 M1 原先的 `Awaiting human review` 历史事实保留；项目负责人已于 2026-08-03 追加批准，当前结论为 `Milestone accepted`。
 - 未运行发布构建、产品冒烟、Computer Use E2E、真实签名、公证、tag、发布或上传；`release/` 当前没有生成产品候选。
 
 ## 下一步
 
-1. 由项目负责人复核本轮 Skill、工作流、辅助程序、校验器与规则变更；当前记录为 `Awaiting human review`。
-2. 若用户另行要求里程碑验收或发布，先形成并绑定候选源码提交，再按 `$verify-delivery` 与 `$prepare-release` 执行；本轮实现授权不自动扩张到提交、远端矩阵、签名或发布。
+1. 按项目负责人授权提交审批记录并推送 `origin/master`，随后确认本地与上游提交一致且工作树干净。
+2. 若用户另行要求版本或正式发布，再按 `$prepare-release` 执行；当前批准不自动扩张到标签、远端矩阵、签名、公证或发布。
