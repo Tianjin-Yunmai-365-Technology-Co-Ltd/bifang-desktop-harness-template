@@ -25,11 +25,18 @@ milestone_e2e: pending
 
 ## 初始化与持久化
 
-- `$instantiate-project` 或直接调用的 `$initialize-rust-project` 必须一次收集 Superpowers、Worktree/Subagent、里程碑冒烟和里程碑 E2E 四项选择，并原子写入本文件。
-- 同一实例化/初始化工作流只询问一次；后续步骤复用已记录值，后续任务不得仅因进入类似场景而重复询问。
+- `$instantiate-project` 或直接调用的 `$initialize-rust-project` 先让用户选择“推荐敏捷预设”或“自定义”。推荐路径必须显式确认一次；自定义路径只询问目标用户尚未明确提供的项目，每项至多一次。Harness 源字段值不是下游确认，不能因源文件已有 `enabled` 或 `disabled` 而跳过目标用户选择。
+- 推荐预设物化为 `superpowers: enabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`。预设只是输入捷径，不新增持久字段，也不得在用户未确认时静默采用。
+- 四项值全部解析后才一次原子写入本文件；`confirmed_by` 记录真实确认来源，`confirmed_at` 记录最终收齐日期。由 `$instantiate-project` 进入 `$initialize-rust-project` 时只验证并复用，不重复询问。
 - `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，四项选择、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
 - 初始化首次写入发生在下游 ADR 尚未创建前，不要求为了引导预建 ADR。初始化后的永久策略变更必须由用户确认，并在当日 ADR 记录原因、影响和恢复条件。
 - 临时任务约束可以记录在当前工作计划/验证记录中，但不得静默改写本文件。
+
+## 任务路径
+
+- 快速、标准和里程碑是当前任务的执行路径，不是新的持久策略字段。用户可逐任务选择；未选择时 Agent 按风险自适应判断。
+- 快速路径不需要为了记录临时选择创建 Work Plan 或 Verification；标准/里程碑路径、重要阻断和跨会话交接才按项目规则持久化。
+- 本文件中的冒烟/E2E 只在里程碑路径消费，不能把普通快速/标准任务自动升级为完整验收；产品、渠道或安全硬要求仍可强制升级。
 
 ## 执行优先级
 

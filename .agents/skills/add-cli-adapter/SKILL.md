@@ -9,14 +9,14 @@ description: 为已初始化的下游项目增加可选的非交互式 CLI 适�
 
 ## 工作流程
 
-1. 读取 `AGENTS.md`、`docs/product_spec/README.md` 及日期最新的产品规格、`docs/ENGINEERING_RULES.md`、`docs/project_status/README.md` 及日期最新的产品状态、`docs/CLI_CONTRACT.md`、`docs/RUST_CLI_TEMPLATE.md`、`docs/work_plan/README.md` 及日期最新的工作计划，以及相关 ADR。
+1. 先判断调用模式。由 `$initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、CLI 契约和 Rust 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 CLI 是公开接口变更，进入里程碑路径并按需读取当前产品事实和计划。
 2. 确认已记录的接口选择包含 CLI。只能在当前项目根目录中工作，并确定性派生 `<project-id>_cli`；绝不要求另选目录或二进制名称。
 3. 要求已存在初始化完成的共享核心。`Draft` 产品只能获得中性的 `scaffold status` 适配器，并返回 `productDefinitionRequired=true`；已批准产品只能获得计划内命令。
 4. 使用 Tokio current-thread 异步入口，并只启用最低所需特性。I/O、等待、计时器、进程及其他延迟型工作从命令到核心的路径默认保持异步；不得仅因使用 Tokio 就启用 `rt-multi-thread`。只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并记录所有权、取消、并发上限、资源预算和测试。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程；不得静默用线程包裹。
 5. 完整实现 `docs/CLI_CONTRACT.md` 规定的非交互行为和 `--json` 行为。不得把 TUI 代码路径作为调用核心操作的唯一方式。
 6. 测试真实二进制：成功路径、最高风险失败路径、JSON 解析、标准输出/标准错误分离、退出码、`--help`/`--version`，以及拒绝等待输入。处于 `Draft` 时还要拒绝未批准的业务命令。
 7. 普通实现期间，运行仓库中可发现的格式化、代码规范检查、非空测试、变更所需的锁定检查/构建，以及有针对性的真实二进制黑盒测试。不得用开发证据声称发布就绪。
-8. Todo 实施期间，运行非空的核心/CLI 单元测试和黑盒契约测试，以及相关格式化、代码规范检查和检查命令；不得运行冒烟/E2E。批次达到 `done` 后，构建并定位真实二进制作为里程碑候选，再交给 `$verify-delivery`。只有该里程碑可以读取持久冒烟/E2E 策略或硬要求；失败会重开 Todo 并返回实施。记录当前平台证据，其他平台标记为 `Unverified`。
+8. 中性初始化完成测试后返回 `$initialize-rust-project`，不创建 Work Plan 或调用 `$verify-delivery`，脚手架也不是里程碑。初始化后新增真实 CLI 时先使用 `$plan-change`；Todo 实施期间运行核心/CLI 单元与黑盒契约测试，全部 `done` 后构建真实二进制并交给 `$verify-delivery`。记录当前平台证据，其他平台标记为 `Unverified`。
 
 ## 边界
 

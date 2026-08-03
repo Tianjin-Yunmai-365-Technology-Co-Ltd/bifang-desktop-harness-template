@@ -65,8 +65,8 @@ def main() -> int:
         return 1
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
-        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, five daily project-memory streams, "
-        "Todo/milestone gates, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
+        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, five event-triggered project-memory streams, "
+        "optional standard plans and strict milestone gates, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
         "parallel worktree gates, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."
     )

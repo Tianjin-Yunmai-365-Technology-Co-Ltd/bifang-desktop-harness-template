@@ -9,17 +9,17 @@ description: 为具有共享核心的已初始化下游项目增加可选的 Rus
 
 ## 工作流程
 
-1. 读取 `AGENTS.md`、`README.md`、`docs/product_spec/README.md` 及日期最新的产品规格、`docs/ENGINEERING_RULES.md`、`docs/project_status/README.md` 及日期最新的产品状态、`docs/work_plan/README.md` 及日期最新的工作计划、`docs/RUST_CLI_TEMPLATE.md`，以及相关决定和验证记录。
+1. 先判断调用模式。由 `$initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/MCP 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 MCP 是公开协议与权限边界变更，进入里程碑路径并按需读取当前产品事实和计划。
 2. 确认当前工作目录是真实下游 Rust 工作区，具有共享核心，且初始化选择或已批准产品范围中记录了 MCP。`Draft` 项目只能公开不含业务操作的中性脚手架状态工具。若当前目录只是文档 Harness，或缺少核心，则停止。不得要求另选目标目录，也不得要求 CLI。
 3. 选择依赖或设计工具前，完整阅读 [references/mcp-baseline.md](references/mcp-baseline.md)。实施前还要阅读 `docs/RUST_CLI_TEMPLATE.md` 的 MCP 小节，了解工具模式定义/事实来源契约一致性以及命名/说明基础规则的最小硬要求。
 4. 识别目标 MCP 宿主、工具支持的最小用户闭环、每个工具到核心的映射、输入/输出模式定义、稳定错误映射、副作用、权限、风险注解、超时、取消和关闭行为。只询问会实质改变范围的缺失选择。
-5. 编辑前使用 `$plan-change`。MCP 适配器必须与 CLI 解析和 GUI 代码相互独立。
+5. 中性初始化直接按初始化选择建立无业务工具，不创建 Work Plan；初始化后新增真实 MCP 时编辑前使用 `$plan-change`。MCP 适配器必须与 CLI 解析和 GUI 代码相互独立。
 6. 执行时检查软件包仓库和 MCP Rust SDK 官方文档。优先使用当前兼容稳定的 `rmcp` 版本，关闭默认特性，只启用已批准的服务器、宏和 stdio 传输特性。缺少 `rust-version` 不能视为 MSRV 兼容依据；必须使用项目真实 MSRV 工具链证明兼容性。
 7. 在 `<project-id>_mcp` 中增加一个可独立测试的 MCP 二进制 crate，其中 `<project-id>` 是当前已批准的 ASCII snake_case 项目标识。Cargo 软件包、Rust crate 和真实二进制统一使用 `<project-id>_mcp`；不得要求独立名称。从 Tokio current-thread 异步入口启动 stdio 服务，传输、工具和核心调用默认保持异步。不得为普通协议并发启用 `rt-multi-thread`。适配器可以依赖核心；核心不得依赖 MCP、`rmcp`、传输类型或协议模式定义。所有维护的适配器代码和测试都必须遵守 `docs/ENGINEERING_RULES.md` 的文件边界与有意义中文业务注释要求。
 8. 只公开已批准核心闭环所需的工具。调用核心前验证结构化输入，映射领域错误时不得丢失稳定错误码，协议流量只能写入标准输出，诊断只能写入标准错误。只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并明确记录所有权、取消、超时、并发上限、资源预算和测试。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程。没有独立批准需求时，不得增加 HTTP、OAuth、客户端、采样、提示、资源或后台服务。
 9. 测试工具发现、核心成功路径、最高风险失败路径、违反模式定义的输入、稳定错误、标准输出/标准错误分离、EOF 干净关闭、适用时的取消或超时，以及目标宿主实际支持的任何审批/风险行为。
 10. 普通实现期间，运行可发现的格式化、代码规范检查、非空测试、相关锁定检查/构建，以及有针对性的协议/二进制测试。不得用开发证据声称发布就绪。
-11. Todo 实施期间，运行非空的核心/MCP 单元测试、协议测试和 stdio 契约测试，以及相关格式化、代码规范检查和检查命令；不得运行二进制冒烟、宿主 E2E 或 Computer Use。批次达到 `done` 后，构建并定位真实服务器作为里程碑候选，再使用 `$verify-delivery`。只有该里程碑可以根据持久策略/硬要求决定是否执行二进制冒烟、检查器/宿主验收和 `$test-final-artifact-e2e`；失败会重开 Todo。未测试宿主/平台标记为 `Unverified`。
+11. 中性初始化完成测试后返回 `$initialize-rust-project`，不调用 `$verify-delivery`。初始化后 Todo 期间运行核心/MCP 单元、协议和 stdio 契约测试；全部 `done` 后构建真实服务器并使用 `$verify-delivery`。只有该里程碑可以决定二进制冒烟、宿主验收和 E2E；未测试宿主/平台标记为 `Unverified`。
 
 ## 硬边界
 

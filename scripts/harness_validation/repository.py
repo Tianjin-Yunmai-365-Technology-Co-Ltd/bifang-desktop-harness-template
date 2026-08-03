@@ -33,13 +33,13 @@ def validate_daily_project_memory(errors: list[str]) -> None:
     daily_contracts = (
         (PRODUCT_SPEC_DIR, PRODUCT_SPEC_PATTERN, "Product Spec", True),
         (PRODUCT_STATUS_DIR, PRODUCT_STATUS_PATTERN, "Product Status", True),
-        (WORK_PLAN_DIR, WORK_PLAN_PATTERN, "Work Plan", True),
+        (WORK_PLAN_DIR, WORK_PLAN_PATTERN, "Work Plan", False),
         (ADR_DIR, re.compile(r"^\d{8}_ADR\.md$"), "ADR", product_is_approved),
         (
             CHANGELOG_DIR,
             re.compile(r"^\d{8}_CHANGELOG\.md$"),
             "Changelog",
-            product_is_approved,
+            False,
         ),
     )
     for directory, filename_pattern, label, dated_file_required in daily_contracts:
@@ -70,55 +70,52 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "YYYYMMDD_product_spec.md",
             "同一天只维护一份产品规格",
             "读取前一份产品规格",
-            "完整的当前规格",
+            "产品目标、边界、约束或成功标准变化时",
         ),
         PRODUCT_STATUS_DIR / "README.md": (
             "YYYYMMDD_product_status.md",
             "同一天只维护一份产品状态",
             "读取前一份产品状态",
-            "完整的当前状态",
+            "里程碑、重要阻断、跨会话交接或用户要求",
         ),
         WORK_PLAN_DIR / "README.md": (
             "YYYYMMDD_work_plan.md",
             "同一天只维护一份工作计划",
             "读取前一份工作计划",
-            "完整的当前计划",
-            "Todo` 批次和对应验证里程碑",
-            "当前批次任一 Todo 非 `done` 时",
-            "模拟实现、桩实现、占位、中性脚手架",
-            "重开或新增 Todo 并返回编码",
+            "快速路径不创建 Work Plan",
+            "标准计划至少包含精简 Todo",
+            "里程碑计划必须包含对应验证里程碑",
         ),
         ADR_DIR / "README.md": (
             "YYYYMMDD_ADR.md",
             "同一天不得新建第二个 ADR 文件",
-            "独立 `ADR-YYYYMMDD-NNN` 条目",
+            "长期重要、难以逆转的决定",
+            "普通需求与实现细节不创建 ADR",
         ),
         CHANGELOG_DIR / "README.md": (
             "YYYYMMDD_CHANGELOG.md",
             "同一天的实际变化持续更新同一文件",
-            "尚未实施的需求只进入 ADR 和计划",
+            "不可感知的快速改动不创建记录",
         ),
         SKILLS_ROOT / "define-product" / "SKILL.md": (
-            "日期最新的产品规格",
-            "综合重写完整的当前快照",
-            "日期最新的 ADR",
+            "只在产品边界需要决定时",
+            "不默认加载全部历史",
+            "低风险局部实现可直接交给 `$implement-change`",
         ),
         SKILLS_ROOT / "plan-change" / "SKILL.md": (
-            "日期最新的产品状态",
-            "从前一份快照综合重写其中仍有效的内容",
-            "日期最新的 ADR",
+            "`标准` 或 `里程碑` 路径",
+            "标准路径到此即可",
+            "先把路径升级为里程碑",
         ),
         SKILLS_ROOT / "implement-change" / "SKILL.md": (
-            "日期最新的工作计划",
-            "从前一份日期文件综合重写每份当前快照",
-            "日期最新的 ADR",
-            "docs/changelog/YYYYMMDD_CHANGELOG.md",
+            "快速路径直接实现",
+            "纯文档、元数据、格式或不可合理单测",
+            "只更新被触发的记忆",
         ),
         SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
-            "日期最新的产品规格",
-            "日期最新的工作计划",
-            "日期最新的 ADR",
-            "docs/changelog/YYYYMMDD_CHANGELOG.md",
+            "确认任务已进入里程碑路径",
+            "纯文档/元数据治理候选",
+            "未触发的记忆不创建占位",
         ),
         SKILLS_ROOT / "prepare-release" / "SKILL.md": ("docs/changelog/README.md",),
     }
@@ -138,32 +135,28 @@ def validate_daily_project_memory(errors: list[str]) -> None:
 def validate_work_plan_contract(
     errors: list[str],
     plan_path: Path = WORK_PLAN,
+    *,
+    required: bool = False,
 ) -> None:
-    """确认活动计划具有可机读 Todo 状态、里程碑准入和失败回流。"""
+    """按标准/里程碑路径校验可选 Work Plan，并保留严格验收门禁。"""
     if not plan_path.is_file():
-        fail(errors, f"missing active Work Plan: {display_path(plan_path)}")
+        if required:
+            fail(errors, f"missing active Work Plan: {display_path(plan_path)}")
         return
 
     text = plan_path.read_text(encoding="utf-8")
-    required_fragments = (
-        "## Todo",
-        "## 验证里程碑",
-        "pending",
-        "in_progress",
-        "blocked",
-        "`done`",
-        "完整真实",
-        "模拟实现",
-        "脚手架",
-        "重开",
-        "返回 `$implement-change`",
+    path_match = re.search(
+        r"当前任务路径\s*[：:]\s*`?(快速|标准|里程碑)`?",
+        text,
     )
-    for fragment in required_fragments:
-        if fragment not in text:
-            fail(
-                errors,
-                f"Work Plan Todo/milestone contract missing in {display_path(plan_path)}: {fragment}",
-            )
+    path_kind = path_match.group(1) if path_match else None
+    if path_kind is None:
+        fail(errors, "active Work Plan must declare 标准 or 里程碑 task path")
+    if path_kind == "快速":
+        fail(errors, "quick path must not persist an active Work Plan")
+        return
+    if "## Todo" not in text:
+        fail(errors, f"active Work Plan has no Todo section: {display_path(plan_path)}")
 
     heading_pattern = re.compile(
         r"^###\s+(TODO-[A-Z0-9-]+)(.*?)$",
@@ -208,7 +201,7 @@ def validate_work_plan_contract(
         field_patterns = {
             "expected behavior": r"(?:预期行为|Expected behavior)\s*[：:]",
             "ownership/boundary": r"(?:影响边界|Ownership/Boundary)\s*[：:]",
-            "verification": r"(?:完成验证|Verification)\s*[：:]",
+            "verification": r"(?:完成验证|验证|Verification)\s*[：:]",
         }
         for label, pattern in field_patterns.items():
             if not re.search(pattern, block, flags=re.IGNORECASE):
@@ -217,6 +210,32 @@ def validate_work_plan_contract(
     milestone_matches = list(
         re.finditer(r"^##\s+验证里程碑\b.*$", text, flags=re.MULTILINE)
     )
+    if path_kind == "里程碑" and not milestone_matches:
+        fail(
+            errors,
+            f"milestone path is missing ## 验证里程碑 in {display_path(plan_path)}",
+        )
+    if milestone_matches and path_kind != "里程碑":
+        fail(errors, "only a milestone path may contain a 验证里程碑 section")
+    if milestone_matches:
+        milestone_fragments = ("候选", "`done`", "$implement-change")
+        for fragment in milestone_fragments:
+            if fragment not in text:
+                fail(
+                    errors,
+                    f"Work Plan milestone contract missing in {display_path(plan_path)}: {fragment}",
+                )
+        if not re.search(r"完整(?:真实| Harness|源树|产物)", text):
+            fail(
+                errors,
+                f"Work Plan milestone lacks a complete real candidate: {display_path(plan_path)}",
+            )
+        if not re.search(r"模拟|桩|占位|脚手架|开发预览|单段文案", text):
+            fail(
+                errors,
+                f"Work Plan milestone lacks substitute rejection: {display_path(plan_path)}",
+            )
+
     accepted_status_pattern = re.compile(
         r"^\s*(?:[-*]\s*)?"
         r"(?:(?:当前)?(?:里程碑|验收|技术验收)?(?:状态|结论)"
@@ -225,6 +244,19 @@ def validate_work_plan_contract(
         r"(?:Technically\s+accepted|Milestone\s+accepted|accepted|passed|已验收|通过)\b",
         flags=re.IGNORECASE | re.MULTILINE,
     )
+    release_ready_pattern = re.compile(
+        r"^\s*(?:[-*]\s*)?"
+        r"(?:(?:发布|候选)(?:状态|结论)|发布就绪|Release\s+readiness)"
+        r"\s*[：:]\s*`?(?:ready|已就绪|可发布)\b",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    if path_kind != "里程碑" and (
+        accepted_status_pattern.search(text) or release_ready_pattern.search(text)
+    ):
+        fail(
+            errors,
+            "only a milestone path may record an accepted milestone or release-ready verdict",
+        )
     previous_milestone_end = 0
     for index, milestone in enumerate(milestone_matches):
         milestone_end = (
@@ -239,7 +271,10 @@ def validate_work_plan_contract(
             if previous_milestone_end <= position < milestone.start()
             and state != "done"
         )
-        if batch_unfinished and accepted_status_pattern.search(milestone_block):
+        if batch_unfinished and (
+            accepted_status_pattern.search(milestone_block)
+            or release_ready_pattern.search(milestone_block)
+        ):
             fail(
                 errors,
                 "active Work Plan marks a milestone accepted while Todo remains non-done: "

@@ -23,6 +23,7 @@ REQUIRED_RULES = {
     ".agents/skills/instantiate-project/**": "tombstone",
     ".agents/skills/initialize-rust-project/**": "tombstone",
     "scripts/validate_harness.py": "tombstone",
+    "scripts/test_agile_workflow.py": "tombstone",
     "scripts/test_validate_harness.py": "tombstone",
     "scripts/harness_validation/**": "tombstone",
     "docs/HARNESS_ENGINEERING.md": "tombstone",

@@ -179,6 +179,8 @@ class ValidateWorkPlanTests(unittest.TestCase):
         todo_token = ValidateWorkPlanTests.TODO_TOKEN
         return f"""# 当前工作计划
 
+- 当前任务路径：`里程碑`
+
 ## Todo 批次 A
 
 ### {todo_token}（pending）：实现行为
@@ -209,10 +211,10 @@ class ValidateWorkPlanTests(unittest.TestCase):
         self.assertEqual(self._validate(self._valid_plan()), [])
 
     def test_rejects_missing_milestone(self) -> None:
-        """仅有 TodoList 而没有验证里程碑不是完整计划。"""
+        """显式里程碑路径缺少验收章节时必须失败。"""
         mutated = self._valid_plan().replace("## 验证里程碑 M1", "## 验证阶段 M1", 1)
         errors = self._validate(mutated)
-        self.assertTrue(any("## 验证里程碑" in error for error in errors), errors)
+        self.assertTrue(any("missing ## 验证里程碑" in error for error in errors), errors)
 
     def test_rejects_todo_without_explicit_state(self) -> None:
         """Todo 标题缺少可机读状态时必须失败。"""

@@ -190,7 +190,7 @@ cargo build --workspace --release --locked
 - 从 Cargo 元数据和配置解析二进制文件与目标目录，不根据仓库文件夹名猜测。
 - Windows 二进制文件使用 `.exe`；当前平台成功不能推断其他平台已验证。
 
-中性初始化验证完成后，下一步必须是 `$define-product`。产品目的、核心输入输出、成功标准和最高风险失败路径获批后，使用 `$plan-change` 建立 Todo 批次和验证里程碑，再由 `$implement-change` 删除或替换 `scaffold status`。全部 Todo 完成后才构建并验收真实里程碑产物。
+中性初始化验证完成后，首次业务实现必须通过 `$define-product` 明确产品目的、核心输入输出、成功标准和最高风险失败路径。只实现尚未暴露的内部 core 行为可采用标准路径；任何适配器首次替换 `scaffold status` 或建立公开命令、工具、页面、协议时都必须进入里程碑路径，构建并验收最终真实候选。后续局部、可逆且不改变公开契约的变更才可直接 `$implement-change`。
 
 ## 按需能力配方
 
@@ -221,9 +221,9 @@ cargo build --workspace --release --locked
 
 ## 构建、验证里程碑与结果文件
 
-- 普通 Todo 实现轮次运行非空单元测试与变更相关的格式、Clippy、代码检查、集成/契约检查，不运行冒烟/E2E，也不得把开发证据写成里程碑通过。
+- 代码行为实现轮次运行相关非空单元/回归测试，并按风险选择格式、Clippy、静态和集成/契约检查；纯文档或元数据变更使用相称替代验证。快速/标准路径不运行冒烟/E2E，也不得把开发证据写成里程碑通过。
 - `$build-rust-release` 负责 Rust CLI 候选编排：默认先使用 Windows、macOS、Linux 原生矩阵；只有跨平台提供方、权限、运行器或结果取回条件在派发前不可用时才回退当前平台。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；TUI/MCP/GUI 仍使用各自适配器 Skill 的构建与产物门槛。
-- 当前批次 Todo 全部完成后，`$verify-delivery` 才验收真实候选：重新执行编译、非空单元测试、相关集成/契约和产物存在性，并根据 `docs/AGENT_POLICY.md`、产品/渠道硬要求和适用性决定是否执行冒烟/E2E。
+- 只有里程碑/发布候选或用户明确要求完整验收时，当前批次 Todo 全部完成后才调用 `$verify-delivery`：重新执行编译、非空单元测试、相关集成/契约和产物存在性，并根据 `docs/AGENT_POLICY.md`、产品/渠道硬要求和适用性决定是否执行冒烟/E2E。
 - Todo 全部完成后，构建可在项目已有批准的非交互签名钩子、工具和已授权凭据时尝试签名并验证，再把明确标记 `milestoneAcceptance: pending` 的候选写入根 `release/`；远端构建随后上传与清单精确一致的文件集以供传输。条件缺失时记录 `signingStatus: unsigned` 与原因，条件满足后的签名失败则使平台构建失败；签名之后计算最终归档 SHA-256。`milestone_smoke`/`milestone_e2e` 为 `enabled` 或硬要求为 `required` 时，必须针对这些最终字节执行，并在标记 `ready`、发布上传或正式发布前通过。
 - `$prepare-cross-platform-release` 当前负责默认 Rust CLI Windows/macOS/Linux 原生候选矩阵；所有运行器使用 `fail-fast: false` 留下终态证据。其他接口的统一跨平台打包仍是已公开限制，默认不正式发布。
 - `$collect-release-artifacts` 负责提取并核验平台归档、相邻 SHA-256、签名状态、清单和已有里程碑证据，不自行构建、签名或运行冒烟/E2E；为构建取回结果时可保留 `pending`，发布准备仍只接受与候选匹配的 `accepted` 证据。

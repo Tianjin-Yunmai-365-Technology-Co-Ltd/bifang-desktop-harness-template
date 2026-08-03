@@ -9,7 +9,7 @@ description: 为已初始化的下游项目增加可选的 Ratatui 终端适配�
 
 ## 工作流程
 
-1. 读取 `AGENTS.md`、`README.md`、`docs/product_spec/README.md` 及日期最新的产品规格、`docs/ENGINEERING_RULES.md`（工程规则）、`docs/project_status/README.md` 及日期最新的产品状态、`docs/work_plan/README.md` 及日期最新的工作计划、`docs/RUST_CLI_TEMPLATE.md`，以及相关 ADR 和验证记录。
+1. 先判断调用模式。由 `$initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/TUI 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 TUI 是公开接口变更，进入里程碑路径并按需读取当前产品事实和计划。
 2. 确认范围记录包含 TUI，并识别最小交互闭环、目标终端、键盘行为、窗口尺寸变化行为、无障碍预期，以及安全退出/恢复行为。
 3. 在当前根目录内的 `<project-id>_tui` 中工作。要求存在共享核心，但不要求 CLI、MCP 或 GUI。
 4. 完整阅读 [references/tui-baseline.md](references/tui-baseline.md)。使用 Ratatui 负责渲染，使用 tui-realm 负责组件/事件架构，并将 tui-realm-stdlib 用作成熟的标准组件库。此技术栈对 `Draft` 和 `Approved` 项目都是硬规则。
@@ -19,7 +19,7 @@ description: 为已初始化的下游项目增加可选的 Ratatui 终端适配�
 8. 普通输入、选择、表格、列表、标签、段落、选项卡、仪表和图表优先使用 tui-realm-stdlib 组件。只有标准库无法表达某项已批准行为时才创建项目组件，并记录组合或样式为何不足。
 9. 测试组件消息和状态转换、异步事件/任务取消、键盘导航、尺寸变化和小终端行为、错误/空/加载状态、最高风险操作确认、正常退出和失败后的终端状态恢复，以及核心映射。
 10. 普通实现期间，运行格式化、代码规范检查、非空测试、相关锁定检查/构建和有针对性的终端状态测试。不得用开发证据声称发布就绪。
-11. Todo 实施期间，运行非空的核心/TUI 单元测试和交互状态测试，以及相关格式化、代码规范检查和检查命令；不得运行冒烟/E2E。批次达到 `done` 后，构建并定位真实 TUI 二进制作为里程碑候选，再交给 `$verify-delivery`。只有该里程碑可以根据持久策略/硬要求运行启动冒烟或 `$test-final-artifact-e2e`；失败会重开 Todo 并返回实施。
+11. 中性初始化完成测试后返回 `$initialize-rust-project`，不创建 Work Plan 或调用 `$verify-delivery`。初始化后新增真实 TUI 时先使用 `$plan-change`；Todo 期间运行核心/TUI 单元与交互状态测试，全部 `done` 后构建真实 TUI 二进制并交给 `$verify-delivery`。只有该里程碑可以运行适用冒烟/E2E。
 
 ## 硬边界
 

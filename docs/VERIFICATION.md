@@ -3,33 +3,57 @@
 ## 验证原则
 
 - 只记录真实执行的命令、环境、结果和未覆盖范围。
-- Todo 开发轮次记录非空单元/回归测试和变更相关验证；任一 Todo 非 `done` 时持续实现，不进入验证里程碑，不运行冒烟/E2E，也不产生已验收结论。
-- 只有当前批次 Todo 全部 `done` 后，才能对绑定批准场景、源码提交、运行环境和可观察结果的完整真实产物执行验证里程碑。源码片段、模拟实现、桩实现、占位、中性脚手架、开发预览和仅内部函数证据不具备验收资格。
+- 快速路径的普通检查可以只在最终回复或 CI 中概括；标准路径按需保存 Todo/交接证据；本文件只长期保存里程碑、发布、人工复核或需要审计的结果。
+- 代码行为变化记录相关非空单元/回归测试和必要边界检查；纯文档、元数据、格式或不可合理单测的机械变更记录链接、解析、静态、现有回归或差异检查等相称替代验证。
+- 只有里程碑路径且当前批次 Todo 全部 `done` 后，才能对绑定批准场景、源码提交、运行环境和可观察结果的完整真实产物执行验收。源码片段、模拟实现、桩实现、占位、中性脚手架、开发预览和仅内部函数证据不具备验收资格。
 - 验证里程碑按 `docs/AGENT_POLICY.md` 的持久 `milestone_smoke`/`milestone_e2e`、产品/渠道硬要求和实际适用性决定冒烟/E2E。产品定义、计划、Todo 编码、普通静态复核、常规构建、制品收集和发布元数据流程不得运行二者。
 - 必需门禁或已启用的冒烟/E2E 失败、超时、取消或未执行时拒绝里程碑，保存证据，重开或新增具体 Todo 并返回编码修复；只有全部 Todo 再次 `done` 才能重跑完整里程碑。
 - Harness 根目录没有具体下游产品；维护里程碑验收的是可执行治理闭环、校验器和维护脚本，不把随附的中性资产当作产品里程碑。真实下游产品与未运行平台按事实标为 `Unverified`。
-- 零测试不构成通过；测试必须覆盖核心成功路径和最高风险失败路径。
+- 对代码行为变化，零个相关测试不构成通过；非代码候选可以使用计划中声明的相称替代证据。
 - 只对真实运行的系统和工具链给出通过结论；其他平台与宿主标记为 `Unverified`。
-- 人工批准不能把失败或未执行的检查改判为通过；Agent 不代替人类签署最终复核。
+- 人工批准不能把失败或未执行的检查改判为通过；发布、不可逆交付或项目/渠道要求的复核只能由人类签署，普通快速/标准任务不强制人工签名。
 
 ## 模板验证矩阵
 
 | 层级 | 方法 | 当前要求 |
 |---|---|---|
-| 文件与链接 | `python3 scripts/validate_harness.py` | 43 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
+| 文件与链接 | `python3 scripts/validate_harness.py` | 44 个必需固定入口、五类日期记忆正文/索引和本地 Markdown 链接完整 |
 | Skills | 校验器 + Skill Creator 校验 + 逐份语义审查 | 20 个 Skills、UI 元数据、参考资料、脚本和资产与事实源一致；独立 WEB Skill 不得存在，`$upgrade-harness` 必须存在并保留 |
-| 持久 Agent 策略 | 模式定义正负向单元测试 + 初始化契约 | Superpowers、Worktree/Subagent、里程碑冒烟/E2E 一次写入；下游基线不得残留 `pending`；后续先复用、再判断、最后询问 |
-| Todo 与里程碑 | 工作计划结构门禁 + 状态正负向单元测试 | Todo 有稳定 ID/状态，任一非 `done` 项禁止进入 `accepted` 里程碑；失败重开 Todo 返回实现 |
+| 持久 Agent 策略 | 模式定义正负向单元测试 + 初始化契约 | 用户显式选择一次推荐敏捷预设或自定义；最终四字段原子写入且不得残留 `pending`；后续先复用、再判断、最后询问 |
+| 分级计划与里程碑 | 无计划快速、精简标准、完整里程碑正负向单元测试 | 快速路径可无 Work Plan；标准 Todo 有稳定 ID/状态；只有里程碑要求任一非 `done` 项禁止进入 `accepted` |
 | 并行协作 | Worktree 助手 10 个隔离单元测试 + 校验器契约检查 | 持久策略启用且至少两个独立写入范围时自主采用；否则单 Agent；独立 Worktree/分支、写入目标门禁、前台状态、同步等待与保守清理 |
 | Harness 版本 | 校验器正向与非法日期负向测试 | `Version.md` 的当前版本是上海时区合法 `YYYYMMDDHHMM`，当前摘要一致且下游 SemVer 不受污染 |
 | 当前描述 | 校验器正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
 | 开发环境门禁 | Python 12 个隔离测试 + Shell/PowerShell 静态或原生检查 | 仅 Rust 与 GUI 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计；始终拒绝 WEB 参数 |
 | Harness 升级 | 真实 CLI + 27 个基于隔离 Git 测试夹具的单元测试 | `plan`/`apply`/`record`、三方比较、引导、来源与控制状态绑定、权限、`protected`/`tombstone`；遇到符号链接与碰撞时默认拒绝，真实下游仍需前向证据 |
-| Rust 资产 | 精确 Rust 1.90 | 仅在对应 Todo/里程碑或发布范围需要时执行 fmt、锁定依赖检查、Clippy、非空测试与构建；冒烟/E2E 仍只属于验证里程碑 |
+| Rust 资产 | 精确 Rust 1.90 | 仅在代码行为、里程碑或发布范围需要时执行 fmt、锁定依赖检查、Clippy、非空测试与构建；文档/元数据任务不重复构建，冒烟/E2E 仍只属于里程碑 |
 | 发布刷新 | 辅助程序 7 个用例 + 发布校验器 6 个正负向测试 | 独立 Git 根、原子隔离旧目录、符号链接/重解析点、不跟随清理、精确 `/release/` 与 `/.release-clean.*` 忽略规则、默认矩阵和回退边界；无 `pwsh` 时 Windows 运行用例明确跳过 |
 | 里程碑运行验收 | 持久策略/硬要求解析 + 真实产物场景证据 | 只在 Todo 全部完成后考虑冒烟/E2E；失败、超时、取消或已选未执行会拒绝里程碑并回编码 |
 | 工作流资产 | 全文件 SHA-256 + 独立 YAML 解析 + 步骤/输入/门禁契约 | 只生成三平台 `milestoneAcceptance: pending` 候选；绑定批准源码提交，使用不可变 Action 提交，依次刷新、非空测试/构建、条件签名、暂存区打包/清单、目录级原子提交和精确上传，禁止冒烟、E2E、发布和写权限提升 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
+
+## 2026-08-03 风险分级敏捷流程优化
+
+### 范围与路径
+
+- 当前 Product Spec 与 ADR 把日常开发改为快速、标准、里程碑三条路径；用户可直接选择，未选择时 Agent 自适应，安全、隐私、数据迁移、破坏性操作、生产/付费/凭据、公开契约和发布硬门禁只能升级。
+- 本次跨越规则、Skills、初始化契约和校验器，采用标准路径与精简 Todo。它不修改产品运行时代码、不产生真实产品候选，也不进入 `$verify-delivery`；本节因治理变更需要长期审计而保存自动证据。
+- 初始化推荐值为 Superpowers、并行 Worktree/Subagent、里程碑冒烟 `enabled`，里程碑 E2E `disabled`；用户可选择自定义。预设只物化既有 `schema_version: 1` 四字段，不能静默采用或持久化为新字段。
+
+### 自动检查证据
+
+- `python3 -B -m unittest scripts.test_validate_harness scripts.test_agile_workflow scripts.test_release_validation -v`：64/64 通过，覆盖持久策略、三档 Work Plan、必需计划调用、标准计划不得伪装里程碑、首次公开 adapter 与既有产品改名强制升档、过早验收/发布就绪拒绝、中性初始化不创建或复制验证记录、初始化推荐/自定义、升级器所有权、发布与工作流契约。
+- `python3 -B .agents/skills/rename-project-identity/scripts/test_rename_project_identity.py -v`、`python3 -B .agents/skills/check-development-environment/scripts/test_development_environment_gates.py -v`、`python3 -B .agents/skills/upgrade-harness/scripts/test_harness_upgrade.py -v`、`python3 -B .agents/skills/run-parallel-worktrees/scripts/test_parallel_worktrees.py -v`、`python3 -B .agents/skills/build-rust-release/scripts/test_prepare_release_directory.py -v`：身份改名 4/4、开发环境 12/12、Harness 升级 27/27、并行 Worktree 10/10、发布目录当前可运行用例 4/4 通过。发布目录另有 3 个 PowerShell 原生用例因当前 macOS 没有 `pwsh` 明确跳过。
+- `for skill_dir in .agents/skills/*; do /Users/manonloki/.codex/venvs/skill-creator/bin/python /Users/manonloki/.codex/skills/.system/skill-creator/scripts/quick_validate.py "$skill_dir" || exit 1; done`：20 个项目 Skills 全部通过；`rg --files .agents/skills | rg '/agents/openai\.yaml$' | while IFS= read -r yaml_file; do /Users/manonloki/.codex/venvs/skill-creator/bin/python -c 'import pathlib, sys, yaml; yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))' "$yaml_file" || exit 1; done`：20 个 `agents/openai.yaml` 解析通过。
+- `rg --files .agents/skills scripts | rg '\.py$' | while IFS= read -r python_file; do python3 -B -m ast "$python_file" >/dev/null || exit 1; done`：24 个 Python 文件通过内存语法解析；`rg --files .agents/skills | rg '\.sh$' | while IFS= read -r shell_file; do sh -n "$shell_file" || exit 1; done`：两个 POSIX Shell 文件通过；`git diff --check` 通过。
+- `python3 -B scripts/validate_harness.py`：通过，检查 44 个必需文件、20 个 Skills、本地 Markdown 链接、五类按事件触发的项目记忆、可选标准计划、严格里程碑、初始化策略与当前治理门禁；报告 8 个非阻断拆分审查提示。
+- 当前规则残留扫描发现并修正了发布文档仍把普通文档变更表述为强制非空单元测试，以及 E2E Skill 把人工复核表述为无条件独立步骤的两处旧语义；修正后重新纳入完整检查。
+
+### 结论边界与未运行项
+
+- 当前标准路径的实现和仓库级完成检查通过；这不是 `Milestone accepted`、候选 `ready` 或发布就绪结论，也不要求项目负责人签署人工复核。
+- 未运行 Rust 资产构建、产品冒烟、Computer Use E2E、真实 PowerShell、Windows/Linux、远端 Windows/macOS/Linux 矩阵、签名、公证、tag、正式发布或上传。本任务未修改运行时资产，前四类运行/发布检查不适用；Git 提交与推送不作为标准路径验收证据，另按维护者授权执行；既有跨平台与签名限制仍为 `Unverified`。
+- 三档自动分类与推荐/自定义初始化交互尚无真实下游前向证据，由 LIM-008 跟踪。后续应按真实 Token、耗时、升档与漏检数据调整规则，而不是恢复所有任务统一走完整流程。
 
 ## 2026-08-03 构建 Skill 默认三平台、条件签名与根发布刷新
 

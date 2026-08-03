@@ -133,6 +133,7 @@ REQUIRED_FILES = (
     ".agents/skills/upgrade-harness/scripts/harness_upgrade_mutation.py",
     ".agents/skills/upgrade-harness/scripts/harness_upgrade_policy.py",
     ".agents/skills/upgrade-harness/scripts/test_harness_upgrade.py",
+    "scripts/test_agile_workflow.py",
     "scripts/test_validate_harness.py",
     "scripts/test_release_validation.py",
     "scripts/harness_validation/release.py",

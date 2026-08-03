@@ -1,4 +1,4 @@
 interface:
   display_name: "实施变更"
-  short_description: "按照已批准工作计划实施有边界的代码变更并补充非空测试"
-  default_prompt: "使用 $implement-change 执行已批准的工作计划，并准备相关验证证据。"
+  short_description: "实施范围清楚的直接请求或活动计划，并运行与变更风险相称的验证"
+  default_prompt: "使用 $implement-change 实施这个范围清楚的请求或活动计划，并运行与风险相称的验证。"
