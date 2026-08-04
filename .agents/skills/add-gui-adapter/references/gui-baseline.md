@@ -47,7 +47,8 @@
 - 能力/权限配置拒绝未经批准的 WebView 调用。
 - GUI/其他适配器并发访问时观察到相同数据且不发生损坏。
 - 锁定的前端生产构建和锁定的 Tauri 构建都成功。
-- 缺少签名身份、证书、公证凭据或更新器密钥不阻断构建或里程碑阶段本地冒烟测试；将结果记录为 unsigned。要求签名的分发渠道仍是独立发布阻断项。
+- 缺少签名身份、证书、公证凭据或更新器密钥不阻断允许 unsigned 的本地构建或里程碑冒烟；使用 `--no-sign` 并记录 unsigned。macOS Developer ID 直接分发一旦签名，必须在候选摘要前完成公证与 ticket stapling；禁止只签名未公证的中间态。
+- macOS 宿主的原生 DMG 与 Windows x64 NSIS 候选使用 `$build-tauri-release`。Windows 交叉路线只使用 cargo-xwin + NSIS，拒绝 MSI，并把 Windows runtime 保持为 `Unverified`。
 - 真实打包应用或发布模式应用能在当前平台启动并渲染关键路由。
 - 每个声称支持的安装器或原生平台都有实际构建和已验收里程碑证据。只有持久策略或硬要求选中冒烟/E2E 时才要求相应证据；否则记录 `Not run` 和风险。
 
@@ -61,5 +62,7 @@ Tauri 2 和固定 React 前端技术栈是硬规则。替换它们必须记录�
 
 - [Tauri 异步运行时](https://docs.rs/tauri/latest/tauri/async_runtime/)
 - [Tauri 分发与签名](https://v2.tauri.app/distribute/)
+- [Tauri Windows 安装包与 macOS 交叉构建](https://v2.tauri.app/distribute/windows-installer/#build-windows-apps-on-linux-and-macos)
+- [Tauri macOS 签名与公证](https://v2.tauri.app/distribute/sign/macos/)
 - [Windows 签名行为](https://v2.tauri.app/distribute/sign/windows/)
 - [Linux 签名行为](https://v2.tauri.app/distribute/sign/linux/)

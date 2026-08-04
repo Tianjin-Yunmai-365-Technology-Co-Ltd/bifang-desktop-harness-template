@@ -86,5 +86,38 @@ class BuildSkillValidationTests(unittest.TestCase):
         self.assertTrue(any(anchor in error for error in errors), errors)
 
 
+class TauriBuildSkillValidationTests(unittest.TestCase):
+    """验证 macOS xwin 精确路由和签名公证一体语义不能被弱化。"""
+
+    def _validate_mutated_skill(self, source: str) -> list[str]:
+        """只替换 Tauri Skill，其他 helper 使用仓库真实文件。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "SKILL.md"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_tauri_build_skill_contract(errors, tauri_skill=path)
+            return errors
+
+    def test_rejects_missing_exact_macos_xwin_route(self) -> None:
+        """删掉 cargo-xwin、目标三元组或 NSIS 任一部分都必须失败。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = (
+            "CI=true pnpm tauri build --bundles nsis --runner cargo-xwin "
+            "--target x86_64-pc-windows-msvc"
+        )
+        mutated = source.replace(anchor, "CI=true pnpm tauri build", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_all_or_none_notarization_rule(self) -> None:
+        """macOS 候选若允许停在仅签名状态，门禁必须确定性失败。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "不得输出仅 Developer ID 签名但未公证/staple 的 macOS 候选"
+        mutated = source.replace(anchor, "允许输出仅签名候选", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
 if __name__ == "__main__":
     unittest.main()

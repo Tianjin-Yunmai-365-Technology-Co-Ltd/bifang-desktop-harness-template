@@ -1,0 +1,136 @@
+# Agent-first Harness 模板产品规格
+
+> 记忆日期：2026-08-04
+>
+> 状态：Approved
+>
+> 初次批准日期：2026-07-21
+>
+> 最近范围确认：2026-08-04（Tauri GUI 的 macOS 原生候选、Windows xwin 交叉候选与 macOS 签名公证一体化）
+
+## 一句话目标
+
+为以 AI Agent 为第一消费者、人类负责方向和关键审批的跨平台收费小工具，提供一个不实现具体业务、可一次性建立并持续维护终端下游项目的 Harness；日常工作默认采用与风险相称的最短可靠闭环，只在复杂、高风险、发布或用户明确选择时增加持久计划、完整里程碑验收和人工复核。
+
+## 用户、场景与结果
+
+- 核心用户：使用 AI Agent 创建、交付和维护企业收费小工具的项目负责人。
+- 主要场景：Agent 先按影响、可逆性、范围和交付目的选择快速、标准或里程碑路径。范围清楚且低风险的小改动直接实施并运行相关检查；复杂或需交接的工作使用精简 Todo；只有发布、高风险、跨平台候选或用户明确要求时才执行完整里程碑验收。
+- 失败闭环：任一路径都必须修复当前批准范围内的失败并重跑受影响检查；只有里程碑路径要求重开 Todo、重新构建并重新验收完整候选。新产品边界返回范围确认，不能用流程档位绕过。
+- 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。
+- 决策场景：初始化默认只询问是否采用推荐的敏捷策略预设；用户选择自定义时才逐项配置 Superpowers、并行 Worktree/Subagent、里程碑冒烟和里程碑 E2E。每项任务可由用户直接选择流程档位，未选择时由 Agent 按风险自适应判断。
+- 输入：项目身份、目标目录、接口组合、产品意图、持久 Agent 策略、Todo 与里程碑定义、实现、构建路由/签名公证条件、验证证据、Harness 升级来源、商业授权和人工审批。
+- 输出：独立终端项目根、共享核心与所选适配器、与任务规模相称的实现及验证证据；仅在需要时增加持久 TodoList、根 `release/` 中的可追溯候选、真实里程碑产物、项目记忆和人工复核记录。
+
+## MVP 包含
+
+### Harness 与下游生命周期
+
+- Harness 只提供文档、项目 Skills、中性资产和验证入口，不实现具体业务。
+- `$instantiate-project` 只执行一次，要求展示名、ASCII `snake_case` 标识、完整目标项目目录路径、负责人和目标平台。解析后的目标目录基本名称必须与项目标识一致；目标必须不存在或为空，复制后该目录是初始化、开发、验证和发布准备的唯一项目根目录。
+- 下游必须建立独立 Git 仓库，`git rev-parse --show-toplevel` 精确等于项目根，初始分支为 `main`，无远端，并在初始化裁剪后只创建一个本地基线提交。
+- 下游默认采用 Rust 2024、Rust 1.90 MSRV（即 MSRV 1.90.0）、共享核心与用户从 CLI/TUI/MCP/GUI 独立选择的适配器；1.90.0 是最低兼容版本而非精确版本锁，未选择任何接口时默认 CLI。
+- TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 固定采用 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。偏离必须形成硬规则例外 ADR。
+- 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
+- GUI 首次真实产品开发前必须调用 `$prepare-gui-app-identity` 确认窗口身份与图标路径。
+- 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$upgrade-harness` Skills。
+- 文件、中文业务注释、文档、测试与例外统一遵守 `docs/ENGINEERING_RULES.md`。
+
+### 按风险分级的敏捷闭环
+
+- 每项任务使用一种路径：`快速`、`标准` 或 `里程碑`。用户可以显式选择；未选择时 Agent 默认自适应，并在开始实施前用一句话说明选择。硬门禁只能把任务升级到更严格路径。
+- `快速` 是低风险、范围清楚、局部、可逆且不建立/改变对外兼容契约、不涉及安全/隐私、数据迁移、凭据、发布或外部副作用时的默认路径。只修正文档对既有契约的描述不视为契约变化。它不要求 `$define-product`、持久 Work Plan、ADR、Product Status、`docs/VERIFICATION.md` 或 `$verify-delivery`；Agent 使用当前请求或简短内联清单直接实施，并运行受影响的最小充分检查。
+- `标准` 适用于多个依赖步骤、多个模块、需跨会话/交接、可安全并行或中等风险的工作。它使用 `$plan-change` 维护精简 Todo；只有产品目标/边界变化时更新 Product Spec，只有长期重要或难以逆转的决定才写 ADR。若真实交付需要或用户选择完整验收，必须先升为里程碑，再执行 `$verify-delivery`。
+- `里程碑` 适用于发布/签名候选、安全或隐私边界、破坏性变更、数据迁移、生产/付费/凭据副作用、首次建立或改变对外兼容契约、渠道硬要求、跨平台最终候选，或用户明确要求完整验收的任务。它保留 Todo 全部完成后再验收真实候选、按策略运行冒烟/E2E、失败回流和必要人工复核的完整门禁。
+- `$implement-change` 可以直接接受范围清楚的用户请求或持久计划。代码行为变化必须有相关非空测试，覆盖核心成功路径和最高风险失败路径；纯文档、元数据、格式或不可合理单测的机械变更使用链接、解析、静态校验或差异检查等相称证据，不为满足数量要求创建无价值测试。
+- 快速或标准路径中的检查失败必须在当前授权范围内修复并重跑；若暴露新产品边界或高风险触发条件，立即升级路径。只有里程碑路径可产生 `Milestone accepted`、`ready` 或发布就绪结论。
+- Product Status 只在里程碑、重要阻断、跨会话交接或用户要求时更新；Work Plan 只在标准/里程碑路径或用户要求时创建；`docs/VERIFICATION.md` 只保存里程碑、发布、人工复核或需要长期审计的证据。普通检查在最终回复或既有 CI 中概括即可。
+
+### 持久 Agent 策略
+
+- `docs/AGENT_POLICY.md` 是下游项目 Agent 策略的唯一持久事实来源，使用可解析的模式定义分别记录 `superpowers`、`parallel_worktree_subagents`、`milestone_smoke` 和 `milestone_e2e`。
+- 下游完成初始化前，用户可一次采用推荐预设（Superpowers、并行 Worktree/Subagent 与适用冒烟为 `enabled`，E2E 为 `disabled`），也可选择自定义后逐项确认；最终四项必须固化为 `enabled` 或 `disabled`，`pending` 不得进入初始化基线提交。
+- `enabled` 表示允许 Agent 在适用场景中自行采用，不表示无条件执行；`disabled` 表示跳过可选能力。产品、渠道、安全和外部副作用硬门禁优先于项目偏好。
+- 写入型 Subagent 只有在并行偏好为 `enabled`、任务可安全拆成至少两个无重叠写入单元且 Worktree 门禁通过时才使用；否则 Agent 自行采用单 Agent，不重复询问。
+- 冒烟与 E2E 偏好只在 Todo 批次完成后的验证里程碑消费。Agent 先按批准场景判断适用性；缺字段、非法值、规则冲突、无法建立真实产物可运行性或需要新增外部副作用授权时才询问用户。
+- 初始化首次写入策略时允许尚无 ADR；后续永久变更策略必须由用户确认并记录当日 ADR。临时任务约束只写入计划/验证证据，不静默改写项目策略。
+
+### 下游 Harness 工程升级
+
+- 新增并在下游永久保留 `$upgrade-harness`，用于从用户明确提供的 Harness 来源升级工程治理部分。
+- 升级默认只生成试运行计划，要求来源 Harness Git 工作区干净并把来源 `Version.md`、`HEAD`、目标分支/提交/工作树脏状态摘要、路径和控制文件状态绑定到受审计划；未解决冲突前不得写入。
+- 下游使用 `.harness/upstream-lock.json` 记录上次应用的 Harness 版本/来源和受管文件基线摘要；该文件不是产品版本事实源，不能替代根 `Cargo.toml`。
+- 升级清单把内容分为 `managed`、`merge-sections`、`conditional`、`protected` 和 `tombstone` 五类；`managed-self` 是 `managed` 的机器子模式，用于保证更新器自身在普通受管文件后按稳定顺序更新。产品源码、测试、产品记忆、项目状态、技术债、身份、接口选择、持久 Agent 策略、许可证、Git 历史和未登记本地文件均受保护。
+- `Version.md`、实例化/初始化 Skills、模板校验器、模板方法论文档和 Harness 日期记忆属于 `tombstone`，不得借升级重新进入终端下游。
+- 有历史基线时使用三方比较：只有候选和目标均已存在、仅上游内容或普通权限位变化且目标仍匹配基线的 `update` 可逐文件自动应用；`add`、`manual_add` 和 `delete` 必须人工处理并重新生成计划；仅下游变化保留；两边都变化或新增碰撞必须阻断并请求合并决定。没有历史基线的旧下游先执行引导审计，所有重叠项默认冲突，不能猜测共同祖先。
+- 用户批准候选后才逐文件应用并在每次写入后重新生成计划；普通 `managed` 完成后才处理 `managed-self`，入口脚本最后替换并用新版复验。升级后运行受影响的非空单元测试和相关验证，不把 Harness 模板校验器复制到下游。
+
+### Rust CLI 与 Tauri GUI 候选构建及发布目录
+
+- `$build-rust-release` 继续专用于 Rust CLI：默认路线是 Windows、macOS、Linux 原生候选矩阵；只有提供方、权限、三类运行器或结果取回能力在派发前不可用时才回退当前宿主，并记录原因及其他平台 `Unverified`。矩阵一旦启动，任一平台失败、取消或超时都是真实失败。
+- 新增 `$build-tauri-release` 专用于 Tauri 2 GUI 安装包。macOS 宿主可构建原生 macOS DMG，并在项目批准 Windows x64 目标时使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows NSIS；不得在 macOS 声称生成只支持 Windows 原生 WiX 的 MSI。
+- macOS→Windows 路线只证明 Windows MSVC 目标可编译并生成 NSIS，不证明 Windows 原生运行、安装或签名成功。清单必须记录 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`buildMode: cross-compiled-xwin`、宿主、目标和 `runtimeVerification: Unverified`；需要原生 Windows/渠道证据时仍使用批准的 Windows 运行器。
+- 调用 Tauri 交叉构建前，`$check-development-environment` 的 macOS 发布能力门禁检查并在安全条件具备时安装缺失的 LLVM/LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与 `cargo-xwin`，安装后逐项复探。缺少既有 Homebrew、安装失败、目标不兼容或复探失败时阻断，不以临时命令或未验证下载绕过。
+- 对 macOS 直接分发的 Developer ID 候选，签名、公证和 ticket stapling 是一个不可拆分的候选阶段。只有 Apple 设备、Developer ID Application 身份、Tauri 支持的一组完整非交互公证凭据、`xcrun notarytool`/`stapler` 和批准授权均可用时，才运行不含 `--skip-stapling` 的 `pnpm tauri build --bundles dmg`；完成签名、公证、stapling 和验证后才计算最终 SHA-256。
+- 条件只满足签名而不满足公证/stapling 时，不得输出“仅签名”的 Developer ID 候选。签名公证为可选项时，显式使用 `--no-sign` 生成并记录 `unsigned`；产品或渠道要求签名公证时阻断。任一签名、公证、stapling 或验证尝试开始后失败，必须使 macOS 候选失败，绝不得静默降级。
+- Tauri 清单除通用构建字段外，必须记录 `notarizationStatus`、`notarizationReason`、结构化 `notarizationEvidence` 和最终签名作用域。未公证的非 macOS 候选记录 `not-applicable`；macOS unsigned 候选记录 `not-run` 及原因；只有 ticket 已 stapled 且验证通过时记录 `notarized-and-stapled`。
+- 初始化使根 `.gitignore` 精确一次包含 `/release/`。CLI 与 Tauri 构建都在任何格式、测试或构建命令前安全刷新该目录，并只提交清单声明的普通文件；`release/` 可以保存 `milestoneAcceptance: pending`，目录存在不代表 `ready`、已验收或可发布。
+- 构建、签名、公证与结果收集不运行冒烟/E2E，也不授权创建或索取凭据、安装 Homebrew、创建标签、发布上传、商店提交或正式发布。最终安装包字节和清单交给 `$verify-delivery`；Windows 交叉候选不能用 macOS 宿主结果冒充 Windows 运行验收。
+
+### 商业许可与既有工程边界
+
+- Harness 与收费下游采用非开源企业专有商业许可；根 `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 保持一致，升级不能自动改写法律文本。
+- CLI/TUI/MCP 使用 Tokio current-thread 异步入口，GUI 复用 Tauri 的由 Tokio 支撑的异步运行时；核心默认保持运行时中立。
+- 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；目标平台为 Windows、macOS 和 Linux。
+- 选择 CLI 时遵守统一 JSON 信封、错误结构、输出流和退出码契约。
+
+## 不包含
+
+- 不在 Harness 根实现具体产品、账户、支付、云托管、远程部署或业务命令。
+- 不提供独立 WEB 适配器；Tauri GUI 的本地 WebView 与固定前端技术栈继续保留。
+- 不把模拟实现、桩实现、占位实现、中性脚手架、代码片段、开发服务器预览或测试替身当作里程碑产物。
+- 不允许 Todo 未完成时提前执行里程碑验收、冒烟或 E2E，也不允许用部分通过结果宣称项目已验收。
+- 不要求每个低风险小改动都创建 Product Spec、ADR、Product Status、Work Plan、验证里程碑或人工复核记录。
+- 不把文档、元数据或纯机械变更强行包装成带空洞单元测试的发布级工作。
+- 不在普通编码、静态复核、常规构建、制品收集或发布元数据流程中运行冒烟/E2E。
+- 不因项目偏好为 `enabled` 而强制不可拆任务并行、强制不适用的 E2E，或授权凭据、支付、发布、生产数据和不可逆操作。
+- 不把新版 Harness 整体覆盖到下游，不自动覆盖产品专属规则、本地修改、许可证、策略或项目记忆。
+- 不自动创建或索取签名/公证凭据、配置签名身份、安装 Homebrew、创建标签、配置远端、推送、商店提交、正式发布或上传到发布渠道；构建只可在既有批准的非交互条件与授权全部可用时执行对应平台的签名或签名公证一体化阶段。
+- 不在 macOS 交叉生成 Windows MSI，不从 xwin 产物推断 Windows 原生运行/安装行为，也不在本轮增加 Linux GUI 交叉构建或统一 TUI/MCP 发布模型。
+
+## 可靠性与风险约束
+
+- 不覆盖用户修改；出现重叠写入、升级冲突或缺少共同基线时必须默认拒绝。
+- 流程档位不得削弱安全、隐私、数据完整性、外部副作用、发布渠道或法律硬要求；检测到触发条件时必须自动升级并说明原因。
+- Todo 状态只能在实现和对应单元/相关检查完成后变为 `done`；验收失败必须保留证据并回到编码循环。
+- 里程碑必须绑定批准场景、真实产物身份、源码提交、运行环境和验证结果；历史产物或其他提交的证据不能复用。
+- 持久偏好与“当前任务是否适用”必须分离；Agent 记录使用或不使用的理由，不建立第二个策略事实来源。
+- Worktree 辅助程序继续校验 cwd、Git 根、分支、登记 Worktree、写入目标和符号链接边界；它不替代宿主沙箱。
+- Harness 升级溯源不能污染下游产品版本；模板版本与下游 SemVer 始终分离。
+- 其他目标平台未实际验证时标记为 `Unverified`，不得声称已通过。
+
+## 成功标准
+
+- [x] 低风险、范围清楚的任务可不创建持久计划和里程碑，直接完成实现与最小充分验证。
+- [x] 标准与里程碑任务仍能使用可机械识别的 TodoList；里程碑路径中 Todo 未全部完成时无法进入验收。
+- [x] 代码行为变化运行相关非空测试；纯文档/元数据/机械变更可以使用明确的替代验证而无需 ADR 例外。
+- [x] Product Spec、ADR、Product Status、Work Plan、Changelog 和 Verification 只在各自触发条件满足时更新，不再每项需求全量联动。
+- [x] 用户可选择流程档位和初始化策略预设；未选择时 Agent 能按公开判定规则使用快速、标准或里程碑路径。
+- [x] 里程碑只接受完整、可运行、符合批准场景且不含模拟实现/占位逻辑的真实产物。
+- [x] 验收发现缺失或偏差时自动重开/新增 Todo、返回编码、增加回归测试并重新验收。
+- [x] 下游初始化一次确认并持久化四项 Agent 策略；后续 Agent 能按策略和适用性自行判断，只有无法判断时询问。
+- [x] `$upgrade-harness` 提供试运行、来源/基线记录、三方差异、冲突阻断、保护清单、`tombstone` 和更新后验证闭环。
+- [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
+- [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
+- [x] Rust CLI 构建默认选择 Windows、macOS、Linux 原生矩阵，只有派发前条件不可用才回退当前平台；已启动矩阵失败不会被回退掩盖。
+- [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单，并明确区分 `pending` 与 `ready`。
+- [x] 已配置且条件可用的非交互签名会被尝试并验证，失败使平台构建失败；签名条件不具备时真实记录 `unsigned`，不获取或泄露凭据。
+- [x] Tauri GUI 在 macOS 宿主可通过受测环境门禁构建原生 DMG 与 Windows x64 NSIS 交叉候选，且清单不会把 xwin 结果误报为 Windows 原生运行证据。
+- [x] macOS Developer ID 直接分发候选在条件齐全时完成签名、公证、stapling 和验证后再计算摘要；条件不全时禁止只签名中间态，并按渠道要求选择明确 unsigned 或阻断。
+- [x] CLI/TUI/MCP/GUI、独立 Git 根、一次性初始化裁剪、固定技术栈、双语许可证和版本边界等既有成功标准继续有效。
+
+## 当前版本与未来候选
+
+- 当前版本：`202607301002`，`Unreleased`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；`1.0.0` 保留为迁移前旧版本标识。本次产品范围确认不自行修改版本。
+- 维护状态：Active。
+- 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin 和 Apple 公证真实前向证据、宿主级 Worktree 写入强制和依赖供应链维护 Skill。

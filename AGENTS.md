@@ -53,7 +53,7 @@
 - 下游 CLI、TUI、MCP 必须使用 Tokio current-thread async 入口；GUI 必须复用 Tauri 的 Tokio-backed async runtime 和 plain async commands，不创建嵌套 runtime。所有 Rust adapter 开发默认优先异步 I/O、等待、计时、进程、协议和命令调用；只有测量确认的 CPU 密集工作才可考虑受控 `spawn_blocking`、专用线程或多线程 runtime，并记录任务所有权、取消、并发上限、资源预算和验证。只有同步阻塞 API 的依赖不能成为启用线程的默认理由，应替换为异步能力或进入范围/例外确认。core 可以暴露 runtime-neutral 的 async API；只有真实业务需要 Tokio 原语时才增加 core 的 Tokio 生产依赖，不得默认使用 `full`。
 - 下游 TUI 固定使用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定使用执行时最新兼容稳定的 React + TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。这些是硬规则；不得因 Draft、页面简单或 Agent 偏好省略，偏离必须记录硬规则例外。其他技术只在真实开发需要时结合项目推荐并通过依赖准入。
 - 下游依赖在已声明 MSRV、Windows/macOS/Linux、最小 feature 集和完整验证约束内优先采用 registry 中较新的稳定版本；`Cargo.toml` 保存兼容范围，根 `Cargo.lock` 固定实际解析结果。无法采用较新稳定版本时必须记录原因、影响和复核条件，不得以“最新版”为由静默提高 MSRV、采用预发布版或跳过验证。
-- 下游首次实际代码开发、工具链变化或既有门禁证据失效时调用 `$check-development-environment`；纯文档/元数据任务跳过。一次成功证据在同一宿主、接口组合和工具链约束未变化时可复用，不逐任务重复探测。Rust 是代码开发阻断门禁，Windows 同时检查 MSVC Build Tools；仅 GUI 需要 Node.js 与 pnpm。
+- 下游首次实际代码开发、工具链变化或既有门禁证据失效时调用 `$check-development-environment`；纯文档/元数据任务跳过。一次成功证据在同一宿主、接口组合和工具链约束未变化时可复用，不逐任务重复探测。Rust 是代码开发阻断门禁，Windows 同时检查 MSVC Build Tools；仅 GUI 需要 Node.js 与 pnpm。只有明确选择 macOS→Windows Tauri xwin 构建目标时才执行专用门禁，安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` target 与 `cargo-xwin`；不得自动安装 Homebrew。
 - 开发环境门禁必须调用 `$check-development-environment` 自带的 POSIX shell 或 Windows PowerShell 脚本；不得以临时拼装安装命令替代制品校验、结构化输出和失败退出码。
 - Cargo 根 `[workspace.dependencies]` 是 member 依赖版本、来源、内部路径和基线 feature 的唯一来源；所有子 crate 的生产、开发和构建依赖只使用 `workspace = true`。
 - `$instantiate-project` 必须先要求用户提供完整目标项目目录路径；解析后的目录 basename 必须与项目标识一致，且目标必须不存在或为空。复制后该目录是初始化、代码修改、构建、验收和发布准备的唯一项目根目录。
@@ -67,8 +67,9 @@
 - Harness 与下游采用非开源的企业专有商业许可。`$instantiate-project` 必须先逐字节复制根目录 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`，再通过 `$rename-project-identity` 仅把两种语言的适用项目名改为目标项目；其余法律条款不得改变，初始化裁剪不得删除、弱化或替换。
 - 派生下游时必须调用 `$rename-project-identity` 全量处理项目展示名、ASCII `snake_case` 标识、kebab-case 前缀、项目自有配置、维护路径、文档、Skills 和 Licenses；先预览、后显式应用，并对旧身份残留、路径碰撞和符号链接执行阻断检查。实例化身份重置属于中性初始化；现有产品改名必须通过产品范围闸门、里程碑计划和 `$verify-delivery`，不得以快速/标准路径完成。
 - 若选择 GUI，首次真实 GUI 开发前必须调用 `$prepare-gui-app-identity`，由用户确认窗口名称等应用资料并选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
-- 构建在项目已有批准的非交互签名 hook/命令、工具和已授权凭据时必须尝试签名并验证；尝试失败不得静默回退 unsigned。条件缺失时明确记录 unsigned，只有产品或渠道要求签名才阻断。不得自动创建、索取、导出或输出签名凭据；签名后再次改变字节的公证或重打包仍生成新的验收候选。
-- 初始化必须把 `/release/` 精确一次写入项目根 `.gitignore`。每次 `$build-rust-release` 在任何构建命令前，必须先验证 canonical 独立 Git 根，拒绝 `release` 符号链接/reparse point 与路径越界，原子隔离旧目录并创建全新空目录；不得通过活动 destination 原地递归删除。签名后的 archive/hash/manifest 必须先在同根唯一 staging 形成精确文件集，再以不跟随链接的目录级原子替换提交到 `release/`。远端 workflow 必须绑定并复核 40 位 commit，只上传 manifest 声明的精确文件；`release/` 可包含 `pending` 候选，目录存在不代表 ready。
+- 构建在项目已有批准的非交互签名 hook/命令、工具和已授权凭据时必须尝试签名并验证；尝试失败不得静默回退 unsigned。macOS Tauri 直接分发候选在设备、Developer ID、`notarytool`/`stapler` 和一组完整公证凭据齐备时必须完成签名、公证与 stapling，不得只签名或使用 `--skip-stapling`；条件缺失时只有产品/渠道允许才可显式 `--no-sign`，一旦签名或公证开始，任何失败均阻断。不得自动创建、索取、导出或输出签名/公证凭据；签名、公证、stapling 或重打包后必须针对最终字节重新计算 hash。
+- macOS→Windows Tauri 构建必须使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc`，仅生成 Windows x64 NSIS；不得在 macOS 声称生成 MSI，不得把 xwin 成功解释为 Windows 原生运行通过，manifest 必须记录 `buildMode: cross-compiled-xwin` 与 `runtimeVerification: Unverified`。
+- 初始化必须把 `/release/` 精确一次写入项目根 `.gitignore`。每次 `$build-rust-release` 或 `$build-tauri-release` 在任何构建命令前，必须先验证 canonical 独立 Git 根，拒绝 `release` 符号链接/reparse point 与路径越界，原子隔离旧目录并创建全新空目录；不得通过活动 destination 原地递归删除。签名、公证和 stapling 完成后的最终 archive/installer、hash、manifest 必须先在同根唯一 staging 形成精确文件集，再以不跟随链接的目录级原子替换提交到 `release/`。远端 workflow 必须绑定并复核 40 位 commit，只上传 manifest 声明的精确文件；`release/` 可包含 `pending` 候选，目录存在不代表 ready。
 - 跨平台设计不得默认单一 Shell、路径分隔符、文件权限模型或仅在一个平台存在的系统能力。
 - 仓库中没有明确命令时，不得虚构构建、测试或发布命令。
 - Product Spec 只在产品目标、边界、约束或成功标准改变时更新；ADR 只记录长期重要、难以逆转的决定和硬规则例外；Product Status 只在里程碑、重要阻断、跨会话交接或用户要求时更新；Work Plan 只用于标准/里程碑路径或用户要求；`docs/VERIFICATION.md` 只保存里程碑、发布、人工复核或长期审计证据。
@@ -103,9 +104,10 @@
 - 里程碑/发布候选或用户明确要求完整验收：使用 `$verify-delivery`；普通快速/标准任务不自动调用。
 - 需要定版本、更新变更记录或准备发布：使用 `$prepare-release`。
 - 初始化 Rust 工具链、shared core、接口选择和四项持久 Agent 策略：使用 `$initialize-rust-project`。
-- 下游首次开发或接口/宿主工具链变化时：使用 `$check-development-environment`；Rust 始终检查，GUI 额外检查 Node.js 与 pnpm。
+- 下游首次开发或接口/宿主工具链变化时：使用 `$check-development-environment`；Rust 始终检查，GUI 额外检查 Node.js 与 pnpm，macOS xwin 发布目标再按需检查并安装 LLVM、NSIS、Windows Rust target 与 `cargo-xwin`。
 - 选择 GUI 后首次真实 GUI 开发：使用 `$prepare-gui-app-identity` 补齐窗口资料并由用户选择图标路径。
 - 构建 Rust CLI 候选：使用 `$build-rust-release`；默认先走 Windows、macOS、Linux 原生矩阵，跨平台预检不可用才回退当前平台，并在构建前刷新根 `release/`、条件具备时尝试签名。其他接口当前按各自 adapter Skill 的构建与产物门槛执行。
+- 构建 Tauri GUI 候选：使用 `$build-tauri-release`；macOS 原生输出 DMG，设备条件允许时完成 Developer ID 签名、公证和 stapling，macOS→Windows 只输出 x64 NSIS 并保持 Windows 运行状态 `Unverified`。
 - 默认 Windows、macOS、Linux Rust CLI 候选矩阵：使用 `$prepare-cross-platform-release`；矩阵启动后的真实失败不得伪装成当前平台回退，其他接口的统一跨平台发布能力仍未完成。
 - 提取和核验本次构建结果：使用 `$collect-release-artifacts`，保留 manifest 的 pending/rejected/accepted 状态，不凭目录存在判断 ready。
 - 已初始化下游需要同步新版 Harness 工程规则或保留 Skills：使用 `$upgrade-harness`；默认 dry-run，保护项目事实和本地修改。

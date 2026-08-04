@@ -33,6 +33,16 @@ PARALLEL_WORKTREE_TESTS = PARALLEL_SKILL / "scripts" / "test_parallel_worktrees.
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "prepare-release" / "SKILL.md"
 BUILD_RELEASE_SKILL = SKILLS_ROOT / "build-rust-release" / "SKILL.md"
+TAURI_RELEASE_SKILL = SKILLS_ROOT / "build-tauri-release" / "SKILL.md"
+TAURI_NOTARIZATION_HELPER = (
+    SKILLS_ROOT / "build-tauri-release" / "scripts" / "probe-macos-notarization.sh"
+)
+TAURI_RELEASE_DIRECTORY_HELPER = (
+    SKILLS_ROOT / "build-tauri-release" / "scripts" / "prepare-release-directory.sh"
+)
+TAURI_RELEASE_HELPER_TESTS = (
+    SKILLS_ROOT / "build-tauri-release" / "scripts" / "test_tauri_release_gates.py"
+)
 BUILD_RELEASE_POSIX_HELPER = (
     SKILLS_ROOT
     / "build-rust-release"
@@ -66,6 +76,10 @@ RUST_ASSET = INITIALIZE_SKILL / "assets" / "rust-lib-cli"
 PREREQUISITE_UNIX = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.sh"
 PREREQUISITE_WINDOWS = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.ps1"
 PREREQUISITE_TESTS = ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates.py"
+MACOS_XWIN_GATE = ENVIRONMENT_SKILL / "scripts" / "macos-tauri-xwin-gates.sh"
+MACOS_XWIN_GATE_TESTS = (
+    ENVIRONMENT_SKILL / "scripts" / "test_macos_tauri_xwin_gates.py"
+)
 ENGINEERING_RULES = ROOT / "docs" / "ENGINEERING_RULES.md"
 AGENT_POLICY = ROOT / "docs" / "AGENT_POLICY.md"
 VERSION_FILE = ROOT / "Version.md"
@@ -117,6 +131,8 @@ REQUIRED_FILES = (
     ".agents/skills/check-development-environment/scripts/development-environment-gates.sh",
     ".agents/skills/check-development-environment/scripts/development-environment-gates.ps1",
     ".agents/skills/check-development-environment/scripts/test_development_environment_gates.py",
+    ".agents/skills/check-development-environment/scripts/macos-tauri-xwin-gates.sh",
+    ".agents/skills/check-development-environment/scripts/test_macos_tauri_xwin_gates.py",
     ".agents/skills/rename-project-identity/scripts/rename_project_identity.py",
     ".agents/skills/rename-project-identity/scripts/test_rename_project_identity.py",
     ".agents/skills/add-tui-adapter/references/tui-baseline.md",
@@ -127,6 +143,10 @@ REQUIRED_FILES = (
     ".agents/skills/build-rust-release/scripts/prepare-release-directory.sh",
     ".agents/skills/build-rust-release/scripts/prepare-release-directory.ps1",
     ".agents/skills/build-rust-release/scripts/test_prepare_release_directory.py",
+    ".agents/skills/build-tauri-release/references/tauri-macos-windows.md",
+    ".agents/skills/build-tauri-release/scripts/probe-macos-notarization.sh",
+    ".agents/skills/build-tauri-release/scripts/prepare-release-directory.sh",
+    ".agents/skills/build-tauri-release/scripts/test_tauri_release_gates.py",
     ".agents/skills/upgrade-harness/references/ownership-manifest.json",
     ".agents/skills/upgrade-harness/references/ownership-policy.md",
     ".agents/skills/upgrade-harness/scripts/harness_upgrade.py",
@@ -147,6 +167,7 @@ EXPECTED_SKILLS = {
     "add-mcp-adapter",
     "add-tui-adapter",
     "build-rust-release",
+    "build-tauri-release",
     "check-development-environment",
     "collect-release-artifacts",
     "define-product",

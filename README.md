@@ -52,9 +52,10 @@
 - `$implement-change`：直接执行范围清楚的请求或活动计划，并运行相称验证。
 - `$run-parallel-worktrees`：项目策略允许且当前任务可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
 - `$initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略。
-- `$check-development-environment`：首次实际代码开发或工具链变化时检查并自动补齐 Rust；GUI 额外处理 Node.js 与 pnpm。
+- `$check-development-environment`：首次实际代码开发或工具链变化时检查并自动补齐 Rust；GUI 额外处理 Node.js 与 pnpm，macOS 交叉构建 Windows Tauri 安装包时按目标补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
 - `$prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，并让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
 - `$build-rust-release`：构建 Rust CLI 候选时默认采用 Windows、macOS、Linux 原生矩阵；跨平台预检不满足才回退当前平台。构建前安全清空根 `release/`，条件具备时尝试签名，最终候选、hash 与 manifest 统一写入该目录；本 Skill 不运行冒烟/E2E。
+- `$build-tauri-release`：在 macOS 原生构建 Tauri DMG，并可通过 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS；macOS 直接分发签名采用“签名 + 公证 + stapling”一体门禁。
 - `$verify-delivery`：只在里程碑/发布候选或用户明确要求时验收真实产物，并按策略/硬要求决定冒烟与 E2E。
 - `$prepare-cross-platform-release`：提供默认 Windows、macOS、Linux 原生 Rust CLI 候选矩阵和逐平台清理/条件签名门禁。
 - `$collect-release-artifacts`：提取并核验归档、SHA-256、签名状态、manifest 和平台证据，同时保留候选的 `pending`/`rejected`/`accepted` 状态。
@@ -80,7 +81,7 @@
 - 下游人工维护的数据结构、接口、函数、方法和测试使用有业务意义的中文注释；文件拆分、文档与测试规则以 `docs/ENGINEERING_RULES.md` 为准。
 - CLI/TUI/MCP 使用 Tokio current-thread async 入口，GUI 复用 Tauri 的 Tokio async runtime；I/O 和等待型工作优先异步，只有测量确认的 CPU 密集工作才考虑受控多线程边界。同步阻塞依赖应替换为异步能力或进入范围/例外确认。core 可以提供 runtime-neutral 的 async API，只有真实业务需要 Tokio 原语时才直接依赖 Tokio；不默认启用 `full` feature。
 - 下游依赖在 MSRV、目标平台、最小 feature 与验证约束内优先采用较新稳定版本，并以锁文件保证可复现；版本新不替代兼容与回归验证。
-- 下游首次实际代码开发或工具链变化时检查环境；同一宿主、接口和约束未变化时复用成功证据，纯文档任务跳过。Rust 是代码开发门禁，Windows 同时检查 MSVC Build Tools；仅 GUI 需要 Node.js 与 pnpm。
+- 下游首次实际代码开发或工具链变化时检查环境；同一宿主、接口和约束未变化时复用成功证据，纯文档任务跳过。Rust 是代码开发门禁，Windows 同时检查 MSVC Build Tools；仅 GUI 需要 Node.js 与 pnpm。只有选择 macOS→Windows Tauri xwin 构建目标时才安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` 与 `cargo-xwin`，且不会自动安装 Homebrew。
 - scaffold 验证结束后，下游删除实例化/初始化能力及模板专用入口，不能继续派生；`AGENTS.md` 永久保留非空 Skills/约束地图和 `$upgrade-harness`。
 - 模板及其收费下游采用企业专有商业许可而非开源协议；实例化先原样复制中英文两份许可证，再仅把适用项目名改为目标项目，其他法律条款保持不变并永久保留。
 - 项目实例化必须询问完整目标项目目录路径；路径解析后 basename 必须与项目标识一致，目标可以位于 Harness 内或外，但必须不存在或为空，并通过覆盖、递归复制与符号链接安全检查。
@@ -89,8 +90,9 @@
 - 项目实例化阶段只要求身份、路径、负责人和目标平台；产品目的、核心输入输出、成功标准和风险可以留待已初始化项目中的 `$define-product` 完善。
 - 项目标识使用 ASCII `snake_case`。core 与 CLI/TUI/MCP/GUI 目录分别派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`；根 workspace 只登记实际选择的 adapters。
 - 初始化 Skill 携带 macOS/Linux shell 与 Windows PowerShell 门禁脚本；它们验证官方制品、复探安装结果并输出稳定 `gate.*` 状态。
-- 构建会在项目已有批准的非交互签名 hook、工具和已授权凭据时尝试签名并验证；签名尝试失败会使该平台构建失败。条件不满足时记录 unsigned，只有真实分发渠道要求签名才阻断发布。
-- 初始化把 `/release/` 精确一次写入根 `.gitignore`；每次构建在任何 build 命令前原子隔离旧目录并创建全新空目录，签名后的 archive/hash/manifest 先在同根 staging 形成完整三件套，再以目录级原子替换提交到 `release/`。远端 workflow 绑定批准的 40 位 commit，并只传输 manifest 声明的精确文件；目录存在不代表候选已验收或可发布。
+- Rust CLI 构建会在项目已有批准的非交互签名 hook、工具和已授权凭据时尝试签名并验证；签名尝试失败会使该平台构建失败。macOS Tauri 直接分发候选在设备、Developer ID 与公证凭据齐备时必须完成签名、公证和 stapling，不能只签名；条件缺失时只有渠道允许才可显式生成 unsigned 候选，一旦签名或公证开始，失败不得降级。
+- macOS 上的 Windows Tauri 交叉构建只生成 x64 NSIS，不生成 MSI，也不证明 Windows 原生运行；manifest 必须记录 `cross-compiled-xwin` 与 `runtimeVerification: Unverified`。
+- 初始化把 `/release/` 精确一次写入根 `.gitignore`；每次 `$build-rust-release` 或 `$build-tauri-release` 在任何 build 命令前原子隔离旧目录并创建全新空目录，完成签名/公证/stapling 后的最终安装包、hash 与 manifest 先在同根 staging 形成完整三件套，再以目录级原子替换提交到 `release/`。远端 workflow 绑定批准的 40 位 commit，并只传输 manifest 声明的精确文件；目录存在不代表候选已验收或可发布。
 - `Draft` 规格下的中性初始化不得推测业务、增加业务能力或作为产品交付证据；它只允许 `scaffold status`，并在 JSON 中返回 `productDefinitionRequired=true`。
 - 根 Cargo workspace 统一声明第三方依赖和内部 crate 路径，所有 member 只通过 `workspace = true` 继承。
 - 跨平台自动化默认只生成候选产物和证据；正式发布仍需独立授权。

@@ -18,7 +18,7 @@
 | LIM-012 | 非 CLI 初始化、superpowers 关闭与 Computer Use E2E 尚无真实下游证据 | Skill 与校验器契约成立，但无法证明跨会话策略、适配器组合及真实最终产物交互 | 首个真实下游分别前向验证 TUI/MCP/GUI、`superpowers: disabled` 和最终产物 E2E | Open |
 | LIM-013 | 固定 TUI 与 Tauri GUI React 前端技术族尚无真实下游兼容证据 | 最新 Ratatui/tui-realm/tui-realm-stdlib 组合可能与 Rust 1.90 不兼容；React/Mantine/TanStack/Jotai 组合也可能受 Node 或 Tauri WebView 约束 | 在真实 TUI 与 GUI 下游分别解析并锁定最新兼容稳定版，完成代码规范检查、非空测试、生产/发布构建、真实产物启动和关键交互验收 | Open |
 | LIM-014 | P0：非 CLI 适配器缺少可重复脚手架证据 | TUI/MCP/GUI Skills 只有执行规则和参考资料，尚无真实下游最小脚手架、锁文件、测试与最终产物证据 | 逐接口在隔离下游前向执行；重复稳定后再决定是否把最小结构提升为受测资产 | Open |
-| LIM-015 | P1：构建与跨平台发布 Skills 偏向 CLI | `$build-rust-release` 和候选工作流主要定位单一 CLI 二进制文件，不能完整描述 TUI、MCP 宿主或 Tauri 安装包 | 先定义统一的接口产物清单和每类只读冒烟，再泛化现有 Skills 或拆分接口发布 Skills | Open |
+| LIM-015 | P1：构建与跨平台发布 Skills 仍未覆盖全部接口 | 已新增 `$build-tauri-release`，覆盖 macOS 原生 DMG、macOS→Windows x64 NSIS xwin 路线、Tauri 安装包清单和 macOS 签名+公证+stapling；TUI、MCP、Linux GUI、Windows 原生 GUI 矩阵与各接口只读冒烟仍未统一 | 在真实下游逐接口前向验证后，再按已观察到的共同字段泛化产物清单和矩阵；不得用 xwin 代替 Windows 原生运行证据 | Mitigated |
 | LIM-016 | P1：下游 Harness 升级仍缺少真实项目前向证据 | 已交付 `$upgrade-harness`、来源/目标 Git 绑定、三方基线、最小保护清单、逐文件应用、引导与 27 个基于隔离 Git 夹具的测试；但尚未证明真实身份渲染、混合章节合并、Windows 可移植写入和长期自更新在客户下游稳定 | 至少两个真实下游分别完成有/无旧锁文件的升级并记录冲突、Windows/macOS/Linux 差异和回滚证据后评估关闭 | Mitigated |
 | LIM-017 | P1：缺少统一依赖维护与供应链复核 Skill | Rust 与 React 技术族已有准入规则，但版本检查、锁文件升级、许可证/漏洞/废弃依赖和回滚证据仍分散 | 在真实 Cargo+npm 维护任务中固化 `$maintain-dependencies` 的输入、检查、变更和验证契约 | Open |
 | LIM-018 | P2：跨接口安全验收入口尚未统一 | MCP 与 GUI 各自约束协议权限、CSP、WebView 能力和状态边界，但缺少一次性交付前威胁面复核和证据矩阵 | 出现首个含外部输入、网络或平台权限的真实产品时，评估新增 `$review-security` 或扩展 `$verify-delivery` | Open |
@@ -26,7 +26,7 @@
 | LIM-020 | 随附的 CLI 测试曾不符合精确 Rust 1.90 rustfmt | 5 处链式调用已按 Rust 1.90 rustfmt 机械更新；fmt、锁定依赖检查、Clippy 与 7 个非空测试在 2026-07-29 重跑通过 | 后续修改继续使用精确 MSRV 工具链运行格式门禁 | Closed |
 | LIM-021 | Subagent Worktree 所有权尚未由宿主机械强制 | 辅助程序已新增 `guard`，对实际 cwd、Git 根、登记 Worktree、分支、空写入清单、绝对越界与符号链接逃逸采用默认拒绝策略，10 个隔离测试通过；但绕过辅助程序的宿主写入仍不能被仓库脚本阻止 | 在 Codex 宿主或沙箱层强制每个写入型 Subagent 的 cwd 与可写根，并以绕过辅助程序的故意越界场景复验 | Mitigated |
 | LIM-022 | Harness 校验器曾超过软拆分阈值 | 单一入口已按 `repository`、工作流、`initialization`、`governance`、发布、`review` 等领域拆分；本轮把新构建/发布门禁放入独立发布模块，未继续扩张现有约 700 行 `initialization` 模块 | 后续按领域维护；`initialization` 模块继续接受 >400 行职责审查，达到新独立职责或 800 行前再次拆分 | Closed |
-| LIM-023 | 产品制品条件签名尚无真实前向证据 | 当前只定义批准提交绑定、固定非交互钩子、probe/sign/verify 状态机、失败不降级、结构化清单证据与精确传输白名单；真实 macOS/Windows/Linux 签名工具、密钥存储、组织策略、证书过期与签名后验收仍可能阻断 | 在不暴露凭据的受控真实下游分别验证钩子不存在、条件不可用、签名成功、签名失败与渠道 required 场景，并记录最终字节/hash/验证证据 | Open |
+| LIM-023 | 产品制品条件签名与 macOS 公证尚无真实前向证据 | 当前已定义批准提交绑定、CLI 固定非交互签名钩子、Tauri Developer ID/公证探测、签名+公证+stapling 一体状态机、失败不降级、最终字节 hash 和结构化清单证据；真实 Apple 公证服务、证书、密钥存储、组织策略、证书过期及 Windows/Linux 签名仍可能阻断 | 在不暴露凭据的受控真实下游验证 macOS 凭据缺失、完整 API Key、完整 Apple ID、签名/公证成功、签名/公证失败与渠道 required 场景，并在 Windows/Linux 补齐原生签名证据 | Open |
 
 ## 记录规则
 

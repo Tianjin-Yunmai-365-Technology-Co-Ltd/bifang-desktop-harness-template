@@ -39,6 +39,7 @@
     {"pattern": ".agents/skills/add-gui-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/prepare-gui-app-identity/**", "mode": "conditional"},
     {"pattern": ".agents/skills/prepare-cross-platform-release/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/build-tauri-release/**", "mode": "conditional"},
     {"pattern": ".agents/skills/**", "mode": "managed"}
   ]
 }

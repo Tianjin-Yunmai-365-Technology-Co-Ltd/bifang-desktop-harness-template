@@ -156,6 +156,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "$rename-project-identity",
             "$run-parallel-worktrees",
             "$upgrade-harness",
+            "选择 GUI 时保留 `$build-tauri-release`",
             "中性初始化期间不得运行冒烟或 E2E",
             "仍包含旧 Harness 身份",
         ),
@@ -167,6 +168,9 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "由中性 `$initialize-rust-project` 调用时",
             "绝不得创建或更新 `docs/VERIFICATION.md`",
             "本 Skill 及其脚本在下游初始化后必须保留",
+            "scripts/macos-tauri-xwin-gates.sh --install-missing",
+            "不自动安装 Homebrew",
+            "只证明交叉工具可用，不证明 Windows 运行时",
         ),
         GUI_IDENTITY_SKILL: (
             "应用展示名称",
@@ -249,9 +253,10 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "Tauri 基于 Tokio 的单例异步运行时",
             "普通 `async fn` Tauri 命令",
             "测量确认的 CPU 密集工作",
-            "缺少签名身份",
-            "将制品记录为 `unsigned`",
-            "已批准分发目标要求签名",
+            "缺少完整签名公证条件且渠道允许时",
+            "显式生成 `unsigned` 候选",
+            "签名、公证与 stapling 必须作为一个阶段完成",
+            "$build-tauri-release",
             "不得要求另选目标目录",
             "<project-id>_gui",
             "React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai",
@@ -264,8 +269,11 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "基于 Tokio 的单例异步运行时",
             "普通 `async fn`",
             "缺少签名身份",
-            "将结果记录为 unsigned",
-            "要求签名的分发渠道",
+            "使用 `--no-sign` 并记录 unsigned",
+            "完成公证与 ticket stapling",
+            "$build-tauri-release",
+            "cargo-xwin + NSIS",
+            "Windows runtime 保持为 `Unverified`",
             "Tauri 2",
             "React + TypeScript",
             "Mantine UI",
@@ -293,6 +301,10 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "https://nodejs.org/dist",
             "https://aka.ms/vs/17/release/vs_BuildTools.exe",
             "MSVC Build Tools",
+            "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",
+            "cargo install --locked cargo-xwin",
+            "缺少 Homebrew 时阻断",
+            "xwin 成功仍把 Windows runtime 记为 `Unverified`",
         ),
         rust_baseline: (
             "$check-development-environment",
@@ -339,6 +351,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "## 约束地图",
             "$check-development-environment",
             "$prepare-gui-app-identity",
+            "$build-tauri-release",
             "不得继续派生项目",
             "LICENSE.zh-CN.md",
             "LICENSE.en.md",
@@ -621,6 +634,26 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "test_removed_web_interface_is_rejected",
             "test_windows_msvc_gate_installs_signed_build_tools",
         ),
+        MACOS_XWIN_GATE: (
+            "--install-missing",
+            "--check-only",
+            "x86_64-pc-windows-msvc",
+            '"$brew_path" install llvm',
+            '"$brew_path" install nsis',
+            'target add "$TARGET"',
+            "install --locked cargo-xwin",
+            "本门禁不自动安装 Homebrew",
+            "gate.path.prepend=",
+        ),
+        MACOS_XWIN_GATE_TESTS: (
+            "test_existing_environment_passes_without_installing",
+            "test_missing_environment_is_installed_and_reprobed",
+            "test_check_only_reports_missing_without_writes",
+            "test_missing_homebrew_blocks_install",
+            "test_formula_install_failure_does_not_claim_success",
+            "test_non_macos_host_is_rejected",
+            "test_unsupported_target_is_rejected",
+        ),
     }
     for path, fragments in prerequisite_fragments.items():
         if not path.is_file():
@@ -633,6 +666,23 @@ def validate_initialization_contract(errors: list[str]) -> None:
 
     if PREREQUISITE_UNIX.is_file() and not source_file_has_executable_mode(PREREQUISITE_UNIX):
         fail(errors, f"Unix 前置门禁不可执行：{display_path(PREREQUISITE_UNIX)}")
+    if MACOS_XWIN_GATE.is_file() and not source_file_has_executable_mode(MACOS_XWIN_GATE):
+        fail(errors, f"macOS Tauri xwin 门禁不可执行：{display_path(MACOS_XWIN_GATE)}")
+    if TAURI_NOTARIZATION_HELPER.is_file() and not source_file_has_executable_mode(
+        TAURI_NOTARIZATION_HELPER
+    ):
+        fail(
+            errors,
+            f"macOS Tauri 公证探测不可执行：{display_path(TAURI_NOTARIZATION_HELPER)}",
+        )
+    if TAURI_RELEASE_DIRECTORY_HELPER.is_file() and not source_file_has_executable_mode(
+        TAURI_RELEASE_DIRECTORY_HELPER
+    ):
+        fail(
+            errors,
+            "Tauri release 目录 helper 不可执行："
+            f"{display_path(TAURI_RELEASE_DIRECTORY_HELPER)}",
+        )
     if PREREQUISITE_UNIX.is_file() and "https://sh.rustup.rs" in PREREQUISITE_UNIX.read_text(encoding="utf-8"):
         fail(errors, "Unix 前置门禁必须验证 rustup-init，不得执行引导脚本文本")
     if PREREQUISITE_WINDOWS.is_file() and "Invoke-Expression" in PREREQUISITE_WINDOWS.read_text(encoding="utf-8"):

@@ -95,11 +95,103 @@ def validate_build_skill_contract(
                 )
 
 
+def validate_tauri_build_skill_contract(
+    errors: list[str],
+    tauri_skill: Path = TAURI_RELEASE_SKILL,  # noqa: F405
+    xwin_gate: Path = MACOS_XWIN_GATE,  # noqa: F405
+    notarization_helper: Path = TAURI_NOTARIZATION_HELPER,  # noqa: F405
+    tauri_tests: Path = TAURI_RELEASE_HELPER_TESTS,  # noqa: F405
+    xwin_tests: Path = MACOS_XWIN_GATE_TESTS,  # noqa: F405
+) -> None:
+    """锁定 Tauri xwin 安装链和 macOS 签名公证一体门禁。"""
+    required = {
+        tauri_skill: (
+            "scripts/prepare-release-directory.sh <project-root>",
+            "不要求 GUI-only 项目保留 CLI 构建 Skill",
+            "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",
+            "CI=true pnpm tauri build --bundles dmg --no-sign",
+            "不得输出仅 Developer ID 签名但未公证/staple 的 macOS 候选",
+            "候选构建中禁止 `--skip-stapling`",
+            "CI=true pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc",
+            "拒绝 `msi` 或 `all`",
+            "`runtimeVerification` 均为 `Unverified`",
+            "完整 `gate.path.prepend` 原样前置",
+            "在所有会改变字节的签名、公证、stapling 和打包步骤完成后计算 SHA-256",
+            "notarized-and-stapled",
+            "不得在本 Skill 中运行冒烟/E2E",
+        ),
+        xwin_gate: (
+            "x86_64-pc-windows-msvc",
+            '"$brew_path" install llvm',
+            '"$brew_path" install nsis',
+            'target add "$TARGET"',
+            "install --locked cargo-xwin",
+            "本门禁不自动安装 Homebrew",
+            "gate.path.prepend",
+            "安装后复探仍失败",
+        ),
+        notarization_helper: (
+            "Developer ID Application",
+            "--find notarytool",
+            "--find stapler",
+            "APPLE_API_ISSUER",
+            "APPLE_API_KEY_PATH",
+            "APPLE_ID",
+            "APPLE_PASSWORD",
+            "APPLE_TEAM_ID",
+            "notarization-credentials-incomplete-or-ambiguous",
+        ),
+        TAURI_RELEASE_DIRECTORY_HELPER: (  # noqa: F405
+            "项目根目录不是独立 Git 顶层目录",
+            "release 是符号链接",
+            'mktemp -d "$canonical_root/.release-clean.XXXXXX"',
+            'mv -- "$release_path" "$staging_parent/previous-release"',
+            "原子刷新期间 release 发生变化",
+            "release.cleaned=true",
+        ),
+        tauri_tests: (
+            "test_complete_api_credentials_are_ready_without_secret_output",
+            "test_complete_apple_id_credentials_are_ready",
+            "test_missing_credentials_is_unavailable_not_partially_ready",
+            "test_partial_or_mixed_credentials_are_rejected",
+            "test_symlinked_api_key_is_rejected",
+            "test_missing_notarytool_is_unavailable",
+        ),
+        xwin_tests: (
+            "test_existing_environment_passes_without_installing",
+            "test_missing_environment_is_installed_and_reprobed",
+            "test_check_only_reports_missing_without_writes",
+            "test_missing_homebrew_blocks_install",
+            "test_formula_install_failure_does_not_claim_success",
+            "test_non_macos_host_is_rejected",
+            "test_unsupported_target_is_rejected",
+        ),
+    }
+    for path, fragments in required.items():
+        if not path.is_file():
+            fail(errors, f"missing Tauri release contract file: {display_path(path)}")  # noqa: F405
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(  # noqa: F405
+                    errors,
+                    f"Tauri release contract missing in {display_path(path)}: {fragment}",  # noqa: F405
+                )
+    if BUILD_RELEASE_POSIX_HELPER.is_file() and TAURI_RELEASE_DIRECTORY_HELPER.is_file():  # noqa: F405
+        if BUILD_RELEASE_POSIX_HELPER.read_bytes() != TAURI_RELEASE_DIRECTORY_HELPER.read_bytes():  # noqa: F405
+            fail(
+                errors,
+                "Tauri release directory helper must remain byte-identical to the tested CLI POSIX helper",
+            )
+
+
 def validate_release_contract(errors: list[str]) -> None:
     """汇总 release ignore、helper 和构建/收集阶段的确定性契约。"""
     for path in (GITIGNORE, RUST_ASSET / ".gitignore"):  # noqa: F405
         validate_release_ignore(errors, path)
     validate_build_skill_contract(errors)
+    validate_tauri_build_skill_contract(errors)
 
     helper_fragments = {
         BUILD_RELEASE_POSIX_HELPER: (  # noqa: F405
@@ -128,14 +220,15 @@ def validate_release_contract(errors: list[str]) -> None:
             "test_windows_helper_rejects_non_git_top_level",
         ),
         COLLECT_RELEASE_SKILL: (  # noqa: F405
-            "只有为 `$build-rust-release` 收集构建结果时，才接受 `milestoneAcceptance: pending`",
+            "为 `$build-rust-release` 或 `$build-tauri-release` 收集构建结果时可以接受 `milestoneAcceptance: pending`",
             "目录存在绝不得提升该状态",
-            "不得尝试新签名",
+            "不得尝试新签名、公证或 stapling",
         ),
         PREPARE_RELEASE_SKILL: (  # noqa: F405
             "目录存在绝不表示已满足发布就绪条件",
             "结构化 `signingEvidence`",
-            "不得在此重试或配置签名",
+            "不得在此重试或配置签名、公证或 stapling",
+            "notarizationStatus: notarized-and-stapled",
         ),
     }
     for path, fragments in helper_fragments.items():

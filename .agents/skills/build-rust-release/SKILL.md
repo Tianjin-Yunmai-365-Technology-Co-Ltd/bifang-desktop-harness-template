@@ -10,6 +10,7 @@ description: 构建下游 Rust CLI 里程碑候选；默认采用 Windows、macO
 ## 工作流程
 
 1. 读取 `Cargo.toml`、`docs/RUST_CLI_TEMPLATE.md`、`docs/RELEASE.md`、验证记录、活动 Todo/里程碑工作计划，以及任何已批准的发布渠道或签名配置。依据 Cargo 元数据和仓库事实确定软件包、二进制文件、版本、目标平台和产物名称。
+   若发现目标是 Tauri GUI 安装包，停止本 Skill 并转交 `$build-tauri-release`；不得用 CLI raw-binary 打包/签名模型处理 DMG、NSIS 或公证。
 2. 要求下游项目根同时是其独立 Git 顶层目录，并要求 `HEAD` 解析到真实源码提交。确认 `Cargo.lock`、`rust-version`、分支、未提交修改状态、宿主和架构。要求候选批次中的每个 Todo 及其构建依赖均为 `done`。
 3. 将目标目录精确解析为 `<canonical-project-root>/release`。要求根 `.gitignore` 包含精确的根锚定 `/release/` 规则。遇到符号链接/重解析点、非目录、规范化后路径越界或目标等于项目根时必须拒绝。在执行任何格式化、测试或构建命令前，调用随附的 POSIX 或 PowerShell 辅助程序：把已有目录原子移动到同一文件系统中的唯一清理目录，创建并重新验证全新空 `release/`，随后仅删除已隔离的旧目录树且不得跟随重解析点。绝不得通过活动目标路径枚举并递归删除，也绝不得清理其他路径。
 4. 默认通过 `$prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选。只有仓库具有已复核的原生自动化、已配置的提供方和权限可用、三类原生运行器均可用，并且调用方能够取回已完成结果时，跨平台预检才算成功。调用本 Skill 只授权通过该既有配置路径构造候选，不授权发布。
@@ -25,6 +26,7 @@ description: 构建下游 Rust CLI 里程碑候选；默认采用 Windows、macO
 - `release/` 是当前构建结果目录，可以包含 `milestoneAcceptance: pending` 候选。目录存在绝不表示候选已验收、已就绪或可发布。
 - 本 Skill 不发布、不上传到发布渠道、不创建标签、不更改版本、不执行公证、不配置签名器，也不声称运行时行为。
 - 默认三平台路线当前仅覆盖 Rust CLI 产物模型。在另行批准统一矩阵前，TUI、MCP 和 GUI 使用各自适配器专用的产物规则。
+- Tauri GUI 的 macOS DMG 与 macOS→Windows NSIS 由 `$build-tauri-release` 处理；本 Skill 不解析 `pnpm`、`cargo-xwin` 或 Apple 公证状态。
 - 改变候选字节的签名必须发生在里程碑验收前。此后任何改变字节的签名、公证或重新打包都会产生新候选，并且必须返回 `$verify-delivery`。
 
 ## 发布目录辅助程序

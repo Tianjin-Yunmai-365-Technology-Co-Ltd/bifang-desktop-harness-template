@@ -65,6 +65,7 @@ MINIMUM_OWNERSHIP_RULES = {
     ".agents/skills/add-gui-adapter/**": "conditional",
     ".agents/skills/prepare-gui-app-identity/**": "conditional",
     ".agents/skills/prepare-cross-platform-release/**": "conditional",
+    ".agents/skills/build-tauri-release/**": "conditional",
     ".agents/skills/**": "managed",
 }
 VERSION_PATTERN = re.compile(r"当前版本[：:]\s*`([^`]+)`")

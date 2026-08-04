@@ -1,4 +1,4 @@
 interface:
   display_name: "检查开发环境"
-  short_description: "在首次开发前检查并自动安装已选接口必需的宿主工具链"
-  default_prompt: "首次开发前使用 $check-development-environment，并且只安装已记录接口所需的工具链。"
+  short_description: "检查开发工具链并按需补齐 macOS Tauri xwin 发布环境"
+  default_prompt: "使用 $check-development-environment 检查已选接口；仅在批准的 macOS Tauri Windows 目标中补齐 xwin 工具。"

@@ -286,6 +286,12 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "不得启动二进制文件或运行冒烟/E2E",
             "把精确的最终字节和清单交给 `$verify-delivery`",
         ),
+        TAURI_RELEASE_SKILL: (
+            "不得在本 Skill 中运行冒烟/E2E",
+            "不得启动安装包、应用或 Windows 二进制",
+            "把精确最终字节交给 `$verify-delivery`",
+            "milestoneAcceptance: pending",
+        ),
         CROSS_PLATFORM_RELEASE_SKILL: (
             "绝不运行冒烟或 E2E",
             "confirm_candidate_build",
@@ -321,6 +327,10 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "失败记录 `rejected` 并重开 Todo",
             "发布流程检查候选提交、版本、哈希、签名状态、清单与已验收产物一致",
             "不自行运行冒烟/E2E 或重试签名",
+            "pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc",
+            "不得生成仅签名候选",
+            "notarizationStatus: notarized-and-stapled",
+            "runtimeVerification: Unverified",
         ),
         UPGRADE_SKILL / "SKILL.md": (
             ".harness/upstream-lock.json",

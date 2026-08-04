@@ -23,7 +23,7 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 12. 只有全部脚手架检查完成后，才能收尾下游仓库：
     - 完整删除 `.agents/skills/instantiate-project/` 和 `.agents/skills/initialize-rust-project/`；
     - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
-    - 保留 `$rename-project-identity`、`$check-development-environment`、`$prepare-gui-app-identity`、`$upgrade-harness`、`$run-parallel-worktrees`，以及仍然适用的产品开发、适配器、验证和发布 Skills；
+    - 保留 `$rename-project-identity`、`$check-development-environment`、`$prepare-gui-app-identity`、`$upgrade-harness`、`$run-parallel-worktrees`，以及仍然适用的产品开发、适配器、验证和发布 Skills；选择 GUI 时保留 `$build-tauri-release`，未选择 GUI 时将其作为不适用的条件 Skill 删除；
     - 保留继承的两份非开源企业专有商业许可证文件 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，其中目标项目名称必须已由 `$rename-project-identity` 建立；如果任一文件缺失、仍包含旧 Harness 身份、在批准改名后发生其他修改，或被安排删除，则最终收尾必须失败；
     - 重写 `AGENTS.md`，同时保留非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$run-parallel-worktrees` 和 `$upgrade-harness` 的持久策略用法。约束地图必须链接保留的规则并禁止下游继续派生；
     - 搜索下游根目录；如果历史证据之外仍存在对 `$instantiate-project`、`$initialize-rust-project`、其目录或仅用于初始化的门禁的活动引用，则最终收尾必须失败。

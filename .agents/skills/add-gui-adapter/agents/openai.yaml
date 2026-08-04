@@ -1,4 +1,4 @@
 interface:
   display_name: "添加 GUI 适配器"
   short_description: "为下游项目增加固定 React 技术栈的异步 Tauri 2 GUI 适配器"
-  default_prompt: "使用 $add-gui-adapter，为此下游项目增加已批准的异步优先 Tauri 2 GUI、固定 React 技术栈和未签名本地构建支持。"
+  default_prompt: "使用 $add-gui-adapter，为此下游项目增加异步优先 Tauri 2 GUI、固定 React 技术栈，并把发布候选交给专用构建 Skill。"

@@ -222,12 +222,14 @@ cargo build --workspace --release --locked
 ## 构建、验证里程碑与结果文件
 
 - 代码行为实现轮次运行相关非空单元/回归测试，并按风险选择格式、Clippy、静态和集成/契约检查；纯文档或元数据变更使用相称替代验证。快速/标准路径不运行冒烟/E2E，也不得把开发证据写成里程碑通过。
-- `$build-rust-release` 负责 Rust CLI 候选编排：默认先使用 Windows、macOS、Linux 原生矩阵；只有跨平台提供方、权限、运行器或结果取回条件在派发前不可用时才回退当前平台。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；TUI/MCP/GUI 仍使用各自适配器 Skill 的构建与产物门槛。
+- `$build-rust-release` 负责 Rust CLI 候选编排：默认先使用 Windows、macOS、Linux 原生矩阵；只有跨平台提供方、权限、运行器或结果取回条件在派发前不可用时才回退当前平台。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$build-tauri-release`，TUI/MCP 仍使用各自适配器 Skill 的构建与产物门槛。
+- `$build-tauri-release` 在 macOS 上原生构建 DMG，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS。xwin 路径不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生运行验证。
+- macOS Tauri 直接分发使用全有或全无门禁：设备具有 Developer ID Application 身份、`notarytool`、`stapler` 与一组完整 Apple 公证凭据时，正常 Tauri build 必须完成签名、公证和 stapling；条件缺失且渠道允许时才可显式 `--no-sign`。不得用 `--skip-stapling` 形成候选，一旦签名或公证开始，失败不得静默降级。
 - 只有里程碑/发布候选或用户明确要求完整验收时，当前批次 Todo 全部完成后才调用 `$verify-delivery`：重新执行编译、非空单元测试、相关集成/契约和产物存在性，并根据 `docs/AGENT_POLICY.md`、产品/渠道硬要求和适用性决定是否执行冒烟/E2E。
 - Todo 全部完成后，构建可在项目已有批准的非交互签名钩子、工具和已授权凭据时尝试签名并验证，再把明确标记 `milestoneAcceptance: pending` 的候选写入根 `release/`；远端构建随后上传与清单精确一致的文件集以供传输。条件缺失时记录 `signingStatus: unsigned` 与原因，条件满足后的签名失败则使平台构建失败；签名之后计算最终归档 SHA-256。`milestone_smoke`/`milestone_e2e` 为 `enabled` 或硬要求为 `required` 时，必须针对这些最终字节执行，并在标记 `ready`、发布上传或正式发布前通过。
 - `$prepare-cross-platform-release` 当前负责默认 Rust CLI Windows/macOS/Linux 原生候选矩阵；所有运行器使用 `fail-fast: false` 留下终态证据。其他接口的统一跨平台打包仍是已公开限制，默认不正式发布。
 - `$collect-release-artifacts` 负责提取并核验平台归档、相邻 SHA-256、签名状态、清单和已有里程碑证据，不自行构建、签名或运行冒烟/E2E；为构建取回结果时可保留 `pending`，发布准备仍只接受与候选匹配的 `accepted` 证据。
-- 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$build-rust-release` 在任何格式、测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；签名后的归档/哈希/清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。远端工作流必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。目录存在不代表 `ready`。
+- 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$build-rust-release` 与 `$build-tauri-release` 在任何格式、测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。远端工作流必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。目录存在不代表 `ready`。
 - `$prepare-release` 只在里程碑通过后负责版本、变更记录和发布就绪判断，不自动运行冒烟/E2E、创建标签或上传。
 - `$add-mcp-adapter` 只在下游用户明确批准后增加依赖核心的 Rust stdio MCP 适配器；Skill 不自带实现资产。
 - `$add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；Skill 不自带实现资产。
@@ -235,7 +237,7 @@ cargo build --workspace --release --locked
 - `$add-cli-adapter`、`$add-tui-adapter`、`$add-mcp-adapter` 与 `$add-gui-adapter` 分别拥有对应接口边界。
 - `$test-final-artifact-e2e` 只在验证里程碑通过 Computer Use 验收真实产物，不替代构建和单元测试，也不得脱离持久项目策略或产品/渠道硬要求自动运行。
 
-候选归档命名为 `<product>-v<version>-<platform>-<arch>.<ext>`。每个归档必须有 `<archive>.sha256` 和清单；`pending` 清单至少包含 `project`、`version`、批准的 40 位 `sourceCommit`、`buildRun`、`buildMode`、`platform`、`architecture`、`target`、`host`、`archive`、`sha256`、`tests`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 和 `milestoneAcceptance: pending`。默认原地钩子的证据记录固定钩子验证成功且 `detachedFiles` 为空；`unsigned` 记录验证不适用。只有转为 `ready`/发布归档时，清单才必须再包含最终里程碑状态以及冒烟/E2E 的策略判断及实际结果。
+候选归档或安装包命名为 `<product>-v<version>-<platform>-<arch>.<ext>`。每个产物必须有 `<artifact>.sha256` 和清单；`pending` 清单至少包含 `project`、`version`、批准的 40 位 `sourceCommit`、`buildRun`、`buildMode`、`platform`、`architecture`、`target`、`host`、`archive` 或 `installer`、`sha256`、`tests`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 和 `milestoneAcceptance: pending`。Tauri GUI 清单还必须包含 `interface: gui`、`artifactKind: installer`、`bundleFormat: dmg | nsis`、`runtimeVerification`、`signingScope: bundle-or-installer`、`notarizationStatus`、`notarizationReason` 与结构化 `notarizationEvidence`；xwin 必须记录 `buildMode: cross-compiled-xwin` 和 `runtimeVerification: Unverified`，macOS 已签名候选只有在公证且 stapled 后才可记录 `notarizationStatus: notarized-and-stapled`。默认 CLI 原地钩子的证据记录固定钩子验证成功且 `detachedFiles` 为空；`unsigned` 记录验证不适用。只有转为 `ready`/发布归档时，清单才必须再包含最终里程碑状态以及冒烟/E2E 的策略判断及实际结果。
 
 ## 官方与主要资料
 
