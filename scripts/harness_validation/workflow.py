@@ -47,12 +47,15 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         return
     try:
         payload = workflow.read_bytes()
-        text = payload.decode("utf-8")
+        # Git 的受审对象统一使用 LF；Windows 的 core.autocrlf 可能只转换工作树字节。
+        # 哈希和语义检查必须基于同一份规范内容，避免把安全的签出转换误判为篡改。
+        canonical_payload = payload.replace(b"\r\n", b"\n")
+        text = canonical_payload.decode("utf-8")
     except (OSError, UnicodeDecodeError) as error:
         fail(errors, f"cannot read workflow asset {display_path(workflow)}: {error}")
         return
 
-    observed_digest = hashlib.sha256(payload).hexdigest()
+    observed_digest = hashlib.sha256(canonical_payload).hexdigest()
     if observed_digest != EXPECTED_WORKFLOW_SHA256:
         fail(
             errors,
