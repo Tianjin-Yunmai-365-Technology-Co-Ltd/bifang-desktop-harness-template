@@ -2,10 +2,38 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 import tomllib
 from pathlib import Path
 
 from .context import *  # noqa: F403
+
+
+def source_file_has_executable_mode(path: Path) -> bool:
+    """按宿主可观测语义确认 Unix 脚本的可执行位。"""
+
+    if os.name != "nt":
+        return bool(path.stat().st_mode & 0o111)
+
+    try:
+        relative_path = path.resolve().relative_to(ROOT.resolve()).as_posix()  # noqa: F405
+    except (OSError, ValueError):
+        return False
+
+    result = subprocess.run(
+        ["git", "ls-files", "--stage", "--", relative_path],
+        cwd=ROOT,  # noqa: F405
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+    entries = [line for line in result.stdout.splitlines() if line.strip()]
+    return len(entries) == 1 and entries[0].split(maxsplit=1)[0] == "100755"
 
 def validate_initialization_contract(errors: list[str]) -> None:
     """校验环境门禁、Rust asset 与 workspace 依赖继承的初始化契约。"""
@@ -603,7 +631,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             if fragment not in text:
                 fail(errors, f"prerequisite script gate missing in {display_path(path)}: {fragment}")
 
-    if PREREQUISITE_UNIX.is_file() and not (PREREQUISITE_UNIX.stat().st_mode & 0o111):
+    if PREREQUISITE_UNIX.is_file() and not source_file_has_executable_mode(PREREQUISITE_UNIX):
         fail(errors, f"Unix 前置门禁不可执行：{display_path(PREREQUISITE_UNIX)}")
     if PREREQUISITE_UNIX.is_file() and "https://sh.rustup.rs" in PREREQUISITE_UNIX.read_text(encoding="utf-8"):
         fail(errors, "Unix 前置门禁必须验证 rustup-init，不得执行引导脚本文本")

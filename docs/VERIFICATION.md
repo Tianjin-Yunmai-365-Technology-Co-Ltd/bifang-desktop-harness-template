@@ -32,6 +32,18 @@
 | 工作流资产 | 全文件 SHA-256 + 独立 YAML 解析 + 步骤/输入/门禁契约 | 只生成三平台 `milestoneAcceptance: pending` 候选；绑定批准源码提交，使用不可变 Action 提交，依次刷新、非空测试/构建、条件签名、暂存区打包/清单、目录级原子提交和精确上传，禁止冒烟、E2E、发布和写权限提升 |
 | 人工语义 | 文档与 Skill 契约矩阵 | 适用性、边界、状态和剩余风险无相互冲突的当前硬规则 |
 
+## 2026-08-04 Windows Harness 来源校验兼容性
+
+- 路径：标准；作为下游 Harness 升级的来源门禁修复，不属于里程碑或发布候选。
+- 当前宿主：Windows；接口指纹按不含 GUI 的工程维护任务处理。
+- 开发环境门禁：`development-environment-gates.ps1 -Interfaces CLI` 通过；`rustc 1.97.0 (2d8144b78 2026-07-07)` 与 MSVC 为既有环境，Node.js/pnpm 均为 `not-required`，没有安装或升级工具。
+- `python -m py_compile scripts/harness_validation/workflow.py scripts/harness_validation/initialization.py scripts/test_harness_validation_cross_platform.py`：通过。
+- `python -m unittest scripts.test_harness_validation_cross_platform -v`：2/2 通过，覆盖 CRLF workflow 规范哈希与 Windows Git 索引执行位。
+- `python -m unittest scripts.test_validate_harness -v`：44/44 通过，包含 workflow 全字节篡改、门禁契约和升级器契约回归。
+- `python scripts/validate_harness.py`：通过，44 个必需入口、20 个 Skills 与完整治理门禁一致；8 项软行数阈值仅为非阻断拆分审查提示。
+- 未执行：冒烟、E2E、发布构建和人工复核；本次标准维护任务不适用。
+- macOS、Linux 和各自文件系统上的本次变更仍为 `Unverified`；其原有文件系统执行位检查路径保持不变。
+
 ## 2026-08-03 风险分级敏捷流程优化
 
 ### 范围与路径
