@@ -13,6 +13,7 @@
 
 ## 日期文件
 
+- [2026-08-05](20260805_product_status.md)
 - [2026-08-03](20260803_product_status.md)
 - [2026-07-31](20260731_product_status.md)
 - [2026-07-30](20260730_product_status.md)
