@@ -7,7 +7,7 @@
 - 产品规格：Approved；core-first、薄适配器、事件触发项目记忆和人工维护文本 400 行硬门禁已经成为当前产品与工程约束。
 - 当前里程碑：Harness `202608051301` 工程治理源码候选 `10d6a2de608587af58370282adbb0373e17648fc` 已通过完整自动验收并取得项目负责人最终复核，结论为 `Milestone accepted`。
 - 发布状态：`Unreleased`。本次只授权提交和推送 Git 源码与验收记录，不创建 tag、源码归档、签名、公证、发布渠道上传或正式发布。
-- 当前计划：见 [`docs/work_plan/20260805_work_plan.md`](../work_plan/20260805_work_plan.md)；验收记录提交和远端同步按 TODO-G05 收口。
+- 当前计划：见 [`docs/work_plan/20260805_work_plan.md`](../work_plan/20260805_work_plan.md)；TODO-G01 至 TODO-G05 已全部完成，源码候选、验收记录和状态同步通过普通快进推送进入 `origin/master`。
 
 ## 本次完成
 
@@ -30,5 +30,5 @@
 
 ## 下一步
 
-1. 提交验收记录并非强制快进推送到 `origin/master`，确认远端哈希与本地最终 `HEAD` 一致且工作树为空。
-2. 后续若需要标签、源码归档或正式发布，必须另行授权并按 `$prepare-release` 补齐发布物、哈希和渠道门禁。
+1. 后续若需要标签、源码归档或正式发布，必须另行授权并按 `$prepare-release` 补齐发布物、哈希和渠道门禁。
+2. 在首个真实下游继续收集 core-first、400 行门禁和 Harness 升级的前向证据；未运行平台保持 `Unverified`。

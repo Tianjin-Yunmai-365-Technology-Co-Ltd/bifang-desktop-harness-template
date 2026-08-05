@@ -14,6 +14,7 @@
 - 冒烟/E2E：Harness 根不是具体最终产品；产品启动冒烟和 Computer Use E2E 为 `Not applicable`，未运行且未记为通过。
 - 已知并接受的剩余风险：Windows/Linux、本轮真实下游前向升级、远端三平台候选矩阵、真实签名/公证和发布渠道仍为 `Unverified`；版本继续为 `Unreleased`。
 - 审批边界：授权提交当前源码、验收记录并非强制推送到 `origin/master`；不授权标签、源码归档、签名、公证、发布渠道上传或正式发布。
+- 推送证据：首轮 `git push origin master` 以非强制快进方式把服务器 `master` 从 `53ce2c60ec2061a351759eecd2a5b04fe2215e2a` 更新到验收记录提交 `631c91d61800889373c9b48bc5d73c5c27b86d74`；本状态同步属于同一已授权推送链，不扩大审批边界。
 
 ### 2026-08-03 构建 Skill 优化、Docs/Skills 中文化与待复核里程碑统一批准
 
