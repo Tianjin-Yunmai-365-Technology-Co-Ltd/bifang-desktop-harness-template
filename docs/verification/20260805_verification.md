@@ -23,6 +23,7 @@
 - Harness 根不包含具体最终产品；产品冒烟与 Computer Use E2E 为 `Not applicable`，未运行且不记为通过。Windows/Linux、真实下游前向应用和九项依赖的具体版本组合继续为 `Unverified`。
 - 人工复核：项目负责人在收到完成范围、实际验证与未执行项后明确要求“推送服务端”，批准本候选与上述剩余风险并授权 Git 推送；记录见 [`human_review.md`](human_review.md)。
 - 里程碑结论：`Milestone accepted`。结论只绑定候选 `f7b84169eea647f157d27a6dc579f61417001fd0` 和本节范围，不改变 `Unreleased`，不授权标签、归档或正式发布。
+- Git 交付：推送前再次抓取确认服务器 `origin/master` 保持 `8af68bafea831446aad7e1896e5ebe1bcd679112` 且是本地祖先；普通 `git push origin master` 成功将其快进到验收记录提交 `3fc38ee1222d7195f3670a3c1f75e711a8c485d2`。本计划/状态同步沿同一授权链推送，不使用强制参数。
 
 ### 证据集成失败与重跑
 
