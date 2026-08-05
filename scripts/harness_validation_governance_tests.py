@@ -20,6 +20,12 @@ if str(ROOT) not in sys.path:
 
 import scripts.validate_harness as validate_harness
 from scripts.harness_validation import governance, repository, upgrade
+from scripts.harness_validation.initialization_primary_contract import (
+    primary_required_fragments,
+)
+from scripts.harness_validation.initialization_repository_contract import (
+    repository_required_fragments,
+)
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
     read_repo_text,
@@ -58,6 +64,34 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             "WebView",
         ):
             self.assertIn(fragment, baseline)
+
+    def test_rust_technology_standard_is_a_required_contract(self) -> None:
+        """九项 Rust 选型必须进入事实源、传播入口与机械门禁。"""
+
+        technology_names = {
+            "Tokio",
+            "Axum",
+            "Clap",
+            "SeaORM",
+            "tracing",
+            "anyhow",
+            "thiserror",
+            "serde",
+            "jiff",
+        }
+        initialize_skill = ROOT / ".agents/skills/initialize-rust-project/SKILL.md"
+        primary = primary_required_fragments(initialize_skill)
+        primary_text = " ".join(primary[initialize_skill])
+        self.assertTrue(all(name in primary_text for name in technology_names))
+
+        rust_baseline = ROOT / "docs/RUST_CLI_TEMPLATE.md"
+        gate_file = (
+            ROOT
+            / ".agents/skills/check-development-environment/references/development-environment-gates.md"
+        )
+        repository_contract = repository_required_fragments(gate_file, rust_baseline)
+        for path in (rust_baseline, ROOT / "docs/product_spec/20260805_product_spec.md"):
+            self.assertTrue(technology_names.issubset(set(repository_contract[path])))
 
     def test_rejects_obsolete_per_task_preference_prompt(self) -> None:
         """持久项目偏好不得退回每任务重新授权语义。"""

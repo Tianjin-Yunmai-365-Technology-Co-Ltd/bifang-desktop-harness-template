@@ -44,6 +44,7 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 - 每个适配器公开真实操作时必须记录“适配器操作 → core API → core 测试”；系统托盘等 adapter-only 机制必须记录其接口/宿主专属性，并把业务效果委托 core。
 - CLI、TUI 和 MCP 适配器默认使用 Tokio current-thread 异步入口；GUI 复用 Tauri 由 Tokio 支撑的异步运行时。所有 Rust 适配器工作优先采用异步 I/O 和等待。只有经过测量的 CPU 密集工作才可以进入有边界的线程边界；仅提供阻塞接口的依赖必须被替换，或通过范围与硬规则例外流程获得批准。除非已批准的领域需求另有要求，核心必须保持运行时中立。
 - 已选 TUI 或 GUI 适配器即使处于 `Draft` 状态也必须应用固定技术栈；替换技术栈需要记录硬规则例外。
+- Rust 能力按 `docs/RUST_CLI_TEMPLATE.md` 的事实标准选择：Tokio、Axum、Clap、SeaORM、tracing、anyhow、thiserror、serde、jiff。只把当前已选接口或已批准真实能力需要的依赖加入根 `[workspace.dependencies]`；不得为中性状态预装未使用的 HTTP、ORM、错误或可观测性依赖，偏离固定技术必须记录硬规则例外。
 - 只有选择 CLI 时，CLI 才遵守 `docs/CLI_CONTRACT.md`。
 - `docs/AGENT_POLICY.md` 持久记录四项项目选择；后续 Agent 必须复用这些选择、推断适用性，并且只在问题未解决时询问。
 - 产品规格、工作计划、ADR 和变更记录属于下游开发记忆，不属于初始化载荷。

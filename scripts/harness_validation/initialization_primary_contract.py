@@ -125,6 +125,8 @@ def primary_required_fragments(
             "根锚定的 `/release/`",
             "Tokio current-thread 异步入口",
             "Tauri 由 Tokio 支撑的异步运行时",
+            "Tokio、Axum、Clap、SeaORM、tracing、anyhow、thiserror、serde、jiff",
+            "不得为中性状态预装未使用的 HTTP、ORM、错误或可观测性依赖",
             "LICENSE.zh-CN.md",
             "LICENSE.en.md",
             "保留继承的两份非开源企业专有商业许可证文件",

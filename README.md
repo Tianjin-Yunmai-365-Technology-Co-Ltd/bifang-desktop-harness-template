@@ -77,6 +77,7 @@
 - 下游接口可从 CLI、TUI、MCP、GUI 独立选择和组合；未选择时默认 CLI。
 - Rust 是下游项目的默认初始化语言；Tokio 是 Rust CLI 和后续 Rust adapter 的统一异步执行标准；模板自身仍不实现具体产品业务。
 - TUI 技术族固定为 Ratatui + tui-realm + tui-realm-stdlib；Tauri GUI 前端固定为最新兼容稳定的 React + TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。其他前后端技术在真实项目开发时按需求推荐。
+- Rust 技术选型固定为 Tokio、Axum、Clap、SeaORM、tracing、anyhow、thiserror、serde 与 jiff；它们分别在异步、HTTP、CLI、关系型 ORM、可观测性、应用错误上下文、稳定类型化错误、序列化和日期时间能力真实出现时按需引入，不给中性 scaffold 安装未使用依赖。
 - 默认结构是可独立复用和测试的 core Lib + 所选 adapter；adapter 彼此独立并直接依赖 core。
 - Core-first 是强制规则：所有接口/宿主无关的业务规则、领域校验、用例编排、状态转换和稳定错误都先由 core 实现和测试，即使项目当前只有一个接口也不能放进 adapter。
 - CLI/TUI/MCP/GUI 只处理各自的参数/协议、展示、交互状态、运行时装配和结果映射。系统托盘、窗口、通知、终端恢复或 stdio 生命周期等特有机制留在所属 adapter，但由这些机制触发的业务行为仍调用 core；是否“薄”按职责判断，不按代码行数判断。

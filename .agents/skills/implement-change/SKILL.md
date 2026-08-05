@@ -15,6 +15,7 @@ description: 实施范围清楚的直接请求或活动 Work Plan，并运行与
 4. `parallel_worktree_subagents: enabled` 且至少有两个无重叠写入单元、干净已提交基线和 Worktree 门禁时可使用 `$run-parallel-worktrees`；否则直接单 Agent，不重复询问。
 5. 快速路径直接实现请求中的最小完整行为。标准/里程碑路径选择依赖已满足的首个非 `done` Todo，标记 `in_progress`，完成后再推进下一项。
 6. 追踪真实执行路径，不留下模拟实现、桩、占位或仅有源码的片段。Core-first 是硬规则：接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略必须在 core 中实现，即使当前只有一个适配器。适配器只能拥有运行时装配、接口语法/协议结构、展示/纯交互状态、调用 core 和结果映射；包含条件、重试或状态决策的多次 core 调用必须提升为单个 core 用例 API。
+   Rust 实现按 `docs/RUST_CLI_TEMPLATE.md` 采用固定技术族：Tokio、Axum、Clap、SeaORM、tracing、anyhow、thiserror、serde、jiff。只为已批准且存在真实使用路径的能力引入对应依赖；偏离固定技术必须先走硬规则例外 ADR，不能以个人偏好或已有熟悉度替换。
 7. 修改 adapter 前先记录“适配器操作 → core API → core 测试”映射。若不存在可复用 core 用例，先实现 core；若本次只改布局、协议映射、系统托盘、窗口、终端恢复或 stdio 生命周期等接口/宿主机制，记录其专属性及为什么没有 core 变化。适配器只拒绝无法解析、缺少协议字段或违反宿主能力约束的输入；值域、跨字段约束、资源状态、业务权限和影响业务结果的默认值交给 core。
 8. 代码行为变化新增或更新相关非空测试：业务行为先由 core 测试覆盖成功路径和最高风险领域失败，再由适配器测试覆盖映射与接口契约；缺陷修复增加回归测试。纯文档、元数据、格式或不可合理单测的机械变更使用链接、解析、静态、现有回归或差异检查，不创建空洞测试。
 9. 从窄到宽运行最小充分验证：相关测试，以及按风险需要的格式、代码规范、静态、集成和契约检查。每次变更都必须通过当前平台可用的 Python 3 解释器运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`；任一人工维护文本超过 400 个物理行时先拆分，不得以警告或 ADR 降级。Rust core/adapter 变化时再运行 `.agents/skills/implement-change/scripts/check_core_first.py`；Python 不可用时，行数门禁阻断完成，core-first 则使用 `cargo metadata --no-deps --locked --format-version 1` 执行等价依赖图审查并记录结果。修复范围内失败并重跑；本 Skill 不运行冒烟/E2E。

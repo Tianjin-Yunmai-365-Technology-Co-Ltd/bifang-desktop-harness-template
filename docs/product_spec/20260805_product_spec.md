@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-08-05（core-first、事件触发项目记忆与人工维护文本单文件 400 行硬上限成为强制约束）
+> 最近范围确认：2026-08-05（core-first、事件触发项目记忆、人工维护文本单文件 400 行硬上限与 Rust 技术选型成为强制约束）
 
 ## 一句话目标
 
@@ -34,6 +34,8 @@
 - CLI、TUI、MCP、GUI 必须保持薄适配层，只负责运行时与依赖装配、接口语法/协议结构解析、展示和交互状态、调用 core，以及把 core 结果与错误映射为接口输出；不得复制、改写或另建业务规则、权威业务状态、迁移、权限策略或平台无关校验。
 - 系统托盘、窗口/WebView 生命周期、通知、自动启动、终端焦点/按键/恢复、MCP stdio 传输和 CLI 参数/退出码等接口或平台机制留在对应适配器；它们触发的业务动作仍必须调用 core。真实边界需要时可由 core 定义运行时中立的能力接口并由适配器实现，但不得为假想需求预建抽象。
 - TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 固定采用 React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。偏离必须形成硬规则例外 ADR。
+- Rust 技术选型固定为：Tokio 负责异步运行时，Axum 负责获批的 Rust HTTP 服务，Clap 负责 CLI 参数与子命令，SeaORM 负责获批的关系型数据库 ORM，tracing 负责结构化事件与 span，可恢复的稳定库/领域错误使用 thiserror，应用装配与一次性上下文错误使用 anyhow，serde 负责序列化/反序列化，jiff 负责日期、时间、时区与时间跨度。偏离必须形成硬规则例外 ADR。
+- 固定选型表示“能力出现时采用该技术”，不表示中性初始化无条件安装全部依赖：未批准 HTTP 服务时不引入 Axum，未批准关系型持久化时不引入 SeaORM，未实际产生对应序列化、时间或可观测性需求时不为占位加入依赖。Tokio 与所选适配器的异步入口规则、Clap 与 CLI 的绑定仍按接口选择生效；不因 Axum 成为 HTTP 标准而恢复独立 WEB 适配器。
 - 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
 - GUI 首次真实产品开发前必须调用 `$prepare-gui-app-identity` 确认窗口身份与图标路径。
 - 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$upgrade-harness` Skills。
@@ -87,6 +89,7 @@
 - Harness 与收费下游采用非开源企业专有商业许可；根 `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 保持一致，升级不能自动改写法律文本。
 - CLI/TUI/MCP 使用 Tokio current-thread 异步入口，GUI 复用 Tauri 的由 Tokio 支撑的异步运行时；核心默认保持运行时中立。
 - 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；目标平台为 Windows、macOS 和 Linux。
+- 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并在 Rust 1.90、三平台和锁定回归门禁内采用较新兼容稳定版本；anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
 - 选择 CLI 时遵守统一 JSON 信封、错误结构、输出流和退出码契约。
 
 ## 不包含
