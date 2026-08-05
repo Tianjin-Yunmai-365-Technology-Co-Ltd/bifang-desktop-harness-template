@@ -100,8 +100,9 @@ class AgileAgentPolicyTests(unittest.TestCase):
         initialize = read_repo_text(".agents/skills/initialize-rust-project/SKILL.md")
         environment = read_repo_text(".agents/skills/check-development-environment/SKILL.md")
         self.assertIn("历史验证正文", instantiate)
+        self.assertIn("docs/verification/", instantiate)
         self.assertIn("不创建或更新 `docs/VERIFICATION.md`", initialize)
-        self.assertIn("绝不得创建或更新 `docs/VERIFICATION.md`", environment)
+        self.assertIn("绝不得创建或更新验证索引/证据卷", environment)
 
     def test_public_scaffold_replacement_and_product_rename_are_milestones(self) -> None:
         """首次公开接口和现有产品改名不能从标准路径绕过验收。"""
@@ -164,6 +165,32 @@ class AgileWorkPlanTests(unittest.TestCase):
     def test_valid_standard_plan_needs_no_milestone(self) -> None:
         """标准路径可只保留精简 Todo 和非代码替代验证。"""
         self.assertEqual(self._validate(self._standard_plan()), [])
+
+    def test_standard_fix_may_use_work_plan_when_complexity_requires_it(self) -> None:
+        """维护标签不禁止复杂修复采用标准路径计划。"""
+
+        plan = self._standard_plan().replace("更新文档", "跨模块缺陷修复", 1)
+        self.assertEqual(self._validate(plan), [])
+
+    def test_quick_fix_does_not_require_persisted_plan(self) -> None:
+        """普通快速修复可以没有 Work Plan。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            errors: list[str] = []
+            repository.validate_work_plan_contract(
+                errors,
+                Path(tmp_dir) / "quick-fix-missing.md",
+            )
+        self.assertEqual(errors, [])
+
+    def test_work_plan_does_not_trigger_other_memories(self) -> None:
+        """持久计划存在不自动联动其他项目记忆。"""
+
+        skill = read_repo_text(".agents/skills/plan-change/SKILL.md")
+        self.assertIn(
+            "不自动触发 Product Spec、ADR、Product Status、Verification 或 Changelog",
+            skill,
+        )
 
     def test_existing_plan_must_declare_its_path(self) -> None:
         """持久计划必须说明标准或里程碑，避免校验器猜测验收强度。"""

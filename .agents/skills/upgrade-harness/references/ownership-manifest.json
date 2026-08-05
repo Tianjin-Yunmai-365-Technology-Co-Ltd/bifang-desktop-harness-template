@@ -10,6 +10,7 @@
     {"pattern": "scripts/test_validate_harness.py", "mode": "tombstone"},
     {"pattern": "scripts/harness_validation/**", "mode": "tombstone"},
     {"pattern": "docs/HARNESS_ENGINEERING.md", "mode": "tombstone"},
+    {"pattern": "docs/harness_engineering/**", "mode": "tombstone"},
 
     {"pattern": "docs/AGENT_POLICY.md", "mode": "protected"},
     {"pattern": "docs/product_spec/**", "mode": "protected"},
@@ -18,6 +19,7 @@
     {"pattern": "docs/adr/**", "mode": "protected"},
     {"pattern": "docs/changelog/**", "mode": "protected"},
     {"pattern": "docs/VERIFICATION.md", "mode": "protected"},
+    {"pattern": "docs/verification/**", "mode": "protected"},
     {"pattern": "docs/TECH_DEBT.md", "mode": "protected"},
     {"pattern": "LICENSE.zh-CN.md", "mode": "protected"},
     {"pattern": "LICENSE.en.md", "mode": "protected"},
@@ -32,6 +34,10 @@
     {"pattern": "docs/CLI_CONTRACT.md", "mode": "merge-sections"},
     {"pattern": "docs/RELEASE.md", "mode": "merge-sections"},
 
+    {"pattern": ".agents/skills/implement-change/scripts/check_file_line_limits.py", "mode": "managed"},
+    {"pattern": ".agents/skills/implement-change/scripts/test_check_file_line_limits.py", "mode": "managed"},
+    {"pattern": ".agents/skills/implement-change/scripts/check_core_first.py", "mode": "managed"},
+    {"pattern": ".agents/skills/implement-change/scripts/test_check_core_first.py", "mode": "managed"},
     {"pattern": ".agents/skills/upgrade-harness/**", "mode": "managed-self"},
     {"pattern": ".agents/skills/add-cli-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/add-tui-adapter/**", "mode": "conditional"},

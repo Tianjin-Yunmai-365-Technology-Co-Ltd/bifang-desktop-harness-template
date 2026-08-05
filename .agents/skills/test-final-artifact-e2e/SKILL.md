@@ -9,7 +9,7 @@ description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI �
 
 ## 工作流程
 
-1. 读取已批准的成功标准、活动 Todo/里程碑工作计划、`docs/AGENT_POLICY.md`、`docs/VERIFICATION.md` 和适用的接口 Skill。
+1. 读取已批准的成功标准、活动 Todo/里程碑工作计划、`docs/AGENT_POLICY.md`、`docs/VERIFICATION.md` 及其索引的相关证据卷，并读取适用的接口 Skill。
 2. 要求里程碑批次中的每个 Todo 均为 `done`，并且 `$verify-delivery` 已进入里程碑验收。否则必须停止并报告 `Not run`。
 3. 要求 `milestone_e2e: enabled`，或存在已批准产品/渠道的 `required` 规则。除非硬要求覆盖，`disabled` 必须记录 `Not run`；策略缺失、非法或为 `pending` 时，必须由用户解决。
 4. 要求通过构建元数据定位完整真实产物。拒绝开发预览、源码调用、模拟后端、脚手架、占位内容或推测路径。

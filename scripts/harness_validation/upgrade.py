@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import json
 from pathlib import Path
 from typing import Any
@@ -9,8 +10,12 @@ from typing import Any
 from .context import (
     UPGRADE_CORE,
     UPGRADE_MUTATION,
+    UPGRADE_OWNERSHIP_MODULE,
     UPGRADE_OWNERSHIP,
     UPGRADE_POLICY_MODULE,
+    UPGRADE_PREFLIGHT,
+    UPGRADE_RECORD,
+    UPGRADE_SAFETY,
     UPGRADE_SCRIPT,
     UPGRADE_TESTS,
     display_path,
@@ -27,6 +32,7 @@ REQUIRED_RULES = {
     "scripts/test_validate_harness.py": "tombstone",
     "scripts/harness_validation/**": "tombstone",
     "docs/HARNESS_ENGINEERING.md": "tombstone",
+    "docs/harness_engineering/**": "tombstone",
     "docs/AGENT_POLICY.md": "protected",
     "docs/product_spec/**": "protected",
     "docs/project_status/**": "protected",
@@ -34,6 +40,7 @@ REQUIRED_RULES = {
     "docs/adr/**": "protected",
     "docs/changelog/**": "protected",
     "docs/VERIFICATION.md": "protected",
+    "docs/verification/**": "protected",
     "docs/TECH_DEBT.md": "protected",
     "LICENSE.zh-CN.md": "protected",
     "LICENSE.en.md": "protected",
@@ -46,6 +53,10 @@ REQUIRED_RULES = {
     "docs/RUST_CLI_TEMPLATE.md": "merge-sections",
     "docs/CLI_CONTRACT.md": "merge-sections",
     "docs/RELEASE.md": "merge-sections",
+    ".agents/skills/implement-change/scripts/check_file_line_limits.py": "managed",
+    ".agents/skills/implement-change/scripts/test_check_file_line_limits.py": "managed",
+    ".agents/skills/implement-change/scripts/check_core_first.py": "managed",
+    ".agents/skills/implement-change/scripts/test_check_core_first.py": "managed",
     ".agents/skills/upgrade-harness/**": "managed-self",
     ".agents/skills/add-cli-adapter/**": "conditional",
     ".agents/skills/add-tui-adapter/**": "conditional",
@@ -91,6 +102,10 @@ def validate_upgrade_contract(
         UPGRADE_SCRIPT,
         UPGRADE_CORE,
         UPGRADE_MUTATION,
+        UPGRADE_SAFETY,
+        UPGRADE_OWNERSHIP_MODULE,
+        UPGRADE_PREFLIGHT,
+        UPGRADE_RECORD,
         UPGRADE_POLICY_MODULE,
         UPGRADE_TESTS,
     ),
@@ -147,6 +162,22 @@ def validate_upgrade_contract(
                         errors,
                         "upgrade managed-self rule must precede generic managed rule",
                     )
+            required_managed = tuple(
+                pattern
+                for pattern, mode in REQUIRED_RULES.items()
+                if mode == "managed" and "*" not in pattern
+            )
+            for required_path in required_managed:
+                effective_mode = manifest.get("default_mode")
+                for pattern, mode in ordered:
+                    if fnmatch.fnmatchcase(required_path, pattern):
+                        effective_mode = mode
+                        break
+                if effective_mode != "managed":
+                    fail(
+                        errors,
+                        f"required checker ownership must remain managed: {required_path}",
+                    )
 
     for path in python_paths:
         if not path.is_file():
@@ -158,9 +189,3 @@ def validate_upgrade_contract(
         except (OSError, SyntaxError, UnicodeError) as error:
             fail(errors, f"invalid upgrade Python module {display_path(path)}: {error}")
             continue
-        if path != UPGRADE_TESTS and len(source.splitlines()) > 800:
-            fail(
-                errors,
-                f"upgrade production module exceeds 800-line hard threshold: "
-                f"{display_path(path)}",
-            )

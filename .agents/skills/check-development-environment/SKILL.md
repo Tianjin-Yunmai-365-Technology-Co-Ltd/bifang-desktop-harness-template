@@ -16,7 +16,7 @@ description: 在首次实际代码开发、接口/宿主/工具链约束变化�
 5. 仅当已记录的接口选择包含 `GUI` 时，Node.js 和 pnpm 才是阻断门禁。对于不含 GUI 的项目，必须把两者都报告为 `not-required`，并且不得探测、安装、升级或添加它们。
 6. 只有 `$build-tauri-release` 在 macOS 上已批准 Windows x64 NSIS 交叉目标时，才额外运行 `scripts/macos-tauri-xwin-gates.sh --install-missing`。该门禁检查并按需安装 LLVM/LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与 `cargo-xwin`；普通 GUI 开发不得因此安装这些发布专用工具。
 7. xwin 门禁只能使用既有 Homebrew、rustup、Cargo 和 pnpm。它不自动安装 Homebrew，不静默升级已有不兼容/残缺工具，不接受非 macOS 宿主或其他 Windows target；安装后必须逐项复探，并把 `gate.path.prepend` 仅用于当前批准的 Tauri 构建命令。
-8. 普通实际代码开发把宿主、接口指纹、观测版本、安装变更、最终状态和未验证平台写入已有或因长期环境缓存触发的 `docs/VERIFICATION.md`，供同一指纹后续复用。由中性 `$initialize-rust-project` 调用时，只把结构化结果返回初始化完成输出，绝不得创建或更新 `docs/VERIFICATION.md`。两种模式都不得记录不必要的用户主目录路径或敏感信息。
+8. 普通实际代码开发把宿主、接口指纹、观测版本、安装变更、最终状态和未验证平台按 `docs/VERIFICATION.md` 的路由写入已有或因长期环境缓存独立触发的日期证据卷，供同一指纹后续复用；只记录环境事实，不记录当前缺陷修复、重构或其他维护内容。由中性 `$initialize-rust-project` 调用时，只把结构化结果返回初始化完成输出，绝不得创建或更新验证索引/证据卷。两种模式都不得记录不必要的用户主目录路径或敏感信息。
 9. 必需门禁受阻时必须停止开发/构建任务。门禁成功只授权继续，不构成构建、测试、产物、验收或人工复核证据。
 
 ## 持久不变量

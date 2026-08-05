@@ -57,7 +57,7 @@ struct Envelope<T> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct StatusData {
-    /// 标识核心库与 CLI 工作区已完成初始化。
+    /// 标识项目的中性共享核心已完成初始化。
     initialized: bool,
     /// 标识仍需在当前项目中定义产品目的与核心输入输出。
     product_definition_required: bool,

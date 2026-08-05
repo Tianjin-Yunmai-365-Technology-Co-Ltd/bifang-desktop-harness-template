@@ -68,11 +68,27 @@ UPGRADE_SKILL = SKILLS_ROOT / "upgrade-harness"
 UPGRADE_SCRIPT = UPGRADE_SKILL / "scripts" / "harness_upgrade.py"
 UPGRADE_CORE = UPGRADE_SKILL / "scripts" / "harness_upgrade_core.py"
 UPGRADE_MUTATION = UPGRADE_SKILL / "scripts" / "harness_upgrade_mutation.py"
+UPGRADE_SAFETY = UPGRADE_SKILL / "scripts" / "harness_upgrade_safety.py"
+UPGRADE_OWNERSHIP_MODULE = UPGRADE_SKILL / "scripts" / "harness_upgrade_ownership.py"
+UPGRADE_PREFLIGHT = UPGRADE_SKILL / "scripts" / "harness_upgrade_preflight.py"
+UPGRADE_RECORD = UPGRADE_SKILL / "scripts" / "harness_upgrade_record.py"
 UPGRADE_POLICY_MODULE = UPGRADE_SKILL / "scripts" / "harness_upgrade_policy.py"
 UPGRADE_TESTS = UPGRADE_SKILL / "scripts" / "test_harness_upgrade.py"
 UPGRADE_OWNERSHIP = UPGRADE_SKILL / "references" / "ownership-manifest.json"
 UPGRADE_POLICY = UPGRADE_SKILL / "references" / "ownership-policy.md"
 RUST_ASSET = INITIALIZE_SKILL / "assets" / "rust-lib-cli"
+CORE_FIRST_CHECKER = (
+    SKILLS_ROOT / "implement-change" / "scripts" / "check_core_first.py"
+)
+CORE_FIRST_CHECKER_TESTS = (
+    SKILLS_ROOT / "implement-change" / "scripts" / "test_check_core_first.py"
+)
+LINE_LIMIT_CHECKER = (
+    SKILLS_ROOT / "implement-change" / "scripts" / "check_file_line_limits.py"
+)
+LINE_LIMIT_CHECKER_TESTS = (
+    SKILLS_ROOT / "implement-change" / "scripts" / "test_check_file_line_limits.py"
+)
 PREREQUISITE_UNIX = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.sh"
 PREREQUISITE_WINDOWS = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.ps1"
 PREREQUISITE_TESTS = ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates.py"
@@ -118,12 +134,20 @@ REQUIRED_FILES = (
     "docs/CLI_CONTRACT.md",
     "docs/AGENT_POLICY.md",
     "docs/ENGINEERING_RULES.md",
+    "docs/HARNESS_ENGINEERING.md",
+    "docs/harness_engineering/foundations.md",
+    "docs/harness_engineering/project_lifecycle.md",
+    "docs/harness_engineering/agent_first_design.md",
     "docs/product_spec/README.md",
     "docs/project_status/README.md",
     "docs/RELEASE.md",
     "docs/RUST_CLI_TEMPLATE.md",
     "docs/TECH_DEBT.md",
     "docs/VERIFICATION.md",
+    "docs/verification/20260722-20260723_verification.md",
+    "docs/verification/20260727-20260730_verification.md",
+    "docs/verification/20260803-20260804_verification.md",
+    "docs/verification/human_review.md",
     "docs/work_plan/README.md",
     "docs/adr/README.md",
     "docs/changelog/README.md",
@@ -152,12 +176,42 @@ REQUIRED_FILES = (
     ".agents/skills/upgrade-harness/scripts/harness_upgrade.py",
     ".agents/skills/upgrade-harness/scripts/harness_upgrade_core.py",
     ".agents/skills/upgrade-harness/scripts/harness_upgrade_mutation.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_safety.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_ownership.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_preflight.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_record.py",
     ".agents/skills/upgrade-harness/scripts/harness_upgrade_policy.py",
     ".agents/skills/upgrade-harness/scripts/test_harness_upgrade.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_test_support.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_plan_tests.py",
+    ".agents/skills/upgrade-harness/scripts/harness_upgrade_mutation_tests.py",
+    ".agents/skills/implement-change/scripts/check_core_first.py",
+    ".agents/skills/implement-change/scripts/test_check_core_first.py",
+    ".agents/skills/implement-change/scripts/check_file_line_limits.py",
+    ".agents/skills/implement-change/scripts/test_check_file_line_limits.py",
     "scripts/test_agile_workflow.py",
     "scripts/test_validate_harness.py",
     "scripts/test_release_validation.py",
     "scripts/harness_validation/release.py",
+    "scripts/harness_validation/architecture.py",
+    "scripts/harness_validation/architecture_requirements.py",
+    "scripts/harness_validation/test_architecture.py",
+    "scripts/harness_validation/test_document_partitions.py",
+    "scripts/harness_validation/line_limits.py",
+    "scripts/harness_validation/test_line_limits.py",
+    "scripts/harness_validation/governance_policy.py",
+    "scripts/harness_validation/governance_version.py",
+    "scripts/harness_validation/governance_descriptions.py",
+    "scripts/harness_validation/repository_memory.py",
+    "scripts/harness_validation/workflow_contract.py",
+    "scripts/harness_validation/initialization_environment.py",
+    "scripts/harness_validation/initialization_primary_contract.py",
+    "scripts/harness_validation/initialization_repository_contract.py",
+    "scripts/harness_validation_governance_tests.py",
+    "scripts/harness_workflow_test_support.py",
+    "scripts/harness_validation_workflow_structure_tests.py",
+    "scripts/harness_validation_workflow_execution_tests.py",
+    "scripts/harness_validation_upgrade_tests.py",
     "scripts/validate_harness.py",
 )
 

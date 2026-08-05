@@ -16,7 +16,7 @@ description: 在项目根 release 目录中取回、安全合并并验证当前�
 5. 仅把已选择的当前源清单文件直接复制到 `release/`。只有完成文件名冲突检查后，才可展平提供方包装目录。仅保留声明的最终用户二进制文件或归档、相邻校验和/签名文件、清单和明确要求的验证证据；绝不得复制 Cargo 中间产物。
 6. 在本地重新计算每个最终归档或安装包的 SHA-256，并与相邻校验和及清单比较。验证各清单的 `project`、`version`、`sourceCommit`、`buildRun`、`buildMode`、`platform`、`architecture`、`target`、`host`、`archive` 或 `installer`、`sha256`、`tests`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 和 `milestoneAcceptance` 字段一致；要求每个预期平台/架构精确出现一次。Tauri GUI 清单还必须验证 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`runtimeVerification`、`signingScope`、`notarizationStatus`、`notarizationReason` 与结构化 `notarizationEvidence`：`dmg` 已签名时只接受 `notarized-and-stapled`，`nsis` xwin 时只接受 `buildMode: cross-compiled-xwin` 与 `runtimeVerification: Unverified`。不得尝试新签名、公证或 stapling。对于 CLI 就地签名，要求存在已记录的固定钩子验证结果，并要求 `detachedFiles` 列表为空；项目声明独立签名证据时，明确要求每个被引用的普通文件及其校验和存在。
 7. 检查归档内容但不得执行二进制文件；拒绝绝对路径、父目录穿越和非预期载荷。只有项目策略或硬要求选择了里程碑冒烟/E2E 时，才验证已有对应证据。收集过程绝不得自行启动冒烟/E2E。
-8. 重新枚举 `release/`，并要求其与已选源清单精确相等：不得保留任何历史、临时、未声明或部分文件。在 `docs/VERIFICATION.md` 中更新清理清单、源运行、提交、已复制文件、大小、哈希、签名状态、里程碑状态、平台结果、缺失组合和剩余风险。
+8. 重新枚举 `release/`，并要求其与已选源清单精确相等：不得保留任何历史、临时、未声明或部分文件。按 `docs/VERIFICATION.md` 的路由在日期证据卷中更新清理清单、源运行、提交、已复制文件、大小、哈希、签名状态、里程碑状态、平台结果、缺失组合和剩余风险。
 
 ## 输出契约
 

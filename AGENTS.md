@@ -9,8 +9,8 @@
 1. 始终先读 `README.md` 和 `docs/AGENT_POLICY.md`；若 `superpowers: disabled`，本次及后续工作不得调用任何 `superpowers:*` Skill。
 2. 判断本次采用快速、标准还是里程碑路径，并用一句话说明。范围清楚、局部、可逆且无高风险触发器时默认快速；用户可以直接选择更严格路径。
 3. 只读与任务相关的事实来源和 Skill：产品目标/边界变化才读最新 Product Spec；恢复进度、阻断或交接时读最新 Product Status；标准/里程碑且存在活动计划时读最新 Work Plan；涉及长期决定或硬规则例外时读最新 ADR。代码、测试或文档变更读 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)。
-4. CLI 任务读 `docs/CLI_CONTRACT.md`；Rust core/adapter 任务读 `docs/RUST_CLI_TEMPLATE.md`；里程碑、发布或历史证据相关任务才读 `docs/VERIFICATION.md`/`docs/RELEASE.md`。
-5. 只有需要理解方法论时才读 `docs/HARNESS_ENGINEERING.md`。
+4. CLI 任务读 `docs/CLI_CONTRACT.md`；Rust core/adapter 任务读 `docs/RUST_CLI_TEMPLATE.md`；里程碑、发布或历史证据相关任务先读 `docs/VERIFICATION.md`/`docs/RELEASE.md`，再按索引读取 `docs/verification/` 的相关证据卷。
+5. 只有需要理解方法论时才读 `docs/HARNESS_ENGINEERING.md`，再按索引选择 `docs/harness_engineering/` 的相关主题卷。
 
 不要为了“完整”一次性加载所有项目记忆。先按任务定位，再在发现冲突或缺失时扩展读取。
 
@@ -27,7 +27,7 @@
 | 当前实施步骤 | `docs/work_plan/README.md` 与日期最新的 `YYYYMMDD_work_plan.md` |
 | 文件、注释、文档、测试与例外规则 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) |
 | 产品边界变化、长期决定与硬规则例外 | `docs/adr/README.md` 与当日 `docs/adr/YYYYMMDD_ADR.md` |
-| 验证方式与结果 | `docs/VERIFICATION.md` |
+| 验证方式与结果 | `docs/VERIFICATION.md` 与其索引的 `docs/verification/*.md` |
 | 已知限制与技术债 | `docs/TECH_DEBT.md` |
 | 版本与发布要求 | `docs/RELEASE.md` |
 | 用户和维护者可见变更 | `docs/changelog/README.md` 与当日 `docs/changelog/YYYYMMDD_CHANGELOG.md` |
@@ -46,10 +46,13 @@
 - `$implement-change` 可直接接受范围清楚的请求或活动计划。代码行为变化必须以相关非空测试覆盖核心成功路径和最高风险失败路径；纯文档、元数据、格式或不可合理单测的机械变更使用相称的链接、解析、静态、现有回归或差异检查，不为凑测试数量创建空洞测试或 ADR 例外。
 - 模板约束默认是硬规则。确需例外时，在当日 `docs/adr/YYYYMMDD_ADR.md` 记录理由、风险、适用范围和恢复标准后方可继续。
 - 优先最短可靠闭环，避免为假想未来增加抽象、接口或依赖。
-- 文件组织、中文业务注释、文档职责、测试组织和规则例外统一遵守 `docs/ENGINEERING_RULES.md`；软行数阈值只触发审查，不自动判定失败。
+- 文件组织、中文业务注释、文档职责、测试组织和规则例外统一遵守 `docs/ENGINEERING_RULES.md`。所有人工或 Agent 维护的文本文件严格不得超过 400 个物理行；超限必须拆分且门禁失败，工具生成锁文件/生成物和原样内嵌第三方文件按封闭范围定义处理。
 - 下游初始化必须询问用户选择 `CLI/TUI/MCP/GUI`，允许多选；无选择时默认 CLI。四类接口分别由 `$add-cli-adapter`、`$add-tui-adapter`、`$add-mcp-adapter`、`$add-gui-adapter` 独立实施，任何一种都不要求另一种存在。
 - 下游 Product Spec 尚未创建或仍为 `Draft` 时允许先初始化中性 Rust workspace 与已选接口；此阶段只提供无业务副作用的 scaffold status，CLI JSON 明确返回 `productDefinitionRequired=true`，不得猜测业务逻辑、发布或声称产品交付完成。
-- 下游项目初始化默认采用 `docs/RUST_CLI_TEMPLATE.md` 中的 Rust 2024 shared-core 与 adapter 基线。只有选中 CLI 时才应用 CLI 契约；选择其他语言、把业务逻辑混入 adapter 或降低工具链约束必须通过范围闸门并记录决策。
+- 下游项目初始化默认采用 `docs/RUST_CLI_TEMPLATE.md` 中的 Rust 2024 shared-core 与 adapter 基线。只有选中 CLI 时才应用 CLI 契约；选择其他语言或降低工具链约束必须通过范围闸门并记录决策。
+- Core-first 是硬规则：接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略必须在 core 中实现，即使当前只有一个 adapter 也同样适用。把这些业务逻辑混入 adapter 只能按硬规则例外 ADR 处理。
+- CLI/TUI/MCP/GUI 必须是薄适配层，只负责运行时装配、接口语法/协议结构、展示和纯交互状态、调用 core，以及映射结果/错误。系统托盘、窗口/WebView、通知、自动启动、终端按键/恢复、MCP stdio 和 CLI 退出码等特有机制留在对应 adapter，但其触发的业务动作仍调用 core；薄层按职责而不是行数判断。
+- 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 - 下游 CLI、TUI、MCP 必须使用 Tokio current-thread async 入口；GUI 必须复用 Tauri 的 Tokio-backed async runtime 和 plain async commands，不创建嵌套 runtime。所有 Rust adapter 开发默认优先异步 I/O、等待、计时、进程、协议和命令调用；只有测量确认的 CPU 密集工作才可考虑受控 `spawn_blocking`、专用线程或多线程 runtime，并记录任务所有权、取消、并发上限、资源预算和验证。只有同步阻塞 API 的依赖不能成为启用线程的默认理由，应替换为异步能力或进入范围/例外确认。core 可以暴露 runtime-neutral 的 async API；只有真实业务需要 Tokio 原语时才增加 core 的 Tokio 生产依赖，不得默认使用 `full`。
 - 下游 TUI 固定使用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定使用执行时最新兼容稳定的 React + TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。这些是硬规则；不得因 Draft、页面简单或 Agent 偏好省略，偏离必须记录硬规则例外。其他技术只在真实开发需要时结合项目推荐并通过依赖准入。
 - 下游依赖在已声明 MSRV、Windows/macOS/Linux、最小 feature 集和完整验证约束内优先采用 registry 中较新的稳定版本；`Cargo.toml` 保存兼容范围，根 `Cargo.lock` 固定实际解析结果。无法采用较新稳定版本时必须记录原因、影响和复核条件，不得以“最新版”为由静默提高 MSRV、采用预发布版或跳过验证。
@@ -58,7 +61,7 @@
 - Cargo 根 `[workspace.dependencies]` 是 member 依赖版本、来源、内部路径和基线 feature 的唯一来源；所有子 crate 的生产、开发和构建依赖只使用 `workspace = true`。
 - `$instantiate-project` 必须先要求用户提供完整目标项目目录路径；解析后的目录 basename 必须与项目标识一致，且目标必须不存在或为空。复制后该目录是初始化、代码修改、构建、验收和发布准备的唯一项目根目录。
 - `$instantiate-project` 必须在目标根创建独立 Git 仓库并验证 top-level 精确等于项目根，初始分支为 `main`；目标位于父仓库内时也必须建立自己的边界。不得复制源 `.git`。Scaffold 验证和初始化能力裁剪完成后，必须使用用户现有 Git 身份创建唯一的本地初始化基线 commit，并验证无 remote 且 `git status --porcelain=v1 --untracked-files=all` 为空；不得 tag、配置 remote、push、伪造身份或修改全局 Git 配置。直接调用 `$initialize-rust-project` 时必须补建缺失边界并执行同一收尾门禁。
-- 实例化不得迁移或预创建 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md`。它们分别在首次产品边界确认、标准/里程碑计划、真实可见变更和需要长期审计的里程碑/人工复核时按需创建；快速路径不得为了形式完整预建空记忆。
+- 实例化不得迁移或预创建 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 或 `docs/verification/`。它们只在各自事件触发条件满足时按需创建；快速路径不得为了形式完整预建空记忆。
 - 下游项目标识统一使用跨平台安全的 ASCII `snake_case`；core 与四类接口目录确定性派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`，不得另行配置。
 - 下游 Rust 首次初始化必须在当前项目根目录创建 workspace `Cargo.toml`，登记 core 与用户实际选择的 adapter members，并持续纳管未来新增 crate；不得在其他目录创建替代 workspace。
 - 选择 CLI 时必须支持完全非交互运行和 `--json`，并遵守 `docs/CLI_CONTRACT.md`；未选择 CLI 的项目不适用该契约。
@@ -73,11 +76,13 @@
 - 跨平台设计不得默认单一 Shell、路径分隔符、文件权限模型或仅在一个平台存在的系统能力。
 - 仓库中没有明确命令时，不得虚构构建、测试或发布命令。
 - Product Spec 只在产品目标、边界、约束或成功标准改变时更新；ADR 只记录长期重要、难以逆转的决定和硬规则例外；Product Status 只在里程碑、重要阻断、跨会话交接或用户要求时更新；Work Plan 只用于标准/里程碑路径或用户要求；`docs/VERIFICATION.md` 只保存里程碑、发布、人工复核或长期审计证据。
-- Changelog 只记录已经发生且用户或维护者可感知的变化。快速路径若不触发任何持久记忆，最终回复概括变更、实际验证和未验证范围即可，不要求写“不适用”占位。
+- 普通缺陷修复、不改变可观察行为的纯重构、格式整理、测试补强和内部清理本身不触发 Product Spec、ADR、Product Status、Changelog 或 Verification；结果只在最终回复和测试/CI 中报告。复杂度、风险、交接或用户要求仍可独立触发 Work Plan；产品边界、长期决定/硬规则例外、重要阻断/交接、发布/人工复核/长期审计、安全或渠道要求等独立事件仍按原规则记录，维护任务标签不得绕过门禁。
+- Changelog 只记录已经发生、用户或维护者可感知且不属于上述普通维护排除的合格变化。未触发任何持久记忆时，最终回复概括变更、实际验证和未验证范围即可，不要求写“不适用”占位。
 - 需要写日期快照时，同日更新现有文件；新自然日读取前一份并综合仍有效事实。开发或修改长期规则前读取最新 ADR，并只追溯其中明确引用的旧决定。
 - 发现但不在当前范围内的问题写入 `docs/TECH_DEBT.md`，不要顺手扩张任务。
 - 不覆盖或撤销用户已有修改；遇到重叠内容时基于现状继续。
 - 每轮实现运行与变更相称的最小充分验证。代码行为变化运行相关非空单元/回归测试，并按风险选择格式、lint、静态和集成/契约检查；非代码变更运行相称的解析、链接、静态或差异检查。检查失败不得延迟，也不得把开发证据误报为里程碑已验收。
+- 每轮实现还必须通过 `.agents/skills/implement-change/scripts/check_file_line_limits.py`；400 行通过、401 行失败。该门禁适用于全部人工维护文本，不只检查本次改动文件。
 - 只有里程碑路径要求当前批次 Todo 全部为 `done` 后进入验收。候选必须绑定批准场景、源码 commit、运行环境和可观察结果；源码片段、Mock、stub、占位页面、中性 scaffold、开发预览或仅调用内部函数的结果不具备验收资格。
 - 冒烟与 E2E 只允许由 `$verify-delivery` 在验证里程碑读取 `milestone_smoke`、`milestone_e2e`、产品/渠道硬要求和实际适用性后决定。`disabled` 的可选项记录 `Not run` 与风险；硬要求不得跳过。需要凭据、生产数据、支付、发布或不可逆副作用时仍须独立授权。
 - 验证里程碑必须重新执行基于当前候选源码的编译/构建、非空单元测试、相关集成/契约和真实产物存在性检查。Todo 全部完成后，构建可在条件具备时先签名，并把明确标记 `milestoneAcceptance: pending` 的候选放入根 `release/` 或上传用于验收传输；它不是 ready/发布物。按策略启用或硬要求的冒烟/E2E 必须针对这些最终字节执行，并在标记 ready、发布上传或正式发布前通过。
@@ -87,7 +92,7 @@
 - 启动冒烟测试只在验证里程碑调用真实产物，使用适合已选接口的已记录只读入口，并在限定时间内以预期状态结束；不得产生业务副作用。
 - Windows、macOS 和 Linux 是兼容目标；Todo 开发只验证变更相关的当前系统范围，验证里程碑重新验证当前系统完整闭环。其他平台必须明确标记为 `Unverified`，不得声称已通过。
 - 必需检查失败时，Agent 可在原任务授权范围内诊断、重开 Todo、修复和重跑。破坏性操作、范围变化或新的外部副作用必须先请求人工审批。
-- 最终发布、不可逆交付或项目/渠道明确要求的里程碑必须由人工复核；普通快速/标准任务不强制人工签署。需要人工复核时写入 `docs/VERIFICATION.md`，记录复核人、日期、范围、结论和剩余风险；Agent 不得代签。
+- 最终发布、不可逆交付或项目/渠道明确要求的里程碑必须由人工复核；普通快速/标准任务不强制人工签署。需要人工复核时按 `docs/VERIFICATION.md` 路由写入 `docs/verification/human_review.md`，记录复核人、日期、范围、结论和剩余风险；Agent 不得代签。
 - 人工审批只授权后续操作，不能把失败或未执行的检查改判为通过。
 - 完成声明必须列出实际验证、未执行验证和剩余风险。
 
@@ -139,7 +144,7 @@
 | 下游 Harness 工程来源与升级 | `$upgrade-harness`、`.harness/upstream-lock.json` |
 | 商业许可与知识产权 | 根目录 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`；下游只替换适用项目名并保留其余条款 |
 
-模板自身发生文档、Skill 或候选 workflow 变更时，运行 `python3 scripts/validate_harness.py`。该命令成功不替代当前变更要求的代码测试，也不替代里程碑路径的真实下游验收或必要人工复核。
+模板自身发生文档、Skill 或候选 workflow 变更时，通过当前平台可用的 Python 3 解释器运行 `scripts/validate_harness.py`。修改 Python 门禁行为时还必须以同一解释器运行 `-m unittest discover -s scripts`；该默认回归入口必须包含可复用检查器的专属测试，不依赖 Shell 引号或 POSIX 可执行位。上述命令成功不替代其他当前变更要求的代码测试，也不替代里程碑路径的真实下游验收或必要人工复核。
 
 ## 每次任务的最小闭环
 

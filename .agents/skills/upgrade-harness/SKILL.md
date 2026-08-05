@@ -12,7 +12,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 1. 读取下游的 `AGENTS.md`、`docs/AGENT_POLICY.md`、存在时日期最新的产品规格、产品状态、工作计划和 ADR、`docs/ENGINEERING_RULES.md`、`docs/TECH_DEBT.md`，以及存在时的 `.harness/upstream-lock.json`。读取源 Harness 的 `Version.md`、日期最新的产品规格、产品状态和 ADR，以及其验证命令。
 2. 无法无歧义发现源 Harness 根目录时，要求用户明确指定。将源根目录和下游根目录解析为互不相同的规范绝对路径。要求每个现有 Git 仓库的顶层目录等于其声明根目录；拒绝符号链接根目录、嵌套歧义、源与目标相同，以及声明根目录以外的路径。
 3. 读取 [所有权策略](references/ownership-policy.md)，并使用 [所有权清单](references/ownership-manifest.json)。将该清单视为最低保护策略，而不是复制每个匹配源文件的许可。
-4. 检查下游已选接口、身份映射、保留的 Skills、已批准例外和持久 Agent 策略。构建只包含适用于该下游工程文件的任务局部候选树。排除每个 `protected` 或 `tombstone` 源路径。把下游展示名称、标识符、路径、已选适配器和其他已批准身份差异渲染到候选中；原始 Harness 源目录树绝不是有效候选树。
+4. 检查下游已选接口、身份映射、保留的 Skills、已批准例外和持久 Agent 策略。构建只包含适用于该下游工程文件的任务局部候选树。排除每个 `protected` 或 `tombstone` 源路径。把下游展示名称、标识符、路径、已选适配器和其他已批准身份差异渲染到候选中；原始 Harness 源目录树绝不是有效候选树。源 Harness 中 `.agents/skills/implement-change/scripts/check_file_line_limits.py` 及其测试必须保留内容摘要一致的候选；若存在 `check_core_first.py` 及其测试也同样保留，升级器在生成计划时机械阻断遗漏或旧版占位内容。
 5. 要求源 Harness Git 工作树干净，并且其现有 `HEAD` 与声明的源提交匹配；要求声明的源版本与源 `Version.md` 匹配。信任候选之前先运行源 Harness 验证器。不得把该模板专用验证器复制到下游。记录源版本、源提交、候选构建输入、下游分支、提交、脏状态摘要，以及未验证平台。
 6. 生成只读计划：
 
@@ -53,7 +53,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
     ```
 
     该命令根据目标拥有的精确所有权清单和 `.harness/upstream-lock.json` 重新构建计划，绑定源与目标 Git 身份，比较完整的已复核 JSON，预检每项操作，并且只原子替换一个现有文件。每应用一个路径后都要生成并复核新计划。普通 `managed` 更新必须先于 `managed-self` 完成；在自更新路径内部，命令行工具强制执行稳定顺序，并最后替换自身入口。计划篡改或源、候选、目标、控制文件发生任何漂移，都会在写入前中止。使用 `apply_patch` 单独解决 `add`、`manual_add`、`delete`、`merge-sections` 和 `conditional` 项；不得仅为避免合并而替换整个混合所有权文件。
-11. 代码行为变化运行相关非空单元/回归测试，以及受影响的格式、代码规范、静态、集成和契约检查；纯文档/元数据升级使用相称替代验证。Todo 循环期间不得运行冒烟/E2E。只有任务采用里程碑路径时，全部 Todo 为 `done` 后才把完整真实候选交给 `$verify-delivery`。
+11. 代码行为变化运行相关非空单元/回归测试，以及受影响的格式、代码规范、静态、集成和契约检查；纯文档/元数据升级使用相称替代验证。所有升级都必须通过保留的 `.agents/skills/implement-change/scripts/check_file_line_limits.py`，Python 3 不可用或任一人工维护文本超过 400 行时阻断；涉及 Rust shared core/adapter 时再运行 `check_core_first.py`，不可用则运行并记录等价的锁定 Cargo metadata 依赖图审查。Todo 循环期间不得运行冒烟/E2E。只有任务采用里程碑路径时，全部 Todo 为 `done` 后才把完整真实候选交给 `$verify-delivery`。
 12. 重新运行 `plan`。解决每个阻断项和未应用的受管理操作。只有目标包含已复核结果后，才能记录已验证基线：
 
     ```text
@@ -64,8 +64,8 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
       --approval record-verified-baseline
     ```
 
-    每个剩余且已复核的 `manual_merge` 分类都必须重复传入 `--resolved-manual <path>`。精确集合必须与计划匹配，否则记录失败。`manual_add` 必须先创建目标并生成新的已复核收敛计划。绝不得记录仍有 `add`、`manual_add`、`delete`、`update`、阻断项、已变更计划或未经复核混合路径的基线。
-13. 完成任何 `managed-self` 更新后，重新运行升级后更新器的测试和计划。只更新被触发的下游记忆：重要阻断/交接更新 Status，用户或维护者可感知变化更新 Changelog，里程碑或长期审计证据更新 Verification。不得导入源 Harness 的任何项目记忆或批准历史。
+    每个剩余且已复核的 `manual_merge` 分类都必须重复传入 `--resolved-manual <path>`。精确集合必须与计划匹配，否则记录失败。`manual_add` 必须先创建目标并生成新的已复核收敛计划。绝不得记录仍有 `add`、`manual_add`、`delete`、`update`、阻断项、已变更计划、源 Harness 必需 managed 路径遗漏或未经复核混合路径的基线。
+13. 完成任何 `managed-self` 更新后，重新运行升级后更新器的测试和计划。只更新被独立事件触发的下游记忆：重要阻断/交接更新 Status，符合 Changelog 索引范围的新增、行为/契约变化、移除或安全事项更新 Changelog，里程碑或长期审计证据更新 Verification。普通缺陷修复、纯重构和内部清理本身不触发这些记忆。不得导入源 Harness 的任何项目记忆或批准历史。
 
 ## 安全边界
 

@@ -15,19 +15,20 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 4. 询问初始化需要哪些接口，只能从 `CLI`、`TUI`、`MCP` 和 `GUI` 中选择，并允许任意组合。如果用户没有作出选择，则记录 `CLI`。用户明确选择其他接口时，不得静默附加 CLI。
 5. 直接调用本 Skill 且目标项目策略尚未解析时，先只让用户选择“推荐敏捷预设”或“自定义”。推荐路径须显式确认并展开为 `superpowers: enabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`；自定义只询问目标用户尚未明确提供的字段，每项至多一次。Harness 源字段值不是下游确认，不得据此跳过选择，也不得静默采用推荐值。全部四项、真实确认来源和日期收齐后，才以 `schema_version: 1` 和 `reuse_then_infer_then_ask` 一次原子写入，不新增预设字段且不遗留 `pending`。如果 `$instantiate-project` 已记录这些值，则只验证并复用，不再次询问。
 6. 写入脚手架文件之前，使用已记录的接口选择调用 `$check-development-environment`。Rust 始终是必需项；Windows 仍需满足 Rust MSVC 前置条件。只有包含 `GUI` 的选择才增加阻断性的 Node.js 和 pnpm 门禁。记录当前宿主证据，并在任何必需工具受阻时停止。
-7. 使用中性资产创建根 Cargo 工作区和 `<project-id>_core`，不得引入业务假设。核心必须保持运行时中立，并且不得包含接口、进程、终端、协议、浏览器或桌面类型。根 `[workspace.dependencies]` 必须始终是唯一依赖来源，成员清单必须使用 `workspace = true`。创建或更新项目根目录 `.gitignore`，使其恰好一次包含根锚定的 `/release/` 和 `/.release-clean.*` 条目；不得忽略根目录以外名称类似 release 的目录。
-8. 将每个已记录接口分派给各自的 Skill：`$add-cli-adapter`、`$add-tui-adapter`、`$add-mcp-adapter` 或 `$add-gui-adapter`。每个已选 Skill 负责自己的适配器目录和测试。TUI 使用固定的 Ratatui + tui-realm + tui-realm-stdlib 技术栈；Tauri GUI 前端使用固定的 React + TypeScript + Mantine UI + TanStack Router + TanStack Query + Jotai 技术栈。自带的 `rust-lib-cli` 资产提供中性核心和可选的 CLI 实现；未选择 CLI 时不得复制其中的 CLI 成员。
+7. 使用中性资产创建根 Cargo 工作区和 `<project-id>_core`，不得引入业务假设。核心必须保持运行时中立，并且不得包含接口、进程、终端、协议、浏览器或桌面类型。Core-first 是永久硬规则：产品获批后，接口/宿主无关的领域类型、业务规则、语义校验、用例编排、状态转换和稳定错误都先在 core 中实现和测试，即使只选择一个适配器也同样适用。根 `[workspace.dependencies]` 必须始终是唯一依赖来源，成员清单必须使用 `workspace = true`。创建或更新项目根目录 `.gitignore`，使其恰好一次包含根锚定的 `/release/` 和 `/.release-clean.*` 条目；不得忽略根目录以外名称类似 release 的目录。
+8. 将每个已记录接口分派给各自的 Skill：`$add-cli-adapter`、`$add-tui-adapter`、`$add-mcp-adapter` 或 `$add-gui-adapter`。每个已选 Skill 负责自己的薄适配器目录和测试，只拥有运行时装配、接口语法/协议结构、展示/纯交互状态、调用 core 和结果映射；系统托盘、窗口、终端恢复或 stdio 生命周期等机制留在所属适配器，但其业务动作仍调用 core。TUI 使用固定的 Ratatui + tui-realm + tui-realm-stdlib 技术栈；Tauri GUI 前端使用固定的 React + TypeScript + Mantine UI + TanStack Router + TanStack Query + Jotai 技术栈。自带的 `rust-lib-cli` 资产提供中性核心和可选的 CLI 实现；未选择 CLI 时不得复制其中的 CLI 成员。
+   - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 9. Product Spec 不存在或仍为 `Draft` 时，每个已选接口只能公开中性脚手架状态，其中包含 `productDefinitionRequired=true` 或接口等价的可见状态。不得虚构业务命令、工具、屏幕、路由、数据或副作用。产品获批后，只实现尚未暴露的内部 core 行为可采用标准路径；任何适配器首次替换中性状态或建立公开命令、工具、页面、协议时都必须进入里程碑路径。后续局部、可逆且不改变公开契约的变更才可按快速/标准规则处理。
-10. 必须通过 Cargo 生成 `Cargo.lock`。对每个已创建成员运行格式检查、代码规范检查、非空测试和锁定依赖构建；中性初始化期间不得运行冒烟或 E2E。测试必须覆盖核心中性状态、每个已选适配器的可观察状态，以及对未批准业务行为的拒绝。
+10. 必须通过 Cargo 生成 `Cargo.lock`。对每个已创建成员运行格式检查、代码规范检查、非空测试和锁定依赖构建。通过当前平台的 Python 3 解释器运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`，检查器不得依赖 POSIX 可执行位；任一人工维护文本超过 400 个物理行或 Python 3 不可用时阻断。工具生成且禁止手工编辑的 `Cargo.lock` 按检查器的封闭分类处理。随后运行 `check_core_first.py`；只有该检查在 Python 3 不可用时才允许使用 `cargo metadata --no-deps --locked --format-version 1` 执行并记录等价依赖图审查。中性初始化期间不得运行冒烟或 E2E。测试必须覆盖核心中性状态、每个已选适配器的可观察状态，以及对未批准业务行为的拒绝。
 11. 使用实际结果更新保留的产品状态、接口、策略和真实技术债；环境、测试、构建、Git 边界与未测试系统只汇总到本次完成输出，不创建或更新 `docs/VERIFICATION.md`。不得为中性初始化创建产品规格、工作计划、ADR 或变更记录，并明确脚手架不是里程碑产物。如果选择 GUI，必须记录 `$prepare-gui-app-identity` 是首次产品 GUI 开发前的强制步骤。
 12. 只有全部脚手架检查完成后，才能收尾下游仓库：
     - 完整删除 `.agents/skills/instantiate-project/` 和 `.agents/skills/initialize-rust-project/`；
-    - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
-    - 保留 `$rename-project-identity`、`$check-development-environment`、`$prepare-gui-app-identity`、`$upgrade-harness`、`$run-parallel-worktrees`，以及仍然适用的产品开发、适配器、验证和发布 Skills；选择 GUI 时保留 `$build-tauri-release`，未选择 GUI 时将其作为不适用的条件 Skill 删除；
+    - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、`docs/harness_engineering/`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
+    - 保留 `$rename-project-identity`、`$check-development-environment`、`$prepare-gui-app-identity`、`$upgrade-harness`、`$run-parallel-worktrees`，以及仍然适用的产品开发、适配器、验证和发布 Skills；必须保留 `$implement-change` 及其 `scripts/check_file_line_limits.py`、`scripts/test_check_file_line_limits.py`、`scripts/check_core_first.py` 和对应测试，并在裁剪后再次按第 10 步运行两个检查器；选择 GUI 时保留 `$build-tauri-release`，未选择 GUI 时将其作为不适用的条件 Skill 删除；
     - 保留继承的两份非开源企业专有商业许可证文件 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，其中目标项目名称必须已由 `$rename-project-identity` 建立；如果任一文件缺失、仍包含旧 Harness 身份、在批准改名后发生其他修改，或被安排删除，则最终收尾必须失败；
     - 重写 `AGENTS.md`，同时保留非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$run-parallel-worktrees` 和 `$upgrade-harness` 的持久策略用法。约束地图必须链接保留的规则并禁止下游继续派生；
     - 搜索下游根目录；如果历史证据之外仍存在对 `$instantiate-project`、`$initialize-rust-project`、其目录或仅用于初始化的门禁的活动引用，则最终收尾必须失败。
-13. 裁剪完成后，如果本次运行由 `$instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/` 和 `docs/VERIFICATION.md` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆，绝不得为了满足此检查而删除它们。暂存完整的已初始化下游项目树，并使用用户现有 Git 身份创建恰好一个本地基线提交，提交消息必须为 `chore: initialize project`。如果作者身份不可用，必须停止并向用户请求；不得伪造身份或修改全局 Git 配置。
+13. 裁剪完成后，如果本次运行由 `$instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆与验证证据目录，绝不得为了满足此检查而删除它们。暂存完整的已初始化下游项目树，并使用用户现有 Git 身份创建恰好一个本地基线提交，提交消息必须为 `chore: initialize project`。如果作者身份不可用，必须停止并向用户请求；不得伪造身份或修改全局 Git 配置。
 14. 创建基线提交之前，必须确认四项策略字段和确认元数据均不包含 `pending`。如果具备精确的源溯源和渲染后的保留工程层候选，则通过 `$upgrade-harness record --bootstrap` 建立 `.harness/upstream-lock.json`；否则必须记录首次升级所需的初始基线审计，不得虚构锁文件。验证已完成仓库的规范顶层目录、`main`、可解析的基线提交、无远端，以及空的 `git status --porcelain=v1 --untracked-files=all`。任何失败都必须阻断完成。
 15. 下一步必须转到 `$define-product`。生成的下游项目是终端项目根目录，而不是另一个 Harness；绝不得根据脚手架声称产品已经交付。
 
@@ -37,6 +38,10 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 - 根 `Cargo.toml` 管理共享核心，并且只管理用户实际选择的适配器成员。
 - 确定性目录为 `<project-id>_core`、`_cli`、`_tui`、`_mcp` 和 `_gui`。
 - 每个适配器必须直接依赖核心，并且绝不得解析、启动、嵌入或要求另一个适配器。
+- Core-first 按职责而非代码行数判断：领域规则、语义校验、业务默认值、用例编排、状态转换和稳定错误属于 core；适配器只拥有协议/展示/交互/宿主机制和映射。当前只有一个适配器不是例外，偏离只能按硬规则例外 ADR 处理。
+- 所有人工或 Agent 维护的文本文件不得超过 400 个物理行；这是独立于 core-first 语义判断的失败门禁，不能以 ADR、职责集中或测试夹具为由放宽。
+- 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
+- 每个适配器公开真实操作时必须记录“适配器操作 → core API → core 测试”；系统托盘等 adapter-only 机制必须记录其接口/宿主专属性，并把业务效果委托 core。
 - CLI、TUI 和 MCP 适配器默认使用 Tokio current-thread 异步入口；GUI 复用 Tauri 由 Tokio 支撑的异步运行时。所有 Rust 适配器工作优先采用异步 I/O 和等待。只有经过测量的 CPU 密集工作才可以进入有边界的线程边界；仅提供阻塞接口的依赖必须被替换，或通过范围与硬规则例外流程获得批准。除非已批准的领域需求另有要求，核心必须保持运行时中立。
 - 已选 TUI 或 GUI 适配器即使处于 `Draft` 状态也必须应用固定技术栈；替换技术栈需要记录硬规则例外。
 - 只有选择 CLI 时，CLI 才遵守 `docs/CLI_CONTRACT.md`。

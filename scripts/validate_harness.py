@@ -11,6 +11,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.harness_validation.context import EXPECTED_SKILLS, REQUIRED_FILES, WORKFLOW
+from scripts.harness_validation.architecture import validate_core_first_contract
 from scripts.harness_validation.governance import (
     validate_agent_policy,
     validate_current_descriptions,
@@ -19,6 +20,7 @@ from scripts.harness_validation.governance import (
     validate_version_contract,
 )
 from scripts.harness_validation.initialization import validate_initialization_contract
+from scripts.harness_validation.line_limits import validate_repository_line_limits
 from scripts.harness_validation.repository import (
     validate_daily_project_memory,
     validate_markdown_links,
@@ -50,6 +52,8 @@ def main() -> int:
     validate_release_contract(errors)
     validate_upgrade_contract(errors)
     validate_initialization_contract(errors)
+    validate_core_first_contract(errors)
+    validate_repository_line_limits(errors)
     validate_agent_policy(errors)
     validate_engineering_contract(errors)
     validate_parallel_and_tiered_verification(errors)
@@ -65,9 +69,9 @@ def main() -> int:
         return 1
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
-        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, five event-triggered project-memory streams, "
+        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, hard 400-line limits, five event-triggered project-memory streams, "
         "optional standard plans and strict milestone gates, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
-        "parallel worktree gates, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
+        "parallel worktree gates, core-first dependency boundaries, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."
     )
     return 0

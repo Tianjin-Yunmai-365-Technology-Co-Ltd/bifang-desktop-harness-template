@@ -5,7 +5,7 @@
 /// 表示工程骨架是否就绪，以及是否仍需补充产品定义。
 #[derive(Debug, PartialEq, Eq)]
 pub struct ScaffoldStatus {
-    /// 标识核心库与 CLI 工作区已经完成结构初始化。
+    /// 标识项目的中性共享核心已经完成结构初始化。
     pub initialized: bool,
     /// 标识产品目的、核心输入输出和成功标准尚待明确。
     pub product_definition_required: bool,
@@ -13,7 +13,7 @@ pub struct ScaffoldStatus {
 
 /// 查询不带任何业务假设或外部副作用的中性脚手架状态。
 ///
-/// 该异步 API 供 CLI 和未来获批适配器复用，但不绑定 Tokio 类型、序列化格式或终端状态。
+/// 该异步 API 供任意已选适配器复用，但不绑定 Tokio 类型、序列化格式或接口状态。
 pub async fn scaffold_status() -> ScaffoldStatus {
     ScaffoldStatus {
         initialized: true,

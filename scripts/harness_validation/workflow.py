@@ -7,36 +7,14 @@ from pathlib import Path
 import re
 
 from .context import WORKFLOW, display_path, fail
-
-
-CHECKOUT_USE = (
-    "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+from .workflow_contract import (
+    CHECKOUT_USE,
+    EXPECTED_ACTION_STEPS,
+    EXPECTED_INPUTS,
+    EXPECTED_NAMED_STEPS,
+    EXPECTED_WORKFLOW_SHA256,
+    UPLOAD_USE,
 )
-UPLOAD_USE = (
-    "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
-)
-EXPECTED_WORKFLOW_SHA256 = (
-    "64eeaf240ff2403ffe5efee156a59a65c744f2480287b0cfa320b25b66501b50"
-)
-EXPECTED_INPUTS = {"confirm_candidate_build", "source_commit", "version"}
-EXPECTED_NAMED_STEPS = (
-    "确认已授权候选预检",
-    "选择 Python 运行时",
-    "验证已检出源码",
-    "选择项目 MSRV",
-    "验证候选版本",
-    "准备 Unix 发布目录",
-    "准备 Windows 发布目录",
-    "验证候选",
-    "尝试 Unix 签名",
-    "尝试 Windows 签名",
-    "打包 Unix 候选",
-    "打包 Windows 候选",
-    "解析候选制品",
-    "记录候选清单",
-    "提交候选制品集合",
-)
-EXPECTED_ACTION_STEPS = (CHECKOUT_USE, UPLOAD_USE)
 
 
 def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:

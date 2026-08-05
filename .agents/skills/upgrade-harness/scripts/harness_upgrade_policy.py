@@ -30,6 +30,12 @@ BLOCKING_CLASSES = {
     "tombstone_present",
 }
 MANUAL_CLASSES = {"add", "delete", "manual_add", "manual_merge"}
+REQUIRED_MANAGED_SOURCE_PATHS = (
+    ".agents/skills/implement-change/scripts/check_file_line_limits.py",
+    ".agents/skills/implement-change/scripts/test_check_file_line_limits.py",
+    ".agents/skills/implement-change/scripts/check_core_first.py",
+    ".agents/skills/implement-change/scripts/test_check_core_first.py",
+)
 MINIMUM_OWNERSHIP_RULES = {
     "Version.md": "tombstone",
     ".agents/skills/instantiate-project/**": "tombstone",
@@ -39,6 +45,7 @@ MINIMUM_OWNERSHIP_RULES = {
     "scripts/test_validate_harness.py": "tombstone",
     "scripts/harness_validation/**": "tombstone",
     "docs/HARNESS_ENGINEERING.md": "tombstone",
+    "docs/harness_engineering/**": "tombstone",
     "docs/AGENT_POLICY.md": "protected",
     "docs/product_spec/**": "protected",
     "docs/project_status/**": "protected",
@@ -46,6 +53,7 @@ MINIMUM_OWNERSHIP_RULES = {
     "docs/adr/**": "protected",
     "docs/changelog/**": "protected",
     "docs/VERIFICATION.md": "protected",
+    "docs/verification/**": "protected",
     "docs/TECH_DEBT.md": "protected",
     "LICENSE.zh-CN.md": "protected",
     "LICENSE.en.md": "protected",
@@ -58,6 +66,10 @@ MINIMUM_OWNERSHIP_RULES = {
     "docs/RUST_CLI_TEMPLATE.md": "merge-sections",
     "docs/CLI_CONTRACT.md": "merge-sections",
     "docs/RELEASE.md": "merge-sections",
+    ".agents/skills/implement-change/scripts/check_file_line_limits.py": "managed",
+    ".agents/skills/implement-change/scripts/test_check_file_line_limits.py": "managed",
+    ".agents/skills/implement-change/scripts/check_core_first.py": "managed",
+    ".agents/skills/implement-change/scripts/test_check_core_first.py": "managed",
     ".agents/skills/upgrade-harness/**": "managed-self",
     ".agents/skills/add-cli-adapter/**": "conditional",
     ".agents/skills/add-tui-adapter/**": "conditional",

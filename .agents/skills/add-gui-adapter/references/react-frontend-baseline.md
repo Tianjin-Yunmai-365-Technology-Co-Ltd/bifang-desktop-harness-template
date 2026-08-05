@@ -30,6 +30,7 @@
 - 保持路由定义和加载器轻量。当预取能防止瀑布请求时，将 TanStack Router 加载器与 TanStack Query 集成，但只保留一个 QueryClient/缓存。
 - 只有本地组件状态或 URL/搜索状态不足时才使用 Jotai；atom 应保持小而且按用途命名。
 - 前端代码使用窄而有类型的 Tauri 命令。它不包含业务规则、迁移、平台无关验证或第二套持久存储。
+- React event handler、Router loader、Query mutation 和 atom 只管理导航、请求生命周期或纯交互状态；它们不得编排多个命令来决定业务结果。需要条件、重试或状态决策的工作流必须由单个 core 用例通过窄 Tauri 命令暴露。
 - 在 Tauri 中打包本地前端资产。远程内容、遥测、Cookie、身份验证和网络访问需要明确范围。
 
 ## 必需证据

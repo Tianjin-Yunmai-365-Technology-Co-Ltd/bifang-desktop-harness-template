@@ -7,7 +7,7 @@
 - 维护状态：Active
 - 产品名称：Agent-first Harness 项目模板
 - 产品规格：Approved（2026-07-21）
-- 当前版本：202607301002（上海时区 `YYYYMMDDHHMM`，未发布；事实来源见 [`Version.md`](Version.md)）
+- 当前版本：202608051301（上海时区 `YYYYMMDDHHMM`，未发布；事实来源见 [`Version.md`](Version.md)）
 - 源码：尚未创建
 - 反馈入口：待确定
 
@@ -36,12 +36,12 @@
 | `docs/RUST_CLI_TEMPLATE.md` | 下游 Rust shared core 与可选 adapter 初始化基线 |
 | `docs/project_status/README.md` | Product Status 按日完整快照规则与索引；当前状态取日期最新文件 |
 | `docs/work_plan/README.md` | Work Plan 按日完整快照规则与索引；当前计划取日期最新文件 |
-| `docs/VERIFICATION.md` | 验证命令、场景和证据 |
+| `docs/VERIFICATION.md` | 验证原则、矩阵与证据分卷索引；正文位于 `docs/verification/` |
 | `docs/adr/README.md` | 按日 ADR 索引；正文位于 `docs/adr/YYYYMMDD_ADR.md` |
 | `docs/TECH_DEBT.md` | 已知限制和技术债 |
 | `docs/RELEASE.md` | 版本与发布规则 |
 | `docs/changelog/README.md` | 按日 Changelog 索引；正文位于 `docs/changelog/YYYYMMDD_CHANGELOG.md` |
-| `docs/HARNESS_ENGINEERING.md` | 本模板的完整方法论依据 |
+| `docs/HARNESS_ENGINEERING.md` | 本模板方法论索引；主题正文位于 `docs/harness_engineering/` |
 
 ## 项目 Skills
 
@@ -67,7 +67,7 @@
 - `$add-tui-adapter`：增加独立的键盘驱动终端 UI adapter。
 - `$test-final-artifact-e2e`：仅在验证里程碑中，由持久策略启用或产品/渠道要求时，对真实产物执行可观察 E2E。
 
-模板维护者可运行 `python3 scripts/validate_harness.py`，自动检查必需文件、Skill 结构和声明、本地 Markdown 链接，以及候选 workflow 的关键安全与交付门禁。
+模板维护者可通过当前平台可用的 Python 3 解释器运行 `scripts/validate_harness.py`，自动检查必需文件、Skill 结构和声明、本地 Markdown 链接，以及候选 workflow 的关键安全与交付门禁。修改 Python 门禁行为时还必须以同一解释器运行 `-m unittest discover -s scripts`；该默认回归入口包含可复用 core-first 检查器的专属测试，不依赖 Shell 引号或 POSIX 可执行位。
 
 本模板自身不实现具体产品。初始化 Skill 的中性 core+CLI 资产只证明默认骨架可创建，不是可验收里程碑；产品规格获批后，shared core 才承载真实业务逻辑。
 
@@ -78,7 +78,11 @@
 - Rust 是下游项目的默认初始化语言；Tokio 是 Rust CLI 和后续 Rust adapter 的统一异步执行标准；模板自身仍不实现具体产品业务。
 - TUI 技术族固定为 Ratatui + tui-realm + tui-realm-stdlib；Tauri GUI 前端固定为最新兼容稳定的 React + TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。其他前后端技术在真实项目开发时按需求推荐。
 - 默认结构是可独立复用和测试的 core Lib + 所选 adapter；adapter 彼此独立并直接依赖 core。
+- Core-first 是强制规则：所有接口/宿主无关的业务规则、领域校验、用例编排、状态转换和稳定错误都先由 core 实现和测试，即使项目当前只有一个接口也不能放进 adapter。
+- CLI/TUI/MCP/GUI 只处理各自的参数/协议、展示、交互状态、运行时装配和结果映射。系统托盘、窗口、通知、终端恢复或 stdio 生命周期等特有机制留在所属 adapter，但由这些机制触发的业务行为仍调用 core；是否“薄”按职责判断，不按代码行数判断。
+- 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 - 下游人工维护的数据结构、接口、函数、方法和测试使用有业务意义的中文注释；文件拆分、文档与测试规则以 `docs/ENGINEERING_RULES.md` 为准。
+- 所有人工或 Agent 维护的文本文件统一以 400 个物理行为硬上限；源码、测试、脚本、文档、配置、Skill、参考和模板超限都会失败并要求拆分。Cargo/pnpm 等工具生成且禁止手工编辑的锁文件、生成物和原样内嵌第三方文件按封闭范围定义排除。
 - CLI/TUI/MCP 使用 Tokio current-thread async 入口，GUI 复用 Tauri 的 Tokio async runtime；I/O 和等待型工作优先异步，只有测量确认的 CPU 密集工作才考虑受控多线程边界。同步阻塞依赖应替换为异步能力或进入范围/例外确认。core 可以提供 runtime-neutral 的 async API，只有真实业务需要 Tokio 原语时才直接依赖 Tokio；不默认启用 `full` feature。
 - 下游依赖在 MSRV、目标平台、最小 feature 与验证约束内优先采用较新稳定版本，并以锁文件保证可复现；版本新不替代兼容与回归验证。
 - 下游首次实际代码开发或工具链变化时检查环境；同一宿主、接口和约束未变化时复用成功证据，纯文档任务跳过。Rust 是代码开发门禁，Windows 同时检查 MSVC Build Tools；仅 GUI 需要 Node.js 与 pnpm。只有选择 macOS→Windows Tauri xwin 构建目标时才安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` 与 `cargo-xwin`，且不会自动安装 Homebrew。
@@ -86,7 +90,7 @@
 - 模板及其收费下游采用企业专有商业许可而非开源协议；实例化先原样复制中英文两份许可证，再仅把适用项目名改为目标项目，其他法律条款保持不变并永久保留。
 - 项目实例化必须询问完整目标项目目录路径；路径解析后 basename 必须与项目标识一致，目标可以位于 Harness 内或外，但必须不存在或为空，并通过覆盖、递归复制与符号链接安全检查。
 - 每个下游项目必须初始化独立 Git 仓库并使用 `main` 初始分支；即使位于父仓库内，Git top-level 也必须是下游项目根。实例化不复制源历史；初始化收尾只创建一个本地基线 commit，随后验证无 remote 且 porcelain 状态为空，不自动 push 或 tag。
-- 实例化完整排除 Harness 的 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/` 和 `docs/VERIFICATION.md`，不复制索引、日期正文、历史验证或空占位；对应项目记忆只在其触发条件首次满足时创建。
+- 实例化完整排除 Harness 的 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/`，不复制索引、日期正文、历史验证或空占位；对应项目记忆只在其触发条件首次满足时创建。
 - 项目实例化阶段只要求身份、路径、负责人和目标平台；产品目的、核心输入输出、成功标准和风险可以留待已初始化项目中的 `$define-product` 完善。
 - 项目标识使用 ASCII `snake_case`。core 与 CLI/TUI/MCP/GUI 目录分别派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`；根 workspace 只登记实际选择的 adapters。
 - 初始化 Skill 携带 macOS/Linux shell 与 Windows PowerShell 门禁脚本；它们验证官方制品、复探安装结果并输出稳定 `gate.*` 状态。
@@ -106,6 +110,7 @@
 - 模板约束允许有审计记录的例外，记录必须包含理由、风险和恢复标准。
 - Product Spec 只在产品目标/边界/约束/成功标准变化时更新；Product Status 只在里程碑、重要阻断、交接或用户要求时更新；Work Plan 只用于标准/里程碑路径或用户要求。
 - ADR 只记录长期重要、难逆决定和硬规则例外；Changelog 只记录已经发生且用户或维护者可感知的变化；Verification 只保存里程碑、发布、人工复核或长期审计证据。
+- 普通缺陷修复、不改变可观察行为的纯重构、格式整理、测试补强和内部清理不形成 Product Spec、ADR、Product Status、Changelog 或 Verification 流水账；复杂度仍可独立触发 Work Plan，安全、发布、长期决定等独立事件仍照常记录。
 - Agent 可修复原任务范围内的普通失败；高风险、范围变化、新外部副作用和发布由人工审批。普通快速/标准任务不要求人工签署完成。
 - 需要人工复核时必须写入仓库，Agent 不得代替人类签署。
 - CLI、TUI、MCP、GUI 均有独立 adapter Skill；任何一种都不以另一 adapter 为前置条件。

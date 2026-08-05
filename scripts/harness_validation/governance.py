@@ -3,119 +3,15 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from .context import *  # noqa: F403
-
-
-def validate_agent_policy(
-    errors: list[str],
-    policy_path: Path = AGENT_POLICY,
-    *,
-    allow_pending: bool = True,
-) -> None:
-    """校验四项项目级偏好的稳定 schema、值域和持久执行语义。"""
-    if not policy_path.is_file():
-        fail(errors, f"missing Agent policy: {display_path(policy_path)}")
-        return
-
-    text = read_text_cached(policy_path)
-    match = re.match(r"\A---\n(.*?)\n---\n", text, flags=re.DOTALL)
-    if not match:
-        fail(errors, f"missing Agent policy YAML frontmatter: {display_path(policy_path)}")
-        return
-
-    fields: dict[str, str] = {}
-    for line in match.group(1).splitlines():
-        key, separator, value = line.partition(":")
-        key = key.strip()
-        if not separator or not key:
-            fail(errors, f"invalid Agent policy frontmatter line: {line}")
-            continue
-        if key in fields:
-            fail(errors, f"duplicate Agent policy field: {key}")
-            continue
-        fields[key] = value.strip()
-
-    expected_fields = {
-        "schema_version",
-        "confirmed_by",
-        "confirmed_at",
-        "decision_mode",
-        "superpowers",
-        "parallel_worktree_subagents",
-        "milestone_smoke",
-        "milestone_e2e",
-    }
-    if set(fields) != expected_fields:
-        fail(
-            errors,
-            "Agent policy fields mismatch: "
-            f"missing={sorted(expected_fields - set(fields))}, "
-            f"extra={sorted(set(fields) - expected_fields)}",
-        )
-
-    if fields.get("schema_version") != "1":
-        fail(errors, "Agent policy schema_version must be 1")
-    if fields.get("decision_mode") != "reuse_then_infer_then_ask":
-        fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask")
-    for field in (
-        "superpowers",
-        "parallel_worktree_subagents",
-        "milestone_smoke",
-        "milestone_e2e",
-    ):
-        if fields.get(field) not in {"enabled", "disabled", "pending"}:
-            fail(errors, f"Agent policy {field} must be enabled, disabled, or pending")
-        elif not allow_pending and fields.get(field) == "pending":
-            fail(errors, f"initialized downstream Agent policy must resolve {field}")
-    for field in ("confirmed_by", "confirmed_at"):
-        if not fields.get(field):
-            fail(errors, f"Agent policy {field} must not be empty")
-    if not allow_pending:
-        confirmed_by = fields.get("confirmed_by", "").strip()
-        if confirmed_by.lower() in {"pending", "unknown", "unset", "n/a"}:
-            fail(
-                errors,
-                "initialized downstream Agent policy confirmed_by must identify "
-                "a real confirmation source",
-            )
-        confirmed_at = fields.get("confirmed_at", "").strip()
-        if confirmed_at.lower() in {"pending", "unknown", "unset", "n/a"}:
-            fail(
-                errors,
-                "initialized downstream Agent policy confirmed_at must be resolved",
-            )
-        else:
-            try:
-                datetime.fromisoformat(confirmed_at.replace("Z", "+00:00"))
-            except ValueError:
-                fail(
-                    errors,
-                    "initialized downstream Agent policy confirmed_at must be "
-                    "a calendar-valid ISO date or RFC3339 timestamp",
-                )
-
-    required_body_fragments = (
-        "下游项目 Agent 能力与里程碑验收偏好的唯一持久事实来源",
-        "完成初始化的下游四项选择只能是 `enabled` 或 `disabled`",
-        "推荐敏捷预设",
-        "预设只是输入捷径，不新增持久字段",
-        "Harness 源字段值不是下游确认",
-        "不得在用户未确认时静默采用",
-        "才一次原子写入本文件",
-        "只验证并复用，不重复询问",
-        "先复用、再判断、最后询问",
-        "快速、标准和里程碑是当前任务的执行路径",
-    )
-    for fragment in required_body_fragments:
-        if fragment not in text:
-            fail(
-                errors,
-                f"Agent policy persistence rule missing in {display_path(policy_path)}: {fragment}",
-            )
+from .governance_descriptions import (
+    validate_current_descriptions,
+    validate_stale_fragments,
+)
+from .governance_policy import validate_agent_policy
+from .governance_version import validate_version_contract as _validate_version_contract
 
 
 def validate_engineering_contract(errors: list[str]) -> None:
@@ -124,22 +20,34 @@ def validate_engineering_contract(errors: list[str]) -> None:
         ENGINEERING_RULES: (
             "## 2. 文件、模块与依赖边界",
             "400 行",
-            "800 行",
+            "单文件 400 行硬上限",
             "## 3. 中文代码注释",
             "## 4. 文档规则",
             "## 5. 测试组织",
             "## 6. 规则例外",
             "## 7. 机械检查边界",
+            "本身不触发 Product Spec、ADR、Product Status、Changelog 或 Verification",
+            "任务被称为“修复”或“重构”不能绕过门禁",
         ),
-        ROOT / "AGENTS.md": ("docs/ENGINEERING_RULES.md",),
-        ROOT / "README.md": ("docs/ENGINEERING_RULES.md",),
+        ROOT / "AGENTS.md": (
+            "docs/ENGINEERING_RULES.md",
+            "普通缺陷修复、不改变可观察行为的纯重构",
+        ),
+        ROOT / "README.md": (
+            "docs/ENGINEERING_RULES.md",
+            "普通缺陷修复、不改变可观察行为的纯重构",
+        ),
         AGENT_POLICY: (
             "superpowers:",
             "parallel_worktree_subagents:",
             "milestone_smoke:",
             "milestone_e2e:",
+            "任务路径与项目记忆触发彼此独立",
         ),
-        PRODUCT_SPEC: ("docs/ENGINEERING_RULES.md",),
+        PRODUCT_SPEC: (
+            "docs/ENGINEERING_RULES.md",
+            "本身不触发 Product Spec、ADR、Product Status、Changelog 或 Verification",
+        ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": ("docs/ENGINEERING_RULES.md",),
         SKILLS_ROOT / "plan-change" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
         SKILLS_ROOT / "implement-change" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
@@ -254,7 +162,7 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "相关非空测试",
             "纯文档、元数据、格式或不可合理单测",
             "本 Skill 不运行冒烟/E2E",
-            "只更新被触发的记忆",
+            "只更新被独立事件触发的记忆",
             "只有活动计划存在时报告 Todo 状态",
         ),
         SKILLS_ROOT / "rename-project-identity" / "SKILL.md": (
@@ -307,6 +215,8 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "由 `$verify-delivery` 给出的 `Milestone accepted` 候选",
             "不得在此运行任一测试",
             "绝不得在发布准备中运行冒烟/E2E",
+            "仅含普通缺陷修复或纯重构",
+            "Not applicable",
         ),
         ENGINEERING_RULES: (
             "### 5.3 风险分级与验证",
@@ -331,6 +241,8 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
             "不得生成仅签名候选",
             "notarizationStatus: notarized-and-stapled",
             "runtimeVerification: Unverified",
+            "版本变化与 Changelog 写入是独立门禁",
+            "仅含普通缺陷修复或纯重构",
         ),
         UPGRADE_SKILL / "SKILL.md": (
             ".harness/upstream-lock.json",
@@ -379,203 +291,10 @@ def validate_parallel_and_tiered_verification(errors: list[str]) -> None:
         if fragment in helper_text:
             fail(errors, f"unsafe parallel helper behavior present: {fragment}")
 
-def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None:
-    """拒绝旧接口、Git 或协作触发规则重新进入指定当前事实源。"""
-    stale_fragments = (
-        "每个会修改仓库或执行交付工作的任务",
-        "Before substantive execution of each repository-changing or delivery task",
-        "current repository-changing or delivery task",
-        "仅在产品定义或范围设计、实施计划设计，以及代码或实现变更阶段",
-        "仅在产品定义/范围设计、实施计划设计和代码/实现变更阶段",
-        "Before substantive product/scope design, implementation planning, or code/implementation work",
-        "授权只对当前任务有效",
-        "选择只对当前任务有效",
-        "不得跨任务继承",
-        "最小只读冒烟",
-        "所有 Agent-first 项目必须证明 CLI 闭环",
-        "CLI 永远是最小 MVP",
-        "CLI 不可替代",
-        "建立可测试的 CLI 与结构化输出契约",
-        "若包含 MCP，CLI 与 MCP 使用同一应用服务和错误模型",
-        "实例化不得自动创建嵌套 Git",
-        "Git 初始化是另行显式动作",
-        "no-auto-commit",
-        "do not create a commit",
-        "初始化不得自动创建 commit",
-        "当前 Harness 根目录的直接子文件夹",
-        "<项目标识>-CLI",
-        "<项目标识>-MCP",
-        "<项目标识>-gui",
-        "每份活动工作计划必须包含 `Todo` 批次和对应验证里程碑",
-        "每轮 Todo 开发必须执行非空单元测试",
-        "每个已确认需求形成当日独立 ADR 条目",
-        "一次性要求用户分别为 Superpowers",
-        "不得为缺失答案设置默认值或遗留 `pending`",
-    )
-    for path in paths:
-        if not path.is_file():
-            continue
-        text = read_text_cached(path)
-        for fragment in stale_fragments:
-            if fragment in text:
-                fail(
-                    errors,
-                    f"stale current description in {display_path(path)}: {fragment}",
-                )
 
 
-def validate_current_descriptions(errors: list[str]) -> None:
-    """拒绝已被当前接口、Git 与治理规则替代的规范描述重新进入有效事实源。"""
-    current_files = (
-        ROOT / "README.md",
-        ROOT / "AGENTS.md",
-        PRODUCT_SPEC,
-        PRODUCT_STATUS,
-        ROOT / "docs" / "RUST_CLI_TEMPLATE.md",
-        ROOT / "docs" / "HARNESS_ENGINEERING.md",
-        ROOT / "docs" / "RELEASE.md",
-        ENGINEERING_RULES,
-        AGENT_POLICY,
-        PRODUCT_SPEC_DIR / "README.md",
-        PRODUCT_STATUS_DIR / "README.md",
-        WORK_PLAN_DIR / "README.md",
-        ADR_DIR / "README.md",
-        CHANGELOG_DIR / "README.md",
-        WORK_PLAN,
-        *(path / "SKILL.md" for path in sorted(SKILLS_ROOT.iterdir()) if path.is_dir()),
-    )
-    validate_stale_fragments(errors, current_files)
-
-    msrv_fragments = {
-        PRODUCT_SPEC: (
-            "MSRV 1.90.0",
-            "最低兼容版本而非精确版本锁",
-            "Rust 1.90 MSRV",
-        ),
-        ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
-            '| MSRV | `1.90.0` |',
-            'rust-version = "1.90"',
-            "不要求精确等于 1.90.0",
-            "必须使用精确 Rust 1.90.0 工具链",
-        ),
-        ROOT / "docs" / "RELEASE.md": ("最低 Rust 版本 1.90.0",),
-        PREREQUISITE_UNIX: ("MIN_RUST_MAJOR=1", "MIN_RUST_MINOR=90"),
-        PREREQUISITE_WINDOWS: ("$MinimumRustMajor = 1", "$MinimumRustMinor = 90"),
-        PREREQUISITE_TESTS: (
-            'rust: str = "1.90.0"',
-            'rust="1.89.0"',
-            '"1.91.0", "1.97.1", "2.0.0"',
-        ),
-        RUST_ASSET / "Cargo.toml": ('rust-version = "1.90"',),
-        WORKFLOW: (
-            "RUSTUP_TOOLCHAIN: 1.90.0",
-            "rustup toolchain install 1.90.0",
-        ),
-    }
-    for path, fragments in msrv_fragments.items():
-        if not path.is_file():
-            fail(errors, f"missing MSRV contract file: {display_path(path)}")
-            continue
-        text = path.read_text(encoding="utf-8")
-        for fragment in fragments:
-            if fragment not in text:
-                fail(
-                    errors,
-                    f"Rust 1.90 MSRV contract missing in {display_path(path)}: {fragment}",
-                )
-
-    current_skill_files = sorted(
-        path
-        for path in SKILLS_ROOT.rglob("*")
-        if path.is_file()
-        and path.suffix.lower() in {".md", ".yaml", ".yml", ".toml", ".py", ".ps1", ".sh"}
-    )
-    for path in current_skill_files:
-        text = path.read_text(encoding="utf-8", errors="replace")
-        if "1.85" in text:
-            fail(
-                errors,
-                f"obsolete Rust 1.85 compatibility remains in current Skill content: {display_path(path)}",
-            )
 
 def validate_version_contract(errors: list[str]) -> None:
-    """确认 Harness 时间版本合法、只有一个事实源且不污染下游版本。"""
-    if not VERSION_FILE.is_file():
-        fail(errors, f"missing version contract file: {display_path(VERSION_FILE)}")
-        return
+    """使用 facade 当前 VERSION_FILE，保留测试和调用方的注入边界。"""
 
-    version_text = VERSION_FILE.read_text(encoding="utf-8")
-    match = re.search(r"当前版本：`(\d{12})`", version_text)
-    if not match:
-        fail(errors, "Version.md current Harness version must be 12 digits in YYYYMMDDHHMM")
-        current_version = "__invalid__"
-    else:
-        current_version = match.group(1)
-        try:
-            parsed = datetime.strptime(current_version, "%Y%m%d%H%M").replace(
-                tzinfo=ZoneInfo("Asia/Shanghai")
-            )
-        except ValueError:
-            fail(
-                errors,
-                "Version.md current Harness version is not a valid Shanghai datetime: "
-                f"{current_version}",
-            )
-        else:
-            if parsed.strftime("%Y%m%d%H%M") != current_version:
-                fail(errors, f"Version.md current Harness version is not canonical: {current_version}")
-
-    required_fragments = {
-        VERSION_FILE: (
-            f"当前版本：`{current_version}`",
-            "时间版本起始值：`202607301002`",
-            "旧版本标识：`1.0.0`",
-            "版本时区：`Asia/Shanghai`",
-            "版本格式：`YYYYMMDDHHMM`",
-            "发布状态：Unreleased",
-            "唯一事实来源",
-            "docs/RELEASE.md",
-        ),
-        ROOT / "README.md": (
-            f"当前版本：{current_version}",
-            "上海时区 `YYYYMMDDHHMM`",
-            "[`Version.md`](Version.md)",
-        ),
-        PRODUCT_SPEC: (
-            f"当前版本：`{current_version}`",
-            "上海时区格式为 `YYYYMMDDHHMM`",
-            "唯一事实来源为根 `Version.md`",
-        ),
-        ROOT / "docs" / "RELEASE.md": (
-            f"[`Version.md`](../Version.md) 中记录的 `{current_version}`",
-            "`Asia/Shanghai`",
-            "`YYYYMMDDHHMM`",
-            "模板版本事实来源：根目录 `Version.md`",
-            "本文件只维护版本与发布规则",
-        ),
-        PREPARE_RELEASE_SKILL: (
-            "Harness 模板使用根 `Version.md`",
-            "`YYYYMMDDHHMM`",
-            "`Asia/Shanghai`",
-            "不得继承 Harness `Version.md`",
-        ),
-        INSTANTIATE_SKILL: (
-            "仅属于 Harness 的根目录 `Version.md`",
-            "根 `Cargo.toml`",
-        ),
-    }
-    for path, fragments in required_fragments.items():
-        if not path.is_file():
-            fail(errors, f"missing version contract file: {display_path(path)}")
-            continue
-        text = path.read_text(encoding="utf-8")
-        for fragment in fragments:
-            if fragment not in text:
-                fail(
-                    errors,
-                    f"version contract missing in {display_path(path)}: {fragment}",
-                )
-
-    release_text = (ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")
-    if "模板版本事实来源：本文件" in release_text:
-        fail(errors, "docs/RELEASE.md still claims to be the Harness version fact source")
+    _validate_version_contract(errors, VERSION_FILE)  # noqa: F405
