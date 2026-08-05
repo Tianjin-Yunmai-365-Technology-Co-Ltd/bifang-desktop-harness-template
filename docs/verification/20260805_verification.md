@@ -1,5 +1,33 @@
 # 2026-08-05 验证记录
 
+## Rust 技术选型事实标准里程碑
+
+### 候选与批准范围
+
+- 路径：里程碑。项目负责人在标准批次完成后明确要求“推送服务端”，授权把本批源码、验收与状态记录以非强制快进方式推送到 `origin/master`。
+- 精确源码候选：`f7b84169eea647f157d27a6dc579f61417001fd0`，提交时间 `2026-08-05 17:11:12 +0800`，提交说明 `feat: 固化 Rust 技术选型标准`。
+- 批准成功路径：Tokio、Axum、Clap、SeaORM、tracing、anyhow、thiserror、serde 与 jiff 在 Product Spec、ADR、Rust 基线、AGENTS/README、初始化/实施 Skills 和 validator 中保持一致；固定表示真实能力出现时采用，不让中性 scaffold 预装未使用依赖。
+- 最高风险失败路径：anyhow 取代稳定领域错误、Axum 恢复独立 WEB 适配器、SeaORM 承担业务策略、敏感数据进入 tracing，或删除选型事实后机械门禁仍通过。
+
+### 精确提交自动证据
+
+- 环境：macOS 26.5.2（Build 25F84）arm64；Python 3.14.6。
+- 身份门禁：`git diff HEAD --exit-code`、`git diff --cached --exit-code`、`git status --porcelain=v1 --untracked-files=all` 均为空，检查前后 `HEAD` 保持精确候选哈希。
+- `python3 -B -m unittest discover -s scripts`：112/112 通过，包含九项 Rust 技术选型必需契约的非空回归。
+- `python3 -B scripts/validate_harness.py`：通过 88 个必需文件、21 个 Skills、本地 Markdown 链接、初始化传播、core-first、项目记忆、发布与工作流门禁；0 个非阻断提示。
+- `python3 -B .agents/skills/implement-change/scripts/check_file_line_limits.py`：198 个人工维护文本文件全部不超过 400 行；`git diff --check` 同步通过。
+
+### 适用性、未执行项与结论
+
+- 本轮只修改治理文档、Skills、validator 契约和回归，不修改 Rust 运行代码、中性 Cargo 资产或锁文件；因此不重复运行 Rust 工具链、构建或产品运行测试。
+- Harness 根不包含具体最终产品；产品冒烟与 Computer Use E2E 为 `Not applicable`，未运行且不记为通过。Windows/Linux、真实下游前向应用和九项依赖的具体版本组合继续为 `Unverified`。
+- 人工复核：项目负责人在收到完成范围、实际验证与未执行项后明确要求“推送服务端”，批准本候选与上述剩余风险并授权 Git 推送；记录见 [`human_review.md`](human_review.md)。
+- 里程碑结论：`Milestone accepted`。结论只绑定候选 `f7b84169eea647f157d27a6dc579f61417001fd0` 和本节范围，不改变 `Unreleased`，不授权标签、归档或正式发布。
+
+### 证据集成失败与重跑
+
+- 首次写入验收记录后，默认回归和完整 validator 正确拒绝“TODO-H04 仍为 `in_progress`，M2 却标记 `Milestone accepted`”的状态矛盾。候选提交的自动证据没有失败；计划将候选创建/验收与验收后推送拆为 H04/H05，H04 完成后才保留 M2 结论，H05 独立承担推送。修正后必须完整重跑默认回归与 validator，不能把首次失败改判为通过。
+
 ## Harness `202608051301` 工程治理里程碑
 
 ### 候选与批准范围
