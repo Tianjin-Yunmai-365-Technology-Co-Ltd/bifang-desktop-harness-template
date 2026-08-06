@@ -50,6 +50,8 @@
 - `$rename-project-identity`：预览并统一修改项目展示名、标识前缀、配置、维护路径、Skills 与两份 License 的适用项目名；实例化重置保持中性，现有产品改名进入里程碑。
 - `$plan-change`：为标准/里程碑路径或用户要求建立精简 Todo；快速路径不调用。
 - `$implement-change`：直接执行范围清楚的请求或活动计划，并运行相称验证。
+- `$refactor-code`：从单文件行数、文件组织结构（Rust `mod.rs`、前端非强制 `index.ts`）、命名、常量提取、潜在性能与死锁风险、core-first 归属六个方面辅助行为保持的重构。
+- `$extract-i18n-strings`：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core。
 - `$run-parallel-worktrees`：项目策略允许且当前任务可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
 - `$initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略。
 - `$check-development-environment`：首次实际代码开发或工具链变化时检查并自动补齐 Rust；GUI 额外处理 Node.js 与 pnpm，macOS 交叉构建 Windows Tauri 安装包时按目标补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。

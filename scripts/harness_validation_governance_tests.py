@@ -90,7 +90,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             / ".agents/skills/check-development-environment/references/development-environment-gates.md"
         )
         repository_contract = repository_required_fragments(gate_file, rust_baseline)
-        for path in (rust_baseline, ROOT / "docs/product_spec/20260805_product_spec.md"):
+        for path in (rust_baseline, ROOT / "docs/product_spec/20260806_product_spec.md"):
             self.assertTrue(technology_names.issubset(set(repository_contract[path])))
 
     def test_rejects_obsolete_per_task_preference_prompt(self) -> None:

@@ -1,6 +1,6 @@
 ---
 name: add-gui-adapter
-description: 为已初始化的共享核心增加可选的 Tauri 2 GUI，并使用固定的 React、TypeScript、Mantine UI、TanStack Router/Query 和 Jotai 前端技术栈。在初始化时选择 GUI 或后续明确批准 GUI 时使用。
+description: 为已初始化的共享核心增加可选的 Tauri 2 GUI，并使用固定的 React、TypeScript、Mantine UI、TanStack Router/Query、Jotai 前端技术栈，以及 i18next/react-i18next + rust-i18n 的界面国际化技术栈（开发期硬性必选，默认跟随系统语言）。在初始化时选择 GUI 或后续明确批准 GUI 时使用。
 ---
 
 # 增加 GUI 适配器
@@ -13,7 +13,7 @@ description: 为已初始化的共享核心增加可选的 Tauri 2 GUI，并使�
 2. 确认当前工作目录是真实下游 Rust 工作区，具有共享核心，且初始化选择或已批准产品范围中记录了 GUI。`Draft` 项目只能获得不含业务操作的中性脚手架状态 GUI。若当前目录只是文档 Harness，或缺少核心，则停止。不得要求另选目标目录，也不得要求 CLI。
 3. 选择依赖或设计页面前，完整阅读 [references/gui-baseline.md](references/gui-baseline.md) 和 [references/react-frontend-baseline.md](references/react-frontend-baseline.md)。
 4. 首次真实产品 GUI 开发任务前，要求存在由 `$prepare-gui-app-identity` 生成且已批准的 `docs/GUI_APP_PROFILE.md`。它必须覆盖应用显示名称、主窗口标题、说明、应用标识符和用户选择的图标路径。只有在明确阻断打包/发布时，临时中性脚手架图标才能解除非打包开发的阻断。
-5. 识别已批准的人类使用场景、最小页面和操作、状态与错误展示、键盘与无障碍要求、刷新/并发语义、平台集成、隐私边界和预期分发格式。只询问会实质改变范围的缺失选择。
+5. 识别已批准的人类使用场景、最小页面和操作、状态与错误展示、键盘与无障碍要求、刷新/并发语义、平台集成、隐私边界、预期分发格式和 i18n 接入范围（默认语言探测、语言切换入口、需要覆盖的原生文案）。只询问会实质改变范围的缺失选择。
 6. 中性初始化直接按接口选择建立无业务 GUI，不创建 Work Plan；初始化后新增真实 GUI 时编辑前使用 `$plan-change`。GUI 适配器必须与 CLI 解析和 MCP 协议代码相互独立。
 7. 执行时检查官方软件包仓库和文档。使用满足 Rust MSRV、Node 与 pnpm 策略、目标 WebView/平台、安全和锁定验证门禁的最新兼容稳定 Tauri 2、React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai 版本。这些技术对 `Draft` 和 `Approved` GUI 项目都是硬规则；技术栈不兼容时必须阻断实施，直到记录硬规则例外。
 8. 在 `<project-id>_gui` 中增加桌面应用边界，并将该标识用于 Cargo 软件包、Rust crate 和真实应用二进制。不得要求独立二进制名称；面向用户的名称来自已批准 GUI 资料。复用 Tauri 基于 Tokio 的单例异步运行时；不得创建嵌套 Tokio 运行时。Tauri Rust 适配器可以依赖核心；核心不得依赖 Tauri、WebView、React、路由、查询、命令、窗口或前端状态类型。维护的 Rust/前端代码和测试必须遵守工程规则。
@@ -28,6 +28,7 @@ description: 为已初始化的共享核心增加可选的 Tauri 2 GUI，并使�
 ## 硬边界
 
 - GUI 必须保持独立，并通过相同核心和错误模型与每个已选适配器保持行为一致。
+- 首次向用户交付的真实页面、命令结果或原生机制文案不得硬编码单一语言字符串；必须通过 `i18next`/`react-i18next`（前端）与 `rust-i18n`（Rust 原生文案）接入，默认语言跟随 `tauri-plugin-os` 探测到的系统语言，并提供可发现的语言切换入口，偏离需硬规则例外 ADR（见 ADR-20260806-001）。
 - React 事件、Tauri command 和平台回调不得承载业务规则、领域校验、权威状态或跨 core 调用编排；当前只有 GUI 也不是例外。
 - 绝不能从 GUI 自动操作 CLI 或解析 CLI 输出。
 - 绝不能把业务规则、持久状态、迁移或平台无关验证放入 React 组件、路由、查询、atom 或事件处理器。
@@ -42,4 +43,4 @@ description: 为已初始化的共享核心增加可选的 Tauri 2 GUI，并使�
 
 ## 完成输出
 
-报告已解析的 Tauri/前端版本、页面和命令、Mantine 组件、Router/Query/Jotai 所有权，每个业务操作的“GUI 事件/命令 → core API → core 测试”映射，以及 adapter-only 平台机制理由、能力/CSP 边界、映射/交互/无障碍检查、运行过的命令、已验证平台、未验证范围和剩余风险。
+报告已解析的 Tauri/前端版本、页面和命令、Mantine 组件、Router/Query/Jotai 所有权，每个业务操作的“GUI 事件/命令 → core API → core 测试”映射，i18n 接入范围（默认语言探测、语言切换入口、Rust 原生文案覆盖）、adapter-only 平台机制理由、能力/CSP 边界、映射/交互/无障碍检查、运行过的命令、已验证平台、未验证范围和剩余风险。
