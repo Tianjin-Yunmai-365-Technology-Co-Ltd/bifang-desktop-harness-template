@@ -53,10 +53,11 @@
 - Core-first 是硬规则：接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略必须在 core 中实现，即使当前只有一个 adapter 也同样适用。把这些业务逻辑混入 adapter 只能按硬规则例外 ADR 处理。
 - CLI/TUI/MCP/GUI 必须是薄适配层，只负责运行时装配、接口语法/协议结构、展示和纯交互状态、调用 core，以及映射结果/错误。系统托盘、窗口/WebView、通知、自动启动、终端按键/恢复、MCP stdio 和 CLI 退出码等特有机制留在对应 adapter，但其触发的业务动作仍调用 core；薄层按职责而不是行数判断。
 - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
-- 下游 CLI、TUI、MCP 必须使用 Tokio current-thread async 入口；GUI 必须复用 Tauri 的 Tokio-backed async runtime 和 plain async commands，不创建嵌套 runtime。所有 Rust adapter 开发默认优先异步 I/O、等待、计时、进程、协议和命令调用；只有测量确认的 CPU 密集工作才可考虑受控 `spawn_blocking`、专用线程或多线程 runtime，并记录任务所有权、取消、并发上限、资源预算和验证。只有同步阻塞 API 的依赖不能成为启用线程的默认理由，应替换为异步能力或进入范围/例外确认。core 可以暴露 runtime-neutral 的 async API；只有真实业务需要 Tokio 原语时才增加 core 的 Tokio 生产依赖，不得默认使用 `full`。
+- 下游 CLI、TUI、MCP 必须使用 Tokio current-thread async 入口；GUI 必须复用 Tauri 的 Tokio-backed async runtime 和 plain async commands，不创建嵌套 runtime。异步优先是硬规则：core 与全部 Rust adapter 只要涉及真实 I/O、等待、计时、进程、协议或跨边界调用，默认必须实现为异步，不是"可以选择异步"；只有测量确认的 CPU 密集工作才可考虑受控 `spawn_blocking`、专用线程或多线程 runtime，并记录任务所有权、取消、并发上限、资源预算和验证。只有同步阻塞 API 的依赖不能成为启用线程的默认理由，应替换为异步能力或进入范围/例外确认。core 默认暴露 runtime-neutral 的 async API；只有真实业务需要 Tokio 原语时才增加 core 的 Tokio 生产依赖，不得默认使用 `full`（见 ADR-20260806-002）。
 - 下游 TUI 固定使用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定使用执行时最新兼容稳定的 React + TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai。这些是硬规则；不得因 Draft、页面简单或 Agent 偏好省略，偏离必须记录硬规则例外。其他技术只在真实开发需要时结合项目推荐并通过依赖准入。
 - 下游 Tauri GUI 的界面国际化（i18n）是开发期硬性必选项：前端固定使用 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定使用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，缺少对应翻译资源回退英文，界面必须提供可发现的语言切换入口并持久化用户选择。这是硬规则，core 必须保持语言无关；偏离必须记录硬规则例外，详细边界以 `docs/RUST_CLI_TEMPLATE.md` 与 `$add-gui-adapter` 基线为唯一来源（见 ADR-20260806-001）。
 - 下游 Rust 技术选型固定为 Tokio 异步运行时、Axum HTTP 服务、Clap CLI、SeaORM 关系型数据库 ORM、tracing 可观测性、anyhow 应用边界错误上下文、thiserror 稳定类型化错误、serde 序列化和 jiff 日期时间。固定技术按已批准真实能力引入，不得为中性 scaffold 无条件安装全部依赖；偏离必须记录硬规则例外，详细边界以 `docs/RUST_CLI_TEMPLATE.md` 为唯一来源。
+- 下游已启用 tracing 时，结构化 event/span 必须同时落盘到本地日志文件，不得只写标准错误或丢弃；日志文件格式必须便于人类直接阅读与检索（至少包含时间戳、级别、target 和事件消息），并支持按时间或大小滚动避免无限增长。标准输出仍只用于 `docs/CLI_CONTRACT.md` 的单一 JSON 文档，不得被日志污染；日志不得记录密钥、令牌、个人数据或未脱敏业务载荷。详细边界以 `docs/RUST_CLI_TEMPLATE.md` 为唯一来源（见 ADR-20260806-002）。
 - 下游依赖在已声明 MSRV、Windows/macOS/Linux、最小 feature 集和完整验证约束内优先采用 registry 中较新的稳定版本；`Cargo.toml` 保存兼容范围，根 `Cargo.lock` 固定实际解析结果。无法采用较新稳定版本时必须记录原因、影响和复核条件，不得以“最新版”为由静默提高 MSRV、采用预发布版或跳过验证。
 - 下游首次实际代码开发、工具链变化或既有门禁证据失效时调用 `$check-development-environment`；纯文档/元数据任务跳过。一次成功证据在同一宿主、接口组合和工具链约束未变化时可复用，不逐任务重复探测。Rust 是代码开发阻断门禁，Windows 同时检查 MSVC Build Tools；仅 GUI 需要 Node.js 与 pnpm。只有明确选择 macOS→Windows Tauri xwin 构建目标时才执行专用门禁，安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` target 与 `cargo-xwin`；不得自动安装 Homebrew。
 - 开发环境门禁必须调用 `$check-development-environment` 自带的 POSIX shell 或 Windows PowerShell 脚本；不得以临时拼装安装命令替代制品校验、结构化输出和失败退出码。
@@ -86,6 +87,7 @@
 - 每轮实现运行与变更相称的最小充分验证。代码行为变化运行相关非空单元/回归测试，并按风险选择格式、lint、静态和集成/契约检查；非代码变更运行相称的解析、链接、静态或差异检查。检查失败不得延迟，也不得把开发证据误报为里程碑已验收。
 - 每轮实现还必须通过 `.agents/skills/implement-change/scripts/check_file_line_limits.py`；400 行通过、401 行失败。该门禁适用于全部人工维护文本，不只检查本次改动文件。
 - 只有里程碑路径要求当前批次 Todo 全部为 `done` 后进入验收。候选必须绑定批准场景、源码 commit、运行环境和可观察结果；源码片段、Mock、stub、占位页面、中性 scaffold、开发预览或仅调用内部函数的结果不具备验收资格。
+- 产出物验收以真实可用为准，非 Mock 是硬规则：无论快速、标准还是里程碑路径，对产出物给出"完成""可用""已验证"结论时都必须基于真实运行、真实调用产出物本身得到的可观察结果，不得以模拟实现、测试替身、占位页面或仅调用内部函数的结果冒充验收证据。这与测试隔离规则不冲突：单元/集成测试仍可对不可控外部依赖（网络、当前时间、随机性、用户主目录等）使用受控测试替身以保证确定性，但测试替身只证明代码单元内部正确性，不能被引用为"产出物已经真实可用"的依据。详细原则与里程碑范围以 `docs/VERIFICATION.md` 为唯一来源（见 ADR-20260806-002）。
 - 冒烟与 E2E 只允许由 `$verify-delivery` 在验证里程碑读取 `milestone_smoke`、`milestone_e2e`、产品/渠道硬要求和实际适用性后决定。`disabled` 的可选项记录 `Not run` 与风险；硬要求不得跳过。需要凭据、生产数据、支付、发布或不可逆副作用时仍须独立授权。
 - 验证里程碑必须重新执行基于当前候选源码的编译/构建、非空单元测试、相关集成/契约和真实产物存在性检查。Todo 全部完成后，构建可在条件具备时先签名，并把明确标记 `milestoneAcceptance: pending` 的候选放入根 `release/` 或上传用于验收传输；它不是 ready/发布物。按策略启用或硬要求的冒烟/E2E 必须针对这些最终字节执行，并在标记 ready、发布上传或正式发布前通过。
 - 任一必需门禁或已启用冒烟/E2E 失败、超时、取消或未执行时，里程碑拒绝；保存证据，重开或新增具体 Todo，返回 `$implement-change` 实现缺失逻辑、修复偏差并增加回归测试。只有所有 Todo 再次 `done` 后才能重新验收完整里程碑。
