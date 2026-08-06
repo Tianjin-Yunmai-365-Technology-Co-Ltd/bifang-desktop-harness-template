@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""拒绝 Git 可见范围内超过 400 行的人工维护文本文件。"""
+"""报告超过 500 行的复核候选，并拒绝超过 2000 行的人工维护文本。"""
 
 from __future__ import annotations
 
@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-LINE_LIMIT = 400
+REVIEW_THRESHOLD = 500
+HARD_LINE_LIMIT = 2000
 GENERATED_LOCKFILE_NAMES = frozenset(
     {
         "Cargo.lock",
@@ -67,25 +68,29 @@ def _git_visible_paths(root: Path) -> tuple[list[str], list[str]]:
     return sorted(paths), []
 
 
-def _safe_candidate(root: Path, relative: str) -> tuple[Path | None, str | None]:
+def _safe_candidate(
+    root: Path, relative: str
+) -> tuple[Path | None, str | None, str | None]:
     """把 Git 相对路径约束在项目根内，并且不跟随符号链接。"""
 
     if not relative or os.path.isabs(relative):
-        return None, f"Git 返回非法相对路径: {relative!r}"
+        return None, f"Git 返回非法相对路径: {relative!r}", None
     candidate = root / relative
     try:
         lexical = Path(os.path.abspath(candidate))
         lexical.relative_to(root)
     except (OSError, ValueError):
-        return None, f"Git 路径越过项目根: {relative!r}"
+        return None, f"Git 路径越过项目根: {relative!r}", None
     if candidate.is_symlink():
-        return None, None
+        return None, None, "symlink"
+    if not candidate.exists():
+        return None, None, "missing"
     try:
         if not candidate.is_file():
-            return None, f"Git 路径不是普通文件: {relative!r}"
+            return None, f"Git 路径不是普通文件: {relative!r}", None
     except OSError as error:
-        return None, f"无法检查 Git 路径 {relative!r}: {error}"
-    return candidate, None
+        return None, f"无法检查 Git 路径 {relative!r}: {error}", None
+    return candidate, None, None
 
 
 def _read_text(candidate: Path, relative: str) -> tuple[str | None, str | None]:
@@ -110,11 +115,14 @@ def inspect_repository(root: Path) -> dict[str, Any]:
     report: dict[str, Any] = {
         "ok": False,
         "root": str(root),
-        "limit": LINE_LIMIT,
+        "reviewThreshold": REVIEW_THRESHOLD,
+        "hardLimit": HARD_LINE_LIMIT,
         "checkedTextFiles": 0,
         "excludedGeneratedFiles": [],
         "skippedBinaryFiles": 0,
+        "skippedMissingFiles": 0,
         "skippedSymlinks": 0,
+        "reviewCandidates": [],
         "violations": [],
         "errors": errors,
     }
@@ -127,12 +135,15 @@ def inspect_repository(root: Path) -> dict[str, Any]:
         return report
 
     for relative in relative_paths:
-        candidate, path_error = _safe_candidate(canonical, relative)
+        candidate, path_error, skip_reason = _safe_candidate(canonical, relative)
         if path_error:
             report["errors"].append(path_error)
             continue
         if candidate is None:
-            report["skippedSymlinks"] += 1
+            if skip_reason == "symlink":
+                report["skippedSymlinks"] += 1
+            elif skip_reason == "missing":
+                report["skippedMissingFiles"] += 1
             continue
         if candidate.name in GENERATED_LOCKFILE_NAMES:
             report["excludedGeneratedFiles"].append(relative)
@@ -146,12 +157,17 @@ def inspect_repository(root: Path) -> dict[str, Any]:
             continue
         report["checkedTextFiles"] += 1
         line_count = len(text.splitlines())
-        if line_count > LINE_LIMIT:
+        if line_count > HARD_LINE_LIMIT:
             report["violations"].append(
-                {"path": relative, "lines": line_count, "limit": LINE_LIMIT}
+                {"path": relative, "lines": line_count, "limit": HARD_LINE_LIMIT}
+            )
+        elif line_count > REVIEW_THRESHOLD:
+            report["reviewCandidates"].append(
+                {"path": relative, "lines": line_count, "threshold": REVIEW_THRESHOLD}
             )
 
     report["excludedGeneratedFiles"].sort()
+    report["reviewCandidates"].sort(key=lambda item: str(item["path"]))
     report["violations"].sort(key=lambda item: str(item["path"]))
     report["errors"].sort()
     report["ok"] = not report["errors"] and not report["violations"]
@@ -168,7 +184,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(arguments: list[str] | None = None) -> int:
-    """执行检查；0 为通过，1 为超限，2 为检查器/仓库错误。"""
+    """执行检查；0 为通过或待语义复核，1 为硬超限，2 为检查器错误。"""
 
     options = _parser().parse_args(arguments)
     report = inspect_repository(options.root)
@@ -177,16 +193,23 @@ def main(arguments: list[str] | None = None) -> int:
     else:
         for error in report["errors"]:
             print(f"ERROR: {error}", file=sys.stderr)
+        for candidate in report["reviewCandidates"]:
+            print(
+                "REVIEW: 人工维护文本超过 500 行，请复核高内聚、职责单一和职责相近性: "
+                f"{candidate['path']} ({candidate['lines']} lines)",
+                file=sys.stderr,
+            )
         for violation in report["violations"]:
             print(
-                "ERROR: 人工维护文本超过 400 行: "
+                "ERROR: 人工维护文本超过 2000 行，必须拆分: "
                 f"{violation['path']} ({violation['lines']} lines)",
                 file=sys.stderr,
             )
         if report["ok"]:
             print(
                 "File line-limit check passed: "
-                f"{report['checkedTextFiles']} maintained text file(s), limit={LINE_LIMIT}."
+                f"{report['checkedTextFiles']} maintained text file(s), "
+                f"review-threshold={REVIEW_THRESHOLD}, hard-limit={HARD_LINE_LIMIT}."
             )
     if report["errors"]:
         return 2

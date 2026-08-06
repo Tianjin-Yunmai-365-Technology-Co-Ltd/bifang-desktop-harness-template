@@ -16,7 +16,7 @@ description: 扫描已选 GUI 适配器的 React 前端与 Rust 原生文案，�
 5. 为每处硬编码文案生成或复用稳定的层级翻译 key（如 `settings.language.label`），前端调用 `react-i18next` 的 `useTranslation`/`t()`，Rust 侧使用 `rust_i18n::t!()` 宏；翻译资源按功能域拆分文件存放，不得把 key 直接设为源文案本身的复制。
 6. 只为基准回退语言（英文）和当前已批准维护的语言写入真实翻译；不得为未批准或未来语言臆造译文。缺失的其他已支持语言译文按 `docs/ENGINEERING_RULES.md` 第 3.3 节关于临时标记的规则记录明确原因和完成条件，并同步登记 `docs/TECH_DEBT.md`，不得裸写未说明原因的临时标记。
 7. 替换源码中的字符串字面量为 i18n 调用后，运行前端和 Rust 相关测试确认默认语言渲染结果与迁移前一致；新增 key 需有测试或人工核对证据，不得只改资源文件不验证渲染。
-8. 每次改动运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`；新增或拆分的翻译资源文件同样受 400 行硬上限约束，超限按功能域拆分。
+8. 每次改动运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`；翻译资源超过 500 行时复核是否按同一功能域高内聚、职责单一且职责相近，不满足则按功能域拆分，超过 2000 行必须拆分。
 9. 只按 `docs/ENGINEERING_RULES.md` 的独立事件触发规则更新项目记忆；纯文案迁移属于不改变可观察行为的重构，默认不触发 Product Spec、ADR、Product Status 或 Changelog。
 
 ## 硬边界

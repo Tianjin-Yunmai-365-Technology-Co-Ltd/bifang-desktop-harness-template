@@ -53,7 +53,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
     ```
 
     该命令根据目标拥有的精确所有权清单和 `.harness/upstream-lock.json` 重新构建计划，绑定源与目标 Git 身份，比较完整的已复核 JSON，预检每项操作，并且只原子替换一个现有文件。每应用一个路径后都要生成并复核新计划。普通 `managed` 更新必须先于 `managed-self` 完成；在自更新路径内部，命令行工具强制执行稳定顺序，并最后替换自身入口。计划篡改或源、候选、目标、控制文件发生任何漂移，都会在写入前中止。使用 `apply_patch` 单独解决 `add`、`manual_add`、`delete`、`merge-sections` 和 `conditional` 项；不得仅为避免合并而替换整个混合所有权文件。
-11. 代码行为变化运行相关非空单元/回归测试，以及受影响的格式、代码规范、静态、集成和契约检查；纯文档/元数据升级使用相称替代验证。所有升级都必须通过保留的 `.agents/skills/implement-change/scripts/check_file_line_limits.py`，Python 3 不可用或任一人工维护文本超过 400 行时阻断；涉及 Rust shared core/adapter 时再运行 `check_core_first.py`，不可用则运行并记录等价的锁定 Cargo metadata 依赖图审查。Todo 循环期间不得运行冒烟/E2E。只有任务采用里程碑路径时，全部 Todo 为 `done` 后才把完整真实候选交给 `$verify-delivery`。
+11. 代码行为变化运行相关非空单元/回归测试，以及受影响的格式、代码规范、静态、集成和契约检查；纯文档/元数据升级使用相称替代验证。所有升级都必须通过保留的 `.agents/skills/implement-change/scripts/check_file_line_limits.py`，逐项复核 501 至 2000 行候选的高内聚、职责单一和职责相近性；Python 3 不可用、候选职责复核不通过或任一人工维护文本超过 2000 行时阻断。涉及 Rust shared core/adapter 时再运行 `check_core_first.py`，不可用则运行并记录等价的锁定 Cargo metadata 依赖图审查。Todo 循环期间不得运行冒烟/E2E。只有任务采用里程碑路径时，全部 Todo 为 `done` 后才把完整真实候选交给 `$verify-delivery`。
 12. 重新运行 `plan`。解决每个阻断项和未应用的受管理操作。只有目标包含已复核结果后，才能记录已验证基线：
 
     ```text

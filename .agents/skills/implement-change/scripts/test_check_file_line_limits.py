@@ -1,4 +1,4 @@
-"""覆盖人工维护文本 400 行检查器的路径、边界和失败语义。"""
+"""覆盖人工维护文本 500 行复核与 2000 行硬门禁的边界语义。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from check_file_line_limits import LINE_LIMIT, inspect_repository, main
+from check_file_line_limits import HARD_LINE_LIMIT, REVIEW_THRESHOLD, inspect_repository, main
 
 
 class RepositoryFixture(unittest.TestCase):
@@ -52,22 +52,37 @@ class RepositoryFixture(unittest.TestCase):
 
 
 class FileLineLimitTests(RepositoryFixture):
-    """验证 400/401、Git 可见范围和封闭生成文件分类。"""
+    """验证 500/501/2000/2001、Git 可见范围和封闭生成文件分类。"""
 
-    def test_accepts_400_lines_with_or_without_final_newline(self) -> None:
-        """恰好 400 行应通过，尾部换行不得制造第 401 行。"""
+    def test_accepts_500_lines_with_or_without_final_newline(self) -> None:
+        """恰好 500 行应通过且不进入复核候选，尾部换行不增加物理行。"""
 
-        self.write("tracked.txt", "\n".join("x" for _ in range(LINE_LIMIT)))
-        self.write("untracked.txt", "y\n" * LINE_LIMIT)
+        self.write("tracked.txt", "\n".join("x" for _ in range(REVIEW_THRESHOLD)))
+        self.write("untracked.txt", "y\n" * REVIEW_THRESHOLD)
         self.track("tracked.txt")
         report = inspect_repository(self.root)
         self.assertTrue(report["ok"], report)
         self.assertEqual(report["checkedTextFiles"], 2)
+        self.assertEqual(report["reviewCandidates"], [])
 
-    def test_rejects_401_lines_for_tracked_and_untracked_text(self) -> None:
-        """已跟踪和未忽略未跟踪文件都不能超过上限。"""
+    def test_reports_501_through_2000_lines_without_hard_failure(self) -> None:
+        """软阈值以上到硬上限的文件应通过机械检查并列为语义复核候选。"""
 
-        payload = "\n".join("x" for _ in range(LINE_LIMIT + 1))
+        self.write("tracked.md", "x\n" * (REVIEW_THRESHOLD + 1))
+        self.write("nested/untracked.py", "x\n" * HARD_LINE_LIMIT)
+        self.track("tracked.md")
+        report = inspect_repository(self.root)
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(
+            [item["path"] for item in report["reviewCandidates"]],
+            ["nested/untracked.py", "tracked.md"],
+        )
+        self.assertEqual(report["violations"], [])
+
+    def test_rejects_2001_lines_for_tracked_and_untracked_text(self) -> None:
+        """已跟踪和未忽略未跟踪文件超过 2000 行时都必须失败。"""
+
+        payload = "\n".join("x" for _ in range(HARD_LINE_LIMIT + 1))
         self.write("tracked.md", payload)
         self.write("nested/untracked.py", payload)
         self.track("tracked.md")
@@ -81,7 +96,7 @@ class FileLineLimitTests(RepositoryFixture):
     def test_handles_hidden_spaces_and_newlines_in_paths(self) -> None:
         """NUL 清单必须无歧义处理隐藏、空格和换行文件名。"""
 
-        payload = "x\n" * (LINE_LIMIT + 1)
+        payload = "x\n" * (HARD_LINE_LIMIT + 1)
         names = [".hidden file.md", "line\nbreak.txt"]
         for name in names:
             self.write(name, payload)
@@ -96,9 +111,9 @@ class FileLineLimitTests(RepositoryFixture):
         """忽略文件、二进制和链接目标不参与人工维护文本计数。"""
 
         self.write(".gitignore", "ignored.txt\ntarget.txt\n")
-        self.write("ignored.txt", "x\n" * (LINE_LIMIT + 1))
-        self.write("binary.bin", b"header\0" + b"x\n" * (LINE_LIMIT + 1))
-        self.write("target.txt", "x\n" * (LINE_LIMIT + 1))
+        self.write("ignored.txt", "x\n" * (HARD_LINE_LIMIT + 1))
+        self.write("binary.bin", b"header\0" + b"x\n" * (HARD_LINE_LIMIT + 1))
+        self.write("target.txt", "x\n" * (HARD_LINE_LIMIT + 1))
         self.track(".gitignore", "binary.bin")
         link = self.root / "linked.txt"
         try:
@@ -111,10 +126,20 @@ class FileLineLimitTests(RepositoryFixture):
         self.assertEqual(report["skippedBinaryFiles"], 1)
         self.assertEqual(report["skippedSymlinks"], 1)
 
+    def test_deleted_tracked_file_is_skipped_as_absent_worktree_content(self) -> None:
+        """索引中仍存在但工作树已删除的文件不应造成检查器运行错误。"""
+
+        deleted = self.write("deleted.txt", "x\n" * (HARD_LINE_LIMIT + 1))
+        self.track("deleted.txt")
+        deleted.unlink()
+        report = inspect_repository(self.root)
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(report["skippedMissingFiles"], 1)
+
     def test_excludes_only_known_generated_lockfile_names(self) -> None:
         """工具锁文件按精确名称排除，相似人工文件仍会失败。"""
 
-        payload = "x\n" * (LINE_LIMIT + 1)
+        payload = "x\n" * (HARD_LINE_LIMIT + 1)
         self.write("Cargo.lock", payload)
         self.write("Cargo.lock.notes", payload)
         self.track("Cargo.lock", "Cargo.lock.notes")
@@ -160,9 +185,9 @@ class FileLineLimitFailureTests(unittest.TestCase):
         """JSON 入口分别用 0/1/2 表示通过、超限和运行错误。"""
 
         reports = (
-            ({"ok": True, "errors": [], "violations": []}, 0),
-            ({"ok": False, "errors": [], "violations": [{}]}, 1),
-            ({"ok": False, "errors": ["failure"], "violations": []}, 2),
+            ({"ok": True, "errors": [], "reviewCandidates": [], "violations": []}, 0),
+            ({"ok": False, "errors": [], "reviewCandidates": [], "violations": [{}]}, 1),
+            ({"ok": False, "errors": ["failure"], "reviewCandidates": [], "violations": []}, 2),
         )
         for report, expected in reports:
             stdout = io.StringIO()

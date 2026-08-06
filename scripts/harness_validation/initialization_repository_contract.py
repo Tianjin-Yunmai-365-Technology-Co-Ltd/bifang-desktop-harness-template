@@ -97,7 +97,7 @@ def repository_required_fragments(
             "main",
             "Skills 地图和约束地图",
             "$prepare-gui-app-identity",
-            "400 个物理行",
+            "超过 2000 行",
         ),
         ROOT / "AGENTS.md": (
             "## Skills 地图",

@@ -53,7 +53,7 @@ def main() -> int:
     validate_upgrade_contract(errors)
     validate_initialization_contract(errors)
     validate_core_first_contract(errors)
-    validate_repository_line_limits(errors)
+    validate_repository_line_limits(errors, warnings=warnings)
     validate_agent_policy(errors)
     validate_engineering_contract(errors)
     validate_parallel_and_tiered_verification(errors)
@@ -69,7 +69,7 @@ def main() -> int:
         return 1
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
-        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, hard 400-line limits, five event-triggered project-memory streams, "
+        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, 500-line semantic review and hard 2000-line limits, five event-triggered project-memory streams, "
         "optional standard plans and strict milestone gates, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
         "parallel worktree gates, core-first dependency boundaries, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."

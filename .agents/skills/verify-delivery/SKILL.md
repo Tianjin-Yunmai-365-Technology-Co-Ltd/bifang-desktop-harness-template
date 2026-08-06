@@ -17,7 +17,7 @@ description: 在里程碑/发布候选或用户明确要求完整验收时，使
 
 1. 说明已批准的核心成功路径、最高风险失败路径、真实输入/输出和可观察验收结果。区分外部前置项与产品逻辑。
 2. 发现仓库真实命令和产物位置；绝不得编造。在构建 Skill 中不得运行冒烟/E2E，只构建或定位候选。验证由当前构建标识放入项目根 `release/` 的精确最终字节、校验和及清单。macOS Tauri 已签名直接分发候选必须同时记录 `notarizationStatus: notarized-and-stapled`；仅签名候选不具备验收资格。xwin NSIS 必须记录 `runtimeVerification: Unverified`，不能据交叉构建成功推断 Windows 行为。
-3. 针对当前候选重新运行适用的编译/构建、相关非空单元/回归测试、必需集成/契约和产物存在性检查，并通过当前平台可用的 Python 3 解释器运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`；任一人工维护文本超过 400 个物理行时拒绝候选。业务行为必须有 core 成功/最高风险领域失败测试和适配器映射/接口契约测试；仅有 adapter 测试时拒绝。Rust core/adapter 候选还必须运行 `.agents/skills/implement-change/scripts/check_core_first.py`；Python 不可用时，行数门禁阻断验收，core-first 则执行并记录等价 `cargo metadata` 依赖图检查。非代码治理候选执行已声明的解析、链接、静态、现有回归或差异检查；代码行为测试数为零或缺少必需覆盖时拒绝里程碑。若批准场景要求 Windows 原生运行，macOS xwin 候选必须转交真实 Windows 环境完成对应检查，不能以 `Unverified` 验收该场景。
+3. 针对当前候选重新运行适用的编译/构建、相关非空单元/回归测试、必需集成/契约和产物存在性检查，并通过当前平台可用的 Python 3 解释器运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`；逐项复核 501 至 2000 行候选的高内聚、职责单一和职责相近性，任一项不满足或任一人工维护文本超过 2000 行时拒绝候选。业务行为必须有 core 成功/最高风险领域失败测试和适配器映射/接口契约测试；仅有 adapter 测试时拒绝。Rust core/adapter 候选还必须运行 `.agents/skills/implement-change/scripts/check_core_first.py`；Python 不可用时，行数门禁阻断验收，core-first 则执行并记录等价 `cargo metadata` 依赖图检查。非代码治理候选执行已声明的解析、链接、静态、现有回归或差异检查；代码行为测试数为零或缺少必需覆盖时拒绝里程碑。若批准场景要求 Windows 原生运行，macOS xwin 候选必须转交真实 Windows 环境完成对应检查，不能以 `Unverified` 验收该场景。
 4. 按以下顺序解析可选运行时检查：
    - 产品、渠道和安全硬要求；
    - 当前任务中更严格的用户约束；

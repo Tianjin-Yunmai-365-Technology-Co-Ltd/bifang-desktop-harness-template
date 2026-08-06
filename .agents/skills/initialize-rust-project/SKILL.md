@@ -19,7 +19,7 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 8. 将每个已记录接口分派给各自的 Skill：`$add-cli-adapter`、`$add-tui-adapter`、`$add-mcp-adapter` 或 `$add-gui-adapter`。每个已选 Skill 负责自己的薄适配器目录和测试，只拥有运行时装配、接口语法/协议结构、展示/纯交互状态、调用 core 和结果映射；系统托盘、窗口、终端恢复或 stdio 生命周期等机制留在所属适配器，但其业务动作仍调用 core。TUI 使用固定的 Ratatui + tui-realm + tui-realm-stdlib 技术栈；Tauri GUI 前端使用固定的 React + TypeScript + Mantine UI + TanStack Router + TanStack Query + Jotai 技术栈。自带的 `rust-lib-cli` 资产提供中性核心和可选的 CLI 实现；未选择 CLI 时不得复制其中的 CLI 成员。
    - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 9. Product Spec 不存在或仍为 `Draft` 时，每个已选接口只能公开中性脚手架状态，其中包含 `productDefinitionRequired=true` 或接口等价的可见状态。不得虚构业务命令、工具、屏幕、路由、数据或副作用。产品获批后，只实现尚未暴露的内部 core 行为可采用标准路径；任何适配器首次替换中性状态或建立公开命令、工具、页面、协议时都必须进入里程碑路径。后续局部、可逆且不改变公开契约的变更才可按快速/标准规则处理。
-10. 必须通过 Cargo 生成 `Cargo.lock`。对每个已创建成员运行格式检查、代码规范检查、非空测试和锁定依赖构建。通过当前平台的 Python 3 解释器运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`，检查器不得依赖 POSIX 可执行位；任一人工维护文本超过 400 个物理行或 Python 3 不可用时阻断。工具生成且禁止手工编辑的 `Cargo.lock` 按检查器的封闭分类处理。随后运行 `check_core_first.py`；只有该检查在 Python 3 不可用时才允许使用 `cargo metadata --no-deps --locked --format-version 1` 执行并记录等价依赖图审查。中性初始化期间不得运行冒烟或 E2E。测试必须覆盖核心中性状态、每个已选适配器的可观察状态，以及对未批准业务行为的拒绝。
+10. 必须通过 Cargo 生成 `Cargo.lock`。对每个已创建成员运行格式检查、代码规范检查、非空测试和锁定依赖构建。通过当前平台的 Python 3 解释器运行 `.agents/skills/implement-change/scripts/check_file_line_limits.py`，检查器不得依赖 POSIX 可执行位；逐项复核 501 至 2000 行候选的高内聚、职责单一和职责相近性，任一项不满足、任一人工维护文本超过 2000 行或 Python 3 不可用时阻断。工具生成且禁止手工编辑的 `Cargo.lock` 按检查器的封闭分类处理。随后运行 `check_core_first.py`；只有该检查在 Python 3 不可用时才允许使用 `cargo metadata --no-deps --locked --format-version 1` 执行并记录等价依赖图审查。中性初始化期间不得运行冒烟或 E2E。测试必须覆盖核心中性状态、每个已选适配器的可观察状态，以及对未批准业务行为的拒绝。
 11. 使用实际结果更新保留的产品状态、接口、策略和真实技术债；环境、测试、构建、Git 边界与未测试系统只汇总到本次完成输出，不创建或更新 `docs/VERIFICATION.md`。不得为中性初始化创建产品规格、工作计划、ADR 或变更记录，并明确脚手架不是里程碑产物。如果选择 GUI，必须记录 `$prepare-gui-app-identity` 是首次产品 GUI 开发前的强制步骤。
 12. 只有全部脚手架检查完成后，才能收尾下游仓库：
     - 完整删除 `.agents/skills/instantiate-project/` 和 `.agents/skills/initialize-rust-project/`；
@@ -39,7 +39,7 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 - 确定性目录为 `<project-id>_core`、`_cli`、`_tui`、`_mcp` 和 `_gui`。
 - 每个适配器必须直接依赖核心，并且绝不得解析、启动、嵌入或要求另一个适配器。
 - Core-first 按职责而非代码行数判断：领域规则、语义校验、业务默认值、用例编排、状态转换和稳定错误属于 core；适配器只拥有协议/展示/交互/宿主机制和映射。当前只有一个适配器不是例外，偏离只能按硬规则例外 ADR 处理。
-- 所有人工或 Agent 维护的文本文件不得超过 400 个物理行；这是独立于 core-first 语义判断的失败门禁，不能以 ADR、职责集中或测试夹具为由放宽。
+- 所有人工或 Agent 维护的文本文件超过 500 行时必须复核高内聚、职责单一和职责相近性，不满足就拆分；超过 2000 行是独立于 core-first 语义判断的失败门禁，不能以 ADR、职责集中或测试夹具为由放宽。Rust 模块拆分使用目录/`mod.rs` 结构。
 - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 - 每个适配器公开真实操作时必须记录“适配器操作 → core API → core 测试”；系统托盘等 adapter-only 机制必须记录其接口/宿主专属性，并把业务效果委托 core。
 - CLI、TUI 和 MCP 适配器默认使用 Tokio current-thread 异步入口；GUI 复用 Tauri 由 Tokio 支撑的异步运行时。所有 Rust 适配器工作优先采用异步 I/O 和等待。只有经过测量的 CPU 密集工作才可以进入有边界的线程边界；仅提供阻塞接口的依赖必须被替换，或通过范围与硬规则例外流程获得批准。除非已批准的领域需求另有要求，核心必须保持运行时中立。

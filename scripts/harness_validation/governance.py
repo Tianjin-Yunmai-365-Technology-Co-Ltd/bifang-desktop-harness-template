@@ -19,8 +19,9 @@ def validate_engineering_contract(errors: list[str]) -> None:
     required_fragments = {
         ENGINEERING_RULES: (
             "## 2. 文件、模块与依赖边界",
-            "400 行",
-            "单文件 400 行硬上限",
+            "500 行复核",
+            "2000 行硬上限",
+            "高内聚、职责单一和职责相近性复核",
             "## 3. 中文代码注释",
             "## 4. 文档规则",
             "## 5. 测试组织",

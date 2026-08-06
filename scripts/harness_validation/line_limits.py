@@ -13,10 +13,11 @@ from .context import LINE_LIMIT_CHECKER, ROOT, display_path, fail
 def validate_repository_line_limits(
     errors: list[str],
     *,
+    warnings: list[str] | None = None,
     root: Path = ROOT,
     checker: Path = LINE_LIMIT_CHECKER,
 ) -> None:
-    """运行唯一检查器；超限、无效报告和运行错误都阻断 Harness。"""
+    """运行唯一检查器；复核候选可见，硬超限和运行错误阻断 Harness。"""
 
     if not checker.is_file():
         fail(errors, f"missing file line-limit checker: {display_path(checker)}")
@@ -43,13 +44,22 @@ def validate_repository_line_limits(
         return
     for detail in report.get("errors", []):
         fail(errors, f"file line-limit checker error: {detail}")
+    for candidate in report.get("reviewCandidates", []):
+        if not isinstance(candidate, dict):
+            fail(errors, f"invalid file line-limit review candidate: {candidate!r}")
+            continue
+        if warnings is not None:
+            warnings.append(
+                "maintained text file requires cohesion/responsibility review above 500 lines: "
+                f"{candidate.get('path')} ({candidate.get('lines')} lines)"
+            )
     for violation in report.get("violations", []):
         if not isinstance(violation, dict):
             fail(errors, f"invalid file line-limit violation: {violation!r}")
             continue
         fail(
             errors,
-            "maintained text file exceeds 400 lines: "
+            "maintained text file exceeds hard 2000-line limit: "
             f"{violation.get('path')} ({violation.get('lines')} lines)",
         )
     if result.returncode not in {0, 1, 2}:
