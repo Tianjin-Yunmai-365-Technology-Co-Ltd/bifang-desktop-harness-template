@@ -9,6 +9,7 @@
 
 ## 变更
 
+- ADR、Changelog、Work Plan、Product Status、Product Spec 五类按日项目记忆改为只在仓库中保留日期最新的文件；被后续日期完全取代的历史日期文件（`docs/adr/`、`docs/changelog/`、`docs/work_plan/`、`docs/project_status/`、`docs/product_spec/` 下 2026-08-05 之前的全部日期文件）已删除，历史改由 Git 版本控制承担，`docs/verification/` 证据分卷与人工复核记录不受影响，继续保留全部历史。见 ADR-20260805-004。
 - Harness 当前工程版本从 `202607301002` 提升为上海时区时间版本 `202608051301`；发布状态继续保持 `Unreleased`，本次不创建标签、源码归档或正式发布。
 - Core-first 现在是所有下游的强制架构规则：接口/宿主无关的业务规则、领域校验、默认值、用例编排、状态转换、稳定错误、权限和持久化策略必须由 core 实现并测试，即使当前只有一个 adapter 也同样适用。
 - CLI/TUI/MCP/GUI 统一收窄为薄适配层，只拥有运行时装配、语法/协议结构、展示/纯交互状态、调用 core 和结果映射；所有公开业务操作都要记录“adapter 操作 → core API → core 测试”。
