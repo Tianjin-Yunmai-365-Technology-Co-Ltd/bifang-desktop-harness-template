@@ -19,8 +19,10 @@ from scripts.harness_validation.governance import (
     validate_parallel_and_tiered_verification,
     validate_version_contract,
 )
+from scripts.harness_validation.gui_support import validate_gui_support_contract
 from scripts.harness_validation.initialization import validate_initialization_contract
 from scripts.harness_validation.line_limits import validate_repository_line_limits
+from scripts.harness_validation.rust_comments import validate_rust_chinese_comments
 from scripts.harness_validation.repository import (
     validate_daily_project_memory,
     validate_markdown_links,
@@ -52,7 +54,9 @@ def main() -> int:
     validate_release_contract(errors)
     validate_upgrade_contract(errors)
     validate_initialization_contract(errors)
+    validate_gui_support_contract(errors)
     validate_core_first_contract(errors)
+    validate_rust_chinese_comments(errors)
     validate_repository_line_limits(errors, warnings=warnings)
     validate_agent_policy(errors)
     validate_engineering_contract(errors)
@@ -71,7 +75,7 @@ def main() -> int:
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
         f"{len(EXPECTED_SKILLS)} skills, local Markdown links, 500-line semantic review and hard 2000-line limits, five event-triggered project-memory streams, "
         "optional standard plans and strict milestone gates, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
-        "parallel worktree gates, core-first dependency boundaries, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
+        "parallel worktree gates, core-first dependency boundaries, Rust workspace Chinese-comment coverage, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."
     )
     return 0

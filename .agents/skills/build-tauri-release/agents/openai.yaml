@@ -1,4 +1,0 @@
-interface:
-  display_name: "构建 Tauri 发布候选"
-  short_description: "构建可审计的 macOS DMG 与 Windows xwin Tauri 安装包"
-  default_prompt: "使用 $build-tauri-release 在 macOS 构建原生 DMG 和 Windows NSIS 交叉候选，并按条件完成签名、公证与 stapling。"

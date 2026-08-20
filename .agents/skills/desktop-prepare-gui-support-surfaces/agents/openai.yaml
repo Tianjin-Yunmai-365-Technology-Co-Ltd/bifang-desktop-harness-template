@@ -1,0 +1,4 @@
+interface:
+  display_name: "准备 GUI 支持界面"
+  short_description: "按需实施 GUI 支持界面并复用完整产品家族品牌资产"
+  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，只为已批准的 GUI 产品能力定义支持界面、复用品牌依赖资产，并固化所有权和最小出站边界。"

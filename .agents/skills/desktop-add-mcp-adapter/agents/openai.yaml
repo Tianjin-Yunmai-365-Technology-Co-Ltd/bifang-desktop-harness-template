@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 MCP 适配器"
+  short_description: "为 Rust 下游项目增加异步优先的 Tokio stdio MCP 适配器"
+  default_prompt: "使用 $desktop-add-mcp-adapter，为此项目增加只处理 MCP 协议并调用 core 用例的 Tokio stdio 薄适配器。"

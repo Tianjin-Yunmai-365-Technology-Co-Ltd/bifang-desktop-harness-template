@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-CHECKER_TEST_ROOT = ROOT / ".agents" / "skills" / "implement-change" / "scripts"
+CHECKER_TEST_ROOT = ROOT / ".agents" / "skills" / "desktop-implement-change" / "scripts"
 if str(CHECKER_TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(CHECKER_TEST_ROOT))
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "规划变更"
-  short_description: "为标准或里程碑路径建立最少、可验证且可跨会话交接的实施 Todo"
-  default_prompt: "使用 $plan-change，为这个标准或里程碑变更准备精简计划；业务 Todo 先落 core 与 core 测试，再规划薄 adapter 映射。"

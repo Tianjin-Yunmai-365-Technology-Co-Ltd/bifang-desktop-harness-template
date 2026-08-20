@@ -15,7 +15,7 @@
 - 身份门禁：`git diff HEAD --exit-code`、`git diff --cached --exit-code`、`git status --porcelain=v1 --untracked-files=all` 均为空，检查前后 `HEAD` 保持精确候选哈希。
 - `python3 -B -m unittest discover -s scripts`：112/112 通过，包含九项 Rust 技术选型必需契约的非空回归。
 - `python3 -B scripts/validate_harness.py`：通过 88 个必需文件、21 个 Skills、本地 Markdown 链接、初始化传播、core-first、项目记忆、发布与工作流门禁；0 个非阻断提示。
-- `python3 -B .agents/skills/implement-change/scripts/check_file_line_limits.py`：198 个人工维护文本文件全部不超过 400 行；`git diff --check` 同步通过。
+- `python3 -B .agents/skills/desktop-implement-change/scripts/check_file_line_limits.py`：198 个人工维护文本文件全部不超过 400 行；`git diff --check` 同步通过。
 
 ### 适用性、未执行项与结论
 
@@ -44,9 +44,9 @@
 - 环境：macOS 26.5.2（Build 25F84）arm64；Python 3.14.6；精确 MSRV `rustc 1.90.0 (1159e78c4 2025-09-14)`。
 - 身份门禁：验收前后 `HEAD` 均为候选完整哈希，`git diff HEAD --exit-code`、`git diff --cached --exit-code` 和 `git status --porcelain=v1 --untracked-files=all` 均为空。
 - `python3 -B -m unittest discover -s scripts -v`：111/111 通过，覆盖治理、发布、项目记忆、工作计划、工作流执行、文档分卷、行数和 core-first 正负向回归。
-- `python3 -B .agents/skills/upgrade-harness/scripts/test_harness_upgrade.py -v`：28/28 通过，使用隔离 Git 夹具真实调用升级器的 plan/apply/record 路径。
+- `python3 -B .agents/skills/desktop-upgrade-harness/scripts/test_harness_upgrade.py -v`：28/28 通过，使用隔离 Git 夹具真实调用升级器的 plan/apply/record 路径。
 - Skill Creator `quick_validate.py`：21/21 Skills 通过；21 个 `agents/openai.yaml` 解析通过；58 个 Python 文件 AST 解析和 5 个 POSIX Shell 文件语法检查通过。
-- `python3 -B .agents/skills/implement-change/scripts/check_file_line_limits.py`：196 个人工维护文本文件全部不超过 400 行。
+- `python3 -B .agents/skills/desktop-implement-change/scripts/check_file_line_limits.py`：196 个人工维护文本文件全部不超过 400 行。
 - `python3 -B scripts/validate_harness.py`：通过 88 个必需文件、21 个 Skills、本地 Markdown 链接、版本、项目记忆、里程碑、发布/构建、初始化、Worktree、core-first 和工作流门禁；0 个非阻断提示。
 - 中性 Rust 资产在精确 1.90.0 上通过 `cargo fmt --all -- --check`、锁定依赖 workspace check、Clippy `-D warnings`、测试枚举、7/7 非空测试和锁定依赖 release 构建；真实 CLI 黑盒测试覆盖成功状态与未批准命令拒绝。
 - `check_core_first.py` 使用精确 1.90.0 Cargo 的只读 metadata 对真实中性资产通过；`git diff --check` 通过。

@@ -8,7 +8,7 @@
 | LIM-002 | 尚无版本事实来源 | 无法进行版本一致性检查 | Harness 模板已指定根 `Version.md`，下游 Rust 项目已指定根 `Cargo.toml`；`docs/RELEASE.md` 只保存规则 | Closed |
 | LIM-003 | 模板曾无自动文档校验命令 | 已新增 `python3 scripts/validate_harness.py` 检查必需文件、Skills、链接和工作流关键门禁 | 后续随新规则同步维护检查项 | Closed |
 | LIM-004 | 反馈入口尚未确定 | 用户无法通过持久渠道反馈 | 项目负责人指定真实入口 | Open |
-| LIM-005 | P0：实例化仍缺少确定性复制/重置实现 | `$instantiate-project` 已规定路径、身份、历史与独立 Git 边界，但完整复制和重置仍依赖 Agent 逐步执行，可能在真实下游遗漏字段 | 建立跨平台确定性实例化实现，并在 Harness 内/外目标、父 Git、碰撞、符号链接和失败回滚场景前向验证 | Mitigated |
+| LIM-005 | P0：实例化仍缺少确定性复制/重置实现 | `$desktop-instantiate-project` 已规定路径、身份、历史与独立 Git 边界，但完整复制和重置仍依赖 Agent 逐步执行，可能在真实下游遗漏字段 | 建立跨平台确定性实例化实现，并在 Harness 内/外目标、父 Git、碰撞、符号链接和失败回滚场景前向验证 | Mitigated |
 | LIM-006 | 早期验证记录缺少完整可重跑命令和工具版本 | 已在 2026-07-22 整体验收中合并旧摘要，最新 `docs/VERIFICATION.md` 记录环境、真实命令、失败重跑和未验证范围 | 后续验证继续按当前证据格式维护 | Closed |
 | LIM-007 | 跨平台工作流尚无真实运行器前向验证 | 三平台默认路由、`fail-fast: false`、Python 3 运行时选择、批准提交固定、运行器内原子刷新/候选提交、条件签名、精确制品集合与提供方取回已有静态、隔离和内嵌脚本真实文件测试，但托管运行器/Action 更新或真实项目差异仍可能导致候选构建失败 | 首个下游项目启用工作流时运行三平台并记录派发、所有运行器终态、结果取回与本地回退边界 | Open |
 | LIM-008 | 实例化、中性初始化、推荐/自定义策略与分级实施的新完整顺序尚未在真实下游项目前向验证 | 指令边界可能遗漏 Draft 占位、名称替换、`scaffold status` 清理或项目特有交接信息；三档自动分类也可能低估风险或增加不必要流程 | 首个真实下游在无产品目的下完成实例化与中性初始化，分别走推荐/自定义策略和快速/标准/里程碑任务，记录 Token、耗时、升档与漏检后复核 | Open |
@@ -18,16 +18,16 @@
 | LIM-012 | 非 CLI 初始化、superpowers 关闭与 Computer Use E2E 尚无真实下游证据 | Skill 与校验器契约成立，但无法证明跨会话策略、适配器组合及真实最终产物交互 | 首个真实下游分别前向验证 TUI/MCP/GUI、`superpowers: disabled` 和最终产物 E2E | Open |
 | LIM-013 | 固定 TUI 与 Tauri GUI React 前端技术族尚无真实下游兼容证据 | 最新 Ratatui/tui-realm/tui-realm-stdlib 组合可能与 Rust 1.90 不兼容；React/Mantine/TanStack/Jotai 组合也可能受 Node 或 Tauri WebView 约束 | 在真实 TUI 与 GUI 下游分别解析并锁定最新兼容稳定版，完成代码规范检查、非空测试、生产/发布构建、真实产物启动和关键交互验收 | Open |
 | LIM-014 | P0：非 CLI 适配器缺少可重复脚手架证据 | TUI/MCP/GUI Skills 只有执行规则和参考资料，尚无真实下游最小脚手架、锁文件、测试与最终产物证据 | 逐接口在隔离下游前向执行；重复稳定后再决定是否把最小结构提升为受测资产 | Open |
-| LIM-015 | P1：构建与跨平台发布 Skills 仍未覆盖全部接口 | 已新增 `$build-tauri-release`，覆盖 macOS 原生 DMG、macOS→Windows x64 NSIS xwin 路线、Tauri 安装包清单和 macOS 签名+公证+stapling；TUI、MCP、Linux GUI、Windows 原生 GUI 矩阵与各接口只读冒烟仍未统一 | 在真实下游逐接口前向验证后，再按已观察到的共同字段泛化产物清单和矩阵；不得用 xwin 代替 Windows 原生运行证据 | Mitigated |
-| LIM-016 | P1：下游 Harness 升级仍缺少真实项目前向证据 | 已交付 `$upgrade-harness`、来源/目标 Git 绑定、三方基线、最小保护清单、逐文件应用、引导与 28 个基于隔离 Git 夹具的测试；但尚未证明真实身份渲染、混合章节合并、Windows 可移植写入和长期自更新在客户下游稳定 | 至少两个真实下游分别完成有/无旧锁文件的升级并记录冲突、Windows/macOS/Linux 差异和回滚证据后评估关闭 | Mitigated |
+| LIM-015 | P1：构建与跨平台发布 Skills 仍未覆盖全部接口 | 已新增 `$desktop-build-tauri-release`，覆盖 macOS 原生 DMG、macOS→Windows x64 NSIS xwin 路线、Tauri 安装包清单和 macOS 签名+公证+stapling；TUI、MCP、Linux GUI、Windows 原生 GUI 矩阵与各接口只读冒烟仍未统一 | 在真实下游逐接口前向验证后，再按已观察到的共同字段泛化产物清单和矩阵；不得用 xwin 代替 Windows 原生运行证据 | Mitigated |
+| LIM-016 | P1：下游 Harness 升级仍缺少真实项目前向证据 | 已交付 `$desktop-upgrade-harness`、来源/目标 Git 绑定、三方基线、最小保护清单、逐文件应用、引导与 28 个基于隔离 Git 夹具的测试；但尚未证明真实身份渲染、混合章节合并、Windows 可移植写入和长期自更新在客户下游稳定 | 至少两个真实下游分别完成有/无旧锁文件的升级并记录冲突、Windows/macOS/Linux 差异和回滚证据后评估关闭 | Mitigated |
 | LIM-017 | P1：缺少统一依赖维护与供应链复核 Skill | Rust 与 React 技术族已有准入规则，但版本检查、锁文件升级、许可证/漏洞/废弃依赖和回滚证据仍分散 | 在真实 Cargo+npm 维护任务中固化 `$maintain-dependencies` 的输入、检查、变更和验证契约 | Open |
-| LIM-018 | P2：跨接口安全验收入口尚未统一 | MCP 与 GUI 各自约束协议权限、CSP、WebView 能力和状态边界，但缺少一次性交付前威胁面复核和证据矩阵 | 出现首个含外部输入、网络或平台权限的真实产品时，评估新增 `$review-security` 或扩展 `$verify-delivery` | Open |
+| LIM-018 | P2：跨接口安全验收入口尚未统一 | MCP 与 GUI 各自约束协议权限、CSP、WebView 能力和状态边界，但缺少一次性交付前威胁面复核和证据矩阵 | 出现首个含外部输入、网络或平台权限的真实产品时，评估新增 `$review-security` 或扩展 `$desktop-verify-delivery` | Open |
 | LIM-019 | 一次性下游裁剪与 GUI 身份流程尚无真实前向证据 | 规则和校验器可检查模板契约，但尚未证明真实下游能在自删除后保留正确地图，也未证明三种图标路径与 Tauri 平台资产都可用 | 在首个真实下游分别验证仅 CLI 与 GUI 初始化裁剪；GUI 路径验证自动生成、确定性备选方案、上传标准化中的实际选择和最终平台图标 | Open |
 | LIM-020 | 随附的 CLI 测试曾不符合精确 Rust 1.90 rustfmt | 5 处链式调用已按 Rust 1.90 rustfmt 机械更新；fmt、锁定依赖检查、Clippy 与 7 个非空测试在 2026-07-29 重跑通过 | 后续修改继续使用精确 MSRV 工具链运行格式门禁 | Closed |
 | LIM-021 | Subagent Worktree 所有权尚未由宿主机械强制 | 辅助程序已新增 `guard`，对实际 cwd、Git 根、登记 Worktree、分支、空写入清单、绝对越界与符号链接逃逸采用默认拒绝策略，10 个隔离测试通过；但绕过辅助程序的宿主写入仍不能被仓库脚本阻止 | 在 Codex 宿主或沙箱层强制每个写入型 Subagent 的 cwd 与可写根，并以绕过辅助程序的故意越界场景复验 | Mitigated |
 | LIM-022 | Harness 校验器曾超过软拆分阈值 | 单一入口已按 `repository`、工作流、`initialization`、`governance`、发布、`review` 等领域拆分；`initialization` 已进一步拆分为 `initialization_primary_contract.py`、`initialization_repository_contract.py`、`initialization_environment.py` 等独立职责模块 | 后续按领域维护；ADR-20260806-003 已把当前规则调整为超过 500 行执行高内聚/职责单一/职责相近性复核、超过 2000 行强制失败，既有拆分保持不回并 | Closed |
 | LIM-023 | 产品制品条件签名与 macOS 公证尚无真实前向证据 | 当前已定义批准提交绑定、CLI 固定非交互签名钩子、Tauri Developer ID/公证探测、签名+公证+stapling 一体状态机、失败不降级、最终字节 hash 和结构化清单证据；真实 Apple 公证服务、证书、密钥存储、组织策略、证书过期及 Windows/Linux 签名仍可能阻断 | 在不暴露凭据的受控真实下游验证 macOS 凭据缺失、完整 API Key、完整 Apple ID、签名/公证成功、签名/公证失败与渠道 required 场景，并在 Windows/Linux 补齐原生签名证据 | Open |
-| LIM-024 | `$upgrade-harness` 的命令示例仍使用固定 `python3` 与 POSIX 续行符 | 升级器核心逻辑和隔离测试可跨平台运行，但 Windows PowerShell 用户不能保证直接粘贴文档命令，原生 Windows 计划/应用/记录仍未验证 | 改为当前平台可用的 Python 3 解释器与 shell-neutral 单行或分平台示例，并在 Windows 原生执行完整 plan/apply/record 闭环 | Open |
+| LIM-024 | `$desktop-upgrade-harness` 的命令示例仍使用固定 `python3` 与 POSIX 续行符 | 升级器核心逻辑和隔离测试可跨平台运行，但 Windows PowerShell 用户不能保证直接粘贴文档命令，原生 Windows 计划/应用/记录仍未验证 | 改为当前平台可用的 Python 3 解释器与 shell-neutral 单行或分平台示例，并在 Windows 原生执行完整 plan/apply/record 闭环 | Open |
 
 ## 记录规则
 

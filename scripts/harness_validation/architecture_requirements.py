@@ -45,21 +45,21 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "系统托盘",
             "宿主能力约束",
         ),
-        SKILLS_ROOT / "define-product" / "SKILL.md": (  # noqa: F405
+        SKILLS_ROOT / "desktop-define-product" / "SKILL.md": (  # noqa: F405
             "接口/宿主无关的业务结果",
             "业务效果仍委托 core",
         ),
-        SKILLS_ROOT / "plan-change" / "SKILL.md": (  # noqa: F405
+        SKILLS_ROOT / "desktop-plan-change" / "SKILL.md": (  # noqa: F405
             "适配器操作 → core API → core 测试",
             "当前只有一个适配器",
         ),
-        SKILLS_ROOT / "implement-change" / "SKILL.md": (  # noqa: F405
+        SKILLS_ROOT / "desktop-implement-change" / "SKILL.md": (  # noqa: F405
             "Core-first 是硬规则",
             "适配器操作 → core API → core 测试",
             "违反宿主能力约束",
             "scripts/check_core_first.py",
         ),
-        SKILLS_ROOT / "verify-delivery" / "SKILL.md": (  # noqa: F405
+        SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md": (  # noqa: F405
             "适配器操作 → core API → core 测试",
             "系统托盘",
         ),
@@ -69,8 +69,9 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "值域、跨字段关系",
             "不得依赖 POSIX 可执行位",
             "Python 3 不可用时",
-            "必须保留 `$implement-change` 及其",
+            "必须保留 `$desktop-implement-change` 及其",
             "scripts/check_file_line_limits.py",
+            "scripts/check_rust_chinese_comments.py",
             "scripts/check_core_first.py",
             "裁剪后再次按第 10 步",
         ),
@@ -84,8 +85,13 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "GUI 事件/命令 → core API → core 测试",
             "平台机制本身无需 core-first 例外 ADR",
         ),
+        GUI_SUPPORT_SKILL: (  # noqa: F405
+            "领域校验、跨接口可复用的资格判断",
+            "进入 shared core",
+            "属于 GUI adapter",
+        ),
         TUI_BASELINE: ("纯界面应用状态", "当前只有 TUI"),  # noqa: F405
-        SKILLS_ROOT / "add-mcp-adapter" / "references" / "mcp-baseline.md": (  # noqa: F405
+        SKILLS_ROOT / "desktop-add-mcp-adapter" / "references" / "mcp-baseline.md": (  # noqa: F405
             "格式正确但值域",
             "MCP 工具 → core API → core 测试",
         ),
@@ -103,14 +109,14 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "test_rejects_transitive_interface_framework_from_core", "test_rejects_transitive_adapter_to_adapter_dependency", "class CoreFirstCliTests", "test_cli_returns_two_for_json_and_cargo_tool_failures",
         ),
         ROOT / "scripts" / "harness_validation" / "test_architecture.py": ("def load_tests(", "checker_tests"),  # noqa: F405
-        SKILLS_ROOT / "initialize-rust-project" / "agents" / "openai.yaml": (  # noqa: F405
+        SKILLS_ROOT / "desktop-initialize-rust-project" / "agents" / "openai.yaml": (  # noqa: F405
             "core-first",
             "薄 adapter",
         ),
-        SKILLS_ROOT / "add-cli-adapter" / "agents" / "openai.yaml": ("薄适配器",),  # noqa: F405
-        SKILLS_ROOT / "add-tui-adapter" / "agents" / "openai.yaml": ("薄适配器",),  # noqa: F405
-        SKILLS_ROOT / "add-mcp-adapter" / "agents" / "openai.yaml": ("薄适配器",),  # noqa: F405
-        SKILLS_ROOT / "add-gui-adapter" / "agents" / "openai.yaml": (  # noqa: F405
+        SKILLS_ROOT / "desktop-add-cli-adapter" / "agents" / "openai.yaml": ("薄适配器",),  # noqa: F405
+        SKILLS_ROOT / "desktop-add-tui-adapter" / "agents" / "openai.yaml": ("薄适配器",),  # noqa: F405
+        SKILLS_ROOT / "desktop-add-mcp-adapter" / "agents" / "openai.yaml": ("薄适配器",),  # noqa: F405
+        SKILLS_ROOT / "desktop-add-gui-adapter" / "agents" / "openai.yaml": (  # noqa: F405
             "薄适配器",
             "业务效果回到 core",
         ),

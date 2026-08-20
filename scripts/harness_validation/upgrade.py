@@ -25,8 +25,8 @@ from .context import (
 
 REQUIRED_RULES = {
     "Version.md": "tombstone",
-    ".agents/skills/instantiate-project/**": "tombstone",
-    ".agents/skills/initialize-rust-project/**": "tombstone",
+    ".agents/skills/desktop-instantiate-project/**": "tombstone",
+    ".agents/skills/desktop-initialize-rust-project/**": "tombstone",
     "scripts/validate_harness.py": "tombstone",
     "scripts/test_agile_workflow.py": "tombstone",
     "scripts/test_validate_harness.py": "tombstone",
@@ -34,6 +34,7 @@ REQUIRED_RULES = {
     "docs/HARNESS_ENGINEERING.md": "tombstone",
     "docs/harness_engineering/**": "tombstone",
     "docs/AGENT_POLICY.md": "protected",
+    "docs/GUI_SUPPORT_SURFACES.md": "protected",
     "docs/product_spec/**": "protected",
     "docs/project_status/**": "protected",
     "docs/work_plan/**": "protected",
@@ -53,18 +54,21 @@ REQUIRED_RULES = {
     "docs/RUST_CLI_TEMPLATE.md": "merge-sections",
     "docs/CLI_CONTRACT.md": "merge-sections",
     "docs/RELEASE.md": "merge-sections",
-    ".agents/skills/implement-change/scripts/check_file_line_limits.py": "managed",
-    ".agents/skills/implement-change/scripts/test_check_file_line_limits.py": "managed",
-    ".agents/skills/implement-change/scripts/check_core_first.py": "managed",
-    ".agents/skills/implement-change/scripts/test_check_core_first.py": "managed",
-    ".agents/skills/upgrade-harness/**": "managed-self",
-    ".agents/skills/add-cli-adapter/**": "conditional",
-    ".agents/skills/add-tui-adapter/**": "conditional",
-    ".agents/skills/add-mcp-adapter/**": "conditional",
-    ".agents/skills/add-gui-adapter/**": "conditional",
-    ".agents/skills/prepare-gui-app-identity/**": "conditional",
-    ".agents/skills/prepare-cross-platform-release/**": "conditional",
-    ".agents/skills/build-tauri-release/**": "conditional",
+    ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.py": "managed",
+    ".agents/skills/desktop-implement-change/scripts/test_check_file_line_limits.py": "managed",
+    ".agents/skills/desktop-implement-change/scripts/check_core_first.py": "managed",
+    ".agents/skills/desktop-implement-change/scripts/test_check_core_first.py": "managed",
+    ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.py": "managed",
+    ".agents/skills/desktop-implement-change/scripts/test_check_rust_chinese_comments.py": "managed",
+    ".agents/skills/desktop-upgrade-harness/**": "managed-self",
+    ".agents/skills/desktop-add-cli-adapter/**": "conditional",
+    ".agents/skills/desktop-add-tui-adapter/**": "conditional",
+    ".agents/skills/desktop-add-mcp-adapter/**": "conditional",
+    ".agents/skills/desktop-add-gui-adapter/**": "conditional",
+    ".agents/skills/desktop-prepare-gui-app-identity/**": "conditional",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/**": "conditional",
+    ".agents/skills/desktop-prepare-cross-platform-release/**": "conditional",
+    ".agents/skills/desktop-build-tauri-release/**": "conditional",
     ".agents/skills/**": "managed",
 }
 VALID_MODES = {
@@ -152,7 +156,7 @@ def validate_upgrade_contract(
                         f"{pattern} must be {expected_mode}",
                     )
             self_rule = (
-                ".agents/skills/upgrade-harness/**",
+                ".agents/skills/desktop-upgrade-harness/**",
                 "managed-self",
             )
             generic_rule = (".agents/skills/**", "managed")
@@ -162,6 +166,18 @@ def validate_upgrade_contract(
                         errors,
                         "upgrade managed-self rule must precede generic managed rule",
                     )
+            if generic_rule in ordered:
+                generic_index = ordered.index(generic_rule)
+                for pattern, mode in REQUIRED_RULES.items():
+                    specific_rule = (pattern, mode)
+                    if mode != "conditional" or specific_rule not in ordered:
+                        continue
+                    if ordered.index(specific_rule) >= generic_index:
+                        fail(
+                            errors,
+                            "upgrade conditional rule must precede generic managed rule: "
+                            f"{pattern}",
+                        )
             required_managed = tuple(
                 pattern
                 for pattern, mode in REQUIRED_RULES.items()

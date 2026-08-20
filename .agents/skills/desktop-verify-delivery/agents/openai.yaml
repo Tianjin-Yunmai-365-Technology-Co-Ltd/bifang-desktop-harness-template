@@ -1,0 +1,4 @@
+interface:
+  display_name: "验证交付"
+  short_description: "只为里程碑、发布候选或明确要求验收完整真实产物并记录证据"
+  default_prompt: "使用 $desktop-verify-delivery 验收或拒绝这个真实候选，同时复核 core-first 与薄 adapter 映射并记录可追溯证据。"

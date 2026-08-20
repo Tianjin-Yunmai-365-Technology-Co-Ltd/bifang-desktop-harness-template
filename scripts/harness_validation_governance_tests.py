@@ -26,6 +26,7 @@ from scripts.harness_validation.initialization_primary_contract import (
 from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
+from scripts.harness_validation.context import PRODUCT_SPEC
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
     read_repo_text,
@@ -52,7 +53,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         """独立 WEB Skill 必须消失，GUI 自有基线仍须声明固定前端技术栈。"""
         self.assertFalse((ROOT / ".agents/skills/add-web-adapter").exists())
         baseline = (
-            ROOT / ".agents/skills/add-gui-adapter/references/react-frontend-baseline.md"
+            ROOT / ".agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md"
         ).read_text(encoding="utf-8")
         for fragment in (
             "React 和 TypeScript",
@@ -66,20 +67,25 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             self.assertIn(fragment, baseline)
 
     def test_rust_technology_standard_is_a_required_contract(self) -> None:
-        """九项 Rust 选型必须进入事实源、传播入口与机械门禁。"""
+        """Rust 固定与条件技术族必须进入事实源、传播入口与机械门禁。"""
 
         technology_names = {
             "Tokio",
             "Axum",
+            "Tower/Tower HTTP",
             "Clap",
             "SeaORM",
+            "config-rs",
             "tracing",
+            "tracing-subscriber",
+            "tracing-appender",
+            "OpenTelemetry",
             "anyhow",
             "thiserror",
             "serde",
             "jiff",
         }
-        initialize_skill = ROOT / ".agents/skills/initialize-rust-project/SKILL.md"
+        initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         primary = primary_required_fragments(initialize_skill)
         primary_text = " ".join(primary[initialize_skill])
         self.assertTrue(all(name in primary_text for name in technology_names))
@@ -87,10 +93,10 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         rust_baseline = ROOT / "docs/RUST_CLI_TEMPLATE.md"
         gate_file = (
             ROOT
-            / ".agents/skills/check-development-environment/references/development-environment-gates.md"
+            / ".agents/skills/desktop-check-development-environment/references/development-environment-gates.md"
         )
         repository_contract = repository_required_fragments(gate_file, rust_baseline)
-        for path in (rust_baseline, ROOT / "docs/product_spec/20260806_product_spec.md"):
+        for path in (rust_baseline, PRODUCT_SPEC):
             self.assertTrue(technology_names.issubset(set(repository_contract[path])))
 
     def test_rejects_obsolete_per_task_preference_prompt(self) -> None:
@@ -229,7 +235,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 
 - 进入条件：Todo 全部 `done`。
 - 候选必须是完整真实产物，模拟实现与脚手架不可验收。
-- 失败时重开 Todo 并返回 `$implement-change`。
+- 失败时重开 Todo 并返回 `$desktop-implement-change`。
 """
 
     @staticmethod
@@ -316,7 +322,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 
 - 当前状态：`Not run`。
 - 候选必须是完整真实产物，模拟实现与脚手架不可验收。
-- 失败时重开 Todo 并返回 `$implement-change`。
+- 失败时重开 Todo 并返回 `$desktop-implement-change`。
 """
         self.assertEqual(self._validate(first_batch + second_batch), [])
 
@@ -348,7 +354,7 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
         """仅修复 PATCH 仍有发布证据，但不得制造 Changelog。"""
 
         release = read_repo_text("docs/RELEASE.md")
-        prepare = read_repo_text(".agents/skills/prepare-release/SKILL.md")
+        prepare = read_repo_text(".agents/skills/desktop-prepare-release/SKILL.md")
         self.assertIn("版本变化与 Changelog 写入是独立门禁", release)
         self.assertIn("缺少 Changelog 不削弱发布证据", release)
         self.assertIn("仅含普通缺陷修复或纯重构", prepare)

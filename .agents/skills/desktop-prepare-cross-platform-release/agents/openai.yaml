@@ -1,0 +1,4 @@
+interface:
+  display_name: "准备跨平台发布候选"
+  short_description: "准备可审计的 Windows、macOS 和 Linux 原生候选产物"
+  default_prompt: "使用 $desktop-prepare-cross-platform-release，通过原子刷新 release、条件签名证据和精确产物上传，准备固定源码提交的原生三平台候选。"

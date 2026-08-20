@@ -157,6 +157,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
         TUI_SKILL,
         MCP_SKILL,
         GUI_SKILL,
+        GUI_SUPPORT_SKILL,
         rust_baseline,
         PRODUCT_SPEC,
         ROOT / "docs" / "CLI_CONTRACT.md",
@@ -242,6 +243,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "--check-only",
             "x86_64-pc-windows-msvc",
             '"$brew_path" install llvm',
+            '"$brew_path" install lld',
             '"$brew_path" install nsis',
             'target add "$TARGET"',
             "install --locked cargo-xwin",
@@ -254,6 +256,8 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "test_check_only_reports_missing_without_writes",
             "test_missing_homebrew_blocks_install",
             "test_formula_install_failure_does_not_claim_success",
+            "test_split_llvm_install_adds_missing_lld_formula",
+            "test_damaged_existing_lld_formula_is_not_silently_reinstalled",
             "test_non_macos_host_is_rejected",
             "test_unsupported_target_is_rejected",
         ),
@@ -285,6 +289,13 @@ def validate_initialization_contract(errors: list[str]) -> None:
             errors,
             "Tauri release 目录 helper 不可执行："
             f"{display_path(TAURI_RELEASE_DIRECTORY_HELPER)}",
+        )
+    if TAURI_DMG_LAYOUT_HELPER.is_file() and not source_file_has_executable_mode(
+        TAURI_DMG_LAYOUT_HELPER
+    ):
+        fail(
+            errors,
+            f"macOS DMG 布局检查器不可执行：{display_path(TAURI_DMG_LAYOUT_HELPER)}",
         )
     if PREREQUISITE_UNIX.is_file() and "https://sh.rustup.rs" in PREREQUISITE_UNIX.read_text(encoding="utf-8"):
         fail(errors, "Unix 前置门禁必须验证 rustup-init，不得执行引导脚本文本")

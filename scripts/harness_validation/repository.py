@@ -121,7 +121,7 @@ def validate_work_plan_contract(
     if milestone_matches and not path_rules.milestone_section_allowed:
         fail(errors, "only a milestone path may contain a 验证里程碑 section")
     if milestone_matches:
-        milestone_fragments = ("候选", "`done`", "$implement-change")
+        milestone_fragments = ("候选", "`done`", "$desktop-implement-change")
         for fragment in milestone_fragments:
             if fragment not in text:
                 fail(

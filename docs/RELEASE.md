@@ -54,11 +54,11 @@ Harness 模板若发布源码归档，使用：
 
 ## 里程碑验收与发布顺序
 
-1. 工作计划当前批次全部 Todo 为 `done` 且非空单元测试、相关集成/契约检查通过后，才可生成完整真实里程碑候选。Rust CLI 由 `$build-rust-release` 默认先走 Windows、macOS、Linux 原生矩阵；Tauri GUI 由 `$build-tauri-release` 在 macOS 原生构建 DMG，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS。构建前按前述安全流程刷新根 `release/`，常规构建不运行冒烟/E2E。
+1. 工作计划当前批次全部 Todo 为 `done` 且非空单元测试、相关集成/契约检查通过后，才可生成完整真实里程碑候选。Rust CLI 由 `$desktop-build-rust-release` 默认先走 Windows、macOS、Linux 原生矩阵；Tauri GUI 由 `$desktop-build-tauri-release` 在 macOS 原生构建 DMG，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS。macOS DMG 在 hash 前必须对最终字节只读验证 Finder `.DS_Store`、本地拖拽背景、唯一应用包与 Applications 链接；只检查 Tauri 配置或背景源文件不算通过。构建前按前述安全流程刷新根 `release/`，常规构建不运行冒烟/E2E。
 2. 若 Rust CLI 项目已有批准的非交互签名钩子/命令、工具和已授权凭据，构建在归档/哈希前尝试签名并验证；失败会使对应平台构建失败。macOS Tauri 直接分发候选采用全有或全无规则：Developer ID Application 身份、`notarytool`、`stapler` 与一组完整 Apple 公证凭据齐备时，必须在 hash 前完成签名、公证和 stapling；不得生成仅签名候选，也不得使用 `--skip-stapling`。条件不足且渠道允许时才可显式 `--no-sign`；渠道要求时阻断；一旦签名或公证开始，失败不得降级。任何路径都不得自动创建、索取或输出凭据。
-3. `$verify-delivery` 在验证里程碑针对 `release/` 中最终签名或明确为 `unsigned` 的候选字节，读取 `docs/AGENT_POLICY.md`、产品/渠道硬要求和适用性，记录冒烟/E2E 为 `required`、`enabled`、`disabled` 或 `Not applicable`。项目级选择跨任务复用；只有策略缺失/冲突、无法建立可运行性或需要新增外部授权时询问。
+3. `$desktop-verify-delivery` 在验证里程碑针对 `release/` 中最终签名或明确为 `unsigned` 的候选字节，读取 `docs/AGENT_POLICY.md`、产品/渠道硬要求和适用性，记录冒烟/E2E 为 `required`、`enabled`、`disabled` 或 `Not applicable`。项目级选择跨任务复用；只有策略缺失/冲突、无法建立可运行性或需要新增外部授权时询问。
 4. 对 `required` 或 `enabled` 的检查，在标记 `ready`、发布上传或正式发布前执行。构建与 CI 可先生成、收集或上传 `milestoneAcceptance: pending` 候选供跨平台验收，但不得把目录存在或提供方上传当作 `ready`。`Awaiting human review` 保持 `pending`；失败记录 `rejected` 并重开 Todo；只有完整通过和必需人工复核后才能把匹配的清单更新为 `accepted`。
-5. 里程碑通过并取得项目要求的人工复核后，`$prepare-release` 才可准备版本和发布元数据。发布流程检查候选提交、版本、哈希、签名状态、清单与已验收产物一致，不自行运行冒烟/E2E 或重试签名。
+5. 里程碑通过并取得项目要求的人工复核后，`$desktop-prepare-release` 才可准备版本和发布元数据。发布流程检查候选提交、版本、哈希、签名状态、清单与已验收产物一致，不自行运行冒烟/E2E 或重试签名。
 6. 若验收后的签名、公证、stapling、重打包或渠道处理改变产物字节、启动器、依赖或运行行为，结果成为新的里程碑候选，必须回到步骤 3；不得用旧产物证据替代。xwin 交叉构建只能证明构建链完成，Windows 运行保持 `Unverified`，直至在批准的真实 Windows 环境中完成适用验收。
 
 ## Harness 模板发布检查清单
@@ -100,13 +100,14 @@ Harness 根目录没有具体产品，因此下游产物门槛不适用于模板
 - [ ] Windows、macOS、Linux 各平台的实际验证状态已公开；未运行的平台明确标记为 `Unverified`。
 - [ ] `docs/verification/human_review.md` 包含真实的人类最终复核记录和结论。
 - [ ] 版本事实来源、软件显示、Git 标签和发布物名称一致；存在符合 Changelog 规则的变化时，按日汇总也与该版本一致。
-- [ ] `$rename-project-identity` 残留扫描确认发布配置、Skills、文档、维护路径和两份许可证中没有旧产品身份。
+- [ ] `$desktop-rename-project-identity` 残留扫描确认发布配置、Skills、文档、维护路径和两份许可证中没有旧产品身份。
 - [ ] 候选包含符合 Changelog 规则的变化时，`docs/changelog/` 的日期文件中存在对应版本条目；仅含普通缺陷修复或纯重构时本项为 `Not applicable`。
 - [ ] README 包含真实的用途、使用方式、维护状态和反馈入口。
 - [ ] 发布物来自目标源码提交，且其 SHA-256 已记录。
 - [ ] 每个平台归档、相邻 SHA-256 和清单一致，必需平台/架构恰好出现一次。
-- [ ] 项目根 `release/` 已由 `$build-rust-release` 或 `$build-tauri-release` 在构建前安全刷新，并在本机构建或 `$collect-release-artifacts` 取回后只包含当前版本、源码提交和明确的构建批次候选；目录内容与清单精确一致且无历史文件。
+- [ ] 项目根 `release/` 已由 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 在构建前安全刷新，并在本机构建或 `$desktop-collect-release-artifacts` 取回后只包含当前版本、源码提交和明确的构建批次候选；目录内容与清单精确一致且无历史文件。
 - [ ] 每个平台清单的 `signingStatus` 与证据真实；macOS Tauri 已签名候选同时具有 `notarizationStatus: notarized-and-stapled` 和可复核证据，unsigned 路线只在渠道允许时存在；验收后若签名、公证、stapling 或重打包改变字节则已重新验收。
+- [ ] macOS DMG 的最终签名/公证/stapled 字节已通过只读 Finder 布局检查；`.DS_Store`、本地背景、唯一 `.app` 与 `/Applications` 拖拽目标均真实存在，任何布局补写或重打包后已重做签名、公证、摘要和验收。
 - [ ] macOS→Windows Tauri 候选只包含 x64 NSIS，清单记录 `buildMode: cross-compiled-xwin` 和 `runtimeVerification: Unverified`；未在真实 Windows 环境运行时没有声称原生验证通过。
 - [ ] 验证里程碑根据持久策略、产品/渠道硬要求和适用性决定是否执行冒烟/E2E；所有 `required` 或 `enabled` 项通过，`disabled`/`Not applicable` 项及风险准确记录。
 - [ ] 任一验收失败曾重开 Todo 返回编码并完成回归测试，没有以 `Partially verified` 代替仍缺失的批准逻辑。

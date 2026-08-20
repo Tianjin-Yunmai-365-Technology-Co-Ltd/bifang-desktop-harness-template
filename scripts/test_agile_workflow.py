@@ -96,9 +96,9 @@ class AgileAgentPolicyTests(unittest.TestCase):
 
     def test_neutral_initialization_does_not_create_verification_memory(self) -> None:
         """中性初始化只能返回环境证据，不能复制或新建验证历史。"""
-        instantiate = read_repo_text(".agents/skills/instantiate-project/SKILL.md")
-        initialize = read_repo_text(".agents/skills/initialize-rust-project/SKILL.md")
-        environment = read_repo_text(".agents/skills/check-development-environment/SKILL.md")
+        instantiate = read_repo_text(".agents/skills/desktop-instantiate-project/SKILL.md")
+        initialize = read_repo_text(".agents/skills/desktop-initialize-rust-project/SKILL.md")
+        environment = read_repo_text(".agents/skills/desktop-check-development-environment/SKILL.md")
         self.assertIn("历史验证正文", instantiate)
         self.assertIn("docs/verification/", instantiate)
         self.assertIn("不创建或更新 `docs/VERIFICATION.md`", initialize)
@@ -106,13 +106,13 @@ class AgileAgentPolicyTests(unittest.TestCase):
 
     def test_public_scaffold_replacement_and_product_rename_are_milestones(self) -> None:
         """首次公开接口和现有产品改名不能从标准路径绕过验收。"""
-        initialize = read_repo_text(".agents/skills/initialize-rust-project/SKILL.md")
-        rename = read_repo_text(".agents/skills/rename-project-identity/SKILL.md")
+        initialize = read_repo_text(".agents/skills/desktop-initialize-rust-project/SKILL.md")
+        rename = read_repo_text(".agents/skills/desktop-rename-project-identity/SKILL.md")
         self.assertIn("任何适配器首次替换中性状态", initialize)
         self.assertIn("都必须进入里程碑路径", initialize)
         self.assertIn("现有产品改名", rename)
         self.assertIn("不得以快速或标准路径完成", rename)
-        self.assertIn("交给 `$verify-delivery` 验收", rename)
+        self.assertIn("交给 `$desktop-verify-delivery` 验收", rename)
 
 
 class AgileWorkPlanTests(unittest.TestCase):
@@ -186,7 +186,7 @@ class AgileWorkPlanTests(unittest.TestCase):
     def test_work_plan_does_not_trigger_other_memories(self) -> None:
         """持久计划存在不自动联动其他项目记忆。"""
 
-        skill = read_repo_text(".agents/skills/plan-change/SKILL.md")
+        skill = read_repo_text(".agents/skills/desktop-plan-change/SKILL.md")
         self.assertIn(
             "不自动触发 Product Spec、ADR、Product Status、Verification 或 Changelog",
             skill,
@@ -216,7 +216,7 @@ class AgileWorkPlanTests(unittest.TestCase):
 ## 验证里程碑 M1
 
 - 候选：完整真实产物，不接受模拟或脚手架。
-- 准入：Todo 全部 `done`，失败返回 `$implement-change`。
+- 准入：Todo 全部 `done`，失败返回 `$desktop-implement-change`。
 """
         errors = self._validate(mutated)
         self.assertTrue(any("may contain" in error for error in errors), errors)

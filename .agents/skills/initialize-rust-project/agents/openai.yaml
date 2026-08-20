@@ -1,4 +1,0 @@
-interface:
-  display_name: "初始化 Rust 项目"
-  short_description: "建立中性 Rust 脚手架并以干净独立的 Git 仓库收尾"
-  default_prompt: "使用 $initialize-rust-project 选择接口和策略，检查工具链，建立 core-first、薄 adapter 的异步中性 Rust 脚手架，裁剪初始化能力，并验证独立且干净的 Git 仓库。"

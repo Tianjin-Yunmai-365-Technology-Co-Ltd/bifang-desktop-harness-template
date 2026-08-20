@@ -54,7 +54,7 @@ class BuildSkillValidationTests(unittest.TestCase):
     def test_rejects_missing_default_cross_platform_route(self) -> None:
         """删除三平台默认句后，即使其他构建文本仍在也必须失败。"""
         source = release.BUILD_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "默认通过 `$prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选"
+        anchor = "默认通过 `$desktop-prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选"
         mutated = source.replace(anchor, "优先构建可用目标", 1)
         self.assertNotEqual(mutated, source)
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -98,6 +98,15 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
             release.validate_tauri_build_skill_contract(errors, tauri_skill=path)
             return errors
 
+    def _validate_mutated_verify_skill(self, source: str) -> list[str]:
+        """只替换交付验收 Skill，确认最终字节复核不能从传播链消失。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "SKILL.md"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_tauri_build_skill_contract(errors, verify_skill=path)
+            return errors
+
     def test_rejects_missing_exact_macos_xwin_route(self) -> None:
         """删掉 cargo-xwin、目标三元组或 NSIS 任一部分都必须失败。"""
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
@@ -117,6 +126,33 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
         mutated = source.replace(anchor, "允许输出仅签名候选", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_final_dmg_layout_verification(self) -> None:
+        """只声明背景而不检查最终卷时，构建 Skill 必须确定性失败。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "scripts/verify-dmg-layout.sh <final-dmg>"
+        mutated = source.replace(anchor, "只检查 Tauri 配置", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_bounded_interactive_dmg_strategy(self) -> None:
+        """删除 CI/Finder 策略会重新允许空白安装窗口，必须失败。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg"
+        mutated = source.replace(anchor, "CI=true pnpm tauri build --bundles dmg", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_milestone_dmg_reverification(self) -> None:
+        """里程碑若不重验当前 DMG，旧布局证据可能错误绑定到新字节。"""
+        source = release.VERIFY_DELIVERY_SKILL.read_text(encoding="utf-8")
+        anchor = "针对 `release/` 中当前最终字节重新运行"
+        mutated = source.replace(anchor, "可以沿用构建阶段的历史布局记录", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_verify_skill(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
 
 if __name__ == "__main__":

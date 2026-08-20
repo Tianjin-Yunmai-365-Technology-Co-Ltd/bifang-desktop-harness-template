@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fnmatch
 import hashlib
 import json
 import os
@@ -49,14 +50,14 @@ class ValidateUpgradeContractTests(unittest.TestCase):
         self_rule = next(
             item
             for item in source["rules"]
-            if item["pattern"] == ".agents/skills/upgrade-harness/**"
+            if item["pattern"] == ".agents/skills/desktop-upgrade-harness/**"
         )
         source["rules"].remove(self_rule)
         source["rules"].append(self_rule)
         source["rules"].insert(
             0,
             {
-                "pattern": ".agents/skills/implement-change/**",
+                "pattern": ".agents/skills/desktop-implement-change/**",
                 "mode": "tombstone",
             },
         )
@@ -81,3 +82,52 @@ class ValidateUpgradeContractTests(unittest.TestCase):
                 python_paths=(broken,),
             )
         self.assertTrue(any("invalid upgrade Python module" in error for error in errors), errors)
+
+    def test_gui_support_skill_is_conditional_and_product_facts_are_protected(self) -> None:
+        """升级条件传播完整品牌资产，但不能覆盖下游支持界面实例。"""
+
+        manifest = json.loads(upgrade.UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))
+        ordered = [
+            (item["pattern"], item["mode"])
+            for item in manifest["rules"]
+        ]
+        support_rule = (
+            ".agents/skills/desktop-prepare-gui-support-surfaces/**",
+            "conditional",
+        )
+        generic_rule = (".agents/skills/**", "managed")
+        self.assertIn(support_rule, ordered)
+        self.assertLess(ordered.index(support_rule), ordered.index(generic_rule))
+        self.assertIn(("docs/GUI_SUPPORT_SURFACES.md", "protected"), ordered)
+        brand_asset = (
+            ".agents/skills/desktop-prepare-gui-support-surfaces/"
+            "assets/brand-support/media/sponsor/pay1.png"
+        )
+        resolved_mode = next(
+            mode
+            for pattern, mode in ordered
+            if fnmatch.fnmatchcase(brand_asset, pattern)
+        )
+        self.assertEqual(resolved_mode, "conditional")
+
+    def test_rejects_gui_support_rule_after_generic_skill_rule(self) -> None:
+        """宽泛 managed 规则不得抢先吞掉 GUI-only 条件 Skill。"""
+
+        source = json.loads(upgrade.UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))
+        support = next(
+            item
+            for item in source["rules"]
+            if item["pattern"]
+            == ".agents/skills/desktop-prepare-gui-support-surfaces/**"
+        )
+        source["rules"].remove(support)
+        source["rules"].append(support)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "ownership.json"
+            path.write_text(json.dumps(source), encoding="utf-8")
+            errors: list[str] = []
+            upgrade.validate_upgrade_contract(errors, manifest_path=path)
+        self.assertTrue(
+            any("conditional rule must precede" in error for error in errors),
+            errors,
+        )

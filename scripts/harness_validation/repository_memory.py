@@ -96,31 +96,31 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "一律不进入 Changelog",
             "产品规格转为 `Approved` 本身",
         ),
-        SKILLS_ROOT / "define-product" / "SKILL.md": (
+        SKILLS_ROOT / "desktop-define-product" / "SKILL.md": (
             "只在产品边界需要决定时",
             "不默认加载全部历史",
-            "低风险局部实现可直接交给 `$implement-change`",
+            "低风险局部实现可直接交给 `$desktop-implement-change`",
             "普通缺陷修复、不改变可观察行为的纯重构",
         ),
-        SKILLS_ROOT / "plan-change" / "SKILL.md": (
+        SKILLS_ROOT / "desktop-plan-change" / "SKILL.md": (
             "`标准` 或 `里程碑` 路径",
             "标准路径到此即可",
             "先把路径升级为里程碑",
             "不自动触发 Product Spec、ADR、Product Status、Verification 或 Changelog",
         ),
-        SKILLS_ROOT / "implement-change" / "SKILL.md": (
+        SKILLS_ROOT / "desktop-implement-change" / "SKILL.md": (
             "快速路径直接实现",
             "纯文档、元数据、格式或不可合理单测",
             "只更新被独立事件触发的记忆",
             "本身不触发 Product Spec、ADR、Product Status、Changelog 或 Verification",
         ),
-        SKILLS_ROOT / "verify-delivery" / "SKILL.md": (
+        SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md": (
             "确认任务已进入里程碑路径",
             "纯文档/元数据治理候选",
             "未触发的记忆不创建占位",
             "不得反向生成 Product Spec、ADR 或 Changelog",
         ),
-        SKILLS_ROOT / "prepare-release" / "SKILL.md": (
+        SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md": (
             "docs/changelog/README.md",
             "仅含普通缺陷修复或纯重构",
             "不创建、不补写也不汇总 Changelog",

@@ -3,7 +3,7 @@
 CHECKOUT_USE = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
 UPLOAD_USE = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
 EXPECTED_WORKFLOW_SHA256 = (
-    "64eeaf240ff2403ffe5efee156a59a65c744f2480287b0cfa320b25b66501b50"
+    "2903f6f1cb13d4ca2294614afd9a136510ae90a394b2391d2ada60041a2f0e51"
 )
 EXPECTED_INPUTS = {"confirm_candidate_build", "source_commit", "version"}
 EXPECTED_NAMED_STEPS = (
