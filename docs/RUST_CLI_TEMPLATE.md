@@ -18,8 +18,8 @@
 - 核心可以暴露不绑定具体运行时的 `async fn`。只有真实业务需要 Tokio 的 I/O、时间、同步、任务或进程原语时，核心才增加 Tokio 生产依赖。
 - 文件系统、网络、外部进程和操作系统 API 的具体驱动位于适配器或职责明确的基础设施模块；调用策略和领域结果解释仍在核心。只有真实能力边界出现时才由核心定义运行时中立的 trait/port 并在适配器装配实现，不预建服务容器、注册器或假想抽象。
 - TUI 固定使用 Ratatui + tui-realm + tui-realm-stdlib。Tauri GUI 前端固定使用 Vite + React + TypeScript + Mantine UI + TanStack Router 文件路由 + TanStack Query + Jotai，并使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library；这些技术族适用于 Draft 与 Approved 项目，偏离必须记录硬规则例外。
-- Tauri GUI 的界面国际化是开发期硬性必选项：前端固定追加 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定追加 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，界面必须提供语言切换入口，core 保持语言无关。详细规则见 [GUI 基线](../.agents/skills/desktop-add-gui-adapter/references/gui-baseline.md)与 [React 前端基线](../.agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md)（见 ADR-20260806-001）。
-- 关于/支持/赞助、动态标题、更新检查与遥测不属于 GUI 中性基线。已批准产品需要其中一项时使用 `$desktop-prepare-gui-support-surfaces` 逐项定义；模板不预创建 `docs/GUI_SUPPORT_SURFACES.md`。该条件 Skill 完整携带产品家族共享的固定赞助档位/价格、品牌联系人、支付二维码、更新 banner、小图及页面依赖资产，GUI 下游保留这些源资产，但只有已选界面所需文件才进入应用 bundle。它不提供来源下游产品名称/标识、产品路由、固定 endpoint、秘密或遥测实例。远程能力默认禁用，跨接口业务语义进入 core，窗口/系统浏览器/平台元数据和纯展示留在 GUI adapter。
+- Tauri GUI 的界面国际化是初始化硬性必选项：前端固定追加 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定追加 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，界面必须提供语言切换入口，core 保持语言无关。初始化固定页面提供中文与英文资源，其他缺失语言回退英文。详细规则见 [GUI 基线](../.agents/skills/desktop-add-gui-adapter/references/gui-baseline.md)与 [React 前端基线](../.agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md)（见 ADR-20260806-001）。
+- 选择 GUI 时固定启用 Tauri `tray-icon` feature：托盘只含本地化“显示窗口”和“退出”，显示动作与左键恢复并聚焦主窗口，主窗口 `CloseRequested` 只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用。初始化固定建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题、可收起左侧菜单和 `/settings`、`/about`、`/sponsor`；版本在展开/折叠及设置页直接可见，功能从顶部向下增长，底部固定为赞助、设置、关于。设置页提供中英文、手动检查更新和默认关闭的统计同意，远程能力默认禁用，未配置时为 `NotConfigured`/禁用且零出站；关于页显示作者、作者联系方式与三段免责声明，赞助页打包完整 `media/sponsor/*`。真实更新启用时才引入官方 Tauri updater，制品签名验证不可关闭；adapter 认证最低支持版本策略后交给 core 作严格 SemVer 强更判定，根级强更门只允许安装或退出。统计只在明确同意后由 Rust adapter 以 HTTPS JSON POST 发送固定 `app_started` 最小字段，撤回即取消请求和清空有界内存队列。模板不提供固定 endpoint、服务端 secret、发布私钥或统计实例；任务必须受应用生命周期拥有并回收，失败默认 fail-open。
 - 选择 GUI 时，中性初始化必须把随 `$desktop-initialize-rust-project` 提供的无产品身份 660×400 PNG 逐字节复制为 `<项目标识>_gui/src-tauri/dmg/background.png`，并让 `tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`。窗口固定为 660×400，应用与 Applications 落点分别为 `(180, 220)` 和 `(480, 220)`；首次真实 GUI 开发由 `$desktop-prepare-gui-app-identity` 预览批准该基线或在同一路径替换，并记录当前 SHA-256。构建只消费项目内图片，不能依赖初始化结束后被删除的 Skill 资产。
 - 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一版本事实来源，各成员使用 `version.workspace = true`。
 - 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
@@ -272,9 +272,9 @@ cargo build --workspace --release --locked
 - 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$desktop-build-rust-release` 与 `$desktop-build-tauri-release` 在任何单元测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。远端工作流必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。目录存在不代表 `ready`。
 - `$desktop-prepare-release` 只在完整验收通过后负责版本、变更记录和发布就绪判断，不自动运行冒烟/E2E、创建标签或上传。
 - `$desktop-add-mcp-adapter` 只在下游用户明确批准后增加依赖核心的 Rust stdio MCP 适配器；Skill 不自带实现资产。
-- `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；Skill 不自带实现资产。
-- `$desktop-prepare-gui-support-surfaces` 只在 GUI 产品明确需要支持界面时按需启用；它完整携带产品家族品牌页面/媒体依赖资产，每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试，不得扩张中性 scaffold。
-- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。四类 adapter Skills 不自带页面/业务实现资产；可选 GUI 支持界面 Skill 的品牌依赖资产是唯一按需例外。实际版本在调用时核验并锁定；TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
+- `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费固定托盘/关闭隐藏、动态标题、关于/赞助页和品牌媒体基线，不自带产品业务实现。
+- `$desktop-prepare-gui-support-surfaces` 为全部 GUI 提供固定本地页面/媒体依赖资产；产品修改基线、增加其他支持界面或启用出站能力时再次按需调用。每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试，不得扩张为业务 scaffold。
+- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI 固定本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；实际版本在调用时核验并锁定，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
 - `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
 - `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
 

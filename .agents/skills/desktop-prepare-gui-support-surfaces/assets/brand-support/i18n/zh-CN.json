@@ -4,7 +4,40 @@
     "contact_author_title": "联系作者",
     "support_thanks": "感谢您的支持和反馈",
     "studio": "守城工作室",
-    "contact_label": "QQ {{contact}}"
+    "contact_label": "QQ {{contact}}",
+    "disclaimer_title": "免责声明",
+    "disclaimer_1": "本软件/服务仅供学习研究和合法合规使用，严禁用于任何违反中华人民共和国法律法规的活动",
+    "disclaimer_2": "用户在使用本软件/服务过程中的所有行为及其后果由用户自行承担全部法律责任，与开发者、运营方无关",
+    "disclaimer_3": "您下载、安装、使用本软件/服务即视为已充分阅读、理解并同意接受本声明的全部内容"
+  },
+  "navigation": {
+    "about": "关于",
+    "settings": "设置",
+    "sponsor": "赞助"
+  },
+  "sidebar": {
+    "application_navigation": "应用导航",
+    "collapse": "收起侧栏",
+    "expand": "展开侧栏",
+    "features": "功能",
+    "version": "版本 {{version}}"
+  },
+  "settings": {
+    "title": "设置",
+    "language_title": "界面语言",
+    "language_description": "语言选择会保存在本机，并覆盖系统语言探测结果。",
+    "language_zh_cn": "中文",
+    "language_en_us": "English",
+    "update_title": "软件更新",
+    "check_for_updates": "检查更新",
+    "privacy_title": "隐私",
+    "usage_statistics_label": "发送最小化匿名使用统计",
+    "usage_statistics_description": "仅在您同意后发送已公开列出的字段，可随时关闭并清除待发送事件。",
+    "usage_statistics_not_configured": "当前产品未配置统计上报，不会发送任何数据。"
+  },
+  "tray": {
+    "show_window": "显示窗口",
+    "quit": "退出"
   },
   "sponsor": {
     "title": "软件免费由守城工作室&飞鹰工作室维护",
@@ -50,6 +83,21 @@
     "transcript": "查看文字稿"
   },
   "updater": {
-    "banner_alt": "品牌更新提示横幅"
+    "banner_alt": "品牌更新提示横幅",
+    "status_not_configured": "当前产品未配置更新服务",
+    "status_idle": "尚未检查更新",
+    "status_checking": "正在检查更新",
+    "status_up_to_date": "当前已是最新版本",
+    "status_optional_update": "发现可选更新",
+    "status_required_update": "必须更新后才能继续使用",
+    "status_failed": "检查更新失败，您仍可继续使用当前版本",
+    "current_version": "当前版本：{{version}}",
+    "available_version": "可用版本：{{version}}",
+    "required_badge": "必须更新",
+    "required_title": "此版本已停止支持",
+    "required_description": "请安装经过签名验证的更新，或安全退出应用。普通功能在完成更新前不可用。",
+    "version_transition": "当前 {{current}} → 可用 {{available}}",
+    "install_update": "安装更新",
+    "exit_application": "退出应用"
   }
 }

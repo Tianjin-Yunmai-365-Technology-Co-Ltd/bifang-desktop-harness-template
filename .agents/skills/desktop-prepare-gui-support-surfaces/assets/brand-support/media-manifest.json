@@ -10,7 +10,9 @@
   },
   "bundlePolicy": {
     "guiSkillPropagation": "complete",
-    "applicationBundle": "selected-surface-only",
+    "applicationBundle": "gui-default-local-surfaces",
+    "defaultMediaSets": ["sponsor"],
+    "optionalMediaSets": ["updater"],
     "paymentAutomationAuthorized": false,
     "remoteLoadingAllowed": false
   },

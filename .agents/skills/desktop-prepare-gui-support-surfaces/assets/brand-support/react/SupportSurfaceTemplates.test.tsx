@@ -1,6 +1,12 @@
 import { Button, MantineProvider, Text } from "@mantine/core";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { createInstance, type i18n } from "i18next";
 import type { ReactElement } from "react";
 import { I18nextProvider } from "react-i18next";
@@ -9,14 +15,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import enUS from "../i18n/en-US.json";
 import zhCN from "../i18n/zh-CN.json";
 import { AboutPageTemplate } from "./AboutPageTemplate";
+import { AppSidebarTemplate } from "./AppSidebarTemplate";
 import { BrandUpdaterBanner } from "./BrandUpdaterBanner";
+import { MandatoryUpdateGateTemplate } from "./MandatoryUpdateGateTemplate";
+import { SettingsPageTemplate } from "./SettingsPageTemplate";
 import { SponsorPageTemplate } from "./SponsorPageTemplate";
 import { SupportMedia } from "./SupportMedia";
 import {
   BRAND_SUPPORT_PROFILE,
+  formatBrandWindowTitle,
   isLocalSupportPath,
   resolveBrandAssetPath,
 } from "./brandSupportProfile";
+import { FIXED_BOTTOM_NAVIGATION_ITEMS } from "./supportNavigation";
+import { requiresMandatoryUpdate } from "./updatePresentation";
+
+/** 为 jsdom 补齐 Mantine 布局组件依赖的只读观察器。 */
+class TestResizeObserver implements ResizeObserver {
+  /** 测试环境销毁观察器时不需要额外资源回收。 */
+  disconnect(): void {}
+
+  /** 测试环境只接受观察调用，不计算真实布局。 */
+  observe(): void {}
+
+  /** 测试环境允许组件停止观察指定元素。 */
+  unobserve(): void {}
+}
 
 /** 创建只包含品牌支持 namespace 的真实 i18next 测试实例。 */
 async function createTestI18n(locale: "zh-CN" | "en-US"): Promise<i18n> {
@@ -49,6 +73,10 @@ async function renderTemplate(
 
 describe("shared brand support templates", () => {
   beforeEach(() => {
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      value: TestResizeObserver,
+    });
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -68,7 +96,210 @@ describe("shared brand support templates", () => {
     cleanup();
   });
 
-  /** 关于页从当前产品注入名称/版本，同时复用固定品牌联系人和可选动作。 */
+  /** 窗口标题始终使用当前应用名、版本和固定品牌联系字段。 */
+  it("formats the fixed dynamic window title from authoritative inputs", () => {
+    expect(formatBrandWindowTitle("Example Utility", "3.4.5")).toBe(
+      "Example Utility 3.4.5 QQ:2222980",
+    );
+    expect(() => formatBrandWindowTitle(" ", "3.4.5")).toThrow(
+      /application name and version/,
+    );
+    expect(zhCN.navigation).toEqual({
+      about: "关于",
+      settings: "设置",
+      sponsor: "赞助",
+    });
+    expect(zhCN.tray).toEqual({ quit: "退出", show_window: "显示窗口" });
+    expect(enUS.navigation).toEqual({
+      about: "About",
+      settings: "Settings",
+      sponsor: "Sponsor",
+    });
+    expect(enUS.tray).toEqual({ quit: "Quit", show_window: "Show Window" });
+    expect(FIXED_BOTTOM_NAVIGATION_ITEMS).toEqual([
+      { id: "sponsor", labelKey: "navigation.sponsor", to: "/sponsor" },
+      { id: "settings", labelKey: "navigation.settings", to: "/settings" },
+      { id: "about", labelKey: "navigation.about", to: "/about" },
+    ]);
+  });
+
+  /** 侧栏保持功能项向下增长，并把赞助、设置、关于按固定顺序贴底。 */
+  it("renders the collapsible sidebar with a visible version and fixed bottom order", async () => {
+    const onCollapsedChange = vi.fn();
+    const onNavigate = vi.fn();
+    await renderTemplate(
+      <AppSidebarTemplate
+        activePath="/overview"
+        applicationName="Example Utility"
+        collapsed={false}
+        featureItems={[
+          { id: "overview", label: "总览", to: "/overview" },
+          { id: "jobs", label: "任务", to: "/jobs" },
+        ]}
+        onCollapsedChange={onCollapsedChange}
+        onNavigate={onNavigate}
+        version="3.4.5"
+      />,
+    );
+
+    expect(screen.getByText("Example Utility")).toBeInTheDocument();
+    expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
+      "v3.4.5",
+    );
+    expect(
+      within(screen.getByTestId("feature-navigation"))
+        .getAllByRole("button")
+        .map((item) => item.getAttribute("aria-label")),
+    ).toEqual(["总览", "任务"]);
+    expect(
+      within(screen.getByTestId("fixed-bottom-navigation"))
+        .getAllByRole("button")
+        .map((item) => item.getAttribute("aria-label")),
+    ).toEqual(["赞助", "设置", "关于"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "任务" }));
+    fireEvent.click(screen.getByRole("button", { name: "收起侧栏" }));
+    expect(onNavigate).toHaveBeenCalledWith("/jobs");
+    expect(onCollapsedChange).toHaveBeenCalledWith(true);
+  });
+
+  /** 折叠侧栏仍直接显示版本号，并保留每个菜单项的可访问名称。 */
+  it("keeps the version visible when the sidebar is collapsed", async () => {
+    await renderTemplate(
+      <AppSidebarTemplate
+        activePath="/about"
+        applicationName="Example Utility"
+        collapsed
+        featureItems={[{ id: "overview", label: "Overview", to: "/" }]}
+        onCollapsedChange={vi.fn()}
+        onNavigate={vi.fn()}
+        version="9.8.7"
+      />,
+      "en-US",
+    );
+
+    expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
+      "v9.8.7",
+    );
+    expect(
+      screen.getByRole("button", { name: "Expand sidebar" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "About" })).toBeInTheDocument();
+  });
+
+  /** 设置页显示版本并把语言、手动检查与统计同意交给外层控制器。 */
+  it("renders fixed settings controls without performing remote work in React", async () => {
+    const onLanguageChange = vi.fn();
+    const onCheckForUpdates = vi.fn();
+    const onUsageReportingConsentChange = vi.fn();
+    await renderTemplate(
+      <SettingsPageTemplate
+        applicationName="Example Utility"
+        language="zh-CN"
+        onCheckForUpdates={onCheckForUpdates}
+        onLanguageChange={onLanguageChange}
+        onUsageReportingConsentChange={onUsageReportingConsentChange}
+        update={{ currentVersion: "3.4.5", status: "idle" }}
+        usageReportingConfigured
+        usageReportingConsent={false}
+        version="3.4.5"
+      />,
+    );
+
+    expect(screen.getByText("Example Utility · v3.4.5")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "English" }));
+    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
+    fireEvent.click(
+      screen.getByRole("switch", {
+        name: /发送最小化匿名使用统计/,
+      }),
+    );
+    expect(onLanguageChange).toHaveBeenCalledWith("en-US");
+    expect(onCheckForUpdates).toHaveBeenCalledOnce();
+    expect(onUsageReportingConsentChange).toHaveBeenCalledWith(true);
+  });
+
+  /** 未配置远端能力时，设置页保留入口和清晰状态但不会触发请求。 */
+  it("disables update and usage reporting actions when capabilities are not configured", async () => {
+    await renderTemplate(
+      <SettingsPageTemplate
+        applicationName="Example Utility"
+        language="en-US"
+        onCheckForUpdates={vi.fn()}
+        onLanguageChange={vi.fn()}
+        onUsageReportingConsentChange={vi.fn()}
+        update={{ currentVersion: "1.0.0", status: "not-configured" }}
+        usageReportingConfigured={false}
+        usageReportingConsent={false}
+        version="1.0.0"
+      />,
+      "en-US",
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Check for updates" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("switch", {
+        name: /Send minimal anonymous usage statistics/,
+      }),
+    ).toBeDisabled();
+    expect(screen.getByText(/no data will be sent/i)).toBeInTheDocument();
+  });
+
+  /** 强更状态由 core 判定后，根级门会隐藏普通功能且只开放安装或退出。 */
+  it("blocks product features for a core-classified mandatory update", async () => {
+    const update = {
+      availableVersion: "4.0.0",
+      currentVersion: "3.4.5",
+      releaseNotes: "Security maintenance release",
+      status: "required-update" as const,
+    };
+    const onInstallUpdate = vi.fn();
+    const onExitApplication = vi.fn();
+    await renderTemplate(
+      <MandatoryUpdateGateTemplate
+        installing={false}
+        onExitApplication={onExitApplication}
+        onInstallUpdate={onInstallUpdate}
+        update={update}
+      >
+        <Text>Product feature</Text>
+      </MandatoryUpdateGateTemplate>,
+      "en-US",
+    );
+
+    expect(requiresMandatoryUpdate(update)).toBe(true);
+    expect(screen.queryByText("Product feature")).not.toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Install update" }));
+    fireEvent.click(screen.getByRole("button", { name: "Exit application" }));
+    expect(onInstallUpdate).toHaveBeenCalledOnce();
+    expect(onExitApplication).toHaveBeenCalledOnce();
+  });
+
+  /** 非强更状态不会包裹或替换普通功能。 */
+  it("leaves product features available for optional updates", async () => {
+    await renderTemplate(
+      <MandatoryUpdateGateTemplate
+        installing={false}
+        onExitApplication={vi.fn()}
+        onInstallUpdate={vi.fn()}
+        update={{
+          availableVersion: "3.5.0",
+          currentVersion: "3.4.5",
+          status: "optional-update",
+        }}
+      >
+        <Text>Product feature</Text>
+      </MandatoryUpdateGateTemplate>,
+    );
+
+    expect(screen.getByText("Product feature")).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  /** 关于页从当前产品注入名称/版本，同时展示固定作者、联系人和免责声明。 */
   it("renders injected product facts and the approved brand contact", async () => {
     await renderTemplate(
       <AboutPageTemplate
@@ -90,7 +321,14 @@ describe("shared brand support templates", () => {
       screen.getByRole("heading", { name: "Example Utility" }),
     ).toBeInTheDocument();
     expect(screen.getByText("版本 3.4.5")).toBeInTheDocument();
+    expect(screen.getByText(/守城工作室/)).toBeInTheDocument();
     expect(screen.getByText(/2222980/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "免责声明" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/用户在使用本软件\/服务过程中的所有行为/),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Optional action" }),
     ).toBeInTheDocument();
@@ -99,14 +337,15 @@ describe("shared brand support templates", () => {
     ).toBeInTheDocument();
   });
 
-  /** 未提供动作或区块时，关于页不制造占位入口。 */
+  /** 未提供动作或产品区块时，关于页仍只保留固定作者与免责声明。 */
   it("omits unselected about actions and sections", async () => {
     await renderTemplate(
       <AboutPageTemplate productName="Example Utility" version="1.0.0" />,
     );
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("heading")).toHaveLength(1);
+    expect(screen.getAllByRole("heading")).toHaveLength(2);
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
   });
 
   /** 赞助页展示三档固定价格、品牌联系人、档位插图和两种支付码。 */

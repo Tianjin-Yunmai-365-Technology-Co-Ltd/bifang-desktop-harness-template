@@ -47,14 +47,14 @@
 - 优先最短可靠闭环，避免为假想未来增加抽象、接口或依赖。
 - 文件组织、中文业务注释、文档职责、测试组织和规则例外统一遵守 `docs/ENGINEERING_RULES.md`。文件行数、中文声明注释、lint、静态和架构检查只在本次变化本身需要、用户明确要求治理检查，或发布/渠道硬要求时运行，不作为日常开发或普通构建的附加步骤。人工或 Agent 维护文本超过 2000 行仍必须拆分；Rust 模块拆分使用目录/`mod.rs` 结构。
 - 下游初始化必须询问用户选择 `CLI/TUI/MCP/GUI`，允许多选；无选择时默认 CLI。四类接口分别由 `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter` 独立实施，任何一种都不要求另一种存在。
-- 下游 Product Spec 尚未创建或仍为 `Draft` 时允许先初始化中性 Rust workspace 与已选接口；此阶段只提供无业务副作用的 scaffold status，CLI JSON 明确返回 `productDefinitionRequired=true`，不得猜测业务逻辑、发布或声称产品交付完成。
+- 下游 Product Spec 尚未创建或仍为 `Draft` 时允许先初始化中性 Rust workspace 与已选接口；此阶段只提供无业务副作用的 scaffold status，CLI JSON 明确返回 `productDefinitionRequired=true`，不得猜测业务逻辑、发布或声称产品交付完成。GUI 固定托盘/关闭隐藏、动态标题、关于页和赞助页是本地展示与宿主生命周期基线，不构成业务功能或交付证据。
 - 下游项目初始化默认采用 `docs/RUST_CLI_TEMPLATE.md` 中的 Rust 2024 shared-core 与 adapter 基线。只有选中 CLI 时才应用 CLI 契约；选择其他语言或降低工具链约束必须通过范围闸门并记录决策。
 - Core-first 是硬规则：接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略必须在 core 中实现，即使当前只有一个 adapter 也同样适用。把这些业务逻辑混入 adapter 只能按硬规则例外 ADR 处理。
 - CLI/TUI/MCP/GUI 必须是薄适配层，只负责运行时装配、接口语法/协议结构、展示和纯交互状态、调用 core，以及映射结果/错误。系统托盘、窗口/WebView、通知、自动启动、终端按键/恢复、MCP stdio 和 CLI 退出码等特有机制留在对应 adapter，但其触发的业务动作仍调用 core；薄层按职责而不是行数判断。
 - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 - 下游 CLI、TUI、MCP 必须使用 Tokio current-thread async 入口；GUI 必须复用 Tauri 的 Tokio-backed async runtime 和 plain async commands，不创建嵌套 runtime。异步优先是硬规则：core 与全部 Rust adapter 只要涉及真实 I/O、等待、计时、进程、协议或跨边界调用，默认必须实现为异步，不是"可以选择异步"；只有测量确认的 CPU 密集工作才可考虑受控 `spawn_blocking`、专用线程或多线程 runtime，并记录任务所有权、取消、并发上限、资源预算和验证。每个 spawned task 必须有 owner、取消路径和关闭回收，禁止 detached task；timeout 不是业务成功，锁不得跨越不受控 `.await`。只有同步阻塞 API 的依赖不能成为启用线程的默认理由，应替换为异步能力或进入范围/例外确认。core 默认暴露 runtime-neutral 的 async API；只有真实业务需要 Tokio 原语时才增加 core 的 Tokio 生产依赖，不得默认使用 `full`（见 ADR-20260806-002）。
 - 下游 TUI 固定使用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定使用执行时最新兼容稳定的 Vite + React + TypeScript、Mantine UI、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。这些是硬规则；不得因 Draft、页面简单或 Agent 偏好省略，偏离必须记录硬规则例外。其他技术只在真实开发需要时结合项目推荐并通过依赖准入。
-- 下游 Tauri GUI 的界面国际化（i18n）是开发期硬性必选项：前端固定使用 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定使用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，缺少对应翻译资源回退英文，界面必须提供可发现的语言切换入口并持久化用户选择。这是硬规则，core 必须保持语言无关；偏离必须记录硬规则例外，详细边界以 `docs/RUST_CLI_TEMPLATE.md` 与 `$desktop-add-gui-adapter` 基线为唯一来源（见 ADR-20260806-001）。
+- 下游 Tauri GUI 的界面国际化（i18n）是开发期硬性必选项：初始化已包含托盘、关于页和赞助页，因此前端立即使用 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）立即使用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，缺少对应翻译资源回退英文，界面必须提供可发现的语言切换入口并持久化用户选择。这是硬规则，core 必须保持语言无关；偏离必须记录硬规则例外，详细边界以 `docs/RUST_CLI_TEMPLATE.md` 与 `$desktop-add-gui-adapter` 基线为唯一来源（见 ADR-20260806-001）。
 - 下游 Rust 技术选型固定为 Tokio 异步运行时、Axum + Tower/Tower HTTP 服务栈、Clap CLI、SeaORM 关系型数据库 ORM、config-rs 配置、tracing + tracing-subscriber + tracing-appender 本地可观测性、anyhow 应用边界错误上下文、thiserror 稳定类型化错误、serde 序列化和 jiff 日期时间。OpenTelemetry OTLP/HTTP、utoipa/Scalar、async-graphql、MongoDB/redis-rs 与 jsonwebtoken/Argon2id 只在对应能力和安全边界获批后引入。固定技术按已批准真实能力引入，不得为中性 scaffold 无条件安装全部依赖；偏离必须记录硬规则例外，详细边界以 `docs/RUST_CLI_TEMPLATE.md` 为唯一来源。
 - 下游已启用 tracing 时，结构化 event/span 必须通过 tracing-subscriber + tracing-appender 同时落盘到本地滚动日志文件，不得只写标准错误或丢弃；日志格式至少包含时间戳、级别、target 和事件消息。OpenTelemetry 默认关闭且不替代本地日志。标准输出仍只用于 `docs/CLI_CONTRACT.md` 的单一 JSON 文档，不得被日志污染；日志不得记录密钥、令牌、个人数据或未脱敏业务载荷。详细边界以 `docs/RUST_CLI_TEMPLATE.md` 为唯一来源（见 ADR-20260806-002）。
 - 下游依赖在已声明 MSRV、Windows/macOS/Linux、最小 feature 集和完整验证约束内优先采用 registry 中较新的稳定版本；`Cargo.toml` 保存兼容范围，根 `Cargo.lock` 固定实际解析结果。无法采用较新稳定版本时必须记录原因、影响和复核条件，不得以“最新版”为由静默提高 MSRV、采用预发布版或跳过验证。
@@ -73,8 +73,9 @@
 - 派生下游时必须调用 `$desktop-rename-project-identity` 全量处理项目展示名、ASCII `snake_case` 标识、kebab-case 前缀、项目自有配置、维护路径、文档、Skills 和 Licenses；先预览、后显式应用，并对旧身份残留、路径碰撞和符号链接执行阻断检查。实例化身份重置属于中性初始化；现有产品改名必须通过产品范围闸门并记录必要 ADR/Changelog，但只在用户显式请求构建或完整验收时进入对应流程。
 - 若选择 GUI，首次真实 GUI 开发前必须调用 `$desktop-prepare-gui-app-identity`，由用户确认窗口名称等应用资料并选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
 - 若选择 GUI，中性初始化必须把随初始化 Skill 提供的无产品身份 660×400 macOS DMG 背景复制到 `<项目标识>_gui/src-tauri/dmg/background.png`，并让 Tauri 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`，使用应用 `(180, 220)` 与 Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；构建只引用项目内图片，不得依赖已删除的初始化 Skill。
-- GUI 的关于/支持/赞助、动态标题、更新检查与遥测不是初始化默认能力。只有已批准产品真实需要其中一项时才调用 `$desktop-prepare-gui-support-surfaces`；逐项选择并按需创建下游 `docs/GUI_SUPPORT_SURFACES.md`，出站与遥测默认禁用，秘密只保存安全运行时来源引用且不得进入源码、文档、样例、日志或前端 bundle。该条件 Skill 必须完整保留产品家族共享的品牌文档/React/媒体依赖资产，包括固定赞助档位/价格、品牌联系人、支付二维码、更新 banner 与小图；只有已选界面所需文件才进入应用 bundle。不得带入来源下游产品名称/标识、产品路由、固定服务地址、秘密或遥测实例。跨接口资格、值域、默认值和状态转换仍属于 core，窗口/系统浏览器/平台元数据与纯展示属于 GUI adapter。
+- GUI 初始化默认启用 Tauri `tray-icon`：托盘只含本地化“显示窗口”和“退出”，显示动作恢复并聚焦主窗口，主窗口关闭只 `prevent_close()` 后隐藏，只有托盘退出结束应用，且默认不加入自动启动。初始化同时建立动态标题、可收起固定左侧菜单和 `/settings`、`/about`、`/sponsor`；版本在展开/折叠侧栏和设置页直接可见，功能项从顶部向下增长，底部固定组按视觉顺序为赞助、设置、关于。设置页固定提供中英文、手动检查更新和默认关闭的统计同意；未配置时显示 `NotConfigured`/禁用并零出站。关于页显示作者、联系方式和三段免责声明，赞助页打包完整 sponsor 媒体。真实 updater/强更/统计传输启用时才创建受保护的 `docs/GUI_SUPPORT_SURFACES.md`：updater 必须使用官方签名制品且验证不可关闭，强更由 core 对 adapter 已认证的 `minimumSupportedVersion` 作 SemVer 判定，统计只在明确同意后以 HTTPS JSON POST 发送固定最小字段，撤回时取消请求和清空有界内存队列。桌面 bundle 不得包含服务端 secret 或发布私钥；任务必须受应用生命周期拥有并回收，失败默认 fail-open。
 - 构建在项目已有批准的非交互签名 hook/命令、工具和已授权凭据时必须尝试签名并验证；尝试失败不得静默回退 unsigned。macOS Tauri 直接分发候选在设备、Developer ID、`notarytool`/`stapler` 和一组完整公证凭据齐备时必须完成签名、公证与 stapling，不得只签名或使用 `--skip-stapling`；条件缺失时只有产品/渠道允许才可显式 `--no-sign`，一旦签名或公证开始，任何失败均阻断。最终 DMG 必须在所有字节变更完成后只读验证 Finder `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接，完整验收再对当前候选重跑同一检查；不得自动接受软件许可或沿用旧候选证据。不得自动创建、索取、导出或输出签名/公证凭据；签名、公证、stapling 或重打包后必须针对最终字节重新计算 hash。
+- 产品启用 Tauri updater 时，`$desktop-build-tauri-release` 必须要求 `bundle.createUpdaterArtifacts: true`、非空 updater 公钥、受限 HTTPS endpoints 和已批准的发布私钥安全运行时引用；每个平台候选必须从 Tauri 真实输出发现 updater archive 与 `.sig`，用公开密钥验证，并在 manifest 记录 channel/target/arch、公开公钥指纹、文件路径/大小/SHA-256 和 `signatureVerification: passed`。安装包代码签名与 updater 制品签名是独立门禁；允许 `unsigned` 安装包不能绕过 updater 签名。不得创建、索取、输出或把 updater 私钥/密码写入源码、配置、日志、manifest 或制品；构建不授权上传 update feed。
 - macOS→Windows Tauri 构建必须使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc`，仅生成 Windows x64 NSIS；不得在 macOS 声称生成 MSI，不得把 xwin 成功解释为 Windows 原生运行通过，manifest 必须记录 `buildMode: cross-compiled-xwin` 与 `runtimeVerification: Unverified`。
 - 初始化必须把 `/release/` 精确一次写入项目根 `.gitignore`。每次 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 在任何构建命令前，必须先验证 canonical 独立 Git 根，拒绝 `release` 符号链接/reparse point 与路径越界，原子隔离旧目录并创建全新空目录；不得通过活动 destination 原地递归删除。签名、公证和 stapling 完成后的最终 archive/installer、hash、manifest 必须先在同根唯一 staging 形成精确文件集，再以不跟随链接的目录级原子替换提交到 `release/`。远端 workflow 必须绑定并复核 40 位 commit，只上传 manifest 声明的精确文件；`release/` 可包含 `pending` 候选，目录存在不代表 ready。
 - 每次显式构建在任何测试或编译前解析一次本次 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则必须询问用户一次；`milestone_e2e` 只提供建议默认值。Rust 构建必须运行 `cargo test --workspace --all-targets --all-features --locked` 或仓库记录的等价全量命令并确认测试非空；GUI 构建还必须运行前端完整单元测试套件。失败或零测试阻断构建。
@@ -117,12 +118,12 @@
 - 用户明确要求并行、项目策略允许且至少两个写入单元可安全独立：使用 `$desktop-run-parallel-worktrees`。
 - 发布候选、用户明确要求完整验收或本次构建启用 E2E：使用 `$desktop-verify-delivery`；日常开发不自动调用。
 - 需要定版本、更新变更记录或准备发布：使用 `$desktop-prepare-release`。
-- 初始化 Rust 工具链、shared core、接口选择和四项持久 Agent 策略；选择 GUI 时同时创建并接线项目内 macOS DMG 背景：使用 `$desktop-initialize-rust-project`。
+- 初始化 Rust 工具链、shared core、接口选择和四项持久 Agent 策略；选择 GUI 时同时创建并接线项目内 macOS DMG 背景、托盘/关闭隐藏、动态标题、可收起侧栏和设置/关于/赞助默认界面：使用 `$desktop-initialize-rust-project`。
 - 中性初始化时，或初始化后真实测试/构建命令已失败且明确属于受管环境错误时：使用 `$desktop-check-development-environment`；不得因显式构建或缺少环境证据预先调用。GUI 恢复可检查 Node.js 与 pnpm，实际失败命令属于 macOS xwin 构建时再检查 LLVM、NSIS、Windows Rust target 与 `cargo-xwin`。
 - 选择 GUI 后首次真实 GUI 开发：使用 `$desktop-prepare-gui-app-identity` 补齐窗口资料并由用户选择图标路径。
-- 已批准 GUI 产品需要关于/支持/赞助、动态标题、更新检查或遥测时：使用 `$desktop-prepare-gui-support-surfaces` 只实现被明确选择的界面，记录产品实例和最小出站边界；产品家族品牌依赖资产完整随 Skill 保留，中性 scaffold 不自动启用界面。
+- 选择 GUI 时由 `$desktop-add-gui-adapter` 自动消费 `$desktop-prepare-gui-support-surfaces` 的固定标题、侧栏、设置/关于/赞助页与 sponsor 媒体；产品要修改基线或启用更新、强更、统计等出站能力时再次使用该 Skill，记录签名、同意、状态机与最小出站边界。
 - 构建 Rust CLI 候选：使用 `$desktop-build-rust-release`；先逐次解析 E2E 选择并运行全 workspace 非空单元测试，再走 Windows、macOS、Linux 原生矩阵或受限当前平台回退。
-- 构建 Tauri GUI 候选：使用 `$desktop-build-tauri-release`；先校验已批准的项目内 DMG 背景与 Tauri 配置引用、逐次解析 E2E 选择并运行完整 Rust/前端单元测试，再原生输出 macOS DMG 或交叉输出 Windows x64 NSIS。
+- 构建 Tauri GUI 候选：使用 `$desktop-build-tauri-release`；先校验 GUI/DMG/updater 配置、逐次解析 E2E 选择并运行完整 Rust/前端单元测试，再输出 macOS DMG 或 Windows x64 NSIS；启用 updater 时同时收集并验证官方 archive 与 `.sig`。
 - 默认 Windows、macOS、Linux Rust CLI 候选矩阵：使用 `$desktop-prepare-cross-platform-release`；矩阵启动后的真实失败不得伪装成当前平台回退，其他接口的统一跨平台发布能力仍未完成。
 - 提取和核验本次构建结果：使用 `$desktop-collect-release-artifacts`，保留 manifest 的 pending/rejected/accepted 状态，不凭目录存在判断 ready，也不把收集结果写入项目记忆。
 - 已初始化下游需要同步新版 Harness 工程规则或保留 Skills：使用 `$desktop-upgrade-harness`；默认 dry-run，保护项目事实和本地修改。
@@ -151,7 +152,7 @@
 | 开发环境 | `$desktop-check-development-environment` |
 | 下游派生边界 | Harness 可调用 `$desktop-instantiate-project` 一次；完成初始化的下游必须删除实例化/初始化能力并禁止继续派生 |
 | 项目身份与前缀 | `$desktop-rename-project-identity`；覆盖项目自有配置、路径、文档、Skills 与两份许可证的项目名 |
-| 可选 GUI 支持界面与出站事实 | `$desktop-prepare-gui-support-surfaces`；Skill 携带完整产品家族品牌依赖资产，终端下游按需创建的 `docs/GUI_SUPPORT_SURFACES.md` 是产品实例来源，Harness 不预创建或覆盖 |
+| GUI 固定本地支持基线与可选出站事实 | `$desktop-prepare-gui-support-surfaces`；Skill 携带动态标题、关于/赞助页面和完整产品家族品牌依赖资产，终端下游只在修改基线或增加能力时按需创建 `docs/GUI_SUPPORT_SURFACES.md`，Harness 不预创建或覆盖 |
 | 下游 Harness 工程来源与升级 | `$desktop-upgrade-harness`、`.harness/upstream-lock.json` |
 | 商业许可与知识产权 | 根目录 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`；下游只替换适用项目名并保留其余条款 |
 

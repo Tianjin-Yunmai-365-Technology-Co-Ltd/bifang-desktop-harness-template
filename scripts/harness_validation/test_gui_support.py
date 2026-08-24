@@ -138,6 +138,7 @@ class GuiSupportContractTests(unittest.TestCase):
             profile = json.loads(profile_path.read_text(encoding="utf-8"))
             profile["sponsor"]["tiers"][0]["price"] = 20
             profile["contacts"]["support"]["value"] = "0000000"
+            profile["contacts"]["windowTitle"]["value"] = "2222580"
             profile_path.write_text(json.dumps(profile), encoding="utf-8")
             errors: list[str] = []
             validate_gui_support_contract(
@@ -147,6 +148,116 @@ class GuiSupportContractTests(unittest.TestCase):
             )
         self.assertTrue(any("prices must remain" in error for error in errors), errors)
         self.assertTrue(any("support contact drifted" in error for error in errors), errors)
+        self.assertTrue(any("windowTitle contact drifted" in error for error in errors), errors)
+
+    def test_missing_fixed_disclaimer_is_rejected(self) -> None:
+        """关于页免责声明文案或模板缺失时必须失败。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            translations = brand_root / "i18n" / "zh-CN.json"
+            zh = json.loads(translations.read_text(encoding="utf-8"))
+            zh["about"].pop("disclaimer_2")
+            translations.write_text(json.dumps(zh), encoding="utf-8")
+            about = brand_root / "react" / "AboutPageTemplate.tsx"
+            about.write_text(
+                about.read_text(encoding="utf-8").replace(
+                    '          <List.Item>{t("about.disclaimer_3")}</List.Item>\n',
+                    "",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("brand about copy" in error for error in errors), errors)
+        self.assertTrue(any("about.disclaimer_3" in error for error in errors), errors)
+
+    def test_default_tray_or_navigation_copy_drift_is_rejected(self) -> None:
+        """初始化托盘和应用菜单的固定翻译不能静默漂移。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            translations = brand_root / "i18n" / "en-US.json"
+            en = json.loads(translations.read_text(encoding="utf-8"))
+            en["tray"]["quit"] = "Exit now"
+            en["navigation"].pop("sponsor")
+            translations.write_text(json.dumps(en), encoding="utf-8")
+            native = brand_root / "rust-i18n" / "en-US.yml"
+            native.write_text(
+                native.read_text(encoding="utf-8").replace("show_window: Show Window", ""),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("brand tray copy drifted" in error for error in errors), errors)
+        self.assertTrue(
+            any("brand navigation copy drifted" in error for error in errors), errors
+        )
+        self.assertTrue(any("show_window: Show Window" in error for error in errors), errors)
+
+    def test_fixed_bottom_navigation_order_drift_is_rejected(self) -> None:
+        """底部固定项必须保持赞助、设置、关于的视觉顺序。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            navigation = brand_root / "react" / "supportNavigation.ts"
+            source = navigation.read_text(encoding="utf-8")
+            source = source.replace('id: "sponsor"', 'id: "temporary"', 1)
+            source = source.replace('id: "about"', 'id: "sponsor"', 1)
+            source = source.replace('id: "temporary"', 'id: "about"', 1)
+            navigation.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("sponsor/settings/about" in error for error in errors), errors)
+
+    def test_missing_settings_or_mandatory_update_gate_is_rejected(self) -> None:
+        """固定设置页和根级强更门不能在品牌模板中被静默删除。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            settings = brand_root / "react" / "SettingsPageTemplate.tsx"
+            settings.write_text(
+                settings.read_text(encoding="utf-8").replace(
+                    't("settings.check_for_updates")',
+                    't("settings.title")',
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            gate = brand_root / "react" / "MandatoryUpdateGateTemplate.tsx"
+            gate.write_text(
+                gate.read_text(encoding="utf-8").replace(
+                    'role="alertdialog"',
+                    'role="dialog"',
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("settings.check_for_updates" in error for error in errors), errors)
+        self.assertTrue(any('role="alertdialog"' in error for error in errors), errors)
 
     def test_downstream_product_fields_are_rejected_from_brand_profile(self) -> None:
         """品牌例外不能借机携带来源下游产品名或路由字段。"""

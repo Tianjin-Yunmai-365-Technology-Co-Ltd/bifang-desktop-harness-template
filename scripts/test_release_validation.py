@@ -205,6 +205,31 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
         errors = self._validate_mutated_skill(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
 
+    def test_rejects_missing_updater_artifact_generation_gate(self) -> None:
+        """启用 updater 时不能省略官方制品生成和发布私钥安全来源门禁。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        for anchor in (
+            "bundle.createUpdaterArtifacts: true",
+            "TAURI_SIGNING_PRIVATE_KEY",
+            "官方 updater archive 与相邻 `.sig`",
+        ):
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "omitted-updater-gate")
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutated_skill(mutated)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_treating_unsigned_installers_as_unsigned_updater_artifacts(self) -> None:
+        """安装包 unsigned 许可不能弱化 updater archive 签名验证。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "安装包代码签名与 updater 制品签名是独立门禁"
+        mutated = source.replace(anchor, "安装包和更新制品共用 unsigned 结论", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
     def test_rejects_missing_all_or_none_notarization_rule(self) -> None:
         """macOS 候选若允许停在仅签名状态，门禁必须确定性失败。"""
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")

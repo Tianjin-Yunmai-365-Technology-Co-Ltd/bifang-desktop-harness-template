@@ -34,6 +34,83 @@ EXPECTED_ABOUT_KEYS = {
     "support_thanks",
     "studio",
     "contact_label",
+    "disclaimer_title",
+    "disclaimer_1",
+    "disclaimer_2",
+    "disclaimer_3",
+}
+
+EXPECTED_ABOUT_COPY = {
+    "zh-CN": {
+        "studio": "守城工作室",
+        "disclaimer_title": "免责声明",
+        "disclaimer_1": "本软件/服务仅供学习研究和合法合规使用，严禁用于任何违反中华人民共和国法律法规的活动",
+        "disclaimer_2": "用户在使用本软件/服务过程中的所有行为及其后果由用户自行承担全部法律责任，与开发者、运营方无关",
+        "disclaimer_3": "您下载、安装、使用本软件/服务即视为已充分阅读、理解并同意接受本声明的全部内容",
+    },
+    "en-US": {
+        "studio": "Shoucheng Studio",
+        "disclaimer_title": "Disclaimer",
+        "disclaimer_1": "This software/service is for learning, research, and lawful use only. Any activity that violates the laws of the People’s Republic of China is strictly prohibited.",
+        "disclaimer_2": "Users are solely responsible for all actions taken while using this software/service and their consequences. The developers and operators bear no legal liability.",
+        "disclaimer_3": "Downloading, installing, or using this software/service means you have read, understood, and accepted this disclaimer in full.",
+    },
+}
+
+EXPECTED_LOCAL_UI_COPY = {
+    "zh-CN": {
+        "navigation": {"about": "关于", "settings": "设置", "sponsor": "赞助"},
+        "tray": {"show_window": "显示窗口", "quit": "退出"},
+    },
+    "en-US": {
+        "navigation": {
+            "about": "About",
+            "settings": "Settings",
+            "sponsor": "Sponsor",
+        },
+        "tray": {"show_window": "Show Window", "quit": "Quit"},
+    },
+}
+
+EXPECTED_FIXED_UI_KEYS = {
+    "sidebar": {
+        "application_navigation",
+        "collapse",
+        "expand",
+        "features",
+        "version",
+    },
+    "settings": {
+        "title",
+        "language_title",
+        "language_description",
+        "language_zh_cn",
+        "language_en_us",
+        "update_title",
+        "check_for_updates",
+        "privacy_title",
+        "usage_statistics_label",
+        "usage_statistics_description",
+        "usage_statistics_not_configured",
+    },
+    "updater": {
+        "banner_alt",
+        "status_not_configured",
+        "status_idle",
+        "status_checking",
+        "status_up_to_date",
+        "status_optional_update",
+        "status_required_update",
+        "status_failed",
+        "current_version",
+        "available_version",
+        "required_badge",
+        "required_title",
+        "required_description",
+        "version_transition",
+        "install_update",
+        "exit_application",
+    },
 }
 
 FORBIDDEN_PRODUCT_KEYS = {
@@ -162,7 +239,7 @@ def validate_brand_profile(
     if not isinstance(contacts, dict):
         fail(errors, f"brand support contacts are missing: {display_path(path)}")
     else:
-        expected_contacts = {"windowTitle": "2222580", "support": "2222980"}
+        expected_contacts = {"windowTitle": "2222980", "support": "2222980"}
         for role, expected in expected_contacts.items():
             contact = contacts.get(role)
             if (
@@ -228,14 +305,29 @@ def validate_brand_translations(
 ) -> None:
     """确保品牌文案完整且关于页没有来源产品名或功能字段。"""
 
-    for value, path, title, payment in (
-        (zh, zh_path, "软件免费由守城工作室&飞鹰工作室维护", "2222980"),
-        (en, en_path, "Freely Maintained by Shoucheng & Feiying Studio", "2222980"),
+    for locale, value, path, title, payment in (
+        ("zh-CN", zh, zh_path, "软件免费由守城工作室&飞鹰工作室维护", "2222980"),
+        ("en-US", en, en_path, "Freely Maintained by Shoucheng & Feiying Studio", "2222980"),
     ):
         about = value.get("about")
         sponsor = value.get("sponsor")
         if not isinstance(about, dict) or set(about) != EXPECTED_ABOUT_KEYS:
             fail(errors, f"brand about copy must contain only shared fields: {display_path(path)}")
+        elif any(
+            about.get(key) != expected
+            for key, expected in EXPECTED_ABOUT_COPY[locale].items()
+        ):
+            fail(errors, f"brand author or disclaimer copy drifted: {display_path(path)}")
+        for section, expected in EXPECTED_LOCAL_UI_COPY[locale].items():
+            if value.get(section) != expected:
+                fail(errors, f"brand {section} copy drifted: {display_path(path)}")
+        for section, expected_keys in EXPECTED_FIXED_UI_KEYS.items():
+            copy = value.get(section)
+            if not isinstance(copy, dict) or set(copy) != expected_keys:
+                fail(
+                    errors,
+                    f"brand {section} fixed UI keys drifted: {display_path(path)}",
+                )
         if not isinstance(sponsor, dict):
             fail(errors, f"brand sponsor translations are missing: {display_path(path)}")
             continue
@@ -277,7 +369,9 @@ def validate_brand_media_manifest(
     if (
         not isinstance(bundle_policy, dict)
         or bundle_policy.get("guiSkillPropagation") != "complete"
-        or bundle_policy.get("applicationBundle") != "selected-surface-only"
+        or bundle_policy.get("applicationBundle") != "gui-default-local-surfaces"
+        or bundle_policy.get("defaultMediaSets") != ["sponsor"]
+        or bundle_policy.get("optionalMediaSets") != ["updater"]
         or bundle_policy.get("paymentAutomationAuthorized") is not False
         or bundle_policy.get("remoteLoadingAllowed") is not False
     ):

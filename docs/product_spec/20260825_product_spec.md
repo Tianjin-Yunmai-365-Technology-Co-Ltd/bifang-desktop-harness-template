@@ -1,12 +1,12 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-08-24
+> 记忆日期：2026-08-25
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-08-24（Superpowers 默认关闭且环境门禁仅限初始化/错误恢复见 ADR-20260824-003；GUI 初始化创建并接线 macOS DMG 背景见 ADR-20260824-002；日常开发与显式构建流程收敛见 ADR-20260824-001；此前仍有效的品牌、GUI、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
+> 最近范围确认：2026-08-25（GUI 固定侧栏/设置页、更新/强更/统计契约见 ADR-20260825-001；此前 GUI 托盘/关闭隐藏/标题/关于赞助、Superpowers/环境、DMG 背景、开发构建及仍有效品牌、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
 
 ## 一句话目标
 
@@ -34,7 +34,7 @@
 - CLI、TUI、MCP、GUI 必须保持薄适配层，只负责运行时与依赖装配、接口语法/协议结构解析、展示和交互状态、调用 core，以及把 core 结果与错误映射为接口输出；不得复制、改写或另建业务规则、权威业务状态、迁移、权限策略或平台无关校验。
 - 系统托盘、窗口/WebView 生命周期、通知、自动启动、终端焦点/按键/恢复、MCP stdio 传输和 CLI 参数/退出码等接口或平台机制留在对应适配器；它们触发的业务动作仍必须调用 core。真实边界需要时可由 core 定义运行时中立的能力接口并由适配器实现，但不得为假想需求预建抽象。
 - TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。偏离必须形成硬规则例外 ADR。
-- Tauri GUI 的界面国际化（i18n）是开发期硬性必选项，不是可选增强：前端固定采用 `i18next` 与 `react-i18next`，Rust 后端（GUI 适配器层）固定采用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API 作为前后端唯一探测来源。默认语言必须跟随首次启动时探测到的系统语言，缺少对应翻译资源时回退英文；GUI 必须提供可发现的语言切换入口，用户手动切换后的选择必须持久化并覆盖系统探测结果。任何首次向用户交付的真实页面、命令结果或原生机制文案都必须已接入上述技术栈；core 保持语言无关，只暴露语言中立的稳定标识供适配器本地化。偏离必须形成硬规则例外 ADR（详见 ADR-20260806-001）。
+- Tauri GUI 的界面国际化（i18n）是初始化硬性必选项，不是可选增强：前端固定采用 `i18next` 与 `react-i18next`，Rust 后端（GUI 适配器层）固定采用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API 作为前后端唯一探测来源。默认语言必须跟随首次启动时探测到的系统语言，固定托盘、侧栏、设置、关于与赞助资源提供中文与英文，缺少对应翻译资源时回退英文；GUI 必须在固定设置页提供可发现的中英文切换入口，用户手动切换后的选择必须持久化并覆盖系统探测结果。core 保持语言无关，只暴露语言中立的稳定标识供适配器本地化。偏离必须形成硬规则例外 ADR（详见 ADR-20260806-001）。
 - Rust 技术选型固定为：Tokio 负责异步运行时；获批 HTTP 使用 Axum + Tower/Tower HTTP；Clap 负责 CLI；SeaORM 负责关系型 ORM；真实配置使用 config-rs，`notify` 仅用于批准的窄热重载；本地可观测性使用 tracing + tracing-subscriber + tracing-appender；稳定错误、应用上下文、序列化与日期时间分别使用 thiserror、anyhow、serde 与 jiff。OpenTelemetry OTLP/HTTP 只在产品、隐私、采样、endpoint 和失败行为获批后默认关闭地接入。偏离必须形成硬规则例外 ADR。
 - 固定选型表示“能力出现时采用该技术”，不表示中性初始化无条件安装全部依赖。OpenAPI 使用 utoipa + utoipa-axum + Scalar code-first，GraphQL 使用兼容的 async-graphql + async-graphql-axum，非关系型能力优先官方 MongoDB async driver 与 redis-rs Tokio，本地认证优先 jsonwebtoken + Argon2id；这些组合全部只在真实消费者、数据或安全边界获批后引入。Axum 标准不恢复独立 WEB 适配器。
 - 异步优先是硬约束：下游 core 与全部 Rust 适配器只要涉及真实 I/O、等待、计时、进程、协议或跨边界调用，默认必须实现为异步，只有确认调用链纯 CPU 密集、无等待点时才保留同步实现；每个 spawned task 必须有 owner、取消、并发上限和关闭回收，timeout 不是业务成功，锁不得跨越不受控 `.await`。core 默认暴露运行时中立的 async API，只有真实业务需要 Tokio 具体原语时才增加 Tokio 生产依赖（见 ADR-20260806-002）。
@@ -43,7 +43,9 @@
 - 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
 - GUI 首次真实产品开发前必须调用 `$desktop-prepare-gui-app-identity` 确认窗口身份与图标路径。
 - 选择 GUI 时，中性初始化必须从初始化 Skill 的受管资产创建项目内 `<项目标识>_gui/src-tauri/dmg/background.png`：它是无产品身份的 660×400 PNG，清楚表达把应用拖到 Applications 的动作；Tauri 配置固定通过 `./dmg/background.png` 引用，并使用应用 `(180, 220)`、Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；初始化 Skill 删除后，运行时与构建不得继续依赖其源资产。
-- GUI 关于/支持/赞助、动态标题、更新检查和遥测是彼此独立的可选产品能力，不属于中性脚手架。只有已批准产品真实需要其中一项时才使用 `$desktop-prepare-gui-support-surfaces`，逐项记录产品实例、core/GUI 所有权、出站清单、隐私/生命周期与秘密运行时引用；未批准时保持禁用和零出站。项目负责人确认 Harness 产出的产品共享同一品牌，因此该条件 Skill 可以携带完整品牌依赖资产包，包括固定赞助档位/价格、品牌联系人、支付二维码、更新 banner 和暂未使用的小图；这些文件传播到 GUI 下游但只有对应界面明确选择后才进入应用 bundle。Harness 仍不预创建 `docs/GUI_SUPPORT_SURFACES.md`，不复制来源下游的产品名称/标识、路由、固定服务地址、秘密或遥测实例。
+- GUI 初始化固定启用 Tauri `tray-icon`：托盘只含本地化“显示窗口”和“退出”，显示动作与托盘左键恢复并聚焦主窗口；主窗口关闭只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用，默认不加入自动启动。初始化同时建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和可收起的固定左侧菜单；产品功能从顶部向下注入，底部固定组按视觉顺序为赞助、设置、关于，即从窗口底部向上为关于、设置、赞助。展开和折叠状态都直接显示权威版本，固定路由为 `/sponsor`、`/settings`、`/about`。设置页展示应用/版本、中英文切换、检查更新状态和统计同意；关于页展示当前应用名/权威版本、作者、作者联系方式和三段免责声明；赞助页展示三档品牌内容并打包完整 sponsor 媒体。`$desktop-prepare-gui-support-surfaces` 携带这些共享品牌资产与模板。Harness 仍不预创建 `docs/GUI_SUPPORT_SURFACES.md`；没有完整产品出站配置时更新显示 `NotConfigured`、统计开关禁用且默认不同意，固定界面保持零出站。
+- 产品启用更新时必须使用官方 Tauri updater 的签名制品、公开验证密钥和受限 HTTPS endpoints，签名验证不可关闭，并拒绝降级以及 target、arch、channel 不匹配。检查状态固定为 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`，失败不得伪装为最新版。强更只由 adapter 验证过真实性和目标绑定的 `minimumSupportedVersion` 交给 core，以严格 SemVer 得出；不得信任远端 `forcedUpdate` 布尔值。`RequiredUpdate` 使用根级不可关闭门，只允许安装已验证签名更新或安全退出。任务必须由应用生命周期拥有并具备单飞、取消、超时和关闭回收；一般网络/策略失败默认 fail-open。真实远程能力未批准时保持禁用和零出站。
+- 统计上报默认关闭并要求明确同意。固定允许范围仅为每进程一次 `app_started`，由 Rust GUI adapter 以 HTTPS JSON `POST` body 发送文档声明的精确字段白名单；禁止 GET/query、自由文本、业务载荷、令牌、路径、用户名、主机名和稳定设备/安装标识。队列只驻留内存且最多 32 条，同一时刻最多一个在途请求，撤回同意立即取消并清空，任务与至多两次重试必须可关闭回收；任何新增事件、字段、稳定标识或持久队列都需重新批准。桌面客户端不得保存服务端共享秘密或发布私钥。更新 banner 只有产品选择时进入 bundle，真实 endpoint、统计接收方、公开 updater 配置与安全密钥引用只进入受保护产品事实。
 - 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills。
 - 文件、中文业务注释、文档、测试与例外统一遵守 `docs/ENGINEERING_RULES.md`。Rust 下游从 Cargo workspace 根运行中文声明注释检查器；GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明并接入 lint/validator。机械门禁不检查全部字段、局部变量、闭包或普通匿名回调，不自动生成套话，且只证明注释存在；语义仍由人工/Agent 复核。非 GUI 下游不适用 TypeScript 门禁。
 - 所有由人类或 Agent 维护的文本文件采用两级规模治理：超过 500 个物理行必须复核业务是否高内聚、职责单一且职责相近，任一项不满足就按职责重构拆分；超过 2000 行必须由机械门禁拒绝并强制拆分。Rust 模块拆分使用目录/`mod.rs` 结构。工具生成且禁止手工编辑的锁文件/生成物与原样内嵌的第三方文件不属于人工维护文件；其生成器、模板和维护说明仍适用同一治理。
@@ -112,8 +114,8 @@
 - 不把新版 Harness 整体覆盖到下游，不自动覆盖产品专属规则、本地修改、许可证、策略或项目记忆。
 - 不自动创建或索取签名/公证凭据、配置签名身份、安装 Homebrew、创建标签、配置远端、推送、商店提交、正式发布或上传到发布渠道；构建只可在既有批准的非交互条件与授权全部可用时执行对应平台的签名或签名公证一体化阶段。
 - 不在 macOS 交叉生成 Windows MSI，不从 xwin 产物推断 Windows 原生运行/安装行为，也不在本轮增加 Linux GUI 交叉构建或统一 TUI/MCP 发布模型。
-- 不在本轮为 GUI 的具体产品预设已支持语言列表或翻译文案；不为 CLI/TUI/MCP 适配器新增 i18n 义务。
-- 不为 GUI 自动启用关于/赞助页面、更新服务或遥测，也不把来源下游的产品名称/标识、路由、固定 endpoint、秘密或遥测实例带入 Harness。经项目负责人确认的产品家族品牌联系人、固定赞助档位/价格、支付码、更新 banner 与小图是条件品牌资产包的显式例外；携带静态支付材料不授权真实交易、订单、权益或账户实现。
+- 除固定托盘/侧栏/设置/关于/赞助基线使用的中文与英文外，不在本轮为具体产品预设额外语言或业务翻译文案；不为 CLI/TUI/MCP 适配器新增 i18n 义务。
+- 不在中性 GUI 中配置或启用真实更新 endpoint、强更最低版本、统计接收方、自动启动、远程帮助或其他出站能力，也不把来源下游的产品名称/标识、固定 endpoint、客户端共享秘密或遥测实例带入 Harness。固定设置入口、更新状态机与统计同意控件在未配置时保持 `NotConfigured`/禁用/零出站；经项目负责人确认的作者/联系人/免责声明、固定赞助档位/价格、支付码、更新 banner 与小图是产品家族品牌资产包的显式例外。携带静态支付材料不授权真实交易、订单、权益或账户实现。
 - 不复制 Rust Server 的单 package/single-bin 架构、默认多线程 runtime 或整套 HTTP 资产；不复制 Web/Extension/Plasmo/Chrome 资产、浏览器数据协议、固定 API BaseURL 或具体依赖版本。
 - 不机械要求全部局部变量、循环绑定和普通匿名回调逐项注释，也不自动批量生成“保存变量”“执行处理逻辑”等套话。
 
@@ -159,7 +161,9 @@
 - [x] xwin 门禁能分别处理 Homebrew `llvm`/`lld` 拆包并拒绝损坏 formula；公证探测能安全使用一组完整环境凭据或已授权 Keychain profile，且不输出 profile 名或秘密。
 - [x] macOS DMG 构建规则要求最终字节具有真实 Finder 拖拽布局，并以只读挂载检查 `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接；所有后处理都要求重新签名、公证、摘要与验收。
 - [x] GUI 初始化携带并创建无产品身份的 660×400 DMG 背景，项目配置固定引用项目内 `src-tauri/dmg/background.png`；GUI 身份流程负责正式批准或同路径替换，构建在测试前校验路径、尺寸、摘要与 Tauri 配置一致。
-- [x] `$desktop-prepare-gui-support-surfaces` 能只为明确选择的 GUI 支持界面建立产品实例、core/GUI 所有权和最小出站/隐私边界；其产品家族品牌包完整保存 13 项图片资源、固定赞助档位/价格与品牌联系人，并用可审计清单绑定尺寸、摘要、用途与支付敏感性。资产包不含来源下游产品名称/标识、固定服务地址、秘密或默认网络请求，非 GUI 下游不保留该 Skill。
+- [x] GUI 初始化固定建立仅含显示/退出的托盘、关闭隐藏生命周期、权威动态标题和可收起左侧菜单；展开/折叠都显示版本，功能项从顶部向下，底部固定项的视觉顺序为赞助、设置、关于。固定 `/settings`、`/about`、`/sponsor` 路由；设置页提供中英文切换、`NotConfigured` 检查更新与默认关闭的统计同意，关于页显示作者/联系人/免责声明，赞助页默认打包完整 sponsor 媒体。
+- [x] `$desktop-prepare-gui-support-surfaces` 固化官方签名 updater、认证最低支持版本 + core SemVer 强更、根级不可绕过更新门，以及默认关闭、明确同意、HTTPS JSON POST、无稳定标识、内存有界队列和生命周期回收的统计契约；`$desktop-build-tauri-release` 在启用 updater 时强制产出并验证 archive/`.sig`，安装包签名状态不能绕过更新制品签名。
+- [x] 品牌包完整保存 13 项图片资源并以清单绑定尺寸、摘要、用途与支付敏感性，不含来源下游产品名称/标识、固定服务地址、客户端共享秘密或默认网络请求；非 GUI 下游不保留该 Skill。
 - [x] CLI/TUI/MCP/GUI、独立 Git 根、一次性初始化裁剪、固定技术栈、双语许可证和版本边界等既有成功标准继续有效。
 - [x] 工程规则、规划/实施/验收 Skills、四类适配器 Skills、中性资产和 Harness 回归门禁一致强制 core-first；每个公开业务操作都能追溯到 core API 与 core 测试，接口/平台特性边界不被误判为业务下沉。
 - [x] Tauri GUI 的 i18n 技术选型（`react-i18next`/`i18next`、`rust-i18n`、`tauri-plugin-os` 语言探测）已固化为事实标准并写入 GUI 相关 Skills 与基线；默认语言跟随系统语言、界面提供语言切换入口且 core 保持语言无关。
@@ -167,11 +171,11 @@
 - [x] 已启用 tracing 的下游把结构化 event/span 落盘到人类可读、可滚动的本地日志文件，标准输出仍保持单一 JSON 信封，日志不记录敏感信息，且该边界已写入 `AGENTS.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
 - [x] 任一路径对产出物的完成/可用结论都以真实运行结果为依据而非 Mock，同时保留测试隔离规则允许的受控测试替身范围，且该边界已写入 `docs/VERIFICATION.md` 与 `AGENTS.md`。
 - [x] Rust 固定技术族已扩展为 Axum + Tower/Tower HTTP、config-rs、tracing-subscriber/appender 与按批准启用的 OpenTelemetry；OpenAPI、GraphQL、MongoDB/Redis 和认证组合保持能力触发，不进入中性依赖。
-- [x] Tauri GUI 固定基线已扩展为 Vite 文件路由、严格 TypeScript、ESLint/Prettier、Vitest/Testing Library、Mantine 设计规范、可选公开配置、结构化日志与最终 `dist` 静态扫描，且未捆绑页面或业务起始资产。
+- [x] Tauri GUI 固定基线已扩展为 Vite 文件路由、严格 TypeScript、ESLint/Prettier、Vitest/Testing Library、Mantine 设计规范、可选公开配置、结构化日志与最终 `dist` 静态扫描；除固定本地托盘/关于/赞助支持基线外，不捆绑产品业务起始资产。
 - [x] Rust workspace 中文声明注释检查器和 GUI TypeScript Compiler AST 参考门禁均具备精确范围、位置诊断、失败关闭、专项负例与执行/初始化/升级/验证传播；两者都禁止自动套话并保留语义复核责任。
 
 ## 当前版本与未来候选
 
 - 当前版本：`202608051301`，`Unreleased`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，`1.0.0` 保留为迁移前旧版本标识。项目负责人于 2026-08-05 明确确认本次版本值；该决定不自动授权标签、源码归档或正式发布。
 - 维护状态：Active。
-- 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对 Vite/AST 门禁/最终 dist 扫描与可选支持界面生成的前向构建证据。
+- 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对托盘/关闭隐藏、动态标题、固定侧栏/设置/关于/赞助页、签名更新安装、强更离线恢复、统计同意/撤回、Vite/AST 门禁和最终 dist 扫描的前向构建证据。

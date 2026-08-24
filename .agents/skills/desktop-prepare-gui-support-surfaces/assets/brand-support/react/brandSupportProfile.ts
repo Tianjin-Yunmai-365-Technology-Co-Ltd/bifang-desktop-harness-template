@@ -57,6 +57,20 @@ export interface BrandSupportProfile {
 /** 由 validator 机械校验后供页面模板消费的品牌事实。 */
 export const BRAND_SUPPORT_PROFILE = profileJson as BrandSupportProfile;
 
+/** 使用权威应用名、版本和品牌联系字段组装固定窗口标题。 */
+export function formatBrandWindowTitle(
+  applicationName: string,
+  version: string,
+): string {
+  const normalizedName = applicationName.trim();
+  const normalizedVersion = version.trim();
+  if (!normalizedName || !normalizedVersion) {
+    throw new Error("window title requires application name and version");
+  }
+  const contact = BRAND_SUPPORT_PROFILE.contacts.windowTitle;
+  return `${normalizedName} ${normalizedVersion} ${contact.channel}:${contact.value}`;
+}
+
 /** 判断路径是否为不含远程 scheme、反斜杠或上级跳转的本地绝对路径。 */
 export function isLocalSupportPath(value: string): boolean {
   return (

@@ -34,6 +34,12 @@ GUI_SUPPORT_PAGES_REFERENCE = (
     / "references"
     / "about-and-sponsor-pages.md"
 )
+GUI_SUPPORT_UPDATE_REFERENCE = (
+    SKILLS_ROOT
+    / "desktop-prepare-gui-support-surfaces"
+    / "references"
+    / "update-and-telemetry.md"
+)
 GUI_SUPPORT_METADATA = (
     SKILLS_ROOT
     / "desktop-prepare-gui-support-surfaces"
@@ -241,16 +247,24 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-prepare-gui-support-surfaces/agents/openai.yaml",
     ".agents/skills/desktop-prepare-gui-support-surfaces/references/gui-support-surfaces.md",
     ".agents/skills/desktop-prepare-gui-support-surfaces/references/about-and-sponsor-pages.md",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/references/update-and-telemetry.md",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/GUI_SUPPORT_SURFACES.template.md",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/brand-support-profile.json",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/media-manifest.json",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/i18n/zh-CN.json",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/i18n/en-US.json",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/rust-i18n/zh-CN.yml",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/rust-i18n/en-US.yml",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/AboutPageTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SponsorPageTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SupportMedia.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/BrandUpdaterBanner.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/brandSupportProfile.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/supportNavigation.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/updatePresentation.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/AppSidebarTemplate.tsx",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SettingsPageTemplate.tsx",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/MandatoryUpdateGateTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SupportSurfaceTemplates.test.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/media/sponsor/arrow.png",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/media/sponsor/bg.jpg",

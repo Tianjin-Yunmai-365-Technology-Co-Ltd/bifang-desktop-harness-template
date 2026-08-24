@@ -13,6 +13,7 @@ from .context import (
     GUI_SUPPORT_PAGES_REFERENCE,
     GUI_SUPPORT_REFERENCE,
     GUI_SUPPORT_SKILL,
+    GUI_SUPPORT_UPDATE_REFERENCE,
     ROOT,
     display_path,
     fail,
@@ -66,6 +67,10 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "productName: string",
             "version: string",
             "BRAND_SUPPORT_PROFILE.contacts.support",
+            't("about.disclaimer_title")',
+            't("about.disclaimer_1")',
+            't("about.disclaimer_2")',
+            't("about.disclaimer_3")',
             "actions ?",
         ),
         react_root / "SponsorPageTemplate.tsx": (
@@ -86,12 +91,60 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "不启用更新检查",
         ),
         react_root / "brandSupportProfile.ts": (
+            "formatBrandWindowTitle",
+            "BRAND_SUPPORT_PROFILE.contacts.windowTitle",
             "isLocalSupportPath",
             "resolveBrandAssetPath",
             'value.includes("://")',
         ),
+        react_root / "supportNavigation.ts": (
+            "FIXED_BOTTOM_NAVIGATION_ITEMS",
+            'to: "/settings"',
+            'to: "/about"',
+            'to: "/sponsor"',
+            'labelKey: "navigation.settings"',
+            'labelKey: "navigation.about"',
+            'labelKey: "navigation.sponsor"',
+        ),
+        react_root / "updatePresentation.ts": (
+            '"not-configured"',
+            '"optional-update"',
+            '"required-update"',
+            "requiresMandatoryUpdate",
+            "前端不得从远端布尔值自行推导",
+        ),
+        react_root / "AppSidebarTemplate.tsx": (
+            "position: \"fixed\"",
+            "featureItems.map",
+            "FIXED_BOTTOM_NAVIGATION_ITEMS.map",
+            'data-testid="app-sidebar-version"',
+            'data-testid="fixed-bottom-navigation"',
+            "onCollapsedChange(!collapsed)",
+        ),
+        react_root / "SettingsPageTemplate.tsx": (
+            "SupportedInterfaceLanguage",
+            't("settings.check_for_updates")',
+            "usageReportingConsent",
+            'update.status === "not-configured"',
+            "onUsageReportingConsentChange",
+        ),
+        react_root / "MandatoryUpdateGateTemplate.tsx": (
+            "requiresMandatoryUpdate(update)",
+            'role="alertdialog"',
+            "onInstallUpdate",
+            "onExitApplication",
+            "普通功能",
+        ),
         react_root / "SupportSurfaceTemplates.test.tsx": (
             "2222980",
+            "免责声明",
+            "显示窗口",
+            "formats the fixed dynamic window title",
+            "FIXED_BOTTOM_NAVIGATION_ITEMS",
+            "fixed bottom order",
+            "keeps the version visible",
+            "capabilities are not configured",
+            "core-classified mandatory update",
             "video.controls",
             "video.autoplay",
             "payment images",
@@ -123,6 +176,19 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
     media_text = texts.get(react_root / "SupportMedia.tsx", "")
     if re.search(r"\bautoPlay\b", media_text):
         fail(errors, "brand support video template must not enable autoPlay")
+    navigation_text = texts.get(react_root / "supportNavigation.ts", "")
+    fixed_order = [
+        navigation_text.find('id: "sponsor"'),
+        navigation_text.find('id: "settings"'),
+        navigation_text.find('id: "about"'),
+    ]
+    if any(position < 0 for position in fixed_order) or fixed_order != sorted(fixed_order):
+        fail(errors, "GUI fixed bottom navigation must be sponsor/settings/about")
+    sidebar_text = texts.get(react_root / "AppSidebarTemplate.tsx", "")
+    if sidebar_text.find("featureItems.map") > sidebar_text.find(
+        "FIXED_BOTTOM_NAVIGATION_ITEMS.map"
+    ):
+        fail(errors, "GUI feature navigation must render above fixed bottom navigation")
     for path, text in texts.items():
         if path.name.endswith(".test.tsx"):
             continue
@@ -140,6 +206,7 @@ def validate_gui_support_contract(
     skill_path: Path = GUI_SUPPORT_SKILL,
     reference_path: Path = GUI_SUPPORT_REFERENCE,
     pages_reference_path: Path = GUI_SUPPORT_PAGES_REFERENCE,
+    update_reference_path: Path = GUI_SUPPORT_UPDATE_REFERENCE,
     metadata_path: Path = GUI_SUPPORT_METADATA,
     brand_root: Path = GUI_SUPPORT_BRAND_ROOT,
     product_instance_path: Path = ROOT / "docs" / "GUI_SUPPORT_SURFACES.md",
@@ -148,38 +215,79 @@ def validate_gui_support_contract(
 
     required = {
         skill_path: (
-            "每类界面和出站能力独立选择",
+            "动态标题、可收起左侧菜单、设置页、关于页与赞助页默认成组存在",
+            "底部固定项按视觉顺序为赞助、设置、关于",
+            "`/settings`、`/about` 与 `/sponsor` 是固定路由",
+            "三段免责声明",
             "docs/GUI_SUPPORT_SURFACES.md",
             "升级器必须将其视为 `protected`",
             "领域校验、跨接口可复用的资格判断",
             "默认 fail-open",
             "禁止 detached task",
             "秘密只能由已批准的安全运行时来源提供",
-            "遥测默认关闭",
+            "统计上报默认关闭",
+            "不得信任远端 `forcedUpdate` 布尔值",
+            "HTTPS JSON `POST` body",
             "13 个源图片",
             "支付二维码是敏感静态品牌材料",
             "$desktop-define-product",
         ),
         reference_path: (
             "## 所有权矩阵",
+            "`{applicationName} {version} {contactChannel}:{contactValue}`",
+            "底部固定组按视觉顺序为赞助、设置、关于",
             "每个远程能力单独记录",
             "生产地址默认 HTTPS",
             "禁用或未同意时请求计数为零",
-            "未批准的自更新或强制行为不存在",
+            "未认证布尔值不能触发强更",
             "13 个源文件",
         ),
         pages_reference_path: (
             "## 资产包内容",
+            "固定侧栏、设置页、关于页、赞助页及其应用导航入口随 GUI 初始化自动建立",
+            "作者、联系人、三段免责声明",
             "固定价格是 19、199、1999 CNY",
             "不得使用固定 `minWidth: 800`",
             "当前品牌包没有视频文件",
             "13 个源文件逐项核对",
         ),
+        update_reference_path: (
+            "## 更新状态机",
+            "`NotConfigured`",
+            "`RequiredUpdate`",
+            "minimumSupportedVersion",
+            "React 不比较 SemVer、不读取远端布尔字段",
+            "签名验证不可关闭",
+            "强更不是远端一个 `forcedUpdate` 布尔值",
+            "普通功能导航和业务页面不挂载",
+            "## 统计上报同意与固定最小事件",
+            "JSON `POST` body",
+            "禁止使用 GET/query",
+            "不落盘",
+            "撤回同意",
+            "最多一个发送任务、一个在途请求和 32 条内存事件",
+        ),
         metadata_path: (
             "准备 GUI 支持界面",
             "$desktop-prepare-gui-support-surfaces",
         ),
+        brand_root / "rust-i18n" / "zh-CN.yml": (
+            "tray:",
+            "show_window: 显示窗口",
+            "quit: 退出",
+        ),
+        brand_root / "rust-i18n" / "en-US.yml": (
+            "tray:",
+            "show_window: Show Window",
+            "quit: Quit",
+        ),
         brand_root / "GUI_SUPPORT_SURFACES.template.md": (
+            "GUI 初始化已经包含固定动态标题、可收起左侧菜单、设置页、关于页和赞助页",
+            "视觉顺序严格为赞助、设置、关于",
+            "`NotConfigured`",
+            "禁止远端布尔值直接触发",
+            "用户同意默认 false",
+            "JSON POST body",
             "支付二维码是敏感静态品牌材料",
             "autoplay | 禁止",
             "13 个源文件",

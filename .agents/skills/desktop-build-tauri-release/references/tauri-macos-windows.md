@@ -2,6 +2,19 @@
 
 > 官方资料核对日期：2026-08-24
 
+## Tauri updater 签名制品
+
+- 官方 Tauri 2 updater 要求更新制品签名，签名验证不能关闭。`plugins.updater.pubkey` 可以安全进入应用配置；私钥必须留在发布环境，构建通常通过 `TAURI_SIGNING_PRIVATE_KEY` 和密钥实际需要的密码来源消费，不得写入仓库、日志或前端 bundle。
+- `bundle.createUpdaterArtifacts: true` 让 bundler 为目标平台生成 updater archive 及相邻签名。真实扩展名和路径随平台/bundler 变化，必须从 Tauri 输出或 bundle 元数据发现，不得猜文件名。
+- updater endpoints 支持 target、arch 和当前版本变量；生产使用 TLS。默认不允许降级。检查、下载和安装可以分阶段执行，Windows 在安装阶段可能退出应用。
+- 安装包的 Developer ID/Authenticode/渠道代码签名与 updater archive 签名不是同一件事。允许 unsigned 安装包不能关闭 updater 签名；启用 updater 的候选缺少 archive、`.sig` 或公钥验证时必须失败。
+- 本 Skill 只生成本次候选及可审计清单，不上传 update feed、不创建 release，也不持有发布私钥。强更的最低支持版本策略还需要应用层认证与 core 判定，不能由 updater manifest 中一个未认证布尔字段直接触发。
+
+官方来源：
+
+- [Tauri Updater](https://v2.tauri.app/plugin/updater/)
+- [Tauri updater JavaScript API](https://v2.tauri.app/reference/javascript/updater/)
+
 ## macOS→Windows x64
 
 - Tauri 官方把 Linux/macOS 上的 Windows 交叉构建定义为带限制的兜底路线；它只支持 NSIS，WiX/MSI 只能在 Windows 生成。

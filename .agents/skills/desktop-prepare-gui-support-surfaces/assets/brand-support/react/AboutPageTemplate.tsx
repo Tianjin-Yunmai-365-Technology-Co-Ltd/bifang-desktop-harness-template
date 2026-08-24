@@ -1,4 +1,13 @@
-import { Badge, Box, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import {
+  Badge,
+  Box,
+  Group,
+  List,
+  Paper,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -24,7 +33,7 @@ export interface AboutPageTemplateProps {
   contact?: BrandSupportContact;
 }
 
-/** 展示当前下游产品名、权威版本、可选区块和共享品牌联系人。 */
+/** 展示当前下游产品名、权威版本、共享作者、联系方式和固定免责声明。 */
 export function AboutPageTemplate({
   productName,
   version,
@@ -62,6 +71,17 @@ export function AboutPageTemplate({
             </Text>
           </Box>
         </Stack>
+      </Paper>
+
+      <Paper p="lg" radius="lg" withBorder>
+        <Title mb="md" order={3}>
+          {t("about.disclaimer_title")}
+        </Title>
+        <List spacing="sm" type="ordered">
+          <List.Item>{t("about.disclaimer_1")}</List.Item>
+          <List.Item>{t("about.disclaimer_2")}</List.Item>
+          <List.Item>{t("about.disclaimer_3")}</List.Item>
+        </List>
       </Paper>
 
       {sections.map((section) => (
