@@ -62,7 +62,7 @@ class AgentPolicyTests(unittest.TestCase):
         """推荐预设只物化现有四字段，并通过下游 fail-closed 校验。"""
         resolved = self._resolved_policy(
             {
-                "superpowers": "enabled",
+                "superpowers": "disabled",
                 "parallel_worktree_subagents": "enabled",
                 "milestone_smoke": "enabled",
                 "milestone_e2e": "disabled",
@@ -70,11 +70,30 @@ class AgentPolicyTests(unittest.TestCase):
         )
         self.assertEqual(self._validate(resolved, allow_pending=False), [])
 
+    def test_source_defaults_superpowers_to_disabled(self) -> None:
+        """Harness 源策略必须在下游选择前保持 Superpowers 默认关闭。"""
+        self.assertRegex(self._current_policy(), r"(?m)^superpowers: disabled$")
+
+    def test_source_default_validator_rejects_enabled_superpowers(self) -> None:
+        """模板校验不能只依赖正文中的推荐值而忽略源字段漂移。"""
+        mutated = self._current_policy().replace(
+            "superpowers: disabled",
+            "superpowers: enabled",
+            1,
+        )
+        errors = run_validator_on_tempfile(
+            governance.validate_agent_policy,
+            "AGENT_POLICY.md",
+            mutated,
+            require_source_defaults=True,
+        )
+        self.assertTrue(any("default superpowers to disabled" in error for error in errors))
+
     def test_custom_values_are_not_forced_to_recommended_values(self) -> None:
         """自定义选择可物化不同合法组合，不被推荐配方覆盖。"""
         resolved = self._resolved_policy(
             {
-                "superpowers": "disabled",
+                "superpowers": "enabled",
                 "parallel_worktree_subagents": "disabled",
                 "milestone_smoke": "disabled",
                 "milestone_e2e": "enabled",
@@ -179,6 +198,28 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn(boundary, skill)
         self.assertIn("构建事实只写入当前 `release/` manifest", rules)
         self.assertIn("不得复制到项目记忆", rules)
+
+    def test_environment_gate_only_runs_for_initialization_or_observed_error(self) -> None:
+        """环境门禁不得因任务、构建或证据状态预先运行。"""
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+        environment = read_repo_text(
+            ".agents/skills/desktop-check-development-environment/SKILL.md"
+        )
+        rust_build = read_repo_text(
+            ".agents/skills/desktop-build-rust-release/SKILL.md"
+        )
+        tauri_build = read_repo_text(
+            ".agents/skills/desktop-build-tauri-release/SKILL.md"
+        )
+        self.assertIn("初始化是允许主动检查环境的唯一常规阶段", initialize)
+        self.assertIn("只接受两类触发", environment)
+        self.assertIn("不得仅因首次修改代码、新任务、新会话、显式构建", environment)
+        self.assertIn("门禁成功后只重试原失败命令一次", environment)
+        self.assertIn("不得因显式构建、缺少/过期环境证据", rust_build)
+        self.assertIn("初始化后的构建不做例行环境预检", tauri_build)
+        self.assertNotIn("显式构建若缺少与当前接口", environment)
 
 
 class WorkPlanTests(unittest.TestCase):

@@ -15,7 +15,7 @@
 
 1. 使用 `$desktop-instantiate-project` 提供项目身份、完整目标目录、负责人和目标平台，建立独立 Git 根并重置模板身份。
 2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`；选择 GUI 时同时创建项目内 660×400 macOS DMG 拖拽背景并接入 Tauri 配置。
-3. 本次必要单元测试因工具链缺失而受阻，或显式构建需要不可复用的工具链证据时才运行 `$desktop-check-development-environment`。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
+3. 初始化时运行一次 `$desktop-check-development-environment`；初始化完成后先直接执行真实测试/构建命令，只有命令已因受管环境问题失败时才做对应检查、安装并重试一次。不得因新任务、显式构建或缺少环境证据重复预检。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
 4. 日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、E2E 或验收步骤。
 5. 用户显式请求构建时，构建 Skill 先解析本次是否启用 E2E，再运行项目全部非空单元测试并构建候选；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
 6. 已初始化下游需要接收新版工程规则时使用 `$desktop-upgrade-harness`：先 dry-run 和三方比较，显式批准后只更新安全受管文件。
@@ -54,7 +54,7 @@
 - `$desktop-extract-i18n-strings`：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core。
 - `$desktop-run-parallel-worktrees`：只有用户明确要求并行、项目策略允许且写入范围可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
 - `$desktop-initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略；选择 GUI 时把中性 DMG 背景写入 `<项目标识>_gui/src-tauri/dmg/background.png`。
-- `$desktop-check-development-environment`：本次必要测试因工具缺失而受阻，或显式构建需要不可复用环境证据时检查工具链；GUI 额外处理 Node.js 与 pnpm，macOS 交叉构建 Windows Tauri 安装包时按目标补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
+- `$desktop-check-development-environment`：只在初始化阶段，或初始化后真实测试/构建命令已因受管环境问题失败时检查并补齐对应工具；不得因显式构建或缺少环境证据预跑。GUI 可处理 Node.js 与 pnpm，实际失败的 macOS→Windows Tauri 路径可补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
 - `$desktop-prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理，并预览批准或替换初始化生成的 DMG 背景。
 - `$desktop-prepare-gui-support-surfaces`：只在已批准 GUI 产品真实需要时，按需定义关于/支持/赞助、动态标题、更新检查或遥测，并固化 core/GUI 所有权、出站白名单与秘密隔离；Skill 携带产品家族共享的完整品牌页面/媒体依赖资产，只有所选界面实际需要时才进入应用 bundle。
 - `$desktop-build-rust-release`：构建 Rust CLI 候选时先逐次解析 E2E 选择并全量运行 workspace 单元测试，再默认采用 Windows、macOS、Linux 原生矩阵；跨平台预检不满足才回退当前平台。构建前安全清空根 `release/`，条件具备时尝试签名，最终候选、hash 与 manifest 统一写入该目录。
@@ -92,7 +92,7 @@
 - 所有人工或 Agent 维护的文本文件采用两级规模治理：超过 500 个物理行必须复核业务是否高内聚、职责单一且职责相近，不满足就按职责重构拆分；超过 2000 行机械门禁失败并强制拆分。Rust 模块拆分沿用目录/`mod.rs` 结构；Cargo/pnpm 等工具生成且禁止手工编辑的锁文件、生成物和原样内嵌第三方文件按封闭范围定义排除。
 - CLI/TUI/MCP 使用 Tokio current-thread async 入口，GUI 复用 Tauri 的 Tokio async runtime；I/O 和等待型工作优先异步，只有测量确认的 CPU 密集工作才考虑受控多线程边界。同步阻塞依赖应替换为异步能力或进入范围/例外确认。core 可以提供 runtime-neutral 的 async API，只有真实业务需要 Tokio 原语时才直接依赖 Tokio；不默认启用 `full` feature。
 - 下游依赖在 MSRV、目标平台、最小 feature 与验证约束内优先采用较新稳定版本，并以锁文件保证可复现；版本新不替代兼容与回归验证。
-- 本次必要单元测试因工具链缺失而受阻，或显式构建的环境证据不可复用时才检查环境；纯文档任务跳过。Windows Rust 需要 MSVC Build Tools，仅 GUI 需要 Node.js 与 pnpm。只有选择 macOS→Windows Tauri xwin 构建目标时才安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` 与 `cargo-xwin`，且不会自动安装 Homebrew。
+- 初始化主动检查一次环境；初始化后不得按任务或构建例行检查，而是先运行真实命令，仅在已观察到受管环境错误后做对应安装并重试一次。纯文档任务跳过。Windows Rust 需要 MSVC Build Tools，仅 GUI 需要 Node.js 与 pnpm；只有实际失败命令属于 macOS→Windows Tauri xwin 路径时才安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` 与 `cargo-xwin`，且不会自动安装 Homebrew。
 - scaffold 验证结束后，下游删除实例化/初始化能力及模板专用入口，不能继续派生；`AGENTS.md` 永久保留非空 Skills/约束地图和 `$desktop-upgrade-harness`。
 - 模板及其收费下游采用企业专有商业许可而非开源协议；实例化先原样复制中英文两份许可证，再仅把适用项目名改为目标项目，其他法律条款保持不变并永久保留。
 - 项目实例化必须询问完整目标项目目录路径；路径解析后 basename 必须与项目标识一致，目标可以位于 Harness 内或外，但必须不存在或为空，并通过覆盖、递归复制与符号链接安全检查。
@@ -121,7 +121,7 @@
 - Agent 可修复原任务范围内的普通失败；高风险、范围变化、新外部副作用和发布由人工审批。日常开发不要求人工签署完成。
 - 需要人工复核时必须写入仓库，Agent 不得代替人类签署。
 - CLI、TUI、MCP、GUI 均有独立 adapter Skill；任何一种都不以另一 adapter 为前置条件。
-- 初始化先让用户一次选择推荐预设或自定义；自定义才逐项询问四项策略，最终原子写入并复用。
+- 初始化先让用户一次选择推荐预设或自定义；推荐预设默认禁用 Superpowers，自定义才逐项询问四项策略，最终原子写入并复用。
 - 验收中的实现缺失或行为偏差必须回到开发循环修正、补回归测试并重新验收；只有存在用户要求的持久计划时才重开 Todo。
 - 写入型 Subagent 只有在用户明确要求并行、项目策略启用且任务安全可拆时使用独立 Worktree，并在写入前通过 helper 边界检查；主 Agent 公开阶段状态并同步等待所有必需结果。
 - 模板自身始终保持无具体业务代码。

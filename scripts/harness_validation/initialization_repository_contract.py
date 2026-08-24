@@ -24,6 +24,8 @@ def repository_required_fragments(
             "持久启用本身不能触发并行步骤",
         ),
         gate_file: (
+            "显式构建、缺少环境证据、新任务或新会话本身都不得触发它",
+            "门禁成功后只重试原失败命令一次",
             "scripts/development-environment-gates.sh --install-missing",
             "scripts/development-environment-gates.ps1",
             "rustup --version",
@@ -42,7 +44,7 @@ def repository_required_fragments(
         ),
         rust_baseline: (
             "$desktop-check-development-environment",
-            "只有 GUI 构建才增加 Node.js 与 pnpm",
+            "只有 GUI 命令的环境恢复才增加 Node.js 与 pnpm",
             "example_tool_core = { path = \"example_tool_core\" }",
             "<项目标识>_core",
             "<项目标识>_cli",

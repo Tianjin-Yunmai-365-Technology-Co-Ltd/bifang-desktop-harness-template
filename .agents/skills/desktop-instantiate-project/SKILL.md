@@ -10,7 +10,7 @@ description: 在用户提供的目标目录中创建干净的下游项目，包�
 ## 工作流程
 
 1. 读取源项目的 `AGENTS.md`、`README.md`、`Version.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/RELEASE.md`、两份许可证，以及 `$desktop-rename-project-identity`/`$desktop-initialize-rust-project` 的当前规则。实例化排除日期项目记忆，因此不默认加载 Harness 的历史 Product Status、Work Plan、Verification、ADR 或 Changelog 正文。
-2. 确认下游项目展示名称、跨平台安全的 ASCII `snake_case` 项目标识、确定性派生的小写 kebab-case 前缀、完整目标项目目录路径、负责人和目标平台。目标目录是必填项。若用户尚未给出目标项目策略，先只选择“推荐预设”或“自定义”：推荐预设须显式确认并展开为 `superpowers: enabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`；其中 `milestone_e2e` 只作为以后构建询问时的建议默认值。自定义只询问目标用户尚未明确提供的字段，每项至多一次。Harness 源字段值不是下游确认，不得据此跳过选择；也不得静默采用预设或遗留 `pending`。记录真实确认来源和最终收齐日期。产品目的、核心输入/输出、成功标准、风险、副作用和接口选择可以继续保持未确定。
+2. 确认下游项目展示名称、跨平台安全的 ASCII `snake_case` 项目标识、确定性派生的小写 kebab-case 前缀、完整目标项目目录路径、负责人和目标平台。目标目录是必填项。若用户尚未给出目标项目策略，先只选择“推荐预设”或“自定义”：推荐预设须显式确认并展开为 `superpowers: disabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`；其中 Superpowers 默认关闭，只有自定义选择明确启用时才可使用，`milestone_e2e` 只作为以后构建询问时的建议默认值。自定义只询问目标用户尚未明确提供的字段，每项至多一次。Harness 源字段值不是下游确认，不得据此跳过选择；也不得静默采用预设或遗留 `pending`。记录真实确认来源和最终收齐日期。产品目的、核心输入/输出、成功标准、风险、副作用和接口选择可以继续保持未确定。
 3. 当 Python 3 可用时，在源项目根目录运行 Harness 验证命令；否则记录为 `Not run`（可选 Python 不可用）。随后在写入任何内容之前运行 `git --version`。Git 是阻断性前置条件，并且必须支持 `git init --initial-branch=main`。不得隐式安装或升级 Git；Git 缺失或不兼容时，必须携带观察到的失败停止执行。
 4. 将当前 Harness 根目录和用户提供的目标目录解析为明确的绝对路径。相对目标路径必须相对于当前 Harness 根目录解析。解析后的目标目录基本名称必须等于 `<project-id>`。拒绝以 Harness 根目录自身、Harness 根目录的任何祖先目录，以及通过符号链接解析到任何禁止位置的路径作为目标。除这些限制外，目标可以位于 Harness 根目录内部或外部。
 5. 写入前清点解析后的目标目录。目标必须不存在或为空，包括不存在任何隐藏条目；必须保留用户文件，并在发生任何冲突时停止。绝不为了让现有仓库看起来像模板而删除、合并写入或覆盖它。

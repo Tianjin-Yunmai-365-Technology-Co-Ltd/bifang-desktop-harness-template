@@ -36,7 +36,7 @@
 
 ## 工作规则
 
-- 下游初始化先让用户在“推荐预设”和“自定义”之间选择一次。推荐预设把 Superpowers、Worktree/Subagent 和适用冒烟设为 `enabled`，E2E 建议默认值设为 `disabled`；只有选择自定义时才逐项询问。最终值写入 `docs/AGENT_POLICY.md`，不得在基线残留 `pending`。
+- 下游初始化先让用户在“推荐预设”和“自定义”之间选择一次。推荐预设把 Superpowers 设为 `disabled`，Worktree/Subagent 和适用冒烟设为 `enabled`，E2E 建议默认值设为 `disabled`；只有选择自定义时才逐项询问。最终值写入 `docs/AGENT_POLICY.md`，不得在基线残留 `pending`。只有自定义选择明确启用 Superpowers 时，后续 Agent 才可调用 `superpowers:*` Skill。
 - 只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled`、至少两个写入范围可安全独立时，才使用 `$desktop-run-parallel-worktrees`；日常开发不得因持久策略或可并行性自动增加协作步骤。写入型 Subagent 各自使用独立 Git Worktree 和 `codex/` 分支，写入前调用 helper `guard` 并声明目标；主 Agent 同步等待全部必需结果，重叠写入转为串行。
 - 日常开发统一从用户请求直接进入 `$desktop-implement-change`。除必要 ADR、Changelog 等事件触发记录和本次开发所需单元/回归测试外，不因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加 `$desktop-plan-change`、Work Plan、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
 - `$desktop-plan-change` 只在用户明确要求持久计划、任务需要跨会话交接，或发布/高风险工作确需协调时使用；计划不是日常开发的前置条件。
@@ -58,8 +58,8 @@
 - 下游 Rust 技术选型固定为 Tokio 异步运行时、Axum + Tower/Tower HTTP 服务栈、Clap CLI、SeaORM 关系型数据库 ORM、config-rs 配置、tracing + tracing-subscriber + tracing-appender 本地可观测性、anyhow 应用边界错误上下文、thiserror 稳定类型化错误、serde 序列化和 jiff 日期时间。OpenTelemetry OTLP/HTTP、utoipa/Scalar、async-graphql、MongoDB/redis-rs 与 jsonwebtoken/Argon2id 只在对应能力和安全边界获批后引入。固定技术按已批准真实能力引入，不得为中性 scaffold 无条件安装全部依赖；偏离必须记录硬规则例外，详细边界以 `docs/RUST_CLI_TEMPLATE.md` 为唯一来源。
 - 下游已启用 tracing 时，结构化 event/span 必须通过 tracing-subscriber + tracing-appender 同时落盘到本地滚动日志文件，不得只写标准错误或丢弃；日志格式至少包含时间戳、级别、target 和事件消息。OpenTelemetry 默认关闭且不替代本地日志。标准输出仍只用于 `docs/CLI_CONTRACT.md` 的单一 JSON 文档，不得被日志污染；日志不得记录密钥、令牌、个人数据或未脱敏业务载荷。详细边界以 `docs/RUST_CLI_TEMPLATE.md` 为唯一来源（见 ADR-20260806-002）。
 - 下游依赖在已声明 MSRV、Windows/macOS/Linux、最小 feature 集和完整验证约束内优先采用 registry 中较新的稳定版本；`Cargo.toml` 保存兼容范围，根 `Cargo.lock` 固定实际解析结果。无法采用较新稳定版本时必须记录原因、影响和复核条件，不得以“最新版”为由静默提高 MSRV、采用预发布版或跳过验证。
-- 日常开发只有在本次必要单元测试因缺少工具链无法运行时，才调用 `$desktop-check-development-environment` 补齐所需环境；显式构建仅在缺少与当前接口、宿主和工具链约束匹配的可复用环境证据时运行对应门禁。一次成功证据在条件未变化时复用。只有明确选择 macOS→Windows Tauri xwin 构建目标时才执行专用门禁，且不得自动安装 Homebrew。
-- 需要环境门禁时必须调用 `$desktop-check-development-environment` 自带的 POSIX shell 或 Windows PowerShell 脚本；不得以临时拼装安装命令替代制品校验、结构化输出和失败退出码。
+- 开发环境门禁只允许在两种情况下触发：中性初始化写入脚手架前主动检查并补齐已选接口所需环境；初始化完成后，先直接运行本次真实测试或构建命令，只有命令已经失败且诊断明确指向缺失或不兼容的工具链、目标或受管系统依赖时，才调用 `$desktop-check-development-environment` 做对应检查和安装，并在成功后重试原命令一次。不得仅因新任务、新会话、首次修改代码、显式构建、缺少/过期环境证据或工具链可能变化而预跑环境流程。
+- 需要环境恢复时必须保留原命令、退出状态和脱敏诊断，并调用 `$desktop-check-development-environment` 自带的 POSIX shell 或 Windows PowerShell 脚本；不得以临时拼装安装命令替代制品校验、结构化输出和失败退出码。只有实际失败命令属于 macOS→Windows Tauri xwin 路径时才执行专用门禁，且不得自动安装 Homebrew；代码、测试断言、依赖解析、网络、配置、凭据或签名失败不得误判成环境错误。
 - Cargo 根 `[workspace.dependencies]` 是 member 依赖版本、来源、内部路径和基线 feature 的唯一来源；所有子 crate 的生产、开发和构建依赖只使用 `workspace = true`。
 - `$desktop-instantiate-project` 必须先要求用户提供完整目标项目目录路径；解析后的目录 basename 必须与项目标识一致，且目标必须不存在或为空。复制后该目录是初始化、代码修改、构建、验收和发布准备的唯一项目根目录。
 - `$desktop-instantiate-project` 必须在目标根创建独立 Git 仓库并验证 top-level 精确等于项目根，初始分支为 `main`；目标位于父仓库内时也必须建立自己的边界。不得复制源 `.git`。Scaffold 验证和初始化能力裁剪完成后，必须使用用户现有 Git 身份创建唯一的本地初始化基线 commit，并验证无 remote 且 `git status --porcelain=v1 --untracked-files=all` 为空；不得 tag、配置 remote、push、伪造身份或修改全局 Git 配置。直接调用 `$desktop-initialize-rust-project` 时必须补建缺失边界并执行同一收尾门禁。
@@ -118,7 +118,7 @@
 - 发布候选、用户明确要求完整验收或本次构建启用 E2E：使用 `$desktop-verify-delivery`；日常开发不自动调用。
 - 需要定版本、更新变更记录或准备发布：使用 `$desktop-prepare-release`。
 - 初始化 Rust 工具链、shared core、接口选择和四项持久 Agent 策略；选择 GUI 时同时创建并接线项目内 macOS DMG 背景：使用 `$desktop-initialize-rust-project`。
-- 本次必要单元测试因工具链缺失而受阻，或用户显式构建且接口/宿主工具链证据不可复用时：使用 `$desktop-check-development-environment`；GUI 额外检查 Node.js 与 pnpm，macOS xwin 构建目标再按需检查 LLVM、NSIS、Windows Rust target 与 `cargo-xwin`。
+- 中性初始化时，或初始化后真实测试/构建命令已失败且明确属于受管环境错误时：使用 `$desktop-check-development-environment`；不得因显式构建或缺少环境证据预先调用。GUI 恢复可检查 Node.js 与 pnpm，实际失败命令属于 macOS xwin 构建时再检查 LLVM、NSIS、Windows Rust target 与 `cargo-xwin`。
 - 选择 GUI 后首次真实 GUI 开发：使用 `$desktop-prepare-gui-app-identity` 补齐窗口资料并由用户选择图标路径。
 - 已批准 GUI 产品需要关于/支持/赞助、动态标题、更新检查或遥测时：使用 `$desktop-prepare-gui-support-surfaces` 只实现被明确选择的界面，记录产品实例和最小出站边界；产品家族品牌依赖资产完整随 Skill 保留，中性 scaffold 不自动启用界面。
 - 构建 Rust CLI 候选：使用 `$desktop-build-rust-release`；先逐次解析 E2E 选择并运行全 workspace 非空单元测试，再走 Windows、macOS、Linux 原生矩阵或受限当前平台回退。

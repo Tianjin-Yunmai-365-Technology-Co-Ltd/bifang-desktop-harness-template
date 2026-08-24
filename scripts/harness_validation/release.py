@@ -128,6 +128,10 @@ def validate_tauri_build_skill_contract(
         tauri_skill: (
             "本次请求已明确 `enabled`/`disabled` 时直接复用",
             "否则在任何测试或编译前询问用户一次",
+            "初始化后的构建不做例行环境预检",
+            "只有某条命令已经失败",
+            "首次尝试使用当前 PATH",
+            "单次重试命令的 PATH",
             "scripts/prepare-release-directory.sh <project-root>",
             "不要求 GUI-only 项目保留 CLI 构建 Skill",
             "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",

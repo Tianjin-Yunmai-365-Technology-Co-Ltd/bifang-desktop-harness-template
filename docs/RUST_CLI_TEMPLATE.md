@@ -54,7 +54,7 @@
 - 非关系型持久化分别优先官方 MongoDB async driver 与 redis-rs Tokio 路线；缓存、幂等、迁移和权威状态归属仍需在产品边界中批准。
 - 本地身份认证优先 `jsonwebtoken` + Argon2id；只有身份模型、密钥/凭据生命周期、撤销与安全验收全部批准后才可实现，绝不作为脚手架默认能力。
 
-## 初始化环境门禁
+## 初始化与错误恢复环境门禁
 
 | 项目 | 默认值 | 约束 |
 |---|---|---|
@@ -82,9 +82,9 @@ node --version
 pnpm --version
 ```
 
-日常开发只有在本次必要单元测试因缺少工具链无法运行时才使用 `$desktop-check-development-environment`；显式构建或工具链要求变化时运行完整对应门禁。Rust 构建始终阻断于缺失工具链，Windows 同时要求 MSVC；只有 GUI 构建才增加 Node.js 与 pnpm，其他接口组合不得为此安装或升级二者。
+中性初始化在写入脚手架前使用 `$desktop-check-development-environment` 主动运行一次完整适用门禁。初始化完成后，日常开发和显式构建都先运行本次真实测试/构建命令；只有命令已经失败，且命令、退出状态与脱敏诊断明确指向门禁管理的工具链、目标或系统依赖缺失/不兼容时，才运行对应门禁并重试原命令一次。不得仅因新任务、新会话、显式构建、缺少/过期环境证据、工具链要求或版本可能变化而预检。Rust 构建仍阻断于真实缺失工具链，Windows 同时要求 MSVC；只有 GUI 命令的环境恢复才增加 Node.js 与 pnpm，其他接口组合不得为此安装或升级二者。
 
-首次开发必须调用 Skill 自带入口，不得临时重写安装命令：
+初始化必须调用 Skill 自带入口；初始化后的错误恢复仍复用同一入口，不得临时重写安装命令：
 
 ```text
 # macOS / Linux
@@ -94,7 +94,7 @@ pnpm --version
 .agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
 ```
 
-成功输出必须包含 `gate.rust.status=passed`；Rust 门禁按版本顺序接受 1.90.0 及以上稳定版，而不是只接受精确 1.90.0。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.status=passed` 与 `gate.pnpm.status=passed`；其他接口组合必须把二者报告为 `not-required`。
+成功输出必须包含 `gate.rust.status=passed`；Rust 门禁按版本顺序接受 1.90.0 及以上稳定版，而不是只接受精确 1.90.0。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.status=passed` 与 `gate.pnpm.status=passed`；其他接口组合必须把二者报告为 `not-required`。初始化后的恢复还必须记录原失败命令与退出状态的脱敏摘要，并在门禁成功后只重试该命令一次；代码/测试、普通依赖解析/网络、产品配置、凭据或签名失败不进入环境门禁。
 
 ## 默认依赖
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "检查开发环境"
   short_description: "检查开发工具链并按需补齐 macOS Tauri xwin 发布环境"
-  default_prompt: "使用 $desktop-check-development-environment 检查已选接口；仅在批准的 macOS Tauri Windows 目标中补齐 xwin 工具。"
+  default_prompt: "仅在项目初始化，或真实测试/构建命令已因受管环境问题失败后，使用 $desktop-check-development-environment 检查并补齐对应工具；不得例行预检。"

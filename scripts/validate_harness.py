@@ -58,7 +58,7 @@ def main() -> int:
     validate_core_first_contract(errors)
     validate_rust_chinese_comments(errors)
     validate_repository_line_limits(errors, warnings=warnings)
-    validate_agent_policy(errors)
+    validate_agent_policy(errors, require_source_defaults=True)
     validate_engineering_contract(errors)
     validate_streamlined_development_and_build(errors)
     validate_current_descriptions(errors)

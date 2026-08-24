@@ -6,11 +6,11 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-08-24（GUI 初始化创建并接线 macOS DMG 背景见 ADR-20260824-002；日常开发与显式构建流程收敛见 ADR-20260824-001；此前仍有效的品牌、GUI、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
+> 最近范围确认：2026-08-24（Superpowers 默认关闭且环境门禁仅限初始化/错误恢复见 ADR-20260824-003；GUI 初始化创建并接线 macOS DMG 背景见 ADR-20260824-002；日常开发与显式构建流程收敛见 ADR-20260824-001；此前仍有效的品牌、GUI、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
 
 ## 一句话目标
 
-为以 AI Agent 为第一消费者、人类负责方向和关键审批的跨平台收费小工具，提供一个不实现具体业务、可一次性建立并持续维护终端下游项目的 Harness；日常开发只执行实现、本次必要单元测试和事件触发记录，显式构建统一执行全量单元测试并逐次确认是否启用 E2E。
+为以 AI Agent 为第一消费者、人类负责方向和关键审批的跨平台收费小工具，提供一个不实现具体业务、可一次性建立并持续维护终端下游项目的 Harness；Superpowers 默认关闭，日常开发只执行实现、本次必要单元测试和事件触发记录，环境门禁只在初始化或真实环境错误恢复时运行，显式构建统一执行全量单元测试并逐次确认是否启用 E2E。
 
 ## 用户、场景与结果
 
@@ -61,7 +61,7 @@
 ### 持久 Agent 策略
 
 - `docs/AGENT_POLICY.md` 是下游项目 Agent 策略的唯一持久事实来源，使用可解析的模式定义分别记录 `superpowers`、`parallel_worktree_subagents`、`milestone_smoke` 和 `milestone_e2e`。
-- 下游完成初始化前，用户可一次采用推荐预设（Superpowers、并行 Worktree/Subagent 与适用冒烟为 `enabled`，E2E 为 `disabled`），也可选择自定义后逐项确认；最终四项必须固化为 `enabled` 或 `disabled`，`pending` 不得进入初始化基线提交。
+- 下游完成初始化前，用户可一次采用推荐预设（Superpowers 为 `disabled`，并行 Worktree/Subagent 与适用冒烟为 `enabled`，E2E 为 `disabled`），也可选择自定义后逐项确认；只有自定义选择明确启用时才可使用 Superpowers。最终四项必须固化为 `enabled` 或 `disabled`，`pending` 不得进入初始化基线提交。
 - `enabled` 表示允许 Agent 在适用场景中自行采用，不表示无条件执行；`disabled` 表示跳过可选能力。产品、渠道、安全和外部副作用硬门禁优先于项目偏好。
 - 写入型 Subagent 只有用户在当前请求中明确要求并行、并行偏好为 `enabled`、任务可安全拆成至少两个无重叠写入单元且 Worktree 门禁通过时才使用；否则 Agent 自行采用单 Agent，不重复询问。
 - 冒烟偏好只在完整候选验收时消费。`milestone_e2e` 是每次构建询问时展示的建议默认值；无论它是 `enabled` 还是 `disabled`，都不能替代当前构建的明确选择。若本次构建请求已明确选择则不重复询问，否则构建前询问一次。
@@ -82,7 +82,7 @@
 - `$desktop-build-rust-release` 继续专用于 Rust CLI：默认路线是 Windows、macOS、Linux 原生候选矩阵；只有提供方、权限、三类运行器或结果取回能力在派发前不可用时才回退当前宿主，并记录原因及其他平台 `Unverified`。矩阵一旦启动，任一平台失败、取消或超时都是真实失败。
 - 新增 `$desktop-build-tauri-release` 专用于 Tauri 2 GUI 安装包。macOS 宿主可构建原生 macOS DMG，并在项目批准 Windows x64 目标时使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows NSIS；不得在 macOS 声称生成只支持 Windows 原生 WiX 的 MSI。
 - macOS→Windows 路线只证明 Windows MSVC 目标可编译并生成 NSIS，不证明 Windows 原生运行、安装或签名成功。清单必须记录 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`buildMode: cross-compiled-xwin`、宿主、目标和 `runtimeVerification: Unverified`；需要原生 Windows/渠道证据时仍使用批准的 Windows 运行器。
-- 调用 Tauri 交叉构建前，`$desktop-check-development-environment` 的 macOS 发布能力门禁分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与 `cargo-xwin`，安装后逐项复探。已存在但缺少必需命令的 formula 视为损坏或不兼容并阻断，不静默重装；缺少既有 Homebrew、安装失败、目标不兼容或复探失败时同样阻断。
+- 中性初始化在写入脚手架前主动运行一次已选接口环境门禁。初始化完成后的 Tauri 交叉构建先使用当前环境执行真实命令；只有该命令已经失败且诊断明确指向受管 xwin 工具时，`$desktop-check-development-environment` 才分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与 `cargo-xwin`，安装后逐项复探并只重试原命令一次。显式构建、目标选择或缺少环境证据不得提前触发该流程；已存在但缺少必需命令的 formula 视为损坏或不兼容并阻断，不静默重装，缺少既有 Homebrew、安装失败、目标不兼容或复探失败时同样阻断。
 - 对 macOS 直接分发的 Developer ID 候选，签名、公证和 ticket stapling 是一个不可拆分的候选阶段。只有 Apple 设备、Developer ID Application 身份、Tauri 支持的一组完整环境凭据或已授权且在线可用的 `notarytool` Keychain profile、`xcrun notarytool`/`stapler` 和批准授权均可用时，才运行不含 `--skip-stapling` 的 DMG 构建；不同凭据模式不得混用，探测不得输出 profile 名或秘密。
 - macOS DMG 构建必须在测试前确认项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的当前 SHA-256 与 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，再把该本地拖拽背景、应用与 `/Applications` 落点及 Finder 窗口状态写入真实卷；headless CI 不得无界等待 Finder AppleScript。所有布局写入、签名、公证和 stapling 完成后，构建与里程碑验收都针对当前最终 DMG 只读验证非空 `.DS_Store`、本地背景、唯一顶层应用包与 Applications 链接，随后才计算或接受 SHA-256；不得自动接受软件许可，任何后处理或重打包都使旧签名、摘要和验收证据失效。
 - 条件只满足签名而不满足公证/stapling 时，不得输出“仅签名”的 Developer ID 候选。签名公证为可选项时，显式使用 `--no-sign` 生成并记录 `unsigned`；产品或渠道要求签名公证时阻断。任一签名、公证、stapling 或验证尝试开始后失败，必须使 macOS 候选失败，绝不得静默降级。
@@ -146,6 +146,8 @@
 - [x] 里程碑只接受完整、可运行、符合批准场景且不含模拟实现/占位逻辑的真实产物。
 - [x] 验收发现缺失或偏差时返回开发循环、增加回归测试并重新验收；只有用户要求持久 Todo 时才重开或新增 Todo。
 - [x] 下游初始化一次确认并持久化四项 Agent 策略；后续构建仍逐次确认 E2E，其他能力按策略和适用性判断。
+- [x] Harness 源和推荐预设都默认 `superpowers: disabled`；只有自定义选择明确启用后才允许调用 `superpowers:*` Skill。
+- [x] 环境门禁只在中性初始化主动执行，或在初始化后真实测试/构建命令已经出现受管环境错误时用于对应安装与单次重试；新任务、新会话、显式构建和环境证据状态都不会触发例行预检。
 - [x] `$desktop-upgrade-harness` 提供试运行、来源/基线记录、三方差异、冲突阻断、保护清单、`tombstone` 和更新后验证闭环。
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。

@@ -18,6 +18,8 @@
 
 ## 变更
 
+- Harness 源策略与初始化推荐预设现在默认 `superpowers: disabled`；只有自定义选择明确启用时，后续 Agent 才可调用 `superpowers:*` Skill。
+- 开发环境门禁不再因新任务、新会话、显式构建或缺少环境证据例行运行：中性初始化仍主动检查一次，初始化后先执行真实测试/构建命令，只有已观察到受管环境错误时才做对应安装并单次重试；xwin 发布工具同样改为实际 xwin 命令失败后的针对性恢复。
 - 日常开发流程收敛为直接实现、本次必要单元/回归测试和事件触发记录，不再因任务复杂度自动增加流程档位、持久计划、全仓检查、构建、冒烟、E2E 或验收步骤；安全、外部副作用与发布所需授权仍按实际风险保留。
 - Rust CLI 与 Tauri GUI 显式构建现在必须在开始前逐次解析是否启用 E2E，并在编译前运行项目全部非空单元测试；持久 E2E 偏好只提供建议默认值，启用的 E2E 只在最终真实候选形成后执行。
 - GUI 支持界面能力从纯中性模板扩展为产品家族共享品牌条件包：GUI 下游保留完整 Skill 源资产，只有明确选择的界面资源进入应用 bundle；来源下游产品名称/标识、产品路由、固定服务地址、秘密和遥测实例仍被排除。静态支付码不授权订单、权益、账户、支付状态或自动支付逻辑。
@@ -36,7 +38,7 @@
 
 ## 验证
 
-- `python3 -m unittest discover -s scripts`：159 条测试全部通过，包含精简开发闭环、按需 Work Plan、逐次 E2E 构建选择、全量构建单测、候选清单传播、新增 DMG 初始化背景资产/构建引用，以及既有 xwin、公证、DMG 布局、GUI 品牌资源、升级传播、治理与初始化回归。
+- `python3 -m unittest discover -s scripts`：163 条测试全部通过，包含 Superpowers 默认关闭及源字段漂移拒绝、环境门禁仅限初始化/观察错误后单次恢复、旧构建预检描述拒绝、精简开发闭环、按需 Work Plan、逐次 E2E 构建选择、全量构建单测、候选清单传播、DMG 初始化背景资产/构建引用，以及既有 xwin、公证、DMG 布局、GUI 品牌资源、升级传播、治理与初始化回归。
 - `python3 scripts/validate_harness.py`：通过 129 个必需文件、24 个 Skills、Markdown 链接、DMG 初始化背景 PNG、品牌 profile/manifest/图片完整性、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
 - 隔离前端严格 TypeScript、Prettier、TypeScript AST 中文注释门禁（6 个文件、31 个声明）和 Vitest/Testing Library（7/7）通过；13 张图片均可解码并完成视觉复核，目标与来源逐字节一致。
 - Skill Creator quick validator 对 24/24 项目 Skills 全部通过；Shell 语法、ownership JSON、TypeScript 检查器 Node 语法和 `git diff --check` 通过。

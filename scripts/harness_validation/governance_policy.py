@@ -14,6 +14,7 @@ def validate_agent_policy(
     policy_path: Path = AGENT_POLICY,
     *,
     allow_pending: bool = True,
+    require_source_defaults: bool = False,
 ) -> None:
     """校验四项项目级偏好的稳定 schema、值域和持久执行语义。"""
     if not policy_path.is_file():
@@ -60,6 +61,8 @@ def validate_agent_policy(
         fail(errors, "Agent policy schema_version must be 1")
     if fields.get("decision_mode") != "reuse_then_infer_then_ask":
         fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask")
+    if require_source_defaults and fields.get("superpowers") != "disabled":
+        fail(errors, "Harness source Agent policy must default superpowers to disabled")
     for field in (
         "superpowers",
         "parallel_worktree_subagents",
@@ -101,6 +104,7 @@ def validate_agent_policy(
         "构建 E2E 建议默认值的唯一持久事实来源",
         "完成初始化的下游四项选择只能是 `enabled` 或 `disabled`",
         "推荐预设",
+        "推荐预设物化为 `superpowers: disabled`",
         "预设只是输入捷径，不新增持久字段",
         "Harness 源字段值不是下游确认",
         "不得在用户未确认时静默采用",

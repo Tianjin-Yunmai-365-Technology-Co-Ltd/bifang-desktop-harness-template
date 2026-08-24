@@ -41,6 +41,10 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "不得为缺失答案设置默认值或遗留 `pending`",
         "新增、变化、修复、移除、安全事项",
         "规格转为 `Approved` 前必须存在真实日期记录",
+        "显式构建若缺少与当前接口、MSRV、前端策略、宿主和目标匹配的可复用证据",
+        "显式构建需要不可复用的工具链证据",
+        "显式构建的环境证据不可复用时才检查环境",
+        "缺少可复用证据时才调用 `$desktop-check-development-environment`",
     )
     for path in paths:
         if not path.is_file():

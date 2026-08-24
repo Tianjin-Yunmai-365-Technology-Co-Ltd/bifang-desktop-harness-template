@@ -120,6 +120,18 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             governance.validate_stale_fragments(errors, (path,))
         self.assertTrue(any("stale current description" in error for error in errors), errors)
 
+    def test_rejects_obsolete_environment_preflight_prompt(self) -> None:
+        """显式构建缺少环境证据不能重新成为预检触发器。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "environment.md"
+            path.write_text(
+                "显式构建需要不可复用的工具链证据时先运行环境门禁。",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance.validate_stale_fragments(errors, (path,))
+        self.assertTrue(any("stale current description" in error for error in errors), errors)
+
     def test_rejects_invalid_harness_datetime_version(self) -> None:
         """12 位但不是有效年月日时分的 Harness 版本必须被拒绝。"""
         with tempfile.TemporaryDirectory() as tmp_dir:
