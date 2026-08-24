@@ -21,7 +21,7 @@
 
 - `docs/GUI_APP_PROFILE.md` 中已批准的应用显示名称、主窗口标题、简短说明、应用标识符和用户选择的图标来源；
 - 只有产品明确选择关于/支持/赞助、动态标题、更新检查或遥测时，才读取 `$desktop-prepare-gui-support-surfaces` 创建的 `docs/GUI_SUPPORT_SURFACES.md`；GUI 下游完整保留该 Skill 的产品家族品牌源资产，但未选择时不得建立占位路由、运行时媒体、网络配置或请求；
-- 选择 macOS 直接分发 DMG 时，记录已批准的本地拖拽背景、文案语言、窗口尺寸、应用/Applications 落点，以及软件许可页是否由产品/渠道要求；背景不得含 Harness 或其他产品身份；
+- 选择 macOS 直接分发 DMG 时，初始化先把中性 660×400 PNG 写入 `<project-id>_gui/src-tauri/dmg/background.png`，`tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`，窗口与落点固定为 660×400、应用 `(180, 220)`、Applications `(480, 220)`；首次真实 GUI 开发必须记录对该图片的预览批准或同路径替换、SHA-256、文案语言，以及软件许可页是否由产品/渠道要求。背景不得含 Harness 或其他产品身份；
 - 已批准的人类使用场景，以及选择桌面界面的原因；
 - 最小窗口、页面、路由、导航和操作；
 - 空、加载、成功、验证、冲突和失败状态；

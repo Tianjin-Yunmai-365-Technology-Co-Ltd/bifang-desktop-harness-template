@@ -223,6 +223,15 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
         errors = self._validate_mutated_skill(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
 
+    def test_rejects_missing_project_dmg_background_reference(self) -> None:
+        """构建不能回退为隐式或初始化 Skill 内的背景路径。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "<project-id>_gui/src-tauri/dmg/background.png"
+        mutated = source.replace(anchor, "自动寻找任意背景图", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
     def test_rejects_missing_bounded_interactive_dmg_strategy(self) -> None:
         """删除 CI/Finder 策略会重新允许空白安装窗口，必须失败。"""
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")

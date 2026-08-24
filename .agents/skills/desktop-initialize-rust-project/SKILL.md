@@ -18,9 +18,10 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 7. 使用中性资产创建根 Cargo 工作区和 `<project-id>_core`，不得引入业务假设。核心必须保持运行时中立，并且不得包含接口、进程、终端、协议、浏览器或桌面类型。Core-first 是永久硬规则：产品获批后，接口/宿主无关的领域类型、业务规则、语义校验、用例编排、状态转换和稳定错误都先在 core 中实现和测试，即使只选择一个适配器也同样适用。根 `[workspace.dependencies]` 必须始终是唯一依赖来源，成员清单必须使用 `workspace = true`。创建或更新项目根目录 `.gitignore`，使其恰好一次包含根锚定的 `/release/` 和 `/.release-clean.*` 条目；不得忽略根目录以外名称类似 release 的目录。
 8. 将每个已记录接口分派给各自的 Skill：`$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 或 `$desktop-add-gui-adapter`。每个已选 Skill 负责自己的薄适配器目录和测试，只拥有运行时装配、接口语法/协议结构、展示/纯交互状态、调用 core 和结果映射；系统托盘、窗口、终端恢复或 stdio 生命周期等机制留在所属适配器，但其业务动作仍调用 core。TUI 使用固定的 Ratatui + tui-realm + tui-realm-stdlib 技术栈；Tauri GUI 前端使用固定的 Vite + React + TypeScript + Mantine UI + TanStack Router 文件路由 + TanStack Query + Jotai，以及 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 技术栈。自带的 `rust-lib-cli` 资产提供中性核心和可选的 CLI 实现；未选择 CLI 时不得复制其中的 CLI 成员。
    - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
+   - 选择 `GUI` 时，在删除本初始化 Skill 前，把 `.agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png` 逐字节复制为 `<project-id>_gui/src-tauri/dmg/background.png`。源文件和目标文件都必须是非符号链接的 660×400 PNG，复制后摘要必须一致；随后由 `$desktop-add-gui-adapter` 把 `tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用为 `./dmg/background.png`，并使用与图片一致的 660×400 窗口、`appPosition: { x: 180, y: 220 }` 和 `applicationFolderPosition: { x: 480, y: 220 }`。该无产品身份的图片是可立即接线的中性初始化基线，不代表产品视觉已批准；首次真实 GUI 开发仍必须由 `$desktop-prepare-gui-app-identity` 预览后批准或在同一路径替换。
 9. Product Spec 不存在或仍为 `Draft` 时，每个已选接口只能公开中性脚手架状态，其中包含 `productDefinitionRequired=true` 或接口等价的可见状态。不得虚构业务命令、工具、屏幕、路由、数据或副作用。产品获批后，业务 core 或适配器变化都直接实施；首次建立公开命令、工具、页面或协议时，只有产品边界因此变化才更新 Product Spec，不自动创建 Work Plan、构建候选或完整验收记录。
 10. 必须通过 Cargo 生成 `Cargo.lock`，并只运行初始化本身必需的非空测试：核心中性状态、每个已选适配器的可观察状态，以及对未批准业务行为的拒绝。中性初始化不自动追加格式、lint、静态、全仓门禁、独立构建、冒烟或 E2E；若用户另行显式请求构建，交给对应构建 Skill，由构建流程先逐次确认 E2E 并全量运行单元测试。
-11. 使用实际结果更新保留的产品状态、接口、策略和真实技术债；环境、测试、构建、Git 边界与未测试系统只汇总到本次完成输出，不创建或更新 `docs/VERIFICATION.md`。不得为中性初始化创建产品规格、工作计划、ADR 或变更记录，并明确脚手架不是可验收产品候选。如果选择 GUI，必须记录 `$desktop-prepare-gui-app-identity` 是首次产品 GUI 开发前的强制步骤，并记录 `$desktop-prepare-gui-support-surfaces` 只在已批准产品真实需要支持界面时按需调用；完整品牌源资产随该条件 Skill 保留，但初始化不得预创建 `docs/GUI_SUPPORT_SURFACES.md`、运行时页面/媒体或任何远程能力。
+11. 使用实际结果更新保留的产品状态、接口、策略和真实技术债；环境、测试、构建、Git 边界与未测试系统只汇总到本次完成输出，不创建或更新 `docs/VERIFICATION.md`。不得为中性初始化创建产品规格、工作计划、ADR 或变更记录，并明确脚手架不是可验收产品候选。如果选择 GUI，必须报告已创建的 `<project-id>_gui/src-tauri/dmg/background.png`、尺寸、摘要和 Tauri 配置引用，记录它仍待 `$desktop-prepare-gui-app-identity` 在首次产品 GUI 开发前预览批准或替换；同时记录 `$desktop-prepare-gui-support-surfaces` 只在已批准产品真实需要支持界面时按需调用。完整品牌源资产随该条件 Skill 保留，但初始化不得预创建 `docs/GUI_SUPPORT_SURFACES.md`、运行时页面/媒体或任何远程能力。
 12. 只有全部脚手架检查完成后，才能收尾下游仓库：
     - 完整删除 `.agents/skills/desktop-instantiate-project/` 和 `.agents/skills/desktop-initialize-rust-project/`；
     - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、`docs/harness_engineering/`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
@@ -44,6 +45,7 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 - 每个适配器公开真实操作时必须记录“适配器操作 → core API → core 测试”；系统托盘等 adapter-only 机制必须记录其接口/宿主专属性，并把业务效果委托 core。
 - CLI、TUI 和 MCP 适配器默认使用 Tokio current-thread 异步入口；GUI 复用 Tauri 由 Tokio 支撑的异步运行时。所有 Rust 适配器工作优先采用异步 I/O 和等待。只有经过测量的 CPU 密集工作才可以进入有边界的线程边界；仅提供阻塞接口的依赖必须被替换，或通过范围与硬规则例外流程获得批准。除非已批准的领域需求另有要求，核心必须保持运行时中立。
 - 已选 TUI 或 GUI 适配器即使处于 `Draft` 状态也必须应用固定技术栈；替换技术栈需要记录硬规则例外。
+- 选择 GUI 时，初始化基线提交必须包含 `<project-id>_gui/src-tauri/dmg/background.png` 及引用它的 Tauri DMG 配置；初始化源 Skill 删除后不得留下对源资产路径的运行时依赖。
 - Rust 能力按 `docs/RUST_CLI_TEMPLATE.md` 的事实标准选择：Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing + tracing-subscriber + tracing-appender、anyhow、thiserror、serde、jiff；OpenTelemetry 与协议/存储/认证候选只在对应能力获批后采用。只把当前已选接口或已批准真实能力需要的依赖加入根 `[workspace.dependencies]`；不得为中性状态预装未使用的 HTTP、ORM、配置、错误或可观测性依赖，偏离固定技术必须记录硬规则例外。
 - 只有选择 CLI 时，CLI 才遵守 `docs/CLI_CONTRACT.md`。
 - `docs/AGENT_POLICY.md` 持久记录四项项目选择；后续 Agent 必须复用这些选择、推断适用性，并且只在问题未解决时询问。
@@ -56,4 +58,4 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 
 ## 完成要求
 
-报告 Git 边界、基线和干净状态、环境门禁、已选接口、全部四项策略值、可选的 Harness 溯源锁或未来初始基线审计、已创建成员、本次必要测试、已排除的项目记忆流、已删除的初始化路径、保留的 `$desktop-upgrade-harness` 与 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。未显式构建时，构建、冒烟和 E2E 均报告 `Not run`。
+报告 Git 边界、基线和干净状态、环境门禁、已选接口、全部四项策略值、可选的 Harness 溯源锁或未来初始基线审计、已创建成员、本次必要测试、已排除的项目记忆流、已删除的初始化路径、保留的 `$desktop-upgrade-harness` 与 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告项目内 DMG 背景路径、660×400 尺寸、SHA-256、Tauri 配置引用和待产品视觉批准状态。未显式构建时，构建、冒烟和 E2E 均报告 `Not run`。

@@ -127,6 +127,7 @@ UPGRADE_TESTS = UPGRADE_SKILL / "scripts" / "test_harness_upgrade.py"
 UPGRADE_OWNERSHIP = UPGRADE_SKILL / "references" / "ownership-manifest.json"
 UPGRADE_POLICY = UPGRADE_SKILL / "references" / "ownership-policy.md"
 RUST_ASSET = INITIALIZE_SKILL / "assets" / "rust-lib-cli"
+MACOS_DMG_BACKGROUND = INITIALIZE_SKILL / "assets" / "gui" / "macos-dmg-background.png"
 CORE_FIRST_CHECKER = (
     SKILLS_ROOT / "desktop-implement-change" / "scripts" / "check_core_first.py"
 )
@@ -224,6 +225,7 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-adapter/references/mantine-ui-guidelines.md",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.test.ts",
+    ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/test_parallel_worktrees.py",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.sh",

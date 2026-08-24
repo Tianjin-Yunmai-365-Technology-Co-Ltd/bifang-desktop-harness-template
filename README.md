@@ -14,7 +14,7 @@
 ## 开始一个项目
 
 1. 使用 `$desktop-instantiate-project` 提供项目身份、完整目标目录、负责人和目标平台，建立独立 Git 根并重置模板身份。
-2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`。
+2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`；选择 GUI 时同时创建项目内 660×400 macOS DMG 拖拽背景并接入 Tauri 配置。
 3. 本次必要单元测试因工具链缺失而受阻，或显式构建需要不可复用的工具链证据时才运行 `$desktop-check-development-environment`。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
 4. 日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、E2E 或验收步骤。
 5. 用户显式请求构建时，构建 Skill 先解析本次是否启用 E2E，再运行项目全部非空单元测试并构建候选；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
@@ -53,12 +53,12 @@
 - `$desktop-refactor-code`：从单文件行数、文件组织结构（Rust `mod.rs`、前端非强制 `index.ts`）、命名、常量提取、潜在性能与死锁风险、core-first 归属六个方面辅助行为保持的重构。
 - `$desktop-extract-i18n-strings`：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core。
 - `$desktop-run-parallel-worktrees`：只有用户明确要求并行、项目策略允许且写入范围可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
-- `$desktop-initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略。
+- `$desktop-initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略；选择 GUI 时把中性 DMG 背景写入 `<项目标识>_gui/src-tauri/dmg/background.png`。
 - `$desktop-check-development-environment`：本次必要测试因工具缺失而受阻，或显式构建需要不可复用环境证据时检查工具链；GUI 额外处理 Node.js 与 pnpm，macOS 交叉构建 Windows Tauri 安装包时按目标补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
-- `$desktop-prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，并让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
+- `$desktop-prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理，并预览批准或替换初始化生成的 DMG 背景。
 - `$desktop-prepare-gui-support-surfaces`：只在已批准 GUI 产品真实需要时，按需定义关于/支持/赞助、动态标题、更新检查或遥测，并固化 core/GUI 所有权、出站白名单与秘密隔离；Skill 携带产品家族共享的完整品牌页面/媒体依赖资产，只有所选界面实际需要时才进入应用 bundle。
 - `$desktop-build-rust-release`：构建 Rust CLI 候选时先逐次解析 E2E 选择并全量运行 workspace 单元测试，再默认采用 Windows、macOS、Linux 原生矩阵；跨平台预检不满足才回退当前平台。构建前安全清空根 `release/`，条件具备时尝试签名，最终候选、hash 与 manifest 统一写入该目录。
-- `$desktop-build-tauri-release`：逐次解析 E2E 选择并运行完整 Rust/前端单元测试后，在 macOS 原生构建 Tauri DMG，并可通过 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS；macOS 直接分发签名采用“签名 + 公证 + stapling”一体门禁，构建与验收都对当前最终 DMG 只读复核真实 Finder 拖拽布局。
+- `$desktop-build-tauri-release`：先校验已批准的 `<项目标识>_gui/src-tauri/dmg/background.png` 与 `bundle.macOS.dmg.background: "./dmg/background.png"` 配置引用，再逐次解析 E2E 选择并运行完整 Rust/前端单元测试；随后在 macOS 原生构建 Tauri DMG，或通过 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS。macOS 直接分发签名采用“签名 + 公证 + stapling”一体门禁，构建与验收都对当前最终 DMG 只读复核真实 Finder 拖拽布局。
 - `$desktop-verify-delivery`：只在发布候选、用户明确要求完整验收或本次构建启用 E2E 时验收真实产物。
 - `$desktop-prepare-cross-platform-release`：提供默认 Windows、macOS、Linux 原生 Rust CLI 候选矩阵和逐平台清理/条件签名门禁。
 - `$desktop-collect-release-artifacts`：提取并核验归档、SHA-256、签名状态、manifest 和平台证据，同时保留候选的 `pending`/`rejected`/`accepted` 状态，不把收集结果写入项目记忆。
@@ -81,6 +81,7 @@
 - Rust 是下游项目的默认初始化语言；Tokio 是 Rust CLI 和后续 Rust adapter 的统一异步执行标准；模板自身仍不实现具体产品业务。
 - TUI 技术族固定为 Ratatui + tui-realm + tui-realm-stdlib；Tauri GUI 前端固定为最新兼容稳定的 Vite + React + TypeScript、Mantine UI、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。其他前后端技术在真实项目开发时按需求推荐。
 - GUI 关于/支持/赞助、动态标题、更新检查和遥测都是独立可选产品能力；只有明确选择的界面才通过 `$desktop-prepare-gui-support-surfaces` 实施，出站与遥测默认禁用。因为 Harness 下游共享同一品牌，条件 Skill 保留固定赞助档位/价格、品牌联系人、支付二维码、更新 banner 和小图的完整品牌依赖包；它不携带某个来源下游的产品名称/标识、固定服务地址、秘密或默认网络请求。
+- GUI 中性初始化提供无产品身份的 660×400 macOS DMG 拖拽背景，固定写入 `<项目标识>_gui/src-tauri/dmg/background.png` 并由 Tauri 配置以 `./dmg/background.png` 引用；首次真实 GUI 开发仍须预览批准或同路径替换，初始化资产本身不构成正式视觉批准。
 - Rust 技术选型固定为 Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing 生态、anyhow、thiserror、serde 与 jiff；OpenTelemetry、OpenAPI、GraphQL、MongoDB/Redis 与认证组合只在对应能力获批后采用。固定技术在真实能力出现时按需引入，不给中性 scaffold 安装未使用依赖。
 - Rust 下游从 Cargo workspace 根运行中文声明注释检查器；GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明。两者都只证明紧邻中文注释存在，语义仍由人工/Agent 复核，并且禁止自动补入套话；非 GUI 下游不因此需要 Node.js 或 pnpm。
 - 默认结构是可独立复用和测试的 core Lib + 所选 adapter；adapter 彼此独立并直接依赖 core。

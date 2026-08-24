@@ -2,6 +2,7 @@
 
 ## 新增
 
+- 新增无产品身份的 660×400 macOS DMG 拖拽背景资产；GUI 初始化会把它写入 `<项目标识>_gui/src-tauri/dmg/background.png`，并把 Tauri 配置固定接到 `./dmg/background.png`。GUI 身份流程负责预览批准或同路径替换，Tauri 构建在测试前校验路径、尺寸、摘要与配置一致；新增 PNG 资产解析和构建引用负向回归。
 - 为 `$desktop-prepare-gui-support-surfaces` 新增完整共享品牌依赖包：固定三档赞助价格、品牌联系人、中英文文案、About/Sponsor/Media/Banner React/Mantine 模板、7 条非空模板测试，以及 12 张赞助图片和 1 张更新 banner。两张支付二维码、当前未使用的箭头/图标/选中态小图均按原始字节保留，并由 manifest 记录 MIME、尺寸、字节数、SHA-256、用途、敏感性和内部专有复用边界。
 - 新增关于/赞助页面实施参考与产品实例文档模板：关于页注入当前下游权威产品名/版本并复用品牌联系人；赞助页消费固定品牌 profile，使用响应式列数、主题令牌、语义化图片替代文本和本地媒体路径。更新 banner 只提供视觉资产，不自动启用更新服务。
 - 新增本地图片/视频统一组件契约：视频必须有 controls、字幕、文字稿、可选 poster、无 autoplay 和无远程追踪。来源没有已跟踪视频，因此本次没有伪造视频文件。
@@ -35,8 +36,8 @@
 
 ## 验证
 
-- `python3 -m unittest discover -s scripts`：151 条测试全部通过，包含精简开发闭环、按需 Work Plan、逐次 E2E 构建选择、全量构建单测、候选清单传播，以及既有 xwin、公证、DMG 布局、GUI 品牌资源、升级传播、治理与初始化回归。
-- `python3 scripts/validate_harness.py`：通过 128 个必需文件、24 个 Skills、Markdown 链接、品牌 profile/manifest/图片完整性、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
+- `python3 -m unittest discover -s scripts`：159 条测试全部通过，包含精简开发闭环、按需 Work Plan、逐次 E2E 构建选择、全量构建单测、候选清单传播、新增 DMG 初始化背景资产/构建引用，以及既有 xwin、公证、DMG 布局、GUI 品牌资源、升级传播、治理与初始化回归。
+- `python3 scripts/validate_harness.py`：通过 129 个必需文件、24 个 Skills、Markdown 链接、DMG 初始化背景 PNG、品牌 profile/manifest/图片完整性、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
 - 隔离前端严格 TypeScript、Prettier、TypeScript AST 中文注释门禁（6 个文件、31 个声明）和 Vitest/Testing Library（7/7）通过；13 张图片均可解码并完成视觉复核，目标与来源逐字节一致。
 - Skill Creator quick validator 对 24/24 项目 Skills 全部通过；Shell 语法、ownership JSON、TypeScript 检查器 Node 语法和 `git diff --check` 通过。
 - Rust 中性 workspace 注释扫描覆盖 2 个 package、4 个文件和 24 个受管声明；metadata、core-first、`cargo fmt`、locked check、全 workspace/all-target/all-feature Clippy、7 条非空测试与锁定 release 构建均通过。

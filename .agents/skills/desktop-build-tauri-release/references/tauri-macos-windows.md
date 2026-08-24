@@ -1,6 +1,6 @@
 # Tauri macOS 与 Windows 候选参考
 
-> 官方资料核对日期：2026-08-04
+> 官方资料核对日期：2026-08-24
 
 ## macOS→Windows x64
 
@@ -34,7 +34,7 @@ pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-m
 
 ## DMG Finder 拖拽布局
 
-- Tauri 的 DMG 配置支持本地 `background`、`windowSize`、`appPosition` 与 `applicationFolderPosition`；直接分发 DMG 必须使用已批准的本地背景，明确展示把应用拖到 Applications 的动作，并让背景尺寸与落点坐标一致。
+- Tauri 的 DMG 配置支持本地 `background`、`windowSize`、`appPosition` 与 `applicationFolderPosition`。本 Harness 的 GUI 初始化把中性图片写入 `<project-id>_gui/src-tauri/dmg/background.png`，配置通过 `./dmg/background.png` 引用它，并固定采用 660×400、应用 `(180, 220)`、Applications `(480, 220)`；真实产品可在批准后替换同一路径字节。直接分发 DMG 必须使用 `docs/GUI_APP_PROFILE.md` 记录的当前路径与 SHA-256，明确展示把应用拖到 Applications 的动作，并让背景尺寸与落点坐标一致。
 - Tauri 官方文档明确说明 CI/CD 上已知无法应用图标尺寸与位置。`CI=true` 可能让 bundler 跳过 Finder AppleScript，只复制背景而没有持久化 `.DS_Store`；只检查 `tauri.conf.json` 或背景文件存在不能证明最终安装窗口可见。
 - 有交互 Finder 会话的 macOS 宿主可使用 `TAURI_BUNDLER_DMG_IGNORE_CI=1` 强制执行布局，但必须有超时和失败关闭。Tauri 官方 issue 已记录该开关在部分 headless runner 上会等待 AppleScript 超时，因此远端 CI 不得无条件使用。
 - 无交互 Finder 会话时，项目必须在签名、公证与 stapling 前使用自身已测试的确定性布局步骤，或拒绝生成该候选。任何布局注入、压缩或重打包都会改变字节，必须重新执行签名、公证、stapling 和摘要。

@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-08-24（日常开发与显式构建流程收敛见 ADR-20260824-001；此前仍有效的品牌、GUI、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
+> 最近范围确认：2026-08-24（GUI 初始化创建并接线 macOS DMG 背景见 ADR-20260824-002；日常开发与显式构建流程收敛见 ADR-20260824-001；此前仍有效的品牌、GUI、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
 
 ## 一句话目标
 
@@ -42,6 +42,7 @@
 - 产出物验收以真实可用为准：对产出物给出“完成”“可用”结论必须基于真实运行产出物本身得到的可观察结果，不得以模拟实现、测试替身、占位页面或仅调用内部函数的结果冒充验收证据；单元/集成测试仍可对不可控外部依赖使用受控测试替身保证确定性，但该替身证据不能替代产出物真实可用的验收依据（见 ADR-20260806-002）。
 - 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
 - GUI 首次真实产品开发前必须调用 `$desktop-prepare-gui-app-identity` 确认窗口身份与图标路径。
+- 选择 GUI 时，中性初始化必须从初始化 Skill 的受管资产创建项目内 `<项目标识>_gui/src-tauri/dmg/background.png`：它是无产品身份的 660×400 PNG，清楚表达把应用拖到 Applications 的动作；Tauri 配置固定通过 `./dmg/background.png` 引用，并使用应用 `(180, 220)`、Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；初始化 Skill 删除后，运行时与构建不得继续依赖其源资产。
 - GUI 关于/支持/赞助、动态标题、更新检查和遥测是彼此独立的可选产品能力，不属于中性脚手架。只有已批准产品真实需要其中一项时才使用 `$desktop-prepare-gui-support-surfaces`，逐项记录产品实例、core/GUI 所有权、出站清单、隐私/生命周期与秘密运行时引用；未批准时保持禁用和零出站。项目负责人确认 Harness 产出的产品共享同一品牌，因此该条件 Skill 可以携带完整品牌依赖资产包，包括固定赞助档位/价格、品牌联系人、支付二维码、更新 banner 和暂未使用的小图；这些文件传播到 GUI 下游但只有对应界面明确选择后才进入应用 bundle。Harness 仍不预创建 `docs/GUI_SUPPORT_SURFACES.md`，不复制来源下游的产品名称/标识、路由、固定服务地址、秘密或遥测实例。
 - 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills。
 - 文件、中文业务注释、文档、测试与例外统一遵守 `docs/ENGINEERING_RULES.md`。Rust 下游从 Cargo workspace 根运行中文声明注释检查器；GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明并接入 lint/validator。机械门禁不检查全部字段、局部变量、闭包或普通匿名回调，不自动生成套话，且只证明注释存在；语义仍由人工/Agent 复核。非 GUI 下游不适用 TypeScript 门禁。
@@ -83,7 +84,7 @@
 - macOS→Windows 路线只证明 Windows MSVC 目标可编译并生成 NSIS，不证明 Windows 原生运行、安装或签名成功。清单必须记录 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`buildMode: cross-compiled-xwin`、宿主、目标和 `runtimeVerification: Unverified`；需要原生 Windows/渠道证据时仍使用批准的 Windows 运行器。
 - 调用 Tauri 交叉构建前，`$desktop-check-development-environment` 的 macOS 发布能力门禁分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与 `cargo-xwin`，安装后逐项复探。已存在但缺少必需命令的 formula 视为损坏或不兼容并阻断，不静默重装；缺少既有 Homebrew、安装失败、目标不兼容或复探失败时同样阻断。
 - 对 macOS 直接分发的 Developer ID 候选，签名、公证和 ticket stapling 是一个不可拆分的候选阶段。只有 Apple 设备、Developer ID Application 身份、Tauri 支持的一组完整环境凭据或已授权且在线可用的 `notarytool` Keychain profile、`xcrun notarytool`/`stapler` 和批准授权均可用时，才运行不含 `--skip-stapling` 的 DMG 构建；不同凭据模式不得混用，探测不得输出 profile 名或秘密。
-- macOS DMG 必须把本地拖拽背景、应用与 `/Applications` 落点及 Finder 窗口状态写入真实卷；headless CI 不得无界等待 Finder AppleScript。所有布局写入、签名、公证和 stapling 完成后，构建与里程碑验收都针对当前最终 DMG 只读验证非空 `.DS_Store`、本地背景、唯一顶层应用包与 Applications 链接，随后才计算或接受 SHA-256；不得自动接受软件许可，任何后处理或重打包都使旧签名、摘要和验收证据失效。
+- macOS DMG 构建必须在测试前确认项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的当前 SHA-256 与 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，再把该本地拖拽背景、应用与 `/Applications` 落点及 Finder 窗口状态写入真实卷；headless CI 不得无界等待 Finder AppleScript。所有布局写入、签名、公证和 stapling 完成后，构建与里程碑验收都针对当前最终 DMG 只读验证非空 `.DS_Store`、本地背景、唯一顶层应用包与 Applications 链接，随后才计算或接受 SHA-256；不得自动接受软件许可，任何后处理或重打包都使旧签名、摘要和验收证据失效。
 - 条件只满足签名而不满足公证/stapling 时，不得输出“仅签名”的 Developer ID 候选。签名公证为可选项时，显式使用 `--no-sign` 生成并记录 `unsigned`；产品或渠道要求签名公证时阻断。任一签名、公证、stapling 或验证尝试开始后失败，必须使 macOS 候选失败，绝不得静默降级。
 - Tauri 清单除通用构建字段外，必须记录 `notarizationStatus`、`notarizationReason`、结构化 `notarizationEvidence` 和最终签名作用域。未公证的非 macOS 候选记录 `not-applicable`；macOS unsigned 候选记录 `not-run` 及原因；只有 ticket 已 stapled 且验证通过时记录 `notarized-and-stapled`。
 - 初始化使根 `.gitignore` 精确一次包含 `/release/`。CLI 与 Tauri 构建都在任何单元测试或构建命令前安全刷新该目录，并只提交清单声明的普通文件；`release/` 可以保存 `milestoneAcceptance: pending`，目录存在不代表 `ready`、已验收或可发布。
@@ -155,6 +156,7 @@
 - [x] macOS Developer ID 直接分发候选在条件齐全时完成签名、公证、stapling 和验证后再计算摘要；条件不全时禁止只签名中间态，并按渠道要求选择明确 unsigned 或阻断。
 - [x] xwin 门禁能分别处理 Homebrew `llvm`/`lld` 拆包并拒绝损坏 formula；公证探测能安全使用一组完整环境凭据或已授权 Keychain profile，且不输出 profile 名或秘密。
 - [x] macOS DMG 构建规则要求最终字节具有真实 Finder 拖拽布局，并以只读挂载检查 `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接；所有后处理都要求重新签名、公证、摘要与验收。
+- [x] GUI 初始化携带并创建无产品身份的 660×400 DMG 背景，项目配置固定引用项目内 `src-tauri/dmg/background.png`；GUI 身份流程负责正式批准或同路径替换，构建在测试前校验路径、尺寸、摘要与 Tauri 配置一致。
 - [x] `$desktop-prepare-gui-support-surfaces` 能只为明确选择的 GUI 支持界面建立产品实例、core/GUI 所有权和最小出站/隐私边界；其产品家族品牌包完整保存 13 项图片资源、固定赞助档位/价格与品牌联系人，并用可审计清单绑定尺寸、摘要、用途与支付敏感性。资产包不含来源下游产品名称/标识、固定服务地址、秘密或默认网络请求，非 GUI 下游不保留该 Skill。
 - [x] CLI/TUI/MCP/GUI、独立 Git 根、一次性初始化裁剪、固定技术栈、双语许可证和版本边界等既有成功标准继续有效。
 - [x] 工程规则、规划/实施/验收 Skills、四类适配器 Skills、中性资产和 Harness 回归门禁一致强制 core-first；每个公开业务操作都能追溯到 core API 与 core 测试，接口/平台特性边界不被误判为业务下沉。

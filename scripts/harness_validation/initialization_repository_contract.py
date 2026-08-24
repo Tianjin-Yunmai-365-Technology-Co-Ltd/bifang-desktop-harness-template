@@ -75,6 +75,9 @@ def repository_required_fragments(
             "jiff",
             "不表示初始化时把所有依赖无条件写入清单",
             "硬规则例外",
+            "<项目标识>_gui/src-tauri/dmg/background.png",
+            "./dmg/background.png",
+            "660×400",
         ),
         PRODUCT_SPEC: (
             "完整目标项目目录路径",
@@ -120,6 +123,8 @@ def repository_required_fragments(
             "notarytool` Keychain profile",
             "非空 `.DS_Store`",
             "超过 2000 行",
+            "<项目标识>_gui/src-tauri/dmg/background.png",
+            "bundle.macOS.dmg.background",
         ),
         ROOT / "AGENTS.md": (
             "## Skills 地图",
@@ -147,12 +152,16 @@ def repository_required_fragments(
             "Tower/Tower HTTP",
             "config-rs",
             "tracing-subscriber",
+            "<项目标识>_gui/src-tauri/dmg/background.png",
+            "./dmg/background.png",
         ),
         ROOT / "README.md": (
             "Rust 技术选型固定为 Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing 生态、anyhow、thiserror、serde 与 jiff",
             "不给中性 scaffold 安装未使用依赖",
             "$desktop-prepare-gui-support-surfaces",
             "出站与遥测默认禁用",
+            "<项目标识>_gui/src-tauri/dmg/background.png",
+            "660×400",
         ),
         ROOT / "LICENSE.zh-CN.md": (
             "本协议不是开源许可证",

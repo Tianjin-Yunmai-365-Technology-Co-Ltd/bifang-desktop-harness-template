@@ -72,6 +72,7 @@
 - Harness 与下游采用非开源的企业专有商业许可。`$desktop-instantiate-project` 必须先逐字节复制根目录 `LICENSE.zh-CN.md` 与 `LICENSE.en.md`，再通过 `$desktop-rename-project-identity` 仅把两种语言的适用项目名改为目标项目；其余法律条款不得改变，初始化裁剪不得删除、弱化或替换。
 - 派生下游时必须调用 `$desktop-rename-project-identity` 全量处理项目展示名、ASCII `snake_case` 标识、kebab-case 前缀、项目自有配置、维护路径、文档、Skills 和 Licenses；先预览、后显式应用，并对旧身份残留、路径碰撞和符号链接执行阻断检查。实例化身份重置属于中性初始化；现有产品改名必须通过产品范围闸门并记录必要 ADR/Changelog，但只在用户显式请求构建或完整验收时进入对应流程。
 - 若选择 GUI，首次真实 GUI 开发前必须调用 `$desktop-prepare-gui-app-identity`，由用户确认窗口名称等应用资料并选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理。
+- 若选择 GUI，中性初始化必须把随初始化 Skill 提供的无产品身份 660×400 macOS DMG 背景复制到 `<项目标识>_gui/src-tauri/dmg/background.png`，并让 Tauri 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`，使用应用 `(180, 220)` 与 Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；构建只引用项目内图片，不得依赖已删除的初始化 Skill。
 - GUI 的关于/支持/赞助、动态标题、更新检查与遥测不是初始化默认能力。只有已批准产品真实需要其中一项时才调用 `$desktop-prepare-gui-support-surfaces`；逐项选择并按需创建下游 `docs/GUI_SUPPORT_SURFACES.md`，出站与遥测默认禁用，秘密只保存安全运行时来源引用且不得进入源码、文档、样例、日志或前端 bundle。该条件 Skill 必须完整保留产品家族共享的品牌文档/React/媒体依赖资产，包括固定赞助档位/价格、品牌联系人、支付二维码、更新 banner 与小图；只有已选界面所需文件才进入应用 bundle。不得带入来源下游产品名称/标识、产品路由、固定服务地址、秘密或遥测实例。跨接口资格、值域、默认值和状态转换仍属于 core，窗口/系统浏览器/平台元数据与纯展示属于 GUI adapter。
 - 构建在项目已有批准的非交互签名 hook/命令、工具和已授权凭据时必须尝试签名并验证；尝试失败不得静默回退 unsigned。macOS Tauri 直接分发候选在设备、Developer ID、`notarytool`/`stapler` 和一组完整公证凭据齐备时必须完成签名、公证与 stapling，不得只签名或使用 `--skip-stapling`；条件缺失时只有产品/渠道允许才可显式 `--no-sign`，一旦签名或公证开始，任何失败均阻断。最终 DMG 必须在所有字节变更完成后只读验证 Finder `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接，完整验收再对当前候选重跑同一检查；不得自动接受软件许可或沿用旧候选证据。不得自动创建、索取、导出或输出签名/公证凭据；签名、公证、stapling 或重打包后必须针对最终字节重新计算 hash。
 - macOS→Windows Tauri 构建必须使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc`，仅生成 Windows x64 NSIS；不得在 macOS 声称生成 MSI，不得把 xwin 成功解释为 Windows 原生运行通过，manifest 必须记录 `buildMode: cross-compiled-xwin` 与 `runtimeVerification: Unverified`。
@@ -116,12 +117,12 @@
 - 用户明确要求并行、项目策略允许且至少两个写入单元可安全独立：使用 `$desktop-run-parallel-worktrees`。
 - 发布候选、用户明确要求完整验收或本次构建启用 E2E：使用 `$desktop-verify-delivery`；日常开发不自动调用。
 - 需要定版本、更新变更记录或准备发布：使用 `$desktop-prepare-release`。
-- 初始化 Rust 工具链、shared core、接口选择和四项持久 Agent 策略：使用 `$desktop-initialize-rust-project`。
+- 初始化 Rust 工具链、shared core、接口选择和四项持久 Agent 策略；选择 GUI 时同时创建并接线项目内 macOS DMG 背景：使用 `$desktop-initialize-rust-project`。
 - 本次必要单元测试因工具链缺失而受阻，或用户显式构建且接口/宿主工具链证据不可复用时：使用 `$desktop-check-development-environment`；GUI 额外检查 Node.js 与 pnpm，macOS xwin 构建目标再按需检查 LLVM、NSIS、Windows Rust target 与 `cargo-xwin`。
 - 选择 GUI 后首次真实 GUI 开发：使用 `$desktop-prepare-gui-app-identity` 补齐窗口资料并由用户选择图标路径。
 - 已批准 GUI 产品需要关于/支持/赞助、动态标题、更新检查或遥测时：使用 `$desktop-prepare-gui-support-surfaces` 只实现被明确选择的界面，记录产品实例和最小出站边界；产品家族品牌依赖资产完整随 Skill 保留，中性 scaffold 不自动启用界面。
 - 构建 Rust CLI 候选：使用 `$desktop-build-rust-release`；先逐次解析 E2E 选择并运行全 workspace 非空单元测试，再走 Windows、macOS、Linux 原生矩阵或受限当前平台回退。
-- 构建 Tauri GUI 候选：使用 `$desktop-build-tauri-release`；先逐次解析 E2E 选择并运行完整 Rust/前端单元测试，再原生输出 macOS DMG 或交叉输出 Windows x64 NSIS。
+- 构建 Tauri GUI 候选：使用 `$desktop-build-tauri-release`；先校验已批准的项目内 DMG 背景与 Tauri 配置引用、逐次解析 E2E 选择并运行完整 Rust/前端单元测试，再原生输出 macOS DMG 或交叉输出 Windows x64 NSIS。
 - 默认 Windows、macOS、Linux Rust CLI 候选矩阵：使用 `$desktop-prepare-cross-platform-release`；矩阵启动后的真实失败不得伪装成当前平台回退，其他接口的统一跨平台发布能力仍未完成。
 - 提取和核验本次构建结果：使用 `$desktop-collect-release-artifacts`，保留 manifest 的 pending/rejected/accepted 状态，不凭目录存在判断 ready，也不把收集结果写入项目记忆。
 - 已初始化下游需要同步新版 Harness 工程规则或保留 Skills：使用 `$desktop-upgrade-harness`；默认 dry-run，保护项目事实和本地修改。

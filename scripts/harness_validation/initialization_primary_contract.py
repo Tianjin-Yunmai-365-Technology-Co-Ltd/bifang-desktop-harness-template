@@ -62,6 +62,7 @@ def primary_required_fragments(
             "不得再次询问预设或各字段",
             "仅属于 Harness 的根目录 `Version.md`",
             "根 `Cargo.toml`",
+            ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
         ),
         SKILLS_ROOT / "desktop-instantiate-project" / "agents" / "openai.yaml": (
             "在明确目标目录创建拥有独立 Git 根的干净下游项目",
@@ -139,6 +140,11 @@ def primary_required_fragments(
             "不得预创建 `docs/GUI_SUPPORT_SURFACES.md`",
             "中性初始化不自动追加格式、lint、静态、全仓门禁、独立构建、冒烟或 E2E",
             "仍包含旧 Harness 身份",
+            ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
+            "<project-id>_gui/src-tauri/dmg/background.png",
+            "bundle.macOS.dmg.background",
+            "./dmg/background.png",
+            "660×400",
         ),
         ENVIRONMENT_SKILL / "SKILL.md": (
             "只在本次必要单元测试因工具链缺失而无法运行时调用",
@@ -164,6 +170,8 @@ def primary_required_fragments(
             "1024×1024",
             "docs/GUI_APP_PROFILE.md",
             "$desktop-prepare-gui-support-surfaces",
+            "<project-id>_gui/src-tauri/dmg/background.png",
+            "SHA-256",
         ),
         SKILLS_ROOT / "desktop-define-product" / "SKILL.md": (
             "中性 scaffold 约束",
@@ -264,6 +272,9 @@ def primary_required_fragments(
             "$desktop-prepare-gui-support-surfaces",
             "未选择的能力不得生成路由、运行时媒体、网络请求或占位配置",
             "品牌源资产",
+            "<project-id>_gui/src-tauri/dmg/background.png",
+            'background: "./dmg/background.png"',
+            "applicationFolderPosition: { x: 480, y: 220 }",
         ),
         GUI_BASELINE: (
             "基于 Tokio 的单例异步运行时",
@@ -286,6 +297,9 @@ def primary_required_fragments(
             "未选择时不得建立占位路由、运行时媒体、网络配置或请求",
             "禁用或未同意时请求数为零",
             "支付二维码是敏感静态媒体",
+            "<project-id>_gui/src-tauri/dmg/background.png",
+            "./dmg/background.png",
+            "应用 `(180, 220)`",
         ),
         GUI_SUPPORT_SKILL: (
             "每类界面和出站能力独立选择",

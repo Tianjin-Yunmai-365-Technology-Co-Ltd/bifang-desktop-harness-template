@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import re
+import struct
 import sys
 import tempfile
 import unittest
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,6 +95,39 @@ class AgentPolicyTests(unittest.TestCase):
         errors: list[str] = []
         initialization.validate_initialization_contract(errors)
         self.assertEqual(errors, [])
+
+    def test_macos_dmg_background_asset_is_valid(self) -> None:
+        """GUI 初始化携带的真实 PNG 必须通过结构、尺寸和内容门禁。"""
+        errors: list[str] = []
+        initialization.validate_macos_dmg_background_asset(errors)
+        self.assertEqual(errors, [])
+
+    def test_rejects_wrong_macos_dmg_background_dimensions(self) -> None:
+        """看似完整但尺寸漂移的 PNG 不能进入所有下游初始化基线。"""
+
+        def png_chunk(chunk_type: bytes, chunk_data: bytes) -> bytes:
+            """构造带有效长度与 CRC 的最小 PNG chunk 供负向回归使用。"""
+            checksum = zlib.crc32(chunk_type + chunk_data) & 0xFFFFFFFF
+            return (
+                struct.pack(">I", len(chunk_data))
+                + chunk_type
+                + chunk_data
+                + struct.pack(">I", checksum)
+            )
+
+        ihdr = struct.pack(">IIBBBBB", 640, 400, 8, 2, 0, 0, 0)
+        payload = (
+            initialization.PNG_SIGNATURE
+            + png_chunk(b"IHDR", ihdr)
+            + png_chunk(b"IDAT", b"x" * 4096)
+            + png_chunk(b"IEND", b"")
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "background.png"
+            path.write_bytes(payload)
+            errors: list[str] = []
+            initialization.validate_macos_dmg_background_asset(errors, path)
+        self.assertTrue(any("dimensions must be 660x400" in error for error in errors), errors)
 
     def test_neutral_initialization_does_not_create_verification_memory(self) -> None:
         """中性初始化只能返回环境证据，不能复制或新建验证历史。"""

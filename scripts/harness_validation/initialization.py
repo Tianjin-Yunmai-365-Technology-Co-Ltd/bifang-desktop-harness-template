@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import struct
 import tomllib
+import zlib
 from pathlib import Path
 
 from .context import *  # noqa: F403
@@ -11,12 +13,77 @@ from .initialization_primary_contract import primary_required_fragments
 from .initialization_repository_contract import repository_required_fragments
 
 
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def validate_macos_dmg_background_asset(
+    errors: list[str],
+    path: Path = MACOS_DMG_BACKGROUND,  # noqa: F405
+) -> None:
+    """验证初始化携带的 DMG 背景是完整、可追溯且尺寸固定的 PNG。"""
+    if path.is_symlink() or not path.is_file():
+        fail(errors, f"macOS DMG background must be a regular file: {display_path(path)}")
+        return
+    try:
+        payload = path.read_bytes()
+    except OSError as error:
+        fail(errors, f"cannot read macOS DMG background {display_path(path)}: {error}")
+        return
+    if len(payload) < 4096 or not payload.startswith(PNG_SIGNATURE):
+        fail(errors, f"macOS DMG background is not a nontrivial PNG: {display_path(path)}")
+        return
+
+    offset = len(PNG_SIGNATURE)
+    dimensions: tuple[int, int] | None = None
+    idat_bytes = 0
+    saw_iend = False
+    while offset < len(payload):
+        if offset + 12 > len(payload):
+            fail(errors, f"macOS DMG background has a truncated PNG chunk: {display_path(path)}")
+            return
+        chunk_length = struct.unpack(">I", payload[offset : offset + 4])[0]
+        chunk_type = payload[offset + 4 : offset + 8]
+        chunk_end = offset + 12 + chunk_length
+        if chunk_end > len(payload):
+            fail(errors, f"macOS DMG background has an invalid PNG chunk length: {display_path(path)}")
+            return
+        chunk_data = payload[offset + 8 : offset + 8 + chunk_length]
+        expected_crc = struct.unpack(">I", payload[offset + 8 + chunk_length : chunk_end])[0]
+        actual_crc = zlib.crc32(chunk_type + chunk_data) & 0xFFFFFFFF
+        if actual_crc != expected_crc:
+            fail(errors, f"macOS DMG background has an invalid PNG checksum: {display_path(path)}")
+            return
+        if offset == len(PNG_SIGNATURE):
+            if chunk_type != b"IHDR" or chunk_length != 13:
+                fail(errors, f"macOS DMG background has no leading IHDR: {display_path(path)}")
+                return
+            dimensions = struct.unpack(">II", chunk_data[:8])
+        if chunk_type == b"IDAT":
+            idat_bytes += chunk_length
+        if chunk_type == b"IEND":
+            if chunk_length != 0 or chunk_end != len(payload):
+                fail(errors, f"macOS DMG background has an invalid PNG terminator: {display_path(path)}")
+                return
+            saw_iend = True
+        offset = chunk_end
+
+    if dimensions != (660, 400):
+        fail(
+            errors,
+            "macOS DMG background dimensions must be 660x400: "
+            f"{display_path(path)} observed {dimensions}",
+        )
+    if idat_bytes == 0 or not saw_iend:
+        fail(errors, f"macOS DMG background has incomplete PNG image data: {display_path(path)}")
+
 
 def validate_initialization_contract(errors: list[str]) -> None:
     """校验环境门禁、Rust asset 与 workspace 依赖继承的初始化契约。"""
     skill_file = INITIALIZE_SKILL / "SKILL.md"
     gate_file = ENVIRONMENT_SKILL / "references" / "development-environment-gates.md"
     rust_baseline = ROOT / "docs" / "RUST_CLI_TEMPLATE.md"
+
+    validate_macos_dmg_background_asset(errors)
 
     required_fragments = primary_required_fragments(skill_file)
     required_fragments.update(
