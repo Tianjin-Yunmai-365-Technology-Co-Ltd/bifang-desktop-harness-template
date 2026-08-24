@@ -50,30 +50,21 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "业务效果仍委托 core",
         ),
         SKILLS_ROOT / "desktop-plan-change" / "SKILL.md": (  # noqa: F405
-            "适配器操作 → core API → core 测试",
-            "当前只有一个适配器",
+            "对业务行为保持 core-first",
+            "接口/宿主专属改动须记录其专属性理由",
         ),
         SKILLS_ROOT / "desktop-implement-change" / "SKILL.md": (  # noqa: F405
             "Core-first 是硬规则",
             "适配器操作 → core API → core 测试",
             "违反宿主能力约束",
-            "scripts/check_core_first.py",
-        ),
-        SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md": (  # noqa: F405
-            "适配器操作 → core API → core 测试",
-            "系统托盘",
+            "不得自动追加格式化、lint、静态",
         ),
         INITIALIZE_SKILL / "SKILL.md": (  # noqa: F405
             "Core-first 是永久硬规则",
             "adapter-only",
             "值域、跨字段关系",
-            "不得依赖 POSIX 可执行位",
-            "Python 3 不可用时",
             "必须保留 `$desktop-implement-change` 及其",
-            "scripts/check_file_line_limits.py",
-            "scripts/check_rust_chinese_comments.py",
-            "scripts/check_core_first.py",
-            "裁剪后再次按第 10 步",
+            "不得在日常开发中自动运行这些全仓门禁",
         ),
         CLI_SKILL: ("CLI 命令 → core API → core 测试", "当前只有 CLI"),  # noqa: F405
         TUI_SKILL: ("TUI 消息 → core API → core 测试", "纯交互状态"),  # noqa: F405

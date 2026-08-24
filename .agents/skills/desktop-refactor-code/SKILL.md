@@ -9,8 +9,8 @@ description: 从单文件行数、文件组织结构、命名、常量提取、�
 
 ## 工作流程
 
-1. 判断路径：默认按快速/标准路径执行纯重构；若过程中发现真正的业务缺陷、安全问题或需要对外契约变化，停止重构范围蔓延，转 `$desktop-implement-change` 或按需升级里程碑路径。
-2. 行数检查：对目标范围运行 `.agents/skills/desktop-implement-change/scripts/check_file_line_limits.py`；对 501 至 2000 行候选逐项判断业务是否高内聚、是否围绕单一职责、各部分职责是否相近，任一项不满足时按 `docs/ENGINEERING_RULES.md` 第 2 节的职责边界拆分；超过 2000 行必须强制拆分。不得只做格式压缩规避检查。
+1. 直接实施纯重构；若过程中发现真正的业务缺陷、安全问题或需要对外契约变化，停止范围蔓延，转 `$desktop-implement-change` 并先解决必要的授权或产品边界。
+2. 行数检查限定在本次目标范围；对 501 至 2000 行候选逐项判断业务是否高内聚、是否围绕单一职责、各部分职责是否相近，任一项不满足时按 `docs/ENGINEERING_RULES.md` 第 2 节的职责边界拆分；超过 2000 行必须强制拆分。不得只做格式压缩规避检查，也不自动运行全仓文件行数门禁。
 3. 文件组织结构检查：
    - Rust 侧模块一旦需要拆分为多个文件，使用 `<module>/mod.rs` 组织子模块（把子模块放入以模块名命名的目录并以 `mod.rs` 作为该目录入口），不使用 `<module>.rs` 与同名同级目录并存的写法；模块内文件按紧密协作的类型/函数聚合，保持目录内高内聚，不得为对称性拆出没有独立职责的空文件。
    - 前端模块目录不强制创建 `index.ts` 桶文件；调用方直接从具体组件/hook/工具文件导入，模块内文件按功能内聚组织；只有存在真实稳定对外 API 收敛需求时才保留桶文件，且必须逐一具名转发，不得用 `export *` 掩盖来源。
@@ -20,7 +20,7 @@ description: 从单文件行数、文件组织结构、命名、常量提取、�
 6. 潜在性能与死锁问题：
    - Rust：检查是否在持有 `Mutex`/`RwLock` 守卫期间跨越 `.await` 点、是否存在不一致的多锁获取顺序、是否用同步阻塞调用占用 Tokio 运行时（应符合 `docs/RUST_CLI_TEMPLATE.md` 的异步与运行时边界）、是否存在明显可避免的重复克隆或分配。
    - 前端：检查是否存在可避免的重复渲染、遗漏的 TanStack Query 缓存/失效配置导致的冗余请求、Jotai atom 是否镜像了 Query/core 数据。只修正有真实证据的问题，不做无收益的预防性优化。
-7. 中文注释与 Core-first 复核：重构 Rust package/workspace 时运行 `.agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.py --root . --json`，重构 GUI 前端时通过 `pnpm lint` 运行项目同源 TypeScript AST 门禁；两者只证明受管声明存在紧邻中文注释，仍按工程规则语义复核内容。对涉及的适配器代码运行 `check_core_first.py`（Python 可用时）确认依赖方向；并按 `docs/ENGINEERING_RULES.md` 第 2.1 节人工/语义复核是否存在接口/宿主无关的业务规则、校验、默认值或用例编排被留在适配器，发现后提升为 core 用例 API 并同步适配器映射。
+7. 中文注释与 Core-first 复核：只对本次改动的受管声明语义复核紧邻中文业务注释，并按 `docs/ENGINEERING_RULES.md` 第 2.1 节复核是否有接口/宿主无关的业务规则、校验、默认值或用例编排被留在适配器；发现后提升为 core 用例 API 并同步映射。日常重构不自动追加全仓中文注释、前端 lint 或依赖图门禁。
 8. 重构必须保持可观察行为不变：修改后运行受影响的相关非空测试，测试名称、目录位置随迁移同步调整，不因文件移动导致测试发现失效或历史断言被弱化。
 9. 只按 `docs/ENGINEERING_RULES.md` 的独立事件触发规则更新项目记忆；纯重构、命名、常量提取、目录调整本身不触发 Product Spec、ADR、Product Status 或 Changelog，结果只在最终回复和测试/CI 中报告。发现的、当前范围外的问题登记 `docs/TECH_DEBT.md`，不顺手扩大任务。
 

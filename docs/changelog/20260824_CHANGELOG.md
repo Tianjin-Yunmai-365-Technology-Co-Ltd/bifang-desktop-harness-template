@@ -1,4 +1,4 @@
-# 2026-08-20 变更记录
+# 2026-08-24 变更记录
 
 ## 新增
 
@@ -17,6 +17,8 @@
 
 ## 变更
 
+- 日常开发流程收敛为直接实现、本次必要单元/回归测试和事件触发记录，不再因任务复杂度自动增加流程档位、持久计划、全仓检查、构建、冒烟、E2E 或验收步骤；安全、外部副作用与发布所需授权仍按实际风险保留。
+- Rust CLI 与 Tauri GUI 显式构建现在必须在开始前逐次解析是否启用 E2E，并在编译前运行项目全部非空单元测试；持久 E2E 偏好只提供建议默认值，启用的 E2E 只在最终真实候选形成后执行。
 - GUI 支持界面能力从纯中性模板扩展为产品家族共享品牌条件包：GUI 下游保留完整 Skill 源资产，只有明确选择的界面资源进入应用 bundle；来源下游产品名称/标识、产品路由、固定服务地址、秘密和遥测实例仍被排除。静态支付码不授权订单、权益、账户、支付状态或自动支付逻辑。
 - 初始化、GUI adapter 基线、Harness 升级所有权与 validator 同步识别品牌配置、i18n、React 模板、manifest 和全部媒体；非 GUI 初始化继续裁剪该能力，升级继续保护产品实例文档与下游本地决定。
 - macOS→Windows xwin 环境门禁适配 Homebrew 将 LLD 从 LLVM 拆包的环境：分别探测、安装和复探 `llvm`/`lld`，对现有损坏 formula 失败关闭；新增 2 条针对拆包与损坏环境的回归。
@@ -33,7 +35,7 @@
 
 ## 验证
 
-- `python3 -m unittest discover -s scripts`：141 条测试全部通过，包含来源抽象新增的 xwin、公证、DMG 布局、GUI 品牌资源、支付/联系人/价格漂移、升级传播、治理、初始化、构建与里程碑重验回归。
+- `python3 -m unittest discover -s scripts`：151 条测试全部通过，包含精简开发闭环、按需 Work Plan、逐次 E2E 构建选择、全量构建单测、候选清单传播，以及既有 xwin、公证、DMG 布局、GUI 品牌资源、升级传播、治理与初始化回归。
 - `python3 scripts/validate_harness.py`：通过 128 个必需文件、24 个 Skills、Markdown 链接、品牌 profile/manifest/图片完整性、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
 - 隔离前端严格 TypeScript、Prettier、TypeScript AST 中文注释门禁（6 个文件、31 个声明）和 Vitest/Testing Library（7/7）通过；13 张图片均可解码并完成视觉复核，目标与来源逐字节一致。
 - Skill Creator quick validator 对 24/24 项目 Skills 全部通过；Shell 语法、ownership JSON、TypeScript 检查器 Node 语法和 `git diff --check` 通过。

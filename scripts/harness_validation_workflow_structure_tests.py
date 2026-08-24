@@ -38,6 +38,49 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         errors = self._validate(self._base_workflow())
         self.assertEqual(errors, [], "\n".join(errors))
 
+    def test_rejects_missing_per_build_e2e_selection(self) -> None:
+        """候选构建必须接收一次明确的 enabled/disabled 选择。"""
+        block = """      e2e_selection:
+        description: "当前候选构建完成后是否启用 E2E"
+        required: true
+        type: choice
+        options:
+          - disabled
+          - enabled
+        default: disabled
+"""
+        base = self._base_workflow()
+        self.assertIn(block, base)
+        errors = self._validate(base.replace(block, "", 1))
+        self.assertTrue(any("e2e_selection" in error for error in errors), errors)
+
+    def test_rejects_non_choice_e2e_default(self) -> None:
+        """当次 E2E 输入必须是必填 choice，且建议默认值为 disabled。"""
+        base = self._base_workflow()
+        mutated = base.replace("        default: disabled\n", "        default: enabled\n", 1)
+        self.assertNotEqual(mutated, base)
+        errors = self._validate(mutated)
+        self.assertTrue(any("default: disabled" in error for error in errors), errors)
+
+    def test_rejects_manifest_without_e2e_selection(self) -> None:
+        """构建选择必须写入候选清单，供后续 E2E 阶段消费。"""
+        base = self._base_workflow()
+        mutated = base.replace('              "e2eSelection": os.environ["E2E_SELECTION"],\n', "", 1)
+        self.assertNotEqual(mutated, base)
+        errors = self._validate(mutated)
+        self.assertTrue(any("e2eSelection" in error for error in errors), errors)
+
+    def test_rejects_format_or_lint_added_to_build(self) -> None:
+        """普通候选构建不得把格式或 lint 重新塞入验证步骤。"""
+        base = self._base_workflow()
+        marker = "          cargo test --workspace --all-targets --all-features --locked\n"
+        self.assertIn(marker, base)
+        for command in ("cargo fmt --all -- --check", "cargo clippy --workspace"):
+            with self.subTest(command=command):
+                mutated = base.replace(marker, f"          {command}\n" + marker, 1)
+                errors = self._validate(mutated)
+                self.assertTrue(any("non-unit development gate" in error for error in errors), errors)
+
     def test_rejects_injected_e2e_command_input(self) -> None:
         """候选 workflow 不得恢复任意 E2E 命令输入。"""
         marker = "      version:\n"

@@ -62,6 +62,7 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                     "VERSION": "1.2.3",
                     "SOURCE_COMMIT": "a" * 40,
                     "BUILD_RUN_ID": "fixture-1",
+                    "E2E_SELECTION": "disabled",
                     "RUNNER_OS": "Linux",
                     "RUNNER_ARCH": "X64",
                     "SIGNING_STATUS": "signed",
@@ -84,6 +85,7 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 (stage / f"{archive_name}.manifest.json").read_text(encoding="utf-8")
             )
             self.assertEqual(manifest["sha256"], digest)
+            self.assertEqual(manifest["e2eSelection"], "disabled")
             self.assertEqual(
                 manifest["signingEvidence"]["verification"],
                 "configured-hook-verify-exit-0",

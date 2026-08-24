@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm_candidate_build:
-        description: "我确认这是已授权的原生里程碑候选构建"
+        description: "我确认这是已授权的原生候选构建"
         required: true
         type: boolean
         default: false
@@ -16,6 +16,14 @@ on:
         description: "已批准的 40 字符源码提交 SHA"
         required: true
         type: string
+      e2e_selection:
+        description: "当前候选构建完成后是否启用 E2E"
+        required: true
+        type: choice
+        options:
+          - disabled
+          - enabled
+        default: disabled
 
 permissions:
   contents: read
@@ -32,6 +40,7 @@ jobs:
       PRODUCT_NAME: example-tool
       VERSION: ${{ inputs.version }}
       SOURCE_COMMIT: ${{ inputs.source_commit }}
+      E2E_SELECTION: ${{ inputs.e2e_selection }}
       BUILD_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
       CARGO_TARGET_DIR: target
       RUSTUP_TOOLCHAIN: 1.90.0
@@ -40,8 +49,12 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ inputs.confirm_candidate_build }}" != "true" ]]; then
-            echo "尚未确认里程碑候选构建"
+            echo "尚未确认候选构建"
             echo "::error::运行此工作流前请设置 confirm_candidate_build=true。"
+            exit 1
+          fi
+          if [[ "$E2E_SELECTION" != "enabled" && "$E2E_SELECTION" != "disabled" ]]; then
+            echo "::error::e2e_selection 必须是 enabled 或 disabled。"
             exit 1
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -73,7 +86,7 @@ jobs:
               raise SystemExit(f"检出源码不匹配：预期={expected}，实际={observed}")
           PY
       - name: 选择项目 MSRV
-        run: rustup toolchain install 1.90.0 --profile minimal --component rustfmt --component clippy --no-self-update
+        run: rustup toolchain install 1.90.0 --profile minimal --no-self-update
       - name: 验证候选版本
         shell: bash
         run: |
@@ -99,8 +112,6 @@ jobs:
       - name: 验证候选
         shell: bash
         run: |
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets --all-features -- -D warnings
           "$PYTHON_COMMAND" - <<'PY'
           import subprocess, sys
           command = ["cargo", "test", "--workspace", "--all-targets", "--all-features", "--locked", "--", "--list"]
@@ -284,6 +295,7 @@ jobs:
               "archive": archive.name,
               "sha256": digest,
               "tests": "passed",
+              "e2eSelection": os.environ["E2E_SELECTION"],
               "signingStatus": os.environ["SIGNING_STATUS"],
               "signingReason": os.environ["SIGNING_REASON"],
               "signingEvidence": {

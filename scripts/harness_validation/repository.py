@@ -4,27 +4,11 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import NamedTuple
 from urllib.parse import unquote
 
 from .context import *  # noqa: F403
 from .repository_memory import validate_daily_project_memory
 
-
-class _WorkPlanPathRules(NamedTuple):
-    """给定任务路径下，Work Plan 允许出现的验收章节与结论声明。"""
-
-    milestone_section_allowed: bool
-    verdict_allowed: bool
-
-
-_WORK_PLAN_PATH_RULES: dict[str | None, _WorkPlanPathRules] = {
-    "标准": _WorkPlanPathRules(milestone_section_allowed=False, verdict_allowed=False),
-    "里程碑": _WorkPlanPathRules(milestone_section_allowed=True, verdict_allowed=True),
-}
-_DEFAULT_WORK_PLAN_PATH_RULES = _WorkPlanPathRules(
-    milestone_section_allowed=False, verdict_allowed=False
-)
 
 def validate_required_files(errors: list[str]) -> None:
     """确认所有规范文档、脚本和门禁入口真实存在。"""
@@ -33,30 +17,19 @@ def validate_required_files(errors: list[str]) -> None:
             fail(errors, f"missing required file: {relative}")
 
 
-
 def validate_work_plan_contract(
     errors: list[str],
     plan_path: Path = WORK_PLAN,
     *,
     required: bool = False,
 ) -> None:
-    """按标准/里程碑路径校验可选 Work Plan，并保留严格验收门禁。"""
+    """校验用户按需创建的精简 Work Plan，并保留 accepted 状态门禁。"""
     if not plan_path.is_file():
         if required:
             fail(errors, f"missing active Work Plan: {display_path(plan_path)}")
         return
 
     text = read_text_cached(plan_path)
-    path_match = re.search(
-        r"当前任务路径\s*[：:]\s*`?(快速|标准|里程碑)`?",
-        text,
-    )
-    path_kind = path_match.group(1) if path_match else None
-    if path_kind is None:
-        fail(errors, "active Work Plan must declare 标准 or 里程碑 task path")
-    if path_kind == "快速":
-        fail(errors, "quick path must not persist an active Work Plan")
-        return
     if "## Todo" not in text:
         fail(errors, f"active Work Plan has no Todo section: {display_path(plan_path)}")
 
@@ -77,7 +50,7 @@ def validate_work_plan_contract(
             "active Work Plan contains duplicate Todo IDs: " + ", ".join(duplicates),
         )
 
-    todo_states: list[tuple[int, str, str | None]] = []
+    todo_states: list[tuple[str, str | None]] = []
     for index, match in enumerate(heading_matches):
         todo_id = match.group(1)
         heading_suffix = match.group(2)
@@ -93,7 +66,7 @@ def validate_work_plan_contract(
             state = None
         else:
             state = states[0]
-        todo_states.append((match.start(), todo_id, state))
+        todo_states.append((todo_id, state))
         block_end = (
             heading_matches[index + 1].start()
             if index + 1 < len(heading_matches)
@@ -109,34 +82,30 @@ def validate_work_plan_contract(
             if not re.search(pattern, block, flags=re.IGNORECASE):
                 fail(errors, f"Todo {todo_id} is missing per-item {label}")
 
-    milestone_matches = list(
-        re.finditer(r"^##\s+验证里程碑\b.*$", text, flags=re.MULTILINE)
-    )
-    path_rules = _WORK_PLAN_PATH_RULES.get(path_kind, _DEFAULT_WORK_PLAN_PATH_RULES)
-    if path_rules.milestone_section_allowed and not milestone_matches:
-        fail(
-            errors,
-            f"milestone path is missing ## 验证里程碑 in {display_path(plan_path)}",
+    acceptance_matches = list(
+        re.finditer(
+            r"^##\s+(?:验证里程碑|完整验收)\b.*$",
+            text,
+            flags=re.MULTILINE,
         )
-    if milestone_matches and not path_rules.milestone_section_allowed:
-        fail(errors, "only a milestone path may contain a 验证里程碑 section")
-    if milestone_matches:
-        milestone_fragments = ("候选", "`done`", "$desktop-implement-change")
-        for fragment in milestone_fragments:
-            if fragment not in text:
+    )
+    for acceptance in acceptance_matches:
+        acceptance_block = text[acceptance.end() :]
+        for fragment in ("候选", "`done`", "$desktop-implement-change"):
+            if fragment not in acceptance_block:
                 fail(
                     errors,
-                    f"Work Plan milestone contract missing in {display_path(plan_path)}: {fragment}",
+                    f"Work Plan acceptance contract missing in {display_path(plan_path)}: {fragment}",
                 )
-        if not re.search(r"完整(?:真实| Harness|源树|产物)", text):
+        if not re.search(r"完整(?:真实| Harness|源树|产物)", acceptance_block):
             fail(
                 errors,
-                f"Work Plan milestone lacks a complete real candidate: {display_path(plan_path)}",
+                f"Work Plan acceptance lacks a complete real candidate: {display_path(plan_path)}",
             )
-        if not re.search(r"模拟|桩|占位|脚手架|开发预览|单段文案", text):
+        if not re.search(r"模拟|桩|占位|脚手架|开发预览|单段文案", acceptance_block):
             fail(
                 errors,
-                f"Work Plan milestone lacks substitute rejection: {display_path(plan_path)}",
+                f"Work Plan acceptance lacks substitute rejection: {display_path(plan_path)}",
             )
 
     verdict_patterns = (
@@ -155,34 +124,15 @@ def validate_work_plan_contract(
             flags=re.IGNORECASE | re.MULTILINE,
         ),
     )
-    if not path_rules.verdict_allowed and any(pattern.search(text) for pattern in verdict_patterns):
+    unfinished = sorted(
+        todo_id for todo_id, state in todo_states if state != "done"
+    )
+    if unfinished and any(pattern.search(text) for pattern in verdict_patterns):
         fail(
             errors,
-            "only a milestone path may record an accepted milestone or release-ready verdict",
+            "active Work Plan records an accepted or release-ready verdict while Todo remains non-done: "
+            + ", ".join(unfinished),
         )
-    previous_milestone_end = 0
-    for index, milestone in enumerate(milestone_matches):
-        milestone_end = (
-            milestone_matches[index + 1].start()
-            if index + 1 < len(milestone_matches)
-            else len(text)
-        )
-        milestone_block = text[milestone.end() : milestone_end]
-        batch_unfinished = sorted(
-            todo_id
-            for position, todo_id, state in todo_states
-            if previous_milestone_end <= position < milestone.start()
-            and state != "done"
-        )
-        if batch_unfinished and any(
-            pattern.search(milestone_block) for pattern in verdict_patterns
-        ):
-            fail(
-                errors,
-                "active Work Plan marks a milestone accepted while Todo remains non-done: "
-                + ", ".join(batch_unfinished),
-            )
-        previous_milestone_end = milestone.end()
 
 
 def parse_frontmatter(path: Path, errors: list[str]) -> dict[str, str]:

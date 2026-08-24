@@ -63,24 +63,19 @@ class ValidateCoreFirstContractTests(unittest.TestCase):
             )
         self.assertTrue(any("core-first contract missing" in error for error in errors), errors)
 
-    def test_rejects_initialization_that_prunes_the_core_first_checker(self) -> None:
-        """初始化裁剪不得删除下游后续开发仍需使用的检查器。"""
+    def test_initialization_retains_governance_scripts_without_auto_running_them(self) -> None:
+        """初始化保留治理脚本，但必须明确日常开发不会自动运行。"""
 
-        required = "scripts/check_core_first.py"
         source = (architecture.INITIALIZE_SKILL / "SKILL.md").read_text(encoding="utf-8")
+        retained = "必须保留 `$desktop-implement-change` 及其维护脚本和对应测试"
+        no_auto_run = "不得在日常开发中自动运行这些全仓门禁"
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "SKILL.md"
-            path.write_text(source.replace(required, "删除检查器"), encoding="utf-8")
+            path.write_text(source.replace(no_auto_run, "日常开发自动运行全部门禁", 1), encoding="utf-8")
             errors: list[str] = []
             architecture.validate_required_fragments(
                 errors,
-                {
-                    path: (
-                        required,
-                        "scripts/check_file_line_limits.py",
-                        "裁剪后再次按第 10 步",
-                    )
-                },
+                {path: (retained, no_auto_run)},
             )
         self.assertTrue(any("core-first contract missing" in error for error in errors), errors)
 

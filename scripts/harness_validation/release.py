@@ -49,14 +49,19 @@ def validate_build_skill_contract(
     errors: list[str],
     build_skill: Path = BUILD_RELEASE_SKILL,  # noqa: F405
     cross_platform_skill: Path = CROSS_PLATFORM_RELEASE_SKILL,  # noqa: F405
+    collect_skill: Path = COLLECT_RELEASE_SKILL,  # noqa: F405
 ) -> None:
-    """锁定全平台优先、受限回退、条件签名和 pending 输出语义。"""
+    """锁定逐次 E2E、全量单测、构建记录边界和 pending 输出语义。"""
     required = {
         build_skill: (
             "默认通过 `$desktop-prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选",
             "仅当跨平台预检在任何远端矩阵启动前证明上述编排前置条件不可用时，才回退当前宿主",
             "不得把已启动矩阵的失败、测试失败、打包失败、签名失败、超时或取消视为回退条件",
-            "在执行任何格式化、测试或构建命令前",
+            "在执行任何单元测试或构建命令前",
+            "本次请求已明确 `enabled`/`disabled` 时直接复用",
+            "否则在任何测试或编译前询问用户一次",
+            "cargo test --workspace --all-targets --all-features --locked",
+            "不得在构建名义下自动追加格式、lint、中文注释或其他开发门禁",
             "把已有目录原子移动到同一文件系统中的唯一清理目录",
             "必须尝试签名并验证生成的签名",
             "signingStatus: unsigned",
@@ -65,21 +70,32 @@ def validate_build_skill_contract(
             "目录级原子替换",
             "项目根 `release/`",
             "milestoneAcceptance: pending",
-            "不得启动二进制文件或运行冒烟/E2E",
+            "e2eSelection",
+            "编译、签名与打包期间不得启动二进制文件或混跑冒烟/E2E",
+            "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
         ),
         cross_platform_skill: (
             "默认 `$desktop-build-rust-release` 路线",
             "fail-fast: false",
-            "在执行任何格式化、测试或构建命令前",
+            "在执行任何单元测试或构建命令前",
+            "cargo test --workspace --all-targets --all-features --locked",
+            "不得自动追加格式、lint 或其他开发门禁",
             "原子隔离旧目录",
             "必须尝试签名并验证",
             "signingStatus: unsigned",
             "结构化 `signingEvidence`",
-            "固定的 `confirm_candidate_build`、`version` 和 `source_commit` 输入",
+            "固定的 `confirm_candidate_build`、`version`、`source_commit` 和 `e2e_selection` 输入",
             "把完整的项目根同级暂存目录原子重命名到其位置",
             "上传三个明确的归档/校验和/清单路径",
             "milestoneAcceptance: pending",
-            "本工作流不得包含冒烟、E2E",
+            "e2eSelection",
+            "矩阵本身不得运行 E2E",
+            "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
+        ),
+        collect_skill: (
+            "只在当前 manifests、其声明的相邻制品证据和最终回复中记录",
+            "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
+            "独立触发的验收或发布由对应 Skill 记录自身新增证据",
         ),
     }
     for path, fragments in required.items():
@@ -110,6 +126,8 @@ def validate_tauri_build_skill_contract(
     """锁定 Tauri xwin 安装链和 macOS 签名公证一体门禁。"""
     required = {
         tauri_skill: (
+            "本次请求已明确 `enabled`/`disabled` 时直接复用",
+            "否则在任何测试或编译前询问用户一次",
             "scripts/prepare-release-directory.sh <project-root>",
             "不要求 GUI-only 项目保留 CLI 构建 Skill",
             "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",
@@ -126,12 +144,17 @@ def validate_tauri_build_skill_contract(
             "所有会改变字节的布局写入、签名、公证和 stapling 完成后",
             "随后才对每个最终 DMG/NSIS 计算 SHA-256",
             "notarized-and-stapled",
-            "不得在本 Skill 中运行冒烟/E2E",
+            "cargo test --workspace --all-targets --all-features --locked",
+            "完整单元测试套件",
+            "不得自动追加格式、lint、类型、中文注释、`dist` 扫描或其他开发门禁",
+            "e2eSelection",
+            "编译、签名与打包期间不得混跑冒烟/E2E",
+            "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
         ),
         verify_skill: (
             "scripts/verify-dmg-layout.sh <final-dmg>",
             "针对 `release/` 中当前最终字节重新运行",
-            "不得自动接受或沿用旧 DMG 的布局证据",
+            "不得自动接受软件许可或沿用旧 DMG 的布局证据",
         ),
         verification_doc: (
             "Tauri DMG 最终布局",
@@ -264,6 +287,7 @@ def validate_release_contract(errors: list[str]) -> None:
             "为 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 收集构建结果时可以接受 `milestoneAcceptance: pending`",
             "目录存在绝不得提升该状态",
             "不得尝试新签名、公证或 stapling",
+            "构建产物收集本身不触发任何项目记忆",
         ),
         PREPARE_RELEASE_SKILL: (  # noqa: F405
             "目录存在绝不表示已满足发布就绪条件",

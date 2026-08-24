@@ -211,7 +211,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
 
 
 class ValidateWorkPlanTests(unittest.TestCase):
-    """覆盖 Todo 状态、里程碑准入和未完成时禁止验收。"""
+    """覆盖按需 Todo、可选完整验收和未完成时禁止验收。"""
 
     TODO_TOKEN = SHARED_TODO_TOKEN
 
@@ -219,8 +219,6 @@ class ValidateWorkPlanTests(unittest.TestCase):
     def _valid_plan() -> str:
         todo_token = ValidateWorkPlanTests.TODO_TOKEN
         return f"""# 当前工作计划
-
-- 当前任务路径：`里程碑`
 
 ## Todo 批次 A
 
@@ -231,7 +229,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 - 完成验证：运行非空单元测试。
 - 状态值包括 `pending`、`in_progress`、`blocked`、`done`。
 
-## 验证里程碑 M1
+## 完整验收
 
 - 进入条件：Todo 全部 `done`。
 - 候选必须是完整真实产物，模拟实现与脚手架不可验收。
@@ -246,15 +244,14 @@ class ValidateWorkPlanTests(unittest.TestCase):
             contents,
         )
 
-    def test_valid_todo_and_milestone_plan(self) -> None:
+    def test_valid_todo_and_optional_acceptance_plan(self) -> None:
         """带稳定状态和回流语义的活动计划应通过。"""
         self.assertEqual(self._validate(self._valid_plan()), [])
 
-    def test_rejects_missing_milestone(self) -> None:
-        """显式里程碑路径缺少验收章节时必须失败。"""
-        mutated = self._valid_plan().replace("## 验证里程碑 M1", "## 验证阶段 M1", 1)
-        errors = self._validate(mutated)
-        self.assertTrue(any("missing ## 验证里程碑" in error for error in errors), errors)
+    def test_acceptance_section_is_optional(self) -> None:
+        """普通按需计划不应被迫增加完整验收章节。"""
+        plan = self._valid_plan().split("## 完整验收", 1)[0]
+        self.assertEqual(self._validate(plan), [])
 
     def test_rejects_todo_without_explicit_state(self) -> None:
         """Todo 标题缺少可机读状态时必须失败。"""
@@ -266,12 +263,12 @@ class ValidateWorkPlanTests(unittest.TestCase):
         errors = self._validate(mutated)
         self.assertTrue(any("explicit state" in error for error in errors), errors)
 
-    def test_rejects_accepted_milestone_with_pending_todo(self) -> None:
-        """任一 Todo 未完成时不得把里程碑记为 accepted。"""
-        mutated = self._valid_plan() + "\n里程碑状态：accepted\n"
+    def test_rejects_accepted_verdict_with_pending_todo(self) -> None:
+        """任一 Todo 未完成时不得把完整验收记为 accepted。"""
+        mutated = self._valid_plan() + "\n验收状态：accepted\n"
         errors = self._validate(mutated)
         self.assertTrue(
-            any("marks a milestone accepted while Todo remains non-done" in error for error in errors),
+            any("accepted or release-ready verdict" in error for error in errors),
             errors,
         )
 
@@ -279,9 +276,9 @@ class ValidateWorkPlanTests(unittest.TestCase):
         """Todo ID 必须唯一，且每项都拥有预期、边界和验证。"""
 
         duplicated = self._valid_plan().replace(
-            "## 验证里程碑 M1",
+            "## 完整验收",
             f"### {self.TODO_TOKEN}（done）：重复\n\n- 预期行为：重复。\n"
-            "- 完成验证：重复。\n\n## 验证里程碑 M1",
+            "- 完成验证：重复。\n\n## 完整验收",
             1,
         )
         errors = self._validate(duplicated)
@@ -289,11 +286,11 @@ class ValidateWorkPlanTests(unittest.TestCase):
         self.assertTrue(any("ownership/boundary" in error for error in errors), errors)
 
     def test_rejects_chinese_pass_verdict_with_unfinished_todo(self) -> None:
-        """常见中文“里程碑结论：通过”不能绕过未完成 Todo 门禁。"""
+        """常见中文“验收结论：通过”不能绕过未完成 Todo 门禁。"""
 
-        errors = self._validate(self._valid_plan() + "\n里程碑结论：通过\n")
+        errors = self._validate(self._valid_plan() + "\n验收结论：通过\n")
         self.assertTrue(
-            any("marks a milestone accepted while Todo remains non-done" in error for error in errors),
+            any("accepted or release-ready verdict" in error for error in errors),
             errors,
         )
 
@@ -305,8 +302,8 @@ class ValidateWorkPlanTests(unittest.TestCase):
         )
         self.assertEqual(self._validate(plan), [])
 
-    def test_scopes_each_milestone_to_its_preceding_todo_batch(self) -> None:
-        """前一批已验收时，后一批未完成 Todo 不得反向污染其结论。"""
+    def test_rejects_accepted_plan_when_a_later_todo_is_unfinished(self) -> None:
+        """同一活动计划新增未完成 Todo 后必须撤销整体 accepted 结论。"""
 
         first_batch = self._valid_plan().replace("（pending）", "（done）", 1)
         first_batch += "\n- 里程碑状态：accepted\n\n"
@@ -318,13 +315,14 @@ class ValidateWorkPlanTests(unittest.TestCase):
 - 影响边界：只修改后续范围。
 - 完成验证：运行非空单元测试。
 
-## 验证里程碑 M2
+## 完整验收 M2
 
 - 当前状态：`Not run`。
 - 候选必须是完整真实产物，模拟实现与脚手架不可验收。
 - 失败时重开 Todo 并返回 `$desktop-implement-change`。
 """
-        self.assertEqual(self._validate(first_batch + second_batch), [])
+        errors = self._validate(first_batch + second_batch)
+        self.assertTrue(any("accepted or release-ready verdict" in error for error in errors), errors)
 
 
 class ProjectMemoryTriggerTests(unittest.TestCase):

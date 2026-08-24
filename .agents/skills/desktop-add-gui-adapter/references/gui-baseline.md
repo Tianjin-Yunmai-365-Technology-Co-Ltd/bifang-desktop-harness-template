@@ -69,12 +69,12 @@
 - 可选支持界面只覆盖已选择项；远程能力在禁用或未同意时请求数为零，并测试允许地址/字段、响应、重定向、超时、取消和日志脱敏中的最高风险失败。
 - 选择赞助或更新视觉时，运行时媒体与品牌 manifest 的路径、MIME、尺寸、字节数和 SHA-256 一致；支付码有支付方式明确的本地化替代文本，当前未引用小图仍完整保留在 Skill 品牌源目录。
 - GUI/其他适配器并发访问时观察到相同数据且不发生损坏。
-- `pnpm format:check`、严格 TypeScript、ESLint + TypeScript AST 中文注释门禁、非空 Vitest/Testing Library 测试、锁定 Vite 生产构建及最终 `dist` 静态扫描全部成功；随后锁定的 Tauri 构建成功。
-- 缺少签名身份、证书、公证凭据或更新器密钥不阻断允许 unsigned 的本地构建或里程碑冒烟；使用 `--no-sign` 并记录 unsigned。macOS Developer ID 直接分发一旦签名，必须在候选摘要前完成公证与 ticket stapling；禁止只签名未公证的中间态。
+- 日常开发只运行本次 GUI 变化所需的非空 Vitest/Testing Library 与 Rust 单元/回归测试。显式构建先逐次解析 E2E，运行完整非空 Rust 与前端单元测试套件，再执行锁定的 Vite/Tauri 构建；格式、lint、类型、中文注释和 `dist` 扫描不自动追加。
+- 缺少签名身份、证书、公证凭据或更新器密钥不阻断允许 unsigned 的本地构建或候选冒烟；使用 `--no-sign` 并记录 unsigned。macOS Developer ID 直接分发一旦签名，必须在候选摘要前完成公证与 ticket stapling；禁止只签名未公证的中间态。
 - macOS 宿主的原生 DMG 与 Windows x64 NSIS 候选使用 `$desktop-build-tauri-release`。Windows 交叉路线只使用 cargo-xwin + NSIS，拒绝 MSI，并把 Windows runtime 保持为 `Unverified`。
 - macOS DMG 必须在最终签名、公证与 stapling 字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；只检查配置或源码图片不构成 Finder 安装布局证据。headless CI 不得无界等待 Finder AppleScript。
 - 真实打包应用或发布模式应用能在当前平台启动并渲染关键路由。
-- 每个声称支持的安装器或原生平台都有实际构建和已验收里程碑证据。只有持久策略或硬要求选中冒烟/E2E 时才要求相应证据；否则记录 `Not run` 和风险。
+- 每个声称支持的安装器或原生平台都有实际构建和完整验收证据。只有当前构建选择或产品/渠道硬要求启用冒烟/E2E 时才要求相应证据；否则记录 `Not run` 和风险。
 
 ## 例外与推荐边界
 

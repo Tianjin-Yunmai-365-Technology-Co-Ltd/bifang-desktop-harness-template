@@ -24,7 +24,7 @@
 - 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
 - 首次脚手架在当前项目根创建 `Cargo.toml`，登记核心与实际选择的适配器；未来只扩展该根清单。
 - 当前项目根必须同时是独立 Git 顶层目录；若 `$desktop-initialize-rust-project` 被直接调用且边界缺失，必须在写入脚手架前初始化 `main` 分支仓库并验证，不能继承父仓库边界。
-- 中性脚手架的格式、测试和构建证据只证明工程骨架可用，不构成产品目的获批、业务实现完成或可验收产品里程碑。
+- 中性脚手架的格式、测试和构建证据只证明工程骨架可用，不构成产品目的获批、业务实现完成或可验收产品候选。
 
 ## Rust 技术选型事实标准
 
@@ -81,7 +81,7 @@ node --version
 pnpm --version
 ```
 
-首次开发或工具链要求变化时使用 `$desktop-check-development-environment`。Rust 始终是阻断门禁；Windows MSVC 构建工具同样阻断。只有 GUI 选择才增加 Node.js 与 pnpm 阻断门禁；其他接口组合不得为该门禁安装或升级二者。
+日常开发只有在本次必要单元测试因缺少工具链无法运行时才使用 `$desktop-check-development-environment`；显式构建或工具链要求变化时运行完整对应门禁。Rust 构建始终阻断于缺失工具链，Windows 同时要求 MSVC；只有 GUI 构建才增加 Node.js 与 pnpm，其他接口组合不得为此安装或升级二者。
 
 首次开发必须调用 Skill 自带入口，不得临时重写安装命令：
 
@@ -136,7 +136,7 @@ tokio = { version = "1", default-features = false, features = ["macros", "rt"] }
 - “尽量新”不表示无条件采用预发布版、提高 MSRV、扩大特性集或跳过回归验证。较新的起点可以缩短后续升级距离，但不构成未来版本兼容保证。
 - `Cargo.toml` 表达经过批准的兼容版本范围，根 `Cargo.lock` 固定实际解析版本。初始化或依赖维护后必须重新生成或更新锁文件，并使用 `--locked` 完成验证。
 - 若较新稳定版本因 MSRV、平台、行为回归、供应链风险或特性变化未被采用，必须记录被评估版本、阻塞原因、影响和下次复核条件；不得静默保留陈旧版本。
-- 日常任务不为追逐版本号而自动改写已验证锁文件。依赖更新是显式维护 Todo，并须重跑格式、代码规范检查、非空测试和相关构建/契约检查；Todo 全部完成后进入验证里程碑时，才按持久策略、硬要求和适用性决定真实产物冒烟/E2E。
+- 日常任务不为追逐版本号而自动改写已验证锁文件。依赖更新直接实现并运行本次必要单元/回归测试；用户显式请求构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁。
 
 新增或替换依赖前必须记录：
 
@@ -228,7 +228,7 @@ cargo build --workspace --release --locked
 - 从 Cargo 元数据和配置解析二进制文件与目标目录，不根据仓库文件夹名猜测。
 - Windows 二进制文件使用 `.exe`；当前平台成功不能推断其他平台已验证。
 
-中性初始化验证完成后，首次业务实现必须通过 `$desktop-define-product` 明确产品目的、核心输入输出、成功标准和最高风险失败路径。只实现尚未暴露的内部 core 行为可采用标准路径；任何适配器首次替换 `scaffold status` 或建立公开命令、工具、页面、协议时都必须进入里程碑路径，构建并验收最终真实候选。后续局部、可逆且不改变公开契约的变更才可直接 `$desktop-implement-change`。
+中性初始化验证完成后，首次业务实现必须通过 `$desktop-define-product` 明确产品目的、核心输入输出、成功标准和最高风险失败路径，随后直接交给 `$desktop-implement-change`。适配器首次替换 `scaffold status` 或建立公开命令、工具、页面、协议时仍需产品范围确认；构建和完整验收只有在用户显式请求或产品/渠道硬要求时单独触发。
 
 ## 按需能力配方
 
@@ -257,26 +257,27 @@ cargo build --workspace --release --locked
 - MCP 工具模式定义不得与其他适配器使用的同一份核心类型/校验规则静默分叉；模式定义字段、约束和错误码必须可追溯到核心的单一事实来源，核心变化后 MCP 模式定义必须同步更新，不允许 MCP 单独维护一份影子定义。
 - 读取、写入、执行、破坏性操作采用不同审批级别；对能执行本机程序的工具，默认只允许启动已登记资源，新增路径、删除资源和危险参数须由宿主请求用户审批。
 
-## 构建、验证里程碑与结果文件
+## 开发、构建、完整验收与结果文件
 
-- 代码行为实现轮次运行相关非空单元/回归测试，并按风险选择格式、Clippy、静态和集成/契约检查；纯文档或元数据变更使用相称替代验证。快速/标准路径不运行冒烟/E2E，也不得把开发证据写成里程碑通过。
+- 日常代码行为实现只运行本次需要的相关非空单元/回归测试；纯文档或元数据变更只做解析或差异完整性所必需的最小检查。不得自动追加格式、Clippy、静态、集成/契约、全仓测试、构建、冒烟、E2E 或完整验收，也不得把开发证据写成候选通过。
 - `$desktop-build-rust-release` 负责 Rust CLI 候选编排：默认先使用 Windows、macOS、Linux 原生矩阵；只有跨平台提供方、权限、运行器或结果取回条件在派发前不可用时才回退当前平台。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，TUI/MCP 仍使用各自适配器 Skill 的构建与产物门槛。
 - `$desktop-build-tauri-release` 在 macOS 上原生构建 DMG，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS。macOS DMG 必须在最终字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；headless CI 不得无界等待 Finder AppleScript。xwin 路径不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生运行验证。
 - macOS Tauri 直接分发使用全有或全无门禁：设备具有 Developer ID Application 身份、`notarytool`、`stapler` 与一组完整 Apple 公证凭据时，正常 Tauri build 必须完成签名、公证和 stapling；条件缺失且渠道允许时才可显式 `--no-sign`。不得用 `--skip-stapling` 形成候选，一旦签名或公证开始，失败不得静默降级。
-- 只有里程碑/发布候选或用户明确要求完整验收时，当前批次 Todo 全部完成后才调用 `$desktop-verify-delivery`：重新执行编译、非空单元测试、相关集成/契约和产物存在性，并根据 `docs/AGENT_POLICY.md`、产品/渠道硬要求和适用性决定是否执行冒烟/E2E。
-- Todo 全部完成后，构建可在项目已有批准的非交互签名钩子、工具和已授权凭据时尝试签名并验证，再把明确标记 `milestoneAcceptance: pending` 的候选写入根 `release/`；远端构建随后上传与清单精确一致的文件集以供传输。条件缺失时记录 `signingStatus: unsigned` 与原因，条件满足后的签名失败则使平台构建失败；签名之后计算最终归档 SHA-256。`milestone_smoke`/`milestone_e2e` 为 `enabled` 或硬要求为 `required` 时，必须针对这些最终字节执行，并在标记 `ready`、发布上传或正式发布前通过。
+- 每次显式构建在任何测试或编译前解析当前 E2E 选择：当前请求已明确时复用，否则询问一次；`milestone_e2e` 只提供建议默认值。构建必须用 `cargo test --workspace --all-targets --all-features --locked -- --list` 或等价方式确认非空，再运行 `cargo test --workspace --all-targets --all-features --locked`；GUI 同时运行前端完整单元测试套件。失败或零测试阻断候选。
+- 构建可在项目已有批准的非交互签名钩子、工具和已授权凭据时尝试签名并验证，再把明确标记 `milestoneAcceptance: pending` 的候选写入根 `release/`。条件缺失时记录 `signingStatus: unsigned` 与原因，条件满足后的签名失败则使平台构建失败；签名后计算最终 SHA-256。当前 E2E 选择为 `enabled` 或硬要求为 `required` 时，最终字节形成后交给 `$desktop-verify-delivery`，不得混入编译/打包命令。
+- 构建请求、执行和结果本身不创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；全量单元测试、候选、摘要、签名状态与本次 E2E 选择只写入 `release/` manifest、其声明的相邻制品证据和最终回复。独立触发的 E2E、完整验收或发布再由对应 Skill 按自身规则留证。
 - `$desktop-prepare-cross-platform-release` 当前负责默认 Rust CLI Windows/macOS/Linux 原生候选矩阵；所有运行器使用 `fail-fast: false` 留下终态证据。其他接口的统一跨平台打包仍是已公开限制，默认不正式发布。
-- `$desktop-collect-release-artifacts` 负责提取并核验平台归档、相邻 SHA-256、签名状态、清单和已有里程碑证据，不自行构建、签名或运行冒烟/E2E；为构建取回结果时可保留 `pending`，发布准备仍只接受与候选匹配的 `accepted` 证据。
-- 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$desktop-build-rust-release` 与 `$desktop-build-tauri-release` 在任何格式、测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。远端工作流必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。目录存在不代表 `ready`。
-- `$desktop-prepare-release` 只在里程碑通过后负责版本、变更记录和发布就绪判断，不自动运行冒烟/E2E、创建标签或上传。
+- `$desktop-collect-release-artifacts` 负责提取并核验平台归档、相邻 SHA-256、签名状态、清单和已有验收证据，不自行构建、签名或运行冒烟/E2E；为构建取回结果时可保留 `pending`，发布准备仍只接受与候选匹配的 `accepted` 证据。
+- 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$desktop-build-rust-release` 与 `$desktop-build-tauri-release` 在任何单元测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。远端工作流必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。目录存在不代表 `ready`。
+- `$desktop-prepare-release` 只在完整验收通过后负责版本、变更记录和发布就绪判断，不自动运行冒烟/E2E、创建标签或上传。
 - `$desktop-add-mcp-adapter` 只在下游用户明确批准后增加依赖核心的 Rust stdio MCP 适配器；Skill 不自带实现资产。
 - `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；Skill 不自带实现资产。
 - `$desktop-prepare-gui-support-surfaces` 只在 GUI 产品明确需要支持界面时按需启用；它完整携带产品家族品牌页面/媒体依赖资产，每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试，不得扩张中性 scaffold。
 - `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。四类 adapter Skills 不自带页面/业务实现资产；可选 GUI 支持界面 Skill 的品牌依赖资产是唯一按需例外。实际版本在调用时核验并锁定；TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
 - `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
-- `$desktop-test-final-artifact-e2e` 只在验证里程碑通过 Computer Use 验收真实产物，不替代构建和单元测试，也不得脱离持久项目策略或产品/渠道硬要求自动运行。
+- `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
 
-候选归档或安装包命名为 `<product>-v<version>-<platform>-<arch>.<ext>`。每个产物必须有 `<artifact>.sha256` 和清单；`pending` 清单至少包含 `project`、`version`、批准的 40 位 `sourceCommit`、`buildRun`、`buildMode`、`platform`、`architecture`、`target`、`host`、`archive` 或 `installer`、`sha256`、`tests`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 和 `milestoneAcceptance: pending`。Tauri GUI 清单还必须包含 `interface: gui`、`artifactKind: installer`、`bundleFormat: dmg | nsis`、`runtimeVerification`、`signingScope: bundle-or-installer`、`notarizationStatus`、`notarizationReason` 与结构化 `notarizationEvidence`；xwin 必须记录 `buildMode: cross-compiled-xwin` 和 `runtimeVerification: Unverified`，macOS 已签名候选只有在公证且 stapled 后才可记录 `notarizationStatus: notarized-and-stapled`。默认 CLI 原地钩子的证据记录固定钩子验证成功且 `detachedFiles` 为空；`unsigned` 记录验证不适用。只有转为 `ready`/发布归档时，清单才必须再包含最终里程碑状态以及冒烟/E2E 的策略判断及实际结果。
+候选归档或安装包命名为 `<product>-v<version>-<platform>-<arch>.<ext>`，每个产物必须有相邻的 `<artifact>.sha256` 和清单。清单必需字段、`pending`/`ready` 状态转换、Tauri GUI 附加字段与 xwin/公证记录规则统一以 `docs/RELEASE.md`「发布物命名」为唯一权威来源，本文件不重复维护，避免两份清单说明漂移。
 
 ## 官方与主要资料
 

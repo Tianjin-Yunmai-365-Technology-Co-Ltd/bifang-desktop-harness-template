@@ -9,15 +9,15 @@ description: 为已初始化的下游项目增加可选的非交互式 CLI 适�
 
 ## 工作流程
 
-1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、CLI 契约和 Rust 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 CLI 是公开接口变更，进入里程碑路径并按需读取当前产品事实和计划。
+1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、CLI 契约和 Rust 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 CLI 只有在改变产品边界时才先更新 Product Spec，然后直接实施，不自动创建 Work Plan 或完整验收记录。
 2. 确认已记录的接口选择包含 CLI。只能在当前项目根目录中工作，并确定性派生 `<project-id>_cli`；绝不要求另选目录或二进制名称。
 3. 要求已存在初始化完成的共享核心。`Draft` 产品只能获得中性的 `scaffold status` 适配器，并返回 `productDefinitionRequired=true`；已批准产品只能获得计划内命令。
    每个已批准命令必须先映射到一个既有或本次先实现的 core 用例 API 及其 core 成功/最高风险失败测试。当前只有 CLI 也不得把业务规则、语义校验、默认值或调用编排放入 CLI。
 4. 使用 Tokio current-thread 异步入口，并只启用最低所需特性。I/O、等待、计时器、进程及其他延迟型工作从命令到核心的路径默认保持异步；不得仅因使用 Tokio 就启用 `rt-multi-thread`。只有测量确认的 CPU 密集工作才可考虑 `spawn_blocking`、专用线程或多线程运行时，并记录所有权、取消、并发上限、资源预算和测试。仅支持阻塞调用的依赖应替换为异步能力，否则停止并进入范围或硬规则例外流程；不得静默用线程包裹。
 5. 完整实现 `docs/CLI_CONTRACT.md` 规定的非交互行为和 `--json` 行为。CLI 只处理参数是否可解析、协议必填项、标准流和退出码；值域、跨字段约束、资源状态、业务权限和影响业务结果的默认值必须交给 core。不得把 TUI 代码路径作为调用核心操作的唯一方式。
 6. 先测试 core 成功路径和最高风险领域失败，再测试真实二进制的命令到 core 映射、JSON 解析、标准输出/标准错误分离、退出码、`--help`/`--version`，以及拒绝等待输入。处于 `Draft` 时还要拒绝未批准的业务命令。
-7. 普通实现期间，运行仓库中可发现的格式化、代码规范检查、workspace-aware `check_rust_chinese_comments.py --root . --json`、非空测试、变更所需的锁定检查/构建，以及有针对性的真实二进制黑盒测试。不得用开发证据声称发布就绪。
-8. 中性初始化完成测试后返回 `$desktop-initialize-rust-project`，不创建 Work Plan 或调用 `$desktop-verify-delivery`，脚手架也不是里程碑。初始化后新增真实 CLI 时先使用 `$desktop-plan-change`；Todo 实施期间运行核心/CLI 单元与黑盒契约测试，全部 `done` 后构建真实二进制并交给 `$desktop-verify-delivery`。记录当前平台证据，其他平台标记为 `Unverified`。
+7. 实现期间只运行本次 CLI/core 变化必需的非空单元与回归测试；不因新增适配器自动追加全仓格式、lint、静态、构建、冒烟、E2E 或完整验收。真实二进制黑盒检查仅在它是本次接口变化最高风险失败路径的必要回归，或用户明确要求构建/验收时运行。
+8. 中性初始化完成本次必要测试后返回 `$desktop-initialize-rust-project`。初始化后新增真实 CLI 也直接收口；只有用户另行显式请求构建时才调用 `$desktop-build-rust-release`，由构建流程先逐次确认 E2E 并全量运行单元测试。记录实际验证平台，其他平台标记为 `Unverified`。
 
 ## 边界
 
@@ -30,4 +30,4 @@ description: 为已初始化的下游项目增加可选的非交互式 CLI 适�
 
 ## 完成输出
 
-报告每个命令的“CLI 命令 → core API → core 测试”映射、输出契约、CLI 映射测试、制品路径、已验证平台、未验证平台和剩余风险。
+报告每个命令的“CLI 命令 → core API → core 测试”映射、输出契约、本次实际运行的测试、已验证平台、未验证平台和剩余风险；未显式构建时不得虚构制品路径或发布结论。

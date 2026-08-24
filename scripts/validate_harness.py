@@ -16,7 +16,7 @@ from scripts.harness_validation.governance import (
     validate_agent_policy,
     validate_current_descriptions,
     validate_engineering_contract,
-    validate_parallel_and_tiered_verification,
+    validate_streamlined_development_and_build,
     validate_version_contract,
 )
 from scripts.harness_validation.gui_support import validate_gui_support_contract
@@ -60,7 +60,7 @@ def main() -> int:
     validate_repository_line_limits(errors, warnings=warnings)
     validate_agent_policy(errors)
     validate_engineering_contract(errors)
-    validate_parallel_and_tiered_verification(errors)
+    validate_streamlined_development_and_build(errors)
     validate_current_descriptions(errors)
     validate_version_contract(errors)
     validate_soft_review_prompts(warnings)
@@ -74,7 +74,7 @@ def main() -> int:
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
         f"{len(EXPECTED_SKILLS)} skills, local Markdown links, 500-line semantic review and hard 2000-line limits, five event-triggered project-memory streams, "
-        "optional standard plans and strict milestone gates, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
+        "opt-in plans, minimal development checks, per-build E2E selection and full unit suites, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
         "parallel worktree gates, core-first dependency boundaries, Rust workspace Chinese-comment coverage, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."
     )

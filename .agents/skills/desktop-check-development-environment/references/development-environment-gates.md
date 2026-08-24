@@ -1,6 +1,6 @@
 # 开发环境门禁
 
-在生成的下游项目首次修改代码的任务前使用本参考。它独立于初始化流程，并且在仅用于初始化的 Skills 和文档被删除后继续保留。
+在本次必要单元测试因工具缺失而受阻，或显式构建缺少可复用环境证据时使用本参考。它独立于初始化流程，并且在仅用于初始化的 Skills 和文档被删除后继续保留。
 
 ## 可执行入口
 
@@ -23,7 +23,7 @@
 | Windows Rust target | macOS Tauri→Windows x64 | `rustup target list --installed` | 运行 `rustup target add x86_64-pc-windows-msvc` 并复探。 |
 | cargo-xwin | macOS Tauri→Windows x64 | `cargo-xwin --version` | 运行 `cargo install --locked cargo-xwin` 并复探。 |
 
-低于 MSRV 或使用预发布通道的现有 Rust 工具链属于不兼容，而不是缺失。必须停止，绝不得静默替换。现有 Node.js 或 pnpm 版本也必须满足真实前端计划；仅检测到工具存在只代表通过首次开发环境门禁的第一步。
+低于 MSRV 或使用预发布通道的现有 Rust 工具链属于不兼容，而不是缺失。必须停止，绝不得静默替换。现有 Node.js 或 pnpm 版本也必须满足真实前端需要；仅检测到工具存在不证明单元测试或构建已经通过。
 
 ## 安装安全措施
 

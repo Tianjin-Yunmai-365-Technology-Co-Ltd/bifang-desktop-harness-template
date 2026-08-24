@@ -1,4 +1,4 @@
-"""校验跨平台里程碑候选 workflow 的完整性、安全边界与打包顺序。"""
+"""校验跨平台候选 workflow 的完整性、安全边界与打包顺序。"""
 
 from __future__ import annotations
 
@@ -79,8 +79,9 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "os: [ubuntu-latest, macos-latest, windows-latest]",
         "contents: read",
         "rustup toolchain install 1.90.0",
-        "--component rustfmt",
-        "--component clippy",
+        "e2e_selection:",
+        "E2E_SELECTION: ${{ inputs.e2e_selection }}",
+        "e2e_selection 必须是 enabled 或 disabled",
         '"cargo", "metadata", "--locked"',
         "未发现测试",
         "cargo test --workspace --all-targets --all-features --locked",
@@ -103,6 +104,7 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         '"buildMode": "cross-platform-native"',
         '"sourceCommit"',
         '"sha256"',
+        '"e2eSelection"',
         '"signingStatus"',
         '"signingEvidence"',
         '"milestoneAcceptance": "pending"',
@@ -133,6 +135,10 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "|| true",
         "dist/",
         "path: release/",
+        "cargo fmt",
+        "cargo clippy",
+        "--component rustfmt",
+        "--component clippy",
     )
     for fragment in forbidden_fragments:
         if fragment in semantic_text:
@@ -162,6 +168,33 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
                 "workflow_dispatch inputs must be exactly "
                 f"{sorted(EXPECTED_INPUTS)}, got {sorted(input_keys)}",
             )
+        e2e_start = next(
+            (
+                index
+                for index, line in enumerate(semantic_lines)
+                if line == "      e2e_selection:"
+            ),
+            -1,
+        )
+        if e2e_start == -1:
+            fail(errors, "workflow e2e_selection input is missing")
+        else:
+            e2e_end = e2e_start + 1
+            while e2e_end < len(semantic_lines):
+                line = semantic_lines[e2e_end]
+                if line.strip() and len(line) - len(line.lstrip()) <= 6:
+                    break
+                e2e_end += 1
+            e2e_block = {line.strip() for line in semantic_lines[e2e_start:e2e_end]}
+            for required in (
+                "required: true",
+                "type: choice",
+                "- disabled",
+                "- enabled",
+                "default: disabled",
+            ):
+                if required not in e2e_block:
+                    fail(errors, f"workflow e2e_selection input contract missing: {required}")
 
     named_steps = tuple(
         match.group(1)
@@ -268,6 +301,15 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     if '"$PYTHON_COMMAND" -' not in source_verify_block:
         fail(errors, "workflow source verification must use the selected Python runtime")
 
+    preflight_block = "\n".join(step_block("确认已授权候选预检"))
+    for required in (
+        'inputs.confirm_candidate_build',
+        '"$E2E_SELECTION" != "enabled"',
+        '"$E2E_SELECTION" != "disabled"',
+    ):
+        if required not in preflight_block:
+            fail(errors, f"workflow candidate preflight missing current E2E choice gate: {required}")
+
     prepare_indices = (
         first_named_step_index("准备 Unix 发布目录"),
         first_named_step_index("准备 Windows 发布目录"),
@@ -320,6 +362,9 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     ):
         if command not in verify_block:
             fail(errors, f"workflow 的“验证候选”步骤缺少有效命令：{command}")
+    for forbidden in ("cargo fmt", "cargo clippy"):
+        if forbidden in verify_block:
+            fail(errors, f"workflow build must not add non-unit development gate: {forbidden}")
 
     manifest_block = "\n".join(step_block("记录候选清单"))
     if '"milestoneAcceptance": "pending"' not in manifest_block:
@@ -330,6 +375,7 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         '"signingEvidence"',
         '"buildRun"',
         '"target"',
+        '"e2eSelection"',
     ):
         if field not in manifest_block:
             fail(errors, f"workflow manifest step missing candidate field: {field}")

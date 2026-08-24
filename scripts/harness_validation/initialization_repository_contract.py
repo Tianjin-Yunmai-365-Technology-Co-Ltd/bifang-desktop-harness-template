@@ -20,7 +20,8 @@ def repository_required_fragments(
             "milestone_smoke:",
             "milestone_e2e:",
             "`superpowers:`",
-            "任务路径与项目记忆触发彼此独立",
+            "显式构建必须为当前构建解析一次 E2E 选择",
+            "持久启用本身不能触发并行步骤",
         ),
         gate_file: (
             "scripts/development-environment-gates.sh --install-missing",
@@ -41,7 +42,7 @@ def repository_required_fragments(
         ),
         rust_baseline: (
             "$desktop-check-development-environment",
-            "只有 GUI 选择才增加 Node.js 与 pnpm 阻断门禁",
+            "只有 GUI 构建才增加 Node.js 与 pnpm",
             "example_tool_core = { path = \"example_tool_core\" }",
             "<项目标识>_core",
             "<项目标识>_cli",
@@ -152,10 +153,6 @@ def repository_required_fragments(
             "不给中性 scaffold 安装未使用依赖",
             "$desktop-prepare-gui-support-surfaces",
             "出站与遥测默认禁用",
-        ),
-        SKILLS_ROOT / "desktop-implement-change" / "SKILL.md": (
-            "Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing 生态、anyhow、thiserror、serde、jiff",
-            "只为已批准且存在真实使用路径的能力引入对应依赖",
         ),
         ROOT / "LICENSE.zh-CN.md": (
             "本协议不是开源许可证",

@@ -9,7 +9,7 @@ description: 为已初始化的下游项目增加可选的 Ratatui 终端适配�
 
 ## 工作流程
 
-1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/TUI 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 TUI 是公开接口变更，进入里程碑路径并按需读取当前产品事实和计划。
+1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/TUI 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 TUI 只有在改变产品边界时才先更新 Product Spec，然后直接实施，不自动创建计划或验收记录。
 2. 确认范围记录包含 TUI，并识别最小交互闭环、目标终端、键盘行为、窗口尺寸变化行为、无障碍预期，以及安全退出/恢复行为。
 3. 在当前根目录内的 `<project-id>_tui` 中工作。要求存在共享核心，但不要求 CLI、MCP 或 GUI。
 4. 完整阅读 [references/tui-baseline.md](references/tui-baseline.md)。使用 Ratatui 负责渲染，使用 tui-realm 负责组件/事件架构，并将 tui-realm-stdlib 用作成熟的标准组件库。此技术栈对 `Draft` 和 `Approved` 项目都是硬规则。
@@ -18,8 +18,8 @@ description: 为已初始化的下游项目增加可选的 Ratatui 终端适配�
 7. `Draft` 项目只能公开中性脚手架状态和导航；不得臆造业务页面或副作用。已批准产品只能实现计划内视图和操作。焦点、选择、滚动、输入草稿、窗口尺寸、loading/modal、终端事件、渲染状态、组件消息和按键绑定留在 TUI；领域状态、语义校验、业务默认值和状态转换属于 core。每个会产生业务效果的消息只构造 core 请求、调用一个 core 用例并映射结果；包含条件/重试/状态决策的多调用编排必须提升到 core。
 8. 普通输入、选择、表格、列表、标签、段落、选项卡、仪表和图表优先使用 tui-realm-stdlib 组件。只有标准库无法表达某项已批准行为时才创建项目组件，并记录组合或样式为何不足。
 9. 先用 core 测试覆盖业务状态转换、成功路径和最高风险领域失败，再测试 TUI 的组件消息、纯交互状态转换、异步事件/任务取消、键盘导航、尺寸变化和小终端行为、错误/空/加载状态、最高风险操作确认、正常退出、失败后的终端状态恢复，以及到 core 的映射。
-10. 普通实现期间，运行格式化、代码规范检查、workspace-aware `check_rust_chinese_comments.py --root . --json`、非空测试、相关锁定检查/构建和有针对性的终端状态测试。不得用开发证据声称发布就绪。
-11. 中性初始化完成测试后返回 `$desktop-initialize-rust-project`，不创建 Work Plan 或调用 `$desktop-verify-delivery`。初始化后新增真实 TUI 时先使用 `$desktop-plan-change`；Todo 期间运行核心/TUI 单元与交互状态测试，全部 `done` 后构建真实 TUI 二进制并交给 `$desktop-verify-delivery`。只有该里程碑可以运行适用冒烟/E2E。
+10. 实现期间只运行本次 TUI/core 变化必需的非空单元与回归测试；不自动追加全仓格式、lint、静态、构建、冒烟、E2E 或完整验收。终端状态测试仅覆盖本次变化涉及的交互和最高风险失败路径。
+11. 中性初始化完成本次必要测试后返回 `$desktop-initialize-rust-project`。初始化后新增真实 TUI 也直接收口；只有用户另行显式请求构建时才进入对应构建流程，由该流程先逐次确认 E2E 并全量运行单元测试。未测试终端或平台标记为 `Unverified`。
 
 ## 硬边界
 
