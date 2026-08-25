@@ -78,6 +78,18 @@ E2E_SKILL = SKILLS_ROOT / "desktop-test-final-artifact-e2e" / "SKILL.md"
 GUI_INITIALIZATION_E2E_SKILL = (
     SKILLS_ROOT / "desktop-test-gui-initialization-e2e" / "SKILL.md"
 )
+GUI_LIFECYCLE_CONTRACT_CHECKER = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "verify-gui-lifecycle-contract.mjs"
+)
+GUI_LIFECYCLE_CONTRACT_TESTS = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "verify-gui-lifecycle-contract.test.mjs"
+)
 VERIFY_DELIVERY_SKILL = SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md"
 VERIFICATION_DOC = ROOT / "docs" / "VERIFICATION.md"
 PARALLEL_SKILL = SKILLS_ROOT / "desktop-run-parallel-worktrees"
@@ -234,6 +246,8 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-adapter/references/mantine-ui-guidelines.md",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.test.ts",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs",
     ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/test_parallel_worktrees.py",

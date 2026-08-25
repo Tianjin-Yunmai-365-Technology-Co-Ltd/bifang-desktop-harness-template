@@ -2,7 +2,8 @@
 
 ## 新增
 
-- 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建并启动真实本机 Tauri 调试二进制，使用 Computer Use 验证应用可启动、默认收起侧栏中的 Logo/全部图标水平居中，以及可访问树枚举出的所有菜单页面可达；失败、超时、取消或无法执行均阻断初始化。
+- 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 16 条专项回归：在 GUI 构建前验证官方 `tauri-plugin-single-instance` 的 workspace/member 接线、首插件顺序、不消费参数/工作目录且只恢复既有窗口的中性回调，Tauri `tray-icon` feature、非透明 32px RGBA 图标与配置引用、从 `.setup` 可达的 Menu/default-icon/icon/build 接线、已注册关闭事件、稳定 ID `show_window`/`quit`、中英文原生资源，以及单实例/托盘五个固定命名回归；兼容 Cargo 依赖的 inline/table 两种合法写法和 Tauri 菜单构造 API 的受支持形式，路径越界、符号链接、非法 UTF-8、空源码、未接线死代码和任何缺项均失败关闭。
+- 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建并双启动真实本机 Tauri 调试二进制，验证第二次启动只唤醒同一主窗口后退出、只剩一个长期应用主进程/主窗口，再使用 Computer Use 验证真实托盘精确菜单及关闭隐藏/两种恢复/退出生命周期、应用可启动、默认收起侧栏中的 Logo/全部图标水平居中，以及可访问树枚举出的所有菜单页面可达；失败、超时、取消、唯一性无法判定、无法观察或无法执行均阻断初始化。
 - GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。
 - GUI 初始化新增应用 Logo 三选一：实际生成 3 个 1024×1024 PNG 候选并同时预览，必须由用户明确选择；选中母版逐字节接入运行时 `/app-identity/logo.png`，并由项目本地 Tauri 工具生成平台图标，候选/选择/摘要写入 `docs/GUI_APP_PROFILE.md`。
 - GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可同时展示展开的 248px 侧栏和三张赞助档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
@@ -25,6 +26,8 @@
 
 ## 变更
 
+- GUI 单实例从未声明的实现选择提升为不可省略的初始化硬门禁：使用官方 `tauri-plugin-single-instance` 且必须最先注册，同一用户会话第二次启动只恢复、取消最小化并聚焦既有主窗口后退出，不得留下第二个长期应用主进程或主窗口；中性回调忽略且不记录启动参数/工作目录。结构检查、两个固定命名回归和真实双启动唯一性证据任一缺失都会阻断基线提交；Linux Snap/Flatpak 另需在渠道清单声明并验证会话 DBus 权限。
+- GUI 系统托盘从文字基线提升为不可省略的初始化硬门禁，并修复了“代码看似存在但图标未显示”的漏检：除应用图标、精确双项菜单、关闭隐藏、两种恢复和退出外，现在强制验证非透明 32px RGBA 图标及 `bundle.icon` 引用、从 Tauri `.setup` 可达的 Menu/default-icon/icon/build 接线和已注册关闭事件；图标缺失不能静默继续，Linux tray 必须绑定菜单。初始化 E2E 还必须看到状态栏/通知区域中的非空可见图形，透明点击区域或只能弹菜单的不可见占位不会通过。
 - Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，赞助/设置/关于和侧栏开关使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji，图表相关控件优先使用 Tabler 图标而图表绘制方案保持独立。
 - 固定侧栏模板现在显式将收起状态的 Logo 与每个功能/固定菜单图标水平居中，并移除字符箭头和固定项图标注入；模板回归同步覆盖 Tabler 来源、identity 居中和全部菜单项的收起态居中标记。
 - GUI 固定支持界面重新整理：手动检查更新及其 `NotConfigured`/检查中/结果状态从设置页迁回关于页；设置页新增浅色、深色、跟随系统三态选择并持久化设备级偏好。初始化新增唯一 `AppThemeProviderTemplate`，为亮色与暗色分别定义页面背景、surface、主/次文字、边框和强调色，应用壳与赞助页消费运行时有效主题。
@@ -54,14 +57,15 @@
 
 ## 验证
 
-- `python3 -m unittest discover -s scripts`：175 条测试全部通过；新增覆盖 GUI 初始化 E2E 主契约、Tabler 固定技术栈、收起侧栏居中模板及升级 tombstone，既有环境、精简开发、逐次发布 E2E、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
+- `node --test .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs`：16 条 GUI 生命周期契约专项测试全部通过，覆盖完整单实例/托盘契约、Cargo inline/table 与菜单构造兼容写法，以及缺少 `tray-icon`、workspace 单实例依赖、首插件顺序、既有窗口恢复回调、中性回调消费启动参数、真实托盘创建、托盘安装未从 `.setup` 接线、菜单未绑定、默认图标可选回退、`bundle.icon` 未引用 32px 来源、全透明 32px PNG、单实例/托盘回归或中文资源的失败路径。
+- `python3 -m unittest discover -s scripts`：175 条测试全部通过；新增锁定托盘检查器/测试文件、GUI 初始化结构 + 真实生命周期门禁、Tabler 固定技术栈、收起侧栏居中模板及升级 tombstone，既有环境、精简开发、逐次发布 E2E、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
 - `python3 .agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py`：15 条隔离测试全部通过，覆盖 Node.js 20.19.0/22.12.0 分段下界、21.x 空档、范围内更高版本、pnpm 10.0.0 下界、缺失兼容范围安装和供应链失败。
 - `python3 .agents/skills/desktop-check-development-environment/scripts/test_macos_tauri_xwin_gates.py`：10 条隔离测试全部通过，覆盖 `cargo-xwin >=0.22.0, <0.24.0` 范围安装/复探、0.22/0.23 既有版本复用，以及范围外和预发布版本拒绝；本机真实 `cargo-xwin 0.22.0` 的版本/帮助探测与 xwin `--check-only` 全门禁通过。
 - 中性 Rust workspace 的正常锁文件测试通过 7 条非空测试；临时 `cargo +nightly update -Zdirect-minimal-versions` 将 6 个 registry 直接依赖解析到声明下界后，`cargo +1.90.0 test --workspace --all-targets --all-features --locked` 同样通过 7 条测试，且未覆盖提交的正常 `Cargo.lock`。
-- `python3 scripts/validate_harness.py`：通过 138 个必需文件、25 个 Skills、最低兼容版本契约、动态 MSRV workflow、Markdown 链接、GUI 初始化 E2E、Tabler/侧栏居中、升级 tombstone、品牌资源、Tauri updater、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 3 条已复核的 501–2000 行高内聚非阻断提示。
+- `python3 scripts/validate_harness.py`：通过 140 个必需文件、25 个 Skills、最低兼容版本契约、动态 MSRV workflow、Markdown 链接、GUI 强制托盘结构/生命周期与初始化 E2E、Tabler/侧栏居中、升级 tombstone、品牌资源、Tauri updater、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 4 条 501–2000 行高内聚非阻断复核提示。
 - 本轮仓库没有可执行前端 `package.json`，因此未重跑修改后的模板 Vitest/TypeScript；Harness validator 与 Python 负向回归已静态锁定 Tabler 导入、固定项组件、Logo identity 和全部菜单项居中契约。既有图片/品牌资产没有改动。
-- Skill Creator quick validator 对本次新建或修改的 5/5 个项目 Skills 全部通过；`git diff --check` 通过。
+- Skill Creator quick validator 对本次涉及的 5/5 个项目 Skills 全部通过；`git diff --check` 通过。
 - Rust 中性 workspace 注释扫描覆盖 2 个 package、4 个文件和 24 个受管声明；metadata、core-first、`cargo fmt`、locked check、全 workspace/all-target/all-feature Clippy、7 条非空测试与锁定 release 构建均通过。
 - 文件规模检查覆盖 197 个受维护文本，无 2001 行以上违规；690 行 Rust 检查器已复核为高内聚、单一职责且内部职责相近。
 - 来源锁点前 84 个 Skill 文件均已收敛；锁点后 3 个 Skill 提交的 16 个文件在模板中 16/16 有对应落点。关于/赞助资源审计闭合为 13 张图片、0 个视频；来源工作树保持干净，多组来源产品身份、绝对路径、固定凭据和固定服务特征扫描均为零命中。
-- 未真实实例化下游 GUI，因而未运行新增的 Computer Use 初始化 E2E，也未构建 DMG/NSIS、运行发布候选冒烟/E2E、签名、公证或发布；真实下游前向运行与其他宿主保持 `Unverified`，不得据此声明候选或发布就绪。
+- 未真实实例化下游 GUI，因而未运行新增的 Computer Use 单实例双启动/托盘初始化 E2E，也未构建 DMG/NSIS、运行发布候选冒烟/E2E、签名、公证或发布；真实下游前向运行、其他宿主与 Snap/Flatpak 沙箱保持 `Unverified`，不得据此声明候选或发布就绪。

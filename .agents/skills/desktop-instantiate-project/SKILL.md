@@ -23,7 +23,7 @@ description: 在用户提供的目标目录中创建干净的下游项目，包�
 12. 将工作目录切换到解析后的目标目录，并运行 `git init --initial-branch=main .`。即使父目录已经是 Git 仓库，此操作也必须执行：下游项目必须拥有独立的嵌套仓库边界。不得复制源历史，也不得创建标签、远端、托管仓库、推送、签名或全局 Git 配置。
 13. 在执行任何下游操作之前验证新边界：`git rev-parse --is-inside-work-tree` 必须返回 `true`；`git rev-parse --show-toplevel` 返回的规范化路径必须等于解析后的目标目录；`git symbolic-ref --short HEAD` 必须返回 `main`；`git remote` 必须为空；`git rev-parse --verify HEAD` 必须失败，因为初始化基线提交只有在脚手架和一次性裁剪全部完成后才能创建。把 `git status --porcelain=v1 --untracked-files=all` 的结果记录为最终完成前的预期证据。
 14. 不得在经过选择性复制的目标目录中运行模板级 Harness 验证器。验证目标目录清单、排除项、改写后的身份、保留链接和策略模式定义，随后使用 `$desktop-initialize-rust-project` 询问用户选择 `CLI/TUI/MCP/GUI`；验证并复用全部四项已记录策略，不得再次询问预设或各字段。仅当用户未选择任何接口时默认 CLI，并在 Product Spec 尚不存在时创建中性工作区。
-15. 必须要求 `$desktop-initialize-rust-project` 在脚手架检查完成后收尾仓库：选择 GUI 时，先由 `$desktop-test-gui-initialization-e2e` 构建并启动真实本机 Tauri 调试二进制，验证默认收起侧栏的 Logo/全部图标水平居中和所有渲染菜单页面可达；任何失败都阻断收尾。随后删除实例化、初始化和 GUI 初始化 E2E Skills、模板专用验证器/方法论文档以及活动初始化指令；保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees` 和仍适用的开发 Skills。在 `AGENTS.md` 中保留非空的 Skills/约束地图以及持久策略语义。如果本工作流能够取得精确渲染后的保留工程层候选以及源版本/提交，则使用 `$desktop-upgrade-harness record --bootstrap` 创建 `.harness/upstream-lock.json`；否则必须保持该文件不存在，并记录首次升级需要初始基线审计，不得伪造溯源。验证没有残留派生路径或策略 `pending`，创建恰好一个本地基线提交，并在进入 `$desktop-define-product` 前要求 Git 简洁状态为空。
+15. 必须要求 `$desktop-initialize-rust-project` 在脚手架检查完成后收尾仓库：选择 GUI 时，先由 `$desktop-test-gui-initialization-e2e` 运行固定单实例/托盘结构检查器，验证非透明 `icons/32x32.png`/配置引用以及 `.setup`/Menu/icon/build/窗口事件真实接线，再构建并双启动真实本机 Tauri 调试二进制；除验证默认收起侧栏的 Logo/全部图标水平居中和所有渲染菜单页面可达外，还必须验证第二次启动自行退出、既有主进程与同一主窗口继续存在并被恢复聚焦、只剩一个长期应用主进程和一个主窗口，以及状态栏/通知区域存在可见非空托盘图形、菜单恰好只有本地化“显示窗口/退出”、原生关闭只隐藏且进程继续、托盘左键和“显示窗口”都能恢复并聚焦、托盘退出结束进程并移除图标。缺少图标资产/配置引用/运行时接线、依赖/实现、首插件顺序、回归、资源或真实宿主证据，或者当前宿主无法判定进程/窗口唯一性、只能定位空白点击区域或无法观察托盘，均阻断收尾，不能降级。随后删除实例化、初始化和 GUI 初始化 E2E Skills、模板专用验证器/方法论文档以及活动初始化指令；保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees` 和仍适用的开发 Skills。在 `AGENTS.md` 中保留非空的 Skills/约束地图以及持久策略语义。如果本工作流能够取得精确渲染后的保留工程层候选以及源版本/提交，则使用 `$desktop-upgrade-harness record --bootstrap` 创建 `.harness/upstream-lock.json`；否则必须保持该文件不存在，并记录首次升级需要初始基线审计，不得伪造溯源。验证没有残留派生路径或策略 `pending`，创建恰好一个本地基线提交，并在进入 `$desktop-define-product` 前要求 Git 简洁状态为空。
 
 ## 重置不变量
 
@@ -38,7 +38,7 @@ description: 在用户提供的目标目录中创建干净的下游项目，包�
 - 必须保留共享核心、已选接口、中文业务注释、文档、测试、验证、例外和人工复核规则，除非下游负责人批准并记录例外。
 - 必须执行 `docs/AGENT_POLICY.md` 中全部四项策略值。后续工作必须复用这些值，并且仅在策略缺失/非法、需求冲突或无法判断适用性时询问。
 - 生成的仓库是终端项目：不得保留 `$desktop-instantiate-project`、`$desktop-initialize-rust-project` 或任何其他活动的项目派生入口。
-- 选择 GUI 时，唯一基线提交必须晚于一次成功的 GUI 初始化 E2E；该本机调试检查不迁移为发布或完整验收结论。
+- 选择 GUI 时，唯一基线提交必须晚于一次成功的单实例/托盘结构检查和 GUI 初始化 E2E；结构检查必须锁定非透明 32px RGBA 图标/配置引用与运行时接线，后者必须包含同一真实二进制双启动、第二次启动退出并唤醒同一主窗口、单一长期应用主进程/主窗口，以及真实系统托盘的可见非空图形、精确菜单、关闭隐藏、两种恢复与退出生命周期，宿主无法判定、只能定位空白点击区域或无法观察也必须阻断。该本机调试检查不迁移为发布或完整验收结论。
 - 生成的仓库必须包含 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`；与源 Harness 相比，只有其中精确的双语 `Applicable Project Name` 可以不同，所有其他法律条款都必须保持不变。初始化裁剪不得删除或进一步修改任一文件。
 - 裁剪后，`AGENTS.md` 必须继续保留非空的 Skills/约束地图、`$desktop-upgrade-harness` 以及持久策略决策规则。
 

@@ -68,7 +68,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             self.assertIn(fragment, baseline)
 
     def test_gui_initialization_e2e_is_a_required_one_time_contract(self) -> None:
-        """GUI 初始化 E2E 必须进入主契约且保持与最终候选 E2E 分离。"""
+        """GUI 初始化必须锁定单实例/托盘结构与真实生命周期，再检查界面。"""
 
         initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         required = primary_required_fragments(initialize_skill)
@@ -77,10 +77,57 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             ROOT
             / ".agents/skills/desktop-test-gui-initialization-e2e/SKILL.md"
         )
+        lifecycle_checker = (
+            ROOT
+            / ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs"
+        )
+        lifecycle_tests = (
+            ROOT
+            / ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs"
+        )
         self.assertIn("$desktop-test-gui-initialization-e2e", initialization_fragments)
+        self.assertIn("verify-gui-lifecycle-contract.mjs", initialization_fragments)
+        self.assertIn("second_launch_restores_existing_main_window", initialization_fragments)
+        self.assertIn(
+            "tray_show_restores_and_focuses_main_window",
+            initialization_fragments,
+        )
         self.assertIn("pnpm tauri build --debug --no-bundle", initialization_fragments)
         self.assertIn(e2e_skill, required)
         self.assertIn("所有当前渲染的菜单项", required[e2e_skill])
+        self.assertIn("show_window", required[e2e_skill])
+        self.assertIn("icons/32x32.png", required[e2e_skill])
+        self.assertIn("可见非空图形", required[e2e_skill])
+        self.assertIn("空白点击区域", required[e2e_skill])
+        self.assertIn("托盘图标消失", required[e2e_skill])
+        self.assertIn(lifecycle_checker, required)
+        self.assertIn("tauri_plugin_single_instance::init", required[lifecycle_checker])
+        self.assertIn("TrayIconBuilder", required[lifecycle_checker])
+        self.assertIn("icons/32x32.png", required[lifecycle_checker])
+        self.assertIn("inflateSync", required[lifecycle_checker])
+        self.assertIn("全部像素透明，无法形成可见托盘图标", required[lifecycle_checker])
+        self.assertIn(
+            "托盘安装函数必须由 Tauri Builder .setup(...) 实际调用",
+            required[lifecycle_checker],
+        )
+        self.assertIn("process.exitCode = main()", required[lifecycle_checker])
+        self.assertIn(lifecycle_tests, required)
+        self.assertIn(
+            "rejects a GUI that does not register the single-instance plugin first",
+            required[lifecycle_tests],
+        )
+        self.assertIn(
+            "rejects a GUI whose runtime no longer creates a tray",
+            required[lifecycle_tests],
+        )
+        for fragment in (
+            "rejects a tray implementation that is not wired into Tauri setup",
+            "rejects a tray builder that does not attach its menu",
+            "rejects optional default icon fallback that can create an iconless tray",
+            "rejects a bundle config that omits the 32px tray icon source",
+            "rejects an all-transparent 32px tray icon source",
+        ):
+            self.assertIn(fragment, required[lifecycle_tests])
 
     def test_rust_technology_standard_is_a_required_contract(self) -> None:
         """Rust 固定与条件技术族必须进入事实源、传播入口与机械门禁。"""

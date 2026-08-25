@@ -1,4 +1,4 @@
 interface:
   display_name: "准备 GUI 应用身份"
-  short_description: "初始化生成三款 Logo，并补齐 GUI 身份与正式图标"
-  default_prompt: "使用 $desktop-prepare-gui-app-identity 在 GUI 初始化时生成并选择 3 个 Logo 候选，首次真实开发再补齐应用元数据、固定动态标题和分发身份。"
+  short_description: "生成三款 Logo 与可见托盘/平台图标，再补齐 GUI 身份"
+  default_prompt: "使用 $desktop-prepare-gui-app-identity 在 GUI 初始化时生成并选择 3 个 Logo 候选，生成并验证非透明 32px RGBA 托盘来源与平台图标，首次真实开发再补齐应用元数据、固定动态标题和分发身份。"
