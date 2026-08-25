@@ -43,6 +43,16 @@ function sponsorBackgroundImage(
   return `${overlay}, url("${background}")`;
 }
 
+/** 卡片与说明区块的表面背景随主题切换。 */
+function sponsorSurfaceColor(colorScheme: SponsorColorScheme): string {
+  return colorScheme === "dark" ? "dark.7" : "white";
+}
+
+/** 标题与强调文本的强调色随主题切换。 */
+function sponsorAccentColor(colorScheme: SponsorColorScheme): string {
+  return colorScheme === "dark" ? "blue.3" : "blue.8";
+}
+
 /** 渲染固定价格、档位插图与本地化权益。 */
 function TierCard({
   tier,
@@ -55,7 +65,7 @@ function TierCard({
   return (
     <Paper
       aria-label={name}
-      bg={colorScheme === "dark" ? "dark.7" : "white"}
+      bg={sponsorSurfaceColor(colorScheme)}
       component="article"
       data-color-scheme={colorScheme}
       data-price={tier.price}
@@ -80,11 +90,7 @@ function TierCard({
             />
           </Paper>
           <Box>
-            <Text
-              c={colorScheme === "dark" ? "blue.3" : "blue.8"}
-              fw={600}
-              size="sm"
-            >
+            <Text c={sponsorAccentColor(colorScheme)} fw={600} size="sm">
               {name}
             </Text>
             <Group align="baseline" gap={4} wrap="nowrap">
@@ -169,7 +175,7 @@ export function SponsorPageTemplate({
     >
       <Stack gap="lg" maw={1180} mx="auto">
         <Stack align="center" gap="xs" ta="center">
-          <Title c={colorScheme === "dark" ? "blue.3" : "blue.8"} order={2}>
+          <Title c={sponsorAccentColor(colorScheme)} order={2}>
             {t("sponsor.title")}
           </Title>
           <Text fw={600}>
@@ -182,11 +188,7 @@ export function SponsorPageTemplate({
 
         <Stack align="center" gap="xs">
           <Group gap="xs" justify="center" wrap="wrap">
-            <Text
-              c={colorScheme === "dark" ? "blue.3" : "blue.8"}
-              fw={600}
-              size="sm"
-            >
+            <Text c={sponsorAccentColor(colorScheme)} fw={600} size="sm">
               {t("sponsor.capabilities_label")}
             </Text>
             {capabilities.map((key) => (
@@ -222,7 +224,7 @@ export function SponsorPageTemplate({
         </SimpleGrid>
 
         <Paper
-          bg={colorScheme === "dark" ? "dark.7" : "white"}
+          bg={sponsorSurfaceColor(colorScheme)}
           p="lg"
           radius="lg"
           withBorder

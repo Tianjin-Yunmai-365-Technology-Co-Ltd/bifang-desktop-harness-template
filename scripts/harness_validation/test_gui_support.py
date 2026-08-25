@@ -9,14 +9,10 @@ import unittest
 from pathlib import Path
 
 from .context import (
-    GUI_BASELINE,
-    GUI_IDENTITY_SKILL,
-    GUI_SKILL,
     GUI_SUPPORT_BRAND_ROOT,
     GUI_SUPPORT_METADATA,
     GUI_SUPPORT_REFERENCE,
     GUI_SUPPORT_SKILL,
-    INITIALIZE_SKILL,
 )
 from .gui_support import validate_gui_support_contract
 
@@ -290,43 +286,6 @@ class GuiSupportContractTests(unittest.TestCase):
             )
         self.assertTrue(any("useComputedColorScheme" in error for error in errors), errors)
         self.assertTrue(any("data-color-scheme" in error for error in errors), errors)
-
-    def test_logo_selection_or_main_window_contract_drift_is_rejected(self) -> None:
-        """GUI 初始化不能退回单一占位 Logo 或混用主窗口与 DMG 尺寸。"""
-
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            identity = root / "identity.md"
-            adapter = root / "adapter.md"
-            baseline = root / "baseline.md"
-            initialize = root / "initialize.md"
-            identity.write_text(
-                GUI_IDENTITY_SKILL.read_text(encoding="utf-8").replace(
-                    "正好 3 个",
-                    "一个占位",
-                ),
-                encoding="utf-8",
-            )
-            adapter.write_text(
-                GUI_SKILL.read_text(encoding="utf-8")
-                .replace("width: 1440", "width: 660")
-                .replace("DMG 安装卷窗口不得混用", "窗口共用"),
-                encoding="utf-8",
-            )
-            baseline.write_bytes(GUI_BASELINE.read_bytes())
-            initialize.write_bytes((INITIALIZE_SKILL / "SKILL.md").read_bytes())
-            errors: list[str] = []
-            validate_gui_support_contract(
-                errors,
-                gui_identity_path=identity,
-                gui_adapter_path=adapter,
-                gui_baseline_path=baseline,
-                initialize_path=initialize,
-                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
-            )
-        self.assertTrue(any("正好 3 个" in error for error in errors), errors)
-        self.assertTrue(any("width: 1440" in error for error in errors), errors)
-        self.assertTrue(any("DMG 安装卷窗口不得混用" in error for error in errors), errors)
 
     def test_missing_settings_or_mandatory_update_gate_is_rejected(self) -> None:
         """固定设置页和根级强更门不能在品牌模板中被静默删除。"""

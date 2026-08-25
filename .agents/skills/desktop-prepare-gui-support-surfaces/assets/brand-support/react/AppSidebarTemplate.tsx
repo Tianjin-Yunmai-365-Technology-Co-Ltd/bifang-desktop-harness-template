@@ -21,7 +21,9 @@ export const DEFAULT_SIDEBAR_COLLAPSED = true;
 /** 侧栏两种状态的固定宽度供应用壳层和内容偏移复用。 */
 export const APP_SIDEBAR_WIDTHS = {
   collapsed: 76,
+  collapsedLogo: 44,
   expanded: 248,
+  expandedLogo: 72,
 } as const;
 
 /** 产品功能菜单项由当前下游按显示顺序注入。 */
@@ -68,7 +70,9 @@ export function AppSidebarTemplate({
   const width = collapsed
     ? APP_SIDEBAR_WIDTHS.collapsed
     : APP_SIDEBAR_WIDTHS.expanded;
-  const logoSize = collapsed ? 44 : 72;
+  const logoSize = collapsed
+    ? APP_SIDEBAR_WIDTHS.collapsedLogo
+    : APP_SIDEBAR_WIDTHS.expandedLogo;
 
   if (!isLocalSupportPath(logoSrc)) {
     throw new Error("application logo must use a packaged local path");
