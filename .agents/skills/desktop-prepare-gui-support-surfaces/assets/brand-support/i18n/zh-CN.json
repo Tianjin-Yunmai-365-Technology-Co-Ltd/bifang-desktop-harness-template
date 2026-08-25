@@ -17,6 +17,7 @@
   },
   "sidebar": {
     "application_navigation": "应用导航",
+    "logo_alt": "{{applicationName}} 应用 Logo",
     "collapse": "收起侧栏",
     "expand": "展开侧栏",
     "features": "功能",

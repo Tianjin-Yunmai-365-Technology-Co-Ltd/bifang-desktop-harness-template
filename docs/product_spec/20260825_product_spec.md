@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-08-25（GUI 固定侧栏/设置页、更新/强更/统计契约见 ADR-20260825-001；此前 GUI 托盘/关闭隐藏/标题/关于赞助、Superpowers/环境、DMG 背景、开发构建及仍有效品牌、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
+> 最近范围确认：2026-08-25（GUI 初始化 Logo 三选一、侧栏 Logo→版本/默认收起、赞助双主题与主窗口尺寸见 ADR-20260825-002；固定侧栏/设置页、更新/强更/统计契约见 ADR-20260825-001；此前 GUI 托盘/关闭隐藏/标题/关于赞助、Superpowers/环境、DMG 背景、开发构建及仍有效品牌、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
 
 ## 一句话目标
 
@@ -41,9 +41,9 @@
 - 已启用 tracing 时，结构化 event/span 必须通过 tracing-subscriber + tracing-appender 同时落盘到本地可读、可滚动日志文件；OpenTelemetry 默认关闭且不替代本地日志。标准输出仍只用于统一 JSON 信封，日志不得记录密钥、令牌、个人数据或未脱敏业务载荷（见 ADR-20260806-002）。
 - 产出物验收以真实可用为准：对产出物给出“完成”“可用”结论必须基于真实运行产出物本身得到的可观察结果，不得以模拟实现、测试替身、占位页面或仅调用内部函数的结果冒充验收证据；单元/集成测试仍可对不可控外部依赖使用受控测试替身保证确定性，但该替身证据不能替代产出物真实可用的验收依据（见 ADR-20260806-002）。
 - 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
-- GUI 首次真实产品开发前必须调用 `$desktop-prepare-gui-app-identity` 确认窗口身份与图标路径。
+- 选择 GUI 时必须在中性初始化中调用 `$desktop-prepare-gui-app-identity` 的 Logo 模式：实际生成正好 3 个 1024×1024 PNG 候选并同时展示，等待用户明确选择；选中母版逐字节复制为运行时 `/app-identity/logo.png` 并由项目本地 Tauri 工具生成平台图标，三个候选与选择、路径、摘要记录在 `docs/GUI_APP_PROFILE.md`。不得以文字方案、静默默认或中性占位图完成初始化。首次真实产品 GUI 开发前再次进入完整身份模式，补齐窗口身份、应用说明与分发资料。
 - 选择 GUI 时，中性初始化必须从初始化 Skill 的受管资产创建项目内 `<项目标识>_gui/src-tauri/dmg/background.png`：它是无产品身份的 660×400 PNG，清楚表达把应用拖到 Applications 的动作；Tauri 配置固定通过 `./dmg/background.png` 引用，并使用应用 `(180, 220)`、Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；初始化 Skill 删除后，运行时与构建不得继续依赖其源资产。
-- GUI 初始化固定启用 Tauri `tray-icon`：托盘只含本地化“显示窗口”和“退出”，显示动作与托盘左键恢复并聚焦主窗口；主窗口关闭只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用，默认不加入自动启动。初始化同时建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和可收起的固定左侧菜单；产品功能从顶部向下注入，底部固定组按视觉顺序为赞助、设置、关于，即从窗口底部向上为关于、设置、赞助。展开和折叠状态都直接显示权威版本，固定路由为 `/sponsor`、`/settings`、`/about`。设置页展示应用/版本、中英文切换、检查更新状态和统计同意；关于页展示当前应用名/权威版本、作者、作者联系方式和三段免责声明；赞助页展示三档品牌内容并打包完整 sponsor 媒体。`$desktop-prepare-gui-support-surfaces` 携带这些共享品牌资产与模板。Harness 仍不预创建 `docs/GUI_SUPPORT_SURFACES.md`；没有完整产品出站配置时更新显示 `NotConfigured`、统计开关禁用且默认不同意，固定界面保持零出站。
+- GUI 初始化固定启用 Tauri `tray-icon`：托盘只含本地化“显示窗口”和“退出”，显示动作与托盘左键恢复并聚焦主窗口；主窗口关闭只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用，默认不加入自动启动。初始化同时建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和默认收起的固定左侧菜单；选中的应用 Logo 永远位于侧栏顶部，权威当前版本紧随其下，展开和折叠状态都不得隐藏二者。产品功能从顶部向下注入，底部固定组按视觉顺序为赞助、设置、关于，即从窗口底部向上为关于、设置、赞助，固定路由为 `/sponsor`、`/settings`、`/about`。主应用窗口在 Tauri `app.windows` 中使用 1440×900 逻辑像素、最小 960×640、居中且防止溢出；默认尺寸要在展开 248px 侧栏时仍横向显示三张赞助档位卡，并与 660×400 的 DMG 安装卷窗口保持独立。Mantine 根默认跟随系统主题且同时保留亮色/暗色 token，赞助页依据运行时有效主题选择背景叠层、surface 和对比色，不把初始化宿主主题冻结进产物。设置页展示应用/版本、中英文切换、检查更新状态和统计同意；关于页展示当前应用名/权威版本、作者、作者联系方式和三段免责声明；赞助页展示三档品牌内容并打包完整 sponsor 媒体。`$desktop-prepare-gui-support-surfaces` 携带这些共享品牌资产与模板。Harness 仍不预创建 `docs/GUI_SUPPORT_SURFACES.md`；没有完整产品出站配置时更新显示 `NotConfigured`、统计开关禁用且默认不同意，固定界面保持零出站。
 - 产品启用更新时必须使用官方 Tauri updater 的签名制品、公开验证密钥和受限 HTTPS endpoints，签名验证不可关闭，并拒绝降级以及 target、arch、channel 不匹配。检查状态固定为 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`，失败不得伪装为最新版。强更只由 adapter 验证过真实性和目标绑定的 `minimumSupportedVersion` 交给 core，以严格 SemVer 得出；不得信任远端 `forcedUpdate` 布尔值。`RequiredUpdate` 使用根级不可关闭门，只允许安装已验证签名更新或安全退出。任务必须由应用生命周期拥有并具备单飞、取消、超时和关闭回收；一般网络/策略失败默认 fail-open。真实远程能力未批准时保持禁用和零出站。
 - 统计上报默认关闭并要求明确同意。固定允许范围仅为每进程一次 `app_started`，由 Rust GUI adapter 以 HTTPS JSON `POST` body 发送文档声明的精确字段白名单；禁止 GET/query、自由文本、业务载荷、令牌、路径、用户名、主机名和稳定设备/安装标识。队列只驻留内存且最多 32 条，同一时刻最多一个在途请求，撤回同意立即取消并清空，任务与至多两次重试必须可关闭回收；任何新增事件、字段、稳定标识或持久队列都需重新批准。桌面客户端不得保存服务端共享秘密或发布私钥。更新 banner 只有产品选择时进入 bundle，真实 endpoint、统计接收方、公开 updater 配置与安全密钥引用只进入受保护产品事实。
 - 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills。
@@ -161,7 +161,7 @@
 - [x] xwin 门禁能分别处理 Homebrew `llvm`/`lld` 拆包并拒绝损坏 formula；公证探测能安全使用一组完整环境凭据或已授权 Keychain profile，且不输出 profile 名或秘密。
 - [x] macOS DMG 构建规则要求最终字节具有真实 Finder 拖拽布局，并以只读挂载检查 `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接；所有后处理都要求重新签名、公证、摘要与验收。
 - [x] GUI 初始化携带并创建无产品身份的 660×400 DMG 背景，项目配置固定引用项目内 `src-tauri/dmg/background.png`；GUI 身份流程负责正式批准或同路径替换，构建在测试前校验路径、尺寸、摘要与 Tauri 配置一致。
-- [x] GUI 初始化固定建立仅含显示/退出的托盘、关闭隐藏生命周期、权威动态标题和可收起左侧菜单；展开/折叠都显示版本，功能项从顶部向下，底部固定项的视觉顺序为赞助、设置、关于。固定 `/settings`、`/about`、`/sponsor` 路由；设置页提供中英文切换、`NotConfigured` 检查更新与默认关闭的统计同意，关于页显示作者/联系人/免责声明，赞助页默认打包完整 sponsor 媒体。
+- [x] GUI 初始化实际生成 3 个 1024×1024 Logo 候选并由用户选择，选中母版可追溯到运行时 Logo 与平台图标；固定建立仅含显示/退出的托盘、关闭隐藏生命周期、权威动态标题和默认收起的左侧菜单，Logo 永远在顶部且当前版本紧随其下，展开/折叠均显示二者。主应用窗口默认 1440×900、最小 960×640并与 660×400 DMG 安装卷窗口独立；赞助页在同一产物中分别适配亮色/暗色。功能项从顶部向下，底部固定项的视觉顺序为赞助、设置、关于；固定 `/settings`、`/about`、`/sponsor` 路由，设置页提供中英文切换、`NotConfigured` 检查更新与默认关闭的统计同意，关于页显示作者/联系人/免责声明，赞助页默认打包完整 sponsor 媒体。
 - [x] `$desktop-prepare-gui-support-surfaces` 固化官方签名 updater、认证最低支持版本 + core SemVer 强更、根级不可绕过更新门，以及默认关闭、明确同意、HTTPS JSON POST、无稳定标识、内存有界队列和生命周期回收的统计契约；`$desktop-build-tauri-release` 在启用 updater 时强制产出并验证 archive/`.sig`，安装包签名状态不能绕过更新制品签名。
 - [x] 品牌包完整保存 13 项图片资源并以清单绑定尺寸、摘要、用途与支付敏感性，不含来源下游产品名称/标识、固定服务地址、客户端共享秘密或默认网络请求；非 GUI 下游不保留该 Skill。
 - [x] CLI/TUI/MCP/GUI、独立 Git 根、一次性初始化裁剪、固定技术栈、双语许可证和版本边界等既有成功标准继续有效。

@@ -15,7 +15,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import enUS from "../i18n/en-US.json";
 import zhCN from "../i18n/zh-CN.json";
 import { AboutPageTemplate } from "./AboutPageTemplate";
-import { AppSidebarTemplate } from "./AppSidebarTemplate";
+import {
+  AppSidebarTemplate,
+  DEFAULT_SIDEBAR_COLLAPSED,
+} from "./AppSidebarTemplate";
 import { BrandUpdaterBanner } from "./BrandUpdaterBanner";
 import { MandatoryUpdateGateTemplate } from "./MandatoryUpdateGateTemplate";
 import { SettingsPageTemplate } from "./SettingsPageTemplate";
@@ -136,13 +139,21 @@ describe("shared brand support templates", () => {
           { id: "overview", label: "总览", to: "/overview" },
           { id: "jobs", label: "任务", to: "/jobs" },
         ]}
+        logoSrc="/app-identity/logo.png"
         onCollapsedChange={onCollapsedChange}
         onNavigate={onNavigate}
         version="3.4.5"
       />,
     );
 
-    expect(screen.getByText("Example Utility")).toBeInTheDocument();
+    const identity = screen.getByTestId("app-sidebar-identity");
+    const logo = screen.getByRole("img", {
+      name: "Example Utility 应用 Logo",
+    });
+    const version = screen.getByTestId("app-sidebar-version");
+    expect(identity.firstElementChild).toBe(logo);
+    expect(logo.nextElementSibling).toBe(version);
+    expect(logo).toHaveAttribute("src", "/app-identity/logo.png");
     expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
       "v3.4.5",
     );
@@ -165,12 +176,14 @@ describe("shared brand support templates", () => {
 
   /** 折叠侧栏仍直接显示版本号，并保留每个菜单项的可访问名称。 */
   it("keeps the version visible when the sidebar is collapsed", async () => {
+    expect(DEFAULT_SIDEBAR_COLLAPSED).toBe(true);
     await renderTemplate(
       <AppSidebarTemplate
         activePath="/about"
         applicationName="Example Utility"
         collapsed
         featureItems={[{ id: "overview", label: "Overview", to: "/" }]}
+        logoSrc="/app-identity/logo.png"
         onCollapsedChange={vi.fn()}
         onNavigate={vi.fn()}
         version="9.8.7"
@@ -181,6 +194,9 @@ describe("shared brand support templates", () => {
     expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
       "v9.8.7",
     );
+    expect(
+      screen.getByRole("img", { name: "Example Utility application logo" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Expand sidebar" }),
     ).toBeInTheDocument();
@@ -365,6 +381,10 @@ describe("shared brand support templates", () => {
     expect(screen.getAllByRole("article")).toHaveLength(3);
     const pageStyle =
       screen.getByTestId("brand-sponsor-page").getAttribute("style") ?? "";
+    expect(screen.getByTestId("brand-sponsor-page")).toHaveAttribute(
+      "data-color-scheme",
+      "light",
+    );
     expect(pageStyle).not.toMatch(/min-width|pointer-events/i);
   });
 
@@ -372,6 +392,16 @@ describe("shared brand support templates", () => {
   it("renders the same sponsor profile in English and dark color scheme", async () => {
     await renderTemplate(<SponsorPageTemplate />, "en-US", "dark");
 
+    expect(screen.getByTestId("brand-sponsor-page")).toHaveAttribute(
+      "data-color-scheme",
+      "dark",
+    );
+    expect(screen.getAllByRole("article")).toHaveLength(3);
+    expect(
+      screen
+        .getAllByRole("article")
+        .every((card) => card.getAttribute("data-color-scheme") === "dark"),
+    ).toBe(true);
     expect(
       screen.getByRole("heading", {
         name: "Freely Maintained by Shoucheng & Feiying Studio",

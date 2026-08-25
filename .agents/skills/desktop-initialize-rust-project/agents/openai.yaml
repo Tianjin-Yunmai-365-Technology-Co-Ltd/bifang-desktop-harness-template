@@ -1,4 +1,4 @@
 interface:
   display_name: "初始化 Rust 项目"
-  short_description: "建立中性 Rust 脚手架及 GUI 默认桌面基线"
-  default_prompt: "使用 $desktop-initialize-rust-project 选择接口和策略，检查工具链，建立 core-first、薄 adapter 的异步中性 Rust 脚手架；选择 GUI 时同时建立托盘、关闭隐藏、动态标题、可收起侧栏和设置/关于/赞助页，再裁剪初始化能力并验证独立且干净的 Git 仓库。"
+  short_description: "建立中性 Rust 脚手架及三选一 Logo 的 GUI 基线"
+  default_prompt: "使用 $desktop-initialize-rust-project 选择接口和策略并建立 core-first、薄 adapter 的中性 Rust 脚手架；选择 GUI 时生成并选择 3 个 Logo，建立托盘、默认收起的 Logo→版本侧栏、双主题赞助页和 1440×900 主窗口，再裁剪初始化能力。"

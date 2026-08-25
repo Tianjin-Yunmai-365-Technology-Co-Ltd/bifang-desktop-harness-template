@@ -17,6 +17,7 @@
   },
   "sidebar": {
     "application_navigation": "Application navigation",
+    "logo_alt": "{{applicationName}} application logo",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
     "features": "Features",

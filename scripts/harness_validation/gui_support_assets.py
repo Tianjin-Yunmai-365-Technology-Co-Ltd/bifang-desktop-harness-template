@@ -75,6 +75,7 @@ EXPECTED_LOCAL_UI_COPY = {
 EXPECTED_FIXED_UI_KEYS = {
     "sidebar": {
         "application_navigation",
+        "logo_alt",
         "collapse",
         "expand",
         "features",

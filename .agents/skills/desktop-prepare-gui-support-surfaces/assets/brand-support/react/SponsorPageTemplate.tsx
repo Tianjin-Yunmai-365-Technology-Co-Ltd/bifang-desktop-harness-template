@@ -8,6 +8,7 @@ import {
   Stack,
   Text,
   Title,
+  useComputedColorScheme,
 } from "@mantine/core";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,17 +25,39 @@ import { SupportMedia } from "./SupportMedia";
 interface TierCardProps {
   tier: BrandSupportTier;
   assetBasePath: string;
+  colorScheme: SponsorColorScheme;
+}
+
+/** 赞助页只消费 Mantine 已解析后的亮色或暗色主题。 */
+type SponsorColorScheme = "light" | "dark";
+
+/** 为当前主题生成不依赖新 CSS 函数的本地背景叠层。 */
+function sponsorBackgroundImage(
+  colorScheme: SponsorColorScheme,
+  background: string,
+): string {
+  const overlay =
+    colorScheme === "dark"
+      ? "linear-gradient(rgba(9, 11, 18, 0.84), rgba(9, 11, 18, 0.92))"
+      : "linear-gradient(rgba(248, 250, 255, 0.68), rgba(248, 250, 255, 0.82))";
+  return `${overlay}, url("${background}")`;
 }
 
 /** 渲染固定价格、档位插图与本地化权益。 */
-function TierCard({ tier, assetBasePath }: TierCardProps): ReactElement {
+function TierCard({
+  tier,
+  assetBasePath,
+  colorScheme,
+}: TierCardProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const name = t(tier.nameKey);
 
   return (
     <Paper
       aria-label={name}
+      bg={colorScheme === "dark" ? "dark.7" : "white"}
       component="article"
+      data-color-scheme={colorScheme}
       data-price={tier.price}
       p="lg"
       radius="lg"
@@ -46,16 +69,22 @@ function TierCard({ tier, assetBasePath }: TierCardProps): ReactElement {
           {t("sponsor.scan_to_sponsor")}
         </Badge>
         <Group align="center" gap="md" wrap="nowrap">
-          <Image
-            alt={t(tier.imageAltKey)}
-            fit="contain"
-            h={86}
-            radius="lg"
-            src={resolveBrandAssetPath(assetBasePath, tier.image)}
-            w={86}
-          />
+          <Paper bg="gray.0" p={0} radius="lg" withBorder>
+            <Image
+              alt={t(tier.imageAltKey)}
+              fit="contain"
+              h={86}
+              radius="lg"
+              src={resolveBrandAssetPath(assetBasePath, tier.image)}
+              w={86}
+            />
+          </Paper>
           <Box>
-            <Text c="blue" fw={600} size="sm">
+            <Text
+              c={colorScheme === "dark" ? "blue.3" : "blue.8"}
+              fw={600}
+              size="sm"
+            >
               {name}
             </Text>
             <Group align="baseline" gap={4} wrap="nowrap">
@@ -109,6 +138,7 @@ export function SponsorPageTemplate({
   profile = BRAND_SUPPORT_PROFILE,
 }: SponsorPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
+  const colorScheme = useComputedColorScheme("light");
   const background = resolveBrandAssetPath(
     assetBasePath,
     profile.sponsor.background,
@@ -122,10 +152,15 @@ export function SponsorPageTemplate({
 
   return (
     <Box
+      data-color-scheme={colorScheme}
       data-testid="brand-sponsor-page"
       p={{ base: "sm", sm: "lg" }}
       style={{
-        backgroundImage: `linear-gradient(light-dark(rgba(255,255,255,0.12),rgba(16,17,20,0.72)),light-dark(rgba(255,255,255,0.12),rgba(16,17,20,0.72))),url("${background}")`,
+        backgroundColor:
+          colorScheme === "dark"
+            ? "var(--mantine-color-dark-9)"
+            : "var(--mantine-color-blue-0)",
+        backgroundImage: sponsorBackgroundImage(colorScheme, background),
         backgroundPosition: "center",
         backgroundSize: "cover",
         minHeight: "100%",
@@ -134,7 +169,7 @@ export function SponsorPageTemplate({
     >
       <Stack gap="lg" maw={1180} mx="auto">
         <Stack align="center" gap="xs" ta="center">
-          <Title c="blue" order={2}>
+          <Title c={colorScheme === "dark" ? "blue.3" : "blue.8"} order={2}>
             {t("sponsor.title")}
           </Title>
           <Text fw={600}>
@@ -147,7 +182,11 @@ export function SponsorPageTemplate({
 
         <Stack align="center" gap="xs">
           <Group gap="xs" justify="center" wrap="wrap">
-            <Text c="blue" fw={600} size="sm">
+            <Text
+              c={colorScheme === "dark" ? "blue.3" : "blue.8"}
+              fw={600}
+              size="sm"
+            >
               {t("sponsor.capabilities_label")}
             </Text>
             {capabilities.map((key) => (
@@ -173,11 +212,21 @@ export function SponsorPageTemplate({
           spacing="md"
         >
           {profile.sponsor.tiers.map((tier) => (
-            <TierCard key={tier.id} assetBasePath={assetBasePath} tier={tier} />
+            <TierCard
+              key={tier.id}
+              assetBasePath={assetBasePath}
+              colorScheme={colorScheme}
+              tier={tier}
+            />
           ))}
         </SimpleGrid>
 
-        <Paper p="lg" radius="lg" withBorder>
+        <Paper
+          bg={colorScheme === "dark" ? "dark.7" : "white"}
+          p="lg"
+          radius="lg"
+          withBorder
+        >
           <SimpleGrid
             cols={{ base: 1, md: 2 }}
             spacing="lg"

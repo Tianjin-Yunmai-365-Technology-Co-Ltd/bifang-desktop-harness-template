@@ -14,6 +14,10 @@ from .context import (
     GUI_SUPPORT_REFERENCE,
     GUI_SUPPORT_SKILL,
     GUI_SUPPORT_UPDATE_REFERENCE,
+    GUI_BASELINE,
+    GUI_IDENTITY_SKILL,
+    GUI_SKILL,
+    INITIALIZE_SKILL,
     ROOT,
     display_path,
     fail,
@@ -78,6 +82,9 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "BRAND_SUPPORT_PROFILE",
             "profile.sponsor.payments.map",
             "SupportMedia",
+            "useComputedColorScheme",
+            "sponsorBackgroundImage(colorScheme, background)",
+            'data-color-scheme={colorScheme}',
         ),
         react_root / "SupportMedia.tsx": (
             "controls",
@@ -114,9 +121,12 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "前端不得从远端布尔值自行推导",
         ),
         react_root / "AppSidebarTemplate.tsx": (
+            "DEFAULT_SIDEBAR_COLLAPSED = true",
             "position: \"fixed\"",
             "featureItems.map",
             "FIXED_BOTTOM_NAVIGATION_ITEMS.map",
+            "logoSrc: string",
+            'data-testid="app-sidebar-logo"',
             'data-testid="app-sidebar-version"',
             'data-testid="fixed-bottom-navigation"',
             "onCollapsedChange(!collapsed)",
@@ -142,6 +152,8 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "formats the fixed dynamic window title",
             "FIXED_BOTTOM_NAVIGATION_ITEMS",
             "fixed bottom order",
+            "DEFAULT_SIDEBAR_COLLAPSED",
+            "application logo",
             "keeps the version visible",
             "capabilities are not configured",
             "core-classified mandatory update",
@@ -185,6 +197,10 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
     if any(position < 0 for position in fixed_order) or fixed_order != sorted(fixed_order):
         fail(errors, "GUI fixed bottom navigation must be sponsor/settings/about")
     sidebar_text = texts.get(react_root / "AppSidebarTemplate.tsx", "")
+    logo_position = sidebar_text.find('data-testid="app-sidebar-logo"')
+    version_position = sidebar_text.find('data-testid="app-sidebar-version"')
+    if logo_position < 0 or version_position < 0 or logo_position > version_position:
+        fail(errors, "GUI sidebar logo must render above the current version")
     if sidebar_text.find("featureItems.map") > sidebar_text.find(
         "FIXED_BOTTOM_NAVIGATION_ITEMS.map"
     ):
@@ -209,13 +225,19 @@ def validate_gui_support_contract(
     update_reference_path: Path = GUI_SUPPORT_UPDATE_REFERENCE,
     metadata_path: Path = GUI_SUPPORT_METADATA,
     brand_root: Path = GUI_SUPPORT_BRAND_ROOT,
+    gui_identity_path: Path = GUI_IDENTITY_SKILL,
+    gui_adapter_path: Path = GUI_SKILL,
+    gui_baseline_path: Path = GUI_BASELINE,
+    initialize_path: Path = INITIALIZE_SKILL / "SKILL.md",
     product_instance_path: Path = ROOT / "docs" / "GUI_SUPPORT_SURFACES.md",
 ) -> None:
     """确保共享品牌资源完整，同时隔离来源下游实例和远程能力。"""
 
     required = {
         skill_path: (
-            "动态标题、可收起左侧菜单、设置页、关于页与赞助页默认成组存在",
+            "顶部固定 Logo→当前版本且默认收起的左侧菜单",
+            'defaultColorScheme="auto"',
+            "useComputedColorScheme",
             "底部固定项按视觉顺序为赞助、设置、关于",
             "`/settings`、`/about` 与 `/sponsor` 是固定路由",
             "三段免责声明",
@@ -231,6 +253,48 @@ def validate_gui_support_contract(
             "13 个源图片",
             "支付二维码是敏感静态品牌材料",
             "$desktop-define-product",
+        ),
+        gui_identity_path: (
+            "初始化 Logo 模式",
+            "正好 3 个",
+            "必须等待用户明确选择其中一个",
+            "<project-id>_gui/src-tauri/icons/app-icon-master.png",
+            "<project-id>_gui/public/app-identity/logo.png",
+            "docs/GUI_APP_PROFILE.md",
+        ),
+        gui_adapter_path: (
+            "正好 3 个 1024×1024 PNG 候选",
+            "DEFAULT_SIDEBAR_COLLAPSED = true",
+            "/app-identity/logo.png",
+            'defaultColorScheme="auto"',
+            "useComputedColorScheme",
+            "width: 1440",
+            "height: 900",
+            "minWidth: 960",
+            "minHeight: 640",
+            "preventOverflow: true",
+            "DMG 安装卷窗口不得混用",
+        ),
+        gui_baseline_path: (
+            "正好 3 个 1024×1024 Logo 候选",
+            "顶部始终先显示选中 Logo、再紧接应用版本",
+            "主应用窗口固定以逻辑像素初始化为 1440×900",
+            "最小 960×640",
+            'defaultColorScheme="auto"',
+            "useComputedColorScheme",
+            "660×400 安装卷窗口互不替代",
+        ),
+        initialize_path: (
+            "正好 3 个 1024×1024 PNG 候选",
+            "<project-id>_gui/src-tauri/icons/app-icon-master.png",
+            "<project-id>_gui/public/app-identity/logo.png",
+            "width: 1440",
+            "height: 900",
+            "minWidth: 960",
+            "minHeight: 640",
+            "DEFAULT_SIDEBAR_COLLAPSED = true",
+            "/app-identity/logo.png",
+            'defaultColorScheme="auto"',
         ),
         reference_path: (
             "## 所有权矩阵",
@@ -282,7 +346,8 @@ def validate_gui_support_contract(
             "quit: Quit",
         ),
         brand_root / "GUI_SUPPORT_SURFACES.template.md": (
-            "GUI 初始化已经包含固定动态标题、可收起左侧菜单、设置页、关于页和赞助页",
+            "GUI 初始化已经包含固定动态标题、默认收起且顶部 Logo→版本的左侧菜单",
+            "同一产物同时支持亮色和暗色",
             "视觉顺序严格为赞助、设置、关于",
             "`NotConfigured`",
             "禁止远端布尔值直接触发",
@@ -300,8 +365,9 @@ def validate_gui_support_contract(
         for fragment in fragments:
             if fragment not in text:
                 fail(errors, f"GUI support contract missing in {display_path(path)}: {fragment}")
+        # GUI 基线末尾维护官方文档参考链接；运行时端点禁令不应误伤这些来源链接。
         uri = FIXED_REMOTE_URI.search(text)
-        if uri:
+        if uri and path != gui_baseline_path:
             fail(
                 errors,
                 f"GUI support Harness text contains a fixed remote URI in {display_path(path)}",

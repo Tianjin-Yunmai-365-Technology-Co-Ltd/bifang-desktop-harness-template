@@ -2,7 +2,9 @@
 
 ## 新增
 
-- GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含本地化“显示窗口/退出”，关闭主窗口只隐藏；标题按 `{applicationName} {version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定可收起左侧菜单在展开/折叠状态都显示版本，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页提供中英文切换、检查更新状态和统计同意，关于页包含固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
+- GUI 初始化新增应用 Logo 三选一：实际生成 3 个 1024×1024 PNG 候选并同时预览，必须由用户明确选择；选中母版逐字节接入运行时 `/app-identity/logo.png`，并由项目本地 Tauri 工具生成平台图标，候选/选择/摘要写入 `docs/GUI_APP_PROFILE.md`。
+- GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可同时展示展开的 248px 侧栏和三张赞助档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
+- GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含本地化“显示窗口/退出”，关闭主窗口只隐藏；标题按 `{applicationName} {version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定左侧菜单默认收起，Logo 永远在顶部、当前版本紧随其下并在展开/折叠状态都可见，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页提供中英文切换、检查更新状态和统计同意，关于页包含固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体并同时适配亮色/暗色。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
 - 新增 `AppSidebarTemplate`、`SettingsPageTemplate`、`MandatoryUpdateGateTemplate`、固定导航清单和更新展示状态模板，并补齐中文/英文资源。中性 GUI 的检查更新显示 `NotConfigured`、统计控件禁用且零出站；根级强更门只接受 core 已判定的 `RequiredUpdate`，不从远端布尔值自行推导。
 - 新增更新/强更/统计专项参考：更新采用官方 Tauri updater 签名制品和公开验证密钥；强更使用经验证的 `minimumSupportedVersion` 与 core 严格 SemVer；统计默认关闭、明确同意，只允许 HTTPS JSON `POST` 的最小字段白名单，不包含稳定设备/安装标识，并使用有界内存队列、单飞请求、取消、超时、重试和关闭回收。
 - 新增无产品身份的 660×400 macOS DMG 拖拽背景资产；GUI 初始化会把它写入 `<项目标识>_gui/src-tauri/dmg/background.png`，并把 Tauri 配置固定接到 `./dmg/background.png`。GUI 身份流程负责预览批准或同路径替换，Tauri 构建在测试前校验路径、尺寸、摘要与配置一致；新增 PNG 资产解析和构建引用负向回归。
@@ -21,6 +23,7 @@
 
 ## 变更
 
+- 固定侧栏现在默认收起，并把用户选中的本地 Logo 永久置于顶部、当前版本紧随其下；展开/折叠都保持 Logo 与版本可见。赞助页不再依赖单一主题或运行时 `light-dark()` 字符串，而是消费 Mantine 解析后的有效主题，为亮色/暗色分别选择背景叠层、surface 与对比色，并为不透明档位图提供稳定中性承载面。
 - `$desktop-build-tauri-release` 新增 updater 候选门禁：启用时要求 `bundle.createUpdaterArtifacts: true`、受限 HTTPS endpoints、公开验证密钥和安全提供的签名私钥，收集并验证真实 archive/`.sig`，把版本、channel、target、arch、公钥指纹、路径、大小、摘要和验证结果写入 manifest。安装包签名/公证与 updater 签名相互独立；构建不创建 feed、不上传也不发布。
 - 对参考下游的更新与统计实现完成安全抽取：保留 UI 信息架构，不传播硬编码客户端共享秘密、GET/query 统计、稳定设备标识、detached task、未经认证的 `forcedUpdate` 或宽松下载 URL；对应拒绝规则和回归已固化到 GUI 支持、GUI adapter 与 Tauri 构建 Skills。
 - `$desktop-add-gui-adapter` 现在在中性 GUI 初始化中自动消费品牌支持 Skill；`docs/GUI_SUPPORT_SURFACES.md` 只在修改固定基线、增加其他支持界面或启用出站能力时按需创建。i18n 因默认页面和托盘文案前移到初始化阶段，固定中文/英文之外的系统语言继续回退英文；updater banner 未选择时不进入 bundle。
@@ -44,10 +47,10 @@
 
 ## 验证
 
-- `python3 -m unittest discover -s scripts`：169 条测试全部通过，包含 Superpowers 默认关闭及源字段漂移拒绝、环境门禁仅限初始化/观察错误后单次恢复、精简开发闭环、逐次 E2E 构建选择、全量构建单测、DMG 初始化背景、固定侧栏/设置/关于/赞助、双端 i18n、更新/强更/统计契约、updater archive/签名清单，以及既有 xwin、公证、DMG 布局、升级传播、治理与初始化回归。
+- `python3 -m unittest discover -s scripts`：172 条测试全部通过，包含 GUI 初始化 Logo 三选一、主窗口/DMG 尺寸隔离、侧栏默认收起与 Logo→版本顺序、赞助页亮色/暗色适配，以及 Superpowers 默认关闭、环境门禁、精简开发闭环、逐次 E2E 构建选择、更新/强更/统计契约、updater archive/签名清单、xwin、公证、DMG 布局、升级传播、治理与初始化回归。
 - `python3 scripts/validate_harness.py`：通过 137 个必需文件、24 个 Skills、Markdown 链接、DMG 初始化背景 PNG、品牌 profile/manifest/图片完整性、托盘与关闭隐藏、侧栏/设置/固定底部顺序、双端 i18n、关于/赞助、更新/强更/统计和 Tauri updater 构建契约、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
 - 隔离前端严格 TypeScript、Prettier、TypeScript AST 中文注释门禁（11 个文件、57 个声明）和 Vitest/Testing Library（14/14）通过；13 张图片均可解码并完成视觉复核，12 张固定赞助资源与参考项目逐字节一致。
-- Skill Creator quick validator 对本次修改的 5/5 个项目 Skills 全部通过；`git diff --check` 通过。
+- Skill Creator quick validator 对本次修改的 4/4 个项目 Skills 全部通过；`git diff --check` 通过。
 - Rust 中性 workspace 注释扫描覆盖 2 个 package、4 个文件和 24 个受管声明；metadata、core-first、`cargo fmt`、locked check、全 workspace/all-target/all-feature Clippy、7 条非空测试与锁定 release 构建均通过。
 - 文件规模检查覆盖 197 个受维护文本，无 2001 行以上违规；690 行 Rust 检查器已复核为高内聚、单一职责且内部职责相近。
 - 来源锁点前 84 个 Skill 文件均已收敛；锁点后 3 个 Skill 提交的 16 个文件在模板中 16/16 有对应落点。关于/赞助资源审计闭合为 13 张图片、0 个视频；来源工作树保持干净，多组来源产品身份、绝对路径、固定凭据和固定服务特征扫描均为零命中。

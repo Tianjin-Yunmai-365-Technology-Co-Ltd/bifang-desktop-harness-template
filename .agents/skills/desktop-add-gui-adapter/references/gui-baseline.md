@@ -9,7 +9,10 @@
 - 使用 Vite、Mantine UI、TanStack Router 文件路由、TanStack Query 和 Jotai 打包本地 React + TypeScript 前端；使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 作为固定质量工具链。
 - 界面国际化是开发期硬性必选项，不是可选增强。Rust 后端（GUI 适配器层）固定使用 `rust-i18n` 输出系统托盘、原生窗口标题、系统通知等未经 React 渲染路径的用户可见文案；系统语言探测统一使用官方 Tauri 插件 `tauri-plugin-os` 的 `locale()` API，作为 Rust 与前端唯一共用的系统语言来源，不得分别使用平台专有 API 或环境变量（见 ADR-20260806-001）。
 - Tauri `tauri` 依赖启用 `tray-icon` feature。系统托盘固定只含由 `rust-i18n` locale 资源提供的“显示窗口”和“退出”：显示动作及托盘左键都执行主窗口 `show`、取消最小化并聚焦；主窗口 `WindowEvent::CloseRequested` 必须 `prevent_close()` 后隐藏，只有托盘退出显式结束应用。默认不加入自动启动、后台业务或其他托盘菜单项。
-- 初始化固定建立可收起左侧菜单与 `/settings`、`/about`、`/sponsor` 文件路由。应用版本在展开/折叠侧栏和设置页直接可见；产品功能项从顶部向下增长，底部固定组按视觉顺序为赞助、设置、关于。设置页提供中英文切换、手动检查更新状态和统计同意；未配置远端能力时显示 `NotConfigured`/禁用状态并保持零出站。关于页显示当前应用名、权威版本、作者、作者联系方式和三段免责声明；赞助页使用固定品牌档位、权益、双支付码和完整 sponsor 本地媒体。
+- GUI 初始化必须先实际生成正好 3 个 1024×1024 Logo 候选并由用户选择；选中母版、`/app-identity/logo.png` 与平台图标共享同一来源和摘要证据，禁止中性占位图进入基线提交。
+- 初始化固定建立默认收起的左侧菜单与 `/settings`、`/about`、`/sponsor` 文件路由。侧栏顶部始终先显示选中 Logo、再紧接应用版本；Logo 与版本在展开/折叠状态及设置页直接可见。产品功能项从顶部向下增长，底部固定组按视觉顺序为赞助、设置、关于。设置页提供中英文切换、手动检查更新状态和统计同意；未配置远端能力时显示 `NotConfigured`/禁用状态并保持零出站。关于页显示当前应用名、权威版本、作者、作者联系方式和三段免责声明；赞助页使用固定品牌档位、权益、双支付码和完整 sponsor 本地媒体。
+- `tauri.conf.json` 的主应用窗口固定以逻辑像素初始化为 1440×900，最小 960×640，居中且 `preventOverflow: true`；默认尺寸确保展开 248px 侧栏时三张赞助档位卡仍同屏横向呈现，较小窗口由响应式布局降列。该窗口与 `bundle.macOS.dmg.windowSize` 的 660×400 安装卷窗口互不替代。
+- Mantine provider 使用 `defaultColorScheme="auto"` 并同时携带亮色/暗色 token；赞助页通过 `useComputedColorScheme` 使用运行时有效主题的明确背景叠层、surface 和对比色，不把初始化宿主主题冻结到产物。
 - 原生窗口标题与 `document.title` 固定使用同一公式 `{applicationName} {version} {contactChannel}:{contactValue}`。应用名/版本来自权威 Tauri/打包元数据，联系字段来自品牌 profile 的 `contacts.windowTitle`，不得写死一次构建版本。
 - 不得加载远程内容。
 - 保持 Tauri Rust 边界轻薄：只验证反序列化、协议必填字段和调用 WebView 能力，随后调用一个核心用例并映射有类型的结果；值域、跨字段约束、资源状态和业务权限由核心验证。
@@ -23,10 +26,11 @@
 记录：
 
 - `docs/GUI_APP_PROFILE.md` 中已批准的应用显示名称、主窗口标题、简短说明、应用标识符和用户选择的图标来源；
+- 初始化资料还必须包含三个 Logo 候选的预览/摘要、用户选择、`<project-id>_gui/src-tauri/icons/app-icon-master.png`、`<project-id>_gui/public/app-identity/logo.png` 及平台图标生成证据；
 - 固定标题、侧栏、设置/关于/赞助页直接读取 `$desktop-prepare-gui-support-surfaces` 的 profile、翻译、React 模板和 sponsor 媒体，不要求 `docs/GUI_SUPPORT_SURFACES.md`；只有修改该基线、增加其他支持界面或启用出站能力时才读取下游实例文档，未选择的远程能力不得建立配置或请求；
 - 选择 macOS 直接分发 DMG 时，初始化先把中性 660×400 PNG 写入 `<project-id>_gui/src-tauri/dmg/background.png`，`tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`，窗口与落点固定为 660×400、应用 `(180, 220)`、Applications `(480, 220)`；首次真实 GUI 开发必须记录对该图片的预览批准或同路径替换、SHA-256、文案语言，以及软件许可页是否由产品/渠道要求。背景不得含 Harness 或其他产品身份；
 - 已批准的人类使用场景，以及选择桌面界面的原因；
-- 最小窗口、产品功能菜单项、页面、路由、导航和操作；
+- 固定主窗口 1440×900、最小 960×640，以及产品功能菜单项、页面、路由、导航和操作；
 - 空、加载、成功、验证、冲突和失败状态；
 - 键盘顺序、快捷键、焦点行为、标签和无障碍验收；
 - 适用时的稳定 ID、选择语义、批处理范围、搜索、排序和分页；
@@ -71,7 +75,7 @@
 - 检查纯键盘使用和适用的无障碍语义。
 - 默认语言探测、缺失资源回退英文、语言切换入口和切换后持久化都有测试或人工核对证据；Rust 端原生文案（托盘/通知/窗口标题）本地化同样有证据。
 - 能力/权限配置拒绝未经批准的 WebView 调用。
-- 版本在展开/折叠侧栏和设置页可见，产品功能项向下增长，固定底部顺序为赞助、设置、关于；`/settings`、`/about`、`/sponsor` 存在，关于页作者、联系方式和三段免责声明完整。未配置更新或统计时请求数为零；启用后测试允许地址/字段、策略与制品签名、SemVer 强更、同意撤回、响应、重定向、超时、取消和日志脱敏中的最高风险失败。
+- 三个 Logo 候选均有真实预览与摘要，用户选择后的母版、运行时 Logo 和平台图标可追溯；侧栏默认收起，Logo 位于版本上方且两种状态均可见。产品功能项向下增长，固定底部顺序为赞助、设置、关于；`/settings`、`/about`、`/sponsor` 存在，赞助页分别通过亮色/暗色渲染，关于页作者、联系方式和三段免责声明完整。未配置更新或统计时请求数为零；启用后测试允许地址/字段、策略与制品签名、SemVer 强更、同意撤回、响应、重定向、超时、取消和日志脱敏中的最高风险失败。
 - 托盘显示动作可恢复并聚焦主窗口；关闭主窗口只隐藏且进程继续；托盘退出是唯一默认退出入口。原生标题与 `document.title` 使用同一权威名称、版本和联系字段。
 - 固定 sponsor 运行时媒体与品牌 manifest 的路径、MIME、尺寸、字节数和 SHA-256 一致；支付码有支付方式明确的本地化替代文本，当前未引用小图也进入下游 sponsor 媒体。更新 banner 未选择时不进入 bundle。
 - GUI/其他适配器并发访问时观察到相同数据且不发生损坏。

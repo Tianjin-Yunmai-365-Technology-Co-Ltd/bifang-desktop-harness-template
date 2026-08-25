@@ -22,7 +22,7 @@
 | URL、路由参数、已验证搜索参数和导航 | TanStack Router |
 | 命令支撑的数据、请求状态、缓存、重试和失效 | TanStack Query |
 | 仅限本地组件的交互 | React 组件状态 |
-| 不具备核心权威性的跨组件客户端/交互状态 | Jotai，包括侧栏折叠状态 |
+| 不具备核心权威性的跨组件客户端/交互状态 | Jotai，包括以 `DEFAULT_SIDEBAR_COLLAPSED = true` 初始化的侧栏折叠状态 |
 | 当前 UI 语言与切换交互 | Jotai（消费 `i18next` 语言变化事件），持久化到 GUI 适配器本地偏好存储，不进入 Query 缓存或 core |
 | 更新检查/安装请求状态 | TanStack Query；稳定更新语义来自 adapter/core，不在组件推导 |
 | 统计上报同意 | GUI adapter 本地偏好；React 只展示并提交变更，默认 false |
@@ -38,7 +38,7 @@
 - 只有本地组件状态或 URL/搜索状态不足时才使用 Jotai；atom 应保持小而且按用途命名。
 - 前端代码使用窄而有类型的 Tauri 命令。它不包含业务规则、迁移、平台无关验证或第二套持久存储。
 - React event handler、Router loader、Query mutation 和 atom 只管理导航、请求生命周期或纯交互状态；它们不得编排多个命令来决定业务结果。需要条件、重试或状态决策的工作流必须由单个 core 用例通过窄 Tauri 命令暴露。
-- 在 Tauri 中打包本地前端资产。GUI 下游完整保留该 Skill 的品牌源资产；初始化固定建立可收起左侧菜单、`/settings`、`/about`、`/sponsor`。版本在侧栏两种状态和设置页直接可见，产品功能项从顶部向下增长，底部组按赞助、设置、关于渲染；按 manifest 原样复制完整 sponsor 媒体并禁止优化支付二维码；关于页显示当前应用名/版本、作者、联系方式和三段免责声明。设置页在远端能力未配置时只显示 `NotConfigured`/禁用状态且零出站；真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
+- 在 Tauri 中打包本地前端资产。GUI 下游完整保留该 Skill 的品牌源资产；初始化固定建立默认收起的左侧菜单、`/settings`、`/about`、`/sponsor`。选中的本地 Logo 永远位于侧栏顶部，当前版本紧随其下，两者在侧栏两种状态都直接可见；产品功能项从顶部向下增长，底部组按赞助、设置、关于渲染。Mantine provider 使用 `defaultColorScheme="auto"`，Sponsor 通过 `useComputedColorScheme` 同时适配亮色/暗色背景叠层、surface 与对比色；按 manifest 原样复制完整 sponsor 媒体并禁止优化支付二维码；关于页显示当前应用名/版本、作者、联系方式和三段免责声明。设置页在远端能力未配置时只显示 `NotConfigured`/禁用状态且零出站；真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
 - 应用启动时使用 Tauri `tauri-plugin-os` 的 `locale()` 探测系统语言初始化 `i18next`；缺少对应资源时回退英文。界面必须提供 Mantine 组件实现的可发现语言切换入口，切换后的选择通过 GUI 适配器的本地偏好存储持久化，不写入 core。
 - 翻译资源按功能域拆分文件并使用稳定的层级 key（如 `settings.language.label`），不得在组件中拼接原始中文/英文字符串；核心领域错误标识作为 key 的一部分由前端映射为当前语言文案，业务判断本身不得放入翻译资源或组件。初始化把品牌包的中英文 JSON 注册为 `brandSupport` namespace，仍复用唯一 i18next 实例和语言偏好；缺少对应系统语言资源时回退英文。
 - 更新展示只消费 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`。React 不解析远端版本策略、不验证签名、不从 `forcedUpdate` 等字段推导强更；根级 `RequiredUpdate` 分支不挂载普通功能，只呈现安装与退出。
@@ -51,7 +51,7 @@
 - 前端清单提供稳定的 `dev`、`build`、`test`、`typecheck`、`lint` 和 `format:check` 脚本；`lint` 必须同时运行 ESLint 与 [TypeScript AST 中文注释检查器](check-typescript-chinese-comments.cjs)，项目 validator 也独立调用同一检查器，避免只改脚本即可绕过。
 - TypeScript Compiler AST 中文注释检查器及其 [专项测试](check-typescript-chinese-comments.test.ts) 是 GUI 下游保留的治理资产。复制到项目自有工具目录后只修改导入路径和扫描根，不扩张到局部变量/普通匿名回调，也不得增加自动批量注释功能。
 - 门禁跟踪直接及后置命名/默认导出的箭头函数组件与 hook；`test`/`it` 只在 `.test.*`、`.spec.*`、`test/`、`tests/`、`__tests__/` 或显式从 `vitest` 导入的上下文中视为测试场景，避免业务同名调用误报。
-- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖展开/折叠版本、功能区与固定底部顺序、设置/关于/赞助路由、语言回调、`NotConfigured` 零出站、强更门不可绕过、动态 `document.title`、作者/联系人/免责声明、固定价格/联系人、两张支付码 alt、响应式危险回归和本地媒体路径；视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
+- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖侧栏默认收起、Logo→版本 DOM 顺序及展开/折叠持续可见、功能区与固定底部顺序、设置/关于/赞助路由、Sponsor 亮色/暗色差异、语言回调、`NotConfigured` 零出站、强更门不可绕过、动态 `document.title`、作者/联系人/免责声明、固定价格/联系人、两张支付码 alt、响应式危险回归和本地媒体路径；视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
 
 ## 配置、日志与产物
 

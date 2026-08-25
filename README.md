@@ -14,7 +14,7 @@
 ## 开始一个项目
 
 1. 使用 `$desktop-instantiate-project` 提供项目身份、完整目标目录、负责人和目标平台，建立独立 Git 根并重置模板身份。
-2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`；选择 GUI 时同时创建项目内 660×400 macOS DMG 拖拽背景，并初始化托盘显示/退出、关闭隐藏、动态标题以及应用导航中的关于/赞助页。
+2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`；选择 GUI 时会实际生成 3 个 Logo 候选并等待用户选择，同时创建项目内 660×400 macOS DMG 拖拽背景，并初始化托盘显示/退出、关闭隐藏、动态标题、默认收起的 Logo→版本侧栏以及应用导航中的关于/赞助页。
 3. 初始化时运行一次 `$desktop-check-development-environment`；初始化完成后先直接执行真实测试/构建命令，只有命令已因受管环境问题失败时才做对应检查、安装并重试一次。不得因新任务、显式构建或缺少环境证据重复预检。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
 4. 日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、E2E 或验收步骤。
 5. 用户显式请求构建时，构建 Skill 先解析本次是否启用 E2E，再运行项目全部非空单元测试并构建候选；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
@@ -55,8 +55,8 @@
 - `$desktop-run-parallel-worktrees`：只有用户明确要求并行、项目策略允许且写入范围可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
 - `$desktop-initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略；选择 GUI 时把中性 DMG 背景写入 `<项目标识>_gui/src-tauri/dmg/background.png`，并建立固定本地 GUI 生命周期与支持页面基线。
 - `$desktop-check-development-environment`：只在初始化阶段，或初始化后真实测试/构建命令已因受管环境问题失败时检查并补齐对应工具；不得因显式构建或缺少环境证据预跑。GUI 可处理 Node.js 与 pnpm，实际失败的 macOS→Windows Tauri 路径可补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
-- `$desktop-prepare-gui-app-identity`：GUI 首次真实开发前补齐窗口名称等资料，让用户选择自动生成图标、确定性 Plan B 或上传后标准化/高清处理，并预览批准或替换初始化生成的 DMG 背景。
-- `$desktop-prepare-gui-support-surfaces`：为所有 GUI 初始化提供动态标题、可收起侧栏、设置/关于/赞助页和完整 sponsor 品牌媒体；真实更新、强更或统计上报启用时，再固化签名、core/GUI 所有权、同意、出站白名单与秘密隔离。
+- `$desktop-prepare-gui-app-identity`：GUI 初始化时生成 3 个 1024×1024 Logo 候选并由用户选择；首次真实开发前再补齐窗口名称等资料，并预览批准或替换初始化生成的 DMG 背景。
+- `$desktop-prepare-gui-support-surfaces`：为所有 GUI 初始化提供动态标题、默认收起的 Logo→版本侧栏、设置/关于页、亮色/暗色赞助页和完整 sponsor 品牌媒体；真实更新、强更或统计上报启用时，再固化签名、core/GUI 所有权、同意、出站白名单与秘密隔离。
 - `$desktop-build-rust-release`：构建 Rust CLI 候选时先逐次解析 E2E 选择并全量运行 workspace 单元测试，再默认采用 Windows、macOS、Linux 原生矩阵；跨平台预检不满足才回退当前平台。构建前安全清空根 `release/`，条件具备时尝试签名，最终候选、hash 与 manifest 统一写入该目录。
 - `$desktop-build-tauri-release`：先校验 GUI 资料、DMG 背景和逐次 E2E 选择并运行完整 Rust/前端单元测试；随后构建 macOS DMG 或 Windows x64 NSIS。macOS 直接分发采用“签名 + 公证 + stapling”一体门禁；产品启用 updater 时还必须生成官方更新 archive/`.sig`、用公开密钥验证并纳入精确 manifest，不能以 unsigned 安装包绕过 updater 签名。
 - `$desktop-verify-delivery`：只在发布候选、用户明确要求完整验收或本次构建启用 E2E 时验收真实产物。
@@ -80,7 +80,7 @@
 - 下游接口可从 CLI、TUI、MCP、GUI 独立选择和组合；未选择时默认 CLI。
 - Rust 是下游项目的默认初始化语言；Tokio 是 Rust CLI 和后续 Rust adapter 的统一异步执行标准；模板自身仍不实现具体产品业务。
 - TUI 技术族固定为 Ratatui + tui-realm + tui-realm-stdlib；Tauri GUI 前端固定为最新兼容稳定的 Vite + React + TypeScript、Mantine UI、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。其他前后端技术在真实项目开发时按需求推荐。
-- GUI 默认启用 `tray-icon`，托盘只含本地化“显示窗口”和“退出”；主窗口关闭只隐藏，不退出应用。初始化固定建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和可收起左侧菜单，版本在展开/折叠及设置页直接可见；功能从顶部向下增长，底部固定为赞助、设置、关于，并建立 `/settings`、`/about`、`/sponsor`。设置页提供中英文、手动检查更新与默认关闭的统计同意；产品未配置时显示 `NotConfigured`/禁用并零出站。关于页显示作者、联系方式与免责声明，赞助页打包完整品牌媒体。真实 updater/强更/统计传输需产品配置：updater 必须验证签名制品，强更由 core 对已认证最低支持版本作 SemVer 判定，统计只在明确同意后以最小 POST 字段发送且可撤回。品牌包不携带来源产品服务地址、客户端 secret 或默认网络请求。
+- GUI 初始化实际生成 3 个 1024×1024 Logo 候选并等待用户选择，选中母版同时用于平台图标和 `/app-identity/logo.png`。GUI 默认启用 `tray-icon`，托盘只含本地化“显示窗口”和“退出”；主窗口关闭只隐藏，不退出应用。初始化固定建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和默认收起的左侧菜单，Logo 永远在顶部、当前版本紧随其下，展开/折叠及设置页直接可见；功能从顶部向下增长，底部固定为赞助、设置、关于，并建立 `/settings`、`/about`、`/sponsor`。主应用窗口默认 1440×900、最小 960×640，展开侧栏后仍可横向展示三张赞助档位卡；Mantine 同时支持亮色/暗色，赞助页按运行时有效主题适配。设置页提供中英文、手动检查更新与默认关闭的统计同意；产品未配置时显示 `NotConfigured`/禁用并零出站。关于页显示作者、联系方式与免责声明，赞助页打包完整品牌媒体。真实 updater/强更/统计传输需产品配置：updater 必须验证签名制品，强更由 core 对已认证最低支持版本作 SemVer 判定，统计只在明确同意后以最小 POST 字段发送且可撤回。品牌包不携带来源产品服务地址、客户端 secret 或默认网络请求。
 - GUI 中性初始化提供无产品身份的 660×400 macOS DMG 拖拽背景，固定写入 `<项目标识>_gui/src-tauri/dmg/background.png` 并由 Tauri 配置以 `./dmg/background.png` 引用；首次真实 GUI 开发仍须预览批准或同路径替换，初始化资产本身不构成正式视觉批准。
 - Rust 技术选型固定为 Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing 生态、anyhow、thiserror、serde 与 jiff；OpenTelemetry、OpenAPI、GraphQL、MongoDB/Redis 与认证组合只在对应能力获批后采用。固定技术在真实能力出现时按需引入，不给中性 scaffold 安装未使用依赖。
 - Rust 下游从 Cargo workspace 根运行中文声明注释检查器；GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明。两者都只证明紧邻中文注释存在，语义仍由人工/Agent 复核，并且禁止自动补入套话；非 GUI 下游不因此需要 Node.js 或 pnpm。

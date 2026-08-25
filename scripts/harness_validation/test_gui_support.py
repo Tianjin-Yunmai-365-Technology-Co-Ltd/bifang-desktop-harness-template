@@ -9,10 +9,14 @@ import unittest
 from pathlib import Path
 
 from .context import (
+    GUI_BASELINE,
+    GUI_IDENTITY_SKILL,
+    GUI_SKILL,
     GUI_SUPPORT_BRAND_ROOT,
     GUI_SUPPORT_METADATA,
     GUI_SUPPORT_REFERENCE,
     GUI_SUPPORT_SKILL,
+    INITIALIZE_SKILL,
 )
 from .gui_support import validate_gui_support_contract
 
@@ -225,6 +229,104 @@ class GuiSupportContractTests(unittest.TestCase):
                 product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
             )
         self.assertTrue(any("sponsor/settings/about" in error for error in errors), errors)
+
+    def test_sidebar_logo_order_or_default_state_drift_is_rejected(self) -> None:
+        """侧栏必须默认收起，并始终先显示 Logo、再显示当前版本。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            sidebar = brand_root / "react" / "AppSidebarTemplate.tsx"
+            source = sidebar.read_text(encoding="utf-8")
+            source = source.replace(
+                "DEFAULT_SIDEBAR_COLLAPSED = true",
+                "DEFAULT_SIDEBAR_COLLAPSED = false",
+                1,
+            )
+            source = source.replace(
+                'data-testid="app-sidebar-logo"',
+                'data-testid="temporary-sidebar-item"',
+                1,
+            )
+            source = source.replace(
+                'data-testid="app-sidebar-version"',
+                'data-testid="app-sidebar-logo"',
+                1,
+            )
+            source = source.replace(
+                'data-testid="temporary-sidebar-item"',
+                'data-testid="app-sidebar-version"',
+                1,
+            )
+            sidebar.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("DEFAULT_SIDEBAR_COLLAPSED" in error for error in errors), errors)
+        self.assertTrue(any("logo must render above" in error for error in errors), errors)
+
+    def test_sponsor_theme_adaptation_drift_is_rejected(self) -> None:
+        """赞助页不能冻结成单一主题或丢失运行时主题标记。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            sponsor = brand_root / "react" / "SponsorPageTemplate.tsx"
+            source = sponsor.read_text(encoding="utf-8")
+            source = source.replace("useComputedColorScheme", "useMantineTheme")
+            source = source.replace(
+                'data-color-scheme={colorScheme}',
+                'data-theme="light"',
+            )
+            sponsor.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("useComputedColorScheme" in error for error in errors), errors)
+        self.assertTrue(any("data-color-scheme" in error for error in errors), errors)
+
+    def test_logo_selection_or_main_window_contract_drift_is_rejected(self) -> None:
+        """GUI 初始化不能退回单一占位 Logo 或混用主窗口与 DMG 尺寸。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            identity = root / "identity.md"
+            adapter = root / "adapter.md"
+            baseline = root / "baseline.md"
+            initialize = root / "initialize.md"
+            identity.write_text(
+                GUI_IDENTITY_SKILL.read_text(encoding="utf-8").replace(
+                    "正好 3 个",
+                    "一个占位",
+                ),
+                encoding="utf-8",
+            )
+            adapter.write_text(
+                GUI_SKILL.read_text(encoding="utf-8")
+                .replace("width: 1440", "width: 660")
+                .replace("DMG 安装卷窗口不得混用", "窗口共用"),
+                encoding="utf-8",
+            )
+            baseline.write_bytes(GUI_BASELINE.read_bytes())
+            initialize.write_bytes((INITIALIZE_SKILL / "SKILL.md").read_bytes())
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                gui_identity_path=identity,
+                gui_adapter_path=adapter,
+                gui_baseline_path=baseline,
+                initialize_path=initialize,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("正好 3 个" in error for error in errors), errors)
+        self.assertTrue(any("width: 1440" in error for error in errors), errors)
+        self.assertTrue(any("DMG 安装卷窗口不得混用" in error for error in errors), errors)
 
     def test_missing_settings_or_mandatory_update_gate_is_rejected(self) -> None:
         """固定设置页和根级强更门不能在品牌模板中被静默删除。"""
