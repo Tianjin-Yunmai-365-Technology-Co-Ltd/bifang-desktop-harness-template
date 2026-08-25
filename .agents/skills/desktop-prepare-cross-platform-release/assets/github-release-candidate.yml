@@ -43,7 +43,6 @@ jobs:
       E2E_SELECTION: ${{ inputs.e2e_selection }}
       BUILD_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
       CARGO_TARGET_DIR: target
-      RUSTUP_TOOLCHAIN: 1.90.0
     steps:
       - name: 确认已授权候选预检
         shell: bash
@@ -85,8 +84,35 @@ jobs:
           if observed != expected:
               raise SystemExit(f"检出源码不匹配：预期={expected}，实际={observed}")
           PY
+      - name: 读取项目最低 Rust 版本
+        shell: bash
+        run: |
+          "$PYTHON_COMMAND" - <<'PY'
+          import os, re
+          from pathlib import Path
+
+          manifest = Path("Cargo.toml").read_text(encoding="utf-8")
+          section = re.search(
+              r"(?ms)^\[workspace\.package\]\s*$\n(?P<body>.*?)(?=^\[|\Z)",
+              manifest,
+          )
+          if section is None:
+              raise SystemExit("根 Cargo.toml 缺少 [workspace.package]")
+          match = re.search(
+              r'(?m)^rust-version\s*=\s*"(?P<version>\d+\.\d+(?:\.\d+)?)"\s*$',
+              section.group("body"),
+          )
+          if match is None:
+              raise SystemExit("[workspace.package] 缺少可识别的 rust-version")
+          version = match.group("version")
+          if version.count(".") == 1:
+              version += ".0"
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as environment:
+              environment.write(f"RUSTUP_TOOLCHAIN={version}\n")
+          print(f"使用项目声明的最低 Rust 工具链 {version}")
+          PY
       - name: 选择项目 MSRV
-        run: rustup toolchain install 1.90.0 --profile minimal --no-self-update
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
       - name: 验证候选版本
         shell: bash
         run: |

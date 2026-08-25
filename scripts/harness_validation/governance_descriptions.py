@@ -91,7 +91,7 @@ def validate_current_descriptions(errors: list[str]) -> None:
             '| MSRV | `1.90.0` |',
             'rust-version = "1.90"',
             "不要求精确等于 1.90.0",
-            "必须使用精确 Rust 1.90.0 工具链",
+            "使用该声明的最低 Rust 工具链",
         ),
         ROOT / "docs" / "RELEASE.md": ("最低 Rust 版本 1.90.0",),
         PREREQUISITE_UNIX: ("MIN_RUST_MAJOR=1", "MIN_RUST_MINOR=90"),
@@ -103,8 +103,9 @@ def validate_current_descriptions(errors: list[str]) -> None:
         ),
         RUST_ASSET / "Cargo.toml": ('rust-version = "1.90"',),
         WORKFLOW: (
-            "RUSTUP_TOOLCHAIN: 1.90.0",
-            "rustup toolchain install 1.90.0",
+            "读取项目最低 Rust 版本",
+            'environment.write(f"RUSTUP_TOOLCHAIN={version}\\n")',
+            'rustup toolchain install "$RUSTUP_TOOLCHAIN"',
         ),
     }
     for path, fragments in msrv_fragments.items():
@@ -117,6 +118,81 @@ def validate_current_descriptions(errors: list[str]) -> None:
                 fail(
                     errors,
                     f"Rust 1.90 MSRV contract missing in {display_path(path)}: {fragment}",
+                )
+
+    minimum_version_fragments = {
+        ROOT / "AGENTS.md": (
+            "最低兼容稳定版本范围",
+            "最低版本解析",
+            "Cargo.lock",
+            "pnpm-lock.yaml",
+        ),
+        ROOT / "README.md": (
+            "最低兼容稳定版本范围",
+            "最低版本解析",
+        ),
+        ENGINEERING_RULES: (
+            "最低兼容稳定版本范围",
+            "完整三段下界",
+            "锁文件与兼容要求职责分离",
+        ),
+        PRODUCT_SPEC: (
+            "最低兼容稳定版本范围",
+            "最低直接版本解析",
+        ),
+        ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
+            "最低兼容版本策略",
+            "direct-minimal-versions",
+            "resolutionMode: lowest-direct",
+        ),
+        CLI_SKILL: ("完整三段 Cargo 兼容下界", "最低直接版本解析"),
+        TUI_SKILL: ("最低兼容稳定组合", "direct-minimal-versions"),
+        TUI_BASELINE: ("最低兼容稳定组合", "最低直接版本解析"),
+        MCP_SKILL: ("最低兼容稳定下界", "最低直接版本解析"),
+        GUI_SKILL: ("最低兼容稳定范围", "最低直接版本解析"),
+        REACT_BASELINE: (
+            "最低兼容稳定范围",
+            "engines.node",
+            "engines.pnpm",
+            "resolutionMode: lowest-direct",
+        ),
+        ENVIRONMENT_SKILL / "SKILL.md": (
+            "^20.19.0 || >=22.12.0",
+            ">=10.0.0",
+            "pnpm@^10.0.0",
+        ),
+        WORKFLOW: (
+            "读取项目最低 Rust 版本",
+            "RUSTUP_TOOLCHAIN={version}",
+        ),
+    }
+    for path, fragments in minimum_version_fragments.items():
+        if not path.is_file():
+            fail(errors, f"missing minimum-version contract file: {display_path(path)}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(
+                    errors,
+                    f"minimum-version contract missing in {display_path(path)}: {fragment}",
+                )
+
+    superseded_version_fragments = (
+        "执行时最新兼容稳定",
+        "优先采用 registry 中较新的稳定版本",
+        "pnpm@latest",
+        "rustup toolchain install 1.90.0",
+    )
+    for path in minimum_version_fragments:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in superseded_version_fragments:
+            if fragment in text:
+                fail(
+                    errors,
+                    f"superseded exact/latest version rule remains in {display_path(path)}: {fragment}",
                 )
 
     current_skill_files = sorted(

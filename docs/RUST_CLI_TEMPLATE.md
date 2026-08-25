@@ -20,7 +20,7 @@
 - TUI 固定使用 Ratatui + tui-realm + tui-realm-stdlib。Tauri GUI 前端固定使用 Vite + React + TypeScript + Mantine UI + TanStack Router 文件路由 + TanStack Query + Jotai，并使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library；这些技术族适用于 Draft 与 Approved 项目，偏离必须记录硬规则例外。
 - Tauri GUI 的界面国际化是初始化硬性必选项：前端固定追加 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定追加 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，界面必须提供语言切换入口，core 保持语言无关。初始化固定页面提供中文与英文资源，其他缺失语言回退英文。详细规则见 [GUI 基线](../.agents/skills/desktop-add-gui-adapter/references/gui-baseline.md)与 [React 前端基线](../.agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md)（见 ADR-20260806-001）。
 - 选择 GUI 时先由 `$desktop-prepare-gui-app-identity` 的初始化模式实际生成正好 3 个 1024×1024 PNG Logo 候选并同时预览，必须等待用户明确选择。选中候选固定保存为 `<项目标识>_gui/src-tauri/icons/app-icon-master.png`，逐字节复制为 `<项目标识>_gui/public/app-identity/logo.png`，再用项目本地 Tauri `icon` 命令生成平台图标；`docs/GUI_APP_PROFILE.md` 记录三个候选、选择、路径和摘要。缺少候选、选择或字节一致证据不得用中性占位图完成初始化。
-- 选择 GUI 时固定启用 Tauri `tray-icon` feature：托盘只含本地化“显示窗口”和“退出”，显示动作与左键恢复并聚焦主窗口，主窗口 `CloseRequested` 只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用。初始化固定建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题、默认收起的左侧菜单和 `/settings`、`/about`、`/sponsor`；侧栏顶部始终先显示选中 Logo、再紧接权威当前版本，展开/折叠及设置页都直接可见。功能从顶部向下增长，底部固定为赞助、设置、关于。主应用窗口在 `app.windows` 中使用 `width: 1440`、`height: 900`、`minWidth: 960`、`minHeight: 640`、`center: true`、`preventOverflow: true`，默认尺寸可同时容纳展开的 248px 侧栏和三张赞助档位卡。Mantine 根使用 `defaultColorScheme="auto"` 并同时保留亮色/暗色 token，赞助页以 `useComputedColorScheme` 选择运行时有效主题的背景叠层、surface 与对比色。设置页提供中英文、手动检查更新和默认关闭的统计同意，远程能力默认禁用，未配置时为 `NotConfigured`/禁用且零出站；关于页显示作者、作者联系方式与三段免责声明，赞助页打包完整 `media/sponsor/*`。真实更新启用时才引入官方 Tauri updater，制品签名验证不可关闭；adapter 认证最低支持版本策略后交给 core 作严格 SemVer 强更判定，根级强更门只允许安装或退出。统计只在明确同意后由 Rust adapter 以 HTTPS JSON POST 发送固定 `app_started` 最小字段，撤回即取消请求和清空有界内存队列。模板不提供固定 endpoint、服务端 secret、发布私钥或统计实例；任务必须受应用生命周期拥有并回收，失败默认 fail-open。
+- 选择 GUI 时固定启用 Tauri `tray-icon` feature：托盘只含本地化“显示窗口”和“退出”，显示动作与左键恢复并聚焦主窗口，主窗口 `CloseRequested` 只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用。初始化固定建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题、默认收起的左侧菜单和 `/settings`、`/about`、`/sponsor`；侧栏顶部始终先显示选中 Logo、再紧接权威当前版本，展开/折叠及设置页都直接可见。每个功能项和固定项必须有图标；折叠时显示图标及本地化 Tooltip 名称，展开时显示图标与名称，并始终保留可访问名称。功能从顶部向下增长，底部固定为赞助、设置、关于。主应用窗口在 `app.windows` 中使用 `width: 1440`、`height: 900`、`minWidth: 960`、`minHeight: 640`、`center: true`、`preventOverflow: true`，默认尺寸可同时容纳展开的 248px 侧栏和三张赞助档位卡。Mantine 根使用 `defaultColorScheme="auto"` 并通过唯一主题模块同时定义亮色/暗色的页面背景、surface、主/次文字、边框与强调色；设置页提供浅色、深色、跟随系统三态并使用设备级本地存储持久化，赞助页以 `useComputedColorScheme` 选择运行时有效主题的背景叠层、surface 与对比色。设置页同时提供中英文和默认关闭的统计同意；手动检查更新入口位于关于页，远程能力默认禁用，未配置时为 `NotConfigured`/禁用且零出站。关于页还显示作者、作者联系方式与三段免责声明，赞助页打包完整 `media/sponsor/*`。真实更新启用时才引入官方 Tauri updater，制品签名验证不可关闭；adapter 认证最低支持版本策略后交给 core 作严格 SemVer 强更判定，根级强更门只允许安装或退出。统计只在明确同意后由 Rust adapter 以 HTTPS JSON POST 发送固定 `app_started` 最小字段，撤回即取消请求和清空有界内存队列。模板不提供固定 endpoint、服务端 secret、发布私钥或统计实例；任务必须受应用生命周期拥有并回收，失败默认 fail-open。
 - 选择 GUI 时，中性初始化必须把随 `$desktop-initialize-rust-project` 提供的无产品身份 660×400 PNG 逐字节复制为 `<项目标识>_gui/src-tauri/dmg/background.png`，并让 `tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`。DMG 安装卷窗口固定为 660×400，应用与 Applications 落点分别为 `(180, 220)` 和 `(480, 220)`；首次真实 GUI 开发由 `$desktop-prepare-gui-app-identity` 预览批准该基线或在同一路径替换，并记录当前 SHA-256。构建只消费项目内图片，不能依赖初始化结束后被删除的 Skill 资产；该安装卷窗口不得覆盖主应用窗口尺寸。
 - 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一版本事实来源，各成员使用 `version.workspace = true`。
 - 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
@@ -64,8 +64,8 @@
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
 | 初始版本 | `0.1.0` | 后续提升由用户明确决定 |
 | 锁文件 | 提交根 `Cargo.lock` | 使用 Cargo 生成；不得手工编辑 |
-| Node.js | 仅 GUI：已安装环境；缺失时安装当前受支持 LTS | 非 GUI 为 `not-required` |
-| pnpm | 仅 GUI：稳定版且可调用 | 前端固定包管理器；非 GUI 为 `not-required` |
+| Node.js | 仅 GUI：`^20.19.0 || >=22.12.0` | 这是当前 Vite 基线的最低兼容范围；缺失时安装当前受支持 LTS，非 GUI 为 `not-required` |
+| pnpm | 仅 GUI：`>=10.0.0` | 缺失时安装兼容范围 `pnpm@^10.0.0`；现有更高兼容稳定版可继续使用，非 GUI 为 `not-required` |
 | MSVC 构建工具 | Windows 缺失时自动安装 | 验证 Microsoft 签名，安装 C++ 工作负载并复探 |
 | Linux 系统开发库（仅 GUI） | Tauri 2 依赖的 webkit2gtk（`webkit2gtk-4.1-dev` 或 `webkit2gtk-4.0-dev`，视发行版而定）、`libgtk-3-dev`、`librsvg2-dev`、`libayatana-appindicator3-dev` 等发行版对应的开发包 | 非 GUI 为 `not-required`；具体包名随发行版包管理器变化，需按目标发行版核对 |
 | macOS Xcode Command Line Tools（仅 GUI） | 缺失时执行 `xcode-select --install` | 非 GUI 为 `not-required` |
@@ -95,7 +95,7 @@ pnpm --version
 .agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
 ```
 
-成功输出必须包含 `gate.rust.status=passed`；Rust 门禁按版本顺序接受 1.90.0 及以上稳定版，而不是只接受精确 1.90.0。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.status=passed` 与 `gate.pnpm.status=passed`；其他接口组合必须把二者报告为 `not-required`。初始化后的恢复还必须记录原失败命令与退出状态的脱敏摘要，并在门禁成功后只重试该命令一次；代码/测试、普通依赖解析/网络、产品配置、凭据或签名失败不进入环境门禁。
+成功输出必须包含 `gate.rust.status=passed`；Rust 门禁按版本顺序接受 1.90.0 及以上稳定版，而不是只接受精确 1.90.0。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.status=passed`、`gate.node.requirement=^20.19.0 || >=22.12.0`、`gate.pnpm.status=passed` 与 `gate.pnpm.requirement=>=10.0.0`；低于下界或落入 Node.js 21.x 范围空档时失败关闭，不能用“命令可调用”代替版本兼容。其他接口组合必须把二者报告为 `not-required`。初始化后的恢复还必须记录原失败命令与退出状态的脱敏摘要，并在门禁成功后只重试该命令一次；代码/测试、普通依赖解析/网络、产品配置、凭据或签名失败不进入环境门禁。
 
 ## 默认依赖
 
@@ -112,13 +112,13 @@ edition = "2024"
 rust-version = "1.90"
 
 [workspace.dependencies]
-assert_cmd = "2"
-clap = { version = "4.6", features = ["derive"] }
+assert_cmd = "2.0.0"
+clap = { version = "4.6.0", features = ["derive"] }
 example_tool_core = { path = "example_tool_core" }
-jiff = "0.2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tokio = { version = "1", default-features = false, features = ["macros", "rt"] }
+jiff = "0.2.0"
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.0"
+tokio = { version = "1.0.1", default-features = false, features = ["macros", "rt"] }
 ```
 
 - 根清单同时声明第三方依赖与工作区内 crate 的路径来源；例如 CLI 对核心的引用只在根清单写入一次。
@@ -132,13 +132,14 @@ tokio = { version = "1", default-features = false, features = ["macros", "rt"] }
 
 ## 依赖准入
 
-### 版本新鲜度策略
+### 最低兼容版本策略
 
-- 在创建下游项目、准备模板发布或主动变更依赖时，查询软件包仓库的当前稳定版本，并优先采用满足 Rust 1.90 MSRV、Windows/macOS/Linux、所需最小特性集和现有验证门槛的较新版本。
-- “尽量新”不表示无条件采用预发布版、提高 MSRV、扩大特性集或跳过回归验证。较新的起点可以缩短后续升级距离，但不构成未来版本兼容保证。
-- `Cargo.toml` 表达经过批准的兼容版本范围，根 `Cargo.lock` 固定实际解析版本。初始化或依赖维护后必须重新生成或更新锁文件，并使用 `--locked` 完成验证。
-- 若较新稳定版本因 MSRV、平台、行为回归、供应链风险或特性变化未被采用，必须记录被评估版本、阻塞原因、影响和下次复核条件；不得静默保留陈旧版本。
-- 日常任务不为追逐版本号而自动改写已验证锁文件。依赖更新直接实现并运行本次必要单元/回归测试；用户显式请求构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁。
+- 创建下游、增加能力或主动变更依赖时，选择满足实际使用 API/feature、Rust 1.90 MSRV、Windows/macOS/Linux、安全与现有验证门槛的最低稳定版本作为直接依赖下界；不得把“最新”或当前锁文件解析到的版本当作兼容要求。
+- Rust registry 直接依赖必须写成包含完整三段下界的 Cargo 兼容要求，例如 `serde = "1.0.203"` 使用 Cargo 默认 caret 语义；普通依赖禁止精确 `=1.0.203`、`*`、无下界范围、tag 或未经批准的 Git revision。内部 path 依赖仍由根 workspace 统一声明，不虚构 registry 版本。
+- 前端 `dependencies`/`devDependencies` 必须使用包含完整三段下界的 caret，或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符或无下界范围。Node.js/pnpm 的兼容事实写入 `engines` 范围；cargo-xwin 等带 SemVer 的受管工具同样使用包含完整下界的兼容范围。旧式精确 `packageManager` 字段不得充当兼容门禁。
+- `Cargo.toml`/`package.json` 表达兼容下界，根 `Cargo.lock`/`pnpm-lock.yaml` 固定正常解析得到的实际版本。锁文件由对应工具生成且提交，不得手工编辑；正常安装可以解析范围内较新的稳定版本，但不能反向抬高声明下界。
+- 新增或提高 Rust 直接下界时，在临时副本中执行 `cargo +nightly update -Zdirect-minimal-versions`，再用根 `Cargo.toml` 声明的最低 Rust 工具链运行受影响的非空测试；该不稳定 Cargo 子命令只用于验证，不成为生产构建依赖。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。最低版本验证不能覆盖日常提交的正常锁文件。
+- 只有使用到新 API/feature、修复安全或平台兼容问题，且提高后的下界通过相同验证时，才提高最低版本。日常任务不为追逐版本号自动改写已验证锁文件；依赖更新只运行本次必要单元/回归测试。用户显式请求构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁。
 
 新增或替换依赖前必须记录：
 
@@ -148,7 +149,7 @@ tokio = { version = "1", default-features = false, features = ["macros", "rt"] }
 4. 缺失、初始化失败或运行失败时如何映射到稳定错误与退出码。
 5. 对应的成功路径、最高风险失败路径和外部依赖失败测试。
 
-固定 Rust、TUI 与 React 技术族不参与“是否采用其他框架”的推荐，只核验能力是否真实需要、采用哪个最新兼容稳定版本和最小特性/包集合。若当前稳定组合无法满足 Rust 1.90、Node 策略、目标 WebView、Windows/macOS/Linux、安全或验证门槛，必须报告阻塞并记录硬规则例外，不得静默换成其他框架。固定技术族之外的依赖才在真实开发时根据产品需求推荐。
+固定 Rust、TUI 与 React 技术族不参与“是否采用其他框架”的推荐，只核验能力是否真实需要、哪个最低兼容稳定下界和最小特性/包集合能够通过验证。若候选下界无法满足 Rust 1.90、Node.js/pnpm 范围、目标 WebView、Windows/macOS/Linux、安全或验证门槛，必须提高到第一个通过的稳定下界，记录原因并重新验证；仍无兼容组合时报告阻塞并记录硬规则例外，不得静默换成其他框架。
 
 所有第三方依赖和工作区内 crate 路径都集中在根 `[workspace.dependencies]`，成员的生产、开发和构建依赖只使用 `workspace = true`，不得重复版本、软件包仓库/Git 来源、路径或基线特性。提交根 `Cargo.lock`，验证使用 `--locked`；不得仅凭较新 Rust 编译成功推断 MSRV 仍然成立。
 
@@ -218,7 +219,7 @@ cargo test --workspace --all-targets --all-features --locked
 cargo build --workspace --release --locked
 ```
 
-此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须使用精确 Rust 1.90.0 工具链实际执行至少锁定依赖检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须精确等于 1.90.0。较新编译器成功不能替代最低版本证据。
+此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须读取根 `Cargo.toml` 的 `rust-version`，并使用该声明的最低 Rust 工具链（当前模板为 1.90.0）实际执行至少锁定依赖检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须固定为模板当前下界。较新编译器成功不能替代最低版本证据。
 
 此外必须：
 
@@ -273,9 +274,9 @@ cargo build --workspace --release --locked
 - 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$desktop-build-rust-release` 与 `$desktop-build-tauri-release` 在任何单元测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。远端工作流必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。目录存在不代表 `ready`。
 - `$desktop-prepare-release` 只在完整验收通过后负责版本、变更记录和发布就绪判断，不自动运行冒烟/E2E、创建标签或上传。
 - `$desktop-add-mcp-adapter` 只在下游用户明确批准后增加依赖核心的 Rust stdio MCP 适配器；Skill 不自带实现资产。
-- `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费三候选 Logo 选择、固定托盘/关闭隐藏、动态标题、默认收起的 Logo→版本侧栏、双主题赞助页和品牌媒体基线，不自带产品业务实现。
+- `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费三候选 Logo 选择、固定托盘/关闭隐藏、动态标题、图标/Tooltip 完整且默认收起的 Logo→版本侧栏、三态主题设置、全局亮暗主题、含更新入口的关于页、双主题赞助页和品牌媒体基线，不自带产品业务实现。
 - `$desktop-prepare-gui-support-surfaces` 为全部 GUI 提供固定本地页面/媒体依赖资产；产品修改基线、增加其他支持界面或启用出站能力时再次按需调用。每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试，不得扩张为业务 scaffold。
-- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI 固定本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；实际版本在调用时核验并锁定，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
+- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI 固定本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围，由锁文件固定实际解析结果，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
 - `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
 - `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
 
@@ -285,7 +286,9 @@ cargo build --workspace --release --locked
 
 - [Rust 官方安装](https://rust-lang.org/tools/install/)
 - [Cargo 工作区](https://doc.rust-lang.org/cargo/reference/workspaces.html)
+- [Cargo 依赖版本要求](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)
 - [Cargo `rust-version`](https://doc.rust-lang.org/cargo/reference/rust-version.html)
+- [Cargo `direct-minimal-versions`](https://doc.rust-lang.org/cargo/reference/unstable.html#direct-minimal-versions)
 - [Cargo 构建](https://doc.rust-lang.org/stable/cargo/commands/cargo-build.html)
 - [Cargo 构建缓存与产物目录](https://doc.rust-lang.org/cargo/reference/build-cache.html)
 - [Rust 标准库 `ExitCode`](https://doc.rust-lang.org/stable/std/process/struct.ExitCode.html)
@@ -294,3 +297,6 @@ cargo build --workspace --release --locked
 - [Rust CLI Book：输出](https://rust-cli.github.io/book/tutorial/output.html)
 - [Rust CLI Book：测试](https://rust-cli.github.io/book/tutorial/testing.html)
 - [GitHub Actions 工作流制品](https://docs.github.com/actions/using-workflows/storing-workflow-data-as-artifacts)
+- [pnpm `package.json` 与 engines](https://pnpm.io/package_json)
+- [pnpm `resolutionMode`](https://pnpm.io/settings/other)
+- [Vite Node.js 要求](https://vite.dev/guide/)

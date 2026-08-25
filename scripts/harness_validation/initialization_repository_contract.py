@@ -37,7 +37,7 @@ def repository_required_fragments(
             "https://aka.ms/vs/17/release/vs_BuildTools.exe",
             "MSVC Build Tools",
             "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",
-            "cargo install --locked cargo-xwin",
+            "cargo install --locked --version '>=0.22.0, <0.24.0' cargo-xwin",
             "LLVM、LLD 与 NSIS 使用既有 Homebrew",
             "缺少 Homebrew 时阻断",
             "xwin 成功仍把 Windows runtime 记为 `Unverified`",

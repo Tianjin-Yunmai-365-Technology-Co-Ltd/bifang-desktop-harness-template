@@ -1,4 +1,4 @@
 interface:
   display_name: "添加 GUI 适配器"
   short_description: "增加带三选一 Logo、固定侧栏和双主题赞助页的 GUI"
-  default_prompt: "使用 $desktop-add-gui-adapter，增加调用 core 用例的 Tauri/React 薄适配器，并接入三选一 Logo、托盘、关闭隐藏、默认收起的 Logo→版本侧栏、适配亮暗主题的设置/关于/赞助页面；平台业务效果回到 core。"
+  default_prompt: "使用 $desktop-add-gui-adapter，增加调用 core 用例的 Tauri/React 薄适配器，并接入三选一 Logo、托盘、关闭隐藏、图标/Tooltip 完整且默认收起的 Logo→版本侧栏、三态主题设置、应用级亮暗主题、含更新入口的关于页和双主题赞助页；平台业务效果回到 core。"

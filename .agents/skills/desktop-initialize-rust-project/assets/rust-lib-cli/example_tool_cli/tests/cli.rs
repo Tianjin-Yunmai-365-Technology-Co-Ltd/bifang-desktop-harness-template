@@ -33,9 +33,12 @@ fn reports_neutral_scaffold_status_as_json() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let value = parse_single_json_document(&output.stdout);
-    assert_eq!(value["ok"], true);
-    assert_eq!(value["data"]["initialized"], true);
-    assert_eq!(value["data"]["productDefinitionRequired"], true);
+    assert_eq!(value["ok"].as_bool(), Some(true));
+    assert_eq!(value["data"]["initialized"].as_bool(), Some(true));
+    assert_eq!(
+        value["data"]["productDefinitionRequired"].as_bool(),
+        Some(true)
+    );
     assert_eq!(value["error"], serde_json::Value::Null);
     assert_metadata(&value);
 }
@@ -48,7 +51,7 @@ fn rejects_unapproved_business_commands() {
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stderr.is_empty());
     let value = parse_single_json_document(&output.stdout);
-    assert_eq!(value["ok"], false);
+    assert_eq!(value["ok"].as_bool(), Some(false));
     assert_eq!(value["data"], serde_json::Value::Null);
     assert_eq!(value["error"]["code"], "INVALID_ARGUMENT");
     assert_metadata(&value);
@@ -62,7 +65,7 @@ fn reports_missing_status_subcommand_as_json() {
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stderr.is_empty());
     let value = parse_single_json_document(&output.stdout);
-    assert_eq!(value["ok"], false);
+    assert_eq!(value["ok"].as_bool(), Some(false));
     assert_eq!(value["data"], serde_json::Value::Null);
     assert_eq!(value["error"]["code"], "INVALID_ARGUMENT");
     assert_metadata(&value);

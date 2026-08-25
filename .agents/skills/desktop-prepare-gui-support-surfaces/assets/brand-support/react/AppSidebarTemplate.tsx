@@ -8,6 +8,7 @@ import {
   ScrollArea,
   Stack,
   Text,
+  Tooltip,
 } from "@mantine/core";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,14 +32,14 @@ export interface FeatureNavigationItem {
   id: string;
   label: string;
   to: string;
-  icon?: ReactNode;
+  icon: ReactNode;
 }
 
-/** 固定支持菜单可选的产品图标集合。 */
+/** 固定支持菜单必须提供的产品图标集合。 */
 export interface FixedNavigationIcons {
-  sponsor?: ReactNode;
-  settings?: ReactNode;
-  about?: ReactNode;
+  sponsor: ReactNode;
+  settings: ReactNode;
+  about: ReactNode;
 }
 
 /** 固定左侧菜单所需的当前应用事实和纯交互回调。 */
@@ -51,7 +52,37 @@ export interface AppSidebarTemplateProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onNavigate: (path: string) => void;
-  fixedIcons?: FixedNavigationIcons;
+  fixedIcons: FixedNavigationIcons;
+}
+
+/** 折叠时只显示图标并用 Tooltip 揭示名称，展开时同时显示图标和名称。 */
+function SidebarNavigationItem({
+  active,
+  collapsed,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  collapsed: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}): ReactElement {
+  return (
+    <Tooltip disabled={!collapsed} label={label} position="right" withArrow>
+      <NavLink
+        active={active}
+        aria-label={label}
+        component="button"
+        label={collapsed ? undefined : label}
+        leftSection={icon}
+        onClick={onClick}
+        type="button"
+        variant="light"
+      />
+    </Tooltip>
+  );
 }
 
 /** 渲染可收起固定侧栏：功能从上向下增长，赞助/设置/关于固定贴底。 */
@@ -64,7 +95,7 @@ export function AppSidebarTemplate({
   collapsed,
   onCollapsedChange,
   onNavigate,
-  fixedIcons = {},
+  fixedIcons,
 }: AppSidebarTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const width = collapsed
@@ -85,8 +116,8 @@ export function AppSidebarTemplate({
       data-collapsed={collapsed}
       data-testid="app-sidebar"
       style={{
-        background: "var(--mantine-color-body)",
-        borderInlineEnd: "1px solid var(--mantine-color-default-border)",
+        background: "var(--app-surface)",
+        borderInlineEnd: "1px solid var(--app-border)",
         height: "100dvh",
         insetBlock: 0,
         insetInlineStart: 0,
@@ -142,16 +173,13 @@ export function AppSidebarTemplate({
               </Text>
             )}
             {featureItems.map((item) => (
-              <NavLink
+              <SidebarNavigationItem
                 active={activePath === item.to}
-                aria-label={item.label}
-                component="button"
+                collapsed={collapsed}
+                icon={item.icon}
                 key={item.id}
-                label={collapsed ? undefined : item.label}
-                leftSection={item.icon}
+                label={item.label}
                 onClick={() => onNavigate(item.to)}
-                type="button"
-                variant="light"
               />
             ))}
           </Stack>
@@ -160,19 +188,19 @@ export function AppSidebarTemplate({
         <Divider />
 
         <Stack data-testid="fixed-bottom-navigation" gap={4}>
-          {FIXED_BOTTOM_NAVIGATION_ITEMS.map((item) => (
-            <NavLink
-              active={activePath === item.to}
-              aria-label={t(item.labelKey)}
-              component="button"
-              key={item.id}
-              label={collapsed ? undefined : t(item.labelKey)}
-              leftSection={fixedIcons[item.id]}
-              onClick={() => onNavigate(item.to)}
-              type="button"
-              variant="light"
-            />
-          ))}
+          {FIXED_BOTTOM_NAVIGATION_ITEMS.map((item) => {
+            const label = t(item.labelKey);
+            return (
+              <SidebarNavigationItem
+                active={activePath === item.to}
+                collapsed={collapsed}
+                icon={fixedIcons[item.id]}
+                key={item.id}
+                label={label}
+                onClick={() => onNavigate(item.to)}
+              />
+            );
+          })}
         </Stack>
       </Stack>
     </Box>

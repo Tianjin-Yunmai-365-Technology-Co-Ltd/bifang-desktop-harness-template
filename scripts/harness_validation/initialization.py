@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import struct
 import tomllib
 import zlib
@@ -14,6 +15,32 @@ from .initialization_repository_contract import repository_required_fragments
 
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+CARGO_MINIMUM_REQUIREMENT = re.compile(r"^\^?\d+\.\d+\.\d+$")
+
+
+def validate_workspace_dependency_minimums(
+    errors: list[str],
+    dependencies: dict[str, object],
+) -> None:
+    """拒绝 Rust 中性资产恢复宽泛、精确锁死或无稳定下界的 registry 要求。"""
+    for name, declaration in dependencies.items():
+        if isinstance(declaration, str):
+            version = declaration
+        elif isinstance(declaration, dict):
+            if "path" in declaration and "version" not in declaration:
+                continue
+            if any(key in declaration for key in ("git", "branch", "tag", "rev")):
+                fail(errors, f"workspace dependency must not use Git selectors: {name}")
+                continue
+            version = declaration.get("version")
+        else:
+            version = None
+        if not isinstance(version, str) or not CARGO_MINIMUM_REQUIREMENT.fullmatch(version):
+            fail(
+                errors,
+                "workspace registry dependency must use a compatible full three-part "
+                f"minimum requirement: {name}={version!r}",
+            )
 
 
 def validate_macos_dmg_background_asset(
@@ -268,7 +295,11 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "CLI|TUI|MCP|GUI",
             "不支持的接口",
             "gate.pnpm.status=",
-            "pnpm@latest",
+            "NODE_REQUIREMENT='^20.19.0 || >=22.12.0'",
+            "PNPM_REQUIREMENT='>=10.0.0'",
+            "PNPM_INSTALL_REQUIREMENT='pnpm@^10.0.0'",
+            "validate_node",
+            "validate_pnpm",
             "not-required",
         ),
         PREREQUISITE_WINDOWS: (
@@ -283,6 +314,11 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "Install-MissingMsvc",
             "gate.msvc.status=passed",
             "gate.msvc.change=$MsvcChange",
+            '$NodeRequirement = "^20.19.0 || >=22.12.0"',
+            '$PnpmRequirement = ">=10.0.0"',
+            '$PnpmInstallRequirement = "pnpm@^10.0.0"',
+            "Test-NodeVersion",
+            "Test-PnpmVersion",
             "Test-MsvcPrerequisite",
             "[string[]]$Interfaces",
             '@("CLI", "TUI", "MCP", "GUI")',
@@ -313,7 +349,9 @@ def validate_initialization_contract(errors: list[str]) -> None:
             '"$brew_path" install lld',
             '"$brew_path" install nsis',
             'target add "$TARGET"',
-            "install --locked cargo-xwin",
+            'install --locked --version "$CARGO_XWIN_REQUIREMENT" cargo-xwin',
+            "CARGO_XWIN_REQUIREMENT='>=0.22.0, <0.24.0'",
+            "gate.cargo_xwin.requirement=",
             "本门禁不自动安装 Homebrew",
             "gate.path.prepend=",
         ),
@@ -325,6 +363,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
             "test_formula_install_failure_does_not_claim_success",
             "test_split_llvm_install_adds_missing_lld_formula",
             "test_damaged_existing_lld_formula_is_not_silently_reinstalled",
+            "test_incompatible_existing_cargo_xwin_is_not_replaced",
             "test_non_macos_host_is_rejected",
             "test_unsupported_target_is_rejected",
         ),
@@ -381,6 +420,7 @@ def validate_initialization_contract(errors: list[str]) -> None:
         return
     workspace = root_data.get("workspace", {})
     workspace_dependencies = workspace.get("dependencies", {})
+    validate_workspace_dependency_minimums(errors, workspace_dependencies)
     expected_members = ["example_tool_core", "example_tool_cli"]
     if workspace.get("members") != expected_members:
         fail(errors, f"Rust asset workspace members must be {expected_members}")

@@ -34,7 +34,7 @@ class DocumentPartitionTests(unittest.TestCase):
         self.assertGreaterEqual(sum(text.count("审批边界：") for text in texts), 3)
         combined = "\n".join(texts)
         for fragment in (
-            "因缺少 PyYAML",
+            "因缺少第三方 YAML 解析模块",
             "沙箱拒绝写入",
             "首次错误调用",
             "首次发布冒烟错误使用相对",

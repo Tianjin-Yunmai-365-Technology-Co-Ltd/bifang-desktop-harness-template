@@ -31,10 +31,10 @@ def fake_existing_tools(bin_dir: Path, *, rust: str = "1.90.0", python: bool = T
         executable(bin_dir / "python3", "#!/bin/sh\nprintf '%s\\n' 'Python 3.12.0'\n")
 
 
-def fake_frontend_tools(bin_dir: Path) -> None:
+def fake_frontend_tools(bin_dir: Path, *, node: str = "20.19.0", pnpm: str = "10.0.0") -> None:
     """构造既有 Node.js 与 pnpm，验证前端门禁不会修改已满足的环境。"""
-    executable(bin_dir / "node", "#!/bin/sh\nprintf '%s\\n' 'v24.1.0'\n")
-    executable(bin_dir / "pnpm", "#!/bin/sh\nprintf '%s\\n' '10.0.0'\n")
+    executable(bin_dir / "node", f"#!/bin/sh\nprintf '%s\\n' 'v{node}'\n")
+    executable(bin_dir / "pnpm", f"#!/bin/sh\nprintf '%s\\n' '{pnpm}'\n")
 
 
 def node_tuple() -> tuple[str, str]:
@@ -195,8 +195,54 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.rust.status=passed", result.stdout)
             self.assertIn("gate.node.status=passed", result.stdout)
+            self.assertIn("gate.node.requirement=^20.19.0 || >=22.12.0", result.stdout)
             self.assertIn("gate.pnpm.status=passed", result.stdout)
+            self.assertIn("gate.pnpm.requirement=>=10.0.0", result.stdout)
             self.assertIn("gate.changed=false", result.stdout)
+
+    def test_newer_compatible_frontend_tools_are_preserved(self) -> None:
+        """高于下界的 Node.js 与 pnpm 仍应通过，兼容要求不能退化为精确版本锁。"""
+        for node_version, pnpm_version in (("22.12.0", "10.0.0"), ("26.7.0", "11.23.0")):
+            with self.subTest(node=node_version, pnpm=pnpm_version):
+                with tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    probe = root / "probe"
+                    fake_existing_tools(probe, python=False)
+                    fake_frontend_tools(probe, node=node_version, pnpm=pnpm_version)
+                    result = self.run_gate(
+                        root,
+                        "--install-missing",
+                        "--interfaces",
+                        "GUI",
+                        probe=probe,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn(f"gate.node.version=v{node_version}", result.stdout)
+                    self.assertIn(f"gate.pnpm.version={pnpm_version}", result.stdout)
+                    self.assertIn("gate.changed=false", result.stdout)
+
+    def test_incompatible_node_versions_are_rejected(self) -> None:
+        """低于两个下界或落入 21.x 空档的 Node.js 必须失败关闭。"""
+        for node_version in ("20.18.9", "21.9.0", "22.11.9"):
+            with self.subTest(node_version=node_version), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                probe = root / "probe"
+                fake_existing_tools(probe, python=False)
+                fake_frontend_tools(probe, node=node_version)
+                result = self.run_gate(root, "--check-only", "--interfaces", "GUI", probe=probe)
+                self.assertEqual(result.returncode, 23)
+                self.assertIn("不满足兼容范围", result.stderr)
+
+    def test_incompatible_pnpm_is_rejected(self) -> None:
+        """pnpm 低于 10.0.0 时不得因命令可调用而通过。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, pnpm="9.15.9")
+            result = self.run_gate(root, "--check-only", "--interfaces", "GUI", probe=probe)
+            self.assertEqual(result.returncode, 28)
+            self.assertIn("低于兼容下界", result.stderr)
 
     def test_missing_gui_toolchain_is_installed_in_isolation(self) -> None:
         """GUI 缺失 Rust、Node.js 与 pnpm 时应全部安装并复探。"""
@@ -314,9 +360,15 @@ class PrerequisiteGateTests(unittest.TestCase):
             '"gate.msvc.change=$MsvcChange"',
             '@("CLI", "TUI", "MCP", "GUI")',
             '$FrontendRequired = $NormalizedInterfaces -contains "GUI"',
+            '$NodeRequirement = "^20.19.0 || >=22.12.0"',
+            '$PnpmRequirement = ">=10.0.0"',
+            '$PnpmInstallRequirement = "pnpm@^10.0.0"',
+            "Test-NodeVersion",
+            "Test-PnpmVersion",
         )
         for fragment in required:
             self.assertIn(fragment, text)
+        self.assertNotIn("pnpm@latest", text)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,12 @@ def executable(path: Path, content: str) -> None:
     path.chmod(0o755)
 
 
-def add_existing_environment(root: Path, *, include_cross_tools: bool) -> Path:
+def add_existing_environment(
+    root: Path,
+    *,
+    include_cross_tools: bool,
+    cargo_xwin_version: str = "0.22.0",
+) -> Path:
     """建立常规 GUI 门禁已通过的最小工具集，并按场景加入现成交叉工具。"""
     probe = root / "probe"
     state = root / "state"
@@ -40,9 +45,9 @@ fi
         probe / "cargo",
         f"""#!/bin/sh
 set -eu
-if [ "$1 $2 $3" = "install --locked cargo-xwin" ]; then
+if [ "$1 $2 $3 $4 $5" = "install --locked --version >=0.22.0, <0.24.0 cargo-xwin" ]; then
   mkdir -p "$CARGO_HOME/bin"
-  printf '#!/bin/sh\nprintf "%%s\\n" "cargo-xwin 0.test"\n' > "$CARGO_HOME/bin/cargo-xwin"
+  printf '#!/bin/sh\nprintf "%%s\\n" "cargo-xwin 0.23.1"\n' > "$CARGO_HOME/bin/cargo-xwin"
   chmod +x "$CARGO_HOME/bin/cargo-xwin"
 else
   exit 2
@@ -55,7 +60,10 @@ fi
         executable(probe / "llvm-rc", "#!/bin/sh\nprintf '%s\n' 'llvm-rc test'\n")
         executable(probe / "lld-link", "#!/bin/sh\nprintf '%s\n' 'lld-link test'\n")
         executable(probe / "makensis", "#!/bin/sh\nprintf '%s\n' 'NSIS test'\n")
-        executable(probe / "cargo-xwin", "#!/bin/sh\nprintf '%s\n' 'cargo-xwin 0.test'\n")
+        executable(
+            probe / "cargo-xwin",
+            f"#!/bin/sh\nprintf '%s\\n' 'cargo-xwin {cargo_xwin_version}'\n",
+        )
     return probe
 
 
@@ -132,6 +140,11 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             result = self.run_gate(root, probe, "--install-missing")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.tauri_windows_cross.status=passed", result.stdout)
+            self.assertIn(
+                "gate.cargo_xwin.requirement=>=0.22.0, <0.24.0",
+                result.stdout,
+            )
+            self.assertIn("gate.cargo_xwin.version=0.22.0", result.stdout)
             self.assertIn("gate.changed=false", result.stdout)
             self.assertFalse((root / "cargo").exists())
 
@@ -148,7 +161,27 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             self.assertIn("gate.nsis.change=installed", result.stdout)
             self.assertIn("gate.rust_target.change=installed", result.stdout)
             self.assertIn("gate.cargo_xwin.change=installed", result.stdout)
+            self.assertIn(
+                "gate.cargo_xwin.requirement=>=0.22.0, <0.24.0",
+                result.stdout,
+            )
+            self.assertIn("gate.cargo_xwin.version=0.23.1", result.stdout)
             self.assertIn("gate.changed=true", result.stdout)
+
+    def test_incompatible_existing_cargo_xwin_is_not_replaced(self) -> None:
+        """范围外或预发布 cargo-xwin 必须阻断，不能被当作缺失后静默重装。"""
+        for version in ("0.21.9", "0.24.0", "0.22.0-beta.1"):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                probe = add_existing_environment(
+                    root,
+                    include_cross_tools=True,
+                    cargo_xwin_version=version,
+                )
+                result = self.run_gate(root, probe, "--install-missing")
+                self.assertEqual(result.returncode, 36)
+                self.assertIn("不满足兼容范围 >=0.22.0, <0.24.0", result.stderr)
+                self.assertFalse((root / "cargo").exists())
 
     def test_check_only_reports_missing_without_writes(self) -> None:
         """只读模式必须报告缺失且不调用 Homebrew、rustup target add 或 cargo install。"""
@@ -193,7 +226,7 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             (root / "state" / "target").touch()
             executable(
                 probe / "cargo-xwin",
-                "#!/bin/sh\nprintf '%s\\n' 'cargo-xwin 0.test'\n",
+                "#!/bin/sh\nprintf '%s\\n' 'cargo-xwin 0.23.1'\n",
             )
 
             result = self.run_gate(root, probe, "--install-missing")

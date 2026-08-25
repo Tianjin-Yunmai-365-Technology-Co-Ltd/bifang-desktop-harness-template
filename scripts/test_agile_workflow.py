@@ -115,6 +115,25 @@ class AgentPolicyTests(unittest.TestCase):
         initialization.validate_initialization_contract(errors)
         self.assertEqual(errors, [])
 
+    def test_rust_asset_rejects_non_minimum_compatible_requirements(self) -> None:
+        """中性 Rust 资产不能恢复单段版本、精确锁或 Git/tag 依赖。"""
+        errors: list[str] = []
+        initialization.validate_workspace_dependency_minimums(
+            errors,
+            {
+                "valid": "1.2.3",
+                "valid_caret": "^2.3.4",
+                "internal": {"path": "internal"},
+                "broad": "1",
+                "exact": "=1.2.3",
+                "tagged": {"git": "https://example.invalid/repo", "tag": "v1.2.3"},
+            },
+        )
+        self.assertEqual(len(errors), 3, errors)
+        self.assertTrue(any("broad" in error for error in errors))
+        self.assertTrue(any("exact" in error for error in errors))
+        self.assertTrue(any("tagged" in error for error in errors))
+
     def test_macos_dmg_background_asset_is_valid(self) -> None:
         """GUI 初始化携带的真实 PNG 必须通过结构、尺寸和内容门禁。"""
         errors: list[str] = []

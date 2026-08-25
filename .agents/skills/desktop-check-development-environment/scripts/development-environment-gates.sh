@@ -4,6 +4,9 @@ set -eu
 # MSRV 的唯一事实来源见 docs/RUST_CLI_TEMPLATE.md；修改此值时必须同步更新 development-environment-gates.ps1。
 MIN_RUST_MAJOR=1
 MIN_RUST_MINOR=90
+NODE_REQUIREMENT='^20.19.0 || >=22.12.0'
+PNPM_REQUIREMENT='>=10.0.0'
+PNPM_INSTALL_REQUIREMENT='pnpm@^10.0.0'
 MODE=install
 INTERFACES=
 FRONTEND_REQUIRED=0
@@ -120,6 +123,57 @@ validate_rust() {
     fi
     RUST_VERSION=$rust_text
     CARGO_VERSION=$cargo_text
+}
+
+# 验证 Node.js 落在 Vite 基线的非连续兼容范围内，不能把可调用误作版本兼容。
+validate_node() {
+    node_path=$1
+    node_text=$("$node_path" --version 2>/dev/null) || fail 23 "Node.js 探测失败"
+    node_release=$(printf '%s\n' "$node_text" | sed 's/^v//')
+    case "$node_release" in
+        *-*|*+*) fail 23 "现有 Node.js 不是可识别的稳定发布版：$node_text" ;;
+        *.*.*) ;;
+        *) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
+    esac
+    node_major=$(printf '%s\n' "$node_release" | awk -F. '{print $1}')
+    node_minor=$(printf '%s\n' "$node_release" | awk -F. '{print $2}')
+    node_patch=$(printf '%s\n' "$node_release" | awk -F. '{print $3}')
+    case "$node_major:$node_minor:$node_patch" in
+        *[!0-9:]*|::*|*::|*::*:*) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
+    esac
+    node_compatible=0
+    if [ "$node_major" -eq 20 ] && {
+        [ "$node_minor" -gt 19 ] || { [ "$node_minor" -eq 19 ] && [ "$node_patch" -ge 0 ]; };
+    }; then
+        node_compatible=1
+    elif [ "$node_major" -gt 22 ] || {
+        [ "$node_major" -eq 22 ] && {
+            [ "$node_minor" -gt 12 ] || { [ "$node_minor" -eq 12 ] && [ "$node_patch" -ge 0 ]; };
+        };
+    }; then
+        node_compatible=1
+    fi
+    [ "$node_compatible" -eq 1 ] || fail 23 "现有 Node.js $node_release 不满足兼容范围 $NODE_REQUIREMENT"
+    NODE_VERSION=$node_text
+}
+
+# 验证 pnpm 满足声明下界；现有更高稳定版本保留，不进行静默替换。
+validate_pnpm() {
+    pnpm_path=$1
+    pnpm_text=$(PATH=$PROBE_PATH:$PATH "$pnpm_path" --version 2>/dev/null) || fail 28 "pnpm 探测失败"
+    case "$pnpm_text" in
+        *-*|*+*) fail 28 "现有 pnpm 不是可识别的稳定发布版：$pnpm_text" ;;
+        *.*.*) ;;
+        *) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
+    esac
+    pnpm_major=$(printf '%s\n' "$pnpm_text" | awk -F. '{print $1}')
+    pnpm_minor=$(printf '%s\n' "$pnpm_text" | awk -F. '{print $2}')
+    pnpm_patch=$(printf '%s\n' "$pnpm_text" | awk -F. '{print $3}')
+    case "$pnpm_major:$pnpm_minor:$pnpm_patch" in
+        *[!0-9:]*|::*|*::|*::*:*) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
+    esac
+    [ "$pnpm_major" -ge 10 ] || fail 28 "现有 pnpm $pnpm_text 低于兼容下界 10.0.0"
+    PNPM_VERSION=$pnpm_text
 }
 
 # 将 Unix 宿主映射到 Rust 官方 rustup-init target；Linux libc 无法确定时停止而不猜测。
@@ -258,14 +312,14 @@ install_node() {
     TEMP_DIR=
 }
 
-# 仅在 GUI 项目缺失 pnpm 时，通过 Node 自带 npm 安装官方软件包仓库中的稳定 pnpm。
+# 仅在 GUI 项目缺失 pnpm 时，通过 Node 自带 npm 安装满足最低要求的兼容范围。
 install_pnpm() {
     npm_path=$(find_tool npm 2>/dev/null || true)
     [ -n "$npm_path" ] || fail 28 "为 GUI 开发安装 pnpm 需要 npm"
     pnpm_home=${AFH_PNPM_HOME:-${HOME:?必须设置 HOME}/.local/share/agent-first-pnpm}
     mkdir -p "$pnpm_home" || fail 28 "无法创建 pnpm 安装根目录"
-    printf '正在从官方 npm 软件包仓库把缺失的 pnpm 安装到用户级目录。\n' >&2
-    PATH=$PROBE_PATH:$PATH "$npm_path" install --global --prefix "$pnpm_home" pnpm@latest || fail 28 "pnpm 安装失败"
+    printf '正在从官方 npm 软件包仓库把缺失的 pnpm %s 安装到用户级目录。\n' "$PNPM_INSTALL_REQUIREMENT" >&2
+    PATH=$PROBE_PATH:$PATH "$npm_path" install --global --prefix "$pnpm_home" "$PNPM_INSTALL_REQUIREMENT" || fail 28 "pnpm 安装失败"
     PNPM_BIN_DIR=$pnpm_home/bin
     PROBE_PATH=$PNPM_BIN_DIR:$PROBE_PATH
     PNPM_CHANGED=installed
@@ -286,14 +340,14 @@ if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
     node_path=$(find_tool node 2>/dev/null || true)
     pnpm_path=$(find_tool pnpm 2>/dev/null || true)
     if [ -n "$node_path" ]; then
-        NODE_VERSION=$("$node_path" --version 2>/dev/null) || fail 23 "Node.js 探测失败"
+        validate_node "$node_path"
         node_missing=0
     else
         NODE_VERSION=Missing
         node_missing=1
     fi
     if [ -n "$pnpm_path" ]; then
-        PNPM_VERSION=$("$pnpm_path" --version 2>/dev/null) || fail 28 "pnpm 探测失败"
+        validate_pnpm "$pnpm_path"
         pnpm_missing=0
     else
         PNPM_VERSION=Missing
@@ -310,8 +364,10 @@ if [ "$MODE" = check ]; then
     printf 'gate.rust.status=%s\n' "$([ "$rust_missing" -eq 0 ] && printf passed || printf missing)"
     printf 'gate.rust.version=%s\n' "$RUST_VERSION"
     printf 'gate.node.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 0 ] && printf not-required || { [ "$node_missing" -eq 0 ] && printf passed || printf missing; })"
+    printf 'gate.node.requirement=%s\n' "$NODE_REQUIREMENT"
     printf 'gate.node.version=%s\n' "$NODE_VERSION"
     printf 'gate.pnpm.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 0 ] && printf not-required || { [ "$pnpm_missing" -eq 0 ] && printf passed || printf missing; })"
+    printf 'gate.pnpm.requirement=%s\n' "$PNPM_REQUIREMENT"
     printf 'gate.pnpm.version=%s\n' "$PNPM_VERSION"
     [ "$rust_missing" -eq 0 ] && [ "$node_missing" -eq 0 ] && [ "$pnpm_missing" -eq 0 ] || exit 20
     exit 0
@@ -329,14 +385,14 @@ if [ "$node_missing" -eq 1 ]; then
     install_node
     node_path=$(find_tool node 2>/dev/null || true)
     [ -n "$node_path" ] || fail 26 "Node.js 安装完成后仍无法调用 node 可执行文件"
-    NODE_VERSION=$("$node_path" --version 2>/dev/null) || fail 26 "已安装 Node.js 的探测失败"
+    validate_node "$node_path"
 fi
 
 if [ "$pnpm_missing" -eq 1 ]; then
     install_pnpm
     pnpm_path=$(find_tool pnpm 2>/dev/null || true)
     [ -n "$pnpm_path" ] || fail 28 "pnpm 安装完成后仍无法调用 pnpm 可执行文件"
-    PNPM_VERSION=$(PATH=$PROBE_PATH:$PATH "$pnpm_path" --version 2>/dev/null) || fail 28 "已安装 pnpm 的探测失败"
+    validate_pnpm "$pnpm_path"
 fi
 
 changed=false
@@ -348,9 +404,11 @@ printf 'gate.rust.status=passed\n'
 printf 'gate.rust.version=%s\n' "$RUST_VERSION"
 printf 'gate.rust.change=%s\n' "$RUST_CHANGED"
 printf 'gate.node.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 1 ] && printf passed || printf not-required)"
+printf 'gate.node.requirement=%s\n' "$NODE_REQUIREMENT"
 printf 'gate.node.version=%s\n' "$NODE_VERSION"
 printf 'gate.node.change=%s\n' "$NODE_CHANGED"
 printf 'gate.pnpm.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 1 ] && printf passed || printf not-required)"
+printf 'gate.pnpm.requirement=%s\n' "$PNPM_REQUIREMENT"
 printf 'gate.pnpm.version=%s\n' "$PNPM_VERSION"
 printf 'gate.pnpm.change=%s\n' "$PNPM_CHANGED"
 printf 'gate.changed=%s\n' "$changed"

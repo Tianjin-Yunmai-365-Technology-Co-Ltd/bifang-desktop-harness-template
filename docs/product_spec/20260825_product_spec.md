@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-08-25（GUI 初始化 Logo 三选一、侧栏 Logo→版本/默认收起、赞助双主题与主窗口尺寸见 ADR-20260825-002；固定侧栏/设置页、更新/强更/统计契约见 ADR-20260825-001；此前 GUI 托盘/关闭隐藏/标题/关于赞助、Superpowers/环境、DMG 背景、开发构建及仍有效品牌、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
+> 最近范围确认：2026-08-25（GUI 更新入口、三态主题、全局亮暗语义主题与折叠菜单图标/Tooltip 见 ADR-20260825-004；Rust/前端/受管工具的最低兼容版本范围见 ADR-20260825-003；GUI 初始化 Logo 三选一、侧栏 Logo→版本/默认收起、赞助双主题与主窗口尺寸见 ADR-20260825-002；固定侧栏、更新/强更/统计契约见 ADR-20260825-001；此前 GUI 托盘/关闭隐藏/标题/关于赞助、Superpowers/环境、DMG 背景、开发构建及仍有效品牌、Rust、文件治理、异步、日志、真实验收与 i18n 决定已综合保留）
 
 ## 一句话目标
 
@@ -33,7 +33,7 @@
 - Core-first 是强制架构约束：凡不依赖某一具体接口或宿主才能成立的领域类型、业务规则、语义校验、业务默认值、用例编排、领域状态转换、稳定领域错误、平台无关权限与持久化策略，都必须在共享 core 中实现并通过明确 API 暴露；即使当前只选择一个适配器也同样适用。
 - CLI、TUI、MCP、GUI 必须保持薄适配层，只负责运行时与依赖装配、接口语法/协议结构解析、展示和交互状态、调用 core，以及把 core 结果与错误映射为接口输出；不得复制、改写或另建业务规则、权威业务状态、迁移、权限策略或平台无关校验。
 - 系统托盘、窗口/WebView 生命周期、通知、自动启动、终端焦点/按键/恢复、MCP stdio 传输和 CLI 参数/退出码等接口或平台机制留在对应适配器；它们触发的业务动作仍必须调用 core。真实边界需要时可由 core 定义运行时中立的能力接口并由适配器实现，但不得为假想需求预建抽象。
-- TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。偏离必须形成硬规则例外 ADR。
+- TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。各直接依赖与受管工具必须声明满足已批准能力、平台、MSRV、Node.js 与 WebView 约束的最低兼容稳定版本范围，并在声明的最低工具链中通过最低版本解析和相关测试；锁文件只固定当前实际解析结果。偏离技术族或精确锁死普通依赖版本都必须形成硬规则例外 ADR。
 - Tauri GUI 的界面国际化（i18n）是初始化硬性必选项，不是可选增强：前端固定采用 `i18next` 与 `react-i18next`，Rust 后端（GUI 适配器层）固定采用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API 作为前后端唯一探测来源。默认语言必须跟随首次启动时探测到的系统语言，固定托盘、侧栏、设置、关于与赞助资源提供中文与英文，缺少对应翻译资源时回退英文；GUI 必须在固定设置页提供可发现的中英文切换入口，用户手动切换后的选择必须持久化并覆盖系统探测结果。core 保持语言无关，只暴露语言中立的稳定标识供适配器本地化。偏离必须形成硬规则例外 ADR（详见 ADR-20260806-001）。
 - Rust 技术选型固定为：Tokio 负责异步运行时；获批 HTTP 使用 Axum + Tower/Tower HTTP；Clap 负责 CLI；SeaORM 负责关系型 ORM；真实配置使用 config-rs，`notify` 仅用于批准的窄热重载；本地可观测性使用 tracing + tracing-subscriber + tracing-appender；稳定错误、应用上下文、序列化与日期时间分别使用 thiserror、anyhow、serde 与 jiff。OpenTelemetry OTLP/HTTP 只在产品、隐私、采样、endpoint 和失败行为获批后默认关闭地接入。偏离必须形成硬规则例外 ADR。
 - 固定选型表示“能力出现时采用该技术”，不表示中性初始化无条件安装全部依赖。OpenAPI 使用 utoipa + utoipa-axum + Scalar code-first，GraphQL 使用兼容的 async-graphql + async-graphql-axum，非关系型能力优先官方 MongoDB async driver 与 redis-rs Tokio，本地认证优先 jsonwebtoken + Argon2id；这些组合全部只在真实消费者、数据或安全边界获批后引入。Axum 标准不恢复独立 WEB 适配器。
@@ -43,7 +43,7 @@
 - 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
 - 选择 GUI 时必须在中性初始化中调用 `$desktop-prepare-gui-app-identity` 的 Logo 模式：实际生成正好 3 个 1024×1024 PNG 候选并同时展示，等待用户明确选择；选中母版逐字节复制为运行时 `/app-identity/logo.png` 并由项目本地 Tauri 工具生成平台图标，三个候选与选择、路径、摘要记录在 `docs/GUI_APP_PROFILE.md`。不得以文字方案、静默默认或中性占位图完成初始化。首次真实产品 GUI 开发前再次进入完整身份模式，补齐窗口身份、应用说明与分发资料。
 - 选择 GUI 时，中性初始化必须从初始化 Skill 的受管资产创建项目内 `<项目标识>_gui/src-tauri/dmg/background.png`：它是无产品身份的 660×400 PNG，清楚表达把应用拖到 Applications 的动作；Tauri 配置固定通过 `./dmg/background.png` 引用，并使用应用 `(180, 220)`、Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；初始化 Skill 删除后，运行时与构建不得继续依赖其源资产。
-- GUI 初始化固定启用 Tauri `tray-icon`：托盘只含本地化“显示窗口”和“退出”，显示动作与托盘左键恢复并聚焦主窗口；主窗口关闭只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用，默认不加入自动启动。初始化同时建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和默认收起的固定左侧菜单；选中的应用 Logo 永远位于侧栏顶部，权威当前版本紧随其下，展开和折叠状态都不得隐藏二者。产品功能从顶部向下注入，底部固定组按视觉顺序为赞助、设置、关于，即从窗口底部向上为关于、设置、赞助，固定路由为 `/sponsor`、`/settings`、`/about`。主应用窗口在 Tauri `app.windows` 中使用 1440×900 逻辑像素、最小 960×640、居中且防止溢出；默认尺寸要在展开 248px 侧栏时仍横向显示三张赞助档位卡，并与 660×400 的 DMG 安装卷窗口保持独立。Mantine 根默认跟随系统主题且同时保留亮色/暗色 token，赞助页依据运行时有效主题选择背景叠层、surface 和对比色，不把初始化宿主主题冻结进产物。设置页展示应用/版本、中英文切换、检查更新状态和统计同意；关于页展示当前应用名/权威版本、作者、作者联系方式和三段免责声明；赞助页展示三档品牌内容并打包完整 sponsor 媒体。`$desktop-prepare-gui-support-surfaces` 携带这些共享品牌资产与模板。Harness 仍不预创建 `docs/GUI_SUPPORT_SURFACES.md`；没有完整产品出站配置时更新显示 `NotConfigured`、统计开关禁用且默认不同意，固定界面保持零出站。
+- GUI 初始化固定启用 Tauri `tray-icon`：托盘只含本地化“显示窗口”和“退出”，显示动作与托盘左键恢复并聚焦主窗口；主窗口关闭只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用，默认不加入自动启动。初始化同时建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和默认收起的固定左侧菜单；选中的应用 Logo 永远位于侧栏顶部，权威当前版本紧随其下，展开和折叠状态都不得隐藏二者。每个产品功能项和赞助/设置/关于固定项必须提供图标；折叠时显示图标并以本地化 Tooltip 补充名称，展开时显示图标与名称，两种状态均保留可访问名称。产品功能从顶部向下注入，底部固定组按视觉顺序为赞助、设置、关于，即从窗口底部向上为关于、设置、赞助，固定路由为 `/sponsor`、`/settings`、`/about`。主应用窗口在 Tauri `app.windows` 中使用 1440×900 逻辑像素、最小 960×640、居中且防止溢出；默认尺寸要在展开 248px 侧栏时仍横向显示三张赞助档位卡，并与 660×400 的 DMG 安装卷窗口保持独立。Mantine 根默认跟随系统并通过唯一主题模块同时提供亮色/暗色的页面背景、surface、主/次文字、边框和强调色；设置页提供浅色、深色、跟随系统三态选择并以 GUI adapter 的设备级本地存储持久化，赞助页依据运行时有效主题选择背景叠层、surface 和对比色，不把初始化宿主主题冻结进产物。设置页还展示应用/版本、中英文切换和统计同意；手动检查更新入口及其状态位于关于页。关于页同时展示当前应用名/权威版本、作者、作者联系方式和三段免责声明；赞助页展示三档品牌内容并打包完整 sponsor 媒体。`$desktop-prepare-gui-support-surfaces` 携带这些共享品牌资产与模板。Harness 仍不预创建 `docs/GUI_SUPPORT_SURFACES.md`；没有完整产品出站配置时关于页更新显示 `NotConfigured`、按钮禁用，统计开关禁用且默认不同意，固定界面保持零出站。
 - 产品启用更新时必须使用官方 Tauri updater 的签名制品、公开验证密钥和受限 HTTPS endpoints，签名验证不可关闭，并拒绝降级以及 target、arch、channel 不匹配。检查状态固定为 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`，失败不得伪装为最新版。强更只由 adapter 验证过真实性和目标绑定的 `minimumSupportedVersion` 交给 core，以严格 SemVer 得出；不得信任远端 `forcedUpdate` 布尔值。`RequiredUpdate` 使用根级不可关闭门，只允许安装已验证签名更新或安全退出。任务必须由应用生命周期拥有并具备单飞、取消、超时和关闭回收；一般网络/策略失败默认 fail-open。真实远程能力未批准时保持禁用和零出站。
 - 统计上报默认关闭并要求明确同意。固定允许范围仅为每进程一次 `app_started`，由 Rust GUI adapter 以 HTTPS JSON `POST` body 发送文档声明的精确字段白名单；禁止 GET/query、自由文本、业务载荷、令牌、路径、用户名、主机名和稳定设备/安装标识。队列只驻留内存且最多 32 条，同一时刻最多一个在途请求，撤回同意立即取消并清空，任务与至多两次重试必须可关闭回收；任何新增事件、字段、稳定标识或持久队列都需重新批准。桌面客户端不得保存服务端共享秘密或发布私钥。更新 banner 只有产品选择时进入 bundle，真实 endpoint、统计接收方、公开 updater 配置与安全密钥引用只进入受保护产品事实。
 - 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills。
@@ -84,7 +84,7 @@
 - `$desktop-build-rust-release` 继续专用于 Rust CLI：默认路线是 Windows、macOS、Linux 原生候选矩阵；只有提供方、权限、三类运行器或结果取回能力在派发前不可用时才回退当前宿主，并记录原因及其他平台 `Unverified`。矩阵一旦启动，任一平台失败、取消或超时都是真实失败。
 - 新增 `$desktop-build-tauri-release` 专用于 Tauri 2 GUI 安装包。macOS 宿主可构建原生 macOS DMG，并在项目批准 Windows x64 目标时使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows NSIS；不得在 macOS 声称生成只支持 Windows 原生 WiX 的 MSI。
 - macOS→Windows 路线只证明 Windows MSVC 目标可编译并生成 NSIS，不证明 Windows 原生运行、安装或签名成功。清单必须记录 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`buildMode: cross-compiled-xwin`、宿主、目标和 `runtimeVerification: Unverified`；需要原生 Windows/渠道证据时仍使用批准的 Windows 运行器。
-- 中性初始化在写入脚手架前主动运行一次已选接口环境门禁。初始化完成后的 Tauri 交叉构建先使用当前环境执行真实命令；只有该命令已经失败且诊断明确指向受管 xwin 工具时，`$desktop-check-development-environment` 才分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与 `cargo-xwin`，安装后逐项复探并只重试原命令一次。显式构建、目标选择或缺少环境证据不得提前触发该流程；已存在但缺少必需命令的 formula 视为损坏或不兼容并阻断，不静默重装，缺少既有 Homebrew、安装失败、目标不兼容或复探失败时同样阻断。
+- 中性初始化在写入脚手架前主动运行一次已选接口环境门禁。初始化完成后的 Tauri 交叉构建先使用当前环境执行真实命令；只有该命令已经失败且诊断明确指向受管 xwin 工具时，`$desktop-check-development-environment` 才分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与兼容范围 `cargo-xwin >=0.22.0, <0.24.0`，安装后逐项复探并只重试原命令一次。显式构建、目标选择或缺少环境证据不得提前触发该流程；已存在但缺少必需命令的 formula 或范围外 `cargo-xwin` 视为损坏或不兼容并阻断，不静默替换/重装，缺少既有 Homebrew、安装失败、目标不兼容或复探失败时同样阻断。
 - 对 macOS 直接分发的 Developer ID 候选，签名、公证和 ticket stapling 是一个不可拆分的候选阶段。只有 Apple 设备、Developer ID Application 身份、Tauri 支持的一组完整环境凭据或已授权且在线可用的 `notarytool` Keychain profile、`xcrun notarytool`/`stapler` 和批准授权均可用时，才运行不含 `--skip-stapling` 的 DMG 构建；不同凭据模式不得混用，探测不得输出 profile 名或秘密。
 - macOS DMG 构建必须在测试前确认项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的当前 SHA-256 与 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，再把该本地拖拽背景、应用与 `/Applications` 落点及 Finder 窗口状态写入真实卷；headless CI 不得无界等待 Finder AppleScript。所有布局写入、签名、公证和 stapling 完成后，构建与里程碑验收都针对当前最终 DMG 只读验证非空 `.DS_Store`、本地背景、唯一顶层应用包与 Applications 链接，随后才计算或接受 SHA-256；不得自动接受软件许可，任何后处理或重打包都使旧签名、摘要和验收证据失效。
 - 条件只满足签名而不满足公证/stapling 时，不得输出“仅签名”的 Developer ID 候选。签名公证为可选项时，显式使用 `--no-sign` 生成并记录 `unsigned`；产品或渠道要求签名公证时阻断。任一签名、公证、stapling 或验证尝试开始后失败，必须使 macOS 候选失败，绝不得静默降级。
@@ -97,7 +97,7 @@
 - Harness 与收费下游采用非开源企业专有商业许可；根 `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 保持一致，升级不能自动改写法律文本。
 - CLI/TUI/MCP 使用 Tokio current-thread 异步入口，GUI 复用 Tauri 的由 Tokio 支撑的异步运行时；核心默认保持运行时中立。
 - 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；目标平台为 Windows、macOS 和 Linux。
-- 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并在 Rust 1.90、三平台和锁定回归门禁内采用较新兼容稳定版本；anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
+- 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并在 Rust 1.90 MSRV、三平台和锁定回归门禁内声明经最低直接版本解析与测试证明的兼容下界；正常锁文件可以解析到范围内较新的稳定版本。anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
 - 选择 CLI 时遵守统一 JSON 信封、错误结构、输出流和退出码契约。
 
 ## 不包含
@@ -115,7 +115,7 @@
 - 不自动创建或索取签名/公证凭据、配置签名身份、安装 Homebrew、创建标签、配置远端、推送、商店提交、正式发布或上传到发布渠道；构建只可在既有批准的非交互条件与授权全部可用时执行对应平台的签名或签名公证一体化阶段。
 - 不在 macOS 交叉生成 Windows MSI，不从 xwin 产物推断 Windows 原生运行/安装行为，也不在本轮增加 Linux GUI 交叉构建或统一 TUI/MCP 发布模型。
 - 除固定托盘/侧栏/设置/关于/赞助基线使用的中文与英文外，不在本轮为具体产品预设额外语言或业务翻译文案；不为 CLI/TUI/MCP 适配器新增 i18n 义务。
-- 不在中性 GUI 中配置或启用真实更新 endpoint、强更最低版本、统计接收方、自动启动、远程帮助或其他出站能力，也不把来源下游的产品名称/标识、固定 endpoint、客户端共享秘密或遥测实例带入 Harness。固定设置入口、更新状态机与统计同意控件在未配置时保持 `NotConfigured`/禁用/零出站；经项目负责人确认的作者/联系人/免责声明、固定赞助档位/价格、支付码、更新 banner 与小图是产品家族品牌资产包的显式例外。携带静态支付材料不授权真实交易、订单、权益或账户实现。
+- 不在中性 GUI 中配置或启用真实更新 endpoint、强更最低版本、统计接收方、自动启动、远程帮助或其他出站能力，也不把来源下游的产品名称/标识、固定 endpoint、客户端共享秘密或遥测实例带入 Harness。固定关于页更新入口、更新状态机与设置页统计同意控件在未配置时保持 `NotConfigured`/禁用/零出站；经项目负责人确认的作者/联系人/免责声明、固定赞助档位/价格、支付码、更新 banner 与小图是产品家族品牌资产包的显式例外。携带静态支付材料不授权真实交易、订单、权益或账户实现。
 - 不复制 Rust Server 的单 package/single-bin 架构、默认多线程 runtime 或整套 HTTP 资产；不复制 Web/Extension/Plasmo/Chrome 资产、浏览器数据协议、固定 API BaseURL 或具体依赖版本。
 - 不机械要求全部局部变量、循环绑定和普通匿名回调逐项注释，也不自动批量生成“保存变量”“执行处理逻辑”等套话。
 
@@ -153,6 +153,7 @@
 - [x] `$desktop-upgrade-harness` 提供试运行、来源/基线记录、三方差异、冲突阻断、保护清单、`tombstone` 和更新后验证闭环。
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
+- [x] Rust、前端依赖及 Node.js/pnpm/cargo-xwin 等带 SemVer 的受管工具要求统一表达为经过验证的最低兼容稳定版本范围；Cargo/pnpm 锁文件只固定当前解析结果，最低版本解析和项目最低工具链测试共同证明下界。
 - [x] Rust CLI 构建默认选择 Windows、macOS、Linux 原生矩阵，只有派发前条件不可用才回退当前平台；已启动矩阵失败不会被回退掩盖。
 - [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单，并明确区分 `pending` 与 `ready`。
 - [x] 已配置且条件可用的非交互签名会被尝试并验证，失败使平台构建失败；签名条件不具备时真实记录 `unsigned`，不获取或泄露凭据。
@@ -161,7 +162,7 @@
 - [x] xwin 门禁能分别处理 Homebrew `llvm`/`lld` 拆包并拒绝损坏 formula；公证探测能安全使用一组完整环境凭据或已授权 Keychain profile，且不输出 profile 名或秘密。
 - [x] macOS DMG 构建规则要求最终字节具有真实 Finder 拖拽布局，并以只读挂载检查 `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接；所有后处理都要求重新签名、公证、摘要与验收。
 - [x] GUI 初始化携带并创建无产品身份的 660×400 DMG 背景，项目配置固定引用项目内 `src-tauri/dmg/background.png`；GUI 身份流程负责正式批准或同路径替换，构建在测试前校验路径、尺寸、摘要与 Tauri 配置一致。
-- [x] GUI 初始化实际生成 3 个 1024×1024 Logo 候选并由用户选择，选中母版可追溯到运行时 Logo 与平台图标；固定建立仅含显示/退出的托盘、关闭隐藏生命周期、权威动态标题和默认收起的左侧菜单，Logo 永远在顶部且当前版本紧随其下，展开/折叠均显示二者。主应用窗口默认 1440×900、最小 960×640并与 660×400 DMG 安装卷窗口独立；赞助页在同一产物中分别适配亮色/暗色。功能项从顶部向下，底部固定项的视觉顺序为赞助、设置、关于；固定 `/settings`、`/about`、`/sponsor` 路由，设置页提供中英文切换、`NotConfigured` 检查更新与默认关闭的统计同意，关于页显示作者/联系人/免责声明，赞助页默认打包完整 sponsor 媒体。
+- [x] GUI 初始化实际生成 3 个 1024×1024 Logo 候选并由用户选择，选中母版可追溯到运行时 Logo 与平台图标；固定建立仅含显示/退出的托盘、关闭隐藏生命周期、权威动态标题和默认收起的左侧菜单，Logo 永远在顶部且当前版本紧随其下，展开/折叠均显示二者。每个功能/固定菜单项都有图标；折叠时显示图标和 Tooltip 名称，展开时显示图标与名称。主应用窗口默认 1440×900、最小 960×640并与 660×400 DMG 安装卷窗口独立；应用根同时提供完整亮色/暗色语义主题，设置页可选浅色、深色、跟随系统并持久化，赞助页在同一产物中分别适配亮色/暗色。功能项从顶部向下，底部固定项的视觉顺序为赞助、设置、关于；固定 `/settings`、`/about`、`/sponsor` 路由，设置页提供中英文切换与默认关闭的统计同意，关于页提供 `NotConfigured` 检查更新并显示作者/联系人/免责声明，赞助页默认打包完整 sponsor 媒体。
 - [x] `$desktop-prepare-gui-support-surfaces` 固化官方签名 updater、认证最低支持版本 + core SemVer 强更、根级不可绕过更新门，以及默认关闭、明确同意、HTTPS JSON POST、无稳定标识、内存有界队列和生命周期回收的统计契约；`$desktop-build-tauri-release` 在启用 updater 时强制产出并验证 archive/`.sig`，安装包签名状态不能绕过更新制品签名。
 - [x] 品牌包完整保存 13 项图片资源并以清单绑定尺寸、摘要、用途与支付敏感性，不含来源下游产品名称/标识、固定服务地址、客户端共享秘密或默认网络请求；非 GUI 下游不保留该 Skill。
 - [x] CLI/TUI/MCP/GUI、独立 Git 根、一次性初始化裁剪、固定技术栈、双语许可证和版本边界等既有成功标准继续有效。

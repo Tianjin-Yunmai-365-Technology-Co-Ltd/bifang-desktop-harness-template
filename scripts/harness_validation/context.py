@@ -263,6 +263,7 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/supportNavigation.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/updatePresentation.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/AppSidebarTemplate.tsx",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/AppThemeProviderTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SettingsPageTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/MandatoryUpdateGateTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SupportSurfaceTemplates.test.tsx",

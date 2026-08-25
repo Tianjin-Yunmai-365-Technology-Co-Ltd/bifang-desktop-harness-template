@@ -9,6 +9,9 @@ $ErrorActionPreference = "Stop"
 # MSRV 的唯一事实来源见 docs/RUST_CLI_TEMPLATE.md；修改此值时必须同步更新 development-environment-gates.sh。
 $MinimumRustMajor = 1
 $MinimumRustMinor = 90
+$NodeRequirement = "^20.19.0 || >=22.12.0"
+$PnpmRequirement = ">=10.0.0"
+$PnpmInstallRequirement = "pnpm@^10.0.0"
 $ProbePath = if ($env:AFH_PREREQ_PATH) { $env:AFH_PREREQ_PATH } else { $env:PATH }
 $RustChange = "existing"
 $NodeChange = "existing"
@@ -85,6 +88,36 @@ function Test-RustVersion {
     }
     $script:RustVersion = $rustText
     $script:CargoVersion = $cargoText
+}
+
+# 验证 Node.js 落在 Vite 基线的非连续兼容范围内，拒绝低版本与 21.x 空档。
+function Test-NodeVersion {
+    param([string]$NodePath)
+    $nodeText = (& $NodePath --version 2>$null)
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 23 "Node.js 探测失败" }
+    if ($nodeText -notmatch '^v(\d+)\.(\d+)\.(\d+)$') {
+        Stop-Gate 23 "现有 Node.js 不是可识别的稳定发布版：$nodeText"
+    }
+    $major = [int]$Matches[1]
+    $minor = [int]$Matches[2]
+    $patch = [int]$Matches[3]
+    $compatible = ($major -eq 20 -and ($minor -gt 19 -or ($minor -eq 19 -and $patch -ge 0))) -or
+        ($major -gt 22) -or
+        ($major -eq 22 -and ($minor -gt 12 -or ($minor -eq 12 -and $patch -ge 0)))
+    if (-not $compatible) { Stop-Gate 23 "现有 Node.js $nodeText 不满足兼容范围 $NodeRequirement" }
+    $script:NodeVersion = $nodeText
+}
+
+# 验证 pnpm 满足最低兼容版本；已存在的更高稳定版本保持不变。
+function Test-PnpmVersion {
+    param([string]$PnpmPath)
+    $pnpmText = (& $PnpmPath --version 2>$null)
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm 探测失败" }
+    if ($pnpmText -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+        Stop-Gate 28 "现有 pnpm 不是可识别的稳定发布版：$pnpmText"
+    }
+    if ([int]$Matches[1] -lt 10) { Stop-Gate 28 "现有 pnpm $pnpmText 低于兼容下界 10.0.0" }
+    $script:PnpmVersion = $pnpmText
 }
 
 # 下载架构匹配的官方 rustup-init，核对 SHA-256 后安装缺失 stable 工具链。
@@ -212,14 +245,14 @@ function Install-MissingNode {
     $script:NodeChange = "installed"
 }
 
-# 仅为 GUI 项目通过 Node 自带 npm 安装官方软件包仓库中的稳定 pnpm。
+# 仅为 GUI 项目通过 Node 自带 npm 安装满足最低要求的兼容 pnpm 范围。
 function Install-MissingPnpm {
     $npm = Resolve-GateCommand "npm"
     if (-not $npm) { Stop-Gate 28 "为 GUI 开发安装 pnpm 需要 npm" }
     $pnpmHome = if ($env:AFH_PNPM_HOME) { $env:AFH_PNPM_HOME } else { Join-Path $env:LOCALAPPDATA "AgentFirstHarness\Pnpm" }
     New-Item -ItemType Directory -Force -Path $pnpmHome | Out-Null
-    [Console]::Error.WriteLine("正在从官方 npm 软件包仓库把缺失的 pnpm 安装到用户级目录。")
-    & $npm install --global --prefix $pnpmHome pnpm@latest
+    [Console]::Error.WriteLine("正在从官方 npm 软件包仓库把缺失的 $PnpmInstallRequirement 安装到用户级目录。")
+    & $npm install --global --prefix $pnpmHome $PnpmInstallRequirement
     if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm 安装失败" }
     $script:PnpmBin = $pnpmHome
     $script:ProbePath = "$PnpmBin$([IO.Path]::PathSeparator)$ProbePath"
@@ -243,16 +276,14 @@ try {
         $node = Resolve-GateCommand "node"
         $pnpm = Resolve-GateCommand "pnpm"
         if ($node) {
-            $NodeVersion = (& $node --version 2>$null)
-            if ($LASTEXITCODE -ne 0) { Stop-Gate 23 "Node.js 探测失败" }
+            Test-NodeVersion $node
             $nodeMissing = $false
         } else {
             $NodeVersion = "Missing"
             $nodeMissing = $true
         }
         if ($pnpm) {
-            $PnpmVersion = (& $pnpm --version 2>$null)
-            if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm 探测失败" }
+            Test-PnpmVersion $pnpm
             $pnpmMissing = $false
         } else {
             $PnpmVersion = "Missing"
@@ -270,8 +301,10 @@ try {
         "gate.rust.status=$(if ($rustMissing) { 'missing' } else { 'passed' })"
         "gate.rust.version=$RustVersion"
         "gate.node.status=$(if (-not $FrontendRequired) { 'not-required' } elseif ($nodeMissing) { 'missing' } else { 'passed' })"
+        "gate.node.requirement=$NodeRequirement"
         "gate.node.version=$NodeVersion"
         "gate.pnpm.status=$(if (-not $FrontendRequired) { 'not-required' } elseif ($pnpmMissing) { 'missing' } else { 'passed' })"
+        "gate.pnpm.requirement=$PnpmRequirement"
         "gate.pnpm.version=$PnpmVersion"
         "gate.msvc.status=$(if ($msvcMissing) { 'missing' } else { 'passed' })"
         if ($rustMissing -or $nodeMissing -or $pnpmMissing -or $msvcMissing) { exit 20 }
@@ -295,15 +328,13 @@ try {
         Install-MissingNode
         $node = Resolve-GateCommand "node"
         if (-not $node) { Stop-Gate 26 "Node.js 安装完成后仍无法调用 node 可执行文件" }
-        $NodeVersion = (& $node --version 2>$null)
-        if ($LASTEXITCODE -ne 0) { Stop-Gate 26 "已安装 Node.js 的探测失败" }
+        Test-NodeVersion $node
     }
     if ($pnpmMissing) {
         Install-MissingPnpm
         $pnpm = Resolve-GateCommand "pnpm"
         if (-not $pnpm) { Stop-Gate 28 "pnpm 安装完成后仍无法调用 pnpm 可执行文件" }
-        $PnpmVersion = (& $pnpm --version 2>$null)
-        if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "已安装 pnpm 的探测失败" }
+        Test-PnpmVersion $pnpm
     }
 
     $changed = if ($RustChange -eq "installed" -or $NodeChange -eq "installed" -or $PnpmChange -eq "installed" -or $MsvcChange -eq "installed") { "true" } else { "false" }
@@ -311,9 +342,11 @@ try {
     "gate.rust.version=$RustVersion"
     "gate.rust.change=$RustChange"
     "gate.node.status=$(if ($FrontendRequired) { 'passed' } else { 'not-required' })"
+    "gate.node.requirement=$NodeRequirement"
     "gate.node.version=$NodeVersion"
     "gate.node.change=$NodeChange"
     "gate.pnpm.status=$(if ($FrontendRequired) { 'passed' } else { 'not-required' })"
+    "gate.pnpm.requirement=$PnpmRequirement"
     "gate.pnpm.version=$PnpmVersion"
     "gate.pnpm.change=$PnpmChange"
     "gate.msvc.status=passed"

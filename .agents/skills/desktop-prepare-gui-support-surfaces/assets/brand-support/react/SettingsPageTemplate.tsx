@@ -1,7 +1,5 @@
 import {
-  Alert,
   Badge,
-  Button,
   Divider,
   Group,
   Paper,
@@ -10,11 +8,12 @@ import {
   Switch,
   Text,
   Title,
+  useMantineColorScheme,
 } from "@mantine/core";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { UpdatePresentation } from "./updatePresentation";
+import type { AppColorScheme } from "./AppThemeProviderTemplate";
 
 /** 设置页固定支持的界面语言。 */
 export type SupportedInterfaceLanguage = "zh-CN" | "en-US";
@@ -25,8 +24,6 @@ export interface SettingsPageTemplateProps {
   version: string;
   language: SupportedInterfaceLanguage;
   onLanguageChange: (language: SupportedInterfaceLanguage) => void;
-  update: UpdatePresentation;
-  onCheckForUpdates: () => void;
   usageReportingConfigured: boolean;
   usageReportingConsent: boolean;
   onUsageReportingConsentChange: (consent: boolean) => void;
@@ -39,23 +36,23 @@ function isSupportedLanguage(
   return value === "zh-CN" || value === "en-US";
 }
 
-/** 渲染固定设置页：版本、中文/英文、手动检查更新和统计上报同意。 */
+/** 把 SegmentedControl 字符串收敛为固定主题偏好枚举。 */
+function isSupportedColorScheme(value: string): value is AppColorScheme {
+  return value === "light" || value === "dark" || value === "auto";
+}
+
+/** 渲染固定设置页：版本、语言、主题和统计上报同意。 */
 export function SettingsPageTemplate({
   applicationName,
   version,
   language,
   onLanguageChange,
-  update,
-  onCheckForUpdates,
   usageReportingConfigured,
   usageReportingConsent,
   onUsageReportingConsentChange,
 }: SettingsPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
-  const statusKey = `updater.status_${update.status.replace(/-/g, "_")}`;
-  const isChecking = update.status === "checking";
-  const isUpdateFailure = update.status === "failed";
-  const isRequiredUpdate = update.status === "required-update";
+  const { colorScheme, setColorScheme } = useMantineColorScheme();
 
   return (
     <Stack data-testid="settings-page" gap="lg">
@@ -90,30 +87,24 @@ export function SettingsPageTemplate({
 
       <Paper p="lg" radius="lg" withBorder>
         <Stack gap="md">
-          <Group justify="space-between" wrap="wrap">
-            <Title order={3}>{t("settings.update_title")}</Title>
-            <Button
-              disabled={update.status === "not-configured"}
-              loading={isChecking}
-              onClick={onCheckForUpdates}
-            >
-              {t("settings.check_for_updates")}
-            </Button>
-          </Group>
-          <Alert
-            aria-live="polite"
-            color={isRequiredUpdate || isUpdateFailure ? "red" : "blue"}
-            role={isRequiredUpdate || isUpdateFailure ? "alert" : "status"}
-            title={t(statusKey)}
-          >
-            {update.availableVersion
-              ? t("updater.available_version", {
-                  version: update.availableVersion,
-                })
-              : t("updater.current_version", {
-                  version: update.currentVersion,
-                })}
-          </Alert>
+          <Title order={3}>{t("settings.theme_title")}</Title>
+          <Text c="dimmed" size="sm">
+            {t("settings.theme_description")}
+          </Text>
+          <SegmentedControl
+            aria-label={t("settings.theme_title")}
+            data={[
+              { label: t("settings.theme_light"), value: "light" },
+              { label: t("settings.theme_dark"), value: "dark" },
+              { label: t("settings.theme_system"), value: "auto" },
+            ]}
+            onChange={(value) => {
+              if (isSupportedColorScheme(value)) {
+                setColorScheme(value);
+              }
+            }}
+            value={colorScheme}
+          />
         </Stack>
       </Paper>
 

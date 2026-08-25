@@ -8,7 +8,7 @@ export type UpdateStatus =
   | "required-update"
   | "failed";
 
-/** 设置页和强更门共用的只读更新结果。 */
+/** 关于页和强更门共用的只读更新结果。 */
 export interface UpdatePresentation {
   status: UpdateStatus;
   currentVersion: string;

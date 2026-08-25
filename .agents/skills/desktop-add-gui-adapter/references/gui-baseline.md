@@ -10,13 +10,13 @@
 - 界面国际化是开发期硬性必选项，不是可选增强。Rust 后端（GUI 适配器层）固定使用 `rust-i18n` 输出系统托盘、原生窗口标题、系统通知等未经 React 渲染路径的用户可见文案；系统语言探测统一使用官方 Tauri 插件 `tauri-plugin-os` 的 `locale()` API，作为 Rust 与前端唯一共用的系统语言来源，不得分别使用平台专有 API 或环境变量（见 ADR-20260806-001）。
 - Tauri `tauri` 依赖启用 `tray-icon` feature。系统托盘固定只含由 `rust-i18n` locale 资源提供的“显示窗口”和“退出”：显示动作及托盘左键都执行主窗口 `show`、取消最小化并聚焦；主窗口 `WindowEvent::CloseRequested` 必须 `prevent_close()` 后隐藏，只有托盘退出显式结束应用。默认不加入自动启动、后台业务或其他托盘菜单项。
 - GUI 初始化必须先实际生成正好 3 个 1024×1024 Logo 候选并由用户选择；选中母版、`/app-identity/logo.png` 与平台图标共享同一来源和摘要证据，禁止中性占位图进入基线提交。
-- 初始化固定建立默认收起的左侧菜单与 `/settings`、`/about`、`/sponsor` 文件路由。侧栏顶部始终先显示选中 Logo、再紧接应用版本；Logo 与版本在展开/折叠状态及设置页直接可见。产品功能项从顶部向下增长，底部固定组按视觉顺序为赞助、设置、关于。设置页提供中英文切换、手动检查更新状态和统计同意；未配置远端能力时显示 `NotConfigured`/禁用状态并保持零出站。关于页显示当前应用名、权威版本、作者、作者联系方式和三段免责声明；赞助页使用固定品牌档位、权益、双支付码和完整 sponsor 本地媒体。
+- 初始化固定建立默认收起的左侧菜单与 `/settings`、`/about`、`/sponsor` 文件路由。侧栏顶部始终先显示选中 Logo、再紧接应用版本；Logo 与版本在展开/折叠状态及设置页直接可见。产品功能项和赞助/设置/关于固定项均必须提供图标；折叠时显示图标与本地化 Tooltip 名称，展开时显示图标与名称，并始终保留可访问名称。产品功能项从顶部向下增长，底部固定组按视觉顺序为赞助、设置、关于。设置页提供中英文、浅色/深色/跟随系统和统计同意；关于页提供手动检查更新，未配置远端能力时显示 `NotConfigured`/禁用状态并保持零出站。关于页还显示当前应用名、权威版本、作者、作者联系方式和三段免责声明；赞助页使用固定品牌档位、权益、双支付码和完整 sponsor 本地媒体。
 - `tauri.conf.json` 的主应用窗口固定以逻辑像素初始化为 1440×900，最小 960×640，居中且 `preventOverflow: true`；默认尺寸确保展开 248px 侧栏时三张赞助档位卡仍同屏横向呈现，较小窗口由响应式布局降列。该窗口与 `bundle.macOS.dmg.windowSize` 的 660×400 安装卷窗口互不替代。
-- Mantine provider 使用 `defaultColorScheme="auto"` 并同时携带亮色/暗色 token；赞助页通过 `useComputedColorScheme` 使用运行时有效主题的明确背景叠层、surface 和对比色，不把初始化宿主主题冻结到产物。
+- Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage color-scheme manager 和唯一 CSS variables resolver；亮色/暗色分别提供页面背景、surface、主/次文字、边框与强调色，设置页允许 `light`/`dark`/`auto` 并持久化。赞助页通过 `useComputedColorScheme` 使用运行时有效主题的明确背景叠层、surface 和对比色，不把初始化宿主主题冻结到产物。
 - 原生窗口标题与 `document.title` 固定使用同一公式 `{applicationName} {version} {contactChannel}:{contactValue}`。应用名/版本来自权威 Tauri/打包元数据，联系字段来自品牌 profile 的 `contacts.windowTitle`，不得写死一次构建版本。
 - 不得加载远程内容。
 - 保持 Tauri Rust 边界轻薄：只验证反序列化、协议必填字段和调用 WebView 能力，随后调用一个核心用例并映射有类型的结果；值域、跨字段约束、资源状态和业务权限由核心验证。
-- 调用时解析并锁定最新、彼此兼容的稳定 Tauri/前端版本；验证 Rust MSRV、Node/pnpm 策略和目标平台 WebView。
+- 调用时为 Tauri/前端直接依赖声明彼此兼容的最低稳定范围，使用最低直接版本解析验证 Rust MSRV、Node.js/pnpm 和目标平台 WebView，再由正常锁文件固定实际解析结果；不得用精确依赖版本或“最新”代替兼容下界。
 - 使用 pnpm 作为前端包管理器。初始化阶段由 `$desktop-check-development-environment` 检查 Node.js 和 pnpm；初始化后不得因缺少当前宿主证据预检，先运行真实 pnpm 命令，只有该命令已因受管环境问题失败时才进入对应恢复并单次重试。
 - 固定前端同时适用于中性 `Draft` 脚手架和已批准产品。不得根据页面数量把它替换为普通 HTML/ES 模块或其他框架。
 - Mantine 主题、布局、状态、响应式与无障碍细节统一遵守 [Mantine UI 设计规范](mantine-ui-guidelines.md)。

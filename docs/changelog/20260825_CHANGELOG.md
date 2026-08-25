@@ -23,6 +23,9 @@
 
 ## 变更
 
+- GUI 固定支持界面重新整理：手动检查更新及其 `NotConfigured`/检查中/结果状态从设置页迁回关于页；设置页新增浅色、深色、跟随系统三态选择并持久化设备级偏好。初始化新增唯一 `AppThemeProviderTemplate`，为亮色与暗色分别定义页面背景、surface、主/次文字、边框和强调色，应用壳与赞助页消费运行时有效主题。
+- 固定侧栏收起时现在强制保留每个功能项及赞助/设置/关于项的图标，并显示本地化 Tooltip 名称；展开时同时显示图标与名称。图标由下游显式注入且不再可选，两种状态继续提供可访问名称。
+- Rust、前端依赖与 Node.js/pnpm/cargo-xwin 工具要求统一改为经过验证的最低兼容稳定版本范围：Cargo/前端清单保留完整兼容下界，锁文件只固定当前解析结果；新增 Rust `direct-minimal-versions`、前端 `lowest-direct`、项目最低工具链与环境范围门禁，其中 `cargo-xwin` 使用 `>=0.22.0, <0.24.0`，保留已观测可用的 0.22.0 下界而不追随较新发布；不再以精确依赖版本、`latest`、tag、通配符或“优先最新”表达兼容性。
 - 固定侧栏现在默认收起，并把用户选中的本地 Logo 永久置于顶部、当前版本紧随其下；展开/折叠都保持 Logo 与版本可见。赞助页不再依赖单一主题或运行时 `light-dark()` 字符串，而是消费 Mantine 解析后的有效主题，为亮色/暗色分别选择背景叠层、surface 与对比色，并为不透明档位图提供稳定中性承载面。
 - `$desktop-build-tauri-release` 新增 updater 候选门禁：启用时要求 `bundle.createUpdaterArtifacts: true`、受限 HTTPS endpoints、公开验证密钥和安全提供的签名私钥，收集并验证真实 archive/`.sig`，把版本、channel、target、arch、公钥指纹、路径、大小、摘要和验证结果写入 manifest。安装包签名/公证与 updater 签名相互独立；构建不创建 feed、不上传也不发布。
 - 对参考下游的更新与统计实现完成安全抽取：保留 UI 信息架构，不传播硬编码客户端共享秘密、GET/query 统计、稳定设备标识、detached task、未经认证的 `forcedUpdate` 或宽松下载 URL；对应拒绝规则和回归已固化到 GUI 支持、GUI adapter 与 Tauri 构建 Skills。
@@ -47,8 +50,11 @@
 
 ## 验证
 
-- `python3 -m unittest discover -s scripts`：172 条测试全部通过，包含 GUI 初始化 Logo 三选一、主窗口/DMG 尺寸隔离、侧栏默认收起与 Logo→版本顺序、赞助页亮色/暗色适配，以及 Superpowers 默认关闭、环境门禁、精简开发闭环、逐次 E2E 构建选择、更新/强更/统计契约、updater archive/签名清单、xwin、公证、DMG 布局、升级传播、治理与初始化回归。
-- `python3 scripts/validate_harness.py`：通过 137 个必需文件、24 个 Skills、Markdown 链接、DMG 初始化背景 PNG、品牌 profile/manifest/图片完整性、托盘与关闭隐藏、侧栏/设置/固定底部顺序、双端 i18n、关于/赞助、更新/强更/统计和 Tauri updater 构建契约、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
+- `python3 -m unittest discover -s scripts`：173 条测试全部通过，新增覆盖 Rust 清单完整兼容下界和 workflow 从根 `rust-version` 读取/规范化最低工具链；既有 GUI 初始化、环境、精简开发、逐次 E2E 构建、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
+- `python3 .agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py`：15 条隔离测试全部通过，覆盖 Node.js 20.19.0/22.12.0 分段下界、21.x 空档、范围内更高版本、pnpm 10.0.0 下界、缺失兼容范围安装和供应链失败。
+- `python3 .agents/skills/desktop-check-development-environment/scripts/test_macos_tauri_xwin_gates.py`：10 条隔离测试全部通过，覆盖 `cargo-xwin >=0.22.0, <0.24.0` 范围安装/复探、0.22/0.23 既有版本复用，以及范围外和预发布版本拒绝；本机真实 `cargo-xwin 0.22.0` 的版本/帮助探测与 xwin `--check-only` 全门禁通过。
+- 中性 Rust workspace 的正常锁文件测试通过 7 条非空测试；临时 `cargo +nightly update -Zdirect-minimal-versions` 将 6 个 registry 直接依赖解析到声明下界后，`cargo +1.90.0 test --workspace --all-targets --all-features --locked` 同样通过 7 条测试，且未覆盖提交的正常 `Cargo.lock`。
+- `python3 scripts/validate_harness.py`：通过 137 个必需文件、24 个 Skills、最低兼容版本契约、动态 MSRV workflow、Markdown 链接、DMG 初始化背景 PNG、品牌 profile/manifest/图片完整性、托盘与关闭隐藏、侧栏/设置/固定底部顺序、双端 i18n、关于/赞助、更新/强更/统计和 Tauri updater 构建契约、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
 - 隔离前端严格 TypeScript、Prettier、TypeScript AST 中文注释门禁（11 个文件、57 个声明）和 Vitest/Testing Library（14/14）通过；13 张图片均可解码并完成视觉复核，12 张固定赞助资源与参考项目逐字节一致。
 - Skill Creator quick validator 对本次修改的 4/4 个项目 Skills 全部通过；`git diff --check` 通过。
 - Rust 中性 workspace 注释扫描覆盖 2 个 package、4 个文件和 24 个受管声明；metadata、core-first、`cargo fmt`、locked check、全 workspace/all-target/all-feature Clippy、7 条非空测试与锁定 release 构建均通过。

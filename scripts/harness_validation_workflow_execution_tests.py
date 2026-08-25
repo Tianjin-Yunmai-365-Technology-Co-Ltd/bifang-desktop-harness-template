@@ -33,6 +33,52 @@ from harness_workflow_test_support import HarnessWorkflowTestCase
 class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
     """对真实 run block 和 workflow 字节约束执行前向回归。"""
 
+    def test_project_msrv_step_reads_and_normalizes_workspace_minimum(self) -> None:
+        """候选 workflow 必须读取项目下界，不能恢复模板硬编码工具链。"""
+        script = self._run_script(self._base_workflow(), "读取项目最低 Rust 版本")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            environment_file = root / "github-env"
+            (root / "Cargo.toml").write_text(
+                '[workspace]\nmembers = []\n\n[workspace.package]\nrust-version = "1.93"\n',
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GITHUB_ENV": str(environment_file),
+                    "PYTHON_COMMAND": sys.executable,
+                }
+            )
+            result = subprocess.run(
+                ["bash", "-c", script],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                environment_file.read_text(encoding="utf-8"),
+                "RUSTUP_TOOLCHAIN=1.93.0\n",
+            )
+
+            (root / "Cargo.toml").write_text(
+                "[workspace]\nmembers = []\n",
+                encoding="utf-8",
+            )
+            rejected = subprocess.run(
+                ["bash", "-c", script],
+                cwd=root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("缺少 [workspace.package]", rejected.stderr)
+
     def test_manifest_and_atomic_commit_run_against_real_files(self) -> None:
         """真实执行 workflow 内嵌脚本，覆盖三件套成功路径与结构化签名证据。"""
         workflow = self._base_workflow()

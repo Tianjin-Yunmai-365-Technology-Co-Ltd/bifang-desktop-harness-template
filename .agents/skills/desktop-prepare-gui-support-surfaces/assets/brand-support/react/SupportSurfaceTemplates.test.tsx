@@ -19,6 +19,12 @@ import {
   AppSidebarTemplate,
   DEFAULT_SIDEBAR_COLLAPSED,
 } from "./AppSidebarTemplate";
+import {
+  APP_COLOR_SCHEME_STORAGE_KEY,
+  APP_THEME,
+  APP_THEME_CSS_VARIABLES,
+  AppThemeProviderTemplate,
+} from "./AppThemeProviderTemplate";
 import { BrandUpdaterBanner } from "./BrandUpdaterBanner";
 import { MandatoryUpdateGateTemplate } from "./MandatoryUpdateGateTemplate";
 import { SettingsPageTemplate } from "./SettingsPageTemplate";
@@ -74,8 +80,19 @@ async function renderTemplate(
   );
 }
 
+/** 使用真实应用主题 provider 验证主题切换和设备级持久化。 */
+async function renderAppThemeTemplate(node: ReactElement) {
+  const instance = await createTestI18n("zh-CN");
+  return render(
+    <I18nextProvider i18n={instance}>
+      <AppThemeProviderTemplate>{node}</AppThemeProviderTemplate>
+    </I18nextProvider>,
+  );
+}
+
 describe("shared brand support templates", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     Object.defineProperty(globalThis, "ResizeObserver", {
       configurable: true,
       value: TestResizeObserver,
@@ -136,9 +153,24 @@ describe("shared brand support templates", () => {
         applicationName="Example Utility"
         collapsed={false}
         featureItems={[
-          { id: "overview", label: "总览", to: "/overview" },
-          { id: "jobs", label: "任务", to: "/jobs" },
+          {
+            icon: <span data-testid="overview-icon">O</span>,
+            id: "overview",
+            label: "总览",
+            to: "/overview",
+          },
+          {
+            icon: <span data-testid="jobs-icon">J</span>,
+            id: "jobs",
+            label: "任务",
+            to: "/jobs",
+          },
         ]}
+        fixedIcons={{
+          about: <span data-testid="about-icon">A</span>,
+          settings: <span data-testid="settings-icon">S</span>,
+          sponsor: <span data-testid="sponsor-icon">¥</span>,
+        }}
         logoSrc="/app-identity/logo.png"
         onCollapsedChange={onCollapsedChange}
         onNavigate={onNavigate}
@@ -157,6 +189,8 @@ describe("shared brand support templates", () => {
     expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
       "v3.4.5",
     );
+    expect(screen.getByTestId("overview-icon")).toBeVisible();
+    expect(screen.getByTestId("about-icon")).toBeVisible();
     expect(
       within(screen.getByTestId("feature-navigation"))
         .getAllByRole("button")
@@ -174,15 +208,27 @@ describe("shared brand support templates", () => {
     expect(onCollapsedChange).toHaveBeenCalledWith(true);
   });
 
-  /** 折叠侧栏仍直接显示版本号，并保留每个菜单项的可访问名称。 */
-  it("keeps the version visible when the sidebar is collapsed", async () => {
+  /** 折叠侧栏仍显示图标和版本，并通过 Tooltip 揭示菜单名称。 */
+  it("keeps icons, tooltips, and the version visible when collapsed", async () => {
     expect(DEFAULT_SIDEBAR_COLLAPSED).toBe(true);
     await renderTemplate(
       <AppSidebarTemplate
         activePath="/about"
         applicationName="Example Utility"
         collapsed
-        featureItems={[{ id: "overview", label: "Overview", to: "/" }]}
+        featureItems={[
+          {
+            icon: <span data-testid="overview-icon">O</span>,
+            id: "overview",
+            label: "Overview",
+            to: "/",
+          },
+        ]}
+        fixedIcons={{
+          about: <span data-testid="about-icon">A</span>,
+          settings: <span data-testid="settings-icon">S</span>,
+          sponsor: <span data-testid="sponsor-icon">$</span>,
+        }}
         logoSrc="/app-identity/logo.png"
         onCollapsedChange={vi.fn()}
         onNavigate={vi.fn()}
@@ -201,21 +247,24 @@ describe("shared brand support templates", () => {
       screen.getByRole("button", { name: "Expand sidebar" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "About" })).toBeInTheDocument();
+    expect(screen.getByTestId("overview-icon")).toBeVisible();
+    expect(screen.getByTestId("about-icon")).toBeVisible();
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Overview" }));
+    expect(
+      await screen.findByRole("tooltip", { name: "Overview" }),
+    ).toBeInTheDocument();
   });
 
-  /** 设置页显示版本并把语言、手动检查与统计同意交给外层控制器。 */
-  it("renders fixed settings controls without performing remote work in React", async () => {
+  /** 设置页显示版本并把语言、三态主题与统计同意交给外层控制器。 */
+  it("renders fixed language, theme, and privacy controls", async () => {
     const onLanguageChange = vi.fn();
-    const onCheckForUpdates = vi.fn();
     const onUsageReportingConsentChange = vi.fn();
-    await renderTemplate(
+    await renderAppThemeTemplate(
       <SettingsPageTemplate
         applicationName="Example Utility"
         language="zh-CN"
-        onCheckForUpdates={onCheckForUpdates}
         onLanguageChange={onLanguageChange}
         onUsageReportingConsentChange={onUsageReportingConsentChange}
-        update={{ currentVersion: "3.4.5", status: "idle" }}
         usageReportingConfigured
         usageReportingConsent={false}
         version="3.4.5"
@@ -224,27 +273,41 @@ describe("shared brand support templates", () => {
 
     expect(screen.getByText("Example Utility · v3.4.5")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: "English" }));
-    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
+    fireEvent.click(screen.getByRole("radio", { name: "深色" }));
+    expect(window.localStorage.getItem(APP_COLOR_SCHEME_STORAGE_KEY)).toBe(
+      "dark",
+    );
+    expect(screen.getByRole("radio", { name: "深色" })).toBeChecked();
+    expect(screen.getByTestId("app-theme-surface")).toHaveAttribute(
+      "data-color-scheme",
+      "dark",
+    );
+    fireEvent.click(screen.getByRole("radio", { name: "跟随系统" }));
     fireEvent.click(
       screen.getByRole("switch", {
         name: /发送最小化匿名使用统计/,
       }),
     );
     expect(onLanguageChange).toHaveBeenCalledWith("en-US");
-    expect(onCheckForUpdates).toHaveBeenCalledOnce();
+    expect(window.localStorage.getItem(APP_COLOR_SCHEME_STORAGE_KEY)).toBe(
+      "auto",
+    );
+    expect(screen.getByRole("radio", { name: "跟随系统" })).toBeChecked();
+    expect(screen.getByTestId("app-theme-surface")).toHaveAttribute(
+      "data-color-scheme",
+      "light",
+    );
     expect(onUsageReportingConsentChange).toHaveBeenCalledWith(true);
   });
 
-  /** 未配置远端能力时，设置页保留入口和清晰状态但不会触发请求。 */
-  it("disables update and usage reporting actions when capabilities are not configured", async () => {
+  /** 未配置统计能力时，设置页保留清晰状态但不会触发请求。 */
+  it("disables usage reporting when the capability is not configured", async () => {
     await renderTemplate(
       <SettingsPageTemplate
         applicationName="Example Utility"
         language="en-US"
-        onCheckForUpdates={vi.fn()}
         onLanguageChange={vi.fn()}
         onUsageReportingConsentChange={vi.fn()}
-        update={{ currentVersion: "1.0.0", status: "not-configured" }}
         usageReportingConfigured={false}
         usageReportingConsent={false}
         version="1.0.0"
@@ -253,14 +316,26 @@ describe("shared brand support templates", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Check for updates" }),
-    ).toBeDisabled();
-    expect(
       screen.getByRole("switch", {
         name: /Send minimal anonymous usage statistics/,
       }),
     ).toBeDisabled();
     expect(screen.getByText(/no data will be sent/i)).toBeInTheDocument();
+  });
+
+  /** 初始化主题同时提供可区分的亮色与暗色背景、文字和表面令牌。 */
+  it("defines distinct light and dark application theme variables", () => {
+    const variables = APP_THEME_CSS_VARIABLES(APP_THEME);
+    for (const name of [
+      "--app-accent",
+      "--app-background",
+      "--app-border",
+      "--app-surface",
+      "--app-text",
+      "--app-text-muted",
+    ]) {
+      expect(variables.light?.[name]).not.toBe(variables.dark?.[name]);
+    }
   });
 
   /** 强更状态由 core 判定后，根级门会隐藏普通功能且只开放安装或退出。 */
@@ -317,9 +392,11 @@ describe("shared brand support templates", () => {
 
   /** 关于页从当前产品注入名称/版本，同时展示固定作者、联系人和免责声明。 */
   it("renders injected product facts and the approved brand contact", async () => {
+    const onCheckForUpdates = vi.fn();
     await renderTemplate(
       <AboutPageTemplate
         actions={<Button>Optional action</Button>}
+        onCheckForUpdates={onCheckForUpdates}
         productName="Example Utility"
         sections={[
           {
@@ -329,6 +406,7 @@ describe("shared brand support templates", () => {
           },
         ]}
         tagline="A product-owned tagline"
+        update={{ currentVersion: "3.4.5", status: "idle" }}
         version="3.4.5"
       />,
     );
@@ -348,19 +426,32 @@ describe("shared brand support templates", () => {
     expect(
       screen.getByRole("button", { name: "Optional action" }),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
+    expect(onCheckForUpdates).toHaveBeenCalledOnce();
     expect(
       screen.getByRole("heading", { name: "Product facts" }),
     ).toBeInTheDocument();
   });
 
-  /** 未提供动作或产品区块时，关于页仍只保留固定作者与免责声明。 */
-  it("omits unselected about actions and sections", async () => {
+  /** 未配置更新时，关于页保留禁用入口且不虚构可用服务。 */
+  it("keeps an inert update entry on About when updates are not configured", async () => {
     await renderTemplate(
-      <AboutPageTemplate productName="Example Utility" version="1.0.0" />,
+      <AboutPageTemplate
+        onCheckForUpdates={vi.fn()}
+        productName="Example Utility"
+        update={{ currentVersion: "1.0.0", status: "not-configured" }}
+        version="1.0.0"
+      />,
+      "en-US",
     );
 
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("heading")).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "Check for updates" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Optional action" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading")).toHaveLength(3);
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
   });
 

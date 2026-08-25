@@ -1,6 +1,8 @@
 import {
+  Alert,
   Badge,
   Box,
+  Button,
   Group,
   List,
   Paper,
@@ -15,6 +17,7 @@ import {
   BRAND_SUPPORT_PROFILE,
   type BrandSupportContact,
 } from "./brandSupportProfile";
+import type { UpdatePresentation } from "./updatePresentation";
 
 /** 关于页的一个产品事实区块。 */
 export interface AboutSection {
@@ -31,9 +34,11 @@ export interface AboutPageTemplateProps {
   sections?: AboutSection[];
   actions?: ReactNode;
   contact?: BrandSupportContact;
+  update: UpdatePresentation;
+  onCheckForUpdates: () => void;
 }
 
-/** 展示当前下游产品名、权威版本、共享作者、联系方式和固定免责声明。 */
+/** 展示产品事实、更新入口、共享作者、联系方式和固定免责声明。 */
 export function AboutPageTemplate({
   productName,
   version,
@@ -41,8 +46,14 @@ export function AboutPageTemplate({
   sections = [],
   actions,
   contact = BRAND_SUPPORT_PROFILE.contacts.support,
+  update,
+  onCheckForUpdates,
 }: AboutPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
+  const statusKey = `updater.status_${update.status.replace(/-/g, "_")}`;
+  const isChecking = update.status === "checking";
+  const isUpdateFailure = update.status === "failed";
+  const isRequiredUpdate = update.status === "required-update";
 
   return (
     <Stack data-testid="brand-about-page" gap="xl">
@@ -70,6 +81,35 @@ export function AboutPageTemplate({
               {t("about.support_thanks")}
             </Text>
           </Box>
+        </Stack>
+      </Paper>
+
+      <Paper p="lg" radius="lg" withBorder>
+        <Stack gap="md">
+          <Group justify="space-between" wrap="wrap">
+            <Title order={3}>{t("about.update_title")}</Title>
+            <Button
+              disabled={update.status === "not-configured"}
+              loading={isChecking}
+              onClick={onCheckForUpdates}
+            >
+              {t("about.check_for_updates")}
+            </Button>
+          </Group>
+          <Alert
+            aria-live="polite"
+            color={isRequiredUpdate || isUpdateFailure ? "red" : "blue"}
+            role={isRequiredUpdate || isUpdateFailure ? "alert" : "status"}
+            title={t(statusKey)}
+          >
+            {update.availableVersion
+              ? t("updater.available_version", {
+                  version: update.availableVersion,
+                })
+              : t("updater.current_version", {
+                  version: update.currentVersion,
+                })}
+          </Alert>
         </Stack>
       </Paper>
 

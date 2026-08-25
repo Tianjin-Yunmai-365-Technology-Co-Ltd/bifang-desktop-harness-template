@@ -226,8 +226,8 @@ class GuiSupportContractTests(unittest.TestCase):
             )
         self.assertTrue(any("sponsor/settings/about" in error for error in errors), errors)
 
-    def test_sidebar_logo_order_or_default_state_drift_is_rejected(self) -> None:
-        """侧栏必须默认收起，并始终先显示 Logo、再显示当前版本。"""
+    def test_sidebar_identity_or_collapsed_navigation_drift_is_rejected(self) -> None:
+        """侧栏必须默认收起、保持身份顺序，并为折叠菜单保留 Tooltip。"""
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -254,6 +254,7 @@ class GuiSupportContractTests(unittest.TestCase):
                 'data-testid="app-sidebar-version"',
                 1,
             )
+            source = source.replace("<Tooltip", "<Box", 1)
             sidebar.write_text(source, encoding="utf-8")
             errors: list[str] = []
             validate_gui_support_contract(
@@ -263,6 +264,7 @@ class GuiSupportContractTests(unittest.TestCase):
             )
         self.assertTrue(any("DEFAULT_SIDEBAR_COLLAPSED" in error for error in errors), errors)
         self.assertTrue(any("logo must render above" in error for error in errors), errors)
+        self.assertTrue(any("<Tooltip" in error for error in errors), errors)
 
     def test_sponsor_theme_adaptation_drift_is_rejected(self) -> None:
         """赞助页不能冻结成单一主题或丢失运行时主题标记。"""
@@ -287,8 +289,8 @@ class GuiSupportContractTests(unittest.TestCase):
         self.assertTrue(any("useComputedColorScheme" in error for error in errors), errors)
         self.assertTrue(any("data-color-scheme" in error for error in errors), errors)
 
-    def test_missing_settings_or_mandatory_update_gate_is_rejected(self) -> None:
-        """固定设置页和根级强更门不能在品牌模板中被静默删除。"""
+    def test_missing_about_update_settings_theme_or_gate_is_rejected(self) -> None:
+        """关于页更新、设置页主题和根级强更门都不能被静默删除。"""
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -296,8 +298,17 @@ class GuiSupportContractTests(unittest.TestCase):
             settings = brand_root / "react" / "SettingsPageTemplate.tsx"
             settings.write_text(
                 settings.read_text(encoding="utf-8").replace(
-                    't("settings.check_for_updates")',
+                    't("settings.theme_system")',
                     't("settings.title")',
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            about = brand_root / "react" / "AboutPageTemplate.tsx"
+            about.write_text(
+                about.read_text(encoding="utf-8").replace(
+                    't("about.check_for_updates")',
+                    't("about.version")',
                     1,
                 ),
                 encoding="utf-8",
@@ -317,8 +328,33 @@ class GuiSupportContractTests(unittest.TestCase):
                 brand_root=brand_root,
                 product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
             )
-        self.assertTrue(any("settings.check_for_updates" in error for error in errors), errors)
+        self.assertTrue(any("settings.theme_system" in error for error in errors), errors)
+        self.assertTrue(any("about.check_for_updates" in error for error in errors), errors)
         self.assertTrue(any('role="alertdialog"' in error for error in errors), errors)
+
+    def test_missing_application_theme_contract_is_rejected(self) -> None:
+        """初始化主题必须同时保留亮暗语义变量和系统跟随。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            theme = brand_root / "react" / "AppThemeProviderTemplate.tsx"
+            source = theme.read_text(encoding="utf-8")
+            source = source.replace(
+                'defaultColorScheme="auto"', 'defaultColorScheme="light"'
+            )
+            source = source.replace('"--app-text"', '"--app-foreground"')
+            theme.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(
+            any('defaultColorScheme="auto"' in error for error in errors), errors
+        )
+        self.assertTrue(any('"--app-text"' in error for error in errors), errors)
 
     def test_downstream_product_fields_are_rejected_from_brand_profile(self) -> None:
         """品牌例外不能借机携带来源下游产品名或路由字段。"""
