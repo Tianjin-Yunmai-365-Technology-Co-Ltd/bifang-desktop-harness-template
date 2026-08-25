@@ -17,7 +17,7 @@
 - CLI、TUI、MCP 使用 Tokio current-thread 异步入口；GUI 复用由 Tokio 支撑的单例异步运行时并使用普通 `async fn` 命令，不创建嵌套运行时。所有 Rust 适配器的 I/O、等待、计时、进程、协议与命令处理默认优先异步。
 - 核心可以暴露不绑定具体运行时的 `async fn`。只有真实业务需要 Tokio 的 I/O、时间、同步、任务或进程原语时，核心才增加 Tokio 生产依赖。
 - 文件系统、网络、外部进程和操作系统 API 的具体驱动位于适配器或职责明确的基础设施模块；调用策略和领域结果解释仍在核心。只有真实能力边界出现时才由核心定义运行时中立的 trait/port 并在适配器装配实现，不预建服务容器、注册器或假想抽象。
-- TUI 固定使用 Ratatui + tui-realm + tui-realm-stdlib。Tauri GUI 前端固定使用 Vite + React + TypeScript + Mantine UI + TanStack Router 文件路由 + TanStack Query + Jotai，并使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library；这些技术族适用于 Draft 与 Approved 项目，偏离必须记录硬规则例外。
+- TUI 固定使用 Ratatui + tui-realm + tui-realm-stdlib。Tauri GUI 前端固定使用 Vite + React + TypeScript + Mantine UI + `@tabler/icons-react` + TanStack Router 文件路由 + TanStack Query + Jotai，并使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library；这些技术族适用于 Draft 与 Approved 项目，偏离必须记录硬规则例外。
 - Tauri GUI 的界面国际化是初始化硬性必选项：前端固定追加 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定追加 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，界面必须提供语言切换入口，core 保持语言无关。初始化固定页面提供中文与英文资源，其他缺失语言回退英文。详细规则见 [GUI 基线](../.agents/skills/desktop-add-gui-adapter/references/gui-baseline.md)与 [React 前端基线](../.agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md)（见 ADR-20260806-001）。
 - 选择 GUI 时先由 `$desktop-prepare-gui-app-identity` 的初始化模式实际生成正好 3 个 1024×1024 PNG Logo 候选并同时预览，必须等待用户明确选择。选中候选固定保存为 `<项目标识>_gui/src-tauri/icons/app-icon-master.png`，逐字节复制为 `<项目标识>_gui/public/app-identity/logo.png`，再用项目本地 Tauri `icon` 命令生成平台图标；`docs/GUI_APP_PROFILE.md` 记录三个候选、选择、路径和摘要。缺少候选、选择或字节一致证据不得用中性占位图完成初始化。
 - 选择 GUI 时固定启用 Tauri `tray-icon` feature：托盘只含本地化“显示窗口”和“退出”，显示动作与左键恢复并聚焦主窗口，主窗口 `CloseRequested` 只 `prevent_close()` 后隐藏，只有托盘退出显式结束应用。初始化固定建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题、默认收起的左侧菜单和 `/settings`、`/about`、`/sponsor`；侧栏顶部始终先显示选中 Logo、再紧接权威当前版本，展开/折叠及设置页都直接可见。每个功能项和固定项必须有图标；折叠时显示图标及本地化 Tooltip 名称，展开时显示图标与名称，并始终保留可访问名称。功能从顶部向下增长，底部固定为赞助、设置、关于。主应用窗口在 `app.windows` 中使用 `width: 1440`、`height: 900`、`minWidth: 960`、`minHeight: 640`、`center: true`、`preventOverflow: true`，默认尺寸可同时容纳展开的 248px 侧栏和三张赞助档位卡。Mantine 根使用 `defaultColorScheme="auto"` 并通过唯一主题模块同时定义亮色/暗色的页面背景、surface、主/次文字、边框与强调色；设置页提供浅色、深色、跟随系统三态并使用设备级本地存储持久化，赞助页以 `useComputedColorScheme` 选择运行时有效主题的背景叠层、surface 与对比色。设置页同时提供中英文和默认关闭的统计同意；手动检查更新入口位于关于页，远程能力默认禁用，未配置时为 `NotConfigured`/禁用且零出站。关于页还显示作者、作者联系方式与三段免责声明，赞助页打包完整 `media/sponsor/*`。真实更新启用时才引入官方 Tauri updater，制品签名验证不可关闭；adapter 认证最低支持版本策略后交给 core 作严格 SemVer 强更判定，根级强更门只允许安装或退出。统计只在明确同意后由 Rust adapter 以 HTTPS JSON POST 发送固定 `app_started` 最小字段，撤回即取消请求和清空有界内存队列。模板不提供固定 endpoint、服务端 secret、发布私钥或统计实例；任务必须受应用生命周期拥有并回收，失败默认 fail-open。
@@ -25,6 +25,8 @@
 - 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一版本事实来源，各成员使用 `version.workspace = true`。
 - 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
 - 首次脚手架在当前项目根创建 `Cargo.toml`，登记核心与实际选择的适配器；未来只扩展该根清单。
+- GUI `package.json` 必须直接声明带完整三段兼容下界的 `@tabler/icons-react`，并以命名组件提供菜单、操作、状态、空态和图表周边图标；存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji。图表绘制库仍按真实可视化需求选择。默认收起侧栏的 Logo 与所有当前渲染图标必须显式水平居中且无裁切。
+- 含 GUI 的中性初始化必须在相关非空单元测试后、裁剪初始化能力和唯一基线提交前调用 `$desktop-test-gui-initialization-e2e`。它以 `pnpm tauri build --debug --no-bundle` 构建本次真实本机调试二进制，使用 Computer Use 验证主窗口可见、收起侧栏 Logo/全部图标居中和所有渲染菜单页面可达；它不消费 `milestone_e2e`，不写 release/Verification，失败即阻断初始化。
 - 当前项目根必须同时是独立 Git 顶层目录；若 `$desktop-initialize-rust-project` 被直接调用且边界缺失，必须在写入脚手架前初始化 `main` 分支仓库并验证，不能继承父仓库边界。
 - 中性脚手架的格式、测试和构建证据只证明工程骨架可用，不构成产品目的获批、业务实现完成或可验收产品候选。
 
@@ -128,7 +130,7 @@ tokio = { version = "1.0.1", default-features = false, features = ["macros", "rt
 - 核心的异步测试可以通过开发依赖使用工作区 Tokio，但这不构成核心的生产运行时依赖。
 - CLI 黑盒测试使用 `assert_cmd`；需要额外断言库时再加入。
 - 不为中性脚手架默认增加 Axum/Tower、SeaORM、tracing 生态、OpenTelemetry、anyhow、thiserror、config-rs/notify、协议文档、GraphQL、MongoDB/Redis、认证、网络客户端、依赖注入或插件系统；对应能力获批并出现真实使用路径时，必须采用上述固定技术族并从根工作区按需加入。
-- Ratatui、tui-realm、tui-realm-stdlib、React、TypeScript、Mantine UI、TanStack Router、TanStack Query 与 Jotai 只在对应适配器被选中时加入；根 Rust 工作区统一 Rust 依赖，前端包清单与锁文件统一 JavaScript/TypeScript 依赖。
+- Ratatui、tui-realm、tui-realm-stdlib、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query 与 Jotai 只在对应适配器被选中时加入；根 Rust 工作区统一 Rust 依赖，前端包清单与锁文件统一 JavaScript/TypeScript 依赖。
 
 ## 依赖准入
 
@@ -263,6 +265,7 @@ cargo build --workspace --release --locked
 ## 开发、构建、完整验收与结果文件
 
 - 日常代码行为实现只运行本次需要的相关非空单元/回归测试；纯文档或元数据变更只做解析或差异完整性所必需的最小检查。不得自动追加格式、Clippy、静态、集成/契约、全仓测试、构建、冒烟、E2E 或完整验收，也不得把开发证据写成候选通过。
+- GUI 初始化是上一条日常规则的唯一一次性例外：初始化器在相关单元测试后调用 `$desktop-test-gui-initialization-e2e` 构建并启动 debug/no-bundle 二进制；该结果只证明当前宿主的初始化脚手架，不等同最终候选验收。
 - `$desktop-build-rust-release` 负责 Rust CLI 候选编排：默认先使用 Windows、macOS、Linux 原生矩阵；只有跨平台提供方、权限、运行器或结果取回条件在派发前不可用时才回退当前平台。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，TUI/MCP 仍使用各自适配器 Skill 的构建与产物门槛。
 - `$desktop-build-tauri-release` 在 macOS 上原生构建 DMG，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 Windows x64 NSIS。macOS DMG 构建在测试前校验项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的摘要和 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，并在最终字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；headless CI 不得无界等待 Finder AppleScript。xwin 路径不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生运行验证。
 - macOS Tauri 直接分发使用全有或全无门禁：设备具有 Developer ID Application 身份、`notarytool`、`stapler` 与一组完整 Apple 公证凭据时，正常 Tauri build 必须完成签名、公证和 stapling；条件缺失且渠道允许时才可显式 `--no-sign`。不得用 `--skip-stapling` 形成候选，一旦签名或公证开始，失败不得静默降级。
@@ -276,9 +279,10 @@ cargo build --workspace --release --locked
 - `$desktop-add-mcp-adapter` 只在下游用户明确批准后增加依赖核心的 Rust stdio MCP 适配器；Skill 不自带实现资产。
 - `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费三候选 Logo 选择、固定托盘/关闭隐藏、动态标题、图标/Tooltip 完整且默认收起的 Logo→版本侧栏、三态主题设置、全局亮暗主题、含更新入口的关于页、双主题赞助页和品牌媒体基线，不自带产品业务实现。
 - `$desktop-prepare-gui-support-surfaces` 为全部 GUI 提供固定本地页面/媒体依赖资产；产品修改基线、增加其他支持界面或启用出站能力时再次按需调用。每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试，不得扩张为业务 scaffold。
-- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI 固定本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围，由锁文件固定实际解析结果，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
+- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI 固定本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围，由锁文件固定实际解析结果，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
 - `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
 - `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
+- `$desktop-test-gui-initialization-e2e` 只在含 GUI 的一次性初始化提交前运行真实本机调试二进制；通过后随初始化能力删除，升级不得把它重新注入终端下游。
 
 候选归档或安装包命名为 `<product>-v<version>-<platform>-<arch>.<ext>`，每个产物必须有相邻的 `<artifact>.sha256` 和清单。清单必需字段、`pending`/`ready` 状态转换、Tauri GUI 附加字段与 xwin/公证记录规则统一以 `docs/RELEASE.md`「发布物命名」为唯一权威来源，本文件不重复维护，避免两份清单说明漂移。
 
@@ -300,3 +304,5 @@ cargo build --workspace --release --locked
 - [pnpm `package.json` 与 engines](https://pnpm.io/package_json)
 - [pnpm `resolutionMode`](https://pnpm.io/settings/other)
 - [Vite Node.js 要求](https://vite.dev/guide/)
+- [`@tabler/icons-react`](https://www.npmjs.com/package/%40tabler/icons-react)
+- [Tauri CLI build 参数](https://v2.tauri.app/reference/cli/)

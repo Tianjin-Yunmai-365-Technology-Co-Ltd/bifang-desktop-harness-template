@@ -255,6 +255,16 @@ class GuiSupportContractTests(unittest.TestCase):
                 1,
             )
             source = source.replace("<Tooltip", "<Box", 1)
+            source = source.replace(
+                'from "@tabler/icons-react"',
+                'from "@example/icons"',
+                1,
+            )
+            source = source.replace(
+                'justifyContent: collapsed ? "center" : "flex-start"',
+                'justifyContent: "flex-start"',
+                1,
+            )
             sidebar.write_text(source, encoding="utf-8")
             errors: list[str] = []
             validate_gui_support_contract(
@@ -265,6 +275,8 @@ class GuiSupportContractTests(unittest.TestCase):
         self.assertTrue(any("DEFAULT_SIDEBAR_COLLAPSED" in error for error in errors), errors)
         self.assertTrue(any("logo must render above" in error for error in errors), errors)
         self.assertTrue(any("<Tooltip" in error for error in errors), errors)
+        self.assertTrue(any("@tabler/icons-react" in error for error in errors), errors)
+        self.assertTrue(any("justifyContent" in error for error in errors), errors)
 
     def test_sponsor_theme_adaptation_drift_is_rejected(self) -> None:
         """赞助页不能冻结成单一主题或丢失运行时主题标记。"""

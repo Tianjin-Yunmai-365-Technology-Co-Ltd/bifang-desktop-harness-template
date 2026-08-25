@@ -7,6 +7,8 @@ description: 为所有已选 GUI 提供固定动态标题、图标化 Logo→版
 
 选择 GUI 时由 `$desktop-add-gui-adapter` 自动消费本 Skill 的固定本地基线；初始化后，只有修改该基线、增加其他支持界面或配置出站能力时才再次调用。动态标题、顶部固定 Logo→当前版本且默认收起的图标化左侧菜单、设置页、关于页与赞助页默认成组存在；设置页提供语言、浅色/深色/跟随系统和统计同意，手动检查更新固定在关于页。应用根同时携带完整亮色/暗色语义主题；没有完整产品 profile 时关于页更新显示 `NotConfigured` 且零出站。真实更新服务、强更策略和统计传输仍需产品批准与配置，统计同意默认关闭。
 
+固定模板以 `@tabler/icons-react` 作为唯一图标库：功能项注入 `TablerIcon` 组件，固定项和侧栏开关使用包内命名组件。存在适用图标时不得使用其他图标库、手写 SVG、字符或 emoji；图表相关操作、状态和空态也优先使用 Tabler 图标，但图表绘制不属于该图标包。收起侧栏必须显式把 Logo 与所有菜单图标水平居中并避免裁切。
+
 ## 工作流程
 
 1. 先判断调用模式。由 `$desktop-add-gui-adapter` 在初始化中调用时，只读取 `AGENTS.md`、`docs/ENGINEERING_RULES.md`、GUI/Rust 基线和本 Skill 资产，不要求 Product Spec、`docs/GUI_APP_PROFILE.md` 或产品实例文档；初始化后修改默认界面或增加能力时，再读取最新 Product Spec、相关 ADR、已批准的 `docs/GUI_APP_PROFILE.md` 和现有 GUI 实现。新增能力若改变产品边界、隐私承诺或对外协议，先转 `$desktop-define-product`。未选择 GUI 时停止。
@@ -24,6 +26,8 @@ description: 为所有已选 GUI 提供固定动态标题、图标化 Logo→版
 9. 用户可见文字必须在 GUI 初始化时接入 `i18next`/`react-i18next` 与 `rust-i18n`，跟随主题、键盘导航和无障碍语义。前端注册 `i18n/*.json`，Rust GUI adapter 复制并加载 `rust-i18n/*.yml` 的托盘文案，两者使用同一 locale 解析结果。当前产品名、版本、Logo、功能、菜单图标和可选动作仍由下游注入；固定侧栏使用 `AppSidebarTemplate.tsx` 与 `DEFAULT_SIDEBAR_COLLAPSED = true`，Logo 在 DOM 中位于版本之前，折叠后仍直接显示两者，折叠菜单显示必填图标和本地化 Tooltip；`/settings`、`/about` 与 `/sponsor` 是固定路由，底部菜单严格按赞助、设置、关于渲染。应用根使用 `AppThemeProviderTemplate.tsx`；设置页使用 `SettingsPageTemplate.tsx` 并把三态选择接到 Mantine color-scheme context；强更使用根级 `MandatoryUpdateGateTemplate.tsx`。关于页固定展示更新入口、`about.studio` 表示的作者、profile 联系方式和三段免责声明；赞助页固定复用品牌包的三档价格/权益、支付码与视觉资源，并以运行时有效主题渲染。赞助布局不得恢复固定 800px、固定三栏或全页 `pointer-events: none`。
 10. 对品牌包执行默认本地打包：GUI 下游完整保留 Skill 的 13 个源图片，并在初始化时把 `media/sponsor/*` 全部复制到应用 public 的 `/brand-support/sponsor/`，包括当前未引用小图；只有产品选择更新视觉时才复制 `media/updater/banner.jpg`。禁止优化、重绘或解码重建支付二维码；复制后以 `media-manifest.json` 的字节数和 SHA-256 复核。固定页面在未配置远端能力时不得发起网络请求，静态支付材料也不授权任何支付自动化。
 11. 使用 `$desktop-implement-change` 直接实施。初始化至少以非空单元/回归测试覆盖动态标题、侧栏默认收起、Logo→版本顺序及展开/折叠持续可见、展开图标+名称、折叠图标+Tooltip、功能区与固定底部顺序、`/settings`/`/about`/`/sponsor`、语言与主题三态切换/持久化、亮暗背景/文字/surface 差异、关于页 `NotConfigured` 零出站、作者/联系人/免责声明、赞助页亮色/暗色差异、赞助价格与支付码替代文本、响应式布局和媒体摘要。启用更新时再覆盖 core SemVer 强更边界、策略与制品签名、target/channel、取消回收、单飞、不可绕过强更门和失败语义；启用统计时覆盖默认/未同意/撤回零出站、POST 字段白名单、禁止稳定标识、队列/重试上限和关闭回收。不得用 mock 网络或组件单测声称真实更新、安装或上报可用。
+初始化的非空回归必须覆盖 `@tabler/icons-react` 命名组件接线、默认收起侧栏的 Logo/全部图标水平居中，以及展开图标+名称、折叠图标+Tooltip；真实启动和全菜单可达由初始化器后续调用的 `$desktop-test-gui-initialization-e2e` 验证。
+
 12. 日常实施不自动追加全仓格式、类型、lint、中文注释、生产构建、最终 `dist` 扫描或完整验收；媒体清单/摘要复核仅在本次复制品牌媒体时运行。只有独立事件触发时才更新 Product Status、ADR 或 Changelog。用户显式请求构建时交给 `$desktop-build-tauri-release`，由构建流程逐次确认 E2E 并全量运行单元测试；本 Skill 不发送真实遥测、调用生产更新服务、执行支付或发布。
 
 ## 边界
@@ -36,4 +40,4 @@ description: 为所有已选 GUI 提供固定动态标题、图标化 Logo→版
 
 ## 完成输出
 
-报告固定标题、侧栏默认收起及 Logo→版本顺序、展开/折叠菜单图标与 Tooltip、设置/关于/赞助路由及顺序、三态主题偏好和应用级亮色/暗色语义、关于页更新入口、赞助页亮色/暗色证据、默认打包媒体、产品事实文档位置（若有）、更新/强更/统计状态与 GUI/core 所有权、出站清单、签名/秘密是否只使用安全引用、同意默认值、运行过的检查、未验证平台和剩余隐私/发布风险。
+报告固定标题、`@tabler/icons-react` 依赖与组件来源、侧栏默认收起及 Logo→版本顺序、展开/折叠菜单图标与 Tooltip、收起状态 Logo/全部图标居中、设置/关于/赞助路由及顺序、三态主题偏好和应用级亮色/暗色语义、关于页更新入口、赞助页亮色/暗色证据、默认打包媒体、产品事实文档位置（若有）、更新/强更/统计状态与 GUI/core 所有权、出站清单、签名/秘密是否只使用安全引用、同意默认值、运行过的检查、未验证平台和剩余隐私/发布风险。

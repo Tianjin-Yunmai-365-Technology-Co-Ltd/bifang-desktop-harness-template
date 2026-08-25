@@ -75,6 +75,9 @@ TYPESCRIPT_COMMENT_CHECKER_TESTS = (
     / "check-typescript-chinese-comments.test.ts"
 )
 E2E_SKILL = SKILLS_ROOT / "desktop-test-final-artifact-e2e" / "SKILL.md"
+GUI_INITIALIZATION_E2E_SKILL = (
+    SKILLS_ROOT / "desktop-test-gui-initialization-e2e" / "SKILL.md"
+)
 VERIFY_DELIVERY_SKILL = SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md"
 VERIFICATION_DOC = ROOT / "docs" / "VERIFICATION.md"
 PARALLEL_SKILL = SKILLS_ROOT / "desktop-run-parallel-worktrees"
@@ -354,6 +357,7 @@ EXPECTED_SKILLS = {
     "desktop-rename-project-identity",
     "desktop-run-parallel-worktrees",
     "desktop-test-final-artifact-e2e",
+    "desktop-test-gui-initialization-e2e",
     "desktop-upgrade-harness",
     "desktop-verify-delivery",
 }

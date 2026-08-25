@@ -5,6 +5,7 @@
     {"pattern": "Version.md", "mode": "tombstone"},
     {"pattern": ".agents/skills/desktop-instantiate-project/**", "mode": "tombstone"},
     {"pattern": ".agents/skills/desktop-initialize-rust-project/**", "mode": "tombstone"},
+    {"pattern": ".agents/skills/desktop-test-gui-initialization-e2e/**", "mode": "tombstone"},
     {"pattern": "scripts/validate_harness.py", "mode": "tombstone"},
     {"pattern": "scripts/test_agile_workflow.py", "mode": "tombstone"},
     {"pattern": "scripts/test_validate_harness.py", "mode": "tombstone"},

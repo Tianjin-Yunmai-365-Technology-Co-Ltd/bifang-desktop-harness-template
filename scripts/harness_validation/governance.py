@@ -77,6 +77,10 @@ def validate_engineering_contract(errors: list[str]) -> None:
             "$desktop-define-product",
             "秘密只能由已批准的安全运行时来源提供",
         ),
+        GUI_INITIALIZATION_E2E_SKILL: (
+            "docs/ENGINEERING_RULES.md",
+            "真实本机调试二进制",
+        ),
         SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
         SKILLS_ROOT / "desktop-instantiate-project" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
         SKILLS_ROOT / "desktop-add-mcp-adapter" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
@@ -123,7 +127,7 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
         ROOT / "README.md": (
             "日常开发直接使用 `$desktop-implement-change`",
             "只增加并运行本次变更需要的单元/回归测试",
-            "不自动增加计划、全仓检查、构建、冒烟、E2E 或验收步骤",
+            "不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤",
             "构建 Skill 先解析本次是否启用 E2E",
             "运行项目全部非空单元测试并构建候选",
             "构建事实只写入 `release/` manifest 和最终回复",

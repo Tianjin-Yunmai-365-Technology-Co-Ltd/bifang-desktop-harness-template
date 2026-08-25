@@ -2,7 +2,6 @@ import {
   ActionIcon,
   Box,
   Divider,
-  Group,
   Image,
   NavLink,
   ScrollArea,
@@ -10,7 +9,15 @@ import {
   Text,
   Tooltip,
 } from "@mantine/core";
-import type { ReactElement, ReactNode } from "react";
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconHeart,
+  IconInfoCircle,
+  IconSettings,
+  type TablerIcon,
+} from "@tabler/icons-react";
+import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import { FIXED_BOTTOM_NAVIGATION_ITEMS } from "./supportNavigation";
@@ -32,14 +39,7 @@ export interface FeatureNavigationItem {
   id: string;
   label: string;
   to: string;
-  icon: ReactNode;
-}
-
-/** 固定支持菜单必须提供的产品图标集合。 */
-export interface FixedNavigationIcons {
-  sponsor: ReactNode;
-  settings: ReactNode;
-  about: ReactNode;
+  icon: TablerIcon;
 }
 
 /** 固定左侧菜单所需的当前应用事实和纯交互回调。 */
@@ -52,32 +52,58 @@ export interface AppSidebarTemplateProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onNavigate: (path: string) => void;
-  fixedIcons: FixedNavigationIcons;
 }
+
+/** 固定支持菜单只使用统一的 Tabler 图标组件。 */
+const FIXED_NAVIGATION_ICONS: Record<
+  (typeof FIXED_BOTTOM_NAVIGATION_ITEMS)[number]["id"],
+  TablerIcon
+> = {
+  sponsor: IconHeart,
+  settings: IconSettings,
+  about: IconInfoCircle,
+};
 
 /** 折叠时只显示图标并用 Tooltip 揭示名称，展开时同时显示图标和名称。 */
 function SidebarNavigationItem({
   active,
   collapsed,
   icon,
+  id,
   label,
   onClick,
 }: {
   active: boolean;
   collapsed: boolean;
-  icon: ReactNode;
+  icon: TablerIcon;
+  id: string;
   label: string;
   onClick: () => void;
 }): ReactElement {
+  const IconComponent = icon;
   return (
     <Tooltip disabled={!collapsed} label={label} position="right" withArrow>
       <NavLink
         active={active}
         aria-label={label}
         component="button"
+        data-icon-alignment={collapsed ? "center" : "start"}
         label={collapsed ? undefined : label}
-        leftSection={icon}
+        leftSection={
+          <IconComponent
+            aria-hidden="true"
+            data-testid={`navigation-icon-${id}`}
+            size={20}
+            stroke={1.75}
+          />
+        }
         onClick={onClick}
+        px={collapsed ? 0 : "sm"}
+        styles={{
+          body: { flex: collapsed ? "0 0 auto" : "1 1 auto" },
+          root: { justifyContent: collapsed ? "center" : "flex-start" },
+          section: { marginInlineEnd: collapsed ? 0 : undefined },
+        }}
         type="button"
         variant="light"
       />
@@ -95,7 +121,6 @@ export function AppSidebarTemplate({
   collapsed,
   onCollapsedChange,
   onNavigate,
-  fixedIcons,
 }: AppSidebarTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const width = collapsed
@@ -128,7 +153,13 @@ export function AppSidebarTemplate({
       }}
     >
       <Stack gap="sm" h="100%" p="sm">
-        <Stack align="center" data-testid="app-sidebar-identity" gap="xs">
+        <Stack
+          align="center"
+          data-icon-alignment="center"
+          data-testid="app-sidebar-identity"
+          gap="xs"
+          style={{ alignItems: "center", width: "100%" }}
+        >
           <Image
             alt={t("sidebar.logo_alt", { applicationName })}
             data-testid="app-sidebar-logo"
@@ -153,9 +184,11 @@ export function AppSidebarTemplate({
             onClick={() => onCollapsedChange(!collapsed)}
             variant="subtle"
           >
-            <Text aria-hidden="true" fw={700} size="sm">
-              {collapsed ? "›" : "‹"}
-            </Text>
+            {collapsed ? (
+              <IconChevronRight aria-hidden="true" size={18} stroke={1.75} />
+            ) : (
+              <IconChevronLeft aria-hidden="true" size={18} stroke={1.75} />
+            )}
           </ActionIcon>
         </Stack>
 
@@ -177,6 +210,7 @@ export function AppSidebarTemplate({
                 active={activePath === item.to}
                 collapsed={collapsed}
                 icon={item.icon}
+                id={item.id}
                 key={item.id}
                 label={item.label}
                 onClick={() => onNavigate(item.to)}
@@ -194,7 +228,8 @@ export function AppSidebarTemplate({
               <SidebarNavigationItem
                 active={activePath === item.to}
                 collapsed={collapsed}
-                icon={fixedIcons[item.id]}
+                icon={FIXED_NAVIGATION_ICONS[item.id]}
+                id={item.id}
                 key={item.id}
                 label={label}
                 onClick={() => onNavigate(item.to)}

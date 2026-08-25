@@ -2,6 +2,8 @@
 
 ## 新增
 
+- 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建并启动真实本机 Tauri 调试二进制，使用 Computer Use 验证应用可启动、默认收起侧栏中的 Logo/全部图标水平居中，以及可访问树枚举出的所有菜单页面可达；失败、超时、取消或无法执行均阻断初始化。
+- GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。
 - GUI 初始化新增应用 Logo 三选一：实际生成 3 个 1024×1024 PNG 候选并同时预览，必须由用户明确选择；选中母版逐字节接入运行时 `/app-identity/logo.png`，并由项目本地 Tauri 工具生成平台图标，候选/选择/摘要写入 `docs/GUI_APP_PROFILE.md`。
 - GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可同时展示展开的 248px 侧栏和三张赞助档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
 - GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含本地化“显示窗口/退出”，关闭主窗口只隐藏；标题按 `{applicationName} {version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定左侧菜单默认收起，Logo 永远在顶部、当前版本紧随其下并在展开/折叠状态都可见，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页提供中英文切换、检查更新状态和统计同意，关于页包含固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体并同时适配亮色/暗色。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
@@ -23,6 +25,8 @@
 
 ## 变更
 
+- Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，赞助/设置/关于和侧栏开关使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji，图表相关控件优先使用 Tabler 图标而图表绘制方案保持独立。
+- 固定侧栏模板现在显式将收起状态的 Logo 与每个功能/固定菜单图标水平居中，并移除字符箭头和固定项图标注入；模板回归同步覆盖 Tabler 来源、identity 居中和全部菜单项的收起态居中标记。
 - GUI 固定支持界面重新整理：手动检查更新及其 `NotConfigured`/检查中/结果状态从设置页迁回关于页；设置页新增浅色、深色、跟随系统三态选择并持久化设备级偏好。初始化新增唯一 `AppThemeProviderTemplate`，为亮色与暗色分别定义页面背景、surface、主/次文字、边框和强调色，应用壳与赞助页消费运行时有效主题。
 - 固定侧栏收起时现在强制保留每个功能项及赞助/设置/关于项的图标，并显示本地化 Tooltip 名称；展开时同时显示图标与名称。图标由下游显式注入且不再可选，两种状态继续提供可访问名称。
 - Rust、前端依赖与 Node.js/pnpm/cargo-xwin 工具要求统一改为经过验证的最低兼容稳定版本范围：Cargo/前端清单保留完整兼容下界，锁文件只固定当前解析结果；新增 Rust `direct-minimal-versions`、前端 `lowest-direct`、项目最低工具链与环境范围门禁，其中 `cargo-xwin` 使用 `>=0.22.0, <0.24.0`，保留已观测可用的 0.22.0 下界而不追随较新发布；不再以精确依赖版本、`latest`、tag、通配符或“优先最新”表达兼容性。
@@ -50,14 +54,14 @@
 
 ## 验证
 
-- `python3 -m unittest discover -s scripts`：173 条测试全部通过，新增覆盖 Rust 清单完整兼容下界和 workflow 从根 `rust-version` 读取/规范化最低工具链；既有 GUI 初始化、环境、精简开发、逐次 E2E 构建、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
+- `python3 -m unittest discover -s scripts`：175 条测试全部通过；新增覆盖 GUI 初始化 E2E 主契约、Tabler 固定技术栈、收起侧栏居中模板及升级 tombstone，既有环境、精简开发、逐次发布 E2E、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
 - `python3 .agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py`：15 条隔离测试全部通过，覆盖 Node.js 20.19.0/22.12.0 分段下界、21.x 空档、范围内更高版本、pnpm 10.0.0 下界、缺失兼容范围安装和供应链失败。
 - `python3 .agents/skills/desktop-check-development-environment/scripts/test_macos_tauri_xwin_gates.py`：10 条隔离测试全部通过，覆盖 `cargo-xwin >=0.22.0, <0.24.0` 范围安装/复探、0.22/0.23 既有版本复用，以及范围外和预发布版本拒绝；本机真实 `cargo-xwin 0.22.0` 的版本/帮助探测与 xwin `--check-only` 全门禁通过。
 - 中性 Rust workspace 的正常锁文件测试通过 7 条非空测试；临时 `cargo +nightly update -Zdirect-minimal-versions` 将 6 个 registry 直接依赖解析到声明下界后，`cargo +1.90.0 test --workspace --all-targets --all-features --locked` 同样通过 7 条测试，且未覆盖提交的正常 `Cargo.lock`。
-- `python3 scripts/validate_harness.py`：通过 137 个必需文件、24 个 Skills、最低兼容版本契约、动态 MSRV workflow、Markdown 链接、DMG 初始化背景 PNG、品牌 profile/manifest/图片完整性、托盘与关闭隐藏、侧栏/设置/固定底部顺序、双端 i18n、关于/赞助、更新/强更/统计和 Tauri updater 构建契约、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 1 条已复核的 690 行 Rust 检查器非阻断提示。
-- 隔离前端严格 TypeScript、Prettier、TypeScript AST 中文注释门禁（11 个文件、57 个声明）和 Vitest/Testing Library（14/14）通过；13 张图片均可解码并完成视觉复核，12 张固定赞助资源与参考项目逐字节一致。
-- Skill Creator quick validator 对本次修改的 4/4 个项目 Skills 全部通过；`git diff --check` 通过。
+- `python3 scripts/validate_harness.py`：通过 138 个必需文件、25 个 Skills、最低兼容版本契约、动态 MSRV workflow、Markdown 链接、GUI 初始化 E2E、Tabler/侧栏居中、升级 tombstone、品牌资源、Tauri updater、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 3 条已复核的 501–2000 行高内聚非阻断提示。
+- 本轮仓库没有可执行前端 `package.json`，因此未重跑修改后的模板 Vitest/TypeScript；Harness validator 与 Python 负向回归已静态锁定 Tabler 导入、固定项组件、Logo identity 和全部菜单项居中契约。既有图片/品牌资产没有改动。
+- Skill Creator quick validator 对本次新建或修改的 5/5 个项目 Skills 全部通过；`git diff --check` 通过。
 - Rust 中性 workspace 注释扫描覆盖 2 个 package、4 个文件和 24 个受管声明；metadata、core-first、`cargo fmt`、locked check、全 workspace/all-target/all-feature Clippy、7 条非空测试与锁定 release 构建均通过。
 - 文件规模检查覆盖 197 个受维护文本，无 2001 行以上违规；690 行 Rust 检查器已复核为高内聚、单一职责且内部职责相近。
 - 来源锁点前 84 个 Skill 文件均已收敛；锁点后 3 个 Skill 提交的 16 个文件在模板中 16/16 有对应落点。关于/赞助资源审计闭合为 13 张图片、0 个视频；来源工作树保持干净，多组来源产品身份、绝对路径、固定凭据和固定服务特征扫描均为零命中。
-- 未真实生成或构建下游 GUI/DMG/NSIS，未运行冒烟/E2E、Windows/Linux 候选、签名、公证或发布；这些范围保持 `Unverified`，不得据此声明候选或发布就绪。
+- 未真实实例化下游 GUI，因而未运行新增的 Computer Use 初始化 E2E，也未构建 DMG/NSIS、运行发布候选冒烟/E2E、签名、公证或发布；真实下游前向运行与其他宿主保持 `Unverified`，不得据此声明候选或发布就绪。

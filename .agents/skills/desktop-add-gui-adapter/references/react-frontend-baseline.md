@@ -7,6 +7,7 @@
 - 使用 React 和 TypeScript 编写前端应用和组件代码。
 - 使用 Vite 作为 Tauri 本地前端的开发与生产构建工具；不得把 Vite 开发服务器或远程页面作为打包运行时依赖。
 - 使用 Mantine UI（`@mantine/core` 和 `@mantine/hooks`）作为组件和主题基础。只有已批准页面需要时才增加其他 Mantine 包。
+- 使用 `@tabler/icons-react` 作为唯一图标库。直接依赖使用经最低直接版本验证的完整三段 caret 下界，组件采用命名导入；菜单、操作、状态、空态及图表周边控件存在适用图标时必须优先选择 Tabler，不得另装图标库或改用手写 SVG、字符、emoji。数据可视化本身不由图标库承担。
 - 使用 TanStack Router（`@tanstack/react-router`）及其 Vite 插件建立文件路由和自动 route code splitting；`src/routeTree.gen.ts` 是唯一生成路由树，必须提交但禁止手改，并在 ESLint、Prettier 与中文注释门禁中按根相对路径精确排除。
 - 使用 TanStack Query（`@tanstack/react-query`）管理命令支撑及其他异步资源状态，包括请求生命周期、缓存和失效。
 - 使用 Jotai（`jotai`）管理确实需要跨组件共享的纯客户端状态。
@@ -49,6 +50,8 @@
 - 更新展示只消费 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`。React 不解析远端版本策略、不验证签名、不从 `forcedUpdate` 等字段推导强更；根级 `RequiredUpdate` 分支不挂载普通功能，只呈现安装与退出。
 - 统计同意开关初始为 false；未配置、未同意和撤回后都必须显示零出站语义。React 不收集设备标识、不组装 HTTP 请求，也不保存 endpoint 或客户端 secret。
 
+固定侧栏的功能项以 `TablerIcon` 组件注入，赞助/设置/关于及侧栏开关由模板提供 Tabler 组件。收起时 Logo 和全部当前渲染图标必须显式水平居中且无裁切；Testing Library 锁定组件来源与居中样式，初始化 E2E 再从真实本机调试窗口复核可见结果。
+
 ## 工具链与质量门禁
 
 - `tsconfig` 至少启用 `strict`、`noUncheckedIndexedAccess`、`noFallthroughCasesInSwitch` 和 `isolatedModules`；不得用大范围排除、`skip` 脚本或独立宽松配置绕过产品源码。
@@ -76,7 +79,7 @@
 
 ## 推荐边界
 
-固定技术栈同时固定 Vite、pnpm、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。它不预选模式定义/验证库、表单库、图标、图表、网络 client、远程遥测或持久化方案。只有真实下游需求使选择成为必要时才推荐，并应用依赖准入和验证规则。
+固定技术栈同时固定 Vite、pnpm、`@tabler/icons-react`、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。它不预选模式定义/验证库、表单库、图表绘制库、网络 client、远程遥测或持久化方案。只有真实下游需求使选择成为必要时才推荐，并应用依赖准入和验证规则。
 
 `i18next`/`react-i18next` 同属固定技术栈，不参与“是否采用”的推荐；只有具体已支持语言列表、翻译文案内容和资源目录组织是项目特定选择。
 

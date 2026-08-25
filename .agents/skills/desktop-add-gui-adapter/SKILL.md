@@ -1,11 +1,18 @@
 ---
 name: desktop-add-gui-adapter
-description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固定 React/Mantine/Router/Query/Jotai/i18n 技术栈，并建立托盘、可收起侧栏及设置/关于/赞助基线。在初始化选择 GUI 或后续明确批准时使用。
+description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固定 React/Mantine/Tabler/Router/Query/Jotai/i18n 技术栈，并建立托盘、可收起侧栏及设置/关于/赞助基线。在初始化选择 GUI 或后续明确批准时使用。
 ---
 
 # 增加 GUI 适配器
 
 直接在共享核心之上增加最小的已批准 Tauri 2 桌面接口。GUI 与 CLI、TUI 和 MCP 相互独立。
+
+## 固定图标契约
+
+- `package.json` 必须把 `@tabler/icons-react` 声明为直接生产依赖，使用经过最低直接版本验证的完整三段 caret 下界；所有图标使用命名导入，保留 tree-shaking。
+- 菜单、操作、状态、空态及图表周边控件存在适用 Tabler 图标时，必须优先从该包选择；不得另装图标库，也不得改用手写 SVG、字符或 emoji。数据可视化图表本身仍按真实产品需求选择图表库。
+- 功能菜单项以 `TablerIcon` 组件类型注入，赞助、设置、关于和侧栏展开/收起图标由固定模板直接提供。收起状态必须把 Logo 与每个当前渲染图标显式水平居中且无裁切。
+- 偏离上述包或图标来源属于固定技术栈硬规则例外，必须先记录 ADR。
 
 ## 工作流程
 
@@ -25,7 +32,7 @@ description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固�
 14. 在 GUI 前端项目自有工具目录复制 [TypeScript Compiler AST 中文注释检查器](references/check-typescript-chinese-comments.cjs) 与 [专项测试](references/check-typescript-chinese-comments.test.ts)，调整相对导入后同时接入 `pnpm lint` 和项目 validator。检查器必须识别直接及后置命名/默认导出的箭头组件与 hook，只在测试文件或显式 `vitest` 导入中识别 `test`/`it` 场景；精确排除 `src/routeTree.gen.ts`，对解析错误/非法 UTF-8/NUL/源码符号链接/空扫描失败关闭；禁止扩张到所有局部变量或普通匿名回调，禁止加入自动批量注释。
 15. 先用 core 测试覆盖业务成功路径、最高风险领域失败和状态转换，再测试 Rust 异步命令映射、任务取消、托盘显示/退出映射、关闭隐藏且进程继续、动态标题、三个 Logo 候选选择与选中资产接线、侧栏默认收起、Logo→版本 DOM 顺序和展开/折叠持续可见、展开图标+名称、折叠图标+Tooltip、主窗口 1440×900/最小尺寸配置、应用亮暗语义变量、浅色/深色/跟随系统回调及持久化、赞助页亮色/暗色差异、功能区与固定底部顺序、设置/关于/赞助路由、语言切换、关于页 `NotConfigured` 零出站、作者/联系人/免责声明、赞助媒体、查询生命周期、Jotai 纯交互转换、前端交互、键盘导航、无障碍语义、能力拒绝和并发刷新/写入行为。启用更新/统计后，按支持 Skill 的参考增加 SemVer 强更、签名、同意撤回、字段白名单、任务回收和失败语义测试。布局属于验收范围时使用视觉质量检查。
 16. 只有真实下游需要前端公开配置时，才建立 `development/test/release` 逻辑 profile 和类型化冻结配置对象；全部 Vite 变量视为用户可读，禁止凭据且产品模块不得散落读取 `import.meta.env`。真实需要前端日志时使用稳定、脱敏的结构化事件，优先通过窄 Tauri 命令汇入 Rust `tracing`；Release Vite `dist` 必须静态拒绝 source map、开发/测试 endpoint、debug/info 哨兵、本机路径和未经批准的 console 输出。
-17. 中性初始化和后续开发只运行本次 GUI/core 变化必需的非空 Rust 与前端单元/回归测试；不自动追加全仓格式、lint、类型、静态扫描、生产构建、冒烟、E2E 或完整验收。只有用户显式请求构建时才调用 `$desktop-build-tauri-release`；构建流程必须先逐次确认 E2E，并在打包前运行完整 Rust 与前端单元测试套件，E2E 只在最终真实候选形成后按本次选择执行。
+17. 本 Skill 只运行本次 GUI/core 变化必需的非空 Rust 与前端单元/回归测试；不自动追加全仓格式、lint、类型、静态扫描、生产构建、冒烟或完整验收。中性初始化完成这些测试后返回 `$desktop-initialize-rust-project`，由后者固定调用一次 `$desktop-test-gui-initialization-e2e` 检查真实本机调试二进制；后续日常开发不自动 E2E。只有用户显式请求发布构建时才调用 `$desktop-build-tauri-release`；构建流程必须确认自己的最终候选 E2E 选择，并在打包前运行完整 Rust 与前端单元测试套件。
 18. 缺少完整签名公证条件且渠道允许时，`$desktop-build-tauri-release` 显式生成 `unsigned` 候选并标记其安装包作用域；若 macOS Developer ID 直接分发条件齐全，则签名、公证与 stapling 必须作为一个阶段完成，禁止只签名中间态。启用 updater 时，安装包签名与 updater 制品签名是不同门禁：每个平台候选还必须生成官方 updater 制品和 `.sig`，缺少发布私钥安全引用或签名验证时阻断该 updater 候选。渠道要求签名、公证、商店提交或签名更新器制品时，在独立渠道门禁通过前发布就绪保持受阻。
 19. 只按 `docs/ENGINEERING_RULES.md` 的独立事件触发规则更新产品、状态、计划、决定、验证、发布说明和变更记录；普通缺陷修复、纯重构和内部清理本身不触发项目记忆。只有另行授权发布工作后才能增加发布自动化；不得声称已获人工批准。
 
@@ -38,6 +45,7 @@ description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固�
 - 绝不能把业务规则、持久状态、迁移或平台无关验证放入 React 组件、路由、查询、atom 或事件处理器。
 - 不得创建第二套存储或由前端拥有的权威数据副本。
 - 不得仅因 GUI 较小或熟悉其他技术栈就替换任何固定 React 前端库。偏离必须形成硬规则例外 ADR。
+- `@tabler/icons-react` 是固定图标库；适用图标不得由其他库、手写 SVG、字符或 emoji 替代。图表相关控件优先使用 Tabler 图标，但该包不承担图表绘制。
 - 未经批准的真实需要，不得启用远程 URL、宽泛 Tauri 权限、伴随进程、自动启动、updater 网络配置或其他平台集成；`tray-icon` 只用于固定托盘基线，关于页 `NotConfigured` 状态也不授权插件或网络能力。
 - 不得把来源下游产品名/标识、产品功能、更新协议、endpoint、秘密或统计字段复制为 GUI 默认值。固定 `/settings`、`/about`、`/sponsor`、侧栏顺序、版本展示、标题公式和产品家族品牌联系人/免责声明/赞助内容/支付码/小图是经批准的封闭默认基线；更新 banner 只保留在 Skill 源资产，未经选择不进入 bundle。
 - 固定系统托盘和窗口生命周期在 GUI adapter 实现：托盘只有“显示窗口”“退出”，窗口关闭只隐藏；通知、自动启动、快捷键和其他桌面机制仍需单独批准。其回调触发的业务动作必须调用既有 core 用例，不能直接修改权威业务状态。平台机制本身无需 core-first 例外 ADR。
@@ -49,4 +57,4 @@ description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固�
 
 ## 完成输出
 
-报告已解析的 Tauri/前端版本、三个 Logo 候选与用户选择、母版/运行时/平台图标证据，主窗口和 DMG 安装卷的独立尺寸，`tray-icon`、显示/退出与关闭隐藏行为、动态标题公式、侧栏默认收起及 Logo→版本顺序、展开/折叠图标与 Tooltip、应用级亮色/暗色主题和三态偏好、赞助页亮色/暗色证据、功能区和固定底部顺序、设置/关于/赞助路由、语言切换、关于页更新及强更/统计配置状态、默认 sponsor 媒体、Mantine 组件、Router/Query/Jotai 所有权，每个业务操作的“GUI 事件/命令 → core API → core 测试”映射，i18n 接入范围、TypeScript 中文注释门禁与最终 `dist` 扫描、adapter-only 平台机制理由、能力/CSP/签名/同意边界、运行过的检查、已验证平台、未验证范围和剩余风险。
+报告已解析的 Tauri/前端及 `@tabler/icons-react` 版本、三个 Logo 候选与用户选择、母版/运行时/平台图标证据，主窗口和 DMG 安装卷的独立尺寸，`tray-icon`、显示/退出与关闭隐藏行为、动态标题公式、侧栏默认收起及 Logo→版本顺序、展开/折叠图标与 Tooltip、收起状态 Logo/图标居中、应用级亮色/暗色主题和三态偏好、赞助页亮色/暗色证据、功能区和固定底部顺序、设置/关于/赞助路由、语言切换、关于页更新及强更/统计配置状态、默认 sponsor 媒体、Mantine 组件、Router/Query/Jotai 所有权，每个业务操作的“GUI 事件/命令 → core API → core 测试”映射，i18n 接入范围、TypeScript 中文注释门禁与最终 `dist` 扫描、adapter-only 平台机制理由、能力/CSP/签名/同意边界、运行过的检查、已验证平台、未验证范围和剩余风险。中性初始化的真实启动、居中和全菜单可达结果由 `$desktop-test-gui-initialization-e2e` 汇总。

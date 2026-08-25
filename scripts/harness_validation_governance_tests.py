@@ -58,6 +58,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         for fragment in (
             "React 和 TypeScript",
             "Mantine UI",
+            "@tabler/icons-react",
             "TanStack Router",
             "TanStack Query",
             "Jotai",
@@ -65,6 +66,21 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             "WebView",
         ):
             self.assertIn(fragment, baseline)
+
+    def test_gui_initialization_e2e_is_a_required_one_time_contract(self) -> None:
+        """GUI 初始化 E2E 必须进入主契约且保持与最终候选 E2E 分离。"""
+
+        initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        required = primary_required_fragments(initialize_skill)
+        initialization_fragments = required[initialize_skill]
+        e2e_skill = (
+            ROOT
+            / ".agents/skills/desktop-test-gui-initialization-e2e/SKILL.md"
+        )
+        self.assertIn("$desktop-test-gui-initialization-e2e", initialization_fragments)
+        self.assertIn("pnpm tauri build --debug --no-bundle", initialization_fragments)
+        self.assertIn(e2e_skill, required)
+        self.assertIn("所有当前渲染的菜单项", required[e2e_skill])
 
     def test_rust_technology_standard_is_a_required_contract(self) -> None:
         """Rust 固定与条件技术族必须进入事实源、传播入口与机械门禁。"""

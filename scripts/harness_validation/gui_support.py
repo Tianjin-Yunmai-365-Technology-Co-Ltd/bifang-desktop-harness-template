@@ -128,8 +128,15 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             'data-testid="app-sidebar-version"',
             'data-testid="fixed-bottom-navigation"',
             "onCollapsedChange(!collapsed)",
-            "icon: ReactNode",
-            "fixedIcons: FixedNavigationIcons",
+            'from "@tabler/icons-react"',
+            "type TablerIcon",
+            "icon: TablerIcon",
+            "FIXED_NAVIGATION_ICONS",
+            'data-icon-alignment={collapsed ? "center" : "start"}',
+            'justifyContent: collapsed ? "center" : "flex-start"',
+            'style={{ alignItems: "center", width: "100%" }}',
+            "IconChevronRight",
+            "IconChevronLeft",
             "<Tooltip",
             "disabled={!collapsed}",
         ),
@@ -173,6 +180,9 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "DEFAULT_SIDEBAR_COLLAPSED",
             "application logo",
             "icons, tooltips, and the version",
+            'from "@tabler/icons-react"',
+            '"data-icon-alignment"',
+            'alignItems: "center"',
             "capability is not configured",
             "distinct light and dark application theme variables",
             "inert update entry on About",
@@ -225,6 +235,13 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
         "FIXED_BOTTOM_NAVIGATION_ITEMS.map"
     ):
         fail(errors, "GUI feature navigation must render above fixed bottom navigation")
+    for forbidden in (
+        "icon: ReactNode",
+        "fixedIcons: FixedNavigationIcons",
+        'collapsed ? "›" : "‹"',
+    ):
+        if forbidden in sidebar_text:
+            fail(errors, f"GUI sidebar restored forbidden icon contract: {forbidden}")
     for path, text in texts.items():
         if path.name.endswith(".test.tsx"):
             continue
@@ -255,6 +272,8 @@ def validate_gui_support_contract(
             'defaultColorScheme="auto"',
             "useComputedColorScheme",
             "折叠菜单显示必填图标和本地化 Tooltip",
+            "@tabler/icons-react",
+            "水平居中",
             "浅色/深色/跟随系统",
             "手动检查更新固定在关于页",
             "AppThemeProviderTemplate.tsx",
@@ -278,7 +297,9 @@ def validate_gui_support_contract(
             "## 所有权矩阵",
             "`{applicationName} {version} {contactChannel}:{contactValue}`",
             "底部固定组按视觉顺序为赞助、设置、关于",
-            "折叠时显示图标和本地化 Tooltip",
+            "折叠时 Logo 与全部图标水平居中且无裁切",
+            "@tabler/icons-react",
+            "水平居中",
             "浅色、深色、跟随系统",
             "关于页提供手动检查更新状态",
             "每个远程能力单独记录",

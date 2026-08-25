@@ -6,10 +6,11 @@
 
 - 将 Tauri 2 与现有 Rust 共享核心及 Tokio 适配器标准配合使用。
 - 复用 Tauri 基于 Tokio 的单例异步运行时，并以普通 `async fn` 实现自定义命令；不得创建嵌套 Tokio 运行时。
-- 使用 Vite、Mantine UI、TanStack Router 文件路由、TanStack Query 和 Jotai 打包本地 React + TypeScript 前端；使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 作为固定质量工具链。
+- 使用 Vite、Mantine UI、`@tabler/icons-react`、TanStack Router 文件路由、TanStack Query 和 Jotai 打包本地 React + TypeScript 前端；使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 作为固定质量工具链。
 - 界面国际化是开发期硬性必选项，不是可选增强。Rust 后端（GUI 适配器层）固定使用 `rust-i18n` 输出系统托盘、原生窗口标题、系统通知等未经 React 渲染路径的用户可见文案；系统语言探测统一使用官方 Tauri 插件 `tauri-plugin-os` 的 `locale()` API，作为 Rust 与前端唯一共用的系统语言来源，不得分别使用平台专有 API 或环境变量（见 ADR-20260806-001）。
 - Tauri `tauri` 依赖启用 `tray-icon` feature。系统托盘固定只含由 `rust-i18n` locale 资源提供的“显示窗口”和“退出”：显示动作及托盘左键都执行主窗口 `show`、取消最小化并聚焦；主窗口 `WindowEvent::CloseRequested` 必须 `prevent_close()` 后隐藏，只有托盘退出显式结束应用。默认不加入自动启动、后台业务或其他托盘菜单项。
 - GUI 初始化必须先实际生成正好 3 个 1024×1024 Logo 候选并由用户选择；选中母版、`/app-identity/logo.png` 与平台图标共享同一来源和摘要证据，禁止中性占位图进入基线提交。
+- GUI 图标固定使用 `@tabler/icons-react` 的命名组件。存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji；图表相关操作、状态和空态优先使用 Tabler 图标，实际图表绘制库仍按产品需求选择。默认收起侧栏中的 Logo 与每一个当前渲染图标必须水平居中且无裁切。
 - 初始化固定建立默认收起的左侧菜单与 `/settings`、`/about`、`/sponsor` 文件路由。侧栏顶部始终先显示选中 Logo、再紧接应用版本；Logo 与版本在展开/折叠状态及设置页直接可见。产品功能项和赞助/设置/关于固定项均必须提供图标；折叠时显示图标与本地化 Tooltip 名称，展开时显示图标与名称，并始终保留可访问名称。产品功能项从顶部向下增长，底部固定组按视觉顺序为赞助、设置、关于。设置页提供中英文、浅色/深色/跟随系统和统计同意；关于页提供手动检查更新，未配置远端能力时显示 `NotConfigured`/禁用状态并保持零出站。关于页还显示当前应用名、权威版本、作者、作者联系方式和三段免责声明；赞助页使用固定品牌档位、权益、双支付码和完整 sponsor 本地媒体。
 - `tauri.conf.json` 的主应用窗口固定以逻辑像素初始化为 1440×900，最小 960×640，居中且 `preventOverflow: true`；默认尺寸确保展开 248px 侧栏时三张赞助档位卡仍同屏横向呈现，较小窗口由响应式布局降列。该窗口与 `bundle.macOS.dmg.windowSize` 的 660×400 安装卷窗口互不替代。
 - Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage color-scheme manager 和唯一 CSS variables resolver；亮色/暗色分别提供页面背景、surface、主/次文字、边框与强调色，设置页允许 `light`/`dark`/`auto` 并持久化。赞助页通过 `useComputedColorScheme` 使用运行时有效主题的明确背景叠层、surface 和对比色，不把初始化宿主主题冻结到产物。
@@ -83,7 +84,7 @@
 - 缺少签名身份、证书或公证凭据不阻断渠道允许的 unsigned 安装候选；使用 `--no-sign` 并记录 unsigned。启用 updater 时发布签名密钥缺失会阻断 updater 制品候选，不能用 unsigned 安装包绕过。macOS Developer ID 直接分发一旦签名，必须在候选摘要前完成公证与 ticket stapling；禁止只签名未公证的中间态。
 - macOS 宿主的原生 DMG 与 Windows x64 NSIS 候选使用 `$desktop-build-tauri-release`。Windows 交叉路线只使用 cargo-xwin + NSIS，拒绝 MSI，并把 Windows runtime 保持为 `Unverified`。
 - macOS DMG 必须在最终签名、公证与 stapling 字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；只检查配置或源码图片不构成 Finder 安装布局证据。headless CI 不得无界等待 Finder AppleScript。
-- 真实打包应用或发布模式应用能在当前平台启动并渲染关键路由。
+- GUI 中性初始化结束前，真实本机调试二进制必须由 `$desktop-test-gui-initialization-e2e` 构建启动，并验证收起侧栏居中和所有渲染菜单页面可达；真实打包应用或发布模式应用的最终候选验收仍是独立门禁。
 - 每个声称支持的安装器或原生平台都有实际构建和完整验收证据。只有当前构建选择或产品/渠道硬要求启用冒烟/E2E 时才要求相应证据；否则记录 `Not run` 和风险。
 
 ## 例外与推荐边界
@@ -92,7 +93,7 @@ Tauri 2 和固定 React 前端技术栈是硬规则。替换它们必须记录�
 
 `react-i18next`/`i18next`、`rust-i18n` 与 `tauri-plugin-os` 的语言探测同样是硬规则。替换任一项、跳过语言切换入口或改为不跟随系统语言的默认值都必须记录硬规则例外；具体已支持的语言列表和翻译文案内容仍是项目特定选择。
 
-固定两项托盘菜单、托盘左键显示、关闭隐藏、显式退出、可收起侧栏、版本展示与设置/关于/赞助路由属于 GUI 基线；改变这些语义需要产品范围确认。伴随进程、自动启动、真实 updater 配置、更宽泛的平台 API、表单/图标/图表包、网络 client 与统计传输仍是项目特定选择。Vite、pnpm、ESLint/`typescript-eslint`、Prettier、Vitest 和 Testing Library 属于固定前端基线；替换时必须记录硬规则例外。其他包只有存在已批准需求，并同步依赖、安全、打包和测试变更时，才能增加或推荐。
+固定两项托盘菜单、托盘左键显示、关闭隐藏、显式退出、可收起侧栏、版本展示、`@tabler/icons-react` 图标来源与设置/关于/赞助路由属于 GUI 基线；改变这些语义需要产品范围确认。伴随进程、自动启动、真实 updater 配置、更宽泛的平台 API、表单/图表绘制包、网络 client 与统计传输仍是项目特定选择。Vite、pnpm、ESLint/`typescript-eslint`、Prettier、Vitest 和 Testing Library 属于固定前端基线；替换时必须记录硬规则例外。其他包只有存在已批准需求，并同步依赖、安全、打包和测试变更时，才能增加或推荐。
 
 官方运行时和签名参考：
 

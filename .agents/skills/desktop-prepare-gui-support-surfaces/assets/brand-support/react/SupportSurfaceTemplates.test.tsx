@@ -1,4 +1,5 @@
 import { Button, MantineProvider, Text } from "@mantine/core";
+import { IconLayoutDashboard, IconListCheck } from "@tabler/icons-react";
 import "@testing-library/jest-dom/vitest";
 import {
   cleanup,
@@ -154,23 +155,18 @@ describe("shared brand support templates", () => {
         collapsed={false}
         featureItems={[
           {
-            icon: <span data-testid="overview-icon">O</span>,
+            icon: IconLayoutDashboard,
             id: "overview",
             label: "总览",
             to: "/overview",
           },
           {
-            icon: <span data-testid="jobs-icon">J</span>,
+            icon: IconListCheck,
             id: "jobs",
             label: "任务",
             to: "/jobs",
           },
         ]}
-        fixedIcons={{
-          about: <span data-testid="about-icon">A</span>,
-          settings: <span data-testid="settings-icon">S</span>,
-          sponsor: <span data-testid="sponsor-icon">¥</span>,
-        }}
         logoSrc="/app-identity/logo.png"
         onCollapsedChange={onCollapsedChange}
         onNavigate={onNavigate}
@@ -189,8 +185,8 @@ describe("shared brand support templates", () => {
     expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
       "v3.4.5",
     );
-    expect(screen.getByTestId("overview-icon")).toBeVisible();
-    expect(screen.getByTestId("about-icon")).toBeVisible();
+    expect(screen.getByTestId("navigation-icon-overview")).toBeVisible();
+    expect(screen.getByTestId("navigation-icon-about")).toBeVisible();
     expect(
       within(screen.getByTestId("feature-navigation"))
         .getAllByRole("button")
@@ -218,17 +214,12 @@ describe("shared brand support templates", () => {
         collapsed
         featureItems={[
           {
-            icon: <span data-testid="overview-icon">O</span>,
+            icon: IconLayoutDashboard,
             id: "overview",
             label: "Overview",
             to: "/",
           },
         ]}
-        fixedIcons={{
-          about: <span data-testid="about-icon">A</span>,
-          settings: <span data-testid="settings-icon">S</span>,
-          sponsor: <span data-testid="sponsor-icon">$</span>,
-        }}
         logoSrc="/app-identity/logo.png"
         onCollapsedChange={vi.fn()}
         onNavigate={vi.fn()}
@@ -247,8 +238,18 @@ describe("shared brand support templates", () => {
       screen.getByRole("button", { name: "Expand sidebar" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "About" })).toBeInTheDocument();
-    expect(screen.getByTestId("overview-icon")).toBeVisible();
-    expect(screen.getByTestId("about-icon")).toBeVisible();
+    expect(screen.getByTestId("app-sidebar-identity")).toHaveStyle({
+      alignItems: "center",
+      width: "100%",
+    });
+    for (const label of ["Overview", "Sponsor", "Settings", "About"]) {
+      expect(screen.getByRole("button", { name: label })).toHaveAttribute(
+        "data-icon-alignment",
+        "center",
+      );
+    }
+    expect(screen.getByTestId("navigation-icon-overview")).toBeVisible();
+    expect(screen.getByTestId("navigation-icon-about")).toBeVisible();
     fireEvent.mouseEnter(screen.getByRole("button", { name: "Overview" }));
     expect(
       await screen.findByRole("tooltip", { name: "Overview" }),
