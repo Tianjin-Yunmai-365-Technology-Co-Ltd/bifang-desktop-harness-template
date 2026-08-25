@@ -2,13 +2,13 @@
 
 ## 新增
 
-- 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 16 条专项回归：在 GUI 构建前验证官方 `tauri-plugin-single-instance` 的 workspace/member 接线、首插件顺序、不消费参数/工作目录且只恢复既有窗口的中性回调，Tauri `tray-icon` feature、非透明 32px RGBA 图标与配置引用、从 `.setup` 可达的 Menu/default-icon/icon/build 接线、已注册关闭事件、稳定 ID `show_window`/`quit`、中英文原生资源，以及单实例/托盘五个固定命名回归；兼容 Cargo 依赖的 inline/table 两种合法写法和 Tauri 菜单构造 API 的受支持形式，路径越界、符号链接、非法 UTF-8、空源码、未接线死代码和任何缺项均失败关闭。
-- 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建并双启动真实本机 Tauri 调试二进制，验证第二次启动只唤醒同一主窗口后退出、只剩一个长期应用主进程/主窗口，再使用 Computer Use 验证真实托盘精确菜单及关闭隐藏/两种恢复/退出生命周期、应用可启动、默认收起侧栏中的 Logo/全部图标水平居中，以及可访问树枚举出的所有菜单页面可达；失败、超时、取消、唯一性无法判定、无法观察或无法执行均阻断初始化。
+- 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 18 条专项回归：在 GUI 构建前验证官方 `tauri-plugin-single-instance` 的 workspace/member 接线、首插件顺序、不消费参数/工作目录且只恢复既有窗口的中性回调，Tauri `tray-icon` feature、非透明 32px RGBA 图标与配置引用、从 `.setup` 可达的 Menu/default-icon/icon/build 接线、已注册关闭事件、稳定 ID `show_window`/`quit`、`rust_i18n::t!("tray.show_window")`/`rust_i18n::t!("tray.quit")` 可见标签解析、中英文原生资源，以及单实例/托盘生命周期/i18n 八个固定命名回归；新增负向覆盖原始翻译键和无断言 i18n 回归，路径越界、符号链接、非法 UTF-8、空源码、未接线死代码和任何缺项均失败关闭。
+- 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建并双启动真实本机 Tauri 调试二进制，验证第二次启动只唤醒同一主窗口后退出、只剩一个长期应用主进程/主窗口，再使用 Computer Use 验证真实托盘中文“显示窗口/退出”与英文“Show Window/Quit”可无重启刷新且无原始 key、关闭隐藏/两种恢复/退出生命周期、应用可启动、`136px` 单态侧栏的 Logo/图标/文字尺寸与居中、默认设置页无隐私/统计区块，以及可访问树枚举出的所有菜单页面可达；失败、超时、取消、唯一性无法判定、无法观察或无法执行均阻断初始化。
 - GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。
 - GUI 初始化新增应用 Logo 三选一：实际生成 3 个 1024×1024 PNG 候选并同时预览，必须由用户明确选择；选中母版逐字节接入运行时 `/app-identity/logo.png`，并由项目本地 Tauri 工具生成平台图标，候选/选择/摘要写入 `docs/GUI_APP_PROFILE.md`。
-- GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可同时展示展开的 248px 侧栏和三张赞助档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
-- GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含本地化“显示窗口/退出”，关闭主窗口只隐藏；标题按 `{applicationName} {version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定左侧菜单默认收起，Logo 永远在顶部、当前版本紧随其下并在展开/折叠状态都可见，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页提供中英文切换、检查更新状态和统计同意，关于页包含固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体并同时适配亮色/暗色。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
-- 新增 `AppSidebarTemplate`、`SettingsPageTemplate`、`MandatoryUpdateGateTemplate`、固定导航清单和更新展示状态模板，并补齐中文/英文资源。中性 GUI 的检查更新显示 `NotConfigured`、统计控件禁用且零出站；根级强更门只接受 core 已判定的 `RequiredUpdate`，不从远端布尔值自行推导。
+- GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可同时展示固定 `136px` 侧栏和三张赞助档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
+- GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含由 `rust-i18n` 运行时解析的显示/退出，关闭主窗口只隐藏；标题按 `{applicationName} {version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定左侧菜单为 `136px` 单态，`56px` Logo 永远在顶部、当前版本紧随其下，菜单以 `30px` 图标在上、`11px`/`10em` 文字在下的方式居中显示，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页只提供应用/版本、中英文切换和三态主题，不含隐私或统计区块；关于页包含更新状态、固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体并同时适配亮色/暗色。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
+- 新增 `AppSidebarTemplate`、`SettingsPageTemplate`、`MandatoryUpdateGateTemplate`、固定导航清单和更新展示状态模板，并补齐中文/英文资源。中性 GUI 的检查更新显示 `NotConfigured` 且零出站；默认设置模板不再携带统计 props、控件或翻译键，根级强更门只接受 core 已判定的 `RequiredUpdate`，不从远端布尔值自行推导。
 - 新增更新/强更/统计专项参考：更新采用官方 Tauri updater 签名制品和公开验证密钥；强更使用经验证的 `minimumSupportedVersion` 与 core 严格 SemVer；统计默认关闭、明确同意，只允许 HTTPS JSON `POST` 的最小字段白名单，不包含稳定设备/安装标识，并使用有界内存队列、单飞请求、取消、超时、重试和关闭回收。
 - 新增无产品身份的 660×400 macOS DMG 拖拽背景资产；GUI 初始化会把它写入 `<项目标识>_gui/src-tauri/dmg/background.png`，并把 Tauri 配置固定接到 `./dmg/background.png`。GUI 身份流程负责预览批准或同路径替换，Tauri 构建在测试前校验路径、尺寸、摘要与配置一致；新增 PNG 资产解析和构建引用负向回归。
 - 为 `$desktop-prepare-gui-support-surfaces` 新增完整共享品牌依赖包：固定三档赞助价格、作者/联系人/免责声明、中英文文案、侧栏/设置/About/Sponsor/Media/Banner/强更 React/Mantine 模板及非空模板测试，以及 12 张赞助图片和 1 张更新 banner。两张支付二维码、当前未使用的箭头/图标/选中态小图均按原始字节保留，并由 manifest 记录 MIME、尺寸、字节数、SHA-256、用途、敏感性和内部专有复用边界。
@@ -28,12 +28,12 @@
 
 - GUI 单实例从未声明的实现选择提升为不可省略的初始化硬门禁：使用官方 `tauri-plugin-single-instance` 且必须最先注册，同一用户会话第二次启动只恢复、取消最小化并聚焦既有主窗口后退出，不得留下第二个长期应用主进程或主窗口；中性回调忽略且不记录启动参数/工作目录。结构检查、两个固定命名回归和真实双启动唯一性证据任一缺失都会阻断基线提交；Linux Snap/Flatpak 另需在渠道清单声明并验证会话 DBus 权限。
 - GUI 系统托盘从文字基线提升为不可省略的初始化硬门禁，并修复了“代码看似存在但图标未显示”的漏检：除应用图标、精确双项菜单、关闭隐藏、两种恢复和退出外，现在强制验证非透明 32px RGBA 图标及 `bundle.icon` 引用、从 Tauri `.setup` 可达的 Menu/default-icon/icon/build 接线和已注册关闭事件；图标缺失不能静默继续，Linux tray 必须绑定菜单。初始化 E2E 还必须看到状态栏/通知区域中的非空可见图形，透明点击区域或只能弹菜单的不可见占位不会通过。
-- Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，赞助/设置/关于和侧栏开关使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji，图表相关控件优先使用 Tabler 图标而图表绘制方案保持独立。
-- 固定侧栏模板现在显式将收起状态的 Logo 与每个功能/固定菜单图标水平居中，并移除字符箭头和固定项图标注入；模板回归同步覆盖 Tabler 来源、identity 居中和全部菜单项的收起态居中标记。
+- Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，赞助/设置/关于使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji，图表相关控件优先使用 Tabler 图标而图表绘制方案保持独立。
+- 固定侧栏模板改为 `136px` 单态并移除折叠状态、开关、字符箭头与 Tooltip-only 名称；模板回归同步覆盖 Tabler 来源、`56px` Logo、`30px` 图标、图标上/`11px` `10em` 文字下、中心线和无折叠控件。
 - GUI 固定支持界面重新整理：手动检查更新及其 `NotConfigured`/检查中/结果状态从设置页迁回关于页；设置页新增浅色、深色、跟随系统三态选择并持久化设备级偏好。初始化新增唯一 `AppThemeProviderTemplate`，为亮色与暗色分别定义页面背景、surface、主/次文字、边框和强调色，应用壳与赞助页消费运行时有效主题。
-- 固定侧栏收起时现在强制保留每个功能项及赞助/设置/关于项的图标，并显示本地化 Tooltip 名称；展开时同时显示图标与名称。图标由下游显式注入且不再可选，两种状态继续提供可访问名称。
+- 固定侧栏不再支持展开/折叠；每个功能项及赞助/设置/关于项固定同时显示图标和下方居中文字。图标由下游显式注入且不再可选，完整可访问名称继续保留。
 - Rust、前端依赖与 Node.js/pnpm/cargo-xwin 工具要求统一改为经过验证的最低兼容稳定版本范围：Cargo/前端清单保留完整兼容下界，锁文件只固定当前解析结果；新增 Rust `direct-minimal-versions`、前端 `lowest-direct`、项目最低工具链与环境范围门禁，其中 `cargo-xwin` 使用 `>=0.22.0, <0.24.0`，保留已观测可用的 0.22.0 下界而不追随较新发布；不再以精确依赖版本、`latest`、tag、通配符或“优先最新”表达兼容性。
-- 固定侧栏现在默认收起，并把用户选中的本地 Logo 永久置于顶部、当前版本紧随其下；展开/折叠都保持 Logo 与版本可见。赞助页不再依赖单一主题或运行时 `light-dark()` 字符串，而是消费 Mantine 解析后的有效主题，为亮色/暗色分别选择背景叠层、surface 与对比色，并为不透明档位图提供稳定中性承载面。
+- 固定侧栏现在保持单一布局状态，把用户选中的本地 Logo 永久置于顶部、当前版本紧随其下，并以图标上文字下的方式持续显示所有菜单名称。赞助页不再依赖单一主题或运行时 `light-dark()` 字符串，而是消费 Mantine 解析后的有效主题，为亮色/暗色分别选择背景叠层、surface 与对比色，并为不透明档位图提供稳定中性承载面。
 - `$desktop-build-tauri-release` 新增 updater 候选门禁：启用时要求 `bundle.createUpdaterArtifacts: true`、受限 HTTPS endpoints、公开验证密钥和安全提供的签名私钥，收集并验证真实 archive/`.sig`，把版本、channel、target、arch、公钥指纹、路径、大小、摘要和验证结果写入 manifest。安装包签名/公证与 updater 签名相互独立；构建不创建 feed、不上传也不发布。
 - 对参考下游的更新与统计实现完成安全抽取：保留 UI 信息架构，不传播硬编码客户端共享秘密、GET/query 统计、稳定设备标识、detached task、未经认证的 `forcedUpdate` 或宽松下载 URL；对应拒绝规则和回归已固化到 GUI 支持、GUI adapter 与 Tauri 构建 Skills。
 - `$desktop-add-gui-adapter` 现在在中性 GUI 初始化中自动消费品牌支持 Skill；`docs/GUI_SUPPORT_SURFACES.md` 只在修改固定基线、增加其他支持界面或启用出站能力时按需创建。i18n 因默认页面和托盘文案前移到初始化阶段，固定中文/英文之外的系统语言继续回退英文；updater banner 未选择时不进入 bundle。

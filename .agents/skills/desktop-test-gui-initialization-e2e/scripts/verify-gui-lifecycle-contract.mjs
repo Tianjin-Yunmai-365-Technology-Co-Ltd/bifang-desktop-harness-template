@@ -34,6 +34,9 @@ const REQUIRED_TEST_NAMES = [
   "tray_show_restores_and_focuses_main_window",
   "close_request_hides_without_exit",
   "tray_quit_exits_application",
+  "tray_labels_resolve_for_supported_locales",
+  "tray_labels_fall_back_to_english",
+  "language_change_updates_tray_menu_labels",
 ];
 
 /** 解析脚本参数，并拒绝不完整或未知的调用形式。 */
@@ -461,6 +464,24 @@ function validateTrayRuntimeContract(sourceTexts, errors) {
     );
     return;
   }
+  const localizedTrayFunctions = completeTrayFunctions.filter((candidate) =>
+    ["tray.show_window", "tray.quit"].every((key) => {
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+      return new RegExp(
+        `(?:rust_i18n::)?t!\\s*\\(\\s*["']${escapedKey}["']`,
+        "u",
+      ).test(candidate.text);
+    }),
+  );
+  if (localizedTrayFunctions.length === 0) {
+    errors.push(
+      "托盘安装函数必须通过 rust-i18n t! 宏解析 tray.show_window 与 tray.quit；稳定 ID 或原始翻译键不得直接作为可见菜单文本",
+    );
+  }
+  const rawTrayLabelPattern = /(?:MenuItemBuilder::with_id\s*\(\s*[^,]+,\s*|MenuItem::with_id\s*\(\s*[^,]+,\s*[^,]+,\s*|MenuItemBuilder::new\s*\(\s*|\.text\s*\(\s*)["']tray\.(?:show_window|quit)["']/su;
+  if (completeTrayFunctions.some((candidate) => rawTrayLabelPattern.test(candidate.text))) {
+    errors.push("托盘菜单不得把 tray.show_window 或 tray.quit 原始翻译键直接作为可见标签");
+  }
   const setupArguments = sourceTexts.flatMap((text) => collectMethodArguments(text, "setup"));
   const isWiredFromSetup = completeTrayFunctions.some((candidate) =>
     setupArguments.some(
@@ -526,7 +547,7 @@ function validateLocales(localeTexts, errors) {
     (text) => text.includes("show_window") && text.includes("quit") && text.includes("显示窗口") && text.includes("退出"),
   );
   const hasEnglish = localeTexts.some(
-    (text) => text.includes("show_window") && text.includes("quit") && /Show window/iu.test(text) && /Quit/iu.test(text),
+    (text) => text.includes("show_window") && text.includes("quit") && text.includes("Show Window") && text.includes("Quit"),
   );
   if (!hasChinese) {
     errors.push("缺少同时包含 show_window/quit 的中文托盘资源");
@@ -591,9 +612,13 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
         ? collectFiles(testRoot, new Set([".rs"]))
         : [];
       const testText = [...rustFiles, ...testFiles].map(readTextFile).join("\n");
+      const testFunctions = collectRustFunctions(testText);
       for (const testName of REQUIRED_TEST_NAMES) {
-        if (!new RegExp(`\\bfn\\s+${testName}\\s*\\(`, "u").test(testText)) {
+        const testFunction = testFunctions.find((candidate) => candidate.name === testName);
+        if (!testFunction) {
           errors.push(`缺少固定 GUI 生命周期回归测试：${testName}`);
+        } else if (!/\bassert(?:_eq|_ne)?!\s*\(/u.test(testFunction.text)) {
+          errors.push(`固定 GUI 生命周期回归必须包含真实断言：${testName}`);
         }
       }
     }
@@ -623,7 +648,7 @@ function main() {
     return 1;
   }
   console.log(
-    "GUI lifecycle contract passed: single-instance, visible tray asset/runtime wiring, lifecycle tests, and zh-CN/en-US resources.",
+    "GUI lifecycle contract passed: single-instance, visible tray asset/runtime wiring, resolved tray i18n tests, and zh-CN/en-US resources.",
   );
   return 0;
 }

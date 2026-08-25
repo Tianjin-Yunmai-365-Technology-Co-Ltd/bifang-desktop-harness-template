@@ -1,4 +1,4 @@
 interface:
   display_name: "GUI 初始化 E2E"
-  short_description: "双启动并实测 Tauri GUI 的单实例、可见托盘、侧栏与路由"
-  default_prompt: "使用 $desktop-test-gui-initialization-e2e 在 GUI 初始化提交前验证强制单实例、非透明 32px 图标与系统托盘运行时接线，构建并双启动真实本机调试应用，确认第二次启动只唤醒既有主窗口且自行退出，并实测托盘有可见非空图形、关闭隐藏、恢复、退出以及侧栏和全部菜单路由。"
+  short_description: "双启动并实测 Tauri GUI 的单实例、托盘 i18n、固定侧栏与路由"
+  default_prompt: "使用 $desktop-test-gui-initialization-e2e 在 GUI 初始化提交前验证强制单实例、非透明 32px 图标与系统托盘运行时接线，构建并双启动真实本机调试应用，确认第二次启动只唤醒既有主窗口且自行退出，并实测托盘中英文标签可无重启刷新且无原始 key、关闭隐藏、恢复、退出、136px 单态图标上文字下侧栏、设置页无隐私区块和全部菜单路由。"

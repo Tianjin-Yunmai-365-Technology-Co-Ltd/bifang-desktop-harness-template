@@ -226,8 +226,8 @@ class GuiSupportContractTests(unittest.TestCase):
             )
         self.assertTrue(any("sponsor/settings/about" in error for error in errors), errors)
 
-    def test_sidebar_identity_or_collapsed_navigation_drift_is_rejected(self) -> None:
-        """侧栏必须默认收起、保持身份顺序，并为折叠菜单保留 Tooltip。"""
+    def test_sidebar_identity_or_fixed_vertical_navigation_drift_is_rejected(self) -> None:
+        """侧栏必须保持身份顺序、固定宽度和图标在上文字在下的单态布局。"""
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -235,8 +235,18 @@ class GuiSupportContractTests(unittest.TestCase):
             sidebar = brand_root / "react" / "AppSidebarTemplate.tsx"
             source = sidebar.read_text(encoding="utf-8")
             source = source.replace(
-                "DEFAULT_SIDEBAR_COLLAPSED = true",
-                "DEFAULT_SIDEBAR_COLLAPSED = false",
+                "APP_SIDEBAR_WIDTH_PX = 136",
+                "APP_SIDEBAR_WIDTH_PX = 76",
+                1,
+            )
+            source = source.replace(
+                "APP_SIDEBAR_NAV_ICON_SIZE_PX = 30",
+                "APP_SIDEBAR_NAV_ICON_SIZE_PX = 20",
+                1,
+            )
+            source = source.replace(
+                "APP_SIDEBAR_LABEL_WIDTH_CH = 10",
+                "APP_SIDEBAR_LABEL_WIDTH_CH = 6",
                 1,
             )
             source = source.replace(
@@ -254,15 +264,14 @@ class GuiSupportContractTests(unittest.TestCase):
                 'data-testid="app-sidebar-version"',
                 1,
             )
-            source = source.replace("<Tooltip", "<Box", 1)
             source = source.replace(
                 'from "@tabler/icons-react"',
                 'from "@example/icons"',
                 1,
             )
             source = source.replace(
-                'justifyContent: collapsed ? "center" : "flex-start"',
-                'justifyContent: "flex-start"',
+                'data-navigation-layout="icon-above-label"',
+                'data-navigation-layout="horizontal"',
                 1,
             )
             sidebar.write_text(source, encoding="utf-8")
@@ -272,11 +281,37 @@ class GuiSupportContractTests(unittest.TestCase):
                 brand_root=brand_root,
                 product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
             )
-        self.assertTrue(any("DEFAULT_SIDEBAR_COLLAPSED" in error for error in errors), errors)
+        self.assertTrue(any("APP_SIDEBAR_WIDTH_PX" in error for error in errors), errors)
+        self.assertTrue(any("APP_SIDEBAR_NAV_ICON_SIZE_PX" in error for error in errors), errors)
+        self.assertTrue(any("APP_SIDEBAR_LABEL_WIDTH_CH" in error for error in errors), errors)
         self.assertTrue(any("logo must render above" in error for error in errors), errors)
-        self.assertTrue(any("<Tooltip" in error for error in errors), errors)
         self.assertTrue(any("@tabler/icons-react" in error for error in errors), errors)
-        self.assertTrue(any("justifyContent" in error for error in errors), errors)
+        self.assertTrue(any("icon-above-label" in error for error in errors), errors)
+
+    def test_default_settings_privacy_surface_is_rejected(self) -> None:
+        """初始化设置页不得恢复隐私标题、统计开关或对应固定翻译键。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            settings = brand_root / "react" / "SettingsPageTemplate.tsx"
+            settings.write_text(
+                settings.read_text(encoding="utf-8")
+                + '\nconst usageReportingConsent = false;\nconst removed = t("settings.privacy_title");\n',
+                encoding="utf-8",
+            )
+            translations = brand_root / "i18n" / "zh-CN.json"
+            zh = json.loads(translations.read_text(encoding="utf-8"))
+            zh["settings"]["privacy_title"] = "隐私"
+            translations.write_text(json.dumps(zh), encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("forbidden privacy surface" in error for error in errors), errors)
+        self.assertTrue(any("fixed UI keys drifted" in error for error in errors), errors)
 
     def test_sponsor_theme_adaptation_drift_is_rejected(self) -> None:
         """赞助页不能冻结成单一主题或丢失运行时主题标记。"""

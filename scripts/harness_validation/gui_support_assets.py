@@ -78,9 +78,6 @@ EXPECTED_FIXED_UI_KEYS = {
     "sidebar": {
         "application_navigation",
         "logo_alt",
-        "collapse",
-        "expand",
-        "features",
         "version",
     },
     "settings": {
@@ -94,10 +91,6 @@ EXPECTED_FIXED_UI_KEYS = {
         "theme_light",
         "theme_dark",
         "theme_system",
-        "privacy_title",
-        "usage_statistics_label",
-        "usage_statistics_description",
-        "usage_statistics_not_configured",
     },
     "updater": {
         "banner_alt",

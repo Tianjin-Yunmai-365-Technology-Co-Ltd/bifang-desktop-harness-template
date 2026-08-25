@@ -20,9 +20,6 @@
   "sidebar": {
     "application_navigation": "应用导航",
     "logo_alt": "{{applicationName}} 应用 Logo",
-    "collapse": "收起侧栏",
-    "expand": "展开侧栏",
-    "features": "功能",
     "version": "版本 {{version}}"
   },
   "settings": {
@@ -35,11 +32,7 @@
     "theme_description": "主题选择会保存在本机；跟随系统会随系统外观自动切换。",
     "theme_light": "浅色",
     "theme_dark": "深色",
-    "theme_system": "跟随系统",
-    "privacy_title": "隐私",
-    "usage_statistics_label": "发送最小化匿名使用统计",
-    "usage_statistics_description": "仅在您同意后发送已公开列出的字段，可随时关闭并清除待发送事件。",
-    "usage_statistics_not_configured": "当前产品未配置统计上报，不会发送任何数据。"
+    "theme_system": "跟随系统"
   },
   "tray": {
     "show_window": "显示窗口",

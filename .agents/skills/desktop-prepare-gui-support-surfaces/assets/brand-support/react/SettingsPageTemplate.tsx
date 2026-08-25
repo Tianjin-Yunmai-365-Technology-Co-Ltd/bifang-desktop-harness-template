@@ -1,11 +1,9 @@
 import {
   Badge,
-  Divider,
   Group,
   Paper,
   SegmentedControl,
   Stack,
-  Switch,
   Text,
   Title,
   useMantineColorScheme,
@@ -18,15 +16,12 @@ import type { AppColorScheme } from "./AppThemeProviderTemplate";
 /** 设置页固定支持的界面语言。 */
 export type SupportedInterfaceLanguage = "zh-CN" | "en-US";
 
-/** 固定设置页所需的本地偏好和由 adapter 提供的能力状态。 */
+/** 固定设置页所需的应用事实和本地展示偏好。 */
 export interface SettingsPageTemplateProps {
   applicationName: string;
   version: string;
   language: SupportedInterfaceLanguage;
   onLanguageChange: (language: SupportedInterfaceLanguage) => void;
-  usageReportingConfigured: boolean;
-  usageReportingConsent: boolean;
-  onUsageReportingConsentChange: (consent: boolean) => void;
 }
 
 /** 把 SegmentedControl 字符串收敛为固定语言枚举。 */
@@ -41,15 +36,12 @@ function isSupportedColorScheme(value: string): value is AppColorScheme {
   return value === "light" || value === "dark" || value === "auto";
 }
 
-/** 渲染固定设置页：版本、语言、主题和统计上报同意。 */
+/** 渲染固定设置页：只包含版本、语言和主题等本地展示偏好。 */
 export function SettingsPageTemplate({
   applicationName,
   version,
   language,
   onLanguageChange,
-  usageReportingConfigured,
-  usageReportingConsent,
-  onUsageReportingConsentChange,
 }: SettingsPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -104,26 +96,6 @@ export function SettingsPageTemplate({
               }
             }}
             value={colorScheme}
-          />
-        </Stack>
-      </Paper>
-
-      <Paper p="lg" radius="lg" withBorder>
-        <Stack gap="md">
-          <Title order={3}>{t("settings.privacy_title")}</Title>
-          <Divider />
-          <Switch
-            checked={usageReportingConsent}
-            description={
-              usageReportingConfigured
-                ? t("settings.usage_statistics_description")
-                : t("settings.usage_statistics_not_configured")
-            }
-            disabled={!usageReportingConfigured}
-            label={t("settings.usage_statistics_label")}
-            onChange={(event) =>
-              onUsageReportingConsentChange(event.currentTarget.checked)
-            }
           />
         </Stack>
       </Paper>

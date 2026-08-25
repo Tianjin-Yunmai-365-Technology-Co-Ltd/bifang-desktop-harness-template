@@ -1,5 +1,4 @@
 import {
-  ActionIcon,
   Box,
   Divider,
   Image,
@@ -7,11 +6,8 @@ import {
   ScrollArea,
   Stack,
   Text,
-  Tooltip,
 } from "@mantine/core";
 import {
-  IconChevronLeft,
-  IconChevronRight,
   IconHeart,
   IconInfoCircle,
   IconSettings,
@@ -23,16 +19,20 @@ import { useTranslation } from "react-i18next";
 import { FIXED_BOTTOM_NAVIGATION_ITEMS } from "./supportNavigation";
 import { isLocalSupportPath } from "./brandSupportProfile";
 
-/** 新 GUI 的侧栏先保持收起，用户仍可通过固定按钮展开。 */
-export const DEFAULT_SIDEBAR_COLLAPSED = true;
+/** 固定侧栏宽度为约十个中文字符及两侧留白提供稳定空间。 */
+export const APP_SIDEBAR_WIDTH_PX = 136;
 
-/** 侧栏两种状态的固定宽度供应用壳层和内容偏移复用。 */
-export const APP_SIDEBAR_WIDTHS = {
-  collapsed: 76,
-  collapsedLogo: 44,
-  expanded: 248,
-  expandedLogo: 72,
-} as const;
+/** 固定侧栏中的应用 Logo 使用比旧收起态更清晰的尺寸。 */
+export const APP_SIDEBAR_LOGO_SIZE_PX = 56;
+
+/** 菜单图标采用易识别且不会挤压下方文字的固定尺寸。 */
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 30;
+
+/** 菜单文字每行预留约十个全角中文字符的宽度。 */
+export const APP_SIDEBAR_LABEL_WIDTH_CH = 10;
+
+/** 稍小字号让十个中文字符能在固定侧栏内完整排布。 */
+export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
 
 /** 产品功能菜单项由当前下游按显示顺序注入。 */
 export interface FeatureNavigationItem {
@@ -49,8 +49,6 @@ export interface AppSidebarTemplateProps {
   version: string;
   featureItems: FeatureNavigationItem[];
   activePath: string;
-  collapsed: boolean;
-  onCollapsedChange: (collapsed: boolean) => void;
   onNavigate: (path: string) => void;
 }
 
@@ -64,17 +62,15 @@ const FIXED_NAVIGATION_ICONS: Record<
   about: IconInfoCircle,
 };
 
-/** 折叠时只显示图标并用 Tooltip 揭示名称，展开时同时显示图标和名称。 */
+/** 以图标在上、居中文字在下的固定结构渲染一个菜单项。 */
 function SidebarNavigationItem({
   active,
-  collapsed,
   icon,
   id,
   label,
   onClick,
 }: {
   active: boolean;
-  collapsed: boolean;
   icon: TablerIcon;
   id: string;
   label: string;
@@ -82,53 +78,66 @@ function SidebarNavigationItem({
 }): ReactElement {
   const IconComponent = icon;
   return (
-    <Tooltip disabled={!collapsed} label={label} position="right" withArrow>
-      <NavLink
-        active={active}
-        aria-label={label}
-        component="button"
-        data-icon-alignment={collapsed ? "center" : "start"}
-        label={collapsed ? undefined : label}
-        leftSection={
-          <IconComponent
-            aria-hidden="true"
-            data-testid={`navigation-icon-${id}`}
-            size={20}
-            stroke={1.75}
-          />
-        }
-        onClick={onClick}
-        px={collapsed ? 0 : "sm"}
-        styles={{
-          body: { flex: collapsed ? "0 0 auto" : "1 1 auto" },
-          root: { justifyContent: collapsed ? "center" : "flex-start" },
-          section: { marginInlineEnd: collapsed ? 0 : undefined },
-        }}
-        type="button"
-        variant="light"
-      />
-    </Tooltip>
+    <NavLink
+      active={active}
+      aria-label={label}
+      component="button"
+      data-label-width-ch={APP_SIDEBAR_LABEL_WIDTH_CH}
+      data-navigation-layout="icon-above-label"
+      label={
+        <Text
+          data-testid={`navigation-label-${id}`}
+          lineClamp={2}
+          style={{
+            fontSize: APP_SIDEBAR_LABEL_FONT_SIZE_PX,
+            inlineSize: `${APP_SIDEBAR_LABEL_WIDTH_CH}em`,
+            lineHeight: 1.2,
+            maxInlineSize: "100%",
+            overflowWrap: "anywhere",
+            textAlign: "center",
+          }}
+        >
+          {label}
+        </Text>
+      }
+      leftSection={
+        <IconComponent
+          aria-hidden="true"
+          data-testid={`navigation-icon-${id}`}
+          size={APP_SIDEBAR_NAV_ICON_SIZE_PX}
+          stroke={1.75}
+        />
+      }
+      onClick={onClick}
+      styles={{
+        body: { flex: "0 0 auto", width: "100%" },
+        root: {
+          alignItems: "center",
+          flexDirection: "column",
+          gap: 4,
+          justifyContent: "center",
+          minHeight: 72,
+          paddingBlock: 8,
+          paddingInline: 0,
+        },
+        section: { marginInlineEnd: 0 },
+      }}
+      type="button"
+      variant="light"
+    />
   );
 }
 
-/** 渲染可收起固定侧栏：功能从上向下增长，赞助/设置/关于固定贴底。 */
+/** 渲染不可展开的固定侧栏：功能从上向下增长，赞助/设置/关于固定贴底。 */
 export function AppSidebarTemplate({
   applicationName,
   logoSrc,
   version,
   featureItems,
   activePath,
-  collapsed,
-  onCollapsedChange,
   onNavigate,
 }: AppSidebarTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
-  const width = collapsed
-    ? APP_SIDEBAR_WIDTHS.collapsed
-    : APP_SIDEBAR_WIDTHS.expanded;
-  const logoSize = collapsed
-    ? APP_SIDEBAR_WIDTHS.collapsedLogo
-    : APP_SIDEBAR_WIDTHS.expandedLogo;
 
   if (!isLocalSupportPath(logoSrc)) {
     throw new Error("application logo must use a packaged local path");
@@ -138,7 +147,7 @@ export function AppSidebarTemplate({
     <Box
       aria-label={t("sidebar.application_navigation")}
       component="nav"
-      data-collapsed={collapsed}
+      data-layout="fixed-icon-above-label"
       data-testid="app-sidebar"
       style={{
         background: "var(--app-surface)",
@@ -147,12 +156,11 @@ export function AppSidebarTemplate({
         insetBlock: 0,
         insetInlineStart: 0,
         position: "fixed",
-        transition: "width 160ms ease",
-        width,
+        width: APP_SIDEBAR_WIDTH_PX,
         zIndex: 100,
       }}
     >
-      <Stack gap="sm" h="100%" p="sm">
+      <Stack gap="sm" h="100%" p="xs">
         <Stack
           align="center"
           data-icon-alignment="center"
@@ -164,9 +172,9 @@ export function AppSidebarTemplate({
             alt={t("sidebar.logo_alt", { applicationName })}
             data-testid="app-sidebar-logo"
             fit="contain"
-            h={logoSize}
+            h={APP_SIDEBAR_LOGO_SIZE_PX}
             src={logoSrc}
-            w={logoSize}
+            w={APP_SIDEBAR_LOGO_SIZE_PX}
           />
           <Text
             aria-label={`${applicationName} ${t("sidebar.version", { version })}`}
@@ -175,21 +183,10 @@ export function AppSidebarTemplate({
             fw={600}
             lineClamp={1}
             size="xs"
-            ta={collapsed ? "center" : "start"}
+            ta="center"
           >
             v{version}
           </Text>
-          <ActionIcon
-            aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
-            onClick={() => onCollapsedChange(!collapsed)}
-            variant="subtle"
-          >
-            {collapsed ? (
-              <IconChevronRight aria-hidden="true" size={18} stroke={1.75} />
-            ) : (
-              <IconChevronLeft aria-hidden="true" size={18} stroke={1.75} />
-            )}
-          </ActionIcon>
         </Stack>
 
         <Divider />
@@ -200,15 +197,9 @@ export function AppSidebarTemplate({
           type="auto"
         >
           <Stack gap={4}>
-            {collapsed ? null : (
-              <Text c="dimmed" fw={600} px="sm" size="xs">
-                {t("sidebar.features")}
-              </Text>
-            )}
             {featureItems.map((item) => (
               <SidebarNavigationItem
                 active={activePath === item.to}
-                collapsed={collapsed}
                 icon={item.icon}
                 id={item.id}
                 key={item.id}
@@ -227,7 +218,6 @@ export function AppSidebarTemplate({
             return (
               <SidebarNavigationItem
                 active={activePath === item.to}
-                collapsed={collapsed}
                 icon={FIXED_NAVIGATION_ICONS[item.id]}
                 id={item.id}
                 key={item.id}

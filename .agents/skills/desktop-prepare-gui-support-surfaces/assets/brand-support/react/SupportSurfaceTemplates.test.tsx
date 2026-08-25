@@ -17,8 +17,12 @@ import enUS from "../i18n/en-US.json";
 import zhCN from "../i18n/zh-CN.json";
 import { AboutPageTemplate } from "./AboutPageTemplate";
 import {
+  APP_SIDEBAR_LABEL_FONT_SIZE_PX,
+  APP_SIDEBAR_LABEL_WIDTH_CH,
+  APP_SIDEBAR_LOGO_SIZE_PX,
+  APP_SIDEBAR_NAV_ICON_SIZE_PX,
+  APP_SIDEBAR_WIDTH_PX,
   AppSidebarTemplate,
-  DEFAULT_SIDEBAR_COLLAPSED,
 } from "./AppSidebarTemplate";
 import {
   APP_COLOR_SCHEME_STORAGE_KEY,
@@ -144,15 +148,13 @@ describe("shared brand support templates", () => {
     ]);
   });
 
-  /** 侧栏保持功能项向下增长，并把赞助、设置、关于按固定顺序贴底。 */
-  it("renders the collapsible sidebar with a visible version and fixed bottom order", async () => {
-    const onCollapsedChange = vi.fn();
+  /** 固定侧栏保持功能项向下增长，并把赞助、设置、关于按固定顺序贴底。 */
+  it("renders the fixed sidebar with a visible version and fixed bottom order", async () => {
     const onNavigate = vi.fn();
     await renderTemplate(
       <AppSidebarTemplate
         activePath="/overview"
         applicationName="Example Utility"
-        collapsed={false}
         featureItems={[
           {
             icon: IconLayoutDashboard,
@@ -168,7 +170,6 @@ describe("shared brand support templates", () => {
           },
         ]}
         logoSrc="/app-identity/logo.png"
-        onCollapsedChange={onCollapsedChange}
         onNavigate={onNavigate}
         version="3.4.5"
       />,
@@ -199,75 +200,81 @@ describe("shared brand support templates", () => {
     ).toEqual(["赞助", "设置", "关于"]);
 
     fireEvent.click(screen.getByRole("button", { name: "任务" }));
-    fireEvent.click(screen.getByRole("button", { name: "收起侧栏" }));
     expect(onNavigate).toHaveBeenCalledWith("/jobs");
-    expect(onCollapsedChange).toHaveBeenCalledWith(true);
   });
 
-  /** 折叠侧栏仍显示图标和版本，并通过 Tooltip 揭示菜单名称。 */
-  it("keeps icons, tooltips, and the version visible when collapsed", async () => {
-    expect(DEFAULT_SIDEBAR_COLLAPSED).toBe(true);
+  /** 单态侧栏以大图标在上、十字宽度居中文字在下，且没有展开控件。 */
+  it("keeps the fixed icon-above-label navigation centered and non-expandable", async () => {
+    expect(APP_SIDEBAR_WIDTH_PX).toBe(136);
+    expect(APP_SIDEBAR_LOGO_SIZE_PX).toBe(56);
+    expect(APP_SIDEBAR_NAV_ICON_SIZE_PX).toBe(30);
+    expect(APP_SIDEBAR_LABEL_WIDTH_CH).toBe(10);
+    expect(APP_SIDEBAR_LABEL_FONT_SIZE_PX).toBe(11);
     await renderTemplate(
       <AppSidebarTemplate
         activePath="/about"
         applicationName="Example Utility"
-        collapsed
         featureItems={[
           {
             icon: IconLayoutDashboard,
             id: "overview",
-            label: "Overview",
+            label: "一二三四五六七八九十",
             to: "/",
           },
         ]}
         logoSrc="/app-identity/logo.png"
-        onCollapsedChange={vi.fn()}
         onNavigate={vi.fn()}
         version="9.8.7"
       />,
-      "en-US",
     );
 
+    expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "136px" });
+    expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
+      "data-layout",
+      "fixed-icon-above-label",
+    );
     expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
       "v9.8.7",
     );
     expect(
-      screen.getByRole("img", { name: "Example Utility application logo" }),
+      screen.getByRole("img", { name: "Example Utility 应用 Logo" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Expand sidebar" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "About" })).toBeInTheDocument();
+      screen.queryByLabelText(/展开|收起|expand|collapse/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "关于" })).toBeInTheDocument();
     expect(screen.getByTestId("app-sidebar-identity")).toHaveStyle({
       alignItems: "center",
       width: "100%",
     });
-    for (const label of ["Overview", "Sponsor", "Settings", "About"]) {
-      expect(screen.getByRole("button", { name: label })).toHaveAttribute(
-        "data-icon-alignment",
-        "center",
+    for (const label of ["一二三四五六七八九十", "赞助", "设置", "关于"]) {
+      const item = screen.getByRole("button", { name: label });
+      expect(item).toHaveAttribute(
+        "data-navigation-layout",
+        "icon-above-label",
       );
+      expect(item).toHaveAttribute("data-label-width-ch", "10");
     }
     expect(screen.getByTestId("navigation-icon-overview")).toBeVisible();
     expect(screen.getByTestId("navigation-icon-about")).toBeVisible();
-    fireEvent.mouseEnter(screen.getByRole("button", { name: "Overview" }));
-    expect(
-      await screen.findByRole("tooltip", { name: "Overview" }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("navigation-label-overview")).toHaveTextContent(
+      "一二三四五六七八九十",
+    );
+    expect(screen.getByTestId("navigation-label-overview")).toHaveStyle({
+      fontSize: "11px",
+      inlineSize: "10em",
+      textAlign: "center",
+    });
   });
 
-  /** 设置页显示版本并把语言、三态主题与统计同意交给外层控制器。 */
-  it("renders fixed language, theme, and privacy controls", async () => {
+  /** 设置页只显示版本、语言和三态主题，不预置隐私或统计区块。 */
+  it("renders fixed language and theme controls without a privacy section", async () => {
     const onLanguageChange = vi.fn();
-    const onUsageReportingConsentChange = vi.fn();
     await renderAppThemeTemplate(
       <SettingsPageTemplate
         applicationName="Example Utility"
         language="zh-CN"
         onLanguageChange={onLanguageChange}
-        onUsageReportingConsentChange={onUsageReportingConsentChange}
-        usageReportingConfigured
-        usageReportingConsent={false}
         version="3.4.5"
       />,
     );
@@ -284,11 +291,6 @@ describe("shared brand support templates", () => {
       "dark",
     );
     fireEvent.click(screen.getByRole("radio", { name: "跟随系统" }));
-    fireEvent.click(
-      screen.getByRole("switch", {
-        name: /发送最小化匿名使用统计/,
-      }),
-    );
     expect(onLanguageChange).toHaveBeenCalledWith("en-US");
     expect(window.localStorage.getItem(APP_COLOR_SCHEME_STORAGE_KEY)).toBe(
       "auto",
@@ -298,30 +300,9 @@ describe("shared brand support templates", () => {
       "data-color-scheme",
       "light",
     );
-    expect(onUsageReportingConsentChange).toHaveBeenCalledWith(true);
-  });
-
-  /** 未配置统计能力时，设置页保留清晰状态但不会触发请求。 */
-  it("disables usage reporting when the capability is not configured", async () => {
-    await renderTemplate(
-      <SettingsPageTemplate
-        applicationName="Example Utility"
-        language="en-US"
-        onLanguageChange={vi.fn()}
-        onUsageReportingConsentChange={vi.fn()}
-        usageReportingConfigured={false}
-        usageReportingConsent={false}
-        version="1.0.0"
-      />,
-      "en-US",
-    );
-
-    expect(
-      screen.getByRole("switch", {
-        name: /Send minimal anonymous usage statistics/,
-      }),
-    ).toBeDisabled();
-    expect(screen.getByText(/no data will be sent/i)).toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByText("隐私")).not.toBeInTheDocument();
+    expect(screen.queryByText(/统计/)).not.toBeInTheDocument();
   });
 
   /** 初始化主题同时提供可区分的亮色与暗色背景、文字和表面令牌。 */

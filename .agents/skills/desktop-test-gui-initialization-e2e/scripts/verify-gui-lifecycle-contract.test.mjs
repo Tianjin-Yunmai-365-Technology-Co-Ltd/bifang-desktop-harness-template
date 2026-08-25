@@ -113,8 +113,8 @@ fn run() {
 }
 
 fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
-    let show = MenuItemBuilder::with_id(SHOW_WINDOW_ID, "Show window").build(app)?;
-    let quit = MenuItemBuilder::with_id(QUIT_ID, "Quit").build(app)?;
+    let show = MenuItemBuilder::with_id(SHOW_WINDOW_ID, rust_i18n::t!("tray.show_window")).build(app)?;
+    let quit = MenuItemBuilder::with_id(QUIT_ID, rust_i18n::t!("tray.quit")).build(app)?;
     let menu = Menu::with_items(app, &[&show, &quit])?;
     let icon = app.default_window_icon().expect("bundled app icon must exist").clone();
     TrayIconBuilder::with_id("main")
@@ -152,19 +152,45 @@ fn handle_window(window: &tauri::Window, event: &WindowEvent) {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn single_instance_plugin_is_registered_first() {}
+    fn single_instance_plugin_is_registered_first() {
+        assert!(true);
+    }
 
     #[test]
-    fn second_launch_restores_existing_main_window() {}
+    fn second_launch_restores_existing_main_window() {
+        assert!(true);
+    }
 
     #[test]
-    fn tray_show_restores_and_focuses_main_window() {}
+    fn tray_show_restores_and_focuses_main_window() {
+        assert!(true);
+    }
 
     #[test]
-    fn close_request_hides_without_exit() {}
+    fn close_request_hides_without_exit() {
+        assert!(true);
+    }
 
     #[test]
-    fn tray_quit_exits_application() {}
+    fn tray_quit_exits_application() {
+        assert!(true);
+    }
+
+    #[test]
+    fn tray_labels_resolve_for_supported_locales() {
+        assert_eq!("显示窗口", "显示窗口");
+        assert_eq!("Show Window", "Show Window");
+    }
+
+    #[test]
+    fn tray_labels_fall_back_to_english() {
+        assert_eq!("Show Window", "Show Window");
+    }
+
+    #[test]
+    fn language_change_updates_tray_menu_labels() {
+        assert_ne!("显示窗口", "Show Window");
+    }
 }
 `,
   );
@@ -174,7 +200,7 @@ mod tests {
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "locales", "en-US.yml"),
-    "tray:\n  show_window: Show window\n  quit: Quit\n",
+    "tray:\n  show_window: Show Window\n  quit: Quit\n",
   );
   return { root, guiRoot };
 }
@@ -347,6 +373,44 @@ test("rejects missing lifecycle regression coverage", () => {
       fs.readFileSync(source, "utf8").replace("tray_quit_exits_application", "renamed_test"),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /tray_quit_exits_application/u);
+  });
+});
+
+test("rejects tray labels that expose raw translation keys", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "    let menu = Menu::with_items(app, &[&show, &quit])?;",
+          '    let leaked = MenuItemBuilder::with_id("leaked", "tray.show_window").build(app)?;\n    let menu = Menu::with_items(app, &[&show, &quit, &leaked])?;',
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得把 tray\.show_window/u,
+    );
+  });
+});
+
+test("rejects tray i18n regression coverage without assertions", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          'fn tray_labels_fall_back_to_english() {\n        assert_eq!("Show Window", "Show Window");\n    }',
+          "fn tray_labels_fall_back_to_english() {}",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /固定 GUI 生命周期回归必须包含真实断言/u,
+    );
   });
 });
 

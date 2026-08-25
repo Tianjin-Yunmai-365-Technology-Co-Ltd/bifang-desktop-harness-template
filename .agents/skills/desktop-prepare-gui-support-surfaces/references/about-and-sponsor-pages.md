@@ -14,9 +14,9 @@
 | `react/SponsorPageTemplate.tsx` | 响应式展示固定品牌赞助内容与双支付码 | GUI 初始化默认页面 |
 | `react/SupportMedia.tsx` | 统一本地图片与带字幕/文字稿的视频边界 | 页面需要媒体 |
 | `react/BrandUpdaterBanner.tsx` | 只渲染本地品牌 banner | 选择更新视觉 |
-| `react/AppSidebarTemplate.tsx` | 默认收起的固定左侧菜单、顶部 Logo→版本、必填图标、折叠 Tooltip、顶部功能区和贴底支持区 | GUI 初始化默认壳层 |
+| `react/AppSidebarTemplate.tsx` | `136px` 单态固定左侧菜单、顶部 `56px` Logo→版本、`30px` 图标上方/`11px` `10em` 居中文字、顶部功能区和贴底支持区 | GUI 初始化默认壳层 |
 | `react/AppThemeProviderTemplate.tsx` | 唯一 Mantine provider、三态本地偏好及亮暗背景/surface/文字/边框/强调色 | GUI 初始化默认根壳层 |
-| `react/SettingsPageTemplate.tsx` | 当前版本、中英文、浅色/深色/跟随系统和统计同意 | GUI 初始化默认页面 |
+| `react/SettingsPageTemplate.tsx` | 当前版本、中英文和浅色/深色/跟随系统；不含隐私或统计区块 | GUI 初始化默认页面 |
 | `react/MandatoryUpdateGateTemplate.tsx`、`react/updatePresentation.ts` | 根级强更门和稳定更新展示状态 | GUI 初始化保留；产品配置 updater 后接线 |
 | `react/supportNavigation.ts` | 固定 `/sponsor`、`/settings`、`/about` 菜单项、翻译键和稳定 ID | GUI 初始化默认导航 |
 | `react/SupportSurfaceTemplates.test.tsx` | 页面、支付码、响应式危险回归和视频约束的非空测试 | 复制模板后按项目测试结构迁移 |
@@ -27,10 +27,10 @@
 
 ## 集成步骤
 
-1. GUI 初始化直接接入固定本地标题、可收起侧栏、设置页、关于页和赞助页，不创建产品实例文档。只有修改默认内容、增加其他界面或启用出站能力时，才从 `GUI_SUPPORT_SURFACES.template.md` 创建差异文档；模板根本身仍不得出现 `docs/GUI_SUPPORT_SURFACES.md`。
+1. GUI 初始化直接接入固定本地标题、单态侧栏、精简设置页、关于页和赞助页，不创建产品实例文档。只有修改默认内容、增加其他界面或启用出站能力时，才从 `GUI_SUPPORT_SURFACES.template.md` 创建差异文档；模板根本身仍不得出现 `docs/GUI_SUPPORT_SURFACES.md`。
 2. 把 `brand-support-profile.json` 作为唯一品牌结构事实；不得在 About、Sponsor、标题或其他组件各写一份联系人/价格常量。
-3. 将 ThemeProvider、Sidebar、Settings、About、Sponsor、MandatoryUpdateGate 与更新展示类型复制到产品前端并建立 `/settings`、`/about`、`/sponsor` 文件路由。侧栏 Jotai 状态以 `DEFAULT_SIDEBAR_COLLAPSED = true` 初始化，顶部始终先渲染 GUI 身份流程选中的 `/app-identity/logo.png`、再渲染当前版本；功能项从顶部向下增长，固定底部按赞助、设置、关于渲染。每项必须注入图标；折叠时显示图标与本地化 Tooltip，展开时显示图标与名称，并始终保留可访问名称。展开和折叠时 Logo 与版本都直接可见。保留 Mantine、响应式 `SimpleGrid`、本地路径校验、图片替代文本以及视频 captions/transcript 约束。
-4. 把两份 JSON 合并或注册为初始化 i18next 的 `brandSupport` namespace，并把两份 `rust-i18n/*.yml` 复制到 GUI adapter 的 locale 目录。默认语言仍来自 `tauri-plugin-os` 探测和用户持久语言偏好；Rust 托盘与 React 必须消费同一解析结果，不能建立第二套语言状态。
+3. 将 ThemeProvider、Sidebar、Settings、About、Sponsor、MandatoryUpdateGate 与更新展示类型复制到产品前端并建立 `/settings`、`/about`、`/sponsor` 文件路由。侧栏固定为 `136px` 单态，不建立 Jotai 折叠状态或切换按钮；顶部始终先渲染 GUI 身份流程选中的 `56px` `/app-identity/logo.png`、再渲染当前版本；功能项从顶部向下增长，固定底部按赞助、设置、关于渲染。每项必须注入 `30px` 图标，并以图标在上、`11px` 文字在下的方式在 `10em` 行内宽度内居中显示，允许两行且始终保留完整可访问名称，不得用 Tooltip 代替可见名称。设置页只保留应用/版本、语言与三态主题，不得加入隐私或统计区块。保留 Mantine、响应式 `SimpleGrid`、本地路径校验、图片替代文本以及视频 captions/transcript 约束。
+4. 把两份 JSON 合并或注册为初始化 i18next 的 `brandSupport` namespace，并把两份 `rust-i18n/*.yml` 复制到 GUI adapter 的 locale 目录。默认语言仍来自 `tauri-plugin-os` 探测和用户持久语言偏好；Rust 托盘与 React 必须消费同一规范化 locale 结果，不能建立第二套语言状态。托盘可见标签必须用 `rust_i18n::t!("tray.show_window")` 与 `rust_i18n::t!("tray.quit")` 解析，稳定 ID 不得直接显示；中文为“显示窗口/退出”，英文为“Show Window/Quit”，未知 locale 回退英文，运行时语言切换必须刷新已安装菜单而无需重启。
 5. 初始化完整复制 `media/sponsor/*` 到前端 public 的 `/brand-support/sponsor/`，不优化、压缩、重绘或重编码支付二维码。只有选择更新视觉时才复制 banner 到 `/brand-support/updater/banner.jpg`。
 6. 使用 manifest 复核每个进入项目的文件。当前未引用的 arrow、icon1 至 icon4、select 也必须随赞助品牌源包保留，不能因 tree-shaking 或“清理未使用文件”从 Skill/下游品牌源目录删除。
 7. 产品构建默认纳入完整 sponsor 运行时媒体，但未选择更新视觉时不得打包 banner；静态支付材料不得被解释为订单、权益、账户或付款状态。
@@ -63,7 +63,8 @@
 ## 最小回归
 
 - 关于页：注入一个非来源产品名、动态版本与更新状态；验证手动检查、`NotConfigured` 禁用、固定作者、联系人、三段免责声明、可选动作/区块的存在与缺失、主题、键盘和翻译回退。
-- 设置与壳层：验证中英文、浅色/深色/跟随系统回调与持久化、亮暗背景/文字/surface 差异，以及展开图标+名称、折叠图标+Tooltip 和独立可访问名称。
+- 设置与壳层：验证中英文、浅色/深色/跟随系统回调与持久化、亮暗背景/文字/surface 差异，默认设置页没有隐私/统计控件或翻译键，以及侧栏 `136px` 单态、`56px` Logo、`30px` 图标、图标上/文字下、`11px`/`10em` 名称和独立可访问名称。
+- 托盘 i18n：验证中英文精确标签、未知 locale 英文回退、运行时语言切换刷新，以及任何 `tray.*` 原始键都不能成为可见菜单文字。
 - 赞助页：分别以亮色和暗色渲染，验证有效主题标记、不同背景/surface、19/199/1999、品牌联系人、三张档位图、两张有 alt 的支付码、响应式列数，以及源码没有固定 800px/全页 pointer-events。
 - 媒体：13 个源文件逐项核对路径、MIME、尺寸、字节数和 SHA-256；支付码必须逐字节相同，当前未引用小图必须存在。
 - 视频组件：验证 controls 为 true、autoplay 为 false、captions track 和 transcript 链接存在，并拒绝远程/跳转路径。

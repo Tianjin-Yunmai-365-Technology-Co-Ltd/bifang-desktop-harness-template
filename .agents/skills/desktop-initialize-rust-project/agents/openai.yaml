@@ -1,4 +1,4 @@
 interface:
   display_name: "初始化 Rust 项目"
   short_description: "建立含强制单实例与托盘门禁的中性 Rust/GUI 基线"
-  default_prompt: "使用 $desktop-initialize-rust-project 选择接口和策略并建立 core-first、薄 adapter 的中性 Rust 脚手架；选择 GUI 时生成并选择 3 个 Logo，强制建立首插件单实例、第二次启动唤醒、非透明 32px 图标与从 setup 可达的托盘关闭隐藏/恢复/退出生命周期，完成结构检查与真实双启动宿主 E2E，再建立图标/Tooltip 完整且默认收起的 Logo→版本侧栏、三态主题、关于页、双主题赞助页和 1440×900 主窗口，最后裁剪初始化能力。"
+  default_prompt: "使用 $desktop-initialize-rust-project 选择接口和策略并建立 core-first、薄 adapter 的中性 Rust 脚手架；选择 GUI 时生成并选择 3 个 Logo，强制建立首插件单实例、第二次启动唤醒、非透明 32px 图标、运行时可刷新的托盘 i18n 与关闭隐藏/恢复/退出生命周期，完成结构检查与真实双启动宿主 E2E，再建立 136px 单态图标上文字下的 Logo→版本侧栏、无隐私/统计区块的语言与三态主题设置、关于页、双主题赞助页和 1440×900 主窗口，最后裁剪初始化能力。"

@@ -27,11 +27,11 @@
 | URL、路由参数、已验证搜索参数和导航 | TanStack Router |
 | 命令支撑的数据、请求状态、缓存、重试和失效 | TanStack Query |
 | 仅限本地组件的交互 | React 组件状态 |
-| 不具备核心权威性的跨组件客户端/交互状态 | Jotai，包括以 `DEFAULT_SIDEBAR_COLLAPSED = true` 初始化的侧栏折叠状态 |
+| 不具备核心权威性的跨组件客户端/交互状态 | Jotai；固定单态侧栏没有折叠状态或 atom |
 | 当前 UI 语言与切换交互 | Jotai（消费 `i18next` 语言变化事件），持久化到 GUI 适配器本地偏好存储，不进入 Query 缓存或 core |
 | 当前主题偏好与切换交互 | Mantine color-scheme context；`light`/`dark`/`auto` 由唯一 color-scheme manager 持久化到 GUI 设备级本地存储，不进入 Jotai、Query 或 core |
 | 更新检查/安装请求状态 | TanStack Query；稳定更新语义来自 adapter/core，不在组件推导 |
-| 统计上报同意 | GUI adapter 本地偏好；React 只展示并提交变更，默认 false |
+| 明确启用后的统计上报同意 | GUI adapter 本地偏好；产品级 React 界面只展示并提交变更，默认 false，不进入初始化设置页 |
 | 领域规则、持久记录和权威应用状态 | Tauri 命令背后的共享核心/存储 |
 
 不得把 Query 结果镜像到 Jotai，不得在 atom 中放置持久领域状态，也不得把路由状态用作第二持久层。视图必须从所有权来源派生。
@@ -44,13 +44,13 @@
 - 只有本地组件状态或 URL/搜索状态不足时才使用 Jotai；atom 应保持小而且按用途命名。
 - 前端代码使用窄而有类型的 Tauri 命令。它不包含业务规则、迁移、平台无关验证或第二套持久存储。
 - React event handler、Router loader、Query mutation 和 atom 只管理导航、请求生命周期或纯交互状态；它们不得编排多个命令来决定业务结果。需要条件、重试或状态决策的工作流必须由单个 core 用例通过窄 Tauri 命令暴露。
-- 在 Tauri 中打包本地前端资产。GUI 下游完整保留该 Skill 的品牌源资产；初始化固定建立默认收起的左侧菜单、`/settings`、`/about`、`/sponsor`。选中的本地 Logo 永远位于侧栏顶部，当前版本紧随其下，两者在侧栏两种状态都直接可见；每个功能项和固定项必须提供图标，折叠时显示图标与本地化 Tooltip，展开时显示图标与名称，两种状态均保留可访问名称。产品功能项从顶部向下增长，底部组按赞助、设置、关于渲染。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver，亮色/暗色分别定义页面背景、surface、主/次文字、边框与强调色；设置页提交 `light`/`dark`/`auto`，Sponsor 通过 `useComputedColorScheme` 适配运行时背景叠层、surface 与对比色。按 manifest 原样复制完整 sponsor 媒体并禁止优化支付二维码；关于页显示当前应用名/版本、手动检查更新、作者、联系方式和三段免责声明。未配置远端能力时关于页只显示 `NotConfigured`/禁用状态且零出站；真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
-- 应用启动时使用 Tauri `tauri-plugin-os` 的 `locale()` 探测系统语言初始化 `i18next`；缺少对应资源时回退英文。界面必须提供 Mantine 组件实现的可发现语言切换入口，切换后的选择通过 GUI 适配器的本地偏好存储持久化，不写入 core。
+- 在 Tauri 中打包本地前端资产。GUI 下游完整保留该 Skill 的品牌源资产；初始化固定建立 `136px` 单态左侧菜单、`/settings`、`/about`、`/sponsor`。选中的 `56px` 本地 Logo 永远位于侧栏顶部，当前版本紧随其下；每个功能项和固定项必须提供 `30px` 图标，固定按图标在上、名称在下呈现，名称使用 `11px` 字号、`10em` 行内宽度、水平居中和最多两行，并保留完整可访问名称；不得建立展开/折叠状态、开关或 Tooltip-only 名称。产品功能项从顶部向下增长，底部组按赞助、设置、关于渲染。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver，亮色/暗色分别定义页面背景、surface、主/次文字、边框与强调色；设置页只提交语言和 `light`/`dark`/`auto`，不渲染隐私/统计区块，Sponsor 通过 `useComputedColorScheme` 适配运行时背景叠层、surface 与对比色。按 manifest 原样复制完整 sponsor 媒体并禁止优化支付二维码；关于页显示当前应用名/版本、手动检查更新、作者、联系方式和三段免责声明。未配置远端能力时关于页只显示 `NotConfigured`/禁用状态且零出站；真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
+- 应用启动时使用 Tauri `tauri-plugin-os` 的 `locale()` 探测系统语言初始化 `i18next`；缺少对应资源时回退英文。界面必须提供 Mantine 组件实现的可发现语言切换入口，切换后的选择通过 GUI 适配器的本地偏好存储持久化，不写入 core，并通知 Rust adapter 无需重启地刷新当前托盘菜单标签。
 - 翻译资源按功能域拆分文件并使用稳定的层级 key（如 `settings.language.label`），不得在组件中拼接原始中文/英文字符串；核心领域错误标识作为 key 的一部分由前端映射为当前语言文案，业务判断本身不得放入翻译资源或组件。初始化把品牌包的中英文 JSON 注册为 `brandSupport` namespace，仍复用唯一 i18next 实例和语言偏好；缺少对应系统语言资源时回退英文。
 - 更新展示只消费 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`。React 不解析远端版本策略、不验证签名、不从 `forcedUpdate` 等字段推导强更；根级 `RequiredUpdate` 分支不挂载普通功能，只呈现安装与退出。
-- 统计同意开关初始为 false；未配置、未同意和撤回后都必须显示零出站语义。React 不收集设备标识、不组装 HTTP 请求，也不保存 endpoint 或客户端 secret。
+- 初始化设置页没有统计同意开关或隐私区块。只有产品明确启用统计能力时，独立产品级同意界面的初始值才为 false；未配置、未同意和撤回后都必须保持零出站。React 不收集设备标识、不组装 HTTP 请求，也不保存 endpoint 或客户端 secret。
 
-固定侧栏的功能项以 `TablerIcon` 组件注入，赞助/设置/关于及侧栏开关由模板提供 Tabler 组件。收起时 Logo 和全部当前渲染图标必须显式水平居中且无裁切；Testing Library 锁定组件来源与居中样式，初始化 E2E 再从真实本机调试窗口复核可见结果。
+固定侧栏的功能项以 `TablerIcon` 组件注入，赞助/设置/关于由模板提供 Tabler 组件。侧栏固定 `136px` 单态；`56px` Logo 与全部 `30px` 当前渲染图标必须显式水平居中且无裁切，每项 `11px` 名称在 `10em` 行内宽度内位于图标下方并居中。Testing Library 锁定组件来源、尺寸、排列和不存在折叠控件，初始化 E2E 再从真实本机调试窗口复核可见结果。
 
 ## 工具链与质量门禁
 
@@ -59,7 +59,7 @@
 - 前端清单提供稳定的 `dev`、`build`、`test`、`typecheck`、`lint` 和 `format:check` 脚本；`lint` 必须同时运行 ESLint 与 [TypeScript AST 中文注释检查器](check-typescript-chinese-comments.cjs)，项目 validator 也独立调用同一检查器，避免只改脚本即可绕过。
 - TypeScript Compiler AST 中文注释检查器及其 [专项测试](check-typescript-chinese-comments.test.ts) 是 GUI 下游保留的治理资产。复制到项目自有工具目录后只修改导入路径和扫描根，不扩张到局部变量/普通匿名回调，也不得增加自动批量注释功能。
 - 门禁跟踪直接及后置命名/默认导出的箭头函数组件与 hook；`test`/`it` 只在 `.test.*`、`.spec.*`、`test/`、`tests/`、`__tests__/` 或显式从 `vitest` 导入的上下文中视为测试场景，避免业务同名调用误报。
-- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖侧栏默认收起、Logo→版本 DOM 顺序及展开/折叠持续可见、展开图标+名称、折叠图标+Tooltip、功能区与固定底部顺序、设置/关于/赞助路由、浅色/深色/跟随系统回调及亮暗语义变量差异、Sponsor 亮色/暗色差异、语言回调、关于页 `NotConfigured` 零出站、强更门不可绕过、动态 `document.title`、作者/联系人/免责声明、固定价格/联系人、两张支付码 alt、响应式危险回归和本地媒体路径；视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
+- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖侧栏 `136px` 单态、Logo→版本 DOM 顺序、`56px` Logo、`30px` 图标、图标上/文字下、`11px`/`10em` 名称、无折叠状态/开关/Tooltip-only 名称、功能区与固定底部顺序、默认设置页无隐私/统计控件和翻译键、设置/关于/赞助路由、浅色/深色/跟随系统回调及亮暗语义变量差异、Sponsor 亮色/暗色差异、语言回调、关于页 `NotConfigured` 零出站、强更门不可绕过、动态 `document.title`、作者/联系人/免责声明、固定价格/联系人、两张支付码 alt、响应式危险回归和本地媒体路径；视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
 
 ## 配置、日志与产物
 
@@ -74,7 +74,7 @@
 - 使用 pnpm，记录 `engines` 兼容范围与实际运行版本，提交正常解析的 `pnpm-lock.yaml`；另保存最低直接版本解析及最低 Node.js/pnpm 环境通过相关检查的证据。
 - 日常开发只运行本次前端变化需要的非空单元/回归测试。显式构建运行 `package.json` 与锁文件声明的完整非空单元测试套件和锁定 `pnpm build`；格式、类型、lint 和最终 `dist` 静态扫描只在本次变化需要、用户明确要求或发布/渠道硬要求时运行。
 - 测试路由未找到/错误边界、Query 加载/错误/重新获取/失效、Jotai 转换、纯键盘使用和相关无障碍语义。
-- 测试默认语言探测与回退、设置页语言/三态主题切换的渲染与持久化、侧栏图标/Tooltip/顺序与版本、设置/关于/赞助固定路由、关于页更新入口，以及缺失翻译 key 时不泄漏原始 key 给用户。
+- 测试默认语言探测与回退、设置页语言/三态主题切换的渲染与持久化、固定侧栏图标/文字/顺序与版本、设置/关于/赞助固定路由、关于页更新入口，以及缺失翻译 key 时不泄漏原始 key 给用户。Rust/真实宿主测试另锁定托盘语言刷新和不泄漏 `tray.*` 原始键。
 - 发布阶段验收期间，在已打包或发布模式 Tauri 应用中使用真实构建前端完成已批准关键流程。
 
 ## 推荐边界

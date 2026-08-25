@@ -20,9 +20,6 @@
   "sidebar": {
     "application_navigation": "Application navigation",
     "logo_alt": "{{applicationName}} application logo",
-    "collapse": "Collapse sidebar",
-    "expand": "Expand sidebar",
-    "features": "Features",
     "version": "Version {{version}}"
   },
   "settings": {
@@ -35,11 +32,7 @@
     "theme_description": "Your choice is stored locally. Follow system changes automatically with the operating system appearance.",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "theme_system": "Follow system",
-    "privacy_title": "Privacy",
-    "usage_statistics_label": "Send minimal anonymous usage statistics",
-    "usage_statistics_description": "Only the disclosed fields are sent after you opt in. You can opt out and clear queued events at any time.",
-    "usage_statistics_not_configured": "Usage reporting is not configured for this product and no data will be sent."
+    "theme_system": "Follow system"
   },
   "tray": {
     "show_window": "Show Window",
