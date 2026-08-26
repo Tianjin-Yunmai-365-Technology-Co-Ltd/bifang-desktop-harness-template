@@ -2,6 +2,7 @@ import { atom } from "jotai";
 
 export type PageQueryStatus = "loading" | "success" | "error";
 
+/** Sort criteria, when a page needs them, live inside `TQuery` — there is no separate sort field. */
 export interface PageSessionState<TTab extends string, TQuery> {
   activeTab: TTab;
   query: TQuery;
