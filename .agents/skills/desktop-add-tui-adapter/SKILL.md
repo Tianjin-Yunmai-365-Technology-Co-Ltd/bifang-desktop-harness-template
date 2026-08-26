@@ -9,7 +9,7 @@ description: 为已初始化的下游项目增加可选的 Ratatui 终端适配�
 
 ## 工作流程
 
-1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/TUI 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 TUI 只有在改变产品边界时才先更新 Product Spec，然后直接实施，不自动创建计划或验收记录。
+1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/TUI 基线，不要求 Product Spec、Work Plan、ADR、Verification 或 `$desktop-manage-version`（初始版本由 `$desktop-initialize-rust-project` 统一建立）；初始化后新增 TUI 是新增用户可见能力，只有在改变产品边界时才先更新 Product Spec，再以 `--kind feature` 调用 `$desktop-manage-version plan` 取得稳定 `change_id` 与 `required_version`，然后直接实施，不自动创建计划或验收记录，并在本次相关测试通过后以相同参数调用 `apply`。
 2. 确认范围记录包含 TUI，并识别最小交互闭环、目标终端、键盘行为、窗口尺寸变化行为、无障碍预期，以及安全退出/恢复行为。
 3. 在当前根目录内的 `<project-id>_tui` 中工作。要求存在共享核心，但不要求 CLI、MCP 或 GUI。
 4. 完整阅读 [references/tui-baseline.md](references/tui-baseline.md)。使用 Ratatui 负责渲染，使用 tui-realm 负责组件/事件架构，并将 tui-realm-stdlib 用作成熟的标准组件库。此技术栈对 `Draft` 和 `Approved` 项目都是硬规则。
@@ -34,4 +34,4 @@ description: 为已初始化的下游项目增加可选的 Ratatui 终端适配�
 
 ## 完成输出
 
-报告已解析的 Ratatui/tui-realm/tui-realm-stdlib 版本与特性、复用和自定义组件、视图，以及每个业务操作的“TUI 消息 → core API → core 测试”映射；另列纯 TUI 状态、终端恢复证据、映射测试、制品、已验证环境、未验证范围和剩余风险。
+报告已解析的 Ratatui/tui-realm/tui-realm-stdlib 版本与特性、复用和自定义组件、视图，以及每个业务操作的“TUI 消息 → core API → core 测试”映射；另列纯 TUI 状态、终端恢复证据、映射测试、制品、已验证环境、未验证范围和剩余风险。初始化后新增时还报告 `change_id`、`required_version` 与是否实际提升；中性初始化不报告版本分类。

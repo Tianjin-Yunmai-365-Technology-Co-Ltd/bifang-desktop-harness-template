@@ -9,7 +9,7 @@ description: 为已初始化的下游项目增加可选的非交互式 CLI 适�
 
 ## 工作流程
 
-1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、CLI 契约和 Rust 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 CLI 只有在改变产品边界时才先更新 Product Spec，然后直接实施，不自动创建 Work Plan 或完整验收记录。
+1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、CLI 契约和 Rust 基线，不要求 Product Spec、Work Plan、ADR、Verification 或 `$desktop-manage-version`（初始版本由 `$desktop-initialize-rust-project` 统一建立）；初始化后新增 CLI 是新增用户可见能力，只有在改变产品边界时才先更新 Product Spec，再以 `--kind feature` 调用 `$desktop-manage-version plan` 取得稳定 `change_id` 与 `required_version`，然后直接实施，不自动创建 Work Plan 或完整验收记录，并在本次相关测试通过后以相同参数调用 `apply`。
 2. 确认已记录的接口选择包含 CLI。只能在当前项目根目录中工作，并确定性派生 `<project-id>_cli`；绝不要求另选目录或二进制名称。
 3. 要求已存在初始化完成的共享核心。`Draft` 产品只能获得中性的 `scaffold status` 适配器，并返回 `productDefinitionRequired=true`；已批准产品只能获得计划内命令。
    每个已批准命令必须先映射到一个既有或本次先实现的 core 用例 API 及其 core 成功/最高风险失败测试。当前只有 CLI 也不得把业务规则、语义校验、默认值或调用编排放入 CLI。
@@ -30,4 +30,4 @@ description: 为已初始化的下游项目增加可选的非交互式 CLI 适�
 
 ## 完成输出
 
-报告每个命令的“CLI 命令 → core API → core 测试”映射、输出契约、本次实际运行的测试、已验证平台、未验证平台和剩余风险；未显式构建时不得虚构制品路径或发布结论。
+报告每个命令的“CLI 命令 → core API → core 测试”映射、输出契约、本次实际运行的测试、已验证平台、未验证平台和剩余风险；未显式构建时不得虚构制品路径或发布结论。初始化后新增时还报告 `change_id`、`required_version` 与是否实际提升；中性初始化不报告版本分类。

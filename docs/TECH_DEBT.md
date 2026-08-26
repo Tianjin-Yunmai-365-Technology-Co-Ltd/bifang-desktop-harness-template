@@ -28,6 +28,8 @@
 | LIM-022 | Harness 校验器曾超过软拆分阈值 | 单一入口已按 `repository`、工作流、`initialization`、`governance`、发布、`review` 等领域拆分；`initialization` 已进一步拆分为 `initialization_primary_contract.py`、`initialization_repository_contract.py`、`initialization_environment.py` 等独立职责模块 | 后续按领域维护；ADR-20260806-003 已把当前规则调整为超过 500 行执行高内聚/职责单一/职责相近性复核、超过 2000 行强制失败，既有拆分保持不回并 | Closed |
 | LIM-023 | 产品制品条件签名与 macOS 公证尚无真实前向证据 | 当前已定义批准提交绑定、CLI 固定非交互签名钩子、Tauri Developer ID/公证探测、签名+公证+stapling 一体状态机、失败不降级、最终字节 hash 和结构化清单证据；真实 Apple 公证服务、证书、密钥存储、组织策略、证书过期及 Windows/Linux 签名仍可能阻断 | 在不暴露凭据的受控真实下游验证 macOS 凭据缺失、完整 API Key、完整 Apple ID、签名/公证成功、签名/公证失败与渠道 required 场景，并在 Windows/Linux 补齐原生签名证据 | Open |
 | LIM-024 | `$desktop-upgrade-harness` 的命令示例仍使用固定 `python3` 与 POSIX 续行符 | 升级器核心逻辑和隔离测试可跨平台运行，但 Windows PowerShell 用户不能保证直接粘贴文档命令，原生 Windows 计划/应用/记录仍未验证 | 改为当前平台可用的 Python 3 解释器与 shell-neutral 单行或分平台示例，并在 Windows 原生执行完整 plan/apply/record 闭环 | Open |
+| LIM-025 | 在本次自动版本管理功能上线前已初始化的下游项目升级后缺少获取 `.harness/version-state.json` 的记录路径 | `$desktop-upgrade-harness` 的所有权清单把该文件标记为 `protected`，明确禁止升级器初始化、重算或覆盖；但能合法运行 `$desktop-manage-version init` 的初始化 Skills 在终端下游收尾时已被删除，因此此类下游升级后没有任何已记录路径能创建状态文件，`$desktop-implement-change` 第 2 步的强制 `plan` 会因状态文件缺失而失败关闭 | 首个此类下游升级时，由项目负责人明确决定并记录 ADR：升级器是否获得一次性 `init` 例外，或改为要求用户手动运行 `$desktop-manage-version init --project-root .` 完成迁移 | Open |
+| LIM-026 | `$desktop-rename-project-identity` 未说明改名是否需要经过 `$desktop-manage-version` 分类 | 改名可能触发 ADR/Changelog，但 SKILL.md 未明确改名本身属于 `feature`、`maintenance` 还是完全豁免版本门禁，可能导致同一操作在不同执行下被不一致分类 | 项目负责人明确改名场景下的版本分类规则并记录 ADR，再同步更新 `$desktop-rename-project-identity` SKILL.md | Open |
 
 ## 记录规则
 

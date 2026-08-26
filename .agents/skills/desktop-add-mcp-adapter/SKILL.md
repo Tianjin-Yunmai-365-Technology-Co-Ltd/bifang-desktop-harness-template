@@ -9,7 +9,7 @@ description: 为具有共享核心的已初始化下游项目增加可选的 Rus
 
 ## 工作流程
 
-1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/MCP 基线，不要求 Product Spec、Work Plan、ADR 或 Verification；初始化后新增 MCP 只有在改变产品边界时才先更新 Product Spec，然后直接实施，不自动创建计划或验收记录。
+1. 先判断调用模式。由 `$desktop-initialize-rust-project` 分派时是“中性初始化”，只读 `AGENTS.md`、Agent Policy、工程规则和 Rust/MCP 基线，不要求 Product Spec、Work Plan、ADR、Verification 或 `$desktop-manage-version`（初始版本由 `$desktop-initialize-rust-project` 统一建立）；初始化后新增 MCP 是新增用户可见能力，只有在改变产品边界时才先更新 Product Spec，再以 `--kind feature` 调用 `$desktop-manage-version plan` 取得稳定 `change_id` 与 `required_version`，然后直接实施，不自动创建计划或验收记录，并在本次相关测试通过后以相同参数调用 `apply`。
 2. 确认当前工作目录是真实下游 Rust 工作区，具有共享核心，且初始化选择或已批准产品范围中记录了 MCP。`Draft` 项目只能公开不含业务操作的中性脚手架状态工具。若当前目录只是文档 Harness，或缺少核心，则停止。不得要求另选目标目录，也不得要求 CLI。
 3. 选择依赖或设计工具前，完整阅读 [references/mcp-baseline.md](references/mcp-baseline.md)。实施前还要阅读 `docs/RUST_CLI_TEMPLATE.md` 的 MCP 小节，了解工具模式定义/事实来源契约一致性以及命名/说明基础规则的最小硬要求。
 4. 识别目标 MCP 宿主、工具支持的最小用户闭环、每个工具到 core 用例 API 与 core 测试的映射、输入/输出模式定义、稳定错误映射、副作用、权限、风险注解、超时、取消和关闭行为。若真实业务用例尚不在 core，必须先返回 core 实现；当前只有 MCP 也不得在工具 handler 中首次实现业务。只询问会实质改变范围的缺失选择。
@@ -35,4 +35,4 @@ description: 为具有共享核心的已初始化下游项目增加可选的 Rus
 
 ## 完成输出
 
-报告每个工具的“MCP 工具 → core API → core 测试”映射、选定依赖/特性、协议结构检查与领域校验分界、映射/安全测试、实际运行的命令、已验证宿主/平台、未验证范围和剩余风险。
+报告每个工具的“MCP 工具 → core API → core 测试”映射、选定依赖/特性、协议结构检查与领域校验分界、映射/安全测试、实际运行的命令、已验证宿主/平台、未验证范围和剩余风险。初始化后新增时还报告 `change_id`、`required_version` 与是否实际提升；中性初始化不报告版本分类。
