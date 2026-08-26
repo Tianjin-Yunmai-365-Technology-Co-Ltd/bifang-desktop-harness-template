@@ -3,25 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from .context import *  # noqa: F403
-
-
-def _require_fragments(
-    errors: list[str], path: Path, fragments: tuple[str, ...]
-) -> None:
-    """要求文件包含自动版本规则的不可缺失片段。"""
-    if not path.is_file():
-        fail(errors, f"missing product versioning file: {display_path(path)}")
-        return
-    text = read_text_cached(path)
-    for fragment in fragments:
-        if fragment not in text:
-            fail(
-                errors,
-                f"product versioning contract missing in {display_path(path)}: {fragment}",
-            )
 
 
 def validate_product_versioning_contract(errors: list[str]) -> None:
@@ -93,7 +76,7 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
         ),
     }
     for path, fragments in requirements.items():
-        _require_fragments(errors, path, fragments)
+        require_fragments(errors, path, fragments, label="product versioning contract")
 
     try:
         manifest = json.loads(UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))

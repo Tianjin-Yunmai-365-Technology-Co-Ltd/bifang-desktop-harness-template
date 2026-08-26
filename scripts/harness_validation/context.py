@@ -402,3 +402,16 @@ def display_path(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def require_fragments(
+    errors: list[str], path: Path, fragments: tuple[str, ...], *, label: str
+) -> None:
+    """要求文件存在且逐字包含全部给定片段，缺失即失败关闭。"""
+    if not path.is_file():
+        fail(errors, f"missing {label} file: {display_path(path)}")
+        return
+    text = read_text_cached(path)
+    for fragment in fragments:
+        if fragment not in text:
+            fail(errors, f"{label} missing in {display_path(path)}: {fragment}")

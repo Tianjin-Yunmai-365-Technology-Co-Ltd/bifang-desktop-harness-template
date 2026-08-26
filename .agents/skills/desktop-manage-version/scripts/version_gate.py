@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -83,12 +84,11 @@ def _project_root(raw: str) -> Path:
     return root
 
 
-def _cargo_version(path: Path) -> tuple[Version, str]:
-    _require_regular_file(path, "root Cargo.toml")
-    text = path.read_text(encoding="utf-8")
+def _locate_version_line(text: str) -> list[tuple[int, re.Match[str]]]:
+    """定位 `[workspace.package]` 小节中匹配版本行的行号与正则匹配对象。"""
     section: str | None = None
-    matches: list[re.Match[str]] = []
-    for line in text.splitlines(keepends=True):
+    matches: list[tuple[int, re.Match[str]]] = []
+    for index, line in enumerate(text.splitlines(keepends=True)):
         stripped = line.strip()
         if stripped.startswith("[") and stripped.endswith("]"):
             section = stripped[1:-1].strip()
@@ -96,31 +96,29 @@ def _cargo_version(path: Path) -> tuple[Version, str]:
         if section == "workspace.package":
             match = VERSION_LINE_PATTERN.fullmatch(line)
             if match:
-                matches.append(match)
+                matches.append((index, match))
+    return matches
+
+
+def _cargo_version(path: Path) -> tuple[Version, str]:
+    _require_regular_file(path, "root Cargo.toml")
+    text = path.read_text(encoding="utf-8")
+    matches = _locate_version_line(text)
     if len(matches) != 1:
         raise GateError(
             "root Cargo.toml must contain exactly one string version in [workspace.package]"
         )
-    return Version.parse(matches[0].group("version")), text
+    return Version.parse(matches[0][1].group("version")), text
 
 
 def _replace_cargo_version(text: str, version: Version) -> str:
-    section: str | None = None
-    replaced = 0
-    output: list[str] = []
-    for line in text.splitlines(keepends=True):
-        stripped = line.strip()
-        if stripped.startswith("[") and stripped.endswith("]"):
-            section = stripped[1:-1].strip()
-        if section == "workspace.package":
-            match = VERSION_LINE_PATTERN.fullmatch(line)
-            if match:
-                line = f'{match.group("prefix")}{version}{match.group("suffix")}'
-                replaced += 1
-        output.append(line)
-    if replaced != 1:
+    matches = _locate_version_line(text)
+    if len(matches) != 1:
         raise GateError("unable to update exactly one [workspace.package].version")
-    return "".join(output)
+    lines = text.splitlines(keepends=True)
+    index, match = matches[0]
+    lines[index] = f'{match.group("prefix")}{version}{match.group("suffix")}'
+    return "".join(lines)
 
 
 def _atomic_write(path: Path, content: str) -> None:
@@ -158,6 +156,10 @@ def _state_json(state: dict[str, Any]) -> str:
     return json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def _exact_keys(value: Any, keys: set[str]) -> bool:
+    return isinstance(value, dict) and set(value) == keys
+
+
 def _load_state(path: Path) -> dict[str, Any]:
     _require_regular_file(path, "version state")
     try:
@@ -173,7 +175,7 @@ def _load_state(path: Path) -> dict[str, Any]:
         "applied_bug_ids",
         "last_release",
     }
-    if not isinstance(state, dict) or set(state) != required:
+    if not _exact_keys(state, required):
         raise GateError("version state has unexpected schema fields")
     if state["schema_version"] != 1:
         raise GateError("unsupported version state schema")
@@ -189,11 +191,7 @@ def _load_state(path: Path) -> dict[str, Any]:
         raise GateError("applied_bug_ids must be an array")
     seen: set[str] = set()
     for item in state["pending_changes"]:
-        if not isinstance(item, dict) or set(item) != {
-            "change_id",
-            "kind",
-            "required_version",
-        }:
+        if not _exact_keys(item, {"change_id", "kind", "required_version"}):
             raise GateError("pending change has unexpected fields")
         _validate_change_id(item["change_id"])
         if item["kind"] not in {"feature", "bug-fix", "major"}:
@@ -211,10 +209,7 @@ def _load_state(path: Path) -> dict[str, Any]:
         _validate_change_id(bug_id)
     last_release = state["last_release"]
     if last_release is not None:
-        if not isinstance(last_release, dict) or set(last_release) != {
-            "source_commit",
-            "version",
-        }:
+        if not _exact_keys(last_release, {"source_commit", "version"}):
             raise GateError("last_release has unexpected fields")
         released_version = Version.parse(last_release["version"])
         if released_version != base:
@@ -248,7 +243,6 @@ def _consistent_context(root: Path) -> tuple[Path, Path, Version, str, dict[str,
 def initialize(root: Path) -> dict[str, Any]:
     cargo_path = root / "Cargo.toml"
     state_path = root / STATE_RELATIVE
-    version, _ = _cargo_version(cargo_path)
     if state_path.exists() or state_path.is_symlink():
         _, _, current, _, state = _consistent_context(root)
         return {
@@ -258,6 +252,7 @@ def initialize(root: Path) -> dict[str, Any]:
             "state": str(STATE_RELATIVE),
             "pending_change_count": len(state["pending_changes"]),
         }
+    version, _ = _cargo_version(cargo_path)
     if state_path.parent.exists() and state_path.parent.is_symlink():
         raise GateError(f"refusing symlink state directory: {state_path.parent}")
     state = _new_state(version)
@@ -277,6 +272,15 @@ def _existing_change(state: dict[str, Any], change_id: str) -> dict[str, Any] | 
     )
 
 
+def _idempotent_result(required_version: str, reason: str) -> dict[str, Any]:
+    return {
+        "required_version": required_version,
+        "version_bumped": False,
+        "idempotent": True,
+        "reason": reason,
+    }
+
+
 def _transition(
     state: dict[str, Any],
     current: Version,
@@ -286,14 +290,11 @@ def _transition(
     major: int | None,
     user_approved: bool,
 ) -> tuple[Version, dict[str, Any], dict[str, Any]]:
-    next_state = json.loads(json.dumps(state))
+    next_state = copy.deepcopy(state)
     if kind == "maintenance":
-        return current, next_state, {
-            "required_version": str(current),
-            "version_bumped": False,
-            "idempotent": True,
-            "reason": "maintenance-does-not-change-version",
-        }
+        return current, next_state, _idempotent_result(
+            str(current), "maintenance-does-not-change-version"
+        )
     stable_id = _validate_change_id(change_id)
     existing = _existing_change(state, stable_id)
     if existing:
@@ -301,12 +302,9 @@ def _transition(
             raise GateError(
                 f"change_id {stable_id!r} is already used by kind {existing['kind']!r}"
             )
-        return current, next_state, {
-            "required_version": existing["required_version"],
-            "version_bumped": False,
-            "idempotent": True,
-            "reason": "change-already-applied",
-        }
+        return current, next_state, _idempotent_result(
+            existing["required_version"], "change-already-applied"
+        )
 
     next_version = current
     reason: str
@@ -321,12 +319,9 @@ def _transition(
             reason = "first-feature-in-release-cycle"
     elif kind == "bug-fix":
         if stable_id in state["applied_bug_ids"]:
-            return current, next_state, {
-                "required_version": str(current),
-                "version_bumped": False,
-                "idempotent": True,
-                "reason": "bug-id-already-consumed",
-            }
+            return current, next_state, _idempotent_result(
+                str(current), "bug-id-already-consumed"
+            )
         if current.patch >= 100:
             raise GateError("Patch overflow at 100; user decision is required")
         next_version = Version(current.major, current.minor, current.patch + 1)
@@ -383,12 +378,13 @@ def evaluate_change(
     if action == "apply" and changed:
         old_cargo = cargo_text
         new_cargo = _replace_cargo_version(cargo_text, next_version)
+        cargo_changed = new_cargo != old_cargo
         try:
-            if new_cargo != old_cargo:
+            if cargo_changed:
                 _atomic_write(cargo_path, new_cargo)
             _atomic_write(state_path, _state_json(next_state))
         except Exception:
-            if new_cargo != old_cargo:
+            if cargo_changed:
                 _atomic_write(cargo_path, old_cargo)
             raise
     return {
@@ -426,7 +422,7 @@ def finalize_release(
         )
     if not SOURCE_COMMIT_PATTERN.fullmatch(source_commit):
         raise GateError("source_commit must be exactly 40 hexadecimal characters")
-    next_state = json.loads(json.dumps(state))
+    next_state = copy.deepcopy(state)
     next_state["cycle_base_version"] = str(released)
     next_state["feature_bump_applied"] = False
     next_state["pending_changes"] = []
