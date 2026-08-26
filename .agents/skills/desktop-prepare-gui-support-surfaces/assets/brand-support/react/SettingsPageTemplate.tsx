@@ -12,6 +12,7 @@ import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { AppColorScheme } from "./AppThemeProviderTemplate";
+import { formatDisplayVersion } from "./displayVersion";
 
 /** 设置页固定支持的界面语言。 */
 export type SupportedInterfaceLanguage = "zh-CN" | "en-US";
@@ -51,7 +52,7 @@ export function SettingsPageTemplate({
       <Group justify="space-between" wrap="wrap">
         <Title order={2}>{t("settings.title")}</Title>
         <Badge size="lg" variant="light">
-          {applicationName} · v{version}
+          {applicationName} · {formatDisplayVersion(version)}
         </Badge>
       </Group>
 

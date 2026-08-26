@@ -21,7 +21,7 @@
 ## 窗口标题
 
 - 默认：enabled
-- 模板：`{applicationName} {version} {contactChannel}:{contactValue}`；产品展示名与版本必须来自权威 Tauri/打包元数据。
+- 模板：`{applicationName} v{version} {contactChannel}:{contactValue}`；产品展示名与版本必须来自权威 Tauri/打包元数据，展示边界保证只有一个小写 `v`。
 - 品牌联系字段：固定使用 profile 的 `contacts.windowTitle`，不得误用 `contacts.support`。
 - 原生/前端一致性：原生窗口标题与 `document.title` 必须一致。
 - 本节只记录已批准差异：待填写
@@ -31,7 +31,7 @@
 ## 固定左侧菜单、Logo 与版本
 
 - 默认：enabled；固定在窗口左侧，宽度为 `136px`，只存在一个布局状态，不得提供展开/折叠状态或开关。
-- Logo 与版本：`docs/GUI_APP_PROFILE.md` 选中的 `56px` 本地 Logo 永远位于最顶部，当前权威打包版本紧随其下并持续可见，不得只放在 tooltip 或关于页。
+- Logo 与版本：`docs/GUI_APP_PROFILE.md` 选中的 `56px` 本地 Logo 永远位于最顶部，带一个小写 `v` 的当前权威打包版本紧随其下并持续可见，不得只放在 tooltip 或关于页。
 - 功能区：当前产品功能项按下游提供的顺序从顶部向下增长，并在独立滚动区中展示。
 - 菜单图标与文字：每个功能项和赞助/设置/关于固定项都必须提供 `30px` 图标；图标在上、名称在下，名称使用 `11px` 字号、`10em` 行内宽度、水平居中和最多两行，并保留完整可访问名称，不得使用 Tooltip-only 名称。
 - 固定底部组：视觉顺序严格为赞助、设置、关于；从底部向上读取为关于、设置、赞助。
@@ -53,6 +53,7 @@
 - 入口或路由：`/about`，并在应用导航显示。
 - 产品名与版本来源：当前 Tauri/打包元数据。
 - 手动检查更新：入口固定存在；产品 profile 不完整时状态为 `NotConfigured`、按钮禁用、请求数为零。
+- 更新日志：按钮紧邻“检查更新”且事件绑定在按钮自身；从候选内同一 `release-notes.json` 展示最近 5 版，每版功能优化/问题修复各最多 10 条，全部版本只带一个小写 `v`。更新区父容器不得代理两个按钮动作。
 - 固定内容：`about.studio` 作者、profile 的 `contacts.support`、三段本地化免责声明。
 - 标语、功能、许可与隐私区块：按需填写；不得从来源下游复制产品功能文案。
 - 可选动作：反馈、许可、隐私逐项填写；未选动作不得留下占位按钮。赞助由固定导航承载，检查更新是本页固定入口。
@@ -114,9 +115,10 @@
 - [ ] 默认设置页只含应用/版本、语言与三态主题，没有隐私/统计控件、占位或对应固定翻译键。
 - [ ] 托盘中文精确显示“显示窗口/退出”，英文精确显示“Show Window/Quit”，未知 locale 回退英文，运行时语言切换无需重启即可刷新；任何 `tray.*` 原始键不可见。
 - [ ] 固定 `/settings`、`/about`、`/sponsor` 及应用导航入口存在；额外未选择界面没有占位入口。
-- [ ] 原生窗口标题与 `document.title` 都符合 `{applicationName} {version} {contactChannel}:{contactValue}`。
+- [ ] 原生窗口标题与 `document.title` 都符合 `{applicationName} v{version} {contactChannel}:{contactValue}`，且所有用户可见版本只有一个小写 `v`。
 - [ ] 关于页完整显示作者、作者联系方式和三段免责声明。
 - [ ] 更新未配置时显示 `NotConfigured` 且零出站；updater 等未选择媒体没有进入最终应用 bundle。
+- [ ] 关于页更新日志按钮可查看近 5 版固定结构日志，每版两类各不超过 10 条；点击更新区父容器不触发检查或打开日志。
 - [ ] 品牌包 13 个源文件与 `media-manifest.json` 的尺寸、字节数和 SHA-256 一致。
 - [ ] 产品名、版本和产品功能来自当前下游权威事实，而不是来源项目。
 - [ ] 赞助价格、权益、联系人、收款码与支付说明经过人工复核。

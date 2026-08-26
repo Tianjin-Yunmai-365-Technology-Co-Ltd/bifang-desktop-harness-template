@@ -206,6 +206,24 @@ class GuiSupportContractTests(unittest.TestCase):
         )
         self.assertTrue(any("show_window: Show Window" in error for error in errors), errors)
 
+    def test_release_note_fixed_format_drift_is_rejected(self) -> None:
+        """英文界面也不得改写发布日志正文的固定中文标题结构。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            translations = brand_root / "i18n" / "en-US.json"
+            en = json.loads(translations.read_text(encoding="utf-8"))
+            en["release_notes"]["feature_optimizations"] = "###Features"
+            translations.write_text(json.dumps(en), encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("release-note fixed format drifted" in error for error in errors), errors)
+
     def test_fixed_bottom_navigation_order_drift_is_rejected(self) -> None:
         """底部固定项必须保持赞助、设置、关于的视觉顺序。"""
 
@@ -378,6 +396,121 @@ class GuiSupportContractTests(unittest.TestCase):
         self.assertTrue(any("settings.theme_system" in error for error in errors), errors)
         self.assertTrue(any("about.check_for_updates" in error for error in errors), errors)
         self.assertTrue(any('role="alertdialog"' in error for error in errors), errors)
+
+    def test_about_parent_action_proxy_is_rejected(self) -> None:
+        """关于页更新区父容器不能代理检查更新或更新日志按钮动作。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            about = brand_root / "react" / "AboutPageTemplate.tsx"
+            about.write_text(
+                about.read_text(encoding="utf-8").replace(
+                    '<Paper data-testid="about-update-section"',
+                    '<Paper data-testid="about-update-section" onClick={onCheckForUpdates}',
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("must not proxy child button actions" in error for error in errors), errors)
+
+    def test_release_notes_limit_or_display_version_formatter_is_rejected(self) -> None:
+        """五版/十条上限与统一 v 前缀格式器缺失时必须失败。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            release_notes = brand_root / "react" / "releaseNotes.ts"
+            release_notes.write_text(
+                release_notes.read_text(encoding="utf-8")
+                .replace("MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5", "MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 6")
+                .replace("MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10", "MAX_VISIBLE_RELEASE_NOTE_ITEMS = 11"),
+                encoding="utf-8",
+            )
+            display_version = brand_root / "react" / "displayVersion.ts"
+            display_version.write_text(
+                display_version.read_text(encoding="utf-8").replace(
+                    "return `v${normalized}`", "return normalized", 1
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5" in error for error in errors), errors)
+        self.assertTrue(any("MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10" in error for error in errors), errors)
+        self.assertTrue(any("return `v${normalized}`" in error for error in errors), errors)
+
+    def test_page_session_state_persistence_or_empty_page_regression_is_rejected(self) -> None:
+        """页面会话不得落盘，且成功空页回退和新进程默认值回归不可删除。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            session_state = brand_root / "react" / "pageSessionState.ts"
+            session_state.write_text(
+                session_state.read_text(encoding="utf-8")
+                .replace(
+                    'import { atom } from "jotai";',
+                    'import { atomWithStorage as atom } from "jotai/utils";',
+                    1,
+                )
+                .replace(
+                    'result.status !== "success"',
+                    'result.status === "loading"',
+                    1,
+                )
+                .replace(
+                    "page: pageSize === current.pageSize ? page : 1",
+                    "page",
+                    1,
+                )
+                .replace(
+                    "query: selection.query,\n        page: 1,",
+                    "query: selection.query,\n        page: current.page,",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            session_tests = brand_root / "react" / "PageSessionState.test.ts"
+            session_tests.write_text(
+                session_tests.read_text(encoding="utf-8").replace(
+                    "starts from defaults in a new application store",
+                    "keeps state forever",
+                    1,
+                ).replace(
+                    "resets to page one when the page size changes",
+                    "keeps the stale page when the page size changes",
+                    1,
+                ).replace(
+                    "resets to page one when the tab or query scope changes",
+                    "keeps the stale page when the query changes",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("process-memory only" in error for error in errors), errors)
+        self.assertTrue(any('result.status !== "success"' in error for error in errors), errors)
+        self.assertTrue(any("pageSize === current.pageSize" in error for error in errors), errors)
+        self.assertTrue(any("page size changes" in error for error in errors), errors)
+        self.assertTrue(any("query: selection.query" in error for error in errors), errors)
+        self.assertTrue(any("query scope changes" in error for error in errors), errors)
+        self.assertTrue(any("starts from defaults" in error for error in errors), errors)
 
     def test_missing_application_theme_contract_is_rejected(self) -> None:
         """初始化主题必须同时保留亮暗语义变量和系统跟随。"""

@@ -6,7 +6,12 @@ use serde::Serialize;
 
 /// 定义中性 CLI 的全局输出模式与唯一顶层命令。
 #[derive(Parser)]
-#[command(name = "example_tool_cli", version, about, long_about = None)]
+#[command(
+    name = "example_tool_cli",
+    version = concat!("v", env!("CARGO_PKG_VERSION")),
+    about,
+    long_about = None
+)]
 struct Cli {
     /// 要求把调用结果渲染为稳定、可机器读取的 JSON 信封。
     #[arg(long, global = true)]

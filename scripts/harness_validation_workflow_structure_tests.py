@@ -157,7 +157,7 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         errors = self._validate(
             without_package[:insert_at] + package_block + without_package[insert_at:]
         )
-        self.assertTrue(any("must clean release, verify" in error for error in errors), errors)
+        self.assertTrue(any("must validate release notes" in error for error in errors), errors)
 
     def test_rejects_enabled_matrix_fail_fast(self) -> None:
         """默认三平台构建必须收集每个平台终态，不能首错即取消其余平台。"""
@@ -188,7 +188,49 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         errors = self._validate(
             without_cleanup[:insert_at] + cleanup_block + without_cleanup[insert_at:]
         )
-        self.assertTrue(any("must clean release, verify" in error for error in errors), errors)
+        self.assertTrue(any("must validate release notes" in error for error in errors), errors)
+
+    def test_rejects_missing_or_late_release_notes_validation(self) -> None:
+        """更新日志必须在清理、测试和编译前只读校验。"""
+
+        base = self._base_workflow()
+        start, end, notes_block = self._slice(
+            base,
+            "      - name: 验证发布更新日志",
+            "      - name: 准备 Unix 发布目录",
+        )
+        without_notes = base[:start] + base[end:]
+        errors = self._validate(without_notes)
+        self.assertTrue(any("release-note" in error or "更新日志" in error for error in errors), errors)
+
+        insert_at = without_notes.index("      - name: 验证候选\n")
+        errors = self._validate(
+            without_notes[:insert_at] + notes_block + without_notes[insert_at:]
+        )
+        self.assertTrue(any("must validate release notes" in error for error in errors), errors)
+
+    def test_rejects_release_notes_omitted_from_package_or_manifest(self) -> None:
+        """归档字节和候选清单都必须绑定同一份根更新日志。"""
+
+        base = self._base_workflow()
+        cases = {
+            "unix package": base.replace(
+                ' -C "$GITHUB_WORKSPACE" release-notes.json', "", 1
+            ),
+            "windows package": base.replace(
+                '@($binary, "release-notes.json")', "@($binary)", 1
+            ),
+            "manifest digest": base.replace(
+                '              "releaseNotesSha256": release_notes_digest,\n',
+                "",
+                1,
+            ),
+        }
+        for label, mutated in cases.items():
+            with self.subTest(label=label):
+                self.assertNotEqual(mutated, base)
+                errors = self._validate(mutated)
+                self.assertTrue(errors, label)
 
     def test_rejects_missing_conditional_signing_and_manifest_status(self) -> None:
         """构建成功后必须评估签名，并在 manifest 保留签名状态。"""

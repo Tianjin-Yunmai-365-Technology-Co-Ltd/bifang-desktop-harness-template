@@ -100,6 +100,15 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "source_commit 必须是由小写十六进制字符组成的 40 字符 SHA",
         "候选验证需要 Python 3 运行时",
         '"$PYTHON_COMMAND" -',
+        "验证发布更新日志",
+        ".agents/skills/desktop-prepare-release/scripts/release_notes.py check --file release-notes.json --expected-version \"$VERSION\"",
+        "RELEASE_NOTES_SHA256",
+        "release-notes.json 必须是非符号链接普通文件",
+        'releaseNotesVersion',
+        'releaseNotesSha256',
+        'releaseNotesPath',
+        'tarfile, zipfile',
+        "归档内更新日志与源码事实不一致",
         "steps.candidate_artifact.outputs.archive_name",
         "最终候选文件集异常",
         "os.rename(stage.name, \"release\"",
@@ -317,6 +326,8 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         first_named_step_index("准备 Unix 发布目录"),
         first_named_step_index("准备 Windows 发布目录"),
     )
+    candidate_version_idx = first_named_step_index("验证候选版本")
+    release_notes_idx = first_named_step_index("验证发布更新日志")
     verify_idx = first_named_step_index("验证候选")
     signing_indices = (
         first_named_step_index("尝试 Unix 签名"),
@@ -331,7 +342,9 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     commit_idx = first_named_step_index("提交候选制品集合")
     upload_idx = first_line_index(UPLOAD_USE)
     if (
-        any(index == -1 for index in prepare_indices)
+        candidate_version_idx == -1
+        or release_notes_idx == -1
+        or any(index == -1 for index in prepare_indices)
         or verify_idx == -1
         or any(index == -1 for index in signing_indices)
         or any(index == -1 for index in package_indices)
@@ -342,7 +355,10 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     ):
         fail(errors, "workflow missing verify/package/manifest/upload boundary")
     elif not (
-        max(prepare_indices)
+        candidate_version_idx
+        < release_notes_idx
+        < min(prepare_indices)
+        <= max(prepare_indices)
         < verify_idx
         < min(signing_indices)
         <= max(signing_indices)
@@ -355,8 +371,18 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     ):
         fail(
             errors,
-            "candidate workflow must clean release, verify, sign conditionally, package in staging, record a pending manifest, atomically commit the exact artifact set, then upload",
+            "candidate workflow must validate release notes, clean release, verify, sign conditionally, package in staging, record a pending manifest, atomically commit the exact artifact set, then upload",
         )
+
+    release_notes_block = "\n".join(step_block("验证发布更新日志"))
+    for fragment in (
+        "release_notes.py check --file release-notes.json --expected-version",
+        "path.is_symlink() or not path.is_file()",
+        "hashlib.sha256(path.read_bytes()).hexdigest()",
+        "RELEASE_NOTES_SHA256",
+    ):
+        if fragment not in release_notes_block:
+            fail(errors, f"workflow release-note validation step missing: {fragment}")
 
     verify_block = "\n".join(step_block("验证候选"))
     for command in (
@@ -379,6 +405,9 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         '"buildRun"',
         '"target"',
         '"e2eSelection"',
+        '"releaseNotesVersion"',
+        '"releaseNotesSha256"',
+        '"releaseNotesPath"',
     ):
         if field not in manifest_block:
             fail(errors, f"workflow manifest step missing candidate field: {field}")
@@ -387,9 +416,26 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "observed_before != expected_before",
         "observed_after != expected_after",
         "候选校验和与归档字节不匹配",
+        'release_notes_digest != os.environ["RELEASE_NOTES_SHA256"]',
+        "packaged_release_notes != release_notes_bytes",
     ):
         if fragment not in manifest_block:
             fail(errors, f"workflow manifest step missing exact artifact-set gate: {fragment}")
+
+    for name, fragments in {
+        "打包 Unix 候选": (
+            'release-notes.json',
+            'tar -czf',
+        ),
+        "打包 Windows 候选": (
+            'release-notes.json',
+            'Compress-Archive',
+        ),
+    }.items():
+        package_block = "\n".join(step_block(name))
+        for fragment in fragments:
+            if fragment not in package_block:
+                fail(errors, f"workflow {name} must package the root release notes: {fragment}")
 
     commit_block = "\n".join(step_block("提交候选制品集合"))
     for fragment in (

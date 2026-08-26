@@ -41,6 +41,11 @@ import {
   isLocalSupportPath,
   resolveBrandAssetPath,
 } from "./brandSupportProfile";
+import { formatDisplayVersion } from "./displayVersion";
+import {
+  MAX_VISIBLE_RELEASE_NOTE_ITEMS,
+  MAX_VISIBLE_RELEASE_NOTE_VERSIONS,
+} from "./releaseNotes";
 import { FIXED_BOTTOM_NAVIGATION_ITEMS } from "./supportNavigation";
 import { requiresMandatoryUpdate } from "./updatePresentation";
 
@@ -124,8 +129,12 @@ describe("shared brand support templates", () => {
   /** 窗口标题始终使用当前应用名、版本和固定品牌联系字段。 */
   it("formats the fixed dynamic window title from authoritative inputs", () => {
     expect(formatBrandWindowTitle("Example Utility", "3.4.5")).toBe(
-      "Example Utility 3.4.5 QQ:2222980",
+      "Example Utility v3.4.5 QQ:2222980",
     );
+    expect(formatBrandWindowTitle("Example Utility", "vv3.4.5")).toBe(
+      "Example Utility v3.4.5 QQ:2222980",
+    );
+    expect(formatDisplayVersion("V3.4.5")).toBe("v3.4.5");
     expect(() => formatBrandWindowTitle(" ", "3.4.5")).toThrow(
       /application name and version/,
     );
@@ -224,7 +233,7 @@ describe("shared brand support templates", () => {
         ]}
         logoSrc="/app-identity/logo.png"
         onNavigate={vi.fn()}
-        version="9.8.7"
+        version="v9.8.7"
       />,
     );
 
@@ -325,7 +334,6 @@ describe("shared brand support templates", () => {
     const update = {
       availableVersion: "4.0.0",
       currentVersion: "3.4.5",
-      releaseNotes: "Security maintenance release",
       status: "required-update" as const,
     };
     const onInstallUpdate = vi.fn();
@@ -345,6 +353,7 @@ describe("shared brand support templates", () => {
     expect(requiresMandatoryUpdate(update)).toBe(true);
     expect(screen.queryByText("Product feature")).not.toBeInTheDocument();
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText("Current v3.4.5 → available v4.0.0")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Install update" }));
     fireEvent.click(screen.getByRole("button", { name: "Exit application" }));
     expect(onInstallUpdate).toHaveBeenCalledOnce();
@@ -389,14 +398,15 @@ describe("shared brand support templates", () => {
         ]}
         tagline="A product-owned tagline"
         update={{ currentVersion: "3.4.5", status: "idle" }}
-        version="3.4.5"
+        version="v3.4.5"
       />,
     );
 
     expect(
       screen.getByRole("heading", { name: "Example Utility" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("版本 3.4.5")).toBeInTheDocument();
+    expect(screen.getByText("版本 v3.4.5")).toBeInTheDocument();
+    expect(screen.queryByText(/vv3\.4\.5/)).not.toBeInTheDocument();
     expect(screen.getByText(/守城工作室/)).toBeInTheDocument();
     expect(screen.getByText(/2222980/)).toBeInTheDocument();
     expect(
@@ -415,6 +425,54 @@ describe("shared brand support templates", () => {
     ).toBeInTheDocument();
   });
 
+  /** 更新区容器不代理子按钮动作，且更新日志严格裁剪到五版和每类十条。 */
+  it("keeps update actions bound to their own controls and limits release notes", async () => {
+    const onCheckForUpdates = vi.fn();
+    const releases = Array.from({ length: 6 }, (_, releaseIndex) => {
+      const sequence = 6 - releaseIndex;
+      return {
+        bugFixes: [`版本 ${sequence} 修复`],
+        featureOptimizations: Array.from(
+          { length: 11 },
+          (_, itemIndex) => `版本 ${sequence} 优化 ${itemIndex + 1}`,
+        ),
+        releaseDate: `2026-08-${20 + sequence}`,
+        version: sequence === 6 ? `v1.0.${sequence}` : `1.0.${sequence}`,
+      };
+    });
+    await renderTemplate(
+      <AboutPageTemplate
+        onCheckForUpdates={onCheckForUpdates}
+        productName="Example Utility"
+        releaseNotes={releases}
+        update={{ currentVersion: "1.0.6", status: "idle" }}
+        version="1.0.6"
+      />,
+    );
+
+    expect(MAX_VISIBLE_RELEASE_NOTE_VERSIONS).toBe(5);
+    expect(MAX_VISIBLE_RELEASE_NOTE_ITEMS).toBe(10);
+    fireEvent.click(screen.getByTestId("about-update-section"));
+    expect(onCheckForUpdates).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
+    expect(onCheckForUpdates).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "更新日志" }));
+    expect(screen.getByRole("dialog", { name: "更新日志" })).toBeInTheDocument();
+    expect(
+      screen.getByText("-----------更新日志 2026-08-26 v1.0.6----------"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("###功能优化")).toHaveLength(5);
+    expect(screen.getAllByText("###问题修复")).toHaveLength(5);
+    expect(screen.getByText("版本 6 优化 10")).toBeInTheDocument();
+    expect(screen.queryByText("版本 6 优化 11")).not.toBeInTheDocument();
+    expect(screen.queryByText(/v1\.0\.1/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vv1\.0\.6/)).not.toBeInTheDocument();
+  });
+
   /** 未配置更新时，关于页保留禁用入口且不虚构可用服务。 */
   it("keeps an inert update entry on About when updates are not configured", async () => {
     await renderTemplate(
@@ -430,6 +488,9 @@ describe("shared brand support templates", () => {
     expect(
       screen.getByRole("button", { name: "Check for updates" }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Release notes" }),
+    ).toBeEnabled();
     expect(
       screen.queryByRole("button", { name: "Optional action" }),
     ).not.toBeInTheDocument();

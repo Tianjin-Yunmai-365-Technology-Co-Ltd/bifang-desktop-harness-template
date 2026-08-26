@@ -79,7 +79,7 @@ fn reports_the_workspace_version() {
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8(output.stdout).unwrap(),
-        "example_tool_cli 0.1.0\n"
+        "example_tool_cli v0.1.0\n"
     );
 }
 

@@ -7,6 +7,7 @@
     "contact_label": "QQ {{contact}}",
     "update_title": "软件更新",
     "check_for_updates": "检查更新",
+    "release_notes": "更新日志",
     "disclaimer_title": "免责声明",
     "disclaimer_1": "本软件/服务仅供学习研究和合法合规使用，严禁用于任何违反中华人民共和国法律法规的活动",
     "disclaimer_2": "用户在使用本软件/服务过程中的所有行为及其后果由用户自行承担全部法律责任，与开发者、运营方无关",
@@ -98,5 +99,13 @@
     "version_transition": "当前 {{current}} → 可用 {{available}}",
     "install_update": "安装更新",
     "exit_application": "退出应用"
+  },
+  "release_notes": {
+    "dialog_title": "更新日志",
+    "entry_title": "-----------更新日志 {{date}} {{version}}----------",
+    "feature_optimizations": "###功能优化",
+    "bug_fixes": "###问题修复",
+    "empty": "暂无已发布的更新日志",
+    "none": "无"
   }
 }

@@ -10,13 +10,17 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import type { ReactElement, ReactNode } from "react";
+import { IconHistory, IconRefresh } from "@tabler/icons-react";
+import { useState, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
   BRAND_SUPPORT_PROFILE,
   type BrandSupportContact,
 } from "./brandSupportProfile";
+import { formatDisplayVersion } from "./displayVersion";
+import type { ReleaseNoteEntry } from "./releaseNotes";
+import { ReleaseNotesDialogTemplate } from "./ReleaseNotesDialogTemplate";
 import type { UpdatePresentation } from "./updatePresentation";
 
 /** 关于页的一个产品事实区块。 */
@@ -35,6 +39,7 @@ export interface AboutPageTemplateProps {
   actions?: ReactNode;
   contact?: BrandSupportContact;
   update: UpdatePresentation;
+  releaseNotes?: readonly ReleaseNoteEntry[];
   onCheckForUpdates: () => void;
 }
 
@@ -47,9 +52,11 @@ export function AboutPageTemplate({
   actions,
   contact = BRAND_SUPPORT_PROFILE.contacts.support,
   update,
+  releaseNotes = [],
   onCheckForUpdates,
 }: AboutPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
+  const [releaseNotesOpened, setReleaseNotesOpened] = useState(false);
   const statusKey = `updater.status_${update.status.replace(/-/g, "_")}`;
   const isChecking = update.status === "checking";
   const isUpdateFailure = update.status === "failed";
@@ -61,7 +68,7 @@ export function AboutPageTemplate({
         <Stack gap="md">
           <Title order={2}>{productName}</Title>
           <Badge size="lg" variant="light">
-            {t("about.version")} {version}
+            {t("about.version")} {formatDisplayVersion(version)}
           </Badge>
           {tagline ? (
             <Text c="dimmed" size="sm">
@@ -84,17 +91,27 @@ export function AboutPageTemplate({
         </Stack>
       </Paper>
 
-      <Paper p="lg" radius="lg" withBorder>
+      <Paper data-testid="about-update-section" p="lg" radius="lg" withBorder>
         <Stack gap="md">
           <Group justify="space-between" wrap="wrap">
             <Title order={3}>{t("about.update_title")}</Title>
-            <Button
-              disabled={update.status === "not-configured"}
-              loading={isChecking}
-              onClick={onCheckForUpdates}
-            >
-              {t("about.check_for_updates")}
-            </Button>
+            <Group data-testid="about-update-actions" gap="xs">
+              <Button
+                disabled={update.status === "not-configured"}
+                leftSection={<IconRefresh aria-hidden="true" size={18} />}
+                loading={isChecking}
+                onClick={onCheckForUpdates}
+              >
+                {t("about.check_for_updates")}
+              </Button>
+              <Button
+                leftSection={<IconHistory aria-hidden="true" size={18} />}
+                onClick={() => setReleaseNotesOpened(true)}
+                variant="default"
+              >
+                {t("about.release_notes")}
+              </Button>
+            </Group>
           </Group>
           <Alert
             aria-live="polite"
@@ -104,14 +121,20 @@ export function AboutPageTemplate({
           >
             {update.availableVersion
               ? t("updater.available_version", {
-                  version: update.availableVersion,
+                  version: formatDisplayVersion(update.availableVersion),
                 })
               : t("updater.current_version", {
-                  version: update.currentVersion,
+                  version: formatDisplayVersion(update.currentVersion),
                 })}
           </Alert>
         </Stack>
       </Paper>
+
+      <ReleaseNotesDialogTemplate
+        onClose={() => setReleaseNotesOpened(false)}
+        opened={releaseNotesOpened}
+        releases={releaseNotes}
+      />
 
       <Paper p="lg" radius="lg" withBorder>
         <Title mb="md" order={3}>

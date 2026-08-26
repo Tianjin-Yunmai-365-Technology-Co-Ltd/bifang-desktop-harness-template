@@ -7,18 +7,18 @@
 - 维护状态：Active
 - 产品名称：Agent-first Harness 项目模板
 - 产品规格：Approved（2026-07-21）
-- 当前版本：202608051301（上海时区 `YYYYMMDDHHMM`，未发布；事实来源见 [`Version.md`](Version.md)）
+- 当前版本：v202608051301（上海时区 `YYYYMMDDHHMM`，未发布；机器事实来源见 [`Version.md`](Version.md)）
 - 源码：尚未创建
 - 反馈入口：待确定
 
 ## 开始一个项目
 
 1. 使用 `$desktop-instantiate-project` 提供项目身份、完整目标目录、负责人和目标平台，建立独立 Git 根并重置模板身份。
-2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`；选择 GUI 时会实际生成 3 个 Logo 候选并等待用户选择，同时创建项目内 660×400 macOS DMG 拖拽背景，并强制初始化单实例、运行时正确刷新的系统托盘 i18n、关闭隐藏、两种恢复聚焦、动态标题、`136px` 单态图标上文字下的 Logo→版本侧栏、无隐私/统计区块的语言与三态主题设置、应用级亮暗主题以及应用导航中的关于/赞助页。初始化基线提交前会先检查单实例依赖/首插件/回调、托盘 feature、源码、稳定 ID、`rust-i18n` 标签解析、双语资源和八个固定回归，再自动构建并双启动真实本机调试二进制，实测第二次启动只唤醒既有主窗口后退出、单一长期主进程/主窗口、托盘中英文精确菜单与完整生命周期、固定侧栏、精简设置页和所有菜单页面可达；任一缺失都不会创建基线提交。
+2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`；选择 GUI 时会实际生成 3 个 Logo 候选并等待用户选择，同时创建项目内 660×400 macOS DMG 拖拽背景，并强制初始化单实例、运行时正确刷新的系统托盘 i18n、关闭隐藏、两种恢复聚焦、带 `v` 版本的动态标题、`136px` 单态图标上文字下的 Logo→版本侧栏、无隐私/统计区块的语言与三态主题设置、应用级亮暗主题以及应用导航中的关于/赞助页。关于页在“检查更新”旁提供“更新日志”，本地展示候选携带的近 5 版固定结构日志。初始化基线提交前会先检查单实例依赖/首插件/回调、托盘 feature、源码、稳定 ID、`rust-i18n` 标签解析、双语资源和八个固定回归，再自动构建并双启动真实本机调试二进制，实测第二次启动只唤醒既有主窗口后退出、单一长期主进程/主窗口、托盘中英文精确菜单与完整生命周期、固定侧栏、精简设置页和所有菜单页面可达；任一缺失都不会创建基线提交。
    托盘检查不再只看 API 关键词：还会验证非透明 `icons/32x32.png` 及 Tauri 配置引用、从 `.setup` 可达的菜单/图标/构建接线和 `.on_window_event`，并要求真实状态栏/通知区域出现可见非空图形；空白点击区域不能通过。
 3. 初始化时运行一次 `$desktop-check-development-environment`；初始化完成后先直接执行真实测试/构建命令，只有命令已因受管环境问题失败时才做对应检查、安装并重试一次。不得因新任务、显式构建或缺少环境证据重复预检。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
 4. 日常开发直接使用 `$desktop-implement-change`，并由 `$desktop-manage-version` 对已完成变化自动应用下游 SemVer：每个发布周期首个功能升一次 Minor，每个新缺陷 ID 的修复升一次 Patch，Major 只由用户批准；查询、诊断、重复修复、不改变可观察行为的纯重构等维护不升版本；改变可观察行为的重构按其实际结果归类为功能或缺陷修复。只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。含 GUI 的一次性初始化 E2E 是初始化完成门禁，不属于日常开发自动扩张。
-5. 用户显式请求构建时，构建 Skill 先解析本次是否启用 E2E，再运行项目全部非空单元测试并构建候选；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
+5. 正式发布候选构建前，先由 `$desktop-prepare-release` 汇总上次正式发布到当前源码的最重要变化，维护根 `release-notes.json`，每版功能优化/问题修复各至多 10 条并只保留近 5 版。用户显式请求构建时，构建 Skill 只读校验并把同一日志打入候选，再解析本次是否启用 E2E、运行项目全部非空单元测试并构建；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
 6. 已初始化下游需要接收新版工程规则时使用 `$desktop-upgrade-harness`：先 dry-run 和三方比较，显式批准后只更新安全受管文件。
 
 安全、隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道要求和发布仍保留解决当前风险所必需的确认与门禁；精简开发流程不授权绕过这些边界。
@@ -60,14 +60,14 @@
 - `$desktop-test-gui-initialization-e2e`：只在含 GUI 的一次性初始化基线提交前，先验证强制单实例/托盘结构与 `rust-i18n` 标签解析，再构建并双启动真实本机 Tauri 调试二进制，确认第二次启动只唤醒同一主窗口后退出且只剩一个长期应用主进程/主窗口，实测托盘中英文精确标签可无重启刷新、关闭隐藏、两种恢复和退出生命周期，并验证应用可启动、固定单态侧栏、设置页无隐私区块和所有渲染菜单页面可达；无法判定、无法观察或任一失败都阻断，通过后随初始化能力删除。
 - `$desktop-check-development-environment`：只在初始化阶段，或初始化后真实测试/构建命令已因受管环境问题失败时检查并补齐对应工具；不得因显式构建或缺少环境证据预跑。GUI 可处理 Node.js 与 pnpm，实际失败的 macOS→Windows Tauri 路径可补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
 - `$desktop-prepare-gui-app-identity`：GUI 初始化时生成 3 个 1024×1024 Logo 候选并由用户选择；首次真实开发前再补齐窗口名称等资料，并预览批准或替换初始化生成的 DMG 背景。
-- `$desktop-prepare-gui-support-surfaces`：为所有 GUI 初始化提供动态标题、`@tabler/icons-react` 驱动的 `136px` 单态图标上文字下 Logo→版本侧栏、无隐私/统计区块的语言与浅色/深色/跟随系统设置、运行时托盘 i18n、全局亮暗语义主题、含更新入口的关于页、双主题赞助页和完整 sponsor 品牌媒体；真实更新、强更或统计上报启用时，再固化签名、core/GUI 所有权、独立同意界面、出站白名单与秘密隔离。
+- `$desktop-prepare-gui-support-surfaces`：为所有 GUI 初始化提供带单个 `v` 版本的动态标题、`@tabler/icons-react` 驱动的 `136px` 单态图标上文字下 Logo→版本侧栏、无隐私/统计区块的语言与浅色/深色/跟随系统设置、运行时托盘 i18n、全局亮暗语义主题、含检查更新与近 5 版更新日志入口的关于页、双主题赞助页和完整 sponsor 品牌媒体；真实更新、强更或统计上报启用时，再固化签名、core/GUI 所有权、独立同意界面、出站白名单与秘密隔离。
 - `$desktop-build-rust-release`：构建 Rust CLI 候选时先逐次解析 E2E 选择并全量运行 workspace 单元测试，再默认采用 Windows、macOS、Linux 原生矩阵；跨平台预检不满足才回退当前平台。构建前安全清空根 `release/`，条件具备时尝试签名，最终候选、hash 与 manifest 统一写入该目录。
 - `$desktop-build-tauri-release`：先校验 GUI 资料、DMG 背景和逐次 E2E 选择并运行完整 Rust/前端单元测试；随后构建 macOS DMG 或 Windows x64 NSIS。macOS 直接分发采用“签名 + 公证 + stapling”一体门禁；产品启用 updater 时还必须生成官方更新 archive/`.sig`、用公开密钥验证并纳入精确 manifest，不能以 unsigned 安装包绕过 updater 签名。
 - `$desktop-verify-delivery`：只在发布候选、用户明确要求完整验收或本次构建启用 E2E 时验收真实产物。
 - `$desktop-prepare-cross-platform-release`：提供默认 Windows、macOS、Linux 原生 Rust CLI 候选矩阵和逐平台清理/条件签名门禁。
 - `$desktop-collect-release-artifacts`：提取并核验归档、SHA-256、签名状态、manifest 和平台证据，同时保留候选的 `pending`/`rejected`/`accepted` 状态，不把收集结果写入项目记忆。
 - `$desktop-upgrade-harness`：以 dry-run、来源锁和三方比较安全更新下游 Harness 工程层。
-- `$desktop-prepare-release`：检查已由版本门禁确定的版本一致性并准备可追溯发布；正式发布成功后才提交周期重置。
+- `$desktop-prepare-release`：候选构建前整理上次正式发布以来的功能优化/问题修复并原子维护近 5 版 `release-notes.json`，候选验收后只读检查版本、摘要与包内同一事实；正式发布成功后才提交周期重置。
 - `$desktop-add-mcp-adapter`：仅在下游用户明确批准后，为现有 shared core 增加最小 Rust stdio MCP adapter。
 - `$desktop-add-gui-adapter`：仅在下游用户明确批准后，为现有 shared core 增加最小 Tauri 2 桌面 GUI adapter。
 - `$desktop-add-cli-adapter`：增加独立、非交互且 Agent-ready 的 CLI adapter。
@@ -85,10 +85,12 @@
 - Rust 是下游项目的默认初始化语言；Tokio 是 Rust CLI 和后续 Rust adapter 的统一异步执行标准；模板自身仍不实现具体产品业务。
 - TUI 技术族固定为 Ratatui + tui-realm + tui-realm-stdlib；Tauri GUI 前端固定为满足已批准能力、目标平台、MSRV、Node.js 与 WebView 约束的最低兼容稳定 Vite + React + TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 组合。其他前后端技术在真实项目开发时按需求推荐。
 - GUI 强制使用官方 `tauri-plugin-single-instance` 并把它作为首个 Tauri plugin 注册。同一用户会话第二次启动只唤醒、取消最小化并聚焦既有主窗口后退出，不得留下第二个长期应用主进程或主窗口；中性回调忽略且不记录启动参数/工作目录。`single_instance_plugin_is_registered_first`、`second_launch_restores_existing_main_window` 与真实双启动唯一性证据都是初始化门禁。Linux Snap/Flatpak 渠道还需声明并验证插件所需的会话 DBus 权限。
-- GUI 初始化实际生成 3 个 1024×1024 Logo 候选并等待用户选择，选中母版同时用于平台图标和 `/app-identity/logo.png`。GUI 强制启用 `tray-icon`：托盘使用应用图标，菜单稳定 ID 恰好为 `show_window`/`quit`，但可见标签必须由 `rust-i18n` 运行时解析；中文精确为“显示窗口/退出”，英文精确为“Show Window/Quit”，未知 locale 回退英文，语言切换无需重启即可刷新，任何 `tray.*` 原始键不可见。主窗口关闭只隐藏且进程继续，托盘左键和显示菜单项恢复并聚焦，退出菜单项结束应用。托盘结构检查、六个托盘生命周期/i18n 固定命名回归和真实宿主生命周期都是初始化基线硬门禁，不能因 Draft、宿主差异或小型应用省略。初始化固定建立 `{applicationName} {version} {contactChannel}:{contactValue}` 动态标题和 `136px` 单态左侧菜单；`56px` Logo 永远在顶部、当前版本紧随其下，每个功能项与固定项以 `30px` 图标在上、`11px` 文字在下的方式在 `10em` 宽度内居中显示，且没有展开/折叠控件。功能从顶部向下增长，底部固定为赞助、设置、关于，并建立 `/settings`、`/about`、`/sponsor`。主应用窗口默认 1440×900、最小 960×640，可同时横向展示固定侧栏和三张赞助档位卡；Mantine 初始化包含背景、surface、文字、边框和强调色的亮色/暗色语义主题。设置页只提供应用/版本、中英文和浅色、深色、跟随系统三态选择并持久化，不包含隐私或统计区块；检查更新入口位于关于页，产品未配置时显示 `NotConfigured`/禁用并零出站。关于页还显示作者、联系方式与免责声明，赞助页打包完整品牌媒体。真实 updater/强更/统计传输需产品配置：updater 必须验证签名制品，强更由 core 对已认证最低支持版本作 SemVer 判定，统计能力明确启用后另建产品级同意界面并仅在同意后以最小 POST 字段发送且可撤回。品牌包不携带来源产品服务地址、客户端 secret 或默认网络请求。
+- GUI 初始化实际生成 3 个 1024×1024 Logo 候选并等待用户选择，选中母版同时用于平台图标和 `/app-identity/logo.png`。GUI 强制启用 `tray-icon`：托盘使用应用图标，菜单稳定 ID 恰好为 `show_window`/`quit`，但可见标签必须由 `rust-i18n` 运行时解析；中文精确为“显示窗口/退出”，英文精确为“Show Window/Quit”，未知 locale 回退英文，语言切换无需重启即可刷新，任何 `tray.*` 原始键不可见。主窗口关闭只隐藏且进程继续，托盘左键和显示菜单项恢复并聚焦，退出菜单项结束应用。托盘结构检查、六个托盘生命周期/i18n 固定命名回归和真实宿主生命周期都是初始化基线硬门禁，不能因 Draft、宿主差异或小型应用省略。初始化固定建立 `{applicationName} v{version} {contactChannel}:{contactValue}` 动态标题和 `136px` 单态左侧菜单；`56px` Logo 永远在顶部、带一个小写 `v` 的当前版本紧随其下，每个功能项与固定项以 `30px` 图标在上、`11px` 文字在下的方式在 `10em` 宽度内居中显示，且没有展开/折叠控件。功能从顶部向下增长，底部固定为赞助、设置、关于，并建立 `/settings`、`/about`、`/sponsor`。主应用窗口默认 1440×900、最小 960×640，可同时横向展示固定侧栏和三张赞助档位卡；Mantine 初始化包含背景、surface、文字、边框和强调色的亮色/暗色语义主题。设置页只提供应用/版本、中英文和浅色、深色、跟随系统三态选择并持久化，不包含隐私或统计区块；检查更新入口位于关于页，产品未配置时显示 `NotConfigured`/禁用并零出站，旁边的本地更新日志入口仍可查看近 5 版。关于页还显示作者、联系方式与免责声明，赞助页打包完整品牌媒体。真实 updater/强更/统计传输需产品配置：updater 必须验证签名制品，强更由 core 对已认证最低支持版本作 SemVer 判定，统计能力明确启用后另建产品级同意界面并仅在同意后以最小 POST 字段发送且可撤回。品牌包不携带来源产品服务地址、客户端 secret 或默认网络请求。
 - 托盘可见图标来源固定为 Tauri `icon` 生成并由 `bundle.icon` 引用的 `icons/32x32.png`；文件必须是非透明 RGBA PNG。运行时必须从 `.setup` 实际安装绑定双项菜单和必需应用图标的托盘，图标缺失即失败；真实 E2E 必须看见非空图形，不能把透明点击区域或未调用的样例代码当作托盘完成。
 - GUI 中性初始化提供无产品身份的 660×400 macOS DMG 拖拽背景，固定写入 `<项目标识>_gui/src-tauri/dmg/background.png` 并由 Tauri 配置以 `./dmg/background.png` 引用；首次真实 GUI 开发仍须预览批准或同路径替换，初始化资产本身不构成正式视觉批准。
 - GUI 图标统一使用 `@tabler/icons-react` 命名组件；存在适用图标时不引入其他图标库、手写 SVG、字符或 emoji，图表周边图标优先使用 Tabler，而图表绘制库保持项目特定。固定单态侧栏中的 Logo、所有图标和下方文字必须水平居中且无裁切。
+- 页面交互 handler 绑定在实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项，父级容器不得代理子动作；表格行或单元格点击不会切换其中的 `Switch`。
+- GUI 的活动选项卡、查询/筛选、排序和分页等页面工作状态由应用根 Jotai store 在本次程序进程内跨路由保留，关闭隐藏或返回页面不会丢失，真正退出后回到默认值且不写入持久存储/URL。返回后若成功查询的当前页大于 1 且为空，自动回退第 1 页；加载、错误或第 1 页空数据不触发回退循环。
 - 含 GUI 的下游在唯一基线提交前固定执行单实例/托盘结构检查和一次本机调试 E2E，双启动同一真实二进制并验证第二次启动退出、既有主进程/同一主窗口持续且被唤醒、只剩一个长期应用主进程/主窗口，再验证真实托盘的中英文精确菜单可无重启刷新、关闭隐藏、两种恢复、退出生命周期，以及项目可编译启动、固定单态侧栏、设置页无隐私区块和全部菜单页面可达；它独立于构建 E2E 建议值，失败或宿主无法判定/观察都阻断初始化，但不构成发布候选或完整验收。
 - Rust 技术选型固定为 Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing 生态、anyhow、thiserror、serde 与 jiff；OpenTelemetry、OpenAPI、GraphQL、MongoDB/Redis 与认证组合只在对应能力获批后采用。固定技术在真实能力出现时按需引入，不给中性 scaffold 安装未使用依赖。
 - Rust 下游从 Cargo workspace 根运行中文声明注释检查器；GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明。两者都只证明紧邻中文注释存在，语义仍由人工/Agent 复核，并且禁止自动补入套话；非 GUI 下游不因此需要 Node.js 或 pnpm。
@@ -112,6 +114,7 @@
 - Rust CLI 构建会在项目已有批准的非交互签名 hook、工具和已授权凭据时尝试签名并验证；签名尝试失败会使该平台构建失败。macOS Tauri 直接分发候选在设备、Developer ID 与公证凭据齐备时必须完成签名、公证和 stapling，不能只签名；条件缺失时只有渠道允许才可显式生成 unsigned 候选，一旦签名或公证开始，失败不得降级。
 - macOS 上的 Windows Tauri 交叉构建只生成 x64 NSIS，不生成 MSI，也不证明 Windows 原生运行；manifest 必须记录 `cross-compiled-xwin` 与 `runtimeVerification: Unverified`。
 - 初始化把 `/release/` 精确一次写入根 `.gitignore`；每次 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 在任何 build 命令前原子隔离旧目录并创建全新空目录，完成签名/公证/stapling 后的最终安装包、hash 与 manifest 先在同根 staging 形成完整三件套，再以目录级原子替换提交到 `release/`。远端 workflow 绑定批准的 40 位 commit，并只传输 manifest 声明的精确文件；目录存在不代表候选已验收或可发布。
+- 正式发布候选构建前从上次真实发布提交到当前源码整理根 `release-notes.json`，固定两类各至多 10 条并只保留近 5 版；候选归档携带同一文件，manifest 绑定其带 `v` 版本、SHA-256 和包内路径，构建及验收阶段不得改写。
 - `Draft` 规格下的中性初始化不得推测业务、增加业务能力或作为产品交付证据；它只允许 `scaffold status`，并在 JSON 中返回 `productDefinitionRequired=true`。
 - 根 Cargo workspace 统一声明第三方依赖和内部 crate 路径，所有 member 只通过 `workspace = true` 继承。
 - 跨平台自动化默认只生成候选产物和证据；正式发布仍需独立授权。

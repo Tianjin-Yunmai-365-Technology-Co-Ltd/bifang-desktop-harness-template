@@ -3,7 +3,7 @@
 CHECKOUT_USE = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
 UPLOAD_USE = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
 EXPECTED_WORKFLOW_SHA256 = (
-    "8e1d428ed3038a6428bdba9306222749c73104c4c8e243a4df96792e54e75634"
+    "ff0414abe27970a90af2b6a084f85fa5d63e8df020aa5eec95a363d234b597b7"
 )
 EXPECTED_INPUTS = {
     "confirm_candidate_build",
@@ -18,6 +18,7 @@ EXPECTED_NAMED_STEPS = (
     "读取项目最低 Rust 版本",
     "选择项目 MSRV",
     "验证候选版本",
+    "验证发布更新日志",
     "准备 Unix 发布目录",
     "准备 Windows 发布目录",
     "验证候选",

@@ -24,6 +24,7 @@
     {"pattern": "docs/verification/**", "mode": "protected"},
     {"pattern": "docs/TECH_DEBT.md", "mode": "protected"},
     {"pattern": ".harness/version-state.json", "mode": "protected"},
+    {"pattern": "release-notes.json", "mode": "protected"},
     {"pattern": "LICENSE.zh-CN.md", "mode": "protected"},
     {"pattern": "LICENSE.en.md", "mode": "protected"},
     {"pattern": "Cargo.toml", "mode": "protected"},

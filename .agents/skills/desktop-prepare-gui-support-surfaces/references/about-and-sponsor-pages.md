@@ -10,7 +10,9 @@
 | `media-manifest.json` | 13 个图片的 MIME、尺寸、字节数、SHA-256、用途和敏感性 | 不复制到运行时；构建前后用于核验 |
 | `i18n/zh-CN.json`、`i18n/en-US.json` | 关于作者/联系人/免责声明、固定赞助文案、权益与媒体替代文本 | GUI 初始化注册 `brandSupport` namespace |
 | `rust-i18n/zh-CN.yml`、`rust-i18n/en-US.yml` | 托盘“显示窗口/退出”原生文案 | GUI 初始化复制到 Rust locale 目录 |
-| `react/AboutPageTemplate.tsx` | 注入当前产品名/版本/区块/动作和更新状态，固定显示手动检查更新、作者、联系方式和免责声明 | GUI 初始化默认页面 |
+| `react/AboutPageTemplate.tsx` | 注入当前产品名/版本/区块/动作、更新状态与发布日志，固定显示检查更新、更新日志、作者、联系方式和免责声明 | GUI 初始化默认页面 |
+| `react/ReleaseNotesDialogTemplate.tsx`、`react/releaseNotes.ts` | 读取候选内同一发布事实，按固定结构展示最近 5 版且每类最多 10 条 | GUI 初始化默认页面 |
+| `react/displayVersion.ts` | 把所有人类可见版本规范化为且只规范化为一个小写 `v` 前缀 | GUI 初始化默认展示边界 |
 | `react/SponsorPageTemplate.tsx` | 响应式展示固定品牌赞助内容与双支付码 | GUI 初始化默认页面 |
 | `react/SupportMedia.tsx` | 统一本地图片与带字幕/文字稿的视频边界 | 页面需要媒体 |
 | `react/BrandUpdaterBanner.tsx` | 只渲染本地品牌 banner | 选择更新视觉 |
@@ -29,7 +31,7 @@
 
 1. GUI 初始化直接接入固定本地标题、单态侧栏、精简设置页、关于页和赞助页，不创建产品实例文档。只有修改默认内容、增加其他界面或启用出站能力时，才从 `GUI_SUPPORT_SURFACES.template.md` 创建差异文档；模板根本身仍不得出现 `docs/GUI_SUPPORT_SURFACES.md`。
 2. 把 `brand-support-profile.json` 作为唯一品牌结构事实；不得在 About、Sponsor、标题或其他组件各写一份联系人/价格常量。
-3. 将 ThemeProvider、Sidebar、Settings、About、Sponsor、MandatoryUpdateGate 与更新展示类型复制到产品前端并建立 `/settings`、`/about`、`/sponsor` 文件路由。侧栏固定为 `136px` 单态，不建立 Jotai 折叠状态或切换按钮；顶部始终先渲染 GUI 身份流程选中的 `56px` `/app-identity/logo.png`、再渲染当前版本；功能项从顶部向下增长，固定底部按赞助、设置、关于渲染。每项必须注入 `30px` 图标，并以图标在上、`11px` 文字在下的方式在 `10em` 行内宽度内居中显示，允许两行且始终保留完整可访问名称，不得用 Tooltip 代替可见名称。设置页只保留应用/版本、语言与三态主题，不得加入隐私或统计区块。保留 Mantine、响应式 `SimpleGrid`、本地路径校验、图片替代文本以及视频 captions/transcript 约束。
+3. 将 ThemeProvider、Sidebar、Settings、About、ReleaseNotesDialog、Sponsor、MandatoryUpdateGate、展示版本 formatter 与更新展示类型复制到产品前端并建立 `/settings`、`/about`、`/sponsor` 文件路由。侧栏固定为 `136px` 单态，不建立 Jotai 折叠状态或切换按钮；顶部始终先渲染 GUI 身份流程选中的 `56px` `/app-identity/logo.png`、再渲染带一个小写 `v` 的当前版本；功能项从顶部向下增长，固定底部按赞助、设置、关于渲染。每项必须注入 `30px` 图标，并以图标在上、`11px` 文字在下的方式在 `10em` 行内宽度内居中显示，允许两行且始终保留完整可访问名称，不得用 Tooltip 代替可见名称。设置页只保留应用/版本、语言与三态主题，不得加入隐私或统计区块。关于页把“更新日志”按钮紧邻“检查更新”，从候选资源中的同一 `release-notes.json` 展示近 5 版固定结构。保留 Mantine、响应式 `SimpleGrid`、本地路径校验、图片替代文本以及视频 captions/transcript 约束。
 4. 把两份 JSON 合并或注册为初始化 i18next 的 `brandSupport` namespace，并把两份 `rust-i18n/*.yml` 复制到 GUI adapter 的 locale 目录。默认语言仍来自 `tauri-plugin-os` 探测和用户持久语言偏好；Rust 托盘与 React 必须消费同一规范化 locale 结果，不能建立第二套语言状态。托盘可见标签必须用 `rust_i18n::t!("tray.show_window")` 与 `rust_i18n::t!("tray.quit")` 解析，稳定 ID 不得直接显示；中文为“显示窗口/退出”，英文为“Show Window/Quit”，未知 locale 回退英文，运行时语言切换必须刷新已安装菜单而无需重启。
 5. 初始化完整复制 `media/sponsor/*` 到前端 public 的 `/brand-support/sponsor/`，不优化、压缩、重绘或重编码支付二维码。只有选择更新视觉时才复制 banner 到 `/brand-support/updater/banner.jpg`。
 6. 使用 manifest 复核每个进入项目的文件。当前未引用的 arrow、icon1 至 icon4、select 也必须随赞助品牌源包保留，不能因 tree-shaking 或“清理未使用文件”从 Skill/下游品牌源目录删除。
@@ -39,7 +41,8 @@
 ## 关于页约束
 
 - 产品名称、版本、标语、功能、许可、隐私和可选动作来自当前下游权威事实。固定作者、作者联系方式和免责声明来自品牌包；模板不含任何来源产品名称或功能清单，固定路由为 `/about`。
-- 版本由当前打包元数据提供，不在组件或翻译文件中写死。手动检查更新和稳定状态固定存在；未配置时按钮禁用、状态为 `NotConfigured` 且零出站。反馈、许可与隐私仍是独立可选动作，未选择时不渲染占位按钮。赞助入口由固定 `/sponsor` 路由和应用导航承载，不需要在关于页重复为按钮。
+- 版本由当前打包元数据提供，不在组件或翻译文件中写死；所有可见位置调用共享 formatter，先去除已有 `v`/`V` 再添加一个小写 `v`。手动检查更新和稳定状态固定存在；未配置时检查按钮禁用、状态为 `NotConfigured` 且零出站，本地更新日志按钮仍可用。更新日志按最新在前最多显示 5 版，每版“###功能优化”和“###问题修复”各最多 10 条，标题固定为 `-----------更新日志 {发布日期} {发布版本}----------`。反馈、许可与隐私仍是独立可选动作，未选择时不渲染占位按钮。赞助入口由固定 `/sponsor` 路由和应用导航承载，不需要在关于页重复为按钮。
+- “检查更新”和“更新日志”的事件只绑定各自 Button；更新区 Paper/Group 不代理动作。其他按钮、链接、`Switch`、`Checkbox` 同样绑定在自身，Card、`Table.Tr`、`Table.Td` 等父级不得代理；表格行点击不能切换行内 `Switch`。
 - 作者显示名使用 `about.studio`，联系人使用 profile 的 `contacts.support`；窗口标题使用独立的 `contacts.windowTitle`，两个角色即使当前值相同也不能混用。
 - 三段免责声明必须完整显示并接入中英文 `brandSupport` 翻译；不得因产品没有其他关于区块而隐藏或改成占位文案。
 - 外部链接经 Tauri 窄命令或系统浏览器打开并验证 scheme/host；模板本身不持有 endpoint、网络 client 或秘密。
@@ -62,7 +65,7 @@
 
 ## 最小回归
 
-- 关于页：注入一个非来源产品名、动态版本与更新状态；验证手动检查、`NotConfigured` 禁用、固定作者、联系人、三段免责声明、可选动作/区块的存在与缺失、主题、键盘和翻译回退。
+- 关于页：注入一个非来源产品名、动态版本、更新状态与 6 版/11 条边界夹具；验证手动检查、`NotConfigured` 禁用、本地更新日志仍可用、只显示近 5 版/每类 10 条、版本恰有一个 `v`、父容器点击不代理两个按钮、固定作者、联系人、三段免责声明、可选动作/区块的存在与缺失、主题、键盘和翻译回退。
 - 设置与壳层：验证中英文、浅色/深色/跟随系统回调与持久化、亮暗背景/文字/surface 差异，默认设置页没有隐私/统计控件或翻译键，以及侧栏 `136px` 单态、`56px` Logo、`30px` 图标、图标上/文字下、`11px`/`10em` 名称和独立可访问名称。
 - 托盘 i18n：验证中英文精确标签、未知 locale 英文回退、运行时语言切换刷新，以及任何 `tray.*` 原始键都不能成为可见菜单文字。
 - 赞助页：分别以亮色和暗色渲染，验证有效主题标记、不同背景/surface、19/199/1999、品牌联系人、三张档位图、两张有 alt 的支付码、响应式列数，以及源码没有固定 800px/全页 pointer-events。

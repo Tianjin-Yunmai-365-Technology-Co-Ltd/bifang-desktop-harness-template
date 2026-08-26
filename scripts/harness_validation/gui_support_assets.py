@@ -36,6 +36,7 @@ EXPECTED_ABOUT_KEYS = {
     "contact_label",
     "update_title",
     "check_for_updates",
+    "release_notes",
     "disclaimer_title",
     "disclaimer_1",
     "disclaimer_2",
@@ -74,6 +75,12 @@ EXPECTED_LOCAL_UI_COPY = {
     },
 }
 
+EXPECTED_RELEASE_NOTES_COPY = {
+    "entry_title": "-----------更新日志 {{date}} {{version}}----------",
+    "feature_optimizations": "###功能优化",
+    "bug_fixes": "###问题修复",
+}
+
 EXPECTED_FIXED_UI_KEYS = {
     "sidebar": {
         "application_navigation",
@@ -109,6 +116,14 @@ EXPECTED_FIXED_UI_KEYS = {
         "version_transition",
         "install_update",
         "exit_application",
+    },
+    "release_notes": {
+        "dialog_title",
+        "entry_title",
+        "feature_optimizations",
+        "bug_fixes",
+        "empty",
+        "none",
     },
 }
 
@@ -327,6 +342,12 @@ def validate_brand_translations(
                     errors,
                     f"brand {section} fixed UI keys drifted: {display_path(path)}",
                 )
+        release_notes = value.get("release_notes")
+        if not isinstance(release_notes, dict) or any(
+            release_notes.get(key) != expected
+            for key, expected in EXPECTED_RELEASE_NOTES_COPY.items()
+        ):
+            fail(errors, f"brand release-note fixed format drifted: {display_path(path)}")
         if not isinstance(sponsor, dict):
             fail(errors, f"brand sponsor translations are missing: {display_path(path)}")
             continue

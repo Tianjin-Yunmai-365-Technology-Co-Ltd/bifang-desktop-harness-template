@@ -2,6 +2,8 @@
 
 ## 新增
 
+- `HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY`（所需 Harness 版本 `202608051301`）：新增标准库 `release_notes.py` 和受保护的根 `release-notes.json` 发布契约。发布准备会从上一次真实发布提交到当前源码整理最重要的功能优化/问题修复，每类至多 10 条并只保留近 5 版；构建只读校验并把同一日志打入候选，manifest 绑定带 `v` 版本、SHA-256 和包内路径。
+- GUI 关于页在“检查更新”旁新增自身绑定的“更新日志”按钮和本地弹窗模板，按固定中文结构展示近 5 版、每类至多 10 条；远程更新未配置时只禁用检查按钮，本地日志仍可查看。
 - `HARNESS-FEAT-DOWNSTREAM-AUTO-VERSIONING`（所需 Harness 版本 `202608051301`）：新增 `$desktop-manage-version` 与标准库版本 helper。下游现在会在每个正式发布周期的首个已完成功能自动升一次 Minor 并归零 Patch，每个新稳定缺陷 ID 的已完成修复升一次 Patch，重复缺陷幂等，Major 只接受用户批准；查询、诊断、复现、重构等维护不升版本，分量 `0..100` 溢出失败关闭。
 - 下游初始化现在创建受保护的 `.harness/version-state.json`，开发在相关测试通过后才提交版本；Rust/Tauri 构建、跨平台候选、产物收集、验收和发布准备只校验当前目标，只有真实正式发布成功才重置首功能周期。升级器可更新版本 Skill 工程资产，但不得覆盖 Cargo 产品版本、发布周期或缺陷 ID 历史。
 - 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 18 条专项回归：在 GUI 构建前验证官方 `tauri-plugin-single-instance` 的 workspace/member 接线、首插件顺序、不消费参数/工作目录且只恢复既有窗口的中性回调，Tauri `tray-icon` feature、非透明 32px RGBA 图标与配置引用、从 `.setup` 可达的 Menu/default-icon/icon/build 接线、已注册关闭事件、稳定 ID `show_window`/`quit`、`rust_i18n::t!("tray.show_window")`/`rust_i18n::t!("tray.quit")` 可见标签解析、中英文原生资源，以及单实例/托盘生命周期/i18n 八个固定命名回归；新增负向覆盖原始翻译键和无断言 i18n 回归，路径越界、符号链接、非法 UTF-8、空源码、未接线死代码和任何缺项均失败关闭。
@@ -9,7 +11,7 @@
 - GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。
 - GUI 初始化新增应用 Logo 三选一：实际生成 3 个 1024×1024 PNG 候选并同时预览，必须由用户明确选择；选中母版逐字节接入运行时 `/app-identity/logo.png`，并由项目本地 Tauri 工具生成平台图标，候选/选择/摘要写入 `docs/GUI_APP_PROFILE.md`。
 - GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可同时展示固定 `136px` 侧栏和三张赞助档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
-- GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含由 `rust-i18n` 运行时解析的显示/退出，关闭主窗口只隐藏；标题按 `{applicationName} {version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定左侧菜单为 `136px` 单态，`56px` Logo 永远在顶部、当前版本紧随其下，菜单以 `30px` 图标在上、`11px`/`10em` 文字在下的方式居中显示，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页只提供应用/版本、中英文切换和三态主题，不含隐私或统计区块；关于页包含更新状态、固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体并同时适配亮色/暗色。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
+- GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含由 `rust-i18n` 运行时解析的显示/退出，关闭主窗口只隐藏；标题按 `{applicationName} v{version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定左侧菜单为 `136px` 单态，`56px` Logo 永远在顶部、带 `v` 当前版本紧随其下，菜单以 `30px` 图标在上、`11px`/`10em` 文字在下的方式居中显示，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页只提供应用/版本、中英文切换和三态主题，不含隐私或统计区块；关于页包含更新状态、固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体并同时适配亮色/暗色。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
 - 新增 `AppSidebarTemplate`、`SettingsPageTemplate`、`MandatoryUpdateGateTemplate`、固定导航清单和更新展示状态模板，并补齐中文/英文资源。中性 GUI 的检查更新显示 `NotConfigured` 且零出站；默认设置模板不再携带统计 props、控件或翻译键，根级强更门只接受 core 已判定的 `RequiredUpdate`，不从远端布尔值自行推导。
 - 新增更新/强更/统计专项参考：更新采用官方 Tauri updater 签名制品和公开验证密钥；强更使用经验证的 `minimumSupportedVersion` 与 core 严格 SemVer；统计默认关闭、明确同意，只允许 HTTPS JSON `POST` 的最小字段白名单，不包含稳定设备/安装标识，并使用有界内存队列、单飞请求、取消、超时、重试和关闭回收。
 - 新增无产品身份的 660×400 macOS DMG 拖拽背景资产；GUI 初始化会把它写入 `<项目标识>_gui/src-tauri/dmg/background.png`，并把 Tauri 配置固定接到 `./dmg/background.png`。GUI 身份流程负责预览批准或同路径替换，Tauri 构建在测试前校验路径、尺寸、摘要与配置一致；新增 PNG 资产解析和构建引用负向回归。
@@ -28,6 +30,9 @@
 
 ## 变更
 
+- `HARNESS-FEAT-GUI-PROCESS-SESSION-STATE`（所需 Harness 版本 `202608051301`）：GUI 活动选项卡、查询/筛选、排序和分页等页面工作状态现在由应用根 Jotai store 在本次程序进程内跨路由、关闭隐藏与单实例唤醒保留，退出后恢复默认且禁止页面会话持久化/URL/Query 数据镜像；共享 helper 与回归覆盖成功空页从大于 1 回退第 1 页、加载/错误不回退及第 1 页不循环。
+- 页面交互事件现在由实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身处理，Card、表格行/单元格等父级不再代理子动作；表格中的 `Switch` 不会因点击所在行而切换，模板回归分别覆盖控件与父级点击。
+- 所有用户可见版本号统一为一个小写 `v` 前缀，覆盖窗口标题、侧栏、设置/关于页、更新状态、CLI `--version` 与更新日志；Cargo、JSON/协议、状态和 manifest 机器版本保持原始值。
 - `HARNESS-FEAT-TIERED-CODE-LINE-LIMITS`（所需 Harness 版本 `202608051301`）：代码行数门禁改为分层配置。Rust 代码超过 400 行进入建议重构复核、超过 800 行强制拆分；前端代码超过 500 行进入建议重构复核、超过 1000 行强制拆分；其他人工维护文本保留 500/2000。Rust 多文件模块固定使用 `<module>/mod.rs` 目录入口，前端按功能职责拆分且不强制 `index.ts` 桶文件；统一检查器与 Harness bridge 现在报告具体 profile、建议阈值和硬上限。
 - GUI 单实例从未声明的实现选择提升为不可省略的初始化硬门禁：使用官方 `tauri-plugin-single-instance` 且必须最先注册，同一用户会话第二次启动只恢复、取消最小化并聚焦既有主窗口后退出，不得留下第二个长期应用主进程或主窗口；中性回调忽略且不记录启动参数/工作目录。结构检查、两个固定命名回归和真实双启动唯一性证据任一缺失都会阻断基线提交；Linux Snap/Flatpak 另需在渠道清单声明并验证会话 DBus 权限。
 - GUI 系统托盘从文字基线提升为不可省略的初始化硬门禁，并修复了“代码看似存在但图标未显示”的漏检：除应用图标、精确双项菜单、关闭隐藏、两种恢复和退出外，现在强制验证非透明 32px RGBA 图标及 `bundle.icon` 引用、从 Tauri `.setup` 可达的 Menu/default-icon/icon/build 接线和已注册关闭事件；图标缺失不能静默继续，Linux tray 必须绑定菜单。初始化 E2E 还必须看到状态栏/通知区域中的非空可见图形，透明点击区域或只能弹菜单的不可见占位不会通过。
@@ -60,6 +65,9 @@
 
 ## 验证
 
+- 当前最终状态运行 `python3 -m unittest discover -s scripts`，198 条测试全部通过；`python3 scripts/validate_harness.py` 通过 151 个必需文件、26 个 Skills 及本次页面事件归属、进程内页面会话、近五版更新日志和单 `v` 展示契约，产生 6 条未达硬上限的非阻断行数复核提示。
+- GUI 支持契约专项 23/23、发布日志 helper 专项 5/5、中性 Rust workspace 7/7、候选 workflow 29/29 均通过；10 个本次涉及的项目 Skills 通过 Skill Creator quick validator，`git diff --check` 通过。
+- Harness 源仓库没有可执行前端 `package.json`/`pnpm-lock.yaml`，因此没有把新增 `PageSessionState.test.ts` 与更新日志模板 Vitest 声称为已运行；Python validator 与负向回归已静态锁定根 store 生命周期、每页数量变化回第 1 页、成功空页回退、持久化 API 拒绝、按钮自身事件、5/10 上限和单 `v` 归一化，真实 GUI 下游初始化仍须运行模板前端测试。
 - 分层行数检查器专项测试 15/15 通过，覆盖 Rust 400/401/800/801、前端 500/501/1000/1001、全部声明前端后缀、通用文本 500/501/2000/2001、profile 元数据、Rust `<module>/mod.rs` 诊断、Git 可见范围、生成锁文件排除与 CLI 0/1/2 退出码；Harness bridge 合并入口 19/19 通过。
 - `python3 -m unittest discover -s scripts`：191 条测试全部通过；`python3 scripts/validate_harness.py` 通过 144 个必需文件、26 个 Skills 和新的 Rust 400/800、前端 500/1000、通用文本 500/2000 契约。
 - 真实行数检查覆盖 208 个受维护文本，无硬超限；4 个非阻断候选已复核为职责集中且职责相近：Rust 中文声明注释检查器、共享 GUI 支持模板契约测试、GUI 生命周期契约检查器、初始化主契约片段表。4 个修改过的 Skill 均通过 Skill Creator quick validator，Python 编译与 `git diff --check` 通过。

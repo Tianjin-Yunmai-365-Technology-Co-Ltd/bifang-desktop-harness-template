@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 
 import { FIXED_BOTTOM_NAVIGATION_ITEMS } from "./supportNavigation";
 import { isLocalSupportPath } from "./brandSupportProfile";
+import { formatDisplayVersion } from "./displayVersion";
 
 /** 固定侧栏宽度为约十个中文字符及两侧留白提供稳定空间。 */
 export const APP_SIDEBAR_WIDTH_PX = 136;
@@ -138,6 +139,7 @@ export function AppSidebarTemplate({
   onNavigate,
 }: AppSidebarTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
+  const displayVersion = formatDisplayVersion(version);
 
   if (!isLocalSupportPath(logoSrc)) {
     throw new Error("application logo must use a packaged local path");
@@ -177,7 +179,7 @@ export function AppSidebarTemplate({
             w={APP_SIDEBAR_LOGO_SIZE_PX}
           />
           <Text
-            aria-label={`${applicationName} ${t("sidebar.version", { version })}`}
+            aria-label={`${applicationName} ${t("sidebar.version", { version: displayVersion })}`}
             c="dimmed"
             data-testid="app-sidebar-version"
             fw={600}
@@ -185,7 +187,7 @@ export function AppSidebarTemplate({
             size="xs"
             ta="center"
           >
-            v{version}
+            {displayVersion}
           </Text>
         </Stack>
 

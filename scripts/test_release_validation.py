@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.harness_validation import release
 
@@ -97,7 +98,6 @@ class BuildSkillValidationTests(unittest.TestCase):
         self.assertNotEqual(mutated, source)
         errors = self._validate_build(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
-
     def test_rejects_missing_started_matrix_failure_boundary(self) -> None:
         """矩阵真实失败不得通过本机回退被伪装成整体成功。"""
         source = release.BUILD_RELEASE_SKILL.read_text(encoding="utf-8")
@@ -170,6 +170,24 @@ class BuildSkillValidationTests(unittest.TestCase):
         self.assertNotEqual(mutated, source)
         errors = self._validate_collect(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
+
+
+class ReleaseNotesContractValidationTests(unittest.TestCase):
+    """锁定发布日志 helper 的五版/十条、原子写入和固定格式。"""
+
+    def test_rejects_weakened_release_notes_retention(self) -> None:
+        """helper 把近五版上限放宽时，Harness 总验证必须失败。"""
+
+        source = release.RELEASE_NOTES_HELPER.read_text(encoding="utf-8")
+        mutated = source.replace("MAX_RELEASES = 5", "MAX_RELEASES = 6", 1)
+        self.assertNotEqual(mutated, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "release_notes.py"
+            path.write_text(mutated, encoding="utf-8")
+            errors: list[str] = []
+            with mock.patch.object(release, "RELEASE_NOTES_HELPER", path):
+                release.validate_release_contract(errors)
+        self.assertTrue(any("MAX_RELEASES = 5" in error for error in errors), errors)
 
 
 class TauriBuildSkillValidationTests(unittest.TestCase):

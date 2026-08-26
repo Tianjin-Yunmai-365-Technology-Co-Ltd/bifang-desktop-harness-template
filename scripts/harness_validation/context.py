@@ -97,6 +97,18 @@ PARALLEL_WORKTREE_SCRIPT = PARALLEL_SKILL / "scripts" / "parallel_worktrees.py"
 PARALLEL_WORKTREE_TESTS = PARALLEL_SKILL / "scripts" / "test_parallel_worktrees.py"
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md"
+RELEASE_NOTES_HELPER = (
+    SKILLS_ROOT
+    / "desktop-prepare-release"
+    / "scripts"
+    / "release_notes.py"
+)
+RELEASE_NOTES_HELPER_TESTS = (
+    SKILLS_ROOT
+    / "desktop-prepare-release"
+    / "scripts"
+    / "test_release_notes.py"
+)
 VERSION_SKILL = SKILLS_ROOT / "desktop-manage-version"
 VERSION_GATE_HELPER = VERSION_SKILL / "scripts" / "version_gate.py"
 VERSION_GATE_TESTS = VERSION_SKILL / "scripts" / "test_version_gate.py"
@@ -263,6 +275,10 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-build-tauri-release/scripts/test_tauri_release_gates.py",
     ".agents/skills/desktop-build-tauri-release/scripts/verify-dmg-layout.sh",
     ".agents/skills/desktop-build-tauri-release/scripts/test_verify_dmg_layout.py",
+    ".agents/skills/desktop-prepare-release/scripts/release_notes.py",
+    ".agents/skills/desktop-prepare-release/scripts/test_release_notes.py",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/pageSessionState.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/PageSessionState.test.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/SKILL.md",
     ".agents/skills/desktop-prepare-gui-support-surfaces/agents/openai.yaml",
     ".agents/skills/desktop-prepare-gui-support-surfaces/references/gui-support-surfaces.md",
@@ -276,6 +292,9 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/rust-i18n/zh-CN.yml",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/rust-i18n/en-US.yml",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/AboutPageTemplate.tsx",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/ReleaseNotesDialogTemplate.tsx",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/displayVersion.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/releaseNotes.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SponsorPageTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SupportMedia.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/BrandUpdaterBanner.tsx",

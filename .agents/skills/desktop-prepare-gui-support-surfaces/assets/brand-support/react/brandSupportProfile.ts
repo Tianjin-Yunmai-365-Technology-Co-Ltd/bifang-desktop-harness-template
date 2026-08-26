@@ -1,5 +1,7 @@
 import profileJson from "../brand-support-profile.json";
 
+import { formatDisplayVersion } from "./displayVersion";
+
 /** 品牌联系人及其用户可见渠道。 */
 export interface BrandSupportContact {
   channel: string;
@@ -63,7 +65,7 @@ export function formatBrandWindowTitle(
   version: string,
 ): string {
   const normalizedName = applicationName.trim();
-  const normalizedVersion = version.trim();
+  const normalizedVersion = formatDisplayVersion(version);
   if (!normalizedName || !normalizedVersion) {
     throw new Error("window title requires application name and version");
   }

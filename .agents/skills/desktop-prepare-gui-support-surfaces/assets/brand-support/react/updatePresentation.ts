@@ -13,7 +13,6 @@ export interface UpdatePresentation {
   status: UpdateStatus;
   currentVersion: string;
   availableVersion?: string;
-  releaseNotes?: string;
 }
 
 /** 只接受 core 已判定的强更状态，前端不得从远端布尔值自行推导。 */

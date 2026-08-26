@@ -44,6 +44,7 @@ REQUIRED_RULES = {
     "docs/VERIFICATION.md": "protected",
     "docs/verification/**": "protected",
     "docs/TECH_DEBT.md": "protected",
+    "release-notes.json": "protected",
     "LICENSE.zh-CN.md": "protected",
     "LICENSE.en.md": "protected",
     "Cargo.toml": "protected",

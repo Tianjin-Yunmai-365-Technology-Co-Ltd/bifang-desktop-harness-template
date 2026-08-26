@@ -72,8 +72,53 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             't("about.disclaimer_2")',
             't("about.disclaimer_3")',
             't("about.check_for_updates")',
+            't("about.release_notes")',
             'update.status === "not-configured"',
+            'data-testid="about-update-section"',
+            "setReleaseNotesOpened(true)",
+            "ReleaseNotesDialogTemplate",
+            "releaseNotes?: readonly ReleaseNoteEntry[]",
             "actions ?",
+        ),
+        react_root / "ReleaseNotesDialogTemplate.tsx": (
+            "selectVisibleReleaseNotes",
+            "formatDisplayVersion(release.version)",
+            't("release_notes.entry_title"',
+            't("release_notes.feature_optimizations")',
+            't("release_notes.bug_fixes")',
+        ),
+        react_root / "releaseNotes.ts": (
+            "MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5",
+            "MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10",
+            "releases.slice(0, MAX_VISIBLE_RELEASE_NOTE_VERSIONS)",
+        ),
+        react_root / "displayVersion.ts": (
+            "formatDisplayVersion",
+            'replace(/^[vV]+/, "")',
+            "return `v${normalized}`",
+        ),
+        react_root / "pageSessionState.ts": (
+            'from "jotai"',
+            "createPageSessionState",
+            "const stateAtom = atom(normalizedInitialState)",
+            "setSelectionAtom",
+            "query: selection.query,\n        page: 1,",
+            "setPaginationAtom",
+            "page: pageSize === current.pageSize ? page : 1",
+            "reconcilePageAfterResultAtom",
+            'result.status !== "success"',
+            "current.page === 1",
+            "set(stateAtom, { ...current, page: 1 })",
+            "Object.freeze",
+        ),
+        react_root / "PageSessionState.test.ts": (
+            'from "jotai/vanilla"',
+            "keeps tabs queries and pagination when a route unmounts and remounts",
+            "resets to page one when the page size changes",
+            "resets to page one when the tab or query scope changes",
+            "falls back to page one only after a successful empty page result",
+            "does not treat loading errors or an empty first page as a stale page",
+            "starts from defaults in a new application store",
         ),
         react_root / "SponsorPageTemplate.tsx": (
             "cols={{ base: 1, sm: 2, lg: 3 }}",
@@ -97,6 +142,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
         ),
         react_root / "brandSupportProfile.ts": (
             "formatBrandWindowTitle",
+            "formatDisplayVersion(version)",
             "BRAND_SUPPORT_PROFILE.contacts.windowTitle",
             "isLocalSupportPath",
             "resolveBrandAssetPath",
@@ -142,6 +188,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "icon: TablerIcon",
             "FIXED_NAVIGATION_ICONS",
             'style={{ alignItems: "center", width: "100%" }}',
+            "formatDisplayVersion(version)",
         ),
         react_root / "AppThemeProviderTemplate.tsx": (
             'AppColorScheme = "light" | "dark" | "auto"',
@@ -163,6 +210,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             't("settings.theme_system")',
             "useMantineColorScheme",
             "setColorScheme(value)",
+            "formatDisplayVersion(version)",
         ),
         react_root / "MandatoryUpdateGateTemplate.tsx": (
             "requiresMandatoryUpdate(update)",
@@ -170,6 +218,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "onInstallUpdate",
             "onExitApplication",
             "普通功能",
+            "formatDisplayVersion(update.currentVersion)",
         ),
         react_root / "SupportSurfaceTemplates.test.tsx": (
             "2222980",
@@ -188,6 +237,10 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             'alignItems: "center"',
             "distinct light and dark application theme variables",
             "inert update entry on About",
+            "keeps update actions bound to their own controls",
+            "MAX_VISIBLE_RELEASE_NOTE_VERSIONS",
+            "MAX_VISIBLE_RELEASE_NOTE_ITEMS",
+            "-----------更新日志 2026-08-26 v1.0.6----------",
             "core-classified mandatory update",
             "video.controls",
             "video.autoplay",
@@ -259,6 +312,28 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
     ):
         if forbidden in settings_text:
             fail(errors, f"GUI default settings restored forbidden privacy surface: {forbidden}")
+    about_text = texts.get(react_root / "AboutPageTemplate.tsx", "")
+    if re.search(
+        r'<Paper(?=[^>]*data-testid="about-update-section")[^>]*\bonClick=',
+        about_text,
+        re.DOTALL,
+    ):
+        fail(errors, "GUI About update section must not proxy child button actions")
+    page_session_text = texts.get(react_root / "pageSessionState.ts", "")
+    for forbidden in (
+        "atomWithStorage",
+        "localStorage",
+        "sessionStorage",
+        "indexedDB",
+        "@tauri-apps/plugin-store",
+        "window.location",
+    ):
+        if forbidden in page_session_text:
+            fail(
+                errors,
+                "GUI page session state must remain process-memory only: "
+                f"{forbidden}",
+            )
     for path, text in texts.items():
         if path.name.endswith(".test.tsx"):
             continue
@@ -293,6 +368,14 @@ def validate_gui_support_contract(
             "水平居中",
             "浅色/深色/跟随系统",
             "手动检查更新固定在关于页",
+            "旁边的“更新日志”按钮",
+            "最近 5 个版本",
+            "各最多 10 条",
+            "一个小写 `v`",
+            "父级代理",
+            "pageSessionState.ts",
+            "应用根 Jotai store",
+            "成功空页",
             "AppThemeProviderTemplate.tsx",
             "底部固定项按视觉顺序为赞助、设置、关于",
             "`/settings`、`/about` 与 `/sponsor` 是固定路由",
@@ -314,13 +397,20 @@ def validate_gui_support_contract(
         ),
         reference_path: (
             "## 所有权矩阵",
-            "`{applicationName} {version} {contactChannel}:{contactValue}`",
+            "`{applicationName} v{version} {contactChannel}:{contactValue}`",
             "底部固定组按视觉顺序为赞助、设置、关于",
             "左侧菜单固定为 `136px` 宽的单一状态",
             "@tabler/icons-react",
             "水平居中",
             "浅色、深色、跟随系统",
-            "关于页提供手动检查更新状态",
+            "关于页在手动检查更新旁提供",
+            "更新日志”按钮",
+            "最近 5 个版本",
+            "各最多 10 条",
+            "表格中的 `Switch` 不得因点击行或单元格而切换",
+            "页面工作状态使用共享 `pageSessionState.ts`",
+            "新 store 从默认值开始",
+            "loading/error 不回退",
             "设置页只提供当前应用/版本、中英文和浅色/深色/跟随系统",
             "托盘 i18n",
             "每个远程能力单独记录",
@@ -337,6 +427,9 @@ def validate_gui_support_contract(
             "设置页只保留应用/版本、语言与三态主题",
             "托盘 i18n",
             "手动检查更新和稳定状态固定存在",
+            "ReleaseNotesDialog",
+            "近 5 版固定结构",
+            "父容器点击不代理两个按钮",
             "作者、联系人、三段免责声明",
             "固定价格是 19、199、1999 CNY",
             "不得使用固定 `minWidth: 800`",
@@ -346,6 +439,10 @@ def validate_gui_support_contract(
         update_reference_path: (
             "## 更新状态机",
             "手动“检查更新”和更新状态固定在 `/about`",
+            "旁边的“更新日志”按钮",
+            "最近 5 版",
+            "各最多 10 条",
+            "两个按钮的事件只绑定各自元素",
             "`NotConfigured`",
             "`RequiredUpdate`",
             "minimumSupportedVersion",
@@ -379,6 +476,10 @@ def validate_gui_support_contract(
             "同一产物同时支持亮色和暗色",
             "浅色、深色、跟随系统",
             "手动检查更新：入口固定存在",
+            "更新日志：按钮紧邻“检查更新”且事件绑定在按钮自身",
+            "最近 5 版",
+            "各最多 10 条",
+            "全部版本只带一个小写 `v`",
             "视觉顺序严格为赞助、设置、关于",
             "`NotConfigured`",
             "禁止远端布尔值直接触发",

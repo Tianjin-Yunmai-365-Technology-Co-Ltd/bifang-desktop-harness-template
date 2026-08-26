@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import textwrap
 import unittest
@@ -92,7 +93,18 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
             stage.mkdir()
             archive_name = "example-tool-v1.2.3-linux-x64.tar.gz"
             archive = stage / archive_name
-            archive.write_bytes(b"candidate-bytes")
+            release_notes = root / "release-notes.json"
+            release_notes.write_text(
+                '{"schemaVersion":1,"releases":[{"releaseDate":"2026-08-26",'
+                '"version":"v1.2.3","featureOptimizations":["fixture"],'
+                '"bugFixes":[]}]}\n',
+                encoding="utf-8",
+            )
+            binary = root / "example-tool"
+            binary.write_bytes(b"candidate-binary")
+            with tarfile.open(archive, "w:gz") as package:
+                package.add(binary, arcname="example-tool")
+                package.add(release_notes, arcname="release-notes.json")
             digest = hashlib.sha256(archive.read_bytes()).hexdigest()
             (stage / f"{archive_name}.sha256").write_text(
                 f"{digest}  {archive_name}\n",
@@ -114,6 +126,9 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                     "SIGNING_STATUS": "signed",
                     "SIGNING_REASON": "configured-hook-succeeded",
                     "SIGNING_EVIDENCE": "configured-hook-verify-exit-0",
+                    "RELEASE_NOTES_SHA256": hashlib.sha256(
+                        release_notes.read_bytes()
+                    ).hexdigest(),
                     "PYTHON_COMMAND": sys.executable,
                 }
             )
@@ -132,6 +147,11 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
             )
             self.assertEqual(manifest["sha256"], digest)
             self.assertEqual(manifest["e2eSelection"], "disabled")
+            self.assertEqual(manifest["releaseNotesVersion"], "v1.2.3")
+            self.assertEqual(
+                manifest["releaseNotesSha256"], env["RELEASE_NOTES_SHA256"]
+            )
+            self.assertEqual(manifest["releaseNotesPath"], "release-notes.json")
             self.assertEqual(
                 manifest["signingEvidence"]["verification"],
                 "configured-hook-verify-exit-0",

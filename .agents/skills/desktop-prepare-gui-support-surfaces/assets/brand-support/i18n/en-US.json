@@ -7,6 +7,7 @@
     "contact_label": "QQ {{contact}}",
     "update_title": "Software updates",
     "check_for_updates": "Check for updates",
+    "release_notes": "Release notes",
     "disclaimer_title": "Disclaimer",
     "disclaimer_1": "This software/service is for learning, research, and lawful use only. Any activity that violates the laws of the People’s Republic of China is strictly prohibited.",
     "disclaimer_2": "Users are solely responsible for all actions taken while using this software/service and their consequences. The developers and operators bear no legal liability.",
@@ -98,5 +99,13 @@
     "version_transition": "Current {{current}} → available {{available}}",
     "install_update": "Install update",
     "exit_application": "Exit application"
+  },
+  "release_notes": {
+    "dialog_title": "Release notes",
+    "entry_title": "-----------更新日志 {{date}} {{version}}----------",
+    "feature_optimizations": "###功能优化",
+    "bug_fixes": "###问题修复",
+    "empty": "No published release notes are available",
+    "none": "None"
   }
 }

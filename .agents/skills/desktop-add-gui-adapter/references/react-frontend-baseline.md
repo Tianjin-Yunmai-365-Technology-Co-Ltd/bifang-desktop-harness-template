@@ -10,7 +10,7 @@
 - 使用 `@tabler/icons-react` 作为唯一图标库。直接依赖使用经最低直接版本验证的完整三段 caret 下界，组件采用命名导入；菜单、操作、状态、空态及图表周边控件存在适用图标时必须优先选择 Tabler，不得另装图标库或改用手写 SVG、字符、emoji。数据可视化本身不由图标库承担。
 - 使用 TanStack Router（`@tanstack/react-router`）及其 Vite 插件建立文件路由和自动 route code splitting；`src/routeTree.gen.ts` 是唯一生成路由树，必须提交但禁止手改，并在 ESLint、Prettier 与中文注释门禁中按根相对路径精确排除。
 - 使用 TanStack Query（`@tanstack/react-query`）管理命令支撑及其他异步资源状态，包括请求生命周期、缓存和失效。
-- 使用 Jotai（`jotai`）管理确实需要跨组件共享的纯客户端状态。
+- 使用 Jotai（`jotai`）管理确实需要跨组件共享的纯客户端状态。应用根 Provider/store 必须位于不会随 route unmount 重建的壳层；活动选项卡、已应用查询/筛选、排序、分页页码/每页数量及同类可恢复页面工作状态在页面模块顶层创建稳定 atom，并在当前应用进程内跨路由保留。关闭隐藏和单实例唤醒沿用同一 store，真正退出后由新 store 回到默认值。
 - 使用 `i18next` 与 `react-i18next` 作为界面文案国际化事实标准；初始化已经交付固定关于/赞助页面，因此中性 GUI 脚手架也必须立即接入（见 ADR-20260806-001）。
 - 使用 ESLint + `typescript-eslint`、Prettier、Vitest、Testing Library、`jest-dom`、`user-event` 与 jsdom 形成固定静态和测试基线。
 
@@ -41,10 +41,12 @@
 - 完整遵守 [Mantine UI 设计规范](mantine-ui-guidelines.md)，每个 React 根只挂载一个 `MantineProvider`，主题和语义令牌只有一个入口。
 - 优先使用 Mantine 组件、布局原语、焦点行为和主题令牌。自定义组件必须代表 Mantine 组合无法表达的已批准交互或样式需求。
 - 保持路由定义和加载器轻量。当预取能防止瀑布请求时，将 TanStack Router 加载器与 TanStack Query 集成，但只保留一个 QueryClient/缓存。
-- 只有本地组件状态或 URL/搜索状态不足时才使用 Jotai；atom 应保持小而且按用途命名。
+- 只有本地组件状态不足且状态确需跨组件或跨路由保留时才使用 Jotai；atom 应保持小而且按用途命名。URL/search 只用于产品明确批准的可分享导航事实，不得作为本次进程页面会话的隐式持久层。
 - 前端代码使用窄而有类型的 Tauri 命令。它不包含业务规则、迁移、平台无关验证或第二套持久存储。
 - React event handler、Router loader、Query mutation 和 atom 只管理导航、请求生命周期或纯交互状态；它们不得编排多个命令来决定业务结果。需要条件、重试或状态决策的工作流必须由单个 core 用例通过窄 Tauri 命令暴露。
-- 在 Tauri 中打包本地前端资产。GUI 下游完整保留该 Skill 的品牌源资产；初始化固定建立 `136px` 单态左侧菜单、`/settings`、`/about`、`/sponsor`。选中的 `56px` 本地 Logo 永远位于侧栏顶部，当前版本紧随其下；每个功能项和固定项必须提供 `30px` 图标，固定按图标在上、名称在下呈现，名称使用 `11px` 字号、`10em` 行内宽度、水平居中和最多两行，并保留完整可访问名称；不得建立展开/折叠状态、开关或 Tooltip-only 名称。产品功能项从顶部向下增长，底部组按赞助、设置、关于渲染。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver，亮色/暗色分别定义页面背景、surface、主/次文字、边框与强调色；设置页只提交语言和 `light`/`dark`/`auto`，不渲染隐私/统计区块，Sponsor 通过 `useComputedColorScheme` 适配运行时背景叠层、surface 与对比色。按 manifest 原样复制完整 sponsor 媒体并禁止优化支付二维码；关于页显示当前应用名/版本、手动检查更新、作者、联系方式和三段免责声明。未配置远端能力时关于页只显示 `NotConfigured`/禁用状态且零出站；真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
+- React 事件必须绑定在拥有动作的语义控件本身，不得由 Card、`Table.Tr`、`Table.Td` 等父级代理按钮、链接、`Switch` 或 `Checkbox` 动作；父级有自己的独立动作时应隔离冲突传播。表格中的 `Switch` 只能因用户操作该控件而切换，点击所在行或单元格不得切换。
+- 页面会话 atom 只保存控件值，不得接入 `atomWithStorage`、localStorage、sessionStorage、IndexedDB、Tauri Store、文件/数据库或 URL，也不得镜像 TanStack Query 数据或 core 权威状态；语言、主题等已批准的设备偏好沿用独立持久化契约。查询范围或每页数量变化时页码重置为 1；路由返回后只有 Query 成功、当前页大于 1 且结果为空时才回退第 1 页并以新 query key 重查，loading/error 与第 1 页空结果不回退。复用品牌包的 `pageSessionState.ts`/`PageSessionState.test.ts` 作为初始化实现与回归基线。
+- 在 Tauri 中打包本地前端资产。GUI 下游完整保留该 Skill 的品牌源资产；初始化固定建立 `136px` 单态左侧菜单、`/settings`、`/about`、`/sponsor`。选中的 `56px` 本地 Logo 永远位于侧栏顶部，带一个小写 `v` 的当前版本紧随其下；每个功能项和固定项必须提供 `30px` 图标，固定按图标在上、名称在下呈现，名称使用 `11px` 字号、`10em` 行内宽度、水平居中和最多两行，并保留完整可访问名称；不得建立展开/折叠状态、开关或 Tooltip-only 名称。产品功能项从顶部向下增长，底部组按赞助、设置、关于渲染。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver，亮色/暗色分别定义页面背景、surface、主/次文字、边框与强调色；设置页只提交语言和 `light`/`dark`/`auto`，不渲染隐私/统计区块，Sponsor 通过 `useComputedColorScheme` 适配运行时背景叠层、surface 与对比色。按 manifest 原样复制完整 sponsor 媒体并禁止优化支付二维码；关于页显示当前应用名/版本、作者、联系方式和三段免责声明，并在“检查更新”旁提供元素自身绑定的“更新日志”按钮。该按钮读取候选打包的 `release-notes.json`，最多展示近 5 个版本、每版两类各最多 10 条，全部可见版本只带一个小写 `v`；未配置远端能力时检查按钮显示 `NotConfigured`/禁用且零出站，本地更新日志仍可用。真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
 - 应用启动时使用 Tauri `tauri-plugin-os` 的 `locale()` 探测系统语言初始化 `i18next`；缺少对应资源时回退英文。界面必须提供 Mantine 组件实现的可发现语言切换入口，切换后的选择通过 GUI 适配器的本地偏好存储持久化，不写入 core，并通知 Rust adapter 无需重启地刷新当前托盘菜单标签。
 - 翻译资源按功能域拆分文件并使用稳定的层级 key（如 `settings.language.label`），不得在组件中拼接原始中文/英文字符串；核心领域错误标识作为 key 的一部分由前端映射为当前语言文案，业务判断本身不得放入翻译资源或组件。初始化把品牌包的中英文 JSON 注册为 `brandSupport` namespace，仍复用唯一 i18next 实例和语言偏好；缺少对应系统语言资源时回退英文。
 - 更新展示只消费 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`。React 不解析远端版本策略、不验证签名、不从 `forcedUpdate` 等字段推导强更；根级 `RequiredUpdate` 分支不挂载普通功能，只呈现安装与退出。
@@ -59,7 +61,7 @@
 - 前端清单提供稳定的 `dev`、`build`、`test`、`typecheck`、`lint` 和 `format:check` 脚本；`lint` 必须同时运行 ESLint 与 [TypeScript AST 中文注释检查器](check-typescript-chinese-comments.cjs)，项目 validator 也独立调用同一检查器，避免只改脚本即可绕过。
 - TypeScript Compiler AST 中文注释检查器及其 [专项测试](check-typescript-chinese-comments.test.ts) 是 GUI 下游保留的治理资产。复制到项目自有工具目录后只修改导入路径和扫描根，不扩张到局部变量/普通匿名回调，也不得增加自动批量注释功能。
 - 门禁跟踪直接及后置命名/默认导出的箭头函数组件与 hook；`test`/`it` 只在 `.test.*`、`.spec.*`、`test/`、`tests/`、`__tests__/` 或显式从 `vitest` 导入的上下文中视为测试场景，避免业务同名调用误报。
-- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖侧栏 `136px` 单态、Logo→版本 DOM 顺序、`56px` Logo、`30px` 图标、图标上/文字下、`11px`/`10em` 名称、无折叠状态/开关/Tooltip-only 名称、功能区与固定底部顺序、默认设置页无隐私/统计控件和翻译键、设置/关于/赞助路由、浅色/深色/跟随系统回调及亮暗语义变量差异、Sponsor 亮色/暗色差异、语言回调、关于页 `NotConfigured` 零出站、强更门不可绕过、动态 `document.title`、作者/联系人/免责声明、固定价格/联系人、两张支付码 alt、响应式危险回归和本地媒体路径；视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
+- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖侧栏 `136px` 单态、Logo→版本 DOM 顺序、`56px` Logo、`30px` 图标、图标上/文字下、`11px`/`10em` 名称、无折叠状态/开关/Tooltip-only 名称、功能区与固定底部顺序、默认设置页无隐私/统计控件和翻译键、设置/关于/赞助路由、浅色/深色/跟随系统回调及亮暗语义变量差异、Sponsor 亮色/暗色差异、语言回调、关于页 `NotConfigured` 零出站、更新日志五版/十条上限、全部展示版本恰有一个 `v`、更新区父容器不代理两个按钮、强更门不可绕过、动态 `document.title`、作者/联系人/免责声明、固定价格/联系人、两张支付码 alt、响应式危险回归和本地媒体路径；行内交互还要分别点击语义控件与父级周围区域，证明父级不会代理按钮、链接、`Switch` 或 `Checkbox`。页面会话回归用同一根 store 证明选项卡、查询/筛选、排序和分页跨 route unmount/remount 保留，用新 store 证明进程重启回到默认值，并覆盖成功空页回退、loading/error 不回退及第 1 页不循环。视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
 
 ## 配置、日志与产物
 

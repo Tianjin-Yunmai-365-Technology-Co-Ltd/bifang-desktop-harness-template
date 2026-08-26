@@ -49,7 +49,7 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             "docs/RELEASE.md",
         ),
         ROOT / "README.md": (  # noqa: F405
-            f"当前版本：{current_version}",
+            f"当前版本：v{current_version}",
             "上海时区 `YYYYMMDDHHMM`",
             "[`Version.md`](Version.md)",
         ),

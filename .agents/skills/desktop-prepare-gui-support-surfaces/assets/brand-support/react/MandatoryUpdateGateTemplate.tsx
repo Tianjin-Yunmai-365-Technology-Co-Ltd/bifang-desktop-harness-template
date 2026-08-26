@@ -2,6 +2,7 @@ import { Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { formatDisplayVersion } from "./displayVersion";
 import {
   requiresMandatoryUpdate,
   type UpdatePresentation,
@@ -52,15 +53,12 @@ export function MandatoryUpdateGateTemplate({
           <Text>{t("updater.required_description")}</Text>
           <Text c="dimmed" size="sm">
             {t("updater.version_transition", {
-              current: update.currentVersion,
-              available: update.availableVersion ?? "—",
+              current: formatDisplayVersion(update.currentVersion),
+              available: update.availableVersion
+                ? formatDisplayVersion(update.availableVersion)
+                : "—",
             })}
           </Text>
-          {update.releaseNotes ? (
-            <Text style={{ whiteSpace: "pre-wrap" }}>
-              {update.releaseNotes}
-            </Text>
-          ) : null}
         </Stack>
         <Group justify="flex-end">
           <Button onClick={onExitApplication} variant="default">

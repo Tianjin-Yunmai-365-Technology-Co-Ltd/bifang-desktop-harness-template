@@ -18,6 +18,8 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "适配器操作 → core 用例 API → core 测试",
             "workspace 可达闭包",
             "业务逻辑是否真正位于 core",
+            "页面会话状态不得接入 `atomWithStorage`",
+            "TanStack Query 继续拥有异步数据和缓存",
         ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (  # noqa: F405
             "Core-first 是四类接口共同的硬规则",
@@ -26,6 +28,7 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "workspace 依赖路径",
             "scripts/check_core_first.py",
             "cargo metadata --no-deps --locked --format-version 1",
+            "页面会话 atom 不得使用 `atomWithStorage`",
         ),
         ROOT / "AGENTS.md": (  # noqa: F405
             "Core-first 是硬规则",
@@ -75,11 +78,13 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
         GUI_SKILL: (  # noqa: F405
             "GUI 事件/命令 → core API → core 测试",
             "平台机制本身无需 core-first 例外 ADR",
+            "不得把 Query/核心/持久数据镜像到 atom 中",
         ),
         GUI_SUPPORT_SKILL: (  # noqa: F405
             "领域校验、跨接口可复用的资格判断",
             "进入 shared core",
             "属于 GUI adapter",
+            "禁止浏览器/Tauri/文件/数据库/URL 持久化和 Query/core 数据镜像",
         ),
         TUI_BASELINE: ("纯界面应用状态", "当前只有 TUI"),  # noqa: F405
         SKILLS_ROOT / "desktop-add-mcp-adapter" / "references" / "mcp-baseline.md": (  # noqa: F405
