@@ -19,8 +19,14 @@ def validate_engineering_contract(errors: list[str]) -> None:
     required_fragments = {
         ENGINEERING_RULES: (
             "## 2. 文件、模块与依赖边界",
-            "500 行复核",
-            "2000 行硬上限",
+            "Rust 代码：400 行及以内",
+            "800 行通过，801 行失败",
+            "前端代码：500 行及以内",
+            "1000 行通过，1001 行失败",
+            "其他人工维护文本",
+            "2000 行通过，2001 行失败",
+            "<module>/mod.rs",
+            "不强制 `index.ts` 桶文件",
             "高内聚、职责单一和职责相近性复核",
             "## 3. 中文代码注释",
             "### 3.4 机械存在性门禁",
@@ -41,10 +47,16 @@ def validate_engineering_contract(errors: list[str]) -> None:
         ROOT / "AGENTS.md": (
             "docs/ENGINEERING_RULES.md",
             "普通缺陷修复、不改变可观察行为的纯重构",
+            "Rust 代码超过 400 行建议重构、超过 800 行强制拆分",
+            "前端代码超过 500 行建议重构、超过 1000 行强制拆分",
+            "<module>/mod.rs",
         ),
         ROOT / "README.md": (
             "docs/ENGINEERING_RULES.md",
             "普通缺陷修复、不改变可观察行为的纯重构",
+            "Rust 代码超过 400 行建议重构、超过 800 行强制拆分",
+            "前端代码超过 500 行建议重构、超过 1000 行强制拆分",
+            "<module>/mod.rs",
         ),
         AGENT_POLICY: (
             "superpowers:",
@@ -58,6 +70,10 @@ def validate_engineering_contract(errors: list[str]) -> None:
         PRODUCT_SPEC: (
             "docs/ENGINEERING_RULES.md",
             "不把普通缺陷修复、纯重构、格式整理、测试补强或内部清理写成项目记忆流水账",
+            "HARNESS-FEAT-TIERED-CODE-LINE-LIMITS",
+            "Rust 代码 400 行及以内",
+            "前端代码 500 行及以内",
+            "<module>/mod.rs",
         ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": ("docs/ENGINEERING_RULES.md",),
         SKILLS_ROOT / "desktop-plan-change" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
@@ -70,6 +86,15 @@ def validate_engineering_contract(errors: list[str]) -> None:
             "docs/ENGINEERING_RULES.md",
             "只运行初始化本身必需的非空测试",
             "不自动追加格式、lint、静态、全仓门禁",
+            "Rust 代码超过 400 行建议重构",
+            "前端代码超过 500 行建议重构",
+            "<module>/mod.rs",
+        ),
+        SKILLS_ROOT / "desktop-refactor-code" / "SKILL.md": (
+            "Rust 401 至 800 行",
+            "前端 501 至 1000 行",
+            "<module>/mod.rs",
+            "不强制创建 `index.ts` 桶文件",
         ),
         ENVIRONMENT_SKILL / "SKILL.md": ("docs/RUST_CLI_TEMPLATE.md",),
         GUI_IDENTITY_SKILL: (

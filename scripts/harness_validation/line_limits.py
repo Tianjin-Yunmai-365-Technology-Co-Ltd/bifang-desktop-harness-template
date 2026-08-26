@@ -50,8 +50,10 @@ def validate_repository_line_limits(
             continue
         if warnings is not None:
             warnings.append(
-                "maintained text file requires cohesion/responsibility review above 500 lines: "
-                f"{candidate.get('path')} ({candidate.get('lines')} lines)"
+                f"{candidate.get('profile', 'maintained_text')} file exceeds its "
+                f"{candidate.get('threshold')}-line refactor-review threshold: "
+                f"{candidate.get('path')} ({candidate.get('lines')} lines, "
+                f"hard limit {candidate.get('limit')})"
             )
     for violation in report.get("violations", []):
         if not isinstance(violation, dict):
@@ -59,8 +61,9 @@ def validate_repository_line_limits(
             continue
         fail(
             errors,
-            "maintained text file exceeds hard 2000-line limit: "
-            f"{violation.get('path')} ({violation.get('lines')} lines)",
+            f"{violation.get('profile', 'maintained_text')} file exceeds its hard "
+            f"{violation.get('limit')}-line limit: {violation.get('path')} "
+            f"({violation.get('lines')} lines)",
         )
     if result.returncode not in {0, 1, 2}:
         fail(errors, f"file line-limit checker returned invalid exit code: {result.returncode}")

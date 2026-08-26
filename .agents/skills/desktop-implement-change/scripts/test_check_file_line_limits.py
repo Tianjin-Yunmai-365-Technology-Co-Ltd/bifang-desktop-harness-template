@@ -1,4 +1,4 @@
-"""覆盖人工维护文本 500 行复核与 2000 行硬门禁的边界语义。"""
+"""覆盖 Rust、前端与通用文本分层行数门禁的边界语义。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,17 @@ import tempfile
 import unittest
 from unittest import mock
 
-from check_file_line_limits import HARD_LINE_LIMIT, REVIEW_THRESHOLD, inspect_repository, main
+from check_file_line_limits import (
+    DEFAULT_HARD_LINE_LIMIT,
+    DEFAULT_REVIEW_THRESHOLD,
+    FRONTEND_CODE_SUFFIXES,
+    FRONTEND_HARD_LINE_LIMIT,
+    FRONTEND_REVIEW_THRESHOLD,
+    RUST_HARD_LINE_LIMIT,
+    RUST_REVIEW_THRESHOLD,
+    inspect_repository,
+    main,
+)
 
 
 class RepositoryFixture(unittest.TestCase):
@@ -52,24 +62,26 @@ class RepositoryFixture(unittest.TestCase):
 
 
 class FileLineLimitTests(RepositoryFixture):
-    """验证 500/501/2000/2001、Git 可见范围和封闭生成文件分类。"""
+    """验证三组阈值、Git 可见范围和封闭生成文件分类。"""
 
-    def test_accepts_500_lines_with_or_without_final_newline(self) -> None:
-        """恰好 500 行应通过且不进入复核候选，尾部换行不增加物理行。"""
+    def test_generic_text_accepts_500_lines_with_or_without_final_newline(self) -> None:
+        """通用文本恰好 500 行应通过，尾部换行不增加物理行。"""
 
-        self.write("tracked.txt", "\n".join("x" for _ in range(REVIEW_THRESHOLD)))
-        self.write("untracked.txt", "y\n" * REVIEW_THRESHOLD)
+        self.write(
+            "tracked.txt", "\n".join("x" for _ in range(DEFAULT_REVIEW_THRESHOLD))
+        )
+        self.write("untracked.txt", "y\n" * DEFAULT_REVIEW_THRESHOLD)
         self.track("tracked.txt")
         report = inspect_repository(self.root)
         self.assertTrue(report["ok"], report)
         self.assertEqual(report["checkedTextFiles"], 2)
         self.assertEqual(report["reviewCandidates"], [])
 
-    def test_reports_501_through_2000_lines_without_hard_failure(self) -> None:
-        """软阈值以上到硬上限的文件应通过机械检查并列为语义复核候选。"""
+    def test_generic_text_reports_501_through_2000_without_hard_failure(self) -> None:
+        """通用文本软阈值以上到硬上限应列为非阻断复核候选。"""
 
-        self.write("tracked.md", "x\n" * (REVIEW_THRESHOLD + 1))
-        self.write("nested/untracked.py", "x\n" * HARD_LINE_LIMIT)
+        self.write("tracked.md", "x\n" * (DEFAULT_REVIEW_THRESHOLD + 1))
+        self.write("nested/untracked.py", "x\n" * DEFAULT_HARD_LINE_LIMIT)
         self.track("tracked.md")
         report = inspect_repository(self.root)
         self.assertTrue(report["ok"], report)
@@ -77,12 +89,18 @@ class FileLineLimitTests(RepositoryFixture):
             [item["path"] for item in report["reviewCandidates"]],
             ["nested/untracked.py", "tracked.md"],
         )
+        self.assertTrue(
+            all(
+                item["profile"] == "maintained_text"
+                for item in report["reviewCandidates"]
+            )
+        )
         self.assertEqual(report["violations"], [])
 
-    def test_rejects_2001_lines_for_tracked_and_untracked_text(self) -> None:
-        """已跟踪和未忽略未跟踪文件超过 2000 行时都必须失败。"""
+    def test_generic_text_rejects_2001_tracked_and_untracked_lines(self) -> None:
+        """通用文本超过 2000 行时，无论是否已跟踪都必须失败。"""
 
-        payload = "\n".join("x" for _ in range(HARD_LINE_LIMIT + 1))
+        payload = "\n".join("x" for _ in range(DEFAULT_HARD_LINE_LIMIT + 1))
         self.write("tracked.md", payload)
         self.write("nested/untracked.py", payload)
         self.track("tracked.md")
@@ -93,10 +111,84 @@ class FileLineLimitTests(RepositoryFixture):
             ["nested/untracked.py", "tracked.md"],
         )
 
+    def test_rust_uses_400_line_review_and_800_line_hard_limits(self) -> None:
+        """Rust 的 400/401/800/801 边界必须选择 Rust 配置。"""
+
+        self.write("src/within.rs", "x\n" * RUST_REVIEW_THRESHOLD)
+        self.write("src/review.rs", "x\n" * (RUST_REVIEW_THRESHOLD + 1))
+        self.write("src/domain/mod.rs", "x\n" * RUST_HARD_LINE_LIMIT)
+        self.write("src/violation.rs", "x\n" * (RUST_HARD_LINE_LIMIT + 1))
+        report = inspect_repository(self.root)
+        self.assertFalse(report["ok"], report)
+        self.assertEqual(
+            [
+                (item["path"], item["profile"], item["threshold"], item["limit"])
+                for item in report["reviewCandidates"]
+            ],
+            [
+                ("src/domain/mod.rs", "rust", 400, 800),
+                ("src/review.rs", "rust", 400, 800),
+            ],
+        )
+        self.assertEqual(
+            [
+                (item["path"], item["profile"], item["limit"])
+                for item in report["violations"]
+            ],
+            [("src/violation.rs", "rust", 800)],
+        )
+
+    def test_frontend_uses_500_line_review_and_1000_line_hard_limits(self) -> None:
+        """前端源码的 500/501/1000/1001 边界必须选择前端配置。"""
+
+        self.write("src/Within.tsx", "x\n" * FRONTEND_REVIEW_THRESHOLD)
+        self.write("src/review.ts", "x\n" * (FRONTEND_REVIEW_THRESHOLD + 1))
+        self.write("src/page.jsx", "x\n" * FRONTEND_HARD_LINE_LIMIT)
+        self.write("src/violation.css", "x\n" * (FRONTEND_HARD_LINE_LIMIT + 1))
+        report = inspect_repository(self.root)
+        self.assertFalse(report["ok"], report)
+        self.assertEqual(
+            [
+                (item["path"], item["profile"], item["threshold"], item["limit"])
+                for item in report["reviewCandidates"]
+            ],
+            [
+                ("src/page.jsx", "frontend", 500, 1000),
+                ("src/review.ts", "frontend", 500, 1000),
+            ],
+        )
+        self.assertEqual(
+            [
+                (item["path"], item["profile"], item["limit"])
+                for item in report["violations"]
+            ],
+            [("src/violation.css", "frontend", 1000)],
+        )
+
+    def test_all_declared_frontend_suffixes_select_frontend_profile(self) -> None:
+        """每个公开声明的前端后缀都必须稳定采用 500/1000 配置。"""
+
+        for index, suffix in enumerate(sorted(FRONTEND_CODE_SUFFIXES)):
+            self.write(
+                f"frontend/example_{index}{suffix}",
+                "x\n" * (FRONTEND_REVIEW_THRESHOLD + 1),
+            )
+        report = inspect_repository(self.root)
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(len(report["reviewCandidates"]), len(FRONTEND_CODE_SUFFIXES))
+        self.assertTrue(
+            all(
+                item["profile"] == "frontend"
+                and item["threshold"] == FRONTEND_REVIEW_THRESHOLD
+                and item["limit"] == FRONTEND_HARD_LINE_LIMIT
+                for item in report["reviewCandidates"]
+            )
+        )
+
     def test_handles_hidden_spaces_and_newlines_in_paths(self) -> None:
         """NUL 清单必须无歧义处理隐藏、空格和换行文件名。"""
 
-        payload = "x\n" * (HARD_LINE_LIMIT + 1)
+        payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
         names = [".hidden file.md", "line\nbreak.txt"]
         for name in names:
             self.write(name, payload)
@@ -111,9 +203,11 @@ class FileLineLimitTests(RepositoryFixture):
         """忽略文件、二进制和链接目标不参与人工维护文本计数。"""
 
         self.write(".gitignore", "ignored.txt\ntarget.txt\n")
-        self.write("ignored.txt", "x\n" * (HARD_LINE_LIMIT + 1))
-        self.write("binary.bin", b"header\0" + b"x\n" * (HARD_LINE_LIMIT + 1))
-        self.write("target.txt", "x\n" * (HARD_LINE_LIMIT + 1))
+        self.write("ignored.txt", "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1))
+        self.write(
+            "binary.bin", b"header\0" + b"x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
+        )
+        self.write("target.txt", "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1))
         self.track(".gitignore", "binary.bin")
         link = self.root / "linked.txt"
         try:
@@ -129,7 +223,9 @@ class FileLineLimitTests(RepositoryFixture):
     def test_deleted_tracked_file_is_skipped_as_absent_worktree_content(self) -> None:
         """索引中仍存在但工作树已删除的文件不应造成检查器运行错误。"""
 
-        deleted = self.write("deleted.txt", "x\n" * (HARD_LINE_LIMIT + 1))
+        deleted = self.write(
+            "deleted.txt", "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
+        )
         self.track("deleted.txt")
         deleted.unlink()
         report = inspect_repository(self.root)
@@ -139,7 +235,7 @@ class FileLineLimitTests(RepositoryFixture):
     def test_excludes_only_known_generated_lockfile_names(self) -> None:
         """工具锁文件按精确名称排除，相似人工文件仍会失败。"""
 
-        payload = "x\n" * (HARD_LINE_LIMIT + 1)
+        payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
         self.write("Cargo.lock", payload)
         self.write("Cargo.lock.notes", payload)
         self.track("Cargo.lock", "Cargo.lock.notes")
@@ -162,6 +258,31 @@ class FileLineLimitTests(RepositoryFixture):
 
 class FileLineLimitFailureTests(unittest.TestCase):
     """验证项目根、Git 失败和稳定 CLI 退出码。"""
+
+    def test_text_cli_explains_rust_directory_mod_rs_structure(self) -> None:
+        """Rust 硬超限诊断必须给出目录加 mod.rs 的拆分结构。"""
+
+        report = {
+            "ok": False,
+            "errors": [],
+            "reviewCandidates": [],
+            "violations": [
+                {
+                    "path": "src/domain.rs",
+                    "lines": 801,
+                    "profile": "rust",
+                    "threshold": 400,
+                    "limit": 800,
+                }
+            ],
+        }
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "check_file_line_limits.inspect_repository", return_value=report
+        ), redirect_stdout(stdout), redirect_stderr(stderr):
+            self.assertEqual(main([]), 1)
+        self.assertIn("<module>/mod.rs", stderr.getvalue())
 
     def test_non_git_directory_is_operational_failure(self) -> None:
         """缺少 Git 清单时必须返回检查器错误而不是空通过。"""

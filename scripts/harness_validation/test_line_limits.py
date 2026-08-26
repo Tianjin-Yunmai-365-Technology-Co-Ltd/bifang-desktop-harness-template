@@ -33,7 +33,7 @@ def load_tests(
 
 
 class ValidateRepositoryLineLimitsTests(unittest.TestCase):
-    """验证 Harness 把统一检查器结果转换为阻断错误。"""
+    """验证 Harness 把分层检查器结果转换为提示或阻断错误。"""
 
     def test_accepts_successful_checker_report(self) -> None:
         """退出码和报告同时成功时不产生 Harness 错误。"""
@@ -51,12 +51,20 @@ class ValidateRepositoryLineLimitsTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_surfaces_review_candidates_without_rejecting_repository(self) -> None:
-        """501 至 2000 行候选应形成非阻断复核提示。"""
+        """分层软阈值以上的候选应形成带配置的非阻断复核提示。"""
 
         report = {
             "ok": True,
             "errors": [],
-            "reviewCandidates": [{"path": "cohesive.py", "lines": 501, "threshold": 500}],
+            "reviewCandidates": [
+                {
+                    "path": "screen.tsx",
+                    "lines": 501,
+                    "profile": "frontend",
+                    "threshold": 500,
+                    "limit": 1000,
+                }
+            ],
             "violations": [],
         }
         completed = mock.Mock(returncode=0, stdout=json.dumps(report), stderr="")
@@ -72,7 +80,14 @@ class ValidateRepositoryLineLimitsTests(unittest.TestCase):
                 errors, warnings=warnings, checker=checker
             )
         self.assertEqual(errors, [])
-        self.assertTrue(any("cohesive.py (501 lines)" in item for item in warnings))
+        self.assertTrue(
+            any(
+                "frontend file" in item
+                and "screen.tsx (501 lines, hard limit 1000)" in item
+                for item in warnings
+            ),
+            warnings,
+        )
 
     def test_converts_violations_and_operational_errors(self) -> None:
         """超限和运行错误都必须成为具体 Harness 失败。"""
@@ -81,7 +96,14 @@ class ValidateRepositoryLineLimitsTests(unittest.TestCase):
             "ok": False,
             "errors": ["git failed"],
             "reviewCandidates": [],
-            "violations": [{"path": "large.py", "lines": 2001, "limit": 2000}],
+            "violations": [
+                {
+                    "path": "lib.rs",
+                    "lines": 801,
+                    "profile": "rust",
+                    "limit": 800,
+                }
+            ],
         }
         completed = mock.Mock(returncode=2, stdout=json.dumps(report), stderr="")
         with tempfile.TemporaryDirectory() as temporary, mock.patch(
@@ -93,7 +115,8 @@ class ValidateRepositoryLineLimitsTests(unittest.TestCase):
             errors: list[str] = []
             line_limits.validate_repository_line_limits(errors, checker=checker)
         self.assertTrue(any("git failed" in item for item in errors), errors)
-        self.assertTrue(any("large.py (2001 lines)" in item for item in errors), errors)
+        self.assertTrue(any("lib.rs (801 lines)" in item for item in errors), errors)
+        self.assertTrue(any("hard 800-line limit" in item for item in errors), errors)
 
     def test_rejects_malformed_or_inconsistent_report(self) -> None:
         """检查器输出不可解析或状态矛盾时必须 fail closed。"""

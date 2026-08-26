@@ -77,7 +77,7 @@ def main() -> int:
         return 1
     print(
         f"Harness validation passed: {len(REQUIRED_FILES)} required files, "
-        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, 500-line semantic review and hard 2000-line limits, five event-triggered project-memory streams, "
+        f"{len(EXPECTED_SKILLS)} skills, local Markdown links, tiered Rust 400/800, frontend 500/1000 and maintained-text 500/2000 line limits, five event-triggered project-memory streams, "
         "opt-in plans, minimal development checks, per-build E2E selection and full unit suites, persistent Agent policy, release/build routing, initialization gates, engineering rules, "
         "parallel worktree gates, automatic downstream versioning, core-first dependency boundaries, Rust workspace Chinese-comment coverage, real-artifact acceptance, executable prerequisite gates, workspace dependency inheritance, "
         f"and workflow gates; {len(warnings)} non-blocking review warning(s)."

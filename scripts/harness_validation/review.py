@@ -20,7 +20,7 @@ def source_files_for_marker_review() -> list[Path]:
     )
 
 def validate_soft_review_prompts(warnings: list[str]) -> None:
-    """报告源码临时标记；500 行复核与 2000 行硬上限由统一检查器负责。"""
+    """报告源码临时标记；分层建议阈值与硬上限由统一检查器负责。"""
     comment_marker = re.compile(r"^\s*(?://|#).*\b(TODO|FIXME|HACK)\b")
     for path in source_files_for_marker_review():
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()

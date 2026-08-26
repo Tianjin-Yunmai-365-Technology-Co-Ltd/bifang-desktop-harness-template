@@ -28,6 +28,7 @@
 
 ## 变更
 
+- `HARNESS-FEAT-TIERED-CODE-LINE-LIMITS`（所需 Harness 版本 `202608051301`）：代码行数门禁改为分层配置。Rust 代码超过 400 行进入建议重构复核、超过 800 行强制拆分；前端代码超过 500 行进入建议重构复核、超过 1000 行强制拆分；其他人工维护文本保留 500/2000。Rust 多文件模块固定使用 `<module>/mod.rs` 目录入口，前端按功能职责拆分且不强制 `index.ts` 桶文件；统一检查器与 Harness bridge 现在报告具体 profile、建议阈值和硬上限。
 - GUI 单实例从未声明的实现选择提升为不可省略的初始化硬门禁：使用官方 `tauri-plugin-single-instance` 且必须最先注册，同一用户会话第二次启动只恢复、取消最小化并聚焦既有主窗口后退出，不得留下第二个长期应用主进程或主窗口；中性回调忽略且不记录启动参数/工作目录。结构检查、两个固定命名回归和真实双启动唯一性证据任一缺失都会阻断基线提交；Linux Snap/Flatpak 另需在渠道清单声明并验证会话 DBus 权限。
 - GUI 系统托盘从文字基线提升为不可省略的初始化硬门禁，并修复了“代码看似存在但图标未显示”的漏检：除应用图标、精确双项菜单、关闭隐藏、两种恢复和退出外，现在强制验证非透明 32px RGBA 图标及 `bundle.icon` 引用、从 Tauri `.setup` 可达的 Menu/default-icon/icon/build 接线和已注册关闭事件；图标缺失不能静默继续，Linux tray 必须绑定菜单。初始化 E2E 还必须看到状态栏/通知区域中的非空可见图形，透明点击区域或只能弹菜单的不可见占位不会通过。
 - Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，赞助/设置/关于使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji，图表相关控件优先使用 Tabler 图标而图表绘制方案保持独立。
@@ -59,6 +60,9 @@
 
 ## 验证
 
+- 分层行数检查器专项测试 15/15 通过，覆盖 Rust 400/401/800/801、前端 500/501/1000/1001、全部声明前端后缀、通用文本 500/501/2000/2001、profile 元数据、Rust `<module>/mod.rs` 诊断、Git 可见范围、生成锁文件排除与 CLI 0/1/2 退出码；Harness bridge 合并入口 19/19 通过。
+- `python3 -m unittest discover -s scripts`：191 条测试全部通过；`python3 scripts/validate_harness.py` 通过 144 个必需文件、26 个 Skills 和新的 Rust 400/800、前端 500/1000、通用文本 500/2000 契约。
+- 真实行数检查覆盖 208 个受维护文本，无硬超限；4 个非阻断候选已复核为职责集中且职责相近：Rust 中文声明注释检查器、共享 GUI 支持模板契约测试、GUI 生命周期契约检查器、初始化主契约片段表。4 个修改过的 Skill 均通过 Skill Creator quick validator，Python 编译与 `git diff --check` 通过。
 - `node --test .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs`：16 条 GUI 生命周期契约专项测试全部通过，覆盖完整单实例/托盘契约、Cargo inline/table 与菜单构造兼容写法，以及缺少 `tray-icon`、workspace 单实例依赖、首插件顺序、既有窗口恢复回调、中性回调消费启动参数、真实托盘创建、托盘安装未从 `.setup` 接线、菜单未绑定、默认图标可选回退、`bundle.icon` 未引用 32px 来源、全透明 32px PNG、单实例/托盘回归或中文资源的失败路径。
 - `python3 .agents/skills/desktop-manage-version/scripts/test_version_gate.py`：10 条专项测试全部通过，覆盖首功能/后续功能、Minor 归零 Patch、独立/重复缺陷、维护与只读 plan、正式发布周期重置/历史缺陷去重、新回归 ID、Major 明确批准、分量溢出、状态损坏、Cargo 漂移、不稳定版本、符号链接项目根和真实 CLI JSON 输出。
 - `python3 -m unittest discover -s scripts`：186 条测试全部通过；新增自动版本 helper 与 Harness bridge，既有 GUI 生命周期、环境、精简开发、逐次发布 E2E、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。

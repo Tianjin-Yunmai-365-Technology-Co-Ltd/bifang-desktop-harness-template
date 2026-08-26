@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""报告超过 500 行的复核候选，并拒绝超过 2000 行的人工维护文本。"""
+"""按 Rust、前端与通用文本配置报告重构候选并拒绝硬超限文件。"""
 
 from __future__ import annotations
 
@@ -11,8 +11,51 @@ import sys
 from pathlib import Path
 from typing import Any
 
-REVIEW_THRESHOLD = 500
-HARD_LINE_LIMIT = 2000
+RUST_REVIEW_THRESHOLD = 400
+RUST_HARD_LINE_LIMIT = 800
+FRONTEND_REVIEW_THRESHOLD = 500
+FRONTEND_HARD_LINE_LIMIT = 1000
+DEFAULT_REVIEW_THRESHOLD = 500
+DEFAULT_HARD_LINE_LIMIT = 2000
+
+LINE_LIMIT_PROFILES: dict[str, dict[str, int | str]] = {
+    "rust": {
+        "label": "Rust 代码",
+        "reviewThreshold": RUST_REVIEW_THRESHOLD,
+        "hardLimit": RUST_HARD_LINE_LIMIT,
+    },
+    "frontend": {
+        "label": "前端代码",
+        "reviewThreshold": FRONTEND_REVIEW_THRESHOLD,
+        "hardLimit": FRONTEND_HARD_LINE_LIMIT,
+    },
+    "maintained_text": {
+        "label": "其他人工维护文本",
+        "reviewThreshold": DEFAULT_REVIEW_THRESHOLD,
+        "hardLimit": DEFAULT_HARD_LINE_LIMIT,
+    },
+}
+
+FRONTEND_CODE_SUFFIXES = frozenset(
+    {
+        ".astro",
+        ".cjs",
+        ".css",
+        ".cts",
+        ".html",
+        ".js",
+        ".jsx",
+        ".less",
+        ".mjs",
+        ".mts",
+        ".sass",
+        ".scss",
+        ".svelte",
+        ".ts",
+        ".tsx",
+        ".vue",
+    }
+)
 GENERATED_LOCKFILE_NAMES = frozenset(
     {
         "Cargo.lock",
@@ -108,6 +151,24 @@ def _read_text(candidate: Path, relative: str) -> tuple[str | None, str | None]:
         return None, f"无 NUL 的 Git 文件不是 UTF-8，无法分类 {relative!r}: {error}"
 
 
+def _line_limit_profile(relative: str) -> tuple[str, int, int]:
+    """按源码后缀选择确定性的行数配置，Rust 优先于前端与通用文本。"""
+
+    suffix = Path(relative).suffix.lower()
+    if suffix == ".rs":
+        profile_name = "rust"
+    elif suffix in FRONTEND_CODE_SUFFIXES:
+        profile_name = "frontend"
+    else:
+        profile_name = "maintained_text"
+    profile = LINE_LIMIT_PROFILES[profile_name]
+    return (
+        profile_name,
+        int(profile["reviewThreshold"]),
+        int(profile["hardLimit"]),
+    )
+
+
 def inspect_repository(root: Path) -> dict[str, Any]:
     """返回稳定的行数检查报告，不修改仓库。"""
 
@@ -115,8 +176,7 @@ def inspect_repository(root: Path) -> dict[str, Any]:
     report: dict[str, Any] = {
         "ok": False,
         "root": str(root),
-        "reviewThreshold": REVIEW_THRESHOLD,
-        "hardLimit": HARD_LINE_LIMIT,
+        "lineLimitProfiles": LINE_LIMIT_PROFILES,
         "checkedTextFiles": 0,
         "excludedGeneratedFiles": [],
         "skippedBinaryFiles": 0,
@@ -157,13 +217,26 @@ def inspect_repository(root: Path) -> dict[str, Any]:
             continue
         report["checkedTextFiles"] += 1
         line_count = len(text.splitlines())
-        if line_count > HARD_LINE_LIMIT:
+        profile, review_threshold, hard_limit = _line_limit_profile(relative)
+        if line_count > hard_limit:
             report["violations"].append(
-                {"path": relative, "lines": line_count, "limit": HARD_LINE_LIMIT}
+                {
+                    "path": relative,
+                    "lines": line_count,
+                    "profile": profile,
+                    "threshold": review_threshold,
+                    "limit": hard_limit,
+                }
             )
-        elif line_count > REVIEW_THRESHOLD:
+        elif line_count > review_threshold:
             report["reviewCandidates"].append(
-                {"path": relative, "lines": line_count, "threshold": REVIEW_THRESHOLD}
+                {
+                    "path": relative,
+                    "lines": line_count,
+                    "profile": profile,
+                    "threshold": review_threshold,
+                    "limit": hard_limit,
+                }
             )
 
     report["excludedGeneratedFiles"].sort()
@@ -194,22 +267,31 @@ def main(arguments: list[str] | None = None) -> int:
         for error in report["errors"]:
             print(f"ERROR: {error}", file=sys.stderr)
         for candidate in report["reviewCandidates"]:
+            profile = LINE_LIMIT_PROFILES[str(candidate["profile"])]
             print(
-                "REVIEW: 人工维护文本超过 500 行，请复核高内聚、职责单一和职责相近性: "
+                f"REVIEW: {profile['label']}超过 {candidate['threshold']} 行，"
+                "建议按职责重构并复核高内聚、职责单一和职责相近性: "
                 f"{candidate['path']} ({candidate['lines']} lines)",
                 file=sys.stderr,
             )
         for violation in report["violations"]:
+            profile = LINE_LIMIT_PROFILES[str(violation["profile"])]
+            rust_hint = (
+                "；拆分 Rust 模块时必须使用 <module>/mod.rs 目录结构"
+                if violation["profile"] == "rust"
+                else ""
+            )
             print(
-                "ERROR: 人工维护文本超过 2000 行，必须拆分: "
-                f"{violation['path']} ({violation['lines']} lines)",
+                f"ERROR: {profile['label']}超过 {violation['limit']} 行，必须按职责拆分"
+                f"{rust_hint}: {violation['path']} ({violation['lines']} lines)",
                 file=sys.stderr,
             )
         if report["ok"]:
             print(
                 "File line-limit check passed: "
                 f"{report['checkedTextFiles']} maintained text file(s), "
-                f"review-threshold={REVIEW_THRESHOLD}, hard-limit={HARD_LINE_LIMIT}."
+                "profiles=rust(400/800), frontend(500/1000), "
+                "maintained-text(500/2000)."
             )
     if report["errors"]:
         return 2
