@@ -97,6 +97,9 @@ PARALLEL_WORKTREE_SCRIPT = PARALLEL_SKILL / "scripts" / "parallel_worktrees.py"
 PARALLEL_WORKTREE_TESTS = PARALLEL_SKILL / "scripts" / "test_parallel_worktrees.py"
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md"
+VERSION_SKILL = SKILLS_ROOT / "desktop-manage-version"
+VERSION_GATE_HELPER = VERSION_SKILL / "scripts" / "version_gate.py"
+VERSION_GATE_TESTS = VERSION_SKILL / "scripts" / "test_version_gate.py"
 BUILD_RELEASE_SKILL = SKILLS_ROOT / "desktop-build-rust-release" / "SKILL.md"
 TAURI_RELEASE_SKILL = SKILLS_ROOT / "desktop-build-tauri-release" / "SKILL.md"
 TAURI_NOTARIZATION_HELPER = (
@@ -318,6 +321,8 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-implement-change/scripts/test_check_file_line_limits.py",
     ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.py",
     ".agents/skills/desktop-implement-change/scripts/test_check_rust_chinese_comments.py",
+    ".agents/skills/desktop-manage-version/scripts/version_gate.py",
+    ".agents/skills/desktop-manage-version/scripts/test_version_gate.py",
     "scripts/test_agile_workflow.py",
     "scripts/test_validate_harness.py",
     "scripts/test_release_validation.py",
@@ -336,6 +341,8 @@ REQUIRED_FILES = (
     "scripts/harness_validation/governance_version.py",
     "scripts/harness_validation/governance_descriptions.py",
     "scripts/harness_validation/repository_memory.py",
+    "scripts/harness_validation/product_versioning.py",
+    "scripts/harness_validation/test_product_versioning.py",
     "scripts/harness_validation/workflow_contract.py",
     "scripts/harness_validation/initialization_environment.py",
     "scripts/harness_validation/initialization_primary_contract.py",
@@ -360,6 +367,7 @@ EXPECTED_SKILLS = {
     "desktop-define-product",
     "desktop-extract-i18n-strings",
     "desktop-implement-change",
+    "desktop-manage-version",
     "desktop-initialize-rust-project",
     "desktop-instantiate-project",
     "desktop-plan-change",

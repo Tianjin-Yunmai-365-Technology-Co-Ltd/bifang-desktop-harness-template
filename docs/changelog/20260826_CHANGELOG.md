@@ -1,7 +1,9 @@
-# 2026-08-25 变更记录
+# 2026-08-26 变更记录
 
 ## 新增
 
+- `HARNESS-FEAT-DOWNSTREAM-AUTO-VERSIONING`（所需 Harness 版本 `202608051301`）：新增 `$desktop-manage-version` 与标准库版本 helper。下游现在会在每个正式发布周期的首个已完成功能自动升一次 Minor 并归零 Patch，每个新稳定缺陷 ID 的已完成修复升一次 Patch，重复缺陷幂等，Major 只接受用户批准；查询、诊断、复现、重构等维护不升版本，分量 `0..100` 溢出失败关闭。
+- 下游初始化现在创建受保护的 `.harness/version-state.json`，开发在相关测试通过后才提交版本；Rust/Tauri 构建、跨平台候选、产物收集、验收和发布准备只校验当前目标，只有真实正式发布成功才重置首功能周期。升级器可更新版本 Skill 工程资产，但不得覆盖 Cargo 产品版本、发布周期或缺陷 ID 历史。
 - 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 18 条专项回归：在 GUI 构建前验证官方 `tauri-plugin-single-instance` 的 workspace/member 接线、首插件顺序、不消费参数/工作目录且只恢复既有窗口的中性回调，Tauri `tray-icon` feature、非透明 32px RGBA 图标与配置引用、从 `.setup` 可达的 Menu/default-icon/icon/build 接线、已注册关闭事件、稳定 ID `show_window`/`quit`、`rust_i18n::t!("tray.show_window")`/`rust_i18n::t!("tray.quit")` 可见标签解析、中英文原生资源，以及单实例/托盘生命周期/i18n 八个固定命名回归；新增负向覆盖原始翻译键和无断言 i18n 回归，路径越界、符号链接、非法 UTF-8、空源码、未接线死代码和任何缺项均失败关闭。
 - 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建并双启动真实本机 Tauri 调试二进制，验证第二次启动只唤醒同一主窗口后退出、只剩一个长期应用主进程/主窗口，再使用 Computer Use 验证真实托盘中文“显示窗口/退出”与英文“Show Window/Quit”可无重启刷新且无原始 key、关闭隐藏/两种恢复/退出生命周期、应用可启动、`136px` 单态侧栏的 Logo/图标/文字尺寸与居中、默认设置页无隐私/统计区块，以及可访问树枚举出的所有菜单页面可达；失败、超时、取消、唯一性无法判定、无法观察或无法执行均阻断初始化。
 - GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。
@@ -58,13 +60,14 @@
 ## 验证
 
 - `node --test .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs`：16 条 GUI 生命周期契约专项测试全部通过，覆盖完整单实例/托盘契约、Cargo inline/table 与菜单构造兼容写法，以及缺少 `tray-icon`、workspace 单实例依赖、首插件顺序、既有窗口恢复回调、中性回调消费启动参数、真实托盘创建、托盘安装未从 `.setup` 接线、菜单未绑定、默认图标可选回退、`bundle.icon` 未引用 32px 来源、全透明 32px PNG、单实例/托盘回归或中文资源的失败路径。
-- `python3 -m unittest discover -s scripts`：175 条测试全部通过；新增锁定托盘检查器/测试文件、GUI 初始化结构 + 真实生命周期门禁、Tabler 固定技术栈、收起侧栏居中模板及升级 tombstone，既有环境、精简开发、逐次发布 E2E、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
+- `python3 .agents/skills/desktop-manage-version/scripts/test_version_gate.py`：10 条专项测试全部通过，覆盖首功能/后续功能、Minor 归零 Patch、独立/重复缺陷、维护与只读 plan、正式发布周期重置/历史缺陷去重、新回归 ID、Major 明确批准、分量溢出、状态损坏、Cargo 漂移、不稳定版本、符号链接项目根和真实 CLI JSON 输出。
+- `python3 -m unittest discover -s scripts`：186 条测试全部通过；新增自动版本 helper 与 Harness bridge，既有 GUI 生命周期、环境、精简开发、逐次发布 E2E、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
 - `python3 .agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py`：15 条隔离测试全部通过，覆盖 Node.js 20.19.0/22.12.0 分段下界、21.x 空档、范围内更高版本、pnpm 10.0.0 下界、缺失兼容范围安装和供应链失败。
 - `python3 .agents/skills/desktop-check-development-environment/scripts/test_macos_tauri_xwin_gates.py`：10 条隔离测试全部通过，覆盖 `cargo-xwin >=0.22.0, <0.24.0` 范围安装/复探、0.22/0.23 既有版本复用，以及范围外和预发布版本拒绝；本机真实 `cargo-xwin 0.22.0` 的版本/帮助探测与 xwin `--check-only` 全门禁通过。
 - 中性 Rust workspace 的正常锁文件测试通过 7 条非空测试；临时 `cargo +nightly update -Zdirect-minimal-versions` 将 6 个 registry 直接依赖解析到声明下界后，`cargo +1.90.0 test --workspace --all-targets --all-features --locked` 同样通过 7 条测试，且未覆盖提交的正常 `Cargo.lock`。
-- `python3 scripts/validate_harness.py`：通过 140 个必需文件、25 个 Skills、最低兼容版本契约、动态 MSRV workflow、Markdown 链接、GUI 强制托盘结构/生命周期与初始化 E2E、Tabler/侧栏居中、升级 tombstone、品牌资源、Tauri updater、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 4 条 501–2000 行高内聚非阻断复核提示。
+- `python3 scripts/validate_harness.py`：通过 144 个必需文件、26 个 Skills、下游自动版本、最低兼容版本契约、动态 MSRV workflow、Markdown 链接、GUI 强制托盘结构/生命周期与初始化 E2E、升级保护、品牌资源、Tauri updater、500/2000 行、core-first、Rust workspace 中文注释与项目记忆契约；产生 4 条 501–2000 行高内聚非阻断复核提示。
 - 本轮仓库没有可执行前端 `package.json`，因此未重跑修改后的模板 Vitest/TypeScript；Harness validator 与 Python 负向回归已静态锁定 Tabler 导入、固定项组件、Logo identity 和全部菜单项居中契约。既有图片/品牌资产没有改动。
-- Skill Creator quick validator 对本次涉及的 5/5 个项目 Skills 全部通过；`git diff --check` 通过。
+- Skill Creator quick validator 对新增 `$desktop-manage-version` 通过；此前涉及的 5/5 个项目 Skills 验证证据继续保留；`python3 -m py_compile` 与 `git diff --check` 通过。
 - Rust 中性 workspace 注释扫描覆盖 2 个 package、4 个文件和 24 个受管声明；metadata、core-first、`cargo fmt`、locked check、全 workspace/all-target/all-feature Clippy、7 条非空测试与锁定 release 构建均通过。
 - 文件规模检查覆盖 197 个受维护文本，无 2001 行以上违规；690 行 Rust 检查器已复核为高内聚、单一职责且内部职责相近。
 - 来源锁点前 84 个 Skill 文件均已收敛；锁点后 3 个 Skill 提交的 16 个文件在模板中 16/16 有对应落点。关于/赞助资源审计闭合为 13 张图片、0 个视频；来源工作树保持干净，多组来源产品身份、绝对路径、固定凭据和固定服务特征扫描均为零命中。

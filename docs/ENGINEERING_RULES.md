@@ -103,7 +103,7 @@
 - 文档与代码、配置或测试冲突时，必须调查真实行为并在同一任务中修正，不能默认任一方正确。
 - 文档中的命令、路径、配置项、版本和能力必须来自真实仓库，不得虚构或把计划中的能力写成已实现。
 - 未确认信息明确标为“待确定”，未运行检查标为“未执行”，未实际验证的平台或行为标为 `Unverified`。
-- 产品目标、边界、约束或成功标准变化时更新日期最新的 Product Spec；长期重要、难以逆转的决定和硬规则例外写入当日 ADR。范围清楚的日常实现不为每项需求创建 ADR。
+- 产品目标、边界、约束或成功标准变化时更新日期最新的 Product Spec；长期重要、难以逆转的决定和硬规则例外写入当日 ADR。范围清楚的日常实现不为每项需求创建 ADR。Product Spec、ADR、Changelog 或 Work Plan 被自身事件独立触发时，必须记录相关稳定 `change_id` 与 `$desktop-manage-version` 只读计算或提交结果中的 `required_version`；版本变化本身不得触发或补造项目记忆。
 - Product Status 只在重要阻断、跨会话交接、发布/完整验收或用户要求时更新；Work Plan 只在用户明确要求、跨会话交接或发布/高风险协调确有必要时维护；Verification 只保存发布、完整验收、人工复核或需要长期审计的证据。
 - 普通缺陷修复、不改变可观察行为的纯重构、格式整理、测试补强和内部清理本身不触发 Product Spec、ADR、Product Status、Changelog 或 Verification；结果只在最终回复和测试/CI 中报告，不写“不适用”占位。已有 TECH_DEBT 条目在问题消除后必须恢复真实状态，但不新增修复流水账。
 - 构建请求、执行、成功、失败、重试、全量单元测试结果、产物路径/摘要/签名状态和本次 E2E 选择本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification。构建事实只写入当前 `release/` manifest、其声明的相邻制品证据和最终回复，不得复制到项目记忆；E2E、完整验收、发布、人工复核或长期审计被独立触发时，才由对应 Skill 按自身事实源留证。
@@ -119,6 +119,7 @@
 | `README.md` | 用户入口、用途、真实使用方式和维护状态 |
 | `AGENTS.md` | Agent 地图、硬约束摘要、阅读顺序和验证入口 |
 | `Version.md` | Harness 模板当前版本、初始版本与发布状态；下游 Rust 项目不继承此事实来源 |
+| `.harness/version-state.json` | 仅下游保存当前正式发布周期、首功能提升状态、待发布变化及已消费缺陷 ID；受保护且不是当前版本的第二事实源 |
 | `docs/product_spec/README.md` | 产品规格日期规则和索引 |
 | `docs/product_spec/YYYYMMDD_product_spec.md` | 当日完整产品目标、范围、约束和成功标准；最新日期文件是当前规格 |
 | `docs/AGENT_POLICY.md` | 下游 Agent 能力开关及其持久执行语义 |
@@ -137,7 +138,7 @@
 | `docs/VERIFICATION.md` | 验证原则、矩阵、证据分卷索引与写入路由 |
 | `docs/verification/*.md` | 发布/完整验收/审计证据与人工复核正文；历史失败不得改写 |
 | `docs/TECH_DEBT.md` | 已知但不在当前任务解决的问题、影响和复核条件 |
-| `docs/RELEASE.md` | Harness 时间版本、下游语义化版本、版本同步和发布要求；不重复保存 Harness 当前版本事实 |
+| `docs/RELEASE.md` | Harness 时间版本、下游自动语义化版本、版本同步和发布要求；不重复保存 Harness 当前版本事实 |
 | `docs/changelog/README.md` | 变更记录规则与日期文件索引 |
 | `docs/changelog/YYYYMMDD_CHANGELOG.md` | 当日符合触发规则的用户和维护者可感知变化正文 |
 
@@ -186,6 +187,7 @@
 ### 5.3 开发、构建与完整验收
 
 - 日常开发统一直接实施，只运行本次变更需要的相关非空单元/回归测试。不得仅因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加 Work Plan、全仓测试、格式化、代码规范、静态、集成/契约、构建、冒烟、E2E、Verification 或人工复核。
+- 已初始化下游在实施前由 `$desktop-manage-version` 只读分类，且只在变化完成并通过本次相关测试后提交版本：功能、独立缺陷修复和用户批准的 Major 按 `docs/RELEASE.md` 提升；查询、诊断、复现、重复尝试、重构、测试、文档、格式和内部清理不提升。构建只检查 Cargo/状态一致性，不能提升版本或重置周期。
 - 产品范围、长期决定、合格 Changelog、重要阻断/交接、发布/审计和用户明确要求仍分别触发对应记录或专用流程。安全/隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道硬要求、签名与发布仍保留解决当前风险必需的授权和门禁。
 - 显式构建在任何测试或编译前解析当前构建的 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则询问一次；持久 `milestone_e2e` 仅是建议默认值。该选择只对当前构建有效。
 - 构建必须运行项目全部非空单元测试。Rust 使用 workspace 全成员、全 targets、全 features 的锁定测试；GUI 同时运行完整 Rust workspace 和前端单元测试套件。测试失败或零测试阻断构建。

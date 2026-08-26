@@ -10,7 +10,7 @@ description: 只在用户明确要求持久计划、任务需要跨会话交接�
 ## 准入
 
 1. 用户明确要求持久计划、任务需要跨会话交接，或发布/高风险工作存在多个必须协调的依赖时才调用本 Skill。
-2. 多步骤、多模块、中等风险、可并行或 Agent 偏好本身不构成准入；日常开发直接交给 `$desktop-implement-change`。
+2. 多步骤、多模块、中等风险、可并行或 Agent 偏好本身不构成准入；日常开发直接交给 `$desktop-implement-change`。计划确实被触发时，每个会产生功能、缺陷修复或用户批准 Major 的 Todo 必须具有稳定 `change_id`，并记录 `$desktop-manage-version plan` 返回的 `required_version`；纯维护 Todo 明确记录版本不变即可。
 3. 规划期间不编码、不创建写入 Worktree、不运行构建、冒烟或 E2E。若范围会改变产品目标、边界、约束或成功标准，先转 `$desktop-define-product`。
 
 ## 工作流程

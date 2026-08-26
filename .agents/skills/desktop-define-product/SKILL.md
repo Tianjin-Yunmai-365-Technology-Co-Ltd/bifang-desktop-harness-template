@@ -17,7 +17,7 @@ description: 定义或修订产品意图、MVP 边界、约束和可衡量成功
    普通缺陷修复、不改变可观察行为的纯重构、格式整理、测试补强和内部清理不构成产品范围变化，不调用本 Skill；只有调查确认批准的产品目标、边界、约束或成功标准确需改变时，才继续第 6 步。
 6. 新产品首次确认或现有产品目标/边界/约束/成功标准变化时，创建或更新当天 Product Spec。该决定长期影响后续工作，因此在当天 ADR 写一个条目；同日复用现有文件，新日从前一份综合仍有效事实。
 7. 只有出现重要阻断、跨会话交接、发布/完整验收或用户要求时才更新 Product Status；不要为了范围确认自动创建 Work Plan、Verification 或 Changelog。普通维护任务也不得反向生成这些记忆。
-8. 范围确认后直接交给 `$desktop-implement-change`。只有用户明确要求持久计划、跨会话交接或发布/高风险协调确有必要时才调用 `$desktop-plan-change`；构建、完整验收和发布都必须由用户显式请求或对应硬要求单独触发。
+8. 范围确认后，为每个进入实施的新功能建立稳定 `change_id`，调用 `$desktop-manage-version plan --kind feature` 只读取得 `required_version`，并把二者写入被本次范围变化触发的 Product Spec；若用户另行批准 Major，则使用 `major` 与精确值。范围确认后直接交给 `$desktop-implement-change`。只有用户明确要求持久计划、跨会话交接或发布/高风险协调确有必要时才调用 `$desktop-plan-change`；构建、完整验收和发布都必须由用户显式请求或对应硬要求单独触发。
 
 ## 输出规则
 

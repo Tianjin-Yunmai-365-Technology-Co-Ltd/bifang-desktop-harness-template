@@ -10,7 +10,7 @@
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
 - `conditional`：只在已选接口或已启用能力中存在的工程资产。先确认下游选择，再人工或由对应适配器 Skill 合并。`$desktop-prepare-gui-support-surfaces` 只随 GUI 下游传播；它的 Skill、参考、React 模板、品牌 profile/i18n/manifest 和全部原始媒体属于同一完整工程资产，产品实例 `docs/GUI_SUPPORT_SURFACES.md` 不属于。
-- `protected`：产品源码、项目记忆、策略、身份、许可证、版本、验证证据和未知本地文件。升级器只报告，不写入。
+- `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、验证证据和未知本地文件。升级器只报告，不写入。
 - `tombstone`：终端下游永久不应恢复的 Harness 初始化/派生能力和模板专用文件；来源候选必须排除，目标出现时阻断。`$desktop-test-gui-initialization-e2e` 只在 GUI 唯一基线提交前使用，通过后与实例化/初始化能力一同删除，升级不得把它重新注入终端下游。
 
 ## 三方比较
@@ -38,7 +38,7 @@
 
 ## 永久保护
 
-以下内容不得由升级自动覆盖：产品规格、产品状态、工作计划、ADR、变更记录、验证记录、技术债、业务源码和测试、Cargo 产品版本与锁定选择、项目与 GUI 身份、`docs/GUI_SUPPORT_SURFACES.md` 中的支持界面产品实例、接口选择、`docs/AGENT_POLICY.md`、双语许可证、Git 历史与配置、未登记本地文件。
+以下内容不得由升级自动覆盖：产品规格、产品状态、工作计划、ADR、变更记录、验证记录、技术债、业务源码和测试、Cargo 产品版本与锁定选择、`.harness/version-state.json` 的发布周期/缺陷 ID 历史、项目与 GUI 身份、`docs/GUI_SUPPORT_SURFACES.md` 中的支持界面产品实例、接口选择、`docs/AGENT_POLICY.md`、双语许可证、Git 历史与配置、未登记本地文件。`$desktop-manage-version` 的 Skill/helper 可以作为工程资产升级，但升级器不得据此初始化、重算或覆盖产品状态。
 
 若新版 Harness 改变法律文本、产品边界或硬规则，升级计划只能报告并请求独立确认；不能把来源仓库的批准事实导入下游。
 

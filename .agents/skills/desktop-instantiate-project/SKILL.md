@@ -25,6 +25,8 @@ description: 在用户提供的目标目录中创建干净的下游项目，包�
 14. 不得在经过选择性复制的目标目录中运行模板级 Harness 验证器。验证目标目录清单、排除项、改写后的身份、保留链接和策略模式定义，随后使用 `$desktop-initialize-rust-project` 询问用户选择 `CLI/TUI/MCP/GUI`；验证并复用全部四项已记录策略，不得再次询问预设或各字段。仅当用户未选择任何接口时默认 CLI，并在 Product Spec 尚不存在时创建中性工作区。
 15. 必须要求 `$desktop-initialize-rust-project` 在脚手架检查完成后收尾仓库：选择 GUI 时，先由 `$desktop-test-gui-initialization-e2e` 运行固定单实例/托盘结构检查器，验证非透明 `icons/32x32.png`/配置引用、`.setup`/Menu/icon/build/窗口事件真实接线、`rust-i18n` 标签解析和八个有断言的固定回归，再构建并双启动真实本机 Tauri 调试二进制；除验证 `136px` 单态侧栏的 `56px` Logo、`30px` 图标、图标上/`11px` `10em` 文字下且居中、默认设置页无隐私/统计区块和所有渲染菜单页面可达外，还必须验证第二次启动自行退出、既有主进程与同一主窗口继续存在并被恢复聚焦、只剩一个长期应用主进程和一个主窗口，以及状态栏/通知区域存在可见非空托盘图形、中文菜单精确为“显示窗口/退出”、英文精确为“Show Window/Quit”、运行时切换无需重启且无 `tray.*` 原始键、原生关闭只隐藏且进程继续、托盘左键和本地化显示项都能恢复并聚焦、本地化退出项结束进程并移除图标。缺少图标资产/配置引用/运行时接线、依赖/实现、首插件顺序、回归、资源或真实宿主证据，或者当前宿主无法判定进程/窗口唯一性、只能定位空白点击区域或无法观察托盘，均阻断收尾，不能降级。随后删除实例化、初始化和 GUI 初始化 E2E Skills、模板专用验证器/方法论文档以及活动初始化指令；保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees` 和仍适用的开发 Skills。在 `AGENTS.md` 中保留非空的 Skills/约束地图以及持久策略语义。如果本工作流能够取得精确渲染后的保留工程层候选以及源版本/提交，则使用 `$desktop-upgrade-harness record --bootstrap` 创建 `.harness/upstream-lock.json`；否则必须保持该文件不存在，并记录首次升级需要初始基线审计，不得伪造溯源。验证没有残留派生路径或策略 `pending`，创建恰好一个本地基线提交，并在进入 `$desktop-define-product` 前要求 Git 简洁状态为空。
 
+初始化收尾还必须由 `$desktop-manage-version init --project-root .` 创建并核对受保护的 `.harness/version-state.json`，并在裁剪中完整保留该版本 Skill、标准库 helper 和测试；不得把 Harness 时间版本写入下游状态。
+
 ## 重置不变量
 
 - 绝不得把 Harness 中的 `Approved` 产品状态、人工复核人身份、验证结论、源码提交、校验和、发布日期或平台结果带入新的下游项目。
@@ -40,7 +42,7 @@ description: 在用户提供的目标目录中创建干净的下游项目，包�
 - 生成的仓库是终端项目：不得保留 `$desktop-instantiate-project`、`$desktop-initialize-rust-project` 或任何其他活动的项目派生入口。
 - 选择 GUI 时，唯一基线提交必须晚于一次成功的单实例/托盘结构检查和 GUI 初始化 E2E；结构检查必须锁定非透明 32px RGBA 图标/配置引用与运行时接线，后者必须包含同一真实二进制双启动、第二次启动退出并唤醒同一主窗口、单一长期应用主进程/主窗口，以及真实系统托盘的可见非空图形、精确菜单、关闭隐藏、两种恢复与退出生命周期，宿主无法判定、只能定位空白点击区域或无法观察也必须阻断。该本机调试检查不迁移为发布或完整验收结论。
 - 生成的仓库必须包含 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`；与源 Harness 相比，只有其中精确的双语 `Applicable Project Name` 可以不同，所有其他法律条款都必须保持不变。初始化裁剪不得删除或进一步修改任一文件。
-- 裁剪后，`AGENTS.md` 必须继续保留非空的 Skills/约束地图、`$desktop-upgrade-harness` 以及持久策略决策规则。
+- 裁剪后，`AGENTS.md` 必须继续保留非空的 Skills/约束地图、`$desktop-upgrade-harness`、`$desktop-manage-version`、`.harness/version-state.json` 保护规则以及持久策略决策规则。
 
 ## 完成要求
 

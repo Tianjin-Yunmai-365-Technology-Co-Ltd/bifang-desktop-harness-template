@@ -11,7 +11,7 @@ description: 构建下游 Rust CLI 候选；逐次解析 E2E 选择并全量运�
 
 1. 读取 `Cargo.toml`、`docs/RUST_CLI_TEMPLATE.md`、`docs/AGENT_POLICY.md`、`docs/RELEASE.md`，以及任何已批准的发布渠道或签名配置；只有 E2E、完整验收或发布被独立触发时才读取其相关验证记录。依据 Cargo 元数据和仓库事实确定软件包、二进制文件、版本、目标平台和产物名称。先解析当前构建的 E2E 选择：本次请求已明确 `enabled`/`disabled` 时直接复用，否则在任何测试或编译前询问用户一次；`milestone_e2e` 只作为建议默认值，选择只对本次构建有效且不得静默写回策略。
    若发现目标是 Tauri GUI 安装包，停止本 Skill 并转交 `$desktop-build-tauri-release`；不得用 CLI raw-binary 打包/签名模型处理 DMG、NSIS 或公证。
-2. 要求本次构建已由用户显式请求，下游项目根同时是其独立 Git 顶层目录，并要求 `HEAD` 解析到真实源码提交。确认 `Cargo.lock`、`rust-version`、分支、未提交修改状态、宿主和架构；存在用户要求的活动 Todo 时不得构建尚未完成的范围，但 Work Plan 不是构建前置条件。
+2. 要求本次构建已由用户显式请求，下游项目根同时是其独立 Git 顶层目录，并要求 `HEAD` 解析到真实源码提交。先调用 `$desktop-manage-version check --phase build`，确认根 Cargo 当前版本与 `.harness/version-state.json` 目标一致；构建不得计算、提升版本或重置正式发布周期。确认 `Cargo.lock`、`rust-version`、分支、未提交修改状态、宿主和架构；存在用户要求的活动 Todo 时不得构建尚未完成的范围，但 Work Plan 不是构建前置条件。
 3. 将目标目录精确解析为 `<canonical-project-root>/release`。要求根 `.gitignore` 包含精确的根锚定 `/release/` 规则。遇到符号链接/重解析点、非目录、规范化后路径越界或目标等于项目根时必须拒绝。在执行任何单元测试或构建命令前，调用随附的 POSIX 或 PowerShell 辅助程序：把已有目录原子移动到同一文件系统中的唯一清理目录，创建并重新验证全新空 `release/`，随后仅删除已隔离的旧目录树且不得跟随重解析点。绝不得通过活动目标路径枚举并递归删除，也绝不得清理其他路径。
 4. 默认通过 `$desktop-prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选。只有仓库具有已复核的原生自动化、已配置的提供方和权限可用、三类原生运行器均可用，并且调用方能够取回已完成结果时，跨平台预检才算成功。调用本 Skill 只授权通过该既有配置路径构造候选，不授权发布。
 5. 仅当跨平台预检在任何远端矩阵启动前证明上述编排前置条件不可用时，才回退当前宿主。记录精确回退原因，并将其他所有平台标记为 `Unverified`。不得把已启动矩阵的失败、测试失败、打包失败、签名失败、超时或取消视为回退条件；必须保留失败并拒绝多平台构建结果。不得把失败矩阵中的成功作业合并到调用方项目根 `release/`；目录完成初始清理后必须保持为空，并且只能从提供方构建日志或结果引用其部分证据。
@@ -25,7 +25,7 @@ description: 构建下游 Rust CLI 候选；逐次解析 E2E 选择并全量运�
 
 - `release/` 是当前构建结果目录，可以包含 `milestoneAcceptance: pending` 候选。目录存在绝不表示候选已验收、已就绪或可发布；全量单元测试通过也不能替代 E2E 或完整验收。
 - 构建请求、执行、成功、失败、重试和结果本身不触发任何项目记忆；只有被独立触发的 E2E、完整验收、发布、人工复核或长期审计由对应 Skill 按自身规则留证。
-- 本 Skill 不发布、不上传到发布渠道、不创建标签、不更改版本、不执行公证、不配置签名器，也不声称运行时行为。
+- 本 Skill 不发布、不上传到发布渠道、不创建标签、不更改版本、不调用 `finalize-release`、不执行公证、不配置签名器，也不声称运行时行为。
 - 默认三平台路线当前仅覆盖 Rust CLI 产物模型。在另行批准统一矩阵前，TUI、MCP 和 GUI 使用各自适配器专用的产物规则。
 - Tauri GUI 的 macOS DMG 与 macOS→Windows NSIS 由 `$desktop-build-tauri-release` 处理；本 Skill 不解析 `pnpm`、`cargo-xwin` 或 Apple 公证状态。
 - 改变候选字节的签名必须发生在完整验收前。此后任何改变字节的签名、公证或重新打包都会产生新候选，并且必须返回 `$desktop-verify-delivery`。

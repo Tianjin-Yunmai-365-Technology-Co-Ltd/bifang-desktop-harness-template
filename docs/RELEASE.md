@@ -6,7 +6,7 @@
 - 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
 - 旧版本标识：[`Version.md`](../Version.md) 中记录的 `1.0.0`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
-- 下游 Rust 项目版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`
+- 下游 Rust 项目当前版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`；`.harness/version-state.json` 只保存正式发布周期、待发布变化和缺陷 ID 去重状态
 - 发布渠道：待确定
 - 发布物格式：待确定
 
@@ -19,17 +19,19 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 - 同一分钟内如需产生第二个不同版本，必须等待下一分钟，不得追加未约定字符。
 - `1.0.0` 只作为迁移前旧版本标识保留，不再用于新的 Harness 版本。
 
-下游产品默认使用语义化版本规范 2.0.0：
+下游产品使用无预发布/构建元数据的三段语义化版本，并由 `$desktop-manage-version` 执行以下确定性规则：
 
-- MAJOR：用户依赖的接口或行为存在不兼容变化。
-- MINOR：向后兼容地增加能力。
-- PATCH：向后兼容地修复缺陷或提升可靠性。
+- MAJOR、MINOR、PATCH 都支持闭区间 `0..100`；任何下一值将超过 100 时停止并询问用户，绝不自动进位。
+- MAJOR 只由用户决定是否提升及精确目标值。批准后写为 `N.0.0`，必须高于当前 Major，并把该正式发布周期的首功能提升视为已经包含；Agent 不得推断。
+- 每个正式发布周期的第一个已完成新功能把当前版本提升为 `MAJOR.(MINOR+1).0`；同一周期后续功能只记录其所需版本，不再因功能重复提升。Minor 提升总是把 Patch 归零。
+- 每个具有新稳定缺陷 ID 的已完成缺陷修复把 Patch 提升 1。相同缺陷 ID 的重复处理、补充修改或重试不再提升；正式发布后确认的回归必须分配新的回归缺陷 ID，才可提升。
+- 缺陷查询、诊断、复现、未完成或重复修复尝试，以及不改变需求/修复结果的重构、测试补强、文档、格式和内部清理不提升任何版本。
+- 版本只在合格变化已完成且本次相关测试通过后更新；普通构建、`pending` 候选、验收和失败发布只核对版本，不计算、不提升、不重置。
+- 只有正式发布真实成功后，才清空待发布变化并开启下一功能周期；历史缺陷 ID 始终保留，以阻止同一 ID 在未来周期重复提升。
 
-版本变化与 Changelog 写入是独立门禁。普通缺陷修复或纯重构仍可按实际兼容性形成 PATCH 版本，但不因此创建 Changelog；只有候选包含符合 `docs/changelog/README.md` 范围的变化时，才要求日期记录、汇总和版本一致性。仅含排除项的发布仍必须具有版本、源码提交、候选清单、Verification 和适用人工复核，缺少 Changelog 不削弱发布证据。
+版本变化与 Changelog 写入是独立门禁。Product Spec、ADR、Changelog 或 Work Plan 只有按自身事件独立触发时，才记录相关稳定 `change_id` 及门禁返回的 `required_version`。版本提升不为普通缺陷修复、纯重构或其他排除项创建 Changelog/ADR；较早变化记录的是其最低所需版本，最终发布版本可以因后续合格变化更高。仅含 Changelog 排除项的发布仍必须具有版本、源码提交、候选清单、Verification 和适用人工复核，缺少 Changelog 不削弱发布证据。
 
-已发布版本不得静默覆盖。任何发布内容变化都必须产生新版本。
-
-Agent 可以按对应方案建议 Harness 时间版本或下游 SemVer 变化，但是否改变版本以及最终值由用户决定。未经用户明确决定，不得修改版本、创建标签或把 `Unreleased` 条目移动到正式版本。
+已发布版本不得静默覆盖。Harness 时间版本仍由用户决定；下游除 Major 以外的合格版本变化由上述门禁自动确定。版本门禁不授权创建标签、移动 `Unreleased` 条目或正式发布。
 
 ## 发布物命名
 
@@ -56,11 +58,11 @@ Harness 模板若发布源码归档，使用：
 
 ## 构建、完整验收与发布顺序
 
-1. 用户显式请求构建后，构建 Skill 在任何测试或编译前解析当前 E2E 选择；当前请求未明确时询问一次，持久 `milestone_e2e` 只作建议默认值。随后必须运行项目全部非空单元测试：Rust 覆盖 workspace/all-targets/all-features，GUI 同时覆盖完整 Rust 与前端套件。Rust CLI 默认走 Windows、macOS、Linux 原生矩阵；Tauri GUI 在 macOS 原生构建 DMG，并可交叉构建 Windows x64 NSIS。构建前刷新根 `release/`，E2E 不混入测试、编译、签名或打包命令，构建事实不写入项目记忆。
+1. 用户显式请求构建后，下游先运行 `$desktop-manage-version check --phase build`，确认根 Cargo 当前版本与周期目标一致，且绝不在构建中提升或重置。构建 Skill 再在任何测试或编译前解析当前 E2E 选择；当前请求未明确时询问一次，持久 `milestone_e2e` 只作建议默认值。随后必须运行项目全部非空单元测试：Rust 覆盖 workspace/all-targets/all-features，GUI 同时覆盖完整 Rust 与前端套件。Rust CLI 默认走 Windows、macOS、Linux 原生矩阵；Tauri GUI 在 macOS 原生构建 DMG，并可交叉构建 Windows x64 NSIS。构建前刷新根 `release/`，E2E 不混入测试、编译、签名或打包命令，构建事实不写入项目记忆。
 2. 若 Rust CLI 项目已有批准的非交互签名钩子/命令、工具和已授权凭据，构建在归档/哈希前尝试签名并验证；失败会使对应平台构建失败。macOS Tauri 直接分发候选采用全有或全无规则：Developer ID Application 身份、`notarytool`、`stapler` 与一组完整 Apple 公证凭据齐备时，必须在 hash 前完成签名、公证和 stapling；不得生成仅签名候选，也不得使用 `--skip-stapling`。条件不足且渠道允许时才可显式 `--no-sign`；渠道要求时阻断；一旦签名或公证开始，失败不得降级。任何路径都不得自动创建、索取或输出凭据。
 3. `$desktop-verify-delivery` 针对 `release/` 中最终签名或明确为 `unsigned` 的候选字节，按 `milestone_smoke`、当前 `e2eSelection`、产品/渠道硬要求和适用性执行检查。E2E 选择只对当前构建有效，不得在验收阶段由持久偏好替代。
 4. 对 `required` 或 `enabled` 的检查，在标记 `ready`、发布上传或正式发布前执行。构建与 CI 可先生成、收集或上传 `milestoneAcceptance: pending` 候选，但不得把目录存在或提供方上传当作 `ready`。`Awaiting human review` 保持 `pending`；失败记录 `rejected` 并返回开发循环；只有完整通过和必需人工复核后才能更新为 `accepted`。
-5. 完整验收通过并取得项目要求的人工复核后，`$desktop-prepare-release` 才可准备版本和发布元数据。发布流程检查候选提交、版本、哈希、签名状态、清单与已验收产物一致，不自行运行冒烟/E2E 或重试签名。
+5. 完整验收通过并取得项目要求的人工复核后，`$desktop-prepare-release` 才可准备发布元数据。下游发布流程使用已经由版本门禁确定的目标版本，检查候选提交、版本、哈希、签名状态、清单与已验收产物一致，不重新计算版本，不自行运行冒烟/E2E 或重试签名。只有真实渠道发布成功后才执行 `$desktop-manage-version finalize-release`；失败、取消或只有标签/候选时不得重置周期。
 6. 若验收后的签名、公证、stapling、重打包或渠道处理改变产物字节、启动器、依赖或运行行为，结果成为新候选，必须回到步骤 3；不得用旧产物证据替代。xwin 交叉构建只能证明构建链完成，Windows 运行保持 `Unverified`。
 
 ## Harness 模板发布检查清单
@@ -75,7 +77,7 @@ Harness 模板若发布源码归档，使用：
 - [ ] Rust 初始化中性资产通过当前系统的格式、代码规范检查和非空测试；它是脚手架资产而非产品候选，不用冒烟证明产品交付。
 - [ ] Rust 初始化中性资产在声明的最低 Rust 版本 1.90.0 上完成可用工具链验证，或明确阻止发布并保持 `Unverified`；这不限制开发或运行环境使用更高稳定版。
 - [ ] 候选工作流示例通过静态检查，且不包含未经授权的标签、发布操作或写权限。
-- [ ] 版本、Rust 默认值、四类独立适配器、默认 CLI、Agent 策略、构建 E2E 选择和验收适用性在事实来源中一致。
+- [ ] Harness 时间版本、下游自动版本 Skill/状态保护、Rust 默认值、四类独立适配器、默认 CLI、Agent 策略、构建 E2E 选择和验收适用性在事实来源中一致。
 - [ ] `docs/VERIFICATION.md` 索引的日期证据卷包含本次文档检查证据、未执行项和剩余风险。
 - [ ] 完整验收已按候选冒烟策略、当前构建 E2E 选择和硬要求记录 `required` / `enabled` / `disabled` / `Not applicable`；所有 `required` 或 `enabled` 项通过。
 - [ ] `docs/verification/human_review.md` 包含真实的人类最终复核记录和结论。
@@ -101,6 +103,7 @@ Harness 根目录没有具体产品，因此下游产物门槛不适用于模板
 - [ ] 若选择 CLI，其统一 JSON 信封、错误结构、输出流和退出码契约验证通过；未选择时明确为不适用。
 - [ ] Windows、macOS、Linux 各平台的实际验证状态已公开；未运行的平台明确标记为 `Unverified`。
 - [ ] `docs/verification/human_review.md` 包含真实的人类最终复核记录和结论。
+- [ ] `$desktop-manage-version check --phase release` 通过，根 Cargo、`.harness/version-state.json` 目标、候选、manifest、软件显示与适用项目记忆版本一致；本检查没有提升版本或重置周期。
 - [ ] 版本事实来源、软件显示、Git 标签和发布物名称一致；存在符合 Changelog 规则的变化时，按日汇总也与该版本一致。
 - [ ] `$desktop-rename-project-identity` 残留扫描确认发布配置、Skills、文档、维护路径和两份许可证中没有旧产品身份。
 - [ ] 候选包含符合 Changelog 规则的变化时，`docs/changelog/` 的日期文件中存在对应版本条目；仅含普通缺陷修复或纯重构时本项为 `Not applicable`。
@@ -114,6 +117,7 @@ Harness 根目录没有具体产品，因此下游产物门槛不适用于模板
 - [ ] 完整验收根据候选冒烟策略、当前构建 E2E 选择、产品/渠道硬要求和适用性执行检查；所有 `required` 或 `enabled` 项通过，`disabled`/`Not applicable` 项及风险准确记录。
 - [ ] 任一验收失败都曾返回开发循环并完成回归测试，没有以 `Partially verified` 代替仍缺失的批准逻辑。
 - [ ] 已知重要问题已在 `docs/TECH_DEBT.md` 中向用户公开。
+- [ ] 发布执行方已声明只有真实正式发布成功后才以精确版本和 40 位源码提交调用 `finalize-release --release-succeeded`；失败、取消、候选或标签阶段均不会重置。
 
 Rust 下游项目默认使用 `docs/RUST_CLI_TEMPLATE.md` 中记录的工作区命令和发布产物布局；只有真实文件和命令存在后才能写入验证记录。候选矩阵生成不等于正式发布；构建请求只允许使用已配置且已授权的签名条件，不授权创建凭据、标签、GitHub 发布、向软件包仓库发布或发布上传。
 

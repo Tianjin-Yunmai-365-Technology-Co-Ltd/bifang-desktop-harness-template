@@ -29,7 +29,7 @@
 | 产品边界变化、长期决定与硬规则例外 | `docs/adr/README.md` 与当日 `docs/adr/YYYYMMDD_ADR.md` |
 | 验证方式与结果 | `docs/VERIFICATION.md` 与其索引的 `docs/verification/*.md` |
 | 已知限制与技术债 | `docs/TECH_DEBT.md` |
-| 版本与发布要求 | `docs/RELEASE.md` |
+| Harness 版本与下游版本/发布要求 | Harness 当前版本取 `Version.md`；下游当前版本取根 `Cargo.toml`，发布周期与去重状态取 `.harness/version-state.json`；规则取 `docs/RELEASE.md` 与 `$desktop-manage-version` |
 | 用户和维护者可见变更 | `docs/changelog/README.md` 与当日 `docs/changelog/YYYYMMDD_CHANGELOG.md` |
 
 如果事实来源之间冲突，先调查并修正文档；不要自行选择更方便的说法。
@@ -39,6 +39,7 @@
 - 下游初始化先让用户在“推荐预设”和“自定义”之间选择一次。推荐预设把 Superpowers 设为 `disabled`，Worktree/Subagent 和适用冒烟设为 `enabled`，E2E 建议默认值设为 `disabled`；只有选择自定义时才逐项询问。最终值写入 `docs/AGENT_POLICY.md`，不得在基线残留 `pending`。只有自定义选择明确启用 Superpowers 时，后续 Agent 才可调用 `superpowers:*` Skill。
 - 只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled`、至少两个写入范围可安全独立时，才使用 `$desktop-run-parallel-worktrees`；日常开发不得因持久策略或可并行性自动增加协作步骤。写入型 Subagent 各自使用独立 Git Worktree 和 `codex/` 分支，写入前调用 helper `guard` 并声明目标；主 Agent 同步等待全部必需结果，重叠写入转为串行。
 - 日常开发统一从用户请求直接进入 `$desktop-implement-change`。除必要 ADR、Changelog 等事件触发记录和本次开发所需单元/回归测试外，不因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加 `$desktop-plan-change`、Work Plan、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
+- 已初始化下游的每次工作先由 `$desktop-manage-version` 分类。完成的首个新功能在同一正式发布周期只把 Minor 提升一次并把 Patch 归零；每个新稳定缺陷 ID 的已完成修复提升一次 Patch；Major 只按用户批准的精确值提升并把 Minor/Patch 归零。查询、诊断、复现、重复或未完成修复尝试、重构、测试补强、文档、格式和内部清理不提升。三个分量都只允许 `0..100`，溢出不进位；只有正式发布成功才重置功能周期，普通构建、候选或失败发布不得重置。根 `Cargo.toml` 是当前版本唯一事实源，`.harness/version-state.json` 是受保护的周期/去重状态，禁止手工绕过。
 - `$desktop-plan-change` 只在用户明确要求持久计划、任务需要跨会话交接，或发布/高风险工作确需协调时使用；计划不是日常开发的前置条件。
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、建立或改变对外兼容契约、渠道硬要求、签名/发布和跨平台最终候选仍保留解决当前风险所必需的授权与门禁；不得把精简流程解释为降级这些边界。
 - 不得把未来候选默认纳入当前版本。规格不明确且不同答案会改变产品边界时，停止实现并请求确认；普通实现细节不要求额外范围会议。
@@ -86,7 +87,7 @@
 - 构建请求、执行、成功、失败、重试、全量单元测试结果、产物路径/摘要/签名状态和本次 E2E 选择本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification。构建事实只写入当前 `release/` manifest、其声明的相邻制品证据和最终回复，不得复制到项目记忆；E2E、完整验收、发布、人工复核或长期审计被独立触发时，才由对应 Skill 按自身事实源留证。
 - 跨平台设计不得默认单一 Shell、路径分隔符、文件权限模型或仅在一个平台存在的系统能力。
 - 仓库中没有明确命令时，不得虚构构建、测试或发布命令。
-- Product Spec 只在产品目标、边界、约束或成功标准改变时更新；ADR 只记录长期重要、难以逆转的决定和硬规则例外；Product Status 只在重要阻断、跨会话交接、发布/验收或用户要求时更新；Work Plan 只在用户明确要求、跨会话交接或发布/高风险协调确有必要时使用；`docs/VERIFICATION.md` 只保存发布、完整验收、人工复核或长期审计证据。
+- Product Spec 只在产品目标、边界、约束或成功标准改变时更新；ADR 只记录长期重要、难以逆转的决定和硬规则例外；Product Status 只在重要阻断、跨会话交接、发布/验收或用户要求时更新；Work Plan 只在用户明确要求、跨会话交接或发布/高风险协调确有必要时使用；`docs/VERIFICATION.md` 只保存发布、完整验收、人工复核或长期审计证据。Product Spec、ADR、Changelog 或 Work Plan 被自身事件独立触发时，必须记录相关稳定 `change_id` 与 `$desktop-manage-version` 给出的 `required_version`；版本变化本身不触发这些文档。
 - 普通缺陷修复、不改变可观察行为的纯重构、格式整理、测试补强和内部清理本身不触发 Product Spec、ADR、Product Status、Changelog 或 Verification；结果只在最终回复和测试/CI 中报告。产品边界、长期决定/硬规则例外、重要阻断/交接、发布/人工复核/长期审计、安全或渠道要求等独立事件仍按原规则记录，维护任务标签不得绕过门禁。
 - Changelog 只记录已经发生、用户或维护者可感知且不属于上述普通维护排除的合格变化。未触发任何持久记忆时，最终回复概括变更、实际验证和未验证范围即可，不要求写“不适用”占位。
 - 需要写日期快照时，同日更新现有文件；新自然日读取前一份并综合仍有效事实。开发或修改长期规则前读取最新 ADR，并只追溯其中明确引用的旧决定。

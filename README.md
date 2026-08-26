@@ -17,7 +17,7 @@
 2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`；选择 GUI 时会实际生成 3 个 Logo 候选并等待用户选择，同时创建项目内 660×400 macOS DMG 拖拽背景，并强制初始化单实例、运行时正确刷新的系统托盘 i18n、关闭隐藏、两种恢复聚焦、动态标题、`136px` 单态图标上文字下的 Logo→版本侧栏、无隐私/统计区块的语言与三态主题设置、应用级亮暗主题以及应用导航中的关于/赞助页。初始化基线提交前会先检查单实例依赖/首插件/回调、托盘 feature、源码、稳定 ID、`rust-i18n` 标签解析、双语资源和八个固定回归，再自动构建并双启动真实本机调试二进制，实测第二次启动只唤醒既有主窗口后退出、单一长期主进程/主窗口、托盘中英文精确菜单与完整生命周期、固定侧栏、精简设置页和所有菜单页面可达；任一缺失都不会创建基线提交。
    托盘检查不再只看 API 关键词：还会验证非透明 `icons/32x32.png` 及 Tauri 配置引用、从 `.setup` 可达的菜单/图标/构建接线和 `.on_window_event`，并要求真实状态栏/通知区域出现可见非空图形；空白点击区域不能通过。
 3. 初始化时运行一次 `$desktop-check-development-environment`；初始化完成后先直接执行真实测试/构建命令，只有命令已因受管环境问题失败时才做对应检查、安装并重试一次。不得因新任务、显式构建或缺少环境证据重复预检。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
-4. 日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。含 GUI 的一次性初始化 E2E 是初始化完成门禁，不属于日常开发自动扩张。
+4. 日常开发直接使用 `$desktop-implement-change`，并由 `$desktop-manage-version` 对已完成变化自动应用下游 SemVer：每个发布周期首个功能升一次 Minor，每个新缺陷 ID 的修复升一次 Patch，Major 只由用户批准；查询、诊断、重复修复、重构等维护不升版本。只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。含 GUI 的一次性初始化 E2E 是初始化完成门禁，不属于日常开发自动扩张。
 5. 用户显式请求构建时，构建 Skill 先解析本次是否启用 E2E，再运行项目全部非空单元测试并构建候选；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
 6. 已初始化下游需要接收新版工程规则时使用 `$desktop-upgrade-harness`：先 dry-run 和三方比较，显式批准后只更新安全受管文件。
 
@@ -41,6 +41,7 @@
 | `docs/adr/README.md` | 按日 ADR 索引；正文位于 `docs/adr/YYYYMMDD_ADR.md` |
 | `docs/TECH_DEBT.md` | 已知限制和技术债 |
 | `docs/RELEASE.md` | 版本与发布规则 |
+| `.harness/version-state.json`（仅下游） | 下游正式发布周期、功能提升和缺陷 ID 去重状态；当前版本仍以根 `Cargo.toml` 为准 |
 | `docs/changelog/README.md` | 按日 Changelog 索引；正文位于 `docs/changelog/YYYYMMDD_CHANGELOG.md` |
 | `docs/HARNESS_ENGINEERING.md` | 本模板方法论索引；主题正文位于 `docs/harness_engineering/` |
 
@@ -51,6 +52,7 @@
 - `$desktop-rename-project-identity`：预览并统一修改项目展示名、标识前缀、配置、维护路径、Skills 与两份 License 的适用项目名；现有产品改名先确认产品范围并记录必要 ADR/Changelog，构建或完整验收只按用户显式请求执行。
 - `$desktop-plan-change`：只在用户明确要求持久计划、跨会话交接或发布/高风险协调确有必要时建立精简 Todo；日常开发不自动调用。
 - `$desktop-implement-change`：直接执行范围清楚的请求，只运行本次开发需要的单元/回归测试和最小必要替代检查。
+- `$desktop-manage-version`：为下游产品只读计算或提交功能、缺陷、Major 与维护分类的 SemVer 变化，并在正式发布成功后重置周期。
 - `$desktop-refactor-code`：从单文件行数、文件组织结构（Rust `mod.rs`、前端非强制 `index.ts`）、命名、常量提取、潜在性能与死锁风险、core-first 归属六个方面辅助行为保持的重构。
 - `$desktop-extract-i18n-strings`：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core。
 - `$desktop-run-parallel-worktrees`：只有用户明确要求并行、项目策略允许且写入范围可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
@@ -65,7 +67,7 @@
 - `$desktop-prepare-cross-platform-release`：提供默认 Windows、macOS、Linux 原生 Rust CLI 候选矩阵和逐平台清理/条件签名门禁。
 - `$desktop-collect-release-artifacts`：提取并核验归档、SHA-256、签名状态、manifest 和平台证据，同时保留候选的 `pending`/`rejected`/`accepted` 状态，不把收集结果写入项目记忆。
 - `$desktop-upgrade-harness`：以 dry-run、来源锁和三方比较安全更新下游 Harness 工程层。
-- `$desktop-prepare-release`：检查版本一致性并准备可追溯发布。
+- `$desktop-prepare-release`：检查已由版本门禁确定的版本一致性并准备可追溯发布；正式发布成功后才提交周期重置。
 - `$desktop-add-mcp-adapter`：仅在下游用户明确批准后，为现有 shared core 增加最小 Rust stdio MCP adapter。
 - `$desktop-add-gui-adapter`：仅在下游用户明确批准后，为现有 shared core 增加最小 Tauri 2 桌面 GUI adapter。
 - `$desktop-add-cli-adapter`：增加独立、非交互且 Agent-ready 的 CLI adapter。

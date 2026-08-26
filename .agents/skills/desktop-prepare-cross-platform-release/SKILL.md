@@ -10,7 +10,7 @@ description: 准备并验证 $desktop-build-rust-release 使用的 Windows、mac
 ## 工作流程
 
 1. 读取已批准的产品规格、用户显式请求的当前构建、`docs/AGENT_POLICY.md`、`docs/RUST_CLI_TEMPLATE.md`、`docs/RELEASE.md`、当前版本事实源，以及任何已批准的签名钩子配置；只有 E2E、完整验收或发布被独立触发时才读取其验证记录，只有用户要求的活动 Work Plan 存在时才读取它。
-2. 确认当前构建由用户显式请求、仓库根是独立 Git 顶层目录，并且请求授权一个精确的 40 字符源码提交。手动提供方工作流保留固定的 `confirm_candidate_build`、`version`、`source_commit` 和 `e2e_selection` 输入；最后一项只接受 `enabled`/`disabled`，由 `$desktop-build-rust-release` 完成逐次解析后提供。存在用户要求的活动 Todo 时不得构建尚未完成的范围，但 Work Plan 不是前置条件。必须在禁用凭据持久化的情况下检出该提交，并在执行仓库代码或签名钩子前验证 `HEAD`。不得推断发布授权。
+2. 确认当前构建由用户显式请求、仓库根是独立 Git 顶层目录，并且请求授权一个精确的 40 字符源码提交。手动提供方工作流保留固定的 `confirm_candidate_build`、`version`、`source_commit` 和 `e2e_selection` 输入。调用 `$desktop-manage-version check --phase build`，并要求固定 `version` 输入精确等于门禁返回的当前目标；任何运行器都不得提升版本或重置周期。`e2e_selection` 只接受 `enabled`/`disabled`，由 `$desktop-build-rust-release` 完成逐次解析后提供。存在用户要求的活动 Todo 时不得构建尚未完成的范围，但 Work Plan 不是前置条件。必须在禁用凭据持久化的情况下检出该提交，并在执行仓库代码或签名钩子前验证 `HEAD`。不得推断发布授权。
 3. 确定软件包/二进制文件名称、MSRV、目标平台和真实命令。声称三平台支持时，必须使用原生 Windows、macOS 和 Linux 运行器。使用 `fail-fast: false`，确保每个原生作业都到达可观察的终态；任何失败、取消或超时的作业都必须使整个矩阵失败。
 4. 派发前，必须证明提供方访问、已复核且不可变的工作流/GitHub Action 固定引用、全部运行器类型和结果取回能力均可用。如果预检在派发前失败，向 `$desktop-build-rust-release` 返回结构化的不可用原因，以便其回退当前宿主。派发一旦开始，绝不得把平台失败重新分类为预检不可用。
 5. 仅授予最小只读仓库权限。不得接受任意命令输入。第三方 action 必须固定到已复核且不可变的完整提交 SHA。

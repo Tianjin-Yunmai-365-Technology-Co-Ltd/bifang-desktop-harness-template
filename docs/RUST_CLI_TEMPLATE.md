@@ -25,7 +25,7 @@
 - 托盘可见图标来源固定为 Tauri `icon` 生成且由 `tauri.conf.json` 的 `bundle.icon` 引用的 `icons/32x32.png`；它必须是普通非符号链接、32×32 8-bit RGBA 非交错 PNG，且含非透明像素。安装函数必须由 Tauri Builder `.setup(...)` 调用，在同一实现组装并绑定双项 `Menu`、把 `default_window_icon()` 当作必需值、调用 `.icon(...)` 并成功 `.build(app)`；图标缺失即失败，禁止无图标继续。关闭处理由 `.on_window_event(...)` 注册。结构检查必须拒绝全透明资产、未配置引用、未接线函数或漏绑菜单/图标/构建；真实 E2E 必须看到非空托盘图形，空白点击区域不能通过。Linux tray builder 必须绑定菜单。
 - 托盘生命周期固定回归必须明确命名为 `tray_show_restores_and_focuses_main_window`、`close_request_hides_without_exit` 与 `tray_quit_exits_application`；托盘 i18n 固定回归必须明确命名为 `tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english` 与 `language_change_updates_tray_menu_labels`。它们与两个单实例回归共同组成 GUI 初始化的八个有断言固定命名回归。
 - 选择 GUI 时，中性初始化必须把随 `$desktop-initialize-rust-project` 提供的无产品身份 660×400 PNG 逐字节复制为 `<项目标识>_gui/src-tauri/dmg/background.png`，并让 `tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`。DMG 安装卷窗口固定为 660×400，应用与 Applications 落点分别为 `(180, 220)` 和 `(480, 220)`；首次真实 GUI 开发由 `$desktop-prepare-gui-app-identity` 预览批准该基线或在同一路径替换，并记录当前 SHA-256。构建只消费项目内图片，不能依赖初始化结束后被删除的 Skill 资产；该安装卷窗口不得覆盖主应用窗口尺寸。
-- 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一版本事实来源，各成员使用 `version.workspace = true`。
+- 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一当前版本事实来源，各成员使用 `version.workspace = true`。初始化同时由 `$desktop-manage-version` 创建 `.harness/version-state.json`；它只保存正式发布周期、待发布变化和缺陷 ID 去重状态，受保护且不得成为第二版本事实源。
 - 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
 - 首次脚手架在当前项目根创建 `Cargo.toml`，登记核心与实际选择的适配器；未来只扩展该根清单。
 - GUI `package.json` 必须直接声明带完整三段兼容下界的 `@tabler/icons-react`，并以命名组件提供菜单、操作、状态、空态和图表周边图标；存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji。图表绘制库仍按真实可视化需求选择。固定单态侧栏的 Logo、所有当前渲染图标和下方文字必须显式沿同一中心线水平居中且无裁切。
@@ -67,7 +67,7 @@
 | Rust 语言版本 | `2024` | 稳定版 Rust；不使用 nightly 功能 |
 | MSRV | `1.90.0` | 根工作区写入 `rust-version = "1.90"`，表示最低兼容版本；接受 1.90.0 及以上稳定版，不要求精确等于 1.90.0 |
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
-| 初始版本 | `0.1.0` | 后续提升由用户明确决定 |
+| 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor 并归零 Patch，独立缺陷 ID 升 Patch，Major 仅由用户批准；三个分量范围均为 `0..100` |
 | 锁文件 | 提交根 `Cargo.lock` | 使用 Cargo 生成；不得手工编辑 |
 | Node.js | 仅 GUI：`^20.19.0 || >=22.12.0` | 这是当前 Vite 基线的最低兼容范围；缺失时安装当前受支持 LTS，非 GUI 为 `not-required` |
 | pnpm | 仅 GUI：`>=10.0.0` | 缺失时安装兼容范围 `pnpm@^10.0.0`；现有更高兼容稳定版可继续使用，非 GUI 为 `not-required` |
