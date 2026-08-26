@@ -393,7 +393,7 @@ def primary_required_fragments(
             "`{applicationName} v{version} {contactChannel}:{contactValue}`",
             "`/settings`、`/about`、`/sponsor`",
             "底部固定组严格为赞助、设置、关于",
-            "设置页始终只渲染当前应用名/版本",
+            "设置页始终只渲染当前应用名/带一个小写 `v` 的版本",
             "不得信任远端 `forcedUpdate` 布尔值",
             "HTTPS JSON POST",
             "作者、作者联系方式和三段免责声明",

@@ -26,7 +26,7 @@ from scripts.harness_validation.initialization_primary_contract import (
 from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
-from scripts.harness_validation.context import PRODUCT_SPEC
+from scripts.harness_validation.context import GUI_SKILL, PRODUCT_SPEC
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
     read_repo_text,
@@ -48,6 +48,15 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Harness validation passed:", result.stdout)
+
+    def test_gui_settings_version_fragment_matches_skill(self) -> None:
+        """GUI 设置页的单个小写 v 版本契约必须与验证器要求一致。"""
+
+        expected = "设置页始终只渲染当前应用名/带一个小写 `v` 的版本"
+        initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        required = primary_required_fragments(initialize_skill)
+        self.assertIn(expected, required[GUI_SKILL])
+        self.assertIn(expected, GUI_SKILL.read_text(encoding="utf-8"))
 
     def test_standalone_web_is_removed_while_tauri_stack_remains(self) -> None:
         """独立 WEB Skill 必须消失，GUI 自有基线仍须声明固定前端技术栈。"""
