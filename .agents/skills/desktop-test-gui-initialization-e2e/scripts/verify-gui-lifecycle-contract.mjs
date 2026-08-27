@@ -812,6 +812,9 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
     if (!memberTauri || !/\bworkspace\s*=\s*true\b/u.test(memberTauri)) {
       errors.push("GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 tauri");
     }
+    const memberDependencyDeclaration = (dependency) =>
+      tomlAssignment(tomlSection(guiCargo, "dependencies"), dependency) ||
+      tomlSection(guiCargo, `dependencies.${dependency}`);
     if (profile.aboutPage) {
       const workspaceTokio =
         tomlAssignment(tomlSection(rootCargo, "workspace.dependencies"), "tokio") ||
@@ -820,11 +823,15 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
         errors.push("选择关于页时，根 [workspace.dependencies].tokio 必须启用 fs feature");
       }
       for (const dependency of ["tokio", "serde", "serde_json"]) {
-        const memberDependency =
-          tomlAssignment(tomlSection(guiCargo, "dependencies"), dependency) ||
-          tomlSection(guiCargo, `dependencies.${dependency}`);
+        const memberDependency = memberDependencyDeclaration(dependency);
         if (!memberDependency || !/\bworkspace\s*=\s*true\b/u.test(memberDependency)) {
           errors.push(`选择关于页时，GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 ${dependency}`);
+        }
+      }
+    } else {
+      for (const dependency of ["tokio", "serde", "serde_json"]) {
+        if (memberDependencyDeclaration(dependency)) {
+          errors.push(`未选择关于页时，GUI src-tauri/Cargo.toml 不得声明 ${dependency} 依赖`);
         }
       }
     }
@@ -872,7 +879,7 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       const testFiles = fs.existsSync(testRoot)
         ? collectFiles(testRoot, new Set([".rs"]))
         : [];
-      const testText = [...rustFiles, ...testFiles].map(readTextFile).join("\n");
+      const testText = [...sourceTexts, ...testFiles.map(readTextFile)].join("\n");
       rustTestText = testText;
       const testFunctions = collectRustFunctions(testText);
       const requiredTestNames = [

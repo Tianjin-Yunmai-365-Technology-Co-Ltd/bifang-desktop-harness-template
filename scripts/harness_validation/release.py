@@ -318,21 +318,20 @@ def validate_tauri_build_skill_contract(
                     errors,
                     f"Tauri release contract missing in {display_path(path)}: {fragment}",  # noqa: F405
                 )
+        if path in (release_notes_helper, release_notes_tests):
+            try:
+                compile(text, str(path), "exec")
+            except SyntaxError as error:
+                fail(  # noqa: F405
+                    errors,
+                    f"invalid Tauri release-note helper {display_path(path)}: {error}",  # noqa: F405
+                )
     if BUILD_RELEASE_POSIX_HELPER.is_file() and TAURI_RELEASE_DIRECTORY_HELPER.is_file():  # noqa: F405
         if BUILD_RELEASE_POSIX_HELPER.read_bytes() != TAURI_RELEASE_DIRECTORY_HELPER.read_bytes():  # noqa: F405
             fail(
                 errors,
                 "Tauri release directory helper must remain byte-identical to the tested CLI POSIX helper",
             )
-    for python_path in (release_notes_helper, release_notes_tests):
-        if python_path.is_file():
-            try:
-                compile(python_path.read_text(encoding="utf-8"), str(python_path), "exec")
-            except SyntaxError as error:
-                fail(  # noqa: F405
-                    errors,
-                    f"invalid Tauri release-note helper {display_path(python_path)}: {error}",  # noqa: F405
-                )
 
 
 def validate_release_contract(errors: list[str]) -> None:

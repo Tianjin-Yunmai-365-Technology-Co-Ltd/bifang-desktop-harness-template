@@ -287,7 +287,6 @@ def repository_required_fragments(
             "详细默认 `248px` 展开",
             "收起为 `76px` 后只显示图标并通过 Tooltip 显示名称",
             "profile-aware 本机调试 E2E",
-            "托盘禁用则验证关闭最后窗口退出",
             "未选页面缺席",
             "<项目标识>_gui/src-tauri/dmg/background.png",
             "660×400",

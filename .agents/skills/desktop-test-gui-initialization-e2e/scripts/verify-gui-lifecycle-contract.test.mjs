@@ -652,6 +652,20 @@ test("rejects single-instance dependencies when the capability was not selected"
   });
 });
 
+test("rejects residual about-page dependencies when the capability was not selected", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    fs.appendFileSync(
+      path.join(guiRoot, "src-tauri", "Cargo.toml"),
+      "\n[dependencies.tokio]\nworkspace = true\n",
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未选择关于页时.*不得声明 tokio 依赖/u,
+    );
+  });
+});
+
 test("accepts table-form Cargo dependencies and MenuItem with_id", () => {
   withFixture(({ root, guiRoot }) => {
     fs.writeFileSync(

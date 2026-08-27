@@ -230,18 +230,14 @@ export function AppSidebarTemplate({
     readDetailedSidebarCollapsed,
   );
   const collapsed = mode === "detailed" && detailedCollapsed;
-  const width =
+  const sizeKey =
     mode === "compact"
-      ? APP_SIDEBAR_WIDTHS.compact
+      ? "compact"
       : collapsed
-        ? APP_SIDEBAR_WIDTHS.detailedCollapsed
-        : APP_SIDEBAR_WIDTHS.detailedExpanded;
-  const logoSize =
-    mode === "compact"
-      ? APP_SIDEBAR_LOGO_SIZES.compact
-      : collapsed
-        ? APP_SIDEBAR_LOGO_SIZES.detailedCollapsed
-        : APP_SIDEBAR_LOGO_SIZES.detailedExpanded;
+        ? "detailedCollapsed"
+        : "detailedExpanded";
+  const width = APP_SIDEBAR_WIDTHS[sizeKey];
+  const logoSize = APP_SIDEBAR_LOGO_SIZES[sizeKey];
   const supportNavigationItems = buildSupportNavigationItems(supportPages);
 
   if (!isLocalSupportPath(logoSrc)) {

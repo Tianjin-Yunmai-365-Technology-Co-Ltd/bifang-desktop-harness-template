@@ -78,29 +78,24 @@ export function validateReleaseNotesRuntimeContract(
     "shows a bounded release notes load failure and retries from its own control",
   ];
 
+  const combinedText = `${rustSourceText}\n${frontendSourceText}`;
+
   if (aboutPage) {
-    for (const fragment of rustRequirements) {
-      if (!rustSourceText.includes(fragment)) {
-        errors.push(`选择关于页时缺少 Rust 更新日志运行时接线：${fragment}`);
-      }
-    }
-    for (const fragment of frontendRequirements) {
-      if (!frontendSourceText.includes(fragment)) {
-        errors.push(`选择关于页时缺少前端更新日志运行时接线：${fragment}`);
-      }
-    }
-    for (const testName of rustTests) {
-      if (!rustTestText.includes(testName)) {
-        errors.push(`选择关于页时缺少 Rust 更新日志回归：${testName}`);
-      }
-    }
-    for (const testName of frontendTests) {
-      if (!frontendSourceText.includes(testName)) {
-        errors.push(`选择关于页时缺少前端更新日志回归：${testName}`);
+    const requiredGroups = [
+      [rustSourceText, rustRequirements, "Rust 更新日志运行时接线"],
+      [frontendSourceText, frontendRequirements, "前端更新日志运行时接线"],
+      [rustTestText, rustTests, "Rust 更新日志回归"],
+      [frontendSourceText, frontendTests, "前端更新日志回归"],
+    ];
+    for (const [text, fragments, label] of requiredGroups) {
+      for (const fragment of fragments) {
+        if (!text.includes(fragment)) {
+          errors.push(`选择关于页时缺少${label}：${fragment}`);
+        }
       }
     }
     for (const forbidden of ["std::fs::read", "@tauri-apps/plugin-fs"]) {
-      if (`${rustSourceText}\n${frontendSourceText}`.includes(forbidden)) {
+      if (combinedText.includes(forbidden)) {
         errors.push(`更新日志必须使用异步窄命令，不得恢复宽泛或同步文件读取：${forbidden}`);
       }
     }
@@ -113,7 +108,7 @@ export function validateReleaseNotesRuntimeContract(
     "releaseNotesLoader",
     "ReleaseNotesDialogTemplate",
   ]) {
-    if (`${rustSourceText}\n${frontendSourceText}`.includes(forbidden)) {
+    if (combinedText.includes(forbidden)) {
       errors.push(`未选择关于页时不得保留更新日志运行时实现：${forbidden}`);
     }
   }
