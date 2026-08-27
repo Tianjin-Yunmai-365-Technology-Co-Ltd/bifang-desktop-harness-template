@@ -17,11 +17,13 @@ import enUS from "../i18n/en-US.json";
 import zhCN from "../i18n/zh-CN.json";
 import { AboutPageTemplate } from "./AboutPageTemplate";
 import {
+  APP_SIDEBAR_COLLAPSED_STORAGE_KEY,
   APP_SIDEBAR_LABEL_FONT_SIZE_PX,
   APP_SIDEBAR_LABEL_WIDTH_CH,
-  APP_SIDEBAR_LOGO_SIZE_PX,
+  APP_SIDEBAR_LOGO_SIZES,
   APP_SIDEBAR_NAV_ICON_SIZE_PX,
-  APP_SIDEBAR_WIDTH_PX,
+  APP_SIDEBAR_WIDTHS,
+  DEFAULT_DETAILED_SIDEBAR_COLLAPSED,
   AppSidebarTemplate,
 } from "./AppSidebarTemplate";
 import {
@@ -46,7 +48,7 @@ import {
   MAX_VISIBLE_RELEASE_NOTE_ITEMS,
   MAX_VISIBLE_RELEASE_NOTE_VERSIONS,
 } from "./releaseNotes";
-import { FIXED_BOTTOM_NAVIGATION_ITEMS } from "./supportNavigation";
+import { buildSupportNavigationItems } from "./supportNavigation";
 import { requiresMandatoryUpdate } from "./updatePresentation";
 
 /** 为 jsdom 补齐 Mantine 布局组件依赖的只读观察器。 */
@@ -150,10 +152,17 @@ describe("shared brand support templates", () => {
       sponsor: "Sponsor",
     });
     expect(enUS.tray).toEqual({ quit: "Quit", show_window: "Show Window" });
-    expect(FIXED_BOTTOM_NAVIGATION_ITEMS).toEqual([
+    expect(
+      buildSupportNavigationItems({ aboutPage: true, sponsorPage: true }),
+    ).toEqual([
       { id: "sponsor", labelKey: "navigation.sponsor", to: "/sponsor" },
       { id: "settings", labelKey: "navigation.settings", to: "/settings" },
       { id: "about", labelKey: "navigation.about", to: "/about" },
+    ]);
+    expect(
+      buildSupportNavigationItems({ aboutPage: false, sponsorPage: false }),
+    ).toEqual([
+      { id: "settings", labelKey: "navigation.settings", to: "/settings" },
     ]);
   });
 
@@ -179,7 +188,9 @@ describe("shared brand support templates", () => {
           },
         ]}
         logoSrc="/app-identity/logo.png"
+        mode="compact"
         onNavigate={onNavigate}
+        supportPages={{ aboutPage: true, sponsorPage: true }}
         version="3.4.5"
       />,
     );
@@ -212,10 +223,10 @@ describe("shared brand support templates", () => {
     expect(onNavigate).toHaveBeenCalledWith("/jobs");
   });
 
-  /** 单态侧栏以大图标在上、十字宽度居中文字在下，且没有展开控件。 */
-  it("keeps the fixed icon-above-label navigation centered and non-expandable", async () => {
-    expect(APP_SIDEBAR_WIDTH_PX).toBe(136);
-    expect(APP_SIDEBAR_LOGO_SIZE_PX).toBe(56);
+  /** 精简侧栏以大图标在上、十字宽度居中文字在下，且没有展开控件。 */
+  it("keeps compact icon-above-label navigation centered and non-expandable", async () => {
+    expect(APP_SIDEBAR_WIDTHS.compact).toBe(136);
+    expect(APP_SIDEBAR_LOGO_SIZES.compact).toBe(56);
     expect(APP_SIDEBAR_NAV_ICON_SIZE_PX).toBe(30);
     expect(APP_SIDEBAR_LABEL_WIDTH_CH).toBe(10);
     expect(APP_SIDEBAR_LABEL_FONT_SIZE_PX).toBe(11);
@@ -232,7 +243,9 @@ describe("shared brand support templates", () => {
           },
         ]}
         logoSrc="/app-identity/logo.png"
+        mode="compact"
         onNavigate={vi.fn()}
+        supportPages={{ aboutPage: true, sponsorPage: true }}
         version="v9.8.7"
       />,
     );
@@ -240,7 +253,7 @@ describe("shared brand support templates", () => {
     expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "136px" });
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
       "data-layout",
-      "fixed-icon-above-label",
+      "compact",
     );
     expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
       "v9.8.7",
@@ -274,6 +287,68 @@ describe("shared brand support templates", () => {
       inlineSize: "10em",
       textAlign: "center",
     });
+  });
+
+  /** 详细模式默认展开，并把用户点击按钮后的折叠状态持久化到设备偏好。 */
+  it("persists the detailed sidebar collapse button and uses tooltips when hidden", async () => {
+    expect(DEFAULT_DETAILED_SIDEBAR_COLLAPSED).toBe(false);
+    expect(APP_SIDEBAR_WIDTHS.detailedExpanded).toBe(248);
+    expect(APP_SIDEBAR_WIDTHS.detailedCollapsed).toBe(76);
+    const sidebar = (
+      <AppSidebarTemplate
+        activePath="/overview"
+        applicationName="Example Utility"
+        featureItems={[
+          {
+            icon: IconLayoutDashboard,
+            id: "overview",
+            label: "总览",
+            to: "/overview",
+          },
+        ]}
+        logoSrc="/app-identity/logo.png"
+        mode="detailed"
+        onNavigate={vi.fn()}
+        supportPages={{ aboutPage: false, sponsorPage: false }}
+        version="1.2.3"
+      />
+    );
+
+    const firstRender = await renderTemplate(sidebar);
+    expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "248px" });
+    expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
+      "data-collapsed",
+      "false",
+    );
+    expect(screen.getByTestId("navigation-label-overview")).toHaveTextContent(
+      "总览",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "收起侧栏" }));
+    expect(window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
+      "true",
+    );
+    expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "76px" });
+    expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
+      "data-collapsed",
+      "true",
+    );
+    expect(screen.queryByTestId("navigation-label-overview")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "总览" })).toHaveAttribute(
+      "data-navigation-layout",
+      "icon-only",
+    );
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "总览" }));
+    expect(await screen.findByText("总览")).toBeVisible();
+
+    firstRender.unmount();
+    await renderTemplate(sidebar);
+    expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "76px" });
+    fireEvent.click(screen.getByRole("button", { name: "展开侧栏" }));
+    expect(window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
+      "false",
+    );
+    expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "248px" });
   });
 
   /** 设置页只显示版本、语言和三态主题，不预置隐私或统计区块。 */
@@ -444,7 +519,7 @@ describe("shared brand support templates", () => {
       <AboutPageTemplate
         onCheckForUpdates={onCheckForUpdates}
         productName="Example Utility"
-        releaseNotes={releases}
+        releaseNotesLoader={async () => releases}
         update={{ currentVersion: "1.0.6", status: "idle" }}
         version="1.0.6"
       />,
@@ -463,7 +538,9 @@ describe("shared brand support templates", () => {
     fireEvent.click(screen.getByRole("button", { name: "更新日志" }));
     expect(screen.getByRole("dialog", { name: "更新日志" })).toBeInTheDocument();
     expect(
-      screen.getByText("-----------更新日志 2026-08-26 v1.0.6----------"),
+      await screen.findByText(
+        "-----------更新日志 2026-08-26 v1.0.6----------",
+      ),
     ).toBeInTheDocument();
     expect(screen.getAllByText("###功能优化")).toHaveLength(5);
     expect(screen.getAllByText("###问题修复")).toHaveLength(5);
@@ -471,6 +548,42 @@ describe("shared brand support templates", () => {
     expect(screen.queryByText("版本 6 优化 11")).not.toBeInTheDocument();
     expect(screen.queryByText(/v1\.0\.1/)).not.toBeInTheDocument();
     expect(screen.queryByText(/vv1\.0\.6/)).not.toBeInTheDocument();
+  });
+
+  /** 候选资源读取失败时展示本地错误，并允许用户从按钮自身重试。 */
+  it("shows a bounded release notes load failure and retries from its own control", async () => {
+    const releases = [
+      {
+        bugFixes: ["修复候选资源读取"],
+        featureOptimizations: [],
+        releaseDate: "2026-08-27",
+        version: "v1.0.7",
+      },
+    ];
+    const releaseNotesLoader = vi
+      .fn(async () => releases)
+      .mockRejectedValueOnce(new Error("unavailable"));
+    await renderTemplate(
+      <AboutPageTemplate
+        onCheckForUpdates={vi.fn()}
+        productName="Example Utility"
+        releaseNotesLoader={releaseNotesLoader}
+        update={{ currentVersion: "1.0.7", status: "idle" }}
+        version="1.0.7"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "更新日志" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "无法读取此候选内的更新日志",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    expect(
+      await screen.findByText(
+        "-----------更新日志 2026-08-27 v1.0.7----------",
+      ),
+    ).toBeInTheDocument();
+    expect(releaseNotesLoader).toHaveBeenCalledTimes(2);
   });
 
   /** 未配置更新时，关于页保留禁用入口且不虚构可用服务。 */

@@ -37,7 +37,7 @@ if [ "$1" = attach ]; then
     shift
   done
   [ -n "$mount" ] || exit 2
-  mkdir -p "$mount/Test App.app" "$mount/.background"
+  mkdir -p "$mount/Test App.app/Contents/Resources" "$mount/.background"
   mode=${{AFH_DMG_FIXTURE_MODE:-valid}}
   [ "$mode" = missing-ds-store ] || printf '%s' finder > "$mount/.DS_Store"
   [ "$mode" = missing-background ] || printf '%s' png > "$mount/.background/background.png"
@@ -47,6 +47,13 @@ if [ "$1" = attach ]; then
     ln -s /Applications "$mount/Applications"
   fi
   [ "$mode" = multiple-apps ] && mkdir "$mount/Second App.app"
+  if [ "$mode" != missing-release-notes ]; then
+    if [ "$mode" = mismatched-release-notes ]; then
+      printf '%s' mismatch > "$mount/Test App.app/Contents/Resources/release-notes.json"
+    else
+      cp "$AFH_DMG_RELEASE_NOTES_SOURCE" "$mount/Test App.app/Contents/Resources/release-notes.json"
+    fi
+  fi
   printf '%s\n' '/dev/disk-test Apple_HFS Test'
 elif [ "$1" = detach ]; then
   : > '{detached}'
@@ -71,16 +78,22 @@ class VerifyDmgLayoutTests(unittest.TestCase):
     ) -> subprocess.CompletedProcess[str]:
         """在伪 macOS 与隔离 hdiutil 下运行只读检查。"""
         env = os.environ.copy()
+        release_notes = root / "release-notes.json"
+        if not release_notes.exists():
+            release_notes.write_text(
+                '{"schemaVersion":1,"releases":[]}\n', encoding="utf-8"
+            )
         env.update(
             {
                 "AFH_PREREQ_PATH": str(fake_hdiutil(root)),
                 "AFH_TEST_PLATFORM": platform,
                 "AFH_ALLOW_TEST_OVERRIDES": "1",
                 "AFH_DMG_FIXTURE_MODE": mode,
+                "AFH_DMG_RELEASE_NOTES_SOURCE": str(release_notes),
             }
         )
         return subprocess.run(
-            ["/bin/sh", str(SCRIPT), str(dmg)],
+            ["/bin/sh", str(SCRIPT), str(dmg), str(release_notes)],
             text=True,
             capture_output=True,
             env=env,
@@ -98,6 +111,7 @@ class VerifyDmgLayoutTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.macos_dmg_layout.status=passed", result.stdout)
             self.assertIn("app_count=1", result.stdout)
+            self.assertIn("release_notes=byte-identical", result.stdout)
             self.assertTrue((root / "detached").is_file())
 
     def test_missing_ds_store_fails_closed_and_detaches(self) -> None:
@@ -136,6 +150,36 @@ class VerifyDmgLayoutTests(unittest.TestCase):
             result = self.run_check(root, link)
             self.assertEqual(result.returncode, 41)
             self.assertIn("dmg-not-regular-file", result.stdout)
+            self.assertFalse((root / "detached").exists())
+
+    def test_missing_or_mismatched_release_notes_resource_is_rejected(self) -> None:
+        """最终 DMG 中缺少或修改更新日志时不得形成候选。"""
+
+        for mode, reason in (
+            ("missing-release-notes", "release-notes-resource-missing"),
+            ("mismatched-release-notes", "release-notes-resource-mismatch"),
+        ):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                dmg = root / "candidate.dmg"
+                dmg.write_bytes(b"dmg")
+                result = self.run_check(root, dmg, mode=mode)
+                self.assertEqual(result.returncode, 41)
+                self.assertIn(reason, result.stdout)
+
+    def test_symlinked_release_notes_source_is_rejected_before_mount(self) -> None:
+        """根更新日志为符号链接时不得与候选资源比较。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dmg = root / "candidate.dmg"
+            dmg.write_bytes(b"dmg")
+            target = root / "notes-target.json"
+            target.write_text('{"schemaVersion":1,"releases":[]}\n', encoding="utf-8")
+            (root / "release-notes.json").symlink_to(target)
+            result = self.run_check(root, dmg)
+            self.assertEqual(result.returncode, 41)
+            self.assertIn("release-notes-source-not-regular-file", result.stdout)
             self.assertFalse((root / "detached").exists())
 
     def test_non_macos_host_is_not_applicable(self) -> None:

@@ -58,6 +58,25 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         self.assertIn(expected, required[GUI_SKILL])
         self.assertIn(expected, GUI_SKILL.read_text(encoding="utf-8"))
 
+    def test_gui_sidebar_omission_defaults_to_detailed(self) -> None:
+        """侧栏未选择时只能由初始化器归一化为详细模式。"""
+
+        initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        required = primary_required_fragments(initialize_skill)
+        default_fragment = "未选择侧栏模式必须写入 `sidebar_mode = detailed`"
+        invalid_fragment = "显式非法值不得按未选择处理"
+        self.assertIn(default_fragment, required[initialize_skill])
+        self.assertIn(invalid_fragment, required[initialize_skill])
+        initialize_text = initialize_skill.read_text(encoding="utf-8")
+        self.assertIn(default_fragment, initialize_text)
+        self.assertIn(invalid_fragment, initialize_text)
+        product_text = PRODUCT_SPEC.read_text(encoding="utf-8")
+        self.assertIn(
+            "用户未选择侧栏模式时必须写入 `sidebar_mode = detailed`",
+            product_text,
+        )
+        self.assertIn(invalid_fragment, product_text)
+
     def test_standalone_web_is_removed_while_tauri_stack_remains(self) -> None:
         """独立 WEB Skill 必须消失，GUI 自有基线仍须声明固定前端技术栈。"""
         self.assertFalse((ROOT / ".agents/skills/add-web-adapter").exists())
@@ -77,7 +96,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             self.assertIn(fragment, baseline)
 
     def test_gui_initialization_e2e_is_a_required_one_time_contract(self) -> None:
-        """GUI 初始化必须锁定单实例/托盘结构与真实生命周期，再检查界面。"""
+        """GUI 初始化必须按五项配置锁定适用生命周期与界面。"""
 
         initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         required = primary_required_fragments(initialize_skill)
@@ -95,21 +114,33 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             / ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs"
         )
         self.assertIn("$desktop-test-gui-initialization-e2e", initialization_fragments)
-        self.assertIn("verify-gui-lifecycle-contract.mjs", initialization_fragments)
-        self.assertIn("second_launch_restores_existing_main_window", initialization_fragments)
+        self.assertIn("`gui-initialization-config`", initialization_fragments)
+        self.assertIn("close_last_window_exits_application", initialization_fragments)
         self.assertIn(
-            "tray_show_restores_and_focuses_main_window",
+            "仅对已选单实例执行双启动唯一性场景",
             initialization_fragments,
         )
-        self.assertIn("pnpm tauri build --debug --no-bundle", initialization_fragments)
+        self.assertIn(
+            "仅对已选托盘执行关闭隐藏/恢复/退出与运行时 i18n 场景",
+            initialization_fragments,
+        )
         self.assertIn(e2e_skill, required)
-        self.assertIn("所有当前渲染的菜单项", required[e2e_skill])
-        self.assertIn("show_window", required[e2e_skill])
+        self.assertIn("未选能力不是缺失证据", required[e2e_skill])
+        self.assertIn("`single_instance: enabled`", required[e2e_skill])
+        self.assertIn("`system_tray: enabled`", required[e2e_skill])
+        self.assertIn("close_last_window_exits_application", required[e2e_skill])
         self.assertIn("icons/32x32.png", required[e2e_skill])
-        self.assertIn("可见非空图形", required[e2e_skill])
+        self.assertIn("真实非空图形", required[e2e_skill])
         self.assertIn("空白点击区域", required[e2e_skill])
-        self.assertIn("托盘图标消失", required[e2e_skill])
+        self.assertIn("关闭最后一个窗口", required[e2e_skill])
         self.assertIn(lifecycle_checker, required)
+        self.assertIn("gui-initialization-config", required[lifecycle_checker])
+        self.assertIn('"sidebar_mode"', required[lifecycle_checker])
+        self.assertIn(
+            "初始化器应在用户未选择时写入 detailed",
+            required[lifecycle_checker],
+        )
+        self.assertIn("close_last_window_exits_application", required[lifecycle_checker])
         self.assertIn("tauri_plugin_single_instance::init", required[lifecycle_checker])
         self.assertIn("TrayIconBuilder", required[lifecycle_checker])
         self.assertIn("icons/32x32.png", required[lifecycle_checker])
@@ -121,6 +152,18 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         )
         self.assertIn("process.exitCode = main()", required[lifecycle_checker])
         self.assertIn(lifecycle_tests, required)
+        self.assertIn(
+            "accepts an explicit no-tray no-single-instance close-on-last-window contract",
+            required[lifecycle_tests],
+        )
+        self.assertIn(
+            "rejects a final profile that omits the materialized detailed sidebar default",
+            required[lifecycle_tests],
+        )
+        self.assertIn(
+            "rejects close-hide lifecycle code when system tray was not selected",
+            required[lifecycle_tests],
+        )
         self.assertIn(
             "rejects a GUI that does not register the single-instance plugin first",
             required[lifecycle_tests],

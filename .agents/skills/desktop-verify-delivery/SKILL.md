@@ -17,9 +17,9 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 
 1. 明确核心成功路径、最高风险失败路径、真实输入/输出和可观察结果，区分外部前置项与产品逻辑。
 2. 核对当前构建已经运行项目全部非空单元测试。Rust 证据必须覆盖 workspace/all-targets/all-features 的锁定测试；GUI 还必须覆盖完整前端单元测试套件。只有源码提交、锁文件和候选构建身份完全匹配时才复用该证据；任何变化都必须返回构建 Skill 重建，不在验收中重复一套隐式构建流程。
-3. 运行候选自身所必需的真实产物存在性、接口/渠道和最终字节检查。macOS Tauri DMG 必须针对 `release/` 中当前最终字节重新运行 `$desktop-build-tauri-release` 的 `scripts/verify-dmg-layout.sh <final-dmg>`；不得自动接受软件许可或沿用旧 DMG 的布局证据。xwin NSIS 保持 `runtimeVerification: Unverified`，不能据交叉构建成功推断 Windows 行为。
+3. 运行候选自身所必需的真实产物存在性、接口/渠道和最终字节检查。所有 GUI 候选先核对 manifest 的 `releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath: release-notes.json` 与根事实；对可定位的实际应用资源运行 `verify_release_notes_resource.py bytes`。macOS Tauri DMG 必须针对 `release/` 中当前最终字节重新运行 `$desktop-build-tauri-release` 的 `scripts/verify-dmg-layout.sh <final-dmg> <project-root>/release-notes.json`，只读挂载并再次证明唯一 `.app/Contents/Resources/release-notes.json` 逐字节一致；不得自动接受软件许可或沿用旧 DMG 的布局证据，也不得沿用旧更新日志证据。xwin NSIS 保持 `runtimeVerification: Unverified`，不能据交叉构建成功或未安装资源目录检查推断 Windows 行为。
 4. 解析运行时检查：产品/渠道/安全硬要求优先；冒烟读取 `milestone_smoke`；E2E 只读取当前构建的明确选择，`milestone_e2e` 仅用于当时询问的建议默认值，不能在此替代或反转选择。
-5. E2E 为 `enabled` 或硬要求时调用 `$desktop-test-final-artifact-e2e`；为 `disabled` 时记录 `Not run` 和剩余风险。需要凭据、生产数据、支付、发布或不可逆副作用时仍须独立授权。
+5. E2E 为 `enabled` 或硬要求时调用 `$desktop-test-final-artifact-e2e`；含 GUI 且 `about_page = enabled` 时，必须从真实候选打开关于页和“更新日志”，对照已核验的候选资源确认当前版本、近五版、固定两类与单个小写 `v`，不能用注入数组或源码夹具代替；禁用时确认路由、入口与运行时命令缺席。E2E 为 `disabled` 时记录 `Not run` 和剩余风险。需要凭据、生产数据、支付、发布或不可逆副作用时仍须独立授权。
 6. 记录精确候选、平台、命令/场景、预期/观测结果、清理、跳过项、`runtimeVerification`、签名/公证状态和未验证平台。确认被独立事件触发的 Product Spec、设计文档和 Changelog 与实际行为一致，不创建无触发原因的记忆占位。
 
 ## 拒绝与修复

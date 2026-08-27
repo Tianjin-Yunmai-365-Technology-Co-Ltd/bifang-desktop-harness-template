@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""维护可打包并供关于页展示的近五次发布更新日志。"""
+"""维护可打包并供已选关于页展示的近五次发布更新日志。"""
 
 from __future__ import annotations
 
@@ -205,7 +205,7 @@ def upsert_release(
 
 
 def render_document(document: dict[str, Any]) -> str:
-    """按固定中文结构渲染关于页可展示的近五次更新日志。"""
+    """按固定中文结构渲染已选关于页可展示的近五次更新日志。"""
 
     normalized = validate_document(document)
     blocks: list[str] = []

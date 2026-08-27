@@ -62,24 +62,146 @@ function createTrayPng(visible = true) {
   ]);
 }
 
-/** 在隔离目录创建满足固定单实例与托盘契约的最小项目夹具。 */
+/** 写入结构检查器要求的五项 GUI 初始化选择。 */
+function writeInitializationProfile(root, overrides = {}) {
+  const selection = {
+    about_page: "enabled",
+    sidebar_mode: "detailed",
+    single_instance: "enabled",
+    sponsor_page: "enabled",
+    system_tray: "enabled",
+    ...overrides,
+  };
+  fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, "docs", "GUI_APP_PROFILE.md"),
+    `# GUI 应用资料\n\n\`\`\`gui-initialization-config\nsystem_tray = ${selection.system_tray}\nabout_page = ${selection.about_page}\nsponsor_page = ${selection.sponsor_page}\nsingle_instance = ${selection.single_instance}\nsidebar_mode = ${selection.sidebar_mode}\n\`\`\`\n`,
+  );
+}
+
+/** 写入关于/赞助均启用且采用详细侧栏的最小前端运行时。 */
+function writeDetailedFrontendFixture(guiRoot) {
+  const sourceRoot = path.join(guiRoot, "src");
+  fs.mkdirSync(path.join(sourceRoot, "routes"), { recursive: true });
+  fs.mkdirSync(path.join(guiRoot, "public", "brand-support", "sponsor"), { recursive: true });
+  fs.writeFileSync(
+    path.join(sourceRoot, "AppShell.tsx"),
+    `
+import { ActionIcon, Tooltip } from "@mantine/core";
+
+export const sidebarMode = "detailed";
+export const DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false;
+export const widths = { compact: 136, detailedCollapsed: 76, detailedExpanded: 248 };
+export const logoSizes = { compact: 56, detailedCollapsed: 44, detailedExpanded: 72 };
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 30;
+export const APP_SIDEBAR_LABEL_WIDTH_CH = 10;
+export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
+export const compactLayout = "icon-above-label";
+export const routes = ["/settings", "/about", "/sponsor"];
+
+export function Sidebar() {
+  const stored = window.localStorage.getItem("sidebar-collapsed");
+  window.localStorage.setItem("sidebar-collapsed", stored ?? "false");
+  return <><ActionIcon aria-label="collapse" /><Tooltip label="name"><span /></Tooltip></>;
+}
+`,
+  );
+  fs.writeFileSync(path.join(sourceRoot, "routes", "settings.tsx"), "export function SettingsPage() { return null; }\n");
+  fs.writeFileSync(
+    path.join(sourceRoot, "routes", "about.tsx"),
+    'import { AboutPageTemplate } from "../AboutPageTemplate";\nexport function AboutPage() { return <AboutPageTemplate />; }\n',
+  );
+  fs.writeFileSync(path.join(sourceRoot, "routes", "sponsor.tsx"), "export function SponsorPage() { return null; }\n");
+  fs.writeFileSync(
+    path.join(sourceRoot, "releaseNotesResource.ts"),
+    `
+import { invoke } from "@tauri-apps/api/core";
+export const LOAD_RELEASE_NOTES_COMMAND = "load_release_notes";
+export function decodeReleaseNotesDocument(value) { return value; }
+export async function loadBundledReleaseNotes() {
+  return decodeReleaseNotesDocument(await invoke<unknown>(command));
+}
+`,
+  );
+  fs.writeFileSync(
+    path.join(sourceRoot, "AboutPageTemplate.tsx"),
+    `
+import { loadBundledReleaseNotes } from "./releaseNotesResource";
+export function AboutPageTemplate({ releaseNotesLoader = loadBundledReleaseNotes }) {
+  const requestReleaseNotes = () => releaseNotesLoader();
+  const releaseNotesStatus = "idle";
+  return <Dialog status={releaseNotesStatus}>{t("release_notes.load_failed")}{t("release_notes.retry")}</Dialog>;
+}
+`,
+  );
+  fs.writeFileSync(
+    path.join(sourceRoot, "ReleaseNotesResource.test.ts"),
+    'test("loads the packaged document through the narrow Tauri command", () => assert(true));\ntest("shows a bounded release notes load failure and retries from its own control", () => assert(true));\n',
+  );
+  for (const filename of [
+    "arrow.png",
+    "bg.jpg",
+    "icon1.png",
+    "icon2.png",
+    "icon3.png",
+    "icon4.png",
+    "img1.png",
+    "img2.png",
+    "img3.png",
+    "pay1.png",
+    "pay2.png",
+    "select.png",
+  ]) {
+    fs.writeFileSync(path.join(guiRoot, "public", "brand-support", "sponsor", filename), "fixture");
+  }
+}
+
+/** 把前端运行时切换为只有设置页的精简侧栏配置。 */
+function writeCompactFrontendFixture(guiRoot) {
+  const sourceRoot = path.join(guiRoot, "src");
+  fs.rmSync(sourceRoot, { recursive: true, force: true });
+  fs.rmSync(path.join(guiRoot, "public", "brand-support", "sponsor"), { recursive: true, force: true });
+  fs.mkdirSync(path.join(sourceRoot, "routes"), { recursive: true });
+  fs.writeFileSync(
+    path.join(sourceRoot, "AppShell.tsx"),
+    `
+export const sidebarMode = "compact";
+export const widths = { compact: 136 };
+export const logoSizes = { compact: 56 };
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 30;
+export const APP_SIDEBAR_LABEL_WIDTH_CH = 10;
+export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
+export const compactLayout = "icon-above-label";
+export const routes = ["/settings"];
+`,
+  );
+  fs.writeFileSync(path.join(sourceRoot, "routes", "settings.tsx"), "export function SettingsPage() { return null; }\n");
+}
+
+/** 在隔离目录创建满足已选单实例与托盘契约的最小项目夹具。 */
 function createFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-lifecycle-contract-"));
   const guiRoot = path.join(root, "sample_gui");
   fs.mkdirSync(path.join(guiRoot, "src-tauri", "src"), { recursive: true });
   fs.mkdirSync(path.join(guiRoot, "src-tauri", "locales"), { recursive: true });
   fs.mkdirSync(path.join(guiRoot, "src-tauri", "icons"), { recursive: true });
+  writeDetailedFrontendFixture(guiRoot);
+  writeInitializationProfile(root);
   fs.writeFileSync(
     path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0", features = ["tray-icon"] }\ntauri-plugin-single-instance = { version = "2.0.0" }\n`,
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0", features = ["tray-icon"] }\ntauri-plugin-single-instance = { version = "2.0.0" }\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "Cargo.toml"),
-    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-single-instance = { workspace = true }\n`,
+    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-single-instance = { workspace = true }\ntokio = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "tauri.conf.json"),
     JSON.stringify({ bundle: { icon: ["icons/32x32.png"] } }),
+  );
+  fs.writeFileSync(
+    path.join(guiRoot, "src-tauri", "tauri.release.conf.json"),
+    JSON.stringify({ bundle: { resources: { "../../release-notes.json": "release-notes.json" } } }),
   );
   fs.writeFileSync(path.join(guiRoot, "src-tauri", "icons", "32x32.png"), createTrayPng());
   fs.writeFileSync(
@@ -91,6 +213,18 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 
 const SHOW_WINDOW_ID: &str = "show_window";
 const QUIT_ID: &str = "quit";
+const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json";
+
+struct ReleaseNotesDocument;
+enum ReleaseNotesLoadError { Invalid }
+
+#[tauri::command]
+async fn load_release_notes(app: tauri::AppHandle) -> Result<ReleaseNotesDocument, ReleaseNotesLoadError> {
+    let path = app.path().resolve(RELEASE_NOTES_RESOURCE_PATH, tauri::path::BaseDirectory::Resource).unwrap();
+    let _metadata = tokio::fs::symlink_metadata(&path).await.unwrap();
+    let bytes = tokio::fs::read(path).await.unwrap();
+    serde_json::from_slice(&bytes).map_err(|_| ReleaseNotesLoadError::Invalid)
+}
 
 fn restore_main_window(app: &tauri::AppHandle) {
     let window = app.get_webview_window("main").unwrap();
@@ -105,6 +239,7 @@ fn run() {
             restore_main_window(app);
         }))
         .plugin(tauri_plugin_os::init())
+        .invoke_handler(tauri::generate_handler![load_release_notes])
         .setup(|app| {
             install_tray(app)?;
             Ok(())
@@ -191,6 +326,16 @@ mod tests {
     fn language_change_updates_tray_menu_labels() {
         assert_ne!("显示窗口", "Show Window");
     }
+
+    #[test]
+    fn parses_valid_release_notes_resource() {
+        assert!(true);
+    }
+
+    #[test]
+    fn rejects_invalid_release_notes_resource() {
+        assert!(true);
+    }
 }
 `,
   );
@@ -203,6 +348,52 @@ mod tests {
     "tray:\n  show_window: Show Window\n  quit: Quit\n",
   );
   return { root, guiRoot };
+}
+
+/** 把默认夹具切换为未选择托盘和单实例的合法关闭即退配置。 */
+function disableTrayAndSingleInstance(root, guiRoot) {
+  writeInitializationProfile(root, {
+    about_page: "disabled",
+    sidebar_mode: "compact",
+    single_instance: "disabled",
+    sponsor_page: "disabled",
+    system_tray: "disabled",
+  });
+  fs.writeFileSync(
+    path.join(root, "Cargo.toml"),
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0" }\n`,
+  );
+  fs.writeFileSync(
+    path.join(guiRoot, "src-tauri", "Cargo.toml"),
+    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\n`,
+  );
+  fs.writeFileSync(
+    path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
+    `
+use tauri::WindowEvent;
+
+fn run() {
+    let _builder = tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
+        .on_window_event(|window, event| exit_on_close(window, event));
+}
+
+fn exit_on_close(window: &tauri::Window, event: &WindowEvent) {
+    if let WindowEvent::CloseRequested { .. } = event {
+        window.app_handle().exit(0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn close_last_window_exits_application() {
+        assert!(true);
+    }
+}
+`,
+  );
+  writeCompactFrontendFixture(guiRoot);
 }
 
 /** 在测试结束后删除当前用例创建的隔离项目。 */
@@ -226,15 +417,250 @@ test("accepts a complete single-instance and tray lifecycle contract", () => {
   });
 });
 
+test("accepts an explicit no-tray no-single-instance close-on-last-window contract", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    assert.deepEqual(verifyGuiLifecycleContract(root, "sample_gui"), []);
+  });
+});
+
+test("rejects a GUI initialization without the dedicated capability profile", () => {
+  withFixture(({ root }) => {
+    fs.rmSync(path.join(root, "docs", "GUI_APP_PROFILE.md"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /GUI 初始化资料/u,
+    );
+  });
+});
+
+test("rejects an unresolved GUI sidebar mode", () => {
+  withFixture(({ root }) => {
+    writeInitializationProfile(root, { sidebar_mode: "pending" });
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /sidebar_mode 必须为 compact 或 detailed/u,
+    );
+  });
+});
+
+test("rejects a final profile that omits the materialized detailed sidebar default", () => {
+  withFixture(({ root }) => {
+    const profile = path.join(root, "docs", "GUI_APP_PROFILE.md");
+    fs.writeFileSync(
+      profile,
+      fs.readFileSync(profile, "utf8").replace("sidebar_mode = detailed\n", ""),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /缺少字段：sidebar_mode；初始化器应在用户未选择时写入 detailed/u,
+    );
+  });
+});
+
+test("rejects an enabled about page without its route or runtime component", () => {
+  withFixture(({ root, guiRoot }) => {
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace(', "/about"', ""));
+    fs.rmSync(path.join(guiRoot, "src", "routes", "about.tsx"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /选择关于页时缺少 \/about 路由.*选择关于页时缺少运行时组件/su,
+    );
+  });
+});
+
+test("rejects a GUI without the release-only resource mapping", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.rmSync(path.join(guiRoot, "src-tauri", "tauri.release.conf.json"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /更新日志发布配置/u,
+    );
+  });
+});
+
+test("rejects an enabled about page without a registered release notes command", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace("        .invoke_handler(tauri::generate_handler![load_release_notes])\n", ""),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /generate_handler!\[load_release_notes\]/u,
+    );
+  });
+});
+
+test("rejects an enabled about page without the narrow frontend loader", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.rmSync(path.join(guiRoot, "src", "releaseNotesResource.ts"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /invoke<unknown>\(command\)/u,
+    );
+  });
+});
+
+test("rejects a GUI without the fixed settings route and runtime component", () => {
+  withFixture(({ root, guiRoot }) => {
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace('"/settings", ', ""));
+    fs.rmSync(path.join(guiRoot, "src", "routes", "settings.tsx"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /缺少 \/settings 路由.*缺少设置页运行时组件/su,
+    );
+  });
+});
+
+test("rejects a disabled about page with a residual runtime route", () => {
+  withFixture(({ root }) => {
+    writeInitializationProfile(root, { about_page: "disabled" });
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未选择关于页时不得保留 \/about 路由/u,
+    );
+  });
+});
+
+test("rejects a disabled about page with a residual release notes runtime", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    const settings = path.join(guiRoot, "src", "routes", "settings.tsx");
+    fs.appendFileSync(settings, "\nconst load_release_notes = true;\n");
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未选择关于页时不得保留更新日志运行时实现/u,
+    );
+  });
+});
+
+test("rejects an enabled sponsor page with incomplete local media", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.rmSync(path.join(guiRoot, "public", "brand-support", "sponsor", "pay2.png"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /选择赞助页时缺少完整本地媒体 pay2\.png/u,
+    );
+  });
+});
+
+test("rejects disabled sponsor media left in the runtime bundle", () => {
+  withFixture(({ root }) => {
+    writeInitializationProfile(root, { sponsor_page: "disabled" });
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未选择赞助页时不得保留 public\/brand-support\/sponsor/u,
+    );
+  });
+});
+
+test("rejects a disabled sponsor page with residual route and component", () => {
+  withFixture(({ root, guiRoot }) => {
+    writeInitializationProfile(root, { sponsor_page: "disabled" });
+    fs.rmSync(path.join(guiRoot, "public", "brand-support", "sponsor"), { recursive: true });
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未选择赞助页时不得保留 \/sponsor 路由.*未选择赞助页时不得保留运行时组件/su,
+    );
+  });
+});
+
+test("rejects frontend sidebar wiring that disagrees with the recorded mode", () => {
+  withFixture(({ root, guiRoot }) => {
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace('sidebarMode = "detailed"', 'sidebarMode = "compact"'));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未把 sidebar_mode = detailed 接入实际侧栏/u,
+    );
+  });
+});
+
+test("rejects detailed sidebar without persistent collapsed-name disclosure", () => {
+  withFixture(({ root, guiRoot }) => {
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replaceAll("localStorage", "removedStorage").replaceAll("Tooltip", "RemovedTip"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /详细侧栏缺少收起名称 Tooltip契约.*详细侧栏缺少独立折叠偏好契约/su,
+    );
+  });
+});
+
+test("rejects compact sidebar layout drift", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace("compact: 136", "compact: 135"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /精简侧栏缺少136px 固定宽度契约/u,
+    );
+  });
+});
+
+test("rejects close-hide lifecycle code when system tray was not selected", () => {
+  withFixture(({ root }) => {
+    writeInitializationProfile(root, { system_tray: "disabled" });
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得保留托盘\/关闭隐藏实现：prevent_close/u,
+    );
+  });
+});
+
+test("rejects no-tray lifecycle without explicit close exit", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(source, fs.readFileSync(source, "utf8").replace("window.app_handle().exit(0);", "let _ = window;"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /必须在 CloseRequested 中显式调用 AppHandle::exit\(0\)/u,
+    );
+  });
+});
+
+test("rejects a no-tray close-exit handler not wired into the builder", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs.readFileSync(source, "utf8").replace("\n        .on_window_event(|window, event| exit_on_close(window, event))", ""),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /显式退出处理必须由 Tauri Builder \.on_window_event/u,
+    );
+  });
+});
+
+test("rejects single-instance dependencies when the capability was not selected", () => {
+  withFixture(({ root }) => {
+    writeInitializationProfile(root, { single_instance: "disabled" });
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得声明 tauri-plugin-single-instance/u,
+    );
+  });
+});
+
 test("accepts table-form Cargo dependencies and MenuItem with_id", () => {
   withFixture(({ root, guiRoot }) => {
     fs.writeFileSync(
       path.join(root, "Cargo.toml"),
-      `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies.tauri]\nversion = "2.0.0"\nfeatures = ["tray-icon"]\n\n[workspace.dependencies.tauri-plugin-single-instance]\nversion = "2.0.0"\n`,
+      `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies.tauri]\nversion = "2.0.0"\nfeatures = ["tray-icon"]\n\n[workspace.dependencies.tauri-plugin-single-instance]\nversion = "2.0.0"\n\n[workspace.dependencies.tokio]\nversion = "1.0.0"\nfeatures = ["macros", "rt", "fs"]\n\n[workspace.dependencies.serde]\nversion = "1.0.0"\n\n[workspace.dependencies.serde_json]\nversion = "1.0.0"\n`,
     );
     fs.writeFileSync(
       path.join(guiRoot, "src-tauri", "Cargo.toml"),
-      `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies.tauri]\nworkspace = true\n\n[dependencies.tauri-plugin-single-instance]\nworkspace = true\n`,
+      `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies.tauri]\nworkspace = true\n\n[dependencies.tauri-plugin-single-instance]\nworkspace = true\n\n[dependencies.tokio]\nworkspace = true\n\n[dependencies.serde]\nworkspace = true\n\n[dependencies.serde_json]\nworkspace = true\n`,
     );
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(

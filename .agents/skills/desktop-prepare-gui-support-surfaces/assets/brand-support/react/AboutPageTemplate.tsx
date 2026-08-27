@@ -11,7 +11,14 @@ import {
   Title,
 } from "@mantine/core";
 import { IconHistory, IconRefresh } from "@tabler/icons-react";
-import { useState, type ReactElement, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -20,6 +27,7 @@ import {
 } from "./brandSupportProfile";
 import { formatDisplayVersion } from "./displayVersion";
 import type { ReleaseNoteEntry } from "./releaseNotes";
+import { loadBundledReleaseNotes } from "./releaseNotesResource";
 import { ReleaseNotesDialogTemplate } from "./ReleaseNotesDialogTemplate";
 import type { UpdatePresentation } from "./updatePresentation";
 
@@ -39,7 +47,7 @@ export interface AboutPageTemplateProps {
   actions?: ReactNode;
   contact?: BrandSupportContact;
   update: UpdatePresentation;
-  releaseNotes?: readonly ReleaseNoteEntry[];
+  releaseNotesLoader?: () => Promise<readonly ReleaseNoteEntry[]>;
   onCheckForUpdates: () => void;
 }
 
@@ -52,15 +60,53 @@ export function AboutPageTemplate({
   actions,
   contact = BRAND_SUPPORT_PROFILE.contacts.support,
   update,
-  releaseNotes = [],
+  releaseNotesLoader = loadBundledReleaseNotes,
   onCheckForUpdates,
 }: AboutPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const [releaseNotesOpened, setReleaseNotesOpened] = useState(false);
+  const [releaseNotes, setReleaseNotes] = useState<readonly ReleaseNoteEntry[]>(
+    [],
+  );
+  const [releaseNotesStatus, setReleaseNotesStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const releaseNotesRequest = useRef(0);
   const statusKey = `updater.status_${update.status.replace(/-/g, "_")}`;
   const isChecking = update.status === "checking";
   const isUpdateFailure = update.status === "failed";
   const isRequiredUpdate = update.status === "required-update";
+
+  useEffect(
+    () => () => {
+      releaseNotesRequest.current += 1;
+    },
+    [],
+  );
+
+  /** 只通过已注册的窄命令加载候选资源，并忽略卸载后的异步结果。 */
+  const requestReleaseNotes = useCallback(() => {
+    const request = releaseNotesRequest.current + 1;
+    releaseNotesRequest.current = request;
+    setReleaseNotesStatus("loading");
+    void releaseNotesLoader()
+      .then((loaded) => {
+        if (releaseNotesRequest.current !== request) return;
+        setReleaseNotes(loaded);
+        setReleaseNotesStatus("ready");
+      })
+      .catch(() => {
+        if (releaseNotesRequest.current !== request) return;
+        setReleaseNotes([]);
+        setReleaseNotesStatus("error");
+      });
+  }, [releaseNotesLoader]);
+
+  /** 打开弹窗时首次加载资源；已成功加载的同一候选内容在本页复用。 */
+  const openReleaseNotes = useCallback(() => {
+    setReleaseNotesOpened(true);
+    if (releaseNotesStatus === "idle") requestReleaseNotes();
+  }, [releaseNotesStatus, requestReleaseNotes]);
 
   return (
     <Stack data-testid="brand-about-page" gap="xl">
@@ -106,7 +152,7 @@ export function AboutPageTemplate({
               </Button>
               <Button
                 leftSection={<IconHistory aria-hidden="true" size={18} />}
-                onClick={() => setReleaseNotesOpened(true)}
+                onClick={openReleaseNotes}
                 variant="default"
               >
                 {t("about.release_notes")}
@@ -132,8 +178,10 @@ export function AboutPageTemplate({
 
       <ReleaseNotesDialogTemplate
         onClose={() => setReleaseNotesOpened(false)}
+        onRetry={requestReleaseNotes}
         opened={releaseNotesOpened}
         releases={releaseNotes}
+        status={releaseNotesStatus}
       />
 
       <Paper p="lg" radius="lg" withBorder>

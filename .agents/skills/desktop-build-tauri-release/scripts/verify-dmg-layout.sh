@@ -43,8 +43,8 @@ layout_failure() {
     exit 41
 }
 
-[ "$#" -eq 1 ] || {
-    printf '%s\n' "用法：verify-dmg-layout.sh <final.dmg>" >&2
+[ "$#" -eq 2 ] || {
+    printf '%s\n' "用法：verify-dmg-layout.sh <final.dmg> <release-notes.json>" >&2
     exit 2
 }
 [ "$(host_platform)" = Darwin ] || {
@@ -54,7 +54,10 @@ layout_failure() {
 }
 
 dmg_path=$1
+release_notes_path=$2
 [ -f "$dmg_path" ] && [ ! -L "$dmg_path" ] || layout_failure "dmg-not-regular-file"
+[ -f "$release_notes_path" ] && [ ! -L "$release_notes_path" ] ||
+    layout_failure "release-notes-source-not-regular-file"
 hdiutil_path=$(find_tool hdiutil 2>/dev/null || true)
 [ -n "$hdiutil_path" ] || layout_failure "hdiutil-missing"
 
@@ -86,15 +89,23 @@ device=$(printf '%s\n' "$attach_output" | awk '/^\/dev\// { print $1; exit }')
     layout_failure "applications-link-target-invalid"
 
 app_count=0
+bundled_app_path=
 for app_path in "$mount_path"/*.app; do
     [ -e "$app_path" ] || continue
     [ -d "$app_path" ] && [ ! -L "$app_path" ] || layout_failure "app-bundle-not-directory"
     app_count=$((app_count + 1))
+    bundled_app_path=$app_path
 done
 [ "$app_count" -eq 1 ] || layout_failure "app-bundle-count-invalid"
+[ -f "$bundled_app_path/Contents/Resources/release-notes.json" ] &&
+    [ ! -L "$bundled_app_path/Contents/Resources/release-notes.json" ] ||
+    layout_failure "release-notes-resource-missing"
+cmp -s "$release_notes_path" "$bundled_app_path/Contents/Resources/release-notes.json" ||
+    layout_failure "release-notes-resource-mismatch"
 
 "$hdiutil_path" detach "$device" >/dev/null 2>&1 || layout_failure "readonly-detach-failed"
 device=
 printf '%s\n' "gate.macos_dmg_layout.status=passed"
 printf '%s\n' "gate.macos_dmg_layout.reason=final-volume-layout-present"
 printf 'gate.macos_dmg_layout.app_count=%s\n' "$app_count"
+printf '%s\n' "gate.macos_dmg_layout.release_notes=byte-identical"

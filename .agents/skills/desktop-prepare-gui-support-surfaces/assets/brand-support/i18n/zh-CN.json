@@ -20,6 +20,8 @@
   },
   "sidebar": {
     "application_navigation": "应用导航",
+    "collapse": "收起侧栏",
+    "expand": "展开侧栏",
     "logo_alt": "{{applicationName}} 应用 Logo",
     "version": "版本 {{version}}"
   },
@@ -105,6 +107,9 @@
     "entry_title": "-----------更新日志 {{date}} {{version}}----------",
     "feature_optimizations": "###功能优化",
     "bug_fixes": "###问题修复",
+    "loading": "正在读取候选内更新日志",
+    "load_failed": "无法读取此候选内的更新日志，请重试或重新安装完整候选",
+    "retry": "重试",
     "empty": "暂无已发布的更新日志",
     "none": "无"
   }

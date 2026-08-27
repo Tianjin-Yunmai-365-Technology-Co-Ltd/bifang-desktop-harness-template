@@ -135,6 +135,9 @@ def validate_tauri_build_skill_contract(
     tauri_tests: Path = TAURI_RELEASE_HELPER_TESTS,  # noqa: F405
     dmg_layout_helper: Path = TAURI_DMG_LAYOUT_HELPER,  # noqa: F405
     dmg_layout_tests: Path = TAURI_DMG_LAYOUT_TESTS,  # noqa: F405
+    release_notes_helper: Path = TAURI_RELEASE_NOTES_HELPER,  # noqa: F405
+    release_notes_tests: Path = TAURI_RELEASE_NOTES_HELPER_TESTS,  # noqa: F405
+    e2e_skill: Path = E2E_SKILL,  # noqa: F405
     xwin_tests: Path = MACOS_XWIN_GATE_TESTS,  # noqa: F405
 ) -> None:
     """锁定 Tauri xwin 安装链和 macOS 签名公证一体门禁。"""
@@ -145,6 +148,9 @@ def validate_tauri_build_skill_contract(
             "初始化后的构建不做例行环境预检",
             "只有某条命令已经失败",
             "release_notes.py check --file release-notes.json --expected-version",
+            "verify_release_notes_resource.py config",
+            "--config src-tauri/tauri.release.conf.json",
+            "verify_release_notes_resource.py bytes",
             "本 Skill 绝不得生成或改写它",
             "首次尝试使用当前 PATH",
             "单次重试命令的 PATH",
@@ -153,7 +159,7 @@ def validate_tauri_build_skill_contract(
             "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",
             "CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg",
             "headless runner 不得盲目启用",
-            "scripts/verify-dmg-layout.sh <final-dmg>",
+            "scripts/verify-dmg-layout.sh <final-dmg> <project-root>/release-notes.json",
             "<project-id>_gui/src-tauri/dmg/background.png",
             'bundle.macOS.dmg.background: "./dmg/background.png"',
             "非符号链接的 660×400 PNG",
@@ -182,13 +188,24 @@ def validate_tauri_build_skill_contract(
             "releaseNotesVersion",
             "releaseNotesSha256",
             "releaseNotesPath",
+            "releaseNotesResourceVerification: byte-identical",
             "编译、签名与打包期间不得混跑冒烟/E2E",
             "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
         ),
         verify_skill: (
-            "scripts/verify-dmg-layout.sh <final-dmg>",
+            "verify_release_notes_resource.py bytes",
+            "releaseNotesPath: release-notes.json",
+            "scripts/verify-dmg-layout.sh <final-dmg> <project-root>/release-notes.json",
             "针对 `release/` 中当前最终字节重新运行",
             "不得自动接受软件许可或沿用旧 DMG 的布局证据",
+        ),
+        e2e_skill: (
+            "GUI 更新日志",
+            "release-notes.json",
+            "最多五版",
+            "各最多十条",
+            "about_page = enabled",
+            "about_page = disabled",
         ),
         verification_doc: (
             "Tauri DMG 最终布局",
@@ -246,6 +263,11 @@ def validate_tauri_build_skill_contract(
             ".background/background.png",
             "applications-link-target-invalid",
             "app-bundle-count-invalid",
+            "release-notes-source-not-regular-file",
+            "release-notes-resource-missing",
+            "release-notes-resource-mismatch",
+            "cmp -s",
+            "release_notes=byte-identical",
             "gate.macos_dmg_layout.status=passed",
         ),
         dmg_layout_tests: (
@@ -253,7 +275,25 @@ def validate_tauri_build_skill_contract(
             "test_missing_ds_store_fails_closed_and_detaches",
             "test_wrong_applications_link_and_multiple_apps_are_rejected",
             "test_symlinked_dmg_is_rejected_before_mount",
+            "test_missing_or_mismatched_release_notes_resource_is_rejected",
+            "test_symlinked_release_notes_source_is_rejected_before_mount",
             "test_non_macos_host_is_not_applicable",
+        ),
+        release_notes_helper: (
+            "SOURCE_MAPPING",
+            "RESOURCE_TARGET",
+            "verify_config",
+            "verify_bytes",
+            "release config resources must contain only the fixed release-notes mapping",
+            "bundled release notes bytes do not match the source",
+            'subparsers.add_parser("config")',
+            'subparsers.add_parser("bytes")',
+        ),
+        release_notes_tests: (
+            "test_accepts_fixed_config_and_byte_identical_bundled_resource",
+            "test_rejects_missing_or_redirected_resource_mapping",
+            "test_rejects_bundled_bytes_that_differ_from_source",
+            "test_rejects_symlinked_source_or_bundled_resource",
         ),
         xwin_tests: (
             "test_existing_environment_passes_without_installing",
@@ -284,6 +324,15 @@ def validate_tauri_build_skill_contract(
                 errors,
                 "Tauri release directory helper must remain byte-identical to the tested CLI POSIX helper",
             )
+    for python_path in (release_notes_helper, release_notes_tests):
+        if python_path.is_file():
+            try:
+                compile(python_path.read_text(encoding="utf-8"), str(python_path), "exec")
+            except SyntaxError as error:
+                fail(  # noqa: F405
+                    errors,
+                    f"invalid Tauri release-note helper {display_path(python_path)}: {error}",  # noqa: F405
+                )
 
 
 def validate_release_contract(errors: list[str]) -> None:
@@ -390,7 +439,7 @@ def validate_release_contract(errors: list[str]) -> None:
             "表格中的 `Switch` 不得因点击行而切换",
             "GUI 活动选项卡、查询/筛选、排序、分页页码/每页数量",
             "加载/错误和第 1 页空结果不得触发循环",
-            "“检查更新”旁固定提供元素自身绑定的“更新日志”按钮",
+            "所选关于页包含检查更新、更新日志",
             "version = concat!(\"v\", env!(\"CARGO_PKG_VERSION\"))",
         ),
         ROOT / "AGENTS.md": (  # noqa: F405
@@ -411,7 +460,7 @@ def validate_release_contract(errors: list[str]) -> None:
         PRODUCT_SPEC: (  # noqa: F405
             "HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY",
             "页面交互事件必须绑定到实际拥有动作",
-            "GUI 关于页的更新区在“检查更新”旁",
+            "选择关于页时，其更新区在“检查更新”旁",
             "所有用户可见版本号带且只带一个小写 `v`",
             "HARNESS-FEAT-GUI-PROCESS-SESSION-STATE",
             "应用根 Jotai store 的页面级模块 atom",

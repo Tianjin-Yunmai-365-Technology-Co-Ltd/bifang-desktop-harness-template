@@ -84,6 +84,8 @@ EXPECTED_RELEASE_NOTES_COPY = {
 EXPECTED_FIXED_UI_KEYS = {
     "sidebar": {
         "application_navigation",
+        "collapse",
+        "expand",
         "logo_alt",
         "version",
     },
@@ -122,6 +124,9 @@ EXPECTED_FIXED_UI_KEYS = {
         "entry_title",
         "feature_optimizations",
         "bug_fixes",
+        "loading",
+        "load_failed",
+        "retry",
         "empty",
         "none",
     },
@@ -389,9 +394,10 @@ def validate_brand_media_manifest(
     if (
         not isinstance(bundle_policy, dict)
         or bundle_policy.get("guiSkillPropagation") != "complete"
-        or bundle_policy.get("applicationBundle") != "gui-default-local-surfaces"
-        or bundle_policy.get("defaultMediaSets") != ["sponsor"]
-        or bundle_policy.get("optionalMediaSets") != ["updater"]
+        or bundle_policy.get("applicationBundle")
+        != "gui-profile-selected-local-surfaces"
+        or bundle_policy.get("defaultMediaSets") != []
+        or bundle_policy.get("optionalMediaSets") != ["sponsor", "updater"]
         or bundle_policy.get("paymentAutomationAuthorized") is not False
         or bundle_policy.get("remoteLoadingAllowed") is not False
     ):

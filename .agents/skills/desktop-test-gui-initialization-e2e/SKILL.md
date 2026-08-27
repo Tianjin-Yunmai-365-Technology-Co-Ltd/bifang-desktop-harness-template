@@ -1,58 +1,48 @@
 ---
 name: desktop-test-gui-initialization-e2e
-description: 在含 GUI 的下游初始化提交前，先验证强制单实例与系统托盘结构，再构建并双启动真实本机 Tauri 调试二进制，用 Computer Use 验证单实例唤醒、托盘生命周期与运行时 i18n、固定侧栏和全部菜单路由。
+description: 在含 GUI 的下游初始化提交前，按已记录配置验证可选单实例、托盘、关于/赞助页、关闭行为和精简/详细侧栏，并运行真实本机 Tauri 调试 E2E。
 ---
 
 # GUI 初始化 E2E
 
-只用于 `$desktop-initialize-rust-project` 已完成 GUI 脚手架和相关非空单元测试、但尚未裁剪初始化能力或创建基线提交的阶段。它是选择 `GUI` 后固定执行一次的初始化门禁，不读取也不询问 `milestone_e2e`，不替代最终候选的 `$desktop-test-final-artifact-e2e`。
+只用于 GUI 脚手架和相关非空单元测试完成后、裁剪初始化能力与创建基线提交前。它固定执行一次，不读取 `milestone_e2e`，不替代最终候选验收。
 
 ## 前置条件
 
-1. 当前目录必须同时是下游项目根和独立 Git 顶层目录，GUI 目录必须精确为 `<project-id>_gui`。
-2. 读取项目 `AGENTS.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/RUST_CLI_TEMPLATE.md` 和 GUI 适配器基线。随后读取并使用已安装的 `computer-use` Skill；不得用开发预览、静态 HTML、Mock、单元测试或内部函数调用代替真实桌面窗口。
-3. 只允许当前宿主上的本地调试构建和只读界面操作。不得签名、打包安装器、写入 `release/`、使用发布凭据、启用远程能力或产生业务副作用。
-4. 单实例与系统托盘都是 GUI 初始化的强制完成条件，不是按宿主、产品状态或实现偏好降级的可选项。当前宿主无法双启动同一真实二进制、确认主进程/主窗口唯一性，或无法显示、定位、操作真实系统托盘时必须阻断初始化，不能跳过场景后创建基线提交。
+1. 当前目录同时是下游项目根和独立 Git 顶层目录，GUI 目录精确为 `<project-id>_gui`。
+2. 读取 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、Rust/GUI 基线及 `docs/GUI_APP_PROFILE.md`。资料必须有唯一 `gui-initialization-config` 围栏代码块，四项能力均为 `enabled`/`disabled`，侧栏模式为 `compact`/`detailed`，且无 `pending`。若用户未选择侧栏，初始化器应已写入 `detailed`；本 E2E 不补写或推断缺失字段，缺失仍阻断。
+3. 读取并使用 `computer-use` Skill 操作真实桌面窗口。只允许本地调试构建和只读界面操作，不签名、不生成安装包、不写 `release/`、不启用远程能力。
+4. 未选能力不是缺失证据；已选能力若当前宿主无法观察、操作或判定，则阻断初始化。
 
 ## 工作流程
 
-1. 在任何构建命令前，从项目根运行 [固定 GUI 生命周期结构检查器](scripts/verify-gui-lifecycle-contract.mjs)：`node .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs --root . --gui-dir <project-id>_gui`。它必须确认根工作区和 GUI member 都声明官方 `tauri-plugin-single-instance`，该插件作为首个 Tauri plugin 注册且第二次启动回调只恢复既有主窗口；同时确认 Tauri 启用 `tray-icon`，`tauri.conf.json` 的 `bundle.icon` 引用普通非符号链接的 `icons/32x32.png`，该文件是 32×32 8-bit RGBA 非交错 PNG 且至少含一个非透明像素；真实 Rust 托盘安装必须从 `.setup(...)` 可达，在同一实现绑定双项 `Menu`、必需的 `default_window_icon()`、`.icon(...)` 并成功 `.build(app)`，关闭处理由 `.on_window_event(...)` 注册，稳定 ID `show_window`/`quit`、`rust_i18n::t!("tray.show_window")`/`rust_i18n::t!("tray.quit")` 可见标签解析和中文/英文原生资源存在，并且 `single_instance_plugin_is_registered_first`、`second_launch_restores_existing_main_window`、`tray_show_restores_and_focuses_main_window`、`close_request_hides_without_exit`、`tray_quit_exits_application`、`tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english`、`language_change_updates_tray_menu_labels` 八个有断言的命名回归都已落地。任一缺失立即失败；未接线死代码、图标缺失后继续、全透明图片、把稳定 ID/`tray.*` 原始键作为可见标签、只创建菜单项或只注册菜单事件都不得通过。
-2. 在 GUI 目录使用项目锁文件运行 `pnpm tauri build --debug --no-bundle`。命令失败、超时或零产物时立即失败；只有诊断明确属于受管环境问题时，才按 `$desktop-check-development-environment` 恢复并重试原命令一次。
-3. 在项目根运行 `cargo metadata --format-version 1 --no-deps`，从返回的 `target_directory`、GUI package 的唯一 binary target 和当前宿主可执行文件后缀推导真实本机调试二进制。路径必须位于该 `target_directory`，文件必须存在、是普通非符号链接文件且可执行；候选缺失或不唯一时失败。禁止用模糊 glob、旧构建或 `pnpm tauri dev` 代替。
-4. 由当前 Agent 启动该真实本机调试二进制并持有子进程句柄。最多等待 60 秒，直到出现可见主窗口且进程仍存活；启动前记录时间，拒绝早于本次构建的旧二进制。启动失败、主窗口不可见、立即退出或出现崩溃对话框时失败。
-5. 使用 Computer Use 读取真实窗口和可访问名称，并保存初始截图。确认侧栏只有固定单态且宽度为 `136px`，不存在展开/折叠按钮或布局变化；选中的 `56px` 本地 Logo、所有当前渲染的 `30px` 功能菜单图标以及赞助、设置、关于固定图标均可见、无裁切，图标位于文字上方，文字以 `11px` 字号在约 `10em` 行内宽度内居中显示并保留完整可访问名称。可取得元素边界时，Logo、图标和文字中心与侧栏内容中心的水平差不得超过 2 个 CSS 像素；只能取得截图时，必须以同一侧栏中心线逐项复核，任何可见偏移、裁切、Tooltip-only 名称或无法判定都按失败处理。
-6. 从真实界面的可访问树枚举所有当前渲染的菜单项，不得只使用预先写死的路由清单。逐项通过可见界面激活，并验证：
-   - 对应项成为当前活动项；
-   - 目标页面渲染非空的可访问标题或主内容；
-   - 页面没有空白、崩溃、404、未匹配路由或错误占位；
-   - 固定 `/sponsor`、`/settings`、`/about` 三页全部包含在枚举结果中。
-   - `/settings` 只显示应用/版本、语言与浅色/深色/跟随系统，不显示隐私标题、统计同意、未配置统计占位或相关控件。
-7. 每次导航后确认进程仍存活。保存能证明侧栏居中和全部菜单页面可达的最小截图集，记录菜单可访问名称、目标路径或页面身份及结果。
-8. 先验证同一用户会话内的真实单实例生命周期。记录第 4 步主进程 PID、精确二进制路径和主窗口身份；使用原生窗口关闭控件隐藏主窗口并确认主进程与托盘仍存在，然后以独立受管子进程再次启动同一个精确二进制，不附加业务参数。第二次启动必须在 15 秒内自行退出，既有主进程 PID 必须继续存活，原主窗口必须由单实例回调恢复、取消最小化并取得焦点。随后以当前宿主可用的进程与窗口枚举确认：该精确应用二进制只剩一个长期主进程，应用只剩一个主窗口，且窗口身份与第一次启动一致；不得把 WebView/系统 helper 进程误算为第二个应用主进程。若第二进程残留、新建第二个主窗口、旧主进程被替换、窗口未恢复聚焦、超时或进程/窗口唯一性无法判定，立即失败。中性脚手架不得读取、记录或把第二次启动的参数与工作目录解释为产品动作。
-9. 通过当前宿主的真实系统托盘打开该应用的托盘菜单。先保存能同时识别宿主托盘区域与应用图标的截图，并确认启动本应用后状态栏/通知区域新增的是有可见非空图形的图标，而不是透明/纯空白点击区域、只有可点击坐标或仅能弹出菜单的不可见占位；无法从截图或宿主可访问能力确认可见图形时立即失败。随后从真实 `/settings` 依次切换到中文和英文，每次都不重启应用地重新打开真实托盘菜单并截图：中文必须恰好是“显示窗口”“退出”，英文必须恰好是“Show Window”“Quit”，两种语言都不能出现 `tray.show_window`、`tray.quit` 或任何 `tray.*` 原始键，也不能出现第三项；标签未刷新、混合语言、需要重启或无法判定均立即失败。完成双语检查后按当前语言对应标签和固定稳定 ID 验证完整生命周期：
-   - 用原生窗口关闭控件关闭主窗口，确认窗口隐藏、进程仍存活且托盘图标仍存在；
-   - 对托盘图标执行主鼠标左键释放，确认主窗口恢复、取消最小化并取得焦点；
-   - 再次关闭主窗口后，从托盘菜单选择稳定 ID `show_window` 对应的当前本地化“显示窗口”/“Show Window”，确认主窗口再次恢复并取得焦点；
-   - 再次打开托盘菜单，选择稳定 ID `quit` 对应的当前本地化“退出”/“Quit”，确认应用进程在限定时间内结束且托盘图标消失。
-   任何托盘图标缺失、菜单不可定位、菜单项不是恰好两个、关闭导致进程退出、恢复后未聚焦、退出后进程或图标残留、超时或无法判定都按失败处理，不得用结构检查或 Rust 单元测试替代。
-10. 如果第 9 步尚未成功完成托盘退出，则无论成功、失败、超时或取消，都必须终止并等待回收本 Skill 拥有的主实例与第二次启动进程；第二次启动即使已正常退出也要确认句柄已回收。禁止遗留 detached task、后台进程或复用到下一次初始化的窗口。
+1. 构建前运行 `node .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs --root . --gui-dir <project-id>_gui`。检查器必须读取配置块并条件验证：
+   - `single_instance: enabled`：根/member 依赖、首插件顺序、只恢复既有窗口的中性回调，以及 `single_instance_plugin_is_registered_first`、`second_launch_restores_existing_main_window` 两个有断言回归；disabled 时拒绝依赖与注册。
+   - `system_tray: enabled`：`tray-icon` feature、非透明 `icons/32x32.png`/配置引用、从 `.setup(...)` 可达的 Menu/default icon/icon/build、从 `.on_window_event(...)` 可达的关闭隐藏、稳定 ID、`rust-i18n` 双语资源及六个托盘生命周期/i18n 回归；disabled 时拒绝 feature、托盘、`prevent_close` 与隐藏调用，要求从 `.on_window_event(...)` 可达的 `CloseRequested → AppHandle::exit(0)`，并要求 `close_last_window_exits_application` 有真实断言。
+   - 更新日志：所有 GUI 都必须保留只含固定映射的 `src-tauri/tauri.release.conf.json`，但本次调试构建不传它；`about_page: enabled` 时要求 Tokio `fs`、异步 `load_release_notes`、`BaseDirectory::Resource`、handler 注册、Rust schema 回归、React IPC 解码及 loading/error/retry 回归，disabled 时拒绝命令、加载器、弹窗和文案。
+   - 前端：`/settings` 与设置页组件始终存在；关于/赞助路由和运行时组件分别与选择一致，赞助启用时 `public/brand-support/sponsor/` 必须包含完整 12 个本地媒体、禁用时目录缺席；实际侧栏接线必须等于 `sidebar_mode`，且精简/详细结构分别满足固定尺寸、默认状态、按钮、Tooltip 与独立 localStorage 契约。
+2. 在 GUI 目录运行 `pnpm tauri build --debug --no-bundle`。失败或零产物立即失败；只有诊断明确属于受管环境问题时才调用环境恢复并重试原命令一次。
+3. 以 `cargo metadata --format-version 1 --no-deps` 推导本次真实本机调试二进制，拒绝旧产物、模糊 glob、符号链接或 `pnpm tauri dev`。
+4. 启动并持有主进程句柄，最多等待 60 秒直到主窗口可见。使用 Computer Use 保存初始截图并验证：
+   - Logo 位于单个小写 `v` 版本之前，设置页只含应用/版本、语言和三态主题且无隐私/统计区块；
+   - `compact` 为 `136px`，图标上、名称下且名称持续可见，无折叠按钮；
+   - `detailed` 首次无偏好时以 `248px` 展开，展开显示图标+名称；点击自身绑定的按钮后以 `76px` 收起，只显示图标并通过 Tooltip 显示完整名称。重启应用后恢复折叠偏好，再展开并确认偏好更新；
+   - 可访问树中每个实际菜单页面非空可达；`/settings` 始终存在，`/about`、`/sponsor` 及入口分别与配置一致，未选页面不得出现占位、404 入口或运行时菜单。关于页启用时点击“更新日志”自身按钮；首次正式发布前根日志尚不存在是预期状态，必须显示本地读取失败与可操作重试且零出站，不得以编译时假数组伪装正式日志。本场景不证明发布候选已嵌入资源。
+5. 仅当单实例启用时，第二次启动同一精确二进制。第二进程 15 秒内退出，原 PID/同一窗口持续且恢复聚焦，宿主只剩一个长期应用主进程和一个主窗口。未启用时不执行也不声称该场景。
+6. 仅当托盘启用时，验证状态栏/通知区域的真实非空图形、中文“显示窗口/退出”和英文“Show Window/Quit”无重启刷新且无 `tray.*` 原始键；再验证原生关闭只隐藏、进程继续、托盘左键和显示项恢复聚焦、退出项结束进程并移除图标。空白点击区域、菜单不止两项或任一状态无法判定都失败。
+7. 托盘未启用时，使用原生关闭控件关闭最后一个窗口，确认应用主进程在限定时间内退出；若窗口只隐藏、进程残留或存在托盘图标则失败。需要继续验证详细侧栏重启偏好时，先完成该场景再重新启动受管实例。
+8. 无论成功、失败、超时或取消，都终止并等待回收本 Skill 拥有的全部进程，禁止遗留 detached task。
 
 ## 通过条件
 
-以下条件必须同时满足，否则阻断初始化裁剪和 `chore: initialize project` 基线提交：
-
-- `pnpm tauri build --debug --no-bundle` 成功生成并启动了本次构建的真实本机调试二进制；
-- 固定 GUI 生命周期结构检查器通过，非透明 32px RGBA 图标/配置引用和 `.setup`/Menu/icon/build/窗口事件接线齐全，托盘标签由 `rust-i18n` 解析，且八个命名单实例/托盘生命周期与 i18n 回归均存在并含断言；
-- 主窗口在限定时间内可见，且全程没有立即退出或崩溃；
-- 同一真实二进制的第二次启动在限定时间内退出，既有主进程与同一主窗口继续存在并被恢复、取消最小化和聚焦；宿主枚举只发现一个长期应用主进程和一个主窗口；
-- 固定 `136px` 单态侧栏没有展开/折叠控件，`56px` Logo 和每一个 `30px` 图标均水平居中、可见且无裁切，`11px` 名称在图标下方以 `10em` 宽度居中并保留完整可访问名称；
-- 可访问树中枚举出的每一个菜单链接页面都可达，且 `/sponsor`、`/settings`、`/about` 均通过；
-- `/settings` 没有隐私/统计区块或控件；
-- 当前宿主的状态栏/通知区域有真实可见的非空托盘图形而非透明点击区域；中文菜单精确为“显示窗口/退出”，英文精确为“Show Window/Quit”，切换无需重启且没有任何 `tray.*` 原始键；原生关闭只隐藏且进程继续，托盘左键与本地化显示项均能恢复并聚焦，本地化退出项能结束进程并移除图标；
-- 当前 Skill 拥有的主实例与第二次启动进程均已退出并被回收。
+- 配置块完整且实现、依赖、路由、资源与每个 enabled/disabled 选择一致；
+- 本次调试二进制真实启动，所选侧栏模式、设置页和全部实际菜单页面通过；
+- 已选单实例与托盘分别通过完整结构和真实宿主场景；未选托盘通过关闭最后窗口退出；
+- 发布专用映射始终存在且未污染调试构建；关于页启用时命令/加载失败状态存在，禁用时运行时链路缺席；关于/赞助入口和页面按选择存在或缺席；
+- 所有进程句柄已回收。
 
 ## 结果边界
 
-- 在初始化最终回复中报告宿主、GUI 生命周期结构检查命令与结果、`icons/32x32.png` 格式/非透明像素/配置引用、构建命令、调试二进制绝对路径、第一次/第二次启动结果、两个 PID 与回收结果、单一长期主进程/同一主窗口证据、第二次启动唤醒结果、真实托盘可见图形截图、中文/英文精确菜单内容与不重启刷新、无原始 key 证据、关闭隐藏、左键恢复、本地化显示项恢复、本地化退出、固定侧栏尺寸/排列/居中、设置页无隐私区块、逐菜单页面结果、截图和未验证平台。若目标包含 Snap/Flatpak，明确把其 DBus 清单权限留给对应渠道构建与最终候选验证，不得用本机非沙箱调试证据替代。
-- 不创建 `docs/VERIFICATION.md` 或 `docs/verification/`，不把调试二进制称为发布候选、完整验收或交付就绪。
-- 本 Skill 属于初始化专用能力；通过后必须与 `$desktop-initialize-rust-project` 一同从终端下游删除，失败时则保留现场且不得创建基线提交。
+初始化最终回复逐项报告五项配置、结构检查、构建、二进制路径、侧栏模式/持久折叠、设置页与逐菜单结果。单实例、托盘、关于、赞助只报告适用场景；未选项报告缺席证据。截图只覆盖最小必要证据。
+
+本 Skill 不创建 Verification，不把调试二进制称为发布候选。通过后与初始化 Skill 一同删除；失败时保留现场且不得创建基线提交。

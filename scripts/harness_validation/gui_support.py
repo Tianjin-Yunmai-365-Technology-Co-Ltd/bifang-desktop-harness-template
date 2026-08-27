@@ -75,13 +75,21 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             't("about.release_notes")',
             'update.status === "not-configured"',
             'data-testid="about-update-section"',
-            "setReleaseNotesOpened(true)",
+            "releaseNotesLoader = loadBundledReleaseNotes",
+            "requestReleaseNotes",
+            "openReleaseNotes",
             "ReleaseNotesDialogTemplate",
-            "releaseNotes?: readonly ReleaseNoteEntry[]",
+            "releaseNotesLoader?: () => Promise<readonly ReleaseNoteEntry[]>",
+            'status={releaseNotesStatus}',
             "actions ?",
         ),
         react_root / "ReleaseNotesDialogTemplate.tsx": (
             "selectVisibleReleaseNotes",
+            'status === "idle" || status === "loading"',
+            'status === "error"',
+            't("release_notes.load_failed")',
+            't("release_notes.retry")',
+            "onRetry",
             "formatDisplayVersion(release.version)",
             't("release_notes.entry_title"',
             't("release_notes.feature_optimizations")',
@@ -91,6 +99,21 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5",
             "MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10",
             "releases.slice(0, MAX_VISIBLE_RELEASE_NOTE_VERSIONS)",
+        ),
+        react_root / "releaseNotesResource.ts": (
+            'from "@tauri-apps/api/core"',
+            'LOAD_RELEASE_NOTES_COMMAND = "load_release_notes"',
+            "invoke<unknown>(command)",
+            "decodeReleaseNotesDocument",
+            "loadBundledReleaseNotes",
+            "value.releases.length > MAX_VISIBLE_RELEASE_NOTE_VERSIONS",
+            "value.length > MAX_VISIBLE_RELEASE_NOTE_ITEMS",
+        ),
+        react_root / "ReleaseNotesResource.test.ts": (
+            "loads the packaged document through the narrow Tauri command",
+            "rejects malformed or unbounded IPC documents",
+            "rejects releases that are not ordered newest first",
+            "LOAD_RELEASE_NOTES_COMMAND",
         ),
         react_root / "displayVersion.ts": (
             "formatDisplayVersion",
@@ -149,7 +172,11 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             'value.includes("://")',
         ),
         react_root / "supportNavigation.ts": (
-            "FIXED_BOTTOM_NAVIGATION_ITEMS",
+            "SupportPageSelection",
+            "AVAILABLE_SUPPORT_NAVIGATION_ITEMS",
+            "buildSupportNavigationItems",
+            "selection.sponsorPage",
+            "selection.aboutPage",
             'to: "/settings"',
             'to: "/about"',
             'to: "/sponsor"',
@@ -165,23 +192,39 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "前端不得从远端布尔值自行推导",
         ),
         react_root / "AppSidebarTemplate.tsx": (
-            "APP_SIDEBAR_WIDTH_PX = 136",
-            "APP_SIDEBAR_LOGO_SIZE_PX = 56",
+            'AppSidebarMode = "compact" | "detailed"',
+            "DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false",
+            "APP_SIDEBAR_COLLAPSED_STORAGE_KEY",
+            "APP_SIDEBAR_WIDTHS",
+            "compact: 136",
+            "detailedCollapsed: 76",
+            "detailedExpanded: 248",
+            "APP_SIDEBAR_LOGO_SIZES",
+            "detailedCollapsed: 44",
+            "detailedExpanded: 72",
             "APP_SIDEBAR_NAV_ICON_SIZE_PX = 30",
             "APP_SIDEBAR_LABEL_WIDTH_CH = 10",
             "APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11",
             "position: \"fixed\"",
             "featureItems.map",
-            "FIXED_BOTTOM_NAVIGATION_ITEMS.map",
+            "supportNavigationItems.map",
+            "buildSupportNavigationItems(supportPages)",
+            "window.localStorage.getItem",
+            "window.localStorage.setItem",
+            "IconChevronLeft",
+            "IconChevronRight",
+            "<Tooltip",
             "logoSrc: string",
+            "mode: AppSidebarMode",
+            "supportPages: SupportPageSelection",
             'data-testid="app-sidebar-logo"',
             'data-testid="app-sidebar-version"',
             'data-testid="fixed-bottom-navigation"',
-            'data-layout="fixed-icon-above-label"',
-            'data-navigation-layout="icon-above-label"',
-            "data-label-width-ch={APP_SIDEBAR_LABEL_WIDTH_CH}",
+            'data-layout={mode === "compact" ? "compact" : "detailed"}',
+            'compact ? "icon-above-label" : iconOnly ? "icon-only" : "icon-with-label"',
+            "data-label-width-ch={compact ? APP_SIDEBAR_LABEL_WIDTH_CH : undefined}",
             "inlineSize: `${APP_SIDEBAR_LABEL_WIDTH_CH}em`",
-            'flexDirection: "column"',
+            'flexDirection: compact ? "column" : "row"',
             'textAlign: "center"',
             'from "@tabler/icons-react"',
             "type TablerIcon",
@@ -225,12 +268,13 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "免责声明",
             "显示窗口",
             "formats the fixed dynamic window title",
-            "FIXED_BOTTOM_NAVIGATION_ITEMS",
+            "buildSupportNavigationItems",
             "fixed bottom order",
-            "APP_SIDEBAR_WIDTH_PX",
+            "APP_SIDEBAR_WIDTHS",
+            "APP_SIDEBAR_COLLAPSED_STORAGE_KEY",
             "APP_SIDEBAR_LABEL_WIDTH_CH",
-            "visible version and fixed bottom order",
-            "icon-above-label navigation",
+            "keeps compact icon-above-label navigation centered and non-expandable",
+            "persists the detailed sidebar collapse button and uses tooltips when hidden",
             "without a privacy section",
             'from "@tabler/icons-react"',
             '"data-navigation-layout"',
@@ -238,6 +282,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "distinct light and dark application theme variables",
             "inert update entry on About",
             "keeps update actions bound to their own controls",
+            "shows a bounded release notes load failure and retries from its own control",
             "MAX_VISIBLE_RELEASE_NOTE_VERSIONS",
             "MAX_VISIBLE_RELEASE_NOTE_ITEMS",
             "-----------更新日志 2026-08-26 v1.0.6----------",
@@ -246,6 +291,23 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "video.autoplay",
             "payment images",
             "optionalAssets",
+        ),
+        brand_root / "rust" / "release_notes.rs": (
+            "#[tauri::command]",
+            "pub async fn load_release_notes",
+            "BaseDirectory::Resource",
+            'RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json"',
+            "tokio::fs::symlink_metadata",
+            "tokio::fs::read",
+            "serde_json::from_slice",
+            "MAX_RELEASE_NOTE_VERSIONS: usize = 5",
+            "MAX_RELEASE_NOTE_ITEMS: usize = 10",
+            "ReleaseNotesLoadError",
+            "parses_valid_release_notes_resource",
+            "rejects_invalid_release_notes_resource",
+        ),
+        brand_root / "tauri" / "tauri.release.conf.json": (
+            '"../../release-notes.json": "release-notes.json"',
         ),
     }
     texts: dict[Path, str] = {}
@@ -274,31 +336,36 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
     if re.search(r"\bautoPlay\b", media_text):
         fail(errors, "brand support video template must not enable autoPlay")
     navigation_text = texts.get(react_root / "supportNavigation.ts", "")
-    fixed_order = [
-        navigation_text.find('id: "sponsor"'),
-        navigation_text.find('id: "settings"'),
-        navigation_text.find('id: "about"'),
+    selected_order = [
+        navigation_text.find(
+            "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.sponsor)"
+        ),
+        navigation_text.find(
+            "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.settings)"
+        ),
+        navigation_text.find(
+            "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.about)"
+        ),
     ]
-    if any(position < 0 for position in fixed_order) or fixed_order != sorted(fixed_order):
-        fail(errors, "GUI fixed bottom navigation must be sponsor/settings/about")
+    if any(position < 0 for position in selected_order) or selected_order != sorted(
+        selected_order
+    ):
+        fail(errors, "GUI selected bottom navigation must be sponsor/settings/about")
     sidebar_text = texts.get(react_root / "AppSidebarTemplate.tsx", "")
     logo_position = sidebar_text.find('data-testid="app-sidebar-logo"')
     version_position = sidebar_text.find('data-testid="app-sidebar-version"')
     if logo_position < 0 or version_position < 0 or logo_position > version_position:
         fail(errors, "GUI sidebar logo must render above the current version")
     if sidebar_text.find("featureItems.map") > sidebar_text.find(
-        "FIXED_BOTTOM_NAVIGATION_ITEMS.map"
+        "supportNavigationItems.map"
     ):
-        fail(errors, "GUI feature navigation must render above fixed bottom navigation")
+        fail(errors, "GUI feature navigation must render above selected bottom navigation")
     for forbidden in (
         "icon: ReactNode",
         "fixedIcons: FixedNavigationIcons",
         'collapsed ? "›" : "‹"',
         "DEFAULT_SIDEBAR_COLLAPSED",
         "onCollapsedChange",
-        "IconChevronLeft",
-        "IconChevronRight",
-        "<Tooltip",
     ):
         if forbidden in sidebar_text:
             fail(errors, f"GUI sidebar restored forbidden icon contract: {forbidden}")
@@ -319,6 +386,18 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
         re.DOTALL,
     ):
         fail(errors, "GUI About update section must not proxy child button actions")
+    release_runtime_text = "\n".join(
+        (
+            texts.get(react_root / "releaseNotesResource.ts", ""),
+            texts.get(brand_root / "rust" / "release_notes.rs", ""),
+        )
+    )
+    for forbidden in ("@tauri-apps/plugin-fs", "std::fs::read"):
+        if forbidden in release_runtime_text:
+            fail(
+                errors,
+                f"GUI release notes runtime must use the narrow async command: {forbidden}",
+            )
     page_session_text = texts.get(react_root / "pageSessionState.ts", "")
     for forbidden in (
         "atomWithStorage",
@@ -335,7 +414,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
                 f"{forbidden}",
             )
     for path, text in texts.items():
-        if path.name.endswith(".test.tsx"):
+        if path.name.endswith((".test.ts", ".test.tsx")):
             continue
         uri = FIXED_REMOTE_URI.search(text)
         if uri:
@@ -360,26 +439,27 @@ def validate_gui_support_contract(
 
     required = {
         skill_path: (
-            "侧栏固定为 `136px` 宽且没有展开/折叠状态或开关",
-            'defaultColorScheme="auto"',
-            "useComputedColorScheme",
-            "图标在上、名称在下",
+            "五项初始化配置",
+            "`compact` 精简侧栏固定 `136px`",
+            "`detailed` 详细侧栏首次默认 `248px` 展开",
+            "`76px` 图标模式",
+            "Mantine `Tooltip`",
+            "APP_SIDEBAR_COLLAPSED_STORAGE_KEY",
+            "三态主题与应用级亮暗语义",
+            "精简模式固定 `136px` 且图标上文字下",
             "@tabler/icons-react",
-            "水平居中",
-            "浅色/深色/跟随系统",
-            "手动检查更新固定在关于页",
-            "旁边的“更新日志”按钮",
-            "最近 5 个版本",
-            "各最多 10 条",
+            "关于页启用时包含检查更新",
+            "近 5 版更新日志",
+            "tauri/tauri.release.conf.json",
+            "load_release_notes",
+            "loading/error/retry",
             "一个小写 `v`",
             "父级代理",
-            "pageSessionState.ts",
             "应用根 Jotai store",
             "成功空页",
-            "AppThemeProviderTemplate.tsx",
-            "底部固定项按视觉顺序为赞助、设置、关于",
-            "`/settings`、`/about` 与 `/sponsor` 是固定路由",
-            "三段免责声明",
+            "底部由 `buildSupportNavigationItems` 组装为已选赞助、固定设置、已选关于",
+            "`/about` 与 `/sponsor` 只在对应配置启用时建立",
+            "作者、联系方式和免责声明",
             "docs/GUI_SUPPORT_SURFACES.md",
             "升级器必须将其视为 `protected`",
             "领域校验、跨接口可复用的资格判断",
@@ -387,24 +467,27 @@ def validate_gui_support_contract(
             "禁止 detached task",
             "秘密只能由已批准的安全运行时来源提供",
             "只有产品明确启用统计能力后才增加统计同意界面",
-            '`rust_i18n::t!("tray.show_window")`',
-            "任何 `tray.*` 原始键可见都失败",
+            "仅在托盘启用时复制/加载托盘原生文案",
             "不得信任远端 `forcedUpdate` 布尔值",
             "HTTPS JSON `POST` body",
             "13 个源图片",
+            "只有 `sponsor_page: enabled` 时",
             "支付二维码是敏感静态品牌材料",
-            "$desktop-define-product",
         ),
         reference_path: (
             "## 所有权矩阵",
             "`{applicationName} v{version} {contactChannel}:{contactValue}`",
-            "底部固定组按视觉顺序为赞助、设置、关于",
-            "左侧菜单固定为 `136px` 宽的单一状态",
+            "底部按已选赞助、固定设置、已选关于的视觉顺序生成",
+            "精简模式固定 `136px`",
+            "详细模式首次默认 `248px` 展开",
+            "拥有该动作的 ActionIcon 可收起为 `76px`",
+            "Mantine Tooltip",
             "@tabler/icons-react",
-            "水平居中",
             "浅色、深色、跟随系统",
             "关于页在手动检查更新旁提供",
             "更新日志”按钮",
+            "发布专用 `--config`",
+            "固定 Rust 异步命令",
             "最近 5 个版本",
             "各最多 10 条",
             "表格中的 `Switch` 不得因点击行或单元格而切换",
@@ -412,7 +495,7 @@ def validate_gui_support_contract(
             "新 store 从默认值开始",
             "loading/error 不回退",
             "设置页只提供当前应用/版本、中英文和浅色/深色/跟随系统",
-            "托盘 i18n",
+            "托盘 i18n：仅在选择系统托盘时",
             "每个远程能力单独记录",
             "生产地址默认 HTTPS",
             "禁用或未同意时请求计数为零",
@@ -421,13 +504,16 @@ def validate_gui_support_contract(
         ),
         pages_reference_path: (
             "## 资产包内容",
-            "固定侧栏、设置页、关于页、赞助页及其应用导航入口随 GUI 初始化自动建立",
+            "关于页、赞助页、系统托盘、单实例和侧栏模式则严格消费 GUI 初始化专门问询",
             "AppThemeProviderTemplate.tsx",
-            "侧栏固定为 `136px` 单态",
+            "精简 `136px` 竖排菜单，或详细模式默认 `248px` 展开、可收起为 `76px`",
             "设置页只保留应用/版本、语言与三态主题",
-            "托盘 i18n",
-            "手动检查更新和稳定状态固定存在",
+            "仅当 `system_tray = enabled` 时",
+            "手动检查更新和稳定状态随关于页存在",
             "ReleaseNotesDialog",
+            "rust/release_notes.rs",
+            "tauri/tauri.release.conf.json",
+            "loading/error/retry",
             "近 5 版固定结构",
             "父容器点击不代理两个按钮",
             "作者、联系人、三段免责声明",
@@ -438,8 +524,10 @@ def validate_gui_support_contract(
         ),
         update_reference_path: (
             "## 更新状态机",
-            "手动“检查更新”和更新状态固定在 `/about`",
+            "仅当初始化选择关于页时",
             "旁边的“更新日志”按钮",
+            "发布专用 `--config`",
+            "固定 `load_release_notes` 窄命令",
             "最近 5 版",
             "各最多 10 条",
             "两个按钮的事件只绑定各自元素",
@@ -472,7 +560,12 @@ def validate_gui_support_contract(
             "quit: Quit",
         ),
         brand_root / "GUI_SUPPORT_SURFACES.template.md": (
-            "GUI 初始化已经包含固定动态标题、`136px` 单态图标上文字下的 Logo→版本侧栏",
+            "GUI 初始化已经包含动态标题、所选精简/详细 Logo→版本侧栏",
+            "`sidebar_mode`",
+            "精简：`136px`",
+            "详细：首次默认 `248px` 展开",
+            "自身按钮收起为 `76px`",
+            "APP_SIDEBAR_COLLAPSED_STORAGE_KEY",
             "同一产物同时支持亮色和暗色",
             "浅色、深色、跟随系统",
             "手动检查更新：入口固定存在",
@@ -480,7 +573,7 @@ def validate_gui_support_contract(
             "最近 5 版",
             "各最多 10 条",
             "全部版本只带一个小写 `v`",
-            "视觉顺序严格为赞助、设置、关于",
+            "视觉顺序为已选赞助、设置、已选关于",
             "`NotConfigured`",
             "禁止远端布尔值直接触发",
             "初始化设置页不提供统计或隐私控件",
@@ -512,6 +605,8 @@ def validate_gui_support_contract(
     manifest = _read_json(errors, manifest_path)
     zh = _read_json(errors, zh_path)
     en = _read_json(errors, en_path)
+    release_config_path = brand_root / "tauri" / "tauri.release.conf.json"
+    release_config = _read_json(errors, release_config_path)
     if profile is not None:
         validate_brand_profile(errors, profile, profile_path)
     if manifest is not None:
@@ -525,6 +620,15 @@ def validate_gui_support_contract(
             en=en,
             zh_path=zh_path,
             en_path=en_path,
+        )
+    if release_config != {
+        "bundle": {
+            "resources": {"../../release-notes.json": "release-notes.json"}
+        }
+    }:
+        fail(
+            errors,
+            "GUI release config must contain only the fixed release-notes resource mapping",
         )
     _validate_react_assets(errors, brand_root=brand_root)
 

@@ -1,24 +1,26 @@
-# 2026-08-26 变更记录
+# 2026-08-27 变更记录
 
 ## 新增
 
+- `HARNESS-FEAT-GUI-INITIALIZATION-CAPABILITY-SELECTION`（所需 Harness 版本 `202608051301`）：GUI 接口选择后新增专门问询，分别记录系统托盘、关于页、赞助页、单实例的启用/禁用和侧栏精简/详细模式。四项能力继续要求明确选择；用户未选择侧栏模式时，初始化器在写 profile 前确定性写入 `sidebar_mode = detailed`，显式非法值不会被当作缺省。profile 驱动依赖、生命周期、路由、导航和运行时资源；启用能力继续使用原有硬门禁，禁用能力必须无残留。
+- 详细侧栏既是未选择侧栏模式时的初始化缺省值，也保持默认展开、图标+名称、自身折叠按钮、`248px`/`76px` 两态和独立设备级持久化；折叠后只显示图标并使用 Mantine Tooltip 显示名称。精简侧栏继续提供 `136px` 图标上/名称下布局且没有折叠按钮，并可由用户显式选择。
 - `HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY`（所需 Harness 版本 `202608051301`）：新增标准库 `release_notes.py` 和受保护的根 `release-notes.json` 发布契约。发布准备会从上一次真实发布提交到当前源码整理最重要的功能优化/问题修复，每类至多 10 条并只保留近 5 版；构建只读校验并把同一日志打入候选，manifest 绑定带 `v` 版本、SHA-256 和包内路径。
-- GUI 关于页在“检查更新”旁新增自身绑定的“更新日志”按钮和本地弹窗模板，按固定中文结构展示近 5 版、每类至多 10 条；远程更新未配置时只禁用检查按钮，本地日志仍可查看。
+- 选择 GUI 关于页时，在“检查更新”旁新增自身绑定的“更新日志”按钮和本地弹窗模板，按固定中文结构展示近 5 版、每类至多 10 条；远程更新未配置时只禁用检查按钮，本地日志仍可查看。未选关于页不建立隐藏入口。
 - `HARNESS-FEAT-DOWNSTREAM-AUTO-VERSIONING`（所需 Harness 版本 `202608051301`）：新增 `$desktop-manage-version` 与标准库版本 helper。下游现在会在每个正式发布周期的首个已完成功能自动升一次 Minor 并归零 Patch，每个新稳定缺陷 ID 的已完成修复升一次 Patch，重复缺陷幂等，Major 只接受用户批准；查询、诊断、复现、重构等维护不升版本，分量 `0..100` 溢出失败关闭。
 - 下游初始化现在创建受保护的 `.harness/version-state.json`，开发在相关测试通过后才提交版本；Rust/Tauri 构建、跨平台候选、产物收集、验收和发布准备只校验当前目标，只有真实正式发布成功才重置首功能周期。升级器可更新版本 Skill 工程资产，但不得覆盖 Cargo 产品版本、发布周期或缺陷 ID 历史。
-- 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 18 条专项回归：在 GUI 构建前验证官方 `tauri-plugin-single-instance` 的 workspace/member 接线、首插件顺序、不消费参数/工作目录且只恢复既有窗口的中性回调，Tauri `tray-icon` feature、非透明 32px RGBA 图标与配置引用、从 `.setup` 可达的 Menu/default-icon/icon/build 接线、已注册关闭事件、稳定 ID `show_window`/`quit`、`rust_i18n::t!("tray.show_window")`/`rust_i18n::t!("tray.quit")` 可见标签解析、中英文原生资源，以及单实例/托盘生命周期/i18n 八个固定命名回归；新增负向覆盖原始翻译键和无断言 i18n 回归，路径越界、符号链接、非法 UTF-8、空源码、未接线死代码和任何缺项均失败关闭。
-- 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建并双启动真实本机 Tauri 调试二进制，验证第二次启动只唤醒同一主窗口后退出、只剩一个长期应用主进程/主窗口，再使用 Computer Use 验证真实托盘中文“显示窗口/退出”与英文“Show Window/Quit”可无重启刷新且无原始 key、关闭隐藏/两种恢复/退出生命周期、应用可启动、`136px` 单态侧栏的 Logo/图标/文字尺寸与居中、默认设置页无隐私/统计区块，以及可访问树枚举出的所有菜单页面可达；失败、超时、取消、唯一性无法判定、无法观察或无法执行均阻断初始化。
+- 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 profile-aware 专项回归：在 GUI 构建前解析五项初始化配置，对启用的单实例/托盘验证原有依赖、首插件、图标、菜单、关闭处理、i18n 与命名回归，对禁用能力验证相关实现缺席，并要求托盘禁用时存在 `close_last_window_exits_application`。非法、缺失或 `pending` 配置及路径/源码/资产异常均失败关闭。
+- 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建真实本机 Tauri 调试二进制；单实例启用才双启动，托盘启用才操作真实托盘，托盘禁用则验证关闭最后窗口退出。Computer Use 同时验证所选侧栏、设置页、实际菜单页面和未选页面缺席；失败、无法判定或无法观察任一适用场景均阻断初始化。
 - GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。
 - GUI 初始化新增应用 Logo 三选一：实际生成 3 个 1024×1024 PNG 候选并同时预览，必须由用户明确选择；选中母版逐字节接入运行时 `/app-identity/logo.png`，并由项目本地 Tauri 工具生成平台图标，候选/选择/摘要写入 `docs/GUI_APP_PROFILE.md`。
-- GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可同时展示固定 `136px` 侧栏和三张赞助档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
-- GUI 初始化新增固定桌面生命周期与本地支持界面基线：启用 Tauri `tray-icon`，托盘只含由 `rust-i18n` 运行时解析的显示/退出，关闭主窗口只隐藏；标题按 `{applicationName} v{version} {contactChannel}:{contactValue}` 从权威元数据动态组装；固定左侧菜单为 `136px` 单态，`56px` Logo 永远在顶部、带 `v` 当前版本紧随其下，菜单以 `30px` 图标在上、`11px`/`10em` 文字在下的方式居中显示，产品功能从顶部向下，底部固定项按视觉顺序为赞助、设置、关于。应用直接建立 `/settings`、`/about` 与 `/sponsor`；设置页只提供应用/版本、中英文切换和三态主题，不含隐私或统计区块；关于页包含更新状态、固定作者、`QQ 2222980` 联系方式与三段中英文免责声明，赞助页默认打包完整 sponsor 媒体并同时适配亮色/暗色。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
-- 新增 `AppSidebarTemplate`、`SettingsPageTemplate`、`MandatoryUpdateGateTemplate`、固定导航清单和更新展示状态模板，并补齐中文/英文资源。中性 GUI 的检查更新显示 `NotConfigured` 且零出站；默认设置模板不再携带统计 props、控件或翻译键，根级强更门只接受 core 已判定的 `RequiredUpdate`，不从远端布尔值自行推导。
+- GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可容纳详细展开侧栏，选择赞助页时也可展示三张档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
+- GUI 初始化建立动态标题、设置页、i18n 和亮暗主题固定基线，并按 profile 建立托盘/关闭语义、单实例、关于页、赞助页及精简/详细侧栏。产品功能从顶部向下，底部只渲染已选赞助、固定设置、已选关于；未选页面不进入路由、导航或运行时资源。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
+- 新增 `AppSidebarTemplate`、`SettingsPageTemplate`、`MandatoryUpdateGateTemplate`、条件导航 builder 和更新展示状态模板，并补齐中文/英文资源。选择关于页时检查更新显示 `NotConfigured` 且零出站；默认设置模板不携带统计 props、控件或翻译键，根级强更门只接受 core 已判定的 `RequiredUpdate`。
 - 新增更新/强更/统计专项参考：更新采用官方 Tauri updater 签名制品和公开验证密钥；强更使用经验证的 `minimumSupportedVersion` 与 core 严格 SemVer；统计默认关闭、明确同意，只允许 HTTPS JSON `POST` 的最小字段白名单，不包含稳定设备/安装标识，并使用有界内存队列、单飞请求、取消、超时、重试和关闭回收。
 - 新增无产品身份的 660×400 macOS DMG 拖拽背景资产；GUI 初始化会把它写入 `<项目标识>_gui/src-tauri/dmg/background.png`，并把 Tauri 配置固定接到 `./dmg/background.png`。GUI 身份流程负责预览批准或同路径替换，Tauri 构建在测试前校验路径、尺寸、摘要与配置一致；新增 PNG 资产解析和构建引用负向回归。
-- 为 `$desktop-prepare-gui-support-surfaces` 新增完整共享品牌依赖包：固定三档赞助价格、作者/联系人/免责声明、中英文文案、侧栏/设置/About/Sponsor/Media/Banner/强更 React/Mantine 模板及非空模板测试，以及 12 张赞助图片和 1 张更新 banner。两张支付二维码、当前未使用的箭头/图标/选中态小图均按原始字节保留，并由 manifest 记录 MIME、尺寸、字节数、SHA-256、用途、敏感性和内部专有复用边界。
-- 新增关于/赞助页面实施参考与产品差异文档模板：关于页注入当前下游权威产品名/版本并固定展示作者、联系人和免责声明；赞助页消费固定品牌 profile，使用响应式列数、主题令牌、语义化图片替代文本和本地媒体路径。更新 banner 只提供视觉资产，不自动启用更新服务。
+- 为 `$desktop-prepare-gui-support-surfaces` 新增完整共享品牌源依赖包：固定三档赞助价格、作者/联系人/免责声明、中英文文案、侧栏/设置/About/Sponsor/Media/Banner/强更 React/Mantine 模板及非空模板测试，以及 12 张赞助图片和 1 张更新 banner。运行时只复制 profile 选中的页面与媒体；源资产继续由 manifest 记录 MIME、尺寸、字节数、SHA-256、用途、敏感性和内部专有复用边界。
+- 新增关于/赞助页面实施参考与产品差异文档模板：选择关于页时注入当前下游权威产品名/版本并展示作者、联系人和免责声明；选择赞助页时消费固定品牌 profile、响应式布局和本地媒体。更新 banner 只提供视觉资产，不自动启用更新服务。
 - 新增本地图片/视频统一组件契约：视频必须有 controls、字幕、文字稿、可选 poster、无 autoplay 和无远程追踪。来源没有已跟踪视频，因此本次没有伪造视频文件。
-- 新增 `$desktop-prepare-gui-support-surfaces` Skill、支持界面所有权/出站参考和中性化 validator：GUI 下游自动消费固定本地标题、侧栏、设置/关于/赞助页面与品牌媒体，只为基线差异、额外界面或真实更新/统计出站记录产品实例与最小边界；模板不预创建实例文档，不携带固定远程地址或客户端秘密，非 GUI 下游在初始化时裁剪该能力。
+- 新增 `$desktop-prepare-gui-support-surfaces` Skill、支持界面所有权/出站参考和中性化 validator：GUI 下游自动消费固定本地标题、所选侧栏、设置页及所选关于/赞助页面与媒体，只为基线差异、额外界面或真实更新/统计出站记录产品实例与最小边界；模板不预创建实例文档，不携带固定远程地址或客户端秘密，非 GUI 下游在初始化时裁剪该能力。
 - 新增 macOS DMG 最终字节只读布局检查器与 5 条专项回归，验证非空 Finder `.DS_Store`、本地背景、唯一顶层应用包和 `/Applications` 拖拽链接，并保证失败路径仍卸载挂载卷。
 - 新增 workspace-aware Rust 中文声明注释检查器、专项回归和 Harness bridge：从 Cargo package/virtual workspace 根扫描全部成员的 `build.rs`/`src`/`tests`，覆盖 struct/enum/union/type/trait/具名函数与方法，支持直接与条件 doc attribute，提供精确位置、稳定 JSON 和 0/1/2 退出码，并对缺失 manifest、零受管声明、非法源码和不完整报告失败关闭。
 - 新增 GUI TypeScript Compiler AST 中文注释门禁参考与 Vitest 专项测试：范围收敛为结构、具名函数/方法、直接或后置导出的组件/hooks，以及明确测试上下文中的场景；精确排除生成路由树，对语法/编码/符号链接/空扫描失败关闭，明确禁止业务同名调用误报、局部变量/普通回调全覆盖和自动批量套话。
@@ -27,37 +29,37 @@
 - 固化 Tauri GUI 界面国际化（i18n）技术选型事实标准（ADR-20260806-001）：前端固定使用 `i18next` + `react-i18next`，Rust GUI 适配器层固定使用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API。i18n 接入成为开发期硬性必选项，默认语言跟随系统语言并在缺少对应资源时回退英文，界面必须提供可发现的语言切换入口并持久化用户选择；core 保持语言无关。
 - 新增 `$desktop-refactor-code` Skill：从单文件行数、文件组织结构（Rust `<module>/mod.rs`、前端不强制 `index.ts` 桶文件）、命名、常量提取、潜在性能与死锁风险、core-first 归属六个方面辅助行为保持的重构，复用统一文件规模与 core-first 检查器。
 - 新增 `$desktop-extract-i18n-strings` Skill：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core，不臆造未批准语言的译文。
+- `HARNESS-FEAT-CURATE-MEMORY-HISTORY-SKILL`（所需 Harness 版本 `202608051301`）：新增 `$desktop-curate-harness-memory` Skill，只治理 Harness 自身 `docs/adr/`、`docs/changelog/`。当前最新文件超过 500 行建议重构阈值或项目负责人明确要求时，把已被后续决定完全取代、且不再被任何当前规范引用的过期条目原文迁移到同目录 `ADR_history.md`/`CHANGELOG_history.md` 永久追加保存，当前文件只保留仍在直接约束行为的条目；不确定的条目一律保守保留并列为候选。该 Skill 不加入 `$desktop-instantiate-project` 复制清单，不随下游派生，不适用 Work Plan/Product Status/Product Spec。
 
 ## 变更
 
-- `HARNESS-FEAT-GUI-PROCESS-SESSION-STATE`（所需 Harness 版本 `202608051301`）：GUI 活动选项卡、查询/筛选、排序和分页等页面工作状态现在由应用根 Jotai store 在本次程序进程内跨路由、关闭隐藏与单实例唤醒保留，退出后恢复默认且禁止页面会话持久化/URL/Query 数据镜像；共享 helper 与回归覆盖成功空页从大于 1 回退第 1 页、加载/错误不回退及第 1 页不循环。
+- `HARNESS-FEAT-GUI-PROCESS-SESSION-STATE`（所需 Harness 版本 `202608051301`）：GUI 活动选项卡、查询/筛选、排序和分页等页面工作状态由应用根 Jotai store 在本次程序进程内跨路由及已启用的关闭隐藏/单实例唤醒保留，退出后恢复默认且禁止页面会话持久化/URL/Query 数据镜像；详细侧栏折叠偏好作为独立设备级 UI 偏好，不进入页面会话 store。
 - 页面交互事件现在由实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身处理，Card、表格行/单元格等父级不再代理子动作；表格中的 `Switch` 不会因点击所在行而切换，模板回归分别覆盖控件与父级点击。
 - 所有用户可见版本号统一为一个小写 `v` 前缀，覆盖窗口标题、侧栏、设置/关于页、更新状态、CLI `--version` 与更新日志；Cargo、JSON/协议、状态和 manifest 机器版本保持原始值。
 - `HARNESS-FEAT-TIERED-CODE-LINE-LIMITS`（所需 Harness 版本 `202608051301`）：代码行数门禁改为分层配置。Rust 代码超过 400 行进入建议重构复核、超过 800 行强制拆分；前端代码超过 500 行进入建议重构复核、超过 1000 行强制拆分；其他人工维护文本保留 500/2000。Rust 多文件模块固定使用 `<module>/mod.rs` 目录入口，前端按功能职责拆分且不强制 `index.ts` 桶文件；统一检查器与 Harness bridge 现在报告具体 profile、建议阈值和硬上限。
-- GUI 单实例从未声明的实现选择提升为不可省略的初始化硬门禁：使用官方 `tauri-plugin-single-instance` 且必须最先注册，同一用户会话第二次启动只恢复、取消最小化并聚焦既有主窗口后退出，不得留下第二个长期应用主进程或主窗口；中性回调忽略且不记录启动参数/工作目录。结构检查、两个固定命名回归和真实双启动唯一性证据任一缺失都会阻断基线提交；Linux Snap/Flatpak 另需在渠道清单声明并验证会话 DBus 权限。
-- GUI 系统托盘从文字基线提升为不可省略的初始化硬门禁，并修复了“代码看似存在但图标未显示”的漏检：除应用图标、精确双项菜单、关闭隐藏、两种恢复和退出外，现在强制验证非透明 32px RGBA 图标及 `bundle.icon` 引用、从 Tauri `.setup` 可达的 Menu/default-icon/icon/build 接线和已注册关闭事件；图标缺失不能静默继续，Linux tray 必须绑定菜单。初始化 E2E 还必须看到状态栏/通知区域中的非空可见图形，透明点击区域或只能弹菜单的不可见占位不会通过。
-- Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，赞助/设置/关于使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji，图表相关控件优先使用 Tabler 图标而图表绘制方案保持独立。
-- 固定侧栏模板改为 `136px` 单态并移除折叠状态、开关、字符箭头与 Tooltip-only 名称；模板回归同步覆盖 Tabler 来源、`56px` Logo、`30px` 图标、图标上/`11px` `10em` 文字下、中心线和无折叠控件。
-- GUI 固定支持界面重新整理：手动检查更新及其 `NotConfigured`/检查中/结果状态从设置页迁回关于页；设置页新增浅色、深色、跟随系统三态选择并持久化设备级偏好。初始化新增唯一 `AppThemeProviderTemplate`，为亮色与暗色分别定义页面背景、surface、主/次文字、边框和强调色，应用壳与赞助页消费运行时有效主题。
-- 固定侧栏不再支持展开/折叠；每个功能项及赞助/设置/关于项固定同时显示图标和下方居中文字。图标由下游显式注入且不再可选，完整可访问名称继续保留。
+- GUI 单实例改为初始化显式选择：启用时官方首插件、中性恢复回调、两个固定命名回归和真实双启动唯一性继续作为硬门禁；禁用时依赖、插件、回调和双启动场景必须缺席。
+- GUI 系统托盘改为初始化显式选择：启用时继续强制非透明图标、精确双项菜单、关闭隐藏、两种恢复、退出、运行时 i18n 和真实宿主可见性；禁用时不启用 feature、不安装托盘、不隐藏窗口，而由主窗口 `CloseRequested` 显式调用 `AppHandle::exit(0)`。结构检查同时覆盖启用完整性、禁用残留与退出 handler 实际接线。
+- Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，已选赞助/固定设置/已选关于使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji。
+- 侧栏模板现在支持 `compact` 与 `detailed`。精简模式保留 `136px`、`56px` Logo、`30px` 图标上/`11px` `10em` 名称下和无折叠控件；详细模式默认 `248px` 展开、图标+名称，自身按钮收起为 `76px` 后用 icon-only + Tooltip，并持久化折叠偏好。
+- GUI 支持界面按初始化选择重新整理：设置页固定提供浅色、深色、跟随系统三态并持久化；关于页启用时承载检查更新和发布日志；赞助页启用时消费双主题与完整运行时媒体。未选页面没有路由、入口或资源。
 - Rust、前端依赖与 Node.js/pnpm/cargo-xwin 工具要求统一改为经过验证的最低兼容稳定版本范围：Cargo/前端清单保留完整兼容下界，锁文件只固定当前解析结果；新增 Rust `direct-minimal-versions`、前端 `lowest-direct`、项目最低工具链与环境范围门禁，其中 `cargo-xwin` 使用 `>=0.22.0, <0.24.0`，保留已观测可用的 0.22.0 下界而不追随较新发布；不再以精确依赖版本、`latest`、tag、通配符或“优先最新”表达兼容性。
-- 固定侧栏现在保持单一布局状态，把用户选中的本地 Logo 永久置于顶部、当前版本紧随其下，并以图标上文字下的方式持续显示所有菜单名称。赞助页不再依赖单一主题或运行时 `light-dark()` 字符串，而是消费 Mantine 解析后的有效主题，为亮色/暗色分别选择背景叠层、surface 与对比色，并为不透明档位图提供稳定中性承载面。
+- 精简侧栏持续显示所有菜单名称；详细侧栏在展开态显示名称、折叠态用 Tooltip 补充名称。选择赞助页时继续消费 Mantine 有效主题，为亮色/暗色分别选择背景叠层、surface 与对比色。
 - `$desktop-build-tauri-release` 新增 updater 候选门禁：启用时要求 `bundle.createUpdaterArtifacts: true`、受限 HTTPS endpoints、公开验证密钥和安全提供的签名私钥，收集并验证真实 archive/`.sig`，把版本、channel、target、arch、公钥指纹、路径、大小、摘要和验证结果写入 manifest。安装包签名/公证与 updater 签名相互独立；构建不创建 feed、不上传也不发布。
 - 对参考下游的更新与统计实现完成安全抽取：保留 UI 信息架构，不传播硬编码客户端共享秘密、GET/query 统计、稳定设备标识、detached task、未经认证的 `forcedUpdate` 或宽松下载 URL；对应拒绝规则和回归已固化到 GUI 支持、GUI adapter 与 Tauri 构建 Skills。
-- `$desktop-add-gui-adapter` 现在在中性 GUI 初始化中自动消费品牌支持 Skill；`docs/GUI_SUPPORT_SURFACES.md` 只在修改固定基线、增加其他支持界面或启用出站能力时按需创建。i18n 因默认页面和托盘文案前移到初始化阶段，固定中文/英文之外的系统语言继续回退英文；updater banner 未选择时不进入 bundle。
+- `$desktop-add-gui-adapter` 在中性 GUI 初始化中按 profile 消费品牌支持 Skill；`docs/GUI_SUPPORT_SURFACES.md` 只在修改基线、增加其他支持界面或启用出站能力时按需创建。实际界面提供中文/英文并回退英文；未选页面/托盘的资源不进入运行时，updater banner 未选择时也不进入 bundle。
 - Harness 源策略与初始化推荐预设现在默认 `superpowers: disabled`；只有自定义选择明确启用时，后续 Agent 才可调用 `superpowers:*` Skill。
 - 开发环境门禁不再因新任务、新会话、显式构建或缺少环境证据例行运行：中性初始化仍主动检查一次，初始化后先执行真实测试/构建命令，只有已观察到受管环境错误时才做对应安装并单次重试；xwin 发布工具同样改为实际 xwin 命令失败后的针对性恢复。
 - 日常开发流程收敛为直接实现、本次必要单元/回归测试和事件触发记录，不再因任务复杂度自动增加流程档位、持久计划、全仓检查、构建、冒烟、E2E 或验收步骤；安全、外部副作用与发布所需授权仍按实际风险保留。
 - Rust CLI 与 Tauri GUI 显式构建现在必须在开始前逐次解析是否启用 E2E，并在编译前运行项目全部非空单元测试；持久 E2E 偏好只提供建议默认值，启用的 E2E 只在最终真实候选形成后执行。
-- GUI 支持界面能力从纯中性模板扩展为产品家族共享品牌包：GUI 下游保留完整 Skill 源资产，完整 sponsor 媒体随固定赞助页进入应用 bundle，updater banner 仍只有明确选择时进入；来源下游产品名称/标识、固定服务地址、秘密和遥测实例仍被排除。静态支付码不授权订单、权益、账户、支付状态或自动支付逻辑。
+- GUI 支持界面能力从纯中性模板扩展为产品家族共享品牌包：Harness 保留完整 Skill 源资产，完整 sponsor 媒体只随所选赞助页进入应用 bundle，updater banner 也只有明确选择时进入；来源下游产品名称/标识、固定服务地址、秘密和遥测实例仍被排除。
 - 初始化、GUI adapter 基线、Harness 升级所有权与 validator 同步识别品牌配置、i18n、React 模板、manifest 和全部媒体；非 GUI 初始化继续裁剪该能力，升级继续保护产品实例文档与下游本地决定。
 - macOS→Windows xwin 环境门禁适配 Homebrew 将 LLD 从 LLVM 拆包的环境：分别探测、安装和复探 `llvm`/`lld`，对现有损坏 formula 失败关闭；新增 2 条针对拆包与损坏环境的回归。
 - Apple 公证探测新增已授权 `notarytool` Keychain profile 模式，与两组环境凭据模式互斥；在线验证不输出 profile 名或秘密，并新增 profile 可用、不可用与混用拒绝回归。
 - Tauri DMG 规则补齐 Finder 布局策略：交互式构建只在有界超时内使用 Tauri 的 Finder 路径，headless runner 不得盲目启用可能挂起的 AppleScript；任何布局后处理都要求重新签名、公证、stapling、摘要和验收。
 - DMG 布局证据进一步贯通到 `$desktop-verify-delivery`、`docs/VERIFICATION.md` 与 `$desktop-prepare-release`：里程碑必须对 `release/` 中当前最终 DMG 重跑只读检查，不得沿用旧候选证据或自动接受软件许可。
-- GUI 初始化、身份、适配器、工程规则、Rust 基线与 Harness 升级所有权同步接入固定本地支持基线及可选出站能力；Skill 工程层只随 GUI 条件传播，下游 `docs/GUI_SUPPORT_SURFACES.md` 明确保持 `protected`。
+- GUI 初始化、身份、适配器、工程规则、Rust 基线与 Harness 升级所有权同步接入 profile 驱动的本地支持基线及可选出站能力；Skill 工程层只随 GUI 条件传播，下游 `docs/GUI_SUPPORT_SURFACES.md` 保持 `protected`。
 - Rust 能力事实扩展为 Axum + Tower/Tower HTTP、config-rs、tracing-subscriber/appender 与默认关闭的 OpenTelemetry OTLP/HTTP；utoipa/Scalar、async-graphql、MongoDB/redis-rs 和 jsonwebtoken/Argon2id 仅作为真实能力获批后的固定候选，不进入中性依赖。
-- Tauri React 前端固定基线扩展为 Vite、TanStack 文件路由、严格 TypeScript、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library，并增加可选公开配置、结构化日志汇入 Rust tracing 和最终 `dist` 静态扫描边界；除固定本地关于/赞助页外不捆绑产品业务起始资产。
+- Tauri React 前端固定基线扩展为 Vite、TanStack 文件路由、严格 TypeScript、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library，并增加可选公开配置、结构化日志汇入 Rust tracing 和最终 `dist` 静态扫描边界；关于/赞助页按初始化选择存在，不捆绑产品业务起始资产。
 - 中文注释规则把“机械存在性/归属”与“业务语义质量”明确分层：Rust/GUI 门禁只检查稳定声明且必须失败关闭，字段/局部变量/闭包/普通回调保留有限豁免，语义质量继续由人工/Agent 复核。
 - 文件规模治理由 400 行硬上限调整为两级规则：超过 500 行必须复核业务高内聚、职责单一和职责相近性，不满足即按职责重构；超过 2000 行由统一门禁强制拒绝并拆分。Rust 模块拆分继续使用目录/`mod.rs` 结构，统一检查器同步报告语义复核候选。
 - `AGENTS.md`、`docs/RUST_CLI_TEMPLATE.md`、`docs/VERIFICATION.md`、最新 Product Spec 同步声明异步优先、tracing 落盘可读日志和产出物真实可用验收三项硬规则边界，并明确其与既有测试隔离规则、里程碑真实候选要求的关系。
@@ -65,13 +67,13 @@
 
 ## 验证
 
-- 当前最终状态运行 `python3 -m unittest discover -s scripts`，198 条测试全部通过；`python3 scripts/validate_harness.py` 通过 151 个必需文件、26 个 Skills 及本次页面事件归属、进程内页面会话、近五版更新日志和单 `v` 展示契约，产生 6 条未达硬上限的非阻断行数复核提示。
-- GUI 支持契约专项 23/23、发布日志 helper 专项 5/5、中性 Rust workspace 7/7、候选 workflow 29/29 均通过；10 个本次涉及的项目 Skills 通过 Skill Creator quick validator，`git diff --check` 通过。
+- 当前最终状态运行 `python3 -B -m unittest discover -s scripts`，201 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 151 个必需文件、26 个 Skills 及本次 GUI 五项最终初始化配置、侧栏未选择时归一化为 `detailed`、条件依赖/页面/资源、双侧栏、页面事件归属、进程内页面会话、近五版更新日志和单 `v` 展示契约，产生 7 条未达硬上限的非阻断行数复核提示。
+- GUI 支持契约专项 24/24、GUI 初始化结构/生命周期专项 34/34、发布日志 helper 专项 5/5、中性 Rust workspace 7/7、候选 workflow 29/29 均通过；10 个本次涉及的项目 Skills 通过 Skill Creator quick validator，`git diff --check` 通过。
 - Harness 源仓库没有可执行前端 `package.json`/`pnpm-lock.yaml`，因此没有把新增 `PageSessionState.test.ts` 与更新日志模板 Vitest 声称为已运行；Python validator 与负向回归已静态锁定根 store 生命周期、每页数量变化回第 1 页、成功空页回退、持久化 API 拒绝、按钮自身事件、5/10 上限和单 `v` 归一化，真实 GUI 下游初始化仍须运行模板前端测试。
 - 分层行数检查器专项测试 15/15 通过，覆盖 Rust 400/401/800/801、前端 500/501/1000/1001、全部声明前端后缀、通用文本 500/501/2000/2001、profile 元数据、Rust `<module>/mod.rs` 诊断、Git 可见范围、生成锁文件排除与 CLI 0/1/2 退出码；Harness bridge 合并入口 19/19 通过。
 - `python3 -m unittest discover -s scripts`：191 条测试全部通过；`python3 scripts/validate_harness.py` 通过 144 个必需文件、26 个 Skills 和新的 Rust 400/800、前端 500/1000、通用文本 500/2000 契约。
 - 真实行数检查覆盖 208 个受维护文本，无硬超限；4 个非阻断候选已复核为职责集中且职责相近：Rust 中文声明注释检查器、共享 GUI 支持模板契约测试、GUI 生命周期契约检查器、初始化主契约片段表。4 个修改过的 Skill 均通过 Skill Creator quick validator，Python 编译与 `git diff --check` 通过。
-- `node --test .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs`：16 条 GUI 生命周期契约专项测试全部通过，覆盖完整单实例/托盘契约、Cargo inline/table 与菜单构造兼容写法，以及缺少 `tray-icon`、workspace 单实例依赖、首插件顺序、既有窗口恢复回调、中性回调消费启动参数、真实托盘创建、托盘安装未从 `.setup` 接线、菜单未绑定、默认图标可选回退、`bundle.icon` 未引用 32px 来源、全透明 32px PNG、单实例/托盘回归或中文资源的失败路径。
+- `node --test .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs`：35 条 GUI 初始化结构/生命周期契约专项测试全部通过，覆盖完整与全部禁用组合、五项配置缺失/非法、未把缺省 `detailed` 物化进最终 profile、固定设置与关于/赞助路由/组件、赞助媒体完整性、两种侧栏接线/尺寸/Tooltip/持久化，以及单实例/托盘依赖、显式关闭退出与源码接线、图标、i18n 和固定命名回归的失败路径。
 - `python3 .agents/skills/desktop-manage-version/scripts/test_version_gate.py`：10 条专项测试全部通过，覆盖首功能/后续功能、Minor 归零 Patch、独立/重复缺陷、维护与只读 plan、正式发布周期重置/历史缺陷去重、新回归 ID、Major 明确批准、分量溢出、状态损坏、Cargo 漂移、不稳定版本、符号链接项目根和真实 CLI JSON 输出。
 - `python3 -m unittest discover -s scripts`：186 条测试全部通过；新增自动版本 helper 与 Harness bridge，既有 GUI 生命周期、环境、精简开发、逐次发布 E2E、更新/强更/统计、updater、xwin、公证、DMG、升级和治理回归继续通过。
 - `python3 .agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py`：15 条隔离测试全部通过，覆盖 Node.js 20.19.0/22.12.0 分段下界、21.x 空档、范围内更高版本、pnpm 10.0.0 下界、缺失兼容范围安装和供应链失败。

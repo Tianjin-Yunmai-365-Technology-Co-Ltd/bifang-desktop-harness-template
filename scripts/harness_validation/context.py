@@ -84,6 +84,12 @@ GUI_LIFECYCLE_CONTRACT_CHECKER = (
     / "scripts"
     / "verify-gui-lifecycle-contract.mjs"
 )
+GUI_RELEASE_NOTES_CONTRACT_CHECKER = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "verify-release-notes-contract.mjs"
+)
 GUI_LIFECYCLE_CONTRACT_TESTS = (
     SKILLS_ROOT
     / "desktop-test-gui-initialization-e2e"
@@ -128,6 +134,18 @@ TAURI_DMG_LAYOUT_HELPER = (
 )
 TAURI_DMG_LAYOUT_TESTS = (
     SKILLS_ROOT / "desktop-build-tauri-release" / "scripts" / "test_verify_dmg_layout.py"
+)
+TAURI_RELEASE_NOTES_HELPER = (
+    SKILLS_ROOT
+    / "desktop-build-tauri-release"
+    / "scripts"
+    / "verify_release_notes_resource.py"
+)
+TAURI_RELEASE_NOTES_HELPER_TESTS = (
+    SKILLS_ROOT
+    / "desktop-build-tauri-release"
+    / "scripts"
+    / "test_verify_release_notes_resource.py"
 )
 BUILD_RELEASE_POSIX_HELPER = (
     SKILLS_ROOT
@@ -263,6 +281,7 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.test.ts",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-release-notes-contract.mjs",
     ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/test_parallel_worktrees.py",
@@ -275,6 +294,8 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-build-tauri-release/scripts/test_tauri_release_gates.py",
     ".agents/skills/desktop-build-tauri-release/scripts/verify-dmg-layout.sh",
     ".agents/skills/desktop-build-tauri-release/scripts/test_verify_dmg_layout.py",
+    ".agents/skills/desktop-build-tauri-release/scripts/verify_release_notes_resource.py",
+    ".agents/skills/desktop-build-tauri-release/scripts/test_verify_release_notes_resource.py",
     ".agents/skills/desktop-prepare-release/scripts/release_notes.py",
     ".agents/skills/desktop-prepare-release/scripts/test_release_notes.py",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/pageSessionState.ts",
@@ -295,6 +316,10 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/ReleaseNotesDialogTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/displayVersion.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/releaseNotes.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/releaseNotesResource.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/ReleaseNotesResource.test.ts",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/rust/release_notes.rs",
+    ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/tauri/tauri.release.conf.json",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SponsorPageTemplate.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/SupportMedia.tsx",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/BrandUpdaterBanner.tsx",
@@ -383,6 +408,7 @@ EXPECTED_SKILLS = {
     "desktop-build-tauri-release",
     "desktop-check-development-environment",
     "desktop-collect-release-artifacts",
+    "desktop-curate-harness-memory",
     "desktop-define-product",
     "desktop-extract-i18n-strings",
     "desktop-implement-change",

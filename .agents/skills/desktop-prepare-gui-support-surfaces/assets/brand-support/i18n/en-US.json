@@ -20,6 +20,8 @@
   },
   "sidebar": {
     "application_navigation": "Application navigation",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
     "logo_alt": "{{applicationName}} application logo",
     "version": "Version {{version}}"
   },
@@ -105,6 +107,9 @@
     "entry_title": "-----------更新日志 {{date}} {{version}}----------",
     "feature_optimizations": "###功能优化",
     "bug_fixes": "###问题修复",
+    "loading": "Reading release notes from this candidate",
+    "load_failed": "The release notes bundled with this candidate could not be read. Retry or reinstall the complete candidate.",
+    "retry": "Retry",
     "empty": "No published release notes are available",
     "none": "None"
   }

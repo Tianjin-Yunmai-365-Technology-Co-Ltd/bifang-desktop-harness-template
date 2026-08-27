@@ -225,16 +225,28 @@ class GuiSupportContractTests(unittest.TestCase):
         self.assertTrue(any("release-note fixed format drifted" in error for error in errors), errors)
 
     def test_fixed_bottom_navigation_order_drift_is_rejected(self) -> None:
-        """底部固定项必须保持赞助、设置、关于的视觉顺序。"""
+        """已选底部项必须保持赞助、设置、关于的视觉顺序。"""
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             brand_root = self._copy_brand_root(root)
             navigation = brand_root / "react" / "supportNavigation.ts"
             source = navigation.read_text(encoding="utf-8")
-            source = source.replace('id: "sponsor"', 'id: "temporary"', 1)
-            source = source.replace('id: "about"', 'id: "sponsor"', 1)
-            source = source.replace('id: "temporary"', 'id: "about"', 1)
+            source = source.replace(
+                "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.sponsor)",
+                "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.temporary)",
+                1,
+            )
+            source = source.replace(
+                "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.about)",
+                "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.sponsor)",
+                1,
+            )
+            source = source.replace(
+                "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.temporary)",
+                "items.push(AVAILABLE_SUPPORT_NAVIGATION_ITEMS.about)",
+                1,
+            )
             navigation.write_text(source, encoding="utf-8")
             errors: list[str] = []
             validate_gui_support_contract(
@@ -244,8 +256,8 @@ class GuiSupportContractTests(unittest.TestCase):
             )
         self.assertTrue(any("sponsor/settings/about" in error for error in errors), errors)
 
-    def test_sidebar_identity_or_fixed_vertical_navigation_drift_is_rejected(self) -> None:
-        """侧栏必须保持身份顺序、固定宽度和图标在上文字在下的单态布局。"""
+    def test_sidebar_identity_or_mode_layout_drift_is_rejected(self) -> None:
+        """两种侧栏必须保持身份顺序、固定尺寸和各自导航布局。"""
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -253,8 +265,18 @@ class GuiSupportContractTests(unittest.TestCase):
             sidebar = brand_root / "react" / "AppSidebarTemplate.tsx"
             source = sidebar.read_text(encoding="utf-8")
             source = source.replace(
-                "APP_SIDEBAR_WIDTH_PX = 136",
-                "APP_SIDEBAR_WIDTH_PX = 76",
+                "compact: 136",
+                "compact: 120",
+                1,
+            )
+            source = source.replace(
+                "detailedCollapsed: 76",
+                "detailedCollapsed: 70",
+                1,
+            )
+            source = source.replace(
+                "detailedExpanded: 248",
+                "detailedExpanded: 240",
                 1,
             )
             source = source.replace(
@@ -288,8 +310,8 @@ class GuiSupportContractTests(unittest.TestCase):
                 1,
             )
             source = source.replace(
-                'data-navigation-layout="icon-above-label"',
-                'data-navigation-layout="horizontal"',
+                'compact ? "icon-above-label" : iconOnly ? "icon-only" : "icon-with-label"',
+                'compact ? "horizontal" : iconOnly ? "hidden" : "icon-with-label"',
                 1,
             )
             sidebar.write_text(source, encoding="utf-8")
@@ -299,12 +321,47 @@ class GuiSupportContractTests(unittest.TestCase):
                 brand_root=brand_root,
                 product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
             )
-        self.assertTrue(any("APP_SIDEBAR_WIDTH_PX" in error for error in errors), errors)
+        self.assertTrue(any("compact: 136" in error for error in errors), errors)
+        self.assertTrue(any("detailedCollapsed: 76" in error for error in errors), errors)
+        self.assertTrue(any("detailedExpanded: 248" in error for error in errors), errors)
         self.assertTrue(any("APP_SIDEBAR_NAV_ICON_SIZE_PX" in error for error in errors), errors)
         self.assertTrue(any("APP_SIDEBAR_LABEL_WIDTH_CH" in error for error in errors), errors)
         self.assertTrue(any("logo must render above" in error for error in errors), errors)
         self.assertTrue(any("@tabler/icons-react" in error for error in errors), errors)
         self.assertTrue(any("icon-above-label" in error for error in errors), errors)
+
+    def test_detailed_sidebar_default_persistence_or_tooltip_drift_is_rejected(self) -> None:
+        """详细侧栏必须默认展开，并使用独立设备偏好和 Tooltip。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            sidebar = brand_root / "react" / "AppSidebarTemplate.tsx"
+            source = sidebar.read_text(encoding="utf-8")
+            source = source.replace(
+                "DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false",
+                "DEFAULT_DETAILED_SIDEBAR_COLLAPSED = true",
+                1,
+            )
+            source = source.replace(
+                "window.localStorage.getItem",
+                "window.sessionStorage.getItem",
+                1,
+            )
+            source = source.replace("<Tooltip", "<Popover", 1)
+            sidebar.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(
+            any("DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false" in error for error in errors),
+            errors,
+        )
+        self.assertTrue(any("window.localStorage.getItem" in error for error in errors), errors)
+        self.assertTrue(any("<Tooltip" in error for error in errors), errors)
 
     def test_default_settings_privacy_surface_is_rejected(self) -> None:
         """初始化设置页不得恢复隐私标题、统计开关或对应固定翻译键。"""
@@ -449,6 +506,50 @@ class GuiSupportContractTests(unittest.TestCase):
         self.assertTrue(any("MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5" in error for error in errors), errors)
         self.assertTrue(any("MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10" in error for error in errors), errors)
         self.assertTrue(any("return `v${normalized}`" in error for error in errors), errors)
+
+    def test_release_notes_runtime_loader_or_command_is_rejected_when_missing(self) -> None:
+        """候选资源前端加载器与窄 Rust 命令都属于必需模板。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            (brand_root / "react" / "releaseNotesResource.ts").unlink()
+            rust = brand_root / "rust" / "release_notes.rs"
+            rust.write_text(
+                rust.read_text(encoding="utf-8").replace(
+                    "pub async fn load_release_notes",
+                    "pub async fn renamed_release_notes",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("releaseNotesResource.ts" in error for error in errors), errors)
+        self.assertTrue(any("pub async fn load_release_notes" in error for error in errors), errors)
+
+    def test_release_notes_release_config_mapping_drift_is_rejected(self) -> None:
+        """发布专用 Tauri 配置不得改名、嵌套或附带第二资源。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            config = brand_root / "tauri" / "tauri.release.conf.json"
+            config.write_text(
+                '{"bundle":{"resources":{"../../release-notes.json":"nested/release-notes.json"}}}\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("fixed release-notes resource mapping" in error for error in errors), errors)
 
     def test_page_session_state_persistence_or_empty_page_regression_is_rejected(self) -> None:
         """页面会话不得落盘，且成功空页回退和新进程默认值回归不可删除。"""

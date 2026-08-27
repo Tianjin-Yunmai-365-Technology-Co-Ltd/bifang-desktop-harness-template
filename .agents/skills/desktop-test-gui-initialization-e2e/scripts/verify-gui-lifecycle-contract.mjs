@@ -6,11 +6,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { inflateSync } from "node:zlib";
 
+import { validateReleaseNotesRuntimeContract } from "./verify-release-notes-contract.mjs";
+
 const IGNORED_DIRECTORIES = new Set([".git", ".harness", "node_modules", "target", "dist", "release"]);
 
-const SOURCE_REQUIREMENTS = [
-  ["初始化 Tauri 单实例插件", ["tauri_plugin_single_instance::init"]],
-  ["复用主窗口恢复函数", ["restore_main_window"]],
+const TRAY_SOURCE_REQUIREMENTS = [
   ["创建 Tauri 托盘", ["TrayIconBuilder"]],
   ["处理托盘点击事件", ["on_tray_icon_event", "TrayIconEvent::Click"]],
   ["只在鼠标左键释放时恢复窗口", ["MouseButton::Left", "MouseButtonState::Up"]],
@@ -24,19 +24,49 @@ const SOURCE_REQUIREMENTS = [
   ["只由显式退出动作结束应用", [".exit("]],
 ];
 
-const SOURCE_ALTERNATIVES = [
+const TRAY_SOURCE_ALTERNATIVES = [
   ["创建稳定 ID 的托盘菜单项", ["MenuItemBuilder", "MenuItem::with_id"]],
 ];
 
-const REQUIRED_TEST_NAMES = [
+const SINGLE_INSTANCE_TEST_NAMES = [
   "single_instance_plugin_is_registered_first",
   "second_launch_restores_existing_main_window",
+];
+
+const TRAY_TEST_NAMES = [
   "tray_show_restores_and_focuses_main_window",
   "close_request_hides_without_exit",
   "tray_quit_exits_application",
   "tray_labels_resolve_for_supported_locales",
   "tray_labels_fall_back_to_english",
   "language_change_updates_tray_menu_labels",
+];
+
+const NO_TRAY_TEST_NAMES = ["close_last_window_exits_application"];
+
+const GUI_INITIALIZATION_PROFILE_FIELDS = new Set([
+  "system_tray",
+  "about_page",
+  "sponsor_page",
+  "single_instance",
+  "sidebar_mode",
+]);
+
+const FRONTEND_SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"]);
+
+const SPONSOR_MEDIA_FILES = [
+  "arrow.png",
+  "bg.jpg",
+  "icon1.png",
+  "icon2.png",
+  "icon3.png",
+  "icon4.png",
+  "img1.png",
+  "img2.png",
+  "img3.png",
+  "pay1.png",
+  "pay2.png",
+  "select.png",
 ];
 
 /** 解析脚本参数，并拒绝不完整或未知的调用形式。 */
@@ -75,6 +105,63 @@ function readBinaryFile(filePath) {
     throw new Error(`必须是普通非符号链接文件：${filePath}`);
   }
   return fs.readFileSync(filePath);
+}
+
+/** 从 GUI 应用资料中的固定代码块读取本次初始化选择。 */
+function readGuiInitializationProfile(root, errors) {
+  const profilePath = path.join(root, "docs", "GUI_APP_PROFILE.md");
+  let text;
+  try {
+    text = readTextFile(profilePath);
+  } catch (error) {
+    errors.push(`缺少可解析的 GUI 初始化资料：${error.message}`);
+    return null;
+  }
+  const block = text.match(/```gui-initialization-config\s*\n([\s\S]*?)```/u);
+  if (!block) {
+    errors.push("docs/GUI_APP_PROFILE.md 缺少 gui-initialization-config 代码块");
+    return null;
+  }
+  const values = new Map();
+  for (const rawLine of block[1].split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const match = line.match(/^([a-z_]+)\s*=\s*([a-z]+)$/u);
+    if (!match || !GUI_INITIALIZATION_PROFILE_FIELDS.has(match[1])) {
+      errors.push(`GUI 初始化配置包含非法字段行：${line}`);
+      continue;
+    }
+    if (values.has(match[1])) {
+      errors.push(`GUI 初始化配置字段重复：${match[1]}`);
+      continue;
+    }
+    values.set(match[1], match[2]);
+  }
+  for (const field of GUI_INITIALIZATION_PROFILE_FIELDS) {
+    if (!values.has(field)) {
+      const detail =
+        field === "sidebar_mode"
+          ? "；初始化器应在用户未选择时写入 detailed"
+          : "";
+      errors.push(`GUI 初始化配置缺少字段：${field}${detail}`);
+    }
+  }
+  for (const field of ["system_tray", "about_page", "sponsor_page", "single_instance"]) {
+    if (values.has(field) && !new Set(["enabled", "disabled"]).has(values.get(field))) {
+      errors.push(`GUI 初始化配置 ${field} 必须为 enabled 或 disabled`);
+    }
+  }
+  if (values.has("sidebar_mode") && !new Set(["compact", "detailed"]).has(values.get("sidebar_mode"))) {
+    errors.push("GUI 初始化配置 sidebar_mode 必须为 compact 或 detailed");
+  }
+  if (errors.length > 0) return null;
+  return {
+    aboutPage: values.get("about_page") === "enabled",
+    sidebarMode: values.get("sidebar_mode"),
+    singleInstance: values.get("single_instance") === "enabled",
+    sponsorPage: values.get("sponsor_page") === "enabled",
+    systemTray: values.get("system_tray") === "enabled",
+  };
 }
 
 /** 递归枚举受管文件，拒绝源码树中的符号链接。 */
@@ -416,14 +503,14 @@ function validateTrayIconAsset(guiRoot, errors) {
 }
 
 /** 检查每一组必须同时出现的 Rust 生命周期片段。 */
-function validateSourceContract(sourceText, errors) {
-  for (const [label, fragments] of SOURCE_REQUIREMENTS) {
+function validateTraySourceContract(sourceText, errors) {
+  for (const [label, fragments] of TRAY_SOURCE_REQUIREMENTS) {
     const missing = fragments.filter((fragment) => !sourceText.includes(fragment));
     if (missing.length > 0) {
       errors.push(`${label}缺少：${missing.join(", ")}`);
     }
   }
-  for (const [label, alternatives] of SOURCE_ALTERNATIVES) {
+  for (const [label, alternatives] of TRAY_SOURCE_ALTERNATIVES) {
     if (!alternatives.some((fragment) => sourceText.includes(fragment))) {
       errors.push(`${label}缺少任一支持形式：${alternatives.join(" | ")}`);
     }
@@ -433,6 +520,45 @@ function validateSourceContract(sourceText, errors) {
     if (!idPattern.test(sourceText)) {
       errors.push(`托盘菜单缺少稳定 ID：${id}`);
     }
+  }
+}
+
+/** 未选择托盘时拒绝关闭隐藏，并把主窗口关闭确定性接到应用退出。 */
+function validateNoTraySourceContract(sourceTexts, errors) {
+  const sourceText = sourceTexts.join("\n");
+  for (const forbidden of [
+    "TrayIconBuilder",
+    "prevent_close",
+    ".hide(",
+    "rust_i18n::t!(\"tray.show_window\")",
+  ]) {
+    if (sourceText.includes(forbidden)) {
+      errors.push(`未选择系统托盘时不得保留托盘/关闭隐藏实现：${forbidden}`);
+    }
+  }
+  const functions = sourceTexts.flatMap(collectRustFunctions);
+  const closeExitFunctions = functions.filter(
+    (candidate) =>
+      candidate.text.includes("WindowEvent::CloseRequested") &&
+      /\.exit\s*\(\s*0\s*\)/u.test(candidate.text),
+  );
+  if (closeExitFunctions.length === 0) {
+    errors.push("未选择系统托盘时必须在 CloseRequested 中显式调用 AppHandle::exit(0)");
+    return;
+  }
+  const windowEventArguments = sourceTexts.flatMap((text) =>
+    collectMethodArguments(text, "on_window_event"),
+  );
+  const closeExitWired = closeExitFunctions.some((candidate) =>
+    windowEventArguments.some(
+      (argument) =>
+        (argument.includes("WindowEvent::CloseRequested") &&
+          /\.exit\s*\(\s*0\s*\)/u.test(argument)) ||
+        new RegExp(`\\b${candidate.name}\\s*\\(`, "u").test(argument),
+    ),
+  );
+  if (!closeExitWired) {
+    errors.push("未选择系统托盘时显式退出处理必须由 Tauri Builder .on_window_event(...) 实际注册");
   }
 }
 
@@ -557,7 +683,105 @@ function validateLocales(localeTexts, errors) {
   }
 }
 
-/** 验证生成项目中的单实例、系统托盘、回归测试与本地化资源。 */
+/** 判断前端源码是否包含一个精确的静态路由字面量。 */
+function containsRouteLiteral(sourceText, route) {
+  return [`"${route}"`, `'${route}'`, `\`${route}\``].some((literal) =>
+    sourceText.includes(literal),
+  );
+}
+
+/** 按初始化选择验证固定页面、可选页面、侧栏接线和赞助媒体。 */
+function validateFrontendInitializationContract(guiRoot, profile, errors) {
+  const sourceRoot = path.join(guiRoot, "src");
+  if (!fs.existsSync(sourceRoot)) {
+    errors.push("GUI 前端缺少 src 源码目录");
+    return "";
+  }
+  const sourceFiles = collectFiles(sourceRoot, FRONTEND_SOURCE_EXTENSIONS);
+  if (sourceFiles.length === 0) {
+    errors.push("GUI 前端源码为空");
+    return "";
+  }
+  const sourceEntries = sourceFiles.map((filePath) => ({
+    relativePath: path.relative(sourceRoot, filePath).split(path.sep).join("/"),
+    text: readTextFile(filePath),
+  }));
+  const sourceText = sourceEntries.map((entry) => entry.text).join("\n");
+
+  if (!containsRouteLiteral(sourceText, "/settings")) {
+    errors.push("GUI 固定基线缺少 /settings 路由");
+  }
+  if (!sourceEntries.some((entry) => /(?:^|\/)settings(?:[./-]|$)/iu.test(entry.relativePath))) {
+    errors.push("GUI 固定基线缺少设置页运行时组件");
+  }
+
+  for (const page of [
+    { enabled: profile.aboutPage, label: "关于页", route: "/about", token: "about" },
+    { enabled: profile.sponsorPage, label: "赞助页", route: "/sponsor", token: "sponsor" },
+  ]) {
+    const hasRoute = containsRouteLiteral(sourceText, page.route);
+    const pagePathPattern = new RegExp(`(?:^|/)${page.token}(?:[./-]|$)`, "iu");
+    const hasComponent = sourceEntries.some((entry) => pagePathPattern.test(entry.relativePath));
+    if (page.enabled) {
+      if (!hasRoute) errors.push(`选择${page.label}时缺少 ${page.route} 路由`);
+      if (!hasComponent) errors.push(`选择${page.label}时缺少运行时组件`);
+    } else {
+      if (hasRoute) errors.push(`未选择${page.label}时不得保留 ${page.route} 路由`);
+      if (hasComponent) errors.push(`未选择${page.label}时不得保留运行时组件`);
+    }
+  }
+
+  const mode = profile.sidebarMode;
+  const selectedModePattern = new RegExp(
+    `(?:\\bsidebarMode\\s*(?::[^=;]+)?=|\\bmode\\s*=|\\bmode\\s*:)\\s*["']${mode}["']`,
+    "u",
+  );
+  if (!selectedModePattern.test(sourceText)) {
+    errors.push(`GUI 前端未把 sidebar_mode = ${mode} 接入实际侧栏`);
+  }
+  if (mode === "compact") {
+    for (const [label, pattern] of [
+      ["136px 固定宽度", /\bcompact\s*:\s*136\b/u],
+      ["56px Logo", /\bcompact\s*:\s*56\b/u],
+      ["30px 图标", /(?:ICON_SIZE|iconSize)[A-Z_a-z]*\s*=\s*30\b/u],
+      ["11px 名称", /(?:FONT_SIZE|fontSize)[A-Z_a-z]*\s*=\s*11\b/u],
+      ["10em 名称宽度", /(?:LABEL_WIDTH|labelWidth)[A-Z_a-z]*\s*=\s*10\b/u],
+      ["图标在上、名称在下", /icon-above-label/u],
+    ]) {
+      if (!pattern.test(sourceText)) errors.push(`精简侧栏缺少${label}契约`);
+    }
+  } else {
+    for (const [label, pattern] of [
+      ["248px 展开宽度", /\bdetailedExpanded\s*:\s*248\b/u],
+      ["76px 收起宽度", /\bdetailedCollapsed\s*:\s*76\b/u],
+      ["72px 展开 Logo", /\bdetailedExpanded\s*:\s*72\b/u],
+      ["44px 收起 Logo", /\bdetailedCollapsed\s*:\s*44\b/u],
+      ["默认展开", /DEFAULT_DETAILED_SIDEBAR_COLLAPSED\s*=\s*false\b/u],
+      ["自身折叠按钮", /\bActionIcon\b/u],
+      ["收起名称 Tooltip", /\bTooltip\b/u],
+      ["独立折叠偏好", /localStorage\.(?:getItem|setItem)\s*\(/u],
+    ]) {
+      if (!pattern.test(sourceText)) errors.push(`详细侧栏缺少${label}契约`);
+    }
+  }
+
+  const sponsorRoot = path.join(guiRoot, "public", "brand-support", "sponsor");
+  if (profile.sponsorPage) {
+    for (const filename of SPONSOR_MEDIA_FILES) {
+      const assetPath = path.join(sponsorRoot, filename);
+      try {
+        readBinaryFile(assetPath);
+      } catch (error) {
+        errors.push(`选择赞助页时缺少完整本地媒体 ${filename}：${error.message}`);
+      }
+    }
+  } else if (fs.existsSync(sponsorRoot)) {
+    errors.push("未选择赞助页时不得保留 public/brand-support/sponsor 运行时媒体目录");
+  }
+  return sourceText;
+}
+
+/** 验证生成项目中的可选页面、侧栏、单实例、托盘、回归测试与本地化资源。 */
 export function verifyGuiLifecycleContract(rootInput, guiInput) {
   const errors = [];
   let resolved;
@@ -567,14 +791,20 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
     return [error.message];
   }
   const { root, guiRoot } = resolved;
+  const profile = readGuiInitializationProfile(root, errors);
+  if (!profile) return errors;
   try {
     const rootCargo = readTextFile(path.join(root, "Cargo.toml"));
     const guiCargo = readTextFile(path.join(guiRoot, "src-tauri", "Cargo.toml"));
     const workspaceTauri =
       tomlAssignment(tomlSection(rootCargo, "workspace.dependencies"), "tauri") ||
       tomlSection(rootCargo, "workspace.dependencies.tauri");
-    if (!workspaceTauri || !/["']tray-icon["']/u.test(workspaceTauri)) {
-      errors.push("根 [workspace.dependencies].tauri 必须启用 tray-icon feature");
+    const hasTrayFeature = /["']tray-icon["']/u.test(workspaceTauri);
+    if (profile.systemTray && !hasTrayFeature) {
+      errors.push("选择系统托盘时，根 [workspace.dependencies].tauri 必须启用 tray-icon feature");
+    }
+    if (!profile.systemTray && hasTrayFeature) {
+      errors.push("未选择系统托盘时，根 [workspace.dependencies].tauri 不得启用 tray-icon feature");
     }
     const memberTauri =
       tomlAssignment(tomlSection(guiCargo, "dependencies"), "tauri") ||
@@ -582,38 +812,74 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
     if (!memberTauri || !/\bworkspace\s*=\s*true\b/u.test(memberTauri)) {
       errors.push("GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 tauri");
     }
+    if (profile.aboutPage) {
+      const workspaceTokio =
+        tomlAssignment(tomlSection(rootCargo, "workspace.dependencies"), "tokio") ||
+        tomlSection(rootCargo, "workspace.dependencies.tokio");
+      if (!workspaceTokio || !/["']fs["']/u.test(workspaceTokio)) {
+        errors.push("选择关于页时，根 [workspace.dependencies].tokio 必须启用 fs feature");
+      }
+      for (const dependency of ["tokio", "serde", "serde_json"]) {
+        const memberDependency =
+          tomlAssignment(tomlSection(guiCargo, "dependencies"), dependency) ||
+          tomlSection(guiCargo, `dependencies.${dependency}`);
+        if (!memberDependency || !/\bworkspace\s*=\s*true\b/u.test(memberDependency)) {
+          errors.push(`选择关于页时，GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 ${dependency}`);
+        }
+      }
+    }
     const workspaceSingleInstance =
       tomlAssignment(tomlSection(rootCargo, "workspace.dependencies"), "tauri-plugin-single-instance") ||
       tomlSection(rootCargo, "workspace.dependencies.tauri-plugin-single-instance");
-    if (!workspaceSingleInstance) {
-      errors.push("根 [workspace.dependencies] 必须声明 tauri-plugin-single-instance");
-    }
     const memberSingleInstance =
       tomlAssignment(tomlSection(guiCargo, "dependencies"), "tauri-plugin-single-instance") ||
       tomlSection(guiCargo, "dependencies.tauri-plugin-single-instance");
-    if (!memberSingleInstance || !/\bworkspace\s*=\s*true\b/u.test(memberSingleInstance)) {
-      errors.push("GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 tauri-plugin-single-instance");
+    if (profile.singleInstance) {
+      if (!workspaceSingleInstance) {
+        errors.push("选择单实例时，根 [workspace.dependencies] 必须声明 tauri-plugin-single-instance");
+      }
+      if (!memberSingleInstance || !/\bworkspace\s*=\s*true\b/u.test(memberSingleInstance)) {
+        errors.push("选择单实例时，GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 tauri-plugin-single-instance");
+      }
+    } else if (workspaceSingleInstance || memberSingleInstance) {
+      errors.push("未选择单实例时不得声明 tauri-plugin-single-instance 依赖");
     }
 
-    validateTrayIconAsset(guiRoot, errors);
+    if (profile.systemTray) validateTrayIconAsset(guiRoot, errors);
 
     const sourceRoot = path.join(guiRoot, "src-tauri", "src");
+    let rustSourceText = "";
+    let rustTestText = "";
     const rustFiles = collectFiles(sourceRoot, new Set([".rs"]));
     if (rustFiles.length === 0) {
       errors.push("GUI Rust 源码为空");
     } else {
       const sourceTexts = rustFiles.map(readTextFile);
       const sourceText = sourceTexts.join("\n");
-      validateSourceContract(sourceText, errors);
-      validateTrayRuntimeContract(sourceTexts, errors);
-      validateSingleInstanceContract(sourceTexts, errors);
+      rustSourceText = sourceText;
+      if (profile.systemTray) {
+        validateTraySourceContract(sourceText, errors);
+        validateTrayRuntimeContract(sourceTexts, errors);
+      } else {
+        validateNoTraySourceContract(sourceTexts, errors);
+      }
+      if (profile.singleInstance) {
+        validateSingleInstanceContract(sourceTexts, errors);
+      } else if (sourceText.includes("tauri_plugin_single_instance::init")) {
+        errors.push("未选择单实例时不得注册 tauri-plugin-single-instance");
+      }
       const testRoot = path.join(guiRoot, "src-tauri", "tests");
       const testFiles = fs.existsSync(testRoot)
         ? collectFiles(testRoot, new Set([".rs"]))
         : [];
       const testText = [...rustFiles, ...testFiles].map(readTextFile).join("\n");
+      rustTestText = testText;
       const testFunctions = collectRustFunctions(testText);
-      for (const testName of REQUIRED_TEST_NAMES) {
+      const requiredTestNames = [
+        ...(profile.singleInstance ? SINGLE_INSTANCE_TEST_NAMES : []),
+        ...(profile.systemTray ? TRAY_TEST_NAMES : NO_TRAY_TEST_NAMES),
+      ];
+      for (const testName of requiredTestNames) {
         const testFunction = testFunctions.find((candidate) => candidate.name === testName);
         if (!testFunction) {
           errors.push(`缺少固定 GUI 生命周期回归测试：${testName}`);
@@ -623,8 +889,23 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       }
     }
 
-    const localeFiles = collectFiles(guiRoot, new Set([".json", ".yaml", ".yml"]));
-    validateLocales(localeFiles.map(readTextFile), errors);
+    if (profile.systemTray) {
+      const localeFiles = collectFiles(guiRoot, new Set([".json", ".yaml", ".yml"]));
+      validateLocales(localeFiles.map(readTextFile), errors);
+    }
+    const frontendSourceText = validateFrontendInitializationContract(
+      guiRoot,
+      profile,
+      errors,
+    );
+    validateReleaseNotesRuntimeContract(
+      guiRoot,
+      profile.aboutPage,
+      rustSourceText,
+      rustTestText,
+      frontendSourceText,
+      errors,
+    );
   } catch (error) {
     errors.push(error.message);
   }
@@ -648,7 +929,7 @@ function main() {
     return 1;
   }
   console.log(
-    "GUI lifecycle contract passed: single-instance, visible tray asset/runtime wiring, resolved tray i18n tests, and zh-CN/en-US resources.",
+    "GUI lifecycle contract passed: recorded capability selection, conditional pages/media, selected sidebar, single-instance/tray lifecycle, and close behavior.",
   );
   return 0;
 }

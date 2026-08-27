@@ -1,4 +1,4 @@
 interface:
   display_name: "添加 GUI 适配器"
-  short_description: "增加带强制单实例、系统托盘、三选一 Logo 和固定侧栏的 GUI"
-  default_prompt: "使用 $desktop-add-gui-adapter，增加调用 core 用例的 Tauri/React 薄适配器，强制接入首插件单实例、第二次启动唤醒既有窗口、非透明 32px 应用图标、运行时可刷新的托盘 i18n 及关闭隐藏/恢复/退出生命周期，并建立三选一 Logo、136px 单态图标上文字下的 Logo→版本侧栏、无隐私/统计区块的语言与三态主题设置、应用级亮暗主题、含更新入口的关于页和双主题赞助页；平台业务效果回到 core。"
+  short_description: "按初始化选择增加单实例、托盘、支持页和侧栏模式的 GUI"
+  default_prompt: "使用 $desktop-add-gui-adapter，增加调用 core 用例的 Tauri/React 薄适配器，先消费 GUI 初始化 profile，再严格接入所选单实例、系统托盘、关于页、赞助页与精简/详细侧栏；保留三选一 Logo、无隐私/统计区块的语言与三态主题设置和应用级亮暗主题，未选能力不进入依赖、运行时、路由或资源，平台业务效果回到 core。"

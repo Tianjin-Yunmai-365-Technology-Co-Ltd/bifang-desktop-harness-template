@@ -1,4 +1,15 @@
-import { List, Modal, Paper, Stack, Text, Title } from "@mantine/core";
+import {
+  Button,
+  Center,
+  List,
+  Loader,
+  Modal,
+  Paper,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import { IconRefresh } from "@tabler/icons-react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -12,6 +23,8 @@ import {
 export interface ReleaseNotesDialogTemplateProps {
   opened: boolean;
   releases: readonly ReleaseNoteEntry[];
+  status: "idle" | "loading" | "ready" | "error";
+  onRetry: () => void;
   onClose: () => void;
 }
 
@@ -19,6 +32,8 @@ export interface ReleaseNotesDialogTemplateProps {
 export function ReleaseNotesDialogTemplate({
   opened,
   releases,
+  status,
+  onRetry,
   onClose,
 }: ReleaseNotesDialogTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
@@ -31,7 +46,25 @@ export function ReleaseNotesDialogTemplate({
       size="lg"
       title={t("release_notes.dialog_title")}
     >
-      {visibleReleases.length === 0 ? (
+      {status === "idle" || status === "loading" ? (
+        <Center py="xl">
+          <Stack align="center" gap="sm">
+            <Loader aria-label={t("release_notes.loading")} size="sm" />
+            <Text c="dimmed">{t("release_notes.loading")}</Text>
+          </Stack>
+        </Center>
+      ) : status === "error" ? (
+        <Stack align="flex-start" gap="md">
+          <Text role="alert">{t("release_notes.load_failed")}</Text>
+          <Button
+            leftSection={<IconRefresh aria-hidden="true" size={18} />}
+            onClick={onRetry}
+            variant="default"
+          >
+            {t("release_notes.retry")}
+          </Button>
+        </Stack>
+      ) : visibleReleases.length === 0 ? (
         <Text c="dimmed">{t("release_notes.empty")}</Text>
       ) : (
         <Stack data-testid="release-notes-list" gap="lg">

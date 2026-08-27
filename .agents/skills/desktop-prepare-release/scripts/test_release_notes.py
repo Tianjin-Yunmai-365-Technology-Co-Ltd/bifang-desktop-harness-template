@@ -11,7 +11,7 @@ import release_notes
 
 
 class ReleaseNotesTests(unittest.TestCase):
-    """验证发布前维护的 JSON 可以安全供构建和关于页复用。"""
+    """验证发布前维护的 JSON 可以安全供构建和已选关于页复用。"""
 
     def setUp(self) -> None:
         """为每个场景创建隔离目录，避免共享发布事实。"""
