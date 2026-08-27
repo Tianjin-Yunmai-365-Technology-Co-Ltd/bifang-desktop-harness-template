@@ -56,6 +56,7 @@ REQUIRED_RULES = {
     "docs/RUST_CLI_TEMPLATE.md": "merge-sections",
     "docs/CLI_CONTRACT.md": "merge-sections",
     "docs/RELEASE.md": "merge-sections",
+    "docs/design_standards/**": "managed",
     ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.py": "managed",
     ".agents/skills/desktop-implement-change/scripts/test_check_file_line_limits.py": "managed",
     ".agents/skills/desktop-implement-change/scripts/check_core_first.py": "managed",

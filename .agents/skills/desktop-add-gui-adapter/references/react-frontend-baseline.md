@@ -38,7 +38,7 @@
 
 ## UI 与架构
 
-- 完整遵守 [Mantine UI 设计规范](mantine-ui-guidelines.md)，每个 React 根只挂载一个 `MantineProvider`，主题和语义令牌只有一个入口。
+- 完整遵守 [`docs/design_standards/README.md`](../../../../docs/design_standards/README.md) 精确命中的标准；[Mantine UI 实施入口](mantine-ui-guidelines.md)只负责指向统一事实源。每个 React 根只挂载一个 `MantineProvider`，主题和语义令牌只有一个入口。
 - 优先使用 Mantine 组件、布局原语、焦点行为和主题令牌。自定义组件必须代表 Mantine 组合无法表达的已批准交互或样式需求。
 - 保持路由定义和加载器轻量。当预取能防止瀑布请求时，将 TanStack Router 加载器与 TanStack Query 集成，但只保留一个 QueryClient/缓存。
 - 只有本地组件状态不足且状态确需跨组件或跨路由保留时才使用 Jotai；atom 应保持小而且按用途命名。URL/search 只用于产品明确批准的可分享导航事实，不得作为本次进程页面会话的隐式持久层。
@@ -46,14 +46,14 @@
 - React event handler、Router loader、Query mutation 和 atom 只管理导航、请求生命周期或纯交互状态；它们不得编排多个命令来决定业务结果。需要条件、重试或状态决策的工作流必须由单个 core 用例通过窄 Tauri 命令暴露。
 - React 事件必须绑定在拥有动作的语义控件本身，不得由 Card、`Table.Tr`、`Table.Td` 等父级代理按钮、链接、`Switch` 或 `Checkbox` 动作；父级有自己的独立动作时应隔离冲突传播。表格中的 `Switch` 只能因用户操作该控件而切换，点击所在行或单元格不得切换。
 - 页面会话 atom 只保存控件值，不得接入 `atomWithStorage`、localStorage、sessionStorage、IndexedDB、Tauri Store、文件/数据库或 URL，也不得镜像 TanStack Query 数据或 core 权威状态；语言、主题与详细侧栏折叠等已批准的设备偏好沿用各自独立持久化契约。查询范围或每页数量变化时页码重置为 1；路由返回后只有 Query 成功、当前页大于 1 且结果为空时才回退第 1 页并以新 query key 重查，loading/error 与第 1 页空结果不回退。复用品牌包的 `pageSessionState.ts`/`PageSessionState.test.ts` 作为初始化实现与回归基线。
-- 在 Tauri 中打包本地前端资产。GUI 下游保留该 Skill 的品牌源资产，运行时只复制所选页面需要的资源；初始化固定建立 `/settings`，`/about` 与 `/sponsor` 按 profile 选择存在。精简侧栏为 `136px`、`56px` Logo、`30px` 图标在上和 `11px`/`10em` 名称在下，名称持续可见且没有折叠按钮。详细侧栏默认 `248px` 展开、`72px` Logo、图标+名称横排，自身 ActionIcon 收起为 `76px` 后使用 `44px` Logo、图标-only + Mantine Tooltip；折叠偏好由独立 local-storage 键持久化。产品功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于生成。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver；设置页只提交语言和 `light`/`dark`/`auto`。选择 Sponsor 时按 manifest 原样复制完整媒体并适配亮暗主题；选择 About 时显示当前应用名/版本、作者、联系方式、免责声明、检查更新和更新日志。未选页面不得有路由、导航入口或运行时资源。真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
+- 在 Tauri 中打包本地前端资产。GUI 下游保留该 Skill 的品牌源资产，运行时只复制所选页面需要的资源；初始化固定建立 `/settings`，`/about` 与 `/sponsor` 按 profile 选择存在。侧栏布局只从 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md) 取得：compact 为 `80px` 全宽居中竖排菜单且不折叠；detailed 为 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标，并由 AppShell 拥有折叠状态和同步主内容偏移。产品功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于生成。Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage manager 和唯一 CSS variables resolver；设置页只提交语言和 `light`/`dark`/`auto`。选择 Sponsor 时按 manifest 原样复制完整媒体并适配亮暗主题；选择 About 时显示当前应用名/版本、作者、联系方式、免责声明、检查更新和更新日志。未选页面不得有路由、导航入口或运行时资源。真实更新、强更或统计上报只有经 `$desktop-prepare-gui-support-surfaces` 逐项批准后才接线。
 - 选择 About 时，`releaseNotesResource.ts` 只调用固定 `load_release_notes` Tauri 命令并把 IPC 值从 `unknown` 严格收窄；`AboutPageTemplate` 默认使用该加载器，弹窗提供 loading、失败与自身绑定的重试，不显示原始本机错误。页面的五版/十条裁剪只是防御性显示上限，不能替代 Rust、发布准备和构建资源门禁。未选择 About 时不得复制加载器、弹窗或相应测试；不得改用通用前端文件系统插件。
 - 应用启动时使用 Tauri `tauri-plugin-os` 的 `locale()` 探测系统语言初始化 `i18next`；缺少对应资源时回退英文。界面必须提供 Mantine 组件实现的可发现语言切换入口，切换后的选择通过 GUI 适配器的本地偏好存储持久化，不写入 core；选择系统托盘时，还需通知 Rust adapter 无需重启地刷新当前托盘菜单标签。
 - 翻译资源按功能域拆分文件并使用稳定的层级 key（如 `settings.language.label`），不得在组件中拼接原始中文/英文字符串；核心领域错误标识作为 key 的一部分由前端映射为当前语言文案，业务判断本身不得放入翻译资源或组件。初始化把品牌包的中英文 JSON 注册为 `brandSupport` namespace，仍复用唯一 i18next 实例和语言偏好；缺少对应系统语言资源时回退英文。
 - 更新展示只消费 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`。React 不解析远端版本策略、不验证签名、不从 `forcedUpdate` 等字段推导强更；根级 `RequiredUpdate` 分支不挂载普通功能，只呈现安装与退出。
 - 初始化设置页没有统计同意开关或隐私区块。只有产品明确启用统计能力时，独立产品级同意界面的初始值才为 false；未配置、未同意和撤回后都必须保持零出站。React 不收集设备标识、不组装 HTTP 请求，也不保存 endpoint 或客户端 secret。
 
-侧栏功能项以 `TablerIcon` 组件注入，所选赞助/固定设置/所选关于由模板提供 Tabler 组件。精简模式锁定 `136px`、`56px` Logo、`30px` 图标和 `11px`/`10em` 下方名称；详细模式锁定默认 `248px` 展开、`72px` Logo、图标+名称、自身折叠按钮、`76px` 收起、`44px` Logo、图标-only + Tooltip 与偏好持久化。Testing Library 锁定组件来源、尺寸、排列、可访问名称和选中状态，初始化 E2E 再从真实本机调试窗口复核可见结果。
+侧栏功能项以 `TablerIcon` 组件注入，所选赞助/固定设置/所选关于由模板提供 Tabler 组件。Testing Library 按 `tauri-gui-sidebar-compact-80-v1` 锁定 `80/6/36/22/11/1.25/56/4/8`、全宽居中、无固定 `em/ch` 盒和无折叠，按 detailed 标准锁定默认 `248px` 展开、`72px` Logo、`22px` 图标、自身折叠按钮、身份父级无动作、`76px`/`44px` 收起、AppShell 双宽度同步、图标-only + Tooltip 与偏好持久化；初始化 E2E 再从真实本机调试窗口复核可见结果。
 
 ## 工具链与质量门禁
 

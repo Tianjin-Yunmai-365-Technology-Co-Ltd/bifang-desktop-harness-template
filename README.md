@@ -33,6 +33,7 @@
 | `docs/product_spec/README.md` | Product Spec 按日完整快照规则与索引；当前规格取日期最新文件 |
 | `docs/AGENT_POLICY.md` | Superpowers、Worktree/Subagent、候选冒烟和构建时 E2E 建议默认值的唯一持久策略 |
 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | 文件拆分、中文注释、文档、测试和例外规则 |
+| [`docs/design_standards/README.md`](docs/design_standards/README.md) | UI 标准目录、精确匹配优先级、Tauri GUI 通用与侧栏设计规则 |
 | `docs/CLI_CONTRACT.md` | 下游 CLI 的统一机器接口契约 |
 | `docs/RUST_CLI_TEMPLATE.md` | 下游 Rust shared core 与可选 adapter 初始化基线 |
 | `docs/project_status/README.md` | Product Status 按日完整快照规则与索引；当前状态取日期最新文件 |
@@ -86,7 +87,7 @@
 - Rust 是下游项目的默认初始化语言；Tokio 是 Rust CLI 和后续 Rust adapter 的统一异步执行标准；模板自身仍不实现具体产品业务。
 - TUI 技术族固定为 Ratatui + tui-realm + tui-realm-stdlib；Tauri GUI 前端固定为满足已批准能力、目标平台、MSRV、Node.js 与 WebView 约束的最低兼容稳定 Vite + React + TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 组合。其他前后端技术在真实项目开发时按需求推荐。
 - GUI 单实例由初始化专门问询决定。启用时使用官方 `tauri-plugin-single-instance` 并作为首个 Tauri plugin 注册，两个固定回归与真实双启动唯一性证据都是门禁；禁用时不得保留依赖、插件或回调。Linux Snap/Flatpak 只有启用该能力时才声明并验证插件所需的会话 DBus 权限。
-- GUI 初始化实际生成 3 个 1024×1024 Logo 候选并等待用户选择，选中母版用于平台图标和 `/app-identity/logo.png`。系统托盘由专门问询决定：启用时完整实现本地化双项菜单、关闭隐藏、恢复与退出生命周期；禁用时不启用 feature、不安装托盘，并在主窗口关闭事件中显式退出应用。初始化固定建立动态标题、`/settings`、语言与三态主题和亮暗语义主题；`/about`、`/sponsor` 只在选择启用时建立并纳入相应资源。侧栏可选精简或详细，未选择时默认详细：精简固定 `136px`、图标在上名称在下且无折叠按钮；详细默认 `248px` 展开显示图标+名称，自身按钮收起为 `76px` 后只显示图标并通过 Tooltip 显示名称，折叠偏好持久化。真实 updater/强更/统计传输仍需独立产品配置，品牌包不携带来源产品服务地址、客户端 secret 或默认网络请求。
+- GUI 初始化实际生成 3 个 1024×1024 Logo 候选并等待用户选择，选中母版用于平台图标和 `/app-identity/logo.png`。系统托盘由专门问询决定：启用时完整实现本地化双项菜单、关闭隐藏、恢复与退出生命周期；禁用时不启用 feature、不安装托盘，并在主窗口关闭事件中显式退出应用。初始化固定建立动态标题、`/settings`、语言与三态主题和亮暗语义主题；`/about`、`/sponsor` 只在选择启用时建立并纳入相应资源。UI 先通过设计标准目录精确匹配，产品已批准规则优先于 Harness 缺省；`sidebar_mode = compact` 命中 `80px` 精简栏与全宽居中名称，`detailed` 命中 `248px` 默认展开、`76px` 收起、`22px` 图标和 AppShell 主内容偏移同步标准。没有精确命中或需要特殊像素时先批准并更新产品 GUI profile 与 ADR。真实 updater/强更/统计传输仍需独立产品配置，品牌包不携带来源产品服务地址、客户端 secret 或默认网络请求。
 - 选择系统托盘时，可见图标来源固定为 Tauri `icon` 生成并由 `bundle.icon` 引用的 `icons/32x32.png`；运行时必须从 `.setup` 实际安装绑定双项菜单和必需应用图标的托盘，真实 E2E 必须看见非空图形。未选择托盘时这些托盘专属依赖、资源与接线必须缺席。
 - GUI 中性初始化提供无产品身份的 660×400 macOS DMG 拖拽背景，固定写入 `<项目标识>_gui/src-tauri/dmg/background.png` 并由 Tauri 配置以 `./dmg/background.png` 引用；首次真实 GUI 开发仍须预览批准或同路径替换，初始化资产本身不构成正式视觉批准。
 - GUI 图标统一使用 `@tabler/icons-react` 命名组件；存在适用图标时不引入其他图标库、手写 SVG、字符或 emoji，图表周边图标优先使用 Tabler，而图表绘制库保持项目特定。所选侧栏中的 Logo、所有图标和文字必须沿同一中心线且无裁切。

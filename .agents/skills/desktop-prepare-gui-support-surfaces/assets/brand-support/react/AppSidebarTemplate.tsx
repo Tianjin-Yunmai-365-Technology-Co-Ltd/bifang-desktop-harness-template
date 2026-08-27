@@ -17,7 +17,7 @@ import {
   IconSettings,
   type TablerIcon,
 } from "@tabler/icons-react";
-import { useState, type ReactElement } from "react";
+import { type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -25,7 +25,6 @@ import {
   type SupportPageSelection,
   type SupportNavigationItem,
 } from "./supportNavigation";
-import { isLocalSupportPath } from "./brandSupportProfile";
 import { formatDisplayVersion } from "./displayVersion";
 
 /** GUI 初始化可选择持续显示名称的精简模式或可收起的详细模式。 */
@@ -38,28 +37,61 @@ export const DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false;
 export const APP_SIDEBAR_COLLAPSED_STORAGE_KEY =
   "app.sidebar.detailed.collapsed";
 
+/** 侧栏身份只能引用 GUI bundle 中批准的应用 Logo。 */
+export const APP_SIDEBAR_LOGO_PATH = "/app-identity/logo.png";
+
 /** 两种模式及详细模式两种状态的固定宽度。 */
 export const APP_SIDEBAR_WIDTHS = {
-  compact: 136,
+  compact: 80,
   detailedCollapsed: 76,
   detailedExpanded: 248,
 } as const;
 
 /** 精简和详细模式各状态使用的 Logo 尺寸。 */
 export const APP_SIDEBAR_LOGO_SIZES = {
-  compact: 56,
+  compact: 36,
   detailedCollapsed: 44,
   detailedExpanded: 72,
 } as const;
 
-/** 菜单图标采用易识别且不会挤压下方文字的固定尺寸。 */
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 30;
+/** 精简栏内容使用明确像素，避免 Mantine xs padding 再压缩可用宽度。 */
+export const APP_SIDEBAR_COMPACT_PADDING_PX = 6;
 
-/** 菜单文字每行预留约十个全角中文字符的宽度。 */
-export const APP_SIDEBAR_LABEL_WIDTH_CH = 10;
+/** 精简栏身份区、分隔线与菜单区之间保持固定间距。 */
+export const APP_SIDEBAR_COMPACT_SECTION_GAP_PX = 8;
 
-/** 稍小字号让十个中文字符能在固定侧栏内完整排布。 */
+/** 两种侧栏模式统一使用的菜单图标尺寸。 */
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
+
+/** 侧栏图标统一使用的 Tabler 描边宽度。 */
+export const APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75;
+
+/** 详细展开态菜单项保持稳定点击高度。 */
+export const APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX = 44;
+
+/** 详细身份区折叠按钮使用的 Tabler 图标尺寸。 */
+export const APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX = 18;
+
+/** 收起态 Tooltip 立即揭示被隐藏的菜单名称。 */
+export const APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS = 0;
+
+/** 功能区与固定支持区中的菜单项保持一致间距。 */
+export const APP_SIDEBAR_MENU_STACK_GAP_PX = 4;
+
+/** 精简菜单名称使用固定字号并允许最多两行自然换行。 */
 export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
+
+/** 精简菜单名称允许最多两行，并使用固定行高。 */
+export const APP_SIDEBAR_LABEL_LINE_HEIGHT = 1.25;
+
+/** 精简菜单项保持稳定点击高度。 */
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX = 56;
+
+/** 精简菜单项只保留少量垂直内边距。 */
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX = 4;
+
+/** 精简菜单图标与名称之间保持固定间距。 */
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX = 4;
 
 /** 产品功能菜单项由当前下游按显示顺序注入。 */
 export interface FeatureNavigationItem {
@@ -79,6 +111,8 @@ export interface AppSidebarTemplateProps {
   supportPages: SupportPageSelection;
   activePath: string;
   onNavigate: (path: string) => void;
+  detailedCollapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 /** 固定支持菜单只使用统一的 Tabler 图标组件。 */
@@ -92,7 +126,7 @@ const FIXED_NAVIGATION_ICONS: Record<
 };
 
 /** 读取详细模式折叠偏好；缺失、不可用或非法值都回到默认展开。 */
-function readDetailedSidebarCollapsed(): boolean {
+export function readDetailedSidebarCollapsed(): boolean {
   if (typeof window === "undefined") {
     return DEFAULT_DETAILED_SIDEBAR_COLLAPSED;
   }
@@ -105,8 +139,8 @@ function readDetailedSidebarCollapsed(): boolean {
   }
 }
 
-/** 保存详细模式折叠偏好；存储不可用时仍保留本次运行内状态。 */
-function persistDetailedSidebarCollapsed(collapsed: boolean): void {
+/** 保存详细模式折叠偏好；存储不可用时仍保留 AppShell 本次运行内状态。 */
+export function persistDetailedSidebarCollapsed(collapsed: boolean): void {
   if (typeof window === "undefined") {
     return;
   }
@@ -118,6 +152,13 @@ function persistDetailedSidebarCollapsed(collapsed: boolean): void {
   } catch {
     // 设备级存储不可用时，当前 React 状态仍然有效。
   }
+}
+
+/** 详细 AppShell 与 fixed 侧栏共用同一宽度选择函数。 */
+export function detailedSidebarNavbarWidth(collapsed: boolean): number {
+  return collapsed
+    ? APP_SIDEBAR_WIDTHS.detailedCollapsed
+    : APP_SIDEBAR_WIDTHS.detailedExpanded;
 }
 
 /** 根据所选模式渲染精简竖排菜单或详细横排/折叠菜单。 */
@@ -146,7 +187,7 @@ function SidebarNavigationItem({
       active={active}
       aria-label={label}
       component="button"
-      data-label-width-ch={compact ? APP_SIDEBAR_LABEL_WIDTH_CH : undefined}
+      data-label-alignment={compact ? "full-width-center" : undefined}
       data-navigation-layout={
         compact ? "icon-above-label" : iconOnly ? "icon-only" : "icon-with-label"
       }
@@ -156,12 +197,14 @@ function SidebarNavigationItem({
             data-testid={`navigation-label-${id}`}
             lineClamp={2}
             style={{
+              display: "block",
               fontSize: APP_SIDEBAR_LABEL_FONT_SIZE_PX,
-              inlineSize: `${APP_SIDEBAR_LABEL_WIDTH_CH}em`,
-              lineHeight: 1.2,
+              lineHeight: APP_SIDEBAR_LABEL_LINE_HEIGHT,
+              marginInline: "auto",
               maxInlineSize: "100%",
               overflowWrap: "anywhere",
               textAlign: "center",
+              width: "100%",
             }}
           >
             {label}
@@ -177,7 +220,7 @@ function SidebarNavigationItem({
           aria-hidden="true"
           data-testid={`navigation-icon-${id}`}
           size={APP_SIDEBAR_NAV_ICON_SIZE_PX}
-          stroke={1.75}
+          stroke={APP_SIDEBAR_ICON_STROKE_WIDTH}
         />
       }
       onClick={onClick}
@@ -185,18 +228,32 @@ function SidebarNavigationItem({
       styles={{
         body: {
           flex: compact || iconOnly ? "0 0 auto" : "1 1 auto",
+          overflow: compact ? "visible" : undefined,
+          textAlign: compact ? "center" : undefined,
+          width: compact ? "100%" : undefined,
+        },
+        label: {
+          display: compact ? "block" : undefined,
+          marginInline: compact ? "auto" : undefined,
+          textAlign: compact ? "center" : undefined,
+          whiteSpace: compact ? "normal" : undefined,
           width: compact ? "100%" : undefined,
         },
         root: {
           alignItems: "center",
           flexDirection: compact ? "column" : "row",
-          gap: compact ? 4 : undefined,
+          gap: compact ? APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX : undefined,
           justifyContent: compact || iconOnly ? "center" : "flex-start",
-          minHeight: compact ? 72 : 44,
-          paddingBlock: compact ? 8 : undefined,
+          minHeight: compact
+            ? APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX
+            : APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX,
+          paddingBlock: compact
+            ? APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX
+            : undefined,
           paddingInline: compact || iconOnly ? 0 : undefined,
         },
         section: {
+          marginInline: compact || iconOnly ? 0 : undefined,
           marginInlineEnd: compact || iconOnly ? 0 : undefined,
         },
       }}
@@ -205,7 +262,12 @@ function SidebarNavigationItem({
     />
   );
   return iconOnly ? (
-    <Tooltip label={label} position="right" withArrow>
+    <Tooltip
+      label={label}
+      openDelay={APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS}
+      position="right"
+      withArrow
+    >
       {navigation}
     </Tooltip>
   ) : (
@@ -223,13 +285,20 @@ export function AppSidebarTemplate({
   supportPages,
   activePath,
   onNavigate,
+  detailedCollapsed,
+  onCollapsedChange,
 }: AppSidebarTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const displayVersion = formatDisplayVersion(version);
-  const [detailedCollapsed, setDetailedCollapsed] = useState(
-    readDetailedSidebarCollapsed,
-  );
-  const collapsed = mode === "detailed" && detailedCollapsed;
+  if (
+    mode === "detailed" &&
+    (typeof detailedCollapsed !== "boolean" || !onCollapsedChange)
+  ) {
+    throw new Error(
+      "detailed sidebar must be controlled by AppShell width state",
+    );
+  }
+  const collapsed = mode === "detailed" && detailedCollapsed === true;
   const sizeKey =
     mode === "compact"
       ? "compact"
@@ -240,8 +309,10 @@ export function AppSidebarTemplate({
   const logoSize = APP_SIDEBAR_LOGO_SIZES[sizeKey];
   const supportNavigationItems = buildSupportNavigationItems(supportPages);
 
-  if (!isLocalSupportPath(logoSrc)) {
-    throw new Error("application logo must use a packaged local path");
+  if (logoSrc !== APP_SIDEBAR_LOGO_PATH) {
+    throw new Error(
+      `application logo must use ${APP_SIDEBAR_LOGO_PATH}`,
+    );
   }
 
   return (
@@ -264,12 +335,18 @@ export function AppSidebarTemplate({
         zIndex: 100,
       }}
     >
-      <Stack gap="sm" h="100%" p="xs">
+      <Stack
+        data-testid="app-sidebar-content"
+        gap={mode === "compact" ? APP_SIDEBAR_COMPACT_SECTION_GAP_PX : "sm"}
+        h="100%"
+        p={mode === "compact" ? APP_SIDEBAR_COMPACT_PADDING_PX : 0}
+      >
         <Stack
           align="center"
           data-icon-alignment="center"
           data-testid="app-sidebar-identity"
           gap="xs"
+          p={mode === "detailed" ? "xs" : 0}
           style={{ alignItems: "center", width: "100%" }}
         >
           <Image
@@ -299,15 +376,23 @@ export function AppSidebarTemplate({
               data-testid="app-sidebar-collapse-toggle"
               onClick={() => {
                 const nextCollapsed = !collapsed;
-                setDetailedCollapsed(nextCollapsed);
-                persistDetailedSidebarCollapsed(nextCollapsed);
+                onCollapsedChange?.(nextCollapsed);
               }}
+              type="button"
               variant="subtle"
             >
               {collapsed ? (
-                <IconChevronRight aria-hidden="true" size={18} stroke={1.75} />
+                <IconChevronRight
+                  aria-hidden="true"
+                  size={APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX}
+                  stroke={APP_SIDEBAR_ICON_STROKE_WIDTH}
+                />
               ) : (
-                <IconChevronLeft aria-hidden="true" size={18} stroke={1.75} />
+                <IconChevronLeft
+                  aria-hidden="true"
+                  size={APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX}
+                  stroke={APP_SIDEBAR_ICON_STROKE_WIDTH}
+                />
               )}
             </ActionIcon>
           ) : null}
@@ -320,7 +405,7 @@ export function AppSidebarTemplate({
           style={{ flex: 1, minHeight: 0 }}
           type="auto"
         >
-          <Stack gap={4}>
+          <Stack gap={APP_SIDEBAR_MENU_STACK_GAP_PX}>
             {featureItems.map((item) => (
               <SidebarNavigationItem
                 active={activePath === item.to}
@@ -338,7 +423,10 @@ export function AppSidebarTemplate({
 
         <Divider />
 
-        <Stack data-testid="fixed-bottom-navigation" gap={4}>
+        <Stack
+          data-testid="fixed-bottom-navigation"
+          gap={APP_SIDEBAR_MENU_STACK_GAP_PX}
+        >
           {supportNavigationItems.map((item) => {
             const label = t(item.labelKey);
             return (

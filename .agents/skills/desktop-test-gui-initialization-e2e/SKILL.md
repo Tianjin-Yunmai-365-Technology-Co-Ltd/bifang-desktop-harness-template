@@ -10,7 +10,7 @@ description: 在含 GUI 的下游初始化提交前，按已记录配置验证�
 ## 前置条件
 
 1. 当前目录同时是下游项目根和独立 Git 顶层目录，GUI 目录精确为 `<project-id>_gui`。
-2. 读取 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、Rust/GUI 基线及 `docs/GUI_APP_PROFILE.md`。资料必须有唯一 `gui-initialization-config` 围栏代码块，四项能力均为 `enabled`/`disabled`，侧栏模式为 `compact`/`detailed`，且无 `pending`。若用户未选择侧栏，初始化器应已写入 `detailed`；本 E2E 不补写或推断缺失字段，缺失仍阻断。
+2. 读取 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、精确命中的 UI 标准、Rust/GUI 基线及 `docs/GUI_APP_PROFILE.md`。资料必须有唯一 `gui-initialization-config` 围栏代码块，四项能力均为 `enabled`/`disabled`，侧栏模式为 `compact`/`detailed`，且无 `pending`。若用户未选择侧栏，初始化器应已写入 `detailed`；本 E2E 不补写或推断缺失字段，缺失仍阻断。
 3. 读取并使用 `computer-use` Skill 操作真实桌面窗口。只允许本地调试构建和只读界面操作，不签名、不生成安装包、不写 `release/`、不启用远程能力。
 4. 未选能力不是缺失证据；已选能力若当前宿主无法观察、操作或判定，则阻断初始化。
 
@@ -25,8 +25,8 @@ description: 在含 GUI 的下游初始化提交前，按已记录配置验证�
 3. 以 `cargo metadata --format-version 1 --no-deps` 推导本次真实本机调试二进制，拒绝旧产物、模糊 glob、符号链接或 `pnpm tauri dev`。
 4. 启动并持有主进程句柄，最多等待 60 秒直到主窗口可见。使用 Computer Use 保存初始截图并验证：
    - Logo 位于单个小写 `v` 版本之前，设置页只含应用/版本、语言和三态主题且无隐私/统计区块；
-   - `compact` 为 `136px`，图标上、名称下且名称持续可见，无折叠按钮；
-   - `detailed` 首次无偏好时以 `248px` 展开，展开显示图标+名称；点击自身绑定的按钮后以 `76px` 收起，只显示图标并通过 Tooltip 显示完整名称。重启应用后恢复折叠偏好，再展开并确认偏好更新；
+   - `compact` 为 `80px`，使用 `6px` 内容内边距、`36px` Logo、`22px` 图标、全宽居中名称、`56px` 菜单项和固定 `4px`/`8px` 节奏，无固定 `em/ch` 名称盒或折叠按钮；AppShell navbar 复用宽度常量且 Navbar padding 为 `0`；
+   - `detailed` 首次无偏好时以 `248px` 展开，使用 `22px` 图标并显示图标+名称；点击身份区父级不变化，点击自身 `ActionIcon` 后以 `76px` 收起，AppShell 主内容偏移同步扩展，只显示图标并通过 `position=right`、`openDelay=0` 的 Tooltip 显示完整名称。重启应用后恢复折叠偏好，再展开并确认偏好更新；
    - 可访问树中每个实际菜单页面非空可达；`/settings` 始终存在，`/about`、`/sponsor` 及入口分别与配置一致，未选页面不得出现占位、404 入口或运行时菜单。关于页启用时点击“更新日志”自身按钮；首次正式发布前根日志尚不存在是预期状态，必须显示本地读取失败与可操作重试且零出站，不得以编译时假数组伪装正式日志。本场景不证明发布候选已嵌入资源。
 5. 仅当单实例启用时，第二次启动同一精确二进制。第二进程 15 秒内退出，原 PID/同一窗口持续且恢复聚焦，宿主只剩一个长期应用主进程和一个主窗口。未启用时不执行也不声称该场景。
 6. 仅当托盘启用时，验证状态栏/通知区域的真实非空图形、中文“显示窗口/退出”和英文“Show Window/Quit”无重启刷新且无 `tray.*` 原始键；再验证原生关闭只隐藏、进程继续、托盘左键和显示项恢复聚焦、退出项结束进程并移除图标。空白点击区域、菜单不止两项或任一状态无法判定都失败。

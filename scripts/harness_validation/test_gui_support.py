@@ -265,8 +265,8 @@ class GuiSupportContractTests(unittest.TestCase):
             sidebar = brand_root / "react" / "AppSidebarTemplate.tsx"
             source = sidebar.read_text(encoding="utf-8")
             source = source.replace(
-                "compact: 136",
-                "compact: 120",
+                "compact: 80",
+                "compact: 79",
                 1,
             )
             source = source.replace(
@@ -280,13 +280,18 @@ class GuiSupportContractTests(unittest.TestCase):
                 1,
             )
             source = source.replace(
-                "APP_SIDEBAR_NAV_ICON_SIZE_PX = 30",
-                "APP_SIDEBAR_NAV_ICON_SIZE_PX = 20",
+                "APP_SIDEBAR_NAV_ICON_SIZE_PX = 22",
+                "APP_SIDEBAR_NAV_ICON_SIZE_PX = 21",
                 1,
             )
             source = source.replace(
-                "APP_SIDEBAR_LABEL_WIDTH_CH = 10",
-                "APP_SIDEBAR_LABEL_WIDTH_CH = 6",
+                "APP_SIDEBAR_COMPACT_PADDING_PX = 6",
+                "APP_SIDEBAR_COMPACT_PADDING_PX = 5",
+                1,
+            )
+            source = source.replace(
+                "APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75",
+                "APP_SIDEBAR_ICON_STROKE_WIDTH = 2",
                 1,
             )
             source = source.replace(
@@ -321,14 +326,39 @@ class GuiSupportContractTests(unittest.TestCase):
                 brand_root=brand_root,
                 product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
             )
-        self.assertTrue(any("compact: 136" in error for error in errors), errors)
+        self.assertTrue(any("compact: 80" in error for error in errors), errors)
         self.assertTrue(any("detailedCollapsed: 76" in error for error in errors), errors)
         self.assertTrue(any("detailedExpanded: 248" in error for error in errors), errors)
         self.assertTrue(any("APP_SIDEBAR_NAV_ICON_SIZE_PX" in error for error in errors), errors)
-        self.assertTrue(any("APP_SIDEBAR_LABEL_WIDTH_CH" in error for error in errors), errors)
+        self.assertTrue(any("APP_SIDEBAR_COMPACT_PADDING_PX" in error for error in errors), errors)
+        self.assertTrue(
+            any("APP_SIDEBAR_ICON_STROKE_WIDTH" in error for error in errors),
+            errors,
+        )
         self.assertTrue(any("logo must render above" in error for error in errors), errors)
         self.assertTrue(any("@tabler/icons-react" in error for error in errors), errors)
         self.assertTrue(any("icon-above-label" in error for error in errors), errors)
+
+    def test_compact_sidebar_fixed_em_label_box_is_rejected(self) -> None:
+        """精简侧栏名称必须使用完整可用宽度，不能恢复固定 em/ch 占位盒。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            sidebar = brand_root / "react" / "AppSidebarTemplate.tsx"
+            source = sidebar.read_text(encoding="utf-8").replace(
+                'width: "100%",',
+                'width: "10em",',
+                1,
+            )
+            sidebar.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("fixed em/ch boxes" in error for error in errors), errors)
 
     def test_detailed_sidebar_default_persistence_or_tooltip_drift_is_rejected(self) -> None:
         """详细侧栏必须默认展开，并使用独立设备偏好和 Tooltip。"""
@@ -362,6 +392,34 @@ class GuiSupportContractTests(unittest.TestCase):
         )
         self.assertTrue(any("window.localStorage.getItem" in error for error in errors), errors)
         self.assertTrue(any("<Tooltip" in error for error in errors), errors)
+
+    def test_detailed_app_shell_width_sync_drift_is_rejected(self) -> None:
+        """详细 AppShell 必须同时更新 Mantine 偏移和可观察宽度属性。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            shell = brand_root / "react" / "AppShellTemplate.tsx"
+            source = shell.read_text(encoding="utf-8")
+            source = source.replace(
+                "navbar={{ width: navbarWidth }}",
+                "navbar={{ width: 248 }}",
+                1,
+            )
+            source = source.replace(
+                "data-navbar-width={navbarWidth}",
+                "data-navbar-width={248}",
+                1,
+            )
+            shell.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("navbar={{ width: navbarWidth }}" in error for error in errors), errors)
+        self.assertTrue(any("data-navbar-width={navbarWidth}" in error for error in errors), errors)
 
     def test_default_settings_privacy_surface_is_rejected(self) -> None:
         """初始化设置页不得恢复隐私标题、统计开关或对应固定翻译键。"""

@@ -31,8 +31,8 @@
 ## 左侧菜单、Logo 与版本
 
 - 模式来源：`docs/GUI_APP_PROFILE.md` 的 `sidebar_mode`，只能为 `compact` 或 `detailed`。
-- 精简：`136px`，`56px` Logo，`30px` 图标在上、`11px`/`10em` 名称在下并持续可见，不提供折叠按钮。
-- 详细：首次默认 `248px` 展开，显示图标+名称；自身按钮收起为 `76px` 后只显示图标并通过 Tooltip 显示名称。折叠状态使用 `APP_SIDEBAR_COLLAPSED_STORAGE_KEY` 设备级持久化，不进入页面会话 Jotai store。
+- 精简：匹配 `tauri-gui-sidebar-compact-80-v1`，`80px` 栏宽、`6px` 内容内边距、`36px` Logo、`22px` 图标、`11px`/`1.25` 全宽居中名称、`56px` 菜单项与 `4px`/`8px` 节奏；不使用固定 `em/ch` 名称盒或折叠按钮。
+- 详细：首次默认 `248px` 展开，使用 `22px` 图标并显示图标+名称；自身按钮收起为 `76px` 后只显示图标并通过右侧零延迟 Tooltip 显示名称。折叠状态使用 `APP_SIDEBAR_COLLAPSED_STORAGE_KEY` 设备级持久化，由 AppShell 拥有并同步 `navbar.width`/`data-navbar-width`，不进入页面会话 Jotai store。
 - Logo 与版本：选中的本地 Logo 永远位于最顶部，带一个小写 `v` 的当前权威版本紧随其下。
 - 功能区：当前产品功能项按下游提供的顺序从顶部向下增长，并在独立滚动区中展示。
 - 固定底部组：视觉顺序为已选赞助、设置、已选关于；未选页面不得有入口或路由。
@@ -111,7 +111,7 @@
 
 ## 验证
 
-- [ ] 侧栏与 `sidebar_mode` 一致：精简为 `136px` 持续名称；详细默认 `248px` 展开、`76px` 收起，按钮状态持久化且收起 Tooltip 可发现名称。
+- [ ] 侧栏与 `sidebar_mode` 及 `docs/design_standards/tauri_sidebar.md` 一致：compact 为 `80px` 全宽居中持续名称、AppShell navbar 复用宽度常量且 Navbar padding 为 `0`；detailed 默认 `248px` 展开、`76px` 收起、统一 `22px` 图标，身份父级不代理按钮，`navbar.width`/`data-navbar-width` 同步，按钮状态持久化且收起 Tooltip 可发现名称。
 - [ ] 默认设置页只含应用/版本、语言与三态主题，没有隐私/统计控件、占位或对应固定翻译键。
 - [ ] 托盘中文精确显示“显示窗口/退出”，英文精确显示“Show Window/Quit”，未知 locale 回退英文，运行时语言切换无需重启即可刷新；任何 `tray.*` 原始键不可见。
 - [ ] `/settings` 固定存在；`/about`、`/sponsor` 及运行时媒体严格按初始化选择存在或缺席。

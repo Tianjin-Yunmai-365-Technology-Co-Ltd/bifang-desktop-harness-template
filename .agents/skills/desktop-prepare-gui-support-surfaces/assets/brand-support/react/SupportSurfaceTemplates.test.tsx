@@ -18,14 +18,24 @@ import zhCN from "../i18n/zh-CN.json";
 import { AboutPageTemplate } from "./AboutPageTemplate";
 import {
   APP_SIDEBAR_COLLAPSED_STORAGE_KEY,
+  APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX,
+  APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX,
+  APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX,
+  APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX,
+  APP_SIDEBAR_COMPACT_PADDING_PX,
+  APP_SIDEBAR_COMPACT_SECTION_GAP_PX,
+  APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX,
+  APP_SIDEBAR_ICON_STROKE_WIDTH,
   APP_SIDEBAR_LABEL_FONT_SIZE_PX,
-  APP_SIDEBAR_LABEL_WIDTH_CH,
+  APP_SIDEBAR_LABEL_LINE_HEIGHT,
   APP_SIDEBAR_LOGO_SIZES,
   APP_SIDEBAR_NAV_ICON_SIZE_PX,
+  APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS,
   APP_SIDEBAR_WIDTHS,
   DEFAULT_DETAILED_SIDEBAR_COLLAPSED,
   AppSidebarTemplate,
 } from "./AppSidebarTemplate";
+import { AppShellTemplate } from "./AppShellTemplate";
 import {
   APP_COLOR_SCHEME_STORAGE_KEY,
   APP_THEME,
@@ -206,7 +216,11 @@ describe("shared brand support templates", () => {
     expect(screen.getByTestId("app-sidebar-version")).toHaveTextContent(
       "v3.4.5",
     );
-    expect(screen.getByTestId("navigation-icon-overview")).toBeVisible();
+    const overviewIcon = screen.getByTestId("navigation-icon-overview");
+    expect(overviewIcon).toBeVisible();
+    expect(overviewIcon).toHaveAttribute("width", "22");
+    expect(overviewIcon).toHaveAttribute("height", "22");
+    expect(overviewIcon).toHaveAttribute("stroke-width", "1.75");
     expect(screen.getByTestId("navigation-icon-about")).toBeVisible();
     expect(
       within(screen.getByTestId("feature-navigation"))
@@ -223,13 +237,18 @@ describe("shared brand support templates", () => {
     expect(onNavigate).toHaveBeenCalledWith("/jobs");
   });
 
-  /** 精简侧栏以大图标在上、十字宽度居中文字在下，且没有展开控件。 */
+  /** 精简侧栏以图标在上、全宽居中文字在下，且没有展开控件。 */
   it("keeps compact icon-above-label navigation centered and non-expandable", async () => {
-    expect(APP_SIDEBAR_WIDTHS.compact).toBe(136);
-    expect(APP_SIDEBAR_LOGO_SIZES.compact).toBe(56);
-    expect(APP_SIDEBAR_NAV_ICON_SIZE_PX).toBe(30);
-    expect(APP_SIDEBAR_LABEL_WIDTH_CH).toBe(10);
+    expect(APP_SIDEBAR_WIDTHS.compact).toBe(80);
+    expect(APP_SIDEBAR_LOGO_SIZES.compact).toBe(36);
+    expect(APP_SIDEBAR_COMPACT_PADDING_PX).toBe(6);
+    expect(APP_SIDEBAR_COMPACT_SECTION_GAP_PX).toBe(8);
+    expect(APP_SIDEBAR_NAV_ICON_SIZE_PX).toBe(22);
     expect(APP_SIDEBAR_LABEL_FONT_SIZE_PX).toBe(11);
+    expect(APP_SIDEBAR_LABEL_LINE_HEIGHT).toBe(1.25);
+    expect(APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX).toBe(56);
+    expect(APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX).toBe(4);
+    expect(APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX).toBe(4);
     await renderTemplate(
       <AppSidebarTemplate
         activePath="/about"
@@ -250,7 +269,11 @@ describe("shared brand support templates", () => {
       />,
     );
 
-    expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "136px" });
+    expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "80px" });
+    expect(screen.getByTestId("app-sidebar-content")).toHaveStyle({
+      gap: "8px",
+      padding: "6px",
+    });
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
       "data-layout",
       "compact",
@@ -275,7 +298,15 @@ describe("shared brand support templates", () => {
         "data-navigation-layout",
         "icon-above-label",
       );
-      expect(item).toHaveAttribute("data-label-width-ch", "10");
+      expect(item).toHaveAttribute("data-label-alignment", "full-width-center");
+      expect(item).toHaveStyle({
+        alignItems: "center",
+        flexDirection: "column",
+        gap: "4px",
+        minHeight: "56px",
+        paddingBlock: "4px",
+        paddingInline: "0px",
+      });
     }
     expect(screen.getByTestId("navigation-icon-overview")).toBeVisible();
     expect(screen.getByTestId("navigation-icon-about")).toBeVisible();
@@ -283,19 +314,33 @@ describe("shared brand support templates", () => {
       "一二三四五六七八九十",
     );
     expect(screen.getByTestId("navigation-label-overview")).toHaveStyle({
+      display: "block",
       fontSize: "11px",
-      inlineSize: "10em",
+      lineHeight: "1.25",
+      marginInline: "auto",
       textAlign: "center",
+      width: "100%",
+    });
+    expect(screen.getByTestId("navigation-label-overview")).not.toHaveStyle({
+      inlineSize: "10em",
     });
   });
 
-  /** 详细模式默认展开，并把用户点击按钮后的折叠状态持久化到设备偏好。 */
-  it("persists the detailed sidebar collapse button and uses tooltips when hidden", async () => {
+  /** 详细 AppShell 默认展开，并在按钮点击后同步侧栏、主区偏移和设备偏好。 */
+  it("synchronizes the detailed AppShell width and restores its tooltip state", async () => {
     expect(DEFAULT_DETAILED_SIDEBAR_COLLAPSED).toBe(false);
     expect(APP_SIDEBAR_WIDTHS.detailedExpanded).toBe(248);
     expect(APP_SIDEBAR_WIDTHS.detailedCollapsed).toBe(76);
-    const sidebar = (
-      <AppSidebarTemplate
+    expect(APP_SIDEBAR_LOGO_SIZES.detailedExpanded).toBe(72);
+    expect(APP_SIDEBAR_LOGO_SIZES.detailedCollapsed).toBe(44);
+    expect(APP_SIDEBAR_NAV_ICON_SIZE_PX).toBe(22);
+    expect(APP_SIDEBAR_ICON_STROKE_WIDTH).toBe(1.75);
+    expect(APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX).toBe(44);
+    expect(APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX).toBe(18);
+    expect(APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS).toBe(0);
+    window.localStorage.setItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY, "invalid");
+    const shell = (
+      <AppShellTemplate
         activePath="/overview"
         applicationName="Example Utility"
         featureItems={[
@@ -306,15 +351,23 @@ describe("shared brand support templates", () => {
             to: "/overview",
           },
         ]}
-        logoSrc="/app-identity/logo.png"
-        mode="detailed"
         onNavigate={vi.fn()}
         supportPages={{ aboutPage: false, sponsorPage: false }}
         version="1.2.3"
-      />
+      >
+        <Text>主内容</Text>
+      </AppShellTemplate>
     );
 
-    const firstRender = await renderTemplate(sidebar);
+    const firstRender = await renderTemplate(shell);
+    expect(screen.getByTestId("app-shell")).toHaveAttribute(
+      "data-mode",
+      "detailed",
+    );
+    expect(screen.getByTestId("app-shell")).toHaveAttribute(
+      "data-navbar-width",
+      "248",
+    );
     expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "248px" });
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
       "data-collapsed",
@@ -323,12 +376,40 @@ describe("shared brand support templates", () => {
     expect(screen.getByTestId("navigation-label-overview")).toHaveTextContent(
       "总览",
     );
+    expect(screen.getByRole("button", { name: "总览" })).toHaveAttribute(
+      "data-navigation-layout",
+      "icon-with-label",
+    );
+    expect(screen.getByRole("button", { name: "总览" })).toHaveStyle({
+      flexDirection: "row",
+      minHeight: "44px",
+    });
+    expect(screen.getByTestId("navigation-icon-overview")).toHaveAttribute(
+      "width",
+      "22",
+    );
+    expect(screen.getByTestId("app-sidebar-collapse-toggle")).toHaveAccessibleName(
+      "收起侧栏",
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: "收起侧栏" }));
+    fireEvent.click(screen.getByTestId("app-sidebar-identity"));
+    expect(screen.getByTestId("app-shell")).toHaveAttribute(
+      "data-navbar-width",
+      "248",
+    );
+    expect(window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
+      "invalid",
+    );
+
+    fireEvent.click(screen.getByTestId("app-sidebar-collapse-toggle"));
     expect(window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
       "true",
     );
     expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "76px" });
+    expect(screen.getByTestId("app-shell")).toHaveAttribute(
+      "data-navbar-width",
+      "76",
+    );
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
       "data-collapsed",
       "true",
@@ -342,13 +423,21 @@ describe("shared brand support templates", () => {
     expect(await screen.findByText("总览")).toBeVisible();
 
     firstRender.unmount();
-    await renderTemplate(sidebar);
+    await renderTemplate(shell);
     expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "76px" });
-    fireEvent.click(screen.getByRole("button", { name: "展开侧栏" }));
+    expect(screen.getByTestId("app-shell")).toHaveAttribute(
+      "data-navbar-width",
+      "76",
+    );
+    fireEvent.click(screen.getByTestId("app-sidebar-collapse-toggle"));
     expect(window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
       "false",
     );
     expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "248px" });
+    expect(screen.getByTestId("app-shell")).toHaveAttribute(
+      "data-navbar-width",
+      "248",
+    );
   });
 
   /** 设置页只显示版本、语言和三态主题，不预置隐私或统计区块。 */

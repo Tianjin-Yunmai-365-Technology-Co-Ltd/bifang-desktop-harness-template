@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-08-27（GUI 初始化能力专门问询、可选托盘/单实例/关于页/赞助页、精简/详细侧栏及侧栏未选时默认详细见 ADR-20260827-001；此前仍有效决定已综合保留）
+> 最近范围确认：2026-08-27（UI 设计标准目录与 `80px` compact 标准见 ADR-20260827-003；GUI 初始化能力专门问询、可选托盘/单实例/关于页/赞助页、精简/详细侧栏及侧栏未选时默认详细见 ADR-20260827-001；此前仍有效决定已综合保留）
 
 ## 一句话目标
 
@@ -24,13 +24,20 @@
 
 ## MVP 包含
 
+### UI 设计标准目录与匹配路由
+
+- 变更标识：`HARNESS-FEAT-UI-DESIGN-STANDARDS-CATALOG`；所需 Harness 版本：`202608051301`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
+- `docs/design_standards/README.md` 是用户可见布局、组件语义、交互、可访问性和视觉密度的唯一索引；Tauri GUI 通用规则与固定左侧栏分别由其索引文件维护。初始化或修改 GUI 时先读取 profile、当前请求和批准 ADR，再选择全部条件精确命中的标准。产品已批准标准优先于 Harness 通用缺省，旧模板不得覆盖。
+- 没有精确命中或用户明确要求特殊设计时，必须先完成额外设计并取得批准。像素、密度或信息架构偏离同步更新下游 `docs/GUI_APP_PROFILE.md` 与当日 ADR；没有批准产品事实的中性初始化停止偏离，不自行发明新密度。设计规则只进入 GUI adapter 展示/纯交互层，不下沉到 shared core。
+- `sidebar_mode = compact` 精确命中 `tauri-gui-sidebar-compact-80-v1`：`80px` 栏宽、`6px` 内容内边距、`36px` Logo、`22px`/`1.75` Tabler 图标、`11px`/`1.25` 全宽居中名称、`56px` 菜单项、`4px` 图标名称间距/垂直 padding 和 `8px` 区间距；禁止固定 `em/ch` 名称盒与折叠按钮。AppShell navbar 复用栏宽常量且 Navbar padding 为 `0`。`sidebar_mode = detailed` 精确命中 `tauri-gui-sidebar-detailed-v1`：固定 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标，展开横排名称，收起 icon-only + 右侧零延迟 Tooltip。
+
 ### GUI 初始化能力选择与侧栏模式
 
 - 变更标识：`HARNESS-FEAT-GUI-INITIALIZATION-CAPABILITY-SELECTION`；所需 Harness 版本：`202608051301`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
 - 用户选择 GUI 后，初始化器必须进入独立问询轮，逐项确认 `system_tray`、`about_page`、`sponsor_page`、`single_instance` 为 `enabled` 或 `disabled`，并提供 `sidebar_mode` 的 `compact` 或 `detailed` 选择。四项能力不得根据历史默认、推荐预设、页面数量或 Agent 偏好推断；用户未选择侧栏模式时必须写入 `sidebar_mode = detailed`，明确选择时保持原值，显式非法值不得按未选择处理。归一化后的五项写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块，基线提交前不得缺失或残留 `pending`。
 - `system_tray = enabled` 时完整实现现有托盘图标、双项本地化菜单、关闭隐藏、两种恢复和退出生命周期；`disabled` 时不启用 `tray-icon`、不安装托盘、不保留托盘 locale/菜单资源或关闭隐藏处理，而由主窗口 `CloseRequested` 显式调用 `AppHandle::exit(0)`，确保关闭即退出。`single_instance = enabled` 时完整实现官方首插件、只恢复既有窗口的回调与真实双启动唯一性；`disabled` 时依赖、插件、回调和双启动场景都必须缺席。
 - `/settings`、动态标题、语言/三态主题和亮暗语义主题仍是所有 GUI 的固定基线。`about_page`、`sponsor_page` 各自只控制相应路由、导航入口、组件和运行时资源；未选页面不得以隐藏路由、不可达组件或无入口媒体残留。选择赞助页时完整 sponsor 媒体进入 bundle，未选择时不得进入运行时 bundle。
-- `compact` 侧栏固定为 `136px`，`56px` Logo 后紧接版本，菜单以 `30px` 图标在上、`11px`/`10em` 名称在下持续显示名称，不提供折叠按钮。`detailed` 侧栏首次默认 `248px` 展开，使用 `72px` Logo 和图标+名称横排；自身 ActionIcon 可收起为 `76px`，收起后使用 `44px` Logo、只显示图标并以 Mantine Tooltip 显示名称。详细模式折叠状态通过独立 local-storage 键跨重挂载和下次启动恢复，不进入页面会话 Jotai store。
+- `compact` 侧栏只实现设计目录中的 `tauri-gui-sidebar-compact-80-v1`，名称始终可见、允许最多两行且不使用固定 `em/ch` 占位盒；`detailed` 侧栏首次默认 `248px` 展开，使用 `72px` Logo、`22px` 图标和图标+名称横排，自身 ActionIcon 可收起为 `76px`，收起后使用 `44px` Logo、只显示图标并以 Mantine Tooltip 显示名称。详细模式折叠状态通过独立 local-storage 键跨重挂载和下次启动恢复，由 AppShell 拥有并同源同步 `navbar.width`/`data-navbar-width`，不进入页面会话 Jotai store。
 - 初始化结构检查和真实本机 E2E 读取同一 profile：启用能力必须完整通过原有硬门禁，禁用能力必须证明无残留；只在单实例启用时双启动，只在托盘启用时操作真实托盘，托盘禁用时实测关闭最后窗口退出。所有组合都验证所选侧栏、设置页、实际菜单页面可达和未选页面缺席。
 
 ### 页面事件归属、发布日志与版本展示
@@ -219,7 +226,8 @@
 - [x] GUI 初始化携带并创建无产品身份的 660×400 DMG 背景，项目配置固定引用项目内 `src-tauri/dmg/background.png`；GUI 身份流程负责正式批准或同路径替换，构建在测试前校验路径、尺寸、摘要与 Tauri 配置一致。
 - [x] GUI 选择后必须完成五项专门问询并写入唯一 profile 代码块；启用单实例时官方首插件、两个命名回归和真实双启动唯一性仍为硬门禁，禁用时依赖、插件、回调和场景全部缺席。
 - [x] GUI 初始化生成 3 个 Logo 候选并由用户选择；托盘启用时完整实现非透明图标、本地化双项菜单、关闭隐藏、恢复与退出，托盘禁用时不保留 feature/运行时/资源且关闭最后窗口退出。关于页与赞助页的路由、导航、组件和媒体严格按选择存在或缺席，`/settings`、主题和 i18n 始终存在。
-- [x] 侧栏支持精简与详细两种初始化模式：精简锁定 `136px` 图标上/名称下且没有折叠按钮；详细首次默认 `248px` 展开显示图标+名称，自身按钮收起为 `76px` 后使用 icon-only + Tooltip，并通过独立 local-storage 键恢复折叠偏好。两种模式的 Logo、图标、文字都居中无裁切。
+- [x] UI 设计目录以精确匹配解析通用/组件标准，产品已批准标准优先；无匹配或特殊像素先批准并更新 GUI profile/ADR，布局不进入 core。
+- [x] 侧栏支持精简与详细两种初始化模式：compact 锁定 `80/6/36/22/11/1.25/56/4/8`、全宽居中名称、无固定 `em/ch` 盒/折叠按钮和 AppShell 零 padding 接线；detailed 首次默认 `248px` 展开显示 `22px` 图标+名称，身份父级不代理，自身按钮收起为 `76px` 后使用 icon-only + Tooltip，并通过独立 local-storage 键恢复折叠偏好；AppShell 的 `navbar.width` 与 `data-navbar-width` 始终同步。两种模式的 Logo、图标、文字都居中无裁切。
 - [x] GUI 固定直接依赖 `@tabler/icons-react`，适用图标使用命名组件；所选侧栏的 Logo、全部渲染图标与文字沿同一中心线，图表周边图标优先使用 Tabler，图表绘制能力保持独立。
 - [x] 含 GUI 的下游在唯一基线提交前固定通过 profile-aware 结构门禁与真实本机调试 E2E：只运行适用的双启动/托盘场景，托盘禁用时验证关闭最后窗口退出，并验证所选侧栏、设置页、实际菜单页面和禁用能力缺席；失败或宿主无法判定/观察适用场景即阻断，不冒充发布候选或完整验收。
 - [x] `$desktop-prepare-gui-support-surfaces` 固化官方签名 updater、认证最低支持版本 + core SemVer 强更、根级不可绕过更新门，以及默认关闭、明确同意、HTTPS JSON POST、无稳定标识、内存有界队列和生命周期回收的统计契约；`$desktop-build-tauri-release` 在启用 updater 时强制产出并验证 archive/`.sig`，安装包签名状态不能绕过更新制品签名。

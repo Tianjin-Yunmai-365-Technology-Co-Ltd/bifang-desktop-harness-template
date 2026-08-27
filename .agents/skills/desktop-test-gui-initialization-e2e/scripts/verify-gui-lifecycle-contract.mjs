@@ -732,36 +732,89 @@ function validateFrontendInitializationContract(guiRoot, profile, errors) {
   }
 
   const mode = profile.sidebarMode;
+  const sidebarText = sourceEntries
+    .filter((entry) => /(?:^|\/)(?:AppShell|AppSidebar)[^/]*\.(?:[cm]?[jt]sx?)$/u.test(entry.relativePath))
+    .map((entry) => entry.text)
+    .join("\n");
   const selectedModePattern = new RegExp(
     `(?:\\bsidebarMode\\s*(?::[^=;]+)?=|\\bmode\\s*=|\\bmode\\s*:)\\s*["']${mode}["']`,
     "u",
   );
-  if (!selectedModePattern.test(sourceText)) {
+  if (!selectedModePattern.test(sidebarText)) {
     errors.push(`GUI 前端未把 sidebar_mode = ${mode} 接入实际侧栏`);
   }
   if (mode === "compact") {
     for (const [label, pattern] of [
-      ["136px 固定宽度", /\bcompact\s*:\s*136\b/u],
-      ["56px Logo", /\bcompact\s*:\s*56\b/u],
-      ["30px 图标", /(?:ICON_SIZE|iconSize)[A-Z_a-z]*\s*=\s*30\b/u],
+      ["80px 固定宽度", /\bcompact\s*:\s*80\b/u],
+      ["36px Logo", /\bcompact\s*:\s*36\b/u],
+      ["6px 内容内边距", /(?:COMPACT_PADDING|compactPadding)[A-Z_a-z]*\s*=\s*6\b/u],
+      ["8px 身份与菜单区间距", /(?:SECTION_GAP|sectionGap)[A-Z_a-z]*\s*=\s*8\b/u],
+      ["22px 图标", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*22\b/u],
       ["11px 名称", /(?:FONT_SIZE|fontSize)[A-Z_a-z]*\s*=\s*11\b/u],
-      ["10em 名称宽度", /(?:LABEL_WIDTH|labelWidth)[A-Z_a-z]*\s*=\s*10\b/u],
+      ["1.25 名称行高", /(?:LINE_HEIGHT|lineHeight)[A-Z_a-z]*\s*=\s*1\.25\b/u],
+      ["56px 菜单项最小高度", /(?:MIN_HEIGHT|minHeight)[A-Z_a-z]*\s*=\s*56\b/u],
+      ["4px 菜单项垂直内边距", /(?:PADDING_BLOCK|paddingBlock)[A-Z_a-z]*\s*=\s*4\b/u],
+      ["4px 图标名称间距", /(?:ITEM_GAP|itemGap)[A-Z_a-z]*\s*=\s*4\b/u],
       ["图标在上、名称在下", /icon-above-label/u],
+      ["NavLink 纵向布局", /flexDirection\s*:\s*(?:compact\s*\?\s*)?["']column["']/u],
+      ["NavLink 水平居中", /alignItems\s*:\s*["']center["']/u],
+      ["NavLink 左右零内边距", /paddingInline\s*:\s*(?:[^,\n?]+\?\s*)?0\b/u],
+      ["left section 零边距", /marginInline\s*:\s*(?:[^,\n?]+\?\s*)?0\b/u],
+      ["body 可见溢出", /overflow\s*:\s*(?:compact\s*\?\s*)?["']visible["']/u],
+      ["名称块级显示", /display\s*:\s*(?:compact\s*\?\s*)?["']block["']/u],
+      ["名称完整宽度", /width\s*:\s*(?:compact\s*\?\s*)?["']100%["']/u],
+      ["名称自动水平外边距", /marginInline\s*:\s*(?:compact\s*\?\s*)?["']auto["']/u],
+      ["名称居中", /textAlign\s*:\s*(?:compact\s*\?\s*)?["']center["']/u],
+      ["侧栏固定定位", /position\s*:\s*["']fixed["']/u],
+      ["侧栏 100dvh 高度", /height\s*:\s*["']100dvh["']/u],
+      ["侧栏右侧 1px 边框", /borderInlineEnd\s*:\s*["'][^"']*1px/u],
+      ["AppShell navbar 复用宽度常量", /navbar\s*=\s*\{\{[^}]*width\s*:\s*(?:APP_SIDEBAR_WIDTHS|widths)\.compact/u],
+      ["AppShell Navbar 零内边距", /AppShell\.Navbar[^>]*\bp=\{0\}/u],
+      ["NavLink 自身 active", /<NavLink\b[^>]*\bactive=/u],
+      ["菜单项完整 aria-label", /<NavLink\b[^>]*\baria-label=/u],
     ]) {
-      if (!pattern.test(sourceText)) errors.push(`精简侧栏缺少${label}契约`);
+      if (!pattern.test(sidebarText)) errors.push(`精简侧栏缺少${label}契约`);
+    }
+    if (/(?:inlineSize|width)\s*:\s*["'`][^"'`]*(?:em|ch)\b/u.test(sidebarText)) {
+      errors.push("精简侧栏名称不得使用固定 em/ch 占位盒");
     }
   } else {
     for (const [label, pattern] of [
-      ["248px 展开宽度", /\bdetailedExpanded\s*:\s*248\b/u],
-      ["76px 收起宽度", /\bdetailedCollapsed\s*:\s*76\b/u],
-      ["72px 展开 Logo", /\bdetailedExpanded\s*:\s*72\b/u],
-      ["44px 收起 Logo", /\bdetailedCollapsed\s*:\s*44\b/u],
-      ["默认展开", /DEFAULT_DETAILED_SIDEBAR_COLLAPSED\s*=\s*false\b/u],
-      ["自身折叠按钮", /\bActionIcon\b/u],
-      ["收起名称 Tooltip", /\bTooltip\b/u],
+      ["248px 展开宽度", /\bdetailedExpanded\s*:\s*248\b/u], ["76px 收起宽度", /\bdetailedCollapsed\s*:\s*76\b/u],
+      ["72px 展开 Logo", /\bdetailedExpanded\s*:\s*72\b/u], ["44px 收起 Logo", /\bdetailedCollapsed\s*:\s*44\b/u],
+      ["22px 菜单图标", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*22\b/u], ["1.75 图标描边", /APP_SIDEBAR_ICON_STROKE_WIDTH\s*=\s*1\.75\b/u],
+      ["44px 展开菜单项最小高度", /APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX\s*=\s*44\b/u], ["18px 折叠按钮图标", /APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX\s*=\s*18\b/u],
+      ["默认展开", /DEFAULT_DETAILED_SIDEBAR_COLLAPSED\s*=\s*false\b/u], ["固定折叠偏好键", /APP_SIDEBAR_COLLAPSED_STORAGE_KEY\s*=\s*["']app\.sidebar\.detailed\.collapsed["']/u],
+      ["固定本地 Logo", /APP_SIDEBAR_LOGO_PATH\s*=\s*["']\/app-identity\/logo\.png["']/u], ["严格 true 才收起", /localStorage\.getItem\([^)]*APP_SIDEBAR_COLLAPSED_STORAGE_KEY[^)]*\)\s*===\s*["']true["']/u],
+      ["自身折叠按钮", /\bActionIcon\b/u], ["折叠按钮自身事件", /<ActionIcon\b(?=[^>]*data-testid\s*=\s*["']app-sidebar-collapse-toggle["'])(?=[^>]*onClick\s*=)[^>]*>/u],
+      ["展开向左折叠图标", /\bIconChevronLeft\b/u], ["收起向右展开图标", /\bIconChevronRight\b/u],
+      ["收起名称 Tooltip", /<Tooltip\b/u],
+      ["Tooltip 右侧显示", /<Tooltip\b[^>]*\bposition\s*=\s*["']right["']/u], ["Tooltip 延迟常量", /APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS\s*=\s*0\b/u],
+      ["Tooltip 无延迟", /<Tooltip\b[^>]*\bopenDelay\s*=\s*\{(?:0|APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS)\}/u],
       ["独立折叠偏好", /localStorage\.(?:getItem|setItem)\s*\(/u],
+      ["展开图标文字布局", /icon-with-label/u], ["收起纯图标布局", /icon-only/u],
+      ["收起不渲染名称", /label\s*=\s*\{[^}]*\?\s*undefined\s*:/u],
+      ["展开横向菜单", /flexDirection\s*:\s*["']row["']/u],
+      ["展开横向 sm padding", /px\s*=\s*\{[^}]*\?\s*0\s*:\s*["']sm["']\s*\}/u],
+      ["收起 section 零边距", /marginInline\s*:\s*[^,}\n]*\?\s*0\s*:/u],
+      ["菜单项自身 active", /<NavLink\b[^>]*\bactive=/u], ["菜单项完整 aria-label", /<NavLink\b[^>]*\baria-label=/u],
+      ["侧栏固定定位", /position\s*:\s*["']fixed["']/u], ["侧栏 100dvh 高度", /height\s*:\s*["']100dvh["']/u],
+      ["侧栏右侧 1px 边框", /borderInlineEnd\s*:\s*["'][^"']*1px/u],
+      ["详细身份区 xs padding", /app-sidebar-identity["'][^>]*\bp\s*=\s*(?:["']xs["']|\{[^}]*["']xs["'][^}]*\})/u],
+      ["AppShell 读取折叠偏好", /useState\s*\(\s*readDetailedSidebarCollapsed\s*\)/u],
+      ["共享详细宽度计算", /detailedSidebarNavbarWidth\s*\(\s*detailedSidebarCollapsed\s*\)/u],
+      ["AppShell 固定 detailed", /data-mode\s*=\s*["']detailed["']/u],
+      ["运行时固定 detailed", /mode\s*=\s*["']detailed["']/u],
+      ["Mantine navbar 同步宽度", /navbar\s*=\s*\{\{[^}]*width\s*:\s*navbarWidth/u],
+      ["可观察 navbar 同步宽度", /data-navbar-width\s*=\s*\{navbarWidth\}/u],
+      ["AppShell Navbar 零内边距", /AppShell\.Navbar[^>]*\bp=\{0\}/u],
+      ["侧栏通知 AppShell", /onCollapsedChange\s*=\s*\{handleCollapsedChange\}/u],
+      ["AppShell 更新状态", /setDetailedSidebarCollapsed\s*\(\s*nextCollapsed\s*\)/u],
     ]) {
-      if (!pattern.test(sourceText)) errors.push(`详细侧栏缺少${label}契约`);
+      if (!pattern.test(sidebarText)) errors.push(`详细侧栏缺少${label}契约`);
+    }
+    if (/app-sidebar-identity["'][^>]*\bonClick\s*=/u.test(sidebarText)) {
+      errors.push("详细侧栏身份区父级不得代理折叠点击");
     }
   }
 

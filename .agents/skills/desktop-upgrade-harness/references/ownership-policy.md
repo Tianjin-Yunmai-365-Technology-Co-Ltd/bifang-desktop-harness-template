@@ -6,7 +6,7 @@
 
 ## 五类主要所有权
 
-- `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。
+- `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；产品专属像素和例外写入受保护的 `docs/GUI_APP_PROFILE.md`/ADR，不通过编辑目录制造分叉。
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
 - `conditional`：只在已选接口或已启用能力中存在的工程资产。先确认下游选择，再人工或由对应适配器 Skill 合并。`$desktop-prepare-gui-support-surfaces` 只随 GUI 下游传播；它的 Skill、参考、React 模板、品牌 profile/i18n/manifest 和全部原始媒体属于同一完整工程资产，产品实例 `docs/GUI_SUPPORT_SURFACES.md` 不属于。

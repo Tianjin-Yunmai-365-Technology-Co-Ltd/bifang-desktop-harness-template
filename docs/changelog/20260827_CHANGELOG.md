@@ -2,8 +2,12 @@
 
 ## 新增
 
+- `HARNESS-FEAT-DETAILED-SIDEBAR-RUNTIME-SYNC`（所需 Harness 版本 `202608051301`）：detailed 侧栏沉淀为 `tauri-gui-sidebar-detailed-v1` 的完整运行时标准，保持 `248px`/`76px`、`72px`/`44px`，菜单图标统一为 `22px`/`1.75`，展开横排名称，收起使用右侧零延迟 Tooltip；折叠状态提升到 AppShell，由同一 helper 同步 fixed 侧栏、Mantine `navbar.width` 与 `data-navbar-width`，身份区父级不代理折叠。
+- GUI 支持品牌资产新增 detailed `AppShellTemplate.tsx`，React 回归覆盖默认展开、父级无动作、ActionIcon 后 248→76 同步、名称节点消失、偏好保存及重挂载恢复；Python/Node 门禁新增详细模式常量、回调、严格 localStorage、Tooltip 与壳层联动检查。Harness 根不伪造产品 `GUI_APP_PROFILE.md`，真实下游仍记录 detailed 标准 ID 与任何批准偏离。
+- `HARNESS-FEAT-UI-DESIGN-STANDARDS-CATALOG`（所需 Harness 版本 `202608051301`）：新增 `docs/design_standards/`，把 Tauri GUI 通用设计与固定左侧栏纳入精确匹配目录；产品 profile/当前请求中已批准的标准优先于 Harness 缺省，没有匹配或特殊需求先批准，像素偏离同步写入 GUI profile 与 ADR，UI 规则只落在 adapter 展示层。
+- compact 侧栏改用 `tauri-gui-sidebar-compact-80-v1`：`80px` 栏宽、`6px` 内容内边距、`36px` Logo、`22px` Tabler 图标、`11px`/`1.25` 全宽居中名称、`56px` 菜单项和 `4px`/`8px` 节奏；移除固定 `10em` 名称盒，AppShell navbar 复用宽度常量且 Navbar padding 为 `0`。detailed 的 `248px`/`76px` 与 `72px`/`44px` 两档保持不变。
 - `HARNESS-FEAT-GUI-INITIALIZATION-CAPABILITY-SELECTION`（所需 Harness 版本 `202608051301`）：GUI 接口选择后新增专门问询，分别记录系统托盘、关于页、赞助页、单实例的启用/禁用和侧栏精简/详细模式。四项能力继续要求明确选择；用户未选择侧栏模式时，初始化器在写 profile 前确定性写入 `sidebar_mode = detailed`，显式非法值不会被当作缺省。profile 驱动依赖、生命周期、路由、导航和运行时资源；启用能力继续使用原有硬门禁，禁用能力必须无残留。
-- 详细侧栏既是未选择侧栏模式时的初始化缺省值，也保持默认展开、图标+名称、自身折叠按钮、`248px`/`76px` 两态和独立设备级持久化；折叠后只显示图标并使用 Mantine Tooltip 显示名称。精简侧栏继续提供 `136px` 图标上/名称下布局且没有折叠按钮，并可由用户显式选择。
+- 详细侧栏既是未选择侧栏模式时的初始化缺省值，也保持默认展开、图标+名称、自身折叠按钮、`248px`/`76px` 两态和独立设备级持久化；折叠后只显示图标并使用 Mantine Tooltip 显示名称。精简侧栏由用户显式选择并采用当前 80px 标准，不提供折叠按钮。
 - `HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY`（所需 Harness 版本 `202608051301`）：新增标准库 `release_notes.py` 和受保护的根 `release-notes.json` 发布契约。发布准备会从上一次真实发布提交到当前源码整理最重要的功能优化/问题修复，每类至多 10 条并只保留近 5 版；构建只读校验并把同一日志打入候选，manifest 绑定带 `v` 版本、SHA-256 和包内路径。
 - 选择 GUI 关于页时，在“检查更新”旁新增自身绑定的“更新日志”按钮和本地弹窗模板，按固定中文结构展示近 5 版、每类至多 10 条；远程更新未配置时只禁用检查按钮，本地日志仍可查看。未选关于页不建立隐藏入口。
 - `HARNESS-FEAT-DOWNSTREAM-AUTO-VERSIONING`（所需 Harness 版本 `202608051301`）：新增 `$desktop-manage-version` 与标准库版本 helper。下游现在会在每个正式发布周期的首个已完成功能自动升一次 Minor 并归零 Patch，每个新稳定缺陷 ID 的已完成修复升一次 Patch，重复缺陷幂等，Major 只接受用户批准；查询、诊断、复现、重构等维护不升版本，分量 `0..100` 溢出失败关闭。
@@ -40,7 +44,7 @@
 - GUI 单实例改为初始化显式选择：启用时官方首插件、中性恢复回调、两个固定命名回归和真实双启动唯一性继续作为硬门禁；禁用时依赖、插件、回调和双启动场景必须缺席。
 - GUI 系统托盘改为初始化显式选择：启用时继续强制非透明图标、精确双项菜单、关闭隐藏、两种恢复、退出、运行时 i18n 和真实宿主可见性；禁用时不启用 feature、不安装托盘、不隐藏窗口，而由主窗口 `CloseRequested` 显式调用 `AppHandle::exit(0)`。结构检查同时覆盖启用完整性、禁用残留与退出 handler 实际接线。
 - Tauri React GUI 的图标库固定为 `@tabler/icons-react`。功能菜单以 `TablerIcon` 组件注入，已选赞助/固定设置/已选关于使用包内命名组件；存在适用图标时不再使用其他图标库、手写 SVG、字符或 emoji。
-- 侧栏模板现在支持 `compact` 与 `detailed`。精简模式保留 `136px`、`56px` Logo、`30px` 图标上/`11px` `10em` 名称下和无折叠控件；详细模式默认 `248px` 展开、图标+名称，自身按钮收起为 `76px` 后用 icon-only + Tooltip，并持久化折叠偏好。
+- 侧栏模板支持 `compact` 与 `detailed`。compact 现锁定 `80/6/36/22/11/1.25/56/4/8`、图标上/全宽居中文字下、无固定 `em/ch` 名称盒和无折叠控件；detailed 默认 `248px` 展开、图标+名称，自身按钮收起为 `76px` 后用 icon-only + Tooltip，并持久化折叠偏好。
 - GUI 支持界面按初始化选择重新整理：设置页固定提供浅色、深色、跟随系统三态并持久化；关于页启用时承载检查更新和发布日志；赞助页启用时消费双主题与完整运行时媒体。未选页面没有路由、入口或资源。
 - Rust、前端依赖与 Node.js/pnpm/cargo-xwin 工具要求统一改为经过验证的最低兼容稳定版本范围：Cargo/前端清单保留完整兼容下界，锁文件只固定当前解析结果；新增 Rust `direct-minimal-versions`、前端 `lowest-direct`、项目最低工具链与环境范围门禁，其中 `cargo-xwin` 使用 `>=0.22.0, <0.24.0`，保留已观测可用的 0.22.0 下界而不追随较新发布；不再以精确依赖版本、`latest`、tag、通配符或“优先最新”表达兼容性。
 - 精简侧栏持续显示所有菜单名称；详细侧栏在展开态显示名称、折叠态用 Tooltip 补充名称。选择赞助页时继续消费 Mantine 有效主题，为亮色/暗色分别选择背景叠层、surface 与对比色。

@@ -38,6 +38,7 @@
     {"pattern": "docs/CLI_CONTRACT.md", "mode": "merge-sections"},
     {"pattern": "docs/RELEASE.md", "mode": "merge-sections"},
 
+    {"pattern": "docs/design_standards/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.py", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/test_check_file_line_limits.py", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_core_first.py", "mode": "managed"},

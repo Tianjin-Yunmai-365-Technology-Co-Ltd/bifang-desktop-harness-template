@@ -87,22 +87,72 @@ function writeDetailedFrontendFixture(guiRoot) {
   fs.writeFileSync(
     path.join(sourceRoot, "AppShell.tsx"),
     `
-import { ActionIcon, Tooltip } from "@mantine/core";
-
+import { ActionIcon, AppShell, NavLink, Tooltip } from "@mantine/core";
+import { IconChevronLeft, IconChevronRight, IconHome } from "@tabler/icons-react";
+import { useState } from "react";
 export const sidebarMode = "detailed";
 export const DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false;
-export const widths = { compact: 136, detailedCollapsed: 76, detailedExpanded: 248 };
-export const logoSizes = { compact: 56, detailedCollapsed: 44, detailedExpanded: 72 };
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 30;
-export const APP_SIDEBAR_LABEL_WIDTH_CH = 10;
-export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
-export const compactLayout = "icon-above-label";
+export const APP_SIDEBAR_COLLAPSED_STORAGE_KEY = "app.sidebar.detailed.collapsed";
+export const APP_SIDEBAR_LOGO_PATH = "/app-identity/logo.png";
+export const APP_SIDEBAR_WIDTHS = { compact: 80, detailedCollapsed: 76, detailedExpanded: 248 };
+export const APP_SIDEBAR_LOGO_SIZES = { compact: 36, detailedCollapsed: 44, detailedExpanded: 72 };
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
+export const APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75;
+export const APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX = 44;
+export const APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX = 18;
+export const APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS = 0;
 export const routes = ["/settings", "/about", "/sponsor"];
-
-export function Sidebar() {
-  const stored = window.localStorage.getItem("sidebar-collapsed");
-  window.localStorage.setItem("sidebar-collapsed", stored ?? "false");
-  return <><ActionIcon aria-label="collapse" /><Tooltip label="name"><span /></Tooltip></>;
+export function readDetailedSidebarCollapsed() {
+  return window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+}
+export function persistDetailedSidebarCollapsed(collapsed) {
+  window.localStorage.setItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY, String(collapsed));
+}
+export function detailedSidebarNavbarWidth(collapsed) {
+  return collapsed ? APP_SIDEBAR_WIDTHS.detailedCollapsed : APP_SIDEBAR_WIDTHS.detailedExpanded;
+}
+export function AppSidebarTemplate({ detailedCollapsed, onCollapsedChange }) {
+  const navigation = (
+    <NavLink
+      active={true}
+      aria-label="Home"
+      data-navigation-layout={detailedCollapsed ? "icon-only" : "icon-with-label"}
+      label={detailedCollapsed ? undefined : "Home"}
+      leftSection={<IconHome size={APP_SIDEBAR_NAV_ICON_SIZE_PX} stroke={APP_SIDEBAR_ICON_STROKE_WIDTH} />}
+      px={detailedCollapsed ? 0 : "sm"}
+      styles={{
+        root: { alignItems: "center", flexDirection: "row", minHeight: APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX },
+        section: { marginInline: detailedCollapsed ? 0 : undefined },
+      }}
+    />
+  );
+  return (
+    <nav style={{ position: "fixed", height: "100dvh", borderInlineEnd: "1px solid var(--app-border)" }}>
+      <div data-testid="app-sidebar-identity" p="xs">
+        <img src={APP_SIDEBAR_LOGO_PATH} />
+        <span>v1.0.0</span>
+        <ActionIcon data-testid="app-sidebar-collapse-toggle" onClick={() => onCollapsedChange(!detailedCollapsed)}>
+          {detailedCollapsed ? <IconChevronRight size={APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX} /> : <IconChevronLeft size={APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX} />}
+        </ActionIcon>
+      </div>
+      {detailedCollapsed ? <Tooltip label="Home" position="right" openDelay={APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS}>{navigation}</Tooltip> : navigation}
+    </nav>
+  );
+}
+export function DetailedAppShell() {
+  const [detailedSidebarCollapsed, setDetailedSidebarCollapsed] = useState(readDetailedSidebarCollapsed);
+  const navbarWidth = detailedSidebarNavbarWidth(detailedSidebarCollapsed);
+  const handleCollapsedChange = (nextCollapsed) => {
+    setDetailedSidebarCollapsed(nextCollapsed);
+    persistDetailedSidebarCollapsed(nextCollapsed);
+  };
+  return (
+    <AppShell data-mode="detailed" data-navbar-width={navbarWidth} navbar={{ width: navbarWidth }}>
+      <AppShell.Navbar p={0}>
+        <AppSidebarTemplate mode="detailed" detailedCollapsed={detailedSidebarCollapsed} onCollapsedChange={handleCollapsedChange} />
+      </AppShell.Navbar>
+    </AppShell>
+  );
 }
 `,
   );
@@ -165,14 +215,46 @@ function writeCompactFrontendFixture(guiRoot) {
   fs.writeFileSync(
     path.join(sourceRoot, "AppShell.tsx"),
     `
+import { AppShell, NavLink } from "@mantine/core";
+
 export const sidebarMode = "compact";
-export const widths = { compact: 136 };
-export const logoSizes = { compact: 56 };
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 30;
-export const APP_SIDEBAR_LABEL_WIDTH_CH = 10;
+export const APP_SIDEBAR_WIDTHS = { compact: 80 };
+export const logoSizes = { compact: 36 };
+export const APP_SIDEBAR_COMPACT_PADDING_PX = 6;
+export const APP_SIDEBAR_COMPACT_SECTION_GAP_PX = 8;
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
 export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
+export const APP_SIDEBAR_LABEL_LINE_HEIGHT = 1.25;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX = 56;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX = 4;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX = 4;
 export const compactLayout = "icon-above-label";
 export const routes = ["/settings"];
+
+export function AppSidebarTemplate() {
+  return (
+    <nav style={{ position: "fixed", height: "100dvh", borderInlineEnd: "1px solid var(--app-border)" }}>
+      <NavLink
+        active={true}
+        aria-label="Home"
+        styles={{
+          body: { overflow: "visible", textAlign: "center", width: "100%" },
+          label: { display: "block", marginInline: "auto", textAlign: "center", width: "100%" },
+          root: { alignItems: "center", flexDirection: "column", paddingInline: 0 },
+          section: { marginInline: 0 },
+        }}
+      />
+    </nav>
+  );
+}
+
+export function CompactAppShell() {
+  return (
+    <AppShell navbar={{ width: APP_SIDEBAR_WIDTHS.compact }}>
+      <AppShell.Navbar p={0}><AppSidebarTemplate mode="compact" /></AppShell.Navbar>
+    </AppShell>
+  );
+}
 `,
   );
   fs.writeFileSync(path.join(sourceRoot, "routes", "settings.tsx"), "export function SettingsPage() { return null; }\n");
@@ -574,7 +656,7 @@ test("rejects a disabled sponsor page with residual route and component", () => 
 test("rejects frontend sidebar wiring that disagrees with the recorded mode", () => {
   withFixture(({ root, guiRoot }) => {
     const shell = path.join(guiRoot, "src", "AppShell.tsx");
-    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace('sidebarMode = "detailed"', 'sidebarMode = "compact"'));
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replaceAll('"detailed"', '"compact"'));
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
       /未把 sidebar_mode = detailed 接入实际侧栏/u,
@@ -593,14 +675,56 @@ test("rejects detailed sidebar without persistent collapsed-name disclosure", ()
   });
 });
 
+test("rejects detailed AppShell width drift after collapse", () => {
+  withFixture(({ root, guiRoot }) => {
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    const source = fs.readFileSync(shell, "utf8")
+      .replace("navbar={{ width: navbarWidth }}", "navbar={{ width: APP_SIDEBAR_WIDTHS.detailedExpanded }}")
+      .replace("data-navbar-width={navbarWidth}", "data-navbar-width={APP_SIDEBAR_WIDTHS.detailedExpanded}");
+    fs.writeFileSync(shell, source);
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /详细侧栏缺少Mantine navbar 同步宽度契约.*详细侧栏缺少可观察 navbar 同步宽度契约/su,
+    );
+  });
+});
+
+test("rejects detailed identity containers that proxy collapse clicks", () => {
+  withFixture(({ root, guiRoot }) => {
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    const source = fs.readFileSync(shell, "utf8").replace(
+      '<div data-testid="app-sidebar-identity" p="xs">',
+      '<div data-testid="app-sidebar-identity" onClick={() => onCollapsedChange(true)} p="xs">',
+    );
+    fs.writeFileSync(shell, source);
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /详细侧栏身份区父级不得代理折叠点击/u,
+    );
+  });
+});
+
 test("rejects compact sidebar layout drift", () => {
   withFixture(({ root, guiRoot }) => {
     disableTrayAndSingleInstance(root, guiRoot);
     const shell = path.join(guiRoot, "src", "AppShell.tsx");
-    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace("compact: 136", "compact: 135"));
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace("compact: 80", "compact: 79"));
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /精简侧栏缺少136px 固定宽度契约/u,
+      /精简侧栏缺少80px 固定宽度契约/u,
+    );
+  });
+});
+
+test("rejects compact sidebar fixed em label boxes", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    const shell = path.join(guiRoot, "src", "AppShell.tsx");
+    const source = fs.readFileSync(shell, "utf8").replace('width: "100%"', 'width: "10em"');
+    fs.writeFileSync(shell, source);
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /精简侧栏名称不得使用固定 em\/ch 占位盒/u,
     );
   });
 });
