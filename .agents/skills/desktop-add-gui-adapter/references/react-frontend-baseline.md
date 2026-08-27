@@ -53,7 +53,7 @@
 - 更新展示只消费 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`。React 不解析远端版本策略、不验证签名、不从 `forcedUpdate` 等字段推导强更；根级 `RequiredUpdate` 分支不挂载普通功能，只呈现安装与退出。
 - 初始化设置页没有统计同意开关或隐私区块。只有产品明确启用统计能力时，独立产品级同意界面的初始值才为 false；未配置、未同意和撤回后都必须保持零出站。React 不收集设备标识、不组装 HTTP 请求，也不保存 endpoint 或客户端 secret。
 
-侧栏功能项以 `TablerIcon` 组件注入，所选赞助/固定设置/所选关于由模板提供 Tabler 组件。Testing Library 按 `tauri-gui-sidebar-compact-80-v1` 锁定 `80/6/36/22/11/1.25/56/4/8`、全宽居中、无固定 `em/ch` 盒和无折叠，按 detailed 标准锁定默认 `248px` 展开、`72px` Logo、`22px` 图标、自身折叠按钮、身份父级无动作、`76px`/`44px` 收起、AppShell 双宽度同步、图标-only + Tooltip 与偏好持久化；初始化 E2E 再从真实本机调试窗口复核可见结果。
+侧栏功能项以 `TablerIcon` 组件注入，所选赞助/固定设置/所选关于由模板提供 Tabler 组件。Testing Library 按 `tauri-gui-sidebar-compact-80-v1` 锁定全宽居中、无固定 `em/ch` 盒和无折叠，按 detailed 标准锁定默认 `248px` 展开、`72px` Logo、`22px` 图标、自身折叠按钮、身份父级无动作、`76px`/`44px` 收起、AppShell 双宽度同步、图标-only + Tooltip 与偏好持久化；初始化 E2E 再从真实本机调试窗口复核可见结果。
 
 ## 工具链与质量门禁
 

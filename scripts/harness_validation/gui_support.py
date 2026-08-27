@@ -427,7 +427,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
     if "useState(" in sidebar_text:
         fail(errors, "GUI detailed sidebar state must be owned by AppShell")
     if not re.search(
-        r"<IconComponent\b(?=[^>]*\bstroke=\{APP_SIDEBAR_ICON_STROKE_WIDTH\})[^>]*/>",
+        r"<IconComponent\b[^>]*\bstroke=\{APP_SIDEBAR_ICON_STROKE_WIDTH\}[^>]*/>",
         sidebar_text,
         re.DOTALL,
     ):
