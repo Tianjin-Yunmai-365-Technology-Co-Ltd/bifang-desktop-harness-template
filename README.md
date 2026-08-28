@@ -13,8 +13,8 @@
 
 ## 开始一个项目
 
-1. 使用 `$desktop-instantiate-project` 提供项目身份、完整目标目录、负责人和目标平台，建立独立 Git 根并重置模板身份。
-2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`。选择 GUI 后会单独询问系统托盘、关于页、赞助页、单实例是否启用，以及侧栏采用精简还是详细模式；四项能力仍需明确选择，侧栏未选择时默认写入 `sidebar_mode = detailed`，显式选择则保持原值。最终五项完整配置写入 `docs/GUI_APP_PROFILE.md`。初始化还会生成 3 个 Logo 候选、创建项目内 660×400 macOS DMG 背景，并建立动态标题、设置页、i18n/主题和所选能力；详细侧栏默认展开、可持久化折叠偏好，折叠后用 Tooltip 显示名称。
+1. 使用 `$desktop-instantiate-project` 时先完成逐项初始化表单：Agent 复用请求中已有的合法值，每轮只询问一个尚未解析的字段，并在任何写入前收齐项目身份、项目路径、负责人、目标平台、接口、Agent 策略和适用的 GUI 配置。表单完成后会展示最终项目根目录供确认，再建立独立 Git 根并重置模板身份。项目路径既可填写最终根也可填写父目录；末级名称与项目标识精确一致时直接使用，否则最终根为 `<项目路径>/<项目标识>`。
+2. `$desktop-initialize-rust-project` 复用表单中已经确认的 CLI/TUI/MCP/GUI 接口和策略，不在复制后重复询问；用户明确使用默认接口时采用 CLI。Agent 策略只需选择一次“推荐预设”或“自定义”，自定义时仍每轮只询问一个字段，基线不得残留 `pending`。选择 GUI 后，表单逐项收集系统托盘、关于页、赞助页、单实例是否启用，以及侧栏采用精简还是详细模式；四项能力仍需明确选择，侧栏未选择时默认写入 `sidebar_mode = detailed`，显式选择则保持原值。最终五项完整配置写入 `docs/GUI_APP_PROFILE.md`。初始化还会生成 3 个 Logo 候选、创建项目内 660×400 macOS DMG 背景，并建立动态标题、设置页、i18n/主题和所选能力；详细侧栏默认展开、可持久化折叠偏好，折叠后用 Tooltip 显示名称。
    初始化基线提交前会按 profile 检查启用能力完整、禁用能力无残留，再构建真实本机调试二进制：单实例启用才双启动，托盘启用才验证真实托盘与关闭隐藏/恢复/退出，托盘禁用则验证关闭最后窗口退出；同时验证所选侧栏、设置页、实际菜单页面和未选页面缺席。任一适用场景失败都不会创建基线提交。
    初始化收尾还会保留并调用 `$desktop-configure-git-commits`，把受管提交模板安装到新仓库 Git 元数据并只设置仓库本地配置；模板检查通过后才创建唯一基线提交，不修改全局 Git 配置。
 3. 初始化时运行一次 `$desktop-check-development-environment`；初始化完成后先直接执行真实测试/构建命令，只有命令已因受管环境问题失败时才做对应检查、安装并重试一次。不得因新任务、显式构建或缺少环境证据重复预检。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
@@ -56,7 +56,7 @@ Task 描述必须完整列出目标、工作方式、当前事实、必须阅读
 ## 项目 Skills
 
 - `$desktop-define-product`：只在新产品、模糊需求或产品目标/边界/成功标准变化时整理规格。
-- `$desktop-instantiate-project`：从 Harness 建立干净下游仓库、初始化独立 Git 根并重置模板历史。
+- `$desktop-instantiate-project`：逐项完成初始化表单，确定性解析唯一目标根目录，再从 Harness 建立干净下游仓库、初始化独立 Git 根并重置模板历史。
 - `$desktop-rename-project-identity`：预览并统一修改项目展示名、标识前缀、配置、维护路径、Skills 与两份 License 的适用项目名；现有产品改名先确认产品范围并记录必要 ADR/Changelog，构建或完整验收只按用户显式请求执行。
 - `$desktop-plan-change`：只在用户明确要求持久计划、跨会话交接或发布/高风险协调确有必要时建立精简 Todo；日常开发不自动调用。
 - `$desktop-implement-change`：直接执行范围清楚的请求，只运行本次开发需要的单元/回归测试和最小必要替代检查。
@@ -64,7 +64,7 @@ Task 描述必须完整列出目标、工作方式、当前事实、必须阅读
 - `$desktop-refactor-code`：从单文件行数、文件组织结构（Rust `mod.rs`、前端非强制 `index.ts`）、命名、常量提取、潜在性能与死锁风险、core-first 归属六个方面辅助行为保持的重构。
 - `$desktop-extract-i18n-strings`：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core。
 - `$desktop-run-parallel-worktrees`：只有用户明确要求并行、项目策略允许且写入范围可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
-- `$desktop-initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略；选择 GUI 时另行解析五项 GUI 初始化配置（侧栏未选时归一化为详细模式），写入中性 DMG 背景并按最终配置建立生命周期、支持页面与侧栏基线。
+- `$desktop-initialize-rust-project`：确保独立 Git 根，复用实例化表单或在直接调用时逐项收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略；选择 GUI 时逐项解析五项 GUI 初始化配置（侧栏未选时归一化为详细模式），写入中性 DMG 背景并按最终配置建立生命周期、支持页面与侧栏基线。
 - `$desktop-configure-git-commits`：为独立仓库安装和检查仓库级提交消息模板，只写当前仓库的 Git 元数据与本地配置；简单提交可只写 Conventional Commit 主题，非简单提交保留 Why/Changes/Impact/Test。
 - `$desktop-test-gui-initialization-e2e`：只在含 GUI 的一次性初始化基线提交前，按 profile 验证启用能力完整、禁用能力缺席，再构建真实本机 Tauri 调试二进制并运行适用的双启动、托盘或关闭退出场景，同时检查所选侧栏、设置页和实际菜单页面；无法判定、无法观察或任一适用场景失败都阻断，通过后随初始化能力删除。
 - `$desktop-check-development-environment`：只在初始化阶段，或初始化后真实测试/构建命令已因受管环境问题失败时检查并补齐对应工具；不得因显式构建或缺少环境证据预跑。GUI 可处理 Node.js 与 pnpm，实际失败的 macOS→Windows Tauri 路径可补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
@@ -115,10 +115,10 @@ Task 描述必须完整列出目标、工作方式、当前事实、必须阅读
 - 初始化主动检查一次环境；初始化后不得按任务或构建例行检查，而是先运行真实命令，仅在已观察到受管环境错误后做对应安装并重试一次。纯文档任务跳过。Windows Rust 需要 MSVC Build Tools，仅 GUI 需要 Node.js 与 pnpm；只有实际失败命令属于 macOS→Windows Tauri xwin 路径时才安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` 与 `cargo-xwin`，且不会自动安装 Homebrew。
 - scaffold 验证结束后，下游删除实例化/初始化能力、GUI 初始化 E2E 能力及模板专用入口，不能继续派生；`AGENTS.md` 永久保留非空 Skills/约束地图和 `$desktop-upgrade-harness`。
 - 模板及其收费下游采用企业专有商业许可而非开源协议；实例化先原样复制中英文两份许可证，再仅把适用项目名改为目标项目，其他法律条款保持不变并永久保留。
-- 项目实例化必须询问完整目标项目目录路径；路径解析后 basename 必须与项目标识一致，目标可以位于 Harness 内或外，但必须不存在或为空，并通过覆盖、递归复制与符号链接安全检查。
+- 项目实例化先逐项完成写入前表单。项目路径可以是最终根或父目录：规范化末级名称与项目标识精确一致时直接使用，否则固定追加项目标识；相似名称不视为一致。只有最终项目根必须不存在或为空，父目录可以非空；最终根仍须通过覆盖、递归复制与符号链接安全检查。
 - 每个下游项目必须初始化独立 Git 仓库并使用 `main` 初始分支；即使位于父仓库内，Git top-level 也必须是下游项目根。实例化不复制源历史；初始化收尾只创建一个本地基线 commit，随后验证无 remote 且 porcelain 状态为空，不自动 push 或 tag。
 - 实例化完整排除 Harness 的 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/`，不复制索引、日期正文、历史验证或空占位；对应项目记忆只在其触发条件首次满足时创建。
-- 项目实例化阶段只要求身份、路径、负责人和目标平台；产品目的、核心输入输出、成功标准和风险可以留待已初始化项目中的 `$desktop-define-product` 完善。
+- 项目实例化表单要求身份、路径、负责人、目标平台、接口、Agent 策略及适用的 GUI 配置；产品目的、核心输入输出、成功标准和风险可以留待已初始化项目中的 `$desktop-define-product` 完善。
 - 项目标识使用 ASCII `snake_case`。core 与 CLI/TUI/MCP/GUI 目录分别派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`；根 workspace 只登记实际选择的 adapters。
 - 初始化 Skill 携带 macOS/Linux shell 与 Windows PowerShell 门禁脚本；它们验证官方制品、复探安装结果并输出稳定 `gate.*` 状态。
 - Rust CLI 构建会在项目已有批准的非交互签名 hook、工具和已授权凭据时尝试签名并验证；签名尝试失败会使该平台构建失败。macOS Tauri 直接分发候选在设备、Developer ID 与公证凭据齐备时必须完成签名、公证和 stapling，不能只签名；条件缺失时只有渠道允许才可显式生成 unsigned 候选，一旦签名或公证开始，失败不得降级。
@@ -142,7 +142,7 @@ Task 描述必须完整列出目标、工作方式、当前事实、必须阅读
 - Agent 可修复原任务范围内的普通失败；高风险、范围变化、新外部副作用和发布由人工审批。日常开发不要求人工签署完成。
 - 需要人工复核时必须写入仓库，Agent 不得代替人类签署。
 - CLI、TUI、MCP、GUI 均有独立 adapter Skill；任何一种都不以另一 adapter 为前置条件。
-- 初始化先让用户一次选择推荐预设或自定义；推荐预设默认禁用 Superpowers，自定义才逐项询问四项策略，最终原子写入并复用。
+- 初始化表单中的策略阶段让用户一次选择推荐预设或自定义；推荐预设默认禁用 Superpowers，自定义则每轮询问一个尚未解析的策略字段，最终原子写入并复用。
 - 验收中的实现缺失或行为偏差必须回到开发循环修正、补回归测试并重新验收；只有存在用户要求的持久计划时才重开 Todo。
 - 写入型 Subagent 只有在用户明确要求并行、项目策略启用且任务安全可拆时使用独立 Worktree，并在写入前通过 helper 边界检查；主 Agent 公开阶段状态并同步等待所有必需结果。
 - 模板自身始终保持无具体业务代码。

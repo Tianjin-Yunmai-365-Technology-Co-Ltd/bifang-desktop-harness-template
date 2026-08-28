@@ -15,7 +15,15 @@ WORKFLOW = (
     / "github-release-candidate.yml"
 )
 INITIALIZE_SKILL = SKILLS_ROOT / "desktop-initialize-rust-project"
-INSTANTIATE_SKILL = SKILLS_ROOT / "desktop-instantiate-project" / "SKILL.md"
+INSTANTIATE_SKILL_ROOT = SKILLS_ROOT / "desktop-instantiate-project"
+INSTANTIATE_SKILL = INSTANTIATE_SKILL_ROOT / "SKILL.md"
+INSTANTIATE_FORM = INSTANTIATE_SKILL_ROOT / "references" / "initialization-form.md"
+INSTANTIATE_TARGET_RESOLVER = (
+    INSTANTIATE_SKILL_ROOT / "scripts" / "resolve_project_target.py"
+)
+INSTANTIATE_TARGET_RESOLVER_TESTS = (
+    INSTANTIATE_SKILL_ROOT / "scripts" / "test_resolve_project_target.py"
+)
 RENAME_IDENTITY_SKILL = SKILLS_ROOT / "desktop-rename-project-identity"
 ENVIRONMENT_SKILL = SKILLS_ROOT / "desktop-check-development-environment"
 GUI_IDENTITY_SKILL = SKILLS_ROOT / "desktop-prepare-gui-app-identity" / "SKILL.md"
@@ -274,6 +282,9 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py",
     ".agents/skills/desktop-check-development-environment/scripts/macos-tauri-xwin-gates.sh",
     ".agents/skills/desktop-check-development-environment/scripts/test_macos_tauri_xwin_gates.py",
+    ".agents/skills/desktop-instantiate-project/references/initialization-form.md",
+    ".agents/skills/desktop-instantiate-project/scripts/resolve_project_target.py",
+    ".agents/skills/desktop-instantiate-project/scripts/test_resolve_project_target.py",
     ".agents/skills/desktop-rename-project-identity/scripts/rename_project_identity.py",
     ".agents/skills/desktop-rename-project-identity/scripts/test_rename_project_identity.py",
     ".agents/skills/desktop-configure-git-commits/assets/commit-template.txt",

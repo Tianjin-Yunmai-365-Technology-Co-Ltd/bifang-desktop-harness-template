@@ -188,6 +188,61 @@ class AgentPolicyTests(unittest.TestCase):
         self.assertIn("不自动创建 Work Plan、候选或完整验收步骤", rename)
 
 
+class InitializationFormContractTests(unittest.TestCase):
+    """覆盖新下游写入前逐项表单及其路径解析契约。"""
+
+    def test_form_collects_one_missing_field_per_turn_in_stable_order(self) -> None:
+        """表单必须逐字段推进，并先复用用户已经明确提供的合法值。"""
+        form = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/references/initialization-form.md"
+        )
+        self.assertIn("每次回复只询问一个最靠前的", form)
+        self.assertIn("用户主动一次提供多个字段时全部解析", form)
+        ordered_fields = (
+            "| 1 | 项目展示名称 |",
+            "| 2 | `project_id` |",
+            "| 3 | 项目路径 |",
+            "| 4 | 负责人 |",
+            "| 5 | 目标平台 |",
+            "| 6 | 接口组合 |",
+            "| 7 | Agent 策略模式 |",
+            "| 8 | `superpowers` |",
+            "| 9 | `parallel_worktree_subagents` |",
+            "| 10 | `milestone_smoke` |",
+            "| 11 | `milestone_e2e` |",
+            "| 12 | `system_tray` |",
+            "| 13 | `about_page` |",
+            "| 14 | `sponsor_page` |",
+            "| 15 | `single_instance` |",
+            "| 16 | `sidebar_mode` |",
+        )
+        positions = [form.index(field) for field in ordered_fields]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_form_resolves_parent_or_final_path_without_similarity_guessing(self) -> None:
+        """末级精确命中才复用输入，否则必须追加标识并只检查最终根。"""
+        form = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/references/initialization-form.md"
+        )
+        self.assertIn("区分大小写地精确相等", form)
+        self.assertIn("最终项目根目录为 `<项目路径>/<project_id>`", form)
+        self.assertIn("相似度把不同名称视为相同", form)
+        self.assertIn("作为父目录输入的项目路径可以已经存在", form)
+        self.assertIn("“不存在或为空”只约束最终项目根目录", form)
+
+    def test_instantiation_reuses_completed_form_after_first_write(self) -> None:
+        """复制后不得重新询问接口、策略或 GUI 条件字段。"""
+        instantiate = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/SKILL.md"
+        )
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+        self.assertIn("不得在复制后重新发起一轮问询", instantiate)
+        self.assertIn("不得在复制后重新询问接口", initialize)
+        self.assertIn("复用表单中已经逐项确认的五项值", initialize)
+
+
 class StreamlinedDevelopmentTests(unittest.TestCase):
     """覆盖直接实施、当前必要测试和显式并行边界。"""
 

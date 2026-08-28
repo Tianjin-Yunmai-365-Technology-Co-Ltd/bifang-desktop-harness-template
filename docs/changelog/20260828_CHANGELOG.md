@@ -2,6 +2,8 @@
 
 ## 新增
 
+- `HARNESS-FEAT-STEPWISE-INSTANTIATION-FORM-PATH-RESOLUTION`（所需 Harness 版本 `202608051301`）：新下游创建在任何写入、环境安装或 Git 初始化前进入逐字段表单；已有合法输入直接复用，每轮只询问一个尚未解析字段，接口、策略和适用 GUI 配置均在复制前收齐，最终以包含唯一项目根目录的完整汇总确认。
+- 项目路径现在既可填写最终根也可填写父目录：规范化末级与 ASCII `snake_case` 项目标识精确一致时直接使用，否则无论名称是否相似都固定追加项目标识。新增标准库只读 helper 与 10 项路径回归，证明非空父目录可用，同时拒绝非空最终根、文件、符号链接、Harness 根/祖先和非法标识；Skill、README、AGENTS、Product Spec 与 Harness validator 已同步锁定。
 - `HARNESS-FEAT-MEANINGFUL-GIT-COMMITS`（所需 Harness 版本 `202608051301`）：新增 `$desktop-configure-git-commits`，把 Conventional Commit 主题与 Why/Changes/Impact/Test 正文、原子提交边界、真实测试记录和提交前检查整理为独立 Skill；简单明确的变化仍可只写主题，不为形式制造空洞正文。
 - 新 Skill 使用标准库脚本把注释模板安装到当前仓库 Git common dir，并只管理本地 `commit.template`、`commit.cleanup=strip`、`commit.verbose=true` 与 `core.commentChar=#`。冲突默认失败，明确批准后才允许 `--replace`；Harness 当前仓库已实际执行 install/check，新下游初始化则在唯一基线提交前执行，不修改用户全局 Git 配置。
 - `HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY`（所需 Harness 版本 `202608051301`）：左侧 Task 现在按“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”创建；标题固定使用“动作 + 结果”，统一描述模板包含目标、工作方式、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。

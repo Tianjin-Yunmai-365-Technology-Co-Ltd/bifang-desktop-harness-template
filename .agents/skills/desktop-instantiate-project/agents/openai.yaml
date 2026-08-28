@@ -1,4 +1,4 @@
 interface:
   display_name: "实例化项目"
-  short_description: "在明确目标目录创建拥有独立 Git 根的干净下游项目"
-  default_prompt: "使用 $desktop-instantiate-project，在我明确指定的目标目录创建不继承 Harness 开发记忆的下游项目；Agent 策略先提供推荐预设或自定义选择，并以独立且干净的 Git 仓库收尾。"
+  short_description: "逐项收集信息并安全解析目标根目录后创建干净下游项目"
+  default_prompt: "使用 $desktop-instantiate-project，先按初始化表单逐项询问我尚未提供的信息，再安全解析最终项目根目录并创建独立且干净的下游 Git 仓库。"
