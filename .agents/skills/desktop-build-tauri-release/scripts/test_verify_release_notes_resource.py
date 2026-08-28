@@ -22,6 +22,7 @@ class VerifyReleaseNotesResourceTests(unittest.TestCase):
         self.gui_root = self.root / "sample_gui"
         self.config_path = self.gui_root / verifier.RELEASE_CONFIG
         self.config_path.parent.mkdir(parents=True)
+        (self.gui_root / "Cargo.toml").write_text("[package]\n", encoding="utf-8")
         self.source = self.root / "release-notes.json"
         self.source.write_text(
             '{"schemaVersion":1,"releases":[]}\n', encoding="utf-8"
@@ -31,7 +32,7 @@ class VerifyReleaseNotesResourceTests(unittest.TestCase):
                 {
                     "bundle": {
                         "resources": {
-                            verifier.SOURCE_MAPPING: verifier.RESOURCE_TARGET
+                            verifier.ROOT_CARGO_SOURCE_MAPPING: verifier.RESOURCE_TARGET
                         }
                     }
                 }
@@ -57,7 +58,13 @@ class VerifyReleaseNotesResourceTests(unittest.TestCase):
     def test_rejects_missing_or_redirected_resource_mapping(self) -> None:
         """缺少映射或目标路径漂移都必须在构建前阻断。"""
 
-        for resources in ({}, {verifier.SOURCE_MAPPING: "nested/release-notes.json"}):
+        for resources in (
+            {},
+            {verifier.ROOT_CARGO_SOURCE_MAPPING: "nested/release-notes.json"},
+            {
+                verifier.CONVENTIONAL_CARGO_SOURCE_MAPPING: verifier.RESOURCE_TARGET
+            },
+        ):
             with self.subTest(resources=resources):
                 self.config_path.write_text(
                     json.dumps({"bundle": {"resources": resources}}),
@@ -67,6 +74,50 @@ class VerifyReleaseNotesResourceTests(unittest.TestCase):
                     verifier.ResourceVerificationError, "fixed release-notes mapping"
                 ):
                     verifier.verify_config(self.root, self.gui_root)
+
+    def test_accepts_conventional_src_tauri_cargo_root_mapping(self) -> None:
+        """传统 src-tauri Cargo 根必须按其真实解析基准接受两级上跳。"""
+
+        (self.gui_root / "Cargo.toml").unlink()
+        (self.gui_root / "src-tauri" / "Cargo.toml").write_text(
+            "[package]\n", encoding="utf-8"
+        )
+        self.config_path.write_text(
+            json.dumps(
+                {
+                    "bundle": {
+                        "resources": {
+                            verifier.CONVENTIONAL_CARGO_SOURCE_MAPPING: verifier.RESOURCE_TARGET
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        self.assertEqual(
+            verifier.verify_config(self.root, self.gui_root),
+            verifier._sha256(self.source.read_bytes()),
+        )
+
+    def test_rejects_missing_or_ambiguous_cargo_manifest_root(self) -> None:
+        """缺失或同时存在两个 Cargo 根时不得猜测 Tauri 的资源解析基准。"""
+
+        root_manifest = self.gui_root / "Cargo.toml"
+        root_manifest.unlink()
+        with self.assertRaisesRegex(
+            verifier.ResourceVerificationError, "exactly one supported Cargo manifest"
+        ):
+            verifier.verify_config(self.root, self.gui_root)
+
+        root_manifest.write_text("[package]\n", encoding="utf-8")
+        (self.gui_root / "src-tauri" / "Cargo.toml").write_text(
+            "[package]\n", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(
+            verifier.ResourceVerificationError, "exactly one supported Cargo manifest"
+        ):
+            verifier.verify_config(self.root, self.gui_root)
 
     def test_rejects_bundled_bytes_that_differ_from_source(self) -> None:
         """候选资源即使是合法 JSON，只要字节不同也不能通过。"""

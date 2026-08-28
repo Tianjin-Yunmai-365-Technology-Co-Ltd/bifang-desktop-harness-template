@@ -280,8 +280,10 @@ def validate_tauri_build_skill_contract(
             "test_non_macos_host_is_not_applicable",
         ),
         release_notes_helper: (
-            "SOURCE_MAPPING",
+            "ROOT_CARGO_SOURCE_MAPPING",
+            "CONVENTIONAL_CARGO_SOURCE_MAPPING",
             "RESOURCE_TARGET",
+            "_cargo_root_and_source_mapping",
             "verify_config",
             "verify_bytes",
             "release config resources must contain only the fixed release-notes mapping",
@@ -291,6 +293,8 @@ def validate_tauri_build_skill_contract(
         ),
         release_notes_tests: (
             "test_accepts_fixed_config_and_byte_identical_bundled_resource",
+            "test_accepts_conventional_src_tauri_cargo_root_mapping",
+            "test_rejects_missing_or_ambiguous_cargo_manifest_root",
             "test_rejects_missing_or_redirected_resource_mapping",
             "test_rejects_bundled_bytes_that_differ_from_source",
             "test_rejects_symlinked_source_or_bundled_resource",

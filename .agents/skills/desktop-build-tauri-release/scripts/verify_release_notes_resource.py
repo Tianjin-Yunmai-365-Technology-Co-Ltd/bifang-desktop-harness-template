@@ -13,7 +13,8 @@ from typing import Any, Sequence
 
 
 RELEASE_CONFIG = Path("src-tauri/tauri.release.conf.json")
-SOURCE_MAPPING = "../../release-notes.json"
+ROOT_CARGO_SOURCE_MAPPING = "../release-notes.json"
+CONVENTIONAL_CARGO_SOURCE_MAPPING = "../../release-notes.json"
 RESOURCE_TARGET = "release-notes.json"
 
 
@@ -54,6 +55,24 @@ def _load_json_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def _cargo_root_and_source_mapping(gui_root: Path) -> tuple[Path, str]:
+    """按真实 Cargo manifest 根返回 Tauri 解析资源时使用的固定相对路径。"""
+
+    root_manifest = gui_root / "Cargo.toml"
+    conventional_manifest = gui_root / "src-tauri" / "Cargo.toml"
+    root_exists = root_manifest.is_file() and not root_manifest.is_symlink()
+    conventional_exists = (
+        conventional_manifest.is_file() and not conventional_manifest.is_symlink()
+    )
+    if root_exists == conventional_exists:
+        raise ResourceVerificationError(
+            "GUI root must contain exactly one supported Cargo manifest location"
+        )
+    if root_exists:
+        return gui_root, ROOT_CARGO_SOURCE_MAPPING
+    return conventional_manifest.parent, CONVENTIONAL_CARGO_SOURCE_MAPPING
+
+
 def verify_config(project_root: Path, gui_root: Path) -> str:
     """确认发布专用合并配置把根日志映射到固定资源逻辑路径。"""
 
@@ -68,16 +87,17 @@ def verify_config(project_root: Path, gui_root: Path) -> str:
 
     config_path = canonical_gui / RELEASE_CONFIG
     config = _load_json_object(config_path)
+    cargo_root, source_mapping = _cargo_root_and_source_mapping(canonical_gui)
     bundle = config.get("bundle")
     resources = bundle.get("resources") if isinstance(bundle, dict) else None
     if not isinstance(resources, dict) or resources != {
-        SOURCE_MAPPING: RESOURCE_TARGET
+        source_mapping: RESOURCE_TARGET
     }:
         raise ResourceVerificationError(
             "release config resources must contain only the fixed release-notes mapping"
         )
 
-    source = Path(os.path.abspath(config_path.parent / SOURCE_MAPPING))
+    source = Path(os.path.abspath(cargo_root / source_mapping))
     expected_source = canonical_project / RESOURCE_TARGET
     if source != expected_source:
         raise ResourceVerificationError("release config source must resolve to project release-notes.json")
