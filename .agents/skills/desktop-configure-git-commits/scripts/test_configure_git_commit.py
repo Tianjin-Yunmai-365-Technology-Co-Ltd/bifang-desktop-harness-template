@@ -24,19 +24,26 @@ class ConfigureGitCommitTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name) / "project"
         self.root.mkdir()
-        result = subprocess.run(
-            ["git", "init", "--quiet", "--initial-branch=main", str(self.root)],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self._git("init", "--quiet", "--initial-branch=main")
 
     def tearDown(self) -> None:
         """删除隔离仓库，确保测试不保留 Git 配置或模板状态。"""
 
         self.temporary.cleanup()
+
+    def _git(self, *arguments: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+        """在隔离临时仓库内运行 Git，集中子进程调用约定。"""
+
+        result = subprocess.run(
+            ["git", "-C", str(self.root), *arguments],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        if check:
+            self.assertEqual(result.returncode, 0, result.stderr)
+        return result
 
     def run_script(self, *arguments: str) -> subprocess.CompletedProcess[str]:
         """通过真实 CLI 运行配置器，以覆盖参数解析、退出码和 JSON 输出。"""
@@ -52,13 +59,7 @@ class ConfigureGitCommitTests(unittest.TestCase):
     def git_values(self, key: str) -> list[str]:
         """读取临时仓库的全部本地配置值，不回退到用户全局配置。"""
 
-        result = subprocess.run(
-            ["git", "-C", str(self.root), "config", "--local", "--get-all", key],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
+        result = self._git("config", "--local", "--get-all", key, check=False)
         if result.returncode == 1:
             return []
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -67,14 +68,7 @@ class ConfigureGitCommitTests(unittest.TestCase):
     def set_local(self, key: str, value: str) -> None:
         """为冲突场景写入精确的仓库本地配置，不影响用户或其他仓库。"""
 
-        result = subprocess.run(
-            ["git", "-C", str(self.root), "config", "--local", key, value],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self._git("config", "--local", key, value)
 
     def install(self, *extra: str) -> subprocess.CompletedProcess[str]:
         """以临时仓库为精确项目根执行安装模式。"""
@@ -120,13 +114,7 @@ class ConfigureGitCommitTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("conflicting local Git settings", result.stderr)
         self.assertEqual(self.git_values("commit.template"), ["/existing/template.txt"])
-        common = subprocess.run(
-            ["git", "-C", str(self.root), "rev-parse", "--git-common-dir"],
-            check=True,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-        ).stdout.strip()
+        common = self._git("rev-parse", "--git-common-dir").stdout.strip()
         self.assertFalse((self.root / common / "harness").exists())
 
     def test_replace_requires_flag_and_normalizes_all_settings(self) -> None:

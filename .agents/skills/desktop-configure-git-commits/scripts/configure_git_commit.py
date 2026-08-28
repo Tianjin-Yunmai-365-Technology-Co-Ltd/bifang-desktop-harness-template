@@ -60,16 +60,19 @@ def resolve_repository(project_root: str) -> tuple[Path, Path]:
     if not root.is_dir():
         raise ConfigurationError("project root is not a directory")
 
-    inside = run_git(root, ["rev-parse", "--is-inside-work-tree"]).stdout.strip()
+    query = run_git(
+        root,
+        ["rev-parse", "--is-inside-work-tree", "--show-toplevel", "--git-common-dir"],
+    ).stdout.splitlines()
+    if len(query) != 3:
+        raise ConfigurationError("unexpected output from git rev-parse")
+    inside, top_level_raw, common_raw = query
     if inside != "true":
         raise ConfigurationError("project root is not a Git work tree")
-    top_level = Path(
-        run_git(root, ["rev-parse", "--show-toplevel"]).stdout.strip()
-    ).resolve(strict=True)
+    top_level = Path(top_level_raw).resolve(strict=True)
     if top_level != root:
         raise ConfigurationError("project root must equal the independent Git top level")
 
-    common_raw = run_git(root, ["rev-parse", "--git-common-dir"]).stdout.strip()
     common_candidate = Path(common_raw)
     common_dir = (
         common_candidate.resolve(strict=True)
@@ -104,16 +107,25 @@ def managed_path(common_dir: Path) -> Path:
     return common_dir / MANAGED_DIRECTORY / MANAGED_TEMPLATE
 
 
-def config_values(root: Path, key: str) -> list[str]:
-    """读取一个仓库本地配置键的全部值，并区分未设置与读取失败。"""
+def read_local_settings(root: Path, keys: Sequence[str]) -> dict[str, list[str]]:
+    """一次性列出仓库本地配置并按键分组，避免逐键各起一个 Git 进程。"""
 
-    result = run_git(root, ["config", "--local", "--get-all", key], check=False)
+    result = run_git(root, ["config", "--local", "--list", "--null"], check=False)
     if result.returncode == 1:
-        return []
+        return {key: [] for key in keys}
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or "unknown git failure"
-        raise ConfigurationError(f"cannot read local Git setting {key}: {detail}")
-    return result.stdout.splitlines()
+        raise ConfigurationError(f"cannot read local Git settings: {detail}")
+    wanted = {key.lower(): key for key in keys}
+    values: dict[str, list[str]] = {key: [] for key in keys}
+    for entry in result.stdout.split("\0"):
+        if not entry:
+            continue
+        name, _, value = entry.partition("\n")
+        original = wanted.get(name)
+        if original is not None:
+            values[original].append(value)
+    return values
 
 
 def desired_settings(template_path: Path) -> dict[str, str]:
@@ -175,19 +187,29 @@ def restore_template(path: Path, previous: bytes | None) -> None:
     write_atomic(path, previous)
 
 
-def install(project_root: str, *, replace: bool) -> dict[str, object]:
-    """安装模板并事务式设置仓库本地配置；冲突默认失败关闭。"""
+def load_context(project_root: str) -> tuple[Path, Path, bytes, dict[str, str]]:
+    """解析仓库、加载受信模板并生成期望配置，供安装与检查共用。"""
 
     root, common_dir = resolve_repository(project_root)
     source = read_source_template()
     target = managed_path(common_dir)
     desired = desired_settings(target)
-    previous_settings = {key: config_values(root, key) for key in desired}
-    conflicts = {
-        key: values
-        for key, values in previous_settings.items()
-        if values and values != [desired[key]]
-    }
+    return root, target, source, desired
+
+
+def install(project_root: str, *, replace: bool) -> dict[str, object]:
+    """安装模板并事务式设置仓库本地配置；冲突默认失败关闭。"""
+
+    root, target, source, desired = load_context(project_root)
+    previous_settings = read_local_settings(root, tuple(desired))
+    conflicts: dict[str, list[str]] = {}
+    settings_changed = False
+    for key, value in desired.items():
+        values = previous_settings[key]
+        if values != [value]:
+            settings_changed = True
+            if values:
+                conflicts[key] = values
     if conflicts and not replace:
         names = ", ".join(sorted(conflicts))
         raise ConfigurationError(
@@ -199,9 +221,7 @@ def install(project_root: str, *, replace: bool) -> dict[str, object]:
         if target.is_symlink() or not target.is_file():
             raise ConfigurationError("managed commit template is not a regular file")
         previous_template = target.read_bytes()
-    changed = previous_template != source or any(
-        previous_settings[key] != [value] for key, value in desired.items()
-    )
+    changed = previous_template != source or settings_changed
 
     write_atomic(target, source)
     try:
@@ -234,19 +254,15 @@ def install(project_root: str, *, replace: bool) -> dict[str, object]:
 def check_installation(project_root: str) -> dict[str, object]:
     """检查模板字节与四项仓库本地设置，任何漂移都返回失败。"""
 
-    root, common_dir = resolve_repository(project_root)
-    source = read_source_template()
-    target = managed_path(common_dir)
+    root, target, source, desired = load_context(project_root)
     problems: list[str] = []
     if target.is_symlink() or not target.is_file():
         problems.append("managed commit template is missing or not a regular file")
     elif target.read_bytes() != source:
         problems.append("managed commit template differs from the tracked source")
 
-    desired = desired_settings(target)
-    observed: dict[str, list[str]] = {}
+    observed = read_local_settings(root, tuple(desired))
     for key, value in desired.items():
-        observed[key] = config_values(root, key)
         if observed[key] != [value]:
             problems.append(f"local Git setting {key} does not equal {value!r}")
     if problems:
