@@ -16,6 +16,7 @@
 1. 使用 `$desktop-instantiate-project` 提供项目身份、完整目标目录、负责人和目标平台，建立独立 Git 根并重置模板身份。
 2. 使用 `$desktop-initialize-rust-project` 选择 CLI/TUI/MCP/GUI 接口；对 Agent 策略只需选择一次“推荐预设”或“自定义”。无接口选择时默认 CLI，策略不得在基线残留 `pending`。选择 GUI 后会单独询问系统托盘、关于页、赞助页、单实例是否启用，以及侧栏采用精简还是详细模式；四项能力仍需明确选择，侧栏未选择时默认写入 `sidebar_mode = detailed`，显式选择则保持原值。最终五项完整配置写入 `docs/GUI_APP_PROFILE.md`。初始化还会生成 3 个 Logo 候选、创建项目内 660×400 macOS DMG 背景，并建立动态标题、设置页、i18n/主题和所选能力；详细侧栏默认展开、可持久化折叠偏好，折叠后用 Tooltip 显示名称。
    初始化基线提交前会按 profile 检查启用能力完整、禁用能力无残留，再构建真实本机调试二进制：单实例启用才双启动，托盘启用才验证真实托盘与关闭隐藏/恢复/退出，托盘禁用则验证关闭最后窗口退出；同时验证所选侧栏、设置页、实际菜单页面和未选页面缺席。任一适用场景失败都不会创建基线提交。
+   初始化收尾还会保留并调用 `$desktop-configure-git-commits`，把受管提交模板安装到新仓库 Git 元数据并只设置仓库本地配置；模板检查通过后才创建唯一基线提交，不修改全局 Git 配置。
 3. 初始化时运行一次 `$desktop-check-development-environment`；初始化完成后先直接执行真实测试/构建命令，只有命令已因受管环境问题失败时才做对应检查、安装并重试一次。不得因新任务、显式构建或缺少环境证据重复预检。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
 4. 日常开发直接使用 `$desktop-implement-change`，并由 `$desktop-manage-version` 对已完成变化自动应用下游 SemVer：每个发布周期首个功能升一次 Minor，每个新缺陷 ID 的修复升一次 Patch，Major 只由用户批准；查询、诊断、重复修复、不改变可观察行为的纯重构等维护不升版本；改变可观察行为的重构按其实际结果归类为功能或缺陷修复。只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。含 GUI 的一次性初始化 E2E 是初始化完成门禁，不属于日常开发自动扩张。
 5. 正式发布候选构建前，先由 `$desktop-prepare-release` 汇总上次正式发布到当前源码的最重要变化，维护根 `release-notes.json`，每版功能优化/问题修复各至多 10 条并只保留近 5 版。用户显式请求构建时，构建 Skill 只读校验并把同一日志打入候选，再解析本次是否启用 E2E；其中 Tauri GUI 通过发布专用 `--config` 嵌入日志、打包后逐字节比较，最终 DMG 再从应用资源复核。随后运行项目全部非空单元测试并构建；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
@@ -27,7 +28,7 @@
 
 左侧 Task 默认用于一个明确且可独立验收的结果。创建仓库修改 Task 时，选择项目 Worktree 并从主任务已确认的最新干净 `main` 基线开始；标题使用“动作 + 结果”，Task 启动后在首次编辑前创建唯一 `codex/*` 分支。主目录若有未提交修改，先由主任务审查并提交为基线，不把未提交状态隐式复制进新 Worktree。
 
-Task 描述必须完整列出目标、工作方式、当前事实、必须阅读的项目文档、实施范围、禁止事项、验收标准和交付要求。Task 只修改自己的 Worktree，每个逻辑闭环形成可审查提交；交付前运行任务要求的测试、同步文档、提交全部修改并保持 `git status` 干净。Task 不自行覆盖 `/Applications`、删除其他 Worktree 或合并 `main`；主任务复核提交、测试证据和风险后负责整合，确认干净且已合并后才移除 Worktree 与分支。完整模板和应用边界见 [`docs/AGENT_POLICY.md`](docs/AGENT_POLICY.md#左侧-task-与独立-worktree)。
+Task 描述必须完整列出目标、工作方式、当前事实、必须阅读的项目文档、实施范围、禁止事项、验收标准和交付要求。Task 只修改自己的 Worktree，每个逻辑闭环按 `$desktop-configure-git-commits` 形成可审查提交；交付前运行任务要求的测试、同步文档、提交全部修改并保持 `git status` 干净。Task 不自行覆盖 `/Applications`、删除其他 Worktree 或合并 `main`；主任务复核提交、测试证据和风险后负责整合，确认干净且已合并后才移除 Worktree 与分支。完整模板和应用边界见 [`docs/AGENT_POLICY.md`](docs/AGENT_POLICY.md#左侧-task-与独立-worktree)。
 
 ## 项目入口
 
@@ -64,6 +65,7 @@ Task 描述必须完整列出目标、工作方式、当前事实、必须阅读
 - `$desktop-extract-i18n-strings`：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core。
 - `$desktop-run-parallel-worktrees`：只有用户明确要求并行、项目策略允许且写入范围可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
 - `$desktop-initialize-rust-project`：确保独立 Git 根，收集接口组合，并通过一次推荐预设确认或自定义分支解析四项持久策略；选择 GUI 时另行解析五项 GUI 初始化配置（侧栏未选时归一化为详细模式），写入中性 DMG 背景并按最终配置建立生命周期、支持页面与侧栏基线。
+- `$desktop-configure-git-commits`：为独立仓库安装和检查仓库级提交消息模板，只写当前仓库的 Git 元数据与本地配置；简单提交可只写 Conventional Commit 主题，非简单提交保留 Why/Changes/Impact/Test。
 - `$desktop-test-gui-initialization-e2e`：只在含 GUI 的一次性初始化基线提交前，按 profile 验证启用能力完整、禁用能力缺席，再构建真实本机 Tauri 调试二进制并运行适用的双启动、托盘或关闭退出场景，同时检查所选侧栏、设置页和实际菜单页面；无法判定、无法观察或任一适用场景失败都阻断，通过后随初始化能力删除。
 - `$desktop-check-development-environment`：只在初始化阶段，或初始化后真实测试/构建命令已因受管环境问题失败时检查并补齐对应工具；不得因显式构建或缺少环境证据预跑。GUI 可处理 Node.js 与 pnpm，实际失败的 macOS→Windows Tauri 路径可补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
 - `$desktop-prepare-gui-app-identity`：GUI 初始化时生成 3 个 1024×1024 Logo 候选并由用户选择；首次真实开发前再补齐窗口名称等资料，并预览批准或替换初始化生成的 DMG 背景。

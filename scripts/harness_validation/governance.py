@@ -292,6 +292,10 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
             "必须完整保留 `docs/AGENT_POLICY.md` 的左侧 Task 描述模板",
             "一项目标 + 独立 Worktree",
         ),
+        SKILLS_ROOT / "desktop-configure-git-commits" / "SKILL.md": (
+            "references/commit-convention.md", "commit.template", "commit.cleanup=strip", "commit.verbose=true",
+            "core.commentChar=#", "git config --local", "install --replace", "用户没有要求创建提交时",
+        ),
         PRODUCT_SPEC: (
             "HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY",
             "一个左侧 Task 固定对应一个明确且可独立验收的目标",

@@ -2,6 +2,8 @@
 
 ## 新增
 
+- `HARNESS-FEAT-MEANINGFUL-GIT-COMMITS`（所需 Harness 版本 `202608051301`）：新增 `$desktop-configure-git-commits`，把 Conventional Commit 主题与 Why/Changes/Impact/Test 正文、原子提交边界、真实测试记录和提交前检查整理为独立 Skill；简单明确的变化仍可只写主题，不为形式制造空洞正文。
+- 新 Skill 使用标准库脚本把注释模板安装到当前仓库 Git common dir，并只管理本地 `commit.template`、`commit.cleanup=strip`、`commit.verbose=true` 与 `core.commentChar=#`。冲突默认失败，明确批准后才允许 `--replace`；Harness 当前仓库已实际执行 install/check，新下游初始化则在唯一基线提交前执行，不修改用户全局 Git 配置。
 - `HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY`（所需 Harness 版本 `202608051301`）：左侧 Task 现在按“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”创建；标题固定使用“动作 + 结果”，统一描述模板包含目标、工作方式、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。
 - 新 Task 从主任务确认的最新干净 `main` 基线创建，Codex detached Worktree 在首次编辑前建立 Task 分支；Task 只改自己的 Worktree、按逻辑闭环提交并以干净状态交付，不自行覆盖 `/Applications`、合并 `main` 或清理 Worktree。主任务复核提交、测试与风险，整合后才删除 Worktree 和分支；初始化/实施/并行 Skills 与 validator 同步保留 Task 级和 Subagent 级 Worktree 的分层边界。
 - `HARNESS-FEAT-DETAILED-SIDEBAR-RUNTIME-SYNC`（所需 Harness 版本 `202608051301`）：detailed 侧栏沉淀为 `tauri-gui-sidebar-detailed-v1` 的完整运行时标准，保持 `248px`/`76px`、`72px`/`44px`，菜单图标统一为 `22px`/`1.75`，展开横排名称，收起使用右侧零延迟 Tooltip；折叠状态提升到 AppShell，由同一 helper 同步 fixed 侧栏、Mantine `navbar.width` 与 `data-navbar-width`，身份区父级不代理折叠。
@@ -73,6 +75,8 @@
 
 ## 验证
 
+- `$desktop-configure-git-commits` 在 6 个隔离临时仓库场景中通过安装、重复幂等、冲突无写入、明确替换、模板篡改拒绝和父仓库子目录拒绝回归；Skill Creator quick validator 通过。Harness 当前仓库的实际 install/check 返回 `status: ok`，四项配置均来自 `git config --local`，没有替换既有冲突值。
+- 当前最终状态运行 `python3 -B -m unittest discover -s scripts`，206 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 165 个必需文件、28 个 Skills、初始化保留/裁剪和提交模板本地配置契约，产生 8 条未达硬上限的非阻断行数复核提示。
 - 当前 Task 规范最终状态运行 `python3 -B -m unittest discover -s scripts`，206 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 161 个必需文件、27 个 Skills，以及左侧 Task 的必填描述节、独立 Worktree、`codex/*` 分支、逻辑提交、干净交付、主任务整合/清理和初始化继承契约，产生 8 条未达硬上限的非阻断行数复核提示。
 - `$desktop-implement-change`、`$desktop-initialize-rust-project`、`$desktop-instantiate-project`、`$desktop-run-parallel-worktrees` 均通过 Skill Creator quick validator（4/4）；`git diff --check` 通过。
 - 本轮只变更 Harness 规则、Skills、文档和 Python 契约测试，没有可编译产品或真实最终应用，因此编译、GUI/Computer Use、候选构建、E2E、签名、公证与发布均为 `Not applicable`/`Not run`，未据此声明最终产物通过。

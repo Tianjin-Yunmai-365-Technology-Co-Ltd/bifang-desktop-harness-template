@@ -38,11 +38,11 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 13. 只有全部脚手架检查完成后，才能收尾下游仓库：
     - 完整删除 `.agents/skills/desktop-instantiate-project/`、`.agents/skills/desktop-initialize-rust-project/` 和初始化专用的 `.agents/skills/desktop-test-gui-initialization-e2e/`；只有 GUI 初始化 E2E 已通过后才允许删除后者；
     - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、`docs/harness_engineering/`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
-    - 保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-prepare-gui-app-identity`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees`、`$desktop-manage-version`，以及仍然适用的产品开发、适配器、验证和发布 Skills；必须保留 `$desktop-implement-change` 及其维护脚本和对应测试，但不得在日常开发中自动运行这些全仓门禁；版本 Skill 及其标准库 helper/测试必须完整保留，并把 `.harness/version-state.json` 列入约束地图的受保护状态；选择 GUI 时同时完整保留 `$desktop-prepare-gui-support-surfaces`（包括 `assets/brand-support/**`）、GUI 自有 TypeScript 注释门禁、其测试和 `$desktop-build-tauri-release`，未选择 GUI 时将全部 GUI 条件资产与 Skills 删除且不得要求 Node.js/pnpm；
+    - 保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-prepare-gui-app-identity`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees`、`$desktop-manage-version`、`$desktop-configure-git-commits`，以及仍然适用的产品开发、适配器、验证和发布 Skills；必须保留 `$desktop-implement-change` 及其维护脚本和对应测试，但不得在日常开发中自动运行这些全仓门禁；版本 Skill 及其标准库 helper/测试必须完整保留，并把 `.harness/version-state.json` 列入约束地图的受保护状态；选择 GUI 时同时完整保留 `$desktop-prepare-gui-support-surfaces`（包括 `assets/brand-support/**`）、GUI 自有 TypeScript 注释门禁、其测试和 `$desktop-build-tauri-release`，未选择 GUI 时将全部 GUI 条件资产与 Skills 删除且不得要求 Node.js/pnpm；
     - 保留继承的两份非开源企业专有商业许可证文件 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，其中目标项目名称必须已由 `$desktop-rename-project-identity` 建立；如果任一文件缺失、仍包含旧 Harness 身份、在批准改名后发生其他修改，或被安排删除，则最终收尾必须失败；
     - 重写 `AGENTS.md`，同时保留非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$desktop-run-parallel-worktrees` 和 `$desktop-upgrade-harness` 的持久策略用法。约束地图必须链接保留的规则并禁止下游继续派生；还必须保留 `docs/AGENT_POLICY.md` 中左侧 Task 的“动作 + 结果”标题、独立 Worktree、`codex/*` 分支、必填描述、逻辑闭环提交、干净交付、主任务整合与清理约定，不得把它误删为初始化临时内容；
     - 搜索下游根目录；如果历史证据之外仍存在对 `$desktop-instantiate-project`、`$desktop-initialize-rust-project`、其目录或仅用于初始化的门禁的活动引用，则最终收尾必须失败。
-14. 裁剪完成后，如果本次运行由 `$desktop-instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆与验证证据目录，绝不得为了满足此检查而删除它们。暂存完整的已初始化下游项目树，并使用用户现有 Git 身份创建恰好一个本地基线提交，提交消息必须为 `chore: initialize project`。如果作者身份不可用，必须停止并向用户请求；不得伪造身份或修改全局 Git 配置。
+14. 裁剪完成后，如果本次运行由 `$desktop-instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆与验证证据目录，绝不得为了满足此检查而删除它们。创建基线提交前调用 `$desktop-configure-git-commits`，依次运行 `configure_git_commit.py install --project-root .` 与 `configure_git_commit.py check --project-root .`；它只能写当前仓库 Git 元数据和 `git config --local`。已有冲突配置必须停止，只有用户明确批准后才可使用 `--replace`，不得修改全局 Git 配置。检查通过后暂存完整的已初始化下游项目树，并使用用户现有 Git 身份创建恰好一个本地基线提交，提交消息必须为 `chore: initialize project`。如果作者身份不可用，必须停止并向用户请求；不得伪造身份。
 15. 创建基线提交之前，必须确认四项策略字段和确认元数据均不包含 `pending`。如果具备精确的源溯源和渲染后的保留工程层候选，则通过 `$desktop-upgrade-harness record --bootstrap` 建立 `.harness/upstream-lock.json`；否则必须记录首次升级所需的初始基线审计，不得虚构锁文件。验证已完成仓库的规范顶层目录、`main`、可解析的基线提交、无远端，以及空的 `git status --porcelain=v1 --untracked-files=all`。任何失败都必须阻断完成。
 16. 下一步必须转到 `$desktop-define-product`。生成的下游项目是终端项目根目录，而不是另一个 Harness；绝不得根据脚手架声称产品已经交付。
 
@@ -73,10 +73,11 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 - 完成收尾的下游项目必须保留继承的两份专有商业许可证文件，并继续受其中终端下游限制约束。
 - `AGENTS.md` 必须始终保留非空的 Skills 地图和约束地图；裁剪可以移除地图条目，但不得删除任一地图。
 - 初始化只有在独立仓库中创建一个真实本地基线提交，并且 Git porcelain 状态为空时才算完成。
+- 初始化基线提交前必须通过 `$desktop-configure-git-commits` 的 `install` 与 `check`；受管模板和四项 Git 设置只属于当前仓库，不得依赖或修改全局配置。
 - 项目根目录 `.gitignore` 必须恰好一次包含 `/release/` 和 `/.release-clean.*`；构建流水线负责原子刷新的当前结果目录，以及同根目录中断后遗留的清理或候选暂存目录。
 
 ## 完成要求
 
 版本部分必须报告根 Cargo 初始版本与 `.harness/version-state.json` 一致、`$desktop-manage-version` 已保留且状态已列入约束地图。
 
-报告 Git 边界、基线和干净状态、环境门禁、已选接口、全部四项策略值、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个 Logo 候选、图标与 DMG 证据、五项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；对系统托盘、关于页、赞助页、单实例分别报告 `enabled`/`disabled`，启用项报告完整实现/E2E 证据，禁用项报告依赖/feature/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。
+报告 Git 边界、提交模板本地配置与检查结果、基线和干净状态、环境门禁、已选接口、全部四项策略值、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个 Logo 候选、图标与 DMG 证据、五项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；对系统托盘、关于页、赞助页、单实例分别报告 `enabled`/`disabled`，启用项报告完整实现/E2E 证据，禁用项报告依赖/feature/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。

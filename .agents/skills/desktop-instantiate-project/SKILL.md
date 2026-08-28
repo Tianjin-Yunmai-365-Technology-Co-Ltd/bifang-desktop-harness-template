@@ -23,7 +23,7 @@ description: 在用户提供的目标目录中创建干净的下游项目，包�
 12. 将工作目录切换到解析后的目标目录，并运行 `git init --initial-branch=main .`。即使父目录已经是 Git 仓库，此操作也必须执行：下游项目必须拥有独立的嵌套仓库边界。不得复制源历史，也不得创建标签、远端、托管仓库、推送、签名或全局 Git 配置。
 13. 在执行任何下游操作之前验证新边界：`git rev-parse --is-inside-work-tree` 必须返回 `true`；`git rev-parse --show-toplevel` 返回的规范化路径必须等于解析后的目标目录；`git symbolic-ref --short HEAD` 必须返回 `main`；`git remote` 必须为空；`git rev-parse --verify HEAD` 必须失败，因为初始化基线提交只有在脚手架和一次性裁剪全部完成后才能创建。把 `git status --porcelain=v1 --untracked-files=all` 的结果记录为最终完成前的预期证据。
 14. 不得在经过选择性复制的目标目录中运行模板级 Harness 验证器。验证目标目录清单、排除项、改写后的身份、保留链接和策略模式定义，随后使用 `$desktop-initialize-rust-project` 询问用户选择 `CLI/TUI/MCP/GUI`；验证并复用全部四项已记录策略，不得再次询问预设或各字段。仅当用户未选择任何接口时默认 CLI。若选择 GUI，必须另进行一轮 GUI 配置询问，逐项确定系统托盘、关于页、赞助页、单实例，并提供 `compact`/`detailed` 侧栏模式选择；四项能力必须明确，用户未选择侧栏模式时必须写入 `sidebar_mode = detailed`，显式非法值必须重新确认。把归一化后五项无 `pending` 事实写入 `docs/GUI_APP_PROFILE.md`。
-15. 必须要求 `$desktop-initialize-rust-project` 在脚手架检查完成后收尾仓库：选择 GUI 时，由 `$desktop-test-gui-initialization-e2e` 先读取 GUI 配置并条件检查。单实例启用时才验证官方依赖、首插件、回调、两个回归和真实双启动唯一性；托盘启用时才验证 feature、非透明图标、运行时接线、六个回归、双语标签和关闭隐藏/恢复/退出；托盘禁用时必须证明没有 feature/托盘/关闭拦截且关闭最后窗口结束进程。E2E 始终验证所选侧栏模式、默认设置页、全部实际菜单页面，以及关于/赞助入口按选择存在或缺席。任何已选能力无法判定或观察都阻断，未选能力不作为缺证据。随后删除一次性初始化能力、保留开发 Skills/约束地图，并在无 `pending`、Git 干净且无远端时创建恰好一个本地基线提交。
+15. 必须要求 `$desktop-initialize-rust-project` 在脚手架检查完成后收尾仓库：选择 GUI 时，由 `$desktop-test-gui-initialization-e2e` 先读取 GUI 配置并条件检查。单实例启用时才验证官方依赖、首插件、回调、两个回归和真实双启动唯一性；托盘启用时才验证 feature、非透明图标、运行时接线、六个回归、双语标签和关闭隐藏/恢复/退出；托盘禁用时必须证明没有 feature/托盘/关闭拦截且关闭最后窗口结束进程。E2E 始终验证所选侧栏模式、默认设置页、全部实际菜单页面，以及关于/赞助入口按选择存在或缺席。任何已选能力无法判定或观察都阻断，未选能力不作为缺证据。随后删除一次性初始化能力、保留开发 Skills/约束地图，使用 `$desktop-configure-git-commits` 安装并检查仓库本地提交模板，并在无 `pending`、Git 干净且无远端时创建恰好一个本地基线提交；不得修改全局 Git 配置。
 
 初始化收尾还必须由 `$desktop-manage-version init --project-root .` 创建并核对受保护的 `.harness/version-state.json`，并在裁剪中完整保留该版本 Skill、标准库 helper 和测试；不得把 Harness 时间版本写入下游状态。
 
@@ -46,4 +46,4 @@ description: 在用户提供的目标目录中创建干净的下游项目，包�
 
 ## 完成要求
 
-报告源根目录和目标根目录、复制和排除的文件、身份与历史重置、Git 边界、四项已确认策略值、可选的 Harness 溯源锁或未来必须执行的初始基线审计、基线提交、干净状态、尚未确定的产品事实、源 Harness 验证结果以及下一个 Skill。中性脚手架可以先于产品批准建立，但不是已验收产品。
+报告源根目录和目标根目录、复制和排除的文件、身份与历史重置、Git 边界、提交模板本地配置与检查结果、四项已确认策略值、可选的 Harness 溯源锁或未来必须执行的初始基线审计、基线提交、干净状态、尚未确定的产品事实、源 Harness 验证结果以及下一个 Skill。中性脚手架可以先于产品批准建立，但不是已验收产品。

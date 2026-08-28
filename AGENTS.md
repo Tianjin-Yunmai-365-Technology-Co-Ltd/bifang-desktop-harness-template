@@ -31,6 +31,7 @@
 | 验证方式与结果 | `docs/VERIFICATION.md` 与其索引的 `docs/verification/*.md` |
 | 已知限制与技术债 | `docs/TECH_DEBT.md` |
 | Harness 版本与下游版本/发布要求 | Harness 当前版本取 `Version.md`；下游当前版本取根 `Cargo.toml`，发布周期与去重状态取 `.harness/version-state.json`；规则取 `docs/RELEASE.md` 与 `$desktop-manage-version` |
+| Git 提交消息模板、仓库本地配置与消息规范 | `$desktop-configure-git-commits` 及其 `references/commit-convention.md` |
 | 用户和维护者可见变更 | `docs/changelog/README.md` 与当日 `docs/changelog/YYYYMMDD_CHANGELOG.md` |
 
 如果事实来源之间冲突，先调查并修正文档；不要自行选择更方便的说法。
@@ -39,6 +40,7 @@
 
 - 下游初始化先让用户在“推荐预设”和“自定义”之间选择一次。推荐预设把 Superpowers 设为 `disabled`，Worktree/Subagent 和适用冒烟设为 `enabled`，E2E 建议默认值设为 `disabled`；只有选择自定义时才逐项询问。最终值写入 `docs/AGENT_POLICY.md`，不得在基线残留 `pending`。只有自定义选择明确启用 Superpowers 时，后续 Agent 才可调用 `superpowers:*` Skill。
 - 用户要求新建左侧 Task 处理仓库变更时，按 `docs/AGENT_POLICY.md` 固定采用“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”：标题使用“动作 + 结果”，描述完整列出目标、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。新 Task 从主任务已确认的最新干净 `main` 基线创建；主目录有修改时先由主任务审查并提交基线。Task 只改自己的 Worktree，完成时提交全部改动并保持状态干净，不自行合并 `main` 或清理 Worktree/分支。
+- 每个逻辑提交按 `$desktop-configure-git-commits` 表达一个完整、独立、可解释的结果：简单变化可以只写 Conventional Commit 主题，非简单变化填写 Why/Changes/Impact/Test，未运行测试必须写明 `Not run` 原因。模板安装和修复只使用仓库本地 Git 配置；不得修改全局配置，已有冲突值只有用户明确批准后才可替换。
 - 只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled`、至少两个写入范围可安全独立时，才使用 `$desktop-run-parallel-worktrees`；日常开发不得因持久策略或可并行性自动增加协作步骤。写入型 Subagent 各自使用独立 Git Worktree 和 `codex/` 分支，写入前调用 helper `guard` 并声明目标；主 Agent 同步等待全部必需结果，重叠写入转为串行。
 - 日常开发统一从用户请求直接进入 `$desktop-implement-change`。除必要 ADR、Changelog 等事件触发记录和本次开发所需单元/回归测试外，不因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加 `$desktop-plan-change`、Work Plan、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
 - 已初始化下游的每次工作先由 `$desktop-manage-version` 分类。完成的首个新功能在同一正式发布周期只把 Minor 提升一次并把 Patch 归零；每个新稳定缺陷 ID 的已完成修复提升一次 Patch；Major 只按用户批准的精确值提升并把 Minor/Patch 归零。查询、诊断、复现、重复或未完成修复尝试、不改变可观察行为的纯重构、测试补强、文档、格式和内部清理不提升；改变可观察行为的重构按其实际结果归类为功能或缺陷修复。三个分量都只允许 `0..100`，溢出不进位；只有正式发布成功才重置功能周期，普通构建、候选或失败发布不得重置。根 `Cargo.toml` 是当前版本唯一事实源，`.harness/version-state.json` 是受保护的周期/去重状态，禁止手工绕过。
@@ -70,6 +72,7 @@
 - Cargo 根 `[workspace.dependencies]` 是 member 依赖版本、来源、内部路径和基线 feature 的唯一来源；所有子 crate 的生产、开发和构建依赖只使用 `workspace = true`。
 - `$desktop-instantiate-project` 必须先要求用户提供完整目标项目目录路径；解析后的目录 basename 必须与项目标识一致，且目标必须不存在或为空。复制后该目录是初始化、代码修改、构建、验收和发布准备的唯一项目根目录。
 - `$desktop-instantiate-project` 必须在目标根创建独立 Git 仓库并验证 top-level 精确等于项目根，初始分支为 `main`；目标位于父仓库内时也必须建立自己的边界。不得复制源 `.git`。Scaffold 验证和初始化能力裁剪完成后，必须使用用户现有 Git 身份创建唯一的本地初始化基线 commit，并验证无 remote 且 `git status --porcelain=v1 --untracked-files=all` 为空；不得 tag、配置 remote、push、伪造身份或修改全局 Git 配置。直接调用 `$desktop-initialize-rust-project` 时必须补建缺失边界并执行同一收尾门禁。
+- 下游唯一初始化基线提交前必须保留 `$desktop-configure-git-commits`，运行其 `install` 与 `check`，确认模板位于当前仓库 Git 元数据且 `commit.template`、`commit.cleanup`、`commit.verbose`、`core.commentChar` 均为仓库本地受管值；失败或冲突阻断初始化，不得通过全局配置绕过。
 - 实例化不得迁移或预创建 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 或 `docs/verification/`。它们只在各自事件触发条件满足时按需创建；不得为了形式完整预建空记忆。
 - 下游项目标识统一使用跨平台安全的 ASCII `snake_case`；core 与四类接口目录确定性派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`，不得另行配置。
 - 下游 Rust 首次初始化必须在当前项目根目录创建 workspace `Cargo.toml`，登记 core 与用户实际选择的 adapter members，并持续纳管未来新增 crate；不得在其他目录创建替代 workspace。
@@ -126,6 +129,7 @@
 - 新项目、需求模糊或产品目标/边界/成功标准变化：使用 `$desktop-define-product`；范围清楚的日常变更跳过。
 - 用户明确要求持久计划、跨会话交接或发布/高风险协调确有必要：使用 `$desktop-plan-change`；日常开发不自动调用。
 - 范围清楚的直接请求或已有计划需要实施：使用 `$desktop-implement-change`。
+- 新仓库初始化、提交模板安装/检查、提交消息编写或复核：使用 `$desktop-configure-git-commits`；配置模式只修改当前独立仓库的 Git 元数据与本地设置。
 - 行为保持的结构性清理（单文件行数、文件组织结构、命名、常量提取、潜在性能与死锁风险、core-first 归属）：使用 `$desktop-refactor-code`。
 - 已选 GUI 适配器中出现硬编码用户可见文案需要迁移为 i18n 翻译键：使用 `$desktop-extract-i18n-strings`；不触碰共享 core。
 - 用户明确要求并行、项目策略允许且至少两个写入单元可安全独立：使用 `$desktop-run-parallel-worktrees`。
@@ -163,6 +167,7 @@
 | CLI 机器接口（仅选择 CLI 时） | `docs/CLI_CONTRACT.md` |
 | 持久实施与完整验收证据（按需） | `docs/work_plan/README.md`、日期最新的 `YYYYMMDD_work_plan.md`、`docs/VERIFICATION.md` |
 | 左侧 Task 命名、独立 Worktree/分支、提交、整合与清理 | `docs/AGENT_POLICY.md`；Task 内部显式并行另由 `$desktop-run-parallel-worktrees` 管理 |
+| Git 提交模板、消息结构与仓库本地设置 | `$desktop-configure-git-commits`；规范正文位于其 `references/commit-convention.md` |
 | 产品边界变化、长期决定与不可逆取舍 | `docs/adr/README.md` 与最新日期 ADR |
 | Harness 自身记忆历史治理 | `$desktop-curate-harness-memory`；仅 Harness 根目录可用，把过期 ADR/Changelog 条目原文迁移到同目录 `ADR_history.md`/`CHANGELOG_history.md` 永久追加保存，不随下游派生，不适用 Work Plan/Product Status/Product Spec |
 | 开发环境 | `$desktop-check-development-environment` |

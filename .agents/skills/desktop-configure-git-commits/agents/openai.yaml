@@ -1,0 +1,4 @@
+interface:
+  display_name: "配置 Git 提交规范"
+  short_description: "为独立仓库安装并检查可追溯的 Git 提交消息模板"
+  default_prompt: "使用 $desktop-configure-git-commits 为当前仓库配置并检查有意义的 Git 提交模板。"
