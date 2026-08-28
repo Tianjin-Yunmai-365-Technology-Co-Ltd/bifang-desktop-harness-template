@@ -595,10 +595,18 @@ describe("shared brand support templates", () => {
     const releases = Array.from({ length: 6 }, (_, releaseIndex) => {
       const sequence = 6 - releaseIndex;
       return {
-        bugFixes: [`版本 ${sequence} 修复`],
+        bugFixes: [
+          {
+            "en-US": `Version ${sequence} fix`,
+            "zh-CN": `版本 ${sequence} 修复`,
+          },
+        ],
         featureOptimizations: Array.from(
           { length: 11 },
-          (_, itemIndex) => `版本 ${sequence} 优化 ${itemIndex + 1}`,
+          (_, itemIndex) => ({
+            "en-US": `Version ${sequence} improvement ${itemIndex + 1}`,
+            "zh-CN": `版本 ${sequence} 优化 ${itemIndex + 1}`,
+          }),
         ),
         releaseDate: `2026-08-${20 + sequence}`,
         version: sequence === 6 ? `v1.0.${sequence}` : `1.0.${sequence}`,
@@ -639,11 +647,52 @@ describe("shared brand support templates", () => {
     expect(screen.queryByText(/vv1\.0\.6/)).not.toBeInTheDocument();
   });
 
+  /** 英文界面必须选择同一发布事实的 en-US 文案与英文标题。 */
+  it("selects English release-note translations from the active locale", async () => {
+    const releases = [
+      {
+        bugFixes: [{ "en-US": "Fix startup", "zh-CN": "修复启动问题" }],
+        featureOptimizations: [
+          { "en-US": "Add export", "zh-CN": "新增导出能力" },
+        ],
+        releaseDate: "2026-08-28",
+        version: "1.2.3",
+      },
+    ];
+    await renderTemplate(
+      <AboutPageTemplate
+        onCheckForUpdates={vi.fn()}
+        productName="Example Utility"
+        releaseNotesLoader={async () => releases}
+        update={{ currentVersion: "1.2.3", status: "idle" }}
+        version="1.2.3"
+      />,
+      "en-US",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Release notes" }));
+    expect(
+      await screen.findByText(
+        "-----------Release notes 2026-08-28 v1.2.3----------",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("###Feature optimizations")).toBeInTheDocument();
+    expect(screen.getByText("###Bug fixes")).toBeInTheDocument();
+    expect(screen.getByText("Add export")).toBeInTheDocument();
+    expect(screen.getByText("Fix startup")).toBeInTheDocument();
+    expect(screen.queryByText("新增导出能力")).not.toBeInTheDocument();
+  });
+
   /** 候选资源读取失败时展示本地错误，并允许用户从按钮自身重试。 */
   it("shows a bounded release notes load failure and retries from its own control", async () => {
     const releases = [
       {
-        bugFixes: ["修复候选资源读取"],
+        bugFixes: [
+          {
+            "en-US": "Fix bundled resource loading",
+            "zh-CN": "修复候选资源读取",
+          },
+        ],
         featureOptimizations: [],
         releaseDate: "2026-08-27",
         version: "v1.0.7",

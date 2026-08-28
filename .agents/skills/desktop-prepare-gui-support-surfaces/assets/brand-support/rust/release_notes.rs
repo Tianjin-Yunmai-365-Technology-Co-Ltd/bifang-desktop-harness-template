@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{Manager, path::BaseDirectory};
 
 const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json";
-const RELEASE_NOTES_SCHEMA_VERSION: u8 = 1;
+const RELEASE_NOTES_SCHEMA_VERSION: u8 = 2;
 const MAX_RELEASE_NOTE_VERSIONS: usize = 5;
 const MAX_RELEASE_NOTE_ITEMS: usize = 10;
 const MAX_RELEASE_NOTES_BYTES: u64 = 1024 * 1024;
@@ -17,14 +17,24 @@ pub struct ReleaseNotesDocument {
     releases: Vec<ReleaseNoteEntry>,
 }
 
-/// 表示一个正式发布版本的两类用户可见更新。
+/// 表示一个正式发布版本的两类双语用户可见更新。
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ReleaseNoteEntry {
     release_date: String,
     version: String,
-    feature_optimizations: Vec<String>,
-    bug_fixes: Vec<String>,
+    feature_optimizations: Vec<LocalizedReleaseNoteItem>,
+    bug_fixes: Vec<LocalizedReleaseNoteItem>,
+}
+
+/// 把一个发布事实的中英文文案绑定为不可拆分的翻译对。
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LocalizedReleaseNoteItem {
+    #[serde(rename = "zh-CN")]
+    zh_cn: String,
+    #[serde(rename = "en-US")]
+    en_us: String,
 }
 
 /// 向前端暴露稳定、无本机路径细节的资源读取失败类型。
@@ -101,12 +111,18 @@ fn validate_release_notes(document: &ReleaseNotesDocument) -> Result<(), Release
     Ok(())
 }
 
-/// 要求条目没有空白包围、空值或同分类重复内容。
-fn has_unique_non_empty_items(items: &[String]) -> bool {
-    let mut unique = HashSet::new();
-    items
-        .iter()
-        .all(|item| !item.is_empty() && item.trim() == item && unique.insert(item.as_str()))
+/// 要求每个翻译对非空、没有空白包围且同分类逐语言去重。
+fn has_unique_non_empty_items(items: &[LocalizedReleaseNoteItem]) -> bool {
+    let mut unique_zh_cn = HashSet::new();
+    let mut unique_en_us = HashSet::new();
+    items.iter().all(|item| {
+        !item.zh_cn.is_empty()
+            && item.zh_cn.trim() == item.zh_cn
+            && unique_zh_cn.insert(item.zh_cn.as_str())
+            && !item.en_us.is_empty()
+            && item.en_us.trim() == item.en_us
+            && unique_en_us.insert(item.en_us.as_str())
+    })
 }
 
 /// 接受带且只带一个小写 v 的 SemVer 或 Harness 十二位时间版本。
@@ -168,17 +184,19 @@ fn is_valid_release_date(value: &str) -> bool {
 mod tests {
     use super::*;
 
-    /// 真实 schema 能被解析，并保持原始两类发布内容。
+    /// 真实 schema 能被解析，并保持两类发布内容中的中英文翻译对。
     #[test]
     fn parses_valid_release_notes_resource() {
         let document = parse_release_notes(
             r#"{
-                "schemaVersion": 1,
+                "schemaVersion": 2,
                 "releases": [
                     {
                         "releaseDate": "2026-08-27",
                         "version": "v1.2.3",
-                        "featureOptimizations": ["新增候选内更新日志"],
+                        "featureOptimizations": [
+                            {"zh-CN": "新增候选内更新日志", "en-US": "Add bundled release notes"}
+                        ],
                         "bugFixes": []
                     }
                 ]
@@ -195,8 +213,9 @@ mod tests {
     #[test]
     fn rejects_invalid_release_notes_resource() {
         for invalid in [
-            r#"{"schemaVersion":1,"releases":[],"extra":true}"#.as_bytes(),
-            br#"{"schemaVersion":1,"releases":[{"releaseDate":"2026-08-27","version":"vv1.2.3","featureOptimizations":["duplicate","duplicate"],"bugFixes":[]}]}"#.as_slice(),
+            r#"{"schemaVersion":2,"releases":[],"extra":true}"#.as_bytes(),
+            br#"{"schemaVersion":2,"releases":[{"releaseDate":"2026-08-27","version":"vv1.2.3","featureOptimizations":[{"zh-CN":"重复","en-US":"duplicate"},{"zh-CN":"重复","en-US":"duplicate"}],"bugFixes":[]}]}"#.as_slice(),
+            br#"{"schemaVersion":2,"releases":[{"releaseDate":"2026-08-27","version":"v1.2.3","featureOptimizations":[{"zh-CN":"缺少英文"}],"bugFixes":[]}]}"#.as_slice(),
         ] {
             assert!(matches!(
                 parse_release_notes(invalid),
@@ -211,10 +230,10 @@ mod tests {
         assert!(!is_valid_release_date("2026-02-29"));
         assert!(is_valid_release_date("2028-02-29"));
         let invalid = br#"{
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "releases": [
-                {"releaseDate":"2026-08-26","version":"v1.0.1","featureOptimizations":["one"],"bugFixes":[]},
-                {"releaseDate":"2026-08-27","version":"v1.0.0","featureOptimizations":["two"],"bugFixes":[]}
+                {"releaseDate":"2026-08-26","version":"v1.0.1","featureOptimizations":[{"zh-CN":"一","en-US":"one"}],"bugFixes":[]},
+                {"releaseDate":"2026-08-27","version":"v1.0.0","featureOptimizations":[{"zh-CN":"二","en-US":"two"}],"bugFixes":[]}
             ]
         }"#;
         assert!(matches!(

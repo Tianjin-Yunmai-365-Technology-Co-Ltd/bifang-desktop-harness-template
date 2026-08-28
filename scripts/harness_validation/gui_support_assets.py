@@ -76,9 +76,16 @@ EXPECTED_LOCAL_UI_COPY = {
 }
 
 EXPECTED_RELEASE_NOTES_COPY = {
-    "entry_title": "-----------更新日志 {{date}} {{version}}----------",
-    "feature_optimizations": "###功能优化",
-    "bug_fixes": "###问题修复",
+    "zh-CN": {
+        "entry_title": "-----------更新日志 {{date}} {{version}}----------",
+        "feature_optimizations": "###功能优化",
+        "bug_fixes": "###问题修复",
+    },
+    "en-US": {
+        "entry_title": "-----------Release notes {{date}} {{version}}----------",
+        "feature_optimizations": "###Feature optimizations",
+        "bug_fixes": "###Bug fixes",
+    },
 }
 
 EXPECTED_FIXED_UI_KEYS = {
@@ -350,7 +357,7 @@ def validate_brand_translations(
         release_notes = value.get("release_notes")
         if not isinstance(release_notes, dict) or any(
             release_notes.get(key) != expected
-            for key, expected in EXPECTED_RELEASE_NOTES_COPY.items()
+            for key, expected in EXPECTED_RELEASE_NOTES_COPY[locale].items()
         ):
             fail(errors, f"brand release-note fixed format drifted: {display_path(path)}")
         if not isinstance(sponsor, dict):

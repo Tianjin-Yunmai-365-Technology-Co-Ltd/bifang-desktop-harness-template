@@ -26,7 +26,7 @@ import {
   type BrandSupportContact,
 } from "./brandSupportProfile";
 import { formatDisplayVersion } from "./displayVersion";
-import type { ReleaseNoteEntry } from "./releaseNotes";
+import type { LocalizedReleaseNoteEntry } from "./releaseNotes";
 import { loadBundledReleaseNotes } from "./releaseNotesResource";
 import { ReleaseNotesDialogTemplate } from "./ReleaseNotesDialogTemplate";
 import type { UpdatePresentation } from "./updatePresentation";
@@ -47,7 +47,7 @@ export interface AboutPageTemplateProps {
   actions?: ReactNode;
   contact?: BrandSupportContact;
   update: UpdatePresentation;
-  releaseNotesLoader?: () => Promise<readonly ReleaseNoteEntry[]>;
+  releaseNotesLoader?: () => Promise<readonly LocalizedReleaseNoteEntry[]>;
   onCheckForUpdates: () => void;
 }
 
@@ -65,9 +65,9 @@ export function AboutPageTemplate({
 }: AboutPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const [releaseNotesOpened, setReleaseNotesOpened] = useState(false);
-  const [releaseNotes, setReleaseNotes] = useState<readonly ReleaseNoteEntry[]>(
-    [],
-  );
+  const [releaseNotes, setReleaseNotes] = useState<
+    readonly LocalizedReleaseNoteEntry[]
+  >([]);
   const [releaseNotesStatus, setReleaseNotesStatus] = useState<
     "idle" | "loading" | "ready" | "error"
   >("idle");

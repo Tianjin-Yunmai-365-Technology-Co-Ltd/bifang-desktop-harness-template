@@ -25,7 +25,7 @@ class VerifyReleaseNotesResourceTests(unittest.TestCase):
         (self.gui_root / "Cargo.toml").write_text("[package]\n", encoding="utf-8")
         self.source = self.root / "release-notes.json"
         self.source.write_text(
-            '{"schemaVersion":1,"releases":[]}\n', encoding="utf-8"
+            '{"schemaVersion":2,"releases":[]}\n', encoding="utf-8"
         )
         self.config_path.write_text(
             json.dumps(
@@ -123,7 +123,7 @@ class VerifyReleaseNotesResourceTests(unittest.TestCase):
         """候选资源即使是合法 JSON，只要字节不同也不能通过。"""
 
         bundled = self.root / "bundled.json"
-        bundled.write_text('{"schemaVersion":1,"releases":[]} ', encoding="utf-8")
+        bundled.write_text('{"schemaVersion":2,"releases":[]} ', encoding="utf-8")
         with self.assertRaisesRegex(
             verifier.ResourceVerificationError, "do not match"
         ):

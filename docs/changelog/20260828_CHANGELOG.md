@@ -2,7 +2,9 @@
 
 ## 新增
 
-- `HARNESS-FEAT-BATCHED-BASE-INITIALIZATION-FORM`（所需 Harness 版本 `202608281139`）：新下游创建在任何写入、环境安装或 Git 初始化前，首轮一次列出尚未解析的展示名、标识、路径、负责人、目标平台、接口组合和 Agent 策略模式；已有合法输入直接复用。基础字段完成后，才按自定义策略或 GUI 选择每轮补全一个条件字段，最终仍以包含唯一项目根目录的完整汇总确认。
+- `HARNESS-FEAT-BILINGUAL-INITIALIZATION-AND-RELEASE-NOTES`（所需 Harness 版本 `202608281139`）：初始化现在把中文与英文项目展示名作为独立基础字段，至少由用户直接提供一个；缺少的另一语言由 Agent 自动翻译、标记来源，并随首次写入前的完整汇总统一确认。身份改名脚本接受双语映射，中文/英文许可证分别使用对应名称，README 同时列出两者。
+- 发布日志升级为 `schemaVersion: 2`：每个功能优化/问题修复条目绑定非空 `zh-CN` 与 `en-US` 文案，配对缺失或数量不等失败关闭。发布准备分别渲染中文和英文；关于页由 Rust/React 双层校验并跟随当前 i18n locale 选择标题与正文，未知语言回退英文。
+- `HARNESS-FEAT-BATCHED-BASE-INITIALIZATION-FORM`（所需 Harness 版本 `202608281139`）：新下游创建在任何写入、环境安装或 Git 初始化前，首轮一次列出尚未解析的中英文展示名、标识、路径、负责人、目标平台、接口组合和 Agent 策略模式；已有合法输入直接复用。基础字段完成后，才按自定义策略或 GUI 选择每轮补全一个条件字段，最终仍以包含两个名称及来源和唯一项目根目录的完整汇总确认。
 - 项目路径既可填写最终根也可填写父目录：规范化末级与 ASCII `snake_case` 项目标识精确一致时直接使用，否则无论名称是否相似都固定追加项目标识。标准库只读 helper 与 10 项路径回归证明非空父目录可用，同时拒绝非空最终根、文件、符号链接、Harness 根/祖先和非法标识；表单阶段列、两个初始化 Skill、README、AGENTS、Product Spec 与 Harness validator 已同步锁定。
 - `HARNESS-FEAT-MEANINGFUL-GIT-COMMITS`（所需 Harness 版本 `202608051301`）：新增 `$desktop-configure-git-commits`，把 Conventional Commit 主题与 Why/Changes/Impact/Test 正文、原子提交边界、真实测试记录和提交前检查整理为独立 Skill；简单明确的变化仍可只写主题，不为形式制造空洞正文。
 - 新 Skill 使用标准库脚本把注释模板安装到当前仓库 Git common dir，并只管理本地 `commit.template`、`commit.cleanup=strip`、`commit.verbose=true` 与 `core.commentChar=#`。冲突默认失败，明确批准后才允许 `--replace`；Harness 当前仓库已实际执行 install/check，新下游初始化则在唯一基线提交前执行，不修改用户全局 Git 配置。
@@ -15,7 +17,7 @@
 - `HARNESS-FEAT-GUI-INITIALIZATION-CAPABILITY-SELECTION`（所需 Harness 版本 `202608051301`）：GUI 接口选择后新增专门问询，分别记录系统托盘、关于页、赞助页、单实例的启用/禁用和侧栏精简/详细模式。四项能力继续要求明确选择；用户未选择侧栏模式时，初始化器在写 profile 前确定性写入 `sidebar_mode = detailed`，显式非法值不会被当作缺省。profile 驱动依赖、生命周期、路由、导航和运行时资源；启用能力继续使用原有硬门禁，禁用能力必须无残留。
 - 详细侧栏既是未选择侧栏模式时的初始化缺省值，也保持默认展开、图标+名称、自身折叠按钮、`248px`/`76px` 两态和独立设备级持久化；折叠后只显示图标并使用 Mantine Tooltip 显示名称。精简侧栏由用户显式选择并采用当前 80px 标准，不提供折叠按钮。
 - `HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY`（所需 Harness 版本 `202608051301`）：新增标准库 `release_notes.py` 和受保护的根 `release-notes.json` 发布契约。发布准备会从上一次真实发布提交到当前源码整理最重要的功能优化/问题修复，每类至多 10 条并只保留近 5 版；构建只读校验并把同一日志打入候选，manifest 绑定带 `v` 版本、SHA-256 和包内路径。
-- 选择 GUI 关于页时，在“检查更新”旁新增自身绑定的“更新日志”按钮和本地弹窗模板，按固定中文结构展示近 5 版、每类至多 10 条；远程更新未配置时只禁用检查按钮，本地日志仍可查看。未选关于页不建立隐藏入口。
+- 选择 GUI 关于页时，在“检查更新”旁新增自身绑定的“更新日志”按钮和本地弹窗模板，按当前 i18n locale 展示近 5 版双语日志、每类至多 10 个翻译对；远程更新未配置时只禁用检查按钮，本地日志仍可查看。未选关于页不建立隐藏入口。
 - `HARNESS-FEAT-DOWNSTREAM-AUTO-VERSIONING`（所需 Harness 版本 `202608051301`）：新增 `$desktop-manage-version` 与标准库版本 helper。下游现在会在每个正式发布周期的首个已完成功能自动升一次 Minor 并归零 Patch，每个新稳定缺陷 ID 的已完成修复升一次 Patch，重复缺陷幂等，Major 只接受用户批准；查询、诊断、复现、重构等维护不升版本，分量 `0..100` 溢出失败关闭。
 - 下游初始化现在创建受保护的 `.harness/version-state.json`，开发在相关测试通过后才提交版本；Rust/Tauri 构建、跨平台候选、产物收集、验收和发布准备只校验当前目标，只有真实正式发布成功才重置首功能周期。升级器可更新版本 Skill 工程资产，但不得覆盖 Cargo 产品版本、发布周期或缺陷 ID 历史。
 - 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 profile-aware 专项回归：在 GUI 构建前解析五项初始化配置，对启用的单实例/托盘验证原有依赖、首插件、图标、菜单、关闭处理、i18n 与命名回归，对禁用能力验证相关实现缺席，并要求托盘禁用时存在 `close_last_window_exits_application`。非法、缺失或 `pending` 配置及路径/源码/资产异常均失败关闭。
@@ -77,6 +79,8 @@
 
 ## 验证
 
+- 本次双语初始化与更新日志变更运行 `python3 -B -m unittest discover -s scripts`，212 条 Harness 测试全部通过；`python3 -B scripts/validate_harness.py` 通过 168 个必需文件、28 个 Skills 和双语名称/发布日志 schema v2 契约，产生 9 条未达硬上限的非阻断行数复核提示；`git diff --check` 通过。
+- 身份改名专项 4/4、发布日志 helper 专项 6/6、Tauri 发布日志/DMG 字节夹具专项 13/13、GUI 初始化结构/生命周期专项 43/43 均通过。Harness 根没有可执行前端包或下游 Rust workspace，因此 React Vitest、Rust 编译、真实 GUI/Computer Use、候选构建与 E2E 均未运行，也未据此声明最终产物或发布就绪。
 - 本次首轮基础表单、条件补全与旧交互拒绝的初始化/入口专项 15 条回归通过；`python3 -B -m unittest discover -s scripts` 共 211 条测试全部通过。`python3 -B scripts/validate_harness.py` 通过 168 个必需文件、28 个 Skills、初始化阶段顺序和直接初始化复用契约，产生 8 条未达硬上限的非阻断行数复核提示；`$desktop-instantiate-project` 与 `$desktop-initialize-rust-project` 均通过 Skill Creator quick validator（2/2）。
 - `$desktop-configure-git-commits` 在 6 个隔离临时仓库场景中通过安装、重复幂等、冲突无写入、明确替换、模板篡改拒绝和父仓库子目录拒绝回归；Skill Creator quick validator 通过。Harness 当前仓库的实际 install/check 返回 `status: ok`，四项配置均来自 `git config --local`，没有替换既有冲突值。
 - 当前最终状态运行 `python3 -B -m unittest discover -s scripts`，206 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 165 个必需文件、28 个 Skills、初始化保留/裁剪和提交模板本地配置契约，产生 8 条未达硬上限的非阻断行数复核提示。

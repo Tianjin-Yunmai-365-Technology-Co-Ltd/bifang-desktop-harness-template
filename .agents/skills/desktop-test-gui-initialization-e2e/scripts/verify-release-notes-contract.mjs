@@ -54,6 +54,8 @@ export function validateReleaseNotesRuntimeContract(
     "tokio::fs::symlink_metadata",
     "tokio::fs::read",
     "serde_json::from_slice",
+    "RELEASE_NOTES_SCHEMA_VERSION: u8 = 2",
+    "LocalizedReleaseNoteItem",
     "ReleaseNotesDocument",
     "ReleaseNotesLoadError",
     "generate_handler![load_release_notes]",
@@ -62,6 +64,9 @@ export function validateReleaseNotesRuntimeContract(
     'LOAD_RELEASE_NOTES_COMMAND = "load_release_notes"',
     "invoke<unknown>(command)",
     "decodeReleaseNotesDocument",
+    "value.schemaVersion !== 2",
+    "resolveReleaseNotesLocale",
+    "i18n.resolvedLanguage",
     "loadBundledReleaseNotes",
     "releaseNotesLoader = loadBundledReleaseNotes",
     "requestReleaseNotes",
@@ -76,6 +81,7 @@ export function validateReleaseNotesRuntimeContract(
   const frontendTests = [
     "loads the packaged document through the narrow Tauri command",
     "shows a bounded release notes load failure and retries from its own control",
+    "selects English release-note translations from the active locale",
   ];
 
   const combinedText = `${rustSourceText}\n${frontendSourceText}`;

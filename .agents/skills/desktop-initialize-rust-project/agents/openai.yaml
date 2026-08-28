@@ -1,4 +1,4 @@
 interface:
   display_name: "初始化 Rust 项目"
   short_description: "建立可选择 GUI 生命周期、支持页与侧栏模式的中性 Rust 基线"
-  default_prompt: "使用 $desktop-initialize-rust-project，首轮一并询问尚未解析的接口组合与 Agent 策略模式，再按需逐项补全自定义策略或 GUI 条件配置，建立 core-first、薄 adapter 的中性 Rust 脚手架；GUI 侧栏未选时写入 detailed，生成并选择 3 个 Logo，按最终 profile 完成结构检查和适用的真实宿主 E2E，再裁剪初始化能力。"
+  default_prompt: "使用 $desktop-initialize-rust-project，首轮一并询问尚未解析的中英文名称、接口组合与 Agent 策略模式；若只提供一种语言则自动翻译另一种并在汇总中确认。随后按需逐项补全自定义策略或 GUI 条件配置，建立 core-first、薄 adapter 的中性 Rust 脚手架；GUI 侧栏未选时写入 detailed，生成并选择 3 个 Logo，按最终 profile 完成结构检查和适用的真实宿主 E2E，再裁剪初始化能力。"

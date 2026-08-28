@@ -9,13 +9,18 @@ import {
 const VALID_DOCUMENT = {
   releases: [
     {
-      bugFixes: ["修复资源展示"],
-      featureOptimizations: ["新增候选内更新日志"],
+      bugFixes: [{ "en-US": "Fix resource display", "zh-CN": "修复资源展示" }],
+      featureOptimizations: [
+        {
+          "en-US": "Add bundled release notes",
+          "zh-CN": "新增候选内更新日志",
+        },
+      ],
       releaseDate: "2026-08-27",
       version: "v1.2.3",
     },
   ],
-  schemaVersion: 1,
+  schemaVersion: 2,
 };
 
 describe("bundled release notes resource", () => {
@@ -46,6 +51,17 @@ describe("bundled release notes resource", () => {
         ],
       }),
     ).toThrow("invalid release notes entry");
+    expect(() =>
+      decodeReleaseNotesDocument({
+        ...VALID_DOCUMENT,
+        releases: [
+          {
+            ...VALID_DOCUMENT.releases[0],
+            featureOptimizations: [{ "zh-CN": "缺少英文翻译" }],
+          },
+        ],
+      }),
+    ).toThrow("invalid release notes featureOptimizations item");
   });
 
   /** 版本日期必须最新在前，不能依赖页面裁剪掩盖资源顺序错误。 */
@@ -60,7 +76,7 @@ describe("bundled release notes resource", () => {
             version: "v1.2.2",
           },
         ],
-        schemaVersion: 1,
+        schemaVersion: 2,
       }),
     ).toThrow("invalid release notes entry");
   });

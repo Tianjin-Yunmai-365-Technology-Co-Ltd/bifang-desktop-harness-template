@@ -167,7 +167,7 @@ export function DetailedAppShell() {
     `
 import { invoke } from "@tauri-apps/api/core";
 export const LOAD_RELEASE_NOTES_COMMAND = "load_release_notes";
-export function decodeReleaseNotesDocument(value) { return value; }
+export function decodeReleaseNotesDocument(value) { if (value.schemaVersion !== 2) throw new Error("invalid"); return value; } export function resolveReleaseNotesLocale(language) { return language?.startsWith("zh") ? "zh-CN" : "en-US"; }
 export async function loadBundledReleaseNotes() {
   return decodeReleaseNotesDocument(await invoke<unknown>(command));
 }
@@ -178,7 +178,7 @@ export async function loadBundledReleaseNotes() {
     `
 import { loadBundledReleaseNotes } from "./releaseNotesResource";
 export function AboutPageTemplate({ releaseNotesLoader = loadBundledReleaseNotes }) {
-  const requestReleaseNotes = () => releaseNotesLoader();
+  const i18n = { resolvedLanguage: "en-US" }; resolveReleaseNotesLocale(i18n.resolvedLanguage); const requestReleaseNotes = () => releaseNotesLoader(); // selects English release-note translations from the active locale
   const releaseNotesStatus = "idle";
   return <Dialog status={releaseNotesStatus}>{t("release_notes.load_failed")}{t("release_notes.retry")}</Dialog>;
 }
@@ -295,9 +295,9 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 
 const SHOW_WINDOW_ID: &str = "show_window";
 const QUIT_ID: &str = "quit";
-const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json";
+const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json"; const RELEASE_NOTES_SCHEMA_VERSION: u8 = 2;
 
-struct ReleaseNotesDocument;
+struct ReleaseNotesDocument; struct LocalizedReleaseNoteItem;
 enum ReleaseNotesLoadError { Invalid }
 
 #[tauri::command]

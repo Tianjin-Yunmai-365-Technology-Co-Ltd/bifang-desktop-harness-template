@@ -32,21 +32,29 @@ class ReleaseNotesTests(unittest.TestCase):
             self.path,
             release_date=f"2026-08-{day:02d}",
             version=version,
-            feature_optimizations=[f"优化 {version}"],
-            bug_fixes=[f"修复 {version}"],
+            feature_optimizations_zh_cn=[f"优化 {version}"],
+            feature_optimizations_en_us=[f"Improve {version}"],
+            bug_fixes_zh_cn=[f"修复 {version}"],
+            bug_fixes_en_us=[f"Fix {version}"],
         )
 
     def test_upsert_normalizes_version_and_renders_exact_sections(self) -> None:
-        """原始或多重 v 前缀只显示一个 v，并保留固定中文结构。"""
+        """原始或多重 v 前缀只显示一个 v，并按 locale 渲染双语结构。"""
 
         self._upsert("vv1.2.3", 26)
         document = release_notes.load_document(self.path)
         self.assertEqual(document["releases"][0]["version"], "v1.2.3")
         self.assertEqual(
-            release_notes.render_document(document),
+            release_notes.render_document(document, "zh-CN"),
             "-----------更新日志 2026-08-26 v1.2.3----------\n\n"
             "###功能优化\n\n- 优化 vv1.2.3\n\n"
             "###问题修复\n\n- 修复 vv1.2.3",
+        )
+        self.assertEqual(
+            release_notes.render_document(document, "en-US"),
+            "-----------Release notes 2026-08-26 v1.2.3----------\n\n"
+            "###Feature optimizations\n\n- Improve vv1.2.3\n\n"
+            "###Bug fixes\n\n- Fix vv1.2.3",
         )
 
     def test_upsert_replaces_same_version_and_retains_latest_five(self) -> None:
@@ -65,13 +73,16 @@ class ReleaseNotesTests(unittest.TestCase):
             self.path,
             release_date="2026-08-26",
             version="v1.0.6",
-            feature_optimizations=["替换后的优化"],
-            bug_fixes=[],
+            feature_optimizations_zh_cn=["替换后的优化"],
+            feature_optimizations_en_us=["Replacement improvement"],
+            bug_fixes_zh_cn=[],
+            bug_fixes_en_us=[],
         )
         replaced = release_notes.load_document(self.path)
         self.assertEqual(len(replaced["releases"]), 5)
         self.assertEqual(
-            replaced["releases"][0]["featureOptimizations"], ["替换后的优化"]
+            replaced["releases"][0]["featureOptimizations"],
+            [{"zh-CN": "替换后的优化", "en-US": "Replacement improvement"}],
         )
 
     def test_rejects_more_than_ten_items_and_empty_release(self) -> None:
@@ -82,23 +93,44 @@ class ReleaseNotesTests(unittest.TestCase):
                 self.path,
                 release_date="2026-08-26",
                 version="1.2.3",
-                feature_optimizations=[str(index) for index in range(11)],
-                bug_fixes=[],
+                feature_optimizations_zh_cn=[str(index) for index in range(11)],
+                feature_optimizations_en_us=[f"item {index}" for index in range(11)],
+                bug_fixes_zh_cn=[],
+                bug_fixes_en_us=[],
             )
         with self.assertRaisesRegex(release_notes.ReleaseNotesError, "actual change"):
             release_notes.upsert_release(
                 self.path,
                 release_date="2026-08-26",
                 version="1.2.3",
-                feature_optimizations=[],
-                bug_fixes=[],
+                feature_optimizations_zh_cn=[],
+                feature_optimizations_en_us=[],
+                bug_fixes_zh_cn=[],
+                bug_fixes_en_us=[],
             )
+
+    def test_rejects_missing_translation_or_unknown_locale(self) -> None:
+        """任一语言缺项及不受支持的渲染语言都必须失败关闭。"""
+
+        with self.assertRaisesRegex(release_notes.ReleaseNotesError, "same number"):
+            release_notes.upsert_release(
+                self.path,
+                release_date="2026-08-26",
+                version="1.2.3",
+                feature_optimizations_zh_cn=["新增能力"],
+                feature_optimizations_en_us=[],
+                bug_fixes_zh_cn=[],
+                bug_fixes_en_us=[],
+            )
+        document = self._upsert("1.2.3", 26)
+        with self.assertRaisesRegex(release_notes.ReleaseNotesError, "locale must be"):
+            release_notes.render_document(document, "fr-FR")
 
     def test_rejects_malformed_document_and_wrong_latest_version(self) -> None:
         """未知字段和与当前候选不一致的最新版都不能通过检查。"""
 
         self.path.write_text(
-            json.dumps({"schemaVersion": 1, "releases": [], "extra": True}),
+            json.dumps({"schemaVersion": 2, "releases": [], "extra": True}),
             encoding="utf-8",
         )
         with self.assertRaisesRegex(release_notes.ReleaseNotesError, "root keys"):
@@ -123,7 +155,7 @@ class ReleaseNotesTests(unittest.TestCase):
         """符号链接目标不得被读取或在原子更新时覆盖。"""
 
         target = self.root / "target.json"
-        target.write_text('{"schemaVersion": 1, "releases": []}\n', encoding="utf-8")
+        target.write_text('{"schemaVersion": 2, "releases": []}\n', encoding="utf-8")
         self.path.symlink_to(target)
         with self.assertRaisesRegex(release_notes.ReleaseNotesError, "regular file"):
             release_notes.load_document(self.path)

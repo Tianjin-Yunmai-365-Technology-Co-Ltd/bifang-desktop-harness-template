@@ -15,20 +15,22 @@ description: 使用仓库声明的版本方案评估并准备可追溯发布。H
 ### 候选前更新日志阶段
 
 3. 在运行候选构建前，要求独立 Git 顶层目录和可解析的当前 `HEAD`。初始化中尚未生成的 `HEAD` 不具备发布比较边界，必须声明 `Not ready`。从正式发布状态、标签及匹配 Verification 中找到上一次真实发布的版本和 40 位源码提交；不得把 `pending`/`accepted` 候选、标签创建尝试或目录修改时间当作正式发布。首个正式发布没有上次提交时，以仓库起点到当前 `HEAD` 为比较范围；如果历史证据冲突或无法界定比较范围，声明 `Not ready` 并停止，绝不猜测。
-4. 审阅上次正式发布提交之后到当前发布源码的真实差异、已完成行为、适用按日 Changelog 和缺陷事实，语义筛选最重要的用户可见内容；不得直接倾倒提交标题、内部重构或构建流水账。当前版本固定使用两类：`功能优化` 不超过 10 条，`问题修复` 不超过 10 条，两类合计至少一条。普通缺陷修复即使按项目记忆规则不触发 Changelog，也必须进入本次发布的“问题修复”。
+4. 审阅上次正式发布提交之后到当前发布源码的真实差异、已完成行为、适用按日 Changelog 和缺陷事实，语义筛选最重要的用户可见内容；不得直接倾倒提交标题、内部重构或构建流水账。当前版本固定使用两类：`功能优化` 不超过 10 个逻辑条目，`问题修复` 不超过 10 个逻辑条目，两类合计至少一条。每个逻辑条目必须同时形成非空 `zh-CN` 和 `en-US` 文案；若只先整理一种语言，Agent 自动翻译另一种，并在写入前并排复核两种语言的事实和语义对应关系，不为翻译另行扩大比较范围。普通缺陷修复即使按项目记忆规则不触发 Changelog，也必须进入本次发布的“问题修复”。
 5. 使用本 Skill 的标准库脚本维护根 `release-notes.json`：
 
    ```text
-   python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py upsert --file release-notes.json --release-date YYYY-MM-DD --version <current-version> [--feature-optimization <text>]... [--bug-fix <text>]...
+   python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py upsert --file release-notes.json --release-date YYYY-MM-DD --version <current-version> [--feature-optimization-zh-cn <text> --feature-optimization-en-us <text>]... [--bug-fix-zh-cn <text> --bug-fix-en-us <text>]...
    python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py check --file release-notes.json --expected-version <current-version>
+   python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py render --file release-notes.json --locale zh-CN
+   python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py render --file release-notes.json --locale en-US
    ```
 
-   脚本必须拒绝符号链接/非普通文件、未知 schema、无效日期/版本、重复版本、空版本条目、任一分类超过 10 条或总版本超过 5 条；同版本替换后置顶，按最新在前原子写入并只保留最近 5 版。用户可见渲染必须保持 `-----------更新日志 {发布日期} {发布版本}----------`、`###功能优化`、`###问题修复`，其中发布版本带一个小写 `v`，空分类显示“无”。
+   脚本必须拒绝符号链接/非普通文件、非 `schemaVersion: 2`、无效日期/版本、重复版本、空版本条目、翻译对缺少 `zh-CN`/`en-US`、任一分类超过 10 条或总版本超过 5 条；配对参数数量不一致也必须失败。脚本把同版本替换后置顶，按最新在前原子写入并只保留最近 5 版。中文渲染保持 `-----------更新日志 {发布日期} {发布版本}----------`、`###功能优化`、`###问题修复` 与“无”；英文渲染保持 `-----------Release notes {release date} {release version}----------`、`###Feature optimizations`、`###Bug fixes` 与“None”；发布版本都带一个小写 `v`。
 6. 若 `release-notes.json` 发生变化，声明 `Not ready`，要求它与当前源码一起形成新提交后再构建；本阶段不得运行测试、构建、验收、签名、创建标签或上传，也不得把尚未形成的候选称为发布就绪。构建 Skill 只读校验并打包该文件，绝不得替发布准备阶段生成或改写它。
 
 ### 就绪复核阶段
 
-7. 要求存在由 `$desktop-verify-delivery` 给出的 `Milestone accepted` 候选；开发证据、一次构建或 `pending` 候选均不充分。要求独立 Git 顶层目录和 `HEAD` 与已验收源码提交匹配，并运行更新日志脚本的只读 `check --expected-version`。此阶段绝不得修改 `release-notes.json`；任何字节变化都使现有候选与验收失效并返回候选前阶段。
+7. 要求存在由 `$desktop-verify-delivery` 给出的 `Milestone accepted` 候选；开发证据、一次构建或 `pending` 候选均不充分。要求独立 Git 顶层目录和 `HEAD` 与已验收源码提交匹配，并运行更新日志脚本的只读 `check --expected-version`，再分别 `render --locale zh-CN` 与 `render --locale en-US` 复核已验收字节中的两种可见版本。此阶段绝不得修改 `release-notes.json`；任何字节变化都使现有候选与验收失效并返回候选前阶段。
 8. 找到已声明的版本事实源，并比较每个含版本信息的位置。Harness 使用根 `Version.md`；下游以根 `Cargo.toml` 为当前版本唯一事实源，以 `.harness/version-state.json` 保存周期/去重状态。下游候选、manifest 机器版本、带 `v` 的 `releaseNotesVersion`、`releaseNotesSha256`、包内 `releaseNotesPath`、软件显示和适用 Changelog 必须一致；GUI 候选始终实际包含同一更新日志，`about_page = enabled` 时关于页必须消费它，disabled 时关于页、入口和组件必须缺席。状态缺失或不一致时停止。
 9. 先判断候选是否包含符合 Changelog 规则的变化。存在时，才把对应日期文件中的有效 `Unreleased` 条目合并到带日期的版本章节；候选仅含普通缺陷修复或纯重构时，不创建、不补写也不汇总 Changelog，并把该门禁记录为 `Not applicable`。`release-notes.json` 每次正式发布都必须存在，不能因 Changelog 不适用而省略。
 10. 要求 `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-collect-release-artifacts` 已针对精确构建标识安全刷新 `<project-root>/release`。验证归档/二进制/安装包、SHA-256、清单、版本、提交、构建、全量单元测试、`e2eSelection`、更新日志版本/摘要/包内路径、`signingStatus`、`signingReason`、结构化 `signingEvidence`、验收结论及适用冒烟/E2E 结果。Tauri GUI 还验证 `bundleFormat`、`runtimeVerification` 和公证字段；macOS 已签名直接分发候选只接受 `notarizationStatus: notarized-and-stapled`，xwin NSIS 只接受 `buildMode: cross-compiled-xwin` 和 `runtimeVerification: Unverified`。拒绝历史、过时、`pending`、`rejected`、外来、含糊或额外文件。目录存在绝不表示已满足发布就绪条件。

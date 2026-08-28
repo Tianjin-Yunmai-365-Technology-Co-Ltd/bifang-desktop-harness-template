@@ -3,15 +3,16 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   MAX_VISIBLE_RELEASE_NOTE_ITEMS,
   MAX_VISIBLE_RELEASE_NOTE_VERSIONS,
-  type ReleaseNoteEntry,
+  type LocalizedReleaseNoteEntry,
+  type LocalizedReleaseNoteItem,
 } from "./releaseNotes";
 
 export const LOAD_RELEASE_NOTES_COMMAND = "load_release_notes";
 
 /** 表示 Tauri 命令返回的固定更新日志文档。 */
 export interface ReleaseNotesDocument {
-  schemaVersion: 1;
-  releases: ReleaseNoteEntry[];
+  schemaVersion: 2;
+  releases: LocalizedReleaseNoteEntry[];
 }
 
 /** 允许测试替换窄命令调用，而不引入通用文件系统权限。 */
@@ -59,18 +60,30 @@ function isDisplayVersion(value: string): boolean {
   return semantic !== null && semantic.slice(1).every((part) => Number(part) <= 100);
 }
 
-/** 收窄单个分类的非空、去重且不超过十条的文字数组。 */
-function decodeItems(value: unknown, field: string): string[] {
+/** 收窄单个分类的完整双语、逐语言去重且不超过十条的翻译对。 */
+function decodeItems(value: unknown, field: string): LocalizedReleaseNoteItem[] {
   if (!Array.isArray(value) || value.length > MAX_VISIBLE_RELEASE_NOTE_ITEMS) {
     throw new Error(`invalid release notes ${field}`);
   }
   const items = value.map((item) => {
-    if (typeof item !== "string" || item.length === 0 || item.trim() !== item) {
+    if (
+      !isRecord(item) ||
+      !hasExactKeys(item, ["en-US", "zh-CN"]) ||
+      typeof item["zh-CN"] !== "string" ||
+      item["zh-CN"].length === 0 ||
+      item["zh-CN"].trim() !== item["zh-CN"] ||
+      typeof item["en-US"] !== "string" ||
+      item["en-US"].length === 0 ||
+      item["en-US"].trim() !== item["en-US"]
+    ) {
       throw new Error(`invalid release notes ${field} item`);
     }
-    return item;
+    return { "en-US": item["en-US"], "zh-CN": item["zh-CN"] };
   });
-  if (new Set(items).size !== items.length) {
+  if (
+    new Set(items.map((item) => item["zh-CN"])).size !== items.length ||
+    new Set(items.map((item) => item["en-US"])).size !== items.length
+  ) {
     throw new Error(`duplicate release notes ${field} item`);
   }
   return items;
@@ -81,7 +94,7 @@ export function decodeReleaseNotesDocument(value: unknown): ReleaseNotesDocument
   if (
     !isRecord(value) ||
     !hasExactKeys(value, ["releases", "schemaVersion"]) ||
-    value.schemaVersion !== 1 ||
+    value.schemaVersion !== 2 ||
     !Array.isArray(value.releases) ||
     value.releases.length === 0 ||
     value.releases.length > MAX_VISIBLE_RELEASE_NOTE_VERSIONS
@@ -91,7 +104,7 @@ export function decodeReleaseNotesDocument(value: unknown): ReleaseNotesDocument
   const versions = new Set<string>();
   let previousDate: string | undefined;
   const releaseValues: unknown[] = value.releases;
-  const releases = releaseValues.map((entry): ReleaseNoteEntry => {
+  const releases = releaseValues.map((entry): LocalizedReleaseNoteEntry => {
     if (
       !isRecord(entry) ||
       !hasExactKeys(entry, [
@@ -126,13 +139,13 @@ export function decodeReleaseNotesDocument(value: unknown): ReleaseNotesDocument
       version: entry.version,
     };
   });
-  return { releases, schemaVersion: 1 };
+  return { releases, schemaVersion: 2 };
 }
 
 /** 通过唯一窄 Tauri 命令读取候选内同一份更新日志资源。 */
 export async function loadBundledReleaseNotes(
   invokeCommand: ReleaseNotesInvoker = invokeReleaseNotesCommand,
-): Promise<ReleaseNoteEntry[]> {
+): Promise<LocalizedReleaseNoteEntry[]> {
   const value = await invokeCommand(LOAD_RELEASE_NOTES_COMMAND);
   return decodeReleaseNotesDocument(value).releases;
 }

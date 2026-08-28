@@ -12,7 +12,7 @@
 | `rust-i18n/zh-CN.yml`、`rust-i18n/en-US.yml` | 托盘“显示窗口/退出”原生文案 | 仅选择系统托盘时复制到 Rust locale 目录 |
 | `rust/release_notes.rs`、`react/releaseNotesResource.ts`、`react/AboutPageTemplate.tsx` | 从候选固定资源异步读取并双层校验发布日志，显示 loading/error/retry、检查更新、更新日志、作者、联系方式和免责声明 | 仅选择关于页时复制并注册窄命令/建立路由 |
 | `tauri/tauri.release.conf.json` | 正式构建以 `--config` 合并，把根更新日志唯一映射到候选资源根 | 所有 GUI 保留；中性调试构建不使用 |
-| `react/ReleaseNotesDialogTemplate.tsx`、`react/releaseNotes.ts` | 读取候选内同一发布事实，按固定结构展示最近 5 版且每类最多 10 条 | 仅选择关于页时进入运行时 |
+| `react/ReleaseNotesDialogTemplate.tsx`、`react/releaseNotes.ts` | 读取候选内同一双语发布事实，按当前 i18n locale 展示最近 5 版且每类最多 10 个翻译对 | 仅选择关于页时进入运行时 |
 | `react/displayVersion.ts` | 把所有人类可见版本规范化为且只规范化为一个小写 `v` 前缀 | GUI 初始化默认展示边界 |
 | `react/SponsorPageTemplate.tsx` | 响应式展示固定品牌赞助内容与双支付码 | 仅选择赞助页时建立路由 |
 | `react/SupportMedia.tsx` | 统一本地图片与带字幕/文字稿的视频边界 | 页面需要媒体 |
@@ -33,7 +33,7 @@
 
 1. GUI 初始化直接接入固定本地标题、按 `sidebar_mode` 选择的侧栏和精简设置页；仅为 `about_page = enabled`、`sponsor_page = enabled` 建立相应页面与导航，不创建产品实例文档。只有修改默认内容、增加其他界面或启用出站能力时，才从 `GUI_SUPPORT_SURFACES.template.md` 创建差异文档；模板根本身仍不得出现 `docs/GUI_SUPPORT_SURFACES.md`。
 2. 把 `brand-support-profile.json` 作为唯一品牌结构事实；不得在 About、Sponsor、标题或其他组件各写一份联系人/价格常量。
-3. 将 ThemeProvider、Sidebar、Settings 与展示版本 formatter 复制到产品前端并固定建立 `/settings`，所有 GUI 同时复制发布专用 `src-tauri/tauri.release.conf.json`，但初始化调试构建不传该配置；About、ReleaseNotesDialog、`releaseNotesResource.ts`、Rust `release_notes.rs` 和 MandatoryUpdateGate 只随关于页选择进入运行时，Rust 命令必须注册到 `generate_handler!`，Sponsor 只随赞助页选择进入运行时。侧栏只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)：compact 实现 `80px` 全宽居中名称、无固定 `em/ch` 盒与无折叠按钮，并让 AppShell navbar 复用宽度常量、Navbar padding 为 `0`；detailed 使用 `AppShellTemplate.tsx` 固定 `mode="detailed"`，保持 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标、Tooltip 和独立持久化，并同步 `navbar.width`/`data-navbar-width`。功能项从顶部向下增长；底部按已选赞助、固定设置、已选关于的视觉顺序生成。设置页只保留应用/版本、语言与三态主题，不得加入隐私或统计区块。关于页若存在，把“更新日志”按钮紧邻“检查更新”，从候选资源中的同一 `release-notes.json` 展示近 5 版固定结构，读取失败显示本地错误与重试。保留 Mantine、响应式 `SimpleGrid`、本地路径校验、图片替代文本以及视频 captions/transcript 约束。
+3. 将 ThemeProvider、Sidebar、Settings 与展示版本 formatter 复制到产品前端并固定建立 `/settings`，所有 GUI 同时复制发布专用 `src-tauri/tauri.release.conf.json`，但初始化调试构建不传该配置；About、ReleaseNotesDialog、`releaseNotesResource.ts`、Rust `release_notes.rs` 和 MandatoryUpdateGate 只随关于页选择进入运行时，Rust 命令必须注册到 `generate_handler!`，Sponsor 只随赞助页选择进入运行时。侧栏只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)：compact 实现 `80px` 全宽居中名称、无固定 `em/ch` 盒与无折叠按钮，并让 AppShell navbar 复用宽度常量、Navbar padding 为 `0`；detailed 使用 `AppShellTemplate.tsx` 固定 `mode="detailed"`，保持 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标、Tooltip 和独立持久化，并同步 `navbar.width`/`data-navbar-width`。功能项从顶部向下增长；底部按已选赞助、固定设置、已选关于的视觉顺序生成。设置页只保留应用/版本、语言与三态主题，不得加入隐私或统计区块。关于页若存在，把“更新日志”按钮紧邻“检查更新”，从候选资源中的同一 schema v2 `release-notes.json` 展示近 5 版双语结构，当前语言以 `zh` 开头时选择 `zh-CN`，其他语言选择 `en-US`，读取失败显示本地错误与重试。保留 Mantine、响应式 `SimpleGrid`、本地路径校验、图片替代文本以及视频 captions/transcript 约束。
 4. 把两份 JSON 合并或注册为初始化 i18next 的 `brandSupport` namespace。仅当 `system_tray = enabled` 时，把两份 `rust-i18n/*.yml` 复制到 GUI adapter 的 locale 目录；默认语言仍来自 `tauri-plugin-os` 探测和用户持久语言偏好，Rust 托盘与 React 必须消费同一规范化 locale 结果。托盘可见标签必须用 `rust_i18n::t!("tray.show_window")` 与 `rust_i18n::t!("tray.quit")` 解析，稳定 ID 不得直接显示；中文为“显示窗口/退出”，英文为“Show Window/Quit”，未知 locale 回退英文，运行时语言切换必须刷新已安装菜单而无需重启。
 5. 仅当 `sponsor_page = enabled` 时完整复制 `media/sponsor/*` 到前端 public 的 `/brand-support/sponsor/`，不优化、压缩、重绘或重编码支付二维码。只有选择更新视觉时才复制 banner 到 `/brand-support/updater/banner.jpg`。
 6. 使用 manifest 复核每个实际进入项目的文件。选择赞助页时，当前未引用的 arrow、icon1 至 icon4、select 也必须随赞助品牌源包保留，不能因 tree-shaking 或“清理未使用文件”从 Skill/下游品牌源目录删除；未选择时不得把 sponsor 媒体复制进运行时 bundle。
@@ -43,7 +43,7 @@
 ## 关于页约束（仅在选择关于页时）
 
 - 产品名称、版本、标语、功能、许可、隐私和可选动作来自当前下游权威事实。固定作者、作者联系方式和免责声明来自品牌包；模板不含任何来源产品名称或功能清单，所选路由为 `/about`。
-- 版本由当前打包元数据提供，不在组件或翻译文件中写死；所有可见位置调用共享 formatter，先去除已有 `v`/`V` 再添加一个小写 `v`。手动检查更新和稳定状态随关于页存在；未配置时检查按钮禁用、状态为 `NotConfigured` 且零出站，本地更新日志按钮仍可用。它默认调用 `load_release_notes`，由 Rust 以 `BaseDirectory::Resource` + `tokio::fs` 读取固定资源并验证，React 再从 `unknown` 收窄；禁止路径参数、通用文件系统权限和同步读取。更新日志按最新在前最多显示 5 版，每版“###功能优化”和“###问题修复”各最多 10 条且空分类显示“无”，标题固定为 `-----------更新日志 {发布日期} {发布版本}----------`。反馈、许可与隐私仍是独立可选动作，未选择时不渲染占位按钮。若赞助页已选，其入口由 `/sponsor` 路由和应用导航承载，不在关于页重复为按钮。
+- 版本由当前打包元数据提供，不在组件或翻译文件中写死；所有可见位置调用共享 formatter，先去除已有 `v`/`V` 再添加一个小写 `v`。手动检查更新和稳定状态随关于页存在；未配置时检查按钮禁用、状态为 `NotConfigured` 且零出站，本地更新日志按钮仍可用。它默认调用 `load_release_notes`，由 Rust 以 `BaseDirectory::Resource` + `tokio::fs` 读取固定资源并验证，React 再从 `unknown` 收窄；禁止路径参数、通用文件系统权限和同步读取。更新日志按最新在前最多显示 5 版，每版两个分类各最多 10 个完整 `zh-CN`/`en-US` 翻译对。中文界面显示“更新日志/功能优化/问题修复/无”，英文或未知语言显示“Release notes/Feature optimizations/Bug fixes/None”，正文也只选择对应 locale；任一翻译缺失必须在 Rust/React 边界失败关闭。反馈、许可与隐私仍是独立可选动作，未选择时不渲染占位按钮。若赞助页已选，其入口由 `/sponsor` 路由和应用导航承载，不在关于页重复为按钮。
 - “检查更新”和“更新日志”的事件只绑定各自 Button；更新区 Paper/Group 不代理动作。其他按钮、链接、`Switch`、`Checkbox` 同样绑定在自身，Card、`Table.Tr`、`Table.Td` 等父级不得代理；表格行点击不能切换行内 `Switch`。
 - 作者显示名使用 `about.studio`，联系人使用 profile 的 `contacts.support`；窗口标题使用独立的 `contacts.windowTitle`，两个角色即使当前值相同也不能混用。
 - 三段免责声明必须完整显示并接入中英文 `brandSupport` 翻译；不得因产品没有其他关于区块而隐藏或改成占位文案。
@@ -67,7 +67,7 @@
 
 ## 最小回归
 
-- 关于页：仅在选择关于页时，除 6 版/11 条防御性显示夹具外，还验证 Rust 资源解析成功/畸形拒绝、命令注册、前端固定命令名与 IPC 解码、loading/error/retry；再验证手动检查、`NotConfigured` 禁用、本地更新日志仍可用、只显示近 5 版/每类 10 条、版本恰有一个 `v`、父容器点击不代理两个按钮、固定作者、联系人、三段免责声明、可选动作/区块的存在与缺失、主题、键盘和翻译回退。未选择时验证路由、导航、命令、加载器与运行时组件缺席。
+- 关于页：仅在选择关于页时，除 6 版/11 条防御性显示夹具外，还验证 Rust 资源解析成功/畸形与缺失翻译拒绝、命令注册、前端固定命令名与 IPC 解码、loading/error/retry；再验证手动检查、`NotConfigured` 禁用、本地更新日志仍可用、只显示近 5 版/每类 10 个翻译对、中文与英文 locale 各选择对应正文和标题、未知语言英文回退、版本恰有一个 `v`、父容器点击不代理两个按钮、固定作者、联系人、三段免责声明、可选动作/区块的存在与缺失、主题和键盘。未选择时验证路由、导航、命令、加载器与运行时组件缺席。
 - 设置与壳层：验证中英文、浅色/深色/跟随系统回调与持久化、亮暗背景/文字/surface 差异，默认设置页没有隐私/统计控件或翻译键；compact 验证 `tauri-gui-sidebar-compact-80-v1`、图标上/全宽文字下、无固定 `em/ch` 盒与无折叠控件，detailed 验证 `tauri-gui-sidebar-detailed-v1`、自身折叠按钮、父级不代理、AppShell 两处宽度同步、图标-only + Tooltip 和跨重挂载持久化（精确尺寸见 [`tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)）。
 - 托盘 i18n：仅在选择系统托盘时验证中英文精确标签、未知 locale 英文回退、运行时语言切换刷新，以及任何 `tray.*` 原始键都不能成为可见菜单文字；未选择时验证 tray feature、依赖、安装源码和关闭隐藏接线缺席。
 - 赞助页：仅在选择赞助页时分别以亮色和暗色渲染，验证有效主题标记、不同背景/surface、19/199/1999、品牌联系人、三张档位图、两张有 alt 的支付码、响应式列数，以及源码没有固定 800px/全页 pointer-events；未选择时验证路由、导航和运行时媒体缺席。

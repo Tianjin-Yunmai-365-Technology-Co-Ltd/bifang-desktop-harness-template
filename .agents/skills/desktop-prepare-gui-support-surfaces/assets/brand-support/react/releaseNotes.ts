@@ -1,4 +1,21 @@
-/** 关于页可展示的单个发布版本更新日志。 */
+/** 发布日志资源支持的稳定语言集合。 */
+export type ReleaseNotesLocale = "zh-CN" | "en-US";
+
+/** 把一个发布事实的中英文文案绑定为不可拆分的翻译对。 */
+export interface LocalizedReleaseNoteItem {
+  "zh-CN": string;
+  "en-US": string;
+}
+
+/** 候选资源中保存的单个双语发布版本更新日志。 */
+export interface LocalizedReleaseNoteEntry {
+  releaseDate: string;
+  version: string;
+  featureOptimizations: readonly LocalizedReleaseNoteItem[];
+  bugFixes: readonly LocalizedReleaseNoteItem[];
+}
+
+/** 关于页按当前语言选择后可展示的单个发布版本更新日志。 */
 export interface ReleaseNoteEntry {
   releaseDate: string;
   version: string;
@@ -12,16 +29,26 @@ export const MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5;
 /** 每个版本的功能优化与问题修复各自最多展示十条。 */
 export const MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10;
 
-/** 防御性裁剪已由发布门禁校验的数据，避免页面越过固定展示上限。 */
+/** 把系统或 i18next 语言归一化为发布日志实际支持的 locale。 */
+export function resolveReleaseNotesLocale(
+  language: string | undefined,
+): ReleaseNotesLocale {
+  return language?.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US";
+}
+
+/** 按当前 locale 选择翻译并防御性裁剪固定展示上限。 */
 export function selectVisibleReleaseNotes(
-  releases: readonly ReleaseNoteEntry[],
+  releases: readonly LocalizedReleaseNoteEntry[],
+  locale: ReleaseNotesLocale,
 ): ReleaseNoteEntry[] {
   return releases.slice(0, MAX_VISIBLE_RELEASE_NOTE_VERSIONS).map((release) => ({
-    ...release,
-    featureOptimizations: release.featureOptimizations.slice(
-      0,
-      MAX_VISIBLE_RELEASE_NOTE_ITEMS,
-    ),
-    bugFixes: release.bugFixes.slice(0, MAX_VISIBLE_RELEASE_NOTE_ITEMS),
+    releaseDate: release.releaseDate,
+    version: release.version,
+    featureOptimizations: release.featureOptimizations
+      .slice(0, MAX_VISIBLE_RELEASE_NOTE_ITEMS)
+      .map((item) => item[locale]),
+    bugFixes: release.bugFixes
+      .slice(0, MAX_VISIBLE_RELEASE_NOTE_ITEMS)
+      .map((item) => item[locale]),
   }));
 }

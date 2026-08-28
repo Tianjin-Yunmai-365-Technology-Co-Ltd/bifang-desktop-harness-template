@@ -14,15 +14,31 @@ from pathlib import Path
 from typing import Any, Sequence
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_RELEASES = 5
 MAX_ITEMS_PER_SECTION = 10
+SUPPORTED_LOCALES = ("zh-CN", "en-US")
 ROOT_KEYS = {"schemaVersion", "releases"}
 ENTRY_KEYS = {
     "releaseDate",
     "version",
     "featureOptimizations",
     "bugFixes",
+}
+LOCALIZED_ITEM_KEYS = set(SUPPORTED_LOCALES)
+RENDER_COPY = {
+    "zh-CN": {
+        "title": "更新日志",
+        "featureOptimizations": "功能优化",
+        "bugFixes": "问题修复",
+        "none": "无",
+    },
+    "en-US": {
+        "title": "Release notes",
+        "featureOptimizations": "Feature optimizations",
+        "bugFixes": "Bug fixes",
+        "none": "None",
+    },
 }
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 HARNESS_VERSION = re.compile(r"^\d{12}$")
@@ -63,8 +79,8 @@ def _validate_release_date(value: Any) -> str:
     return value
 
 
-def _validate_items(value: Any, field: str) -> list[str]:
-    """校验单个更新日志分类的非空、去重和十条上限。"""
+def _validate_items(value: Any, field: str) -> list[dict[str, str]]:
+    """校验单个分类的双语条目、逐语言去重和十条上限。"""
 
     if not isinstance(value, list):
         raise ReleaseNotesError(f"{field} must be an array")
@@ -72,15 +88,44 @@ def _validate_items(value: Any, field: str) -> list[str]:
         raise ReleaseNotesError(
             f"{field} must contain at most {MAX_ITEMS_PER_SECTION} items"
         )
-    normalized: list[str] = []
+    normalized: list[dict[str, str]] = []
+    seen = {locale: set() for locale in SUPPORTED_LOCALES}
     for item in value:
-        if not isinstance(item, str) or not item.strip():
-            raise ReleaseNotesError(f"{field} items must be non-empty strings")
-        text = item.strip()
-        if text in normalized:
-            raise ReleaseNotesError(f"{field} must not contain duplicate items")
-        normalized.append(text)
+        if not isinstance(item, dict) or set(item) != LOCALIZED_ITEM_KEYS:
+            raise ReleaseNotesError(
+                f"{field} items must contain exactly zh-CN and en-US"
+            )
+        localized: dict[str, str] = {}
+        for locale in SUPPORTED_LOCALES:
+            text = item[locale]
+            if not isinstance(text, str) or not text.strip():
+                raise ReleaseNotesError(
+                    f"{field} {locale} items must be non-empty strings"
+                )
+            normalized_text = text.strip()
+            if normalized_text in seen[locale]:
+                raise ReleaseNotesError(
+                    f"{field} must not contain duplicate {locale} items"
+                )
+            seen[locale].add(normalized_text)
+            localized[locale] = normalized_text
+        normalized.append(localized)
     return normalized
+
+
+def _pair_localized_items(
+    zh_cn: Sequence[str], en_us: Sequence[str], field: str
+) -> list[dict[str, str]]:
+    """按位置配对中英文条目，拒绝任一语言缺项。"""
+
+    if len(zh_cn) != len(en_us):
+        raise ReleaseNotesError(
+            f"{field} must provide the same number of zh-CN and en-US items"
+        )
+    return [
+        {"zh-CN": zh_item, "en-US": en_item}
+        for zh_item, en_item in zip(zh_cn, en_us, strict=True)
+    ]
 
 
 def validate_release_entry(value: Any) -> dict[str, Any]:
@@ -175,8 +220,10 @@ def upsert_release(
     *,
     release_date: str,
     version: str,
-    feature_optimizations: Sequence[str],
-    bug_fixes: Sequence[str],
+    feature_optimizations_zh_cn: Sequence[str],
+    feature_optimizations_en_us: Sequence[str],
+    bug_fixes_zh_cn: Sequence[str],
+    bug_fixes_en_us: Sequence[str],
 ) -> dict[str, Any]:
     """新增或替换当前版本，置顶后只保留最近五个版本。"""
 
@@ -189,8 +236,16 @@ def upsert_release(
         {
             "releaseDate": release_date,
             "version": version,
-            "featureOptimizations": list(feature_optimizations),
-            "bugFixes": list(bug_fixes),
+            "featureOptimizations": _pair_localized_items(
+                feature_optimizations_zh_cn,
+                feature_optimizations_en_us,
+                "featureOptimizations",
+            ),
+            "bugFixes": _pair_localized_items(
+                bug_fixes_zh_cn,
+                bug_fixes_en_us,
+                "bugFixes",
+            ),
         }
     )
     releases = [
@@ -204,22 +259,29 @@ def upsert_release(
     return validate_document(document)
 
 
-def render_document(document: dict[str, Any]) -> str:
-    """按固定中文结构渲染已选关于页可展示的近五次更新日志。"""
+def render_document(document: dict[str, Any], locale: str) -> str:
+    """按指定受支持语言渲染已选关于页可展示的近五次更新日志。"""
 
     normalized = validate_document(document)
+    if locale not in SUPPORTED_LOCALES:
+        raise ReleaseNotesError(
+            f"locale must be one of {', '.join(SUPPORTED_LOCALES)}"
+        )
+    copy = RENDER_COPY[locale]
     blocks: list[str] = []
     for entry in normalized["releases"]:
-        features = entry["featureOptimizations"] or ["无"]
-        fixes = entry["bugFixes"] or ["无"]
+        features = [item[locale] for item in entry["featureOptimizations"]] or [
+            copy["none"]
+        ]
+        fixes = [item[locale] for item in entry["bugFixes"]] or [copy["none"]]
         lines = [
-            f"-----------更新日志 {entry['releaseDate']} {entry['version']}----------",
+            f"-----------{copy['title']} {entry['releaseDate']} {entry['version']}----------",
             "",
-            "###功能优化",
+            f"###{copy['featureOptimizations']}",
             "",
             *(f"- {item}" for item in features),
             "",
-            "###问题修复",
+            f"###{copy['bugFixes']}",
             "",
             *(f"- {item}" for item in fixes),
         ]
@@ -239,13 +301,16 @@ def _build_parser() -> argparse.ArgumentParser:
 
     render = subparsers.add_parser("render", help="render the visible release notes")
     render.add_argument("--file", required=True, type=Path)
+    render.add_argument("--locale", required=True, choices=SUPPORTED_LOCALES)
 
     upsert = subparsers.add_parser("upsert", help="prepend or replace one release")
     upsert.add_argument("--file", required=True, type=Path)
     upsert.add_argument("--release-date", required=True)
     upsert.add_argument("--version", required=True)
-    upsert.add_argument("--feature-optimization", action="append", default=[])
-    upsert.add_argument("--bug-fix", action="append", default=[])
+    upsert.add_argument("--feature-optimization-zh-cn", action="append", default=[])
+    upsert.add_argument("--feature-optimization-en-us", action="append", default=[])
+    upsert.add_argument("--bug-fix-zh-cn", action="append", default=[])
+    upsert.add_argument("--bug-fix-en-us", action="append", default=[])
     return parser
 
 
@@ -259,8 +324,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.file,
                 release_date=args.release_date,
                 version=args.version,
-                feature_optimizations=args.feature_optimization,
-                bug_fixes=args.bug_fix,
+                feature_optimizations_zh_cn=args.feature_optimization_zh_cn,
+                feature_optimizations_en_us=args.feature_optimization_en_us,
+                bug_fixes_zh_cn=args.bug_fix_zh_cn,
+                bug_fixes_en_us=args.bug_fix_en_us,
             )
             print(
                 f"release-notes.updated={document['releases'][0]['version']} "
@@ -270,7 +337,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         document = load_document(args.file)
         if args.command == "render":
-            print(render_document(document))
+            print(render_document(document, args.locale))
             return 0
         if args.expected_version is not None:
             expected = normalize_display_version(args.expected_version)

@@ -206,15 +206,15 @@ class GuiSupportContractTests(unittest.TestCase):
         )
         self.assertTrue(any("show_window: Show Window" in error for error in errors), errors)
 
-    def test_release_note_fixed_format_drift_is_rejected(self) -> None:
-        """英文界面也不得改写发布日志正文的固定中文标题结构。"""
+    def test_release_note_locale_format_drift_is_rejected(self) -> None:
+        """英文界面不得回退为中文标题或偏离 locale 对应的固定结构。"""
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             brand_root = self._copy_brand_root(root)
             translations = brand_root / "i18n" / "en-US.json"
             en = json.loads(translations.read_text(encoding="utf-8"))
-            en["release_notes"]["feature_optimizations"] = "###Features"
+            en["release_notes"]["feature_optimizations"] = "###功能优化"
             translations.write_text(json.dumps(en), encoding="utf-8")
             errors: list[str] = []
             validate_gui_support_contract(

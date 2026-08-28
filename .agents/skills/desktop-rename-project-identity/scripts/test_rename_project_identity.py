@@ -25,9 +25,13 @@ class RenameProjectIdentityTests(unittest.TestCase):
                 str(SCRIPT),
                 "--root",
                 str(root),
-                "--old-display-name",
+                "--old-display-name-zh",
+                "旧产品",
+                "--new-display-name-zh",
+                "新产品",
+                "--old-display-name-en",
                 "Old Product",
-                "--new-display-name",
+                "--new-display-name-en",
                 "New Product",
                 "--old-id",
                 "old_product",
@@ -48,7 +52,8 @@ class RenameProjectIdentityTests(unittest.TestCase):
         """预览不得写盘，显式应用后配置、Skill、License 和路径应同时完成改名。"""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            (root / "LICENSE.zh-CN.md").write_text("Old Product old_product", encoding="utf-8")
+            (root / "LICENSE.zh-CN.md").write_text("旧产品 old_product", encoding="utf-8")
+            (root / "LICENSE.en.md").write_text("Old Product old_product", encoding="utf-8")
             skill = root / ".agents" / "skills" / "old-product-tool"
             skill.mkdir(parents=True)
             source = skill / "old_product.toml"
@@ -75,6 +80,10 @@ class RenameProjectIdentityTests(unittest.TestCase):
             )
             self.assertEqual(
                 (root / "LICENSE.zh-CN.md").read_text(encoding="utf-8"),
+                "新产品 new_product",
+            )
+            self.assertEqual(
+                (root / "LICENSE.en.md").read_text(encoding="utf-8"),
                 "New Product new_product",
             )
 
@@ -110,7 +119,7 @@ class RenameProjectIdentityTests(unittest.TestCase):
             parent = Path(temporary_directory)
             root = parent / "old_product"
             root.mkdir()
-            (root / "README.md").write_text("Old Product", encoding="utf-8")
+            (root / "README.md").write_text("旧产品 / Old Product", encoding="utf-8")
 
             result = self.run_script(root, "--rename-root", "--apply")
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -118,7 +127,7 @@ class RenameProjectIdentityTests(unittest.TestCase):
             self.assertFalse(root.exists())
             self.assertEqual(
                 (destination / "README.md").read_text(encoding="utf-8"),
-                "New Product",
+                "新产品 / New Product",
             )
 
 

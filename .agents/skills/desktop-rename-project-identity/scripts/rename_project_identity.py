@@ -33,8 +33,10 @@ def parse_arguments() -> argparse.Namespace:
     """解析并校验完成一次身份替换所需的显式参数。"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", required=True, type=Path)
-    parser.add_argument("--old-display-name", required=True)
-    parser.add_argument("--new-display-name", required=True)
+    parser.add_argument("--old-display-name-zh", required=True)
+    parser.add_argument("--new-display-name-zh", required=True)
+    parser.add_argument("--old-display-name-en", required=True)
+    parser.add_argument("--new-display-name-en", required=True)
     parser.add_argument("--old-id", required=True)
     parser.add_argument("--new-id", required=True)
     parser.add_argument("--old-kebab", required=True)
@@ -58,7 +60,8 @@ def parse_arguments() -> argparse.Namespace:
 def build_replacements(args: argparse.Namespace) -> list[tuple[str, str]]:
     """建立去重且按旧文本长度降序排列的替换表，避免短前缀抢先匹配。"""
     pairs = [
-        (args.old_display_name, args.new_display_name),
+        (args.old_display_name_zh, args.new_display_name_zh),
+        (args.old_display_name_en, args.new_display_name_en),
         (args.old_id, args.new_id),
         (args.old_kebab, args.new_kebab),
     ]

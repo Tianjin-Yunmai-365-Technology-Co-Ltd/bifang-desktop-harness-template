@@ -95,8 +95,8 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
             archive = stage / archive_name
             release_notes = root / "release-notes.json"
             release_notes.write_text(
-                '{"schemaVersion":1,"releases":[{"releaseDate":"2026-08-26",'
-                '"version":"v1.2.3","featureOptimizations":["fixture"],'
+                '{"schemaVersion":2,"releases":[{"releaseDate":"2026-08-26",'
+                '"version":"v1.2.3","featureOptimizations":[{"zh-CN":"夹具","en-US":"fixture"}],'
                 '"bugFixes":[]}]}\n',
                 encoding="utf-8",
             )

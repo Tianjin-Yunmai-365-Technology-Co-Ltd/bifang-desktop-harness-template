@@ -15,20 +15,21 @@ import { useTranslation } from "react-i18next";
 
 import { formatDisplayVersion } from "./displayVersion";
 import {
+  resolveReleaseNotesLocale,
   selectVisibleReleaseNotes,
-  type ReleaseNoteEntry,
+  type LocalizedReleaseNoteEntry,
 } from "./releaseNotes";
 
 /** 更新日志弹窗所需的本地发布事实和关闭交互。 */
 export interface ReleaseNotesDialogTemplateProps {
   opened: boolean;
-  releases: readonly ReleaseNoteEntry[];
+  releases: readonly LocalizedReleaseNoteEntry[];
   status: "idle" | "loading" | "ready" | "error";
   onRetry: () => void;
   onClose: () => void;
 }
 
-/** 按固定结构展示最多五个版本、每类最多十条的更新日志。 */
+/** 按当前 i18n locale 展示最多五个版本、每类最多十条的更新日志。 */
 export function ReleaseNotesDialogTemplate({
   opened,
   releases,
@@ -36,8 +37,9 @@ export function ReleaseNotesDialogTemplate({
   onRetry,
   onClose,
 }: ReleaseNotesDialogTemplateProps): ReactElement {
-  const { t } = useTranslation("brandSupport");
-  const visibleReleases = selectVisibleReleaseNotes(releases);
+  const { i18n, t } = useTranslation("brandSupport");
+  const locale = resolveReleaseNotesLocale(i18n.resolvedLanguage);
+  const visibleReleases = selectVisibleReleaseNotes(releases, locale);
 
   return (
     <Modal

@@ -19,7 +19,7 @@ description: 在含 GUI 的下游初始化提交前，按已记录配置验证�
 1. 构建前运行 `node .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs --root . --gui-dir <project-id>_gui`。检查器必须读取配置块并条件验证：
    - `single_instance: enabled`：根/member 依赖、首插件顺序、只恢复既有窗口的中性回调，以及 `single_instance_plugin_is_registered_first`、`second_launch_restores_existing_main_window` 两个有断言回归；disabled 时拒绝依赖与注册。
    - `system_tray: enabled`：`tray-icon` feature、非透明 `icons/32x32.png`/配置引用、从 `.setup(...)` 可达的 Menu/default icon/icon/build、从 `.on_window_event(...)` 可达的关闭隐藏、稳定 ID、`rust-i18n` 双语资源及六个托盘生命周期/i18n 回归；disabled 时拒绝 feature、托盘、`prevent_close` 与隐藏调用，要求从 `.on_window_event(...)` 可达的 `CloseRequested → AppHandle::exit(0)`，并要求 `close_last_window_exits_application` 有真实断言。
-   - 更新日志：所有 GUI 都必须保留只含固定映射的 `src-tauri/tauri.release.conf.json`，但本次调试构建不传它；`about_page: enabled` 时要求 Tokio `fs`、异步 `load_release_notes`、`BaseDirectory::Resource`、handler 注册、Rust schema 回归、React IPC 解码及 loading/error/retry 回归，disabled 时拒绝命令、加载器、弹窗和文案。
+   - 更新日志：所有 GUI 都必须保留只含固定映射的 `src-tauri/tauri.release.conf.json`，但本次调试构建不传它；`about_page: enabled` 时要求 Tokio `fs`、异步 `load_release_notes`、`BaseDirectory::Resource`、handler 注册、Rust schema v2 与完整 `zh-CN`/`en-US` 翻译对回归、React IPC 解码、当前 i18n locale 内容选择及 loading/error/retry 回归，disabled 时拒绝命令、加载器、弹窗和文案。
    - 前端：`/settings` 与设置页组件始终存在；关于/赞助路由和运行时组件分别与选择一致，赞助启用时 `public/brand-support/sponsor/` 必须包含完整 12 个本地媒体、禁用时目录缺席；实际侧栏接线必须等于 `sidebar_mode`，且精简/详细结构分别满足固定尺寸、默认状态、按钮、Tooltip 与独立 localStorage 契约。
 2. 在 GUI 目录运行 `pnpm tauri build --debug --no-bundle`。失败或零产物立即失败；只有诊断明确属于受管环境问题时才调用环境恢复并重试原命令一次。
 3. 以 `cargo metadata --format-version 1 --no-deps` 推导本次真实本机调试二进制，拒绝旧产物、模糊 glob、符号链接或 `pnpm tauri dev`。

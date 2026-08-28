@@ -204,11 +204,12 @@ class InitializationFormContractTests(unittest.TestCase):
             r"(?m)^\|\s*(\d+)\s*\|\s*(首轮基础|条件补全)\s*\|\s*([^|]+?)\s*\|",
             form,
         )
-        self.assertEqual([int(order) for order, _, _ in rows], list(range(1, 17)))
+        self.assertEqual([int(order) for order, _, _ in rows], list(range(1, 18)))
         self.assertEqual(
             [field.strip() for _, stage, field in rows if stage == "首轮基础"],
             [
-                "项目展示名称",
+                "中文项目展示名称",
+                "英文项目展示名称",
                 "`project_id`",
                 "项目路径",
                 "负责人",
@@ -233,13 +234,29 @@ class InitializationFormContractTests(unittest.TestCase):
         )
         self.assertNotIn("每次回复只询问一个最靠前的", form)
 
+    def test_form_auto_translates_one_missing_display_name_before_confirmation(self) -> None:
+        """用户只给一种语言时必须自动补齐另一种，并由最终汇总统一确认。"""
+
+        form = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/references/initialization-form.md"
+        )
+        instantiate = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/SKILL.md"
+        )
+        self.assertIn("中英文项目展示名称至少由用户直接提供一个", form)
+        self.assertIn("只提供中文时", form)
+        self.assertIn("只提供英文时", form)
+        self.assertIn("自动翻译得到的名称必须标记来源", form)
+        self.assertIn("中英文名称、各自来源", instantiate)
+        self.assertIn("用户对汇总的确认同时构成对译名的确认", form)
+
     def test_direct_initialization_batches_interface_and_policy_mode(self) -> None:
         """直接初始化也必须先同轮解析接口与策略模式，再询问条件字段。"""
         initialize = read_repo_text(
             ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         )
         self.assertIn(
-            "在同一首轮一次列出全部未解析基础决定",
+            "必须在同一首轮一次列出",
             initialize,
         )
         self.assertIn(

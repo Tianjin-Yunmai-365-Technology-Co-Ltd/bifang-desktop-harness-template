@@ -81,7 +81,7 @@ class VerifyDmgLayoutTests(unittest.TestCase):
         release_notes = root / "release-notes.json"
         if not release_notes.exists():
             release_notes.write_text(
-                '{"schemaVersion":1,"releases":[]}\n', encoding="utf-8"
+                '{"schemaVersion":2,"releases":[]}\n', encoding="utf-8"
             )
         env.update(
             {
@@ -175,7 +175,7 @@ class VerifyDmgLayoutTests(unittest.TestCase):
             dmg = root / "candidate.dmg"
             dmg.write_bytes(b"dmg")
             target = root / "notes-target.json"
-            target.write_text('{"schemaVersion":1,"releases":[]}\n', encoding="utf-8")
+            target.write_text('{"schemaVersion":2,"releases":[]}\n', encoding="utf-8")
             (root / "release-notes.json").symlink_to(target)
             result = self.run_check(root, dmg)
             self.assertEqual(result.returncode, 41)
