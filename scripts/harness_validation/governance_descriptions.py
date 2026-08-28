@@ -45,6 +45,8 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "显式构建需要不可复用的工具链证据",
         "显式构建的环境证据不可复用时才检查环境",
         "缺少可复用证据时才调用 `$desktop-check-development-environment`",
+        "每次回复只询问一个最靠前的 `待询问`",
+        "每轮只询问一个最靠前的未解析字段",
     )
     for path in paths:
         if not path.is_file():
@@ -77,6 +79,7 @@ def validate_current_descriptions(errors: list[str]) -> None:
         ADR_DIR / "README.md",
         CHANGELOG_DIR / "README.md",
         WORK_PLAN,
+        INSTANTIATE_FORM,
         *(path / "SKILL.md" for path in sorted(SKILLS_ROOT.iterdir()) if path.is_dir()),
     )
     validate_stale_fragments(errors, current_files)

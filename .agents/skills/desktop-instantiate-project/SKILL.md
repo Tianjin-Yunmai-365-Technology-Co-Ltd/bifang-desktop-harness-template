@@ -1,6 +1,6 @@
 ---
 name: desktop-instantiate-project
-description: 逐项收集新下游项目的初始化信息，安全解析唯一目标根目录，并完成选择性复制、独立 Git 初始化与中性 Rust 初始化。
+description: 首轮集中收集新下游项目的基础信息，再按需逐项补全条件配置，安全解析唯一目标根目录，并完成选择性复制、独立 Git 初始化与中性 Rust 初始化。
 ---
 
 # 实例化项目
@@ -10,7 +10,7 @@ description: 逐项收集新下游项目的初始化信息，安全解析唯一�
 ## 工作流程
 
 1. 读取源项目的 `AGENTS.md`、`README.md`、`Version.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、`docs/RELEASE.md`、两份许可证，以及 `$desktop-rename-project-identity`/`$desktop-initialize-rust-project` 的当前规则。收到任何创建新下游项目的请求时，还必须先完整读取并执行 [`references/initialization-form.md`](references/initialization-form.md)。实例化排除日期项目记忆，因此不默认加载 Harness 的历史 Product Status、Work Plan、Verification、ADR 或 Changelog 正文。
-2. 在任何写入或环境安装前完成初始化表单。表单逐项收集项目展示名称、跨平台安全的 ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、接口组合、Agent 策略，以及选择 GUI 时的四项能力和侧栏模式；小写 kebab-case 前缀由项目标识确定性派生。每轮只询问一个尚未解析的字段，不得把多个缺失项合并成一次模糊问询；用户已明确提供的合法字段直接复用，不得重复询问。所有字段收齐后展示包含最终项目根目录的完整汇总，并在用户确认前禁止创建目录、复制、安装环境、初始化 Git 或修改文件。推荐预设须显式确认并展开为 `superpowers: disabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`；自定义策略同样每轮只解析一个尚未明确的字段。Harness 源字段值不是下游确认，不得静默采用预设或遗留 `pending`。记录真实确认来源和最终收齐日期。产品目的、核心输入/输出、成功标准、风险与副作用可以继续保持未确定。
+2. 在任何写入或环境安装前完成初始化表单。首轮一次询问全部尚未解析的基础字段：项目展示名称、跨平台安全的 ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、接口组合和 Agent 策略模式；必须使用清晰编号，不能拆成逐字段多轮，也不能用一次模糊问询代替。用户已明确提供的合法字段直接复用；首轮回复中缺失或非法的基础字段集中列出约束后补齐，不重问合法字段。基础字段全部解析后，才按实际选择逐步补全其他问题：自定义策略的四项值和 GUI 的四项能力与侧栏模式每轮只询问一个当前适用的条件字段。小写 kebab-case 前缀由项目标识确定性派生。所有字段收齐后展示包含最终项目根目录的完整汇总，并在用户确认前禁止创建目录、复制、安装环境、初始化 Git 或修改文件。推荐预设须显式确认并展开为 `superpowers: disabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`。Harness 源字段值不是下游确认，不得静默采用预设或遗留 `pending`。记录真实确认来源和最终收齐日期。产品目的、核心输入/输出、成功标准、风险与副作用可以继续保持未确定。
 3. 当 Python 3 可用时，在源项目根目录运行 Harness 验证命令；否则记录为 `Not run`（可选 Python 不可用）。随后在写入任何内容之前运行 `git --version`。Git 是阻断性前置条件，并且必须支持 `git init --initial-branch=main`。不得隐式安装或升级 Git；Git 缺失或不兼容时，必须携带观察到的失败停止执行。
 4. 收齐项目标识和项目路径后，运行只读 `scripts/resolve_project_target.py`。相对输入以当前 Harness 根目录为基准；规范化输入路径的最后一个名称与 `<project-id>` 区分大小写地精确相等时，最终项目根目录就是输入路径，否则固定为 `<项目路径>/<project-id>`。不得用大小写、连字符/下划线转换、前后缀或相似度把不同名称视为相同。helper 输出的 `targetRoot` 必须显示在完整表单汇总中，并在用户确认后成为唯一项目根目录。拒绝以 Harness 根目录自身、Harness 根目录的任何祖先目录，以及通过符号链接解析到任何禁止位置的路径作为最终项目根目录。除这些限制外，目标可以位于 Harness 根目录内部或外部。
 5. 写入前清点解析后的最终项目根目录。只有最终项目根目录必须不存在或为空，包括不存在任何隐藏条目；当用户输入的是父目录时，该父目录可以存在且非空。必须保留用户文件，并在最终目标为符号链接、非目录、非空或发生任何冲突时停止。绝不为了让现有仓库看起来像模板而删除、合并写入或覆盖它。
@@ -22,7 +22,7 @@ description: 逐项收集新下游项目的初始化信息，安全解析唯一�
 11. 在目标目录中搜索残留的 Harness 身份、历史批准日期、已完成验证声明、源机器绝对路径，以及 `example-tool` 等示例标识。解决每一个适用命中，或者记录其有意保留的原因。两份许可证中的项目名称必须等于已确认的目标展示名称。`Software`、`Licensor`、`Licensee` 和 `Downstream Project` 的通用定义以及所有非身份法律条款都属于有意保留内容，除非具备资格的法律顾问批准替换商业许可证，否则必须保持不变。
 12. 将工作目录切换到解析后的目标目录，并运行 `git init --initial-branch=main .`。即使父目录已经是 Git 仓库，此操作也必须执行：下游项目必须拥有独立的嵌套仓库边界。不得复制源历史，也不得创建标签、远端、托管仓库、推送、签名或全局 Git 配置。
 13. 在执行任何下游操作之前验证新边界：`git rev-parse --is-inside-work-tree` 必须返回 `true`；`git rev-parse --show-toplevel` 返回的规范化路径必须等于解析后的目标目录；`git symbolic-ref --short HEAD` 必须返回 `main`；`git remote` 必须为空；`git rev-parse --verify HEAD` 必须失败，因为初始化基线提交只有在脚手架和一次性裁剪全部完成后才能创建。把 `git status --porcelain=v1 --untracked-files=all` 的结果记录为最终完成前的预期证据。
-14. 不得在经过选择性复制的目标目录中运行模板级 Harness 验证器。验证目标目录清单、排除项、改写后的身份、保留链接和策略模式定义，随后把初始化表单中已确认的 `CLI/TUI/MCP/GUI` 接口组合交给 `$desktop-initialize-rust-project`；验证并复用全部四项已记录策略，不得再次询问预设、策略或接口。用户在表单中明确选择默认接口时使用 CLI，选择其他接口时不得附加 CLI。若选择 GUI，复用表单中已经逐项解析的系统托盘、关于页、赞助页、单实例和 `compact`/`detailed` 侧栏模式，不得在复制后重新发起一轮问询；四项能力必须明确，用户跳过侧栏模式时必须已归一化为 `sidebar_mode = detailed`，显式非法值必须在表单阶段重新确认。把归一化后五项无 `pending` 事实写入 `docs/GUI_APP_PROFILE.md`。
+14. 不得在经过选择性复制的目标目录中运行模板级 Harness 验证器。验证目标目录清单、排除项、改写后的身份、保留链接和策略模式定义，随后把初始化表单中已确认的 `CLI/TUI/MCP/GUI` 接口组合交给 `$desktop-initialize-rust-project`；验证并复用全部四项已记录策略，不得再次询问预设、策略或接口。用户在表单中明确选择默认接口时使用 CLI，选择其他接口时不得附加 CLI。若选择 GUI，复用表单在基础字段解析后按需逐项确认的系统托盘、关于页、赞助页、单实例和 `compact`/`detailed` 侧栏模式，不得在复制后重新发起一轮问询；四项能力必须明确，用户跳过侧栏模式时必须已归一化为 `sidebar_mode = detailed`，显式非法值必须在表单阶段重新确认。把归一化后五项无 `pending` 事实写入 `docs/GUI_APP_PROFILE.md`。
 15. 必须要求 `$desktop-initialize-rust-project` 在脚手架检查完成后收尾仓库：选择 GUI 时，由 `$desktop-test-gui-initialization-e2e` 先读取 GUI 配置并条件检查。单实例启用时才验证官方依赖、首插件、回调、两个回归和真实双启动唯一性；托盘启用时才验证 feature、非透明图标、运行时接线、六个回归、双语标签和关闭隐藏/恢复/退出；托盘禁用时必须证明没有 feature/托盘/关闭拦截且关闭最后窗口结束进程。E2E 始终验证所选侧栏模式、默认设置页、全部实际菜单页面，以及关于/赞助入口按选择存在或缺席。任何已选能力无法判定或观察都阻断，未选能力不作为缺证据。随后删除一次性初始化能力、保留开发 Skills/约束地图，使用 `$desktop-configure-git-commits` 安装并检查仓库本地提交模板，并在无 `pending`、Git 干净且无远端时创建恰好一个本地基线提交；不得修改全局 Git 配置。
 
 初始化收尾还必须由 `$desktop-manage-version init --project-root .` 创建并核对受保护的 `.harness/version-state.json`，并在裁剪中完整保留该版本 Skill、标准库 helper 和测试；不得把 Harness 时间版本写入下游状态。

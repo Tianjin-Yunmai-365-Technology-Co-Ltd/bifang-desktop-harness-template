@@ -247,6 +247,18 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             governance.validate_stale_fragments(errors, (path,))
         self.assertTrue(any("stale current description" in error for error in errors), errors)
 
+    def test_rejects_obsolete_stepwise_base_initialization_prompt(self) -> None:
+        """固定基础字段不得退回每轮只问一个的旧初始化交互。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "initialization-form.md"
+            path.write_text(
+                "每次回复只询问一个最靠前的 `待询问` 字段。",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance.validate_stale_fragments(errors, (path,))
+        self.assertTrue(any("stale current description" in error for error in errors), errors)
+
     def test_rejects_invalid_harness_datetime_version(self) -> None:
         """12 位但不是有效年月日时分的 Harness 版本必须被拒绝。"""
         with tempfile.TemporaryDirectory() as tmp_dir:

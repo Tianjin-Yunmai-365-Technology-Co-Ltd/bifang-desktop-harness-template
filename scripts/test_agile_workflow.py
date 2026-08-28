@@ -189,35 +189,67 @@ class AgentPolicyTests(unittest.TestCase):
 
 
 class InitializationFormContractTests(unittest.TestCase):
-    """覆盖新下游写入前逐项表单及其路径解析契约。"""
+    """覆盖新下游写入前首轮基础表单、条件补全及路径解析契约。"""
 
-    def test_form_collects_one_missing_field_per_turn_in_stable_order(self) -> None:
-        """表单必须逐字段推进，并先复用用户已经明确提供的合法值。"""
+    def test_form_batches_base_fields_before_stepwise_conditionals(self) -> None:
+        """固定基础字段必须同轮出现，条件字段只能随后按需逐项推进。"""
         form = read_repo_text(
             ".agents/skills/desktop-instantiate-project/references/initialization-form.md"
         )
-        self.assertIn("每次回复只询问一个最靠前的", form)
+        self.assertIn("一次列出其中全部尚未解析字段", form)
+        self.assertIn("基础字段全部解析前不得进入条件问询", form)
+        self.assertIn("每次回复只询问一个当前适用且尚未解析的条件字段", form)
         self.assertIn("用户主动一次提供多个字段时全部解析", form)
-        ordered_fields = (
-            "| 1 | 项目展示名称 |",
-            "| 2 | `project_id` |",
-            "| 3 | 项目路径 |",
-            "| 4 | 负责人 |",
-            "| 5 | 目标平台 |",
-            "| 6 | 接口组合 |",
-            "| 7 | Agent 策略模式 |",
-            "| 8 | `superpowers` |",
-            "| 9 | `parallel_worktree_subagents` |",
-            "| 10 | `milestone_smoke` |",
-            "| 11 | `milestone_e2e` |",
-            "| 12 | `system_tray` |",
-            "| 13 | `about_page` |",
-            "| 14 | `sponsor_page` |",
-            "| 15 | `single_instance` |",
-            "| 16 | `sidebar_mode` |",
+        rows = re.findall(
+            r"(?m)^\|\s*(\d+)\s*\|\s*(首轮基础|条件补全)\s*\|\s*([^|]+?)\s*\|",
+            form,
         )
-        positions = [form.index(field) for field in ordered_fields]
-        self.assertEqual(positions, sorted(positions))
+        self.assertEqual([int(order) for order, _, _ in rows], list(range(1, 17)))
+        self.assertEqual(
+            [field.strip() for _, stage, field in rows if stage == "首轮基础"],
+            [
+                "项目展示名称",
+                "`project_id`",
+                "项目路径",
+                "负责人",
+                "目标平台",
+                "接口组合",
+                "Agent 策略模式",
+            ],
+        )
+        self.assertEqual(
+            [field.strip() for _, stage, field in rows if stage == "条件补全"],
+            [
+                "`superpowers`",
+                "`parallel_worktree_subagents`",
+                "`milestone_smoke`",
+                "`milestone_e2e`",
+                "`system_tray`",
+                "`about_page`",
+                "`sponsor_page`",
+                "`single_instance`",
+                "`sidebar_mode`",
+            ],
+        )
+        self.assertNotIn("每次回复只询问一个最靠前的", form)
+
+    def test_direct_initialization_batches_interface_and_policy_mode(self) -> None:
+        """直接初始化也必须先同轮解析接口与策略模式，再询问条件字段。"""
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+        self.assertIn(
+            "在同一首轮一次列出全部未解析基础决定",
+            initialize,
+        )
+        self.assertIn(
+            "基础决定全部解析后，每轮只询问一个尚未解析的 GUI 条件字段",
+            initialize,
+        )
+        self.assertIn(
+            "选择自定义后，每轮只询问一个目标用户尚未明确提供的条件字段",
+            initialize,
+        )
 
     def test_form_resolves_parent_or_final_path_without_similarity_guessing(self) -> None:
         """末级精确命中才复用输入，否则必须追加标识并只检查最终根。"""
@@ -240,7 +272,7 @@ class InitializationFormContractTests(unittest.TestCase):
         )
         self.assertIn("不得在复制后重新发起一轮问询", instantiate)
         self.assertIn("不得在复制后重新询问接口", initialize)
-        self.assertIn("复用表单中已经逐项确认的五项值", initialize)
+        self.assertIn("复用表单中已经按需逐项确认的五项值", initialize)
 
 
 class StreamlinedDevelopmentTests(unittest.TestCase):

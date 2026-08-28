@@ -38,8 +38,8 @@
 
 ## 工作规则
 
-- 用户要求创建新下游项目时，`$desktop-instantiate-project` 必须在任何写入、环境安装或 Git 初始化前读取其 `references/initialization-form.md` 并逐项收集信息：已有合法字段直接复用，每轮只询问一个尚未解析的字段，不得把多个缺失项合并成一次模糊问询。表单必须在写入前收齐展示名、ASCII `snake_case` 标识、项目路径、负责人、目标平台、接口、Agent 策略和适用的 GUI 五项配置；完成后展示包含最终项目根目录的完整汇总并取得确认。产品目的、核心输入输出、成功标准和风险可继续保持未定义。
-- 下游初始化先让用户在“推荐预设”和“自定义”之间选择一次。推荐预设把 Superpowers 设为 `disabled`，Worktree/Subagent 和适用冒烟设为 `enabled`，E2E 建议默认值设为 `disabled`；只有选择自定义时才按表单每轮询问一个尚未明确的策略字段。最终值写入 `docs/AGENT_POLICY.md`，不得在基线残留 `pending`。只有自定义选择明确启用 Superpowers 时，后续 Agent 才可调用 `superpowers:*` Skill。
+- 用户要求创建新下游项目时，`$desktop-instantiate-project` 必须在任何写入、环境安装或 Git 初始化前读取其 `references/initialization-form.md`。已有合法字段直接复用；首轮一次询问全部尚未解析的基础字段：展示名、ASCII `snake_case` 标识、项目路径、负责人、目标平台、接口组合和 Agent 策略模式，不得拆成逐字段多轮或用模糊问询代替。基础字段全部解析后，才根据自定义策略或 GUI 选择每轮补全一个当前适用的条件字段。表单必须在写入前收齐全部基础字段和适用的 GUI 五项配置；完成后展示包含最终项目根目录的完整汇总并取得确认。产品目的、核心输入输出、成功标准和风险可继续保持未定义。
+- Agent 策略模式随初始化首轮基础问题一并询问。推荐预设把 Superpowers 设为 `disabled`，Worktree/Subagent 和适用冒烟设为 `enabled`，E2E 建议默认值设为 `disabled`；只有选择自定义时才按表单每轮询问一个尚未明确的条件字段。最终值写入 `docs/AGENT_POLICY.md`，不得在基线残留 `pending`。只有自定义选择明确启用 Superpowers 时，后续 Agent 才可调用 `superpowers:*` Skill。
 - 用户要求新建左侧 Task 处理仓库变更时，按 `docs/AGENT_POLICY.md` 固定采用“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”：标题使用“动作 + 结果”，描述完整列出目标、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。新 Task 从主任务已确认的最新干净 `main` 基线创建；主目录有修改时先由主任务审查并提交基线。Task 只改自己的 Worktree，完成时提交全部改动并保持状态干净，不自行合并 `main` 或清理 Worktree/分支。
 - 每个逻辑提交按 `$desktop-configure-git-commits` 表达一个完整、独立、可解释的结果：简单变化可以只写 Conventional Commit 主题，非简单变化填写 Why/Changes/Impact/Test，未运行测试必须写明 `Not run` 原因。模板安装和修复只使用仓库本地 Git 配置；不得修改全局配置，已有冲突值只有用户明确批准后才可替换。
 - 只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled`、至少两个写入范围可安全独立时，才使用 `$desktop-run-parallel-worktrees`；日常开发不得因持久策略或可并行性自动增加协作步骤。写入型 Subagent 各自使用独立 Git Worktree 和 `codex/` 分支，写入前调用 helper `guard` 并声明目标；主 Agent 同步等待全部必需结果，重叠写入转为串行。
@@ -54,7 +54,7 @@
 - UI 初始化必须先按 `docs/design_standards/README.md` 解析匹配标准；当前请求或 `docs/GUI_APP_PROFILE.md` 已批准的产品专属标准优先于 Harness 通用缺省。没有精确命中或用户要求特殊设计时，先取得明确批准；像素、密度或信息架构偏离必须同步更新下游 GUI profile 与当日 ADR，不得自行发明数值。
 - 优先最短可靠闭环，避免为假想未来增加抽象、接口或依赖。
 - 文件组织、中文业务注释、文档职责、测试组织和规则例外统一遵守 `docs/ENGINEERING_RULES.md`。文件行数、中文声明注释、lint、静态和架构检查只在本次变化本身需要、用户明确要求治理检查，或发布/渠道硬要求时运行，不作为日常开发或普通构建的附加步骤。Rust 代码超过 400 行建议重构、超过 800 行强制拆分；前端代码超过 500 行建议重构、超过 1000 行强制拆分；其他人工维护文本继续使用 500/2000。Rust 模块拆分使用 `<module>/mod.rs` 目录结构，前端按功能职责拆分且不强制 `index.ts` 桶文件。
-- 下游初始化必须在首次写入前的表单中询问用户选择 `CLI/TUI/MCP/GUI`，允许多选；用户明确使用默认值或跳过时采用 CLI。四类接口分别由 `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter` 独立实施，任何一种都不要求另一种存在。选择 GUI 后在同一表单中每轮只询问一个尚未解析的字段，逐项解析系统托盘、关于页、赞助页、单实例的启用/禁用，再提供侧栏精简/详细模式选择；四项能力仍须明确选择，不得推断、遗漏或残留 `pending`。用户未选择侧栏模式时，初始化器必须在写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块前归一化为 `sidebar_mode = detailed`；明确选择 `compact` 或 `detailed` 时尊重该值，显式非法值不得按未选择处理。最终五项配置不得遗漏或残留 `pending`，复制后不得重复询问表单已确认值。
+- 下游初始化必须把 `CLI/TUI/MCP/GUI` 接口组合作为首次写入前的基础问题，允许多选；用户明确使用默认值或跳过时采用 CLI。四类接口分别由 `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter` 独立实施，任何一种都不要求另一种存在。基础问题选择 GUI 后，才在同一表单的条件阶段每轮补全一个字段，依次解析系统托盘、关于页、赞助页、单实例的启用/禁用，再提供侧栏精简/详细模式选择；四项能力仍须明确选择，不得推断、遗漏或残留 `pending`。用户未选择侧栏模式时，初始化器必须在写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块前归一化为 `sidebar_mode = detailed`；明确选择 `compact` 或 `detailed` 时尊重该值，显式非法值不得按未选择处理。最终五项配置不得遗漏或残留 `pending`，复制后不得重复询问表单已确认值。
 - 下游 Product Spec 尚未创建或仍为 `Draft` 时允许先初始化中性 Rust workspace 与已选接口；此阶段只提供无业务副作用的 scaffold status，CLI JSON 明确返回 `productDefinitionRequired=true`，不得猜测业务逻辑、发布或声称产品交付完成。GUI 的动态标题、设置页、主题/i18n 与用户明确选择的托盘、单实例、关于页、赞助页和最终解析的侧栏模式是本地展示与宿主生命周期基线，不构成业务功能或交付证据。
 - 下游项目初始化默认采用 `docs/RUST_CLI_TEMPLATE.md` 中的 Rust 2024 shared-core 与 adapter 基线。只有选中 CLI 时才应用 CLI 契约；选择其他语言或降低工具链约束必须通过范围闸门并记录决策。
 - Core-first 是硬规则：接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略必须在 core 中实现，即使当前只有一个 adapter 也同样适用。把这些业务逻辑混入 adapter 只能按硬规则例外 ADR 处理。

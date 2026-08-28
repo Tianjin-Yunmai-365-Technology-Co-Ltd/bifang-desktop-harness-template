@@ -2,8 +2,8 @@
 
 ## 新增
 
-- `HARNESS-FEAT-STEPWISE-INSTANTIATION-FORM-PATH-RESOLUTION`（所需 Harness 版本 `202608051301`）：新下游创建在任何写入、环境安装或 Git 初始化前进入逐字段表单；已有合法输入直接复用，每轮只询问一个尚未解析字段，接口、策略和适用 GUI 配置均在复制前收齐，最终以包含唯一项目根目录的完整汇总确认。
-- 项目路径现在既可填写最终根也可填写父目录：规范化末级与 ASCII `snake_case` 项目标识精确一致时直接使用，否则无论名称是否相似都固定追加项目标识。新增标准库只读 helper 与 10 项路径回归，证明非空父目录可用，同时拒绝非空最终根、文件、符号链接、Harness 根/祖先和非法标识；Skill、README、AGENTS、Product Spec 与 Harness validator 已同步锁定。
+- `HARNESS-FEAT-BATCHED-BASE-INITIALIZATION-FORM`（所需 Harness 版本 `202608281139`）：新下游创建在任何写入、环境安装或 Git 初始化前，首轮一次列出尚未解析的展示名、标识、路径、负责人、目标平台、接口组合和 Agent 策略模式；已有合法输入直接复用。基础字段完成后，才按自定义策略或 GUI 选择每轮补全一个条件字段，最终仍以包含唯一项目根目录的完整汇总确认。
+- 项目路径既可填写最终根也可填写父目录：规范化末级与 ASCII `snake_case` 项目标识精确一致时直接使用，否则无论名称是否相似都固定追加项目标识。标准库只读 helper 与 10 项路径回归证明非空父目录可用，同时拒绝非空最终根、文件、符号链接、Harness 根/祖先和非法标识；表单阶段列、两个初始化 Skill、README、AGENTS、Product Spec 与 Harness validator 已同步锁定。
 - `HARNESS-FEAT-MEANINGFUL-GIT-COMMITS`（所需 Harness 版本 `202608051301`）：新增 `$desktop-configure-git-commits`，把 Conventional Commit 主题与 Why/Changes/Impact/Test 正文、原子提交边界、真实测试记录和提交前检查整理为独立 Skill；简单明确的变化仍可只写主题，不为形式制造空洞正文。
 - 新 Skill 使用标准库脚本把注释模板安装到当前仓库 Git common dir，并只管理本地 `commit.template`、`commit.cleanup=strip`、`commit.verbose=true` 与 `core.commentChar=#`。冲突默认失败，明确批准后才允许 `--replace`；Harness 当前仓库已实际执行 install/check，新下游初始化则在唯一基线提交前执行，不修改用户全局 Git 配置。
 - `HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY`（所需 Harness 版本 `202608051301`）：左侧 Task 现在按“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”创建；标题固定使用“动作 + 结果”，统一描述模板包含目标、工作方式、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。
@@ -77,6 +77,7 @@
 
 ## 验证
 
+- 本次首轮基础表单、条件补全与旧交互拒绝的初始化/入口专项 15 条回归通过；`python3 -B -m unittest discover -s scripts` 共 211 条测试全部通过。`python3 -B scripts/validate_harness.py` 通过 168 个必需文件、28 个 Skills、初始化阶段顺序和直接初始化复用契约，产生 8 条未达硬上限的非阻断行数复核提示；`$desktop-instantiate-project` 与 `$desktop-initialize-rust-project` 均通过 Skill Creator quick validator（2/2）。
 - `$desktop-configure-git-commits` 在 6 个隔离临时仓库场景中通过安装、重复幂等、冲突无写入、明确替换、模板篡改拒绝和父仓库子目录拒绝回归；Skill Creator quick validator 通过。Harness 当前仓库的实际 install/check 返回 `status: ok`，四项配置均来自 `git config --local`，没有替换既有冲突值。
 - 当前最终状态运行 `python3 -B -m unittest discover -s scripts`，206 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 165 个必需文件、28 个 Skills、初始化保留/裁剪和提交模板本地配置契约，产生 8 条未达硬上限的非阻断行数复核提示。
 - 当前 Task 规范最终状态运行 `python3 -B -m unittest discover -s scripts`，206 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 161 个必需文件、27 个 Skills，以及左侧 Task 的必填描述节、独立 Worktree、`codex/*` 分支、逻辑提交、干净交付、主任务整合/清理和初始化继承契约，产生 8 条未达硬上限的非阻断行数复核提示。
