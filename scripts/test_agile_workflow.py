@@ -204,6 +204,57 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("不因多步骤、多模块、中等风险、可并行或 Agent 偏好", skill)
         self.assertIn("自动调用 `$desktop-plan-change`、创建 Work Plan、启动 Subagent", skill)
 
+    def test_left_task_contract_requires_isolated_reviewable_delivery(self) -> None:
+        """左侧 Task 必须隔离修改、形成可审查提交并干净交付。"""
+        policy = read_repo_text("docs/AGENT_POLICY.md")
+        implement = read_repo_text(
+            ".agents/skills/desktop-implement-change/SKILL.md"
+        )
+        parallel = read_repo_text(
+            ".agents/skills/desktop-run-parallel-worktrees/SKILL.md"
+        )
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+        instantiate = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/SKILL.md"
+        )
+        gitignore = read_repo_text(".gitignore")
+
+        for heading in (
+            "目标：",
+            "工作方式：",
+            "当前事实：",
+            "必须阅读的项目文档：",
+            "实施范围：",
+            "禁止事项：",
+            "验收标准：",
+            "交付：",
+        ):
+            self.assertIn(heading, policy)
+        for fragment in (
+            "动作 + 结果",
+            "最新本地 `main` HEAD",
+            "`codex/<task-slug>`",
+            "`git status --porcelain=v1 --untracked-files=all`",
+            "不要自行合并 `main`",
+        ):
+            self.assertIn(fragment, policy)
+
+        self.assertIn("每完成一个逻辑闭环", implement)
+        self.assertIn("不自行合并 `main`", implement)
+        self.assertIn("只管理单个左侧 Task 内部", parallel)
+        self.assertIn("不得把两个左侧 Task 安排进同一 Worktree", parallel)
+        self.assertIn("统一描述模板", initialize)
+        self.assertIn("左侧 Task 描述模板", instantiate)
+        for ignored in (
+            "/target/",
+            "**/node_modules/",
+            "**/dist/",
+            "**/__pycache__/",
+        ):
+            self.assertIn(ignored, gitignore)
+
     def test_build_is_a_separate_explicit_flow(self) -> None:
         """普通开发只在用户显式要求构建时进入构建 Skill。"""
         skill = read_repo_text(".agents/skills/desktop-implement-change/SKILL.md")

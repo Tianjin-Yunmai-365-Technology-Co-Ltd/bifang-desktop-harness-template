@@ -338,6 +338,7 @@ def repository_required_fragments(
             "/target/",
             "**/node_modules/",
             "**/dist/",
+            "**/__pycache__/",
             "**/coverage/",
             ".env.*",
             "!.env.example",

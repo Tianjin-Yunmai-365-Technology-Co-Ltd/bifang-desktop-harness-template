@@ -24,7 +24,7 @@
 | UI 标准匹配、布局、组件语义与视觉密度 | `docs/design_standards/README.md` 与其索引的精确匹配标准 |
 | 当前进度与下一步 | `docs/project_status/README.md` 与日期最新的 `YYYYMMDD_product_status.md` |
 | Harness 当前版本与发布状态 | `Version.md` |
-| Agent 能力、候选冒烟与构建 E2E 建议默认值 | `docs/AGENT_POLICY.md` |
+| Agent 能力、左侧 Task/Worktree 交付、候选冒烟与构建 E2E 建议默认值 | `docs/AGENT_POLICY.md` |
 | 当前实施步骤 | `docs/work_plan/README.md` 与日期最新的 `YYYYMMDD_work_plan.md` |
 | 文件、注释、文档、测试与例外规则 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) |
 | 产品边界变化、长期决定与硬规则例外 | `docs/adr/README.md` 与当日 `docs/adr/YYYYMMDD_ADR.md` |
@@ -38,6 +38,7 @@
 ## 工作规则
 
 - 下游初始化先让用户在“推荐预设”和“自定义”之间选择一次。推荐预设把 Superpowers 设为 `disabled`，Worktree/Subagent 和适用冒烟设为 `enabled`，E2E 建议默认值设为 `disabled`；只有选择自定义时才逐项询问。最终值写入 `docs/AGENT_POLICY.md`，不得在基线残留 `pending`。只有自定义选择明确启用 Superpowers 时，后续 Agent 才可调用 `superpowers:*` Skill。
+- 用户要求新建左侧 Task 处理仓库变更时，按 `docs/AGENT_POLICY.md` 固定采用“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”：标题使用“动作 + 结果”，描述完整列出目标、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。新 Task 从主任务已确认的最新干净 `main` 基线创建；主目录有修改时先由主任务审查并提交基线。Task 只改自己的 Worktree，完成时提交全部改动并保持状态干净，不自行合并 `main` 或清理 Worktree/分支。
 - 只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled`、至少两个写入范围可安全独立时，才使用 `$desktop-run-parallel-worktrees`；日常开发不得因持久策略或可并行性自动增加协作步骤。写入型 Subagent 各自使用独立 Git Worktree 和 `codex/` 分支，写入前调用 helper `guard` 并声明目标；主 Agent 同步等待全部必需结果，重叠写入转为串行。
 - 日常开发统一从用户请求直接进入 `$desktop-implement-change`。除必要 ADR、Changelog 等事件触发记录和本次开发所需单元/回归测试外，不因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加 `$desktop-plan-change`、Work Plan、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
 - 已初始化下游的每次工作先由 `$desktop-manage-version` 分类。完成的首个新功能在同一正式发布周期只把 Minor 提升一次并把 Patch 归零；每个新稳定缺陷 ID 的已完成修复提升一次 Patch；Major 只按用户批准的精确值提升并把 Minor/Patch 归零。查询、诊断、复现、重复或未完成修复尝试、不改变可观察行为的纯重构、测试补强、文档、格式和内部清理不提升；改变可观察行为的重构按其实际结果归类为功能或缺陷修复。三个分量都只允许 `0..100`，溢出不进位；只有正式发布成功才重置功能周期，普通构建、候选或失败发布不得重置。根 `Cargo.toml` 是当前版本唯一事实源，`.harness/version-state.json` 是受保护的周期/去重状态，禁止手工绕过。
@@ -157,11 +158,11 @@
 |---|---|
 | 产品目标、范围与成功标准 | `docs/product_spec/README.md` 与日期最新的 `YYYYMMDD_product_spec.md` |
 | 文件、中文注释、文档、测试和例外 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) |
-| Agent 能力、候选冒烟与构建 E2E 建议默认值 | `docs/AGENT_POLICY.md` |
+| Agent 能力、左侧 Task/Worktree 交付、候选冒烟与构建 E2E 建议默认值 | `docs/AGENT_POLICY.md` |
 | Rust shared core、adapter、MSRV 与依赖 | `docs/RUST_CLI_TEMPLATE.md` |
 | CLI 机器接口（仅选择 CLI 时） | `docs/CLI_CONTRACT.md` |
 | 持久实施与完整验收证据（按需） | `docs/work_plan/README.md`、日期最新的 `YYYYMMDD_work_plan.md`、`docs/VERIFICATION.md` |
-| 并行协作偏好、Worktree 隔离与前台状态 | `docs/AGENT_POLICY.md`、`$desktop-run-parallel-worktrees` |
+| 左侧 Task 命名、独立 Worktree/分支、提交、整合与清理 | `docs/AGENT_POLICY.md`；Task 内部显式并行另由 `$desktop-run-parallel-worktrees` 管理 |
 | 产品边界变化、长期决定与不可逆取舍 | `docs/adr/README.md` 与最新日期 ADR |
 | Harness 自身记忆历史治理 | `$desktop-curate-harness-memory`；仅 Harness 根目录可用，把过期 ADR/Changelog 条目原文迁移到同目录 `ADR_history.md`/`CHANGELOG_history.md` 永久追加保存，不随下游派生，不适用 Work Plan/Product Status/Product Spec |
 | 开发环境 | `$desktop-check-development-environment` |
@@ -180,7 +181,7 @@
 2. 日常开发直接实施，只增加并运行本次需要的单元/回归测试；仅更新被触发的 ADR、Changelog 等记录。
 3. 不自动增加持久计划、全仓检查、构建、冒烟、发布候选 E2E、完整验收或人工复核；用户明确请求或当前风险确需时才进入对应专用流程。含 GUI 的一次性初始化 E2E 是初始化完成门禁，不属于日常开发自动扩张。
 4. 显式构建先解析本次 E2E 选择，再运行全部非空单元测试并构建候选；构建事实只进入 `release/` manifest 和最终回复，启用的 E2E 只针对最终真实候选。
-5. 最终报告变更、实际测试、未执行项和剩余风险。
+5. 左侧 Task 还必须按描述完成提交、确认 `git status` 干净，并报告分支、提交哈希、实际测试、未执行项和剩余风险；由主任务复核后整合与清理。
 
 ## 当前限制
 

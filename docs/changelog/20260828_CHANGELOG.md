@@ -1,7 +1,9 @@
-# 2026-08-27 变更记录
+# 2026-08-28 变更记录
 
 ## 新增
 
+- `HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY`（所需 Harness 版本 `202608051301`）：左侧 Task 现在按“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”创建；标题固定使用“动作 + 结果”，统一描述模板包含目标、工作方式、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。
+- 新 Task 从主任务确认的最新干净 `main` 基线创建，Codex detached Worktree 在首次编辑前建立 Task 分支；Task 只改自己的 Worktree、按逻辑闭环提交并以干净状态交付，不自行覆盖 `/Applications`、合并 `main` 或清理 Worktree。主任务复核提交、测试与风险，整合后才删除 Worktree 和分支；初始化/实施/并行 Skills 与 validator 同步保留 Task 级和 Subagent 级 Worktree 的分层边界。
 - `HARNESS-FEAT-DETAILED-SIDEBAR-RUNTIME-SYNC`（所需 Harness 版本 `202608051301`）：detailed 侧栏沉淀为 `tauri-gui-sidebar-detailed-v1` 的完整运行时标准，保持 `248px`/`76px`、`72px`/`44px`，菜单图标统一为 `22px`/`1.75`，展开横排名称，收起使用右侧零延迟 Tooltip；折叠状态提升到 AppShell，由同一 helper 同步 fixed 侧栏、Mantine `navbar.width` 与 `data-navbar-width`，身份区父级不代理折叠。
 - GUI 支持品牌资产新增 detailed `AppShellTemplate.tsx`，React 回归覆盖默认展开、父级无动作、ActionIcon 后 248→76 同步、名称节点消失、偏好保存及重挂载恢复；Python/Node 门禁新增详细模式常量、回调、严格 localStorage、Tooltip 与壳层联动检查。Harness 根不伪造产品 `GUI_APP_PROFILE.md`，真实下游仍记录 detailed 标准 ID 与任何批准偏离。
 - `HARNESS-FEAT-UI-DESIGN-STANDARDS-CATALOG`（所需 Harness 版本 `202608051301`）：新增 `docs/design_standards/`，把 Tauri GUI 通用设计与固定左侧栏纳入精确匹配目录；产品 profile/当前请求中已批准的标准优先于 Harness 缺省，没有匹配或特殊需求先批准，像素偏离同步写入 GUI profile 与 ADR，UI 规则只落在 adapter 展示层。
@@ -71,6 +73,9 @@
 
 ## 验证
 
+- 当前 Task 规范最终状态运行 `python3 -B -m unittest discover -s scripts`，206 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 161 个必需文件、27 个 Skills，以及左侧 Task 的必填描述节、独立 Worktree、`codex/*` 分支、逻辑提交、干净交付、主任务整合/清理和初始化继承契约，产生 8 条未达硬上限的非阻断行数复核提示。
+- `$desktop-implement-change`、`$desktop-initialize-rust-project`、`$desktop-instantiate-project`、`$desktop-run-parallel-worktrees` 均通过 Skill Creator quick validator（4/4）；`git diff --check` 通过。
+- 本轮只变更 Harness 规则、Skills、文档和 Python 契约测试，没有可编译产品或真实最终应用，因此编译、GUI/Computer Use、候选构建、E2E、签名、公证与发布均为 `Not applicable`/`Not run`，未据此声明最终产物通过。
 - 当前最终状态运行 `python3 -B -m unittest discover -s scripts`，201 条测试全部通过；`python3 -B scripts/validate_harness.py` 通过 151 个必需文件、26 个 Skills 及本次 GUI 五项最终初始化配置、侧栏未选择时归一化为 `detailed`、条件依赖/页面/资源、双侧栏、页面事件归属、进程内页面会话、近五版更新日志和单 `v` 展示契约，产生 7 条未达硬上限的非阻断行数复核提示。
 - GUI 支持契约专项 24/24、GUI 初始化结构/生命周期专项 34/34、发布日志 helper 专项 5/5、中性 Rust workspace 7/7、候选 workflow 29/29 均通过；10 个本次涉及的项目 Skills 通过 Skill Creator quick validator，`git diff --check` 通过。
 - Harness 源仓库没有可执行前端 `package.json`/`pnpm-lock.yaml`，因此没有把新增 `PageSessionState.test.ts` 与更新日志模板 Vitest 声称为已运行；Python validator 与负向回归已静态锁定根 store 生命周期、每页数量变化回第 1 页、成功空页回退、持久化 API 拒绝、按钮自身事件、5/10 上限和单 `v` 归一化，真实 GUI 下游初始化仍须运行模板前端测试。

@@ -7,6 +7,8 @@ description: 使用隔离的 Git Worktree 和 codex/ 分支，在可见 Subagent
 
 将一个 Todo 批次作为可见且隔离的工作单元执行，不得丢失用户修改，也不得把必需工作留在后台。
 
+本 Skill 只管理单个左侧 Task 内部、由用户明确要求的并行写入单元；左侧 Task 自身的一目标一 Worktree、`codex/*` 分支、描述模板、提交、主任务整合与清理契约以 `docs/AGENT_POLICY.md` 为准。不得把两个左侧 Task 安排进同一 Worktree，也不得用本 Skill 的 `codex/<task>/<unit>` 临时分支替代每个左侧 Task 自己的 `codex/*` 交付分支。
+
 ## 策略与适用性
 
 1. 读取 `docs/AGENT_POLICY.md`。只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled` 时才继续；日常开发不得仅因持久策略启用而自动增加并行步骤。值为 `disabled` 时使用单 Agent。

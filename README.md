@@ -23,6 +23,12 @@
 
 安全、隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道要求和发布仍保留解决当前风险所必需的确认与门禁；精简开发流程不授权绕过这些边界。
 
+## 开始一个左侧 Task
+
+左侧 Task 默认用于一个明确且可独立验收的结果。创建仓库修改 Task 时，选择项目 Worktree 并从主任务已确认的最新干净 `main` 基线开始；标题使用“动作 + 结果”，Task 启动后在首次编辑前创建唯一 `codex/*` 分支。主目录若有未提交修改，先由主任务审查并提交为基线，不把未提交状态隐式复制进新 Worktree。
+
+Task 描述必须完整列出目标、工作方式、当前事实、必须阅读的项目文档、实施范围、禁止事项、验收标准和交付要求。Task 只修改自己的 Worktree，每个逻辑闭环形成可审查提交；交付前运行任务要求的测试、同步文档、提交全部修改并保持 `git status` 干净。Task 不自行覆盖 `/Applications`、删除其他 Worktree 或合并 `main`；主任务复核提交、测试证据和风险后负责整合，确认干净且已合并后才移除 Worktree 与分支。完整模板和应用边界见 [`docs/AGENT_POLICY.md`](docs/AGENT_POLICY.md#左侧-task-与独立-worktree)。
+
 ## 项目入口
 
 | 文件 | 作用 |
@@ -31,7 +37,7 @@
 | `Version.md` | Harness 模板当前时间版本、时间版本起始值、旧版本标识与发布状态的唯一事实来源 |
 | `LICENSE.zh-CN.md` / `LICENSE.en.md` | 非开源的企业专有商业许可；覆盖项目、知识产权和终端下游限制 |
 | `docs/product_spec/README.md` | Product Spec 按日完整快照规则与索引；当前规格取日期最新文件 |
-| `docs/AGENT_POLICY.md` | Superpowers、Worktree/Subagent、候选冒烟和构建时 E2E 建议默认值的唯一持久策略 |
+| `docs/AGENT_POLICY.md` | Superpowers、左侧 Task/Worktree 交付、Worktree/Subagent、候选冒烟和构建时 E2E 建议默认值的唯一持久策略 |
 | [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | 文件拆分、中文注释、文档、测试和例外规则 |
 | [`docs/design_standards/README.md`](docs/design_standards/README.md) | UI 标准目录、精确匹配优先级、Tauri GUI 通用与侧栏设计规则 |
 | `docs/CLI_CONTRACT.md` | 下游 CLI 的统一机器接口契约 |

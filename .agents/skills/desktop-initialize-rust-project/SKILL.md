@@ -40,7 +40,7 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
     - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、`docs/harness_engineering/`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
     - 保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-prepare-gui-app-identity`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees`、`$desktop-manage-version`，以及仍然适用的产品开发、适配器、验证和发布 Skills；必须保留 `$desktop-implement-change` 及其维护脚本和对应测试，但不得在日常开发中自动运行这些全仓门禁；版本 Skill 及其标准库 helper/测试必须完整保留，并把 `.harness/version-state.json` 列入约束地图的受保护状态；选择 GUI 时同时完整保留 `$desktop-prepare-gui-support-surfaces`（包括 `assets/brand-support/**`）、GUI 自有 TypeScript 注释门禁、其测试和 `$desktop-build-tauri-release`，未选择 GUI 时将全部 GUI 条件资产与 Skills 删除且不得要求 Node.js/pnpm；
     - 保留继承的两份非开源企业专有商业许可证文件 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，其中目标项目名称必须已由 `$desktop-rename-project-identity` 建立；如果任一文件缺失、仍包含旧 Harness 身份、在批准改名后发生其他修改，或被安排删除，则最终收尾必须失败；
-    - 重写 `AGENTS.md`，同时保留非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$desktop-run-parallel-worktrees` 和 `$desktop-upgrade-harness` 的持久策略用法。约束地图必须链接保留的规则并禁止下游继续派生；
+    - 重写 `AGENTS.md`，同时保留非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$desktop-run-parallel-worktrees` 和 `$desktop-upgrade-harness` 的持久策略用法。约束地图必须链接保留的规则并禁止下游继续派生；还必须保留 `docs/AGENT_POLICY.md` 中左侧 Task 的“动作 + 结果”标题、独立 Worktree、`codex/*` 分支、必填描述、逻辑闭环提交、干净交付、主任务整合与清理约定，不得把它误删为初始化临时内容；
     - 搜索下游根目录；如果历史证据之外仍存在对 `$desktop-instantiate-project`、`$desktop-initialize-rust-project`、其目录或仅用于初始化的门禁的活动引用，则最终收尾必须失败。
 14. 裁剪完成后，如果本次运行由 `$desktop-instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆与验证证据目录，绝不得为了满足此检查而删除它们。暂存完整的已初始化下游项目树，并使用用户现有 Git 身份创建恰好一个本地基线提交，提交消息必须为 `chore: initialize project`。如果作者身份不可用，必须停止并向用户请求；不得伪造身份或修改全局 Git 配置。
 15. 创建基线提交之前，必须确认四项策略字段和确认元数据均不包含 `pending`。如果具备精确的源溯源和渲染后的保留工程层候选，则通过 `$desktop-upgrade-harness record --bootstrap` 建立 `.harness/upstream-lock.json`；否则必须记录首次升级所需的初始基线审计，不得虚构锁文件。验证已完成仓库的规范顶层目录、`main`、可解析的基线提交、无远端，以及空的 `git status --porcelain=v1 --untracked-files=all`。任何失败都必须阻断完成。
@@ -67,6 +67,7 @@ description: 初始化一个中性的下游 Rust 项目并选择接口，随后�
 - Rust 能力按 `docs/RUST_CLI_TEMPLATE.md` 的事实标准选择：Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing + tracing-subscriber + tracing-appender、anyhow、thiserror、serde、jiff；OpenTelemetry 与协议/存储/认证候选只在对应能力获批后采用。只把当前已选接口或已批准真实能力需要的依赖加入根 `[workspace.dependencies]`；不得为中性状态预装未使用的 HTTP、ORM、配置、错误或可观测性依赖，偏离固定技术必须记录硬规则例外。
 - 只有选择 CLI 时，CLI 才遵守 `docs/CLI_CONTRACT.md`。
 - `docs/AGENT_POLICY.md` 持久记录四项项目选择；后续 Agent 必须复用这些选择、推断适用性，并且只在问题未解决时询问。
+- `docs/AGENT_POLICY.md` 同时保存左侧 Task 的独立 Worktree 交付契约；它与 `parallel_worktree_subagents` 是否允许 Task 内部并行是两个层级，初始化和裁剪都不得混为同一开关或删除统一描述模板。
 - 产品规格、工作计划、ADR 和变更记录属于下游开发记忆，不属于初始化载荷。
 - 完成收尾的下游项目不能从自身实例化或初始化另一个项目。
 - 完成收尾的下游项目必须保留继承的两份专有商业许可证文件，并继续受其中终端下游限制约束。
