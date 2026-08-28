@@ -113,7 +113,7 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "value.releases.length > MAX_VISIBLE_RELEASE_NOTE_VERSIONS",
             "value.length > MAX_VISIBLE_RELEASE_NOTE_ITEMS",
             "value.schemaVersion !== 2",
-            'hasExactKeys(item, ["en-US", "zh-CN"])',
+            "hasExactKeys(item, RELEASE_NOTES_LOCALES)",
         ),
         react_root / "ReleaseNotesResource.test.ts": (
             "loads the packaged document through the narrow Tauri command",

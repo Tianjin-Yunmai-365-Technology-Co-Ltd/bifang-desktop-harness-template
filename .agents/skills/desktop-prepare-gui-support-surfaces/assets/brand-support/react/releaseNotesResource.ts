@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   MAX_VISIBLE_RELEASE_NOTE_ITEMS,
   MAX_VISIBLE_RELEASE_NOTE_VERSIONS,
+  RELEASE_NOTES_LOCALES,
   type LocalizedReleaseNoteEntry,
   type LocalizedReleaseNoteItem,
 } from "./releaseNotes";
@@ -60,6 +61,11 @@ function isDisplayVersion(value: string): boolean {
   return semantic !== null && semantic.slice(1).every((part) => Number(part) <= 100);
 }
 
+/** 判断某个语言字段是否为非空且无首尾空白的文本。 */
+function isCleanLocalizedText(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.trim() === value;
+}
+
 /** 收窄单个分类的完整双语、逐语言去重且不超过十条的翻译对。 */
 function decodeItems(value: unknown, field: string): LocalizedReleaseNoteItem[] {
   if (!Array.isArray(value) || value.length > MAX_VISIBLE_RELEASE_NOTE_ITEMS) {
@@ -68,21 +74,17 @@ function decodeItems(value: unknown, field: string): LocalizedReleaseNoteItem[] 
   const items = value.map((item) => {
     if (
       !isRecord(item) ||
-      !hasExactKeys(item, ["en-US", "zh-CN"]) ||
-      typeof item["zh-CN"] !== "string" ||
-      item["zh-CN"].length === 0 ||
-      item["zh-CN"].trim() !== item["zh-CN"] ||
-      typeof item["en-US"] !== "string" ||
-      item["en-US"].length === 0 ||
-      item["en-US"].trim() !== item["en-US"]
+      !hasExactKeys(item, RELEASE_NOTES_LOCALES) ||
+      !RELEASE_NOTES_LOCALES.every((locale) => isCleanLocalizedText(item[locale]))
     ) {
       throw new Error(`invalid release notes ${field} item`);
     }
-    return { "en-US": item["en-US"], "zh-CN": item["zh-CN"] };
+    return { "en-US": item["en-US"] as string, "zh-CN": item["zh-CN"] as string };
   });
   if (
-    new Set(items.map((item) => item["zh-CN"])).size !== items.length ||
-    new Set(items.map((item) => item["en-US"])).size !== items.length
+    RELEASE_NOTES_LOCALES.some(
+      (locale) => new Set(items.map((entry) => entry[locale])).size !== items.length,
+    )
   ) {
     throw new Error(`duplicate release notes ${field} item`);
   }

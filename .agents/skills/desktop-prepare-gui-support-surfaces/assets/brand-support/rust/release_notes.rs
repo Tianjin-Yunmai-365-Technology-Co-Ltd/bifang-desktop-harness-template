@@ -111,17 +111,18 @@ fn validate_release_notes(document: &ReleaseNotesDocument) -> Result<(), Release
     Ok(())
 }
 
+/// 判断单个语言字段非空、没有空白包围且在该分类下唯一。
+fn is_clean_unique_text<'a>(text: &'a str, seen: &mut HashSet<&'a str>) -> bool {
+    !text.is_empty() && text.trim() == text && seen.insert(text)
+}
+
 /// 要求每个翻译对非空、没有空白包围且同分类逐语言去重。
 fn has_unique_non_empty_items(items: &[LocalizedReleaseNoteItem]) -> bool {
     let mut unique_zh_cn = HashSet::new();
     let mut unique_en_us = HashSet::new();
     items.iter().all(|item| {
-        !item.zh_cn.is_empty()
-            && item.zh_cn.trim() == item.zh_cn
-            && unique_zh_cn.insert(item.zh_cn.as_str())
-            && !item.en_us.is_empty()
-            && item.en_us.trim() == item.en_us
-            && unique_en_us.insert(item.en_us.as_str())
+        is_clean_unique_text(item.zh_cn.as_str(), &mut unique_zh_cn)
+            && is_clean_unique_text(item.en_us.as_str(), &mut unique_en_us)
     })
 }
 
