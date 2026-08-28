@@ -7,7 +7,7 @@
 - 维护状态：Active
 - 产品名称：Agent-first Harness 项目模板
 - 产品规格：Approved（2026-07-21）
-- 当前版本：v202608051301（上海时区 `YYYYMMDDHHMM`，未发布；机器事实来源见 [`Version.md`](Version.md)）
+- 当前版本：v202608281139（上海时区 `YYYYMMDDHHMM`，未发布；机器事实来源见 [`Version.md`](Version.md)）
 - 源码：尚未创建
 - 反馈入口：待确定
 
