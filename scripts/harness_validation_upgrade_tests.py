@@ -83,8 +83,8 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             )
         self.assertTrue(any("invalid upgrade Python module" in error for error in errors), errors)
 
-    def test_gui_support_skill_is_conditional_and_product_facts_are_protected(self) -> None:
-        """升级条件传播完整品牌资产，但不能覆盖下游支持界面实例。"""
+    def test_gui_skills_are_conditional_and_product_facts_are_protected(self) -> None:
+        """升级只向 GUI 下游传播 GUI 能力，同时保护产品实例与 profile。"""
 
         manifest = json.loads(upgrade.UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))
         ordered = [
@@ -109,6 +109,14 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             if fnmatch.fnmatchcase(brand_asset, pattern)
         )
         self.assertEqual(resolved_mode, "conditional")
+        for skill_name in (
+            "desktop-add-gui-system-notifications",
+            "desktop-add-gui-autostart",
+            "desktop-test-gui-release-performance",
+        ):
+            rule = (f".agents/skills/{skill_name}/**", "conditional")
+            self.assertIn(rule, ordered)
+            self.assertLess(ordered.index(rule), ordered.index(generic_rule))
 
     def test_rejects_gui_support_rule_after_generic_skill_rule(self) -> None:
         """宽泛 managed 规则不得抢先吞掉 GUI-only 条件 Skill。"""

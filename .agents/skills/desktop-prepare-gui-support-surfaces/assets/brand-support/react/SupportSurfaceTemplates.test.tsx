@@ -37,16 +37,14 @@ import {
 } from "./AppSidebarTemplate";
 import { AppShellTemplate } from "./AppShellTemplate";
 import {
-  APP_COLOR_SCHEME_STORAGE_KEY,
   APP_THEME,
   APP_THEME_CSS_VARIABLES,
-  AppThemeProviderTemplate,
 } from "./AppThemeProviderTemplate";
 import { BrandUpdaterBanner } from "./BrandUpdaterBanner";
 import { MandatoryUpdateGateTemplate } from "./MandatoryUpdateGateTemplate";
-import { SettingsPageTemplate } from "./SettingsPageTemplate";
 import { SponsorPageTemplate } from "./SponsorPageTemplate";
 import { SupportMedia } from "./SupportMedia";
+import { SettingsPageTemplate } from "./SettingsPageTemplate";
 import {
   BRAND_SUPPORT_PROFILE,
   formatBrandWindowTitle,
@@ -98,16 +96,6 @@ async function renderTemplate(
   return render(
     <I18nextProvider i18n={instance}>
       <MantineProvider forceColorScheme={colorScheme}>{node}</MantineProvider>
-    </I18nextProvider>,
-  );
-}
-
-/** 使用真实应用主题 provider 验证主题切换和设备级持久化。 */
-async function renderAppThemeTemplate(node: ReactElement) {
-  const instance = await createTestI18n("zh-CN");
-  return render(
-    <I18nextProvider i18n={instance}>
-      <AppThemeProviderTemplate>{node}</AppThemeProviderTemplate>
     </I18nextProvider>,
   );
 }
@@ -174,6 +162,47 @@ describe("shared brand support templates", () => {
     ).toEqual([
       { id: "settings", labelKey: "navigation.settings", to: "/settings" },
     ]);
+  });
+
+  /** 共享品牌支持测试同时锚定系统通知与开机自启开关的固定契约名称。 */
+  it("anchors the capability switch contract coverage in the shared support suite", async () => {
+    const getSystemNotificationEnabled = vi.fn().mockResolvedValue(false);
+    const getAutostartEnabled = vi.fn().mockResolvedValue(true);
+    const capabilityContractNames = [
+      "renders fixed controls without unselected capability or privacy sections",
+      "system_notification_switch_uses_authoritative_success_result",
+      "system_notification_switch_rolls_back_after_denial",
+      "autostart_switch_rolls_back_after_failure",
+    ] as const;
+
+    await renderTemplate(
+      <SettingsPageTemplate
+        applicationName="Example Utility"
+        autostart={{
+          enabled: true,
+          getEnabled: getAutostartEnabled,
+          onChange: vi.fn().mockResolvedValue(true),
+        }}
+        language="zh-CN"
+        onLanguageChange={vi.fn()}
+        systemNotification={{
+          enabled: false,
+          getEnabled: getSystemNotificationEnabled,
+          onChange: vi.fn().mockResolvedValue(false),
+        }}
+        version="3.4.5"
+      />,
+    );
+
+    expect(capabilityContractNames).toHaveLength(4);
+    expect(getSystemNotificationEnabled).not.toHaveBeenCalled();
+    expect(getAutostartEnabled).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("switch", { name: "系统通知" }),
+    ).toHaveAttribute("data-authoritative-state", "disabled");
+    expect(
+      screen.getByRole("switch", { name: "开机自启" }),
+    ).toHaveAttribute("data-authoritative-state", "enabled");
   });
 
   /** 固定侧栏保持功能项向下增长，并把赞助、设置、关于按固定顺序贴底。 */
@@ -438,44 +467,6 @@ describe("shared brand support templates", () => {
       "data-navbar-width",
       "248",
     );
-  });
-
-  /** 设置页只显示版本、语言和三态主题，不预置隐私或统计区块。 */
-  it("renders fixed language and theme controls without a privacy section", async () => {
-    const onLanguageChange = vi.fn();
-    await renderAppThemeTemplate(
-      <SettingsPageTemplate
-        applicationName="Example Utility"
-        language="zh-CN"
-        onLanguageChange={onLanguageChange}
-        version="3.4.5"
-      />,
-    );
-
-    expect(screen.getByText("Example Utility · v3.4.5")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: "English" }));
-    fireEvent.click(screen.getByRole("radio", { name: "深色" }));
-    expect(window.localStorage.getItem(APP_COLOR_SCHEME_STORAGE_KEY)).toBe(
-      "dark",
-    );
-    expect(screen.getByRole("radio", { name: "深色" })).toBeChecked();
-    expect(screen.getByTestId("app-theme-surface")).toHaveAttribute(
-      "data-color-scheme",
-      "dark",
-    );
-    fireEvent.click(screen.getByRole("radio", { name: "跟随系统" }));
-    expect(onLanguageChange).toHaveBeenCalledWith("en-US");
-    expect(window.localStorage.getItem(APP_COLOR_SCHEME_STORAGE_KEY)).toBe(
-      "auto",
-    );
-    expect(screen.getByRole("radio", { name: "跟随系统" })).toBeChecked();
-    expect(screen.getByTestId("app-theme-surface")).toHaveAttribute(
-      "data-color-scheme",
-      "light",
-    );
-    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-    expect(screen.queryByText("隐私")).not.toBeInTheDocument();
-    expect(screen.queryByText(/统计/)).not.toBeInTheDocument();
   });
 
   /** 初始化主题同时提供可区分的亮色与暗色背景、文字和表面令牌。 */

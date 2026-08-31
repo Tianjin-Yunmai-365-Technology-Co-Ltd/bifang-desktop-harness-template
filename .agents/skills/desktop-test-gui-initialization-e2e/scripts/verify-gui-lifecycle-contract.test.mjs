@@ -1,492 +1,18 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
-import { deflateSync } from "node:zlib";
 
+import {
+  SCRIPT,
+  createTrayPng,
+  disableTrayAndSingleInstance,
+  withFixture,
+  writeInitializationProfile,
+} from "./verify-gui-lifecycle-contract.fixture.mjs";
 import { verifyGuiLifecycleContract } from "./verify-gui-lifecycle-contract.mjs";
-
-const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "verify-gui-lifecycle-contract.mjs");
-
-/** 计算 PNG chunk 的 CRC-32，保持测试夹具也是可被真实解码器读取的图片。 */
-function crc32(buffer) {
-  let value = 0xffffffff;
-  for (const byte of buffer) {
-    value ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) {
-      value = (value >>> 1) ^ (0xedb88320 & -(value & 1));
-    }
-  }
-  return (value ^ 0xffffffff) >>> 0;
-}
-
-/** 生成 32x32 8-bit RGBA PNG，可切换为全透明负向夹具。 */
-function createTrayPng(visible = true) {
-  const width = 32;
-  const height = 32;
-  const raw = Buffer.alloc(height * (width * 4 + 1));
-  for (let y = 0; y < height; y += 1) {
-    const row = y * (width * 4 + 1);
-    raw[row] = 0;
-    for (let x = 0; x < width; x += 1) {
-      const pixel = row + 1 + x * 4;
-      const inside = visible && x >= 4 && x < 28 && y >= 4 && y < 28;
-      raw[pixel] = 28;
-      raw[pixel + 1] = 126;
-      raw[pixel + 2] = 214;
-      raw[pixel + 3] = inside ? 255 : 0;
-    }
-  }
-  const chunk = (type, data) => {
-    const name = Buffer.from(type, "ascii");
-    const result = Buffer.alloc(data.length + 12);
-    result.writeUInt32BE(data.length, 0);
-    name.copy(result, 4);
-    data.copy(result, 8);
-    result.writeUInt32BE(crc32(Buffer.concat([name, data])), data.length + 8);
-    return result;
-  };
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header.set([8, 6, 0, 0, 0], 8);
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", header),
-    chunk("IDAT", deflateSync(raw)),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
-/** 写入结构检查器要求的五项 GUI 初始化选择。 */
-function writeInitializationProfile(root, overrides = {}) {
-  const selection = {
-    about_page: "enabled",
-    sidebar_mode: "detailed",
-    single_instance: "enabled",
-    sponsor_page: "enabled",
-    system_tray: "enabled",
-    ...overrides,
-  };
-  fs.mkdirSync(path.join(root, "docs"), { recursive: true });
-  fs.writeFileSync(
-    path.join(root, "docs", "GUI_APP_PROFILE.md"),
-    `# GUI 应用资料\n\n\`\`\`gui-initialization-config\nsystem_tray = ${selection.system_tray}\nabout_page = ${selection.about_page}\nsponsor_page = ${selection.sponsor_page}\nsingle_instance = ${selection.single_instance}\nsidebar_mode = ${selection.sidebar_mode}\n\`\`\`\n`,
-  );
-}
-
-/** 写入关于/赞助均启用且采用详细侧栏的最小前端运行时。 */
-function writeDetailedFrontendFixture(guiRoot) {
-  const sourceRoot = path.join(guiRoot, "src");
-  fs.mkdirSync(path.join(sourceRoot, "routes"), { recursive: true });
-  fs.mkdirSync(path.join(guiRoot, "public", "brand-support", "sponsor"), { recursive: true });
-  fs.writeFileSync(
-    path.join(sourceRoot, "AppShell.tsx"),
-    `
-import { ActionIcon, AppShell, NavLink, Tooltip } from "@mantine/core";
-import { IconChevronLeft, IconChevronRight, IconHome } from "@tabler/icons-react";
-import { useState } from "react";
-export const sidebarMode = "detailed";
-export const DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false;
-export const APP_SIDEBAR_COLLAPSED_STORAGE_KEY = "app.sidebar.detailed.collapsed";
-export const APP_SIDEBAR_LOGO_PATH = "/app-identity/logo.png";
-export const APP_SIDEBAR_WIDTHS = { compact: 80, detailedCollapsed: 76, detailedExpanded: 248 };
-export const APP_SIDEBAR_LOGO_SIZES = { compact: 36, detailedCollapsed: 44, detailedExpanded: 72 };
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
-export const APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75;
-export const APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX = 44;
-export const APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX = 18;
-export const APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS = 0;
-export const routes = ["/settings", "/about", "/sponsor"];
-export function readDetailedSidebarCollapsed() {
-  return window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
-}
-export function persistDetailedSidebarCollapsed(collapsed) {
-  window.localStorage.setItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY, String(collapsed));
-}
-export function detailedSidebarNavbarWidth(collapsed) {
-  return collapsed ? APP_SIDEBAR_WIDTHS.detailedCollapsed : APP_SIDEBAR_WIDTHS.detailedExpanded;
-}
-export function AppSidebarTemplate({ detailedCollapsed, onCollapsedChange }) {
-  const navigation = (
-    <NavLink
-      active={true}
-      aria-label="Home"
-      data-navigation-layout={detailedCollapsed ? "icon-only" : "icon-with-label"}
-      label={detailedCollapsed ? undefined : "Home"}
-      leftSection={<IconHome size={APP_SIDEBAR_NAV_ICON_SIZE_PX} stroke={APP_SIDEBAR_ICON_STROKE_WIDTH} />}
-      px={detailedCollapsed ? 0 : "sm"}
-      styles={{
-        root: { alignItems: "center", flexDirection: "row", minHeight: APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX },
-        section: { marginInline: detailedCollapsed ? 0 : undefined },
-      }}
-    />
-  );
-  return (
-    <nav style={{ position: "fixed", height: "100dvh", borderInlineEnd: "1px solid var(--app-border)" }}>
-      <div data-testid="app-sidebar-identity" p="xs">
-        <img src={APP_SIDEBAR_LOGO_PATH} />
-        <span>v1.0.0</span>
-        <ActionIcon data-testid="app-sidebar-collapse-toggle" onClick={() => onCollapsedChange(!detailedCollapsed)}>
-          {detailedCollapsed ? <IconChevronRight size={APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX} /> : <IconChevronLeft size={APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX} />}
-        </ActionIcon>
-      </div>
-      {detailedCollapsed ? <Tooltip label="Home" position="right" openDelay={APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS}>{navigation}</Tooltip> : navigation}
-    </nav>
-  );
-}
-export function DetailedAppShell() {
-  const [detailedSidebarCollapsed, setDetailedSidebarCollapsed] = useState(readDetailedSidebarCollapsed);
-  const navbarWidth = detailedSidebarNavbarWidth(detailedSidebarCollapsed);
-  const handleCollapsedChange = (nextCollapsed) => {
-    setDetailedSidebarCollapsed(nextCollapsed);
-    persistDetailedSidebarCollapsed(nextCollapsed);
-  };
-  return (
-    <AppShell data-mode="detailed" data-navbar-width={navbarWidth} navbar={{ width: navbarWidth }}>
-      <AppShell.Navbar p={0}>
-        <AppSidebarTemplate mode="detailed" detailedCollapsed={detailedSidebarCollapsed} onCollapsedChange={handleCollapsedChange} />
-      </AppShell.Navbar>
-    </AppShell>
-  );
-}
-`,
-  );
-  fs.writeFileSync(path.join(sourceRoot, "routes", "settings.tsx"), "export function SettingsPage() { return null; }\n");
-  fs.writeFileSync(
-    path.join(sourceRoot, "routes", "about.tsx"),
-    'import { AboutPageTemplate } from "../AboutPageTemplate";\nexport function AboutPage() { return <AboutPageTemplate />; }\n',
-  );
-  fs.writeFileSync(path.join(sourceRoot, "routes", "sponsor.tsx"), "export function SponsorPage() { return null; }\n");
-  fs.writeFileSync(
-    path.join(sourceRoot, "releaseNotesResource.ts"),
-    `
-import { invoke } from "@tauri-apps/api/core";
-export const LOAD_RELEASE_NOTES_COMMAND = "load_release_notes";
-export function decodeReleaseNotesDocument(value) { if (value.schemaVersion !== 2) throw new Error("invalid"); return value; } export function resolveReleaseNotesLocale(language) { return language?.startsWith("zh") ? "zh-CN" : "en-US"; }
-export async function loadBundledReleaseNotes() {
-  return decodeReleaseNotesDocument(await invoke<unknown>(command));
-}
-`,
-  );
-  fs.writeFileSync(
-    path.join(sourceRoot, "AboutPageTemplate.tsx"),
-    `
-import { loadBundledReleaseNotes } from "./releaseNotesResource";
-export function AboutPageTemplate({ releaseNotesLoader = loadBundledReleaseNotes }) {
-  const i18n = { resolvedLanguage: "en-US" }; resolveReleaseNotesLocale(i18n.resolvedLanguage); const requestReleaseNotes = () => releaseNotesLoader(); // selects English release-note translations from the active locale
-  const releaseNotesStatus = "idle";
-  return <Dialog status={releaseNotesStatus}>{t("release_notes.load_failed")}{t("release_notes.retry")}</Dialog>;
-}
-`,
-  );
-  fs.writeFileSync(
-    path.join(sourceRoot, "ReleaseNotesResource.test.ts"),
-    'test("loads the packaged document through the narrow Tauri command", () => assert(true));\ntest("shows a bounded release notes load failure and retries from its own control", () => assert(true));\n',
-  );
-  for (const filename of [
-    "arrow.png",
-    "bg.jpg",
-    "icon1.png",
-    "icon2.png",
-    "icon3.png",
-    "icon4.png",
-    "img1.png",
-    "img2.png",
-    "img3.png",
-    "pay1.png",
-    "pay2.png",
-    "select.png",
-  ]) {
-    fs.writeFileSync(path.join(guiRoot, "public", "brand-support", "sponsor", filename), "fixture");
-  }
-}
-
-/** 把前端运行时切换为只有设置页的精简侧栏配置。 */
-function writeCompactFrontendFixture(guiRoot) {
-  const sourceRoot = path.join(guiRoot, "src");
-  fs.rmSync(sourceRoot, { recursive: true, force: true });
-  fs.rmSync(path.join(guiRoot, "public", "brand-support", "sponsor"), { recursive: true, force: true });
-  fs.mkdirSync(path.join(sourceRoot, "routes"), { recursive: true });
-  fs.writeFileSync(
-    path.join(sourceRoot, "AppShell.tsx"),
-    `
-import { AppShell, NavLink } from "@mantine/core";
-
-export const sidebarMode = "compact";
-export const APP_SIDEBAR_WIDTHS = { compact: 80 };
-export const logoSizes = { compact: 36 };
-export const APP_SIDEBAR_COMPACT_PADDING_PX = 6;
-export const APP_SIDEBAR_COMPACT_SECTION_GAP_PX = 8;
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
-export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
-export const APP_SIDEBAR_LABEL_LINE_HEIGHT = 1.25;
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX = 56;
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX = 4;
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX = 4;
-export const compactLayout = "icon-above-label";
-export const routes = ["/settings"];
-
-export function AppSidebarTemplate() {
-  return (
-    <nav style={{ position: "fixed", height: "100dvh", borderInlineEnd: "1px solid var(--app-border)" }}>
-      <NavLink
-        active={true}
-        aria-label="Home"
-        styles={{
-          body: { overflow: "visible", textAlign: "center", width: "100%" },
-          label: { display: "block", marginInline: "auto", textAlign: "center", width: "100%" },
-          root: { alignItems: "center", flexDirection: "column", paddingInline: 0 },
-          section: { marginInline: 0 },
-        }}
-      />
-    </nav>
-  );
-}
-
-export function CompactAppShell() {
-  return (
-    <AppShell navbar={{ width: APP_SIDEBAR_WIDTHS.compact }}>
-      <AppShell.Navbar p={0}><AppSidebarTemplate mode="compact" /></AppShell.Navbar>
-    </AppShell>
-  );
-}
-`,
-  );
-  fs.writeFileSync(path.join(sourceRoot, "routes", "settings.tsx"), "export function SettingsPage() { return null; }\n");
-}
-
-/** 在隔离目录创建满足已选单实例与托盘契约的最小项目夹具。 */
-function createFixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gui-lifecycle-contract-"));
-  const guiRoot = path.join(root, "sample_gui");
-  fs.mkdirSync(path.join(guiRoot, "src-tauri", "src"), { recursive: true });
-  fs.mkdirSync(path.join(guiRoot, "src-tauri", "locales"), { recursive: true });
-  fs.mkdirSync(path.join(guiRoot, "src-tauri", "icons"), { recursive: true });
-  writeDetailedFrontendFixture(guiRoot);
-  writeInitializationProfile(root);
-  fs.writeFileSync(
-    path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0", features = ["tray-icon"] }\ntauri-plugin-single-instance = { version = "2.0.0" }\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
-  );
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "Cargo.toml"),
-    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-single-instance = { workspace = true }\ntokio = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\n`,
-  );
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "tauri.conf.json"),
-    JSON.stringify({ bundle: { icon: ["icons/32x32.png"] } }),
-  );
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "tauri.release.conf.json"),
-    JSON.stringify({ bundle: { resources: { "../../release-notes.json": "release-notes.json" } } }),
-  );
-  fs.writeFileSync(path.join(guiRoot, "src-tauri", "icons", "32x32.png"), createTrayPng());
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
-    `
-use tauri::{Manager, WindowEvent};
-use tauri::menu::{Menu, MenuItemBuilder};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-
-const SHOW_WINDOW_ID: &str = "show_window";
-const QUIT_ID: &str = "quit";
-const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json"; const RELEASE_NOTES_SCHEMA_VERSION: u8 = 2;
-
-struct ReleaseNotesDocument; struct LocalizedReleaseNoteItem;
-enum ReleaseNotesLoadError { Invalid }
-
-#[tauri::command]
-async fn load_release_notes(app: tauri::AppHandle) -> Result<ReleaseNotesDocument, ReleaseNotesLoadError> {
-    let path = app.path().resolve(RELEASE_NOTES_RESOURCE_PATH, tauri::path::BaseDirectory::Resource).unwrap();
-    let _metadata = tokio::fs::symlink_metadata(&path).await.unwrap();
-    let bytes = tokio::fs::read(path).await.unwrap();
-    serde_json::from_slice(&bytes).map_err(|_| ReleaseNotesLoadError::Invalid)
-}
-
-fn restore_main_window(app: &tauri::AppHandle) {
-    let window = app.get_webview_window("main").unwrap();
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.set_focus();
-}
-
-fn run() {
-    let _builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            restore_main_window(app);
-        }))
-        .plugin(tauri_plugin_os::init())
-        .invoke_handler(tauri::generate_handler![load_release_notes])
-        .setup(|app| {
-            install_tray(app)?;
-            Ok(())
-        })
-        .on_window_event(|window, event| handle_window(window, event));
-}
-
-fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
-    let show = MenuItemBuilder::with_id(SHOW_WINDOW_ID, rust_i18n::t!("tray.show_window")).build(app)?;
-    let quit = MenuItemBuilder::with_id(QUIT_ID, rust_i18n::t!("tray.quit")).build(app)?;
-    let menu = Menu::with_items(app, &[&show, &quit])?;
-    let icon = app.default_window_icon().expect("bundled app icon must exist").clone();
-    TrayIconBuilder::with_id("main")
-        .icon(icon)
-        .menu(&menu)
-        .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
-                let window = tray.app_handle().get_webview_window("main").unwrap();
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
-        })
-        .on_menu_event(|app, event| match event.id().as_ref() {
-            "show_window" => {
-                let window = app.get_webview_window("main").unwrap();
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
-            "quit" => app.exit(0),
-            _ => {}
-        })
-        .build(app)?;
-    Ok(())
-}
-
-fn handle_window(window: &tauri::Window, event: &WindowEvent) {
-    if let WindowEvent::CloseRequested { api, .. } = event {
-        api.prevent_close();
-        let _ = window.hide();
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn single_instance_plugin_is_registered_first() {
-        assert!(true);
-    }
-
-    #[test]
-    fn second_launch_restores_existing_main_window() {
-        assert!(true);
-    }
-
-    #[test]
-    fn tray_show_restores_and_focuses_main_window() {
-        assert!(true);
-    }
-
-    #[test]
-    fn close_request_hides_without_exit() {
-        assert!(true);
-    }
-
-    #[test]
-    fn tray_quit_exits_application() {
-        assert!(true);
-    }
-
-    #[test]
-    fn tray_labels_resolve_for_supported_locales() {
-        assert_eq!("显示窗口", "显示窗口");
-        assert_eq!("Show Window", "Show Window");
-    }
-
-    #[test]
-    fn tray_labels_fall_back_to_english() {
-        assert_eq!("Show Window", "Show Window");
-    }
-
-    #[test]
-    fn language_change_updates_tray_menu_labels() {
-        assert_ne!("显示窗口", "Show Window");
-    }
-
-    #[test]
-    fn parses_valid_release_notes_resource() {
-        assert!(true);
-    }
-
-    #[test]
-    fn rejects_invalid_release_notes_resource() {
-        assert!(true);
-    }
-}
-`,
-  );
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "locales", "zh-CN.yml"),
-    "tray:\n  show_window: 显示窗口\n  quit: 退出\n",
-  );
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "locales", "en-US.yml"),
-    "tray:\n  show_window: Show Window\n  quit: Quit\n",
-  );
-  return { root, guiRoot };
-}
-
-/** 把默认夹具切换为未选择托盘和单实例的合法关闭即退配置。 */
-function disableTrayAndSingleInstance(root, guiRoot) {
-  writeInitializationProfile(root, {
-    about_page: "disabled",
-    sidebar_mode: "compact",
-    single_instance: "disabled",
-    sponsor_page: "disabled",
-    system_tray: "disabled",
-  });
-  fs.writeFileSync(
-    path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0" }\n`,
-  );
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "Cargo.toml"),
-    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\n`,
-  );
-  fs.writeFileSync(
-    path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
-    `
-use tauri::WindowEvent;
-
-fn run() {
-    let _builder = tauri::Builder::default()
-        .plugin(tauri_plugin_os::init())
-        .on_window_event(|window, event| exit_on_close(window, event));
-}
-
-fn exit_on_close(window: &tauri::Window, event: &WindowEvent) {
-    if let WindowEvent::CloseRequested { .. } = event {
-        window.app_handle().exit(0);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn close_last_window_exits_application() {
-        assert!(true);
-    }
-}
-`,
-  );
-  writeCompactFrontendFixture(guiRoot);
-}
-
-/** 在测试结束后删除当前用例创建的隔离项目。 */
-function withFixture(callback) {
-  const fixture = createFixture();
-  try {
-    callback(fixture);
-  } finally {
-    fs.rmSync(fixture.root, { recursive: true, force: true });
-  }
-}
 
 test("accepts a complete single-instance and tray lifecycle contract", () => {
   withFixture(({ root }) => {
@@ -512,6 +38,25 @@ test("rejects a GUI initialization without the dedicated capability profile", ()
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
       /GUI 初始化资料/u,
+    );
+  });
+});
+
+test("rejects a seven-field GUI profile written outside the fixed order", () => {
+  withFixture(({ root }) => {
+    const profile = path.join(root, "docs", "GUI_APP_PROFILE.md");
+    fs.writeFileSync(
+      profile,
+      fs
+        .readFileSync(profile, "utf8")
+        .replace(
+          "system_notification = enabled\nautostart = enabled\n",
+          "autostart = enabled\nsystem_notification = enabled\n",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /字段顺序必须为：system_tray → system_notification → autostart → about_page → sponsor_page → single_instance → sidebar_mode/u,
     );
   });
 });
@@ -776,6 +321,96 @@ test("rejects single-instance dependencies when the capability was not selected"
   });
 });
 
+test("rejects every system-notification residual when that capability is disabled", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    fs.appendFileSync(
+      path.join(root, "Cargo.toml"),
+      'tauri-plugin-notification = "2.4.0"\n',
+    );
+    fs.appendFileSync(
+      path.join(guiRoot, "src", "routes", "settings.tsx"),
+      '\nconst system_notification_title = "residual";\n',
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未选择系统通知时不得声明通知插件.*未选择系统通知时不得保留设置页运行时/su,
+    );
+  });
+});
+
+test("rejects enabled system-notification authority state in WebView storage or Jotai", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.appendFileSync(
+      path.join(guiRoot, "src", "routes", "settings.tsx"),
+      "\nconst systemNotificationAtom = atom(\n  false,\n);\nlocalStorage.setItem(\n  'system_notification_enabled',\n  'false',\n);\n",
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得将系统通知状态持久化到 WebView 层（localStorage\/sessionStorage\/Jotai atom\/TanStack Query）/u,
+    );
+  });
+});
+
+test("rejects every autostart residual when that capability is disabled", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    fs.appendFileSync(
+      path.join(root, "Cargo.toml"),
+      'tauri-plugin-autostart = "2.5.1"\n',
+    );
+    fs.appendFileSync(
+      path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
+      "\nfn get_autostart_enabled() {}\n",
+    );
+    fs.appendFileSync(
+      path.join(guiRoot, "src", "routes", "settings.tsx"),
+      '\nconst autostart_title = "residual";\n',
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /未选择开机自启时不得声明 tauri-plugin-autostart.*未选择开机自启时不得保留自启运行时.*未选择开机自启时不得保留设置页运行时/su,
+    );
+  });
+});
+
+test("rejects enabled autostart authority state in WebView storage or query cache", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.appendFileSync(
+      path.join(guiRoot, "src", "routes", "settings.tsx"),
+      '\nconst queryClient = { setQueryData: () => {} } as const;\nqueryClient.setQueryData(\n  ["autostart"],\n  { enabled: true },\n);\nconst autostartAtom = atomWithStorage(\n  "autostart",\n  false,\n);\n',
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得将开机自启状态持久化到 WebView 层（localStorage\/sessionStorage\/Jotai atom\/TanStack Query）/u,
+    );
+  });
+});
+
+test("rejects notification and autostart WebView packages or ACLs", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.writeFileSync(
+      path.join(guiRoot, "package.json"),
+      JSON.stringify({
+        dependencies: {
+          "@tauri-apps/plugin-autostart": "^2.0.0",
+          "@tauri-apps/plugin-notification": "^2.0.0",
+        },
+      }),
+    );
+    const capabilityRoot = path.join(guiRoot, "src-tauri", "capabilities");
+    fs.mkdirSync(capabilityRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(capabilityRoot, "default.json"),
+      JSON.stringify({ permissions: ["autostart:allow-enable", "notification:allow-notify"] }),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得安装 Rust-only 能力的 JS 插件.*不得获得 Rust-only 插件 ACL/su,
+    );
+  });
+});
+
 test("rejects residual about-page dependencies when the capability was not selected", () => {
   withFixture(({ root, guiRoot }) => {
     disableTrayAndSingleInstance(root, guiRoot);
@@ -794,11 +429,11 @@ test("accepts table-form Cargo dependencies and MenuItem with_id", () => {
   withFixture(({ root, guiRoot }) => {
     fs.writeFileSync(
       path.join(root, "Cargo.toml"),
-      `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies.tauri]\nversion = "2.0.0"\nfeatures = ["tray-icon"]\n\n[workspace.dependencies.tauri-plugin-single-instance]\nversion = "2.0.0"\n\n[workspace.dependencies.tokio]\nversion = "1.0.0"\nfeatures = ["macros", "rt", "fs"]\n\n[workspace.dependencies.serde]\nversion = "1.0.0"\n\n[workspace.dependencies.serde_json]\nversion = "1.0.0"\n`,
+      `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies.mac-usernotifications]\nversion = "0.3.1"\n\n[workspace.dependencies.tauri]\nversion = "2.0.0"\nfeatures = ["tray-icon"]\n\n[workspace.dependencies.tauri-plugin-autostart]\nversion = "2.5.1"\n\n[workspace.dependencies.tauri-plugin-notification]\nversion = "2.4.0"\n\n[workspace.dependencies.tauri-plugin-single-instance]\nversion = "2.0.0"\n\n[workspace.dependencies.tokio]\nversion = "1.0.0"\nfeatures = ["macros", "rt", "fs", "sync"]\n\n[workspace.dependencies.serde]\nversion = "1.0.0"\n\n[workspace.dependencies.serde_json]\nversion = "1.0.0"\n`,
     );
     fs.writeFileSync(
       path.join(guiRoot, "src-tauri", "Cargo.toml"),
-      `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies.tauri]\nworkspace = true\n\n[dependencies.tauri-plugin-single-instance]\nworkspace = true\n\n[dependencies.tokio]\nworkspace = true\n\n[dependencies.serde]\nworkspace = true\n\n[dependencies.serde_json]\nworkspace = true\n`,
+      `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies.tauri]\nworkspace = true\n\n[dependencies.tauri-plugin-notification]\nworkspace = true\n\n[dependencies.tauri-plugin-single-instance]\nworkspace = true\n\n[dependencies.tokio]\nworkspace = true\n\n[dependencies.serde]\nworkspace = true\n\n[dependencies.serde_json]\nworkspace = true\n\n[target.'cfg(target_os = "macos")'.dependencies.mac-usernotifications]\nworkspace = true\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies.tauri-plugin-autostart]\nworkspace = true\n`,
     );
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
@@ -828,6 +463,58 @@ test("rejects a GUI missing the workspace single-instance dependency", () => {
       fs.readFileSync(cargo, "utf8").replace('tauri-plugin-single-instance = { version = "2.0.0" }\n', ""),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /必须声明 tauri-plugin-single-instance/u);
+  });
+});
+
+test("rejects system-notification dependency lower bounds below the fixed minimums", () => {
+  withFixture(({ root }) => {
+    const cargo = path.join(root, "Cargo.toml");
+    fs.writeFileSync(
+      cargo,
+      fs
+        .readFileSync(cargo, "utf8")
+        .replace('mac-usernotifications = "0.3.1"', 'mac-usernotifications = "0.3.0"')
+        .replace('tauri-plugin-notification = "2.4.0"', 'tauri-plugin-notification = "2.3.9"'),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /"2\.4\.0".*tauri-plugin-notification.*"0\.3\.1".*mac-usernotifications/su,
+    );
+  });
+});
+
+test("rejects an autostart dependency below 2.5.1", () => {
+  withFixture(({ root }) => {
+    const cargo = path.join(root, "Cargo.toml");
+    fs.writeFileSync(
+      cargo,
+      fs
+        .readFileSync(cargo, "utf8")
+        .replace('tauri-plugin-autostart = "2.5.1"', 'tauri-plugin-autostart = "2.5.0"'),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /"2\.5\.1".*tauri-plugin-autostart/u,
+    );
+  });
+});
+
+test("rejects mac-usernotifications outside the macOS member target", () => {
+  withFixture(({ root, guiRoot }) => {
+    const cargo = path.join(guiRoot, "src-tauri", "Cargo.toml");
+    fs.writeFileSync(
+      cargo,
+      fs
+        .readFileSync(cargo, "utf8")
+        .replace(
+          '\n[target.\'cfg(target_os = "macos")\'.dependencies]\nmac-usernotifications = { workspace = true }\n',
+          "",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /只在 macOS target dependencies/u,
+    );
   });
 });
 
@@ -937,6 +624,63 @@ test("rejects missing lifecycle regression coverage", () => {
       fs.readFileSync(source, "utf8").replace("tray_quit_exits_application", "renamed_test"),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /tray_quit_exits_application/u);
+  });
+});
+
+test("rejects missing system-notification worker ownership regression coverage", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace("system_notification_worker_is_owned_and_cancelled", "renamed_test"),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /system_notification_worker_is_owned_and_cancelled/u,
+    );
+  });
+});
+
+test("rejects missing conditional settings failure rollback tests", () => {
+  withFixture(({ root, guiRoot }) => {
+    const tests = path.join(guiRoot, "src", "SettingsCapabilities.test.tsx");
+    fs.writeFileSync(
+      tests,
+      fs
+        .readFileSync(tests, "utf8")
+        .replace("system_notification_switch_rolls_back_after_denial", "renamed_notification_test")
+        .replace("autostart_switch_rolls_back_after_failure", "renamed_autostart_test"),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /system_notification_switch_rolls_back_after_denial.*autostart_switch_rolls_back_after_failure/su,
+    );
+  });
+});
+
+test("rejects autostart E2E coverage that does not restore the previous OS state", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs.readFileSync(source, "utf8").replace(
+        `fn autostart_e2e_restores_previous_registration() {
+        let previous = is_enabled();
+        enable();
+        disable();
+        assert_eq!(is_enabled(), previous);
+    }`,
+        `fn autostart_e2e_restores_previous_registration() {
+        assert!(true);
+    }`,
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /必须记录原状态、切换注册并在全部路径恢复后重新读取/u,
+    );
   });
 });
 

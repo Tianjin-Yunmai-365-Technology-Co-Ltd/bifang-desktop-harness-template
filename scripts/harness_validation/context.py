@@ -62,6 +62,10 @@ GUI_SUPPORT_BRAND_ROOT = (
 )
 MCP_SKILL = SKILLS_ROOT / "desktop-add-mcp-adapter" / "SKILL.md"
 GUI_SKILL = SKILLS_ROOT / "desktop-add-gui-adapter" / "SKILL.md"
+GUI_NOTIFICATION_SKILL = (
+    SKILLS_ROOT / "desktop-add-gui-system-notifications" / "SKILL.md"
+)
+GUI_AUTOSTART_SKILL = SKILLS_ROOT / "desktop-add-gui-autostart" / "SKILL.md"
 CLI_SKILL = SKILLS_ROOT / "desktop-add-cli-adapter" / "SKILL.md"
 TUI_SKILL = SKILLS_ROOT / "desktop-add-tui-adapter" / "SKILL.md"
 TUI_BASELINE = SKILLS_ROOT / "desktop-add-tui-adapter" / "references" / "tui-baseline.md"
@@ -105,6 +109,15 @@ GUI_LIFECYCLE_CONTRACT_TESTS = (
     / "verify-gui-lifecycle-contract.test.mjs"
 )
 VERIFY_DELIVERY_SKILL = SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md"
+GUI_RELEASE_PERFORMANCE_SKILL = (
+    SKILLS_ROOT / "desktop-test-gui-release-performance" / "SKILL.md"
+)
+GUI_RELEASE_PERFORMANCE_REFERENCE = (
+    SKILLS_ROOT
+    / "desktop-test-gui-release-performance"
+    / "references"
+    / "performance-evidence-schema.md"
+)
 VERIFICATION_DOC = ROOT / "docs" / "VERIFICATION.md"
 PARALLEL_SKILL = SKILLS_ROOT / "desktop-run-parallel-worktrees"
 PARALLEL_WORKTREE_SCRIPT = PARALLEL_SKILL / "scripts" / "parallel_worktrees.py"
@@ -122,6 +135,24 @@ RELEASE_NOTES_HELPER_TESTS = (
     / "desktop-prepare-release"
     / "scripts"
     / "test_release_notes.py"
+)
+RELEASE_GIT_HELPER = (
+    SKILLS_ROOT / "desktop-prepare-release" / "scripts" / "release_git.py"
+)
+RELEASE_GIT_HELPER_TESTS = (
+    SKILLS_ROOT / "desktop-prepare-release" / "scripts" / "test_release_git.py"
+)
+GUI_RELEASE_PERFORMANCE_HELPER = (
+    SKILLS_ROOT
+    / "desktop-test-gui-release-performance"
+    / "scripts"
+    / "validate_gui_release_performance.py"
+)
+GUI_RELEASE_PERFORMANCE_TESTS = (
+    SKILLS_ROOT
+    / "desktop-test-gui-release-performance"
+    / "scripts"
+    / "test_validate_gui_release_performance.py"
 )
 VERSION_SKILL = SKILLS_ROOT / "desktop-manage-version"
 VERSION_GATE_HELPER = VERSION_SKILL / "scripts" / "version_gate.py"
@@ -292,12 +323,19 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.py",
     ".agents/skills/desktop-configure-git-commits/scripts/test_configure_git_commit.py",
     ".agents/skills/desktop-add-tui-adapter/references/tui-baseline.md",
+    ".agents/skills/desktop-add-gui-system-notifications/SKILL.md",
+    ".agents/skills/desktop-add-gui-system-notifications/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-autostart/SKILL.md",
+    ".agents/skills/desktop-add-gui-autostart/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md",
     ".agents/skills/desktop-add-gui-adapter/references/gui-baseline.md",
     ".agents/skills/desktop-add-gui-adapter/references/mantine-ui-guidelines.md",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.test.ts",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-frontend-contract.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-source-analysis.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.fixture.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-release-notes-contract.mjs",
     ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
@@ -316,6 +354,13 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-build-tauri-release/scripts/test_verify_release_notes_resource.py",
     ".agents/skills/desktop-prepare-release/scripts/release_notes.py",
     ".agents/skills/desktop-prepare-release/scripts/test_release_notes.py",
+    ".agents/skills/desktop-prepare-release/scripts/release_git.py",
+    ".agents/skills/desktop-prepare-release/scripts/test_release_git.py",
+    ".agents/skills/desktop-test-gui-release-performance/SKILL.md",
+    ".agents/skills/desktop-test-gui-release-performance/agents/openai.yaml",
+    ".agents/skills/desktop-test-gui-release-performance/references/performance-evidence-schema.md",
+    ".agents/skills/desktop-test-gui-release-performance/scripts/validate_gui_release_performance.py",
+    ".agents/skills/desktop-test-gui-release-performance/scripts/test_validate_gui_release_performance.py",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/pageSessionState.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/PageSessionState.test.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/SKILL.md",
@@ -421,6 +466,8 @@ REQUIRED_FILES = (
 EXPECTED_SKILLS = {
     "desktop-add-cli-adapter",
     "desktop-add-gui-adapter",
+    "desktop-add-gui-autostart",
+    "desktop-add-gui-system-notifications",
     "desktop-add-mcp-adapter",
     "desktop-add-tui-adapter",
     "desktop-build-rust-release",
@@ -445,6 +492,7 @@ EXPECTED_SKILLS = {
     "desktop-run-parallel-worktrees",
     "desktop-test-final-artifact-e2e",
     "desktop-test-gui-initialization-e2e",
+    "desktop-test-gui-release-performance",
     "desktop-upgrade-harness",
     "desktop-verify-delivery",
 }

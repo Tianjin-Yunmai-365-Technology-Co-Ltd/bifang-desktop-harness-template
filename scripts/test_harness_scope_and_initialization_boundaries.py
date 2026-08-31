@@ -51,8 +51,8 @@ class HarnessScopeAndInitializationBoundaryTests(unittest.TestCase):
         self.assertIn("`candidate-1` → `candidate-2` → `candidate-3`", gui_adapter)
         self.assertIn("只为所选项记录后置验证/标准化", gui_adapter)
 
-    def test_git_setup_is_deferred_until_the_actual_baseline_commit(self) -> None:
-        """初始化早期不得探测或设置 Git，命令只出现在最终提交收尾段。"""
+    def test_git_installation_happens_before_scaffold_and_identity_waits_for_commit(self) -> None:
+        """表单确认后先检查/安装 Git，可写仓库身份和模板仍只在基线提交前执行。"""
         instantiate = read_repo_text(
             ".agents/skills/desktop-instantiate-project/SKILL.md"
         )
@@ -63,22 +63,20 @@ class HarnessScopeAndInitializationBoundaryTests(unittest.TestCase):
             ".agents/skills/desktop-configure-git-commits/SKILL.md"
         )
 
-        self.assertNotIn("git --version", instantiate)
-        self.assertNotIn("configure_git_commit.py install", instantiate)
+        self.assertNotIn("configure_git_commit.py identity-bootstrap", instantiate)
         self.assertIn(
             "不执行 Git 可用性、版本、身份、提交模板或仓库配置检查",
             instantiate,
         )
-        before_commit, commit_step = initialize.split(
-            "14. 裁剪完成后", maxsplit=1
-        )
-        for command in (
-            "git --version",
-            "git init --initial-branch=main .",
-            "configure_git_commit.py install --project-root .",
-        ):
-            self.assertNotIn(command, before_commit)
-            self.assertIn(command, commit_step)
+        self.assertIn("表单完成与最终汇总确认前不检查或安装 Git", initialize)
+        self.assertIn("Git 与 Rust 始终是必需项", initialize)
+        before_commit, commit_step = initialize.split("14. 裁剪完成后", maxsplit=1)
+        self.assertIn("$desktop-check-development-environment", before_commit)
+        self.assertIn("git init --initial-branch=main .", commit_step)
+        self.assertIn("identity-report", commit_step)
+        self.assertIn("identity-bootstrap", commit_step)
+        self.assertIn("identity-check", commit_step)
+        self.assertIn("configure_git_commit.py install --project-root .", commit_step)
         self.assertIn("下一步就是实际创建基线提交时", commit_step)
         self.assertIn("下一步将实际运行 `git commit`", git_skill)
         self.assertIn("都不触发安装、检查或修复", git_skill)

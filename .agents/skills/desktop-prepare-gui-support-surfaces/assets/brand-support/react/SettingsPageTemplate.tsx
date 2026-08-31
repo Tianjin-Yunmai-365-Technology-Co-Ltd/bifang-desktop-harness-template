@@ -1,14 +1,17 @@
 import {
+  Alert,
   Badge,
+  Button,
   Group,
   Paper,
   SegmentedControl,
   Stack,
+  Switch,
   Text,
   Title,
   useMantineColorScheme,
 } from "@mantine/core";
-import type { ReactElement } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { AppColorScheme } from "./AppThemeProviderTemplate";
@@ -17,12 +20,129 @@ import { formatDisplayVersion } from "./displayVersion";
 /** 设置页固定支持的界面语言。 */
 export type SupportedInterfaceLanguage = "zh-CN" | "en-US";
 
+/** 由设置路由传入的异步布尔宿主能力。 */
+export interface AsyncHostCapabilitySetting {
+  enabled: boolean;
+  getEnabled: () => Promise<boolean>;
+  onChange: (enabled: boolean) => Promise<boolean>;
+}
+
 /** 固定设置页所需的应用事实和本地展示偏好。 */
 export interface SettingsPageTemplateProps {
   applicationName: string;
   version: string;
   language: SupportedInterfaceLanguage;
   onLanguageChange: (language: SupportedInterfaceLanguage) => void;
+  autostart?: AsyncHostCapabilitySetting;
+  systemNotification?: AsyncHostCapabilitySetting;
+}
+
+type CapabilityId = "autostart" | "system_notification";
+
+interface CapabilitySwitchProps {
+  capability: AsyncHostCapabilitySetting;
+  id: CapabilityId;
+}
+
+type CapabilitySwitchValue = boolean | "unknown";
+
+/** 提交宿主能力切换，并始终以命令返回或重新读取的权威状态同步 UI。 */
+function CapabilitySwitch({
+  capability,
+  id,
+}: CapabilitySwitchProps): ReactElement {
+  const { t } = useTranslation("brandSupport");
+  const [checked, setChecked] = useState<CapabilitySwitchValue>(
+    capability.enabled,
+  );
+  const [status, setStatus] = useState<
+    "idle" | "pending" | "enabled" | "disabled" | "error" | "unknown"
+  >("idle");
+
+  useEffect(() => {
+    setChecked(capability.enabled);
+    setStatus("idle");
+  }, [capability.enabled]);
+
+  const rereadAuthoritativeState = async (): Promise<boolean | null> => {
+    try {
+      const authoritativeEnabled = await capability.getEnabled();
+      setChecked(authoritativeEnabled);
+      return authoritativeEnabled;
+    } catch {
+      setChecked("unknown");
+      return null;
+    }
+  };
+
+  const retryReadAuthoritativeState = async (): Promise<void> => {
+    setStatus("pending");
+    const authoritativeEnabled = await rereadAuthoritativeState();
+    setStatus(
+      authoritativeEnabled === null
+        ? "unknown"
+        : authoritativeEnabled
+          ? "enabled"
+          : "disabled",
+    );
+  };
+
+  const updateSetting = async (nextEnabled: boolean): Promise<void> => {
+    setStatus("pending");
+    try {
+      const authoritativeEnabled = await capability.onChange(nextEnabled);
+      setChecked(authoritativeEnabled);
+      setStatus(authoritativeEnabled ? "enabled" : "disabled");
+    } catch {
+      const authoritativeEnabled = await rereadAuthoritativeState();
+      setStatus(authoritativeEnabled === null ? "unknown" : "error");
+    }
+  };
+
+  return (
+    <Paper data-testid={`settings-capability-${id}`} p="lg" radius="lg" withBorder>
+      <Stack gap="sm">
+        <Switch
+          aria-label={t(`settings.${id}_title`)}
+          checked={checked === true}
+          description={t(`settings.${id}_description`)}
+          disabled={status === "pending" || status === "unknown"}
+          data-authoritative-state={
+            checked === "unknown" ? "unknown" : checked ? "enabled" : "disabled"
+          }
+          label={t(`settings.${id}_title`)}
+          onChange={(event) => {
+            void updateSetting(event.currentTarget.checked);
+          }}
+        />
+        {status !== "idle" && status !== "error" ? (
+          <Text aria-live="polite" role="status" size="sm">
+            {t(`settings.capability_${status}`)}
+          </Text>
+        ) : null}
+        {status === "error" ? (
+          <Alert role="alert" title={t("settings.capability_error_title")}>
+            {t(`settings.${id}_error`)}
+          </Alert>
+        ) : null}
+        {status === "unknown" ? (
+          <>
+            <Alert role="alert" title={t("settings.capability_unknown_title")}>
+              {t(`settings.${id}_unknown`)}
+            </Alert>
+            <Button
+              onClick={() => {
+                void retryReadAuthoritativeState();
+              }}
+              variant="light"
+            >
+              {t("settings.capability_retry")}
+            </Button>
+          </>
+        ) : null}
+      </Stack>
+    </Paper>
+  );
 }
 
 /** 把 SegmentedControl 字符串收敛为固定语言枚举。 */
@@ -37,12 +157,14 @@ function isSupportedColorScheme(value: string): value is AppColorScheme {
   return value === "light" || value === "dark" || value === "auto";
 }
 
-/** 渲染固定设置页：只包含版本、语言和主题等本地展示偏好。 */
+/** 渲染固定设置页，并按初始化选择加入 Rust-only 宿主能力开关。 */
 export function SettingsPageTemplate({
   applicationName,
   version,
   language,
   onLanguageChange,
+  autostart,
+  systemNotification,
 }: SettingsPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -100,6 +222,17 @@ export function SettingsPageTemplate({
           />
         </Stack>
       </Paper>
+
+      {systemNotification ? (
+        <CapabilitySwitch
+          capability={systemNotification}
+          id="system_notification"
+        />
+      ) : null}
+
+      {autostart ? (
+        <CapabilitySwitch capability={autostart} id="autostart" />
+      ) : null}
     </Stack>
   );
 }

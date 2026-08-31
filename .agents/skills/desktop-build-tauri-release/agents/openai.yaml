@@ -1,4 +1,4 @@
 interface:
   display_name: "构建 Tauri 发布候选"
-  short_description: "构建可审计安装包及可选的签名 updater 制品"
-  default_prompt: "使用 $desktop-build-tauri-release 在 macOS 构建原生 DMG 和 Windows NSIS 交叉候选，按条件完成签名、公证与 stapling；启用 updater 时同时验证并收集官方 archive 和 .sig。"
+  short_description: "从 clean HEAD 先门禁 Release GUI 性能，再构建可追溯安装包"
+  default_prompt: "使用 $desktop-build-tauri-release；普通构建不自动提交，dirty 时停止，只从固定 clean HEAD 运行全量测试、原生 Release no-bundle 性能门禁，再构建 DMG/NSIS；确保 manifest 的 sourceCommit 等于 HEAD，并记录 performanceEvidence 与 performanceRuntimeBinding。"

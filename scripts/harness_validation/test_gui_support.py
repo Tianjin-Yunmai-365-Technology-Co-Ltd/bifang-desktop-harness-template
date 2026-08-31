@@ -755,6 +755,48 @@ class GuiSupportContractTests(unittest.TestCase):
             )
         self.assertTrue(any("unsafe fixed layout" in error for error in errors), errors)
 
+    def test_host_capability_failure_must_reread_authoritative_state(self) -> None:
+        """通知与自启 mutation 失败后不能只恢复旧组件值。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            settings = brand_root / "react" / "SettingsPageTemplate.tsx"
+            settings.write_text(
+                settings.read_text(encoding="utf-8")
+                .replace(
+                    "setChecked(await capability.getEnabled());",
+                    "setChecked(capability.enabled);",
+                    1,
+                )
+                .replace(
+                    "getEnabled: () => Promise<boolean>;",
+                    "getEnabled: () => void;",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            tests = brand_root / "react" / "CapabilitySwitchTemplate.test.tsx"
+            tests.write_text(
+                tests.read_text(encoding="utf-8").replace(
+                    "autostart_switch_rolls_back_after_failure",
+                    "autostart_switch_restores_previous_component_value",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("getEnabled" in error for error in errors), errors)
+        self.assertTrue(
+            any("autostart_switch_rolls_back_after_failure" in error for error in errors),
+            errors,
+        )
+
     def test_video_autoplay_or_missing_transcript_contract_is_rejected(self) -> None:
         """视频模板不能自动播放，也不能删除文字稿字段。"""
 

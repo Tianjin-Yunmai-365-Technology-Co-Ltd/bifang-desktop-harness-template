@@ -219,7 +219,7 @@ def validate_tauri_build_skill_contract(
             '"$brew_path" install nsis',
             'target add "$TARGET"',
             'install --locked --version "$CARGO_XWIN_REQUIREMENT" cargo-xwin',
-            "CARGO_XWIN_REQUIREMENT='>=0.22.0, <0.24.0'",
+            "CARGO_XWIN_REQUIREMENT='>=0.23.1, <0.24.0'",
             "gate.cargo_xwin.requirement=",
             "本门禁不自动安装 Homebrew",
             "gate.path.prepend",
@@ -338,12 +338,223 @@ def validate_tauri_build_skill_contract(
             )
 
 
+def validate_gui_release_performance_contract(errors: list[str]) -> None:
+    """锁定 GUI 打包前性能探针、阈值、失败回路与最终运行时绑定。"""
+    required = {
+        GUI_RELEASE_PERFORMANCE_SKILL: (  # noqa: F405
+            "同一 clean HEAD",
+            "Release profile Tauri `--no-bundle`",
+            "当前 E2E 为 `disabled` 仍必须执行本 Skill",
+            "performanceProbeKind: tauri-no-bundle-executable",
+            "performanceProbeBuildProfile: release",
+            "sourceTreeState: clean",
+            "恰好 5 次冷启动",
+            "中位数不超过 2000 ms",
+            "最大值不超过 3000 ms",
+            "至少 20 次",
+            "nearest-rank p95 不超过 100 ms",
+            "任何一次必须小于 200 ms",
+            "全部不短于 50 ms 的 Long Task",
+            "任何 Long Task 必须小于 200 ms",
+            "整棵进程树",
+            "5%；启用托盘时",
+            "不超过 2%",
+            "稳态整棵进程树 RSS 不超过 300 MiB",
+            "峰值不超过 500 MiB",
+            "max(初始 RSS × 15%, 32 MiB)",
+            "allProcessesRecovered",
+            "performanceRuntimeBinding",
+            "DMG/NSIS 容器摘要",
+            "performanceStatus: failed",
+            "performanceStatus: waived",
+            "明确确认就必须停止",
+        ),
+        GUI_RELEASE_PERFORMANCE_REFERENCE: (  # noqa: F405
+            '"performanceProbeKind": "tauri-no-bundle-executable"',
+            '"sourceTreeState": "clean"',
+            '"probeBytesUnmodified": true',
+            '"wholeProcessTree": true',
+            '"allProcessesRecovered": true',
+            '"performanceRuntimeBinding"',
+            "verified-signing-transition",
+            "容器 SHA-256 永远不能填入 `performanceProbeSha256`",
+        ),
+        GUI_RELEASE_PERFORMANCE_HELPER: (  # noqa: F405
+            "THRESHOLDS = {",
+            '"coldStartRuns": 5',
+            '"coldStartMedianMsMaximum": 2000.0',
+            '"coldStartMaximumMs": 3000.0',
+            '"interactionSamplesMinimum": 20',
+            '"interactionP95MsMaximum": 100.0',
+            '"interactionSingleMsExclusiveMaximum": 200.0',
+            '"longTaskMsMinimum": 50.0',
+            '"longTaskMsExclusiveMaximum": 200.0',
+            '"idleCpuP95PercentMaximum": 5.0',
+            '"hiddenTrayCpuP95PercentMaximum": 2.0',
+            '"steadyRssMiBMaximum": 300.0',
+            '"peakRssMiBMaximum": 500.0',
+            '"rssGrowthPercentMaximum": 15.0',
+            '"rssGrowthMiBMinimumAllowance": 32.0',
+            "def _nearest_rank_p95",
+            "manifest.performanceProbe",
+            "manifest.performanceProbeKind",
+            "manifest.sourceTreeState",
+            "probeBytesUnmodified",
+            "wholeProcessTree",
+            "allProcessesRecovered",
+            "os.replace",
+            'parser.add_argument("--probe"',
+        ),
+        GUI_RELEASE_PERFORMANCE_TESTS: (  # noqa: F405
+            "test_threshold_boundaries_pass_with_e2e_disabled",
+            "test_debug_or_cross_compiled_probe_cannot_pass",
+            "test_manifest_must_name_clean_head_no_bundle_probe",
+            "test_rebuilding_probe_or_stale_source_binding_invalidates_evidence",
+            "test_requires_five_starts_twenty_interactions_and_observation",
+            "test_latency_and_long_task_fail_at_exclusive_limits",
+            "test_cpu_rss_and_growth_budgets_are_independent",
+            "test_tray_profile_controls_hidden_sampling",
+            "test_parent_only_sampling_or_failed_cleanup_cannot_pass",
+            "test_cli_preserves_failed_observations_and_never_implies_waiver",
+        ),
+        COLLECT_RELEASE_SKILL: (  # noqa: F405
+            "performanceStatus: Unverified",
+            "performanceThresholdProfile: gui-release-v1",
+            "performanceRuntimeBinding",
+            "waived` 必须继续引用原始 `failed` 证据",
+        ),
+        VERIFY_DELIVERY_SKILL: (  # noqa: F405
+            "本次 E2E 为 `disabled` 不能跳过该复核",
+            "performanceProbeSha256",
+            "performanceRuntimeBinding",
+            "DMG/NSIS 容器摘要本身不构成运行时绑定",
+        ),
+        E2E_SKILL: (  # noqa: F405
+            "`$desktop-test-gui-release-performance`",
+            "最终候选 E2E 通过也不能替代性能结论",
+            "安装容器摘要不能冒充探针摘要",
+        ),
+        ROOT / "docs" / "RELEASE.md": (  # noqa: F405
+            "performanceStatus: passed | waived | Unverified",
+            "release-profile no-bundle 探针候选",
+            "一次预热后 5 次冷启动中位数 ≤2 秒且最大 ≤3 秒",
+            "至少 20 次代表性交互 p95 ≤100ms 且单次 <200ms",
+            "稳定 RSS ≤300 MiB、峰值 ≤500 MiB",
+            "仍无法安全解决时才询问",
+        ),
+        VERIFICATION_DOC: (  # noqa: F405
+            "GUI 发布性能是独立硬门禁",
+            "整个 Tauri/WebView 进程树",
+            "用户显式继续只能记录 `performanceStatus: waived`",
+        ),
+    }
+    for path, fragments in required.items():
+        if not path.is_file():
+            fail(errors, f"missing GUI performance contract file: {display_path(path)}")  # noqa: F405
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(  # noqa: F405
+                    errors,
+                    f"GUI performance contract missing in {display_path(path)}: {fragment}",  # noqa: F405
+                )
+        if path in (GUI_RELEASE_PERFORMANCE_HELPER, GUI_RELEASE_PERFORMANCE_TESTS):  # noqa: F405
+            try:
+                compile(text, str(path), "exec")
+            except SyntaxError as error:
+                fail(  # noqa: F405
+                    errors,
+                    f"invalid GUI performance Python module {display_path(path)}: {error}",  # noqa: F405
+                )
+
+
+def validate_release_git_contract(errors: list[str]) -> None:
+    """锁定明确发布的本地提交授权、精确范围和 clean HEAD 构建边界。"""
+    required = {
+        PREPARE_RELEASE_SKILL: (  # noqa: F405
+            "用户明确提出发布时，该请求本身授权",
+            "不再追加提交或构建审批",
+            "不授权标签、推送、上传、渠道发布或历史改写",
+            "release_git.py inspect --project-root .",
+            "release_git.py commit --project-root .",
+            "--expected-status-sha256",
+            "--path <reviewed-path>",
+            "明确发布请求已经授权此本地提交，不再询问第二次审批",
+            "literal pathspec",
+            "绝不传 `--no-verify`",
+            "工作树原本 clean 时不创建空源码提交",
+            "sourceCommit` 必须等于 `releaseHead`",
+            "不再询问是否提交或是否开始构建",
+            "普通构建不自动提交",
+        ),
+        RELEASE_GIT_HELPER: (  # noqa: F405
+            "statusSha256",
+            "repository_snapshot_digest",
+            "working tree changed after review",
+            "literal_pathspecs",
+            "index contains staged paths outside the reviewed scope",
+            "reviewed paths do not cover the complete working tree",
+            "potential secret detected in reviewed staged bytes",
+            "hooks were not bypassed",
+            "commit succeeded but working tree is not clean",
+            'inspect.add_argument("--project-root"',
+            'commit.add_argument("--expected-status-sha256"',
+            'commit.add_argument("--path", action="append", required=True)',
+        ),
+        RELEASE_GIT_HELPER_TESTS: (  # noqa: F405
+            "test_inspect_reports_exact_head_and_dirty_snapshot",
+            "test_commit_stages_only_reviewed_paths_and_finishes_clean",
+            "test_changed_snapshot_is_rejected_before_staging",
+            "test_unreviewed_path_blocks_partial_commit",
+            "test_existing_unreviewed_staged_path_is_rejected",
+            "test_failing_hook_stops_without_advancing_head",
+            "test_high_confidence_secret_stops_without_advancing_head",
+            "test_unsafe_or_empty_commit_scope_is_rejected",
+        ),
+        ROOT / "docs" / "RELEASE.md": (  # noqa: F405
+            "普通构建不自动提交",
+            "明确“发布/准备并构建发布”请求本身授权",
+            "不授权 tag、push、上传、商店提交或正式发布",
+            "从新的源码 HEAD",
+            "最终工作树必须干净",
+            "sourceCommit` 精确等于 HEAD",
+        ),
+        ROOT / "README.md": (  # noqa: F405
+            "明确发布请求自动形成可审计的本地提交",
+            "不再为提交或构建重复审批",
+            "普通“构建候选”不会自动提交",
+        ),
+    }
+    for path, fragments in required.items():
+        if not path.is_file():
+            fail(errors, f"missing release Git contract file: {display_path(path)}")  # noqa: F405
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(  # noqa: F405
+                    errors,
+                    f"release Git contract missing in {display_path(path)}: {fragment}",  # noqa: F405
+                )
+        if path in (RELEASE_GIT_HELPER, RELEASE_GIT_HELPER_TESTS):  # noqa: F405
+            try:
+                compile(text, str(path), "exec")
+            except SyntaxError as error:
+                fail(  # noqa: F405
+                    errors,
+                    f"invalid release Git Python module {display_path(path)}: {error}",  # noqa: F405
+                )
+
+
 def validate_release_contract(errors: list[str]) -> None:
     """汇总 release ignore、helper 和构建/收集阶段的确定性契约。"""
     for path in (GITIGNORE, RUST_ASSET / ".gitignore"):  # noqa: F405
         validate_release_ignore(errors, path)
     validate_build_skill_contract(errors)
     validate_tauri_build_skill_contract(errors)
+    validate_gui_release_performance_contract(errors)
+    validate_release_git_contract(errors)
 
     helper_fragments = {
         BUILD_RELEASE_POSIX_HELPER: (  # noqa: F405
@@ -378,8 +589,16 @@ def validate_release_contract(errors: list[str]) -> None:
             "构建产物收集本身不触发任何项目记忆",
         ),
         PREPARE_RELEASE_SKILL: (  # noqa: F405
-            "### 候选前更新日志阶段",
+            "### 候选前本地提交与更新日志阶段",
             "### 就绪复核阶段",
+            "release_git.py inspect --project-root .",
+            "statusSha256",
+            "release_git.py commit --project-root . --expected-status-sha256",
+            "明确发布请求已经授权此本地提交",
+            "literal pathspec",
+            "正常运行 hooks 且绝不传 `--no-verify`",
+            "工作树原本 clean 时不创建空源码提交",
+            "`sourceCommit` 必须等于 `releaseHead`",
             "release_notes.py upsert --file release-notes.json",
             "release_notes.py check --file release-notes.json --expected-version",
             "release_notes.py render --file release-notes.json --locale zh-CN",
@@ -428,6 +647,26 @@ def validate_release_contract(errors: list[str]) -> None:
             "test_rejects_missing_translation_or_unknown_locale",
             "test_rejects_malformed_document_and_wrong_latest_version",
             "test_rejects_symlinked_release_notes",
+        ),
+        RELEASE_GIT_HELPER: (  # noqa: F405
+            "statusSha256",
+            "repository_snapshot_digest",
+            "literal_pathspecs",
+            "hooks were not bypassed",
+            "potential secret detected",
+            "project root must equal the independent Git top level",
+            "release metadata or Git internals cannot be approved",
+            "working tree changed after review",
+        ),
+        RELEASE_GIT_HELPER_TESTS: (  # noqa: F405
+            "test_inspect_reports_exact_head_and_dirty_snapshot",
+            "test_commit_stages_only_reviewed_paths_and_finishes_clean",
+            "test_changed_snapshot_is_rejected_before_staging",
+            "test_unreviewed_path_blocks_partial_commit",
+            "test_existing_unreviewed_staged_path_is_rejected",
+            "test_failing_hook_stops_without_advancing_head",
+            "test_high_confidence_secret_stops_without_advancing_head",
+            "test_unsafe_or_empty_commit_scope_is_rejected",
         ),
         ENGINEERING_RULES: (  # noqa: F405
             "GUI 交互事件必须绑定在实际拥有该动作的语义元素本身",

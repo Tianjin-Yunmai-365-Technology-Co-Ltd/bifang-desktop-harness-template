@@ -22,7 +22,7 @@ def add_existing_environment(
     root: Path,
     *,
     include_cross_tools: bool,
-    cargo_xwin_version: str = "0.22.0",
+    cargo_xwin_version: str = "0.23.1",
 ) -> Path:
     """建立常规 GUI 门禁已通过的最小工具集，并按场景加入现成交叉工具。"""
     probe = root / "probe"
@@ -45,7 +45,7 @@ fi
         probe / "cargo",
         f"""#!/bin/sh
 set -eu
-if [ "$1 $2 $3 $4 $5" = "install --locked --version >=0.22.0, <0.24.0 cargo-xwin" ]; then
+if [ "$1 $2 $3 $4 $5" = "install --locked --version >=0.23.1, <0.24.0 cargo-xwin" ]; then
   mkdir -p "$CARGO_HOME/bin"
   printf '#!/bin/sh\nprintf "%%s\\n" "cargo-xwin 0.23.1"\n' > "$CARGO_HOME/bin/cargo-xwin"
   chmod +x "$CARGO_HOME/bin/cargo-xwin"
@@ -54,7 +54,7 @@ else
 fi
 """,
     )
-    executable(probe / "pnpm", "#!/bin/sh\nprintf '%s\n' '10.0.0'\n")
+    executable(probe / "pnpm", "#!/bin/sh\nprintf '%s\n' '11.24.0'\n")
     if include_cross_tools:
         (state / "target").touch()
         executable(probe / "llvm-rc", "#!/bin/sh\nprintf '%s\n' 'llvm-rc test'\n")
@@ -141,10 +141,10 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.tauri_windows_cross.status=passed", result.stdout)
             self.assertIn(
-                "gate.cargo_xwin.requirement=>=0.22.0, <0.24.0",
+                "gate.cargo_xwin.requirement=>=0.23.1, <0.24.0",
                 result.stdout,
             )
-            self.assertIn("gate.cargo_xwin.version=0.22.0", result.stdout)
+            self.assertIn("gate.cargo_xwin.version=0.23.1", result.stdout)
             self.assertIn("gate.changed=false", result.stdout)
             self.assertFalse((root / "cargo").exists())
 
@@ -162,15 +162,28 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             self.assertIn("gate.rust_target.change=installed", result.stdout)
             self.assertIn("gate.cargo_xwin.change=installed", result.stdout)
             self.assertIn(
-                "gate.cargo_xwin.requirement=>=0.22.0, <0.24.0",
+                "gate.cargo_xwin.requirement=>=0.23.1, <0.24.0",
                 result.stdout,
             )
             self.assertIn("gate.cargo_xwin.version=0.23.1", result.stdout)
             self.assertIn("gate.changed=true", result.stdout)
 
+    def test_higher_compatible_cargo_xwin_is_preserved(self) -> None:
+        """0.23 系列中高于下界的稳定版本必须直接通过且不静默替换。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(
+                root, include_cross_tools=True, cargo_xwin_version="0.23.9"
+            )
+            result = self.run_gate(root, probe, "--install-missing")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("gate.cargo_xwin.version=0.23.9", result.stdout)
+            self.assertIn("gate.cargo_xwin.change=existing", result.stdout)
+
     def test_incompatible_existing_cargo_xwin_is_not_replaced(self) -> None:
         """范围外或预发布 cargo-xwin 必须阻断，不能被当作缺失后静默重装。"""
-        for version in ("0.21.9", "0.24.0", "0.22.0-beta.1"):
+        for version in ("0.22.9", "0.23.0", "0.24.0", "0.23.1-beta.1"):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 probe = add_existing_environment(
@@ -180,7 +193,7 @@ class MacosTauriXwinGateTests(unittest.TestCase):
                 )
                 result = self.run_gate(root, probe, "--install-missing")
                 self.assertEqual(result.returncode, 36)
-                self.assertIn("不满足兼容范围 >=0.22.0, <0.24.0", result.stderr)
+                self.assertIn("不满足兼容范围 >=0.23.1, <0.24.0", result.stderr)
                 self.assertFalse((root / "cargo").exists())
 
     def test_check_only_reports_missing_without_writes(self) -> None:

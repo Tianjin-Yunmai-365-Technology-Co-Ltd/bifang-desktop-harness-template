@@ -1,4 +1,4 @@
 interface:
   display_name: "准备 GUI 支持界面"
-  short_description: "建立图标化侧栏、三态主题、关于页更新及安全出站边界"
-  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，按 GUI 初始化 profile 建立或维护动态标题、精简或详细 Logo→版本侧栏、无隐私/统计区块的语言与三态主题设置、所选托盘 i18n、应用级亮暗主题、所选关于页/赞助页和相应品牌资产，并按签名、强更、同意与零出站边界配置可选更新和统计上报。"
+  short_description: "建立条件宿主能力开关、图标侧栏、三态主题与安全支持页面"
+  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，按七项 GUI 初始化 profile 建立或维护动态标题、精简或详细 Logo→版本侧栏、语言与三态主题设置、所选系统通知/开机自启开关、托盘 i18n、应用级亮暗主题、所选关于页/赞助页和相应品牌资产；未选能力不得残留，并按签名、强更、同意与零出站边界配置可选更新和统计上报。"

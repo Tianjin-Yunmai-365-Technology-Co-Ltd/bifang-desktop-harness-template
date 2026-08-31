@@ -21,9 +21,11 @@
 - Tauri GUI 的界面国际化是初始化硬性必选项：前端固定追加 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定追加 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，界面必须提供语言切换入口，core 保持语言无关。实际建立的页面与原生界面提供中文/英文资源，其他缺失语言回退英文；未选能力不得保留对应可见键或原生资源。用户可见设计先按 [UI 设计标准目录](design_standards/README.md)精确匹配，技术细节见 [GUI 基线](../.agents/skills/desktop-add-gui-adapter/references/gui-baseline.md)与 [React 前端基线](../.agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md)（见 ADR-20260806-001）。
 - GUI 交互事件必须绑定在拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身，不得由 Card、`Table.Tr`、`Table.Td` 等父级代理。父级有独立动作时只能执行自身语义，并以分别点击控件和周围父级区域的回归证明互不串扰；表格中的 `Switch` 不得因点击行而切换。
 - GUI 活动选项卡、查询/筛选、排序、分页页码/每页数量及同类页面工作状态必须由应用根 Jotai store 的模块级 atom 在本次应用进程内跨路由保留；route unmount 与已启用的关闭隐藏/单实例唤醒不能重置，退出后从默认值开始。页面会话 atom 不得使用 `atomWithStorage` 或浏览器/Tauri/文件/数据库/URL 持久化，不得镜像 TanStack Query 数据或 core 权威状态；语言、主题与详细侧栏折叠等明确批准的设备偏好按各自独立契约持久化，侧栏折叠偏好不得进入页面会话 store。查询范围或每页数量变化时页码重置为 1；路由返回后只有查询成功、当前页大于 1 且结果为空时才回退第 1 页并重查，加载/错误和第 1 页空结果不得触发循环。
-- 选择 GUI 后必须先解析专门问询：由 `$desktop-instantiate-project` 发起时复用首次写入前表单；直接初始化时在首轮一并询问尚未解析的接口组合与 Agent 策略模式，基础决定完成后再每轮补全一个 GUI 条件字段。不得在复制后重复询问已确认值。把 `system_tray`、`about_page`、`sponsor_page`、`single_instance` 的 `enabled|disabled` 与 `sidebar_mode` 的 `compact|detailed` 写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块。四项能力不得缺失、推断或残留 `pending`；未选择侧栏模式时必须写入 `sidebar_mode = detailed`，明确选择则保持原值，显式非法值不得按未选择处理。最终五项配置不得缺失或残留 `pending`。随后由 `$desktop-prepare-gui-app-identity` 的初始化模式在生成前按请求顺序绑定 `candidate-1`、`candidate-2`、`candidate-3`，并始终按该顺序同时展示三个原始候选。用户选择前不得验证格式、尺寸、色彩、像素、摘要或质量，也不得执行任何转码、缩放、裁剪、补边、改色、压缩、覆盖重命名或标准化；生成失败只重试原标识。用户明确选择后只验证和按需标准化所选项，拒绝项不补做处理。最终母版固定保存为 `<项目标识>_gui/src-tauri/icons/app-icon-master.png`，逐字节复制为 `<项目标识>_gui/public/app-identity/logo.png`，再用项目本地 Tauri `icon` 命令生成平台图标；profile 按稳定顺序记录三个候选标识与选择，只保存所选项的后置验证、路径和摘要。缺少配置、候选、稳定顺序、选择或最终字节一致证据不得完成初始化。
+- 选择 GUI 后必须先解析专门问询：由 `$desktop-instantiate-project` 发起时复用首次写入前表单；直接初始化时在首轮一并询问尚未解析的接口组合与 Agent 策略模式，基础决定完成后再每轮补全一个 GUI 条件字段。基础字段与接口选择必须在同一首轮一次询问；基础字段全部解析后，才按顺序每轮询问一个尚未解析的 GUI 条件字段，不得在复制后重复询问已确认值。把 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance` 的 `enabled|disabled` 与 `sidebar_mode` 的 `compact|detailed` 按该顺序写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块。六项能力不得缺失、推断或残留 `pending`；未选择侧栏模式时必须写入 `sidebar_mode = detailed`，显式非法值不得按未选择处理，必须报错并重新确认。最终七项配置不得缺失。随后由 `$desktop-prepare-gui-app-identity` 的初始化模式在生成前按请求顺序绑定 `candidate-1`、`candidate-2`、`candidate-3`，并始终按该顺序同时展示三个原始候选。用户选择前不得验证格式、尺寸、色彩、像素、摘要或质量，也不得执行转码、缩放、裁剪、补边、改色、压缩、覆盖重命名或标准化；生成失败只重试原标识。用户明确选择后只验证和按需标准化所选项，拒绝项不补做处理。最终母版固定保存为 `<项目标识>_gui/src-tauri/icons/app-icon-master.png`，逐字节复制为 `<项目标识>_gui/public/app-identity/logo.png`，再用项目本地 Tauri `icon` 命令生成平台图标；profile 按稳定顺序记录三个候选标识与选择，只保存所选项的后置验证、路径和摘要。缺少配置、候选、稳定顺序、选择或最终字节一致证据不得完成初始化。
 - 仅当 `single_instance = enabled` 时使用官方 `tauri-plugin-single-instance`：根 `[workspace.dependencies]` 声明经验证的最低兼容稳定范围，GUI member 只使用 `workspace = true`，插件必须是 Tauri Builder 注册的首个 plugin。同一用户会话第二次启动相同应用身份时，第二进程必须通知后退出，只复用 `restore_main_window` 恢复、取消最小化并聚焦既有 `main` 窗口。中性回调不记录参数/工作目录或触发业务动作；固定回归为 `single_instance_plugin_is_registered_first` 与 `second_launch_restores_existing_main_window`，真实 E2E 必须证明只剩一个长期应用主进程和同一主窗口。Linux Snap/Flatpak 需声明插件所需的会话 DBus 权限。选择 `disabled` 时不得声明依赖、注册插件、保留回调或运行双启动场景。
 - 仅当 `system_tray = enabled` 时启用 Tauri `tray-icon` feature：托盘菜单稳定 ID 恰好为 `show_window`/`quit`，可见标签由 `rust_i18n` 解析为中文“显示窗口/退出”或英文“Show Window/Quit”，未知 locale 回退英文，语言切换无需重启即可刷新。显示项与主鼠标左键恢复、取消最小化并聚焦主窗口；`CloseRequested` 只 `prevent_close()` 后隐藏，`quit` 显式结束应用。六个托盘固定命名回归、结构检查与真实宿主场景都是启用后的硬门禁。选择 `disabled` 时不得启用 feature、安装托盘、保留菜单/locale 资源、调用 `prevent_close()` 或隐藏窗口；必须由 `.on_window_event(...)` 接入主窗口 `CloseRequested` 并显式调用 `AppHandle::exit(0)`，再由 `close_last_window_exits_application` 回归及真实 E2E 锁定。
+- 仅当 `system_notification = enabled` 时调用 `$desktop-add-gui-system-notifications`：Windows/Linux 使用官方 `tauri-plugin-notification = "2.4.0"` Rust API，macOS 使用 `mac-usernotifications = "0.3.1"` 的 modern User Notifications；这些版本是当前验证过的兼容下界。WebView 只调用 Rust command，不安装前端 notification 插件。权限和投递由生命周期拥有的串行 worker 处理，默认关闭，授权成功后才持久化，失败可见，关闭不伪造撤销 OS 权限。中性初始化不定义产品触发点或正文；`disabled` 时依赖、插件、worker、命令、设置、i18n 与事件全部缺席。
+- 仅当 `autostart = enabled` 时调用 `$desktop-add-gui-autostart`：使用官方 `tauri-plugin-autostart = "2.5.1"` Rust 插件和 Rust command，该版本是当前验证过的兼容下界。设置默认关闭，以 OS 登录项为权威状态；切换失败必须返回稳定错误、重新读取实际状态并提供可访问反馈。未启用托盘时启动必须显示主窗口；初始化 E2E 必须恢复执行前登录项状态。`disabled` 时依赖、插件、命令、设置与权限全部缺席。
 - GUI 初始化固定建立动态标题、`/settings`、语言与三态主题和完整亮暗语义主题；`/about`、`/sponsor` 分别只在对应选择启用时建立，未选页面不得有路由、入口或运行时资源。初始化器先读取 [UI 设计标准目录](design_standards/README.md)，按 `sidebar_mode` 精确命中 [Tauri GUI 左侧栏标准](design_standards/tauri_sidebar.md)，不得让 Harness 旧默认覆盖已批准产品规则。compact 当前固定 `80px`、`6px` 内容内边距、`36px` Logo、`22px` 图标、`11px`/`1.25` 全宽居中名称、`56px` 菜单项和 `4px` 项内节奏，不使用固定 `em/ch` 盒且无折叠按钮；detailed 固定 `248px`/`76px`、`72px`/`44px`、`22px` 图标、展开横排与收起右侧零延迟 Tooltip。detailed AppShell 从独立 localStorage 偏好初始化，使用同一 helper 同步 fixed 侧栏、Mantine `navbar.width` 和 `data-navbar-width`；折叠状态不得进入 core、Jotai 页面会话 store、URL 或 Query。功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于生成。主窗口固定 1440×900、最小 960×640。所选关于页包含检查更新、更新日志、作者、联系方式和三段免责声明；更新日志采用 schema v2 中英文翻译对，标题与正文按当前 i18n locale 选择 `zh-CN`/`en-US`，未知语言回退英文。所选赞助页包含双主题布局与完整 `media/sponsor/*`。真实更新/强更/统计仍需独立产品批准，任务受生命周期拥有并回收，客户端不含 secret 或发布私钥。
 - GUI 始终复制发布专用 `src-tauri/tauri.release.conf.json`，但只有正式候选构建以 `--config` 合并并把根 `release-notes.json` 唯一映射为候选 `BaseDirectory::Resource/release-notes.json`；中性调试构建不使用它。选择关于页时，根 Tokio 启用 `fs`，GUI member 以 `workspace = true` 继承 `tokio`/`serde`/`serde_json`，注册普通 async `load_release_notes` 窄命令并由 About 默认加载、失败可重试；Rust 与 React 都必须拒绝 schema 非 v2、缺少 `zh-CN`/`en-US` 的翻译对或越过五版/十条上限，不得使用通用 fs 插件、路径参数或同步读取。未选关于页时这些运行时实现缺席，发布候选资源仍按制品契约携带。
 - 选择系统托盘时，可见图标来源固定为 Tauri `icon` 生成且由 `tauri.conf.json` 的 `bundle.icon` 引用的 `icons/32x32.png`；它必须是普通非符号链接、32×32 8-bit RGBA 非交错 PNG且含非透明像素。安装函数必须由 Tauri Builder `.setup(...)` 调用，在同一实现绑定双项 `Menu`、必需应用图标和 `.build(app)`，关闭隐藏由 `.on_window_event(...)` 注册；真实 E2E 必须看到非空托盘图形。Linux tray builder 必须绑定菜单。未选托盘时不得保留这些托盘专属实现。
@@ -33,8 +35,8 @@
 - 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
 - 首次脚手架在当前项目根创建 `Cargo.toml`，登记核心与实际选择的适配器；未来只扩展该根清单。
 - GUI `package.json` 必须直接声明带完整三段兼容下界的 `@tabler/icons-react`，并以命名组件提供菜单、操作、状态、空态和图表周边图标；存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji。图表绘制库仍按真实可视化需求选择。所选侧栏的 Logo、所有当前渲染图标和文字必须显式沿同一中心线且无裁切。
-- 含 GUI 的中性初始化必须在相关非空单元测试后、裁剪初始化能力和唯一基线提交前调用 `$desktop-test-gui-initialization-e2e`。它先运行 `verify-gui-lifecycle-contract.mjs` 解析五项 profile，对启用能力验证完整结构与命名回归、对禁用能力验证依赖/运行时/路由/资源缺席，再以 `pnpm tauri build --debug --no-bundle` 构建真实本机调试二进制。仅启用单实例时双启动，仅启用托盘时实测托盘生命周期；托盘禁用时实测关闭最后窗口退出。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面和未选页面缺席；它不消费 `milestone_e2e`，不写 release/Verification，任一适用场景失败或无法观察即阻断初始化。
-- 初始化表单、环境门禁、脚手架编写、测试和一次性裁剪阶段不检查或设置 Git。只有全部检查完成、下一步确实将创建唯一基线提交时，才即时检查 Git 可用性/版本/作者身份，在边界缺失时创建 `main` 分支独立仓库，验证当前项目根同时是唯一 Git 顶层目录，并运行仓库级提交模板 `install`/`check`；不能继承父仓库边界，也不能因未来可能提交而提前配置。
+- 含 GUI 的中性初始化必须在相关非空单元测试后、裁剪初始化能力和唯一基线提交前调用 `$desktop-test-gui-initialization-e2e`。先运行 `verify-gui-lifecycle-contract.mjs` 解析七项 profile，再以 `pnpm tauri build --debug --no-bundle` 形成真实本机调试二进制；启用能力验证完整结构、命名回归与真实宿主行为，对禁用能力验证依赖/运行时/路由/资源缺席。仅启用单实例时双启动；仅启用托盘时实测托盘生命周期；系统通知与开机自启也只执行对应已选宿主场景，其中通知覆盖权限/投递、自启恢复原登录项。托盘禁用时实测关闭最后窗口退出。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面和未选页面缺席；它不消费 `milestone_e2e`，不写 `release/` 或 Verification，任一适用场景失败、无法观察或无法恢复即阻断初始化。
+- 完整表单确认后、首次脚手架写入前通过环境门禁检查并按需安装 Git。全部检查完成后创建独立 `main` 仓库，已有有效身份保持不变，缺失字段只在 local 作用域使用 Agent 已翻译/转写的 ASCII 设备账户名和 `<ascii-device-username>@gmail.com` 补齐，再运行仓库级提交模板 `install`/`check`。完成报告必须列出 Git 版本、安装变化、身份及来源/作用域、仓库根、模板状态与基线提交；不得修改 global/system、配置 remote 或把派生邮箱声称为真实账户。
 - 中性脚手架的格式、测试和构建证据只证明工程骨架可用，不构成产品目的获批、业务实现完成或可验收产品候选。
 
 ## Rust 技术选型事实标准
@@ -69,12 +71,13 @@
 | 项目 | 默认值 | 约束 |
 |---|---|---|
 | Rust 语言版本 | `2024` | 稳定版 Rust；不使用 nightly 功能 |
-| MSRV | `1.90.0` | 根工作区写入 `rust-version = "1.90"`，表示最低兼容版本；接受 1.90.0 及以上稳定版，不要求精确等于 1.90.0 |
+| MSRV | `1.95.0` | 根工作区写入 `rust-version = "1.95"`，表示最低兼容版本；接受 1.95.0 及以上稳定版，不要求精确等于 1.95.0 |
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
 | 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor 并归零 Patch，独立缺陷 ID 升 Patch，Major 仅由用户批准；三个分量范围均为 `0..100` |
 | 锁文件 | 提交根 `Cargo.lock` | 使用 Cargo 生成；不得手工编辑 |
-| Node.js | 仅 GUI：`^20.19.0 || >=22.12.0` | 这是当前 Vite 基线的最低兼容范围；缺失时安装当前受支持 LTS，非 GUI 为 `not-required` |
-| pnpm | 仅 GUI：`>=10.0.0` | 缺失时安装兼容范围 `pnpm@^10.0.0`；现有更高兼容稳定版可继续使用，非 GUI 为 `not-required` |
+| Git | 全部初始化：稳定版 | 完整表单确认后检查；缺失时按受管平台方式安装 registry/官方渠道当前稳定版并复探，现有可用稳定版直接通过 |
+| Node.js | 仅 GUI：`^24.15.0 || >=26.0.0` | 当前完整前端技术族的最低兼容范围；缺失时安装当前受支持 LTS，非 GUI 为 `not-required` |
+| pnpm | 仅 GUI：`>=11.24.0` | 缺失时解析并安装 registry 当前最新兼容稳定版；现有范围内稳定版直接通过，非 GUI 为 `not-required` |
 | MSVC 构建工具 | Windows 缺失时自动安装 | 验证 Microsoft 签名，安装 C++ 工作负载并复探 |
 | Linux 系统开发库（仅 GUI） | Tauri 2 依赖的 webkit2gtk（`webkit2gtk-4.1-dev` 或 `webkit2gtk-4.0-dev`，视发行版而定）、`libgtk-3-dev`、`librsvg2-dev`、`libayatana-appindicator3-dev` 等发行版对应的开发包 | 非 GUI 为 `not-required`；具体包名随发行版包管理器变化，需按目标发行版核对 |
 | macOS Xcode Command Line Tools（仅 GUI） | 缺失时执行 `xcode-select --install` | 非 GUI 为 `not-required` |
@@ -87,6 +90,7 @@ rustup --version
 rustc --version
 cargo --version
 rustc -vV
+git --version
 # 仅 GUI
 node --version
 pnpm --version
@@ -104,7 +108,7 @@ pnpm --version
 .agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
 ```
 
-成功输出必须包含 `gate.rust.status=passed`；Rust 门禁按版本顺序接受 1.90.0 及以上稳定版，而不是只接受精确 1.90.0。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.status=passed`、`gate.node.requirement=^20.19.0 || >=22.12.0`、`gate.pnpm.status=passed` 与 `gate.pnpm.requirement=>=10.0.0`；低于下界或落入 Node.js 21.x 范围空档时失败关闭，不能用“命令可调用”代替版本兼容。其他接口组合必须把二者报告为 `not-required`。初始化后的恢复还必须记录原失败命令与退出状态的脱敏摘要，并在门禁成功后只重试该命令一次；代码/测试、普通依赖解析/网络、产品配置、凭据或签名失败不进入环境门禁。
+成功输出必须包含 `gate.git.status=passed` 与 `gate.rust.status=passed`；Rust 门禁接受 1.95.0 及以上稳定版。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.requirement=^24.15.0 || >=26.0.0` 与 `gate.pnpm.requirement=>=11.24.0`；Node.js 25 等上游明确不支持的范围失败关闭，不能仅按数字大小通过。其他接口组合把 Node/pnpm 报为 `not-required`。缺失工具安装时选择当前最新兼容稳定版，现有范围内版本不重装。
 
 ## 默认依赖
 
@@ -118,16 +122,16 @@ resolver = "3"
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.90"
+rust-version = "1.95"
 
 [workspace.dependencies]
-assert_cmd = "2.0.0"
-clap = { version = "4.6.0", features = ["derive"] }
+assert_cmd = "2.2.2"
+clap = { version = "4.6.6", features = ["derive"] }
 example_tool_core = { path = "example_tool_core" }
-jiff = "0.2.0"
-serde = { version = "1.0.203", features = ["derive"] }
-serde_json = "1.0.0"
-tokio = { version = "1.0.1", default-features = false, features = ["macros", "rt"] }
+jiff = "0.2.35"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", default-features = false, features = ["macros", "rt"] }
 ```
 
 - 根清单同时声明第三方依赖与工作区内 crate 的路径来源；例如 CLI 对核心的引用只在根清单写入一次。
@@ -143,10 +147,10 @@ tokio = { version = "1.0.1", default-features = false, features = ["macros", "rt
 
 ### 最低兼容版本策略
 
-- 创建下游、增加能力或主动变更依赖时，选择满足实际使用 API/feature、Rust 1.90 MSRV、Windows/macOS/Linux、安全与现有验证门槛的最低稳定版本作为直接依赖下界；不得把“最新”或当前锁文件解析到的版本当作兼容要求。
+- 创建下游、增加能力或主动变更依赖时，先查询官方 registry 当前最新的非预发布、非 yanked 候选，再验证实际 API/feature、Rust 1.95 MSRV、peer、Windows/macOS/Linux 与安全门槛；验证通过的最高兼容稳定版成为新的直接依赖下界。清单只表达兼容范围，不写字面量 `latest`。
 - Rust registry 直接依赖必须写成包含完整三段下界的 Cargo 兼容要求，例如 `serde = "1.0.203"` 使用 Cargo 默认 caret 语义；普通依赖禁止精确 `=1.0.203`、`*`、无下界范围、tag 或未经批准的 Git revision。内部 path 依赖仍由根 workspace 统一声明，不虚构 registry 版本。
 - 前端 `dependencies`/`devDependencies` 必须使用包含完整三段下界的 caret，或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符或无下界范围。Node.js/pnpm 的兼容事实写入 `engines` 范围；cargo-xwin 等带 SemVer 的受管工具同样使用包含完整下界的兼容范围。旧式精确 `packageManager` 字段不得充当兼容门禁。
-- `Cargo.toml`/`package.json` 表达兼容下界，根 `Cargo.lock`/`pnpm-lock.yaml` 固定正常解析得到的实际版本。锁文件由对应工具生成且提交，不得手工编辑；正常安装可以解析范围内较新的稳定版本，但不能反向抬高声明下界。
+- `Cargo.toml`/`package.json` 表达兼容下界，根锁文件固定正常解析得到的实际版本。锁文件由对应工具生成且提交，不得手工编辑；已安装工具处于支持范围内时直接复用，不因不是最新版而升级。
 - 新增或提高 Rust 直接下界时，在临时副本中执行 `cargo +nightly update -Zdirect-minimal-versions`，再用根 `Cargo.toml` 声明的最低 Rust 工具链运行受影响的非空测试；该不稳定 Cargo 子命令只用于验证，不成为生产构建依赖。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。最低版本验证不能覆盖日常提交的正常锁文件。
 - 只有使用到新 API/feature、修复安全或平台兼容问题，且提高后的下界通过相同验证时，才提高最低版本。日常任务不为追逐版本号自动改写已验证锁文件；依赖更新只运行本次必要单元/回归测试。用户显式请求构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁。
 
@@ -154,11 +158,11 @@ tokio = { version = "1.0.1", default-features = false, features = ["macros", "rt
 
 1. 它替代了哪部分复杂度，以及标准库或现有依赖为什么不足。
 2. 需要启用的最小特性集，不得默认采用 `full` 或等价全集。
-3. 对 Rust 1.90 MSRV、Windows、macOS、Linux 和最终产物体积的影响。
+3. 对 Rust 1.95 MSRV、Windows、macOS、Linux 和最终产物体积的影响。
 4. 缺失、初始化失败或运行失败时如何映射到稳定错误与退出码。
 5. 对应的成功路径、最高风险失败路径和外部依赖失败测试。
 
-固定 Rust、TUI 与 React 技术族不参与“是否采用其他框架”的推荐，只核验能力是否真实需要、哪个最低兼容稳定下界和最小特性/包集合能够通过验证。若候选下界无法满足 Rust 1.90、Node.js/pnpm 范围、目标 WebView、Windows/macOS/Linux、安全或验证门槛，必须提高到第一个通过的稳定下界，记录原因并重新验证；仍无兼容组合时报告阻塞并记录硬规则例外，不得静默换成其他框架。
+固定 Rust、TUI 与 React 技术族不参与“是否采用其他框架”的推荐，只核验能力是否真实需要、哪个当前最新兼容稳定候选和最小特性/包集合能够通过验证。若最新候选无法满足 Rust 1.95、Node.js/pnpm、peer、目标 WebView、三平台或安全门槛，按版本从新到旧选择第一个通过的稳定版并记录原因；仍无组合时报告阻塞，不得盲装 registry latest 或静默换框架。
 
 所有第三方依赖和工作区内 crate 路径都集中在根 `[workspace.dependencies]`，成员的生产、开发和构建依赖只使用 `workspace = true`，不得重复版本、软件包仓库/Git 来源、路径或基线特性。提交根 `Cargo.lock`，验证使用 `--locked`；不得仅凭较新 Rust 编译成功推断 MSRV 仍然成立。
 
@@ -228,7 +232,7 @@ cargo test --workspace --all-targets --all-features --locked
 cargo build --workspace --release --locked
 ```
 
-此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须读取根 `Cargo.toml` 的 `rust-version`，并使用该声明的最低 Rust 工具链（当前模板为 1.90.0）实际执行至少锁定依赖检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须固定为模板当前下界。较新编译器成功不能替代最低版本证据。
+此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须读取根 `Cargo.toml` 的 `rust-version`，并使用该声明的最低 Rust 工具链（当前模板为 1.95.0）实际执行至少锁定依赖检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须固定为模板当前下界。较新编译器成功不能替代最低版本证据。
 
 此外必须：
 
@@ -284,12 +288,13 @@ cargo build --workspace --release --locked
 - 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$desktop-build-rust-release` 与 `$desktop-build-tauri-release` 在任何单元测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。远端工作流必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。目录存在不代表 `ready`。
 - `$desktop-prepare-release` 只在完整验收通过后负责版本、变更记录和发布就绪判断，不自动运行冒烟/E2E、创建标签或上传。
 - `$desktop-add-mcp-adapter` 只在下游用户明确批准后增加依赖核心的 Rust stdio MCP 适配器；Skill 不自带实现资产。
-- `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费三候选 Logo 与五项 GUI 最终初始化配置（侧栏未选时已归一化为 `detailed`），按 profile 建立单实例、托盘、关于页、赞助页和精简/详细侧栏，始终建立动态标题、设置页、i18n 与亮暗主题，不自带产品业务实现。
+- `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费三候选 Logo 与七项 GUI 最终初始化配置，按 profile 调用通知/自启条件 Skills 并建立单实例、托盘、关于页、赞助页和精简/详细侧栏，始终建立动态标题、设置页、i18n 与亮暗主题，不自带产品业务实现。
 - `$desktop-prepare-gui-support-surfaces` 为全部 GUI 提供固定壳层和可选择的本地页面/媒体源资产；运行时只纳入 profile 选中的页面与资源。产品修改基线、增加其他支持界面或启用出站能力时再次按需调用；每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试。
 - `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI profile 选择的本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围，由锁文件固定实际解析结果，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
 - `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
 - `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
-- `$desktop-test-gui-initialization-e2e` 只在含 GUI 的一次性初始化提交前按五项 profile 运行结构检查和真实本机调试二进制；启用能力不完整、禁用能力有残留、关闭语义或所选侧栏/页面不符、适用场景无法观察都阻断。通过后随初始化能力删除，升级不得把它重新注入终端下游。
+- `$desktop-test-gui-initialization-e2e` 只在含 GUI 的一次性初始化提交前按七项 profile 运行结构检查和真实本机调试二进制；启用能力不完整、禁用能力有残留、通知/自启状态无法观察或恢复、关闭语义或所选侧栏/页面不符都阻断。通过后随初始化能力删除，升级不得把它重新注入终端下游。
+- `$desktop-test-gui-release-performance` 在 GUI 正式打包前绑定干净 HEAD 的 release-profile 探针候选，测量启动、代表性交互、整个进程树 CPU/RSS、重复操作内存增长和进程回收；它独立于 E2E。失败先回实现修复并重建，只有用户显式确认才允许以 `performanceStatus: waived` 保留失败证据后继续。
 
 候选归档或安装包命名为 `<product>-v<version>-<platform>-<arch>.<ext>`，每个产物必须有相邻的 `<artifact>.sha256` 和清单。清单必需字段、`pending`/`ready` 状态转换、Tauri GUI 附加字段与 xwin/公证记录规则统一以 `docs/RELEASE.md`「发布物命名」为唯一权威来源，本文件不重复维护，避免两份清单说明漂移。
 

@@ -35,7 +35,22 @@
     "theme_description": "主题选择会保存在本机；跟随系统会随系统外观自动切换。",
     "theme_light": "浅色",
     "theme_dark": "深色",
-    "theme_system": "跟随系统"
+    "theme_system": "跟随系统",
+    "system_notification_title": "系统通知",
+    "system_notification_description": "允许应用请求原生通知权限；只有在这里明确开启后才会发送通知。",
+    "system_notification_error": "无法完成通知设置更新；系统状态可读取时，开关已同步为实际状态。",
+    "autostart_title": "开机自启",
+    "autostart_description": "登录系统后正常显示并启动应用；实际状态以操作系统登录项为准。",
+    "autostart_error": "无法完成开机自启更新；系统状态可读取时，开关已同步为实际状态。",
+    "capability_pending": "正在更新系统设置…",
+    "capability_enabled": "已开启",
+    "capability_disabled": "已关闭",
+    "capability_unknown": "当前无法确认实际系统状态。",
+    "capability_error_title": "设置未更改",
+    "capability_unknown_title": "当前状态未知",
+    "capability_retry": "重新读取实际状态",
+    "system_notification_unknown": "通知权限或本地偏好都暂时无法确认。请在系统允许后重新读取实际状态。",
+    "autostart_unknown": "当前无法读取操作系统登录项。请稍后重新读取实际状态。"
   },
   "tray": {
     "show_window": "显示窗口",

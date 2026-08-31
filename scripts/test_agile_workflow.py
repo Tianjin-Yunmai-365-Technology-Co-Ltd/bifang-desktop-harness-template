@@ -204,7 +204,7 @@ class InitializationFormContractTests(unittest.TestCase):
             r"(?m)^\|\s*(\d+)\s*\|\s*(首轮基础|条件补全)\s*\|\s*([^|]+?)\s*\|",
             form,
         )
-        self.assertEqual([int(order) for order, _, _ in rows], list(range(1, 18)))
+        self.assertEqual([int(order) for order, _, _ in rows], list(range(1, 20)))
         self.assertEqual(
             [field.strip() for _, stage, field in rows if stage == "首轮基础"],
             [
@@ -226,6 +226,8 @@ class InitializationFormContractTests(unittest.TestCase):
                 "`milestone_smoke`",
                 "`milestone_e2e`",
                 "`system_tray`",
+                "`system_notification`",
+                "`autostart`",
                 "`about_page`",
                 "`sponsor_page`",
                 "`single_instance`",
@@ -289,7 +291,7 @@ class InitializationFormContractTests(unittest.TestCase):
         )
         self.assertIn("不得在复制后重新发起一轮问询", instantiate)
         self.assertIn("不得在复制后重新询问接口", initialize)
-        self.assertIn("复用表单中已经按需逐项确认的五项值", initialize)
+        self.assertIn("复用表单中已经按需逐项确认的七项值", initialize)
 
 class StreamlinedDevelopmentTests(unittest.TestCase):
     """覆盖直接实施、当前必要测试和显式并行边界。"""

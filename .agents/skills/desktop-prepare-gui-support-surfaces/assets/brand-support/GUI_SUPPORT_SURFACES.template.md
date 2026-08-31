@@ -1,6 +1,6 @@
 # GUI 支持界面扩展实例
 
-> GUI 初始化已经包含动态标题、所选精简/详细 Logo→版本侧栏、不含隐私/统计区块的语言与三态主题设置及应用级亮暗语义主题；系统托盘、关于页、赞助页和单实例由 `docs/GUI_APP_PROFILE.md` 逐项选择。仅在产品要修改该基线、增加界面或配置出站能力后，把本文件复制为 `docs/GUI_SUPPORT_SURFACES.md`。
+> GUI 初始化已经包含动态标题、所选精简/详细 Logo→版本侧栏、不含隐私/统计区块的语言与三态主题设置及应用级亮暗语义主题；系统托盘、系统通知、开机自启、关于页、赞助页和单实例由 `docs/GUI_APP_PROFILE.md` 逐项选择。仅在产品要修改该基线、增加界面或配置出站能力后，把本文件复制为 `docs/GUI_SUPPORT_SURFACES.md`。
 
 ## 文档状态
 
@@ -112,9 +112,9 @@
 ## 验证
 
 - [ ] 侧栏与 `sidebar_mode` 及 `docs/design_standards/tauri_sidebar.md` 一致：compact 为 `80px` 全宽居中持续名称、AppShell navbar 复用宽度常量且 Navbar padding 为 `0`；detailed 默认 `248px` 展开、`76px` 收起、统一 `22px` 图标，身份父级不代理按钮，`navbar.width`/`data-navbar-width` 同步，按钮状态持久化且收起 Tooltip 可发现名称。
-- [ ] 默认设置页只含应用/版本、语言与三态主题，没有隐私/统计控件、占位或对应固定翻译键。
+- [ ] 设置页固定含应用/版本、语言与三态主题；只为 profile 已启用能力加入宿主开关，且没有隐私/统计控件、未配置占位或禁用能力翻译键。
 - [ ] 托盘中文精确显示“显示窗口/退出”，英文精确显示“Show Window/Quit”，未知 locale 回退英文，运行时语言切换无需重启即可刷新；任何 `tray.*` 原始键不可见。
-- [ ] `/settings` 固定存在；`/about`、`/sponsor` 及运行时媒体严格按初始化选择存在或缺席。
+- [ ] `/settings` 固定存在；系统通知/开机自启 Switch、`/about`、`/sponsor` 及运行时媒体严格按七项初始化选择存在或缺席。
 - [ ] 原生窗口标题与 `document.title` 都符合 `{applicationName} v{version} {contactChannel}:{contactValue}`，且所有用户可见版本只有一个小写 `v`。
 - [ ] 关于页完整显示作者、作者联系方式和三段免责声明。
 - [ ] 更新未配置时显示 `NotConfigured` 且零出站；updater 等未选择媒体没有进入最终应用 bundle。

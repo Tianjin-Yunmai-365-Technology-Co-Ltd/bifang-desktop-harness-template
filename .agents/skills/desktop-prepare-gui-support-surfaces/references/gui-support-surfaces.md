@@ -59,8 +59,8 @@
 
 - 默认标题公式固定为 `{applicationName} v{version} {contactChannel}:{contactValue}`。展示名与版本必须来自权威 Tauri/打包元数据，展示边界先去除已有前缀再保证只有一个小写 `v`；联系字段固定来自 profile 的 `contacts.windowTitle`，原生标题与 `document.title` 必须一致，不得写死一次构建值。
 - 左侧菜单由 `sidebar_mode` 决定并只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)。compact 为 `80px`、`6px` 内容内边距、`36px` 本地 Logo、`22px` 图标、全宽居中名称与 `56px` 菜单项，不提供折叠按钮或固定 `em/ch` 名称盒；detailed 首次默认 `248px` 展开、`72px` Logo、`22px` 图标，自身 ActionIcon 收起为 `76px`/`44px` Logo、图标-only + Mantine Tooltip 与独立 local-storage 偏好。detailed 状态由 AppShell 拥有并同步 `navbar.width`/`data-navbar-width`，身份区父级不得代理折叠。两种模式都使用 `@tabler/icons-react` 命名组件、保留可访问名称和清晰选中态；产品功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于的视觉顺序生成。
-- `/settings` 是固定路由；`/about` 与 `/sponsor` 分别只在 `about_page = enabled`、`sponsor_page = enabled` 时存在并进入导航。设置页只提供当前应用/版本、中英文和浅色/深色/跟随系统；不得包含隐私标题、统计同意或未配置占位。所有 GUI 保存发布专用 `--config` Tauri 合并配置，正式构建才使用并将根日志逐字节嵌入。所选关于页在手动检查更新旁提供“更新日志”按钮；该按钮通过固定 Rust 异步命令从候选打包的 schema v2 `release-notes.json` 查看最近 5 个版本，每版功能优化/问题修复各最多 10 个 `zh-CN`/`en-US` 翻译对，按当前 i18n 语言选择标题与内容、未知语言回退 `en-US`，全部版本只带一个小写 `v`，并有 loading/error/retry。未配置远端能力时检查更新显示明确不可用状态并保持零出站，本地更新日志仍可用。
-- 所选关于页使用当前产品名称和版本，并展示手动检查更新、作者 `about.studio`、profile 的 `contacts.support` 与三段免责声明。标语、许可、隐私或反馈动作仍由下游按真实事实注入；外部链接需独立批准、可识别、可键盘访问并通过系统浏览器打开。未选择关于页时，不得保留隐藏路由、导航入口或不可达运行时组件。
+- `/settings` 是固定路由；`/about` 与 `/sponsor` 分别只在相应选择启用时存在并进入导航。设置页固定提供当前应用/版本、中英文和浅色/深色/跟随系统；系统通知与开机自启只在对应配置启用时增加默认关闭、异步失败可回滚的 Switch，禁用时运行时组件与翻译键缺席；不得包含隐私标题、统计同意或未配置占位。所有 GUI 保存发布专用 Tauri 合并配置，关于页继续通过固定 Rust 异步命令读取候选更新日志。
+- 所选关于页使用当前产品名称和版本；关于页在手动检查更新旁提供本地更新日志，并展示作者 `about.studio`、profile 的 `contacts.support` 与三段免责声明。标语、许可、隐私或反馈动作仍由下游按真实事实注入；外部链接需独立批准、可识别、可键盘访问并通过系统浏览器打开。未选择关于页时，不得保留隐藏路由、导航入口或不可达运行时组件。
 - 页面交互事件绑定在实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项，不由 Card、`Table.Tr`、`Table.Td` 等父级代理；父级有独立动作时只执行自己的语义并隔离冲突传播。表格中的 `Switch` 不得因点击行或单元格而切换。
 - 页面工作状态使用共享 `pageSessionState.ts` 在应用根 Jotai store 中按页面持有活动选项卡、查询/筛选、排序和分页，只在当前程序进程内跨路由以及已启用的关闭隐藏/单实例唤醒过程保留；退出后回到默认值，不写入浏览器/Tauri/文件/数据库/URL，也不镜像 TanStack Query 或 core 数据。详细侧栏折叠偏好是独立设备级 UI 偏好，不属于页面工作状态。查询范围或每页数量变化时页码归 1；成功查询到大于第 1 页的空页时回退第 1 页，加载/错误和第 1 页空结果不循环。
 - 仅在选择赞助页时完整复制品牌包的 `media/sponsor/*`，包括当前未引用小图，并核对 manifest。固定三档价格/权益、品牌联系人与双支付码是产品家族事实；支付码需要本地化替代文本。未选择赞助页时运行时 bundle 不得包含 sponsor 媒体。若产生订单、付款确认或权益状态，停止使用纯展示路径并进入独立产品/支付范围。
@@ -83,7 +83,7 @@
 
 ## 最小验证矩阵
 
-- 固定本地界面：按所选 `sidebar_mode` 验证 compact 精确实现 `tauri-gui-sidebar-compact-80-v1`（全宽居中、无固定 `em/ch` 盒/折叠控件、AppShell 零 padding 接线），或 detailed 精确实现 `tauri-gui-sidebar-detailed-v1`（父级不代理、AppShell 偏移同步、图标-only + 右侧零延迟 Tooltip 及偏好持久化，精确尺寸见 [`tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)）；功能项向下增长，底部只按已选赞助、固定设置、已选关于生成。`/settings` 固定可达，`/about` 与 `/sponsor` 严格按选择存在或缺席；默认设置页没有隐私/统计控件或翻译键，浅色/深色/跟随系统回调和持久化有效，应用语义变量与所选 Sponsor 分别通过亮色/暗色渲染，翻译回退、键盘与可访问名称有效。
+- 固定本地界面：按所选 `sidebar_mode` 验证 compact 或 detailed 完整合同；`/settings` 固定可达，系统通知/开机自启 Switch 严格按选择存在或缺席，并验证自身事件、pending、成功/失败和 live region；`/about` 与 `/sponsor` 严格按选择存在或缺席。设置页没有隐私/统计控件，三态主题与翻译回退有效。
 - 托盘 i18n：仅在选择系统托盘时，稳定 ID 不作为可见文字；中文精确显示“显示窗口/退出”，英文精确显示“Show Window/Quit”，不支持的 locale 回退英文，设置页运行时切换语言后无需重启即可刷新真实托盘菜单，任何 `tray.*` 原始键可见都失败。未选择时验证托盘资源和运行时接线缺席。
 - 标题：展示名与当前打包版本来自权威来源，联系字段来自 profile，原生标题与 `document.title` 一致，非法占位符被拒绝，设置失败不破坏主要业务。
 - 关于页：选择时验证检查更新及 `NotConfigured` 零出站、Rust 候选资源命令/handler/异步读取/失败关闭、前端 IPC 解码与加载失败重试、更新日志五版/十条裁剪、全部版本恰有一个 `v`、更新区父级不代理两个按钮、作者、作者联系方式和三段免责声明完整；应用名与版本来自当前下游，不携带来源产品身份。未选择时验证路由、导航、命令、加载器和运行时组件缺席。所有 GUI 仍验证发布专用映射精确存在。

@@ -1,4 +1,4 @@
 interface:
   display_name: "实例化项目"
-  short_description: "只收集 Harness 初始化信息，并在基线提交前即时建立 Git"
-  default_prompt: "使用 $desktop-instantiate-project，只收集 Harness 创建终端下游所需的双语名称和固定初始化字段；拒绝接收产品业务需求，并要求我切换至下游后重新提出。随后完成中性脚手架，并只在实际创建唯一基线提交前即时检查和设置独立 Git 仓库。"
+  short_description: "只收集 Harness 初始化信息；表单确认后先门禁 Git，完成中性脚手架后再建立独立仓库与 local 身份"
+  default_prompt: "使用 $desktop-instantiate-project，只收集 Harness 创建终端下游所需的双语名称和固定初始化字段；拒绝接收产品业务需求，并要求我切换至下游后重新提出。表单确认后先门禁 Git，缺失时受管安装；完成中性脚手架后再建立独立仓库与 local 身份，并只在实际创建唯一基线提交前安装提交模板。"

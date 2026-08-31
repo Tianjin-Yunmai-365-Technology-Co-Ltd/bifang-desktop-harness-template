@@ -52,7 +52,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
     def test_gui_settings_version_fragment_matches_skill(self) -> None:
         """GUI 设置页的单个小写 v 版本契约必须与验证器要求一致。"""
 
-        expected = "设置页始终只渲染当前应用名/带一个小写 `v` 的版本"
+        expected = "设置页固定区始终只渲染当前应用名/带一个小写 `v` 的版本"
         initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         required = primary_required_fragments(initialize_skill)
         self.assertIn(expected, required[GUI_SKILL])
@@ -96,7 +96,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             self.assertIn(fragment, baseline)
 
     def test_gui_initialization_e2e_is_a_required_one_time_contract(self) -> None:
-        """GUI 初始化必须按五项配置锁定适用生命周期与界面。"""
+        """GUI 初始化必须按七项配置锁定适用生命周期与界面。"""
 
         initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         required = primary_required_fragments(initialize_skill)

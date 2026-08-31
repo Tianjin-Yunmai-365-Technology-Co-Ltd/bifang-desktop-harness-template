@@ -6,9 +6,30 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { inflateSync } from "node:zlib";
 
+import {
+  validateFrontendInitializationContract,
+  validateLocales,
+  validateRustOnlyDesktopCapabilities,
+} from "./gui-lifecycle-frontend-contract.mjs";
+import {
+  cargoDependencyHasLowerBound,
+  collectFiles,
+  collectMethodArguments,
+  collectRustFunctions,
+  desktopTargetDependencyDeclaration,
+  resolveGuiRoot,
+  targetDependencyDeclaration,
+  tomlAssignment,
+  tomlSection,
+} from "./gui-lifecycle-source-analysis.mjs";
 import { validateReleaseNotesRuntimeContract } from "./verify-release-notes-contract.mjs";
 
-const IGNORED_DIRECTORIES = new Set([".git", ".harness", "node_modules", "target", "dist", "release"]);
+/**
+ * 委托给 frontend-contract 模块的稳定检查面：
+ * GUI 固定基线缺少 /settings 路由；未选择${page.label}时不得保留路由或组件；
+ * 未选择赞助页时不得保留 public/brand-support/sponsor；侧栏固定检查 22px 图标、
+ * DEFAULT_DETAILED_SIDEBAR_COLLAPSED 与 localStorage 持久化。
+ */
 
 const TRAY_SOURCE_REQUIREMENTS = [
   ["创建 Tauri 托盘", ["TrayIconBuilder"]],
@@ -44,30 +65,36 @@ const TRAY_TEST_NAMES = [
 
 const NO_TRAY_TEST_NAMES = ["close_last_window_exits_application"];
 
-const GUI_INITIALIZATION_PROFILE_FIELDS = new Set([
+const SYSTEM_NOTIFICATION_TEST_NAMES = [
+  "system_notification_defaults_disabled",
+  "system_notification_permission_precedes_persistence",
+  "system_notification_delivery_failure_is_observable",
+  "system_notification_channel_serializes_authorization_and_delivery",
+  "system_notification_worker_is_owned_and_cancelled",
+  "macos_system_notifications_use_modern_user_notifications",
+];
+
+const AUTOSTART_TEST_NAMES = [
+  "autostart_defaults_disabled_without_registration",
+  "autostart_state_reads_operating_system_registration",
+  "autostart_enable_disable_failures_are_observable",
+  "autostart_commands_are_idempotent",
+  "autostart_e2e_restores_previous_registration",
+];
+
+const GUI_INITIALIZATION_PROFILE_FIELDS = [
   "system_tray",
+  "system_notification",
+  "autostart",
   "about_page",
   "sponsor_page",
   "single_instance",
   "sidebar_mode",
-]);
-
-const FRONTEND_SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"]);
-
-const SPONSOR_MEDIA_FILES = [
-  "arrow.png",
-  "bg.jpg",
-  "icon1.png",
-  "icon2.png",
-  "icon3.png",
-  "icon4.png",
-  "img1.png",
-  "img2.png",
-  "img3.png",
-  "pay1.png",
-  "pay2.png",
-  "select.png",
 ];
+
+const GUI_INITIALIZATION_PROFILE_FIELD_SET = new Set(
+  GUI_INITIALIZATION_PROFILE_FIELDS,
+);
 
 /** 解析脚本参数，并拒绝不完整或未知的调用形式。 */
 function parseArguments(argv) {
@@ -123,11 +150,12 @@ function readGuiInitializationProfile(root, errors) {
     return null;
   }
   const values = new Map();
+  const fieldOrder = [];
   for (const rawLine of block[1].split(/\r?\n/u)) {
     const line = rawLine.trim();
     if (!line) continue;
     const match = line.match(/^([a-z_]+)\s*=\s*([a-z]+)$/u);
-    if (!match || !GUI_INITIALIZATION_PROFILE_FIELDS.has(match[1])) {
+    if (!match || !GUI_INITIALIZATION_PROFILE_FIELD_SET.has(match[1])) {
       errors.push(`GUI 初始化配置包含非法字段行：${line}`);
       continue;
     }
@@ -136,6 +164,7 @@ function readGuiInitializationProfile(root, errors) {
       continue;
     }
     values.set(match[1], match[2]);
+    fieldOrder.push(match[1]);
   }
   for (const field of GUI_INITIALIZATION_PROFILE_FIELDS) {
     if (!values.has(field)) {
@@ -146,7 +175,24 @@ function readGuiInitializationProfile(root, errors) {
       errors.push(`GUI 初始化配置缺少字段：${field}${detail}`);
     }
   }
-  for (const field of ["system_tray", "about_page", "sponsor_page", "single_instance"]) {
+  if (
+    fieldOrder.length === GUI_INITIALIZATION_PROFILE_FIELDS.length &&
+    fieldOrder.some(
+      (field, index) => field !== GUI_INITIALIZATION_PROFILE_FIELDS[index],
+    )
+  ) {
+    errors.push(
+      `GUI 初始化配置字段顺序必须为：${GUI_INITIALIZATION_PROFILE_FIELDS.join(" → ")}`,
+    );
+  }
+  for (const field of [
+    "system_tray",
+    "system_notification",
+    "autostart",
+    "about_page",
+    "sponsor_page",
+    "single_instance",
+  ]) {
     if (values.has(field) && !new Set(["enabled", "disabled"]).has(values.get(field))) {
       errors.push(`GUI 初始化配置 ${field} 必须为 enabled 或 disabled`);
     }
@@ -157,236 +203,19 @@ function readGuiInitializationProfile(root, errors) {
   if (errors.length > 0) return null;
   return {
     aboutPage: values.get("about_page") === "enabled",
+    autostart: values.get("autostart") === "enabled",
     sidebarMode: values.get("sidebar_mode"),
     singleInstance: values.get("single_instance") === "enabled",
     sponsorPage: values.get("sponsor_page") === "enabled",
+    systemNotification: values.get("system_notification") === "enabled",
     systemTray: values.get("system_tray") === "enabled",
   };
 }
 
-/** 递归枚举受管文件，拒绝源码树中的符号链接。 */
-function collectFiles(directory, extensions) {
-  const results = [];
-  const visit = (current) => {
-    const stats = fs.lstatSync(current);
-    if (stats.isSymbolicLink()) {
-      throw new Error(`受管目录不得包含符号链接：${current}`);
-    }
-    if (stats.isFile()) {
-      if (extensions.has(path.extname(current))) {
-        results.push(current);
-      }
-      return;
-    }
-    if (!stats.isDirectory()) {
-      return;
-    }
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      if (entry.isDirectory() && IGNORED_DIRECTORIES.has(entry.name)) {
-        continue;
-      }
-      visit(path.join(current, entry.name));
-    }
-  };
-  visit(directory);
-  return results.sort();
-}
-
-/** 去除 TOML 行尾注释，同时保留字符串中的井号。 */
-function stripTomlComments(text) {
-  return text
-    .split(/\r?\n/u)
-    .map((line) => {
-      let quote = null;
-      let escaped = false;
-      for (let index = 0; index < line.length; index += 1) {
-        const character = line[index];
-        if (escaped) {
-          escaped = false;
-          continue;
-        }
-        if (quote && character === "\\") {
-          escaped = true;
-          continue;
-        }
-        if (character === '"' || character === "'") {
-          quote = quote === character ? null : quote ?? character;
-          continue;
-        }
-        if (!quote && character === "#") {
-          return line.slice(0, index);
-        }
-      }
-      return line;
-    })
-    .join("\n");
-}
-
-/** 提取一个 TOML 表正文，不把后续表误算进当前配置。 */
-function tomlSection(text, sectionName) {
-  const lines = stripTomlComments(text).split(/\r?\n/u);
-  const heading = `[${sectionName}]`;
-  const start = lines.findIndex((line) => line.trim() === heading);
-  if (start < 0) {
-    return "";
-  }
-  const body = [];
-  for (let index = start + 1; index < lines.length; index += 1) {
-    if (/^\s*\[.+\]\s*$/u.test(lines[index])) {
-      break;
-    }
-    body.push(lines[index]);
-  }
-  return body.join("\n");
-}
-
-/** 提取 TOML 表内一个可能跨行的赋值表达式。 */
-function tomlAssignment(section, key) {
-  const lines = section.split(/\r?\n/u);
-  const keyPattern = new RegExp(`^\\s*${key.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\\s*=`, "u");
-  const start = lines.findIndex((line) => keyPattern.test(line));
-  if (start < 0) {
-    return "";
-  }
-  const block = [];
-  let depth = 0;
-  let quote = null;
-  let escaped = false;
-  for (let lineIndex = start; lineIndex < lines.length; lineIndex += 1) {
-    const line = lines[lineIndex];
-    block.push(line);
-    for (const character of line) {
-      if (escaped) {
-        escaped = false;
-        continue;
-      }
-      if (quote && character === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (character === '"' || character === "'") {
-        quote = quote === character ? null : quote ?? character;
-        continue;
-      }
-      if (!quote && "[{(".includes(character)) {
-        depth += 1;
-      } else if (!quote && "]})".includes(character)) {
-        depth -= 1;
-      }
-    }
-    if (depth <= 0 && !quote) {
-      break;
-    }
-  }
-  return block.join("\n");
-}
-
-/** 把真实 GUI 路径约束在项目根内，避免检查到错误项目。 */
-function resolveGuiRoot(rootInput, guiInput) {
-  if (path.isAbsolute(guiInput)) {
-    throw new Error("--gui-dir 必须是项目根相对路径");
-  }
-  const root = fs.realpathSync(path.resolve(rootInput));
-  const requested = path.resolve(root, guiInput);
-  const guiRoot = fs.realpathSync(requested);
-  const relative = path.relative(root, guiRoot);
-  if (!relative || relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) {
-    throw new Error(`GUI 目录必须严格位于项目根内：${guiInput}`);
-  }
-  if (fs.lstatSync(requested).isSymbolicLink()) {
-    throw new Error(`GUI 目录不得是符号链接：${guiInput}`);
-  }
-  return { root, guiRoot };
-}
-
-/** 在忽略字符串与注释中的分隔符后寻找成对括号的末端。 */
-function findMatchingDelimiter(sourceText, openIndex, openCharacter, closeCharacter) {
-  let depth = 0;
-  let quote = null;
-  let escaped = false;
-  let lineComment = false;
-  let blockCommentDepth = 0;
-  for (let index = openIndex; index < sourceText.length; index += 1) {
-    const character = sourceText[index];
-    const next = sourceText[index + 1];
-    if (lineComment) {
-      if (character === "\n") lineComment = false;
-      continue;
-    }
-    if (blockCommentDepth > 0) {
-      if (character === "/" && next === "*") {
-        blockCommentDepth += 1;
-        index += 1;
-      } else if (character === "*" && next === "/") {
-        blockCommentDepth -= 1;
-        index += 1;
-      }
-      continue;
-    }
-    if (quote) {
-      if (escaped) {
-        escaped = false;
-      } else if (character === "\\") {
-        escaped = true;
-      } else if (character === quote) {
-        quote = null;
-      }
-      continue;
-    }
-    if (character === "/" && next === "/") {
-      lineComment = true;
-      index += 1;
-      continue;
-    }
-    if (character === "/" && next === "*") {
-      blockCommentDepth = 1;
-      index += 1;
-      continue;
-    }
-    if (character === '"') {
-      quote = character;
-      continue;
-    }
-    if (character === openCharacter) depth += 1;
-    if (character === closeCharacter) {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-  return -1;
-}
-
-/** 枚举普通 Rust 函数正文，供生命周期接线检查使用。 */
-function collectRustFunctions(sourceText) {
-  const functions = [];
-  const pattern = /\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>{}]*>)?\s*\(/gu;
-  for (const match of sourceText.matchAll(pattern)) {
-    const parameterStart = sourceText.indexOf("(", match.index);
-    const parameterEnd = findMatchingDelimiter(sourceText, parameterStart, "(", ")");
-    if (parameterEnd < 0) continue;
-    const bodyStart = sourceText.indexOf("{", parameterEnd);
-    const semicolon = sourceText.indexOf(";", parameterEnd);
-    if (bodyStart < 0 || (semicolon >= 0 && semicolon < bodyStart)) continue;
-    const bodyEnd = findMatchingDelimiter(sourceText, bodyStart, "{", "}");
-    if (bodyEnd < 0) continue;
-    functions.push({
-      name: match[1],
-      text: sourceText.slice(match.index, bodyEnd + 1),
-    });
-  }
-  return functions;
-}
-
-/** 枚举指定链式方法的完整参数，避免把未接入 Builder 的死代码视为运行时实现。 */
-function collectMethodArguments(sourceText, methodName) {
-  const argumentsList = [];
-  const pattern = new RegExp(`\\.${methodName}\\s*\\(`, "gu");
-  for (const match of sourceText.matchAll(pattern)) {
-    const openIndex = sourceText.indexOf("(", match.index);
-    const closeIndex = findMatchingDelimiter(sourceText, openIndex, "(", ")");
-    if (closeIndex >= 0) argumentsList.push(sourceText.slice(openIndex + 1, closeIndex));
-  }
-  return argumentsList;
+/** 读取目录中可能存在的文本文件；目录缺失时返回空集合。 */
+function collectOptionalTexts(directory, extensions) {
+  if (!fs.existsSync(directory)) return [];
+  return collectFiles(directory, extensions).map(readTextFile);
 }
 
 /** 还原 PNG scanline filter，确认 32px 托盘来源不是全透明空图。 */
@@ -667,171 +496,167 @@ function validateSingleInstanceContract(sourceTexts, errors) {
   }
 }
 
-/** 检查中英文原生托盘文案均被复制到真实 GUI。 */
-function validateLocales(localeTexts, errors) {
-  const hasChinese = localeTexts.some(
-    (text) => text.includes("show_window") && text.includes("quit") && text.includes("显示窗口") && text.includes("退出"),
-  );
-  const hasEnglish = localeTexts.some(
-    (text) => text.includes("show_window") && text.includes("quit") && text.includes("Show Window") && text.includes("Quit"),
-  );
-  if (!hasChinese) {
-    errors.push("缺少同时包含 show_window/quit 的中文托盘资源");
+/** 验证系统通知使用 Rust-only 平台分流、串行 worker 与可回收所有权。 */
+function validateSystemNotificationSourceContract(sourceTexts, errors) {
+  const sourceText = sourceTexts.join("\n");
+  const requiredFragments = [
+    "tauri_plugin_notification::init",
+    "NotificationCommand",
+    "mpsc",
+    "oneshot",
+    "JoinHandle",
+    "get_system_notification_setting",
+    "set_system_notification_enabled",
+    "mac_usernotifications::request_auth",
+    "mac_usernotifications::Notification",
+    "NotificationExt",
+    "request_permission",
+    ".builder(",
+    ".show(",
+  ];
+  for (const fragment of requiredFragments) {
+    if (!sourceText.includes(fragment)) {
+      errors.push(`系统通知 Rust-only 合同缺少：${fragment}`);
+    }
   }
-  if (!hasEnglish) {
-    errors.push("缺少同时包含 show_window/quit 的英文托盘资源");
+  if (
+    !sourceText.includes("#[cfg(target_os = \"macos\")]") &&
+    !sourceText.includes("#[cfg(target_os=\"macos\")]")
+  ) {
+    errors.push("系统通知必须以 cfg(target_os = \"macos\") 隔离现代 macOS 实现");
+  }
+  if (
+    !sourceText.includes("#[cfg(not(target_os = \"macos\"))]") &&
+    !sourceText.includes("#[cfg(not(target_os=\"macos\"))]")
+  ) {
+    errors.push("系统通知必须以 cfg(not(target_os = \"macos\")) 隔离其他平台官方插件实现");
+  }
+  if (!sourceText.includes(".abort(") && !sourceText.includes("shutdown")) {
+    errors.push("系统通知 worker 必须具有应用拥有的关闭或取消路径");
+  }
+  const settingCommand = collectRustFunctions(sourceText).find(
+    (candidate) => candidate.name === "set_system_notification_enabled",
+  );
+  if (settingCommand) {
+    const permissionIndex = Math.max(
+      settingCommand.text.indexOf("RequestPermission"),
+      settingCommand.text.indexOf("request_system_notification_permission"),
+      settingCommand.text.indexOf("request_auth"),
+      settingCommand.text.indexOf("request_permission"),
+    );
+    const persistenceIndexes = [
+      settingCommand.text.indexOf("persist"),
+      settingCommand.text.indexOf("write"),
+    ].filter((index) => index >= 0);
+    const persistenceIndex =
+      persistenceIndexes.length > 0 ? Math.min(...persistenceIndexes) : -1;
+    if (
+      permissionIndex < 0 ||
+      persistenceIndex < 0 ||
+      permissionIndex > persistenceIndex
+    ) {
+      errors.push("系统通知设置命令必须先等待权限成功，再持久化启用状态");
+    }
+  }
+  const singleInstanceIndex = sourceText.indexOf(
+    "tauri_plugin_single_instance::init",
+  );
+  const notificationIndex = sourceText.indexOf(
+    "tauri_plugin_notification::init",
+  );
+  if (
+    singleInstanceIndex >= 0 &&
+    notificationIndex >= 0 &&
+    notificationIndex < singleInstanceIndex
+  ) {
+    errors.push("系统通知插件必须在首位单实例插件之后注册");
   }
 }
 
-/** 判断前端源码是否包含一个精确的静态路由字面量。 */
-function containsRouteLiteral(sourceText, route) {
-  return [`"${route}"`, `'${route}'`, `\`${route}\``].some((literal) =>
-    sourceText.includes(literal),
-  );
-}
-
-/** 按初始化选择验证固定页面、可选页面、侧栏接线和赞助媒体。 */
-function validateFrontendInitializationContract(guiRoot, profile, errors) {
-  const sourceRoot = path.join(guiRoot, "src");
-  if (!fs.existsSync(sourceRoot)) {
-    errors.push("GUI 前端缺少 src 源码目录");
-    return "";
-  }
-  const sourceFiles = collectFiles(sourceRoot, FRONTEND_SOURCE_EXTENSIONS);
-  if (sourceFiles.length === 0) {
-    errors.push("GUI 前端源码为空");
-    return "";
-  }
-  const sourceEntries = sourceFiles.map((filePath) => ({
-    relativePath: path.relative(sourceRoot, filePath).split(path.sep).join("/"),
-    text: readTextFile(filePath),
-  }));
-  const sourceText = sourceEntries.map((entry) => entry.text).join("\n");
-
-  if (!containsRouteLiteral(sourceText, "/settings")) {
-    errors.push("GUI 固定基线缺少 /settings 路由");
-  }
-  if (!sourceEntries.some((entry) => /(?:^|\/)settings(?:[./-]|$)/iu.test(entry.relativePath))) {
-    errors.push("GUI 固定基线缺少设置页运行时组件");
-  }
-
-  for (const page of [
-    { enabled: profile.aboutPage, label: "关于页", route: "/about", token: "about" },
-    { enabled: profile.sponsorPage, label: "赞助页", route: "/sponsor", token: "sponsor" },
+/** 未选择系统通知时拒绝依赖之外的全部专属源码残留。 */
+function validateNoSystemNotificationSourceContract(sourceTexts, errors) {
+  const sourceText = sourceTexts.join("\n");
+  for (const forbidden of [
+    "tauri_plugin_notification",
+    "mac_usernotifications",
+    "NotificationCommand",
+    "get_system_notification_setting",
+    "set_system_notification_enabled",
+    "system_notification",
   ]) {
-    const hasRoute = containsRouteLiteral(sourceText, page.route);
-    const pagePathPattern = new RegExp(`(?:^|/)${page.token}(?:[./-]|$)`, "iu");
-    const hasComponent = sourceEntries.some((entry) => pagePathPattern.test(entry.relativePath));
-    if (page.enabled) {
-      if (!hasRoute) errors.push(`选择${page.label}时缺少 ${page.route} 路由`);
-      if (!hasComponent) errors.push(`选择${page.label}时缺少运行时组件`);
-    } else {
-      if (hasRoute) errors.push(`未选择${page.label}时不得保留 ${page.route} 路由`);
-      if (hasComponent) errors.push(`未选择${page.label}时不得保留运行时组件`);
+    if (sourceText.includes(forbidden)) {
+      errors.push(`未选择系统通知时不得保留通知运行时：${forbidden}`);
     }
   }
+}
 
-  const mode = profile.sidebarMode;
-  const sidebarText = sourceEntries
-    .filter((entry) => /(?:^|\/)(?:AppShell|AppSidebar)[^/]*\.(?:[cm]?[jt]sx?)$/u.test(entry.relativePath))
-    .map((entry) => entry.text)
-    .join("\n");
-  const selectedModePattern = new RegExp(
-    `(?:\\bsidebarMode\\s*(?::[^=;]+)?=|\\bmode\\s*=|\\bmode\\s*:)\\s*["']${mode}["']`,
-    "u",
+/** 验证开机自启只通过 Rust command 操作 OS 权威注册状态。 */
+function validateAutostartSourceContract(sourceTexts, errors) {
+  const sourceText = sourceTexts.join("\n");
+  for (const fragment of [
+    "tauri_plugin_autostart::init",
+    "MacosLauncher::LaunchAgent",
+    "ManagerExt",
+    "autolaunch",
+    "get_autostart_enabled",
+    "set_autostart_enabled",
+    "is_enabled",
+    ".enable(",
+    ".disable(",
+  ]) {
+    if (!sourceText.includes(fragment)) {
+      errors.push(`开机自启 Rust-only 合同缺少：${fragment}`);
+    }
+  }
+  if (!/tauri_plugin_autostart::init\s*\(\s*(?:tauri_plugin_autostart::)?MacosLauncher::LaunchAgent\s*,\s*None\s*\)/u.test(sourceText)) {
+    errors.push("开机自启必须使用 MacosLauncher::LaunchAgent 且不传启动参数");
+  }
+  for (const forbidden of ["--hidden", "--minimized", "--silent-start"]) {
+    if (sourceText.includes(forbidden)) {
+      errors.push(`开机自启不得擅自加入隐藏启动参数：${forbidden}`);
+    }
+  }
+  const setupArguments = sourceTexts.flatMap((text) =>
+    collectMethodArguments(text, "setup"),
   );
-  if (!selectedModePattern.test(sidebarText)) {
-    errors.push(`GUI 前端未把 sidebar_mode = ${mode} 接入实际侧栏`);
+  if (
+    setupArguments.some(
+      (argument) =>
+        argument.includes("autolaunch") && argument.includes(".enable("),
+    )
+  ) {
+    errors.push("初始化 setup 不得替用户注册开机自启");
   }
-  if (mode === "compact") {
-    for (const [label, pattern] of [
-      ["80px 固定宽度", /\bcompact\s*:\s*80\b/u],
-      ["36px Logo", /\bcompact\s*:\s*36\b/u],
-      ["6px 内容内边距", /(?:COMPACT_PADDING|compactPadding)[A-Z_a-z]*\s*=\s*6\b/u],
-      ["8px 身份与菜单区间距", /(?:SECTION_GAP|sectionGap)[A-Z_a-z]*\s*=\s*8\b/u],
-      ["22px 图标", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*22\b/u],
-      ["11px 名称", /(?:FONT_SIZE|fontSize)[A-Z_a-z]*\s*=\s*11\b/u],
-      ["1.25 名称行高", /(?:LINE_HEIGHT|lineHeight)[A-Z_a-z]*\s*=\s*1\.25\b/u],
-      ["56px 菜单项最小高度", /(?:MIN_HEIGHT|minHeight)[A-Z_a-z]*\s*=\s*56\b/u],
-      ["4px 菜单项垂直内边距", /(?:PADDING_BLOCK|paddingBlock)[A-Z_a-z]*\s*=\s*4\b/u],
-      ["4px 图标名称间距", /(?:ITEM_GAP|itemGap)[A-Z_a-z]*\s*=\s*4\b/u],
-      ["图标在上、名称在下", /icon-above-label/u],
-      ["NavLink 纵向布局", /flexDirection\s*:\s*(?:compact\s*\?\s*)?["']column["']/u],
-      ["NavLink 水平居中", /alignItems\s*:\s*["']center["']/u],
-      ["NavLink 左右零内边距", /paddingInline\s*:\s*(?:[^,\n?]+\?\s*)?0\b/u],
-      ["left section 零边距", /marginInline\s*:\s*(?:[^,\n?]+\?\s*)?0\b/u],
-      ["body 可见溢出", /overflow\s*:\s*(?:compact\s*\?\s*)?["']visible["']/u],
-      ["名称块级显示", /display\s*:\s*(?:compact\s*\?\s*)?["']block["']/u],
-      ["名称完整宽度", /width\s*:\s*(?:compact\s*\?\s*)?["']100%["']/u],
-      ["名称自动水平外边距", /marginInline\s*:\s*(?:compact\s*\?\s*)?["']auto["']/u],
-      ["名称居中", /textAlign\s*:\s*(?:compact\s*\?\s*)?["']center["']/u],
-      ["侧栏固定定位", /position\s*:\s*["']fixed["']/u],
-      ["侧栏 100dvh 高度", /height\s*:\s*["']100dvh["']/u],
-      ["侧栏右侧 1px 边框", /borderInlineEnd\s*:\s*["'][^"']*1px/u],
-      ["AppShell navbar 复用宽度常量", /navbar\s*=\s*\{\{[^}]*width\s*:\s*(?:APP_SIDEBAR_WIDTHS|widths)\.compact/u],
-      ["AppShell Navbar 零内边距", /AppShell\.Navbar[^>]*\bp=\{0\}/u],
-      ["NavLink 自身 active", /<NavLink\b[^>]*\bactive=/u],
-      ["菜单项完整 aria-label", /<NavLink\b[^>]*\baria-label=/u],
-    ]) {
-      if (!pattern.test(sidebarText)) errors.push(`精简侧栏缺少${label}契约`);
-    }
-    if (/(?:inlineSize|width)\s*:\s*["'`][^"'`]*(?:em|ch)\b/u.test(sidebarText)) {
-      errors.push("精简侧栏名称不得使用固定 em/ch 占位盒");
-    }
-  } else {
-    for (const [label, pattern] of [
-      ["248px 展开宽度", /\bdetailedExpanded\s*:\s*248\b/u], ["76px 收起宽度", /\bdetailedCollapsed\s*:\s*76\b/u],
-      ["72px 展开 Logo", /\bdetailedExpanded\s*:\s*72\b/u], ["44px 收起 Logo", /\bdetailedCollapsed\s*:\s*44\b/u],
-      ["22px 菜单图标", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*22\b/u], ["1.75 图标描边", /APP_SIDEBAR_ICON_STROKE_WIDTH\s*=\s*1\.75\b/u],
-      ["44px 展开菜单项最小高度", /APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX\s*=\s*44\b/u], ["18px 折叠按钮图标", /APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX\s*=\s*18\b/u],
-      ["默认展开", /DEFAULT_DETAILED_SIDEBAR_COLLAPSED\s*=\s*false\b/u], ["固定折叠偏好键", /APP_SIDEBAR_COLLAPSED_STORAGE_KEY\s*=\s*["']app\.sidebar\.detailed\.collapsed["']/u],
-      ["固定本地 Logo", /APP_SIDEBAR_LOGO_PATH\s*=\s*["']\/app-identity\/logo\.png["']/u], ["严格 true 才收起", /localStorage\.getItem\([^)]*APP_SIDEBAR_COLLAPSED_STORAGE_KEY[^)]*\)\s*===\s*["']true["']/u],
-      ["自身折叠按钮", /\bActionIcon\b/u], ["折叠按钮自身事件", /<ActionIcon\b(?=[^>]*data-testid\s*=\s*["']app-sidebar-collapse-toggle["'])(?=[^>]*onClick\s*=)[^>]*>/u],
-      ["展开向左折叠图标", /\bIconChevronLeft\b/u], ["收起向右展开图标", /\bIconChevronRight\b/u],
-      ["收起名称 Tooltip", /<Tooltip\b/u],
-      ["Tooltip 右侧显示", /<Tooltip\b[^>]*\bposition\s*=\s*["']right["']/u], ["Tooltip 延迟常量", /APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS\s*=\s*0\b/u],
-      ["Tooltip 无延迟", /<Tooltip\b[^>]*\bopenDelay\s*=\s*\{(?:0|APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS)\}/u],
-      ["独立折叠偏好", /localStorage\.(?:getItem|setItem)\s*\(/u],
-      ["展开图标文字布局", /icon-with-label/u], ["收起纯图标布局", /icon-only/u],
-      ["收起不渲染名称", /label\s*=\s*\{[^}]*\?\s*undefined\s*:/u],
-      ["展开横向菜单", /flexDirection\s*:\s*["']row["']/u],
-      ["展开横向 sm padding", /px\s*=\s*\{[^}]*\?\s*0\s*:\s*["']sm["']\s*\}/u],
-      ["收起 section 零边距", /marginInline\s*:\s*[^,}\n]*\?\s*0\s*:/u],
-      ["菜单项自身 active", /<NavLink\b[^>]*\bactive=/u], ["菜单项完整 aria-label", /<NavLink\b[^>]*\baria-label=/u],
-      ["侧栏固定定位", /position\s*:\s*["']fixed["']/u], ["侧栏 100dvh 高度", /height\s*:\s*["']100dvh["']/u],
-      ["侧栏右侧 1px 边框", /borderInlineEnd\s*:\s*["'][^"']*1px/u],
-      ["详细身份区 xs padding", /app-sidebar-identity["'][^>]*\bp\s*=\s*(?:["']xs["']|\{[^}]*["']xs["'][^}]*\})/u],
-      ["AppShell 读取折叠偏好", /useState\s*\(\s*readDetailedSidebarCollapsed\s*\)/u],
-      ["共享详细宽度计算", /detailedSidebarNavbarWidth\s*\(\s*detailedSidebarCollapsed\s*\)/u],
-      ["AppShell 固定 detailed", /data-mode\s*=\s*["']detailed["']/u],
-      ["运行时固定 detailed", /mode\s*=\s*["']detailed["']/u],
-      ["Mantine navbar 同步宽度", /navbar\s*=\s*\{\{[^}]*width\s*:\s*navbarWidth/u],
-      ["可观察 navbar 同步宽度", /data-navbar-width\s*=\s*\{navbarWidth\}/u],
-      ["AppShell Navbar 零内边距", /AppShell\.Navbar[^>]*\bp=\{0\}/u],
-      ["侧栏通知 AppShell", /onCollapsedChange\s*=\s*\{handleCollapsedChange\}/u],
-      ["AppShell 更新状态", /setDetailedSidebarCollapsed\s*\(\s*nextCollapsed\s*\)/u],
-    ]) {
-      if (!pattern.test(sidebarText)) errors.push(`详细侧栏缺少${label}契约`);
-    }
-    if (/app-sidebar-identity["'][^>]*\bonClick\s*=/u.test(sidebarText)) {
-      errors.push("详细侧栏身份区父级不得代理折叠点击");
+  const settingCommand = collectRustFunctions(sourceText).find(
+    (candidate) => candidate.name === "set_autostart_enabled",
+  );
+  if (settingCommand) {
+    const mutationIndex = Math.max(
+      settingCommand.text.indexOf(".enable("),
+      settingCommand.text.indexOf(".disable("),
+    );
+    const rereadIndex = settingCommand.text.lastIndexOf("is_enabled");
+    if (mutationIndex < 0 || rereadIndex < mutationIndex) {
+      errors.push("开机自启 mutation 成功后必须重新读取并返回最终 OS 状态");
     }
   }
+}
 
-  const sponsorRoot = path.join(guiRoot, "public", "brand-support", "sponsor");
-  if (profile.sponsorPage) {
-    for (const filename of SPONSOR_MEDIA_FILES) {
-      const assetPath = path.join(sponsorRoot, filename);
-      try {
-        readBinaryFile(assetPath);
-      } catch (error) {
-        errors.push(`选择赞助页时缺少完整本地媒体 ${filename}：${error.message}`);
-      }
+/** 未选择开机自启时拒绝插件、命令和启动参数残留。 */
+function validateNoAutostartSourceContract(sourceTexts, errors) {
+  const sourceText = sourceTexts.join("\n");
+  for (const forbidden of [
+    "tauri_plugin_autostart",
+    "get_autostart_enabled",
+    "set_autostart_enabled",
+    "autolaunch",
+    "--hidden",
+    "--minimized",
+  ]) {
+    if (sourceText.includes(forbidden)) {
+      errors.push(`未选择开机自启时不得保留自启运行时：${forbidden}`);
     }
-  } else if (fs.existsSync(sponsorRoot)) {
-    errors.push("未选择赞助页时不得保留 public/brand-support/sponsor 运行时媒体目录");
   }
-  return sourceText;
 }
 
 /** 验证生成项目中的可选页面、侧栏、单实例、托盘、回归测试与本地化资源。 */
@@ -905,6 +730,98 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       errors.push("未选择单实例时不得声明 tauri-plugin-single-instance 依赖");
     }
 
+    const workspaceNotification =
+      tomlAssignment(
+        tomlSection(rootCargo, "workspace.dependencies"),
+        "tauri-plugin-notification",
+      ) ||
+      tomlSection(
+        rootCargo,
+        "workspace.dependencies.tauri-plugin-notification",
+      );
+    const workspaceMacUserNotifications =
+      tomlAssignment(
+        tomlSection(rootCargo, "workspace.dependencies"),
+        "mac-usernotifications",
+      ) ||
+      tomlSection(rootCargo, "workspace.dependencies.mac-usernotifications");
+    const memberNotification = memberDependencyDeclaration(
+      "tauri-plugin-notification",
+    );
+    const memberMacUserNotifications = targetDependencyDeclaration(
+      guiCargo,
+      "macos",
+      "mac-usernotifications",
+    );
+    if (profile.systemNotification) {
+      if (!cargoDependencyHasLowerBound(workspaceNotification, "2.4.0")) {
+        errors.push(
+          '选择系统通知时，根 [workspace.dependencies] 必须以 "2.4.0" 为 tauri-plugin-notification 兼容下界',
+        );
+      }
+      if (
+        !cargoDependencyHasLowerBound(
+          workspaceMacUserNotifications,
+          "0.3.1",
+        )
+      ) {
+        errors.push(
+          '选择系统通知时，根 [workspace.dependencies] 必须以 "0.3.1" 为 mac-usernotifications 兼容下界',
+        );
+      }
+      if (
+        !memberNotification ||
+        !/\bworkspace\s*=\s*true\b/u.test(memberNotification)
+      ) {
+        errors.push(
+          "选择系统通知时，GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 tauri-plugin-notification",
+        );
+      }
+      if (
+        !memberMacUserNotifications ||
+        !/\bworkspace\s*=\s*true\b/u.test(memberMacUserNotifications)
+      ) {
+        errors.push(
+          "选择系统通知时，GUI member 必须只在 macOS target dependencies 通过 workspace = true 继承 mac-usernotifications",
+        );
+      }
+    } else if (
+      workspaceNotification ||
+      workspaceMacUserNotifications ||
+      memberNotification ||
+      memberMacUserNotifications
+    ) {
+      errors.push("未选择系统通知时不得声明通知插件或 macOS 通知依赖");
+    }
+
+    const workspaceAutostart =
+      tomlAssignment(
+        tomlSection(rootCargo, "workspace.dependencies"),
+        "tauri-plugin-autostart",
+      ) ||
+      tomlSection(rootCargo, "workspace.dependencies.tauri-plugin-autostart");
+    const memberAutostart = desktopTargetDependencyDeclaration(
+      guiCargo,
+      "tauri-plugin-autostart",
+    );
+    if (profile.autostart) {
+      if (!cargoDependencyHasLowerBound(workspaceAutostart, "2.5.1")) {
+        errors.push(
+          '选择开机自启时，根 [workspace.dependencies] 必须以 "2.5.1" 为 tauri-plugin-autostart 兼容下界',
+        );
+      }
+      if (
+        !memberAutostart ||
+        !/\bworkspace\s*=\s*true\b/u.test(memberAutostart)
+      ) {
+        errors.push(
+          "选择开机自启时，GUI member 必须在覆盖 macOS/Windows/Linux 的桌面 target dependencies 通过 workspace = true 继承 tauri-plugin-autostart",
+        );
+      }
+    } else if (workspaceAutostart || memberAutostart) {
+      errors.push("未选择开机自启时不得声明 tauri-plugin-autostart 依赖");
+    }
+
     if (profile.systemTray) validateTrayIconAsset(guiRoot, errors);
 
     const sourceRoot = path.join(guiRoot, "src-tauri", "src");
@@ -928,6 +845,16 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       } else if (sourceText.includes("tauri_plugin_single_instance::init")) {
         errors.push("未选择单实例时不得注册 tauri-plugin-single-instance");
       }
+      if (profile.systemNotification) {
+        validateSystemNotificationSourceContract(sourceTexts, errors);
+      } else {
+        validateNoSystemNotificationSourceContract(sourceTexts, errors);
+      }
+      if (profile.autostart) {
+        validateAutostartSourceContract(sourceTexts, errors);
+      } else {
+        validateNoAutostartSourceContract(sourceTexts, errors);
+      }
       const testRoot = path.join(guiRoot, "src-tauri", "tests");
       const testFiles = fs.existsSync(testRoot)
         ? collectFiles(testRoot, new Set([".rs"]))
@@ -938,6 +865,8 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       const requiredTestNames = [
         ...(profile.singleInstance ? SINGLE_INSTANCE_TEST_NAMES : []),
         ...(profile.systemTray ? TRAY_TEST_NAMES : NO_TRAY_TEST_NAMES),
+        ...(profile.systemNotification ? SYSTEM_NOTIFICATION_TEST_NAMES : []),
+        ...(profile.autostart ? AUTOSTART_TEST_NAMES : []),
       ];
       for (const testName of requiredTestNames) {
         const testFunction = testFunctions.find((candidate) => candidate.name === testName);
@@ -945,6 +874,22 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
           errors.push(`缺少固定 GUI 生命周期回归测试：${testName}`);
         } else if (!/\bassert(?:_eq|_ne)?!\s*\(/u.test(testFunction.text)) {
           errors.push(`固定 GUI 生命周期回归必须包含真实断言：${testName}`);
+        }
+      }
+      if (profile.autostart) {
+        const restorationTest = testFunctions.find(
+          (candidate) =>
+            candidate.name === "autostart_e2e_restores_previous_registration",
+        );
+        if (
+          restorationTest &&
+          !["previous", "is_enabled", "enable", "disable"].every((token) =>
+            restorationTest.text.includes(token),
+          )
+        ) {
+          errors.push(
+            "开机自启 E2E 回归必须记录原状态、切换注册并在全部路径恢复后重新读取",
+          );
         }
       }
     }
@@ -957,7 +902,12 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       guiRoot,
       profile,
       errors,
+      { collectOptionalTexts, readBinaryFile, readTextFile },
     );
+    validateRustOnlyDesktopCapabilities(guiRoot, profile, errors, {
+      collectOptionalTexts,
+      readTextFile,
+    });
     validateReleaseNotesRuntimeContract(
       guiRoot,
       profile.aboutPage,

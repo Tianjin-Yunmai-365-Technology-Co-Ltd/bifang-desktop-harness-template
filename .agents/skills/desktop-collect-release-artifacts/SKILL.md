@@ -11,11 +11,11 @@ description: 在项目根 release 目录中取回、安全合并并验证当前�
 
 1. 读取 `docs/RELEASE.md`、活动构建请求、本次构建的 E2E 选择，以及用户提供的每项已完成构建结果；只有候选已经经过独立验收时才读取与其状态匹配的可用验收证据。要求规范化的 Git 顶层目录等于项目根，并调用 `$desktop-manage-version check --phase build`；所有候选版本必须精确等于其返回的当前目标，收集过程不得提升版本或重置周期。在接触目标目录前，确定项目、版本、源码提交、平台矩阵、产物名称、校验和、构建标识、签名状态和候选状态。
 2. 通过仓库配置的提供方取回产物，或接受用户提供的本地结果目录。对于每个预期平台/架构和产物类别，选择与当前项目、版本、源码提交和明确构建标识匹配的已完成结果。绝不得把含糊的提供方“最新”结果、单独的文件系统修改时间（mtime）、其他项目/提交、不完整运行或未经验证的目录视为已选结果。
-3. 复制前构建并验证完整源清单。要求每个源文件都存在、属于普通文件、位于目标目录之外，并匹配项目/版本/提交/构建。为 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 收集构建结果时可以接受 `milestoneAcceptance: pending`；必须保留该精确状态，绝不得称其为已就绪。发布准备仍要求匹配的 `Milestone accepted` 证据。拒绝缺失、额外、重复、空、过时、跨项目或发生冲突的文件。
+3. 复制前构建并验证完整源清单。要求每个源文件都存在、属于普通文件、位于目标目录之外，并匹配项目/版本/提交/构建。为 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 收集构建结果时可以接受 `milestoneAcceptance: pending`；但 GUI 完整打包只允许在 no-bundle 探针性能 `passed` 或用户明确 `waived` 后发生，未在真实原生平台运行的 xwin 固定为 `performanceStatus: Unverified`。`pending`、缺失或 `failed` 的 GUI 性能状态不能伴随已打包候选被收集。必须保留原精确状态，绝不得称其为已就绪。发布准备仍要求匹配的 `Milestone accepted` 证据。拒绝缺失、额外、重复、空、过时、跨项目或发生冲突的文件。
 4. 将目标目录精确解析为 `<canonical-project-root>/release`。遇到符号链接/重解析点、规范化后路径越界、非目录或目标等于项目根时必须拒绝。`$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 必须已在构建开始前安全清理该目录。如果本 Skill 针对已完成的外部构建独立调用，必须在复制前立即运行同一个随附 release 目录辅助程序，确保刷新后的目录不保留历史条目。该授权不适用于任何其他位置。
 5. 仅把已选择的当前源清单文件直接复制到 `release/`。只有完成文件名冲突检查后，才可展平提供方包装目录。仅保留声明的最终用户二进制文件或归档、相邻校验和/签名文件、清单和明确要求的验证证据；绝不得复制 Cargo 中间产物。
-6. 在本地重新计算每个最终归档或安装包的 SHA-256，并与相邻校验和及清单比较。验证各清单的 `project`、机器 `version`、`sourceCommit`、`buildRun`、`buildMode`、`platform`、`architecture`、`target`、`host`、`archive` 或 `installer`、`sha256`、`tests`、`e2eSelection`、带一个小写 `v` 的 `releaseNotesVersion`、`releaseNotesSha256`、包内 `releaseNotesPath`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 和 `milestoneAcceptance` 字段一致；只读校验当前根 `release-notes.json` 与版本/摘要匹配，并检查归档或应用资源内同一路径的内容，不得在收集时改写。要求每个预期平台/架构精确出现一次。Tauri GUI 清单还必须验证 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`runtimeVerification`、`signingScope`、`notarizationStatus`、`notarizationReason` 与结构化 `notarizationEvidence`：`dmg` 已签名时只接受 `notarized-and-stapled`，`nsis` xwin 时只接受 `buildMode: cross-compiled-xwin` 与 `runtimeVerification: Unverified`。不得尝试新签名、公证或 stapling。对于 CLI 就地签名，要求存在已记录的固定钩子验证结果，并要求 `detachedFiles` 列表为空；项目声明独立签名证据时，明确要求每个被引用的普通文件及其校验和存在。
-7. 检查归档内容但不得执行二进制文件；拒绝绝对路径、父目录穿越和非预期载荷。只有本次构建选择或产品/渠道硬要求启用了冒烟/E2E 时，才验证已有对应证据。收集过程绝不得自行启动冒烟/E2E。
+6. 在本地重新计算每个最终归档或安装包的 SHA-256，并与相邻校验和及清单比较。验证各清单的 `project`、机器 `version`、`sourceCommit`、`buildRun`、`buildMode`、`platform`、`architecture`、`target`、`host`、`archive` 或 `installer`、`sha256`、`tests`、`e2eSelection`、带一个小写 `v` 的 `releaseNotesVersion`、`releaseNotesSha256`、包内 `releaseNotesPath`、`signingStatus`、`signingReason`、结构化 `signingEvidence` 和 `milestoneAcceptance` 字段一致；只读校验当前根 `release-notes.json` 与版本/摘要匹配，并检查归档或应用资源内同一路径的内容，不得在收集时改写。要求每个预期平台/架构精确出现一次。Tauri GUI 清单还必须验证 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`runtimeVerification`、`signingScope`、`notarizationStatus`、`notarizationReason` 与结构化 `notarizationEvidence`，以及打包前探针事实 `performanceStatus`、结构化 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile: gui-release-v1` 和 `performanceRuntimeBinding`。探针证据必须是清单命名的普通相对文件，绑定 clean `sourceCommit`、平台、架构、native buildMode 与 Release profile；不得把安装包 `sha256` 复制到探针字段或用它替代探针摘要。运行时绑定必须证明 staged unsigned runtime 与探针逐字节相同；未签名变换时包内 runtime 仍逐字节相同，签名改变 runtime 时则同时核对签名前摘要、签名后包内相对路径/摘要和签名证据。`waived` 必须继续引用原始 `failed` 证据并包含非空原因、确认时间、确认摘要、修复尝试和剩余风险，绝不能改写成 `passed`。`dmg` 已签名时只接受 `notarized-and-stapled`，`nsis` xwin 时只接受 `buildMode: cross-compiled-xwin`、`runtimeVerification: Unverified` 与 `performanceStatus: Unverified`。不得尝试新签名、公证或 stapling。对于 CLI 就地签名，要求存在已记录的固定钩子验证结果，并要求 `detachedFiles` 列表为空；项目声明独立签名证据时，明确要求每个被引用的普通文件及其校验和存在。
+7. 检查归档内容但不得执行二进制文件；拒绝绝对路径、父目录穿越和非预期载荷。只有本次构建选择或产品/渠道硬要求启用了冒烟/E2E 时，才验证已有对应证据。GUI 性能证据独立于 E2E 选择：`e2eSelection: disabled` 不能删除、跳过或伪造已经要求的性能状态。收集过程绝不得自行启动冒烟/E2E，也不得自行启动性能测量。
 8. 重新枚举 `release/`，并要求其与已选源清单精确相等：不得保留任何历史、临时、未声明或部分文件。只在当前 manifests、其声明的相邻制品证据和最终回复中记录清理清单、源运行、提交、已复制文件、大小、哈希、签名状态、里程碑状态、平台结果、缺失组合和剩余风险。不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；独立触发的验收或发布由对应 Skill 记录自身新增证据。
 
 ## 输出契约
@@ -25,9 +25,9 @@ description: 在项目根 release 目录中取回、安全合并并验证当前�
 - 每个成功构建的平台/架构对应一个归档、安装包或声明的二进制文件；
 - 每个产物对应一个相邻的 `<artifact>.sha256` 校验和，以及任何声明的独立签名；
 - 每个平台对应一个清单，或一个包含等价字段的聚合清单；
-- 由清单命名并引用的可选测试/日志证据。
+- 由清单命名并引用的可选测试/日志证据，以及 GUI 验收后必需的性能证据。
 
-每个清单必须保留 `pending`、`rejected` 或 `accepted` 中的一种状态；目录存在绝不得提升该状态。绝不得包含凭据、绝对本机路径、缓存或未遮盖的环境转储。
+每个清单必须保留 `pending`、`rejected` 或 `accepted` 中的一种状态；目录存在绝不得提升该状态。GUI 的 `accepted` 只允许性能 `passed`，或携带原始失败证据和用户明确确认的 `waived`，并且包内 runtime/探针绑定已复核；`failed`、缺失和 `Unverified` 都不能随收集升级。绝不得包含凭据、绝对本机路径、缓存或未遮盖的环境转储。
 
 ## 边界
 

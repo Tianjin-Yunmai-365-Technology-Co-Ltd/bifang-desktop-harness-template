@@ -8,12 +8,15 @@
 - 复用 Tauri 基于 Tokio 的单例异步运行时，并以普通 `async fn` 实现自定义命令；不得创建嵌套 Tokio 运行时。
 - 使用 Vite、Mantine UI、`@tabler/icons-react`、TanStack Router 文件路由、TanStack Query 和 Jotai 打包本地 React + TypeScript 前端；使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 作为固定质量工具链。
 - 界面国际化是开发期硬性必选项，不是可选增强。Rust 后端（GUI 适配器层）固定使用 `rust-i18n` 输出系统托盘、原生窗口标题、系统通知等未经 React 渲染路径的用户可见文案；系统语言探测统一使用官方 Tauri 插件 `tauri-plugin-os` 的 `locale()` API，作为 Rust 与前端唯一共用的系统语言来源，不得分别使用平台专有 API 或环境变量（见 ADR-20260806-001）。
-- GUI 初始化在接口选择后必须进行专门问询，并把 `system_tray`、`about_page`、`sponsor_page`、`single_instance` 的 `enabled|disabled` 与 `sidebar_mode` 的 `compact|detailed` 写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块。四项能力不得缺失、推断或残留 `pending`；未选择侧栏模式时必须写入 `sidebar_mode = detailed`，明确选择保持原值，显式非法值不得按未选择处理。最终五项配置不得缺失或残留 `pending`，后续消费者不得再次应用缺省值。
+- GUI 初始化在接口选择后必须进行专门问询，并按固定顺序把 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance` 的 `enabled|disabled` 与 `sidebar_mode` 的 `compact|detailed` 写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块。六项能力不得缺失、推断或残留 `pending`；未选择侧栏模式时必须写入 `sidebar_mode = detailed`，明确选择保持原值，显式非法值不得按未选择处理。最终七项配置不得缺失或残留 `pending`，后续消费者不得再次应用缺省值。
 - 仅当 `single_instance = enabled` 时使用官方 `tauri-plugin-single-instance`，并把它作为 Tauri Builder 的首个 plugin 注册。同一用户会话再次启动相同应用身份时，第二进程通知既有实例后退出；回调只复用 `restore_main_window` 恢复、取消最小化并聚焦既有 `main` 窗口，不得创建第二个主窗口。中性脚手架忽略且不记录第二次启动参数与工作目录，不借此触发业务动作；文件关联、深链或参数转发必须以后独立批准并交由 core 判定。Linux Snap/Flatpak 还必须在对应渠道清单声明官方插件要求的会话 DBus own/talk 权限，并在真实沙箱候选重验。选择禁用时不得声明该依赖、注册插件或保留伪回调。
 - 仅当 `system_tray = enabled` 时，Tauri `tauri` 依赖启用 `tray-icon` feature。项目本地 Tauri `icon` 命令必须产出普通非符号链接的 `src-tauri/icons/32x32.png`；它必须是 32×32、8-bit RGBA、非交错且至少含一个非透明像素，并被 `tauri.conf.json` 的 `bundle.icon` 精确引用。托盘安装函数必须由 Tauri Builder `.setup(...)` 实际调用；在同一实现中组装仅含稳定 ID `show_window`/`quit` 的 `Menu`、以 `.menu(&menu)` 绑定、把 `default_window_icon()` 当作必需值、以 `.icon(...)` 绑定并成功 `.build(app)`。可见标签通过 `rust_i18n::t!("tray.show_window")` 与 `rust_i18n::t!("tray.quit")` 按当前规范化 locale 解析；中文精确为“显示窗口/退出”，英文精确为“Show Window/Quit”，未知 locale 回退英文，运行时切换语言无需重启即可刷新。显示动作及主鼠标左键释放复用 `restore_main_window`；主窗口 `CloseRequested` 由 `.on_window_event(...)` 注册并 `prevent_close()` 后隐藏，只有 `quit` 显式结束应用。选择禁用时不得启用 feature、安装托盘、保留菜单资源、调用 `prevent_close()` 或隐藏窗口；必须由 `.on_window_event(...)` 实际注册主窗口关闭处理，并在 `CloseRequested` 中显式调用 `AppHandle::exit(0)`，由 `close_last_window_exits_application` 回归锁定。
+- 仅当 `system_notification = enabled` 时调用 `$desktop-add-gui-system-notifications`。最低直接下界为 `tauri-plugin-notification = "2.4.0"` 与 macOS target-only `mac-usernotifications = "0.3.1"`；macOS 使用现代异步 User Notifications，Windows/Linux 使用官方插件 Rust API。WebView 不安装通知 JS 插件或 ACL。应用偏好默认关闭，开启时权限成功后才持久化；串行 worker 由应用拥有并在退出时回收，失败必须可见。中性 scaffold 不生成产品通知正文或触发器。
+- 仅当 `autostart = enabled` 时调用 `$desktop-add-gui-autostart`。最低直接下界为 `tauri-plugin-autostart = "2.5.1"`，Rust command 通过 `ManagerExt` 读取/修改 OS 登录项，使用 `MacosLauncher::LaunchAgent` 且不传隐藏参数。初始化只安装能力，不调用 `enable()`；Switch 以 OS 状态为权威并在失败后回滚。真实宿主 E2E 必须恢复执行前的登录项状态。
+- 单实例固定命名回归为 `single_instance_plugin_is_registered_first` 与 `second_launch_restores_existing_main_window`。托盘固定命名回归为 `tray_show_restores_and_focuses_main_window`、`close_request_hides_without_exit`、`tray_quit_exits_application`、`tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english` 与 `language_change_updates_tray_menu_labels`；只要求 profile 启用的能力对应回归。
 - GUI 初始化必须先生成三个目标为 1024×1024 PNG 的 Logo 候选，并在生成前绑定 `candidate-1`、`candidate-2`、`candidate-3`；所有预览和选择始终保持该请求顺序。用户选择前禁止格式/尺寸/色彩/像素/摘要验证及任何标准化；选择后只处理所选项，拒绝项不补做处理。最终选中母版、`/app-identity/logo.png` 与平台图标共享同一来源和摘要证据。选择托盘时，`icons/32x32.png` 还必须可见且可追溯，禁止中性占位图或全透明图标进入基线提交。
 - GUI 图标固定使用 `@tabler/icons-react` 的命名组件。存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji；图表相关操作、状态和空态优先使用 Tabler 图标，实际图表绘制库仍按产品需求选择。所选侧栏模式中的 Logo 与每一个当前渲染图标必须沿同一中心线且无裁切。
-- 初始化固定建立 `/settings`，`/about` 与 `/sponsor` 分别只在相应选择启用时建立。用户可见布局先按 [`docs/design_standards/README.md`](../../../../docs/design_standards/README.md) 匹配；固定侧栏只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)。compact 当前为 `80px`、`6px` 内容内边距、`36px` Logo、`22px` 图标、全宽居中名称和 `56px` 菜单项，不折叠且不使用固定 `em/ch` 名称盒；detailed 为 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标、Tooltip 和独立持久化，由 AppShell 同源同步 `navbar.width`/`data-navbar-width`。功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于的视觉顺序生成。设置页只提供应用/带一个小写 `v` 的版本、中英文和浅色/深色/跟随系统。所选关于页包含检查更新、更新日志、作者、联系方式和三段免责声明；所选赞助页使用固定品牌档位、权益、双支付码和完整 sponsor 本地媒体。未选页面不得存在路由、入口或运行时资源。
+- 初始化固定建立 `/settings`，`/about` 与 `/sponsor` 分别只在相应选择启用时建立。用户可见布局先按 [`docs/design_standards/README.md`](../../../../docs/design_standards/README.md) 匹配；固定侧栏只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)。compact 当前为 `80px`、`6px` 内容内边距、`36px` Logo、`22px` 图标、全宽居中名称和 `56px` 菜单项，不折叠且不使用固定 `em/ch` 名称盒；detailed 为 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标、Tooltip 和独立持久化，由 AppShell 同源同步 `navbar.width`/`data-navbar-width`。功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于的视觉顺序生成。设置页始终提供应用/带一个小写 `v` 的版本、中英文和浅色/深色/跟随系统；仅在 `system_notification`/`autostart` 启用时增加对应默认关闭的异步 Switch，set 成功用返回的最终权威布尔值同步，失败通过 get 重读实际状态而不是恢复组件旧值。所选关于页包含检查更新、更新日志、作者、联系方式和三段免责声明；所选赞助页使用固定品牌档位、权益、双支付码和完整 sponsor 本地媒体。未选能力不得存在依赖、插件、命令、Switch、翻译键、路由、入口或运行时资源；尤其未选页面不得存在路由、入口或运行时资源。
 - 所有 GUI 初始化都复制 `src-tauri/tauri.release.conf.json` 发布专用合并配置，但中性调试构建不使用它。正式候选构建必须显式传 `--config src-tauri/tauri.release.conf.json`，把根 `release-notes.json` 唯一映射为 `BaseDirectory::Resource` 下的 `release-notes.json`；这样不会为了初始化提前创建发布事实。`about_page = enabled` 时注册异步 `load_release_notes` 窄命令，使用 `tokio::fs` 读取且由 Rust/React 双边验证 schema、1 MiB、近 5 版/每类 10 条、最新在前和单个小写 `v`，About 页展示 loading/error/retry；不得授予通用文件系统权限。`about_page = disabled` 时命令、React 加载器、弹窗和文案缺席，但正式候选仍携带该发布事实供 manifest 与制品核验。
 - `tauri.conf.json` 的主应用窗口固定以逻辑像素初始化为 1440×900，最小 960×640，居中且 `preventOverflow: true`；默认尺寸容纳详细展开侧栏，选择赞助页时还应让三张档位卡同屏横向呈现，较小窗口由响应式布局降列。该窗口与 `bundle.macOS.dmg.windowSize` 的 660×400 安装卷窗口互不替代。
 - Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage color-scheme manager 和唯一 CSS variables resolver；亮色/暗色分别提供页面背景、surface、主/次文字、边框与强调色，设置页允许 `light`/`dark`/`auto` 并持久化。选择赞助页时通过 `useComputedColorScheme` 使用运行时有效主题的明确背景叠层、surface 和对比色，不把初始化宿主主题冻结到产物。
@@ -30,7 +33,7 @@
 
 记录：
 
-- `docs/GUI_APP_PROFILE.md` 中已批准的应用显示名称、主窗口标题、简短说明、应用标识符、用户选择的图标来源，以及五项完整 GUI 初始化选择；
+- `docs/GUI_APP_PROFILE.md` 中已批准的应用显示名称、主窗口标题、简短说明、应用标识符、用户选择的图标来源，以及七项完整 GUI 初始化选择；
 - 初始化资料还必须包含三个原始 Logo 候选按 `candidate-1` → `candidate-2` → `candidate-3` 的稳定预览顺序、用户选择、仅针对所选项的后置验证/标准化证据、`<project-id>_gui/src-tauri/icons/app-icon-master.png`、`<project-id>_gui/public/app-identity/logo.png` 及平台图标生成证据；不得为未选候选补写摘要或验证结果。选择托盘时还必须记录最终 `icons/32x32.png` 的格式、可见像素和配置引用；
 - 固定标题、所选侧栏、设置页及所选关于/赞助页直接读取 `$desktop-prepare-gui-support-surfaces` 的 profile、翻译、React 模板和相应媒体，不要求 `docs/GUI_SUPPORT_SURFACES.md`；只有修改该基线、增加其他支持界面或启用出站能力时才读取下游实例文档，未选择的本地或远程能力不得建立配置、路由、资源或请求；
 - 选择 macOS 直接分发 DMG 时，初始化先把中性 660×400 PNG 写入 `<project-id>_gui/src-tauri/dmg/background.png`，`tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`，窗口与落点固定为 660×400、应用 `(180, 220)`、Applications `(480, 220)`；首次真实 GUI 开发必须记录对该图片的预览批准或同路径替换、SHA-256、文案语言，以及软件许可页是否由产品/渠道要求。背景不得含 Harness 或其他产品身份；
@@ -40,7 +43,7 @@
 - 键盘顺序、快捷键、焦点行为、标签和无障碍验收；
 - 适用时的稳定 ID、选择语义、批处理范围、搜索、排序和分页；
 - 刷新、并发修改、取消和恢复行为；
-- 所选托盘/关闭生命周期之外，必需的文件系统、进程、通知、Shell、自动启动或 updater 访问；启用更新、强更或统计时还需完整产品 profile、签名/策略公钥、安全私钥引用、同意与保留边界；
+- 所选托盘/通知/开机自启/关闭生命周期之外，必需的文件系统、进程、Shell 或 updater 访问；启用更新、强更或统计时还需完整产品 profile、签名/策略公钥、安全私钥引用、同意与保留边界；
 - 当前平台打包目标，以及保持 `Unverified` 的其他平台。
 
 ## 界面国际化（i18n）
@@ -65,7 +68,7 @@
 - 持久数据、迁移、并发控制和业务验证必须由共享核心/存储层负责。
 - 业务规则、默认值、领域状态转换和包含条件/重试/状态决策的调用编排必须位于核心；React 事件、Tauri command 和平台回调只调用核心并映射结果，即使当前只有 GUI 也同样适用。
 - React 交互 handler 必须绑定在实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项，不得由 Card、`Table.Tr`、`Table.Td` 等父级代理；父级确有独立动作时只执行自身语义并隔离冲突传播。测试分别点击控件与周围父级区域，表格行点击不得切换行内 `Switch`。
-- 所选单实例与系统托盘生命周期位于 GUI adapter。单实例启用时包含 `single_instance_plugin_is_registered_first`、`second_launch_restores_existing_main_window`；托盘启用时包含 `tray_show_restores_and_focuses_main_window`、`close_request_hides_without_exit`、`tray_quit_exits_application`、`tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english`、`language_change_updates_tray_menu_labels`。托盘禁用时改以 `close_last_window_exits_application` 锁定关闭行为。初始化基线前，`verify-gui-lifecycle-contract.mjs` 必须按 profile 对选中能力验证依赖、插件顺序、资产、运行时接线和有断言回归，对未选能力验证彻底缺席；真实宿主 E2E 只执行适用的双启动/托盘场景，并始终实测关闭最后窗口的所选语义。通知、自动启动和快捷键等其他桌面机制仍需独立批准；它们触发的业务动作调用既有核心用例，不能直接修改权威业务状态。
+- 所选单实例、系统托盘、系统通知与开机自启生命周期位于 GUI adapter。单实例与托盘保留既有固定命名回归；系统通知保留权限先于持久化、串行 worker、owned task、macOS 现代 API 和失败可见回归；开机自启保留 OS 权威状态、幂等、失败回滚和恢复原登录项回归。初始化基线前，`verify-gui-lifecycle-contract.mjs` 必须按 profile 对选中能力验证依赖、插件顺序、资产、运行时接线和有断言回归，对未选能力验证彻底缺席；真实宿主 E2E 只执行适用场景，系统通知调试 E2E 不冒充已安装候选投递证据，开机自启 E2E 必须恢复原状态。快捷键等其他桌面机制仍需独立批准。
 - 使用 TanStack Query 负责有类型的异步命令结果和失效；Jotai 只负责跨组件共享的客户端交互。绝不能把 Query/核心数据复制到 atom 中。
 - 前端公开配置只在真实需要时建立，并集中为类型化、冻结对象；所有 Vite 构建变量均视为用户可读，禁止秘密、令牌和凭据，产品模块不得直接散落读取 `import.meta.env`。
 - 产品源码不得直接调用 `console.*`。真实需要前端诊断时使用稳定、脱敏的结构化事件，并优先通过窄 Tauri 命令汇入 Rust `tracing` 文件日志；远程遥测仍需独立范围批准。
@@ -83,7 +86,7 @@
 - 默认语言探测、缺失资源回退英文、语言切换入口和切换后持久化都有测试或人工核对证据；Rust 端原生文案（托盘/通知/窗口标题）本地化同样有证据。
 - 能力/权限配置拒绝未经批准的 WebView 调用。
 - 三个原始 Logo 候选始终按 `candidate-1` → `candidate-2` → `candidate-3` 真实预览，用户选择前没有验证或标准化，选择后只有所选项的母版、运行时 Logo、平台图标和摘要可追溯；侧栏严格匹配所选模式：compact 为 `80px` 全宽居中持续名称且无折叠按钮/固定 `em/ch` 盒，detailed 为默认 `248px` 展开、统一 `22px` 图标、可收起 `76px`、折叠偏好持久化并用 Tooltip 补充 icon-only 名称。AppShell navbar 复用侧栏宽度常量且 Navbar padding 为 `0`；detailed 还必须证明父级不代理、ActionIcon 回调及 `data-navbar-width` 同步。产品功能项向下增长，底部只渲染已选赞助、固定设置、已选关于；`/settings` 固定存在，`/about`、`/sponsor` 按选择存在或缺席。默认设置页没有隐私/统计控件或翻译键；所选赞助页通过亮色/暗色渲染，所选关于页作者、联系方式和三段免责声明完整。未配置更新或统计时请求数为零。
-- GUI 生命周期结构检查按 profile 证明：启用单实例时依赖、首插件顺序、只恢复既有窗口的回调和两个命名回归齐全，禁用时相关实现缺席；启用托盘时非透明 32px RGBA 图标/配置引用、`.setup` 安装、Menu/icon/build、关闭隐藏、`rust-i18n` 双语资源和六个命名回归齐全，禁用时相关实现缺席且关闭最后窗口退出回归存在。真实宿主 E2E 只执行选中能力的场景并始终验证实际关闭语义。原生标题与 `document.title` 使用同一权威名称、版本和联系字段。
+- GUI 生命周期结构检查按 profile 证明：单实例与托盘继续满足各自完整合同；系统通知启用时最低依赖、Rust-only 平台分流、权限顺序、worker 所有权/回收、设置回滚与失败反馈齐全；开机自启启用时官方依赖、OS 状态命令、默认不注册、设置回滚与宿主状态恢复齐全；禁用时对应实现彻底缺席。原生标题与 `document.title` 使用同一权威名称、版本和联系字段。
 - GUI 初始化结构检查还必须证明发布专用资源映射精确存在；选择关于页时证明 Rust 命令、handler、Tokio `fs`、IPC 解码、加载失败/重试和回归齐全，禁用时证明这些运行时实现缺席。正式构建在打包前校验映射与源摘要，打包后逐字节比较候选资源；macOS 最终 DMG 再从唯一 `.app/Contents/Resources/release-notes.json` 与根事实比较。
 - 选择赞助页时，运行时媒体与品牌 manifest 的路径、MIME、尺寸、字节数和 SHA-256 一致，支付码有支付方式明确的本地化替代文本，当前未引用小图也进入下游 sponsor 媒体；未选择时运行时 bundle 不含 sponsor 媒体。更新 banner 未选择时不进入 bundle。
 - GUI/其他适配器并发访问时观察到相同数据且不发生损坏。
@@ -91,7 +94,7 @@
 - 缺少签名身份、证书或公证凭据不阻断渠道允许的 unsigned 安装候选；使用 `--no-sign` 并记录 unsigned。启用 updater 时发布签名密钥缺失会阻断 updater 制品候选，不能用 unsigned 安装包绕过。macOS Developer ID 直接分发一旦签名，必须在候选摘要前完成公证与 ticket stapling；禁止只签名未公证的中间态。
 - macOS 宿主的原生 DMG 与 Windows x64 NSIS 候选使用 `$desktop-build-tauri-release`。Windows 交叉路线只使用 cargo-xwin + NSIS，拒绝 MSI，并把 Windows runtime 保持为 `Unverified`。
 - macOS DMG 必须在最终签名、公证与 stapling 字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；只检查配置或源码图片不构成 Finder 安装布局证据。headless CI 不得无界等待 Finder AppleScript。
-- GUI 中性初始化结束前，必须先由 `verify-gui-lifecycle-contract.mjs` 按五项 profile 通过结构门禁，再由 `$desktop-test-gui-initialization-e2e` 构建真实本机调试二进制；只对启用单实例执行双启动，只对启用托盘执行真实菜单与关闭隐藏生命周期，托盘禁用则实测关闭最后窗口退出。始终验证所选侧栏、默认设置页无隐私区块和所有实际渲染菜单页面可达，且未选页面与生命周期实现缺席；任一适用场景失败或无法观察都阻断。
+- GUI 中性初始化结束前，必须先由 `verify-gui-lifecycle-contract.mjs` 按七项 profile 通过结构门禁，再由 `$desktop-test-gui-initialization-e2e` 构建真实本机调试二进制；单实例/托盘/系统通知/开机自启只执行配置适用场景，托盘禁用实测关闭最后窗口退出，开机自启恢复原登录项。始终验证所选侧栏、设置页无隐私区块和所有实际菜单页面可达，且未选能力实现缺席；任一适用场景失败或无法观察都阻断。
 - 每个声称支持的安装器或原生平台都有实际构建和完整验收证据。只有当前构建选择或产品/渠道硬要求启用冒烟/E2E 时才要求相应证据；否则记录 `Not run` 和风险。
 
 ## 例外与推荐边界
@@ -100,12 +103,14 @@ Tauri 2 和固定 React 前端技术栈是硬规则。替换它们必须记录�
 
 `react-i18next`/`i18next`、`rust-i18n` 与 `tauri-plugin-os` 的语言探测同样是硬规则。替换任一项、跳过语言切换入口或改为不跟随系统语言的默认值都必须记录硬规则例外；具体已支持的语言列表和翻译文案内容仍是项目特定选择。
 
-五项 GUI 初始化选择本身是硬门禁：启用的单实例、系统托盘、关于页或赞助页必须完整满足对应契约，禁用的能力必须从依赖、运行时、路由和资源中缺席；侧栏必须精确实现所选精简或详细模式。版本展示、`@tabler/icons-react` 图标来源、精简设置页与 i18n 仍是所有 GUI 的固定基线。伴随进程、自动启动、真实 updater 配置、更宽泛的平台 API、表单/图表绘制包、网络 client 与统计传输仍是项目特定选择。Vite、pnpm、ESLint/`typescript-eslint`、Prettier、Vitest 和 Testing Library 属于固定前端基线；替换时必须记录硬规则例外。其他包只有存在已批准需求，并同步依赖、安全、打包和测试变更时，才能增加或推荐。
+七项 GUI 初始化选择本身是硬门禁：启用的单实例、系统托盘、系统通知、开机自启、关于页或赞助页必须完整满足对应契约，禁用的能力必须从依赖、运行时、设置、路由和资源中缺席；侧栏必须精确实现所选精简或详细模式。版本展示、`@tabler/icons-react` 图标来源、设置页与 i18n 仍是所有 GUI 的固定基线。伴随进程、真实 updater 配置、更宽泛的平台 API、表单/图表绘制包、网络 client 与统计传输仍是项目特定选择。
 
 官方运行时和签名参考：
 
 - [Tauri 系统托盘](https://v2.tauri.app/learn/system-tray/)
 - [Tauri Single Instance 插件](https://v2.tauri.app/plugin/single-instance/)
+- [Tauri Notifications 插件](https://v2.tauri.app/plugin/notification/)
+- [Tauri Autostart 插件](https://v2.tauri.app/plugin/autostart/)
 - [Tauri `WindowEvent::CloseRequested`](https://docs.rs/tauri/latest/tauri/enum.WindowEvent.html)
 - [Tauri 异步运行时](https://docs.rs/tauri/latest/tauri/async_runtime/)
 - [Tauri 附加资源](https://v2.tauri.app/develop/resources/)

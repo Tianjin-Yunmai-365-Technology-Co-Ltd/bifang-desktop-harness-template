@@ -1,4 +1,4 @@
 interface:
   display_name: "准备跨平台发布候选"
-  short_description: "准备可审计的 Windows、macOS 和 Linux 原生候选产物"
-  default_prompt: "使用 $desktop-prepare-cross-platform-release，通过原子刷新 release、条件签名证据和精确产物上传，准备固定源码提交的原生三平台候选。"
+  short_description: "仅从调用方 clean HEAD 准备三平台原生候选"
+  default_prompt: "使用 $desktop-prepare-cross-platform-release；普通构建不自动提交，要求 source_commit 等于调用方及每个运行器的 clean HEAD，并写入全部 manifests。"

@@ -51,8 +51,11 @@
     {"pattern": ".agents/skills/desktop-add-tui-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-mcp-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-adapter/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/desktop-add-gui-system-notifications/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/desktop-add-gui-autostart/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-prepare-gui-app-identity/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-prepare-gui-support-surfaces/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/desktop-test-gui-release-performance/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-prepare-cross-platform-release/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-build-tauri-release/**", "mode": "conditional"},
     {"pattern": ".agents/skills/**", "mode": "managed"}

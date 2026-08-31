@@ -1,4 +1,4 @@
 interface:
   display_name: "初始化 Rust 项目"
-  short_description: "建立中性 Rust 基线，并把 Logo/Git 处理延迟到真实需要"
-  default_prompt: "使用 $desktop-initialize-rust-project，只解析 Harness 所需初始化选择，拒绝产品业务需求，并建立 core-first、薄 adapter 的中性 Rust 脚手架；GUI 原始 Logo 候选按固定顺序预览，选定后才验证和标准化。完成全部检查与裁剪后，只在实际创建唯一基线提交前即时检查和设置独立 Git 仓库。"
+  short_description: "建立中性 Rust 基线，写入前检查 Git，基线前补齐 local 身份"
+  default_prompt: "使用 $desktop-initialize-rust-project，只解析 Harness 所需初始化选择，拒绝产品业务需求，并建立 core-first、薄 adapter 的中性 Rust 脚手架；GUI 原始 Logo 候选按固定顺序预览，选定后才验证和标准化。表单确认后、脚手架写入前由环境门禁检查并按需安装 Git；完成全部检查与裁剪后，只在实际创建唯一基线提交前建立独立仓库、保留或补齐 repo-local 身份并安装提交模板。"

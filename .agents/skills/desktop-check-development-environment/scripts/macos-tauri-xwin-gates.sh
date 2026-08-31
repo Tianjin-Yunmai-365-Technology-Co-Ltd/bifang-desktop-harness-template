@@ -4,7 +4,7 @@ set -eu
 # 为 macOS 上的 Tauri Windows x64 NSIS 交叉候选建立可重复、可复探的工具链门禁。
 MODE=install
 TARGET=x86_64-pc-windows-msvc
-CARGO_XWIN_REQUIREMENT='>=0.22.0, <0.24.0'
+CARGO_XWIN_REQUIREMENT='>=0.23.1, <0.24.0'
 PROBE_PATH=${AFH_PREREQ_PATH:-${PATH}}
 TEST_PLATFORM=${AFH_TEST_PLATFORM:-}
 LLVM_CHANGE=existing
@@ -138,7 +138,7 @@ validate_cargo_xwin() {
                 ;;
         esac
     done
-    [ "$1" -eq 0 ] && [ "$2" -ge 22 ] && [ "$2" -lt 24 ] || {
+    [ "$1" -eq 0 ] && [ "$2" -eq 23 ] && [ "$3" -ge 1 ] || {
         printf '错误：既有 cargo-xwin 版本 %s 不满足兼容范围 %s\n' "$candidate" "$CARGO_XWIN_REQUIREMENT" >&2
         exit 36
     }

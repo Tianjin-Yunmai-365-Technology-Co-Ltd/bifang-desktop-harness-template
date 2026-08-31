@@ -19,7 +19,6 @@ if [ "$canonical_git_top" != "$canonical_root" ]; then
   echo "release 准备失败：项目根目录不是独立 Git 顶层目录" >&2
   exit 2
 fi
-
 release_path="$canonical_root/release"
 if [ -L "$release_path" ]; then
   echo "release 准备失败：release 是符号链接" >&2
@@ -27,6 +26,25 @@ if [ -L "$release_path" ]; then
 fi
 if [ -e "$release_path" ] && [ ! -d "$release_path" ]; then
   echo "release 准备失败：release 已存在但不是目录" >&2
+  exit 2
+fi
+source_commit=$(git -C "$canonical_root" rev-parse --verify 'HEAD^{commit}' 2>/dev/null) || {
+  echo "release 准备失败：HEAD 不能解析为源码提交" >&2
+  exit 2
+}
+case "$source_commit" in
+  [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
+  *) ;;
+esac
+if [ "${#source_commit}" -ne 40 ]; then
+  echo "release 准备失败：HEAD 必须是 40 位小写源码提交" >&2
+  exit 2
+fi
+case "$source_commit" in
+  *[!0-9a-f]*) echo "release 准备失败：HEAD 必须是 40 位小写源码提交" >&2; exit 2 ;;
+esac
+if [ -n "$(git -C "$canonical_root" status --porcelain=v1 --untracked-files=all)" ]; then
+  echo "release 准备失败：工作树不干净；请先完成并提交发布范围" >&2
   exit 2
 fi
 
@@ -71,4 +89,12 @@ fi
 
 cleanup_staging
 trap - EXIT HUP INT TERM
-printf 'release.path=%s\nrelease.cleaned=true\n' "$canonical_release"
+final_commit=$(git -C "$canonical_root" rev-parse --verify 'HEAD^{commit}' 2>/dev/null) || {
+  echo "release 准备失败：清理后无法复核 HEAD" >&2
+  exit 2
+}
+if [ "$final_commit" != "$source_commit" ] || [ -n "$(git -C "$canonical_root" status --porcelain=v1 --untracked-files=all)" ]; then
+  echo "release 准备失败：清理期间 HEAD 或工作树发生变化" >&2
+  exit 2
+fi
+printf 'release.path=%s\nrelease.cleaned=true\nrelease.source_commit=%s\n' "$canonical_release" "$source_commit"

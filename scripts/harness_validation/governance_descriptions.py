@@ -47,6 +47,13 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "缺少可复用证据时才调用 `$desktop-check-development-environment`",
         "每次回复只询问一个最靠前的 `待询问`",
         "每轮只询问一个最靠前的未解析字段",
+        "复用表单中已经按需逐项确认的五项值",
+        "最终五项配置不得缺失或残留 `pending`",
+        "五项初始化配置",
+        "依次解析系统托盘、关于页、赞助页、单实例的启用/禁用",
+        "表单、环境门禁、脚手架编写、测试和一次性裁剪阶段都不检查 Git",
+        "Git 只在真实基线提交前即时检查和设置",
+        "不会提前检查或设置 Git",
     )
     for path in paths:
         if not path.is_file():
@@ -86,25 +93,25 @@ def validate_current_descriptions(errors: list[str]) -> None:
 
     msrv_fragments = {
         PRODUCT_SPEC: (
-            "MSRV 1.90.0",
+            "MSRV（即 MSRV 1.95.0）",
             "最低兼容版本而非精确版本锁",
-            "Rust 1.90 MSRV",
+            "Rust 1.95 MSRV",
         ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
-            '| MSRV | `1.90.0` |',
-            'rust-version = "1.90"',
-            "不要求精确等于 1.90.0",
+            '| MSRV | `1.95.0` |',
+            'rust-version = "1.95"',
+            "不要求精确等于 1.95.0",
             "使用该声明的最低 Rust 工具链",
         ),
-        ROOT / "docs" / "RELEASE.md": ("最低 Rust 版本 1.90.0",),
-        PREREQUISITE_UNIX: ("MIN_RUST_MAJOR=1", "MIN_RUST_MINOR=90"),
-        PREREQUISITE_WINDOWS: ("$MinimumRustMajor = 1", "$MinimumRustMinor = 90"),
+        ROOT / "docs" / "RELEASE.md": ("最低 Rust 版本 1.95.0",),
+        PREREQUISITE_UNIX: ("MIN_RUST_MAJOR=1", "MIN_RUST_MINOR=95"),
+        PREREQUISITE_WINDOWS: ("$MinimumRustMajor = 1", "$MinimumRustMinor = 95"),
         PREREQUISITE_TESTS: (
-            'rust: str = "1.90.0"',
-            'rust="1.89.0"',
-            '"1.91.0", "1.97.1", "2.0.0"',
+            'rust: str = "1.95.0"',
+            'rust="1.94.9"',
+            '"1.96.0"',
         ),
-        RUST_ASSET / "Cargo.toml": ('rust-version = "1.90"',),
+        RUST_ASSET / "Cargo.toml": ('rust-version = "1.95"',),
         WORKFLOW: (
             "读取项目最低 Rust 版本",
             'environment.write(f"RUSTUP_TOOLCHAIN={version}\\n")',
@@ -120,28 +127,24 @@ def validate_current_descriptions(errors: list[str]) -> None:
             if fragment not in text:
                 fail(
                     errors,
-                    f"Rust 1.90 MSRV contract missing in {display_path(path)}: {fragment}",
+                    f"Rust 1.95 MSRV contract missing in {display_path(path)}: {fragment}",
                 )
 
     minimum_version_fragments = {
         ROOT / "AGENTS.md": (
             "最低兼容稳定版本范围",
-            "最低版本解析",
+            "当前最新的非预发布候选",
             "Cargo.lock",
             "pnpm-lock.yaml",
         ),
-        ROOT / "README.md": (
-            "最低兼容稳定版本范围",
-            "最低版本解析",
-        ),
         ENGINEERING_RULES: (
-            "最低兼容稳定版本范围",
-            "完整三段下界",
+            "最低兼容范围",
+            "当前最新非预发布候选",
             "锁文件与兼容要求职责分离",
         ),
         PRODUCT_SPEC: (
-            "最低兼容稳定版本范围",
-            "最低直接版本解析",
+            "最新兼容稳定选择",
+            "优先选择 registry 当前最新兼容稳定版",
         ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
             "最低兼容版本策略",
@@ -160,10 +163,25 @@ def validate_current_descriptions(errors: list[str]) -> None:
             "resolutionMode: lowest-direct",
         ),
         ENVIRONMENT_SKILL / "SKILL.md": (
-            "^20.19.0 || >=22.12.0",
-            ">=10.0.0",
-            "pnpm@^10.0.0",
+            "^24.15.0 || >=26.0.0",
+            ">=11.24.0",
+            "最新兼容稳定版",
         ),
+        ENVIRONMENT_SKILL / "references" / "development-environment-gates.md": (
+            "^24.15.0 || >=26.0.0",
+            ">=11.24.0",
+            ">=0.23.1, <0.24.0",
+            "当前最新兼容稳定版",
+        ),
+        PREREQUISITE_UNIX: (
+            "NODE_REQUIREMENT='^24.15.0 || >=26.0.0'",
+            "PNPM_REQUIREMENT='>=11.24.0'",
+        ),
+        PREREQUISITE_WINDOWS: (
+            '$NodeRequirement = "^24.15.0 || >=26.0.0"',
+            '$PnpmRequirement = ">=11.24.0"',
+        ),
+        MACOS_XWIN_GATE: ("CARGO_XWIN_REQUIREMENT='>=0.23.1, <0.24.0'",),
         WORKFLOW: (
             "读取项目最低 Rust 版本",
             "RUSTUP_TOOLCHAIN={version}",
@@ -182,10 +200,11 @@ def validate_current_descriptions(errors: list[str]) -> None:
                 )
 
     superseded_version_fragments = (
-        "执行时最新兼容稳定",
-        "优先采用 registry 中较新的稳定版本",
         "pnpm@latest",
         "rustup toolchain install 1.90.0",
+        "^20.19.0 || >=22.12.0",
+        "pnpm@^10.0.0",
+        ">=0.22.0, <0.24.0",
     )
     for path in minimum_version_fragments:
         if not path.is_file():

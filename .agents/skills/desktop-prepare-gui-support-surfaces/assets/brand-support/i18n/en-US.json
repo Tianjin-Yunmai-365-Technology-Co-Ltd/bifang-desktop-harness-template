@@ -35,7 +35,22 @@
     "theme_description": "Your choice is stored locally. Follow system changes automatically with the operating system appearance.",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "theme_system": "Follow system"
+    "theme_system": "Follow system",
+    "system_notification_title": "System notifications",
+    "system_notification_description": "Allow this app to request native notification permission. Notifications stay off until you enable them here.",
+    "system_notification_error": "The notification setting could not be updated. When readable, the switch now reflects the actual system state.",
+    "autostart_title": "Start at login",
+    "autostart_description": "Launch this app normally after you sign in. The operating system registration is the source of truth.",
+    "autostart_error": "The login item could not be updated. When readable, the switch now reflects the actual system state.",
+    "capability_pending": "Updating the system setting…",
+    "capability_enabled": "Enabled",
+    "capability_disabled": "Disabled",
+    "capability_unknown": "The actual system state is currently unavailable.",
+    "capability_error_title": "The setting was not changed",
+    "capability_unknown_title": "The current state is unknown",
+    "capability_retry": "Reload the actual state",
+    "system_notification_unknown": "Notification permission and the local preference are both unavailable right now. Reload the actual state after the system becomes reachable again.",
+    "autostart_unknown": "The operating system login item cannot be read right now. Reload the actual state later."
   },
   "tray": {
     "show_window": "Show Window",

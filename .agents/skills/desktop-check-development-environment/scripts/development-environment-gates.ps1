@@ -8,16 +8,19 @@ param(
 $ErrorActionPreference = "Stop"
 # MSRV 的唯一事实来源见 docs/RUST_CLI_TEMPLATE.md；修改此值时必须同步更新 development-environment-gates.sh。
 $MinimumRustMajor = 1
-$MinimumRustMinor = 90
-$NodeRequirement = "^20.19.0 || >=22.12.0"
-$PnpmRequirement = ">=10.0.0"
-$PnpmInstallRequirement = "pnpm@^10.0.0"
+$MinimumRustMinor = 95
+$NodeRequirement = "^24.15.0 || >=26.0.0"
+$PnpmRequirement = ">=11.24.0"
+$PnpmInstallRequirement = "pnpm@>=11.24.0"
+$GitRequirement = ">=2.0.0"
 $ProbePath = if ($env:AFH_PREREQ_PATH) { $env:AFH_PREREQ_PATH } else { $env:PATH }
 $RustChange = "existing"
+$GitChange = "existing"
 $NodeChange = "existing"
 $PnpmChange = "existing"
 $MsvcChange = "existing"
 $CargoBin = $null
+$GitBin = $null
 $NodeBin = $null
 $PnpmBin = $null
 $NormalizedInterfaces = @($Interfaces | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToUpperInvariant() })
@@ -90,7 +93,7 @@ function Test-RustVersion {
     $script:CargoVersion = $cargoText
 }
 
-# 验证 Node.js 落在 Vite 基线的非连续兼容范围内，拒绝低版本与 21.x 空档。
+# 验证 Node.js 落在 Vite 基线的非连续兼容范围内，拒绝低版本与 25.x 空档。
 function Test-NodeVersion {
     param([string]$NodePath)
     $nodeText = (& $NodePath --version 2>$null)
@@ -101,9 +104,8 @@ function Test-NodeVersion {
     $major = [int]$Matches[1]
     $minor = [int]$Matches[2]
     $patch = [int]$Matches[3]
-    $compatible = ($major -eq 20 -and ($minor -gt 19 -or ($minor -eq 19 -and $patch -ge 0))) -or
-        ($major -gt 22) -or
-        ($major -eq 22 -and ($minor -gt 12 -or ($minor -eq 12 -and $patch -ge 0)))
+    $compatible = ($major -eq 24 -and ($minor -gt 15 -or ($minor -eq 15 -and $patch -ge 0))) -or
+        ($major -ge 26)
     if (-not $compatible) { Stop-Gate 23 "现有 Node.js $nodeText 不满足兼容范围 $NodeRequirement" }
     $script:NodeVersion = $nodeText
 }
@@ -116,8 +118,46 @@ function Test-PnpmVersion {
     if ($pnpmText -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
         Stop-Gate 28 "现有 pnpm 不是可识别的稳定发布版：$pnpmText"
     }
-    if ([int]$Matches[1] -lt 10) { Stop-Gate 28 "现有 pnpm $pnpmText 低于兼容下界 10.0.0" }
+    $major = [int]$Matches[1]
+    $minor = [int]$Matches[2]
+    if ($major -lt 11 -or ($major -eq 11 -and $minor -lt 24)) {
+        Stop-Gate 28 "现有 pnpm $pnpmText 低于兼容下界 11.24.0"
+    }
     $script:PnpmVersion = $pnpmText
+}
+
+# Git 是所有初始化路径的基础工具；满足下界的现有稳定版本（包括更高版本）保持不变。
+function Test-GitVersion {
+    param([string]$GitPath)
+    $gitText = (& $GitPath --version 2>$null)
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 29 "Git 探测失败" }
+    if ($gitText -notmatch '^git version (\d+)\.(\d+)\.(\d+)(?:\.windows\.\d+)?(?:\s.*)?$') {
+        Stop-Gate 29 "现有 Git 不是可识别的稳定发布版：$gitText"
+    }
+    if ([int]$Matches[1] -lt 2) { Stop-Gate 29 "现有 Git 低于兼容下界 2.0.0：$gitText" }
+    $script:GitVersion = $gitText
+}
+
+# Windows 只通过既有 winget 的受管 Git.Git 软件包安装，并在当前进程刷新常见 Git 路径。
+function Install-MissingGit {
+    $winget = Resolve-GateCommand "winget"
+    if (-not $winget) { Stop-Gate 29 "Windows 安装 Git 需要既有 winget" }
+    [Console]::Error.WriteLine("正在通过既有 winget 安装缺失的 Git.Git。")
+    & $winget install --id Git.Git --exact --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 29 "winget 安装 Git.Git 失败" }
+    $candidateBins = @(
+        (Join-Path $env:ProgramFiles "Git\cmd"),
+        (Join-Path $env:LOCALAPPDATA "Programs\Git\cmd")
+    )
+    foreach ($candidateBin in $candidateBins) {
+        if (Test-Path -LiteralPath (Join-Path $candidateBin "git.exe") -PathType Leaf) {
+            $script:GitBin = $candidateBin
+            $script:ProbePath = "$GitBin$([IO.Path]::PathSeparator)$ProbePath"
+            $env:PATH = $script:ProbePath
+            break
+        }
+    }
+    $script:GitChange = "installed"
 }
 
 # 下载架构匹配的官方 rustup-init，核对 SHA-256 后安装缺失 stable 工具链。
@@ -186,7 +226,7 @@ function Install-MissingMsvc {
     $script:MsvcChange = "installed"
 }
 
-# 从官方索引选择受支持 LTS，校验 zip 后安装到当前用户目录并维护用户 PATH。
+# 从官方倒序索引选择当前最新兼容稳定版，校验 zip 后安装到当前用户目录并维护用户 PATH。
 function Install-MissingNode {
     $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
     $nodeArchitecture = switch ($architecture) {
@@ -199,14 +239,24 @@ function Install-MissingNode {
     $indexPath = Join-Path $temporary "index.json"
     Get-OfficialFile "$base/index.json" $indexPath
     $index = Get-Content -LiteralPath $indexPath -Raw | ConvertFrom-Json
-    $release = @($index | Where-Object { $_.lts -and $_.lts -ne $false })[0]
-    if (-not $release) { Stop-Gate 26 "Node.js 发布版本索引中没有受支持的 LTS" }
+    $release = @($index | Where-Object {
+        $candidate = [string]$_.version
+        $compatible = $false
+        if ($candidate -match '^v(\d+)\.(\d+)\.(\d+)$') {
+            $major = [int]$Matches[1]
+            $minor = [int]$Matches[2]
+            $patch = [int]$Matches[3]
+            $compatible = ($major -eq 24 -and ($minor -gt 15 -or ($minor -eq 15 -and $patch -ge 0))) -or ($major -ge 26)
+        }
+        $compatible
+    }) | Select-Object -First 1
+    if (-not $release) { Stop-Gate 26 "Node.js 发布版本索引中没有满足 $NodeRequirement 的稳定版" }
     $version = [string]$release.version
     $archiveName = "node-$version-win-$nodeArchitecture.zip"
     $releaseBase = "$base/$version"
     $archive = Join-Path $temporary $archiveName
     $checksums = Join-Path $temporary "SHASUMS256.txt"
-    [Console]::Error.WriteLine("正在从 $releaseBase 把缺失的 Node.js $version LTS 安装到用户级目录。")
+    [Console]::Error.WriteLine("正在从 $releaseBase 把缺失的最新兼容稳定 Node.js $version 安装到用户级目录。")
     Get-OfficialFile "$releaseBase/$archiveName" $archive
     Get-OfficialFile "$releaseBase/SHASUMS256.txt" $checksums
     $escapedName = [Regex]::Escape($archiveName)
@@ -261,8 +311,17 @@ function Install-MissingPnpm {
 }
 
 try {
+    $git = Resolve-GateCommand "git"
     $rustc = Resolve-GateCommand "rustc"
     $cargo = Resolve-GateCommand "cargo"
+
+    if ($git) {
+        Test-GitVersion $git
+        $gitMissing = $false
+    } else {
+        $GitVersion = "Missing"
+        $gitMissing = $true
+    }
 
     if ($rustc -and $cargo) {
         Test-RustVersion $rustc $cargo
@@ -298,6 +357,9 @@ try {
     $msvcMissing = -not (Test-MsvcPrerequisite)
 
     if ($CheckOnly) {
+        "gate.git.status=$(if ($gitMissing) { 'missing' } else { 'passed' })"
+        "gate.git.requirement=$GitRequirement"
+        "gate.git.version=$GitVersion"
         "gate.rust.status=$(if ($rustMissing) { 'missing' } else { 'passed' })"
         "gate.rust.version=$RustVersion"
         "gate.node.status=$(if (-not $FrontendRequired) { 'not-required' } elseif ($nodeMissing) { 'missing' } else { 'passed' })"
@@ -307,10 +369,16 @@ try {
         "gate.pnpm.requirement=$PnpmRequirement"
         "gate.pnpm.version=$PnpmVersion"
         "gate.msvc.status=$(if ($msvcMissing) { 'missing' } else { 'passed' })"
-        if ($rustMissing -or $nodeMissing -or $pnpmMissing -or $msvcMissing) { exit 20 }
+        if ($gitMissing -or $rustMissing -or $nodeMissing -or $pnpmMissing -or $msvcMissing) { exit 20 }
         exit 0
     }
 
+    if ($gitMissing) {
+        Install-MissingGit
+        $git = Resolve-GateCommand "git"
+        if (-not $git) { Stop-Gate 29 "Git 安装完成后仍无法调用 git 可执行文件" }
+        Test-GitVersion $git
+    }
     if ($rustMissing) {
         Install-MissingRust
         $rustc = Resolve-GateCommand "rustc"
@@ -337,7 +405,11 @@ try {
         Test-PnpmVersion $pnpm
     }
 
-    $changed = if ($RustChange -eq "installed" -or $NodeChange -eq "installed" -or $PnpmChange -eq "installed" -or $MsvcChange -eq "installed") { "true" } else { "false" }
+    $changed = if ($GitChange -eq "installed" -or $RustChange -eq "installed" -or $NodeChange -eq "installed" -or $PnpmChange -eq "installed" -or $MsvcChange -eq "installed") { "true" } else { "false" }
+    "gate.git.status=passed"
+    "gate.git.requirement=$GitRequirement"
+    "gate.git.version=$GitVersion"
+    "gate.git.change=$GitChange"
     "gate.rust.status=passed"
     "gate.rust.version=$RustVersion"
     "gate.rust.change=$RustChange"
@@ -352,7 +424,7 @@ try {
     "gate.msvc.status=passed"
     "gate.msvc.change=$MsvcChange"
     "gate.changed=$changed"
-    $prepend = (@($PnpmBin, $NodeBin, $CargoBin) | Where-Object { $_ }) -join [IO.Path]::PathSeparator
+    $prepend = (@($PnpmBin, $NodeBin, $CargoBin, $GitBin) | Where-Object { $_ }) -join [IO.Path]::PathSeparator
     if ($prepend) { "gate.path.prepend=$prepend" }
 } finally {
     foreach ($directory in $TemporaryDirectories) {

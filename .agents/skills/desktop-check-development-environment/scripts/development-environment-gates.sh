@@ -3,10 +3,11 @@ set -eu
 
 # MSRV 的唯一事实来源见 docs/RUST_CLI_TEMPLATE.md；修改此值时必须同步更新 development-environment-gates.ps1。
 MIN_RUST_MAJOR=1
-MIN_RUST_MINOR=90
-NODE_REQUIREMENT='^20.19.0 || >=22.12.0'
-PNPM_REQUIREMENT='>=10.0.0'
-PNPM_INSTALL_REQUIREMENT='pnpm@^10.0.0'
+MIN_RUST_MINOR=95
+NODE_REQUIREMENT='^24.15.0 || >=26.0.0'
+PNPM_REQUIREMENT='>=11.24.0'
+PNPM_INSTALL_REQUIREMENT='pnpm@>=11.24.0'
+GIT_REQUIREMENT='>=2.0.0'
 MODE=install
 INTERFACES=
 FRONTEND_REQUIRED=0
@@ -44,6 +45,7 @@ esac
 
 PROBE_PATH=${AFH_PREREQ_PATH:-${PATH}}
 RUST_CHANGED=existing
+GIT_CHANGED=existing
 NODE_CHANGED=existing
 PNPM_CHANGED=existing
 NODE_BIN_DIR=
@@ -142,15 +144,11 @@ validate_node() {
         *[!0-9:]*|::*|*::|*::*:*) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
     esac
     node_compatible=0
-    if [ "$node_major" -eq 20 ] && {
-        [ "$node_minor" -gt 19 ] || { [ "$node_minor" -eq 19 ] && [ "$node_patch" -ge 0 ]; };
+    if [ "$node_major" -eq 24 ] && {
+        [ "$node_minor" -gt 15 ] || { [ "$node_minor" -eq 15 ] && [ "$node_patch" -ge 0 ]; };
     }; then
         node_compatible=1
-    elif [ "$node_major" -gt 22 ] || {
-        [ "$node_major" -eq 22 ] && {
-            [ "$node_minor" -gt 12 ] || { [ "$node_minor" -eq 12 ] && [ "$node_patch" -ge 0 ]; };
-        };
-    }; then
+    elif [ "$node_major" -ge 26 ]; then
         node_compatible=1
     fi
     [ "$node_compatible" -eq 1 ] || fail 23 "现有 Node.js $node_release 不满足兼容范围 $NODE_REQUIREMENT"
@@ -172,8 +170,87 @@ validate_pnpm() {
     case "$pnpm_major:$pnpm_minor:$pnpm_patch" in
         *[!0-9:]*|::*|*::|*::*:*) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
     esac
-    [ "$pnpm_major" -ge 10 ] || fail 28 "现有 pnpm $pnpm_text 低于兼容下界 10.0.0"
+    if [ "$pnpm_major" -lt 11 ] || {
+        [ "$pnpm_major" -eq 11 ] && [ "$pnpm_minor" -lt 24 ];
+    }; then
+        fail 28 "现有 pnpm $pnpm_text 低于兼容下界 11.24.0"
+    fi
     PNPM_VERSION=$pnpm_text
+}
+
+# Git 是所有初始化路径的基础工具；接受满足下界的稳定版本并保留更高版本。
+validate_git() {
+    git_path=$1
+    git_text=$("$git_path" --version 2>/dev/null) || fail 29 "Git 探测失败"
+    git_release=$(printf '%s\n' "$git_text" | awk '{print $3}')
+    git_major=$(printf '%s\n' "$git_release" | awk -F. '{print $1}')
+    git_minor=$(printf '%s\n' "$git_release" | awk -F. '{print $2}')
+    git_patch=$(printf '%s\n' "$git_release" | awk -F. '{print $3}')
+    case "$git_major:$git_minor:$git_patch" in
+        *[!0-9:]*|::*|*::|*::*:*) fail 29 "现有 Git 不是可识别的稳定发布版：$git_text" ;;
+    esac
+    [ "$git_major" -ge 2 ] || fail 29 "现有 Git $git_release 低于兼容下界 2.0.0"
+    GIT_VERSION=$git_text
+}
+
+# Linux 包管理器需要提权时只使用既有 sudo；不下载或安装新的包管理器。
+run_git_package_manager() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+        return
+    fi
+    sudo_path=$(find_tool sudo 2>/dev/null || true)
+    [ -n "$sudo_path" ] || fail 29 "安装 Git 需要既有 sudo 或管理员权限"
+    "$sudo_path" "$@"
+}
+
+# 只通过宿主已有的受管包管理器安装缺失 Git，完成后由主流程重新探测。
+install_git() {
+    git_host_os=$(uname -s 2>/dev/null) || fail 29 "无法为 Git 安装探测操作系统"
+    case "$git_host_os" in
+        Darwin)
+            brew_path=$(find_tool brew 2>/dev/null || true)
+            if [ -z "$brew_path" ]; then
+                for brew_candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+                    if [ -x "$brew_candidate" ] && [ ! -d "$brew_candidate" ]; then
+                        brew_path=$brew_candidate
+                        break
+                    fi
+                done
+            fi
+            [ -n "$brew_path" ] || fail 29 "macOS 安装 Git 需要既有 Homebrew；门禁不会自动安装 Homebrew"
+            printf '正在通过既有 Homebrew 安装缺失的 Git。\n' >&2
+            "$brew_path" install git || fail 29 "Homebrew 安装 Git 失败"
+            brew_git_prefix=$($brew_path --prefix git 2>/dev/null || true)
+            if [ -n "$brew_git_prefix" ] && [ -d "$brew_git_prefix/bin" ]; then
+                PROBE_PATH=$brew_git_prefix/bin:$PROBE_PATH
+            fi
+            ;;
+        Linux)
+            git_manager=
+            for manager_name in apt-get dnf yum zypper apk pacman; do
+                manager_path=$(find_tool "$manager_name" 2>/dev/null || true)
+                if [ -n "$manager_path" ]; then
+                    git_manager=$manager_name
+                    break
+                fi
+            done
+            [ -n "$git_manager" ] || fail 29 "Linux 安装 Git 需要受支持的既有系统包管理器（apt-get/dnf/yum/zypper/apk/pacman）"
+            printf '正在通过既有 %s 安装缺失的 Git。\n' "$git_manager" >&2
+            case "$git_manager" in
+                apt-get)
+                    run_git_package_manager "$manager_path" update || fail 29 "apt-get 更新软件包索引失败"
+                    run_git_package_manager "$manager_path" install -y git || fail 29 "apt-get 安装 Git 失败"
+                    ;;
+                dnf|yum) run_git_package_manager "$manager_path" install -y git || fail 29 "$git_manager 安装 Git 失败" ;;
+                zypper) run_git_package_manager "$manager_path" --non-interactive install git || fail 29 "zypper 安装 Git 失败" ;;
+                apk) run_git_package_manager "$manager_path" add --no-cache git || fail 29 "apk 安装 Git 失败" ;;
+                pacman) run_git_package_manager "$manager_path" --sync --needed --noconfirm git || fail 29 "pacman 安装 Git 失败" ;;
+            esac
+            ;;
+        *) fail 29 "不支持在此 Unix 操作系统自动安装 Git：$git_host_os" ;;
+    esac
+    GIT_CHANGED=installed
 }
 
 # 将 Unix 宿主映射到 Rust 官方 rustup-init target；Linux libc 无法确定时停止而不猜测。
@@ -272,7 +349,7 @@ sha256_file() {
     fi
 }
 
-# 选择官方最新受支持 LTS，校验发行摘要后原子移动到用户级版本目录。
+# 从官方倒序索引选择当前最新兼容稳定版，校验发行摘要后原子移动到用户级版本目录。
 install_node() {
     command -v curl >/dev/null 2>&1 || fail 26 "安装 Node.js 需要 curl"
     command -v tar >/dev/null 2>&1 || fail 26 "安装 Node.js 需要 tar"
@@ -281,13 +358,22 @@ install_node() {
     TEMP_DIR=$(mktemp -d) || fail 26 "无法创建临时目录"
     index_path=$TEMP_DIR/index.tab
     download "$node_dist_base/index.tab" "$index_path" || fail 26 "Node.js 发布版本索引下载失败"
-    node_version=$(awk -F '\t' 'NR > 1 && $10 != "-" && $10 != "" { print $1; exit }' "$index_path")
-    [ -n "$node_version" ] || fail 26 "Node.js 发布版本索引中没有受支持的 LTS"
+    node_version=$(awk -F '\t' '
+        NR > 1 && $1 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ {
+            raw = substr($1, 2)
+            split(raw, parts, ".")
+            if ((parts[1] == 24 && parts[2] >= 15) || parts[1] >= 26) {
+                print $1
+                exit
+            }
+        }
+    ' "$index_path")
+    [ -n "$node_version" ] || fail 26 "Node.js 发布版本索引中没有满足 $NODE_REQUIREMENT 的稳定版"
     archive_name=node-$node_version-$node_platform-$node_arch.tar.gz
     archive_path=$TEMP_DIR/$archive_name
     sums_path=$TEMP_DIR/SHASUMS256.txt
     release_base=$node_dist_base/$node_version
-    printf '正在安装缺失的 Node.js %s LTS，来源为 %s，目标为用户级目录。\n' "$node_version" "$release_base" >&2
+    printf '正在安装缺失的最新兼容稳定 Node.js %s，来源为 %s，目标为用户级目录。\n' "$node_version" "$release_base" >&2
     download "$release_base/$archive_name" "$archive_path" || fail 26 "Node.js 归档下载失败"
     download "$release_base/SHASUMS256.txt" "$sums_path" || fail 26 "Node.js 校验和下载失败"
     expected_sum=$(awk -v name="$archive_name" '$2 == name { print $1; exit }' "$sums_path")
@@ -325,6 +411,15 @@ install_pnpm() {
     PNPM_CHANGED=installed
 }
 
+git_path=$(find_tool git 2>/dev/null || true)
+if [ -n "$git_path" ]; then
+    validate_git "$git_path"
+    git_missing=0
+else
+    GIT_VERSION=Missing
+    git_missing=1
+fi
+
 rustc_path=$(find_tool rustc 2>/dev/null || true)
 cargo_path=$(find_tool cargo 2>/dev/null || true)
 if [ -n "$rustc_path" ] && [ -n "$cargo_path" ]; then
@@ -361,6 +456,9 @@ else
 fi
 
 if [ "$MODE" = check ]; then
+    printf 'gate.git.status=%s\n' "$([ "$git_missing" -eq 0 ] && printf passed || printf missing)"
+    printf 'gate.git.requirement=%s\n' "$GIT_REQUIREMENT"
+    printf 'gate.git.version=%s\n' "$GIT_VERSION"
     printf 'gate.rust.status=%s\n' "$([ "$rust_missing" -eq 0 ] && printf passed || printf missing)"
     printf 'gate.rust.version=%s\n' "$RUST_VERSION"
     printf 'gate.node.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 0 ] && printf not-required || { [ "$node_missing" -eq 0 ] && printf passed || printf missing; })"
@@ -369,8 +467,15 @@ if [ "$MODE" = check ]; then
     printf 'gate.pnpm.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 0 ] && printf not-required || { [ "$pnpm_missing" -eq 0 ] && printf passed || printf missing; })"
     printf 'gate.pnpm.requirement=%s\n' "$PNPM_REQUIREMENT"
     printf 'gate.pnpm.version=%s\n' "$PNPM_VERSION"
-    [ "$rust_missing" -eq 0 ] && [ "$node_missing" -eq 0 ] && [ "$pnpm_missing" -eq 0 ] || exit 20
+    [ "$git_missing" -eq 0 ] && [ "$rust_missing" -eq 0 ] && [ "$node_missing" -eq 0 ] && [ "$pnpm_missing" -eq 0 ] || exit 20
     exit 0
+fi
+
+if [ "$git_missing" -eq 1 ]; then
+    install_git
+    git_path=$(find_tool git 2>/dev/null || true)
+    [ -n "$git_path" ] || fail 29 "Git 安装完成后仍无法调用 git 可执行文件"
+    validate_git "$git_path"
 fi
 
 if [ "$rust_missing" -eq 1 ]; then
@@ -396,10 +501,15 @@ if [ "$pnpm_missing" -eq 1 ]; then
 fi
 
 changed=false
+[ "$GIT_CHANGED" = installed ] && changed=true
 [ "$RUST_CHANGED" = installed ] && changed=true
 [ "$NODE_CHANGED" = installed ] && changed=true
 [ "$PNPM_CHANGED" = installed ] && changed=true
 
+printf 'gate.git.status=passed\n'
+printf 'gate.git.requirement=%s\n' "$GIT_REQUIREMENT"
+printf 'gate.git.version=%s\n' "$GIT_VERSION"
+printf 'gate.git.change=%s\n' "$GIT_CHANGED"
 printf 'gate.rust.status=passed\n'
 printf 'gate.rust.version=%s\n' "$RUST_VERSION"
 printf 'gate.rust.change=%s\n' "$RUST_CHANGED"

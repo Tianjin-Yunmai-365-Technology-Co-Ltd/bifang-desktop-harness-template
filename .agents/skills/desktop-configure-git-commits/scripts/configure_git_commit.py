@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""为一个独立 Git 仓库安装并检查受管提交消息模板。"""
+"""为独立 Git 仓库管理提交模板与仓库级提交身份。"""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,7 @@ SKILL_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_TEMPLATE = SKILL_ROOT / "assets" / "commit-template.txt"
 MANAGED_DIRECTORY = "harness"
 MANAGED_TEMPLATE = "meaningful-commit-template.txt"
+IDENTITY_KEYS = ("user.name", "user.email")
 
 
 class ConfigurationError(RuntimeError):
@@ -126,6 +128,148 @@ def read_local_settings(root: Path, keys: Sequence[str]) -> dict[str, list[str]]
         if original is not None:
             values[original].append(value)
     return values
+
+
+def read_effective_setting(root: Path, key: str) -> dict[str, str] | None:
+    """读取一个最终生效的 Git 设置及其 scope/origin，不猜测配置优先级。"""
+
+    result = run_git(
+        root,
+        ["config", "--null", "--show-origin", "--show-scope", "--get", key],
+        check=False,
+    )
+    if result.returncode == 1:
+        return None
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown git failure"
+        raise ConfigurationError(f"cannot read effective Git setting {key}: {detail}")
+    fields = result.stdout.split("\0")
+    if fields and fields[-1] == "":
+        fields.pop()
+    if len(fields) != 3:
+        raise ConfigurationError(f"unexpected effective Git setting output for {key}")
+    scope, origin, value = fields
+    return {"scope": scope, "origin": origin, "value": value}
+
+
+def validate_existing_identity(name: str, email: str) -> None:
+    """拒绝空值、控制字符或明显无效邮件，但保留用户已有的 Unicode 身份。"""
+
+    if not name.strip() or any(ord(character) < 32 or ord(character) == 127 for character in name):
+        raise ConfigurationError("existing Git user.name is invalid; refusing silent replacement")
+    if (
+        not email.strip()
+        or any(ord(character) < 32 or ord(character) == 127 for character in email)
+        or not re.fullmatch(r"[^@\s]+@[^@\s]+", email)
+    ):
+        raise ConfigurationError("existing Git user.email is invalid; refusing silent replacement")
+
+
+def validate_fallback_username(value: str) -> str:
+    """校验 Agent 已翻译的单一 ASCII 设备用户名；名称和邮箱都从它确定派生。"""
+
+    if not value.isascii() or not re.fullmatch(
+        r"[A-Za-z](?:[A-Za-z0-9._-]*[A-Za-z0-9])?", value
+    ):
+        raise ConfigurationError(
+            "fallback username must be an Agent-provided ASCII English device username"
+        )
+    return value
+
+
+def identity_report(project_root: str, *, require_complete: bool) -> dict[str, object]:
+    """返回当前有效身份；check 模式要求两个字段都有效。"""
+
+    root, _ = resolve_repository(project_root)
+    observed = {key: read_effective_setting(root, key) for key in IDENTITY_KEYS}
+    missing = [key for key, setting in observed.items() if setting is None]
+    if not missing:
+        validate_existing_identity(
+            observed["user.name"]["value"],  # type: ignore[index]
+            observed["user.email"]["value"],  # type: ignore[index]
+        )
+    elif require_complete:
+        raise ConfigurationError(f"missing effective Git identity: {', '.join(missing)}")
+    return {
+        "status": "ok" if not missing else "missing",
+        "projectRoot": str(root),
+        "identity": {
+            "name": observed["user.name"],
+            "email": observed["user.email"],
+            "missing": missing,
+        },
+    }
+
+
+def bootstrap_identity(
+    project_root: str,
+    *,
+    fallback_username: str | None,
+) -> dict[str, object]:
+    """只为缺失的有效身份字段写入仓库本地回退值，并保留已有字段。"""
+
+    root, _ = resolve_repository(project_root)
+    before = {key: read_effective_setting(root, key) for key in IDENTITY_KEYS}
+    for key, setting in before.items():
+        if setting is None:
+            continue
+        value = setting["value"]
+        if key == "user.name":
+            if not value.strip() or any(ord(character) < 32 or ord(character) == 127 for character in value):
+                raise ConfigurationError("existing Git user.name is invalid; refusing silent replacement")
+        elif (
+            not value.strip()
+            or any(ord(character) < 32 or ord(character) == 127 for character in value)
+            or not re.fullmatch(r"[^@\s]+@[^@\s]+", value)
+        ):
+            raise ConfigurationError("existing Git user.email is invalid; refusing silent replacement")
+
+    missing = [key for key, setting in before.items() if setting is None]
+    fallback_values: dict[str, str] = {}
+    derived_username: str | None = None
+    if missing:
+        if fallback_username is None:
+            raise ConfigurationError(
+                "missing Git identity requires --fallback-username"
+            )
+        derived_username = validate_fallback_username(fallback_username)
+    if "user.name" in missing:
+        fallback_values["user.name"] = derived_username  # type: ignore[assignment]
+    if "user.email" in missing:
+        fallback_values["user.email"] = f"{derived_username}@gmail.com"
+
+    previous_local = read_local_settings(root, tuple(fallback_values))
+    try:
+        for key, value in fallback_values.items():
+            replace_config_values(root, key, [value])
+    except ConfigurationError as exc:
+        rollback_errors: list[str] = []
+        for key in reversed(tuple(fallback_values)):
+            try:
+                replace_config_values(root, key, previous_local[key])
+            except ConfigurationError as rollback_exc:
+                rollback_errors.append(str(rollback_exc))
+        suffix = f"; rollback errors: {'; '.join(rollback_errors)}" if rollback_errors else ""
+        raise ConfigurationError(f"identity bootstrap failed: {exc}{suffix}") from exc
+
+    after = {key: read_effective_setting(root, key) for key in IDENTITY_KEYS}
+    if after["user.name"] is None or after["user.email"] is None:
+        raise ConfigurationError("identity bootstrap completed but effective identity remains incomplete")
+    validate_existing_identity(after["user.name"]["value"], after["user.email"]["value"])
+    return {
+        "status": "configured",
+        "projectRoot": str(root),
+        "changed": bool(fallback_values),
+        "identity": {
+            "name": {**after["user.name"], "source": "repo-local-bootstrap" if "user.name" in fallback_values else "existing"},
+            "email": {**after["user.email"], "source": "repo-local-bootstrap" if "user.email" in fallback_values else "existing"},
+            "writtenLocalKeys": sorted(fallback_values),
+            "derivation": {
+                "asciiDeviceUsername": derived_username,
+                "emailRule": "<asciiDeviceUsername>@gmail.com" if derived_username else None,
+            },
+        },
+    }
 
 
 def desired_settings(template_path: Path) -> dict[str, str]:
@@ -276,7 +420,7 @@ def check_installation(project_root: str) -> dict[str, object]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """构造只有 install/check 两种确定模式的命令行接口。"""
+    """构造提交模板和身份的确定性命令行接口。"""
 
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -285,6 +429,19 @@ def build_parser() -> argparse.ArgumentParser:
     install_parser.add_argument("--replace", action="store_true")
     check_parser = subparsers.add_parser("check", help="check local template settings")
     check_parser.add_argument("--project-root", required=True)
+    bootstrap_parser = subparsers.add_parser(
+        "identity-bootstrap", help="fill missing identity fields in repository-local config"
+    )
+    bootstrap_parser.add_argument("--project-root", required=True)
+    bootstrap_parser.add_argument("--fallback-username")
+    identity_check_parser = subparsers.add_parser(
+        "identity-check", help="require a complete effective commit identity"
+    )
+    identity_check_parser.add_argument("--project-root", required=True)
+    report_parser = subparsers.add_parser(
+        "identity-report", help="report effective identity without modifying it"
+    )
+    report_parser.add_argument("--project-root", required=True)
     return parser
 
 
@@ -295,8 +452,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if arguments.command == "install":
             result = install(arguments.project_root, replace=arguments.replace)
-        else:
+        elif arguments.command == "check":
             result = check_installation(arguments.project_root)
+        elif arguments.command == "identity-bootstrap":
+            result = bootstrap_identity(
+                arguments.project_root,
+                fallback_username=arguments.fallback_username,
+            )
+        elif arguments.command == "identity-check":
+            result = identity_report(arguments.project_root, require_complete=True)
+        else:
+            result = identity_report(arguments.project_root, require_complete=False)
     except (ConfigurationError, OSError) as exc:
         print(
             json.dumps({"status": "error", "error": str(exc)}, ensure_ascii=False),
