@@ -1,6 +1,6 @@
 ---
 name: desktop-initialize-rust-project
-description: 首轮集中解析直接初始化所需的基础选择，再按需逐项补全条件配置，建立中性下游 Rust 项目并永久删除仅用于初始化的能力，同时保留开发 Skills 和约束地图。
+description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游；Logo 原始候选稳定预览、选中后才处理，Git 只在真实基线提交前即时检查和设置。
 ---
 
 # 初始化 Rust 项目
@@ -9,9 +9,9 @@ description: 首轮集中解析直接初始化所需的基础选择，再按需�
 
 ## 工作流程
 
-1. 读取存在时日期最新的产品状态，以及 `docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/RUST_CLI_TEMPLATE.md` 和 `docs/design_standards/README.md`。刚实例化的下游项目有意不包含产品规格、工作计划、ADR、变更记录或 `docs/VERIFICATION.md`；不得在中性初始化期间创建这些内容。只要求具备当前中英文项目展示名称和 ASCII `snake_case` 标识；中英文至少一个由用户直接提供，只提供其中一个时自动翻译另一个并在首次写入前的完整汇总中确认。`LICENSE.zh-CN.md` 使用确认后的中文名称，`LICENSE.en.md` 使用确认后的英文名称；在执行 `$desktop-define-product` 前，其他产品事实必须保持未定义。
-2. 将当前目录解析为唯一的下游项目根目录。如果当前目录是仅包含文档的 Harness 源项目，则必须停止、保留文件，并且绝不得创建替代项目目录。
-3. 写入脚手架前必须要求 Git 可用。运行 `git --version`，随后判断 `git rev-parse --show-toplevel` 的规范化路径是否等于当前项目根目录。如果不相等，即使存在父级仓库，也必须在当前根目录运行 `git init --initial-branch=main .`。验证工作树内状态为 `true`、顶层目录等于当前项目根目录、初始分支为 `main`，并且 `git remote` 为空。不得创建脚手架前提交、标签、远端、推送、托管仓库、签名或全局 Git 配置。已经正确存在的独立仓库必须保持不变，直到最终干净状态验证。
+1. 读取存在时日期最新的产品状态，以及 `docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/RUST_CLI_TEMPLATE.md` 和 `docs/design_standards/README.md`。刚实例化的下游项目有意不包含产品规格、工作计划、ADR、变更记录或 `docs/VERIFICATION.md`；不得在中性初始化期间创建这些内容。只要求具备当前中英文项目展示名称和 ASCII `snake_case` 标识；中英文至少一个由用户直接提供，只提供其中一个时自动翻译另一个并在首次写入前的完整汇总中确认。`LICENSE.zh-CN.md` 使用确认后的中文名称，`LICENSE.en.md` 使用确认后的英文名称。产品目的、核心输入/输出、业务规则、成功标准、风险、副作用、产品专属页面/文案/数据、远程地址、凭据和发布需求即使同时提供，也不得在 Harness 源或中性初始化阶段接收、分析、记录或实现；必须等初始化结束并切换到唯一终端下游根目录后，再通过 `$desktop-define-product` 重新提出。
+2. 将当前目录解析为唯一的下游项目根目录。如果当前目录是包含根 `Version.md` 与活动 `$desktop-instantiate-project` 的 Harness 源项目，则必须停止、保留文件，并且绝不得创建替代项目目录或接收任何产品业务需求；Harness 源只处理自身工程维护和创建下游所需的固定初始化信息。
+3. 表单、环境门禁、脚手架编写、测试和一次性裁剪阶段都不检查 Git 可用性、版本、作者身份、提交模板或仓库配置，也不运行 Git 初始化。只在全部初始化检查成功、下一步确实将创建唯一基线提交时，才按第 14 步即时执行这些动作；未来会提交不构成提前检查或设置 Git 的理由。
 4. 解析初始化需要的接口，只能从 `CLI`、`TUI`、`MCP` 和 `GUI` 中选择，并允许任意组合。由 `$desktop-instantiate-project` 发起时，必须复用首次写入前已经确认的初始化表单，不得在复制后重新询问接口或中英文名称。直接调用本 Skill 时，尚未解析的中文名称、英文名称、接口组合和 Agent 策略模式都是直接初始化的基础决定，必须在同一首轮一次列出；只提供一种语言时立即自动翻译另一种并等待完整汇总确认，不能把译名、接口和策略拆成逐字段多轮。用户明确选择默认值或跳过接口选择时记录 `CLI`；用户明确选择其他接口时，不得静默附加 CLI。
    - 只有选择包含 `GUI` 时才解析 GUI 初始化配置。由实例化流程发起时，复用表单中已经按需逐项确认的五项值；直接调用时在基础决定全部解析后，每轮只询问一个尚未解析的 GUI 条件字段，依次把系统托盘、关于页、赞助页、单实例四项能力解析为 `enabled` 或 `disabled`，再向用户提供 `compact`（精简）与 `detailed`（详细）侧栏模式选择。四项能力不得根据 Harness 旧基线、推荐策略预设或未勾选状态静默推断；用户省略、留空或跳过侧栏选择时，未选择侧栏模式必须写入 `sidebar_mode = detailed`。用户明确选择 `compact` 或 `detailed` 时保持原值；显式非法值不得按未选择处理，必须重新确认。
    - 四项能力与归一化后的侧栏模式必须写入 `docs/GUI_APP_PROFILE.md` 的唯一 `gui-initialization-config` 围栏代码块，字段恰好为 `system_tray`、`about_page`、`sponsor_page`、`single_instance`、`sidebar_mode`，最终五项不得缺失或残留 `pending`。后续 GUI Skill、结构检查和 E2E 只复用该事实，不得重复询问、再次应用缺省值或擅自增减能力。
@@ -20,7 +20,7 @@ description: 首轮集中解析直接初始化所需的基础选择，再按需�
 7. 使用中性资产创建根 Cargo 工作区和 `<project-id>_core`，不得引入业务假设。核心必须保持运行时中立，并且不得包含接口、进程、终端、协议、浏览器或桌面类型。Core-first 是永久硬规则：产品获批后，接口/宿主无关的领域类型、业务规则、语义校验、用例编排、状态转换和稳定错误都先在 core 中实现和测试，即使只选择一个适配器也同样适用。根 `[workspace.dependencies]` 必须始终是唯一依赖来源，成员清单必须使用 `workspace = true`；全部 registry 直接依赖使用完整三段 Cargo 兼容下界，禁止普通依赖的精确 `=`、通配符、tag、无下界范围或“最新”。根 `[workspace.package].version` 写为 `0.1.0` 后，立即调用 `$desktop-manage-version init --project-root .` 创建 `.harness/version-state.json`，并核对 Cargo 当前版本与状态目标一致；该文件是受保护的正式发布周期/去重状态，不是第二版本事实源。创建或更新项目根目录 `.gitignore`，使其恰好一次包含根锚定的 `/release/` 和 `/.release-clean.*` 条目；不得忽略根目录以外名称类似 release 的目录。
 8. 将每个已记录接口分派给各自的 Skill：`$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 或 `$desktop-add-gui-adapter`。每个已选 Skill 负责自己的薄适配器目录和测试，只拥有运行时装配、接口语法/协议结构、展示/纯交互状态、调用 core 和结果映射；单实例、系统托盘、窗口、终端恢复或 stdio 生命周期等机制留在所属适配器，但其业务动作仍调用 core。TUI 使用固定的 Ratatui + tui-realm + tui-realm-stdlib 技术栈；Tauri GUI 前端使用固定的 Vite + React + TypeScript + Mantine UI + `@tabler/icons-react` + TanStack Router 文件路由 + TanStack Query + Jotai，以及 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 技术栈。自带的 `rust-lib-cli` 资产提供中性核心和可选的 CLI 实现；未选择 CLI 时不得复制其中的 CLI 成员。
    - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
-   - 选择 `GUI` 时，在创建最终适配器图标前调用 `$desktop-prepare-gui-app-identity` 的初始化 Logo 模式：实际产出正好 3 个 1024×1024 PNG 候选并同时预览，等待用户明确选择，禁止静默默认或保留中性占位。选中候选固定写入 `<project-id>_gui/src-tauri/icons/app-icon-master.png`，逐字节复制到 `<project-id>_gui/public/app-identity/logo.png`，并由项目本地 Tauri `icon` 命令生成平台图标；`docs/GUI_APP_PROFILE.md` 记录三个候选与选择、路径和 SHA-256。该身份选择不推测产品业务，但缺少实际候选、用户选择或字节一致证据必须阻断初始化基线提交。
+   - 选择 `GUI` 时，在创建最终适配器图标前调用 `$desktop-prepare-gui-app-identity` 的初始化 Logo 模式：以三种方向发起正好 3 个目标为 1024×1024 PNG 的生成请求，预先按请求顺序绑定 `candidate-1`、`candidate-2`、`candidate-3`，并始终按该顺序同时展示原始候选。用户选择前不得验证格式、尺寸、色彩、像素、摘要或质量，也不得执行任何转码、缩放、裁剪、补边、改色、压缩、重命名覆盖或标准化；某个生成失败只重试原标识，不得移动其他候选。用户明确选择后只验证和按需标准化所选项，拒绝项不补做处理；最终母版固定写入 `<project-id>_gui/src-tauri/icons/app-icon-master.png`，逐字节复制到 `<project-id>_gui/public/app-identity/logo.png`，并由项目本地 Tauri `icon` 命令生成平台图标。`docs/GUI_APP_PROFILE.md` 按稳定顺序记录候选标识与选择，只记录所选项的后置验证、路径和 SHA-256。缺少实际候选、稳定预览顺序、用户选择或最终字节一致证据都阻断初始化基线提交。
    - 选择 `GUI` 时，平台图标生成后还必须确认 `<project-id>_gui/src-tauri/icons/32x32.png` 是普通非符号链接、32×32 8-bit RGBA 非交错 PNG 且至少有一个非透明像素，并让 `tauri.conf.json` 的 `bundle.icon` 精确引用 `icons/32x32.png`。选择系统托盘时，该文件同时是托盘可见图标来源；格式不符或未引用都阻断初始化。
    - 选择 `GUI` 时，在删除本初始化 Skill 前，把 `.agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png` 逐字节复制为 `<project-id>_gui/src-tauri/dmg/background.png`。源文件和目标文件都必须是非符号链接的 660×400 PNG，复制后摘要必须一致；随后由 `$desktop-add-gui-adapter` 把 `tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用为 `./dmg/background.png`，并使用与图片一致的 660×400 窗口、`appPosition: { x: 180, y: 220 }` 和 `applicationFolderPosition: { x: 480, y: 220 }`。该无产品身份的图片是可立即接线的中性初始化基线，不代表产品视觉已批准；首次真实 GUI 开发仍必须由 `$desktop-prepare-gui-app-identity` 预览后批准或在同一路径替换。
    - 选择 `GUI` 时，由 `$desktop-add-gui-adapter` 按 `docs/GUI_APP_PROFILE.md` 消费 `$desktop-prepare-gui-support-surfaces`。动态标题、设置页、i18n、三态主题和亮暗语义主题始终存在；关于页、赞助页及其路由/菜单/运行时资源只在对应能力为 `enabled` 时建立。底部支持项保持“已选赞助、设置、已选关于”的视觉顺序，未选页面不得留下空路由、占位入口或运行时媒体；关于页启用时保留本地更新日志与 `NotConfigured` 零出站，赞助页启用时才复制完整 `media/sponsor/*`。
@@ -42,7 +42,7 @@ description: 首轮集中解析直接初始化所需的基础选择，再按需�
     - 保留继承的两份非开源企业专有商业许可证文件 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，其中中文目标项目名称和英文目标项目名称必须分别已由 `$desktop-rename-project-identity` 建立；如果任一文件缺失、名称语言错配、仍包含旧 Harness 身份、在批准改名后发生其他修改，或被安排删除，则最终收尾必须失败；
     - 重写 `AGENTS.md`，同时保留非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$desktop-run-parallel-worktrees` 和 `$desktop-upgrade-harness` 的持久策略用法。约束地图必须链接保留的规则并禁止下游继续派生；还必须保留 `docs/AGENT_POLICY.md` 中左侧 Task 的“动作 + 结果”标题、独立 Worktree、`codex/*` 分支、必填描述、逻辑闭环提交、干净交付、主任务整合与清理约定，不得把它误删为初始化临时内容；
     - 搜索下游根目录；如果历史证据之外仍存在对 `$desktop-instantiate-project`、`$desktop-initialize-rust-project`、其目录或仅用于初始化的门禁的活动引用，则最终收尾必须失败。
-14. 裁剪完成后，如果本次运行由 `$desktop-instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆与验证证据目录，绝不得为了满足此检查而删除它们。创建基线提交前调用 `$desktop-configure-git-commits`，依次运行 `configure_git_commit.py install --project-root .` 与 `configure_git_commit.py check --project-root .`；它只能写当前仓库 Git 元数据和 `git config --local`。已有冲突配置必须停止，只有用户明确批准后才可使用 `--replace`，不得修改全局 Git 配置。检查通过后暂存完整的已初始化下游项目树，并使用用户现有 Git 身份创建恰好一个本地基线提交，提交消息必须为 `chore: initialize project`。如果作者身份不可用，必须停止并向用户请求；不得伪造身份。
+14. 裁剪完成后，如果本次运行由 `$desktop-instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆与验证证据目录，绝不得为了满足此检查而删除它们。只有全部脚手架检查和裁剪已经成功、下一步就是实际创建基线提交时，才运行 `git --version` 并检查用户现有 Git 作者身份；Git 缺失、不兼容或身份不可用时携带真实诊断停止，不得安装、升级或伪造。随后判断 `git rev-parse --show-toplevel` 的规范化路径是否等于当前项目根目录；不相等时即使存在父级仓库，也在当前根运行 `git init --initial-branch=main .`，相等时保留既有独立仓库。验证工作树内状态为 `true`、顶层目录等于当前根、分支为 `main`、`git remote` 为空且提交前 `HEAD` 不存在。此时才调用 `$desktop-configure-git-commits`，依次运行 `configure_git_commit.py install --project-root .` 与 `configure_git_commit.py check --project-root .`；它只能写当前仓库 Git 元数据和 `git config --local`。已有冲突配置必须停止，只有用户明确批准后才可使用 `--replace`，不得修改全局 Git 配置。检查通过后暂存完整项目树，并创建恰好一个 `chore: initialize project` 本地基线提交。
 15. 创建基线提交之前，必须确认四项策略字段和确认元数据均不包含 `pending`。如果具备精确的源溯源和渲染后的保留工程层候选，则通过 `$desktop-upgrade-harness record --bootstrap` 建立 `.harness/upstream-lock.json`；否则必须记录首次升级所需的初始基线审计，不得虚构锁文件。验证已完成仓库的规范顶层目录、`main`、可解析的基线提交、无远端，以及空的 `git status --porcelain=v1 --untracked-files=all`。任何失败都必须阻断完成。
 16. 下一步必须转到 `$desktop-define-product`。生成的下游项目是终端项目根目录，而不是另一个 Harness；绝不得根据脚手架声称产品已经交付。
 
@@ -73,11 +73,11 @@ description: 首轮集中解析直接初始化所需的基础选择，再按需�
 - 完成收尾的下游项目必须保留继承的两份专有商业许可证文件，并继续受其中终端下游限制约束。
 - `AGENTS.md` 必须始终保留非空的 Skills 地图和约束地图；裁剪可以移除地图条目，但不得删除任一地图。
 - 初始化只有在独立仓库中创建一个真实本地基线提交，并且 Git porcelain 状态为空时才算完成。
-- 初始化基线提交前必须通过 `$desktop-configure-git-commits` 的 `install` 与 `check`；受管模板和四项 Git 设置只属于当前仓库，不得依赖或修改全局配置。
+- Git 可用性、版本、作者身份、独立仓库边界和提交模板只在全部初始化工作完成、紧邻真实基线提交时检查或设置；此前不得提前运行。基线提交前必须通过 `$desktop-configure-git-commits` 的 `install` 与 `check`，受管模板和四项 Git 设置只属于当前仓库，不得依赖或修改全局配置。
 - 项目根目录 `.gitignore` 必须恰好一次包含 `/release/` 和 `/.release-clean.*`；构建流水线负责原子刷新的当前结果目录，以及同根目录中断后遗留的清理或候选暂存目录。
 
 ## 完成要求
 
 版本部分必须报告根 Cargo 初始版本与 `.harness/version-state.json` 一致、`$desktop-manage-version` 已保留且状态已列入约束地图。
 
-报告 Git 边界、提交模板本地配置与检查结果、基线和干净状态、环境门禁、已选接口、全部四项策略值、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个 Logo 候选、图标与 DMG 证据、五项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；对系统托盘、关于页、赞助页、单实例分别报告 `enabled`/`disabled`，启用项报告完整实现/E2E 证据，禁用项报告依赖/feature/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。
+报告 Git 检查与设置确实发生在真实基线提交之前而非更早、最终 Git 边界、提交模板本地配置与检查结果、基线和干净状态、环境门禁、已选接口、全部四项策略值、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个原始 Logo 候选的稳定预览顺序、用户选择、仅对所选项执行的后置验证/标准化、图标与 DMG 证据、五项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；对系统托盘、关于页、赞助页、单实例分别报告 `enabled`/`disabled`，启用项报告完整实现/E2E 证据，禁用项报告依赖/feature/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。

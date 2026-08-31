@@ -1,4 +1,4 @@
 interface:
   display_name: "实例化项目"
-  short_description: "首轮收齐双语名称与基础信息，再按需补全配置并创建干净下游项目"
-  default_prompt: "使用 $desktop-instantiate-project，首轮一次列出我尚未提供的中英文名称和全部基础问题；若我只给一种语言则自动翻译另一种并在汇总中确认，随后按需逐项补全条件配置，再安全解析最终项目根目录并创建独立且干净的下游 Git 仓库。"
+  short_description: "只收集 Harness 初始化信息，并在基线提交前即时建立 Git"
+  default_prompt: "使用 $desktop-instantiate-project，只收集 Harness 创建终端下游所需的双语名称和固定初始化字段；拒绝接收产品业务需求，并要求我切换至下游后重新提出。随后完成中性脚手架，并只在实际创建唯一基线提交前即时检查和设置独立 Git 仓库。"

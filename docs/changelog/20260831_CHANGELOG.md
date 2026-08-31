@@ -1,13 +1,17 @@
-# 2026-08-28 变更记录
+# 2026-08-31 变更记录
 
 ## 新增
+
+- `HARNESS-FEAT-HARNESS-SOURCE-SCOPE-GATE`（所需 Harness 版本 `202608281139`）：当前模板源现在只接受 Harness 自身工程维护和创建终端下游所需的固定初始化信息；产品目的、业务规则、专属 UI/文案/数据、远程地址、凭据、产品构建与发布需求在写入前被拒绝，并要求切换到终端下游后重新提出。混合请求只解析允许的初始化字段。
+- `HARNESS-FEAT-JUST-IN-TIME-GIT-COMMIT-SETUP`（所需 Harness 版本 `202608281139`）：Git 可用性、作者身份、独立仓库与仓库本地提交模板改为只在明确配置请求或下一步实际运行 `git commit` 时检查和设置。新下游完成脚手架验证与裁剪后，紧邻唯一基线提交才建立仓库并运行 `install`/`check`；表单、复制、编辑和测试阶段不提前触发。
+- `HARNESS-FEAT-DEFERRED-LOGO-VALIDATION-STABLE-PREVIEW`（所需 Harness 版本 `202608281139`）：三个 Logo 原始候选固定按 `candidate-1`、`candidate-2`、`candidate-3` 的请求顺序预览和重显；用户选择前不验证、不计算摘要且不标准化，选择后只处理所选项，可见变化重新确认，未选项不补做验证。
 
 - `HARNESS-FEAT-BILINGUAL-INITIALIZATION-AND-RELEASE-NOTES`（所需 Harness 版本 `202608281139`）：初始化现在把中文与英文项目展示名作为独立基础字段，至少由用户直接提供一个；缺少的另一语言由 Agent 自动翻译、标记来源，并随首次写入前的完整汇总统一确认。身份改名脚本接受双语映射，中文/英文许可证分别使用对应名称，README 同时列出两者。
 - 发布日志升级为 `schemaVersion: 2`：每个功能优化/问题修复条目绑定非空 `zh-CN` 与 `en-US` 文案，配对缺失或数量不等失败关闭。发布准备分别渲染中文和英文；关于页由 Rust/React 双层校验并跟随当前 i18n locale 选择标题与正文，未知语言回退英文。
 - `HARNESS-FEAT-BATCHED-BASE-INITIALIZATION-FORM`（所需 Harness 版本 `202608281139`）：新下游创建在任何写入、环境安装或 Git 初始化前，首轮一次列出尚未解析的中英文展示名、标识、路径、负责人、目标平台、接口组合和 Agent 策略模式；已有合法输入直接复用。基础字段完成后，才按自定义策略或 GUI 选择每轮补全一个条件字段，最终仍以包含两个名称及来源和唯一项目根目录的完整汇总确认。
 - 项目路径既可填写最终根也可填写父目录：规范化末级与 ASCII `snake_case` 项目标识精确一致时直接使用，否则无论名称是否相似都固定追加项目标识。标准库只读 helper 与 10 项路径回归证明非空父目录可用，同时拒绝非空最终根、文件、符号链接、Harness 根/祖先和非法标识；表单阶段列、两个初始化 Skill、README、AGENTS、Product Spec 与 Harness validator 已同步锁定。
 - `HARNESS-FEAT-MEANINGFUL-GIT-COMMITS`（所需 Harness 版本 `202608051301`）：新增 `$desktop-configure-git-commits`，把 Conventional Commit 主题与 Why/Changes/Impact/Test 正文、原子提交边界、真实测试记录和提交前检查整理为独立 Skill；简单明确的变化仍可只写主题，不为形式制造空洞正文。
-- 新 Skill 使用标准库脚本把注释模板安装到当前仓库 Git common dir，并只管理本地 `commit.template`、`commit.cleanup=strip`、`commit.verbose=true` 与 `core.commentChar=#`。冲突默认失败，明确批准后才允许 `--replace`；Harness 当前仓库已实际执行 install/check，新下游初始化则在唯一基线提交前执行，不修改用户全局 Git 配置。
+- 新 Skill 使用标准库脚本把注释模板安装到当前仓库 Git common dir，并只管理本地 `commit.template`、`commit.cleanup=strip`、`commit.verbose=true` 与 `core.commentChar=#`。冲突默认失败，明确批准后才允许 `--replace`；当前契约已将触发点收敛为明确配置请求或下一步实际提交，新下游只在唯一基线提交前即时执行，不修改用户全局 Git 配置。
 - `HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY`（所需 Harness 版本 `202608051301`）：左侧 Task 现在按“一项可独立验收的目标 + 一个独立 Worktree + 一个 `codex/*` 分支 + 一组可审查提交”创建；标题固定使用“动作 + 结果”，统一描述模板包含目标、工作方式、当前事实、必读文档、实施范围、禁止事项、验收标准和交付要求。
 - 新 Task 从主任务确认的最新干净 `main` 基线创建，Codex detached Worktree 在首次编辑前建立 Task 分支；Task 只改自己的 Worktree、按逻辑闭环提交并以干净状态交付，不自行覆盖 `/Applications`、合并 `main` 或清理 Worktree。主任务复核提交、测试与风险，整合后才删除 Worktree 和分支；初始化/实施/并行 Skills 与 validator 同步保留 Task 级和 Subagent 级 Worktree 的分层边界。
 - `HARNESS-FEAT-DETAILED-SIDEBAR-RUNTIME-SYNC`（所需 Harness 版本 `202608051301`）：detailed 侧栏沉淀为 `tauri-gui-sidebar-detailed-v1` 的完整运行时标准，保持 `248px`/`76px`、`72px`/`44px`，菜单图标统一为 `22px`/`1.75`，展开横排名称，收起使用右侧零延迟 Tooltip；折叠状态提升到 AppShell，由同一 helper 同步 fixed 侧栏、Mantine `navbar.width` 与 `data-navbar-width`，身份区父级不代理折叠。
@@ -23,7 +27,7 @@
 - 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 profile-aware 专项回归：在 GUI 构建前解析五项初始化配置，对启用的单实例/托盘验证原有依赖、首插件、图标、菜单、关闭处理、i18n 与命名回归，对禁用能力验证相关实现缺席，并要求托盘禁用时存在 `close_last_window_exits_application`。非法、缺失或 `pending` 配置及路径/源码/资产异常均失败关闭。
 - 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建真实本机 Tauri 调试二进制；单实例启用才双启动，托盘启用才操作真实托盘，托盘禁用则验证关闭最后窗口退出。Computer Use 同时验证所选侧栏、设置页、实际菜单页面和未选页面缺席；失败、无法判定或无法观察任一适用场景均阻断初始化。
 - GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。
-- GUI 初始化新增应用 Logo 三选一：实际生成 3 个 1024×1024 PNG 候选并同时预览，必须由用户明确选择；选中母版逐字节接入运行时 `/app-identity/logo.png`，并由项目本地 Tauri 工具生成平台图标，候选/选择/摘要写入 `docs/GUI_APP_PROFILE.md`。
+- GUI 初始化应用 Logo 三选一现按稳定逻辑 ID 展示生成工具的原始候选；用户明确选择前不做验证、摘要或标准化，选择后只处理所选项，再逐字节接入运行时 `/app-identity/logo.png` 并由项目本地 Tauri 工具生成平台图标。`docs/GUI_APP_PROFILE.md` 不记录未选候选的验证或摘要。
 - GUI 主窗口新增独立的 1440×900 初始尺寸与 960×640 最小尺寸，居中并防止溢出；默认尺寸可容纳详细展开侧栏，选择赞助页时也可展示三张档位卡。既有 660×400 macOS DMG 安装卷窗口与落点保持独立。
 - GUI 初始化建立动态标题、设置页、i18n 和亮暗主题固定基线，并按 profile 建立托盘/关闭语义、单实例、关于页、赞助页及精简/详细侧栏。产品功能从顶部向下，底部只渲染已选赞助、固定设置、已选关于；未选页面不进入路由、导航或运行时资源。真实更新 endpoint、统计传输、自动启动和支付自动化仍默认关闭。
 - 新增 `AppSidebarTemplate`、`SettingsPageTemplate`、`MandatoryUpdateGateTemplate`、条件导航 builder 和更新展示状态模板，并补齐中文/英文资源。选择关于页时检查更新显示 `NotConfigured` 且零出站；默认设置模板不携带统计 props、控件或翻译键，根级强更门只接受 core 已判定的 `RequiredUpdate`。
@@ -79,6 +83,9 @@
 
 ## 验证
 
+- 本次运行 `python3 -B -m unittest scripts.test_agile_workflow scripts.test_harness_scope_and_initialization_boundaries`，33 条初始化/流程契约回归全部通过；新增 3 条专项回归分别锁定 Logo 原始候选顺序与选择后处理、Git 命令仅位于实际基线提交收尾段、Harness 源在写入前拒绝产品需求。
+- `python3 -B .agents/skills/desktop-upgrade-harness/scripts/test_harness_upgrade.py` 的 28 条升级器回归通过；新增专项测试被声明为 Harness-only `tombstone`，不会传播到终端下游。8 个本次修改的项目 Skills 均通过 Skill Creator quick validator；`git diff --check` 通过。
+- `python3 -B scripts/validate_harness.py` 已运行并能通过本次三项新增契约，但完整结果仍被 51 个当前 `README.md` 既有契约/Skill 清单缺口阻断；对未修改 `HEAD` 的临时只读基线复核也存在同组 README 缺口，因此未把该全量校验记录为通过。规则实施阶段未提前运行 Git `install`/`check`；项目负责人随后明确要求提交并推送，因此只在本次实际提交前即时运行仓库本地 `install`/`check`。未执行构建、GUI/Computer Use、E2E、签名、公证或发布。
 - 本次双语初始化与更新日志变更运行 `python3 -B -m unittest discover -s scripts`，212 条 Harness 测试全部通过；`python3 -B scripts/validate_harness.py` 通过 168 个必需文件、28 个 Skills 和双语名称/发布日志 schema v2 契约，产生 9 条未达硬上限的非阻断行数复核提示；`git diff --check` 通过。
 - 身份改名专项 4/4、发布日志 helper 专项 6/6、Tauri 发布日志/DMG 字节夹具专项 13/13、GUI 初始化结构/生命周期专项 43/43 均通过。Harness 根没有可执行前端包或下游 Rust workspace，因此 React Vitest、Rust 编译、真实 GUI/Computer Use、候选构建与 E2E 均未运行，也未据此声明最终产物或发布就绪。
 - 本次首轮基础表单、条件补全与旧交互拒绝的初始化/入口专项 15 条回归通过；`python3 -B -m unittest discover -s scripts` 共 211 条测试全部通过。`python3 -B scripts/validate_harness.py` 通过 168 个必需文件、28 个 Skills、初始化阶段顺序和直接初始化复用契约，产生 8 条未达硬上限的非阻断行数复核提示；`$desktop-instantiate-project` 与 `$desktop-initialize-rust-project` 均通过 Skill Creator quick validator（2/2）。

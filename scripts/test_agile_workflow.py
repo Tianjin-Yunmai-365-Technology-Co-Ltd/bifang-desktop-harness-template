@@ -291,7 +291,6 @@ class InitializationFormContractTests(unittest.TestCase):
         self.assertIn("不得在复制后重新询问接口", initialize)
         self.assertIn("复用表单中已经按需逐项确认的五项值", initialize)
 
-
 class StreamlinedDevelopmentTests(unittest.TestCase):
     """覆盖直接实施、当前必要测试和显式并行边界。"""
 

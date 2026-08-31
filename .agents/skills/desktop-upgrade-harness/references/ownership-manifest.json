@@ -8,6 +8,7 @@
     {"pattern": ".agents/skills/desktop-test-gui-initialization-e2e/**", "mode": "tombstone"},
     {"pattern": "scripts/validate_harness.py", "mode": "tombstone"},
     {"pattern": "scripts/test_agile_workflow.py", "mode": "tombstone"},
+    {"pattern": "scripts/test_harness_scope_and_initialization_boundaries.py", "mode": "tombstone"},
     {"pattern": "scripts/test_validate_harness.py", "mode": "tombstone"},
     {"pattern": "scripts/harness_validation/**", "mode": "tombstone"},
     {"pattern": "docs/HARNESS_ENGINEERING.md", "mode": "tombstone"},

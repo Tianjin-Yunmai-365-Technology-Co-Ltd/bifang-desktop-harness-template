@@ -30,6 +30,7 @@ REQUIRED_RULES = {
     ".agents/skills/desktop-test-gui-initialization-e2e/**": "tombstone",
     "scripts/validate_harness.py": "tombstone",
     "scripts/test_agile_workflow.py": "tombstone",
+    "scripts/test_harness_scope_and_initialization_boundaries.py": "tombstone",
     "scripts/test_validate_harness.py": "tombstone",
     "scripts/harness_validation/**": "tombstone",
     "docs/HARNESS_ENGINEERING.md": "tombstone",

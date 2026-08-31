@@ -386,6 +386,7 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-manage-version/scripts/version_gate.py",
     ".agents/skills/desktop-manage-version/scripts/test_version_gate.py",
     "scripts/test_agile_workflow.py",
+    "scripts/test_harness_scope_and_initialization_boundaries.py",
     "scripts/test_validate_harness.py",
     "scripts/test_release_validation.py",
     "scripts/harness_validation/release.py",

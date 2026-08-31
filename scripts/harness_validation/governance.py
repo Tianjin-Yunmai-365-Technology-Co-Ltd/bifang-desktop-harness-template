@@ -18,6 +18,9 @@ def validate_engineering_contract(errors: list[str]) -> None:
     """确认工程规则唯一来源、关键入口和执行型 Skills 已建立确定性引用。"""
     required_fragments = {
         ENGINEERING_RULES: (
+            "当前规范根同时包含 Harness 专用 `Version.md`",
+            "只接受 Harness 自身工程维护",
+            "只能拒绝并要求用户在初始化完成、切换到唯一终端下游根目录后重新提出",
             "## 2. 文件、模块与依赖边界",
             "Rust 代码：400 行及以内",
             "800 行通过，801 行失败",
@@ -43,9 +46,19 @@ def validate_engineering_contract(errors: list[str]) -> None:
             "透明点击区域",
             "本身不触发 Product Spec、ADR、Product Status、Changelog 或 Verification",
             "任务被称为“修复”或“重构”不能绕过门禁",
+            "`candidate-1`、`candidate-2`、`candidate-3`",
+            "用户选择前不得验证格式、尺寸、色彩、像素、摘要或质量",
+            "用户明确选择后只验证和按需标准化所选项",
+            "下一步确实将运行 `git commit`",
+            "紧邻唯一基线提交时检查 Git",
         ),
         ROOT / "AGENTS.md": (
             "docs/ENGINEERING_RULES.md",
+            "只接受 Harness 自身工程维护",
+            "产品目的、业务功能、产品专属 UI/文案/数据",
+            "下一步确实将创建提交时",
+            "`candidate-1`、`candidate-2`、`candidate-3`",
+            "用户选择前不得验证格式、尺寸、色彩、像素、摘要或质量",
             "docs/design_standards/README.md",
             "普通缺陷修复、不改变可观察行为的纯重构",
             "Rust 代码超过 400 行建议重构、超过 800 行强制拆分",
@@ -54,6 +67,11 @@ def validate_engineering_contract(errors: list[str]) -> None:
         ),
         ROOT / "README.md": (
             "docs/ENGINEERING_RULES.md",
+            "## 当前模板仓库的请求边界",
+            "只接受两类信息",
+            "必须在完成实例化并切换到唯一终端下游根目录后重新提出",
+            "不会提前检查或设置 Git",
+            "`candidate-1` → `candidate-2` → `candidate-3`",
             "docs/design_standards/README.md",
             "普通缺陷修复、不改变可观察行为的纯重构",
             "Rust 代码超过 400 行建议重构、超过 800 行强制拆分",
@@ -71,6 +89,9 @@ def validate_engineering_contract(errors: list[str]) -> None:
         ),
         PRODUCT_SPEC: (
             "docs/ENGINEERING_RULES.md",
+            "HARNESS-FEAT-HARNESS-SOURCE-SCOPE-GATE",
+            "HARNESS-FEAT-JUST-IN-TIME-GIT-COMMIT-SETUP",
+            "HARNESS-FEAT-DEFERRED-LOGO-VALIDATION-STABLE-PREVIEW",
             "不把普通缺陷修复、纯重构、格式整理、测试补强或内部清理写成项目记忆流水账",
             "HARNESS-FEAT-TIERED-CODE-LINE-LIMITS",
             "Rust 代码 400 行及以内",
@@ -295,9 +316,15 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
         SKILLS_ROOT / "desktop-configure-git-commits" / "SKILL.md": (
             "references/commit-convention.md", "commit.template", "commit.cleanup=strip", "commit.verbose=true",
             "core.commentChar=#", "git config --local", "install --replace", "用户没有要求创建提交时",
+            "下一步将实际运行 `git commit`",
+            "不得运行本 Skill 的脚本或改写任何 Git 配置",
+            "不得在初始化表单、复制、身份改写、环境门禁、脚手架编写或测试阶段提前运行",
         ),
         PRODUCT_SPEC: (
             "HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY",
+            "HARNESS-FEAT-HARNESS-SOURCE-SCOPE-GATE",
+            "HARNESS-FEAT-JUST-IN-TIME-GIT-COMMIT-SETUP",
+            "HARNESS-FEAT-DEFERRED-LOGO-VALIDATION-STABLE-PREVIEW",
             "一个左侧 Task 固定对应一个明确且可独立验收的目标",
             "主任务复核提交、测试证据、文档和风险后整合到 `main`",
         ),
