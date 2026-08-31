@@ -1,149 +1,95 @@
-# Agent-first Harness 项目模板 / Agent-first Harness Template
+# Agent-first Harness 项目模板
 
-这是一个只包含工程 Harness 的空项目模板。它先建立中性工程骨架，再让日常开发直接完成实现和本次必要单元测试；只有显式构建、发布或真实风险需要时才进入对应专用流程。
+一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
+
+你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、TUI、MCP、GUI 中的哪些界面。它会创建一个独立的 Git 项目，搭好共享核心、所选界面、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
+
+这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
+
+## 能做什么
+
+- 从一份简短的初始化表单创建全新的项目，不需要手动复制和改名。
+- 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；没有特别选择时默认使用 CLI。
+- 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
+- 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
+- 把独立工作拆成 Codex 左侧 Task，每个 Task 使用自己的工作目录（Worktree）、分支和可审查提交。
+- 按明确请求构建可追溯的发布候选，并保留版本、测试和产物信息；没有真实验证过的平台会明确标为 `Unverified`。
+- 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
+
+日常开发不会因为任务看起来复杂，就自动增加长计划、全仓检查、构建或端到端测试（E2E）。只有你明确要求，或者任务确实碰到安全、数据迁移、凭据、发布等风险时，才会进入相应流程。
+
+## 它不会替你决定什么
+
+- 不会猜测产品要解决什么问题，也不会把中性脚手架当成已经完成的产品。
+- 不会自动使用凭据、签名、推送、发布或操作生产环境。
+- 不会为了“以后可能用到”预先加入业务、依赖或复杂架构。
+- 不会绕过安全、隐私、商业许可和分发渠道的硬要求。
+
+产品方向、关键取舍和最终发布仍由人决定；Agent 负责把已经确认的事情做完整、留下可检查的结果。
+
+## 第一次使用
+
+1. 在 Codex 中打开这个仓库，然后告诉 Agent：
+
+   ```text
+   请使用 $desktop-instantiate-project 创建一个新项目。
+   ```
+
+2. Agent 会一次询问尚未确定的基础信息：中英文项目名、项目标识、保存路径、负责人、目标平台、界面组合和 Agent 策略。中英文名称至少提供一个，另一个可以由 Agent 翻译后一起确认。
+3. 如果选择 GUI，Agent 还会逐项确认系统托盘、关于页、赞助页、单实例和侧栏样式，并生成 3 个 Logo 候选供你选择。
+4. 写入前，Agent 会展示完整汇总和最终项目路径。你确认后，它才会创建文件、检查所需环境并初始化项目。
+5. 完成后会得到一个独立、无远端、带初始化提交的 Git 仓库。产品目标还没确定时先定义产品，已经确定时就可以开始开发。
+
+## 日常怎么用
+
+不需要记住整套流程，直接告诉 Agent 你想得到什么结果即可。例如：
+
+- “实现这个功能”或“修复这个问题”：使用 `$desktop-implement-change` 直接开发，并运行相关测试。
+- “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
+- “构建 CLI 发布候选”：使用 `$desktop-build-rust-release`。
+- “构建桌面 GUI 发布候选”：使用 `$desktop-build-tauri-release`。
+- “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
+- “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
+
+如果一项工作需要单独审查，可以新建一个左侧 Task。一个 Task 只做一个明确结果，不直接修改主工作目录，也不会自行合并或发布。详细规则见 [Agent 运行策略](docs/AGENT_POLICY.md)。
+
+## 可以创建哪些界面
+
+- **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
+- **TUI**：适合在终端中用键盘操作，基于 Ratatui 与 tui-realm。
+- **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
+- **GUI**：基于 Tauri 2、React 和 Mantine 的桌面界面，可按初始化选择加入托盘、单实例、关于页和赞助页。
+
+这些界面可以单独使用，也可以组合使用。与界面无关的业务规则统一放在共享核心（shared core）中，界面只负责输入、展示和系统交互。
 
 ## 当前状态
 
 - 维护状态：Active
-- 中文产品名称：Agent-first Harness 项目模板
-- English product name: Agent-first Harness Template
-- 产品规格：Approved（2026-07-21）
-- 当前版本：v202608281139（上海时区 `YYYYMMDDHHMM`，未发布；机器事实来源见 [`Version.md`](Version.md)）
-- 源码：尚未创建
-- 反馈入口：待确定
+- 中文名称：Agent-first Harness 项目模板
+- English name: Agent-first Harness Template
+- 当前版本：`v202608281139`
+- 发布状态：Unreleased
+- 产品规格：Approved
+- 具体产品源码：不包含
 
-## 开始一个项目
+版本的唯一事实来源是 [Version.md](Version.md)。模板版本和新项目自己的版本分开管理，不会互相覆盖。
 
-1. 使用 `$desktop-instantiate-project` 时，Agent 先复用请求中已有的合法值，并在首轮一次列出全部尚未解析的基础问题：中文展示名、英文展示名、标识、路径、负责人、目标平台、接口组合和 Agent 策略模式。中英文名称至少提供一个；只提供一种语言时 Agent 自动翻译另一种，不追加单独问询，并在最终汇总中标明译名来源供统一确认。基础字段收齐后，才根据自定义策略或 GUI 选择逐项补全条件配置；任何写入前仍须完成全部适用字段并展示两个名称与最终项目根目录供确认。项目路径既可填写最终根也可填写父目录；末级名称与项目标识精确一致时直接使用，否则最终根为 `<项目路径>/<项目标识>`。
-2. `$desktop-initialize-rust-project` 复用表单中已经确认的 CLI/TUI/MCP/GUI 接口和策略，不在复制后重复询问；直接调用时也会在首轮一并询问尚未解析的接口组合与 Agent 策略模式。用户明确使用默认接口时采用 CLI。选择自定义策略后每轮补全一个策略字段，基线不得残留 `pending`。选择 GUI 后，表单再逐项收集系统托盘、关于页、赞助页、单实例是否启用，以及侧栏采用精简还是详细模式；四项能力仍需明确选择，侧栏未选择时默认写入 `sidebar_mode = detailed`，显式选择则保持原值。最终五项完整配置写入 `docs/GUI_APP_PROFILE.md`。初始化还会生成 3 个 Logo 候选、创建项目内 660×400 macOS DMG 背景，并建立动态标题、设置页、i18n/主题和所选能力；详细侧栏默认展开、可持久化折叠偏好，折叠后用 Tooltip 显示名称。
-   初始化基线提交前会按 profile 检查启用能力完整、禁用能力无残留，再构建真实本机调试二进制：单实例启用才双启动，托盘启用才验证真实托盘与关闭隐藏/恢复/退出，托盘禁用则验证关闭最后窗口退出；同时验证所选侧栏、设置页、实际菜单页面和未选页面缺席。任一适用场景失败都不会创建基线提交。
-   初始化收尾还会保留并调用 `$desktop-configure-git-commits`，把受管提交模板安装到新仓库 Git 元数据并只设置仓库本地配置；模板检查通过后才创建唯一基线提交，不修改全局 Git 配置。
-3. 初始化时运行一次 `$desktop-check-development-environment`；初始化完成后先直接执行真实测试/构建命令，只有命令已因受管环境问题失败时才做对应检查、安装并重试一次。不得因新任务、显式构建或缺少环境证据重复预检。新产品、模糊需求或产品边界变化才使用 `$desktop-define-product`。
-4. 日常开发直接使用 `$desktop-implement-change`，并由 `$desktop-manage-version` 对已完成变化自动应用下游 SemVer：每个发布周期首个功能升一次 Minor，每个新缺陷 ID 的修复升一次 Patch，Major 只由用户批准；查询、诊断、重复修复、不改变可观察行为的纯重构等维护不升版本；改变可观察行为的重构按其实际结果归类为功能或缺陷修复。只增加并运行本次变更需要的单元/回归测试；除事件触发的 ADR、Changelog 等记录外，不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。含 GUI 的一次性初始化 E2E 是初始化完成门禁，不属于日常开发自动扩张。
-5. 正式发布候选构建前，先由 `$desktop-prepare-release` 汇总上次正式发布到当前源码的最重要变化，维护 schema v2 根 `release-notes.json`；每个功能优化/问题修复条目同时携带 `zh-CN` 与 `en-US` 翻译，每版两类各至多 10 个翻译对并只保留近 5 版。只先整理一种语言时 Agent 自动翻译另一种并在写入前一并复核。用户显式请求构建时，构建 Skill 只读校验并把同一日志打入候选，再解析本次是否启用 E2E；其中 Tauri GUI 通过发布专用 `--config` 嵌入日志、打包后逐字节比较，关于页按当前 i18n locale 选择标题与正文，最终 DMG 再从应用资源复核。随后运行项目全部非空单元测试并构建；构建事实只写入 `release/` manifest 和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆，启用的 E2E 只在最终真实候选形成后执行。
-6. 已初始化下游需要接收新版工程规则时使用 `$desktop-upgrade-harness`：先 dry-run 和三方比较，显式批准后只更新安全受管文件。
+## 项目结构
 
-安全、隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道要求和发布仍保留解决当前风险所必需的确认与门禁；精简开发流程不授权绕过这些边界。
+- `.agents/skills/`：创建项目、开发、测试、构建、验收和升级时使用的 Agent Skills。
+- `docs/`：产品规格、工程规则、接口契约、设计标准和发布说明。
+- `scripts/`：模板一致性与关键规则的检查工具。
+- `AGENTS.md`：Agent 进入仓库后首先阅读的工作指引。
 
-## 开始一个左侧 Task
+## 进一步了解
 
-左侧 Task 默认用于一个明确且可独立验收的结果。创建仓库修改 Task 时，选择项目 Worktree 并从主任务已确认的最新干净 `main` 基线开始；标题使用“动作 + 结果”，Task 启动后在首次编辑前创建唯一 `codex/*` 分支。主目录若有未提交修改，先由主任务审查并提交为基线，不把未提交状态隐式复制进新 Worktree。
+- [当前产品范围](docs/product_spec/README.md)
+- [Agent 运行策略](docs/AGENT_POLICY.md)
+- [工程维护规则](docs/ENGINEERING_RULES.md)
+- [Rust 与各类界面的初始化基线](docs/RUST_CLI_TEMPLATE.md)
+- [构建与发布规则](docs/RELEASE.md)
+- [验证方式与证据入口](docs/VERIFICATION.md)
 
-Task 描述必须完整列出目标、工作方式、当前事实、必须阅读的项目文档、实施范围、禁止事项、验收标准和交付要求。Task 只修改自己的 Worktree，每个逻辑闭环按 `$desktop-configure-git-commits` 形成可审查提交；交付前运行任务要求的测试、同步文档、提交全部修改并保持 `git status` 干净。Task 不自行覆盖 `/Applications`、删除其他 Worktree 或合并 `main`；主任务复核提交、测试证据和风险后负责整合，确认干净且已合并后才移除 Worktree 与分支。完整模板和应用边界见 [`docs/AGENT_POLICY.md`](docs/AGENT_POLICY.md#左侧-task-与独立-worktree)。
+## 许可
 
-## 项目入口
-
-| 文件 | 作用 |
-|---|---|
-| `AGENTS.md` | 编码代理的首要项目指引 |
-| `Version.md` | Harness 模板当前时间版本、时间版本起始值、旧版本标识与发布状态的唯一事实来源 |
-| `LICENSE.zh-CN.md` / `LICENSE.en.md` | 非开源的企业专有商业许可；覆盖项目、知识产权和终端下游限制 |
-| `docs/product_spec/README.md` | Product Spec 按日完整快照规则与索引；当前规格取日期最新文件 |
-| `docs/AGENT_POLICY.md` | Superpowers、左侧 Task/Worktree 交付、Worktree/Subagent、候选冒烟和构建时 E2E 建议默认值的唯一持久策略 |
-| [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md) | 文件拆分、中文注释、文档、测试和例外规则 |
-| [`docs/design_standards/README.md`](docs/design_standards/README.md) | UI 标准目录、精确匹配优先级、Tauri GUI 通用与侧栏设计规则 |
-| `docs/CLI_CONTRACT.md` | 下游 CLI 的统一机器接口契约 |
-| `docs/RUST_CLI_TEMPLATE.md` | 下游 Rust shared core 与可选 adapter 初始化基线 |
-| `docs/project_status/README.md` | Product Status 按日完整快照规则与索引；当前状态取日期最新文件 |
-| `docs/work_plan/README.md` | Work Plan 按日完整快照规则与索引；当前计划取日期最新文件 |
-| `docs/VERIFICATION.md` | 验证原则、矩阵与证据分卷索引；正文位于 `docs/verification/` |
-| `docs/adr/README.md` | 按日 ADR 索引；正文位于 `docs/adr/YYYYMMDD_ADR.md` |
-| `docs/TECH_DEBT.md` | 已知限制和技术债 |
-| `docs/RELEASE.md` | 版本与发布规则 |
-| `.harness/version-state.json`（仅下游） | 下游正式发布周期、功能提升和缺陷 ID 去重状态；当前版本仍以根 `Cargo.toml` 为准 |
-| `docs/changelog/README.md` | 按日 Changelog 索引；正文位于 `docs/changelog/YYYYMMDD_CHANGELOG.md` |
-| `docs/HARNESS_ENGINEERING.md` | 本模板方法论索引；主题正文位于 `docs/harness_engineering/` |
-
-## 项目 Skills
-
-- `$desktop-define-product`：只在新产品、模糊需求或产品目标/边界/成功标准变化时整理规格。
-- `$desktop-instantiate-project`：首轮集中收齐基础信息，再按需逐项补全条件配置，确定性解析唯一目标根目录，并从 Harness 建立干净下游仓库、初始化独立 Git 根、重置模板历史。
-- `$desktop-rename-project-identity`：预览并统一修改中英文项目展示名、标识前缀、配置、维护路径、Skills，并分别更新两份 License 的对应语言适用项目名；现有产品改名先确认产品范围并记录必要 ADR/Changelog，构建或完整验收只按用户显式请求执行。
-- `$desktop-plan-change`：只在用户明确要求持久计划、跨会话交接或发布/高风险协调确有必要时建立精简 Todo；日常开发不自动调用。
-- `$desktop-implement-change`：直接执行范围清楚的请求，只运行本次开发需要的单元/回归测试和最小必要替代检查。
-- `$desktop-manage-version`：为下游产品只读计算或提交功能、缺陷、Major 与维护分类的 SemVer 变化，并在正式发布成功后重置周期。
-- `$desktop-refactor-code`：从单文件行数、文件组织结构（Rust `mod.rs`、前端非强制 `index.ts`）、命名、常量提取、潜在性能与死锁风险、core-first 归属六个方面辅助行为保持的重构。
-- `$desktop-extract-i18n-strings`：把已选 GUI 适配器中硬编码的用户可见文案抽取为 `i18next`/`react-i18next` 与 `rust-i18n` 翻译键，不触碰共享 core。
-- `$desktop-run-parallel-worktrees`：只有用户明确要求并行、项目策略允许且写入范围可安全拆分时，用独立 Worktree/分支协调 Subagent，并以 helper `guard` 校验边界。
-- `$desktop-initialize-rust-project`：确保独立 Git 根，复用实例化表单，或在直接调用的首轮一并收集接口组合与 Agent 策略模式；随后按需逐项解析自定义策略和五项 GUI 初始化配置（侧栏未选时归一化为详细模式），写入中性 DMG 背景并按最终配置建立生命周期、支持页面与侧栏基线。
-- `$desktop-configure-git-commits`：为独立仓库安装和检查仓库级提交消息模板，只写当前仓库的 Git 元数据与本地配置；简单提交可只写 Conventional Commit 主题，非简单提交保留 Why/Changes/Impact/Test。
-- `$desktop-test-gui-initialization-e2e`：只在含 GUI 的一次性初始化基线提交前，按 profile 验证启用能力完整、禁用能力缺席，再构建真实本机 Tauri 调试二进制并运行适用的双启动、托盘或关闭退出场景，同时检查所选侧栏、设置页和实际菜单页面；无法判定、无法观察或任一适用场景失败都阻断，通过后随初始化能力删除。
-- `$desktop-check-development-environment`：只在初始化阶段，或初始化后真实测试/构建命令已因受管环境问题失败时检查并补齐对应工具；不得因显式构建或缺少环境证据预跑。GUI 可处理 Node.js 与 pnpm，实际失败的 macOS→Windows Tauri 路径可补齐 LLVM、NSIS、Rust target 与 `cargo-xwin`。
-- `$desktop-prepare-gui-app-identity`：GUI 初始化时生成 3 个 1024×1024 Logo 候选并由用户选择；首次真实开发前再补齐窗口名称等资料，并预览批准或替换初始化生成的 DMG 背景。
-- `$desktop-prepare-gui-support-surfaces`：按 GUI profile 提供带单个 `v` 版本的动态标题、`@tabler/icons-react` 驱动的精简/详细 Logo→版本侧栏、无隐私/统计区块的语言与三态主题设置、所选托盘 i18n、所选关于页/赞助页和相应品牌媒体；真实更新、强更或统计上报启用时，再固化签名、core/GUI 所有权、独立同意界面、出站白名单与秘密隔离。
-- `$desktop-build-rust-release`：构建 Rust CLI 候选时先逐次解析 E2E 选择并全量运行 workspace 单元测试，再默认采用 Windows、macOS、Linux 原生矩阵；跨平台预检不满足才回退当前平台。构建前安全清空根 `release/`，条件具备时尝试签名，最终候选、hash 与 manifest 统一写入该目录。
-- `$desktop-build-tauri-release`：先校验 GUI 资料、DMG 背景和逐次 E2E 选择并运行完整 Rust/前端单元测试；随后构建 macOS DMG 或 Windows x64 NSIS。macOS 直接分发采用“签名 + 公证 + stapling”一体门禁；产品启用 updater 时还必须生成官方更新 archive/`.sig`、用公开密钥验证并纳入精确 manifest，不能以 unsigned 安装包绕过 updater 签名。
-- `$desktop-verify-delivery`：只在发布候选、用户明确要求完整验收或本次构建启用 E2E 时验收真实产物。
-- `$desktop-prepare-cross-platform-release`：提供默认 Windows、macOS、Linux 原生 Rust CLI 候选矩阵和逐平台清理/条件签名门禁。
-- `$desktop-collect-release-artifacts`：提取并核验归档、SHA-256、签名状态、manifest 和平台证据，同时保留候选的 `pending`/`rejected`/`accepted` 状态，不把收集结果写入项目记忆。
-- `$desktop-upgrade-harness`：以 dry-run、来源锁和三方比较安全更新下游 Harness 工程层。
-- `$desktop-prepare-release`：候选构建前整理上次正式发布以来的功能优化/问题修复并原子维护近 5 版 `release-notes.json`，候选验收后只读检查版本、摘要与包内同一事实；正式发布成功后才提交周期重置。
-- `$desktop-add-mcp-adapter`：仅在下游用户明确批准后，为现有 shared core 增加最小 Rust stdio MCP adapter。
-- `$desktop-add-gui-adapter`：仅在下游用户明确批准后，为现有 shared core 增加最小 Tauri 2 桌面 GUI adapter。
-- `$desktop-add-cli-adapter`：增加独立、非交互且 Agent-ready 的 CLI adapter。
-- `$desktop-add-tui-adapter`：增加独立的键盘驱动终端 UI adapter。
-- `$desktop-test-final-artifact-e2e`：仅在本次构建明确启用或产品/渠道要求时，对已形成的真实最终产物执行可观察 E2E。
-- `$desktop-curate-harness-memory`：仅 Harness 自身可用、不随下游派生；当 `docs/adr/`、`docs/changelog/` 当前最新文件超过 500 行建议重构阈值或项目负责人明确要求时，把已被后续决定完全取代且不再被引用的过期条目原文迁移到同目录 `_history.md` 永久追加保存。
-
-模板维护者可通过当前平台可用的 Python 3 解释器运行 `scripts/validate_harness.py`，自动检查必需文件、Skill 结构和声明、本地 Markdown 链接，以及候选 workflow 的关键安全与交付门禁。修改 Python 门禁行为时还必须以同一解释器运行 `-m unittest discover -s scripts`；该默认回归入口包含可复用 core-first 检查器的专属测试，不依赖 Shell 引号或 POSIX 可执行位。
-
-本模板自身不实现具体产品。初始化 Skill 的中性 core+CLI 资产只证明默认骨架可创建，不是可验收产品候选；产品规格获批后，shared core 才承载真实业务逻辑。
-
-## 已确认的基础约束
-
-- AI Agent 是第一消费者，人类负责方向、关键取舍，以及发布/不可逆交付或项目明确要求的最终复核。
-- 下游接口可从 CLI、TUI、MCP、GUI 独立选择和组合；未选择时默认 CLI。
-- Rust 是下游项目的默认初始化语言；Tokio 是 Rust CLI 和后续 Rust adapter 的统一异步执行标准；模板自身仍不实现具体产品业务。
-- TUI 技术族固定为 Ratatui + tui-realm + tui-realm-stdlib；Tauri GUI 前端固定为满足已批准能力、目标平台、MSRV、Node.js 与 WebView 约束的最低兼容稳定 Vite + React + TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library 组合。其他前后端技术在真实项目开发时按需求推荐。
-- GUI 单实例由初始化专门问询决定。启用时使用官方 `tauri-plugin-single-instance` 并作为首个 Tauri plugin 注册，两个固定回归与真实双启动唯一性证据都是门禁；禁用时不得保留依赖、插件或回调。Linux Snap/Flatpak 只有启用该能力时才声明并验证插件所需的会话 DBus 权限。
-- GUI 初始化实际生成 3 个 1024×1024 Logo 候选并等待用户选择，选中母版用于平台图标和 `/app-identity/logo.png`。系统托盘由专门问询决定：启用时完整实现本地化双项菜单、关闭隐藏、恢复与退出生命周期；禁用时不启用 feature、不安装托盘，并在主窗口关闭事件中显式退出应用。初始化固定建立动态标题、`/settings`、语言与三态主题和亮暗语义主题；`/about`、`/sponsor` 只在选择启用时建立并纳入相应资源。UI 先通过设计标准目录精确匹配，产品已批准规则优先于 Harness 缺省；`sidebar_mode = compact` 命中 `80px` 精简栏与全宽居中名称，`detailed` 命中 `248px` 默认展开、`76px` 收起、`22px` 图标和 AppShell 主内容偏移同步标准。没有精确命中或需要特殊像素时先批准并更新产品 GUI profile 与 ADR。真实 updater/强更/统计传输仍需独立产品配置，品牌包不携带来源产品服务地址、客户端 secret 或默认网络请求。
-- 选择系统托盘时，可见图标来源固定为 Tauri `icon` 生成并由 `bundle.icon` 引用的 `icons/32x32.png`；运行时必须从 `.setup` 实际安装绑定双项菜单和必需应用图标的托盘，真实 E2E 必须看见非空图形。未选择托盘时这些托盘专属依赖、资源与接线必须缺席。
-- GUI 中性初始化提供无产品身份的 660×400 macOS DMG 拖拽背景，固定写入 `<项目标识>_gui/src-tauri/dmg/background.png` 并由 Tauri 配置以 `./dmg/background.png` 引用；首次真实 GUI 开发仍须预览批准或同路径替换，初始化资产本身不构成正式视觉批准。
-- GUI 图标统一使用 `@tabler/icons-react` 命名组件；存在适用图标时不引入其他图标库、手写 SVG、字符或 emoji，图表周边图标优先使用 Tabler，而图表绘制库保持项目特定。所选侧栏中的 Logo、所有图标和文字必须沿同一中心线且无裁切。
-- 页面交互 handler 绑定在实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项，父级容器不得代理子动作；表格行或单元格点击不会切换其中的 `Switch`。
-- GUI 的活动选项卡、查询/筛选、排序和分页等页面工作状态由应用根 Jotai store 在本次程序进程内跨路由保留，已启用的关闭隐藏或返回页面不会丢失，真正退出后回到默认值且不写入持久存储/URL。详细侧栏折叠偏好是独立设备级 UI 偏好。返回后若成功查询的当前页大于 1 且为空，自动回退第 1 页；加载、错误或第 1 页空数据不触发回退循环。
-- 含 GUI 的下游在唯一基线提交前固定执行一次 profile-aware 本机调试 E2E：启用单实例才验证双启动唯一性，启用托盘才验证真实托盘与关闭隐藏/恢复/退出，托盘禁用则验证关闭最后窗口退出；所有组合都验证所选侧栏、设置页、实际菜单页面与未选页面缺席。它独立于构建 E2E 建议值，适用场景失败或宿主无法判定/观察都阻断初始化，但不构成发布候选或完整验收。
-- Rust 技术选型固定为 Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing 生态、anyhow、thiserror、serde 与 jiff；OpenTelemetry、OpenAPI、GraphQL、MongoDB/Redis 与认证组合只在对应能力获批后采用。固定技术在真实能力出现时按需引入，不给中性 scaffold 安装未使用依赖。
-- Rust 下游从 Cargo workspace 根运行中文声明注释检查器；GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明。两者都只证明紧邻中文注释存在，语义仍由人工/Agent 复核，并且禁止自动补入套话；非 GUI 下游不因此需要 Node.js 或 pnpm。
-- 默认结构是可独立复用和测试的 core Lib + 所选 adapter；adapter 彼此独立并直接依赖 core。
-- Core-first 是强制规则：所有接口/宿主无关的业务规则、领域校验、用例编排、状态转换和稳定错误都先由 core 实现和测试，即使项目当前只有一个接口也不能放进 adapter。
-- CLI/TUI/MCP/GUI 只处理各自的参数/协议、展示、交互状态、运行时装配和结果映射。系统托盘、窗口、通知、终端恢复或 stdio 生命周期等特有机制留在所属 adapter，但由这些机制触发的业务行为仍调用 core；是否“薄”按职责判断，不按代码行数判断。
-- 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
-- 下游人工维护的数据结构、接口、函数、方法和测试使用有业务意义的中文注释；文件拆分、文档与测试规则以 `docs/ENGINEERING_RULES.md` 为准。
-- 文件规模门禁按类型收紧：Rust 代码超过 400 行建议重构、超过 800 行强制拆分；前端代码超过 500 行建议重构、超过 1000 行强制拆分；其他人工维护文本继续使用 500 行复核与 2000 行硬上限。Rust 多文件模块使用 `<module>/mod.rs` 目录结构，前端按功能职责拆分且不强制 `index.ts` 桶文件；工具生成且禁止手工编辑的锁文件、生成物和原样内嵌第三方文件按封闭范围定义排除。
-- CLI/TUI/MCP 使用 Tokio current-thread async 入口，GUI 复用 Tauri 的 Tokio async runtime；I/O 和等待型工作优先异步，只有测量确认的 CPU 密集工作才考虑受控多线程边界。同步阻塞依赖应替换为异步能力或进入范围/例外确认。core 可以提供 runtime-neutral 的 async API，只有真实业务需要 Tokio 原语时才直接依赖 Tokio；不默认启用 `full` feature。
-- 下游直接依赖与受管工具声明可验证的最低兼容稳定版本范围：Rust 与前端清单保留下界兼容范围，Node.js/pnpm/cargo-xwin 等带 SemVer 的受管工具也使用范围；`Cargo.lock`/`pnpm-lock.yaml` 只固定当前解析结果。最低下界必须在项目声明的最低工具链中经过最低版本解析和相关测试，不能用精确依赖版本、`latest`、tag 或通配符替代兼容性声明。
-- 初始化主动检查一次环境；初始化后不得按任务或构建例行检查，而是先运行真实命令，仅在已观察到受管环境错误后做对应安装并重试一次。纯文档任务跳过。Windows Rust 需要 MSVC Build Tools，仅 GUI 需要 Node.js 与 pnpm；只有实际失败命令属于 macOS→Windows Tauri xwin 路径时才安装并复探 LLVM、NSIS、`x86_64-pc-windows-msvc` 与 `cargo-xwin`，且不会自动安装 Homebrew。
-- scaffold 验证结束后，下游删除实例化/初始化能力、GUI 初始化 E2E 能力及模板专用入口，不能继续派生；`AGENTS.md` 永久保留非空 Skills/约束地图和 `$desktop-upgrade-harness`。
-- 模板及其收费下游采用企业专有商业许可而非开源协议；实例化先原样复制中英文两份许可证，再仅把适用项目名改为目标项目，其他法律条款保持不变并永久保留。
-- 项目实例化先用首轮表单集中收齐基础信息，再按选择逐项补全条件配置。项目路径可以是最终根或父目录：规范化末级名称与项目标识精确一致时直接使用，否则固定追加项目标识；相似名称不视为一致。只有最终项目根必须不存在或为空，父目录可以非空；最终根仍须通过覆盖、递归复制与符号链接安全检查。
-- 每个下游项目必须初始化独立 Git 仓库并使用 `main` 初始分支；即使位于父仓库内，Git top-level 也必须是下游项目根。实例化不复制源历史；初始化收尾只创建一个本地基线 commit，随后验证无 remote 且 porcelain 状态为空，不自动 push 或 tag。
-- 实例化完整排除 Harness 的 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/`，不复制索引、日期正文、历史验证或空占位；对应项目记忆只在其触发条件首次满足时创建。
-- 项目实例化表单要求身份、路径、负责人、目标平台、接口、Agent 策略及适用的 GUI 配置；产品目的、核心输入输出、成功标准和风险可以留待已初始化项目中的 `$desktop-define-product` 完善。
-- 项目标识使用 ASCII `snake_case`。core 与 CLI/TUI/MCP/GUI 目录分别派生为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`；根 workspace 只登记实际选择的 adapters。
-- 初始化 Skill 携带 macOS/Linux shell 与 Windows PowerShell 门禁脚本；它们验证官方制品、复探安装结果并输出稳定 `gate.*` 状态。
-- Rust CLI 构建会在项目已有批准的非交互签名 hook、工具和已授权凭据时尝试签名并验证；签名尝试失败会使该平台构建失败。macOS Tauri 直接分发候选在设备、Developer ID 与公证凭据齐备时必须完成签名、公证和 stapling，不能只签名；条件缺失时只有渠道允许才可显式生成 unsigned 候选，一旦签名或公证开始，失败不得降级。
-- macOS 上的 Windows Tauri 交叉构建只生成 x64 NSIS，不生成 MSI，也不证明 Windows 原生运行；manifest 必须记录 `cross-compiled-xwin` 与 `runtimeVerification: Unverified`。
-- 初始化把 `/release/` 精确一次写入根 `.gitignore`；每次 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 在任何 build 命令前原子隔离旧目录并创建全新空目录，完成签名/公证/stapling 后的最终安装包、hash 与 manifest 先在同根 staging 形成完整三件套，再以目录级原子替换提交到 `release/`。远端 workflow 绑定批准的 40 位 commit，并只传输 manifest 声明的精确文件；目录存在不代表候选已验收或可发布。
-- 正式发布候选构建前从上次真实发布提交到当前源码整理根 `release-notes.json`，固定两类各至多 10 条并只保留近 5 版；候选归档携带同一文件，Tauri 构建与最终 DMG 都逐字节核对实际资源，manifest 绑定其带 `v` 版本、SHA-256、逻辑包内路径和 `byte-identical` 结果，构建及验收阶段不得改写。
-- `Draft` 规格下的中性初始化不得推测业务、增加业务能力或作为产品交付证据；它只允许 `scaffold status`，并在 JSON 中返回 `productDefinitionRequired=true`。
-- 根 Cargo workspace 统一声明第三方依赖和内部 crate 路径，所有 member 只通过 `workspace = true` 继承。
-- 跨平台自动化默认只生成候选产物和证据；正式发布仍需独立授权。
-- 目标平台为 Windows、macOS 和 Linux。
-- 选择 CLI 时必须遵守统一 JSON 信封、错误结构、输出流和基础退出码契约。
-- 日常开发不要求持久 Work Plan；只有用户明确要求、跨会话交接或发布/高风险协调确有必要时才维护 Todo。
-- 只有完整、可运行、符合批准场景的真实产物可以获得验收结论；Mock、stub、占位、scaffold、开发预览和代码片段不能替代。
-- 每次发布构建都逐次解析 E2E 选择并全量运行非空单元测试；构建事实只进入 `release/` manifest 和最终回复，不写入项目记忆；发布 E2E 只针对构建完成后的最终真实候选，失败返回开发循环而不是以部分完成继续交付。GUI 初始化 E2E 是独立的一次性 debug/no-bundle 门禁。
-- 代码行为变化的本次必要单元/回归测试必须覆盖核心成功路径和最高风险失败路径；纯文档、元数据、格式或不可合理单测的机械变更只做最小必要替代检查。
-- 其他目标平台未实际验证时必须标记为 `Unverified`。
-- 模板约束允许有审计记录的例外，记录必须包含理由、风险和恢复标准。
-- Product Spec 只在产品目标/边界/约束/成功标准变化时更新；Product Status 只在重要阻断、交接、发布/验收或用户要求时更新；Work Plan 只在用户明确要求、跨会话交接或发布/高风险协调确有必要时使用。
-- ADR 只记录长期重要、难逆决定和硬规则例外；Changelog 只记录已经发生且用户或维护者可感知的变化；Verification 只保存发布、完整验收、人工复核或长期审计证据。
-- 普通缺陷修复、不改变可观察行为的纯重构、格式整理、测试补强和内部清理不形成 Product Spec、ADR、Product Status、Changelog 或 Verification 流水账；安全、发布、长期决定等独立事件仍照常记录。
-- Agent 可修复原任务范围内的普通失败；高风险、范围变化、新外部副作用和发布由人工审批。日常开发不要求人工签署完成。
-- 需要人工复核时必须写入仓库，Agent 不得代替人类签署。
-- CLI、TUI、MCP、GUI 均有独立 adapter Skill；任何一种都不以另一 adapter 为前置条件。
-- 初始化表单把推荐预设或自定义作为首轮基础问题；推荐预设默认禁用 Superpowers，自定义则在首轮结束后每轮询问一个尚未解析的条件字段，最终原子写入并复用。
-- 验收中的实现缺失或行为偏差必须回到开发循环修正、补回归测试并重新验收；只有存在用户要求的持久计划时才重开 Todo。
-- 写入型 Subagent 只有在用户明确要求并行、项目策略启用且任务安全可拆时使用独立 Worktree，并在写入前通过 helper 边界检查；主 Agent 公开阶段状态并同步等待所有必需结果。
-- 模板自身始终保持无具体业务代码。
+本项目是专有商业软件，不是开源项目。使用、复制或分发前，请阅读[中文许可协议](LICENSE.zh-CN.md)或[英文许可协议](LICENSE.en.md)。
