@@ -283,4 +283,3 @@ export function collectMethodArguments(sourceText, methodName) {
   }
   return argumentsList;
 }
-

@@ -623,4 +623,3 @@ export function withFixture(callback) {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
 }
-
