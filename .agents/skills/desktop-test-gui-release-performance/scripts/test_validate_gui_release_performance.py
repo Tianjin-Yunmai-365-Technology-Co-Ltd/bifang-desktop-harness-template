@@ -133,6 +133,33 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         )
         return path
 
+    def _run_cli(
+        self,
+        evidence: dict[str, object],
+        evidence_name: str,
+        output_name: str,
+    ) -> tuple[int, dict[str, object]]:
+        """写入 manifest/evidence 后调用 CLI，返回退出码与保存的 JSON。"""
+
+        manifest_path = self._write_json("probe.manifest.json", self.manifest)
+        evidence_path = self._write_json(evidence_name, evidence)
+        output_path = self.root / output_name
+        exit_code = performance.main(
+            [
+                "--probe",
+                str(self.probe),
+                "--manifest",
+                str(manifest_path),
+                "--evidence",
+                str(evidence_path),
+                "--tray-enabled",
+                "enabled",
+                "--output",
+                str(output_path),
+            ]
+        )
+        return exit_code, json.loads(output_path.read_text(encoding="utf-8"))
+
     def test_threshold_boundaries_pass_with_e2e_disabled(self) -> None:
         """性能已启用时，E2E 关闭仍应真实测量并允许全部固定边界值通过。"""
 
@@ -344,7 +371,6 @@ class GuiReleasePerformanceTests(unittest.TestCase):
     def test_integrity_failures_are_non_waivable_and_exit_three(self) -> None:
         """整树、探针字节或进程回收不完整都必须以不可豁免状态退出。"""
 
-        manifest_path = self._write_json("probe.manifest.json", self.manifest)
         for key in (
             "wholeProcessTree",
             "probeBytesUnmodified",
@@ -353,26 +379,12 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             with self.subTest(key=key):
                 evidence = deepcopy(self.evidence)
                 evidence[key] = False
-                evidence_path = self._write_json(f"raw-{key}.json", evidence)
-                output_path = self.root / f"probe.{key}.performance.json"
 
-                exit_code = performance.main(
-                    [
-                        "--probe",
-                        str(self.probe),
-                        "--manifest",
-                        str(manifest_path),
-                        "--evidence",
-                        str(evidence_path),
-                        "--tray-enabled",
-                        "enabled",
-                        "--output",
-                        str(output_path),
-                    ]
+                exit_code, saved = self._run_cli(
+                    evidence, f"raw-{key}.json", f"probe.{key}.performance.json"
                 )
 
                 self.assertEqual(exit_code, 3)
-                saved = json.loads(output_path.read_text(encoding="utf-8"))
                 failure = f"evidence.{key} must be true"
                 self.assertEqual(saved["status"], "failed")
                 self.assertFalse(saved["waiverAllowed"])
@@ -448,26 +460,11 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         self.assertFalse(result["waiverAllowed"])
         self.assertTrue(result["nonWaivableFailures"])
 
-        manifest_path = self._write_json("probe.manifest.json", self.manifest)
-        evidence_path = self._write_json("raw-unrestored.json", evidence)
-        output_path = self.root / "probe.unrestored.performance.json"
-        exit_code = performance.main(
-            [
-                "--probe",
-                str(self.probe),
-                "--manifest",
-                str(manifest_path),
-                "--evidence",
-                str(evidence_path),
-                "--tray-enabled",
-                "enabled",
-                "--output",
-                str(output_path),
-            ]
+        exit_code, saved = self._run_cli(
+            evidence, "raw-unrestored.json", "probe.unrestored.performance.json"
         )
 
         self.assertEqual(exit_code, 3)
-        saved = json.loads(output_path.read_text(encoding="utf-8"))
         self.assertFalse(saved["windowStateRecoveryVerified"])
         self.assertFalse(saved["waiverAllowed"])
         self.assertTrue(saved["nonWaivableFailures"])
@@ -493,27 +490,12 @@ class GuiReleasePerformanceTests(unittest.TestCase):
 
         evidence = deepcopy(self.evidence)
         evidence["peakRssMiB"] = 501
-        manifest_path = self._write_json("probe.manifest.json", self.manifest)
-        evidence_path = self._write_json("raw-performance.json", evidence)
-        output_path = self.root / "probe.performance.json"
 
-        exit_code = performance.main(
-            [
-                "--probe",
-                str(self.probe),
-                "--manifest",
-                str(manifest_path),
-                "--evidence",
-                str(evidence_path),
-                "--tray-enabled",
-                "enabled",
-                "--output",
-                str(output_path),
-            ]
+        exit_code, saved = self._run_cli(
+            evidence, "raw-performance.json", "probe.performance.json"
         )
 
         self.assertEqual(exit_code, 1)
-        saved = json.loads(output_path.read_text(encoding="utf-8"))
         self.assertEqual(saved["status"], "failed")
         self.assertEqual(saved["observations"]["peakRssMiB"], 501)
         self.assertTrue(saved["windowStateRecoveryVerified"])

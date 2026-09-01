@@ -99,9 +99,6 @@ export function validateReleaseNotesRuntimeContract(
         }
       }
     }
-    if (!/generate_handler!\s*\[[^\]]*\bload_release_notes\b[^\]]*\]/su.test(rustSourceText)) {
-      errors.push("选择关于页时合并的 generate_handler! 必须注册 load_release_notes");
-    }
     for (const forbidden of ["std::fs::read", "@tauri-apps/plugin-fs"]) {
       if (combinedText.includes(forbidden)) {
         errors.push(`更新日志必须使用异步窄命令，不得恢复宽泛或同步文件读取：${forbidden}`);

@@ -173,16 +173,9 @@ function readGuiInitializationProfile(root, errors) {
       `GUI 初始化配置字段顺序必须为：${GUI_INITIALIZATION_PROFILE_FIELDS.join(" → ")}`,
     );
   }
-  for (const field of [
-    "system_tray",
-    "system_notification",
-    "autostart",
-    "about_page",
-    "sponsor_page",
-    "single_instance",
-    "deep_link",
-    "global_shortcut",
-  ]) {
+  for (const field of GUI_INITIALIZATION_PROFILE_FIELDS.filter(
+    (field) => field !== "sidebar_mode",
+  )) {
     if (values.has(field) && !new Set(["enabled", "disabled"]).has(values.get(field))) {
       errors.push(`GUI 初始化配置 ${field} 必须为 enabled 或 disabled`);
     }

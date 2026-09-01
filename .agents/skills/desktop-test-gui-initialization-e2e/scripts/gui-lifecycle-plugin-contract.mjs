@@ -69,6 +69,11 @@ const BASELINE_DEPENDENCIES = [
   ["tauri-plugin-window-state", "2.4.1", "窗口状态"],
 ];
 
+const CONDITIONAL_DEPENDENCIES = [
+  ["deepLink", "tauri-plugin-deep-link", "2.4.10", "深链接"],
+  ["globalShortcut", "tauri-plugin-global-shortcut", "2.3.2", "全局快捷键"],
+];
+
 const UPDATER_OUTBOUND_METHOD_PATTERN =
   /\.\s*(check|download_and_install|install)\s*\(/gu;
 
@@ -255,36 +260,12 @@ export function validatePluginDependencyContract(rootCargo, guiCargo, profile, e
     );
   }
 
-  if (profile.deepLink) {
-    requireWorkspaceMemberDependency(
-      rootCargo,
-      guiCargo,
-      "tauri-plugin-deep-link",
-      "2.4.10",
-      "深链接",
-      errors,
-    );
-  } else {
-    rejectDependency(rootCargo, guiCargo, "tauri-plugin-deep-link", "深链接", errors);
-  }
-
-  if (profile.globalShortcut) {
-    requireWorkspaceMemberDependency(
-      rootCargo,
-      guiCargo,
-      "tauri-plugin-global-shortcut",
-      "2.3.2",
-      "全局快捷键",
-      errors,
-    );
-  } else {
-    rejectDependency(
-      rootCargo,
-      guiCargo,
-      "tauri-plugin-global-shortcut",
-      "全局快捷键",
-      errors,
-    );
+  for (const [flag, dependency, version, label] of CONDITIONAL_DEPENDENCIES) {
+    if (profile[flag]) {
+      requireWorkspaceMemberDependency(rootCargo, guiCargo, dependency, version, label, errors);
+    } else {
+      rejectDependency(rootCargo, guiCargo, dependency, label, errors);
+    }
   }
 
   const workspaceNotification = workspaceDependency(
@@ -393,7 +374,7 @@ function validatePluginOrder(sourceText, profile, errors) {
   }
 }
 
-function validateSingleInstanceRuntime(sourceTexts, errors) {
+function validateSingleInstanceRuntime(sourceTexts, pluginArguments, errors) {
   const sourceText = sourceTexts.join("\n");
   const registrations = pluginRegistrations(
     sourceText,
@@ -403,7 +384,7 @@ function validateSingleInstanceRuntime(sourceTexts, errors) {
     errors.push(`tauri-plugin-single-instance 必须恰好注册一次，实际 ${registrations.length} 次`);
     return;
   }
-  const callbackWindow = collectMethodArguments(sourceText, "plugin").find((argument) =>
+  const callbackWindow = pluginArguments.find((argument) =>
     argument.includes("tauri_plugin_single_instance::init"),
   ) ?? "";
   const parameters = callbackWindow.match(/\|\s*app\s*,\s*(_args|_)\s*,\s*(_cwd|_)\s*\|/u);
@@ -420,10 +401,11 @@ function validateSingleInstanceRuntime(sourceTexts, errors) {
 
 function validateLocaleRuntime(sourceText, errors) {
   requireSinglePluginRegistration(sourceText, "tauri_plugin_os::init", "系统语言 os 插件", errors);
-  const resolver = collectRustFunctions(sourceText).find(
+  const localeFunctions = collectRustFunctions(sourceText);
+  const resolver = localeFunctions.find(
     (candidate) => candidate.name === "resolve_system_locale",
   );
-  const normalizer = collectRustFunctions(sourceText).find(
+  const normalizer = localeFunctions.find(
     (candidate) => candidate.name === "normalize_bcp47_locale",
   );
   if (!resolver?.text.includes("tauri_plugin_os::locale()")) {
@@ -479,7 +461,7 @@ function validateUpdaterRuntime(sourceText, exposeCommand, errors) {
     ) {
       errors.push("check_for_updates 必须在官方 .check() 前返回 NotConfigured，保证未配置时零出站");
     }
-    const allCalls = updaterOutboundCalls(sourceText);
+    const allCalls = [...runtimeCode.matchAll(UPDATER_OUTBOUND_METHOD_PATTERN)];
     if (allCalls.length !== controlledCalls.length) {
       const observedMethods = [
         ...new Set(allCalls.map((call) => `.${call[1]}()`)),
@@ -497,14 +479,14 @@ function validateUpdaterRuntime(sourceText, exposeCommand, errors) {
   }
 }
 
-function validateWindowStateRuntime(sourceText, errors) {
+function validateWindowStateRuntime(sourceText, pluginArguments, errors) {
   requireSinglePluginRegistration(
     sourceText,
     "tauri_plugin_window_state::Builder::default",
     "window-state 插件",
     errors,
   );
-  const argument = collectMethodArguments(sourceText, "plugin").find((candidate) =>
+  const argument = pluginArguments.find((candidate) =>
     candidate.includes("tauri_plugin_window_state::Builder::default"),
   );
   if (!argument || !argument.includes("with_state_flags")) {
@@ -528,7 +510,8 @@ function validateWindowStateRuntime(sourceText, errors) {
   if (!setupWiring) {
     errors.push("window-state 必须从 Builder setup 实际调用 ensure_main_window_is_recoverable");
   }
-  const geometryCheck = collectRustFunctions(sourceText).find(
+  const windowStateFunctions = collectRustFunctions(sourceText);
+  const geometryCheck = windowStateFunctions.find(
     (candidate) => candidate.name === "saved_window_geometry_is_recoverable",
   );
   for (const token of ["width >= 960", "height >= 640", "monitors.iter().any"]) {
@@ -536,7 +519,7 @@ function validateWindowStateRuntime(sourceText, errors) {
       errors.push(`window-state 无效/离屏几何判定缺少：${token}`);
     }
   }
-  const recovery = collectRustFunctions(sourceText).find(
+  const recovery = windowStateFunctions.find(
     (candidate) => candidate.name === "ensure_main_window_is_recoverable",
   );
   for (const token of ["set_min_size", "960.0", "640.0", "set_size", "1440.0", "900.0", ".center()"] ) {
@@ -801,12 +784,13 @@ function validateInvokeHandler(sourceTexts, profile, errors) {
 /** 验证固定/条件插件已接入实际 Builder，且 disabled 能力无源码残留。 */
 export function validatePluginRuntimeContract(guiRoot, sourceTexts, profile, errors) {
   const sourceText = sourceTexts.join("\n");
+  const pluginArguments = collectMethodArguments(sourceText, "plugin");
   validatePluginOrder(sourceText, profile, errors);
   validateLocaleRuntime(sourceText, errors);
   validateUpdaterRuntime(sourceText, profile.aboutPage, errors);
-  validateWindowStateRuntime(sourceText, errors);
+  validateWindowStateRuntime(sourceText, pluginArguments, errors);
 
-  if (profile.singleInstance) validateSingleInstanceRuntime(sourceTexts, errors);
+  if (profile.singleInstance) validateSingleInstanceRuntime(sourceTexts, pluginArguments, errors);
   else validateDisabledRuntime(sourceText, "单实例", ["tauri_plugin_single_instance"], errors);
 
   if (profile.deepLink) validateDeepLinkRuntime(guiRoot, sourceText, errors);

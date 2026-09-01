@@ -187,6 +187,23 @@ def _expect_equal(
         errors.append(f"{label}.{key} must equal {expected!r}")
 
 
+def _reject_unexpected_keys(
+    container: dict[str, Any],
+    allowed_keys: set[str],
+    label: str,
+    errors: list[str],
+    non_waivable: list[str] | None = None,
+) -> list[str]:
+    """拒绝白名单外字段；传入 non_waivable 时同时标记为不可豁免。"""
+    unexpected = sorted(set(container) - allowed_keys)
+    if unexpected:
+        message = f"{label} contains unsupported fields: {', '.join(unexpected)}"
+        errors.append(message)
+        if non_waivable is not None:
+            non_waivable.append(message)
+    return unexpected
+
+
 def _state_fingerprint(
     raw: object,
     label: str,
@@ -197,12 +214,7 @@ def _state_fingerprint(
         errors.append(f"{label} must be an object")
         return None, {}
 
-    allowed_keys = {"kind", "fingerprint"}
-    unexpected = sorted(set(raw) - allowed_keys)
-    if unexpected:
-        errors.append(
-            f"{label} contains unsupported fields: {', '.join(unexpected)}"
-        )
+    unexpected = _reject_unexpected_keys(raw, {"kind", "fingerprint"}, label, errors)
 
     kind = raw.get("kind")
     sanitized: dict[str, Any] = {
@@ -245,6 +257,11 @@ def _validate_window_state_isolation(
         if recovery:
             non_waivable.append(message)
 
+    def absorb(messages: list[str]) -> None:
+        """把子校验产生的错误标记为不可豁免并转发。"""
+        for message in messages:
+            add_error(message, recovery=True)
+
     raw = evidence.get("windowStateIsolation")
     if not isinstance(raw, dict):
         add_error("windowStateIsolation must be an object", recovery=True)
@@ -260,12 +277,7 @@ def _validate_window_state_isolation(
         "preLaunchResets",
         "restoration",
     }
-    unexpected = sorted(set(raw) - allowed_keys)
-    if unexpected:
-        add_error(
-            "windowStateIsolation contains unsupported fields: "
-            + ", ".join(unexpected)
-        )
+    _reject_unexpected_keys(raw, allowed_keys, "windowStateIsolation", errors)
 
     sanitized: dict[str, Any] = {}
     target_resolved = raw.get("targetResolved") is True
@@ -307,8 +319,7 @@ def _validate_window_state_isolation(
         raw.get("original"), "windowStateIsolation.original", original_errors
     )
     sanitized["original"] = sanitized_original
-    for message in original_errors:
-        add_error(message, recovery=True)
+    absorb(original_errors)
 
     seed_errors: list[str] = []
     seed, sanitized_seed = _state_fingerprint(
@@ -348,11 +359,7 @@ def _validate_window_state_isolation(
             add_error(f"{label} must be an object")
             sanitized_resets.append({})
             continue
-        item_unexpected = sorted(set(item) - {"phase", "run", "observed"})
-        if item_unexpected:
-            add_error(
-                f"{label} contains unsupported fields: {', '.join(item_unexpected)}"
-            )
+        _reject_unexpected_keys(item, {"phase", "run", "observed"}, label, errors)
         phase = item.get("phase")
         run = item.get("run")
         observed_errors: list[str] = []
@@ -386,15 +393,13 @@ def _validate_window_state_isolation(
     if not isinstance(restoration_raw, dict):
         add_error("windowStateIsolation.restoration must be an object", recovery=True)
     else:
-        restoration_unexpected = sorted(
-            set(restoration_raw) - {"observed", "verified"}
+        _reject_unexpected_keys(
+            restoration_raw,
+            {"observed", "verified"},
+            "windowStateIsolation.restoration",
+            errors,
+            non_waivable,
         )
-        if restoration_unexpected:
-            add_error(
-                "windowStateIsolation.restoration contains unsupported fields: "
-                + ", ".join(restoration_unexpected),
-                recovery=True,
-            )
         restored_errors: list[str] = []
         restored, sanitized_restored = _state_fingerprint(
             restoration_raw.get("observed"),
@@ -402,8 +407,7 @@ def _validate_window_state_isolation(
             restored_errors,
         )
         restoration_sanitized["observed"] = sanitized_restored
-        for message in restored_errors:
-            add_error(message, recovery=True)
+        absorb(restored_errors)
         restoration_verified = restoration_raw.get("verified") is True
         restoration_sanitized["verified"] = restoration_verified
         if not restoration_verified:
@@ -533,12 +537,7 @@ def evaluate(
     if e2e_selection not in {"enabled", "disabled"}:
         errors.append("manifest.e2eSelection must be enabled or disabled")
 
-    unexpected_evidence_keys = sorted(set(evidence) - EVIDENCE_ALLOWED_KEYS)
-    if unexpected_evidence_keys:
-        errors.append(
-            "evidence contains unsupported fields: "
-            + ", ".join(unexpected_evidence_keys)
-        )
+    _reject_unexpected_keys(evidence, EVIDENCE_ALLOWED_KEYS, "evidence", errors)
     _expect_equal(
         evidence, "schemaVersion", EVIDENCE_SCHEMA_VERSION, errors, "evidence"
     )
