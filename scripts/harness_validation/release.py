@@ -45,6 +45,35 @@ def validate_release_ignore(errors: list[str], path: Path) -> None:
         )
 
 
+def validate_fragment_contract(
+    errors: list[str],
+    required: dict[Path, tuple[str, ...]],
+    *,
+    label: str,
+    compile_check: tuple[Path, ...] = (),
+) -> None:
+    """要求每个路径存在并包含全部固定文本片段，对指定路径额外校验 Python 语法。"""
+    for path, fragments in required.items():
+        if not path.is_file():
+            fail(errors, f"missing {label} file: {display_path(path)}")  # noqa: F405
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(  # noqa: F405
+                    errors,
+                    f"{label} missing in {display_path(path)}: {fragment}",  # noqa: F405
+                )
+        if path in compile_check:
+            try:
+                compile(text, str(path), "exec")
+            except SyntaxError as error:
+                fail(  # noqa: F405
+                    errors,
+                    f"invalid {label} Python module {display_path(path)}: {error}",  # noqa: F405
+                )
+
+
 def validate_build_skill_contract(
     errors: list[str],
     build_skill: Path = BUILD_RELEASE_SKILL,  # noqa: F405
@@ -112,17 +141,7 @@ def validate_build_skill_contract(
             "独立触发的验收或发布由对应 Skill 记录自身新增证据",
         ),
     }
-    for path, fragments in required.items():
-        if not path.is_file():
-            fail(errors, f"missing release contract file: {display_path(path)}")  # noqa: F405
-            continue
-        text = path.read_text(encoding="utf-8")
-        for fragment in fragments:
-            if fragment not in text:
-                fail(  # noqa: F405
-                    errors,
-                    f"release contract missing in {display_path(path)}: {fragment}",  # noqa: F405
-                )
+    validate_fragment_contract(errors, required, label="release contract")
 
 
 def validate_tauri_build_skill_contract(
@@ -311,25 +330,12 @@ def validate_tauri_build_skill_contract(
             "test_unsupported_target_is_rejected",
         ),
     }
-    for path, fragments in required.items():
-        if not path.is_file():
-            fail(errors, f"missing Tauri release contract file: {display_path(path)}")  # noqa: F405
-            continue
-        text = path.read_text(encoding="utf-8")
-        for fragment in fragments:
-            if fragment not in text:
-                fail(  # noqa: F405
-                    errors,
-                    f"Tauri release contract missing in {display_path(path)}: {fragment}",  # noqa: F405
-                )
-        if path in (release_notes_helper, release_notes_tests):
-            try:
-                compile(text, str(path), "exec")
-            except SyntaxError as error:
-                fail(  # noqa: F405
-                    errors,
-                    f"invalid Tauri release-note helper {display_path(path)}: {error}",  # noqa: F405
-                )
+    validate_fragment_contract(
+        errors,
+        required,
+        label="Tauri release contract",
+        compile_check=(release_notes_helper, release_notes_tests),
+    )
     if BUILD_RELEASE_POSIX_HELPER.is_file() and TAURI_RELEASE_DIRECTORY_HELPER.is_file():  # noqa: F405
         if BUILD_RELEASE_POSIX_HELPER.read_bytes() != TAURI_RELEASE_DIRECTORY_HELPER.read_bytes():  # noqa: F405
             fail(
@@ -448,25 +454,12 @@ def validate_gui_release_performance_contract(errors: list[str]) -> None:
             "用户显式继续只能记录 `performanceStatus: waived`",
         ),
     }
-    for path, fragments in required.items():
-        if not path.is_file():
-            fail(errors, f"missing GUI performance contract file: {display_path(path)}")  # noqa: F405
-            continue
-        text = path.read_text(encoding="utf-8")
-        for fragment in fragments:
-            if fragment not in text:
-                fail(  # noqa: F405
-                    errors,
-                    f"GUI performance contract missing in {display_path(path)}: {fragment}",  # noqa: F405
-                )
-        if path in (GUI_RELEASE_PERFORMANCE_HELPER, GUI_RELEASE_PERFORMANCE_TESTS):  # noqa: F405
-            try:
-                compile(text, str(path), "exec")
-            except SyntaxError as error:
-                fail(  # noqa: F405
-                    errors,
-                    f"invalid GUI performance Python module {display_path(path)}: {error}",  # noqa: F405
-                )
+    validate_fragment_contract(
+        errors,
+        required,
+        label="GUI performance contract",
+        compile_check=(GUI_RELEASE_PERFORMANCE_HELPER, GUI_RELEASE_PERFORMANCE_TESTS),  # noqa: F405
+    )
 
 
 def validate_release_git_contract(errors: list[str]) -> None:
@@ -526,25 +519,12 @@ def validate_release_git_contract(errors: list[str]) -> None:
             "普通“构建候选”不会自动提交",
         ),
     }
-    for path, fragments in required.items():
-        if not path.is_file():
-            fail(errors, f"missing release Git contract file: {display_path(path)}")  # noqa: F405
-            continue
-        text = path.read_text(encoding="utf-8")
-        for fragment in fragments:
-            if fragment not in text:
-                fail(  # noqa: F405
-                    errors,
-                    f"release Git contract missing in {display_path(path)}: {fragment}",  # noqa: F405
-                )
-        if path in (RELEASE_GIT_HELPER, RELEASE_GIT_HELPER_TESTS):  # noqa: F405
-            try:
-                compile(text, str(path), "exec")
-            except SyntaxError as error:
-                fail(  # noqa: F405
-                    errors,
-                    f"invalid release Git Python module {display_path(path)}: {error}",  # noqa: F405
-                )
+    validate_fragment_contract(
+        errors,
+        required,
+        label="release Git contract",
+        compile_check=(RELEASE_GIT_HELPER, RELEASE_GIT_HELPER_TESTS),  # noqa: F405
+    )
 
 
 def validate_release_contract(errors: list[str]) -> None:
@@ -658,16 +638,6 @@ def validate_release_contract(errors: list[str]) -> None:
             "release metadata or Git internals cannot be approved",
             "working tree changed after review",
         ),
-        RELEASE_GIT_HELPER_TESTS: (  # noqa: F405
-            "test_inspect_reports_exact_head_and_dirty_snapshot",
-            "test_commit_stages_only_reviewed_paths_and_finishes_clean",
-            "test_changed_snapshot_is_rejected_before_staging",
-            "test_unreviewed_path_blocks_partial_commit",
-            "test_existing_unreviewed_staged_path_is_rejected",
-            "test_failing_hook_stops_without_advancing_head",
-            "test_high_confidence_secret_stops_without_advancing_head",
-            "test_unsafe_or_empty_commit_scope_is_rejected",
-        ),
         ENGINEERING_RULES: (  # noqa: F405
             "GUI 交互事件必须绑定在实际拥有该动作的语义元素本身",
             "表格中的 `Switch` 只能在用户操作该 `Switch` 时切换",
@@ -735,22 +705,9 @@ def validate_release_contract(errors: list[str]) -> None:
             "查询成功、当前页码大于 1 且该页结果为空",
         ),
     }
-    for path, fragments in helper_fragments.items():
-        if not path.is_file():
-            fail(errors, f"missing release contract file: {display_path(path)}")  # noqa: F405
-            continue
-        text = path.read_text(encoding="utf-8")
-        for fragment in fragments:
-            if fragment not in text:
-                fail(  # noqa: F405
-                    errors,
-                    f"release contract missing in {display_path(path)}: {fragment}",  # noqa: F405
-                )
-        if path in (RELEASE_NOTES_HELPER, RELEASE_NOTES_HELPER_TESTS):  # noqa: F405
-            try:
-                compile(text, str(path), "exec")
-            except SyntaxError as error:
-                fail(  # noqa: F405
-                    errors,
-                    f"invalid release-note Python module {display_path(path)}: {error}",  # noqa: F405
-                )
+    validate_fragment_contract(
+        errors,
+        helper_fragments,
+        label="release contract",
+        compile_check=(RELEASE_NOTES_HELPER, RELEASE_NOTES_HELPER_TESTS),  # noqa: F405
+    )

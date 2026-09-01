@@ -32,10 +32,6 @@ source_commit=$(git -C "$canonical_root" rev-parse --verify 'HEAD^{commit}' 2>/d
   echo "release 准备失败：HEAD 不能解析为源码提交" >&2
   exit 2
 }
-case "$source_commit" in
-  [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;;
-  *) ;;
-esac
 if [ "${#source_commit}" -ne 40 ]; then
   echo "release 准备失败：HEAD 必须是 40 位小写源码提交" >&2
   exit 2

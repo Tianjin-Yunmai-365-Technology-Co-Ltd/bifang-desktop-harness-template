@@ -66,7 +66,6 @@ $stagingParent = Join-Path $canonicalRoot (".release-clean." + [Guid]::NewGuid()
 [IO.Directory]::CreateDirectory($stagingParent) | Out-Null
 try {
     if (Test-Path -LiteralPath $releasePath) {
-        $releaseItem = Get-Item -LiteralPath $releasePath -Force
         [IO.Directory]::Move($releasePath, (Join-Path $stagingParent "previous-release"))
     }
 

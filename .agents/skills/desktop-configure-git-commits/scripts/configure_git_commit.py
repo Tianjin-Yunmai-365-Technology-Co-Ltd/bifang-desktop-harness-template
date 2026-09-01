@@ -152,17 +152,29 @@ def read_effective_setting(root: Path, key: str) -> dict[str, str] | None:
     return {"scope": scope, "origin": origin, "value": value}
 
 
-def validate_existing_identity(name: str, email: str) -> None:
-    """拒绝空值、控制字符或明显无效邮件，但保留用户已有的 Unicode 身份。"""
+def validate_existing_name(name: str) -> None:
+    """拒绝空值或含控制字符的用户名，但保留用户已有的 Unicode 身份。"""
 
     if not name.strip() or any(ord(character) < 32 or ord(character) == 127 for character in name):
         raise ConfigurationError("existing Git user.name is invalid; refusing silent replacement")
+
+
+def validate_existing_email(email: str) -> None:
+    """拒绝空值、控制字符或明显无效邮件，但保留用户已有的 Unicode 身份。"""
+
     if (
         not email.strip()
         or any(ord(character) < 32 or ord(character) == 127 for character in email)
         or not re.fullmatch(r"[^@\s]+@[^@\s]+", email)
     ):
         raise ConfigurationError("existing Git user.email is invalid; refusing silent replacement")
+
+
+def validate_existing_identity(name: str, email: str) -> None:
+    """拒绝空值、控制字符或明显无效邮件，但保留用户已有的 Unicode 身份。"""
+
+    validate_existing_name(name)
+    validate_existing_email(email)
 
 
 def validate_fallback_username(value: str) -> str:
@@ -215,14 +227,9 @@ def bootstrap_identity(
             continue
         value = setting["value"]
         if key == "user.name":
-            if not value.strip() or any(ord(character) < 32 or ord(character) == 127 for character in value):
-                raise ConfigurationError("existing Git user.name is invalid; refusing silent replacement")
-        elif (
-            not value.strip()
-            or any(ord(character) < 32 or ord(character) == 127 for character in value)
-            or not re.fullmatch(r"[^@\s]+@[^@\s]+", value)
-        ):
-            raise ConfigurationError("existing Git user.email is invalid; refusing silent replacement")
+            validate_existing_name(value)
+        else:
+            validate_existing_email(value)
 
     missing = [key for key, setting in before.items() if setting is None]
     fallback_values: dict[str, str] = {}
