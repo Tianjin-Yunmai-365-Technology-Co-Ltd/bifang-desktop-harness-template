@@ -79,6 +79,31 @@ const GUI_INITIALIZATION_PROFILE_FIELD_SET = new Set(
   GUI_INITIALIZATION_PROFILE_FIELDS,
 );
 
+const GLOBAL_SHORTCUT_CONTRACT_FIELDS = ["schemaVersion", "actions"];
+const GLOBAL_SHORTCUT_ACTION_FIELDS = [
+  "id",
+  "bindingPolicy",
+  "defaultChord",
+  "dispatch",
+  "e2eSafe",
+];
+const GLOBAL_SHORTCUT_DISPATCH_FIELDS = ["kind", "target"];
+const GLOBAL_SHORTCUT_CHORD_MAX_BYTES = 128;
+const GLOBAL_SHORTCUT_MODIFIER_ALIASES = new Map([
+  ["alt", "alt"],
+  ["cmd", "command"],
+  ["cmdorctrl", "commandorcontrol"],
+  ["command", "command"],
+  ["commandorcontrol", "commandorcontrol"],
+  ["control", "control"],
+  ["ctrl", "control"],
+  ["meta", "meta"],
+  ["option", "alt"],
+  ["shift", "shift"],
+  ["super", "meta"],
+  ["win", "meta"],
+]);
+
 /** 解析脚本参数，并拒绝不完整或未知的调用形式。 */
 function parseArguments(argv) {
   const values = new Map();
@@ -115,6 +140,174 @@ function readBinaryFile(filePath) {
     throw new Error(`必须是普通非符号链接文件：${filePath}`);
   }
   return fs.readFileSync(filePath);
+}
+
+/** 确认 JSON 对象只声明当前 schema 允许的字段，避免拼写错误静默失效。 */
+function validateExactJsonFields(value, expectedFields, label, errors) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    errors.push(`${label}必须是 JSON object`);
+    return false;
+  }
+  const actualFields = Object.keys(value).sort();
+  const sortedExpected = [...expectedFields].sort();
+  if (
+    actualFields.length !== sortedExpected.length ||
+    actualFields.some((field, index) => field !== sortedExpected[index])
+  ) {
+    errors.push(`${label}字段必须恰好为：${expectedFields.join("、")}`);
+    return false;
+  }
+  return true;
+}
+
+/** 归一化 chord 仅用于发现跨动作重复，不改写用户保存或注册的原值。 */
+function normalizedGlobalShortcutChord(chord, label, errors) {
+  if (Buffer.byteLength(chord, "utf8") > GLOBAL_SHORTCUT_CHORD_MAX_BYTES) {
+    errors.push(`${label}UTF-8 长度不得超过 ${GLOBAL_SHORTCUT_CHORD_MAX_BYTES} 字节`);
+    return null;
+  }
+  if (/\p{C}/u.test(chord)) {
+    errors.push(`${label}不得包含控制字符`);
+    return null;
+  }
+  const tokens = chord.split("+").map((token) => token.trim().toLowerCase());
+  if (tokens.length < 2 || tokens.some((token) => token.length === 0)) {
+    errors.push(`${label}必须使用“修饰键+按键”的非空 chord`);
+    return null;
+  }
+  const modifiers = tokens
+    .map((token) => GLOBAL_SHORTCUT_MODIFIER_ALIASES.get(token))
+    .filter(Boolean);
+  const primaryKeys = tokens.filter(
+    (token) => !GLOBAL_SHORTCUT_MODIFIER_ALIASES.has(token),
+  );
+  if (modifiers.length === 0 || primaryKeys.length === 0) {
+    errors.push(`${label}必须同时包含至少一个修饰键和一个按键`);
+    return null;
+  }
+  if (new Set(modifiers).size !== modifiers.length) {
+    errors.push(`${label}不得重复声明同一修饰键`);
+    return null;
+  }
+  return [...modifiers].sort().concat([...primaryKeys].sort()).join("+");
+}
+
+/** 读取独立的全局快捷键动作契约；能力启用不代表存在任何默认绑定。 */
+export function parseGlobalShortcutContract(profileText, enabled, errors = []) {
+  const blocks = [
+    ...profileText.matchAll(
+      /```gui-global-shortcut-contract[\t ]*\r?\n([\s\S]*?)```/gu,
+    ),
+  ];
+  if (!enabled) {
+    if (blocks.length > 0) {
+      errors.push("global_shortcut = disabled 时不得保留 gui-global-shortcut-contract 代码块");
+    }
+    return [];
+  }
+  if (blocks.length === 0) {
+    errors.push("global_shortcut = enabled 时 docs/GUI_APP_PROFILE.md 缺少 gui-global-shortcut-contract JSON 代码块");
+    return null;
+  }
+  if (blocks.length !== 1) {
+    errors.push(`global_shortcut = enabled 时 gui-global-shortcut-contract 必须只有一个，实际 ${blocks.length} 个`);
+    return null;
+  }
+  let contract;
+  try {
+    contract = JSON.parse(blocks[0][1].trim());
+  } catch (error) {
+    errors.push(`gui-global-shortcut-contract 必须是合法 JSON：${error.message}`);
+    return null;
+  }
+  if (
+    !validateExactJsonFields(
+      contract,
+      GLOBAL_SHORTCUT_CONTRACT_FIELDS,
+      "gui-global-shortcut-contract",
+      errors,
+    )
+  ) {
+    return null;
+  }
+  if (contract.schemaVersion !== 1) {
+    errors.push("gui-global-shortcut-contract schemaVersion 必须为 1");
+  }
+  if (!Array.isArray(contract.actions)) {
+    errors.push("gui-global-shortcut-contract actions 必须是数组");
+    return null;
+  }
+
+  const ids = new Set();
+  const normalizedChords = new Map();
+  for (const [index, action] of contract.actions.entries()) {
+    const label = `gui-global-shortcut-contract actions[${index}]`;
+    if (!validateExactJsonFields(action, GLOBAL_SHORTCUT_ACTION_FIELDS, label, errors)) {
+      continue;
+    }
+    if (
+      typeof action.id !== "string" ||
+      !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(action.id)
+    ) {
+      errors.push(`${label}.id 必须是唯一 ASCII snake_case 标识`);
+    } else if (ids.has(action.id)) {
+      errors.push(`${label}.id 重复：${action.id}`);
+    } else {
+      ids.add(action.id);
+    }
+
+    if (!new Set(["fixed", "user-configurable"]).has(action.bindingPolicy)) {
+      errors.push(`${label}.bindingPolicy 必须为 fixed 或 user-configurable`);
+    }
+    const chordIsNull = action.defaultChord === null;
+    const chordIsNonEmptyString =
+      typeof action.defaultChord === "string" && action.defaultChord.trim().length > 0;
+    if (action.bindingPolicy === "fixed" && !chordIsNonEmptyString) {
+      errors.push(`${label} 的 fixed 动作必须提供非空 defaultChord`);
+    } else if (!chordIsNull && !chordIsNonEmptyString) {
+      errors.push(`${label}.defaultChord 必须是非空字符串或 null`);
+    }
+    if (chordIsNonEmptyString) {
+      const normalized = normalizedGlobalShortcutChord(
+        action.defaultChord,
+        `${label}.defaultChord`,
+        errors,
+      );
+      if (normalized) {
+        const existingId = normalizedChords.get(normalized);
+        if (existingId) {
+          errors.push(`${label}.defaultChord 与动作 ${existingId} 规范化后重复`);
+        } else {
+          normalizedChords.set(normalized, action.id || `actions[${index}]`);
+        }
+      }
+    }
+
+    if (
+      validateExactJsonFields(
+        action.dispatch,
+        GLOBAL_SHORTCUT_DISPATCH_FIELDS,
+        `${label}.dispatch`,
+        errors,
+      )
+    ) {
+      if (!new Set(["host-action", "core-use-case"]).has(action.dispatch.kind)) {
+        errors.push(`${label}.dispatch.kind 必须为 host-action 或 core-use-case`);
+      }
+      if (
+        typeof action.dispatch.target !== "string" ||
+        !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?:\.[a-z][a-z0-9]*(?:_[a-z0-9]+)*)*$/u.test(
+          action.dispatch.target,
+        )
+      ) {
+        errors.push(`${label}.dispatch.target 必须是小写 ASCII snake_case 或点分 snake_case 标识`);
+      }
+    }
+    if (typeof action.e2eSafe !== "boolean") {
+      errors.push(`${label}.e2eSafe 必须是 boolean`);
+    }
+  }
+  return contract.actions;
 }
 
 /** 从 GUI 应用资料中的固定代码块读取本次初始化选择。 */
@@ -186,12 +379,18 @@ function readGuiInitializationProfile(root, errors) {
   if (values.get("deep_link") === "enabled" && values.get("single_instance") !== "enabled") {
     errors.push("GUI 初始化配置 deep_link = enabled 必须同时满足 single_instance = enabled");
   }
+  const globalShortcutActions = parseGlobalShortcutContract(
+    text,
+    values.get("global_shortcut") === "enabled",
+    errors,
+  );
   if (errors.length > 0) return null;
   return {
     aboutPage: values.get("about_page") === "enabled",
     autostart: values.get("autostart") === "enabled",
     deepLink: values.get("deep_link") === "enabled",
     globalShortcut: values.get("global_shortcut") === "enabled",
+    globalShortcutActions,
     sidebarMode: values.get("sidebar_mode"),
     singleInstance: values.get("single_instance") === "enabled",
     sponsorPage: values.get("sponsor_page") === "enabled",
@@ -592,7 +791,7 @@ function main() {
     return 1;
   }
   console.log(
-    "GUI lifecycle contract passed: recorded capability selection, conditional pages/media, selected sidebar, single-instance/tray lifecycle, and close behavior.",
+    "GUI lifecycle contract passed: recorded capability selection, demand-driven global-shortcut actions, conditional pages/media, selected sidebar, host lifecycle, and close behavior.",
   );
   return 0;
 }

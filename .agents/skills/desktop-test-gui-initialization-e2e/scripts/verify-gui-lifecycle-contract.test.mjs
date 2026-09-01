@@ -12,6 +12,7 @@ import {
   withFixture,
   writeInitializationProfile,
 } from "./verify-gui-lifecycle-contract.fixture.mjs";
+import { registerGlobalShortcutContractTests } from "./gui-global-shortcut-contract.test-cases.mjs";
 import { verifyGuiLifecycleContract } from "./verify-gui-lifecycle-contract.mjs";
 
 test("accepts a complete single-instance and tray lifecycle contract", () => {
@@ -98,6 +99,7 @@ test("rejects a final profile that omits the materialized detailed sidebar defau
   });
 });
 
+registerGlobalShortcutContractTests();
 test("rejects an enabled about page without its route or runtime component", () => {
   withFixture(({ root, guiRoot }) => {
     const shell = path.join(guiRoot, "src", "AppShell.tsx");
@@ -555,8 +557,8 @@ test("rejects a single-instance callback that does not restore the existing wind
       fs
         .readFileSync(source, "utf8")
         .replace(
-          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            restore_main_window(app);",
-          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            let _ = app;",
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n            restore_main_window(app);",
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n            let _ = app;",
         ),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /恢复既有窗口/u);
@@ -571,8 +573,8 @@ test("rejects a neutral single-instance callback that consumes launch arguments"
       fs
         .readFileSync(source, "utf8")
         .replace(
-          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            restore_main_window(app);",
-          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            let _received = _args.len();\n\t            restore_main_window(app);",
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n            restore_main_window(app);",
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n            let _received = _args.len();\n            restore_main_window(app);",
         ),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /不得消费参数\/工作目录/u);

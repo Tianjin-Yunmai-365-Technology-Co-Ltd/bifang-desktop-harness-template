@@ -4,6 +4,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deflateSync } from "node:zlib";
 
+import {
+  GLOBAL_SHORTCUT_TESTS_FIXTURE_SOURCE,
+  renderGlobalShortcutActionsFixtureSource,
+  renderGlobalShortcutImportFixtureSource,
+  renderGlobalShortcutRunFixtureSource,
+  renderGlobalShortcutRuntimeFixtureSource,
+  rewriteGlobalShortcutFixtureSource,
+} from "./gui-global-shortcut-contract.fixture.mjs";
+
 export const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "verify-gui-lifecycle-contract.mjs");
 
 /** 计算 PNG chunk 的 CRC-32，保持测试夹具也是可被真实解码器读取的图片。 */
@@ -58,6 +67,10 @@ export function createTrayPng(visible = true) {
 
 /** 按固定顺序写入结构检查器要求的九项 GUI 初始化选择。 */
 export function writeInitializationProfile(root, overrides = {}) {
+  const {
+    globalShortcutContract = { schemaVersion: 1, actions: [] },
+    ...selectionOverrides
+  } = overrides;
   const selection = {
     about_page: "enabled",
     autostart: "enabled",
@@ -68,13 +81,25 @@ export function writeInitializationProfile(root, overrides = {}) {
     sponsor_page: "enabled",
     system_notification: "enabled",
     system_tray: "enabled",
-    ...overrides,
+    ...selectionOverrides,
   };
+  const globalShortcutBlock =
+    selection.global_shortcut === "enabled"
+      ? `\n\`\`\`gui-global-shortcut-contract\n${JSON.stringify(globalShortcutContract, null, 2)}\n\`\`\`\n`
+      : "";
   fs.mkdirSync(path.join(root, "docs"), { recursive: true });
   fs.writeFileSync(
     path.join(root, "docs", "GUI_APP_PROFILE.md"),
-    `# GUI 应用资料\n\n\`\`\`gui-initialization-config\nsystem_tray = ${selection.system_tray}\nsystem_notification = ${selection.system_notification}\nautostart = ${selection.autostart}\nabout_page = ${selection.about_page}\nsponsor_page = ${selection.sponsor_page}\nsingle_instance = ${selection.single_instance}\ndeep_link = ${selection.deep_link}\nglobal_shortcut = ${selection.global_shortcut}\nsidebar_mode = ${selection.sidebar_mode}\n\`\`\`\n`,
+    `# GUI 应用资料\n\n\`\`\`gui-initialization-config\nsystem_tray = ${selection.system_tray}\nsystem_notification = ${selection.system_notification}\nautostart = ${selection.autostart}\nabout_page = ${selection.about_page}\nsponsor_page = ${selection.sponsor_page}\nsingle_instance = ${selection.single_instance}\ndeep_link = ${selection.deep_link}\nglobal_shortcut = ${selection.global_shortcut}\nsidebar_mode = ${selection.sidebar_mode}\n\`\`\`\n${globalShortcutBlock}`,
   );
+  const shortcutSource = path.join(root, "sample_gui", "src-tauri", "src", "lifecycle.rs");
+  if (selection.global_shortcut === "enabled" && fs.existsSync(shortcutSource)) {
+    const current = fs.readFileSync(shortcutSource, "utf8");
+    fs.writeFileSync(
+      shortcutSource,
+      rewriteGlobalShortcutFixtureSource(current, globalShortcutContract.actions),
+    );
+  }
 }
 
 /** 写入关于/赞助均启用且采用详细侧栏的最小前端运行时。 */
@@ -164,9 +189,8 @@ export const get_system_notification_setting = () => invoke<boolean>("get_system
 export const set_system_notification_enabled = (enabled) => invoke<boolean>("set_system_notification_enabled", { enabled });
 export const get_autostart_enabled = () => invoke<boolean>("get_autostart_enabled");
 export const set_autostart_enabled = (enabled) => invoke<boolean>("set_autostart_enabled", { enabled });
-export const get_global_shortcut_status = () => invoke<string>("get_global_shortcut_status");
 export function SettingsPage() {
-  return <><Switch aria-label="System notification" /><Switch aria-label="Autostart" /><output>{t("settings.global_shortcut_status")}</output></>;
+  return <><Switch aria-label="System notification" /><Switch aria-label="Autostart" /></>;
 }
 `,
   );
@@ -176,7 +200,6 @@ export function SettingsPage() {
     JSON.stringify({
       settings: {
         autostart_title: "Open at login",
-        global_shortcut_status: "CommandOrControl+Shift+Space shortcut status",
         system_notification_title: "System notifications",
       },
     }),
@@ -333,13 +356,14 @@ function createFixture() {
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
     `
-	use tauri::{Manager, WindowEvent};
+	use tauri::{Manager, State, WindowEvent};
 	use tauri::menu::{Menu, MenuItemBuilder};
 	use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-	use std::sync::atomic::{AtomicBool, Ordering};
+	use std::collections::BTreeMap;
+	use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
 	use tauri_plugin_autostart::ManagerExt;
 	use tauri_plugin_deep_link::DeepLinkExt;
-	use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+${renderGlobalShortcutImportFixtureSource([])}
 	use tauri_plugin_updater::UpdaterExt;
 	use tauri_plugin_window_state::StateFlags;
 use tokio::sync::{mpsc, oneshot};
@@ -350,7 +374,7 @@ use tauri_plugin_notification::NotificationExt;
 	const SHOW_WINDOW_ID: &str = "show_window";
 	const QUIT_ID: &str = "quit";
 	const APP_DEEP_LINK_RESTORE_URL: &str = "app-sample://restore";
-	const RESTORE_GLOBAL_SHORTCUT: &str = "CommandOrControl+Shift+Space";
+${renderGlobalShortcutActionsFixtureSource([])}
 	const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json"; const RELEASE_NOTES_SCHEMA_VERSION: u8 = 2;
 
 struct ReleaseNotesDocument; struct LocalizedReleaseNoteItem;
@@ -360,7 +384,6 @@ enum NotificationCommand { RequestPermission(oneshot::Sender<Result<(), &'static
 	enum UpdaterStatus { NotConfigured, Checking, UpToDate, Failed }
 	struct UpdateController { configured: bool, checking: AtomicBool }
 	struct UpdateTaskOwner { task: Option<JoinHandle<()>> }
-	enum GlobalShortcutStatus { Registered, Unavailable }
 
 	impl Drop for UpdateTaskOwner {
 	    fn drop(&mut self) {
@@ -372,6 +395,7 @@ enum NotificationCommand { RequestPermission(oneshot::Sender<Result<(), &'static
     fn drop(&mut self) {
         self.task.abort();
 	}
+}
 
 	fn normalize_bcp47_locale(raw: Option<String>, saved_language: Option<String>) -> String {
 	    let candidate = saved_language
@@ -434,26 +458,7 @@ enum NotificationCommand { RequestPermission(oneshot::Sender<Result<(), &'static
 	    });
 	}
 
-	fn register_global_shortcut(app: &tauri::AppHandle) -> GlobalShortcutStatus {
-	    match app.global_shortcut().register(RESTORE_GLOBAL_SHORTCUT) {
-	        Ok(()) => GlobalShortcutStatus::Registered,
-	        Err(_) => GlobalShortcutStatus::Unavailable,
-	    }
-	}
-
-	fn unregister_global_shortcut(app: &tauri::AppHandle) {
-	    let _ = app.global_shortcut().unregister(RESTORE_GLOBAL_SHORTCUT);
-	}
-
-	#[tauri::command]
-	fn get_global_shortcut_status(app: tauri::AppHandle) -> GlobalShortcutStatus {
-	    if app.global_shortcut().is_registered(RESTORE_GLOBAL_SHORTCUT) {
-	        GlobalShortcutStatus::Registered
-	    } else {
-	        GlobalShortcutStatus::Unavailable
-	    }
-	}
-}
+${renderGlobalShortcutRuntimeFixtureSource([])}
 
 #[tauri::command]
 async fn load_release_notes(app: tauri::AppHandle) -> Result<ReleaseNotesDocument, ReleaseNotesLoadError> {
@@ -523,33 +528,7 @@ fn restore_main_window(app: &tauri::AppHandle) {
     let _ = window.set_focus();
 }
 
-	fn run() {
-	    let _builder = tauri::Builder::default()
-	        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-	            restore_main_window(app);
-	        }))
-	        .plugin(tauri_plugin_deep_link::init())
-	        .plugin(tauri_plugin_os::init())
-	        .plugin(tauri_plugin_updater::Builder::new().build())
-	        .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED).build())
-	        .plugin(tauri_plugin_notification::init())
-	        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-	        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, _shortcut, event| {
-	            if event.state() == ShortcutState::Pressed { restore_main_window(app); }
-	        }).build())
-	        .invoke_handler(tauri::generate_handler![check_for_updates, load_release_notes, get_system_notification_setting, set_system_notification_enabled, get_autostart_enabled, set_autostart_enabled, get_global_shortcut_status])
-	        .setup(|app| {
-	            let _locale = resolve_system_locale(None);
-	            ensure_main_window_is_recoverable(app.handle())?;
-	            install_deep_link(app.handle());
-	            let _shortcut_status = register_global_shortcut(app.handle());
-	            install_tray(app)?;
-	            Ok(())
-	        })
-	        .on_window_event(|window, event| handle_window(window, event));
-	    // RunEvent::ExitRequested owns cleanup in the real template.
-	    let _cleanup = unregister_global_shortcut;
-	}
+${renderGlobalShortcutRunFixtureSource([])}
 
 fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let show = MenuItemBuilder::with_id(SHOW_WINDOW_ID, rust_i18n::t!("tray.show_window")).build(app)?;
@@ -746,29 +725,7 @@ fn handle_window(window: &tauri::Window, event: &WindowEvent) {
 	        assert_eq!(delivered_event_count, 1);
 	    }
 
-	    #[test]
-	    fn global_shortcut_registers_fixed_restore_binding() {
-	        let chord = RESTORE_GLOBAL_SHORTCUT;
-	        assert_eq!(chord, "CommandOrControl+Shift+Space");
-	    }
-
-	    #[test]
-	    fn global_shortcut_conflicts_are_observable() {
-	        let status = GlobalShortcutStatus::Unavailable;
-	        assert!(matches!(status, GlobalShortcutStatus::Unavailable));
-	    }
-
-	    #[test]
-	    fn global_shortcut_restores_existing_main_window() {
-	        let restored_window_count = 1;
-	        assert_eq!(restored_window_count, 1);
-	    }
-
-	    #[test]
-	    fn global_shortcut_unregisters_on_shutdown() {
-	        let registration_remaining = false;
-	        assert!(!registration_remaining);
-	    }
+${GLOBAL_SHORTCUT_TESTS_FIXTURE_SOURCE}
 
 	    #[test]
 	    fn system_notification_defaults_disabled() {

@@ -10,6 +10,12 @@ import {
   tomlAssignment,
   tomlSection,
 } from "./gui-lifecycle-source-analysis.mjs";
+import {
+  GLOBAL_SHORTCUT_TEST_NAMES,
+  USER_CONFIGURABLE_GLOBAL_SHORTCUT_TEST_NAMES,
+  validateGlobalShortcutRuntimeContract,
+  validateGlobalShortcutTestCoverage,
+} from "./gui-global-shortcut-runtime-contract.mjs";
 
 const BASELINE_TEST_NAMES = [
   "system_locale_uses_tauri_plugin_os",
@@ -54,13 +60,6 @@ const DEEP_LINK_TEST_NAMES = [
   "deep_link_rejects_unconfigured_or_payload_urls",
   "deep_link_routes_before_window_restore",
   "deep_link_warm_launch_is_not_lost",
-];
-
-const GLOBAL_SHORTCUT_TEST_NAMES = [
-  "global_shortcut_registers_fixed_restore_binding",
-  "global_shortcut_conflicts_are_observable",
-  "global_shortcut_restores_existing_main_window",
-  "global_shortcut_unregisters_on_shutdown",
 ];
 
 const BASELINE_DEPENDENCIES = [
@@ -731,29 +730,6 @@ function validateDeepLinkRuntime(guiRoot, sourceText, errors) {
   }
 }
 
-function validateGlobalShortcutRuntime(sourceText, errors) {
-  requireSinglePluginRegistration(
-    sourceText,
-    "tauri_plugin_global_shortcut::Builder::new",
-    "global-shortcut 插件",
-    errors,
-  );
-  for (const token of [
-    "GlobalShortcutExt",
-    "CommandOrControl+Shift+Space",
-    "GlobalShortcutStatus",
-    "get_global_shortcut_status",
-    ".register(",
-    ".is_registered(",
-    ".unregister(",
-    "ShortcutState::Pressed",
-    ".state()",
-    "restore_main_window",
-  ]) {
-    if (!sourceText.includes(token)) errors.push(`全局快捷键固定注册/回收缺少：${token}`);
-  }
-}
-
 function validateInvokeHandler(sourceTexts, profile, errors) {
   const argumentsList = sourceTexts.flatMap((text) => collectMethodArguments(text, "invoke_handler"));
   const expected = [
@@ -762,7 +738,17 @@ function validateInvokeHandler(sourceTexts, profile, errors) {
       ? ["get_system_notification_setting", "set_system_notification_enabled"]
       : []),
     ...(profile.autostart ? ["get_autostart_enabled", "set_autostart_enabled"] : []),
-    ...(profile.globalShortcut ? ["get_global_shortcut_status"] : []),
+    ...(profile.globalShortcutActions.length > 0 ? ["get_global_shortcut_statuses"] : []),
+    ...(profile.globalShortcutActions.some(
+      (action) => action.bindingPolicy === "user-configurable",
+    )
+      ? [
+          "load_global_shortcut_bindings",
+          "save_global_shortcut_bindings",
+          "begin_global_shortcut_capture",
+          "end_global_shortcut_capture",
+        ]
+      : []),
   ];
   if (expected.length === 0) {
     if (argumentsList.length !== 0) {
@@ -804,8 +790,8 @@ export function validatePluginRuntimeContract(guiRoot, sourceTexts, profile, err
     validateDisabledDeepLinkConfig(guiRoot, errors);
   }
 
-  if (profile.globalShortcut) validateGlobalShortcutRuntime(sourceText, errors);
-  else validateDisabledRuntime(sourceText, "全局快捷键", ["tauri_plugin_global_shortcut", "GlobalShortcutExt", "GlobalShortcutStatus"], errors);
+  if (profile.globalShortcut) validateGlobalShortcutRuntimeContract(sourceText, profile, errors);
+  else validateDisabledRuntime(sourceText, "全局快捷键", ["tauri_plugin_global_shortcut", "GlobalShortcutExt", "OwnedGlobalShortcutRegistry", "global_shortcut_", "globalShortcut"], errors);
 
   if (profile.systemNotification) validateNotificationRuntime(sourceTexts, errors);
   else validateDisabledRuntime(sourceText, "系统通知", ["tauri_plugin_notification", "mac_usernotifications", "NotificationCommand", "system_notification"], errors);
@@ -825,6 +811,11 @@ export function requiredPluginTestNames(profile) {
     ...(profile.autostart ? AUTOSTART_TEST_NAMES : []),
     ...(profile.deepLink ? DEEP_LINK_TEST_NAMES : []),
     ...(profile.globalShortcut ? GLOBAL_SHORTCUT_TEST_NAMES : []),
+    ...(profile.globalShortcutActions.some(
+      (action) => action.bindingPolicy === "user-configurable",
+    )
+      ? USER_CONFIGURABLE_GLOBAL_SHORTCUT_TEST_NAMES
+      : []),
   ];
 }
 
@@ -853,6 +844,7 @@ export function validateRequiredPluginTests(testFunctions, profile, errors) {
       errors.push(`固定 GUI 插件回归必须包含非平凡断言：${testName}`);
     }
   }
+  validateGlobalShortcutTestCoverage(testFunctions, profile, errors);
   if (profile.autostart) {
     const restoration = testFunctions.find(
       (candidate) => candidate.name === "autostart_e2e_restores_previous_registration",

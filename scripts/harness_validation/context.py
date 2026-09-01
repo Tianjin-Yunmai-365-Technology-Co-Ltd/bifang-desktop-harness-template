@@ -73,6 +73,9 @@ GUI_DEEP_LINK_SKILL = SKILLS_ROOT / "desktop-add-gui-deep-link" / "SKILL.md"
 GUI_GLOBAL_SHORTCUT_SKILL = (
     SKILLS_ROOT / "desktop-add-gui-global-shortcut" / "SKILL.md"
 )
+GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT = (
+    GUI_GLOBAL_SHORTCUT_SKILL.parent / "references" / "binding-contract.md"
+)
 GUI_NOTIFICATION_SKILL = (
     SKILLS_ROOT / "desktop-add-gui-system-notifications" / "SKILL.md"
 )
@@ -106,6 +109,24 @@ GUI_LIFECYCLE_CONTRACT_CHECKER = (
     / "desktop-test-gui-initialization-e2e"
     / "scripts"
     / "verify-gui-lifecycle-contract.mjs"
+)
+GUI_GLOBAL_SHORTCUT_RUNTIME_CONTRACT_CHECKER = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "gui-global-shortcut-runtime-contract.mjs"
+)
+GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "gui-global-shortcut-contract.fixture.mjs"
+)
+GUI_GLOBAL_SHORTCUT_CONTRACT_TEST_CASES = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "gui-global-shortcut-contract.test-cases.mjs"
 )
 GUI_LIFECYCLE_PLUGIN_CONTRACT_CHECKER = (
     SKILLS_ROOT
@@ -362,6 +383,7 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-deep-link/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-global-shortcut/SKILL.md",
     ".agents/skills/desktop-add-gui-global-shortcut/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-global-shortcut/references/binding-contract.md",
     ".agents/skills/desktop-add-gui-autostart/SKILL.md",
     ".agents/skills/desktop-add-gui-autostart/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md",
@@ -370,6 +392,9 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.test.ts",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-frontend-contract.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-global-shortcut-runtime-contract.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-global-shortcut-contract.fixture.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-global-shortcut-contract.test-cases.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-plugin-contract.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-plugin-contract.test.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-source-analysis.mjs",

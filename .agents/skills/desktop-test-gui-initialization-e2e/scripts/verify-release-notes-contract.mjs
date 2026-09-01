@@ -86,6 +86,13 @@ export function validateReleaseNotesRuntimeContract(
   const combinedText = `${rustSourceText}\n${frontendSourceText}`;
 
   if (aboutPage) {
+    if (
+      !/generate_handler!\s*\[[^\]]*\bload_release_notes\b[^\]]*\]/su.test(
+        rustSourceText,
+      )
+    ) {
+      errors.push("generate_handler! 必须注册 load_release_notes");
+    }
     const requiredGroups = [
       [rustSourceText, rustRequirements, "Rust 更新日志运行时接线"],
       [frontendSourceText, frontendRequirements, "前端更新日志运行时接线"],

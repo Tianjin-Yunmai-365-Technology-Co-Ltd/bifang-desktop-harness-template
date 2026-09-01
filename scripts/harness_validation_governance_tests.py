@@ -28,8 +28,17 @@ from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
 from scripts.harness_validation.context import (
+    GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT,
+    GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE,
+    GUI_GLOBAL_SHORTCUT_CONTRACT_TEST_CASES,
+    GUI_GLOBAL_SHORTCUT_RUNTIME_CONTRACT_CHECKER,
+    GUI_GLOBAL_SHORTCUT_SKILL,
+    GUI_INITIALIZATION_E2E_SKILL,
+    GUI_LIFECYCLE_CONTRACT_TESTS,
+    GUI_LIFECYCLE_PLUGIN_CONTRACT_CHECKER,
     GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS,
     GUI_SKILL,
+    GUI_SUPPORT_SKILL,
     PRODUCT_SPEC,
 )
 from scripts.harness_validation_test_support import (
@@ -313,6 +322,166 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             "rejects constant-true assertions in fixed plugin tests",
         ):
             self.assertIn(fragment, required[lifecycle_plugin_tests])
+
+    def test_global_shortcut_contract_has_no_harness_default_and_is_requirement_driven(self) -> None:
+        """能力启用不得注入 Harness 默认，并按 fixed/可编辑策略验证完整事务。"""
+
+        initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        required = primary_required_fragments(initialize_skill)
+        common_regressions = (
+            "global_shortcut_initial_bindings_match_contract",
+            "global_shortcut_registers_only_configured_bindings",
+            "global_shortcut_dispatches_pressed_events_to_declared_actions",
+            "global_shortcut_reports_real_registration_state",
+            "global_shortcut_unregisters_owned_bindings_on_shutdown",
+            "global_shortcut_setup_failure_unregisters_owned_bindings",
+        )
+        configurable_regressions = (
+            "shortcut_bindings_require_modifier_and_reject_equivalent_duplicates",
+            "global_shortcut_replace_rolls_back_on_registration_failure",
+            "global_shortcut_persistence_failure_restores_previous_bindings",
+            "global_shortcut_recording_suppresses_dispatch_until_released",
+        )
+
+        for path in (
+            GUI_GLOBAL_SHORTCUT_SKILL,
+            GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT,
+            GUI_GLOBAL_SHORTCUT_RUNTIME_CONTRACT_CHECKER,
+            GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE,
+            GUI_GLOBAL_SHORTCUT_CONTRACT_TEST_CASES,
+            GUI_LIFECYCLE_CONTRACT_TESTS,
+            GUI_LIFECYCLE_PLUGIN_CONTRACT_CHECKER,
+        ):
+            self.assertIn(path, required)
+
+        for fragment in (
+            "中性初始化只建立 Rust-only 宿主能力",
+            "`schemaVersion = 1`、`actions = []`",
+            "没有产品动作、默认 chord、OS 注册或快捷键界面",
+            "`disabled` 时该块、依赖、插件、注册器、命令、配置文件、UI/i18n 与专属测试全部缺席",
+            "产品动作使用稳定 ID 映射到编译期登记的宿主动作或单个 core 用例",
+            "回调只在 `ShortcutState::Pressed` 分派",
+            "配置文本、期望绑定与 OS 实际注册状态分开建模",
+            "未绑定使用 `null`/`Option::None`",
+            "原子替换/回滚",
+            "只注销本模块实际拥有的 chord",
+            "空动作 contract 不生成占位界面",
+        ):
+            self.assertIn(fragment, required[GUI_GLOBAL_SHORTCUT_SKILL])
+
+        for fragment in (
+            "全局快捷键启用时还必须有唯一 `gui-global-shortcut-contract`",
+            "中性初始化的 `actions` 必须为空；禁用时该块缺席",
+            "global-shortcut 只按唯一 contract 注册非空 binding",
+            "空 contract 零注册",
+            "`user-configurable` 才增加录制、取消和清空",
+        ):
+            self.assertIn(fragment, required[GUI_SKILL])
+
+        for fragment in (
+            "全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位",
+            "全局快捷键只对 contract 非空动作接入逐项真实状态",
+            "固定策略只读，可编辑策略使用 Rust 权威 load/save/capture 命令",
+            "空 contract 不传 prop 或复制翻译键",
+        ):
+            self.assertIn(fragment, required[GUI_SUPPORT_SKILL])
+
+        for name in (*common_regressions, *configurable_regressions):
+            self.assertIn(name, required[GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT])
+            self.assertIn(name, required[GUI_GLOBAL_SHORTCUT_RUNTIME_CONTRACT_CHECKER])
+
+        for fragment in (
+            'from "./gui-global-shortcut-runtime-contract.mjs"',
+            "GLOBAL_SHORTCUT_TEST_NAMES",
+            "USER_CONFIGURABLE_GLOBAL_SHORTCUT_TEST_NAMES",
+            "validateGlobalShortcutRuntimeContract(sourceText, profile, errors)",
+            "validateGlobalShortcutTestCoverage(testFunctions, profile, errors)",
+        ):
+            self.assertIn(fragment, required[GUI_LIFECYCLE_PLUGIN_CONTRACT_CHECKER])
+
+        for fragment in (
+            "dispatchHelperName",
+            "GlobalShortcutAction {",
+            "id:",
+            "binding_policy:",
+            "default_chord:",
+            "dispatch_kind:",
+            "dispatch_target:",
+            "e2e_safe:",
+            "renderEmptyRuntime",
+            "renderConfiguredRuntime",
+            "renderDispatcher",
+            "renderDispatchHelpers",
+            "app.emit(",
+            'map_err(|_| "shortcut-dispatch-failed")',
+            '_ => Err("undeclared-shortcut-action")',
+        ):
+            self.assertIn(fragment, required[GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE])
+        for obsolete_fragment in ("dispatch_host_action", "dispatch_core_use_case"):
+            self.assertNotIn(
+                obsolete_fragment,
+                required[GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE],
+            )
+
+        for fragment in (
+            "sanitizeRustCode",
+            "rustExecutableCode",
+            "isShortcutRuntimeIdentifier",
+            "invokeHandlerCommands",
+            "allowedInitializationCommands",
+            "dispatchHelperName",
+            "hasDispatchEffect",
+            "visited.has(candidate.name)",
+            "全局快捷键不得通过通用 target helper 分派",
+            "全局快捷键 kind/target 专用 helper 不得是通用 target 非空判断或 Ok/no-op",
+            "混合快捷键保存必须逐 ID 校验策略，并在 fixed chord 变化时立即 return Err",
+            "混合快捷键保存必须在顶层先取得 fixed-safe validated updates，不得把校验放入死分支",
+            "混合快捷键保存只能在 fixed 校验后用 validated updates 替换 owned bindings，不得随后全量 mutate 原请求",
+            "空 gui-global-shortcut-contract 不得由任何非测试函数取得 OS shortcut API",
+            "空 gui-global-shortcut-contract 只能保留初始化所需的唯一 invoke_handler",
+            "空 gui-global-shortcut-contract 的 invoke_handler 不得接入额外命令",
+        ):
+            self.assertIn(fragment, required[GUI_GLOBAL_SHORTCUT_RUNTIME_CONTRACT_CHECKER])
+        for obsolete_fragment in (
+            "混合快捷键保存命令必须按 binding_policy 拒绝修改 fixed 动作",
+            "空 gui-global-shortcut-contract 不得保留任何 OS register/status/cleanup 路径，即使 chord 来自变量",
+        ):
+            self.assertNotIn(
+                obsolete_fragment,
+                required[GUI_GLOBAL_SHORTCUT_RUNTIME_CONTRACT_CHECKER],
+            )
+
+        for fragment in (
+            "唯一合法 `gui-global-shortcut-contract` JSON 块",
+            "可空绑定/逐项真实状态",
+            "Pressed-only typed dispatch",
+            "注册与持久化原子回滚",
+            "录制 token 及 owned 清理",
+            "零默认 chord、零 OS 注册、零占位 UI",
+        ):
+            self.assertIn(fragment, required[GUI_INITIALIZATION_E2E_SKILL])
+
+        main_test_fragments = (
+            'from "./gui-global-shortcut-contract.test-cases.mjs"',
+            "registerGlobalShortcutContractTests();",
+        )
+        for fragment in main_test_fragments:
+            self.assertIn(fragment, required[GUI_LIFECYCLE_CONTRACT_TESTS])
+
+        moved_test_titles = (
+            "accepts an empty global shortcut action contract without a default binding or UI",
+            "parses fixed nullable and dotted-target global shortcut actions",
+            "rejects an implicit legacy global shortcut default outside the action contract",
+            "rejects cross-function shortcut API access for an empty action contract",
+            "rejects aliased shortcut commands added to the empty-contract invoke handler",
+            "rejects a target-specific dispatcher whose helper chain is a no-op",
+            "rejects a dead fixed-action guard in mixed shortcut persistence",
+            "rejects raw mixed shortcut updates mutated after fixed validation",
+            "rejects WebView storage Jotai and Query as the global shortcut binding authority",
+        )
+        for fragment in moved_test_titles:
+            self.assertIn(fragment, required[GUI_GLOBAL_SHORTCUT_CONTRACT_TEST_CASES])
+            self.assertNotIn(fragment, required[GUI_LIFECYCLE_CONTRACT_TESTS])
 
     def test_rust_technology_standard_is_a_required_contract(self) -> None:
         """Rust 固定与条件技术族必须进入事实源、传播入口与机械门禁。"""

@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-01（GUI 官方插件 Skill 与固定基线见 ADR-20260901-003；GUI 发布性能按次选择见 ADR-20260901-002；GUI 通知/自启、初始化 Git/发布提交、性能能力及 Rust 1.95/最新兼容稳定选择见 ADR-20260831-004 至 ADR-20260831-007；此前仍有效决定已综合保留）
+> 最近范围确认：2026-09-01（GUI 全局快捷键无默认绑定与需求驱动 contract 见 ADR-20260901-004；GUI 官方插件 Skill 与固定基线见 ADR-20260901-003；GUI 发布性能按次选择见 ADR-20260901-002；GUI 通知/自启、初始化 Git/发布提交、性能能力及 Rust 1.95/最新兼容稳定选择见 ADR-20260831-004 至 ADR-20260831-007；此前仍有效决定已综合保留）
 
 ## 一句话目标
 
@@ -43,8 +43,15 @@
 - 变更标识：`HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES`；所需 Harness 版本：`202608281139`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
 - 所有 GUI 无条件通过独立 Skills 接入官方 system-locale、updater 与 window-state 三项 Rust-only 基线，不单独询问，也不把开关写入 profile。system-locale 是 Rust/React 共用的系统语言来源；updater 在 endpoint、公钥、channel、target 和 arch 未全部获得批准时固定 `NotConfigured` 且零出站；window-state 只恢复尺寸、位置与最大化，并对缺失、损坏或离屏状态使用安全可找回回退。
 - GUI 条件问询按固定顺序记录系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键八项 `enabled|disabled`，再记录 `sidebar_mode = compact|detailed`。九字段不得遗漏、推断或残留 `pending`；`deep_link = enabled` 必须同时有 `single_instance = enabled`。
-- 系统托盘、单实例、深链接与全局快捷键分别由独立 Skill 拥有；系统通知和开机自启各由独立 Skill 管理，并继续复用既有契约。中性深链接只接受由项目标识派生的精确 `app-<kebab-project-id>://restore` 并只恢复主窗口；全局快捷键固定为 `CommandOrControl+Shift+Space` 并只恢复主窗口。任一条件能力禁用时，其依赖、feature、插件/生命周期、command、ACL、UI/i18n 和专属测试都必须缺席。
+- 系统托盘、单实例、深链接与全局快捷键分别由独立 Skill 拥有；系统通知和开机自启各由独立 Skill 管理，并继续复用既有契约。中性深链接只接受由项目标识派生的精确 `app-<kebab-project-id>://restore` 并只恢复主窗口；中性全局快捷键只建立 Rust-only 能力与空 action contract，不预设 chord、动作、OS 注册或界面。任一条件能力禁用时，其依赖、feature、插件/生命周期、command、ACL、UI/i18n 和专属测试都必须缺席。
 - GUI adapter 统一拥有 single-instance、deep-link、os、updater、window-state、notification、autostart、global-shortcut 的稳定 Builder 顺序与唯一 command handler；托盘通过 setup/window event 接线而不是伪 plugin。固定插件安装不授权真实更新网络、签名密钥、业务深链载荷或其他产品副作用。
+
+### GUI 全局快捷键按需求绑定
+
+- 变更标识：`HARNESS-FEAT-DEMAND-DRIVEN-GLOBAL-SHORTCUT-BINDINGS`；所需 Harness 版本：`202608281139`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
+- `global_shortcut = enabled` 只表示官方 Rust-only 宿主能力存在，不表示任何 chord、动作、默认注册或界面已经获批。`docs/GUI_APP_PROFILE.md` 同时保存唯一 `gui-global-shortcut-contract`；中性初始化固定 `schemaVersion = 1`、`actions = []`，首次启动不占用任何系统键位。初始化后的产品动作、`fixed|user-configurable` 策略、可空初始 chord、typed dispatch 与界面位置完全由批准的 Product Spec/当前需求决定。
+- 每个动作以稳定 ID 将快捷键映射到一个宿主动作或一个 core 用例；dispatch target 只使用稳定 ASCII snake_case/点分 snake_case 标识。Rust action 表必须与 profile 的动作数量、ID、策略、chord、dispatch 和 `e2eSafe` 逐字段一致，每个 target 都有明确 typed dispatcher 分支，不得以 wildcard/no-op 兜底。业务规则、权限和状态转换继续位于 core。固定策略只有明确需求提供 chord 时才注册且运行时不可修改；可编辑策略允许 `null` 表示未绑定，并将期望配置与逐项 OS 实际注册状态分开。WebView 不拥有持久化或插件 ACL。
+- 非空 chord 使用官方解析器规范化，至少含一个修饰键且不得重复。完整绑定快照的 OS 注册与设备级原子持久化作为一个可回滚事务；只响应 `ShortcutState::Pressed`，录制会话以宿主 token 暂停分派，初始化失败/退出/E2E 只注销模块实际拥有的 chord。固定/可编辑界面与真实触发场景只在 contract 声明时存在；空 contract 不生成占位 UI。
 
 ### GUI 系统通知与开机自启条件能力
 
@@ -308,6 +315,7 @@
 - [x] macOS DMG 构建规则要求最终字节具有真实 Finder 拖拽布局，并以只读挂载检查 `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接；所有后处理都要求重新签名、公证、摘要与验收。
 - [x] GUI 初始化携带并创建无产品身份的 660×400 DMG 背景，项目配置固定引用项目内 `src-tauri/dmg/background.png`；GUI 身份流程负责正式批准或同路径替换，构建在测试前校验路径、尺寸、摘要与 Tauri 配置一致。
 - [x] GUI 选择后必须完成八项条件能力与侧栏模式的九项专门问询并写入唯一 profile 代码块；system-locale、updater、window-state 由独立 Skill 作为不询问的固定 Rust-only 基线，其他插件能力各由独立 Skill 管理，禁用时全部专属依赖与接线缺席。
+- [x] `global_shortcut = enabled` 只建立能力与唯一 action contract；中性初始化固定空 actions、零默认 chord、零 OS 注册和零占位 UI。产品 fixed/user-configurable 动作完全来自需求，Rust action/typed dispatcher 与 contract 逐字段一致，空 contract 不允许隐藏注册或录制 runtime。
 - [x] GUI 初始化生成 3 个 Logo 候选并由用户选择；托盘启用时完整实现非透明图标、本地化双项菜单、关闭隐藏、恢复与退出，托盘禁用时不保留 feature/运行时/资源且关闭最后窗口退出。关于页与赞助页的路由、导航、组件和媒体严格按选择存在或缺席，`/settings`、主题和 i18n 始终存在。
 - [x] UI 设计目录以精确匹配解析通用/组件标准，产品已批准标准优先；无匹配或特殊像素先批准并更新 GUI profile/ADR，布局不进入 core。
 - [x] 侧栏支持精简与详细两种初始化模式：compact 锁定 `80/6/36/22/11/1.25/56/4/8`、全宽居中名称、无固定 `em/ch` 盒/折叠按钮和 AppShell 零 padding 接线；detailed 首次默认 `248px` 展开显示 `22px` 图标+名称，身份父级不代理，自身按钮收起为 `76px` 后使用 icon-only + Tooltip，并通过独立 local-storage 键恢复折叠偏好；AppShell 的 `navbar.width` 与 `data-navbar-width` 始终同步。两种模式的 Logo、图标、文字都居中无裁切。

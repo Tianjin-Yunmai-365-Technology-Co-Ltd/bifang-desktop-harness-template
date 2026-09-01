@@ -10,6 +10,21 @@ import {
 } from "./verify-gui-lifecycle-contract.fixture.mjs";
 import { verifyGuiLifecycleContract } from "./verify-gui-lifecycle-contract.mjs";
 
+function enableFixedShortcut(root) {
+  writeInitializationProfile(root, {
+    globalShortcutContract: {
+      schemaVersion: 1,
+      actions: [{
+        id: "show_command_palette",
+        bindingPolicy: "fixed",
+        defaultChord: "Control+Shift+P",
+        dispatch: { kind: "host-action", target: "show_command_palette" },
+        e2eSafe: true,
+      }],
+    },
+  });
+}
+
 test("rejects duplicate GUI initialization profile blocks", () => {
   withFixture(({ root }) => {
     const profile = path.join(root, "docs", "GUI_APP_PROFILE.md");
@@ -259,45 +274,54 @@ test("rejects opening deep-link runtime registration APIs on the neutral restore
 
 test("rejects global shortcut capability without a real registration", () => {
   withFixture(({ root, guiRoot }) => {
+    enableFixedShortcut(root);
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
       source,
-      fs.readFileSync(source, "utf8").replace("app.global_shortcut().register(RESTORE_GLOBAL_SHORTCUT)", "Err(\"not-registered\")"),
+      fs.readFileSync(source, "utf8").replace(
+        "app.global_shortcut().register(chord.as_str())",
+        'Err::<(), _>("not-registered")',
+      ),
     );
-    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /全局快捷键.*\.register/u);
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /全局快捷键.*(?:\.register|注册失败|替换)/u,
+    );
   });
 });
 
 test("rejects a global shortcut handler that fires on press and release", () => {
   withFixture(({ root, guiRoot }) => {
+    enableFixedShortcut(root);
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
       source,
       fs.readFileSync(source, "utf8").replace(
-        "if event.state() == ShortcutState::Pressed { restore_main_window(app); }",
-        "restore_main_window(app);",
+        "if event.state() != ShortcutState::Pressed { return; }",
+        "let _state = event.state();",
       ),
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /ShortcutState::Pressed/u,
+      /只在 ShortcutState::Pressed/u,
     );
   });
 });
 
 test("rejects a constant global shortcut registration status", () => {
   withFixture(({ root, guiRoot }) => {
+    enableFixedShortcut(root);
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
       source,
       fs.readFileSync(source, "utf8").replace(
-        "app.global_shortcut().is_registered(RESTORE_GLOBAL_SHORTCUT)",
+        "app.global_shortcut().is_registered(chord.as_str())",
         "true",
       ),
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /\.is_registered/u,
+      /真实调用 is_registered/u,
     );
   });
 });

@@ -556,9 +556,11 @@ def validate_gui_support_contract(
         skill_path: (
             "九项初始化配置",
             "system-locale、updater、window-state 由各自固定 Skill 无条件接入",
-            "系统通知与开机自启提供条件 Switch，全局快捷键提供只读注册状态",
+            "全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位",
             "通知/自启按各自 Skill 接入条件 prop",
-            "`global_shortcut = enabled` 时把固定 chord 的真实 `GlobalShortcutStatus` 接入只读状态 prop",
+            "全局快捷键只对 contract 非空动作接入逐项真实状态",
+            "固定策略只读，可编辑策略使用 Rust 权威 load/save/capture 命令",
+            "空 contract 不传 prop 或复制翻译键",
             "`compact` 精确实现 `tauri-gui-sidebar-compact-80-v1`",
             "`detailed` 精确实现 `tauri-gui-sidebar-detailed-v1`",
             "Mantine `Tooltip`",

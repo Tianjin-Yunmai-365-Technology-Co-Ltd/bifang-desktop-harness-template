@@ -33,6 +33,14 @@ const CAPABILITY_PERSISTENCE_TOKENS = {
     "open_at_login",
     "openatlogin",
   ],
+  globalShortcut: [
+    "global_shortcut",
+    "globalshortcut",
+    "shortcut_binding",
+    "shortcutbinding",
+    "configured_chord",
+    "configuredchord",
+  ],
 };
 
 const PERSISTENCE_PATTERNS = [
@@ -44,6 +52,76 @@ const PERSISTENCE_PATTERNS = [
 
 const normalizePersistenceText = (text) =>
   text.toLowerCase().replace(/[^a-z0-9]+/gu, "");
+
+function semanticIdentifierWords(identifier) {
+  return identifier
+    .replace(/([a-z0-9])([A-Z])/gu, "$1_$2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/gu)
+    .filter(Boolean);
+}
+
+function isShortcutSurfaceIdentifier(identifier) {
+  const words = semanticIdentifierWords(identifier);
+  const joined = words.join("");
+  return (
+    words.some((word) => /^(?:shortcuts?|hotkeys?|keybindings?)$/u.test(word)) ||
+    joined.includes("keycapture")
+  );
+}
+
+/** 提取代码标识符并忽略注释与字符串，避免注释中的示例误触空契约门禁。 */
+function javascriptIdentifiers(sourceText) {
+  const identifiers = [];
+  let index = 0;
+  while (index < sourceText.length) {
+    if (sourceText.startsWith("//", index)) {
+      const end = sourceText.indexOf("\n", index + 2);
+      index = end < 0 ? sourceText.length : end;
+      continue;
+    }
+    if (sourceText.startsWith("/*", index)) {
+      const end = sourceText.indexOf("*/", index + 2);
+      index = end < 0 ? sourceText.length : end + 2;
+      continue;
+    }
+    const character = sourceText[index];
+    if (character === '"' || character === "'" || character === "`") {
+      const quote = character;
+      index += 1;
+      let escaped = false;
+      while (index < sourceText.length) {
+        const current = sourceText[index];
+        if (escaped) escaped = false;
+        else if (current === "\\") escaped = true;
+        else if (current === quote) {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+    if (/[A-Za-z_$]/u.test(character)) {
+      let end = index + 1;
+      while (end < sourceText.length && /[A-Za-z0-9_$]/u.test(sourceText[end])) {
+        end += 1;
+      }
+      identifiers.push(sourceText.slice(index, end));
+      index = end;
+      continue;
+    }
+    index += 1;
+  }
+  return identifiers;
+}
+
+function localeKeys(localeText) {
+  return [
+    ...localeText.matchAll(/"([^"\r\n]+)"\s*:/gu),
+    ...localeText.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*:/gmu),
+  ].map((match) => match[1]);
+}
 
 function containsCapabilityPersistence(sourceText, persistenceTokens) {
   const lines = sourceText.split(/\r?\n/u);
@@ -226,14 +304,101 @@ export function validateFrontendInitializationContract(guiRoot, profile, errors,
     }
   }
 
-  const globalShortcutRuntime = sourceText.includes("get_global_shortcut_status");
-  const globalShortcutTranslation = localeText.includes("global_shortcut_status");
-  if (profile.globalShortcut) {
-    if (!globalShortcutRuntime || !globalShortcutTranslation) {
-      errors.push("选择全局快捷键时设置页必须显示固定 chord 的真实注册/冲突状态");
+  const shortcutActions = profile.globalShortcutActions;
+  const fixedShortcutActions = shortcutActions.filter(
+    (action) => action.bindingPolicy === "fixed",
+  );
+  const configurableShortcutActions = shortcutActions.filter(
+    (action) => action.bindingPolicy === "user-configurable",
+  );
+  const globalShortcutMutationTokens = [
+    "load_global_shortcut_bindings",
+    "save_global_shortcut_bindings",
+    "begin_global_shortcut_capture",
+    "end_global_shortcut_capture",
+  ];
+  const globalShortcutRuntimeTokens = [
+    "get_global_shortcut_statuses",
+    "get_global_shortcut_status",
+    ...globalShortcutMutationTokens,
+  ];
+  const hasGlobalShortcutRuntime = globalShortcutRuntimeTokens.some((token) =>
+    sourceText.includes(token),
+  );
+  const hasGlobalShortcutTranslation = localeText.includes("global_shortcut");
+  if (!profile.globalShortcut) {
+    if (
+      hasGlobalShortcutRuntime ||
+      hasGlobalShortcutTranslation ||
+      sourceText.includes("global_shortcut_") ||
+      sourceText.includes("globalShortcut")
+    ) {
+      errors.push("未选择全局快捷键时不得保留绑定状态、录制运行时或翻译键");
     }
-  } else if (globalShortcutRuntime || globalShortcutTranslation) {
-    errors.push("未选择全局快捷键时不得保留设置状态或翻译键");
+  } else if (shortcutActions.length === 0) {
+    const emptySurfaceIdentifiers = [
+      ...sourceEntries.map((entry) => entry.relativePath),
+      ...sourceEntries.flatMap((entry) => javascriptIdentifiers(entry.text)),
+      ...localeKeys(localeText),
+    ];
+    const shortcutSurface = emptySurfaceIdentifiers.find((identifier) =>
+      isShortcutSurfaceIdentifier(identifier),
+    );
+    if (
+      sourceText.includes("CommandOrControl+Shift+Space") ||
+      hasGlobalShortcutRuntime ||
+      hasGlobalShortcutTranslation ||
+      shortcutSurface
+    ) {
+      errors.push(`空全局快捷键动作契约不得生成默认 chord、快捷键运行时、编辑 UI 或翻译键${shortcutSurface ? `：${shortcutSurface}` : ""}`);
+    }
+  } else {
+    if (
+      !sourceText.includes("get_global_shortcut_statuses") ||
+      !sourceText.includes("registered") ||
+      !hasGlobalShortcutTranslation
+    ) {
+      errors.push("非空全局快捷键动作必须逐项显示 Rust 返回的真实 registered 状态");
+    }
+    for (const action of shortcutActions) {
+      if (!sourceText.includes(action.id)) {
+        errors.push(`全局快捷键前端缺少已声明动作：${action.id}`);
+      }
+    }
+    for (const action of fixedShortcutActions) {
+      if (!sourceText.includes(action.defaultChord)) {
+        errors.push(`fixed 全局快捷键前端必须只读显示已声明 chord：${action.id}`);
+      }
+    }
+    if (
+      fixedShortcutActions.length > 0 &&
+      configurableShortcutActions.length === 0 &&
+      globalShortcutMutationTokens.some((token) => sourceText.includes(token))
+    ) {
+      errors.push("fixed 全局快捷键必须保持只读，不得接入保存或录制命令");
+    }
+    if (
+      fixedShortcutActions.length > 0 &&
+      configurableShortcutActions.length > 0 &&
+      (!sourceText.includes("bindingPolicy") || !sourceText.includes("fixed"))
+    ) {
+      errors.push("混合快捷键界面必须按 bindingPolicy 区分 fixed 只读项与 user-configurable 录制项");
+    }
+    if (configurableShortcutActions.length > 0) {
+      for (const token of globalShortcutMutationTokens) {
+        if (!sourceText.includes(token)) {
+          errors.push(`user-configurable 全局快捷键前端缺少 Rust 窄路径：${token}`);
+        }
+      }
+    }
+  }
+  if (
+    containsCapabilityPersistence(
+      sourceText,
+      CAPABILITY_PERSISTENCE_TOKENS.globalShortcut,
+    )
+  ) {
+    errors.push("不得将全局快捷键绑定持久化到 WebView 层（localStorage/sessionStorage/Jotai atom/TanStack Query）");
   }
 
   for (const page of [

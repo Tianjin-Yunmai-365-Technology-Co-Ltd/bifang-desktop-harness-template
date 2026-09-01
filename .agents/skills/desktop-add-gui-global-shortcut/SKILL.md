@@ -1,22 +1,23 @@
 ---
 name: desktop-add-gui-global-shortcut
-description: 为已选择 GUI 全局快捷键能力的下游安装官方 global-shortcut 插件并固定最小权限边界；未选择时不得接入。
+description: 为已选择 GUI 全局快捷键能力的下游按明确需求建立固定或可编辑绑定；不预设按键、动作或默认注册，未选择时不得接入。
 ---
 
 # 增加 GUI 全局快捷键
 
-只在 `docs/GUI_APP_PROFILE.md` 的 `global_shortcut = enabled`，或初始化后产品范围明确批准全局快捷键时使用。
+只在 `docs/GUI_APP_PROFILE.md` 的 `global_shortcut = enabled`，或初始化后产品范围明确批准全局快捷键时使用。完整读取并执行 [绑定契约](references/binding-contract.md)。
 
-## 固定契约
+## 工作流程
 
-1. 根 `[workspace.dependencies]` 声明 `tauri-plugin-global-shortcut = "2.3.2"`；GUI member 只以 `workspace = true` 继承。
-2. 用户选择 `enabled` 的选项必须明确说明固定初始化绑定：`CommandOrControl+Shift+Space` 只调用 `restore_main_window`。该选择同时批准此按键与安全宿主动作；不得只安装插件而不注册，也不得猜测其他 chord 或业务动作。
-3. 通过 Rust `GlobalShortcutExt` 注册，WebView 不安装 `@tauri-apps/plugin-global-shortcut`、不取得 `global-shortcut:*` ACL。回调只在 `ShortcutState::Pressed` 执行恢复，必须忽略 `Released` 以避免一次按键双重动作；不得直接承载业务规则，也不得在未聚焦时执行文件、网络、付费或其他高风险副作用。
-4. 注册结果由应用拥有的 `GlobalShortcutStatus` 记录；设置页的窄命令必须通过 Rust `is_registered` 读取本应用当前真实注册状态，不得返回常量或 WebView 缓存。冲突、平台不支持或注册失败必须以稳定、脱敏状态可见，不能吞错。应用退出、初始化失败和 E2E 清理都必须注销本 Skill 拥有的 chord。
-5. Wayland、沙箱桌面和平台占用可能阻止真实回调；初始化 E2E 必须实际触发固定 chord、验证同一主窗口恢复，再注销并确认键位释放。无法观察或冲突时，已选择能力的初始化阻断，不得用静态检查改判通过。
-6. 运行 `global_shortcut_registers_fixed_restore_binding`、`global_shortcut_conflicts_are_observable`、`global_shortcut_restores_existing_main_window`、`global_shortcut_unregisters_on_shutdown` 四个非空回归。
-7. 禁用时依赖、插件、注册、状态、设置文案、ACL 和测试残留都必须缺席。
+1. 区分“中性初始化”与“产品实现”。中性初始化只建立 Rust-only 宿主能力，并把唯一 `gui-global-shortcut-contract` JSON 块写成 `schemaVersion = 1`、`actions = []`；这表示能力存在但没有产品动作、默认 chord、OS 注册或快捷键界面。产品实现只从已批准 Product Spec、当前请求和 GUI profile 取得动作、初始绑定、是否可编辑及安全验收事实，不得从 Harness 示例推断。
+2. 根 `[workspace.dependencies]` 声明 `tauri-plugin-global-shortcut = "2.3.2"`；GUI member 只以 `workspace = true` 继承。通过 Rust `GlobalShortcutExt` 接线，WebView 不安装 `@tauri-apps/plugin-global-shortcut`、不取得 `global-shortcut:*` ACL。
+3. `global_shortcut = enabled` 时 contract 块必须恰好一个，并与当前模式一致；`disabled` 时该块、依赖、插件、注册器、命令、配置文件、UI/i18n 与专属测试全部缺席。不得注入 `CommandOrControl+Shift+Space`、`restore_main_window` 或任何其他 fallback chord/action。
+4. 产品动作使用稳定 ID 映射到编译期登记的宿主动作或单个 core 用例；Rust action 表必须与 profile contract 的数量、ID、策略、chord、dispatch 和 `e2eSafe` 逐字段一致，每个 target 都有明确 typed dispatcher 分支，禁止 wildcard/no-op 兜底。回调只在 `ShortcutState::Pressed` 分派，忽略 `Released`；不得动态执行脚本、Shell、URL、文件、网络、支付、删除或未批准命令。接口无关的业务动作、权限和状态转换继续由 core 拥有。
+5. 配置文本、期望绑定与 OS 实际注册状态分开建模。未绑定使用 `null`/`Option::None`；逐项报告配置 chord、`registered` 与稳定脱敏错误码，不能用常量、WebView 缓存或“能力已启用”冒充真实注册。
+6. 注册、持久化、可编辑录制、原子替换/回滚、模块所有权与生命周期清理遵守绑定契约。初始化失败、正常退出和 E2E 清理只注销本模块实际拥有的 chord，不调用可能影响其他模块的全局清空。
+7. 只生成需求声明的界面：固定绑定显示只读 chord/动作/真实状态；可编辑绑定提供录制、取消与清空；空动作 contract 不生成占位界面。界面位置由批准的信息架构决定，不强制放在设置页。
+8. 运行 contract 精确要求的非空 Rust/前端回归。中性初始化 E2E 证明启动时零绑定、零默认注册和清理无残留；存在明确非空动作时才按安全场景触发实际 chord，结束后恢复原配置并确认临时 chord 已释放。
 
 ## 完成输出
 
-报告依赖下界、固定 chord/动作、注册状态、真实触发、注销回收和禁用缺席证据。
+报告模式、contract 动作数、初始非空绑定、是否可编辑、逐项真实注册状态、回滚/持久化结果、回收后的 owned binding 数，以及禁用或空动作时的缺席/零注册证据。
