@@ -7,6 +7,7 @@
 | 路径 | 作用 | 进入应用 bundle 的条件 |
 |---|---|---|
 | `brand-support-profile.json` | 品牌名称、窗口/支持联系人、三档价格、支付码和资源相对路径 | GUI 初始化默认事实来源 |
+| `react/brandSupportProfile.ts` | 把 `brand-support-profile.json` 解析为类型化 `BrandSupportProfile`，并提供窗口标题与本地支持路径校验 helper | GUI 初始化默认导入；供 About/Sponsor/Updater/SupportMedia 消费，是本表其余 React 模板读取品牌事实的唯一入口 |
 | `media-manifest.json` | 13 个图片的 MIME、尺寸、字节数、SHA-256、用途和敏感性 | 不复制到运行时；构建前后用于核验 |
 | `i18n/zh-CN.json`、`i18n/en-US.json` | 壳层、关于作者/联系人/免责声明、赞助文案、权益与媒体替代文本 | GUI 初始化注册 `brandSupport` namespace；未选页面不注册对应路由 |
 | `rust-i18n/zh-CN.yml`、`rust-i18n/en-US.yml` | 托盘“显示窗口/退出”原生文案 | 仅选择系统托盘时复制到 Rust locale 目录 |

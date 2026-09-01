@@ -45,6 +45,13 @@ pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-m
 - 缺少完整条件而允许 unsigned 时，显式使用 `--no-sign`，避免项目配置产生只签名的中间态。
 - 最终顺序是：构建/签名 → 公证完成 → staple ticket → 验证 → SHA-256 → manifest → 里程碑验收。
 
+官方来源：
+
+- [Tauri macOS Code Signing](https://v2.tauri.app/distribute/sign/macos/)
+- [Tauri CLI build/bundle options](https://v2.tauri.app/reference/cli/)
+- [Apple: Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+- [Apple: Customizing the notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)
+
 ## DMG Finder 拖拽布局
 
 - Tauri 的 DMG 配置支持本地 `background`、`windowSize`、`appPosition` 与 `applicationFolderPosition`。本 Harness 的 GUI 初始化把中性图片写入 `<project-id>_gui/src-tauri/dmg/background.png`，配置通过 `./dmg/background.png` 引用它，并固定采用 660×400、应用 `(180, 220)`、Applications `(480, 220)`；真实产品可在批准后替换同一路径字节。直接分发 DMG 必须使用 `docs/GUI_APP_PROFILE.md` 记录的当前路径与 SHA-256，明确展示把应用拖到 Applications 的动作，并让背景尺寸与落点坐标一致。
@@ -58,13 +65,6 @@ pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-m
 - [Tauri DMG 分发](https://v2.tauri.app/distribute/dmg/)
 - [Tauri 配置 `DmgConfig`](https://v2.tauri.app/reference/config/#dmgconfig)
 - [Tauri Action headless AppleScript 已知问题](https://github.com/tauri-apps/tauri-action/issues/1091)
-
-官方来源：
-
-- [Tauri macOS Code Signing](https://v2.tauri.app/distribute/sign/macos/)
-- [Tauri CLI build/bundle options](https://v2.tauri.app/reference/cli/)
-- [Apple: Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
-- [Apple: Customizing the notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow)
 
 ## 可用性与秘密边界
 

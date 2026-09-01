@@ -113,7 +113,7 @@ E2E 选择只对当前构建有效；每次显式构建都独立解析，当前�
 - [ ] `python3 scripts/validate_harness.py` 成功，且输出对应当前候选源码。
 - [ ] Rust 初始化中性资产通过当前系统的格式、代码规范检查和非空测试；它是脚手架资产而非产品候选，不用冒烟证明产品交付。
 - [ ] Rust 初始化中性资产在声明的最低 Rust 版本 1.95.0 上完成可用工具链验证，或明确阻止发布并保持 `Unverified`；这不限制开发或运行环境使用更高稳定版。
-- [ ] 候选工作流示例通过静态检查，且不包含未经授权的标签、发布操作或写权限。
+- [ ] 候选工作流示例（`.agents/skills/desktop-prepare-cross-platform-release/assets/github-release-candidate.yml`，下游部署到 `.github/workflows/release-candidate.yml`）通过静态检查，且不包含未经授权的标签、发布操作或写权限。
 - [ ] Harness 时间版本、下游自动版本 Skill/状态保护、Rust 默认值、四类独立适配器、默认 CLI、Agent 策略、构建 E2E 选择和验收适用性在事实来源中一致。
 - [ ] `docs/VERIFICATION.md` 索引的日期证据卷包含本次文档检查证据、未执行项和剩余风险。
 - [ ] 完整验收已按候选冒烟策略、当前构建 E2E 选择和硬要求记录 `required` / `enabled` / `disabled` / `Not applicable`；所有 `required` 或 `enabled` 项通过。
