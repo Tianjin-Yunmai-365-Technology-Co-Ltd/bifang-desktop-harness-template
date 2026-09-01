@@ -1,6 +1,6 @@
 ---
 name: desktop-test-gui-release-performance
-description: 在正式打包前对 clean HEAD 的 Release profile Tauri no-bundle 运行探针执行可追溯性能门禁；所有 GUI 发布都必须运行，且不受本次 E2E 选择影响。
+description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求时，在正式打包前对 clean HEAD 的 Release profile Tauri no-bundle 运行探针并形成可追溯结论。
 ---
 
 # 测试 GUI 发布候选性能
@@ -9,8 +9,8 @@ description: 在正式打包前对 clean HEAD 的 Release profile Tauri no-bundl
 
 ## 准入
 
-1. 由 GUI 构建流程在同一 clean HEAD 的全量非空测试通过后、任何 bundle/签名/公证/stapling 前调用。当前 E2E 为 `disabled` 仍必须执行本 Skill；最终候选 E2E 发生在打包后，不能替代本探针门禁。
-2. 要求 manifest 以普通 basename 明确命名 `performanceProbe`，并包含 `performanceProbeKind: tauri-no-bundle-executable`、`performanceProbeBuildProfile: release`、探针自身 `performanceProbeSha256`、`sourceTreeState: clean`、40 字符 `sourceCommit`、平台、架构与 `buildMode: native`。不得把后续 DMG/NSIS 的 `installer | archive | sha256` 当作探针事实。
+1. 只由 GUI 构建流程在当次 `performanceSelection: enabled` 或产品/渠道硬要求时调用，并且发生在同一 clean HEAD 的全量非空测试通过后、任何 bundle/签名/公证/stapling 前。选择 `disabled` 且无硬要求时不得调用本 Skill、不得生成 no-bundle 性能探针或伪造性能证据。性能已启用时，即使当前 E2E 为 `disabled` 仍必须执行；最终候选 E2E 发生在打包后，不能替代本探针门禁。
+2. 要求 manifest 明确包含 `performanceSelection: enabled`，以普通 basename 命名 `performanceProbe`，并包含 `performanceProbeKind: tauri-no-bundle-executable`、`performanceProbeBuildProfile: release`、探针自身 `performanceProbeSha256`、`sourceTreeState: clean`、40 字符 `sourceCommit`、平台、架构与 `buildMode: native`。不得把后续 DMG/NSIS 的 `installer | archive | sha256` 当作探针事实。
 3. 只在探针的原生目标平台给出 `passed`。xwin NSIS 保持 `runtimeVerification: Unverified` 与 `performanceStatus: Unverified`；必须转到真实 Windows 从相同 clean HEAD 生成原生 Release 探针，不能用 macOS 采样替代。
 
 ## 固定指标
@@ -25,7 +25,7 @@ description: 在正式打包前对 clean HEAD 的 Release profile Tauri no-bundl
 ## 执行
 
 1. 读取 `docs/GUI_APP_PROFILE.md`，解析托盘是否启用。用 Computer Use 操作 no-bundle 探针；进程采样只使用平台原生只读能力和 Python 标准库，不安装全局包、不注入持久遥测、不上传数据。记录使用的进程采样器，并遮盖用户名、绝对本机路径和无关进程参数。
-2. 完整阅读 [性能证据契约](references/performance-evidence-schema.md)，在项目外的独立临时目录写入原始 JSON 观测。证据绑定探针摘要/提交、clean 状态、Release profile、本次 E2E 选择、平台/架构、整进程树标记、启动/交互/Long Task、CPU/RSS、循环次数和 `allProcessesRecovered` 进程回收结论。
+2. 完整阅读 [性能证据契约](references/performance-evidence-schema.md)，在项目外的独立临时目录写入原始 JSON 观测。证据绑定 `performanceSelection: enabled`、探针摘要/提交、clean 状态、Release profile、本次 E2E 选择、平台/架构、整进程树标记、启动/交互/Long Task、CPU/RSS、循环次数和 `allProcessesRecovered` 进程回收结论。
 3. 运行：
 
    ```text
@@ -33,7 +33,7 @@ description: 在正式打包前对 clean HEAD 的 Release profile Tauri no-bundl
    ```
 
    Helper 会重新计算探针摘要、拒绝安装容器字段冒充探针、核对 manifest/观测绑定、计算指标并原子写入 `passed` 或 `failed` 证据。输出已内嵌原始观测；不得把临时原始 JSON 作为 release 目录中的旁路文件。
-4. 在后续安装包 manifest 中保留 `performanceStatus`、结构化 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256` 和 `performanceThresholdProfile: gui-release-v1`。只有 helper 返回 0 才能记录 `performanceStatus: passed`；`e2eSelection: disabled` 不能改变该判断。
+4. 在后续安装包 manifest 中保留 `performanceSelection: enabled`、`performanceStatus`、结构化 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256` 和 `performanceThresholdProfile: gui-release-v1`。只有 helper 返回 0 才能记录 `performanceStatus: passed`；`e2eSelection: disabled` 不能改变该判断。
 
 ## 打包后的运行时绑定
 
@@ -48,4 +48,4 @@ description: 在正式打包前对 clean HEAD 的 Release profile Tauri no-bundl
 
 ## 完成输出
 
-报告精确 no-bundle 探针与自身摘要、clean 源码提交、原生环境、采样器、5 次启动、至少 20 次交互、Long Task、CPU/RSS/增长、进程回收、证据相对路径和 `passed | failed | waived`。只有 `passed` 或有明确失败证据的 `waived` 才能开始完整打包；其他结果返回开发循环。
+报告当次 `performanceSelection: enabled`、精确 no-bundle 探针与自身摘要、clean 源码提交、原生环境、采样器、5 次启动、至少 20 次交互、Long Task、CPU/RSS/增长、进程回收、证据相对路径和 `passed | failed | waived`。只有 `passed` 或有明确失败证据的 `waived` 才能开始完整打包；其他结果返回开发循环。本 Skill 不生成 `performanceStatus: Not run`，该状态只由未调用本 Skill 的 GUI 构建禁用分支记录。

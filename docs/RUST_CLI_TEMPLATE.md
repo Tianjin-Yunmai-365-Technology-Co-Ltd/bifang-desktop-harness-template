@@ -294,7 +294,7 @@ cargo build --workspace --release --locked
 - `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
 - `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
 - `$desktop-test-gui-initialization-e2e` 只在含 GUI 的一次性初始化提交前按七项 profile 运行结构检查和真实本机调试二进制；启用能力不完整、禁用能力有残留、通知/自启状态无法观察或恢复、关闭语义或所选侧栏/页面不符都阻断。通过后随初始化能力删除，升级不得把它重新注入终端下游。
-- `$desktop-test-gui-release-performance` 在 GUI 正式打包前绑定干净 HEAD 的 release-profile 探针候选，测量启动、代表性交互、整个进程树 CPU/RSS、重复操作内存增长和进程回收；它独立于 E2E。失败先回实现修复并重建，只有用户显式确认才允许以 `performanceStatus: waived` 保留失败证据后继续。
+- 每次 GUI 发布在任何测试或编译前解析当次性能选择；选择启用或产品/渠道硬要求时，`$desktop-test-gui-release-performance` 才在正式打包前绑定干净 HEAD 的 release-profile 探针候选，测量启动、代表性交互、整个进程树 CPU/RSS、重复操作内存增长和进程回收。它独立于 E2E；失败先回实现修复并重建，只有用户显式确认才允许以 `performanceStatus: waived` 保留失败证据后继续。选择关闭且无硬要求时记录 `performanceStatus: Not run` 与剩余风险，不生成探针、性能证据或运行时绑定。
 
 候选归档或安装包命名为 `<product>-v<version>-<platform>-<arch>.<ext>`，每个产物必须有相邻的 `<artifact>.sha256` 和清单。清单必需字段、`pending`/`ready` 状态转换、Tauri GUI 附加字段与 xwin/公证记录规则统一以 `docs/RELEASE.md`「发布物命名」为唯一权威来源，本文件不重复维护，避免两份清单说明漂移。
 

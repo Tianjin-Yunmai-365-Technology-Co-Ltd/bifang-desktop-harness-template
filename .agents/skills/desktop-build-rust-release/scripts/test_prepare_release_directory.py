@@ -192,11 +192,14 @@ class PrepareReleaseDirectoryTests(unittest.TestCase):
                 self.assertIn("sourceCommit", text)
                 self.assertIn("HEAD", text)
 
-    def test_gui_performance_gate_is_tauri_only_and_bound_to_packaged_runtime(self) -> None:
-        """Tauri 必须在 bundle 前测同一 clean HEAD；普通 Rust CLI 不得误触 GUI 门禁。"""
+    def test_gui_performance_selection_is_tauri_only_and_conditionally_bound(self) -> None:
+        """Tauri 逐次选择性能；只有启用分支建立探针和包内运行时绑定。"""
 
         tauri_text = TAURI_SKILL.read_text(encoding="utf-8")
         for fragment in (
+            "performanceSelection: enabled | disabled",
+            "产品/渠道硬要求强制为 `enabled`",
+            "否则在任何测试或编译前询问用户一次",
             "$desktop-test-gui-release-performance",
             "pnpm tauri build --no-bundle",
             "HEAD == buildSourceCommit",
@@ -206,6 +209,11 @@ class PrepareReleaseDirectoryTests(unittest.TestCase):
             "performanceRuntimeBinding",
             "binding: byte-identical",
             "binding: verified-signing-transition",
+            "performanceStatus: Not run",
+            "performanceReason",
+            "performanceRemainingRisk",
+            "不创建 `performanceProbe`、`performanceEvidence`、`performanceThresholdProfile`、`performanceWaiver` 或 `performanceRuntimeBinding`",
+            "性能选择为 `enabled` 时 `performanceStatus` 为 `Unverified`",
         ):
             self.assertIn(fragment, tauri_text)
         rust_text = RUST_SKILL.read_text(encoding="utf-8")

@@ -210,6 +210,11 @@ def evaluate(
 
     if manifest.get("interface") != "gui":
         errors.append("manifest.interface must be 'gui'")
+    performance_selection = manifest.get("performanceSelection")
+    if performance_selection != "enabled":
+        errors.append(
+            "manifest.performanceSelection must be 'enabled' for performance validation"
+        )
     if manifest.get("performanceProbeKind") != "tauri-no-bundle-executable":
         errors.append(
             "manifest.performanceProbeKind must be 'tauri-no-bundle-executable'"
@@ -246,6 +251,7 @@ def evaluate(
         errors.append("manifest.e2eSelection must be enabled or disabled")
 
     _expect_equal(evidence, "schemaVersion", 1, errors, "evidence")
+    _expect_equal(evidence, "performanceSelection", "enabled", errors, "evidence")
     _expect_equal(evidence, "performanceProbeSha256", actual_sha, errors, "evidence")
     _expect_equal(evidence, "sourceCommit", source_commit, errors, "evidence")
     _expect_equal(evidence, "sourceTreeState", "clean", errors, "evidence")
@@ -414,6 +420,7 @@ def evaluate(
     return {
         "schemaVersion": 1,
         "kind": "gui-release-performance",
+        "performanceSelection": performance_selection,
         "status": "passed" if not errors else "failed",
         "probe": {
             "file": probe.name,
@@ -425,6 +432,7 @@ def evaluate(
             "architecture": architecture,
             "buildMode": manifest.get("buildMode"),
             "buildProfile": evidence.get("buildProfile"),
+            "performanceSelection": performance_selection,
             "e2eSelection": e2e_selection,
         },
         "thresholdProfile": "gui-release-v1",

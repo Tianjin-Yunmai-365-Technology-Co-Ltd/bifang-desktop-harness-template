@@ -31,7 +31,10 @@ def repository_required_fragments(
             "托盘禁用时必须实测关闭最后窗口退出",
             "最终侧栏模式",
             "宿主无法判定或观察某个已选场景",
-            "性能失败先回实现修复和重建",
+            "GUI 发布性能选择刻意不进入本文件，每次发布重新解析",
+            "每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`",
+            "选择 `disabled` 且没有硬要求时跳过探针",
+            "产品/渠道要求时执行完整门禁",
         ),
         gate_file: (
             "显式构建、缺少环境证据、新任务或新会话本身都不得触发它",

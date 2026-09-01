@@ -11,7 +11,7 @@ milestone_e2e: pending
 
 # Agent 运行策略
 
-本文件是下游项目 Agent 能力、候选冒烟偏好和构建 E2E 建议默认值的唯一持久事实来源。Harness 源允许使用 `pending` 表示等待下游用户首次确认；完成初始化的下游四项选择只能是 `enabled` 或 `disabled`，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。
+本文件是下游项目 Agent 能力、候选冒烟偏好和构建 E2E 建议默认值的唯一持久事实来源。Harness 源允许使用 `pending` 表示等待下游用户首次确认；完成初始化的下游四项选择只能是 `enabled` 或 `disabled`，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。GUI 发布性能选择刻意不进入本文件，每次发布重新解析。
 
 ## 字段语义
 
@@ -20,13 +20,13 @@ milestone_e2e: pending
 - `milestone_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `milestone_e2e`：仅作为每次显式构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前构建的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
   （`milestone_smoke`、`milestone_e2e` 字段名保留历史 `milestone` 前缀以维持既有 schema 兼容，语义已收敛为完整验收冒烟偏好与构建级 E2E 建议默认值，与已废弃的“快速/标准/里程碑”任务分级模型无关，不得据字段名推断存在任务分级。）
-- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前构建请求中已经明确的选择，否则在构建前询问一次。
+- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前构建请求中已经明确的选择，否则在构建前询问一次。GUI 发布性能不得从持久字段推断，只复用当前发布请求已经明确的选择，否则在本次发布开始前询问一次。
 
 `enabled` 表示“允许且适用时优先”，不是无条件执行；`disabled` 表示默认不启用可选能力。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前构建的 E2E 明确选择优先于 `milestone_e2e` 建议值。
 
 含 GUI 的一次性初始化 E2E 是脚手架完成门禁，不属于 `milestone_e2e`。初始化器读取七项 GUI profile，对启用的单实例、托盘、系统通知、自启、关于页或赞助页验证完整实现，对禁用能力验证无残留，并验证最终侧栏模式。只在单实例启用时执行双启动；只在托盘启用时执行可见托盘与关闭隐藏/恢复/退出生命周期；系统通知与自启也只执行各自已选场景。托盘禁用时必须实测关闭最后窗口退出。宿主无法判定或观察某个已选场景，或者无法恢复开机自启原状态时，初始化必须阻断，不能用持久偏好跳过。
 
-GUI 正式发布性能同样不是持久偏好：无论 `milestone_e2e` 为何，都必须由 `$desktop-test-gui-release-performance` 对 release-profile 探针候选执行。性能失败先回实现修复和重建；用户显式继续只能记录 `performanceStatus: waived` 与原失败证据，不能把它改判为通过。
+GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`：当前请求已经明确时直接复用，否则询问一次；修复后重跑同一发布时复用原选择，新发布必须重新询问。选择 `enabled` 或产品/渠道硬要求时，才由 `$desktop-test-gui-release-performance` 对 release-profile 探针候选执行；选择 `disabled` 且没有硬要求时跳过探针，在 manifest 和最终回复记录 `performanceStatus: Not run`、原因与剩余风险，并且不得生成 `performanceEvidence`、`performanceProbe` 或 `performanceRuntimeBinding`。已启用后的性能失败仍先回实现修复和重建；用户显式继续只能记录 `performanceStatus: waived` 与原失败证据，不能把它改判为通过，也不能用 `waived` 冒充预先关闭。
 
 ## 左侧 Task 与独立 Worktree
 
@@ -110,20 +110,21 @@ GUI 正式发布性能同样不是持久偏好：无论 `milestone_e2e` 为何�
 - 日常开发直接实施，只运行本次变更需要的单元/回归测试，并只写被独立事件触发的记录；本文件不得成为自动增加 Work Plan、全仓检查、构建、冒烟、E2E 或验收的理由。
 - 显式构建必须为当前构建解析一次 E2E 选择。若当前请求已明确 `enabled`/`disabled`，直接复用且不重复询问；否则在任何测试或编译前询问一次，并可把 `milestone_e2e` 作为建议默认选项展示。
 - E2E 选择只对当前构建有效，不得静默改写本文件。选择启用或产品/渠道要求时，E2E 只在最终真实候选形成后运行；选择禁用时只在 `release/` manifest 和最终回复记录 `Not run` 与剩余风险。
+- 每次 GUI 发布还必须独立解析当次性能选择。`$desktop-prepare-release` 在发布入口复用当前请求的明确选择或询问一次，再把结果传给 `$desktop-build-tauri-release`；直接调用 GUI 构建且没有携带选择时，由构建 Skill 在任何测试或编译前兜底询问一次。两条入口都不得静默沿用上次发布或 `milestone_e2e`。
 - 明确发布请求本身授权流程复核并本地提交范围明确的已完成改动，然后直接构建，无需再次询问是否提交或是否构建；普通构建不自动提交，tag、push、上传和正式发布仍需各自授权。
-- GUI 发布性能门禁独立于 E2E 选择，不能因 `milestone_e2e: disabled` 跳过；仅当安全修复尝试后仍不达标时才询问用户是否以可见 waiver 继续。
+- GUI 性能与 E2E 选择相互独立。性能选择为 `enabled` 或产品/渠道要求时执行完整门禁；为 `disabled` 且无硬要求时允许以 `performanceStatus: Not run` 继续，但必须保留原因和剩余风险。已启用后只有安全修复尝试仍不达标时，才询问用户是否以可见 waiver 继续。
 - 构建请求、执行和结果本身不创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；构建事实只进入当前 `release/` manifest、其声明的相邻制品证据和最终回复。独立触发的 E2E、完整验收、发布、人工复核或长期审计仍由对应流程按自身规则留证。
 - 普通缺陷修复、纯重构等维护类型本身不创建 Product Spec、ADR、Status、Changelog 或 Verification；用户明确要求、跨会话交接、安全、发布和长期决定等独立事件仍按各自门禁记录。
 
 ## 执行优先级
 
 1. 安全、批准产品范围和分发渠道硬要求。
-2. 当前请求中用户明确给出的约束；构建请求中的 E2E 选择属于本级。
+2. 当前请求中用户明确给出的约束；构建请求中的 E2E 选择和 GUI 发布性能选择属于本级。
 3. 本文件持久策略；`milestone_e2e` 只提供建议默认值。
 4. Agent 根据接口、真实产物和批准场景作出的适用性判断。
-5. 构建请求尚未明确 E2E 时，在测试或编译前询问一次；其他事项仍无法可靠判断时再询问用户。
+5. 构建请求尚未明确 E2E 时，在测试或编译前询问一次；GUI 发布尚未明确性能选择时同样询问一次，且不跨发布复用；其他事项仍无法可靠判断时再询问用户。
 
-执行原则可概括为：能力偏好先复用；E2E 每次构建都必须有当前选择。
+执行原则可概括为：能力偏好先复用；E2E 每次构建都必须有当前选择；GUI 性能每次发布都必须有当次选择。
 
 ## 不受影响的能力
 

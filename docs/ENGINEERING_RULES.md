@@ -212,7 +212,7 @@
 - 产品范围、长期决定、合格 Changelog、重要阻断/交接、发布/审计和用户明确要求仍分别触发对应记录或专用流程。安全/隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道硬要求、签名与发布仍保留解决当前风险必需的授权和门禁。
 - 显式构建在任何测试或编译前解析当前构建的 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则询问一次；持久 `milestone_e2e` 仅是建议默认值。该选择只对当前构建有效。
 - 构建必须运行项目全部非空单元测试。Rust 使用 workspace 全成员、全 targets、全 features 的锁定测试；GUI 同时运行完整 Rust workspace 和前端单元测试套件。测试失败或零测试阻断构建。
-- GUI 正式发布在打包前固定运行 `$desktop-test-gui-release-performance`，以同一干净 HEAD 的 release-profile 探针候选测量启动、交互、整进程树 CPU/RSS、重复操作内存增长和进程回收；不受 E2E 选择影响。失败先修复重建，只有用户显式确认才可记录 `performanceStatus: waived` 并保留原失败证据后继续，不能改判通过。
+- GUI 正式发布在任何测试或编译前解析当次 `performanceSelection: enabled | disabled`，该选择不持久化且不得从 E2E 推断。选择 `enabled` 或产品/渠道硬要求时，才在打包前运行 `$desktop-test-gui-release-performance`，以同一干净 HEAD 的 release-profile 探针候选测量启动、交互、整进程树 CPU/RSS、重复操作内存增长和进程回收；失败先修复重建，只有用户显式确认才可记录 `performanceStatus: waived` 并保留原失败证据后继续，不能改判通过。选择 `disabled` 且无硬要求时跳过探针，记录 `performanceStatus: Not run`、原因和剩余风险，不生成性能证据或运行时绑定。
 - GUI 产品启用 updater 时，Tauri 构建必须生成与当前 platform/channel/target/arch 一致的官方更新 archive 和 `.sig`，使用应用配置的公开公钥实际验证，并在 manifest 记录相对路径、大小、SHA-256 和验证结论。安装包允许 unsigned 不代表 updater 可不签名；发布私钥与密码只能来自批准的安全运行时，绝不能进入源码、配置、日志、manifest 或制品。
 - 构建记录严格遵守第 4.1 节的边界：manifest 和最终回复是普通构建的记录出口，不为构建过程或结果创建、更新任何项目记忆。
 - 发布候选 E2E 不混入单元测试、编译、签名或打包命令。选择启用或产品/渠道硬要求时，只在完整最终候选存在后运行；选择禁用时记录 `Not run` 和剩余风险。GUI 初始化专用的 debug/no-bundle E2E 是唯一前候选例外，只能证明脚手架在当前宿主可构建并满足单实例/托盘生命周期与运行时 i18n、固定侧栏、精简设置页和菜单可达，不能形成候选验收结论。

@@ -114,6 +114,10 @@ def validate_agent_policy(
         "显式构建必须为当前构建解析一次 E2E 选择",
         "选择只对当前构建有效",
         "持久启用本身不能触发并行步骤",
+        "GUI 发布性能选择刻意不进入本文件，每次发布重新解析",
+        "每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`",
+        "选择 `disabled` 且没有硬要求时跳过探针",
+        "产品/渠道要求时执行完整门禁",
     )
     for fragment in required_body_fragments:
         if fragment not in text:

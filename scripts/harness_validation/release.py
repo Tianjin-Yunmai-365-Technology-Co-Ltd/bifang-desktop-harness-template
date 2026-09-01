@@ -162,8 +162,7 @@ def validate_tauri_build_skill_contract(
     """锁定 Tauri xwin 安装链和 macOS 签名公证一体门禁。"""
     required = {
         tauri_skill: (
-            "本次请求已明确 `enabled`/`disabled` 时直接复用",
-            "否则在任何测试或编译前询问用户一次",
+            "本次请求已明确 `enabled`/`disabled` 时直接复用，否则在任何测试或编译前询问用户一次；`milestone_e2e`",
             "初始化后的构建不做例行环境预检",
             "只有某条命令已经失败",
             "release_notes.py check --file release-notes.json --expected-version",
@@ -344,13 +343,58 @@ def validate_tauri_build_skill_contract(
             )
 
 
-def validate_gui_release_performance_contract(errors: list[str]) -> None:
-    """锁定 GUI 打包前性能探针、阈值、失败回路与最终运行时绑定。"""
+def validate_gui_release_performance_contract(
+    errors: list[str],
+    *,
+    tauri_skill: Path = TAURI_RELEASE_SKILL,  # noqa: F405
+    prepare_skill: Path = PREPARE_RELEASE_SKILL,  # noqa: F405
+    performance_skill: Path = GUI_RELEASE_PERFORMANCE_SKILL,  # noqa: F405
+    performance_reference: Path = GUI_RELEASE_PERFORMANCE_REFERENCE,  # noqa: F405
+    performance_helper: Path = GUI_RELEASE_PERFORMANCE_HELPER,  # noqa: F405
+    performance_tests: Path = GUI_RELEASE_PERFORMANCE_TESTS,  # noqa: F405
+    collect_skill: Path = COLLECT_RELEASE_SKILL,  # noqa: F405
+    verify_skill: Path = VERIFY_DELIVERY_SKILL,  # noqa: F405
+    e2e_skill: Path = E2E_SKILL,  # noqa: F405
+    release_doc: Path = ROOT / "docs" / "RELEASE.md",  # noqa: F405
+    verification_doc: Path = VERIFICATION_DOC,  # noqa: F405
+) -> None:
+    """锁定逐次性能选择及启用、禁用、xwin 三条候选分支。"""
     required = {
-        GUI_RELEASE_PERFORMANCE_SKILL: (  # noqa: F405
+        prepare_skill: (
+            "`performanceSelection: enabled | disabled`",
+            "当前发布请求已经明确时直接复用",
+            "产品/渠道硬要求强制启用并记录来源",
+            "否则询问用户一次",
+            "传给 `$desktop-build-tauri-release`",
+            "同一发布的修复重跑复用原选择，新发布重新询问",
+        ),
+        tauri_skill: (
+            "当次 `performanceSelection: enabled | disabled`",
+            "产品/渠道硬要求强制为 `enabled` 并记录来源",
+            "否则在任何测试或编译前询问用户一次，可与尚未解析的 E2E 选择同轮询问",
+            "性能选择没有持久默认值",
+            "只有 `performanceSelection: enabled` 或产品/渠道硬要求时",
+            "性能已启用时，`milestone_e2e` 或本次 E2E 为 `disabled` 都不得跳过",
+            "只在 `performanceSelection: enabled` 时记录 `performanceStatus: Unverified`",
+            "选择 `disabled` 时使用下一条 `Not run` 契约",
+            "选择 `performanceSelection: disabled` 且无产品/渠道硬要求时",
+            "performanceStatus: Not run",
+            "不创建 `performanceProbe`、`performanceEvidence`、`performanceThresholdProfile`、`performanceWaiver` 或 `performanceRuntimeBinding`",
+            "非空 `performanceReason` 和 `performanceRemainingRisk`",
+            "`performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 与 `performanceRuntimeBinding` 必须全部缺席",
+            "性能选择为 `enabled` 时 `performanceStatus` 为 `Unverified`",
+            "选择为 `disabled` 且无硬要求时记录 `performanceStatus: Not run`",
+            "performanceStatus: passed | waived",
+            "performanceThresholdProfile: gui-release-v1",
+            "performanceRuntimeBinding",
+        ),
+        performance_skill: (
             "同一 clean HEAD",
             "Release profile Tauri `--no-bundle`",
-            "当前 E2E 为 `disabled` 仍必须执行本 Skill",
+            "当次 `performanceSelection: enabled` 或产品/渠道硬要求时调用",
+            "选择 `disabled` 且无硬要求时不得调用本 Skill",
+            "性能已启用时，即使当前 E2E 为 `disabled` 仍必须执行",
+            "manifest 明确包含 `performanceSelection: enabled`",
             "performanceProbeKind: tauri-no-bundle-executable",
             "performanceProbeBuildProfile: release",
             "sourceTreeState: clean",
@@ -374,8 +418,10 @@ def validate_gui_release_performance_contract(errors: list[str]) -> None:
             "performanceStatus: failed",
             "performanceStatus: waived",
             "明确确认就必须停止",
+            "本 Skill 不生成 `performanceStatus: Not run`",
         ),
-        GUI_RELEASE_PERFORMANCE_REFERENCE: (  # noqa: F405
+        performance_reference: (
+            '"performanceSelection": "enabled"',
             '"performanceProbeKind": "tauri-no-bundle-executable"',
             '"sourceTreeState": "clean"',
             '"probeBytesUnmodified": true',
@@ -384,8 +430,11 @@ def validate_gui_release_performance_contract(errors: list[str]) -> None:
             '"performanceRuntimeBinding"',
             "verified-signing-transition",
             "容器 SHA-256 永远不能填入 `performanceProbeSha256`",
+            "`performanceSelection: disabled`",
+            "`performanceStatus: Not run`",
+            "不得生成 `performanceProbe`、`performanceProbeSha256`、`performanceEvidence`、`performanceThresholdProfile`、`performanceWaiver` 或 `performanceRuntimeBinding`",
         ),
-        GUI_RELEASE_PERFORMANCE_HELPER: (  # noqa: F405
+        performance_helper: (
             "THRESHOLDS = {",
             '"coldStartRuns": 5',
             '"coldStartMedianMsMaximum": 2000.0',
@@ -402,6 +451,9 @@ def validate_gui_release_performance_contract(errors: list[str]) -> None:
             '"rssGrowthPercentMaximum": 15.0',
             '"rssGrowthMiBMinimumAllowance": 32.0',
             "def _nearest_rank_p95",
+            'manifest.get("performanceSelection")',
+            "manifest.performanceSelection must be 'enabled' for performance validation",
+            '_expect_equal(evidence, "performanceSelection", "enabled"',
             "manifest.performanceProbe",
             "manifest.performanceProbeKind",
             "manifest.sourceTreeState",
@@ -411,8 +463,9 @@ def validate_gui_release_performance_contract(errors: list[str]) -> None:
             "os.replace",
             'parser.add_argument("--probe"',
         ),
-        GUI_RELEASE_PERFORMANCE_TESTS: (  # noqa: F405
+        performance_tests: (
             "test_threshold_boundaries_pass_with_e2e_disabled",
+            "test_disabled_performance_selection_is_rejected",
             "test_debug_or_cross_compiled_probe_cannot_pass",
             "test_manifest_must_name_clean_head_no_bundle_probe",
             "test_rebuilding_probe_or_stale_source_binding_invalidates_evidence",
@@ -423,42 +476,62 @@ def validate_gui_release_performance_contract(errors: list[str]) -> None:
             "test_parent_only_sampling_or_failed_cleanup_cannot_pass",
             "test_cli_preserves_failed_observations_and_never_implies_waiver",
         ),
-        COLLECT_RELEASE_SKILL: (  # noqa: F405
+        collect_skill: (
+            "performanceSelection",
+            "performanceStatus: Not run",
+            "非空 `performanceReason` 与 `performanceRemainingRisk`",
+            "`performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 和 `performanceRuntimeBinding` 全部缺席",
             "performanceStatus: Unverified",
             "performanceThresholdProfile: gui-release-v1",
             "performanceRuntimeBinding",
             "waived` 必须继续引用原始 `failed` 证据",
         ),
-        VERIFY_DELIVERY_SKILL: (  # noqa: F405
-            "本次 E2E 为 `disabled` 不能跳过该复核",
+        verify_skill: (
+            "按每个 GUI manifest 的 `performanceSelection` 条件复核性能",
+            "`enabled`：复核打包前 `$desktop-test-gui-release-performance`",
+            "`disabled`：只有不存在产品/渠道性能硬要求时才接受 `performanceStatus: Not run`",
+            "非空 `performanceReason`、`performanceRemainingRisk`",
+            "`performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 和 `performanceRuntimeBinding` 全部缺席",
             "performanceProbeSha256",
             "performanceRuntimeBinding",
             "DMG/NSIS 容器摘要本身不构成运行时绑定",
         ),
-        E2E_SKILL: (  # noqa: F405
+        e2e_skill: (
             "`$desktop-test-gui-release-performance`",
+            "GUI 性能按 manifest 的当次 `performanceSelection` 独立处理",
+            "选择 `enabled` 或产品/渠道硬要求时",
+            "选择 `disabled` 且无硬要求时",
+            "performanceStatus: Not run",
             "最终候选 E2E 通过也不能替代性能结论",
             "安装容器摘要不能冒充探针摘要",
         ),
-        ROOT / "docs" / "RELEASE.md": (  # noqa: F405
-            "performanceStatus: passed | waived | Unverified",
+        release_doc: (
+            "GUI 性能选择也只对当前发布有效且没有持久默认值",
+            "产品/渠道硬要求优先并强制启用",
+            "performanceSelection",
+            "performanceStatus: passed | waived | Not run | Unverified",
             "release-profile no-bundle 探针候选",
             "一次预热后 5 次冷启动中位数 ≤2 秒且最大 ≤3 秒",
             "至少 20 次代表性交互 p95 ≤100ms 且单次 <200ms",
             "稳定 RSS ≤300 MiB、峰值 ≤500 MiB",
             "仍无法安全解决时才询问",
+            "选择 `disabled` 且无硬要求时不生成探针",
+            "没有探针、性能证据或运行时绑定字段",
         ),
-        VERIFICATION_DOC: (  # noqa: F405
-            "GUI 发布性能是独立硬门禁",
+        verification_doc: (
+            "GUI 发布性能是逐次选择",
             "整个 Tauri/WebView 进程树",
             "用户显式继续只能记录 `performanceStatus: waived`",
+            "选择 `disabled` 且无硬要求时允许 `performanceStatus: Not run`",
+            "不得伪造探针、性能证据或运行时绑定",
+            "渠道要求下 `Not run` 或 `Unverified` 都不能满足发布条件",
         ),
     }
     validate_fragment_contract(
         errors,
         required,
         label="GUI performance contract",
-        compile_check=(GUI_RELEASE_PERFORMANCE_HELPER, GUI_RELEASE_PERFORMANCE_TESTS),  # noqa: F405
+        compile_check=(performance_helper, performance_tests),
     )
 
 

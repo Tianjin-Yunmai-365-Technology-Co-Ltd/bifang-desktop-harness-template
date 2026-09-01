@@ -190,6 +190,144 @@ class ReleaseNotesContractValidationTests(unittest.TestCase):
         self.assertTrue(any("MAX_RELEASES = 5" in error for error in errors), errors)
 
 
+class GuiPerformanceContractValidationTests(unittest.TestCase):
+    """锁定每次性能选择以及启用、关闭和 xwin 分支的静态契约。"""
+
+    @staticmethod
+    def _validate_mutation(
+        source: str,
+        *,
+        parameter: str,
+    ) -> list[str]:
+        """只替换一个性能契约来源，其余路径继续使用仓库真实文件。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "contract.md"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_gui_release_performance_contract(
+                errors,
+                **{parameter: path},
+            )
+            return errors
+
+    def test_rejects_missing_per_release_performance_question(self) -> None:
+        """明确发布未携带选择时，发布入口必须询问一次且不得复用历史值。"""
+
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "产品/渠道硬要求强制启用并记录来源；否则询问用户一次"
+        mutated = source.replace(anchor, "沿用上次发布选择", 1)
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="prepare_skill")
+
+        self.assertTrue(any("否则询问用户一次" in error for error in errors), errors)
+
+    def test_rejects_missing_direct_gui_build_performance_question(self) -> None:
+        """直接 GUI 构建缺少选择时，也必须在测试或编译前询问一次。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "否则在任何测试或编译前询问用户一次，可与尚未解析的 E2E 选择同轮询问"
+        mutated = source.replace(anchor, "沿用持久策略", 1)
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+
+        self.assertTrue(
+            any("否则在任何测试或编译前询问用户一次" in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_disabled_branch_that_leaves_performance_artifacts(self) -> None:
+        """关闭分支必须省略探针、证据、豁免和运行时绑定字段。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = (
+            "不创建 `performanceProbe`、`performanceEvidence`、"
+            "`performanceThresholdProfile`、`performanceWaiver` 或 "
+            "`performanceRuntimeBinding`"
+        )
+        mutated = source.replace(anchor, "保留旧性能证据以便复用", 1)
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_disabled_branch_without_reason_and_remaining_risk(self) -> None:
+        """Not run 必须携带明确关闭原因和剩余性能风险。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "非空 `performanceReason` 和 `performanceRemainingRisk`"
+        mutated = source.replace(anchor, "可省略性能关闭原因与风险", 1)
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_enabled_branch_without_probe_runtime_binding(self) -> None:
+        """启用分支必须保留阈值、探针证据及包内运行时绑定。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = (
+            "原生 macOS 且性能启用时记录 `performanceStatus: passed | waived`、"
+            "`performanceThresholdProfile: gui-release-v1`"
+        )
+        mutated = source.replace(anchor, "原生 macOS 直接进入打包", 1)
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+
+        self.assertTrue(
+            any("performanceThresholdProfile: gui-release-v1" in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_xwin_enabled_branch_that_claims_verified_performance(self) -> None:
+        """xwin 在性能启用时仍必须保持 Unverified，不能借用 macOS 采样。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "性能选择为 `enabled` 时 `performanceStatus` 为 `Unverified`"
+        mutated = source.replace(anchor, "性能选择为 `enabled` 时记录为 `passed`", 1)
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_unconditional_xwin_unverified_status(self) -> None:
+        """xwin 只有在性能启用时才是 Unverified，关闭时必须保持 Not run。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = (
+            "只在 `performanceSelection: enabled` 时记录 "
+            "`performanceStatus: Unverified`"
+        )
+        mutated = source.replace(
+            anchor,
+            "固定记录 `performanceStatus: Unverified`",
+            1,
+        )
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_removing_product_or_channel_performance_priority(self) -> None:
+        """产品或渠道硬要求必须覆盖用户关闭选择并强制执行门禁。"""
+
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "产品/渠道硬要求强制为 `enabled` 并记录来源"
+        mutated = source.replace(anchor, "产品/渠道要求可以忽略", 1)
+        self.assertNotEqual(mutated, source)
+
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+
 class TauriBuildSkillValidationTests(unittest.TestCase):
     """验证 macOS xwin 精确路由和签名公证一体语义不能被弱化。"""
 

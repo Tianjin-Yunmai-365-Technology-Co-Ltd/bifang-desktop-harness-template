@@ -29,7 +29,7 @@ description: 构建下游 Rust CLI 候选；逐次解析 E2E 选择并全量运�
 - 普通构建永不自动暂存或提交工作树；只有用户明确提出发布时，才由 `$desktop-prepare-release` 先完成受控本地提交，再把 clean HEAD 交给本 Skill。
 - 默认三平台路线当前仅覆盖 Rust CLI 产物模型。在另行批准统一矩阵前，TUI、MCP 和 GUI 使用各自适配器专用的产物规则。
 - Tauri GUI 的 macOS DMG 与 macOS→Windows NSIS 由 `$desktop-build-tauri-release` 处理；本 Skill 不解析 `pnpm`、`cargo-xwin` 或 Apple 公证状态。
-- GUI 专用 `$desktop-test-gui-release-performance` 只由 `$desktop-build-tauri-release` 在原生 Release no-bundle 探针上调用；普通 Rust CLI 构建不得触发、伪造或记录 GUI `performanceStatus`/`performanceRuntimeBinding`。
+- GUI 专用 `$desktop-test-gui-release-performance` 只由 `$desktop-build-tauri-release` 在当次性能选择启用或产品/渠道硬要求时，对原生 Release no-bundle 探针调用；普通 Rust CLI 构建不得触发、伪造或记录 GUI `performanceSelection`/`performanceStatus`/`performanceRuntimeBinding`。
 - 改变候选字节的签名必须发生在完整验收前。此后任何改变字节的签名、公证或重新打包都会产生新候选，并且必须返回 `$desktop-verify-delivery`。
 
 ## 发布目录辅助程序

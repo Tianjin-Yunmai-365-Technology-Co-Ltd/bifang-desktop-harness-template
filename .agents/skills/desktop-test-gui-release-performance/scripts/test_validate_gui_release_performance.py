@@ -36,6 +36,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             "buildMode": "native",
             "platform": "macos",
             "architecture": "aarch64",
+            "performanceSelection": "enabled",
             "e2eSelection": "disabled",
         }
         self.evidence = {
@@ -48,6 +49,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             "architecture": "aarch64",
             "buildMode": "native",
             "buildProfile": "release",
+            "performanceSelection": "enabled",
             "e2eSelection": "disabled",
             "trayEnabled": True,
             "observationAvailable": True,
@@ -105,17 +107,33 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         return path
 
     def test_threshold_boundaries_pass_with_e2e_disabled(self) -> None:
-        """E2E 关闭不能跳过性能门禁，全部固定边界值仍应真实判定通过。"""
+        """性能已启用时，E2E 关闭仍应真实测量并允许全部固定边界值通过。"""
 
         result = self._evaluate()
 
         self.assertEqual(result["status"], "passed")
+        self.assertEqual(result["performanceSelection"], "enabled")
         metrics = result["metrics"]
         self.assertEqual(metrics["coldStartMedianMs"], 2000)
         self.assertEqual(metrics["coldStartMaximumMs"], 3000)
         self.assertEqual(metrics["interactionP95Ms"], 100)
         self.assertEqual(metrics["interactionMaximumMs"], 199)
         self.assertEqual(metrics["rssGrowthLimitMiB"], 32)
+
+    def test_disabled_performance_selection_is_rejected(self) -> None:
+        """性能选择关闭时不得调用 helper 或生成看似有效的性能证据。"""
+
+        manifest = deepcopy(self.manifest)
+        manifest["performanceSelection"] = "disabled"
+        evidence = deepcopy(self.evidence)
+        evidence["performanceSelection"] = "disabled"
+
+        result = self._evaluate(manifest=manifest, evidence=evidence)
+
+        self.assertEqual(result["status"], "failed")
+        failures = "\n".join(result["failures"])
+        self.assertIn("manifest.performanceSelection must be 'enabled'", failures)
+        self.assertIn("evidence.performanceSelection must equal 'enabled'", failures)
 
     def test_debug_or_cross_compiled_probe_cannot_pass(self) -> None:
         """Debug 观测和 macOS xwin 交叉候选都不能形成原生 Release 结论。"""

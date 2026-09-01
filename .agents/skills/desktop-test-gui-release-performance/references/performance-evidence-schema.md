@@ -18,11 +18,12 @@
   "buildMode": "native",
   "platform": "macos",
   "architecture": "aarch64",
+  "performanceSelection": "enabled",
   "e2eSelection": "disabled"
 }
 ```
 
-`performanceProbe` 必须是普通 basename，摘要只对应该运行时可执行文件。后续安装包的 `installer`、`archive` 和 `sha256` 是不同事实，不能替代任何 `performanceProbe*` 字段。
+`performanceSelection` 必须为 `enabled`，证明构建流程已经为当前 GUI 发布明确选择或被产品/渠道硬要求执行性能测量。`performanceProbe` 必须是普通 basename，摘要只对应该运行时可执行文件。后续安装包的 `installer`、`archive` 和 `sha256` 是不同事实，不能替代任何 `performanceProbe*` 字段。选择 `disabled` 且无硬要求时不得调用 helper，也不得生成本契约中的探针或证据。
 
 ## 原始观测输入
 
@@ -39,6 +40,7 @@
   "architecture": "aarch64",
   "buildMode": "native",
   "buildProfile": "release",
+  "performanceSelection": "enabled",
   "e2eSelection": "disabled",
   "trayEnabled": true,
   "observationAvailable": true,
@@ -81,6 +83,7 @@ Helper 输出一个 `schemaVersion: 1`、`kind: gui-release-performance` 的 JSO
 
 ```json
 {
+  "performanceSelection": "enabled",
   "performanceStatus": "passed",
   "performanceThresholdProfile": "gui-release-v1",
   "performanceProbe": "example_tool_gui",
@@ -105,3 +108,5 @@ Helper 输出一个 `schemaVersion: 1`、`kind: gui-release-performance` 的 JSO
 打包前 staged unsigned runtime 必须与探针逐字节相同。`binding` 只允许 `byte-identical` 或 `verified-signing-transition`：前者要求最终包内 runtime 也逐字节相同；后者必须另外保留签名前相同摘要、签名后 runtime 摘要和签名验证。最终验收重新定位包内 runtime 核对。容器 SHA-256 永远不能填入 `performanceProbeSha256`。
 
 `waived` 继续引用原始 `failed` 输出，并增加非空原因、确认时间、用户确认摘要、已尝试修复和剩余风险；不得删除失败数组、覆盖失败证据或把 helper 输出改成 `passed`。
+
+当次选择为 `disabled` 且无产品/渠道硬要求时，构建流程跳过整个 no-bundle 性能探针与 helper，最终 manifest 记录 `performanceSelection: disabled`、`performanceStatus: Not run`、非空原因与剩余风险，并且不得生成 `performanceProbe`、`performanceProbeSha256`、`performanceEvidence`、`performanceThresholdProfile`、`performanceWaiver` 或 `performanceRuntimeBinding`。`Not run` 不能覆盖同一候选已经产生的真实 `failed` 证据；已有失败只能修复后重建，或保留失败证据并走 `waived`。
