@@ -678,15 +678,6 @@ def validate_release_contract(errors: list[str]) -> None:
             "schema v2 中英文翻译对",
             "version = concat!(\"v\", env!(\"CARGO_PKG_VERSION\"))",
         ),
-        ROOT / "AGENTS.md": (  # noqa: F405
-            "所有用户可见版本号统一带且只带一个小写 `v`",
-            "页面交互事件必须绑定在实际拥有该动作的元素本身",
-            "GUI 页面中用于继续工作的活动选项卡",
-            "成功查询得到空结果且当前页大于 1",
-            "每次正式发布的候选构建前",
-            "每个逻辑条目必须同时携带非空 `zh-CN` 与 `en-US` 翻译",
-            "releaseNotesVersion",
-        ),
         ROOT / "README.md": (  # noqa: F405
             "当前版本：v",
             "父级容器不得代理子动作",

@@ -10,12 +10,6 @@ from .context import *  # noqa: F403
 def validate_product_versioning_contract(errors: list[str]) -> None:
     """确认分类、状态、开发提交、构建只读与发布重置形成闭环。"""
     requirements = {
-        ROOT / "AGENTS.md": (
-            "$desktop-manage-version",
-            ".harness/version-state.json",
-            "查询、诊断、复现",
-            "正式发布成功",
-        ),
         ROOT / "docs" / "RELEASE.md": (
             "闭区间 `0..100`",
             "第一个已完成新功能",

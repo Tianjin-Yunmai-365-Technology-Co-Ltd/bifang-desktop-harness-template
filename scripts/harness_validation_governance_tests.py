@@ -37,6 +37,68 @@ from scripts.harness_validation_test_support import (
 class ValidateHarnessEntrypointTests(unittest.TestCase):
     """覆盖单一命令入口、当前接口集合与已淘汰治理语义。"""
 
+    @staticmethod
+    def _validate_agents_entrypoint(contents: str) -> list[str]:
+        """在临时根入口上运行轻量路由门禁。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "AGENTS.md"
+            path.write_text(contents, encoding="utf-8")
+            errors: list[str] = []
+            governance.validate_agents_entrypoint(errors, path)
+        return errors
+
+    def test_agents_entrypoint_is_progressive_and_within_budget(self) -> None:
+        """仓库根入口必须同时满足预算、永久章节和渐进读取语义。"""
+
+        errors: list[str] = []
+        governance.validate_agents_entrypoint(errors)
+        self.assertEqual(errors, [])
+
+    def test_agents_entrypoint_rejects_utf8_byte_budget_regression(self) -> None:
+        """即使行数不增长，UTF-8 内容超预算也必须阻断。"""
+
+        source = read_repo_text("AGENTS.md")
+        padding_bytes = governance.AGENTS_MAX_UTF8_BYTES - len(source.encode("utf-8")) + 1
+        errors = self._validate_agents_entrypoint(source + ("x" * padding_bytes))
+        self.assertTrue(any("UTF-8 byte budget" in error for error in errors), errors)
+
+    def test_agents_entrypoint_rejects_line_budget_regression(self) -> None:
+        """通过堆叠短行规避字节预算时仍必须阻断。"""
+
+        source = read_repo_text("AGENTS.md").rstrip("\n")
+        extra_count = governance.AGENTS_MAX_LINES + 1 - len(source.splitlines())
+        extra_lines = "\n".join(f"extra-{index}" for index in range(extra_count))
+        errors = self._validate_agents_entrypoint(f"{source}\n{extra_lines}\n")
+        self.assertTrue(any("line budget" in error for error in errors), errors)
+
+    def test_agents_entrypoint_rejects_missing_progressive_semantics(self) -> None:
+        """根入口不能只保留章节标题而丢失按需扩读语义。"""
+
+        source = read_repo_text("AGENTS.md")
+        required = governance.AGENTS_PROGRESSIVE_DISCLOSURE_FRAGMENTS[2]
+        self.assertIn(required, source)
+        errors = self._validate_agents_entrypoint(source.replace(required, "", 1))
+        self.assertTrue(any(required in error for error in errors), errors)
+
+    def test_agents_entrypoint_rejects_missing_always_on_boundary(self) -> None:
+        """渐进加载不能裁掉分类前必须生效的跨任务安全摘要。"""
+
+        source = read_repo_text("AGENTS.md")
+        required = governance.AGENTS_ALWAYS_ON_BOUNDARY_FRAGMENTS[3]
+        self.assertIn(required, source)
+        errors = self._validate_agents_entrypoint(source.replace(required, "", 1))
+        self.assertTrue(any(required in error for error in errors), errors)
+
+    def test_agents_entrypoint_rejects_missing_permanent_section(self) -> None:
+        """Skills、约束与最小闭环等永久路由章节不得被裁掉。"""
+
+        source = read_repo_text("AGENTS.md")
+        heading = "## Skills 地图"
+        self.assertIn(heading, source)
+        errors = self._validate_agents_entrypoint(source.replace(heading, "## Skills", 1))
+        self.assertTrue(any(heading in error for error in errors), errors)
+
     def test_direct_script_entrypoint_succeeds(self) -> None:
         """从仓库根直接执行历史命令时应完成全部领域校验并返回成功。"""
         result = subprocess.run(

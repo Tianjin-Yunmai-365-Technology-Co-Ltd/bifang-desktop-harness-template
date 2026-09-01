@@ -30,12 +30,6 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "cargo metadata --no-deps --locked --format-version 1",
             "页面会话 atom 不得使用 `atomWithStorage`",
         ),
-        ROOT / "AGENTS.md": (  # noqa: F405
-            "Core-first 是硬规则",
-            "薄层按职责",
-            "值域、跨字段关系",
-            "unittest discover -s scripts",
-        ),
         ROOT / "README.md": (  # noqa: F405
             "Core-first 是强制规则",
             "系统托盘",

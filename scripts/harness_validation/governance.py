@@ -14,8 +14,121 @@ from .governance_policy import validate_agent_policy
 from .governance_version import validate_version_contract as _validate_version_contract
 
 
+AGENTS_ENTRYPOINT = ROOT / "AGENTS.md"
+AGENTS_MAX_UTF8_BYTES = 20_000
+AGENTS_MAX_LINES = 120
+AGENTS_REQUIRED_HEADINGS = (
+    "## 项目使命",
+    "## 启动门禁",
+    "## 按任务渐进读取",
+    "## 始终生效的边界",
+    "## Skills 地图",
+    "## 约束地图",
+    "## 每次任务的最小闭环",
+)
+AGENTS_PROGRESSIVE_DISCLOSURE_FRAGMENTS = (
+    "先判定任务类型",
+    "只读取下表命中的事实来源和 Skill",
+    "发现冲突或缺失时才扩大读取",
+    "不要为了“完整”加载全部项目记忆、设计标准、发布规则或 Skills",
+    "不得一次加载全部 GUI Skills",
+    "命中后必须完整读取对应 `SKILL.md`",
+)
+AGENTS_SOURCE_GATE_FRAGMENTS = (
+    "Harness 源范围门禁",
+    "只接受 Harness 自身工程维护",
+    "产品目的、业务功能、产品专属 UI/文案/数据",
+    "一律不得在当前模板源中接收、分析、记录或实施",
+    "切换到已存在终端下游的唯一根目录后重新提出",
+)
+AGENTS_ALWAYS_ON_BOUNDARY_FRAGMENTS = (
+    "`superpowers: disabled`",
+    "安全/隐私、数据迁移、破坏性操作",
+    "规格不明确且不同答案会改变产品边界时停止并确认",
+    "Core-first 是硬规则",
+    "对产出物声称“完成”“可用”或“已验证”",
+    "不覆盖或撤销用户已有修改",
+)
+AGENTS_MINIMUM_CLOSURE_FRAGMENTS = (
+    "只读取路由命中的最少事实与 Skills",
+    "只运行本次变化需要的测试或最小替代检查",
+    "只更新被独立事件触发的权威记录",
+    "实际验证、未执行项和剩余风险",
+    "python3 -B scripts/validate_harness.py",
+)
+
+
+def validate_agents_entrypoint(
+    errors: list[str],
+    path: Path = AGENTS_ENTRYPOINT,
+) -> None:
+    """校验根 Agent 入口保持轻量，并以渐进披露路由到详细事实源。"""
+
+    try:
+        payload = path.read_bytes()
+    except OSError as exc:
+        fail(errors, f"cannot read AGENTS entrypoint {display_path(path)}: {exc}")
+        return
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        fail(errors, f"AGENTS entrypoint must be UTF-8: {display_path(path)}: {exc}")
+        return
+
+    if len(payload) > AGENTS_MAX_UTF8_BYTES:
+        fail(
+            errors,
+            "AGENTS entrypoint exceeds UTF-8 byte budget: "
+            f"{display_path(path)} has {len(payload)} bytes, limit {AGENTS_MAX_UTF8_BYTES}",
+        )
+    line_count = len(text.splitlines())
+    if line_count > AGENTS_MAX_LINES:
+        fail(
+            errors,
+            "AGENTS entrypoint exceeds line budget: "
+            f"{display_path(path)} has {line_count} lines, limit {AGENTS_MAX_LINES}",
+        )
+    if not text.startswith("# AGENTS.md\n"):
+        fail(errors, f"AGENTS entrypoint must start with '# AGENTS.md': {display_path(path)}")
+
+    heading_positions: list[int] = []
+    for heading in AGENTS_REQUIRED_HEADINGS:
+        occurrences = text.count(heading)
+        if occurrences != 1:
+            fail(
+                errors,
+                f"AGENTS entrypoint heading must appear exactly once in {display_path(path)}: "
+                f"{heading} (observed {occurrences})",
+            )
+            continue
+        heading_positions.append(text.index(heading))
+    if len(heading_positions) == len(AGENTS_REQUIRED_HEADINGS) and heading_positions != sorted(
+        heading_positions
+    ):
+        fail(errors, f"AGENTS entrypoint headings are out of order: {display_path(path)}")
+
+    required_fragments = (
+        *AGENTS_PROGRESSIVE_DISCLOSURE_FRAGMENTS,
+        *AGENTS_SOURCE_GATE_FRAGMENTS,
+        *AGENTS_ALWAYS_ON_BOUNDARY_FRAGMENTS,
+        *AGENTS_MINIMUM_CLOSURE_FRAGMENTS,
+        "项目 Skills 位于 `.agents/skills/`",
+        "| 约束或事实 | 唯一来源 | 何时读取 |",
+        "$desktop-upgrade-harness",
+        "$desktop-manage-version",
+        ".harness/version-state.json",
+    )
+    for fragment in required_fragments:
+        if fragment not in text:
+            fail(
+                errors,
+                f"AGENTS progressive-disclosure contract missing in {display_path(path)}: {fragment}",
+            )
+
+
 def validate_engineering_contract(errors: list[str]) -> None:
     """确认工程规则唯一来源、关键入口和执行型 Skills 已建立确定性引用。"""
+    validate_agents_entrypoint(errors)
     required_fragments = {
         ENGINEERING_RULES: (
             "当前规范根同时包含 Harness 专用 `Version.md`",
@@ -52,20 +165,6 @@ def validate_engineering_contract(errors: list[str]) -> None:
             "完整表单确认后、首次写入前检查并按需安装",
             "已有有效身份保持，缺失字段只在独立目标仓库 local 作用域补齐",
             "明确发布请求授权复核并本地提交",
-        ),
-        ROOT / "AGENTS.md": (
-            "docs/ENGINEERING_RULES.md",
-            "只接受 Harness 自身工程维护",
-            "产品目的、业务功能、产品专属 UI/文案/数据",
-            "完整表单确认后、首次脚手架写入前由环境门禁检查并按需安装 Git",
-            "只写仓库 local 配置",
-            "`candidate-1`、`candidate-2`、`candidate-3`",
-            "用户选择前不得验证格式、尺寸、色彩、像素、摘要或质量",
-            "docs/design_standards/README.md",
-            "普通缺陷修复、不改变可观察行为的纯重构",
-            "Rust 代码超过 400 行建议重构、超过 800 行强制拆分",
-            "前端代码超过 500 行建议重构、超过 1000 行强制拆分",
-            "<module>/mod.rs",
         ),
         ROOT / "README.md": (
             "docs/ENGINEERING_RULES.md",
@@ -231,23 +330,6 @@ def validate_engineering_contract(errors: list[str]) -> None:
 def validate_streamlined_development_and_build(errors: list[str]) -> None:
     """校验最小开发闭环、构建记录边界、全量构建单测和显式并行。"""
     required_fragments = {
-        ROOT / "AGENTS.md": (
-            "日常开发统一从用户请求直接进入 `$desktop-implement-change`",
-            "除必要 ADR、Changelog 等事件触发记录和本次开发所需单元/回归测试外",
-            "不因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加",
-            "每次显式构建在任何测试或编译前解析一次本次 E2E 选择",
-            "cargo test --workspace --all-targets --all-features --locked",
-            "GUI 构建还必须运行前端完整单元测试套件",
-            "构建事实只写入当前 `release/` manifest、其声明的相邻制品证据和最终回复",
-            "不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
-            "只有用户在当前请求中明确要求并行 Subagent/Worktree",
-            "E2E 只在最终真实候选形成后",
-            "格式、lint、静态、集成/契约、全仓测试和构建不自动追加",
-            "用户要求新建左侧 Task 处理仓库变更时",
-            "标题使用“动作 + 结果”",
-            "最新干净 `main` 基线",
-            "完成时提交全部改动并保持状态干净",
-        ),
         ROOT / "README.md": (
             "日常开发直接使用 `$desktop-implement-change`",
             "只增加并运行本次变更需要的单元/回归测试",

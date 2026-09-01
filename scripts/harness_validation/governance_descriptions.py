@@ -131,12 +131,6 @@ def validate_current_descriptions(errors: list[str]) -> None:
                 )
 
     minimum_version_fragments = {
-        ROOT / "AGENTS.md": (
-            "最低兼容稳定版本范围",
-            "当前最新的非预发布候选",
-            "Cargo.lock",
-            "pnpm-lock.yaml",
-        ),
         ENGINEERING_RULES: (
             "最低兼容范围",
             "当前最新非预发布候选",

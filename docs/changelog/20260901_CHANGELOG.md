@@ -2,6 +2,7 @@
 
 ## 新增
 
+- `HARNESS-FEAT-PROGRESSIVE-AGENT-INSTRUCTION-ROUTING`（所需 Harness 版本 `202608281139`）：根 `AGENTS.md` 收敛为有 20,000 UTF-8 字节/120 行预算的轻量启动路由器，只常驻范围门禁、任务路由、跨任务摘要、Skills/约束地图和最小闭环；初始化、GUI、依赖、构建、发布与验证细则按任务从既有唯一事实源和精确 Skill 加载。初始化 Skills 与 Harness validator 同步阻止详细规则再次复制回根入口。
 - `HARNESS-FEAT-GUI-NOTIFICATION-AUTOSTART-CAPABILITIES`（所需 Harness 版本 `202608281139`）：GUI 初始化 profile 从五项扩为七项，新增系统通知与开机自启两项显式选择和独立 Skills。启用时才安装平台依赖、Rust command、设置页 Switch、i18n 与回归；通知先授权后保存且由应用拥有串行 worker，自启以 OS 登录项为权威并在失败时回滚。禁用时全部专属接线缺席，初始化 E2E 还原真实登录项状态。
 - `HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT`（所需 Harness 版本 `202608281139`）：完整初始化表单确认后、首次写入前主动检查并按需安装 Git；目标独立仓库缺少作者字段时，只在 local 作用域用设备账户名的 ASCII 英文形式与派生 Gmail 地址补齐，并在完成报告中公开版本、安装变化、身份来源、模板和基线提交。明确发布请求自动复核范围、形成逻辑本地提交并从干净 HEAD 构建，不再二次审批；普通构建不自动提交。
 - `HARNESS-FEAT-GUI-RELEASE-PERFORMANCE-GATE`（所需 Harness 版本 `202608281139`）：新增 `$desktop-test-gui-release-performance` 和标准库证据 helper。GUI 正式打包前从同一 clean HEAD 测量 release-profile 运行探针的冷启动、交互 p95/Long Task、整进程树空闲与托盘 CPU、RSS/循环增长及退出回收；超标先修复重建，只有用户查看原始失败值后显式确认才可记录 `waived`，不能把失败改判为通过。
@@ -87,6 +88,7 @@
 
 ## 验证
 
+- 本次渐进披露重构运行 `python3 -B -m unittest discover -s scripts`，222 条 Harness 回归全部通过；`python3 -B scripts/validate_harness.py` 通过 183 个必需文件、31 个 Skills、20,000 UTF-8 字节/120 行入口预算、7 个永久章节、按任务路由与既有详细事实源契约，产生 15 条未达硬上限的既有非阻断行数复核提示。两个修改过的初始化 Skills 均通过 Skill Creator quick validator，`git diff --check` 通过。根 `AGENTS.md` 从 201 行/57,044 字节降至 81 行/11,043 字节；本轮没有可编译产品或真实候选，未运行构建、GUI/Computer Use、E2E、签名、公证或发布。
 - 本次运行 `python3 -B -m unittest scripts.test_agile_workflow scripts.test_harness_scope_and_initialization_boundaries`，33 条初始化/流程契约回归全部通过；新增 3 条专项回归分别锁定 Logo 原始候选顺序与选择后处理、Git 命令仅位于实际基线提交收尾段、Harness 源在写入前拒绝产品需求。
 - `python3 -B .agents/skills/desktop-upgrade-harness/scripts/test_harness_upgrade.py` 的 28 条升级器回归通过；新增专项测试被声明为 Harness-only `tombstone`，不会传播到终端下游。8 个本次修改的项目 Skills 均通过 Skill Creator quick validator；`git diff --check` 通过。
 - `python3 -B scripts/validate_harness.py` 已运行并能通过本次三项新增契约，但完整结果仍被 51 个当前 `README.md` 既有契约/Skill 清单缺口阻断；对未修改 `HEAD` 的临时只读基线复核也存在同组 README 缺口，因此未把该全量校验记录为通过。规则实施阶段未提前运行 Git `install`/`check`；项目负责人随后明确要求提交并推送，因此只在本次实际提交前即时运行仓库本地 `install`/`check`。未执行构建、GUI/Computer Use、E2E、签名、公证或发布。
