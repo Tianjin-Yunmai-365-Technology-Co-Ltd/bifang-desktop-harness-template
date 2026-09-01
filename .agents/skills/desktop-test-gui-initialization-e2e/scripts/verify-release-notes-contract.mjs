@@ -58,7 +58,6 @@ export function validateReleaseNotesRuntimeContract(
     "LocalizedReleaseNoteItem",
     "ReleaseNotesDocument",
     "ReleaseNotesLoadError",
-    "generate_handler![load_release_notes]",
   ];
   const frontendRequirements = [
     'LOAD_RELEASE_NOTES_COMMAND = "load_release_notes"',
@@ -99,6 +98,9 @@ export function validateReleaseNotesRuntimeContract(
           errors.push(`选择关于页时缺少${label}：${fragment}`);
         }
       }
+    }
+    if (!/generate_handler!\s*\[[^\]]*\bload_release_notes\b[^\]]*\]/su.test(rustSourceText)) {
+      errors.push("选择关于页时合并的 generate_handler! 必须注册 load_release_notes");
     }
     for (const forbidden of ["std::fs::read", "@tauri-apps/plugin-fs"]) {
       if (combinedText.includes(forbidden)) {

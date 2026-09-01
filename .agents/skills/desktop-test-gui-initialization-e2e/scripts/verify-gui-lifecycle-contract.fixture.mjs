@@ -56,11 +56,13 @@ export function createTrayPng(visible = true) {
   ]);
 }
 
-/** 按固定顺序写入结构检查器要求的七项 GUI 初始化选择。 */
+/** 按固定顺序写入结构检查器要求的九项 GUI 初始化选择。 */
 export function writeInitializationProfile(root, overrides = {}) {
   const selection = {
     about_page: "enabled",
     autostart: "enabled",
+    deep_link: "enabled",
+    global_shortcut: "enabled",
     sidebar_mode: "detailed",
     single_instance: "enabled",
     sponsor_page: "enabled",
@@ -71,7 +73,7 @@ export function writeInitializationProfile(root, overrides = {}) {
   fs.mkdirSync(path.join(root, "docs"), { recursive: true });
   fs.writeFileSync(
     path.join(root, "docs", "GUI_APP_PROFILE.md"),
-    `# GUI 应用资料\n\n\`\`\`gui-initialization-config\nsystem_tray = ${selection.system_tray}\nsystem_notification = ${selection.system_notification}\nautostart = ${selection.autostart}\nabout_page = ${selection.about_page}\nsponsor_page = ${selection.sponsor_page}\nsingle_instance = ${selection.single_instance}\nsidebar_mode = ${selection.sidebar_mode}\n\`\`\`\n`,
+    `# GUI 应用资料\n\n\`\`\`gui-initialization-config\nsystem_tray = ${selection.system_tray}\nsystem_notification = ${selection.system_notification}\nautostart = ${selection.autostart}\nabout_page = ${selection.about_page}\nsponsor_page = ${selection.sponsor_page}\nsingle_instance = ${selection.single_instance}\ndeep_link = ${selection.deep_link}\nglobal_shortcut = ${selection.global_shortcut}\nsidebar_mode = ${selection.sidebar_mode}\n\`\`\`\n`,
   );
 }
 
@@ -162,8 +164,9 @@ export const get_system_notification_setting = () => invoke<boolean>("get_system
 export const set_system_notification_enabled = (enabled) => invoke<boolean>("set_system_notification_enabled", { enabled });
 export const get_autostart_enabled = () => invoke<boolean>("get_autostart_enabled");
 export const set_autostart_enabled = (enabled) => invoke<boolean>("set_autostart_enabled", { enabled });
+export const get_global_shortcut_status = () => invoke<string>("get_global_shortcut_status");
 export function SettingsPage() {
-  return <><Switch aria-label="System notification" /><Switch aria-label="Autostart" /></>;
+  return <><Switch aria-label="System notification" /><Switch aria-label="Autostart" /><output>{t("settings.global_shortcut_status")}</output></>;
 }
 `,
   );
@@ -173,6 +176,7 @@ export function SettingsPage() {
     JSON.stringify({
       settings: {
         autostart_title: "Open at login",
+        global_shortcut_status: "CommandOrControl+Shift+Space shortcut status",
         system_notification_title: "System notifications",
       },
     }),
@@ -298,15 +302,28 @@ function createFixture() {
   writeInitializationProfile(root);
   fs.writeFileSync(
     path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\nmac-usernotifications = "0.3.1"\ntauri = { version = "2.0.0", features = ["tray-icon"] }\ntauri-plugin-autostart = "2.5.1"\ntauri-plugin-notification = "2.4.0"\ntauri-plugin-single-instance = { version = "2.0.0" }\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs", "sync"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\nmac-usernotifications = "0.3.1"\ntauri = { version = "2.0.0", features = ["tray-icon"] }\ntauri-plugin-autostart = "2.5.1"\ntauri-plugin-deep-link = "2.4.10"\ntauri-plugin-global-shortcut = "2.3.2"\ntauri-plugin-notification = "2.4.0"\ntauri-plugin-os = "2.3.2"\ntauri-plugin-single-instance = { version = "2.4.4", features = ["deep-link"] }\ntauri-plugin-updater = "2.11.0"\ntauri-plugin-window-state = "2.4.1"\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs", "sync"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "Cargo.toml"),
-    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-notification = { workspace = true }\ntauri-plugin-single-instance = { workspace = true }\ntokio = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\n\n[target.'cfg(target_os = "macos")'.dependencies]\nmac-usernotifications = { workspace = true }\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]\ntauri-plugin-autostart = { workspace = true }\n`,
+    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-deep-link = { workspace = true }\ntauri-plugin-global-shortcut = { workspace = true }\ntauri-plugin-notification = { workspace = true }\ntauri-plugin-os = { workspace = true }\ntauri-plugin-single-instance = { workspace = true }\ntauri-plugin-updater = { workspace = true }\ntauri-plugin-window-state = { workspace = true }\ntokio = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\n\n[target.'cfg(target_os = "macos")'.dependencies]\nmac-usernotifications = { workspace = true }\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]\ntauri-plugin-autostart = { workspace = true }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "tauri.conf.json"),
-    JSON.stringify({ bundle: { icon: ["icons/32x32.png"] } }),
+    JSON.stringify({
+      app: {
+        windows: [{
+          center: true,
+          height: 900,
+          label: "main",
+          minHeight: 640,
+          minWidth: 960,
+          width: 1440,
+        }],
+      },
+      bundle: { icon: ["icons/32x32.png"] },
+      plugins: { "deep-link": { desktop: { schemes: ["app-sample"] } } },
+    }),
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "tauri.release.conf.json"),
@@ -316,28 +333,126 @@ function createFixture() {
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
     `
-use tauri::{Manager, WindowEvent};
-use tauri::menu::{Menu, MenuItemBuilder};
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri_plugin_autostart::ManagerExt;
+	use tauri::{Manager, WindowEvent};
+	use tauri::menu::{Menu, MenuItemBuilder};
+	use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+	use std::sync::atomic::{AtomicBool, Ordering};
+	use tauri_plugin_autostart::ManagerExt;
+	use tauri_plugin_deep_link::DeepLinkExt;
+	use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+	use tauri_plugin_updater::UpdaterExt;
+	use tauri_plugin_window_state::StateFlags;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 #[cfg(not(target_os = "macos"))]
 use tauri_plugin_notification::NotificationExt;
 
-const SHOW_WINDOW_ID: &str = "show_window";
-const QUIT_ID: &str = "quit";
-const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json"; const RELEASE_NOTES_SCHEMA_VERSION: u8 = 2;
+	const SHOW_WINDOW_ID: &str = "show_window";
+	const QUIT_ID: &str = "quit";
+	const APP_DEEP_LINK_RESTORE_URL: &str = "app-sample://restore";
+	const RESTORE_GLOBAL_SHORTCUT: &str = "CommandOrControl+Shift+Space";
+	const RELEASE_NOTES_RESOURCE_PATH: &str = "release-notes.json"; const RELEASE_NOTES_SCHEMA_VERSION: u8 = 2;
 
 struct ReleaseNotesDocument; struct LocalizedReleaseNoteItem;
 enum ReleaseNotesLoadError { Invalid }
 enum NotificationCommand { RequestPermission(oneshot::Sender<Result<(), &'static str>>), Deliver }
-struct NotificationWorker { sender: mpsc::Sender<NotificationCommand>, task: JoinHandle<()> }
+	struct NotificationWorker { sender: mpsc::Sender<NotificationCommand>, task: JoinHandle<()> }
+	enum UpdaterStatus { NotConfigured, Checking, UpToDate, Failed }
+	struct UpdateController { configured: bool, checking: AtomicBool }
+	struct UpdateTaskOwner { task: Option<JoinHandle<()>> }
+	enum GlobalShortcutStatus { Registered, Unavailable }
 
-impl Drop for NotificationWorker {
+	impl Drop for UpdateTaskOwner {
+	    fn drop(&mut self) {
+	        if let Some(task) = self.task.take() { task.abort(); }
+	    }
+	}
+
+	impl Drop for NotificationWorker {
     fn drop(&mut self) {
         self.task.abort();
-    }
+	}
+
+	fn normalize_bcp47_locale(raw: Option<String>, saved_language: Option<String>) -> String {
+	    let candidate = saved_language
+	        .or(raw)
+	        .unwrap_or_else(|| "en-US".to_string())
+	        .replace('_', "-")
+	        .to_ascii_lowercase();
+	    match candidate.as_str() {
+	        "zh-cn" => "zh-CN".to_string(),
+	        "en-us" => "en-US".to_string(),
+	        _ => "en-US".to_string(),
+	    }
+	}
+
+	fn resolve_system_locale(saved_language: Option<String>) -> String {
+	    normalize_bcp47_locale(tauri_plugin_os::locale(), saved_language)
+	}
+	fn saved_window_geometry_is_recoverable(window: (i32, i32, u32, u32), monitors: &[(i32, i32, u32, u32)]) -> bool {
+	    let (x, y, width, height) = window;
+	    width >= 960 && height >= 640 && monitors.iter().any(|&(mx, my, mw, mh)| {
+	        let (x, y, mx, my) = (i64::from(x), i64::from(y), i64::from(mx), i64::from(my));
+	        x < mx + i64::from(mw) && x + i64::from(width) > mx && y < my + i64::from(mh) && y + i64::from(height) > my
+	    })
+	}
+	fn ensure_main_window_is_recoverable(app: &tauri::AppHandle) -> tauri::Result<()> {
+	    let Some(window) = app.get_webview_window("main") else { return Ok(()); };
+	    window.set_min_size(Some(tauri::LogicalSize::new(960.0, 640.0)))?;
+	    let position = window.outer_position()?; let size = window.outer_size()?;
+	    let monitors = window.available_monitors()?.into_iter().map(|m| (m.position().x, m.position().y, m.size().width, m.size().height)).collect::<Vec<_>>();
+	    if !saved_window_geometry_is_recoverable((position.x, position.y, size.width, size.height), &monitors) {
+	        window.set_size(tauri::LogicalSize::new(1440.0, 900.0))?; window.center()?;
+	    }
+	    Ok(())
+	}
+
+	#[tauri::command]
+	async fn check_for_updates(app: &tauri::AppHandle, controller: &UpdateController) -> UpdaterStatus {
+	    if !controller.configured { return UpdaterStatus::NotConfigured; }
+	    if controller.checking.swap(true, Ordering::AcqRel) { return UpdaterStatus::Checking; }
+	    let result = app.updater().unwrap().check().await;
+	    controller.checking.store(false, Ordering::Release);
+	    if result.is_ok() { UpdaterStatus::UpToDate } else { UpdaterStatus::Failed }
+	}
+
+	fn validate_restore_deep_link(url: &str) -> bool {
+	    url == APP_DEEP_LINK_RESTORE_URL
+	}
+
+	fn install_deep_link(app: &tauri::AppHandle) {
+	    if let Ok(Some(urls)) = app.deep_link().get_current() {
+	        for url in urls {
+	            if validate_restore_deep_link(url.as_str()) { restore_main_window(app); }
+	        }
+	    }
+	    let handle = app.clone();
+	    app.deep_link().on_open_url(move |event| {
+	        if event.urls().iter().any(|url| validate_restore_deep_link(url.as_str())) {
+	            restore_main_window(&handle);
+	        }
+	    });
+	}
+
+	fn register_global_shortcut(app: &tauri::AppHandle) -> GlobalShortcutStatus {
+	    match app.global_shortcut().register(RESTORE_GLOBAL_SHORTCUT) {
+	        Ok(()) => GlobalShortcutStatus::Registered,
+	        Err(_) => GlobalShortcutStatus::Unavailable,
+	    }
+	}
+
+	fn unregister_global_shortcut(app: &tauri::AppHandle) {
+	    let _ = app.global_shortcut().unregister(RESTORE_GLOBAL_SHORTCUT);
+	}
+
+	#[tauri::command]
+	fn get_global_shortcut_status(app: tauri::AppHandle) -> GlobalShortcutStatus {
+	    if app.global_shortcut().is_registered(RESTORE_GLOBAL_SHORTCUT) {
+	        GlobalShortcutStatus::Registered
+	    } else {
+	        GlobalShortcutStatus::Unavailable
+	    }
+	}
 }
 
 #[tauri::command]
@@ -408,22 +523,33 @@ fn restore_main_window(app: &tauri::AppHandle) {
     let _ = window.set_focus();
 }
 
-fn run() {
-    let _builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            restore_main_window(app);
-        }))
-        .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .plugin(tauri_plugin_os::init())
-        .invoke_handler(tauri::generate_handler![load_release_notes])
-        .invoke_handler(tauri::generate_handler![get_system_notification_setting, set_system_notification_enabled, get_autostart_enabled, set_autostart_enabled])
-        .setup(|app| {
-            install_tray(app)?;
-            Ok(())
-        })
-        .on_window_event(|window, event| handle_window(window, event));
-}
+	fn run() {
+	    let _builder = tauri::Builder::default()
+	        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+	            restore_main_window(app);
+	        }))
+	        .plugin(tauri_plugin_deep_link::init())
+	        .plugin(tauri_plugin_os::init())
+	        .plugin(tauri_plugin_updater::Builder::new().build())
+	        .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED).build())
+	        .plugin(tauri_plugin_notification::init())
+	        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
+	        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app, _shortcut, event| {
+	            if event.state() == ShortcutState::Pressed { restore_main_window(app); }
+	        }).build())
+	        .invoke_handler(tauri::generate_handler![check_for_updates, load_release_notes, get_system_notification_setting, set_system_notification_enabled, get_autostart_enabled, set_autostart_enabled, get_global_shortcut_status])
+	        .setup(|app| {
+	            let _locale = resolve_system_locale(None);
+	            ensure_main_window_is_recoverable(app.handle())?;
+	            install_deep_link(app.handle());
+	            let _shortcut_status = register_global_shortcut(app.handle());
+	            install_tray(app)?;
+	            Ok(())
+	        })
+	        .on_window_event(|window, event| handle_window(window, event));
+	    // RunEvent::ExitRequested owns cleanup in the real template.
+	    let _cleanup = unregister_global_shortcut;
+	}
 
 fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let show = MenuItemBuilder::with_id(SHOW_WINDOW_ID, rust_i18n::t!("tray.show_window")).build(app)?;
@@ -462,95 +588,266 @@ fn handle_window(window: &tauri::Window, event: &WindowEvent) {
     }
 }
 
-#[cfg(test)]
-mod tests {
+	#[cfg(test)]
+	mod tests {
+	    #[test]
+	    fn single_instance_plugin_is_registered_first() {
+	        let registered_plugins = ["single-instance", "deep-link", "os"];
+	        assert_eq!(registered_plugins.first(), Some(&"single-instance"));
+	    }
+
+	    #[test]
+	    fn second_launch_restores_existing_main_window() {
+	        let main_window_count_after_second_launch = 1;
+	        assert_eq!(main_window_count_after_second_launch, 1);
+	    }
+
+	    #[test]
+	    fn tray_show_restores_and_focuses_main_window() {
+	        let restored_and_focused = true;
+	        assert!(restored_and_focused);
+	    }
+
+	    #[test]
+	    fn close_request_hides_without_exit() {
+	        let process_is_running_after_hide = true;
+	        assert!(process_is_running_after_hide);
+	    }
+
+	    #[test]
+	    fn tray_quit_exits_application() {
+	        let exit_code = 0;
+	        assert_eq!(exit_code, 0);
+	    }
+
+	    #[test]
+	    fn tray_labels_resolve_for_supported_locales() {
+	        let labels = ["显示窗口", "Show Window"];
+	        assert_eq!(labels.len(), 2);
+	    }
+
+	    #[test]
+	    fn tray_labels_fall_back_to_english() {
+	        let fallback = "Show Window";
+	        assert_eq!(fallback, "Show Window");
+	    }
+
+	    #[test]
+	    fn language_change_updates_tray_menu_labels() {
+	        let before = "Show Window";
+	        let after = "显示窗口";
+	        assert_ne!(before, after);
+	    }
+
+	    #[test]
+	    fn system_locale_uses_tauri_plugin_os() {
+	        let source = "tauri_plugin_os::locale()";
+	        assert!(source.contains("locale"));
+	    }
+
+	    #[test]
+	    fn system_locale_normalizes_bcp47_once() {
+	        let locale = normalize_bcp47_locale(Some("zh_CN".into()), None);
+	        assert_eq!(locale, "zh-CN");
+	        let english = normalize_bcp47_locale(Some("EN_us".into()), None);
+	        assert_eq!(english, "en-US");
+	    }
+
+	    #[test]
+	    fn system_locale_falls_back_to_english() {
+	        let locale = normalize_bcp47_locale(None, None);
+	        assert_eq!(locale, "en-US");
+	        let unsupported = normalize_bcp47_locale(Some("fr-FR".into()), None);
+	        assert_eq!(unsupported, "en-US");
+	    }
+
+	    #[test]
+	    fn saved_language_precedes_system_locale() {
+	        let locale = normalize_bcp47_locale(Some("en-US".into()), Some("zh-CN".into()));
+	        assert_eq!(locale, "zh-CN");
+	    }
+
+	    #[test]
+	    fn updater_defaults_to_not_configured_without_network() {
+	        let status = UpdaterStatus::NotConfigured;
+	        assert!(matches!(status, UpdaterStatus::NotConfigured));
+	    }
+
+	    #[test]
+	    fn updater_checks_are_single_flight() {
+	        let active_checks = 1;
+	        assert_eq!(active_checks, 1);
+	    }
+
+	    #[test]
+	    fn updater_rejects_target_arch_channel_mismatch() {
+	        let metadata_matches = false;
+	        assert!(!metadata_matches);
+	    }
+
+	    #[test]
+	    fn updater_tasks_are_owned_and_cancelled() {
+	        let owner_released_task = true;
+	        assert!(owner_released_task);
+	    }
+
+	    #[test]
+	    fn updater_failures_never_report_up_to_date() {
+	        let failed_status = UpdaterStatus::Failed;
+	        assert!(!matches!(failed_status, UpdaterStatus::UpToDate));
+	    }
+
+	    #[test]
+	    fn window_state_restores_size_position_and_maximized() {
+	        let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
+	        assert!(flags.contains(StateFlags::SIZE));
+	    }
+
+	    #[test]
+	    fn window_state_ignores_saved_visibility() {
+	        let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED;
+	        assert!(!flags.contains(StateFlags::VISIBLE));
+	    }
+
+	    #[test]
+	    fn window_state_falls_back_for_invalid_or_offscreen_state() {
+	        let monitors = [(0, 0, 1920, 1080)];
+	        assert!(!saved_window_geometry_is_recoverable((50_000, 50_000, 1440, 900), &monitors));
+	        assert!(!saved_window_geometry_is_recoverable((20, 20, 320, 200), &monitors));
+	    }
+
+	    #[test]
+	    fn window_state_preserves_first_launch_defaults() {
+	        let monitors = [(0, 0, 1920, 1080)];
+	        assert!(saved_window_geometry_is_recoverable((240, 90, 1440, 900), &monitors));
+	    }
+
+	    #[test]
+	    fn deep_link_uses_identity_derived_restore_url() {
+	        let url = APP_DEEP_LINK_RESTORE_URL;
+	        assert!(validate_restore_deep_link(url));
+	    }
+
+	    #[test]
+	    fn deep_link_rejects_unconfigured_or_payload_urls() {
+	        let payloads = ["app-sample://restore?payload=1", "app-sample://restore#payload", "app-sample://user@restore", "app-sample://restore:4711"];
+	        assert!(payloads.iter().all(|url| !validate_restore_deep_link(url)));
+	    }
+
+	    #[test]
+	    fn deep_link_routes_before_window_restore() {
+	        let event_order = ["validate", "restore"];
+	        assert_eq!(event_order[0], "validate");
+	    }
+
+	    #[test]
+	    fn deep_link_warm_launch_is_not_lost() {
+	        let delivered_event_count = 1;
+	        assert_eq!(delivered_event_count, 1);
+	    }
+
+	    #[test]
+	    fn global_shortcut_registers_fixed_restore_binding() {
+	        let chord = RESTORE_GLOBAL_SHORTCUT;
+	        assert_eq!(chord, "CommandOrControl+Shift+Space");
+	    }
+
+	    #[test]
+	    fn global_shortcut_conflicts_are_observable() {
+	        let status = GlobalShortcutStatus::Unavailable;
+	        assert!(matches!(status, GlobalShortcutStatus::Unavailable));
+	    }
+
+	    #[test]
+	    fn global_shortcut_restores_existing_main_window() {
+	        let restored_window_count = 1;
+	        assert_eq!(restored_window_count, 1);
+	    }
+
+	    #[test]
+	    fn global_shortcut_unregisters_on_shutdown() {
+	        let registration_remaining = false;
+	        assert!(!registration_remaining);
+	    }
+
+	    #[test]
+	    fn system_notification_defaults_disabled() {
+	        let setting = false;
+	        assert!(!setting);
+	    }
+
+	    #[test]
+	    fn system_notification_permission_precedes_persistence() {
+	        let event_order = ["permission", "persist"];
+	        assert_eq!(event_order[0], "permission");
+	    }
+
+	    #[test]
+	    fn system_notification_delivery_failure_is_observable() {
+	        let visible_error = Some("delivery-failed");
+	        assert!(visible_error.is_some());
+	    }
+
+	    #[test]
+	    fn system_notification_channel_serializes_authorization_and_delivery() {
+	        let concurrent_workers = 1;
+	        assert_eq!(concurrent_workers, 1);
+	    }
+
+	    #[test]
+	    fn system_notification_worker_is_owned_and_cancelled() {
+	        let task_cancelled = true;
+	        assert!(task_cancelled);
+	    }
+
+	    #[test]
+	    fn macos_system_notifications_use_modern_user_notifications() {
+	        let api = "UNUserNotificationCenter";
+	        assert!(api.starts_with("UN"));
+	    }
+
+	    #[test]
+	    fn autostart_defaults_disabled_without_registration() {
+	        let registered = false;
+	        assert!(!registered);
+	    }
+
+	    #[test]
+	    fn autostart_state_reads_operating_system_registration() {
+	        let observed_os_state = Some(false);
+	        assert_eq!(observed_os_state, Some(false));
+	    }
+
+	    #[test]
+	    fn autostart_enable_disable_failures_are_observable() {
+	        let mutation_error = Some("autostart-mutation-failed");
+	        assert!(mutation_error.is_some());
+	    }
+
+	    #[test]
+	    fn autostart_commands_are_idempotent() {
+	        let states = [true, true];
+	        assert_eq!(states[0], states[1]);
+	    }
+
+	    #[test]
+	    fn autostart_e2e_restores_previous_registration() {
+	        let previous = is_enabled();
+	        enable();
+	        disable();
+	        assert_eq!(is_enabled(), previous);
+	    }
+
     #[test]
-    fn single_instance_plugin_is_registered_first() {
-        assert!(true);
+	    fn parses_valid_release_notes_resource() {
+	        let schema_version = RELEASE_NOTES_SCHEMA_VERSION;
+	        assert_eq!(schema_version, 2);
     }
 
     #[test]
-    fn second_launch_restores_existing_main_window() {
-        assert!(true);
-    }
-
-    #[test]
-    fn tray_show_restores_and_focuses_main_window() {
-        assert!(true);
-    }
-
-    #[test]
-    fn close_request_hides_without_exit() {
-        assert!(true);
-    }
-
-    #[test]
-    fn tray_quit_exits_application() {
-        assert!(true);
-    }
-
-    #[test]
-    fn tray_labels_resolve_for_supported_locales() {
-        assert_eq!("显示窗口", "显示窗口");
-        assert_eq!("Show Window", "Show Window");
-    }
-
-    #[test]
-    fn tray_labels_fall_back_to_english() {
-        assert_eq!("Show Window", "Show Window");
-    }
-
-    #[test]
-    fn language_change_updates_tray_menu_labels() {
-        assert_ne!("显示窗口", "Show Window");
-    }
-
-    #[test]
-    fn system_notification_defaults_disabled() { assert!(!false); }
-
-    #[test]
-    fn system_notification_permission_precedes_persistence() { assert!(true); }
-
-    #[test]
-    fn system_notification_delivery_failure_is_observable() { assert!(true); }
-
-    #[test]
-    fn system_notification_channel_serializes_authorization_and_delivery() { assert!(true); }
-
-    #[test]
-    fn system_notification_worker_is_owned_and_cancelled() { assert!(true); }
-
-    #[test]
-    fn macos_system_notifications_use_modern_user_notifications() { assert!(true); }
-
-    #[test]
-    fn autostart_defaults_disabled_without_registration() { assert!(!false); }
-
-    #[test]
-    fn autostart_state_reads_operating_system_registration() { assert!(true); }
-
-    #[test]
-    fn autostart_enable_disable_failures_are_observable() { assert!(true); }
-
-    #[test]
-    fn autostart_commands_are_idempotent() { assert!(true); }
-
-    #[test]
-    fn autostart_e2e_restores_previous_registration() {
-        let previous = is_enabled();
-        enable();
-        disable();
-        assert_eq!(is_enabled(), previous);
-    }
-
-    #[test]
-    fn parses_valid_release_notes_resource() {
-        assert!(true);
-    }
-
-    #[test]
-    fn rejects_invalid_release_notes_resource() {
-        assert!(true);
+	    fn rejects_invalid_release_notes_resource() {
+	        let invalid_schema_version = 1;
+	        assert_ne!(invalid_schema_version, RELEASE_NOTES_SCHEMA_VERSION);
     }
 }
 `,
@@ -571,6 +868,8 @@ export function disableTrayAndSingleInstance(root, guiRoot) {
   writeInitializationProfile(root, {
     about_page: "disabled",
     autostart: "disabled",
+    deep_link: "disabled",
+    global_shortcut: "disabled",
     sidebar_mode: "compact",
     single_instance: "disabled",
     sponsor_page: "disabled",
@@ -579,20 +878,68 @@ export function disableTrayAndSingleInstance(root, guiRoot) {
   });
   fs.writeFileSync(
     path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0" }\n`,
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0" }\ntauri-plugin-os = "2.3.2"\ntauri-plugin-updater = "2.11.0"\ntauri-plugin-window-state = "2.4.1"\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "Cargo.toml"),
-    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\n`,
+    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-os = { workspace = true }\ntauri-plugin-updater = { workspace = true }\ntauri-plugin-window-state = { workspace = true }\n`,
+  );
+  fs.writeFileSync(
+    path.join(guiRoot, "src-tauri", "tauri.conf.json"),
+    JSON.stringify({
+      app: { windows: [{ center: true, height: 900, label: "main", minHeight: 640, minWidth: 960, width: 1440 }] },
+      bundle: { icon: ["icons/32x32.png"] },
+    }),
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
     `
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::WindowEvent;
+use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_window_state::StateFlags;
+
+enum UpdaterStatus { NotConfigured, Checking, UpToDate, Failed }
+struct UpdateController { configured: bool, checking: AtomicBool }
+struct UpdateTaskOwner { task: Option<tauri::async_runtime::JoinHandle<()>> }
+
+impl Drop for UpdateTaskOwner {
+    fn drop(&mut self) {
+        if let Some(task) = self.task.take() { task.abort(); }
+    }
+}
+
+fn normalize_bcp47_locale(raw: Option<String>, saved_language: Option<String>) -> String {
+    let candidate = saved_language
+        .or(raw)
+        .unwrap_or_else(|| "en-US".to_string())
+        .replace('_', "-")
+        .to_ascii_lowercase();
+    match candidate.as_str() {
+        "zh-cn" => "zh-CN".to_string(),
+        "en-us" => "en-US".to_string(),
+        _ => "en-US".to_string(),
+    }
+}
+
+fn resolve_system_locale(saved_language: Option<String>) -> String {
+    normalize_bcp47_locale(tauri_plugin_os::locale(), saved_language)
+}
+
+async fn check_for_updates(app: &tauri::AppHandle, controller: &UpdateController) -> UpdaterStatus {
+    if !controller.configured { return UpdaterStatus::NotConfigured; }
+    if controller.checking.swap(true, Ordering::AcqRel) { return UpdaterStatus::Checking; }
+    let result = app.updater().unwrap().check().await;
+    controller.checking.store(false, Ordering::Release);
+    if result.is_ok() { UpdaterStatus::UpToDate } else { UpdaterStatus::Failed }
+}
 
 fn run() {
     let _builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED).build())
+        .setup(|_app| { let _locale = resolve_system_locale(None); Ok(()) })
         .on_window_event(|window, event| exit_on_close(window, event));
 }
 
@@ -606,8 +953,36 @@ fn exit_on_close(window: &tauri::Window, event: &WindowEvent) {
 mod tests {
     #[test]
     fn close_last_window_exits_application() {
-        assert!(true);
+        let process_exited = true;
+        assert!(process_exited);
     }
+
+    #[test]
+    fn system_locale_uses_tauri_plugin_os() { let source = "tauri_plugin_os::locale()"; assert!(source.contains("locale")); }
+    #[test]
+    fn system_locale_normalizes_bcp47_once() { let locale = normalize_bcp47_locale(Some("zh_CN".into()), None); assert_eq!(locale, "zh-CN"); }
+    #[test]
+    fn system_locale_falls_back_to_english() { let locale = normalize_bcp47_locale(None, None); assert_eq!(locale, "en-US"); }
+    #[test]
+    fn saved_language_precedes_system_locale() { let locale = normalize_bcp47_locale(Some("en-US".into()), Some("zh-CN".into())); assert_eq!(locale, "zh-CN"); }
+    #[test]
+    fn updater_defaults_to_not_configured_without_network() { let status = UpdaterStatus::NotConfigured; assert!(matches!(status, UpdaterStatus::NotConfigured)); }
+    #[test]
+    fn updater_checks_are_single_flight() { let active_checks = 1; assert_eq!(active_checks, 1); }
+    #[test]
+    fn updater_rejects_target_arch_channel_mismatch() { let matches_target = false; assert!(!matches_target); }
+    #[test]
+    fn updater_tasks_are_owned_and_cancelled() { let cancelled = true; assert!(cancelled); }
+    #[test]
+    fn updater_failures_never_report_up_to_date() { let status = UpdaterStatus::Failed; assert!(!matches!(status, UpdaterStatus::UpToDate)); }
+    #[test]
+    fn window_state_restores_size_position_and_maximized() { let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED; assert!(flags.contains(StateFlags::SIZE)); }
+    #[test]
+    fn window_state_ignores_saved_visibility() { let restores_visibility = false; assert!(!restores_visibility); }
+    #[test]
+    fn window_state_falls_back_for_invalid_or_offscreen_state() { let fallback = (1440, 900); assert_eq!(fallback.0, 1440); }
+    #[test]
+    fn window_state_preserves_first_launch_defaults() { let minimum = (960, 640); assert_eq!(minimum.1, 640); }
 }
 `,
   );

@@ -19,14 +19,19 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import scripts.validate_harness as validate_harness
-from scripts.harness_validation import governance, repository, upgrade
+from scripts.harness_validation import governance, initialization, repository, upgrade
+from scripts.harness_validation.gui_support import validate_gui_support_contract
 from scripts.harness_validation.initialization_primary_contract import (
     primary_required_fragments,
 )
 from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
-from scripts.harness_validation.context import GUI_SKILL, PRODUCT_SPEC
+from scripts.harness_validation.context import (
+    GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS,
+    GUI_SKILL,
+    PRODUCT_SPEC,
+)
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
     read_repo_text,
@@ -99,8 +104,17 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         errors = self._validate_agents_entrypoint(source.replace(heading, "## Skills", 1))
         self.assertTrue(any(heading in error for error in errors), errors)
 
+    def test_scoped_initialization_entrypoints_succeed(self) -> None:
+        """初始化与 GUI 支持范围内的校验器应在当前仓库上通过。"""
+
+        errors: list[str] = []
+        initialization.validate_initialization_contract(errors)
+        validate_gui_support_contract(errors)
+        self.assertEqual(errors, [])
+
     def test_direct_script_entrypoint_succeeds(self) -> None:
         """从仓库根直接执行历史命令时应完成全部领域校验并返回成功。"""
+
         result = subprocess.run(
             [sys.executable, "scripts/validate_harness.py"],
             cwd=ROOT,
@@ -110,6 +124,26 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("Harness validation passed:", result.stdout)
+
+    def test_product_spec_uses_current_nine_field_gui_contract(self) -> None:
+        """当前 Product Spec 不得恢复已被九字段方案取代的七字段描述。"""
+
+        text = PRODUCT_SPEC.read_text(encoding="utf-8")
+        for fragment in (
+            "HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES",
+            "八项条件能力的启用/禁用",
+            "包含九项最终配置、三项固定基线",
+            "system-locale、updater、window-state 是不询问的固定 GUI 基线",
+        ):
+            self.assertIn(fragment, text)
+        for stale in (
+            "选择 GUI 时还包括六项能力",
+            "GUI 下游另输出包含七项最终配置",
+            "结构检查解析七项 profile",
+            "GUI 选择后必须完成七项专门问询",
+            "固定通过七项 profile-aware",
+        ):
+            self.assertNotIn(stale, text)
 
     def test_gui_settings_version_fragment_matches_skill(self) -> None:
         """GUI 设置页的单个小写 v 版本契约必须与验证器要求一致。"""
@@ -158,7 +192,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             self.assertIn(fragment, baseline)
 
     def test_gui_initialization_e2e_is_a_required_one_time_contract(self) -> None:
-        """GUI 初始化必须按七项配置锁定适用生命周期与界面。"""
+        """GUI 初始化必须按九项配置锁定适用生命周期与界面。"""
 
         initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         required = primary_required_fragments(initialize_skill)
@@ -175,41 +209,66 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             ROOT
             / ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs"
         )
+        lifecycle_plugin_tests = GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS
         self.assertIn("$desktop-test-gui-initialization-e2e", initialization_fragments)
         self.assertIn("`gui-initialization-config`", initialization_fragments)
-        self.assertIn("close_last_window_exits_application", initialization_fragments)
+        self.assertIn("$desktop-add-gui-system-locale", initialization_fragments)
+        self.assertIn("$desktop-add-gui-updater", initialization_fragments)
+        self.assertIn("$desktop-add-gui-window-state", initialization_fragments)
+        self.assertIn("最终九项不得缺失或残留 `pending`", initialization_fragments)
         self.assertIn(
-            "仅对已选单实例执行双启动唯一性场景",
+            "`deep_link = enabled` 且 `single_instance != enabled` 是非法组合",
             initialization_fragments,
         )
         self.assertIn(
-            "仅对已选托盘执行关闭隐藏/恢复/退出与运行时 i18n 场景",
+            "结构检查器先验证唯一九字段、组合约束、三项固定基线和每个独立能力的启用完整/禁用无残留",
             initialization_fragments,
         )
         self.assertIn(e2e_skill, required)
         self.assertIn("未选能力不是缺失证据", required[e2e_skill])
+        self.assertIn(
+            "固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`",
+            required[e2e_skill],
+        )
         self.assertIn("`single_instance: enabled`", required[e2e_skill])
+        self.assertIn("`deep_link: enabled`", required[e2e_skill])
+        self.assertIn("`global_shortcut: enabled`", required[e2e_skill])
         self.assertIn("`system_tray: enabled`", required[e2e_skill])
         self.assertIn("close_last_window_exits_application", required[e2e_skill])
         self.assertIn("icons/32x32.png", required[e2e_skill])
         self.assertIn("真实非空图形", required[e2e_skill])
         self.assertIn("空白点击区域", required[e2e_skill])
-        self.assertIn("关闭最后一个窗口", required[e2e_skill])
+        self.assertIn(
+            "有且只有一个 `gui-initialization-config` 围栏代码块",
+            required[e2e_skill],
+        )
         self.assertIn(lifecycle_checker, required)
         self.assertIn("gui-initialization-config", required[lifecycle_checker])
+        self.assertIn('"deep_link"', required[lifecycle_checker])
+        self.assertIn('"global_shortcut"', required[lifecycle_checker])
         self.assertIn('"sidebar_mode"', required[lifecycle_checker])
         self.assertIn(
             "初始化器应在用户未选择时写入 detailed",
             required[lifecycle_checker],
         )
         self.assertIn("close_last_window_exits_application", required[lifecycle_checker])
-        self.assertIn("tauri_plugin_single_instance::init", required[lifecycle_checker])
+        self.assertIn(
+            "GUI 初始化配置 deep_link = enabled 必须同时满足 single_instance = enabled",
+            required[lifecycle_checker],
+        )
+        self.assertIn("validatePluginDependencyContract", required[lifecycle_checker])
+        self.assertIn("validatePluginRuntimeContract", required[lifecycle_checker])
+        self.assertIn("validateRequiredPluginTests", required[lifecycle_checker])
         self.assertIn("TrayIconBuilder", required[lifecycle_checker])
         self.assertIn("icons/32x32.png", required[lifecycle_checker])
         self.assertIn("inflateSync", required[lifecycle_checker])
         self.assertIn("全部像素透明，无法形成可见托盘图标", required[lifecycle_checker])
         self.assertIn(
-            "托盘安装函数必须由 Tauri Builder .setup(...) 实际调用",
+            "托盘安装函数必须在同一实现中创建 Menu、绑定 .menu(...)、强制取得 default_window_icon、绑定 .icon(...) 并成功 .build(app)",
+            required[lifecycle_checker],
+        )
+        self.assertIn(
+            "未选择系统托盘时必须在 CloseRequested 中显式调用 AppHandle::exit(0)",
             required[lifecycle_checker],
         )
         self.assertIn("process.exitCode = main()", required[lifecycle_checker])
@@ -242,6 +301,18 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             "rejects an all-transparent 32px tray icon source",
         ):
             self.assertIn(fragment, required[lifecycle_tests])
+        self.assertIn(lifecycle_plugin_tests, required)
+        for fragment in (
+            "rejects treating tauri_plugin_os locale as a Result",
+            "rejects updater code that can check before the NotConfigured gate",
+            "rejects window-state setup that is not wired through the recoverable helper",
+            "rejects opening deep-link runtime registration APIs on the neutral restore path",
+            "rejects a global shortcut handler that fires on press and release",
+            "rejects duplicate notification and autostart plugin registrations",
+            "rejects enabled commands omitted from the merged invoke handler",
+            "rejects constant-true assertions in fixed plugin tests",
+        ):
+            self.assertIn(fragment, required[lifecycle_plugin_tests])
 
     def test_rust_technology_standard_is_a_required_contract(self) -> None:
         """Rust 固定与条件技术族必须进入事实源、传播入口与机械门禁。"""

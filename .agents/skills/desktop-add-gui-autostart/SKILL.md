@@ -11,6 +11,7 @@ description: 为已选择 GUI 开机自启能力的下游安装官方插件、Ru
 
 - 根 `[workspace.dependencies]` 声明 `tauri-plugin-autostart = "2.5.1"`，作为经过验证的最低兼容稳定下界；GUI member 只在桌面 target dependencies 中以 `workspace = true` 继承。
 - 使用官方 Rust API、`MacosLauncher::LaunchAgent` 和无附加启动参数的 `tauri_plugin_autostart::init(..., None)`。前端不安装 `@tauri-apps/plugin-autostart`，capability 不授予 `autostart:*`；WebView 只调用窄 Rust command。
+- 插件只按 GUI adapter 的中央稳定顺序注册：启用时位于 single-instance/deep-link、三项固定基线与可选 notification 之后、global-shortcut 之前，并且恰好注册一次；本 Skill 不自行争用首 plugin 或另建第二条 Builder 链。
 - 默认启动行为是正常显示主窗口。不得擅自增加 `--hidden`、`--minimized` 或隐藏到托盘参数；只有产品明确批准且 `system_tray = enabled`、恢复路径通过真实宿主验证后，才能另行设计隐藏启动。
 - `autostart = disabled` 时，根/member 依赖、插件注册、ManagerExt、命令、设置 Switch、翻译键、启动参数和专属测试必须缺席。
 

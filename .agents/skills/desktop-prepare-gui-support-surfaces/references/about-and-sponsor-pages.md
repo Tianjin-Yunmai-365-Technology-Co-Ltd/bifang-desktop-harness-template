@@ -1,6 +1,6 @@
 # 关于页、赞助页与品牌媒体集成
 
-本参考适用于所有已选择 GUI 的下游。`assets/brand-support/` 是产品家族共享品牌依赖，不是来源下游产品实例；设置页与全局主题固定建立，关于页、赞助页、系统托盘、系统通知、开机自启、单实例和侧栏模式则严格消费 GUI 初始化专门问询写入 `docs/GUI_APP_PROFILE.md` 的七项选择，更新视觉仍需独立选择。
+本参考适用于所有已选择 GUI 的下游。`assets/brand-support/` 是产品家族共享品牌依赖，不是来源下游产品实例；设置页与全局主题固定建立，关于页、赞助页、系统托盘、系统通知、开机自启、单实例、深链接、全局快捷键和侧栏模式则严格消费 GUI 初始化专门问询写入 `docs/GUI_APP_PROFILE.md` 的九项选择。system-locale、updater、window-state 是不询问的固定基线；真实更新视觉仍需独立产品选择。
 
 ## 资产包内容
 
@@ -22,7 +22,7 @@
 | `react/AppShellTemplate.tsx` | detailed AppShell 读取独立折叠偏好，并同步 fixed 侧栏、Mantine `navbar.width` 与 `data-navbar-width` | 仅在 `sidebar_mode = detailed` 的运行时接入；compact 不得使用此固定 detailed 壳层 |
 | `react/AppThemeProviderTemplate.tsx` | 唯一 Mantine provider、三态本地偏好及亮暗背景/surface/文字/边框/强调色 | GUI 初始化默认根壳层 |
 | `react/SettingsPageTemplate.tsx` | 当前版本、中英文和三态主题；按 profile 接入系统通知/开机自启异步 Switch，不含隐私或统计区块 | GUI 初始化默认页面；两个 Switch 仅随对应能力进入运行时 |
-| `react/MandatoryUpdateGateTemplate.tsx`、`react/updatePresentation.ts` | 根级强更门和稳定更新展示状态 | 选择关于页时保留；产品配置 updater 后接线 |
+| `react/MandatoryUpdateGateTemplate.tsx`、`react/updatePresentation.ts` | 根级强更门和稳定更新展示状态 | 所有 GUI 随 updater 固定基线保留；产品配置真实 updater 后接线 |
 | `react/supportNavigation.ts` | 根据选择生成 `/sponsor`、固定 `/settings` 与 `/about` 菜单项、翻译键和稳定 ID | GUI 初始化导航 |
 | `react/SupportSurfaceTemplates.test.tsx` | 页面、支付码、响应式危险回归和视频约束的非空测试 | 复制模板后按项目测试结构迁移 |
 | `media/sponsor/*` | 12 个原始赞助资源，含支付码和当前未引用小图 | 仅选择赞助页时整体复制 |

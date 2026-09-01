@@ -300,7 +300,7 @@ def validate_engineering_contract(errors: list[str]) -> None:
             "真实非空图形",
             "空白点击区域",
             "退出项结束进程并移除图标",
-            "关闭最后一个窗口",
+            "close_last_window_exits_application",
         ),
         SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),
         SKILLS_ROOT / "desktop-instantiate-project" / "SKILL.md": ("docs/ENGINEERING_RULES.md",),

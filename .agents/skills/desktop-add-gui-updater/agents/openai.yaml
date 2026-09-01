@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 GUI 更新基线"
+  short_description: "接入官方 updater、NotConfigured 零出站与签名门禁"
+  default_prompt: "使用 $desktop-add-gui-updater，为 GUI 固定接入官方 updater、NotConfigured 状态机和签名更新制品门禁。"

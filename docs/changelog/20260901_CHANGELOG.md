@@ -2,6 +2,7 @@
 
 ## 新增
 
+- `HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES`（所需 Harness 版本 `202608281139`）：新增 system-locale、updater、window-state、system-tray、single-instance、deep-link、global-shortcut 七个独立 GUI Skills。前三项成为无需询问的 Rust-only 固定基线，updater 未配置时保持 `NotConfigured` 与零出站，window-state 只恢复安全窗口状态；后四项与既有通知/自启一起由 GUI 初始化明确选择。profile 扩为八项能力加侧栏的唯一九字段，强制 `deep_link => single_instance`；深链接固定为项目标识派生的 restore URL，全局快捷键固定恢复主窗口并公开注册状态。GUI 生命周期检查器拆分插件契约模块，补齐版本/注册顺序、唯一 profile、禁用无残留、command handler、非恒真测试及固定基线回归。
 - `HARNESS-FEAT-PROGRESSIVE-AGENT-INSTRUCTION-ROUTING`（所需 Harness 版本 `202608281139`）：根 `AGENTS.md` 收敛为有 20,000 UTF-8 字节/120 行预算的轻量启动路由器，只常驻范围门禁、任务路由、跨任务摘要、Skills/约束地图和最小闭环；初始化、GUI、依赖、构建、发布与验证细则按任务从既有唯一事实源和精确 Skill 加载。初始化 Skills 与 Harness validator 同步阻止详细规则再次复制回根入口。
 - `HARNESS-FEAT-GUI-NOTIFICATION-AUTOSTART-CAPABILITIES`（所需 Harness 版本 `202608281139`）：GUI 初始化 profile 从五项扩为七项，新增系统通知与开机自启两项显式选择和独立 Skills。启用时才安装平台依赖、Rust command、设置页 Switch、i18n 与回归；通知先授权后保存且由应用拥有串行 worker，自启以 OS 登录项为权威并在失败时回滚。禁用时全部专属接线缺席，初始化 E2E 还原真实登录项状态。
 - `HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT`（所需 Harness 版本 `202608281139`）：完整初始化表单确认后、首次写入前主动检查并按需安装 Git；目标独立仓库缺少作者字段时，只在 local 作用域用设备账户名的 ASCII 英文形式与派生 Gmail 地址补齐，并在完成报告中公开版本、安装变化、身份来源、模板和基线提交。明确发布请求自动复核范围、形成逻辑本地提交并从干净 HEAD 构建，不再二次审批；普通构建不自动提交。

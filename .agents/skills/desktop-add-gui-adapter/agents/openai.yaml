@@ -1,4 +1,4 @@
 interface:
   display_name: "添加 GUI 适配器"
-  short_description: "按七项初始化配置增加桌面能力、支持页和侧栏的 GUI"
-  default_prompt: "使用 $desktop-add-gui-adapter，增加让业务效果回到 core 用例的 Tauri/React 薄适配器，消费七项 GUI 初始化 profile，并严格接入所选单实例、系统托盘、系统通知、开机自启、关于页、赞助页与精简/详细侧栏；未选能力不进入依赖、运行时、设置、路由或资源。"
+  short_description: "按九项配置与三项固定基线增加桌面能力和侧栏的 GUI"
+  default_prompt: "使用 $desktop-add-gui-adapter，增加让业务效果回到 core 用例的 Tauri/React 薄适配器，消费九项 GUI 初始化 profile，并固定接入系统语言、updater、window-state 基线，再按选择接入单实例、系统托盘、深链接、全局快捷键、系统通知、开机自启、关于页、赞助页与精简/详细侧栏。"

@@ -35,8 +35,53 @@ THRESHOLDS = {
     "navigationInteractionCyclesMinimum": 20,
 }
 
+EVIDENCE_SCHEMA_VERSION = 2
 SOURCE_COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+WINDOW_STATE_FINGERPRINT_ALGORITHM = "hmac-sha256-ephemeral-key"
+NON_WAIVABLE_EVIDENCE_INTEGRITY_KEYS = frozenset(
+    {
+        "wholeProcessTree",
+        "probeBytesUnmodified",
+        "allProcessesRecovered",
+    }
+)
+EVIDENCE_ALLOWED_KEYS = frozenset(
+    {
+        "schemaVersion",
+        "performanceProbeSha256",
+        "performanceProbeKind",
+        "sourceCommit",
+        "sourceTreeState",
+        "platform",
+        "architecture",
+        "buildMode",
+        "buildProfile",
+        "performanceSelection",
+        "e2eSelection",
+        "trayEnabled",
+        "observationAvailable",
+        "wholeProcessTree",
+        "probeBytesUnmodified",
+        "allProcessesRecovered",
+        "rendererTimingSource",
+        "processSampler",
+        "warmupRuns",
+        "windowStateIsolation",
+        "coldStartVisibleUsableMs",
+        "interactions",
+        "longTasksMs",
+        "idleObservationSeconds",
+        "idleCpuPercentOfOneLogicalCore",
+        "hiddenTrayObservationSeconds",
+        "hiddenTrayCpuPercentOfOneLogicalCore",
+        "steadyRssMiB",
+        "peakRssMiB",
+        "rssBeforeCyclesMiB",
+        "rssAfterCyclesMiB",
+        "navigationInteractionCycles",
+    }
+)
 
 
 class PerformanceEvidenceError(RuntimeError):
@@ -140,6 +185,244 @@ def _expect_equal(
     """要求证据字段与候选事实精确一致。"""
     if document.get(key) != expected:
         errors.append(f"{label}.{key} must equal {expected!r}")
+
+
+def _state_fingerprint(
+    raw: object,
+    label: str,
+    errors: list[str],
+) -> tuple[tuple[str, str | None] | None, dict[str, Any]]:
+    """校验并白名单化不泄露路径或内容的 window-state 指纹。"""
+    if not isinstance(raw, dict):
+        errors.append(f"{label} must be an object")
+        return None, {}
+
+    allowed_keys = {"kind", "fingerprint"}
+    unexpected = sorted(set(raw) - allowed_keys)
+    if unexpected:
+        errors.append(
+            f"{label} contains unsupported fields: {', '.join(unexpected)}"
+        )
+
+    kind = raw.get("kind")
+    sanitized: dict[str, Any] = {
+        "kind": kind if kind in {"present", "absent"} else "invalid"
+    }
+    if kind not in {"present", "absent"}:
+        errors.append(f"{label}.kind must be present or absent")
+        return None, sanitized
+
+    fingerprint = raw.get("fingerprint")
+    if kind == "present":
+        if not isinstance(fingerprint, str) or not SHA256_PATTERN.fullmatch(
+            fingerprint
+        ):
+            errors.append(
+                f"{label}.fingerprint must be 64 lowercase hexadecimal characters "
+                "when kind is present"
+            )
+            return None, sanitized
+        sanitized["fingerprint"] = fingerprint
+    elif "fingerprint" in raw:
+        errors.append(f"{label}.fingerprint must be absent when kind is absent")
+        return None, sanitized
+
+    if unexpected:
+        return None, sanitized
+    return (kind, fingerprint if kind == "present" else None), sanitized
+
+
+def _validate_window_state_isolation(
+    evidence: dict[str, Any],
+    warmup_runs: int | float | None,
+    errors: list[str],
+) -> tuple[dict[str, Any], bool, list[str]]:
+    """校验逐次同种子重置，并白名单化恢复证据。"""
+    non_waivable: list[str] = []
+
+    def add_error(message: str, *, recovery: bool = False) -> None:
+        errors.append(message)
+        if recovery:
+            non_waivable.append(message)
+
+    raw = evidence.get("windowStateIsolation")
+    if not isinstance(raw, dict):
+        add_error("windowStateIsolation must be an object", recovery=True)
+        return {}, False, non_waivable
+
+    allowed_keys = {
+        "targetResolved",
+        "snapshotStoredOutsideAppData",
+        "originalSnapshotVerified",
+        "fingerprintAlgorithm",
+        "original",
+        "seed",
+        "preLaunchResets",
+        "restoration",
+    }
+    unexpected = sorted(set(raw) - allowed_keys)
+    if unexpected:
+        add_error(
+            "windowStateIsolation contains unsupported fields: "
+            + ", ".join(unexpected)
+        )
+
+    sanitized: dict[str, Any] = {}
+    target_resolved = raw.get("targetResolved") is True
+    sanitized["targetResolved"] = target_resolved
+    if not target_resolved:
+        add_error("windowStateIsolation.targetResolved must be true", recovery=True)
+
+    snapshot_outside = raw.get("snapshotStoredOutsideAppData") is True
+    sanitized["snapshotStoredOutsideAppData"] = snapshot_outside
+    if not snapshot_outside:
+        add_error(
+            "windowStateIsolation.snapshotStoredOutsideAppData must be true",
+            recovery=True,
+        )
+
+    snapshot_verified = raw.get("originalSnapshotVerified") is True
+    sanitized["originalSnapshotVerified"] = snapshot_verified
+    if not snapshot_verified:
+        add_error(
+            "windowStateIsolation.originalSnapshotVerified must be true",
+            recovery=True,
+        )
+
+    fingerprint_algorithm = raw.get("fingerprintAlgorithm")
+    sanitized["fingerprintAlgorithm"] = (
+        fingerprint_algorithm
+        if fingerprint_algorithm == WINDOW_STATE_FINGERPRINT_ALGORITHM
+        else "invalid"
+    )
+    if fingerprint_algorithm != WINDOW_STATE_FINGERPRINT_ALGORITHM:
+        add_error(
+            "windowStateIsolation.fingerprintAlgorithm must equal "
+            f"{WINDOW_STATE_FINGERPRINT_ALGORITHM!r}",
+            recovery=True,
+        )
+
+    original_errors: list[str] = []
+    original, sanitized_original = _state_fingerprint(
+        raw.get("original"), "windowStateIsolation.original", original_errors
+    )
+    sanitized["original"] = sanitized_original
+    for message in original_errors:
+        add_error(message, recovery=True)
+
+    seed_errors: list[str] = []
+    seed, sanitized_seed = _state_fingerprint(
+        raw.get("seed"), "windowStateIsolation.seed", seed_errors
+    )
+    sanitized["seed"] = sanitized_seed
+    errors.extend(seed_errors)
+
+    reset_items = raw.get("preLaunchResets")
+    if not isinstance(reset_items, list):
+        add_error("windowStateIsolation.preLaunchResets must be an array")
+        reset_items = []
+
+    expected_warmups = (
+        int(warmup_runs)
+        if isinstance(warmup_runs, int) and warmup_runs >= 1
+        else 0
+    )
+    expected_runs = [
+        ("warmup", run) for run in range(1, expected_warmups + 1)
+    ]
+    expected_runs.extend(
+        ("cold-start", run)
+        for run in range(1, int(THRESHOLDS["coldStartRuns"]) + 1)
+    )
+    if len(reset_items) != len(expected_runs):
+        add_error(
+            "windowStateIsolation.preLaunchResets must contain exactly "
+            f"{expected_warmups} warmup and "
+            f"{int(THRESHOLDS['coldStartRuns'])} cold-start resets"
+        )
+
+    sanitized_resets: list[dict[str, Any]] = []
+    for index, item in enumerate(reset_items):
+        label = f"windowStateIsolation.preLaunchResets[{index}]"
+        if not isinstance(item, dict):
+            add_error(f"{label} must be an object")
+            sanitized_resets.append({})
+            continue
+        item_unexpected = sorted(set(item) - {"phase", "run", "observed"})
+        if item_unexpected:
+            add_error(
+                f"{label} contains unsupported fields: {', '.join(item_unexpected)}"
+            )
+        phase = item.get("phase")
+        run = item.get("run")
+        observed_errors: list[str] = []
+        observed, sanitized_observed = _state_fingerprint(
+            item.get("observed"), f"{label}.observed", observed_errors
+        )
+        errors.extend(observed_errors)
+        run_is_integer = isinstance(run, int) and not isinstance(run, bool)
+        sanitized_item: dict[str, Any] = {
+            "phase": phase if phase in {"warmup", "cold-start"} else "invalid",
+            "run": run if run_is_integer else None,
+            "observed": sanitized_observed,
+        }
+        sanitized_resets.append(sanitized_item)
+        if not run_is_integer:
+            add_error(f"{label}.run must be an integer")
+        if index < len(expected_runs):
+            expected_phase, expected_run = expected_runs[index]
+            if phase != expected_phase:
+                add_error(f"{label}.phase must equal {expected_phase!r}")
+            if run_is_integer and run != expected_run:
+                add_error(f"{label}.run must equal {expected_run}")
+        if observed is not None and seed is not None and observed != seed:
+            add_error(f"{label}.observed must match windowStateIsolation.seed")
+    sanitized["preLaunchResets"] = sanitized_resets
+
+    restoration_raw = raw.get("restoration")
+    restoration_sanitized: dict[str, Any] = {}
+    restored: tuple[str, str | None] | None = None
+    restoration_verified = False
+    if not isinstance(restoration_raw, dict):
+        add_error("windowStateIsolation.restoration must be an object", recovery=True)
+    else:
+        restoration_unexpected = sorted(
+            set(restoration_raw) - {"observed", "verified"}
+        )
+        if restoration_unexpected:
+            add_error(
+                "windowStateIsolation.restoration contains unsupported fields: "
+                + ", ".join(restoration_unexpected),
+                recovery=True,
+            )
+        restored_errors: list[str] = []
+        restored, sanitized_restored = _state_fingerprint(
+            restoration_raw.get("observed"),
+            "windowStateIsolation.restoration.observed",
+            restored_errors,
+        )
+        restoration_sanitized["observed"] = sanitized_restored
+        for message in restored_errors:
+            add_error(message, recovery=True)
+        restoration_verified = restoration_raw.get("verified") is True
+        restoration_sanitized["verified"] = restoration_verified
+        if not restoration_verified:
+            add_error(
+                "windowStateIsolation.restoration.verified must be true",
+                recovery=True,
+            )
+    sanitized["restoration"] = restoration_sanitized
+
+    restored_matches = original is not None and restored == original
+    if original is not None and restored is not None and not restored_matches:
+        add_error(
+            "windowStateIsolation.restoration.observed must match "
+            "windowStateIsolation.original",
+            recovery=True,
+        )
+
+    recovery_verified = not non_waivable and restored_matches
+    return sanitized, recovery_verified, non_waivable
 
 
 def _probe_name(manifest: dict[str, Any], errors: list[str]) -> str:
@@ -250,7 +533,15 @@ def evaluate(
     if e2e_selection not in {"enabled", "disabled"}:
         errors.append("manifest.e2eSelection must be enabled or disabled")
 
-    _expect_equal(evidence, "schemaVersion", 1, errors, "evidence")
+    unexpected_evidence_keys = sorted(set(evidence) - EVIDENCE_ALLOWED_KEYS)
+    if unexpected_evidence_keys:
+        errors.append(
+            "evidence contains unsupported fields: "
+            + ", ".join(unexpected_evidence_keys)
+        )
+    _expect_equal(
+        evidence, "schemaVersion", EVIDENCE_SCHEMA_VERSION, errors, "evidence"
+    )
     _expect_equal(evidence, "performanceSelection", "enabled", errors, "evidence")
     _expect_equal(evidence, "performanceProbeSha256", actual_sha, errors, "evidence")
     _expect_equal(evidence, "sourceCommit", source_commit, errors, "evidence")
@@ -273,6 +564,7 @@ def evaluate(
     _expect_equal(evidence, "e2eSelection", e2e_selection, errors, "evidence")
     _expect_equal(evidence, "trayEnabled", tray_enabled, errors, "evidence")
 
+    non_waivable_failures: list[str] = []
     for key in (
         "observationAvailable",
         "wholeProcessTree",
@@ -280,7 +572,10 @@ def evaluate(
         "allProcessesRecovered",
     ):
         if evidence.get(key) is not True:
-            errors.append(f"evidence.{key} must be true")
+            failure = f"evidence.{key} must be true"
+            errors.append(failure)
+            if key in NON_WAIVABLE_EVIDENCE_INTEGRITY_KEYS:
+                non_waivable_failures.append(failure)
     if evidence.get("rendererTimingSource") != "performance-observer":
         errors.append("rendererTimingSource must be 'performance-observer'")
     process_sampler = evidence.get("processSampler")
@@ -290,6 +585,12 @@ def evaluate(
     warmup_runs = _number(
         evidence, "warmupRuns", errors, minimum=1, integer=True
     )
+    (
+        sanitized_window_state,
+        window_state_recovery_verified,
+        window_state_non_waivable_failures,
+    ) = _validate_window_state_isolation(evidence, warmup_runs, errors)
+    non_waivable_failures.extend(window_state_non_waivable_failures)
     cold_starts = _number_list(
         evidence,
         "coldStartVisibleUsableMs",
@@ -417,11 +718,25 @@ def evaluate(
         "rssGrowthMiB": rss_growth,
         "rssGrowthLimitMiB": rss_growth_limit,
     }
+    status = "passed" if not errors else "failed"
+    sanitized_observations = {
+        key: evidence[key]
+        for key in EVIDENCE_ALLOWED_KEYS
+        if key in evidence and key != "windowStateIsolation"
+    }
+    sanitized_observations["windowStateIsolation"] = sanitized_window_state
     return {
-        "schemaVersion": 1,
+        "schemaVersion": EVIDENCE_SCHEMA_VERSION,
         "kind": "gui-release-performance",
         "performanceSelection": performance_selection,
-        "status": "passed" if not errors else "failed",
+        "status": status,
+        "windowStateRecoveryVerified": window_state_recovery_verified,
+        "waiverAllowed": (
+            status == "failed"
+            and window_state_recovery_verified
+            and not non_waivable_failures
+        ),
+        "nonWaivableFailures": non_waivable_failures,
         "probe": {
             "file": probe.name,
             "sha256": actual_sha,
@@ -438,7 +753,7 @@ def evaluate(
         "thresholdProfile": "gui-release-v1",
         "thresholds": THRESHOLDS,
         "metrics": metrics,
-        "observations": evidence,
+        "observations": sanitized_observations,
         "failures": errors,
     }
 
@@ -527,12 +842,19 @@ def main(argv: list[str] | None = None) -> int:
                 "status": result["status"],
                 "evidence": args.output.name,
                 "failures": result["failures"],
+                "windowStateRecoveryVerified": result[
+                    "windowStateRecoveryVerified"
+                ],
+                "waiverAllowed": result["waiverAllowed"],
+                "nonWaivableFailures": result["nonWaivableFailures"],
             },
             ensure_ascii=False,
             sort_keys=True,
         )
     )
-    return 0 if result["status"] == "passed" else 1
+    if result["status"] == "passed":
+        return 0
+    return 1 if result["waiverAllowed"] else 3
 
 
 if __name__ == "__main__":

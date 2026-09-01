@@ -28,6 +28,19 @@ test("accepts a complete single-instance and tray lifecycle contract", () => {
 test("accepts an explicit no-tray no-single-instance close-on-last-window contract", () => {
   withFixture(({ root, guiRoot }) => {
     disableTrayAndSingleInstance(root, guiRoot);
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs.readFileSync(source, "utf8")
+        .replace(
+          "fn resolve_system_locale(saved_language: Option<String>) -> String {\n    normalize_bcp47_locale(tauri_plugin_os::locale(), saved_language)\n}\n",
+          `fn resolve_system_locale(saved_language: Option<String>) -> String {\n    normalize_bcp47_locale(tauri_plugin_os::locale(), saved_language)\n}\n\nfn saved_window_geometry_is_recoverable(window: (i32, i32, u32, u32), monitors: &[(i32, i32, u32, u32)]) -> bool {\n    let (x, y, width, height) = window;\n    width >= 960 && height >= 640 && monitors.iter().any(|&(mx, my, mw, mh)| {\n        let (x, y, mx, my) = (i64::from(x), i64::from(y), i64::from(mx), i64::from(my));\n        x < mx + i64::from(mw) && x + i64::from(width) > mx && y < my + i64::from(mh) && y + i64::from(height) > my\n    })\n}\n\nfn ensure_main_window_is_recoverable(app: &tauri::AppHandle) -> tauri::Result<()> {\n    let Some(window) = app.get_webview_window(\"main\") else { return Ok(()); };\n    window.set_min_size(Some(tauri::LogicalSize::new(960.0, 640.0)))?;\n    let position = window.outer_position()?;\n    let size = window.outer_size()?;\n    let monitors = window\n        .available_monitors()?\n        .into_iter()\n        .map(|m| (m.position().x, m.position().y, m.size().width, m.size().height))\n        .collect::<Vec<_>>();\n    if !saved_window_geometry_is_recoverable((position.x, position.y, size.width, size.height), &monitors) {\n        window.set_size(tauri::LogicalSize::new(1440.0, 900.0))?;\n        window.center()?;\n    }\n    Ok(())\n}\n`,
+        )
+        .replace(
+          ".setup(|_app| { let _locale = resolve_system_locale(None); Ok(()) })",
+          ".setup(|app| { let _locale = resolve_system_locale(None); ensure_main_window_is_recoverable(app.handle())?; Ok(()) })",
+        ),
+    );
     assert.deepEqual(verifyGuiLifecycleContract(root, "sample_gui"), []);
   });
 });
@@ -42,7 +55,7 @@ test("rejects a GUI initialization without the dedicated capability profile", ()
   });
 });
 
-test("rejects a seven-field GUI profile written outside the fixed order", () => {
+test("rejects a nine-field GUI profile written outside the fixed order", () => {
   withFixture(({ root }) => {
     const profile = path.join(root, "docs", "GUI_APP_PROFILE.md");
     fs.writeFileSync(
@@ -56,7 +69,7 @@ test("rejects a seven-field GUI profile written outside the fixed order", () => 
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /字段顺序必须为：system_tray → system_notification → autostart → about_page → sponsor_page → single_instance → sidebar_mode/u,
+      /字段顺序必须为：system_tray → system_notification → autostart → about_page → sponsor_page → single_instance → deep_link → global_shortcut → sidebar_mode/u,
     );
   });
 });
@@ -114,11 +127,11 @@ test("rejects an enabled about page without a registered release notes command",
       source,
       fs
         .readFileSync(source, "utf8")
-        .replace("        .invoke_handler(tauri::generate_handler![load_release_notes])\n", ""),
+        .replace("load_release_notes, ", ""),
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /generate_handler!\[load_release_notes\]/u,
+      /load_release_notes/u,
     );
   });
 });
@@ -313,7 +326,7 @@ test("rejects a no-tray close-exit handler not wired into the builder", () => {
 
 test("rejects single-instance dependencies when the capability was not selected", () => {
   withFixture(({ root }) => {
-    writeInitializationProfile(root, { single_instance: "disabled" });
+    writeInitializationProfile(root, { deep_link: "disabled", single_instance: "disabled" });
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
       /不得声明 tauri-plugin-single-instance/u,
@@ -369,7 +382,7 @@ test("rejects every autostart residual when that capability is disabled", () => 
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /未选择开机自启时不得声明 tauri-plugin-autostart.*未选择开机自启时不得保留自启运行时.*未选择开机自启时不得保留设置页运行时/su,
+      /未选择开机自启时不得声明 tauri-plugin-autostart.*未选择开机自启时不得保留运行时.*未选择开机自启时不得保留设置页运行时/su,
     );
   });
 });
@@ -429,11 +442,11 @@ test("accepts table-form Cargo dependencies and MenuItem with_id", () => {
   withFixture(({ root, guiRoot }) => {
     fs.writeFileSync(
       path.join(root, "Cargo.toml"),
-      `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies.mac-usernotifications]\nversion = "0.3.1"\n\n[workspace.dependencies.tauri]\nversion = "2.0.0"\nfeatures = ["tray-icon"]\n\n[workspace.dependencies.tauri-plugin-autostart]\nversion = "2.5.1"\n\n[workspace.dependencies.tauri-plugin-notification]\nversion = "2.4.0"\n\n[workspace.dependencies.tauri-plugin-single-instance]\nversion = "2.0.0"\n\n[workspace.dependencies.tokio]\nversion = "1.0.0"\nfeatures = ["macros", "rt", "fs", "sync"]\n\n[workspace.dependencies.serde]\nversion = "1.0.0"\n\n[workspace.dependencies.serde_json]\nversion = "1.0.0"\n`,
+      `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.dependencies.mac-usernotifications]\nversion = "0.3.1"\n\n[workspace.dependencies.tauri]\nversion = "2.0.0"\nfeatures = ["tray-icon"]\n\n[workspace.dependencies.tauri-plugin-autostart]\nversion = "2.5.1"\n\n[workspace.dependencies.tauri-plugin-deep-link]\nversion = "2.4.10"\n\n[workspace.dependencies.tauri-plugin-global-shortcut]\nversion = "2.3.2"\n\n[workspace.dependencies.tauri-plugin-notification]\nversion = "2.4.0"\n\n[workspace.dependencies.tauri-plugin-os]\nversion = "2.3.2"\n\n[workspace.dependencies.tauri-plugin-single-instance]\nversion = "2.4.4"\nfeatures = ["deep-link"]\n\n[workspace.dependencies.tauri-plugin-updater]\nversion = "2.11.0"\n\n[workspace.dependencies.tauri-plugin-window-state]\nversion = "2.4.1"\n\n[workspace.dependencies.tokio]\nversion = "1.0.0"\nfeatures = ["macros", "rt", "fs", "sync"]\n\n[workspace.dependencies.serde]\nversion = "1.0.0"\n\n[workspace.dependencies.serde_json]\nversion = "1.0.0"\n`,
     );
     fs.writeFileSync(
       path.join(guiRoot, "src-tauri", "Cargo.toml"),
-      `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies.tauri]\nworkspace = true\n\n[dependencies.tauri-plugin-notification]\nworkspace = true\n\n[dependencies.tauri-plugin-single-instance]\nworkspace = true\n\n[dependencies.tokio]\nworkspace = true\n\n[dependencies.serde]\nworkspace = true\n\n[dependencies.serde_json]\nworkspace = true\n\n[target.'cfg(target_os = "macos")'.dependencies.mac-usernotifications]\nworkspace = true\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies.tauri-plugin-autostart]\nworkspace = true\n`,
+      `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies.tauri]\nworkspace = true\n\n[dependencies.tauri-plugin-deep-link]\nworkspace = true\n\n[dependencies.tauri-plugin-global-shortcut]\nworkspace = true\n\n[dependencies.tauri-plugin-notification]\nworkspace = true\n\n[dependencies.tauri-plugin-os]\nworkspace = true\n\n[dependencies.tauri-plugin-single-instance]\nworkspace = true\n\n[dependencies.tauri-plugin-updater]\nworkspace = true\n\n[dependencies.tauri-plugin-window-state]\nworkspace = true\n\n[dependencies.tokio]\nworkspace = true\n\n[dependencies.serde]\nworkspace = true\n\n[dependencies.serde_json]\nworkspace = true\n\n[target.'cfg(target_os = "macos")'.dependencies.mac-usernotifications]\nworkspace = true\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies.tauri-plugin-autostart]\nworkspace = true\n`,
     );
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
@@ -460,9 +473,9 @@ test("rejects a GUI missing the workspace single-instance dependency", () => {
     const cargo = path.join(root, "Cargo.toml");
     fs.writeFileSync(
       cargo,
-      fs.readFileSync(cargo, "utf8").replace('tauri-plugin-single-instance = { version = "2.0.0" }\n', ""),
+      fs.readFileSync(cargo, "utf8").replace('tauri-plugin-single-instance = { version = "2.4.4", features = ["deep-link"] }\n', ""),
     );
-    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /必须声明 tauri-plugin-single-instance/u);
+    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /tauri-plugin-single-instance/u);
   });
 });
 
@@ -478,7 +491,7 @@ test("rejects system-notification dependency lower bounds below the fixed minimu
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /"2\.4\.0".*tauri-plugin-notification.*"0\.3\.1".*mac-usernotifications/su,
+      /tauri-plugin-notification.*"2\.4\.0".*mac-usernotifications.*"0\.3\.1"/su,
     );
   });
 });
@@ -494,7 +507,7 @@ test("rejects an autostart dependency below 2.5.1", () => {
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /"2\.5\.1".*tauri-plugin-autostart/u,
+      /tauri-plugin-autostart.*"2\.5\.1"/u,
     );
   });
 });
@@ -513,7 +526,7 @@ test("rejects mac-usernotifications outside the macOS member target", () => {
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /只在 macOS target dependencies/u,
+      /只位于 macOS target dependencies/u,
     );
   });
 });
@@ -526,8 +539,8 @@ test("rejects a GUI that does not register the single-instance plugin first", ()
       fs
         .readFileSync(source, "utf8")
         .replace(
-          "let _builder = tauri::Builder::default()\n        .plugin(tauri_plugin_single_instance::init",
-          "let _builder = tauri::Builder::default()\n        .plugin(tauri_plugin_os::init())\n        .plugin(tauri_plugin_single_instance::init",
+          ".plugin(tauri_plugin_single_instance::init",
+          ".plugin(tauri_plugin_os::init())\n        .plugin(tauri_plugin_single_instance::init",
         ),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /作为首个 Tauri plugin 注册/u);
@@ -539,7 +552,12 @@ test("rejects a single-instance callback that does not restore the existing wind
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
       source,
-      fs.readFileSync(source, "utf8").replace("restore_main_window(app);", "let _ = app;"),
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            restore_main_window(app);",
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            let _ = app;",
+        ),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /恢复既有窗口/u);
   });
@@ -552,7 +570,10 @@ test("rejects a neutral single-instance callback that consumes launch arguments"
       source,
       fs
         .readFileSync(source, "utf8")
-        .replace("restore_main_window(app);", "let _received = _args.len();\n            restore_main_window(app);"),
+        .replace(
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            restore_main_window(app);",
+          ".plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {\n\t            let _received = _args.len();\n\t            restore_main_window(app);",
+        ),
     );
     assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /不得消费参数\/工作目录/u);
   });
@@ -665,21 +686,16 @@ test("rejects autostart E2E coverage that does not restore the previous OS state
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
       source,
-      fs.readFileSync(source, "utf8").replace(
-        `fn autostart_e2e_restores_previous_registration() {
-        let previous = is_enabled();
-        enable();
-        disable();
-        assert_eq!(is_enabled(), previous);
-    }`,
-        `fn autostart_e2e_restores_previous_registration() {
-        assert!(true);
-    }`,
-      ),
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          /fn autostart_e2e_restores_previous_registration\(\) \{[\s\S]*?assert_eq!\(is_enabled\(\), previous\);\s*\}/u,
+          "fn autostart_e2e_restores_previous_registration() { let unchanged = true; assert!(unchanged); }",
+        ),
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /必须记录原状态、切换注册并在全部路径恢复后重新读取/u,
+      /必须记录原状态、切换注册并恢复后重新读取/u,
     );
   });
 });
@@ -711,13 +727,13 @@ test("rejects tray i18n regression coverage without assertions", () => {
       fs
         .readFileSync(source, "utf8")
         .replace(
-          'fn tray_labels_fall_back_to_english() {\n        assert_eq!("Show Window", "Show Window");\n    }',
+          'fn tray_labels_fall_back_to_english() {\n\t        let fallback = "Show Window";\n\t        assert_eq!(fallback, "Show Window");\n\t    }',
           "fn tray_labels_fall_back_to_english() {}",
         ),
     );
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /固定 GUI 生命周期回归必须包含真实断言/u,
+      /固定 GUI 生命周期回归必须包含非平凡断言/u,
     );
   });
 });

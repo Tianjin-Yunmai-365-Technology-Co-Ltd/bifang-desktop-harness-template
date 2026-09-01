@@ -12,16 +12,19 @@ import {
   validateRustOnlyDesktopCapabilities,
 } from "./gui-lifecycle-frontend-contract.mjs";
 import {
-  cargoDependencyHasLowerBound,
   collectFiles,
   collectMethodArguments,
   collectRustFunctions,
-  desktopTargetDependencyDeclaration,
   resolveGuiRoot,
-  targetDependencyDeclaration,
   tomlAssignment,
   tomlSection,
 } from "./gui-lifecycle-source-analysis.mjs";
+import {
+  hasMeaningfulRustAssertion,
+  validatePluginDependencyContract,
+  validatePluginRuntimeContract,
+  validateRequiredPluginTests,
+} from "./gui-lifecycle-plugin-contract.mjs";
 import { validateReleaseNotesRuntimeContract } from "./verify-release-notes-contract.mjs";
 
 /**
@@ -49,11 +52,6 @@ const TRAY_SOURCE_ALTERNATIVES = [
   ["创建稳定 ID 的托盘菜单项", ["MenuItemBuilder", "MenuItem::with_id"]],
 ];
 
-const SINGLE_INSTANCE_TEST_NAMES = [
-  "single_instance_plugin_is_registered_first",
-  "second_launch_restores_existing_main_window",
-];
-
 const TRAY_TEST_NAMES = [
   "tray_show_restores_and_focuses_main_window",
   "close_request_hides_without_exit",
@@ -65,23 +63,6 @@ const TRAY_TEST_NAMES = [
 
 const NO_TRAY_TEST_NAMES = ["close_last_window_exits_application"];
 
-const SYSTEM_NOTIFICATION_TEST_NAMES = [
-  "system_notification_defaults_disabled",
-  "system_notification_permission_precedes_persistence",
-  "system_notification_delivery_failure_is_observable",
-  "system_notification_channel_serializes_authorization_and_delivery",
-  "system_notification_worker_is_owned_and_cancelled",
-  "macos_system_notifications_use_modern_user_notifications",
-];
-
-const AUTOSTART_TEST_NAMES = [
-  "autostart_defaults_disabled_without_registration",
-  "autostart_state_reads_operating_system_registration",
-  "autostart_enable_disable_failures_are_observable",
-  "autostart_commands_are_idempotent",
-  "autostart_e2e_restores_previous_registration",
-];
-
 const GUI_INITIALIZATION_PROFILE_FIELDS = [
   "system_tray",
   "system_notification",
@@ -89,6 +70,8 @@ const GUI_INITIALIZATION_PROFILE_FIELDS = [
   "about_page",
   "sponsor_page",
   "single_instance",
+  "deep_link",
+  "global_shortcut",
   "sidebar_mode",
 ];
 
@@ -144,11 +127,16 @@ function readGuiInitializationProfile(root, errors) {
     errors.push(`缺少可解析的 GUI 初始化资料：${error.message}`);
     return null;
   }
-  const block = text.match(/```gui-initialization-config\s*\n([\s\S]*?)```/u);
-  if (!block) {
+  const blocks = [...text.matchAll(/```gui-initialization-config\s*\n([\s\S]*?)```/gu)];
+  if (blocks.length === 0) {
     errors.push("docs/GUI_APP_PROFILE.md 缺少 gui-initialization-config 代码块");
     return null;
   }
+  if (blocks.length !== 1) {
+    errors.push(`docs/GUI_APP_PROFILE.md 必须只有一个 gui-initialization-config 代码块，实际 ${blocks.length} 个`);
+    return null;
+  }
+  const block = blocks[0];
   const values = new Map();
   const fieldOrder = [];
   for (const rawLine of block[1].split(/\r?\n/u)) {
@@ -192,6 +180,8 @@ function readGuiInitializationProfile(root, errors) {
     "about_page",
     "sponsor_page",
     "single_instance",
+    "deep_link",
+    "global_shortcut",
   ]) {
     if (values.has(field) && !new Set(["enabled", "disabled"]).has(values.get(field))) {
       errors.push(`GUI 初始化配置 ${field} 必须为 enabled 或 disabled`);
@@ -200,10 +190,15 @@ function readGuiInitializationProfile(root, errors) {
   if (values.has("sidebar_mode") && !new Set(["compact", "detailed"]).has(values.get("sidebar_mode"))) {
     errors.push("GUI 初始化配置 sidebar_mode 必须为 compact 或 detailed");
   }
+  if (values.get("deep_link") === "enabled" && values.get("single_instance") !== "enabled") {
+    errors.push("GUI 初始化配置 deep_link = enabled 必须同时满足 single_instance = enabled");
+  }
   if (errors.length > 0) return null;
   return {
     aboutPage: values.get("about_page") === "enabled",
     autostart: values.get("autostart") === "enabled",
+    deepLink: values.get("deep_link") === "enabled",
+    globalShortcut: values.get("global_shortcut") === "enabled",
     sidebarMode: values.get("sidebar_mode"),
     singleInstance: values.get("single_instance") === "enabled",
     sponsorPage: values.get("sponsor_page") === "enabled",
@@ -463,202 +458,6 @@ function validateTrayRuntimeContract(sourceTexts, errors) {
   }
 }
 
-/** 验证单实例插件先于其他插件注册，且回调只恢复既有主窗口。 */
-function validateSingleInstanceContract(sourceTexts, errors) {
-  const candidates = sourceTexts.filter((text) => text.includes("tauri_plugin_single_instance::init"));
-  if (candidates.length === 0) {
-    return;
-  }
-  const hasValidRegistration = candidates.some((sourceText) => {
-    const singleInstanceIndex = sourceText.indexOf("tauri_plugin_single_instance::init");
-    const pluginIndexes = [...sourceText.matchAll(/\.plugin\s*\(/gu)].map((match) => match.index);
-    const enclosingPluginIndex = pluginIndexes.filter((index) => index < singleInstanceIndex).at(-1);
-    if (enclosingPluginIndex === undefined || enclosingPluginIndex !== pluginIndexes[0]) {
-      return false;
-    }
-    const callbackWindow = sourceText.slice(singleInstanceIndex, singleInstanceIndex + 1600);
-    const parameters = callbackWindow.match(
-      /\|\s*app\s*,\s*(_args|_)\s*,\s*(_cwd|_)\s*\|/u,
-    );
-    if (!parameters || !/restore_main_window\s*\(\s*app\s*\)/u.test(callbackWindow)) {
-      return false;
-    }
-    const namedIgnoredParameters = parameters.slice(1).filter((name) => name !== "_");
-    return namedIgnoredParameters.every((name) => {
-      const uses = callbackWindow.match(new RegExp(`\\b${name}\\b`, "gu")) ?? [];
-      return uses.length === 1;
-    });
-  });
-  if (!hasValidRegistration) {
-    errors.push(
-      "tauri-plugin-single-instance 必须作为首个 Tauri plugin 注册，回调不得消费参数/工作目录且只调用 restore_main_window(app) 恢复既有窗口",
-    );
-  }
-}
-
-/** 验证系统通知使用 Rust-only 平台分流、串行 worker 与可回收所有权。 */
-function validateSystemNotificationSourceContract(sourceTexts, errors) {
-  const sourceText = sourceTexts.join("\n");
-  const requiredFragments = [
-    "tauri_plugin_notification::init",
-    "NotificationCommand",
-    "mpsc",
-    "oneshot",
-    "JoinHandle",
-    "get_system_notification_setting",
-    "set_system_notification_enabled",
-    "mac_usernotifications::request_auth",
-    "mac_usernotifications::Notification",
-    "NotificationExt",
-    "request_permission",
-    ".builder(",
-    ".show(",
-  ];
-  for (const fragment of requiredFragments) {
-    if (!sourceText.includes(fragment)) {
-      errors.push(`系统通知 Rust-only 合同缺少：${fragment}`);
-    }
-  }
-  if (
-    !sourceText.includes("#[cfg(target_os = \"macos\")]") &&
-    !sourceText.includes("#[cfg(target_os=\"macos\")]")
-  ) {
-    errors.push("系统通知必须以 cfg(target_os = \"macos\") 隔离现代 macOS 实现");
-  }
-  if (
-    !sourceText.includes("#[cfg(not(target_os = \"macos\"))]") &&
-    !sourceText.includes("#[cfg(not(target_os=\"macos\"))]")
-  ) {
-    errors.push("系统通知必须以 cfg(not(target_os = \"macos\")) 隔离其他平台官方插件实现");
-  }
-  if (!sourceText.includes(".abort(") && !sourceText.includes("shutdown")) {
-    errors.push("系统通知 worker 必须具有应用拥有的关闭或取消路径");
-  }
-  const settingCommand = collectRustFunctions(sourceText).find(
-    (candidate) => candidate.name === "set_system_notification_enabled",
-  );
-  if (settingCommand) {
-    const permissionIndex = Math.max(
-      settingCommand.text.indexOf("RequestPermission"),
-      settingCommand.text.indexOf("request_system_notification_permission"),
-      settingCommand.text.indexOf("request_auth"),
-      settingCommand.text.indexOf("request_permission"),
-    );
-    const persistenceIndexes = [
-      settingCommand.text.indexOf("persist"),
-      settingCommand.text.indexOf("write"),
-    ].filter((index) => index >= 0);
-    const persistenceIndex =
-      persistenceIndexes.length > 0 ? Math.min(...persistenceIndexes) : -1;
-    if (
-      permissionIndex < 0 ||
-      persistenceIndex < 0 ||
-      permissionIndex > persistenceIndex
-    ) {
-      errors.push("系统通知设置命令必须先等待权限成功，再持久化启用状态");
-    }
-  }
-  const singleInstanceIndex = sourceText.indexOf(
-    "tauri_plugin_single_instance::init",
-  );
-  const notificationIndex = sourceText.indexOf(
-    "tauri_plugin_notification::init",
-  );
-  if (
-    singleInstanceIndex >= 0 &&
-    notificationIndex >= 0 &&
-    notificationIndex < singleInstanceIndex
-  ) {
-    errors.push("系统通知插件必须在首位单实例插件之后注册");
-  }
-}
-
-/** 未选择系统通知时拒绝依赖之外的全部专属源码残留。 */
-function validateNoSystemNotificationSourceContract(sourceTexts, errors) {
-  const sourceText = sourceTexts.join("\n");
-  for (const forbidden of [
-    "tauri_plugin_notification",
-    "mac_usernotifications",
-    "NotificationCommand",
-    "get_system_notification_setting",
-    "set_system_notification_enabled",
-    "system_notification",
-  ]) {
-    if (sourceText.includes(forbidden)) {
-      errors.push(`未选择系统通知时不得保留通知运行时：${forbidden}`);
-    }
-  }
-}
-
-/** 验证开机自启只通过 Rust command 操作 OS 权威注册状态。 */
-function validateAutostartSourceContract(sourceTexts, errors) {
-  const sourceText = sourceTexts.join("\n");
-  for (const fragment of [
-    "tauri_plugin_autostart::init",
-    "MacosLauncher::LaunchAgent",
-    "ManagerExt",
-    "autolaunch",
-    "get_autostart_enabled",
-    "set_autostart_enabled",
-    "is_enabled",
-    ".enable(",
-    ".disable(",
-  ]) {
-    if (!sourceText.includes(fragment)) {
-      errors.push(`开机自启 Rust-only 合同缺少：${fragment}`);
-    }
-  }
-  if (!/tauri_plugin_autostart::init\s*\(\s*(?:tauri_plugin_autostart::)?MacosLauncher::LaunchAgent\s*,\s*None\s*\)/u.test(sourceText)) {
-    errors.push("开机自启必须使用 MacosLauncher::LaunchAgent 且不传启动参数");
-  }
-  for (const forbidden of ["--hidden", "--minimized", "--silent-start"]) {
-    if (sourceText.includes(forbidden)) {
-      errors.push(`开机自启不得擅自加入隐藏启动参数：${forbidden}`);
-    }
-  }
-  const setupArguments = sourceTexts.flatMap((text) =>
-    collectMethodArguments(text, "setup"),
-  );
-  if (
-    setupArguments.some(
-      (argument) =>
-        argument.includes("autolaunch") && argument.includes(".enable("),
-    )
-  ) {
-    errors.push("初始化 setup 不得替用户注册开机自启");
-  }
-  const settingCommand = collectRustFunctions(sourceText).find(
-    (candidate) => candidate.name === "set_autostart_enabled",
-  );
-  if (settingCommand) {
-    const mutationIndex = Math.max(
-      settingCommand.text.indexOf(".enable("),
-      settingCommand.text.indexOf(".disable("),
-    );
-    const rereadIndex = settingCommand.text.lastIndexOf("is_enabled");
-    if (mutationIndex < 0 || rereadIndex < mutationIndex) {
-      errors.push("开机自启 mutation 成功后必须重新读取并返回最终 OS 状态");
-    }
-  }
-}
-
-/** 未选择开机自启时拒绝插件、命令和启动参数残留。 */
-function validateNoAutostartSourceContract(sourceTexts, errors) {
-  const sourceText = sourceTexts.join("\n");
-  for (const forbidden of [
-    "tauri_plugin_autostart",
-    "get_autostart_enabled",
-    "set_autostart_enabled",
-    "autolaunch",
-    "--hidden",
-    "--minimized",
-  ]) {
-    if (sourceText.includes(forbidden)) {
-      errors.push(`未选择开机自启时不得保留自启运行时：${forbidden}`);
-    }
-  }
-}
-
 /** 验证生成项目中的可选页面、侧栏、单实例、托盘、回归测试与本地化资源。 */
 export function verifyGuiLifecycleContract(rootInput, guiInput) {
   const errors = [];
@@ -713,114 +512,7 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
         }
       }
     }
-    const workspaceSingleInstance =
-      tomlAssignment(tomlSection(rootCargo, "workspace.dependencies"), "tauri-plugin-single-instance") ||
-      tomlSection(rootCargo, "workspace.dependencies.tauri-plugin-single-instance");
-    const memberSingleInstance =
-      tomlAssignment(tomlSection(guiCargo, "dependencies"), "tauri-plugin-single-instance") ||
-      tomlSection(guiCargo, "dependencies.tauri-plugin-single-instance");
-    if (profile.singleInstance) {
-      if (!workspaceSingleInstance) {
-        errors.push("选择单实例时，根 [workspace.dependencies] 必须声明 tauri-plugin-single-instance");
-      }
-      if (!memberSingleInstance || !/\bworkspace\s*=\s*true\b/u.test(memberSingleInstance)) {
-        errors.push("选择单实例时，GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 tauri-plugin-single-instance");
-      }
-    } else if (workspaceSingleInstance || memberSingleInstance) {
-      errors.push("未选择单实例时不得声明 tauri-plugin-single-instance 依赖");
-    }
-
-    const workspaceNotification =
-      tomlAssignment(
-        tomlSection(rootCargo, "workspace.dependencies"),
-        "tauri-plugin-notification",
-      ) ||
-      tomlSection(
-        rootCargo,
-        "workspace.dependencies.tauri-plugin-notification",
-      );
-    const workspaceMacUserNotifications =
-      tomlAssignment(
-        tomlSection(rootCargo, "workspace.dependencies"),
-        "mac-usernotifications",
-      ) ||
-      tomlSection(rootCargo, "workspace.dependencies.mac-usernotifications");
-    const memberNotification = memberDependencyDeclaration(
-      "tauri-plugin-notification",
-    );
-    const memberMacUserNotifications = targetDependencyDeclaration(
-      guiCargo,
-      "macos",
-      "mac-usernotifications",
-    );
-    if (profile.systemNotification) {
-      if (!cargoDependencyHasLowerBound(workspaceNotification, "2.4.0")) {
-        errors.push(
-          '选择系统通知时，根 [workspace.dependencies] 必须以 "2.4.0" 为 tauri-plugin-notification 兼容下界',
-        );
-      }
-      if (
-        !cargoDependencyHasLowerBound(
-          workspaceMacUserNotifications,
-          "0.3.1",
-        )
-      ) {
-        errors.push(
-          '选择系统通知时，根 [workspace.dependencies] 必须以 "0.3.1" 为 mac-usernotifications 兼容下界',
-        );
-      }
-      if (
-        !memberNotification ||
-        !/\bworkspace\s*=\s*true\b/u.test(memberNotification)
-      ) {
-        errors.push(
-          "选择系统通知时，GUI src-tauri/Cargo.toml 必须通过 workspace = true 继承 tauri-plugin-notification",
-        );
-      }
-      if (
-        !memberMacUserNotifications ||
-        !/\bworkspace\s*=\s*true\b/u.test(memberMacUserNotifications)
-      ) {
-        errors.push(
-          "选择系统通知时，GUI member 必须只在 macOS target dependencies 通过 workspace = true 继承 mac-usernotifications",
-        );
-      }
-    } else if (
-      workspaceNotification ||
-      workspaceMacUserNotifications ||
-      memberNotification ||
-      memberMacUserNotifications
-    ) {
-      errors.push("未选择系统通知时不得声明通知插件或 macOS 通知依赖");
-    }
-
-    const workspaceAutostart =
-      tomlAssignment(
-        tomlSection(rootCargo, "workspace.dependencies"),
-        "tauri-plugin-autostart",
-      ) ||
-      tomlSection(rootCargo, "workspace.dependencies.tauri-plugin-autostart");
-    const memberAutostart = desktopTargetDependencyDeclaration(
-      guiCargo,
-      "tauri-plugin-autostart",
-    );
-    if (profile.autostart) {
-      if (!cargoDependencyHasLowerBound(workspaceAutostart, "2.5.1")) {
-        errors.push(
-          '选择开机自启时，根 [workspace.dependencies] 必须以 "2.5.1" 为 tauri-plugin-autostart 兼容下界',
-        );
-      }
-      if (
-        !memberAutostart ||
-        !/\bworkspace\s*=\s*true\b/u.test(memberAutostart)
-      ) {
-        errors.push(
-          "选择开机自启时，GUI member 必须在覆盖 macOS/Windows/Linux 的桌面 target dependencies 通过 workspace = true 继承 tauri-plugin-autostart",
-        );
-      }
-    } else if (workspaceAutostart || memberAutostart) {
-      errors.push("未选择开机自启时不得声明 tauri-plugin-autostart 依赖");
-    }
+    validatePluginDependencyContract(rootCargo, guiCargo, profile, errors);
 
     if (profile.systemTray) validateTrayIconAsset(guiRoot, errors);
 
@@ -840,21 +532,7 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       } else {
         validateNoTraySourceContract(sourceTexts, errors);
       }
-      if (profile.singleInstance) {
-        validateSingleInstanceContract(sourceTexts, errors);
-      } else if (sourceText.includes("tauri_plugin_single_instance::init")) {
-        errors.push("未选择单实例时不得注册 tauri-plugin-single-instance");
-      }
-      if (profile.systemNotification) {
-        validateSystemNotificationSourceContract(sourceTexts, errors);
-      } else {
-        validateNoSystemNotificationSourceContract(sourceTexts, errors);
-      }
-      if (profile.autostart) {
-        validateAutostartSourceContract(sourceTexts, errors);
-      } else {
-        validateNoAutostartSourceContract(sourceTexts, errors);
-      }
+      validatePluginRuntimeContract(guiRoot, sourceTexts, profile, errors);
       const testRoot = path.join(guiRoot, "src-tauri", "tests");
       const testFiles = fs.existsSync(testRoot)
         ? collectFiles(testRoot, new Set([".rs"]))
@@ -863,35 +541,17 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       rustTestText = testText;
       const testFunctions = collectRustFunctions(testText);
       const requiredTestNames = [
-        ...(profile.singleInstance ? SINGLE_INSTANCE_TEST_NAMES : []),
         ...(profile.systemTray ? TRAY_TEST_NAMES : NO_TRAY_TEST_NAMES),
-        ...(profile.systemNotification ? SYSTEM_NOTIFICATION_TEST_NAMES : []),
-        ...(profile.autostart ? AUTOSTART_TEST_NAMES : []),
       ];
       for (const testName of requiredTestNames) {
         const testFunction = testFunctions.find((candidate) => candidate.name === testName);
         if (!testFunction) {
           errors.push(`缺少固定 GUI 生命周期回归测试：${testName}`);
-        } else if (!/\bassert(?:_eq|_ne)?!\s*\(/u.test(testFunction.text)) {
-          errors.push(`固定 GUI 生命周期回归必须包含真实断言：${testName}`);
+        } else if (!hasMeaningfulRustAssertion(testFunction.text)) {
+          errors.push(`固定 GUI 生命周期回归必须包含非平凡断言：${testName}`);
         }
       }
-      if (profile.autostart) {
-        const restorationTest = testFunctions.find(
-          (candidate) =>
-            candidate.name === "autostart_e2e_restores_previous_registration",
-        );
-        if (
-          restorationTest &&
-          !["previous", "is_enabled", "enable", "disable"].every((token) =>
-            restorationTest.text.includes(token),
-          )
-        ) {
-          errors.push(
-            "开机自启 E2E 回归必须记录原状态、切换注册并在全部路径恢复后重新读取",
-          );
-        }
-      }
+      validateRequiredPluginTests(testFunctions, profile, errors);
     }
 
     if (profile.systemTray) {

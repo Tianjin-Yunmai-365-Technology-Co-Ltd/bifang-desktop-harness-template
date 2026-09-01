@@ -62,6 +62,17 @@ GUI_SUPPORT_BRAND_ROOT = (
 )
 MCP_SKILL = SKILLS_ROOT / "desktop-add-mcp-adapter" / "SKILL.md"
 GUI_SKILL = SKILLS_ROOT / "desktop-add-gui-adapter" / "SKILL.md"
+GUI_LOCALE_SKILL = SKILLS_ROOT / "desktop-add-gui-system-locale" / "SKILL.md"
+GUI_UPDATER_SKILL = SKILLS_ROOT / "desktop-add-gui-updater" / "SKILL.md"
+GUI_WINDOW_STATE_SKILL = SKILLS_ROOT / "desktop-add-gui-window-state" / "SKILL.md"
+GUI_TRAY_SKILL = SKILLS_ROOT / "desktop-add-gui-system-tray" / "SKILL.md"
+GUI_SINGLE_INSTANCE_SKILL = (
+    SKILLS_ROOT / "desktop-add-gui-single-instance" / "SKILL.md"
+)
+GUI_DEEP_LINK_SKILL = SKILLS_ROOT / "desktop-add-gui-deep-link" / "SKILL.md"
+GUI_GLOBAL_SHORTCUT_SKILL = (
+    SKILLS_ROOT / "desktop-add-gui-global-shortcut" / "SKILL.md"
+)
 GUI_NOTIFICATION_SKILL = (
     SKILLS_ROOT / "desktop-add-gui-system-notifications" / "SKILL.md"
 )
@@ -96,6 +107,12 @@ GUI_LIFECYCLE_CONTRACT_CHECKER = (
     / "scripts"
     / "verify-gui-lifecycle-contract.mjs"
 )
+GUI_LIFECYCLE_PLUGIN_CONTRACT_CHECKER = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "gui-lifecycle-plugin-contract.mjs"
+)
 GUI_RELEASE_NOTES_CONTRACT_CHECKER = (
     SKILLS_ROOT
     / "desktop-test-gui-initialization-e2e"
@@ -107,6 +124,12 @@ GUI_LIFECYCLE_CONTRACT_TESTS = (
     / "desktop-test-gui-initialization-e2e"
     / "scripts"
     / "verify-gui-lifecycle-contract.test.mjs"
+)
+GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS = (
+    SKILLS_ROOT
+    / "desktop-test-gui-initialization-e2e"
+    / "scripts"
+    / "gui-lifecycle-plugin-contract.test.mjs"
 )
 VERIFY_DELIVERY_SKILL = SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md"
 GUI_RELEASE_PERFORMANCE_SKILL = (
@@ -325,6 +348,20 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-tui-adapter/references/tui-baseline.md",
     ".agents/skills/desktop-add-gui-system-notifications/SKILL.md",
     ".agents/skills/desktop-add-gui-system-notifications/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-system-locale/SKILL.md",
+    ".agents/skills/desktop-add-gui-system-locale/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-updater/SKILL.md",
+    ".agents/skills/desktop-add-gui-updater/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-window-state/SKILL.md",
+    ".agents/skills/desktop-add-gui-window-state/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-system-tray/SKILL.md",
+    ".agents/skills/desktop-add-gui-system-tray/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-single-instance/SKILL.md",
+    ".agents/skills/desktop-add-gui-single-instance/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-deep-link/SKILL.md",
+    ".agents/skills/desktop-add-gui-deep-link/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-global-shortcut/SKILL.md",
+    ".agents/skills/desktop-add-gui-global-shortcut/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-autostart/SKILL.md",
     ".agents/skills/desktop-add-gui-autostart/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md",
@@ -333,6 +370,8 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.test.ts",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-frontend-contract.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-plugin-contract.mjs",
+    ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-plugin-contract.test.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-source-analysis.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.fixture.mjs",
@@ -467,7 +506,14 @@ EXPECTED_SKILLS = {
     "desktop-add-cli-adapter",
     "desktop-add-gui-adapter",
     "desktop-add-gui-autostart",
+    "desktop-add-gui-deep-link",
+    "desktop-add-gui-global-shortcut",
+    "desktop-add-gui-single-instance",
+    "desktop-add-gui-system-locale",
     "desktop-add-gui-system-notifications",
+    "desktop-add-gui-system-tray",
+    "desktop-add-gui-updater",
+    "desktop-add-gui-window-state",
     "desktop-add-mcp-adapter",
     "desktop-add-tui-adapter",
     "desktop-build-rust-release",

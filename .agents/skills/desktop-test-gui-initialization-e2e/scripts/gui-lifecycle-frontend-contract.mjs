@@ -66,15 +66,20 @@ function containsCapabilityPersistence(sourceText, persistenceTokens) {
   return false;
 }
 
-/** 两项能力均为 Rust-only，WebView 不得安装 JS 插件或取得插件 ACL。 */
+/** 桌面插件统一由 Rust 拥有，WebView 不得安装 JS 插件或取得插件 ACL。 */
 export function validateRustOnlyDesktopCapabilities(guiRoot, profile, errors, readers) {
   const { collectOptionalTexts, readTextFile } = readers;
   const packagePath = path.join(guiRoot, "package.json");
   if (fs.existsSync(packagePath)) {
     const packageText = readTextFile(packagePath);
     for (const plugin of [
+      "@tauri-apps/plugin-deep-link",
+      "@tauri-apps/plugin-global-shortcut",
       "@tauri-apps/plugin-notification",
+      "@tauri-apps/plugin-os",
       "@tauri-apps/plugin-autostart",
+      "@tauri-apps/plugin-updater",
+      "@tauri-apps/plugin-window-state",
     ]) {
       if (packageText.includes(plugin)) {
         errors.push(`GUI WebView 不得安装 Rust-only 能力的 JS 插件：${plugin}`);
@@ -85,7 +90,15 @@ export function validateRustOnlyDesktopCapabilities(guiRoot, profile, errors, re
     path.join(guiRoot, "src-tauri", "capabilities"),
     new Set([".json", ".toml"]),
   ).join("\n");
-  for (const prefix of ["notification:", "autostart:"]) {
+  for (const prefix of [
+    "deep-link:",
+    "global-shortcut:",
+    "notification:",
+    "os:",
+    "autostart:",
+    "updater:",
+    "window-state:",
+  ]) {
     if (capabilityTexts.includes(prefix)) {
       errors.push(`GUI WebView 不得获得 Rust-only 插件 ACL：${prefix}`);
     }
@@ -95,6 +108,12 @@ export function validateRustOnlyDesktopCapabilities(guiRoot, profile, errors, re
   }
   if (!profile.autostart && capabilityTexts.includes("autostart")) {
     errors.push("未选择开机自启时 capability 不得保留自启权限残留");
+  }
+  if (!profile.deepLink && capabilityTexts.includes("deep-link")) {
+    errors.push("未选择深链接时 capability 不得保留深链接权限残留");
+  }
+  if (!profile.globalShortcut && capabilityTexts.includes("global-shortcut")) {
+    errors.push("未选择全局快捷键时 capability 不得保留快捷键权限残留");
   }
 }
 
@@ -205,6 +224,16 @@ export function validateFrontendInitializationContract(guiRoot, profile, errors,
     if (containsCapabilityPersistence(sourceText, persistenceTokens)) {
       errors.push(`不得将${capability.label}状态持久化到 WebView 层（localStorage/sessionStorage/Jotai atom/TanStack Query）`);
     }
+  }
+
+  const globalShortcutRuntime = sourceText.includes("get_global_shortcut_status");
+  const globalShortcutTranslation = localeText.includes("global_shortcut_status");
+  if (profile.globalShortcut) {
+    if (!globalShortcutRuntime || !globalShortcutTranslation) {
+      errors.push("选择全局快捷键时设置页必须显示固定 chord 的真实注册/冲突状态");
+    }
+  } else if (globalShortcutRuntime || globalShortcutTranslation) {
+    errors.push("未选择全局快捷键时不得保留设置状态或翻译键");
   }
 
   for (const page of [

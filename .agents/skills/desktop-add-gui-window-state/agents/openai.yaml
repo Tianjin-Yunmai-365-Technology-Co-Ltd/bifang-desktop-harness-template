@@ -1,0 +1,4 @@
+interface:
+  display_name: "添加 GUI 窗口恢复"
+  short_description: "接入官方 window-state 并恢复窗口尺寸与位置"
+  default_prompt: "使用 $desktop-add-gui-window-state，为 GUI 固定接入官方窗口状态恢复插件，并保持页面业务状态仍由既有契约管理。"

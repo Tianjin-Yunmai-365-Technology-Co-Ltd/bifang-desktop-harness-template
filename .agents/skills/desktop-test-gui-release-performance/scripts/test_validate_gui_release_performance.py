@@ -40,7 +40,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             "e2eSelection": "disabled",
         }
         self.evidence = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "performanceProbeSha256": digest,
             "performanceProbeKind": "tauri-no-bundle-executable",
             "sourceCommit": "a" * 40,
@@ -59,6 +59,33 @@ class GuiReleasePerformanceTests(unittest.TestCase):
             "rendererTimingSource": "performance-observer",
             "processSampler": "native-process-tree-sampler",
             "warmupRuns": 1,
+            "windowStateIsolation": {
+                "targetResolved": True,
+                "snapshotStoredOutsideAppData": True,
+                "originalSnapshotVerified": True,
+                "fingerprintAlgorithm": "hmac-sha256-ephemeral-key",
+                "original": {"kind": "present", "fingerprint": "b" * 64},
+                "seed": {"kind": "absent"},
+                "preLaunchResets": [
+                    {
+                        "phase": "warmup",
+                        "run": 1,
+                        "observed": {"kind": "absent"},
+                    },
+                    *[
+                        {
+                            "phase": "cold-start",
+                            "run": run,
+                            "observed": {"kind": "absent"},
+                        }
+                        for run in range(1, 6)
+                    ],
+                ],
+                "restoration": {
+                    "observed": {"kind": "present", "fingerprint": "b" * 64},
+                    "verified": True,
+                },
+            },
             "coldStartVisibleUsableMs": [1000, 2000, 2000, 2000, 3000],
             "interactions": [
                 {
@@ -112,7 +139,10 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         result = self._evaluate()
 
         self.assertEqual(result["status"], "passed")
+        self.assertEqual(result["schemaVersion"], 2)
         self.assertEqual(result["performanceSelection"], "enabled")
+        self.assertTrue(result["windowStateRecoveryVerified"])
+        self.assertFalse(result["waiverAllowed"])
         metrics = result["metrics"]
         self.assertEqual(metrics["coldStartMedianMs"], 2000)
         self.assertEqual(metrics["coldStartMaximumMs"], 3000)
@@ -306,6 +336,157 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         failures = "\n".join(result["failures"])
         self.assertIn("wholeProcessTree", failures)
         self.assertIn("allProcessesRecovered", failures)
+        self.assertFalse(result["waiverAllowed"])
+        non_waivable = "\n".join(result["nonWaivableFailures"])
+        self.assertIn("wholeProcessTree", non_waivable)
+        self.assertIn("allProcessesRecovered", non_waivable)
+
+    def test_integrity_failures_are_non_waivable_and_exit_three(self) -> None:
+        """整树、探针字节或进程回收不完整都必须以不可豁免状态退出。"""
+
+        manifest_path = self._write_json("probe.manifest.json", self.manifest)
+        for key in (
+            "wholeProcessTree",
+            "probeBytesUnmodified",
+            "allProcessesRecovered",
+        ):
+            with self.subTest(key=key):
+                evidence = deepcopy(self.evidence)
+                evidence[key] = False
+                evidence_path = self._write_json(f"raw-{key}.json", evidence)
+                output_path = self.root / f"probe.{key}.performance.json"
+
+                exit_code = performance.main(
+                    [
+                        "--probe",
+                        str(self.probe),
+                        "--manifest",
+                        str(manifest_path),
+                        "--evidence",
+                        str(evidence_path),
+                        "--tray-enabled",
+                        "enabled",
+                        "--output",
+                        str(output_path),
+                    ]
+                )
+
+                self.assertEqual(exit_code, 3)
+                saved = json.loads(output_path.read_text(encoding="utf-8"))
+                failure = f"evidence.{key} must be true"
+                self.assertEqual(saved["status"], "failed")
+                self.assertFalse(saved["waiverAllowed"])
+                self.assertIn(failure, saved["failures"])
+                self.assertIn(failure, saved["nonWaivableFailures"])
+
+    def test_window_state_requires_same_seed_before_every_launch(self) -> None:
+        """预热与每次冷启动都必须按顺序从同一已验证种子开始。"""
+
+        missing_reset = deepcopy(self.evidence)
+        missing_reset["windowStateIsolation"]["preLaunchResets"].pop()
+        missing_result = self._evaluate(evidence=missing_reset)
+        self.assertEqual(missing_result["status"], "failed")
+        self.assertTrue(
+            any(
+                "exactly 1 warmup and 5 cold-start" in failure
+                for failure in missing_result["failures"]
+            )
+        )
+
+        changed_seed = deepcopy(self.evidence)
+        changed_seed["windowStateIsolation"]["preLaunchResets"][2]["observed"] = {
+            "kind": "present",
+            "fingerprint": "c" * 64,
+        }
+        changed_result = self._evaluate(evidence=changed_seed)
+        self.assertEqual(changed_result["status"], "failed")
+        self.assertTrue(
+            any(
+                "must match windowStateIsolation.seed" in failure
+                for failure in changed_result["failures"]
+            )
+        )
+
+        two_warmups = deepcopy(self.evidence)
+        two_warmups["warmupRuns"] = 2
+        two_warmups["windowStateIsolation"]["preLaunchResets"].insert(
+            1,
+            {"phase": "warmup", "run": 2, "observed": {"kind": "absent"}},
+        )
+        two_warmup_result = self._evaluate(evidence=two_warmups)
+        self.assertEqual(two_warmup_result["status"], "passed")
+
+    def test_absent_original_and_present_seed_are_valid(self) -> None:
+        """原缺席恢复与有摘要的固定 seed 都能形成不泄露内容的有效证据。"""
+
+        evidence = deepcopy(self.evidence)
+        isolation = evidence["windowStateIsolation"]
+        isolation["original"] = {"kind": "absent"}
+        isolation["restoration"] = {
+            "observed": {"kind": "absent"},
+            "verified": True,
+        }
+        isolation["seed"] = {"kind": "present", "fingerprint": "c" * 64}
+        for reset in isolation["preLaunchResets"]:
+            reset["observed"] = {"kind": "present", "fingerprint": "c" * 64}
+
+        result = self._evaluate(evidence=evidence)
+
+        self.assertEqual(result["status"], "passed")
+        self.assertTrue(result["windowStateRecoveryVerified"])
+
+    def test_unrestored_window_state_is_non_waivable(self) -> None:
+        """原状态指纹不匹配时保存失败证据并使用不可豁免退出码。"""
+
+        evidence = deepcopy(self.evidence)
+        evidence["windowStateIsolation"]["restoration"]["observed"][
+            "fingerprint"
+        ] = "c" * 64
+        result = self._evaluate(evidence=evidence)
+        self.assertEqual(result["status"], "failed")
+        self.assertFalse(result["windowStateRecoveryVerified"])
+        self.assertFalse(result["waiverAllowed"])
+        self.assertTrue(result["nonWaivableFailures"])
+
+        manifest_path = self._write_json("probe.manifest.json", self.manifest)
+        evidence_path = self._write_json("raw-unrestored.json", evidence)
+        output_path = self.root / "probe.unrestored.performance.json"
+        exit_code = performance.main(
+            [
+                "--probe",
+                str(self.probe),
+                "--manifest",
+                str(manifest_path),
+                "--evidence",
+                str(evidence_path),
+                "--tray-enabled",
+                "enabled",
+                "--output",
+                str(output_path),
+            ]
+        )
+
+        self.assertEqual(exit_code, 3)
+        saved = json.loads(output_path.read_text(encoding="utf-8"))
+        self.assertFalse(saved["windowStateRecoveryVerified"])
+        self.assertFalse(saved["waiverAllowed"])
+        self.assertTrue(saved["nonWaivableFailures"])
+
+    def test_window_state_output_removes_rejected_path_and_bytes(self) -> None:
+        """失败证据只保留白名单字段，不固化误填的本机路径或原始字节。"""
+
+        evidence = deepcopy(self.evidence)
+        evidence["windowStateIsolation"]["path"] = "/Users/alice/private/state.json"
+        evidence["windowStateIsolation"]["original"]["bytes"] = "private-json"
+
+        result = self._evaluate(evidence=evidence)
+
+        self.assertEqual(result["status"], "failed")
+        serialized = json.dumps(result, ensure_ascii=False)
+        self.assertNotIn("/Users/alice/private/state.json", serialized)
+        self.assertNotIn("private-json", serialized)
+        self.assertNotIn('"path"', serialized)
+        self.assertNotIn('"bytes"', serialized)
 
     def test_cli_preserves_failed_observations_and_never_implies_waiver(self) -> None:
         """Helper 非零时仍原子保存失败指标，且不会自行制造用户豁免。"""
@@ -335,6 +516,9 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         saved = json.loads(output_path.read_text(encoding="utf-8"))
         self.assertEqual(saved["status"], "failed")
         self.assertEqual(saved["observations"]["peakRssMiB"], 501)
+        self.assertTrue(saved["windowStateRecoveryVerified"])
+        self.assertTrue(saved["waiverAllowed"])
+        self.assertEqual(saved["nonWaivableFailures"], [])
         self.assertNotIn("waiver", saved)
 
 

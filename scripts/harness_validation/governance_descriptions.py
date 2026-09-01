@@ -54,6 +54,12 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "表单、环境门禁、脚手架编写、测试和一次性裁剪阶段都不检查 Git",
         "Git 只在真实基线提交前即时检查和设置",
         "不会提前检查或设置 Git",
+        "选择 GUI 时还包括六项能力",
+        "GUI 下游另输出包含七项最终配置",
+        "结构检查解析七项 profile",
+        "GUI 选择后必须完成七项专门问询",
+        "固定通过七项 profile-aware",
+        "首次真实 GUI 下游对七项初始化组合",
     )
     for path in paths:
         if not path.is_file():
@@ -90,6 +96,25 @@ def validate_current_descriptions(errors: list[str]) -> None:
         *(path / "SKILL.md" for path in sorted(SKILLS_ROOT.iterdir()) if path.is_dir()),
     )
     validate_stale_fragments(errors, current_files)
+
+    gui_plugin_product_fragments = (
+        "HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES",
+        "system-locale、updater、window-state 是不询问的固定 GUI 基线",
+        "八项条件能力的启用/禁用",
+        "包含九项最终配置、三项固定基线",
+        "`deep_link = enabled` 必须同时有 `single_instance = enabled`",
+    )
+    if not PRODUCT_SPEC.is_file():
+        fail(errors, f"missing GUI plugin product contract: {display_path(PRODUCT_SPEC)}")
+    else:
+        product_spec_text = read_text_cached(PRODUCT_SPEC)
+        for fragment in gui_plugin_product_fragments:
+            if fragment not in product_spec_text:
+                fail(
+                    errors,
+                    "GUI plugin product contract missing in "
+                    f"{display_path(PRODUCT_SPEC)}: {fragment}",
+                )
 
     msrv_fragments = {
         PRODUCT_SPEC: (

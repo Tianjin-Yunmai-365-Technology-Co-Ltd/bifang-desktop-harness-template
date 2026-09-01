@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import fnmatch
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -20,7 +21,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import scripts.validate_harness as validate_harness
-from scripts.harness_validation import governance, repository, upgrade
+from scripts.harness_validation import context, governance, repository, upgrade
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
     read_repo_text,
@@ -110,6 +111,13 @@ class ValidateUpgradeContractTests(unittest.TestCase):
         )
         self.assertEqual(resolved_mode, "conditional")
         for skill_name in (
+            "desktop-add-gui-system-locale",
+            "desktop-add-gui-updater",
+            "desktop-add-gui-window-state",
+            "desktop-add-gui-system-tray",
+            "desktop-add-gui-single-instance",
+            "desktop-add-gui-deep-link",
+            "desktop-add-gui-global-shortcut",
             "desktop-add-gui-system-notifications",
             "desktop-add-gui-autostart",
             "desktop-test-gui-release-performance",
@@ -117,6 +125,61 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             rule = (f".agents/skills/{skill_name}/**", "conditional")
             self.assertIn(rule, ordered)
             self.assertLess(ordered.index(rule), ordered.index(generic_rule))
+
+    def test_upgrade_policy_constants_match_validator_requirements(self) -> None:
+        """升级器自身策略常量不得落后于 validator 的最低保护集。"""
+
+        module_path = (
+            ROOT
+            / ".agents"
+            / "skills"
+            / "desktop-upgrade-harness"
+            / "scripts"
+            / "harness_upgrade_policy.py"
+        )
+        spec = importlib.util.spec_from_file_location(
+            "harness_upgrade_policy_under_test",
+            module_path,
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        policy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(policy)
+        self.assertEqual(
+            upgrade.REQUIRED_RULES,
+            policy.MINIMUM_OWNERSHIP_RULES,
+        )
+
+    def test_gui_lifecycle_plugin_contract_is_required_and_tombstoned(self) -> None:
+        """插件契约检查器与回归测试必须纳入必需文件并受初始化 tombstone 保护。"""
+
+        required_paths = (
+            ".agents/skills/desktop-test-gui-initialization-e2e/scripts/"
+            "gui-lifecycle-plugin-contract.mjs",
+            ".agents/skills/desktop-test-gui-initialization-e2e/scripts/"
+            "gui-lifecycle-plugin-contract.test.mjs",
+        )
+        self.assertEqual(
+            context.GUI_LIFECYCLE_PLUGIN_CONTRACT_CHECKER,
+            ROOT / required_paths[0],
+        )
+        self.assertEqual(
+            context.GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS,
+            ROOT / required_paths[1],
+        )
+        manifest = json.loads(upgrade.UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))
+        ordered = [
+            (item["pattern"], item["mode"])
+            for item in manifest["rules"]
+        ]
+        for required_path in required_paths:
+            self.assertIn(required_path, context.REQUIRED_FILES)
+            effective_mode = next(
+                mode
+                for pattern, mode in ordered
+                if fnmatch.fnmatchcase(required_path, pattern)
+            )
+            self.assertEqual(effective_mode, "tombstone")
 
     def test_rejects_gui_support_rule_after_generic_skill_rule(self) -> None:
         """宽泛 managed 规则不得抢先吞掉 GUI-only 条件 Skill。"""
