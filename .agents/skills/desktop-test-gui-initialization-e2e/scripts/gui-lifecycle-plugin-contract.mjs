@@ -72,6 +72,7 @@ const BASELINE_DEPENDENCIES = [
   ["tauri-plugin-os", "2.3.2", "系统语言"],
   ["tauri-plugin-updater", "2.11.0", "更新基线"],
   ["tauri-plugin-window-state", "2.4.1", "窗口状态"],
+  ["tauri-plugin-dialog", "2.7.3", "原生对话框"],
 ];
 
 const CONDITIONAL_DEPENDENCIES = [
@@ -222,7 +223,7 @@ function rejectDependency(rootCargo, guiCargo, dependency, label, errors) {
   }
 }
 
-/** 验证三项固定插件与五类条件插件的 Cargo 声明和 target 归属。 */
+/** 验证四项固定插件与五类条件插件的 Cargo 声明和 target 归属。 */
 export function validatePluginDependencyContract(rootCargo, guiCargo, profile, errors) {
   for (const [dependency, version, label] of BASELINE_DEPENDENCIES) {
     requireWorkspaceMemberDependency(
@@ -361,6 +362,7 @@ function validatePluginOrder(sourceText, profile, errors) {
     ["os", "tauri_plugin_os::init"],
     ["updater", "tauri_plugin_updater::Builder::new"],
     ["window-state", "tauri_plugin_window_state::Builder::default"],
+    ["dialog", "tauri_plugin_dialog::init"],
     ...(profile.systemNotification
       ? [["notification", "tauri_plugin_notification::init"]]
       : []),
@@ -376,6 +378,18 @@ function validatePluginOrder(sourceText, profile, errors) {
   const allPluginIndexes = [...sourceText.matchAll(/\.plugin\s*\(/gu)].map((match) => match.index);
   if (profile.singleInstance && present[0]?.[1] !== allPluginIndexes[0]) {
     errors.push("tauri-plugin-single-instance 必须作为首个 Tauri plugin 注册");
+  }
+}
+
+/** dialog 是固定 WebView 能力，但仍必须由中央 Rust Builder 恰好初始化一次。 */
+function validateDialogRuntime(sourceText, errors) {
+  const registrations = pluginRegistrations(sourceText, "tauri_plugin_dialog::init");
+  if (registrations.length !== 1) {
+    errors.push(`原生 dialog 插件必须在 Tauri Builder 中恰好注册一次，实际 ${registrations.length} 次`);
+    return;
+  }
+  if (!/\.plugin\s*\(\s*tauri_plugin_dialog::init\s*\(\s*\)\s*\)/u.test(sourceText)) {
+    errors.push("原生 dialog 插件必须通过 .plugin(tauri_plugin_dialog::init()) 初始化");
   }
 }
 
@@ -774,6 +788,7 @@ export function validatePluginRuntimeContract(guiRoot, sourceTexts, profile, err
   validateUpdaterConfiguration(guiRoot, errors);
   validateUpdaterRuntime(sourceText, profile.aboutPage, errors);
   validateWindowStateRuntime(sourceText, pluginArguments, errors);
+  validateDialogRuntime(sourceText, errors);
 
   if (profile.singleInstance) validateSingleInstanceRuntime(sourceTexts, pluginArguments, errors);
   else validateDisabledRuntime(sourceText, "单实例", ["tauri_plugin_single_instance"], errors);

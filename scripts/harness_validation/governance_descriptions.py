@@ -99,9 +99,9 @@ def validate_current_descriptions(errors: list[str]) -> None:
 
     gui_plugin_product_fragments = (
         "HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES",
-        "system-locale、updater、window-state 是不询问的固定 GUI 基线",
+        "`os`（system-locale）、updater、window-state 是不询问的三项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线",
         "八项条件能力的启用/禁用",
-        "包含九项最终配置、三项固定基线",
+        "包含九项最终配置、三项 Rust-only 固定基线、dialog 固定 WebView 基线",
         "`deep_link = enabled` 必须同时有 `single_instance = enabled`",
     )
     if not PRODUCT_SPEC.is_file():

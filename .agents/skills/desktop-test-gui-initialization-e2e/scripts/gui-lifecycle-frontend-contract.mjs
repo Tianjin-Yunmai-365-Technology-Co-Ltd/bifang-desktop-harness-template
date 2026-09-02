@@ -144,9 +144,132 @@ function containsCapabilityPersistence(sourceText, persistenceTokens) {
   return false;
 }
 
+function tomlStringArray(text, key) {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const match = text.match(
+    new RegExp(`(?:^|\\n)\\s*${escaped}\\s*=\\s*\\[([\\s\\S]*?)\\]`, "u"),
+  );
+  if (!match) return [];
+  return [...match[1].matchAll(/["']([^"'\r\n]+)["']/gu)].map(
+    (entry) => entry[1],
+  );
+}
+
+function capabilityPermissionIdentifiers(permissions) {
+  if (!Array.isArray(permissions)) return [];
+  return permissions.flatMap((permission) => {
+    if (typeof permission === "string") return [permission];
+    if (
+      permission &&
+      typeof permission === "object" &&
+      typeof permission.identifier === "string"
+    ) {
+      return [permission.identifier];
+    }
+    return [];
+  });
+}
+
+function readCapabilityRecords(guiRoot, readTextFile, errors) {
+  const capabilityRoot = path.join(guiRoot, "src-tauri", "capabilities");
+  if (!fs.existsSync(capabilityRoot)) return [];
+  const records = [];
+  for (const filePath of collectFiles(capabilityRoot, new Set([".json", ".toml"]))) {
+    const text = readTextFile(filePath);
+    if (path.extname(filePath) === ".toml") {
+      records.push({
+        filePath,
+        permissions: tomlStringArray(text, "permissions"),
+        windows: tomlStringArray(text, "windows"),
+      });
+      continue;
+    }
+    let value;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      errors.push(`GUI capability JSON 无法解析：${path.relative(guiRoot, filePath)}`);
+      continue;
+    }
+    for (const capability of Array.isArray(value) ? value : [value]) {
+      if (!capability || typeof capability !== "object") continue;
+      records.push({
+        filePath,
+        permissions: capabilityPermissionIdentifiers(capability.permissions),
+        windows: Array.isArray(capability.windows)
+          ? capability.windows.filter((window) => typeof window === "string")
+          : [],
+      });
+    }
+  }
+  return records;
+}
+
+/** dialog 是固定 WebView 能力：官方生产依赖与 main ACL 必须同时完整存在。 */
+function validateDialogFrontendContract(guiRoot, errors, readTextFile) {
+  const packagePath = path.join(guiRoot, "package.json");
+  let packageJson = {};
+  if (!fs.existsSync(packagePath)) {
+    errors.push("GUI dialog 基线缺少 package.json 中的生产直依赖 @tauri-apps/plugin-dialog = ^2.7.3");
+  } else {
+    try {
+      packageJson = JSON.parse(readTextFile(packagePath));
+    } catch {
+      errors.push("GUI package.json 无法解析，不能验证 dialog 生产直依赖");
+    }
+    if (packageJson?.dependencies?.["@tauri-apps/plugin-dialog"] !== "^2.7.3") {
+      errors.push("GUI dialog 基线要求 dependencies 生产直依赖 @tauri-apps/plugin-dialog = ^2.7.3");
+    }
+  }
+
+  const packageSections = [
+    packageJson?.dependencies,
+    packageJson?.devDependencies,
+    packageJson?.optionalDependencies,
+    packageJson?.peerDependencies,
+  ];
+  if (packageSections.some((section) => section?.["@tauri-apps/plugin-fs"])) {
+    errors.push("GUI dialog 基线不得安装 @tauri-apps/plugin-fs 或借此取得文件系统访问");
+  }
+
+  const capabilities = readCapabilityRecords(guiRoot, readTextFile, errors);
+  const mainCapabilities = capabilities.filter((capability) =>
+    capability.windows.includes("main"),
+  );
+  const dialogPermissions = mainCapabilities.flatMap((capability) =>
+    capability.permissions.filter((permission) => permission.startsWith("dialog:")),
+  );
+  const defaultDialogPermissions = dialogPermissions.filter(
+    (permission) => permission === "dialog:default",
+  );
+  if (defaultDialogPermissions.length !== 1) {
+    errors.push("GUI 生效于 main 窗口的 capability 必须精确包含 dialog:default");
+  }
+  if (dialogPermissions.some((permission) => permission !== "dialog:default")) {
+    errors.push("GUI 生效于 main 窗口的 capability 只允许 dialog:default，不能追加其他 dialog:* 权限");
+  }
+  if (
+    !dialogPermissions.includes("dialog:default") &&
+    dialogPermissions.some((permission) => permission.startsWith("dialog:allow-"))
+  ) {
+    errors.push("GUI dialog 基线不得仅用部分 dialog:allow-* 权限替代 dialog:default");
+  }
+  if (dialogPermissions.some((permission) => permission.startsWith("dialog:deny-"))) {
+    errors.push("GUI 生效于 main 窗口的 capability 不得包含任意 dialog:deny-* 权限");
+  }
+  if (
+    capabilities.some((capability) =>
+      capability.permissions.some((permission) => permission.startsWith("fs:")),
+    )
+  ) {
+    errors.push("GUI dialog 基线不得授予 fs:* ACL；选择文件不等于授予文件系统访问");
+  }
+}
+
 /** 桌面插件统一由 Rust 拥有，WebView 不得安装 JS 插件或取得插件 ACL。 */
 export function validateRustOnlyDesktopCapabilities(guiRoot, profile, errors, readers) {
   const { collectOptionalTexts, readTextFile } = readers;
+  validateDialogFrontendContract(guiRoot, errors, readTextFile);
   const packagePath = path.join(guiRoot, "package.json");
   if (fs.existsSync(packagePath)) {
     const packageText = readTextFile(packagePath);

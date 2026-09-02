@@ -73,6 +73,7 @@ REQUIRED_RULES = {
     ".agents/skills/desktop-add-gui-system-locale/**": "conditional",
     ".agents/skills/desktop-add-gui-updater/**": "conditional",
     ".agents/skills/desktop-add-gui-window-state/**": "conditional",
+    ".agents/skills/desktop-add-gui-dialog/**": "conditional",
     ".agents/skills/desktop-add-gui-system-tray/**": "conditional",
     ".agents/skills/desktop-add-gui-single-instance/**": "conditional",
     ".agents/skills/desktop-add-gui-deep-link/**": "conditional",

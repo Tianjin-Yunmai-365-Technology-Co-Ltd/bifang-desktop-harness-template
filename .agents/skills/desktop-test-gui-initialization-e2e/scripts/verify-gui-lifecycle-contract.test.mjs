@@ -46,6 +46,86 @@ test("accepts an explicit no-tray no-single-instance close-on-last-window contra
   });
 });
 
+test("dialog_default_permission_covers_all_dialog_types", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.rmSync(path.join(guiRoot, "src-tauri", "capabilities", "main.json"));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /生效于 main 窗口的 capability 必须精确包含 dialog:default/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    const capability = path.join(guiRoot, "src-tauri", "capabilities", "main.json");
+    fs.writeFileSync(
+      capability,
+      fs.readFileSync(capability, "utf8").replace(
+        '"dialog:default"',
+        '"dialog:allow-open"',
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得仅用部分 dialog:allow-\* 权限替代 dialog:default/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    const capability = path.join(guiRoot, "src-tauri", "capabilities", "main.json");
+    fs.writeFileSync(
+      capability,
+      fs.readFileSync(capability, "utf8").replace(
+        '"dialog:default"',
+        '"dialog:default","dialog:deny-open"',
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得包含任意 dialog:deny-\* 权限/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    const capability = path.join(guiRoot, "src-tauri", "capabilities", "main.json");
+    fs.writeFileSync(
+      capability,
+      fs.readFileSync(capability, "utf8").replace('"windows":["main"]', '"windows":["other"]'),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /生效于 main 窗口的 capability 必须精确包含 dialog:default/u,
+    );
+  });
+});
+
+test("dialog_baseline_does_not_grant_filesystem_access", () => {
+  withFixture(({ root, guiRoot }) => {
+    const packagePath = path.join(guiRoot, "package.json");
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    packageJson.dependencies["@tauri-apps/plugin-fs"] = "^2.0.0";
+    fs.writeFileSync(packagePath, JSON.stringify(packageJson));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得安装 @tauri-apps\/plugin-fs.*文件系统访问/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    const capability = path.join(guiRoot, "src-tauri", "capabilities", "main.json");
+    fs.writeFileSync(
+      capability,
+      fs.readFileSync(capability, "utf8").replace(
+        '"dialog:default"',
+        '"dialog:default","fs:allow-read-file"',
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /不得授予 fs:\* ACL/u,
+    );
+  });
+});
+
 test("rejects a GUI initialization without the dedicated capability profile", () => {
   withFixture(({ root }) => {
     fs.rmSync(path.join(root, "docs", "GUI_APP_PROFILE.md"));
@@ -95,6 +175,23 @@ test("rejects a final profile that omits the materialized detailed sidebar defau
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
       /缺少字段：sidebar_mode；初始化器应在用户未选择时写入 detailed/u,
+    );
+  });
+});
+
+test("rejects a main capability that appends extra dialog permissions", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.writeFileSync(
+      path.join(guiRoot, "src-tauri", "capabilities", "main.json"),
+      JSON.stringify({
+        identifier: "main-capability",
+        permissions: ["core:default", "dialog:default", "dialog:allow-open"],
+        windows: ["main"],
+      }),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /只允许 dialog:default，不能追加其他 dialog:\* 权限/u,
     );
   });
 });
@@ -509,6 +606,14 @@ test("accepts table-form Cargo dependencies and MenuItem with_id", () => {
     fs.writeFileSync(
       path.join(guiRoot, "src-tauri", "Cargo.toml"),
       `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies.tauri]\nworkspace = true\n\n[dependencies.tauri-plugin-deep-link]\nworkspace = true\n\n[dependencies.tauri-plugin-global-shortcut]\nworkspace = true\n\n[dependencies.tauri-plugin-notification]\nworkspace = true\n\n[dependencies.tauri-plugin-os]\nworkspace = true\n\n[dependencies.tauri-plugin-single-instance]\nworkspace = true\n\n[dependencies.tauri-plugin-updater]\nworkspace = true\n\n[dependencies.tauri-plugin-window-state]\nworkspace = true\n\n[dependencies.tokio]\nworkspace = true\n\n[dependencies.serde]\nworkspace = true\n\n[dependencies.serde_json]\nworkspace = true\n\n[target.'cfg(target_os = "macos")'.dependencies.mac-usernotifications]\nworkspace = true\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies.tauri-plugin-autostart]\nworkspace = true\n`,
+    );
+    fs.appendFileSync(
+      path.join(root, "Cargo.toml"),
+      '\n[workspace.dependencies.tauri-plugin-dialog]\nversion = "2.7.3"\n',
+    );
+    fs.appendFileSync(
+      path.join(guiRoot, "src-tauri", "Cargo.toml"),
+      "\n[dependencies.tauri-plugin-dialog]\nworkspace = true\n",
     );
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(

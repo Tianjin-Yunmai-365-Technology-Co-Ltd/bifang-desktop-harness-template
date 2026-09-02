@@ -1,6 +1,6 @@
 # 关于页、赞助页与品牌媒体集成
 
-本参考适用于所有已选择 GUI 的下游。`assets/brand-support/` 是产品家族共享品牌依赖，不是来源下游产品实例；设置页与全局主题固定建立，关于页、赞助页、系统托盘、系统通知、开机自启、单实例、深链接、全局快捷键和侧栏模式则严格消费 GUI 初始化专门问询写入 `docs/GUI_APP_PROFILE.md` 的九项选择。system-locale、updater、window-state 是不询问的固定基线；真实更新视觉仍需独立产品选择。
+本参考适用于所有已选择 GUI 的下游。`assets/brand-support/` 是产品家族共享品牌依赖，不是来源下游产品实例；设置页与全局主题固定建立，关于页、赞助页、系统托盘、系统通知、开机自启、单实例、深链接、全局快捷键和侧栏模式则严格消费 GUI 初始化专门问询写入 `docs/GUI_APP_PROFILE.md` 的九项选择。system-locale、updater、window-state 三项 Rust-only 基线与 dialog WebView 基线不询问且始终接入；dialog 只授予精确 `dialog:default`，真实更新视觉仍需独立产品选择。
 
 ## 资产包内容
 

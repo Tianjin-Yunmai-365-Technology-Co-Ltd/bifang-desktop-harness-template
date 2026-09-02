@@ -17,7 +17,7 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 ## 工作流程
 
 1. 构建前运行 `node .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs --root . --gui-dir <project-id>_gui`。检查器必须读取配置块并条件验证：
-   - 固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state` 的版本/member 继承、Rust-only 无 JS/ACL、唯一且稳定顺序注册、`locale()` 归一化/回退、中性 `plugins.updater = { endpoints: [], pubkey: "" }` 的可启动 `NotConfigured` 零出站配置和 single-flight/回收，以及只恢复 `SIZE | POSITION | MAXIMIZED`、无效/越界状态回退首次窗口尺寸；`get_app_metadata`、`get_system_locale`、`set_interface_language` 三个窄 Tauri command 必须始终存在，并与已启用的条件命令恰好进入一个无缺失、无重复、无额外项的合并 `invoke_handler`；任何固定基线缺失都失败。
+   - 固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state` 三项 Rust-only 基线的版本/member 继承、无 JS/ACL、唯一稳定顺序注册、`locale()` 归一化/回退、中性 `plugins.updater = { endpoints: [], pubkey: "" }` 的可启动 `NotConfigured` 零出站配置和 single-flight/回收，以及只恢复 `SIZE | POSITION | MAXIMIZED`、无效/越界状态回退首次窗口尺寸；同时验证 `$desktop-add-gui-dialog` 固定 WebView 基线：根/member 固定 `tauri-plugin-dialog = "2.7.3"`、前端生产直依赖 `@tauri-apps/plugin-dialog = "^2.7.3"`、中央 Builder 在 window-state 后且条件 notification/autostart/global-shortcut 前恰好注册一次，主窗口的 `dialog:*` 权限精确为唯一 `dialog:default` 以覆盖 message/open/save，并且不安装 `@tauri-apps/plugin-fs`、不授予 `fs:*` 或其他文件系统权限。`get_app_metadata`、`get_system_locale`、`set_interface_language` 三个窄 Tauri command 必须始终存在，并与已启用的条件命令恰好进入一个无缺失、无重复、无额外项的合并 `invoke_handler`；任何固定基线缺失都失败。
    - `single_instance: enabled`：根/member 依赖、首插件顺序、只恢复既有窗口的中性回调，以及 `single_instance_plugin_is_registered_first`、`second_launch_restores_existing_main_window` 两个有断言回归；disabled 时拒绝依赖与注册。
    - `deep_link: enabled`：强制单实例与 `deep-link` feature，身份派生 `app-<kebab-id>://restore`、配置 scheme、冷热启动事件、先验证后恢复和四个固定回归；disabled 时拒绝依赖、feature、配置、监听、JS/ACL 与测试残留。
    - `global_shortcut: enabled`：唯一 contract、Rust-only 插件、可空绑定/逐项真实状态、Pressed-only typed dispatch、注册与持久化原子回滚、录制 token 及 owned 清理按 contract 模式成立；Rust action 表与 contract 的数量、ID、策略、chord、dispatch、`e2eSafe` 逐字段一致，每个 target 有明确非 wildcard/no-op 分支。中性空 contract 必须零默认 chord、零 OS 注册、零占位 UI，且没有启动注册调用或前端快捷键 runtime/i18n。disabled 时 contract 与全部专属实现缺席。
@@ -44,7 +44,7 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 ## 通过条件
 
 - 九字段唯一配置块完整、交叉关系合法，且实现、依赖、设置、路由、资源与每个 enabled/disabled 选择一致；
-- system-locale、updater、window-state 固定基线结构与可观察宿主场景通过；updater 未配置时确认为 `NotConfigured` 且零出站；
+- system-locale、updater、window-state 三项 Rust-only 固定基线结构与可观察宿主场景通过，dialog 固定 WebView 基线的依赖、唯一有序注册、主窗口 `dialog:default` 全类型覆盖和零文件系统授权通过；updater 未配置时确认为 `NotConfigured` 且零出站；
 - 本次调试二进制真实启动，所选侧栏模式、设置页和全部实际菜单页面通过；
 - 已选单实例、托盘、系统通知、开机自启、深链接与全局快捷键分别通过适用结构和可执行宿主场景；中性快捷键空 contract 证明零注册，非空 contract 只触发安全动作；需要打包的 macOS 深链接明确留作阻断式后续验证；自启、窗口状态、快捷键配置与 owned registry 均已恢复；
 - 发布专用映射始终存在且未污染调试构建；关于页启用时命令/加载失败状态存在，禁用时运行时链路缺席；关于/赞助入口和页面按选择存在或缺席；
@@ -52,6 +52,6 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 
 ## 结果边界
 
-初始化最终回复逐项报告九项配置、三项固定基线、结构检查、构建、二进制路径、侧栏模式/持久折叠、设置页与逐菜单结果。六个条件宿主能力及关于/赞助只报告适用场景；全局快捷键另报告 contract 动作数、初始非空 binding 数、实际注册/触发范围及恢复后的配置/owned registry，开机自启和 window-state 报告恢复后状态，系统通知/需打包深链明确标记未在此证明的边界；未选项报告缺席证据。
+初始化最终回复逐项报告九项配置、三项 Rust-only 固定基线、dialog 固定 WebView 基线、结构检查、构建、二进制路径、侧栏模式/持久折叠、设置页与逐菜单结果。六个条件宿主能力及关于/赞助只报告适用场景；全局快捷键另报告 contract 动作数、初始非空 binding 数、实际注册/触发范围及恢复后的配置/owned registry，开机自启和 window-state 报告恢复后状态，系统通知/需打包深链明确标记未在此证明的边界；未选项报告缺席证据。
 
 本 Skill 不创建 Verification，不把调试二进制称为发布候选。通过后与初始化 Skill 一同删除；失败时保留现场且不得创建基线提交。

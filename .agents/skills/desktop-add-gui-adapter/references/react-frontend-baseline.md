@@ -21,6 +21,7 @@
 | 直接包 | 最低兼容范围 |
 |---|---|
 | `@tauri-apps/api` | `^2.11.1` |
+| `@tauri-apps/plugin-dialog` | `^2.7.3` |
 | `react` / `react-dom` | `^19.2.8` |
 | `@mantine/core` / `@mantine/hooks` | `^9.6.0` |
 | `@tabler/icons-react` | `^3.46.0` |
@@ -42,6 +43,8 @@
 | `@testing-library/user-event` | `^14.6.6` |
 | `jsdom` | `^30.0.1` |
 | `@tauri-apps/cli` | `^2.11.4` |
+
+`@tauri-apps/plugin-dialog` 是所有 GUI 的固定生产依赖，不按 profile 裁剪。前端仅通过官方包调用 dialog guest API；主窗口 capability 必须且只能用一个 `dialog:default` 覆盖 message、open、save 全部官方对话框类型，不得追加 partial allow、deprecated `ask`/`confirm` alias、deny 项、wildcard 或任何文件系统权限。dialog 返回的用户选择只表示路径值或取消结果；实际读取、写入与业务处理仍需独立批准的窄 adapter/core 能力。
 
 `package.json` 必须以 `engines.node: "^24.15.0 || >=26.0.0"` 和 `engines.pnpm: ">=11.24.0"` 表达当前最低工具范围。不得把旧式精确 `packageManager` 字段当作兼容要求；若生成工具为 Corepack 溯源必须写入该字段，它只属于实际解析元数据，不能替代 `engines` 范围或下界验证。正常 `pnpm-lock.yaml` 固定当前解析版本，但不抬高清单下界。
 

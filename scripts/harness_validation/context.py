@@ -65,6 +65,7 @@ GUI_SKILL = SKILLS_ROOT / "desktop-add-gui-adapter" / "SKILL.md"
 GUI_LOCALE_SKILL = SKILLS_ROOT / "desktop-add-gui-system-locale" / "SKILL.md"
 GUI_UPDATER_SKILL = SKILLS_ROOT / "desktop-add-gui-updater" / "SKILL.md"
 GUI_WINDOW_STATE_SKILL = SKILLS_ROOT / "desktop-add-gui-window-state" / "SKILL.md"
+GUI_DIALOG_SKILL = SKILLS_ROOT / "desktop-add-gui-dialog" / "SKILL.md"
 GUI_TRAY_SKILL = SKILLS_ROOT / "desktop-add-gui-system-tray" / "SKILL.md"
 GUI_SINGLE_INSTANCE_SKILL = (
     SKILLS_ROOT / "desktop-add-gui-single-instance" / "SKILL.md"
@@ -375,6 +376,8 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-updater/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-window-state/SKILL.md",
     ".agents/skills/desktop-add-gui-window-state/agents/openai.yaml",
+    ".agents/skills/desktop-add-gui-dialog/SKILL.md",
+    ".agents/skills/desktop-add-gui-dialog/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-system-tray/SKILL.md",
     ".agents/skills/desktop-add-gui-system-tray/agents/openai.yaml",
     ".agents/skills/desktop-add-gui-single-instance/SKILL.md",
@@ -532,6 +535,7 @@ EXPECTED_SKILLS = {
     "desktop-add-gui-adapter",
     "desktop-add-gui-autostart",
     "desktop-add-gui-deep-link",
+    "desktop-add-gui-dialog",
     "desktop-add-gui-global-shortcut",
     "desktop-add-gui-single-instance",
     "desktop-add-gui-system-locale",

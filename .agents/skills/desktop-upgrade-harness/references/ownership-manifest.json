@@ -54,6 +54,7 @@
     {"pattern": ".agents/skills/desktop-add-gui-system-locale/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-updater/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-window-state/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/desktop-add-gui-dialog/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-system-tray/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-single-instance/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-deep-link/**", "mode": "conditional"},

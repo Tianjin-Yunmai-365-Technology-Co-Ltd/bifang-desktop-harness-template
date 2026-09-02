@@ -114,6 +114,7 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             "desktop-add-gui-system-locale",
             "desktop-add-gui-updater",
             "desktop-add-gui-window-state",
+            "desktop-add-gui-dialog",
             "desktop-add-gui-system-tray",
             "desktop-add-gui-single-instance",
             "desktop-add-gui-deep-link",
@@ -125,6 +126,19 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             rule = (f".agents/skills/{skill_name}/**", "conditional")
             self.assertIn(rule, ordered)
             self.assertLess(ordered.index(rule), ordered.index(generic_rule))
+        self.assertEqual(
+            context.GUI_DIALOG_SKILL,
+            ROOT / ".agents/skills/desktop-add-gui-dialog/SKILL.md",
+        )
+        self.assertIn(
+            ".agents/skills/desktop-add-gui-dialog/SKILL.md",
+            context.REQUIRED_FILES,
+        )
+        self.assertIn(
+            ".agents/skills/desktop-add-gui-dialog/agents/openai.yaml",
+            context.REQUIRED_FILES,
+        )
+        self.assertIn("desktop-add-gui-dialog", context.EXPECTED_SKILLS)
 
     def test_upgrade_policy_constants_match_validator_requirements(self) -> None:
         """升级器自身策略常量不得落后于 validator 的最低保护集。"""

@@ -11,7 +11,7 @@ description: 为已选择 GUI 系统通知能力的下游安装并接入跨平�
 
 - 根 `[workspace.dependencies]` 声明 `tauri-plugin-notification = "2.4.0"` 与 `mac-usernotifications = "0.3.1"`，含义是经过验证的最低兼容稳定下界，不是精确锁定；GUI member 只用 `workspace = true`。`mac-usernotifications` 只放在 member 的 macOS target dependencies 中。
 - Windows 与 Linux 使用官方 `tauri-plugin-notification` Rust API。macOS 使用 `mac-usernotifications` 0.3.1 的现代 `UNUserNotificationCenter` 异步 API：权限调用 `request_auth().await`，投递通过 `Notification::new()`/`default_sound()`/`send().await`，不得退回已废弃的 `NSUserNotificationCenter` 或吞掉投递结果。
-- 通知插件只按 GUI adapter 的中央稳定顺序注册：启用时位于 single-instance/deep-link 与三项固定基线之后、autostart/global-shortcut 之前，不得自行争用首 plugin。WebView 不安装 `@tauri-apps/plugin-notification`，也不授予 `notification:*` capability；只公开设置所需的窄 Rust command。有效 bundle identifier 和打包应用签名属于 macOS 原生通知验收前提。
+- 通知插件只按 GUI adapter 的中央稳定顺序注册：启用时位于 single-instance/deep-link、三项 Rust-only 固定基线与 dialog 固定 WebView 基线之后，autostart/global-shortcut 之前，不得自行争用首 plugin。WebView 不安装 `@tauri-apps/plugin-notification`，也不授予 `notification:*` capability；只公开设置所需的窄 Rust command。有效 bundle identifier 和打包应用签名属于 macOS 原生通知验收前提。
 - `system_notification = disabled` 时，根/member 依赖、macOS target 依赖、插件注册、worker、命令、事件、设置 Switch、翻译键和通知专属测试都必须缺席。其他已批准能力真实共用 Tokio feature 时不删除共用依赖。
 
 ## 实施契约

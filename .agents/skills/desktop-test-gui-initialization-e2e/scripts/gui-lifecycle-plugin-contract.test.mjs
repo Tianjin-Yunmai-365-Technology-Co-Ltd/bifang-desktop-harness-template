@@ -34,6 +34,128 @@ test("rejects duplicate GUI initialization profile blocks", () => {
   });
 });
 
+test("dialog_dependencies_are_fixed", () => {
+  const cases = [
+    {
+      mutate(root) {
+        const cargo = path.join(root, "Cargo.toml");
+        fs.writeFileSync(
+          cargo,
+          fs.readFileSync(cargo, "utf8").replace('tauri-plugin-dialog = "2.7.3"\n', ""),
+        );
+      },
+      pattern: /根 \[workspace\.dependencies\].*"2\.7\.3".*tauri-plugin-dialog/u,
+    },
+    {
+      mutate(_root, guiRoot) {
+        const cargo = path.join(guiRoot, "src-tauri", "Cargo.toml");
+        fs.writeFileSync(
+          cargo,
+          fs.readFileSync(cargo, "utf8").replace(
+            "tauri-plugin-dialog = { workspace = true }\n",
+            "",
+          ),
+        );
+      },
+      pattern: /member 通过 workspace = true 继承 tauri-plugin-dialog/u,
+    },
+    {
+      mutate(root) {
+        const cargo = path.join(root, "Cargo.toml");
+        fs.writeFileSync(
+          cargo,
+          fs.readFileSync(cargo, "utf8").replace(
+            'tauri-plugin-dialog = "2.7.3"',
+            'tauri-plugin-dialog = "2.7.2"',
+          ),
+        );
+      },
+      pattern: /"2\.7\.3".*tauri-plugin-dialog/u,
+    },
+    {
+      mutate(_root, guiRoot) {
+        fs.writeFileSync(
+          path.join(guiRoot, "package.json"),
+          JSON.stringify({
+            devDependencies: { "@tauri-apps/plugin-dialog": "^2.7.3" },
+          }),
+        );
+      },
+      pattern: /dependencies 生产直依赖 @tauri-apps\/plugin-dialog = \^2\.7\.3/u,
+    },
+  ];
+  for (const { mutate, pattern } of cases) {
+    withFixture(({ root, guiRoot }) => {
+      mutate(root, guiRoot);
+      assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), pattern);
+    });
+  }
+});
+
+test("dialog_plugin_is_registered_once_in_fixed_order", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs.readFileSync(source, "utf8").replace(
+        "        .plugin(tauri_plugin_dialog::init())\n",
+        "",
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /原生 dialog 插件.*恰好注册一次，实际 0 次/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs.readFileSync(source, "utf8").replace(
+        "        .plugin(tauri_plugin_dialog::init())\n",
+        "        .plugin(tauri_plugin_dialog::init())\n        .plugin(tauri_plugin_dialog::init())\n",
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /原生 dialog 插件.*恰好注册一次，实际 2 次/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    const windowState = "        .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED).build())";
+    const dialog = "        .plugin(tauri_plugin_dialog::init())";
+    fs.writeFileSync(
+      source,
+      fs.readFileSync(source, "utf8").replace(
+        `${windowState}\n${dialog}`,
+        `${dialog}\n${windowState}`,
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /Tauri plugin 注册顺序必须为：.*window-state → dialog/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs.readFileSync(source, "utf8").replace(
+        "tauri_plugin_dialog::init()",
+        "tauri_plugin_dialog::init(dialog_config)",
+      ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /必须通过 \.plugin\(tauri_plugin_dialog::init\(\)\) 初始化/u,
+    );
+  });
+});
+
 test("rejects deep-link without single-instance", () => {
   withFixture(({ root }) => {
     writeInitializationProfile(root, { deep_link: "enabled", single_instance: "disabled" });

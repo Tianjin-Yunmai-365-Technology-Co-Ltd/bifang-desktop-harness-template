@@ -28,6 +28,7 @@ from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
 from scripts.harness_validation.context import (
+    GUI_DIALOG_SKILL,
     GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT,
     GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE,
     GUI_GLOBAL_SHORTCUT_CONTRACT_TEST_CASES,
@@ -141,8 +142,8 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         for fragment in (
             "HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES",
             "八项条件能力的启用/禁用",
-            "包含九项最终配置、三项固定基线",
-            "system-locale、updater、window-state 是不询问的固定 GUI 基线",
+            "包含九项最终配置、三项 Rust-only 固定基线、dialog 固定 WebView 基线",
+            "`os`（system-locale）、updater、window-state 是不询问的三项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线",
         ):
             self.assertIn(fragment, text)
         for stale in (
@@ -224,13 +225,14 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         self.assertIn("$desktop-add-gui-system-locale", initialization_fragments)
         self.assertIn("$desktop-add-gui-updater", initialization_fragments)
         self.assertIn("$desktop-add-gui-window-state", initialization_fragments)
+        self.assertIn("$desktop-add-gui-dialog", initialization_fragments)
         self.assertIn("最终九项不得缺失或残留 `pending`", initialization_fragments)
         self.assertIn(
             "`deep_link = enabled` 且 `single_instance != enabled` 是非法组合",
             initialization_fragments,
         )
         self.assertIn(
-            "结构检查器先验证唯一九字段、组合约束、三项固定基线和每个独立能力的启用完整/禁用无残留",
+            "结构检查器先验证唯一九字段、组合约束、四项固定基线和每个独立能力的启用完整/禁用无残留",
             initialization_fragments,
         )
         self.assertIn(e2e_skill, required)
@@ -249,8 +251,13 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         )
         self.assertIn("未选能力不是缺失证据", required[e2e_skill])
         self.assertIn(
-            "固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`",
+            "固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state` 三项 Rust-only 基线",
             required[e2e_skill],
+        )
+        self.assertIn("同时验证 `$desktop-add-gui-dialog` 固定 WebView 基线", required[e2e_skill])
+        self.assertEqual(
+            GUI_DIALOG_SKILL,
+            ROOT / ".agents/skills/desktop-add-gui-dialog/SKILL.md",
         )
         self.assertIn("`single_instance: enabled`", required[e2e_skill])
         self.assertIn("`deep_link: enabled`", required[e2e_skill])
