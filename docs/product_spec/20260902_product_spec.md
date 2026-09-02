@@ -10,7 +10,7 @@
 
 ## 一句话目标
 
-为以 AI Agent 为第一消费者、人类负责方向和关键审批的跨平台收费小工具，提供一个不实现具体业务、可一次性建立并持续维护终端下游项目的 Harness；当前模板源只接受 Harness 自身工程维护与创建下游所需的固定初始化信息，其他需求一律拒绝并要求切换到终端下游后重提；每个左侧 Task 用独立 Worktree、`codex/*` 分支和可审查提交交付一个明确结果。
+为以 AI Agent 为第一消费者、人类负责方向和关键审批的跨平台收费小工具，提供一个不实现具体业务、可一次性建立并持续维护终端下游项目的 Harness；当前模板源只接受 Harness 自身工程维护与创建下游所需的固定初始化信息，其他需求一律拒绝并要求切换到终端下游后重提；用户明确创建的每个左侧 Task 都绑定保存项目，并用独立 Worktree、`codex/task-*` 分支和可审查提交交付一个明确结果。
 
 ## 用户、场景与结果
 
@@ -18,7 +18,7 @@
 - 主要场景：Agent 直接完成当前批准范围，并只运行本次开发所需的相关单元/回归测试；除必要 ADR、Changelog 等事件触发记录外，不自动增加持久计划、全仓检查、构建、冒烟、E2E、验收或人工复核步骤。
 - 失败闭环：开发单元测试失败时在当前授权范围内修复并重跑；发现产品边界、安全、破坏性操作、生产/付费/凭据副作用或发布授权缺失时，只增加解决该风险必需的确认或记录，不把它扩张成通用流程仪式。
 - 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。
-- Task 场景：主任务把每个可独立验收结果创建为独立 Worktree Task，使用“动作 + 结果”标题、完整边界描述、唯一 `codex/*` 分支和逻辑闭环提交；主任务复核后整合并清理，执行 Task 不直接修改主目录或合并 `main`。
+- Task 场景：只有用户明确要求新的左侧 Task 时，创建者才把独立结果绑定到按完整路径选中的保存项目；Git Task 使用独立 Worktree、`codex/task-*` 分支和逻辑闭环提交。`clientThreadId` 表示已接受但仍 queued，创建者报告后返回，不等待不存在的同步晋升接口；Task 内部并行使用 `codex/unit-*` 与 Subagent，不创建新的 user-owned Task。执行 Task 不直接修改保存项目 checkout 或自行合并集成分支。
 - 决策场景：创建新下游时先完成写入前初始化表单。Agent 复用用户已明确给出的合法值，在首轮一次列出全部尚未解析的固定基础字段：中文展示名、英文展示名、标识、路径、负责人、平台、接口和策略模式；中英文至少一个由用户直接提供，只提供一种语言时自动翻译另一种并标记来源。基础字段收齐后，才根据自定义策略或 GUI 选择每轮补全一个条件字段。全部字段收齐后展示包含两个名称、各自来源与最终项目根目录的完整汇总并确认。若请求混入产品需求，只解析允许的初始化字段并明确拒绝产品部分，不存储、不推演、不实现。
 - 输入：当前 Harness 源只接收 Harness 工程维护信息，或创建终端下游所需的中文项目展示名、英文项目展示名（至少直接提供一个）、ASCII `snake_case` 标识、项目路径、负责人、目标平台、接口组合和持久 Agent 策略；项目路径可以是最终根目录或父目录。选择 GUI 时还包括八项条件能力的启用/禁用与可选的精简/详细侧栏选择，省略侧栏选择表示使用详细模式；`os`（system-locale）、updater、window-state 是不询问的三项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线。产品目的、业务规则、产品专属 UI/文案/数据、远程地址、凭据、产品构建与发布不是 Harness 源输入，必须在初始化完成并切换到终端下游后重新提出。
 - 输出：独立终端项目根、共享核心与所选适配器；GUI 下游另输出包含九项最终配置、三项 Rust-only 固定基线、dialog 固定 WebView 基线、所选生命周期/页面/侧栏且无禁用能力残留的适配器，其中未选择侧栏时 `sidebar_mode = detailed`。完成实现并提供本次必要单元测试证据；显式构建另输出经过全量单元测试的可追溯候选，并按本次选择决定是否进入 E2E；GUI 发布还按当次选择决定是否采集性能指标。
@@ -89,11 +89,13 @@
 ### 左侧 Task 的独立 Worktree 交付
 
 - 变更标识：`HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY`；所需 Harness 版本：`202608051301`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
-- 一个左侧 Task 固定对应一个明确且可独立验收的目标、一个不与其他 Task 共用的 Codex 管理 Worktree、一个唯一 `codex/<task-slug>` 分支和一组可审查提交。标题采用“动作 + 结果”；描述必须列出目标、工作方式、当前事实、必须阅读的项目文档、实施范围、禁止事项、验收标准和交付要求。
-- 新 Task 默认从主任务已确认的最新本地 `main` HEAD 创建。存在远端时先由主任务获取引用并完成安全快进；Local 主工作目录存在修改时，先检查差异、排除秘密和生成缓存，并把已确认基线提交。没有 `main`、基线分叉、修改无法安全归属或无法提交时阻断创建，不静默改用当前分支，也不利用 Codex 的“复制未提交修改”能力绕过基线提交。
-- Codex 管理 Worktree 默认可能处于 detached HEAD，因此 Task 在首次编辑前创建并切换到 `codex/<task-slug>`。Task 只编辑自己的 Worktree，每个逻辑闭环使用结果导向的提交信息；交付前完成任务要求的测试与文档同步、提交全部改动并保持 `git status` 干净，不提交 `target/`、`node_modules/`、`dist/`、`__pycache__/` 等缓存或生成物。
-- Task 不覆盖 `/Applications` 中的最终应用，不删除其他 Worktree，不合并 `main`，也不执行未授权推送、发布或签名。Task 只报告分支、提交哈希、实际验证、未执行项和剩余风险；主任务复核提交、测试证据、文档和风险后整合到 `main`，确认状态干净且提交已整合后才移除对应 Worktree 并安全删除分支。
-- 本契约与 `parallel_worktree_subagents` 分层：前者管理用户可见 Task 的默认隔离交付，后者只在用户明确要求并行、策略启用且至少两个写入范围不重叠时管理单个 Task 内部的 Subagent Worktree，不能让两个左侧 Task 共用同一工作树。
+- 补充变更标识：`HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE`；所需 Harness 版本：下一次高于 `202609020957` 的 Harness 时间版本，由发布决定物化。本范围不自动改变 `Version.md` 或发布状态。
+- 一个左侧 Task 固定对应一个明确且可独立验收的结果、一个保存的 Codex 项目、Git 项目中的一个不与其他 Task 共用的 Codex 管理 Worktree、一个唯一 `codex/task-<task-slug>` 分支和一组可审查提交。标题采用“动作 + 单一结果”，可带稳定 Task 编号但不带可变状态；描述必须列出 Task key、项目绑定、repository identity、基线、目标、范围、禁止事项、验收标准和交付要求。
+- plan、Todo、brief、review、Subagent、agent thread 和内部单元 Worktree 不是左侧 Task。诊断、实现、相关测试/review 和同范围缺陷修复共同服务同一结果时留在一个 Task；只有用户明确要求创建新的左侧 Task，或已明确把当前 Task 设为多 Task 协调器并指定独立结果时，才调用 `create_thread`。
+- 创建前用 `list_projects` 按规范化完整路径锁定保存项目；项目工作只允许 `target.type = project` 和精确 `projectId`，Git 项目用 Worktree，非 Git 项目用 Local，禁止 projectless/默认兜底/其他项目。一个结果只派发一次：`threadId` 表示 Ready；`clientThreadId` 表示请求已接受但仍 `SETUP_PENDING`，创建者返回 queued 引用，不假设转换接口、不无限轮询、不重复创建，也不在协调 Task 或后台目录代替执行。后续明确检查才用 `list_threads` 以 id 与 `projectId` 对账。
+- 用户明确指定起始 branch/ref 时使用该事实，否则使用保存项目默认分支的已提交 HEAD，不硬编码 `main`/`master`、不自动 fetch/pull，也不复制未明确批准的 working-tree 修改。Ready Task 首次写入前确认线程 `projectId`；Git Worktree 即使物理路径位于保存项目之外，也必须与保存项目根拥有相同规范化 Git common dir，并出现在其 `git worktree list --porcelain` 登记中，同时匹配预期起始提交。
+- Task 只编辑自己的 Worktree，每个逻辑闭环使用结果导向提交；交付前完成任务要求的测试与文档同步、提交全部改动并保持 `git status` 干净，不提交缓存或生成物。Task 不覆盖最终应用、不删除其他 Worktree、不自行合并默认/集成分支，也不执行未授权推送、发布或签名；协调方复核并整合后才清理。
+- `parallel_worktree_subagents` 只控制当前左侧 Task 内部的 Subagent。内部单元固定使用与 Task 分支不形成 Git ref 父子冲突的 `codex/unit-<task>-<unit>` 分支；helper 绑定保存项目根与当前 Task source worktree 的同一 Git common dir，从 source HEAD 创建，并登记非重叠 repo-relative 所有权。guard 只接受登记范围，postflight 必须证明实际 committed/uncommitted/untracked 路径均在范围内；清理只接受创建时登记的 source 分支已包含单元提交。内部 agent thread 不调用 `create_thread`，也不能替代左侧 Task。
 
 ### UI 设计标准目录与匹配路由
 
@@ -209,7 +211,7 @@
 - 写入型 Subagent 只有用户在当前请求中明确要求并行、并行偏好为 `enabled`、任务可安全拆成至少两个无重叠写入单元且 Worktree 门禁通过时才使用；否则 Agent 自行采用单 Agent，不重复询问。
 - 冒烟偏好只在完整候选验收时消费。`milestone_e2e` 是每次构建询问时展示的建议默认值；无论它是 `enabled` 还是 `disabled`，都不能替代当前构建的明确选择。若本次构建请求已明确选择则不重复询问，否则构建前询问一次。
 - 初始化首次写入策略时允许尚无 ADR；后续永久变更策略必须由用户确认并记录当日 ADR。临时任务约束只写入计划/验证证据，不静默改写项目策略。
-- `docs/AGENT_POLICY.md` 同时保存左侧 Task 的独立 Worktree 交付契约和统一描述模板；该静态工作约定不新增 schema 字段，也不受 `parallel_worktree_subagents` 的启用/禁用切换。
+- `docs/AGENT_POLICY.md` 同时保存左侧 Task 的保存项目绑定、setup 状态机、独立 Worktree 交付契约和统一描述模板；该静态工作约定不新增 schema 字段，也不受 `parallel_worktree_subagents` 的启用/禁用切换。
 
 ### 下游 Harness 工程升级
 
@@ -273,7 +275,7 @@
 - 用户明确要求持久 Todo 时，状态只能在实现和对应单元测试完成后变为 `done`；验收失败必须保留证据并回到编码循环。
 - 里程碑必须绑定批准场景、真实产物身份、源码提交、运行环境和验证结果；历史产物或其他提交的证据不能复用。
 - 持久 E2E 偏好与当前构建选择必须分离；Agent 逐次解析选择并记录使用或不使用的理由，不把一次选择静默持久化。
-- Worktree 辅助程序继续校验 cwd、Git 根、分支、登记 Worktree、写入目标和符号链接边界；它不替代宿主沙箱。
+- Worktree 辅助程序校验保存项目根、当前 Task source worktree、Git common-dir、分支、登记 Worktree、非重叠所有权、实际变更路径和符号链接边界；它不替代宿主沙箱，也不能修复宿主级 Task setup。
 - Harness 升级溯源不能污染下游产品版本；模板版本与下游 SemVer 始终分离。
 - 其他目标平台未实际验证时标记为 `Unverified`，不得声称已通过。
 - 统一文件行数、中文声明注释、lint、静态与架构检查保留为按需治理能力；只在本次变化需要、用户明确请求或发布/渠道硬要求时运行，日常开发和普通构建不为它们增加独立步骤。行数检查一旦运行，Rust 超过 800 行、前端超过 1000 行、其他人工维护文本超过 2000 行都必须拆分，不能用 ADR、计划说明或警告降级为通过。
@@ -295,7 +297,7 @@
 - [x] 所有用户可见版本恰有一个小写 `v`，机器版本字段保持无展示前缀的原始值。
 
 - [x] 日常开发不再选择快速/标准/里程碑档位，统一直接实现并只运行本次必要的相关单元/回归测试。
-- [x] 左侧 Task 以“动作 + 结果”命名，并用独立 Worktree、唯一 `codex/*` 分支和可审查提交交付一个明确目标；模板、边界、干净状态、主任务整合与清理顺序由 Agent Policy、相关 Skills 和 validator 同步锁定。
+- [x] 用户明确创建的左侧 Task 以稳定的“动作 + 单一结果”命名，精确绑定保存项目；`clientThreadId` 以有界 `SETUP_PENDING` 返回，Ready Git Task 用已登记 Worktree、`codex/task-*` 分支和可审查提交交付，Task 内部 Subagent 单元以 `codex/unit-*`、非重叠所有权和 postflight 验证保持隔离。
 - [x] 日常开发不自动创建 Work Plan、Product Status、Verification、构建、全仓检查、冒烟、E2E 或人工复核步骤；显式请求和必要风险门禁仍可独立触发。
 - [x] 代码行为变化的本次必要测试覆盖核心成功路径和最高风险失败路径；纯文档/元数据/机械变更可以使用最小替代检查而无需空洞测试。
 - [x] Product Spec、ADR、Product Status、Work Plan、Changelog 和 Verification 只在各自触发条件满足时更新，不再每项需求全量联动。

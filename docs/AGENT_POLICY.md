@@ -28,28 +28,37 @@ milestone_e2e: pending
 
 GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`：当前请求已经明确时直接复用，否则询问一次；修复后重跑同一发布时复用原选择，新发布必须重新询问。选择 `enabled` 或产品/渠道硬要求时，才由 `$desktop-test-gui-release-performance` 对 release-profile 探针候选执行；它必须隔离 window-state 持久数据，让每次启动使用同一测试基线，并在成功、失败、超时或取消后恢复且复核原字节/原缺席状态。选择 `disabled` 且没有硬要求时跳过探针，在 manifest 和最终回复记录 `performanceStatus: Not run`、原因与剩余风险，并且不得生成 `performanceEvidence`、`performanceProbe` 或 `performanceRuntimeBinding`。已启用后的性能失败仍先回实现修复和重建；用户显式继续只能记录 `performanceStatus: waived` 与原失败证据，不能把它改判为通过，也不能用 `waived` 冒充预先关闭。updater 插件基线不需要策略字段；每次构建从产品事实解析的 `updaterEnabled` 只控制是否生成和验签 updater archive/`.sig`，不控制是否安装插件。
 
-## 左侧 Task 与独立 Worktree
+## 左侧 Task、项目绑定与独立 Worktree
 
-本节约束 Codex 项目中用户可见的左侧 Task，不改变 `parallel_worktree_subagents` 对单个 Task 内部并行 Subagent 的独立开关。核心关系固定为：一个左侧 Task = 一个明确且可独立验收的目标 + 一个不与其他 Task 共用的 Worktree + 一个 `codex/*` 分支 + 一组可审查提交。
+本节只约束用户能从侧栏独立进入的 user-owned Task/thread。plan、Todo、brief、report、review、Subagent、agent thread 和内部单元 Worktree 都是当前 Task 的内部结构，不是新的左侧 Task，也不得通过 `create_thread` 伪装成左侧 Task。`parallel_worktree_subagents` 只控制单个左侧 Task 内部的并行能力。
 
-### 创建与命名
+一个左侧 Task 固定对应一个明确且可独立验收的结果、一个保存的 Codex 项目、Git 项目中的一个不与其他 Task 共用的 Codex 管理 Worktree、一个 `codex/task-*` 分支和一组可审查提交。诊断、实现、证明该结果所需的测试或 review，以及修复这些检查发现的同范围缺陷，仍属于同一结果；不得只因生命周期阶段变化自动拆 Task。只有用户明确要求创建新的左侧 Task，或用户已经明确把当前 Task 定义为多 Task 协调器并指定独立结果时，才调用 `create_thread`。普通单结果请求不先创建所谓 Task0，当前 Task 可以直接实施。
 
-- 用户要求新建左侧 Task 处理仓库变更时，默认在该项目的 Codex 管理 Worktree 中创建，不直接复用 Local 主工作目录。每个 Task 只处理一个可独立验收的结果；标题使用简短的“动作 + 结果”，例如“实现微信七项真实能力适配”，不得使用“继续处理”“做一下优化”等无法从侧栏判断结果的标题。
-- 新 Task 固定从主任务已经同步并确认的最新本地 `main` HEAD 创建。项目存在远端时，主任务先获取远端引用并完成需要的安全快进，使本地 `main` 成为本次集成基线；没有 `main`、存在分叉或无法确认基线时停止创建，不静默改用当前分支、`master` 或带未提交修改的工作树。
-- 主工作目录存在已跟踪或未跟踪修改时，主任务必须先检查差异，排除秘密和生成缓存，并把已经确认属于当前基线的修改提交为可审查基线；无法安全归属或提交时阻断新 Task。不得让 Codex 通过“从带本地修改的分支创建”把未提交状态隐式复制进 Worktree。
-- Codex 管理 Worktree 默认可能处于 detached HEAD。新 Task 在首次编辑前必须创建并切换到唯一 `codex/<task-slug>` 分支，确认当前 Git 顶层目录就是该 Task 的 Worktree，且不得让另一个 Task 使用同一 Worktree 或分支。
+### 创建状态机
+
+1. **RESOLVED**：调用 `list_projects`，按规范化完整路径精确选中保存项目并记录其真实 `projectId`、项目类型和 `isGitRepository`；同名标签、当前 cwd 或仓库名称都不能替代路径核对。调用 `create_thread` 时必须使用 `target.type = project` 和该 `projectId`。Git 项目使用 `environment.type = worktree`；非 Git 项目使用 `environment.type = local`。项目工作不得使用 `projectless`、临时目录、Task0 cwd、默认兜底项目或其他项目。
+2. **DISPATCHED**：对一个结果只调用一次 `create_thread`。返回 `threadId` 表示已得到可管理的 Ready Task；只返回 `clientThreadId` 表示创建请求已接受但仍为 `SETUP_PENDING`，不是失败，也不是可传给 `read_thread`、`wait_threads` 或其他要求 `threadId` 的标识。此时立即报告 queued Task 并返回对应的 created-thread UI 引用；不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建、把 pending 改称 Ready，或在当前 Task/后台目录代替新 Task 偷跑。
+3. **RECONCILED**：已经取得真实 `threadId` 时立即用 `list_threads` 对账；只有 `clientThreadId` 时，则仅在用户随后明确要求检查先前 queued Task 后对账。以真实 id 和精确 `projectId` 为主键；标题使用工具返回的规范化标题原文，不因应用正常化措辞而误判。唯一候选尚未出现时保持 `SETUP_PENDING` 并结束本次检查；候选不唯一时报告 ambiguous；只有工具明确返回失败才记为 `SETUP_FAILED`。任何 pending/ambiguous 状态都禁止“再创建一个碰碰运气”。
+4. **BOUND**：进入 Ready Task 后、首次写入前再次确认线程 `projectId` 精确匹配。Worktree 的物理路径通常位于保存项目目录之外，不能用字符串祖先关系判断归属；必须分别解析保存项目根与 Task Git 顶层的规范化 `git rev-parse --path-format=absolute --git-common-dir`，要求相同，并要求保存项目的 `git worktree list --porcelain` 已登记该 Task 顶层。非 Git Local Task 才要求 cwd 等于保存项目完整路径。`projectId` 为空/错误、Git common dir 不同、Worktree 未登记或起始提交不符时保持零写入并报告绑定错误；现有 Task 不能被仓库规则静默改挂到另一项目。
+
+### 命名、基线与分支
+
+- 标题使用简短的“动作 + 单一结果”；需要编号时可以使用稳定的 `Task N | 动作 + 单一结果`，但不得把会变化的 Ready/Active/Blocked 等状态写进标题。创建后以 `list_threads` 返回的标题原文识别和展示。
+- Task 描述记录不可变的 Task key、目标 `projectId`、保存项目完整路径、Git repository identity、起始分支/提交和完成边界。未明确这些事实时不得用猜测值创建。
+- 用户明确指定起始 branch/ref 时按该事实创建；否则使用保存项目的默认分支 HEAD，不硬编码 `main` 或 `master`，也不主动 fetch/pull。基线必须已有提交；除非用户明确要求从 working tree 状态开始，否则不得复制未提交修改。基线不明确、分叉或修改无法安全归属时停止创建。
+- Codex 管理 Worktree 默认可能处于 detached HEAD。Ready Task 在首次编辑前创建并切换到唯一 `codex/task-<task-slug>` 分支，确认当前 Git 顶层就是已登记的该 Task Worktree，且不得让另一个 Task 使用同一 Worktree 或分支。
 
 ### 执行、提交与边界
 
 - Task 只在自己的 Worktree 修改文件，不直接编辑 Local 主工作目录，也不进入、清理或复用其他 Task 的 Worktree。保护已有修改，不扩大任务说明中的允许范围。
 - 每完成一个能够独立说明结果的逻辑闭环就提交一次。提交信息按 `$desktop-configure-git-commits` 表达已经得到的结果，例如 `feat: implement WeChat accessibility selectors`、`fix: reject stale accessibility identities` 或 `docs: record capability gate evidence`；简单变化可只写主题，非简单变化保留 Why/Changes/Impact/Test，未运行测试明确写 `Not run` 原因。不得把构建缓存、`target/`、`node_modules/`、`dist/`、`__pycache__/` 或其他忽略生成物加入提交。
-- Task 不自行覆盖 `/Applications` 中的最终应用，不删除其他 Worktree，不合并 `main`，也不执行推送、发布、签名或其他未在任务描述中明确授权的外部副作用。
+- Task 不自行覆盖 `/Applications` 中的最终应用，不删除其他 Worktree，不合并保存项目的默认/集成分支，也不执行推送、发布、签名或其他未在任务描述中明确授权的外部副作用。
 - 最终交付前必须确认任务要求的测试已经执行、相关权威文档已经同步、全部任务改动已经提交，并且 `git status --porcelain=v1 --untracked-files=all` 为空。适用目标必须编译并验证真实目标行为；任务没有可编译产物或完整候选不在范围内时，必须把该项明确报告为 `Not applicable` 或 `Not run`，不得伪造通过，也不得因此自动扩大为构建/E2E/完整验收。
 
-### 主任务整合与清理
+### 协调方整合与清理
 
-- Task 完成后只报告分支、提交哈希、实际验证、未执行项和剩余风险，不自行合并 `main`。主任务复核提交、测试证据、文档差异和剩余风险后，才按项目策略把该分支整合进 `main`。
-- 只有整合完成、主任务确认没有未提交文件且分支提交已包含在 `main` 后，主任务才移除对应 Worktree，再以安全删除方式删除对应 `codex/*` 分支。Task 本身不得提前删除自己的 Worktree/分支，也不得删除任何其他 Task 的资源。
+- Task 完成后只报告分支、提交哈希、实际验证、未执行项和剩余风险，不自行合并默认/集成分支。协调 Task 或用户在复核提交、测试证据、文档差异和剩余风险后，才按项目策略整合。
+- 只有整合完成、确认没有未提交文件且 Task 提交已包含在指定集成分支后，协调方才移除对应 Worktree，再安全删除对应 `codex/task-*` 分支。Task 本身不得提前删除自己的 Worktree/分支，也不得删除任何其他 Task 的资源。
 
 ### 统一 Task 描述模板
 
@@ -59,16 +68,22 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 目标：
 完成一个明确、可独立验收的结果。
 
+Task 绑定：
+
+- Task key：填写不可变标识。
+- Codex 项目：填写名称、`projectId` 和保存项目完整路径。
+- Git 绑定：填写 repository identity、起始分支和起始提交；非 Git 时标记 `Not applicable`。
+
 工作方式：
 
-- 使用独立 Git Worktree 和 `codex/*` 分支。
+- Git 项目使用独立、已登记的 Codex Worktree 和 `codex/task-*` 分支；非 Git 项目使用绑定项目的 Local 环境。
 - 只在当前 Worktree 修改文件。
 - 先读取 `AGENTS.md` 及相关事实来源。
 - 保护已有修改，不扩大范围。
 
 当前事实：
 
-- 列出已经确认的状态、版本、路径和阻断原因。
+- 列出已经确认的版本、环境和阻断原因；创建者只报告真实 `threadId` 或 `SETUP_PENDING`，不得伪造 Ready。
 
 必须阅读的项目文档：
 
@@ -92,7 +107,7 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 - `git status` 干净。
 
 交付：
-报告分支、提交哈希、实际验证、未执行项和剩余风险；不要自行合并 `main`。
+报告分支、提交哈希、实际验证、未执行项和剩余风险；不要自行合并默认/集成分支。
 ```
 
 ## 初始化与持久化

@@ -330,6 +330,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
 
         for heading in (
             "目标：",
+            "Task 绑定：",
             "工作方式：",
             "当前事实：",
             "必须阅读的项目文档：",
@@ -340,18 +341,30 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         ):
             self.assertIn(heading, policy)
         for fragment in (
-            "动作 + 结果",
-            "最新本地 `main` HEAD",
-            "`codex/<task-slug>`",
+            "动作 + 单一结果",
+            "user-owned Task/thread",
+            "`list_projects`",
+            "target.type = project",
+            "`SETUP_PENDING`",
+            "`list_threads`",
+            "git rev-parse --path-format=absolute --git-common-dir",
+            "git worktree list --porcelain",
+            "不硬编码 `main` 或 `master`",
+            "`codex/task-<task-slug>`",
             "`git status --porcelain=v1 --untracked-files=all`",
-            "不要自行合并 `main`",
+            "不要自行合并默认/集成分支",
         ):
             self.assertIn(fragment, policy)
 
         self.assertIn("每完成一个逻辑闭环", implement)
-        self.assertIn("不自行合并 `main`", implement)
-        self.assertIn("只管理单个左侧 Task 内部", parallel)
+        self.assertIn("保存项目完整路径、`projectId`、repository identity", implement)
+        self.assertIn("git rev-parse --path-format=absolute --git-common-dir", implement)
+        self.assertIn("`codex/task-*`", implement)
+        self.assertIn("不自行合并默认/集成分支", implement)
+        self.assertIn("只管理单个左侧 user-owned Task 内部", parallel)
+        self.assertIn("不调用 `create_thread`，不创建新的左侧 Task", parallel)
         self.assertIn("不得把两个左侧 Task 安排进同一 Worktree", parallel)
+        self.assertIn("`codex/unit-<task>-<unit>`", parallel)
         self.assertIn("统一描述模板", initialize)
         self.assertIn("左侧 Task 描述模板", instantiate)
         for ignored in (
@@ -366,6 +379,37 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         """普通开发只在用户显式要求构建时进入构建 Skill。"""
         skill = read_repo_text(".agents/skills/desktop-implement-change/SKILL.md")
         self.assertIn("普通构建也只新增全量非空单元测试和实际构建", skill)
+
+    def test_left_task_setup_and_project_binding_are_hard_gates(self) -> None:
+        """左侧 Task 一次派发、项目绑定且 setup pending 有界返回。"""
+        policy = read_repo_text("docs/AGENT_POLICY.md")
+        readme = read_repo_text("README.md")
+        product_spec = read_repo_text("docs/product_spec/20260902_product_spec.md")
+
+        for text in (policy, readme, product_spec):
+            self.assertIn("`clientThreadId`", text)
+            self.assertIn("`threadId`", text)
+            self.assertIn("`list_projects`", text)
+            self.assertIn("`projectId`", text)
+        self.assertIn("对一个结果只调用一次 `create_thread`", policy)
+        self.assertIn("立即报告 queued Task", policy)
+        self.assertIn("不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建", policy)
+        self.assertIn("用户随后明确要求检查先前 queued Task", policy)
+        self.assertIn("不得使用 `projectless`", policy)
+        self.assertIn("Git common dir 不同", policy)
+
+    def test_left_task_is_split_by_outcome_not_lifecycle_or_status(self) -> None:
+        """诊断、实现和证明同一结果不得被阶段或标题状态强制拆开。"""
+        policy = read_repo_text("docs/AGENT_POLICY.md")
+        readme = read_repo_text("README.md")
+
+        self.assertIn("不得只因生命周期阶段变化自动拆 Task", policy)
+        self.assertIn("普通单结果请求不先创建所谓 Task0", policy)
+        self.assertIn("不得把会变化的 Ready/Active/Blocked 等状态写进标题", policy)
+        self.assertIn("只有用户明确要求创建新的左侧 Task", policy)
+        self.assertIn("生命周期阶段变化就拆 Task", readme)
+        self.assertIn("只拿到 `clientThreadId` 时无限等待", readme)
+        self.assertIn("Worktree 路径必须位于保存项目目录内", readme)
 
     def test_build_does_not_create_project_memory(self) -> None:
         """构建事实只进入候选清单和最终回复，不形成项目记忆流水账。"""

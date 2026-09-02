@@ -16,7 +16,7 @@ Bifang Desktop Harness Template
 - 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；没有特别选择时默认使用 CLI。
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
-- 把独立工作拆成 Codex 左侧 Task，每个 Task 使用自己的工作目录（Worktree）、分支和可审查提交。
+- 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Task 使用自己的 Worktree、分支和可审查提交。
 - 按明确发布请求自动形成可审计的本地提交并构建可追溯候选；GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
@@ -62,7 +62,7 @@ Bifang Desktop Harness Template
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
 
-如果一项工作需要单独审查，可以新建一个左侧 Task。一个 Task 只做一个明确结果，不直接修改主工作目录，也不会自行合并或发布。详细规则见 [Agent 运行策略](docs/AGENT_POLICY.md)。
+如果一项工作需要成为可独立进入和审查的结果，可以明确要求新建一个左侧 Task。诊断、实现、相关测试/review 和同范围修复不会仅因阶段变化被自动拆开；plan、Todo 和 Subagent 仍是当前 Task 的内部结构。详细规则见 [Agent 运行策略](docs/AGENT_POLICY.md)。
 
 ## 开发与构建边界
 
@@ -78,7 +78,13 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 ## 开始一个左侧 Task
 
-只有用户明确要求并行时才增加 Subagent/Worktree 协作。创建左侧 Task 前先确认主目录基线干净，为这个独立目标选择项目 Worktree 和 `codex/*` 分支；Task 在自己的 Worktree 完成一组可审查提交，不自行合并。主任务复核提交、测试证据和风险后负责整合。
+只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
+
+创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用 `list_threads` 对账；标题可能由应用规范化，状态保留在 Task 的实时状态中，不写进固定标题。
+
+Ready Task 从用户明确起点或保存项目默认分支的已提交 HEAD 开始，在自己的 Worktree 和 `codex/task-*` 分支完成一组可审查提交，不自行合并。当前 Task 内部只有在用户明确要求并行且策略允许时，才使用 `$desktop-run-parallel-worktrees` 创建 `codex/unit-*` 单元和 Subagent；这些 agent thread 不是新的左侧 Task。
+
+如果还使用全局 Task 提示词，可以继续保留“一结果一 Task、项目绑定、一次创建和不重复创建”，但不要再要求“生命周期阶段变化就拆 Task”“普通请求必须先建 Task0”“只拿到 `clientThreadId` 时无限等待”“Worktree 路径必须位于保存项目目录内”或“把实时状态写进固定标题”。这些规则会分别造成过度拆分、setup 死锁、合法 Worktree 误判和标题自相矛盾。
 
 ## Skills 索引
 

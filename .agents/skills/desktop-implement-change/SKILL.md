@@ -9,7 +9,7 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 
 ## 工作流程
 
-1. 检查 `AGENTS.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、Git 根/分支和工作区，只读取当前变更直接需要的 Product Spec、ADR、接口或技术事实。若规范根同时包含 Harness 专用 `Version.md` 和活动 `$desktop-instantiate-project`，只允许修改 Harness 自身规则、Skills、中性资产、脚本、验证器、文档或其交付工程；任何产品目的、业务功能、产品专属 UI/文案/数据、远程地址、凭据、构建或发布需求都必须在写入前拒绝，并要求用户切换到终端下游后重新提出。保护用户已有修改，重叠无法安全处理时停止。若当前说明是左侧 Task 模板或当前环境是 Codex 管理 Worktree，在首次编辑前确认 Git 顶层目录就是本 Task 的独立 Worktree、当前分支为唯一 `codex/*` 分支且起点是任务说明确认的 `main` 基线；detached HEAD 必须先创建分支，任何边界不符都停止而不在 Local 主目录继续。
+1. 检查 `AGENTS.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、Git 根/分支和工作区，只读取当前变更直接需要的 Product Spec、ADR、接口或技术事实。若规范根同时包含 Harness 专用 `Version.md` 和活动 `$desktop-instantiate-project`，只允许修改 Harness 自身规则、Skills、中性资产、脚本、验证器、文档或其交付工程；任何产品目的、业务功能、产品专属 UI/文案/数据、远程地址、凭据、构建或发布需求都必须在写入前拒绝，并要求用户切换到终端下游后重新提出。保护用户已有修改，重叠无法安全处理时停止。若当前说明来自左侧 Task 模板或当前环境是 Codex 管理 Worktree，首次编辑前核对描述中的 Task key、保存项目完整路径、`projectId`、repository identity、起始分支和起始提交；可读取线程元数据时，`projectId` 必须精确匹配。Git Worktree 可以位于保存项目路径之外，但保存项目根与当前 Task 顶层的规范化 `git rev-parse --path-format=absolute --git-common-dir` 必须相同，且保存项目的 `git worktree list --porcelain` 必须登记当前顶层。随后确认当前分支为唯一 `codex/task-*` 分支且 HEAD 从已声明起始提交派生；detached HEAD 必须先创建该分支。项目绑定、repository identity、Worktree 登记或基线任一不符都保持零写入，不退化到 Local 主目录、其他 Task 或内部 Subagent 继续实施。
 2. 对已初始化下游先调用 `$desktop-manage-version plan` 只读分类并取得 `required_version`：新功能使用 `feature`，新稳定缺陷 ID 的真实修复使用 `bug-fix`，用户批准的 Major 使用 `major`；查询、诊断、复现、未完成/重复修复尝试、行为保持重构、测试补强、文档、格式和内部清理使用 `maintenance`。分类存在会改变产品范围或版本的二义性时先询问用户；不得为维护任务或失败尝试提升版本。随后直接实现用户请求，不因多步骤、多模块、中等风险、可并行或 Agent 偏好自动调用 `$desktop-plan-change`、创建 Work Plan、启动 Subagent、构建候选或完整验收。用户明确要求持久计划/并行、跨会话交接或发布/高风险协调确有必要时，才进入对应专用能力。
 3. 日常开发先直接运行本次必要测试，不做环境预检。只有真实测试命令已经失败，且命令、退出状态和脱敏诊断明确表明缺少或不兼容的受管工具链/系统依赖时，才调用 `$desktop-check-development-environment`，成功后重试原命令一次；不得因新任务、新会话、首次代码修改、显式构建或缺少环境证据主动探测。纯文档/元数据任务不增加环境步骤。
 4. 追踪真实执行路径，不留下模拟实现、桩、占位或仅有源码的片段。Core-first 是硬规则：接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略必须在 core；adapter 只拥有装配、接口语法/协议、展示/纯交互状态、调用 core 和结果映射。适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系和其他业务有效性由 core 判定。GUI 交互 handler 必须绑定在实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身，不得由 Card、`Table.Tr`、`Table.Td` 等父级代理；父级有独立动作时只执行自身语义并隔离传播冲突。选项卡、查询/筛选、排序和分页等可恢复页面工作状态使用应用根 Jotai store 的模块级 atom 在当前进程内跨路由保留，不得持久化或镜像 Query/core 数据；成功空页从大于 1 的页码回退第 1 页，加载/错误不回退。
@@ -20,7 +20,7 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 9. 第 7 步的本次相关测试或最小替代检查通过、变化确实完成后，使用与第 2 步相同的参数调用 `$desktop-manage-version apply`。功能在同一正式发布周期只由首个功能提升一次 Minor，独立缺陷 ID 每个提升一次 Patch；重复 ID 返回幂等结果。不得在测试失败、实现未完成、查询/诊断/复现或其他 `maintenance` 情况提前提交版本。
 10. 只更新被独立事件触发的记忆：产品目标/边界/约束/成功标准变化更新 Product Spec；长期重要决定/硬规则例外写 ADR；合格的可感知变化写 Changelog；重要阻断/交接、发布/完整验收/审计或用户要求再写 Product Status、Work Plan 或 Verification。Product Spec、ADR、Changelog 或 Work Plan 一旦独立触发，必须记录稳定 `change_id` 与版本门禁返回的 `required_version`；版本变化本身不触发任何记忆。构建请求、执行和结果本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；未触发时不写占位。
 11. 若用户提供了活动计划，只更新其中与本次实现直接对应的 Todo；计划不得改变本 Skill 的最小开发闭环或静默增加检查。
-12. 若当前是左侧 Task，每完成一个逻辑闭环就用表达结果的提交信息创建可审查提交。最终交付前确认任务要求的测试已执行、权威文档已同步、所有任务改动已提交，并且 `git status --porcelain=v1 --untracked-files=all` 为空；随后只报告分支、提交哈希、实际验证、未执行项和剩余风险，不自行合并 `main`、覆盖 `/Applications`、删除 Worktree/分支或执行未授权发布。主任务复核并整合后才负责清理。
+12. 若当前是左侧 Task，每完成一个逻辑闭环就用表达结果的提交信息创建可审查提交。最终交付前确认任务要求的测试已执行、权威文档已同步、所有任务改动已提交，并且 `git status --porcelain=v1 --untracked-files=all` 为空；随后只报告分支、提交哈希、实际验证、未执行项和剩余风险，不自行合并默认/集成分支、覆盖 `/Applications`、删除 Worktree/分支或执行未授权发布。协调方复核并整合后才负责清理。
 
 ## 边界与输出
 
