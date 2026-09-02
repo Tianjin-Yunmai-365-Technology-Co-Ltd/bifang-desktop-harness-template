@@ -13,9 +13,15 @@ import {
 import {
   GLOBAL_SHORTCUT_TEST_NAMES,
   USER_CONFIGURABLE_GLOBAL_SHORTCUT_TEST_NAMES,
+  allowedInitializationCommands,
+  invokeHandlerCommands,
   validateGlobalShortcutRuntimeContract,
   validateGlobalShortcutTestCoverage,
 } from "./gui-global-shortcut-runtime-contract.mjs";
+import {
+  validateFixedIpcRuntimeContract,
+  validateUpdaterConfiguration,
+} from "./gui-fixed-ipc-runtime-contract.mjs";
 
 const BASELINE_TEST_NAMES = [
   "system_locale_uses_tauri_plugin_os",
@@ -401,6 +407,7 @@ function validateSingleInstanceRuntime(sourceTexts, pluginArguments, errors) {
 function validateLocaleRuntime(sourceText, errors) {
   requireSinglePluginRegistration(sourceText, "tauri_plugin_os::init", "系统语言 os 插件", errors);
   const localeFunctions = collectRustFunctions(sourceText);
+  validateFixedIpcRuntimeContract(sourceText, errors);
   const resolver = localeFunctions.find(
     (candidate) => candidate.name === "resolve_system_locale",
   );
@@ -732,38 +739,28 @@ function validateDeepLinkRuntime(guiRoot, sourceText, errors) {
 
 function validateInvokeHandler(sourceTexts, profile, errors) {
   const argumentsList = sourceTexts.flatMap((text) => collectMethodArguments(text, "invoke_handler"));
-  const expected = [
-    ...(profile.aboutPage ? ["check_for_updates", "load_release_notes"] : []),
-    ...(profile.systemNotification
-      ? ["get_system_notification_setting", "set_system_notification_enabled"]
-      : []),
-    ...(profile.autostart ? ["get_autostart_enabled", "set_autostart_enabled"] : []),
-    ...(profile.globalShortcutActions.length > 0 ? ["get_global_shortcut_statuses"] : []),
-    ...(profile.globalShortcutActions.some(
-      (action) => action.bindingPolicy === "user-configurable",
-    )
-      ? [
-          "load_global_shortcut_bindings",
-          "save_global_shortcut_bindings",
-          "begin_global_shortcut_capture",
-          "end_global_shortcut_capture",
-        ]
-      : []),
-  ];
-  if (expected.length === 0) {
-    if (argumentsList.length !== 0) {
-      errors.push("无初始化 command 时不得保留 .invoke_handler(...) 占位");
-    }
-    return;
-  }
+  const expected = allowedInitializationCommands(profile);
   if (argumentsList.length !== 1) {
     errors.push(`GUI 初始化必须只有一个合并的 .invoke_handler(generate_handler![...])，实际 ${argumentsList.length} 个`);
     return;
   }
+  const handlerLists = sourceTexts.flatMap((text) => invokeHandlerCommands(text));
+  const actual = handlerLists.length === 1 ? handlerLists[0] : [];
   for (const command of expected) {
-    if (!new RegExp(`\\b${command}\\b`, "u").test(argumentsList[0])) {
+    if (!actual.includes(command)) {
       errors.push(`合并的 generate_handler! 缺少已启用命令：${command}`);
     }
+  }
+  const duplicates = [...new Set(actual.filter(
+    (command, index) => actual.indexOf(command) !== index,
+  ))];
+  if (duplicates.length > 0) {
+    errors.push(`合并的 generate_handler! 不得重复命令：${duplicates.join("、")}`);
+  }
+  const expectedSet = new Set(expected);
+  const unexpected = actual.filter((command) => !expectedSet.has(command));
+  if (unexpected.length > 0) {
+    errors.push(`合并的 generate_handler! 不得接入未批准命令：${unexpected.join("、")}`);
   }
 }
 
@@ -773,6 +770,8 @@ export function validatePluginRuntimeContract(guiRoot, sourceTexts, profile, err
   const pluginArguments = collectMethodArguments(sourceText, "plugin");
   validatePluginOrder(sourceText, profile, errors);
   validateLocaleRuntime(sourceText, errors);
+  // 中性 GUI 必须显式配置 plugins.updater = { endpoints: [], pubkey: "" }
+  validateUpdaterConfiguration(guiRoot, errors);
   validateUpdaterRuntime(sourceText, profile.aboutPage, errors);
   validateWindowStateRuntime(sourceText, pluginArguments, errors);
 

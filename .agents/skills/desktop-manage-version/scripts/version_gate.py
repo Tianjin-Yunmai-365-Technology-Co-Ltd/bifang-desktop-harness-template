@@ -60,13 +60,24 @@ def _require_regular_file(path: Path, label: str) -> None:
         raise GateError(f"{label} must be a regular non-symlink file: {path}")
 
 
-def _project_root(raw: str) -> Path:
+def _project_directory(raw: str) -> Path:
     candidate = Path(raw).expanduser()
     if candidate.is_symlink():
         raise GateError(f"project root must not be a symlink: {candidate}")
     root = candidate.resolve()
     if not root.is_dir():
         raise GateError(f"project root is not a directory: {root}")
+    return root
+
+
+def _initialization_root(raw: str) -> Path:
+    """解析初始化根目录；init 是唯一允许在独立 Git 建立前运行的命令。"""
+
+    return _project_directory(raw)
+
+
+def _project_root(raw: str) -> Path:
+    root = _project_directory(raw)
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -469,7 +480,11 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        root = _project_root(args.project_root)
+        root = (
+            _initialization_root(args.project_root)
+            if args.command == "init"
+            else _project_root(args.project_root)
+        )
         if args.command == "init":
             result = initialize(root)
         elif args.command in {"plan", "apply"}:

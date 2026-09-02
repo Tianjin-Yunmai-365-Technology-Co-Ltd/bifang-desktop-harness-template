@@ -160,6 +160,66 @@ test("rejects a GUI without the fixed settings route and runtime component", () 
   });
 });
 
+test("rejects a frontend AppMetadata decoder that trusts IPC fields", () => {
+  withFixture(({ root, guiRoot }) => {
+    const commands = path.join(guiRoot, "src", "lib", "tauriCommands.ts");
+    fs.writeFileSync(
+      commands,
+      fs
+        .readFileSync(commands, "utf8")
+        .replace(
+          'typeof value.productDefinitionRequired !== "boolean"',
+          'typeof value.productDefinitionRequired === "undefined"',
+        )
+        .replace(
+          'const title = readString(value, "title");',
+          'const title = String(value.title);',
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /严格验证 productDefinitionRequired boolean.*严格验证非空字符串字段：title/su,
+    );
+  });
+});
+
+test("rejects a frontend that does not invoke the fixed metadata command", () => {
+  withFixture(({ root, guiRoot }) => {
+    const commands = path.join(guiRoot, "src", "lib", "tauriCommands.ts");
+    fs.writeFileSync(
+      commands,
+      fs
+        .readFileSync(commands, "utf8")
+        .replace('invoke<unknown>("get_app_metadata")', 'invoke<unknown>("metadata")'),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /unknown 解码后调用固定 Tauri command：get_app_metadata/u,
+    );
+  });
+});
+
+test("rejects App runtime that does not consume metadata title or locale commands", () => {
+  withFixture(({ root, guiRoot }) => {
+    const app = path.join(guiRoot, "src", "App.tsx");
+    fs.writeFileSync(
+      app,
+      fs
+        .readFileSync(app, "utf8")
+        .replace("      document.title = metadata.title;", "      void metadata;")
+        .replace("    void getSystemLocale().then(setLanguage);", "")
+        .replace(
+          "    const authoritativeLanguage = await setInterfaceLanguage(nextLanguage);",
+          "    const authoritativeLanguage = nextLanguage;",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /实际消费 getSystemLocale.*通过 setInterfaceLanguage 写入语言选择.*AppMetadata\.title 更新 document\.title/su,
+    );
+  });
+});
+
 test("rejects a disabled about page with a residual runtime route", () => {
   withFixture(({ root }) => {
     writeInitializationProfile(root, { about_page: "disabled" });

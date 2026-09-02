@@ -20,7 +20,7 @@ description: 管理下游产品的自动语义化版本门禁、发布周期状�
 
 ## 工作流程
 
-1. 确认目标是已初始化的下游项目、项目根是独立 Git 顶层目录，并读取根 `Cargo.toml` 与 `.harness/version-state.json`。状态缺失只允许在初始化流程中运行：
+1. 除初始化流程唯一的 `init` 外，先确认目标是已初始化的下游项目、项目根是独立 Git 顶层目录，并读取根 `Cargo.toml` 与 `.harness/version-state.json`。状态缺失只允许在初始化流程中运行；此时 `init` 是唯一允许在独立 Git 建立前运行的命令，必须在根 Cargo 初始版本写入后、GUI E2E 与一次性裁剪前生成受保护状态，且不得借此提前初始化 Git：
 
    ```text
    python3 .agents/skills/desktop-manage-version/scripts/version_gate.py init --project-root .

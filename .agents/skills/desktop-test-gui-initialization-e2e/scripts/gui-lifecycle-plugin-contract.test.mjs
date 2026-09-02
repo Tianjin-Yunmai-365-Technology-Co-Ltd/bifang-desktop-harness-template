@@ -104,6 +104,19 @@ test("rejects updater code that can check before the NotConfigured gate", () => 
   });
 });
 
+test("rejects a missing explicit empty updater configuration", () => {
+  withFixture(({ root, guiRoot }) => {
+    const configPath = path.join(guiRoot, "src-tauri", "tauri.conf.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    delete config.plugins.updater;
+    fs.writeFileSync(configPath, JSON.stringify(config));
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /plugins\.updater = \{ endpoints: \[\], pubkey: "" \}.*零出站/u,
+    );
+  });
+});
+
 test("rejects updater network or install calls outside check_for_updates", () => {
   for (const method of ["check", "download_and_install", "install"]) {
     withFixture(({ root, guiRoot }) => {
@@ -424,6 +437,161 @@ test("rejects an enabled about page without the updater check command in the mer
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
       /generate_handler! 缺少已启用命令：check_for_updates/u,
+    );
+  });
+});
+
+test("keeps the fixed GUI command handler when every optional capability is disabled", () => {
+  withFixture(({ root, guiRoot }) => {
+    disableTrayAndSingleInstance(root, guiRoot);
+    const handlerErrors = verifyGuiLifecycleContract(root, "sample_gui").filter(
+      (error) =>
+        /invoke_handler|generate_handler|GUI 固定基线命令必须是窄 Tauri command/u.test(
+          error,
+        ),
+    );
+    assert.deepEqual(handlerErrors, []);
+  });
+});
+
+test("rejects missing fixed metadata and locale commands in the merged handler", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "get_app_metadata, get_system_locale, set_interface_language, ",
+          "",
+        ),
+    );
+    const errors = verifyGuiLifecycleContract(root, "sample_gui").join("\n");
+    for (const command of [
+      "get_app_metadata",
+      "get_system_locale",
+      "set_interface_language",
+    ]) {
+      assert.match(
+        errors,
+        new RegExp(`generate_handler! 缺少已启用命令：${command}`, "u"),
+      );
+    }
+  });
+});
+
+test("rejects duplicate commands in the merged initialization handler", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "get_app_metadata, get_system_locale",
+          "get_app_metadata, get_app_metadata, get_system_locale",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /generate_handler! 不得重复命令：get_app_metadata/u,
+    );
+  });
+});
+
+test("rejects a fixed GUI handler entry without the Tauri command attribute", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "#[tauri::command]\nasync fn get_system_locale",
+          "async fn get_system_locale",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /GUI 固定基线命令必须是窄 Tauri command：get_system_locale/u,
+    );
+  });
+});
+
+test("rejects a placeholder get_app_metadata return type", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "async fn get_app_metadata() -> AppMetadata",
+          "async fn get_app_metadata() -> String",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /get_app_metadata 必须返回 AppMetadata/u,
+    );
+  });
+});
+
+test("rejects metadata detached from the core status or Cargo version", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "let status = sample_core::scaffold_status().await;",
+          "let status = sample_core::ScaffoldStatus { product_definition_required: false };",
+        )
+        .replace(
+          'let version = env!("CARGO_PKG_VERSION");',
+          'let version = "0.0.0";',
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /异步读取 core scaffold_status\(\).*CARGO_PKG_VERSION/su,
+    );
+  });
+});
+
+test("rejects get_system_locale that bypasses saved LocaleState", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "resolve_system_locale(state.saved_language())",
+          "resolve_system_locale(None)",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /LocaleState\.saved_language\(\).*系统 locale 解析链路/u,
+    );
+  });
+});
+
+test("rejects set_interface_language without native state synchronization", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace("    state.set_saved_language(normalized.clone());\n", "")
+        .replace("    rust_i18n::set_locale(&normalized);\n", ""),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /写回 LocaleState.*rust_i18n::set_locale/su,
     );
   });
 });

@@ -210,6 +210,54 @@ class VersionGateTests(unittest.TestCase):
         self.assertEqual(payload["required_version"], "0.1.5")
         self.assertIn('version = "0.1.5"', (self.root / "Cargo.toml").read_text())
 
+    def test_cli_init_is_the_only_command_allowed_before_independent_git(self) -> None:
+        """初始化可先建立受保护状态，其余命令仍拒绝父仓库边界。"""
+
+        nested = self.root / "pre-git-project"
+        nested.mkdir()
+        (nested / "Cargo.toml").write_text(
+            "[workspace]\n"
+            "members = []\n\n"
+            "[workspace.package]\n"
+            'version = "0.1.0"\n'
+            'edition = "2024"\n',
+            encoding="utf-8",
+        )
+        helper = str(Path(version_gate.__file__))
+        initialized = subprocess.run(
+            [
+                sys.executable,
+                helper,
+                "init",
+                "--project-root",
+                str(nested),
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        checked = subprocess.run(
+            [
+                sys.executable,
+                helper,
+                "check",
+                "--project-root",
+                str(nested),
+                "--phase",
+                "development",
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        self.assertEqual(initialized.returncode, 0, initialized.stderr)
+        self.assertTrue((nested / version_gate.STATE_RELATIVE).is_file())
+        self.assertNotEqual(checked.returncode, 0)
+        self.assertIn("does not equal project root", checked.stderr)
+
     def test_symlink_project_root_fails_closed(self) -> None:
         linked_root = self.root.parent / f"{self.root.name}-link"
         linked_root.symlink_to(self.root, target_is_directory=True)

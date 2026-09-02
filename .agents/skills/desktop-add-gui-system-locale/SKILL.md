@@ -12,7 +12,7 @@ description: 为所有 GUI 基线安装官方 os 插件并统一系统语言探�
 1. 只在已选择 GUI 的终端下游使用；初始化不询问该能力，`docs/GUI_APP_PROFILE.md` 也不记录开关。根 `[workspace.dependencies]` 声明 `tauri-plugin-os = "2.3.2"`，GUI member 只以 `workspace = true` 继承。
 2. 在中央 Tauri Builder 顺序中恰好注册一次 `.plugin(tauri_plugin_os::init())`。该能力是 Rust-only：不得安装 `@tauri-apps/plugin-os`，不得给 WebView `os:*` ACL。
 3. 启动时直接调用 `tauri_plugin_os::locale()`，只在一个 Rust helper 中完成 BCP-47 大小写/分隔符归一化。已保存的用户语言优先；没有偏好时使用规范化系统 locale，未知或空值回退 `en-US`。
-4. React `i18next`、Rust `rust-i18n`、托盘、通知及其他原生文案只消费该 helper 的结果，不再分别读取浏览器语言、环境变量或平台专有 API；core 保持语言无关。
+4. React `i18next`、Rust `rust-i18n`、托盘、通知及其他原生文案只消费该 helper 的结果，不再分别读取浏览器语言、环境变量或平台专有 API；core 保持语言无关。Rust-only 边界始终暴露 `get_system_locale` 与 `set_interface_language` 两个窄 Tauri command，并与 GUI 固定的 `get_app_metadata` 一同注册到唯一合并的 `invoke_handler`；这不授权 WebView 取得通用 OS API 或插件 ACL。
 5. 运行 `system_locale_uses_tauri_plugin_os`、`system_locale_normalizes_bcp47_once`、`system_locale_falls_back_to_english`、`saved_language_precedes_system_locale` 四个非空回归。初始化 E2E 还要在真实进程中观察默认语言，并切换一次语言确认 React 与原生文案一致；当前宿主无法观察时阻断，不得伪称已验证。
 
 ## 边界

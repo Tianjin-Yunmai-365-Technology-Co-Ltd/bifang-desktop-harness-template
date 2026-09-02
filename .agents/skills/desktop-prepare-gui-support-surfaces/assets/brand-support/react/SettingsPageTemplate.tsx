@@ -52,6 +52,10 @@ function CapabilitySwitch({
   id,
 }: CapabilitySwitchProps): ReactElement {
   const { t } = useTranslation("brandSupport");
+  const titleId = `settings-capability-title-${id}`;
+  const descriptionId = `settings-capability-description-${id}`;
+  const title = t(`settings.${id}_title`);
+  const description = t(`settings.${id}_description`);
   const [checked, setChecked] = useState<CapabilitySwitchValue>(
     capability.enabled,
   );
@@ -100,21 +104,44 @@ function CapabilitySwitch({
   };
 
   return (
-    <Paper data-testid={`settings-capability-${id}`} p="lg" radius="lg" withBorder>
+    <Paper
+      data-testid={`settings-capability-${id}`}
+      p="lg"
+      radius="lg"
+      withBorder
+    >
       <Stack gap="sm">
-        <Switch
-          aria-label={t(`settings.${id}_title`)}
-          checked={checked === true}
-          description={t(`settings.${id}_description`)}
-          disabled={status === "pending" || status === "unknown"}
-          data-authoritative-state={
-            checked === "unknown" ? "unknown" : checked ? "enabled" : "disabled"
-          }
-          label={t(`settings.${id}_title`)}
-          onChange={(event) => {
-            void updateSetting(event.currentTarget.checked);
-          }}
-        />
+        <Group align="flex-start" justify="space-between" wrap="nowrap">
+          <Stack gap={4} style={{ flex: 1 }}>
+            <Text data-testid={titleId} fw={500} id={titleId}>
+              {title}
+            </Text>
+            <Text
+              c="dimmed"
+              data-testid={descriptionId}
+              id={descriptionId}
+              size="sm"
+            >
+              {description}
+            </Text>
+          </Stack>
+          <Switch
+            aria-describedby={descriptionId}
+            aria-labelledby={titleId}
+            checked={checked === true}
+            disabled={status === "pending" || status === "unknown"}
+            data-authoritative-state={
+              checked === "unknown"
+                ? "unknown"
+                : checked
+                  ? "enabled"
+                  : "disabled"
+            }
+            onChange={(event) => {
+              void updateSetting(event.currentTarget.checked);
+            }}
+          />
+        </Group>
         {status !== "idle" && status !== "error" ? (
           <Text aria-live="polite" role="status" size="sm">
             {t(`settings.capability_${status}`)}

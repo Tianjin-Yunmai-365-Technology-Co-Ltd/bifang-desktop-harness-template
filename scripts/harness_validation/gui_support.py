@@ -28,6 +28,89 @@ from .gui_support_assets import (
 FIXED_REMOTE_URI = re.compile(r"(?i)\b(?:https?|wss?)://[^\s<>()]+")
 
 
+def _has_non_ascii_raw_byte_string(source: str) -> bool:
+    """识别 Rust 源码中真正承载非 ASCII 内容的 raw byte string。"""
+
+    def is_identifier_character(character: str) -> bool:
+        return character == "_" or character.isalnum()
+
+    def skip_quoted_literal(start: int, quote: str) -> int:
+        index = start + 1
+        escaped = False
+        while index < len(source):
+            character = source[index]
+            index += 1
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                break
+        return index
+
+    index = 0
+    while index < len(source):
+        if source.startswith("//", index):
+            newline = source.find("\n", index + 2)
+            index = len(source) if newline < 0 else newline + 1
+            continue
+        if source.startswith("/*", index):
+            depth = 1
+            index += 2
+            while index < len(source) and depth:
+                if source.startswith("/*", index):
+                    depth += 1
+                    index += 2
+                elif source.startswith("*/", index):
+                    depth -= 1
+                    index += 2
+                else:
+                    index += 1
+            continue
+
+        at_identifier_boundary = index == 0 or not is_identifier_character(
+            source[index - 1]
+        )
+        if at_identifier_boundary and source.startswith("br", index):
+            marker = index + 2
+            while marker < len(source) and source[marker] == "#":
+                marker += 1
+            if marker < len(source) and source[marker] == '"':
+                terminator = '"' + "#" * (marker - index - 2)
+                content_start = marker + 1
+                content_end = source.find(terminator, content_start)
+                if content_end < 0:
+                    content_end = len(source)
+                    literal_end = len(source)
+                else:
+                    literal_end = content_end + len(terminator)
+                if any(ord(character) > 0x7F for character in source[content_start:content_end]):
+                    return True
+                index = literal_end
+                continue
+
+        if at_identifier_boundary and source.startswith("r", index):
+            marker = index + 1
+            while marker < len(source) and source[marker] == "#":
+                marker += 1
+            if marker < len(source) and source[marker] == '"':
+                terminator = '"' + "#" * (marker - index - 1)
+                content_end = source.find(terminator, marker + 1)
+                index = (
+                    len(source)
+                    if content_end < 0
+                    else content_end + len(terminator)
+                )
+                continue
+
+        if source[index] == '"':
+            index = skip_quoted_literal(index, '"')
+            continue
+        index += 1
+
+    return False
+
+
 def _read_text(errors: list[str], path: Path) -> str | None:
     """读取 UTF-8 文本并把缺失或解析失败转换为稳定错误。"""
 
@@ -307,8 +390,16 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "autostart?: AsyncHostCapabilitySetting",
             "capability.onChange(nextEnabled)",
             "capability.getEnabled()",
+            "const titleId = `settings-capability-title-${id}`;",
+            "const descriptionId = `settings-capability-description-${id}`;",
+            "data-testid={titleId}",
+            "data-testid={descriptionId}",
+            "id={titleId}",
+            "id={descriptionId}",
+            "aria-labelledby={titleId}",
+            "aria-describedby={descriptionId}",
             'disabled={status === "pending" || status === "unknown"}',
-            'checked === "unknown" ? "unknown"',
+            'checked === "unknown"',
             't("settings.capability_retry")',
             'role="status"',
             'role="alert"',
@@ -367,6 +458,16 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
             "system_notification_switch_enters_unknown_state_when_reread_fails",
             "autostart_switch_rolls_back_after_failure",
             "autostart_switch_enters_unknown_state_when_reread_fails",
+            "settings-capability-title-system_notification",
+            "settings-capability-description-system_notification",
+            "settings-capability-title-autostart",
+            "settings-capability-description-autostart",
+            '"aria-labelledby"',
+            '"aria-describedby"',
+            "notificationTitle.id",
+            "notificationDescription.id",
+            "autostartTitle.id",
+            "autostartDescription.id",
             "getSystemNotificationEnabled",
             "getAutostartEnabled",
             '"data-authoritative-state"',
@@ -407,6 +508,13 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
                     errors,
                     f"GUI brand React template missing in {display_path(path)}: {fragment}",
                 )
+
+    release_notes_rust = texts.get(brand_root / "rust" / "release_notes.rs", "")
+    if _has_non_ascii_raw_byte_string(release_notes_rust):
+        fail(
+            errors,
+            "GUI brand Rust release-note fixtures must encode localized UTF-8 str values with .as_bytes(), not raw byte strings",
+        )
 
     sponsor_text = texts.get(react_root / "SponsorPageTemplate.tsx", "")
     for pattern in (
@@ -475,9 +583,18 @@ def _validate_react_assets(errors: list[str], *, brand_root: Path) -> None:
         "autostart?: AsyncHostCapabilitySetting",
         "systemNotification?: AsyncHostCapabilitySetting",
         'data-testid={`settings-capability-${id}`}',
-        'aria-label={t(`settings.${id}_title`)}',
+        "const titleId = `settings-capability-title-${id}`;",
+        "const descriptionId = `settings-capability-description-${id}`;",
+        "data-testid={titleId}",
+        "data-testid={descriptionId}",
+        "id={titleId}",
+        "id={descriptionId}",
+        "const title = t(`settings.${id}_title`);",
+        "const description = t(`settings.${id}_description`);",
+        "aria-labelledby={titleId}",
+        "aria-describedby={descriptionId}",
         'disabled={status === "pending" || status === "unknown"}',
-        'checked === "unknown" ? "unknown"',
+        'checked === "unknown"',
         't("settings.capability_retry")',
         'role="status"',
         'role="alert"',
@@ -628,6 +745,7 @@ def validate_gui_support_contract(
             "系统通知/开机自启能力启用时分别把 Rust command 状态接到模板可选 prop",
             "仅当 `system_tray = enabled` 时",
             "手动检查更新和稳定状态随关于页存在",
+            "raw byte string",
             "ReleaseNotesDialog",
             "rust/release_notes.rs",
             "tauri/tauri.release.conf.json",

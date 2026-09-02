@@ -156,12 +156,40 @@ describe("capability switch settings template", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId("settings-capability-system_notification"));
-    expect(onSystemNotificationChange).not.toHaveBeenCalled();
-
+    const notificationTitle = screen.getByTestId(
+      "settings-capability-title-system_notification",
+    );
+    const notificationDescription = screen.getByTestId(
+      "settings-capability-description-system_notification",
+    );
     const notificationSwitch = screen.getByRole("switch", {
       name: "系统通知",
     });
+    expect(notificationTitle).toHaveAttribute(
+      "id",
+      "settings-capability-title-system_notification",
+    );
+    expect(notificationDescription).toHaveAttribute(
+      "id",
+      "settings-capability-description-system_notification",
+    );
+    expect(notificationSwitch).toHaveAttribute(
+      "aria-labelledby",
+      notificationTitle.id,
+    );
+    expect(notificationSwitch).toHaveAttribute(
+      "aria-describedby",
+      notificationDescription.id,
+    );
+
+    fireEvent.click(
+      screen.getByTestId("settings-capability-system_notification"),
+    );
+    expect(onSystemNotificationChange).not.toHaveBeenCalled();
+    fireEvent.click(notificationTitle);
+    fireEvent.click(notificationDescription);
+    expect(onSystemNotificationChange).not.toHaveBeenCalled();
+
     fireEvent.click(notificationSwitch);
     expect(onSystemNotificationChange).toHaveBeenCalledWith(true);
     expect(notificationSwitch).toBeDisabled();
@@ -272,9 +300,27 @@ describe("capability switch settings template", () => {
       />,
     );
 
+    const autostartTitle = screen.getByTestId(
+      "settings-capability-title-autostart",
+    );
+    const autostartDescription = screen.getByTestId(
+      "settings-capability-description-autostart",
+    );
+    const autostartSwitch = screen.getByRole("switch", { name: "开机自启" });
+    expect(autostartSwitch).toHaveAttribute(
+      "aria-labelledby",
+      autostartTitle.id,
+    );
+    expect(autostartSwitch).toHaveAttribute(
+      "aria-describedby",
+      autostartDescription.id,
+    );
+
     fireEvent.click(screen.getByTestId("settings-capability-autostart"));
     expect(onAutostartChange).not.toHaveBeenCalled();
-    const autostartSwitch = screen.getByRole("switch", { name: "开机自启" });
+    fireEvent.click(autostartTitle);
+    fireEvent.click(autostartDescription);
+    expect(onAutostartChange).not.toHaveBeenCalled();
     fireEvent.click(autostartSwitch);
     await waitFor(() => expect(onAutostartChange).toHaveBeenCalledWith(true));
     await waitFor(() => expect(getAutostartEnabled).toHaveBeenCalledOnce());

@@ -590,6 +590,66 @@ class GuiSupportContractTests(unittest.TestCase):
         self.assertTrue(any("releaseNotesResource.ts" in error for error in errors), errors)
         self.assertTrue(any("pub async fn load_release_notes" in error for error in errors), errors)
 
+    def test_localized_release_note_raw_byte_fixture_is_rejected(self) -> None:
+        """Rust raw byte string 不能承载非 ASCII 本地化测试文本。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            rust = brand_root / "rust" / "release_notes.rs"
+            rust.write_text(
+                rust.read_text(encoding="utf-8")
+                + '\nconst INVALID_LOCALIZED_FIXTURE: &[u8] = br#"中文"#;\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(any("raw byte strings" in error for error in errors), errors)
+
+    def test_ascii_release_note_raw_byte_fixture_is_allowed(self) -> None:
+        """ASCII raw byte string 不应被本地化文本门禁误判。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            rust = brand_root / "rust" / "release_notes.rs"
+            rust.write_text(
+                rust.read_text(encoding="utf-8")
+                + '\nconst ASCII_FIXTURE: &[u8] = br##"release-notes"##;\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertFalse(any("raw byte strings" in error for error in errors), errors)
+
+    def test_commented_localized_raw_byte_example_is_allowed(self) -> None:
+        """注释中的本地化 raw byte 示例不属于可执行 Rust fixture。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            rust = brand_root / "rust" / "release_notes.rs"
+            rust.write_text(
+                rust.read_text(encoding="utf-8")
+                + '\n// br#"中文"#\n/* nested /* br##"中文"## */ comment */\n',
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertFalse(any("raw byte strings" in error for error in errors), errors)
+
     def test_release_notes_release_config_mapping_drift_is_rejected(self) -> None:
         """发布专用 Tauri 配置不得改名、嵌套或附带第二资源。"""
 
@@ -794,6 +854,32 @@ class GuiSupportContractTests(unittest.TestCase):
         self.assertTrue(any("getEnabled" in error for error in errors), errors)
         self.assertTrue(
             any("autostart_switch_rolls_back_after_failure" in error for error in errors),
+            errors,
+        )
+
+    def test_host_capability_switch_keeps_accessible_description(self) -> None:
+        """拆分视觉标题和说明后，Switch 仍须保留程序化语义关联。"""
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            brand_root = self._copy_brand_root(root)
+            settings = brand_root / "react" / "SettingsPageTemplate.tsx"
+            settings.write_text(
+                settings.read_text(encoding="utf-8").replace(
+                    "aria-describedby={descriptionId}",
+                    "aria-label={title}",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            validate_gui_support_contract(
+                errors,
+                brand_root=brand_root,
+                product_instance_path=root / "GUI_SUPPORT_SURFACES.md",
+            )
+        self.assertTrue(
+            any("aria-describedby={descriptionId}" in error for error in errors),
             errors,
         )
 

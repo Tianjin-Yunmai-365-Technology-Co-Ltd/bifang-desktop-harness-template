@@ -234,6 +234,19 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             initialization_fragments,
         )
         self.assertIn(e2e_skill, required)
+        e2e_text = e2e_skill.read_text(encoding="utf-8")
+        self.assertIn(
+            "新实例化目标在本 E2E 阶段不得提前 `git init`",
+            e2e_text,
+        )
+        self.assertIn(
+            "本 E2E 与裁剪成功后、紧邻唯一基线提交时建立",
+            e2e_text,
+        )
+        self.assertNotIn(
+            "当前目录同时是下游项目根和独立 Git 顶层目录",
+            e2e_text,
+        )
         self.assertIn("未选能力不是缺失证据", required[e2e_skill])
         self.assertIn(
             "固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`",

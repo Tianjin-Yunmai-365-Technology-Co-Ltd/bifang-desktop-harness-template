@@ -218,6 +218,92 @@ function containsRouteLiteral(sourceText, route) {
   );
 }
 
+function validateFixedFrontendIpcContract(sourceEntries, errors) {
+  const sourceText = sourceEntries.map((entry) => entry.text).join("\n");
+  const metadataShape = sourceText.match(
+    /\b(?:export\s+)?interface\s+AppMetadata\s*\{([^}]*)\}/u,
+  );
+  if (!metadataShape) {
+    errors.push("GUI 前端固定 IPC 必须声明 AppMetadata 接口");
+  } else {
+    for (const [field, type] of [
+      ["applicationName", "string"],
+      ["version", "string"],
+      ["contactChannel", "string"],
+      ["contactValue", "string"],
+      ["productDefinitionRequired", "boolean"],
+      ["title", "string"],
+    ]) {
+      if (!new RegExp(`\\b${field}\\s*:\\s*${type}\\b`, "u").test(metadataShape[1])) {
+        errors.push(`GUI 前端 AppMetadata 缺少固定字段或类型不正确：${field}`);
+      }
+    }
+  }
+
+  const decoderEntry = sourceEntries.find((entry) =>
+    /\bfunction\s+decodeAppMetadata\s*\(/u.test(entry.text),
+  );
+  const decoderText = decoderEntry?.text ?? "";
+  if (!/\bfunction\s+decodeAppMetadata\s*\(\s*value\s*:\s*unknown\s*\)\s*:\s*AppMetadata\b/u.test(decoderText)) {
+    errors.push("GUI 前端必须用 decodeAppMetadata(value: unknown) 收窄元数据 IPC");
+  } else {
+    if (!/typeof\s+value\.productDefinitionRequired\s*!==\s*["']boolean["']/u.test(decoderText)) {
+      errors.push("decodeAppMetadata 必须严格验证 productDefinitionRequired boolean");
+    }
+    for (const field of [
+      "applicationName",
+      "version",
+      "contactChannel",
+      "contactValue",
+      "title",
+    ]) {
+      if (!new RegExp(`readString\\s*\\(\\s*value\\s*,\\s*["']${field}["']\\s*\\)`, "u").test(decoderText)) {
+        errors.push(`decodeAppMetadata 必须严格验证非空字符串字段：${field}`);
+      }
+    }
+  }
+
+  const fixedInvocations = [
+    [
+      "get_app_metadata",
+      /decodeAppMetadata\s*\(\s*await\s+invoke\s*<\s*unknown\s*>\s*\(\s*["']get_app_metadata["']\s*\)\s*\)/u,
+    ],
+    [
+      "get_system_locale",
+      /decodeInterfaceLanguage\s*\(\s*await\s+invoke\s*<\s*unknown\s*>\s*\(\s*["']get_system_locale["']\s*\)\s*\)/u,
+    ],
+    [
+      "set_interface_language",
+      /decodeInterfaceLanguage\s*\(\s*await\s+invoke\s*<\s*unknown\s*>\s*\(\s*["']set_interface_language["']\s*,\s*\{\s*language\s*\}\s*\)\s*,?\s*\)/u,
+    ],
+  ];
+  for (const [command, pattern] of fixedInvocations) {
+    if (!pattern.test(sourceText)) {
+      errors.push(`GUI 前端必须通过 unknown 解码后调用固定 Tauri command：${command}`);
+    }
+  }
+
+  const appRuntimeText = sourceEntries
+    .filter((entry) => /(?:^|\/)App(?:Shell)?\.(?:[cm]?[jt]sx?)$/u.test(entry.relativePath))
+    .map((entry) => entry.text)
+    .join("\n");
+  for (const command of ["getAppMetadata", "getSystemLocale"]) {
+    const consumption = new RegExp(
+      `(?:\\b${command}\\s*\\(|\\bqueryFn\\s*:\\s*${command}\\b)`,
+      "u",
+    );
+    if (!consumption.test(appRuntimeText)) {
+      errors.push(`GUI App/AppShell 运行时必须实际消费 ${command}`);
+    }
+  }
+  if (!/\bsetInterfaceLanguage\s*\(/u.test(appRuntimeText)) {
+    errors.push("GUI App/AppShell 运行时必须通过 setInterfaceLanguage 写入语言选择");
+  }
+  if (!/document\.title\s*=\s*[^;\r\n]*\.title\b/u.test(appRuntimeText)) {
+    errors.push("GUI App/AppShell 运行时必须用 AppMetadata.title 更新 document.title");
+  }
+}
+
 /** 按初始化选择验证固定页面、可选页面、侧栏接线和赞助媒体。 */
 export function validateFrontendInitializationContract(guiRoot, profile, errors, readers) {
   const { collectOptionalTexts, readBinaryFile, readTextFile } = readers;
@@ -236,6 +322,7 @@ export function validateFrontendInitializationContract(guiRoot, profile, errors,
     text: readTextFile(filePath),
   }));
   const sourceText = sourceEntries.map((entry) => entry.text).join("\n");
+  validateFixedFrontendIpcContract(sourceEntries, errors);
 
   if (!containsRouteLiteral(sourceText, "/settings")) {
     errors.push("GUI 固定基线缺少 /settings 路由");

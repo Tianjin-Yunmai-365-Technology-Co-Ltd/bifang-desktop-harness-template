@@ -56,10 +56,12 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
             "相同缺陷 ID",
             "维护不改变版本",
             "三个分量都在闭区间 `0..100`",
+            "`init` 是唯一允许在独立 Git 建立前运行的命令",
         ),
         VERSION_GATE_HELPER: (
             'STATE_RELATIVE = Path(".harness/version-state.json")',
             'KINDS = ("feature", "bug-fix", "major", "maintenance")',
+            "def _initialization_root(",
             "def finalize_release(",
             "Minor overflow at 100",
             "Patch overflow at 100",

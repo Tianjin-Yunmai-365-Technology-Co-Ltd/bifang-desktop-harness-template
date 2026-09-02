@@ -160,7 +160,7 @@ function collectRustCallArguments(sourceText, methodName) {
   return argumentsList;
 }
 
-function invokeHandlerCommands(sourceText) {
+export function invokeHandlerCommands(sourceText) {
   return collectRustCallArguments(sourceText, "invoke_handler").map((argument) => {
     const macro = sanitizeRustCode(argument).match(
       /\bgenerate_handler\s*!\s*\[([\s\S]*?)\]/u,
@@ -174,13 +174,27 @@ function invokeHandlerCommands(sourceText) {
   });
 }
 
-function allowedInitializationCommands(profile) {
+export function allowedInitializationCommands(profile) {
   return [
+    "get_app_metadata",
+    "get_system_locale",
+    "set_interface_language",
     ...(profile.aboutPage ? ["check_for_updates", "load_release_notes"] : []),
     ...(profile.systemNotification
       ? ["get_system_notification_setting", "set_system_notification_enabled"]
       : []),
     ...(profile.autostart ? ["get_autostart_enabled", "set_autostart_enabled"] : []),
+    ...(profile.globalShortcutActions.length > 0 ? ["get_global_shortcut_statuses"] : []),
+    ...(profile.globalShortcutActions.some(
+      (action) => action.bindingPolicy === "user-configurable",
+    )
+      ? [
+          "load_global_shortcut_bindings",
+          "save_global_shortcut_bindings",
+          "begin_global_shortcut_capture",
+          "end_global_shortcut_capture",
+        ]
+      : []),
   ];
 }
 

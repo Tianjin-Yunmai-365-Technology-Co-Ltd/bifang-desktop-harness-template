@@ -12,6 +12,10 @@ import {
   renderGlobalShortcutRuntimeFixtureSource,
   rewriteGlobalShortcutFixtureSource,
 } from "./gui-global-shortcut-contract.fixture.mjs";
+import {
+  FIXED_METADATA_LOCALE_RUNTIME_FIXTURE_SOURCE,
+  writeFixedFrontendIpcFixture,
+} from "./gui-fixed-ipc-contract.fixture.mjs";
 
 export const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "verify-gui-lifecycle-contract.mjs");
 
@@ -179,6 +183,7 @@ export function DetailedAppShell() {
 }
 `,
   );
+  writeFixedFrontendIpcFixture(sourceRoot);
   fs.writeFileSync(
     path.join(sourceRoot, "routes", "settings.tsx"),
     `
@@ -311,6 +316,7 @@ export function CompactAppShell() {
 }
 `,
   );
+  writeFixedFrontendIpcFixture(sourceRoot);
   fs.writeFileSync(path.join(sourceRoot, "routes", "settings.tsx"), "export function SettingsPage() { return null; }\n");
 }
 
@@ -345,7 +351,10 @@ function createFixture() {
         }],
       },
       bundle: { icon: ["icons/32x32.png"] },
-      plugins: { "deep-link": { desktop: { schemes: ["app-sample"] } } },
+      plugins: {
+        "deep-link": { desktop: { schemes: ["app-sample"] } },
+        updater: { endpoints: [], pubkey: "" },
+      },
     }),
   );
   fs.writeFileSync(
@@ -413,6 +422,7 @@ enum NotificationCommand { RequestPermission(oneshot::Sender<Result<(), &'static
 	fn resolve_system_locale(saved_language: Option<String>) -> String {
 	    normalize_bcp47_locale(tauri_plugin_os::locale(), saved_language)
 	}
+${FIXED_METADATA_LOCALE_RUNTIME_FIXTURE_SOURCE}
 	fn saved_window_geometry_is_recoverable(window: (i32, i32, u32, u32), monitors: &[(i32, i32, u32, u32)]) -> bool {
 	    let (x, y, width, height) = window;
 	    width >= 960 && height >= 640 && monitors.iter().any(|&(mx, my, mw, mh)| {
@@ -846,6 +856,7 @@ export function disableTrayAndSingleInstance(root, guiRoot) {
     JSON.stringify({
       app: { windows: [{ center: true, height: 900, label: "main", minHeight: 640, minWidth: 960, width: 1440 }] },
       bundle: { icon: ["icons/32x32.png"] },
+      plugins: { updater: { endpoints: [], pubkey: "" } },
     }),
   );
   fs.writeFileSync(
@@ -882,6 +893,7 @@ fn normalize_bcp47_locale(raw: Option<String>, saved_language: Option<String>) -
 fn resolve_system_locale(saved_language: Option<String>) -> String {
     normalize_bcp47_locale(tauri_plugin_os::locale(), saved_language)
 }
+${FIXED_METADATA_LOCALE_RUNTIME_FIXTURE_SOURCE}
 
 async fn check_for_updates(app: &tauri::AppHandle, controller: &UpdateController) -> UpdaterStatus {
     if !controller.configured { return UpdaterStatus::NotConfigured; }
@@ -896,6 +908,7 @@ fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED).build())
+        .invoke_handler(tauri::generate_handler![get_app_metadata, get_system_locale, set_interface_language])
         .setup(|_app| { let _locale = resolve_system_locale(None); Ok(()) })
         .on_window_event(|window, event| exit_on_close(window, event));
 }

@@ -215,8 +215,8 @@ mod tests {
     fn rejects_invalid_release_notes_resource() {
         for invalid in [
             r#"{"schemaVersion":2,"releases":[],"extra":true}"#.as_bytes(),
-            br#"{"schemaVersion":2,"releases":[{"releaseDate":"2026-08-27","version":"vv1.2.3","featureOptimizations":[{"zh-CN":"重复","en-US":"duplicate"},{"zh-CN":"重复","en-US":"duplicate"}],"bugFixes":[]}]}"#.as_slice(),
-            br#"{"schemaVersion":2,"releases":[{"releaseDate":"2026-08-27","version":"v1.2.3","featureOptimizations":[{"zh-CN":"缺少英文"}],"bugFixes":[]}]}"#.as_slice(),
+            r#"{"schemaVersion":2,"releases":[{"releaseDate":"2026-08-27","version":"vv1.2.3","featureOptimizations":[{"zh-CN":"重复","en-US":"duplicate"},{"zh-CN":"重复","en-US":"duplicate"}],"bugFixes":[]}]}"#.as_bytes(),
+            r#"{"schemaVersion":2,"releases":[{"releaseDate":"2026-08-27","version":"v1.2.3","featureOptimizations":[{"zh-CN":"缺少英文"}],"bugFixes":[]}]}"#.as_bytes(),
         ] {
             assert!(matches!(
                 parse_release_notes(invalid),
@@ -230,13 +230,14 @@ mod tests {
     fn rejects_invalid_or_out_of_order_release_dates() {
         assert!(!is_valid_release_date("2026-02-29"));
         assert!(is_valid_release_date("2028-02-29"));
-        let invalid = br#"{
+        let invalid = r#"{
             "schemaVersion": 2,
             "releases": [
                 {"releaseDate":"2026-08-26","version":"v1.0.1","featureOptimizations":[{"zh-CN":"一","en-US":"one"}],"bugFixes":[]},
                 {"releaseDate":"2026-08-27","version":"v1.0.0","featureOptimizations":[{"zh-CN":"二","en-US":"two"}],"bugFixes":[]}
             ]
-        }"#;
+        }"#
+        .as_bytes();
         assert!(matches!(
             parse_release_notes(invalid),
             Err(ReleaseNotesLoadError::Invalid)

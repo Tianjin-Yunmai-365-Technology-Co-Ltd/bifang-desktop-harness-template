@@ -9,7 +9,7 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 
 ## 前置条件
 
-1. 当前目录同时是下游项目根和独立 Git 顶层目录，GUI 目录精确为 `<project-id>_gui`。
+1. 当前目录是已规范化的唯一终端下游项目根，GUI 目录精确为 `<project-id>_gui`。新实例化目标在本 E2E 阶段不得提前 `git init`；当前根若已经存在自身 `.git`，其规范化 Git 顶层必须精确等于当前目录，父级仓库不得视为目标自身的 Git 边界。独立 `main` 仓库仍由初始化器在本 E2E 与裁剪成功后、紧邻唯一基线提交时建立。
 2. 读取 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、精确命中的 UI 标准、Rust/GUI 基线及 `docs/GUI_APP_PROFILE.md`。资料必须有且只有一个 `gui-initialization-config` 围栏代码块，字段按固定顺序恰好为 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`；八项能力均为 `enabled`/`disabled`，侧栏模式为 `compact`/`detailed`，且无 `pending`。`deep_link = enabled` 必须同时满足 `single_instance = enabled`。`global_shortcut = enabled` 时还必须有唯一合法 `gui-global-shortcut-contract` JSON 块，中性初始化的 `actions` 必须为空；禁用时该块必须缺席。若用户未选择侧栏，初始化器应已写入 `detailed`；本 E2E 不补写或推断缺失字段。
 3. 读取并使用 `computer-use` Skill 操作真实桌面窗口。只允许本地调试构建和只读界面操作，不签名、不生成安装包、不写 `release/`、不启用远程能力。
 4. 未选能力不是缺失证据；已选能力若当前宿主无法观察、操作或判定，则阻断初始化。唯一例外是 macOS 只能由已打包应用证明的自定义 scheme 系统注册：初始化仍须通过解析器、冷/热事件与窗口恢复边界，并把最终系统注册明确标为 `Not verified` 留给候选验收，不能用该例外跳过其余深链接场景。
@@ -17,7 +17,7 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 ## 工作流程
 
 1. 构建前运行 `node .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.mjs --root . --gui-dir <project-id>_gui`。检查器必须读取配置块并条件验证：
-   - 固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state` 的版本/member 继承、Rust-only 无 JS/ACL、唯一且稳定顺序注册、`locale()` 归一化/回退、`NotConfigured` 零出站和 single-flight/回收，以及只恢复 `SIZE | POSITION | MAXIMIZED`、无效/越界状态回退首次窗口尺寸；任何固定基线缺失都失败。
+   - 固定基线：所有 GUI 都验证 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state` 的版本/member 继承、Rust-only 无 JS/ACL、唯一且稳定顺序注册、`locale()` 归一化/回退、中性 `plugins.updater = { endpoints: [], pubkey: "" }` 的可启动 `NotConfigured` 零出站配置和 single-flight/回收，以及只恢复 `SIZE | POSITION | MAXIMIZED`、无效/越界状态回退首次窗口尺寸；`get_app_metadata`、`get_system_locale`、`set_interface_language` 三个窄 Tauri command 必须始终存在，并与已启用的条件命令恰好进入一个无缺失、无重复、无额外项的合并 `invoke_handler`；任何固定基线缺失都失败。
    - `single_instance: enabled`：根/member 依赖、首插件顺序、只恢复既有窗口的中性回调，以及 `single_instance_plugin_is_registered_first`、`second_launch_restores_existing_main_window` 两个有断言回归；disabled 时拒绝依赖与注册。
    - `deep_link: enabled`：强制单实例与 `deep-link` feature，身份派生 `app-<kebab-id>://restore`、配置 scheme、冷热启动事件、先验证后恢复和四个固定回归；disabled 时拒绝依赖、feature、配置、监听、JS/ACL 与测试残留。
    - `global_shortcut: enabled`：唯一 contract、Rust-only 插件、可空绑定/逐项真实状态、Pressed-only typed dispatch、注册与持久化原子回滚、录制 token 及 owned 清理按 contract 模式成立；Rust action 表与 contract 的数量、ID、策略、chord、dispatch、`e2eSafe` 逐字段一致，每个 target 有明确非 wildcard/no-op 分支。中性空 contract 必须零默认 chord、零 OS 注册、零占位 UI，且没有启动注册调用或前端快捷键 runtime/i18n。disabled 时 contract 与全部专属实现缺席。

@@ -1,4 +1,4 @@
-# 2026-09-01 变更记录
+# 2026-09-02 变更记录
 
 ## 新增
 
@@ -56,6 +56,8 @@
 
 ## 变更
 
+- `HARNESS-FEAT-PRE-GIT-INITIALIZATION-SEQUENCING`（所需 Harness 版本 `202608281139`）：新下游的版本状态初始化与 GUI 初始化 E2E 现在都在目标 pre-Git 状态下完成；父目录中的 Harness/其他 Git 不再被误认作目标仓库边界，`version_gate init` 成为唯一允许在 pre-Git 目标根执行的版本命令。只有相关单元测试和真实 GUI 初始化 E2E 通过、初始化专用能力完成裁剪后，才在目标根建立独立 Git、即时设置 local 提交身份与模板并创建唯一基线提交，避免失败脚手架留下半初始化仓库。
+- `HARNESS-FEAT-GUI-INITIALIZATION-RUNTIME-CONTRACTS`（所需 Harness 版本 `202608281139`）：所有 GUI 的 updater 未配置态改为在 `tauri.conf.json` 显式写入空 `endpoints` 与空 `pubkey`，保持可启动的 `NotConfigured`/零出站状态；`get_app_metadata`、`get_system_locale`、`set_interface_language` 三个固定 IPC 必须返回并更新权威类型化状态，由 React 实际消费，并与条件命令共同进入唯一合并的 `invoke_handler`，同名占位实现或重复 handler 不再通过初始化契约。设置页能力开关继续只由 `Switch` 拥有点击动作，同时通过稳定标题/说明 ID 与 `aria-labelledby`/`aria-describedby` 保留完整可访问语义；本地化 Rust 发布日志 fixture 改用 UTF-8 普通 raw string 后取字节，门禁只拒绝实际含非 ASCII 内容的 raw byte string，不再把合法 ASCII raw byte literal 或注释误判为编译风险。
 - `HARNESS-FEAT-GUI-PROCESS-SESSION-STATE`（所需 Harness 版本 `202608051301`）：GUI 活动选项卡、查询/筛选、排序和分页等页面工作状态由应用根 Jotai store 在本次程序进程内跨路由及已启用的关闭隐藏/单实例唤醒保留，退出后恢复默认且禁止页面会话持久化/URL/Query 数据镜像；详细侧栏折叠偏好作为独立设备级 UI 偏好，不进入页面会话 store。
 - 页面交互事件现在由实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身处理，Card、表格行/单元格等父级不再代理子动作；表格中的 `Switch` 不会因点击所在行而切换，模板回归分别覆盖控件与父级点击。
 - 所有用户可见版本号统一为一个小写 `v` 前缀，覆盖窗口标题、侧栏、设置/关于页、更新状态、CLI `--version` 与更新日志；Cargo、JSON/协议、状态和 manifest 机器版本保持原始值。
@@ -94,7 +96,7 @@
 - 本次渐进披露重构运行 `python3 -B -m unittest discover -s scripts`，222 条 Harness 回归全部通过；`python3 -B scripts/validate_harness.py` 通过 183 个必需文件、31 个 Skills、20,000 UTF-8 字节/120 行入口预算、7 个永久章节、按任务路由与既有详细事实源契约，产生 15 条未达硬上限的既有非阻断行数复核提示。两个修改过的初始化 Skills 均通过 Skill Creator quick validator，`git diff --check` 通过。根 `AGENTS.md` 从 201 行/57,044 字节降至 81 行/11,043 字节；本轮没有可编译产品或真实候选，未运行构建、GUI/Computer Use、E2E、签名、公证或发布。
 - 本次运行 `python3 -B -m unittest scripts.test_agile_workflow scripts.test_harness_scope_and_initialization_boundaries`，33 条初始化/流程契约回归全部通过；新增 3 条专项回归分别锁定 Logo 原始候选顺序与选择后处理、Git 命令仅位于实际基线提交收尾段、Harness 源在写入前拒绝产品需求。
 - `python3 -B .agents/skills/desktop-upgrade-harness/scripts/test_harness_upgrade.py` 的 28 条升级器回归通过；新增专项测试被声明为 Harness-only `tombstone`，不会传播到终端下游。8 个本次修改的项目 Skills 均通过 Skill Creator quick validator；`git diff --check` 通过。
-- `python3 -B scripts/validate_harness.py` 已运行并能通过本次三项新增契约，但完整结果仍被 51 个当前 `README.md` 既有契约/Skill 清单缺口阻断；对未修改 `HEAD` 的临时只读基线复核也存在同组 README 缺口，因此未把该全量校验记录为通过。规则实施阶段未提前运行 Git `install`/`check`；项目负责人随后明确要求提交并推送，因此只在本次实际提交前即时运行仓库本地 `install`/`check`。未执行构建、GUI/Computer Use、E2E、签名、公证或发布。
+- 本次 pre-Git 初始化、固定 GUI IPC 与可访问性/发布日志门禁收尾运行 `python3 -B scripts/validate_harness.py`、`python3 -B -m unittest discover -s scripts`、`node --test .agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs .agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-plugin-contract.test.mjs` 与 `git diff --check`，分别通过 203 个必需文件/38 个 Skills、240 条 Harness 回归、131 条 GUI 初始化 Node 契约回归和差异完整性检查。新增门禁确认 `version_gate init` 是唯一允许 pre-Git 运行的版本命令、固定 `get_app_metadata`/`get_system_locale`/`set_interface_language` IPC 及唯一 `invoke_handler` 必须真实消费、空 updater 配置显式写入 `plugins.updater = { endpoints: [], pubkey: "" }`、设置页 `Switch` 仅由自身触发且保留 `aria-labelledby`/`aria-describedby`、以及本地化发布日志 fixture 只拒绝真正含非 ASCII 内容的 raw byte string。`validate_harness.py` 仍报告 22 条未达硬上限的既有非阻断行数复核提示；Harness 源没有可执行终端下游产品，因此未运行 Rust/Tauri 构建、真实 GUI/Computer Use、初始化 E2E、签名、公证或发布。
 - 本次双语初始化与更新日志变更运行 `python3 -B -m unittest discover -s scripts`，212 条 Harness 测试全部通过；`python3 -B scripts/validate_harness.py` 通过 168 个必需文件、28 个 Skills 和双语名称/发布日志 schema v2 契约，产生 9 条未达硬上限的非阻断行数复核提示；`git diff --check` 通过。
 - 身份改名专项 4/4、发布日志 helper 专项 6/6、Tauri 发布日志/DMG 字节夹具专项 13/13、GUI 初始化结构/生命周期专项 43/43 均通过。Harness 根没有可执行前端包或下游 Rust workspace，因此 React Vitest、Rust 编译、真实 GUI/Computer Use、候选构建与 E2E 均未运行，也未据此声明最终产物或发布就绪。
 - 本次首轮基础表单、条件补全与旧交互拒绝的初始化/入口专项 15 条回归通过；`python3 -B -m unittest discover -s scripts` 共 211 条测试全部通过。`python3 -B scripts/validate_harness.py` 通过 168 个必需文件、28 个 Skills、初始化阶段顺序和直接初始化复用契约，产生 8 条未达硬上限的非阻断行数复核提示；`$desktop-instantiate-project` 与 `$desktop-initialize-rust-project` 均通过 Skill Creator quick validator（2/2）。

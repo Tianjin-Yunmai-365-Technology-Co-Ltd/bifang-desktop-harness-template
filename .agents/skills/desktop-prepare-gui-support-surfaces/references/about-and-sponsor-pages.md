@@ -45,6 +45,7 @@
 
 - 产品名称、版本、标语、功能、许可、隐私和可选动作来自当前下游权威事实。固定作者、作者联系方式和免责声明来自品牌包；模板不含任何来源产品名称或功能清单，所选路由为 `/about`。
 - 版本由当前打包元数据提供，不在组件或翻译文件中写死；所有可见位置调用共享 formatter，先去除已有 `v`/`V` 再添加一个小写 `v`。手动检查更新和稳定状态随关于页存在；未配置时检查按钮禁用、状态为 `NotConfigured` 且零出站，本地更新日志按钮仍可用。它默认调用 `load_release_notes`，由 Rust 以 `BaseDirectory::Resource` + `tokio::fs` 读取固定资源并验证，React 再从 `unknown` 收窄；禁止路径参数、通用文件系统权限和同步读取。更新日志按最新在前最多显示 5 版，每版两个分类各最多 10 个完整 `zh-CN`/`en-US` 翻译对。中文界面显示“更新日志/功能优化/问题修复/无”，英文或未知语言显示“Release notes/Feature optimizations/Bug fixes/None”，正文也只选择对应 locale；任一翻译缺失必须在 Rust/React 边界失败关闭。反馈、许可与隐私仍是独立可选动作，未选择时不渲染占位按钮。若赞助页已选，其入口由 `/sponsor` 路由和应用导航承载，不在关于页重复为按钮。
+- Rust 中包含本地化文本的测试夹具必须用 UTF-8 `str` 后接 `.as_bytes()`，不得使用拒绝非 ASCII 内容的 raw byte string。
 - “检查更新”和“更新日志”的事件只绑定各自 Button；更新区 Paper/Group 不代理动作。其他按钮、链接、`Switch`、`Checkbox` 同样绑定在自身，Card、`Table.Tr`、`Table.Td` 等父级不得代理；表格行点击不能切换行内 `Switch`。
 - 作者显示名使用 `about.studio`，联系人使用 profile 的 `contacts.support`；窗口标题使用独立的 `contacts.windowTitle`，两个角色即使当前值相同也不能混用。
 - 三段免责声明必须完整显示并接入中英文 `brandSupport` 翻译；不得因产品没有其他关于区块而隐藏或改成占位文案。
