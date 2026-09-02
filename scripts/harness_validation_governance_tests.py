@@ -604,6 +604,59 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
                 governance.VERSION_FILE = original
         self.assertTrue(any("not a valid Shanghai datetime" in error for error in errors), errors)
 
+    def test_live_readme_identity_matches_version_source(self) -> None:
+        """已发货版本契约检查器必须锁定活 README 名称、与 Version.md 相同的 v 展示版本，以及 Released。"""
+
+        errors: list[str] = []
+        governance.validate_version_contract(errors)
+        self.assertEqual(errors, [])
+
+        version_text = read_repo_text("Version.md")
+        current_version = None
+        version_prefix = "- 当前版本：`"
+        for line in version_text.splitlines():
+            if line.startswith(version_prefix) and line.endswith("`"):
+                current_version = line[len(version_prefix) : -1]
+                break
+        self.assertIsNotNone(current_version)
+        self.assertEqual(len(current_version), 12)
+        self.assertTrue(current_version.isdigit(), current_version)
+        self.assertIn("- 发布状态：Released", version_text)
+
+        readme = read_repo_text("README.md")
+        self.assertTrue(readme.startswith("# 毕方桌面应用Harness模版\n"))
+        self.assertIn("\nBifang Desktop Harness Template\n", readme)
+        self.assertIn("- 中文名称：毕方桌面应用Harness模版\n", readme)
+        self.assertIn("- English name: Bifang Desktop Harness Template\n", readme)
+        self.assertIn(f"- 当前版本：v{current_version}\n", readme)
+        self.assertIn("- 发布状态：Released\n", readme)
+        self.assertNotIn("- 中文名称：Agent-first Harness 项目模板", readme)
+        self.assertNotIn("- English name: Agent-first Harness Template", readme)
+        self.assertNotIn("- 发布状态：Unreleased", readme)
+
+    def test_rejects_unreleased_status_in_version_source(self) -> None:
+        """活契约要求 Released 时，Version.md 再写 Unreleased 必须被已发货检查器拒绝。"""
+
+        mutated = read_repo_text("Version.md").replace(
+            "发布状态：Released",
+            "发布状态：Unreleased",
+            1,
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "Version.md"
+            path.write_text(mutated, encoding="utf-8")
+            original = governance.VERSION_FILE
+            governance.VERSION_FILE = path
+            try:
+                errors: list[str] = []
+                governance.validate_version_contract(errors)
+            finally:
+                governance.VERSION_FILE = original
+        self.assertTrue(
+            any("发布状态：Released" in error for error in errors),
+            errors,
+        )
+
 
 class ValidateAgentPolicyTests(unittest.TestCase):
     """覆盖四项持久偏好的合法 schema 与初始化 fail-closed 语义。"""

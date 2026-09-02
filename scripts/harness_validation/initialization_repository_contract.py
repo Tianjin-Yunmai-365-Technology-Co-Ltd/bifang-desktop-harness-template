@@ -277,7 +277,7 @@ def repository_required_fragments(
             "知识产权",
             "第三方材料",
             "以中文版本为准",
-            "适用项目名称：Agent-first Harness 项目模板",
+            "适用项目名称：毕方桌面应用Harness模版",
             "仅将该名称替换",
         ),
         ROOT / "LICENSE.en.md": (
@@ -286,7 +286,7 @@ def repository_required_fragments(
             "intellectual property rights",
             "Third-Party Materials",
             "the Chinese version controls",
-            "Applicable Project Name: Agent-first Harness Template",
+            "Applicable Project Name: Bifang Desktop Harness Template",
             "only this name must be replaced",
         ),
         RENAME_IDENTITY_SKILL / "SKILL.md": (

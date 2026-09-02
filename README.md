@@ -1,4 +1,8 @@
-# Agent-first Harness 项目模板
+# 毕方桌面应用Harness模版
+
+Bifang Desktop Harness Template
+
+这份 README 是给人读的入口：说明模板做什么、第一次怎么创建项目、下游日常怎么用、当前名称/版本/许可，以及本仓库现在不接受哪些产品需求。给 Agent 的启动门禁和任务路由见 [`AGENTS.md`](AGENTS.md)。
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
@@ -96,27 +100,32 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 ## 当前状态
 
 - 维护状态：Active
-- 中文名称：Agent-first Harness 项目模板
-- English name: Agent-first Harness Template
-- 当前版本：v202608281139
-- 发布状态：Unreleased
+- 中文名称：毕方桌面应用Harness模版
+- English name: Bifang Desktop Harness Template
+- 当前版本：v202609020957
+- 发布状态：Released
 - 产品规格：Approved
 - 具体产品源码：不包含
 
-版本的唯一事实来源是 [`Version.md`](Version.md)，采用上海时区 `YYYYMMDDHHMM`。模板版本和新项目自己的版本分开管理，不会互相覆盖。
+版本的唯一事实来源是 [`Version.md`](Version.md)，采用上海时区 `YYYYMMDDHHMM`。模板版本和新项目自己的版本分开管理，不会互相覆盖。这里的 `Released` 表示当前模板时间版本已作为可用模板快照记录；不表示已经创建 Git 标签、源码归档、签名候选或可安装应用。
 
 ## 项目结构
 
 - `.agents/skills/`：创建项目、开发、测试、构建、验收和升级时使用的 Agent Skills。
 - `docs/`：产品规格、工程规则、接口契约、设计标准和发布说明。
 - `scripts/`：模板一致性与关键规则的检查工具。
+- `Version.md`：Harness 模板当前时间版本与发布状态的唯一事实来源。
 - `AGENTS.md`：轻量启动门禁与任务路由；具体规则、门禁和 Skills 按当前任务渐进读取。
+- `LICENSE.zh-CN.md` / `LICENSE.en.md`：专有商业许可；适用项目名称与本 README 的中英文名称一致。
 
 ## 进一步了解
 
+- [当前时间版本](Version.md)
+- [Agent 启动规则](AGENTS.md)
 - [当前产品范围](docs/product_spec/README.md)
 - [Agent 运行策略](docs/AGENT_POLICY.md)
 - [工程维护规则](docs/ENGINEERING_RULES.md)
+- [Harness 方法论](docs/HARNESS_ENGINEERING.md)
 - [Rust 与各类界面的初始化基线](docs/RUST_CLI_TEMPLATE.md)
 - [构建与发布规则](docs/RELEASE.md)
 - [验证方式与证据入口](docs/VERIFICATION.md)
