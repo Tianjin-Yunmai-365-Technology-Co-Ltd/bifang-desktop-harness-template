@@ -209,6 +209,10 @@ function readCapabilityRecords(guiRoot, readTextFile, errors) {
   return records;
 }
 
+function capabilityTargets(capability) {
+  return [...capability.windows, ...capability.webviews];
+}
+
 /** dialog 是固定 WebView 能力：官方生产依赖与 main ACL 必须同时完整存在。 */
 function validateDialogFrontendContract(guiRoot, errors, readTextFile) {
   const packagePath = path.join(guiRoot, "package.json");
@@ -238,14 +242,14 @@ function validateDialogFrontendContract(guiRoot, errors, readTextFile) {
 
   const capabilities = readCapabilityRecords(guiRoot, readTextFile, errors);
   const mainCapabilities = capabilities.filter((capability) =>
-    [...capability.windows, ...capability.webviews].includes("main"),
+    capabilityTargets(capability).includes("main"),
   );
   const dialogCapabilities = capabilities.filter((capability) =>
     capability.permissions.some((permission) => permission.startsWith("dialog:")),
   );
   if (
     dialogCapabilities.some((capability) => {
-      const targets = [...capability.windows, ...capability.webviews];
+      const targets = capabilityTargets(capability);
       return targets.length === 0 || targets.some((target) => target !== "main");
     })
   ) {
