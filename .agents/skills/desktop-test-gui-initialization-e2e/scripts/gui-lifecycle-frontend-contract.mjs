@@ -181,6 +181,7 @@ function readCapabilityRecords(guiRoot, readTextFile, errors) {
         filePath,
         permissions: tomlStringArray(text, "permissions"),
         windows: tomlStringArray(text, "windows"),
+        webviews: tomlStringArray(text, "webviews"),
       });
       continue;
     }
@@ -198,6 +199,9 @@ function readCapabilityRecords(guiRoot, readTextFile, errors) {
         permissions: capabilityPermissionIdentifiers(capability.permissions),
         windows: Array.isArray(capability.windows)
           ? capability.windows.filter((window) => typeof window === "string")
+          : [],
+        webviews: Array.isArray(capability.webviews)
+          ? capability.webviews.filter((webview) => typeof webview === "string")
           : [],
       });
     }
@@ -234,8 +238,19 @@ function validateDialogFrontendContract(guiRoot, errors, readTextFile) {
 
   const capabilities = readCapabilityRecords(guiRoot, readTextFile, errors);
   const mainCapabilities = capabilities.filter((capability) =>
-    capability.windows.includes("main"),
+    [...capability.windows, ...capability.webviews].includes("main"),
   );
+  const dialogCapabilities = capabilities.filter((capability) =>
+    capability.permissions.some((permission) => permission.startsWith("dialog:")),
+  );
+  if (
+    dialogCapabilities.some((capability) => {
+      const targets = [...capability.windows, ...capability.webviews];
+      return targets.length === 0 || targets.some((target) => target !== "main");
+    })
+  ) {
+    errors.push("GUI dialog 权限只能授予 main 窗口/WebView，不得扩展到其他或未限定目标");
+  }
   const dialogPermissions = mainCapabilities.flatMap((capability) =>
     capability.permissions.filter((permission) => permission.startsWith("dialog:")),
   );

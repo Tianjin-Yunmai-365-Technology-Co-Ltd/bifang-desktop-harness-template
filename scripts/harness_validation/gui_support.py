@@ -673,6 +673,8 @@ def validate_gui_support_contract(
         skill_path: (
             "九项初始化配置",
             "system-locale、updater、window-state 由各自固定 Skill 无条件接入",
+            "dialog WebView 基线同样由独立固定 Skill 无条件接入",
+            "dialog 选择路径不授权读取或写入该路径",
             "全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位",
             "通知/自启按各自 Skill 接入条件 prop",
             "全局快捷键只对 contract 非空动作接入逐项真实状态",

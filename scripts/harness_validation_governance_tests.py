@@ -302,6 +302,13 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         )
         self.assertIn("process.exitCode = main()", required[lifecycle_checker])
         self.assertIn(lifecycle_tests, required)
+        for fragment in (
+            "dialog_default_permission_covers_all_dialog_types",
+            "dialog_baseline_does_not_grant_filesystem_access",
+            "rejects a main capability that appends extra dialog permissions",
+            "rejects dialog permissions granted outside the main window",
+        ):
+            self.assertIn(fragment, required[lifecycle_tests])
         self.assertIn(
             "accepts an explicit no-tray no-single-instance close-on-last-window contract",
             required[lifecycle_tests],
@@ -332,6 +339,8 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             self.assertIn(fragment, required[lifecycle_tests])
         self.assertIn(lifecycle_plugin_tests, required)
         for fragment in (
+            "dialog_dependencies_are_fixed",
+            "dialog_plugin_is_registered_once_in_fixed_order",
             "rejects treating tauri_plugin_os locale as a Result",
             "rejects updater code that can check before the NotConfigured gate",
             "rejects window-state setup that is not wired through the recoverable helper",

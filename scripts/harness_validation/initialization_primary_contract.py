@@ -956,6 +956,13 @@ def primary_required_fragments(
         / "scripts"
         / "gui-lifecycle-frontend-contract.mjs": (
             "validateFixedFrontendIpcContract",
+            "validateDialogFrontendContract",
+            '"@tauri-apps/plugin-dialog"',
+            '"^2.7.3"',
+            'permission === "dialog:default"',
+            'permission.startsWith("fs:")',
+            "capability.webviews",
+            "dialog 权限只能授予 main 窗口/WebView",
             "AppMetadata",
             '"applicationName"',
             '"version"',
@@ -1018,6 +1025,10 @@ def primary_required_fragments(
             "@tauri-apps/plugin-fs",
         ),
         GUI_LIFECYCLE_CONTRACT_TESTS: (
+            "dialog_default_permission_covers_all_dialog_types",
+            "dialog_baseline_does_not_grant_filesystem_access",
+            "rejects a main capability that appends extra dialog permissions",
+            "rejects dialog permissions granted outside the main window",
             "accepts a complete single-instance and tray lifecycle contract",
             "accepts an explicit no-tray no-single-instance close-on-last-window contract",
             "rejects a GUI initialization without the dedicated capability profile",
@@ -1066,6 +1077,8 @@ def primary_required_fragments(
         GUI_LIFECYCLE_PLUGIN_CONTRACT_CHECKER: (
             'from "./gui-global-shortcut-runtime-contract.mjs"',
             'from "./gui-fixed-ipc-runtime-contract.mjs"',
+            "validateDialogRuntime",
+            'tauri_plugin_dialog::init',
             "GLOBAL_SHORTCUT_TEST_NAMES",
             "USER_CONFIGURABLE_GLOBAL_SHORTCUT_TEST_NAMES",
             "allowedInitializationCommands",
@@ -1244,6 +1257,8 @@ def primary_required_fragments(
             "rejects raw mixed shortcut updates mutated after fixed validation",
         ),
         GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS: (
+            "dialog_dependencies_are_fixed",
+            "dialog_plugin_is_registered_once_in_fixed_order",
             "rejects duplicate GUI initialization profile blocks",
             "rejects deep-link without single-instance",
             "rejects a missing system-locale dependency or plugin registration",

@@ -196,6 +196,37 @@ test("rejects a main capability that appends extra dialog permissions", () => {
   });
 });
 
+test("rejects dialog permissions granted outside the main window", () => {
+  withFixture(({ root, guiRoot }) => {
+    fs.writeFileSync(
+      path.join(guiRoot, "src-tauri", "capabilities", "secondary.json"),
+      JSON.stringify({
+        identifier: "secondary-capability",
+        permissions: ["dialog:default"],
+        windows: ["secondary"],
+      }),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /dialog 权限只能授予 main 窗口\/WebView/u,
+    );
+  });
+
+  withFixture(({ root, guiRoot }) => {
+    fs.writeFileSync(
+      path.join(guiRoot, "src-tauri", "capabilities", "unscoped.json"),
+      JSON.stringify({
+        identifier: "unscoped-capability",
+        permissions: ["dialog:default"],
+      }),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /dialog 权限只能授予 main 窗口\/WebView/u,
+    );
+  });
+});
+
 registerGlobalShortcutContractTests();
 test("rejects an enabled about page without its route or runtime component", () => {
   withFixture(({ root, guiRoot }) => {
