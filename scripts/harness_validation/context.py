@@ -204,11 +204,17 @@ VERSION_GATE_HELPER = VERSION_SKILL / "scripts" / "version_gate.py"
 VERSION_GATE_TESTS = VERSION_SKILL / "scripts" / "test_version_gate.py"
 BUILD_RELEASE_SKILL = SKILLS_ROOT / "desktop-build-rust-release" / "SKILL.md"
 TAURI_RELEASE_SKILL = SKILLS_ROOT / "desktop-build-tauri-release" / "SKILL.md"
+TAURI_LOCAL_INSTALL_SKILL = (
+    SKILLS_ROOT / "desktop-build-tauri-local-install" / "SKILL.md"
+)
 TAURI_NOTARIZATION_HELPER = (
     SKILLS_ROOT / "desktop-build-tauri-release" / "scripts" / "probe-macos-notarization.sh"
 )
 TAURI_RELEASE_DIRECTORY_HELPER = (
     SKILLS_ROOT / "desktop-build-tauri-release" / "scripts" / "prepare-release-directory.sh"
+)
+TAURI_RELEASE_POWERSHELL_HELPER = (
+    SKILLS_ROOT / "desktop-build-tauri-release" / "scripts" / "prepare-release-directory.ps1"
 )
 TAURI_RELEASE_HELPER_TESTS = (
     SKILLS_ROOT / "desktop-build-tauri-release" / "scripts" / "test_tauri_release_gates.py"
@@ -411,9 +417,12 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.sh",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.ps1",
     ".agents/skills/desktop-build-rust-release/scripts/test_prepare_release_directory.py",
+    ".agents/skills/desktop-build-tauri-local-install/SKILL.md",
+    ".agents/skills/desktop-build-tauri-local-install/agents/openai.yaml",
     ".agents/skills/desktop-build-tauri-release/references/tauri-macos-windows.md",
     ".agents/skills/desktop-build-tauri-release/scripts/probe-macos-notarization.sh",
     ".agents/skills/desktop-build-tauri-release/scripts/prepare-release-directory.sh",
+    ".agents/skills/desktop-build-tauri-release/scripts/prepare-release-directory.ps1",
     ".agents/skills/desktop-build-tauri-release/scripts/test_tauri_release_gates.py",
     ".agents/skills/desktop-build-tauri-release/scripts/verify-dmg-layout.sh",
     ".agents/skills/desktop-build-tauri-release/scripts/test_verify_dmg_layout.py",
@@ -546,6 +555,7 @@ EXPECTED_SKILLS = {
     "desktop-add-mcp-adapter",
     "desktop-add-tui-adapter",
     "desktop-build-rust-release",
+    "desktop-build-tauri-local-install",
     "desktop-build-tauri-release",
     "desktop-check-development-environment",
     "desktop-collect-release-artifacts",

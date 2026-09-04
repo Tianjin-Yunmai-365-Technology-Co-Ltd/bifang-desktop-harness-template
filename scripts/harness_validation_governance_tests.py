@@ -604,6 +604,29 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
                 governance.VERSION_FILE = original
         self.assertTrue(any("not a valid Shanghai datetime" in error for error in errors), errors)
 
+    def test_harness_datetime_validation_does_not_require_iana_tzdata(self) -> None:
+        """Windows 式无系统 tzdata 环境仍应只用标准库完成时间版本校验。"""
+
+        command = (
+            "from pathlib import Path; "
+            "from scripts.harness_validation.governance_version import validate_version_contract; "
+            "errors = []; "
+            "validate_version_contract(errors, Path('Version.md')); "
+            "raise SystemExit(1 if errors else 0)"
+        )
+        env = os.environ.copy()
+        env["PYTHONTZPATH"] = ""
+        result = subprocess.run(
+            [sys.executable, "-S", "-B", "-c", command],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_live_readme_identity_matches_version_source(self) -> None:
         """已发货版本契约检查器必须锁定活 README 名称、与 Version.md 相同的 v 展示版本，以及 Released。"""
 

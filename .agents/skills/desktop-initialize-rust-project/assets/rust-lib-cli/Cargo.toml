@@ -2,6 +2,10 @@
 members = ["example_tool_core", "example_tool_cli"]
 resolver = "3"
 
+[workspace.metadata.agent-first-harness]
+target-platforms = []
+interfaces = []
+
 [workspace.package]
 version = "0.1.0"
 edition = "2024"

@@ -144,6 +144,38 @@ def validate_build_skill_contract(
     validate_fragment_contract(errors, required, label="release contract")
 
 
+def validate_tauri_local_install_contract(
+    errors: list[str],
+    local_skill: Path = TAURI_LOCAL_INSTALL_SKILL,  # noqa: F405
+) -> None:
+    """锁定 Windows 本地试包与发布候选之间的最小授权边界。"""
+    required = {
+        local_skill: (
+            "[workspace.metadata.agent-first-harness]",
+            "target-platforms",
+            "interfaces",
+            "允许从 dirty 工作树生成本地试包",
+            "不得调用 `$desktop-prepare-release`",
+            "不得生成、读取、校验或改写 `release-notes.json`",
+            "不得传 `--config src-tauri/tauri.release.conf.json`",
+            "不得创建、刷新或写入项目根 `release/`",
+            "不得计算或提升版本",
+            "cargo test --workspace --all-targets --all-features --locked",
+            "不得自动追加格式、lint、类型、全仓治理、冒烟、E2E 或性能测试",
+            '$env:CI = "true"',
+            "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign",
+            "禁止 `cargo-xwin`、MSI、`all` bundle 和交叉宿主",
+            "不得启动应用、运行安装程序、请求 UAC、修改注册表或写入系统目录",
+            "artifactPurpose: local-install-test",
+            "releaseCandidate: false",
+            "signingStatus: unsigned",
+            "本 Skill 不询问 E2E 开/关或性能测试开/关",
+            "不得把普通本地试包称为任务升级",
+        ),
+    }
+    validate_fragment_contract(errors, required, label="Tauri local install contract")
+
+
 def validate_tauri_build_skill_contract(
     errors: list[str],
     tauri_skill: Path = TAURI_RELEASE_SKILL,  # noqa: F405
@@ -162,6 +194,8 @@ def validate_tauri_build_skill_contract(
     """锁定 Tauri xwin 安装链和 macOS 签名公证一体门禁。"""
     required = {
         tauri_skill: (
+            "[workspace.metadata.agent-first-harness]",
+            "普通“构建/打包/首次安装试包”转到 `$desktop-build-tauri-local-install`",
             "本次请求已明确 `enabled`/`disabled` 时直接复用，否则在任何测试或编译前询问用户一次；`milestone_e2e`",
             "初始化后的构建不做例行环境预检",
             "只有某条命令已经失败",
@@ -173,6 +207,8 @@ def validate_tauri_build_skill_contract(
             "首次尝试使用当前 PATH",
             "单次重试命令的 PATH",
             "scripts/prepare-release-directory.sh <project-root>",
+            "scripts/prepare-release-directory.ps1 -ProjectRoot <project-root>",
+            "Windows 原生路线不得调用 `.sh` helper",
             "不要求 GUI-only 项目保留 CLI 构建 Skill",
             "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",
             "CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg",
@@ -185,6 +221,10 @@ def validate_tauri_build_skill_contract(
             "不得输出仅 Developer ID 签名但未公证/staple 的 macOS 候选",
             "候选构建中禁止 `--skip-stapling`",
             "CI=true pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc",
+            "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --config src-tauri/tauri.release.conf.json",
+            "本分支禁止 `--runner cargo-xwin`",
+            "buildMode: native",
+            "在最终候选 E2E/验收真实执行安装和运行之前，固定记录 `runtimeVerification: Unverified`",
             "拒绝 `msi` 或 `all`",
             "`runtimeVerification` 均为 `Unverified`",
             "完整 `gate.path.prepend` 原样前置",
@@ -261,6 +301,14 @@ def validate_tauri_build_skill_contract(
             "release 是符号链接",
             'mktemp -d "$canonical_root/.release-clean.XXXXXX"',
             'mv -- "$release_path" "$staging_parent/previous-release"',
+            "原子刷新期间 release 发生变化",
+            "release.cleaned=true",
+        ),
+        TAURI_RELEASE_POWERSHELL_HELPER: (  # noqa: F405
+            "项目根目录不是独立 Git 顶层目录",
+            "release 是重解析点",
+            "[IO.FileAttributes]::ReparsePoint",
+            "[IO.Directory]::Move",
             "原子刷新期间 release 发生变化",
             "release.cleaned=true",
         ),
@@ -341,6 +389,12 @@ def validate_tauri_build_skill_contract(
                 errors,
                 "Tauri release directory helper must remain byte-identical to the tested CLI POSIX helper",
             )
+    if BUILD_RELEASE_POWERSHELL_HELPER.is_file() and TAURI_RELEASE_POWERSHELL_HELPER.is_file():  # noqa: F405
+        if BUILD_RELEASE_POWERSHELL_HELPER.read_bytes() != TAURI_RELEASE_POWERSHELL_HELPER.read_bytes():  # noqa: F405
+            fail(
+                errors,
+                "Tauri release directory helper must remain byte-identical to the tested CLI PowerShell helper",
+            )
 
 
 def validate_gui_release_performance_contract(
@@ -385,8 +439,10 @@ def validate_gui_release_performance_contract(
             "性能选择为 `enabled` 时 `performanceStatus` 为 `Unverified`",
             "选择为 `disabled` 且无硬要求时记录 `performanceStatus: Not run`",
             "performanceStatus: passed | waived",
-            "performanceThresholdProfile: gui-release-v1",
+            "原生 macOS 且性能启用时记录 `performanceStatus: passed | waived`、`performanceThresholdProfile: gui-release-v1`",
             "performanceRuntimeBinding",
+            "原生 Windows 且性能启用时使用相同的 `performanceStatus: passed | waived`",
+            "原生 Windows 选择关闭时使用下一条 `Not run` 契约",
         ),
         performance_skill: (
             "同一 clean HEAD",
@@ -579,7 +635,7 @@ def validate_release_git_contract(errors: list[str]) -> None:
             "test_unsafe_or_empty_commit_scope_is_rejected",
         ),
         ROOT / "docs" / "RELEASE.md": (  # noqa: F405
-            "普通构建不自动提交",
+            "直接候选构建不自动提交",
             "明确“发布/准备并构建发布”请求本身授权",
             "不授权 tag、push、上传、商店提交或正式发布",
             "从新的源码 HEAD",
@@ -605,6 +661,7 @@ def validate_release_contract(errors: list[str]) -> None:
     for path in (GITIGNORE, RUST_ASSET / ".gitignore"):  # noqa: F405
         validate_release_ignore(errors, path)
     validate_build_skill_contract(errors)
+    validate_tauri_local_install_contract(errors)
     validate_tauri_build_skill_contract(errors)
     validate_gui_release_performance_contract(errors)
     validate_release_git_contract(errors)

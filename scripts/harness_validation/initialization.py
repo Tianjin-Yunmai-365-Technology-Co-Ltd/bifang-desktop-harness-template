@@ -226,6 +226,9 @@ def validate_initialization_contract(errors: list[str]) -> None:
         ),
         RUST_ASSET / "Cargo.toml": (
             'features = ["macros", "rt"]',
+            "[workspace.metadata.agent-first-harness]",
+            "target-platforms = []",
+            "interfaces = []",
         ),
         RUST_ASSET / "example_tool_cli" / "src" / "main.rs": (
             '#[tokio::main(flavor = "current_thread")]',
@@ -421,6 +424,18 @@ def validate_initialization_contract(errors: list[str]) -> None:
     workspace = root_data.get("workspace", {})
     workspace_dependencies = workspace.get("dependencies", {})
     validate_workspace_dependency_minimums(errors, workspace_dependencies)
+    workspace_metadata = workspace.get("metadata", {})
+    harness_metadata = (
+        workspace_metadata.get("agent-first-harness", {})
+        if isinstance(workspace_metadata, dict)
+        else {}
+    )
+    expected_harness_metadata = {"target-platforms": [], "interfaces": []}
+    if harness_metadata != expected_harness_metadata:
+        fail(
+            errors,
+            "Rust asset workspace metadata must contain only empty target-platforms/interfaces placeholders",
+        )
     expected_members = ["example_tool_core", "example_tool_cli"]
     if workspace.get("members") != expected_members:
         fail(errors, f"Rust asset workspace members must be {expected_members}")

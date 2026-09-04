@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -107,6 +108,29 @@ class HarnessScopeAndInitializationBoundaryTests(unittest.TestCase):
         self.assertIn("必须在写入前拒绝", implement)
         self.assertIn("只解析允许的初始化字段", readme)
         self.assertIn("切换到唯一终端下游根目录后重新提出", readme)
+
+    def test_target_platform_and_interfaces_become_persistent_cargo_facts(self) -> None:
+        """表单选择必须落入根 Cargo，后续构建不能依赖会话记忆猜测。"""
+        manifest_path = (
+            ROOT
+            / ".agents/skills/desktop-initialize-rust-project/assets/rust-lib-cli/Cargo.toml"
+        )
+        manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+        metadata = manifest["workspace"]["metadata"]["agent-first-harness"]
+        self.assertEqual(metadata, {"target-platforms": [], "interfaces": []})
+
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+        instantiate = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/SKILL.md"
+        )
+        for text in (initialize, instantiate):
+            self.assertIn("[workspace.metadata.agent-first-harness]", text)
+            self.assertIn("target-platforms", text)
+            self.assertIn("interfaces", text)
+        self.assertIn("不得从当前宿主或对话重新推断", initialize)
+        self.assertIn("不得遗留空数组或根据新会话重新猜测", instantiate)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,9 @@ SCRIPT = Path(__file__).with_name("prepare-release-directory.sh")
 POWERSHELL_SCRIPT = Path(__file__).with_name("prepare-release-directory.ps1")
 SKILLS_ROOT = SCRIPT.parents[2]
 TAURI_HELPER = SKILLS_ROOT / "desktop-build-tauri-release" / "scripts" / "prepare-release-directory.sh"
+TAURI_POWERSHELL_HELPER = (
+    SKILLS_ROOT / "desktop-build-tauri-release" / "scripts" / "prepare-release-directory.ps1"
+)
 RUST_SKILL = SKILLS_ROOT / "desktop-build-rust-release" / "SKILL.md"
 TAURI_SKILL = SKILLS_ROOT / "desktop-build-tauri-release" / "SKILL.md"
 CROSS_PLATFORM_SKILL = SKILLS_ROOT / "desktop-prepare-cross-platform-release" / "SKILL.md"
@@ -183,6 +186,7 @@ class PrepareReleaseDirectoryTests(unittest.TestCase):
         """普通 Rust/Tauri/矩阵构建都拒绝 dirty，且不得自动提交或漂移 sourceCommit。"""
 
         self.assertEqual(TAURI_HELPER.read_bytes(), SCRIPT.read_bytes())
+        self.assertEqual(TAURI_POWERSHELL_HELPER.read_bytes(), POWERSHELL_SCRIPT.read_bytes())
         for skill_path in (RUST_SKILL, TAURI_SKILL, CROSS_PLATFORM_SKILL):
             with self.subTest(skill=skill_path.name, parent=skill_path.parent.name):
                 text = skill_path.read_text(encoding="utf-8")
@@ -191,6 +195,14 @@ class PrepareReleaseDirectoryTests(unittest.TestCase):
                 self.assertIn("自动", text)
                 self.assertIn("sourceCommit", text)
                 self.assertIn("HEAD", text)
+
+    def test_tauri_windows_release_route_uses_powershell_helper(self) -> None:
+        """GUI-only Windows 候选必须保留经过同一测试的 PowerShell release helper。"""
+
+        tauri_text = TAURI_SKILL.read_text(encoding="utf-8")
+        self.assertIn("scripts/prepare-release-directory.ps1 -ProjectRoot <project-root>", tauri_text)
+        self.assertIn("Windows 原生路线不得调用 `.sh` helper", tauri_text)
+        self.assertEqual(TAURI_POWERSHELL_HELPER.read_bytes(), POWERSHELL_SCRIPT.read_bytes())
 
     def test_gui_performance_selection_is_tauri_only_and_conditionally_bound(self) -> None:
         """Tauri 逐次选择性能；只有启用分支建立探针和包内运行时绑定。"""

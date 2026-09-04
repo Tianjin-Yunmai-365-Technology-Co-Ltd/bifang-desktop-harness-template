@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from .context import *  # noqa: F403
 
@@ -24,9 +23,10 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
     else:
         current_version = match.group(1)
         try:
-            parsed = datetime.strptime(current_version, "%Y%m%d%H%M").replace(
-                tzinfo=ZoneInfo("Asia/Shanghai")
-            )
+            # 时间版本已经是用户确认的上海本地墙上时间；这里只校验数字是否构成
+            # 真实公历日期和分钟，不做时区换算。Windows 的标准 Python 通常没有
+            # 系统 IANA tzdata，因此不能为了纯格式校验加载 ZoneInfo。
+            parsed = datetime.strptime(current_version, "%Y%m%d%H%M")
         except ValueError:
             fail(  # noqa: F405
                 errors,

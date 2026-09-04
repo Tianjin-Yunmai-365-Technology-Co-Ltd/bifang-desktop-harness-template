@@ -1,4 +1,4 @@
 interface:
   display_name: "构建 Tauri 发布候选"
-  short_description: "从 clean HEAD 按本次性能选择构建可追溯 Tauri 安装包"
-  default_prompt: "使用 $desktop-build-tauri-release；普通构建不自动提交，dirty 时停止，在任何测试或编译前解析本次性能选择，启用时运行原生 Release no-bundle 性能门禁，关闭时记录 Not run 与风险，再构建 DMG/NSIS；确保 manifest 的 sourceCommit 等于 HEAD。"
+  short_description: "从 clean HEAD 原生或交叉构建可追溯 Tauri DMG/NSIS 候选"
+  default_prompt: "使用 $desktop-build-tauri-release 构建明确请求的发布候选；读取根 Cargo 的目标平台事实，macOS 原生生成 DMG、Windows 原生生成 x64 NSIS，macOS 可用 xwin 回退。普通本地试包转到专用 Skill，不升级为发布。"

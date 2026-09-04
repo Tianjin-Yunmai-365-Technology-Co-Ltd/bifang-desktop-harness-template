@@ -190,6 +190,52 @@ class ReleaseNotesContractValidationTests(unittest.TestCase):
         self.assertTrue(any("MAX_RELEASES = 5" in error for error in errors), errors)
 
 
+class TauriLocalInstallSkillValidationTests(unittest.TestCase):
+    """锁定本地 Windows 试包不被升级为发布候选。"""
+
+    @staticmethod
+    def _validate(source: str) -> list[str]:
+        """在隔离 Skill 上运行本地试包静态合同。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "SKILL.md"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_tauri_local_install_contract(errors, local_skill=path)
+            return errors
+
+    def test_rejects_local_build_that_enters_release_preparation(self) -> None:
+        """本地试包不得要求提交或生成正式发布说明。"""
+        source = release.TAURI_LOCAL_INSTALL_SKILL.read_text(encoding="utf-8")
+        for anchor in (
+            "不得调用 `$desktop-prepare-release`",
+            "不得生成、读取、校验或改写 `release-notes.json`",
+            "不得创建、刷新或写入项目根 `release/`",
+        ):
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "允许进入发布准备", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate(mutated)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_local_build_that_asks_release_test_choices(self) -> None:
+        """E2E/性能选择只属于候选，不得污染普通本地试包。"""
+        source = release.TAURI_LOCAL_INSTALL_SKILL.read_text(encoding="utf-8")
+        anchor = "本 Skill 不询问 E2E 开/关或性能测试开/关"
+        mutated = source.replace(anchor, "本 Skill 每次询问测试选择", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_local_build_without_exact_native_unsigned_command(self) -> None:
+        """Windows 试包必须原生、NSIS、x64 且显式不签名。"""
+        source = release.TAURI_LOCAL_INSTALL_SKILL.read_text(encoding="utf-8")
+        anchor = "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign"
+        mutated = source.replace(anchor, "pnpm tauri build --bundles all", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+
 class GuiPerformanceContractValidationTests(unittest.TestCase):
     """锁定每次性能选择以及启用、关闭和 xwin 分支的静态契约。"""
 
@@ -296,6 +342,15 @@ class GuiPerformanceContractValidationTests(unittest.TestCase):
 
         self.assertTrue(any(anchor in error for error in errors), errors)
 
+    def test_rejects_missing_native_windows_performance_branch(self) -> None:
+        """Windows 原生候选必须能运行真实探针，不能沿用 xwin 的 Unverified。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "原生 Windows 且性能启用时使用相同的 `performanceStatus: passed | waived`"
+        mutated = source.replace(anchor, "Windows 原生性能固定 Unverified", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
     def test_rejects_unconditional_xwin_unverified_status(self) -> None:
         """xwin 只有在性能启用时才是 Unverified，关闭时必须保持 Not run。"""
 
@@ -357,6 +412,39 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
             "--target x86_64-pc-windows-msvc"
         )
         mutated = source.replace(anchor, "CI=true pnpm tauri build", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_exact_native_windows_route(self) -> None:
+        """Windows 原生候选不得退化成 xwin 或无目标的模糊命令。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = (
+            "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc "
+            "--config src-tauri/tauri.release.conf.json"
+        )
+        mutated = source.replace(anchor, "pnpm tauri build --runner cargo-xwin", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_native_windows_route_that_claims_runtime_verified(self) -> None:
+        """原生编译成功不能代替真实安装和运行验收。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = (
+            "在最终候选 E2E/验收真实执行安装和运行之前，固定记录 "
+            "`runtimeVerification: Unverified`"
+        )
+        mutated = source.replace(anchor, "构建成功后固定记录 `runtimeVerification: passed`", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_windows_powershell_release_helper(self) -> None:
+        """Windows GUI-only 下游不能依赖已裁掉的 CLI Skill 或 POSIX shell。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "scripts/prepare-release-directory.ps1 -ProjectRoot <project-root>"
+        mutated = source.replace(anchor, "scripts/prepare-release-directory.sh <project-root>", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_mutated_skill(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
