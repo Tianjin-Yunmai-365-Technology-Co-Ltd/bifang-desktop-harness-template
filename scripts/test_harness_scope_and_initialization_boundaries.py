@@ -69,7 +69,7 @@ class HarnessScopeAndInitializationBoundaryTests(unittest.TestCase):
             "不执行 Git 可用性、版本、身份、提交模板或仓库配置检查",
             instantiate,
         )
-        self.assertIn("表单完成与最终汇总确认前不检查或安装 Git", initialize)
+        self.assertIn("表单完成与最终汇总确认前不检查、安装或升级 Git", initialize)
         self.assertIn("Git 与 Rust 始终是必需项", initialize)
         before_commit, commit_step = initialize.split("14. 裁剪完成后", maxsplit=1)
         self.assertIn("$desktop-check-development-environment", before_commit)

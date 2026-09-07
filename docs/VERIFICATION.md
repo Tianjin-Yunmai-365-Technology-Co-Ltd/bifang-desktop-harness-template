@@ -30,7 +30,7 @@
 | 并行协作 | Worktree 助手隔离单元测试 + 校验器契约检查 | 只有用户明确要求、持久策略启用且至少两个写入范围独立时采用；否则单 Agent |
 | Harness 版本 | 校验器正向与非法日期负向测试 | `Version.md` 的当前版本是上海时区合法 `YYYYMMDDHHMM`，当前摘要一致且下游 SemVer 不受污染 |
 | 当前描述 | 校验器正向与隔离负向注入 | 已替代的接口、Git、目录、命名和前端默认不得回归 |
-| 开发环境门禁 | 隔离测试 + Shell/PowerShell 静态或原生检查 | 只在中性初始化主动运行，或在真实测试/构建命令已出现受管环境错误后执行对应安装与单次重试；不得由任务、构建或证据状态预触发。Rust 与 GUI 条件下的 Rust/Node.js/pnpm/MSVC 状态、安装、校验和失败退出可审计；始终拒绝 WEB 参数 |
+| 开发环境门禁 | 隔离测试 + Shell/PowerShell 静态或原生检查 | 只在中性初始化主动运行，或在真实测试/构建命令已出现受管环境错误后执行对应恢复与单次重试；不得由任务、构建或证据状态预触发。隔离覆盖 Git/Rust/Node.js/pnpm 与适用 xwin 的缺失安装、明确低于下界自动升级、范围内复用、只读 `upgrade-required` 且零写入，以及显式上界以上、预发布、无法解析、损坏状态失败关闭；Node.js 25.x 升级到下一允许段，`cargo-xwin <0.23.1` 升级而 `>=0.24.0` 阻断。不得以降低门禁、回退依赖、shim 或替代工具链通过；MSVC、校验和与失败退出可审计，始终拒绝 WEB 参数 |
 | Harness 升级 | 真实 CLI + 隔离 Git 测试夹具 | `plan`/`apply`/`record`、三方比较、引导、来源与控制状态绑定、权限、`protected`/`tombstone`；遇到符号链接与碰撞时默认拒绝，真实下游仍需前向证据 |
 | Rust 资产 | 声明的 Rust 工具链 | 日常开发只运行本次必要单元测试；显式构建只追加 workspace 全量非空单元测试与实际构建，E2E 只在最终候选形成后按本次选择执行 |
 | GUI 初始化 E2E | `verify-gui-lifecycle-contract.mjs` + `$desktop-test-gui-initialization-e2e` + Computer Use | 只在含 GUI 的一次性初始化提交前读取九项 profile；始终验证 system-locale/updater/window-state 三项 Rust-only 基线与 dialog 固定 WebView 基线（依赖、顺序、`dialog:default`、零额外文件系统授权），再按选择验证单实例、托盘、通知、自启恢复、深链接与全局快捷键回收，禁用能力无残留；所有组合验证侧栏、设置页、实际菜单页面并回收进程。需安装包的深链接场景明确 `Not verified`；无法观察或恢复即阻断，不作为候选验收证据 |

@@ -4,45 +4,45 @@
 
 ## 触发与恢复闭环
 
-- 初始化阶段在写入脚手架前对已选接口运行一次常规门禁，允许安装缺失的适用工具。
+- 初始化阶段在写入脚手架前对已选接口运行一次常规门禁，允许安装缺失的适用工具，并自动升级可证明低于最低下界的已有工具。
 - 初始化完成后先运行真实测试或构建命令。只有保存的命令、退出状态与脱敏诊断明确指向本参考管理的工具链、目标或系统依赖时，才选择对应门禁；代码错误、测试断言、普通依赖解析/网络、产品配置、凭据或签名失败不适用。
-- 门禁成功后只重试原失败命令一次。重试仍失败时停止并同时报告原错误与恢复结果，不循环安装、不扩大到无关门禁。
-- macOS→Windows x64 专用门禁只在实际失败命令就是已批准的 xwin 构建且错误属于该工具集合时运行；不得仅因选择了该目标或缺少历史证据提前安装。
+- 门禁成功后只重试原失败命令一次。重试仍失败时停止并同时报告原错误与恢复结果，不循环安装/升级、不扩大到无关门禁。
+- macOS→Windows x64 专用门禁只在实际失败命令就是已批准的 xwin 构建且错误属于该工具集合时运行；不得仅因选择了该目标或缺少历史证据提前安装/升级。
 
 ## 可执行入口
 
-- macOS/Linux：`scripts/development-environment-gates.sh --install-missing --interfaces <comma-separated-selection>`。
-- Windows PowerShell 5.1 或更高版本：`scripts/development-environment-gates.ps1 -Interfaces <selection>`。
-- 仅在只读审计时使用 `--check-only` 或 `-CheckOnly`。退出码 `20` 表示至少缺少一个必需工具。
+- macOS/Linux：`scripts/development-environment-gates.sh --install-missing --interfaces <comma-separated-selection>`。保留的 `--install-missing` 入口名同时处理缺失安装和低于下界升级。
+- Windows PowerShell 5.1 或更高版本：`scripts/development-environment-gates.ps1 -Interfaces <selection>`；默认写入模式同样安装缺失项并升级低于下界的已有项。
+- 仅在只读审计时使用 `--check-only` 或 `-CheckOnly`。该模式始终零写入：缺失项报告 `missing`，可证明低于最低下界的项报告 `upgrade-required`；退出码 `20` 表示至少一个必需工具处于这两类待恢复状态。
 - 解析稳定的 `gate.<environment>.<field>=<value>` 行。Git 与 Rust 始终为必需项，初始化完成输出必须复述 `gate.git.status/version/change`。Windows 还必须具备 MSVC Build Tools。仅当选择包含 `GUI` 时才需要 Node.js 和 pnpm；否则两者都必须为 `not-required`。
-- macOS Tauri Windows x64 候选在常规 GUI 门禁成功后，额外运行 `scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc`。只读审计使用 `--check-only`；退出码 `20` 表示缺失，`30` 表示非 macOS。
+- macOS Tauri Windows x64 候选在常规 GUI 门禁成功后，额外运行 `scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc`。只读审计使用 `--check-only`；退出码 `20` 表示缺失或需要升级，`30` 表示非 macOS。
 
 ## 探测矩阵
 
-| 环境 | 适用条件 | 探测命令 | 缺失时行为 |
+| 环境 | 适用条件 | 探测命令 | 缺失或低于下界时行为 |
 |---|---|---|---|
-| Git | 始终 | `git --version` | 要求稳定版 `>=2.0.0`；macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，安装后重新探测。 |
-| Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | 从已验证的官方 rustup 制品安装稳定版 Rust，然后重复全部探测。 |
+| Git | 始终 | `git --version` | 要求稳定版 `>=2.0.0`；缺失时安装，低于 2.0.0 时升级。macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，然后重新探测。 |
+| Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | 缺失时从已验证的官方 rustup 制品安装稳定版 Rust，可证明低于 MSRV 时升级 stable，然后重复全部探测。 |
 | MSVC Build Tools | Windows Rust 目标 | `cl`，随后使用 `vswhere` 查找 VC 工具组件 | 安装 Microsoft 已签名的 Visual Studio Build Tools C++ 工作负载，然后重新探测。 |
-| Node.js | 已选择 `GUI` | `node --version` | 要求 `^24.15.0 || >=26.0.0`；缺失时从官方倒序索引选择当前最新兼容稳定版，验证宿主归档校验和后安装并重新探测。 |
-| pnpm | 已选择 `GUI` | `pnpm --version` | 要求 `>=11.24.0`；缺失时使用 Node.js 的 npm 客户端，从官方 npm 软件包仓库按兼容范围 `pnpm@>=11.24.0` 解析当前最新稳定版并安装到用户级前缀目录，然后重新探测。 |
+| Node.js | 已选择 `GUI` | `node --version` | 要求 `^24.15.0 || >=26.0.0`；缺失、低于 24.15.0 或处于 25.x 时，从官方倒序索引选择第一个满足门禁的当前稳定版，验证宿主归档校验和后安装或升级并重新探测。25.x 按低于下一段允许下界 26.0.0 处理。 |
+| pnpm | 已选择 `GUI` | `pnpm --version` | 要求 `>=11.24.0`；缺失或低于下界时使用 Node.js 的 npm 客户端，从官方 npm 软件包仓库以 `pnpm@>=11.24.0` 解析当前稳定版并安装或升级到用户级前缀目录，然后重新探测。 |
 | LLVM/LLD | macOS Tauri→Windows x64 | `llvm-rc`、`lld-link` | 使用既有 Homebrew 分别安装 `llvm` 与 `lld`，把两个 formula 的 `bin` 目录加入当前构建 PATH，然后复探；兼容 Homebrew 将 LLD 从 LLVM 拆包。 |
 | NSIS | macOS Tauri→Windows x64 | `makensis` | 使用既有 Homebrew 安装 `nsis`，然后复探；macOS 不支持生成 WiX/MSI。 |
 | Windows Rust target | macOS Tauri→Windows x64 | `rustup target list --installed` | 运行 `rustup target add x86_64-pc-windows-msvc` 并复探。 |
-| cargo-xwin | macOS Tauri→Windows x64 | `cargo-xwin --version` | 要求稳定版 `>=0.23.1, <0.24.0`；缺失时运行 `cargo install --locked --version '>=0.23.1, <0.24.0' cargo-xwin` 并复探。 |
+| cargo-xwin | macOS Tauri→Windows x64 | `cargo-xwin --version` | 要求稳定版 `>=0.23.1, <0.24.0`；缺失或可解析稳定版低于 0.23.1 时运行 `cargo install --locked --version '>=0.23.1, <0.24.0' cargo-xwin` 安装或升级并复探；`>=0.24.0`、预发布、无法解析或损坏时阻断。 |
 
-低于 2.0.0 或无法识别为稳定发布版的现有 Git、低于 MSRV 或使用预发布通道的现有 Rust 工具链都属于不兼容，而不是缺失。必须停止，绝不得静默替换。现有 Node.js 必须落入 `^24.15.0 || >=26.0.0`（24.15.0 以下与 25.x 不兼容），pnpm 必须为 11.24.0 及以上稳定版，`cargo-xwin` 必须为 `>=0.23.1, <0.24.0` 范围内的稳定版；仅检测到工具存在不证明版本兼容，更不证明单元测试或构建已经通过。
+现有 Git 稳定版低于 2.0.0、Rust 稳定版低于 MSRV、Node.js 低于 24.15.0 或处于 25.x、pnpm 稳定版低于 11.24.0，以及 `cargo-xwin` 稳定版低于 0.23.1，都是可恢复的 `upgrade-required`：写入模式必须走当前宿主受管路线升级并复探，不得把它们降级成警告。现有范围内稳定版本原样复用。`cargo-xwin >=0.24.0`、任何预发布、无法解析或损坏的工具不属于“低于最低下界”的自动升级路径，必须失败关闭。仅检测到工具存在不证明门禁已满足，更不证明单元测试或构建已经通过。
 
 ## 安装安全措施
 
-- Git 只使用宿主既有受管包管理器：macOS 的 Homebrew、Linux 的 `apt-get`/`dnf`/`yum`/`zypper`/`apk`/`pacman`，或 Windows 的 winget `Git.Git`。门禁不得下载并执行临时 Git 安装脚本、不得安装新的包管理器；需要系统权限但没有既有 `sudo`/管理员上下文时阻断。安装结束必须在同一门禁进程重新解析并执行 `git --version`。
-- Rust 使用来自 `https://static.rust-lang.org/rustup/dist`、与架构/libc 匹配的 `rustup-init`，验证相邻的 SHA-256 文件，安装最小稳定版配置档，然后重新探测。
-- Node.js 使用 `https://nodejs.org/dist/index.tab` 的倒序稳定版索引，选择第一个满足 `^24.15.0 || >=26.0.0` 的版本，再验证该版本归档的 `SHASUMS256.txt`，安装到用户级目录并重新探测。不得因缺失而固定安装某个旧 major。
-- pnpm 仅在 GUI 项目中通过 Node.js 附带的 npm 客户端安装兼容范围 `pnpm@>=11.24.0`，由仓库解析当前最新稳定版。npm 必须验证软件包仓库完整性元数据；门禁绝不得执行下载的文本、禁用 TLS、使用 `latest` tag 或选择预发布版 pnpm。
+- Git 只使用宿主既有受管包管理器安装或升级：macOS 的 Homebrew、Linux 的 `apt-get`/`dnf`/`yum`/`zypper`/`apk`/`pacman`，或 Windows 的 winget `Git.Git`。门禁不得下载并执行临时 Git 安装脚本、不得安装新的包管理器；需要系统权限但没有既有 `sudo`/管理员上下文时阻断。安装或升级结束必须在同一门禁进程重新解析并执行 `git --version`。
+- Rust 使用来自 `https://static.rust-lang.org/rustup/dist`、与架构/libc 匹配的 `rustup-init`，验证相邻的 SHA-256 文件，安装最小稳定版配置档；已确认低于 MSRV 时用同一官方路线升级 stable，然后重新探测。
+- Node.js 使用 `https://nodejs.org/dist/index.tab` 的倒序稳定版索引，选择第一个满足 `^24.15.0 || >=26.0.0` 的版本，再验证该版本归档的 `SHASUMS256.txt`，安装或升级到用户级目录并重新探测。不得固定安装某个旧 major 或向下寻找兼容版本。
+- pnpm 仅在 GUI 项目中通过 Node.js 附带的 npm 客户端安装或升级 `pnpm@>=11.24.0`，由仓库解析当前稳定版。npm 必须验证软件包仓库完整性元数据；门禁绝不得执行下载的文本、禁用 TLS、使用 `latest` tag、选择预发布版 pnpm 或回退到更旧依赖。
 - Windows MSVC 使用 `https://aka.ms/vs/17/release/vs_BuildTools.exe`，要求有效的 Microsoft Authenticode 签名，安装 `Microsoft.VisualStudio.Workload.VCTools`，然后重新探测。
-- Tauri xwin 只在 macOS、GUI 已选且 Windows x64 NSIS 已批准时触发。LLVM、LLD 与 NSIS 使用既有 Homebrew，但只作为宿主能力探测，不把 formula 当前解析版本写成项目兼容契约；Rust target 使用 rustup，`cargo-xwin` 使用 Cargo 的 `--locked --version '>=0.23.1, <0.24.0'` 安装。缺少 Homebrew 时阻断并报告，不执行远程 shell 安装器。已存在但缺失必需命令的 formula 或范围外 `cargo-xwin` 视为损坏或不兼容，必须阻断，不得静默升级、替换或重装。
-- 不得静默升级现有工具。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装后探测发生失败时，必须阻断开发。
+- Tauri xwin 只在 macOS、GUI 已选且 Windows x64 NSIS 已批准时触发。LLVM、LLD 与 NSIS 使用既有 Homebrew，但只作为宿主能力探测，不把 formula 当前解析版本写成项目兼容契约；Rust target 使用 rustup，`cargo-xwin` 使用 Cargo 的 `--locked --version '>=0.23.1, <0.24.0'` 安装或升级。缺少 Homebrew 时阻断并报告，不执行远程 shell 安装器。已存在但缺失必需命令的 formula 视为损坏并阻断；低于 0.23.1 的可解析稳定 `cargo-xwin` 升级，`>=0.24.0`、预发布、无法解析或损坏的 `cargo-xwin` 阻断。
+- 只能在本参考规定的触发条件与写入模式下升级现有工具。不得降低最低门禁、回退依赖或锁文件、注入 shim、改用旧版工具或寻找替代工具链来适配旧环境。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装/升级后探测发生失败时，必须阻断开发。
 
 ## 证据记录
 
-记录宿主、已选接口/发布目标、工具需求状态、探测命令、观测版本或 `Missing`、安装来源和变更、安装后探测、最终结果，并将其他平台标记为 `Unverified`。xwin 成功仍把 Windows runtime 记为 `Unverified`。遮盖令牌和不必要的用户主目录路径。该证据不得替代项目构建、测试、产物、冒烟、E2E 或人工复核证据。
+记录宿主、已选接口/发布目标、工具需求状态、探测命令、观测版本或 `Missing`、`missing` / `upgrade-required`、安装/升级来源和 `installed` / `upgraded` 变更、写入后复探、最终结果，并将其他平台标记为 `Unverified`。xwin 成功仍把 Windows runtime 记为 `Unverified`。遮盖令牌和不必要的用户主目录路径。该证据不得替代项目构建、测试、产物、冒烟、E2E 或人工复核证据。

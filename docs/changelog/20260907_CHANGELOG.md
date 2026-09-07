@@ -57,6 +57,7 @@
 
 ## 变更
 
+- `HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE`（所需 Harness 版本为下一次高于 `202609020957` 的时间版本，本轮不改 `Version.md`）：受管开发环境在工具缺失时继续安装，在可证明低于最低下界时改为按当前宿主受管路线自动升级，范围内稳定版原样复用。Node.js 25.x 按低于下一允许段 26.0.0 处理；`cargo-xwin <0.23.1` 升级而 `>=0.24.0` 继续阻断。只读模式保持零写入并报告 `upgrade-required`；高于显式上界、预发布、无法解析或损坏状态失败关闭，且不得降低门禁、回退依赖、注入 shim 或寻找替代工具链来迁就旧环境。触发范围仍限中性初始化或已观察到的真实受管环境错误，同日 Product Spec 与 ADR-20260907-002 已同步；本变更不创建 Verification 证据卷。
 - `HARNESS-DOC-AI-DOWNSTREAM-INSTANTIATION-GUIDE`（所需 Harness 版本为下一次高于 `202609020957` 的时间版本，本轮不改 `Version.md`）：README 新增置前的 AI Agent 快速入口，明确 Harness 源识别条件、`$desktop-instantiate-project` 唯一入口、必读文件、首轮基础字段、确认前零写入、固定复制/身份/裁剪/Git 顺序，以及切换到终端下游后才定义产品的边界；同时提供可直接交给其他 AI 的完整启动提示词。
 - `HARNESS-CHANGE-GUI-RELEASE-PERFORMANCE-BUDGET-V2`（所需 Harness 版本为下一次高于 `202609020957` 的时间版本，本轮不改 `Version.md`）：GUI Release 的启动、交互、Long Task、CPU、RSS 和 RSS 增长允许上限统一放宽 20%，分别调整为 2400/3600 ms、120/<240 ms、Long Task <240 ms、6%/2.4%、360/600 MiB 与 `max(18%, 38.4 MiB)`，并升级为 `gui-release-v2`。预热、样本量、观察时长、循环次数与 50 ms Long Task 记录下限保持不变；旧 v1 证据不能改标、复用或重判。
 - `HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE`（所需 Harness 版本为下一次高于 `202609020957` 的时间版本，本轮不改 `Version.md`）：左侧 user-owned Task 只在用户明确要求时创建，并在派发前以完整路径解析保存项目、用精确 `projectId` 创建项目 Worktree/Local；projectless、默认兜底和其他项目失败关闭。一个结果只派发一次，只有 `clientThreadId` 时作为 `SETUP_PENDING` 返回 queued 引用，不无限等待、重复创建或在当前 Task 偷跑；诊断、实现、相关测试/review 和同范围修复按结果留在一个 Task，标题不再携带可变状态。

@@ -184,13 +184,15 @@ def validate_current_descriptions(errors: list[str]) -> None:
         ENVIRONMENT_SKILL / "SKILL.md": (
             "^24.15.0 || >=26.0.0",
             ">=11.24.0",
-            "最新兼容稳定版",
+            "upgrade-required",
+            "不得降低项目门槛",
         ),
         ENVIRONMENT_SKILL / "references" / "development-environment-gates.md": (
             "^24.15.0 || >=26.0.0",
             ">=11.24.0",
             ">=0.23.1, <0.24.0",
-            "当前最新兼容稳定版",
+            "upgrade-required",
+            "不得降低最低门禁",
         ),
         PREREQUISITE_UNIX: (
             "NODE_REQUIREMENT='^24.15.0 || >=26.0.0'",

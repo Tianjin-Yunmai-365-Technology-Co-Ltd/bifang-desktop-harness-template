@@ -39,7 +39,7 @@
 - 首次脚手架在当前项目根创建 `Cargo.toml`，登记核心与实际选择的适配器；未来只扩展该根清单。
 - GUI `package.json` 必须直接声明带完整三段兼容下界的 `@tabler/icons-react`，并以命名组件提供菜单、操作、状态、空态和图表周边图标；存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji。图表绘制库仍按真实可视化需求选择。所选侧栏的 Logo、所有当前渲染图标和文字必须显式沿同一中心线且无裁切。
 - 含 GUI 的中性初始化必须在相关非空单元测试后、裁剪初始化能力和唯一基线提交前调用 `$desktop-test-gui-initialization-e2e`。先运行 `verify-gui-lifecycle-contract.mjs` 解析九项 profile，再以 `pnpm tauri build --debug --no-bundle` 形成真实本机调试二进制；始终验证 system-locale/updater/window-state 三项 Rust-only 基线、updater `NotConfigured` 零出站和窗口重启恢复/无效状态回退，按 profile 验证六项条件宿主能力的完整结构、命名回归与实际宿主行为或禁用无残留。单实例双启动、托盘生命周期、通知、自启恢复、深链接宿主事件和全局快捷键真实触发/注销只在对应字段启用时执行；macOS 自定义 scheme 的 OS 注册在 debug no-bundle 阶段明确为 `Not verified`。托盘禁用时实测关闭最后窗口退出。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面和未选页面缺席；它不消费 `milestone_e2e`，不写 `release/` 或 Verification，任一适用场景失败、无法观察或无法恢复即阻断初始化。
-- 完整表单确认后、首次脚手架写入前通过环境门禁检查并按需安装 Git。全部检查完成后创建独立 `main` 仓库，已有有效身份保持不变，缺失字段只在 local 作用域使用 Agent 已翻译/转写的 ASCII 设备账户名和 `<ascii-device-username>@gmail.com` 补齐，再运行仓库级提交模板 `install`/`check`。完成报告必须列出 Git 版本、安装变化、身份及来源/作用域、仓库根、模板状态与基线提交；不得修改 global/system、配置 remote 或把派生邮箱声称为真实账户。
+- 完整表单确认后、首次脚手架写入前通过环境门禁检查 Git：缺失时受管安装，可证明低于最低下界时受管升级，范围内稳定版原样复用，随后复探。全部检查完成后创建独立 `main` 仓库，已有有效身份保持不变，缺失字段只在 local 作用域使用 Agent 已翻译/转写的 ASCII 设备账户名和 `<ascii-device-username>@gmail.com` 补齐，再运行仓库级提交模板 `install`/`check`。完成报告必须列出 Git 版本、安装/升级变化、身份及来源/作用域、仓库根、模板状态与基线提交；不得修改 global/system、配置 remote 或把派生邮箱声称为真实账户。
 - 中性脚手架的格式、测试和构建证据只证明工程骨架可用，不构成产品目的获批、业务实现完成或可验收产品候选。
 
 ## Rust 技术选型事实标准
@@ -78,9 +78,9 @@
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
 | 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor 并归零 Patch，独立缺陷 ID 升 Patch，Major 仅由用户批准；三个分量范围均为 `0..100` |
 | 锁文件 | 提交根 `Cargo.lock` | 使用 Cargo 生成；不得手工编辑 |
-| Git | 全部初始化：稳定版 | 完整表单确认后检查；缺失时按受管平台方式安装 registry/官方渠道当前稳定版并复探，现有可用稳定版直接通过 |
-| Node.js | 仅 GUI：`^24.15.0 || >=26.0.0` | 当前完整前端技术族的最低兼容范围；缺失时安装当前受支持 LTS，非 GUI 为 `not-required` |
-| pnpm | 仅 GUI：`>=11.24.0` | 缺失时解析并安装 registry 当前最新兼容稳定版；现有范围内稳定版直接通过，非 GUI 为 `not-required` |
+| Git | 全部初始化：稳定版 `>=2.0.0` | 完整表单确认后检查；缺失时按受管平台方式安装，可证明低于下界时升级，范围内稳定版原样复用，随后复探 |
+| Node.js | 仅 GUI：`^24.15.0 || >=26.0.0` | 缺失、低于 24.15.0 或处于 25.x 时安装/升级到当前满足门禁的稳定版；25.x 按低于下一段允许下界 26.0.0 处理，非 GUI 为 `not-required` |
+| pnpm | 仅 GUI：`>=11.24.0` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，非 GUI 为 `not-required` |
 | MSVC 构建工具 | Windows 缺失时自动安装 | 验证 Microsoft 签名，安装 C++ 工作负载并复探 |
 | Linux 系统开发库（仅 GUI） | Tauri 2 依赖的 webkit2gtk（`webkit2gtk-4.1-dev` 或 `webkit2gtk-4.0-dev`，视发行版而定）、`libgtk-3-dev`、`librsvg2-dev`、`libayatana-appindicator3-dev` 等发行版对应的开发包 | 非 GUI 为 `not-required`；具体包名随发行版包管理器变化，需按目标发行版核对 |
 | macOS Xcode Command Line Tools（仅 GUI） | 缺失时执行 `xcode-select --install` | 非 GUI 为 `not-required` |
@@ -99,7 +99,7 @@ node --version
 pnpm --version
 ```
 
-中性初始化在写入脚手架前使用 `$desktop-check-development-environment` 主动运行一次完整适用门禁。初始化完成后，日常开发和显式构建都先运行本次真实测试/构建命令；只有命令已经失败，且命令、退出状态与脱敏诊断明确指向门禁管理的工具链、目标或系统依赖缺失/不兼容时，才运行对应门禁并重试原命令一次。不得仅因新任务、新会话、显式构建、缺少/过期环境证据、工具链要求或版本可能变化而预检。Rust 构建仍阻断于真实缺失工具链，Windows 同时要求 MSVC；只有 GUI 命令的环境恢复才增加 Node.js 与 pnpm，其他接口组合不得为此安装或升级二者。
+中性初始化在写入脚手架前使用 `$desktop-check-development-environment` 主动运行一次完整适用门禁。初始化完成后，日常开发和显式构建都先运行本次真实测试/构建命令；只有命令已经失败，且命令、退出状态与脱敏诊断明确指向门禁管理的工具链、目标或系统依赖缺失/不兼容时，才运行对应门禁并重试原命令一次。不得仅因新任务、新会话、显式构建、缺少/过期环境证据、工具链要求或版本可能变化而预检。Rust 构建仍阻断于真实缺失或不兼容工具链，Windows 同时要求 MSVC；只有 GUI 命令的环境恢复才增加 Node.js 与 pnpm，其他接口组合不得为此探测、安装或升级二者。
 
 初始化必须调用 Skill 自带入口；初始化后的错误恢复仍复用同一入口，不得临时重写安装命令：
 
@@ -111,7 +111,7 @@ pnpm --version
 .agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
 ```
 
-成功输出必须包含 `gate.git.status=passed` 与 `gate.rust.status=passed`；Rust 门禁接受 1.95.0 及以上稳定版。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.requirement=^24.15.0 || >=26.0.0` 与 `gate.pnpm.requirement=>=11.24.0`；Node.js 25 等上游明确不支持的范围失败关闭，不能仅按数字大小通过。其他接口组合把 Node/pnpm 报为 `not-required`。缺失工具安装时选择当前最新兼容稳定版，现有范围内版本不重装。
+成功输出必须包含 `gate.git.status=passed` 与 `gate.rust.status=passed`；Rust 门禁接受 1.95.0 及以上稳定版。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.requirement=^24.15.0 || >=26.0.0` 与 `gate.pnpm.requirement=>=11.24.0`。写入模式安装缺失工具，并自动升级可证明低于最低下界的工具；Node.js 25.x 按低于下一段允许下界 26.0.0 处理。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退依赖或锁文件、注入 shim，或寻找替代工具链来适配旧环境。
 
 ## 默认依赖
 

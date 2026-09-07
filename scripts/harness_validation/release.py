@@ -281,6 +281,10 @@ def validate_tauri_build_skill_contract(
             "gate.cargo_xwin.requirement=",
             "本门禁不自动安装 Homebrew",
             "gate.path.prepend",
+            "xwin_upgrade_required=1",
+            "overall=upgrade-required",
+            "requested_xwin_change=upgraded",
+            '[ "$xwin_upgrade_required" -eq 0 ] || exit 20',
             "安装后复探仍失败",
         ),
         notarization_helper: (
@@ -368,6 +372,12 @@ def validate_tauri_build_skill_contract(
         xwin_tests: (
             "test_existing_environment_passes_without_installing",
             "test_missing_environment_is_installed_and_reprobed",
+            "test_higher_compatible_cargo_xwin_is_preserved",
+            "test_outdated_cargo_xwin_is_upgraded_and_reprobed",
+            "test_check_only_reports_outdated_cargo_xwin_without_writes",
+            "test_upgrade_failure_does_not_claim_success",
+            "test_upgrade_reprobe_rejects_still_outdated_cargo_xwin",
+            "test_non_upgradeable_cargo_xwin_is_not_replaced",
             "test_check_only_reports_missing_without_writes",
             "test_missing_homebrew_blocks_install",
             "test_formula_install_failure_does_not_claim_success",

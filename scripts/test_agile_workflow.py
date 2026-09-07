@@ -9,6 +9,7 @@ import tempfile
 import unittest
 import zlib
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -114,6 +115,33 @@ class AgentPolicyTests(unittest.TestCase):
         errors: list[str] = []
         initialization.validate_initialization_contract(errors)
         self.assertEqual(errors, [])
+
+    def test_environment_upgrade_contract_requires_windows_regressions_and_dotnet_hashing(
+        self,
+    ) -> None:
+        """Windows 独立升级回归与不依赖 cmdlet 的 SHA-256 helper 都是必需门禁。"""
+        mutations = (
+            (
+                "PREREQUISITE_WINDOWS",
+                initialization.PREREQUISITE_WINDOWS,
+                "[Security.Cryptography.SHA256]::Create()",
+            ),
+            (
+                "PREREQUISITE_WINDOWS_TESTS",
+                initialization.PREREQUISITE_WINDOWS_TESTS,
+                "test_below_minimum_git_is_upgraded_and_reprobed",
+            ),
+        )
+        for attribute, source_path, anchor in mutations:
+            with self.subTest(anchor=anchor), tempfile.TemporaryDirectory() as tmp_dir:
+                source = source_path.read_text(encoding="utf-8")
+                self.assertIn(anchor, source)
+                path = Path(tmp_dir) / source_path.name
+                path.write_text(source.replace(anchor, "removed-contract-anchor", 1), encoding="utf-8")
+                errors: list[str] = []
+                with mock.patch.object(initialization, attribute, path):
+                    initialization.validate_initialization_contract(errors)
+                self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_rust_asset_rejects_non_minimum_compatible_requirements(self) -> None:
         """中性 Rust 资产不能恢复单段版本、精确锁或 Git/tag 依赖。"""

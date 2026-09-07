@@ -296,6 +296,9 @@ RUST_COMMENT_CHECKER_TESTS = (
 PREREQUISITE_UNIX = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.sh"
 PREREQUISITE_WINDOWS = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.ps1"
 PREREQUISITE_TESTS = ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates.py"
+PREREQUISITE_WINDOWS_TESTS = (
+    ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates_windows.py"
+)
 MACOS_XWIN_GATE = ENVIRONMENT_SKILL / "scripts" / "macos-tauri-xwin-gates.sh"
 MACOS_XWIN_GATE_TESTS = (
     ENVIRONMENT_SKILL / "scripts" / "test_macos_tauri_xwin_gates.py"
@@ -362,6 +365,7 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-check-development-environment/scripts/development-environment-gates.sh",
     ".agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1",
     ".agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py",
+    ".agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates_windows.py",
     ".agents/skills/desktop-check-development-environment/scripts/macos-tauri-xwin-gates.sh",
     ".agents/skills/desktop-check-development-environment/scripts/test_macos_tauri_xwin_gates.py",
     ".agents/skills/desktop-instantiate-project/references/initialization-form.md",

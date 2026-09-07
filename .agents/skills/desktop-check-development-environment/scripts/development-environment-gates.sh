@@ -51,6 +51,7 @@ PNPM_CHANGED=existing
 NODE_BIN_DIR=
 PNPM_BIN_DIR=
 CARGO_BIN_DIR=
+GIT_BIN_DIR=
 TEMP_DIR=
 
 # 只清理本进程通过 mktemp 创建的下载目录，不触碰安装目标或用户已有文件。
@@ -100,7 +101,7 @@ download() {
     esac
 }
 
-# 验证现有或新装 Rust 为满足 MSRV 的 stable，禁止自动替换旧版或预发布工具链。
+# 验证现有或新装 Rust 为 stable；可证明低于 MSRV 时返回升级需求。
 validate_rust() {
     rustc_path=$1
     cargo_path=$2
@@ -118,16 +119,18 @@ validate_rust() {
     case "$rust_major:$rust_minor:$rust_patch" in
         *[!0-9:]*|::*|*::|*::*:*) fail 21 "无法识别 Rust 发布版本：$rust_release" ;;
     esac
+    RUST_VERSION=$rust_text
+    CARGO_VERSION=$cargo_text
     if [ "$rust_major" -lt "$MIN_RUST_MAJOR" ] || {
         [ "$rust_major" -eq "$MIN_RUST_MAJOR" ] && [ "$rust_minor" -lt "$MIN_RUST_MINOR" ];
     }; then
-        fail 21 "现有 Rust $rust_release 低于 MSRV $MIN_RUST_MAJOR.$MIN_RUST_MINOR.0"
+        RUST_STATUS=upgrade-required
+        return
     fi
-    RUST_VERSION=$rust_text
-    CARGO_VERSION=$cargo_text
+    RUST_STATUS=passed
 }
 
-# 验证 Node.js 落在 Vite 基线的非连续兼容范围内，不能把可调用误作版本兼容。
+# 验证 Node.js 落在 Vite 基线的非连续范围内；低版本与 25.x 返回升级需求。
 validate_node() {
     node_path=$1
     node_text=$("$node_path" --version 2>/dev/null) || fail 23 "Node.js 探测失败"
@@ -151,11 +154,15 @@ validate_node() {
     elif [ "$node_major" -ge 26 ]; then
         node_compatible=1
     fi
-    [ "$node_compatible" -eq 1 ] || fail 23 "现有 Node.js $node_release 不满足兼容范围 $NODE_REQUIREMENT"
     NODE_VERSION=$node_text
+    if [ "$node_compatible" -eq 1 ]; then
+        NODE_STATUS=passed
+    else
+        NODE_STATUS=upgrade-required
+    fi
 }
 
-# 验证 pnpm 满足声明下界；现有更高稳定版本保留，不进行静默替换。
+# 验证 pnpm 满足声明下界；可证明低于下界时返回升级需求。
 validate_pnpm() {
     pnpm_path=$1
     pnpm_text=$(PATH=$PROBE_PATH:$PATH "$pnpm_path" --version 2>/dev/null) || fail 28 "pnpm 探测失败"
@@ -170,15 +177,17 @@ validate_pnpm() {
     case "$pnpm_major:$pnpm_minor:$pnpm_patch" in
         *[!0-9:]*|::*|*::|*::*:*) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
     esac
+    PNPM_VERSION=$pnpm_text
     if [ "$pnpm_major" -lt 11 ] || {
         [ "$pnpm_major" -eq 11 ] && [ "$pnpm_minor" -lt 24 ];
     }; then
-        fail 28 "现有 pnpm $pnpm_text 低于兼容下界 11.24.0"
+        PNPM_STATUS=upgrade-required
+        return
     fi
-    PNPM_VERSION=$pnpm_text
+    PNPM_STATUS=passed
 }
 
-# Git 是所有初始化路径的基础工具；接受满足下界的稳定版本并保留更高版本。
+# Git 是所有初始化路径的基础工具；低于 2.0.0 时返回升级需求。
 validate_git() {
     git_path=$1
     git_text=$("$git_path" --version 2>/dev/null) || fail 29 "Git 探测失败"
@@ -189,8 +198,12 @@ validate_git() {
     case "$git_major:$git_minor:$git_patch" in
         *[!0-9:]*|::*|*::|*::*:*) fail 29 "现有 Git 不是可识别的稳定发布版：$git_text" ;;
     esac
-    [ "$git_major" -ge 2 ] || fail 29 "现有 Git $git_release 低于兼容下界 2.0.0"
     GIT_VERSION=$git_text
+    if [ "$git_major" -ge 2 ]; then
+        GIT_STATUS=passed
+    else
+        GIT_STATUS=upgrade-required
+    fi
 }
 
 # Linux 包管理器需要提权时只使用既有 sudo；不下载或安装新的包管理器。
@@ -204,8 +217,9 @@ run_git_package_manager() {
     "$sudo_path" "$@"
 }
 
-# 只通过宿主已有的受管包管理器安装缺失 Git，完成后由主流程重新探测。
+# 只通过宿主已有的受管包管理器安装或升级 Git，完成后由主流程重新探测。
 install_git() {
+    requested_change=$1
     git_host_os=$(uname -s 2>/dev/null) || fail 29 "无法为 Git 安装探测操作系统"
     case "$git_host_os" in
         Darwin)
@@ -219,10 +233,11 @@ install_git() {
                 done
             fi
             [ -n "$brew_path" ] || fail 29 "macOS 安装 Git 需要既有 Homebrew；门禁不会自动安装 Homebrew"
-            printf '正在通过既有 Homebrew 安装缺失的 Git。\n' >&2
+            printf '正在通过既有 Homebrew 安装或升级 Git。\n' >&2
             "$brew_path" install git || fail 29 "Homebrew 安装 Git 失败"
             brew_git_prefix=$($brew_path --prefix git 2>/dev/null || true)
             if [ -n "$brew_git_prefix" ] && [ -d "$brew_git_prefix/bin" ]; then
+                GIT_BIN_DIR=$brew_git_prefix/bin
                 PROBE_PATH=$brew_git_prefix/bin:$PROBE_PATH
             fi
             ;;
@@ -236,7 +251,7 @@ install_git() {
                 fi
             done
             [ -n "$git_manager" ] || fail 29 "Linux 安装 Git 需要受支持的既有系统包管理器（apt-get/dnf/yum/zypper/apk/pacman）"
-            printf '正在通过既有 %s 安装缺失的 Git。\n' "$git_manager" >&2
+            printf '正在通过既有 %s 安装或升级 Git。\n' "$git_manager" >&2
             case "$git_manager" in
                 apt-get)
                     run_git_package_manager "$manager_path" update || fail 29 "apt-get 更新软件包索引失败"
@@ -250,7 +265,7 @@ install_git() {
             ;;
         *) fail 29 "不支持在此 Unix 操作系统自动安装 Git：$git_host_os" ;;
     esac
-    GIT_CHANGED=installed
+    GIT_CHANGED=$requested_change
 }
 
 # 将 Unix 宿主映射到 Rust 官方 rustup-init target；Linux libc 无法确定时停止而不猜测。
@@ -292,8 +307,9 @@ host_rustup_target() {
     esac
 }
 
-# 下载宿主匹配的官方 rustup-init，核对发布摘要后安装 stable 并加入本次复探路径。
+# 下载宿主匹配的官方 rustup-init，核对发布摘要后安装或升级 stable 并加入本次复探路径。
 install_rust() {
+    requested_change=$1
     command -v curl >/dev/null 2>&1 || fail 22 "安装 Rust 需要 curl"
     host_rustup_target
     TEMP_DIR=$(mktemp -d) || fail 22 "无法创建临时目录"
@@ -305,7 +321,7 @@ install_rust() {
     checksum_path=$TEMP_DIR/rustup-init.sha256
     cargo_home=${CARGO_HOME:-${HOME:?必须设置 HOME}/.cargo}
     rustup_home=${RUSTUP_HOME:-${HOME:?必须设置 HOME}/.rustup}
-    printf '正在从 %s 安装缺失的 Rust 到 %s（PATH 将添加 %s/bin）。\n' "$release_base" "$rustup_home" "$cargo_home" >&2
+    printf '正在从 %s 安装或升级 Rust stable 到 %s（PATH 将添加 %s/bin）。\n' "$release_base" "$rustup_home" "$cargo_home" >&2
     download "$installer_url" "$installer_path" || fail 22 "Rust 安装器下载失败"
     download "$checksum_url" "$checksum_path" || fail 22 "Rust 安装器校验和下载失败"
     expected_sum=$(awk '{ print $1; exit }' "$checksum_path")
@@ -316,7 +332,7 @@ install_rust() {
     CARGO_HOME=$cargo_home RUSTUP_HOME=$rustup_home "$installer_path" -y --profile minimal --default-toolchain stable || fail 22 "Rust 安装失败"
     CARGO_BIN_DIR=$cargo_home/bin
     PROBE_PATH=$CARGO_BIN_DIR:$PROBE_PATH
-    RUST_CHANGED=installed
+    RUST_CHANGED=$requested_change
     cleanup
     TEMP_DIR=
 }
@@ -349,8 +365,9 @@ sha256_file() {
     fi
 }
 
-# 从官方倒序索引选择当前最新兼容稳定版，校验发行摘要后原子移动到用户级版本目录。
+# 从官方倒序索引选择当前最新满足门禁的稳定版，用于安装或升级。
 install_node() {
+    requested_change=$1
     command -v curl >/dev/null 2>&1 || fail 26 "安装 Node.js 需要 curl"
     command -v tar >/dev/null 2>&1 || fail 26 "安装 Node.js 需要 tar"
     host_node_tuple
@@ -373,7 +390,7 @@ install_node() {
     archive_path=$TEMP_DIR/$archive_name
     sums_path=$TEMP_DIR/SHASUMS256.txt
     release_base=$node_dist_base/$node_version
-    printf '正在安装缺失的最新兼容稳定 Node.js %s，来源为 %s，目标为用户级目录。\n' "$node_version" "$release_base" >&2
+    printf '正在安装或升级到最新满足门禁的稳定 Node.js %s，来源为 %s，目标为用户级目录。\n' "$node_version" "$release_base" >&2
     download "$release_base/$archive_name" "$archive_path" || fail 26 "Node.js 归档下载失败"
     download "$release_base/SHASUMS256.txt" "$sums_path" || fail 26 "Node.js 校验和下载失败"
     expected_sum=$(awk -v name="$archive_name" '$2 == name { print $1; exit }' "$sums_path")
@@ -393,42 +410,41 @@ install_node() {
     fi
     NODE_BIN_DIR=$install_dir/bin
     PROBE_PATH=$NODE_BIN_DIR:$PROBE_PATH
-    NODE_CHANGED=installed
+    NODE_CHANGED=$requested_change
     cleanup
     TEMP_DIR=
 }
 
-# 仅在 GUI 项目缺失 pnpm 时，通过 Node 自带 npm 安装满足最低要求的兼容范围。
+# 仅在 GUI 项目中通过 Node 自带 npm 安装缺失 pnpm，或升级低于门禁的 pnpm。
 install_pnpm() {
+    requested_change=$1
     npm_path=$(find_tool npm 2>/dev/null || true)
     [ -n "$npm_path" ] || fail 28 "为 GUI 开发安装 pnpm 需要 npm"
     pnpm_home=${AFH_PNPM_HOME:-${HOME:?必须设置 HOME}/.local/share/agent-first-pnpm}
     mkdir -p "$pnpm_home" || fail 28 "无法创建 pnpm 安装根目录"
-    printf '正在从官方 npm 软件包仓库把缺失的 pnpm %s 安装到用户级目录。\n' "$PNPM_INSTALL_REQUIREMENT" >&2
+    printf '正在从官方 npm 软件包仓库安装或升级 pnpm %s 到用户级目录。\n' "$PNPM_INSTALL_REQUIREMENT" >&2
     PATH=$PROBE_PATH:$PATH "$npm_path" install --global --prefix "$pnpm_home" "$PNPM_INSTALL_REQUIREMENT" || fail 28 "pnpm 安装失败"
     PNPM_BIN_DIR=$pnpm_home/bin
     PROBE_PATH=$PNPM_BIN_DIR:$PROBE_PATH
-    PNPM_CHANGED=installed
+    PNPM_CHANGED=$requested_change
 }
 
 git_path=$(find_tool git 2>/dev/null || true)
 if [ -n "$git_path" ]; then
     validate_git "$git_path"
-    git_missing=0
 else
     GIT_VERSION=Missing
-    git_missing=1
+    GIT_STATUS=missing
 fi
 
 rustc_path=$(find_tool rustc 2>/dev/null || true)
 cargo_path=$(find_tool cargo 2>/dev/null || true)
 if [ -n "$rustc_path" ] && [ -n "$cargo_path" ]; then
     validate_rust "$rustc_path" "$cargo_path"
-    rust_missing=0
 else
-    rust_missing=1
     RUST_VERSION=Missing
     CARGO_VERSION=Missing
+    RUST_STATUS=missing
 fi
 
 if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
@@ -436,75 +452,88 @@ if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
     pnpm_path=$(find_tool pnpm 2>/dev/null || true)
     if [ -n "$node_path" ]; then
         validate_node "$node_path"
-        node_missing=0
     else
         NODE_VERSION=Missing
-        node_missing=1
+        NODE_STATUS=missing
     fi
     if [ -n "$pnpm_path" ]; then
         validate_pnpm "$pnpm_path"
-        pnpm_missing=0
     else
         PNPM_VERSION=Missing
-        pnpm_missing=1
+        PNPM_STATUS=missing
     fi
 else
     NODE_VERSION=Not-required
     PNPM_VERSION=Not-required
-    node_missing=0
-    pnpm_missing=0
+    NODE_STATUS=not-required
+    PNPM_STATUS=not-required
 fi
 
 if [ "$MODE" = check ]; then
-    printf 'gate.git.status=%s\n' "$([ "$git_missing" -eq 0 ] && printf passed || printf missing)"
+    printf 'gate.git.status=%s\n' "$GIT_STATUS"
     printf 'gate.git.requirement=%s\n' "$GIT_REQUIREMENT"
     printf 'gate.git.version=%s\n' "$GIT_VERSION"
-    printf 'gate.rust.status=%s\n' "$([ "$rust_missing" -eq 0 ] && printf passed || printf missing)"
+    printf 'gate.rust.status=%s\n' "$RUST_STATUS"
     printf 'gate.rust.version=%s\n' "$RUST_VERSION"
-    printf 'gate.node.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 0 ] && printf not-required || { [ "$node_missing" -eq 0 ] && printf passed || printf missing; })"
+    printf 'gate.node.status=%s\n' "$NODE_STATUS"
     printf 'gate.node.requirement=%s\n' "$NODE_REQUIREMENT"
     printf 'gate.node.version=%s\n' "$NODE_VERSION"
-    printf 'gate.pnpm.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 0 ] && printf not-required || { [ "$pnpm_missing" -eq 0 ] && printf passed || printf missing; })"
+    printf 'gate.pnpm.status=%s\n' "$PNPM_STATUS"
     printf 'gate.pnpm.requirement=%s\n' "$PNPM_REQUIREMENT"
     printf 'gate.pnpm.version=%s\n' "$PNPM_VERSION"
-    [ "$git_missing" -eq 0 ] && [ "$rust_missing" -eq 0 ] && [ "$node_missing" -eq 0 ] && [ "$pnpm_missing" -eq 0 ] || exit 20
+    [ "$GIT_STATUS" = passed ] &&
+        [ "$RUST_STATUS" = passed ] &&
+        { [ "$NODE_STATUS" = passed ] || [ "$NODE_STATUS" = not-required ]; } &&
+        { [ "$PNPM_STATUS" = passed ] || [ "$PNPM_STATUS" = not-required ]; } || exit 20
     exit 0
 fi
 
-if [ "$git_missing" -eq 1 ]; then
-    install_git
+if [ "$GIT_STATUS" != passed ]; then
+    git_change=upgraded
+    [ "$GIT_STATUS" = missing ] && git_change=installed
+    install_git "$git_change"
     git_path=$(find_tool git 2>/dev/null || true)
     [ -n "$git_path" ] || fail 29 "Git 安装完成后仍无法调用 git 可执行文件"
     validate_git "$git_path"
+    [ "$GIT_STATUS" = passed ] || fail 29 "Git 安装或升级后仍低于门禁 $GIT_REQUIREMENT：$GIT_VERSION"
 fi
 
-if [ "$rust_missing" -eq 1 ]; then
-    install_rust
+if [ "$RUST_STATUS" != passed ]; then
+    rust_change=upgraded
+    [ "$RUST_STATUS" = missing ] && rust_change=installed
+    install_rust "$rust_change"
     rustc_path=$(find_tool rustc 2>/dev/null || true)
     cargo_path=$(find_tool cargo 2>/dev/null || true)
     [ -n "$rustc_path" ] && [ -n "$cargo_path" ] || fail 22 "Rust 安装完成后仍无法调用 rustc 和 cargo"
     validate_rust "$rustc_path" "$cargo_path"
+    [ "$RUST_STATUS" = passed ] || fail 22 "Rust 安装或升级后仍低于 MSRV $MIN_RUST_MAJOR.$MIN_RUST_MINOR.0：$RUST_VERSION"
 fi
 
-if [ "$node_missing" -eq 1 ]; then
-    install_node
+if [ "$NODE_STATUS" != passed ] && [ "$NODE_STATUS" != not-required ]; then
+    node_change=upgraded
+    [ "$NODE_STATUS" = missing ] && node_change=installed
+    install_node "$node_change"
     node_path=$(find_tool node 2>/dev/null || true)
     [ -n "$node_path" ] || fail 26 "Node.js 安装完成后仍无法调用 node 可执行文件"
     validate_node "$node_path"
+    [ "$NODE_STATUS" = passed ] || fail 26 "Node.js 安装或升级后仍不满足门禁 $NODE_REQUIREMENT：$NODE_VERSION"
 fi
 
-if [ "$pnpm_missing" -eq 1 ]; then
-    install_pnpm
+if [ "$PNPM_STATUS" != passed ] && [ "$PNPM_STATUS" != not-required ]; then
+    pnpm_change=upgraded
+    [ "$PNPM_STATUS" = missing ] && pnpm_change=installed
+    install_pnpm "$pnpm_change"
     pnpm_path=$(find_tool pnpm 2>/dev/null || true)
     [ -n "$pnpm_path" ] || fail 28 "pnpm 安装完成后仍无法调用 pnpm 可执行文件"
     validate_pnpm "$pnpm_path"
+    [ "$PNPM_STATUS" = passed ] || fail 28 "pnpm 安装或升级后仍低于门禁 $PNPM_REQUIREMENT：$PNPM_VERSION"
 fi
 
 changed=false
-[ "$GIT_CHANGED" = installed ] && changed=true
-[ "$RUST_CHANGED" = installed ] && changed=true
-[ "$NODE_CHANGED" = installed ] && changed=true
-[ "$PNPM_CHANGED" = installed ] && changed=true
+[ "$GIT_CHANGED" = existing ] || changed=true
+[ "$RUST_CHANGED" = existing ] || changed=true
+[ "$NODE_CHANGED" = existing ] || changed=true
+[ "$PNPM_CHANGED" = existing ] || changed=true
 
 printf 'gate.git.status=passed\n'
 printf 'gate.git.requirement=%s\n' "$GIT_REQUIREMENT"
@@ -522,13 +551,14 @@ printf 'gate.pnpm.requirement=%s\n' "$PNPM_REQUIREMENT"
 printf 'gate.pnpm.version=%s\n' "$PNPM_VERSION"
 printf 'gate.pnpm.change=%s\n' "$PNPM_CHANGED"
 printf 'gate.changed=%s\n' "$changed"
-if [ -n "$CARGO_BIN_DIR" ] || [ -n "$NODE_BIN_DIR" ] || [ -n "$PNPM_BIN_DIR" ]; then
-    path_prepend=${CARGO_BIN_DIR:-}
-    if [ -n "$NODE_BIN_DIR" ]; then
-        [ -n "$path_prepend" ] && path_prepend=$NODE_BIN_DIR:$path_prepend || path_prepend=$NODE_BIN_DIR
-    fi
-    if [ -n "$PNPM_BIN_DIR" ]; then
-        [ -n "$path_prepend" ] && path_prepend=$PNPM_BIN_DIR:$path_prepend || path_prepend=$PNPM_BIN_DIR
-    fi
+if [ -n "$GIT_BIN_DIR" ] || [ -n "$CARGO_BIN_DIR" ] || [ -n "$NODE_BIN_DIR" ] || [ -n "$PNPM_BIN_DIR" ]; then
+    path_prepend=
+    for candidate in "$PNPM_BIN_DIR" "$NODE_BIN_DIR" "$CARGO_BIN_DIR" "$GIT_BIN_DIR"; do
+        [ -n "$candidate" ] || continue
+        case ":$path_prepend:" in
+            *":$candidate:"*) ;;
+            *) [ -n "$path_prepend" ] && path_prepend=$path_prepend:$candidate || path_prepend=$candidate ;;
+        esac
+    done
     printf 'gate.path.prepend=%s\n' "$path_prepend"
 fi

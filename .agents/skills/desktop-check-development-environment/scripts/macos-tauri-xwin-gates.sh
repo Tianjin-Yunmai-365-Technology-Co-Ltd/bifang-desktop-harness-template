@@ -17,6 +17,7 @@ LLD_BIN_DIR=
 NSIS_BIN_DIR=
 CARGO_BIN_DIR=
 CARGO_XWIN_VERSION=Missing
+xwin_upgrade_required=0
 
 # 展示唯一支持的调用形式，避免把常规 GUI 开发误路由到发布工具安装。
 usage() {
@@ -112,7 +113,7 @@ brew_formula_installed() {
     [ -n "$prefix" ] && [ -d "$prefix/bin" ]
 }
 
-# cargo-xwin 是 Cargo 安装的受管工具；既有版本必须落入已验证的兼容范围，不能只检查命令存在。
+# cargo-xwin 是 Cargo 安装的受管工具；明确低于下界时允许升级，其他范围外版本继续失败关闭。
 validate_cargo_xwin() {
     binary=$1
     version_output=$("$binary" --version 2>/dev/null || true)
@@ -138,7 +139,16 @@ validate_cargo_xwin() {
                 ;;
         esac
     done
-    [ "$1" -eq 0 ] && [ "$2" -eq 23 ] && [ "$3" -ge 1 ] || {
+    [ "$1" -eq 0 ] || {
+        printf '错误：既有 cargo-xwin 版本 %s 不满足兼容范围 %s\n' "$candidate" "$CARGO_XWIN_REQUIREMENT" >&2
+        exit 36
+    }
+    if [ "$2" -lt 23 ] || { [ "$2" -eq 23 ] && [ "$3" -lt 1 ]; }; then
+        CARGO_XWIN_VERSION=$candidate
+        xwin_upgrade_required=1
+        return
+    fi
+    [ "$2" -eq 23 ] || {
         printf '错误：既有 cargo-xwin 版本 %s 不满足兼容范围 %s\n' "$candidate" "$CARGO_XWIN_REQUIREMENT" >&2
         exit 36
     }
@@ -147,6 +157,7 @@ validate_cargo_xwin() {
 
 # 重新探测全部必需能力，安装后必须再次通过本函数才能宣称成功。
 probe_all() {
+    xwin_upgrade_required=0
     brew_path=$(find_tool brew 2>/dev/null || true)
     [ -n "$brew_path" ] && activate_brew_formula llvm "$brew_path" || true
     [ -n "$brew_path" ] && activate_brew_formula lld "$brew_path" || true
@@ -202,6 +213,9 @@ emit_status() {
     [ "$nsis_missing" -eq 0 ] || overall=missing
     [ "$target_missing" -eq 0 ] || overall=missing
     [ "$xwin_missing" -eq 0 ] || overall=missing
+    if [ "$overall" = passed ] && [ "$xwin_upgrade_required" -eq 1 ]; then
+        overall=upgrade-required
+    fi
     printf 'gate.tauri_windows_cross.status=%s\n' "$overall"
     printf 'gate.tauri_windows_cross.target=%s\n' "$TARGET"
     printf 'gate.tauri_windows_cross.base=%s\n' "$([ "$base_missing" -eq 0 ] && printf passed || printf missing)"
@@ -213,7 +227,14 @@ emit_status() {
     printf 'gate.nsis.change=%s\n' "$NSIS_CHANGE"
     printf 'gate.rust_target.status=%s\n' "$([ "$target_missing" -eq 0 ] && printf passed || printf missing)"
     printf 'gate.rust_target.change=%s\n' "$TARGET_CHANGE"
-    printf 'gate.cargo_xwin.status=%s\n' "$([ "$xwin_missing" -eq 0 ] && printf passed || printf missing)"
+    if [ "$xwin_missing" -eq 1 ]; then
+        cargo_xwin_status=missing
+    elif [ "$xwin_upgrade_required" -eq 1 ]; then
+        cargo_xwin_status=upgrade-required
+    else
+        cargo_xwin_status=passed
+    fi
+    printf 'gate.cargo_xwin.status=%s\n' "$cargo_xwin_status"
     printf 'gate.cargo_xwin.requirement=%s\n' "$CARGO_XWIN_REQUIREMENT"
     printf 'gate.cargo_xwin.version=%s\n' "$CARGO_XWIN_VERSION"
     printf 'gate.cargo_xwin.change=%s\n' "$XWIN_CHANGE"
@@ -227,7 +248,8 @@ if [ "$MODE" = check ]; then
         [ "$lld_missing" -eq 0 ] &&
         [ "$nsis_missing" -eq 0 ] &&
         [ "$target_missing" -eq 0 ] &&
-        [ "$xwin_missing" -eq 0 ] || exit 20
+        [ "$xwin_missing" -eq 0 ] &&
+        [ "$xwin_upgrade_required" -eq 0 ] || exit 20
     exit 0
 fi
 
@@ -290,7 +312,12 @@ if [ "$target_missing" -eq 1 ]; then
     TARGET_CHANGE=installed
 fi
 
-if [ "$xwin_missing" -eq 1 ]; then
+if [ "$xwin_missing" -eq 1 ] || [ "$xwin_upgrade_required" -eq 1 ]; then
+    if [ "$xwin_upgrade_required" -eq 1 ]; then
+        requested_xwin_change=upgraded
+    else
+        requested_xwin_change=installed
+    fi
     cargo_home=${CARGO_HOME:-${HOME:?必须设置 HOME}/.cargo}
     "$cargo_path" install --locked --version "$CARGO_XWIN_REQUIREMENT" cargo-xwin || {
         printf '%s\n' "错误：cargo-xwin 安装失败" >&2
@@ -298,7 +325,7 @@ if [ "$xwin_missing" -eq 1 ]; then
     }
     CARGO_BIN_DIR=$cargo_home/bin
     prepend_probe_path "$CARGO_BIN_DIR"
-    XWIN_CHANGE=installed
+    XWIN_CHANGE=$requested_xwin_change
 fi
 
 probe_all
@@ -307,7 +334,8 @@ probe_all
     [ "$lld_missing" -eq 0 ] &&
     [ "$nsis_missing" -eq 0 ] &&
     [ "$target_missing" -eq 0 ] &&
-    [ "$xwin_missing" -eq 0 ] || {
+    [ "$xwin_missing" -eq 0 ] &&
+    [ "$xwin_upgrade_required" -eq 0 ] || {
     emit_status
     printf '%s\n' "错误：Tauri xwin 环境安装后复探仍失败" >&2
     exit 37
@@ -320,6 +348,7 @@ changed=false
 [ "$NSIS_CHANGE" = installed ] && changed=true
 [ "$TARGET_CHANGE" = installed ] && changed=true
 [ "$XWIN_CHANGE" = installed ] && changed=true
+[ "$XWIN_CHANGE" = upgraded ] && changed=true
 printf 'gate.changed=%s\n' "$changed"
 
 path_prepend=

@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-07（GUI Release 性能允许上限统一放宽 20% 并启用 `gui-release-v2` 见 ADR-20260907-001；GUI dialog 固定 WebView 基线与默认权限边界见 ADR-20260902-001；GUI 发布性能按次选择见 ADR-20260901-002；此前仍有效决定已综合保留）
+> 最近范围确认：2026-09-07（受管开发环境低于最低门禁时自动升级且禁止兼容回退见 ADR-20260907-002；GUI Release 性能允许上限统一放宽 20% 并启用 `gui-release-v2` 见 ADR-20260907-001；GUI dialog 固定 WebView 基线与默认权限边界见 ADR-20260902-001；此前仍有效决定已综合保留）
 
 ## 一句话目标
 
@@ -35,7 +35,7 @@
 ### 初始化 Git 引导与发布本地提交
 
 - 变更标识：`HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT`；所需 Harness 版本：`202608281139`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
-- 完整表单确认后、首次脚手架写入前，环境门禁检查并按需安装 Git。最终独立仓库建立后，已有有效身份保持不变；缺失字段只在该仓库 local 作用域补齐，名称来自设备账户名的英文翻译/转写，邮箱为 `<ascii-device-username>@gmail.com`。完成输出返回版本、安装变化、身份、来源、作用域、仓库根、模板状态和基线提交。
+- 完整表单确认后、首次脚手架写入前，环境门禁检查 Git：缺失时安装，可证明低于最低下界时按宿主受管路线升级，范围内稳定版原样复用。最终独立仓库建立后，已有有效身份保持不变；缺失字段只在该仓库 local 作用域补齐，名称来自设备账户名的英文翻译/转写，邮箱为 `<ascii-device-username>@gmail.com`。完成输出返回版本、安装/升级变化、身份、来源、作用域、仓库根、模板状态和基线提交。
 - 明确发布请求本身授权复核并本地提交归属明确的已完成改动，然后直接构建，不再重复审批；先提交源码，再从新 HEAD 生成并按需提交发布日志，最终工作树必须干净且构建 `sourceCommit` 精确等于 HEAD。普通构建不自动提交；无关改动、疑似秘密、hook/提交失败或歧义范围都阻断。
 
 ### GUI 官方插件 Skills、三项 Rust-only 固定基线与九字段选择
@@ -73,11 +73,17 @@
 - 选择 `enabled` 或存在硬要求时，在打包前以最终干净提交生成 release-profile 探针候选，测量启动、代表性交互、整进程树 CPU/RSS、重复操作内存增长与退出回收。`gui-release-v2` 预算为启动中位数 2.4 秒/最大 3.6 秒、交互 p95 120 毫秒且单次低于 240 毫秒、Long Task 单次低于 240 毫秒、空闲 CPU p95 单核 6%（隐藏/托盘 2.4%）、稳定 RSS 360 MiB、峰值 600 MiB、20 轮后增长不超过 `max(18%, 38.4 MiB)`。这些允许上限相对 v1 精确放宽 20%；预热、样本量、30 秒观察时长、20 轮循环和 50 毫秒 Long Task 记录下限不变，旧 v1 证据不得改标或复用为 v2。失败先修复、重建、重测；无法安全解决时才询问用户，明确继续只记录 `performanceStatus: waived` 和原失败证据。
 - 选择 `disabled` 且无硬要求时跳过 no-bundle 性能探针、采样与运行时绑定，manifest 记录 `performanceStatus: Not run`、非空原因和剩余风险，并且不得生成或残留 `performanceEvidence`、`performanceProbe`、`performanceWaiver` 或 `performanceRuntimeBinding`。主动关闭不等于通过，也不能覆盖同一候选已产生的真实失败。
 
+### 受管开发环境低于最低门禁时自动升级
+
+- 变更标识：`HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE`；所需 Harness 版本为下一次高于 `202609020957` 的 Harness 时间版本，由发布流程决定物化。本范围不自动改变 `Version.md` 或发布状态。
+- 环境门禁触发范围不变：中性初始化在首次脚手架写入前主动执行一次；初始化完成后只在真实测试/构建命令已出现受管环境错误时针对性恢复并单次重试。写入模式对缺失适用工具执行安装，对可证明低于最低下界的稳定工具按当前宿主受管路线自动升级，对范围内稳定版原样复用。Node.js 25.x 按低于下一段允许下界 26.0.0 处理；`cargo-xwin` 低于 0.23.1 时升级，`>=0.24.0` 仍因越过显式上界而阻断。
+- `--check-only` / `-CheckOnly` 保持零写入，并把低于下界的工具明确报告为 `upgrade-required`。高于显式上界、预发布、无法解析或损坏的现有工具不进入自动升级路径，继续失败关闭。不得降低项目门禁、回退依赖或锁文件、注入 shim、改用旧版工具，或寻找替代工具链来适配旧环境。
+
 ### Rust 1.95 与最新兼容稳定选择
 
 - 变更标识：`HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION`；所需 Harness 版本：`202608281139`。
-- Rust MSRV 提升为 1.95。清单继续表达经过验证的最低兼容范围，新增/主动更新依赖与缺失工具优先选择 registry 当前最新兼容稳定版，经 MSRV、peer、平台和 API/feature 验证后把通过版本写成完整下界；锁文件固定真实解析结果，清单不写 `latest`。已安装工具落入支持范围就直接通过。
-- GUI 当前工具范围是 Node.js `^24.15.0 || >=26.0.0` 与 pnpm `>=11.24.0`；上游明确不支持的版本或 peer 冲突不因版本号更大而通过。
+- Rust MSRV 提升为 1.95。清单继续表达经过验证的最低兼容范围，新增/主动更新依赖与缺失工具优先选择 registry 当前最新兼容稳定版，经 MSRV、peer、平台和 API/feature 验证后把通过版本写成完整下界；锁文件固定真实解析结果，清单不写 `latest`。已安装工具落入支持范围就直接通过，低于工具门禁下界时按 ADR-20260907-002 自动升级。
+- GUI 当前工具范围是 Node.js `^24.15.0 || >=26.0.0` 与 pnpm `>=11.24.0`；Node.js 25.x 自动升级到下一允许段，预发布、无法解析、损坏状态或存在显式上界时越界的版本继续失败关闭。
 
 ### Logo 原始候选稳定预览与选择后处理
 
@@ -229,7 +235,7 @@
 - `$desktop-build-tauri-local-install` 专用于 Windows 原生 x64 NSIS 本地开发试包，允许基于 dirty 工作树构建，但固定为未签名、未安装、未验收、不可分发，不消费发布日志或候选状态。`$desktop-build-tauri-release` 专用于 Tauri 2 GUI 发布候选：macOS 宿主可构建原生 DMG，Windows 原生宿主可构建 x64 NSIS，项目批准 Windows x64 目标时仍可从 macOS 使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 NSIS；不得在 macOS 声称生成只支持 Windows 原生 WiX 的 MSI。
 - macOS→Windows 路线只证明 Windows MSVC 目标可编译并生成 NSIS，不证明 Windows 原生运行、安装或签名成功。清单必须记录 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`buildMode: cross-compiled-xwin`、宿主、目标和 `runtimeVerification: Unverified`；需要原生 Windows/渠道证据时仍使用批准的 Windows 运行器。
 - Windows 原生候选固定使用 `pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --config src-tauri/tauri.release.conf.json`，不传 `--runner cargo-xwin`，并记录 `buildMode: native`。编译成功仍不代替真实安装/运行；E2E 未执行前 `runtimeVerification: Unverified`。GUI-only 下游必须随 Tauri 发布 Skill 保留 PowerShell `release/` helper，不依赖已裁掉的 CLI Skill或 POSIX shell。
-- 中性初始化在写入脚手架前主动运行一次已选接口环境门禁。初始化完成后的 Tauri 交叉构建先使用当前环境执行真实命令；只有该命令已经失败且诊断明确指向受管 xwin 工具时，`$desktop-check-development-environment` 才分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与兼容范围 `cargo-xwin >=0.23.1, <0.24.0`，安装后逐项复探并只重试原命令一次。显式构建、目标选择或缺少环境证据不得提前触发该流程；已存在但缺少必需命令的 formula 或范围外 `cargo-xwin` 视为损坏或不兼容并阻断，不静默替换/重装，缺少既有 Homebrew、安装失败、目标不兼容或复探失败时同样阻断。
+- 中性初始化在写入脚手架前主动运行一次已选接口环境门禁。初始化完成后的 Tauri 交叉构建先使用当前环境执行真实命令；只有该命令已经失败且诊断明确指向受管 xwin 工具时，`$desktop-check-development-environment` 才分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与兼容范围 `cargo-xwin >=0.23.1, <0.24.0`，或升级低于 0.23.1 的可解析稳定 `cargo-xwin`；写入后逐项复探并只重试原命令一次。显式构建、目标选择或缺少环境证据不得提前触发该流程；已存在但缺少必需命令的 formula 视为损坏并阻断，`cargo-xwin >=0.24.0`、预发布、无法解析或损坏状态同样失败关闭，不得通过降级、shim 或替代工具链继续；缺少既有 Homebrew、安装/升级失败、目标不兼容或复探失败时同样阻断。
 - 对 macOS 直接分发的 Developer ID 候选，签名、公证和 ticket stapling 是一个不可拆分的候选阶段。只有 Apple 设备、Developer ID Application 身份、Tauri 支持的一组完整环境凭据或已授权且在线可用的 `notarytool` Keychain profile、`xcrun notarytool`/`stapler` 和批准授权均可用时，才运行不含 `--skip-stapling` 的 DMG 构建；不同凭据模式不得混用，探测不得输出 profile 名或秘密。
 - macOS DMG 构建必须在测试前确认项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的当前 SHA-256 与 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，再把该本地拖拽背景、应用与 `/Applications` 落点及 Finder 窗口状态写入真实卷；headless CI 不得无界等待 Finder AppleScript。所有布局写入、签名、公证和 stapling 完成后，构建与里程碑验收都针对当前最终 DMG 只读验证非空 `.DS_Store`、本地背景、唯一顶层应用包与 Applications 链接，随后才计算或接受 SHA-256；不得自动接受软件许可，任何后处理或重打包都使旧签名、摘要和验收证据失效。
 - 条件只满足签名而不满足公证/stapling 时，不得输出“仅签名”的 Developer ID 候选。签名公证为可选项时，显式使用 `--no-sign` 生成并记录 `unsigned`；产品或渠道要求签名公证时阻断。任一签名、公证、stapling 或验证尝试开始后失败，必须使 macOS 候选失败，绝不得静默降级。
@@ -311,17 +317,17 @@
 - [x] 下游初始化一次确认并持久化四项 Agent 策略；后续发布候选仍逐次确认 E2E，本地开发试包不消费该值，其他能力按策略和适用性判断。
 - [x] 新下游创建在首次写入前用首轮表单一次问出全部尚未解析的基础字段；中英文展示名至少直接提供一个，缺少的另一个自动翻译并随完整汇总确认。基础字段完成后再按实际选择每轮补全一个条件字段；项目路径末级与标识精确一致时直接使用，否则固定追加标识，非空门禁只作用于最终项目根目录。
 - [x] Harness 源和推荐预设都默认 `superpowers: disabled`；只有自定义选择明确启用后才允许调用 `superpowers:*` Skill。
-- [x] 环境门禁只在中性初始化主动执行，或在初始化后真实测试/构建命令已经出现受管环境错误时用于对应安装与单次重试；新任务、新会话、显式构建和环境证据状态都不会触发例行预检。
+- [x] 环境门禁只在中性初始化主动执行，或在初始化后真实测试/构建命令已经出现受管环境错误时用于对应安装/升级与单次重试；新任务、新会话、显式构建和环境证据状态都不会触发例行预检。
 - [x] `$desktop-upgrade-harness` 提供试运行、来源/基线记录、三方差异、冲突阻断、保护清单、`tombstone` 和更新后验证闭环。
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
-- [x] Rust 1.95、前端依赖及 Node.js/pnpm/cargo-xwin 等受管工具统一表达为经过验证的最低兼容范围；选择/安装优先 registry 当前最新兼容稳定版，已安装范围内更高版本直接通过，锁文件固定真实解析结果。
+- [x] Rust 1.95、前端依赖及 Node.js/pnpm/cargo-xwin 等受管工具统一表达为经过验证的最低兼容范围；缺失工具安装，可证明低于最低下界的工具自动升级，范围内稳定版原样复用，只读模式零写入并报告 `upgrade-required`；不得降低门禁或回退依赖来适配旧环境，锁文件继续固定真实解析结果。
 - [x] Rust CLI 构建默认选择 Windows、macOS、Linux 原生矩阵，只有派发前条件不可用才回退当前平台；已启动矩阵失败不会被回退掩盖。
 - [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单，并明确区分 `pending` 与 `ready`。
 - [x] 已配置且条件可用的非交互签名会被尝试并验证，失败使平台构建失败；签名条件不具备时真实记录 `unsigned`，不获取或泄露凭据。
 - [x] Tauri GUI 合同区分 Windows 本地开发试包、Windows 原生 x64 NSIS 发布候选、macOS 原生 DMG 与 macOS→Windows xwin 候选；本地试包不触发发布授权，xwin 不冒充 Windows 原生证据，Windows 原生安装/运行仍待真实下游前向验证。
 - [x] macOS Developer ID 直接分发候选在条件齐全时完成签名、公证、stapling 和验证后再计算摘要；条件不全时禁止只签名中间态，并按渠道要求选择明确 unsigned 或阻断。
-- [x] xwin 门禁能分别处理 Homebrew `llvm`/`lld` 拆包并拒绝损坏 formula；公证探测能安全使用一组完整环境凭据或已授权 Keychain profile，且不输出 profile 名或秘密。
+- [x] xwin 门禁能分别处理 Homebrew `llvm`/`lld` 拆包并拒绝损坏 formula；`cargo-xwin <0.23.1` 自动升级，`>=0.24.0`、预发布、无法解析或损坏状态阻断；公证探测能安全使用一组完整环境凭据或已授权 Keychain profile，且不输出 profile 名或秘密。
 - [x] macOS DMG 构建规则要求最终字节具有真实 Finder 拖拽布局，并以只读挂载检查 `.DS_Store`、本地背景、唯一应用包和 `/Applications` 链接；所有后处理都要求重新签名、公证、摘要与验收。
 - [x] GUI 初始化携带并创建无产品身份的 660×400 DMG 背景，项目配置固定引用项目内 `src-tauri/dmg/background.png`；GUI 身份流程负责正式批准或同路径替换，构建在测试前校验路径、尺寸、摘要与 Tauri 配置一致。
 - [x] GUI 选择后必须完成八项条件能力与侧栏模式的九项专门问询并写入唯一 profile 代码块；`os`（system-locale）、updater、window-state 由独立 Skill 作为不询问的三项 Rust-only 固定基线，dialog 作为不询问且只向主窗口开放精确 `dialog:default` 的固定 WebView 基线，其他插件能力各由独立 Skill 管理，禁用时全部专属依赖与接线缺席。

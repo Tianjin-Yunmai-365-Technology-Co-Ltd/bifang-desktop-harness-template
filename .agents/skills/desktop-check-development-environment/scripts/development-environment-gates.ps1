@@ -44,7 +44,8 @@ function Resolve-GateCommand {
     param([string]$Name)
     foreach ($directory in ($script:ProbePath -split [IO.Path]::PathSeparator)) {
         if ([string]::IsNullOrWhiteSpace($directory)) { continue }
-        foreach ($candidateName in @($Name, "$Name.exe", "$Name.cmd", "$Name.bat")) {
+        # npm/pnpm 同时发布 POSIX 无扩展名 shim 与 Windows 包装器；Windows 只解析本机可执行形态。
+        foreach ($candidateName in @("$Name.exe", "$Name.cmd", "$Name.bat")) {
             $candidate = Join-Path $directory $candidateName
             if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
         }
@@ -74,7 +75,7 @@ function New-GateTemporaryDirectory {
     return $directory
 }
 
-# 验证 Rust 为满足 MSRV 的稳定版本，不自动覆盖旧版或预发布工具链。
+# 验证 Rust 为满足 MSRV 的稳定版本；明确低于下界时返回待升级状态。
 function Test-RustVersion {
     param([string]$RustcPath, [string]$CargoPath)
     $rustText = (& $RustcPath --version 2>$null)
@@ -86,14 +87,41 @@ function Test-RustVersion {
     }
     $rustMajor = [int]$Matches[1]
     $rustMinor = [int]$Matches[2]
-    if ($rustMajor -lt $MinimumRustMajor -or ($rustMajor -eq $MinimumRustMajor -and $rustMinor -lt $MinimumRustMinor)) {
-        Stop-Gate 21 "现有 Rust 低于 MSRV $MinimumRustMajor.$MinimumRustMinor.0：$rustText"
-    }
     $script:RustVersion = $rustText
     $script:CargoVersion = $cargoText
+    if ($rustMajor -lt $MinimumRustMajor -or ($rustMajor -eq $MinimumRustMajor -and $rustMinor -lt $MinimumRustMinor)) {
+        return "upgrade-required"
+    }
+    return "passed"
 }
 
-# 验证 Node.js 落在 Vite 基线的非连续兼容范围内，拒绝低版本与 25.x 空档。
+# 使用 .NET 计算 SHA-256，避免最小 PowerShell 环境尚未自动加载 Get-FileHash 模块。
+function Get-Sha256File {
+    param([string]$Path)
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $algorithm = [Security.Cryptography.SHA256]::Create()
+        try {
+            return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+        } finally {
+            $algorithm.Dispose()
+        }
+    } finally {
+        $stream.Dispose()
+    }
+}
+
+# 验证 Node 安装目录包含官方可执行文件；cmd 仅供显式 file URL 隔离夹具使用。
+function Test-NodeExecutableInDirectory {
+    param([string]$Directory)
+    if (Test-Path -LiteralPath (Join-Path $Directory "node.exe") -PathType Leaf) { return $true }
+    if ($env:AFH_ALLOW_FILE_URLS -eq "1" -and (Test-Path -LiteralPath (Join-Path $Directory "node.cmd") -PathType Leaf)) {
+        return $true
+    }
+    return $false
+}
+
+# 验证 Node.js 落在 Vite 基线范围内；低版本或 25.x 返回待升级状态。
 function Test-NodeVersion {
     param([string]$NodePath)
     $nodeText = (& $NodePath --version 2>$null)
@@ -106,11 +134,12 @@ function Test-NodeVersion {
     $patch = [int]$Matches[3]
     $compatible = ($major -eq 24 -and ($minor -gt 15 -or ($minor -eq 15 -and $patch -ge 0))) -or
         ($major -ge 26)
-    if (-not $compatible) { Stop-Gate 23 "现有 Node.js $nodeText 不满足兼容范围 $NodeRequirement" }
     $script:NodeVersion = $nodeText
+    if (-not $compatible) { return "upgrade-required" }
+    return "passed"
 }
 
-# 验证 pnpm 满足最低兼容版本；已存在的更高稳定版本保持不变。
+# 验证 pnpm 满足最低版本；明确低于下界时返回待升级状态。
 function Test-PnpmVersion {
     param([string]$PnpmPath)
     $pnpmText = (& $PnpmPath --version 2>$null)
@@ -120,13 +149,14 @@ function Test-PnpmVersion {
     }
     $major = [int]$Matches[1]
     $minor = [int]$Matches[2]
-    if ($major -lt 11 -or ($major -eq 11 -and $minor -lt 24)) {
-        Stop-Gate 28 "现有 pnpm $pnpmText 低于兼容下界 11.24.0"
-    }
     $script:PnpmVersion = $pnpmText
+    if ($major -lt 11 -or ($major -eq 11 -and $minor -lt 24)) {
+        return "upgrade-required"
+    }
+    return "passed"
 }
 
-# Git 是所有初始化路径的基础工具；满足下界的现有稳定版本（包括更高版本）保持不变。
+# Git 是所有初始化路径的基础工具；明确低于下界时返回待升级状态。
 function Test-GitVersion {
     param([string]$GitPath)
     $gitText = (& $GitPath --version 2>$null)
@@ -134,21 +164,30 @@ function Test-GitVersion {
     if ($gitText -notmatch '^git version (\d+)\.(\d+)\.(\d+)(?:\.windows\.\d+)?(?:\s.*)?$') {
         Stop-Gate 29 "现有 Git 不是可识别的稳定发布版：$gitText"
     }
-    if ([int]$Matches[1] -lt 2) { Stop-Gate 29 "现有 Git 低于兼容下界 2.0.0：$gitText" }
     $script:GitVersion = $gitText
+    if ([int]$Matches[1] -lt 2) { return "upgrade-required" }
+    return "passed"
 }
 
-# Windows 只通过既有 winget 的受管 Git.Git 软件包安装，并在当前进程刷新常见 Git 路径。
+# Windows 只通过既有 winget 安装或升级 Git.Git，并在当前进程刷新常见 Git 路径。
 function Install-MissingGit {
+    param([ValidateSet("installed", "upgraded")][string]$Change)
     $winget = Resolve-GateCommand "winget"
     if (-not $winget) { Stop-Gate 29 "Windows 安装 Git 需要既有 winget" }
-    [Console]::Error.WriteLine("正在通过既有 winget 安装缺失的 Git.Git。")
-    & $winget install --id Git.Git --exact --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
-    if ($LASTEXITCODE -ne 0) { Stop-Gate 29 "winget 安装 Git.Git 失败" }
-    $candidateBins = @(
-        (Join-Path $env:ProgramFiles "Git\cmd"),
-        (Join-Path $env:LOCALAPPDATA "Programs\Git\cmd")
-    )
+    $action = if ($Change -eq "upgraded") { "升级" } else { "安装" }
+    [Console]::Error.WriteLine("正在通过既有 winget $action Git.Git。")
+    $arguments = @("install", "--id", "Git.Git", "--exact", "--silent", "--disable-interactivity", "--accept-package-agreements", "--accept-source-agreements")
+    if ($Change -eq "upgraded") { $arguments += "--force" }
+    & $winget @arguments
+    if ($LASTEXITCODE -ne 0) { Stop-Gate 29 "winget $action Git.Git 失败" }
+    $candidateBins = if ($env:AFH_PREREQ_PATH) {
+        @()
+    } else {
+        @(
+            (Join-Path $env:ProgramFiles "Git\cmd"),
+            (Join-Path $env:LOCALAPPDATA "Programs\Git\cmd")
+        )
+    }
     foreach ($candidateBin in $candidateBins) {
         if (Test-Path -LiteralPath (Join-Path $candidateBin "git.exe") -PathType Leaf) {
             $script:GitBin = $candidateBin
@@ -157,11 +196,29 @@ function Install-MissingGit {
             break
         }
     }
-    $script:GitChange = "installed"
+    $script:GitChange = $Change
 }
 
-# 下载架构匹配的官方 rustup-init，核对 SHA-256 后安装缺失 stable 工具链。
+# 使用既有 rustup 或已校验的官方 rustup-init 安装/升级 stable 工具链。
 function Install-MissingRust {
+    param([ValidateSet("installed", "upgraded")][string]$Change)
+    $rustup = Resolve-GateCommand "rustup"
+    if ($Change -eq "upgraded" -and $rustup) {
+        [Console]::Error.WriteLine("正在通过既有 rustup 把 Rust 升级到当前 stable 工具链。")
+        & $rustup toolchain install stable --profile minimal | Out-Null
+        if ($LASTEXITCODE -ne 0) { Stop-Gate 22 "Rust stable 工具链升级失败" }
+        & $rustup default stable | Out-Null
+        if ($LASTEXITCODE -ne 0) { Stop-Gate 22 "Rust stable 默认工具链切换失败" }
+        $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path ([Environment]::GetFolderPath("UserProfile")) ".cargo" }
+        $candidateBin = Join-Path $cargoHome "bin"
+        if (Test-Path -LiteralPath $candidateBin -PathType Container) {
+            $script:CargoBin = $candidateBin
+            $script:ProbePath = "$CargoBin$([IO.Path]::PathSeparator)$ProbePath"
+            $env:PATH = $script:ProbePath
+        }
+        $script:RustChange = "upgraded"
+        return
+    }
     $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
     $target = switch ($architecture) {
         "x64" { "x86_64-pc-windows-msvc" }
@@ -173,18 +230,19 @@ function Install-MissingRust {
     $installer = Join-Path $temporary "rustup-init.exe"
     $checksumFile = Join-Path $temporary "rustup-init.exe.sha256"
     $releaseBase = "$base/$target"
-    [Console]::Error.WriteLine("正在从 $releaseBase 把缺失的 Rust stable 安装到当前用户的 rustup 目录。")
+    $action = if ($Change -eq "upgraded") { "升级" } else { "安装" }
+    [Console]::Error.WriteLine("正在从 $releaseBase $action Rust stable 到当前用户的 rustup 目录。")
     Get-OfficialFile "$releaseBase/rustup-init.exe" $installer
     Get-OfficialFile "$releaseBase/rustup-init.exe.sha256" $checksumFile
     $expected = ((Get-Content -LiteralPath $checksumFile -Raw).Trim() -split '\s+')[0].ToLowerInvariant()
-    $actual = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actual = Get-Sha256File $installer
     if ($actual -ne $expected) { Stop-Gate 22 "rustup-init SHA-256 校验失败" }
     & $installer -y --profile minimal --default-toolchain stable
     if ($LASTEXITCODE -ne 0) { Stop-Gate 22 "Rust 安装失败" }
-    $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $HOME ".cargo" }
+    $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path ([Environment]::GetFolderPath("UserProfile")) ".cargo" }
     $script:CargoBin = Join-Path $cargoHome "bin"
     $script:ProbePath = "$CargoBin$([IO.Path]::PathSeparator)$ProbePath"
-    $script:RustChange = "installed"
+    $script:RustChange = $Change
 }
 
 # 验证 Windows Rust 编译所需 MSVC C++ 工具是否可由当前环境定位。
@@ -226,8 +284,9 @@ function Install-MissingMsvc {
     $script:MsvcChange = "installed"
 }
 
-# 从官方倒序索引选择当前最新兼容稳定版，校验 zip 后安装到当前用户目录并维护用户 PATH。
+# 从官方倒序索引选择当前最新合格稳定版，校验 zip 后安装/升级当前用户环境。
 function Install-MissingNode {
+    param([ValidateSet("installed", "upgraded")][string]$Change)
     $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
     $nodeArchitecture = switch ($architecture) {
         "x64" { "x64" }
@@ -256,7 +315,8 @@ function Install-MissingNode {
     $releaseBase = "$base/$version"
     $archive = Join-Path $temporary $archiveName
     $checksums = Join-Path $temporary "SHASUMS256.txt"
-    [Console]::Error.WriteLine("正在从 $releaseBase 把缺失的最新兼容稳定 Node.js $version 安装到用户级目录。")
+    $action = if ($Change -eq "upgraded") { "升级" } else { "安装" }
+    [Console]::Error.WriteLine("正在从 $releaseBase $action 当前最新合格稳定 Node.js $version 到用户级目录。")
     Get-OfficialFile "$releaseBase/$archiveName" $archive
     Get-OfficialFile "$releaseBase/SHASUMS256.txt" $checksums
     $escapedName = [Regex]::Escape($archiveName)
@@ -264,19 +324,19 @@ function Install-MissingNode {
     if (-not $checksumLine) { Stop-Gate 26 "Node.js 校验和列表不包含 $archiveName" }
     $checksumLine -match '^([0-9a-fA-F]{64})' | Out-Null
     $expected = $Matches[1].ToLowerInvariant()
-    $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actual = Get-Sha256File $archive
     if ($actual -ne $expected) { Stop-Gate 26 "Node.js SHA-256 校验失败" }
     $nodeHome = if ($env:AFH_NODE_HOME) { $env:AFH_NODE_HOME } else { Join-Path $env:LOCALAPPDATA "AgentFirstHarness\Node" }
     $installDirectory = Join-Path $nodeHome $version
     if (Test-Path -LiteralPath $installDirectory) {
-        if (-not (Test-Path -LiteralPath (Join-Path $installDirectory "node.exe") -PathType Leaf)) {
+        if (-not (Test-NodeExecutableInDirectory $installDirectory)) {
             Stop-Gate 26 "Node.js 目标已存在但不可用：$installDirectory"
         }
     } else {
         New-Item -ItemType Directory -Force -Path $nodeHome | Out-Null
         Expand-Archive -LiteralPath $archive -DestinationPath $temporary
         $extracted = Join-Path $temporary "node-$version-win-$nodeArchitecture"
-        if (-not (Test-Path -LiteralPath (Join-Path $extracted "node.exe") -PathType Leaf)) {
+        if (-not (Test-NodeExecutableInDirectory $extracted)) {
             Stop-Gate 26 "Node.js 归档不包含预期可执行文件"
         }
         Move-Item -LiteralPath $extracted -Destination $installDirectory
@@ -292,22 +352,29 @@ function Install-MissingNode {
             [Environment]::SetEnvironmentVariable("Path", $newUserPath, "User")
         }
     }
-    $script:NodeChange = "installed"
+    $script:NodeChange = $Change
 }
 
-# 仅为 GUI 项目通过 Node 自带 npm 安装满足最低要求的兼容 pnpm 范围。
+# 仅为 GUI 项目通过 Node 自带 npm 安装或升级满足最低要求的 pnpm。
 function Install-MissingPnpm {
+    param([ValidateSet("installed", "upgraded")][string]$Change)
     $npm = Resolve-GateCommand "npm"
     if (-not $npm) { Stop-Gate 28 "为 GUI 开发安装 pnpm 需要 npm" }
     $pnpmHome = if ($env:AFH_PNPM_HOME) { $env:AFH_PNPM_HOME } else { Join-Path $env:LOCALAPPDATA "AgentFirstHarness\Pnpm" }
     New-Item -ItemType Directory -Force -Path $pnpmHome | Out-Null
-    [Console]::Error.WriteLine("正在从官方 npm 软件包仓库把缺失的 $PnpmInstallRequirement 安装到用户级目录。")
-    & $npm install --global --prefix $pnpmHome $PnpmInstallRequirement
+    $action = if ($Change -eq "upgraded") { "升级" } else { "安装" }
+    [Console]::Error.WriteLine("正在从官方 npm 软件包仓库把 $PnpmInstallRequirement $action 到用户级目录。")
+    if ([IO.Path]::GetExtension($npm) -in @(".cmd", ".bat")) {
+        # PowerShell 5.1 调用批处理包装器时不会自动保护 `>`；显式保留引号，避免版本范围被 cmd.exe 当作重定向。
+        & $npm install --global --prefix $pnpmHome ('"' + $PnpmInstallRequirement + '"')
+    } else {
+        & $npm install --global --prefix $pnpmHome $PnpmInstallRequirement
+    }
     if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm 安装失败" }
     $script:PnpmBin = $pnpmHome
     $script:ProbePath = "$PnpmBin$([IO.Path]::PathSeparator)$ProbePath"
     $env:PATH = $script:ProbePath
-    $script:PnpmChange = "installed"
+    $script:PnpmChange = $Change
 }
 
 try {
@@ -316,75 +383,75 @@ try {
     $cargo = Resolve-GateCommand "cargo"
 
     if ($git) {
-        Test-GitVersion $git
-        $gitMissing = $false
+        $gitState = Test-GitVersion $git
     } else {
         $GitVersion = "Missing"
-        $gitMissing = $true
+        $gitState = "missing"
     }
 
     if ($rustc -and $cargo) {
-        Test-RustVersion $rustc $cargo
-        $rustMissing = $false
+        $rustState = Test-RustVersion $rustc $cargo
     } else {
         $RustVersion = "Missing"
         $CargoVersion = "Missing"
-        $rustMissing = $true
+        $rustState = "missing"
     }
     if ($FrontendRequired) {
         $node = Resolve-GateCommand "node"
         $pnpm = Resolve-GateCommand "pnpm"
         if ($node) {
-            Test-NodeVersion $node
-            $nodeMissing = $false
+            $nodeState = Test-NodeVersion $node
         } else {
             $NodeVersion = "Missing"
-            $nodeMissing = $true
+            $nodeState = "missing"
         }
         if ($pnpm) {
-            Test-PnpmVersion $pnpm
-            $pnpmMissing = $false
+            $pnpmState = Test-PnpmVersion $pnpm
         } else {
             $PnpmVersion = "Missing"
-            $pnpmMissing = $true
+            $pnpmState = "missing"
         }
     } else {
         $NodeVersion = "Not-required"
         $PnpmVersion = "Not-required"
-        $nodeMissing = $false
-        $pnpmMissing = $false
+        $nodeState = "not-required"
+        $pnpmState = "not-required"
     }
     $msvcMissing = -not (Test-MsvcPrerequisite)
 
     if ($CheckOnly) {
-        "gate.git.status=$(if ($gitMissing) { 'missing' } else { 'passed' })"
+        "gate.git.status=$gitState"
         "gate.git.requirement=$GitRequirement"
         "gate.git.version=$GitVersion"
-        "gate.rust.status=$(if ($rustMissing) { 'missing' } else { 'passed' })"
+        "gate.rust.status=$rustState"
         "gate.rust.version=$RustVersion"
-        "gate.node.status=$(if (-not $FrontendRequired) { 'not-required' } elseif ($nodeMissing) { 'missing' } else { 'passed' })"
+        "gate.node.status=$nodeState"
         "gate.node.requirement=$NodeRequirement"
         "gate.node.version=$NodeVersion"
-        "gate.pnpm.status=$(if (-not $FrontendRequired) { 'not-required' } elseif ($pnpmMissing) { 'missing' } else { 'passed' })"
+        "gate.pnpm.status=$pnpmState"
         "gate.pnpm.requirement=$PnpmRequirement"
         "gate.pnpm.version=$PnpmVersion"
         "gate.msvc.status=$(if ($msvcMissing) { 'missing' } else { 'passed' })"
-        if ($gitMissing -or $rustMissing -or $nodeMissing -or $pnpmMissing -or $msvcMissing) { exit 20 }
+        if ($gitState -ne "passed" -or $rustState -ne "passed" -or ($FrontendRequired -and ($nodeState -ne "passed" -or $pnpmState -ne "passed")) -or $msvcMissing) { exit 20 }
         exit 0
     }
 
-    if ($gitMissing) {
-        Install-MissingGit
+    if ($gitState -ne "passed") {
+        $change = if ($gitState -eq "missing") { "installed" } else { "upgraded" }
+        Install-MissingGit $change
         $git = Resolve-GateCommand "git"
         if (-not $git) { Stop-Gate 29 "Git 安装完成后仍无法调用 git 可执行文件" }
-        Test-GitVersion $git
+        $gitState = Test-GitVersion $git
+        if ($gitState -ne "passed") { Stop-Gate 29 "Git 安装或升级后仍不满足 $GitRequirement" }
     }
-    if ($rustMissing) {
-        Install-MissingRust
+    if ($rustState -ne "passed") {
+        $change = if ($rustState -eq "missing") { "installed" } else { "upgraded" }
+        Install-MissingRust $change
         $rustc = Resolve-GateCommand "rustc"
         $cargo = Resolve-GateCommand "cargo"
         if (-not $rustc -or -not $cargo) { Stop-Gate 22 "Rust 安装完成后仍无法调用 rustc 和 cargo" }
-        Test-RustVersion $rustc $cargo
+        $rustState = Test-RustVersion $rustc $cargo
+        if ($rustState -ne "passed") { Stop-Gate 22 "Rust 安装或升级后仍低于 MSRV $MinimumRustMajor.$MinimumRustMinor.0" }
     }
     if ($msvcMissing) {
         Install-MissingMsvc
@@ -392,20 +459,24 @@ try {
             Stop-Gate 27 "Visual Studio Build Tools 安装完成后 MSVC C++ 工作负载仍不可用"
         }
     }
-    if ($nodeMissing) {
-        Install-MissingNode
+    if ($nodeState -ne "passed" -and $nodeState -ne "not-required") {
+        $change = if ($nodeState -eq "missing") { "installed" } else { "upgraded" }
+        Install-MissingNode $change
         $node = Resolve-GateCommand "node"
         if (-not $node) { Stop-Gate 26 "Node.js 安装完成后仍无法调用 node 可执行文件" }
-        Test-NodeVersion $node
+        $nodeState = Test-NodeVersion $node
+        if ($nodeState -ne "passed") { Stop-Gate 26 "Node.js 安装或升级后仍不满足 $NodeRequirement" }
     }
-    if ($pnpmMissing) {
-        Install-MissingPnpm
+    if ($pnpmState -ne "passed" -and $pnpmState -ne "not-required") {
+        $change = if ($pnpmState -eq "missing") { "installed" } else { "upgraded" }
+        Install-MissingPnpm $change
         $pnpm = Resolve-GateCommand "pnpm"
         if (-not $pnpm) { Stop-Gate 28 "pnpm 安装完成后仍无法调用 pnpm 可执行文件" }
-        Test-PnpmVersion $pnpm
+        $pnpmState = Test-PnpmVersion $pnpm
+        if ($pnpmState -ne "passed") { Stop-Gate 28 "pnpm 安装或升级后仍不满足 $PnpmRequirement" }
     }
 
-    $changed = if ($GitChange -eq "installed" -or $RustChange -eq "installed" -or $NodeChange -eq "installed" -or $PnpmChange -eq "installed" -or $MsvcChange -eq "installed") { "true" } else { "false" }
+    $changed = if (@($GitChange, $RustChange, $NodeChange, $PnpmChange, $MsvcChange) | Where-Object { $_ -in @("installed", "upgraded") }) { "true" } else { "false" }
     "gate.git.status=passed"
     "gate.git.requirement=$GitRequirement"
     "gate.git.version=$GitVersion"
