@@ -117,7 +117,7 @@ Helper 输出一个 `schemaVersion: 2`、`kind: gui-release-performance` 的 JSO
 {
   "performanceSelection": "enabled",
   "performanceStatus": "passed",
-  "performanceThresholdProfile": "gui-release-v1",
+  "performanceThresholdProfile": "gui-release-v2",
   "performanceProbe": "example_tool_gui",
   "performanceProbeSha256": "<probe sha256>",
   "performanceEvidence": {
@@ -136,6 +136,8 @@ Helper 输出一个 `schemaVersion: 2`、`kind: gui-release-performance` 的 JSO
   }
 }
 ```
+
+`gui-release-v2` 的固定允许上限为：冷启动中位数 2400 ms、最大值 3600 ms；交互 p95 120 ms、单次严格小于 240 ms；Long Task 严格小于 240 ms；空闲整进程树 CPU p95 6%、隐藏/托盘 2.4%；稳态 RSS 360 MiB、峰值 600 MiB；循环后 RSS 增长不超过 `max(初始 RSS × 18%, 38.4 MiB)`。该 profile 相对 v1 精确放宽 20%，但预热、样本数、观察时长、循环数和 50 ms Long Task 记录下限不变。v1 证据保留原语义，不能仅改 profile 名称后作为 v2 证据。
 
 打包前 staged unsigned runtime 必须与探针逐字节相同。`binding` 只允许 `byte-identical` 或 `verified-signing-transition`：前者要求最终包内 runtime 也逐字节相同；后者必须另外保留签名前相同摘要、签名后 runtime 摘要和签名验证。最终验收重新定位包内 runtime 核对。容器 SHA-256 永远不能填入 `performanceProbeSha256`。
 

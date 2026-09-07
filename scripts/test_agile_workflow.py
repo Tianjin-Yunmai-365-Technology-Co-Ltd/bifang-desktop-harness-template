@@ -384,7 +384,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         """左侧 Task 一次派发、项目绑定且 setup pending 有界返回。"""
         policy = read_repo_text("docs/AGENT_POLICY.md")
         readme = read_repo_text("README.md")
-        product_spec = read_repo_text("docs/product_spec/20260902_product_spec.md")
+        product_spec = read_repo_text("docs/product_spec/20260907_product_spec.md")
 
         for text in (policy, readme, product_spec):
             self.assertIn("`clientThreadId`", text)

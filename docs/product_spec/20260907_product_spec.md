@@ -1,12 +1,12 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-09-02
+> 记忆日期：2026-09-07
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-02（GUI dialog 固定 WebView 基线与默认权限边界见 ADR-20260902-001；GUI 全局快捷键无默认绑定与需求驱动 contract 见 ADR-20260901-004；GUI 官方插件 Skill 与三项 Rust-only 固定基线见 ADR-20260901-003；GUI 发布性能按次选择见 ADR-20260901-002；此前仍有效决定已综合保留）
+> 最近范围确认：2026-09-07（GUI Release 性能允许上限统一放宽 20% 并启用 `gui-release-v2` 见 ADR-20260907-001；GUI dialog 固定 WebView 基线与默认权限边界见 ADR-20260902-001；GUI 发布性能按次选择见 ADR-20260901-002；此前仍有效决定已综合保留）
 
 ## 一句话目标
 
@@ -68,9 +68,9 @@
 
 ### GUI 发布性能按次选择与启用后门禁
 
-- 性能能力变更标识：`HARNESS-FEAT-GUI-RELEASE-PERFORMANCE-GATE`；按次选择变更标识：`HARNESS-FEAT-GUI-PER-RELEASE-PERFORMANCE-SELECTION`；两者所需 Harness 版本均为 `202608281139`，本范围不自动改变 `Version.md`。
+- 性能能力变更标识：`HARNESS-FEAT-GUI-RELEASE-PERFORMANCE-GATE`；按次选择变更标识：`HARNESS-FEAT-GUI-PER-RELEASE-PERFORMANCE-SELECTION`；预算调整变更标识：`HARNESS-CHANGE-GUI-RELEASE-PERFORMANCE-BUDGET-V2`。前两者所需 Harness 版本为 `202608281139`；预算调整所需版本为下一次高于 `202609020957` 的 Harness 时间版本，由发布流程决定物化。本范围不自动改变 `Version.md`。
 - 每次 GUI 发布在任何本地发布提交、测试或编译前解析当次 `performanceSelection: enabled | disabled`。当前请求已经明确时直接复用，否则询问一次；同一发布的修复重跑复用原选择，新发布重新询问。该选择不进入 `docs/AGENT_POLICY.md` frontmatter、不从 `milestone_e2e` 推断，产品/渠道硬要求优先并强制启用。
-- 选择 `enabled` 或存在硬要求时，在打包前以最终干净提交生成 release-profile 探针候选，测量启动、代表性交互、整进程树 CPU/RSS、重复操作内存增长与退出回收。预算为启动中位数 2 秒/最大 3 秒、交互 p95 100 毫秒且单次低于 200 毫秒、空闲 CPU p95 单核 5%（隐藏/托盘 2%）、稳定 RSS 300 MiB、峰值 500 MiB、20 轮后增长不超过 `max(15%, 32 MiB)`。失败先修复、重建、重测；无法安全解决时才询问用户，明确继续只记录 `performanceStatus: waived` 和原失败证据。
+- 选择 `enabled` 或存在硬要求时，在打包前以最终干净提交生成 release-profile 探针候选，测量启动、代表性交互、整进程树 CPU/RSS、重复操作内存增长与退出回收。`gui-release-v2` 预算为启动中位数 2.4 秒/最大 3.6 秒、交互 p95 120 毫秒且单次低于 240 毫秒、Long Task 单次低于 240 毫秒、空闲 CPU p95 单核 6%（隐藏/托盘 2.4%）、稳定 RSS 360 MiB、峰值 600 MiB、20 轮后增长不超过 `max(18%, 38.4 MiB)`。这些允许上限相对 v1 精确放宽 20%；预热、样本量、30 秒观察时长、20 轮循环和 50 毫秒 Long Task 记录下限不变，旧 v1 证据不得改标或复用为 v2。失败先修复、重建、重测；无法安全解决时才询问用户，明确继续只记录 `performanceStatus: waived` 和原失败证据。
 - 选择 `disabled` 且无硬要求时跳过 no-bundle 性能探针、采样与运行时绑定，manifest 记录 `performanceStatus: Not run`、非空原因和剩余风险，并且不得生成或残留 `performanceEvidence`、`performanceProbe`、`performanceWaiver` 或 `performanceRuntimeBinding`。主动关闭不等于通过，也不能覆盖同一候选已产生的真实失败。
 
 ### Rust 1.95 与最新兼容稳定选择

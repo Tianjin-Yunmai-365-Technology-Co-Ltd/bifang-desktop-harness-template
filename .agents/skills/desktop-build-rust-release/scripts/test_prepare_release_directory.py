@@ -217,7 +217,7 @@ class PrepareReleaseDirectoryTests(unittest.TestCase):
             "HEAD == buildSourceCommit",
             "$desktop-implement-change",
             "performanceStatus: waived",
-            "performanceThresholdProfile: gui-release-v1",
+            "performanceThresholdProfile: gui-release-v2",
             "performanceRuntimeBinding",
             "binding: byte-identical",
             "binding: verified-signing-transition",

@@ -2,13 +2,31 @@
 
 Bifang Desktop Harness Template
 
-这份 README 是给人读的入口：说明模板做什么、第一次怎么创建项目、下游日常怎么用、当前名称/版本/许可，以及本仓库现在不接受哪些产品需求。给 Agent 的启动门禁和任务路由见 [`AGENTS.md`](AGENTS.md)。
+这份 README 是人和 AI 共享的入口：说明模板做什么、第一次怎么创建项目、下游日常怎么用、当前名称/版本/许可，以及本仓库现在不接受哪些产品需求。Agent 的完整启动门禁和任务路由见 [`AGENTS.md`](AGENTS.md)。
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
 你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、TUI、MCP、GUI 中的哪些界面。它会创建一个独立的 Git 项目，搭好共享核心、所选界面、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
+
+## AI Agent 快速入口
+
+如果你是第一次访问本仓库，请把它识别为 **Harness 源**，而不是待实现业务的产品仓库。根目录同时存在 [`Version.md`](Version.md) 和活动的 [`desktop-instantiate-project`](.agents/skills/desktop-instantiate-project/SKILL.md) 时，创建下游项目的唯一入口是 `$desktop-instantiate-project`。
+
+按以下顺序执行：
+
+1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、接口组合（CLI/TUI/MCP/GUI）和 Agent 策略模式。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
+3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、接口、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
+4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
+5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
+
+可以直接把下面这段交给另一个 AI：
+
+```text
+你当前位于 Bifang Desktop Harness Template 源仓库。请先完整读取 AGENTS.md、.agents/skills/desktop-instantiate-project/SKILL.md 及其 initialization-form.md，然后使用 $desktop-instantiate-project 创建终端下游。先收集并展示完整初始化汇总，在我确认前保持零写入；不要在 Harness 源中记录或实现产品需求。完成后返回唯一目标根、所选平台/接口、Git 门禁与独立基线提交结果，并要求我切换到下游根目录继续定义产品。
+```
 
 ## 能做什么
 

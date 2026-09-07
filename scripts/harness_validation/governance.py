@@ -88,7 +88,7 @@ def validate_agents_entrypoint(
             "AGENTS entrypoint exceeds line budget: "
             f"{display_path(path)} has {line_count} lines, limit {AGENTS_MAX_LINES}",
         )
-    if not text.startswith("# AGENTS.md\n"):
+    if not text.startswith(("# AGENTS.md\n", "# AGENTS.md\r\n")):
         fail(errors, f"AGENTS entrypoint must start with '# AGENTS.md': {display_path(path)}")
 
     heading_positions: list[int] = []
@@ -168,6 +168,12 @@ def validate_engineering_contract(errors: list[str]) -> None:
         ),
         ROOT / "README.md": (
             "docs/ENGINEERING_RULES.md",
+            "## AI Agent 快速入口",
+            ".agents/skills/desktop-instantiate-project/SKILL.md",
+            ".agents/skills/desktop-instantiate-project/references/initialization-form.md",
+            "用户确认完整汇总前保持零写入",
+            "不要复制源 `.git`",
+            "切换到该目录，再用 `$desktop-define-product`",
             "## 当前模板仓库的请求边界",
             "只接受两类信息",
             "必须在完成实例化并切换到唯一终端下游根目录后重新提出",
@@ -198,6 +204,8 @@ def validate_engineering_contract(errors: list[str]) -> None:
             "HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT",
             "HARNESS-FEAT-GUI-NOTIFICATION-AUTOSTART-CAPABILITIES",
             "HARNESS-FEAT-GUI-RELEASE-PERFORMANCE-GATE",
+            "HARNESS-CHANGE-GUI-RELEASE-PERFORMANCE-BUDGET-V2",
+            "`gui-release-v2` 预算",
             "HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION",
             "HARNESS-FEAT-DEFERRED-LOGO-VALIDATION-STABLE-PREVIEW",
             "不把普通缺陷修复、纯重构、格式整理、测试补强或内部清理写成项目记忆流水账",

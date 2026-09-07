@@ -17,21 +17,21 @@ from typing import Any
 
 THRESHOLDS = {
     "coldStartRuns": 5,
-    "coldStartMedianMsMaximum": 2000.0,
-    "coldStartMaximumMs": 3000.0,
+    "coldStartMedianMsMaximum": 2400.0,
+    "coldStartMaximumMs": 3600.0,
     "interactionSamplesMinimum": 20,
-    "interactionP95MsMaximum": 100.0,
-    "interactionSingleMsExclusiveMaximum": 200.0,
+    "interactionP95MsMaximum": 120.0,
+    "interactionSingleMsExclusiveMaximum": 240.0,
     "longTaskMsMinimum": 50.0,
-    "longTaskMsExclusiveMaximum": 200.0,
+    "longTaskMsExclusiveMaximum": 240.0,
     "cpuObservationSecondsMinimum": 30.0,
     "cpuSamplesMinimum": 5,
-    "idleCpuP95PercentMaximum": 5.0,
-    "hiddenTrayCpuP95PercentMaximum": 2.0,
-    "steadyRssMiBMaximum": 300.0,
-    "peakRssMiBMaximum": 500.0,
-    "rssGrowthPercentMaximum": 15.0,
-    "rssGrowthMiBMinimumAllowance": 32.0,
+    "idleCpuP95PercentMaximum": 6.0,
+    "hiddenTrayCpuP95PercentMaximum": 2.4,
+    "steadyRssMiBMaximum": 360.0,
+    "peakRssMiBMaximum": 600.0,
+    "rssGrowthPercentMaximum": 18.0,
+    "rssGrowthMiBMinimumAllowance": 38.4,
     "navigationInteractionCyclesMinimum": 20,
 }
 
@@ -601,9 +601,9 @@ def evaluate(
     if cold_median is not None and cold_median > THRESHOLDS[
         "coldStartMedianMsMaximum"
     ]:
-        errors.append("cold-start median exceeds 2000 ms")
+        errors.append("cold-start median exceeds 2400 ms")
     if cold_max is not None and cold_max > THRESHOLDS["coldStartMaximumMs"]:
-        errors.append("cold-start maximum exceeds 3000 ms")
+        errors.append("cold-start maximum exceeds 3600 ms")
 
     interaction_durations = _interaction_durations(evidence, errors)
     interaction_p95 = _nearest_rank_p95(interaction_durations)
@@ -611,11 +611,11 @@ def evaluate(
     if interaction_p95 is not None and interaction_p95 > THRESHOLDS[
         "interactionP95MsMaximum"
     ]:
-        errors.append("interaction p95 exceeds 100 ms")
+        errors.append("interaction p95 exceeds 120 ms")
     if interaction_max is not None and interaction_max >= THRESHOLDS[
         "interactionSingleMsExclusiveMaximum"
     ]:
-        errors.append("an interaction is 200 ms or slower")
+        errors.append("an interaction is 240 ms or slower")
 
     long_tasks = _number_list(evidence, "longTasksMs", errors)
     for index, duration in enumerate(long_tasks):
@@ -623,7 +623,7 @@ def evaluate(
             errors.append(f"longTasksMs[{index}] is shorter than the 50 ms record floor")
     long_task_max = max(long_tasks) if long_tasks else 0.0
     if long_task_max >= THRESHOLDS["longTaskMsExclusiveMaximum"]:
-        errors.append("a Long Task is 200 ms or slower")
+        errors.append("a Long Task is 240 ms or slower")
 
     idle_seconds = _number(
         evidence,
@@ -641,7 +641,7 @@ def evaluate(
     if idle_cpu_p95 is not None and idle_cpu_p95 > THRESHOLDS[
         "idleCpuP95PercentMaximum"
     ]:
-        errors.append("idle whole-process-tree CPU p95 exceeds 5%")
+        errors.append("idle whole-process-tree CPU p95 exceeds 6%")
 
     hidden_seconds: float | int | None = None
     hidden_cpu_p95: float | None = None
@@ -662,7 +662,7 @@ def evaluate(
         if hidden_cpu_p95 is not None and hidden_cpu_p95 > THRESHOLDS[
             "hiddenTrayCpuP95PercentMaximum"
         ]:
-            errors.append("hidden/tray whole-process-tree CPU p95 exceeds 2%")
+            errors.append("hidden/tray whole-process-tree CPU p95 exceeds 2.4%")
     elif any(
         key in evidence
         for key in (
@@ -684,9 +684,9 @@ def evaluate(
         integer=True,
     )
     if steady_rss is not None and steady_rss > THRESHOLDS["steadyRssMiBMaximum"]:
-        errors.append("steady whole-process-tree RSS exceeds 300 MiB")
+        errors.append("steady whole-process-tree RSS exceeds 360 MiB")
     if peak_rss is not None and peak_rss > THRESHOLDS["peakRssMiBMaximum"]:
-        errors.append("peak whole-process-tree RSS exceeds 500 MiB")
+        errors.append("peak whole-process-tree RSS exceeds 600 MiB")
 
     rss_growth = None
     rss_growth_limit = None
@@ -696,7 +696,12 @@ def evaluate(
             rss_before * THRESHOLDS["rssGrowthPercentMaximum"] / 100.0,
             THRESHOLDS["rssGrowthMiBMinimumAllowance"],
         )
-        if rss_growth > rss_growth_limit:
+        if rss_growth > rss_growth_limit and not math.isclose(
+            rss_growth,
+            rss_growth_limit,
+            rel_tol=1e-9,
+            abs_tol=1e-9,
+        ):
             errors.append("RSS growth after interaction cycles exceeds the allowed budget")
 
     metrics = {
@@ -749,7 +754,7 @@ def evaluate(
             "performanceSelection": performance_selection,
             "e2eSelection": e2e_selection,
         },
-        "thresholdProfile": "gui-release-v1",
+        "thresholdProfile": "gui-release-v2",
         "thresholds": THRESHOLDS,
         "metrics": metrics,
         "observations": sanitized_observations,

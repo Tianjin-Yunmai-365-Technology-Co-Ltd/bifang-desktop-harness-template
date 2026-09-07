@@ -1,4 +1,4 @@
-# 2026-09-02 变更记录
+# 2026-09-07 变更记录
 
 ## 新增
 
@@ -57,6 +57,8 @@
 
 ## 变更
 
+- `HARNESS-DOC-AI-DOWNSTREAM-INSTANTIATION-GUIDE`（所需 Harness 版本为下一次高于 `202609020957` 的时间版本，本轮不改 `Version.md`）：README 新增置前的 AI Agent 快速入口，明确 Harness 源识别条件、`$desktop-instantiate-project` 唯一入口、必读文件、首轮基础字段、确认前零写入、固定复制/身份/裁剪/Git 顺序，以及切换到终端下游后才定义产品的边界；同时提供可直接交给其他 AI 的完整启动提示词。
+- `HARNESS-CHANGE-GUI-RELEASE-PERFORMANCE-BUDGET-V2`（所需 Harness 版本为下一次高于 `202609020957` 的时间版本，本轮不改 `Version.md`）：GUI Release 的启动、交互、Long Task、CPU、RSS 和 RSS 增长允许上限统一放宽 20%，分别调整为 2400/3600 ms、120/<240 ms、Long Task <240 ms、6%/2.4%、360/600 MiB 与 `max(18%, 38.4 MiB)`，并升级为 `gui-release-v2`。预热、样本量、观察时长、循环次数与 50 ms Long Task 记录下限保持不变；旧 v1 证据不能改标、复用或重判。
 - `HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE`（所需 Harness 版本为下一次高于 `202609020957` 的时间版本，本轮不改 `Version.md`）：左侧 user-owned Task 只在用户明确要求时创建，并在派发前以完整路径解析保存项目、用精确 `projectId` 创建项目 Worktree/Local；projectless、默认兜底和其他项目失败关闭。一个结果只派发一次，只有 `clientThreadId` 时作为 `SETUP_PENDING` 返回 queued 引用，不无限等待、重复创建或在当前 Task 偷跑；诊断、实现、相关测试/review 和同范围修复按结果留在一个 Task，标题不再携带可变状态。
 - Task Worktree 允许物理位于保存项目之外，首次写入前改用 `projectId`、相同规范化 Git common-dir 和 `git worktree list --porcelain` 登记证明归属；起点来自用户明确 ref 或保存项目默认分支的已提交 HEAD，不再硬编码 `main`/`master` 或自动 fetch/pull。左侧 Task 分支使用 `codex/task-*`，内部 Subagent 单元使用 `codex/unit-*`，避免 Git ref 父子冲突。
 - 并行 Worktree helper 现在同时绑定保存项目根和当前 Task source worktree，从 source HEAD 创建单元，拒绝符号链接容器、空/绝对/越界所有权及单元间重叠；guard 只接受登记的 repo-relative 范围，postflight 检查 committed、uncommitted 和 untracked 实际路径，remove 固定以创建时记录的 source 分支确认整合。内部 agent thread 始终属于当前 Task，不调用 `create_thread`。
@@ -97,6 +99,7 @@
 
 ## 验证
 
+- 本次 AI 下游入口与 GUI Release 性能预算 v2 变更运行性能证据 helper 回归 16/16、`python -B -m unittest scripts.test_release_validation scripts.test_agile_workflow` 72/72，全部通过；`python -B scripts/validate_harness.py` 通过 208 个必需文件、40 个 Skills、README 初始化入口及 `gui-release-v2` 全链路契约，产生 27 条未达硬上限的非阻断行数复核提示。完整 `python -B -m unittest discover -s scripts` 共执行 253 条，其中 249 条通过、2 条跳过，另 2 条在标准非管理员 Windows 的夹具准备阶段分别因文件名含换行和缺少符号链接权限报环境错误，已记录为 `LIM-029`；与本次变化直接相关的套件无失败。修改过且超过 500 行建议阈值的性能 helper/测试、发布与治理校验器、最新 ADR 和工作流测试均按职责内聚性完成语义复核，无需行为保持重构。Skill Creator quick validator 因本机 Python 缺少 PyYAML 未能启动，仓库 validator 已完成全部 40 个 Skills 的 frontmatter 与项目契约检查。Harness 源没有可执行终端产品，因此未运行 Rust/Tauri 构建、GUI/Computer Use、性能实测、E2E、签名、公证或发布。
 - 本次 Task 项目绑定、setup 状态机与内部 Subagent Worktree 加固运行 helper 隔离回归 16/16、`python3 -B -m unittest scripts.test_agile_workflow` 32/32、`python3 -B -m unittest discover -s scripts` 244/244，全部通过；`python3 -B scripts/validate_harness.py` 通过 205 个必需文件、39 个 Skills 及 Task/项目/source/ownership/postflight 契约，产生 25 条未达硬上限的非阻断行数复核提示。4 个受影响 Skills 均通过 Skill Creator quick validator，独立只读审查无阻断项，`git diff --check` 通过。Harness 源没有可执行终端产品，因此未运行构建、GUI/Computer Use、E2E、签名、公证或发布；Codex 宿主的 `clientThreadId` 晋升与既有 projectless Task 改挂仍不在仓库可修复范围内。
 - 本次人类入口身份与 Released 状态变更运行 `python3 -B -m unittest scripts.harness_validation_governance_tests.ValidateHarnessEntrypointTests.test_live_readme_identity_matches_version_source scripts.harness_validation_governance_tests.ValidateHarnessEntrypointTests.test_rejects_unreleased_status_in_version_source` 2/2 通过；`python3 -B -m unittest discover -s scripts` 242/242 通过；`python3 -B scripts/validate_harness.py` 通过 205 个必需文件、39 个 Skills，产生 22 条未达硬上限的非阻断行数复核提示。未创建 Git 标签、源码归档、签名候选或安装包。
 - 本次 pre-Git 版本初始化与 GUI 固定运行时契约变更运行 `python3 -B .agents/skills/desktop-manage-version/scripts/test_version_gate.py` 11/11、GUI plugin Node 契约 39/39、GUI 生命周期 Node 契约 92/92、`python3 -B -m unittest discover -s scripts` 240/240，全部通过；`python3 -B scripts/validate_harness.py` 通过 203 个必需文件、38 个 Skills、固定 IPC/updater/a11y/本地化 fixture 与 pre-Git 顺序契约，产生 22 条未达硬上限的非阻断行数复核提示，`git diff --check` 通过。Harness 源没有可执行终端产品，因此未运行 Rust/Tauri 构建、真实 GUI/Computer Use、初始化 E2E、签名、公证或发布；模板 React 回归由静态契约锁定，仍须在后续真实下游的前端测试环境执行。

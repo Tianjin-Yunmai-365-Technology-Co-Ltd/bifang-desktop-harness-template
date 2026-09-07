@@ -15,11 +15,11 @@ description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求�
 
 ## 固定指标
 
-- 先执行至少 1 次不计分预热，再执行恰好 5 次冷启动；从进程启动到主窗口可见且可交互的中位数不超过 2000 ms，最大值不超过 3000 ms。
-- 对至少 20 次已批准、具有可观察结果的真实界面交互采样；nearest-rank p95 不超过 100 ms，任何一次必须小于 200 ms。
-- 使用浏览器 `PerformanceObserver` 记录全部不短于 50 ms 的 Long Task；任何 Long Task 必须小于 200 ms。
-- 对 Tauri 主进程和全部 WebView/受管子进程组成的整棵进程树采样。连续至少 30 秒空闲 CPU 的 p95 不超过一个逻辑核的 5%；启用托盘时，关闭隐藏后的连续至少 30 秒 CPU p95 不超过 2%。
-- 稳态整棵进程树 RSS 不超过 300 MiB，峰值不超过 500 MiB。完成至少 20 轮导航/交互后，RSS 增长不得超过 `max(初始 RSS × 15%, 32 MiB)`。
+- 先执行至少 1 次不计分预热，再执行恰好 5 次冷启动；从进程启动到主窗口可见且可交互的中位数不超过 2400 ms，最大值不超过 3600 ms。
+- 对至少 20 次已批准、具有可观察结果的真实界面交互采样；nearest-rank p95 不超过 120 ms，任何一次必须小于 240 ms。
+- 使用浏览器 `PerformanceObserver` 记录全部不短于 50 ms 的 Long Task；任何 Long Task 必须小于 240 ms。
+- 对 Tauri 主进程和全部 WebView/受管子进程组成的整棵进程树采样。连续至少 30 秒空闲 CPU 的 p95 不超过一个逻辑核的 6%；启用托盘时，关闭隐藏后的连续至少 30 秒 CPU p95 不超过 2.4%。
+- 稳态整棵进程树 RSS 不超过 360 MiB，峰值不超过 600 MiB。完成至少 20 轮导航/交互后，RSS 增长不得超过 `max(初始 RSS × 18%, 38.4 MiB)`。
 - 每次启动和整轮测量结束都必须关闭或回收全部受管进程。观测不可用、只采父进程、样本不足、超时或无法确认都按失败处理，不能按未发现问题处理。
 
 ## 执行
@@ -34,7 +34,7 @@ description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求�
    ```
 
    Helper 会重新计算探针摘要、拒绝安装容器字段冒充探针、核对 manifest/观测绑定、计算指标并原子写入 `passed` 或 `failed` 证据。输出已内嵌原始观测；不得把临时原始 JSON 作为 release 目录中的旁路文件。
-5. 在后续安装包 manifest 中保留 `performanceSelection: enabled`、`performanceStatus`、结构化 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256` 和 `performanceThresholdProfile: gui-release-v1`。只有 helper 返回 0、全部受管进程已回收且原窗口状态已复原并复核，才能记录 `performanceStatus: passed`；`e2eSelection: disabled` 不能改变该判断。
+5. 在后续安装包 manifest 中保留 `performanceSelection: enabled`、`performanceStatus`、结构化 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256` 和 `performanceThresholdProfile: gui-release-v2`。只有 helper 返回 0、全部受管进程已回收且原窗口状态已复原并复核，才能记录 `performanceStatus: passed`；`e2eSelection: disabled` 不能改变该判断。`gui-release-v2` 相对 v1 只把耗时、CPU、RSS 与 RSS 增长的允许上限放宽 20%；预热、样本量、观察时长、循环次数和 50 ms Long Task 记录下限保持不变，旧 v1 证据不得改标或复用为 v2。
 
 ## 打包后的运行时绑定
 

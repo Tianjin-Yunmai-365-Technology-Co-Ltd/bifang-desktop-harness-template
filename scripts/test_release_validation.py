@@ -318,7 +318,7 @@ class GuiPerformanceContractValidationTests(unittest.TestCase):
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
         anchor = (
             "原生 macOS 且性能启用时记录 `performanceStatus: passed | waived`、"
-            "`performanceThresholdProfile: gui-release-v1`"
+            "`performanceThresholdProfile: gui-release-v2`"
         )
         mutated = source.replace(anchor, "原生 macOS 直接进入打包", 1)
         self.assertNotEqual(mutated, source)
@@ -326,7 +326,7 @@ class GuiPerformanceContractValidationTests(unittest.TestCase):
         errors = self._validate_mutation(mutated, parameter="tauri_skill")
 
         self.assertTrue(
-            any("performanceThresholdProfile: gui-release-v1" in error for error in errors),
+            any("performanceThresholdProfile: gui-release-v2" in error for error in errors),
             errors,
         )
 

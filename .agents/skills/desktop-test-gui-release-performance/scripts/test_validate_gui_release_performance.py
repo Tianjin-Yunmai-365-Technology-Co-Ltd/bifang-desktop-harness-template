@@ -86,24 +86,24 @@ class GuiReleasePerformanceTests(unittest.TestCase):
                     "verified": True,
                 },
             },
-            "coldStartVisibleUsableMs": [1000, 2000, 2000, 2000, 3000],
+            "coldStartVisibleUsableMs": [1200, 2400, 2400, 2400, 3600],
             "interactions": [
                 {
                     "name": f"approved-interaction-{index}",
-                    "durationMs": 199 if index == 19 else 100,
+                    "durationMs": 239 if index == 19 else 120,
                     "observableResult": True,
                 }
                 for index in range(20)
             ],
-            "longTasksMs": [50, 199],
+            "longTasksMs": [50, 239],
             "idleObservationSeconds": 30,
-            "idleCpuPercentOfOneLogicalCore": [5, 5, 5, 5, 5],
+            "idleCpuPercentOfOneLogicalCore": [6, 6, 6, 6, 6],
             "hiddenTrayObservationSeconds": 30,
-            "hiddenTrayCpuPercentOfOneLogicalCore": [2, 2, 2, 2, 2],
-            "steadyRssMiB": 300,
-            "peakRssMiB": 500,
+            "hiddenTrayCpuPercentOfOneLogicalCore": [2.4, 2.4, 2.4, 2.4, 2.4],
+            "steadyRssMiB": 360,
+            "peakRssMiB": 600,
             "rssBeforeCyclesMiB": 200,
-            "rssAfterCyclesMiB": 232,
+            "rssAfterCyclesMiB": 238.4,
             "navigationInteractionCycles": 20,
         }
 
@@ -168,14 +168,15 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         self.assertEqual(result["status"], "passed")
         self.assertEqual(result["schemaVersion"], 2)
         self.assertEqual(result["performanceSelection"], "enabled")
+        self.assertEqual(result["thresholdProfile"], "gui-release-v2")
         self.assertTrue(result["windowStateRecoveryVerified"])
         self.assertFalse(result["waiverAllowed"])
         metrics = result["metrics"]
-        self.assertEqual(metrics["coldStartMedianMs"], 2000)
-        self.assertEqual(metrics["coldStartMaximumMs"], 3000)
-        self.assertEqual(metrics["interactionP95Ms"], 100)
-        self.assertEqual(metrics["interactionMaximumMs"], 199)
-        self.assertEqual(metrics["rssGrowthLimitMiB"], 32)
+        self.assertEqual(metrics["coldStartMedianMs"], 2400)
+        self.assertEqual(metrics["coldStartMaximumMs"], 3600)
+        self.assertEqual(metrics["interactionP95Ms"], 120)
+        self.assertEqual(metrics["interactionMaximumMs"], 239)
+        self.assertAlmostEqual(metrics["rssGrowthLimitMiB"], 38.4)
 
     def test_disabled_performance_selection_is_rejected(self) -> None:
         """性能选择关闭时不得调用 helper 或生成看似有效的性能证据。"""
@@ -303,31 +304,31 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         self.assertIn("observationAvailable", failures)
 
     def test_latency_and_long_task_fail_at_exclusive_limits(self) -> None:
-        """单次交互或 Long Task 达到 200 ms 时必须失败。"""
+        """单次交互或 Long Task 达到 240 ms 时必须失败。"""
 
         evidence = deepcopy(self.evidence)
-        evidence["interactions"][19]["durationMs"] = 200
-        evidence["longTasksMs"] = [200]
+        evidence["interactions"][19]["durationMs"] = 240
+        evidence["longTasksMs"] = [240]
         result = self._evaluate(evidence=evidence)
 
         self.assertEqual(result["status"], "failed")
         failures = "\n".join(result["failures"])
-        self.assertIn("interaction is 200 ms or slower", failures)
-        self.assertIn("Long Task is 200 ms or slower", failures)
+        self.assertIn("interaction is 240 ms or slower", failures)
+        self.assertIn("Long Task is 240 ms or slower", failures)
 
     def test_cpu_rss_and_growth_budgets_are_independent(self) -> None:
         """CPU、稳态/峰值 RSS 与循环增长任一超限都必须单独报告。"""
 
         evidence = deepcopy(self.evidence)
-        evidence["idleCpuPercentOfOneLogicalCore"] = [5.1] * 5
-        evidence["steadyRssMiB"] = 300.1
-        evidence["peakRssMiB"] = 500.1
-        evidence["rssAfterCyclesMiB"] = 232.1
+        evidence["idleCpuPercentOfOneLogicalCore"] = [6.1] * 5
+        evidence["steadyRssMiB"] = 360.1
+        evidence["peakRssMiB"] = 600.1
+        evidence["rssAfterCyclesMiB"] = 238.5
         result = self._evaluate(evidence=evidence)
 
         self.assertEqual(result["status"], "failed")
         failures = "\n".join(result["failures"])
-        self.assertIn("CPU p95 exceeds 5%", failures)
+        self.assertIn("CPU p95 exceeds 6%", failures)
         self.assertIn("steady whole-process-tree RSS", failures)
         self.assertIn("peak whole-process-tree RSS", failures)
         self.assertIn("RSS growth", failures)
@@ -489,7 +490,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
         """Helper 非零时仍原子保存失败指标，且不会自行制造用户豁免。"""
 
         evidence = deepcopy(self.evidence)
-        evidence["peakRssMiB"] = 501
+        evidence["peakRssMiB"] = 601
 
         exit_code, saved = self._run_cli(
             evidence, "raw-performance.json", "probe.performance.json"
@@ -497,7 +498,7 @@ class GuiReleasePerformanceTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
         self.assertEqual(saved["status"], "failed")
-        self.assertEqual(saved["observations"]["peakRssMiB"], 501)
+        self.assertEqual(saved["observations"]["peakRssMiB"], 601)
         self.assertTrue(saved["windowStateRecoveryVerified"])
         self.assertTrue(saved["waiverAllowed"])
         self.assertEqual(saved["nonWaivableFailures"], [])
