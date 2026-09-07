@@ -90,19 +90,19 @@ class BuildSkillValidationTests(unittest.TestCase):
             release.validate_build_skill_contract(errors, collect_skill=path)
             return errors
 
-    def test_rejects_missing_default_cross_platform_route(self) -> None:
-        """删除三平台默认句后，即使其他构建文本仍在也必须失败。"""
+    def test_rejects_missing_default_local_route(self) -> None:
+        """删除本地默认句后，即使其他构建文本仍在也必须失败。"""
         source = release.BUILD_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "默认通过 `$desktop-prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选"
+        anchor = "默认直接在当前宿主本地构建"
         mutated = source.replace(anchor, "优先构建可用目标", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_build(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
-    def test_rejects_missing_started_matrix_failure_boundary(self) -> None:
-        """矩阵真实失败不得通过本机回退被伪装成整体成功。"""
+    def test_rejects_missing_required_platform_failure_boundary(self) -> None:
+        """必需平台的缺失或失败不得通过本机成功掩盖。"""
         source = release.BUILD_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "不得把已启动矩阵的失败、测试失败、打包失败、签名失败、超时或取消视为回退条件"
-        mutated = source.replace(anchor, "可以把矩阵失败视为回退条件", 1)
+        anchor = "必需平台缺失、失败、超时或取消必须阻断对应交付"
+        mutated = source.replace(anchor, "可以忽略必需平台失败", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_build(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
@@ -144,7 +144,7 @@ class BuildSkillValidationTests(unittest.TestCase):
         self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_cross_platform_contract_requires_e2e_selection_manifest(self) -> None:
-        """远端矩阵必须接收当次 E2E 选择并传播进候选清单。"""
+        """本地多平台构建必须接收当次 E2E 选择并传播进候选清单。"""
         source = release.CROSS_PLATFORM_RELEASE_SKILL.read_text(encoding="utf-8")
         for anchor in ("e2e_selection", "e2eSelection"):
             with self.subTest(anchor=anchor):
@@ -154,7 +154,7 @@ class BuildSkillValidationTests(unittest.TestCase):
                 self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_rejects_cross_platform_project_memory_writes(self) -> None:
-        """原生矩阵的构建事实也只能进入 manifest 和最终回复。"""
+        """原生本地构建事实也只能进入 manifest 和最终回复。"""
         source = release.CROSS_PLATFORM_RELEASE_SKILL.read_text(encoding="utf-8")
         anchor = "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification"
         mutated = source.replace(anchor, "同步更新项目记忆", 1)

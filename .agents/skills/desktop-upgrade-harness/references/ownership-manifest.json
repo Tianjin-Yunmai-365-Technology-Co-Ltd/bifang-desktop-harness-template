@@ -3,6 +3,8 @@
   "default_mode": "protected",
   "rules": [
     {"pattern": "Version.md", "mode": "tombstone"},
+    {"pattern": ".agents/skills/desktop-prepare-cross-platform-release/assets/github-release-candidate.yml", "mode": "tombstone"},
+    {"pattern": ".github/workflows/release-candidate.yml", "mode": "tombstone"},
     {"pattern": ".agents/skills/desktop-instantiate-project/**", "mode": "tombstone"},
     {"pattern": ".agents/skills/desktop-initialize-rust-project/**", "mode": "tombstone"},
     {"pattern": ".agents/skills/desktop-test-gui-initialization-e2e/**", "mode": "tombstone"},

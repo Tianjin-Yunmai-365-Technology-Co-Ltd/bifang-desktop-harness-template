@@ -40,6 +40,8 @@ REQUIRED_MANAGED_SOURCE_PATHS = (
 )
 MINIMUM_OWNERSHIP_RULES = {
     "Version.md": "tombstone",
+    ".agents/skills/desktop-prepare-cross-platform-release/assets/github-release-candidate.yml": "tombstone",
+    ".github/workflows/release-candidate.yml": "tombstone",
     ".agents/skills/desktop-instantiate-project/**": "tombstone",
     ".agents/skills/desktop-initialize-rust-project/**": "tombstone",
     ".agents/skills/desktop-test-gui-initialization-e2e/**": "tombstone",

@@ -89,7 +89,7 @@
 
 发布物命名同样只保留一份权威来源：Rust 下游产品的归档命名模式（`<product>-v<version>-<platform>-<arch>.<ext>`，附带 `.sha256` 与清单）已在 `docs/RUST_CLI_TEMPLATE.md` 给出，模板自身源码归档命名见 `docs/RELEASE.md`。
 
-本节保留的背景动机是：文件名、Git 标签和发布标题里的版本必须让人一眼确认彼此对应。Harness 使用 12 位时间版本，下游默认使用 `MAJOR.MINOR.PATCH`，`v` 只是面向人识别的前缀；具体示例和字段级规则不再在此重复。
+本节保留的背景动机是：文件名、可选本地 Git 标签（若存在）和本地发布记录里的版本必须让人一眼确认彼此对应。Harness 使用 12 位时间版本，下游默认使用 `MAJOR.MINOR.PATCH`，`v` 只是面向人识别的前缀；具体示例和字段级规则不再在此重复。
 
 ## 9. CHANGELOG 与升级说明
 

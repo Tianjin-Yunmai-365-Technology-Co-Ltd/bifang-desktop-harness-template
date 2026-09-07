@@ -35,7 +35,7 @@
 | Rust 资产 | 声明的 Rust 工具链 | 日常开发只运行本次必要单元测试；显式构建只追加 workspace 全量非空单元测试与实际构建，E2E 只在最终候选形成后按本次选择执行 |
 | GUI 初始化 E2E | `verify-gui-lifecycle-contract.mjs` + `$desktop-test-gui-initialization-e2e` + Computer Use | 只在含 GUI 的一次性初始化提交前读取九项 profile；始终验证 system-locale/updater/window-state 三项 Rust-only 基线与 dialog 固定 WebView 基线（依赖、顺序、`dialog:default`、零额外文件系统授权），再按选择验证单实例、托盘、通知、自启恢复、深链接与全局快捷键回收，禁用能力无残留；所有组合验证侧栏、设置页、实际菜单页面并回收进程。需安装包的深链接场景明确 `Not verified`；无法观察或恢复即阻断，不作为候选验收证据 |
 | GUI 发布性能 | 当次 `performanceSelection` + `$desktop-test-gui-release-performance` + release-profile 真实探针候选 | 每次发布先询问；`disabled` 且无硬要求时记录 `Not run`、原因和风险并跳过探针。`enabled` 或硬要求时先快照 window-state 原字节/原缺席状态，每次启动复用同一隔离基线且所有退出路径恢复并复核，再测 5 次冷启动、至少 20 次交互、整进程树 CPU/RSS、内存增长和退出回收；整进程树、探针字节、进程回收或窗口恢复失败均不可豁免，纯指标失败才可在 `waiverAllowed: true` 后显式 waiver；启用但仅有 xwin 时为 `Unverified` |
-| 发布刷新 | 辅助程序与发布校验器正负向测试 | 独立 Git 根、原子隔离旧目录、符号链接/重解析点、不跟随清理、精确忽略规则、默认矩阵和回退边界 |
+| 发布刷新 | 辅助程序与发布校验器正负向测试 | 独立 Git 根、原子隔离旧目录、符号链接/重解析点、不跟随清理、精确忽略规则、默认本机构建、必需平台失败及本地收集边界 |
 | Tauri DMG 最终布局 | `scripts/verify-dmg-layout.sh <final-dmg>` + 只读候选证据 | 构建和完整验收都绑定当前最终字节，验证 `.DS_Store`、本地背景、唯一 `.app` 与 `/Applications` 链接；软件许可需独立人工授权，后处理后旧证据失效 |
 | 最终候选运行验收 | 当前构建选择/硬要求解析 + 真实产物场景证据 | E2E 只在最终候选形成后按本次选择运行；失败、超时、取消或已选未执行会拒绝候选并回开发循环 |
 | 工作流资产 | 全文件 SHA-256 + 独立 YAML 解析 + 步骤/输入/门禁契约 | 只生成三平台 `milestoneAcceptance: pending` 候选；绑定批准源码提交，使用不可变 Action 提交，依次刷新、非空测试/构建、条件签名、暂存区打包/清单、目录级原子提交和精确上传，禁止冒烟、E2E、发布和写权限提升 |

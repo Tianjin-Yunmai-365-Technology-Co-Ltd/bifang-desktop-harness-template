@@ -81,4 +81,4 @@
 3. 只更新被独立事件触发的权威记录；失败在当前范围内修复并重跑，新增副作用或范围变化先请求批准。
 4. 完成时报告实际变化、实际验证、未执行项和剩余风险，不把日常实现描述成发布就绪。
 
-Harness 自身的文档、Skill、脚本或候选 workflow 变化运行 `python3 -B scripts/validate_harness.py`；修改 Python 门禁行为时还运行 `python3 -B -m unittest discover -s scripts`。这些检查不替代真实下游构建、E2E、完整验收或人工复核。
+Harness 自身的文档、Skill、脚本或发布流程变化运行 `python3 -B scripts/validate_harness.py`；修改 Python 门禁行为时还运行 `python3 -B -m unittest discover -s scripts`。这些检查不替代真实下游构建、E2E、完整验收或人工复核。

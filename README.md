@@ -10,6 +10,8 @@ Bifang Desktop Harness Template
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
+发布流程仅在本地构建、验证和交付，不使用 CI/CD，不向 Git 等远程平台推送或发布；具体门槛见 [版本与发布](docs/RELEASE.md)。
+
 ## AI Agent 快速入口
 
 如果你是第一次访问本仓库，请把它识别为 **Harness 源**，而不是待实现业务的产品仓库。根目录同时存在 [`Version.md`](Version.md) 和活动的 [`desktop-instantiate-project`](.agents/skills/desktop-instantiate-project/SKILL.md) 时，创建下游项目的唯一入口是 `$desktop-instantiate-project`。

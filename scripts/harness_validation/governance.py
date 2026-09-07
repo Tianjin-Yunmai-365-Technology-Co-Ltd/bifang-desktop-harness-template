@@ -575,7 +575,7 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
             "不得自动追加格式、lint 或其他开发门禁",
             "e2eSelection",
             "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
-            "矩阵本身不得运行 E2E",
+            "不运行 E2E",
         ),
         COLLECT_RELEASE_SKILL: (
             "e2eSelection",

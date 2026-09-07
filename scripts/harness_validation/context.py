@@ -8,12 +8,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = ROOT / ".agents" / "skills"
-WORKFLOW = (
-    SKILLS_ROOT
-    / "desktop-prepare-cross-platform-release"
-    / "assets"
-    / "github-release-candidate.yml"
-)
 INITIALIZE_SKILL = SKILLS_ROOT / "desktop-initialize-rust-project"
 INSTANTIATE_SKILL_ROOT = SKILLS_ROOT / "desktop-instantiate-project"
 INSTANTIATE_SKILL = INSTANTIATE_SKILL_ROOT / "SKILL.md"
@@ -511,6 +505,8 @@ REQUIRED_FILES = (
     "scripts/test_validate_harness.py",
     "scripts/test_release_validation.py",
     "scripts/harness_validation/release.py",
+    "scripts/harness_validation/local_release.py",
+    "scripts/test_local_release.py",
     "scripts/harness_validation/architecture.py",
     "scripts/harness_validation/architecture_requirements.py",
     "scripts/harness_validation/test_architecture.py",
@@ -527,14 +523,10 @@ REQUIRED_FILES = (
     "scripts/harness_validation/repository_memory.py",
     "scripts/harness_validation/product_versioning.py",
     "scripts/harness_validation/test_product_versioning.py",
-    "scripts/harness_validation/workflow_contract.py",
     "scripts/harness_validation/initialization_environment.py",
     "scripts/harness_validation/initialization_primary_contract.py",
     "scripts/harness_validation/initialization_repository_contract.py",
     "scripts/harness_validation_governance_tests.py",
-    "scripts/harness_workflow_test_support.py",
-    "scripts/harness_validation_workflow_structure_tests.py",
-    "scripts/harness_validation_workflow_execution_tests.py",
     "scripts/harness_validation_upgrade_tests.py",
     "scripts/validate_harness.py",
 )

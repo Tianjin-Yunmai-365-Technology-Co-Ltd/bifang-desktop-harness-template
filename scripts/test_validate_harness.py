@@ -1,4 +1,4 @@
-"""聚合 Harness 治理、workflow 与升级契约回归。"""
+"""聚合 Harness 治理、本地发布与升级契约回归。"""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ import unittest
 
 import harness_validation_governance_tests
 import harness_validation_upgrade_tests
-import harness_validation_workflow_execution_tests
-import harness_validation_workflow_structure_tests
 
 
 def load_tests(
@@ -21,8 +19,6 @@ def load_tests(
     suite = unittest.TestSuite()
     for module in (
         harness_validation_governance_tests,
-        harness_validation_workflow_structure_tests,
-        harness_validation_workflow_execution_tests,
         harness_validation_upgrade_tests,
     ):
         suite.addTests(loader.loadTestsFromModule(module))

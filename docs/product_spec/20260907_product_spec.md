@@ -6,7 +6,12 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-07（GUI Release 性能允许上限统一放宽 20% 并启用 `gui-release-v2` 见 ADR-20260907-001；GUI dialog 固定 WebView 基线与默认权限边界见 ADR-20260902-001；GUI 发布性能按次选择见 ADR-20260901-002；此前仍有效决定已综合保留）
+> 最近范围确认：2026-09-07（GUI Release 性能允许上限统一放宽 20% 并启用 `gui-release-v2` 见 ADR-20260907-001；本地发布与禁止 CI/CD/远程分发见 ADR-20260905-001；GUI dialog 固定 WebView 基线与默认权限边界见 ADR-20260902-001；GUI 全局快捷键无默认绑定与需求驱动 contract 见 ADR-20260901-004；GUI 官方插件 Skill 与三项 Rust-only 固定基线见 ADR-20260901-003；GUI 发布性能按次选择见 ADR-20260901-002；此前仍有效决定已综合保留）
+
+## 发布边界
+
+- `change_id = HARNESS-LOCAL-ONLY-RELEASE`；所需 Harness 版本为下一次高于 `202609020957` 的用户确认时间版本，尚未物化。
+- 发布流程仅在本地完成，不配置或运行 CI/CD，不向 Git 等远程位置 push、上传、创建 Release、发布软件包或部署；本地 Git 提交继续用于溯源，不要求 remote 或标签。完成条件以 `docs/RELEASE.md` 的本地正式发布证据为准。
 
 ## 一句话目标
 
@@ -225,7 +230,7 @@
 
 ### Rust CLI 与 Tauri GUI 候选构建及发布目录
 
-- `$desktop-build-rust-release` 继续专用于 Rust CLI：默认路线是 Windows、macOS、Linux 原生候选矩阵；只有提供方、权限、三类运行器或结果取回能力在派发前不可用时才回退当前宿主，并记录原因及其他平台 `Unverified`。矩阵一旦启动，任一平台失败、取消或超时都是真实失败。
+- `$desktop-build-rust-release` 继续专用于 Rust CLI：默认直接在当前宿主本地构建，不配置、触发或等待任何 CI/CD。其他平台只按明确范围在相应原生宿主本地构建，再通过用户提供的本地结果目录收集；缺失平台保持 `Unverified`，任一必需平台失败或缺失都阻断对应交付。
 - `$desktop-build-tauri-local-install` 专用于 Windows 原生 x64 NSIS 本地开发试包，允许基于 dirty 工作树构建，但固定为未签名、未安装、未验收、不可分发，不消费发布日志或候选状态。`$desktop-build-tauri-release` 专用于 Tauri 2 GUI 发布候选：macOS 宿主可构建原生 DMG，Windows 原生宿主可构建 x64 NSIS，项目批准 Windows x64 目标时仍可从 macOS 使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 NSIS；不得在 macOS 声称生成只支持 Windows 原生 WiX 的 MSI。
 - macOS→Windows 路线只证明 Windows MSVC 目标可编译并生成 NSIS，不证明 Windows 原生运行、安装或签名成功。清单必须记录 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`buildMode: cross-compiled-xwin`、宿主、目标和 `runtimeVerification: Unverified`；需要原生 Windows/渠道证据时仍使用批准的 Windows 运行器。
 - Windows 原生候选固定使用 `pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --config src-tauri/tauri.release.conf.json`，不传 `--runner cargo-xwin`，并记录 `buildMode: native`。编译成功仍不代替真实安装/运行；E2E 未执行前 `runtimeVerification: Unverified`。GUI-only 下游必须随 Tauri 发布 Skill 保留 PowerShell `release/` helper，不依赖已裁掉的 CLI Skill或 POSIX shell。
@@ -316,7 +321,7 @@
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
 - [x] Rust 1.95、前端依赖及 Node.js/pnpm/cargo-xwin 等受管工具统一表达为经过验证的最低兼容范围；选择/安装优先 registry 当前最新兼容稳定版，已安装范围内更高版本直接通过，锁文件固定真实解析结果。
-- [x] Rust CLI 构建默认选择 Windows、macOS、Linux 原生矩阵，只有派发前条件不可用才回退当前平台；已启动矩阵失败不会被回退掩盖。
+- [x] Rust CLI 默认直接本机构建；其他平台只收集明确的本地结果，不依赖 CI/CD，必需平台的失败或缺失不能被本机成功掩盖。
 - [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单，并明确区分 `pending` 与 `ready`。
 - [x] 已配置且条件可用的非交互签名会被尝试并验证，失败使平台构建失败；签名条件不具备时真实记录 `unsigned`，不获取或泄露凭据。
 - [x] Tauri GUI 合同区分 Windows 本地开发试包、Windows 原生 x64 NSIS 发布候选、macOS 原生 DMG 与 macOS→Windows xwin 候选；本地试包不触发发布授权，xwin 不冒充 Windows 原生证据，Windows 原生安装/运行仍待真实下游前向验证。

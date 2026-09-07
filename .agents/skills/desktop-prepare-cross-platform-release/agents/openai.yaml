@@ -1,4 +1,4 @@
 interface:
   display_name: "准备跨平台发布候选"
-  short_description: "仅从调用方 clean HEAD 准备三平台原生候选"
-  default_prompt: "使用 $desktop-prepare-cross-platform-release；普通构建不自动提交，要求 source_commit 等于调用方及每个运行器的 clean HEAD，并写入全部 manifests。"
+  short_description: "按明确平台从 clean HEAD 准备本地原生候选"
+  default_prompt: "使用 $desktop-prepare-cross-platform-release；不使用 CI/CD 或远程分发，普通构建不自动提交，要求各原生宿主本地 source_commit 等于同一 clean HEAD，只收集用户提供的本地结果目录。"

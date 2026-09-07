@@ -127,7 +127,7 @@ Task 绑定：
 - 显式发布候选构建必须为当前候选解析一次 E2E 选择。若当前请求已明确 `enabled`/`disabled`，直接复用且不重复询问；否则在任何测试或编译前询问一次，并可把 `milestone_e2e` 作为建议默认选项展示。
 - E2E 选择只对当前发布候选有效，不得静默改写本文件。选择启用或产品/渠道要求时，E2E 只在最终真实候选形成后运行；选择禁用时只在 `release/` manifest 和最终回复记录 `Not run` 与剩余风险。
 - 每次 GUI 发布还必须独立解析当次性能选择。`$desktop-prepare-release` 在发布入口复用当前请求的明确选择或询问一次，再把结果传给 `$desktop-build-tauri-release`；直接调用 GUI 构建且没有携带选择时，由构建 Skill 在任何测试或编译前兜底询问一次。两条入口都不得静默沿用上次发布或 `milestone_e2e`。
-- 明确发布请求本身授权流程复核并本地提交范围明确的已完成改动，然后直接构建，无需再次询问是否提交或是否构建；普通构建不自动提交，tag、push、上传和正式发布仍需各自授权。
+- 明确发布请求本身授权流程复核并本地提交范围明确的已完成改动，然后直接构建，无需再次询问是否提交或是否构建；普通构建不自动提交。发布仅按 `docs/RELEASE.md` 完成本地交付，不走 CI/CD，不 push、不上传、不向 Git 等远端发布；Git remote 与标签不是前置条件。
 - GUI 性能与 E2E 选择相互独立。性能选择为 `enabled` 或产品/渠道要求时执行完整门禁；为 `disabled` 且无硬要求时允许以 `performanceStatus: Not run` 继续，但必须保留原因和剩余风险。已启用后只有安全修复尝试仍不达标时，才询问用户是否以可见 waiver 继续。
 - 构建请求、执行和结果本身不创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；发布候选构建事实只进入当前 `release/` manifest、其声明的相邻制品证据和最终回复，本地开发试包只进入最终回复。独立触发的 E2E、完整验收、发布、人工复核或长期审计仍由对应流程按自身规则留证。
 - 普通缺陷修复、纯重构等维护类型本身不创建 Product Spec、ADR、Status、Changelog 或 Verification；用户明确要求、跨会话交接、安全、发布和长期决定等独立事件仍按各自门禁记录。

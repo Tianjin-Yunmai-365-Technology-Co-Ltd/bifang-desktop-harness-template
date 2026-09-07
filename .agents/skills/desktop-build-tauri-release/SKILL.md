@@ -7,6 +7,8 @@ description: 从 clean HEAD 构建下游 Tauri 2 GUI 发布候选；支持 macOS
 
 为 Tauri GUI 生成可追溯发布候选；不得把普通本地试包升级为发布任务，也不得把 macOS 交叉构建证据冒充 Windows 原生运行证据。
 
+本 Skill 只在本地构建，不配置、触发或等待 CI/CD，不推送或上传发布物。命令中的 `CI=true` 与 `TAURI_BUNDLER_DMG_IGNORE_CI=1` 仅控制本地非交互行为及 Finder 布局，不授权 CI/CD 或远程发布。
+
 ## 工作流程
 
 1. 读取批准的 GUI 产品/应用资料、存在时受保护的 `docs/GUI_SUPPORT_SURFACES.md`、`docs/AGENT_POLICY.md`、`docs/RELEASE.md`、Tauri 配置、根 Cargo/前端锁文件和分发渠道要求；只有 E2E、完整验收或发布被独立触发时才读取其相关验证记录。完整读取 [references/tauri-macos-windows.md](references/tauri-macos-windows.md)。从根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 读取非空 `target-platforms` 与 `interfaces`，要求目标包含当前候选平台且接口包含 `gui`；不得从当前宿主、目录名或旧对话推断。只有用户明确提出“发布候选”或“准备并构建发布”才进入本 Skill；普通“构建/打包/首次安装试包”转到 `$desktop-build-tauri-local-install`，不得称为任务升级，也不得先询问发布 E2E/性能选择。进入候选流程后，先解析当前构建的 E2E 选择：本次请求已明确 `enabled`/`disabled` 时直接复用，否则在任何测试或编译前询问用户一次；`milestone_e2e` 只作为建议默认值，选择只对本次构建有效且不得静默写回策略。同时解析当次 `performanceSelection: enabled | disabled`：当前发布/构建请求已经明确或由 `$desktop-prepare-release` 传入时直接复用；产品/渠道硬要求强制为 `enabled` 并记录来源；否则在任何测试或编译前询问用户一次，可与尚未解析的 E2E 选择同轮询问。性能选择没有持久默认值、不得从 `milestone_e2e` 推断，只对当前 GUI 发布/候选构建有效；同一发布的修复重跑复用原选择，新发布重新询问。
