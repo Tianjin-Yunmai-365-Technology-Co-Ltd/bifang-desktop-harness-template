@@ -5,29 +5,29 @@ description: 使用仓库声明的版本方案评估并准备可追溯发布。H
 
 # 准备发布
 
-准备发布元数据、自动形成可追溯的本地提交并构建候选；用户明确提出发布时，该请求本身授权本次已完成范围的本地提交和紧随其后的候选构建，不再追加提交或构建审批。普通构建不自动提交。它不授权标签、推送、上传、渠道发布或历史改写。
+准备发布元数据、自动形成可追溯提交、关闭活动 feature 分支链并从 `Release` 构建候选；用户明确提出发布时，该请求本身授权本次已完成范围的提交、活动链与 `Release` 的受管推送、精确链 ref 清理和紧随其后的候选构建，不再追加提交或构建审批。普通构建不自动提交。该窄授权不包含配置 remote/凭据、无精确期望 OID 的 force push、标签、上传、渠道发布、历史改写或 `Release` → 默认主分支 Merge/PR；只允许关闭事务为精确删除登记 ref 使用逐 ref `--force-with-lease`。
 
 ## 工作流程
 
-1. 读取存在时的 `Version.md`、`docs/RELEASE.md`、日期最新的 Product Spec 和验证记录。`docs/changelog/README.md` 存在时读取其规则；下游尚未触发 Changelog 时，使用 `docs/ENGINEERING_RULES.md` 的 Changelog 触发规则，不得为读取规则而预建目录、索引或日期文件。确认用户确实提出发布，并判断当前进入“候选前本地提交与更新日志阶段”还是已有 `Milestone accepted` 候选后的“就绪复核阶段”。只有前者使用本节的自动本地提交与构建授权。候选前阶段含 GUI 时，在任何本地提交或发布元数据写入前解析当次 `performanceSelection: enabled | disabled`：当前发布请求已经明确时直接复用；产品/渠道硬要求强制启用并记录来源；否则询问用户一次。该选择不写入持久策略，不从 E2E 推断；同一发布的修复重跑复用原选择，新发布重新询问，并把解析结果传给 `$desktop-build-tauri-release`，使构建不得重复询问。
+1. 读取存在时的 `Version.md`、`docs/RELEASE.md`、日期最新的 Product Spec 和验证记录。`docs/changelog/README.md` 存在时读取其规则；下游尚未触发 Changelog 时，使用 `docs/ENGINEERING_RULES.md` 的 Changelog 触发规则，不得为读取规则而预建目录、索引或日期文件。确认用户确实提出发布，并判断当前进入“候选前提交、更新日志与分支链关闭阶段”还是已有 `Milestone accepted` 候选后的“就绪复核阶段”。只有前者使用本节的自动提交、受管 push/清理与构建授权，并先调用 `$desktop-manage-git-branch-chain inspect`，要求当前是 `.harness/git-branch-chain.json` 登记的活动 feature 叶子。候选前阶段含 GUI 时，在任何提交或发布元数据写入前解析当次 `performanceSelection: enabled | disabled`：当前发布请求已经明确时直接复用；产品/渠道硬要求强制启用并记录来源；否则询问用户一次。该选择不写入持久策略，不从 E2E 推断；同一发布的修复重跑复用原选择，新发布重新询问，并把解析结果传给 `$desktop-build-tauri-release`，使构建不得重复询问。
 2. 应用已声明的版本方案。Harness 模板使用根 `Version.md`，根据用户在 `Asia/Shanghai` 时区作出的版本决定使用 12 位 `YYYYMMDDHHMM`；下游不得继承 Harness `Version.md`，也不重新计算 SemVer，而在就绪复核调用 `$desktop-manage-version check --phase release` 使用开发阶段已经确定的目标版本。只有 Major 的精确目标需要用户批准，Minor/Patch 不在发布准备阶段补升。所有用户可见版本规范化为且只规范化为一个小写 `v`；Cargo、状态和 manifest 的机器版本字段保持原始值。
 
 ### 候选前本地提交与更新日志阶段
 
-3. 要求独立 Git 顶层目录和可解析的当前 `HEAD`；初始化中尚未生成的 `HEAD` 不具备发布比较边界，必须声明 `Not ready`。先运行只读检查，并逐项查看 staged、unstaged、untracked 内容及真实 diff：
+3. 要求独立 Git 顶层目录、可解析的当前 `HEAD` 和活动 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 叶子；初始化中尚未生成的 `HEAD`、默认主分支、`main`、`master`、`Release`、detached HEAD 或状态文件未登记的分支都不具备候选前提交边界，必须声明 `Not ready`。先运行只读检查，并逐项查看 staged、unstaged、untracked 内容及真实 diff；检查结果中的 `branch` 与 `head` 都进入 `statusSha256`，复核后切分支或移动 HEAD 必须重新检查：
 
    ```text
    python3 .agents/skills/desktop-prepare-release/scripts/release_git.py inspect --project-root .
    ```
 
    只把已完成、范围明确、已复核且属于本次发布的源码/测试/版本/适用项目记录纳入第一个提交；此时 `release-notes.json` 必须未改动。存在归属歧义、半成品、无法解释的 staged 内容、秘密/令牌/凭据/个人数据、临时调试、缓存或不应跟踪的生成物时立即停止并询问用户，不得猜测、隐藏或自动提交。不得把“明确发布”扩张为提交不明确或敏感内容。
-4. 紧邻真实提交调用 `$desktop-configure-git-commits`：报告并检查有效身份，只在字段缺失时传入 Agent 已翻译/归一化的单一 ASCII 英文设备 username，由该 Skill 确定派生同名 Gmail 并只写仓库 local；安装并检查仓库模板。已有有效身份保持不变，绝不得写 global/system。然后重新运行 `release_git.py inspect` 获取最新 `statusSha256`，把所有且仅有已复核源码路径作为重复 `--path` 传入：
+4. 紧邻真实提交调用 `$desktop-configure-git-commits`：报告并检查有效身份，只在字段缺失时传入 Agent 已翻译/归一化的单一 ASCII 英文设备 username，由该 Skill 确定派生同名 Gmail 并只写仓库 local；安装并检查仓库模板。已有有效身份保持不变，绝不得写 global/system。然后重新运行 `release_git.py inspect` 获取绑定分支与 HEAD 的最新 `statusSha256`，把所有且仅有已复核源码路径作为重复 `--path` 传入：
 
    ```text
    python3 .agents/skills/desktop-prepare-release/scripts/release_git.py commit --project-root . --expected-status-sha256 <sha256-from-inspect> --message "<reviewed Conventional Commit message>" --path <reviewed-path> [--path <reviewed-path> ...]
    ```
 
-   明确发布请求已经授权此本地提交，不再询问第二次审批。脚本使用 literal pathspec，只允许完整工作树范围，正常运行 hooks 且绝不传 `--no-verify`；状态在复核后变化、路径越界、暂存区夹带、范围不完整、身份/模板/签名错误、hook 或 `git commit` 失败都必须停止。工作树原本 clean 时不创建空源码提交，直接把现有 `HEAD` 作为源码提交。源码提交完成后必须 clean，再记录新的 40 位 `sourceHead`。
+   明确发布请求已经授权此提交，不再询问第二次审批。脚本使用 literal pathspec，只允许完整工作树范围，正常运行 hooks 且绝不传 `--no-verify`；状态在复核后变化、路径越界、暂存区夹带、范围不完整、身份/模板/签名错误、hook 或 `git commit` 失败都必须停止。工作树原本 clean 时不创建空源码提交，直接把现有 `HEAD` 作为源码提交。源码提交完成后必须 clean，再调用 `$desktop-manage-git-branch-chain publish`，只有远端叶子复读精确等于新的 40 位 `sourceHead` 才继续。
 5. 从正式发布状态、标签及匹配 Verification 中找到上一次真实发布的版本和 40 位源码提交，并以它到 `sourceHead` 为比较范围；不得把 `pending`/`accepted` 候选、标签创建尝试或目录修改时间当作正式发布。首个正式发布没有上次提交时，以仓库起点到 `sourceHead` 为比较范围；如果历史证据冲突或无法界定比较范围，声明 `Not ready` 并停止，绝不猜测。
 6. 审阅上次正式发布提交之后到 `sourceHead` 的真实差异、已完成行为、适用按日 Changelog 和缺陷事实，语义筛选最重要的用户可见内容；不得直接倾倒提交标题、内部重构或构建流水账。当前版本固定使用两类：`功能优化` 不超过 10 个逻辑条目，`问题修复` 不超过 10 个逻辑条目，两类合计至少一条。每个逻辑条目必须同时形成非空 `zh-CN` 和 `en-US` 文案；若只先整理一种语言，Agent 自动翻译另一种，并在写入前并排复核：两侧指向同一处代码事实、条目数量和顺序一致、无一侧遗漏或凭空新增要点、专有名词和版本号等标识符逐字相同；复核不通过时改正译文而非放宽结构校验，且不为翻译另行扩大比较范围。普通缺陷修复即使按项目记忆规则不触发 Changelog，也必须进入本次发布的“问题修复”。
 7. 使用本 Skill 的标准库脚本维护根 `release-notes.json`：
@@ -40,9 +40,9 @@ description: 使用仓库声明的版本方案评估并准备可追溯发布。H
    ```
 
    `--feature-optimization-zh-cn`/`--feature-optimization-en-us` 与 `--bug-fix-zh-cn`/`--bug-fix-en-us` 各自按出现顺序配对（第 1 个 `-zh-cn` 对应第 1 个 `-en-us`，以此类推），与命令行上是否相邻书写无关；两侧数量必须一致，顺序错位会导致翻译对语义错配却不被结构校验发现。脚本必须拒绝符号链接/非普通文件、非 `schemaVersion: 2`、无效日期/版本、重复版本、空版本条目、翻译对缺少 `zh-CN`/`en-US`、任一分类超过 10 条或总版本超过 5 条；配对参数数量不一致也必须失败。脚本把同版本替换后置顶，按最新在前原子写入并只保留最近 5 版。中文渲染保持 `-----------更新日志 {发布日期} {发布版本}----------`、`###功能优化`、`###问题修复` 与“无”；英文渲染保持 `-----------Release notes {release date} {release version}----------`、`###Feature optimizations`、`###Bug fixes` 与“None”；发布版本都带一个小写 `v`。
-8. 同时判断本次源码是否触发 Changelog。触发时把有效 `Unreleased` 条目按现有规则整理为本次发布元数据；仅含普通缺陷修复或纯重构时，不创建、不补写也不汇总 Changelog，并把该门禁记录为 `Not applicable`。随后独立运行 `release_notes.py check` 与双语 `render`，重新运行 `release_git.py inspect`；除 `release-notes.json` 和确实被规则触发的 Changelog 文件外出现任何变化都停止。将这些发布日志作为第二个逻辑提交，例如 `chore(release): prepare vX.Y.Z candidate`。若更新命令字节幂等且没有任何发布元数据变化，不创建空提交。
-9. 第二个提交同样使用最新 `statusSha256` 和精确 `--path`，不再追加审批，且不得绕过 hooks。提交后运行 `release_git.py inspect`，要求 `status=clean`，把其 40 位 `head` 记录为唯一 `releaseHead`；`git status --porcelain=v1 --untracked-files=all` 非空、提交失败或 HEAD 不可解析时停止。此时构建所用 `sourceCommit` 必须等于 `releaseHead`，而不是第一个源码提交或旧候选提交。
-10. 最终 clean 后立即按已选接口调用 `$desktop-build-tauri-release`（含 GUI）或 `$desktop-build-rust-release`（无 GUI）；这是明确发布请求的一部分，不再询问是否提交或是否开始构建。构建 Skill 负责解析本次 E2E 选择、运行其规定测试并创建 `pending` 候选；本 Skill 不在构建外另行补跑测试。构建开始前、写 manifest 前均须复核 clean 且 `HEAD == releaseHead`，任何漂移停止。GUI 构建必须接收第 1 步解析的 `performanceSelection`：选择 `enabled` 或产品/渠道硬要求时，才在 bundle 前调用 `$desktop-test-gui-release-performance`；选择 `disabled` 且无硬要求时跳过探针并记录 `performanceStatus: Not run`、原因和剩余风险。已启用后的首次失败先返回开发循环尝试有界修复。修复改变源码时，本次 releaseHead 与候选失效，但原明确发布请求仍授权本 Skill 回到第 3 步复核并本地提交该范围、刷新发布日志提交，再从新的 clean `releaseHead` 以原性能选择重跑构建，不追加选择/提交/构建审批。只有修复后仍失败时才能询问用户是否以保留原失败证据的 `performanceStatus: waived` 继续；未确认则停止。此授权仍不包含验收结论、签名补救、标签、推送、上传或真实渠道发布。
+8. 同时判断本次源码是否触发 Changelog。触发时把有效 `Unreleased` 条目按现有规则整理为本次发布元数据；仅含普通缺陷修复或纯重构时，不创建、不补写也不汇总 Changelog，并把该门禁记录为 `Not applicable`。随后独立运行 `release_notes.py check` 与双语 `render`，重新运行 `release_git.py inspect`；除 `release-notes.json` 和确实被规则触发的 Changelog 文件外出现任何变化都停止。将这些发布日志作为第二个逻辑提交，例如 `chore(release): prepare vX.Y.Z candidate`。确有变化时，紧邻该提交再次调用 `$desktop-configure-git-commits` 完成有效身份与仓库 local 模板的 report/install/check；若更新命令字节幂等且没有任何发布元数据变化，不创建空提交。无论是否产生第二个提交，都再次调用 `$desktop-manage-git-branch-chain publish` 并复读远端叶子。
+9. 第二个提交同样使用最新 `statusSha256` 和精确 `--path`，不再追加审批，且不得绕过 hooks。提交后运行 `release_git.py inspect`，要求 `status=clean`；紧邻即将由 helper 形成的关闭状态提交，再调用 `$desktop-configure-git-commits` 完成有效身份与仓库 local 模板的 report/install/check，然后运行 `$desktop-manage-git-branch-chain release`。该命令只接受严格串行、父头冻结、全部远端 OID 已复读且无其他 Worktree 占用的登记链；它在活动叶子形成关闭状态提交，并以一次 atomic push 把完整线性历史快进到精确 `Release`，同时用逐 ref lease 删除状态文件精确列出的远端 feature refs，复读确认默认主分支未变化后再删除对应本地 refs。任何冲突、竞态、非快进、原子 push 失败或链外 ref 都不得触发删除；远端已经成功但本地清理中断时只允许同一命令按记录幂等收尾。命令成功后当前分支必须是 `Release`、工作树 clean、远端 `Release` 精确等于当前 40 位 `HEAD`，把它记录为唯一 `releaseHead`。构建所用 `sourceCommit` 必须等于该 `releaseHead`，而不是源码提交、关闭前叶子或旧候选提交。
+10. 分支链关闭且最终 clean 后立即按已选接口调用 `$desktop-build-tauri-release`（含 GUI）或 `$desktop-build-rust-release`（无 GUI）；这是明确发布请求的一部分，不再询问是否提交或是否开始构建。构建 Skill 负责解析本次 E2E 选择、运行其规定测试并创建 `pending` 候选；本 Skill 不在构建外另行补跑测试。构建开始前、写 manifest 前均须复核当前分支精确为 `Release`、clean 且 `HEAD == releaseHead`，任何漂移停止。GUI 构建必须接收第 1 步解析的 `performanceSelection`：选择 `enabled` 或产品/渠道硬要求时，才在 bundle 前调用 `$desktop-test-gui-release-performance`；选择 `disabled` 且无硬要求时跳过探针并记录 `performanceStatus: Not run`、原因和剩余风险。已启用后的首次失败先返回开发循环尝试有界修复；修复必须作为新的需求/Bug 从 `Release` 新建下一条 feature 链，不得直接修改 `Release`，原候选随即失效并从新链重新执行本流程。只有修复后仍失败时才能询问用户是否以保留原失败证据的 `performanceStatus: waived` 继续；未确认则停止。此授权仍不包含验收结论、签名补救、标签、上传或真实渠道发布。
 
 ### 就绪复核阶段
 
@@ -57,9 +57,9 @@ description: 使用仓库声明的版本方案评估并准备可追溯发布。H
 
 - 绝不得覆盖已发布版本。
 - 绝不得编造标签、提交、校验和、产物、日期或验证结果。
-- 明确发布只自动提交已完成且经逐项复核的本地范围。任何歧义、秘密、凭据、个人数据、不明暂存内容或 hook/签名/提交失败都必须停止，不得以跳过 hook、扩大 pathspec 或部分提交规避。
-- 启动构建前必须是 clean 40 位 `HEAD`；manifest 的 `sourceCommit` 必须等于该 HEAD。构建期间 HEAD 或状态漂移立即作废本次候选。
-- 绝不得仅因调用本 Skill 就发布、推送、创建标签或上传；必须取得用户明确授权。
+- 明确发布只自动提交已完成且经逐项复核的本地范围，并授权把活动 feature 叶子推到既有远端、把经冻结校验的完整线性分支链快进到精确 `Release`，以及按状态清单和逐 ref lease 原子删除远端链路后删除对应本地链路。任何歧义、秘密、凭据、个人数据、不明暂存内容或 hook/签名/提交失败都必须停止，不得以跳过 hook、扩大 pathspec 或部分提交规避。
+- 启动构建前必须位于精确 `Release`，是 clean 40 位 `HEAD`，且远端 `Release` 与该 HEAD 相等；manifest 的 `sourceCommit` 必须等于该 HEAD。构建期间 HEAD 或状态漂移立即作废本次候选。
+- 此授权不包含远端配置、凭据处理、无精确期望 OID 的强制推送、标签、上传、真实渠道发布，亦不包含从 `Release` 到 `main`、`master` 或动态远端默认分支的合并、推送、删除或代建 PR；逐 ref lease 删除仍是关闭事务唯一允许的 force 形式。最后一步只报告精确 ref 与提交，始终由用户自行 Merge/PR。
 - 绝不得把候选工作流成功或产物目录完整视为发布授权。
 - 本 Skill 不得在已调用的构建/验收 Skill 之外另行运行冒烟/E2E，也不得把未选择的检查视为通过。保留 `Not run` 及其剩余风险；项目策略、产品或渠道要求该检查时，必须阻断就绪状态。
 - 发布准备本身不得在此运行任一测试，绝不得在发布准备中运行冒烟/E2E；它解析并传递当次 GUI 性能选择，只复核候选清单中的 `e2eSelection` 与 `performanceSelection`，测试、已启用 GUI 性能门禁和适用 E2E 均由被调用的专用 Skill 负责。

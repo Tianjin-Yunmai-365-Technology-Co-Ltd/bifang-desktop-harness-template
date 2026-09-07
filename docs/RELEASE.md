@@ -33,6 +33,12 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 已发布版本不得静默覆盖。Harness 时间版本仍由用户决定；下游除 Major 以外的合格版本变化由上述门禁自动确定。版本门禁不授权创建标签、移动 `Unreleased` 条目或正式发布。
 
+## 发布分支与制品目录
+
+精确 Git ref `Release` 是下游受保护的候选集成分支，与项目根忽略的制品目录 `release/` 不是同一对象。日常需求、Bug 与维护只写入 `$desktop-manage-git-branch-chain` 登记的串行 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 链；`main`、`master`、远端默认分支和 `Release` 均禁止直接写入。首条链在 `Release` 不存在时才以冻结的远端默认分支为基线，以后从远端 `Release` 或当前已推送叶子继续。
+
+明确程序发布授权 `$desktop-prepare-release` 推送活动叶子的已复核提交，并在严格父子链、冻结 OID、干净工作树和 Worktree 占用检查全部通过后，以一次 atomic push 将完整线性历史快进到 `Release`，同时按状态清单和逐 ref lease 删除精确远端 feature refs；成功复读默认分支未变化后再删除对应本地 refs。原子操作失败不得删除任何 ref，远端已成功而本地清理中断时只允许按关闭状态幂等收尾。禁止 wildcard、无精确期望 OID 的 force、非快进、rebase、cherry-pick 和链外删除；唯一 force 形式是上述逐 ref `--force-with-lease` 删除。`Release` 到默认分支的 Merge/PR 永远由用户自行完成，Agent 只报告精确 ref 与 40 位提交。
+
 ## 用户可见版本与更新日志
 
 - Windows 原生本地安装试包不是发布候选，不进入本文件的更新日志、clean HEAD、manifest、E2E、性能、签名或 `release/` 门禁。普通“构建/打包/首次安装试一下”由 `$desktop-build-tauri-local-install` 处理；只有用户明确要求发布候选或准备发布，才适用下列规则。该试包仍须明确标注未签名、未安装、未验收且不可分发。
@@ -93,14 +99,14 @@ Harness 模板若发布源码归档，使用：
 
 ## 构建、完整验收与发布顺序
 
-E2E 选择只对当前发布候选有效；每次显式候选构建都独立解析，当前请求未明确时询问一次，持久建议值不能静默代替。GUI 性能选择也只对当前发布有效且没有持久默认值：明确发布在入口复用当前请求已经给出的选择，否则询问一次；直接构建 GUI 候选时由构建 Skill 在任何测试或编译前作同样的兜底解析。候选构建必须运行项目全部非空单元测试，失败或零测试时不得形成候选。直接候选构建不自动提交；明确“发布/准备并构建发布”请求本身授权下列本地提交和构建步骤，不再为二者重复审批，但不授权 tag、push、上传、商店提交或正式发布。
+E2E 选择只对当前发布候选有效；每次显式候选构建都独立解析，当前请求未明确时询问一次，持久建议值不能静默代替。GUI 性能选择也只对当前发布有效且没有持久默认值：明确发布在入口复用当前请求已经给出的选择，否则询问一次；直接构建 GUI 候选时由构建 Skill 在任何测试或编译前作同样的兜底解析。候选构建必须运行项目全部非空单元测试，失败或零测试时不得形成候选。直接候选构建不自动提交或关闭分支链；明确“发布/准备并构建发布”请求本身授权下列 feature 提交/推送、受限 `Release` 原子集成/链路清理和构建步骤，不再重复审批，但不授权 tag、上传、商店提交、真实渠道发布或 `Release` 到默认分支。
 
-1. 明确发布请求后，`$desktop-prepare-release` 先确定接口；含 GUI 时，在任何本地提交或发布元数据写入前解析本次 `performanceSelection`，当前请求已明确时复用，否则询问一次，产品/渠道硬要求优先并强制启用。随后只读复核工作树、范围、缓存和疑似秘密。归属明确的已完成源码按逻辑提交；无关/歧义改动、秘密、hook/签名交互或提交失败立即停止，禁止 `--no-verify`。clean 且无源码变化时不制造空提交。
-2. 从新的源码 HEAD 定位上一次真实正式发布边界，生成双语 `release-notes.json`；文件有变化时形成独立发布元数据提交，无变化时不制造空提交。随后要求独立仓库、无 remote 变更；最终工作树必须干净，且 `sourceCommit` 精确等于 HEAD。构建 Skill 对 dirty 状态失败关闭。
-3. 运行版本/更新日志/资源配置检查并解析当前 E2E 选择，再运行项目全部非空单元测试。GUI 性能选择为 `enabled` 或产品/渠道硬要求时，从同一 clean HEAD 生成 release-profile no-bundle 探针候选并调用 `$desktop-test-gui-release-performance`：先精确快照 window-state 原字节或原缺席状态，以一个脱敏种子在每次预热和 5 次冷启动前分别重置并验证，且在成功、失败、超时和取消路径恢复并复核原字节/原缺席；隔离完成后按 `gui-release-v2` 执行，一次预热后 5 次冷启动中位数 ≤2.4 秒且最大 ≤3.6 秒；至少 20 次代表性交互 p95 ≤120ms 且单次 <240ms；不短于 50ms 的 Long Task 必须记录且单次 <240ms；30 秒整进程树空闲 CPU p95 ≤6% 单核，适用隐藏/托盘 ≤2.4%；稳定 RSS ≤360 MiB、峰值 ≤600 MiB；20 轮后增长 ≤`max(18%, 38.4 MiB)`，退出后全部进程回收。v2 相对 v1 只把性能允许上限放宽 20%，预热、样本量、观察时长、循环次数和 Long Task 记录下限不变，旧 v1 证据不得改标或复用。指标失败先修复并从新提交重建；仍无法安全解决时才询问，但只有 `wholeProcessTree`、`probeBytesUnmodified`、`allProcessesRecovered` 均为 `true`、原窗口状态已恢复验证且证据为 `waiverAllowed: true`，才能接受明确继续并记为 `waived`，否则停止。选择 `disabled` 且无硬要求时不生成探针，记录 `Not run`、原因和剩余风险。
+1. 明确发布请求后，`$desktop-prepare-release` 先确定接口；含 GUI 时，在任何提交或发布元数据写入前解析本次 `performanceSelection`，当前请求已明确时复用，否则询问一次，产品/渠道硬要求优先并强制启用。随后要求当前分支精确为登记的活动 feature 叶子，只读复核链状态、工作树、范围、缓存和疑似秘密。归属明确的已完成源码按逻辑提交并用 `$desktop-manage-git-branch-chain publish` 推送、复读；无关/歧义改动、秘密、hook/签名交互、提交或 push 失败立即停止，禁止 `--no-verify`。clean 且无源码变化时不制造空提交。
+2. 从新的源码 HEAD 定位上一次真实正式发布边界，生成双语 `release-notes.json`；文件有变化时形成独立发布元数据提交，无变化时不制造空提交。再次推送并复读活动叶子后，调用 `$desktop-manage-git-branch-chain release`：严格校验冻结基线、节点父子和全部远端 OID，在叶子提交关闭状态，以单次 atomic push 快进 `Release` 并按 lease 删除登记的远端链，再确认默认分支未变化并精确清理本地链。最终必须位于 clean `Release`，本地/远端 `Release` 等于同一 40 位 `releaseHead`；构建 `sourceCommit` 固定等于该值。
+3. 从上述 clean `Release` 运行版本/更新日志/资源配置检查并解析当前 E2E 选择，再运行项目全部非空单元测试。GUI 性能选择为 `enabled` 或产品/渠道硬要求时，从同一 clean HEAD 生成 release-profile no-bundle 探针候选并调用 `$desktop-test-gui-release-performance`：先精确快照 window-state 原字节或原缺席状态，以一个脱敏种子在每次预热和 5 次冷启动前分别重置并验证，且在成功、失败、超时和取消路径恢复并复核原字节/原缺席；隔离完成后按 `gui-release-v2` 执行，一次预热后 5 次冷启动中位数 ≤2.4 秒且最大 ≤3.6 秒；至少 20 次代表性交互 p95 ≤120ms 且单次 <240ms；不短于 50ms 的 Long Task 必须记录且单次 <240ms；30 秒整进程树空闲 CPU p95 ≤6% 单核，适用隐藏/托盘 ≤2.4%；稳定 RSS ≤360 MiB、峰值 ≤600 MiB；20 轮后增长 ≤`max(18%, 38.4 MiB)`，退出后全部进程回收。v2 相对 v1 只把性能允许上限放宽 20%，预热、样本量、观察时长、循环次数和 Long Task 记录下限不变，旧 v1 证据不得改标或复用。指标失败必须从 `Release` 建立一条新的 feature 链修复、推送并重新关闭链路后重建；仍无法安全解决时才询问，但只有 `wholeProcessTree`、`probeBytesUnmodified`、`allProcessesRecovered` 均为 `true`、原窗口状态已恢复验证且证据为 `waiverAllowed: true`，才能接受明确继续并记为 `waived`，否则停止。选择 `disabled` 且无硬要求时不生成探针，记录 `Not run`、原因和剩余风险。
 4. 性能已启用时只有 `passed`，或原始失败证据明确 `waiverAllowed: true` 后获用户显式 `waived`，才能进入完整打包。`wholeProcessTree`、`probeBytesUnmodified`、`allProcessesRecovered` 任一不为 `true`，或窗口状态恢复未验证时，helper 必须输出 `waiverAllowed: false` 与不可豁免失败，必须先修复并重新验证。性能已关闭且无硬要求时以 `Not run` 继续。Rust CLI 默认走三平台原生矩阵；Tauri GUI 生成适用 DMG/NSIS，每个候选打入同一更新日志并逐字节比较。签名条件和全有或全无规则保持；任何路径都不得自动创建、索取或输出凭据。
 5. `$desktop-verify-delivery` 对最终候选执行冒烟、当前 E2E 选择、产品/渠道硬要求，并按 `performanceSelection` 条件复核性能：启用时证据仍须绑定同一提交和运行字节，三项完整性标记必须为 `true` 且 window-state 原状态恢复已经验证；`waived` 还必须引用 `waiverAllowed: true` 的原始失败证据并保持可见风险，不能变成 `passed`。关闭时确认 `Not run` 的原因/风险和性能字段缺席。Windows xwin 只有在启用性能但缺少原生测量时保持 `Unverified`。
-6. 所有 required/enabled 检查和人工复核完成后才把 `pending` 转为 `accepted`。就绪复核只读检查候选提交、版本、更新日志、当次性能选择/状态、哈希和签名一致；真实渠道发布成功后才执行 `$desktop-manage-version finalize-release`。
+6. 所有 required/enabled 检查和人工复核完成后才把 `pending` 转为 `accepted`。就绪复核只读检查当前分支精确为 `Release`、本地/远端提交与候选 `sourceCommit` 相同，以及版本、更新日志、当次性能选择/状态、哈希和签名一致；只报告该 ref/OID 供用户自行合并或创建 PR，真实渠道发布成功后才执行 `$desktop-manage-version finalize-release`。
 7. 更新日志、签名、公证、stapling、重打包或渠道处理若改变运行字节、启动器、依赖或行为，结果成为新候选并回到步骤 3；当次选择启用时旧性能证据与运行时绑定不得复用，所有候选的旧验收证据都不得复用。
 
 ## Harness 模板发布检查清单
@@ -132,6 +138,7 @@ Harness 根目录没有具体产品，因此下游产物门槛不适用于模板
 本清单只接受已通过完整验收的真实候选。日常开发只运行本次必要单元测试；显式构建运行项目全部非空单元测试，E2E 只在最终候选形成后按当前选择执行。
 
 - [ ] 项目根是独立 Git 顶层目录，工作树干净，当前发布源码已有 40 位提交；manifest `sourceCommit` 精确等于实际构建 HEAD，父仓库、尚无提交或未记录修改不得替代发布源码身份。
+- [ ] 构建 HEAD 位于精确 `Release`，本地与登记远端 `Release` 均等于 manifest `sourceCommit`；feature 链已经按状态清单和逐 ref lease 原子关闭，远端默认分支 OID 未变化，且未执行或代建 `Release` 到默认分支的 Merge/PR。
 - [ ] 产品规格状态为 Approved。
 - [ ] 中性 `scaffold status` 已由获批的真实业务命令和测试删除或替换，不再返回 `productDefinitionRequired=true`。
 - [ ] 不存在已知未实现逻辑或未修复行为偏差；若用户要求的活动 Work Plan 存在，相关 Todo 全部为 `done`。

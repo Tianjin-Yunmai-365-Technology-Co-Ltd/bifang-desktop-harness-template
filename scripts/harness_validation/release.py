@@ -603,22 +603,35 @@ def validate_gui_release_performance_contract(
     )
 
 
-def validate_release_git_contract(errors: list[str]) -> None:
+def validate_release_git_contract(
+    errors: list[str],
+    *,
+    prepare_skill: Path = PREPARE_RELEASE_SKILL,  # noqa: F405
+    release_doc: Path = ROOT / "docs" / "RELEASE.md",  # noqa: F405
+    readme: Path = ROOT / "README.md",  # noqa: F405
+) -> None:
     """锁定明确发布的本地提交授权、精确范围和 clean HEAD 构建边界。"""
     required = {
-        PREPARE_RELEASE_SKILL: (  # noqa: F405
+        prepare_skill: (
             "用户明确提出发布时，该请求本身授权",
             "不再追加提交或构建审批",
-            "不授权标签、推送、上传、渠道发布或历史改写",
+            "活动链与 `Release` 的受管推送",
+            "该窄授权不包含配置 remote/凭据、无精确期望 OID 的 force push、标签、上传、渠道发布、历史改写",
             "release_git.py inspect --project-root .",
             "release_git.py commit --project-root .",
             "--expected-status-sha256",
             "--path <reviewed-path>",
-            "明确发布请求已经授权此本地提交，不再询问第二次审批",
+            "明确发布请求已经授权此提交，不再询问第二次审批",
             "literal pathspec",
             "绝不传 `--no-verify`",
             "工作树原本 clean 时不创建空源码提交",
-            "sourceCommit` 必须等于 `releaseHead`",
+            "$desktop-manage-git-branch-chain publish",
+            "$desktop-manage-git-branch-chain release",
+            "以一次 atomic push 把完整线性历史快进到精确 `Release`",
+            "逐 ref lease 删除状态文件精确列出的远端 feature refs",
+            "构建所用 `sourceCommit` 必须等于该 `releaseHead`",
+            "从 `Release` 到 `main`、`master` 或动态远端默认分支",
+            "始终由用户自行 Merge/PR",
             "不再询问是否提交或是否开始构建",
             "普通构建不自动提交",
         ),
@@ -632,6 +645,13 @@ def validate_release_git_contract(errors: list[str]) -> None:
             "potential secret detected in reviewed staged bytes",
             "hooks were not bypassed",
             "commit succeeded but working tree is not clean",
+            "protected branch-chain state is missing or not a regular file",
+            "release commit requires an active managed feature chain",
+            "current feature branch is not the registered active leaf",
+            "remote default branch or OID changed after the chain was registered",
+            "main, master, the remote default branch, and Release are read-only here",
+            'PurePosixPath(".harness"),',
+            'PurePosixPath(".harness/git-branch-chain.json"),',
             'inspect.add_argument("--project-root"',
             'commit.add_argument("--expected-status-sha256"',
             'commit.add_argument("--path", action="append", required=True)',
@@ -640,24 +660,34 @@ def validate_release_git_contract(errors: list[str]) -> None:
             "test_inspect_reports_exact_head_and_dirty_snapshot",
             "test_commit_stages_only_reviewed_paths_and_finishes_clean",
             "test_changed_snapshot_is_rejected_before_staging",
+            "test_branch_switch_invalidates_reviewed_snapshot",
+            "test_commit_rejects_unregistered_feature_branch",
+            "test_commit_rejects_remote_default_branch_drift",
+            "test_commit_rejects_protected_and_release_branches",
             "test_unreviewed_path_blocks_partial_commit",
             "test_existing_unreviewed_staged_path_is_rejected",
             "test_failing_hook_stops_without_advancing_head",
             "test_high_confidence_secret_stops_without_advancing_head",
             "test_unsafe_or_empty_commit_scope_is_rejected",
         ),
-        ROOT / "docs" / "RELEASE.md": (  # noqa: F405
+        release_doc: (
+            "## 发布分支与制品目录",
             "直接候选构建不自动提交",
             "明确“发布/准备并构建发布”请求本身授权",
-            "不授权 tag、push、上传、商店提交或正式发布",
+            "不授权 tag、上传、商店提交、真实渠道发布或 `Release` 到默认分支",
             "从新的源码 HEAD",
-            "最终工作树必须干净",
-            "sourceCommit` 精确等于 HEAD",
+            "以单次 atomic push 快进 `Release` 并按 lease 删除登记的远端链",
+            "最终必须位于 clean `Release`",
+            "构建 `sourceCommit` 固定等于该值",
+            "`Release` 到默认分支的 Merge/PR 永远由用户自行完成",
         ),
-        ROOT / "README.md": (  # noqa: F405
-            "明确发布请求自动形成可审计的本地提交",
-            "不再为提交或构建重复审批",
-            "普通“构建候选”不会自动提交",
+        readme: (
+            "$desktop-manage-git-branch-chain",
+            "把登记的完整线性链快进到精确 `Release`",
+            "以逐 ref lease 原子删除远端链路后清理本地链路",
+            "再从 `Release` 构建，不重复审批",
+            "普通“构建候选”不会自动提交或关闭分支链",
+            "`Release` 到默认分支的 Merge/PR 始终由你完成",
         ),
     }
     validate_fragment_contract(
@@ -716,11 +746,11 @@ def validate_release_contract(errors: list[str]) -> None:
             "release_git.py inspect --project-root .",
             "statusSha256",
             "release_git.py commit --project-root . --expected-status-sha256",
-            "明确发布请求已经授权此本地提交",
+            "明确发布请求已经授权此提交",
             "literal pathspec",
             "正常运行 hooks 且绝不传 `--no-verify`",
             "工作树原本 clean 时不创建空源码提交",
-            "`sourceCommit` 必须等于 `releaseHead`",
+            "构建所用 `sourceCommit` 必须等于该 `releaseHead`",
             "release_notes.py upsert --file release-notes.json",
             "release_notes.py check --file release-notes.json --expected-version",
             "release_notes.py render --file release-notes.json --locale zh-CN",

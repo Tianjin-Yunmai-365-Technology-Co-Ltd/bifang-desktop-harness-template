@@ -13,9 +13,10 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
 
 1. 读取 `docs/AGENT_POLICY.md`。只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled` 时才继续；日常开发不得仅因持久策略启用而自动增加并行步骤。值为 `disabled` 时使用单 Agent。
 2. `enabled` 表示许可，不表示执行请求。用户已明确要求并行时，仍只有至少两个写入单元具备不重叠所有权、明确整合顺序和干净且已提交的 Git 基线才使用本 Skill；否则解释原因并使用单 Agent。
-3. 产品定义、规划、只读调查、普通证据复核、构建、收集和发布元数据工作，不会仅因偏好已启用而自动并行。
-4. 只有当前左侧 Task 已通过 Agent Policy 的 BOUND 门禁才继续：线程绑定正确 `projectId`；保存项目根和当前 Task source Worktree 都是独立 Git 顶层，拥有相同规范化 Git common-dir；source 出现在保存项目的 Worktree registry 中，当前分支精确为 `codex/task-<task>`。Worktree 可以物理位于保存项目目录之外，不能用路径祖先关系代替这些事实。
-5. 策略许可不授权原任务以外的提交、合并、删除、推送、发布、凭据或外部副作用。
+3. source Worktree 的 `.harness/git-branch-chain.json` 声明 `schemaVersion: 1` 且 `activeChain` 非空时，严格线性的 `feature-*` 发布链与从同一叶派生 sibling `codex/unit-*` 不兼容：禁止创建写入单元，改由单 Agent 在当前叶串行写入。只读 Subagent 仍可并行，但不得创建或写入 sibling unit Worktree；状态文件损坏、不安全或 schema 无效时失败关闭。
+4. 产品定义、规划、只读调查、普通证据复核、构建、收集和发布元数据工作，不会仅因偏好已启用而自动并行。
+5. 只有当前左侧 Task 已通过 Agent Policy 的 BOUND 门禁才继续：线程绑定正确 `projectId`；保存项目根和当前 Task source Worktree 都是独立 Git 顶层，拥有相同规范化 Git common-dir；source 出现在保存项目的 Worktree registry 中，当前分支精确为 `codex/task-<task>`。Worktree 可以物理位于保存项目目录之外，不能用路径祖先关系代替这些事实。
+6. 策略许可不授权原任务以外的提交、合并、删除、推送、发布、凭据或外部副作用。
 
 ## 准备
 
@@ -28,7 +29,7 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
    python3 <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py create --project-root <absolute-project-root> --source-worktree <absolute-source-worktree> --task <task> --unit <unit> --write-target <owned-path> [--write-target <owned-path> ...]
    ```
 
-   helper 要求保存项目 primary、source registry/branch、common-dir、外部普通目录容器和干净且已提交的 source HEAD 全部匹配；从 source HEAD 创建单元并把不可变身份、基线和所有权登记在 Git common-dir。绝不得自动暂存、贮藏或提交用户修改。
+   helper 在建立任何目录或登记状态前，先失败关闭地读取 source 的可选分支链状态；活动链以稳定错误码 `managed_feature_chain_active` 拒绝创建，损坏或非法状态以 `git_branch_chain_state_invalid` 拒绝创建。随后要求保存项目 primary、source registry/branch、common-dir、外部普通目录容器和干净且已提交的 source HEAD 全部匹配；从 source HEAD 创建单元并把不可变身份、基线和所有权登记在 Git common-dir。绝不得自动暂存、贮藏或提交用户修改。
 5. 把 `create` 返回的精确 `worktreePath` 和 ownership 交给对应内部 Subagent。Agent 不是独占仓库；它必须把所有文件命令和编辑限定在该 Worktree，保留其他 Agent 的改动，不扩大所有权。在任何编辑、暂存或提交前，从单元精确 cwd 运行：
 
    ```text

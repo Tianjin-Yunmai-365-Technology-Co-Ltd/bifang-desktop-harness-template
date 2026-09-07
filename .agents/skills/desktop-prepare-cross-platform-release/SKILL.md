@@ -24,7 +24,7 @@ description: 准备并验证 $desktop-build-rust-release 使用的 Windows、mac
 ## 门禁
 
 - 缺少构建授权、调用方或运行器 dirty、HEAD/source_commit 不一致、MSRV 设置失败、测试缺失或失败、构建失败、已启动原生作业失败、候选缺失、版本不匹配、条件签名失败、校验和生成失败或结果取回不完整时，必须失败。
-- 普通构建永不自动暂存或提交；只有 `$desktop-prepare-release` 在用户明确发布后可以先形成受控本地提交，再把 clean HEAD 交给本工作流。
+- 普通构建永不自动暂存或提交；只有 `$desktop-prepare-release` 在用户明确发布后可以先形成并推送受控 feature 提交、原子关闭登记链到 `Release`，再把本地/远端一致的 clean `Release` HEAD 交给本工作流。
 - 本工作流不得把冒烟、E2E、真实宿主交互或 Computer Use 混入平台测试/编译/打包作业；`e2e_selection` 只是向最终候选阶段传递当前选择。
 - 不得从编译、打包、其他平台、模拟或交叉编译推断原生运行时行为。
 - 打包只产生 `pending` 传输候选。此后任何改变字节的签名、公证或重新打包都会产生需要重新验收的新候选。

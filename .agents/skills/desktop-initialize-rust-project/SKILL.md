@@ -36,6 +36,7 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 12. 选择 GUI 时，必须在非空测试通过后调用一次 `$desktop-test-gui-initialization-e2e`。结构检查器先验证唯一九字段、组合约束、三项固定基线和每个独立能力的启用完整/禁用无残留，再验证作为第四项固定基线的 dialog；结构检查器先验证唯一九字段、组合约束、四项固定基线和每个独立能力的启用完整/禁用无残留，再构建并启动真实本机调试二进制，执行所选侧栏、设置页、页面、窗口状态、单实例、托盘、通知、自启、深链接、快捷键及关闭语义中的全部适用场景。dialog 固定结构检查必须覆盖 Rust/前端依赖、唯一 Builder 顺序、主窗口 `dialog:default` 和无 fs 授权。所有由测试创建的登录项、window-state 数据、快捷键注册和进程必须恢复/回收；只能由 macOS 已打包应用证明的静态 scheme 系统注册明确留给候选补验，其余已选能力无法观察或验证都阻断，未选能力不得被当作缺证据。
 
 13. 只有全部脚手架检查完成后，才能收尾下游仓库：
+    - 把 `$desktop-manage-git-branch-chain` 作为所有终端下游的固定工程能力完整保留，不得按接口或平台删除其 `SKILL.md`、`agents/openai.yaml`、`assets/git-branch-chain.json`、`scripts/git_branch_chain.py`、`scripts/branch_chain_operations.py`、`scripts/branch_chain_commit.py`、`scripts/branch_chain_checks.py`、`scripts/branch_chain_git.py`、`scripts/branch_chain_remote.py`、`scripts/branch_chain_state.py`、`scripts/test_git_branch_chain.py`、`scripts/test_git_branch_chain_contract.py`、`scripts/test_git_branch_chain_race.py` 和 `scripts/test_git_branch_chain_version.py`；初始化只保留 Skill 内的空状态模板，不运行 `start`，不在项目根预创建 `.harness/git-branch-chain.json`，该受保护状态只由初始化后首次真实分支链开始创建；
     - 完整删除 `.agents/skills/desktop-instantiate-project/`、`.agents/skills/desktop-initialize-rust-project/` 和初始化专用的 `.agents/skills/desktop-test-gui-initialization-e2e/`；只有 GUI 初始化 E2E 已通过后才允许删除后者；
     - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、`docs/harness_engineering/`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
     - 保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-prepare-gui-app-identity`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees`、`$desktop-manage-version`、`$desktop-configure-git-commits`，以及仍然适用的产品开发、适配器、验证和发布 Skills；必须保留 `$desktop-implement-change` 及其维护脚本和对应测试，但不得在日常开发中自动运行这些全仓门禁；版本 Skill 及其标准库 helper/测试必须完整保留，并把 `.harness/version-state.json` 列入约束地图的受保护状态；选择 GUI 时同时完整保留 `$desktop-prepare-gui-support-surfaces`（包括 `assets/brand-support/**`）、`$desktop-add-gui-dialog`、GUI 自有 TypeScript 注释门禁、其测试和 `$desktop-build-tauri-release`，目标平台包含 Windows 时还必须保留 `$desktop-build-tauri-local-install`，使普通本地试包不进入发布流程。按固定能力顺序核对时，选择 GUI 时同时完整保留 `$desktop-add-gui-dialog`、`$desktop-prepare-gui-support-surfaces`（包括 `assets/brand-support/**`）；未选择 GUI 时将全部 GUI 条件资产与 Skills 删除且不得要求 Node.js/pnpm；
@@ -48,6 +49,7 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 ## 架构不变量
 
+- 完成收尾的下游项目必须完整保留 `$desktop-manage-git-branch-chain`；产品 `feature`/`bug` 串行链与 `codex/task-*`/`codex/unit-*` Worktree 分层保持独立，不自动创建左侧 Task。初始化不得运行 `start`，不得创建或推送 `feature-*`/`bug-*`/`Release`，也不得创建根 `.harness/git-branch-chain.json`；无 remote 的独立 `main` 基线仍是唯一初始结果。
 - 当前项目根目录必须同时是唯一的下游根目录及其独立 Git 顶层目录；父级仓库绝不能替代它。
 - 根 `Cargo.toml` 管理共享核心，并且只管理用户实际选择的适配器成员。
 - Rust 与前端清单声明经过最低直接版本和项目最低工具链测试的兼容下界；`Cargo.lock`/`pnpm-lock.yaml` 只固定正常解析结果，普通依赖不得精确锁死或使用 `latest`、tag、通配符。
@@ -79,6 +81,6 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 ## 完成要求
 
-版本部分必须报告根 Cargo 初始版本与 `.harness/version-state.json` 一致、`$desktop-manage-version` 已保留且状态已列入约束地图。
+版本部分必须报告根 Cargo 初始版本与 `.harness/version-state.json` 一致、`$desktop-manage-version` 已保留且状态已列入约束地图。Git 分支生命周期部分必须报告 `$desktop-manage-git-branch-chain` 已完整保留、未运行 `start`、未创建 `.harness/git-branch-chain.json`、基线仍是无 remote 的独立 `main` 提交。
 
 报告写入前环境门禁的 `gate.git.status/version/change`、基线前复探到的最终 Git 版本、最终 Git 边界、有效 `user.name`/`user.email` 及各自 scope/origin/source、是否由单一 ASCII 设备 username 派生并写入 local、提交模板本地配置与检查结果、基线和干净状态，以及已选接口、全部四项策略值、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个原始 Logo 候选的稳定预览顺序、用户选择、仅对所选项执行的后置验证/标准化、图标与 DMG 证据、九项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；system-locale、updater、window-state、dialog 分别报告固定基线与零出站/恢复/权限边界证据；对系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键分别报告 `enabled`/`disabled`。全局快捷键启用时另报告 contract 动作数、初始非空 binding 数、实际注册数和 owned 清理；其他启用项报告完整实现/E2E 或需打包验证的明确边界，禁用项报告依赖/feature/插件/命令/Switch/状态/翻译键/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。

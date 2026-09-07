@@ -7,7 +7,7 @@ MIN_RUST_MINOR=95
 NODE_REQUIREMENT='^24.15.0 || >=26.0.0'
 PNPM_REQUIREMENT='>=11.24.0'
 PNPM_INSTALL_REQUIREMENT='pnpm@>=11.24.0'
-GIT_REQUIREMENT='>=2.0.0'
+GIT_REQUIREMENT='>=2.36.0'
 MODE=install
 INTERFACES=
 FRONTEND_REQUIRED=0
@@ -187,7 +187,7 @@ validate_pnpm() {
     PNPM_STATUS=passed
 }
 
-# Git 是所有初始化路径的基础工具；低于 2.0.0 时返回升级需求。
+# Git 是所有初始化路径的基础工具；低于 2.36.0 时返回升级需求。
 validate_git() {
     git_path=$1
     git_text=$("$git_path" --version 2>/dev/null) || fail 29 "Git 探测失败"
@@ -198,8 +198,21 @@ validate_git() {
     case "$git_major:$git_minor:$git_patch" in
         *[!0-9:]*|::*|*::|*::*:*) fail 29 "现有 Git 不是可识别的稳定发布版：$git_text" ;;
     esac
+    git_base="$git_major.$git_minor.$git_patch"
+    if [ "$git_release" != "$git_base" ]; then
+        git_windows_prefix="${git_base}.windows."
+        case "$git_release" in
+            "$git_windows_prefix"*)
+                git_windows_serial=${git_release#"$git_windows_prefix"}
+                case "$git_windows_serial" in
+                    ''|*[!0-9]*) fail 29 "现有 Git 不是可识别的稳定发布版：$git_text" ;;
+                esac
+                ;;
+            *) fail 29 "现有 Git 不是可识别的稳定发布版：$git_text" ;;
+        esac
+    fi
     GIT_VERSION=$git_text
-    if [ "$git_major" -ge 2 ]; then
+    if [ "$git_major" -gt 2 ] || { [ "$git_major" -eq 2 ] && [ "$git_minor" -ge 36 ]; }; then
         GIT_STATUS=passed
     else
         GIT_STATUS=upgrade-required

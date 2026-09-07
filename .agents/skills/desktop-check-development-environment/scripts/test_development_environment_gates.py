@@ -251,15 +251,28 @@ class PrerequisiteGateTests(unittest.TestCase):
 
     def test_newer_git_versions_satisfy_the_minimum_without_replacement(self) -> None:
         """Git 兼容要求是最低要求，现有更高稳定版本必须原样复用。"""
-        for git_version in ("2.39.0", "2.51.0", "3.0.0"):
+        for git_version in ("2.36.0", "2.39.0", "2.51.0", "3.0.0"):
             with self.subTest(git_version=git_version), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 probe = root / "probe"
                 fake_existing_tools(probe, git=git_version)
                 result = self.run_gate(root, "--check-only", probe=probe)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn("gate.git.requirement=>=2.0.0", result.stdout)
+                self.assertIn("gate.git.requirement=>=2.36.0", result.stdout)
                 self.assertIn(f"gate.git.version=git version {git_version}", result.stdout)
+
+    def test_git_before_nul_worktree_output_requires_upgrade_in_check_only(self) -> None:
+        """Git 2.35.8 缺少 worktree porcelain 的 NUL 输出，只读门禁必须要求升级。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, git="2.35.8")
+            result = self.run_gate(root, "--check-only", probe=probe)
+            self.assertEqual(result.returncode, 20, result.stderr)
+            self.assertIn("gate.git.status=upgrade-required", result.stdout)
+            self.assertIn("gate.git.requirement=>=2.36.0", result.stdout)
+            self.assertIn("gate.git.version=git version 2.35.8", result.stdout)
+            self.assertEqual(result.stderr, "")
 
     def test_missing_git_is_installed_and_reprobed(self) -> None:
         """初始化模式必须通过宿主受管包管理器安装缺失 Git 并输出 installed。"""
@@ -392,7 +405,7 @@ class PrerequisiteGateTests(unittest.TestCase):
     def test_prerelease_versions_are_rejected_without_upgrade(self) -> None:
         """预发布版本仍必须直接失败，不能被归类为可自动升级的低版本。"""
         cases = (
-            ("git", "2.50.0-rc1", 29),
+            ("git", "2.50.0.rc1", 29),
             ("rust", "1.95.0-nightly", 21),
             ("node", "24.15.0-rc.1", 23),
             ("pnpm", "11.24.0-beta.1", 28),

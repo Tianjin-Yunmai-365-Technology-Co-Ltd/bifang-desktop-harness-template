@@ -21,7 +21,7 @@
 
 | 环境 | 适用条件 | 探测命令 | 缺失或低于下界时行为 |
 |---|---|---|---|
-| Git | 始终 | `git --version` | 要求稳定版 `>=2.0.0`；缺失时安装，低于 2.0.0 时升级。macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，然后重新探测。 |
+| Git | 始终 | `git --version` | 要求稳定版 `>=2.36.0`，以覆盖受管分支链使用的 `git worktree list --porcelain -z`；缺失时安装，低于 2.36.0 时升级。macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，然后重新探测。 |
 | Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | 缺失时从已验证的官方 rustup 制品安装稳定版 Rust，可证明低于 MSRV 时升级 stable，然后重复全部探测。 |
 | MSVC Build Tools | Windows Rust 目标 | `cl`，随后使用 `vswhere` 查找 VC 工具组件 | 安装 Microsoft 已签名的 Visual Studio Build Tools C++ 工作负载，然后重新探测。 |
 | Node.js | 已选择 `GUI` | `node --version` | 要求 `^24.15.0 || >=26.0.0`；缺失、低于 24.15.0 或处于 25.x 时，从官方倒序索引选择第一个满足门禁的当前稳定版，验证宿主归档校验和后安装或升级并重新探测。25.x 按低于下一段允许下界 26.0.0 处理。 |
@@ -31,7 +31,7 @@
 | Windows Rust target | macOS Tauri→Windows x64 | `rustup target list --installed` | 运行 `rustup target add x86_64-pc-windows-msvc` 并复探。 |
 | cargo-xwin | macOS Tauri→Windows x64 | `cargo-xwin --version` | 要求稳定版 `>=0.23.1, <0.24.0`；缺失或可解析稳定版低于 0.23.1 时运行 `cargo install --locked --version '>=0.23.1, <0.24.0' cargo-xwin` 安装或升级并复探；`>=0.24.0`、预发布、无法解析或损坏时阻断。 |
 
-现有 Git 稳定版低于 2.0.0、Rust 稳定版低于 MSRV、Node.js 低于 24.15.0 或处于 25.x、pnpm 稳定版低于 11.24.0，以及 `cargo-xwin` 稳定版低于 0.23.1，都是可恢复的 `upgrade-required`：写入模式必须走当前宿主受管路线升级并复探，不得把它们降级成警告。现有范围内稳定版本原样复用。`cargo-xwin >=0.24.0`、任何预发布、无法解析或损坏的工具不属于“低于最低下界”的自动升级路径，必须失败关闭。仅检测到工具存在不证明门禁已满足，更不证明单元测试或构建已经通过。
+现有 Git 稳定版低于 2.36.0、Rust 稳定版低于 MSRV、Node.js 低于 24.15.0 或处于 25.x、pnpm 稳定版低于 11.24.0，以及 `cargo-xwin` 稳定版低于 0.23.1，都是可恢复的 `upgrade-required`：写入模式必须走当前宿主受管路线升级并复探，不得把它们降级成警告。现有范围内稳定版本原样复用。`cargo-xwin >=0.24.0`、任何预发布、无法解析或损坏的工具不属于“低于最低下界”的自动升级路径，必须失败关闭。仅检测到工具存在不证明门禁已满足，更不证明单元测试或构建已经通过。
 
 ## 安装安全措施
 

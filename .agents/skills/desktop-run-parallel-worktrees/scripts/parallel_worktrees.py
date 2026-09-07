@@ -10,12 +10,17 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Iterator
 
 
 IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 OBJECT_ID = re.compile(r"^[0-9a-f]{40,64}$")
+BRANCH_CHAIN_OBJECT_ID = re.compile(r"^[0-9a-f]{40}$")
+FEATURE_BRANCH = re.compile(
+    r"^feature-[a-z0-9]+(?:-[a-z0-9]+)*-(?:19|20)\d{6}$"
+)
 STATE_SCHEMA_VERSION = 1
 
 
@@ -203,6 +208,179 @@ def require_plain_directory(path: Path, code: str, label: str, create: bool = Fa
         path.mkdir(parents=False, exist_ok=True)
         if path.is_symlink() or not path.is_dir():
             raise WorkflowError(code, f"{label}未建立为普通目录：{path}", 4)
+
+
+def valid_branch_chain_oid(value: object) -> bool:
+    """判断值是否为分支链 schema 使用的 SHA-1 OID。"""
+    return isinstance(value, str) and bool(BRANCH_CHAIN_OBJECT_ID.fullmatch(value))
+
+
+def valid_feature_branch(value: object) -> bool:
+    """判断值是否为分支链的固定 feature 分支名。"""
+    if not isinstance(value, str) or not FEATURE_BRANCH.fullmatch(value):
+        return False
+    try:
+        datetime.strptime(value[-8:], "%Y%m%d")
+    except ValueError:
+        return False
+    return True
+
+
+def valid_branch_chain_remote(value: object) -> bool:
+    """判断 remote 是否为非空且不含空白的字符串。"""
+    return isinstance(value, str) and bool(value) and not any(
+        character.isspace() for character in value
+    )
+
+
+def valid_active_branch_chain(value: object) -> bool:
+    """验证活动分支链 schema，避免把损坏状态误报为正常活动链。"""
+    required = {
+        "remote",
+        "defaultBranch",
+        "defaultHead",
+        "baseBranch",
+        "baseHead",
+        "activeLeaf",
+        "phase",
+        "entries",
+    }
+    if not isinstance(value, dict) or set(value) != required:
+        return False
+    default_branch = value["defaultBranch"]
+    base_branch = value["baseBranch"]
+    if (
+        not valid_branch_chain_remote(value["remote"])
+        or not isinstance(default_branch, str)
+        or not default_branch
+        or not isinstance(base_branch, str)
+        or not base_branch
+        or default_branch == "Release"
+        or base_branch not in {"Release", default_branch}
+        or value["phase"] != "active"
+        or not valid_branch_chain_oid(value["defaultHead"])
+        or not valid_branch_chain_oid(value["baseHead"])
+    ):
+        return False
+    if base_branch == default_branch and value["baseHead"] != value["defaultHead"]:
+        return False
+    entries = value["entries"]
+    if not isinstance(entries, list) or not entries:
+        return False
+    previous_name = base_branch
+    seen: set[str] = set()
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict) or set(entry) != {"branch", "parent", "parentHead"}:
+            return False
+        branch = entry["branch"]
+        if (
+            not valid_feature_branch(branch)
+            or branch in seen
+            or entry["parent"] != previous_name
+            or not valid_branch_chain_oid(entry["parentHead"])
+            or (index == 0 and entry["parentHead"] != value["baseHead"])
+        ):
+            return False
+        seen.add(branch)
+        previous_name = branch
+    return value["activeLeaf"] == previous_name
+
+
+def valid_closed_branch_chain(value: object) -> bool:
+    """验证允许继续创建 sibling unit 的最近关闭链 schema。"""
+    if value is None:
+        return True
+    required = {
+        "remote",
+        "baseBranch",
+        "baseHead",
+        "defaultBranch",
+        "defaultHead",
+        "releaseHeadBefore",
+        "closingHead",
+        "entries",
+    }
+    if not isinstance(value, dict) or set(value) != required:
+        return False
+    default_branch = value["defaultBranch"]
+    base_branch = value["baseBranch"]
+    release_head_before = value["releaseHeadBefore"]
+    if (
+        not valid_branch_chain_remote(value["remote"])
+        or not isinstance(default_branch, str)
+        or not default_branch
+        or not isinstance(base_branch, str)
+        or not base_branch
+        or default_branch == "Release"
+        or base_branch not in {"Release", default_branch}
+        or not valid_branch_chain_oid(value["defaultHead"])
+        or not valid_branch_chain_oid(value["baseHead"])
+        or value["closingHead"] is not None
+        or (
+            release_head_before is not None
+            and not valid_branch_chain_oid(release_head_before)
+        )
+    ):
+        return False
+    if base_branch == default_branch:
+        if value["baseHead"] != value["defaultHead"] or release_head_before is not None:
+            return False
+    elif release_head_before != value["baseHead"]:
+        return False
+    entries = value["entries"]
+    if not isinstance(entries, list) or not entries:
+        return False
+    seen: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict) or set(entry) != {"branch", "preCloseHead"}:
+            return False
+        branch = entry["branch"]
+        if (
+            not valid_feature_branch(branch)
+            or branch in seen
+            or not valid_branch_chain_oid(entry["preCloseHead"])
+        ):
+            return False
+        seen.add(branch)
+    return True
+
+
+def reject_active_managed_feature_chain(source_worktree: Path) -> None:
+    """在任何 sibling unit 写入前失败关闭地读取并检查分支链状态。"""
+    path = source_worktree / ".harness" / "git-branch-chain.json"
+    directory = path.parent
+    invalid_code = "git_branch_chain_state_invalid"
+    if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
+        raise WorkflowError(invalid_code, f"分支链状态目录不是普通目录：{directory}", 4)
+    if path.is_symlink():
+        raise WorkflowError(invalid_code, f"分支链状态不得是符号链接：{path}", 4)
+    if not path.exists():
+        return
+    if not path.is_file():
+        raise WorkflowError(invalid_code, f"分支链状态不是普通文件：{path}", 4)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise WorkflowError(
+            invalid_code, f"分支链状态不是有效 UTF-8 JSON：{path}", 4
+        ) from error
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != {"schemaVersion", "activeChain", "lastClosedChain"}
+        or payload["schemaVersion"] != STATE_SCHEMA_VERSION
+        or not valid_closed_branch_chain(payload["lastClosedChain"])
+        or (
+            payload["activeChain"] is not None
+            and not valid_active_branch_chain(payload["activeChain"])
+        )
+    ):
+        raise WorkflowError(invalid_code, f"分支链状态 schema 无效：{path}", 4)
+    if payload["activeChain"] is not None:
+        raise WorkflowError(
+            "managed_feature_chain_active",
+            "活动受管 feature 分支链禁止创建 sibling codex/unit-*；请在当前叶使用单 Agent 串行写入",
+            4,
+        )
 
 
 def managed_worktree_root(project_root: Path, create: bool = False) -> Path:
@@ -782,6 +960,8 @@ def main(argv: list[str] | None = None) -> int:
             context = canonical_source_context(
                 project_root, common_dir, args.source_worktree, task
             )
+            if args.command == "create":
+                reject_active_managed_feature_chain(context.source_worktree)
             identity = unit_identity(
                 context, task, args.unit, create=args.command == "create"
             )

@@ -190,6 +190,46 @@ class ReleaseNotesContractValidationTests(unittest.TestCase):
         self.assertTrue(any("MAX_RELEASES = 5" in error for error in errors), errors)
 
 
+class ReleaseBranchChainContractValidationTests(unittest.TestCase):
+    """锁定 feature 链关闭、Release 构建和默认分支人工边界。"""
+
+    @staticmethod
+    def _validate_mutation(source: str, *, parameter: str) -> list[str]:
+        """只替换一个发布契约来源，其余文件继续使用真实仓库内容。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "contract.md"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_release_git_contract(errors, **{parameter: path})
+            return errors
+
+    def test_rejects_release_flow_without_managed_atomic_chain_close(self) -> None:
+        """发布准备不能跳过受管原子 Release 推进和逐 ref lease 清理。"""
+
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        for anchor in (
+            "$desktop-manage-git-branch-chain release",
+            "以一次 atomic push 把完整线性历史快进到精确 `Release`",
+            "逐 ref lease 删除状态文件精确列出的远端 feature refs",
+        ):
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "省略受管链路关闭", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="prepare_skill")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_release_to_default_branch_automation(self) -> None:
+        """Release 到默认分支必须保持为用户自行完成的 Merge/PR。"""
+
+        source = (release.ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")
+        anchor = "`Release` 到默认分支的 Merge/PR 永远由用户自行完成"
+        mutated = source.replace(anchor, "Agent 自动把 `Release` 合并到默认分支", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="release_doc")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+
 class TauriLocalInstallSkillValidationTests(unittest.TestCase):
     """锁定本地 Windows 试包不被升级为发布候选。"""
 

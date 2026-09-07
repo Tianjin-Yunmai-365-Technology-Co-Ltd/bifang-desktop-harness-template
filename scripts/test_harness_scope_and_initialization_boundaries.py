@@ -132,6 +132,50 @@ class HarnessScopeAndInitializationBoundaryTests(unittest.TestCase):
         self.assertIn("不得从当前宿主或对话重新推断", initialize)
         self.assertIn("不得遗留空数组或根据新会话重新猜测", instantiate)
 
+    def test_branch_chain_skill_is_retained_without_starting_a_chain(self) -> None:
+        """初始化保留完整分支链能力，但只形成无 remote 的 main 基线。"""
+
+        instantiate = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/SKILL.md"
+        )
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+        required_skill_paths = (
+            "SKILL.md",
+            "agents/openai.yaml",
+            "assets/git-branch-chain.json",
+            "scripts/git_branch_chain.py",
+            "scripts/branch_chain_operations.py",
+            "scripts/branch_chain_commit.py",
+            "scripts/branch_chain_checks.py",
+            "scripts/branch_chain_git.py",
+            "scripts/branch_chain_remote.py",
+            "scripts/branch_chain_state.py",
+            "scripts/test_git_branch_chain.py",
+            "scripts/test_git_branch_chain_contract.py",
+            "scripts/test_git_branch_chain_race.py",
+            "scripts/test_git_branch_chain_version.py",
+        )
+
+        for text in (instantiate, initialize):
+            self.assertIn("$desktop-manage-git-branch-chain", text)
+            for relative in required_skill_paths:
+                self.assertIn(relative, text)
+            self.assertIn("不运行 `start`", text)
+            self.assertIn("不在项目根预创建 `.harness/git-branch-chain.json`", text)
+            self.assertIn("无 remote 的独立 `main` 基线仍是唯一初始结果", text)
+
+        self.assertIn(
+            "不创建或推送 `feature-*`/`bug-*`/`Release`",
+            instantiate,
+        )
+        self.assertIn("不自动创建左侧 Task", initialize)
+        self.assertIn(
+            "不得创建或推送 `feature-*`/`bug-*`/`Release`",
+            initialize,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

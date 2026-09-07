@@ -53,7 +53,7 @@ def repository_required_fragments(
             "https://nodejs.org/dist",
             "https://aka.ms/vs/17/release/vs_BuildTools.exe",
             "MSVC Build Tools",
-            "缺失时安装，低于 2.0.0 时升级",
+            "缺失时安装，低于 2.36.0 时升级",
             "都是可恢复的 `upgrade-required`",
             "写入模式必须走当前宿主受管路线升级并复探",
             "scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc",

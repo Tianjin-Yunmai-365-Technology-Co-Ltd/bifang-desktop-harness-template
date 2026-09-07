@@ -13,6 +13,7 @@ import textwrap
 import unittest
 from collections.abc import Iterator
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -28,6 +29,21 @@ from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
 from scripts.harness_validation.context import (
+    BRANCH_CHAIN_EMPTY_STATE,
+    BRANCH_CHAIN_CHECKS,
+    BRANCH_CHAIN_COMMIT,
+    BRANCH_CHAIN_CONTRACT_TESTS,
+    BRANCH_CHAIN_GIT,
+    BRANCH_CHAIN_METADATA,
+    BRANCH_CHAIN_OPERATIONS,
+    BRANCH_CHAIN_RACE_TESTS,
+    BRANCH_CHAIN_REMOTE,
+    BRANCH_CHAIN_SCRIPT,
+    BRANCH_CHAIN_SKILL,
+    BRANCH_CHAIN_STATE,
+    BRANCH_CHAIN_TESTS,
+    BRANCH_CHAIN_VERSION_TESTS,
+    EXPECTED_SKILLS,
     GUI_DIALOG_SKILL,
     GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT,
     GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE,
@@ -41,6 +57,7 @@ from scripts.harness_validation.context import (
     GUI_SKILL,
     GUI_SUPPORT_SKILL,
     PRODUCT_SPEC,
+    REQUIRED_FILES,
 )
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
@@ -121,6 +138,52 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         initialization.validate_initialization_contract(errors)
         validate_gui_support_contract(errors)
         self.assertEqual(errors, [])
+
+    def test_branch_chain_skill_is_a_complete_required_harness_capability(self) -> None:
+        """入口、初始化契约和必需文件清单必须同步纳入完整 Skill。"""
+
+        initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        required = primary_required_fragments(initialize_skill)
+        expected_paths = (
+            BRANCH_CHAIN_SKILL,
+            BRANCH_CHAIN_METADATA,
+            BRANCH_CHAIN_EMPTY_STATE,
+            BRANCH_CHAIN_SCRIPT,
+            BRANCH_CHAIN_OPERATIONS,
+            BRANCH_CHAIN_COMMIT,
+            BRANCH_CHAIN_CHECKS,
+            BRANCH_CHAIN_GIT,
+            BRANCH_CHAIN_REMOTE,
+            BRANCH_CHAIN_STATE,
+            BRANCH_CHAIN_TESTS,
+            BRANCH_CHAIN_CONTRACT_TESTS,
+            BRANCH_CHAIN_RACE_TESTS,
+            BRANCH_CHAIN_VERSION_TESTS,
+        )
+
+        self.assertIn("desktop-manage-git-branch-chain", EXPECTED_SKILLS)
+        for path in expected_paths:
+            relative = path.relative_to(ROOT).as_posix()
+            self.assertIn(relative, REQUIRED_FILES)
+            self.assertIn(path, required)
+        self.assertIn("不创建 Codex 左侧 Task", required[BRANCH_CHAIN_SKILL])
+        self.assertIn("git push --atomic", required[BRANCH_CHAIN_SKILL])
+        self.assertIn("--force-with-lease", required[BRANCH_CHAIN_SKILL])
+
+    def test_governance_rejects_branch_chain_default_branch_write_regression(self) -> None:
+        """Skill 不能移除 Release 到默认分支只由用户完成的失败关闭边界。"""
+
+        source = BRANCH_CHAIN_SKILL.read_text(encoding="utf-8")
+        anchor = "helper 永不提供或执行 `Release` 到默认分支的命令"
+        mutated = source.replace(anchor, "helper 可以更新默认分支", 1)
+        self.assertNotEqual(mutated, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "SKILL.md"
+            path.write_text(mutated, encoding="utf-8")
+            errors: list[str] = []
+            with mock.patch.object(governance, "BRANCH_CHAIN_SKILL", path):
+                governance.validate_streamlined_development_and_build(errors)
+        self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_direct_script_entrypoint_succeeds(self) -> None:
         """从仓库根直接执行历史命令时应完成全部领域校验并返回成功。"""

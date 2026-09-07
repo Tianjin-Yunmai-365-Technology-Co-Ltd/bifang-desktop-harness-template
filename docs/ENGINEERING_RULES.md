@@ -139,6 +139,7 @@
 | `AGENTS.md` | 轻量启动门禁、任务路由、永久地图、硬约束摘要和验证入口；不保存任务专属实施细节 |
 | `Version.md` | Harness 模板当前版本、初始版本与发布状态；下游 Rust 项目不继承此事实来源 |
 | `.harness/version-state.json` | 仅下游保存当前正式发布周期、首功能提升状态、待发布变化及已消费缺陷 ID；受保护且不是当前版本的第二事实源 |
+| `.harness/git-branch-chain.json` | 仅下游保存受管 feature 串行链的远端名、冻结默认/基线/父 OID、活动叶子，以及关闭前节点 OID/可推导清理状态；实际远端 OID 每次实时复读，升级时受保护，不得手改扩大 ref 范围 |
 | `release-notes.json` | 仅下游在首次发布准备时创建；以 schema v2 保存供制品与关于页复用的近 5 个正式发布版本中英文用户更新日志，每版两类各最多 10 个翻译对，升级时受保护 |
 | `docs/product_spec/README.md` | 产品规格日期规则和索引 |
 | `docs/product_spec/YYYYMMDD_product_spec.md` | 当日完整产品目标、范围、约束和成功标准；最新日期文件是当前规格 |
@@ -210,7 +211,8 @@
 
 ### 5.3 开发、构建与完整验收
 
-- Git 可执行文件由 `$desktop-check-development-environment` 唯一管理：新下游在完整表单确认后、首次写入前检查，缺失时受管安装、可证明低于最低下界时受管升级、范围内稳定版原样复用并复探。作者身份、模板和本地提交由 `$desktop-configure-git-commits` 唯一管理；已有有效身份保持，缺失字段只在独立目标仓库 local 作用域补齐，绝不写 global/system。明确发布请求授权复核并本地提交归属明确的已完成改动后直接构建；普通构建不自动提交。无关改动、疑似秘密、hook/提交失败或 dirty 最终状态均阻断。
+- Git 可执行文件由 `$desktop-check-development-environment` 唯一管理：新下游在完整表单确认后、首次写入前检查，缺失时受管安装、可证明低于最低下界时受管升级、范围内稳定版原样复用并复探。作者身份、模板和本地提交由 `$desktop-configure-git-commits` 唯一管理；已有有效身份保持，缺失字段只在独立目标仓库 local 作用域补齐，绝不写 global/system。
+- 已有远端的下游由 `$desktop-manage-git-branch-chain` 唯一管理产品变更分支链：每个新需求/Bug/维护写入建立或续用登记的串行 `feature-{ascii-kebab摘要}-{上海日期}` 叶子，每个逻辑提交后用显式 refspec 非强制快进并复读远端；`.harness/git-branch-chain.json` 只记录精确 ref/OID。`main`、`master`、动态远端默认分支与 `Release` 禁止日常写入，明确发布的受管原子事务是推进 `Release` 的唯一例外。该事务只授权把已复核链原子快进到 `Release`、按逐 ref lease 删除登记链并从该 clean HEAD 构建；不授权远端/凭据配置、强推、标签/上传、链外删除或 `Release` 到默认分支。为维持无 merge 的严格线性历史，一条活动叶子同一时刻最多一个产品写入 Task，且该 Task 禁止 sibling 写入 Worktree；后续写入从前一结果 fast-forward 整合并推送后的新 OID 开始，只读并行不受影响。无关改动、疑似秘密、hook/提交/push 失败、竞态或 dirty 最终状态均阻断。
 - 日常开发统一直接实施，只运行本次变更需要的相关非空单元/回归测试。不得仅因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加 Work Plan、全仓测试、格式化、代码规范、静态、集成/契约、构建、冒烟、E2E、Verification 或人工复核。
 - 已初始化下游在实施前由 `$desktop-manage-version` 只读分类，且只在变化完成并通过本次相关测试后提交版本：功能、独立缺陷修复和用户批准的 Major 按 `docs/RELEASE.md` 提升；查询、诊断、复现、重复尝试、重构、测试、文档、格式和内部清理不提升。构建只检查 Cargo/状态一致性，不能提升版本或重置周期。
 - 产品范围、长期决定、合格 Changelog、重要阻断/交接、发布/审计和用户明确要求仍分别触发对应记录或专用流程。安全/隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道硬要求、签名与发布仍保留解决当前风险必需的授权和门禁。

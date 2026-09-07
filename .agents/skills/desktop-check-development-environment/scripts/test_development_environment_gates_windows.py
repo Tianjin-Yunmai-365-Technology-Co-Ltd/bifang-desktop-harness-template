@@ -105,14 +105,14 @@ class WindowsPrerequisiteGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            add_base_tools(probe, git="1.9.5")
+            add_base_tools(probe, git="2.35.8")
             command(probe / "winget.cmd", 'type nul > "%~dp0winget-called"')
 
             result = self.run_gate(root, probe, "-CheckOnly", "-Interfaces", "CLI")
 
             self.assertEqual(result.returncode, 20, result.stderr)
             self.assertIn("gate.git.status=upgrade-required", result.stdout)
-            self.assertIn("gate.git.version=git version 1.9.5", result.stdout)
+            self.assertIn("gate.git.version=git version 2.35.8", result.stdout)
             self.assertFalse((probe / "winget-called").exists())
 
     def test_below_minimum_git_is_upgraded_and_reprobed(self) -> None:
@@ -120,10 +120,10 @@ class WindowsPrerequisiteGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            add_base_tools(probe, git="1.9.5")
+            add_base_tools(probe, git="2.35.8")
             command(
                 probe / "git.cmd",
-                'if exist "%~dp0git-upgraded" (echo git version 2.51.0) else (echo git version 1.9.5)',
+                'if exist "%~dp0git-upgraded" (echo git version 2.51.0) else (echo git version 2.35.8)',
             )
             command(probe / "winget.cmd", 'type nul > "%~dp0git-upgraded"')
 
@@ -139,7 +139,7 @@ class WindowsPrerequisiteGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            add_base_tools(probe, git="1.9.5")
+            add_base_tools(probe, git="2.35.8")
             command(probe / "winget.cmd", "exit /b 0")
 
             result = self.run_gate(root, probe, "-Interfaces", "CLI")

@@ -46,6 +46,7 @@ REQUIRED_RULES = {
     "docs/verification/**": "protected",
     "docs/TECH_DEBT.md": "protected",
     ".harness/version-state.json": "protected",
+    ".harness/git-branch-chain.json": "protected",
     "release-notes.json": "protected",
     "LICENSE.zh-CN.md": "protected",
     "LICENSE.en.md": "protected",
@@ -65,6 +66,7 @@ REQUIRED_RULES = {
     ".agents/skills/desktop-implement-change/scripts/test_check_core_first.py": "managed",
     ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.py": "managed",
     ".agents/skills/desktop-implement-change/scripts/test_check_rust_chinese_comments.py": "managed",
+    ".agents/skills/desktop-manage-git-branch-chain/**": "managed",
     ".agents/skills/desktop-upgrade-harness/**": "managed-self",
     ".agents/skills/desktop-add-cli-adapter/**": "conditional",
     ".agents/skills/desktop-add-tui-adapter/**": "conditional",
@@ -182,6 +184,16 @@ def validate_upgrade_contract(
                     fail(
                         errors,
                         "upgrade managed-self rule must precede generic managed rule",
+                    )
+            branch_chain_rule = (
+                ".agents/skills/desktop-manage-git-branch-chain/**",
+                "managed",
+            )
+            if branch_chain_rule in ordered and generic_rule in ordered:
+                if ordered.index(branch_chain_rule) >= ordered.index(generic_rule):
+                    fail(
+                        errors,
+                        "upgrade branch-chain managed rule must precede generic managed rule",
                     )
             if generic_rule in ordered:
                 generic_index = ordered.index(generic_rule)

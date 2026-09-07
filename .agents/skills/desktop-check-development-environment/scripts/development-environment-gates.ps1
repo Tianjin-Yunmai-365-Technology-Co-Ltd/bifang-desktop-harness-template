@@ -12,7 +12,7 @@ $MinimumRustMinor = 95
 $NodeRequirement = "^24.15.0 || >=26.0.0"
 $PnpmRequirement = ">=11.24.0"
 $PnpmInstallRequirement = "pnpm@>=11.24.0"
-$GitRequirement = ">=2.0.0"
+$GitRequirement = ">=2.36.0"
 $ProbePath = if ($env:AFH_PREREQ_PATH) { $env:AFH_PREREQ_PATH } else { $env:PATH }
 $RustChange = "existing"
 $GitChange = "existing"
@@ -165,7 +165,9 @@ function Test-GitVersion {
         Stop-Gate 29 "现有 Git 不是可识别的稳定发布版：$gitText"
     }
     $script:GitVersion = $gitText
-    if ([int]$Matches[1] -lt 2) { return "upgrade-required" }
+    $gitMajor = [int]$Matches[1]
+    $gitMinor = [int]$Matches[2]
+    if ($gitMajor -lt 2 -or ($gitMajor -eq 2 -and $gitMinor -lt 36)) { return "upgrade-required" }
     return "passed"
 }
 
