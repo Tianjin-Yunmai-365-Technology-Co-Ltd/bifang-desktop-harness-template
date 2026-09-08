@@ -369,7 +369,10 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         ):
             self.assertIn(heading, policy)
         for fragment in (
-            "动作 + 单一结果",
+            "{任务}-{ID}-{摘要}",
+            'title="{任务}-{ID}-{摘要}"',
+            "派发前已经写入描述的不可变 Task key",
+            "显示标题与 Git slug 是两个事实",
             "user-owned Task/thread",
             "`list_projects`",
             "target.type = project",
@@ -412,7 +415,11 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         """左侧 Task 一次派发、项目绑定且 setup pending 有界返回。"""
         policy = read_repo_text("docs/AGENT_POLICY.md")
         readme = read_repo_text("README.md")
-        product_spec = read_repo_text("docs/product_spec/20260907_product_spec.md")
+        product_spec_path = max(
+            (ROOT / "docs" / "product_spec").glob("[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]_product_spec.md"),
+            key=lambda path: path.name,
+        )
+        product_spec = product_spec_path.read_text(encoding="utf-8")
 
         for text in (policy, readme, product_spec):
             self.assertIn("`clientThreadId`", text)
@@ -439,14 +446,44 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("只拿到 `clientThreadId` 时无限等待", readme)
         self.assertIn("Worktree 路径必须位于保存项目目录内", readme)
 
+    def test_worktree_task_title_uses_predispatch_key_and_separate_git_slug(self) -> None:
+        """Worktree 左侧 Task 必须在派发时使用固定显示标题且不污染 Git ref。"""
+        policy = read_repo_text("docs/AGENT_POLICY.md")
+        readme = read_repo_text("README.md")
+        implement = read_repo_text(
+            ".agents/skills/desktop-implement-change/SKILL.md"
+        )
+        parallel = read_repo_text(
+            ".agents/skills/desktop-run-parallel-worktrees/SKILL.md"
+        )
+        instantiate = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/SKILL.md"
+        )
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+
+        for text in (policy, readme, implement, instantiate, initialize):
+            self.assertIn('title="{任务}-{ID}-{摘要}"', text)
+            self.assertIn("Task key", text)
+            self.assertIn("task-slug", text)
+        self.assertIn("不得使用调用后才返回的 `threadId` 或 `clientThreadId`", policy)
+        self.assertIn("显示标题与 Git slug 是两个事实", policy)
+        self.assertIn("不靠标题承担身份判断", policy)
+        self.assertIn("不靠标题判断身份", implement)
+        self.assertNotIn("Task N | 动作 + 单一结果", policy)
+        self.assertIn("不是 `{任务}-{ID}-{摘要}` 显示标题", parallel)
+        self.assertIn("不得冒充新的左侧 Task", parallel)
+
     def test_build_does_not_create_project_memory(self) -> None:
-        """构建事实只进入候选清单和最终回复，不形成项目记忆流水账。"""
+        """候选事实只进入忽略的原子集合，发布后才写 tracked 记忆。"""
         skill = read_repo_text(".agents/skills/desktop-implement-change/SKILL.md")
         rules = read_repo_text("docs/ENGINEERING_RULES.md")
         boundary = "构建请求、执行和结果本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification"
         self.assertIn(boundary, skill)
-        self.assertIn("构建事实只写入当前 `release/` manifest", rules)
-        self.assertIn("不得复制到项目记忆", rules)
+        self.assertIn("候选事实只写入忽略的 `release/` 原子集合", rules)
+        self.assertIn("不得复制到 tracked 项目记忆", rules)
+        self.assertIn("真实渠道发布成功后，才从已发布 `Release` 开始后续受管 feature 生命周期", rules)
 
     def test_environment_gate_only_runs_for_initialization_or_observed_error(self) -> None:
         """环境门禁不得因任务、构建或证据状态预先运行。"""
@@ -547,10 +584,10 @@ class WorkPlanTests(unittest.TestCase):
         self.assertEqual(self._validate(self._plan(state="done") + acceptance), [])
 
     def test_rejects_acceptance_with_unfinished_todo(self) -> None:
-        """任一 Todo 未完成时不得记录 accepted 或发布就绪。"""
+        """Work Plan 不得记录候选 accepted 或发布就绪结论。"""
         errors = self._validate(self._plan() + "\n验收状态：accepted\n")
         self.assertTrue(
-            any("accepted or release-ready verdict" in error for error in errors),
+            any("candidate evidence" in error for error in errors),
             errors,
         )
 

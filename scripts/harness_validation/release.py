@@ -17,6 +17,16 @@ UNSAFE_RELEASE_IGNORES = {
     ".release-clean.*",
     "**/.release-clean.*",
 }
+CROSS_PLATFORM_RELEASE_WORKFLOW = (
+    CROSS_PLATFORM_RELEASE_SKILL.parent  # noqa: F405
+    / "assets"
+    / "github-release-candidate.yml"
+)
+CROSS_PLATFORM_RELEASE_ENVELOPE_HELPER = (
+    CROSS_PLATFORM_RELEASE_SKILL.parent  # noqa: F405
+    / "scripts"
+    / "verify_release_envelope.py"
+)
 
 
 def validate_release_ignore(errors: list[str], path: Path) -> None:
@@ -78,6 +88,8 @@ def validate_build_skill_contract(
     errors: list[str],
     build_skill: Path = BUILD_RELEASE_SKILL,  # noqa: F405
     cross_platform_skill: Path = CROSS_PLATFORM_RELEASE_SKILL,  # noqa: F405
+    cross_platform_workflow: Path = CROSS_PLATFORM_RELEASE_WORKFLOW,
+    cross_platform_envelope_helper: Path = CROSS_PLATFORM_RELEASE_ENVELOPE_HELPER,
     collect_skill: Path = COLLECT_RELEASE_SKILL,  # noqa: F405
 ) -> None:
     """锁定逐次 E2E、全量单测、构建记录边界和 pending 输出语义。"""
@@ -107,6 +119,9 @@ def validate_build_skill_contract(
             "releaseNotesPath: release-notes.json",
             "编译、签名与打包期间不得启动二进制文件或混跑冒烟/E2E",
             "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
+            "候选 E2E 与完整验收只把结构化证据和状态原子写入忽略的 `release/` manifest 及其声明证据",
+            "只有真实渠道发布成功或独立回顾审计，才由后续受管 feature 生命周期写入 tracked 发布/Verification/项目状态事实",
+            "不得反向批准活动或历史候选",
         ),
         cross_platform_skill: (
             "默认 `$desktop-build-rust-release` 路线",
@@ -120,7 +135,20 @@ def validate_build_skill_contract(
             "必须尝试签名并验证",
             "signingStatus: unsigned",
             "结构化 `signingEvidence`",
-            "固定的 `confirm_candidate_build`、`version`、`source_commit` 和 `e2e_selection` 输入",
+            "固定的 `confirm_candidate_build`、`version`、`source_commit`、`branch_chain_state_sha256` 和 `e2e_selection` 输入",
+            "在任何派发前先运行 `$desktop-manage-git-branch-chain verify-release-review`",
+            "状态摘要只能来自上述机械复核，不接受对话补写的信封、摘要或选择",
+            "候选阶段只能只读确认下游 `.github/workflows/release-candidate.yml` 与该资产逐字节一致",
+            "不得在受保护的 clean `Release` closing commit 上安装、更新或改写 workflow",
+            "使用 `fetch-depth: 0` 获得 fresh 全历史/全部 remote-tracking 分支快照",
+            "用受维护的 `scripts/verify_release_envelope.py capture`",
+            "Rust CLI 的 `candidateSelections` 精确不适用",
+            "不能把暂存目录放进工作树或依赖 ignore 隐藏",
+            "最终字节形成后且写 manifest 前",
+            "再次用 `scripts/verify_release_envelope.py verify`",
+            "完整规范化 `releaseReview`/`candidateSelections`",
+            "绝不能写成审查 `sourceHead`",
+            "审查关闭时只复制 `reviewReason`/`reviewRemainingRisk`",
             "把完整的项目根同级暂存目录原子重命名到其位置",
             "上传三个明确的归档/校验和/清单路径",
             "milestoneAcceptance: pending",
@@ -130,18 +158,115 @@ def validate_build_skill_contract(
             "releaseNotesPath: release-notes.json",
             "矩阵本身不得运行 E2E",
             "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
+            "候选 E2E 与完整验收只把结构化证据和状态原子写入忽略的 `release/` manifest 及其声明证据",
+            "不得反向批准活动或历史候选",
+        ),
+        cross_platform_workflow: (
+            "branch_chain_state_sha256:",
+            "BRANCH_CHAIN_STATE_SHA256: ${{ inputs.branch_chain_state_sha256 }}",
+            "REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}",
+            "RELEASE_ENVELOPE_SNAPSHOT: ${{ runner.temp }}/release-envelope-snapshot.json",
+            "ref: Release",
+            "fetch-depth: 0",
+            "persist-credentials: false",
+            "git\", \"status\", \"--porcelain=v1\", \"--untracked-files=all",
+            "verify_release_envelope.py capture",
+            "verify_release_envelope.py verify",
+            "${GITHUB_WORKSPACE}/../.${PRODUCT_NAME}.release-candidate.XXXXXX",
+            "Split-Path -Parent $env:GITHUB_WORKSPACE",
+            '"releaseReview": review,',
+            '"candidateSelections": candidate_selections,',
+            '"reviewSelection": review["selection"],',
+            '"reviewStatus": review["status"],',
+            'manifest["reviewEvidence"] = {',
+            'manifest["reviewReason"] = review["reason"]',
+            'manifest["reviewRemainingRisk"] = review["remainingRisk"]',
+            "os.rename(stage, release)",
+            "已提交的发布文件集不是精确的普通文件候选集合",
+        ),
+        cross_platform_envelope_helper: (
+            "def calculate_snapshot(",
+            "runner must check out the named Release at source_commit",
+            "protected state bytes do not match source_commit",
+            "protected state digest does not match the host-verified input",
+            'resolve_ref(root, "refs/remotes/origin/Release")',
+            "GitHub default branch differs from the protected closing state",
+            "registered remote feature ref still exists in the fresh snapshot",
+            "require_closed_history(",
+            "require_release_review_repository(root, closed)",
+            "legacy closing state without both sealed envelopes is forbidden",
+            '"performanceSelection": "not-applicable"',
+            '"macosSigningSelection": "not-applicable"',
+            '"releaseReview": closed["releaseReview"]',
+            '"candidateSelections": selections',
+            "release envelope changed between build gates",
         ),
         collect_skill: (
             "releaseNotesVersion",
             "releaseNotesSha256",
             "releaseNotesPath",
             "不得在收集时改写",
+            "在全部源结果通过前不得清理、移走或写入它",
+            "在项目根同级、同一文件系统创建唯一且权限受限的 staging",
+            "不得逐个平台直接复制到 `release/`",
+            "在 staging 内重新计算每个最终归档或安装包的 SHA-256",
+            "在触碰目标目录前执行第二次只读 `verify-release-review`",
+            "重新枚举 staging 并按全部清单复算精确集合",
+            "把完整 staging 目录级原子替换为 `release/`",
+            "任何前置失败都不得部分污染目标",
+            "替换后只读重新枚举 `release/`",
             "只在当前 manifests、其声明的相邻制品证据和最终回复中记录",
             "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
-            "独立触发的验收或发布由对应 Skill 记录自身新增证据",
+            "独立触发的真实渠道发布成功或回顾审计由后续受管 feature 生命周期记录自身新增事实",
         ),
     }
-    validate_fragment_contract(errors, required, label="release contract")
+    validate_fragment_contract(
+        errors,
+        required,
+        label="release contract",
+        compile_check=(cross_platform_envelope_helper,),
+    )
+
+    if cross_platform_workflow.is_file():
+        workflow_text = cross_platform_workflow.read_text(encoding="utf-8")
+        ordered = (
+            "verify_release_envelope.py capture",
+            "cargo test --workspace --all-targets --all-features --locked",
+            "cargo build --workspace --release --locked",
+            "verify_release_envelope.py verify",
+            '          manifest = {\n',
+            "os.rename(stage, release)",
+            "已提交的发布文件集不是精确的普通文件候选集合",
+        )
+        positions = [workflow_text.find(fragment) for fragment in ordered]
+        if all(position >= 0 for position in positions) and positions != sorted(positions):
+            fail(  # noqa: F405
+                errors,
+                "release contract order: cross-platform workflow must capture before "
+                "tests, reverify final bytes before manifest, then atomically commit and "
+                "read-only verify the candidate set",
+            )
+    if collect_skill.is_file():
+        collect_text = collect_skill.read_text(encoding="utf-8")
+        ordered = (
+            "在接触目标目录前先调用 `$desktop-manage-git-branch-chain verify-release-review`",
+            "在项目根同级、同一文件系统创建唯一且权限受限的 staging",
+            "仅把已选择的当前源清单文件复制到 staging",
+            "在 staging 内重新计算每个最终归档或安装包的 SHA-256",
+            "检查 staging 中全部归档内容",
+            "在触碰目标目录前执行第二次只读 `verify-release-review`",
+            "重新枚举 staging 并按全部清单复算精确集合",
+            "把完整 staging 目录级原子替换为 `release/`",
+            "替换后只读重新枚举 `release/`",
+        )
+        positions = [collect_text.find(fragment) for fragment in ordered]
+        if all(position >= 0 for position in positions) and positions != sorted(positions):
+            fail(  # noqa: F405
+                errors,
+                "release contract order: collection must validate a complete staging "
+                "set and reverify sealed state before one atomic replacement, followed "
+                "by a read-only target check",
+            )
 
 
 def validate_tauri_local_install_contract(
@@ -218,7 +343,7 @@ def validate_tauri_build_skill_contract(
             'bundle.macOS.dmg.background: "./dmg/background.png"',
             "非符号链接的 660×400 PNG",
             "非空 `.DS_Store`",
-            "不得输出仅 Developer ID 签名但未公证/staple 的 macOS 候选",
+            "启用 macOS 签名后绝不得输出仅 Developer ID 签名但未公证/staple 的候选",
             "候选构建中禁止 `--skip-stapling`",
             "CI=true pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc",
             "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --config src-tauri/tauri.release.conf.json",
@@ -230,6 +355,11 @@ def validate_tauri_build_skill_contract(
             "完整 `gate.path.prepend` 原样前置",
             "所有会改变字节的布局写入、签名、公证和 stapling 完成后",
             "随后才对最终 DMG/NSIS 及已启用 updater 的 archive/`.sig` 计算 SHA-256",
+            "此时不得先写入或替换项目根 `release/`",
+            "所有上述条件分支完成后才把 manifest 写入同一暂存目录",
+            "写完 manifest 后必须按每份 manifest 枚举并复算",
+            "随后才以不跟随链接的目录级原子替换提交到 `release/`",
+            "替换前的任何失败都不得在目标目录留下部分候选",
             "bundle.createUpdaterArtifacts: true",
             "TAURI_SIGNING_PRIVATE_KEY",
             "安装包代码签名与 updater 制品签名是独立门禁",
@@ -249,6 +379,8 @@ def validate_tauri_build_skill_contract(
             "releaseNotesResourceVerification: byte-identical",
             "编译、签名与打包期间不得混跑冒烟/E2E",
             "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification",
+            "候选 E2E 与完整验收只把结构化证据和状态原子写入忽略的 `release/` manifest 及其声明证据",
+            "不得反向批准活动或历史候选",
         ),
         verify_skill: (
             "verify_release_notes_resource.py bytes",
@@ -393,6 +525,26 @@ def validate_tauri_build_skill_contract(
         label="Tauri release contract",
         compile_check=(release_notes_helper, release_notes_tests),
     )
+    if tauri_skill.is_file():
+        tauri_text = tauri_skill.read_text(encoding="utf-8")
+        ordered = (
+            "所有会改变字节的布局写入、签名、公证和 stapling 完成后",
+            "随后才对最终 DMG/NSIS 及已启用 updater 的 archive/`.sig` 计算 SHA-256",
+            "写 manifest 前再次运行只读 `verify-release-review`",
+            "manifest 必须记录",
+            "所有上述条件分支完成后才把 manifest 写入同一暂存目录",
+            "写完 manifest 后必须按每份 manifest 枚举并复算",
+            "随后才以不跟随链接的目录级原子替换提交到 `release/`",
+            "16. 重新枚举 `release/`",
+        )
+        positions = [tauri_text.find(fragment) for fragment in ordered]
+        if all(position >= 0 for position in positions) and positions != sorted(positions):
+            fail(  # noqa: F405
+                errors,
+                "Tauri release contract order: final bytes and hashes must precede "
+                "the second envelope verification and manifest; exact staging must "
+                "precede atomic release replacement and final read-only enumeration",
+            )
     if BUILD_RELEASE_POSIX_HELPER.is_file() and TAURI_RELEASE_DIRECTORY_HELPER.is_file():  # noqa: F405
         if BUILD_RELEASE_POSIX_HELPER.read_bytes() != TAURI_RELEASE_DIRECTORY_HELPER.read_bytes():  # noqa: F405
             fail(
@@ -429,14 +581,13 @@ def validate_gui_release_performance_contract(
             "当前发布请求已经明确时直接复用",
             "产品/渠道硬要求强制启用并记录来源",
             "否则询问用户一次",
-            "传给 `$desktop-build-tauri-release`",
-            "同一发布的修复重跑复用原选择，新发布重新询问",
+            "必须作为本次候选事实在关闭提交中封存",
+            "同一发布的修复或进程中断重跑复用原选择，新发布重新解析",
         ),
         tauri_skill: (
-            "当次 `performanceSelection: enabled | disabled`",
-            "产品/渠道硬要求强制为 `enabled` 并记录来源",
-            "否则在任何测试或编译前询问用户一次，可与尚未解析的 E2E 选择同轮询问",
-            "性能选择没有持久默认值",
+            "审查、性能和 macOS 签名选择及来源都只能从关闭状态读取",
+            "所有 GUI 候选的 `performanceSelection` 必须精确为 `enabled | disabled`",
+            "同一 closing commit 重跑复用，新发布重新由 prepare-release 解析",
             "只有 `performanceSelection: enabled` 或产品/渠道硬要求时",
             "性能已启用时，`milestone_e2e` 或本次 E2E 为 `disabled` 都不得跳过",
             "只在 `performanceSelection: enabled` 时记录 `performanceStatus: Unverified`",
@@ -574,8 +725,8 @@ def validate_gui_release_performance_contract(
             "安装容器摘要不能冒充探针摘要",
         ),
         release_doc: (
-            "GUI 性能选择也只对当前发布有效且没有持久默认值",
-            "产品/渠道硬要求优先并强制启用",
+            "GUI 性能和 macOS 签名选择也在该入口按当前请求、产品事实与渠道要求锁定",
+            "产品或渠道硬要求强制启用",
             "performanceSelection",
             "performanceStatus: passed | waived | Not run | Unverified",
             "release-profile no-bundle 探针候选",
@@ -583,7 +734,7 @@ def validate_gui_release_performance_contract(
             "至少 20 次代表性交互 p95 ≤120ms 且单次 <240ms",
             "稳定 RSS ≤360 MiB、峰值 ≤600 MiB",
             "仍无法安全解决时才询问",
-            "选择 `disabled` 且无硬要求时不生成探针",
+            "封存为 `disabled` 且无硬要求时不生成探针",
             "没有探针、性能证据或运行时绑定字段",
         ),
         verification_doc: (
@@ -601,6 +752,324 @@ def validate_gui_release_performance_contract(
         label="GUI performance contract",
         compile_check=(performance_helper, performance_tests),
     )
+
+
+def validate_release_selection_contract(
+    errors: list[str],
+    *,
+    prepare_skill: Path = PREPARE_RELEASE_SKILL,  # noqa: F405
+    branch_skill: Path = BRANCH_CHAIN_SKILL,  # noqa: F405
+    branch_operations: Path = BRANCH_CHAIN_OPERATIONS,  # noqa: F405
+    branch_state: Path = BRANCH_CHAIN_STATE,  # noqa: F405
+    branch_cli: Path = BRANCH_CHAIN_SCRIPT,  # noqa: F405
+    branch_tests: Path = BRANCH_CHAIN_TESTS,  # noqa: F405
+    rust_skill: Path = BUILD_RELEASE_SKILL,  # noqa: F405
+    tauri_skill: Path = TAURI_RELEASE_SKILL,  # noqa: F405
+    collect_skill: Path = COLLECT_RELEASE_SKILL,  # noqa: F405
+    verify_skill: Path = VERIFY_DELIVERY_SKILL,  # noqa: F405
+    e2e_skill: Path = E2E_SKILL,  # noqa: F405
+    release_doc: Path = ROOT / "docs" / "RELEASE.md",  # noqa: F405
+    verification_doc: Path = VERIFICATION_DOC,  # noqa: F405
+) -> None:
+    """锁定发布选择与分支关闭状态同提交原子封存、只读消费契约。"""
+
+    required = {
+        prepare_skill: (
+            "`reviewSelection: enabled | disabled`",
+            "安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求强制启用并记录来源",
+            "否则询问用户一次",
+            "必须作为本次候选事实在关闭提交中封存",
+            "同一发布的修复或进程中断重跑复用原选择，新发布重新解析",
+            "目标含 macOS GUI 时还在任何提交前按 `$desktop-build-tauri-release` 的同一优先级解析并锁定",
+            "macOS 同时 `system_notification = enabled` 且签名关闭",
+            "不得先提交、关闭分支链、自动补签或用 E2E 关闭绕过",
+            "python3 -B scripts/validate_harness.py --release-review",
+            "`reviewStatus: Not run`",
+            "`reviewReason`",
+            "`reviewRemainingRisk`",
+            "禁止生成 `reviewEvidence`、完成声明或 `reviewedSourceCommit`",
+            "`reviewedSourceCommit = sourceHead`",
+            "不得只传裸选择，也不得让 helper 补成 `passed` 或推断产品适用性",
+            "逐提交验证审查终点之后只改发布日志/被触发 Changelog",
+            "即使某路径后来恢复原状",
+            "完整 `releaseReview`、`candidateSelections` 与 `lastClosedChain` 在同一个关闭状态提交中原子封存",
+            "verify-release-review",
+            "不能继续依赖对话内参数、重复询问这些选择或自行制造证据",
+            "构建开始前、写 manifest 前均须复核",
+            "再次运行 `$desktop-manage-git-branch-chain verify-release-review`",
+            "两份封存信封与 manifest 字段必须逐字段一致",
+            "就绪复核阶段保持纯只读",
+            "不得更新 tracked 发布记录、Verification、Changelog、Product Status、版本状态或其他项目记忆",
+            "只有真实渠道发布成功后",
+            "后续独立受管 feature 生命周期中记录发布/Verification/项目状态事实",
+        ),
+        branch_skill: (
+            "任何正式发布请求必须先路由 `$desktop-prepare-release`",
+            "在任何发布提交前锁定本次 `reviewSelection`",
+            "只有该流程可把本命令作为下游 Git 机械 consumer 调用",
+            "都不得单独执行 `release`",
+            "helper 本身不解析、补写或推断语义审查证据",
+            "首次关闭必须显式传入完整审查信封与 `candidateSelections`",
+            "不得传 `Not run` 原因/风险",
+            "关闭时状态精确为 `Not run`",
+            "性能启用来源只接受 `requested|product-required|channel-required`",
+            "macOS 签名启用来源只接受 `configured|requested|channel-required`",
+            "不适用时两者都为 `not-applicable` 且无原因/风险",
+            "helper 逐提交检查 `sourceHead..preCloseHead`",
+            "即使后续恢复最终树",
+            "verify-release-review",
+            "重试可省略全部审查/候选选择参数，若重复传入则必须逐字段等于已封存信封",
+            "旧关闭提交只允许在远端事务已经完成时做本地收尾",
+            "绝不能新推进远端 `Release`",
+        ),
+        branch_state: (
+            "def validate_release_review(value: object)",
+            '"scopeDiffSha256",\n        "reviewedSourceCommit",\n        "checks",',
+            'value["checks"] != RELEASE_REVIEW_CHECKS',
+            'value["status"] != "Not run"',
+            'value["reviewedSourceCommit"] is not None',
+            "def validate_candidate_selections(value: object)",
+            '"performanceReason",\n        "performanceRemainingRisk",\n        "macosSigningSelection",',
+            '"macosSigningReason",\n        "macosSigningRemainingRisk",',
+            'performance_source\n            not in {"requested", "product-required", "channel-required"}',
+            'if performance_source not in {"requested", "not-requested"}:',
+            'performance_source\n            not in '
+            '{"requested", "product-required", "channel-required"}\n'
+            '            or value["performanceReason"] is not None',
+            'signing_source not in {"configured", "requested", "channel-required"}',
+            'if signing_source != "not-requested":',
+            'or value["macosSigningReason"] is not None',
+            'extensions = {"releaseReview", "candidateSelections"}',
+            "set(value) not in (required, required | extensions)",
+        ),
+        branch_operations: (
+            "def release_post_review_paths(",
+            '["rev-list", "--reverse", f"{source_head}..{pre_close_head}"]',
+            '"--root",',
+            '"--no-renames",',
+            "post-review commits may change only release-notes.json and dated Changelog files",
+            "def build_release_review(",
+            "return validate_release_review(",
+            "def build_candidate_selections(",
+            "prepare-release 显式提交的候选选择，不做产品推断",
+            "def require_retry_review_arguments_match(",
+            "if supplied_selections != selections:",
+            "retry candidate selections do not match the sealed release state",
+            "def verify_release_review(",
+            "current closing commit has no releaseReview",
+            "release review verification requires a completed remote transaction",
+            "release review verification requires completed local cleanup",
+            '"releaseReview": review,',
+            '"candidateSelections": closed["candidateSelections"],',
+            '"releaseReview": release_review,',
+            '"candidateSelections": candidate_selections,',
+            'if "releaseReview" not in closed and remote_state == "pending":',
+            "a legacy closing commit without releaseReview cannot update remote Release",
+        ),
+        branch_cli: (
+            "verify_release_review,",
+            '"verify-release-review", help="只读验证当前 Release 的封存审查信封"',
+            'release.add_argument("--review-status", choices=("passed", "Not run"))',
+            '"--performance-selection", choices=("enabled", "disabled", "not-applicable")',
+            '"--macos-signing-selection",',
+            'choices=("enabled", "disabled", "not-applicable"),',
+            'elif arguments.command == "verify-release-review":',
+            "result = verify_release_review(arguments.project_root, arguments.remote)",
+        ),
+        branch_tests: (
+            "test_release_atomically_updates_release_and_cleans_two_branch_chain",
+            "test_release_requires_review_envelope_before_creating_close_commit",
+            "test_release_does_not_infer_enabled_review_evidence",
+            "test_legacy_close_without_review_cannot_update_remote_release",
+            "test_release_seals_disabled_review_as_not_run",
+            "test_release_seals_gui_candidate_choices_with_review",
+            "test_release_allows_only_release_metadata_after_review_source",
+            "test_release_rejects_source_change_after_review_source",
+            "test_release_rejects_post_review_source_change_then_revert",
+            "test_candidate_selections_require_every_field",
+            "test_candidate_selections_reject_invalid_source_and_reason_combinations",
+            "test_release_retry_rejects_candidate_selection_mismatch",
+            "test_remote_hook_rejection_keeps_atomic_refs_and_retry_reuses_close_commit",
+            "test_remote_success_then_local_transaction_failure_is_retryable_without_push",
+        ),
+        rust_skill: (
+            "在任何测试、编译或 `release/` 清理前先调用 `$desktop-manage-git-branch-chain verify-release-review`",
+            "当前 clean `Release` closing commit",
+            "`lastClosedChain.releaseReview` 与 `candidateSelections`",
+            "Rust 非 GUI 候选要求后者的性能与 macOS 签名选择都精确为 `not-applicable`",
+            "不能从对话参数补写、重新询问或推断",
+            "同一 closing commit 重跑复用其信封",
+            "构建 Skill 不自行执行发布语义审查",
+            "要求它逐字等于上一步已验证的 `releaseHead`",
+            "在写 manifest 前再次运行只读 `verify-release-review`",
+            "要求返回的 `releaseHead`/完整信封逐字段等于第 1 步",
+            "结构化 `reviewEvidence` 必须逐字段复制信封",
+            "`reviewEvidence` 与 `reviewedSourceCommit` 都缺席",
+        ),
+        tauri_skill: (
+            "在任何测试、编译或 `release/` 清理前先调用 `$desktop-manage-git-branch-chain verify-release-review`",
+            "当前 clean `Release` closing commit",
+            "`lastClosedChain.releaseReview` 与 `candidateSelections`",
+            "审查、性能和 macOS 签名选择及来源都只能从关闭状态读取",
+            "不能从对话参数补写、重新询问、改变或推断",
+            "所有 GUI 候选的 `performanceSelection` 必须精确为 `enabled | disabled`",
+            "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`",
+            "不含 macOS 时则必须精确为 `not-applicable`",
+            "要求它逐字等于上一步已验证的 `releaseHead`",
+            "写 manifest 前再次运行只读 `verify-release-review`",
+            "`releaseHead`、`releaseReview` 与 `candidateSelections` 逐字段等于第 1 步",
+            "结构化 `reviewEvidence` 必须逐字段复制信封",
+            "`reviewEvidence`/`reviewedSourceCommit` 缺席",
+            "`macosSigningSelection: enabled | disabled`",
+            "其余固定为 `disabled/not-requested`",
+            "`disabled/not-requested`：不得运行 `scripts/probe-macos-notarization.sh`",
+            "`enabled`：才运行 `scripts/probe-macos-notarization.sh`",
+            "`macosSigningSource` 按 `channel-required > requested > configured > not-requested`",
+            "不得以 `--no-sign` 重试或静默降级",
+            "本机恰好存在身份、工具、环境变量或 Keychain profile 只表示可用性，绝不能自行改变选择",
+            "CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg --no-sign --config src-tauri/tauri.release.conf.json",
+            "只接受 `ready` 后才以同一已批准 Finder 布局策略运行 `CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg --config src-tauri/tauri.release.conf.json`",
+            "`system_notification = enabled` 而封存签名选择是 `disabled/not-requested`",
+            "E2E `disabled` 也不能绕过",
+        ),
+        collect_skill: (
+            "`reviewSelection`",
+            "`reviewStatus`",
+            "`macosSigningSelection`/`macosSigningSource`",
+            "收集阶段不得补问、推断或改变任何选择",
+            "在接触目标目录前先调用 `$desktop-manage-git-branch-chain verify-release-review`",
+            "只接受当前 clean `Release` closing commit",
+            "所有源 manifest 的 `sourceCommit` 必须等于该 `releaseHead`",
+            "不能用活动请求、对话或单个提供方 manifest 补齐缺失记录",
+            "再次只读运行 `verify-release-review`",
+            "逐字段比对两份信封与 manifest",
+            "`reviewedSourceCommit` 与 `reviewEvidence` 终点一致",
+            "多个来源按 `channel-required > requested > configured > not-requested` 唯一化",
+            "关闭时 `notarizationEvidence` 和探测派生签名证据必须缺席",
+        ),
+        verify_skill: (
+            "先运行 `$desktop-manage-git-branch-chain verify-release-review`",
+            "当前是完成远端和本地收尾的 clean `Release` closing commit",
+            "把该 `releaseHead` 和两份规范信封锁定为准入快照",
+            "manifest `sourceCommit` 等于返回的 `releaseHead`",
+            "逐字段来自返回的 `releaseReview`/`candidateSelections`",
+            "发布语义审查只读取 manifest 的当次 `reviewSelection`",
+            "`reviewStatus: passed`",
+            "`reviewStatus: Not run`",
+            "`reviewEvidence` 与 `reviewedSourceCommit` 缺席",
+            "它必须是 manifest `sourceCommit` 的祖先",
+            "`macosSigningSelection`/`macosSigningSource`",
+            "关闭时不得有探测派生证据或 `notarizationEvidence`",
+            "多个来源按 `channel-required > requested > configured > not-requested` 唯一化",
+            "`system_notification = enabled` 的 macOS 候选若为 `disabled/not-requested` 或实际 unsigned",
+            "不得由 E2E `disabled`、waiver 或 `Unverified` 绕过",
+            "在写入任何验收状态前再次只读运行 `verify-release-review`",
+            "与准入快照逐字段相等",
+            "重新计算全部最终制品、相邻摘要、manifest 声明、包内关键资源和当前 `release/` 精确集合",
+            "不能只沿用 E2E 前的摘要",
+            "于项目根同级、同一文件系统的唯一 staging 复制当前 `release/` 精确集合",
+            "在 staging 内原子写入全部 manifests 的同一整组 `milestoneAcceptance` 结论",
+            "绝不得产生 accepted/pending、accepted/rejected 或其他 mixed 状态",
+            "把 staging 一次目录级原子替换为 `release/`",
+            "替换后只读重新枚举并复算整组状态",
+            "不得直接写 tracked `docs/verification/`",
+        ),
+        e2e_skill: (
+            "`disabled/not-requested` 或实际 unsigned 必须在读取权限前失败",
+            "不能以 E2E `disabled` 或 `Unverified` 绕过",
+            "也不能由本 Skill 补签",
+            "只把这些结果交回 `$desktop-verify-delivery` 作为待原子写入的候选证据",
+            "不写 tracked Verification",
+            "所有场景和清理结束时",
+            "重新计算全部最终制品、相邻摘要、manifest 声明及适用包内关键资源",
+            "不得只声称“字节变化会使证据失效”而跳过结束复算",
+        ),
+        release_doc: (
+            "把显式 `releaseReview` 与 `candidateSelections` 和链关闭状态写入同一个 closing commit",
+            "审查后的每个提交只能触碰发布日志或被触发 Changelog",
+            "先改其他路径再恢复也阻断",
+            "旧式无两份信封的关闭提交不能新推进远端 `Release`",
+            "候选构建在清理目录、测试或编译前，以及写 manifest 前，都必须只读运行 `$desktop-manage-git-branch-chain verify-release-review`",
+            "两次返回的 `releaseHead`、`releaseReview` 和 `candidateSelections` 必须逐字段一致",
+            "都从封存字段原样复制，不得从对话补写或重新解释",
+            "E2E 仍在构建阶段按当前候选单独解析",
+            "同一发布修复重跑复用，新发布重新询问",
+            "manifest 另记录 `reviewedSourceCommit`",
+            "关闭审查时 `reviewedSourceCommit` 与 `reviewEvidence` 一并缺席",
+            "macOS 默认 `macosSigningSelection: disabled`",
+            "不探测本机身份或公证凭据",
+            "只有已批准持久配置、本次主动要求或渠道硬要求才启用并探测",
+            "macosSigningSource: configured | requested | channel-required | not-requested",
+            "channel-required > requested > configured > not-requested",
+            "候选构建一律从完成远端和本地收尾的 clean `Release` closing commit 只读验证并消费",
+            "不能现场解析、补写或从对话恢复这些值",
+            "`system_notification = enabled` 与关闭签名冲突时必须在任何提交前停止",
+            "不能由 E2E `disabled` 掩盖",
+        ),
+        verification_doc: (
+            "非必要语义审查只读取当前发布 manifest 的 `reviewSelection`",
+            "安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求不能被关闭",
+            "等于累计差异终点的 `reviewedSourceCommit`",
+            "日常 `python3 scripts/validate_harness.py`；发布审查启用时追加 `--release-review`",
+            "`disabled/not-requested` 或实际 unsigned 是不可验收的运行前提冲突",
+            "不能被 E2E `disabled`、waiver 或 `Unverified` 掩盖",
+        ),
+        ROOT / "AGENTS.md": (  # noqa: F405
+            "非必要语义审查不得混入日常开发",
+            "明确发布时才按当次 `reviewSelection` 询问并执行",
+            "python3 -B scripts/validate_harness.py --release-review",
+        ),
+        TAURI_RELEASE_SKILL.parent / "references" / "tauri-macos-windows.md": (  # noqa: F405
+            "签名意图先于测试、可用性探测和 bundle",
+            "其他情况固定为 `disabled/not-requested`",
+            "直接以显式 `--no-sign` DMG 命令打包且不得探测本机身份、凭据或 Keychain profile",
+            "已启用签名时才检查完整条件",
+            "`macosSigningSource` 固定按 `channel-required > requested > configured > not-requested`",
+            "`system_notification = enabled` 是例外的运行前提冲突，不是新的签名来源",
+            "不得暗中 ad-hoc 签名，也不得用 E2E `disabled` 掩盖不可验收组合",
+        ),
+    }
+    validate_fragment_contract(
+        errors,
+        required,
+        label="release selection contract",
+        compile_check=(branch_operations, branch_state, branch_cli, branch_tests),
+    )
+
+    tauri_text = tauri_skill.read_text(encoding="utf-8") if tauri_skill.is_file() else ""
+    early_intent = "审查、性能和 macOS 签名选择及来源都只能从关闭状态读取"
+    first_dmg_build = "pnpm tauri build --bundles dmg"
+    if (
+        early_intent in tauri_text
+        and first_dmg_build in tauri_text
+        and tauri_text.index(early_intent) > tauri_text.index(first_dmg_build)
+    ):
+        errors.append(
+            f"release selection contract: {tauri_skill} must lock macOS signing intent "
+            "before the first DMG bundle command"
+        )
+
+    verify_text = verify_skill.read_text(encoding="utf-8") if verify_skill.is_file() else ""
+    verify_order = (
+        "把该 `releaseHead` 和两份规范信封锁定为准入快照",
+        "7. E2E 为 `enabled` 或硬要求时调用 `$desktop-test-final-artifact-e2e`",
+        "在写入任何验收状态前再次只读运行 `verify-release-review`",
+        "重新计算全部最终制品、相邻摘要、manifest 声明、包内关键资源和当前 `release/` 精确集合",
+        "于项目根同级、同一文件系统的唯一 staging 复制当前 `release/` 精确集合",
+        "在 staging 内原子写入全部 manifests 的同一整组 `milestoneAcceptance` 结论",
+        "把 staging 一次目录级原子替换为 `release/`",
+        "替换后只读重新枚举并复算整组状态",
+    )
+    verify_positions = [verify_text.find(fragment) for fragment in verify_order]
+    if all(position >= 0 for position in verify_positions) and verify_positions != sorted(
+        verify_positions
+    ):
+        fail(  # noqa: F405
+            errors,
+            "release selection contract order: delivery verification must finish real "
+            "checks, reverify the closing state and final bytes, then update the whole "
+            "manifest group in staging before one atomic replacement and read-only check",
+        )
 
 
 def validate_release_git_contract(
@@ -672,8 +1141,8 @@ def validate_release_git_contract(
         ),
         release_doc: (
             "## 发布分支与制品目录",
-            "直接候选构建不自动提交",
-            "明确“发布/准备并构建发布”请求本身授权",
+            "明确“构建发布候选”“发布”或“准备并构建发布”请求本身授权",
+            "普通开发构建/本地试包不升级为候选，也不提交或关闭链路",
             "不授权 tag、上传、商店提交、真实渠道发布或 `Release` 到默认分支",
             "从新的源码 HEAD",
             "以单次 atomic push 快进 `Release` 并按 lease 删除登记的远端链",
@@ -685,8 +1154,8 @@ def validate_release_git_contract(
             "$desktop-manage-git-branch-chain",
             "把登记的完整线性链快进到精确 `Release`",
             "以逐 ref lease 原子删除远端链路后清理本地链路",
-            "再从 `Release` 构建，不重复审批",
-            "普通“构建候选”不会自动提交或关闭分支链",
+            "从该关闭提交构建，不重复审批",
+            "普通“构建/打包/本地试包”不会自动升级为发布候选、提交或关闭分支链",
             "`Release` 到默认分支的 Merge/PR 始终由你完成",
         ),
     }
@@ -706,6 +1175,7 @@ def validate_release_contract(errors: list[str]) -> None:
     validate_tauri_local_install_contract(errors)
     validate_tauri_build_skill_contract(errors)
     validate_gui_release_performance_contract(errors)
+    validate_release_selection_contract(errors)
     validate_release_git_contract(errors)
 
     helper_fragments = {

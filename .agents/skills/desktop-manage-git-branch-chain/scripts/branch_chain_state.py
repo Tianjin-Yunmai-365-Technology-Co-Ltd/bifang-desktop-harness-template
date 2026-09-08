@@ -13,9 +13,17 @@ from typing import Any
 
 
 OID_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 FEATURE_PATTERN = re.compile(
     r"^feature-[a-z0-9]+(?:-[a-z0-9]+)*-(?:19|20)\d{6}$"
 )
+RELEASE_REVIEW_CHECKS = [
+    "behavior-correctness",
+    "core-adapter-boundary",
+    "external-contracts",
+    "responsibility-and-size",
+    "temporary-markers",
+]
 EMPTY_STATE: dict[str, Any] = {
     "schemaVersion": 1,
     "activeChain": None,
@@ -84,7 +92,7 @@ def validate_active_chain(value: object) -> dict[str, Any] | None:
         raise StateError("activeChain default-branch base must equal defaultHead")
     if not isinstance(entries, list) or not entries:
         raise StateError("activeChain.entries must be a non-empty list")
-    normalized: list[dict[str, str]] = []
+    normalized_entries: list[dict[str, str]] = []
     previous_name = base_branch
     seen: set[str] = set()
     for index, entry in enumerate(entries):
@@ -99,12 +107,12 @@ def validate_active_chain(value: object) -> dict[str, Any] | None:
         )
         if parent != previous_name or (index == 0 and parent_head != base_head):
             raise StateError("activeChain is not a continuous frozen parent chain")
-        normalized.append(
+        normalized_entries.append(
             {"branch": branch, "parent": parent, "parentHead": parent_head}
         )
         seen.add(branch)
         previous_name = branch
-    if value["activeLeaf"] != normalized[-1]["branch"]:
+    if value["activeLeaf"] != normalized_entries[-1]["branch"]:
         raise StateError("activeChain.activeLeaf must equal the final entry")
     return {
         "remote": remote,
@@ -112,9 +120,201 @@ def validate_active_chain(value: object) -> dict[str, Any] | None:
         "defaultHead": default_head,
         "baseBranch": base_branch,
         "baseHead": base_head,
-        "activeLeaf": normalized[-1]["branch"],
+        "activeLeaf": normalized_entries[-1]["branch"],
         "phase": "active",
-        "entries": normalized,
+        "entries": normalized_entries,
+    }
+
+
+def validate_public_review_text(value: object, field: str) -> str:
+    """要求写入 Git 的审查说明是简短、单行且无控制字符的公开文本。"""
+
+    if (
+        not isinstance(value, str)
+        or value != value.strip()
+        or not value
+        or len(value) > 500
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        raise StateError(f"{field} must be 1-500 trimmed printable characters")
+    return value
+
+
+def validate_release_review(value: object) -> dict[str, Any]:
+    """验证随关闭提交原子封存的单次发布审查信封。"""
+
+    required = {
+        "selection",
+        "status",
+        "scopeBase",
+        "sourceHead",
+        "scopeDiffSha256",
+        "reviewedSourceCommit",
+        "checks",
+        "evidenceSummary",
+        "reason",
+        "remainingRisk",
+    }
+    if not isinstance(value, dict) or set(value) != required:
+        raise StateError("lastClosedChain.releaseReview fields are invalid")
+    selection = value["selection"]
+    if selection not in {"enabled", "disabled"}:
+        raise StateError("lastClosedChain.releaseReview.selection is invalid")
+    scope_base = validate_oid(
+        value["scopeBase"], "lastClosedChain.releaseReview.scopeBase"
+    )
+    source_head = validate_oid(
+        value["sourceHead"], "lastClosedChain.releaseReview.sourceHead"
+    )
+    scope_digest = value["scopeDiffSha256"]
+    if not isinstance(scope_digest, str) or not SHA256_PATTERN.fullmatch(scope_digest):
+        raise StateError(
+            "lastClosedChain.releaseReview.scopeDiffSha256 must be lowercase SHA-256"
+        )
+    if selection == "enabled":
+        if (
+            value["status"] != "passed"
+            or value["reviewedSourceCommit"] != source_head
+            or value["checks"] != RELEASE_REVIEW_CHECKS
+            or value["evidenceSummary"] is None
+            or value["reason"] is not None
+            or value["remainingRisk"] is not None
+        ):
+            raise StateError("enabled lastClosedChain.releaseReview is inconsistent")
+        reviewed_source_commit: str | None = source_head
+        checks = list(RELEASE_REVIEW_CHECKS)
+        evidence_summary: str | None = validate_public_review_text(
+            value["evidenceSummary"],
+            "lastClosedChain.releaseReview.evidenceSummary",
+        )
+        reason: str | None = None
+        remaining_risk: str | None = None
+    else:
+        if (
+            value["status"] != "Not run"
+            or value["reviewedSourceCommit"] is not None
+            or value["checks"] != []
+            or value["evidenceSummary"] is not None
+        ):
+            raise StateError("disabled lastClosedChain.releaseReview is inconsistent")
+        reviewed_source_commit = None
+        checks = []
+        evidence_summary = None
+        reason = validate_public_review_text(
+            value["reason"], "lastClosedChain.releaseReview.reason"
+        )
+        remaining_risk = validate_public_review_text(
+            value["remainingRisk"],
+            "lastClosedChain.releaseReview.remainingRisk",
+        )
+    return {
+        "selection": selection,
+        "status": value["status"],
+        "scopeBase": scope_base,
+        "sourceHead": source_head,
+        "scopeDiffSha256": scope_digest,
+        "reviewedSourceCommit": reviewed_source_commit,
+        "checks": checks,
+        "evidenceSummary": evidence_summary,
+        "reason": reason,
+        "remainingRisk": remaining_risk,
+    }
+
+
+def validate_candidate_selections(value: object) -> dict[str, Any]:
+    """验证关闭提交封存的性能与 macOS 签名候选选择。"""
+
+    required = {
+        "performanceSelection",
+        "performanceSource",
+        "performanceReason",
+        "performanceRemainingRisk",
+        "macosSigningSelection",
+        "macosSigningSource",
+        "macosSigningReason",
+        "macosSigningRemainingRisk",
+    }
+    if not isinstance(value, dict) or set(value) != required:
+        raise StateError("lastClosedChain.candidateSelections fields are invalid")
+
+    performance_selection = value["performanceSelection"]
+    performance_source = value["performanceSource"]
+    if performance_selection == "not-applicable":
+        if (
+            performance_source != "not-applicable"
+            or value["performanceReason"] is not None
+            or value["performanceRemainingRisk"] is not None
+        ):
+            raise StateError("not-applicable performance selection is inconsistent")
+        performance_reason: str | None = None
+        performance_risk: str | None = None
+    elif performance_selection == "enabled":
+        if (
+            performance_source
+            not in {"requested", "product-required", "channel-required"}
+            or value["performanceReason"] is not None
+            or value["performanceRemainingRisk"] is not None
+        ):
+            raise StateError("enabled performance selection is inconsistent")
+        performance_reason = None
+        performance_risk = None
+    elif performance_selection == "disabled":
+        if performance_source not in {"requested", "not-requested"}:
+            raise StateError("disabled performance selection source is invalid")
+        performance_reason = validate_public_review_text(
+            value["performanceReason"],
+            "lastClosedChain.candidateSelections.performanceReason",
+        )
+        performance_risk = validate_public_review_text(
+            value["performanceRemainingRisk"],
+            "lastClosedChain.candidateSelections.performanceRemainingRisk",
+        )
+    else:
+        raise StateError("performance selection is invalid")
+
+    signing_selection = value["macosSigningSelection"]
+    signing_source = value["macosSigningSource"]
+    if signing_selection == "not-applicable":
+        if (
+            signing_source != "not-applicable"
+            or value["macosSigningReason"] is not None
+            or value["macosSigningRemainingRisk"] is not None
+        ):
+            raise StateError("not-applicable macOS signing selection is inconsistent")
+        signing_reason: str | None = None
+        signing_risk: str | None = None
+    elif signing_selection == "enabled":
+        if (
+            signing_source not in {"configured", "requested", "channel-required"}
+            or value["macosSigningReason"] is not None
+            or value["macosSigningRemainingRisk"] is not None
+        ):
+            raise StateError("enabled macOS signing selection is inconsistent")
+        signing_reason = None
+        signing_risk = None
+    elif signing_selection == "disabled":
+        if signing_source != "not-requested":
+            raise StateError("disabled macOS signing selection source is invalid")
+        signing_reason = validate_public_review_text(
+            value["macosSigningReason"],
+            "lastClosedChain.candidateSelections.macosSigningReason",
+        )
+        signing_risk = validate_public_review_text(
+            value["macosSigningRemainingRisk"],
+            "lastClosedChain.candidateSelections.macosSigningRemainingRisk",
+        )
+    else:
+        raise StateError("macOS signing selection is invalid")
+
+    return {
+        "performanceSelection": performance_selection,
+        "performanceSource": performance_source,
+        "performanceReason": performance_reason,
+        "performanceRemainingRisk": performance_risk,
+        "macosSigningSelection": signing_selection,
+        "macosSigningSource": signing_source,
+        "macosSigningReason": signing_reason,
+        "macosSigningRemainingRisk": signing_risk,
     }
 
 
@@ -133,7 +333,8 @@ def validate_closed_chain(value: object) -> dict[str, Any] | None:
         "closingHead",
         "entries",
     }
-    if not isinstance(value, dict) or set(value) != required:
+    extensions = {"releaseReview", "candidateSelections"}
+    if not isinstance(value, dict) or set(value) not in (required, required | extensions):
         raise StateError("lastClosedChain fields are invalid")
     remote = value["remote"]
     default_branch = value["defaultBranch"]
@@ -164,7 +365,7 @@ def validate_closed_chain(value: object) -> dict[str, Any] | None:
         raise StateError("lastClosedChain Release base and prior head are inconsistent")
     if not isinstance(entries, list) or not entries:
         raise StateError("lastClosedChain.entries must be a non-empty list")
-    normalized: list[dict[str, str]] = []
+    normalized_entries: list[dict[str, str]] = []
     seen: set[str] = set()
     for index, entry in enumerate(entries):
         if not isinstance(entry, dict) or set(entry) != {"branch", "preCloseHead"}:
@@ -172,7 +373,7 @@ def validate_closed_chain(value: object) -> dict[str, Any] | None:
         branch = validate_feature_name(entry["branch"], f"lastClosedChain.entries[{index}].branch")
         if branch in seen:
             raise StateError("lastClosedChain contains a duplicate branch")
-        normalized.append(
+        normalized_entries.append(
             {
                 "branch": branch,
                 "preCloseHead": validate_oid(
@@ -182,7 +383,7 @@ def validate_closed_chain(value: object) -> dict[str, Any] | None:
             }
         )
         seen.add(branch)
-    return {
+    normalized: dict[str, Any] = {
         "remote": remote,
         "baseBranch": base_branch,
         "baseHead": base_head,
@@ -190,8 +391,19 @@ def validate_closed_chain(value: object) -> dict[str, Any] | None:
         "defaultHead": default_head,
         "releaseHeadBefore": release_head_before,
         "closingHead": None,
-        "entries": normalized,
+        "entries": normalized_entries,
     }
+    if "releaseReview" in value:
+        release_review = validate_release_review(value["releaseReview"])
+        if release_review["scopeBase"] != base_head:
+            raise StateError(
+                "lastClosedChain.releaseReview.scopeBase must equal lastClosedChain.baseHead"
+            )
+        normalized["releaseReview"] = release_review
+        normalized["candidateSelections"] = validate_candidate_selections(
+            value["candidateSelections"]
+        )
+    return normalized
 
 
 def validate_state(value: object) -> dict[str, Any]:

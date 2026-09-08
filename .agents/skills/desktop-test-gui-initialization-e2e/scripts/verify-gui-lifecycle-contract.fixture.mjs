@@ -16,6 +16,10 @@ import {
   FIXED_METADATA_LOCALE_RUNTIME_FIXTURE_SOURCE,
   writeFixedFrontendIpcFixture,
 } from "./gui-fixed-ipc-contract.fixture.mjs";
+import {
+  NOTIFICATION_RUNTIME_FIXTURE_SOURCE,
+  withManagedNotificationWorker,
+} from "./gui-notification-runtime-contract.fixture.mjs";
 
 export const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "verify-gui-lifecycle-contract.mjs");
 
@@ -101,7 +105,9 @@ export function writeInitializationProfile(root, overrides = {}) {
     const current = fs.readFileSync(shortcutSource, "utf8");
     fs.writeFileSync(
       shortcutSource,
-      rewriteGlobalShortcutFixtureSource(current, globalShortcutContract.actions),
+      withManagedNotificationWorker(
+        rewriteGlobalShortcutFixtureSource(current, globalShortcutContract.actions),
+      ),
     );
   }
 }
@@ -355,6 +361,7 @@ function createFixture() {
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "tauri.conf.json"),
     JSON.stringify({
+      identifier: "com.example.sample",
       app: {
         windows: [{
           center: true,
@@ -403,8 +410,7 @@ ${renderGlobalShortcutActionsFixtureSource([])}
 
 struct ReleaseNotesDocument; struct LocalizedReleaseNoteItem;
 enum ReleaseNotesLoadError { Invalid }
-enum NotificationCommand { RequestPermission(oneshot::Sender<Result<(), &'static str>>), Deliver }
-	struct NotificationWorker { sender: mpsc::Sender<NotificationCommand>, task: JoinHandle<()> }
+${NOTIFICATION_RUNTIME_FIXTURE_SOURCE}
 	enum UpdaterStatus { NotConfigured, Checking, UpToDate, Failed }
 	struct UpdateController { configured: bool, checking: AtomicBool }
 	struct UpdateTaskOwner { task: Option<JoinHandle<()>> }
@@ -414,12 +420,6 @@ enum NotificationCommand { RequestPermission(oneshot::Sender<Result<(), &'static
 	        if let Some(task) = self.task.take() { task.abort(); }
 	    }
 	}
-
-	impl Drop for NotificationWorker {
-    fn drop(&mut self) {
-        self.task.abort();
-	}
-}
 
 	fn normalize_bcp47_locale(raw: Option<String>, saved_language: Option<String>) -> String {
 	    let candidate = saved_language
@@ -494,47 +494,6 @@ async fn load_release_notes(app: tauri::AppHandle) -> Result<ReleaseNotesDocumen
 }
 
 #[tauri::command]
-async fn get_system_notification_setting() -> Result<bool, &'static str> { Ok(false) }
-
-#[tauri::command]
-async fn set_system_notification_enabled(enabled: bool) -> Result<bool, &'static str> {
-    let (_reply_tx, _reply_rx) = oneshot::channel();
-    if enabled { request_system_notification_permission().await?; }
-    persist_system_notification_setting(enabled).await?;
-    Ok(enabled)
-}
-
-async fn persist_system_notification_setting(_enabled: bool) -> Result<(), &'static str> { Ok(()) }
-
-#[cfg(target_os = "macos")]
-async fn request_system_notification_permission() -> Result<(), &'static str> {
-    if mac_usernotifications::request_auth().await.unwrap_or(false) { Ok(()) } else { Err("permission-denied") }
-}
-
-#[cfg(target_os = "macos")]
-async fn deliver_system_notification() -> Result<(), &'static str> {
-    mac_usernotifications::Notification::new()
-        .title("localized title")
-        .message("localized body")
-        .default_sound()
-        .send()
-        .await
-        .map(|_| ())
-        .map_err(|_| "delivery-failed")
-}
-
-#[cfg(not(target_os = "macos"))]
-async fn request_system_notification_permission() -> Result<(), &'static str> {
-    let _permission = app.notification().request_permission();
-    Ok(())
-}
-
-#[cfg(not(target_os = "macos"))]
-async fn deliver_system_notification() -> Result<(), &'static str> {
-    app.notification().builder().title("localized title").body("localized body").show().map_err(|_| "delivery-failed")
-}
-
-#[tauri::command]
 async fn get_autostart_enabled(app: tauri::AppHandle) -> Result<bool, &'static str> {
     app.autolaunch().is_enabled().map_err(|_| "autostart-state-unavailable")
 }
@@ -553,7 +512,7 @@ fn restore_main_window(app: &tauri::AppHandle) {
     let _ = window.set_focus();
 }
 
-${renderGlobalShortcutRunFixtureSource([])}
+${withManagedNotificationWorker(renderGlobalShortcutRunFixtureSource([]))}
 
 fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let show = MenuItemBuilder::with_id(SHOW_WINDOW_ID, rust_i18n::t!("tray.show_window")).build(app)?;
@@ -752,41 +711,18 @@ fn handle_window(window: &tauri::Window, event: &WindowEvent) {
 
 ${GLOBAL_SHORTCUT_TESTS_FIXTURE_SOURCE}
 
-	    #[test]
-	    fn system_notification_defaults_disabled() {
-	        let setting = false;
-	        assert!(!setting);
-	    }
-
-	    #[test]
-	    fn system_notification_permission_precedes_persistence() {
-	        let event_order = ["permission", "persist"];
-	        assert_eq!(event_order[0], "permission");
-	    }
-
-	    #[test]
-	    fn system_notification_delivery_failure_is_observable() {
-	        let visible_error = Some("delivery-failed");
-	        assert!(visible_error.is_some());
-	    }
-
-	    #[test]
-	    fn system_notification_channel_serializes_authorization_and_delivery() {
-	        let concurrent_workers = 1;
-	        assert_eq!(concurrent_workers, 1);
-	    }
-
-	    #[test]
-	    fn system_notification_worker_is_owned_and_cancelled() {
-	        let task_cancelled = true;
-	        assert!(task_cancelled);
-	    }
-
-	    #[test]
-	    fn macos_system_notifications_use_modern_user_notifications() {
-	        let api = "UNUserNotificationCenter";
-	        assert!(api.starts_with("UN"));
-	    }
+	    #[test] fn system_notification_defaults_disabled() { let setting = false; assert!(!setting); }
+	    #[test] fn system_notification_permission_precedes_persistence() { let event_order = ["permission", "persist"]; assert_eq!(event_order[0], "permission"); }
+	    #[test] fn macos_notification_authorization_status_precedes_request() { let event_order = ["read-status", "request", "reread-status"]; assert_eq!(event_order[0], "read-status"); }
+	    #[test] fn macos_notification_request_is_limited_to_not_determined() { let requested_statuses = ["NotDetermined"]; assert_eq!(requested_statuses.len(), 1); }
+	    #[test] fn macos_denied_or_restricted_notification_opens_settings() { let recovery_states = ["Denied", "Restricted"]; assert_eq!(recovery_states.len(), 2); }
+	    #[test] fn macos_notification_undetermined_after_request_opens_settings() { let post_request_recovery = ("NotDetermined", "open-settings"); assert_eq!(post_request_recovery.1, "open-settings"); }
+	    #[test] fn macos_notification_settings_targets_current_app() { let settings_url = "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=com.example.sample"; assert!(settings_url.ends_with("com.example.sample")); }
+	    #[test] fn macos_notification_settings_open_failure_is_observable() { let visible_error = Some("notification-settings-open-failed"); assert!(visible_error.is_some()); }
+	    #[test] fn system_notification_delivery_failure_is_observable() { let visible_error = Some("delivery-failed"); assert!(visible_error.is_some()); }
+	    #[test] fn system_notification_channel_serializes_authorization_and_delivery() { let concurrent_workers = 1; assert_eq!(concurrent_workers, 1); }
+	    #[test] fn system_notification_worker_is_owned_and_cancelled() { let task_cancelled = true; assert!(task_cancelled); }
+	    #[test] fn macos_system_notifications_use_modern_user_notifications() { let api = "UNUserNotificationCenter"; assert!(api.starts_with("UN")); }
 
 	    #[test]
 	    fn autostart_defaults_disabled_without_registration() {

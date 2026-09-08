@@ -764,6 +764,20 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         """Harness 源可以保留尚待下游首次确认的 pending。"""
         self.assertEqual(self._validate(self._current_policy()), [])
 
+    def test_rejects_missing_ordinary_session_title_closure(self) -> None:
+        """普通调用 Task 必须保留非阻断的标题更新与真实身份复读契约。"""
+
+        mutated = self._current_policy().replace(
+            "调用 `set_thread_title` 至多一次并省略 `threadId`",
+            "不执行 Session 标题更新",
+            1,
+        )
+        errors = self._validate(mutated)
+        self.assertTrue(
+            any("set_thread_title" in error for error in errors),
+            errors,
+        )
+
     def test_rejects_missing_preference_field(self) -> None:
         """四项选择缺失任一字段都必须失败。"""
         mutated = self._current_policy().replace("milestone_e2e: pending\n", "", 1)
@@ -820,7 +834,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
 
 
 class ValidateWorkPlanTests(unittest.TestCase):
-    """覆盖按需 Todo、可选完整验收和未完成时禁止验收。"""
+    """覆盖按需 Todo、可选完整验收和候选事实禁止回写。"""
 
     TODO_TOKEN = SHARED_TODO_TOKEN
 
@@ -873,13 +887,26 @@ class ValidateWorkPlanTests(unittest.TestCase):
         self.assertTrue(any("explicit state" in error for error in errors), errors)
 
     def test_rejects_accepted_verdict_with_pending_todo(self) -> None:
-        """任一 Todo 未完成时不得把完整验收记为 accepted。"""
+        """Work Plan 不得把候选完整验收记为 accepted。"""
         mutated = self._valid_plan() + "\n验收状态：accepted\n"
         errors = self._validate(mutated)
         self.assertTrue(
-            any("accepted or release-ready verdict" in error for error in errors),
+            any("candidate evidence" in error for error in errors),
             errors,
         )
+
+    def test_rejects_accepted_verdict_after_all_todos_done(self) -> None:
+        """Todo 全部完成也不能把候选验收结论写入 tracked Work Plan。"""
+
+        plan = self._valid_plan().replace("（pending）", "（done）", 1)
+        errors = self._validate(plan + "\n验收状态：accepted\n")
+        self.assertTrue(any("candidate evidence" in error for error in errors), errors)
+
+    def test_rejects_candidate_manifest_facts(self) -> None:
+        """候选 manifest 状态只能存在于忽略的 release 集合。"""
+
+        errors = self._validate(self._valid_plan() + "\nmilestoneAcceptance: pending\n")
+        self.assertTrue(any("candidate evidence" in error for error in errors), errors)
 
     def test_rejects_duplicate_todo_id_and_missing_per_item_field(self) -> None:
         """Todo ID 必须唯一，且每项都拥有预期、边界和验证。"""
@@ -899,7 +926,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 
         errors = self._validate(self._valid_plan() + "\n验收结论：通过\n")
         self.assertTrue(
-            any("accepted or release-ready verdict" in error for error in errors),
+            any("candidate evidence" in error for error in errors),
             errors,
         )
 
@@ -931,7 +958,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 - 失败时重开 Todo 并返回 `$desktop-implement-change`。
 """
         errors = self._validate(first_batch + second_batch)
-        self.assertTrue(any("accepted or release-ready verdict" in error for error in errors), errors)
+        self.assertTrue(any("candidate evidence" in error for error in errors), errors)
 
 
 class ProjectMemoryTriggerTests(unittest.TestCase):
@@ -957,12 +984,36 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
             governance.validate_stale_fragments(errors, (path,))
         self.assertTrue(any("stale current description" in item for item in errors))
 
+    def test_rejects_superseded_task_title_in_current_changelog(self) -> None:
+        """同日 Changelog 不得并列保留已被取代的动作/结果标题合同。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "current.md"
+            path.write_text("标题固定使用“动作 + 结果”。", encoding="utf-8")
+            errors: list[str] = []
+            repository.validate_current_changelog_contract(errors, path)
+        self.assertTrue(any("superseded Task title contract" in item for item in errors))
+
+    def test_rejects_superseded_release_lifecycle_wording(self) -> None:
+        """反向旧措辞不能与新候选生命周期并存。"""
+
+        fragment = "`pending`/`ready` 状态转换"
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "current.md"
+            path.write_text(fragment, encoding="utf-8")
+            errors: list[str] = []
+            repository.validate_superseded_release_lifecycle_fragments(
+                errors,
+                ((path, (fragment,)),),
+            )
+        self.assertTrue(any("superseded release lifecycle" in item for item in errors))
+
     def test_release_contract_allows_fix_only_without_changelog(self) -> None:
         """仅修复 PATCH 仍有发布证据，但不得制造 Changelog。"""
 
         release = read_repo_text("docs/RELEASE.md")
         prepare = read_repo_text(".agents/skills/desktop-prepare-release/SKILL.md")
         self.assertIn("版本变化与 Changelog 写入是独立门禁", release)
-        self.assertIn("缺少 Changelog 不削弱发布证据", release)
+        self.assertIn("缺少 Changelog 不削弱候选证据", release)
         self.assertIn("仅含普通缺陷修复或纯重构", prepare)
         self.assertIn("不创建、不补写也不汇总 Changelog", prepare)

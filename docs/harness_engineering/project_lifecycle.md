@@ -77,7 +77,7 @@
 - 下一步是什么。
 - 是否改变了规格、版本或技术债。
 
-日常开发通常只在最终回复和测试/CI 中记录结果；只有用户明确要求持久计划、跨会话需要恢复、出现重要阻断、发布、完整验收或长期审计时，才把对应事实写入 Work Plan、Product Status 或 Verification。
+日常开发通常只在最终回复和测试/CI 中记录结果；用户明确要求持久计划、跨会话需要恢复或出现重要阻断时，才写 Work Plan/Product Status。候选构建、E2E、完整验收和就绪复核只写忽略的 `release/` 原子证据；真实渠道发布成功后，或另行执行回顾性长期审计时，才在后续受管 feature 生命周期写 Product Status/Verification。
 
 ## 7. 标准三段式版本管理
 
@@ -132,7 +132,7 @@ tests/                     核心闭环和风险测试
 
 ## 13. 阶段检查清单
 
-阶段检查按事件触发组合：新产品/边界变化使用 `$desktop-define-product`；日常开发直接使用 `$desktop-implement-change`；用户明确要求持久计划或跨会话协调时先用 `$desktop-plan-change`；发布候选或用户明确要求完整验收时使用 `$desktop-verify-delivery`，发布再进入 `$desktop-prepare-release`。日常维护不为形式完整重复所有阶段。
+阶段检查按事件触发组合：新产品/边界变化使用 `$desktop-define-product`；日常开发直接使用 `$desktop-implement-change`；用户明确要求持久计划或跨会话协调时先用 `$desktop-plan-change`；发布候选先由 `$desktop-prepare-release` 冻结选择并关闭到 clean 具名 `Release`，再构建/收集并用 `$desktop-verify-delivery` 完整验收，形成 `accepted` 原子集合后只读复核就绪。日常维护不为形式完整重复所有阶段。
 
 ## 14. Harness 的积累与演进
 

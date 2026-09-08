@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -34,6 +35,19 @@ from harness_workflow_test_support import HarnessWorkflowTestCase
 class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
     """对真实 run block 和 workflow 字节约束执行前向回归。"""
 
+    def _bash(self) -> str:
+        """解析可执行 Bash；宿主没有该运行时能力时只跳过执行型用例。"""
+
+        candidates = [shutil.which("bash")]
+        for environment_name in ("ProgramFiles", "ProgramFiles(x86)"):
+            program_files = os.environ.get(environment_name)
+            if program_files:
+                candidates.append(str(Path(program_files) / "Git" / "bin" / "bash.exe"))
+        for candidate in candidates:
+            if candidate and Path(candidate).is_file():
+                return candidate
+        self.skipTest("Bash is unavailable on this host")
+
     def test_project_msrv_step_reads_and_normalizes_workspace_minimum(self) -> None:
         """候选 workflow 必须读取项目下界，不能恢复模板硬编码工具链。"""
         script = self._run_script(self._base_workflow(), "读取项目最低 Rust 版本")
@@ -52,7 +66,7 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 }
             )
             result = subprocess.run(
-                ["bash", "-c", script],
+                [self._bash(), "-c", script],
                 cwd=root,
                 env=env,
                 capture_output=True,
@@ -70,7 +84,7 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 encoding="utf-8",
             )
             rejected = subprocess.run(
-                ["bash", "-c", script],
+                [self._bash(), "-c", script],
                 cwd=root,
                 env=env,
                 capture_output=True,
@@ -86,10 +100,12 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
         manifest_script = self._run_script(workflow, "记录候选清单")
         commit_script = self._run_script(workflow, "提交候选制品集合")
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
+            sandbox = Path(tmp_dir)
+            root = sandbox / "project"
+            root.mkdir()
             release = root / "release"
             release.mkdir()
-            stage = root / ".release-clean.candidate.test"
+            stage = sandbox / ".example-tool.release-candidate.test"
             stage.mkdir()
             archive_name = "example-tool-v1.2.3-linux-x64.tar.gz"
             archive = stage / archive_name
@@ -110,6 +126,52 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 f"{digest}  {archive_name}\n",
                 encoding="ascii",
             )
+            helper = (
+                root
+                / ".agents"
+                / "skills"
+                / "desktop-prepare-cross-platform-release"
+                / "scripts"
+                / "verify_release_envelope.py"
+            )
+            helper.parent.mkdir(parents=True)
+            helper.write_text(
+                "import sys\n"
+                "if len(sys.argv) < 2 or sys.argv[1] != 'verify':\n"
+                "    raise SystemExit('expected verify mode')\n",
+                encoding="utf-8",
+            )
+            state_digest = "b" * 64
+            release_review = {
+                "selection": "disabled",
+                "status": "not-run",
+                "source": "explicit-user-selection",
+                "reason": "fixture-disabled",
+                "remainingRisk": "fixture-risk",
+            }
+            candidate_selections = {
+                "performanceSelection": "not-applicable",
+                "performanceSource": "not-applicable",
+                "performanceReason": None,
+                "performanceRemainingRisk": None,
+                "macosSigningSelection": "not-applicable",
+                "macosSigningSource": "not-applicable",
+                "macosSigningReason": None,
+                "macosSigningRemainingRisk": None,
+            }
+            snapshot = sandbox / "release-envelope-snapshot.json"
+            snapshot.write_text(
+                json.dumps(
+                    {
+                        "sourceCommit": "a" * 40,
+                        "branchChainStateSha256": state_digest,
+                        "releaseReview": release_review,
+                        "candidateSelections": candidate_selections,
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             env = os.environ.copy()
             env.update(
                 {
@@ -129,12 +191,15 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                     "RELEASE_NOTES_SHA256": hashlib.sha256(
                         release_notes.read_bytes()
                     ).hexdigest(),
+                    "BRANCH_CHAIN_STATE_SHA256": state_digest,
+                    "REPOSITORY_DEFAULT_BRANCH": "main",
+                    "RELEASE_ENVELOPE_SNAPSHOT": str(snapshot),
                     "PYTHON_COMMAND": sys.executable,
                 }
             )
 
             manifest_result = subprocess.run(
-                ["bash", "-c", manifest_script],
+                [self._bash(), "-c", manifest_script],
                 cwd=root,
                 env=env,
                 capture_output=True,
@@ -152,13 +217,20 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 manifest["releaseNotesSha256"], env["RELEASE_NOTES_SHA256"]
             )
             self.assertEqual(manifest["releaseNotesPath"], "release-notes.json")
+            self.assertEqual(manifest["branchChainStateSha256"], state_digest)
+            self.assertEqual(manifest["releaseReview"], release_review)
+            self.assertEqual(manifest["candidateSelections"], candidate_selections)
+            self.assertEqual(manifest["reviewSelection"], "disabled")
+            self.assertEqual(manifest["reviewStatus"], "not-run")
+            self.assertEqual(manifest["reviewReason"], "fixture-disabled")
+            self.assertEqual(manifest["reviewRemainingRisk"], "fixture-risk")
             self.assertEqual(
                 manifest["signingEvidence"]["verification"],
                 "configured-hook-verify-exit-0",
             )
 
             commit_result = subprocess.run(
-                ["bash", "-c", commit_script],
+                [self._bash(), "-c", commit_script],
                 cwd=root,
                 env=env,
                 capture_output=True,
@@ -176,10 +248,12 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
         """staging 多出文件时必须在删除空 release 前失败。"""
         script = self._run_script(self._base_workflow(), "提交候选制品集合")
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = Path(tmp_dir)
+            sandbox = Path(tmp_dir)
+            root = sandbox / "project"
+            root.mkdir()
             release = root / "release"
             release.mkdir()
-            stage = root / ".release-clean.candidate.test"
+            stage = sandbox / ".example-tool.release-candidate.test"
             stage.mkdir()
             archive_name = "example-tool-v1.2.3-linux-x64.tar.gz"
             for name in (
@@ -195,12 +269,13 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                     "GITHUB_WORKSPACE": str(root),
                     "CANDIDATE_ARCHIVE": archive_name,
                     "CANDIDATE_STAGE": str(stage),
+                    "PRODUCT_NAME": "example-tool",
                     "PYTHON_COMMAND": sys.executable,
                 }
             )
 
             result = subprocess.run(
-                ["bash", "-c", script],
+                [self._bash(), "-c", script],
                 cwd=root,
                 env=env,
                 capture_output=True,

@@ -266,15 +266,114 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         self.assertTrue(any("exact declared" in error for error in errors), errors)
 
     def test_rejects_unpinned_source_commit_checkout(self) -> None:
-        """候选与签名钩子必须绑定显式批准的 40 位源码提交。"""
+        """候选必须检出具名 Release，再独立核对批准的提交。"""
         base = self._base_workflow()
-        without_ref = base.replace("          ref: ${{ inputs.source_commit }}\n", "", 1)
-        errors = self._validate(without_ref)
-        self.assertTrue(any("source commit" in error for error in errors), errors)
+        old_checkout = base.replace(
+            "          ref: Release\n",
+            "          ref: ${{ inputs.source_commit }}\n",
+            1,
+        )
+        self.assertNotEqual(old_checkout, base)
+        errors = self._validate(old_checkout)
+        self.assertTrue(any("named Release" in error or "ref:" in error for error in errors), errors)
 
         without_verification = base.replace("      - name: 验证已检出源码\n", "      - name: 观察已检出源码\n", 1)
         errors = self._validate(without_verification)
         self.assertTrue(any("source" in error for error in errors), errors)
+
+    def test_rejects_shallow_checkout(self) -> None:
+        """远端分支删除和 closing history 复核要求完整 fresh fetch。"""
+
+        base = self._base_workflow()
+        mutated = base.replace("          fetch-depth: 0\n", "          fetch-depth: 1\n", 1)
+        self.assertNotEqual(mutated, base)
+        errors = self._validate(mutated)
+        self.assertTrue(any("fetch-depth: 0" in error for error in errors), errors)
+
+    def test_rejects_missing_first_or_second_envelope_verification(self) -> None:
+        """测试前捕获与 manifest 前复核必须消费同一份离线双信封。"""
+
+        base = self._base_workflow()
+        capture_start, capture_end, _ = self._slice(
+            base,
+            "      - name: 从 closing commit 捕获发布信封",
+            "      - name: 读取项目最低 Rust 版本",
+        )
+        without_capture = base[:capture_start] + base[capture_end:]
+        errors = self._validate(without_capture)
+        self.assertTrue(any("envelope" in error for error in errors), errors)
+
+        verify_call = """          \"$PYTHON_COMMAND\" .agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_envelope.py verify \\
+            --project-root \"$GITHUB_WORKSPACE\" \\
+            --source-commit \"$SOURCE_COMMIT\" \\
+            --expected-state-sha256 \"$BRANCH_CHAIN_STATE_SHA256\" \\
+            --repository-default-branch \"$REPOSITORY_DEFAULT_BRANCH\" \\
+            --snapshot \"$RELEASE_ENVELOPE_SNAPSHOT\"
+"""
+        self.assertIn(verify_call, base)
+        errors = self._validate(base.replace(verify_call, "", 1))
+        self.assertTrue(any("repeat the offline envelope" in error for error in errors), errors)
+
+    def test_rejects_worktree_internal_staging(self) -> None:
+        """Unix 与 Windows 候选 staging 都必须位于 Git 根同级。"""
+
+        base = self._base_workflow()
+        cases = {
+            "Unix": base.replace(
+                '${GITHUB_WORKSPACE}/../.${PRODUCT_NAME}.release-candidate.XXXXXX',
+                '${GITHUB_WORKSPACE}/.${PRODUCT_NAME}.release-candidate.XXXXXX',
+                1,
+            ),
+            "Windows": base.replace(
+                "Join-Path (Split-Path -Parent $env:GITHUB_WORKSPACE)",
+                "Join-Path $env:GITHUB_WORKSPACE",
+                1,
+            ),
+        }
+        for platform, mutated in cases.items():
+            with self.subTest(platform=platform):
+                self.assertNotEqual(mutated, base)
+                errors = self._validate(mutated)
+                self.assertTrue(any(platform in error for error in errors), errors)
+
+    def test_rejects_manifest_without_either_sealed_envelope(self) -> None:
+        """manifest 必须逐项保留已复核的 review 与 candidate selections。"""
+
+        base = self._base_workflow()
+        cases = {
+            "releaseReview": '              "releaseReview": review,\n',
+            "candidateSelections": '              "candidateSelections": candidate_selections,\n',
+        }
+        for field, line in cases.items():
+            with self.subTest(field=field):
+                self.assertIn(line, base)
+                errors = self._validate(base.replace(line, "", 1))
+                self.assertTrue(any(field in error for error in errors), errors)
+
+    def test_rejects_missing_post_test_head_and_clean_recheck(self) -> None:
+        """测试完成后必须在 build 与签名前重新绑定 HEAD 和 clean。"""
+
+        base = self._base_workflow()
+        start = base.index('          "$PYTHON_COMMAND" - <<\'PY\'\n', base.index("          cargo test --workspace"))
+        end = base.index("          cargo build --workspace --release --locked\n", start)
+        mutated = base[:start] + base[end:]
+        errors = self._validate(mutated)
+        self.assertTrue(any("after tests" in error for error in errors), errors)
+
+    def test_rejects_missing_post_commit_exact_reverification(self) -> None:
+        """目录原子替换后必须重新验证路径和精确普通文件集合。"""
+
+        base = self._base_workflow()
+        marker = """          require_plain_directory(release)
+          if release.resolve() != root / "release":
+              raise SystemExit("已提交的发布目录越出项目根目录")
+          committed = list(release.iterdir())
+          if {path.name for path in committed} != expected or any(path.is_symlink() or not path.is_file() for path in committed):
+              raise SystemExit("已提交的发布文件集不是精确的普通文件候选集合")
+"""
+        self.assertIn(marker, base)
+        errors = self._validate(base.replace(marker, "", 1))
+        self.assertTrue(any("atomically commit then exactly re-verify" in error for error in errors), errors)
 
     def test_rejects_missing_signing_evidence_and_exact_artifact_set_gate(self) -> None:
         """manifest 不能只信任签名状态，也不能从 release 中猜测候选文件。"""

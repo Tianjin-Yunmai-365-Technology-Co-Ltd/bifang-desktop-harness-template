@@ -33,7 +33,7 @@ description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固�
 15. 测试必须锁定九项配置、唯一 profile 块、深链/单实例交叉关系、三项 Rust-only 固定基线、dialog 固定 WebView 基线与未选能力缺席。每个独立能力 Skill 的固定命名回归都必须含非平凡断言；dialog 还固定覆盖依赖、唯一有序注册、`dialog:default` 全部官方对话框类型与零额外文件系统授权。单实例缺失注册、错误依赖 target、重复 `.invoke_handler(...)`、disabled 通用依赖残留与 `assert!(true)` 都要有负向回归。初始化检查始终验证 locale/updater/window-state/dialog；条件验证托盘、通知、自启、单实例、深链接和全局快捷键。所有 GUI 继续检查发布资源映射、前端侧栏/设置/i18n 与条件支持页。
 16. 只有真实下游需要前端公开配置时，才建立 `development/test/release` 逻辑 profile 和类型化冻结配置对象；全部 Vite 变量视为用户可读，禁止凭据且产品模块不得散落读取 `import.meta.env`。真实需要前端日志时使用稳定、脱敏的结构化事件，优先通过窄 Tauri 命令汇入 Rust `tracing`；Release Vite `dist` 必须静态拒绝 source map、开发/测试 endpoint、debug/info 哨兵、本机路径和未经批准的 console 输出。
 17. 本 Skill 只运行本次必要单元/回归测试。中性初始化随后固定调用 `$desktop-test-gui-initialization-e2e`：三项 Rust-only 固定基线与 dialog 固定 WebView 基线始终验证；单实例、托盘、系统通知、开机自启、深链接和全局快捷键只执行配置适用场景。未选托盘改验关闭最后窗口退出，自启恢复原登录项；中性全局快捷键验证空 contract 零注册与 owned 清理，非空 contract 才触发明确安全 chord 并恢复原配置。需要打包才能证明的 macOS 深链明确标为 `Not verified` 并留给最终候选，不得误报通过。
-18. 缺少完整签名公证条件且渠道允许时，`$desktop-build-tauri-release` 显式生成 `unsigned` 候选并标记其安装包作用域；若 macOS Developer ID 直接分发条件齐全，则签名、公证与 stapling 必须作为一个阶段完成，禁止只签名中间态。启用 updater 时，安装包签名与 updater 制品签名是不同门禁：每个平台候选还必须生成官方 updater 制品和 `.sig`，缺少发布私钥安全引用或签名验证时阻断该 updater 候选。渠道要求签名、公证、商店提交或签名更新器制品时，在独立渠道门禁通过前发布就绪保持受阻。
+18. macOS 发布默认由 `$desktop-prepare-release` 把 `macosSigningSelection = disabled`、`macosSigningSource = not-requested` 解析并封存进 closing commit 的 `candidateSelections`，再由 `$desktop-build-tauri-release` 只读消费、使用 `--no-sign`，且不得探测本机身份、凭据或 profile；只有用户已配置过、当次主动要求或渠道硬要求时才启用。启用后签名、公证与 stapling 必须作为一个不可降级阶段完成，任一步缺失或失败都阻断候选。updater 制品签名是独立门禁：启用 updater 时每个平台候选仍必须生成官方 updater 制品和 `.sig`，缺少发布私钥安全引用或签名验证时阻断该 updater 候选。渠道要求商店提交或签名更新器制品时，在独立渠道门禁通过前发布就绪保持受阻。
 19. 只按 `docs/ENGINEERING_RULES.md` 的独立事件触发规则更新产品、状态、计划、决定、验证、发布说明和变更记录；普通缺陷修复、纯重构和内部清理本身不触发项目记忆。只有另行授权发布工作后才能增加发布自动化；不得声称已获人工批准。
 
 ## 硬边界
@@ -52,7 +52,7 @@ description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固�
 - 没有真实项目需求时，不得增加其他路由器、服务器状态缓存、通用全局存储或可选前端包。
 - 不得用宽泛目录名排除人工 TypeScript 源码，不得用自动生成套话代替业务注释；非 GUI 下游不适用 TypeScript 门禁，也不得因此要求 Node.js 或 pnpm。
 - 不得用同步 I/O、休眠、进程等待或 CPU 密集命令阻塞 Tauri 的 Tokio 运行时，也不得创建嵌套运行时。
-- 不得仅为编译、测试或构建允许 unsigned 的本地候选而要求签名材料；经批准的候选冒烟可以使用明确 unsigned 制品。Developer ID 直接分发一旦使用签名身份，就必须同时完成公证与 stapling，不能交付只签名制品。
+- 不得仅为编译、测试或默认 macOS 发布而探测或要求签名材料；默认关闭签名并使用明确 unsigned 制品。只有配置、主动要求或渠道硬要求使签名启用时，才读取相关条件；Developer ID 直接分发一旦启用签名，就必须同时完成公证与 stapling，不能交付只签名制品或回退 unsigned。
 - 除应用 Logo、标题、所选侧栏、设置页和明确启用的八项能力外，不得捆绑其他页面、业务操作或产品状态。
 
 ## 完成输出

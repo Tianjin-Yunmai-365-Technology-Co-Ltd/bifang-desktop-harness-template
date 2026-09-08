@@ -95,9 +95,9 @@
 - 选择赞助页时，运行时媒体与品牌 manifest 的路径、MIME、尺寸、字节数和 SHA-256 一致，支付码有支付方式明确的本地化替代文本，当前未引用小图也进入下游 sponsor 媒体；未选择时运行时 bundle 不含 sponsor 媒体。更新 banner 未选择时不进入 bundle。
 - GUI/其他适配器并发访问时观察到相同数据且不发生损坏。
 - 日常开发只运行本次 GUI 变化所需的非空 Vitest/Testing Library 与 Rust 单元/回归测试。显式构建先逐次解析 E2E，运行完整非空 Rust 与前端单元测试套件，再执行锁定的 Vite/Tauri 构建；格式、lint、类型、中文注释和 `dist` 扫描不自动追加。
-- 缺少签名身份、证书或公证凭据不阻断渠道允许的 unsigned 安装候选；使用 `--no-sign` 并记录 unsigned。构建每次从已批准产品事实解析 `updaterEnabled`；`false` 时固定 updater 插件/`NotConfigured` 基线仍在，但 archive/`.sig` 必须缺席；`true` 时发布签名密钥缺失会阻断 updater 制品候选，不能用 unsigned 安装包绕过。macOS Developer ID 直接分发一旦签名，必须在候选摘要前完成公证与 ticket stapling；禁止只签名未公证的中间态。
+- macOS 发布默认记录 `macosSigningSelection = disabled`、`macosSigningSource = not-requested`，使用 `--no-sign`，且不探测身份、证书、公证凭据或 profile；只有用户已配置过、当次主动要求或渠道硬要求时才启用。启用后必须在候选摘要前完成签名、公证与 ticket stapling，任一步缺失或失败都阻断，禁止只签名中间态或回退 unsigned。构建每次从已批准产品事实解析 `updaterEnabled`；`false` 时固定 updater 插件/`NotConfigured` 基线仍在，但 archive/`.sig` 必须缺席；`true` 时发布签名密钥缺失会阻断 updater 制品候选，不能用 unsigned 安装包绕过。
 - macOS 宿主的原生 DMG 与 Windows x64 NSIS 候选使用 `$desktop-build-tauri-release`。Windows 交叉路线只使用 cargo-xwin + NSIS，拒绝 MSI，并把 Windows runtime 保持为 `Unverified`。
-- macOS DMG 必须在最终签名、公证与 stapling 字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；只检查配置或源码图片不构成 Finder 安装布局证据。headless CI 不得无界等待 Finder AppleScript。
+- macOS DMG 必须在本次选择形成的最终候选字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；签名启用时该字节必须已完成签名、公证与 stapling，默认禁用时则是明确的 unsigned 最终字节。只检查配置或源码图片不构成 Finder 安装布局证据；headless CI 不得无界等待 Finder AppleScript。
 - GUI 中性初始化结束前，必须先由 `verify-gui-lifecycle-contract.mjs` 按九项 profile 及条件 shortcut contract 通过结构门禁，再由 `$desktop-test-gui-initialization-e2e` 构建真实本机调试二进制。system-locale/updater/window-state/dialog 始终验证；单实例/托盘/系统通知/开机自启/深链接/全局快捷键只执行 profile 适用场景，托盘禁用实测关闭最后窗口退出，自启恢复原登录项；快捷键空 contract 证明零注册，非空时只触发明确安全 binding 并恢复原配置/owned registry；窗口状态恢复原几何/原缺席。macOS 需打包才能证明的深链接 OS 注册标为 `Not verified`。始终验证所选侧栏、设置页无隐私区块和所有实际菜单页面可达，且未选能力实现缺席；任一适用场景失败、无法观察或无法恢复都阻断。
 - 每个声称支持的安装器或原生平台都有实际构建和完整验收证据。只有当前构建选择或产品/渠道硬要求启用冒烟/E2E 时才要求相应证据；否则记录 `Not run` 和风险。
 

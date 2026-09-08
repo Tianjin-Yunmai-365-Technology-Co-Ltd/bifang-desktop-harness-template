@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import hashlib
 from pathlib import Path
 import re
 from typing import Any
@@ -16,6 +17,7 @@ from branch_chain_checks import (
 from branch_chain_commit import commit_state, require_commit_prerequisites
 from branch_chain_git import (
     GitError,
+    OID_PATTERN,
     checked_out_branches,
     delete_local_branches,
     is_ancestor,
@@ -44,11 +46,18 @@ from branch_chain_state import (
     discover_closed_retry_state,
     read_state,
     state_path,
+    validate_candidate_selections,
+    validate_release_review,
     write_state,
 )
 
 
 SUMMARY_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+TASK_BRANCH_PATTERN = re.compile(r"^codex/task-[a-z0-9]+(?:-[a-z0-9]+)*$")
+INTERNAL_WRITE_BRANCH_PREFIXES = ("codex/task-", "codex/unit-")
+RELEASE_CHANGELOG_PATTERN = re.compile(
+    r"^docs/changelog/(?:19|20)\d{6}_CHANGELOG\.md$"
+)
 
 
 def current_date() -> str:
@@ -228,6 +237,190 @@ def start_chain(
     }
 
 
+def require_task_branch_name(task_branch: str) -> None:
+    """要求待整合 ref 是由独立 ASCII task-slug 构成的临时 Task 分支。"""
+
+    if not TASK_BRANCH_PATTERN.fullmatch(task_branch):
+        raise GitError("task branch must match codex/task-<ascii-kebab-task-slug>")
+
+
+def resolve_task_worktree(
+    coordinator_root: Path,
+    task_worktree: str,
+    task_branch: str,
+    task_head: str,
+) -> Path:
+    """证明参数精确指向同仓库中 clean、具名且冻结 HEAD 的 Task Worktree。"""
+
+    if not Path(task_worktree).expanduser().is_absolute():
+        raise GitError("task worktree path must be absolute")
+    task_root, actual_branch, actual_head = resolve_repository(task_worktree)
+    if task_root == coordinator_root:
+        raise GitError("task worktree must be distinct from the active-leaf worktree")
+    if actual_branch != task_branch or actual_head != task_head:
+        raise GitError("task worktree branch or HEAD does not match the frozen task commit")
+    require_clean(task_root)
+    return task_root
+
+
+def require_integration_worktrees_safe(
+    root: Path,
+    task_root: Path,
+    leaf: str,
+    feature_branches: list[str],
+    task_branch: str,
+) -> dict[str, list[str]]:
+    """只允许协调 Worktree、目标 Task Worktree 与不占分支的只读 Worktree。"""
+
+    occupied = checked_out_branches(root)
+    for feature in feature_branches:
+        require_worktree_ownership(
+            occupied, feature, root, feature == leaf
+        )
+    task_paths = occupied.get(task_branch, [])
+    try:
+        task_is_exact = (
+            len(task_paths) == 1
+            and Path(task_paths[0]).resolve(strict=True) == task_root
+        )
+    except OSError:
+        task_is_exact = False
+    if not task_is_exact:
+        raise GitError("task branch must be checked out only by the declared task worktree")
+    for branch in occupied:
+        if branch == task_branch:
+            continue
+        if branch.startswith(INTERNAL_WRITE_BRANCH_PREFIXES):
+            raise GitError("another Task or unit Worktree is active during task integration")
+    return occupied
+
+
+def require_task_state_unchanged(
+    root: Path,
+    task_root: Path,
+    leaf_head: str,
+    task_head: str,
+    expected_state: dict[str, Any],
+) -> None:
+    """禁止任一 Task 提交触碰受保护状态，即使后续提交恢复了原字节。"""
+
+    commits = run_git(
+        root, ["rev-list", "--reverse", f"{leaf_head}..{task_head}"]
+    ).stdout.splitlines()
+    if not commits:
+        raise GitError("cannot verify a non-empty task commit range")
+    for commit in commits:
+        if not OID_PATTERN.fullmatch(commit):
+            raise GitError("cannot verify the protected branch-chain state across task commits")
+        changed = run_git(
+            root,
+            [
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "-r",
+                "--root",
+                "--no-renames",
+                commit,
+                "--",
+                ".harness/git-branch-chain.json",
+            ],
+            check=False,
+        )
+        if changed.returncode != 0:
+            raise GitError(
+                "cannot verify the protected branch-chain state across task commits"
+            )
+        if changed.stdout.strip():
+            raise GitError("task commits must not change .harness/git-branch-chain.json")
+    if read_state(task_root) != expected_state:
+        raise GitError("task worktree branch-chain state does not match the active leaf")
+
+
+def integrate_task(
+    project_root: str,
+    requested_remote: str | None,
+    task_branch: str,
+    task_worktree: str,
+    task_head: str,
+) -> dict[str, Any]:
+    """把已冻结的 clean Task 提交本地快进到 active leaf，绝不自动推送。"""
+
+    require_task_branch_name(task_branch)
+    if not OID_PATTERN.fullmatch(task_head):
+        raise GitError("task head must be a 40-character lowercase Git OID")
+    root, branch, head, remote, default_branch, default_head = resolve_context(
+        project_root, requested_remote
+    )
+    require_clean(root)
+    state = read_state(root)
+    active = state["activeChain"]
+    if active is None:
+        raise GitError("there is no active feature branch chain")
+    require_remote_matches(active["remote"], remote)
+    require_default_matches(active, default_branch, default_head)
+    leaf = active["activeLeaf"]
+    if branch != leaf or head != local_oid(root, leaf):
+        raise GitError("integrate-task is allowed only from the active leaf worktree")
+    if leaf in protected_branches(default_branch):
+        raise GitError("active leaf unexpectedly resolves to a protected branch")
+
+    resolved = validate_active_repository(root, remote, active)
+    leaf_head = resolved[-1][1]
+    if head != leaf_head:
+        raise GitError("active leaf must equal its fully pushed remote OID before integration")
+    if local_oid(root, task_branch, missing_ok=True) != task_head:
+        raise GitError("local task branch does not match the frozen task commit")
+    if remote_oid(root, remote, task_branch) is not None:
+        raise GitError("temporary task branch must not exist on the remote")
+    task_root = resolve_task_worktree(root, task_worktree, task_branch, task_head)
+    feature_branches = [name for name, _ in resolved]
+    occupied = require_integration_worktrees_safe(
+        root, task_root, leaf, feature_branches, task_branch
+    )
+    require_linear_segment(root, leaf_head, task_head)
+    require_task_state_unchanged(root, task_root, leaf_head, task_head, state)
+
+    merged = run_git(root, ["merge", "--ff-only", task_head], check=False)
+    if merged.returncode != 0:
+        raise GitError("task integration fast-forward failed")
+
+    require_linear_segment(root, leaf_head, task_head)
+    require_active_postcondition(root, leaf, task_head, state)
+    if local_oid(root, task_branch, missing_ok=True) != task_head:
+        raise GitError("task branch changed during integration")
+    _, current_task_branch, current_task_head = resolve_repository(str(task_root))
+    if current_task_branch != task_branch or current_task_head != task_head:
+        raise GitError("task worktree changed during integration")
+    require_clean(task_root)
+    if checked_out_branches(root) != occupied:
+        raise GitError("Worktree occupancy changed during task integration")
+    require_task_state_unchanged(root, task_root, leaf_head, task_head, state)
+    for feature, expected_head in resolved[:-1]:
+        if (
+            local_oid(root, feature, missing_ok=True) != expected_head
+            or remote_oid(root, remote, feature) != expected_head
+        ):
+            raise GitError("a frozen feature branch changed during task integration")
+    if remote_oid(root, remote, leaf) != leaf_head:
+        raise GitError("remote active leaf changed during task integration")
+    if remote_oid(root, remote, task_branch) is not None:
+        raise GitError("temporary task branch appeared on the remote during integration")
+    verify_default_unchanged(root, remote, default_branch, default_head)
+    return {
+        "status": "task-integrated",
+        "branch": leaf,
+        "previousHead": leaf_head,
+        "head": task_head,
+        "taskBranch": task_branch,
+        "taskHead": task_head,
+        "remote": remote,
+        "remoteHead": leaf_head,
+        "published": False,
+        "nextCommand": "publish",
+    }
+
+
 def publish_leaf(project_root: str, requested_remote: str | None) -> dict[str, Any]:
     """只以普通快进语义推送当前 active leaf 并复读精确 OID。"""
 
@@ -306,6 +499,295 @@ def require_release_worktrees_safe(
         )
 
 
+def release_review_scope_digest(root: Path, base_head: str, source_head: str) -> str:
+    """对固定树差异表示计算与本机 diff 配置无关的 SHA-256。"""
+
+    difference = run_git(
+        root,
+        [
+            "diff-tree",
+            "--no-commit-id",
+            "--raw",
+            "-z",
+            "-r",
+            "--no-renames",
+            "--full-index",
+            base_head,
+            source_head,
+        ],
+        text=False,
+    ).stdout
+    payload = (
+        b"agent-first-release-review-scope-v1\0"
+        + base_head.encode("ascii")
+        + b"\0"
+        + source_head.encode("ascii")
+        + b"\0"
+        + difference
+    )
+    return hashlib.sha256(payload).hexdigest()
+
+
+def release_post_review_paths(
+    root: Path, source_head: str, pre_close_head: str
+) -> list[str]:
+    """逐提交列出审查终点之后、关闭提交之前的全部路径变化。"""
+
+    commits = run_git(
+        root, ["rev-list", "--reverse", f"{source_head}..{pre_close_head}"]
+    ).stdout.splitlines()
+    paths: list[str] = []
+    for commit in commits:
+        if not OID_PATTERN.fullmatch(commit):
+            raise GitError("cannot verify post-review commit paths")
+        changed = run_git(
+            root,
+            [
+                "diff-tree",
+                "--no-commit-id",
+                "--name-only",
+                "-z",
+                "-r",
+                "--root",
+                "--no-renames",
+                commit,
+            ],
+            text=False,
+        ).stdout
+        paths.extend(
+            item.decode("utf-8", "surrogateescape")
+            for item in changed.split(b"\0")
+            if item
+        )
+    return paths
+
+
+def require_allowed_post_review_paths(paths: list[str]) -> None:
+    """审查后只允许确定性发布日志与当日 Changelog 路径。"""
+
+    for path in paths:
+        if path == "release-notes.json" or RELEASE_CHANGELOG_PATTERN.fullmatch(path):
+            continue
+        raise GitError(
+            "post-review commits may change only release-notes.json and dated Changelog files"
+        )
+
+
+def build_release_review(
+    root: Path,
+    active: dict[str, Any],
+    pre_close_head: str,
+    selection: str | None,
+    status: str | None,
+    source_head: str | None,
+    reviewed_source_commit: str | None,
+    checks: list[str] | None,
+    evidence_summary: str | None,
+    reason: str | None,
+    remaining_risk: str | None,
+) -> dict[str, Any]:
+    """机械验证并构造随关闭提交原子封存的审查信封。"""
+
+    if selection not in {"enabled", "disabled"}:
+        raise GitError("an active release requires --review-selection enabled or disabled")
+    if source_head is None or not OID_PATTERN.fullmatch(source_head):
+        raise GitError("an active release requires a 40-character --review-source-head")
+    if not is_ancestor(root, active["baseHead"], source_head) or not is_ancestor(
+        root, source_head, pre_close_head
+    ):
+        raise GitError("review source head must lie on the frozen release chain")
+    require_allowed_post_review_paths(
+        release_post_review_paths(root, source_head, pre_close_head)
+    )
+    normalized_checks = [] if checks is None else checks
+    return validate_release_review(
+        {
+            "selection": selection,
+            "status": status,
+            "scopeBase": active["baseHead"],
+            "sourceHead": source_head,
+            "scopeDiffSha256": release_review_scope_digest(
+                root, active["baseHead"], source_head
+            ),
+            "reviewedSourceCommit": reviewed_source_commit,
+            "checks": normalized_checks,
+            "evidenceSummary": evidence_summary,
+            "reason": reason,
+            "remainingRisk": remaining_risk,
+        }
+    )
+
+
+def build_candidate_selections(
+    performance_selection: str | None,
+    performance_source: str | None,
+    performance_reason: str | None,
+    performance_remaining_risk: str | None,
+    macos_signing_selection: str | None,
+    macos_signing_source: str | None,
+    macos_signing_reason: str | None,
+    macos_signing_remaining_risk: str | None,
+) -> dict[str, Any]:
+    """机械校验 prepare-release 显式提交的候选选择，不做产品推断。"""
+
+    return validate_candidate_selections(
+        {
+            "performanceSelection": performance_selection,
+            "performanceSource": performance_source,
+            "performanceReason": performance_reason,
+            "performanceRemainingRisk": performance_remaining_risk,
+            "macosSigningSelection": macos_signing_selection,
+            "macosSigningSource": macos_signing_source,
+            "macosSigningReason": macos_signing_reason,
+            "macosSigningRemainingRisk": macos_signing_remaining_risk,
+        }
+    )
+
+
+def require_retry_review_arguments_match(
+    closed: dict[str, Any],
+    selection: str | None,
+    status: str | None,
+    source_head: str | None,
+    reviewed_source_commit: str | None,
+    checks: list[str] | None,
+    evidence_summary: str | None,
+    reason: str | None,
+    remaining_risk: str | None,
+    performance_selection: str | None,
+    performance_source: str | None,
+    performance_reason: str | None,
+    performance_remaining_risk: str | None,
+    macos_signing_selection: str | None,
+    macos_signing_source: str | None,
+    macos_signing_reason: str | None,
+    macos_signing_remaining_risk: str | None,
+) -> None:
+    """重试可省略参数；若重复提供，则必须逐字段等于已封存信封。"""
+
+    supplied = any(
+        value is not None
+        for value in (
+            selection,
+            status,
+            source_head,
+            reviewed_source_commit,
+            checks,
+            evidence_summary,
+            reason,
+            remaining_risk,
+            performance_selection,
+            performance_source,
+            performance_reason,
+            performance_remaining_risk,
+            macos_signing_selection,
+            macos_signing_source,
+            macos_signing_reason,
+            macos_signing_remaining_risk,
+        )
+    )
+    if not supplied:
+        return
+    review = closed.get("releaseReview")
+    if review is None:
+        raise GitError("review arguments cannot be attached to a legacy closing commit")
+    if (
+        selection != review["selection"]
+        or status != review["status"]
+        or source_head != review["sourceHead"]
+        or reviewed_source_commit != review["reviewedSourceCommit"]
+        or ([] if checks is None else checks) != review["checks"]
+        or evidence_summary != review["evidenceSummary"]
+    ):
+        raise GitError("retry review arguments do not match the sealed release review")
+    expected_reason = review["reason"] if selection == "disabled" else None
+    expected_risk = review["remainingRisk"] if selection == "disabled" else None
+    if reason != expected_reason or remaining_risk != expected_risk:
+        raise GitError("retry review arguments do not match the sealed release review")
+    selections = closed.get("candidateSelections")
+    if selections is None:
+        raise GitError("candidate selection arguments cannot be attached to a legacy close")
+    supplied_selections = {
+        "performanceSelection": performance_selection,
+        "performanceSource": performance_source,
+        "performanceReason": performance_reason,
+        "performanceRemainingRisk": performance_remaining_risk,
+        "macosSigningSelection": macos_signing_selection,
+        "macosSigningSource": macos_signing_source,
+        "macosSigningReason": macos_signing_reason,
+        "macosSigningRemainingRisk": macos_signing_remaining_risk,
+    }
+    if supplied_selections != selections:
+        raise GitError("retry candidate selections do not match the sealed release state")
+
+
+def require_release_review_repository(
+    root: Path, closed: dict[str, Any]
+) -> None:
+    """复核封存信封仍绑定关闭历史、允许路径与同一树差异摘要。"""
+
+    review = closed.get("releaseReview")
+    if review is None:
+        return
+    pre_close_head = closed["entries"][-1]["preCloseHead"]
+    if (
+        review["scopeBase"] != closed["baseHead"]
+        or not is_ancestor(root, closed["baseHead"], review["sourceHead"])
+        or not is_ancestor(root, review["sourceHead"], pre_close_head)
+    ):
+        raise GitError("sealed release review does not match the closed branch chain")
+    require_allowed_post_review_paths(
+        release_post_review_paths(root, review["sourceHead"], pre_close_head)
+    )
+    expected_digest = release_review_scope_digest(
+        root, closed["baseHead"], review["sourceHead"]
+    )
+    if review["scopeDiffSha256"] != expected_digest:
+        raise GitError("sealed release review scope digest does not match repository history")
+
+
+def verify_release_review(
+    project_root: str, requested_remote: str | None
+) -> dict[str, Any]:
+    """只读证明当前 Release HEAD 正是含有效审查信封的已完成关闭提交。"""
+
+    root, branch, head, remote, default_branch, default_head = resolve_context(
+        project_root, requested_remote
+    )
+    require_clean(root)
+    if branch != "Release" or local_oid(root, "Release") != head:
+        raise GitError("release review verification requires the current Release branch")
+    state = read_state(root)
+    if state["activeChain"] is not None or state["lastClosedChain"] is None:
+        raise GitError("release review verification requires one closed branch chain")
+    closed = state["lastClosedChain"]
+    review = closed.get("releaseReview")
+    if review is None:
+        raise GitError("current closing commit has no releaseReview")
+    require_remote_matches(closed["remote"], remote)
+    if (
+        closed["defaultBranch"] != default_branch
+        or closed["defaultHead"] != default_head
+    ):
+        raise GitError("remote default branch changed since the release transaction began")
+    pre_close_heads = [entry["preCloseHead"] for entry in closed["entries"]]
+    require_closed_history(root, closed["baseHead"], pre_close_heads, head)
+    require_release_review_repository(root, closed)
+    if remote_close_state(root, remote, head, closed) != "complete":
+        raise GitError("release review verification requires a completed remote transaction")
+    for entry in closed["entries"]:
+        if local_oid(root, entry["branch"], missing_ok=True) is not None:
+            raise GitError("release review verification requires completed local cleanup")
+    require_state_postcondition(root, "Release", head, state)
+    return {
+        "status": "release-review-verified",
+        "releaseHead": head,
+        "remote": remote,
+        "releaseReview": review,
+        "candidateSelections": closed["candidateSelections"],
+    }
+
+
 def finish_local_cleanup(
     root: Path,
     branch: str,
@@ -358,7 +840,26 @@ def finish_local_cleanup(
     require_state_postcondition(root, "Release", closing_head, expected_state)
 
 
-def release_chain(project_root: str, requested_remote: str | None) -> dict[str, Any]:
+def release_chain(
+    project_root: str,
+    requested_remote: str | None,
+    review_selection: str | None,
+    review_status: str | None,
+    review_source_head: str | None,
+    reviewed_source_commit: str | None,
+    review_checks: list[str] | None,
+    review_evidence_summary: str | None,
+    review_reason: str | None,
+    review_remaining_risk: str | None,
+    performance_selection: str | None,
+    performance_source: str | None,
+    performance_reason: str | None,
+    performance_remaining_risk: str | None,
+    macos_signing_selection: str | None,
+    macos_signing_source: str | None,
+    macos_signing_reason: str | None,
+    macos_signing_remaining_risk: str | None,
+) -> dict[str, Any]:
     """关闭活动链、原子更新远端 Release，并幂等完成本地清理。"""
 
     root, branch, head, remote, default_branch, default_head = resolve_context(
@@ -394,6 +895,29 @@ def release_chain(project_root: str, requested_remote: str | None) -> dict[str, 
             or release_before is not None
         ):
             raise GitError("only the first chain may create Release from remote default HEAD")
+        release_review = build_release_review(
+            root,
+            active,
+            resolved[-1][1],
+            review_selection,
+            review_status,
+            review_source_head,
+            reviewed_source_commit,
+            review_checks,
+            review_evidence_summary,
+            review_reason,
+            review_remaining_risk,
+        )
+        candidate_selections = build_candidate_selections(
+            performance_selection,
+            performance_source,
+            performance_reason,
+            performance_remaining_risk,
+            macos_signing_selection,
+            macos_signing_source,
+            macos_signing_reason,
+            macos_signing_remaining_risk,
+        )
         closed = {
             "remote": remote,
             "baseBranch": active["baseBranch"],
@@ -406,6 +930,8 @@ def release_chain(project_root: str, requested_remote: str | None) -> dict[str, 
                 {"branch": name, "preCloseHead": branch_head}
                 for name, branch_head in resolved
             ],
+            "releaseReview": release_review,
+            "candidateSelections": candidate_selections,
         }
         state["activeChain"] = None
         state["lastClosedChain"] = closed
@@ -432,11 +958,35 @@ def release_chain(project_root: str, requested_remote: str | None) -> dict[str, 
             raise GitError("closing leaf HEAD changed before retry")
         if branch == "Release" and head != release_head:
             raise GitError("local Release HEAD changed before retry")
+        require_retry_review_arguments_match(
+            closed,
+            review_selection,
+            review_status,
+            review_source_head,
+            reviewed_source_commit,
+            review_checks,
+            review_evidence_summary,
+            review_reason,
+            review_remaining_risk,
+            performance_selection,
+            performance_source,
+            performance_reason,
+            performance_remaining_risk,
+            macos_signing_selection,
+            macos_signing_source,
+            macos_signing_reason,
+            macos_signing_remaining_risk,
+        )
 
     assert closed is not None
     pre_close_heads = [entry["preCloseHead"] for entry in closed["entries"]]
     require_closed_history(root, closed["baseHead"], pre_close_heads, closing_head)
+    require_release_review_repository(root, closed)
     remote_state = remote_close_state(root, remote, closing_head, closed)
+    if "releaseReview" not in closed and remote_state == "pending":
+        raise GitError(
+            "a legacy closing commit without releaseReview cannot update remote Release"
+        )
     if remote_state == "pending":
         branches = [entry["branch"] for entry in closed["entries"]]
         local_heads = list(zip(branches[:-1], pre_close_heads[:-1])) + [(branches[-1], closing_head)]
@@ -462,7 +1012,7 @@ def release_chain(project_root: str, requested_remote: str | None) -> dict[str, 
     if remote_close_state(root, remote, closing_head, closed) != "complete":
         raise GitError("remote release transaction did not reach the complete state")
     finish_local_cleanup(root, branch, closing_head, closed)
-    return {
+    result = {
         "status": "released",
         "releaseBranch": "Release",
         "releaseHead": closing_head,
@@ -473,3 +1023,7 @@ def release_chain(project_root: str, requested_remote: str | None) -> dict[str, 
         "defaultBranch": closed["defaultBranch"],
         "defaultHead": closed["defaultHead"],
     }
+    if "releaseReview" in closed:
+        result["releaseReview"] = closed["releaseReview"]
+        result["candidateSelections"] = closed["candidateSelections"]
+    return result
