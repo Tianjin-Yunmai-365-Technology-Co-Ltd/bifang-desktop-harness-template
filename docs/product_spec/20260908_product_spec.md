@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-08（普通调用 Session 收尾命名、发布期按次语义审查、用户级全局环境恢复、左侧 Task 标题与条件快进整合、macOS 通知权限恢复及签名意图先行见当日 ADR；此前仍有效决定已综合保留）
+> 最近范围确认：2026-09-08（Session/Worktree 进度标题、发布期按次语义审查、用户级全局环境恢复、左侧 Task 条件快进整合、macOS 通知权限恢复及签名意图先行见当日 ADR；此前仍有效决定已综合保留）
 
 ## 一句话目标
 
@@ -19,8 +19,8 @@
 - 失败闭环：开发单元测试失败时在当前授权范围内修复并重跑；发现产品边界、安全、破坏性操作、生产/付费/凭据副作用或发布授权缺失时，只增加解决该风险必需的确认或记录，不把它扩张成通用流程仪式。
 - 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。
 - Git 场景：已有远端的下游在每个新需求、Bug 或维护写入前自动建立 `feature-{ascii-kebab摘要}-{上海日期}` 串行节点并登记父子 OID，每个逻辑闭环推送活动叶子；明确发布把经复核的整链原子快进到 `Release` 并精确清理链路，默认分支不被 Agent 修改。
-- Session 命名场景：普通单结果请求直接在当前调用 Session 完成；授权结果和本次必需检查结束后、最终回复前，Agent 至多一次尝试按 `{task}-{id}-{feature}`（即 `{任务}-{ID}-{摘要}`）更新当前显示标题，并按真实 `threadId` 有界复读。标题工具缺失、失败或未确认不推翻已经完成的任务结果；内部 Subagent 和已按创建契约固定标题的 Git Worktree 左侧 Task 不重写。
-- Task 场景：只有用户明确要求新的左侧 Task 时，创建者才把独立结果绑定到按完整路径选中的保存项目；Git Worktree Task 在派发前以不可变 Task key 形成 `{任务}-{ID}-{摘要}` 显示标题，另用独立 ASCII `task-slug` 创建 `codex/task-*` 分支和逻辑闭环提交。`clientThreadId` 表示已接受但仍 queued，创建者报告后返回，不等待不存在的同步晋升接口；非活动产品链可按明确请求在 Task 内使用 `codex/unit-*` 与写入 Subagent，活动 feature 叶子同一时刻只允许一个串行产品写入 Task且不创建 sibling 写入单元，只读 Subagent 可并行。执行 Task 不直接修改保存项目 checkout 或自行合并集成分支。
+- Session 命名场景：普通当前 Session 与 Worktree/Local 左侧 Task 统一使用 `{Task}|{序号}|{功能摘要}{当前进度}`。稳定三部分在同一结果内不变，进度只取 `已分配`、`运行中`、`检查中`、`已完成`，每次真实转换至多尝试一次更新并用真实 `threadId` 有界复读；返工后再次进入同名阶段属于新的真实转换。工具缺失、失败或未确认不推翻已经完成的任务结果，阻断时保留最后真实阶段且不得虚写完成。内部 Subagent/agent thread/单元 Worktree 不套用。
+- Task 场景：只有用户明确要求新的左侧 Task 时，创建者才把独立结果绑定到按完整路径选中的保存项目；Git Worktree/Local Task 在派发前记录不可变 Task key、按当前协调批次分配稳定正整数序号，并以 `{Task}|{序号}|{功能摘要}已分配` 创建，目标 Task 自行推进标题进度。只有 Git Worktree Task 另用独立 ASCII `task-slug` 创建 `codex/task-*` 分支和逻辑闭环提交；非 Git Local Task 的 slug、Git 绑定与分支门禁均不适用。`clientThreadId` 表示已接受但仍 queued，创建者报告后返回，不等待不存在的同步晋升接口；非活动产品链可按明确请求在 Task 内使用 `codex/unit-*` 与写入 Subagent，活动 feature 叶子同一时刻只允许一个串行产品写入 Task且不创建 sibling 写入单元，只读 Subagent 可并行。执行 Task 不直接修改保存项目 checkout 或自行合并集成分支。
 - 决策场景：创建新下游时先完成写入前初始化表单。Agent 复用用户已明确给出的合法值，在首轮一次列出全部尚未解析的固定基础字段：中文展示名、英文展示名、标识、路径、负责人、平台、接口和策略模式；中英文至少一个由用户直接提供，只提供一种语言时自动翻译另一种并标记来源。基础字段收齐后，才根据自定义策略或 GUI 选择每轮补全一个条件字段。全部字段收齐后展示包含两个名称、各自来源与最终项目根目录的完整汇总并确认。若请求混入产品需求，只解析允许的初始化字段并明确拒绝产品部分，不存储、不推演、不实现。
 - 输入：当前 Harness 源只接收 Harness 工程维护信息，或创建终端下游所需的中文项目展示名、英文项目展示名（至少直接提供一个）、ASCII `snake_case` 标识、项目路径、负责人、目标平台、接口组合和持久 Agent 策略；项目路径可以是最终根目录或父目录。选择 GUI 时还包括八项条件能力的启用/禁用与可选的精简/详细侧栏选择，省略侧栏选择表示使用详细模式；`os`（system-locale）、updater、window-state 是不询问的三项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线。产品目的、业务规则、产品专属 UI/文案/数据、远程地址、凭据、产品构建与发布不是 Harness 源输入，必须在初始化完成并切换到终端下游后重新提出。
 - 输出：独立终端项目根、共享核心与所选适配器；GUI 下游另输出包含九项最终配置、三项 Rust-only 固定基线、dialog 固定 WebView 基线、所选生命周期/页面/侧栏且无禁用能力残留的适配器，其中未选择侧栏时 `sidebar_mode = detailed`。完成实现并提供本次必要单元测试证据；显式发布候选构建另输出经过全量单元测试的可追溯候选，并按本次选择决定是否进入 E2E 和非必要语义审查；Windows 本地开发试包只输出未签名非候选安装程序及风险；GUI 发布还按当次选择决定是否采集性能指标，macOS 默认 unsigned 且不探测签名条件，只有已配置、主动要求或渠道硬要求时才签名并公证。
@@ -111,19 +111,20 @@
 - 用户选择前只保存和预览生成工具交付的原始候选。除预览所必需的读取外，不检查格式、尺寸、色彩、透明通道、像素、安全区、小尺寸辨识度、摘要或质量，也不执行转码、缩放、裁剪、补边、改色、压缩、去元数据、覆盖重命名或其他标准化。
 - 用户明确选择后只验证和按需标准化所选项，拒绝项不补做处理。若标准化产生可见变化，重新预览并确认最终母版；随后才写入母版与运行时副本、生成平台图标并记录所选项的验证与摘要证据。
 
-### 普通调用 Session 收尾命名
+### Session 与 Worktree 进度标题
 
-- 变更标识：`HARNESS-CHANGE-ORDINARY-TASK-SESSION-TITLE`；所需 Harness 版本为下一次高于 `202609020957` 的 Harness 时间版本，由发布流程决定物化。本范围不自动改变 `Version.md` 或发布状态。
-- 没有为当前结果调用 `create_thread` 的普通调用 Task，在完成结果与本次必需验证后、最终回复前，至多一次尝试将当前 Session 标题改为 `{task}-{id}-{feature}`。该写法与 `{任务}-{ID}-{摘要}` 一一对应；`id` 复用预先稳定的 Task key 或 `change_id`，缺失时在首次重命名前一次分配非空 ASCII key，不能反填宿主返回的 `threadId`/`clientThreadId`，`feature` 也不是 Git feature ref。
-- 目标标题已匹配时只验证，否则调用 `set_thread_title` 时省略 `threadId` 以定位当前调用 Task，再用可用的真实 `threadId` 和 host/project 上下文通过 `list_threads` 有界复读宿主规范化标题。内部 Subagent/Worktree 不执行；已按显式创建契约固定标题的 Git Worktree 左侧 Task 不重写。工具不可用、真实身份不可得、重命名失败或后台结果未确认时必须如实报告，不创建替代 Task、不无限重试，也不改变实现和测试的完成结论。
+- 变更标识：`HARNESS-CHANGE-SESSION-TITLE-PROGRESS-LIFECYCLE`；所需 Harness 版本为下一次高于 `202609020957` 的 Harness 时间版本，由发布流程决定物化。本范围不自动改变 `Version.md` 或发布状态。
+- 所有用户可见的当前调用 Session 与 Worktree/Local 左侧 Task 使用唯一格式 `{Task}|{序号}|{功能摘要}{当前进度}`。`Task` 与摘要非空、不含 `|`、必须单行且首尾无空白；序号是无前导零的正整数，同一结果复用，普通 Session 无既有值时从 `1` 开始、新独立结果在可确定时递增，协调批次按派发顺序从 `1` 分配；它不承诺跨 Session 全局唯一，也不能来自 `threadId`/`clientThreadId`、Git ref 或列表顺序。进度是摘要后的终止后缀，只能为 `已分配`、`运行中`、`检查中`、`已完成`。
+- 左侧 Task 用 `create_thread(title="{Task}|{序号}|{功能摘要}已分配")` 创建，取得执行权后由目标 Task 自行更新为 `运行中`；普通当前 Session 直接从 `运行中` 开始。进入真实必要测试、review 或最小替代检查时更新为 `检查中`，检查失败返工时回到 `运行中` 并可再次进入 `检查中`；没有独立检查时可跳过。只有结果、必需检查及要求的提交、推送和远端复读全部完成后才更新为终态 `已完成`。
+- 每次真实转换至多尝试一次；目标标题已匹配时只验证，否则调用 `set_thread_title` 时省略 `threadId` 以定位当前调用 Task，再用可用的真实 `threadId` 和 host/project 上下文通过 `list_threads` 有界复读宿主规范化标题。内部 Subagent/agent thread/单元 Worktree 不执行。工具不可用、真实身份不可得、更新失败或后台结果未确认时必须如实报告，不创建替代 Task、不无限重试，也不改变实现和测试的完成结论；阻断时保留最后真实阶段，不新增状态或虚写 `已完成`。
 
 ### 左侧 Task 的独立 Worktree 交付
 
 - 变更标识：`HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY`；所需 Harness 版本：`202608051301`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
 - 补充变更标识：`HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE`；所需 Harness 版本：下一次高于 `202609020957` 的 Harness 时间版本，由发布决定物化。本范围不自动改变 `Version.md` 或发布状态。
-- 一个左侧 Task 固定对应一个明确且可独立验收的结果、一个保存的 Codex 项目、Git 项目中的一个不与其他 Task 共用的 Codex 管理 Worktree、一个唯一 `codex/task-<task-slug>` 分支和一组可审查提交。Git Worktree Task 的显示标题固定为 `{任务}-{ID}-{摘要}`；`ID` 是派发前写入描述的不可变 Task key，不能使用调用后才返回的线程标识，状态不进入标题。显示标题与独立 ASCII `task-slug` 是两个事实；描述还必须列出项目绑定、repository identity、基线、目标、范围、禁止事项、验收标准和交付要求。
+- 一个左侧 Task 固定对应一个明确且可独立验收的结果、一个保存的 Codex 项目、Git 项目中的一个不与其他 Task 共用的 Codex 管理 Worktree、一个唯一 `codex/task-<task-slug>` 分支和一组可审查提交。显示标题的稳定三部分为 `{Task}|{序号}|{功能摘要}`，序号与不可变 Task key 分别记录，目标 Task 只更新合法进度后缀；返回的线程标识不能生成序号。显示标题与独立 ASCII `task-slug` 是两个事实；描述还必须列出项目绑定、repository identity、基线、目标、范围、禁止事项、验收标准和交付要求。
 - plan、Todo、brief、review、Subagent、agent thread 和内部单元 Worktree 不是左侧 Task。诊断、实现、相关测试/review 和同范围缺陷修复共同服务同一结果时留在一个 Task；只有用户明确要求创建新的左侧 Task，或已明确把当前 Task 设为多 Task 协调器并指定独立结果时，才调用 `create_thread`。
-- 创建前用 `list_projects` 按规范化完整路径锁定保存项目；项目工作只允许 `target.type = project` 和精确 `projectId`，Git 项目用 Worktree，非 Git 项目用 Local，禁止 projectless/默认兜底/其他项目。一个结果只派发一次；Git Worktree Task 调用 `create_thread` 时显式传入 `title="{任务}-{ID}-{摘要}"`。`threadId` 表示 Ready；`clientThreadId` 表示请求已接受但仍 `SETUP_PENDING`，创建者返回 queued 引用，不假设转换接口、不无限轮询、不重复创建，也不在协调 Task 或后台目录代替执行。后续明确检查才用 `list_threads` 以真实 id 与 `projectId` 对账，并展示工具返回的标题原文而不靠标题判断身份。
+- 创建前用 `list_projects` 按规范化完整路径锁定保存项目；项目工作只允许 `target.type = project` 和精确 `projectId`，Git 项目用 Worktree，非 Git 项目用 Local，禁止 projectless/默认兜底/其他项目。一个结果只派发一次；左侧 Task 调用 `create_thread` 时显式传入 `title="{Task}|{序号}|{功能摘要}已分配"`。`threadId` 表示 Ready；`clientThreadId` 表示请求已接受但仍 `SETUP_PENDING`，创建者返回 queued 引用，不假设转换接口、不无限轮询、不重复创建，也不在协调 Task 或后台目录代替执行。后续明确检查才用 `list_threads` 以真实 id 与 `projectId` 对账；执行 Task 可能已推进合法进度，身份不靠标题判断。
 - 只读 Task 可使用用户明确起始 branch/ref，否则使用保存项目默认分支的已提交 HEAD，不硬编码 `main`/`master`、不自动 fetch/pull，也不复制未明确批准的 working-tree 修改。会形成产品写入的 Task 必须从已推送活动 feature 叶子的精确 OID 创建；代表新需求/Bug且尚无活动链时，协调方先建立叶子。同一活动叶子已有未整合写入 Task时拒绝创建第二个，前者必须先 fast-forward 整合并推送。Ready Task 首次写入前确认线程 `projectId`；Git Worktree 即使物理路径位于保存项目之外，也必须与保存项目根拥有相同规范化 Git common dir，并出现在其 `git worktree list --porcelain` 登记中，同时匹配预期起始提交。
 - Task 只编辑自己的 Worktree，每个逻辑闭环使用结果导向提交；交付前完成任务要求的测试与文档同步、提交全部改动并保持 `git status` 干净，不提交缓存或生成物。Task 的 `codex/task-*`/`codex/unit-*` 是临时分支，不进入 feature 链；Task 不覆盖最终应用、不删除其他 Worktree、不自行合并或推送，也不执行发布或签名。协调方读取交付报告后只机械核对范围、疑似秘密、任务要求的测试、clean、精确 Task ref/Worktree/40 位 OID、远端叶子、严格线性、Task 范围逐提交未触碰链状态和唯一写入占用，不得借整合执行非必要语义审查；随后在登记 active leaf Worktree 调用 `$desktop-manage-git-branch-chain integrate-task`，只对本地叶子执行 `ff-only`，并在 `publish` 成功复读新远端 OID 后才清理 Task 或创建下一写入 Task。
 - `parallel_worktree_subagents` 只控制当前左侧 Task 内部的 Subagent。活动受管 feature 链的产品写入固定串行，parallel helper 在创建 sibling 写入单元前失败关闭；只读 Subagent 可并行。其他场景的内部单元固定使用与 Task 分支不形成 Git ref 父子冲突的 `codex/unit-<task>-<unit>` 分支；helper 绑定保存项目根与当前 Task source worktree 的同一 Git common dir，从 source HEAD 创建，并登记非重叠 repo-relative 所有权。guard 只接受登记范围，postflight 必须证明实际 committed/uncommitted/untracked 路径均在范围内；清理只接受创建时登记的 source 分支已包含单元提交。内部 agent thread 不调用 `create_thread`，也不能替代左侧 Task。
@@ -331,7 +332,7 @@
 - [x] 所有用户可见版本恰有一个小写 `v`，机器版本字段保持无展示前缀的原始值。
 
 - [x] 日常开发不再选择快速/标准/里程碑档位，统一直接实现并只运行本次必要的相关单元/回归测试。
-- [x] 用户明确创建的 Git Worktree 左侧 Task 在派发前生成不可变 Task key，并显式使用 `{任务}-{ID}-{摘要}` 标题，另以独立 ASCII `task-slug` 建立 `codex/task-*` 分支；任务精确绑定保存项目，`clientThreadId` 以有界 `SETUP_PENDING` 返回，Ready Task 用已登记 Worktree 和可审查提交交付。活动 feature 叶子只允许单一串行写入 Task；其他适用场景的 Task 内部 Subagent 单元以 `codex/unit-*`、非重叠所有权和 postflight 验证保持隔离。
+- [x] 当前 Session 与用户明确创建的 Worktree/Local 左侧 Task 统一使用 `{Task}|{序号}|{功能摘要}{当前进度}`，按真实阶段更新四种固定进度；左侧 Task 以 `已分配` 派发。Git Worktree Task 另以独立 ASCII `task-slug` 建立 `codex/task-*` 分支，非 Git Local Task 不适用 Git 门禁。任务精确绑定保存项目，`clientThreadId` 以有界 `SETUP_PENDING` 返回；Git Ready Task 用已登记 Worktree 和可审查提交交付。活动 feature 叶子只允许单一串行写入 Task；其他适用场景的 Task 内部 Subagent 单元以 `codex/unit-*`、非重叠所有权和 postflight 验证保持隔离。
 - [x] 日常开发不自动创建 Work Plan、Product Status、Verification、构建、全仓检查、冒烟、E2E 或人工复核步骤；显式请求和必要风险门禁仍可独立触发。
 - [x] 代码行为变化的本次必要测试覆盖核心成功路径和最高风险失败路径；纯文档/元数据/机械变更可以使用最小替代检查而无需空洞测试。
 - [x] Product Spec、ADR、Product Status、Work Plan、Changelog 和 Verification 只在各自触发条件满足时更新，不再每项需求全量联动。

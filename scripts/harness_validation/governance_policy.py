@@ -9,6 +9,27 @@ from pathlib import Path
 from .context import AGENT_POLICY, display_path, fail, read_text_cached
 
 
+SESSION_PROGRESS_TITLE_TEMPLATE = "{Task}|{序号}|{功能摘要}{当前进度}"
+SESSION_PROGRESS_TITLE_INITIAL = "{Task}|{序号}|{功能摘要}已分配"
+SESSION_PROGRESS_STATES = ("已分配", "运行中", "检查中", "已完成")
+SESSION_PROGRESS_TITLE_PATTERN = re.compile(
+    r"(?P<task>[^|\r\n]+)\|(?P<sequence>[1-9][0-9]*)\|"
+    r"(?P<summary>[^|\r\n]+?)(?P<progress>已分配|运行中|检查中|已完成)"
+)
+
+
+def is_valid_session_progress_title(title: str) -> bool:
+    """判断用户可见 Session 标题是否满足稳定三段与四态后缀契约。"""
+
+    match = SESSION_PROGRESS_TITLE_PATTERN.fullmatch(title)
+    if match is None:
+        return False
+    return all(
+        value and value == value.strip()
+        for value in (match.group("task"), match.group("summary"))
+    )
+
+
 def validate_agent_policy(
     errors: list[str],
     policy_path: Path = AGENT_POLICY,
@@ -122,18 +143,30 @@ def validate_agent_policy(
         "只返回 `clientThreadId` 表示创建请求已接受但仍为 `SETUP_PENDING`",
         "不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建",
         "用户随后明确要求检查先前 queued Task",
+        "只核对稳定三部分与合法四态后缀，不要求仍为 `已分配`",
         "git rev-parse --path-format=absolute --git-common-dir",
         "git worktree list --porcelain",
         "不硬编码 `main` 或 `master`",
         "`codex/task-<task-slug>`",
-        'title="{任务}-{ID}-{摘要}"',
-        "派发前已经写入描述的不可变 Task key",
+        f'`{SESSION_PROGRESS_TITLE_TEMPLATE}`',
+        f'title="{SESSION_PROGRESS_TITLE_INITIAL}"',
+        "无前导零的正十进制整数",
+        "`Task` 与 `功能摘要` 都必须单行、首尾无空白",
+        "`已分配`、`运行中`、`检查中`、`已完成`",
+        "`Task`、`序号` 和 `功能摘要` 在同一结果内保持不变，只更新进度后缀",
+        "Task 描述记录不可变的 Task key",
+        "稳定序号",
         "显示标题与 Git slug 是两个事实",
-        "不得根据返回 id 重新命名",
-        "普通调用 Task（即没有为本结果调用 `create_thread`",
-        "`{task}-{id}-{feature}` 是同一格式的英文占位别名",
-        "调用 `set_thread_title` 至多一次并省略 `threadId`",
+        "不得根据返回 id 重新分配序号",
+        "普通当前 Session 在首次形成稳定三部分并开始处理时直接更新为 `运行中`",
+        "每次真实进度转换至多尝试一次标题更新",
+        "调用 `set_thread_title` 并省略 `threadId`",
+        "检查发现同范围问题并返回修复时重新更新为 `运行中`",
+        "只有授权结果、全部必需检查，以及请求或流程要求的提交、推送和远端复读都已完成，才在最终回复前更新为 `已完成`",
+        "`已完成` 是终态",
+        "遇到阻断时保留最后真实阶段并在正文报告，不得虚写 `已完成` 或创造第五种状态",
         "按同一真实 id 比较宿主返回的规范化标题原文",
+        "内部 Subagent、agent thread 和内部单元 Worktree 不执行该操作",
         "不得推翻已经完成的任务结果",
         "GUI 发布性能选择刻意不进入本文件，每次发布重新解析",
         "每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`",
@@ -146,3 +179,10 @@ def validate_agent_policy(
                 errors,
                 f"Agent policy persistence rule missing in {display_path(policy_path)}: {fragment}",
             )
+
+    example = "Session标题优化|1|统一Worktree与当前会话运行中"
+    if example not in text or not is_valid_session_progress_title(example):
+        fail(
+            errors,
+            f"Agent policy must contain a valid progress title example: {example}",
+        )

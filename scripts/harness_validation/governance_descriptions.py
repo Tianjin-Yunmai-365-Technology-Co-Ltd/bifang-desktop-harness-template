@@ -60,6 +60,12 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "GUI 选择后必须完成七项专门问询",
         "固定通过七项 profile-aware",
         "首次真实 GUI 下游对七项初始化组合",
+        "{task}-{id}-{feature}",
+        "{任务}-{ID}-{摘要}",
+        "状态不得进入标题",
+        "状态不入标题",
+        "Session 收尾契约至多调用一次",
+        "普通 Session 收尾命名",
     )
     for path in paths:
         if not path.is_file():

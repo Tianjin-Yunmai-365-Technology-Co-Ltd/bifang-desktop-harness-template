@@ -11,13 +11,21 @@ def validate_current_changelog_contract(errors: list[str], changelog: Path) -> N
     """拒绝同日有效 Changelog 继续陈述已被替代的 Task 标题格式。"""
     if not changelog.is_file():
         return
-    deprecated = "标题固定使用“动作 + 结果”"
-    if deprecated in read_text_cached(changelog):
-        fail(
-            errors,
-            f"current Changelog contains superseded Task title contract in "
-            f"{display_path(changelog)}: {deprecated}",
-        )
+    text = read_text_cached(changelog)
+    deprecated_claims = (
+        "标题固定使用“动作 + 结果”",
+        "当前显示标题固定使用 `{任务}-{ID}-{摘要}`",
+        "普通单结果请求在当前调用 Session 完成授权结果和本次必需检查后、最终回复前，至多一次尝试使用",
+        "调用后返回的 `threadId`/`clientThreadId` 和可变状态不再反填标题",
+        "标题不再携带可变状态",
+    )
+    for deprecated in deprecated_claims:
+        if deprecated in text:
+            fail(
+                errors,
+                f"current Changelog contains superseded Task title contract in "
+                f"{display_path(changelog)}: {deprecated}",
+            )
 
 
 def validate_superseded_release_lifecycle_fragments(

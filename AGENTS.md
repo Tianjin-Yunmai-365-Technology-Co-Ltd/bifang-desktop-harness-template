@@ -36,7 +36,7 @@
 
 - `superpowers: disabled` 时不得调用或遵循任何 `superpowers:*` Skill；其他持久能力只表示允许，不能替代当前任务的触发条件或授权。
 - 日常开发直接实施，只增加并运行本次需要的相关非空单元/回归测试；纯文档、元数据或机械变更只做解析或差异完整性所需的最小检查。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
-- 普通单结果请求在当前 Session 完成授权工作和本次必需检查后、最终回复前，按 `docs/AGENT_POLICY.md` 至多尝试一次 `{task}-{id}-{feature}`（即 `{任务}-{ID}-{摘要}`）显示标题收尾并按真实 `threadId` 有界复读；UI 工具不可用或失败必须报告，但不阻断已经完成的任务结果，也不重写已按创建契约固定标题的左侧 Task。
+- 用户可见的当前 Session 与 Worktree/Local 左侧 Task 按 `docs/AGENT_POLICY.md` 使用 `{Task}|{序号}|{功能摘要}{当前进度}`，每次进入 `已分配`、`运行中`、`检查中`、`已完成` 的真实转换至多尝试一次更新并按真实 `threadId` 有界复读；返工后再次进入同名阶段属于新的真实转换。内部 Subagent 不套用，失败必须报告但不阻断已经完成的任务结果，也不得虚写 `已完成`。
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、渠道硬要求、签名、发布和跨平台最终候选必须进入对应专用门禁；精简上下文不降低授权、失败关闭或真正不可逆交付所需的人工签署。非必要语义审查不得混入日常开发，明确发布时才按当次 `reviewSelection` 询问并执行。
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/TUI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
@@ -59,7 +59,7 @@
 | 约束或事实 | 唯一来源 | 何时读取 |
 |---|---|---|
 | 产品目标、范围与成功标准 | `docs/product_spec/README.md` 与最新 Product Spec | 定义产品或改变边界 |
-| Agent 能力、普通 Session 收尾命名、左侧 Task/Worktree 与 E2E 建议默认值 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
+| Agent 能力、Session/Worktree 进度标题、左侧 Task 与 E2E 建议默认值 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
 | 文件、注释、文档、测试、记忆触发与例外 | `docs/ENGINEERING_RULES.md` | 代码、测试、文档、规则或 Skill 变更 |
 | Rust core、adapter、MSRV、依赖与运行时 | `docs/RUST_CLI_TEMPLATE.md` | Rust 或接口实现/初始化 |
 | 下游目标平台与接口组合 | 根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` | 初始化、构建或跨宿主判断 |

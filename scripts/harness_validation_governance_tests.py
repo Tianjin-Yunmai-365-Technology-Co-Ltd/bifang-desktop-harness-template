@@ -764,19 +764,33 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         """Harness 源可以保留尚待下游首次确认的 pending。"""
         self.assertEqual(self._validate(self._current_policy()), [])
 
-    def test_rejects_missing_ordinary_session_title_closure(self) -> None:
-        """普通调用 Task 必须保留非阻断的标题更新与真实身份复读契约。"""
+    def test_rejects_incomplete_session_progress_title_contract(self) -> None:
+        """策略必须保留统一格式、四态、阶段更新与真实身份复读。"""
 
-        mutated = self._current_policy().replace(
-            "调用 `set_thread_title` 至多一次并省略 `threadId`",
-            "不执行 Session 标题更新",
-            1,
+        policy = self._current_policy()
+        required = (
+            "`{Task}|{序号}|{功能摘要}{当前进度}`",
+            "`已分配`、`运行中`、`检查中`、`已完成`",
+            'title="{Task}|{序号}|{功能摘要}已分配"',
+            "无前导零的正十进制整数",
+            "`Task` 与 `功能摘要` 都必须单行、首尾无空白",
+            "`Task`、`序号` 和 `功能摘要` 在同一结果内保持不变，只更新进度后缀",
+            "每次真实进度转换至多尝试一次标题更新",
+            "调用 `set_thread_title` 并省略 `threadId`",
+            "按同一真实 id 比较宿主返回的规范化标题原文",
+            "只核对稳定三部分与合法四态后缀，不要求仍为 `已分配`",
+            "只有授权结果、全部必需检查，以及请求或流程要求的提交、推送和远端复读都已完成，才在最终回复前更新为 `已完成`",
+            "遇到阻断时保留最后真实阶段并在正文报告，不得虚写 `已完成` 或创造第五种状态",
+            "`已完成` 是终态",
         )
-        errors = self._validate(mutated)
-        self.assertTrue(
-            any("set_thread_title" in error for error in errors),
-            errors,
-        )
+        for fragment in required:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, policy)
+                errors = self._validate(policy.replace(fragment, "已删除标题契约"))
+                self.assertTrue(
+                    any("Agent policy persistence rule missing" in error for error in errors),
+                    errors,
+                )
 
     def test_rejects_missing_preference_field(self) -> None:
         """四项选择缺失任一字段都必须失败。"""
@@ -985,14 +999,35 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
         self.assertTrue(any("stale current description" in item for item in errors))
 
     def test_rejects_superseded_task_title_in_current_changelog(self) -> None:
-        """同日 Changelog 不得并列保留已被取代的动作/结果标题合同。"""
+        """同日 Changelog 不得把被取代标题格式继续陈述为当前合同。"""
+
+        deprecated_claims = (
+            "标题固定使用“动作 + 结果”。",
+            "当前显示标题固定使用 `{任务}-{ID}-{摘要}`。",
+            "普通单结果请求在当前调用 Session 完成授权结果和本次必需检查后、最终回复前，至多一次尝试使用旧格式。",
+            "调用后返回的 `threadId`/`clientThreadId` 和可变状态不再反填标题。",
+            "标题不再携带可变状态。",
+        )
+        for claim in deprecated_claims:
+            with self.subTest(claim=claim), tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary) / "current.md"
+                path.write_text(claim, encoding="utf-8")
+                errors: list[str] = []
+                repository.validate_current_changelog_contract(errors, path)
+                self.assertTrue(
+                    any("superseded Task title contract" in item for item in errors),
+                    errors,
+                )
 
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "current.md"
-            path.write_text("标题固定使用“动作 + 结果”。", encoding="utf-8")
-            errors: list[str] = []
+            path.write_text(
+                "历史 `{任务}-{ID}-{摘要}` 已被 `{Task}|{序号}|{功能摘要}{当前进度}` 取代。",
+                encoding="utf-8",
+            )
+            errors = []
             repository.validate_current_changelog_contract(errors, path)
-        self.assertTrue(any("superseded Task title contract" in item for item in errors))
+            self.assertEqual(errors, [])
 
     def test_rejects_superseded_release_lifecycle_wording(self) -> None:
         """反向旧措辞不能与新候选生命周期并存。"""
