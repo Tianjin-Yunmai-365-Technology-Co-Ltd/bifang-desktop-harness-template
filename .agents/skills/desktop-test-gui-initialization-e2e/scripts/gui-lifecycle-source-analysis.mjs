@@ -31,6 +31,69 @@ export function collectFiles(directory, extensions) {
   return results.sort();
 }
 
+/** 屏蔽 Rust 注释，并可同时屏蔽字符串；保留换行和字符宽度供顺序检查使用。 */
+export function sanitizeRustSource(sourceText, maskStrings = false) {
+  const masked = (text) => text.replace(/[^\r\n]/gu, " ");
+  let result = "";
+  let index = 0;
+  while (index < sourceText.length) {
+    if (sourceText.startsWith("//", index)) {
+      const end = sourceText.indexOf("\n", index + 2);
+      const boundary = end < 0 ? sourceText.length : end;
+      result += masked(sourceText.slice(index, boundary));
+      index = boundary;
+      continue;
+    }
+    if (sourceText.startsWith("/*", index)) {
+      let depth = 1;
+      let end = index + 2;
+      while (end < sourceText.length && depth > 0) {
+        if (sourceText.startsWith("/*", end)) {
+          depth += 1;
+          end += 2;
+        } else if (sourceText.startsWith("*/", end)) {
+          depth -= 1;
+          end += 2;
+        } else {
+          end += 1;
+        }
+      }
+      result += masked(sourceText.slice(index, end));
+      index = end;
+      continue;
+    }
+    const rawPrefix = sourceText.slice(index).match(/^(?:br|r)(#*)"/u);
+    if (rawPrefix) {
+      const terminator = `"${rawPrefix[1]}`;
+      const contentStart = index + rawPrefix[0].length;
+      const closing = sourceText.indexOf(terminator, contentStart);
+      const end = closing < 0 ? sourceText.length : closing + terminator.length;
+      const literal = sourceText.slice(index, end);
+      result += maskStrings ? masked(literal) : literal;
+      index = end;
+      continue;
+    }
+    if (sourceText[index] === '"') {
+      let end = index + 1;
+      let escaped = false;
+      while (end < sourceText.length) {
+        const character = sourceText[end];
+        end += 1;
+        if (escaped) escaped = false;
+        else if (character === "\\") escaped = true;
+        else if (character === '"') break;
+      }
+      const literal = sourceText.slice(index, end);
+      result += maskStrings ? masked(literal) : literal;
+      index = end;
+      continue;
+    }
+    result += sourceText[index];
+    index += 1;
+  }
+  return result;
+}
+
 /** 去除 TOML 行尾注释，同时保留字符串中的井号。 */
 function stripTomlComments(text) {
   return text
@@ -265,7 +328,10 @@ export function collectRustFunctions(sourceText) {
     const bodyEnd = findMatchingDelimiter(sourceText, bodyStart, "{", "}");
     if (bodyEnd < 0) continue;
     functions.push({
+      end: bodyEnd + 1,
       name: match[1],
+      parameters: sourceText.slice(parameterStart + 1, parameterEnd),
+      start: match.index,
       text: sourceText.slice(match.index, bodyEnd + 1),
     });
   }

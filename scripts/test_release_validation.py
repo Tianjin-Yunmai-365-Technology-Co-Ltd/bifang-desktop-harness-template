@@ -81,6 +81,32 @@ class BuildSkillValidationTests(unittest.TestCase):
             return errors
 
     @staticmethod
+    def _validate_cross_platform_workflow(source: str) -> list[str]:
+        """只替换原生矩阵 workflow，验证执行层信封门禁。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "github-release-candidate.yml"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_build_skill_contract(
+                errors,
+                cross_platform_workflow=path,
+            )
+            return errors
+
+    @staticmethod
+    def _validate_cross_platform_helper(source: str) -> list[str]:
+        """只替换离线 closing-envelope helper，保留真实 workflow。"""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "verify_release_envelope.py"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_build_skill_contract(
+                errors,
+                cross_platform_envelope_helper=path,
+            )
+            return errors
+
+    @staticmethod
     def _validate_collect(source: str) -> list[str]:
         """只替换制品收集 Skill，保留真实 Rust 与跨平台构建 Skill。"""
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -90,19 +116,19 @@ class BuildSkillValidationTests(unittest.TestCase):
             release.validate_build_skill_contract(errors, collect_skill=path)
             return errors
 
-    def test_rejects_missing_default_local_route(self) -> None:
-        """删除本地默认句后，即使其他构建文本仍在也必须失败。"""
+    def test_rejects_missing_default_cross_platform_route(self) -> None:
+        """删除三平台默认句后，即使其他构建文本仍在也必须失败。"""
         source = release.BUILD_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "默认直接在当前宿主本地构建"
+        anchor = "默认通过 `$desktop-prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选"
         mutated = source.replace(anchor, "优先构建可用目标", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_build(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
-    def test_rejects_missing_required_platform_failure_boundary(self) -> None:
-        """必需平台的缺失或失败不得通过本机成功掩盖。"""
+    def test_rejects_missing_started_matrix_failure_boundary(self) -> None:
+        """矩阵真实失败不得通过本机回退被伪装成整体成功。"""
         source = release.BUILD_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "必需平台缺失、失败、超时或取消必须阻断对应交付"
-        mutated = source.replace(anchor, "可以忽略必需平台失败", 1)
+        anchor = "不得把已启动矩阵的失败、测试失败、打包失败、签名失败、超时或取消视为回退条件"
+        mutated = source.replace(anchor, "可以把矩阵失败视为回退条件", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_build(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
@@ -144,7 +170,7 @@ class BuildSkillValidationTests(unittest.TestCase):
         self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_cross_platform_contract_requires_e2e_selection_manifest(self) -> None:
-        """本地多平台构建必须接收当次 E2E 选择并传播进候选清单。"""
+        """远端矩阵必须接收当次 E2E 选择并传播进候选清单。"""
         source = release.CROSS_PLATFORM_RELEASE_SKILL.read_text(encoding="utf-8")
         for anchor in ("e2e_selection", "e2eSelection"):
             with self.subTest(anchor=anchor):
@@ -153,8 +179,109 @@ class BuildSkillValidationTests(unittest.TestCase):
                 errors = self._validate_cross_platform(mutated)
                 self.assertTrue(any(anchor in error for error in errors), errors)
 
+    def test_cross_platform_contract_requires_host_verified_closing_envelope(self) -> None:
+        """派发端不能把对话中的选择或摘要冒充 closing commit 事实。"""
+        source = release.CROSS_PLATFORM_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchors = (
+            "在任何派发前先运行 `$desktop-manage-git-branch-chain verify-release-review`",
+            "状态摘要只能来自上述机械复核，不接受对话补写的信封、摘要或选择",
+            "Rust CLI 的 `candidateSelections` 精确不适用",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "信任调用对话补齐候选选择", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_cross_platform(mutated)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_cross_platform_candidate_cannot_rewrite_drifted_workflow(self) -> None:
+        """clean Release 候选预检只能报告 provider unavailable，不能现场修 workflow。"""
+        source = release.CROSS_PLATFORM_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "不得在受保护的 clean `Release` closing commit 上安装、更新或改写 workflow"
+        mutated = source.replace(anchor, "缺失时直接安装 workflow 后继续", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_cross_platform(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_cross_platform_workflow_requires_full_named_release_checkout(self) -> None:
+        """detached shallow checkout 不能证明关闭历史或远端 Release 快照。"""
+        source = release.CROSS_PLATFORM_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        cases = (
+            ("ref: Release", "ref: ${{ inputs.source_commit }}"),
+            ("fetch-depth: 0", "fetch-depth: 1"),
+        )
+        for anchor, replacement in cases:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, replacement, 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_cross_platform_workflow(mutated)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_cross_platform_workflow_requires_two_ordered_envelope_gates(self) -> None:
+        """首次捕获和最终字节后的 manifest 前复核缺一或倒序都必须失败。"""
+        source = release.CROSS_PLATFORM_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        verify = "verify_release_envelope.py verify"
+        missing = source.replace(verify, "verify_release_envelope.py omitted", 1)
+        self.assertNotEqual(missing, source)
+        errors = self._validate_cross_platform_workflow(missing)
+        self.assertTrue(any(verify in error for error in errors), errors)
+
+        without_verify = source.replace(verify, "verify_release_envelope.py delayed", 1)
+        atomic_commit = "          os.rename(stage, release)"
+        moved = without_verify.replace(
+            atomic_commit,
+            f"{atomic_commit}\n          # {verify}",
+            1,
+        )
+        self.assertNotEqual(moved, source)
+        errors = self._validate_cross_platform_workflow(moved)
+        self.assertTrue(any("release contract order" in error for error in errors), errors)
+
+    def test_cross_platform_workflow_manifest_projects_both_envelopes(self) -> None:
+        """矩阵 manifest 不能只写 sourceCommit/E2E 而遗失关闭信封与条件审查字段。"""
+        source = release.CROSS_PLATFORM_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        anchors = (
+            '"releaseReview": review,',
+            '"candidateSelections": candidate_selections,',
+            'manifest["reviewEvidence"] = {',
+            'manifest["reviewReason"] = review["reason"]',
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "# omitted sealed field", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_cross_platform_workflow(mutated)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_cross_platform_workflow_stages_outside_clean_worktree(self) -> None:
+        """manifest 前的 untracked-inclusive clean 复核不能被工作树内 staging 自我破坏。"""
+        source = release.CROSS_PLATFORM_RELEASE_WORKFLOW.read_text(encoding="utf-8")
+        anchor = "${GITHUB_WORKSPACE}/../.${PRODUCT_NAME}.release-candidate.XXXXXX"
+        mutated = source.replace(anchor, "${GITHUB_WORKSPACE}/.release-candidate.XXXXXX", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_cross_platform_workflow(mutated)
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_cross_platform_helper_fails_closed_on_state_or_applicability_drift(self) -> None:
+        """runner 必须从提交字节复核完整信封，并拒绝 GUI-only 选择。"""
+        source = release.CROSS_PLATFORM_RELEASE_ENVELOPE_HELPER.read_text(encoding="utf-8")
+        anchors = (
+            "protected state bytes do not match source_commit",
+            "protected state digest does not match the host-verified input",
+            "legacy closing state without both sealed envelopes is forbidden",
+            '"performanceSelection": "not-applicable"',
+            '"macosSigningSelection": "not-applicable"',
+            "release envelope changed between build gates",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "weakened-envelope-gate", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_cross_platform_helper(mutated)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
     def test_rejects_cross_platform_project_memory_writes(self) -> None:
-        """原生本地构建事实也只能进入 manifest 和最终回复。"""
+        """原生矩阵的构建事实也只能进入 manifest 和最终回复。"""
         source = release.CROSS_PLATFORM_RELEASE_SKILL.read_text(encoding="utf-8")
         anchor = "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification"
         mutated = source.replace(anchor, "同步更新项目记忆", 1)
@@ -170,6 +297,33 @@ class BuildSkillValidationTests(unittest.TestCase):
         self.assertNotEqual(mutated, source)
         errors = self._validate_collect(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_collection_requires_target_external_atomic_staging(self) -> None:
+        """三平台结果不能逐个进入 release 并在失败时留下部分集合。"""
+        source = release.COLLECT_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchors = (
+            "在项目根同级、同一文件系统创建唯一且权限受限的 staging",
+            "不得逐个平台直接复制到 `release/`",
+            "任何前置失败都不得部分污染目标",
+            "替换后只读重新枚举 `release/`",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "逐个复制并在末尾检查", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_collect(mutated)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_collection_rejects_atomic_commit_before_second_envelope_check(self) -> None:
+        """staging 必须先通过尾端双信封/精确集合门禁，再一次替换目标。"""
+        source = release.COLLECT_RELEASE_SKILL.read_text(encoding="utf-8")
+        atomic = "把完整 staging 目录级原子替换为 `release/`"
+        second_verify = "在触碰目标目录前执行第二次只读 `verify-release-review`"
+        without_atomic = source.replace(atomic, "延后原子替换", 1)
+        mutated = without_atomic.replace(second_verify, f"{atomic}；{second_verify}", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_collect(mutated)
+        self.assertTrue(any("release contract order" in error for error in errors), errors)
 
 
 class ReleaseNotesContractValidationTests(unittest.TestCase):
@@ -188,6 +342,437 @@ class ReleaseNotesContractValidationTests(unittest.TestCase):
             with mock.patch.object(release, "RELEASE_NOTES_HELPER", path):
                 release.validate_release_contract(errors)
         self.assertTrue(any("MAX_RELEASES = 5" in error for error in errors), errors)
+
+
+class ReleaseBranchChainContractValidationTests(unittest.TestCase):
+    """锁定 feature 链关闭、Release 构建和默认分支人工边界。"""
+
+    @staticmethod
+    def _validate_mutation(source: str, *, parameter: str) -> list[str]:
+        """只替换一个发布契约来源，其余文件继续使用真实仓库内容。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "contract.md"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_release_git_contract(errors, **{parameter: path})
+            return errors
+
+    def test_rejects_release_flow_without_managed_atomic_chain_close(self) -> None:
+        """发布准备不能跳过受管原子 Release 推进和逐 ref lease 清理。"""
+
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        for anchor in (
+            "$desktop-manage-git-branch-chain release",
+            "以一次 atomic push 把完整线性历史快进到精确 `Release`",
+            "逐 ref lease 删除状态文件精确列出的远端 feature refs",
+        ):
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "省略受管链路关闭", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="prepare_skill")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_release_to_default_branch_automation(self) -> None:
+        """Release 到默认分支必须保持为用户自行完成的 Merge/PR。"""
+
+        source = (release.ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")
+        anchor = "`Release` 到默认分支的 Merge/PR 永远由用户自行完成"
+        mutated = source.replace(anchor, "Agent 自动把 `Release` 合并到默认分支", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="release_doc")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+
+class ReleaseSelectionContractValidationTests(unittest.TestCase):
+    """锁定发布期审查选择和 macOS 签名意图先行分支。"""
+
+    @staticmethod
+    def _validate_mutation(source: str, *, parameter: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "contract.md"
+            path.write_text(source, encoding="utf-8")
+            errors: list[str] = []
+            release.validate_release_selection_contract(
+                errors,
+                **{parameter: path},
+            )
+            return errors
+
+    def test_rejects_release_review_that_is_not_sealed_for_interrupted_retry(self) -> None:
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "同一发布的修复或进程中断重跑复用原选择，新发布重新解析"
+        mutated = source.replace(anchor, "中断后从对话历史猜测选择", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="prepare_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_branch_chain_release_as_an_independent_release_entrypoint(self) -> None:
+        source = release.BRANCH_CHAIN_SKILL.read_text(encoding="utf-8")
+        anchor = "任何正式发布请求必须先路由 `$desktop-prepare-release`"
+        mutated = source.replace(anchor, "可以直接从分支链 Skill 发起正式发布", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_disabled_review_that_leaves_review_evidence(self) -> None:
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "禁止生成 `reviewEvidence`、完成声明或 `reviewedSourceCommit`"
+        mutated = source.replace(anchor, "可以保留旧审查证据", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="prepare_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_macos_default_that_probes_before_signing_intent(self) -> None:
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "`disabled/not-requested`：不得运行 `scripts/probe-macos-notarization.sh`"
+        mutated = source.replace(anchor, "`disabled/not-requested`：先探测再决定", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_macos_signing_intent_after_first_bundle_command(self) -> None:
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "审查、性能和 macOS 签名选择及来源都只能从关闭状态读取"
+        mutated = source.replace(anchor, "构建时再从对话解释签名选择", 1)
+        mutated += f"\n{anchor}\n"
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+        self.assertTrue(any("before the first DMG bundle command" in error for error in errors), errors)
+
+    def test_rejects_candidate_build_without_closing_commit_consumer(self) -> None:
+        cases = (
+            (
+                "rust_skill",
+                release.BUILD_RELEASE_SKILL,
+                "`lastClosedChain.releaseReview` 与 `candidateSelections`",
+            ),
+            (
+                "tauri_skill",
+                release.TAURI_RELEASE_SKILL,
+                "审查、性能和 macOS 签名选择及来源都只能从关闭状态读取",
+            ),
+        )
+        for parameter, skill, anchor in cases:
+            with self.subTest(parameter=parameter, anchor=anchor):
+                source = skill.read_text(encoding="utf-8")
+                mutated = source.replace(anchor, "构建时从对话补齐候选选择", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter=parameter)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_candidate_build_without_pre_and_post_manifest_verification(self) -> None:
+        cases = (
+            (
+                "rust_skill",
+                release.BUILD_RELEASE_SKILL,
+                (
+                    "在任何测试、编译或 `release/` 清理前先调用 "
+                    "`$desktop-manage-git-branch-chain verify-release-review`"
+                ),
+                "在写 manifest 前再次运行只读 `verify-release-review`",
+            ),
+            (
+                "tauri_skill",
+                release.TAURI_RELEASE_SKILL,
+                (
+                    "在任何测试、编译或 `release/` 清理前先调用 "
+                    "`$desktop-manage-git-branch-chain verify-release-review`"
+                ),
+                "写 manifest 前再次运行只读 `verify-release-review`",
+            ),
+        )
+        for parameter, skill, before_anchor, manifest_anchor in cases:
+            source = skill.read_text(encoding="utf-8")
+            for anchor in (before_anchor, manifest_anchor):
+                with self.subTest(parameter=parameter, anchor=anchor):
+                    mutated = source.replace(anchor, "省略关闭提交复核", 1)
+                    self.assertNotEqual(mutated, source)
+                    errors = self._validate_mutation(mutated, parameter=parameter)
+                    self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_collection_or_acceptance_without_closing_state_verification(self) -> None:
+        """收集与验收不能把 manifest 自己当作发布选择事实源。"""
+
+        cases = (
+            (
+                "collect_skill",
+                release.COLLECT_RELEASE_SKILL,
+                "在接触目标目录前先调用 `$desktop-manage-git-branch-chain verify-release-review`",
+            ),
+            (
+                "collect_skill",
+                release.COLLECT_RELEASE_SKILL,
+                "再次只读运行 `verify-release-review`",
+            ),
+            (
+                "verify_skill",
+                release.VERIFY_DELIVERY_SKILL,
+                "先运行 `$desktop-manage-git-branch-chain verify-release-review`",
+            ),
+        )
+        for parameter, skill, anchor in cases:
+            with self.subTest(parameter=parameter, anchor=anchor):
+                source = skill.read_text(encoding="utf-8")
+                mutated = source.replace(anchor, "只信任候选 manifest", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter=parameter)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_delivery_requires_tail_envelope_and_final_byte_reverification(self) -> None:
+        """E2E/清理后不能沿用准入时摘要直接写 accepted。"""
+        source = release.VERIFY_DELIVERY_SKILL.read_text(encoding="utf-8")
+        anchors = (
+            "在写入任何验收状态前再次只读运行 `verify-release-review`",
+            "与准入快照逐字段相等",
+            "重新计算全部最终制品、相邻摘要、manifest 声明、包内关键资源和当前 `release/` 精确集合",
+            "不能只沿用 E2E 前的摘要",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "沿用准入时检查结果", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="verify_skill")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_delivery_requires_atomic_whole_manifest_group_transition(self) -> None:
+        """多平台验收状态只能在 staging 内整组一致地提交。"""
+        source = release.VERIFY_DELIVERY_SKILL.read_text(encoding="utf-8")
+        anchors = (
+            "在 staging 内原子写入全部 manifests 的同一整组 `milestoneAcceptance` 结论",
+            "绝不得产生 accepted/pending、accepted/rejected 或其他 mixed 状态",
+            "把 staging 一次目录级原子替换为 `release/`",
+            "替换后只读重新枚举并复算整组状态",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "逐个更新 manifest", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="verify_skill")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_delivery_rejects_status_write_before_tail_envelope_check(self) -> None:
+        """状态 staging/回写必须发生在真实检查和二次 closing-state 复核之后。"""
+        source = release.VERIFY_DELIVERY_SKILL.read_text(encoding="utf-8")
+        staging = "于项目根同级、同一文件系统的唯一 staging 复制当前 `release/` 精确集合"
+        second_verify = "在写入任何验收状态前再次只读运行 `verify-release-review`"
+        without_staging = source.replace(staging, "延后创建 staging", 1)
+        mutated = without_staging.replace(second_verify, f"{staging}；{second_verify}", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="verify_skill")
+        self.assertTrue(any("release selection contract order" in error for error in errors), errors)
+
+    def test_e2e_requires_end_of_run_candidate_byte_recalculation(self) -> None:
+        """E2E 结束不能只声明变化会失效，必须实际复算最终集合。"""
+        source = release.E2E_SKILL.read_text(encoding="utf-8")
+        anchors = (
+            "所有场景和清理结束时",
+            "重新计算全部最终制品、相邻摘要、manifest 声明及适用包内关键资源",
+            "不得只声称“字节变化会使证据失效”而跳过结束复算",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "只声明字节变化会失效", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="e2e_skill")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_prepare_ready_stage_is_read_only(self) -> None:
+        """accepted 候选的 ready 复核不能直接 dirty 受保护 Release。"""
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchors = (
+            "就绪复核阶段保持纯只读",
+            "不得更新 tracked 发布记录、Verification、Changelog、Product Status、版本状态或其他项目记忆",
+            "后续独立受管 feature 生命周期中记录发布/Verification/项目状态事实",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "直接在 Release 更新项目记忆", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="prepare_skill")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_atomic_release_review_field(self) -> None:
+        source = release.BRANCH_CHAIN_STATE.read_text(encoding="utf-8")
+        anchor = '"scopeDiffSha256",\n        "reviewedSourceCommit",\n        "checks",'
+        mutated = source.replace(
+            anchor,
+            '"scopeDiffSha256",\n        "checks",',
+            1,
+        )
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_state")
+        self.assertTrue(any("reviewedSourceCommit" in error for error in errors), errors)
+
+    def test_rejects_missing_atomic_candidate_selection_field(self) -> None:
+        source = release.BRANCH_CHAIN_STATE.read_text(encoding="utf-8")
+        anchor = (
+            '"performanceReason",\n        "performanceRemainingRisk",\n'
+            '        "macosSigningSelection",'
+        )
+        mutated = source.replace(
+            anchor,
+            '"performanceReason",\n        "macosSigningSelection",',
+            1,
+        )
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_state")
+        self.assertTrue(any("performanceRemainingRisk" in error for error in errors), errors)
+
+    def test_rejects_illegal_candidate_source_or_reason_combinations(self) -> None:
+        source = release.BRANCH_CHAIN_STATE.read_text(encoding="utf-8")
+        mutations = (
+            (
+                'performance_source\n            not in '
+                '{"requested", "product-required", "channel-required"}',
+                'performance_source\n            not in '
+                '{"requested", "product-required", "channel-required", "configured"}',
+            ),
+            (
+                'performance_source\n            not in '
+                '{"requested", "product-required", "channel-required"}\n'
+                '            or value["performanceReason"] is not None',
+                'performance_source\n            not in '
+                '{"requested", "product-required", "channel-required"}\n'
+                '            and value["performanceReason"] is not None',
+            ),
+            (
+                'signing_source not in {"configured", "requested", "channel-required"}',
+                'signing_source not in '
+                '{"configured", "requested", "channel-required", "not-requested"}',
+            ),
+        )
+        for anchor, replacement in mutations:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, replacement, 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="branch_state")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_retry_that_accepts_candidate_selection_mismatch(self) -> None:
+        source = release.BRANCH_CHAIN_OPERATIONS.read_text(encoding="utf-8")
+        anchor = "if supplied_selections != selections:"
+        mutated = source.replace(anchor, "if supplied_selections == selections:", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_operations")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_post_review_tree_only_check_that_hides_change_then_revert(self) -> None:
+        source = release.BRANCH_CHAIN_OPERATIONS.read_text(encoding="utf-8")
+        anchor = '["rev-list", "--reverse", f"{source_head}..{pre_close_head}"]'
+        mutated = source.replace(
+            anchor,
+            '["diff", "--name-only", source_head, pre_close_head]',
+            1,
+        )
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_operations")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_legacy_closing_state_that_can_advance_release(self) -> None:
+        source = release.BRANCH_CHAIN_OPERATIONS.read_text(encoding="utf-8")
+        anchor = 'if "releaseReview" not in closed and remote_state == "pending":'
+        mutated = source.replace(anchor, 'if False and remote_state == "pending":', 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_operations")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_verify_release_review_cli_route(self) -> None:
+        source = release.BRANCH_CHAIN_SCRIPT.read_text(encoding="utf-8")
+        anchor = 'elif arguments.command == "verify-release-review":'
+        mutated = source.replace(anchor, 'elif arguments.command == "verify-review":', 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_cli")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_change_then_revert_branch_regression(self) -> None:
+        source = release.BRANCH_CHAIN_TESTS.read_text(encoding="utf-8")
+        anchor = "test_release_rejects_post_review_source_change_then_revert"
+        mutated = source.replace(anchor, "test_release_allows_post_review_revert", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="branch_tests")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_rust_or_gui_candidate_applicability_mismatch(self) -> None:
+        cases = (
+            (
+                "rust_skill",
+                release.BUILD_RELEASE_SKILL,
+                "Rust 非 GUI 候选要求后者的性能与 macOS 签名选择都精确为 `not-applicable`",
+            ),
+            (
+                "tauri_skill",
+                release.TAURI_RELEASE_SKILL,
+                "所有 GUI 候选的 `performanceSelection` 必须精确为 `enabled | disabled`",
+            ),
+            (
+                "tauri_skill",
+                release.TAURI_RELEASE_SKILL,
+                "不含 macOS 时则必须精确为 `not-applicable`",
+            ),
+        )
+        for parameter, skill, anchor in cases:
+            with self.subTest(parameter=parameter, anchor=anchor):
+                source = skill.read_text(encoding="utf-8")
+                mutated = source.replace(anchor, "允许不匹配接口或目标平台的选择", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter=parameter)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_unsigned_macos_notification_candidate(self) -> None:
+        cases = (
+            (
+                "prepare_skill",
+                release.PREPARE_RELEASE_SKILL,
+                "macOS 同时 `system_notification = enabled` 且签名关闭",
+            ),
+            (
+                "tauri_skill",
+                release.TAURI_RELEASE_SKILL,
+                "`system_notification = enabled` 而封存签名选择是 `disabled/not-requested`",
+            ),
+            (
+                "verify_skill",
+                release.VERIFY_DELIVERY_SKILL,
+                "`system_notification = enabled` 的 macOS 候选若为 `disabled/not-requested` 或实际 unsigned",
+            ),
+            (
+                "e2e_skill",
+                release.E2E_SKILL,
+                "`disabled/not-requested` 或实际 unsigned 必须在读取权限前失败",
+            ),
+        )
+        for parameter, skill, anchor in cases:
+            with self.subTest(parameter=parameter):
+                source = skill.read_text(encoding="utf-8")
+                mutated = source.replace(anchor, "允许 unsigned 通知候选继续", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter=parameter)
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_enabled_macos_signing_that_can_fall_back_unsigned(self) -> None:
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "不得以 `--no-sign` 重试或静默降级"
+        mutated = source.replace(anchor, "失败后可以 unsigned 重试", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_ambiguous_macos_signing_source_precedence(self) -> None:
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "`macosSigningSource` 按 `channel-required > requested > configured > not-requested`"
+        mutated = source.replace(anchor, "`macosSigningSource` 取任意可用来源", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="tauri_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_review_evidence_without_post_review_commit_boundary(self) -> None:
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        anchor = "`reviewedSourceCommit = sourceHead`"
+        mutated = source.replace(anchor, "审查证据直接绑定最终构建提交", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutation(mutated, parameter="prepare_skill")
+        self.assertTrue(any(anchor in error for error in errors), errors)
 
 
 class TauriLocalInstallSkillValidationTests(unittest.TestCase):
@@ -269,18 +854,18 @@ class GuiPerformanceContractValidationTests(unittest.TestCase):
 
         self.assertTrue(any("否则询问用户一次" in error for error in errors), errors)
 
-    def test_rejects_missing_direct_gui_build_performance_question(self) -> None:
-        """直接 GUI 构建缺少选择时，也必须在测试或编译前询问一次。"""
+    def test_rejects_gui_build_that_accepts_not_applicable_performance(self) -> None:
+        """GUI 构建只能消费关闭提交中明确启用或关闭的性能选择。"""
 
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "否则在任何测试或编译前询问用户一次，可与尚未解析的 E2E 选择同轮询问"
-        mutated = source.replace(anchor, "沿用持久策略", 1)
+        anchor = "所有 GUI 候选的 `performanceSelection` 必须精确为 `enabled | disabled`"
+        mutated = source.replace(anchor, "GUI 候选也可使用 `not-applicable`", 1)
         self.assertNotEqual(mutated, source)
 
         errors = self._validate_mutation(mutated, parameter="tauri_skill")
 
         self.assertTrue(
-            any("否则在任何测试或编译前询问用户一次" in error for error in errors),
+            any(anchor in error for error in errors),
             errors,
         )
 
@@ -374,7 +959,7 @@ class GuiPerformanceContractValidationTests(unittest.TestCase):
         """产品或渠道硬要求必须覆盖用户关闭选择并强制执行门禁。"""
 
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "产品/渠道硬要求强制为 `enabled` 并记录来源"
+        anchor = "只有 `performanceSelection: enabled` 或产品/渠道硬要求时"
         mutated = source.replace(anchor, "产品/渠道要求可以忽略", 1)
         self.assertNotEqual(mutated, source)
 
@@ -477,7 +1062,7 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
     def test_rejects_missing_all_or_none_notarization_rule(self) -> None:
         """macOS 候选若允许停在仅签名状态，门禁必须确定性失败。"""
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "不得输出仅 Developer ID 签名但未公证/staple 的 macOS 候选"
+        anchor = "启用 macOS 签名后绝不得输出仅 Developer ID 签名但未公证/staple 的候选"
         mutated = source.replace(anchor, "允许输出仅签名候选", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_mutated_skill(mutated)
@@ -492,6 +1077,28 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
         errors = self._validate_mutated_skill(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
 
+    def test_rejects_tauri_atomic_commit_before_manifest_envelope_recheck(self) -> None:
+        """GUI 候选必须在 staging 内完成二次信封复核与 manifest 后才能提交。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        atomic = "随后才以不跟随链接的目录级原子替换提交到 `release/`"
+        verify = "写 manifest 前再次运行只读 `verify-release-review`"
+        without_atomic = source.replace(atomic, "延后原子提交", 1)
+        mutated = without_atomic.replace(verify, f"{atomic}；{verify}", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any("Tauri release contract order" in error for error in errors), errors)
+
+    def test_rejects_tauri_final_enumeration_before_atomic_commit(self) -> None:
+        """最终 release 枚举只能检查已经原子替换后的完整集合。"""
+        source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
+        enumeration = "16. 重新枚举 `release/`"
+        atomic = "随后才以不跟随链接的目录级原子替换提交到 `release/`"
+        without_enumeration = source.replace(enumeration, "16. 完成候选", 1)
+        mutated = without_enumeration.replace(atomic, f"{enumeration}；{atomic}", 1)
+        self.assertNotEqual(mutated, source)
+        errors = self._validate_mutated_skill(mutated)
+        self.assertTrue(any("Tauri release contract order" in error for error in errors), errors)
+
     def test_rejects_missing_project_dmg_background_reference(self) -> None:
         """构建不能回退为隐式或初始化 Skill 内的背景路径。"""
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
@@ -505,7 +1112,7 @@ class TauriBuildSkillValidationTests(unittest.TestCase):
         """删除 CI/Finder 策略会重新允许空白安装窗口，必须失败。"""
         source = release.TAURI_RELEASE_SKILL.read_text(encoding="utf-8")
         anchor = "CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg"
-        mutated = source.replace(anchor, "CI=true pnpm tauri build --bundles dmg", 1)
+        mutated = source.replace(anchor, "CI=true pnpm tauri build --bundles dmg")
         self.assertNotEqual(mutated, source)
         errors = self._validate_mutated_skill(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)

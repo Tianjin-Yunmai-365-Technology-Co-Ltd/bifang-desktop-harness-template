@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,7 +57,7 @@ class ParallelWorktreesTests(unittest.TestCase):
         """运行助手并解析其唯一 JSON 输出。"""
         command = args[0]
         invocation = [
-            "python3",
+            sys.executable,
             str(SCRIPT),
             *args,
             "--project-root",
@@ -86,6 +87,83 @@ class ParallelWorktreesTests(unittest.TestCase):
         for target in ownership:
             arguments.extend(["--write-target", target])
         return self.helper(*arguments)
+
+    def assert_no_unit_create_side_effects(self, unit: str) -> None:
+        """断言拒绝路径没有创建容器、登记状态或 Git 分支。"""
+        self.assertFalse((self.temp_root / ".codex-worktrees").exists())
+        common_dir = Path(
+            self.git("rev-parse", "--git-common-dir", cwd=self.source).stdout.strip()
+        )
+        if not common_dir.is_absolute():
+            common_dir = (self.source / common_dir).resolve()
+        self.assertFalse((common_dir / "codex-parallel-worktrees").exists())
+        branch = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.root),
+                "show-ref",
+                "--verify",
+                "--quiet",
+                f"refs/heads/codex/unit-feature-{unit}",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(branch.returncode, 0)
+
+    def write_branch_chain_state(self, payload: object) -> None:
+        """在 source 写入测试拥有的分支链状态。"""
+        harness = self.source / ".harness"
+        harness.mkdir()
+        (harness / "git-branch-chain.json").write_text(
+            json.dumps(payload), encoding="utf-8"
+        )
+
+    def test_create_rejects_active_managed_feature_chain_without_side_effects(self) -> None:
+        """验证活动 feature 链在任何 sibling unit 副作用前稳定阻断。"""
+        head = self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip()
+        branch = "feature-current-20260907"
+        self.write_branch_chain_state(
+            {
+                "schemaVersion": 1,
+                "activeChain": {
+                    "remote": "origin",
+                    "defaultBranch": "main",
+                    "defaultHead": head,
+                    "baseBranch": "main",
+                    "baseHead": head,
+                    "activeLeaf": branch,
+                    "phase": "active",
+                    "entries": [
+                        {"branch": branch, "parent": "main", "parentHead": head}
+                    ],
+                },
+                "lastClosedChain": None,
+            }
+        )
+
+        result, payload = self.create("blocked", "src")
+
+        self.assertEqual(result.returncode, 4)
+        self.assertEqual(payload["error"]["code"], "managed_feature_chain_active")
+        self.assert_no_unit_create_side_effects("blocked")
+
+    def test_create_rejects_invalid_branch_chain_state_without_side_effects(self) -> None:
+        """验证无效 schema 失败关闭，inspect 只读路径仍不读取该状态。"""
+        self.write_branch_chain_state(
+            {"schemaVersion": 2, "activeChain": None, "lastClosedChain": None}
+        )
+
+        result, payload = self.create("invalid", "src")
+        inspected, inspect_payload = self.helper("inspect")
+
+        self.assertEqual(result.returncode, 4)
+        self.assertEqual(payload["error"]["code"], "git_branch_chain_state_invalid")
+        self.assert_no_unit_create_side_effects("invalid")
+        self.assertEqual(inspected.returncode, 0, inspected.stderr)
+        self.assertTrue(inspect_payload["ok"])
 
     def test_create_from_task_branch_avoids_parent_child_ref_collision_and_removes(self) -> None:
         """验证 codex/task-feature 已存在时仍能创建扁平 unit ref 并安全清理。"""
@@ -228,9 +306,12 @@ class ParallelWorktreesTests(unittest.TestCase):
         """验证 sibling 容器不能用 symlink 把单元重定向到任意外部目录。"""
         redirect = self.temp_root / "redirected"
         redirect.mkdir()
-        (self.temp_root / ".codex-worktrees").symlink_to(
-            redirect, target_is_directory=True
-        )
+        try:
+            (self.temp_root / ".codex-worktrees").symlink_to(
+                redirect, target_is_directory=True
+            )
+        except OSError as error:
+            self.skipTest(f"当前宿主不能创建目录符号链接：{error}")
 
         result, payload = self.create("core", "src")
 
@@ -371,9 +452,12 @@ class ParallelWorktreesTests(unittest.TestCase):
         outside = self.temp_root / "outside"
         outside.mkdir()
         (worktree / "symlink-owned").mkdir()
-        (worktree / "symlink-owned" / "escape").symlink_to(
-            outside, target_is_directory=True
-        )
+        try:
+            (worktree / "symlink-owned" / "escape").symlink_to(
+                outside, target_is_directory=True
+            )
+        except OSError as error:
+            self.skipTest(f"当前宿主不能创建目录符号链接：{error}")
         escaped, escaped_payload = self.helper(
             "guard",
             "--task",

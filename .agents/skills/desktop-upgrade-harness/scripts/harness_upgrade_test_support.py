@@ -13,6 +13,8 @@ import sys
 import tempfile
 import unittest
 
+from harness_upgrade_policy import REQUIRED_MANAGED_SOURCE_PATHS
+
 
 
 SCRIPT = Path(__file__).with_name("harness_upgrade.py")
@@ -21,14 +23,7 @@ MANAGED = ".agents/skills/desktop-define-product/SKILL.md"
 MANAGED_SECOND = ".agents/skills/desktop-plan-change/SKILL.md"
 MANAGED_SELF = ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.py"
 CORE_FIRST_CHECKER = ".agents/skills/desktop-implement-change/scripts/check_core_first.py"
-REQUIRED_MANAGED_CHECKERS = (
-    ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.py",
-    ".agents/skills/desktop-implement-change/scripts/test_check_file_line_limits.py",
-    CORE_FIRST_CHECKER,
-    ".agents/skills/desktop-implement-change/scripts/test_check_core_first.py",
-    ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.py",
-    ".agents/skills/desktop-implement-change/scripts/test_check_rust_chinese_comments.py",
-)
+REQUIRED_MANAGED_CHECKERS = REQUIRED_MANAGED_SOURCE_PATHS
 MIXED = "AGENTS.md"
 PROTECTED = "docs/AGENT_POLICY.md"
 TOMBSTONE = "Version.md"

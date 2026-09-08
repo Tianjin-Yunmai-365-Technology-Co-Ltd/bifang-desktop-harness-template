@@ -16,6 +16,10 @@ from typing import Sequence
 
 
 HEAD_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+FEATURE_BRANCH_PATTERN = re.compile(
+    r"^feature-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{8}$"
+)
+REMOTE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 SECRET_PATTERNS = (
     re.compile(br"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
     re.compile(br"(?:^|[^A-Za-z0-9])AKIA[0-9A-Z]{16}(?:$|[^A-Za-z0-9])"),
@@ -44,6 +48,11 @@ def run_git(
             capture_output=True,
             text=text,
             encoding="utf-8" if text else None,
+            env={
+                **os.environ,
+                "GIT_TERMINAL_PROMPT": "0",
+                "GCM_INTERACTIVE": "Never",
+            },
         )
     except FileNotFoundError as error:
         raise ReleaseGitError("git executable is unavailable") from error
@@ -55,8 +64,8 @@ def run_git(
     return result
 
 
-def resolve_repository(project_root: str) -> tuple[Path, str]:
-    """要求独立非符号链接 Git 顶层与可解析的 40 位 HEAD。"""
+def resolve_repository(project_root: str) -> tuple[Path, str, str]:
+    """要求独立非符号链接 Git 顶层、具名分支与可解析的 40 位 HEAD。"""
 
     supplied = Path(project_root).expanduser()
     if supplied.is_symlink():
@@ -67,18 +76,20 @@ def resolve_repository(project_root: str) -> tuple[Path, str]:
         raise ReleaseGitError("project root does not exist") from error
     if not root.is_dir():
         raise ReleaseGitError("project root is not a directory")
-    query = run_git(
-        root,
-        ["rev-parse", "--is-inside-work-tree", "--show-toplevel", "HEAD"],
-    ).stdout.splitlines()
-    if len(query) != 3 or query[0] != "true":
+    query = run_git(root, ["rev-parse", "--is-inside-work-tree", "--show-toplevel", "HEAD"])
+    values = query.stdout.splitlines()
+    if len(values) != 3 or values[0] != "true":
         raise ReleaseGitError("project root is not a Git work tree with HEAD")
-    if Path(query[1]).resolve(strict=True) != root:
+    if Path(values[1]).resolve(strict=True) != root:
         raise ReleaseGitError("project root must equal the independent Git top level")
-    head = query[2]
+    head = values[2]
     if not HEAD_PATTERN.fullmatch(head):
         raise ReleaseGitError("HEAD must resolve to a 40-character lowercase commit")
-    return root, head
+    branch_result = run_git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
+    branch = branch_result.stdout.strip()
+    if branch_result.returncode != 0 or not branch:
+        raise ReleaseGitError("HEAD must be attached to a named branch")
+    return root, head, branch
 
 
 def status_bytes(root: Path) -> bytes:
@@ -91,10 +102,21 @@ def status_bytes(root: Path) -> bytes:
     ).stdout
 
 
-def repository_snapshot_digest(root: Path, status_value: bytes) -> str:
-    """摘要状态、已跟踪 diff、index 与未跟踪文件字节，阻断复核后的内容竞态。"""
+def repository_snapshot_digest(
+    root: Path,
+    status_value: bytes,
+    *,
+    head: str,
+    branch: str,
+) -> str:
+    """摘要分支、HEAD、状态、diff、index 与未跟踪字节，阻断切换竞态。"""
 
     digest = hashlib.sha256()
+    digest.update(b"branch\0")
+    digest.update(branch.encode("utf-8", "surrogateescape"))
+    digest.update(b"\0head\0")
+    digest.update(head.encode("ascii"))
+    digest.update(b"\0")
     digest.update(b"status\0")
     digest.update(status_value)
     for label, arguments in (
@@ -132,15 +154,87 @@ def decode_status_records(value: bytes) -> list[str]:
 def inspect_repository(project_root: str) -> dict[str, object]:
     """返回当前 HEAD、clean 结论与快照摘要，供 Agent 逐项复核真实 diff。"""
 
-    root, head = resolve_repository(project_root)
+    root, head, branch = resolve_repository(project_root)
     status = status_bytes(root)
     return {
         "status": "clean" if not status else "dirty",
         "projectRoot": str(root),
+        "branch": branch,
         "head": head,
-        "statusSha256": repository_snapshot_digest(root, status),
+        "statusSha256": repository_snapshot_digest(
+            root,
+            status,
+            head=head,
+            branch=branch,
+        ),
         "records": decode_status_records(status),
     }
+
+
+def read_active_chain(root: Path, branch: str, previous_head: str) -> dict[str, object]:
+    """在暂存前证明当前分支是登记叶子且远端保护基线没有漂移。"""
+
+    state_directory = root / ".harness"
+    state_file = state_directory / "git-branch-chain.json"
+    if state_directory.is_symlink() or state_file.is_symlink() or not state_file.is_file():
+        raise ReleaseGitError("protected branch-chain state is missing or not a regular file")
+    try:
+        payload = json.loads(state_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as error:
+        raise ReleaseGitError("protected branch-chain state is not valid UTF-8 JSON") from error
+    if not isinstance(payload, dict) or payload.get("schemaVersion") != 1:
+        raise ReleaseGitError("protected branch-chain state has an unsupported schema")
+    active = payload.get("activeChain")
+    if not isinstance(active, dict) or active.get("phase") != "active":
+        raise ReleaseGitError("release commit requires an active managed feature chain")
+    if active.get("activeLeaf") != branch:
+        raise ReleaseGitError("current feature branch is not the registered active leaf")
+
+    remote = active.get("remote")
+    expected_default = active.get("defaultBranch")
+    expected_default_head = active.get("defaultHead")
+    if not isinstance(remote, str) or not REMOTE_NAME_PATTERN.fullmatch(remote):
+        raise ReleaseGitError("registered branch-chain remote is invalid")
+    if not isinstance(expected_default, str) or not expected_default:
+        raise ReleaseGitError("registered remote default branch is invalid")
+    if not isinstance(expected_default_head, str) or not HEAD_PATTERN.fullmatch(
+        expected_default_head
+    ):
+        raise ReleaseGitError("registered remote default OID is invalid")
+    remotes = run_git(root, ["remote"]).stdout.splitlines()
+    if remote not in remotes:
+        raise ReleaseGitError("registered branch-chain remote is not configured")
+
+    snapshot = run_git(
+        root,
+        ["ls-remote", "--symref", remote, "HEAD", f"refs/heads/{branch}"],
+        check=False,
+    )
+    if snapshot.returncode != 0:
+        raise ReleaseGitError("cannot read the registered remote without interaction")
+    default_branch: str | None = None
+    default_head: str | None = None
+    leaf_head: str | None = None
+    for line in snapshot.stdout.splitlines():
+        fields = line.split("\t", 1)
+        if len(fields) != 2:
+            continue
+        value, ref = fields
+        if ref == "HEAD" and value.startswith("ref: refs/heads/"):
+            default_branch = value.removeprefix("ref: refs/heads/")
+        elif ref == "HEAD" and HEAD_PATTERN.fullmatch(value):
+            default_head = value
+        elif ref == f"refs/heads/{branch}" and HEAD_PATTERN.fullmatch(value):
+            leaf_head = value
+    if default_branch is None or default_head is None:
+        raise ReleaseGitError("registered remote HEAD is not an unambiguous branch")
+    if default_branch != expected_default or default_head != expected_default_head:
+        raise ReleaseGitError("remote default branch or OID changed after the chain was registered")
+    if branch in {"main", "master", "Release", default_branch}:
+        raise ReleaseGitError("registered active leaf resolves to a protected branch")
+    if leaf_head != previous_head:
+        raise ReleaseGitError("registered remote leaf must equal the reviewed local HEAD")
+    return active
 
 
 def normalize_approved_path(value: str) -> str:
@@ -153,8 +247,14 @@ def normalize_approved_path(value: str) -> str:
         part in ("", ".", "..") for part in path.parts
     ):
         raise ReleaseGitError(f"unsafe approved path: {value!r}")
-    if path.parts[0] == ".git" or path.parts[0] == "release" or path.parts[0].startswith(
-        ".release-clean."
+    if (
+        path.parts[0] == ".git"
+        or path.parts[0] == "release"
+        or path.parts[0].startswith(".release-clean.")
+        or path in {
+            PurePosixPath(".harness"),
+            PurePosixPath(".harness/git-branch-chain.json"),
+        }
     ):
         raise ReleaseGitError(f"release metadata or Git internals cannot be approved: {value!r}")
     return path.as_posix()
@@ -193,7 +293,12 @@ def commit_approved(
 ) -> dict[str, object]:
     """在快照未变化时暂存精确路径、运行正常 hooks 提交，并要求最终 clean。"""
 
-    root, previous_head = resolve_repository(project_root)
+    root, previous_head, branch = resolve_repository(project_root)
+    if not FEATURE_BRANCH_PATTERN.fullmatch(branch):
+        raise ReleaseGitError(
+            "release commits are allowed only on the active feature-<summary>-<YYYYMMDD> leaf; "
+            "main, master, the remote default branch, and Release are read-only here"
+        )
     if not re.fullmatch(r"[0-9a-f]{64}", expected_status_sha256):
         raise ReleaseGitError("expected status SHA-256 must be 64 lowercase hexadecimal characters")
     if not message.strip() or "\0" in message:
@@ -203,8 +308,30 @@ def commit_approved(
         raise ReleaseGitError("at least one reviewed path is required")
 
     before = status_bytes(root)
-    if repository_snapshot_digest(root, before) != expected_status_sha256:
+    if repository_snapshot_digest(
+        root,
+        before,
+        head=previous_head,
+        branch=branch,
+    ) != expected_status_sha256:
         raise ReleaseGitError("working tree changed after review; inspect it again before committing")
+    read_active_chain(root, branch, previous_head)
+    current_status = status_bytes(root)
+    _, current_head, current_branch = resolve_repository(str(root))
+    if (
+        current_head != previous_head
+        or current_branch != branch
+        or repository_snapshot_digest(
+            root,
+            current_status,
+            head=current_head,
+            branch=current_branch,
+        )
+        != expected_status_sha256
+    ):
+        raise ReleaseGitError(
+            "working tree, branch, or HEAD changed during remote verification; inspect it again"
+        )
     if not before:
         raise ReleaseGitError("working tree is clean; refusing an empty release commit")
 
@@ -229,6 +356,11 @@ def commit_approved(
         raise ReleaseGitError(
             "potential secret detected in reviewed staged bytes; remove it and inspect again"
         )
+    reviewed_index_patch = run_git(
+        root,
+        ["diff", "--cached", "--binary", "--no-ext-diff", "--no-textconv"],
+        text=False,
+    ).stdout
 
     unstaged = run_git(root, ["diff", "--quiet"], check=False)
     if unstaged.returncode not in (0, 1):
@@ -238,19 +370,40 @@ def commit_approved(
         raise ReleaseGitError(
             "reviewed paths do not cover the complete working tree; refusing a partial release commit"
         )
+    _, commit_parent, commit_branch = resolve_repository(str(root))
+    if commit_parent != previous_head or commit_branch != branch:
+        raise ReleaseGitError("branch or HEAD changed before the reviewed commit")
 
     # 不传 --no-verify；任一 pre-commit/commit-msg hook、签名或提交失败都会直接阻断。
     commit_result = run_git(root, ["commit", "-m", message], check=False)
     if commit_result.returncode != 0:
-        detail = commit_result.stderr.strip() or commit_result.stdout.strip() or "unknown commit failure"
-        raise ReleaseGitError(f"git commit failed; hooks were not bypassed: {detail}")
+        raise ReleaseGitError("git commit failed; hooks were not bypassed")
 
     final_status = status_bytes(root)
     if final_status:
         raise ReleaseGitError("commit succeeded but working tree is not clean; release must stop")
-    _, head = resolve_repository(str(root))
+    _, head, final_branch = resolve_repository(str(root))
     if head == previous_head:
         raise ReleaseGitError("git commit did not advance HEAD")
+    if final_branch != branch:
+        raise ReleaseGitError("git commit changed the reviewed branch unexpectedly")
+    parents = run_git(root, ["rev-list", "--parents", "-n", "1", head]).stdout.split()
+    if parents != [head, previous_head]:
+        raise ReleaseGitError("reviewed commit is not the direct non-merge child of the reviewed HEAD")
+    committed_patch = run_git(
+        root,
+        [
+            "diff",
+            "--binary",
+            "--no-ext-diff",
+            "--no-textconv",
+            previous_head,
+            head,
+        ],
+        text=False,
+    ).stdout
+    if committed_patch != reviewed_index_patch:
+        raise ReleaseGitError("a commit hook changed the reviewed staged content; release must stop")
     return {
         "status": "committed",
         "projectRoot": str(root),

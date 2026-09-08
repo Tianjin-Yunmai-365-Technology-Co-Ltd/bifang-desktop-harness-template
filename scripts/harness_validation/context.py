@@ -8,6 +8,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = ROOT / ".agents" / "skills"
+WORKFLOW = (
+    SKILLS_ROOT
+    / "desktop-prepare-cross-platform-release"
+    / "assets"
+    / "github-release-candidate.yml"
+)
 INITIALIZE_SKILL = SKILLS_ROOT / "desktop-initialize-rust-project"
 INSTANTIATE_SKILL_ROOT = SKILLS_ROOT / "desktop-instantiate-project"
 INSTANTIATE_SKILL = INSTANTIATE_SKILL_ROOT / "SKILL.md"
@@ -161,6 +167,33 @@ VERIFICATION_DOC = ROOT / "docs" / "VERIFICATION.md"
 PARALLEL_SKILL = SKILLS_ROOT / "desktop-run-parallel-worktrees"
 PARALLEL_WORKTREE_SCRIPT = PARALLEL_SKILL / "scripts" / "parallel_worktrees.py"
 PARALLEL_WORKTREE_TESTS = PARALLEL_SKILL / "scripts" / "test_parallel_worktrees.py"
+BRANCH_CHAIN_SKILL_ROOT = SKILLS_ROOT / "desktop-manage-git-branch-chain"
+BRANCH_CHAIN_SKILL = BRANCH_CHAIN_SKILL_ROOT / "SKILL.md"
+BRANCH_CHAIN_METADATA = BRANCH_CHAIN_SKILL_ROOT / "agents" / "openai.yaml"
+BRANCH_CHAIN_EMPTY_STATE = (
+    BRANCH_CHAIN_SKILL_ROOT / "assets" / "git-branch-chain.json"
+)
+BRANCH_CHAIN_SCRIPT = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "git_branch_chain.py"
+BRANCH_CHAIN_OPERATIONS = (
+    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_operations.py"
+)
+BRANCH_CHAIN_COMMIT = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_commit.py"
+BRANCH_CHAIN_CHECKS = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_checks.py"
+BRANCH_CHAIN_GIT = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_git.py"
+BRANCH_CHAIN_REMOTE = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_remote.py"
+BRANCH_CHAIN_STATE = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_state.py"
+BRANCH_CHAIN_TESTS = (
+    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain.py"
+)
+BRANCH_CHAIN_RACE_TESTS = (
+    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain_race.py"
+)
+BRANCH_CHAIN_CONTRACT_TESTS = (
+    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain_contract.py"
+)
+BRANCH_CHAIN_VERSION_TESTS = (
+    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain_version.py"
+)
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md"
 RELEASE_NOTES_HELPER = (
@@ -290,6 +323,9 @@ RUST_COMMENT_CHECKER_TESTS = (
 PREREQUISITE_UNIX = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.sh"
 PREREQUISITE_WINDOWS = ENVIRONMENT_SKILL / "scripts" / "development-environment-gates.ps1"
 PREREQUISITE_TESTS = ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates.py"
+PREREQUISITE_WINDOWS_TESTS = (
+    ENVIRONMENT_SKILL / "scripts" / "test_development_environment_gates_windows.py"
+)
 MACOS_XWIN_GATE = ENVIRONMENT_SKILL / "scripts" / "macos-tauri-xwin-gates.sh"
 MACOS_XWIN_GATE_TESTS = (
     ENVIRONMENT_SKILL / "scripts" / "test_macos_tauri_xwin_gates.py"
@@ -356,6 +392,7 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-check-development-environment/scripts/development-environment-gates.sh",
     ".agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1",
     ".agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates.py",
+    ".agents/skills/desktop-check-development-environment/scripts/test_development_environment_gates_windows.py",
     ".agents/skills/desktop-check-development-environment/scripts/macos-tauri-xwin-gates.sh",
     ".agents/skills/desktop-check-development-environment/scripts/test_macos_tauri_xwin_gates.py",
     ".agents/skills/desktop-instantiate-project/references/initialization-form.md",
@@ -408,6 +445,20 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/test_parallel_worktrees.py",
+    ".agents/skills/desktop-manage-git-branch-chain/SKILL.md",
+    ".agents/skills/desktop-manage-git-branch-chain/agents/openai.yaml",
+    ".agents/skills/desktop-manage-git-branch-chain/assets/git-branch-chain.json",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/git_branch_chain.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_operations.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_commit.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_checks.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_git.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_remote.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_state.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_contract.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_race.py",
+    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_version.py",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.sh",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.ps1",
     ".agents/skills/desktop-build-rust-release/scripts/test_prepare_release_directory.py",
@@ -505,8 +556,6 @@ REQUIRED_FILES = (
     "scripts/test_validate_harness.py",
     "scripts/test_release_validation.py",
     "scripts/harness_validation/release.py",
-    "scripts/harness_validation/local_release.py",
-    "scripts/test_local_release.py",
     "scripts/harness_validation/architecture.py",
     "scripts/harness_validation/architecture_requirements.py",
     "scripts/harness_validation/test_architecture.py",
@@ -523,10 +572,14 @@ REQUIRED_FILES = (
     "scripts/harness_validation/repository_memory.py",
     "scripts/harness_validation/product_versioning.py",
     "scripts/harness_validation/test_product_versioning.py",
+    "scripts/harness_validation/workflow_contract.py",
     "scripts/harness_validation/initialization_environment.py",
     "scripts/harness_validation/initialization_primary_contract.py",
     "scripts/harness_validation/initialization_repository_contract.py",
     "scripts/harness_validation_governance_tests.py",
+    "scripts/harness_workflow_test_support.py",
+    "scripts/harness_validation_workflow_structure_tests.py",
+    "scripts/harness_validation_workflow_execution_tests.py",
     "scripts/harness_validation_upgrade_tests.py",
     "scripts/validate_harness.py",
 )
@@ -557,6 +610,7 @@ EXPECTED_SKILLS = {
     "desktop-extract-i18n-strings",
     "desktop-implement-change",
     "desktop-manage-version",
+    "desktop-manage-git-branch-chain",
     "desktop-initialize-rust-project",
     "desktop-instantiate-project",
     "desktop-plan-change",

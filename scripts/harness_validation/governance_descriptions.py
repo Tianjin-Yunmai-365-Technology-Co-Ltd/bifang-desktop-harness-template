@@ -137,7 +137,11 @@ def validate_current_descriptions(errors: list[str]) -> None:
             '"1.96.0"',
         ),
         RUST_ASSET / "Cargo.toml": ('rust-version = "1.95"',),
-        CROSS_PLATFORM_RELEASE_SKILL: ("读取项目声明的 `rust-version`", "复用本机兼容工具链"),
+        WORKFLOW: (
+            "读取项目最低 Rust 版本",
+            'environment.write(f"RUSTUP_TOOLCHAIN={version}\\n")',
+            'rustup toolchain install "$RUSTUP_TOOLCHAIN"',
+        ),
     }
     for path, fragments in msrv_fragments.items():
         if not path.is_file():
@@ -180,13 +184,15 @@ def validate_current_descriptions(errors: list[str]) -> None:
         ENVIRONMENT_SKILL / "SKILL.md": (
             "^24.15.0 || >=26.0.0",
             ">=11.24.0",
-            "最新兼容稳定版",
+            "upgrade-required",
+            "不得降低项目门槛",
         ),
         ENVIRONMENT_SKILL / "references" / "development-environment-gates.md": (
             "^24.15.0 || >=26.0.0",
             ">=11.24.0",
             ">=0.23.1, <0.24.0",
-            "当前最新兼容稳定版",
+            "upgrade-required",
+            "不得降低最低门禁",
         ),
         PREREQUISITE_UNIX: (
             "NODE_REQUIREMENT='^24.15.0 || >=26.0.0'",
@@ -197,7 +203,10 @@ def validate_current_descriptions(errors: list[str]) -> None:
             '$PnpmRequirement = ">=11.24.0"',
         ),
         MACOS_XWIN_GATE: ("CARGO_XWIN_REQUIREMENT='>=0.23.1, <0.24.0'",),
-        CROSS_PLATFORM_RELEASE_SKILL: ("读取项目声明的 `rust-version`", "复用本机兼容工具链"),
+        WORKFLOW: (
+            "读取项目最低 Rust 版本",
+            "RUSTUP_TOOLCHAIN={version}",
+        ),
     }
     for path, fragments in minimum_version_fragments.items():
         if not path.is_file():

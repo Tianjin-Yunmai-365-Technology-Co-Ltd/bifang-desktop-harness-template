@@ -16,7 +16,7 @@ milestone_e2e: pending
 ## 字段语义
 
 - `superpowers`：`enabled` 允许按任务触发名称以 `superpowers:` 开头的 Skills；`disabled` 禁止后续规划、实现、验证和发布调用或遵循这些 Skills。
-- `parallel_worktree_subagents`：`enabled` 只表示用户明确要求并行时允许使用 Worktree + 写入型 Subagent；`disabled` 使用单 Agent 当前工作树。持久启用本身不能触发并行步骤。
+- `parallel_worktree_subagents`：`enabled` 只表示用户明确要求并行时允许使用 Worktree + 写入型 Subagent；`disabled` 使用单 Agent 当前工作树。持久启用本身不能触发并行步骤；受管 feature 链处于 active 时，为保持可发布的严格线性历史，产品写入仍必须串行，只有只读 Subagent 可并行。
 - `milestone_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `milestone_e2e`：仅作为每次显式发布候选构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前候选的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
   （`milestone_smoke`、`milestone_e2e` 字段名保留历史 `milestone` 前缀以维持既有 schema 兼容，语义已收敛为完整验收冒烟偏好与构建级 E2E 建议默认值，与已废弃的“快速/标准/里程碑”任务分级模型无关，不得据字段名推断存在任务分级。）
@@ -24,9 +24,29 @@ milestone_e2e: pending
 
 `enabled` 表示“允许且适用时优先”，不是无条件执行；`disabled` 表示默认不启用可选能力。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前发布候选的 E2E 明确选择优先于 `milestone_e2e` 建议值。
 
+普通调用 Task（即没有为本结果调用 `create_thread`，而是在当前调用 Session 直接完成的普通单结果请求）在完成授权工作和本次必需检查后、发送最终回复前，尝试把当前 Session 的显示标题更新为 `{任务}-{ID}-{摘要}`；用户所称 `{task}-{id}-{feature}` 是同一格式的英文占位别名，不新增第二套标题语法。`任务`/`task` 是稳定的动作或任务类别，`ID`/`id` 优先复用当前说明中已有的不可变 Task key 或稳定 `change_id`，没有时在首次重命名前分配一次非空 ASCII key 并在同一结果的重试中复用，`摘要`/`feature` 是已经完成的单一结果简述而不是 Git `feature-*` ref；三段均非空，Ready/Active/Blocked 等状态不得进入标题。调用后返回的 `threadId`/`clientThreadId` 只用于真实身份对账，不得反填显示标题。
+
+Session 收尾命名是一次非阻断 UI 元数据操作。目标标题已经精确匹配时只验证；否则调用 `set_thread_title` 至多一次并省略 `threadId`，使宿主只重命名当前调用 Task。随后用调用环境已提供、重命名响应返回或重命名前对账得到的真实 `threadId` 调用 `list_threads` 做一次有界复读，同时核对可用的 `hostId`/`projectId`，并按同一真实 id 比较宿主返回的规范化标题原文。内部 Subagent、agent thread 和内部 Worktree 不执行该操作；已经按下述创建契约固定标题的 Git Worktree 左侧 Task 保持派发标题，只验证、不重写。工具不可用、真实 id 不可得、候选有歧义、重命名失败或复读仍未反映时，不得创建替代 Task 或无限重试，也不得推翻已经完成的任务结果；最终回复明确报告“已重命名并验证”“已请求但未验证”或“重命名失败”及原因。
+
 含 GUI 的一次性初始化 E2E 是脚手架完成门禁，不属于 `milestone_e2e`。初始化器读取固定顺序的九项 GUI profile；同时始终验证不询问、不进入 profile 的 system-locale/updater/window-state 三项 Rust-only 固定基线与 dialog 固定 WebView 基线。dialog 必须证明固定 Rust/前端依赖、唯一有序注册、主窗口精确 `dialog:default` 和零额外文件系统授权。按 profile 分派的 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个独立 Skills 必须分别证明启用完整或禁用无残留，`deep_link = enabled` 必须同时有 `single_instance = enabled`；关于页、赞助页和侧栏仍按实际选择验证。单实例执行双启动，托盘执行可见托盘与关闭隐藏/恢复/退出，通知、自启与深链接宿主事件只在对应字段启用时执行；中性全局快捷键 contract 验证零默认注册与 owned 清理，只有 contract 明确提供安全可观察绑定时才触发实际 chord 并恢复原配置。macOS 需安装包注册才能证明的深链接场景在 debug no-bundle 阶段标为 `Not verified`。托盘禁用时必须实测关闭最后窗口退出。宿主无法判定/观察适用场景，或无法恢复自启、快捷键、窗口状态等被测宿主状态时，初始化必须阻断，不能用持久偏好跳过。
 
 GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`：当前请求已经明确时直接复用，否则询问一次；修复后重跑同一发布时复用原选择，新发布必须重新询问。选择 `enabled` 或产品/渠道硬要求时，才由 `$desktop-test-gui-release-performance` 对 release-profile 探针候选执行；它必须隔离 window-state 持久数据，让每次启动使用同一测试基线，并在成功、失败、超时或取消后恢复且复核原字节/原缺席状态。选择 `disabled` 且没有硬要求时跳过探针，在 manifest 和最终回复记录 `performanceStatus: Not run`、原因与剩余风险，并且不得生成 `performanceEvidence`、`performanceProbe` 或 `performanceRuntimeBinding`。已启用后的性能失败仍先回实现修复和重建；用户显式继续只能记录 `performanceStatus: waived` 与原失败证据，不能把它改判为通过，也不能用 `waived` 冒充预先关闭。updater 插件基线不需要策略字段；每次发布候选构建从产品事实解析的 `updaterEnabled` 只控制是否生成和验签 updater archive/`.sig`，不控制是否安装插件。
+
+“不是持久偏好”不等于依赖对话内存：`$desktop-prepare-release` 必须把当次审查结果、GUI 性能选择和适用的 macOS 签名选择/来源封存在当前链 closing commit 的 `releaseReview`/`candidateSelections`，使同一发布中断重试可复用；它们不得写入 frontmatter 或成为下一次发布默认值。候选构建在清理、测试前和写 manifest 前只读验证并消费这两份信封，只在关闭链后另行解析 E2E。
+
+## 产品 feature 分支链与 Release 集成
+
+本节只约束完成初始化且已经存在可访问 Git 远端的终端下游。初始化仍在本地 `main` 上建立唯一中性基线且不配置远端；在用户或外部系统后来配置远端之前，产品开发必须因缺少安全发布目标而停止，不得由 Agent 创建远端、填写地址或处理凭据。远端优先使用精确 `origin`；没有 `origin` 时只接受唯一远端，零个或多个候选都失败，除非用户在当前请求明确给出远端名。
+
+- 新需求、Bug 修复或其他会写入仓库的维护工作开始前，调用 `$desktop-manage-git-branch-chain start`。分支名固定为 `feature-{ascii-kebab-summary}-{YYYYMMDD}`：摘要由需求或 Bug 的最短可辨识语义转为小写 ASCII kebab，日期取 `Asia/Shanghai` 自然日；Bug 同样使用 `feature-` 前缀。命名为空、碰撞、工作树/暂存区不干净、远端不可读写或分支已被其他 Worktree 占用时失败关闭，不猜测后缀、不覆盖 ref。
+- 分支链严格串行。第一条链优先从已推送的精确 `Release` 开始；`Release` 尚不存在时，才以当时远端默认分支的已复读提交为首链基线。链已活动时，每个真正的新需求/Bug 从当前已推送叶子的精确提交创建下一节点；同一需求的诊断、实现、相关测试、review 和同范围修正继续使用同一叶子，不重复建节点。
+- 一条 active feature 叶子同一时刻最多承载一个产品写入 `codex/task-*`，且该 Task 不得再创建 sibling 写入 `codex/unit-*`；只读 Task/Subagent 仍可并行。协调方只能在登记 active feature 叶子的 Worktree 中调用 `$desktop-manage-git-branch-chain integrate-task`，显式传入匹配 `codex/task-<task-slug>` 的 Task ref、该 ref 唯一登记的独立 Worktree 和已经选定的 40 位小写 Task OID；工具要求两个 Worktree clean、叶子本地/远端 OID 一致、Task 是叶子的严格非 merge 线性后代、Task 范围内任一提交都未触碰受保护链状态（后续恢复原字节也不例外），且链内 feature refs、目标 Task ref 和其他 `codex/task-*`/`codex/unit-*` 没有冲突占用，才以 `git merge --ff-only <task-head>` 只更新本地叶子。命令不得自动 push 或清理 Task；后续 `publish` 成功把新叶子 OID 推送并复核活动状态后，才能清理并从新的远端 OID 创建下一个写入 Task。不得用 merge commit、rebase、cherry-pick 或 squash 拼接并行 sibling 历史来绕过严格线性发布门禁。
+- `.harness/git-branch-chain.json` 是受保护的当前链状态。活动链记录 schema、远端、默认分支与冻结 OID、基线 ref/OID、节点顺序、每节点父 ref/OID、活动叶子和 `active` 阶段；关闭提交把活动链转为含 `releaseHeadBefore`、每节点关闭前 OID、`releaseReview` 和 `candidateSelections` 的不可变 `lastClosedChain`。审查终点后的提交按提交逐个检查，改后恢复也不能夹带非发布元数据路径；两份信封和关闭状态在一个提交中原子封存。关闭提交自身 OID 不可能自引用写入其 tree，固定以 `closingHead: null` 表示并由“当前提交的唯一直接父等于关闭前叶子”推导；每次 `start`/`publish`/`release` 都实时复读实际远端 OID，不把它伪造为持久字段。`start` 必须先形成仅含该状态变化的提交，再以非强制 push 创建远端节点并复读；失败时不得开始产品源码写入。不得手改状态伪造链路或删除范围。
+- 每个日常逻辑闭环都按 `$desktop-configure-git-commits` 形成归属明确的提交，随后调用 `$desktop-manage-git-branch-chain publish`，只用显式完整 refspec 把登记活动叶子非强制快进到登记远端并复读 40 位 OID。普通 Task、构建、诊断或状态检查不扩大此授权；不得自动配置远端/凭据、强推、rebase、cherry-pick、打标签或上传制品。
+- 精确 `main`、`master`、动态解析出的远端默认分支以及 `Release` 都是保护分支：Agent 可以只读解析或把它们作为合格基线，但日常实现和普通 Git 命令不得在这些分支上写文件、暂存、提交、合并、推送或删除；唯一写入例外是下一条规定的 `$desktop-manage-git-branch-chain release` 原子事务对 `Release` 的受限快进。工具必须在写入前和提交/推送前后复核当前分支、HEAD、远端 OID 与工作树，detached HEAD 或任何漂移都失败关闭。
+- 用户明确要求程序发布候选时，`$desktop-prepare-release` 先把活动叶子的源码与发布元数据提交全部推送，再把显式完整的审查/候选选择信封传给 `$desktop-manage-git-branch-chain release`。只有登记节点构成从冻结基线到活动叶子的严格父子线性历史、父 OID 未漂移、全部本地/远端 OID 一致、工作树干净且无其他 Worktree 占用时，才在叶子提交关闭状态，并用一次 atomic push 将精确 `Release` 快进到关闭提交，同时以每个登记远端 feature ref 的旧 OID 作为 lease 删除整链；禁止通配符、无精确期望 OID 的强制更新、非快进、rebase、cherry-pick 或删除链外 ref，逐 ref lease 删除是唯一允许的 force 形式。任何正式候选构建都必须先用 `verify-release-review` 证明当前 clean `Release` 正是已完成远端/本地收尾且信封有效的关闭提交。
+- atomic push 失败时 `Release` 和所有远端 feature ref 都必须保持原状；远端成功后先复读确认默认分支 OID 未变化，再按状态清单删除精确本地 feature refs。若只在本地清理阶段中断，保留可幂等重试的关闭状态，不得重做远端发布或扩大删除范围。成功后当前分支是 clean 的 `Release`，本地/远端 `Release` 与关闭提交相同，链状态回到空闲。
+- Agent 永远不得执行、代建或自动化 `Release` 到 `main`、`master` 或动态默认分支的 merge、push、删除或 PR；完成时只报告精确远端、`Release` ref 和 40 位提交，由用户自行 Merge/PR。该人工步骤也不等于真实渠道发布成功，不能自行触发版本周期重置。
 
 ## 左侧 Task、项目绑定与独立 Worktree
 
@@ -37,28 +57,28 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 ### 创建状态机
 
 1. **RESOLVED**：调用 `list_projects`，按规范化完整路径精确选中保存项目并记录其真实 `projectId`、项目类型和 `isGitRepository`；同名标签、当前 cwd 或仓库名称都不能替代路径核对。调用 `create_thread` 时必须使用 `target.type = project` 和该 `projectId`。Git 项目使用 `environment.type = worktree`；非 Git 项目使用 `environment.type = local`。项目工作不得使用 `projectless`、临时目录、Task0 cwd、默认兜底项目或其他项目。
-2. **DISPATCHED**：对一个结果只调用一次 `create_thread`。返回 `threadId` 表示已得到可管理的 Ready Task；只返回 `clientThreadId` 表示创建请求已接受但仍为 `SETUP_PENDING`，不是失败，也不是可传给 `read_thread`、`wait_threads` 或其他要求 `threadId` 的标识。此时立即报告 queued Task 并返回对应的 created-thread UI 引用；不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建、把 pending 改称 Ready，或在当前 Task/后台目录代替新 Task 偷跑。
+2. **DISPATCHED**：对一个结果只调用一次 `create_thread`。Git Worktree Task 必须在派发前分配不可变 Task key，并显式传入 `title="{任务}-{ID}-{摘要}"`；其中 `ID` 使用该 Task key，不得使用调用后才返回的 `threadId` 或 `clientThreadId`。返回 `threadId` 表示已得到可管理的 Ready Task；只返回 `clientThreadId` 表示创建请求已接受但仍为 `SETUP_PENDING`，不是失败，也不是可传给 `read_thread`、`wait_threads` 或其他要求 `threadId` 的标识。此时立即报告 queued Task 并返回对应的 created-thread UI 引用；不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建、把 pending 改称 Ready，或在当前 Task/后台目录代替新 Task 偷跑。
 3. **RECONCILED**：已经取得真实 `threadId` 时立即用 `list_threads` 对账；只有 `clientThreadId` 时，则仅在用户随后明确要求检查先前 queued Task 后对账。以真实 id 和精确 `projectId` 为主键；标题使用工具返回的规范化标题原文，不因应用正常化措辞而误判。唯一候选尚未出现时保持 `SETUP_PENDING` 并结束本次检查；候选不唯一时报告 ambiguous；只有工具明确返回失败才记为 `SETUP_FAILED`。任何 pending/ambiguous 状态都禁止“再创建一个碰碰运气”。
 4. **BOUND**：进入 Ready Task 后、首次写入前再次确认线程 `projectId` 精确匹配。Worktree 的物理路径通常位于保存项目目录之外，不能用字符串祖先关系判断归属；必须分别解析保存项目根与 Task Git 顶层的规范化 `git rev-parse --path-format=absolute --git-common-dir`，要求相同，并要求保存项目的 `git worktree list --porcelain` 已登记该 Task 顶层。非 Git Local Task 才要求 cwd 等于保存项目完整路径。`projectId` 为空/错误、Git common dir 不同、Worktree 未登记或起始提交不符时保持零写入并报告绑定错误；现有 Task 不能被仓库规则静默改挂到另一项目。
 
 ### 命名、基线与分支
 
-- 标题使用简短的“动作 + 单一结果”；需要编号时可以使用稳定的 `Task N | 动作 + 单一结果`，但不得把会变化的 Ready/Active/Blocked 等状态写进标题。创建后以 `list_threads` 返回的标题原文识别和展示。
-- Task 描述记录不可变的 Task key、目标 `projectId`、保存项目完整路径、Git repository identity、起始分支/提交和完成边界。未明确这些事实时不得用猜测值创建。
-- 用户明确指定起始 branch/ref 时按该事实创建；否则使用保存项目的默认分支 HEAD，不硬编码 `main` 或 `master`，也不主动 fetch/pull。基线必须已有提交；除非用户明确要求从 working tree 状态开始，否则不得复制未提交修改。基线不明确、分叉或修改无法安全归属时停止创建。
-- Codex 管理 Worktree 默认可能处于 detached HEAD。Ready Task 在首次编辑前创建并切换到唯一 `codex/task-<task-slug>` 分支，确认当前 Git 顶层就是已登记的该 Task Worktree，且不得让另一个 Task 使用同一 Worktree 或分支。
+- Git Worktree 左侧 Task 的显示标题固定为 `{任务}-{ID}-{摘要}`：`任务` 是稳定的任务名称或动作，`ID` 是派发前已经写入描述的不可变 Task key，`摘要` 简述单一可验收结果，三个非空部分以 `-` 连接。调用 `create_thread` 时必须显式传入 `title="{任务}-{ID}-{摘要}"`；不得把调用后才返回的 `threadId`/`clientThreadId` 写进标题。不得把会变化的 Ready/Active/Blocked 等状态写进标题。非 Git Local Task 仍使用简短的“动作 + 单一结果”且不带状态。创建后以真实 id 和 `projectId` 对账，并使用 `list_threads` 返回的规范化标题原文展示，不靠标题承担身份判断。
+- Task 描述记录不可变的 Task key、派发时使用的完整显示标题、独立的 ASCII `task-slug`、目标 `projectId`、保存项目完整路径、Git repository identity、起始分支/提交和完成边界。显示标题与 Git slug 是两个事实；不得把 `{任务}-{ID}-{摘要}` 原样当作 Git ref，也不得根据返回 id 重新命名。未明确这些事实时不得用猜测值创建。
+- 只读或非产品写入 Task 在用户明确指定时按该 branch/ref 创建，否则使用保存项目的默认分支 HEAD，不硬编码 `main` 或 `master`，也不主动 fetch/pull。会形成产品变更的 Task 必须从已推送的活动 feature 叶子创建；若它本身代表新需求/Bug且尚无活动链，协调方先在保存项目按上一节建立叶子，再把精确 OID 作为 Task 起点。同一活动叶子已有未整合的写入 Task 时不得再创建第二个写入 Task；必须等前者 fast-forward 整合并推送后从新 OID 创建。基线必须已有提交；除非用户明确要求从 working tree 状态开始且不违反分支链保护，否则不得复制未提交修改。基线不明确、分叉或修改无法安全归属时停止创建。
+- Codex 管理 Worktree 默认可能处于 detached HEAD。Ready Task 在首次编辑前使用描述中单独记录的 ASCII `task-slug` 创建并切换到唯一 `codex/task-<task-slug>` 分支；`task-slug` 只服务路径和 Git ref 安全，不是显示标题。确认当前 Git 顶层就是已登记的该 Task Worktree，且不得让另一个 Task 使用同一 Worktree 或分支。
 
 ### 执行、提交与边界
 
 - Task 只在自己的 Worktree 修改文件，不直接编辑 Local 主工作目录，也不进入、清理或复用其他 Task 的 Worktree。保护已有修改，不扩大任务说明中的允许范围。
 - 每完成一个能够独立说明结果的逻辑闭环就提交一次。提交信息按 `$desktop-configure-git-commits` 表达已经得到的结果，例如 `feat: implement WeChat accessibility selectors`、`fix: reject stale accessibility identities` 或 `docs: record capability gate evidence`；简单变化可只写主题，非简单变化保留 Why/Changes/Impact/Test，未运行测试明确写 `Not run` 原因。不得把构建缓存、`target/`、`node_modules/`、`dist/`、`__pycache__/` 或其他忽略生成物加入提交。
-- Task 不自行覆盖 `/Applications` 中的最终应用，不删除其他 Worktree，不合并保存项目的默认/集成分支，也不执行推送、发布、签名或其他未在任务描述中明确授权的外部副作用。
+- `codex/task-*` 和 `codex/unit-*` 是临时实施分支，不是 feature 链节点。Task 不自行覆盖 `/Applications` 中的最终应用，不删除其他 Worktree，不合并保存项目的默认/集成分支或活动 feature 叶子，也不执行推送、发布、签名或其他未在任务描述中明确授权的外部副作用。
 - 最终交付前必须确认任务要求的测试已经执行、相关权威文档已经同步、全部任务改动已经提交，并且 `git status --porcelain=v1 --untracked-files=all` 为空。适用目标必须编译并验证真实目标行为；任务没有可编译产物或完整候选不在范围内时，必须把该项明确报告为 `Not applicable` 或 `Not run`，不得伪造通过，也不得因此自动扩大为构建/E2E/完整验收。
 
 ### 协调方整合与清理
 
-- Task 完成后只报告分支、提交哈希、实际验证、未执行项和剩余风险，不自行合并默认/集成分支。协调 Task 或用户在复核提交、测试证据、文档差异和剩余风险后，才按项目策略整合。
-- 只有整合完成、确认没有未提交文件且 Task 提交已包含在指定集成分支后，协调方才移除对应 Worktree，再安全删除对应 `codex/task-*` 分支。Task 本身不得提前删除自己的 Worktree/分支，也不得删除任何其他 Task 的资源。
+- Task 完成后只报告分支、提交哈希、实际验证、未执行项和剩余风险，不自行合并默认/集成分支或活动 feature 叶子。协调 Task 或用户读取该报告后，只机械核对任务范围、疑似秘密、任务明确要求的测试、工作树 clean、分支/Worktree/OID/祖先、受保护状态和唯一写入占用；不得借整合执行非必要语义审查。门禁通过后用 `integrate-task` 把提交快进到创建时登记的活动 feature 叶子，再由该叶子执行 `publish`。
+- 只有整合完成、确认没有未提交文件且 Task 提交已包含在登记的活动 feature 叶子后，协调方才移除对应 Worktree，再安全删除对应 `codex/task-*` 分支。Task 本身不得提前删除自己的 Worktree/分支，也不得删除任何其他 Task 的资源。
 
 ### 统一 Task 描述模板
 
@@ -70,7 +90,9 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 
 Task 绑定：
 
-- Task key：填写不可变标识。
+- Task key：填写派发前分配的不可变标识；它同时是显示标题中的 `ID`，不得填写返回后的 `threadId` 或 `clientThreadId`。
+- 显示标题：填写按 `{任务}-{ID}-{摘要}` 形成并传给 `create_thread.title` 的完整字符串；不得包含 Ready/Active/Blocked 等状态。
+- Git task slug：Git Worktree Task 填写独立的 ASCII `task-slug`，供 `codex/task-<task-slug>` 使用；不得复制显示标题，非 Git 时标记 `Not applicable`。
 - Codex 项目：填写名称、`projectId` 和保存项目完整路径。
 - Git 绑定：填写 repository identity、起始分支和起始提交；非 Git 时标记 `Not applicable`。
 
@@ -126,10 +148,10 @@ Task 绑定：
 - Windows GUI 的普通“构建/打包/首次安装试包”默认是 `$desktop-build-tauri-local-install` 的本地开发制品，不是发布候选。它不要求 clean HEAD 或 `release-notes.json`，不调用发布准备、不写根 `release/`、不提交、不签名、不安装，也不询问 E2E 或性能选择；只有用户明确说“发布候选”或“准备并构建发布”才进入下列候选门禁。
 - 显式发布候选构建必须为当前候选解析一次 E2E 选择。若当前请求已明确 `enabled`/`disabled`，直接复用且不重复询问；否则在任何测试或编译前询问一次，并可把 `milestone_e2e` 作为建议默认选项展示。
 - E2E 选择只对当前发布候选有效，不得静默改写本文件。选择启用或产品/渠道要求时，E2E 只在最终真实候选形成后运行；选择禁用时只在 `release/` manifest 和最终回复记录 `Not run` 与剩余风险。
-- 每次 GUI 发布还必须独立解析当次性能选择。`$desktop-prepare-release` 在发布入口复用当前请求的明确选择或询问一次，再把结果传给 `$desktop-build-tauri-release`；直接调用 GUI 构建且没有携带选择时，由构建 Skill 在任何测试或编译前兜底询问一次。两条入口都不得静默沿用上次发布或 `milestone_e2e`。
-- 明确发布请求本身授权流程复核并本地提交范围明确的已完成改动，然后直接构建，无需再次询问是否提交或是否构建；普通构建不自动提交。发布仅按 `docs/RELEASE.md` 完成本地交付，不走 CI/CD，不 push、不上传、不向 Git 等远端发布；Git remote 与标签不是前置条件。
+- 每次 GUI 发布还必须独立解析当次性能选择。所有正式候选都先经过 `$desktop-prepare-release`：它在关闭链前复用当前请求的明确选择或询问一次，并把结果封存进 closing commit 的 `candidateSelections`；`$desktop-build-tauri-release` 只读消费该记录，缺失时失败关闭，不得从对话补写、兜底询问或静默沿用上次发布或 `milestone_e2e`。
+- 明确发布请求本身授权流程复核并提交、推送范围明确的活动 feature 叶子，以原子操作把登记链快进到 `Release` 并精确清理本地/远端链路，然后直接构建，无需再次询问是否提交、是否执行该受限分支操作或是否构建；普通构建不自动提交或关闭链路，tag、上传、真实渠道发布及 `Release` 到默认分支仍需各自授权或由用户自行完成。
 - GUI 性能与 E2E 选择相互独立。性能选择为 `enabled` 或产品/渠道要求时执行完整门禁；为 `disabled` 且无硬要求时允许以 `performanceStatus: Not run` 继续，但必须保留原因和剩余风险。已启用后只有安全修复尝试仍不达标时，才询问用户是否以可见 waiver 继续。
-- 构建请求、执行和结果本身不创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；发布候选构建事实只进入当前 `release/` manifest、其声明的相邻制品证据和最终回复，本地开发试包只进入最终回复。独立触发的 E2E、完整验收、发布、人工复核或长期审计仍由对应流程按自身规则留证。
+- 构建请求、执行和结果，以及候选 E2E、完整验收、`pending` → `accepted` 和就绪复核，都不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 或其他 tracked 项目记忆；这些候选事实只进入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复，本地开发试包只进入最终回复。真实渠道发布成功后，才从已发布 `Release` 开始后续受管 feature 生命周期，追加 Verification/发布/Product Status 记录并 finalize 版本周期；独立回顾性人工复核或长期审计也必须使用自己的受管 feature 生命周期，且不得反向批准活动候选。
 - 普通缺陷修复、纯重构等维护类型本身不创建 Product Spec、ADR、Status、Changelog 或 Verification；用户明确要求、跨会话交接、安全、发布和长期决定等独立事件仍按各自门禁记录。
 
 ## 执行优先级
@@ -138,12 +160,12 @@ Task 绑定：
 2. 当前请求中用户明确给出的约束；发布候选构建请求中的 E2E 选择和 GUI 发布性能选择属于本级。
 3. 本文件持久策略；`milestone_e2e` 只提供建议默认值。
 4. Agent 根据接口、真实产物和批准场景作出的适用性判断。
-5. 发布候选构建请求尚未明确 E2E 时，在测试或编译前询问一次；GUI 发布尚未明确性能选择时同样询问一次，且不跨发布复用；其他事项仍无法可靠判断时再询问用户。
+5. 发布候选构建请求尚未明确 E2E 时，在测试或编译前询问一次；GUI 发布尚未明确性能选择时，由 `$desktop-prepare-release` 在关闭链前询问一次并封存，且不跨发布复用；其他事项仍无法可靠判断时再询问用户。
 
-执行原则可概括为：能力偏好先复用；本地开发试包不消费 E2E/性能选择；发布候选 E2E 每次都必须有当前选择；GUI 性能每次发布都必须有当次选择。
+执行原则可概括为：能力偏好先复用；本地开发试包不消费 E2E/性能选择；发布候选 E2E 每次都必须有当前选择；GUI 性能与 macOS 签名选择由发布准备逐次解析并封存，构建只读消费。
 
 ## 不受影响的能力
 
 - 本文件不关闭 `.agents/skills/` 中的项目 Skills，也不关闭 Codex 基础工具或安全规则。
-- 用户明确要求并行且 Worktree/Subagent 已启用时，仍必须满足独立 Git 根、干净已提交基线、文件所有权、`codex/` 分支、辅助程序 `guard`、前台状态和同步等待规则。
+- 用户明确要求并行且 Worktree/Subagent 已启用时，仍必须满足独立 Git 根、干净已提交基线、文件所有权、`codex/` 分支、辅助程序 `guard`、前台状态和同步等待规则；活动受管 feature 链中的产品写入例外固定使用单 Agent/单写入 Task，helper 必须在创建 sibling 单元前失败关闭。
 - 除 `$desktop-test-gui-initialization-e2e` 的一次性 debug/no-bundle 门禁外，冒烟/E2E 不得在产品定义、计划、日常开发、单元测试、编译、签名、打包、制品收集或发布元数据命令中运行；启用的发布 E2E 只在最终真实候选形成后执行。

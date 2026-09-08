@@ -538,6 +538,190 @@ test("accepts equivalent notification cfg attributes without spaces around equal
   });
 });
 
+test("rejects a non-macOS notification permission implementation with an undefined app handle", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          'async fn request_system_notification_permission(app: &tauri::AppHandle) -> Result<(), &\'static str> {\n    let permission = app.notification()',
+          'async fn request_system_notification_permission() -> Result<(), &\'static str> {\n    let permission = app.notification()',
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /request_system_notification_permission.*macOS 与非 macOS.*app: &tauri::AppHandle/u,
+    );
+  });
+});
+
+test("rejects notification delivery implementations whose app handle signature diverges by platform", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          'async fn deliver_system_notification(app: &tauri::AppHandle, payload: &NotificationPayload) -> Result<(), &\'static str> {\n    app.notification()',
+          'async fn deliver_system_notification(payload: &NotificationPayload) -> Result<(), &\'static str> {\n    app.notification()',
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /deliver_system_notification.*macOS 与非 macOS.*app: &tauri::AppHandle/u,
+    );
+  });
+});
+
+test("rejects macOS notification permission requests before the current authorization status is read", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "let mut authorization = get_macos_notification_authorization_status().await?;",
+          "let mut authorization = MacosNotificationAuthorizationStatus::NotDetermined;",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /先读取 AuthorizationStatus，只在 NotDetermined 请求并复读/u,
+    );
+  });
+});
+
+test("rejects macOS notification permission requests outside NotDetermined", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "if matches!(authorization, MacosNotificationAuthorizationStatus::NotDetermined) {",
+          "if true {",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /只允许在 NotDetermined 分支请求系统权限/u,
+    );
+  });
+});
+
+test("rejects an unconditional macOS notification permission request appended after the legal request", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "        authorization = get_macos_notification_authorization_status().await?;\n    }\n    match authorization {",
+          "        authorization = get_macos_notification_authorization_status().await?;\n    }\n    let _unconditional_request = mac_usernotifications::request_auth().await;\n    match authorization {",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /必须且只能调用一次 mac_usernotifications::request_auth/u,
+    );
+  });
+});
+
+test("rejects denied macOS notification permission without the fixed settings recovery path", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replaceAll(
+          "open_macos_notification_settings(app).await?;",
+          "let _settings_not_opened = authorization;",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /Denied\/Restricted 必须进入固定 Notifications 系统设置恢复路径/u,
+    );
+  });
+});
+
+test("rejects a still-undetermined macOS notification result without settings recovery", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          "MacosNotificationAuthorizationStatus::NotDetermined => { open_macos_notification_settings(app).await?;",
+          "MacosNotificationAuthorizationStatus::NotDetermined => { let _settings_not_opened = authorization;",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /请求后仍为 NotDetermined 时必须打开 Notifications 系统设置/u,
+    );
+  });
+});
+
+test("rejects a macOS notification settings opener with an arbitrary target", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace(
+          ".arg(settings_url)",
+          ".arg(user_supplied_url)",
+        ),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /Notifications 设置 opener 缺少受控结果检查/u,
+    );
+  });
+});
+
+test("rejects a macOS notification settings opener that does not target the current app", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace("let bundle_identifier = app.config().identifier.clone();", 'let bundle_identifier = "com.example.other".to_string();'),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /app\.config\(\)\.identifier/u,
+    );
+  });
+});
+
+test("rejects missing macOS notification settings recovery regression coverage", () => {
+  withFixture(({ root, guiRoot }) => {
+    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
+    fs.writeFileSync(
+      source,
+      fs
+        .readFileSync(source, "utf8")
+        .replace("macos_denied_or_restricted_notification_opens_settings", "renamed_test"),
+    );
+    assert.match(
+      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
+      /macos_denied_or_restricted_notification_opens_settings/u,
+    );
+  });
+});
+
 test("rejects enabled commands omitted from the merged invoke handler", () => {
   withFixture(({ root, guiRoot }) => {
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");

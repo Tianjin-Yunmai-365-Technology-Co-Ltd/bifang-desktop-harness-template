@@ -164,6 +164,58 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             policy.MINIMUM_OWNERSHIP_RULES,
         )
 
+    def test_branch_chain_skill_is_managed_and_runtime_state_is_protected(self) -> None:
+        """升级传播完整 Skill，但不得创建或覆盖下游运行状态。"""
+
+        module_path = (
+            ROOT
+            / ".agents"
+            / "skills"
+            / "desktop-upgrade-harness"
+            / "scripts"
+            / "harness_upgrade_policy.py"
+        )
+        spec = importlib.util.spec_from_file_location(
+            "branch_chain_upgrade_policy_under_test",
+            module_path,
+        )
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        policy = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(policy)
+
+        branch_paths = {
+            ".agents/skills/desktop-manage-git-branch-chain/SKILL.md",
+            ".agents/skills/desktop-manage-git-branch-chain/agents/openai.yaml",
+            ".agents/skills/desktop-manage-git-branch-chain/assets/git-branch-chain.json",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/git_branch_chain.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_operations.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_commit.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_checks.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_git.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_remote.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_state.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_contract.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_race.py",
+            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_version.py",
+        }
+        self.assertTrue(branch_paths.issubset(context.REQUIRED_FILES))
+        self.assertTrue(branch_paths.issubset(policy.REQUIRED_MANAGED_SOURCE_PATHS))
+        self.assertIn("desktop-manage-git-branch-chain", context.EXPECTED_SKILLS)
+
+        manifest = json.loads(upgrade.UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))
+        ordered = [(item["pattern"], item["mode"]) for item in manifest["rules"]]
+        branch_rule = (
+            ".agents/skills/desktop-manage-git-branch-chain/**",
+            "managed",
+        )
+        generic_rule = (".agents/skills/**", "managed")
+        self.assertIn(branch_rule, ordered)
+        self.assertLess(ordered.index(branch_rule), ordered.index(generic_rule))
+        self.assertIn((".harness/git-branch-chain.json", "protected"), ordered)
+        self.assertNotIn(".harness/git-branch-chain.json", policy.REQUIRED_MANAGED_SOURCE_PATHS)
+
     def test_gui_lifecycle_plugin_contract_is_required_and_tombstoned(self) -> None:
         """插件契约检查器与回归测试必须纳入必需文件并受初始化 tombstone 保护。"""
 

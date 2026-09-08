@@ -17,7 +17,7 @@ def validate_repository_line_limits(
     root: Path = ROOT,
     checker: Path = LINE_LIMIT_CHECKER,
 ) -> None:
-    """运行唯一检查器；复核候选可见，硬超限和运行错误阻断 Harness。"""
+    """运行唯一检查器；软候选按需返回，硬超限和运行错误始终阻断。"""
 
     if not checker.is_file():
         fail(errors, f"missing file line-limit checker: {display_path(checker)}")

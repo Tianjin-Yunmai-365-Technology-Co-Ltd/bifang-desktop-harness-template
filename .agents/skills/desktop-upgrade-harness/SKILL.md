@@ -13,7 +13,9 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 2. 无法无歧义发现源 Harness 根目录时，要求用户明确指定。将源根目录和下游根目录解析为互不相同的规范绝对路径。要求每个现有 Git 仓库的顶层目录等于其声明根目录；拒绝符号链接根目录、嵌套歧义、源与目标相同，以及声明根目录以外的路径。
 3. 读取 [所有权策略](references/ownership-policy.md)，并使用 [所有权清单](references/ownership-manifest.json)。将该清单视为最低保护策略，而不是复制每个匹配源文件的许可。
 4. 检查下游已选接口、身份映射、保留的 Skills、已批准例外和持久 Agent 策略。构建只包含适用于该下游工程文件的任务局部候选树。排除每个 `protected` 或 `tombstone` 源路径。把下游展示名称、标识符、路径、已选适配器和其他已批准身份差异渲染到候选中；原始 Harness 源目录树绝不是有效候选树。源 Harness 中 `.agents/skills/desktop-implement-change/scripts/check_file_line_limits.py`、`check_rust_chinese_comments.py`、`check_core_first.py` 及其各自测试必须保留内容摘要一致的候选，升级器在生成计划时机械阻断遗漏或旧版占位内容。身份中立的 `docs/design_standards/**` 作为 managed 工程标准传播；下游 `docs/GUI_APP_PROFILE.md` 和 ADR 中已批准的产品像素/例外保持 protected，并在标准匹配时优先，升级不得用新旧 Harness 缺省覆盖。只有已选择 GUI 的下游才同步 `$desktop-add-gui-adapter`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-support-surfaces`、`$desktop-build-tauri-release` 与 `$desktop-test-gui-release-performance`；目标平台包含 Windows 时还同步 `$desktop-build-tauri-local-install`。其中系统语言、updater、窗口状态和 dialog 属于 GUI 固定基线，dialog 继续保持主窗口 `dialog:default` 且不授权 fs，托盘、单实例、深链接、全局快捷键、通知和开机自启是否实际接线仍读取受保护 profile，非 GUI 下游不得因此新增 Node/pnpm 或 GUI-only Skill。`$desktop-test-gui-initialization-e2e` 及其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs` 等脚本仍是初始化前 tombstone 资产，终端下游升级不得重新注入。终端下游的 `docs/GUI_SUPPORT_SURFACES.md` 是 `protected` 产品实例，任何接口选择都不得由升级覆盖。
+   所有终端下游都必须同步无需身份渲染的 `$desktop-manage-git-branch-chain` 完整目录：`SKILL.md`、`agents/openai.yaml`、`assets/git-branch-chain.json`、`scripts/git_branch_chain.py`、`scripts/branch_chain_operations.py`、`scripts/branch_chain_commit.py`、`scripts/branch_chain_checks.py`、`scripts/branch_chain_git.py`、`scripts/branch_chain_remote.py`、`scripts/branch_chain_state.py`、`scripts/test_git_branch_chain.py`、`scripts/test_git_branch_chain_contract.py`、`scripts/test_git_branch_chain_race.py` 和 `scripts/test_git_branch_chain_version.py` 均须与源内容摘要一致。升级只传播这些 `managed` 工程文件，不调用 `inspect|start|publish|release`，不改动任何 Git remote、分支、标签、历史或 Worktree。旧下游首次获得该 Skill 时，缺失的工程文件按 `add` 逐项人工加入。
    `.harness/version-state.json` 始终是 `protected` 下游状态，来源或候选都不得包含、初始化、重算或覆盖它；Cargo 产品版本同样受保护。`$desktop-manage-version` 的 Skill/helper 属于可升级工程资产，但产品周期与缺陷 ID 历史不属于。
+   `.harness/git-branch-chain.json` 同样始终是 `protected` 下游运行状态，来源和候选均不得包含、初始化、重算或覆盖它。旧下游尚无该状态时必须保持缺席，不能把它当成安装新 Skill 的 `add`；未来首次状态只能由 `$desktop-manage-git-branch-chain start` 创建。
 5. 要求源 Harness Git 工作树干净，并且其现有 `HEAD` 与声明的源提交匹配；要求声明的源版本与源 `Version.md` 匹配。信任候选之前先运行源 Harness 验证器。不得把该模板专用验证器复制到下游。记录源版本、源提交、候选构建输入、下游分支、提交、脏状态摘要，以及未验证平台。
 6. 生成只读计划：
 
@@ -54,7 +56,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
     ```
 
     该命令根据目标拥有的精确所有权清单和 `.harness/upstream-lock.json` 重新构建计划，绑定源与目标 Git 身份，比较完整的已复核 JSON，预检每项操作，并且只原子替换一个现有文件。每应用一个路径后都要生成并复核新计划。普通 `managed` 更新必须先于 `managed-self` 完成；在自更新路径内部，命令行工具强制执行稳定顺序，并最后替换自身入口。计划篡改或源、候选、目标、控制文件发生任何漂移，都会在写入前中止。使用 `apply_patch` 单独解决 `add`、`manual_add`、`delete`、`merge-sections` 和 `conditional` 项；不得仅为避免合并而替换整个混合所有权文件。
-11. 代码行为变化只运行本次升级实际影响的非空单元/回归测试；纯文档或元数据升级只运行其必要替代验证。不得因 Harness 升级自动追加全仓格式、lint、静态、文件行数、中文注释、依赖图、独立构建、冒烟、E2E 或完整验收；用户显式请求构建时才进入对应构建 Skill。
+11. 代码行为变化只运行本次升级实际影响的非空单元/回归测试；纯文档或元数据升级只运行其必要替代验证。不得因 Harness 升级自动追加全仓格式、lint、静态、文件行数、中文注释、依赖图、独立构建、冒烟、E2E 或完整验收；普通构建保持开发流程，用户明确请求正式发布候选时才先经 `$desktop-prepare-release` 封存范围并进入对应构建 Skill。
 12. 重新运行 `plan`。解决每个阻断项和未应用的受管理操作。只有目标包含已复核结果后，才能记录已验证基线：
 
     ```text
@@ -71,7 +73,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 ## 安全边界
 
 - 默认执行 `plan`；绝不得仅因调用本 Skill 就写入。
-- 绝不得覆盖产品源代码、测试、Cargo 产品版本或锁定选择、`.harness/version-state.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、敏感信息或未登记本地文件。
+- 绝不得覆盖产品源代码、测试、Cargo 产品版本或锁定选择、`.harness/version-state.json`、`.harness/git-branch-chain.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、敏感信息或未登记本地文件；传播分支链 Skill 不授权执行它。
 - 绝不得把 `Version.md`、`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、模板验证器文件、`docs/HARNESS_ENGINEERING.md` 或其他活动派生入口恢复到终端下游。
 - 绝不得自动应用 `merge-sections`、`conditional`、`protected`、未知或冲突路径。
 - 更新器绝不自动添加或删除项目文件。已复核的 `add` 或 `delete` 必须在声明的 Todo 内人工执行，然后由新计划显示收敛，才能记录基线。

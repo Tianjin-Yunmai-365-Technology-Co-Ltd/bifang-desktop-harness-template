@@ -7,7 +7,11 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from .context import *  # noqa: F403
-from .repository_memory import validate_daily_project_memory
+from .repository_memory import (
+    validate_current_changelog_contract,
+    validate_daily_project_memory,
+    validate_superseded_release_lifecycle_fragments,
+)
 
 
 def validate_required_files(errors: list[str]) -> None:
@@ -23,7 +27,7 @@ def validate_work_plan_contract(
     *,
     required: bool = False,
 ) -> None:
-    """校验用户按需创建的精简 Work Plan，并保留 accepted 状态门禁。"""
+    """校验用户按需创建的精简 Work Plan，并拒绝候选事实与验收结论。"""
     if not plan_path.is_file():
         if required:
             fail(errors, f"missing active Work Plan: {display_path(plan_path)}")
@@ -50,7 +54,6 @@ def validate_work_plan_contract(
             "active Work Plan contains duplicate Todo IDs: " + ", ".join(duplicates),
         )
 
-    todo_states: list[tuple[str, str | None]] = []
     for index, match in enumerate(heading_matches):
         todo_id = match.group(1)
         heading_suffix = match.group(2)
@@ -63,10 +66,6 @@ def validate_work_plan_contract(
                 errors,
                 f"Todo {todo_id} heading must carry exactly one explicit state",
             )
-            state = None
-        else:
-            state = states[0]
-        todo_states.append((todo_id, state))
         block_end = (
             heading_matches[index + 1].start()
             if index + 1 < len(heading_matches)
@@ -108,7 +107,7 @@ def validate_work_plan_contract(
                 f"Work Plan acceptance lacks substitute rejection: {display_path(plan_path)}",
             )
 
-    verdict_patterns = (
+    candidate_evidence_patterns = (
         re.compile(
             r"^\s*(?:[-*]\s*)?"
             r"(?:(?:当前)?(?:里程碑|验收|技术验收)?(?:状态|结论)"
@@ -123,15 +122,23 @@ def validate_work_plan_contract(
             r"\s*[：:]\s*`?(?:ready|已就绪|可发布)\b",
             flags=re.IGNORECASE | re.MULTILINE,
         ),
+        re.compile(
+            r"^\s*(?:[-*]\s*)?"
+            r"(?:milestoneAcceptance|sourceCommit|buildRun|buildMode|performanceStatus|"
+            r"runtimeVerification|signingStatus|notarizationStatus|sha256)\s*[：:]",
+            flags=re.IGNORECASE | re.MULTILINE,
+        ),
+        re.compile(
+            r"^\s*(?:[-*]\s*)?"
+            r"(?:(?:候选|构建|E2E|性能)(?:状态|结论)|Candidate\s+(?:status|verdict))"
+            r"\s*[：:]\s*`?(?:pending|rejected|accepted|passed|failed|waived|Unverified)\b",
+            flags=re.IGNORECASE | re.MULTILINE,
+        ),
     )
-    unfinished = sorted(
-        todo_id for todo_id, state in todo_states if state != "done"
-    )
-    if unfinished and any(pattern.search(text) for pattern in verdict_patterns):
+    if any(pattern.search(text) for pattern in candidate_evidence_patterns):
         fail(
             errors,
-            "active Work Plan records an accepted or release-ready verdict while Todo remains non-done: "
-            + ", ".join(unfinished),
+            "active Work Plan must not record candidate evidence or an acceptance/readiness verdict",
         )
 
 

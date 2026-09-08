@@ -43,7 +43,7 @@ description: 管理下游产品的自动语义化版本门禁、发布周期状�
    python3 .agents/skills/desktop-manage-version/scripts/version_gate.py check --project-root . --phase build
    ```
 
-6. 只有按 `docs/RELEASE.md` 完成本地正式发布记录与交付、精确版本与 40 位源码提交及制品摘要已有证据后，才运行：
+6. 只有正式发布的真实渠道操作已经成功、精确版本与 40 位源码提交已有证据后，才运行：
 
    ```text
    python3 .agents/skills/desktop-manage-version/scripts/version_gate.py finalize-release --project-root . --released-version 0.2.1 --source-commit <40-hex> --release-succeeded

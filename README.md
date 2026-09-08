@@ -10,8 +10,6 @@ Bifang Desktop Harness Template
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
-发布流程仅在本地构建、验证和交付，不使用 CI/CD，不向 Git 等远程平台推送或发布；具体门槛见 [版本与发布](docs/RELEASE.md)。
-
 ## AI Agent 快速入口
 
 如果你是第一次访问本仓库，请把它识别为 **Harness 源**，而不是待实现业务的产品仓库。根目录同时存在 [`Version.md`](Version.md) 和活动的 [`desktop-instantiate-project`](.agents/skills/desktop-instantiate-project/SKILL.md) 时，创建下游项目的唯一入口是 `$desktop-instantiate-project`。
@@ -36,8 +34,8 @@ Bifang Desktop Harness Template
 - 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；没有特别选择时默认使用 CLI。
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
-- 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Task 使用自己的 Worktree、分支和可审查提交。
-- 按明确发布请求自动形成可审计的本地提交并构建可追溯候选；GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
+- 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Worktree Task 以 `{任务}-{ID}-{摘要}` 命名，并使用自己的分支和可审查提交。
+- 在已有远端的下游中，为新需求、Bug 和维护自动建立串行 feature 分支链，提交后推送活动叶子；明确发布时把整链快进到 `Release`、精确清理链路并构建可追溯候选。GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
 日常开发不会因为任务看起来复杂，就自动增加长计划、全仓检查、构建或端到端测试（E2E）。只有你明确要求，或者任务确实碰到安全、数据迁移、凭据、发布等风险时，才会进入相应流程。
@@ -45,7 +43,7 @@ Bifang Desktop Harness Template
 ## 它不会替你决定什么
 
 - 不会猜测产品要解决什么问题，也不会把中性脚手架当成已经完成的产品。
-- 不会自动使用凭据、签名、推送、发布或操作生产环境。
+- 不会配置远端或凭据，不会强制推送、创建标签、上传、发布到渠道或操作生产环境；唯一自动 Git 外部写入是既有远端上的受管 feature 叶子推送，以及明确发布时对 `Release` 和已登记链路的受限原子操作。
 - 不会为了“以后可能用到”预先加入业务、依赖或复杂架构。
 - 不会绕过安全、隐私、商业许可和分发渠道的硬要求。
 
@@ -68,42 +66,45 @@ Bifang Desktop Harness Template
 2. Agent 会一次询问尚未确定的基础信息：中英文项目名、项目标识、保存路径、负责人、目标平台、界面组合和 Agent 策略。中英文名称至少提供一个，另一个可以由 Agent 翻译后一起确认。
 3. 如果选择 GUI，Agent 还会逐项确认系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键和侧栏样式；system-locale、updater、window-state、dialog 作为固定基线不额外询问。dialog 默认向主窗口开放全部官方对话框类型，但不授权通用文件读写。启用全局快捷键只安装能力，中性初始化不绑定默认按键或动作；产品动作、固定/可编辑策略和初始 chord 在终端下游完全按需求决定。随后按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示 3 个未经验证或标准化的原始 Logo 候选。只有你选定其中一个后，Agent 才会验证并按需标准化所选项；未选项不会被额外处理。
 4. 写入前，Agent 会展示完整汇总和最终项目路径。你确认后，它才会创建文件、检查所需环境并初始化项目。
-5. 汇总确认后，Agent 会先检查 Git，缺失时按当前平台的受管方式安装；随后才写入脚手架。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、是否安装、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。
+5. 汇总确认后，Agent 会先检查 Git：缺失时按当前平台的受管方式安装，可证明低于最低下界时自动升级，范围内版本原样复用；随后才写入脚手架。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、安装或升级变化、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。
 
 ## 下游项目日常怎么用
 
 完成实例化并切换到终端下游根目录后，不需要记住整套流程，直接告诉 Agent 你想得到什么结果即可。例如：
 
 - “实现这个功能”或“修复这个问题”：使用 `$desktop-implement-change` 直接开发，并运行相关测试。
+- 新需求、Bug 或维护开始写入时：使用 `$desktop-manage-git-branch-chain` 从当前受管叶子（首条链从 `Release`，不存在时才从远端默认分支）建立 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`，写入 `.harness/git-branch-chain.json` 并推送；同一需求的继续修改复用当前叶子。`main`、`master`、远端默认分支和 `Release` 都禁止日常写入。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
 - “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 或性能选择。
-- “构建 CLI 发布候选”：使用 `$desktop-build-rust-release`。
-- “准备并构建发布”：使用 `$desktop-prepare-release`；这个明确发布请求会复核并本地提交范围内改动，然后直接构建，不再为提交或构建重复审批。普通“构建候选”不会自动提交。
-- “构建桌面 GUI 发布候选”：使用 `$desktop-build-tauri-release`；每次 GUI 发布都会先询问本次是否运行 `$desktop-test-gui-release-performance`，当前请求已经明确时直接复用，不写入持久偏好。
+- “构建 CLI 发布候选”或“准备并构建发布”：先使用 `$desktop-prepare-release`；这个明确候选请求会解析本次选择，复核、提交并推送活动 feature 叶子，把登记的完整线性链快进到精确 `Release`，以逐 ref lease 原子删除远端链路后清理本地链路，再由 `$desktop-build-rust-release` 从该关闭提交构建，不重复审批。
+- “构建桌面 GUI 发布候选”：同样先使用 `$desktop-prepare-release`，在关闭提交中封存本次审查、性能与 macOS 签名选择，再由 `$desktop-build-tauri-release` 只读消费；当前请求已经明确时直接复用，不写入通用持久偏好。
+- 普通“构建/打包/本地试包”不会自动升级为发布候选、提交或关闭分支链；`Release` 到默认分支的 Merge/PR 始终由你完成。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
 
 如果一项工作需要成为可独立进入和审查的结果，可以明确要求新建一个左侧 Task。诊断、实现、相关测试/review 和同范围修复不会仅因阶段变化被自动拆开；plan、Todo 和 Subagent 仍是当前 Task 的内部结构。详细规则见 [Agent 运行策略](docs/AGENT_POLICY.md)。
 
+普通单结果请求会直接在当前调用 Session 中完成；完成授权工作和本次必需检查后、最终回复前，Agent 会至多尝试一次把当前显示标题更新为 `{task}-{id}-{feature}`（与既有 `{任务}-{ID}-{摘要}` 是同一格式），再按真实 `threadId` 有界复读验证。这里的 `id` 是预先稳定的 Task key 或 `change_id`，不是调用后返回的 `threadId`；标题只供人阅读。宿主不提供标题工具、重命名失败或复读未确认时会如实报告，但不会推翻已经完成的任务结果，也不会重写已按创建契约固定标题的 Git Worktree 左侧 Task。
+
 ## 开发与构建边界
 
-日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；普通缺陷修复、不改变可观察行为的纯重构、文档或内部清理不会自动升级版本，也不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。
+日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；已有远端时由受管 feature 分支承载变更并在每个逻辑闭环后推送。普通缺陷修复、不改变可观察行为的纯重构、文档或内部清理不会自动升级版本，也不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。
 
-显式“发布候选”构建时，构建 Skill 只读校验并把同一日志打入候选，再解析本次是否启用 E2E；GUI 候选还会解析本次是否采集性能指标。未明确时在任何测试或编译前询问一次，选择只对当前候选有效。性能选择关闭且没有产品/渠道硬要求时跳过耗时探针，在 manifest 和最终回复记录 `performanceStatus: Not run` 与剩余风险；选择开启时才运行现有定量门禁。随后运行项目全部非空单元测试并构建。普通 Windows 本地安装试包是开发制品，不进入上述候选流程，也不要求发布日志或 clean HEAD。构建事实只写入适用的产物位置和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆。GUI 的活动选项卡、查询/筛选、排序和分页只在当前进程跨路由保留；只有成功查询的当前页大于 1 且为空时回退第 1 页。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
+显式“发布候选”请求先由发布准备解析当次语义审查选择；GUI 还在关闭分支链前解析性能与 macOS 签名选择，并把它们封存进同一 closing commit。构建 Skill 只读校验并消费这些记录、把同一日志打入候选，只另外解析本次是否启用 E2E；记录缺失或适用性不符时失败关闭，不从对话补写或兜底询问。性能选择关闭且没有产品/渠道硬要求时跳过耗时探针，在 manifest 和最终回复记录 `performanceStatus: Not run` 与剩余风险；选择开启时才运行现有定量门禁。随后运行项目全部非空单元测试并构建。普通 Windows 本地安装试包是开发制品，不进入上述候选流程，也不要求发布日志或 clean HEAD。构建事实只写入适用的产物位置和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆。GUI 的活动选项卡、查询/筛选、排序和分页只在当前进程跨路由保留；只有成功查询的当前页大于 1 且为空时回退第 1 页。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 
 Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/TUI/MCP/GUI 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在 GUI adapter，但其业务效果仍调用 core。维护者可运行 `python3 -B -m unittest discover -s scripts` 验证 Harness 的非空回归。
 
-依赖清单保存经过验证的最低兼容稳定版本范围和完整三段下界，锁文件保存当前实际解析结果；新加入依赖时优先选择 registry 当前最新兼容稳定版。Rust 最低版本为 1.95，更高兼容工具链直接通过。文件与测试组织遵守 [工程维护规则](docs/ENGINEERING_RULES.md) 和 [GUI 设计标准索引](docs/design_standards/README.md)：Rust 代码超过 400 行建议重构、超过 800 行强制拆分；前端代码超过 500 行建议重构、超过 1000 行强制拆分；Rust 模块拆分使用 `<module>/mod.rs`。
+依赖清单保存经过验证的最低兼容稳定版本范围和完整三段下界，锁文件保存当前实际解析结果；新加入依赖时优先选择 registry 当前最新兼容稳定版。受管开发环境中，缺失工具会安装官方当前最新兼容稳定版，可证明低于最低下界的工具会按当前宿主路线自动升级，范围内稳定版直接复用；Rust/Node.js/pnpm 的受管安装落在用户级全局位置，持久去重 PATH，并由当前进程和新 shell 复探。只读检查零写入并报告 `upgrade-required`；高于显式上界、预发布、无法解析或损坏的工具仍失败关闭，Agent 不会降低门禁、回退依赖、在项目内注入 shim 或改找替代工具链来迁就旧环境。Rust 最低版本为 1.95。文件与测试组织遵守 [工程维护规则](docs/ENGINEERING_RULES.md) 和 [GUI 设计标准索引](docs/design_standards/README.md)：日常只强制 Rust 800 行、前端 1000 行的硬上限，其他人工维护文本也固定为 2000 行硬上限；Rust 401–800、前端 501–1000、其他文本 501–2000 行的建议候选只在当次发布启用语义审查时集中提示。Rust 模块拆分使用 `<module>/mod.rs`。
 
 每次正式发布使用同一份双语 `release-notes.json`；每版两类各至多 10 个翻译对并只保留近 5 版。用户可见版本只显示一个小写 `v`，机器字段不带前缀。
 
 ## 开始一个左侧 Task
 
-只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
+只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。Git Worktree Task 在派发前分配不可变 Task key 作为 `ID`，调用 `create_thread` 时显式传入 `title="{任务}-{ID}-{摘要}"`；调用后才返回的 `threadId`/`clientThreadId` 不能反填为 `ID`。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
 
-创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用 `list_threads` 对账；标题可能由应用规范化，状态保留在 Task 的实时状态中，不写进固定标题。
+创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用真实 id 和 `projectId` 对账，并展示 `list_threads` 返回的规范化标题原文；应用正常化不改变派发时的标题契约，身份也不依赖标题。Ready/Active/Blocked 等状态保留在 Task 的实时状态中，不写进固定标题。
 
-Ready Task 从用户明确起点或保存项目默认分支的已提交 HEAD 开始，在自己的 Worktree 和 `codex/task-*` 分支完成一组可审查提交，不自行合并。当前 Task 内部只有在用户明确要求并行且策略允许时，才使用 `$desktop-run-parallel-worktrees` 创建 `codex/unit-*` 单元和 Subagent；这些 agent thread 不是新的左侧 Task。
+只读 Task 可从用户明确起点或保存项目默认分支的已提交 HEAD 开始；会产生产品写入的 Ready Task 从已推送的活动 feature 叶子开始，在自己的 Worktree 和临时 `codex/task-*` 分支完成一组可审查提交，不自行合并或推送。显示标题与 Git ref 分离：独立 ASCII `task-slug` 只用于 `codex/task-<task-slug>`，不得把 `{任务}-{ID}-{摘要}` 原样当作分支名。为保持发布链严格线性，同一活动叶子同一时刻最多一个产品写入 Task，且该 Task 不再创建 sibling 写入 `codex/unit-*`；协调方使用 `$desktop-manage-git-branch-chain integrate-task` 在 clean、冻结 OID、同仓库 Worktree、远端未漂移和严格线性条件满足时只快进本地活动叶子，再以独立 `publish` 推送并复读，成功后下一个写入 Task 才从新 OID 开始。非活动链工作只有在用户明确要求并行且策略允许时，才使用 `$desktop-run-parallel-worktrees` 创建临时单元；只读 Subagent 始终可按需并行。这些 agent thread 不是新的左侧 Task，不调用 `create_thread`，也不冒充满足左侧 Task 的显示标题契约。
 
 如果还使用全局 Task 提示词，可以继续保留“一结果一 Task、项目绑定、一次创建和不重复创建”，但不要再要求“生命周期阶段变化就拆 Task”“普通请求必须先建 Task0”“只拿到 `clientThreadId` 时无限等待”“Worktree 路径必须位于保存项目目录内”或“把实时状态写进固定标题”。这些规则会分别造成过度拆分、setup 死锁、合法 Worktree 误判和标题自相矛盾。
 
@@ -111,7 +112,7 @@ Ready Task 从用户明确起点或保存项目默认分支的已提交 HEAD 开
 
 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
 
-开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
+开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-branch-chain`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 
 构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-gui-release-performance`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
