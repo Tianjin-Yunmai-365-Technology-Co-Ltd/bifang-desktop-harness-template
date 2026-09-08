@@ -475,6 +475,54 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("不是 `{任务}-{ID}-{摘要}` 显示标题", parallel)
         self.assertIn("不得冒充新的左侧 Task", parallel)
 
+    def test_ordinary_session_title_is_best_effort_and_keeps_worktree_title_stable(self) -> None:
+        """普通 Session 收尾命名必须可核验且不得改写已固定的 Worktree 标题。"""
+
+        policy = read_repo_text("docs/AGENT_POLICY.md")
+        agents = read_repo_text("AGENTS.md")
+        readme = read_repo_text("README.md")
+        product_spec = repository.PRODUCT_SPEC.read_text(encoding="utf-8")
+        implement = read_repo_text(
+            ".agents/skills/desktop-implement-change/SKILL.md"
+        )
+        instantiate = read_repo_text(
+            ".agents/skills/desktop-instantiate-project/SKILL.md"
+        )
+        initialize = read_repo_text(
+            ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        )
+
+        for text in (
+            policy,
+            agents,
+            readme,
+            product_spec,
+            implement,
+            instantiate,
+            initialize,
+        ):
+            self.assertIn("{task}-{id}-{feature}", text)
+            self.assertTrue(
+                any(
+                    fragment in text
+                    for fragment in (
+                        "不阻断已完成",
+                        "不阻断已经完成",
+                        "不会推翻已经完成",
+                        "不得推翻已经完成",
+                        "不推翻已经完成",
+                        "不改变实现和测试的完成结论",
+                    )
+                ),
+                text,
+            )
+        self.assertIn("调用 `set_thread_title` 至多一次并省略 `threadId`", policy)
+        self.assertIn("按同一真实 id 比较宿主返回的规范化标题原文", policy)
+        self.assertIn("Session 收尾契约至多调用一次 `set_thread_title`", implement)
+        self.assertIn("已经按下述创建契约固定标题的 Git Worktree 左侧 Task 保持派发标题", policy)
+        self.assertIn('title="{任务}-{ID}-{摘要}"', policy)
+        self.assertIn("不得根据返回 id 重新命名", policy)
+
     def test_build_does_not_create_project_memory(self) -> None:
         """候选事实只进入忽略的原子集合，发布后才写 tracked 记忆。"""
         skill = read_repo_text(".agents/skills/desktop-implement-change/SKILL.md")

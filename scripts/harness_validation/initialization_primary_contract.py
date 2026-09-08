@@ -198,6 +198,8 @@ def primary_required_fragments(
             "一次原子写入",
             "只验证并复用，不再次询问",
             "统一描述模板",
+            "至多一次尝试 `{task}-{id}-{feature}` Session 收尾命名",
+            "失败不阻断已完成结果",
             "左侧 Task 的保存项目绑定、setup 状态机和独立 Worktree 交付契约",
             "`codex/unit-*`",
             "$desktop-add-cli-adapter",
