@@ -6,11 +6,11 @@
 
 ## 五类主要所有权
 
-- `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；产品专属像素和例外写入受保护的 `docs/GUI_APP_PROFILE.md`/ADR，不通过编辑目录制造分叉。
+- `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；产品专属像素和例外写入受保护的 `docs/GUI_APP_PROFILE.md`/ADR，不通过编辑目录制造分叉。`$desktop-manage-git-branch-chain` 的完整 Skill、空状态模板、helper 与测试是所有终端下游都适用且无需身份渲染的受管工程资产；升级只传播这些文件，不执行分支命令。
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
 - `conditional`：只在已选接口或已启用能力中存在的工程资产。先确认下游选择，再人工或由对应适配器 Skill 合并。`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-support-surfaces` 与 `$desktop-test-gui-release-performance` 只随 GUI 下游传播；其中系统语言、updater、窗口状态与 dialog 属于固定基线，dialog 固定保持主窗口 `dialog:default` 且不授权 fs，托盘、单实例、深链接、全局快捷键、通知和开机自启是否实际接线继续由 profile 中各自的 `enabled|disabled` 决定。支持界面的 Skill、参考、React 模板、品牌 profile/i18n/manifest 和全部原始媒体属于同一完整工程资产，产品实例 `docs/GUI_SUPPORT_SURFACES.md` 不属于。
-- `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、验证证据和未知本地文件。升级器只报告，不写入。
+- `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、`.harness/git-branch-chain.json` 当前串行链状态、验证证据和未知本地文件。升级器只报告，不写入；旧下游尚无分支链状态时保持缺席，未来只能由 `$desktop-manage-git-branch-chain start` 创建。
 - `tombstone`：终端下游永久不应恢复的 Harness 初始化/派生能力和模板专用文件；来源候选必须排除，目标出现时阻断。`$desktop-test-gui-initialization-e2e` 只在 GUI 唯一基线提交前使用，其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs`、夹具与测试都随该前置 Skill 一同删除；升级不得把它重新注入终端下游。
 
 ## 三方比较
@@ -34,11 +34,11 @@
 3. 使用下游展示名、snake_case/kebab-case 标识、crate 路径、接口选择和已批准例外完成渲染。
 4. 来自通过自身验证器、Git 工作区干净且 `HEAD`/`Version.md` 与计划声明一致的明确 Harness 版本和提交。
 5. 位于目标仓库之外的任务专用目录，且不含符号链接或特殊文件。
-6. 源 Harness 存在无需身份渲染的必需 `managed` 传播文件时，候选必须包含内容摘要一致的结果；当前包括行数与 core-first 两个检查器及各自专属测试，遗漏或内容过期都会阻断计划与基线记录。
+6. 源 Harness 存在无需身份渲染的必需 `managed` 传播文件时，候选必须包含内容摘要一致的结果；当前包括行数、Rust 中文注释与 core-first 检查器及各自专属测试，以及 `$desktop-manage-git-branch-chain` 的完整 Skill、空状态模板、helper 与测试，遗漏或内容过期都会阻断计划与基线记录。
 
 ## 永久保护
 
-以下内容不得由升级自动覆盖：产品规格、产品状态、工作计划、ADR、变更记录、验证记录、技术债、业务源码和测试、Cargo 产品版本与锁定选择、`.harness/version-state.json` 的发布周期/缺陷 ID 历史、项目与 GUI 身份、`docs/GUI_SUPPORT_SURFACES.md` 中的支持界面产品实例、接口选择、`docs/AGENT_POLICY.md`、双语许可证、Git 历史与配置、未登记本地文件。`$desktop-manage-version` 的 Skill/helper 可以作为工程资产升级，但升级器不得据此初始化、重算或覆盖产品状态。
+以下内容不得由升级自动覆盖：产品规格、产品状态、工作计划、ADR、变更记录、验证记录、技术债、业务源码和测试、Cargo 产品版本与锁定选择、`.harness/version-state.json` 的发布周期/缺陷 ID 历史、`.harness/git-branch-chain.json` 的当前链、关闭链与 pre-close 事实、项目与 GUI 身份、`docs/GUI_SUPPORT_SURFACES.md` 中的支持界面产品实例、接口选择、`docs/AGENT_POLICY.md`、双语许可证、Git 历史与配置、未登记本地文件。`$desktop-manage-version` 与 `$desktop-manage-git-branch-chain` 的 Skill/helper 可以作为工程资产升级，但升级器不得据此初始化、重算或覆盖产品状态、分支状态，也不得操作 remote、分支、标签或 Worktree。
 
 若新版 Harness 改变法律文本、产品边界或硬规则，升级计划只能报告并请求独立确认；不能把来源仓库的批准事实导入下游。
 

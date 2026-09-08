@@ -6,6 +6,7 @@ import {
   collectMethodArguments,
   collectRustFunctions,
   desktopTargetDependencyDeclaration,
+  sanitizeRustSource,
   targetDependencyDeclaration,
   tomlAssignment,
   tomlSection,
@@ -22,6 +23,10 @@ import {
   validateFixedIpcRuntimeContract,
   validateUpdaterConfiguration,
 } from "./gui-fixed-ipc-runtime-contract.mjs";
+import {
+  SYSTEM_NOTIFICATION_TEST_NAMES,
+  validateNotificationRuntime,
+} from "./gui-notification-runtime-contract.mjs";
 
 const BASELINE_TEST_NAMES = [
   "system_locale_uses_tauri_plugin_os",
@@ -38,21 +43,10 @@ const BASELINE_TEST_NAMES = [
   "window_state_falls_back_for_invalid_or_offscreen_state",
   "window_state_preserves_first_launch_defaults",
 ];
-
 const SINGLE_INSTANCE_TEST_NAMES = [
   "single_instance_plugin_is_registered_first",
   "second_launch_restores_existing_main_window",
 ];
-
-const SYSTEM_NOTIFICATION_TEST_NAMES = [
-  "system_notification_defaults_disabled",
-  "system_notification_permission_precedes_persistence",
-  "system_notification_delivery_failure_is_observable",
-  "system_notification_channel_serializes_authorization_and_delivery",
-  "system_notification_worker_is_owned_and_cancelled",
-  "macos_system_notifications_use_modern_user_notifications",
-];
-
 const AUTOSTART_TEST_NAMES = [
   "autostart_defaults_disabled_without_registration",
   "autostart_state_reads_operating_system_registration",
@@ -82,76 +76,6 @@ const CONDITIONAL_DEPENDENCIES = [
 
 const UPDATER_OUTBOUND_METHOD_PATTERN =
   /\.\s*(check|download_and_install|install)\s*\(/gu;
-
-/**
- * 屏蔽 Rust 注释，并可同时屏蔽字符串内容，避免门禁把注释或诊断文案误认成调用。
- * 保留换行和字符宽度，便于后续正则仍能稳定判断源码顺序。
- */
-function sanitizeRustSource(sourceText, maskStrings = false) {
-  const masked = (text) => text.replace(/[^\r\n]/gu, " ");
-  let result = "";
-  let index = 0;
-  while (index < sourceText.length) {
-    if (sourceText.startsWith("//", index)) {
-      const end = sourceText.indexOf("\n", index + 2);
-      const boundary = end < 0 ? sourceText.length : end;
-      result += masked(sourceText.slice(index, boundary));
-      index = boundary;
-      continue;
-    }
-    if (sourceText.startsWith("/*", index)) {
-      let depth = 1;
-      let end = index + 2;
-      while (end < sourceText.length && depth > 0) {
-        if (sourceText.startsWith("/*", end)) {
-          depth += 1;
-          end += 2;
-        } else if (sourceText.startsWith("*/", end)) {
-          depth -= 1;
-          end += 2;
-        } else {
-          end += 1;
-        }
-      }
-      result += masked(sourceText.slice(index, end));
-      index = end;
-      continue;
-    }
-    const rawPrefix = sourceText.slice(index).match(/^(?:br|r)(#*)"/u);
-    if (rawPrefix) {
-      const terminator = `"${rawPrefix[1]}`;
-      const contentStart = index + rawPrefix[0].length;
-      const closing = sourceText.indexOf(terminator, contentStart);
-      const end = closing < 0 ? sourceText.length : closing + terminator.length;
-      const literal = sourceText.slice(index, end);
-      result += maskStrings ? masked(literal) : literal;
-      index = end;
-      continue;
-    }
-    if (sourceText[index] === '"') {
-      let end = index + 1;
-      let escaped = false;
-      while (end < sourceText.length) {
-        const character = sourceText[end];
-        end += 1;
-        if (escaped) {
-          escaped = false;
-        } else if (character === "\\") {
-          escaped = true;
-        } else if (character === '"') {
-          break;
-        }
-      }
-      const literal = sourceText.slice(index, end);
-      result += maskStrings ? masked(literal) : literal;
-      index = end;
-      continue;
-    }
-    result += sourceText[index];
-    index += 1;
-  }
-  return result;
-}
 
 /** 枚举 Rust 运行时代码中的 updater 出站/安装调用，忽略注释和字符串。 */
 function updaterOutboundCalls(sourceText) {
@@ -545,53 +469,6 @@ function validateWindowStateRuntime(sourceText, pluginArguments, errors) {
   for (const token of ["set_min_size", "960.0", "640.0", "set_size", "1440.0", "900.0", ".center()"] ) {
     if (!recovery?.text.includes(token)) {
       errors.push(`window-state 1440×900 居中/960×640 回退实现缺少：${token}`);
-    }
-  }
-}
-
-function validateNotificationRuntime(sourceTexts, errors) {
-  const sourceText = sourceTexts.join("\n");
-  requireSinglePluginRegistration(
-    sourceText,
-    "tauri_plugin_notification::init",
-    "notification 插件",
-    errors,
-  );
-  for (const token of [
-    "NotificationCommand",
-    "mpsc",
-    "oneshot",
-    "JoinHandle",
-    "get_system_notification_setting",
-    "set_system_notification_enabled",
-    "mac_usernotifications::request_auth",
-    "mac_usernotifications::Notification",
-    "NotificationExt",
-    "request_permission",
-    ".builder(",
-    ".show(",
-  ]) {
-    if (!sourceText.includes(token)) errors.push(`系统通知 Rust-only 合同缺少：${token}`);
-  }
-  const macosCfg = /#\[\s*cfg\s*\(\s*target_os\s*=\s*"macos"\s*\)\s*\]/u;
-  const nonMacosCfg = /#\[\s*cfg\s*\(\s*not\s*\(\s*target_os\s*=\s*"macos"\s*\)\s*\)\s*\]/u;
-  if (!macosCfg.test(sourceText) || !nonMacosCfg.test(sourceText)) {
-    errors.push("系统通知必须以 cfg 分隔 macOS 现代 API 与其他平台官方插件实现");
-  }
-  if (!sourceText.includes(".abort(") && !sourceText.includes("shutdown")) {
-    errors.push("系统通知 worker 必须具有应用拥有的关闭或取消路径");
-  }
-  const command = collectRustFunctions(sourceText).find(
-    (candidate) => candidate.name === "set_system_notification_enabled",
-  );
-  if (command) {
-    const permission = Math.max(
-      command.text.indexOf("RequestPermission"),
-      command.text.indexOf("request_system_notification_permission"),
-    );
-    const persistence = Math.max(command.text.indexOf("persist"), command.text.indexOf("write"));
-    if (permission < 0 || persistence < 0 || permission > persistence) {
-      errors.push("系统通知设置命令必须先等待权限成功，再持久化启用状态");
     }
   }
 }

@@ -4,7 +4,7 @@
 
 ## 当前阶段
 
-- 产品规格：Approved；core-first、薄适配器、事件触发项目记忆、文件 500 行语义复核/2000 行硬门禁、Rust/GUI 固定技术栈与收敛的中文声明注释门禁继续有效。
+- 产品规格：Approved；core-first、薄适配器、事件触发项目记忆、Rust `400/800`、前端 `500/1000`、其他人工维护文本 `500/2000` 的分层行数门禁，以及 Rust/GUI 固定技术栈与收敛的中文声明注释门禁继续有效。日常只执行各类硬上限；建议区间和 `TODO`/`FIXME`/`HACK` 只在明确发布且当次 `reviewSelection: enabled` 时集中复核。
 - 当时计划已完成上述同步；旧计划按当前“只保留最新快照”规则由后续计划取代，入口见 [`docs/work_plan/README.md`](../work_plan/README.md)。本任务不产生新的里程碑验收结论。
 - 既有里程碑：Rust 技术选型源码候选 `f7b84169eea647f157d27a6dc579f61417001fd0` 的 `Milestone accepted` 历史结论继续有效；本次修改不改写该候选或其验证证据。
 - 发布状态：`Unreleased`。本次不创建候选、tag、源码归档、签名、公证、发布渠道上传或正式发布。
@@ -19,8 +19,8 @@
 ## 本次完成工作
 
 - 完成来源锁、提交历史和当前模板工作树的三方溯源；锁点前 84 个 Skill 文件均已收敛，锁点后 3 个 Skill 提交的 16 个文件全部映射，没有未解释通用工程候选。
-- 补齐 Homebrew `llvm`/`lld` 拆包环境门禁和 `notarytool` Keychain profile 公证探测，并以专项非空回归覆盖安装、损坏环境、授权 profile 与混合凭据拒绝。
-- 固化 DMG Finder 最终字节只读布局检查，并把同一当前候选重验传播到构建、里程碑验收、发布准备和验证事实源；后处理继续强制重新签名、公证、stapling、摘要与验收。
+- 2026-08-20 当时已补齐 Homebrew `llvm`/`lld` 拆包环境门禁和 `notarytool` Keychain profile 公证探测，并以专项非空回归覆盖安装、损坏环境、授权 profile 与混合凭据拒绝；这只记录签名启用分支仍可消费的能力。当前 macOS 发布默认 `disabled/not-requested`，不运行身份、凭据或 profile 探测，只有已批准持久配置、本次主动要求或渠道硬要求才启用完整签名、公证与 stapling。
+- 2026-08-20 当时已固化 DMG Finder 最终字节只读布局检查，并把同一当前候选重验传播到构建、里程碑验收、发布准备和验证事实源。当前 unsigned 分支不签名、公证或 stapling；启用分支的任何布局后处理仍强制重新签名、公证、stapling、摘要与验收，且 `system_notification = enabled` 的 macOS 产品在签名仍关闭时必须于提交/测试/bundle 前失败关闭。
 - 新增按需、逐项批准的 `$desktop-prepare-gui-support-surfaces`，明确 core/GUI 所有权、出站白名单、秘密引用、隐私同意、生命周期、i18n/无障碍和负向测试；非 GUI 初始化裁剪，产品实例文档由升级器保护。
 - 按用户确认建立共享产品家族品牌例外：条件 Skill 完整携带固定三档赞助价格、品牌联系人、中英文文案、两张支付二维码、更新 banner 和暂未使用小图；媒体清单对 13 个文件记录 MIME、尺寸、字节数、SHA-256、用途、敏感性和内部专有复用边界。
 - 新增 About/Sponsor/Media/Banner React/Mantine 模板与产品实例文档模板。赞助页采用响应式布局和主题令牌；支付码具备明确替代文本；本地视频契约强制 controls、字幕、文字稿和无 autoplay，但来源没有已跟踪视频，因此没有伪造视频制品。

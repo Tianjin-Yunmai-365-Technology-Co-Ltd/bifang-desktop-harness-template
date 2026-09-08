@@ -13,6 +13,7 @@ import textwrap
 import unittest
 from collections.abc import Iterator
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -28,6 +29,21 @@ from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
 from scripts.harness_validation.context import (
+    BRANCH_CHAIN_EMPTY_STATE,
+    BRANCH_CHAIN_CHECKS,
+    BRANCH_CHAIN_COMMIT,
+    BRANCH_CHAIN_CONTRACT_TESTS,
+    BRANCH_CHAIN_GIT,
+    BRANCH_CHAIN_METADATA,
+    BRANCH_CHAIN_OPERATIONS,
+    BRANCH_CHAIN_RACE_TESTS,
+    BRANCH_CHAIN_REMOTE,
+    BRANCH_CHAIN_SCRIPT,
+    BRANCH_CHAIN_SKILL,
+    BRANCH_CHAIN_STATE,
+    BRANCH_CHAIN_TESTS,
+    BRANCH_CHAIN_VERSION_TESTS,
+    EXPECTED_SKILLS,
     GUI_DIALOG_SKILL,
     GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT,
     GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE,
@@ -41,6 +57,7 @@ from scripts.harness_validation.context import (
     GUI_SKILL,
     GUI_SUPPORT_SKILL,
     PRODUCT_SPEC,
+    REQUIRED_FILES,
 )
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
@@ -121,6 +138,52 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         initialization.validate_initialization_contract(errors)
         validate_gui_support_contract(errors)
         self.assertEqual(errors, [])
+
+    def test_branch_chain_skill_is_a_complete_required_harness_capability(self) -> None:
+        """入口、初始化契约和必需文件清单必须同步纳入完整 Skill。"""
+
+        initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
+        required = primary_required_fragments(initialize_skill)
+        expected_paths = (
+            BRANCH_CHAIN_SKILL,
+            BRANCH_CHAIN_METADATA,
+            BRANCH_CHAIN_EMPTY_STATE,
+            BRANCH_CHAIN_SCRIPT,
+            BRANCH_CHAIN_OPERATIONS,
+            BRANCH_CHAIN_COMMIT,
+            BRANCH_CHAIN_CHECKS,
+            BRANCH_CHAIN_GIT,
+            BRANCH_CHAIN_REMOTE,
+            BRANCH_CHAIN_STATE,
+            BRANCH_CHAIN_TESTS,
+            BRANCH_CHAIN_CONTRACT_TESTS,
+            BRANCH_CHAIN_RACE_TESTS,
+            BRANCH_CHAIN_VERSION_TESTS,
+        )
+
+        self.assertIn("desktop-manage-git-branch-chain", EXPECTED_SKILLS)
+        for path in expected_paths:
+            relative = path.relative_to(ROOT).as_posix()
+            self.assertIn(relative, REQUIRED_FILES)
+            self.assertIn(path, required)
+        self.assertIn("不创建 Codex 左侧 Task", required[BRANCH_CHAIN_SKILL])
+        self.assertIn("git push --atomic", required[BRANCH_CHAIN_SKILL])
+        self.assertIn("--force-with-lease", required[BRANCH_CHAIN_SKILL])
+
+    def test_governance_rejects_branch_chain_default_branch_write_regression(self) -> None:
+        """Skill 不能移除 Release 到默认分支只由用户完成的失败关闭边界。"""
+
+        source = BRANCH_CHAIN_SKILL.read_text(encoding="utf-8")
+        anchor = "helper 永不提供或执行 `Release` 到默认分支的命令"
+        mutated = source.replace(anchor, "helper 可以更新默认分支", 1)
+        self.assertNotEqual(mutated, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "SKILL.md"
+            path.write_text(mutated, encoding="utf-8")
+            errors: list[str] = []
+            with mock.patch.object(governance, "BRANCH_CHAIN_SKILL", path):
+                governance.validate_streamlined_development_and_build(errors)
+        self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_direct_script_entrypoint_succeeds(self) -> None:
         """从仓库根直接执行历史命令时应完成全部领域校验并返回成功。"""
@@ -701,6 +764,20 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         """Harness 源可以保留尚待下游首次确认的 pending。"""
         self.assertEqual(self._validate(self._current_policy()), [])
 
+    def test_rejects_missing_ordinary_session_title_closure(self) -> None:
+        """普通调用 Task 必须保留非阻断的标题更新与真实身份复读契约。"""
+
+        mutated = self._current_policy().replace(
+            "调用 `set_thread_title` 至多一次并省略 `threadId`",
+            "不执行 Session 标题更新",
+            1,
+        )
+        errors = self._validate(mutated)
+        self.assertTrue(
+            any("set_thread_title" in error for error in errors),
+            errors,
+        )
+
     def test_rejects_missing_preference_field(self) -> None:
         """四项选择缺失任一字段都必须失败。"""
         mutated = self._current_policy().replace("milestone_e2e: pending\n", "", 1)
@@ -757,7 +834,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
 
 
 class ValidateWorkPlanTests(unittest.TestCase):
-    """覆盖按需 Todo、可选完整验收和未完成时禁止验收。"""
+    """覆盖按需 Todo、可选完整验收和候选事实禁止回写。"""
 
     TODO_TOKEN = SHARED_TODO_TOKEN
 
@@ -810,13 +887,26 @@ class ValidateWorkPlanTests(unittest.TestCase):
         self.assertTrue(any("explicit state" in error for error in errors), errors)
 
     def test_rejects_accepted_verdict_with_pending_todo(self) -> None:
-        """任一 Todo 未完成时不得把完整验收记为 accepted。"""
+        """Work Plan 不得把候选完整验收记为 accepted。"""
         mutated = self._valid_plan() + "\n验收状态：accepted\n"
         errors = self._validate(mutated)
         self.assertTrue(
-            any("accepted or release-ready verdict" in error for error in errors),
+            any("candidate evidence" in error for error in errors),
             errors,
         )
+
+    def test_rejects_accepted_verdict_after_all_todos_done(self) -> None:
+        """Todo 全部完成也不能把候选验收结论写入 tracked Work Plan。"""
+
+        plan = self._valid_plan().replace("（pending）", "（done）", 1)
+        errors = self._validate(plan + "\n验收状态：accepted\n")
+        self.assertTrue(any("candidate evidence" in error for error in errors), errors)
+
+    def test_rejects_candidate_manifest_facts(self) -> None:
+        """候选 manifest 状态只能存在于忽略的 release 集合。"""
+
+        errors = self._validate(self._valid_plan() + "\nmilestoneAcceptance: pending\n")
+        self.assertTrue(any("candidate evidence" in error for error in errors), errors)
 
     def test_rejects_duplicate_todo_id_and_missing_per_item_field(self) -> None:
         """Todo ID 必须唯一，且每项都拥有预期、边界和验证。"""
@@ -836,7 +926,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 
         errors = self._validate(self._valid_plan() + "\n验收结论：通过\n")
         self.assertTrue(
-            any("accepted or release-ready verdict" in error for error in errors),
+            any("candidate evidence" in error for error in errors),
             errors,
         )
 
@@ -868,7 +958,7 @@ class ValidateWorkPlanTests(unittest.TestCase):
 - 失败时重开 Todo 并返回 `$desktop-implement-change`。
 """
         errors = self._validate(first_batch + second_batch)
-        self.assertTrue(any("accepted or release-ready verdict" in error for error in errors), errors)
+        self.assertTrue(any("candidate evidence" in error for error in errors), errors)
 
 
 class ProjectMemoryTriggerTests(unittest.TestCase):
@@ -894,12 +984,36 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
             governance.validate_stale_fragments(errors, (path,))
         self.assertTrue(any("stale current description" in item for item in errors))
 
+    def test_rejects_superseded_task_title_in_current_changelog(self) -> None:
+        """同日 Changelog 不得并列保留已被取代的动作/结果标题合同。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "current.md"
+            path.write_text("标题固定使用“动作 + 结果”。", encoding="utf-8")
+            errors: list[str] = []
+            repository.validate_current_changelog_contract(errors, path)
+        self.assertTrue(any("superseded Task title contract" in item for item in errors))
+
+    def test_rejects_superseded_release_lifecycle_wording(self) -> None:
+        """反向旧措辞不能与新候选生命周期并存。"""
+
+        fragment = "`pending`/`ready` 状态转换"
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "current.md"
+            path.write_text(fragment, encoding="utf-8")
+            errors: list[str] = []
+            repository.validate_superseded_release_lifecycle_fragments(
+                errors,
+                ((path, (fragment,)),),
+            )
+        self.assertTrue(any("superseded release lifecycle" in item for item in errors))
+
     def test_release_contract_allows_fix_only_without_changelog(self) -> None:
         """仅修复 PATCH 仍有发布证据，但不得制造 Changelog。"""
 
         release = read_repo_text("docs/RELEASE.md")
         prepare = read_repo_text(".agents/skills/desktop-prepare-release/SKILL.md")
         self.assertIn("版本变化与 Changelog 写入是独立门禁", release)
-        self.assertIn("缺少 Changelog 不削弱发布证据", release)
+        self.assertIn("缺少 Changelog 不削弱候选证据", release)
         self.assertIn("仅含普通缺陷修复或纯重构", prepare)
         self.assertIn("不创建、不补写也不汇总 Changelog", prepare)

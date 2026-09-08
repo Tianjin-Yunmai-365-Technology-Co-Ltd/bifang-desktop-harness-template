@@ -7,6 +7,80 @@ import re
 from .context import *  # noqa: F403
 
 
+def validate_current_changelog_contract(errors: list[str], changelog: Path) -> None:
+    """拒绝同日有效 Changelog 继续陈述已被替代的 Task 标题格式。"""
+    if not changelog.is_file():
+        return
+    deprecated = "标题固定使用“动作 + 结果”"
+    if deprecated in read_text_cached(changelog):
+        fail(
+            errors,
+            f"current Changelog contains superseded Task title contract in "
+            f"{display_path(changelog)}: {deprecated}",
+        )
+
+
+def validate_superseded_release_lifecycle_fragments(
+    errors: list[str],
+    contracts: tuple[tuple[Path, tuple[str, ...]], ...] | None = None,
+) -> None:
+    """拒绝当前事实源重新引入候选状态、tracked 证据或倒置顺序。"""
+    if contracts is None:
+        contracts = (
+            (
+                WORK_PLAN_DIR / "README.md",
+                ("存在非 `done` 项时不得把该计划范围标记为 `accepted`",),
+            ),
+            (
+                PRODUCT_SPEC,
+                ("明确区分 `pending` 与 `ready`",),
+            ),
+            (
+                ROOT / "docs" / "RUST_CLI_TEMPLATE.md",
+                ("`pending`/`ready` 状态转换", "发布准备仍只接受"),
+            ),
+            (
+                SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md",
+                ("发布准备仍要求匹配的",),
+            ),
+            (
+                ROOT / "docs" / "harness_engineering" / "project_lifecycle.md",
+                (
+                    "发布候选或用户明确要求完整验收时使用 `$desktop-verify-delivery`，"
+                    "发布再进入 `$desktop-prepare-release`",
+                ),
+            ),
+            (
+                ROOT / "docs" / "harness_engineering" / "foundations.md",
+                ("完整验收/发布证据和技术债必须保存在版本化仓库中",),
+            ),
+            (
+                ROOT / "docs" / "harness_engineering" / "agent_first_design.md",
+                (
+                    "当前版本发布或完整验收完成",
+                    "版本号、CHANGELOG、Git 标签和发布物一致",
+                ),
+            ),
+            (
+                ROOT / "docs" / "RELEASE.md",
+                (
+                    "Git 标签和源码归档中的版本一致",
+                    "软件显示、Git 标签和发布物名称一致",
+                ),
+            ),
+        )
+    for path, fragments in contracts:
+        if not path.is_file():
+            continue
+        text = read_text_cached(path)
+        for fragment in fragments:
+            if fragment in text:
+                fail(
+                    errors,
+                    f"superseded release lifecycle wording in {display_path(path)}: {fragment}",
+                )
+
+
 def validate_daily_project_memory(errors: list[str]) -> None:
     """校验五类按日项目记忆的唯一事实来源、命名、索引和工作流入口。"""
     forbidden_legacy_files = (
@@ -58,6 +132,15 @@ def validate_daily_project_memory(errors: list[str]) -> None:
         if dated_file_required and not daily_files:
             fail(errors, f"no dated {label} file found in {display_path(directory)}")
 
+    changelog_files = sorted(
+        path
+        for path in CHANGELOG_DIR.glob("*.md")
+        if re.fullmatch(r"\d{8}_CHANGELOG\.md", path.name)
+    )
+    if changelog_files:
+        validate_current_changelog_contract(errors, changelog_files[-1])
+    validate_superseded_release_lifecycle_fragments(errors)
+
     required_fragments = {
         PRODUCT_SPEC_DIR / "README.md": (
             "YYYYMMDD_product_spec.md",
@@ -70,7 +153,9 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "YYYYMMDD_product_status.md",
             "同一天只维护一份产品状态",
             "读取前一份产品状态",
-            "发布/完整验收、重要阻断、跨会话交接或用户要求",
+            "真实渠道发布后的受管记录阶段、重要阻断、跨会话交接或用户要求",
+            "候选构建、E2E、完整验收和就绪复核不写本目录",
+            "`pending`/`accepted` 候选不触发 tracked 状态",
             "普通缺陷修复、纯重构、格式整理、测试补强和内部清理",
         ),
         WORK_PLAN_DIR / "README.md": (
@@ -80,8 +165,14 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "日常开发不自动创建 Work Plan",
             "多步骤、多模块、中等风险或可并行本身都不要求 Work Plan",
             "持久计划至少包含精简 Todo",
+            "候选构建、收集、E2E、验收状态或就绪结论不得回写 Work Plan",
+            "候选事实只进入忽略的 `release/` 原子集合和最终回复",
             "没有 Work Plan 本身不阻断用户显式请求的构建或完整验收",
             "不自动触发其他项目记忆",
+        ),
+        PRODUCT_SPEC: (
+            "manifest 状态只使用 `pending`、`rejected` 或 `accepted`",
+            "`ready` 仅是对完整 `accepted` 原子集合的纯只读就绪复核结论",
         ),
         ADR_DIR / "README.md": (
             "YYYYMMDD_ADR.md",
@@ -117,7 +208,9 @@ def validate_daily_project_memory(errors: list[str]) -> None:
         SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md": (
             "没有 Work Plan 不阻断验收",
             "当前构建已经运行项目全部非空单元测试",
-            "不创建无触发原因的记忆占位",
+            "候选验收证据只写入忽略的 `release/`",
+            "不得在 clean protected `Release` 上创建或更新 tracked",
+            "也不得创建占位记录",
             "只有用户要求的活动计划存在时才重开或新增 Todo",
         ),
         SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md": (
@@ -125,10 +218,32 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "仅含普通缺陷修复或纯重构",
             "不创建、不补写也不汇总 Changelog",
         ),
+        SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md": (
+            "发布就绪复核仍要求所有匹配 manifest 组成完整 `Milestone accepted` 原子集合",
+        ),
+        ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
+            "只使用 `pending`/`rejected`/`accepted` 的候选状态",
+            "纯只读就绪复核",
+        ),
+        ROOT / "docs" / "harness_engineering" / "project_lifecycle.md": (
+            "发布候选先由 `$desktop-prepare-release` 冻结选择并关闭到 clean 具名 `Release`",
+            "再构建/收集并用 `$desktop-verify-delivery` 完整验收",
+        ),
+        ROOT / "docs" / "harness_engineering" / "foundations.md": (
+            "活动候选的构建与完整验收证据只保存在忽略的 `release/` 原子集合和最终回复",
+            "真实渠道发布成功后的发布证据",
+        ),
+        ROOT / "docs" / "harness_engineering" / "agent_first_design.md": (
+            "当前候选完整验收完成",
+            "Git 标签或源码归档只在获得独立授权并实际生成时核对",
+            "真实渠道发布完成是候选验收之后的独立事件",
+        ),
         ROOT / "docs" / "RELEASE.md": (
             "版本变化与 Changelog 写入是独立门禁",
             "仅含普通缺陷修复或纯重构",
-            "缺少 Changelog 不削弱发布证据",
+            "缺少 Changelog 不削弱候选证据",
+            "manifest 状态只使用 `pending`、`rejected` 或 `accepted`",
+            "Git 标签只有获得独立授权并实际创建时才核对",
         ),
     }
     for path, fragments in required_fragments.items():

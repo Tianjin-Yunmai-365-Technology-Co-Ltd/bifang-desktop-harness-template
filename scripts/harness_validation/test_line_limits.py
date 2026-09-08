@@ -18,6 +18,7 @@ if str(CHECKER_TEST_ROOT) not in sys.path:
 
 import test_check_file_line_limits as checker_tests
 from scripts.harness_validation import line_limits
+from scripts import validate_harness
 
 
 def load_tests(
@@ -131,6 +132,46 @@ class ValidateRepositoryLineLimitsTests(unittest.TestCase):
             errors: list[str] = []
             line_limits.validate_repository_line_limits(errors, checker=checker)
         self.assertTrue(any("invalid file line-limit checker JSON" in item for item in errors))
+
+
+class OptionalReleaseReviewTests(unittest.TestCase):
+    """锁定日常硬门禁与发布期可选软审查之间的边界。"""
+
+    def test_daily_validation_keeps_hard_limit_without_soft_review(self) -> None:
+        errors: list[str] = []
+        warnings: list[str] = []
+        with mock.patch.object(
+            validate_harness, "validate_repository_line_limits"
+        ) as line_limit, mock.patch.object(
+            validate_harness, "validate_soft_review_prompts"
+        ) as soft_review:
+            validate_harness.validate_optional_release_review(
+                errors, warnings, enabled=False
+            )
+
+        line_limit.assert_called_once_with(errors, warnings=None)
+        soft_review.assert_not_called()
+
+    def test_enabled_release_review_collects_both_soft_prompt_sources(self) -> None:
+        errors: list[str] = []
+        warnings: list[str] = []
+        with mock.patch.object(
+            validate_harness, "validate_repository_line_limits"
+        ) as line_limit, mock.patch.object(
+            validate_harness, "validate_soft_review_prompts"
+        ) as soft_review:
+            validate_harness.validate_optional_release_review(
+                errors, warnings, enabled=True
+            )
+
+        line_limit.assert_called_once_with(errors, warnings=warnings)
+        soft_review.assert_called_once_with(warnings)
+
+    def test_release_review_cli_flag_is_explicit_and_defaults_off(self) -> None:
+        self.assertFalse(validate_harness._parse_arguments([]).release_review)
+        self.assertTrue(
+            validate_harness._parse_arguments(["--release-review"]).release_review
+        )
 
 
 if __name__ == "__main__":

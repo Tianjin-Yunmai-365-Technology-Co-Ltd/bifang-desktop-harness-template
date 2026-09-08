@@ -260,7 +260,12 @@ class VersionGateTests(unittest.TestCase):
 
     def test_symlink_project_root_fails_closed(self) -> None:
         linked_root = self.root.parent / f"{self.root.name}-link"
-        linked_root.symlink_to(self.root, target_is_directory=True)
+        try:
+            linked_root.symlink_to(self.root, target_is_directory=True)
+        except OSError as error:
+            if getattr(error, "winerror", None) == 1314:
+                self.skipTest("Windows host does not grant symbolic-link privilege")
+            raise
         self.addCleanup(linked_root.unlink)
 
         with self.assertRaisesRegex(version_gate.GateError, "must not be a symlink"):

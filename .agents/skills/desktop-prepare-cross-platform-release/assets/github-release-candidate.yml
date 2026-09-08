@@ -16,6 +16,10 @@ on:
         description: "已批准的 40 字符源码提交 SHA"
         required: true
         type: string
+      branch_chain_state_sha256:
+        description: "调用方 verify-release-review 后锁定的状态文件 SHA-256"
+        required: true
+        type: string
       e2e_selection:
         description: "当前候选构建完成后是否启用 E2E"
         required: true
@@ -40,7 +44,10 @@ jobs:
       PRODUCT_NAME: example-tool
       VERSION: ${{ inputs.version }}
       SOURCE_COMMIT: ${{ inputs.source_commit }}
+      BRANCH_CHAIN_STATE_SHA256: ${{ inputs.branch_chain_state_sha256 }}
       E2E_SELECTION: ${{ inputs.e2e_selection }}
+      REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      RELEASE_ENVELOPE_SNAPSHOT: ${{ runner.temp }}/release-envelope-snapshot.json
       BUILD_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
       CARGO_TARGET_DIR: target
     steps:
@@ -58,8 +65,8 @@ jobs:
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.source_commit }}
-          fetch-depth: 1
+          ref: Release
+          fetch-depth: 0
           persist-credentials: false
       - name: 选择 Python 运行时
         shell: bash
@@ -83,7 +90,24 @@ jobs:
           observed = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
           if observed != expected:
               raise SystemExit(f"检出源码不匹配：预期={expected}，实际={observed}")
+          branch = subprocess.check_output(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], text=True).strip()
+          if branch != "Release":
+              raise SystemExit(f"必须检出具名 Release，实际为 {branch!r}")
+          status = subprocess.check_output(
+              ["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True
+          )
+          if status:
+              raise SystemExit("检出后的工作树不 clean")
           PY
+      - name: 从 closing commit 捕获发布信封
+        shell: bash
+        run: |
+          "$PYTHON_COMMAND" .agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_envelope.py capture \
+            --project-root "$GITHUB_WORKSPACE" \
+            --source-commit "$SOURCE_COMMIT" \
+            --expected-state-sha256 "$BRANCH_CHAIN_STATE_SHA256" \
+            --repository-default-branch "$REPOSITORY_DEFAULT_BRANCH" \
+            --snapshot "$RELEASE_ENVELOPE_SNAPSHOT"
       - name: 读取项目最低 Rust 版本
         shell: bash
         run: |
@@ -167,6 +191,15 @@ jobs:
           print(f"发现 {count} 个测试")
           PY
           cargo test --workspace --all-targets --all-features --locked
+          "$PYTHON_COMMAND" - <<'PY'
+          import os, subprocess
+          head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          status = subprocess.check_output(
+              ["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True
+          )
+          if head != os.environ["SOURCE_COMMIT"] or status:
+              raise SystemExit("测试后源码提交或 clean 状态发生变化")
+          PY
           cargo build --workspace --release --locked
       - name: 尝试 Unix 签名
         if: runner.os != 'Windows' && success()
@@ -243,7 +276,7 @@ jobs:
           platform="$(printf '%s' "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')"
           arch="$(printf '%s' "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')"
           archive="${PRODUCT_NAME}-v${VERSION}-${platform}-${arch}.tar.gz"
-          stage="$(mktemp -d "${GITHUB_WORKSPACE}/.release-clean.candidate.XXXXXX")"
+          stage="$(mktemp -d "${GITHUB_WORKSPACE}/../.${PRODUCT_NAME}.release-candidate.XXXXXX")"
           chmod 700 "$stage"
           tar -czf "${stage}/${archive}" -C target/release "$PRODUCT_NAME" -C "$GITHUB_WORKSPACE" release-notes.json
           if command -v sha256sum >/dev/null 2>&1; then
@@ -262,7 +295,7 @@ jobs:
           $platform = $env:RUNNER_OS.ToLowerInvariant()
           $arch = $env:RUNNER_ARCH.ToLowerInvariant()
           $archive = "$env:PRODUCT_NAME-v$env:VERSION-$platform-$arch.zip"
-          $stage = Join-Path $env:GITHUB_WORKSPACE (".release-clean.candidate." + [Guid]::NewGuid().ToString("N"))
+          $stage = Join-Path (Split-Path -Parent $env:GITHUB_WORKSPACE) (".$env:PRODUCT_NAME.release-candidate." + [Guid]::NewGuid().ToString("N"))
           [IO.Directory]::CreateDirectory($stage) | Out-Null
           Compress-Archive -LiteralPath @($binary, "release-notes.json") -DestinationPath (Join-Path $stage $archive)
           $hash = (Get-FileHash (Join-Path $stage $archive) -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -299,14 +332,21 @@ jobs:
           CANDIDATE_ARCHIVE: ${{ steps.candidate_artifact.outputs.archive_name }}
           CANDIDATE_STAGE: ${{ steps.candidate_artifact.outputs.stage_path }}
         run: |
+          "$PYTHON_COMMAND" .agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_envelope.py verify \
+            --project-root "$GITHUB_WORKSPACE" \
+            --source-commit "$SOURCE_COMMIT" \
+            --expected-state-sha256 "$BRANCH_CHAIN_STATE_SHA256" \
+            --repository-default-branch "$REPOSITORY_DEFAULT_BRANCH" \
+            --snapshot "$RELEASE_ENVELOPE_SNAPSHOT"
           "$PYTHON_COMMAND" - <<'PY'
           import hashlib, json, os, pathlib, platform, subprocess, tarfile, zipfile
           root = pathlib.Path(os.environ["GITHUB_WORKSPACE"]).resolve()
           release = pathlib.Path(os.environ["CANDIDATE_STAGE"])
           if release.is_symlink() or not release.is_dir():
               raise SystemExit("候选暂存目录必须是普通目录")
-          if release.parent.resolve() != root or not release.name.startswith(".release-clean.candidate."):
-              raise SystemExit("候选暂存目录越出项目根目录")
+          expected_stage_prefix = f".{os.environ['PRODUCT_NAME']}.release-candidate."
+          if release.parent.resolve() != root.parent or not release.name.startswith(expected_stage_prefix):
+              raise SystemExit("候选暂存目录必须位于项目根同级")
           archive_name = os.environ["CANDIDATE_ARCHIVE"]
           if pathlib.PurePath(archive_name).name != archive_name:
               raise SystemExit("候选归档名称不安全")
@@ -340,6 +380,16 @@ jobs:
               raise SystemExit("候选归档格式不支持更新日志验证")
           if packaged_release_notes != release_notes_bytes:
               raise SystemExit("归档内更新日志与源码事实不一致")
+          snapshot_path = pathlib.Path(os.environ["RELEASE_ENVELOPE_SNAPSHOT"])
+          if snapshot_path.is_symlink() or not snapshot_path.is_file():
+              raise SystemExit("发布信封快照必须是普通文件")
+          snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+          if snapshot.get("sourceCommit") != os.environ["SOURCE_COMMIT"]:
+              raise SystemExit("发布信封快照未绑定候选 sourceCommit")
+          if snapshot.get("branchChainStateSha256") != os.environ["BRANCH_CHAIN_STATE_SHA256"]:
+              raise SystemExit("发布信封快照未绑定受保护状态摘要")
+          review = snapshot["releaseReview"]
+          candidate_selections = snapshot["candidateSelections"]
           host_target = next(line.split(":", 1)[1].strip() for line in subprocess.check_output(["rustc", "-vV"], text=True).splitlines() if line.startswith("host:"))
           manifest = {
               "project": os.environ["PRODUCT_NAME"],
@@ -355,6 +405,11 @@ jobs:
               "sha256": digest,
               "tests": "passed",
               "e2eSelection": os.environ["E2E_SELECTION"],
+              "branchChainStateSha256": snapshot["branchChainStateSha256"],
+              "releaseReview": review,
+              "candidateSelections": candidate_selections,
+              "reviewSelection": review["selection"],
+              "reviewStatus": review["status"],
               "releaseNotesVersion": f"v{os.environ['VERSION']}",
               "releaseNotesSha256": release_notes_digest,
               "releaseNotesPath": "release-notes.json",
@@ -366,6 +421,20 @@ jobs:
               },
               "milestoneAcceptance": "pending",
           }
+          if review["selection"] == "enabled":
+              manifest["reviewedSourceCommit"] = review["reviewedSourceCommit"]
+              manifest["reviewEvidence"] = {
+                  "scopeBase": review["scopeBase"],
+                  "sourceHead": review["sourceHead"],
+                  "scopeDiffSha256": review["scopeDiffSha256"],
+                  "checks": review["checks"],
+                  "evidenceSummary": review["evidenceSummary"],
+              }
+          elif review["selection"] == "disabled":
+              manifest["reviewReason"] = review["reason"]
+              manifest["reviewRemainingRisk"] = review["remainingRisk"]
+          else:
+              raise SystemExit("发布审查选择不受支持")
           manifest_path = release / f"{archive.name}.manifest.json"
           manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
           expected_after = expected_before | {manifest_path.name}
@@ -397,23 +466,16 @@ jobs:
 
           require_plain_directory(release)
           require_plain_directory(stage)
-          if stage.parent.resolve() != root or not stage.name.startswith(".release-clean.candidate."):
-              raise SystemExit("候选暂存目录越出项目根目录")
+          expected_stage_prefix = f".{os.environ['PRODUCT_NAME']}.release-candidate."
+          if stage.parent.resolve() != root.parent or not stage.name.startswith(expected_stage_prefix):
+              raise SystemExit("候选暂存目录必须位于项目根同级")
           if any(release.iterdir()):
               raise SystemExit("构建前刷新后发布目录发生变化")
           if {path.name for path in stage.iterdir()} != expected:
               raise SystemExit("提交前候选暂存目录文件集发生变化")
 
-          if os.name == "nt":
-              os.rmdir(release)
-              os.rename(stage, release)
-          else:
-              root_fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
-              try:
-                  os.rmdir("release", dir_fd=root_fd)
-                  os.rename(stage.name, "release", src_dir_fd=root_fd, dst_dir_fd=root_fd)
-              finally:
-                  os.close(root_fd)
+          os.rmdir(release)
+          os.rename(stage, release)
 
           require_plain_directory(release)
           if release.resolve() != root / "release":

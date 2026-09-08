@@ -191,6 +191,13 @@ class HarnessUpgradePlanTests(HarnessUpgradeTestCase):
         present = self.plan()
         for required_path in REQUIRED_MANAGED_CHECKERS:
             self.assertEqual("add", self.classification(present, required_path))
+        branch_state = ".harness/git-branch-chain.json"
+        self.assertFalse((self.candidate / branch_state).exists())
+        self.assertFalse((self.target / branch_state).exists())
+        self.assertFalse(
+            any(item["path"] == branch_state for item in present["actions"]),
+            present,
+        )
 
     def test_new_path_collision_blocks(self) -> None:
         """新增候选与同名本地文件字节不同时必须阻断。"""

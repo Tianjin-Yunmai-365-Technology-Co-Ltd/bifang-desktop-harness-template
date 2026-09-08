@@ -36,11 +36,13 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 12. 选择 GUI 时，必须在非空测试通过后调用一次 `$desktop-test-gui-initialization-e2e`。结构检查器先验证唯一九字段、组合约束、三项固定基线和每个独立能力的启用完整/禁用无残留，再验证作为第四项固定基线的 dialog；结构检查器先验证唯一九字段、组合约束、四项固定基线和每个独立能力的启用完整/禁用无残留，再构建并启动真实本机调试二进制，执行所选侧栏、设置页、页面、窗口状态、单实例、托盘、通知、自启、深链接、快捷键及关闭语义中的全部适用场景。dialog 固定结构检查必须覆盖 Rust/前端依赖、唯一 Builder 顺序、主窗口 `dialog:default` 和无 fs 授权。所有由测试创建的登录项、window-state 数据、快捷键注册和进程必须恢复/回收；只能由 macOS 已打包应用证明的静态 scheme 系统注册明确留给候选补验，其余已选能力无法观察或验证都阻断，未选能力不得被当作缺证据。
 
 13. 只有全部脚手架检查完成后，才能收尾下游仓库：
+    - 把 `$desktop-manage-git-branch-chain` 作为所有终端下游的固定工程能力完整保留，不得按接口或平台删除其 `SKILL.md`、`agents/openai.yaml`、`assets/git-branch-chain.json`、`scripts/git_branch_chain.py`、`scripts/branch_chain_operations.py`、`scripts/branch_chain_commit.py`、`scripts/branch_chain_checks.py`、`scripts/branch_chain_git.py`、`scripts/branch_chain_remote.py`、`scripts/branch_chain_state.py`、`scripts/test_git_branch_chain.py`、`scripts/test_git_branch_chain_contract.py`、`scripts/test_git_branch_chain_race.py` 和 `scripts/test_git_branch_chain_version.py`；初始化只保留 Skill 内的空状态模板，不运行 `start`，不在项目根预创建 `.harness/git-branch-chain.json`，该受保护状态只由初始化后首次真实分支链开始创建；
     - 完整删除 `.agents/skills/desktop-instantiate-project/`、`.agents/skills/desktop-initialize-rust-project/` 和初始化专用的 `.agents/skills/desktop-test-gui-initialization-e2e/`；只有 GUI 初始化 E2E 已通过后才允许删除后者；
     - 删除模板专用的 `scripts/validate_harness.py`、`docs/HARNESS_ENGINEERING.md`、`docs/harness_engineering/`、初始化操作指南、初始化门禁描述、Harness 身份与历史，以及任何可以实例化或初始化另一个项目的入口；
     - 保留 `$desktop-rename-project-identity`、`$desktop-check-development-environment`、`$desktop-prepare-gui-app-identity`、`$desktop-upgrade-harness`、`$desktop-run-parallel-worktrees`、`$desktop-manage-version`、`$desktop-configure-git-commits`，以及仍然适用的产品开发、适配器、验证和发布 Skills；必须保留 `$desktop-implement-change` 及其维护脚本和对应测试，但不得在日常开发中自动运行这些全仓门禁；版本 Skill 及其标准库 helper/测试必须完整保留，并把 `.harness/version-state.json` 列入约束地图的受保护状态；选择 GUI 时同时完整保留 `$desktop-prepare-gui-support-surfaces`（包括 `assets/brand-support/**`）、`$desktop-add-gui-dialog`、GUI 自有 TypeScript 注释门禁、其测试和 `$desktop-build-tauri-release`，目标平台包含 Windows 时还必须保留 `$desktop-build-tauri-local-install`，使普通本地试包不进入发布流程。按固定能力顺序核对时，选择 GUI 时同时完整保留 `$desktop-add-gui-dialog`、`$desktop-prepare-gui-support-surfaces`（包括 `assets/brand-support/**`）；未选择 GUI 时将全部 GUI 条件资产与 Skills 删除且不得要求 Node.js/pnpm；
     - 保留继承的两份非开源企业专有商业许可证文件 `LICENSE.zh-CN.md` 和 `LICENSE.en.md`，其中中文目标项目名称和英文目标项目名称必须分别已由 `$desktop-rename-project-identity` 建立；如果任一文件缺失、名称语言错配、仍包含旧 Harness 身份、在批准改名后发生其他修改，或被安排删除，则最终收尾必须失败；
-    - 把 `AGENTS.md` 重写为 UTF-8 不超过 20,000 字节且不超过 120 行的轻量启动路由器，同时保留启动门禁、按任务渐进读取、跨任务摘要、最小闭环，以及非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$desktop-run-parallel-worktrees` 和 `$desktop-upgrade-harness` 的持久策略用法；约束地图链接保留的唯一事实源并禁止下游继续派生。初始化、GUI、依赖、构建、发布和验证的任务专属细节不得复制进根入口。还必须保留 `docs/AGENT_POLICY.md` 中左侧 Task 的保存项目/`projectId` 绑定、`SETUP_PENDING` 有界返回、“动作 + 单一结果”标题、独立 Worktree、`codex/task-*` 分支、必填描述、逻辑闭环提交、干净交付、协调方整合与清理约定，以及 Task 内部 `codex/unit-*` Subagent 分层，不得把它误删为初始化临时内容；
+    - 把 `AGENTS.md` 重写为 UTF-8 不超过 20,000 字节且不超过 120 行的轻量启动路由器，同时保留启动门禁、按任务渐进读取、跨任务摘要、最小闭环，以及非空的 `## Skills 地图` 和 `## 约束地图`。Skills 地图必须列出每个保留的 Skill，包括 `$desktop-run-parallel-worktrees` 和 `$desktop-upgrade-harness` 的持久策略用法；约束地图链接保留的唯一事实源并禁止下游继续派生。初始化、GUI、依赖、构建、发布和验证的任务专属细节不得复制进根入口。还必须保留 `docs/AGENT_POLICY.md` 中普通调用 Task 在完成与必需验证后至多一次尝试 `{task}-{id}-{feature}` Session 收尾命名、按真实 `threadId` 有界复读且失败不阻断已完成结果的约束，以及左侧 Task 的保存项目/`projectId` 绑定、`SETUP_PENDING` 有界返回、Git Worktree Task 显式 `title="{任务}-{ID}-{摘要}"`、派发前不可变 Task key 作为 `ID`、显示标题与独立 ASCII `task-slug` 分离、状态不入标题、独立 Worktree、`codex/task-*` 分支、必填描述、逻辑闭环提交、干净交付、协调方整合与清理约定，以及 Task 内部 `codex/unit-*` Subagent 分层，不得把它误删为初始化临时内容；
+    - 还必须保留 `docs/AGENT_POLICY.md` 中左侧 Task 的统一描述模板和完整创建/交付边界；Session 收尾命名不能替代或削弱该固定标题契约；
     - 搜索下游根目录；如果历史证据之外仍存在对 `$desktop-instantiate-project`、`$desktop-initialize-rust-project`、其目录或仅用于初始化的门禁的活动引用，则最终收尾必须失败。
 14. 裁剪完成后，如果本次运行由 `$desktop-instantiate-project` 发起，则确认 `docs/adr/`、`docs/changelog/`、`docs/product_spec/`、`docs/work_plan/`、`docs/VERIFICATION.md` 和 `docs/verification/` 仍然不存在。对于直接初始化的现有下游项目，必须保留已经存在的项目自有记忆与验证证据目录，绝不得为了满足此检查而删除它们。只有全部脚手架检查和裁剪已经成功、下一步就是实际创建基线提交时（即紧邻真实初始化基线提交时），才重新运行 `git --version`，并要求结果仍满足且与第 6 步的 `gate.git` 结论一致；缺失、漂移或不兼容时携带真实诊断停止，不在此临时安装或升级。随后判断 `git rev-parse --show-toplevel` 的规范化路径是否等于当前项目根目录；不相等时即使存在父级仓库，也在当前根运行 `git init --initial-branch=main .`，相等时保留既有独立仓库。验证工作树内状态为 `true`、顶层目录等于当前根、分支为 `main`、`git remote` 为空且提交前 `HEAD` 不存在。此时才调用 `$desktop-configure-git-commits`：先执行 `identity-report`；若 `user.name` 或 `user.email` 缺失，Agent 读取设备用户名，非英文时翻译并归一化为单一安全 ASCII username/slug，再把这一个值传给 `identity-bootstrap --fallback-username`，由 helper 确定派生同名 `user.name` 与 `<asciiDeviceUsername>@gmail.com` 并只补齐缺失字段；身份 bootstrap 只写当前仓库 local 配置，底层只允许 `git config --local`。随后执行 `identity-check`。已有有效身份保持不变；已有无效字段、无法得到安全 ASCII username、写入或复探失败都停止，不得猜测翻译算法、接受独立邮箱输入或修改 global/system。身份通过后依次运行 `configure_git_commit.py install --project-root .` 与 `configure_git_commit.py check --project-root .`；已有冲突模板配置必须停止，只有用户明确批准后才可使用 `--replace`。检查通过后暂存完整项目树，并创建恰好一个 `chore: initialize project` 本地基线提交。
 15. 创建基线提交之前，必须确认四项策略字段和确认元数据均不包含 `pending`。如果具备精确的源溯源和渲染后的保留工程层候选，则通过 `$desktop-upgrade-harness record --bootstrap` 建立 `.harness/upstream-lock.json`；否则必须记录首次升级所需的初始基线审计，不得虚构锁文件。验证已完成仓库的规范顶层目录、`main`、可解析的基线提交、无远端，以及空的 `git status --porcelain=v1 --untracked-files=all`。任何失败都必须阻断完成。
@@ -48,13 +50,14 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 ## 架构不变量
 
+- 完成收尾的下游项目必须完整保留 `$desktop-manage-git-branch-chain`；产品 `feature`/`bug` 串行链与 `codex/task-*`/`codex/unit-*` Worktree 分层保持独立，不自动创建左侧 Task。初始化不得运行 `start`，不得创建或推送 `feature-*`/`bug-*`/`Release`，也不得创建根 `.harness/git-branch-chain.json`；无 remote 的独立 `main` 基线仍是唯一初始结果。
 - 当前项目根目录必须同时是唯一的下游根目录及其独立 Git 顶层目录；父级仓库绝不能替代它。
 - 根 `Cargo.toml` 管理共享核心，并且只管理用户实际选择的适配器成员。
 - Rust 与前端清单声明经过最低直接版本和项目最低工具链测试的兼容下界；`Cargo.lock`/`pnpm-lock.yaml` 只固定正常解析结果，普通依赖不得精确锁死或使用 `latest`、tag、通配符。
 - 确定性目录为 `<project-id>_core`、`_cli`、`_tui`、`_mcp` 和 `_gui`。
 - 每个适配器必须直接依赖核心，并且绝不得解析、启动、嵌入或要求另一个适配器。
 - Core-first 按职责而非代码行数判断：领域规则、语义校验、业务默认值、用例编排、状态转换和稳定错误属于 core；适配器只拥有协议/展示/交互/宿主机制和映射。当前只有一个适配器不是例外，偏离只能按硬规则例外 ADR 处理。
-- Rust 代码超过 400 行建议重构、超过 800 行强制拆分；前端代码超过 500 行建议重构、超过 1000 行强制拆分；其他人工或 Agent 维护文本继续使用 500 行复核与 2000 行硬上限。建议区间必须复核高内聚、职责单一和职责相近性；硬上限独立于 core-first 语义判断，不能以 ADR、职责集中或测试夹具为由放宽。Rust 多文件模块使用 `<module>/mod.rs` 目录结构，不得以同级文件加同名目录或空壳转发规避；前端按功能职责拆分且不强制 `index.ts` 桶文件。
+- Rust、前端、其他人工维护文本的日常/初始化门禁只分别强制 800、1000、2000 行硬上限；400、500、500 行起的建议候选只在当次发布启用语义审查时集中列出并复核高内聚、职责单一和职责相近性。硬上限独立于 core-first 语义判断，不能以 ADR、职责集中或测试夹具为由放宽。Rust 多文件模块使用 `<module>/mod.rs` 目录结构，不得以同级文件加同名目录或空壳转发规避；前端按功能职责拆分且不强制 `index.ts` 桶文件。
 - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 - 每个适配器公开真实操作时必须记录“适配器操作 → core API → core 测试”；单实例、系统托盘等 adapter-only 机制必须记录其接口/宿主专属性，并把业务效果委托 core。中性单实例回调只恢复窗口，不产生业务效果。
 - CLI、TUI 和 MCP 适配器默认使用 Tokio current-thread 异步入口；GUI 复用 Tauri 由 Tokio 支撑的异步运行时。所有 Rust 适配器工作优先采用异步 I/O 和等待。只有经过测量的 CPU 密集工作才可以进入有边界的线程边界；仅提供阻塞接口的依赖必须被替换，或通过范围与硬规则例外流程获得批准。除非已批准的领域需求另有要求，核心必须保持运行时中立。
@@ -67,7 +70,7 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 - Rust 能力按 `docs/RUST_CLI_TEMPLATE.md` 的事实标准选择：Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing + tracing-subscriber + tracing-appender、anyhow、thiserror、serde、jiff；OpenTelemetry 与协议/存储/认证候选只在对应能力获批后采用。只把当前已选接口或已批准真实能力需要的依赖加入根 `[workspace.dependencies]`；不得为中性状态预装未使用的 HTTP、ORM、配置、错误或可观测性依赖，偏离固定技术必须记录硬规则例外。
 - 只有选择 CLI 时，CLI 才遵守 `docs/CLI_CONTRACT.md`。
 - `docs/AGENT_POLICY.md` 持久记录四项项目选择；后续 Agent 必须复用这些选择、推断适用性，并且只在问题未解决时询问。
-- `docs/AGENT_POLICY.md` 同时保存左侧 Task 的保存项目绑定、setup 状态机和独立 Worktree 交付契约；它与 `parallel_worktree_subagents` 是否允许 Task 内部 `codex/unit-*` 并行是两个层级，初始化和裁剪都不得混为同一开关或删除统一描述模板。
+- `docs/AGENT_POLICY.md` 同时保存普通调用 Task 的 Session 收尾命名，以及左侧 Task 的保存项目绑定、setup 状态机和独立 Worktree 交付契约；前者是非阻断 UI 元数据闭环，后两者与 `parallel_worktree_subagents` 是否允许 Task 内部 `codex/unit-*` 并行是不同层级，初始化和裁剪都不得混为同一开关或删除统一描述模板。
 - 产品规格、工作计划、ADR 和变更记录属于下游开发记忆，不属于初始化载荷。
 - 完成收尾的下游项目不能从自身实例化或初始化另一个项目。
 - 完成收尾的下游项目必须保留继承的两份专有商业许可证文件，并继续受其中终端下游限制约束。
@@ -79,6 +82,6 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 ## 完成要求
 
-版本部分必须报告根 Cargo 初始版本与 `.harness/version-state.json` 一致、`$desktop-manage-version` 已保留且状态已列入约束地图。
+版本部分必须报告根 Cargo 初始版本与 `.harness/version-state.json` 一致、`$desktop-manage-version` 已保留且状态已列入约束地图。Git 分支生命周期部分必须报告 `$desktop-manage-git-branch-chain` 已完整保留、未运行 `start`、未创建 `.harness/git-branch-chain.json`、基线仍是无 remote 的独立 `main` 提交。
 
 报告写入前环境门禁的 `gate.git.status/version/change`、基线前复探到的最终 Git 版本、最终 Git 边界、有效 `user.name`/`user.email` 及各自 scope/origin/source、是否由单一 ASCII 设备 username 派生并写入 local、提交模板本地配置与检查结果、基线和干净状态，以及已选接口、全部四项策略值、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个原始 Logo 候选的稳定预览顺序、用户选择、仅对所选项执行的后置验证/标准化、图标与 DMG 证据、九项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；system-locale、updater、window-state、dialog 分别报告固定基线与零出站/恢复/权限边界证据；对系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键分别报告 `enabled`/`disabled`。全局快捷键启用时另报告 contract 动作数、初始非空 binding 数、实际注册数和 owned 清理；其他启用项报告完整实现/E2E 或需打包验证的明确边界，禁用项报告依赖/feature/插件/命令/Switch/状态/翻译键/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。

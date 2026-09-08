@@ -27,7 +27,7 @@ description: 为已选 GUI 按九项初始化配置建立标题、侧栏、语�
 10. GUI 下游完整保留 Skill 的 13 个源图片，但只有 `sponsor_page: enabled` 时才把 `media/sponsor/*` 复制进应用 public；未选赞助页时运行时 bundle 不得包含 sponsor 媒体。updater banner 仍只在产品明确选择更新视觉时复制。支付二维码不得优化、重绘或解码重建。
 11. 使用 `$desktop-implement-change` 直接实施。非空回归必须覆盖九字段唯一配置块与深链交叉关系、三项 Rust-only 固定基线、dialog 固定 WebView 基线、发布专用资源映射、两个侧栏模式、条件支持菜单和设置/主题/i18n。dialog 覆盖固定依赖、有序唯一注册、精确 `dialog:default` 与零额外文件系统授权；通知与自启覆盖 Switch 状态机；全局快捷键空 contract 覆盖零 prop/UI，固定策略覆盖只读逐项真实状态，可编辑策略覆盖录制/取消/清空/失败恢复并拒绝 WebView 权威持久化；disabled 时对应 contract、prop、命令、翻译键与依赖缺席。关于、赞助和托盘继续覆盖启用/禁用合同。页面会话状态继续验证进程内保留和退出重置；侧栏折叠偏好使用独立 localStorage 键，宿主能力权威状态不得进入 UI 存储。
 
-12. 日常实施不自动追加全仓格式、类型、lint、中文注释、生产构建、最终 `dist` 扫描或完整验收；媒体清单/摘要复核仅在本次复制品牌媒体时运行。只有独立事件触发时才更新 Product Status、ADR 或 Changelog。用户显式请求构建时交给 `$desktop-build-tauri-release`，由构建流程逐次确认 E2E 并全量运行单元测试；本 Skill 不发送真实遥测、调用生产更新服务、执行支付或发布。
+12. 日常实施不自动追加全仓格式、类型、lint、中文注释、生产构建、最终 `dist` 扫描或完整验收；媒体清单/摘要复核仅在本次复制品牌媒体时运行。只有独立事件触发时才更新 Product Status、ADR 或 Changelog。普通 GUI 本地试包走适用开发构建路线；用户明确请求正式发布候选时先交给 `$desktop-prepare-release`，由 closing commit 封存选择后再调用 `$desktop-build-tauri-release`，构建只另外确认 E2E 并全量运行单元测试；本 Skill 不发送真实遥测、调用生产更新服务、执行支付或发布。
 
 ## 边界
 

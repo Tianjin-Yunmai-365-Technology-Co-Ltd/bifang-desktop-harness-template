@@ -21,6 +21,7 @@ class ReleaseGitTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name) / "project"
+        self.remote = Path(self.temporary.name) / "remote.git"
         self.root.mkdir()
         self.global_config = Path(self.temporary.name) / "global.gitconfig"
         self.env = os.environ.copy()
@@ -28,7 +29,17 @@ class ReleaseGitTests(unittest.TestCase):
             {
                 "GIT_CONFIG_GLOBAL": str(self.global_config),
                 "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_TERMINAL_PROMPT": "0",
+                "GCM_INTERACTIVE": "Never",
             }
+        )
+        subprocess.run(
+            ["git", "init", "--quiet", "--bare", str(self.remote)],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=self.env,
         )
         self.git("init", "--quiet", "--initial-branch=main")
         self.git("config", "--local", "user.name", "Release Test")
@@ -36,6 +47,50 @@ class ReleaseGitTests(unittest.TestCase):
         (self.root / "README.md").write_text("baseline\n", encoding="utf-8")
         self.git("add", "README.md")
         self.git("commit", "--quiet", "-m", "chore: baseline")
+        self.baseline_head = self.git("rev-parse", "HEAD").stdout.strip()
+        subprocess.run(
+            ["git", "-C", str(self.remote), "symbolic-ref", "HEAD", "refs/heads/main"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=self.env,
+        )
+        self.git("remote", "add", "origin", str(self.remote))
+        self.git("push", "--quiet", "-u", "origin", "main")
+        self.git("switch", "--quiet", "-c", "feature-release-scope-20260907")
+        state_directory = self.root / ".harness"
+        state_directory.mkdir()
+        (state_directory / "git-branch-chain.json").write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "activeChain": {
+                        "remote": "origin",
+                        "defaultBranch": "main",
+                        "defaultHead": self.baseline_head,
+                        "baseBranch": "main",
+                        "baseHead": self.baseline_head,
+                        "activeLeaf": "feature-release-scope-20260907",
+                        "phase": "active",
+                        "entries": [
+                            {
+                                "branch": "feature-release-scope-20260907",
+                                "parent": "main",
+                                "parentHead": self.baseline_head,
+                            }
+                        ],
+                    },
+                    "lastClosedChain": None,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.git("add", ".harness/git-branch-chain.json")
+        self.git("commit", "--quiet", "-m", "chore: register feature branch")
+        self.git("push", "--quiet", "-u", "origin", "feature-release-scope-20260907")
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -86,6 +141,7 @@ class ReleaseGitTests(unittest.TestCase):
         (self.root / "source.txt").write_text("done\n", encoding="utf-8")
         payload = self.inspect()
         self.assertEqual(payload["status"], "dirty")
+        self.assertEqual(payload["branch"], "feature-release-scope-20260907")
         self.assertRegex(payload["head"], r"^[0-9a-f]{40}$")
         self.assertRegex(payload["statusSha256"], r"^[0-9a-f]{64}$")
         self.assertTrue(any("source.txt" in record for record in payload["records"]))
@@ -110,14 +166,79 @@ class ReleaseGitTests(unittest.TestCase):
         self.assertIn("changed after review", result.stderr)
         self.assertEqual(self.git("diff", "--cached", "--name-only").stdout, "")
 
+    def test_branch_switch_invalidates_reviewed_snapshot(self) -> None:
+        """即使工作树字节相同，复核后切换 feature 分支也必须拒绝提交。"""
+
+        (self.root / "source.txt").write_text("one\n", encoding="utf-8")
+        snapshot = self.inspect()
+        self.git("switch", "--quiet", "-c", "feature-other-scope-20260907")
+        result = self.commit(snapshot, "source.txt")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("changed after review", result.stderr)
+        self.assertEqual(self.git("diff", "--cached", "--name-only").stdout, "")
+
+    def test_commit_rejects_unregistered_feature_branch(self) -> None:
+        """同格式链外分支也不得绕过活动叶子登记。"""
+
+        self.git("switch", "--quiet", "-c", "feature-other-scope-20260907")
+        (self.root / "source.txt").write_text("one\n", encoding="utf-8")
+        snapshot = self.inspect()
+        result = self.commit(snapshot, "source.txt")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("not the registered active leaf", result.stderr)
+        self.assertEqual(self.git("diff", "--cached", "--name-only").stdout, "")
+
+    def test_commit_rejects_remote_default_branch_drift(self) -> None:
+        """远端默认分支在复核后漂移时必须在暂存前停止。"""
+
+        (self.root / "source.txt").write_text("one\n", encoding="utf-8")
+        snapshot = self.inspect()
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(self.remote),
+                "symbolic-ref",
+                "HEAD",
+                "refs/heads/feature-release-scope-20260907",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=self.env,
+        )
+        result = self.commit(snapshot, "source.txt")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("default branch or OID changed", result.stderr)
+        self.assertEqual(self.git("diff", "--cached", "--name-only").stdout, "")
+
+    def test_commit_rejects_protected_and_release_branches(self) -> None:
+        """main、master 与 Release 只读，发布提交助手不得在其上写入。"""
+
+        for branch in ("main", "master", "Release"):
+            with self.subTest(branch=branch):
+                self.git("switch", "--quiet", "-C", branch)
+                (self.root / "source.txt").write_text(f"{branch}\n", encoding="utf-8")
+                snapshot = self.inspect()
+                before = self.git("rev-parse", "HEAD").stdout.strip()
+                result = self.commit(snapshot, "source.txt")
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("allowed only on the active feature", result.stderr)
+                self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), before)
+                self.assertEqual(self.git("diff", "--cached", "--name-only").stdout, "")
+                self.git("restore", "source.txt", check=False)
+                (self.root / "source.txt").unlink(missing_ok=True)
+
     def test_unreviewed_path_blocks_partial_commit(self) -> None:
         (self.root / "source.txt").write_text("done\n", encoding="utf-8")
         (self.root / "secret.txt").write_text("must review\n", encoding="utf-8")
+        before_count = self.git("rev-list", "--count", "HEAD").stdout.strip()
         snapshot = self.inspect()
         result = self.commit(snapshot, "source.txt")
         self.assertEqual(result.returncode, 1)
         self.assertIn("complete working tree", result.stderr)
-        self.assertEqual(self.git("rev-list", "--count", "HEAD").stdout.strip(), "1")
+        self.assertEqual(self.git("rev-list", "--count", "HEAD").stdout.strip(), before_count)
 
     def test_existing_unreviewed_staged_path_is_rejected(self) -> None:
         (self.root / "source.txt").write_text("done\n", encoding="utf-8")
@@ -140,6 +261,29 @@ class ReleaseGitTests(unittest.TestCase):
         self.assertIn("hooks were not bypassed", result.stderr)
         self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), before)
 
+    def test_hook_cannot_smuggle_unreviewed_content_into_successful_commit(self) -> None:
+        """正常运行的 hook 若改写 index，helper 必须在调用方 publish 前失败关闭。"""
+
+        (self.root / "source.txt").write_text("done\n", encoding="utf-8")
+        hook = self.root / ".git" / "hooks" / "pre-commit"
+        hook.write_text(
+            "#!/bin/sh\nprintf '%s\\n' injected > injected.txt\ngit add injected.txt\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        hook.chmod(0o755)
+        remote_before = self.git("ls-remote", "origin", "refs/heads/feature-release-scope-20260907").stdout
+        snapshot = self.inspect()
+
+        result = self.commit(snapshot, "source.txt")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("hook changed the reviewed staged content", result.stderr)
+        self.assertEqual(
+            self.git("ls-remote", "origin", "refs/heads/feature-release-scope-20260907").stdout,
+            remote_before,
+        )
+
     def test_high_confidence_secret_stops_without_advancing_head(self) -> None:
         """即使路径已复核，私钥/令牌形态也必须在 commit 与 hooks 前失败关闭。"""
 
@@ -157,11 +301,23 @@ class ReleaseGitTests(unittest.TestCase):
     def test_unsafe_or_empty_commit_scope_is_rejected(self) -> None:
         (self.root / "source.txt").write_text("done\n", encoding="utf-8")
         snapshot = self.inspect()
-        for unsafe in ("../source.txt", ".git/config", "release/candidate.zip", ":(glob)*"):
+        for unsafe in (
+            "../source.txt",
+            ".git/config",
+            ".harness",
+            ".harness/git-branch-chain.json",
+            "release/candidate.zip",
+            ":(glob)*",
+        ):
             with self.subTest(unsafe=unsafe):
                 result = self.commit(snapshot, unsafe)
                 self.assertEqual(result.returncode, 1)
-                self.assertIn("cannot be approved" if unsafe.startswith((".git", "release")) else "unsafe approved path", result.stderr)
+                self.assertIn(
+                    "cannot be approved"
+                    if unsafe.startswith((".git", ".harness", "release"))
+                    else "unsafe approved path",
+                    result.stderr,
+                )
 
 
 if __name__ == "__main__":

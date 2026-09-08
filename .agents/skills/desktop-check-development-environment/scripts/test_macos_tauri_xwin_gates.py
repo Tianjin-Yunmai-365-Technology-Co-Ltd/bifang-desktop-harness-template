@@ -136,7 +136,14 @@ fi
 class MacosTauriXwinGateTests(unittest.TestCase):
     """覆盖 macOS Tauri xwin 门禁的成功路径和最高风险安装失败路径。"""
 
-    def run_gate(self, root: Path, probe: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    def run_gate(
+        self,
+        root: Path,
+        probe: Path,
+        *args: str,
+        test_mode: bool = True,
+        **extra: str,
+    ) -> subprocess.CompletedProcess[str]:
         """在伪造 macOS 与独立 HOME/Cargo 目录运行门禁，禁止真实环境修改。"""
         shell = posix_shell()
         if shell is None:
@@ -147,18 +154,36 @@ class MacosTauriXwinGateTests(unittest.TestCase):
                 "AFH_PREREQ_PATH": shell_path(probe),
                 "AFH_TEST_PLATFORM": "Darwin",
                 "AFH_ALLOW_TEST_OVERRIDES": "1",
+                "AFH_TEST_MODE": "1",
                 "HOME": shell_path(root / "home"),
-                "CARGO_HOME": shell_path(root / "cargo"),
+                "CARGO_HOME": shell_path(root / "project" / ".cargo"),
+                "RUSTUP_HOME": shell_path(root / "project" / ".rustup"),
+                "AFH_MANAGED_CARGO_HOME": shell_path(root / "cargo"),
+                "AFH_MANAGED_RUSTUP_HOME": shell_path(root / "rustup"),
             }
         )
+        if not test_mode:
+            env.pop("AFH_TEST_MODE", None)
+        env.update(extra)
         return subprocess.run(
             [shell, shell_path(SCRIPT), *args],
             text=True,
             capture_output=True,
+            cwd=root,
             env=env,
             timeout=30,
             check=False,
         )
+
+    def test_test_overrides_require_explicit_test_mode(self) -> None:
+        """伪造宿主或探测路径必须同时显式启用统一测试模式。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            probe.mkdir()
+            result = self.run_gate(root, probe, "--check-only", test_mode=False)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("仅在 AFH_TEST_MODE=1", result.stderr)
 
     def test_existing_environment_passes_without_installing(self) -> None:
         """全部工具与 target 已存在时必须无写入通过。"""
@@ -195,6 +220,49 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             )
             self.assertIn("gate.cargo_xwin.version=0.23.1", result.stdout)
             self.assertIn("gate.changed=true", result.stdout)
+            self.assertTrue((root / "cargo" / "bin" / "cargo-xwin").is_file())
+            self.assertFalse((root / "project").exists())
+
+    def test_install_path_output_drops_empty_and_duplicate_probe_segments(self) -> None:
+        """安装分支必须清除探测 PATH 空段/重复项，输出也不得重新引入 cwd 语义。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=False)
+            add_fake_brew(root, probe)
+            probe_value = shell_path(probe)
+            result = self.run_gate(
+                root,
+                probe,
+                "--install-missing",
+                AFH_PREREQ_PATH=f":{probe_value}::{probe_value}:",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            path_line = next(
+                line for line in result.stdout.splitlines() if line.startswith("gate.path.prepend=")
+            )
+            entries = path_line.removeprefix("gate.path.prepend=").split(":")
+            self.assertNotIn("", entries)
+            self.assertEqual(len(entries), len(dict.fromkeys(entries)))
+
+    def test_literal_glob_probe_entry_is_never_expanded(self) -> None:
+        """绝对 PATH 字面 glob 必须保持字面量，不能扫描 cwd 或匹配目录中的 shim。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=True)
+            (probe / "cargo-xwin").unlink()
+            glob_match = root / "glob-match"
+            glob_match.mkdir()
+            executable(glob_match / "cargo-xwin", '#!/bin/sh\nprintf "%s\\n" "cargo-xwin 0.23.1"\n')
+
+            result = self.run_gate(
+                root,
+                probe,
+                "--check-only",
+                AFH_PREREQ_PATH=f"{shell_path(root)}/*:{shell_path(probe)}",
+            )
+
+            self.assertEqual(result.returncode, 20, result.stderr)
+            self.assertIn("gate.cargo_xwin.status=missing", result.stdout)
 
     def test_higher_compatible_cargo_xwin_is_preserved(self) -> None:
         """0.23 系列中高于下界的稳定版本必须直接通过且不静默替换。"""
@@ -373,6 +441,7 @@ class MacosTauriXwinGateTests(unittest.TestCase):
                     "AFH_PREREQ_PATH": shell_path(probe),
                     "AFH_TEST_PLATFORM": "Linux",
                     "AFH_ALLOW_TEST_OVERRIDES": "1",
+                    "AFH_TEST_MODE": "1",
                 }
             )
             result = subprocess.run(
