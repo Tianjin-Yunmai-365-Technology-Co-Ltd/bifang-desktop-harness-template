@@ -9,9 +9,11 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from typing import Sequence
 
 
@@ -26,6 +28,15 @@ SECRET_PATTERNS = (
     re.compile(br"(?:^|[^A-Za-z0-9])gh[pousr]_[A-Za-z0-9]{20,}(?:$|[^A-Za-z0-9])"),
     re.compile(br"(?:^|[^A-Za-z0-9])sk-[A-Za-z0-9_-]{20,}(?:$|[^A-Za-z0-9_-])"),
 )
+CACHED_PATCH_ARGUMENTS = (
+    "diff",
+    "--cached",
+    "--binary",
+    "--full-index",
+    "--no-renames",
+    "--no-ext-diff",
+    "--no-textconv",
+)
 
 
 class ReleaseGitError(RuntimeError):
@@ -38,21 +49,25 @@ def run_git(
     *,
     check: bool = True,
     text: bool = True,
+    environment: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str] | subprocess.CompletedProcess[bytes]:
     """在精确项目根运行 Git；从不经 shell，也不绕过 hooks。"""
 
     try:
+        command_environment = {
+            **os.environ,
+            "GIT_TERMINAL_PROMPT": "0",
+            "GCM_INTERACTIVE": "Never",
+        }
+        if environment:
+            command_environment.update(environment)
         result = subprocess.run(
             ["git", "-C", str(root), *arguments],
             check=False,
             capture_output=True,
             text=text,
             encoding="utf-8" if text else None,
-            env={
-                **os.environ,
-                "GIT_TERMINAL_PROMPT": "0",
-                "GCM_INTERACTIVE": "Never",
-            },
+            env=command_environment,
         )
     except FileNotFoundError as error:
         raise ReleaseGitError("git executable is unavailable") from error
@@ -284,6 +299,51 @@ def staged_diff_contains_secret(root: Path) -> bool:
     return any(pattern.search(patch) for pattern in SECRET_PATTERNS)
 
 
+def cached_index_patch(
+    root: Path, *, environment: dict[str, str] | None = None
+) -> bytes:
+    """返回包含新增、删除、mode 与二进制字节的规范化完整 index patch。"""
+
+    return run_git(
+        root,
+        list(CACHED_PATCH_ARGUMENTS),
+        text=False,
+        environment=environment,
+    ).stdout
+
+
+def freeze_expected_index_patch(root: Path, literal_pathspecs: Sequence[str]) -> bytes:
+    """在隔离 index 中冻结当前快照执行同一 add 后应得到的精确 patch。"""
+
+    index_result = run_git(
+        root, ["rev-parse", "--path-format=absolute", "--git-path", "index"]
+    )
+    index_lines = index_result.stdout.splitlines()
+    if len(index_lines) != 1:
+        raise ReleaseGitError("cannot resolve the repository index")
+    index_path = Path(index_lines[0])
+    if not index_path.is_absolute():
+        index_path = root / index_path
+    if index_path.is_symlink() or not index_path.is_file():
+        raise ReleaseGitError("repository index must be a regular file")
+    index_parent = index_path.parent
+    if index_parent.is_symlink() or not index_parent.is_dir():
+        raise ReleaseGitError("repository index parent must be a regular directory")
+
+    with tempfile.TemporaryDirectory(
+        prefix=".release-reviewed-index-", dir=index_parent
+    ) as temporary_directory:
+        temporary_index = Path(temporary_directory) / "index"
+        shutil.copyfile(index_path, temporary_index)
+        temporary_environment = {"GIT_INDEX_FILE": str(temporary_index)}
+        run_git(
+            root,
+            ["add", "-A", "--", *literal_pathspecs],
+            environment=temporary_environment,
+        )
+        return cached_index_patch(root, environment=temporary_environment)
+
+
 def commit_approved(
     project_root: str,
     *,
@@ -343,7 +403,30 @@ def commit_approved(
         )
 
     literal_pathspecs = [f":(literal){path}" for path in approved]
+    expected_index_patch = freeze_expected_index_patch(root, literal_pathspecs)
+    frozen_status = status_bytes(root)
+    _, frozen_head, frozen_branch = resolve_repository(str(root))
+    if (
+        frozen_head != previous_head
+        or frozen_branch != branch
+        or repository_snapshot_digest(
+            root,
+            frozen_status,
+            head=frozen_head,
+            branch=frozen_branch,
+        )
+        != expected_status_sha256
+    ):
+        raise ReleaseGitError(
+            "working tree, branch, HEAD, or index changed while freezing the reviewed content"
+        )
+
     run_git(root, ["add", "-A", "--", *literal_pathspecs])
+    reviewed_index_patch = cached_index_patch(root)
+    if reviewed_index_patch != expected_index_patch:
+        raise ReleaseGitError(
+            "staged content changed after review; inspect it again before committing"
+        )
     staged = nul_paths(root, ["diff", "--cached", "--name-only", "-z"])
     if not staged:
         raise ReleaseGitError("reviewed paths produced no staged changes")
@@ -356,12 +439,6 @@ def commit_approved(
         raise ReleaseGitError(
             "potential secret detected in reviewed staged bytes; remove it and inspect again"
         )
-    reviewed_index_patch = run_git(
-        root,
-        ["diff", "--cached", "--binary", "--no-ext-diff", "--no-textconv"],
-        text=False,
-    ).stdout
-
     unstaged = run_git(root, ["diff", "--quiet"], check=False)
     if unstaged.returncode not in (0, 1):
         raise ReleaseGitError("cannot verify unstaged tracked changes")
@@ -395,6 +472,8 @@ def commit_approved(
         [
             "diff",
             "--binary",
+            "--full-index",
+            "--no-renames",
             "--no-ext-diff",
             "--no-textconv",
             previous_head,

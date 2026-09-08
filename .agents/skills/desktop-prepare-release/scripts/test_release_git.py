@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -165,6 +166,85 @@ class ReleaseGitTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("changed after review", result.stderr)
         self.assertEqual(self.git("diff", "--cached", "--name-only").stdout, "")
+
+    def test_git_add_window_race_cannot_commit_unreviewed_bytes(self) -> None:
+        """真实 add 窗口中的并发改写必须与隔离 index 冻结 patch 不匹配。"""
+
+        target = self.root / "source.txt"
+        target.write_text("reviewed\n", encoding="utf-8")
+        snapshot = self.inspect()
+        before = self.git("rev-parse", "HEAD").stdout.strip()
+        real_git = shutil.which("git", path=self.env.get("PATH"))
+        self.assertIsNotNone(real_git)
+        wrapper_directory = Path(self.temporary.name) / "git-wrapper"
+        wrapper_directory.mkdir()
+        wrapper = wrapper_directory / "git"
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            "if [ -z \"${GIT_INDEX_FILE:-}\" ] && [ \"${1:-}\" = -C ] && "
+            "[ \"${3:-}\" = add ]; then\n"
+            "  printf '%s\\n' raced > \"$AFH_RACE_TARGET\"\n"
+            "fi\n"
+            "exec \"$AFH_REAL_GIT\" \"$@\"\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        wrapper.chmod(0o755)
+        self.env.update(
+            {
+                "AFH_RACE_TARGET": str(target),
+                "AFH_REAL_GIT": str(real_git),
+                "PATH": f"{wrapper_directory}{os.pathsep}{self.env.get('PATH', '')}",
+            }
+        )
+
+        result = self.commit(snapshot, "source.txt")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("staged content changed after review", result.stderr)
+        self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), before)
+        self.assertEqual(target.read_text(encoding="utf-8"), "raced\n")
+
+    def test_frozen_patch_covers_tracked_untracked_mode_delete_and_rename(self) -> None:
+        """隔离 index 与真实 add 对常见 Git 变化必须产生同一完整 patch。"""
+
+        mode_path = self.root / "mode.txt"
+        deleted_path = self.root / "deleted.txt"
+        renamed_from = self.root / "renamed-from.txt"
+        for path in (mode_path, deleted_path, renamed_from):
+            path.write_text(f"{path.stem}\n", encoding="utf-8")
+        self.git("add", "mode.txt", "deleted.txt", "renamed-from.txt")
+        self.git("commit", "--quiet", "-m", "test: add patch fixtures")
+        self.git("push", "--quiet", "origin", "feature-release-scope-20260907")
+
+        (self.root / "README.md").write_text("tracked update\n", encoding="utf-8")
+        (self.root / "untracked.txt").write_text("untracked\n", encoding="utf-8")
+        mode_path.chmod(mode_path.stat().st_mode | 0o111)
+        self.git("update-index", "--chmod=+x", "mode.txt")
+        deleted_path.unlink()
+        renamed_from.rename(self.root / "renamed-to.txt")
+        snapshot = self.inspect()
+
+        result = self.commit(
+            snapshot,
+            "README.md",
+            "untracked.txt",
+            "mode.txt",
+            "deleted.txt",
+            "renamed-from.txt",
+            "renamed-to.txt",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.git("show", "HEAD:README.md").stdout,
+            "tracked update\n",
+        )
+        summary = self.git("diff", "--summary", "HEAD^", "HEAD").stdout
+        self.assertIn("create mode 100644 untracked.txt", summary)
+        self.assertIn("mode change 100644 => 100755 mode.txt", summary)
+        self.assertIn("delete mode 100644 deleted.txt", summary)
+        self.assertIn("rename renamed-from.txt => renamed-to.txt (100%)", summary)
 
     def test_branch_switch_invalidates_reviewed_snapshot(self) -> None:
         """即使工作树字节相同，复核后切换 feature 分支也必须拒绝提交。"""

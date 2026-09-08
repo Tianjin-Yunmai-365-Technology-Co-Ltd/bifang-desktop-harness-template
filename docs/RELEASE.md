@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- 当前版本：[`Version.md`](../Version.md) 中记录的 `202609020957`（Released）
+- 当前版本：[`Version.md`](../Version.md) 中记录的 `202609082335`（Released）
 - 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
 - 旧版本标识：[`Version.md`](../Version.md) 中记录的 `1.0.0`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则

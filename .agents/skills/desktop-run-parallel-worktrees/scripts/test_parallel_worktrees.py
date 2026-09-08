@@ -121,6 +121,57 @@ class ParallelWorktreesTests(unittest.TestCase):
             json.dumps(payload), encoding="utf-8"
         )
 
+    def direct_closed_branch_chain_state(self, head: str) -> dict[str, object]:
+        """构造直接发布后允许继续创建 sibling unit 的合法关闭状态。"""
+        return {
+            "schemaVersion": 1,
+            "activeChain": None,
+            "lastClosedChain": {
+                "remote": "origin",
+                "baseBranch": "main",
+                "baseHead": head,
+                "defaultBranch": "main",
+                "defaultHead": head,
+                "releaseHeadBefore": None,
+                "closingHead": None,
+                "entries": [
+                    {
+                        "branch": "feature-current-20260907",
+                        "preCloseHead": head,
+                    }
+                ],
+                "releaseReview": {
+                    "selection": "enabled",
+                    "status": "passed",
+                    "scopeBase": head,
+                    "sourceHead": head,
+                    "scopeDiffSha256": "a" * 64,
+                    "reviewedSourceCommit": head,
+                    "checks": [
+                        "behavior-correctness",
+                        "core-adapter-boundary",
+                        "external-contracts",
+                        "responsibility-and-size",
+                        "temporary-markers",
+                    ],
+                    "evidenceSummary": "发布范围语义审查通过",
+                    "reason": None,
+                    "remainingRisk": None,
+                },
+                "candidateSelections": {
+                    "performanceSelection": "not-applicable",
+                    "performanceSource": "not-applicable",
+                    "performanceReason": None,
+                    "performanceRemainingRisk": None,
+                    "macosSigningSelection": "not-applicable",
+                    "macosSigningSource": "not-applicable",
+                    "macosSigningReason": None,
+                    "macosSigningRemainingRisk": None,
+                },
+                "releaseTarget": "default",
+            },
+        }
+
     def test_create_rejects_active_managed_feature_chain_without_side_effects(self) -> None:
         """验证活动 feature 链在任何 sibling unit 副作用前稳定阻断。"""
         head = self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip()
@@ -164,6 +215,36 @@ class ParallelWorktreesTests(unittest.TestCase):
         self.assert_no_unit_create_side_effects("invalid")
         self.assertEqual(inspected.returncode, 0, inspected.stderr)
         self.assertTrue(inspect_payload["ok"])
+
+    def test_create_accepts_direct_release_closed_branch_chain(self) -> None:
+        """验证带审查、候选选择和目标字段的新式关闭状态允许后续单元。"""
+        head = self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip()
+        self.write_branch_chain_state(self.direct_closed_branch_chain_state(head))
+        self.git("add", ".harness/git-branch-chain.json", cwd=self.source)
+        self.git("commit", "-m", "record direct release closure", cwd=self.source)
+
+        result, payload = self.create("after-release", "src")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["branch"], "codex/unit-feature-after-release")
+
+    def test_create_rejects_malformed_direct_release_closed_chain(self) -> None:
+        """验证新式关闭状态的嵌套选择仍保持失败关闭。"""
+        head = self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip()
+        state = self.direct_closed_branch_chain_state(head)
+        closed = state["lastClosedChain"]
+        assert isinstance(closed, dict)
+        selections = closed["candidateSelections"]
+        assert isinstance(selections, dict)
+        selections["performanceSource"] = "requested"
+        self.write_branch_chain_state(state)
+
+        result, payload = self.create("malformed", "src")
+
+        self.assertEqual(result.returncode, 4)
+        self.assertEqual(payload["error"]["code"], "git_branch_chain_state_invalid")
+        self.assert_no_unit_create_side_effects("malformed")
 
     def test_create_from_task_branch_avoids_parent_child_ref_collision_and_removes(self) -> None:
         """验证 codex/task-feature 已存在时仍能创建扁平 unit ref 并安全清理。"""
