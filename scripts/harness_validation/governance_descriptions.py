@@ -66,6 +66,11 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "状态不入标题",
         "Session 收尾契约至多调用一次",
         "普通 Session 收尾命名",
+        "{Task}|{序号}|{功能摘要}{当前进度}",
+        "内部 agent 不套用",
+        "内部 Subagent、agent thread 和内部单元 Worktree 不执行该操作",
+        "只更新进度后缀",
+        "稳定三部分与合法四态后缀",
     )
     for path in paths:
         if not path.is_file():

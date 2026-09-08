@@ -374,8 +374,8 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         ):
             self.assertIn(heading, policy)
         for fragment in (
-            "{Task}|{序号}|{功能摘要}{当前进度}",
-            'title="{Task}|{序号}|{功能摘要}已分配"',
+            "{序号}|{Task简述}|{当前进度} |{功能摘要}",
+            'title="{序号}|{Task简述}|已分配 |{功能摘要}"',
             "Task 描述记录不可变的 Task key",
             "稳定序号",
             "显示标题与 Git slug 是两个事实",
@@ -436,7 +436,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("立即报告 queued Task", policy)
         self.assertIn("不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建", policy)
         self.assertIn("用户随后明确要求检查先前 queued Task", policy)
-        self.assertIn("只核对稳定三部分与合法四态后缀，不要求仍为 `已分配`", policy)
+        self.assertIn("只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`", policy)
         self.assertIn("不得使用 `projectless`", policy)
         self.assertIn("Git common dir 不同", policy)
 
@@ -472,7 +472,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         )
 
         for text in (policy, readme, implement, instantiate, initialize):
-            self.assertIn('title="{Task}|{序号}|{功能摘要}已分配"', text)
+            self.assertIn('title="{序号}|{Task简述}|已分配 |{功能摘要}"', text)
             self.assertIn("Task key", text)
             self.assertIn("task-slug", text)
         self.assertIn("不得把调用后才返回的 `threadId`/`clientThreadId` 写进序号或标题", policy)
@@ -481,13 +481,14 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("不靠标题判断身份", implement)
         self.assertIn("无前导零的正十进制整数", policy)
         self.assertIn(
-            "不得把 `{Task}|{序号}|{功能摘要}{当前进度}` 显示标题原样传给",
+            "不得把 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 显示标题原样传给",
             parallel,
         )
-        self.assertIn("不得冒充新的左侧 Task", parallel)
+        self.assertIn("不得把自己称为新的左侧 Task", parallel)
+        self.assertIn("在消息中写入完整逻辑初始标题", parallel)
 
-    def test_session_and_worktree_titles_follow_one_progress_contract(self) -> None:
-        """当前 Session 与左侧 Task 共用四态标题并按真实身份复读。"""
+    def test_session_worktree_and_subagent_titles_follow_one_progress_contract(self) -> None:
+        """普通 Session、左侧 Task 与 Subagent 共用四字段四态标题。"""
 
         policy = read_repo_text("docs/AGENT_POLICY.md")
         agents = read_repo_text("AGENTS.md")
@@ -495,6 +496,9 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         product_spec = repository.PRODUCT_SPEC.read_text(encoding="utf-8")
         implement = read_repo_text(
             ".agents/skills/desktop-implement-change/SKILL.md"
+        )
+        parallel = read_repo_text(
+            ".agents/skills/desktop-run-parallel-worktrees/SKILL.md"
         )
         instantiate = read_repo_text(
             ".agents/skills/desktop-instantiate-project/SKILL.md"
@@ -509,10 +513,11 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             readme,
             product_spec,
             implement,
+            parallel,
             instantiate,
             initialize,
         ):
-            self.assertIn("{Task}|{序号}|{功能摘要}", text)
+            self.assertIn("{序号}|{Task简述}|{当前进度} |{功能摘要}", text)
             self.assertTrue(
                 any(
                     fragment in text
@@ -530,36 +535,54 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("每次真实进度转换至多尝试一次标题更新", policy)
         self.assertIn("调用 `set_thread_title` 并省略 `threadId`", policy)
         self.assertIn("按同一真实 id 比较宿主返回的规范化标题原文", policy)
-        self.assertIn("同一稳定三部分更新为 `检查中`", implement)
+        self.assertIn("保持三个稳定字段并把第三字段更新为 `检查中`", implement)
         self.assertIn("更新为终态 `已完成`", implement)
-        self.assertIn('title="{Task}|{序号}|{功能摘要}已分配"', policy)
-        self.assertIn("`Task` 与 `功能摘要` 都必须单行、首尾无空白", policy)
-        self.assertIn("`Task`、`序号` 和 `功能摘要` 在同一结果内保持不变，只更新进度后缀", policy)
+        self.assertIn('title="{序号}|{Task简述}|已分配 |{功能摘要}"', policy)
+        self.assertIn("`Task简述` 是稳定、非空且不含 `|`", policy)
+        self.assertIn("`序号`、`Task简述` 和 `功能摘要` 在同一结果内保持不变，只更新第三字段", policy)
         self.assertIn("不得根据返回 id 重新分配序号", policy)
         self.assertIn("检查发现同范围问题并返回修复时重新更新为 `运行中`", policy)
         self.assertIn("请求或流程要求的提交、推送和远端复读都已完成", policy)
         self.assertIn("遇到阻断时保留最后真实阶段", policy)
-        self.assertIn("内部 Subagent、agent thread 和内部单元 Worktree 不执行该操作", policy)
+        self.assertIn("内部 Subagent 取得执行权后的第一项 UI 动作", policy)
+        self.assertIn("隐藏 Subagent 不出现在 `list_threads` 时改用", policy)
+        self.assertIn("内部单元 Worktree 本身没有独立 Session 标题", policy)
+        self.assertIn("不得把该字符串改塞进受限技术 `task_name`", parallel)
+        self.assertEqual(
+            governance_policy.SESSION_PROGRESS_TITLE_TEMPLATE,
+            "{序号}|{Task简述}|{当前进度} |{功能摘要}",
+        )
+        self.assertEqual(
+            governance_policy.SESSION_PROGRESS_TITLE_INITIAL,
+            "{序号}|{Task简述}|已分配 |{功能摘要}",
+        )
 
         for progress in governance_policy.SESSION_PROGRESS_STATES:
             self.assertTrue(
                 governance_policy.is_valid_session_progress_title(
-                    f"同步|23|拉取并推送 GitHub{progress}"
+                    f"23|同步GitHub|{progress} |拉取并推送所有变更"
                 ),
                 progress,
             )
         for invalid in (
-            "同步|0|拉取并推送 GitHub已分配",
-            "同步|01|拉取并推送 GitHub运行中",
-            "同步|1|拉取并推送 GitHub|检查中",
-            "同步|1|拉取并推送 GitHub已阻塞",
-            "|1|拉取并推送 GitHub已完成",
-            "同步|1|已完成",
-            " 同步|1|拉取并推送 GitHub已完成",
-            "同步 |1|拉取并推送 GitHub已完成",
-            "同步|1| 拉取并推送 GitHub已完成",
-            "同步|1|拉取并推送 GitHub 已完成",
-            "同步\n任务|1|拉取并推送 GitHub已完成",
+            "0|同步GitHub|已分配 |拉取并推送所有变更",
+            "01|同步GitHub|运行中 |拉取并推送所有变更",
+            "同步GitHub|23|运行中 |拉取并推送所有变更",
+            "23|同步GitHub|检查中|拉取并推送所有变更",
+            "23|同步GitHub|检查中  |拉取并推送所有变更",
+            "23|同步GitHub|已阻塞 |拉取并推送所有变更",
+            "23||已完成 |拉取并推送所有变更",
+            "23|同步GitHub|已完成 |",
+            "23| 同步GitHub|已完成 |拉取并推送所有变更",
+            "23|同步GitHub |已完成 |拉取并推送所有变更",
+            "23|同步GitHub|已完成 | 拉取并推送所有变更",
+            "23|同步GitHub|已完成 |拉取并推送所有变更 ",
+            "23|同步|GitHub|已完成 |拉取并推送所有变更",
+            "23|同步\nGitHub|已完成 |拉取并推送所有变更",
+            "23|同步\u2028GitHub|已完成 |拉取并推送所有变更",
+            "23|同步GitHub|已完成 |拉取\u0085并推送所有变更",
+            "23|同步GitHub|已完成 |拉取\u2029并推送所有变更",
+            "同步GitHub|23|拉取并推送所有变更已完成",
             "同步任务已完成",
         ):
             self.assertFalse(

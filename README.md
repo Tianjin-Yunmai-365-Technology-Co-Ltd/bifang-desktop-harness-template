@@ -34,7 +34,7 @@ Bifang Desktop Harness Template
 - 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；没有特别选择时默认使用 CLI。
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
-- 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Worktree Task 以 `{Task}|{序号}|{功能摘要}已分配` 派发，并在自己的会话中更新真实进度，同时使用独立分支和可审查提交。
+- 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Worktree Task 以 `{序号}|{Task简述}|已分配 |{功能摘要}` 派发，并在自己的会话中更新真实进度，同时使用独立分支和可审查提交。
 - 在已有远端的下游中，为新需求、Bug 和维护自动建立串行 feature 分支链，提交后推送活动叶子；明确发布时把整链原子严格快进到动态默认 `main`/`master`、切回本地默认分支、精确清理状态登记链路并从该 clean closing commit 构建可追溯候选，不创建 `Release` 中转。GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
@@ -84,9 +84,9 @@ Bifang Desktop Harness Template
 
 如果一项工作需要成为可独立进入和审查的结果，可以明确要求新建一个左侧 Task。诊断、实现、相关测试/review 和同范围修复不会仅因阶段变化被自动拆开；plan、Todo 和 Subagent 仍是当前 Task 的内部结构。详细规则见 [Agent 运行策略](docs/AGENT_POLICY.md)。
 
-普通单结果请求会直接在当前调用 Session 中完成；当前 Session 与用户可见的 Worktree/Local 左侧 Task 都使用 `{Task}|{序号}|{功能摘要}{当前进度}`。稳定三部分在同一结果内不变，末尾进度只取 `已分配`、`运行中`、`检查中`、`已完成`：左侧 Task 以 `已分配` 派发，开始处理进入 `运行中`，真实开始必要检查进入 `检查中`，检查失败返工时回到 `运行中`，全部工作、检查及要求的提交/推送/远端复读完成后才进入 `已完成`；没有独立检查时可以跳过 `检查中`。普通当前 Session 通常从 `运行中` 开始。每次真实转换至多尝试一次更新并按真实 `threadId` 有界复读；宿主不提供标题工具、更新失败或复读未确认时会如实报告，但不会推翻已经完成的任务结果。阻断时保留最后真实阶段，不新增状态或虚写 `已完成`。内部 Subagent/agent thread/单元 Worktree 不套用该标题。
+普通单结果请求会直接在当前调用 Session 中完成；普通当前 Session、Worktree/Local 左侧 Task 与内部 Subagent/agent thread 都使用 `{序号}|{Task简述}|{当前进度} |{功能摘要}`。序号、Task 简述和功能摘要三个稳定字段在同一结果内不变，第三字段进度只取 `已分配`、`运行中`、`检查中`、`已完成`：左侧 Task 以 `已分配` 派发，开始处理进入 `运行中`，真实开始必要检查进入 `检查中`，检查失败返工时回到 `运行中`，全部工作、检查及要求的提交/推送/远端复读完成后才进入 `已完成`；没有独立检查时可以跳过 `检查中`。普通当前 Session 通常从 `运行中` 开始。内部 Subagent 的协调方在派发消息中记录逻辑 `已分配` 标题，Subagent 取得执行权后立即自行更新为 `运行中`；绑定它的单元 Worktree 本身没有独立会话标题。每次真实转换至多尝试一次更新：普通/左侧 Task 按真实 `threadId` 用 `list_threads` 有界复读，隐藏 Subagent 用 `read_thread` 复读。宿主不提供标题工具、更新失败或复读未确认时会如实报告，但不会推翻已经完成的任务结果。阻断时保留最后真实阶段，不新增状态或虚写 `已完成`。
 
-标题以 ASCII `|` 分隔，`Task` 和功能摘要非空、不含 `|`、必须单行且首尾无空白，序号是无前导零的正整数，进度是直接附在功能摘要后的固定中文后缀。例如：`Session标题优化|1|统一Worktree与当前会话运行中`。序号只在当前 Session 或同一协调批次内稳定；同一结果重试复用，当前 Session 的新独立结果在可确定时递增，协调批次按派发顺序从 `1` 分配，不承诺全局唯一。`threadId`/`clientThreadId`、Git ref 和列表顺序都不能生成或反填序号；标题只供人阅读，真实身份仍由宿主 id、`projectId` 与 Git 绑定共同判断。
+标题以 ASCII `|` 分隔，`当前进度` 后和第三个 `|` 前固定恰好一个 ASCII 空格；Task 简述和功能摘要非空、不含 `|`、必须单行且首尾无空白，序号是无前导零的正整数。例如：`4|统一Session标题格式|运行中 |统一普通会话、Worktree与Subagent命名`。序号只在当前 Session 或同一协调/派发批次内稳定；同一结果重试复用，当前 Session 的新独立结果在可确定时递增，左侧 Task 与 Subagent 批次分别按派发顺序从 `1` 分配，不承诺全局唯一。`threadId`/`clientThreadId`、Subagent 技术 `task_name`、Git ref 和列表顺序都不能生成或反填序号；标题只供人阅读，真实身份仍由宿主 id、`projectId` 与 Git 绑定共同判断。
 
 ## 开发与构建边界
 
@@ -102,11 +102,11 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 ## 开始一个左侧 Task
 
-只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。创建者在派发前记录不可变 Task key，并按当前协调批次分配稳定序号，调用 `create_thread` 时显式传入 `title="{Task}|{序号}|{功能摘要}已分配"`；调用后才返回的 `threadId`/`clientThreadId` 不能反填序号。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
+只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。创建者在派发前记录不可变 Task key，并按当前协调批次分配稳定序号，调用 `create_thread` 时显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；调用后才返回的 `threadId`/`clientThreadId` 不能反填序号。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
 
-创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用真实 id 和 `projectId` 对账，并展示 `list_threads` 返回的规范化标题原文；执行 Task 可能已经推进标题进度，因此对账只要求稳定三部分和四种合法后缀，身份不依赖标题。Ready/Active/Blocked 等宿主状态不替代这四种标题进度；阻断时保留最后真实进度并在正文报告。
+创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用真实 id 和 `projectId` 对账，并展示 `list_threads` 返回的规范化标题原文；执行 Task 可能已经推进标题进度，因此对账只要求序号、Task 简述、功能摘要三个稳定字段和四种合法进度字段，身份不依赖标题。Ready/Active/Blocked 等宿主状态不替代这四种标题进度；阻断时保留最后真实进度并在正文报告。
 
-只读 Task 可从用户明确起点或保存项目默认分支的已提交 HEAD 开始；会产生产品写入的 Ready Task 从已推送的活动 feature 叶子开始，在自己的 Worktree 和临时 `codex/task-*` 分支完成一组可审查提交，不自行合并或推送。显示标题与 Git ref 分离：独立 ASCII `task-slug` 只用于 `codex/task-<task-slug>`，不得把 `{Task}|{序号}|{功能摘要}{当前进度}` 原样当作分支名。为保持发布链严格线性，同一活动叶子同一时刻最多一个产品写入 Task，且该 Task 不再创建 sibling 写入 `codex/unit-*`；协调方使用 `$desktop-manage-git-branch-chain integrate-task` 在 clean、冻结 OID、同仓库 Worktree、远端未漂移和严格线性条件满足时只快进本地活动叶子，再以独立 `publish` 推送并复读，成功后下一个写入 Task 才从新 OID 开始。非活动链工作只有在用户明确要求并行且策略允许时，才使用 `$desktop-run-parallel-worktrees` 创建临时单元；只读 Subagent 始终可按需并行。这些 agent thread 不是新的左侧 Task，不调用 `create_thread`，也不冒充满足左侧 Task 的显示标题契约。
+只读 Task 可从用户明确起点或保存项目默认分支的已提交 HEAD 开始；会产生产品写入的 Ready Task 从已推送的活动 feature 叶子开始，在自己的 Worktree 和临时 `codex/task-*` 分支完成一组可审查提交，不自行合并或推送。显示标题与 Git ref 分离：独立 ASCII `task-slug` 只用于 `codex/task-<task-slug>`，不得把 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 原样当作分支名。为保持发布链严格线性，同一活动叶子同一时刻最多一个产品写入 Task，且该 Task 不再创建 sibling 写入 `codex/unit-*`；协调方使用 `$desktop-manage-git-branch-chain integrate-task` 在 clean、冻结 OID、同仓库 Worktree、远端未漂移和严格线性条件满足时只快进本地活动叶子，再以独立 `publish` 推送并复读，成功后下一个写入 Task 才从新 OID 开始。非活动链工作只有在用户明确要求并行且策略允许时，才使用 `$desktop-run-parallel-worktrees` 创建临时单元；只读 Subagent 始终可按需并行。这些 agent thread 同样使用统一会话标题，但不是新的左侧 Task，不调用 `create_thread`，也不以标题冒充项目/Worktree 身份。
 
 如果还使用全局 Task 提示词，可以继续保留“一结果一 Task、项目绑定、一次创建和不重复创建”，但不要再要求“生命周期阶段变化就拆 Task”“普通请求必须先建 Task0”“只拿到 `clientThreadId` 时无限等待”“Worktree 路径必须位于保存项目目录内”或“把 Ready/Active/Blocked 等宿主状态当作标题进度”。这些规则会分别造成过度拆分、setup 死锁、合法 Worktree 误判和状态语义混淆。
 

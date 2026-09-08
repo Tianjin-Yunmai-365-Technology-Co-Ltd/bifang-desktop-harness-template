@@ -769,16 +769,20 @@ class ValidateAgentPolicyTests(unittest.TestCase):
 
         policy = self._current_policy()
         required = (
-            "`{Task}|{序号}|{功能摘要}{当前进度}`",
+            "`{序号}|{Task简述}|{当前进度} |{功能摘要}`",
             "`已分配`、`运行中`、`检查中`、`已完成`",
-            'title="{Task}|{序号}|{功能摘要}已分配"',
+            'title="{序号}|{Task简述}|已分配 |{功能摘要}"',
             "无前导零的正十进制整数",
-            "`Task` 与 `功能摘要` 都必须单行、首尾无空白",
-            "`Task`、`序号` 和 `功能摘要` 在同一结果内保持不变，只更新进度后缀",
+            "`Task简述` 与 `功能摘要` 都必须单行、首尾无空白",
+            "`序号`、`Task简述` 和 `功能摘要` 在同一结果内保持不变，只更新第三字段",
             "每次真实进度转换至多尝试一次标题更新",
             "调用 `set_thread_title` 并省略 `threadId`",
             "按同一真实 id 比较宿主返回的规范化标题原文",
-            "只核对稳定三部分与合法四态后缀，不要求仍为 `已分配`",
+            "只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`",
+            "内部 Subagent 取得执行权后的第一项 UI 动作",
+            "`spawn_agent` 不提供显示标题参数",
+            "内部单元 Worktree 本身没有独立 Session 标题",
+            "隐藏 Subagent 不出现在 `list_threads` 时改用 `read_thread`",
             "只有授权结果、全部必需检查，以及请求或流程要求的提交、推送和远端复读都已完成，才在最终回复前更新为 `已完成`",
             "遇到阻断时保留最后真实阶段并在正文报告，不得虚写 `已完成` 或创造第五种状态",
             "`已完成` 是终态",
@@ -998,6 +1002,27 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
             governance.validate_stale_fragments(errors, (path,))
         self.assertTrue(any("stale current description" in item for item in errors))
 
+    def test_rejects_superseded_session_title_rules_in_current_sources(self) -> None:
+        """旧标题格式、后缀语义与 Subagent 排除不得回流当前事实源。"""
+
+        stale_fragments = (
+            "{Task}|{序号}|{功能摘要}{当前进度}",
+            "内部 agent 不套用",
+            "内部 Subagent、agent thread 和内部单元 Worktree 不执行该操作",
+            "只更新进度后缀",
+            "稳定三部分与合法四态后缀",
+        )
+        for fragment in stale_fragments:
+            with self.subTest(fragment=fragment), tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary) / "current.md"
+                path.write_text(fragment, encoding="utf-8")
+                errors: list[str] = []
+                governance.validate_stale_fragments(errors, (path,))
+                self.assertTrue(
+                    any("stale current description" in item for item in errors),
+                    errors,
+                )
+
     def test_rejects_superseded_task_title_in_current_changelog(self) -> None:
         """同日 Changelog 不得把被取代标题格式继续陈述为当前合同。"""
 
@@ -1007,6 +1032,8 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
             "普通单结果请求在当前调用 Session 完成授权结果和本次必需检查后、最终回复前，至多一次尝试使用旧格式。",
             "调用后返回的 `threadId`/`clientThreadId` 和可变状态不再反填标题。",
             "标题不再携带可变状态。",
+            "当前调用 Session 与用户可见的 Worktree/Local 左侧 Task 统一使用 `{Task}|{序号}|{功能摘要}{当前进度}`。",
+            "内部 agent 不套用。",
         )
         for claim in deprecated_claims:
             with self.subTest(claim=claim), tempfile.TemporaryDirectory() as temporary:
@@ -1022,7 +1049,8 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "current.md"
             path.write_text(
-                "历史 `{任务}-{ID}-{摘要}` 已被 `{Task}|{序号}|{功能摘要}{当前进度}` 取代。",
+                "历史 `{Task}|{序号}|{功能摘要}{当前进度}` 已被 "
+                "`{序号}|{Task简述}|{当前进度} |{功能摘要}` 取代。",
                 encoding="utf-8",
             )
             errors = []

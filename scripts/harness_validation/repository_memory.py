@@ -18,6 +18,8 @@ def validate_current_changelog_contract(errors: list[str], changelog: Path) -> N
         "普通单结果请求在当前调用 Session 完成授权结果和本次必需检查后、最终回复前，至多一次尝试使用",
         "调用后返回的 `threadId`/`clientThreadId` 和可变状态不再反填标题",
         "标题不再携带可变状态",
+        "当前调用 Session 与用户可见的 Worktree/Local 左侧 Task 统一使用 `{Task}|{序号}|{功能摘要}{当前进度}`",
+        "内部 agent 不套用",
     )
     for deprecated in deprecated_claims:
         if deprecated in text:
