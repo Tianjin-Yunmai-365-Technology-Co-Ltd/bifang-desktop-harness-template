@@ -18,7 +18,7 @@
 | Harness 文档、规则、脚本或 Skill 维护 | `docs/ENGINEERING_RULES.md`；再读本次直接影响的事实源、脚本和测试 | `$desktop-implement-change`；行为保持的结构清理同时使用 `$desktop-refactor-code` |
 | 创建新下游 | `README.md`、`$desktop-instantiate-project` 及其表单引用；由该 Skill 继续加载初始化所需资料 | `$desktop-instantiate-project` |
 | 定义或改变产品目标、边界、约束、成功标准 | `docs/product_spec/README.md` 与最新 Product Spec；必要时读最新 ADR | `$desktop-define-product` |
-| 范围清楚的日常实现或缺陷修复 | `docs/ENGINEERING_RULES.md`、所选接口事实；已初始化下游再读取版本门禁 | `$desktop-implement-change`、`$desktop-manage-version` |
+| 范围清楚的日常实现、问题修复或用户可感知优化 | `docs/ENGINEERING_RULES.md`、所选接口事实；已初始化下游再读取版本门禁 | `$desktop-implement-change`、`$desktop-manage-version` |
 | 新需求、Bug 或维护写入的 Git 分支链 | `docs/AGENT_POLICY.md` 的“产品 feature 分支链与默认分支发布”；发布时再读 `docs/RELEASE.md` | `$desktop-manage-git-branch-chain`；日常实现仍走 `$desktop-implement-change` |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md` | 对应 GUI Skill；不得一次加载全部 GUI Skills |
@@ -40,7 +40,7 @@
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、渠道硬要求、签名、发布和跨平台最终候选必须进入对应专用门禁；精简上下文不降低授权、失败关闭或真正不可逆交付所需的人工签署。非必要语义审查不得混入日常开发，明确发布时才按当次 `reviewSelection` 询问并执行。
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/TUI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
-- 已初始化下游的版本只通过 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期/去重状态，只有正式发布成功才重置发布周期。Harness 自身版本只取 `Version.md`。
+- 已初始化下游的版本只通过 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期/去重状态。首个新功能提升 Minor 后锁到正式发布成功；每个具有新稳定 ID 的问题修复或用户可感知优化使用 `bug-fix` 独立提升 Patch。新生成的 Minor/Patch 采用 `0..99` 的 base-100 进位，自动进位到 Major 不等同于显式 Major 授权；Major 不受 99/100 的业务上限约束，但不得超过 Cargo `u64::MAX`。历史 `*.100.*` 当前 Cargo/目标版本只在下一次真实提升时规范化，周期基线和既有变化继续保留原始证据值。Harness 自身版本只取 `Version.md`。
 - 已有远端的下游在新需求、Bug 或维护写入前通过 `$desktop-manage-git-branch-chain` 建立并登记串行 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 链；日常闭环提交后推送活动叶子。每条活动叶子同一时刻只允许一个产品写入 Task，禁止 sibling 写入 Worktree；前一结果通过 `integrate-task` 的 clean、Worktree、冻结 OID、线性和远端未漂移门禁后只快进本地叶子，再由独立 `publish` 推送复读，才开始下一写入。`main`、`master` 与动态远端默认分支在日常流程中只读；明确发布是唯一窄例外，只把冻结且满足当次发布审查选择的线性链严格快进到动态默认 `main`/`master`，切回该本地分支，并按状态登记精确清理本轮 feature refs，不创建 `Release` 中转分支、不扫描删除 `codex/*`。
 - 对产出物声称“完成”“可用”或“已验证”必须基于真实产物的可观察结果；Mock、stub、源码片段、占位页面、中性 scaffold 或开发预览不能冒充候选验收。人工批准也不能把失败或未执行改判为通过。
 - Product Spec、ADR、Changelog、Product Status、Work Plan 与 Verification 只由各自独立事件触发；候选构建/E2E/验收/就绪复核只写忽略的 `release/` 原子证据，真实渠道发布成功后或独立回顾性审计才在后续受管 feature 生命周期写 tracked 记录。普通维护不写占位，范围外问题写入 `docs/TECH_DEBT.md`。

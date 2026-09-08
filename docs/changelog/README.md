@@ -10,7 +10,7 @@
 - 除上述排除外，已经发生且用户或维护者可感知的行为、契约或维护流程变化写入当日变更记录；不要求写“不适用”占位。
 - 同一未发布日期内的中间态和随后被替代的描述应直接合并或删除，避免把已经失效的规则继续暴露为当前能力。
 - 发布准备从日期文件汇总对应版本内容；不得把尚未实现或未验证的能力写成已交付。
-- 已初始化下游的合格条目必须记录稳定 `change_id` 与 `$desktop-manage-version` 返回的 `required_version`；普通缺陷修复即使提升 Patch，仍不因此进入 Changelog。
+- 已初始化下游的合格条目必须记录稳定 `change_id` 与 `$desktop-manage-version` 返回的 `required_version`；问题修复或用户可感知优化即使以 `bug-fix` 提升 Patch，仍不因此单独触发 Changelog。
 - 新下游只在首次出现符合上述范围的实际变化时创建日期记录；产品规格转为 `Approved` 本身、普通缺陷修复和纯重构均不要求预建 Changelog。
 - 只保留日期最新的 Changelog 文件；被后续日期完全取代的旧日期文件随即删除，不在仓库中另存历史副本，历史由 Git 版本控制承担（见 ADR-20260805-004）。
 - 当前最新文件行数超过人工维护文本 500 行建议重构阈值，或项目负责人明确要求整理历史记忆时，Harness 自身可通过 `$desktop-curate-harness-memory` 把不再被任何当前规范引用、已被后续决定完全取代的过期条目原文迁移到本目录 `CHANGELOG_history.md` 永久追加保存。本机制仅 Harness 自身可用，不随下游派生，下游初始化不复制该 Skill 或 `CHANGELOG_history.md`。

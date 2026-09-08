@@ -138,7 +138,7 @@
 | `README.md` | 用户入口、用途、真实使用方式和维护状态 |
 | `AGENTS.md` | 轻量启动门禁、任务路由、永久地图、硬约束摘要和验证入口；不保存任务专属实施细节 |
 | `Version.md` | Harness 模板当前版本、初始版本与发布状态；下游 Rust 项目不继承此事实来源 |
-| `.harness/version-state.json` | 仅下游保存当前正式发布周期、首功能提升状态、待发布变化及已消费缺陷 ID；受保护且不是当前版本的第二事实源 |
+| `.harness/version-state.json` | 仅下游保存当前正式发布周期、首功能提升锁、待发布变化及已消费 `bug-fix` 稳定 ID；受保护且不是当前版本的第二事实源，历史 Minor/Patch `100` 只在下一次真实提升时规范化当前 `target_version`，周期基线与既有变化保留原始证据值 |
 | `.harness/git-branch-chain.json` | 仅下游保存受管 feature 串行链的远端名、冻结默认/基线/父 OID、活动叶子，以及关闭前节点 OID/可推导清理状态；实际远端 OID 每次实时复读，升级时受保护，不得手改扩大 ref 范围 |
 | `release-notes.json` | 仅下游在首次发布准备时创建；以 schema v2 保存供制品与关于页复用的近 5 个正式发布版本中英文用户更新日志，每版两类各最多 10 个翻译对，升级时受保护 |
 | `docs/product_spec/README.md` | 产品规格日期规则和索引 |
@@ -215,7 +215,7 @@
 - 已有远端的下游由 `$desktop-manage-git-branch-chain` 唯一管理产品变更分支链：每个新需求/Bug/维护写入从已推送的动态默认 `main`/`master` 或当前登记叶子建立/续用串行 `feature-{ascii-kebab摘要}-{上海日期}`，每个逻辑提交后用显式 refspec 非强制快进并复读远端；`.harness/git-branch-chain.json` 只记录精确 ref/OID。`main`、`master` 与动态远端默认分支禁止日常写入，明确发布的受管原子事务是唯一例外：它只把冻结且满足当次 `reviewSelection` 的严格线性链 fast-forward 到动态默认分支，以默认分支和每个登记 feature ref 的精确旧 OID 作为 lease，在一次 atomic push 中推进默认分支并删除登记远端链，随后切回/快进本地默认分支并以 CAS 删除登记本地链，再从该 clean closing commit 构建；正常流程不创建或使用 `Release` 中转，只对升级前已完全推送且被活动链冻结为基线的 legacy `Release` 提供一次性精确 lease 迁移/删除，不授权远端/凭据配置、无精确 lease 的强推、merge commit、标签/上传、链外删除或扫描 `codex/*`。为维持无 merge 的严格线性历史，一条活动叶子同一时刻最多一个产品写入 Task，且该 Task 禁止 sibling 写入 Worktree；协调方只用 `integrate-task` 在两个 Worktree clean、精确 Task ref/OID、远端叶子未漂移、严格线性后代、Task 范围逐提交未触碰链状态和唯一写入占用等机械门禁通过后快进本地叶子，再由独立 `publish` 推送复读，后续写入才从新远端 OID 开始；只读并行不受影响。无关改动、疑似秘密、hook/提交/push 失败、竞态或 dirty 最终状态均阻断。
 - 日常开发统一直接实施，只运行本次变更需要的相关非空单元/回归测试。不得仅因多步骤、多模块、中等风险、可并行或 Agent 偏好自动增加 Work Plan、全仓测试、格式化、代码规范、静态、集成/契约、构建、冒烟、E2E、Verification 或人工复核。
 - 非必要代码/架构/职责语义审查统一延迟到明确发布。每次发布在任何写入前解析一次 `reviewSelection: enabled | disabled`：当前请求已明确时复用；安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求强制 `enabled` 并记录来源；否则询问一次。同一发布的修复重跑复用原选择，新发布重新询问。`disabled` 只关闭非必要语义审查，绝不能跳过范围/秘密、测试、clean、分支/OID、签名、渠道或真正必需的人类签署等硬门禁。
-- 已初始化下游在实施前由 `$desktop-manage-version` 只读分类，且只在变化完成并通过本次相关测试后提交版本：功能、独立缺陷修复和用户批准的 Major 按 `docs/RELEASE.md` 提升；查询、诊断、复现、重复尝试、重构、测试、文档、格式和内部清理不提升。构建只检查 Cargo/状态一致性，不能提升版本或重置周期。
+- 已初始化下游在实施前由 `$desktop-manage-version` 只读分类，且只在变化完成并通过本次相关测试后提交版本：每周期首个功能使用 `feature` 提升 Minor 并锁到真实发布成功；每个具有新稳定 ID 的问题修复或用户可感知优化使用 `bug-fix` 提升 Patch 且不受功能锁影响；显式 Major 仍需用户批准。新生成 Minor/Patch 为 `0..99` 并按 base-100 自动进位，自动进位到 Major 是数值例外，不替代显式 Major 授权；Major 不受 99/100 的业务上限约束，但不得超过 Cargo `u64::MAX`。查询、诊断、复现、重复尝试、行为保持重构、内部优化、测试、文档、格式和清理属于 `maintenance`；`check`、`plan`、`maintenance` 都不写版本文件或状态。构建只检查 Cargo/状态一致性，不能提升版本、迁移历史 `*.100.*` 状态或重置周期。
 - 产品范围、长期决定、合格 Changelog、重要阻断/交接和用户明确要求仍分别触发对应记录或专用流程；候选验收只写 `release/`，真实渠道发布成功后及独立回顾性审计才通过后续受管 feature 生命周期写 tracked 记录。安全/隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道硬要求、签名与发布仍保留解决当前风险必需的授权和门禁。
 - 显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则询问一次；持久 `milestone_e2e` 仅是建议默认值。该选择只对当前发布候选有效；本地开发试包不解析该选择。
 - 构建必须运行项目全部非空单元测试。Rust 使用 workspace 全成员、全 targets、全 features 的锁定测试；GUI 同时运行完整 Rust workspace 和前端单元测试套件。测试失败或零测试阻断构建。

@@ -34,7 +34,7 @@
 - 选择系统托盘时，可见图标来源固定为 Tauri `icon` 生成且由 `tauri.conf.json` 的 `bundle.icon` 引用的 `icons/32x32.png`；它必须是普通非符号链接、32×32 8-bit RGBA 非交错 PNG且含非透明像素。安装函数必须由 Tauri Builder `.setup(...)` 调用，在同一实现绑定双项 `Menu`、必需应用图标和 `.build(app)`，关闭隐藏由 `.on_window_event(...)` 注册；真实 E2E 必须看到非空托盘图形。Linux tray builder 必须绑定菜单。未选托盘时不得保留这些托盘专属实现。
 - 固定基线始终保留 system-locale 的探测/归一化/回退/用户偏好优先回归，updater 的 `NotConfigured` 零出站/任务所有权回归，以及 window-state 的精确 flags/忽略可见性/无效或离屏回退/首次启动默认回归。托盘启用时的六个固定回归明确命名为 `tray_show_restores_and_focuses_main_window`、`close_request_hides_without_exit`、`tray_quit_exits_application`、`tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english` 与 `language_change_updates_tray_menu_labels`；单实例启用时的两个固定回归为 `single_instance_plugin_is_registered_first` 与 `second_launch_restores_existing_main_window`。深链接保留自身四个固定回归；全局快捷键按 contract 的空动作、固定或可编辑模式运行 `$desktop-add-gui-global-shortcut` 声明的公共与条件回归；托盘禁用时改为 `close_last_window_exits_application`。只要求与 profile/contract 选择对应的条件回归，三项固定基线回归不得按 profile 裁掉。
 - 选择 GUI 时，中性初始化必须把随 `$desktop-initialize-rust-project` 提供的无产品身份 660×400 PNG 逐字节复制为 `<项目标识>_gui/src-tauri/dmg/background.png`，并让 `tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`。DMG 安装卷窗口固定为 660×400，应用与 Applications 落点分别为 `(180, 220)` 和 `(480, 220)`；首次真实 GUI 开发由 `$desktop-prepare-gui-app-identity` 预览批准该基线或在同一路径替换，并记录当前 SHA-256。构建只消费项目内图片，不能依赖初始化结束后被删除的 Skill 资产；该安装卷窗口不得覆盖主应用窗口尺寸。
-- 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一当前版本事实来源，各成员使用 `version.workspace = true`。初始化同时由 `$desktop-manage-version` 创建 `.harness/version-state.json`；它只保存正式发布周期、待发布变化和缺陷 ID 去重状态，受保护且不得成为第二版本事实源。
+- 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一当前版本事实来源，各成员使用 `version.workspace = true`。初始化同时由 `$desktop-manage-version` 创建 `.harness/version-state.json`；它只保存正式发布周期、待发布变化和 `bug-fix` 稳定 ID 去重状态，受保护且不得成为第二版本事实源。历史 Minor/Patch 值 `100` 继续可读，只有下一次真实版本提升才按 base-100 规范化当前 Cargo 与 `target_version`；周期基线、最近发布和既有变化保留原始证据值。
 - 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
 - 首次脚手架在当前项目根创建 `Cargo.toml`，登记核心与实际选择的适配器；未来只扩展该根清单。
 - GUI `package.json` 必须直接声明带完整三段兼容下界的 `@tabler/icons-react`，并以命名组件提供菜单、操作、状态、空态和图表周边图标；存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji。图表绘制库仍按真实可视化需求选择。所选侧栏的 Logo、所有当前渲染图标和文字必须显式沿同一中心线且无裁切。
@@ -76,7 +76,7 @@
 | Rust 语言版本 | `2024` | 稳定版 Rust；不使用 nightly 功能 |
 | MSRV | `1.95.0` | 根工作区写入 `rust-version = "1.95"`，表示最低兼容版本；接受 1.95.0 及以上稳定版，不要求精确等于 1.95.0 |
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
-| 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor 并归零 Patch，独立缺陷 ID 升 Patch，Major 仅由用户批准；三个分量范围均为 `0..100` |
+| 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor、归零 Patch 并锁到真实发布成功，问题修复或用户可感知优化以新稳定 ID 和 `bug-fix` 升 Patch 且不受功能锁影响；新生成 Minor/Patch 为 `0..99` 并按 base-100 自动进位，Major 不受 99/100 的业务上限约束但不得超过 Cargo `u64::MAX`，显式 Major 仍仅由用户批准 |
 | 锁文件 | 提交根 `Cargo.lock` | 使用 Cargo 生成；不得手工编辑 |
 | Git | 全部初始化：稳定版 `>=2.36.0` | 完整表单确认后检查；覆盖受管分支链使用的 `git worktree list --porcelain -z`，缺失时按受管平台方式安装，可证明低于下界时升级，范围内稳定版原样复用，随后复探 |
 | Node.js | 仅 GUI：`^24.15.0 || >=26.0.0` | 缺失、低于 24.15.0 或处于 25.x 时安装/升级到当前满足门禁的稳定版；25.x 按低于下一段允许下界 26.0.0 处理，非 GUI 为 `not-required` |

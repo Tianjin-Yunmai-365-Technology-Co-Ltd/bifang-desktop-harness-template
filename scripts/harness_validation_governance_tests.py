@@ -1044,11 +1044,14 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
         self.assertTrue(any("superseded release lifecycle" in item for item in errors))
 
     def test_release_contract_allows_fix_only_without_changelog(self) -> None:
-        """仅修复 PATCH 仍有发布证据，但不得制造 Changelog。"""
+        """仅含 bug-fix 的 PATCH 仍有发布证据，但不得制造 Changelog。"""
 
         release = read_repo_text("docs/RELEASE.md")
         prepare = read_repo_text(".agents/skills/desktop-prepare-release/SKILL.md")
         self.assertIn("版本变化与 Changelog 写入是独立门禁", release)
         self.assertIn("缺少 Changelog 不削弱候选证据", release)
+        self.assertIn("0.0.99 -> 0.1.0", release)
+        self.assertIn("问题修复或用户可感知优化", release)
+        self.assertIn("不受当前周期的功能提升锁影响", release)
         self.assertIn("仅含普通缺陷修复或纯重构", prepare)
         self.assertIn("不创建、不补写也不汇总 Changelog", prepare)

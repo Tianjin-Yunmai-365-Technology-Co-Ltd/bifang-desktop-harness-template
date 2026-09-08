@@ -16,4 +16,4 @@
 
 ## 日期文件
 
-- [2026-09-08](20260908_ADR.md)：包含显式发布直接严格快进动态默认 `main`/`master`、精确清理本轮登记 feature refs 与取消 `Release` 中转，Session/Worktree 四态进度标题、候选证据原子化与发布后 tracked 记录、发布语义审查按次选择、受管工具用户级全局恢复、左侧 Task 条件快进闭环、macOS 通知权限恢复、macOS 签名意图先行，以及此前仍有效的产品 feature 串行链、GUI 性能和初始化/交付工程决定。
+- [2026-09-08](20260908_ADR.md)：包含下游版本发布周期功能锁、问题修复/用户可感知优化的 `bug-fix` Patch 路径与 base-100 自动进位，显式发布直接严格快进动态默认 `main`/`master`、精确清理本轮登记 feature refs 与取消 `Release` 中转，Session/Worktree 四态进度标题、候选证据原子化与发布后 tracked 记录、发布语义审查按次选择、受管工具用户级全局恢复、左侧 Task 条件快进闭环、macOS 通知权限恢复、macOS 签名意图先行，以及此前仍有效的产品 feature 串行链、GUI 性能和初始化/交付工程决定。
