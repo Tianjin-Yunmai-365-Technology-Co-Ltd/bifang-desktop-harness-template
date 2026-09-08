@@ -65,7 +65,7 @@ jobs:
           fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: Release
+          ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
       - name: 选择 Python 运行时
@@ -87,12 +87,17 @@ jobs:
           expected = os.environ["SOURCE_COMMIT"]
           if not re.fullmatch(r"[0-9a-f]{40}", expected):
               raise SystemExit("source_commit 必须是由小写十六进制字符组成的 40 字符 SHA")
+          default_branch = os.environ["REPOSITORY_DEFAULT_BRANCH"]
+          if default_branch not in {"main", "master"}:
+              raise SystemExit(f"GitHub 动态默认分支必须是 main 或 master，实际为 {default_branch!r}")
           observed = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
           if observed != expected:
               raise SystemExit(f"检出源码不匹配：预期={expected}，实际={observed}")
           branch = subprocess.check_output(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], text=True).strip()
-          if branch != "Release":
-              raise SystemExit(f"必须检出具名 Release，实际为 {branch!r}")
+          if branch != default_branch:
+              raise SystemExit(
+                  f"必须检出具名 GitHub 动态默认分支：预期={default_branch!r}，实际={branch!r}"
+              )
           status = subprocess.check_output(
               ["git", "status", "--porcelain=v1", "--untracked-files=all"], text=True
           )

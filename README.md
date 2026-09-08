@@ -35,7 +35,7 @@ Bifang Desktop Harness Template
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Worktree Task 以 `{Task}|{序号}|{功能摘要}已分配` 派发，并在自己的会话中更新真实进度，同时使用独立分支和可审查提交。
-- 在已有远端的下游中，为新需求、Bug 和维护自动建立串行 feature 分支链，提交后推送活动叶子；明确发布时把整链快进到 `Release`、精确清理链路并构建可追溯候选。GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
+- 在已有远端的下游中，为新需求、Bug 和维护自动建立串行 feature 分支链，提交后推送活动叶子；明确发布时把整链原子严格快进到动态默认 `main`/`master`、切回本地默认分支、精确清理状态登记链路并从该 clean closing commit 构建可追溯候选，不创建 `Release` 中转。GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
 日常开发不会因为任务看起来复杂，就自动增加长计划、全仓检查、构建或端到端测试（E2E）。只有你明确要求，或者任务确实碰到安全、数据迁移、凭据、发布等风险时，才会进入相应流程。
@@ -43,7 +43,7 @@ Bifang Desktop Harness Template
 ## 它不会替你决定什么
 
 - 不会猜测产品要解决什么问题，也不会把中性脚手架当成已经完成的产品。
-- 不会配置远端或凭据，不会强制推送、创建标签、上传、发布到渠道或操作生产环境；唯一自动 Git 外部写入是既有远端上的受管 feature 叶子推送，以及明确发布时对 `Release` 和已登记链路的受限原子操作。
+- 不会配置远端或凭据，不会执行无精确 lease 的强制推送、创建标签、上传、发布到渠道或操作生产环境；唯一自动 Git 外部写入是既有远端上的受管 feature 叶子推送，以及明确发布时对动态默认分支和状态精确登记 feature refs 的受限原子操作。正常流程不扫描 `codex/*` 或其他分支；只对已冻结为活动链基线的 legacy `Release` 提供一次性精确迁移清理。
 - 不会为了“以后可能用到”预先加入业务、依赖或复杂架构。
 - 不会绕过安全、隐私、商业许可和分发渠道的硬要求。
 
@@ -73,12 +73,12 @@ Bifang Desktop Harness Template
 完成实例化并切换到终端下游根目录后，不需要记住整套流程，直接告诉 Agent 你想得到什么结果即可。例如：
 
 - “实现这个功能”或“修复这个问题”：使用 `$desktop-implement-change` 直接开发，并运行相关测试。
-- 新需求、Bug 或维护开始写入时：使用 `$desktop-manage-git-branch-chain` 从当前受管叶子（首条链从 `Release`，不存在时才从远端默认分支）建立 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`，写入 `.harness/git-branch-chain.json` 并推送；同一需求的继续修改复用当前叶子。`main`、`master`、远端默认分支和 `Release` 都禁止日常写入。
+- 新需求、Bug 或维护开始写入时：使用 `$desktop-manage-git-branch-chain` 从已推送的远端默认 `main`/`master` 或当前受管叶子建立 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`，写入 `.harness/git-branch-chain.json` 并推送；同一需求的继续修改复用当前叶子。`main`、`master` 和远端默认分支禁止日常写入，只有明确发布可受管快进该默认分支。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
 - “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 或性能选择。
-- “构建 CLI 发布候选”或“准备并构建发布”：先使用 `$desktop-prepare-release`；这个明确候选请求会解析本次选择，复核、提交并推送活动 feature 叶子，把登记的完整线性链快进到精确 `Release`，以逐 ref lease 原子删除远端链路后清理本地链路，再由 `$desktop-build-rust-release` 从该关闭提交构建，不重复审批。
+- “构建 CLI 发布候选”或“准备并构建发布”：先使用 `$desktop-prepare-release`；这个明确候选请求会解析本次选择，复核、提交并推送活动 feature 叶子，把登记的完整线性链严格快进到动态远端默认 `main`/`master`，以逐 ref lease 原子删除远端链路后切回本地默认分支并清理本地链路，再由 `$desktop-build-rust-release` 从该 clean closing commit 构建，不重复审批。
 - “构建桌面 GUI 发布候选”：同样先使用 `$desktop-prepare-release`，在关闭提交中封存本次审查、性能与 macOS 签名选择，再由 `$desktop-build-tauri-release` 只读消费；当前请求已经明确时直接复用，不写入通用持久偏好。
-- 普通“构建/打包/本地试包”不会自动升级为发布候选、提交或关闭分支链；`Release` 到默认分支的 Merge/PR 始终由你完成。
+- 普通“构建/打包/本地试包”不会自动升级为发布候选、提交、关闭分支链或修改默认分支；只有明确发布会自动完成上述默认分支快进、切换与精确链路清理。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
 

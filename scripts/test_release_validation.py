@@ -195,19 +195,23 @@ class BuildSkillValidationTests(unittest.TestCase):
                 self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_cross_platform_candidate_cannot_rewrite_drifted_workflow(self) -> None:
-        """clean Release 候选预检只能报告 provider unavailable，不能现场修 workflow。"""
+        """clean 默认分支候选预检只能报告 provider unavailable，不能现场修 workflow。"""
         source = release.CROSS_PLATFORM_RELEASE_SKILL.read_text(encoding="utf-8")
-        anchor = "不得在受保护的 clean `Release` closing commit 上安装、更新或改写 workflow"
+        anchor = "不得在受保护的 clean 默认分支 closing commit 上安装、更新或改写 workflow"
         mutated = source.replace(anchor, "缺失时直接安装 workflow 后继续", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_cross_platform(mutated)
         self.assertTrue(any(anchor in error for error in errors), errors)
 
-    def test_cross_platform_workflow_requires_full_named_release_checkout(self) -> None:
-        """detached shallow checkout 不能证明关闭历史或远端 Release 快照。"""
+    def test_cross_platform_workflow_requires_full_named_default_checkout(self) -> None:
+        """detached shallow checkout 不能证明关闭历史或远端默认分支快照。"""
         source = release.CROSS_PLATFORM_RELEASE_WORKFLOW.read_text(encoding="utf-8")
         cases = (
-            ("ref: Release", "ref: ${{ inputs.source_commit }}"),
+            (
+                "ref: ${{ github.event.repository.default_branch }}",
+                "ref: ${{ inputs.source_commit }}",
+            ),
+            ('default_branch not in {"main", "master"}', "default_branch == 'Release'"),
             ("fetch-depth: 0", "fetch-depth: 1"),
         )
         for anchor, replacement in cases:
@@ -266,9 +270,18 @@ class BuildSkillValidationTests(unittest.TestCase):
         """runner 必须从提交字节复核完整信封，并拒绝 GUI-only 选择。"""
         source = release.CROSS_PLATFORM_RELEASE_ENVELOPE_HELPER.read_text(encoding="utf-8")
         anchors = (
+            'if repository_default_branch not in {"main", "master"}:',
+            "runner must check out the named repository default branch at source_commit",
             "protected state bytes do not match source_commit",
             "protected state digest does not match the host-verified input",
             "legacy closing state without both sealed envelopes is forbidden",
+            'if closed.get("releaseTarget") != "default":',
+            'if closed["defaultBranch"] != repository_default_branch:',
+            "if resolve_ref(root, default_ref) != source_commit:",
+            "legacy origin/Release must be absent for a direct-default release",
+            '"sourceCommit": source_commit',
+            '"releaseTarget": closed["releaseTarget"]',
+            '"defaultBranch": repository_default_branch',
             '"performanceSelection": "not-applicable"',
             '"macosSigningSelection": "not-applicable"',
             "release envelope changed between build gates",
@@ -345,7 +358,7 @@ class ReleaseNotesContractValidationTests(unittest.TestCase):
 
 
 class ReleaseBranchChainContractValidationTests(unittest.TestCase):
-    """锁定 feature 链关闭、Release 构建和默认分支人工边界。"""
+    """锁定 feature 链直接关闭到动态默认分支的自动发布边界。"""
 
     @staticmethod
     def _validate_mutation(source: str, *, parameter: str) -> list[str]:
@@ -359,13 +372,15 @@ class ReleaseBranchChainContractValidationTests(unittest.TestCase):
             return errors
 
     def test_rejects_release_flow_without_managed_atomic_chain_close(self) -> None:
-        """发布准备不能跳过受管原子 Release 推进和逐 ref lease 清理。"""
+        """发布准备不能跳过受管默认分支快进和逐 ref lease 精确清理。"""
 
         source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
         for anchor in (
             "$desktop-manage-git-branch-chain release",
-            "以一次 atomic push 把完整线性历史快进到精确 `Release`",
-            "逐 ref lease 删除状态文件精确列出的远端 feature refs",
+            "以一次 atomic push 在冻结旧 OID lease 下把动态默认 `main`/`master` 严格快进到该提交",
+            "同时用逐 ref lease 删除状态文件本轮精确列出的远端 feature refs",
+            "命令成功后当前分支必须是同名默认分支",
+            "不得创建 `Release` 中转、扫描 `codex/*` 或代删链外分支",
         ):
             with self.subTest(anchor=anchor):
                 mutated = source.replace(anchor, "省略受管链路关闭", 1)
@@ -373,12 +388,12 @@ class ReleaseBranchChainContractValidationTests(unittest.TestCase):
                 errors = self._validate_mutation(mutated, parameter="prepare_skill")
                 self.assertTrue(any(anchor in error for error in errors), errors)
 
-    def test_rejects_release_to_default_branch_automation(self) -> None:
-        """Release 到默认分支必须保持为用户自行完成的 Merge/PR。"""
+    def test_rejects_manual_merge_pr_after_direct_default_release(self) -> None:
+        """受管事务已经发布默认分支，不能恢复额外人工 Merge/PR 中转。"""
 
         source = (release.ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")
-        anchor = "`Release` 到默认分支的 Merge/PR 永远由用户自行完成"
-        mutated = source.replace(anchor, "Agent 自动把 `Release` 合并到默认分支", 1)
+        anchor = "默认分支已经由受管发布事务完成严格快进，不再等待额外 Merge/PR"
+        mutated = source.replace(anchor, "等待用户把 `Release` Merge/PR 到默认分支", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_mutation(mutated, parameter="release_doc")
         self.assertTrue(any(anchor in error for error in errors), errors)
@@ -578,16 +593,16 @@ class ReleaseSelectionContractValidationTests(unittest.TestCase):
                 self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_prepare_ready_stage_is_read_only(self) -> None:
-        """accepted 候选的 ready 复核不能直接 dirty 受保护 Release。"""
+        """accepted 候选的 ready 复核不能 dirty 已发布的默认分支。"""
         source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
         anchors = (
             "就绪复核阶段保持纯只读",
             "不得更新 tracked 发布记录、Verification、Changelog、Product Status、版本状态或其他项目记忆",
-            "后续独立受管 feature 生命周期中记录发布/Verification/项目状态事实",
+            "只有真实渠道发布成功后，发布执行方才从这个已发布默认分支 closing commit 新建后续独立受管 feature 生命周期",
         )
         for anchor in anchors:
             with self.subTest(anchor=anchor):
-                mutated = source.replace(anchor, "直接在 Release 更新项目记忆", 1)
+                mutated = source.replace(anchor, "直接在默认分支更新项目记忆", 1)
                 self.assertNotEqual(mutated, source)
                 errors = self._validate_mutation(mutated, parameter="prepare_skill")
                 self.assertTrue(any(anchor in error for error in errors), errors)
@@ -618,6 +633,22 @@ class ReleaseSelectionContractValidationTests(unittest.TestCase):
         self.assertNotEqual(mutated, source)
         errors = self._validate_mutation(mutated, parameter="branch_state")
         self.assertTrue(any("performanceRemainingRisk" in error for error in errors), errors)
+
+    def test_rejects_closed_state_without_direct_default_target(self) -> None:
+        """新 closing state 必须显式封存 releaseTarget=default。"""
+
+        source = release.BRANCH_CHAIN_STATE.read_text(encoding="utf-8")
+        anchors = (
+            'direct_release_extension = {"releaseTarget"}',
+            'if value["releaseTarget"] != "default":',
+            'raise StateError("lastClosedChain.releaseTarget must be default")',
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "# omitted direct-default target", 1)
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="branch_state")
+                self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_rejects_illegal_candidate_source_or_reason_combinations(self) -> None:
         source = release.BRANCH_CHAIN_STATE.read_text(encoding="utf-8")
@@ -669,13 +700,81 @@ class ReleaseSelectionContractValidationTests(unittest.TestCase):
         errors = self._validate_mutation(mutated, parameter="branch_operations")
         self.assertTrue(any(anchor in error for error in errors), errors)
 
-    def test_rejects_legacy_closing_state_that_can_advance_release(self) -> None:
+    def test_rejects_legacy_closing_state_that_can_advance_default(self) -> None:
+        """旧 closing state 不能借重试路径推进远端默认分支。"""
+
         source = release.BRANCH_CHAIN_OPERATIONS.read_text(encoding="utf-8")
-        anchor = 'if "releaseReview" not in closed and remote_state == "pending":'
-        mutated = source.replace(anchor, 'if False and remote_state == "pending":', 1)
+        anchor = "legacy closing state cannot update the remote default branch"
+        mutated = source.replace(anchor, "legacy closing state may update the remote default branch", 1)
         self.assertNotEqual(mutated, source)
         errors = self._validate_mutation(mutated, parameter="branch_operations")
         self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_release_remote_without_atomic_exact_leases(self) -> None:
+        """默认分支推进、legacy Release 和登记 feature 删除必须同一原子事务。"""
+
+        source = release.BRANCH_CHAIN_REMOTE.read_text(encoding="utf-8")
+        anchors = (
+            '"--atomic",',
+            'f"--force-with-lease=refs/heads/{default_branch}:{default_before}"',
+            'f"--force-with-lease=refs/heads/{entry[\'branch\']}:{entry[\'preCloseHead\']}"',
+            'f"{closing_head}:refs/heads/{default_branch}"',
+            'if release_before is not None:',
+            'f":refs/heads/{entry[\'branch\']}"',
+            'return "pending-release-missing"',
+            "def require_legacy_remote_complete(",
+        )
+        for anchor in anchors:
+            with self.subTest(anchor=anchor):
+                mutated = source.replace(anchor, "# weakened release transaction")
+                self.assertNotEqual(mutated, source)
+                errors = self._validate_mutation(mutated, parameter="branch_remote")
+                self.assertTrue(any(anchor in error for error in errors), errors)
+
+    def test_rejects_missing_direct_default_release_regressions(self) -> None:
+        """main/master、迁移、清理、Worktree、重试和下一链回归必须持续存在。"""
+
+        cases = (
+            (
+                "branch_tests",
+                release.BRANCH_CHAIN_TESTS,
+                (
+                    "test_start_rejects_non_main_master_default_without_ref_changes",
+                    "test_release_atomically_updates_default_and_cleans_exact_two_branch_chain",
+                    "test_release_supports_master_as_dynamic_default",
+                    "test_existing_release_is_migrated_to_default_and_deleted",
+                    "test_legacy_remote_complete_allows_local_cleanup_only",
+                    "test_next_chain_starts_from_published_default_without_release_branch",
+                    "test_default_branch_worktree_occupancy_blocks_before_close_commit",
+                ),
+            ),
+            (
+                "branch_race_tests",
+                release.BRANCH_CHAIN_RACE_TESTS,
+                (
+                    "test_default_race_uses_frozen_lease_and_preserves_feature_refs",
+                    "test_concurrent_release_creation_is_preserved_and_retryable",
+                    "test_legacy_release_deleted_during_push_is_retryable",
+                    "test_complete_retry_from_base_default_skips_commit_gate_and_fast_forwards",
+                ),
+            ),
+            (
+                "branch_contract_tests",
+                release.BRANCH_CHAIN_CONTRACT_TESTS,
+                (
+                    "test_push_transaction_updates_default_and_deletes_only_registered_refs",
+                    "test_push_transaction_never_creates_release_when_it_was_absent",
+                ),
+            ),
+        )
+        for parameter, path, anchors in cases:
+            source = path.read_text(encoding="utf-8")
+            for anchor in anchors:
+                with self.subTest(parameter=parameter, anchor=anchor):
+                    mutated = source.replace(anchor, "test_removed_direct_default_regression", 1)
+                    self.assertNotEqual(mutated, source)
+                    errors = self._validate_mutation(mutated, parameter=parameter)
+                    self.assertTrue(any(anchor in error for error in errors), errors)
 
     def test_rejects_missing_verify_release_review_cli_route(self) -> None:
         source = release.BRANCH_CHAIN_SCRIPT.read_text(encoding="utf-8")

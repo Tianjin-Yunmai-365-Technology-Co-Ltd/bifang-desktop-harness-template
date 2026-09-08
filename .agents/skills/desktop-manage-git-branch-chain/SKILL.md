@@ -1,6 +1,6 @@
 ---
 name: desktop-manage-git-branch-chain
-description: 为下游项目建立并推送严格串行的 feature 分支链，并作为 desktop-prepare-release 的机械下游关闭整链到固定 Release；开始需求或缺陷、推送活动叶子，或已进入显式发布准备时使用，不能单独发起正式发布。
+description: 为下游项目建立并推送严格串行的 feature 分支链，并作为 desktop-prepare-release 的机械下游直接关闭整链到动态默认 main/master；开始需求或缺陷、推送活动叶子，或已进入显式发布准备时使用，不能单独发起正式发布。
 ---
 
 # 管理 Git 分支链
@@ -9,13 +9,14 @@ description: 为下游项目建立并推送严格串行的 feature 分支链，�
 
 ## 固定边界
 
-- 集成分支精确为 `Release`。`main`、`master` 和远端动态默认分支永远只读；若 `Release` 是默认分支，立即停止。
+- 远端 `HEAD` 动态解析出的默认分支必须精确为 `main` 或 `master`。它在日常 `start`、`integrate-task`、`publish` 和普通 Git 写入中只读；只有经 `$desktop-prepare-release` 明确授权的 `release` 原子事务可把它严格快进到 closing commit。helper 不创建或使用 `Release` 中转分支。
+- 只对升级前已经存在、当前本地/远端完全推送且被活动链冻结为精确基线的 legacy `Release` 提供一次迁移：默认旧 OID 必须是该基线祖先，发布事务以精确旧 OID lease 同时推进默认分支并删除 legacy `Release` 与登记 feature refs；迁移后从默认分支继续。不得新建、更新或把 `Release` 用作候选分支。
 - helper 运行时要求稳定 Git `>=2.36.0`，以使用 `git worktree list --porcelain -z`；低版本、`.rc` 预发布、版本不可解析或命令失败都停止，不尝试兼容降级。所有 Git 与提交门禁子进程固定 `GIT_TERMINAL_PROMPT=0`、`GCM_INTERACTIVE=Never`，不得等待凭据交互。
 - remote 显式传入时只接受仓库已配置的安全名称；否则优先 `origin`，没有 `origin` 时只接受唯一且名称安全的 remote，零个或多个候选都停止。remote 必须只有一个相同的 fetch/push 目的地。
 - 状态唯一写入 `<project-root>/.harness/git-branch-chain.json`。初始化不得预创建它；已有下游缺失时，只有首次 `start` 可按 `assets/git-branch-chain.json` 的 schema 创建。
-- 分支链严格串行。远端已有 `Release` 时第一条从本地/远端一致的 `Release` 建立；首次尚无 `Release` 时，从实时 `ls-remote --symref <remote> HEAD` 得到的默认分支及其精确 OID 建立。下一条只能从 active leaf 的当前 HEAD 建立，且父分支本地与远端 OID 必须完全一致。
+- 分支链严格串行。没有活动链时，每条新链都从实时 `ls-remote --symref <remote> HEAD` 得到的默认分支及其精确 OID 建立，且当前本地同名默认分支/HEAD 必须一致；存在活动链时下一条只能从 active leaf 的当前 HEAD 建立，且父分支本地与远端 OID 必须完全一致。
 - 一条 active feature leaf 同时最多只允许一个产品写入 `codex/task-*`；该 Task 不得再创建 sibling write `codex/unit-*`，只读 Subagent 可以并行。协调方必须从登记 active leaf Worktree 使用 `integrate-task` 把已冻结 Task OID 条件快进到本地叶子，再由 `publish` 完整推送；下一个写入 Task 只能从新的远端 active leaf HEAD 创建。
-- 禁止 glob、无精确期望 OID 的 force push、非快进、rebase、cherry-pick、隐式冲突处理及对默认分支的任何写入；唯一 force 形式是发布原子事务为删除每个登记 feature ref 使用的精确 `--force-with-lease=<ref>:<oid>`。helper 永不提供或执行 `Release` 到默认分支的命令；只报告 `Release`，最终 Merge/PR 由用户自行操作。
+- 禁止 glob、前缀扫描、无精确期望 OID 的 force push、非快进、rebase、cherry-pick和隐式冲突处理。默认分支更新只能是发布事务内基于冻结旧 OID 的严格 fast-forward；唯一 force 形式是同一事务为删除 `.harness/git-branch-chain.json` 本轮精确登记的每个 feature ref 使用 `--force-with-lease=<ref>:<oid>`。不得枚举或删除 `codex/*`、Task/单元分支、未知 feature ref 或链外分支，也没有用户后续 Merge/PR 步骤。
 - 所有写命令要求独立 Git 顶层、clean 工作树、可解析的具名分支和正常 hooks；实际创建提交的路径还要求有效提交身份及已安装且检查通过的受管提交模板。helper 只读复核适用前置并失败关闭，不自行配置身份或模板、不绕过 hooks、不创建 remote、不移除 Worktree。
 
 ## 命令
@@ -39,7 +40,7 @@ python3 .agents/skills/desktop-manage-git-branch-chain/scripts/git_branch_chain.
 
 `start` 将立即创建元数据提交；紧邻运行命令前必须调用 `$desktop-configure-git-commits`，依次执行 `identity-report`、必要时 `identity-bootstrap`、`identity-check`、`install`、`check`。任一报告、安装、冲突或复核失败都停止，不得仅检查身份便继续。
 
-开始第一条时必须位于上述 `Release` 或首发远端默认分支的精确基线；开始后续条目时必须位于 active leaf。helper 冻结 `remote`、`defaultBranch/defaultHead`、`baseBranch/baseHead`、`activeLeaf`、活动 phase 和每段父头，先证明父头已完整推送，再切出精确 feature 分支、原子写状态、用正常 `git commit` 提交元数据、无 force push并复读远端 OID。提交后必须证明 hook 未改变预期分支、父 OID、规范状态字节或夹带其他路径；push 后再次要求 clean 且分支/HEAD 未变。失败时保留可诊断状态，不谎报成功；已有 active leaf 可用 `publish` 重试推送。
+开始第一条时必须位于远端动态默认分支的精确本地基线；唯一升级兼容是位于前述完全推送且满足祖先条件的 legacy `Release`，该链负责在本轮发布中迁移并删除它。开始后续条目时必须位于 active leaf。helper 冻结 `remote`、`defaultBranch/defaultHead`、`baseBranch/baseHead`、`activeLeaf`、活动 phase 和每段父头，先证明父头已完整推送，再切出精确 feature 分支、原子写状态、用正常 `git commit` 提交元数据、无 force push并复读远端 OID。提交后必须证明 hook 未改变预期分支、父 OID、规范状态字节或夹带其他路径；push 后再次要求 clean 且分支/HEAD 未变。失败时保留可诊断状态，不谎报成功；已有 active leaf 可用 `publish` 重试推送。
 
 ### integrate-task
 
@@ -55,22 +56,22 @@ python3 .agents/skills/desktop-manage-git-branch-chain/scripts/git_branch_chain.
 
 ### verify-release-review
 
-这是候选构建消费关闭状态前的只读入口。它要求当前分支精确为 clean `Release`，HEAD 是 `lastClosedChain` 的唯一关闭状态提交，远端原子事务和本地 feature ref 清理都已完成，动态默认分支未漂移，且 `releaseReview` 与 `candidateSelections` schema、祖先关系、逐提交后处理路径和范围 SHA-256 全部复算一致；成功返回 `release-review-verified`、同一 `releaseHead` 与两份规范化信封。活动链、旧式无信封关闭提交、尚待远端更新或本地清理、状态/历史漂移都返回非零，构建 Skill 不得自行降级或改从对话参数取值。
+这是候选构建消费关闭状态前的只读入口。它要求当前分支精确为 clean 动态默认 `main`/`master`，HEAD 是 `lastClosedChain` 的唯一 closing commit，本地/远端默认 ref 均等于该提交，发布原子事务和本地登记 feature ref 清理都已完成，且 `releaseReview` 与 `candidateSelections` schema、祖先关系、逐提交后处理路径和范围 SHA-256 全部复算一致；成功返回 `release-review-verified`、`releaseBranch`、同一 `releaseHead` 与两份规范化信封。活动链、旧式无信封关闭提交、尚待远端更新或本地清理、状态/历史漂移都返回非零，构建 Skill 不得自行降级或改从对话参数取值。
 
 ### release
 
-`release` 不是独立发布入口。任何正式发布请求必须先路由 `$desktop-prepare-release`，在任何发布提交前锁定本次 `reviewSelection`，并按选择形成当前已通过的审查证据或明确的 `Not run` 记录；只有该流程可把本命令作为下游 Git 机械 consumer 调用。仅命中本 Skill、用户泛称“把链发到 Release”或具备 Git 条件，都不得单独执行 `release`；helper 本身不解析、补写或推断语义审查证据。
+`release` 不是独立发布入口。任何正式发布请求必须先路由 `$desktop-prepare-release`，在任何发布提交前锁定本次 `reviewSelection`，并按选择形成当前已通过的审查证据或明确的 `Not run` 记录；只有该流程可把本命令作为下游 Git 机械 consumer 调用。仅命中本 Skill、用户泛称“合并到主分支”或具备 Git 条件，都不得单独执行 `release`；helper 本身不解析、补写或推断语义审查证据。
 
 首次关闭必须显式传入完整审查信封与 `candidateSelections`，不能只给裸选择。审查两种选择都要求 `--review-status`、冻结链上的 `--review-source-head`；启用时状态精确为 `passed`，还要显式传入等于源码终点的 `--reviewed-source-commit`、五个且仅有五个 `--review-check`（`behavior-correctness`、`core-adapter-boundary`、`external-contracts`、`responsibility-and-size`、`temporary-markers`）和无秘密的单行 `--review-evidence-summary`，不得传 `Not run` 原因/风险；关闭时状态精确为 `Not run`，必须传入无秘密的单行 `--review-reason`/`--review-remaining-risk`，且不得传完成项、证据摘要或已审查提交。性能与 macOS 签名还必须分别给出选择/来源：不适用时两者都为 `not-applicable` 且无原因/风险；性能启用来源只接受 `requested|product-required|channel-required`，关闭只接受 `requested|not-requested` 并要求原因/风险；macOS 签名启用来源只接受 `configured|requested|channel-required`，关闭固定 `not-requested` 并要求原因/风险。所有公开说明去除首尾空白、禁止控制字符且不超过 500 字符。参数只表达 prepare-release 已经产生的结论；helper 只做 schema、Git 图和路径绑定校验，缺少、混合或矛盾字段一律在关闭提交前失败。
 
 `release` 仅在 `activeChain` 存在的首次关闭路径创建关闭状态提交；紧邻该次命令前再次调用 `$desktop-configure-git-commits`，完整执行同一 `identity-report` → 必要 bootstrap → `identity-check` → `install` → `check` 顺序，不能复用较早结果。远端已完成后的幂等本地收尾不重复提交，也不要求或运行提交门禁。
 
-首次关闭只允许 active leaf，要求 clean，且状态中的全部 feature 分支都存在、父链冻结点连续、本地/远端 OID 完全一致。本地 `Release` 若存在必须等于链 base，首发可不存在；远端 `Release` 必须等于该 base，首次发布可不存在。已有关闭 manifest 的重试只允许位于 closing leaf 或 `Release`；远端仍 pending 时重新复核完整本地 manifest 与冻结 `Release` 后才尝试同一原子事务，远端已 complete 时不得重复 push，只完成本地收尾。
+首次关闭只允许 active leaf，要求 clean，且状态中的全部 feature 分支都存在、父链冻结点连续、本地/远端 OID 完全一致，冻结的默认分支旧 OID 仍精确匹配且是 closing commit 的祖先。已有关闭 manifest 的重试只允许位于 closing leaf 或同名默认分支；远端仍 pending 时重新复核完整本地 manifest 与冻结默认 ref 后才尝试同一原子事务，远端已 complete 时不得重复 push，只完成本地收尾。
 
-helper 在叶子把 `activeChain` 关闭为不可变 `lastClosedChain` manifest，记录基线、有序分支、各自 `preCloseHead`、完整 `releaseReview` 与 `candidateSelections`，并把 `closingHead` 固定为 `null` 以避免提交 OID 自引用。审查信封保存选择/状态、基线、源码终点、固定树差异 SHA-256，以及启用时由调用方明确提交的完成项/证据摘要/已审查提交，或关闭时的 `Not run` 原因/风险；候选选择保存性能与 macOS 签名的适用性、选择、来源及关闭原因/风险。两者与链状态由同一个 closing commit 原子封存。helper 逐提交检查 `sourceHead..preCloseHead`，即使后续恢复最终树也不允许该区间触碰 `release-notes.json` 和日期 Changelog 以外的路径。真实 closing head 必须是该 manifest 提交的 OID，且是末尾 `preCloseHead` 的唯一直接非 merge 子提交。随后一次 `git push --atomic` 把该提交快进到 `refs/heads/Release`，并以逐 ref `--force-with-lease` 比较删除状态中精确列出的远端 feature refs。远端成功后复核 `Release`、feature refs 与默认分支 OID，再创建或切换本地 `Release`、仅 fast-forward，并用单次 `git update-ref` CAS 事务删除精确本地分支。
+helper 在叶子把 `activeChain` 关闭为不可变 `lastClosedChain` manifest，记录基线、有序分支、各自 `preCloseHead`、完整 `releaseReview` 与 `candidateSelections`，并把 `closingHead` 固定为 `null` 以避免提交 OID 自引用。审查信封保存选择/状态、基线、源码终点、固定树差异 SHA-256，以及启用时由调用方明确提交的完成项/证据摘要/已审查提交，或关闭时的 `Not run` 原因/风险；候选选择保存性能与 macOS 签名的适用性、选择、来源及关闭原因/风险。两者与链状态由同一个 closing commit 原子封存。helper 逐提交检查 `sourceHead..preCloseHead`，即使后续恢复最终树也不允许该区间触碰 `release-notes.json` 和日期 Changelog 以外的路径。真实 closing head 必须是该 manifest 提交的 OID，且是末尾 `preCloseHead` 的唯一直接非 merge 子提交。随后一次 `git push --atomic` 在默认分支冻结旧 OID 的 lease 下把 closing commit 严格快进到 `refs/heads/<defaultBranch>`，并以逐 ref `--force-with-lease` 删除状态中精确列出的远端 feature refs。唯一 legacy 迁移还以冻结旧 OID lease 删除状态基线指向的 `Release`，正常流程没有该 ref。远端成功后复核默认 ref 与精确待删 refs，再创建或切换本地同名默认分支、仅 fast-forward，并用单次 `git update-ref` CAS 事务完成同样的精确本地清理。
 
-冲突、竞态、未知 ref、非快进、远端不支持原子事务或任何 feature/`Release` 被其他 Worktree 占用，都必须在远端删除前停止。若远端原子事务已成功、但本地切换或清理因随后发生的竞态失败，再次运行同一 `release` 可从关闭叶提交恢复 `lastClosedChain`，在叶子或基线 `Release` 上幂等完成本地清理；重试可省略全部审查/候选选择参数，若重复传入则必须逐字段等于已封存信封。升级前缺少任一新信封的旧关闭提交只允许在远端事务已经完成时做本地收尾，绝不能新推进远端 `Release`。不得重写远端或把部分状态宣称为完成；删除后仍须复核当前 `Release`、HEAD、clean 状态和完整关闭 manifest。
+默认分支或任一登记 ref 的冲突/竞态、非快进、远端不支持原子事务，或相关分支被其他 Worktree 占用，都必须在受管远端事务变化前停止。正常路径不会发送针对缺失 `Release` 的删除 refspec，因为 Git 无法安全原子断言一个未参与更新的 ref 继续缺失；若它恰在远端广告后由外部并发创建，helper 保留该未知 ref，受管默认分支/feature 原子事务可能已经完成，但后置复核必须报告可恢复冲突而不能宣称完成，待外部按其所有权精确移除后只做幂等本地收尾。legacy 迁移中已冻结的 `Release` 若在失败事务后已被精确删除，则重试把该删除视为已完成，只推进默认分支并清理登记 feature；若期间重新出现则同样保留并报告冲突。远端受管事务已成功、但本地切换或清理因随后竞态失败时，再次运行同一 `release` 可从 closing leaf 或同名默认分支恢复 `lastClosedChain` 并幂等完成本地清理；重试可省略全部审查/候选选择参数，若重复传入则必须逐字段等于已封存信封。升级前缺少任一新信封的旧关闭提交只允许在旧式远端 `Release` 事务已经完整完成时执行 local-only 收尾，返回 `legacy-local-cleanup-complete` 且绝不能新推进远端默认分支；随后须从该 `Release` 开始一次迁移链。不得重写未知远端 ref 或把部分状态宣称为完成；删除后仍须复核当前默认分支、HEAD、clean 状态和完整关闭 manifest。
 
 ## 输出
 
-解析单行 JSON。成功状态为 `inspected`、`started`、`task-integrated`、`published`、`already-published`、`release-review-verified` 或 `released`；失败输出 `status=error` 和脱敏原因并返回非零。报告实际 branch/OID、Task 是否仍待 publish，以及是否完成远端、本地清理；不把本地整合、提交、push、候选构建或 `Release` 更新描述为默认分支已发布。
+解析单行 JSON。成功状态为 `inspected`、`started`、`task-integrated`、`published`、`already-published`、`legacy-local-cleanup-complete`、`release-review-verified` 或 `released`；失败输出 `status=error` 和脱敏原因并返回非零。报告实际 branch/OID、Task 是否仍待 publish，以及是否完成默认 ref 原子推进和远端/本地登记 feature 清理；`legacy-local-cleanup-complete` 只表示升级前旧事务的本地收尾完成且仍需迁移，只有 `released` 且远端默认 ref 复读到 closing commit 时才描述为 Git 默认分支发布完成，不能把本地整合、提交、活动叶 push、候选构建或部分收尾冒充这一结果。

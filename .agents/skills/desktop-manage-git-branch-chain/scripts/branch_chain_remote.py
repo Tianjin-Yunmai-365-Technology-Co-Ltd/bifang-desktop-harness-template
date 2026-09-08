@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""以单一远端快照读取 Release 与 manifest feature refs。"""
+"""以单一远端快照读取默认分支、Release 与登记的 feature refs。"""
 
 from __future__ import annotations
 
@@ -43,39 +43,88 @@ def remote_close_state(
     closing_head: str,
     closed: dict[str, Any],
 ) -> str:
-    """用一次快照判定远端尚待更新、已完成或处于部分状态。"""
+    """用一次快照判定直接发布尚待更新、已完成或处于部分状态。"""
 
     branches = [entry["branch"] for entry in closed["entries"]]
-    snapshot = remote_heads(root, remote, ["Release", *branches])
+    default_branch = closed["defaultBranch"]
+    snapshot_branches = [default_branch, "Release", *branches]
+    snapshot = remote_heads(root, remote, snapshot_branches)
     feature_heads = [snapshot[branch] for branch in branches]
     expected_features = [entry["preCloseHead"] for entry in closed["entries"]]
-    if feature_heads == expected_features and snapshot["Release"] == closed["releaseHeadBefore"]:
+    if (
+        feature_heads == expected_features
+        and snapshot[default_branch] == closed["defaultHead"]
+        and snapshot["Release"] == closed["releaseHeadBefore"]
+    ):
         return "pending"
-    if all(value is None for value in feature_heads) and snapshot["Release"] == closing_head:
+    if (
+        closed["releaseHeadBefore"] is not None
+        and feature_heads == expected_features
+        and snapshot[default_branch] == closed["defaultHead"]
+        and snapshot["Release"] is None
+    ):
+        return "pending-release-missing"
+    if (
+        all(value is None for value in feature_heads)
+        and snapshot[default_branch] == closing_head
+        and snapshot["Release"] is None
+    ):
         return "complete"
-    raise GitError("remote release/feature refs are in an unexpected partial or raced state")
+    raise GitError(
+        "remote default/Release/feature refs are in an unexpected partial or raced state"
+    )
+
+
+def require_legacy_remote_complete(
+    root: Path,
+    remote: str,
+    closing_head: str,
+    closed: dict[str, Any],
+) -> None:
+    """只接受旧式 Release 事务已经完整完成的远端快照。"""
+
+    branches = [entry["branch"] for entry in closed["entries"]]
+    default_branch = closed["defaultBranch"]
+    snapshot = remote_heads(root, remote, [default_branch, "Release", *branches])
+    if (
+        snapshot[default_branch] == closed["defaultHead"]
+        and snapshot["Release"] == closing_head
+        and all(snapshot[branch] is None for branch in branches)
+    ):
+        return
+    raise GitError(
+        "legacy closing state cannot update the remote default branch and its remote Release transaction is not complete"
+    )
 
 
 def push_release_transaction(
     root: Path,
     remote: str,
     closing_head: str,
+    default_branch: str,
+    default_before: str,
     release_before: str | None,
     entries: list[dict[str, str]],
 ) -> None:
-    """原子快进 Release，并以逐 ref lease 比较删除远端 feature 链。"""
+    """原子快进默认分支，并按冻结状态删除可选 Release 与 feature 链。"""
 
     arguments = [
         "push",
         "--atomic",
-        f"--force-with-lease=refs/heads/Release:{release_before or ''}",
+        f"--force-with-lease=refs/heads/{default_branch}:{default_before}",
     ]
+    if release_before is not None:
+        arguments.append(
+            f"--force-with-lease=refs/heads/Release:{release_before}"
+        )
     arguments.extend(
         f"--force-with-lease=refs/heads/{entry['branch']}:{entry['preCloseHead']}"
         for entry in entries
     )
-    arguments.extend([remote, f"{closing_head}:refs/heads/Release"])
+    arguments.extend([remote, f"{closing_head}:refs/heads/{default_branch}"])
+    if release_before is not None:
+        arguments.append(":refs/heads/Release")
     arguments.extend(f":refs/heads/{entry['branch']}" for entry in entries)
     result = run_git(root, arguments, check=False)
     if result.returncode != 0:
-        raise GitError("atomic Release update and feature cleanup failed")
+        raise GitError("atomic default-branch update and temporary branch cleanup failed")

@@ -397,7 +397,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("保存项目完整路径、`projectId`、repository identity", implement)
         self.assertIn("git rev-parse --path-format=absolute --git-common-dir", implement)
         self.assertIn("`codex/task-*`", implement)
-        self.assertIn("不自行合并默认/集成分支", implement)
+        self.assertIn("Task 不自行合并默认分支", implement)
         self.assertIn("只管理单个左侧 user-owned Task 内部", parallel)
         self.assertIn("不调用 `create_thread`，不创建新的左侧 Task", parallel)
         self.assertIn("不得把两个左侧 Task 安排进同一 Worktree", parallel)
@@ -575,7 +575,10 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn(boundary, skill)
         self.assertIn("候选事实只写入忽略的 `release/` 原子集合", rules)
         self.assertIn("不得复制到 tracked 项目记忆", rules)
-        self.assertIn("真实渠道发布成功后，才从已发布 `Release` 开始后续受管 feature 生命周期", rules)
+        self.assertIn(
+            "真实渠道发布成功后，才从已发布的默认分支 closing commit 开始后续受管 feature 生命周期",
+            rules,
+        )
 
     def test_environment_gate_only_runs_for_initialization_or_observed_error(self) -> None:
         """环境门禁不得因任务、构建或证据状态预先运行。"""

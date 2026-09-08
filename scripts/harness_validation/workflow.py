@@ -16,6 +16,49 @@ from .workflow_contract import (
     UPLOAD_USE,
 )
 
+RELEASE_ENVELOPE_HELPER = (
+    WORKFLOW.parent.parent / "scripts" / "verify_release_envelope.py"
+)
+
+
+def validate_release_envelope_helper(
+    errors: list[str], helper: Path = RELEASE_ENVELOPE_HELPER
+) -> None:
+    """要求离线候选信封验证器证明直接默认分支发布的最终远端快照。"""
+
+    if not helper.is_file():
+        fail(errors, f"missing release envelope helper: {display_path(helper)}")
+        return
+    try:
+        text = helper.read_text(encoding="utf-8")
+        compile(text, str(helper), "exec")
+    except (OSError, UnicodeDecodeError, SyntaxError) as error:
+        fail(
+            errors,
+            f"cannot parse release envelope helper {display_path(helper)}: {error}",
+        )
+        return
+
+    required_fragments = (
+        'if repository_default_branch not in {"main", "master"}:',
+        "if head != source_commit or branch != repository_default_branch:",
+        'if closed.get("releaseTarget") != "default":',
+        'if closed["defaultBranch"] != repository_default_branch:',
+        'default_ref = f"refs/remotes/origin/{repository_default_branch}"',
+        "if resolve_ref(root, default_ref) != source_commit:",
+        'if resolve_ref(root, "refs/remotes/origin/Release", missing_ok=True) is not None:',
+        'feature_ref = f"refs/remotes/origin/{entry[\'branch\']}"',
+        "if resolve_ref(root, feature_ref, missing_ok=True) is not None:",
+        '"releaseTarget": closed["releaseTarget"]',
+        '"defaultBranch": repository_default_branch',
+    )
+    for fragment in required_fragments:
+        if fragment not in text:
+            fail(
+                errors,
+                "release envelope helper direct-default gate missing: " + fragment,
+            )
+
 
 def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     """确认 workflow 是受审模板，只构建 pending 候选且不执行产品验收。"""
@@ -99,11 +142,12 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         ".release-signing/sign-candidate.ps1",
         CHECKOUT_USE,
         UPLOAD_USE,
-        "ref: Release",
+        "ref: ${{ github.event.repository.default_branch }}",
         "fetch-depth: 0",
         "persist-credentials: false",
         "source_commit 必须是由小写十六进制字符组成的 40 字符 SHA",
-        "必须检出具名 Release",
+        'default_branch not in {"main", "master"}',
+        "必须检出具名 GitHub 动态默认分支",
         "verify_release_envelope.py capture",
         "verify_release_envelope.py verify",
         "--expected-state-sha256 \"$BRANCH_CHAIN_STATE_SHA256\"",
@@ -164,6 +208,7 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "dist/",
         "path: release/",
         "ref: ${{ inputs.source_commit }}",
+        "ref: Release",
         "fetch-depth: 1",
         'mktemp -d "${GITHUB_WORKSPACE}/.release-clean.candidate.XXXXXX"',
         'Join-Path $env:GITHUB_WORKSPACE (".release-clean.candidate."',
@@ -287,7 +332,7 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     ):
         fail(
             errors,
-            "candidate preflight, named Release checkout and initial envelope capture must precede MSRV setup",
+            "candidate preflight, named default-branch checkout and initial envelope capture must precede MSRV setup",
         )
 
     def step_block(name: str = "", *, uses: str = "") -> list[str]:
@@ -325,14 +370,15 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
 
     checkout_block = {line.strip() for line in step_block(uses=CHECKOUT_USE)}
     for required in (
-        "ref: Release",
+        "ref: ${{ github.event.repository.default_branch }}",
         "fetch-depth: 0",
         "persist-credentials: false",
     ):
         if required not in checkout_block:
             fail(
                 errors,
-                f"workflow checkout must use the named Release with full credential-free history: {required}",
+                "workflow checkout must use the dynamic named default branch with full "
+                f"credential-free history: {required}",
             )
 
     python_block = "\n".join(step_block("选择 Python 运行时"))
@@ -345,8 +391,10 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "[0-9a-f]{40}",
         'subprocess.check_output(["git", "rev-parse", "HEAD"]',
         "observed != expected",
+        'default_branch = os.environ["REPOSITORY_DEFAULT_BRANCH"]',
+        'default_branch not in {"main", "master"}',
         'subprocess.check_output(["git", "symbolic-ref", "--quiet", "--short", "HEAD"]',
-        'branch != "Release"',
+        "branch != default_branch",
         '"status", "--porcelain=v1", "--untracked-files=all"',
         "if status:",
     ):
@@ -633,3 +681,5 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         }
         if not expected_uploads.issubset(upload_lines):
             fail(errors, "workflow upload step must publish the exact declared archive/checksum/manifest paths")
+
+    validate_release_envelope_helper(errors)

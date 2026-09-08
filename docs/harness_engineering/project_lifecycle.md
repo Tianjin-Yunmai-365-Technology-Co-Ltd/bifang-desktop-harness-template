@@ -132,7 +132,7 @@ tests/                     核心闭环和风险测试
 
 ## 13. 阶段检查清单
 
-阶段检查按事件触发组合：新产品/边界变化使用 `$desktop-define-product`；日常开发直接使用 `$desktop-implement-change`；用户明确要求持久计划或跨会话协调时先用 `$desktop-plan-change`；发布候选先由 `$desktop-prepare-release` 冻结选择并关闭到 clean 具名 `Release`，再构建/收集并用 `$desktop-verify-delivery` 完整验收，形成 `accepted` 原子集合后只读复核就绪。日常维护不为形式完整重复所有阶段。
+阶段检查按事件触发组合：新产品/边界变化使用 `$desktop-define-product`；日常开发直接使用 `$desktop-implement-change`；用户明确要求持久计划或跨会话协调时先用 `$desktop-plan-change`；发布候选先由 `$desktop-prepare-release` 冻结选择、在同一 closing commit 封存信封并以原子严格快进直接关闭到 clean 具名动态默认 `main`/`master`，切回默认分支且精确清理登记 feature refs 后，再构建/收集并用 `$desktop-verify-delivery` 完整验收，形成 `accepted` 原子集合后只读复核就绪。日常维护不为形式完整重复所有阶段。
 
 ## 14. Harness 的积累与演进
 

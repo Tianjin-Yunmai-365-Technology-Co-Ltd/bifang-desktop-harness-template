@@ -217,7 +217,7 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "没有 Work Plan 不阻断验收",
             "当前构建已经运行项目全部非空单元测试",
             "候选验收证据只写入忽略的 `release/`",
-            "不得在 clean protected `Release` 上创建或更新 tracked",
+            "不得在 clean protected 默认分支 closing commit 上创建或更新 tracked",
             "也不得创建占位记录",
             "只有用户要求的活动计划存在时才重开或新增 Todo",
         ),
@@ -234,7 +234,7 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "纯只读就绪复核",
         ),
         ROOT / "docs" / "harness_engineering" / "project_lifecycle.md": (
-            "发布候选先由 `$desktop-prepare-release` 冻结选择并关闭到 clean 具名 `Release`",
+            "以原子严格快进直接关闭到 clean 具名动态默认 `main`/`master`",
             "再构建/收集并用 `$desktop-verify-delivery` 完整验收",
         ),
         ROOT / "docs" / "harness_engineering" / "foundations.md": (

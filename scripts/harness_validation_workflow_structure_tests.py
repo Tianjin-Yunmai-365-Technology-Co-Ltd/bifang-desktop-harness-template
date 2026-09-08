@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import scripts.validate_harness as validate_harness
-from scripts.harness_validation import governance, repository, upgrade
+from scripts.harness_validation import governance, repository, upgrade, workflow
 from scripts.harness_validation_test_support import (
     TODO_TOKEN as SHARED_TODO_TOKEN,
     read_repo_text,
@@ -265,21 +265,91 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         errors = self._validate(wrong_path)
         self.assertTrue(any("exact declared" in error for error in errors), errors)
 
-    def test_rejects_unpinned_source_commit_checkout(self) -> None:
-        """候选必须检出具名 Release，再独立核对批准的提交。"""
+    def test_rejects_checkout_outside_dynamic_default_branch(self) -> None:
+        """候选必须检出 GitHub 动态默认分支，再核对批准提交。"""
         base = self._base_workflow()
-        old_checkout = base.replace(
-            "          ref: Release\n",
+        expected = "          ref: ${{ github.event.repository.default_branch }}\n"
+        self.assertIn(expected, base)
+        for replacement in (
             "          ref: ${{ inputs.source_commit }}\n",
-            1,
-        )
-        self.assertNotEqual(old_checkout, base)
-        errors = self._validate(old_checkout)
-        self.assertTrue(any("named Release" in error or "ref:" in error for error in errors), errors)
+            "          ref: Release\n",
+            "          ref: main\n",
+            "          ref: master\n",
+        ):
+            with self.subTest(replacement=replacement.strip()):
+                errors = self._validate(base.replace(expected, replacement, 1))
+                self.assertTrue(
+                    any("default branch" in error or "ref:" in error for error in errors),
+                    errors,
+                )
 
         without_verification = base.replace("      - name: 验证已检出源码\n", "      - name: 观察已检出源码\n", 1)
         errors = self._validate(without_verification)
         self.assertTrue(any("source" in error for error in errors), errors)
+
+    def test_rejects_weakened_dynamic_default_source_verification(self) -> None:
+        """源码预检必须同时锁定 main/master 值域、HEAD 输入和具名分支。"""
+
+        base = self._base_workflow()
+        cases = {
+            "default allowlist": (
+                'default_branch not in {"main", "master"}',
+                "not default_branch",
+            ),
+            "source commit": ("observed != expected", "not observed"),
+            "named branch": ('branch != default_branch', 'branch != "main"'),
+        }
+        for label, (required, replacement) in cases.items():
+            with self.subTest(label=label):
+                self.assertIn(required, base)
+                errors = self._validate(base.replace(required, replacement, 1))
+                self.assertTrue(
+                    any("source verification" in error for error in errors),
+                    errors,
+                )
+
+    def test_rejects_weakened_direct_default_envelope_helper(self) -> None:
+        """离线 helper 不得放松默认 ref、Release 缺失或发布目标证明。"""
+
+        helper = workflow.RELEASE_ENVELOPE_HELPER
+        source = helper.read_text(encoding="utf-8")
+        cases = {
+            "default allowlist": (
+                'if repository_default_branch not in {"main", "master"}:',
+                "if not repository_default_branch:",
+            ),
+            "named source": (
+                "if head != source_commit or branch != repository_default_branch:",
+                "if head != source_commit:",
+            ),
+            "release target": (
+                'if closed.get("releaseTarget") != "default":',
+                'if closed.get("releaseTarget") is None:',
+            ),
+            "closed default": (
+                'if closed["defaultBranch"] != repository_default_branch:',
+                'if closed["defaultBranch"] != "main":',
+            ),
+            "remote default": (
+                "if resolve_ref(root, default_ref) != source_commit:",
+                'if resolve_ref(root, default_ref) != closed["defaultHead"]:',
+            ),
+            "Release absence": (
+                'if resolve_ref(root, "refs/remotes/origin/Release", missing_ok=True) is not None:',
+                'if resolve_ref(root, "refs/remotes/origin/Release", missing_ok=True) is None:',
+            ),
+        }
+        for label, (required, replacement) in cases.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as tmp_dir:
+                self.assertIn(required, source)
+                candidate = Path(tmp_dir) / "verify_release_envelope.py"
+                candidate.write_text(source.replace(required, replacement, 1), encoding="utf-8")
+                errors: list[str] = []
+                workflow.validate_release_envelope_helper(errors, candidate)
+                self.assertTrue(
+                    any("direct-default gate missing" in error for error in errors),
+                    errors,
+                )
 
     def test_rejects_shallow_checkout(self) -> None:
         """远端分支删除和 closing history 复核要求完整 fresh fetch。"""

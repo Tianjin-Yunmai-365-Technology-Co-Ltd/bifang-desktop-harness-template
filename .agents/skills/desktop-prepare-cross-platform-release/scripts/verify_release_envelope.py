@@ -92,8 +92,8 @@ def calculate_snapshot(
         raise EnvelopeError("source_commit must be a lowercase 40-character OID")
     if not SHA256_PATTERN.fullmatch(expected_state_sha256):
         raise EnvelopeError("branch_chain_state_sha256 must be lowercase SHA-256")
-    if not repository_default_branch or repository_default_branch == "Release":
-        raise EnvelopeError("repository default branch context is invalid")
+    if repository_default_branch not in {"main", "master"}:
+        raise EnvelopeError("repository default branch must be main or master")
 
     git_root = Path(
         run_git(root, ["rev-parse", "--show-toplevel"]).decode("utf-8").strip()
@@ -102,8 +102,10 @@ def calculate_snapshot(
         raise EnvelopeError("project root must be the independent Git top level")
     head = run_git(root, ["rev-parse", "--verify", "HEAD^{commit}"]).decode().strip()
     branch = run_git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"]).decode().strip()
-    if head != source_commit or branch != "Release":
-        raise EnvelopeError("runner must check out the named Release at source_commit")
+    if head != source_commit or branch != repository_default_branch:
+        raise EnvelopeError(
+            "runner must check out the named repository default branch at source_commit"
+        )
 
     read_state, require_closed_history, require_release_review_repository, require_clean = (
         load_branch_chain_modules(root)
@@ -140,14 +142,16 @@ def calculate_snapshot(
         raise EnvelopeError("candidate source must contain one completed closed chain")
     if "releaseReview" not in closed or "candidateSelections" not in closed:
         raise EnvelopeError("legacy closing state without both sealed envelopes is forbidden")
+    if closed.get("releaseTarget") != "default":
+        raise EnvelopeError("closing state does not target the repository default branch")
     if closed["defaultBranch"] != repository_default_branch:
         raise EnvelopeError("GitHub default branch differs from the protected closing state")
 
-    if resolve_ref(root, "refs/remotes/origin/Release") != source_commit:
-        raise EnvelopeError("fresh origin/Release snapshot does not equal source_commit")
     default_ref = f"refs/remotes/origin/{repository_default_branch}"
-    if resolve_ref(root, default_ref) != closed["defaultHead"]:
-        raise EnvelopeError("fresh default-branch snapshot differs from the closing state")
+    if resolve_ref(root, default_ref) != source_commit:
+        raise EnvelopeError("fresh origin default branch does not equal source_commit")
+    if resolve_ref(root, "refs/remotes/origin/Release", missing_ok=True) is not None:
+        raise EnvelopeError("legacy origin/Release must be absent for a direct-default release")
     for entry in closed["entries"]:
         feature_ref = f"refs/remotes/origin/{entry['branch']}"
         if resolve_ref(root, feature_ref, missing_ok=True) is not None:
@@ -181,6 +185,8 @@ def calculate_snapshot(
     return {
         "sourceCommit": source_commit,
         "branchChainStateSha256": state_sha256,
+        "releaseTarget": closed["releaseTarget"],
+        "defaultBranch": repository_default_branch,
         "releaseReview": closed["releaseReview"],
         "candidateSelections": selections,
     }

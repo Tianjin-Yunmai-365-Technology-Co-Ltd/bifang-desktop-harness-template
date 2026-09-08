@@ -36,19 +36,21 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 
 “不是持久偏好”不等于依赖对话内存：`$desktop-prepare-release` 必须把当次审查结果、GUI 性能选择和适用的 macOS 签名选择/来源封存在当前链 closing commit 的 `releaseReview`/`candidateSelections`，使同一发布中断重试可复用；它们不得写入 frontmatter 或成为下一次发布默认值。候选构建在清理、测试前和写 manifest 前只读验证并消费这两份信封，只在关闭链后另行解析 E2E。
 
-## 产品 feature 分支链与 Release 集成
+## 产品 feature 分支链与默认分支发布
 
 本节只约束完成初始化且已经存在可访问 Git 远端的终端下游。初始化仍在本地 `main` 上建立唯一中性基线且不配置远端；在用户或外部系统后来配置远端之前，产品开发必须因缺少安全发布目标而停止，不得由 Agent 创建远端、填写地址或处理凭据。远端优先使用精确 `origin`；没有 `origin` 时只接受唯一远端，零个或多个候选都失败，除非用户在当前请求明确给出远端名。
 
 - 新需求、Bug 修复或其他会写入仓库的维护工作开始前，调用 `$desktop-manage-git-branch-chain start`。分支名固定为 `feature-{ascii-kebab-summary}-{YYYYMMDD}`：摘要由需求或 Bug 的最短可辨识语义转为小写 ASCII kebab，日期取 `Asia/Shanghai` 自然日；Bug 同样使用 `feature-` 前缀。命名为空、碰撞、工作树/暂存区不干净、远端不可读写或分支已被其他 Worktree 占用时失败关闭，不猜测后缀、不覆盖 ref。
-- 分支链严格串行。第一条链优先从已推送的精确 `Release` 开始；`Release` 尚不存在时，才以当时远端默认分支的已复读提交为首链基线。链已活动时，每个真正的新需求/Bug 从当前已推送叶子的精确提交创建下一节点；同一需求的诊断、实现、相关测试、review 和同范围修正继续使用同一叶子，不重复建节点。
+- 分支链严格串行。第一条链和每次成功发布后的新链都从已推送并复读的动态远端默认 `main`/`master` 精确提交开始；链已活动时，每个真正的新需求/Bug 从当前已推送叶子的精确提交创建下一节点。同一需求的诊断、实现、相关测试、review 和同范围修正继续使用同一叶子，不重复建节点，不创建 `Release` 中转分支。
+- 唯一迁移兼容是本规则生效前已存在、当前本地/远端完全推送并已被活动链冻结为精确基线的 legacy `Release`：冻结默认旧 OID 必须是该基线祖先；该轮发布在同一 atomic push 中以精确 lease 推进默认分支并删除 legacy `Release` 与登记 feature refs，随后切回默认分支完成本地 CAS 清理。不得新建、更新或把它用作候选分支；迁移完成后新链只能从默认分支开始。
 - 一条 active feature 叶子同一时刻最多承载一个产品写入 `codex/task-*`，且该 Task 不得再创建 sibling 写入 `codex/unit-*`；只读 Task/Subagent 仍可并行。协调方只能在登记 active feature 叶子的 Worktree 中调用 `$desktop-manage-git-branch-chain integrate-task`，显式传入匹配 `codex/task-<task-slug>` 的 Task ref、该 ref 唯一登记的独立 Worktree 和已经选定的 40 位小写 Task OID；工具要求两个 Worktree clean、叶子本地/远端 OID 一致、Task 是叶子的严格非 merge 线性后代、Task 范围内任一提交都未触碰受保护链状态（后续恢复原字节也不例外），且链内 feature refs、目标 Task ref 和其他 `codex/task-*`/`codex/unit-*` 没有冲突占用，才以 `git merge --ff-only <task-head>` 只更新本地叶子。命令不得自动 push 或清理 Task；后续 `publish` 成功把新叶子 OID 推送并复核活动状态后，才能清理并从新的远端 OID 创建下一个写入 Task。不得用 merge commit、rebase、cherry-pick 或 squash 拼接并行 sibling 历史来绕过严格线性发布门禁。
-- `.harness/git-branch-chain.json` 是受保护的当前链状态。活动链记录 schema、远端、默认分支与冻结 OID、基线 ref/OID、节点顺序、每节点父 ref/OID、活动叶子和 `active` 阶段；关闭提交把活动链转为含 `releaseHeadBefore`、每节点关闭前 OID、`releaseReview` 和 `candidateSelections` 的不可变 `lastClosedChain`。审查终点后的提交按提交逐个检查，改后恢复也不能夹带非发布元数据路径；两份信封和关闭状态在一个提交中原子封存。关闭提交自身 OID 不可能自引用写入其 tree，固定以 `closingHead: null` 表示并由“当前提交的唯一直接父等于关闭前叶子”推导；每次 `start`/`publish`/`release` 都实时复读实际远端 OID，不把它伪造为持久字段。`start` 必须先形成仅含该状态变化的提交，再以非强制 push 创建远端节点并复读；失败时不得开始产品源码写入。不得手改状态伪造链路或删除范围。
+- `.harness/git-branch-chain.json` 是受保护的当前链状态。活动链记录 schema、远端、默认分支与冻结 OID、基线 ref/OID、节点顺序、每节点父 ref/OID、活动叶子和 `active` 阶段；关闭提交把活动链转为含发布前默认分支 OID、每节点关闭前 OID、`releaseReview` 和 `candidateSelections` 的不可变 `lastClosedChain`。审查终点后的提交按提交逐个检查，改后恢复也不能夹带非发布元数据路径；两份信封和关闭状态在一个提交中原子封存。关闭提交自身 OID 不可能自引用写入其 tree，固定以 `closingHead: null` 表示并由“当前提交的唯一直接父等于关闭前叶子”推导；每次 `start`/`publish`/`release` 都实时复读实际远端 OID，不把它伪造为持久字段。`start` 必须先形成仅含该状态变化的提交，再以非强制 push 创建远端节点并复读；失败时不得开始产品源码写入。不得手改状态伪造链路或删除范围。
 - 每个日常逻辑闭环都按 `$desktop-configure-git-commits` 形成归属明确的提交，随后调用 `$desktop-manage-git-branch-chain publish`，只用显式完整 refspec 把登记活动叶子非强制快进到登记远端并复读 40 位 OID。普通 Task、构建、诊断或状态检查不扩大此授权；不得自动配置远端/凭据、强推、rebase、cherry-pick、打标签或上传制品。
-- 精确 `main`、`master`、动态解析出的远端默认分支以及 `Release` 都是保护分支：Agent 可以只读解析或把它们作为合格基线，但日常实现和普通 Git 命令不得在这些分支上写文件、暂存、提交、合并、推送或删除；唯一写入例外是下一条规定的 `$desktop-manage-git-branch-chain release` 原子事务对 `Release` 的受限快进。工具必须在写入前和提交/推送前后复核当前分支、HEAD、远端 OID 与工作树，detached HEAD 或任何漂移都失败关闭。
-- 用户明确要求程序发布候选时，`$desktop-prepare-release` 先把活动叶子的源码与发布元数据提交全部推送，再把显式完整的审查/候选选择信封传给 `$desktop-manage-git-branch-chain release`。只有登记节点构成从冻结基线到活动叶子的严格父子线性历史、父 OID 未漂移、全部本地/远端 OID 一致、工作树干净且无其他 Worktree 占用时，才在叶子提交关闭状态，并用一次 atomic push 将精确 `Release` 快进到关闭提交，同时以每个登记远端 feature ref 的旧 OID 作为 lease 删除整链；禁止通配符、无精确期望 OID 的强制更新、非快进、rebase、cherry-pick 或删除链外 ref，逐 ref lease 删除是唯一允许的 force 形式。任何正式候选构建都必须先用 `verify-release-review` 证明当前 clean `Release` 正是已完成远端/本地收尾且信封有效的关闭提交。
-- atomic push 失败时 `Release` 和所有远端 feature ref 都必须保持原状；远端成功后先复读确认默认分支 OID 未变化，再按状态清单删除精确本地 feature refs。若只在本地清理阶段中断，保留可幂等重试的关闭状态，不得重做远端发布或扩大删除范围。成功后当前分支是 clean 的 `Release`，本地/远端 `Release` 与关闭提交相同，链状态回到空闲。
-- Agent 永远不得执行、代建或自动化 `Release` 到 `main`、`master` 或动态默认分支的 merge、push、删除或 PR；完成时只报告精确远端、`Release` ref 和 40 位提交，由用户自行 Merge/PR。该人工步骤也不等于真实渠道发布成功，不能自行触发版本周期重置。
+- 精确 `main`、`master` 与动态解析出的远端默认分支在日常流程中是保护分支：Agent 可以只读解析或把它作为合格基线，但日常实现和普通 Git 命令不得在其上写文件、暂存、提交、合并、推送或删除。唯一写入例外是下一条规定的 `$desktop-manage-git-branch-chain release` 原子事务对动态默认 `main`/`master` 的受限严格快进；不得由此放宽其他主分支操作。工具必须在写入前和提交/推送前后复核当前分支、HEAD、远端 OID 与工作树，detached HEAD 或任何漂移都失败关闭。
+- 用户明确要求程序发布候选时，`$desktop-prepare-release` 先把活动叶子的源码与发布元数据提交全部推送，再把显式完整的审查/候选选择信封传给 `$desktop-manage-git-branch-chain release`。只有登记节点构成从冻结默认分支基线到活动叶子的严格父子线性历史、父 OID 未漂移、全部本地/远端 OID 一致、工作树干净且无其他 Worktree 占用时，才在叶子提交关闭状态，并用一次 atomic push 把动态默认 `main`/`master` 从冻结 OID 严格快进到关闭提交，同时以每个登记远端 feature ref 的旧 OID 作为 lease 删除整链；禁止通配符、无精确期望 OID 的强制更新、非快进、merge commit、rebase、cherry-pick 或删除链外 ref，逐 ref lease 删除是唯一允许的 force 形式。任何正式候选构建都必须先用 `verify-release-review` 证明当前 clean 默认分支正是已完成远端/本地收尾且信封有效的关闭提交。
+- atomic push 失败时默认分支和所有远端 feature ref 都必须保持原状；远端成功后复读确认默认分支精确等于关闭提交，再受管切换或严格快进本地同名默认分支，并按状态清单删除精确本地 feature refs。若只在本地切换或清理阶段中断，保留可幂等重试的关闭状态，不得重做远端发布或扩大删除范围。成功后当前分支是 clean 的动态默认 `main`/`master`，本地/远端默认分支与关闭提交相同，链状态回到空闲。
+- 原本缺失的 `Release` 不进入正常 push refspec，因为 Git 不能在不更新该 ref 的同时安全原子断言它在远端广告后仍缺失。若外部恰在该窗口创建它，helper 必须保留未知 ref；默认分支/登记 feature 的原子事务可能已完成，但后置复核仍返回可恢复冲突，外部所有者精确移除该 ref 后重试只完成本地收尾。legacy 迁移中冻结的 `Release` 若在失败事务后已缺失，重试可把该精确删除视为完成并继续；任何重新出现的未知值都不得代删。
+- 正常 `release` 只删除 `.harness/git-branch-chain.json` 精确登记且 OID/lease 匹配的本轮 feature refs；唯一额外删除项是上述迁移路径中以冻结旧 OID 明确绑定的 legacy `Release`。不得按前缀或通配符扫描删除 `feature-*`、`codex/task-*`、`codex/unit-*`、其他分支或 Worktree。临时 Task/单元分支继续由各自既有整合与清理流程负责。默认分支自动快进、切换和登记链清理不等于真实渠道发布成功，不能自行触发版本周期重置、标签、上传或渠道副作用。
 
 ## 左侧 Task、项目绑定与独立 Worktree
 
@@ -152,9 +154,9 @@ Task 绑定：
 - 显式发布候选构建必须为当前候选解析一次 E2E 选择。若当前请求已明确 `enabled`/`disabled`，直接复用且不重复询问；否则在任何测试或编译前询问一次，并可把 `milestone_e2e` 作为建议默认选项展示。
 - E2E 选择只对当前发布候选有效，不得静默改写本文件。选择启用或产品/渠道要求时，E2E 只在最终真实候选形成后运行；选择禁用时只在 `release/` manifest 和最终回复记录 `Not run` 与剩余风险。
 - 每次 GUI 发布还必须独立解析当次性能选择。所有正式候选都先经过 `$desktop-prepare-release`：它在关闭链前复用当前请求的明确选择或询问一次，并把结果封存进 closing commit 的 `candidateSelections`；`$desktop-build-tauri-release` 只读消费该记录，缺失时失败关闭，不得从对话补写、兜底询问或静默沿用上次发布或 `milestone_e2e`。
-- 明确发布请求本身授权流程复核并提交、推送范围明确的活动 feature 叶子，以原子操作把登记链快进到 `Release` 并精确清理本地/远端链路，然后直接构建，无需再次询问是否提交、是否执行该受限分支操作或是否构建；普通构建不自动提交或关闭链路，tag、上传、真实渠道发布及 `Release` 到默认分支仍需各自授权或由用户自行完成。
+- 明确发布请求本身授权流程复核并提交、推送范围明确的活动 feature 叶子，以原子操作把登记链严格快进到动态默认 `main`/`master`，切回本地默认分支并精确清理状态登记的本地/远端 feature refs，然后直接构建，无需再次询问是否提交、是否执行该受限分支操作或是否构建；普通构建不自动提交、关闭链路或修改默认分支，tag、上传和真实渠道发布仍需各自授权。
 - GUI 性能与 E2E 选择相互独立。性能选择为 `enabled` 或产品/渠道要求时执行完整门禁；为 `disabled` 且无硬要求时允许以 `performanceStatus: Not run` 继续，但必须保留原因和剩余风险。已启用后只有安全修复尝试仍不达标时，才询问用户是否以可见 waiver 继续。
-- 构建请求、执行和结果，以及候选 E2E、完整验收、`pending` → `accepted` 和就绪复核，都不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 或其他 tracked 项目记忆；这些候选事实只进入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复，本地开发试包只进入最终回复。真实渠道发布成功后，才从已发布 `Release` 开始后续受管 feature 生命周期，追加 Verification/发布/Product Status 记录并 finalize 版本周期；独立回顾性人工复核或长期审计也必须使用自己的受管 feature 生命周期，且不得反向批准活动候选。
+- 构建请求、执行和结果，以及候选 E2E、完整验收、`pending` → `accepted` 和就绪复核，都不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 或其他 tracked 项目记忆；这些候选事实只进入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复，本地开发试包只进入最终回复。真实渠道发布成功后，才从已发布的默认分支 closing commit 开始后续受管 feature 生命周期，追加 Verification/发布/Product Status 记录并 finalize 版本周期；独立回顾性人工复核或长期审计也必须使用自己的受管 feature 生命周期，且不得反向批准活动候选。
 - 普通缺陷修复、纯重构等维护类型本身不创建 Product Spec、ADR、Status、Changelog 或 Verification；用户明确要求、跨会话交接、安全、发布和长期决定等独立事件仍按各自门禁记录。
 
 ## 执行优先级

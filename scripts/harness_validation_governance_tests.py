@@ -171,11 +171,11 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         self.assertIn("--force-with-lease", required[BRANCH_CHAIN_SKILL])
 
     def test_governance_rejects_branch_chain_default_branch_write_regression(self) -> None:
-        """Skill 不能移除 Release 到默认分支只由用户完成的失败关闭边界。"""
+        """Skill 不能移除发布事务直达默认分支的唯一受限写入边界。"""
 
         source = BRANCH_CHAIN_SKILL.read_text(encoding="utf-8")
-        anchor = "helper 永不提供或执行 `Release` 到默认分支的命令"
-        mutated = source.replace(anchor, "helper 可以更新默认分支", 1)
+        anchor = "默认分支更新只能是发布事务内基于冻结旧 OID 的严格 fast-forward"
+        mutated = source.replace(anchor, "普通命令也可以更新默认分支", 1)
         self.assertNotEqual(mutated, source)
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "SKILL.md"

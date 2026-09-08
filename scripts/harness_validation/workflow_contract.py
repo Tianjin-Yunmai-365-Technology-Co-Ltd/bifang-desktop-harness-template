@@ -3,7 +3,7 @@
 CHECKOUT_USE = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
 UPLOAD_USE = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
 EXPECTED_WORKFLOW_SHA256 = (
-    "8c789a679676fc4848f9d9b309a7e88e5c5e27f7e1fc05e2be9f092edc2a76a4"
+    "f1d6d182599a199c1d1977a43aed66ee1384443430225bac32d947c2f45fbe46"
 )
 EXPECTED_INPUTS = {
     "confirm_candidate_build",

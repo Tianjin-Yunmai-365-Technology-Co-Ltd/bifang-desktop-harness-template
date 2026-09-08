@@ -334,7 +334,13 @@ def validate_closed_chain(value: object) -> dict[str, Any] | None:
         "entries",
     }
     extensions = {"releaseReview", "candidateSelections"}
-    if not isinstance(value, dict) or set(value) not in (required, required | extensions):
+    direct_release_extension = {"releaseTarget"}
+    allowed_fields = (
+        required,
+        required | extensions,
+        required | extensions | direct_release_extension,
+    )
+    if not isinstance(value, dict) or set(value) not in allowed_fields:
         raise StateError("lastClosedChain fields are invalid")
     remote = value["remote"]
     default_branch = value["defaultBranch"]
@@ -403,6 +409,10 @@ def validate_closed_chain(value: object) -> dict[str, Any] | None:
         normalized["candidateSelections"] = validate_candidate_selections(
             value["candidateSelections"]
         )
+    if "releaseTarget" in value:
+        if value["releaseTarget"] != "default":
+            raise StateError("lastClosedChain.releaseTarget must be default")
+        normalized["releaseTarget"] = "default"
     return normalized
 
 
@@ -449,10 +459,15 @@ def read_state(root: Path, *, allow_missing: bool = False) -> dict[str, Any]:
         raise StateError("branch-chain state is not valid UTF-8 JSON") from error
 
 
-def discover_closed_retry_state(root: Path) -> dict[str, Any] | None:
-    """从唯一仍存在的关闭叶提交恢复 Release 基线上的本地收尾状态。"""
+def discover_closed_retry_state(
+    root: Path, *, release_target: str
+) -> dict[str, Any] | None:
+    """从唯一仍存在且目标匹配的关闭叶提交恢复本地收尾状态。"""
 
     from branch_chain_git import run_git
+
+    if release_target not in {"default", "legacy"}:
+        raise StateError("closed-chain discovery target is invalid")
 
     listing = run_git(
         root,
@@ -485,6 +500,10 @@ def discover_closed_retry_state(root: Path) -> dict[str, Any] | None:
             candidate["activeChain"] is None
             and closed is not None
             and closed["entries"][-1]["branch"] == branch
+            and (
+                "default" if closed.get("releaseTarget") == "default" else "legacy"
+            )
+            == release_target
         ):
             candidates.append(candidate)
     if len(candidates) > 1:

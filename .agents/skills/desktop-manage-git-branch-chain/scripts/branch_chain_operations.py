@@ -40,7 +40,11 @@ from branch_chain_git import (
     update_local_branch,
     require_worktree_ownership,
 )
-from branch_chain_remote import push_release_transaction, remote_close_state
+from branch_chain_remote import (
+    push_release_transaction,
+    remote_close_state,
+    require_legacy_remote_complete,
+)
 from branch_chain_state import (
     FEATURE_PATTERN,
     discover_closed_retry_state,
@@ -98,6 +102,13 @@ def require_remote_matches(state_remote: str, selected_remote: str) -> None:
         raise GitError("selected remote does not match the branch-chain state")
 
 
+def require_release_default(default_branch: str) -> None:
+    """单阶段发布只把远端 HEAD 指向的 main 或 master 视为目标。"""
+
+    if default_branch not in {"main", "master"}:
+        raise GitError("remote default branch must be main or master for managed releases")
+
+
 def require_default_matches(
     state: dict[str, Any], default_branch: str, default_head: str
 ) -> None:
@@ -150,28 +161,49 @@ def start_chain(
     requested_remote: str | None,
     summary: str,
 ) -> dict[str, Any]:
-    """从 Release、首发默认分支或已推送 active leaf 开始下一分支。"""
+    """从默认分支、待迁移 Release 或已推送 active leaf 开始下一分支。"""
 
     root, branch, head, remote, default_branch, default_head = resolve_context(
         project_root, requested_remote
     )
+    require_release_default(default_branch)
     require_clean(root)
     state = read_state(root, allow_missing=True)
     active = state["activeChain"]
     if active is None:
         release_remote = remote_oid(root, remote, "Release")
         if release_remote is None:
-            if state["lastClosedChain"] is not None:
-                raise GitError("remote Release may be absent only before the first release")
             if branch != default_branch or head != default_head:
-                raise GitError("the first chain without Release must start at remote default HEAD")
+                raise GitError("a new chain without Release must start at remote default HEAD")
             local_release = local_oid(root, "Release", missing_ok=True)
-            if local_release not in (None, default_head):
-                raise GitError("local Release conflicts with the initial default-branch base")
+            if local_release is not None:
+                raise GitError("local Release must be absent when the remote Release is absent")
+            previous = state["lastClosedChain"]
+            if previous is not None:
+                if previous.get("releaseTarget") != "default":
+                    raise GitError("legacy closed state cannot start a direct-default release chain")
+                require_remote_matches(previous["remote"], remote)
+                if previous["defaultBranch"] != default_branch:
+                    raise GitError("remote default branch name changed after the previous release")
+                require_closed_history(
+                    root,
+                    previous["baseHead"],
+                    [entry["preCloseHead"] for entry in previous["entries"]],
+                    head,
+                )
+                if remote_close_state(root, remote, head, previous) != "complete":
+                    raise GitError("previous direct-default release is not fully closed")
+                for entry in previous["entries"]:
+                    if local_oid(root, entry["branch"], missing_ok=True) is not None:
+                        raise GitError("previous local feature cleanup is incomplete")
             base_branch = default_branch
         else:
             if branch != "Release" or head != release_remote:
-                raise GitError("a new chain must start from the fully pushed Release branch")
+                raise GitError(
+                    "an existing Release must be migrated from its fully pushed branch"
+                )
+            if not is_ancestor(root, default_head, release_remote):
+                raise GitError("existing Release is not a fast-forward of remote default")
             base_branch = "Release"
         base_head = head
         parent_name = base_branch
@@ -352,6 +384,7 @@ def integrate_task(
     root, branch, head, remote, default_branch, default_head = resolve_context(
         project_root, requested_remote
     )
+    require_release_default(default_branch)
     require_clean(root)
     state = read_state(root)
     active = state["activeChain"]
@@ -427,6 +460,7 @@ def publish_leaf(project_root: str, requested_remote: str | None) -> dict[str, A
     root, branch, head, remote, default_branch, default_head = resolve_context(
         project_root, requested_remote
     )
+    require_release_default(default_branch)
     require_clean(root)
     state = read_state(root)
     active = state["activeChain"]
@@ -488,10 +522,14 @@ def require_release_worktrees_safe(
     current_branch: str,
     leaf: str,
     branches: list[str],
+    default_branch: str,
 ) -> None:
-    """在远端删除前拒绝其他 Worktree 对 Release 或 feature refs 的占用。"""
+    """在远端事务前拒绝其他 Worktree 对目标或待删 refs 的占用。"""
 
     occupied = checked_out_branches(root)
+    require_worktree_ownership(
+        occupied, default_branch, root, current_branch == default_branch
+    )
     require_worktree_ownership(occupied, "Release", root, current_branch == "Release")
     for branch in branches:
         require_worktree_ownership(
@@ -749,14 +787,15 @@ def require_release_review_repository(
 def verify_release_review(
     project_root: str, requested_remote: str | None
 ) -> dict[str, Any]:
-    """只读证明当前 Release HEAD 正是含有效审查信封的已完成关闭提交。"""
+    """只读证明当前默认分支正是含有效审查信封的已完成关闭提交。"""
 
     root, branch, head, remote, default_branch, default_head = resolve_context(
         project_root, requested_remote
     )
+    require_release_default(default_branch)
     require_clean(root)
-    if branch != "Release" or local_oid(root, "Release") != head:
-        raise GitError("release review verification requires the current Release branch")
+    if branch != default_branch or local_oid(root, default_branch) != head:
+        raise GitError("release review verification requires the current default branch")
     state = read_state(root)
     if state["activeChain"] is not None or state["lastClosedChain"] is None:
         raise GitError("release review verification requires one closed branch chain")
@@ -764,24 +803,28 @@ def verify_release_review(
     review = closed.get("releaseReview")
     if review is None:
         raise GitError("current closing commit has no releaseReview")
+    if closed.get("releaseTarget") != "default":
+        raise GitError("legacy closing state is not a direct-default release")
     require_remote_matches(closed["remote"], remote)
-    if (
-        closed["defaultBranch"] != default_branch
-        or closed["defaultHead"] != default_head
-    ):
-        raise GitError("remote default branch changed since the release transaction began")
+    if closed["defaultBranch"] != default_branch or default_head != head:
+        raise GitError("remote default branch does not equal the closing commit")
     pre_close_heads = [entry["preCloseHead"] for entry in closed["entries"]]
     require_closed_history(root, closed["baseHead"], pre_close_heads, head)
+    if not is_ancestor(root, closed["defaultHead"], head):
+        raise GitError("closing commit is not a fast-forward of the frozen default head")
     require_release_review_repository(root, closed)
     if remote_close_state(root, remote, head, closed) != "complete":
         raise GitError("release review verification requires a completed remote transaction")
     for entry in closed["entries"]:
         if local_oid(root, entry["branch"], missing_ok=True) is not None:
             raise GitError("release review verification requires completed local cleanup")
-    require_state_postcondition(root, "Release", head, state)
+    if local_oid(root, "Release", missing_ok=True) is not None:
+        raise GitError("release review verification requires Release cleanup")
+    require_state_postcondition(root, default_branch, head, state)
     return {
         "status": "release-review-verified",
         "releaseHead": head,
+        "releaseBranch": default_branch,
         "remote": remote,
         "releaseReview": review,
         "candidateSelections": closed["candidateSelections"],
@@ -794,32 +837,37 @@ def finish_local_cleanup(
     closing_head: str,
     closed: dict[str, Any],
 ) -> None:
-    """切换并仅快进本地 Release，再以精确 OID 删除本地整链。"""
+    """条件快进并切换本地默认分支，再精确删除本轮临时 refs。"""
 
     leaf = closed["entries"][-1]["branch"]
     branches = [entry["branch"] for entry in closed["entries"]]
+    default_branch = closed["defaultBranch"]
     occupied = checked_out_branches(root)
-    require_worktree_ownership(occupied, "Release", root, branch == "Release")
+    require_worktree_ownership(
+        occupied, default_branch, root, branch == default_branch
+    )
+    require_worktree_ownership(occupied, "Release", root, False)
     for feature in branches:
         require_worktree_ownership(occupied, feature, root, feature == leaf and branch == leaf)
-    release_head = local_oid(root, "Release", missing_ok=True)
-    if release_head not in (None, closed["baseHead"], closing_head):
+    default_local = local_oid(root, default_branch, missing_ok=True)
+    if default_local not in (None, closed["defaultHead"], closing_head):
+        raise GitError("local default branch changed before cleanup")
+    release_local = local_oid(root, "Release", missing_ok=True)
+    if release_local not in (None, closed["releaseHeadBefore"]):
         raise GitError("local Release changed before cleanup")
-    if release_head != closing_head:
-        if branch == "Release":
-            if release_head is None:
-                raise GitError("checked-out Release has no local ref")
+    if default_local != closing_head:
+        if branch == default_branch:
             result = run_git(root, ["merge", "--ff-only", closing_head], check=False)
             if result.returncode != 0:
-                raise GitError("local Release fast-forward failed")
+                raise GitError("local default branch fast-forward failed")
         else:
-            update_local_branch(root, "Release", closing_head, release_head)
-    if branch != "Release":
+            update_local_branch(root, default_branch, closing_head, default_local)
+    if branch != default_branch:
         if branch != leaf:
-            raise GitError("release retry must run from Release or the closing leaf")
-        switch_branch(root, "Release")
-    if local_oid(root, "Release") != closing_head:
-        raise GitError("local Release did not reach the closing commit")
+            raise GitError("release retry must run from the default branch or closing leaf")
+        switch_branch(root, default_branch)
+    if local_oid(root, default_branch) != closing_head:
+        raise GitError("local default branch did not reach the closing commit")
     require_clean(root)
     expected = [
         (
@@ -828,10 +876,75 @@ def finish_local_cleanup(
         )
         for index, entry in enumerate(closed["entries"])
     ]
+    if release_local is not None:
+        expected.append(("Release", release_local))
     delete_local_branches(root, expected)
     for feature, _ in expected:
         if local_oid(root, feature, missing_ok=True) is not None:
             raise GitError(f"local feature branch remains after cleanup: {feature}")
+    if local_oid(root, "Release", missing_ok=True) is not None:
+        raise GitError("local Release remains after cleanup")
+    expected_state = {
+        "schemaVersion": 1,
+        "activeChain": None,
+        "lastClosedChain": closed,
+    }
+    require_state_postcondition(root, default_branch, closing_head, expected_state)
+
+
+def finish_legacy_local_cleanup(
+    root: Path,
+    branch: str,
+    closing_head: str,
+    closed: dict[str, Any],
+) -> None:
+    """只为已完成旧式远端事务收尾本地 Release 与登记 feature refs。"""
+
+    leaf = closed["entries"][-1]["branch"]
+    branches = [entry["branch"] for entry in closed["entries"]]
+    occupied = checked_out_branches(root)
+    require_worktree_ownership(occupied, "Release", root, branch == "Release")
+    for feature in branches:
+        require_worktree_ownership(
+            occupied, feature, root, feature == leaf and branch == leaf
+        )
+    release_head = local_oid(root, "Release", missing_ok=True)
+    default_head = local_oid(root, closed["defaultBranch"], missing_ok=True)
+    if default_head not in (None, closed["defaultHead"]):
+        raise GitError("local default branch changed before legacy cleanup")
+    if release_head not in (None, closed["baseHead"], closing_head):
+        raise GitError("local legacy Release changed before cleanup")
+    if release_head != closing_head:
+        if branch == "Release":
+            if release_head is None:
+                raise GitError("checked-out legacy Release has no local ref")
+            result = run_git(root, ["merge", "--ff-only", closing_head], check=False)
+            if result.returncode != 0:
+                raise GitError("local legacy Release fast-forward failed")
+        else:
+            update_local_branch(root, "Release", closing_head, release_head)
+    if branch != "Release":
+        if branch != leaf:
+            raise GitError("legacy cleanup retry must run from Release or the closing leaf")
+        switch_branch(root, "Release")
+    if local_oid(root, "Release") != closing_head:
+        raise GitError("local legacy Release did not reach the closing commit")
+    require_clean(root)
+    expected = [
+        (
+            entry["branch"],
+            closing_head
+            if index == len(closed["entries"]) - 1
+            else entry["preCloseHead"],
+        )
+        for index, entry in enumerate(closed["entries"])
+    ]
+    delete_local_branches(root, expected)
+    for feature, _ in expected:
+        if local_oid(root, feature, missing_ok=True) is not None:
+            raise GitError(f"local legacy feature branch remains after cleanup: {feature}")
+    if local_oid(root, closed["defaultBranch"], missing_ok=True) != default_head:
+        raise GitError("local default branch changed during legacy cleanup")
     expected_state = {
         "schemaVersion": 1,
         "activeChain": None,
@@ -860,15 +973,20 @@ def release_chain(
     macos_signing_reason: str | None,
     macos_signing_remaining_risk: str | None,
 ) -> dict[str, Any]:
-    """关闭活动链、原子更新远端 Release，并幂等完成本地清理。"""
+    """关闭活动链、原子快进远端默认分支并幂等清理临时 refs。"""
 
     root, branch, head, remote, default_branch, default_head = resolve_context(
         project_root, requested_remote
     )
+    require_release_default(default_branch)
     require_clean(root)
-    state = read_state(root, allow_missing=branch == "Release")
-    if branch == "Release":
-        recovered = discover_closed_retry_state(root)
+    state = read_state(root, allow_missing=branch in {default_branch, "Release"})
+    if branch == default_branch:
+        recovered = discover_closed_retry_state(root, release_target="default")
+        if recovered is not None:
+            state = recovered
+    elif branch == "Release":
+        recovered = discover_closed_retry_state(root, release_target="legacy")
         if recovered is not None:
             state = recovered
     active = state["activeChain"]
@@ -880,21 +998,21 @@ def release_chain(
         leaf = active["activeLeaf"]
         if branch != leaf or head != local_oid(root, leaf):
             raise GitError("release is allowed only from the active leaf")
-        if local_oid(root, "Release", missing_ok=True) not in (None, active["baseHead"]):
-            raise GitError("local Release changed before the release transaction")
         resolved = validate_active_repository(root, remote, active)
         branches = [name for name, _ in resolved]
-        require_release_worktrees_safe(root, branch, leaf, branches)
         release_before = remote_oid(root, remote, "Release")
         if active["baseBranch"] == "Release":
             if release_before != active["baseHead"]:
                 raise GitError("remote Release no longer equals the frozen chain base")
-        elif (
-            active["baseBranch"] != active["defaultBranch"]
-            or state["lastClosedChain"] is not None
-            or release_before is not None
-        ):
-            raise GitError("only the first chain may create Release from remote default HEAD")
+            if local_oid(root, "Release", missing_ok=True) != active["baseHead"]:
+                raise GitError("local Release no longer equals the frozen chain base")
+        elif active["baseBranch"] != active["defaultBranch"]:
+            raise GitError("active chain base is neither Release nor the remote default")
+        elif release_before is not None or local_oid(root, "Release", missing_ok=True) is not None:
+            raise GitError("a new Release ref appeared during a direct-default chain")
+        require_release_worktrees_safe(
+            root, branch, leaf, branches, default_branch
+        )
         release_review = build_release_review(
             root,
             active,
@@ -932,6 +1050,7 @@ def release_chain(
             ],
             "releaseReview": release_review,
             "candidateSelections": candidate_selections,
+            "releaseTarget": "default",
         }
         state["activeChain"] = None
         state["lastClosedChain"] = closed
@@ -944,20 +1063,105 @@ def release_chain(
         if closed is None:
             raise GitError("there is no active or retryable closed branch chain")
         require_remote_matches(closed["remote"], remote)
-        if default_branch != closed["defaultBranch"] or default_head != closed["defaultHead"]:
-            raise GitError("remote default branch changed since the release transaction began")
+        if closed.get("releaseTarget") != "default":
+            if (
+                default_branch != closed["defaultBranch"]
+                or default_head != closed["defaultHead"]
+            ):
+                raise GitError(
+                    "legacy closing state cannot update the remote default branch after it changed"
+                )
+            leaf = closed["entries"][-1]["branch"]
+            if branch not in {leaf, "Release"}:
+                raise GitError(
+                    "legacy cleanup retry must run from Release or the closing leaf"
+                )
+            leaf_head = local_oid(root, leaf, missing_ok=True)
+            release_head = local_oid(root, "Release", missing_ok=True)
+            closing_head = leaf_head or release_head
+            if closing_head is None:
+                raise GitError("legacy closing commit is unavailable locally")
+            if branch == leaf and head != leaf_head:
+                raise GitError("legacy closing leaf HEAD changed before retry")
+            if branch == "Release" and head != release_head:
+                raise GitError("local legacy Release HEAD changed before retry")
+            require_retry_review_arguments_match(
+                closed,
+                review_selection,
+                review_status,
+                review_source_head,
+                reviewed_source_commit,
+                review_checks,
+                review_evidence_summary,
+                review_reason,
+                review_remaining_risk,
+                performance_selection,
+                performance_source,
+                performance_reason,
+                performance_remaining_risk,
+                macos_signing_selection,
+                macos_signing_source,
+                macos_signing_reason,
+                macos_signing_remaining_risk,
+            )
+            pre_close_heads = [
+                entry["preCloseHead"] for entry in closed["entries"]
+            ]
+            require_closed_history(
+                root, closed["baseHead"], pre_close_heads, closing_head
+            )
+            require_release_review_repository(root, closed)
+            require_legacy_remote_complete(root, remote, closing_head, closed)
+            verify_default_unchanged(
+                root, remote, closed["defaultBranch"], closed["defaultHead"]
+            )
+            finish_legacy_local_cleanup(root, branch, closing_head, closed)
+            require_legacy_remote_complete(root, remote, closing_head, closed)
+            verify_default_unchanged(
+                root, remote, closed["defaultBranch"], closed["defaultHead"]
+            )
+            result = {
+                "status": "legacy-local-cleanup-complete",
+                "releaseBranch": "Release",
+                "releaseHead": closing_head,
+                "remote": remote,
+                "remoteCleaned": True,
+                "localCleaned": True,
+                "closedBranches": [
+                    entry["branch"] for entry in closed["entries"]
+                ],
+                "defaultBranch": closed["defaultBranch"],
+                "defaultHeadBefore": closed["defaultHead"],
+                "defaultHead": closed["defaultHead"],
+                "remoteDefaultAdvanced": False,
+                "migrationRequired": True,
+            }
+            if "releaseReview" in closed:
+                result["releaseReview"] = closed["releaseReview"]
+                result["candidateSelections"] = closed["candidateSelections"]
+            return result
+        if default_branch != closed["defaultBranch"]:
+            raise GitError("remote default branch name changed during the release transaction")
         leaf = closed["entries"][-1]["branch"]
-        if branch not in (leaf, "Release"):
-            raise GitError("release retry must run from Release or the closing leaf")
-        leaf_head = local_oid(root, leaf, missing_ok=True)
-        release_head = local_oid(root, "Release", missing_ok=True)
-        closing_head = leaf_head or release_head
-        if closing_head is None:
-            raise GitError("closing commit is unavailable locally")
-        if branch == leaf and head != leaf_head:
+        if branch == leaf:
+            closing_head = local_oid(root, leaf, missing_ok=True)
+            if closing_head is None or head != closing_head:
+                raise GitError("closing leaf HEAD changed before retry")
+        elif branch == default_branch:
+            default_local = local_oid(root, default_branch, missing_ok=True)
+            if default_local is None or head != default_local:
+                raise GitError("local default HEAD changed before retry")
+            leaf_head = local_oid(root, leaf, missing_ok=True)
+            if default_local == closed["defaultHead"] and leaf_head is not None:
+                closing_head = leaf_head
+            else:
+                closing_head = default_local
+        else:
+            raise GitError("release retry must run from the default branch or closing leaf")
+        if default_head not in (closed["defaultHead"], closing_head):
+            raise GitError("remote default branch changed during the release transaction")
+        if branch == leaf and head != closing_head:
             raise GitError("closing leaf HEAD changed before retry")
-        if branch == "Release" and head != release_head:
-            raise GitError("local Release HEAD changed before retry")
         require_retry_review_arguments_match(
             closed,
             review_selection,
@@ -979,49 +1183,70 @@ def release_chain(
         )
 
     assert closed is not None
+    if closed.get("releaseTarget") != "default":
+        raise GitError("closing state does not authorize a direct-default release")
     pre_close_heads = [entry["preCloseHead"] for entry in closed["entries"]]
     require_closed_history(root, closed["baseHead"], pre_close_heads, closing_head)
+    if not is_ancestor(root, closed["defaultHead"], closing_head):
+        raise GitError("closing commit is not a fast-forward of the frozen default head")
     require_release_review_repository(root, closed)
     remote_state = remote_close_state(root, remote, closing_head, closed)
-    if "releaseReview" not in closed and remote_state == "pending":
-        raise GitError(
-            "a legacy closing commit without releaseReview cannot update remote Release"
-        )
-    if remote_state == "pending":
+    if "releaseReview" not in closed:
+        raise GitError("a legacy closing commit cannot update the remote default branch")
+    if remote_state in {"pending", "pending-release-missing"}:
         branches = [entry["branch"] for entry in closed["entries"]]
         local_heads = list(zip(branches[:-1], pre_close_heads[:-1])) + [(branches[-1], closing_head)]
         require_local_branch_heads(root, local_heads)
-        if local_oid(root, "Release", missing_ok=True) not in (None, closed["baseHead"]):
-            raise GitError("local Release changed before the remote release transaction")
-        require_release_worktrees_safe(root, branch, branches[-1], branches)
-        if not is_ancestor(root, closed["baseHead"], closing_head):
-            raise GitError("closing commit is not a fast-forward of the Release base")
-        push_release_transaction(
-            root,
-            remote,
-            closing_head,
+        if local_oid(root, closed["defaultBranch"], missing_ok=True) not in (
+            None,
+            closed["defaultHead"],
+        ):
+            raise GitError("local default branch changed before the remote transaction")
+        if local_oid(root, "Release", missing_ok=True) not in (
+            None,
             closed["releaseHeadBefore"],
-            closed["entries"],
+        ):
+            raise GitError("local Release changed before the remote release transaction")
+        require_release_worktrees_safe(
+            root, branch, branches[-1], branches, closed["defaultBranch"]
         )
-    verify_default_unchanged(
-        root,
-        remote,
-        closed["defaultBranch"],
-        closed["defaultHead"],
-    )
+        try:
+            push_release_transaction(
+                root,
+                remote,
+                closing_head,
+                closed["defaultBranch"],
+                closed["defaultHead"],
+                None
+                if remote_state == "pending-release-missing"
+                else closed["releaseHeadBefore"],
+                closed["entries"],
+            )
+        except GitError as push_error:
+            if remote_close_state(root, remote, closing_head, closed) != "complete":
+                raise push_error
+    observed_default, observed_head = remote_default(root, remote)
+    if observed_default != closed["defaultBranch"] or observed_head != closing_head:
+        raise GitError("remote default branch did not reach the closing commit")
     if remote_close_state(root, remote, closing_head, closed) != "complete":
         raise GitError("remote release transaction did not reach the complete state")
     finish_local_cleanup(root, branch, closing_head, closed)
+    observed_default, observed_head = remote_default(root, remote)
+    if observed_default != closed["defaultBranch"] or observed_head != closing_head:
+        raise GitError("remote default branch changed during local cleanup")
+    if remote_close_state(root, remote, closing_head, closed) != "complete":
+        raise GitError("remote release transaction changed during local cleanup")
     result = {
         "status": "released",
-        "releaseBranch": "Release",
+        "releaseBranch": closed["defaultBranch"],
         "releaseHead": closing_head,
         "remote": remote,
         "remoteCleaned": True,
         "localCleaned": True,
         "closedBranches": [entry["branch"] for entry in closed["entries"]],
         "defaultBranch": closed["defaultBranch"],
-        "defaultHead": closed["defaultHead"],
+        "defaultHeadBefore": closed["defaultHead"],
+        "defaultHead": closing_head,
     }
     if "releaseReview" in closed:
         result["releaseReview"] = closed["releaseReview"]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import importlib.util
 import json
 import os
 import shutil
@@ -15,6 +16,7 @@ import textwrap
 import unittest
 from collections.abc import Iterator
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -47,6 +49,175 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
             if candidate and Path(candidate).is_file():
                 return candidate
         self.skipTest("Bash is unavailable on this host")
+
+    @staticmethod
+    def _release_envelope_module():
+        """按文件路径加载候选信封 helper，避免依赖全局 Python 包。"""
+
+        path = (
+            ROOT
+            / ".agents"
+            / "skills"
+            / "desktop-prepare-cross-platform-release"
+            / "scripts"
+            / "verify_release_envelope.py"
+        )
+        specification = importlib.util.spec_from_file_location(
+            "harness_test_verify_release_envelope", path
+        )
+        if specification is None or specification.loader is None:
+            raise AssertionError("cannot load verify_release_envelope.py")
+        module = importlib.util.module_from_spec(specification)
+        specification.loader.exec_module(module)
+        return module
+
+    def test_release_envelope_requires_completed_direct_default_snapshot(self) -> None:
+        """Runner 只接受具名默认分支上的 direct-default closing commit。"""
+
+        helper = self._release_envelope_module()
+        source_commit = "a" * 40
+        base_head = "b" * 40
+        feature_head = "c" * 40
+        state = {
+            "schemaVersion": 1,
+            "activeChain": None,
+            "lastClosedChain": {
+                "remote": "github",
+                "baseBranch": "main",
+                "baseHead": base_head,
+                "defaultBranch": "main",
+                "defaultHead": base_head,
+                "releaseHeadBefore": None,
+                "closingHead": None,
+                "releaseTarget": "default",
+                "entries": [
+                    {
+                        "branch": "feature-direct-release-20260908",
+                        "preCloseHead": feature_head,
+                    }
+                ],
+                "releaseReview": {"selection": "enabled"},
+                "candidateSelections": {
+                    "performanceSelection": "not-applicable",
+                    "performanceSource": "not-applicable",
+                    "performanceReason": None,
+                    "performanceRemainingRisk": None,
+                    "macosSigningSelection": "not-applicable",
+                    "macosSigningSource": "not-applicable",
+                    "macosSigningReason": None,
+                    "macosSigningRemainingRisk": None,
+                },
+            },
+        }
+        state_bytes = json.dumps(state, sort_keys=True).encode("utf-8")
+        state_digest = hashlib.sha256(state_bytes).hexdigest()
+        blob_oid = "d" * 40
+        checked_out_head = {"oid": source_commit}
+        checked_out_branch = {"name": "main"}
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir).resolve()
+            state_path = root / ".harness" / "git-branch-chain.json"
+            state_path.parent.mkdir()
+            state_path.write_bytes(state_bytes)
+
+            def fake_run_git(_root, arguments, *, check=True):
+                del check
+                values = {
+                    ("rev-parse", "--show-toplevel"): f"{root}\n".encode(),
+                    ("rev-parse", "--verify", "HEAD^{commit}"): (
+                        f"{checked_out_head['oid']}\n".encode()
+                    ),
+                    ("symbolic-ref", "--quiet", "--short", "HEAD"): (
+                        f"{checked_out_branch['name']}\n".encode()
+                    ),
+                    (
+                        "show",
+                        f"{source_commit}:.harness/git-branch-chain.json",
+                    ): state_bytes,
+                    (
+                        "rev-parse",
+                        f"{source_commit}:.harness/git-branch-chain.json",
+                    ): f"{blob_oid}\n".encode(),
+                    (
+                        "hash-object",
+                        "--path=.harness/git-branch-chain.json",
+                        str(state_path),
+                    ): f"{blob_oid}\n".encode(),
+                }
+                try:
+                    return values[tuple(arguments)]
+                except KeyError as error:
+                    raise AssertionError(f"unexpected git arguments: {arguments!r}") from error
+
+            refs = {
+                "refs/remotes/origin/main": source_commit,
+                "refs/remotes/origin/Release": None,
+                "refs/remotes/origin/feature-direct-release-20260908": None,
+            }
+
+            def fake_resolve_ref(_root, reference, *, missing_ok=False):
+                value = refs[reference]
+                if value is None and not missing_ok:
+                    raise helper.EnvelopeError(f"missing required fetched ref: {reference}")
+                return value
+
+            validators = (
+                lambda _root: state,
+                lambda *_arguments: None,
+                lambda *_arguments: None,
+                lambda *_arguments: None,
+            )
+            with (
+                mock.patch.object(helper, "run_git", side_effect=fake_run_git),
+                mock.patch.object(helper, "resolve_ref", side_effect=fake_resolve_ref),
+                mock.patch.object(helper, "load_branch_chain_modules", return_value=validators),
+            ):
+                snapshot = helper.calculate_snapshot(
+                    root, source_commit, state_digest, "main"
+                )
+                self.assertEqual(snapshot["releaseTarget"], "default")
+                self.assertEqual(snapshot["defaultBranch"], "main")
+
+                state["lastClosedChain"].pop("releaseTarget")
+                with self.assertRaisesRegex(helper.EnvelopeError, "does not target"):
+                    helper.calculate_snapshot(root, source_commit, state_digest, "main")
+                state["lastClosedChain"]["releaseTarget"] = "default"
+
+                refs["refs/remotes/origin/Release"] = source_commit
+                with self.assertRaisesRegex(helper.EnvelopeError, "origin/Release"):
+                    helper.calculate_snapshot(root, source_commit, state_digest, "main")
+                refs["refs/remotes/origin/Release"] = None
+
+                refs["refs/remotes/origin/main"] = base_head
+                with self.assertRaisesRegex(helper.EnvelopeError, "default branch"):
+                    helper.calculate_snapshot(root, source_commit, state_digest, "main")
+                refs["refs/remotes/origin/main"] = source_commit
+
+                refs["refs/remotes/origin/feature-direct-release-20260908"] = feature_head
+                with self.assertRaisesRegex(helper.EnvelopeError, "feature ref"):
+                    helper.calculate_snapshot(root, source_commit, state_digest, "main")
+                refs["refs/remotes/origin/feature-direct-release-20260908"] = None
+
+                checked_out_branch["name"] = "feature-direct-release-20260908"
+                with self.assertRaisesRegex(helper.EnvelopeError, "named repository default"):
+                    helper.calculate_snapshot(root, source_commit, state_digest, "main")
+                checked_out_branch["name"] = "main"
+
+                checked_out_head["oid"] = base_head
+                with self.assertRaisesRegex(helper.EnvelopeError, "named repository default"):
+                    helper.calculate_snapshot(root, source_commit, state_digest, "main")
+                checked_out_head["oid"] = source_commit
+
+                state["lastClosedChain"]["baseBranch"] = "Release"
+                state["lastClosedChain"]["releaseHeadBefore"] = base_head
+                migrated_snapshot = helper.calculate_snapshot(
+                    root, source_commit, state_digest, "main"
+                )
+                self.assertEqual(migrated_snapshot["releaseTarget"], "default")
+
+                with self.assertRaisesRegex(helper.EnvelopeError, "main or master"):
+                    helper.calculate_snapshot(root, source_commit, state_digest, "trunk")
 
     def test_project_msrv_step_reads_and_normalizes_workspace_minimum(self) -> None:
         """候选 workflow 必须读取项目下界，不能恢复模板硬编码工具链。"""
@@ -165,6 +336,8 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                     {
                         "sourceCommit": "a" * 40,
                         "branchChainStateSha256": state_digest,
+                        "releaseTarget": "default",
+                        "defaultBranch": "main",
                         "releaseReview": release_review,
                         "candidateSelections": candidate_selections,
                     }

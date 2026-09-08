@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""安全管理严格串行、完整推送并发布到 Release 的 Git 分支链。"""
+"""安全管理严格串行、完整推送并直接发布到默认分支的 Git 分支链。"""
 
 from __future__ import annotations
 
@@ -47,10 +47,12 @@ def build_parser() -> argparse.ArgumentParser:
     publish = subparsers.add_parser("publish", help="完整推送当前 active leaf")
     add_common_arguments(publish)
     verify = subparsers.add_parser(
-        "verify-release-review", help="只读验证当前 Release 的封存审查信封"
+        "verify-release-review", help="只读验证当前默认分支的封存审查信封"
     )
     add_common_arguments(verify)
-    release = subparsers.add_parser("release", help="原子发布并清理精确 feature 分支链")
+    release = subparsers.add_parser(
+        "release", help="原子快进默认分支并清理精确 feature 分支链"
+    )
     add_common_arguments(release)
     release.add_argument("--review-selection", choices=("enabled", "disabled"))
     release.add_argument("--review-status", choices=("passed", "Not run"))

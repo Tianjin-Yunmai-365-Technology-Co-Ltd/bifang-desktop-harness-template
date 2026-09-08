@@ -38,7 +38,7 @@ class GitBranchChainTests(unittest.TestCase):
     """覆盖真实本地仓库、bare remote、hooks、Worktree 与引用竞态。"""
 
     def setUp(self) -> None:
-        """建立带 main 默认分支和独立 Release 分支的隔离仓库。"""
+        """建立仅含 main 动态默认分支的隔离仓库。"""
 
         self.temporary = tempfile.TemporaryDirectory()
         temporary_root = Path(self.temporary.name)
@@ -70,8 +70,6 @@ class GitBranchChainTests(unittest.TestCase):
         self.git("commit", "-m", "chore: baseline")
         self.git("remote", "add", "origin", str(self.remote))
         self.git("push", "--set-upstream", "origin", "main")
-        self.git("switch", "-c", "Release")
-        self.git("push", "--set-upstream", "origin", "Release")
         self.default_head = self.remote_oid("main")
 
     def tearDown(self) -> None:
@@ -146,6 +144,15 @@ class GitBranchChainTests(unittest.TestCase):
         """开始并返回一条已推送 feature 分支。"""
 
         return self.payload(self.helper("start", "--summary", summary))
+
+    def use_master_default(self) -> None:
+        """把尚未开始分支链的隔离仓库改为 master 动态默认分支。"""
+
+        self.git("branch", "-m", "main", "master")
+        self.git("push", "--set-upstream", "origin", "master")
+        self.bare_git("symbolic-ref", "HEAD", "refs/heads/master")
+        self.git("push", "origin", "--delete", "main")
+        self.default_head = self.remote_oid("master")
 
     def commit_file(self, name: str, contents: str) -> str:
         """在当前分支创建一个普通业务提交并返回 HEAD。"""
@@ -303,14 +310,14 @@ class GitBranchChainTests(unittest.TestCase):
                 "remote": "origin",
                 "defaultBranch": "main",
                 "defaultHead": "a" * 40,
-                "baseBranch": "Release",
+                "baseBranch": "main",
                 "baseHead": "a" * 40,
                 "activeLeaf": "feature-impossible-20260230",
                 "phase": "active",
                 "entries": [
                     {
                         "branch": "feature-impossible-20260230",
-                        "parent": "Release",
+                        "parent": "main",
                         "parentHead": "a" * 40,
                     }
                 ],
@@ -329,7 +336,7 @@ class GitBranchChainTests(unittest.TestCase):
         """inspect 读取远端 HEAD 而不创建状态文件或改变默认分支。"""
 
         result = self.payload(self.helper("inspect"))
-        self.assertEqual(result["branch"], "Release")
+        self.assertEqual(result["branch"], "main")
         self.assertEqual(result["remoteDefaultBranch"], "main")
         self.assertEqual(result["remoteDefaultHead"], self.default_head)
         self.assertEqual(result["stateFile"], "missing")
@@ -362,8 +369,8 @@ class GitBranchChainTests(unittest.TestCase):
         with self.assertRaises(StateError):
             read_state(self.root)
 
-    def test_start_creates_state_commit_and_pushes_exact_feature_ref(self) -> None:
-        """首条 feature 从 Release 建立，元数据提交与远端 OID 完全一致。"""
+    def test_start_creates_state_commit_from_default_and_pushes_exact_feature_ref(self) -> None:
+        """首条 feature 从动态默认分支建立，元数据提交与远端 OID 完全一致。"""
 
         result = self.start("bug-crash")
         branch = str(result["branch"])
@@ -371,10 +378,13 @@ class GitBranchChainTests(unittest.TestCase):
         self.assertEqual(self.local_oid(branch), result["head"])
         self.assertEqual(self.remote_oid(branch), result["head"])
         self.assertEqual(self.remote_oid("main"), self.default_head)
+        self.assertIsNone(self.local_oid("Release"))
+        self.assertIsNone(self.remote_oid("Release"))
         state = json.loads(
             (self.root / ".harness" / "git-branch-chain.json").read_text(encoding="utf-8")
         )
-        self.assertEqual(state["activeChain"]["entries"][0]["parent"], "Release")
+        self.assertEqual(state["activeChain"]["baseBranch"], "main")
+        self.assertEqual(state["activeChain"]["entries"][0]["parent"], "main")
 
     def test_second_start_requires_fully_pushed_parent_and_freezes_tip(self) -> None:
         """未推送父提交阻断下一条；publish 后精确父头进入第二条状态。"""
@@ -585,7 +595,7 @@ class GitBranchChainTests(unittest.TestCase):
         leaf = str(started["branch"])
         leaf_head = str(started["head"])
         task_branch = "codex/task-diverged"
-        task_worktree = self.add_task_worktree(task_branch, start_point="Release")
+        task_worktree = self.add_task_worktree(task_branch, start_point="main")
         state_copy = self.root / ".harness" / "git-branch-chain.json"
         task_state = task_worktree / ".harness" / "git-branch-chain.json"
         task_state.parent.mkdir()
@@ -707,17 +717,37 @@ class GitBranchChainTests(unittest.TestCase):
         self.assertEqual(self.local_oid(leaf), leaf_head)
         self.assertEqual(self.remote_oid(leaf), leaf_head)
 
-    def test_start_rejects_default_branch_and_release_as_remote_default(self) -> None:
-        """main/master/动态默认分支只读，Release 成为默认分支时全部写入停止。"""
+    def test_start_rejects_release_as_remote_default(self) -> None:
+        """单阶段发布只接受 main/master，Release 不能伪装成动态默认分支。"""
 
-        self.git("switch", "main")
         before = self.git("rev-parse", "HEAD").stdout.strip()
-        self.error(self.helper("start", "--summary", "forbidden-main"))
-        self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), before)
-        self.assertFalse((self.root / ".harness" / "git-branch-chain.json").exists())
-        self.git("switch", "Release")
+        self.bare_git("update-ref", "refs/heads/Release", before)
         self.bare_git("symbolic-ref", "HEAD", "refs/heads/Release")
         self.error(self.helper("start", "--summary", "forbidden-release"))
+        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "main")
+        self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), before)
+        self.assertFalse((self.root / ".harness" / "git-branch-chain.json").exists())
+
+    def test_start_rejects_non_main_master_default_without_ref_changes(self) -> None:
+        """动态 HEAD 指向其他名称时，在创建状态或 feature ref 前失败关闭。"""
+
+        self.git("branch", "-m", "main", "trunk")
+        self.git("push", "--set-upstream", "origin", "trunk")
+        self.bare_git("symbolic-ref", "HEAD", "refs/heads/trunk")
+        self.git("push", "origin", "--delete", "main")
+        local_before = self.git(
+            "for-each-ref", "--format=%(refname)%00%(objectname)", "refs/heads"
+        ).stdout
+        remote_before = self.git("ls-remote", "--heads", "origin").stdout
+
+        error = self.error(self.helper("start", "--summary", "unsupported-default"))
+
+        self.assertIn("main or master", str(error["error"]))
+        self.assertEqual(
+            self.git("for-each-ref", "--format=%(refname)%00%(objectname)", "refs/heads").stdout,
+            local_before,
+        )
+        self.assertEqual(self.git("ls-remote", "--heads", "origin").stdout, remote_before)
         self.assertFalse((self.root / ".harness" / "git-branch-chain.json").exists())
 
     def test_active_chain_rejects_changed_remote_default_snapshot(self) -> None:
@@ -740,20 +770,28 @@ class GitBranchChainTests(unittest.TestCase):
         self.assertEqual(self.remote_oid(branch), self.local_oid(branch))
         self.assertEqual(self.remote_oid("main"), changed_default)
 
-    def test_release_atomically_updates_release_and_cleans_two_branch_chain(self) -> None:
-        """关闭提交一次进入 Release，远端和本地精确 feature refs 全部清理。"""
+    def test_release_atomically_updates_default_and_cleans_exact_two_branch_chain(self) -> None:
+        """关闭提交直接进入默认分支，只清理 manifest 精确登记的 feature refs。"""
 
         first, first_head, second, second_head = self.prepare_two_branch_chain()
+        unregistered = "feature-unregistered-20260908"
+        self.git("branch", unregistered, self.default_head)
+        self.git("push", "origin", f"{unregistered}:refs/heads/{unregistered}")
         result = self.payload(self.release())
         release_head = str(result["releaseHead"])
-        self.assertEqual(self.remote_oid("Release"), release_head)
-        self.assertEqual(self.local_oid("Release"), release_head)
+        self.assertEqual(result["releaseBranch"], "main")
+        self.assertEqual(result["defaultBranch"], "main")
+        self.assertEqual(self.remote_oid("main"), release_head)
+        self.assertEqual(self.local_oid("main"), release_head)
+        self.assertIsNone(self.remote_oid("Release"))
+        self.assertIsNone(self.local_oid("Release"))
         self.assertIsNone(self.remote_oid(first))
         self.assertIsNone(self.remote_oid(second))
         self.assertIsNone(self.local_oid(first))
         self.assertIsNone(self.local_oid(second))
-        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "Release")
-        self.assertEqual(self.remote_oid("main"), self.default_head)
+        self.assertEqual(self.remote_oid(unregistered), self.default_head)
+        self.assertEqual(self.local_oid(unregistered), self.default_head)
+        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "main")
         self.assertEqual(
             self.git("merge-base", "--is-ancestor", first_head, release_head).returncode,
             0,
@@ -780,6 +818,48 @@ class GitBranchChainTests(unittest.TestCase):
         self.assertEqual(verified["releaseHead"], release_head)
         self.assertEqual(verified["releaseReview"], review)
         self.assertEqual(verified["candidateSelections"], selections)
+
+    def test_release_supports_master_as_dynamic_default(self) -> None:
+        """仓库以 master 为默认分支时，发布直接推进并切回 master。"""
+
+        self.use_master_default()
+        started = self.start("master-default")
+        feature = str(started["branch"])
+        source_head = self.commit_file("master.txt", "master\n")
+        self.payload(self.helper("publish"))
+
+        result = self.payload(self.release(source_head=source_head))
+
+        self.assertEqual(result["releaseBranch"], "master")
+        self.assertEqual(result["defaultBranch"], "master")
+        self.assertEqual(self.remote_oid("master"), result["releaseHead"])
+        self.assertEqual(self.local_oid("master"), result["releaseHead"])
+        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "master")
+        self.assertIsNone(self.local_oid(feature))
+        self.assertIsNone(self.remote_oid(feature))
+        self.assertIsNone(self.local_oid("Release"))
+        self.assertIsNone(self.remote_oid("Release"))
+
+    def test_existing_release_is_migrated_to_default_and_deleted(self) -> None:
+        """升级前遗留 Release 只作一次迁移基线，成功后本地远端均精确删除。"""
+
+        self.git("switch", "-c", "Release")
+        self.git("push", "--set-upstream", "origin", "Release")
+        started = self.start("migrate-release")
+        feature = str(started["branch"])
+        source_head = self.commit_file("migration.txt", "migrated\n")
+        self.payload(self.helper("publish"))
+
+        result = self.payload(self.release(source_head=source_head))
+
+        self.assertEqual(result["releaseBranch"], "main")
+        self.assertEqual(self.remote_oid("main"), result["releaseHead"])
+        self.assertEqual(self.local_oid("main"), result["releaseHead"])
+        self.assertIsNone(self.remote_oid("Release"))
+        self.assertIsNone(self.local_oid("Release"))
+        self.assertIsNone(self.remote_oid(feature))
+        self.assertIsNone(self.local_oid(feature))
+        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "main")
 
     def test_release_requires_review_envelope_before_creating_close_commit(self) -> None:
         """活动链缺少当次审查选择与源码终点时不得先形成关闭提交。"""
@@ -819,15 +899,15 @@ class GitBranchChainTests(unittest.TestCase):
         self.assertEqual(self.local_oid(leaf), source_head)
         self.assertEqual(self.remote_oid(leaf), source_head)
 
-    def test_legacy_close_without_review_cannot_update_remote_release(self) -> None:
-        """旧关闭提交只可收尾已完成远端事务，不能新推进 Release。"""
+    def test_legacy_close_without_review_cannot_update_remote_default(self) -> None:
+        """旧关闭提交只可收尾已完成远端事务，不能新推进默认分支。"""
 
         started = self.start("legacy-review")
         leaf = str(started["branch"])
         pre_close_head = self.commit_file("legacy.txt", "legacy\n")
         self.payload(self.helper("publish"))
         active = read_state(self.root)["activeChain"]
-        release_before = self.remote_oid("Release")
+        default_before = self.remote_oid("main")
         legacy_state = {
             "schemaVersion": 1,
             "activeChain": None,
@@ -837,7 +917,7 @@ class GitBranchChainTests(unittest.TestCase):
                 "baseHead": active["baseHead"],
                 "defaultBranch": active["defaultBranch"],
                 "defaultHead": active["defaultHead"],
-                "releaseHeadBefore": release_before,
+                "releaseHeadBefore": None,
                 "closingHead": None,
                 "entries": [
                     {"branch": leaf, "preCloseHead": pre_close_head}
@@ -853,9 +933,131 @@ class GitBranchChainTests(unittest.TestCase):
         self.git("commit", "-m", "chore(git): close legacy branch chain")
 
         error = self.error(self.release())
-        self.assertIn("without releaseReview", str(error["error"]))
-        self.assertEqual(self.remote_oid("Release"), release_before)
+        self.assertIn("legacy closing", str(error["error"]))
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertIsNone(self.remote_oid("Release"))
         self.assertEqual(self.remote_oid(leaf), pre_close_head)
+
+    def test_legacy_remote_complete_allows_local_cleanup_only(self) -> None:
+        """旧远端 Release 事务已完成时只恢复本地收尾，不推进默认分支。"""
+
+        started = self.start("legacy-complete")
+        leaf = str(started["branch"])
+        pre_close_head = self.commit_file("legacy-complete.txt", "legacy\n")
+        self.payload(self.helper("publish"))
+        active = read_state(self.root)["activeChain"]
+        default_before = self.remote_oid("main")
+        legacy_state = {
+            "schemaVersion": 1,
+            "activeChain": None,
+            "lastClosedChain": {
+                "remote": active["remote"],
+                "baseBranch": active["baseBranch"],
+                "baseHead": active["baseHead"],
+                "defaultBranch": active["defaultBranch"],
+                "defaultHead": active["defaultHead"],
+                "releaseHeadBefore": None,
+                "closingHead": None,
+                "entries": [
+                    {"branch": leaf, "preCloseHead": pre_close_head}
+                ],
+            },
+        }
+        state_path = self.root / ".harness" / "git-branch-chain.json"
+        state_path.write_text(
+            json.dumps(legacy_state, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        self.git("add", ".harness/git-branch-chain.json")
+        self.git("commit", "-m", "chore(git): close legacy branch chain")
+        closing_head = self.git("rev-parse", "HEAD").stdout.strip()
+        self.git(
+            "push",
+            "--atomic",
+            "--force-with-lease=refs/heads/Release:",
+            f"--force-with-lease=refs/heads/{leaf}:{pre_close_head}",
+            "origin",
+            f"{closing_head}:refs/heads/Release",
+            f":refs/heads/{leaf}",
+        )
+
+        result = self.payload(self.release())
+
+        self.assertEqual(result["status"], "legacy-local-cleanup-complete")
+        self.assertTrue(result["migrationRequired"])
+        self.assertFalse(result["remoteDefaultAdvanced"])
+        self.assertEqual(result["releaseBranch"], "Release")
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertEqual(self.remote_oid("Release"), closing_head)
+        self.assertEqual(self.local_oid("Release"), closing_head)
+        self.assertIsNone(self.remote_oid(leaf))
+        self.assertIsNone(self.local_oid(leaf))
+        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "Release")
+        next_chain = self.start("migrate-recovered-release")
+        self.assertEqual(next_chain["parent"], "Release")
+        self.assertEqual(next_chain["parentHead"], closing_head)
+
+    def test_legacy_cleanup_recovers_from_release_base_without_push(self) -> None:
+        """从仍在旧基线的本地 Release 发现 closing leaf，并只做本地收尾。"""
+
+        started = self.start("legacy-release-base")
+        leaf = str(started["branch"])
+        pre_close_head = self.commit_file("legacy-release-base.txt", "legacy\n")
+        self.payload(self.helper("publish"))
+        active = read_state(self.root)["activeChain"]
+        default_before = self.remote_oid("main")
+        legacy_state = {
+            "schemaVersion": 1,
+            "activeChain": None,
+            "lastClosedChain": {
+                "remote": active["remote"],
+                "baseBranch": active["baseBranch"],
+                "baseHead": active["baseHead"],
+                "defaultBranch": active["defaultBranch"],
+                "defaultHead": active["defaultHead"],
+                "releaseHeadBefore": None,
+                "closingHead": None,
+                "entries": [
+                    {"branch": leaf, "preCloseHead": pre_close_head}
+                ],
+            },
+        }
+        state_path = self.root / ".harness" / "git-branch-chain.json"
+        state_path.write_text(
+            json.dumps(legacy_state, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        self.git("add", ".harness/git-branch-chain.json")
+        self.git("commit", "-m", "chore(git): close legacy branch chain")
+        closing_head = self.git("rev-parse", "HEAD").stdout.strip()
+        self.git(
+            "push",
+            "--atomic",
+            "--force-with-lease=refs/heads/Release:",
+            f"--force-with-lease=refs/heads/{leaf}:{pre_close_head}",
+            "origin",
+            f"{closing_head}:refs/heads/Release",
+            f":refs/heads/{leaf}",
+        )
+        self.git("branch", "Release", str(active["baseHead"]))
+        self.git("switch", "Release")
+        self.assertEqual(self.local_oid("Release"), active["baseHead"])
+        self.assertEqual(self.local_oid(leaf), closing_head)
+        self.install_hook(self.remote, "pre-receive", "exit 47\n")
+
+        result = self.payload(self.release())
+
+        self.assertEqual(result["status"], "legacy-local-cleanup-complete")
+        self.assertFalse(result["remoteDefaultAdvanced"])
+        self.assertEqual(result["releaseBranch"], "Release")
+        self.assertEqual(result["releaseHead"], closing_head)
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertEqual(self.remote_oid("Release"), closing_head)
+        self.assertIsNone(self.remote_oid(leaf))
+        self.assertEqual(self.local_oid("main"), default_before)
+        self.assertEqual(self.local_oid("Release"), closing_head)
+        self.assertIsNone(self.local_oid(leaf))
+        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "Release")
 
     def test_release_seals_disabled_review_as_not_run(self) -> None:
         """无硬要求时关闭审查也必须原子保存公开原因与剩余风险。"""
@@ -971,14 +1173,9 @@ class GitBranchChainTests(unittest.TestCase):
         self.assertEqual(self.local_oid(leaf), reverted_head)
         self.assertEqual(self.remote_oid(leaf), reverted_head)
 
-    def test_first_chain_without_release_uses_live_default_and_creates_release(self) -> None:
-        """首发无 Release 时冻结实时默认头，发布后安全建立本地与远端 Release。"""
+    def test_next_chain_starts_from_published_default_without_release_branch(self) -> None:
+        """发布停在默认分支且不创建 Release，下一条链直接从该默认 HEAD 开始。"""
 
-        release_head = self.local_oid("Release")
-        self.assertIsNotNone(release_head)
-        self.git("switch", "main")
-        self.bare_git("update-ref", "-d", "refs/heads/Release", str(release_head))
-        self.git("update-ref", "-d", "refs/heads/Release", str(release_head))
         started = self.start("initial-release")
         feature = str(started["branch"])
         state = json.loads(
@@ -990,21 +1187,34 @@ class GitBranchChainTests(unittest.TestCase):
         self.commit_file("initial.txt", "initial\n")
         self.payload(self.helper("publish"))
         released = self.payload(self.release())
-        self.assertEqual(self.remote_oid("Release"), released["releaseHead"])
-        self.assertEqual(self.local_oid("Release"), released["releaseHead"])
+        self.assertEqual(self.remote_oid("main"), released["releaseHead"])
+        self.assertEqual(self.local_oid("main"), released["releaseHead"])
         self.assertIsNone(self.remote_oid(feature))
         self.assertIsNone(self.local_oid(feature))
-        self.assertEqual(self.remote_oid("main"), self.default_head)
+        self.assertIsNone(self.remote_oid("Release"))
+        self.assertIsNone(self.local_oid("Release"))
+        self.assertEqual(self.git("branch", "--show-current").stdout.strip(), "main")
+
+        next_started = self.start("next-release")
+        next_feature = str(next_started["branch"])
+        next_state = read_state(self.root)["activeChain"]
+        self.assertEqual(next_state["baseBranch"], "main")
+        self.assertEqual(next_state["baseHead"], released["releaseHead"])
+        self.assertEqual(next_state["entries"][0]["parent"], "main")
+        self.assertEqual(self.local_oid(next_feature), next_started["head"])
+        self.assertEqual(self.remote_oid(next_feature), next_started["head"])
+        self.assertIsNone(self.remote_oid("Release"))
 
     def test_release_rejects_frozen_parent_ref_drift_without_deleting_refs(self) -> None:
         """父分支在子分支建立后移动时，release 不接受漂移或删除远端链。"""
 
         first, first_head, second, second_head = self.prepare_two_branch_chain()
-        release_before = self.remote_oid("Release")
+        default_before = self.remote_oid("main")
         self.git("update-ref", f"refs/heads/{first}", second_head, first_head)
         self.bare_git("update-ref", f"refs/heads/{first}", second_head, first_head)
         self.error(self.release())
-        self.assertEqual(self.remote_oid("Release"), release_before)
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertIsNone(self.remote_oid("Release"))
         self.assertEqual(self.remote_oid(first), second_head)
         self.assertEqual(self.remote_oid(second), second_head)
 
@@ -1012,7 +1222,7 @@ class GitBranchChainTests(unittest.TestCase):
         """active leaf 即使完整推送，只要含 merge 历史也不得关闭或删除。"""
 
         leaf = str(self.start("merge-history")["branch"])
-        release_before = self.remote_oid("Release")
+        default_before = self.remote_oid("main")
         self.git("switch", "-c", "side-history")
         self.commit_file("side.txt", "side\n")
         self.git("switch", leaf)
@@ -1020,14 +1230,15 @@ class GitBranchChainTests(unittest.TestCase):
         merge_head = self.git("rev-parse", "HEAD").stdout.strip()
         self.payload(self.helper("publish"))
         self.error(self.release())
-        self.assertEqual(self.remote_oid("Release"), release_before)
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertIsNone(self.remote_oid("Release"))
         self.assertEqual(self.remote_oid(leaf), merge_head)
 
     def test_remote_hook_rejection_keeps_atomic_refs_and_retry_reuses_close_commit(self) -> None:
         """远端拒绝一个删除时不部分更新；重试复用同一关闭提交。"""
 
         first, _, second, _ = self.prepare_two_branch_chain()
-        release_before = self.remote_oid("Release")
+        default_before = self.remote_oid("main")
         first_before = self.remote_oid(first)
         second_before = self.remote_oid(second)
         hook = self.install_hook(
@@ -1039,14 +1250,16 @@ class GitBranchChainTests(unittest.TestCase):
         self.error(failed)
         closing_head = self.git("rev-parse", "HEAD").stdout.strip()
         sealed_review = read_state(self.root)["lastClosedChain"]["releaseReview"]
-        self.assertEqual(self.remote_oid("Release"), release_before)
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertIsNone(self.remote_oid("Release"))
         self.assertEqual(self.remote_oid(first), first_before)
         self.assertEqual(self.remote_oid(second), second_before)
         hook.unlink()
         result = self.payload(self.release())
         self.assertEqual(result["releaseHead"], closing_head)
         self.assertEqual(result["releaseReview"], sealed_review)
-        self.assertEqual(self.remote_oid("Release"), closing_head)
+        self.assertEqual(self.remote_oid("main"), closing_head)
+        self.assertIsNone(self.remote_oid("Release"))
 
     def test_remote_success_then_local_transaction_failure_is_retryable_without_push(self) -> None:
         """远端完成但本地 ref 事务失败时保留整链，重试不再次 push。"""
@@ -1064,7 +1277,7 @@ class GitBranchChainTests(unittest.TestCase):
         )
         failed = self.release()
         self.error(failed)
-        closing_head = self.remote_oid("Release")
+        closing_head = self.remote_oid("main")
         sealed_review = read_state(self.root)["lastClosedChain"]["releaseReview"]
         self.assertIsNotNone(closing_head)
         self.assertIsNone(self.remote_oid(first))
@@ -1097,16 +1310,38 @@ class GitBranchChainTests(unittest.TestCase):
         self.assertEqual(self.remote_oid(second), second_head)
         self.assertEqual(self.remote_oid("main"), self.default_head)
 
+    def test_default_branch_worktree_occupancy_blocks_before_close_commit(self) -> None:
+        """另一 Worktree 占用默认分支时，发布不得先推进远端或形成关闭提交。"""
+
+        first, _, second, second_head = self.prepare_two_branch_chain()
+        default_worktree = Path(self.temporary.name) / "default worktree"
+        self.git("worktree", "add", str(default_worktree), "main")
+        state_path = self.root / ".harness" / "git-branch-chain.json"
+        state_before = state_path.read_bytes()
+        head_before = self.git("rev-parse", "HEAD").stdout.strip()
+        default_before = self.remote_oid("main")
+
+        error = self.error(self.release())
+
+        self.assertIn("checked out by another worktree", str(error["error"]))
+        self.assertEqual(self.git("rev-parse", "HEAD").stdout.strip(), head_before)
+        self.assertEqual(state_path.read_bytes(), state_before)
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertEqual(self.remote_oid(first), self.local_oid(first))
+        self.assertEqual(self.remote_oid(second), second_head)
+        self.assertIsNone(self.remote_oid("Release"))
+
     def test_remote_without_atomic_capability_never_falls_back(self) -> None:
-        """远端不支持 atomic 时保留 Release 与全部 feature refs，不顺序降级。"""
+        """远端不支持 atomic 时保留默认分支与全部 feature refs，不顺序降级。"""
 
         first, _, second, _ = self.prepare_two_branch_chain()
-        release_before = self.remote_oid("Release")
+        default_before = self.remote_oid("main")
         first_before = self.remote_oid(first)
         second_before = self.remote_oid(second)
         self.bare_git("config", "receive.advertiseAtomic", "false")
         self.error(self.release())
-        self.assertEqual(self.remote_oid("Release"), release_before)
+        self.assertEqual(self.remote_oid("main"), default_before)
+        self.assertIsNone(self.remote_oid("Release"))
         self.assertEqual(self.remote_oid(first), first_before)
         self.assertEqual(self.remote_oid(second), second_before)
 
