@@ -12,13 +12,60 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).with_name("parallel_worktrees.py")
+MOCK_LIFECYCLE = """#!/usr/bin/env python3
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+parser = argparse.ArgumentParser()
+parser.add_argument("command")
+parser.add_argument("--project-root", required=True)
+parser.add_argument("--worktree", required=True)
+args = parser.parse_args()
+project = Path(args.project_root).resolve()
+worktree = Path(args.worktree).resolve()
+raw_common = subprocess.run(
+    ["git", "-C", str(project), "rev-parse", "--git-common-dir"],
+    check=True,
+    capture_output=True,
+    text=True,
+).stdout.strip()
+common = Path(raw_common)
+if not common.is_absolute():
+    common = (project / common).resolve()
+if (common / "mock-track-failure").exists():
+    print(json.dumps({
+        "status": "error",
+        "code": "forced-test-failure",
+        "message": "forced lifecycle tracking failure",
+    }))
+    sys.exit(7)
+branch = subprocess.run(
+    ["git", "-C", str(worktree), "branch", "--show-current"],
+    check=True,
+    capture_output=True,
+    text=True,
+).stdout.strip()
+records_path = common / "mock-tracked-worktrees.json"
+records = json.loads(records_path.read_text(encoding="utf-8")) if records_path.exists() else []
+records.append({"branch": branch, "worktree": str(worktree)})
+records_path.write_text(json.dumps(records), encoding="utf-8")
+print(json.dumps({
+    "status": "worktree-tracked",
+    "branch": branch,
+    "worktree": str(worktree),
+    "remote": None,
+}))
+"""
 
 
 class ParallelWorktreesTests(unittest.TestCase):
     """在临时 primary 仓库和左侧 Task Worktree 中验证失败关闭行为。"""
 
     def setUp(self) -> None:
-        """建立 primary 项目和已登记的 codex/task-feature 源 Task Worktree。"""
+        """建立 primary 项目和已登记的 feature 源 Worktree。"""
         self.temp = tempfile.TemporaryDirectory()
         self.temp_root = Path(self.temp.name)
         self.root = self.temp_root / "sample_project"
@@ -27,11 +74,26 @@ class ParallelWorktreesTests(unittest.TestCase):
         self.git("init", "-b", "main")
         self.git("config", "user.name", "Harness Test")
         self.git("config", "user.email", "harness-test@example.invalid")
+        self.lifecycle_script = (
+            self.root
+            / ".agents"
+            / "skills"
+            / "desktop-manage-git-lifecycle"
+            / "scripts"
+            / "git_lifecycle.py"
+        )
+        self.lifecycle_script.parent.mkdir(parents=True)
+        self.lifecycle_script.write_text(MOCK_LIFECYCLE, encoding="utf-8")
         (self.root / "README.md").write_text("baseline\n", encoding="utf-8")
-        self.git("add", "README.md")
+        self.git("add", "README.md", str(self.lifecycle_script.relative_to(self.root)))
         self.git("commit", "-m", "baseline")
         self.git(
-            "worktree", "add", "-b", "codex/task-feature", str(self.source), "HEAD"
+            "worktree",
+            "add",
+            "-b",
+            "feature-current-20260909",
+            str(self.source),
+            "HEAD",
         )
 
     def tearDown(self) -> None:
@@ -113,150 +175,59 @@ class ParallelWorktreesTests(unittest.TestCase):
         )
         self.assertNotEqual(branch.returncode, 0)
 
-    def write_branch_chain_state(self, payload: object) -> None:
-        """在 source 写入测试拥有的分支链状态。"""
-        harness = self.source / ".harness"
-        harness.mkdir()
-        (harness / "git-branch-chain.json").write_text(
-            json.dumps(payload), encoding="utf-8"
-        )
+    def common_dir(self) -> Path:
+        """返回测试仓库的规范化 common dir。"""
+        raw = Path(self.git("rev-parse", "--git-common-dir").stdout.strip())
+        return (raw if raw.is_absolute() else self.root / raw).resolve()
 
-    def direct_closed_branch_chain_state(self, head: str) -> dict[str, object]:
-        """构造直接发布后允许继续创建 sibling unit 的合法关闭状态。"""
-        return {
-            "schemaVersion": 1,
-            "activeChain": None,
-            "lastClosedChain": {
-                "remote": "origin",
-                "baseBranch": "main",
-                "baseHead": head,
-                "defaultBranch": "main",
-                "defaultHead": head,
-                "releaseHeadBefore": None,
-                "closingHead": None,
-                "entries": [
-                    {
-                        "branch": "feature-current-20260907",
-                        "preCloseHead": head,
-                    }
-                ],
-                "releaseReview": {
-                    "selection": "enabled",
-                    "status": "passed",
-                    "scopeBase": head,
-                    "sourceHead": head,
-                    "scopeDiffSha256": "a" * 64,
-                    "reviewedSourceCommit": head,
-                    "checks": [
-                        "behavior-correctness",
-                        "core-adapter-boundary",
-                        "external-contracts",
-                        "responsibility-and-size",
-                        "temporary-markers",
-                    ],
-                    "evidenceSummary": "发布范围语义审查通过",
-                    "reason": None,
-                    "remainingRisk": None,
-                },
-                "candidateSelections": {
-                    "performanceSelection": "not-applicable",
-                    "performanceSource": "not-applicable",
-                    "performanceReason": None,
-                    "performanceRemainingRisk": None,
-                    "macosSigningSelection": "not-applicable",
-                    "macosSigningSource": "not-applicable",
-                    "macosSigningReason": None,
-                    "macosSigningRemainingRisk": None,
-                },
-                "releaseTarget": "default",
-            },
-        }
+    def tracked_worktrees(self) -> list[dict[str, str]]:
+        """读取 mock 生命周期 helper 记录的精确资源。"""
+        path = self.common_dir() / "mock-tracked-worktrees.json"
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
 
-    def test_create_rejects_active_managed_feature_chain_without_side_effects(self) -> None:
-        """验证活动 feature 链在任何 sibling unit 副作用前稳定阻断。"""
-        head = self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip()
-        branch = "feature-current-20260907"
-        self.write_branch_chain_state(
-            {
-                "schemaVersion": 1,
-                "activeChain": {
-                    "remote": "origin",
-                    "defaultBranch": "main",
-                    "defaultHead": head,
-                    "baseBranch": "main",
-                    "baseHead": head,
-                    "activeLeaf": branch,
-                    "phase": "active",
-                    "entries": [
-                        {"branch": branch, "parent": "main", "parentHead": head}
-                    ],
-                },
-                "lastClosedChain": None,
-            }
-        )
-
-        result, payload = self.create("blocked", "src")
-
-        self.assertEqual(result.returncode, 4)
-        self.assertEqual(payload["error"]["code"], "managed_feature_chain_active")
-        self.assert_no_unit_create_side_effects("blocked")
-
-    def test_create_rejects_invalid_branch_chain_state_without_side_effects(self) -> None:
-        """验证无效 schema 失败关闭，inspect 只读路径仍不读取该状态。"""
-        self.write_branch_chain_state(
-            {"schemaVersion": 2, "activeChain": None, "lastClosedChain": None}
-        )
-
-        result, payload = self.create("invalid", "src")
-        inspected, inspect_payload = self.helper("inspect")
-
-        self.assertEqual(result.returncode, 4)
-        self.assertEqual(payload["error"]["code"], "git_branch_chain_state_invalid")
-        self.assert_no_unit_create_side_effects("invalid")
-        self.assertEqual(inspected.returncode, 0, inspected.stderr)
-        self.assertTrue(inspect_payload["ok"])
-
-    def test_create_accepts_direct_release_closed_branch_chain(self) -> None:
-        """验证带审查、候选选择和目标字段的新式关闭状态允许后续单元。"""
-        head = self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip()
-        self.write_branch_chain_state(self.direct_closed_branch_chain_state(head))
-        self.git("add", ".harness/git-branch-chain.json", cwd=self.source)
-        self.git("commit", "-m", "record direct release closure", cwd=self.source)
-
-        result, payload = self.create("after-release", "src")
+    def test_create_tracks_exact_worktree_in_current_release_cycle(self) -> None:
+        """验证创建成功后立即把精确 Worktree 与分支交给生命周期 helper。"""
+        result, payload = self.create("tracked", "src")
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(payload["ok"])
-        self.assertEqual(payload["branch"], "codex/unit-feature-after-release")
+        self.assertEqual(payload["sourceBranch"], "feature-current-20260909")
+        self.assertEqual(
+            payload["baseHead"],
+            self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip(),
+        )
+        self.assertEqual(payload["lifecycleTracking"]["status"], "worktree-tracked")
+        self.assertEqual(
+            self.tracked_worktrees(),
+            [
+                {
+                    "branch": "codex/unit-feature-tracked",
+                    "worktree": str(Path(str(payload["worktreePath"])).resolve()),
+                }
+            ],
+        )
 
-    def test_create_rejects_malformed_direct_release_closed_chain(self) -> None:
-        """验证新式关闭状态的嵌套选择仍保持失败关闭。"""
-        head = self.git("rev-parse", "HEAD", cwd=self.source).stdout.strip()
-        state = self.direct_closed_branch_chain_state(head)
-        closed = state["lastClosedChain"]
-        assert isinstance(closed, dict)
-        selections = closed["candidateSelections"]
-        assert isinstance(selections, dict)
-        selections["performanceSource"] = "requested"
-        self.write_branch_chain_state(state)
+    def test_create_rolls_back_when_lifecycle_tracking_fails(self) -> None:
+        """验证发布周期登记失败时不遗留 Worktree、单元状态或分支。"""
+        (self.common_dir() / "mock-track-failure").write_text("fail\n", encoding="utf-8")
 
-        result, payload = self.create("malformed", "src")
+        result, payload = self.create("rollback", "src")
 
         self.assertEqual(result.returncode, 4)
-        self.assertEqual(payload["error"]["code"], "git_branch_chain_state_invalid")
-        self.assert_no_unit_create_side_effects("malformed")
+        self.assertEqual(
+            payload["error"]["code"], "lifecycle_worktree_tracking_failed"
+        )
+        self.assert_no_unit_create_side_effects("rollback")
 
-    def test_create_from_task_branch_avoids_parent_child_ref_collision_and_removes(self) -> None:
-        """验证 codex/task-feature 已存在时仍能创建扁平 unit ref 并安全清理。"""
+    def test_remove_defers_worktree_and_branch_cleanup_to_release(self) -> None:
+        """验证 remove 只删单元状态并把已登记 Git 资源保留到正式发布。"""
         created, payload = self.create("docs", "docs.txt")
         self.assertEqual(created.returncode, 0, created.stderr)
         self.assertEqual(payload["branch"], "codex/unit-feature-docs")
-        self.assertEqual(payload["sourceBranch"], "codex/task-feature")
+        self.assertEqual(payload["sourceBranch"], "feature-current-20260909")
         worktree = Path(str(payload["worktreePath"]))
         (worktree / "docs.txt").write_text("done\n", encoding="utf-8")
         self.git("add", "docs.txt", cwd=worktree)
         self.git("commit", "-m", "complete docs unit", cwd=worktree)
-        self.git("merge", "--ff-only", "codex/unit-feature-docs", cwd=self.source)
 
         removed, removal = self.helper(
             "remove",
@@ -264,15 +235,18 @@ class ParallelWorktreesTests(unittest.TestCase):
             "feature",
             "--unit",
             "docs",
-            "--integrated-into",
-            "codex/task-feature",
         )
 
         self.assertEqual(removed.returncode, 0, removed.stderr)
-        self.assertFalse(worktree.exists())
+        self.assertTrue(worktree.exists())
+        self.assertTrue(removal["cleanupDeferredToRelease"])
+        self.assertTrue(removal["worktreeRetained"])
         self.assertTrue(removal["branchRetained"])
         self.assertTrue(removal["stateRemoved"])
         self.git("show-ref", "--verify", "refs/heads/codex/unit-feature-docs")
+        state = self.common_dir() / "codex-parallel-worktrees" / "feature" / "docs.json"
+        self.assertFalse(state.exists())
+        self.assertEqual(self.tracked_worktrees()[0]["worktree"], str(worktree.resolve()))
 
     def test_create_rejects_dirty_source_including_untracked_files(self) -> None:
         """验证未跟踪源 Task 文件也会阻断创建，避免遗漏真实基线。"""
@@ -337,7 +311,7 @@ class ParallelWorktreesTests(unittest.TestCase):
         other = self.temp_root / "other_project"
         other.mkdir()
         subprocess.run(
-            ["git", "-C", str(other), "init", "-b", "codex/task-feature"],
+            ["git", "-C", str(other), "init", "-b", "feature-current-20260909"],
             check=True,
             capture_output=True,
             text=True,
@@ -374,14 +348,14 @@ class ParallelWorktreesTests(unittest.TestCase):
         self.assertEqual(result.returncode, 4)
         self.assertEqual(payload["error"]["code"], "source_repository_mismatch")
 
-    def test_create_rejects_detached_or_wrong_source_branch(self) -> None:
-        """验证 source 必须仍附着在与 task 标识一致的 codex 分支。"""
+    def test_create_rejects_detached_source_without_requiring_branch_prefix(self) -> None:
+        """验证 feature source 可用，但 HEAD 分离状态仍缺少可登记身份。"""
         self.git("checkout", "--detach", cwd=self.source)
 
         result, payload = self.create("core", "src")
 
         self.assertEqual(result.returncode, 4)
-        self.assertEqual(payload["error"]["code"], "source_branch_mismatch")
+        self.assertEqual(payload["error"]["code"], "source_branch_unavailable")
 
     def test_create_rejects_symlinked_external_worktree_container(self) -> None:
         """验证 sibling 容器不能用 symlink 把单元重定向到任意外部目录。"""
@@ -662,23 +636,11 @@ class ParallelWorktreesTests(unittest.TestCase):
         self.assertEqual(existing.returncode, 4)
         self.assertEqual(existing_payload["error"]["code"], "worktree_path_exists")
 
-    def test_remove_rejects_self_reference_dirty_and_unintegrated_unit(self) -> None:
-        """验证 self ref 不能伪造整合，脏状态和未整合提交也都阻断。"""
+    def test_remove_rejects_dirty_but_accepts_clean_unmerged_unit(self) -> None:
+        """验证 remove 保护未提交数据，但不把分支历史形态设为收口条件。"""
         created, payload = self.create("tests", "src")
         self.assertEqual(created.returncode, 0, created.stderr)
         worktree = Path(str(payload["worktreePath"]))
-
-        self_ref, self_ref_payload = self.helper(
-            "remove",
-            "--task",
-            "feature",
-            "--unit",
-            "tests",
-            "--integrated-into",
-            "codex/unit-feature-tests",
-        )
-        self.assertEqual(self_ref.returncode, 4)
-        self.assertEqual(self_ref_payload["error"]["code"], "integration_ref_mismatch")
 
         (worktree / "src").mkdir()
         (worktree / "src" / "pending.txt").write_text("pending\n", encoding="utf-8")
@@ -688,28 +650,25 @@ class ParallelWorktreesTests(unittest.TestCase):
             "feature",
             "--unit",
             "tests",
-            "--integrated-into",
-            "codex/task-feature",
         )
         self.assertEqual(dirty.returncode, 4)
         self.assertEqual(dirty_payload["error"]["code"], "worktree_dirty")
 
         self.git("add", "src/pending.txt", cwd=worktree)
         self.git("commit", "-m", "unintegrated work", cwd=worktree)
-        unmerged, unmerged_payload = self.helper(
+        removed, removal = self.helper(
             "remove",
             "--task",
             "feature",
             "--unit",
             "tests",
-            "--integrated-into",
-            "codex/task-feature",
         )
-        self.assertEqual(unmerged.returncode, 4)
-        self.assertEqual(unmerged_payload["error"]["code"], "branch_not_integrated")
+        self.assertEqual(removed.returncode, 0, removed.stderr)
+        self.assertTrue(removal["stateRemoved"])
+        self.assertTrue(removal["cleanupDeferredToRelease"])
         self.assertTrue(worktree.exists())
 
-    def test_remove_runs_postflight_before_clean_integrated_cleanup(self) -> None:
+    def test_remove_runs_postflight_before_clean_state_cleanup(self) -> None:
         """验证越权提交即使已整合且工作树干净，remove 仍先由 postflight 阻断。"""
         created, payload = self.create("escape", "src")
         self.assertEqual(created.returncode, 0, created.stderr)
@@ -717,7 +676,6 @@ class ParallelWorktreesTests(unittest.TestCase):
         (worktree / "outside.txt").write_text("escape\n", encoding="utf-8")
         self.git("add", "outside.txt", cwd=worktree)
         self.git("commit", "-m", "out of scope", cwd=worktree)
-        self.git("merge", "--ff-only", "codex/unit-feature-escape", cwd=self.source)
 
         result, removal = self.helper(
             "remove",
@@ -725,8 +683,6 @@ class ParallelWorktreesTests(unittest.TestCase):
             "feature",
             "--unit",
             "escape",
-            "--integrated-into",
-            "codex/task-feature",
         )
 
         self.assertEqual(result.returncode, 4)

@@ -50,12 +50,12 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
         ),
         TAURI_RELEASE_SKILL: (
             "$desktop-manage-version check --phase build",
-            "不得计算、提升版本或重置正式发布周期",
+            "构建不得提升版本",
         ),
         PREPARE_RELEASE_SKILL: (
             "$desktop-manage-version check --phase release",
-            "$desktop-manage-version finalize-release",
-            "发布准备不得另算或手工覆盖",
+            "不在此补算 Minor/Patch",
+            "finalize-release",
         ),
         VERSION_SKILL / "SKILL.md": (
             "一个正式发布周期内",

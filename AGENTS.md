@@ -19,7 +19,7 @@
 | 创建新下游 | `README.md`、`$desktop-instantiate-project` 及其表单引用；由该 Skill 继续加载初始化所需资料 | `$desktop-instantiate-project` |
 | 定义或改变产品目标、边界、约束、成功标准 | `docs/product_spec/README.md` 与最新 Product Spec；必要时读最新 ADR | `$desktop-define-product` |
 | 范围清楚的日常实现、问题修复或用户可感知优化 | `docs/ENGINEERING_RULES.md`、所选接口事实；已初始化下游再读取版本门禁 | `$desktop-implement-change`、`$desktop-manage-version` |
-| 新需求、Bug 或维护写入的 Git 分支链 | `docs/AGENT_POLICY.md` 的“产品 feature 分支链与默认分支发布”；发布时再读 `docs/RELEASE.md` | `$desktop-manage-git-branch-chain`；日常实现仍走 `$desktop-implement-change` |
+| 新功能、Bug 修复、推送或发布的 Git 生命周期 | `docs/AGENT_POLICY.md` 的“开发分支与主分支发布生命周期”；发布时再读 `docs/RELEASE.md` | `$desktop-manage-git-lifecycle`；日常实现仍走 `$desktop-implement-change` |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md` | 对应 GUI Skill；不得一次加载全部 GUI Skills |
 | 创建或检查左侧 user-owned Task | `docs/AGENT_POLICY.md` 的“左侧 Task、项目绑定与独立 Worktree” | Codex 项目/Task 工具；只在用户明确要求新 Task 时调用 |
@@ -41,9 +41,9 @@
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/TUI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
 - 已初始化下游的版本只通过 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期/去重状态。首个新功能提升 Minor 后锁到正式发布成功；每个具有新稳定 ID 的问题修复或用户可感知优化使用 `bug-fix` 独立提升 Patch。新生成的 Minor/Patch 采用 `0..99` 的 base-100 进位，自动进位到 Major 不等同于显式 Major 授权；Major 不受 99/100 的业务上限约束，但不得超过 Cargo `u64::MAX`。历史 `*.100.*` 当前 Cargo/目标版本只在下一次真实提升时规范化，周期基线和既有变化继续保留原始证据值。Harness 自身版本只取 `Version.md`。
-- 已有远端的下游在新需求、Bug 或维护写入前通过 `$desktop-manage-git-branch-chain` 建立并登记串行 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 链；日常闭环提交后推送活动叶子。每条活动叶子同一时刻只允许一个产品写入 Task，禁止 sibling 写入 Worktree；前一结果通过 `integrate-task` 的 clean、Worktree、冻结 OID、线性和远端未漂移门禁后只快进本地叶子，再由独立 `publish` 推送复读，才开始下一写入。`main`、`master` 与动态远端默认分支在日常流程中只读；明确发布是唯一窄例外，只把冻结且满足当次发布审查选择的线性链严格快进到动态默认 `main`/`master`，切回该本地分支，并按状态登记精确清理本轮 feature refs，不创建 `Release` 中转分支、不扫描删除 `codex/*`。
+- 下游的新功能或独立 Bug 修复在写入前通过 `$desktop-manage-git-lifecycle` 自动创建并切换到独立 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；本地建分支不依赖远端。用户明确说“推送”时，受管流程把本发布周期登记的开发分支普通合并到动态默认主分支，切换到主分支并推送；明确说“发布”时，在同样的主分支推送成功后先创建并推送 `v{版本}-{YYYYMMDD}`，远端 tag 复读成功后才精确删除本周期登记的 Worktree、远端分支和本地分支。生命周期清单只记录 Harness 自己创建或明确登记的资源，不设置保护分支、严格线性、fast-forward-only、lease 或 atomic push 门禁，也不创建、迁移或使用名为 `Release` 的分支。
 - 对产出物声称“完成”“可用”或“已验证”必须基于真实产物的可观察结果；Mock、stub、源码片段、占位页面、中性 scaffold 或开发预览不能冒充候选验收。人工批准也不能把失败或未执行改判为通过。
-- Product Spec、ADR、Changelog、Product Status、Work Plan 与 Verification 只由各自独立事件触发；候选构建/E2E/验收/就绪复核只写忽略的 `release/` 原子证据，真实渠道发布成功后或独立回顾性审计才在后续受管 feature 生命周期写 tracked 记录。普通维护不写占位，范围外问题写入 `docs/TECH_DEBT.md`。
+- Product Spec、ADR、Changelog、Product Status、Work Plan 与 Verification 只由各自独立事件触发；候选构建/E2E/验收/就绪复核只写忽略的 `release/` 原子证据，真实渠道发布成功后或独立回顾性审计才在后续自动开发生命周期写 tracked 记录。普通维护不写占位，范围外问题写入 `docs/TECH_DEBT.md`。
 - 不覆盖或撤销用户已有修改，不为假想未来增加抽象、接口或依赖；跨平台实现不得默认单一 Shell、路径分隔符、权限模型或宿主能力。
 
 ## Skills 地图
@@ -51,7 +51,7 @@
 项目 Skills 位于 `.agents/skills/`。先用任务路由选择最小集合；命中后必须完整读取对应 `SKILL.md` 及其要求的精确引用，不得预先加载同类全部 Skills。下游裁剪可以删除不适用条目，但必须让本节与实际保留的 Skills 一致。
 
 - 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
-- 开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-branch-chain`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
+- 开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 - 构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-gui-release-performance`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 ## 约束地图
@@ -71,7 +71,7 @@
 | 构建、版本与发布 | `docs/RELEASE.md`；Harness 当前版本另取 `Version.md` | 显式构建或发布 |
 | 验证方式、候选证据与人工复核 | `docs/VERIFICATION.md`；活动候选读 `release/`，已发布/回顾性事实才读精确证据卷 | E2E、完整验收、发布或审计 |
 | Git 安装、local 身份、模板与提交消息 | `$desktop-check-development-environment`、`$desktop-configure-git-commits` 及其引用 | 环境失败恢复、初始化门禁或实际提交 |
-| 产品 feature 分支链、保护分支与默认分支发布状态 | `docs/AGENT_POLICY.md`、`.harness/git-branch-chain.json`、`$desktop-manage-git-branch-chain` | 新需求/Bug/维护写入、日常推送或明确发布 |
+| 开发分支、主分支推送、版本 tag 与发布周期资源清理 | `docs/AGENT_POLICY.md`、Git common-dir 生命周期清单、`$desktop-manage-git-lifecycle` | 新功能/Bug 修复、用户明确推送或发布 |
 | 已知限制与技术债 | `docs/TECH_DEBT.md` | 发现范围外问题或复核既有限制 |
 | 下游 Harness 来源与升级 | `.harness/upstream-lock.json`、`$desktop-upgrade-harness` | 仅升级下游工程层 |
 | 商业许可 | `LICENSE.zh-CN.md`、`LICENSE.en.md` | 实例化、身份改名、分发或许可任务 |

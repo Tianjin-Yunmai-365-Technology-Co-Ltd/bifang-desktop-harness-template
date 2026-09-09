@@ -21,6 +21,7 @@ from scripts.harness_validation.governance import (
     validate_version_contract,
 )
 from scripts.harness_validation.gui_support import validate_gui_support_contract
+from scripts.harness_validation.git_lifecycle import validate_git_lifecycle_contract
 from scripts.harness_validation.initialization import validate_initialization_contract
 from scripts.harness_validation.line_limits import validate_repository_line_limits
 from scripts.harness_validation.product_versioning import (
@@ -82,6 +83,7 @@ def main() -> int:
     validate_markdown_links(errors)
     validate_workflow(errors)
     validate_release_contract(errors)
+    validate_git_lifecycle_contract(errors)
     validate_upgrade_contract(errors)
     validate_initialization_contract(errors)
     validate_gui_support_contract(errors)

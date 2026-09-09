@@ -71,10 +71,9 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             "本文件只维护版本与发布规则",
         ),
         PREPARE_RELEASE_SKILL: (  # noqa: F405
-            "Harness 模板使用根 `Version.md`",
-            "`YYYYMMDDHHMM`",
-            "`Asia/Shanghai`",
-            "不得继承 Harness `Version.md`",
+            "Harness 版本来自 `Version.md`",
+            "$desktop-manage-version check --phase release",
+            "机器版本不带 `v`",
         ),
         INSTANTIATE_SKILL: (  # noqa: F405
             "仅属于 Harness 的根目录 `Version.md`",

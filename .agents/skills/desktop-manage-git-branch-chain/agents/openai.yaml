@@ -1,4 +1,0 @@
-interface:
-  display_name: "管理 Git 分支链"
-  short_description: "安全建立、推送并发布严格串行的 Git feature 分支链"
-  default_prompt: "使用 $desktop-manage-git-branch-chain 管理当前项目的串行 feature 分支链。"

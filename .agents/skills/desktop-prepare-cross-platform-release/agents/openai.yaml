@@ -1,4 +1,4 @@
 interface:
   display_name: "准备跨平台发布候选"
-  short_description: "仅从调用方 clean HEAD 准备三平台原生候选"
-  default_prompt: "使用 $desktop-prepare-cross-platform-release；普通构建不自动提交，要求 source_commit 等于调用方及每个运行器的 clean HEAD，并写入全部 manifests。"
+  short_description: "从已发布上下文、远端版本 tag 与固定选择准备三平台原生候选"
+  default_prompt: "使用 $desktop-prepare-cross-platform-release，验证 release_context_sha256、远端默认分支、版本 tag 与每个运行器的 clean source_commit 后生成 manifests。"

@@ -14,17 +14,9 @@ from pathlib import Path, PurePosixPath
 from typing import Iterator
 
 
-BRANCH_CHAIN_SCRIPTS = (
-    Path(__file__).resolve().parents[2]
-    / "desktop-manage-git-branch-chain"
-    / "scripts"
+LIFECYCLE_SCRIPT_RELATIVE = Path(
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py"
 )
-sys.path.insert(0, str(BRANCH_CHAIN_SCRIPTS))
-try:
-    from branch_chain_state import StateError as BranchChainStateError
-    from branch_chain_state import validate_state as validate_branch_chain_state
-finally:
-    sys.path.pop(0)
 
 
 IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
@@ -161,9 +153,8 @@ def canonical_source_context(
     project_root: Path,
     common_dir: Path,
     raw_source: str,
-    task: str,
 ) -> ProjectContext:
-    """绑定同一仓库内已登记、分支匹配的左侧 Task 源 Worktree。"""
+    """绑定同一仓库内已登记且附着在任意具名分支的源 Worktree。"""
     source = git_top_level(raw_source, "源 Worktree ", "source_worktree_missing")
     if source == project_root:
         raise WorkflowError(
@@ -188,11 +179,16 @@ def canonical_source_context(
         source, "symbolic-ref", "--quiet", "--short", "HEAD", check=False
     )
     branch = branch_result.stdout.strip() if branch_result.returncode == 0 else ""
-    expected_branch = f"codex/task-{task}"
-    if branch != expected_branch or record.get("branch") != f"refs/heads/{expected_branch}":
+    if not branch:
         raise WorkflowError(
-            "source_branch_mismatch",
-            f"源 Worktree 分支为 {branch or 'HEAD 分离状态'}，预期为 {expected_branch}",
+            "source_branch_unavailable",
+            "源 Worktree 必须附着在具名分支，不能使用 HEAD 分离状态",
+            4,
+        )
+    if record.get("branch") != f"refs/heads/{branch}":
+        raise WorkflowError(
+            "source_branch_registry_mismatch",
+            f"源 Worktree 登记分支 {record.get('branch')!r} 与当前具名分支 {branch!r} 不一致",
             4,
         )
     return ProjectContext(project_root, common_dir, source, branch)
@@ -216,39 +212,6 @@ def require_plain_directory(path: Path, code: str, label: str, create: bool = Fa
         path.mkdir(parents=False, exist_ok=True)
         if path.is_symlink() or not path.is_dir():
             raise WorkflowError(code, f"{label}未建立为普通目录：{path}", 4)
-
-
-def reject_active_managed_feature_chain(source_worktree: Path) -> None:
-    """在任何 sibling unit 写入前失败关闭地读取并检查分支链状态。"""
-    path = source_worktree / ".harness" / "git-branch-chain.json"
-    directory = path.parent
-    invalid_code = "git_branch_chain_state_invalid"
-    if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
-        raise WorkflowError(invalid_code, f"分支链状态目录不是普通目录：{directory}", 4)
-    if path.is_symlink():
-        raise WorkflowError(invalid_code, f"分支链状态不得是符号链接：{path}", 4)
-    if not path.exists():
-        return
-    if not path.is_file():
-        raise WorkflowError(invalid_code, f"分支链状态不是普通文件：{path}", 4)
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        raise WorkflowError(
-            invalid_code, f"分支链状态不是有效 UTF-8 JSON：{path}", 4
-        ) from error
-    try:
-        normalized = validate_branch_chain_state(payload)
-    except BranchChainStateError as error:
-        raise WorkflowError(
-            invalid_code, f"分支链状态 schema 无效：{path}", 4
-        ) from error
-    if normalized["activeChain"] is not None:
-        raise WorkflowError(
-            "managed_feature_chain_active",
-            "活动受管 feature 分支链禁止创建 sibling codex/unit-*；请在当前叶使用单 Agent 串行写入",
-            4,
-        )
 
 
 def managed_worktree_root(project_root: Path, create: bool = False) -> Path:
@@ -470,6 +433,125 @@ def write_unit_state(state: UnitState) -> None:
         ) from error
 
 
+def lifecycle_script(project_root: Path) -> Path:
+    """定位项目内随 Harness 分发的新 Git 生命周期 helper。"""
+    script = project_root / LIFECYCLE_SCRIPT_RELATIVE
+    if script.is_symlink() or not script.is_file():
+        raise WorkflowError(
+            "git_lifecycle_helper_missing",
+            f"Git 生命周期 helper 不存在或不是普通文件：{script}",
+            4,
+        )
+    return script
+
+
+def track_lifecycle_worktree(state: UnitState) -> dict[str, object]:
+    """把新单元精确登记到当前发布周期，由正式发布统一清理。"""
+    identity = state.identity
+    script = lifecycle_script(identity.context.project_root)
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(script),
+                "track-worktree",
+                "--project-root",
+                str(identity.context.project_root),
+                "--worktree",
+                str(identity.worktree_path),
+            ],
+            check=False,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=identity.context.project_root,
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise WorkflowError(
+            "lifecycle_worktree_tracking_failed",
+            f"无法运行 Git 生命周期 helper：{error}",
+            4,
+        ) from error
+    if result.returncode != 0:
+        code = "unknown"
+        message = "Git 生命周期 helper 返回非零状态"
+        try:
+            payload = json.loads(result.stdout)
+        except (TypeError, json.JSONDecodeError):
+            payload = None
+        if isinstance(payload, dict):
+            raw_code = payload.get("code")
+            raw_message = payload.get("message")
+            if isinstance(raw_code, str) and raw_code:
+                code = raw_code
+            if isinstance(raw_message, str) and raw_message:
+                message = raw_message
+        raise WorkflowError(
+            "lifecycle_worktree_tracking_failed",
+            f"Git 生命周期 Worktree 登记失败（{code}）：{message}",
+            4,
+        )
+    try:
+        payload = json.loads(result.stdout)
+    except (TypeError, json.JSONDecodeError):
+        payload = {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def cleanup_empty_unit_containers(identity: UnitIdentity) -> None:
+    """仅删除本次创建后仍为空的精确容器，不触碰其他单元。"""
+    candidates = (
+        identity.state_path.parent,
+        identity.state_path.parent.parent,
+        identity.worktree_path.parent,
+        identity.worktree_path.parent.parent,
+        identity.worktree_path.parent.parent.parent,
+    )
+    for directory in candidates:
+        try:
+            directory.rmdir()
+        except OSError:
+            pass
+
+
+def rollback_created_unit(state: UnitState) -> None:
+    """回滚尚未登记到发布周期的新 Worktree、状态与分支。"""
+    identity = state.identity
+    failures: list[str] = []
+    if identity.state_path.exists() or identity.state_path.is_symlink():
+        try:
+            identity.state_path.unlink()
+        except OSError as error:
+            failures.append(f"无法删除单元状态：{error}")
+    worktree = run_git(
+        identity.context.project_root,
+        "worktree",
+        "remove",
+        str(identity.worktree_path),
+        check=False,
+    )
+    if worktree.returncode != 0:
+        failures.append(worktree.stderr.strip() or "无法移除新建 Worktree")
+    branch = run_git(
+        identity.context.project_root,
+        "branch",
+        "-D",
+        identity.branch,
+        check=False,
+    )
+    if branch.returncode != 0:
+        failures.append(branch.stderr.strip() or "无法删除新建单元分支")
+    if failures:
+        raise WorkflowError(
+            "unit_create_rollback_failed",
+            "；".join(failures),
+            4,
+        )
+
+
 def inspect_project(project_root: Path, common_dir: Path) -> dict[str, object]:
     """返回 primary 基线状态和全部已登记 Worktree，不修改仓库。"""
     status = run_git(project_root, "status", "--porcelain=v1", "--untracked-files=all").stdout
@@ -503,7 +585,7 @@ def find_exact_unit_worktree(identity: UnitIdentity) -> dict[str, str | bool]:
 
 
 def create_unit(identity: UnitIdentity, raw_ownership: list[str]) -> dict[str, object]:
-    """从干净 Task 源 HEAD 创建单元并登记互斥路径所有权。"""
+    """从干净 Task 源 HEAD 创建单元并登记所有权与发布周期资源。"""
     source = identity.context.source_worktree
     status = run_git(source, "status", "--porcelain=v1", "--untracked-files=all").stdout
     if status.strip():
@@ -518,50 +600,54 @@ def create_unit(identity: UnitIdentity, raw_ownership: list[str]) -> dict[str, o
     ownership = normalize_ownership(raw_ownership, source)
     state = UnitState(identity, head_result.stdout.strip(), ownership)
 
-    with task_state_lock(identity):
-        reject_registered_ownership_overlap(state)
-        branch_exists = run_git(
-            identity.context.project_root,
-            "show-ref",
-            "--verify",
-            "--quiet",
-            f"refs/heads/{identity.branch}",
-            check=False,
-        )
-        if branch_exists.returncode == 0:
-            raise WorkflowError("branch_exists", f"分支已存在：{identity.branch}", 4)
-        if identity.worktree_path.exists() or identity.worktree_path.is_symlink():
-            raise WorkflowError(
-                "worktree_path_exists", f"Worktree 路径已存在：{identity.worktree_path}", 4
-            )
-        run_git(
-            source,
-            "worktree",
-            "add",
-            "-b",
-            identity.branch,
-            str(identity.worktree_path),
-            "HEAD",
-        )
-        try:
-            write_unit_state(state)
-        except WorkflowError:
-            run_git(
+    tracking: dict[str, object] = {}
+    try:
+        with task_state_lock(identity):
+            reject_registered_ownership_overlap(state)
+            branch_exists = run_git(
                 identity.context.project_root,
+                "show-ref",
+                "--verify",
+                "--quiet",
+                f"refs/heads/{identity.branch}",
+                check=False,
+            )
+            if branch_exists.returncode == 0:
+                raise WorkflowError("branch_exists", f"分支已存在：{identity.branch}", 4)
+            if identity.worktree_path.exists() or identity.worktree_path.is_symlink():
+                raise WorkflowError(
+                    "worktree_path_exists", f"Worktree 路径已存在：{identity.worktree_path}", 4
+                )
+            run_git(
+                source,
                 "worktree",
-                "remove",
-                str(identity.worktree_path),
-                check=False,
-            )
-            run_git(
-                identity.context.project_root,
-                "branch",
-                "-D",
+                "add",
+                "-b",
                 identity.branch,
-                check=False,
+                str(identity.worktree_path),
+                "HEAD",
             )
-            raise
-    return {"created": True, **state_payload(state)}
+            try:
+                write_unit_state(state)
+                tracking = track_lifecycle_worktree(state)
+            except WorkflowError as error:
+                try:
+                    rollback_created_unit(state)
+                except WorkflowError as rollback_error:
+                    raise WorkflowError(
+                        "unit_create_rollback_failed",
+                        f"{error}；回滚失败：{rollback_error}",
+                        4,
+                    ) from rollback_error
+                raise
+    except WorkflowError:
+        cleanup_empty_unit_containers(identity)
+        raise
+    return {
+        "created": True,
+        **state_payload(state),
+        "lifecycleTracking": tracking,
+    }
 
 
 def validate_unit_context(identity: UnitIdentity, require_unit_cwd: bool) -> Path:
@@ -653,20 +739,6 @@ def normalize_git_path(raw: str) -> str:
 def actual_changed_paths(state: UnitState) -> tuple[str, ...]:
     """收集 baseHead..HEAD 以及 staged、unstaged、untracked 的全部真实路径。"""
     worktree = state.identity.worktree_path
-    ancestor = run_git(
-        worktree,
-        "merge-base",
-        "--is-ancestor",
-        state.base_head,
-        "HEAD",
-        check=False,
-    )
-    if ancestor.returncode != 0:
-        raise WorkflowError(
-            "unit_base_not_ancestor",
-            f"创建基线 {state.base_head} 已不是单元 HEAD 的祖先",
-            4,
-        )
     committed = run_git(
         worktree,
         "diff",
@@ -734,15 +806,9 @@ def verify_unit(identity: UnitIdentity, require_unit_cwd: bool = True) -> dict[s
     }
 
 
-def remove_unit(identity: UnitIdentity, integrated_into: str) -> dict[str, object]:
-    """仅在 postflight、干净状态及精确父 Task 分支整合后移除 Worktree。"""
+def remove_unit(identity: UnitIdentity) -> dict[str, object]:
+    """postflight 且干净后只移除单元状态，把 Git 资源清理延后到正式发布。"""
     state = load_unit_state(identity)
-    if integrated_into != state.identity.context.source_branch:
-        raise WorkflowError(
-            "integration_ref_mismatch",
-            f"整合引用必须是登记的源 Task 分支 {state.identity.context.source_branch}，实际为 {integrated_into}",
-            4,
-        )
     validate_unit_context(identity, require_unit_cwd=False)
     changed = verify_registered_changes(state)
     unit_status = run_git(
@@ -753,42 +819,23 @@ def remove_unit(identity: UnitIdentity, integrated_into: str) -> dict[str, objec
     ).stdout
     if unit_status.strip():
         raise WorkflowError("worktree_dirty", "受管 Worktree 包含已跟踪或未跟踪修改", 4)
-    integrated = run_git(
-        identity.context.project_root,
-        "merge-base",
-        "--is-ancestor",
-        identity.branch,
-        state.identity.context.source_branch,
-        check=False,
-    )
-    if integrated.returncode != 0:
-        raise WorkflowError(
-            "branch_not_integrated",
-            f"{identity.branch} 不是 {state.identity.context.source_branch} 的祖先",
-            4,
-        )
     with task_state_lock(identity):
-        run_git(
-            identity.context.project_root,
-            "worktree",
-            "remove",
-            str(identity.worktree_path),
-        )
         try:
             identity.state_path.unlink()
         except OSError as error:
             raise WorkflowError(
                 "unit_state_remove_failed",
-                f"Worktree 已移除，但无法删除受管状态 {identity.state_path}：{error}",
+                f"无法删除受管状态 {identity.state_path}：{error}",
                 4,
             ) from error
     return {
         "removed": True,
         "stateRemoved": True,
+        "cleanupDeferredToRelease": True,
+        "worktreeRetained": True,
         "branchRetained": True,
         "branch": identity.branch,
         "worktreePath": str(identity.worktree_path),
-        "integratedInto": integrated_into,
         "changedPaths": list(changed),
     }
 
@@ -806,8 +853,6 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--unit", required=True)
         if name in ("create", "guard"):
             command.add_argument("--write-target", action="append", default=[])
-        if name == "remove":
-            command.add_argument("--integrated-into", required=True)
     return root
 
 
@@ -826,10 +871,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             task = validate_identifier("任务", args.task)
             context = canonical_source_context(
-                project_root, common_dir, args.source_worktree, task
+                project_root, common_dir, args.source_worktree
             )
-            if args.command == "create":
-                reject_active_managed_feature_chain(context.source_worktree)
             identity = unit_identity(
                 context, task, args.unit, create=args.command == "create"
             )
@@ -846,7 +889,7 @@ def main(argv: list[str] | None = None) -> int:
             elif args.command == "verify":
                 result = verify_unit(identity)
             else:
-                result = remove_unit(identity, args.integrated_into)
+                result = remove_unit(identity)
             payload = {"ok": True, "operation": args.command, **result}
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
         return 0

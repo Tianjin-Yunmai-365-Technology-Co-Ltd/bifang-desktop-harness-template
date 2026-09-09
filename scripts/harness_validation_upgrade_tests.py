@@ -164,8 +164,8 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             policy.MINIMUM_OWNERSHIP_RULES,
         )
 
-    def test_branch_chain_skill_is_managed_and_runtime_state_is_protected(self) -> None:
-        """升级传播完整 Skill，但不得创建或覆盖下游运行状态。"""
+    def test_git_lifecycle_skill_is_managed_and_common_dir_state_is_not_source(self) -> None:
+        """升级传播完整生命周期 Skill，但不把 common-dir 运行状态当作源码。"""
 
         module_path = (
             ROOT
@@ -176,7 +176,7 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             / "harness_upgrade_policy.py"
         )
         spec = importlib.util.spec_from_file_location(
-            "branch_chain_upgrade_policy_under_test",
+            "git_lifecycle_upgrade_policy_under_test",
             module_path,
         )
         self.assertIsNotNone(spec)
@@ -184,37 +184,27 @@ class ValidateUpgradeContractTests(unittest.TestCase):
         policy = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(policy)
 
-        branch_paths = {
-            ".agents/skills/desktop-manage-git-branch-chain/SKILL.md",
-            ".agents/skills/desktop-manage-git-branch-chain/agents/openai.yaml",
-            ".agents/skills/desktop-manage-git-branch-chain/assets/git-branch-chain.json",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/git_branch_chain.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_operations.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_commit.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_checks.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_git.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_remote.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_state.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_contract.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_race.py",
-            ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_version.py",
+        lifecycle_paths = {
+            ".agents/skills/desktop-manage-git-lifecycle/SKILL.md",
+            ".agents/skills/desktop-manage-git-lifecycle/agents/openai.yaml",
+            ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py",
+            ".agents/skills/desktop-manage-git-lifecycle/scripts/test_git_lifecycle.py",
         }
-        self.assertTrue(branch_paths.issubset(context.REQUIRED_FILES))
-        self.assertTrue(branch_paths.issubset(policy.REQUIRED_MANAGED_SOURCE_PATHS))
-        self.assertIn("desktop-manage-git-branch-chain", context.EXPECTED_SKILLS)
+        self.assertTrue(lifecycle_paths.issubset(context.REQUIRED_FILES))
+        self.assertTrue(lifecycle_paths.issubset(policy.REQUIRED_MANAGED_SOURCE_PATHS))
+        self.assertIn("desktop-manage-git-lifecycle", context.EXPECTED_SKILLS)
 
         manifest = json.loads(upgrade.UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))
         ordered = [(item["pattern"], item["mode"]) for item in manifest["rules"]]
-        branch_rule = (
-            ".agents/skills/desktop-manage-git-branch-chain/**",
+        lifecycle_rule = (
+            ".agents/skills/desktop-manage-git-lifecycle/**",
             "managed",
         )
         generic_rule = (".agents/skills/**", "managed")
-        self.assertIn(branch_rule, ordered)
-        self.assertLess(ordered.index(branch_rule), ordered.index(generic_rule))
-        self.assertIn((".harness/git-branch-chain.json", "protected"), ordered)
-        self.assertNotIn(".harness/git-branch-chain.json", policy.REQUIRED_MANAGED_SOURCE_PATHS)
+        self.assertIn(lifecycle_rule, ordered)
+        self.assertLess(ordered.index(lifecycle_rule), ordered.index(generic_rule))
+        self.assertFalse(any(pattern == ".harness/git-lifecycle.json" for pattern, _ in ordered))
+        self.assertNotIn(".harness/git-lifecycle.json", policy.REQUIRED_MANAGED_SOURCE_PATHS)
 
     def test_gui_lifecycle_plugin_contract_is_required_and_tombstoned(self) -> None:
         """插件契约检查器与回归测试必须纳入必需文件并受初始化 tombstone 保护。"""

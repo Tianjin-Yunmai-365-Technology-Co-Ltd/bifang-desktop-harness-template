@@ -218,15 +218,13 @@ def validate_daily_project_memory(errors: list[str]) -> None:
         SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md": (
             "没有 Work Plan 不阻断验收",
             "当前构建已经运行项目全部非空单元测试",
-            "候选验收证据只写入忽略的 `release/`",
-            "不得在 clean protected 默认分支 closing commit 上创建或更新 tracked",
-            "也不得创建占位记录",
-            "只有用户要求的活动计划存在时才重开或新增 Todo",
+            "验收证据只写忽略的 `release/`",
+            "不得在 tracked 源码中补写项目记忆或占位记录",
         ),
         SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md": (
-            "docs/changelog/README.md",
-            "仅含普通缺陷修复或纯重构",
-            "不创建、不补写也不汇总 Changelog",
+            "Changelog 仅在独立规则触发时更新",
+            "普通缺陷仍进入发布日志",
+            "不为此制造 Changelog",
         ),
         SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md": (
             "发布就绪复核仍要求所有匹配 manifest 组成完整 `Milestone accepted` 原子集合",
@@ -236,8 +234,10 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "纯只读就绪复核",
         ),
         ROOT / "docs" / "harness_engineering" / "project_lifecycle.md": (
-            "以原子严格快进直接关闭到 clean 具名动态默认 `main`/`master`",
-            "再构建/收集并用 `$desktop-verify-delivery` 完整验收",
+            "普通合并登记分支、切换并推送动态默认主分支",
+            "创建并推送版本 tag",
+            "清理登记 Worktree/远端分支/本地分支",
+            "最后构建/收集并用 `$desktop-verify-delivery` 完整验收",
         ),
         ROOT / "docs" / "harness_engineering" / "foundations.md": (
             "活动候选的构建与完整验收证据只保存在忽略的 `release/` 原子集合和最终回复",
@@ -253,7 +253,7 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "仅含普通缺陷修复或纯重构",
             "缺少 Changelog 不削弱候选证据",
             "manifest 状态只使用 `pending`、`rejected` 或 `accepted`",
-            "Git 标签只有获得独立授权并实际创建时才核对",
+            "远端 tag `v{版本}-{YYYYMMDD}` 已由正式发布生命周期创建",
         ),
     }
     for path, fragments in required_fragments.items():

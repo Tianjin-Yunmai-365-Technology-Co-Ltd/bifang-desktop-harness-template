@@ -29,21 +29,11 @@ from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
 from scripts.harness_validation.context import (
-    BRANCH_CHAIN_EMPTY_STATE,
-    BRANCH_CHAIN_CHECKS,
-    BRANCH_CHAIN_COMMIT,
-    BRANCH_CHAIN_CONTRACT_TESTS,
-    BRANCH_CHAIN_GIT,
-    BRANCH_CHAIN_METADATA,
-    BRANCH_CHAIN_OPERATIONS,
-    BRANCH_CHAIN_RACE_TESTS,
-    BRANCH_CHAIN_REMOTE,
-    BRANCH_CHAIN_SCRIPT,
-    BRANCH_CHAIN_SKILL,
-    BRANCH_CHAIN_STATE,
-    BRANCH_CHAIN_TESTS,
-    BRANCH_CHAIN_VERSION_TESTS,
     EXPECTED_SKILLS,
+    GIT_LIFECYCLE_METADATA,
+    GIT_LIFECYCLE_SCRIPT,
+    GIT_LIFECYCLE_SKILL,
+    GIT_LIFECYCLE_TESTS,
     GUI_DIALOG_SKILL,
     GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT,
     GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE,
@@ -139,49 +129,39 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         validate_gui_support_contract(errors)
         self.assertEqual(errors, [])
 
-    def test_branch_chain_skill_is_a_complete_required_harness_capability(self) -> None:
-        """入口、初始化契约和必需文件清单必须同步纳入完整 Skill。"""
+    def test_git_lifecycle_skill_is_a_complete_required_harness_capability(self) -> None:
+        """入口、初始化契约和必需文件清单必须同步纳入完整生命周期 Skill。"""
 
         initialize_skill = ROOT / ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         required = primary_required_fragments(initialize_skill)
         expected_paths = (
-            BRANCH_CHAIN_SKILL,
-            BRANCH_CHAIN_METADATA,
-            BRANCH_CHAIN_EMPTY_STATE,
-            BRANCH_CHAIN_SCRIPT,
-            BRANCH_CHAIN_OPERATIONS,
-            BRANCH_CHAIN_COMMIT,
-            BRANCH_CHAIN_CHECKS,
-            BRANCH_CHAIN_GIT,
-            BRANCH_CHAIN_REMOTE,
-            BRANCH_CHAIN_STATE,
-            BRANCH_CHAIN_TESTS,
-            BRANCH_CHAIN_CONTRACT_TESTS,
-            BRANCH_CHAIN_RACE_TESTS,
-            BRANCH_CHAIN_VERSION_TESTS,
+            GIT_LIFECYCLE_SKILL,
+            GIT_LIFECYCLE_METADATA,
+            GIT_LIFECYCLE_SCRIPT,
+            GIT_LIFECYCLE_TESTS,
         )
 
-        self.assertIn("desktop-manage-git-branch-chain", EXPECTED_SKILLS)
+        self.assertIn("desktop-manage-git-lifecycle", EXPECTED_SKILLS)
         for path in expected_paths:
             relative = path.relative_to(ROOT).as_posix()
             self.assertIn(relative, REQUIRED_FILES)
             self.assertIn(path, required)
-        self.assertIn("不创建 Codex 左侧 Task", required[BRANCH_CHAIN_SKILL])
-        self.assertIn("git push --atomic", required[BRANCH_CHAIN_SKILL])
-        self.assertIn("--force-with-lease", required[BRANCH_CHAIN_SKILL])
+        self.assertIn("创建本地分支不要求配置远端", required[GIT_LIFECYCLE_SKILL])
+        self.assertIn("`v{version}-{YYYYMMDD}`", required[GIT_LIFECYCLE_SKILL])
+        self.assertIn("不设置任何分支门禁", required[GIT_LIFECYCLE_SKILL])
 
-    def test_governance_rejects_branch_chain_default_branch_write_regression(self) -> None:
-        """Skill 不能移除发布事务直达默认分支的唯一受限写入边界。"""
+    def test_governance_rejects_branch_gate_regression(self) -> None:
+        """生命周期 Skill 不能恢复分支拓扑门禁。"""
 
-        source = BRANCH_CHAIN_SKILL.read_text(encoding="utf-8")
-        anchor = "默认分支更新只能是发布事务内基于冻结旧 OID 的严格 fast-forward"
-        mutated = source.replace(anchor, "普通命令也可以更新默认分支", 1)
+        source = GIT_LIFECYCLE_SKILL.read_text(encoding="utf-8")
+        anchor = "不设置任何分支门禁"
+        mutated = source.replace(anchor, "恢复严格线性分支门禁", 1)
         self.assertNotEqual(mutated, source)
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "SKILL.md"
             path.write_text(mutated, encoding="utf-8")
             errors: list[str] = []
-            with mock.patch.object(governance, "BRANCH_CHAIN_SKILL", path):
+            with mock.patch.object(governance, "GIT_LIFECYCLE_SKILL", path):
                 governance.validate_streamlined_development_and_build(errors)
         self.assertTrue(any(anchor in error for error in errors), errors)
 
@@ -1081,5 +1061,5 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
         self.assertIn("0.0.99 -> 0.1.0", release)
         self.assertIn("问题修复或用户可感知优化", release)
         self.assertIn("不受当前周期的功能提升锁影响", release)
-        self.assertIn("仅含普通缺陷修复或纯重构", prepare)
-        self.assertIn("不创建、不补写也不汇总 Changelog", prepare)
+        self.assertIn("普通缺陷仍进入发布日志，但不为此制造 Changelog", prepare)
+        self.assertIn("Changelog 仅在独立规则触发时更新", prepare)

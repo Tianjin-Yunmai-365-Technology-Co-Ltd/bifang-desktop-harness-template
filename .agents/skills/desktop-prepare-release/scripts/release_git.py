@@ -18,10 +18,6 @@ from typing import Sequence
 
 
 HEAD_PATTERN = re.compile(r"^[0-9a-f]{40}$")
-FEATURE_BRANCH_PATTERN = re.compile(
-    r"^feature-[a-z0-9]+(?:-[a-z0-9]+)*-[0-9]{8}$"
-)
-REMOTE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 SECRET_PATTERNS = (
     re.compile(br"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----"),
     re.compile(br"(?:^|[^A-Za-z0-9])AKIA[0-9A-Z]{16}(?:$|[^A-Za-z0-9])"),
@@ -186,72 +182,6 @@ def inspect_repository(project_root: str) -> dict[str, object]:
     }
 
 
-def read_active_chain(root: Path, branch: str, previous_head: str) -> dict[str, object]:
-    """在暂存前证明当前分支是登记叶子且远端保护基线没有漂移。"""
-
-    state_directory = root / ".harness"
-    state_file = state_directory / "git-branch-chain.json"
-    if state_directory.is_symlink() or state_file.is_symlink() or not state_file.is_file():
-        raise ReleaseGitError("protected branch-chain state is missing or not a regular file")
-    try:
-        payload = json.loads(state_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as error:
-        raise ReleaseGitError("protected branch-chain state is not valid UTF-8 JSON") from error
-    if not isinstance(payload, dict) or payload.get("schemaVersion") != 1:
-        raise ReleaseGitError("protected branch-chain state has an unsupported schema")
-    active = payload.get("activeChain")
-    if not isinstance(active, dict) or active.get("phase") != "active":
-        raise ReleaseGitError("release commit requires an active managed feature chain")
-    if active.get("activeLeaf") != branch:
-        raise ReleaseGitError("current feature branch is not the registered active leaf")
-
-    remote = active.get("remote")
-    expected_default = active.get("defaultBranch")
-    expected_default_head = active.get("defaultHead")
-    if not isinstance(remote, str) or not REMOTE_NAME_PATTERN.fullmatch(remote):
-        raise ReleaseGitError("registered branch-chain remote is invalid")
-    if not isinstance(expected_default, str) or not expected_default:
-        raise ReleaseGitError("registered remote default branch is invalid")
-    if not isinstance(expected_default_head, str) or not HEAD_PATTERN.fullmatch(
-        expected_default_head
-    ):
-        raise ReleaseGitError("registered remote default OID is invalid")
-    remotes = run_git(root, ["remote"]).stdout.splitlines()
-    if remote not in remotes:
-        raise ReleaseGitError("registered branch-chain remote is not configured")
-
-    snapshot = run_git(
-        root,
-        ["ls-remote", "--symref", remote, "HEAD", f"refs/heads/{branch}"],
-        check=False,
-    )
-    if snapshot.returncode != 0:
-        raise ReleaseGitError("cannot read the registered remote without interaction")
-    default_branch: str | None = None
-    default_head: str | None = None
-    leaf_head: str | None = None
-    for line in snapshot.stdout.splitlines():
-        fields = line.split("\t", 1)
-        if len(fields) != 2:
-            continue
-        value, ref = fields
-        if ref == "HEAD" and value.startswith("ref: refs/heads/"):
-            default_branch = value.removeprefix("ref: refs/heads/")
-        elif ref == "HEAD" and HEAD_PATTERN.fullmatch(value):
-            default_head = value
-        elif ref == f"refs/heads/{branch}" and HEAD_PATTERN.fullmatch(value):
-            leaf_head = value
-    if default_branch is None or default_head is None:
-        raise ReleaseGitError("registered remote HEAD is not an unambiguous branch")
-    if default_branch != expected_default or default_head != expected_default_head:
-        raise ReleaseGitError("remote default branch or OID changed after the chain was registered")
-    if branch in {"main", "master", "Release", default_branch}:
-        raise ReleaseGitError("registered active leaf resolves to a protected branch")
-    if leaf_head != previous_head:
-        raise ReleaseGitError("registered remote leaf must equal the reviewed local HEAD")
-    return active
-
-
 def normalize_approved_path(value: str) -> str:
     """拒绝绝对路径、Git pathspec magic、元数据和候选产物目录。"""
 
@@ -266,10 +196,11 @@ def normalize_approved_path(value: str) -> str:
         path.parts[0] == ".git"
         or path.parts[0] == "release"
         or path.parts[0].startswith(".release-clean.")
-        or path in {
-            PurePosixPath(".harness"),
-            PurePosixPath(".harness/git-branch-chain.json"),
-        }
+        or path == PurePosixPath(".harness")
+        or (
+            path.parts[0] == ".harness"
+            and path != PurePosixPath(".harness/release-context.json")
+        )
     ):
         raise ReleaseGitError(f"release metadata or Git internals cannot be approved: {value!r}")
     return path.as_posix()
@@ -354,11 +285,6 @@ def commit_approved(
     """在快照未变化时暂存精确路径、运行正常 hooks 提交，并要求最终 clean。"""
 
     root, previous_head, branch = resolve_repository(project_root)
-    if not FEATURE_BRANCH_PATTERN.fullmatch(branch):
-        raise ReleaseGitError(
-            "release commits are allowed only on the active feature-<summary>-<YYYYMMDD> leaf; "
-            "main, master, the remote default branch, and Release are read-only here"
-        )
     if not re.fullmatch(r"[0-9a-f]{64}", expected_status_sha256):
         raise ReleaseGitError("expected status SHA-256 must be 64 lowercase hexadecimal characters")
     if not message.strip() or "\0" in message:
@@ -375,23 +301,6 @@ def commit_approved(
         branch=branch,
     ) != expected_status_sha256:
         raise ReleaseGitError("working tree changed after review; inspect it again before committing")
-    read_active_chain(root, branch, previous_head)
-    current_status = status_bytes(root)
-    _, current_head, current_branch = resolve_repository(str(root))
-    if (
-        current_head != previous_head
-        or current_branch != branch
-        or repository_snapshot_digest(
-            root,
-            current_status,
-            head=current_head,
-            branch=current_branch,
-        )
-        != expected_status_sha256
-    ):
-        raise ReleaseGitError(
-            "working tree, branch, or HEAD changed during remote verification; inspect it again"
-        )
     if not before:
         raise ReleaseGitError("working tree is clean; refusing an empty release commit")
 

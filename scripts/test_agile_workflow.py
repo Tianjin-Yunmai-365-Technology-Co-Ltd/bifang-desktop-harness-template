@@ -378,7 +378,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             'title="{序号}|{Task简述}|已分配 |{功能摘要}"',
             "Task 描述记录不可变的 Task key",
             "稳定序号",
-            "显示标题与 Git slug 是两个事实",
+            "显示标题与 Git 摘要是两个事实",
             "user-owned Task/thread",
             "`list_projects`",
             "target.type = project",
@@ -387,7 +387,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             "git rev-parse --path-format=absolute --git-common-dir",
             "git worktree list --porcelain",
             "不硬编码 `main` 或 `master`",
-            "`codex/task-<task-slug>`",
+            "`$desktop-manage-git-lifecycle start --summary <feature-summary>`",
             "`git status --porcelain=v1 --untracked-files=all`",
             "不要自行合并默认/集成分支",
         ):
@@ -396,8 +396,8 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("每完成一个逻辑闭环", implement)
         self.assertIn("保存项目完整路径、`projectId`、repository identity", implement)
         self.assertIn("git rev-parse --path-format=absolute --git-common-dir", implement)
-        self.assertIn("`codex/task-*`", implement)
-        self.assertIn("Task 不自行合并默认分支", implement)
+        self.assertIn("从具名分支或 detached HEAD 直接创建并切换到", implement)
+        self.assertIn("用户明确说“推送”时才合并到主分支", implement)
         self.assertIn("只管理单个左侧 user-owned Task 内部", parallel)
         self.assertIn("不调用 `create_thread`，不创建新的左侧 Task", parallel)
         self.assertIn("不得把两个左侧 Task 安排进同一 Worktree", parallel)
@@ -454,8 +454,8 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("只拿到 `clientThreadId` 时无限等待", readme)
         self.assertIn("Worktree 路径必须位于保存项目目录内", readme)
 
-    def test_worktree_task_title_starts_assigned_and_keeps_git_slug_separate(self) -> None:
-        """Worktree 左侧 Task 以已分配派发，并让序号/标题与 Git ref 分离。"""
+    def test_worktree_task_title_starts_assigned_and_keeps_feature_summary_separate(self) -> None:
+        """Worktree 左侧 Task 以已分配派发，并让序号/标题与 feature 摘要分离。"""
         policy = read_repo_text("docs/AGENT_POLICY.md")
         readme = read_repo_text("README.md")
         implement = read_repo_text(
@@ -471,12 +471,15 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             ".agents/skills/desktop-initialize-rust-project/SKILL.md"
         )
 
-        for text in (policy, readme, implement, instantiate, initialize):
+        for text in (policy, readme, instantiate, initialize):
             self.assertIn('title="{序号}|{Task简述}|已分配 |{功能摘要}"', text)
             self.assertIn("Task key", text)
-            self.assertIn("task-slug", text)
+            self.assertIn("feature-summary", text)
+        self.assertIn('title="{序号}|{Task简述}|已分配 |{功能摘要}"', implement)
+        self.assertIn("Task key", implement)
+        self.assertIn("--summary <ascii-kebab>", implement)
         self.assertIn("不得把调用后才返回的 `threadId`/`clientThreadId` 写进序号或标题", policy)
-        self.assertIn("显示标题与 Git slug 是两个事实", policy)
+        self.assertIn("显示标题与 Git 摘要是两个事实", policy)
         self.assertIn("不靠标题承担身份判断", policy)
         self.assertIn("不靠标题判断身份", implement)
         self.assertIn("无前导零的正十进制整数", policy)
@@ -599,7 +602,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("候选事实只写入忽略的 `release/` 原子集合", rules)
         self.assertIn("不得复制到 tracked 项目记忆", rules)
         self.assertIn(
-            "真实渠道发布成功后，才从已发布的默认分支 closing commit 开始后续受管 feature 生命周期",
+            "真实渠道发布成功后，才从已发布且带版本 tag 的默认主分支开始下一次开发生命周期",
             rules,
         )
 

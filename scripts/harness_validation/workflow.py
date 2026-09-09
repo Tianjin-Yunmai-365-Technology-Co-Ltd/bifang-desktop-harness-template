@@ -16,18 +16,18 @@ from .workflow_contract import (
     UPLOAD_USE,
 )
 
-RELEASE_ENVELOPE_HELPER = (
-    WORKFLOW.parent.parent / "scripts" / "verify_release_envelope.py"
+RELEASE_CONTEXT_HELPER = (
+    WORKFLOW.parent.parent / "scripts" / "verify_release_context.py"
 )
 
 
-def validate_release_envelope_helper(
-    errors: list[str], helper: Path = RELEASE_ENVELOPE_HELPER
+def validate_release_context_helper(
+    errors: list[str], helper: Path = RELEASE_CONTEXT_HELPER
 ) -> None:
-    """要求离线候选信封验证器证明直接默认分支发布的最终远端快照。"""
+    """要求离线候选上下文验证器绑定动态默认分支、tag 与固定源码提交。"""
 
     if not helper.is_file():
-        fail(errors, f"missing release envelope helper: {display_path(helper)}")
+        fail(errors, f"missing release context helper: {display_path(helper)}")
         return
     try:
         text = helper.read_text(encoding="utf-8")
@@ -35,28 +35,27 @@ def validate_release_envelope_helper(
     except (OSError, UnicodeDecodeError, SyntaxError) as error:
         fail(
             errors,
-            f"cannot parse release envelope helper {display_path(helper)}: {error}",
+            f"cannot parse release context helper {display_path(helper)}: {error}",
         )
         return
 
     required_fragments = (
-        'if repository_default_branch not in {"main", "master"}:',
-        "if head != source_commit or branch != repository_default_branch:",
-        'if closed.get("releaseTarget") != "default":',
-        'if closed["defaultBranch"] != repository_default_branch:',
-        'default_ref = f"refs/remotes/origin/{repository_default_branch}"',
-        "if resolve_ref(root, default_ref) != source_commit:",
-        'if resolve_ref(root, "refs/remotes/origin/Release", missing_ok=True) is not None:',
-        'feature_ref = f"refs/remotes/origin/{entry[\'branch\']}"',
-        "if resolve_ref(root, feature_ref, missing_ok=True) is not None:",
-        '"releaseTarget": closed["releaseTarget"]',
-        '"defaultBranch": repository_default_branch',
+        'CONTEXT_PATH = Path(".harness/release-context.json")',
+        "def calculate_snapshot(",
+        "runner must check out the named repository default branch at source_commit",
+        "working release context bytes do not match source_commit",
+        "release context digest does not match the host-verified input",
+        'f"refs/remotes/origin/{repository_default_branch}"',
+        'f"refs/tags/{normalized[\'expectedTag\']}"',
+        '"releaseContextSha256": digest',
+        'choices=("capture", "verify")',
+        "release context changed between build checks",
     )
     for fragment in required_fragments:
         if fragment not in text:
             fail(
                 errors,
-                "release envelope helper direct-default gate missing: " + fragment,
+                "release context helper contract missing: " + fragment,
             )
 
 
@@ -128,10 +127,10 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "e2e_selection:",
         "E2E_SELECTION: ${{ inputs.e2e_selection }}",
         "e2e_selection 必须是 enabled 或 disabled",
-        "branch_chain_state_sha256:",
-        "BRANCH_CHAIN_STATE_SHA256: ${{ inputs.branch_chain_state_sha256 }}",
+        "release_context_sha256:",
+        "RELEASE_CONTEXT_SHA256: ${{ inputs.release_context_sha256 }}",
         "REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}",
-        "RELEASE_ENVELOPE_SNAPSHOT: ${{ runner.temp }}/release-envelope-snapshot.json",
+        "RELEASE_CONTEXT_SNAPSHOT: ${{ runner.temp }}/release-context-snapshot.json",
         '"cargo", "metadata", "--locked"',
         "未发现测试",
         "cargo test --workspace --all-targets --all-features --locked",
@@ -146,13 +145,12 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "fetch-depth: 0",
         "persist-credentials: false",
         "source_commit 必须是由小写十六进制字符组成的 40 字符 SHA",
-        'default_branch not in {"main", "master"}',
         "必须检出具名 GitHub 动态默认分支",
-        "verify_release_envelope.py capture",
-        "verify_release_envelope.py verify",
-        "--expected-state-sha256 \"$BRANCH_CHAIN_STATE_SHA256\"",
+        "verify_release_context.py capture",
+        "verify_release_context.py verify",
+        "--expected-context-sha256 \"$RELEASE_CONTEXT_SHA256\"",
         "--repository-default-branch \"$REPOSITORY_DEFAULT_BRANCH\"",
-        "--snapshot \"$RELEASE_ENVELOPE_SNAPSHOT\"",
+        "--snapshot \"$RELEASE_CONTEXT_SNAPSHOT\"",
         "测试后源码提交或 clean 状态发生变化",
         "候选验证需要 Python 3 运行时",
         '"$PYTHON_COMMAND" -',
@@ -163,7 +161,8 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         'releaseNotesVersion',
         'releaseNotesSha256',
         'releaseNotesPath',
-        'branchChainStateSha256',
+        'releaseContextSha256',
+        'releaseTag',
         'releaseReview',
         'candidateSelections',
         'reviewSelection',
@@ -208,7 +207,6 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "dist/",
         "path: release/",
         "ref: ${{ inputs.source_commit }}",
-        "ref: Release",
         "fetch-depth: 1",
         'mktemp -d "${GITHUB_WORKSPACE}/.release-clean.candidate.XXXXXX"',
         'Join-Path $env:GITHUB_WORKSPACE (".release-clean.candidate."',
@@ -308,31 +306,31 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     checkout_idx = first_line_index(CHECKOUT_USE)
     python_idx = first_named_step_index("选择 Python 运行时")
     source_verify_idx = first_named_step_index("验证已检出源码")
-    envelope_capture_idx = first_named_step_index("从 closing commit 捕获发布信封")
+    context_capture_idx = first_named_step_index("捕获已发布上下文")
     toolchain_idx = first_named_step_index("选择项目 MSRV")
     if (
         preflight_idx == -1
         or checkout_idx == -1
         or python_idx == -1
         or source_verify_idx == -1
-        or envelope_capture_idx == -1
+        or context_capture_idx == -1
         or toolchain_idx == -1
     ):
         fail(
             errors,
-            "workflow missing required candidate preflight/checkout/source/envelope/toolchain steps",
+            "workflow missing required candidate preflight/checkout/source/context/toolchain steps",
         )
     elif not (
         preflight_idx
         < checkout_idx
         < python_idx
         < source_verify_idx
-        < envelope_capture_idx
+        < context_capture_idx
         < toolchain_idx
     ):
         fail(
             errors,
-            "candidate preflight, named default-branch checkout and initial envelope capture must precede MSRV setup",
+            "candidate preflight, named default-branch checkout and initial context capture must precede MSRV setup",
         )
 
     def step_block(name: str = "", *, uses: str = "") -> list[str]:
@@ -392,7 +390,6 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         'subprocess.check_output(["git", "rev-parse", "HEAD"]',
         "observed != expected",
         'default_branch = os.environ["REPOSITORY_DEFAULT_BRANCH"]',
-        'default_branch not in {"main", "master"}',
         'subprocess.check_output(["git", "symbolic-ref", "--quiet", "--short", "HEAD"]',
         "branch != default_branch",
         '"status", "--porcelain=v1", "--untracked-files=all"',
@@ -412,26 +409,26 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         if required not in preflight_block:
             fail(errors, f"workflow candidate preflight missing current E2E choice gate: {required}")
 
-    envelope_helper = (
+    context_helper = (
         ".agents/skills/desktop-prepare-cross-platform-release/scripts/"
-        "verify_release_envelope.py"
+        "verify_release_context.py"
     )
     helper_arguments = (
         '--project-root "$GITHUB_WORKSPACE"',
         '--source-commit "$SOURCE_COMMIT"',
-        '--expected-state-sha256 "$BRANCH_CHAIN_STATE_SHA256"',
+        '--expected-context-sha256 "$RELEASE_CONTEXT_SHA256"',
         '--repository-default-branch "$REPOSITORY_DEFAULT_BRANCH"',
-        '--snapshot "$RELEASE_ENVELOPE_SNAPSHOT"',
+        '--snapshot "$RELEASE_CONTEXT_SNAPSHOT"',
     )
-    capture_block = "\n".join(step_block("从 closing commit 捕获发布信封"))
-    capture_command = f'"$PYTHON_COMMAND" {envelope_helper} capture'
+    capture_block = "\n".join(step_block("捕获已发布上下文"))
+    capture_command = f'"$PYTHON_COMMAND" {context_helper} capture'
     if capture_command not in capture_block:
-        fail(errors, "workflow initial envelope step must run the offline capture helper")
+        fail(errors, "workflow initial context step must run the offline capture helper")
     for argument in helper_arguments:
         if argument not in capture_block:
-            fail(errors, f"workflow initial envelope capture missing immutable binding: {argument}")
-    if semantic_text.count(envelope_helper) != 2:
-        fail(errors, "workflow must invoke the offline envelope helper exactly twice")
+            fail(errors, f"workflow initial context capture missing immutable binding: {argument}")
+    if semantic_text.count(context_helper) != 2:
+        fail(errors, "workflow must invoke the offline context helper exactly twice")
 
     prepare_indices = (
         first_named_step_index("准备 Unix 发布目录"),
@@ -524,19 +521,19 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         )
 
     manifest_block = "\n".join(step_block("记录候选清单"))
-    verify_command = f'"$PYTHON_COMMAND" {envelope_helper} verify'
+    verify_command = f'"$PYTHON_COMMAND" {context_helper} verify'
     if verify_command not in manifest_block:
-        fail(errors, "workflow manifest step must repeat the offline envelope verification")
+        fail(errors, "workflow manifest step must repeat the offline context verification")
     for argument in helper_arguments:
         if argument not in manifest_block:
-            fail(errors, f"workflow second envelope verification missing immutable binding: {argument}")
+            fail(errors, f"workflow second context verification missing immutable binding: {argument}")
     embedded_manifest_idx = manifest_block.find('"$PYTHON_COMMAND" - <<\'PY\'')
     if (
         verify_command not in manifest_block
         or embedded_manifest_idx == -1
         or manifest_block.find(verify_command) > embedded_manifest_idx
     ):
-        fail(errors, "workflow must verify the sealed envelopes immediately before manifest generation")
+        fail(errors, "workflow must verify the published context immediately before manifest generation")
     if '"milestoneAcceptance": "pending"' not in manifest_block:
         fail(errors, "workflow manifest step must actively record pending acceptance")
     for field in (
@@ -549,7 +546,8 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         '"releaseNotesVersion"',
         '"releaseNotesSha256"',
         '"releaseNotesPath"',
-        '"branchChainStateSha256": snapshot["branchChainStateSha256"]',
+        '"releaseContextSha256": snapshot["releaseContextSha256"]',
+        '"releaseTag": snapshot["expectedTag"]',
         '"releaseReview": review',
         '"candidateSelections": candidate_selections',
         '"reviewSelection": review["selection"]',
@@ -560,7 +558,9 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     for fragment in (
         'snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))',
         'snapshot.get("sourceCommit") != os.environ["SOURCE_COMMIT"]',
-        'snapshot.get("branchChainStateSha256") != os.environ["BRANCH_CHAIN_STATE_SHA256"]',
+        'snapshot.get("releaseContextSha256") != os.environ["RELEASE_CONTEXT_SHA256"]',
+        'snapshot.get("version") != os.environ["VERSION"]',
+        'snapshot.get("expectedTag") != expected_tag',
         'review = snapshot["releaseReview"]',
         'candidate_selections = snapshot["candidateSelections"]',
         'manifest["reviewedSourceCommit"] = review["reviewedSourceCommit"]',
@@ -573,7 +573,7 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         'manifest["reviewRemainingRisk"] = review["remainingRisk"]',
     ):
         if fragment not in manifest_block:
-            fail(errors, f"workflow manifest step missing sealed-envelope projection: {fragment}")
+            fail(errors, f"workflow manifest step missing release-context projection: {fragment}")
     for fragment in (
         'archive_name = os.environ["CANDIDATE_ARCHIVE"]',
         "observed_before != expected_before",
@@ -682,4 +682,4 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         if not expected_uploads.issubset(upload_lines):
             fail(errors, "workflow upload step must publish the exact declared archive/checksum/manifest paths")
 
-    validate_release_envelope_helper(errors)
+    validate_release_context_helper(errors)

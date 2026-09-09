@@ -191,12 +191,35 @@ class HarnessUpgradePlanTests(HarnessUpgradeTestCase):
         present = self.plan()
         for required_path in REQUIRED_MANAGED_CHECKERS:
             self.assertEqual("add", self.classification(present, required_path))
-        branch_state = ".harness/git-branch-chain.json"
-        self.assertFalse((self.candidate / branch_state).exists())
-        self.assertFalse((self.target / branch_state).exists())
+        release_context = ".harness/release-context.json"
+        self.assertFalse((self.candidate / release_context).exists())
+        self.assertFalse((self.target / release_context).exists())
         self.assertFalse(
-            any(item["path"] == branch_state for item in present["actions"]),
+            any(item["path"] == release_context for item in present["actions"]),
             present,
+        )
+
+    def test_release_context_is_a_protected_target_fact(self) -> None:
+        """升级保留下游发布上下文，并拒绝从 Harness 候选注入它。"""
+
+        release_context = ".harness/release-context.json"
+        self.bootstrap()
+        self.write(self.target, release_context, '{"release": "target"}\n')
+        target_only = self.plan()
+        self.assertFalse(
+            any(item["path"] == release_context for item in target_only["actions"]),
+            target_only,
+        )
+        self.assertEqual(
+            '{"release": "target"}\n',
+            (self.target / release_context).read_text(encoding="utf-8"),
+        )
+
+        self.write(self.candidate, release_context, '{"release": "source"}\n')
+        candidate = self.plan(expected=2)
+        self.assertEqual(
+            "protected_candidate",
+            self.classification(candidate, release_context),
         )
 
     def test_new_path_collision_blocks(self) -> None:

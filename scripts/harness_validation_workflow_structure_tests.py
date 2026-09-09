@@ -288,14 +288,10 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         self.assertTrue(any("source" in error for error in errors), errors)
 
     def test_rejects_weakened_dynamic_default_source_verification(self) -> None:
-        """源码预检必须同时锁定 main/master 值域、HEAD 输入和具名分支。"""
+        """源码预检必须锁定动态默认分支、HEAD 输入和具名 checkout。"""
 
         base = self._base_workflow()
         cases = {
-            "default allowlist": (
-                'default_branch not in {"main", "master"}',
-                "not default_branch",
-            ),
             "source commit": ("observed != expected", "not observed"),
             "named branch": ('branch != default_branch', 'branch != "main"'),
         }
@@ -308,51 +304,47 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
                     errors,
                 )
 
-    def test_rejects_weakened_direct_default_envelope_helper(self) -> None:
-        """离线 helper 不得放松默认 ref、Release 缺失或发布目标证明。"""
+    def test_rejects_weakened_release_context_helper(self) -> None:
+        """离线 helper 不得放松动态默认分支、上下文字节或版本 tag 证明。"""
 
-        helper = workflow.RELEASE_ENVELOPE_HELPER
+        helper = workflow.RELEASE_CONTEXT_HELPER
         source = helper.read_text(encoding="utf-8")
         cases = {
-            "default allowlist": (
-                'if repository_default_branch not in {"main", "master"}:',
-                "if not repository_default_branch:",
-            ),
             "named source": (
-                "if head != source_commit or branch != repository_default_branch:",
-                "if head != source_commit:",
+                "runner must check out the named repository default branch at source_commit",
+                "runner source checkout is accepted",
             ),
-            "release target": (
-                'if closed.get("releaseTarget") != "default":',
-                'if closed.get("releaseTarget") is None:',
+            "tracked context": (
+                "working release context bytes do not match source_commit",
+                "working release context accepted",
             ),
-            "closed default": (
-                'if closed["defaultBranch"] != repository_default_branch:',
-                'if closed["defaultBranch"] != "main":',
+            "context digest": (
+                "release context digest does not match the host-verified input",
+                "release context digest accepted",
             ),
             "remote default": (
-                "if resolve_ref(root, default_ref) != source_commit:",
-                'if resolve_ref(root, default_ref) != closed["defaultHead"]:',
+                'f"refs/remotes/origin/{repository_default_branch}"',
+                'f"refs/remotes/origin/main"',
             ),
-            "Release absence": (
-                'if resolve_ref(root, "refs/remotes/origin/Release", missing_ok=True) is not None:',
-                'if resolve_ref(root, "refs/remotes/origin/Release", missing_ok=True) is None:',
+            "release tag": (
+                'f"refs/tags/{normalized[\'expectedTag\']}"',
+                'f"refs/tags/latest"',
             ),
         }
         for label, (required, replacement) in cases.items():
             with self.subTest(label=label), tempfile.TemporaryDirectory() as tmp_dir:
                 self.assertIn(required, source)
-                candidate = Path(tmp_dir) / "verify_release_envelope.py"
+                candidate = Path(tmp_dir) / "verify_release_context.py"
                 candidate.write_text(source.replace(required, replacement, 1), encoding="utf-8")
                 errors: list[str] = []
-                workflow.validate_release_envelope_helper(errors, candidate)
+                workflow.validate_release_context_helper(errors, candidate)
                 self.assertTrue(
-                    any("direct-default gate missing" in error for error in errors),
+                    any("release context helper contract missing" in error for error in errors),
                     errors,
                 )
 
     def test_rejects_shallow_checkout(self) -> None:
-        """远端分支删除和 closing history 复核要求完整 fresh fetch。"""
+        """动态默认分支与版本 tag 复核要求完整 fresh fetch。"""
 
         base = self._base_workflow()
         mutated = base.replace("          fetch-depth: 0\n", "          fetch-depth: 1\n", 1)
@@ -360,29 +352,29 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         errors = self._validate(mutated)
         self.assertTrue(any("fetch-depth: 0" in error for error in errors), errors)
 
-    def test_rejects_missing_first_or_second_envelope_verification(self) -> None:
-        """测试前捕获与 manifest 前复核必须消费同一份离线双信封。"""
+    def test_rejects_missing_first_or_second_context_verification(self) -> None:
+        """测试前捕获与 manifest 前复核必须消费同一份发布上下文。"""
 
         base = self._base_workflow()
         capture_start, capture_end, _ = self._slice(
             base,
-            "      - name: 从 closing commit 捕获发布信封",
+            "      - name: 捕获已发布上下文",
             "      - name: 读取项目最低 Rust 版本",
         )
         without_capture = base[:capture_start] + base[capture_end:]
         errors = self._validate(without_capture)
-        self.assertTrue(any("envelope" in error for error in errors), errors)
+        self.assertTrue(any("context" in error for error in errors), errors)
 
-        verify_call = """          \"$PYTHON_COMMAND\" .agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_envelope.py verify \\
+        verify_call = """          \"$PYTHON_COMMAND\" .agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_context.py verify \\
             --project-root \"$GITHUB_WORKSPACE\" \\
             --source-commit \"$SOURCE_COMMIT\" \\
-            --expected-state-sha256 \"$BRANCH_CHAIN_STATE_SHA256\" \\
+            --expected-context-sha256 \"$RELEASE_CONTEXT_SHA256\" \\
             --repository-default-branch \"$REPOSITORY_DEFAULT_BRANCH\" \\
-            --snapshot \"$RELEASE_ENVELOPE_SNAPSHOT\"
+            --snapshot \"$RELEASE_CONTEXT_SNAPSHOT\"
 """
         self.assertIn(verify_call, base)
         errors = self._validate(base.replace(verify_call, "", 1))
-        self.assertTrue(any("repeat the offline envelope" in error for error in errors), errors)
+        self.assertTrue(any("repeat the offline context" in error for error in errors), errors)
 
     def test_rejects_worktree_internal_staging(self) -> None:
         """Unix 与 Windows 候选 staging 都必须位于 Git 根同级。"""
@@ -406,7 +398,7 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
                 errors = self._validate(mutated)
                 self.assertTrue(any(platform in error for error in errors), errors)
 
-    def test_rejects_manifest_without_either_sealed_envelope(self) -> None:
+    def test_rejects_manifest_without_release_context_projections(self) -> None:
         """manifest 必须逐项保留已复核的 review 与 candidate selections。"""
 
         base = self._base_workflow()

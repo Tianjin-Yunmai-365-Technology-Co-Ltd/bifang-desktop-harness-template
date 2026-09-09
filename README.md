@@ -35,7 +35,7 @@ Bifang Desktop Harness Template
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Worktree Task 以 `{序号}|{Task简述}|已分配 |{功能摘要}` 派发，并在自己的会话中更新真实进度，同时使用独立分支和可审查提交。
-- 在已有远端的下游中，为新需求、Bug 和维护自动建立串行 feature 分支链，提交后推送活动叶子；明确发布时把整链原子严格快进到动态默认 `main`/`master`、切回本地默认分支、精确清理状态登记链路并从该 clean closing commit 构建可追溯候选，不创建 `Release` 中转。GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
+- 为新功能和独立 Bug 修复自动创建本地开发分支；你明确说“推送”时，普通合并登记分支、切换并推送动态默认主分支；你明确说“发布”时，在主分支推送后创建并推送 `v{版本}-{YYYYMMDD}`，tag 成功后才删除两次发布之间登记的 Worktree、远端分支和本地分支。GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
 日常开发不会因为任务看起来复杂，就自动增加长计划、全仓检查、构建或端到端测试（E2E）。只有你明确要求，或者任务确实碰到安全、数据迁移、凭据、发布等风险时，才会进入相应流程。
@@ -43,7 +43,7 @@ Bifang Desktop Harness Template
 ## 它不会替你决定什么
 
 - 不会猜测产品要解决什么问题，也不会把中性脚手架当成已经完成的产品。
-- 不会配置远端或凭据，不会执行无精确 lease 的强制推送、创建标签、上传、发布到渠道或操作生产环境；唯一自动 Git 外部写入是既有远端上的受管 feature 叶子推送，以及明确发布时对动态默认分支和状态精确登记 feature refs 的受限原子操作。正常流程不扫描 `codex/*` 或其他分支；只对已冻结为活动链基线的 legacy `Release` 提供一次性精确迁移清理。
+- 不会配置远端或凭据，不会强制推送、通配扫描分支、上传制品、发布到渠道或操作生产环境；只有你明确说“推送”或“发布”时才更新主分支，且只有“发布”会创建版本 tag 并在 tag 推送成功后精确清理登记资源。流程没有保护分支、严格线性、原子 ref 事务或发布中转分支等分支门禁。
 - 不会为了“以后可能用到”预先加入业务、依赖或复杂架构。
 - 不会绕过安全、隐私、商业许可和分发渠道的硬要求。
 
@@ -73,12 +73,13 @@ Bifang Desktop Harness Template
 完成实例化并切换到终端下游根目录后，不需要记住整套流程，直接告诉 Agent 你想得到什么结果即可。例如：
 
 - “实现这个功能”或“修复这个问题”：使用 `$desktop-implement-change` 直接开发，并运行相关测试。
-- 新需求、Bug 或维护开始写入时：使用 `$desktop-manage-git-branch-chain` 从已推送的远端默认 `main`/`master` 或当前受管叶子建立 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`，写入 `.harness/git-branch-chain.json` 并推送；同一需求的继续修改复用当前叶子。`main`、`master` 和远端默认分支禁止日常写入，只有明确发布可受管快进该默认分支。
+- 新功能或独立 Bug 修复开始写入时：使用 `$desktop-manage-git-lifecycle` 在本地自动创建并切换到 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`，名称碰撞自动追加后缀；不要求项目已经配置远端。同一结果的继续修改复用当前登记分支。
+- “推送”：普通合并本发布周期登记的开发分支，切换到动态默认主分支并推送；不创建 tag，也不清理登记资源。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
 - “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 或性能选择。
-- “构建 CLI 发布候选”或“准备并构建发布”：先使用 `$desktop-prepare-release`；这个明确候选请求会解析本次选择，复核、提交并推送活动 feature 叶子，把登记的完整线性链严格快进到动态远端默认 `main`/`master`，以逐 ref lease 原子删除远端链路后切回本地默认分支并清理本地链路，再由 `$desktop-build-rust-release` 从该 clean closing commit 构建，不重复审批。
-- “构建桌面 GUI 发布候选”：同样先使用 `$desktop-prepare-release`，在关闭提交中封存本次审查、性能与 macOS 签名选择，再由 `$desktop-build-tauri-release` 只读消费；当前请求已经明确时直接复用，不写入通用持久偏好。
-- 普通“构建/打包/本地试包”不会自动升级为发布候选、提交、关闭分支链或修改默认分支；只有明确发布会自动完成上述默认分支快进、切换与精确链路清理。
+- “构建 CLI 发布候选”或“准备并构建发布”：先使用 `$desktop-prepare-release` 记录本次选择并提交发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并并推送主分支、创建并推送 `v{版本}-{YYYYMMDD}`，tag 复读成功后依次清理登记 Worktree、远端分支和本地分支，最后由 `$desktop-build-rust-release` 从带该 tag 的 clean 主分支构建。
+- “构建桌面 GUI 发布候选”：同样先使用 `$desktop-prepare-release`，在 `.harness/release-context.json` 中记录本次审查、性能与 macOS 签名选择，再由 `$desktop-build-tauri-release` 只读消费；当前请求已经明确时直接复用，不写入通用持久偏好。
+- 普通“构建/打包/本地试包”不会自动升级为发布候选、提交、推送或修改主分支；只有明确发布会自动执行 tag 前主分支推送和 tag 后精确清理。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
 
@@ -90,9 +91,9 @@ Bifang Desktop Harness Template
 
 ## 开发与构建边界
 
-日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；已有远端时由受管 feature 分支承载变更并在每个逻辑闭环后推送。新功能在当前正式发布周期首次完成时自动提升 Minor 并把 Patch 归零，直到真实发布成功前不再因功能重复提升；每个具有新稳定 ID 的问题修复或用户可感知优化都沿用 `bug-fix` 分类自动提升 Patch，且不受功能锁影响。不改变可观察行为的纯重构、文档或内部清理不会自动升级版本，也不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。
+日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前自动创建并切换到本周期登记的 feature 分支，用户明确说“推送”或“发布”时才统一普通合并并推送动态默认主分支。新功能在当前正式发布周期首次完成时自动提升 Minor 并把 Patch 归零，直到真实发布成功前不再因功能重复提升；每个具有新稳定 ID 的问题修复或用户可感知优化都沿用 `bug-fix` 分类自动提升 Patch，且不受功能锁影响。不改变可观察行为的纯重构、文档或内部清理不会自动升级版本，也不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。
 
-显式“发布候选”请求先由发布准备解析当次语义审查选择；GUI 还在关闭分支链前解析性能与 macOS 签名选择，并把它们封存进同一 closing commit。构建 Skill 只读校验并消费这些记录、把同一日志打入候选，只另外解析本次是否启用 E2E；记录缺失或适用性不符时失败关闭，不从对话补写或兜底询问。性能选择关闭且没有产品/渠道硬要求时跳过耗时探针，在 manifest 和最终回复记录 `performanceStatus: Not run` 与剩余风险；选择开启时才运行现有定量门禁。随后运行项目全部非空单元测试并构建。普通 Windows 本地安装试包是开发制品，不进入上述候选流程，也不要求发布日志或 clean HEAD。构建事实只写入适用的产物位置和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆。GUI 的活动选项卡、查询/筛选、排序和分页只在当前进程跨路由保留；只有成功查询的当前页大于 1 且为空时回退第 1 页。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
+显式“发布候选”请求先由发布准备解析当次语义审查选择；GUI 同轮解析性能与 macOS 签名选择，并把它们写入 `.harness/release-context.json`。发布生命周期完成主分支/tag 推送和登记资源清理后，构建 Skill 只读校验并消费这些记录、把同一日志打入候选，只另外解析本次是否启用 E2E；记录缺失或适用性不符时失败关闭，不从对话补写或兜底询问。性能选择关闭且没有产品/渠道硬要求时跳过耗时探针，在 manifest 和最终回复记录 `performanceStatus: Not run` 与剩余风险；选择开启时才运行现有定量门禁。随后运行项目全部非空单元测试并构建。普通 Windows 本地安装试包是开发制品，不进入上述候选流程，也不要求发布日志或 clean HEAD。构建事实只写入适用的产物位置和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆。GUI 的活动选项卡、查询/筛选、排序和分页只在当前进程跨路由保留；只有成功查询的当前页大于 1 且为空时回退第 1 页。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 
 Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/TUI/MCP/GUI 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在 GUI adapter，但其业务效果仍调用 core。维护者可运行 `python3 -B -m unittest discover -s scripts` 验证 Harness 的非空回归。
 
@@ -106,7 +107,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用真实 id 和 `projectId` 对账，并展示 `list_threads` 返回的规范化标题原文；执行 Task 可能已经推进标题进度，因此对账只要求序号、Task 简述、功能摘要三个稳定字段和四种合法进度字段，身份不依赖标题。Ready/Active/Blocked 等宿主状态不替代这四种标题进度；阻断时保留最后真实进度并在正文报告。
 
-只读 Task 可从用户明确起点或保存项目默认分支的已提交 HEAD 开始；会产生产品写入的 Ready Task 从已推送的活动 feature 叶子开始，在自己的 Worktree 和临时 `codex/task-*` 分支完成一组可审查提交，不自行合并或推送。显示标题与 Git ref 分离：独立 ASCII `task-slug` 只用于 `codex/task-<task-slug>`，不得把 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 原样当作分支名。为保持发布链严格线性，同一活动叶子同一时刻最多一个产品写入 Task，且该 Task 不再创建 sibling 写入 `codex/unit-*`；协调方使用 `$desktop-manage-git-branch-chain integrate-task` 在 clean、冻结 OID、同仓库 Worktree、远端未漂移和严格线性条件满足时只快进本地活动叶子，再以独立 `publish` 推送并复读，成功后下一个写入 Task 才从新 OID 开始。非活动链工作只有在用户明确要求并行且策略允许时，才使用 `$desktop-run-parallel-worktrees` 创建临时单元；只读 Subagent 始终可按需并行。这些 agent thread 同样使用统一会话标题，但不是新的左侧 Task，不调用 `create_thread`，也不以标题冒充项目/Worktree 身份。
+只读 Task 可从用户明确起点或保存项目默认主分支的已提交 HEAD 开始；会产生产品写入的 Ready Task 在自己的 Worktree 首次写入前调用 `$desktop-manage-git-lifecycle start`，即使初始为 detached HEAD，也会直接创建唯一临时 `feature-*` 分支并自动登记该 Worktree，随后完成一组可审查提交，不自行合并或推送主分支。只有在用户明确要求并行且策略允许时才创建内部 sibling Worktree，其临时分支使用 `codex/unit-*` 并通过 `track-worktree` 登记，各单元只要求写入所有权不重叠。显示标题与 Git ref 分离：独立 ASCII `feature-summary` 只传给 `start --summary`，不得把 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 原样当作分支名。用户要求推送或发布时统一普通合并。登记资源不会在 Task 完成时提前删除，而是在发布 tag 推送成功后统一按 Worktree、远端分支、本地分支清理。内部 Subagent/agent thread 同样使用统一会话标题，但不是新的左侧 Task，不调用 `create_thread`，也不以标题冒充项目/Worktree 身份。
 
 如果还使用全局 Task 提示词，可以继续保留“一结果一 Task、项目绑定、一次创建和不重复创建”，但不要再要求“生命周期阶段变化就拆 Task”“普通请求必须先建 Task0”“只拿到 `clientThreadId` 时无限等待”“Worktree 路径必须位于保存项目目录内”或“把 Ready/Active/Blocked 等宿主状态当作标题进度”。这些规则会分别造成过度拆分、setup 死锁、合法 Worktree 误判和状态语义混淆。
 
@@ -114,7 +115,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
 
-开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-branch-chain`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
+开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 
 构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-gui-release-performance`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
@@ -137,7 +138,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 - 产品规格：Approved
 - 具体产品源码：不包含
 
-版本的唯一事实来源是 [`Version.md`](Version.md)，采用上海时区 `YYYYMMDDHHMM`。模板版本和新项目自己的版本分开管理，不会互相覆盖。这里的 `Released` 表示当前模板时间版本已作为可用模板快照记录；不表示已经创建 Git 标签、源码归档、签名候选或可安装应用。
+版本的唯一事实来源是 [`Version.md`](Version.md)，采用上海时区 `YYYYMMDDHHMM`。模板版本和新项目自己的版本分开管理，不会互相覆盖。成功执行新的正式发布生命周期时会为该版本主分支提交创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名候选和可安装应用仍须各自真实形成后才能声称存在。
 
 ## 项目结构
 

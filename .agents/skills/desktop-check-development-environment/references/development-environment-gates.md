@@ -21,7 +21,7 @@
 
 | 环境 | 适用条件 | 探测命令 | 缺失或低于下界时行为 |
 |---|---|---|---|
-| Git | 始终 | `git --version` | 要求稳定版 `>=2.36.0`，以覆盖受管分支链使用的 `git worktree list --porcelain -z`；缺失时安装，低于 2.36.0 时升级。macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，然后重新探测。 |
+| Git | 始终 | `git --version` | 要求稳定版 `>=2.36.0`，以覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`；缺失时安装，低于 2.36.0 时升级。macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，然后重新探测。 |
 | Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | rustc/cargo 必须属于同一 stable minor 且都达到 MSRV；缺失时从已验证的官方 rustup 制品安装稳定版 Rust，可证明低于 MSRV 时升级 stable，然后重复全部探测。 |
 | MSVC Build Tools | Windows Rust 目标 | `cl`，随后使用 `vswhere` 查找 VC 工具组件 | 安装 Microsoft 已签名的 Visual Studio Build Tools C++ 工作负载，然后重新探测。 |
 | Node.js | 已选择 `GUI` | `node --version`、`npm --version` | 要求 `^24.15.0 || >=26.0.0` 且 npm 可解析；缺失、低于 24.15.0 或处于 25.x 时，从官方倒序索引选择第一个满足门禁的当前稳定版，验证宿主归档校验和后安装或升级并重新探测。25.x 按低于下一段允许下界 26.0.0 处理。 |

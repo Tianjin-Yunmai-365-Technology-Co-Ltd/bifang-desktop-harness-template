@@ -167,32 +167,12 @@ VERIFICATION_DOC = ROOT / "docs" / "VERIFICATION.md"
 PARALLEL_SKILL = SKILLS_ROOT / "desktop-run-parallel-worktrees"
 PARALLEL_WORKTREE_SCRIPT = PARALLEL_SKILL / "scripts" / "parallel_worktrees.py"
 PARALLEL_WORKTREE_TESTS = PARALLEL_SKILL / "scripts" / "test_parallel_worktrees.py"
-BRANCH_CHAIN_SKILL_ROOT = SKILLS_ROOT / "desktop-manage-git-branch-chain"
-BRANCH_CHAIN_SKILL = BRANCH_CHAIN_SKILL_ROOT / "SKILL.md"
-BRANCH_CHAIN_METADATA = BRANCH_CHAIN_SKILL_ROOT / "agents" / "openai.yaml"
-BRANCH_CHAIN_EMPTY_STATE = (
-    BRANCH_CHAIN_SKILL_ROOT / "assets" / "git-branch-chain.json"
-)
-BRANCH_CHAIN_SCRIPT = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "git_branch_chain.py"
-BRANCH_CHAIN_OPERATIONS = (
-    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_operations.py"
-)
-BRANCH_CHAIN_COMMIT = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_commit.py"
-BRANCH_CHAIN_CHECKS = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_checks.py"
-BRANCH_CHAIN_GIT = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_git.py"
-BRANCH_CHAIN_REMOTE = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_remote.py"
-BRANCH_CHAIN_STATE = BRANCH_CHAIN_SKILL_ROOT / "scripts" / "branch_chain_state.py"
-BRANCH_CHAIN_TESTS = (
-    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain.py"
-)
-BRANCH_CHAIN_RACE_TESTS = (
-    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain_race.py"
-)
-BRANCH_CHAIN_CONTRACT_TESTS = (
-    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain_contract.py"
-)
-BRANCH_CHAIN_VERSION_TESTS = (
-    BRANCH_CHAIN_SKILL_ROOT / "scripts" / "test_git_branch_chain_version.py"
+GIT_LIFECYCLE_SKILL_ROOT = SKILLS_ROOT / "desktop-manage-git-lifecycle"
+GIT_LIFECYCLE_SKILL = GIT_LIFECYCLE_SKILL_ROOT / "SKILL.md"
+GIT_LIFECYCLE_METADATA = GIT_LIFECYCLE_SKILL_ROOT / "agents" / "openai.yaml"
+GIT_LIFECYCLE_SCRIPT = GIT_LIFECYCLE_SKILL_ROOT / "scripts" / "git_lifecycle.py"
+GIT_LIFECYCLE_TESTS = (
+    GIT_LIFECYCLE_SKILL_ROOT / "scripts" / "test_git_lifecycle.py"
 )
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md"
@@ -213,6 +193,24 @@ RELEASE_GIT_HELPER = (
 )
 RELEASE_GIT_HELPER_TESTS = (
     SKILLS_ROOT / "desktop-prepare-release" / "scripts" / "test_release_git.py"
+)
+RELEASE_CONTEXT_HELPER = (
+    SKILLS_ROOT / "desktop-prepare-release" / "scripts" / "release_context.py"
+)
+RELEASE_CONTEXT_HELPER_TESTS = (
+    SKILLS_ROOT / "desktop-prepare-release" / "scripts" / "test_release_context.py"
+)
+CROSS_RELEASE_CONTEXT_HELPER = (
+    SKILLS_ROOT
+    / "desktop-prepare-cross-platform-release"
+    / "scripts"
+    / "verify_release_context.py"
+)
+CROSS_RELEASE_CONTEXT_HELPER_TESTS = (
+    SKILLS_ROOT
+    / "desktop-prepare-cross-platform-release"
+    / "scripts"
+    / "test_verify_release_context.py"
 )
 GUI_RELEASE_PERFORMANCE_HELPER = (
     SKILLS_ROOT
@@ -445,20 +443,10 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py",
     ".agents/skills/desktop-run-parallel-worktrees/scripts/test_parallel_worktrees.py",
-    ".agents/skills/desktop-manage-git-branch-chain/SKILL.md",
-    ".agents/skills/desktop-manage-git-branch-chain/agents/openai.yaml",
-    ".agents/skills/desktop-manage-git-branch-chain/assets/git-branch-chain.json",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/git_branch_chain.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_operations.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_commit.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_checks.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_git.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_remote.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/branch_chain_state.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_contract.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_race.py",
-    ".agents/skills/desktop-manage-git-branch-chain/scripts/test_git_branch_chain_version.py",
+    ".agents/skills/desktop-manage-git-lifecycle/SKILL.md",
+    ".agents/skills/desktop-manage-git-lifecycle/agents/openai.yaml",
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py",
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/test_git_lifecycle.py",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.sh",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.ps1",
     ".agents/skills/desktop-build-rust-release/scripts/test_prepare_release_directory.py",
@@ -477,6 +465,10 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-prepare-release/scripts/test_release_notes.py",
     ".agents/skills/desktop-prepare-release/scripts/release_git.py",
     ".agents/skills/desktop-prepare-release/scripts/test_release_git.py",
+    ".agents/skills/desktop-prepare-release/scripts/release_context.py",
+    ".agents/skills/desktop-prepare-release/scripts/test_release_context.py",
+    ".agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_context.py",
+    ".agents/skills/desktop-prepare-cross-platform-release/scripts/test_verify_release_context.py",
     ".agents/skills/desktop-test-gui-release-performance/SKILL.md",
     ".agents/skills/desktop-test-gui-release-performance/agents/openai.yaml",
     ".agents/skills/desktop-test-gui-release-performance/references/performance-evidence-schema.md",
@@ -610,7 +602,7 @@ EXPECTED_SKILLS = {
     "desktop-extract-i18n-strings",
     "desktop-implement-change",
     "desktop-manage-version",
-    "desktop-manage-git-branch-chain",
+    "desktop-manage-git-lifecycle",
     "desktop-initialize-rust-project",
     "desktop-instantiate-project",
     "desktop-plan-change",
