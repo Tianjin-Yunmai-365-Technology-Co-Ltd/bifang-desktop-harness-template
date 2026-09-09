@@ -759,6 +759,13 @@ class ValidateAgentPolicyTests(unittest.TestCase):
             "调用 `set_thread_title` 并省略 `threadId`",
             "按同一真实 id 比较宿主返回的规范化标题原文",
             "只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`",
+            "同一 `hostId` 与精确 `projectId`",
+            "`list_threads(limit=50)`",
+            "`list_archived_threads`",
+            "最大有效序号加 1",
+            "空历史才从 1 开始",
+            "缺号不回填",
+            "隐藏 Subagent 不占用项目序列",
             "内部 Subagent 取得执行权后的第一项 UI 动作",
             "`spawn_agent` 不提供显示标题参数",
             "内部单元 Worktree 本身没有独立 Session 标题",
@@ -991,6 +998,14 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
             "内部 Subagent、agent thread 和内部单元 Worktree 不执行该操作",
             "只更新进度后缀",
             "稳定三部分与合法四态后缀",
+            "普通当前 Session 没有可复用值时从 `1` 开始",
+            "当前 Session 没有可复用序号时使用 `1`",
+            "分别按该批次顺序从 `1` 分配",
+            "左侧 Task 与 Subagent 批次分别按派发顺序从 `1` 分配",
+            "按当前协调批次分配稳定序号",
+            "普通 Session 无既有值时从 `1` 开始",
+            "左侧 Task 与 Subagent 各自按当前派发批次顺序从 `1` 分配",
+            "序号只在当前 Session 或同一协调/派发批次内稳定",
         )
         for fragment in stale_fragments:
             with self.subTest(fragment=fragment), tempfile.TemporaryDirectory() as temporary:
@@ -1014,6 +1029,12 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
             "标题不再携带可变状态。",
             "当前调用 Session 与用户可见的 Worktree/Local 左侧 Task 统一使用 `{Task}|{序号}|{功能摘要}{当前进度}`。",
             "内部 agent 不套用。",
+            "普通当前 Session 没有可复用值时从 `1` 开始。",
+            "当前 Session 没有可复用序号时使用 `1`。",
+            "左侧 Task 与 Subagent 批次分别按派发顺序从 `1` 分配。",
+            "按当前协调批次分配稳定序号。",
+            "普通 Session 无既有值时从 `1` 开始。",
+            "左侧 Task 与 Subagent 各自按当前派发批次顺序从 `1` 分配。",
         )
         for claim in deprecated_claims:
             with self.subTest(claim=claim), tempfile.TemporaryDirectory() as temporary:

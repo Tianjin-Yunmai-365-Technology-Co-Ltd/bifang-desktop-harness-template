@@ -71,6 +71,14 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "内部 Subagent、agent thread 和内部单元 Worktree 不执行该操作",
         "只更新进度后缀",
         "稳定三部分与合法四态后缀",
+        "普通当前 Session 没有可复用值时从 `1` 开始",
+        "当前 Session 没有可复用序号时使用 `1`",
+        "分别按该批次顺序从 `1` 分配",
+        "左侧 Task 与 Subagent 批次分别按派发顺序从 `1` 分配",
+        "按当前协调批次分配稳定序号",
+        "普通 Session 无既有值时从 `1` 开始",
+        "左侧 Task 与 Subagent 各自按当前派发批次顺序从 `1` 分配",
+        "序号只在当前 Session 或同一协调/派发批次内稳定",
     )
     for path in paths:
         if not path.is_file():

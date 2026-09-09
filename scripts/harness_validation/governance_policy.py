@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from pathlib import Path
 
@@ -29,6 +30,42 @@ def is_valid_session_progress_title(title: str) -> bool:
         value and value == value.strip() and len(value.splitlines()) == 1
         for value in (match.group("task_summary"), match.group("feature_summary"))
     )
+
+
+def allocate_project_task_sequences(
+    records: Iterable[object],
+    *,
+    host_id: str,
+    project_id: str,
+    count: int = 1,
+) -> tuple[int, ...]:
+    """按同一宿主和项目的合法 Codex 标题分配连续递增序号。"""
+
+    for field_name, value in (("host_id", host_id), ("project_id", project_id)):
+        if not isinstance(value, str) or not value or value != value.strip():
+            raise ValueError(f"{field_name} must be a non-empty trimmed string")
+    if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
+        raise ValueError("count must be a positive integer")
+
+    highest_sequence = 0
+    for record in records:
+        if not isinstance(record, Mapping):
+            continue
+        if (
+            record.get("kind") != "codex"
+            or record.get("hostId") != host_id
+            or record.get("projectId") != project_id
+        ):
+            continue
+        title = record.get("title")
+        if not isinstance(title, str) or not is_valid_session_progress_title(title):
+            continue
+        match = SESSION_PROGRESS_TITLE_PATTERN.fullmatch(title)
+        if match is not None:
+            highest_sequence = max(highest_sequence, int(match.group("sequence")))
+
+    first_sequence = highest_sequence + 1
+    return tuple(range(first_sequence, first_sequence + count))
 
 
 def validate_agent_policy(
@@ -159,6 +196,13 @@ def validate_agent_policy(
         "稳定序号",
         "显示标题与 Git 摘要是两个事实",
         "不得根据返回 id 重新分配序号",
+        "同一 `hostId` 与精确 `projectId`",
+        "`list_threads(limit=50)`",
+        "`list_archived_threads`",
+        "最大有效序号加 1",
+        "空历史才从 1 开始",
+        "缺号不回填",
+        "隐藏 Subagent 不占用项目序列",
         "普通当前 Session 在首次形成三个稳定字段并开始处理时直接更新为 `运行中`",
         "每次真实进度转换至多尝试一次标题更新",
         "调用 `set_thread_title` 并省略 `threadId`",

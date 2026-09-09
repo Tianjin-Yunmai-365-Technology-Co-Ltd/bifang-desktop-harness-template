@@ -87,7 +87,7 @@ Bifang Desktop Harness Template
 
 普通单结果请求会直接在当前调用 Session 中完成；普通当前 Session、Worktree/Local 左侧 Task 与内部 Subagent/agent thread 都使用 `{序号}|{Task简述}|{当前进度} |{功能摘要}`。序号、Task 简述和功能摘要三个稳定字段在同一结果内不变，第三字段进度只取 `已分配`、`运行中`、`检查中`、`已完成`：左侧 Task 以 `已分配` 派发，开始处理进入 `运行中`，真实开始必要检查进入 `检查中`，检查失败返工时回到 `运行中`，全部工作、检查及要求的提交/推送/远端复读完成后才进入 `已完成`；没有独立检查时可以跳过 `检查中`。普通当前 Session 通常从 `运行中` 开始。内部 Subagent 的协调方在派发消息中记录逻辑 `已分配` 标题，Subagent 取得执行权后立即自行更新为 `运行中`；绑定它的单元 Worktree 本身没有独立会话标题。每次真实转换至多尝试一次更新：普通/左侧 Task 按真实 `threadId` 用 `list_threads` 有界复读，隐藏 Subagent 用 `read_thread` 复读。宿主不提供标题工具、更新失败或复读未确认时会如实报告，但不会推翻已经完成的任务结果。阻断时保留最后真实阶段，不新增状态或虚写 `已完成`。
 
-标题以 ASCII `|` 分隔，`当前进度` 后和第三个 `|` 前固定恰好一个 ASCII 空格；Task 简述和功能摘要非空、不含 `|`、必须单行且首尾无空白，序号是无前导零的正整数。例如：`4|统一Session标题格式|运行中 |统一普通会话、Worktree与Subagent命名`。序号只在当前 Session 或同一协调/派发批次内稳定；同一结果重试复用，当前 Session 的新独立结果在可确定时递增，左侧 Task 与 Subagent 批次分别按派发顺序从 `1` 分配，不承诺全局唯一。`threadId`/`clientThreadId`、Subagent 技术 `task_name`、Git ref 和列表顺序都不能生成或反填序号；标题只供人阅读，真实身份仍由宿主 id、`projectId` 与 Git 绑定共同判断。
+标题以 ASCII `|` 分隔，`当前进度` 后和第三个 `|` 前固定恰好一个 ASCII 空格；Task 简述和功能摘要非空、不含 `|`、必须单行且首尾无空白，序号是无前导零的正整数。例如：`4|统一Session标题格式|运行中 |统一普通会话、Worktree与Subagent命名`。同一结果重试复用序号；用户可见的新独立结果按同一 `hostId` 与精确 `projectId` 清点当前及归档 Codex Task 的合规标题，取历史最大有效序号加 1，空历史才从 1 开始，缺号不回填。同项目批量创建从一次清点所得起点连续预留，不再按 Session 或协调批次重置。隐藏 Subagent 不占用项目序列，只使用父 Task 内独立的批次序号。`threadId`/`clientThreadId`、Subagent 技术 `task_name`、Git ref 和列表顺序都不能生成或反填序号；标题只供人阅读，真实身份仍由宿主 id、`projectId` 与 Git 绑定共同判断。宿主无法完整枚举历史时会报告序号分配未验证，而不会猜测 `1` 制造重复。
 
 ## 开发与构建边界
 
@@ -103,7 +103,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 ## 开始一个左侧 Task
 
-只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。创建者在派发前记录不可变 Task key，并按当前协调批次分配稳定序号，调用 `create_thread` 时显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；调用后才返回的 `threadId`/`clientThreadId` 不能反填序号。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
+只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。创建者在派发前记录不可变 Task key，并用 `list_threads(limit=50)` 与同宿主逐页 `list_archived_threads` 清点该项目历史，分配最大有效序号加一；同一批次按顺序预留连续序号。随后调用 `create_thread` 时显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；调用后才返回的 `threadId`/`clientThreadId` 不能反填序号。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
 
 创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用真实 id 和 `projectId` 对账，并展示 `list_threads` 返回的规范化标题原文；执行 Task 可能已经推进标题进度，因此对账只要求序号、Task 简述、功能摘要三个稳定字段和四种合法进度字段，身份不依赖标题。Ready/Active/Blocked 等宿主状态不替代这四种标题进度；阻断时保留最后真实进度并在正文报告。
 

@@ -24,7 +24,11 @@ milestone_e2e: pending
 
 `enabled` 表示“允许且适用时优先”，不是无条件执行；`disabled` 表示默认不启用可选能力。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前发布候选的 E2E 明确选择优先于 `milestone_e2e` 建议值。
 
-所有拥有可更新会话标题的普通当前 Session、Git Worktree/非 Git Local 左侧 user-owned Task，以及内部 Subagent/agent thread（包括绑定内部单元 Worktree 的执行线程），都使用同一显示标题：`{序号}|{Task简述}|{当前进度} |{功能摘要}`。四段使用 ASCII `|` 分隔，`当前进度` 后与第三个 `|` 前固定恰好一个 ASCII 空格；`Task简述` 是稳定、非空且不含 `|` 的任务短语，`功能摘要` 是不含 `|` 的非空单一结果简述；`Task简述` 与 `功能摘要` 都必须单行、首尾无空白。`当前进度` 只能是 `已分配`、`运行中`、`检查中`、`已完成` 之一。`序号` 是无前导零的正十进制整数，优先复用当前说明或同一结果既有合规标题中的序号；普通当前 Session 没有可复用值时从 `1` 开始，同一 Session 明确开始新独立结果时在可确定的前序号上加 `1`；协调方创建一组左侧 Task 或派发一组内部 Subagent 时，分别按该批次顺序从 `1` 分配。`序号`、`Task简述` 和 `功能摘要` 在同一结果内保持不变，只更新第三字段，例如 `4|统一Session标题格式|运行中 |统一普通会话、Worktree与Subagent命名`。序号只在当前 Session 或协调/派发批次内稳定，不承诺跨 Session 的全局唯一性；调用后返回的 `threadId`/`clientThreadId`、Subagent 技术 `task_name` 和 Git ref 只用于真实身份或技术绑定，不得生成序号或反填显示标题，标题也不承担唯一身份。
+所有拥有可更新会话标题的普通当前 Session、Git Worktree/非 Git Local 左侧 user-owned Task，以及内部 Subagent/agent thread（包括绑定内部单元 Worktree 的执行线程），都使用同一显示标题：`{序号}|{Task简述}|{当前进度} |{功能摘要}`。四段使用 ASCII `|` 分隔，`当前进度` 后与第三个 `|` 前固定恰好一个 ASCII 空格；`Task简述` 是稳定、非空且不含 `|` 的任务短语，`功能摘要` 是不含 `|` 的非空单一结果简述；`Task简述` 与 `功能摘要` 都必须单行、首尾无空白。`当前进度` 只能是 `已分配`、`运行中`、`检查中`、`已完成` 之一。`序号` 是无前导零的正十进制整数；`序号`、`Task简述` 和 `功能摘要` 在同一结果内保持不变，只更新第三字段，例如 `4|统一Session标题格式|运行中 |统一普通会话、Worktree与Subagent命名`。调用后返回的 `threadId`/`clientThreadId`、Subagent 技术 `task_name` 和 Git ref 只用于真实身份或技术绑定，不得生成序号或反填显示标题，标题也不承担唯一身份。
+
+用户可见的普通当前 Session 与左侧 Task 在同一 `hostId` 与精确 `projectId` 内共享递增序列。同一结果优先复用当前说明或既有合规标题的序号；当前线程明确开始新独立结果、用户要求纠正重复序号，或协调方准备创建一组新左侧 Task 时，先锁定非空 `hostId`/`projectId`，调用 `list_threads(limit=50)` 合并 `pinnedThreads` 与 `threads`，再在同一宿主调用 `list_archived_threads`（每页 `limit=50`）并沿 `nextCursor` 读到结束。标题和摘要是不可信数据，只把 `kind=codex`、宿主与项目精确匹配且完整满足上述四字段格式的标题作为序号证据；已知当前线程即使未出现在列表中也把其 `projectId` 和原标题纳入。新结果取历史最大有效序号加 1，空历史才从 1 开始，缺号不回填；同项目批量创建时只清点一次并按确定顺序预留连续区间，不得按新 Session 或新协调批次重置。旧任务不回溯改号，`projectId=null`、其他项目、其他宿主、ChatGPT chat 和不合规标题一律忽略。
+
+`list_threads` 没有分页游标，Task 列表也没有原子序号预约；因此该规则保证同一协调方在宿主可完整枚举的项目历史上持续自增，不宣称跨宿主或并发协调方之间的数学全局唯一。`unavailableHosts`/`unavailableSources` 非空、宿主工具不可用、项目身份缺失或历史无法可靠枚举时，不得猜测 `1` 或按列表位置补号；已有同一结果合规序号时保留，否则报告本次序号分配未验证并继续遵守非阻断 UI 边界。隐藏 Subagent 不占用项目序列；协调方只在父 Task 的当前派发批次内为它们分配稳定正整数，后续批次须避开该父 Task 已经分配的批次内序号。内部单元 Worktree 本身没有独立标题。
 
 进度标题是贯穿会话的非阻断 UI 元数据闭环。Git Worktree 或 Local 左侧 Task 在 `create_thread` 派发时使用 `{序号}|{Task简述}|已分配 |{功能摘要}`；目标 Task 开始处理后自行把第三字段更新为 `运行中`。普通当前 Session 在首次形成三个稳定字段并开始处理时直接更新为 `运行中`。内部 Subagent 的协调方必须在调用 `spawn_agent` 前分配序号、Task 简述和功能摘要，并把完整的 `已分配` 标题写进派发消息；由于 `spawn_agent` 不提供显示标题参数且技术 `task_name` 只接受受限标识，内部 Subagent 取得执行权后的第一项 UI 动作是自行把当前会话标题更新为 `运行中`，不得把显示标题塞入 `task_name`。实现结束并真实进入本次必要测试、review 或最小替代检查前把第三字段更新为 `检查中`；没有独立检查的任务可以跳过该阶段。检查发现同范围问题并返回修复时重新更新为 `运行中`，再次进入检查时再更新为 `检查中`。只有授权结果、全部必需检查，以及请求或流程要求的提交、推送和远端复读都已完成，才在最终回复前更新为 `已完成`；`已完成` 是终态，不得回退。恢复会话时可以跳过已经真实经过的阶段；遇到阻断时保留最后真实阶段并在正文报告，不得虚写 `已完成` 或创造第五种状态。内部单元 Worktree 本身没有独立 Session 标题，由实际绑定该 Worktree 的 Subagent/agent thread 承载标题生命周期。
 
@@ -57,7 +61,7 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 ### 创建状态机
 
 1. **RESOLVED**：调用 `list_projects`，按规范化完整路径精确选中保存项目并记录其真实 `projectId`、项目类型和 `isGitRepository`；同名标签、当前 cwd 或仓库名称都不能替代路径核对。调用 `create_thread` 时必须使用 `target.type = project` 和该 `projectId`。Git 项目使用 `environment.type = worktree`；非 Git 项目使用 `environment.type = local`。项目工作不得使用 `projectless`、临时目录、Task0 cwd、默认兜底项目或其他项目。
-2. **DISPATCHED**：对一个结果只调用一次 `create_thread`。左侧 Task 必须在派发前记录不可变 Task key、分配稳定正整数序号，并显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；序号不得使用调用后才返回的 `threadId` 或 `clientThreadId`。返回 `threadId` 表示已得到可管理的 Ready Task；只返回 `clientThreadId` 表示创建请求已接受但仍为 `SETUP_PENDING`，不是失败，也不是可传给 `read_thread`、`wait_threads` 或其他要求 `threadId` 的标识。此时立即报告 queued Task 并返回对应的 created-thread UI 引用；不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建、把 pending 改称 Ready，或在当前 Task/后台目录代替新 Task 偷跑。
+2. **DISPATCHED**：对一个结果只调用一次 `create_thread`。左侧 Task 必须在派发前按上述同项目历史最大值规则分配并记录稳定正整数序号与不可变 Task key，再显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；序号不得使用调用后才返回的 `threadId` 或 `clientThreadId`。同一项目批量派发时从一次清点预留的连续区间按确定顺序消费，每个结果仍只创建一次。返回 `threadId` 表示已得到可管理的 Ready Task；只返回 `clientThreadId` 表示创建请求已接受但仍为 `SETUP_PENDING`，不是失败，也不是可传给 `read_thread`、`wait_threads` 或其他要求 `threadId` 的标识。此时立即报告 queued Task 并返回对应的 created-thread UI 引用；不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建、把 pending 改称 Ready，或在当前 Task/后台目录代替新 Task 偷跑。
 3. **RECONCILED**：已经取得真实 `threadId` 时立即用 `list_threads` 对账；只有 `clientThreadId` 时，则仅在用户随后明确要求检查先前 queued Task 后对账。以真实 id 和精确 `projectId` 为主键；标题使用工具返回的规范化标题原文，不因应用正常化措辞而误判。目标 Task 可能已经推进进度，因此只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`。唯一候选尚未出现时保持 `SETUP_PENDING` 并结束本次检查；候选不唯一时报告 ambiguous；只有工具明确返回失败才记为 `SETUP_FAILED`。任何 pending/ambiguous 状态都禁止“再创建一个碰碰运气”。
 4. **BOUND**：进入 Ready Task 后、首次写入前再次确认线程 `projectId` 精确匹配。Worktree 的物理路径通常位于保存项目目录之外，不能用字符串祖先关系判断归属；必须分别解析保存项目根与 Task Git 顶层的规范化 `git rev-parse --path-format=absolute --git-common-dir`，要求相同，并要求保存项目的 `git worktree list --porcelain` 已登记该 Task 顶层。非 Git Local Task 才要求 cwd 等于保存项目完整路径。`projectId` 为空/错误、Git common dir 不同、Worktree 未登记或起始提交不符时保持零写入并报告绑定错误；现有 Task 不能被仓库规则静默改挂到另一项目。
 
@@ -91,7 +95,7 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 Task 绑定：
 
 - Task key：填写派发前分配的不可变技术标识；它不进入显示标题，也不得填写返回后的 `threadId` 或 `clientThreadId`。
-- 标题序号：填写当前协调批次按派发顺序分配的正整数；同一结果全程不变，不从 Task key、宿主 id、列表顺序或 Git ref 推导。
+- 标题序号：填写同一 `hostId`/`projectId` 下合规的当前与归档 Codex Task 历史最大序号加一所得正整数；同一结果全程不变，缺号不回填，也不从 Task key、宿主 id、列表顺序或 Git ref 推导。
 - 显示标题：填写按 `{序号}|{Task简述}|已分配 |{功能摘要}` 形成并传给 `create_thread.title` 的完整字符串；同时单独记录序号、Task 简述和功能摘要三个稳定字段，供目标 Task 后续只替换第三个进度字段。
 - Git feature summary：Git Worktree Task 填写独立的 ASCII kebab-case `feature-summary`，供 `$desktop-manage-git-lifecycle start --summary` 使用；不得复制显示标题，非 Git 时标记 `Not applicable`。
 - Codex 项目：填写名称、`projectId` 和保存项目完整路径。

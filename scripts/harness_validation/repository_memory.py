@@ -20,6 +20,12 @@ def validate_current_changelog_contract(errors: list[str], changelog: Path) -> N
         "标题不再携带可变状态",
         "当前调用 Session 与用户可见的 Worktree/Local 左侧 Task 统一使用 `{Task}|{序号}|{功能摘要}{当前进度}`",
         "内部 agent 不套用",
+        "普通当前 Session 没有可复用值时从 `1` 开始",
+        "当前 Session 没有可复用序号时使用 `1`",
+        "左侧 Task 与 Subagent 批次分别按派发顺序从 `1` 分配",
+        "按当前协调批次分配稳定序号",
+        "普通 Session 无既有值时从 `1` 开始",
+        "左侧 Task 与 Subagent 各自按当前派发批次顺序从 `1` 分配",
     )
     for deprecated in deprecated_claims:
         if deprecated in text:

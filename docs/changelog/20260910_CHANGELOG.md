@@ -1,6 +1,8 @@
-# 2026-09-09 变更记录
+# 2026-09-10 变更记录
 
 ## 新增
+
+- `HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT`（所需 Harness 版本 `pending`，等待下一次时间版本发布物化）：同一宿主、同一保存项目中的用户可见普通 Session 与左侧 Task 不再因新 Session 或新协调批次把序号重置为 1。新独立结果现在合并当前、pinned 与归档 Codex Task 的合规四字段标题，取历史最大有效序号加一；空历史才使用 1，缺号不回填，同项目批量创建连续预留。其他宿主/项目/kind、`projectId=null` 与畸形标题不会污染序列；历史无法可靠枚举时不猜 1。隐藏 Subagent 使用父 Task 内的独立批次序号且不占用侧栏项目序列。Agent Policy、README、Product Spec、实施/并行/初始化 Skills、标准库分配器和回归门禁已同步；截图所示项目的既有最大值为 4，当前任务已纠正为 5。
 
 - `HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`（所需 Harness 版本 `pending`，等待下一次时间版本发布物化）：Git 自动化已收敛为 `$desktop-manage-git-lifecycle`。新功能和独立 Bug 修复首次写入前自动创建并切换本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}`；Codex Task Worktree 即使从 detached HEAD 开始，也由同一次 `start` 直接建立 feature 分支并自动登记 Worktree，建分支不要求远端。用户明确“推送”时，普通合并本周期登记分支、切换动态默认主分支并推送，保留资源且不创建 tag；用户明确“发布”时，先完成同样的主分支推送，再创建并推送 `v{版本}-{YYYYMMDD}`，远端 tag 复读成功后才依次删除本周期登记 Worktree、远端分支和本地分支。状态只保存在 Git common dir，由同一 common-dir 短时互斥防止并行 Task 覆盖登记，并逐项记录重试进度；tag 失败零清理，未登记资源永不删除。旧分支链技能、tracked 状态、保护主分支、active leaf、单写入者、严格线性、fast-forward-only、lease、atomic ref 事务、closing commit/信封和所有发布中转分支兼容代码均已删除；候选选择改由 `.harness/release-context.json` 记录并由带 tag 的 clean 主分支构建。
 

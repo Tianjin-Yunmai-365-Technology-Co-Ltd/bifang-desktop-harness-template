@@ -551,6 +551,16 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("隐藏 Subagent 不出现在 `list_threads` 时改用", policy)
         self.assertIn("内部单元 Worktree 本身没有独立 Session 标题", policy)
         self.assertIn("不得把该字符串改塞进受限技术 `task_name`", parallel)
+        for text in (policy, readme, product_spec, implement, instantiate, initialize):
+            self.assertIn("同一 `hostId` 与精确 `projectId`", text)
+            self.assertIn("`list_threads(limit=50)`", text)
+            self.assertIn("`list_archived_threads`", text)
+            self.assertIn("最大有效序号加 1", text)
+            self.assertIn("空历史才从 1 开始", text)
+            self.assertIn("缺号不回填", text)
+            self.assertIn("隐藏 Subagent 不占用项目序列", text)
+        self.assertIn("隐藏 Subagent 不占用用户可见的项目序列", parallel)
+        self.assertIn("追加批次必须避开该父 Task 已经分配的序号", parallel)
         self.assertEqual(
             governance_policy.SESSION_PROGRESS_TITLE_TEMPLATE,
             "{序号}|{Task简述}|{当前进度} |{功能摘要}",
@@ -592,6 +602,111 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
                 governance_policy.is_valid_session_progress_title(invalid),
                 invalid,
             )
+
+    def test_project_task_sequences_increment_from_active_and_archived_history(self) -> None:
+        """项目序号取同宿主同项目合法历史最大值，不回填缺号。"""
+
+        active_records = [
+            {
+                "kind": "codex",
+                "hostId": "local",
+                "projectId": "project-a",
+                "title": "1|首个任务|已完成 |建立标题契约",
+            },
+            {
+                "kind": "codex",
+                "hostId": "local",
+                "projectId": "project-a",
+                "title": "2|第二个任务|运行中 |继续项目工作",
+            },
+            {
+                "kind": "codex",
+                "hostId": "other-host",
+                "projectId": "project-a",
+                "title": "91|其他宿主|已完成 |不得参与分配",
+            },
+            {
+                "kind": "codex",
+                "hostId": "local",
+                "projectId": "project-b",
+                "title": "92|其他项目|已完成 |不得参与分配",
+            },
+            {
+                "kind": "chatgpt",
+                "hostId": "local",
+                "projectId": "project-a",
+                "title": "93|其他类型|已完成 |不得参与分配",
+            },
+        ]
+        archived_records = [
+            {
+                "kind": "codex",
+                "hostId": "local",
+                "projectId": "project-a",
+                "title": "4|归档任务|已完成 |保留项目历史最大值",
+            },
+            active_records[1],
+            {
+                "kind": "codex",
+                "hostId": "local",
+                "projectId": "project-a",
+                "title": "03|前导零|已完成 |畸形标题必须忽略",
+            },
+            {
+                "kind": "codex",
+                "hostId": "local",
+                "projectId": "project-a",
+                "title": "100|字段不足|已完成",
+            },
+            {"kind": "codex", "hostId": "local", "projectId": "project-a"},
+            "not-a-record",
+        ]
+
+        records = [*active_records, *archived_records]
+        self.assertEqual(
+            governance_policy.allocate_project_task_sequences(
+                records,
+                host_id="local",
+                project_id="project-a",
+            ),
+            (5,),
+        )
+        self.assertEqual(
+            governance_policy.allocate_project_task_sequences(
+                records,
+                host_id="local",
+                project_id="project-a",
+                count=3,
+            ),
+            (5, 6, 7),
+        )
+        self.assertEqual(
+            governance_policy.allocate_project_task_sequences(
+                [],
+                host_id="local",
+                project_id="project-a",
+            ),
+            (1,),
+        )
+
+    def test_project_task_sequence_allocator_rejects_invalid_scope_or_count(self) -> None:
+        """宿主、项目和批次数量必须能形成明确的正向分配范围。"""
+
+        invalid_arguments = (
+            {"host_id": "", "project_id": "project-a", "count": 1},
+            {"host_id": " local", "project_id": "project-a", "count": 1},
+            {"host_id": None, "project_id": "project-a", "count": 1},
+            {"host_id": "local", "project_id": "", "count": 1},
+            {"host_id": "local", "project_id": "project-a ", "count": 1},
+            {"host_id": "local", "project_id": 7, "count": 1},
+            {"host_id": "local", "project_id": "project-a", "count": 0},
+            {"host_id": "local", "project_id": "project-a", "count": -1},
+            {"host_id": "local", "project_id": "project-a", "count": True},
+            {"host_id": "local", "project_id": "project-a", "count": 1.5},
+        )
+        for arguments in invalid_arguments:
+            with self.subTest(arguments=arguments), self.assertRaises(ValueError):
+                governance_policy.allocate_project_task_sequences([], **arguments)
 
     def test_build_does_not_create_project_memory(self) -> None:
         """候选事实只进入忽略的原子集合，发布后才写 tracked 记忆。"""

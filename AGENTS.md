@@ -36,7 +36,7 @@
 
 - `superpowers: disabled` 时不得调用或遵循任何 `superpowers:*` Skill；其他持久能力只表示允许，不能替代当前任务的触发条件或授权。
 - 日常开发直接实施，只增加并运行本次需要的相关非空单元/回归测试；纯文档、元数据或机械变更只做解析或差异完整性所需的最小检查。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
-- 普通当前 Session、Worktree/Local 左侧 Task 与内部 Subagent/agent thread 按 `docs/AGENT_POLICY.md` 使用 `{序号}|{Task简述}|{当前进度} |{功能摘要}`，每次进入 `已分配`、`运行中`、`检查中`、`已完成` 的真实转换至多尝试一次更新；普通/左侧 Task 按真实 `threadId` 用 `list_threads` 有界复读，隐藏 Subagent 改用 `read_thread`。返工后再次进入同名阶段属于新的真实转换；失败必须报告但不阻断已经完成的任务结果，也不得虚写 `已完成`。
+- 普通当前 Session、Worktree/Local 左侧 Task 与内部 Subagent/agent thread 按 `docs/AGENT_POLICY.md` 使用 `{序号}|{Task简述}|{当前进度} |{功能摘要}`。同一 `hostId` 与精确 `projectId` 的用户可见新结果先用 `list_threads(limit=50)` 和同宿主逐页 `list_archived_threads` 清点当前与归档合规标题，再从最大有效序号继续递增，空历史才用 1、缺号不回填；隐藏 Subagent 不占用项目序列。每次进入 `已分配`、`运行中`、`检查中`、`已完成` 的真实转换至多尝试一次更新；普通/左侧 Task 按真实 `threadId` 用 `list_threads` 有界复读，隐藏 Subagent 改用 `read_thread`。返工后再次进入同名阶段属于新的真实转换；失败必须报告但不阻断已经完成的任务结果，也不得虚写 `已完成`。
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、渠道硬要求、签名、发布和跨平台最终候选必须进入对应专用门禁；精简上下文不降低授权、失败关闭或真正不可逆交付所需的人工签署。非必要语义审查不得混入日常开发，明确发布时才按当次 `reviewSelection` 询问并执行。
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/TUI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。

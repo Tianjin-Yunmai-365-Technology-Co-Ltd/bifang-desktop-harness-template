@@ -29,7 +29,7 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
    ```
 
    helper 要求保存项目 primary、source registry/branch、common-dir、外部普通目录容器和干净且已提交的 source HEAD 全部匹配；从 source HEAD 创建单元并把不可变身份、基线和所有权登记在 Git common-dir。单元 Worktree 建立成功后，helper 必须立即调用项目内 `$desktop-manage-git-lifecycle` 的 `scripts/git_lifecycle.py track-worktree --project-root <absolute-project-root> --worktree <absolute-unit-worktree>`，由该 helper 自行解析并登记精确具名分支。登记返回非零状态时，以稳定错误 `lifecycle_worktree_tracking_failed` 失败，回滚本次新建的单元状态、Worktree、分支与空容器，不能留下未登记资源。绝不得自动暂存、贮藏或提交用户修改。
-5. 把 `create` 返回的精确 `worktreePath` 和 ownership 交给对应内部 Subagent。协调方在调用 `spawn_agent` 前还必须按本次派发顺序分配正整数序号，定义非空 Task 简述与功能摘要，并在消息中写入完整逻辑初始标题 `{序号}|{Task简述}|已分配 |{功能摘要}`；`spawn_agent` 不提供显示标题参数，因此不得把该字符串改塞进受限技术 `task_name`。Subagent 取得执行权后先按统一规则把自己的会话更新为 `运行中`，检查和完成时只更新第三字段。Agent 不是独占仓库；它必须把所有文件命令和编辑限定在该 Worktree，保留其他 Agent 的改动，不扩大所有权。在任何编辑、暂存或提交前，从单元精确 cwd 运行：
+5. 把 `create` 返回的精确 `worktreePath` 和 ownership 交给对应内部 Subagent。隐藏 Subagent 不占用用户可见的项目序列；协调方在调用 `spawn_agent` 前按确定的派发顺序分配父 Task 批次内正整数序号，追加批次必须避开该父 Task 已经分配的序号，定义非空 Task 简述与功能摘要，并在消息中写入完整逻辑初始标题 `{序号}|{Task简述}|已分配 |{功能摘要}`；`spawn_agent` 不提供显示标题参数，因此不得把该字符串改塞进受限技术 `task_name`。Subagent 取得执行权后先按统一规则把自己的会话更新为 `运行中`，检查和完成时只更新第三字段。Agent 不是独占仓库；它必须把所有文件命令和编辑限定在该 Worktree，保留其他 Agent 的改动，不扩大所有权。在任何编辑、暂存或提交前，从单元精确 cwd 运行：
 
    ```text
    python3 <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py guard --project-root <absolute-project-root> --source-worktree <absolute-source-worktree> --task <task> --unit <unit> --write-target <intended-path> [--write-target <intended-path> ...]
