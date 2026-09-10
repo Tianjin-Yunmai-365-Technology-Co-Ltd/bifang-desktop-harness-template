@@ -29,7 +29,7 @@ from scripts.harness_validation_test_support import (
 
 
 class AgentPolicyTests(unittest.TestCase):
-    """覆盖独立 Task 环境选择、推荐预设与自定义策略的 schema v2 物化。"""
+    """覆盖可选 user-owned Task、推荐预设与自定义策略的 schema v2 物化。"""
 
     @staticmethod
     def _current_policy() -> str:
@@ -64,12 +64,12 @@ class AgentPolicyTests(unittest.TestCase):
                 raise AssertionError(f"policy field was not replaced: {field}")
         return resolved
 
-    def test_recommended_values_and_independent_task_environment_are_valid(self) -> None:
-        """推荐四项与独立 Task 环境合并后通过下游 fail-closed 校验。"""
+    def test_recommended_values_default_user_owned_tasks_off(self) -> None:
+        """推荐预设默认关闭自动 user-owned Task，并通过下游校验。"""
         resolved = self._resolved_policy(
             {
                 "superpowers": "disabled",
-                "left_git_task_worktree": "enabled",
+                "user_owned_tasks": "disabled",
                 "parallel_worktree_subagents": "enabled",
                 "milestone_smoke": "enabled",
                 "milestone_e2e": "disabled",
@@ -81,11 +81,11 @@ class AgentPolicyTests(unittest.TestCase):
         """Harness 源策略必须在下游选择前保持 Superpowers 默认关闭。"""
         self.assertRegex(self._current_policy(), r"(?m)^superpowers: disabled$")
 
-    def test_source_leaves_task_worktree_choice_pending(self) -> None:
-        """Harness 源不得代替下游用户确认左侧 Git Task 环境。"""
+    def test_source_defaults_user_owned_tasks_to_disabled(self) -> None:
+        """Harness 源默认不自动创建或拆分左侧 user-owned Task。"""
         self.assertRegex(
             self._current_policy(),
-            r"(?m)^left_git_task_worktree: pending$",
+            r"(?m)^user_owned_tasks: disabled$",
         )
 
     def test_source_default_validator_rejects_enabled_superpowers(self) -> None:
@@ -103,11 +103,11 @@ class AgentPolicyTests(unittest.TestCase):
         )
         self.assertTrue(any("default superpowers to disabled" in error for error in errors))
 
-    def test_source_default_validator_rejects_preselected_task_environment(self) -> None:
-        """模板源必须保留初始化必问，不能预先替用户开启或关闭 Task Worktree。"""
+    def test_source_default_validator_rejects_enabled_user_owned_tasks(self) -> None:
+        """模板源不能静默开启自动 user-owned Task。"""
         mutated = self._current_policy().replace(
-            "left_git_task_worktree: pending",
-            "left_git_task_worktree: enabled",
+            "user_owned_tasks: disabled",
+            "user_owned_tasks: enabled",
             1,
         )
         errors = run_validator_on_tempfile(
@@ -117,7 +117,7 @@ class AgentPolicyTests(unittest.TestCase):
             require_source_defaults=True,
         )
         self.assertTrue(
-            any("leave left_git_task_worktree pending" in error for error in errors),
+            any("default user_owned_tasks to disabled" in error for error in errors),
             errors,
         )
 
@@ -126,7 +126,7 @@ class AgentPolicyTests(unittest.TestCase):
         resolved = self._resolved_policy(
             {
                 "superpowers": "enabled",
-                "left_git_task_worktree": "disabled",
+                "user_owned_tasks": "enabled",
                 "parallel_worktree_subagents": "disabled",
                 "milestone_smoke": "disabled",
                 "milestone_e2e": "enabled",
@@ -276,12 +276,12 @@ class InitializationFormContractTests(unittest.TestCase):
                 "目标平台",
                 "接口组合",
                 "Agent 策略模式",
-                "`left_git_task_worktree`",
             ],
         )
         self.assertEqual(
             [field.strip() for _, stage, field in rows if stage == "条件补全"],
             [
+                "`user_owned_tasks`",
                 "`superpowers`",
                 "`parallel_worktree_subagents`",
                 "`milestone_smoke`",
@@ -329,7 +329,7 @@ class InitializationFormContractTests(unittest.TestCase):
             initialize,
         )
         self.assertIn(
-            "选择自定义后，每轮只询问一个目标用户尚未明确提供的条件字段",
+            "选择自定义后，每轮只询问一个尚未明确提供的策略字段",
             initialize,
         )
 
@@ -402,11 +402,11 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         ):
             self.assertIn(heading, policy)
         for fragment in (
-            "{序号}|{Task简述}|{当前进度} |{功能摘要}",
-            'title="{序号}|{Task简述}|已分配 |{功能摘要}"',
-            "Task 描述记录不可变的 Task key",
-            "稳定序号",
-            "显示标题与 Git 摘要是两个事实",
+            "Task {序号} | {当前进度} | {单一结果}",
+            'title="Task {序号} | 已分配 | {单一结果}"',
+            "Task 描述记录稳定 Task 编号",
+            "单一结果",
+            "显示标题与 Git 摘要互不推导",
             "user-owned Task/thread",
             "`list_projects`",
             "target.type = project",
@@ -426,7 +426,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("git rev-parse --path-format=absolute --git-common-dir", implement)
         self.assertIn("从具名分支或 detached HEAD 直接创建并切换到", implement)
         self.assertIn("用户明确说“推送”时才合并到主分支", implement)
-        self.assertIn("只管理单个左侧 user-owned Task 内部", parallel)
+        self.assertIn("只管理当前 Task 内部", parallel)
         self.assertIn("不调用 `create_thread`，不创建新的左侧 Task", parallel)
         self.assertIn("不得把两个左侧 Task 安排进同一 Worktree", parallel)
         self.assertIn("`codex/unit-<task>-<unit>`", parallel)
@@ -460,27 +460,28 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             self.assertIn("`threadId`", text)
             self.assertIn("`list_projects`", text)
             self.assertIn("`projectId`", text)
-        self.assertIn("对一个结果只调用一次 `create_thread`", policy)
-        self.assertIn("立即报告 queued Task", policy)
-        self.assertIn("不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建", policy)
-        self.assertIn("用户随后明确要求检查先前 queued Task", policy)
-        self.assertIn("只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`", policy)
-        self.assertIn("不得使用 `projectless`", policy)
-        self.assertIn("Git common dir 不同", policy)
+        self.assertIn("对一个结果只调用一次 user-owned `create_thread`", policy)
+        self.assertIn("必须报告 queued 并保持零实现", policy)
+        self.assertIn("不得声称 Ready", policy)
+        self.assertIn("禁止创建重复 Task 碰运气", policy)
+        self.assertIn("Task 编号与单一结果必须保持不变", policy)
+        self.assertIn("不得使用 projectless", policy)
+        self.assertIn("git rev-parse --path-format=absolute --git-common-dir", policy)
 
-    def test_left_task_is_split_by_outcome_not_lifecycle_or_status(self) -> None:
-        """标题可反映进度，但诊断、实现和证明仍不得按阶段拆 Task。"""
+    def test_left_task_is_split_when_fixed_result_boundary_changes(self) -> None:
+        """启用时按结果边界拆 Task，同结果证明与修复留在原 Task。"""
         policy = read_repo_text("docs/AGENT_POLICY.md")
         readme = read_repo_text("README.md")
 
-        self.assertIn("不得只因生命周期阶段变化自动拆 Task", policy)
-        self.assertIn("普通单结果请求不先创建所谓 Task0", policy)
+        self.assertIn("`user_owned_tasks: disabled` 是默认状态", policy)
+        self.assertIn("`enabled` 是长期授权", policy)
+        self.assertIn("生命周期阶段变化", policy)
+        self.assertIn("用于证明当前结果的测试、review、checkpoint", policy)
         self.assertIn("`已分配`、`运行中`、`检查中`、`已完成`", policy)
-        self.assertIn("Ready/Active/Blocked 等宿主状态不替代这四种标题进度", readme)
-        self.assertIn("只有用户明确要求创建新的左侧 Task", policy)
-        self.assertIn("生命周期阶段变化就拆 Task", readme)
-        self.assertIn("只拿到 `clientThreadId` 时无限等待", readme)
-        self.assertIn("Worktree 路径必须位于保存项目目录内", readme)
+        self.assertIn("用户仍可明确要求创建左侧 Task", policy)
+        self.assertIn("生命周期阶段", readme)
+        self.assertIn("`clientThreadId` 表示仍在 setup", readme)
+        self.assertIn("物理路径无需位于保存项目目录内", readme)
 
     def test_worktree_task_title_starts_assigned_and_keeps_feature_summary_separate(self) -> None:
         """Worktree 左侧 Task 以已分配派发，并让序号/标题与 feature 摘要分离。"""
@@ -500,26 +501,21 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         )
 
         for text in (policy, readme, instantiate, initialize):
-            self.assertIn('title="{序号}|{Task简述}|已分配 |{功能摘要}"', text)
-            self.assertIn("Task key", text)
-            self.assertIn("feature-summary", text)
-        self.assertIn('title="{序号}|{Task简述}|已分配 |{功能摘要}"', implement)
-        self.assertIn("Task key", implement)
+            self.assertIn("Task {序号} | {当前进度} | {单一结果}", text)
+        self.assertIn('title="Task {序号} | 已分配 | {单一结果}"', policy)
+        self.assertIn("feature-summary", policy)
+        self.assertIn("Task {序号} | 已分配 | {单一结果}", implement)
         self.assertIn("--summary <ascii-kebab>", implement)
-        self.assertIn("不得把调用后才返回的 `threadId`/`clientThreadId` 写进序号或标题", policy)
-        self.assertIn("显示标题与 Git 摘要是两个事实", policy)
-        self.assertIn("不靠标题承担身份判断", policy)
-        self.assertIn("不靠标题判断身份", implement)
-        self.assertIn("无前导零的正十进制整数", policy)
-        self.assertIn(
-            "不得把 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 显示标题原样传给",
-            parallel,
-        )
-        self.assertIn("不得把自己称为新的左侧 Task", parallel)
-        self.assertIn("在消息中写入完整逻辑初始标题", parallel)
+        self.assertIn("不得生成 Task 编号或反填标题", policy)
+        self.assertIn("显示标题与 Git 摘要互不推导", policy)
+        self.assertIn("标题不承担身份判断", policy)
+        self.assertIn("不靠标题承担身份", implement)
+        self.assertIn("无前导零的正十进制序号", policy)
+        self.assertIn("不得把父 Task 显示标题传给 `spawn_agent.task_name`", parallel)
+        self.assertIn("隐藏 Subagent 不占用用户可见项目序列", parallel)
 
-    def test_session_worktree_and_subagent_titles_follow_one_progress_contract(self) -> None:
-        """普通 Session、左侧 Task 与 Subagent 共用四字段四态标题。"""
+    def test_only_user_owned_tasks_use_the_progress_title_contract(self) -> None:
+        """左侧 user-owned Task 使用三字段四态标题，内部 Subagent 不使用。"""
 
         policy = read_repo_text("docs/AGENT_POLICY.md")
         agents = read_repo_text("AGENTS.md")
@@ -548,77 +544,54 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             instantiate,
             initialize,
         ):
-            self.assertIn("{序号}|{Task简述}|{当前进度} |{功能摘要}", text)
-            self.assertTrue(
-                any(
-                    fragment in text
-                    for fragment in (
-                        "不阻断已完成",
-                        "不阻断已经完成",
-                        "不会推翻已经完成",
-                        "不得推翻已经完成",
-                        "不推翻已经完成",
-                        "不改变实现和测试的完成结论",
-                    )
-                ),
-                text,
-            )
-        self.assertIn("每次真实进度转换至多尝试一次标题更新", policy)
-        self.assertIn("调用 `set_thread_title` 并省略 `threadId`", policy)
-        self.assertIn("按同一真实 id 比较宿主返回的规范化标题原文", policy)
-        self.assertIn("保持三个稳定字段并把第三字段更新为 `检查中`", implement)
+            self.assertIn("Task {序号} | {当前进度} | {单一结果}", text)
+
+        self.assertIn("用户可见 Task 的标题唯一使用", policy)
+        self.assertIn("内部 Subagent 不使用本标题合同、不占用 Task 序号", policy)
+        self.assertIn("内部单元 Worktree 本身没有左侧 Task 标题", policy)
+        self.assertIn("每次真实转换至多尝试一次", policy)
+        self.assertIn("set_thread_title", policy)
+        self.assertIn("用真实 `threadId` 调用 `list_threads` 有界复读", policy)
+        self.assertIn("标题进度更新为 `检查中`", implement)
         self.assertIn("更新为终态 `已完成`", implement)
-        self.assertIn('title="{序号}|{Task简述}|已分配 |{功能摘要}"', policy)
-        self.assertIn("`Task简述` 是稳定、非空且不含 `|`", policy)
-        self.assertIn("`序号`、`Task简述` 和 `功能摘要` 在同一结果内保持不变，只更新第三字段", policy)
-        self.assertIn("不得根据返回 id 重新分配序号", policy)
-        self.assertIn("检查发现同范围问题并返回修复时重新更新为 `运行中`", policy)
-        self.assertIn("请求或流程要求的提交、推送和远端复读都已完成", policy)
-        self.assertIn("遇到阻断时保留最后真实阶段", policy)
-        self.assertIn("内部 Subagent 取得执行权后的第一项 UI 动作", policy)
-        self.assertIn("隐藏 Subagent 不出现在 `list_threads` 时改用", policy)
-        self.assertIn("内部单元 Worktree 本身没有独立 Session 标题", policy)
-        self.assertIn("不得把该字符串改塞进受限技术 `task_name`", parallel)
+        self.assertIn("不受 `user_owned_tasks` 开关控制", parallel)
+        self.assertIn("不调用 `create_thread`，不创建新的左侧 Task", parallel)
+        self.assertIn("隐藏 Subagent 不占用用户可见项目序列", parallel)
+
         for text in (policy, readme, product_spec, implement, instantiate, initialize):
             for fragment in governance_policy.PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS:
                 self.assertIn(fragment, text)
-        self.assertIn("隐藏 Subagent 不占用用户可见的项目序列", parallel)
-        self.assertIn("追加批次必须避开该父 Task 已经分配的序号", parallel)
+
         self.assertEqual(
             governance_policy.SESSION_PROGRESS_TITLE_TEMPLATE,
-            "{序号}|{Task简述}|{当前进度} |{功能摘要}",
+            "Task {序号} | {当前进度} | {单一结果}",
         )
         self.assertEqual(
             governance_policy.SESSION_PROGRESS_TITLE_INITIAL,
-            "{序号}|{Task简述}|已分配 |{功能摘要}",
+            "Task {序号} | 已分配 | {单一结果}",
         )
 
         for progress in governance_policy.SESSION_PROGRESS_STATES:
             self.assertTrue(
                 governance_policy.is_valid_session_progress_title(
-                    f"23|同步GitHub|{progress} |拉取并推送所有变更"
+                    f"Task 23 | {progress} | 拉取并推送所有变更"
                 ),
                 progress,
             )
         for invalid in (
-            "0|同步GitHub|已分配 |拉取并推送所有变更",
-            "01|同步GitHub|运行中 |拉取并推送所有变更",
-            "同步GitHub|23|运行中 |拉取并推送所有变更",
-            "23|同步GitHub|检查中|拉取并推送所有变更",
-            "23|同步GitHub|检查中  |拉取并推送所有变更",
-            "23|同步GitHub|已阻塞 |拉取并推送所有变更",
-            "23||已完成 |拉取并推送所有变更",
-            "23|同步GitHub|已完成 |",
-            "23| 同步GitHub|已完成 |拉取并推送所有变更",
-            "23|同步GitHub |已完成 |拉取并推送所有变更",
-            "23|同步GitHub|已完成 | 拉取并推送所有变更",
-            "23|同步GitHub|已完成 |拉取并推送所有变更 ",
-            "23|同步|GitHub|已完成 |拉取并推送所有变更",
-            "23|同步\nGitHub|已完成 |拉取并推送所有变更",
-            "23|同步\u2028GitHub|已完成 |拉取并推送所有变更",
-            "23|同步GitHub|已完成 |拉取\u0085并推送所有变更",
-            "23|同步GitHub|已完成 |拉取\u2029并推送所有变更",
-            "同步GitHub|23|拉取并推送所有变更已完成",
+            "Task 0 | 已分配 | 拉取并推送所有变更",
+            "Task 01 | 运行中 | 拉取并推送所有变更",
+            "Task 23|运行中|拉取并推送所有变更",
+            "Task 23 | 已阻塞 | 拉取并推送所有变更",
+            "Task 23 | 已完成 | ",
+            "Task 23 | 已完成 |  拉取并推送所有变更",
+            "Task 23 | 已完成 | 拉取并推送所有变更 ",
+            "Task 23 | 已完成 | 拉取|推送所有变更",
+            "Task 23 | 已完成 | 拉取\n并推送所有变更",
+            "Task 23 | 已完成 | 拉取\u2028并推送所有变更",
+            "Task 23 | 已完成 | 拉取\u2029并推送所有变更",
+            "Task 23 | 已完成 | 拉取\u0085并推送所有变更",
+            "23|同步GitHub|已完成 |拉取并推送所有变更",
             "同步任务已完成",
         ):
             self.assertFalse(
@@ -633,17 +606,20 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             return {"kind": kind, "hostId": host_id, "projectId": project_id, "title": title}
 
         active_records = [
-            record("1|首个任务|已完成 |建立标题契约"),
-            record("2|第二个任务|运行中 |继续项目工作"),
-            record("91|其他宿主|已完成 |不得参与分配", host_id="other-host"),
-            record("92|其他项目|已完成 |不得参与分配", project_id="project-b"),
-            record("93|其他类型|已完成 |不得参与分配", kind="chatgpt"),
+            record("Task 1 | 已完成 | 建立标题契约"),
+            record("Task 2 | 运行中 | 继续项目工作"),
+            record("Task 91 | 已完成 | 不得参与分配", host_id="other-host"),
+            record("Task 92 | 已完成 | 不得参与分配", project_id="project-b"),
+            record("Task 93 | 已完成 | 不得参与分配", kind="chatgpt"),
         ]
         archived_records = [
+            # 旧四字段标题只为已有项目延续序号，不再是当前合法标题。
             record("4|归档任务|已完成 |保留项目历史最大值"),
             active_records[1],
-            record("03|前导零|已完成 |畸形标题必须忽略"),
-            record("100|字段不足|已完成"),
+            record("Task 03 | 已完成 | 畸形标题必须忽略"),
+            record("Task 100 | 已完成"),
+            record("90| 非法旧标题|已完成 |不得参与分配"),
+            record("89|非法旧标题|已完成 |不得参与分配 "),
             record(None),
             "not-a-record",
         ]

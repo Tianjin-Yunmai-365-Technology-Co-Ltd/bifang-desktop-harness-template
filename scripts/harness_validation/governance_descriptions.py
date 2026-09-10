@@ -79,6 +79,7 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
         "普通 Session 无既有值时从 `1` 开始",
         "左侧 Task 与 Subagent 各自按当前派发批次顺序从 `1` 分配",
         "序号只在当前 Session 或同一协调/派发批次内稳定",
+        "{序号}|{Task简述}|{当前进度} |{功能摘要}",
     )
     for path in paths:
         if not path.is_file():

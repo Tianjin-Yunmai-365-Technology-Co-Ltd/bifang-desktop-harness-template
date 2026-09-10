@@ -747,34 +747,34 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         """Harness 源可以保留尚待下游首次确认的 pending。"""
         self.assertEqual(self._validate(self._current_policy()), [])
 
-    def test_rejects_incomplete_session_progress_title_contract(self) -> None:
-        """策略必须保留统一格式、四态、阶段更新与真实身份复读。"""
+    def test_rejects_incomplete_user_owned_task_contract(self) -> None:
+        """策略必须保留默认关闭、结果边界、创建门禁与三字段标题。"""
 
         policy = self._current_policy()
         required = (
-            "`{序号}|{Task简述}|{当前进度} |{功能摘要}`",
-            "`已分配`、`运行中`、`检查中`、`已完成`",
-            'title="{序号}|{Task简述}|已分配 |{功能摘要}"',
-            "无前导零的正十进制整数",
-            "`Task简述` 与 `功能摘要` 都必须单行、首尾无空白",
-            "`序号`、`Task简述` 和 `功能摘要` 在同一结果内保持不变，只更新第三字段",
-            "每次真实进度转换至多尝试一次标题更新",
-            "调用 `set_thread_title` 并省略 `threadId`",
-            "按同一真实 id 比较宿主返回的规范化标题原文",
-            "只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`",
+            "`user_owned_tasks`：控制是否由 Agent 自动把新结果拆到 Codex 左侧菜单",
+            "`user_owned_tasks: disabled` 是默认状态",
+            "用户仍可明确要求创建左侧 Task",
+            "`enabled` 是长期授权",
+            "一个用户可见 Task 只对应一个明确、可验收的结果",
+            "交付物类型变化、生命周期阶段变化",
+            "每个项目同一时间只允许一个写入型 active 用户可见 Task",
+            "Task0 可以协调和派发，但不得代替实施 Task 写入",
+            "`Task {序号} | {当前进度} | {单一结果}`",
+            'title="Task {序号} | 已分配 | {单一结果}"',
             *PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
-            "内部 Subagent 取得执行权后的第一项 UI 动作",
-            "`spawn_agent` 不提供显示标题参数",
-            "内部单元 Worktree 本身没有独立 Session 标题",
-            "隐藏 Subagent 不出现在 `list_threads` 时改用 `read_thread`",
-            "只有授权结果、全部必需检查，以及请求或流程要求的提交、推送和远端复读都已完成，才在最终回复前更新为 `已完成`",
-            "遇到阻断时保留最后真实阶段并在正文报告，不得虚写 `已完成` 或创造第五种状态",
-            "`已完成` 是终态",
+            "内部 Subagent 不使用本标题合同、不占用 Task 序号",
+            "取得真实 `threadId`",
+            "只返回 `clientThreadId` 表示仍在 setup",
+            "保持零实现",
+            "开启左侧 Task",
+            "关闭左侧 Task",
+            "`parallel_worktree_subagents` 只控制当前 Task 内部",
         )
         for fragment in required:
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, policy)
-                errors = self._validate(policy.replace(fragment, "已删除标题契约"))
+                errors = self._validate(policy.replace(fragment, "已删除用户可见 Task 契约"))
                 self.assertTrue(
                     any("Agent policy persistence rule missing" in error for error in errors),
                     errors,
@@ -783,7 +783,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
     def test_rejects_missing_preference_field(self) -> None:
         """五项选择缺失任一字段都必须失败。"""
         mutated = self._current_policy().replace(
-            "left_git_task_worktree: pending\n", "", 1
+            "user_owned_tasks: disabled\n", "", 1
         )
         errors = self._validate(mutated)
         self.assertTrue(any("fields mismatch" in error for error in errors), errors)
@@ -812,7 +812,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         resolved = self._current_policy()
         for field in (
             "superpowers",
-            "left_git_task_worktree",
+            "user_owned_tasks",
             "parallel_worktree_subagents",
             "milestone_smoke",
             "milestone_e2e",
@@ -829,7 +829,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         resolved = resolved.replace("confirmed_at: pending", "confirmed_at: 2026-02-30", 1)
         for field in (
             "superpowers",
-            "left_git_task_worktree",
+            "user_owned_tasks",
             "parallel_worktree_subagents",
             "milestone_smoke",
             "milestone_e2e",
@@ -1007,6 +1007,7 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
             "普通 Session 无既有值时从 `1` 开始",
             "左侧 Task 与 Subagent 各自按当前派发批次顺序从 `1` 分配",
             "序号只在当前 Session 或同一协调/派发批次内稳定",
+            "{序号}|{Task简述}|{当前进度} |{功能摘要}",
         )
         for fragment in stale_fragments:
             with self.subTest(fragment=fragment), tempfile.TemporaryDirectory() as temporary:
@@ -1051,8 +1052,9 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "current.md"
             path.write_text(
-                "历史 `{Task}|{序号}|{功能摘要}{当前进度}` 已被 "
-                "`{序号}|{Task简述}|{当前进度} |{功能摘要}` 取代。",
+                "历史 `{序号}|{Task简述}|{当前进度} |{功能摘要}` "
+                "仅用于序号兼容，当前合同为 "
+                "`Task {序号} | {当前进度} | {单一结果}`。",
                 encoding="utf-8",
             )
             errors = []

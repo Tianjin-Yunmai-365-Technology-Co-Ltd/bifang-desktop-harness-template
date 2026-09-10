@@ -7,20 +7,20 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
 
 将一个左侧 Task 内部的写入批次拆为可见进度、隔离工作树和可审查结果，不得丢失用户修改，也不得把必需工作留在后台。
 
-本 Skill 只管理单个左侧 user-owned Task 内部的 Subagent 单元。它不调用 `create_thread`，不创建新的左侧 Task，也不替代 `docs/AGENT_POLICY.md` 的保存项目/`projectId`、setup 和父 Worktree Task 的 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 显示标题。内部 agent thread 与单元 Worktree 仍属于当前 Task，但每个拥有会话的 Subagent 同样把自己的显示标题更新为该统一格式；这不使它成为左侧 Task。宿主技术 `task_name`、`codex/unit-*` 与显示标题继续分离，内部单元 Worktree 本身没有独立 Session 标题，由绑定它的 Subagent 承载。父 Task 自行反映整体进度；不得把两个左侧 Task 安排进同一 Worktree，也不得用单元分支替代创建时登记的 source 分支。
+本 Skill 只管理当前 Task 内部的 Subagent 单元。它不调用 `create_thread`，不创建新的左侧 Task，也不受 `user_owned_tasks` 开关控制。内部 agent thread 与单元 Worktree 不使用 `Task {序号} | {当前进度} | {单一结果}` 标题合同、不占用项目 Task 序号；宿主技术 `task_name`、`codex/unit-*` 分支和父 Task 标题互相独立。父 Task 自行反映整体进度；不得把两个左侧 Task 安排进同一 Worktree，也不得用单元分支替代父 Task 的 source 分支。
 
 ## 策略与适用性
 
 1. 读取 `docs/AGENT_POLICY.md`。只有用户在当前请求中明确要求并行 Subagent/Worktree，且 `parallel_worktree_subagents: enabled` 时才继续；日常开发不得仅因持久策略启用而自动增加并行步骤。值为 `disabled` 时使用单 Agent。
 2. `enabled` 表示许可，不表示执行请求。用户已明确要求并行时，仍只有至少两个写入单元具备不重叠所有权、明确整合顺序和干净且已提交的 Git 基线才使用本 Skill；否则解释原因并使用单 Agent。
 3. 产品定义、规划、只读调查、普通证据复核、构建、收集和发布元数据工作，不会仅因偏好已启用而自动并行。当前存在 feature 开发周期不构成拒绝 sibling `codex/unit-*` 的理由；不得读取或解释旧分支链状态来阻断并行。
-4. 只有当前左侧 Task 已通过 Agent Policy 的 BOUND 门禁才继续：线程绑定正确 `projectId`；保存项目根与当前 Task 的 source Git 顶层拥有相同规范化 Git common-dir；`left_git_task_worktree: enabled` 时 source 必须是出现在保存项目 Worktree registry 中的独立 Worktree，`disabled` 时 source 必须精确等于保存项目 Local checkout；两种 source 都必须附着在 registry 同步记录的具名生命周期分支。不得把名称前缀或分支历史形态当作并行条件。独立 Worktree 可以物理位于保存项目目录之外，不能用路径祖先关系代替这些事实。
+4. 当前 source 可以是通过 BOUND 门禁的左侧 Git Task Worktree，也可以是自动 Task 关闭时直接工作的当前 Local checkout；两者都必须与保存项目拥有相同规范化 Git common-dir、出现在 Worktree registry 中并附着于登记的具名生命周期分支。不得把名称前缀、路径祖先关系或分支历史形态当作并行条件。
 5. 策略许可不授权原任务以外的提交、合并、删除、推送、发布、凭据或外部副作用。
 
 ## 准备
 
 1. 读取用户要求并行的任务说明、Agent Policy、工程规则和相关文件；只有用户已要求持久计划且确实存在时才读取 Work Plan，只有产品边界或长期决定相关时才读取 Product Spec/ADR。
-2. 为每个单元定义稳定的 ASCII task/unit 技术标识、结果、一个或多个非空 repo-relative 写入所有权、依赖、验证和整合顺序。task 标识必须等于父 Task 描述中的独立 `feature-summary`；不得把 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 显示标题原样传给 `spawn_agent.task_name`、`--task`、`--unit` 或 Git ref。`.`、绝对/越界路径、符号链接逃逸、同一单元内冗余祖先/后代，以及不同活动单元间任何相同或祖先/后代所有权都失败关闭；需要重叠的工作改为串行执行。
+2. 为每个单元定义稳定的 ASCII task/unit 技术标识、结果、一个或多个非空 repo-relative 写入所有权、依赖、验证和整合顺序。task 标识必须等于父 Task 描述中的独立 `feature-summary`；不得把父 Task 显示标题传给 `spawn_agent.task_name`、`--task`、`--unit` 或 Git ref。`.`、绝对/越界路径、符号链接逃逸、同一单元内冗余祖先/后代，以及不同活动单元间任何相同或祖先/后代所有权都失败关闭；需要重叠的工作改为串行执行。
 3. 记录两个角色路径：`--project-root` 是 Codex 保存项目的 primary checkout；`--source-worktree` 是当前左侧 Task 的实际 Git 顶层，在 Worktree 模式下是独立 Worktree，在 Local 模式下可以与 `--project-root` 精确相同。所有非 `inspect` 命令都同时提供二者。task 标识 `<task>` 只用于本工作流的单元身份，每个单元分支为 `codex/unit-<task>-<unit>`；source 分支取创建时 registry 中的精确具名分支，不从 task 标识推导。
 4. 从当前 source Worktree 的精确 cwd 为每个单元运行一次 `create`，每个所有权重复传入 `--write-target`：
 
@@ -29,7 +29,7 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
    ```
 
    helper 要求保存项目 primary、source registry/branch、common-dir、外部普通目录容器和干净且已提交的 source HEAD 全部匹配；source 可以是已登记的独立 Worktree，也可以是精确的保存项目 primary Local checkout，但不能是未登记的其他目录。从 source HEAD 创建单元并把不可变身份、基线和所有权登记在 Git common-dir。单元 Worktree 建立成功后，helper 必须立即调用项目内 `$desktop-manage-git-lifecycle` 的 `scripts/git_lifecycle.py track-worktree --project-root <absolute-project-root> --worktree <absolute-unit-worktree>`，由该 helper 自行解析并登记精确具名分支。登记返回非零状态时，以稳定错误 `lifecycle_worktree_tracking_failed` 失败，回滚本次新建的单元状态、Worktree、分支与空容器，不能留下未登记资源。绝不得自动暂存、贮藏或提交用户修改。
-5. 把 `create` 返回的精确 `worktreePath` 和 ownership 交给对应内部 Subagent。隐藏 Subagent 不占用用户可见的项目序列；协调方在调用 `spawn_agent` 前按确定的派发顺序分配父 Task 批次内正整数序号，追加批次必须避开该父 Task 已经分配的序号，定义非空 Task 简述与功能摘要，并在消息中写入完整逻辑初始标题 `{序号}|{Task简述}|已分配 |{功能摘要}`；`spawn_agent` 不提供显示标题参数，因此不得把该字符串改塞进受限技术 `task_name`。Subagent 取得执行权后先按统一规则把自己的会话更新为 `运行中`，检查和完成时只更新第三字段。Agent 不是独占仓库；它必须把所有文件命令和编辑限定在该 Worktree，保留其他 Agent 的改动，不扩大所有权。在任何编辑、暂存或提交前，从单元精确 cwd 运行：
+5. 把 `create` 返回的精确 `worktreePath` 和 ownership 交给对应内部 Subagent。隐藏 Subagent 不占用用户可见项目序列，也不伪装用户可见 Task；协调方只使用受限技术 `task_name` 和清晰职责描述。Agent 不是独占仓库；它必须把所有文件命令和编辑限定在该 Worktree，保留其他 Agent 的改动，不扩大所有权。在任何编辑、暂存或提交前，从单元精确 cwd 运行：
 
    ```text
    python3 <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.py guard --project-root <absolute-project-root> --source-worktree <absolute-source-worktree> --task <task> --unit <unit> --write-target <intended-path> [--write-target <intended-path> ...]
@@ -39,7 +39,7 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
 
 ## 可见执行与整合
 
-1. 在开始、阻断、单元完成、整合和验证节点公开简洁状态。同步等待每个必需结果；内部 agent thread 使用与普通 Session、Worktree/Local 左侧 Task 相同的 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 格式，并自行依次更新真实阶段，但只报告自己的技术标识和父 Task，不得把自己称为新的左侧 Task，也不得为它调用 `create_thread`。隐藏 Subagent 不出现在 `list_threads` 时，用 `set_thread_title` 响应返回的精确 `threadId` 调用 `read_thread` 有界复读一次；失败不创建可见替代 Task，也不阻断已经完成的单元结果。
+1. 在开始、阻断、单元完成、整合和验证节点公开简洁状态。同步等待每个必需结果；内部 agent thread 只报告技术标识和父 Task，不得使用用户可见 Task 标题、占用项目序号、把自己称为新的左侧 Task或调用 `create_thread`。
 2. 范围、所有权或安全假设变化时，停止或重新分派相关单元。不得静默创建替代 Agent。
 3. Subagent 完成后、整合前，从其单元精确 cwd 运行 postflight：
 

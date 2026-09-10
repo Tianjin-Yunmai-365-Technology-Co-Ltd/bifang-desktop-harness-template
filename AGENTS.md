@@ -22,7 +22,7 @@
 | 新功能、Bug 修复、推送或发布的 Git 生命周期 | `docs/AGENT_POLICY.md` 的“开发分支与主分支发布生命周期”；发布时再读 `docs/RELEASE.md` | `$desktop-manage-git-lifecycle`；日常实现仍走 `$desktop-implement-change` |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md` | 对应 GUI Skill；不得一次加载全部 GUI Skills |
-| 创建或检查左侧 user-owned Task | `docs/AGENT_POLICY.md` 的“左侧 Task、项目绑定与 Worktree/Local 环境” | Codex 项目/Task 工具；只在用户明确要求新 Task 时调用，并按 `left_git_task_worktree` 选择 Git Worktree 或 Local |
+| 创建或检查左侧 user-owned Task | `docs/AGENT_POLICY.md` 的“用户可见 Task 开关、粒度与创建门禁” | Codex 项目/Task 工具；`user_owned_tasks` 启用或用户明确要求时调用，Git 使用 Worktree，非 Git 使用 Local |
 | 当前 Task 内部并行 Worktree/Subagent 或提交 | `docs/AGENT_POLICY.md` 的相关章节；提交时再读提交 Skill 的规范引用 | `$desktop-run-parallel-worktrees`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-plan-change`（仅在真实触发时） |
 | Windows GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
@@ -36,7 +36,8 @@
 
 - `superpowers: disabled` 时不得调用或遵循任何 `superpowers:*` Skill；其他持久能力只表示允许，不能替代当前任务的触发条件或授权。
 - 日常开发直接实施，只增加并运行本次需要的相关非空单元/回归测试；纯文档、元数据或机械变更只做解析或差异完整性所需的最小检查。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
-- 普通当前 Session、Worktree/Local 左侧 Task 与内部 Subagent/agent thread 按 `docs/AGENT_POLICY.md` 使用 `{序号}|{Task简述}|{当前进度} |{功能摘要}`。同一 `hostId` 与精确 `projectId` 的用户可见新结果先用 `list_threads(limit=50)` 和同宿主逐页 `list_archived_threads` 清点当前与归档合规标题，再从最大有效序号继续递增，空历史才用 1、缺号不回填；隐藏 Subagent 不占用项目序列。每次进入 `已分配`、`运行中`、`检查中`、`已完成` 的真实转换至多尝试一次更新；普通/左侧 Task 按真实 `threadId` 用 `list_threads` 有界复读，隐藏 Subagent 改用 `read_thread`。返工后再次进入同名阶段属于新的真实转换；失败必须报告但不阻断已经完成的任务结果，也不得虚写 `已完成`。
+- 除非用户明确说当前 Task 内部步骤、plan 或 Subagent，Task 一律指 Codex 左侧 user-owned Task；内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不占用 Task 序号。用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`；同一 `hostId` 与精确 `projectId` 先用 `list_threads(limit=50)` 和同宿主逐页 `list_archived_threads` 清点当前与归档有效标题，再从最大有效序号继续递增，空历史才用 1、缺号不回填。进度只取 `已分配`、`运行中`、`检查中`、`已完成`，每次真实转换至多更新一次并按真实 `threadId` 用 `list_threads` 有界复读；失败必须报告但不阻断已经完成的任务结果，也不得虚写 `已完成`。
+- `user_owned_tasks: disabled` 时不得自动创建或拆分左侧 Task，但仍响应用户明确创建请求；`enabled` 时结果边界变化前自动创建。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和独立工作区；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化都必须拆新 Task，证明同一结果的测试/review/checkpoint 和必要同范围修复不拆。每项目同一时间只允许一个写入型 active Task，Task0 只能协调。任何创建先以 `list_projects` 核对项目路径和 Git 状态；Git 使用独立 Worktree、非 Git 使用 Local，并在真实 `threadId` 到手后用 `list_threads` 核对标题、`projectId`、cwd、状态、干净工作区和起始提交，否则保持零实现且不创建替代 Task。
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、渠道硬要求、签名、发布和跨平台最终候选必须进入对应专用门禁；精简上下文不降低授权、失败关闭或真正不可逆交付所需的人工签署。非必要语义审查不得混入日常开发，明确发布时才按当次 `reviewSelection` 询问并执行。
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/TUI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
@@ -59,7 +60,7 @@
 | 约束或事实 | 唯一来源 | 何时读取 |
 |---|---|---|
 | 产品目标、范围与成功标准 | `docs/product_spec/README.md` 与最新 Product Spec | 定义产品或改变边界 |
-| Agent 能力、Session/Worktree/Subagent 进度标题、左侧 Git Task 环境与 E2E 建议默认值 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
+| Agent 能力、用户可见 Task 开关/标题/创建门禁与 E2E 建议默认值 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
 | 文件、注释、文档、测试、记忆触发与例外 | `docs/ENGINEERING_RULES.md` | 代码、测试、文档、规则或 Skill 变更 |
 | Rust core、adapter、MSRV、依赖与运行时 | `docs/RUST_CLI_TEMPLATE.md` | Rust 或接口实现/初始化 |
 | 下游目标平台与接口组合 | 根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` | 初始化、构建或跨宿主判断 |

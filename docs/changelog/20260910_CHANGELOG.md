@@ -2,9 +2,8 @@
 
 ## 新增
 
-- `HARNESS-FEAT-LEFT-GIT-TASK-WORKTREE-TOGGLE`（所需 Harness 版本 `pending`，等待下一次时间版本发布物化）：新增独立持久策略 `left_git_task_worktree`，初始化首轮无论推荐还是自定义模式都必须单独询问，推荐启用但禁止静默采用；Agent Policy 升级为 schema v2 并原子记录五项策略。启用时新左侧 Git Task 使用独立 Codex Worktree，关闭时使用保存项目 Local checkout，并在创建及首次写入前禁止 dirty 或并发写入者。用户以后可明确说“开启/关闭左侧 Git Task Worktree”切换，只影响后续新 Task；同值幂等，既有 Task/Worktree 不移动、不删除也不中断。历史 schema v1 缺失字段按旧行为 `enabled` 解释，首次真实切换再无损迁移。`parallel_worktree_subagents` 继续只控制 Task 内部并行，且并行 helper 同时支持 Worktree 与 Local source。
+- `HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`（所需 Harness 版本 `pending`，等待下一次时间版本发布物化）：新增持久策略 `user_owned_tasks`，推荐预设默认 `disabled`，自定义可开启，初始化后也可通过“开启/关闭左侧 Task”手动切换。关闭时不自动拆 Task但仍响应显式创建；启用后按单一结果边界自动创建。用户可见 Task 采用 `Task {序号} | {当前进度} | {单一结果}`，内部 plan/Subagent/Worktree 等不使用标题且不占用序号；当前与归档的当前/历史有效标题共同延续序号。每项目只允许一个写入型 active Task，Task0 仅协调。创建前必须完成项目、真实 `threadId`、标题、`projectId`、cwd、状态、干净工作区和起始提交核对；Git Task 固定使用独立 Worktree，非 Git 使用 Local，setup 或不符时零实现且不重复创建。`parallel_worktree_subagents` 保持独立。
 
-- `HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT`（所需 Harness 版本 `pending`，等待下一次时间版本发布物化）：同一宿主、同一保存项目中的用户可见普通 Session 与左侧 Task 不再因新 Session 或新协调批次把序号重置为 1。新独立结果现在合并当前、pinned 与归档 Codex Task 的合规四字段标题，取历史最大有效序号加一；空历史才使用 1，缺号不回填，同项目批量创建连续预留。其他宿主/项目/kind、`projectId=null` 与畸形标题不会污染序列；历史无法可靠枚举时不猜 1。隐藏 Subagent 使用父 Task 内的独立批次序号且不占用侧栏项目序列。Agent Policy、README、Product Spec、实施/并行/初始化 Skills、标准库分配器和回归门禁已同步；截图所示项目的既有最大值为 4，当前任务已纠正为 5。
 
 - `HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`（所需 Harness 版本 `pending`，等待下一次时间版本发布物化）：Git 自动化已收敛为 `$desktop-manage-git-lifecycle`。新功能和独立 Bug 修复首次写入前自动创建并切换本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}`；Codex Task Worktree 即使从 detached HEAD 开始，也由同一次 `start` 直接建立 feature 分支并自动登记 Worktree，建分支不要求远端。用户明确“推送”时，普通合并本周期登记分支、切换动态默认主分支并推送，保留资源且不创建 tag；用户明确“发布”时，先完成同样的主分支推送，再创建并推送 `v{版本}-{YYYYMMDD}`，远端 tag 复读成功后才依次删除本周期登记 Worktree、远端分支和本地分支。状态只保存在 Git common dir，由同一 common-dir 短时互斥防止并行 Task 覆盖登记，并逐项记录重试进度；tag 失败零清理，未登记资源永不删除。旧分支链技能、tracked 状态、保护主分支、active leaf、单写入者、严格线性、fast-forward-only、lease、atomic ref 事务、closing commit/信封和所有发布中转分支兼容代码均已删除；候选选择改由 `.harness/release-context.json` 记录并由带 tag 的 clean 主分支构建。
 
