@@ -552,13 +552,8 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
         self.assertIn("内部单元 Worktree 本身没有独立 Session 标题", policy)
         self.assertIn("不得把该字符串改塞进受限技术 `task_name`", parallel)
         for text in (policy, readme, product_spec, implement, instantiate, initialize):
-            self.assertIn("同一 `hostId` 与精确 `projectId`", text)
-            self.assertIn("`list_threads(limit=50)`", text)
-            self.assertIn("`list_archived_threads`", text)
-            self.assertIn("最大有效序号加 1", text)
-            self.assertIn("空历史才从 1 开始", text)
-            self.assertIn("缺号不回填", text)
-            self.assertIn("隐藏 Subagent 不占用项目序列", text)
+            for fragment in governance_policy.PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS:
+                self.assertIn(fragment, text)
         self.assertIn("隐藏 Subagent 不占用用户可见的项目序列", parallel)
         self.assertIn("追加批次必须避开该父 Task 已经分配的序号", parallel)
         self.assertEqual(
@@ -606,59 +601,22 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
     def test_project_task_sequences_increment_from_active_and_archived_history(self) -> None:
         """项目序号取同宿主同项目合法历史最大值，不回填缺号。"""
 
+        def record(title, *, kind="codex", host_id="local", project_id="project-a"):
+            return {"kind": kind, "hostId": host_id, "projectId": project_id, "title": title}
+
         active_records = [
-            {
-                "kind": "codex",
-                "hostId": "local",
-                "projectId": "project-a",
-                "title": "1|首个任务|已完成 |建立标题契约",
-            },
-            {
-                "kind": "codex",
-                "hostId": "local",
-                "projectId": "project-a",
-                "title": "2|第二个任务|运行中 |继续项目工作",
-            },
-            {
-                "kind": "codex",
-                "hostId": "other-host",
-                "projectId": "project-a",
-                "title": "91|其他宿主|已完成 |不得参与分配",
-            },
-            {
-                "kind": "codex",
-                "hostId": "local",
-                "projectId": "project-b",
-                "title": "92|其他项目|已完成 |不得参与分配",
-            },
-            {
-                "kind": "chatgpt",
-                "hostId": "local",
-                "projectId": "project-a",
-                "title": "93|其他类型|已完成 |不得参与分配",
-            },
+            record("1|首个任务|已完成 |建立标题契约"),
+            record("2|第二个任务|运行中 |继续项目工作"),
+            record("91|其他宿主|已完成 |不得参与分配", host_id="other-host"),
+            record("92|其他项目|已完成 |不得参与分配", project_id="project-b"),
+            record("93|其他类型|已完成 |不得参与分配", kind="chatgpt"),
         ]
         archived_records = [
-            {
-                "kind": "codex",
-                "hostId": "local",
-                "projectId": "project-a",
-                "title": "4|归档任务|已完成 |保留项目历史最大值",
-            },
+            record("4|归档任务|已完成 |保留项目历史最大值"),
             active_records[1],
-            {
-                "kind": "codex",
-                "hostId": "local",
-                "projectId": "project-a",
-                "title": "03|前导零|已完成 |畸形标题必须忽略",
-            },
-            {
-                "kind": "codex",
-                "hostId": "local",
-                "projectId": "project-a",
-                "title": "100|字段不足|已完成",
-            },
-            {"kind": "codex", "hostId": "local", "projectId": "project-a"},
+            record("03|前导零|已完成 |畸形标题必须忽略"),
+            record("100|字段不足|已完成"),
+            record(None),
             "not-a-record",
         ]
 

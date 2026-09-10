@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .context import *  # noqa: F403
+from .governance_policy import PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS
 
 
 def primary_required_fragments(
@@ -94,13 +95,7 @@ def primary_required_fragments(
             "失败不阻断已完成结果",
             'title="{序号}|{Task简述}|已分配 |{功能摘要}"',
             "稳定正整数序号",
-            "同一 `hostId` 与精确 `projectId`",
-            "`list_threads(limit=50)`",
-            "`list_archived_threads`",
-            "最大有效序号加 1",
-            "空历史才从 1 开始",
-            "缺号不回填",
-            "隐藏 Subagent 不占用项目序列",
+            *PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
             "显示标题与独立 ASCII `feature-summary`/Subagent `task_name` 分离",
             "内部 Subagent 遵守标题格式但不得冒充左侧 Task",
             "从具名或 detached HEAD 直接建立并登记 `feature-*` 分支",
@@ -211,13 +206,7 @@ def primary_required_fragments(
             "`{序号}|{Task简述}|{当前进度} |{功能摘要}` 统一格式",
             "每次真实转换至多一次更新",
             "失败不阻断已完成结果",
-            "同一 `hostId` 与精确 `projectId`",
-            "`list_threads(limit=50)`",
-            "`list_archived_threads`",
-            "最大有效序号加 1",
-            "空历史才从 1 开始",
-            "缺号不回填",
-            "隐藏 Subagent 不占用项目序列",
+            *PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
             "内部 Subagent/agent thread",
             "左侧 Task 的保存项目绑定、setup 状态机和独立 Worktree 交付契约",
             "`codex/unit-*`",

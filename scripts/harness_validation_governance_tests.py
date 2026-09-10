@@ -28,6 +28,9 @@ from scripts.harness_validation.initialization_primary_contract import (
 from scripts.harness_validation.initialization_repository_contract import (
     repository_required_fragments,
 )
+from scripts.harness_validation.governance_policy import (
+    PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
+)
 from scripts.harness_validation.context import (
     EXPECTED_SKILLS,
     GIT_LIFECYCLE_METADATA,
@@ -759,13 +762,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
             "调用 `set_thread_title` 并省略 `threadId`",
             "按同一真实 id 比较宿主返回的规范化标题原文",
             "只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`",
-            "同一 `hostId` 与精确 `projectId`",
-            "`list_threads(limit=50)`",
-            "`list_archived_threads`",
-            "最大有效序号加 1",
-            "空历史才从 1 开始",
-            "缺号不回填",
-            "隐藏 Subagent 不占用项目序列",
+            *PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
             "内部 Subagent 取得执行权后的第一项 UI 动作",
             "`spawn_agent` 不提供显示标题参数",
             "内部单元 Worktree 本身没有独立 Session 标题",

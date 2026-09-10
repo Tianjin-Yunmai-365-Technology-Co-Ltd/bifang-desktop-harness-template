@@ -19,17 +19,37 @@ SESSION_PROGRESS_TITLE_PATTERN = re.compile(
     r"(?P<feature_summary>[^|\r\n]+)"
 )
 
+# 同一份用户可见项目 Task 序号规则，被多处 required-fragment 校验复用；
+# 修改措辞只需改这里，不必逐个校验点同步。
+PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS = (
+    "同一 `hostId` 与精确 `projectId`",
+    "`list_threads(limit=50)`",
+    "`list_archived_threads`",
+    "最大有效序号加 1",
+    "空历史才从 1 开始",
+    "缺号不回填",
+    "隐藏 Subagent 不占用项目序列",
+)
+
+
+def _match_session_progress_title(title: str) -> re.Match[str] | None:
+    """返回满足四字段顺序、四态和精确空格契约的正则匹配，否则返回 None。"""
+
+    match = SESSION_PROGRESS_TITLE_PATTERN.fullmatch(title)
+    if match is None:
+        return None
+    if all(
+        value and value == value.strip() and len(value.splitlines()) == 1
+        for value in (match.group("task_summary"), match.group("feature_summary"))
+    ):
+        return match
+    return None
+
 
 def is_valid_session_progress_title(title: str) -> bool:
     """判断 Session 标题是否满足四字段顺序、四态和精确空格契约。"""
 
-    match = SESSION_PROGRESS_TITLE_PATTERN.fullmatch(title)
-    if match is None:
-        return False
-    return all(
-        value and value == value.strip() and len(value.splitlines()) == 1
-        for value in (match.group("task_summary"), match.group("feature_summary"))
-    )
+    return _match_session_progress_title(title) is not None
 
 
 def allocate_project_task_sequences(
@@ -58,9 +78,9 @@ def allocate_project_task_sequences(
         ):
             continue
         title = record.get("title")
-        if not isinstance(title, str) or not is_valid_session_progress_title(title):
+        if not isinstance(title, str):
             continue
-        match = SESSION_PROGRESS_TITLE_PATTERN.fullmatch(title)
+        match = _match_session_progress_title(title)
         if match is not None:
             highest_sequence = max(highest_sequence, int(match.group("sequence")))
 
@@ -196,13 +216,7 @@ def validate_agent_policy(
         "稳定序号",
         "显示标题与 Git 摘要是两个事实",
         "不得根据返回 id 重新分配序号",
-        "同一 `hostId` 与精确 `projectId`",
-        "`list_threads(limit=50)`",
-        "`list_archived_threads`",
-        "最大有效序号加 1",
-        "空历史才从 1 开始",
-        "缺号不回填",
-        "隐藏 Subagent 不占用项目序列",
+        *PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
         "普通当前 Session 在首次形成三个稳定字段并开始处理时直接更新为 `运行中`",
         "每次真实进度转换至多尝试一次标题更新",
         "调用 `set_thread_title` 并省略 `threadId`",
