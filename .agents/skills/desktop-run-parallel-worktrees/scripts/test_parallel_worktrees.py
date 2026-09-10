@@ -257,8 +257,8 @@ class ParallelWorktreesTests(unittest.TestCase):
         self.assertEqual(result.returncode, 4)
         self.assertEqual(payload["error"]["code"], "source_worktree_dirty")
 
-    def test_create_requires_primary_project_and_exact_source_cwd(self) -> None:
-        """验证保存项目必须是 primary，创建也必须从登记的源 Task cwd 发起。"""
+    def test_create_accepts_local_primary_source_and_requires_exact_source_cwd(self) -> None:
+        """验证 Local Task 可用 primary source，且创建必须从精确 source cwd 发起。"""
         wrong_primary, wrong_primary_payload = self.helper(
             "create",
             "--task",
@@ -276,10 +276,11 @@ class ParallelWorktreesTests(unittest.TestCase):
             "project_root_not_primary_worktree",
         )
 
+        self.git("switch", "-c", "feature-local-20260910")
         reused_primary, reused_primary_payload = self.helper(
             "create",
             "--task",
-            "feature",
+            "local",
             "--unit",
             "core",
             "--write-target",
@@ -287,11 +288,9 @@ class ParallelWorktreesTests(unittest.TestCase):
             cwd=self.root,
             source_worktree=self.root,
         )
-        self.assertEqual(reused_primary.returncode, 4)
-        self.assertEqual(
-            reused_primary_payload["error"]["code"],
-            "source_worktree_not_independent",
-        )
+        self.assertEqual(reused_primary.returncode, 0, reused_primary.stderr)
+        self.assertEqual(reused_primary_payload["sourceWorktree"], str(self.root.resolve()))
+        self.assertEqual(reused_primary_payload["sourceBranch"], "feature-local-20260910")
 
         wrong_cwd, wrong_cwd_payload = self.helper(
             "create",

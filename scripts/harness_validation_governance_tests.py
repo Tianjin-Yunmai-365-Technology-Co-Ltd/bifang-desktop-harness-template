@@ -728,7 +728,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
 
 
 class ValidateAgentPolicyTests(unittest.TestCase):
-    """覆盖四项持久偏好的合法 schema 与初始化 fail-closed 语义。"""
+    """覆盖五项持久偏好的合法 schema 与初始化 fail-closed 语义。"""
 
     @staticmethod
     def _current_policy() -> str:
@@ -781,8 +781,10 @@ class ValidateAgentPolicyTests(unittest.TestCase):
                 )
 
     def test_rejects_missing_preference_field(self) -> None:
-        """四项选择缺失任一字段都必须失败。"""
-        mutated = self._current_policy().replace("milestone_e2e: pending\n", "", 1)
+        """五项选择缺失任一字段都必须失败。"""
+        mutated = self._current_policy().replace(
+            "left_git_task_worktree: pending\n", "", 1
+        )
         errors = self._validate(mutated)
         self.assertTrue(any("fields mismatch" in error for error in errors), errors)
 
@@ -805,11 +807,12 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         )
 
     def test_resolved_downstream_rejects_pending_confirmation_metadata(self) -> None:
-        """四项选择虽已解析，确认来源和日期仍不得保留占位值。"""
+        """五项选择虽已解析，确认来源和日期仍不得保留占位值。"""
 
         resolved = self._current_policy()
         for field in (
             "superpowers",
+            "left_git_task_worktree",
             "parallel_worktree_subagents",
             "milestone_smoke",
             "milestone_e2e",
@@ -826,6 +829,7 @@ class ValidateAgentPolicyTests(unittest.TestCase):
         resolved = resolved.replace("confirmed_at: pending", "confirmed_at: 2026-02-30", 1)
         for field in (
             "superpowers",
+            "left_git_task_worktree",
             "parallel_worktree_subagents",
             "milestone_smoke",
             "milestone_e2e",

@@ -1,9 +1,10 @@
 ---
-schema_version: 1
+schema_version: 2
 confirmed_by: pending
 confirmed_at: pending
 decision_mode: reuse_then_infer_then_ask
 superpowers: disabled
+left_git_task_worktree: pending
 parallel_worktree_subagents: pending
 milestone_smoke: pending
 milestone_e2e: pending
@@ -11,11 +12,12 @@ milestone_e2e: pending
 
 # Agent 运行策略
 
-本文件是下游项目 Agent 能力、候选冒烟偏好和构建 E2E 建议默认值的唯一持久事实来源。Harness 源允许使用 `pending` 表示等待下游用户首次确认；完成初始化的下游四项选择只能是 `enabled` 或 `disabled`，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。GUI 发布性能选择刻意不进入本文件，每次发布重新解析。
+本文件是下游项目 Agent 能力、左侧 Git Task 环境、候选冒烟偏好和构建 E2E 建议默认值的唯一持久事实来源。Harness 源允许使用 `pending` 表示等待下游用户首次确认；完成初始化的下游五项选择只能是 `enabled` 或 `disabled`，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。GUI 发布性能选择刻意不进入本文件，每次发布重新解析。
 
 ## 字段语义
 
 - `superpowers`：`enabled` 允许按任务触发名称以 `superpowers:` 开头的 Skills；`disabled` 禁止后续规划、实现、验证和发布调用或遵循这些 Skills。
+- `left_git_task_worktree`：控制用户明确要求创建的左侧 Git Task 使用哪种项目环境。`enabled` 使用独立 Codex Worktree；`disabled` 使用保存项目的 Local checkout。它不控制普通当前 Session、非 Git Task 或 Task 内部 Subagent，也不替代 `parallel_worktree_subagents`。初始化必须单独询问并记录本项，不能从推荐预设、接口组合或 Harness 源值推断。
 - `parallel_worktree_subagents`：`enabled` 只表示用户明确要求并行时允许使用 Worktree + 写入型 Subagent；`disabled` 使用单 Agent 当前工作树。持久启用本身不能触发并行步骤；启用时仍须给每个写入单元分配不重叠的文件所有权，并把创建出的 Worktree 和分支登记到当前 Git 生命周期。
 - `milestone_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `milestone_e2e`：仅作为每次显式发布候选构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前候选的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
@@ -52,29 +54,29 @@ GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解�
 - 这里没有分支保护、活动叶子、单写入者、严格线性历史、fast-forward-only、lease、atomic push、审查后路径白名单或其他分支门禁；允许普通 merge commit。工作树未提交、合并冲突、缺少实际推送所需的远端、tag 冲突和删除目标不属于登记所有权仍按真实操作失败处理，这些是数据安全与可恢复性检查，不得扩展成分支策略。
 - 流程没有发布中转分支，也不包含任何旧中转分支的识别、迁移、兼容或清理逻辑。发布后的 tag 是源码版本锚点；上传制品、签名、渠道发布和版本周期最终化仍只在各自明确授权和真实成功条件下执行。
 
-## 左侧 Task、项目绑定与独立 Worktree
+## 左侧 Task、项目绑定与 Worktree/Local 环境
 
-本节只约束用户能从侧栏独立进入的 user-owned Task/thread。plan、Todo、brief、report、review、Subagent、agent thread 和内部单元 Worktree 都是当前 Task 的内部结构，不是新的左侧 Task，也不得通过 `create_thread` 伪装成左侧 Task；这项身份分层不豁免内部 Subagent/agent thread 遵守统一会话标题格式。`parallel_worktree_subagents` 只控制单个左侧 Task 内部的并行能力。
+本节只约束用户能从侧栏独立进入的 user-owned Task/thread。plan、Todo、brief、report、review、Subagent、agent thread 和内部单元 Worktree 都是当前 Task 的内部结构，不是新的左侧 Task，也不得通过 `create_thread` 伪装成左侧 Task；这项身份分层不豁免内部 Subagent/agent thread 遵守统一会话标题格式。`left_git_task_worktree` 只控制左侧 Git Task 自身使用 Worktree 还是 Local，`parallel_worktree_subagents` 只控制单个左侧 Task 内部的并行能力，两项不得互相代替。
 
-一个左侧 Task 固定对应一个明确且可独立验收的结果、一个保存的 Codex 项目、Git 项目中的一个不与其他 Task 共用的 Codex 管理 Worktree、一个由统一生命周期 helper 创建并登记的 `feature-*` 分支和一组可审查提交。诊断、实现、证明该结果所需的测试或 review，以及修复这些检查发现的同范围缺陷，仍属于同一结果；不得只因生命周期阶段变化自动拆 Task。只有用户明确要求创建新的左侧 Task，或用户已经明确把当前 Task 定义为多 Task 协调器并指定独立结果时，才调用 `create_thread`。普通单结果请求不先创建所谓 Task0，当前 Task 可以直接实施。
+一个左侧 Task 固定对应一个明确且可独立验收的结果、一个保存的 Codex 项目、一个由统一生命周期 helper 创建并登记的 `feature-*` 分支和一组可审查提交。`left_git_task_worktree: enabled` 时，Git Task 另对应一个不与其他 Task 共用的 Codex 管理 Worktree；`disabled` 时改用保存项目的 Local checkout，并禁止同时派发第二个可能写入同一 checkout 的左侧 Task。诊断、实现、证明该结果所需的测试或 review，以及修复这些检查发现的同范围缺陷，仍属于同一结果；不得只因生命周期阶段变化自动拆 Task。只有用户明确要求创建新的左侧 Task，或用户已经明确把当前 Task 定义为多 Task 协调器并指定独立结果时，才调用 `create_thread`。普通单结果请求不先创建所谓 Task0，当前 Task 可以直接实施。
 
 ### 创建状态机
 
-1. **RESOLVED**：调用 `list_projects`，按规范化完整路径精确选中保存项目并记录其真实 `projectId`、项目类型和 `isGitRepository`；同名标签、当前 cwd 或仓库名称都不能替代路径核对。调用 `create_thread` 时必须使用 `target.type = project` 和该 `projectId`。Git 项目使用 `environment.type = worktree`；非 Git 项目使用 `environment.type = local`。项目工作不得使用 `projectless`、临时目录、Task0 cwd、默认兜底项目或其他项目。
+1. **RESOLVED**：调用 `list_projects`，按规范化完整路径精确选中保存项目并记录其真实 `projectId`、项目类型和 `isGitRepository`；同名标签、当前 cwd 或仓库名称都不能替代路径核对。调用 `create_thread` 时必须使用 `target.type = project` 和该 `projectId`。Git 项目读取 `left_git_task_worktree`：`enabled` 使用 `environment.type = worktree`，`disabled` 使用 `environment.type = local`；非 Git 项目始终使用 `environment.type = local`。项目工作不得使用 `projectless`、临时目录、Task0 cwd、默认兜底项目或其他项目。Git Local 模式派发写入型 Task 前必须确认保存 checkout 干净，且不存在另一个正在或可能继续写入同一 checkout 的左侧 Task；无法证明时停止，并请用户完成现有 Task 或先开启 Worktree。
 2. **DISPATCHED**：对一个结果只调用一次 `create_thread`。左侧 Task 必须在派发前按上述同项目历史最大值规则分配并记录稳定正整数序号与不可变 Task key，再显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；序号不得使用调用后才返回的 `threadId` 或 `clientThreadId`。同一项目批量派发时从一次清点预留的连续区间按确定顺序消费，每个结果仍只创建一次。返回 `threadId` 表示已得到可管理的 Ready Task；只返回 `clientThreadId` 表示创建请求已接受但仍为 `SETUP_PENDING`，不是失败，也不是可传给 `read_thread`、`wait_threads` 或其他要求 `threadId` 的标识。此时立即报告 queued Task 并返回对应的 created-thread UI 引用；不得假设存在 `clientThreadId → threadId` 桥、无限轮询、重复创建、把 pending 改称 Ready，或在当前 Task/后台目录代替新 Task 偷跑。
 3. **RECONCILED**：已经取得真实 `threadId` 时立即用 `list_threads` 对账；只有 `clientThreadId` 时，则仅在用户随后明确要求检查先前 queued Task 后对账。以真实 id 和精确 `projectId` 为主键；标题使用工具返回的规范化标题原文，不因应用正常化措辞而误判。目标 Task 可能已经推进进度，因此只核对三个稳定字段与合法进度字段，不要求仍为 `已分配`。唯一候选尚未出现时保持 `SETUP_PENDING` 并结束本次检查；候选不唯一时报告 ambiguous；只有工具明确返回失败才记为 `SETUP_FAILED`。任何 pending/ambiguous 状态都禁止“再创建一个碰碰运气”。
-4. **BOUND**：进入 Ready Task 后、首次写入前再次确认线程 `projectId` 精确匹配。Worktree 的物理路径通常位于保存项目目录之外，不能用字符串祖先关系判断归属；必须分别解析保存项目根与 Task Git 顶层的规范化 `git rev-parse --path-format=absolute --git-common-dir`，要求相同，并要求保存项目的 `git worktree list --porcelain` 已登记该 Task 顶层。非 Git Local Task 才要求 cwd 等于保存项目完整路径。`projectId` 为空/错误、Git common dir 不同、Worktree 未登记或起始提交不符时保持零写入并报告绑定错误；现有 Task 不能被仓库规则静默改挂到另一项目。
+4. **BOUND**：进入 Ready Task 后、首次写入前再次确认线程 `projectId` 精确匹配。Git Worktree 的物理路径通常位于保存项目目录之外，不能用字符串祖先关系判断归属；必须分别解析保存项目根与 Task Git 顶层的规范化 `git rev-parse --path-format=absolute --git-common-dir`，要求相同，并要求保存项目的 `git worktree list --porcelain` 已登记该 Task 顶层。Git Local 与非 Git Local Task 都要求 cwd 等于保存项目完整路径；Git Local 还要再次确认 checkout 干净且没有另一 Task 的并发写入。`projectId` 为空/错误、Git common dir 不同、Worktree 未登记、Local cwd 不符或起始提交不符时保持零写入并报告绑定错误；现有 Task 不能被仓库规则静默改挂到另一项目。
 
 ### 命名、基线与分支
 
-- Git Worktree 与非 Git Local 左侧 Task 都遵守统一进度标题。调用 `create_thread` 时必须显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；目标 Task 取得执行权后按本文件的真实阶段只更新第三字段，三个稳定字段不得改变。不得把调用后才返回的 `threadId`/`clientThreadId` 写进序号或标题。创建后以真实 id 和 `projectId` 对账，并使用 `list_threads` 返回的规范化标题原文展示，不靠标题承担身份判断。
+- Git Worktree、Git Local 与非 Git Local 左侧 Task 都遵守统一进度标题。调用 `create_thread` 时必须显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；目标 Task 取得执行权后按本文件的真实阶段只更新第三字段，三个稳定字段不得改变。不得把调用后才返回的 `threadId`/`clientThreadId` 写进序号或标题。创建后以真实 id 和 `projectId` 对账，并使用 `list_threads` 返回的规范化标题原文展示，不靠标题承担身份判断。
 - Task 描述记录不可变的 Task key、稳定序号、Task 简述、功能摘要、派发时使用的完整 `已分配` 显示标题、独立的 ASCII `feature-summary`、目标 `projectId`、保存项目完整路径、Git repository identity、起始分支/提交和完成边界。显示标题与 Git 摘要是两个事实；不得把 `{序号}|{Task简述}|{当前进度} |{功能摘要}` 原样当作 Git ref，也不得根据返回 id 重新分配序号。未明确这些事实时不得用猜测值创建。
 - 只读或非产品写入 Task 在用户明确指定时按该 branch/ref 创建，否则使用保存项目默认主分支的已提交 HEAD，不硬编码 `main` 或 `master`，也不主动 fetch/pull。会形成产品变更的 Task 在首次写入前调用 `$desktop-manage-git-lifecycle start --summary <feature-summary>`；helper 从当前 HEAD 建立唯一 `feature-*` 分支，并在当前路径是非主 Worktree 时同时把分支和 Worktree 精确登记到本发布周期。并行 Task 只要求写入所有权不重叠，不因分支历史形态、活动叶子或单写入者规则拒绝。基线必须已有提交；除非用户明确要求从 working tree 状态开始，否则不得复制未提交修改。基线不明确、分叉或修改无法安全归属时停止创建。
-- Codex 管理 Worktree 默认可能处于 detached HEAD。Ready Task 在首次编辑前以描述中单独记录的 ASCII `feature-summary` 调用生命周期 `start`；helper 直接从 detached HEAD 创建并切换到唯一 `feature-*` 分支，同时登记当前非主 Worktree，无需预先建立其他 Task 分支或重复调用 `track-worktree`。`feature-summary` 只服务安全分支命名，不是显示标题。确认当前 Git 顶层就是该 Task Worktree，且不得让另一个 Task 使用同一 Worktree 或分支。
+- Codex 管理 Worktree 默认可能处于 detached HEAD。Worktree 模式的 Ready Task 在首次编辑前以描述中单独记录的 ASCII `feature-summary` 调用生命周期 `start`；helper 直接从 detached HEAD 创建并切换到唯一 `feature-*` 分支，同时登记当前非主 Worktree，无需预先建立其他 Task 分支或重复调用 `track-worktree`。`feature-summary` 只服务安全分支命名，不是显示标题。确认当前 Git 顶层就是该 Task Worktree，且不得让另一个 Task 使用同一 Worktree 或分支。Git Local 模式在保存 checkout 的当前 HEAD 上调用同一 `start`，只登记分支，不虚构独立 Worktree。
 
 ### 执行、提交与边界
 
-- Task 只在自己的 Worktree 修改文件，不直接编辑 Local 主工作目录，也不进入、清理或复用其他 Task 的 Worktree。保护已有修改，不扩大任务说明中的允许范围。
+- Worktree 模式的 Task 只在自己的 Worktree 修改文件，不直接编辑 Local 主工作目录，也不进入、清理或复用其他 Task 的 Worktree。Git Local 模式只在绑定的保存 checkout 修改，并保持单一写入型左侧 Task；两种模式都保护已有修改，不扩大任务说明中的允许范围。
 - 每完成一个能够独立说明结果的逻辑闭环就提交一次。提交信息按 `$desktop-configure-git-commits` 表达已经得到的结果，例如 `feat: implement WeChat accessibility selectors`、`fix: reject stale accessibility identities` 或 `docs: record capability gate evidence`；简单变化可只写主题，非简单变化保留 Why/Changes/Impact/Test，未运行测试明确写 `Not run` 原因。不得把构建缓存、`target/`、`node_modules/`、`dist/`、`__pycache__/` 或其他忽略生成物加入提交。
 - `feature-*` 和 `codex/unit-*` 是当前发布周期的临时实施分支。Task 不自行覆盖 `/Applications` 中的最终应用，不删除其他 Worktree，不合并或推送默认主分支，也不执行发布、签名或其他未在任务描述中明确授权的外部副作用；其资源由统一生命周期 helper 登记，待成功发布的 tag 已推送后统一清理。
 - 最终交付前必须确认任务要求的测试已经执行、相关权威文档已经同步、全部任务改动已经提交，并且 `git status --porcelain=v1 --untracked-files=all` 为空。适用目标必须编译并验证真实目标行为；任务没有可编译产物或完整候选不在范围内时，必须把该项明确报告为 `Not applicable` 或 `Not run`，不得伪造通过，也不得因此自动扩大为构建/E2E/完整验收。
@@ -97,14 +99,14 @@ Task 绑定：
 - Task key：填写派发前分配的不可变技术标识；它不进入显示标题，也不得填写返回后的 `threadId` 或 `clientThreadId`。
 - 标题序号：填写同一 `hostId`/`projectId` 下合规的当前与归档 Codex Task 历史最大序号加一所得正整数；同一结果全程不变，缺号不回填，也不从 Task key、宿主 id、列表顺序或 Git ref 推导。
 - 显示标题：填写按 `{序号}|{Task简述}|已分配 |{功能摘要}` 形成并传给 `create_thread.title` 的完整字符串；同时单独记录序号、Task 简述和功能摘要三个稳定字段，供目标 Task 后续只替换第三个进度字段。
-- Git feature summary：Git Worktree Task 填写独立的 ASCII kebab-case `feature-summary`，供 `$desktop-manage-git-lifecycle start --summary` 使用；不得复制显示标题，非 Git 时标记 `Not applicable`。
+- Git feature summary：Git Worktree 或 Git Local Task 都填写独立的 ASCII kebab-case `feature-summary`，供 `$desktop-manage-git-lifecycle start --summary` 使用；不得复制显示标题，非 Git 时标记 `Not applicable`。
 - Codex 项目：填写名称、`projectId` 和保存项目完整路径。
 - Git 绑定：填写 repository identity、起始分支和起始提交；非 Git 时标记 `Not applicable`。
 
 工作方式：
 
-- Git 项目使用独立 Codex Worktree，并在首次写入前由生命周期 `start` 创建和登记 `feature-*` 分支；非 Git 项目使用绑定项目的 Local 环境。
-- 只在当前 Worktree 修改文件。
+- Git 项目按 `left_git_task_worktree` 使用独立 Codex Worktree 或保存项目 Local 环境，并在首次写入前由生命周期 `start` 创建和登记 `feature-*` 分支；非 Git 项目使用绑定项目的 Local 环境。
+- Worktree 模式只在当前 Worktree 修改；Local 模式只在保存项目 checkout 修改，且不得与另一写入型左侧 Task 并发。
 - 先读取 `AGENTS.md` 及相关事实来源。
 - 保护已有修改，不扩大范围。
 
@@ -139,11 +141,13 @@ Task 绑定：
 
 ## 初始化与持久化
 
-- `$desktop-instantiate-project` 把“推荐预设”或“自定义”与其他固定基础字段放在首轮一次询问；直接调用 `$desktop-initialize-rust-project` 时，则把该策略模式与接口组合放在同一首轮。推荐预设必须显式确认一次；选择自定义后，每轮只询问一个目标用户尚未明确提供的条件字段，每项至多一次。Harness 源字段值不是下游确认，不能因源文件已有 `enabled` 或 `disabled` 而跳过目标用户选择。
-- 推荐预设物化为 `superpowers: disabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`。Superpowers 默认关闭，只有自定义选择明确启用时才可使用；最后一项只是后续构建询问时的建议默认值。预设只是输入捷径，不新增持久字段，也不得在用户未确认时静默采用。
-- 四项值全部解析后才一次原子写入本文件；`confirmed_by` 记录真实确认来源，`confirmed_at` 记录最终收齐日期。由 `$desktop-instantiate-project` 进入 `$desktop-initialize-rust-project` 时只验证并复用，不重复询问。
-- `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，四项选择、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
-- 初始化首次写入发生在下游 ADR 尚未创建前，不要求为了引导预建 ADR。初始化后的永久策略变更必须由用户确认，并在当日 ADR 记录原因、影响和恢复条件。
+- `$desktop-instantiate-project` 把“推荐预设”或“自定义”、独立的左侧 Git Task Worktree 开关与其他固定基础字段放在首轮一次询问；直接调用 `$desktop-initialize-rust-project` 时，则把策略模式、`left_git_task_worktree` 与接口组合放在同一首轮。`left_git_task_worktree` 必须由用户明确选择 `enabled` 或 `disabled`，可以把 `enabled` 标为推荐值，但不得由推荐预设代答。推荐预设必须显式确认一次；选择自定义后，每轮只询问一个目标用户尚未明确提供的条件字段，每项至多一次。Harness 源字段值不是下游确认，不能因源文件已有 `enabled`、`disabled` 或 `pending` 而跳过目标用户选择。
+- 推荐预设只物化另外四项为 `superpowers: disabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`，并与用户单独确认的 `left_git_task_worktree` 合并成最终五项策略。Superpowers 默认关闭，只有自定义选择明确启用时才可使用；最后一项只是后续构建询问时的建议默认值。预设只是输入捷径，不新增持久字段，也不得在用户未确认时静默采用。
+- 五项值全部解析后才以 `schema_version: 2` 一次原子写入本文件；`confirmed_by` 记录真实确认来源，`confirmed_at` 记录最终收齐日期。由 `$desktop-instantiate-project` 进入 `$desktop-initialize-rust-project` 时只验证并复用，不重复询问。
+- `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，五项选择、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
+- 初始化首次写入发生在下游 ADR 尚未创建前，不要求为了引导预建 ADR。初始化后，用户可明确说“开启左侧 Git Task Worktree”或“关闭左侧 Git Task Worktree”；Agent 只把 `left_git_task_worktree` 改为对应值，同时更新 `confirmed_by`/`confirmed_at`，并在当日 ADR 记录变更前后值、原因、影响和恢复条件。用户也可以手动完成同样三项编辑与 ADR 记录。目标值已经相同时按幂等 no-op 报告，不重写确认元数据或 ADR。
+- 手动切换只影响切换成功后新创建的左侧 Git Task。关闭时立即禁止再派发新的 Worktree Task，但不删除、迁移、中断或改挂已经创建的 Task/Worktree；这些既有资源继续按原绑定完成或进入正常发布清理。开启时也不会自动创建 Task，仍须用户明确要求新建。旧 `schema_version: 1` 下游缺少本字段时继续按历史规则视为 `enabled`；用户第一次手动切换时必须迁移为 `schema_version: 2` 并显式写入本字段，不得借迁移改动其他四项策略。
+- 其他初始化后的永久策略变更同样必须由用户确认，并在当日 ADR 记录原因、影响和恢复条件。
 - 临时任务约束可以记录在当前工作计划/验证记录中，但不得静默改写本文件。
 
 ## 开发与构建

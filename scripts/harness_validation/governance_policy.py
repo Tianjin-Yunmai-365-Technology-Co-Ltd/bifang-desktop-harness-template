@@ -1,4 +1,4 @@
-"""校验四项持久 Agent 策略的 schema、确认元数据与正文语义。"""
+"""校验五项持久 Agent 策略的 schema、确认元数据与正文语义。"""
 
 from __future__ import annotations
 
@@ -95,7 +95,7 @@ def validate_agent_policy(
     allow_pending: bool = True,
     require_source_defaults: bool = False,
 ) -> None:
-    """校验四项项目级偏好的稳定 schema、值域和持久执行语义。"""
+    """校验五项项目级偏好的稳定 schema、值域和持久执行语义。"""
     if not policy_path.is_file():
         fail(errors, f"missing Agent policy: {display_path(policy_path)}")
         return
@@ -124,6 +124,7 @@ def validate_agent_policy(
         "confirmed_at",
         "decision_mode",
         "superpowers",
+        "left_git_task_worktree",
         "parallel_worktree_subagents",
         "milestone_smoke",
         "milestone_e2e",
@@ -136,14 +137,20 @@ def validate_agent_policy(
             f"extra={sorted(set(fields) - expected_fields)}",
         )
 
-    if fields.get("schema_version") != "1":
-        fail(errors, "Agent policy schema_version must be 1")
+    if fields.get("schema_version") != "2":
+        fail(errors, "Agent policy schema_version must be 2")
     if fields.get("decision_mode") != "reuse_then_infer_then_ask":
         fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask")
     if require_source_defaults and fields.get("superpowers") != "disabled":
         fail(errors, "Harness source Agent policy must default superpowers to disabled")
+    if require_source_defaults and fields.get("left_git_task_worktree") != "pending":
+        fail(
+            errors,
+            "Harness source Agent policy must leave left_git_task_worktree pending",
+        )
     for field in (
         "superpowers",
+        "left_git_task_worktree",
         "parallel_worktree_subagents",
         "milestone_smoke",
         "milestone_e2e",
@@ -181,13 +188,16 @@ def validate_agent_policy(
 
     required_body_fragments = (
         "构建 E2E 建议默认值的唯一持久事实来源",
-        "完成初始化的下游四项选择只能是 `enabled` 或 `disabled`",
+        "完成初始化的下游五项选择只能是 `enabled` 或 `disabled`",
+        "`left_git_task_worktree`：控制用户明确要求创建的左侧 Git Task",
+        "初始化必须单独询问并记录本项",
         "推荐预设",
-        "推荐预设物化为 `superpowers: disabled`",
+        "推荐预设只物化另外四项",
+        "并与用户单独确认的 `left_git_task_worktree` 合并成最终五项策略",
         "预设只是输入捷径，不新增持久字段",
         "Harness 源字段值不是下游确认",
         "不得在用户未确认时静默采用",
-        "才一次原子写入本文件",
+        "才以 `schema_version: 2` 一次原子写入本文件",
         "只验证并复用，不重复询问",
         "日常开发直接实施",
         "显式发布候选构建必须为当前候选解析一次 E2E 选择",
@@ -195,6 +205,13 @@ def validate_agent_policy(
         "本地开发试包不消费 E2E/性能选择",
         "持久启用本身不能触发并行步骤",
         "本节只约束用户能从侧栏独立进入的 user-owned Task/thread",
+        "`left_git_task_worktree` 只控制左侧 Git Task 自身使用 Worktree 还是 Local",
+        "Git 项目读取 `left_git_task_worktree`",
+        "Git Local 模式派发写入型 Task 前必须确认保存 checkout 干净",
+        "开启左侧 Git Task Worktree",
+        "关闭左侧 Git Task Worktree",
+        "只影响切换成功后新创建的左侧 Git Task",
+        "旧 `schema_version: 1` 下游缺少本字段时继续按历史规则视为 `enabled`",
         "不得只因生命周期阶段变化自动拆 Task",
         "按规范化完整路径精确选中保存项目",
         "target.type = project",

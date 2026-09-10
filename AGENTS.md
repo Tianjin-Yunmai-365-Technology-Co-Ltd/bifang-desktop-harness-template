@@ -22,7 +22,7 @@
 | 新功能、Bug 修复、推送或发布的 Git 生命周期 | `docs/AGENT_POLICY.md` 的“开发分支与主分支发布生命周期”；发布时再读 `docs/RELEASE.md` | `$desktop-manage-git-lifecycle`；日常实现仍走 `$desktop-implement-change` |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md` | 对应 GUI Skill；不得一次加载全部 GUI Skills |
-| 创建或检查左侧 user-owned Task | `docs/AGENT_POLICY.md` 的“左侧 Task、项目绑定与独立 Worktree” | Codex 项目/Task 工具；只在用户明确要求新 Task 时调用 |
+| 创建或检查左侧 user-owned Task | `docs/AGENT_POLICY.md` 的“左侧 Task、项目绑定与 Worktree/Local 环境” | Codex 项目/Task 工具；只在用户明确要求新 Task 时调用，并按 `left_git_task_worktree` 选择 Git Worktree 或 Local |
 | 当前 Task 内部并行 Worktree/Subagent 或提交 | `docs/AGENT_POLICY.md` 的相关章节；提交时再读提交 Skill 的规范引用 | `$desktop-run-parallel-worktrees`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-plan-change`（仅在真实触发时） |
 | Windows GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
@@ -59,7 +59,7 @@
 | 约束或事实 | 唯一来源 | 何时读取 |
 |---|---|---|
 | 产品目标、范围与成功标准 | `docs/product_spec/README.md` 与最新 Product Spec | 定义产品或改变边界 |
-| Agent 能力、Session/Worktree/Subagent 进度标题、左侧 Task 与 E2E 建议默认值 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
+| Agent 能力、Session/Worktree/Subagent 进度标题、左侧 Git Task 环境与 E2E 建议默认值 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
 | 文件、注释、文档、测试、记忆触发与例外 | `docs/ENGINEERING_RULES.md` | 代码、测试、文档、规则或 Skill 变更 |
 | Rust core、adapter、MSRV、依赖与运行时 | `docs/RUST_CLI_TEMPLATE.md` | Rust 或接口实现/初始化 |
 | 下游目标平台与接口组合 | 根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` | 初始化、构建或跨宿主判断 |

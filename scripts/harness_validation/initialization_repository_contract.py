@@ -16,6 +16,7 @@ def repository_required_fragments(
     return {
         AGENT_POLICY: (
             "superpowers:",
+            "left_git_task_worktree:",
             "parallel_worktree_subagents:",
             "milestone_smoke:",
             "milestone_e2e:",
@@ -84,6 +85,8 @@ def repository_required_fragments(
             "$desktop-prepare-gui-support-surfaces",
             "选择 GUI 后必须先解析专门问询",
             "直接初始化时在首轮一并询问尚未解析的接口组合与 Agent 策略模式",
+            "上述直接初始化首轮还必须一并询问左侧 Git Task Worktree 开关",
+            "Agent Policy schema v2 的五项策略",
             "基础决定完成后再每轮补全一个 GUI 条件字段",
             "不得在复制后重复询问已确认值",
             "`system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`",

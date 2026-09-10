@@ -17,7 +17,7 @@ Bifang Desktop Harness Template
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、接口组合（CLI/TUI/MCP/GUI）和 Agent 策略模式。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、接口组合（CLI/TUI/MCP/GUI）、Agent 策略模式，以及左侧 Git Task 是否使用独立 Worktree。最后一项必须由用户单独选择，不能由推荐预设或 Task 内部并行策略代答。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、接口、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
@@ -35,6 +35,7 @@ Bifang Desktop Harness Template
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 按用户明确要求把独立结果创建为绑定保存项目的 Codex 左侧 Task；Git Worktree Task 以 `{序号}|{Task简述}|已分配 |{功能摘要}` 派发，并在自己的会话中更新真实进度，同时使用独立分支和可审查提交。
+- 初始化会单独询问左侧 Git Task 使用独立 Worktree 还是保存项目 Local checkout；之后也可明确要求开启或关闭，切换只影响新建 Task，不会移动或删除已有 Worktree。
 - 为新功能和独立 Bug 修复自动创建本地开发分支；你明确说“推送”时，普通合并登记分支、切换并推送动态默认主分支；你明确说“发布”时，在主分支推送后创建并推送 `v{版本}-{YYYYMMDD}`，tag 成功后才删除两次发布之间登记的 Worktree、远端分支和本地分支。GUI 在打包前还会检查启动、交互、CPU 与内存预算，没有真实验证过的平台会明确标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
@@ -63,7 +64,7 @@ Bifang Desktop Harness Template
    请使用 $desktop-instantiate-project 创建一个新项目。
    ```
 
-2. Agent 会一次询问尚未确定的基础信息：中英文项目名、项目标识、保存路径、负责人、目标平台、界面组合和 Agent 策略。中英文名称至少提供一个，另一个可以由 Agent 翻译后一起确认。
+2. Agent 会一次询问尚未确定的基础信息：中英文项目名、项目标识、保存路径、负责人、目标平台、界面组合、Agent 策略，以及“左侧 Git Task 是否使用独立 Worktree”。最后一项推荐开启，但无论选择推荐还是自定义策略，都必须由你明确回答；中英文名称至少提供一个，另一个可以由 Agent 翻译后一起确认。
 3. 如果选择 GUI，Agent 还会逐项确认系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键和侧栏样式；system-locale、updater、window-state、dialog 作为固定基线不额外询问。dialog 默认向主窗口开放全部官方对话框类型，但不授权通用文件读写。启用全局快捷键只安装能力，中性初始化不绑定默认按键或动作；产品动作、固定/可编辑策略和初始 chord 在终端下游完全按需求决定。随后按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示 3 个未经验证或标准化的原始 Logo 候选。只有你选定其中一个后，Agent 才会验证并按需标准化所选项；未选项不会被额外处理。
 4. 写入前，Agent 会展示完整汇总和最终项目路径。你确认后，它才会创建文件、检查所需环境并初始化项目。
 5. 汇总确认后，Agent 会先检查 Git：缺失时按当前平台的受管方式安装，可证明低于最低下界时自动升级，范围内版本原样复用；随后才写入脚手架。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、安装或升级变化、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。
@@ -82,6 +83,7 @@ Bifang Desktop Harness Template
 - 普通“构建/打包/本地试包”不会自动升级为发布候选、提交、推送或修改主分支；只有明确发布会自动执行 tag 前主分支推送和 tag 后精确清理。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
+- “开启左侧 Git Task Worktree”或“关闭左侧 Git Task Worktree”：更新 `docs/AGENT_POLICY.md` 的 `left_git_task_worktree` 和确认元数据，并记录当日 ADR。关闭后新 Task 使用 Local checkout，同一 checkout 不并发运行多个写入型左侧 Task；已有 Task/Worktree 保持原绑定并按原生命周期收口。
 
 如果一项工作需要成为可独立进入和审查的结果，可以明确要求新建一个左侧 Task。诊断、实现、相关测试/review 和同范围修复不会仅因阶段变化被自动拆开；plan、Todo 和 Subagent 仍是当前 Task 的内部结构。详细规则见 [Agent 运行策略](docs/AGENT_POLICY.md)。
 
@@ -103,7 +105,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 ## 开始一个左侧 Task
 
-只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目选择项目 Worktree，非 Git 项目选择 Local；项目工作禁止使用 projectless 目标。创建者在派发前记录不可变 Task key，并用 `list_threads(limit=50)` 与同宿主逐页 `list_archived_threads` 清点该项目历史，分配最大有效序号加一；同一批次按顺序预留连续序号。随后调用 `create_thread` 时显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；调用后才返回的 `threadId`/`clientThreadId` 不能反填序号。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
+只有用户明确要求新建左侧 Task 时才调用创建工具。创建者先用 `list_projects` 按完整路径锁定保存项目，再以精确 `projectId` 创建：Git 项目读取 `left_git_task_worktree`，`enabled` 选择项目 Worktree，`disabled` 选择保存项目 Local；非 Git 项目始终选择 Local，项目工作禁止使用 projectless 目标。Git Local 模式只允许一个可能写入该 checkout 的左侧 Task，无法排除并发写入时停止。创建者在派发前记录不可变 Task key，并用 `list_threads(limit=50)` 与同宿主逐页 `list_archived_threads` 清点该项目历史，分配最大有效序号加一；同一批次按顺序预留连续序号。随后调用 `create_thread` 时显式传入 `title="{序号}|{Task简述}|已分配 |{功能摘要}"`；调用后才返回的 `threadId`/`clientThreadId` 不能反填序号。Worktree 物理目录可以位于保存项目之外，归属通过 `projectId`、相同 Git common dir 和仓库登记的 Worktree 共同确认。
 
 创建接口返回真实 `threadId` 时 Task 已可管理；只返回 `clientThreadId` 时表示请求已接受但仍在 setup。创建者会报告 queued 状态后结束，不假设存在转换接口、不无限等待，也不重复创建。后续明确检查时再用真实 id 和 `projectId` 对账，并展示 `list_threads` 返回的规范化标题原文；执行 Task 可能已经推进标题进度，因此对账只要求序号、Task 简述、功能摘要三个稳定字段和四种合法进度字段，身份不依赖标题。Ready/Active/Blocked 等宿主状态不替代这四种标题进度；阻断时保留最后真实进度并在正文报告。
 

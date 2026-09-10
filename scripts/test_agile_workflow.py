@@ -29,7 +29,7 @@ from scripts.harness_validation_test_support import (
 
 
 class AgentPolicyTests(unittest.TestCase):
-    """覆盖推荐预设与自定义选择对既有 schema v1 的物化。"""
+    """覆盖独立 Task 环境选择、推荐预设与自定义策略的 schema v2 物化。"""
 
     @staticmethod
     def _current_policy() -> str:
@@ -64,11 +64,12 @@ class AgentPolicyTests(unittest.TestCase):
                 raise AssertionError(f"policy field was not replaced: {field}")
         return resolved
 
-    def test_recommended_values_are_valid_schema_v1_policy(self) -> None:
-        """推荐预设只物化现有四字段，并通过下游 fail-closed 校验。"""
+    def test_recommended_values_and_independent_task_environment_are_valid(self) -> None:
+        """推荐四项与独立 Task 环境合并后通过下游 fail-closed 校验。"""
         resolved = self._resolved_policy(
             {
                 "superpowers": "disabled",
+                "left_git_task_worktree": "enabled",
                 "parallel_worktree_subagents": "enabled",
                 "milestone_smoke": "enabled",
                 "milestone_e2e": "disabled",
@@ -79,6 +80,13 @@ class AgentPolicyTests(unittest.TestCase):
     def test_source_defaults_superpowers_to_disabled(self) -> None:
         """Harness 源策略必须在下游选择前保持 Superpowers 默认关闭。"""
         self.assertRegex(self._current_policy(), r"(?m)^superpowers: disabled$")
+
+    def test_source_leaves_task_worktree_choice_pending(self) -> None:
+        """Harness 源不得代替下游用户确认左侧 Git Task 环境。"""
+        self.assertRegex(
+            self._current_policy(),
+            r"(?m)^left_git_task_worktree: pending$",
+        )
 
     def test_source_default_validator_rejects_enabled_superpowers(self) -> None:
         """模板校验不能只依赖正文中的推荐值而忽略源字段漂移。"""
@@ -95,11 +103,30 @@ class AgentPolicyTests(unittest.TestCase):
         )
         self.assertTrue(any("default superpowers to disabled" in error for error in errors))
 
+    def test_source_default_validator_rejects_preselected_task_environment(self) -> None:
+        """模板源必须保留初始化必问，不能预先替用户开启或关闭 Task Worktree。"""
+        mutated = self._current_policy().replace(
+            "left_git_task_worktree: pending",
+            "left_git_task_worktree: enabled",
+            1,
+        )
+        errors = run_validator_on_tempfile(
+            governance.validate_agent_policy,
+            "AGENT_POLICY.md",
+            mutated,
+            require_source_defaults=True,
+        )
+        self.assertTrue(
+            any("leave left_git_task_worktree pending" in error for error in errors),
+            errors,
+        )
+
     def test_custom_values_are_not_forced_to_recommended_values(self) -> None:
         """自定义选择可物化不同合法组合，不被推荐配方覆盖。"""
         resolved = self._resolved_policy(
             {
                 "superpowers": "enabled",
+                "left_git_task_worktree": "disabled",
                 "parallel_worktree_subagents": "disabled",
                 "milestone_smoke": "disabled",
                 "milestone_e2e": "enabled",
@@ -110,7 +137,7 @@ class AgentPolicyTests(unittest.TestCase):
     def test_rejects_persisted_preset_field(self) -> None:
         """推荐预设只是输入快捷方式，不得扩张稳定 schema。"""
         mutated = self._current_policy().replace(
-            "schema_version: 1\n", "schema_version: 1\npreset: agile\n", 1
+            "schema_version: 2\n", "schema_version: 2\npreset: agile\n", 1
         )
         errors = self._validate(mutated)
         self.assertTrue(any("fields mismatch" in error for error in errors), errors)
@@ -237,7 +264,7 @@ class InitializationFormContractTests(unittest.TestCase):
             r"(?m)^\|\s*(\d+)\s*\|\s*(首轮基础|条件补全)\s*\|\s*([^|]+?)\s*\|",
             form,
         )
-        self.assertEqual([int(order) for order, _, _ in rows], list(range(1, 22)))
+        self.assertEqual([int(order) for order, _, _ in rows], list(range(1, 23)))
         self.assertEqual(
             [field.strip() for _, stage, field in rows if stage == "首轮基础"],
             [
@@ -249,6 +276,7 @@ class InitializationFormContractTests(unittest.TestCase):
                 "目标平台",
                 "接口组合",
                 "Agent 策略模式",
+                "`left_git_task_worktree`",
             ],
         )
         self.assertEqual(

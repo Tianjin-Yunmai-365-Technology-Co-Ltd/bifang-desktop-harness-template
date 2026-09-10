@@ -28,7 +28,7 @@
 |---|---|---|
 | 文件、链接与行数 | 日常 `python3 scripts/validate_harness.py`；发布审查启用时追加 `--release-review` | 必需固定入口、日期记忆索引/正文和本地 Markdown 链接完整；401–800/501–1000/501–2000 行候选只在已启用发布审查中提示，801/1001/2001 行起始终失败；Rust 拆分使用 `<module>/mod.rs` |
 | Skills | 硬契约校验；当次发布审查启用时再做语义审查 | Skills、UI 元数据、参考资料、脚本和资产与事实源一致；独立 WEB Skill 不得存在，`$desktop-upgrade-harness` 必须存在并保留 |
-| 持久 Agent 策略 | 模式定义正负向单元测试 + 初始化契约 | 用户显式选择一次推荐预设或自定义；推荐预设默认 `superpowers: disabled`，最终四字段原子写入且不得残留 `pending`；每次构建仍单独解析 E2E |
+| 持久 Agent 策略 | 模式定义正负向单元测试 + 初始化契约 | 用户显式选择一次推荐预设或自定义，并独立确认推荐启用的 `left_git_task_worktree`；最终 schema v2 五字段原子写入且不得残留 `pending`，后续同值切换零写入、真实切换只影响新 Task；每次构建仍单独解析 E2E |
 | 收敛开发与按需计划 | 无计划日常开发、用户要求的精简 Todo、完整候选正负向单元测试 | 日常开发无 Work Plan；持久 Todo 只在明确协调需要时存在；有活动计划时非 `done` 项禁止进入 `accepted` |
 | 并行协作 | Worktree 助手隔离单元测试 + 校验器契约检查 | 只有用户明确要求、持久策略启用且至少两个写入范围独立时采用；否则单 Agent |
 | Git 生命周期 | 裸远端回归 + `start`/`track-worktree`/`publish`/`release` 真实 ref 断言 | 新功能/Bug 自动建本地分支；`publish` 普通合并、切换并推送主分支且保留资源；`release` 在主分支推送后创建并推送版本 tag，tag 复读成功后才按 Worktree→远端分支→本地分支精确清理；覆盖 tag 失败零清理、同名冲突、部分清理重试、dirty Worktree和未登记资源保留 |

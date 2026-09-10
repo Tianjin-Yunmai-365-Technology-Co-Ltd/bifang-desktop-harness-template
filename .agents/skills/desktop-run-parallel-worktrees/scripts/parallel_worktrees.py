@@ -154,14 +154,8 @@ def canonical_source_context(
     common_dir: Path,
     raw_source: str,
 ) -> ProjectContext:
-    """绑定同一仓库内已登记且附着在任意具名分支的源 Worktree。"""
+    """绑定同一仓库内已登记且附着在任意具名分支的 Task source。"""
     source = git_top_level(raw_source, "源 Worktree ", "source_worktree_missing")
-    if source == project_root:
-        raise WorkflowError(
-            "source_worktree_not_independent",
-            "源 Worktree 必须是当前左侧 Task 的独立 Worktree，不能复用保存项目 primary",
-            4,
-        )
     if repository_common_dir(source) != common_dir:
         raise WorkflowError(
             "source_repository_mismatch",

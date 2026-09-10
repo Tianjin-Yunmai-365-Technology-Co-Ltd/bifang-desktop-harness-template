@@ -4,10 +4,11 @@
 
 ## 交互规则
 
-- 维护字段状态：`待首轮询问`、`待条件询问`、`待校验`、`已解析`、`不适用`。中文项目展示名称、英文项目展示名称、`project_id`、项目路径、负责人、目标平台、接口组合和 Agent 策略模式是固定基础字段；首次问询必须用一份清晰编号的表单，一次列出其中全部尚未解析字段，不得拆成逐字段多轮，也不得用“请提供初始化所需信息”这种无字段提示代替。
+- 维护字段状态：`待首轮询问`、`待条件询问`、`待校验`、`已解析`、`不适用`。中文项目展示名称、英文项目展示名称、`project_id`、项目路径、负责人、目标平台、接口组合、Agent 策略模式和左侧 Git Task Worktree 开关是固定基础字段；首次问询必须用一份清晰编号的表单，一次列出其中全部尚未解析字段，不得拆成逐字段多轮，也不得用“请提供初始化所需信息”这种无字段提示代替。
 - 中英文项目展示名称至少由用户直接提供一个。只提供中文时，Agent 在本轮解析中自动翻译并补齐英文；只提供英文时自动翻译并补齐中文，不为译名增加单独问询。原名称含难以直译的专有名词、品牌词或造词时，补齐的另一语言名称允许采用音译、约定俗成译名或保留原文形式，不强求逐字语义翻译，只要在目标语言中可读、不产生歧义即可。两个名称都由用户提供时保持原值，不自行改译；两个都未提供时在首轮同时询问。自动翻译得到的名称必须标记来源，并与用户原始名称一起进入最终完整汇总；用户对汇总的确认同时构成对译名的确认，确认前仍不得写入。
 - 首轮回复后先校验全部基础字段。若其中有缺失或非法值，只集中列出仍需修正的基础字段、各自约束和原值问题；已经合法的基础字段继续复用，不得重问。基础字段全部解析前不得进入条件问询。
-- 基础字段全部解析后，再按实际选择逐步补全条件字段：选择自定义策略时依次解析四项策略，选择 GUI 时依次解析八项能力和侧栏模式。每次回复只询问一个当前适用且尚未解析的条件字段；推荐预设或非 GUI 使相应字段直接成为 `不适用`，不得制造多余问询。
+- `left_git_task_worktree` 与 `parallel_worktree_subagents` 是两项独立事实：前者决定用户可见的左侧 Git Task 自身使用独立 Worktree 还是保存项目 Local checkout，后者只决定单个 Task 内部能否按明确请求并行拆分。不得用其中一项回答、推断或覆盖另一项。
+- 基础字段全部解析后，再按实际选择逐步补全条件字段：选择自定义策略时依次解析原有四项策略，选择 GUI 时依次解析八项能力和侧栏模式。每次回复只询问一个当前适用且尚未解析的条件字段；推荐预设或非 GUI 使相应字段直接成为 `不适用`，不得制造多余问询。
 - 用户主动一次提供多个字段时全部解析并记录来源；合法字段不得为了遵守顺序而重问。字段非法时只说明该字段的约束并重新询问同一项。
 - 所有必填和条件字段收齐后，展示一份完整汇总，其中必须包含中英文项目展示名称及各自来源、用户输入的项目路径、解析后的最终项目根目录、派生的 kebab-case 前缀、目标平台、接口、策略及适用的 GUI 九项配置；并说明目标平台与接口将在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中持久保存，供后续构建使用。GUI 汇总同时说明 system-locale、updater、window-state、dialog 是不询问且不进入九字段 profile 的固定基线，dialog 以主窗口 `dialog:default` 开放全部官方对话框类型但不授权通用文件读写；深链启用时展示派生 URL `app-<kebab-prefix>://restore`；全局快捷键启用时明确说明只安装 Rust-only 能力，初始化 contract 为 `actions = []`，不绑定默认 chord、不注册 OS 键位、不创建产品动作或占位界面。本轮只询问是否按该汇总创建。
 - 在用户确认完整汇总前，只允许读取规则、检查已有路径和运行只读解析；不得创建目录、复制文件、安装环境、初始化 Git 或修改任何文件。
@@ -25,6 +26,7 @@
 6. 目标平台：Windows、macOS、Linux，可多选。
 7. 接口组合：CLI、TUI、MCP、GUI，可多选；可明确选择默认 CLI。
 8. Agent 策略模式：推荐预设或自定义。
+9. 左侧 Git Task 是否使用独立 Worktree：`enabled` 或 `disabled`；推荐 `enabled`，但必须由用户明确选择。关闭后，新建左侧 Git Task 使用保存项目的 Local checkout，且同一 checkout 不得并发运行多个写入型左侧 Task。
 
 用户已在创建请求中合法提供的基础字段不再显示；其余基础字段必须在这一轮全部显示。
 
@@ -40,19 +42,20 @@
 | 6 | 首轮基础 | 目标平台 | 必填；从 Windows、macOS、Linux 中选择一个或多个，不推断未选择的平台已经验证。 |
 | 7 | 首轮基础 | 接口组合 | 从 CLI、TUI、MCP、GUI 中选择任意组合。用户明确选择“使用默认值”或明确跳过时解析为仅 CLI；选择其他接口时不得附加 CLI。 |
 | 8 | 首轮基础 | Agent 策略模式 | 必须选择“推荐预设”或“自定义”。不得从 Harness 源策略推断用户选择。 |
-| 9 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 10 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 11 | 条件补全 | `milestone_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 12 | 条件补全 | `milestone_e2e` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
-| 13 | 条件补全 | `system_tray` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 14 | 条件补全 | `system_notification` | 仅选择 GUI 时必填；询问是否安装系统通知能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`。 |
-| 15 | 条件补全 | `autostart` | 仅选择 GUI 时必填；询问是否安装开机自启能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`；选择能力不表示替用户注册登录项。 |
-| 16 | 条件补全 | `about_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 17 | 条件补全 | `sponsor_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 18 | 条件补全 | `single_instance` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 19 | 条件补全 | `deep_link` | 仅选择 GUI 时必填；`enabled` 表示启用身份派生的 `app-<kebab-prefix>://restore`，只恢复主窗口，并强制 `single_instance = enabled`。若单实例已禁用，必须请用户在“启用两者”与“保持两者禁用”之间修正，不得生成无效组合。 |
-| 20 | 条件补全 | `global_shortcut` | 仅选择 GUI 时必填；`enabled` 表示安装 Rust-only 全局快捷键能力，并在中性 profile 写入空 `gui-global-shortcut-contract`，初始不绑定 chord、不注册 OS 键位，也不推断动作或界面；`disabled` 时 contract、依赖、插件及全部专属实现缺席。产品动作、固定/可编辑策略与初始 chord 只能在终端下游由明确需求决定。 |
-| 21 | 条件补全 | `sidebar_mode` | 仅选择 GUI 时询问 `compact` 或 `detailed`；用户明确留空、跳过或选择默认值时解析为 `detailed`，显式非法值必须重新询问。 |
+| 9 | 首轮基础 | `left_git_task_worktree` | 必填；独立选择 `enabled` 或 `disabled`，不得由推荐预设或 `parallel_worktree_subagents` 推断。`enabled` 让新建左侧 Git Task 使用独立 Codex Worktree；`disabled` 使用保存项目 Local checkout，并禁止同一 checkout 并发多个写入型左侧 Task。 |
+| 10 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
+| 11 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
+| 12 | 条件补全 | `milestone_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
+| 13 | 条件补全 | `milestone_e2e` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
+| 14 | 条件补全 | `system_tray` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 15 | 条件补全 | `system_notification` | 仅选择 GUI 时必填；询问是否安装系统通知能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`。 |
+| 16 | 条件补全 | `autostart` | 仅选择 GUI 时必填；询问是否安装开机自启能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`；选择能力不表示替用户注册登录项。 |
+| 17 | 条件补全 | `about_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 18 | 条件补全 | `sponsor_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 19 | 条件补全 | `single_instance` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 20 | 条件补全 | `deep_link` | 仅选择 GUI 时必填；`enabled` 表示启用身份派生的 `app-<kebab-prefix>://restore`，只恢复主窗口，并强制 `single_instance = enabled`。若单实例已禁用，必须请用户在“启用两者”与“保持两者禁用”之间修正，不得生成无效组合。 |
+| 21 | 条件补全 | `global_shortcut` | 仅选择 GUI 时必填；`enabled` 表示安装 Rust-only 全局快捷键能力，并在中性 profile 写入空 `gui-global-shortcut-contract`，初始不绑定 chord、不注册 OS 键位，也不推断动作或界面；`disabled` 时 contract、依赖、插件及全部专属实现缺席。产品动作、固定/可编辑策略与初始 chord 只能在终端下游由明确需求决定。 |
+| 22 | 条件补全 | `sidebar_mode` | 仅选择 GUI 时询问 `compact` 或 `detailed`；用户明确留空、跳过或选择默认值时解析为 `detailed`，显式非法值必须重新询问。 |
 
 推荐预设一次确认后确定性物化为：
 
@@ -62,6 +65,8 @@ parallel_worktree_subagents: enabled
 milestone_smoke: enabled
 milestone_e2e: disabled
 ```
+
+`left_git_task_worktree` 不属于推荐预设展开内容，必须使用首轮中用户明确选择的值；完整汇总把它与以上四项合并为五项最终策略。
 
 ## 目标路径解析
 
@@ -89,7 +94,7 @@ python3 .agents/skills/desktop-instantiate-project/scripts/resolve_project_targe
 
 - 所有必填字段均为 `已解析`，所有条件字段均为 `已解析` 或 `不适用`；
 - 中英文项目展示名称都为非空已解析值，且至少一个来自用户直接输入；自动翻译的另一名称已列入完整汇总；
-- 推荐预设或四项自定义策略已全部解析，无 `pending`；
+- `left_git_task_worktree` 已由用户独立确认，推荐预设或四项自定义策略也已全部解析，五项最终策略均无 `pending`；
 - GUI 被选择时八项能力与侧栏模式已全部解析，无 `pending`；
 - GUI 中 `deep_link = enabled` 时 `single_instance = enabled`，派生 restore URL 已进入最终汇总；`global_shortcut = enabled` 时空 action contract、零默认 chord、零 OS 注册边界已进入最终汇总；
 - 路径 helper 成功，最终项目根目录通过空目录、路径类型和禁止位置检查；
