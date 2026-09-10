@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "sourceHead": "b63b73c5e67d168a9b1cbc73d62979da45904778",
+  "version": "202609102343",
+  "releaseDate": "2026-09-10",
+  "expectedTag": "v202609102343-20260910",
+  "remote": "github",
+  "defaultBranch": "master",
+  "releaseReview": {
+    "selection": "enabled",
+    "status": "passed",
+    "scopeBase": "fd17248866418e5091d78e865f2b55fab6f77408",
+    "sourceHead": "b63b73c5e67d168a9b1cbc73d62979da45904778",
+    "scopeDiffSha256": "e8e6e58f5cb9e331a81689cdb236057044724cfd8516679e135a98614ba7f84a",
+    "reviewedSourceCommit": "b63b73c5e67d168a9b1cbc73d62979da45904778",
+    "checks": [
+      "behavior-correctness",
+      "core-adapter-boundary",
+      "external-contracts",
+      "responsibility-and-size",
+      "temporary-markers"
+    ],
+    "evidenceSummary": "Passed behavior correctness, core/adapter boundary, external contract, responsibility/size, and temporary-marker review; Harness release review passed with 35 pre-existing non-blocking size advisories.",
+    "reason": null,
+    "remainingRisk": null
+  },
+  "candidateSelections": {
+    "performanceSelection": "not-applicable",
+    "performanceSource": "not-applicable",
+    "performanceReason": null,
+    "performanceRemainingRisk": null,
+    "macosSigningSelection": "not-applicable",
+    "macosSigningSource": "not-applicable",
+    "macosSigningReason": null,
+    "macosSigningRemainingRisk": null
+  }
+}

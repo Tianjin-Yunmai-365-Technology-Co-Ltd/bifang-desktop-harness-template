@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "releases": [
+    {
+      "releaseDate": "2026-09-10",
+      "version": "v202609102343",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增默认关闭、可手动开关的用户可见 Task 自动拆分策略；启用后按单一结果边界创建，Git Task 固定使用独立 Worktree。",
+          "en-US": "Add an opt-in user-visible Task splitting policy that defaults off; when enabled, each result gets its own Task and Git Tasks always use isolated Worktrees."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Harness 当前版本镜像与已发布变更记录不同步的问题，并增加发布版本一致性门禁。",
+          "en-US": "Fix drift between the current Harness version mirrors and materialized change records, with a release-version consistency gate."
+        }
+      ]
+    }
+  ]
+}
