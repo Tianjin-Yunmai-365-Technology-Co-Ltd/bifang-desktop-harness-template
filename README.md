@@ -133,7 +133,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202609082335
+- 当前版本：v202609101621
 - 发布状态：Released
 - 产品规格：Approved
 - 具体产品源码：不包含
