@@ -2,7 +2,7 @@
 
 ## 新增
 
-- `HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`（所需 Harness 版本 `pending`，等待下一次时间版本发布物化）：新增持久策略 `user_owned_tasks`，推荐预设默认 `disabled`，自定义可开启，初始化后也可通过“开启/关闭左侧 Task”手动切换。关闭时不自动拆 Task但仍响应显式创建；启用后按单一结果边界自动创建。用户可见 Task 采用 `Task {序号} | {当前进度} | {单一结果}`，内部 plan/Subagent/Worktree 等不使用标题且不占用序号；当前与归档的当前/历史有效标题共同延续序号。每项目只允许一个写入型 active Task，Task0 仅协调。创建前必须完成项目、真实 `threadId`、标题、`projectId`、cwd、状态、干净工作区和起始提交核对；Git Task 固定使用独立 Worktree，非 Git 使用 Local，setup 或不符时零实现且不重复创建。`parallel_worktree_subagents` 保持独立。
+- `HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`（所需 Harness 版本 `202609102343`，已由本次时间版本发布物化）：新增持久策略 `user_owned_tasks`，推荐预设默认 `disabled`，自定义可开启，初始化后也可通过“开启/关闭左侧 Task”手动切换。关闭时不自动拆 Task但仍响应显式创建；启用后按单一结果边界自动创建。用户可见 Task 采用 `Task {序号} | {当前进度} | {单一结果}`，内部 plan/Subagent/Worktree 等不使用标题且不占用序号；当前与归档的当前/历史有效标题共同延续序号。每项目只允许一个写入型 active Task，Task0 仅协调。创建前必须完成项目、真实 `threadId`、标题、`projectId`、cwd、状态、干净工作区和起始提交核对；Git Task 固定使用独立 Worktree，非 Git 使用 Local，setup 或不符时零实现且不重复创建。`parallel_worktree_subagents` 保持独立。
 
 - `HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT`（所需 Harness 版本 `202609101621`，已由本次时间版本发布物化）：同一宿主、同一保存项目中的用户可见 Task 序号不再因新 Session 或新协调批次重置为 1；当前规则已由 `HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS` 收敛为只对左侧 user-owned Task 使用递增序号，内部 Subagent 不占用该序列。
 

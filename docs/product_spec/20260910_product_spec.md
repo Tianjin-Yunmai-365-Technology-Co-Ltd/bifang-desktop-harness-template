@@ -115,7 +115,7 @@
 
 ### 用户可见 Task 标题、粒度与可选自动拆分
 
-- 变更标识：`HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`；所需 Harness 版本：`pending`，等待下一次 Harness 时间版本发布物化。本条取代此前把普通 Session/内部 Subagent 纳入统一标题、只在用户明确要求时才创建、以及让 Git Task 环境可切换的子句。
+- 变更标识：`HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`；所需 Harness 版本：`202609102343`，已由本次 Harness 时间版本发布物化。本条取代此前把普通 Session/内部 Subagent 纳入统一标题、只在用户明确要求时才创建、以及让 Git Task 环境可切换的子句。
 - 历史序号修复标识：`HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT`；所需 Harness 版本：`202609101621`，已由本次 Harness 时间版本发布物化；其当前适用语义由本节收敛。
 - 只有用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`。序号是无前导零的正整数，同一结果稳定；同一 `hostId` 与精确 `projectId` 下先用 `list_threads` 清点当前 Task，再逐页用 `list_archived_threads` 清点归档 Task，从最大有效序号继续递增；空历史才从 1 开始，缺号不回填，旧四字段标题只用于延续历史序号。内部 Subagent 不使用该格式且不占用项目序列。
 - 左侧 Task 用 `create_thread(title="Task {序号} | 已分配 | {单一结果}")` 创建，目标 Task 按真实阶段进入 `运行中`、`检查中` 和终态 `已完成`，同范围返工回到 `运行中`；每次转换至多更新一次并以真实 `threadId` 复读。
@@ -392,6 +392,6 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609101621`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，`1.0.0` 保留为迁移前旧版本标识。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名与渠道上传仍须各自真实发生。
+- 当前版本：`202609102343`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，`1.0.0` 保留为迁移前旧版本标识。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名与渠道上传仍须各自真实发生。
 - 维护状态：Active。
 - 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对九项初始化组合、三项 Rust-only 固定基线与 dialog 固定 WebView 基线（含 dialog 原生 message/save/open、精确主窗口 capability、零 filesystem 权限、托盘禁用关闭退出、通知授权/投递、自启登录项恢复、单实例/深链接组合、全局快捷键冲突与注销、window-state 安全恢复、页面缺席与详细侧栏持久折叠）、签名更新安装、强更离线恢复、产品级统计同意/撤回、Vite/AST 门禁和最终 dist 扫描的前向构建证据。

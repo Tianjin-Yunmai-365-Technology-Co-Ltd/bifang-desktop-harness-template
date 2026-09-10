@@ -131,6 +131,7 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
         fail(errors, "docs/RELEASE.md still claims to be the Harness version fact source")  # noqa: F405
 
     materialized_changes = {
+        "HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS": "202609102343",
         "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE": "202609101621",
         "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": "202609101621",
     }
