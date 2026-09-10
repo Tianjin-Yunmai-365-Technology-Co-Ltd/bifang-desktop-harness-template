@@ -9,6 +9,37 @@ from pathlib import Path
 from .context import *  # noqa: F403
 
 
+def _validate_materialized_change(
+    errors: list[str],
+    path: Path,
+    change_id: str,
+    required_version: str,
+) -> None:
+    """锁定已发布变更在当前记忆文件中的版本物化状态。"""
+    if not path.is_file():
+        fail(errors, f"missing version contract file: {display_path(path)}")  # noqa: F405
+        return
+
+    matching_lines = [
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if change_id in line
+        and ("所需 Harness 版本" in line or "required_version" in line)
+    ]
+    if not matching_lines:
+        fail(  # noqa: F405
+            errors,
+            f"materialized Harness change missing in {display_path(path)}: {change_id}",
+        )
+        return
+    if not any(required_version in line and "pending" not in line for line in matching_lines):
+        fail(  # noqa: F405
+            errors,
+            "materialized Harness change has stale required version in "
+            f"{display_path(path)}: {change_id} must be {required_version}",
+        )
+
+
 def validate_version_contract(errors: list[str], version_file: Path) -> None:
     """确认 Harness 时间版本合法、只有一个事实源且不污染下游版本。"""
     if not version_file.is_file():
@@ -69,6 +100,9 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             "`YYYYMMDDHHMM`",
             "模板版本事实来源：根目录 `Version.md`",
             "本文件只维护版本与发布规则",
+            "必须在同一次原子变化中同步根 `Version.md`、README、最新 Product Spec 与本文件",
+            "发布后产生的新变化继续保持 `pending`",
+            "python3 -B scripts/validate_harness.py",
         ),
         PREPARE_RELEASE_SKILL: (  # noqa: F405
             "Harness 版本来自 `Version.md`",
@@ -95,3 +129,16 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
     release_text = (ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")  # noqa: F405
     if "模板版本事实来源：本文件" in release_text:
         fail(errors, "docs/RELEASE.md still claims to be the Harness version fact source")  # noqa: F405
+
+    materialized_changes = {
+        "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE": "202609101621",
+        "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": "202609101621",
+    }
+    materialized_paths = (
+        ROOT / "docs" / "changelog" / "20260910_CHANGELOG.md",  # noqa: F405
+        ROOT / "docs" / "adr" / "20260910_ADR.md",  # noqa: F405
+        PRODUCT_SPEC,  # noqa: F405
+    )
+    for change_id, required_version in materialized_changes.items():
+        for path in materialized_paths:
+            _validate_materialized_change(errors, path, change_id, required_version)

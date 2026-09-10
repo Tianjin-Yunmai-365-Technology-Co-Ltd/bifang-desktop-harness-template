@@ -38,7 +38,7 @@
 
 - 变更标识：`HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT`；所需 Harness 版本：`202608281139`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
 - 完整表单确认后、首次脚手架写入前，环境门禁检查 Git：最低稳定版为 `2.36.0`，以覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`；缺失时安装，可证明低于最低下界时按宿主受管路线升级，范围内稳定版原样复用。Git 仅在平台原生受信包管理器明确要求时进入系统级/管理员边界，权限需求必须显式可见且不得静默提权，无既有权限路线则停止。最终独立仓库建立后，已有有效身份保持不变；缺失字段只在该仓库 local 作用域补齐，名称来自设备账户名的英文翻译/转写，邮箱为 `<ascii-device-username>@gmail.com`。完成输出返回版本、安装/升级变化、身份、来源、作用域、仓库根、模板状态和基线提交。
-- Git 生命周期变更标识：`HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`；所需 Harness 版本：`pending`，等待下一次 Harness 时间版本发布物化。本条取代既有分支链、保护主分支、严格线性、原子 ref 事务和中转分支兼容决定。
+- Git 生命周期变更标识：`HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`；所需 Harness 版本：`202609101621`，已由本次 Harness 时间版本发布物化。本条取代既有分支链、保护主分支、严格线性、原子 ref 事务和中转分支兼容决定。
 - 初始化仍只创建无远端的本地主分支基线。远端由用户或外部系统另行配置，但新功能和独立 Bug 修复的本地开发分支创建不依赖远端。`$desktop-manage-git-lifecycle start` 自动建立并切换 `feature-{ascii-kebab-summary}-{YYYYMMDD}`，日期取 `Asia/Shanghai`，碰撞时追加稳定递增后缀，同一工作幂等复用。
 - Git common dir 的 `agent-first-harness/git-lifecycle.json` 精确登记本发布周期由 helper 创建或接管的开发/Task/单元分支与 Worktree，以及主分支、tag 和逐项清理进度；同一 common-dir 的生命周期写入短时互斥，避免并行 Task 后写覆盖先写。状态不进入提交，不保存分支链、父子 OID、冻结远端或活动叶子。并行写入只要求文件所有权不重叠，允许普通 merge commit，没有保护分支、单写入者、线性、fast-forward-only、lease、atomic push 或审查路径等分支门禁。
 - 用户明确“推送”时，helper 普通合并登记分支，切换动态默认主分支并推送复读，保留登记资源且不创建 tag。明确“发布”时，先执行相同的主分支合并/切换/推送，再在当前 HEAD 创建并推送 `v{版本}-{YYYYMMDD}`；只有远端 tag 复读精确成功，才按 Worktree、远端分支、本地分支顺序删除本周期登记资源。tag 冲突或失败零清理，部分清理逐项记录并可幂等续作，dirty Worktree 和未登记资源不得强制删除。流程没有发布中转分支，也没有任何旧中转分支识别、迁移、兼容或清理代码。
@@ -116,6 +116,7 @@
 ### 用户可见 Task 标题、粒度与可选自动拆分
 
 - 变更标识：`HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`；所需 Harness 版本：`pending`，等待下一次 Harness 时间版本发布物化。本条取代此前把普通 Session/内部 Subagent 纳入统一标题、只在用户明确要求时才创建、以及让 Git Task 环境可切换的子句。
+- 历史序号修复标识：`HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT`；所需 Harness 版本：`202609101621`，已由本次 Harness 时间版本发布物化；其当前适用语义由本节收敛。
 - 只有用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`。序号是无前导零的正整数，同一结果稳定；同一 `hostId` 与精确 `projectId` 下先用 `list_threads` 清点当前 Task，再逐页用 `list_archived_threads` 清点归档 Task，从最大有效序号继续递增；空历史才从 1 开始，缺号不回填，旧四字段标题只用于延续历史序号。内部 Subagent 不使用该格式且不占用项目序列。
 - 左侧 Task 用 `create_thread(title="Task {序号} | 已分配 | {单一结果}")` 创建，目标 Task 按真实阶段进入 `运行中`、`检查中` 和终态 `已完成`，同范围返工回到 `运行中`；每次转换至多更新一次并以真实 `threadId` 复读。
 - `user_owned_tasks` 默认 `disabled`；推荐预设保持关闭，自定义策略可开启，初始化后可手动开启或关闭。关闭不妨碍用户显式创建；开启表示按固定结果边界自动创建。切换不追溯迁移既有 Task。

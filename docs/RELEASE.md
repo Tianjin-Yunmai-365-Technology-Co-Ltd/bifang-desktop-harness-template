@@ -18,6 +18,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 - 12 位数字按时间先后可直接排序；不包含秒、时区后缀或预发布后缀。
 - 同一分钟内如需产生第二个不同版本，必须等待下一分钟，不得追加未约定字符。
 - `1.0.0` 只作为迁移前旧版本标识保留，不再用于新的 Harness 版本。
+- Harness 时间版本一旦确认为 Released，必须在同一次原子变化中同步根 `Version.md`、README、最新 Product Spec 与本文件的当前版本镜像，并把本次发布源码已包含的 `required_version = pending` / “所需 Harness 版本 `pending`”记录物化为该版本；发布后产生的新变化继续保持 `pending`。提交前必须运行 `python3 -B scripts/validate_harness.py`，任一镜像或已登记发布记录未同步都不得提交版本变化。
 
 下游产品使用无预发布/构建元数据的三段语义化版本，并由 `$desktop-manage-version` 执行以下确定性规则：
 

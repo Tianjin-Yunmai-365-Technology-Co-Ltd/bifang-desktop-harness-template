@@ -20,7 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import scripts.validate_harness as validate_harness
-from scripts.harness_validation import governance, initialization, repository, upgrade
+from scripts.harness_validation import governance, governance_version, initialization, repository, upgrade
 from scripts.harness_validation.gui_support import validate_gui_support_contract
 from scripts.harness_validation.initialization_primary_contract import (
     primary_required_fragments,
@@ -702,6 +702,25 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         self.assertNotIn("- 中文名称：Agent-first Harness 项目模板", readme)
         self.assertNotIn("- English name: Agent-first Harness Template", readme)
         self.assertNotIn("- 发布状态：Unreleased", readme)
+
+    def test_rejects_pending_version_for_materialized_harness_change(self) -> None:
+        """已被时间版本发布物化的变更不得在任一记忆镜像中退回 pending。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "CHANGELOG.md"
+            path.write_text(
+                "- `HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`"
+                "（所需 Harness 版本 `pending`，等待发布）\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance_version._validate_materialized_change(
+                errors,
+                path,
+                "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE",
+                "202609101621",
+            )
+        self.assertTrue(any("stale required version" in error for error in errors), errors)
 
     def test_rejects_unreleased_status_in_version_source(self) -> None:
         """活契约要求 Released 时，Version.md 再写 Unreleased 必须被已发货检查器拒绝。"""
