@@ -2,6 +2,26 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-11",
+      "version": "v202609111732",
+      "featureOptimizations": [
+        {
+          "zh-CN": "Harness 自身版本口径与治理契约不再保留任何历史标识或兼容层：删除 1.0.0 旧版本标识，Task 序号不再识别历史四字段标题，下游自动版本门禁的 Minor/Patch 严格固定 0..99 不兼容历史 100。",
+          "en-US": "Harness's own version identity and governance contracts no longer keep any legacy identifier or compatibility layer: the 1.0.0 legacy marker is removed, Task numbering no longer recognizes the legacy four-field title format, and the downstream auto-version gate strictly enforces Minor/Patch 0..99 with no compatibility for the historical value 100."
+        },
+        {
+          "zh-CN": "Agent Policy 升级为 schema_version: 3，milestone_smoke/milestone_e2e 两个带历史前缀的字段名正式改名为 acceptance_smoke/e2e_hint，不再兼容旧字段名或更早 schema。",
+          "en-US": "Agent Policy is upgraded to schema_version: 3; the milestone_smoke/milestone_e2e fields, which kept a vestigial historical prefix, are renamed to acceptance_smoke/e2e_hint, with no compatibility for the old field names or earlier schema versions."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Harness 自身记忆整理机制的校验器缺口：docs/adr、docs/changelog 的按日文件命名门禁此前从未真正接受 ADR_history.md/CHANGELOG_history.md，导致该机制虽有文档但无法通过校验。",
+          "en-US": "Fix a validator gap in Harness's own memory-curation mechanism: the daily ADR/Changelog filename gate had never actually accepted ADR_history.md/CHANGELOG_history.md, so the documented archival mechanism could not previously pass validation."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-09-10",
       "version": "v202609102343",
       "featureOptimizations": [
