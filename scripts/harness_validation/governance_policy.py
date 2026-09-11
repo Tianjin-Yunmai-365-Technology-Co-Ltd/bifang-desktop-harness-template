@@ -18,11 +18,6 @@ SESSION_PROGRESS_TITLE_PATTERN = re.compile(
     r"(?P<progress>已分配|运行中|检查中|已完成) \| "
     r"(?P<single_result>[^|\r\n]+)"
 )
-LEGACY_SESSION_PROGRESS_TITLE_PATTERN = re.compile(
-    r"(?P<sequence>[1-9][0-9]*)\|(?P<task_summary>[^|\r\n]+)\|"
-    r"(?P<progress>已分配|运行中|检查中|已完成) \|"
-    r"(?P<feature_summary>[^|\r\n]+)"
-)
 
 # 同一份用户可见项目 Task 序号规则，被多处 required-fragment 校验复用；
 # 修改措辞只需改这里，不必逐个校验点同步。
@@ -58,20 +53,6 @@ def is_valid_session_progress_title(title: str) -> bool:
     return _match_session_progress_title(title) is not None
 
 
-def _match_legacy_session_progress_title(title: str) -> re.Match[str] | None:
-    """只把曾经满足旧四字段合同的标题作为历史序号证据。"""
-
-    match = LEGACY_SESSION_PROGRESS_TITLE_PATTERN.fullmatch(title)
-    if match is None:
-        return None
-    if all(
-        value and value == value.strip() and len(value.splitlines()) == 1
-        for value in (match.group("task_summary"), match.group("feature_summary"))
-    ):
-        return match
-    return None
-
-
 def allocate_project_task_sequences(
     records: Iterable[object],
     *,
@@ -101,8 +82,6 @@ def allocate_project_task_sequences(
         if not isinstance(title, str):
             continue
         match = _match_session_progress_title(title)
-        if match is None:
-            match = _match_legacy_session_progress_title(title)
         if match is not None:
             highest_sequence = max(highest_sequence, int(match.group("sequence")))
 
@@ -148,8 +127,8 @@ def validate_agent_policy(
         "superpowers",
         "user_owned_tasks",
         "parallel_worktree_subagents",
-        "milestone_smoke",
-        "milestone_e2e",
+        "acceptance_smoke",
+        "e2e_hint",
     }
     if set(fields) != expected_fields:
         fail(
@@ -159,8 +138,8 @@ def validate_agent_policy(
             f"extra={sorted(set(fields) - expected_fields)}",
         )
 
-    if fields.get("schema_version") != "2":
-        fail(errors, "Agent policy schema_version must be 2")
+    if fields.get("schema_version") != "3":
+        fail(errors, "Agent policy schema_version must be 3")
     if fields.get("decision_mode") != "reuse_then_infer_then_ask":
         fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask")
     if require_source_defaults and fields.get("superpowers") != "disabled":
@@ -174,8 +153,8 @@ def validate_agent_policy(
         "superpowers",
         "user_owned_tasks",
         "parallel_worktree_subagents",
-        "milestone_smoke",
-        "milestone_e2e",
+        "acceptance_smoke",
+        "e2e_hint",
     ):
         if fields.get(field) not in {"enabled", "disabled", "pending"}:
             fail(errors, f"Agent policy {field} must be enabled, disabled, or pending")
@@ -228,14 +207,14 @@ def validate_agent_policy(
         "核对工作区干净及起始提交正确",
         f'`{SESSION_PROGRESS_TITLE_TEMPLATE}`',
         f'title="{SESSION_PROGRESS_TITLE_INITIAL}"',
-        "旧标题只用于保留序号连续性",
+        "不识别任何历史标题格式",
         *PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
         "内部 Subagent 不使用本标题合同、不占用 Task 序号",
         "推荐预设确定性物化五项",
         "`user_owned_tasks: disabled`",
         "开启左侧 Task",
         "关闭左侧 Task",
-        "旧 `schema_version: 1` 下游缺少本字段时视为 `disabled`",
+        "不兼容、不推断任何更早 schema 或缺少字段的旧形态",
         "`parallel_worktree_subagents` 只控制当前 Task 内部",
         "日常开发直接实施",
         "显式发布候选构建必须为当前候选解析一次 E2E 选择",

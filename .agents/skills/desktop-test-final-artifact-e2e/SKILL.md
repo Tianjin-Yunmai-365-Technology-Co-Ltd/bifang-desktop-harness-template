@@ -9,7 +9,7 @@ description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI �
 
 ## 工作流程
 
-1. 读取已批准成功标准、当前构建的 E2E 选择、`docs/VERIFICATION.md` 及适用接口 Skill。要求当前构建选择为 `enabled`，或存在已批准产品/渠道的 `required` 规则；`milestone_e2e` 不能替代当前构建选择。
+1. 读取已批准成功标准、当前构建的 E2E 选择、`docs/VERIFICATION.md` 及适用接口 Skill。要求当前构建选择为 `enabled`，或存在已批准产品/渠道的 `required` 规则；`e2e_hint` 不能替代当前构建选择。
 2. 要求 `$desktop-verify-delivery` 已定位与源码提交、构建身份和 manifest 绑定的完整真实最终产物。拒绝开发预览、源码调用、模拟后端、脚手架、占位内容或推测路径；没有 Work Plan 不阻断 E2E。
    GUI 性能按 manifest 的当次 `performanceSelection` 独立处理。选择 `enabled` 或产品/渠道硬要求时，`$desktop-test-gui-release-performance` 是打包前针对同一 clean、已推送且被版本 tag 指向的动态默认分支 HEAD 的 release-profile no-bundle 探针必需门禁：E2E 关闭不能替代或跳过，最终候选 E2E 通过也不能替代性能结论，E2E 交互不得倒填为更早的探针样本。开始最终 E2E 前先由 `$desktop-verify-delivery` 证明包内运行时与探针的逐字节或受验证签名变换绑定；安装容器摘要不能冒充探针摘要。选择 `disabled` 且无硬要求时，只复核 `performanceStatus: Not run`、原因/剩余风险和探针/证据/绑定字段缺席，不要求不存在的运行时绑定，也不得把 E2E 结果倒填为性能通过。
 3. 根据批准标准定义有边界的核心成功路径和最高风险失败路径，说明前置条件、隔离且可逆的数据、预期观测、清理和超时。

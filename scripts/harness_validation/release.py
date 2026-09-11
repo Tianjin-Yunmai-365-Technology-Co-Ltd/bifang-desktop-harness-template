@@ -322,7 +322,7 @@ def validate_tauri_build_skill_contract(
         tauri_skill: (
             "[workspace.metadata.agent-first-harness]",
             "普通“构建/打包/首次安装试包”转到 `$desktop-build-tauri-local-install`",
-            "本次请求已明确 `enabled`/`disabled` 时直接复用，否则在任何测试或编译前询问用户一次；`milestone_e2e`",
+            "本次请求已明确 `enabled`/`disabled` 时直接复用，否则在任何测试或编译前询问用户一次；`e2e_hint`",
             "初始化后的构建不做例行环境预检",
             "只有某条命令已经失败",
             "release_notes.py check --file release-notes.json --expected-version",
@@ -590,7 +590,7 @@ def validate_gui_release_performance_contract(
             "所有 GUI 候选的 `performanceSelection` 必须精确为 `enabled | disabled`",
             "同一 `sourceCommit` 重跑复用上下文",
             "只有 `performanceSelection: enabled` 或产品/渠道硬要求时",
-            "性能已启用时，`milestone_e2e` 或本次 E2E 为 `disabled` 都不得跳过",
+            "性能已启用时，`e2e_hint` 或本次 E2E 为 `disabled` 都不得跳过",
             "只在 `performanceSelection: enabled` 时记录 `performanceStatus: Unverified`",
             "选择 `disabled` 时使用下一条 `Not run` 契约",
             "选择 `performanceSelection: disabled` 且无产品/渠道硬要求时",

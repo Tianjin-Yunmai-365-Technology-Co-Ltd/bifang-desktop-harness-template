@@ -65,7 +65,7 @@ function isCargoSemverMajor(value: string): boolean {
   );
 }
 
-/** 要求版本只带一个小写 v，并满足 Cargo u64 major、历史低位边界或时间版本。 */
+/** 要求版本只带一个小写 v，并满足 Cargo u64 major、Minor/Patch 固定 0..99 或时间版本。 */
 function isDisplayVersion(value: string): boolean {
   const harnessVersion = /^v\d{12}$/u;
   if (harnessVersion.test(value)) return true;
@@ -73,7 +73,7 @@ function isDisplayVersion(value: string): boolean {
   return (
     semantic !== null &&
     isCargoSemverMajor(semantic[1] ?? "") &&
-    semantic.slice(2).every((part) => Number(part) <= 100)
+    semantic.slice(2).every((part) => Number(part) <= 99)
   );
 }
 

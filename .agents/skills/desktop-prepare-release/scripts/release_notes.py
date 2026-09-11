@@ -73,11 +73,11 @@ def normalize_display_version(value: str) -> str:
                 f"semantic version major must be within 0..{MAX_SEMVER_MAJOR}"
             )
         if (
-            not _decimal_is_at_most(minor, "100")
-            or not _decimal_is_at_most(patch, "100")
+            not _decimal_is_at_most(minor, "99")
+            or not _decimal_is_at_most(patch, "99")
         ):
             raise ReleaseNotesError(
-                "semantic version minor and patch components must be within 0..100"
+                "semantic version minor and patch components must be within 0..99"
             )
     elif HARNESS_VERSION.fullmatch(normalized) is None:
         raise ReleaseNotesError(

@@ -72,7 +72,6 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
         version_file: (
             f"当前版本：`{current_version}`",
             "时间版本起始值：`202607301002`",
-            "旧版本标识：`1.0.0`",
             "版本时区：`Asia/Shanghai`",
             "版本格式：`YYYYMMDDHHMM`",
             "发布状态：Released",
@@ -130,14 +129,25 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
     if "模板版本事实来源：本文件" in release_text:
         fail(errors, "docs/RELEASE.md still claims to be the Harness version fact source")  # noqa: F405
 
+    no_legacy_version_files = (version_file, ROOT / "docs" / "RELEASE.md", PRODUCT_SPEC)  # noqa: F405
+    for path in no_legacy_version_files:
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "旧版本标识" in text:
+            fail(  # noqa: F405
+                errors,
+                f"legacy version identifier must not be reintroduced in {display_path(path)}",  # noqa: F405
+            )
+
     materialized_changes = {
         "HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS": "202609102343",
         "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE": "202609101621",
         "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": "202609101621",
     }
     materialized_paths = (
-        ROOT / "docs" / "changelog" / "20260910_CHANGELOG.md",  # noqa: F405
-        ROOT / "docs" / "adr" / "20260910_ADR.md",  # noqa: F405
+        ROOT / "docs" / "changelog" / "20260911_CHANGELOG.md",  # noqa: F405
+        ROOT / "docs" / "adr" / "20260911_ADR.md",  # noqa: F405
         PRODUCT_SPEC,  # noqa: F405
     )
     for change_id, required_version in materialized_changes.items():

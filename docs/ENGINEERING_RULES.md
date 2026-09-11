@@ -138,7 +138,7 @@
 | `README.md` | 用户入口、用途、真实使用方式和维护状态 |
 | `AGENTS.md` | 轻量启动门禁、任务路由、永久地图、硬约束摘要和验证入口；不保存任务专属实施细节 |
 | `Version.md` | Harness 模板当前版本、初始版本与发布状态；下游 Rust 项目不继承此事实来源 |
-| `.harness/version-state.json` | 仅下游保存当前正式发布周期、首功能提升锁、待发布变化及已消费 `bug-fix` 稳定 ID；受保护且不是当前版本的第二事实源，历史 Minor/Patch `100` 只在下一次真实提升时规范化当前 `target_version`，周期基线与既有变化保留原始证据值 |
+| `.harness/version-state.json` | 仅下游保存当前正式发布周期、首功能提升锁、待发布变化及已消费 `bug-fix` 稳定 ID；受保护且不是当前版本的第二事实源，Minor/Patch 固定 `0..99`，出现历史 `100` 一律失败关闭而非规范化读取 |
 | Git common dir `agent-first-harness/git-lifecycle.json` | 仅下游本地保存当前发布周期由 helper 精确登记的开发分支、Task/单元分支与 Worktree，以及主分支推送、tag 推送和逐项清理进度；不进入提交、不形成分支链，升级不得覆盖或扩大资源范围 |
 | `.harness/release-context.json` | 仅下游在正式发布准备时写入并随源码提交；保存当前候选的版本、日期、预期 tag、源码提交、审查结果和候选选择，构建只读消费，不作为分支策略或清理清单 |
 | `release-notes.json` | 仅下游在首次发布准备时创建；以 schema v2 保存供制品与关于页复用的近 5 个正式发布版本中英文用户更新日志，每版两类各最多 10 个翻译对，升级时受保护 |
@@ -218,7 +218,7 @@
 - 非必要代码/架构/职责语义审查统一延迟到明确发布。每次发布在任何写入前解析一次 `reviewSelection: enabled | disabled`：当前请求已明确时复用；安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求强制 `enabled` 并记录来源；否则询问一次。同一发布的修复重跑复用原选择，新发布重新询问。`disabled` 只关闭非必要语义审查，绝不能跳过范围/秘密、测试、clean、签名、渠道或真正必需的人类签署；这些检查不能被解释成分支门禁。
 - 已初始化下游在实施前由 `$desktop-manage-version` 只读分类，且只在变化完成并通过本次相关测试后提交版本：每周期首个功能使用 `feature` 提升 Minor 并锁到真实发布成功；每个具有新稳定 ID 的问题修复或用户可感知优化使用 `bug-fix` 提升 Patch 且不受功能锁影响；显式 Major 仍需用户批准。新生成 Minor/Patch 为 `0..99` 并按 base-100 自动进位，自动进位到 Major 是数值例外，不替代显式 Major 授权；Major 不受 99/100 的业务上限约束，但不得超过 Cargo `u64::MAX`。查询、诊断、复现、重复尝试、行为保持重构、内部优化、测试、文档、格式和清理属于 `maintenance`；`check`、`plan`、`maintenance` 都不写版本文件或状态。构建只检查 Cargo/状态一致性，不能提升版本、迁移历史 `*.100.*` 状态或重置周期。
 - 产品范围、长期决定、合格 Changelog、重要阻断/交接和用户明确要求仍分别触发对应记录或专用流程；候选验收只写 `release/`，真实渠道发布成功后及独立回顾性审计才在下一次自动开发生命周期写 tracked 记录。真实渠道发布成功后，下一次开发再自动创建新的 feature 分支。安全/隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道硬要求、签名与发布仍保留解决当前风险必需的授权和检查；这些检查不得被实现成分支拓扑门禁。
-- 显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则询问一次；持久 `milestone_e2e` 仅是建议默认值。该选择只对当前发布候选有效；本地开发试包不解析该选择。
+- 显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则询问一次；持久 `e2e_hint` 仅是建议默认值。该选择只对当前发布候选有效；本地开发试包不解析该选择。
 - 构建必须运行项目全部非空单元测试。Rust 使用 workspace 全成员、全 targets、全 features 的锁定测试；GUI 同时运行完整 Rust workspace 和前端单元测试套件。测试失败或零测试阻断构建。
 - GUI 正式发布在任何测试或编译前解析当次 `performanceSelection: enabled | disabled`，该选择不持久化且不得从 E2E 推断。选择 `enabled` 或产品/渠道硬要求时，才在打包前运行 `$desktop-test-gui-release-performance`，以同一干净 HEAD 的 release-profile 探针候选测量启动、交互、整进程树 CPU/RSS、重复操作内存增长和进程回收。性能测量前必须精确定位 window-state 持久文件，快照执行前的字节或“原本不存在”，每次预热/冷启动前恢复同一隔离基线，并在成功、失败、超时或取消的所有路径恢复且复核原状态；无法定位或恢复时性能结论必须失败，不得污染用户窗口偏好或让历史几何影响冷启动样本。指标失败先修复重建，只有用户显式确认才可记录 `performanceStatus: waived` 并保留原失败证据后继续，不能改判通过。选择 `disabled` 且无硬要求时跳过探针，记录 `performanceStatus: Not run`、原因和剩余风险，不生成性能证据或运行时绑定。
 - 官方 updater 插件、`UpdateController` 与 `NotConfigured` 零出站状态是所有 GUI 的安装基线，不受产品/发布事实 `updaterEnabled` 控制。GUI 构建每次仍从已批准产品事实解析 `updaterEnabled`；`false` 只表示不生成、不签名且不声明 updater archive/`.sig`，不得移除固定插件或伪造更新配置；`true` 才要求受限 HTTPS endpoints、公钥、channel/target/arch、`bundle.createUpdaterArtifacts: true` 和安全私钥来源，并必须生成与当前 platform/channel/target/arch 一致的官方更新 archive 和 `.sig`、使用应用公钥实际验证后记录相对路径、大小、SHA-256 和结论。安装包允许 unsigned 不代表 updater 可不签名；发布私钥与密码只能来自批准的安全运行时，绝不能进入源码、配置、日志、manifest 或制品。

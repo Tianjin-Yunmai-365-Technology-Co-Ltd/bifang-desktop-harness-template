@@ -57,10 +57,12 @@ class ReleaseNotesTests(unittest.TestCase):
             "###Bug fixes\n\n- Fix vv1.2.3",
         )
 
-    def test_semver_reader_accepts_u64_major_and_legacy_lower_100(self) -> None:
-        """major 接受 Cargo u64 边界，历史低位 100 可读，任一越界都失败。"""
+    def test_semver_reader_accepts_u64_major_and_rejects_lower_100_with_no_compat(
+        self,
+    ) -> None:
+        """major 接受 Cargo u64 边界；Minor/Patch 固定 0..99，不兼容历史 100，任一越界都失败。"""
 
-        for valid in ("101.0.0", "18446744073709551615.0.0", "0.100.100"):
+        for valid in ("101.0.0", "18446744073709551615.0.0"):
             with self.subTest(version=valid):
                 self.assertEqual(
                     release_notes.normalize_display_version(valid), f"v{valid}"
@@ -71,7 +73,7 @@ class ReleaseNotesTests(unittest.TestCase):
             release_notes.normalize_display_version(f"{'9' * 5000}.0.0")
         with self.assertRaisesRegex(release_notes.ReleaseNotesError, "version must"):
             release_notes.normalize_display_version("1.٢.3")
-        for invalid in ("0.101.0", "0.0.101"):
+        for invalid in ("0.100.0", "0.0.100", "0.101.0", "0.0.101"):
             with self.subTest(version=invalid):
                 with self.assertRaisesRegex(
                     release_notes.ReleaseNotesError, "minor and patch"

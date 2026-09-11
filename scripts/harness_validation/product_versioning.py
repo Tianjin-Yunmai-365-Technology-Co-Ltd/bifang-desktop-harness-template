@@ -16,7 +16,7 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
             "问题修复或用户可感知优化",
             "不受当前周期的功能提升锁影响",
             "`check`、`plan` 和 `maintenance` 始终零写入",
-            "历史版本与受保护状态中的 Minor/Patch `100`",
+            "不兼容任何历史下位分量 `100`",
             "$desktop-manage-version finalize-release",
         ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
@@ -66,7 +66,7 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
             "新生成的 Minor/Patch 数位在 `0..99`",
             "Major 不受 99/100 的业务上限约束",
             "Cargo `u64` 范围",
-            "历史 Cargo 与状态 `target_version` 中的 Minor/Patch `100` 继续可读",
+            "不兼容任何历史下位分量 `100`",
             "历史 `bug-fix` ID 被改作其他提升类别",
             "`plan` 绝不写入文件",
             "`init` 是唯一允许在独立 Git 建立前运行的命令",
@@ -82,7 +82,7 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
             "def _decimal_is_at_most(",
             "major component exceeds Cargo u64::MAX",
             "automatic Major carry exceeds Cargo u64::MAX",
-            "minor and patch components outside legacy-compatible range 0..100",
+            "minor and patch components outside supported range 0..99",
             "feature_bump_applied must match pending feature or major changes",
             "pending bug-fix IDs must exist in applied_bug_ids",
             "historical bug-fix IDs cannot be reused by another kind",
@@ -95,7 +95,7 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
             'HARNESS_VERSION = re.compile(r"^[0-9]{12}$")',
             "def _decimal_is_at_most(",
             "semantic version major must be within",
-            "minor and patch components must be within 0..100",
+            "minor and patch components must be within 0..99",
         ),
         GUI_SUPPORT_BRAND_ROOT / "react" / "releaseNotesResource.ts": (
             'MAX_CARGO_SEMVER_MAJOR = "18446744073709551615"',
@@ -104,7 +104,7 @@ def validate_product_versioning_contract(errors: list[str]) -> None:
         ),
         GUI_SUPPORT_BRAND_ROOT / "rust" / "release_notes.rs": (
             "components[0].parse::<u64>().is_ok()",
-            "value <= 100",
+            "value <= 99",
         ),
         UPGRADE_POLICY: (
             ".harness/version-state.json",

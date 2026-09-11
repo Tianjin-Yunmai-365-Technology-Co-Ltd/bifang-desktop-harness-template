@@ -810,12 +810,12 @@ class ValidateAgentPolicyTests(unittest.TestCase):
     def test_rejects_invalid_preference_value(self) -> None:
         """偏好值不得扩展为模糊的 ask 或 auto。"""
         mutated = self._current_policy().replace(
-            "milestone_smoke: pending",
-            "milestone_smoke: auto",
+            "acceptance_smoke: pending",
+            "acceptance_smoke: auto",
             1,
         )
         errors = self._validate(mutated)
-        self.assertTrue(any("milestone_smoke must be" in error for error in errors), errors)
+        self.assertTrue(any("acceptance_smoke must be" in error for error in errors), errors)
 
     def test_initialized_downstream_rejects_pending(self) -> None:
         """下游基线前必须解析所有 pending，而不是把选择留给后续任务。"""
@@ -833,8 +833,8 @@ class ValidateAgentPolicyTests(unittest.TestCase):
             "superpowers",
             "user_owned_tasks",
             "parallel_worktree_subagents",
-            "milestone_smoke",
-            "milestone_e2e",
+            "acceptance_smoke",
+            "e2e_hint",
         ):
             resolved = resolved.replace(f"{field}: pending", f"{field}: disabled", 1)
         errors = self._validate(resolved, allow_pending=False)
@@ -850,8 +850,8 @@ class ValidateAgentPolicyTests(unittest.TestCase):
             "superpowers",
             "user_owned_tasks",
             "parallel_worktree_subagents",
-            "milestone_smoke",
-            "milestone_e2e",
+            "acceptance_smoke",
+            "e2e_hint",
         ):
             resolved = resolved.replace(f"{field}: pending", f"{field}: enabled", 1)
         errors = self._validate(resolved, allow_pending=False)

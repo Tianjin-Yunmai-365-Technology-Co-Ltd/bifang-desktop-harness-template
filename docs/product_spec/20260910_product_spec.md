@@ -19,7 +19,7 @@
 - 失败闭环：开发单元测试失败时在当前授权范围内修复并重跑；发现产品边界、安全、破坏性操作、生产/付费/凭据副作用或发布授权缺失时，只增加解决该风险必需的确认或记录，不把它扩张成通用流程仪式。
 - 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。
 - Git 场景：新功能和独立 Bug 修复首次写入前自动建立本地 `feature-{ascii-kebab摘要}-{上海日期}`；用户明确“推送”时普通合并本周期登记分支、切换动态默认主分支并推送，明确“发布”时在主分支推送成功后创建并推送 `v{版本}-{YYYYMMDD}`，远端 tag 复读成功后才依次删除登记 Worktree、远端分支和本地分支。流程没有保护分支、严格线性、单写入者或其他分支门禁。
-- Task 命名场景：只有左侧 user-owned Task 使用 `Task {序号} | {当前进度} | {单一结果}`；单一结果与序号固定，进度只取 `已分配`、`运行中`、`检查中`、`已完成`。同一 `hostId`/`projectId` 清点当前和逐页归档 Task 后取最大有效序号加一，空历史才使用 1、缺号不回填；旧四字段标题只用于历史序号兼容。内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不使用标题合同、不占用 Task 序号。
+- Task 命名场景：只有左侧 user-owned Task 使用 `Task {序号} | {当前进度} | {单一结果}`；单一结果与序号固定，进度只取 `已分配`、`运行中`、`检查中`、`已完成`。同一 `hostId`/`projectId` 清点当前和逐页归档 Task 后取最大有效序号加一，空历史才使用 1、缺号不回填；不识别任何历史标题格式。内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不使用标题合同、不占用 Task 序号。
 - Task 场景：`user_owned_tasks` 默认 `disabled`，不自动创建或拆分左侧 Task，但用户明确要求仍可创建；`enabled` 是按结果边界自动创建的长期授权。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和独立工作区；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化必须新建 Task，同结果测试/review/checkpoint 与必要缺陷修复保留。每项目同时只允许一个写入型 active Task，Task0 仅协调。创建前依次核对项目、Task 历史和 active 写入者；Git 选择 Worktree，非 Git 选择 Local，以 `Task {序号} | 已分配 | {单一结果}` 调用一次 user-owned `create_thread`。只有真实 `threadId` 才继续，并复核标题、`projectId`、cwd、状态、干净工作区及起始提交；`clientThreadId` 或任一不符均零实现、不重复创建、不退化。
 - 决策场景：创建新下游时首轮必须一次列出全部尚未解析的基础字段，只包括双语名称、标识、路径、负责人、平台、接口和策略模式。推荐预设物化五项策略并将 `user_owned_tasks` 默认关闭；选择自定义时每轮确认一个策略字段，可自行开启。初始化后可用“开启/关闭左侧 Task”或“开启/关闭自动 Task 拆分”手动切换，只影响后续结果边界。
 - 输入：当前 Harness 源只接收 Harness 工程维护信息，或创建终端下游所需的中文项目展示名、英文项目展示名（至少直接提供一个）、ASCII `snake_case` 标识、项目路径、负责人、目标平台、接口组合和五项持久 Agent 策略；项目路径可以是最终根目录或父目录。选择 GUI 时还包括八项条件能力的启用/禁用与可选的精简/详细侧栏选择，省略侧栏选择表示使用详细模式；`os`（system-locale）、updater、window-state 是不询问的三项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线。产品目的、业务规则、产品专属 UI/文案/数据、远程地址、凭据、产品构建与发布不是 Harness 源输入，必须在初始化完成并切换到终端下游后重新提出。
@@ -75,7 +75,7 @@
 ### GUI 发布性能按次选择与启用后门禁
 
 - 性能能力变更标识：`HARNESS-FEAT-GUI-RELEASE-PERFORMANCE-GATE`；按次选择变更标识：`HARNESS-FEAT-GUI-PER-RELEASE-PERFORMANCE-SELECTION`；预算调整变更标识：`HARNESS-CHANGE-GUI-RELEASE-PERFORMANCE-BUDGET-V2`。前两者所需 Harness 版本为 `202608281139`；预算调整所需版本：`202609082335`，已由本次 Harness 时间版本发布物化。
-- 每次 GUI 发布在任何本地发布提交、测试或编译前解析当次 `performanceSelection: enabled | disabled`。当前请求已经明确时直接复用，否则询问一次；同一发布的修复重跑复用原选择，新发布重新询问。该选择不进入 `docs/AGENT_POLICY.md` frontmatter、不从 `milestone_e2e` 推断，产品/渠道硬要求优先并强制启用。
+- 每次 GUI 发布在任何本地发布提交、测试或编译前解析当次 `performanceSelection: enabled | disabled`。当前请求已经明确时直接复用，否则询问一次；同一发布的修复重跑复用原选择，新发布重新询问。该选择不进入 `docs/AGENT_POLICY.md` frontmatter、不从 `e2e_hint` 推断，产品/渠道硬要求优先并强制启用。
 - 选择 `enabled` 或存在硬要求时，在打包前以最终干净提交生成 release-profile 探针候选，测量启动、代表性交互、整进程树 CPU/RSS、重复操作内存增长与退出回收。`gui-release-v2` 预算为启动中位数 2.4 秒/最大 3.6 秒、交互 p95 120 毫秒且单次低于 240 毫秒、Long Task 单次低于 240 毫秒、空闲 CPU p95 单核 6%（隐藏/托盘 2.4%）、稳定 RSS 360 MiB、峰值 600 MiB、20 轮后增长不超过 `max(18%, 38.4 MiB)`。这些允许上限相对 v1 精确放宽 20%；预热、样本量、30 秒观察时长、20 轮循环和 50 毫秒 Long Task 记录下限不变，旧 v1 证据不得改标或复用为 v2。失败先修复、重建、重测；无法安全解决时才询问用户，明确继续只记录 `performanceStatus: waived` 和原失败证据。
 - 选择 `disabled` 且无硬要求时跳过 no-bundle 性能探针、采样与运行时绑定，manifest 记录 `performanceStatus: Not run`、非空原因和剩余风险，并且不得生成或残留 `performanceEvidence`、`performanceProbe`、`performanceWaiver` 或 `performanceRuntimeBinding`。主动关闭不等于通过，也不能覆盖同一候选已产生的真实失败。
 
@@ -117,7 +117,7 @@
 
 - 变更标识：`HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`；所需 Harness 版本：`202609102343`，已由本次 Harness 时间版本发布物化。本条取代此前把普通 Session/内部 Subagent 纳入统一标题、只在用户明确要求时才创建、以及让 Git Task 环境可切换的子句。
 - 历史序号修复标识：`HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT`；所需 Harness 版本：`202609101621`，已由本次 Harness 时间版本发布物化；其当前适用语义由本节收敛。
-- 只有用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`。序号是无前导零的正整数，同一结果稳定；同一 `hostId` 与精确 `projectId` 下先用 `list_threads` 清点当前 Task，再逐页用 `list_archived_threads` 清点归档 Task，从最大有效序号继续递增；空历史才从 1 开始，缺号不回填，旧四字段标题只用于延续历史序号。内部 Subagent 不使用该格式且不占用项目序列。
+- 只有用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`。序号是无前导零的正整数，同一结果稳定；同一 `hostId` 与精确 `projectId` 下先用 `list_threads` 清点当前 Task，再逐页用 `list_archived_threads` 清点归档 Task，从最大有效序号继续递增；空历史才从 1 开始，缺号不回填，不识别任何历史标题格式。内部 Subagent 不使用该格式且不占用项目序列。
 - 左侧 Task 用 `create_thread(title="Task {序号} | 已分配 | {单一结果}")` 创建，目标 Task 按真实阶段进入 `运行中`、`检查中` 和终态 `已完成`，同范围返工回到 `运行中`；每次转换至多更新一次并以真实 `threadId` 复读。
 - `user_owned_tasks` 默认 `disabled`；推荐预设保持关闭，自定义策略可开启，初始化后可手动开启或关闭。关闭不妨碍用户显式创建；开启表示按固定结果边界自动创建。切换不追溯迁移既有 Task。
 
@@ -127,7 +127,7 @@
 - 补充变更标识：`HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE`；所需 Harness 版本：`202609082335`，已由本次 Harness 时间版本发布物化。
 - Task 快进整合闭环补充变更标识：`HARNESS-FIX-FEATURE-TASK-INTEGRATION-CLOSURE`；所需 Harness 版本：`202609082335`，已由本次 Harness 时间版本发布物化。
 - 当前规则由 `HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS` 统一约束；Git Task 固定使用独立 Worktree，非 Git Task 使用 Local，环境本身不再是策略开关。
-- `user_owned_tasks: disabled` 时不自动创建左侧 Task，`enabled` 时按结果边界自动创建；显式创建始终允许。切换只影响后续结果判断，不迁移既有 Task。旧 schema v1 缺少字段时按 `disabled` 解释，首次切换迁移到 schema v2。
+- `user_owned_tasks: disabled` 时不自动创建左侧 Task，`enabled` 时按结果边界自动创建；显式创建始终允许。切换只影响后续结果判断，不迁移既有 Task。本文件只有 `schema_version: 3` 一种有效形态，不为任何缺少字段的旧 schema 提供默认解释或迁移路径。
 - plan、Todo、brief、report、review、checkpoint、Subagent、agent thread 和内部单元 Worktree 不是左侧 Task。每个 Task 的标题、目标、范围、禁止范围和完成条件开始后固定；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化都产生新结果，同结果测试/review/checkpoint 和必要缺陷修复不拆。
 - 创建前用 `list_projects` 核对名称、规范化完整路径与 Git 状态，再用 Task 列表确认没有同项目写入型 active Task。项目工作只允许精确 project target；Git 使用 Worktree，非 Git 使用 Local。一个结果只创建一次；只有真实 `threadId` 才继续并复核标题、`projectId`、cwd、状态、干净工作区和起始提交。`clientThreadId` 只表示 setup，禁止实现、重复创建或降级。
 - 每项目同一时间只允许一个写入型 active user-owned Task，Task0 只能协调。Git Task 在独立 Worktree 中由生命周期 helper 建立并登记 `feature-*`；非 Git Task 使用保存项目 Local 目录。Task 只编辑自己的工作区，不扩大固定结果或执行未授权副作用；内部并行必须通过 guard 与 postflight 证明所有权，Worktree 资源保留到发布 tag 成功后统一清理。
@@ -173,7 +173,7 @@
 - 版本固定为无预发布/构建元数据的 `MAJOR.MINOR.PATCH`。新生成的 Minor/Patch 数位为 `0..99` 并按 base-100 自动进位：`0.0.99 -> 0.1.0`、`0.99.99 -> 1.0.0`；Major 不受 99/100 的业务上限约束，但必须处于 Cargo `u64` 范围 `0..18446744073709551615`，越界进位在写入前失败关闭。显式 Major 只由用户批准精确目标且归零 Minor/Patch；自动进位到 Major 是数值计算例外，不需要也不代表该批准。
 - 一个正式发布周期的首个已完成功能提升一个 Minor 数位并把 Patch 归零，必要时自动进位 Major；后续功能直到真实正式发布成功解锁前不再提升。每个具有新稳定 ID 的已完成问题修复或用户可感知优化统一使用机器分类 `bug-fix`，提升一个 Patch 数位且不受功能锁影响；重复 ID 不提升，发布后回归必须使用新的稳定 ID。
 - 查询、诊断、复现、未完成或重复处理、行为保持重构、内部优化、测试补强、文档、格式和内部清理属于 `maintenance`，不提升版本。版本只在变化完成且本次相关测试通过后提交；`check`、`plan` 和 `maintenance` 对版本文件与状态零写入，普通构建、`pending` 候选、验收或失败发布也不能提升版本或重置周期。只有真实正式发布成功才重置首功能周期，同时保留历史稳定 ID。
-- 历史 Cargo 与受保护状态中的 Minor/Patch `100` 继续可读，升级不得改写；只有下一次确实提升版本的 `feature`、`bug-fix` 或显式 `major` 才先规范化当前 Cargo 与状态 `target_version` 再应用变化，周期基线、最近发布和既有变化保留原始证据值。历史发布日志保留原始版本字节，读取器继续兼容 Minor/Patch `100`，版本门禁不得回写旧条目。
+- Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`；Cargo、受保护状态 `target_version` 或发布日志中一旦出现 `100`，`init`、`check`、`plan`、`maintenance` 和 `apply` 一律失败关闭，没有可读取或延迟规范化的旧值例外，必须先手动把版本改回 `0..99` 才能继续。
 - Product Spec、ADR、Changelog 或 Work Plan 仅在其自身事件独立触发时记录稳定 `change_id` 与 `required_version`；版本变化不为普通缺陷或维护任务强制创建项目记忆。
 
 ### 分层代码行数治理
@@ -223,7 +223,7 @@
 - GUI 固定建立 `{applicationName} v{version} {contactChannel}:{contactValue}` 动态标题、`/settings`、语言与三态主题及亮暗语义主题。侧栏严格按 `sidebar_mode` 使用精简或详细布局，底部导航按已选赞助、固定设置、已选关于生成；`/about` 与 `/sponsor` 未选时不建立路由、入口、组件或运行时资源。主应用窗口为 1440×900、最小 960×640并与 DMG 安装卷窗口独立。所选关于页包含 `NotConfigured` 检查更新、可用的近五版更新日志、作者/联系人/免责声明；所选赞助页使用运行时主题并打包完整 sponsor 媒体。Harness 保留完整品牌源资产但不预创建 `docs/GUI_SUPPORT_SURFACES.md`，产品运行时只纳入选择需要的内容。
 - 选择系统托盘时，应用图标必须来自项目本地 Tauri `icon` 生成并由 `bundle.icon` 引用的非透明 `icons/32x32.png`；托盘安装从 `.setup(...)` 可达并绑定双项 `Menu`、必需应用图标和 `.build(app)`，关闭隐藏从 `.on_window_event(...)` 可达，真实 E2E 必须看见非空图形。Linux 还必须把菜单绑定到 tray builder。未选托盘时这些专属资产要求与运行时接线不适用且不得残留。
 - GUI 图标统一使用直接依赖 `@tabler/icons-react` 的命名组件：菜单、操作、状态、空态和图表周边控件存在适用图标时优先从该包选择，不另装图标库，不用手写 SVG、字符或 emoji 替代；图表绘制库仍由真实数据可视化需求决定。所选侧栏中的 Logo、所有当前渲染图标和文字必须沿同一中心线且无裁切。
-- 含 GUI 的下游在初始化单元测试通过后、裁剪初始化能力和创建唯一基线提交前，必须固定执行一次 `$desktop-test-gui-initialization-e2e`。结构检查解析九项 profile，始终验证 `os`（system-locale）、updater、window-state 三项 Rust-only 固定基线与 dialog 固定 WebView 基线，对启用条件能力验证完整契约、对禁用能力验证无残留；dialog 验证必须覆盖三处固定依赖、唯一有序注册、主窗口精确 `dialog:default`、全部官方默认 message/save/open 类型、无 wildcard/deprecated `ask`/`confirm` alias/`dialog:deny-*`/filesystem 权限且不进入 `invoke_handler`。真实二进制按选择验证单实例、托盘、开机自启、深链接和全局快捷键，自启、window-state 与快捷键必须恢复执行前状态；系统通知只验证默认关闭的 Switch、失败可见性和结构回归锁定的串行 worker/权限状态机，不以未签名调试二进制触发真实权限、设置跳转或投递。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面可达及未选页面缺席。它独立于 `milestone_e2e`，任一适用场景失败或无法观察/恢复都阻断初始化；只能由打包应用证明的 macOS 通知宿主行为与静态 scheme 系统注册必须明确留待候选补验。
+- 含 GUI 的下游在初始化单元测试通过后、裁剪初始化能力和创建唯一基线提交前，必须固定执行一次 `$desktop-test-gui-initialization-e2e`。结构检查解析九项 profile，始终验证 `os`（system-locale）、updater、window-state 三项 Rust-only 固定基线与 dialog 固定 WebView 基线，对启用条件能力验证完整契约、对禁用能力验证无残留；dialog 验证必须覆盖三处固定依赖、唯一有序注册、主窗口精确 `dialog:default`、全部官方默认 message/save/open 类型、无 wildcard/deprecated `ask`/`confirm` alias/`dialog:deny-*`/filesystem 权限且不进入 `invoke_handler`。真实二进制按选择验证单实例、托盘、开机自启、深链接和全局快捷键，自启、window-state 与快捷键必须恢复执行前状态；系统通知只验证默认关闭的 Switch、失败可见性和结构回归锁定的串行 worker/权限状态机，不以未签名调试二进制触发真实权限、设置跳转或投递。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面可达及未选页面缺席。它独立于 `e2e_hint`，任一适用场景失败或无法观察/恢复都阻断初始化；只能由打包应用证明的 macOS 通知宿主行为与静态 scheme 系统注册必须明确留待候选补验。
 - 产品启用更新时必须使用官方 Tauri updater 的签名制品、公开验证密钥和受限 HTTPS endpoints，签名验证不可关闭，并拒绝降级以及 target、arch、channel 不匹配。检查状态固定为 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`，失败不得伪装为最新版。强更只由 adapter 验证过真实性和目标绑定的 `minimumSupportedVersion` 交给 core，以严格 SemVer 得出；不得信任远端 `forcedUpdate` 布尔值。`RequiredUpdate` 使用根级不可关闭门，只允许安装已验证签名更新或安全退出。任务必须由应用生命周期拥有并具备单飞、取消、超时和关闭回收；一般网络/策略失败默认 fail-open。真实远程能力未批准时保持禁用和零出站。
 - 统计上报默认关闭且不进入初始化设置页。只有产品明确启用统计能力并建立受保护产品事实与独立产品级明确同意界面后，才允许每进程一次 `app_started`，由 Rust GUI adapter 以 HTTPS JSON `POST` body 发送文档声明的精确字段白名单；禁止 GET/query、自由文本、业务载荷、令牌、路径、用户名、主机名和稳定设备/安装标识。队列只驻留内存且最多 32 条，同一时刻最多一个在途请求，撤回同意立即取消并清空，任务与至多两次重试必须可关闭回收；任何新增事件、字段、稳定标识或持久队列都需重新批准。桌面客户端不得保存服务端共享秘密或发布私钥。更新 banner 只有产品选择时进入 bundle，真实 endpoint、统计接收方、公开 updater 配置与安全密钥引用只进入受保护产品事实。
 - 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留轻量 `AGENTS.md` 的非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills；任务专属细节继续由唯一事实源和精确命中的 Skill 承载，不复制回根入口。
@@ -244,12 +244,12 @@
 
 ### 持久 Agent 策略
 
-- `docs/AGENT_POLICY.md` 是下游项目 Agent 策略的唯一持久事实来源，使用 schema v2 可解析模式记录 `user_owned_tasks`、`superpowers`、`parallel_worktree_subagents`、`milestone_smoke` 和 `milestone_e2e`。
-- 下游完成初始化前必须明确选择推荐预设或自定义。推荐预设展开为 `user_owned_tasks: disabled`、`superpowers: disabled`、`parallel_worktree_subagents: enabled`、`milestone_smoke: enabled`、`milestone_e2e: disabled`；自定义逐项确认五项。最终五项必须是 `enabled` 或 `disabled`，`pending` 不得进入基线。
+- `docs/AGENT_POLICY.md` 是下游项目 Agent 策略的唯一持久事实来源，使用 schema v3 可解析模式记录 `user_owned_tasks`、`superpowers`、`parallel_worktree_subagents`、`acceptance_smoke` 和 `e2e_hint`。
+- 下游完成初始化前必须明确选择推荐预设或自定义。推荐预设展开为 `user_owned_tasks: disabled`、`superpowers: disabled`、`parallel_worktree_subagents: enabled`、`acceptance_smoke: enabled`、`e2e_hint: disabled`；自定义逐项确认五项。最终五项必须是 `enabled` 或 `disabled`，`pending` 不得进入基线。
 - `enabled` 表示允许 Agent 在适用场景中自行采用，不表示无条件执行；`disabled` 表示跳过可选能力。产品、渠道、安全和外部副作用硬门禁优先于项目偏好。
-- `user_owned_tasks: disabled` 时不自动创建左侧 Task，`enabled` 时按结果边界自动创建；显式创建始终允许。切换只影响后续结果判断，不迁移既有 Task。旧 schema v1 缺少字段时按 `disabled` 解释，首次切换迁移到 schema v2。
+- `user_owned_tasks: disabled` 时不自动创建左侧 Task，`enabled` 时按结果边界自动创建；显式创建始终允许。切换只影响后续结果判断，不迁移既有 Task。本文件只有 `schema_version: 3` 一种有效形态，不为任何缺少字段的旧 schema 提供默认解释或迁移路径。
 - 写入型 Subagent 只有用户在当前请求中明确要求并行、`parallel_worktree_subagents` 为 `enabled`、任务可安全拆成至少两个无重叠写入单元且 Worktree 数据安全检查通过时才使用；否则 Agent 自行采用单 Agent，不重复询问。不存在因开发分支状态或历史形态而禁用写入并行的分支门禁；该字段与左侧 Git Task 自身环境开关互不替代。
-- 冒烟偏好只在完整候选验收时消费。`milestone_e2e` 是每次发布候选构建询问时展示的建议默认值；无论它是 `enabled` 还是 `disabled`，都不能替代当前发布候选的明确选择。若本次候选请求已明确选择则不重复询问，否则候选构建前询问一次；本地开发试包不消费该值。
+- 冒烟偏好只在完整候选验收时消费。`e2e_hint` 是每次发布候选构建询问时展示的建议默认值；无论它是 `enabled` 还是 `disabled`，都不能替代当前发布候选的明确选择。若本次候选请求已明确选择则不重复询问，否则候选构建前询问一次；本地开发试包不消费该值。
 - 初始化首次写入策略时允许尚无 ADR；后续永久变更策略必须由用户确认并记录当日 ADR。临时任务约束只写入计划/验证证据，不静默改写项目策略。
 - `docs/AGENT_POLICY.md` 同时保存左侧 Task 的默认关闭/手动开关、单一结果粒度、标题、项目绑定、setup 状态机和 Worktree/Local 创建契约；`parallel_worktree_subagents` 只控制 Task 内部并行，两者互不替代。
 
@@ -333,7 +333,7 @@
 - [x] 新功能和独立 Bug 修复自动创建本地开发分支且不要求远端；用户说“推送”时普通合并登记分支、切换并推送动态默认主分支且保留资源；说“发布”时先完成主分支推送，再创建并推送 `v{版本}-{YYYYMMDD}`，tag 复读成功后才按 Worktree、远端分支、本地分支顺序精确清理两次发布间登记资源。不存在保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease、atomic push 或发布中转分支逻辑。
 - [x] 三个 Logo 原始候选在选择前固定按 `candidate-1`、`candidate-2`、`candidate-3` 预览且不验证或标准化；选择后只处理所选项，可见变化重新确认，未选项不补做验证或摘要。
 
-- 下游版本 helper 的回归必须证明首功能/周期只升一次 Minor 并锁到真实发布成功、Minor 归零 Patch、不同 `bug-fix` 稳定 ID（问题修复或用户可感知优化）各升一次 Patch 且不受功能锁影响、相同 ID 跨发布仍不重复且历史 `bug-fix` ID 不能改作其他提升分类、回归新 ID 可提升、显式 Major 需用户批准、维护不变、`0.0.99 -> 0.1.0` 与 `0.99.99 -> 1.0.0` 自动进位、Major 支持超过 100 但不得超过 Cargo `u64::MAX`、最高位自动进位越界零写入、历史 `*.100.*` 当前 Cargo/目标版本只在下一次真实提升时规范化且其他状态证据保留、历史发布日志继续可读且不回写，以及构建只读和正式发布后才重置；初始化、开发、构建、候选收集、验收、发布准备及 Harness 升级保护均由 validator 锁定。
+- 下游版本 helper 的回归必须证明首功能/周期只升一次 Minor 并锁到真实发布成功、Minor 归零 Patch、不同 `bug-fix` 稳定 ID（问题修复或用户可感知优化）各升一次 Patch 且不受功能锁影响、相同 ID 跨发布仍不重复且历史 `bug-fix` ID 不能改作其他提升分类、回归新 ID 可提升、显式 Major 需用户批准、维护不变、`0.0.99 -> 0.1.0` 与 `0.99.99 -> 1.0.0` 自动进位、Major 支持超过 100 但不得超过 Cargo `u64::MAX`、最高位自动进位越界零写入、Minor/Patch 固定 `0..99` 且历史 `100` 在 Cargo/目标版本/发布日志中一旦出现即失败关闭（无可读取例外），以及构建只读和正式发布后才重置；初始化、开发、构建、候选收集、验收、发布准备及 Harness 升级保护均由 validator 锁定。
 - [x] 页面动作由语义控件自身拥有，点击父 Card/表格行/单元格不会触发子按钮或切换 `Switch`；选择关于页时，更新区父级同样不代理检查更新或更新日志动作。
 - [x] 选择关于页时，“更新日志”可查看近 5 版 schema v2 中英文结构，每版功能优化/问题修复各至多 10 个完整翻译对，当前 i18n locale 选择对应标题与正文且未知语言回退英文；`NotConfigured` 只禁用远程检查，未选择关于页时没有隐藏入口、路由或运行时组件。
 - [x] GUI 页面会话状态由应用根 Jotai store 在本次进程内跨路由保留，退出后恢复默认且不使用持久存储/URL；详细侧栏折叠偏好使用独立设备级存储而不进入页面会话 atom；成功空页从大于 1 的页码回退第 1 页，加载/错误和第 1 页空结果不循环。
@@ -342,7 +342,7 @@
 - [x] 所有用户可见版本恰有一个小写 `v`，机器版本字段保持无展示前缀的原始值。
 
 - [x] 日常开发不再选择快速/标准/里程碑档位，统一直接实现并只运行本次必要的相关单元/回归测试。
-- [x] 用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`，当前及归档有效标题决定递增序号，旧四字段标题仅用于历史兼容；内部 Subagent 不使用标题合同、不占用序号。`user_owned_tasks` 默认关闭、自定义可开启且初始化后可手动开关。启用或用户显式创建时，一个 Task 固定一个结果；Git 使用独立 Worktree、非 Git 使用 Local，只有真实 `threadId` 且标题、项目、cwd、状态、干净工作区和起始提交均复核通过后才允许实现。
+- [x] 用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`，当前及归档有效标题决定递增序号，不识别任何历史标题格式；内部 Subagent 不使用标题合同、不占用序号。`user_owned_tasks` 默认关闭、自定义可开启且初始化后可手动开关。启用或用户显式创建时，一个 Task 固定一个结果；Git 使用独立 Worktree、非 Git 使用 Local，只有真实 `threadId` 且标题、项目、cwd、状态、干净工作区和起始提交均复核通过后才允许实现。
 - [x] 日常开发不自动创建 Work Plan、Product Status、Verification、构建、全仓检查、冒烟、E2E 或人工复核步骤；显式请求和必要风险门禁仍可独立触发。
 - [x] 代码行为变化的本次必要测试覆盖核心成功路径和最高风险失败路径；纯文档/元数据/机械变更可以使用最小替代检查而无需空洞测试。
 - [x] Product Spec、ADR、Product Status、Work Plan、Changelog 和 Verification 只在各自触发条件满足时更新，不再每项需求全量联动。
@@ -392,6 +392,6 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609102343`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，`1.0.0` 保留为迁移前旧版本标识。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名与渠道上传仍须各自真实发生。
+- 当前版本：`202609102343`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名与渠道上传仍须各自真实发生。
 - 维护状态：Active。
 - 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对九项初始化组合、三项 Rust-only 固定基线与 dialog 固定 WebView 基线（含 dialog 原生 message/save/open、精确主窗口 capability、零 filesystem 权限、托盘禁用关闭退出、通知授权/投递、自启登录项恢复、单实例/深链接组合、全局快捷键冲突与注销、window-state 安全恢复、页面缺席与详细侧栏持久折叠）、签名更新安装、强更离线恢复、产品级统计同意/撤回、Vite/AST 门禁和最终 dist 扫描的前向构建证据。

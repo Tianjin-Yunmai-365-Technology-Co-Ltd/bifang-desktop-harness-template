@@ -29,7 +29,7 @@ from scripts.harness_validation_test_support import (
 
 
 class AgentPolicyTests(unittest.TestCase):
-    """覆盖可选 user-owned Task、推荐预设与自定义策略的 schema v2 物化。"""
+    """覆盖可选 user-owned Task、推荐预设与自定义策略的 schema v3 物化。"""
 
     @staticmethod
     def _current_policy() -> str:
@@ -71,8 +71,8 @@ class AgentPolicyTests(unittest.TestCase):
                 "superpowers": "disabled",
                 "user_owned_tasks": "disabled",
                 "parallel_worktree_subagents": "enabled",
-                "milestone_smoke": "enabled",
-                "milestone_e2e": "disabled",
+                "acceptance_smoke": "enabled",
+                "e2e_hint": "disabled",
             }
         )
         self.assertEqual(self._validate(resolved, allow_pending=False), [])
@@ -128,8 +128,8 @@ class AgentPolicyTests(unittest.TestCase):
                 "superpowers": "enabled",
                 "user_owned_tasks": "enabled",
                 "parallel_worktree_subagents": "disabled",
-                "milestone_smoke": "disabled",
-                "milestone_e2e": "enabled",
+                "acceptance_smoke": "disabled",
+                "e2e_hint": "enabled",
             }
         )
         self.assertEqual(self._validate(resolved, allow_pending=False), [])
@@ -137,7 +137,7 @@ class AgentPolicyTests(unittest.TestCase):
     def test_rejects_persisted_preset_field(self) -> None:
         """推荐预设只是输入快捷方式，不得扩张稳定 schema。"""
         mutated = self._current_policy().replace(
-            "schema_version: 2\n", "schema_version: 2\npreset: agile\n", 1
+            "schema_version: 3\n", "schema_version: 3\npreset: agile\n", 1
         )
         errors = self._validate(mutated)
         self.assertTrue(any("fields mismatch" in error for error in errors), errors)
@@ -284,8 +284,8 @@ class InitializationFormContractTests(unittest.TestCase):
                 "`user_owned_tasks`",
                 "`superpowers`",
                 "`parallel_worktree_subagents`",
-                "`milestone_smoke`",
-                "`milestone_e2e`",
+                "`acceptance_smoke`",
+                "`e2e_hint`",
                 "`system_tray`",
                 "`system_notification`",
                 "`autostart`",
@@ -613,8 +613,8 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             record("Task 93 | 已完成 | 不得参与分配", kind="chatgpt"),
         ]
         archived_records = [
-            # 旧四字段标题只为已有项目延续序号，不再是当前合法标题。
-            record("4|归档任务|已完成 |保留项目历史最大值"),
+            # 四字段旧标题格式不再被识别，即使数值上可以延续项目历史最大值。
+            record("4|归档任务|已完成 |不得参与分配"),
             active_records[1],
             record("Task 03 | 已完成 | 畸形标题必须忽略"),
             record("Task 100 | 已完成"),
@@ -631,7 +631,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
                 host_id="local",
                 project_id="project-a",
             ),
-            (5,),
+            (3,),
         )
         self.assertEqual(
             governance_policy.allocate_project_task_sequences(
@@ -640,7 +640,7 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
                 project_id="project-a",
                 count=3,
             ),
-            (5, 6, 7),
+            (3, 4, 5),
         )
         self.assertEqual(
             governance_policy.allocate_project_task_sequences(

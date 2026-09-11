@@ -44,8 +44,8 @@
 | 9 | 条件补全 | `user_owned_tasks` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭不影响用户明确要求创建。 |
 | 10 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
 | 11 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 12 | 条件补全 | `milestone_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 13 | 条件补全 | `milestone_e2e` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
+| 12 | 条件补全 | `acceptance_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
+| 13 | 条件补全 | `e2e_hint` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
 | 14 | 条件补全 | `system_tray` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
 | 15 | 条件补全 | `system_notification` | 仅选择 GUI 时必填；询问是否安装系统通知能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`。 |
 | 16 | 条件补全 | `autostart` | 仅选择 GUI 时必填；询问是否安装开机自启能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`；选择能力不表示替用户注册登录项。 |
@@ -62,8 +62,8 @@
 user_owned_tasks: disabled
 superpowers: disabled
 parallel_worktree_subagents: enabled
-milestone_smoke: enabled
-milestone_e2e: disabled
+acceptance_smoke: enabled
+e2e_hint: disabled
 ```
 
 推荐预设包含以上全部五项；选择自定义时逐项确认，不能从 Harness 源当前值推断用户选择。

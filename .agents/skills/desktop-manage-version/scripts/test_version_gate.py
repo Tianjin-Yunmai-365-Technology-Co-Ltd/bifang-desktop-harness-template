@@ -168,9 +168,9 @@ class VersionGateTests(unittest.TestCase):
             version_gate.Version.parse(f"{'9' * 5000}.0.0")
         with self.assertRaisesRegex(version_gate.GateError, "stable"):
             version_gate.Version.parse("1.2٢.3")
-        for invalid in ("0.101.0", "0.0.101"):
+        for invalid in ("0.100.0", "0.0.100", "0.101.0", "0.0.101"):
             with self.subTest(version=invalid):
-                with self.assertRaisesRegex(version_gate.GateError, "0..100"):
+                with self.assertRaisesRegex(version_gate.GateError, "0..99"):
                     version_gate.Version.parse(invalid)
 
         cargo_before = (self.root / "Cargo.toml").read_bytes()
@@ -323,49 +323,20 @@ class VersionGateTests(unittest.TestCase):
         self.assertFalse(later_feature["version_bumped"])
         self.assertTrue(state["feature_bump_applied"])
 
-    def test_legacy_100_is_readable_and_only_normalized_by_a_real_bump(self) -> None:
-        legacy_root = self._project_with_version("legacy", "0.100.100")
-        cargo_path = legacy_root / "Cargo.toml"
-        state_path = legacy_root / version_gate.STATE_RELATIVE
-        cargo_before = cargo_path.read_bytes()
-        state_before = state_path.read_bytes()
+    def test_legacy_100_is_rejected_with_no_compatibility_path(self) -> None:
+        self._write_cargo("0.100.100")
 
-        checked = version_gate.check(legacy_root, "development")
-        planned = version_gate.evaluate_change(
-            legacy_root,
-            action="plan",
-            kind="bug-fix",
-            change_id="BUG-LEGACY-PLAN",
-            major=None,
-            user_approved=False,
-        )
-        maintained = version_gate.evaluate_change(
-            legacy_root,
-            action="apply",
-            kind="maintenance",
-            change_id="MAINT-LEGACY",
-            major=None,
-            user_approved=False,
-        )
-
-        self.assertEqual(checked["current_version"], "0.100.100")
-        self.assertEqual(planned["required_version"], "1.1.1")
-        self.assertEqual(maintained["after_version"], "0.100.100")
-        self.assertEqual(cargo_path.read_bytes(), cargo_before)
-        self.assertEqual(state_path.read_bytes(), state_before)
-
-        applied = version_gate.evaluate_change(
-            legacy_root,
-            action="apply",
-            kind="bug-fix",
-            change_id="BUG-LEGACY-APPLY",
-            major=None,
-            user_approved=False,
-        )
-        self.assertEqual(applied["after_version"], "1.1.1")
-        applied_state = json.loads(state_path.read_text())
-        self.assertEqual(applied_state["target_version"], "1.1.1")
-        self.assertEqual(applied_state["cycle_base_version"], "0.100.100")
+        with self.assertRaisesRegex(version_gate.GateError, "0..99"):
+            version_gate.check(self.root, "development")
+        with self.assertRaisesRegex(version_gate.GateError, "0..99"):
+            version_gate.evaluate_change(
+                self.root,
+                action="plan",
+                kind="bug-fix",
+                change_id="BUG-LEGACY-PLAN",
+                major=None,
+                user_approved=False,
+            )
 
     def test_rollover_plan_reports_result_without_mutating_files(self) -> None:
         plan_root = self._project_with_version("rollover-plan", "0.0.99")

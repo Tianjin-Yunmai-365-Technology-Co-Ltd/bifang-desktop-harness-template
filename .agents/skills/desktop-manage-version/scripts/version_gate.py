@@ -44,7 +44,7 @@ def _decimal_is_at_most(value: str, maximum: str) -> bool:
 
 @dataclass(frozen=True, order=True)
 class Version:
-    """表示稳定三段语义化版本，并兼容历史值中的下位分量 100。"""
+    """表示稳定三段语义化版本；Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`。"""
 
     major: int
     minor: int
@@ -63,16 +63,16 @@ class Version:
         if not _decimal_is_at_most(major_text, CARGO_SEMVER_COMPONENT_MAX_TEXT):
             raise GateError("major component exceeds Cargo u64::MAX")
         if (
-            not _decimal_is_at_most(minor_text, "100")
-            or not _decimal_is_at_most(patch_text, "100")
+            not _decimal_is_at_most(minor_text, "99")
+            or not _decimal_is_at_most(patch_text, "99")
         ):
             raise GateError(
-                "minor and patch components outside legacy-compatible range 0..100"
+                "minor and patch components outside supported range 0..99"
             )
         return cls(int(major_text), int(minor_text), int(patch_text))
 
     def normalized(self) -> "Version":
-        """把历史下位分量 100 规范化为 base-100 表示。"""
+        """把刚发生进位、可能达到 100 的下位分量结转为 base-100 表示。"""
 
         minor = self.minor + self.patch // 100
         patch = self.patch % 100

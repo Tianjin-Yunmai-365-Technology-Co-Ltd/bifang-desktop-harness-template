@@ -15,7 +15,7 @@ description: 管理下游产品的自动语义化版本门禁、base-100 进位�
 - 每个已完成且具有新稳定 ID 的问题修复或用户可感知优化统一使用 `bug-fix`，把 Patch 提升一个数位并自动进位；这一提升不受功能锁影响。相同 ID 的重复修改、重试或补充处理永不再次提升；正式发布后确认的回归必须使用新的稳定 ID，才可提升。
 - 查询、诊断、复现、未完成或重复处理，以及不改变可观察行为的重构、内部优化、测试补强、文档、格式和内部清理都属于 `maintenance`，不改变版本。
 - 维护不改变版本；不得把维护换名为功能或缺陷修复来绕过分类。
-- 历史 Cargo 与状态 `target_version` 中的 Minor/Patch `100` 继续可读；Harness 升级、`check`、`plan` 和 `maintenance` 不改写它们。只有下一次确实提升版本的 `feature`、`bug-fix` 或显式 `major` 的 `apply` 才先按 base-100 规范化当前 Cargo 与 `target_version`，再应用本次变化；`cycle_base_version`、`last_release` 和既有 `pending_changes.required_version` 保留原始证据值。
+- Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`；Cargo 或状态 `target_version` 中一旦出现 `100`，`init`、`check`、`plan`、`maintenance` 和 `apply` 一律失败关闭，没有可读取或延迟规范化的旧值例外，必须先手动把版本改回 `0..99` 才能继续任何操作。
 - 普通构建、`pending` 候选、验收和失败发布都不重置周期。只有正式发布已经成功后才能执行 `finalize-release`；它清空待发布变化并允许下一周期的首个功能再次提升 Minor，但保留历史 `bug-fix` 稳定 ID。
 - Product Spec、ADR、Changelog 或 Work Plan 只有被自身事件独立触发时才记录相应 `change_id` 的 `required_version`。版本变化不得为普通缺陷或维护任务强制创建这些文档；最终发布版本允许高于早先记录的最低所需版本。
 
@@ -52,7 +52,7 @@ description: 管理下游产品的自动语义化版本门禁、base-100 进位�
 
 ## 失败关闭
 
-- 根 Cargo 版本与状态目标不一致、状态缺失/损坏、路径为符号链接、Git 根不独立、版本格式不受支持、Minor/Patch 超出兼容读取范围 `0..100`、Major 超出 Cargo `u64` 范围、缺少稳定 ID、当前 `pending_changes` 中的 ID 被不同类别复用、历史 `bug-fix` ID 被改作其他提升类别，或显式 Major 未明确批准时停止；不得手工绕过状态文件。Major 不设 99/100 的业务上限，新生成 Minor/Patch 的 99 边界必须自动进位；只有最高 Major 超出 `u64::MAX` 时才因没有更高数位而失败。
+- 根 Cargo 版本与状态目标不一致、状态缺失/损坏、路径为符号链接、Git 根不独立、版本格式不受支持、Minor/Patch 超出支持范围 `0..99`、Major 超出 Cargo `u64` 范围、缺少稳定 ID、当前 `pending_changes` 中的 ID 被不同类别复用、历史 `bug-fix` ID 被改作其他提升类别，或显式 Major 未明确批准时停止；不得手工绕过状态文件。Major 不设 99/100 的业务上限，新生成 Minor/Patch 的 99 边界必须自动进位；只有最高 Major 超出 `u64::MAX` 时才因没有更高数位而失败。
 - 不得修改成员 crate 的独立版本；所有成员继续使用 `version.workspace = true`。
 - 不得把 `finalize-release` 当作构建收尾，也不得仅凭 tag、候选存在或发布尝试开始就重置周期。
 
