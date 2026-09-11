@@ -113,6 +113,10 @@ def validate_daily_project_memory(errors: list[str]) -> None:
     product_is_approved = PRODUCT_SPEC.is_file() and bool(
         re.search(r"状态[：:]\s*Approved", PRODUCT_SPEC.read_text(encoding="utf-8"))
     )
+    def history_archive_pattern(label_upper: str) -> re.Pattern[str]:
+        """派生 <LABEL>_history(_N).md 的历史归档文件名模式。"""
+        return re.compile(rf"^{label_upper}_history(_\d+)?\.md$")
+
     daily_contracts = (
         (PRODUCT_SPEC_DIR, PRODUCT_SPEC_PATTERN, "Product Spec", True, None),
         (PRODUCT_STATUS_DIR, PRODUCT_STATUS_PATTERN, "Product Status", True, None),
@@ -122,14 +126,14 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             re.compile(r"^\d{8}_ADR\.md$"),
             "ADR",
             product_is_approved,
-            re.compile(r"^ADR_history(_\d+)?\.md$"),
+            history_archive_pattern("ADR"),
         ),
         (
             CHANGELOG_DIR,
             re.compile(r"^\d{8}_CHANGELOG\.md$"),
             "Changelog",
             False,
-            re.compile(r"^CHANGELOG_history(_\d+)?\.md$"),
+            history_archive_pattern("CHANGELOG"),
         ),
     )
     for directory, filename_pattern, label, dated_file_required, history_pattern in daily_contracts:

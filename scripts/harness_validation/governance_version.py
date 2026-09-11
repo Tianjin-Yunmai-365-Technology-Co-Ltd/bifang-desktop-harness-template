@@ -113,11 +113,12 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             "根 `Cargo.toml`",
         ),
     }
+    texts: dict[Path, str] = {}  # noqa: F405
     for path, fragments in required_fragments.items():
         if not path.is_file():
             fail(errors, f"missing version contract file: {display_path(path)}")  # noqa: F405
             continue
-        text = path.read_text(encoding="utf-8")
+        text = texts.setdefault(path, path.read_text(encoding="utf-8"))
         for fragment in fragments:
             if fragment not in text:
                 fail(  # noqa: F405
@@ -125,16 +126,15 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
                     f"version contract missing in {display_path(path)}: {fragment}",
                 )
 
-    release_text = (ROOT / "docs" / "RELEASE.md").read_text(encoding="utf-8")  # noqa: F405
+    release_text = texts.get(ROOT / "docs" / "RELEASE.md", "")  # noqa: F405
     if "模板版本事实来源：本文件" in release_text:
         fail(errors, "docs/RELEASE.md still claims to be the Harness version fact source")  # noqa: F405
 
     no_legacy_version_files = (version_file, ROOT / "docs" / "RELEASE.md", PRODUCT_SPEC)  # noqa: F405
     for path in no_legacy_version_files:
-        if not path.is_file():
+        if path not in texts:
             continue
-        text = path.read_text(encoding="utf-8")
-        if "旧版本标识" in text:
+        if "旧版本标识" in texts[path]:
             fail(  # noqa: F405
                 errors,
                 f"legacy version identifier must not be reintroduced in {display_path(path)}",  # noqa: F405
