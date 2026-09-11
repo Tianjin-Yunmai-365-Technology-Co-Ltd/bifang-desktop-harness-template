@@ -114,18 +114,25 @@ def validate_daily_project_memory(errors: list[str]) -> None:
         re.search(r"状态[：:]\s*Approved", PRODUCT_SPEC.read_text(encoding="utf-8"))
     )
     daily_contracts = (
-        (PRODUCT_SPEC_DIR, PRODUCT_SPEC_PATTERN, "Product Spec", True),
-        (PRODUCT_STATUS_DIR, PRODUCT_STATUS_PATTERN, "Product Status", True),
-        (WORK_PLAN_DIR, WORK_PLAN_PATTERN, "Work Plan", False),
-        (ADR_DIR, re.compile(r"^\d{8}_ADR\.md$"), "ADR", product_is_approved),
+        (PRODUCT_SPEC_DIR, PRODUCT_SPEC_PATTERN, "Product Spec", True, None),
+        (PRODUCT_STATUS_DIR, PRODUCT_STATUS_PATTERN, "Product Status", True, None),
+        (WORK_PLAN_DIR, WORK_PLAN_PATTERN, "Work Plan", False, None),
+        (
+            ADR_DIR,
+            re.compile(r"^\d{8}_ADR\.md$"),
+            "ADR",
+            product_is_approved,
+            re.compile(r"^ADR_history(_\d+)?\.md$"),
+        ),
         (
             CHANGELOG_DIR,
             re.compile(r"^\d{8}_CHANGELOG\.md$"),
             "Changelog",
             False,
+            re.compile(r"^CHANGELOG_history(_\d+)?\.md$"),
         ),
     )
-    for directory, filename_pattern, label, dated_file_required in daily_contracts:
+    for directory, filename_pattern, label, dated_file_required, history_pattern in daily_contracts:
         if not directory.is_dir():
             fail(errors, f"missing daily {label} directory: {display_path(directory)}")
             continue
@@ -138,6 +145,10 @@ def validate_daily_project_memory(errors: list[str]) -> None:
         daily_files: list[Path] = []
         for path in sorted(directory.glob("*.md")):
             if path.name == "README.md":
+                continue
+            if history_pattern is not None and history_pattern.fullmatch(path.name):
+                if path.name not in index_text:
+                    fail(errors, f"{label} history archive missing from index: {display_path(path)}")
                 continue
             if not filename_pattern.fullmatch(path.name):
                 fail(errors, f"invalid daily {label} filename: {display_path(path)}")
