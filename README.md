@@ -135,7 +135,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202609102343
+- 当前版本：v202609111732
 - 发布状态：Released
 - 产品规格：Approved
 - 具体产品源码：不包含

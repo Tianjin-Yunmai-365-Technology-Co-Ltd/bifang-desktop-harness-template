@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- 当前版本：[`Version.md`](../Version.md) 中记录的 `202609102343`（Released）
+- 当前版本：[`Version.md`](../Version.md) 中记录的 `202609111732`（Released）
 - 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
 - 下游 Rust 项目当前版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`；`.harness/version-state.json` 只保存正式发布周期、待发布变化和 `bug-fix` 稳定 ID 去重状态

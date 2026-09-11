@@ -141,6 +141,7 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             )
 
     materialized_changes = {
+        "HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY": "202609111732",
         "HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS": "202609102343",
         "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE": "202609101621",
         "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": "202609101621",
