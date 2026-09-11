@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
-  "sourceHead": "b63b73c5e67d168a9b1cbc73d62979da45904778",
-  "version": "202609102343",
-  "releaseDate": "2026-09-10",
-  "expectedTag": "v202609102343-20260910",
+  "sourceHead": "72ae30b8d09df1851a483bbf09ac2cc922904383",
+  "version": "202609111732",
+  "releaseDate": "2026-09-11",
+  "expectedTag": "v202609111732-20260911",
   "remote": "github",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "fd17248866418e5091d78e865f2b55fab6f77408",
-    "sourceHead": "b63b73c5e67d168a9b1cbc73d62979da45904778",
-    "scopeDiffSha256": "e8e6e58f5cb9e331a81689cdb236057044724cfd8516679e135a98614ba7f84a",
-    "reviewedSourceCommit": "b63b73c5e67d168a9b1cbc73d62979da45904778",
+    "scopeBase": "fe8237924621ed3dacf20bc947279a96e47a38b1",
+    "sourceHead": "72ae30b8d09df1851a483bbf09ac2cc922904383",
+    "scopeDiffSha256": "12dd435c5deb30af380bcd65300c79c70ce6995b38bdcd34132ba1e28724e034",
+    "reviewedSourceCommit": "72ae30b8d09df1851a483bbf09ac2cc922904383",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -20,7 +20,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Passed behavior correctness, core/adapter boundary, external contract, responsibility/size, and temporary-marker review; Harness release review passed with 35 pre-existing non-blocking size advisories.",
+    "evidenceSummary": "Passed behavior-correctness, core/adapter-boundary (n/a for Harness source), external-contracts, responsibility-and-size, and temporary-marker review. External-contract change is the release itself: historical compatibility removed from version identity, Task titles, SemVer gate, Agent Policy schema, with documented accepted migration cost in ADR-20260911-001/002. --release-review: 35 pre-existing non-blocking size advisories, none new. No TODO/FIXME/HACK.",
     "reason": null,
     "remainingRisk": null
   },
