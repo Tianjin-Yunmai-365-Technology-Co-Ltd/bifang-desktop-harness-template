@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- 当前版本：[`Version.md`](../Version.md) 中记录的 `202609111732`（Released）
+- 当前版本：[`Version.md`](../Version.md) 中记录的 `202609122231`（Released）
 - 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
 - 下游 Rust 项目当前版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`；`.harness/version-state.json` 只保存正式发布周期、待发布变化和 `bug-fix` 稳定 ID 去重状态
@@ -38,7 +38,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 项目根忽略的制品目录 `release/` 不是 Git 分支。新功能和独立 Bug 修复在首次写入前由 `$desktop-manage-git-lifecycle start` 自动创建本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；创建动作不要求远端。生命周期状态位于 Git common dir 的 `agent-first-harness/git-lifecycle.json`，只精确登记本次发布以来由 helper 创建或接管的分支、Worktree 和可重试进度，不进入提交。
 
-用户明确说“推送”时，helper 使用普通 merge 把登记开发分支合并到动态默认主分支，切换到主分支并推送、复读主分支；这次操作不创建 tag，也不清理分支或 Worktree。用户明确说“发布”时，`$desktop-prepare-release` 先把当前版本、发布日期、预期 tag、源码提交、`releaseReview` 和 `candidateSelections` 写入 `.harness/release-context.json` 并提交；随后 `release --version <version>` 按以下不可倒置的顺序执行：
+用户明确说“推送”时，helper 使用普通 merge 把登记开发分支合并到动态默认主分支，切换到主分支并推送、复读主分支；这次操作不创建 tag，也不清理分支或 Worktree。用户明确说“发布”时，`$desktop-prepare-release` 先提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 `.harness/release-context.json`，再把且只把这两个文件放入同一个发布元数据提交。随后使用上下文中同一远端调用 `release --version <version> --date YYYYMMDD --remote <remote>`，按以下不可倒置的顺序执行：
 
 1. 普通合并全部登记开发分支，切换到动态默认主分支，推送并复读主分支。
 2. 在当前主分支 HEAD 创建轻量 tag `v{version}-{YYYYMMDD}`，日期取 `Asia/Shanghai` 自然日；推送 tag 并复读远端目标。
@@ -49,9 +49,10 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 ## 用户可见版本与更新日志
 
 - Windows 原生本地安装试包不是发布候选，不进入本文件的更新日志、clean HEAD、manifest、E2E、性能、签名或 `release/` 门禁。普通“构建/打包/首次安装试一下”由 `$desktop-build-tauri-local-install` 处理；只有用户明确要求发布候选或准备发布，才适用下列规则。该试包仍须明确标注未签名、未安装、未验收且不可分发。
+- Harness 源正式发布同样使用根 `release-notes.json` 记录近 5 个模板版本的双语维护摘要，但它只是源码发布元数据，不是产品资源、候选 manifest 或产品验收证据。
 - 所有面向用户显示的版本号统一使用且只使用一个小写 `v` 前缀，包括 GUI 页面、窗口标题、更新状态、强更提示、CLI `--version`、发布记录和更新日志。Cargo、`.harness/version-state.json`、候选 manifest 的机器版本字段、协议比较值和 SemVer 运算继续保存不带 `v` 的原始版本；展示边界负责先移除已有任意 `v`/`V` 前缀，再规范化为 `v<version>`。
 - 下游在准备首个正式发布时创建根 `release-notes.json`。它是发布制品固定携带、并在 `about_page = enabled` 时由应用关于页通过固定 `load_release_notes` 窄命令复用的用户更新日志事实，使用 `schemaVersion: 2` 与按最新在前的 `releases` 数组；每项字段固定为 `releaseDate`、带一个 `v` 的 `version`、`featureOptimizations` 和 `bugFixes`。两个分类中的每个逻辑条目都是键恰好为 `zh-CN` 与 `en-US` 的翻译对，两个值都必须是非空、无首尾空白的字符串；任一翻译缺失都阻断。所有 GUI 初始化预置但不在调试构建使用 `src-tauri/tauri.release.conf.json`；正式候选构建显式 `--config` 合并该文件，把根日志唯一映射为候选逻辑资源 `release-notes.json`。
-- 每次形成发布候选前，必须找到上一次真实正式发布的版本与 40 位源码提交；从该提交之后到当前发布源码的真实差异中语义筛选最重要内容，不得直接倾倒提交标题。首个正式发布以仓库起点到当前发布源码为范围。每版“功能优化”和“问题修复”各自最多 10 个逻辑条目，两类合计至少一条；每个条目同时提供中文与英文。Agent 可先整理其中一种语言并自动翻译另一种，但在写入前必须并排复核两种语言的语义对应关系。普通缺陷修复即使不触发按日 Changelog，也进入本次“问题修复”。
+- 每次正式发布时，必须找到上一次真实正式发布的版本与 40 位源码提交；从该提交之后到当前发布源码的真实差异中语义筛选最重要内容，不得直接倾倒提交标题。首个正式发布以仓库起点到当前发布源码为范围。每版“功能优化”和“问题修复”各自最多 10 个逻辑条目，两类合计至少一条；每个条目同时提供中文与英文。Agent 可先整理其中一种语言并自动翻译另一种，但在写入前必须并排复核两种语言的语义对应关系。普通缺陷修复即使不触发按日 Changelog，也进入本次“问题修复”。终端下游随后把同一日志写入产品候选；Harness 源只把它作为 Git 源码发布元数据。
 - 更新当前版本时先替换同版本条目，再置顶并截断为最近 5 个版本。使用 `$desktop-prepare-release` 携带的标准库脚本执行 `python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py upsert ...`，通过配对的 `--feature-optimization-zh-cn`/`--feature-optimization-en-us` 与 `--bug-fix-zh-cn`/`--bug-fix-en-us` 按出现顺序传入每个翻译对，再运行更新日志脚本的 `check --expected-version` 校验，并分别运行 `render --locale zh-CN` 与 `render --locale en-US` 复核可见结果。文件是普通非符号链接 UTF-8 JSON，由脚本在同目录原子替换；Harness 升级将其视为 `protected`。
 - 用户可见渲染按当前 i18n locale 使用以下两套固定结构；版本必须已经规范化为一个 `v` 前缀，空分类分别显示“无”或“None”，不得制造虚假条目。GUI 当前语言以 `zh` 开头时选择 `zh-CN`，其他或未知语言回退 `en-US`——`release-notes.json` 目前只提供这两套翻译，`zh-TW`/`zh-HK`/`zh-Hant` 等其他中文变体按设计并入 `zh-CN` 内容而非另行回退英文，此为当前双语范围下的既定简化，不是未定义行为：
 
@@ -79,11 +80,11 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 {up to 10 most important fixes}
 ```
 
-- `release-notes.json` 与 `docs/changelog/` 职责独立：前者是每次正式发布都必须更新且供产品展示/打包的近五版用户摘要；后者仍只记录其事件规则允许的按日项目变化。更新日志一旦变化，源码提交和候选字节也发生变化，必须重新构建并验收，不能在候选 `accepted` 后原地修改。
+- `release-notes.json` 与 `docs/changelog/` 职责独立：前者是每次正式发布都必须更新的近五版双语摘要；终端下游还把它用于产品展示/打包，Harness 源只把它作为源码发布元数据。后者仍只记录其事件规则允许的按日项目变化。更新日志一旦变化就必须重新提交；终端下游的候选字节也随之变化，必须重新构建并验收，不能在候选 `accepted` 后原地修改；Harness 源则重新复核 Git 源码发布，不创建虚假候选。
 
 ## 发布物命名
 
-Harness 模板若发布源码归档，使用：
+Harness 模板只有在用户另行明确要求源码归档时才生成，命名使用：
 
 `agent-first-harness-template-vYYYYMMDDHHMM.扩展名`
 
@@ -91,7 +92,7 @@ Harness 模板若发布源码归档，使用：
 
 `产品名-vMAJOR.MINOR.PATCH-平台-架构.扩展名`
 
-实际生成归档或安装包时同时生成相邻的 `<artifact>.sha256` 和清单。`pending` 候选清单至少包含项目、版本、批准的 40 位源码提交、预期 Git tag、发布上下文 SHA-256、明确的构建/运行身份、构建模式、平台、架构、目标、宿主、产物名、SHA-256、全量单元测试结果、当前 `e2eSelection`、当次 `reviewSelection: enabled | disabled`、对应 `reviewStatus: passed | Not run`、`releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath: release-notes.json`、签名证据和 `milestoneAcceptance: pending`。发布审查启用时必须有结构化 `reviewEvidence` 并绑定当前发布上下文和源码 HEAD；关闭且无硬要求时必须记录非空 `reviewReason`、`reviewRemainingRisk` 并让 `reviewEvidence` 缺席。Tauri GUI 还必须包含当次 `performanceSelection: enabled | disabled` 与 `performanceStatus: passed | waived | Not run | Unverified`。选择 `enabled` 或产品/渠道硬要求，且已在目标平台原生测量时，清单必须包含绑定探针候选、提交和平台的结构化 `performanceEvidence`、`performanceProbe*` 与 `performanceRuntimeBinding`；`waived` 必须保存原始失败指标、诊断/修复尝试、风险、原因和用户确认，且原始性能证据必须有 `waiverAllowed: true`，不能改判为通过。选择 `disabled` 且无硬要求时，状态固定为 `Not run`，记录非空原因和剩余风险，并省略所有探针、证据与运行时绑定字段。xwin 只有在性能选择启用但未在真实 Windows 原生运行时记录 `performanceStatus: Unverified`且不伪造原生证据；主动关闭时仍记录 `Not run`。产品/渠道硬要求下，`Unverified` 候选不得进入 `accepted`。所有 Tauri GUI 清单还固定记录产品/发布事实 `updaterEnabled` 和实际 updater plugin/Tauri 版本：官方 updater Rust 插件是无条件安装基线，不受该布尔值、关于页或性能选择控制；`false` 时插件与 `NotConfigured` 零出站回归仍保留，但 updater archive、`.sig` 和制品签名字段必须缺席，`bundle.createUpdaterArtifacts` 不得启用；`true` 时才要求受限 HTTPS endpoints、公钥、channel/target/arch、安全私钥来源、官方 updater archive/`.sig` 与应用公钥实际验签证据。macOS 安装包另记录 `macosSigningSelection: enabled | disabled` 与 `macosSigningSource: configured | requested | channel-required | not-requested`：只有已批准的持久签名/公证配置、本次用户主动要求或渠道硬要求才启用；本机恰好存在身份、工具或凭据不得自行启用。
+Harness 源码归档只生成相邻 `<artifact>.sha256` 并核对归档来源提交、摘要与两份根许可证；它不是产品候选，不创建或套用产品 manifest。终端下游实际生成产品归档或安装包时同时生成相邻的 `<artifact>.sha256` 和 manifest。`pending` 产品候选清单至少包含项目、版本、批准的 40 位源码提交、预期 Git tag、发布上下文 SHA-256、明确的构建/运行身份、构建模式、平台、架构、目标、宿主、产物名、SHA-256、全量单元测试结果、当前 `e2eSelection`、当次 `reviewSelection: enabled | disabled`、对应 `reviewStatus: passed | Not run`、`releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath: release-notes.json`、签名证据和 `milestoneAcceptance: pending`。发布审查启用时必须有结构化 `reviewEvidence` 并绑定当前发布上下文和源码 HEAD；关闭且无硬要求时必须记录非空 `reviewReason`、`reviewRemainingRisk` 并让 `reviewEvidence` 缺席。Tauri GUI 还必须包含当次 `performanceSelection: enabled | disabled` 与 `performanceStatus: passed | waived | Not run | Unverified`。选择 `enabled` 或产品/渠道硬要求，且已在目标平台原生测量时，清单必须包含绑定探针候选、提交和平台的结构化 `performanceEvidence`、`performanceProbe*` 与 `performanceRuntimeBinding`；`waived` 必须保存原始失败指标、诊断/修复尝试、风险、原因和用户确认，且原始性能证据必须有 `waiverAllowed: true`，不能改判为通过。选择 `disabled` 且无硬要求时，状态固定为 `Not run`，记录非空原因和剩余风险，并省略所有探针、证据与运行时绑定字段。xwin 只有在性能选择启用但未在真实 Windows 原生运行时记录 `performanceStatus: Unverified`且不伪造原生证据；主动关闭时仍记录 `Not run`。产品/渠道硬要求下，`Unverified` 候选不得进入 `accepted`。所有 Tauri GUI 清单还固定记录产品/发布事实 `updaterEnabled` 和实际 updater plugin/Tauri 版本：官方 updater Rust 插件是无条件安装基线，不受该布尔值、关于页或性能选择控制；`false` 时插件与 `NotConfigured` 零出站回归仍保留，但 updater archive、`.sig` 和制品签名字段必须缺席，`bundle.createUpdaterArtifacts` 不得启用；`true` 时才要求受限 HTTPS endpoints、公钥、channel/target/arch、安全私钥来源、官方 updater archive/`.sig` 与应用公钥实际验签证据。macOS 安装包另记录 `macosSigningSelection: enabled | disabled` 与 `macosSigningSource: configured | requested | channel-required | not-requested`：只有已批准的持久签名/公证配置、本次用户主动要求或渠道硬要求才启用；本机恰好存在身份、工具或凭据不得自行启用。
 
 候选构建在清理目录、测试或编译前，以及写 manifest 前，都必须只读校验 `.harness/release-context.json`。两次读取的文件 SHA-256、`sourceCommit`、`expectedTag`、`releaseReview` 和 `candidateSelections` 必须逐字段一致，并证明当前 clean 动态默认主分支、本地/远端主分支和远端 tag 都指向同一 HEAD；manifest 的审查证据或 `Not run` 原因/风险、性能选择/关闭风险和 macOS 签名选择/来源都从上下文原样复制，不得从对话补写或重新解释。E2E 仍在构建阶段按当前候选单独解析。
 
@@ -110,10 +111,14 @@ Harness 模板若发布源码归档，使用：
 
 ## 构建、完整验收与发布顺序
 
-E2E 选择只对当前发布候选有效；每次候选构建独立解析，当前请求未明确时询问一次，持久建议值不能静默代替。`reviewSelection` 只由 `$desktop-prepare-release` 在发布写入前解析：当前请求已明确时复用，安全/隐私/不可逆操作/对外兼容契约或产品/渠道硬要求强制启用，否则询问一次；同一发布修复重跑复用，新发布重新询问。GUI 性能和 macOS 签名选择也在该入口按当前请求、产品事实与渠道要求锁定；默认 macOS 签名为 `disabled/not-requested`，不运行可用性探测，只有已批准配置、本次主动要求或渠道硬要求才启用。`system_notification = enabled` 与关闭签名冲突时必须在任何提交前停止，不能由 E2E `disabled` 掩盖。prepare-release 将结构化审查结论或 `Not run` 风险、性能选择/关闭风险和 macOS 签名选择/来源写入 `.harness/release-context.json`；候选构建一律从已经推送且带预期 tag 的 clean 动态默认主分支只读验证并消费，不能现场解析、补写或从对话恢复这些值。缺少当前上下文或入口条件时只报告候选未就绪。候选构建必须运行项目全部非空单元测试，失败或零测试时不得形成候选。明确“构建发布候选”“发布”或“准备并构建发布”请求本身授权下列提交、普通 merge、主分支切换/推送、版本 tag 创建/推送、登记资源清理和构建步骤，不再重复审批；普通开发构建/本地试包不升级为候选，也不提交、推送或修改主分支。上传、商店提交和真实渠道发布仍需各自授权。
+E2E 选择只对终端下游发布候选有效；每次候选构建独立解析，当前请求未明确时询问一次，持久建议值不能静默代替。`reviewSelection` 只由 `$desktop-prepare-release` 在发布写入前解析：当前请求已明确时复用，安全/隐私/不可逆操作/对外兼容契约或产品/渠道硬要求强制启用，否则询问一次；同一发布修复重跑复用，新发布重新询问。prepare-release 首先以根 `Version.md` 和活动 `.agents/skills/desktop-instantiate-project/SKILL.md` 同时存在来识别 Harness 源；Harness 的性能与 macOS 签名选择/来源固定为 `not-applicable`，不询问产品候选选择。终端下游 GUI 才按当前请求、产品事实与渠道要求锁定性能和 macOS 签名选择；默认 macOS 签名为 `disabled/not-requested`，不运行可用性探测，只有已批准配置、本次主动要求或渠道硬要求才启用。`system_notification = enabled` 与关闭签名冲突时必须在任何提交前停止，不能由 E2E `disabled` 掩盖。prepare-release 将结构化审查结论或 `Not run` 风险及候选选择写入 `.harness/release-context.json`；下游候选构建一律从已经推送且带预期 tag 的 clean 动态默认主分支只读验证并消费，不能现场解析、补写或从对话恢复这些值。缺少当前上下文或入口条件时只报告候选未就绪。下游候选构建必须运行项目全部非空单元测试，失败或零测试时不得形成候选。明确“构建发布候选”“发布”或“准备并构建发布”请求本身授权本次适用的提交、普通 merge、主分支切换/推送、版本 tag 创建/推送和登记资源清理；终端下游还授权候选构建，Harness 源则在 Git 发布与复核后结束且不创建产品候选。普通开发构建/本地试包不升级为候选，也不提交、推送或修改主分支。上传、商店提交和真实渠道发布仍需各自授权。
 
-1. 明确发布候选请求后，`$desktop-prepare-release` 先确定接口并在任何写入前解析本次 `reviewSelection`；含 GUI 时同轮解析 `performanceSelection`，目标含 macOS GUI 时再锁定 `macosSigningSelection`/来源。随后只读执行工作树、范围、缓存、疑似秘密和提交完整性检查。归属明确的已完成源码按逻辑提交；无关/歧义改动、秘密、hook/签名交互或提交失败立即停止，禁止 `--no-verify`。clean 且无源码变化时不制造空提交。`reviewSelection: enabled` 时对上次正式发布 tag 到当前源码 HEAD 的累计差异执行一次集中语义审查，发现问题回到当前开发分支修正；`disabled` 且无硬要求时显式形成 `Not run`、原因和风险。这里不检查或限制分支名称、父子形态、merge commit 或主分支写入历史。
-2. 从新的源码 HEAD 定位上一次真实正式发布边界，生成双语 `release-notes.json`；文件有变化时形成独立发布元数据提交，无变化时不制造空提交。prepare-release 随后写入并提交 `.harness/release-context.json`，包含当前版本、上海日期、预期 tag、源码 HEAD 和三类候选选择。调用 `$desktop-manage-git-lifecycle release --version <version>`：helper 普通合并登记分支、切换并推送动态默认主分支；在当前 HEAD 创建和推送 `v{version}-{YYYYMMDD}`，远端复读成功后才依次清理登记 Worktree、远端分支和本地分支。最终必须位于 clean 默认主分支，本地/远端主分支和远端 tag 等于同一 40 位 `sourceCommit`，发布上下文复算通过。
+GUI 性能和 macOS 签名选择也在该入口按当前请求、产品事实与渠道要求锁定；本句只适用于终端下游，Harness 的对应值固定为 `not-applicable`。
+
+步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程；Harness 在步骤 2 完成并复核 Git 引用后结束。步骤 3–7 仅适用于终端下游产品候选，Harness 不得进入这些构建、manifest、E2E、性能、签名或验收步骤。
+
+1. 明确正式发布请求后，`$desktop-prepare-release` 先判定 Harness 源或终端下游，并在任何写入前解析本次 `reviewSelection`；Harness 将两类产品候选选择固定为 `not-applicable`，终端下游含 GUI 时才解析 `performanceSelection`，目标含 macOS GUI 时再锁定 `macosSigningSelection`/来源。随后只读执行工作树、范围、缓存、疑似秘密和提交完整性检查。归属明确的已完成源码及本次独立事件已触发的 Changelog 必须在同一源码/治理提交中完成；无关/歧义改动、秘密、hook/签名交互或提交失败立即停止，禁止 `--no-verify`。clean 且无源码变化时不制造空提交。该提交完成后的 HEAD 锁定为 `sourceHead`，此后不得补写 Changelog。`reviewSelection: enabled` 时对上次正式发布 tag 到 `sourceHead` 的累计差异执行一次集中语义审查，发现问题回到当前开发分支修正；`disabled` 且无硬要求时显式形成 `Not run`、原因和风险。这里不检查或限制分支名称、父子形态、merge commit 或主分支写入历史。
+2. 从 `sourceHead` 定位上一次真实正式发布边界，生成双语 `release-notes.json`，但先不提交；只有当前 HEAD 仍精确等于 `sourceHead` 时才能写入 `.harness/release-context.json`，其中包含当前版本、上海日期、预期 tag、`sourceHead` 和审查/候选选择。随后把且只把 `release-notes.json` 与 `.harness/release-context.json` 作为同一个精确范围的发布元数据提交，不得混入 Changelog、源码或其他治理文件；即使日志字节无变化，上下文有变化时仍只形成这一个元数据提交，不制造额外空提交。使用上下文中同一远端调用 `$desktop-manage-git-lifecycle release --version <version> --date YYYYMMDD --remote <remote>`：helper 普通合并登记分支、切换并推送动态默认主分支；在当前 HEAD 创建和推送 `v{version}-{YYYYMMDD}`，远端复读成功后才依次清理登记 Worktree、远端分支和本地分支。最终必须位于 clean 默认主分支，本地/远端主分支和远端 tag 等于同一 40 位 `sourceCommit`，发布上下文复算通过；`sourceHead` 保持源码/治理及审查输入身份，不要求等于 `sourceCommit`。Harness 至此结束本次正式源码 Git 发布。
 3. 从上述 clean 默认主分支在清理目录、测试前只读校验发布上下文和远端 tag，消费其中的审查、性能与 macOS 签名选择，运行版本/更新日志/资源配置检查并只另外解析当前 E2E 选择，再运行项目全部非空单元测试。GUI 性能选择为 `enabled` 或产品/渠道硬要求时，从同一 clean HEAD 生成 release-profile no-bundle 探针候选并调用 `$desktop-test-gui-release-performance`：先精确快照 window-state 原字节或原缺席状态，以一个脱敏种子在每次预热和 5 次冷启动前分别重置并验证，且在成功、失败、超时和取消路径恢复并复核原字节/原缺席；隔离完成后按 `gui-release-v2` 执行，一次预热后 5 次冷启动中位数 ≤2.4 秒且最大 ≤3.6 秒；至少 20 次代表性交互 p95 ≤120ms 且单次 <240ms；不短于 50ms 的 Long Task 必须记录且单次 <240ms；30 秒整进程树空闲 CPU p95 ≤6% 单核，适用隐藏/托盘 ≤2.4%；稳定 RSS ≤360 MiB、峰值 ≤600 MiB；20 轮后增长 ≤`max(18%, 38.4 MiB)`，退出后全部进程回收。v2 相对 v1 只把性能允许上限放宽 20%，其余采样规则不变。指标失败必须自动创建新的修复分支，修复后重新执行发布生命周期并重建；仍无法安全解决时才询问，但只有三项完整性标记均为 `true`、原窗口状态已恢复验证且证据为 `waiverAllowed: true`，才能接受明确继续并记为 `waived`，否则停止。选择为 `disabled` 且无硬要求时不生成探针，并原样记录同一 `Not run` 原因和剩余风险。
 4. 性能已启用时只有 `passed`，或原始失败证据明确 `waiverAllowed: true` 后获用户显式 `waived`，才能进入完整打包。`wholeProcessTree`、`probeBytesUnmodified`、`allProcessesRecovered` 任一不为 `true`，或窗口状态恢复未验证时，helper 必须输出 `waiverAllowed: false` 与不可豁免失败，必须先修复并重新验证。性能已关闭且无硬要求时以 `Not run` 继续。Rust CLI 默认走三平台原生矩阵；Tauri GUI 生成适用 DMG/NSIS，每个候选打入同一更新日志并逐字节比较。macOS 默认 `macosSigningSelection: disabled` 并直接使用 `--no-sign`，不探测本机身份或公证凭据；只有已批准持久配置、本次主动要求或渠道硬要求才启用并探测，启用后签名、公证、stapling 全有或全无，失败不得降级。`system_notification = enabled` 与 unsigned 的冲突按入口规则提前阻断，不得把通知已知不可用的包写成候选。任何路径都不得自动创建、索取或输出凭据。
 5. `$desktop-verify-delivery` 在准入时和写最终验收状态前两次只读核对当前 clean 动态默认主分支、本地/远端提交、远端 tag、发布上下文与全部 manifest；对最终候选执行冒烟、当前 E2E 选择和产品/渠道硬要求后，再重新计算所有候选文件、相邻证据、资源和 manifest 声明的最终字节。发布审查关闭时确认 `Not run` 原因/风险且无证据，启用时确认累计差异证据绑定同一发布提交；性能启用时证据仍须绑定同一提交和运行字节，三项完整性标记必须为 `true` 且 window-state 原状态恢复已经验证；`waived` 还必须引用 `waiverAllowed: true` 的原始失败证据并保持可见风险，不能变成 `passed`。性能关闭时确认 `Not run` 的原因/风险和性能字段缺席。Windows xwin 只有在启用性能但缺少原生测量时保持 `Unverified`。任一字节、tag 或发布上下文在执行期间漂移都拒绝候选；只有全部复核通过，才在仓库外同文件系统暂存完整集合并以目录级原子替换一次性把所有 manifest 从 `pending` 更新为 `accepted`，不得逐文件暴露混合状态。
@@ -122,28 +127,27 @@ E2E 选择只对当前发布候选有效；每次候选构建独立解析，当�
 
 ## Harness 模板发布检查清单
 
-本清单只在用户明确准备 Harness 发布时执行。日常开发只运行本次必要单元/回归测试；纯文档、元数据、格式与不可合理单测的机械变更只做最小解析或差异检查。开发证据不能替代当前候选的完整验收证据。
+本清单只在用户明确准备 Harness 发布时执行。日常开发只运行本次必要单元/回归测试；纯文档、元数据、格式与不可合理单测的机械变更只做最小解析或差异检查。正式源码发布必须重新复核累计差异、必要测试、发布上下文与远端 Git 引用，日常检查结果不能直接冒充该结论。
 
 模板自身无应用代码，不使用下游的编译、单元测试、CLI 和二进制冒烟门槛。模板发布必须满足：
 
 - [ ] 产品规格状态为 Approved。
 - [ ] README、AGENTS、所有已触发的项目记忆文档和全部声明的项目 Skills 完整存在。
-- [ ] `python3 scripts/validate_harness.py` 成功，且输出对应当前候选源码；当次 `reviewSelection: enabled` 时另执行 `python3 scripts/validate_harness.py --release-review` 并处理其集中提示，关闭时不得把提示伪装为已运行。
-- [ ] 候选构建前及写 manifest 前的发布上下文校验都成功；两次均绑定当前 clean 动态默认主分支和远端版本 tag，且文件 SHA-256、`sourceCommit`、`expectedTag`、`releaseReview`/`candidateSelections` 逐字段一致。
+- [ ] `python3 scripts/validate_harness.py` 成功，且输出对应当前发布源码；当次 `reviewSelection: enabled` 时另执行 `python3 scripts/validate_harness.py --release-review` 并处理其集中提示，关闭时不得把提示伪装为已运行。
+- [ ] 发布元数据写入前，当前 HEAD 精确等于包含全部源码/治理变化及已触发 Changelog 的 `sourceHead`；`releaseReview.reviewedSourceCommit` 绑定该 `sourceHead`。随后同一个精确发布元数据提交且只包含 `release-notes.json` 与 `.harness/release-context.json`。
+- [ ] 生命周期完成后再次复算发布上下文字节与 SHA-256；最终 `sourceCommit`、clean 动态默认主分支、远端主分支和远端 `expectedTag` 三者一致。`sourceHead` 仍是元数据提交前的审查输入，不要求等于 `sourceCommit`。
 - [ ] Rust 初始化中性资产通过当前系统的格式、代码规范检查和非空测试；它是脚手架资产而非产品候选，不用冒烟证明产品交付。
-- [ ] Rust 初始化中性资产在声明的最低 Rust 版本 1.95.0 上完成可用工具链验证，或明确阻止发布并保持 `Unverified`；这不限制开发或运行环境使用更高稳定版。
+- [ ] Rust 初始化中性资产在声明的最低 Rust 版本 1.98.1 上完成可用工具链验证；这不限制开发或运行环境使用更高稳定版。
 - [ ] 候选工作流示例（`.agents/skills/desktop-prepare-cross-platform-release/assets/github-release-candidate.yml`，下游部署到 `.github/workflows/release-candidate.yml`）通过静态检查，且只读检出发布上下文已批准的带 tag 提交，不自行修改 ref、创建 tag 或执行渠道发布。
 - [ ] Harness 时间版本、下游自动版本 Skill/状态保护、Rust 默认值、四类独立适配器、默认 CLI、Agent 策略、构建 E2E 选择和验收适用性在事实来源中一致。
-- [ ] 当前 `release/` 原子候选集合包含本次检查证据、未执行项和剩余风险；候选阶段未修改 `docs/VERIFICATION.md` 或 `docs/verification/`。
-- [ ] 完整验收已按候选冒烟策略、当前构建 E2E 选择和硬要求记录 `required` / `enabled` / `disabled` / `Not applicable`；所有 `required` 或 `enabled` 项通过。
-- [ ] 适用的人类最终复核身份、日期和结论已绑定当前候选字节写入 `release/` 声明证据；失败或未签署没有被自动批准。
-- [ ] 若候选包含符合 Changelog 规则的变化，`Version.md` 与对应按日变更记录汇总的版本一致；否则已确认候选仅含 Changelog 排除项。远端 tag `v{版本}-{YYYYMMDD}` 已由正式发布生命周期创建并精确指向候选源码提交；源码归档只有实际生成时才核对。
-- [ ] 若候选包含符合 Changelog 规则的变化，`docs/changelog/` 的日期文件中存在对应版本条目；仅含普通缺陷修复或纯重构时本项为 `Not applicable`，且未制造空记录。
+- [ ] Harness 源发布未冒充产品候选：产品构建、`release/` manifest、性能、签名、公证、产品 E2E 与产品人工验收均为 `Not applicable`；只有用户另行明确要求源码归档时才生成并核对归档与相邻 `.sha256`，不创建产品 manifest。
+- [ ] 若本次源码发布包含符合 Changelog 规则的变化，`Version.md` 与对应按日变更记录汇总的版本一致；否则已确认本次源码发布仅含 Changelog 排除项。远端 tag `v{版本}-{YYYYMMDD}` 已由正式发布生命周期创建并精确指向最终 `sourceCommit`；源码归档只有实际生成时才核对。
+- [ ] 若本次源码发布包含符合 Changelog 规则的变化，`docs/changelog/` 的日期文件中存在对应版本条目；仅含普通缺陷修复或纯重构时本项为 `Not applicable`，且未制造空记录。
 - [ ] README 包含真实用途、维护状态和反馈入口。
 - [ ] 若生成源码归档，其来源提交和 SHA-256 已记录。
 - [ ] 已知重要问题已在 `docs/TECH_DEBT.md` 中公开。
 
-Harness 根目录没有具体产品，因此下游产物门槛不适用于模板发布；理由必须记录。Skill 中的 Rust 中性资产有独立的格式、代码规范检查和非空测试门槛，但不得把脚手架构建或启动冒烟当作产品验收。模板未来在根目录加入可执行产品时，应重新通过范围闸门并定义真实候选验收。
+Harness 根目录没有具体产品，因此下游产物、manifest、性能、签名、公证、产品 E2E 与产品人工验收门槛不适用于模板源码发布，也不得为满足清单而创建虚假 `release/` 候选。Skill 中的 Rust 中性资产有独立的格式、代码规范检查和非空测试门槛，但不得把脚手架构建或启动冒烟当作产品验收。模板未来在根目录加入可执行产品时，应重新通过范围闸门并定义真实候选验收。
 
 ## 下游项目发布检查清单
 

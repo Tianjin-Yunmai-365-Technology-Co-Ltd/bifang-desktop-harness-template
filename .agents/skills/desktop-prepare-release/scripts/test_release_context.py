@@ -149,6 +149,17 @@ class ReleaseContextTests(unittest.TestCase):
         self.assertEqual(context["sourceHead"], self.source_head)
         self.assertEqual(context["defaultBranch"], "main")
 
+    def test_write_rejects_source_head_that_is_not_current_head(self) -> None:
+        (self.root / "drift.txt").write_text("later change\n", encoding="utf-8")
+        self.git("add", "drift.txt")
+        self.git("commit", "--quiet", "-m", "chore: drift after source review")
+
+        result = self.write_context()
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("sourceHead must equal the current HEAD before metadata commit", result.stderr)
+        self.assertFalse((self.root / ".harness/release-context.json").exists())
+
     def test_verify_requires_clean_pushed_main_and_remote_tag(self) -> None:
         head, digest = self.commit_publish_and_tag()
         result = self.run_script(

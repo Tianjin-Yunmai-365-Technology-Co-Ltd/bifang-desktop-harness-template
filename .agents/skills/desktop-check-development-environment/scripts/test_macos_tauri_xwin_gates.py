@@ -56,9 +56,14 @@ def add_existing_environment(
         probe / "rustup",
         f"""#!/bin/sh
 set -eu
-if [ "$1 $2 $3" = "target list --installed" ]; then
-  [ -f "{shell_path(state / 'target')}" ] && printf '%s\n' 'x86_64-pc-windows-msvc'
+if [ "${{1:-}}" = "--version" ]; then
+  printf '%s\n' 'rustup 1.28.2'
+elif [ "${{1:-}} ${{2:-}} ${{3:-}}" = "target list --installed" ]; then
+  if [ -f "{shell_path(state / 'target')}" ]; then
+    printf '%s\n' 'x86_64-pc-windows-msvc'
+  fi
 elif [ "$1 $2" = "target add" ]; then
+  printf '%s\n' "${{RUSTUP_HOME:?}}" > "{shell_path(state / 'rustup-home')}"
   : > "{shell_path(state / 'target')}"
 else
   exit 2
@@ -69,8 +74,11 @@ fi
         probe / "cargo",
         f"""#!/bin/sh
 set -eu
-if [ "$1 $2 $3 $4 $5" = "install --locked --version >=0.23.1, <0.24.0 cargo-xwin" ]; then
+if [ "${{1:-}}" = "--version" ]; then
+  printf '%s\n' 'cargo 1.98.1'
+elif [ "${{1:-}} ${{2:-}} ${{3:-}} ${{4:-}} ${{5:-}}" = "install --locked --version >=0.23.1, <0.24.0 cargo-xwin" ]; then
   [ {cargo_install_exit} -eq 0 ] || exit {cargo_install_exit}
+  printf '%s\n' "${{CARGO_HOME:?}}" > "{shell_path(state / 'cargo-home')}"
   mkdir -p "$CARGO_HOME/bin"
   printf '#!/bin/sh\nprintf "%%s\\n" "cargo-xwin {installed_cargo_xwin_version}"\n' > "$CARGO_HOME/bin/cargo-xwin"
   chmod +x "$CARGO_HOME/bin/cargo-xwin"
@@ -79,7 +87,7 @@ else
 fi
 """,
     )
-    executable(probe / "pnpm", "#!/bin/sh\nprintf '%s\n' '11.24.0'\n")
+    executable(probe / "pnpm", "#!/bin/sh\nprintf '%s\n' '12.4.1'\n")
     if include_cross_tools:
         (state / "target").touch()
         executable(probe / "llvm-rc", "#!/bin/sh\nprintf '%s\n' 'llvm-rc test'\n")
@@ -108,6 +116,10 @@ root='{shell_path(brew_root)}'
 if [ "$1" = "--prefix" ]; then
   [ -d "$root/$2" ] || exit 1
   printf '%s\n' "$root/$2"
+elif [ "${{1:-}} ${{2:-}} ${{3:-}}" = "list --versions --formula" ]; then
+  formula=$4
+  [ -d "$root/$formula" ] || exit 1
+  printf '%s\n' "$formula 1.0.0"
 elif [ "$1" = "install" ]; then
   formula=$2
   [ "$formula" != "{fail_formula or ''}" ] || exit 9
@@ -133,6 +145,26 @@ fi
     )
 
 
+def add_persisted_rust_home_login(root: Path) -> Path:
+    """建立会从 profile 恢复自定义 Rust homes 的确定性 login shell 替身。"""
+    home = root / "home"
+    home.mkdir(parents=True, exist_ok=True)
+    (home / ".profile").write_text(
+        f"export CARGO_HOME='{shell_path(home / 'custom-cargo')}'\n"
+        f"export RUSTUP_HOME='{shell_path(home / 'custom-rustup')}'\n",
+        encoding="utf-8",
+    )
+    login_shell = root / "login-shell"
+    executable(
+        login_shell,
+        "#!/bin/sh\n"
+        '[ "${1:-}" = -l ] && [ "${2:-}" = -c ] || exit 90\n'
+        '. "$HOME/.profile"\n'
+        'exec /bin/sh -c "$3"\n',
+    )
+    return login_shell
+
+
 class MacosTauriXwinGateTests(unittest.TestCase):
     """覆盖 macOS Tauri xwin 门禁的成功路径和最高风险安装失败路径。"""
 
@@ -142,6 +174,7 @@ class MacosTauriXwinGateTests(unittest.TestCase):
         probe: Path,
         *args: str,
         test_mode: bool = True,
+        rust_home_mode: str = "test-overrides",
         **extra: str,
     ) -> subprocess.CompletedProcess[str]:
         """在伪造 macOS 与独立 HOME/Cargo 目录运行门禁，禁止真实环境修改。"""
@@ -162,6 +195,21 @@ class MacosTauriXwinGateTests(unittest.TestCase):
                 "AFH_MANAGED_RUSTUP_HOME": shell_path(root / "rustup"),
             }
         )
+        if rust_home_mode == "standard":
+            env["CARGO_HOME"] = shell_path(root / "home" / "custom-cargo")
+            env["RUSTUP_HOME"] = shell_path(root / "home" / "custom-rustup")
+            env.pop("AFH_MANAGED_CARGO_HOME", None)
+            env.pop("AFH_MANAGED_RUSTUP_HOME", None)
+        elif rust_home_mode == "defaults":
+            for name in (
+                "CARGO_HOME",
+                "RUSTUP_HOME",
+                "AFH_MANAGED_CARGO_HOME",
+                "AFH_MANAGED_RUSTUP_HOME",
+            ):
+                env.pop(name, None)
+        elif rust_home_mode != "test-overrides":
+            raise ValueError(f"unknown rust_home_mode: {rust_home_mode}")
         if not test_mode:
             env.pop("AFH_TEST_MODE", None)
         env.update(extra)
@@ -223,6 +271,146 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             self.assertTrue((root / "cargo" / "bin" / "cargo-xwin").is_file())
             self.assertFalse((root / "project").exists())
 
+    def test_standard_cargo_and_rustup_homes_are_respected(self) -> None:
+        """显式标准 Rust homes 必须用于安装，不得被 Harness 私有目录替换。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=False)
+            add_fake_brew(root, probe)
+            login_shell = add_persisted_rust_home_login(root)
+
+            result = self.run_gate(
+                root,
+                probe,
+                "--install-missing",
+                rust_home_mode="standard",
+                SHELL=shell_path(login_shell),
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            cargo_home = root / "home" / "custom-cargo"
+            rustup_home = root / "home" / "custom-rustup"
+            self.assertEqual(
+                (root / "state" / "cargo-home").read_text(encoding="utf-8").strip(),
+                shell_path(cargo_home),
+            )
+            self.assertEqual(
+                (root / "state" / "rustup-home").read_text(encoding="utf-8").strip(),
+                shell_path(rustup_home),
+            )
+            self.assertTrue((cargo_home / "bin" / "cargo-xwin").is_file())
+            self.assertFalse((root / "cargo").exists())
+            self.assertFalse((root / "rustup").exists())
+
+    def test_process_only_custom_rust_homes_fail_before_xwin_install(self) -> None:
+        """一次性非默认 Rust homes 不得接收 target 或 cargo-xwin 写入。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "home").mkdir()
+            probe = add_existing_environment(root, include_cross_tools=False)
+            add_fake_brew(root, probe)
+            login_shell = root / "login-shell"
+            executable(
+                login_shell,
+                "#!/bin/sh\n"
+                '[ "${1:-}" = -l ] && [ "${2:-}" = -c ] || exit 90\n'
+                'exec /bin/sh -c "$3"\n',
+            )
+
+            result = self.run_gate(
+                root,
+                probe,
+                "--install-missing",
+                rust_home_mode="standard",
+                SHELL=shell_path(login_shell),
+            )
+
+            self.assertEqual(result.returncode, 36, result.stderr)
+            self.assertIn("必须由新 login shell 持久恢复", result.stderr)
+            self.assertFalse((root / "state" / "target").exists())
+            self.assertFalse((root / "state" / "cargo-home").exists())
+            self.assertFalse((root / "home" / "custom-cargo").exists())
+
+    def test_standard_rust_home_rejects_symlinked_intermediate_component(self) -> None:
+        """HOME 内自定义 Rust 根的任一中间组件为 symlink 时必须在安装前失败。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=False)
+            add_fake_brew(root, probe)
+            home = root / "home"
+            home.mkdir()
+            outside = root / "outside-rust-home"
+            outside.mkdir()
+            (home / "tools").symlink_to(outside, target_is_directory=True)
+
+            result = self.run_gate(
+                root,
+                probe,
+                "--install-missing",
+                rust_home_mode="standard",
+                CARGO_HOME=f"{shell_path(home)}/tools/cargo",
+            )
+
+            self.assertEqual(result.returncode, 36, result.stderr)
+            self.assertIn("路径组件不能是符号链接", result.stderr)
+            self.assertEqual(list(outside.iterdir()), [])
+
+    def test_path_separator_in_home_or_rust_root_fails_before_probe_or_install(self) -> None:
+        """HOME 或单一 Rust 根夹带冒号时不得扩张为额外探测路径。"""
+        cases = (
+            {"HOME": "{home}:{outside}"},
+            {"AFH_MANAGED_CARGO_HOME": "{cargo}:{outside}"},
+            {"AFH_MANAGED_RUSTUP_HOME": "{rustup}:{outside}"},
+        )
+        for overrides in cases:
+            with self.subTest(overrides=overrides), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / "home").mkdir()
+                probe = add_existing_environment(root, include_cross_tools=False)
+                values = {
+                    name: template.format(
+                        home=shell_path(root / "home"),
+                        cargo=shell_path(root / "cargo"),
+                        rustup=shell_path(root / "rustup"),
+                        outside=shell_path(root / "outside"),
+                    )
+                    for name, template in overrides.items()
+                }
+
+                result = self.run_gate(root, probe, **values)
+
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("PATH 分隔符冒号", result.stderr)
+                self.assertFalse((root / "state" / "cargo-home").exists())
+                self.assertFalse((root / "state" / "rustup-home").exists())
+
+    def test_unset_standard_rust_homes_use_home_defaults(self) -> None:
+        """未设置标准 Rust homes 时必须回退到 HOME 下的官方默认目录。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=False)
+            add_fake_brew(root, probe)
+
+            result = self.run_gate(
+                root,
+                probe,
+                "--install-missing",
+                rust_home_mode="defaults",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            cargo_home = root / "home" / ".cargo"
+            rustup_home = root / "home" / ".rustup"
+            self.assertEqual(
+                (root / "state" / "cargo-home").read_text(encoding="utf-8").strip(),
+                shell_path(cargo_home),
+            )
+            self.assertEqual(
+                (root / "state" / "rustup-home").read_text(encoding="utf-8").strip(),
+                shell_path(rustup_home),
+            )
+            self.assertTrue((cargo_home / "bin" / "cargo-xwin").is_file())
+
     def test_install_path_output_drops_empty_and_duplicate_probe_segments(self) -> None:
         """安装分支必须清除探测 PATH 空段/重复项，输出也不得重新引入 cwd 语义。"""
         with tempfile.TemporaryDirectory() as temporary:
@@ -276,6 +464,65 @@ class MacosTauriXwinGateTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.cargo_xwin.version=0.23.9", result.stdout)
             self.assertIn("gate.cargo_xwin.change=existing", result.stdout)
+
+    def test_failing_cargo_xwin_version_probe_is_rejected(self) -> None:
+        """即使打印合法版本，cargo-xwin 非零退出也不得被判为通过。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=True)
+            executable(
+                probe / "cargo-xwin",
+                "#!/bin/sh\nprintf '%s\\n' 'cargo-xwin 0.23.1'\nexit 9\n",
+            )
+
+            result = self.run_gate(root, probe, "--check-only")
+
+            self.assertEqual(result.returncode, 36, result.stderr)
+            self.assertIn("版本探测返回失败", result.stderr)
+            self.assertNotIn("gate.tauri_windows_cross.status=passed", result.stdout)
+
+    def test_failing_rustup_target_probe_is_rejected(self) -> None:
+        """打印目标后失败的 rustup 不得借助管道末端 grep 假通过。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=True)
+            executable(
+                probe / "rustup",
+                "#!/bin/sh\nprintf '%s\\n' 'x86_64-pc-windows-msvc'\nexit 9\n",
+            )
+
+            result = self.run_gate(root, probe, "--check-only")
+
+            self.assertEqual(result.returncode, 36, result.stderr)
+            self.assertIn("无法列出已安装 target", result.stderr)
+            self.assertNotIn("gate.tauri_windows_cross.status=passed", result.stdout)
+
+    def test_unrecognized_llvm_rc_failure_is_not_accepted(self) -> None:
+        """llvm-rc 只允许官方无输入诊断的 exit 1，其他失败仍是缺失。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=True)
+            executable(probe / "llvm-rc", "#!/bin/sh\nprintf '%s\\n' broken >&2\nexit 1\n")
+
+            result = self.run_gate(root, probe, "--check-only")
+
+            self.assertEqual(result.returncode, 20, result.stderr)
+            self.assertIn("gate.llvm.status=missing", result.stdout)
+            self.assertNotIn("gate.tauri_windows_cross.status=passed", result.stdout)
+
+    def test_failing_base_tool_probe_is_not_accepted(self) -> None:
+        """常规 GUI 门禁后工具若已损坏，xwin 不得只凭路径存在声称 base passed。"""
+        for tool in ("cargo", "pnpm"):
+            with self.subTest(tool=tool), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                probe = add_existing_environment(root, include_cross_tools=True)
+                executable(probe / tool, "#!/bin/sh\nexit 9\n")
+
+                result = self.run_gate(root, probe, "--check-only")
+
+                self.assertEqual(result.returncode, 20, result.stderr)
+                self.assertIn("gate.tauri_windows_cross.base=missing", result.stdout)
+                self.assertNotIn("gate.tauri_windows_cross.status=passed", result.stdout)
 
     def test_outdated_cargo_xwin_is_upgraded_and_reprobed(self) -> None:
         """明确低于 0.23.1 的稳定版本必须安装受限新版，复探后标记 upgraded。"""
@@ -426,6 +673,37 @@ class MacosTauriXwinGateTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 33)
             self.assertIn("既有 LLD 缺少 lld-link", result.stderr)
+
+    def test_formula_root_without_bin_is_not_silently_reinstalled(self) -> None:
+        """已登记 formula 即使 bin 目录也损坏缺失，仍必须在安装前失败。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=False)
+            add_fake_brew(root, probe)
+            (root / "brew" / "lld").mkdir(parents=True)
+            add_fake_formula_tool(root, "llvm", "llvm-rc")
+            add_fake_formula_tool(root, "nsis", "makensis")
+
+            result = self.run_gate(root, probe, "--install-missing")
+
+            self.assertEqual(result.returncode, 33, result.stderr)
+            self.assertIn("既有 LLD 缺少 lld-link", result.stderr)
+            self.assertFalse((root / "brew" / "lld" / "bin").exists())
+
+    def test_all_formula_conflicts_are_preflighted_before_any_brew_install(self) -> None:
+        """后项 formula 损坏时不得先安装前项，确保 Homebrew 变更原子起步。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = add_existing_environment(root, include_cross_tools=False)
+            add_fake_brew(root, probe)
+            (root / "brew" / "llvm" / "bin").mkdir(parents=True)
+            add_fake_formula_tool(root, "nsis", "makensis")
+
+            result = self.run_gate(root, probe, "--install-missing")
+
+            self.assertEqual(result.returncode, 33, result.stderr)
+            self.assertIn("既有 LLVM 缺少 llvm-rc", result.stderr)
+            self.assertFalse((root / "brew" / "lld").exists())
 
     def test_non_macos_host_is_rejected(self) -> None:
         """专用门禁不得在非 macOS 宿主伪装可用。"""

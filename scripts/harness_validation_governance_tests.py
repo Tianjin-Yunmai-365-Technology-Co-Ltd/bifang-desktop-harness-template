@@ -20,7 +20,14 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import scripts.validate_harness as validate_harness
-from scripts.harness_validation import governance, governance_version, initialization, repository, upgrade
+from scripts.harness_validation import (
+    governance,
+    governance_descriptions,
+    governance_version,
+    initialization,
+    repository,
+    upgrade,
+)
 from scripts.harness_validation.gui_support import validate_gui_support_contract
 from scripts.harness_validation.initialization_primary_contract import (
     primary_required_fragments,
@@ -132,6 +139,58 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         validate_gui_support_contract(errors)
         self.assertEqual(errors, [])
 
+    def test_environment_contract_requires_durable_standard_user_roots(self) -> None:
+        """环境门禁不能退回只信当前进程 Rust homes 的旧实现。"""
+
+        cases = (
+            ("PREREQUISITE_UNIX", "validate_durable_rust_homes"),
+            ("PREREQUISITE_WINDOWS", "function Assert-DurableRustHomes"),
+            ("PREREQUISITE_WINDOWS", "function Assert-NoMachinePathCommandShadow"),
+        )
+        for attribute, required in cases:
+            source_path = getattr(initialization, attribute)
+            source = source_path.read_text(encoding="utf-8")
+            self.assertIn(required, source)
+            with self.subTest(attribute=attribute, required=required), tempfile.TemporaryDirectory() as tmp_dir:
+                path = Path(tmp_dir) / source_path.name
+                path.write_text(source.replace(required, ""), encoding="utf-8")
+                errors: list[str] = []
+                with mock.patch.object(initialization, attribute, path):
+                    initialization.validate_initialization_contract(errors)
+                self.assertTrue(any(required in error for error in errors), errors)
+
+    def test_environment_contract_rejects_superseded_private_root_fragments(self) -> None:
+        """旧私有 Rust homes 与合并 fish PATH 写法不能重新进入门禁。"""
+
+        cases = (
+            (
+                "PREREQUISITE_UNIX",
+                'fish_add_path --path "$user_cargo_bin" "$HOME/.local/bin"',
+            ),
+            (
+                "PREREQUISITE_WINDOWS",
+                '$script:ManagedCargoHome = if ($env:CARGO_HOME)',
+            ),
+            (
+                "PREREQUISITE_WINDOWS",
+                '$script:ManagedRustupHome = if ($env:RUSTUP_HOME)',
+            ),
+        )
+        for attribute, stale in cases:
+            source_path = getattr(initialization, attribute)
+            source = source_path.read_text(encoding="utf-8")
+            self.assertNotIn(stale, source)
+            with self.subTest(attribute=attribute, stale=stale), tempfile.TemporaryDirectory() as tmp_dir:
+                path = Path(tmp_dir) / source_path.name
+                path.write_text(f"{source}\n{stale}\n", encoding="utf-8")
+                errors: list[str] = []
+                with mock.patch.object(initialization, attribute, path):
+                    initialization.validate_initialization_contract(errors)
+                self.assertTrue(
+                    any("private or superseded environment behavior remains" in error for error in errors),
+                    errors,
+                )
+
     def test_git_lifecycle_skill_is_a_complete_required_harness_capability(self) -> None:
         """入口、初始化契约和必需文件清单必须同步纳入完整生命周期 Skill。"""
 
@@ -200,6 +259,195 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             "固定通过七项 profile-aware",
         ):
             self.assertNotIn(stale, text)
+
+    def test_dependency_evidence_keeps_non_cli_baselines_unverified(self) -> None:
+        """候选依赖数值不能冒充已完成的真实下游最低工具链证据。"""
+
+        source = PRODUCT_SPEC.read_text(encoding="utf-8")
+        required = "继续保持 `Unverified`"
+        self.assertIn(required, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "product_spec.md"
+            path.write_text(source.replace(required, "已经全部验证通过", 1), encoding="utf-8")
+            errors: list[str] = []
+            governance_descriptions.validate_dependency_evidence_contract(errors, path)
+        self.assertTrue(any("dependency evidence contract missing" in error for error in errors), errors)
+
+    def test_dependency_evidence_rejects_explicit_overclaim(self) -> None:
+        """既有的泛称全部依赖已验证措辞必须失败关闭。"""
+
+        source = PRODUCT_SPEC.read_text(encoding="utf-8")
+        overclaim = "前端/Rust 直接依赖统一表达为经过验证的最低兼容范围"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "product_spec.md"
+            path.write_text(f"{source}\n{overclaim}\n", encoding="utf-8")
+            errors: list[str] = []
+            governance_descriptions.validate_dependency_evidence_contract(errors, path)
+        self.assertTrue(any("is overstated" in error for error in errors), errors)
+
+    def test_dependency_evidence_rejects_verified_wording_in_environment_section(self) -> None:
+        """环境段不得把仍待真实下游证明的候选统称为经过验证。"""
+
+        source = PRODUCT_SPEC.read_text(encoding="utf-8")
+        current = "依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标"
+        self.assertIn(current, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "product_spec.md"
+            path.write_text(
+                source.replace(current, "依赖清单以经过验证的最低兼容范围为目标", 1),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance_descriptions.validate_dependency_evidence_contract(errors, path)
+        self.assertTrue(any("is overstated" in error for error in errors), errors)
+
+    def test_dependency_evidence_rejects_non_cli_positive_validation_claim(self) -> None:
+        """TUI/MCP/GUI 在真实下游证据前不能被改写为已经验证。"""
+
+        source = PRODUCT_SPEC.read_text(encoding="utf-8")
+        current = "继续保持 `Unverified`"
+        self.assertIn(current, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "product_spec.md"
+            path.write_text(
+                source.replace(current, "TUI/MCP/GUI 已完成真实下游最低工具链验证", 1),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance_descriptions.validate_dependency_evidence_contract(errors, path)
+        self.assertTrue(any("is overstated" in error for error in errors), errors)
+
+    def test_dependency_evidence_requires_readme_unverified_boundary(self) -> None:
+        """README 不得把模板候选依赖统称为已经验证的兼容下界。"""
+
+        readme = ROOT / "README.md"
+        source = readme.read_text(encoding="utf-8")
+        current = "保持 `Unverified`"
+        self.assertIn(current, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "README.md"
+            path.write_text(source.replace(current, "已经全部验证通过", 1), encoding="utf-8")
+            errors: list[str] = []
+            governance_descriptions.validate_dependency_evidence_contract(errors, readme=path)
+        self.assertTrue(any("dependency evidence contract missing" in error for error in errors), errors)
+
+    def test_dependency_evidence_rejects_engineering_rules_overclaim(self) -> None:
+        """工程规则必须区分真实项目证据和 registry 候选。"""
+
+        engineering = ROOT / "docs" / "ENGINEERING_RULES.md"
+        source = engineering.read_text(encoding="utf-8")
+        overclaim = "直接依赖和受管工具的清单必须表达经过验证的最低兼容范围"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "ENGINEERING_RULES.md"
+            path.write_text(f"{source}\n{overclaim}\n", encoding="utf-8")
+            errors: list[str] = []
+            governance_descriptions.validate_dependency_evidence_contract(
+                errors,
+                engineering_rules=path,
+            )
+        self.assertTrue(any("is overstated" in error for error in errors), errors)
+
+    def test_adapter_dependency_evidence_accepts_current_unverified_contracts(self) -> None:
+        """三个未实例化适配器都必须明确保持候选且尚未验证。"""
+
+        errors: list[str] = []
+        governance_descriptions.validate_unverified_adapter_dependency_contract(errors)
+        self.assertEqual(errors, [])
+
+    def test_adapter_dependency_evidence_rejects_superseded_overclaims(self) -> None:
+        """旧的已核定下界措辞不得重新把 metadata 候选冒充实测结论。"""
+
+        cases = (
+            ("TUI_SKILL", "TUI 最低兼容稳定组合及当前完整三段下界为"),
+            ("TUI_BASELINE", "上表是已验证的最低兼容稳定组合"),
+            ("MCP_SKILL", "MCP 最低兼容稳定下界为"),
+            ("MCP_BASELINE", "作为新的 Cargo 兼容下界"),
+            ("REACT_BASELINE", "当前已核定的 GUI 前端直接兼容下界如下"),
+        )
+        for attribute, overclaim in cases:
+            source_path = getattr(governance_descriptions, attribute)
+            source = source_path.read_text(encoding="utf-8")
+            self.assertNotIn(overclaim, source)
+            with self.subTest(attribute=attribute), tempfile.TemporaryDirectory() as tmp_dir:
+                path = Path(tmp_dir) / source_path.name
+                path.write_text(f"{source}\n{overclaim}\n", encoding="utf-8")
+                errors: list[str] = []
+                with mock.patch.object(governance_descriptions, attribute, path):
+                    governance_descriptions.validate_unverified_adapter_dependency_contract(errors)
+                self.assertTrue(
+                    any("adapter dependency baseline is overstated" in error for error in errors),
+                    errors,
+                )
+
+    def test_adapter_dependency_evidence_requires_unverified_markers(self) -> None:
+        """移除任一适配器的 Unverified 证据边界都必须失败关闭。"""
+
+        cases = (
+            (
+                "TUI_SKILL",
+                "在真实 TUI 下游完成最低直接版本解析和测试前保持 `Unverified`",
+            ),
+            (
+                "MCP_SKILL",
+                "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            ),
+            (
+                "REACT_BASELINE",
+                "在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`",
+            ),
+        )
+        for attribute, required in cases:
+            source_path = getattr(governance_descriptions, attribute)
+            source = source_path.read_text(encoding="utf-8")
+            self.assertIn(required, source)
+            with self.subTest(attribute=attribute), tempfile.TemporaryDirectory() as tmp_dir:
+                path = Path(tmp_dir) / source_path.name
+                path.write_text(source.replace(required, "", 1), encoding="utf-8")
+                errors: list[str] = []
+                with mock.patch.object(governance_descriptions, attribute, path):
+                    governance_descriptions.validate_unverified_adapter_dependency_contract(errors)
+                self.assertTrue(
+                    any("adapter dependency evidence contract missing" in error for error in errors),
+                    errors,
+                )
+
+    def test_react_baseline_requires_node_types_and_continuous_jsdom_floor(self) -> None:
+        """前端基线必须直接声明 Node 类型并保留覆盖 Node 25 的 jsdom 29。"""
+
+        baseline = governance_descriptions.REACT_BASELINE
+        source = baseline.read_text(encoding="utf-8")
+        for fragment in (
+            "`@types/node` | `^24.13.4`",
+            "`jsdom` | `^29.0.1`",
+            "不得升级到会重新排除 Node.js 25.x",
+        ):
+            with self.subTest(fragment=fragment), tempfile.TemporaryDirectory() as tmp_dir:
+                path = Path(tmp_dir) / baseline.name
+                path.write_text(source.replace(fragment, "", 1), encoding="utf-8")
+                errors: list[str] = []
+                with mock.patch.object(governance_descriptions, "REACT_BASELINE", path):
+                    governance_descriptions.validate_current_descriptions(errors)
+                self.assertTrue(
+                    any("dependency-floor contract missing" in error for error in errors),
+                    errors,
+                )
+
+    def test_react_baseline_rejects_jsdom_30_node_25_regression(self) -> None:
+        """jsdom 30 会排除 Node 25，不能重新进入连续 Node 下界。"""
+
+        baseline = governance_descriptions.REACT_BASELINE
+        source = baseline.read_text(encoding="utf-8")
+        self.assertIn("`jsdom` | `^29.0.1`", source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / baseline.name
+            path.write_text(
+                source.replace("`jsdom` | `^29.0.1`", "`jsdom` | `^30.0.1`", 1),
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            with mock.patch.object(governance_descriptions, "REACT_BASELINE", path):
+                governance_descriptions.validate_current_descriptions(errors)
+        self.assertTrue(any("superseded exact/latest version rule" in error for error in errors), errors)
 
     def test_gui_settings_version_fragment_matches_skill(self) -> None:
         """GUI 设置页的单个小写 v 版本契约必须与验证器要求一致。"""
@@ -721,6 +969,49 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
                 "202609101621",
             )
         self.assertTrue(any("stale required version" in error for error in errors), errors)
+
+    def test_rejects_pending_duplicate_beside_materialized_harness_change(self) -> None:
+        """正确物化行不得遮住同一变更仍残留的 pending 镜像。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "CHANGELOG.md"
+            path.write_text(
+                "- `HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`"
+                "（所需 Harness 版本 `202609101621`，已发布）\n"
+                "- `HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`"
+                "（所需 Harness 版本 `pending`，等待发布）\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance_version._validate_materialized_change(
+                errors,
+                path,
+                "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE",
+                "202609101621",
+            )
+        self.assertTrue(any("stale required version" in error for error in errors), errors)
+
+    def test_materialized_change_ignores_later_cross_reference_on_another_record(self) -> None:
+        """另一变更正文中的交叉引用不得冒充目标变更的版本声明。"""
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "CHANGELOG.md"
+            path.write_text(
+                "- `HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`"
+                "（所需 Harness 版本 `202609101621`，已发布）\n"
+                "- `HARNESS-FEAT-ANOTHER-CHANGE`"
+                "（所需 Harness 版本 `202608281139`）：由 "
+                "`HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE` 取代旧子句。\n",
+                encoding="utf-8",
+            )
+            errors: list[str] = []
+            governance_version._validate_materialized_change(
+                errors,
+                path,
+                "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE",
+                "202609101621",
+            )
+        self.assertEqual(errors, [])
 
     def test_rejects_unreleased_status_in_version_source(self) -> None:
         """活契约要求 Released 时，Version.md 再写 Unreleased 必须被已发货检查器拒绝。"""

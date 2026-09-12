@@ -2,9 +2,178 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .context import *  # noqa: F403
+
+
+MCP_BASELINE = MCP_SKILL.parent / "references" / "mcp-baseline.md"  # noqa: F405
+
+
+def validate_unverified_adapter_dependency_contract(errors: list[str]) -> None:
+    """锁定 TUI/MCP/GUI 候选版本与真实下游验证证据的边界。"""
+
+    required_fragments = {
+        TUI_SKILL: (  # noqa: F405
+            "经 registry 元数据筛选的 TUI 候选完整三段下界",
+            "在真实 TUI 下游完成最低直接版本解析和测试前保持 `Unverified`",
+            "只有实际通过后才把候选称为项目兼容下界",
+        ),
+        TUI_BASELINE: (  # noqa: F405
+            "经 registry 元数据筛选的候选组合",
+            "在真实 TUI 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "只把实际验证通过的版本写成项目兼容下界",
+        ),
+        MCP_SKILL: (  # noqa: F405
+            "经 registry 元数据筛选的 MCP 候选完整三段下界",
+            "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "只有实际通过后才把候选称为项目 Cargo 兼容下界",
+        ),
+        MCP_BASELINE: (
+            "经过 registry 元数据筛选的候选完整三段下界",
+            "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "只有最低直接版本解析与 Rust 1.98.1 实测通过后才可作为项目 Cargo 兼容下界",
+        ),
+        REACT_BASELINE: (  # noqa: F405
+            "经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界",
+            "在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`",
+            "实际通过后才可成为该项目的兼容下界",
+        ),
+    }
+    for path, fragments in required_fragments.items():
+        if not path.is_file():
+            fail(errors, f"missing adapter dependency evidence contract: {display_path(path)}")  # noqa: F405
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(  # noqa: F405
+                    errors,
+                    "adapter dependency evidence contract missing in "
+                    f"{display_path(path)}: {fragment}",  # noqa: F405
+                )
+
+    superseded_claims = {
+        TUI_SKILL: ("TUI 最低兼容稳定组合及当前完整三段下界为",),  # noqa: F405
+        TUI_BASELINE: ("上表是已验证的最低兼容稳定组合",),  # noqa: F405
+        MCP_SKILL: ("MCP 最低兼容稳定下界为",),  # noqa: F405
+        MCP_BASELINE: ("作为新的 Cargo 兼容下界",),
+        REACT_BASELINE: ("当前已核定的 GUI 前端直接兼容下界如下",),  # noqa: F405
+    }
+    for path, fragments in superseded_claims.items():
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment in text:
+                fail(  # noqa: F405
+                    errors,
+                    "unverified adapter dependency baseline is overstated in "
+                    f"{display_path(path)}: {fragment}",  # noqa: F405
+                )
+
+
+def validate_dependency_evidence_contract(
+    errors: list[str],
+    product_spec: Path = PRODUCT_SPEC,  # noqa: F405
+    readme: Path = ROOT / "README.md",  # noqa: F405
+    engineering_rules: Path = ROOT / "docs" / "ENGINEERING_RULES.md",  # noqa: F405
+) -> None:
+    """区分已实测 CLI fixture 与仍待真实下游证明的候选下界。"""
+
+    if not product_spec.is_file():
+        fail(errors, f"missing dependency evidence contract: {display_path(product_spec)}")  # noqa: F405
+        return
+    text = product_spec.read_text(encoding="utf-8")
+    required = (
+        "依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标",
+        "中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析",
+        "`rmcp 3.3.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-09-12 经 registry metadata、peer 与 engine 筛选的候选完整三段下界",
+        "继续保持 `Unverified`",
+        "实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析",
+        "成功后才能成为该项目的兼容下界",
+        "中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选",
+    )
+    for fragment in required:
+        if fragment not in text:
+            fail(  # noqa: F405
+                errors,
+                f"dependency evidence contract missing in {display_path(product_spec)}: {fragment}",  # noqa: F405
+            )
+    overclaims = (
+        "本次在 Rust `1.98.1`、Node.js `>=24.21.0` 与 pnpm `>=12.4.1` 门禁下验证后，把 MCP",
+        "前端/Rust 直接依赖统一表达为经过验证的最低兼容范围",
+    )
+    for fragment in overclaims:
+        if fragment in text:
+            fail(  # noqa: F405
+                errors,
+                f"unverified dependency baseline is overstated in {display_path(product_spec)}: {fragment}",  # noqa: F405
+            )
+
+    environment_heading = "### 主流环境下界、标准当前用户安装与最新兼容稳定选择"
+    environment_start = text.find(environment_heading)
+    environment_end = text.find("\n### ", environment_start + len(environment_heading))
+    environment_text = (
+        text[environment_start:environment_end]
+        if environment_start >= 0 and environment_end >= 0
+        else text[environment_start:]
+        if environment_start >= 0
+        else ""
+    )
+    for fragment in ("经过验证", "本次验证后"):
+        if fragment in environment_text:
+            fail(  # noqa: F405
+                errors,
+                f"unverified dependency baseline is overstated in {display_path(product_spec)}: {fragment}",  # noqa: F405
+            )
+
+    positive_claims = (
+        r"(?:rmcp|TUI|MCP|GUI(?:/React)?).{0,100}(?:已经|均已|全部已|已完成).{0,16}(?:验证|实测|通过)",
+        r"(?:已经|均已|全部已|已完成).{0,16}(?:验证|实测|通过).{0,100}(?:rmcp|TUI|MCP|GUI(?:/React)?)",
+        r"(?:所有|全部).{0,20}(?:直接依赖|依赖).{0,24}(?:已经|均已|全部已|已完成|已).{0,16}(?:验证|实测|通过)",
+    )
+    for pattern in positive_claims:
+        if re.search(pattern, environment_text, flags=re.DOTALL):
+            fail(  # noqa: F405
+                errors,
+                f"unverified dependency baseline is overstated in {display_path(product_spec)}: {pattern}",  # noqa: F405
+            )
+
+    supporting_contracts = {
+        readme: (
+            "依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标",
+            "当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析",
+            "TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选",
+            "保持 `Unverified`",
+        ),
+        engineering_rules: (
+            "只有这些真实项目检查通过后才可称为“经过验证”",
+            "尚无真实下游的 TUI/MCP/GUI 模板数值只能作为 registry metadata、peer 与 engine 筛选后的候选并标记 `Unverified`",
+        ),
+    }
+    forbidden_supporting_claims = {
+        readme: ("依赖清单保存经过验证的最低兼容稳定版本范围",),
+        engineering_rules: ("直接依赖和受管工具的清单必须表达经过验证的最低兼容范围",),
+    }
+    for path, fragments in supporting_contracts.items():
+        if not path.is_file():
+            fail(errors, f"missing dependency evidence contract: {display_path(path)}")  # noqa: F405
+            continue
+        source = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in source:
+                fail(  # noqa: F405
+                    errors,
+                    f"dependency evidence contract missing in {display_path(path)}: {fragment}",  # noqa: F405
+                )
+        for fragment in forbidden_supporting_claims[path]:
+            if fragment in source:
+                fail(  # noqa: F405
+                    errors,
+                    f"unverified dependency baseline is overstated in {display_path(path)}: {fragment}",  # noqa: F405
+                )
 
 
 def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None:
@@ -95,6 +264,8 @@ def validate_stale_fragments(errors: list[str], paths: tuple[Path, ...]) -> None
 
 def validate_current_descriptions(errors: list[str]) -> None:
     """拒绝已被当前接口、Git 与治理规则替代的规范描述重新进入有效事实源。"""
+    validate_dependency_evidence_contract(errors)
+    validate_unverified_adapter_dependency_contract(errors)
     current_files = (
         ROOT / "README.md",
         ROOT / "AGENTS.md",
@@ -138,25 +309,40 @@ def validate_current_descriptions(errors: list[str]) -> None:
 
     msrv_fragments = {
         PRODUCT_SPEC: (
-            "MSRV（即 MSRV 1.95.0）",
+            "MSRV（即 MSRV 1.98.1）",
             "最低兼容版本而非精确版本锁",
-            "Rust 1.95 MSRV",
+            "Rust 1.98.1 MSRV",
         ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
-            '| MSRV | `1.95.0` |',
-            'rust-version = "1.95"',
-            "不要求精确等于 1.95.0",
+            '| MSRV | `1.98.1` |',
+            'rust-version = "1.98.1"',
+            "不要求精确等于 1.98.1",
             "使用该声明的最低 Rust 工具链",
         ),
-        ROOT / "docs" / "RELEASE.md": ("最低 Rust 版本 1.95.0",),
-        PREREQUISITE_UNIX: ("MIN_RUST_MAJOR=1", "MIN_RUST_MINOR=95"),
-        PREREQUISITE_WINDOWS: ("$MinimumRustMajor = 1", "$MinimumRustMinor = 95"),
-        PREREQUISITE_TESTS: (
-            'rust: str = "1.95.0"',
-            'rust="1.94.9"',
-            '"1.96.0"',
+        ROOT / "docs" / "RELEASE.md": ("最低 Rust 版本 1.98.1",),
+        PREREQUISITE_UNIX: (
+            "MIN_RUST_MAJOR=1",
+            "MIN_RUST_MINOR=98",
+            "MIN_RUST_PATCH=1",
         ),
-        RUST_ASSET / "Cargo.toml": ('rust-version = "1.95"',),
+        PREREQUISITE_WINDOWS: (
+            "$MinimumRustMajor = 1",
+            "$MinimumRustMinor = 98",
+            "$MinimumRustPatch = 1",
+        ),
+        PREREQUISITE_TESTS: (
+            'rust: str = "1.98.1"',
+            'rust="1.98.0"',
+            '"1.99.0"',
+            '"2.0.0"',
+        ),
+        PREREQUISITE_WINDOWS_TESTS: (
+            'rust: str = "1.98.1"',
+            '("1.98.0", 20, "upgrade-required")',
+            '("1.99.0", 0, "passed")',
+            '("2.0.0", 0, "passed")',
+        ),
+        RUST_ASSET / "Cargo.toml": ('rust-version = "1.98.1"',),
         WORKFLOW: (
             "读取项目最低 Rust 版本",
             'environment.write(f"RUSTUP_TOOLCHAIN={version}\\n")',
@@ -172,12 +358,12 @@ def validate_current_descriptions(errors: list[str]) -> None:
             if fragment not in text:
                 fail(
                     errors,
-                    f"Rust 1.95 MSRV contract missing in {display_path(path)}: {fragment}",
+                    f"Rust 1.98.1 MSRV contract missing in {display_path(path)}: {fragment}",
                 )
 
     minimum_version_fragments = {
         ENGINEERING_RULES: (
-            "最低兼容范围",
+            "完整三段表达可验证的兼容下界",
             "当前最新非预发布候选",
             "锁文件与兼容要求职责分离",
         ),
@@ -191,36 +377,40 @@ def validate_current_descriptions(errors: list[str]) -> None:
             "resolutionMode: lowest-direct",
         ),
         CLI_SKILL: ("完整三段 Cargo 兼容下界", "最低直接版本解析"),
-        TUI_SKILL: ("最低兼容稳定组合", "direct-minimal-versions"),
-        TUI_BASELINE: ("最低兼容稳定组合", "最低直接版本解析"),
-        MCP_SKILL: ("最低兼容稳定下界", "最低直接版本解析"),
+        TUI_SKILL: ("TUI 候选完整三段下界", "direct-minimal-versions", "`Unverified`"),
+        TUI_BASELINE: ("registry 元数据筛选的候选组合", "最低直接版本解析", "`Unverified`"),
+        MCP_SKILL: ("MCP 候选完整三段下界", "最低直接版本解析", "`Unverified`"),
+        MCP_BASELINE: ("候选完整三段下界", "最低直接版本解析", "`Unverified`"),
         GUI_SKILL: ("最低兼容稳定范围", "最低直接版本解析"),
         REACT_BASELINE: (
-            "最低兼容稳定范围",
+            "GUI 前端候选完整三段下界",
+            "`Unverified`",
             "engines.node",
             "engines.pnpm",
             "resolutionMode: lowest-direct",
         ),
         ENVIRONMENT_SKILL / "SKILL.md": (
-            "^24.15.0 || >=26.0.0",
-            ">=11.24.0",
+            ">=24.21.0",
+            ">=12.4.1",
             "upgrade-required",
             "不得降低项目门槛",
         ),
         ENVIRONMENT_SKILL / "references" / "development-environment-gates.md": (
-            "^24.15.0 || >=26.0.0",
-            ">=11.24.0",
+            ">=24.21.0",
+            ">=12.4.1",
             ">=0.23.1, <0.24.0",
             "upgrade-required",
             "不得降低最低门禁",
         ),
         PREREQUISITE_UNIX: (
-            "NODE_REQUIREMENT='^24.15.0 || >=26.0.0'",
-            "PNPM_REQUIREMENT='>=11.24.0'",
+            "NODE_REQUIREMENT='>=24.21.0'",
+            "PNPM_REQUIREMENT='>=12.4.1'",
+            "PNPM_INSTALL_REQUIREMENT='pnpm@>=12.4.1'",
         ),
         PREREQUISITE_WINDOWS: (
-            '$NodeRequirement = "^24.15.0 || >=26.0.0"',
-            '$PnpmRequirement = ">=11.24.0"',
+            '$NodeRequirement = ">=24.21.0"',
+            '$PnpmRequirement = ">=12.4.1"',
+            '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
         ),
         MACOS_XWIN_GATE: ("CARGO_XWIN_REQUIREMENT='>=0.23.1, <0.24.0'",),
         WORKFLOW: (
@@ -240,12 +430,53 @@ def validate_current_descriptions(errors: list[str]) -> None:
                     f"minimum-version contract missing in {display_path(path)}: {fragment}",
                 )
 
+    dependency_floor_fragments = {
+        RUST_ASSET / "Cargo.toml": (
+            'assert_cmd = "2.2.2"',
+            'clap = { version = "4.6.6"',
+            'jiff = "0.2.35"',
+            'serde = { version = "1.0.229"',
+            'serde_json = "1.0.151"',
+            'tokio = { version = "1.53.1"',
+        ),
+        MCP_SKILL: ("`rmcp 3.3.0`",),
+        REACT_BASELINE: (
+            "`react` / `react-dom` | `^19.3.0`",
+            "`@mantine/core` / `@mantine/hooks` | `^9.6.1`",
+            "`@tanstack/react-router` | `^1.170.35`",
+            "`@tanstack/router-plugin` | `^1.168.37`",
+            "`i18next` | `^26.4.2`",
+            "`react-i18next` | `^17.0.13`",
+            "`vite` | `^8.3.0`",
+            "`eslint` | `^10.10.0`",
+            "`typescript-eslint` | `^8.70.0`",
+            "`@types/node` | `^24.13.4`",
+            "`@types/react` / `@types/react-dom` | `^19.3.0`",
+            "`@testing-library/dom` | `^10.4.1`",
+            "`@testing-library/user-event` | `^14.6.7`",
+            "`jsdom` | `^29.0.1`",
+            "不得升级到会重新排除 Node.js 25.x",
+        ),
+    }
+    for path, fragments in dependency_floor_fragments.items():
+        if not path.is_file():
+            fail(errors, f"missing dependency-floor contract file: {display_path(path)}")
+            continue
+        text = path.read_text(encoding="utf-8")
+        for fragment in fragments:
+            if fragment not in text:
+                fail(
+                    errors,
+                    f"dependency-floor contract missing in {display_path(path)}: {fragment}",
+                )
+
     superseded_version_fragments = (
         "pnpm@latest",
         "rustup toolchain install 1.90.0",
         "^20.19.0 || >=22.12.0",
         "pnpm@^10.0.0",
         ">=0.22.0, <0.24.0",
+        "^30.0.1",
     )
     for path in minimum_version_fragments:
         if not path.is_file():

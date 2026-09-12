@@ -258,7 +258,8 @@ def validate_daily_project_memory(errors: list[str]) -> None:
             "普通合并登记分支、切换并推送动态默认主分支",
             "创建并推送版本 tag",
             "清理登记 Worktree/远端分支/本地分支",
-            "最后构建/收集并用 `$desktop-verify-delivery` 完整验收",
+            "Harness 源在 Git 引用与上下文复核后结束",
+            "只有终端下游最后构建/收集并用 `$desktop-verify-delivery` 完整验收",
         ),
         ROOT / "docs" / "harness_engineering" / "foundations.md": (
             "活动候选的构建与完整验收证据只保存在忽略的 `release/` 原子集合和最终回复",
@@ -266,7 +267,9 @@ def validate_daily_project_memory(errors: list[str]) -> None:
         ),
         ROOT / "docs" / "harness_engineering" / "agent_first_design.md": (
             "当前候选完整验收完成",
-            "Git 标签或源码归档只在获得独立授权并实际生成时核对",
+            "正式候选必须先有远程版本 tag",
+            "tag、动态默认主分支与 manifest `sourceCommit` 精确一致",
+            "源码归档只在获得独立授权并实际生成时核对",
             "真实渠道发布完成是候选验收之后的独立事件",
         ),
         ROOT / "docs" / "RELEASE.md": (

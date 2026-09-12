@@ -814,6 +814,7 @@ def validate_release_selection_contract(
             "test_verify_rejects_missing_remote_tag",
             "test_verify_rejects_dirty_or_untracked_context_bytes",
             "test_write_rejects_inconsistent_disabled_selection",
+            "test_write_rejects_source_head_that_is_not_current_head",
         ),
         rust_skill: (
             "release_context.py verify --project-root .",
@@ -937,6 +938,156 @@ def validate_release_selection_contract(
         )
 
 
+def validate_harness_source_release_contract(
+    errors: list[str],
+    *,
+    prepare_skill: Path = PREPARE_RELEASE_SKILL,  # noqa: F405
+    lifecycle_skill: Path = GIT_LIFECYCLE_SKILL,  # noqa: F405
+    context_helper: Path = RELEASE_CONTEXT_HELPER,  # noqa: F405
+    context_tests: Path = RELEASE_CONTEXT_HELPER_TESTS,  # noqa: F405
+    agent_policy: Path = AGENT_POLICY,  # noqa: F405
+    engineering_rules: Path = ENGINEERING_RULES,  # noqa: F405
+    release_doc: Path = ROOT / "docs" / "RELEASE.md",  # noqa: F405
+    product_spec: Path = PRODUCT_SPEC,  # noqa: F405
+    human_review: Path = ROOT / "docs" / "verification" / "human_review.md",  # noqa: F405
+    agents_doc: Path = ROOT / "AGENTS.md",  # noqa: F405
+    methodology_doc: Path = ROOT / "docs" / "harness_engineering" / "agent_first_design.md",  # noqa: F405
+    prepare_openai: Path = PREPARE_RELEASE_SKILL.parent / "agents" / "openai.yaml",  # noqa: F405
+) -> None:
+    """锁定 Harness Git-only 终点、元数据提交顺序与远端绑定。"""
+
+    required = {
+        prepare_skill: (
+            "先判定当前根是否同时包含 Harness 专用 `Version.md`",
+            "Harness 源的 `performanceSelection`/`performanceSource` 与 `macosSigningSelection`/`macosSigningSource` 都固定为 `not-applicable`",
+            "任何由独立事件真实触发的 Changelog 必须已经写入并纳入这次源码/治理提交",
+            "不得在锁定 `sourceHead` 后再补写 Changelog",
+            "`release_context.py write` 会拒绝 `sourceHead` 不等于写入时当前 HEAD 的请求",
+            "第二个精确范围提交只能同时包含 `release-notes.json` 与 `.harness/release-context.json`",
+            "--performance-selection not-applicable --performance-source not-applicable --macos-signing-selection not-applicable --macos-signing-source not-applicable",
+            "--remote <remote>",
+            "若步骤 2 已判定为 Harness 源",
+            "终端下游才按接口调用",
+            "不得创建或套用产品候选 manifest",
+            "以下就绪复核只适用于已经形成产品候选的终端下游",
+        ),
+        prepare_openai: (
+            "完成 Git 发布；仅终端下游继续构建候选",
+            "Harness 源至此完成 Git 发布",
+            "只有终端下游再从同一 clean HEAD 构建候选",
+        ),
+        lifecycle_skill: (
+            "在 Harness 源或终端下游 Git 项目中开始开发分支",
+        ),
+        context_helper: (
+            "sourceHead must equal the current HEAD before metadata commit",
+        ),
+        context_tests: (
+            "test_write_rejects_source_head_that_is_not_current_head",
+        ),
+        agent_policy: (
+            "本节约束 Harness 源和完成初始化的终端下游",
+            "当前发布周期已经登记远端时必须原样沿用",
+            "显式传入不同名称立即以 `remote-conflict` 失败",
+            "release --version <version> --date YYYYMMDD --remote <remote>",
+            "Harness 源发布则在 Git 引用与上下文复核通过后结束，不生成产品候选",
+        ),
+        engineering_rules: (
+            "Harness 源与已初始化终端下游由 `$desktop-manage-git-lifecycle` 唯一管理",
+            "只有当前 HEAD 仍精确等于该值时",
+            "把且只把根 `release-notes.json` 与 `.harness/release-context.json` 作为同一个发布元数据提交",
+            "产品构建、`release/` manifest、性能、签名、公证、产品 E2E 和产品人工验收均不适用",
+        ),
+        release_doc: (
+            "步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程",
+            "Harness 在步骤 2 完成并复核 Git 引用后结束",
+            "步骤 3–7 仅适用于终端下游产品候选",
+            "先提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`",
+            "再把且只把这两个文件放入同一个发布元数据提交",
+            "release --version <version> --date YYYYMMDD --remote <remote>",
+            "只有当前 HEAD 仍精确等于 `sourceHead` 时才能写入 `.harness/release-context.json`",
+            "把且只把 `release-notes.json` 与 `.harness/release-context.json` 作为同一个精确范围的发布元数据提交",
+            "$desktop-manage-git-lifecycle release --version <version> --date YYYYMMDD --remote <remote>",
+            "`sourceHead` 保持源码/治理及审查输入身份，不要求等于 `sourceCommit`",
+            "Harness 源码归档只生成相邻 `<artifact>.sha256`",
+            "它不是产品候选，不创建或套用产品 manifest",
+        ),
+        product_spec: (
+            "change_id = HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE",
+            "正式发布步骤 1–2 由 Harness 源和终端下游共用",
+            "步骤 3–7 的产品构建、`release/` manifest、性能、签名、公证、产品 E2E 和产品人工验收全部为 `Not applicable`",
+            "源码归档及相邻 `.sha256`",
+            "不创建或套用产品 manifest",
+        ),
+        agents_doc: (
+            "Harness 源与终端下游的新功能或独立 Bug 修复",
+        ),
+        methodology_doc: (
+            "正式候选必须先有远程版本 tag",
+            "tag、动态默认主分支与 manifest `sourceCommit` 精确一致",
+            "其缺席不代替或放宽 Git tag 门禁",
+        ),
+    }
+    validate_fragment_contract(
+        errors,
+        required,
+        label="Harness source release contract",
+        compile_check=(context_helper, context_tests),
+    )
+
+    if human_review.is_file() and "docs/adr/20260911_ADR.md" in human_review.read_text(encoding="utf-8"):
+        fail(errors, "Harness source release contract retains deleted 20260911 ADR path")  # noqa: F405
+
+    if methodology_doc.is_file() and "缺席不阻断候选验收或只读就绪复核" in methodology_doc.read_text(encoding="utf-8"):
+        fail(errors, "Harness source release contract allows a missing release tag")  # noqa: F405
+
+    if release_doc.is_file():
+        release_text = release_doc.read_text(encoding="utf-8")
+        stale_git_release = (
+            "写入 `.harness/release-context.json` 并提交；随后 "
+            "`release --version <version>`"
+        )
+        if stale_git_release in release_text:
+            fail(errors, "Harness source release contract retains stale context-only Git release")  # noqa: F405
+
+    prepare_text = prepare_skill.read_text(encoding="utf-8") if prepare_skill.is_file() else ""
+    prepare_order = (
+        "任何由独立事件真实触发的 Changelog",
+        "提交后的 clean HEAD 记为 `sourceHead`",
+        "从真实发布 tag/记录找到上一次发布到 `sourceHead`",
+        "`release_context.py write` 会拒绝 `sourceHead`",
+        "第二个精确范围提交只能同时包含",
+        "git_lifecycle.py release --project-root . --version <version> --date YYYYMMDD --remote <remote>",
+        "若步骤 2 已判定为 Harness 源",
+        "终端下游才按接口调用",
+    )
+    positions = [prepare_text.find(fragment) for fragment in prepare_order]
+    if all(position >= 0 for position in positions) and positions != sorted(positions):
+        fail(  # noqa: F405
+            errors,
+            "Harness source release contract order: Changelog/sourceHead must precede "
+            "the exact metadata commit, explicit-remote Git release, Harness endpoint, "
+            "and downstream-only candidate branch",
+        )
+
+    release_text = release_doc.read_text(encoding="utf-8") if release_doc.is_file() else ""
+    release_order = (
+        "步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程",
+        "步骤 3–7 仅适用于终端下游产品候选",
+        "\n1. 明确正式发布请求后",
+        "\n2. 从 `sourceHead`",
+        "Harness 至此结束本次正式源码 Git 发布",
+        "\n3. 从上述 clean 默认主分支",
+    )
+    positions = [release_text.find(fragment) for fragment in release_order]
+    if all(position >= 0 for position in positions) and positions != sorted(positions):
+        fail(  # noqa: F405
+            errors,
+            "Harness source release contract order: shared steps 1-2 and the Harness "
+            "endpoint must precede downstream-only candidate steps 3-7",
+        )
+
+
 def validate_release_git_contract(
     errors: list[str],
     *,
@@ -950,7 +1101,8 @@ def validate_release_git_contract(
     """锁定精确提交、普通合并、主分支推送、tag 与清理顺序。"""
     required = {
         prepare_skill: (
-            "用户明确说“发布”即授权本次已复核范围的本地提交、主分支推送、版本 tag 推送、登记资源清理和紧随其后的候选构建",
+            "用户明确说“发布”即授权本次已复核范围的本地提交、主分支推送、版本 tag 推送和登记资源清理",
+            "Harness 源根只执行源码 Git 发布",
             "不授权配置 remote/凭据、历史改写、渠道上传、商店提交或未登记资源删除",
             "流程不创建或使用 `Release` 分支",
             "也不设置保护分支、严格线性、fast-forward-only、lease 或 atomic push 门禁",
@@ -968,7 +1120,7 @@ def validate_release_git_contract(
             "最后按清单依次删除登记 Worktree、远端分支和本地分支",
             "tag 创建、推送或复读失败时不得开始任何删除",
             "不得扫描前缀、删除主分支或未登记资源",
-            "生命周期成功后锁定当前 40 位 HEAD 为候选 `sourceCommit`",
+            "生命周期成功后锁定当前 40 位 HEAD 为最终 `sourceCommit`",
             "普通构建不自动提交",
         ),
         RELEASE_GIT_HELPER: (  # noqa: F405
@@ -1008,6 +1160,8 @@ def validate_release_git_contract(
         lifecycle_skill: (
             "用户要求“推送”时运行 `publish`",
             "用户要求“发布”时运行 `release`",
+            "远端选择优先沿用当前发布周期已经登记的精确名称",
+            "显式传入不同名称会以 `remote-conflict` 失败",
             "普通 `git merge --no-edit`",
             "保持主 Worktree 切换在该默认分支",
             "以非强制 push 推送并复读",
@@ -1029,6 +1183,7 @@ def validate_release_git_contract(
             '["branch", "-D", "--", branch]',
         ),
         lifecycle_tests: (
+            "test_registered_remote_precedes_origin_and_conflicting_override_fails",
             "test_publish_merges_switches_and_pushes_without_tag_or_cleanup",
             "test_publish_merges_current_remote_default_before_development_branches",
             "test_publish_refuses_to_omit_a_missing_registered_branch",
@@ -1074,6 +1229,7 @@ def validate_release_contract(errors: list[str]) -> None:
     validate_tauri_build_skill_contract(errors)
     validate_gui_release_performance_contract(errors)
     validate_release_selection_contract(errors)
+    validate_harness_source_release_contract(errors)
     validate_release_git_contract(errors)
 
     helper_fragments = {
@@ -1109,7 +1265,7 @@ def validate_release_contract(errors: list[str]) -> None:
             "构建产物收集本身不触发任何项目记忆",
         ),
         PREPARE_RELEASE_SKILL: (  # noqa: F405
-            "## 候选前流程",
+            "## 正式发布共享流程",
             "## 就绪复核",
             "release_git.py inspect --project-root .",
             "statusSha256",
@@ -1118,7 +1274,7 @@ def validate_release_contract(errors: list[str]) -> None:
             "literal pathspec",
             "helper 使用 literal pathspec、运行正常 hooks",
             "工作树原本 clean 时不创建空源码提交",
-            "生命周期成功后锁定当前 40 位 HEAD 为候选 `sourceCommit`",
+            "生命周期成功后锁定当前 40 位 HEAD 为最终 `sourceCommit`",
             "release_notes.py upsert --file release-notes.json",
             "release_notes.py check --file release-notes.json --expected-version",
             "release_notes.py render --file release-notes.json --locale zh-CN",
@@ -1184,10 +1340,11 @@ def validate_release_contract(errors: list[str]) -> None:
             "GUI 中用于恢复页面工作上下文的纯交互状态必须在当前应用进程内跨路由保留",
             "只有查询成功、当前页码大于 1 且该页结果为空时",
             "所有用户可见版本号必须在展示边界先移除已有 `v`/`V` 前缀",
-            "根 `release-notes.json` 是下游面向最终用户的发布更新日志事实",
+            "根 `release-notes.json` 是 Harness 源与终端下游共用的双语发布更新日志事实",
             "使用 `schemaVersion: 2`",
             "非空 `zh-CN` 与 `en-US` 文案绑定为一个翻译对",
             "按最新在前只保留近 5 个版本",
+            "Harness 源则重新执行 Git 源码发布复核，不虚构产品候选",
         ),
         ROOT / "docs" / "RELEASE.md": (  # noqa: F405
             "## 用户可见版本与更新日志",

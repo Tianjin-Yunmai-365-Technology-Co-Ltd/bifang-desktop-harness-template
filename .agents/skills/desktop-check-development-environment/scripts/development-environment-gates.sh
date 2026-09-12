@@ -3,10 +3,11 @@ set -eu
 
 # MSRV 的唯一事实来源见 docs/RUST_CLI_TEMPLATE.md；修改此值时必须同步更新 development-environment-gates.ps1。
 MIN_RUST_MAJOR=1
-MIN_RUST_MINOR=95
-NODE_REQUIREMENT='^24.15.0 || >=26.0.0'
-PNPM_REQUIREMENT='>=11.24.0'
-PNPM_INSTALL_REQUIREMENT='pnpm@>=11.24.0'
+MIN_RUST_MINOR=98
+MIN_RUST_PATCH=1
+NODE_REQUIREMENT='>=24.21.0'
+PNPM_REQUIREMENT='>=12.4.1'
+PNPM_INSTALL_REQUIREMENT='pnpm@>=12.4.1'
 GIT_REQUIREMENT='>=2.36.0'
 PNPM_REGISTRY='https://registry.npmjs.org/'
 TEST_MODE=${AFH_TEST_MODE:-0}
@@ -44,10 +45,11 @@ PNPM_BIN_DIR=
 CARGO_BIN_DIR=
 GIT_BIN_DIR=
 TEMP_DIR=
-ENV_TEMP_FILE=
 FISH_TEMP_FILE=
 FRESH_VERIFY_FILE=
 FRESH_VERIFY_DIR=
+RUST_HOME_VERIFY_FILE=
+RUST_HOME_VERIFY_DIR=
 LINK_TEMP_DIR=
 PROFILE_TEMP_FILE=
 PROFILE_SNAPSHOT_FILE=
@@ -56,7 +58,7 @@ FRESH_SHELL_STATUS=not-required
 
 # 只清理本进程通过 mktemp 创建的下载目录，不触碰安装目标或用户已有文件。
 cleanup() {
-    for gate_temp_file in "$ENV_TEMP_FILE" "$FISH_TEMP_FILE" "$FRESH_VERIFY_FILE" "$PROFILE_TEMP_FILE" "$PROFILE_SNAPSHOT_FILE"; do
+    for gate_temp_file in "$FISH_TEMP_FILE" "$FRESH_VERIFY_FILE" "$RUST_HOME_VERIFY_FILE" "$PROFILE_TEMP_FILE" "$PROFILE_SNAPSHOT_FILE"; do
         [ -n "$gate_temp_file" ] || continue
         if [ -f "$gate_temp_file" ] || [ -L "$gate_temp_file" ]; then rm -f "$gate_temp_file" 2>/dev/null || true; fi
     done
@@ -65,6 +67,9 @@ cleanup() {
     fi
     if [ -n "$FRESH_VERIFY_DIR" ] && [ -d "$FRESH_VERIFY_DIR" ] && [ ! -L "$FRESH_VERIFY_DIR" ]; then
         find "$FRESH_VERIFY_DIR" -depth -delete 2>/dev/null || true
+    fi
+    if [ -n "$RUST_HOME_VERIFY_DIR" ] && [ -d "$RUST_HOME_VERIFY_DIR" ] && [ ! -L "$RUST_HOME_VERIFY_DIR" ]; then
+        find "$RUST_HOME_VERIFY_DIR" -depth -delete 2>/dev/null || true
     fi
     if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
         find "$TEMP_DIR" -depth -delete 2>/dev/null || true
@@ -89,7 +94,7 @@ for override_name in \
     AFH_PREREQ_PATH AFH_ALLOW_FILE_URLS AFH_RUSTUP_DIST_BASE AFH_NODE_DIST_BASE \
     AFH_MANAGED_CARGO_HOME AFH_MANAGED_RUSTUP_HOME AFH_NODE_HOME AFH_PNPM_HOME \
     AFH_PNPM_REGISTRY AFH_SKIP_PERSIST_PATH AFH_TEST_HOST_OS AFH_TEST_HOST_ARCH \
-    AFH_TEST_RUST_LIBC; do
+    AFH_TEST_LINUX_LIBC AFH_TEST_SYSTEM_PATH; do
     eval "override_value=\${$override_name-}"
     if [ -n "$override_value" ] && [ "$TEST_MODE" != 1 ]; then
         fail 2 "测试覆盖 $override_name 仅在 AFH_TEST_MODE=1 时允许"
@@ -103,16 +108,19 @@ case "$PNPM_REGISTRY" in
     *) fail 2 "pnpm registry 必须使用 HTTPS" ;;
 esac
 
-# 生产调用始终使用当前用户的固定受管根；标准 CARGO_HOME/RUSTUP_HOME 只影响外部命令，不能重定向门禁写入。
+# 生产调用使用各工具的标准当前用户安装根；用户已设置的标准 CARGO_HOME/RUSTUP_HOME 会被原样尊重。
 USER_HOME=${HOME:?必须设置 HOME}
 case "$USER_HOME" in
     /*) ;;
     *) fail 24 "HOME 必须是绝对路径" ;;
 esac
-MANAGED_CARGO_HOME=$USER_HOME/.cargo
-MANAGED_RUSTUP_HOME=$USER_HOME/.rustup
-NODE_HOME=$USER_HOME/.local/share/agent-first-harness/node
-PNPM_HOME=$USER_HOME/.local/share/agent-first-pnpm
+case "$USER_HOME" in
+    *:*) fail 24 "HOME 不能包含 PATH 分隔符冒号" ;;
+esac
+MANAGED_CARGO_HOME=${CARGO_HOME:-$USER_HOME/.cargo}
+MANAGED_RUSTUP_HOME=${RUSTUP_HOME:-$USER_HOME/.rustup}
+NODE_HOME=$USER_HOME/.local/lib/nodejs
+PNPM_HOME=$USER_HOME/.local
 if [ "$TEST_MODE" = 1 ]; then
     MANAGED_CARGO_HOME=${AFH_MANAGED_CARGO_HOME:-$MANAGED_CARGO_HOME}
     MANAGED_RUSTUP_HOME=${AFH_MANAGED_RUSTUP_HOME:-$MANAGED_RUSTUP_HOME}
@@ -123,6 +131,9 @@ for managed_path in "$MANAGED_CARGO_HOME" "$MANAGED_RUSTUP_HOME" "$NODE_HOME" "$
     case "$managed_path" in
         /*) ;;
         *) fail 24 "受管安装根必须是绝对路径：$managed_path" ;;
+    esac
+    case "$managed_path" in
+        *:*) fail 24 "受管安装根不能包含 PATH 分隔符冒号：$managed_path" ;;
     esac
 done
 
@@ -152,8 +163,13 @@ sanitize_path() {
 
 PATH=$(sanitize_path "${PATH}")
 export PATH
-BASE_SESSION_PATH=$PATH
 PROBE_PATH=$(sanitize_path "$PROBE_PATH")
+FRESH_BASE_PATH=/usr/bin:/bin:/usr/sbin:/sbin
+if [ "$TEST_MODE" = 1 ] && [ -n "${AFH_TEST_SYSTEM_PATH:-}" ]; then
+    FRESH_BASE_PATH=$AFH_TEST_SYSTEM_PATH
+fi
+FRESH_BASE_PATH=$(sanitize_path "$FRESH_BASE_PATH")
+[ -n "$FRESH_BASE_PATH" ] || fail 24 "新登录会话的系统 PATH 基线为空"
 
 normalized_interfaces=$(printf '%s' "$INTERFACES" | tr '[:lower:]' '[:upper:]' | tr -d ' ')
 for interface in $(printf '%s' "$normalized_interfaces" | tr ',' ' '); do
@@ -209,10 +225,10 @@ validate_rust() {
     rustup_path=$1
     rustc_path=$2
     cargo_path=$3
-    rustup_text=$(CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$rustup_path" --version 2>/dev/null) || fail 21 "rustup 探测失败"
-    rust_text=$(CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$rustc_path" --version 2>/dev/null) || fail 21 "rustc 探测失败"
-    cargo_text=$(CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$cargo_path" --version 2>/dev/null) || fail 21 "cargo 探测失败"
-    rust_verbose=$(CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$rustc_path" -vV 2>/dev/null) || fail 21 "rustc -vV 探测失败"
+    rustup_text=$("$rustup_path" --version 2>/dev/null) || fail 21 "rustup 探测失败"
+    rust_text=$("$rustc_path" --version 2>/dev/null) || fail 21 "rustc 探测失败"
+    cargo_text=$("$cargo_path" --version 2>/dev/null) || fail 21 "cargo 探测失败"
+    rust_verbose=$("$rustc_path" -vV 2>/dev/null) || fail 21 "rustc -vV 探测失败"
     [ "$(printf '%s\n' "$rustup_text" | awk 'END { print NR }')" -eq 1 ] || fail 21 "rustup --version 必须返回唯一一行"
     [ "$(printf '%s\n' "$rust_text" | awk 'END { print NR }')" -eq 1 ] || fail 21 "rustc --version 必须返回唯一一行"
     [ "$(printf '%s\n' "$cargo_text" | awk 'END { print NR }')" -eq 1 ] || fail 21 "cargo --version 必须返回唯一一行"
@@ -268,9 +284,17 @@ validate_rust() {
     CARGO_VERSION=$cargo_text
     RUST_HOST=$verbose_host
     if [ "$rust_major" -lt "$MIN_RUST_MAJOR" ] || {
-        [ "$rust_major" -eq "$MIN_RUST_MAJOR" ] && [ "$rust_minor" -lt "$MIN_RUST_MINOR" ];
+        [ "$rust_major" -eq "$MIN_RUST_MAJOR" ] && {
+            [ "$rust_minor" -lt "$MIN_RUST_MINOR" ] || {
+                [ "$rust_minor" -eq "$MIN_RUST_MINOR" ] && [ "$rust_patch" -lt "$MIN_RUST_PATCH" ];
+            };
+        };
     } || [ "$cargo_major" -lt "$MIN_RUST_MAJOR" ] || {
-        [ "$cargo_major" -eq "$MIN_RUST_MAJOR" ] && [ "$cargo_minor" -lt "$MIN_RUST_MINOR" ];
+        [ "$cargo_major" -eq "$MIN_RUST_MAJOR" ] && {
+            [ "$cargo_minor" -lt "$MIN_RUST_MINOR" ] || {
+                [ "$cargo_minor" -eq "$MIN_RUST_MINOR" ] && [ "$cargo_patch" -lt "$MIN_RUST_PATCH" ];
+            };
+        };
     }; then
         RUST_STATUS=upgrade-required
         return
@@ -278,7 +302,7 @@ validate_rust() {
     RUST_STATUS=passed
 }
 
-# 验证 Node.js 落在 Vite 基线的非连续范围内；低版本与 25.x 返回升级需求。
+# 验证 Node.js 达到连续最低下界；任何更高正式版本都直接通过。
 validate_node() {
     node_path=$1
     node_text=$("$node_path" --version 2>/dev/null) || fail 23 "Node.js 探测失败"
@@ -288,6 +312,14 @@ validate_node() {
         *.*.*) ;;
         *) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
     esac
+    node_parts=$(printf '%s\n' "$node_release" | awk -F. '{print NF ":" $1 ":" $2 ":" $3}')
+    case "$node_parts" in
+        3:[0-9]*:[0-9]*:[0-9]*) ;;
+        *) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
+    esac
+    case "$node_release" in
+        *[!0-9.]*) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
+    esac
     node_major=$(printf '%s\n' "$node_release" | awk -F. '{print $1}')
     node_minor=$(printf '%s\n' "$node_release" | awk -F. '{print $2}')
     node_patch=$(printf '%s\n' "$node_release" | awk -F. '{print $3}')
@@ -295,11 +327,11 @@ validate_node() {
         *[!0-9:]*|::*|*::|*::*:*) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
     esac
     node_compatible=0
-    if [ "$node_major" -eq 24 ] && {
-        [ "$node_minor" -gt 15 ] || { [ "$node_minor" -eq 15 ] && [ "$node_patch" -ge 0 ]; };
+    if [ "$node_major" -gt 24 ] || {
+        [ "$node_major" -eq 24 ] && {
+            [ "$node_minor" -gt 21 ] || { [ "$node_minor" -eq 21 ] && [ "$node_patch" -ge 0 ]; };
+        };
     }; then
-        node_compatible=1
-    elif [ "$node_major" -ge 26 ]; then
         node_compatible=1
     fi
     NODE_VERSION=$node_text
@@ -319,6 +351,11 @@ validate_npm() {
         *.*.*) ;;
         *) fail 23 "无法识别 npm 发布版本：$npm_text" ;;
     esac
+    npm_parts=$(printf '%s\n' "$npm_text" | awk -F. '{print NF ":" $1 ":" $2 ":" $3}')
+    case "$npm_parts" in
+        3:[0-9]*:[0-9]*:[0-9]*) ;;
+        *) fail 23 "无法识别 npm 发布版本：$npm_text" ;;
+    esac
     NPM_VERSION=$npm_text
 }
 
@@ -331,6 +368,14 @@ validate_pnpm() {
         *.*.*) ;;
         *) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
     esac
+    pnpm_parts=$(printf '%s\n' "$pnpm_text" | awk -F. '{print NF ":" $1 ":" $2 ":" $3}')
+    case "$pnpm_parts" in
+        3:[0-9]*:[0-9]*:[0-9]*) ;;
+        *) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
+    esac
+    case "$pnpm_text" in
+        *[!0-9.]*) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
+    esac
     pnpm_major=$(printf '%s\n' "$pnpm_text" | awk -F. '{print $1}')
     pnpm_minor=$(printf '%s\n' "$pnpm_text" | awk -F. '{print $2}')
     pnpm_patch=$(printf '%s\n' "$pnpm_text" | awk -F. '{print $3}')
@@ -338,8 +383,10 @@ validate_pnpm() {
         *[!0-9:]*|::*|*::|*::*:*) fail 28 "无法识别 pnpm 发布版本：$pnpm_text" ;;
     esac
     PNPM_VERSION=$pnpm_text
-    if [ "$pnpm_major" -lt 11 ] || {
-        [ "$pnpm_major" -eq 11 ] && [ "$pnpm_minor" -lt 24 ];
+    if [ "$pnpm_major" -lt 12 ] || {
+        [ "$pnpm_major" -eq 12 ] && {
+            [ "$pnpm_minor" -lt 4 ] || { [ "$pnpm_minor" -eq 4 ] && [ "$pnpm_patch" -lt 1 ]; };
+        };
     }; then
         PNPM_STATUS=upgrade-required
         return
@@ -441,6 +488,33 @@ install_git() {
     GIT_CHANGED=$requested_change
 }
 
+# 识别 Linux libc；测试与 Rust/Node 安装共用同一结论，未知值停止而不猜测。
+detect_linux_libc() {
+    libc_failure_code=$1
+    libc_consumer=$2
+    detected_linux_libc=${AFH_TEST_LINUX_LIBC:-}
+    if [ -z "$detected_linux_libc" ]; then
+        if command -v getconf >/dev/null 2>&1 && getconf GNU_LIBC_VERSION >/dev/null 2>&1; then
+            detected_linux_libc=gnu
+        else
+            ldd_text=$(ldd --version 2>&1 || true)
+            case "$ldd_text" in
+                *musl*|*MUSL*) detected_linux_libc=musl ;;
+                *glibc*|*GLIBC*|*GNU*) detected_linux_libc=gnu ;;
+            esac
+        fi
+    fi
+    if [ -z "$detected_linux_libc" ]; then
+        for musl_loader in /lib/ld-musl-*.so.1 /usr/lib/ld-musl-*.so.1; do
+            if [ -e "$musl_loader" ]; then detected_linux_libc=musl; break; fi
+        done
+    fi
+    case "$detected_linux_libc" in
+        gnu|musl) ;;
+        *) fail "$libc_failure_code" "无法确定 $libc_consumer 所需的 Linux libc" ;;
+    esac
+}
+
 # 将 Unix 宿主映射到 Rust 官方 rustup-init target；Linux libc 无法确定时停止而不猜测。
 host_rustup_target() {
     if [ -n "${AFH_TEST_HOST_OS:-}" ]; then
@@ -462,24 +536,8 @@ host_rustup_target() {
             esac
             ;;
         Linux)
-            rust_libc=${AFH_TEST_RUST_LIBC:-}
-            if [ -z "$rust_libc" ]; then
-                if command -v getconf >/dev/null 2>&1 && getconf GNU_LIBC_VERSION >/dev/null 2>&1; then
-                    rust_libc=gnu
-                else
-                    ldd_text=$(ldd --version 2>&1 || true)
-                    case "$ldd_text" in
-                        *musl*|*MUSL*) rust_libc=musl ;;
-                        *glibc*|*GLIBC*|*GNU*) rust_libc=gnu ;;
-                    esac
-                fi
-            fi
-            if [ -z "$rust_libc" ]; then
-                for musl_loader in /lib/ld-musl-*.so.1 /usr/lib/ld-musl-*.so.1; do
-                    if [ -e "$musl_loader" ]; then rust_libc=musl; break; fi
-                done
-            fi
-            [ -n "$rust_libc" ] || fail 22 "无法确定 rustup 所需的 Linux libc"
+            detect_linux_libc 22 rustup
+            rust_libc=$detected_linux_libc
             case "$rust_host_arch" in
                 x86_64|amd64) rustup_target=x86_64-unknown-linux-$rust_libc ;;
                 arm64|aarch64) rustup_target=aarch64-unknown-linux-$rust_libc ;;
@@ -490,7 +548,7 @@ host_rustup_target() {
     esac
 }
 
-# 下载宿主匹配的官方 rustup-init，核对发布摘要后安装或升级 stable 并加入本次复探路径。
+# 下载宿主匹配的官方 rustup-init，核对发布摘要后安装到标准当前用户根；PATH 由本门禁在完整预检后统一持久化。
 install_rust() {
     requested_change=$1
     command -v curl >/dev/null 2>&1 || fail 22 "安装 Rust 需要 curl"
@@ -502,7 +560,7 @@ install_rust() {
     checksum_url=$release_base/rustup-init.sha256
     installer_path=$TEMP_DIR/rustup-init
     checksum_path=$TEMP_DIR/rustup-init.sha256
-    printf '正在从 %s 安装或升级 Rust stable 到 %s（PATH 将添加 %s/bin）。\n' "$release_base" "$MANAGED_RUSTUP_HOME" "$MANAGED_CARGO_HOME" >&2
+    printf '正在从 %s 安装或升级 Rust stable 到标准当前用户位置；PATH 将由门禁统一持久化。\n' "$release_base" >&2
     download "$installer_url" "$installer_path" || fail 22 "Rust 安装器下载失败"
     download "$checksum_url" "$checksum_path" || fail 22 "Rust 安装器校验和下载失败"
     expected_sum=$(awk '{ print $1; exit }' "$checksum_path")
@@ -510,14 +568,11 @@ install_rust() {
     actual_sum=$(sha256_file "$installer_path")
     [ "$actual_sum" = "$expected_sum" ] || fail 22 "rustup-init SHA-256 校验失败"
     chmod +x "$installer_path" || fail 22 "无法把 rustup-init 设为可执行文件"
-    prepare_managed_directory_path "$MANAGED_CARGO_HOME" "Rust Cargo 受管安装根"
-    prepare_managed_directory_path "$MANAGED_RUSTUP_HOME" "Rust rustup 受管安装根"
-    CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$installer_path" -y --profile minimal --default-toolchain stable --no-modify-path || fail 22 "Rust 安装失败"
+    prepare_managed_directory_path "$MANAGED_CARGO_HOME" "Rust Cargo 当前用户安装根"
+    prepare_managed_directory_path "$MANAGED_RUSTUP_HOME" "Rust rustup 当前用户安装根"
+    "$installer_path" -y --profile minimal --default-toolchain stable --no-modify-path || fail 22 "Rust 安装失败"
     CARGO_BIN_DIR=$MANAGED_CARGO_HOME/bin
     prepend_probe_path "$CARGO_BIN_DIR"
-    for rust_tool in rustup rustc cargo; do
-        link_user_tool "$CARGO_BIN_DIR/$rust_tool" "$rust_tool" "$MANAGED_CARGO_HOME"
-    done
     RUST_CHANGED=$requested_change
     cleanup
     TEMP_DIR=
@@ -537,12 +592,23 @@ host_node_tuple() {
     fi
     case "$host_os" in
         Darwin) node_platform=darwin ;;
-        Linux) node_platform=linux ;;
+        Linux)
+            node_platform=linux
+            detect_linux_libc 26 Node.js
+            ;;
         *) fail 23 "Node.js 不支持此 Unix 操作系统：$host_os" ;;
     esac
     case "$host_arch" in
-        x86_64|amd64) node_arch=x64 ;;
-        arm64|aarch64) node_arch=arm64 ;;
+        x86_64|amd64)
+            node_arch=x64
+            [ "$host_os" != Linux ] || [ "$detected_linux_libc" != musl ] || node_arch=x64-musl
+            ;;
+        arm64|aarch64)
+            if [ "$host_os" = Linux ] && [ "$detected_linux_libc" = musl ]; then
+                fail 26 "Node.js $NODE_REQUIREMENT 没有官方 Linux arm64 musl 制品"
+            fi
+            node_arch=arm64
+            ;;
         *) fail 23 "Node.js 不支持此 CPU 架构：$host_arch" ;;
     esac
 }
@@ -559,7 +625,7 @@ sha256_file() {
     fi
 }
 
-# 从官方倒序索引选择当前最新满足门禁的稳定版，用于安装或升级。
+# 从官方倒序索引选择当前最高 LTS 的最新补丁，用于安装或升级。
 install_node() {
     requested_change=$1
     command -v curl >/dev/null 2>&1 || fail 26 "安装 Node.js 需要 curl"
@@ -570,20 +636,33 @@ install_node() {
     index_path=$TEMP_DIR/index.tab
     download "$node_dist_base/index.tab" "$index_path" || fail 26 "Node.js 发布版本索引下载失败"
     node_version=$(awk -F '\t' '
-        NR > 1 && $1 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ {
+        NR > 1 && $1 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ && $10 != "" && $10 != "-" {
             raw = substr($1, 2)
             split(raw, parts, ".")
-            if ((parts[1] == 24 && parts[2] >= 15) || parts[1] >= 26) {
-                print $1
-                exit
+            if (parts[1] > 24 ||
+                (parts[1] == 24 && (parts[2] > 21 || (parts[2] == 21 && parts[3] >= 0)))) {
+                if (!found || parts[1] > best_major ||
+                    (parts[1] == best_major && (parts[2] > best_minor ||
+                    (parts[2] == best_minor && parts[3] > best_patch)))) {
+                    found = 1
+                    best_major = parts[1]
+                    best_minor = parts[2]
+                    best_patch = parts[3]
+                    best_version = $1
+                }
             }
         }
+        END { if (found) print best_version }
     ' "$index_path")
-    [ -n "$node_version" ] || fail 26 "Node.js 发布版本索引中没有满足 $NODE_REQUIREMENT 的稳定版"
+    [ -n "$node_version" ] || fail 26 "Node.js 发布版本索引中没有满足 $NODE_REQUIREMENT 的 LTS 稳定版"
     archive_name=node-$node_version-$node_platform-$node_arch.tar.gz
     archive_path=$TEMP_DIR/$archive_name
     sums_path=$TEMP_DIR/SHASUMS256.txt
     release_base=$node_dist_base/$node_version
+    install_dir=$NODE_HOME/$node_version
+    if [ -e "$install_dir" ] || [ -L "$install_dir" ]; then
+        validate_existing_node_version_root "$install_dir"
+    fi
     download "$release_base/SHASUMS256.txt" "$sums_path" || fail 26 "Node.js 校验和下载失败"
     expected_sum=$(awk -v name="$archive_name" '$2 == name { print $1; exit }' "$sums_path")
     [ -n "$expected_sum" ] || fail 26 "Node.js 校验和列表不包含 $archive_name"
@@ -594,18 +673,12 @@ install_node() {
         '# managed by agent-first-harness development environment gate' \
         "node.version=$node_version" \
         "node.archive.sha256=$expected_sum")
-    install_dir=$NODE_HOME/$node_version
     extracted_dir=$TEMP_DIR/node-$node_version-$node_platform-$node_arch
-    if [ -e "$install_dir" ]; then
-        validate_managed_directory_path "$install_dir" "Node.js 版本目录"
-        validate_managed_file_shape "$install_dir/.agent-first-harness-managed" "Node.js 版本所有权标记"
-        [ -f "$install_dir/.agent-first-harness-managed" ] || fail 26 "Node.js 目标已存在但缺少受管所有权标记：$install_dir"
+    if [ -e "$install_dir" ] || [ -L "$install_dir" ]; then
+        validate_existing_node_version_root "$install_dir"
         [ "$(cat "$install_dir/.agent-first-harness-managed")" = "$node_marker" ] || fail 26 "Node.js 目标受管标记与已校验官方归档不一致：$install_dir"
-        [ -x "$install_dir/bin/node" ] && [ -x "$install_dir/bin/npm" ] || fail 26 "Node.js 目标已存在但不可用：$install_dir"
-        installed_node_version=$("$install_dir/bin/node" --version 2>/dev/null) || fail 26 "Node.js 目标版本探测失败：$install_dir"
-        [ "$installed_node_version" = "$node_version" ] || fail 26 "Node.js 目标版本与已选择稳定版不一致：期望 $node_version，实际 $installed_node_version"
     else
-        printf '正在安装或升级到最新满足门禁的稳定 Node.js %s，来源为 %s，目标为用户级目录。\n' "$node_version" "$release_base" >&2
+        printf '正在安装或升级到当前最高 LTS 的最新 Node.js %s，来源为 %s，目标为标准用户级目录。\n' "$node_version" "$release_base" >&2
         download "$release_base/$archive_name" "$archive_path" || fail 26 "Node.js 归档下载失败"
         actual_sum=$(sha256_file "$archive_path")
         [ "$actual_sum" = "$expected_sum" ] || fail 26 "Node.js SHA-256 校验失败"
@@ -614,7 +687,7 @@ install_node() {
         [ -x "$extracted_dir/bin/node" ] || fail 26 "Node.js 归档不包含预期可执行文件"
         [ -x "$extracted_dir/bin/npm" ] || fail 26 "Node.js 归档不包含预期 npm 可执行文件"
         extracted_node_version=$("$extracted_dir/bin/node" --version 2>/dev/null) || fail 26 "Node.js 归档版本探测失败"
-        [ "$extracted_node_version" = "$node_version" ] || fail 26 "Node.js 归档版本与已选择稳定版不一致：期望 $node_version，实际 $extracted_node_version"
+        [ "$extracted_node_version" = "$node_version" ] || fail 26 "Node.js 归档版本与已选择稳定版不一致：期望 ${node_version}，实际 $extracted_node_version"
         mv "$extracted_dir" "$install_dir" || fail 26 "无法完成 Node.js 安装"
         printf '%s\n' "$node_marker" > "$install_dir/.agent-first-harness-managed" || fail 26 "无法写入 Node.js 版本所有权标记"
     fi
@@ -638,15 +711,19 @@ install_pnpm() {
     requested_change=$1
     npm_path=$(find_tool npm 2>/dev/null || true)
     [ -n "$npm_path" ] || fail 28 "为 GUI 开发安装 pnpm 需要 npm"
-    prepare_managed_directory_path "$PNPM_HOME" "pnpm 受管安装根"
-    printf '正在从官方 npm 软件包仓库安装或升级 pnpm %s 到用户级目录。\n' "$PNPM_INSTALL_REQUIREMENT" >&2
+    prepare_managed_directory_path "$PNPM_HOME" "npm 当前用户全局前缀"
+    prepare_managed_directory_path "$PNPM_HOME/lib/node_modules" "npm 当前用户全局包目录"
+    validate_managed_directory_path "$PNPM_HOME/lib/node_modules/pnpm" "pnpm 当前用户全局包目标"
+    printf '正在从官方 npm 软件包仓库全局安装或升级 pnpm %s 到标准当前用户前缀。\n' "$PNPM_INSTALL_REQUIREMENT" >&2
     PATH=$PROBE_PATH${PATH:+:$PATH} "$npm_path" install --global --prefix "$PNPM_HOME" "$PNPM_INSTALL_REQUIREMENT" --registry "$PNPM_REGISTRY" --ignore-scripts || fail 28 "pnpm 安装失败"
     PNPM_BIN_DIR=$PNPM_HOME/bin
-    prepend_probe_path "$PNPM_BIN_DIR"
-    link_user_tool "$PNPM_BIN_DIR/pnpm" pnpm "$PNPM_HOME"
-    if [ -x "$PNPM_BIN_DIR/pnpx" ] && [ ! -d "$PNPM_BIN_DIR/pnpx" ]; then
-        link_user_tool "$PNPM_BIN_DIR/pnpx" pnpx "$PNPM_HOME"
+    [ -x "$PNPM_BIN_DIR/pnpm" ] && [ ! -d "$PNPM_BIN_DIR/pnpm" ] || fail 28 "npm 未在标准当前用户前缀生成 pnpm 可执行文件"
+    validate_installed_user_tool_range "$PNPM_BIN_DIR/pnpm" pnpm "$PNPM_HOME"
+    if [ -e "$PNPM_BIN_DIR/pnpx" ] || [ -L "$PNPM_BIN_DIR/pnpx" ]; then
+        validate_installed_user_tool_range "$PNPM_BIN_DIR/pnpx" pnpx "$PNPM_HOME"
     fi
+    prepend_probe_path "$PNPM_BIN_DIR"
+    USER_BIN_DIR=$PNPM_BIN_DIR
     PNPM_CHANGED=$requested_change
 }
 
@@ -668,7 +745,7 @@ ensure_plain_directory() {
     if [ -e "$afh_directory_path" ]; then
         [ -d "$afh_directory_path" ] || fail 24 "$afh_directory_label 不是普通目录：$afh_directory_path"
     else
-        mkdir "$afh_directory_path" || fail 24 "无法创建$afh_directory_label：$afh_directory_path"
+        mkdir "$afh_directory_path" || fail 24 "无法创建${afh_directory_label}：$afh_directory_path"
     fi
     [ -d "$afh_directory_path" ] && [ ! -L "$afh_directory_path" ] || fail 24 "$afh_directory_label 在创建时发生变化：$afh_directory_path"
 }
@@ -742,7 +819,7 @@ prepare_managed_directory_path() {
     for afh_component in $afh_relative; do
         afh_directory_cursor=$afh_directory_cursor/$afh_component
         if [ ! -e "$afh_directory_cursor" ]; then
-            mkdir "$afh_directory_cursor" || fail 24 "无法创建$afh_directory_label：$afh_directory_cursor"
+            mkdir "$afh_directory_cursor" || fail 24 "无法创建${afh_directory_label}：$afh_directory_cursor"
         fi
         [ -d "$afh_directory_cursor" ] && [ ! -L "$afh_directory_cursor" ] || fail 24 "$afh_directory_label 在创建时发生变化：$afh_directory_cursor"
     done
@@ -750,12 +827,55 @@ prepare_managed_directory_path() {
     [ "$afh_glob_was_enabled" -eq 0 ] || set +f
 }
 
-# 配置文件写入前必须已经是普通文件；受管文件还必须带唯一首行 marker。
+# 标准当前用户 PATH 块只有这一份规范字节；预检与写入共用，避免 marker 与正文分离。
+profile_managed_block() {
+    printf '%s\n' \
+        '# agent-first-harness: standard current-user tool PATH' \
+        'user_path_result=' \
+        'user_cargo_home=${CARGO_HOME:-$HOME/.cargo}' \
+        'case "$user_cargo_home" in "$HOME"/*) case "$user_cargo_home" in *:*|*/../*|*/..|*/./*|*/.) user_cargo_home= ;; esac ;; *) user_cargo_home= ;; esac' \
+        'for user_path_entry in "${user_cargo_home:+$user_cargo_home/bin}" "$HOME/.local/bin"; do' \
+        '    [ -n "$user_path_entry" ] || continue' \
+        '    case "$user_path_entry" in /*) ;; *) continue ;; esac' \
+        '    case ":$user_path_result:" in *":$user_path_entry:"*) ;; *) [ -n "$user_path_result" ] && user_path_result=$user_path_result:$user_path_entry || user_path_result=$user_path_entry ;; esac' \
+        'done' \
+        'user_path_old_ifs=$IFS' \
+        'user_path_glob_was_enabled=0' \
+        'case $- in *f*) ;; *) set -f; user_path_glob_was_enabled=1 ;; esac' \
+        'IFS=:' \
+        'for user_path_entry in ${PATH-}; do' \
+        '    [ -n "$user_path_entry" ] || continue' \
+        '    case "$user_path_entry" in /*) ;; *) continue ;; esac' \
+        '    case ":$user_path_result:" in *":$user_path_entry:"*) ;; *) [ -n "$user_path_result" ] && user_path_result=$user_path_result:$user_path_entry || user_path_result=$user_path_entry ;; esac' \
+        'done' \
+        'IFS=$user_path_old_ifs' \
+        '[ "$user_path_glob_was_enabled" -eq 0 ] || set +f' \
+        'PATH=$user_path_result' \
+        'export PATH' \
+        'unset user_path_result user_path_entry user_cargo_home user_path_old_ifs user_path_glob_was_enabled' \
+        '# agent-first-harness: end standard current-user tool PATH'
+}
+
+# 配置文件写入前必须已经是普通文件；受管块必须唯一、正序且正文逐字匹配。
 validate_profile_file_shape() {
     afh_profile_path=$1
     [ ! -L "$afh_profile_path" ] || fail 24 "shell profile 不能是符号链接：$afh_profile_path"
     if [ -e "$afh_profile_path" ] && [ ! -f "$afh_profile_path" ]; then
         fail 24 "shell profile 不是普通文件：$afh_profile_path"
+    fi
+    [ -f "$afh_profile_path" ] || return 0
+    afh_path_marker='# agent-first-harness: standard current-user tool PATH'
+    afh_path_end_marker='# agent-first-harness: end standard current-user tool PATH'
+    afh_path_marker_count=$(grep -Fxc "$afh_path_marker" "$afh_profile_path" || true)
+    afh_path_end_marker_count=$(grep -Fxc "$afh_path_end_marker" "$afh_profile_path" || true)
+    [ "$afh_path_marker_count" -eq "$afh_path_end_marker_count" ] && [ "$afh_path_marker_count" -le 1 ] || \
+        fail 24 "shell profile 中的标准用户 PATH 管理块不完整或重复：$afh_profile_path"
+    if [ "$afh_path_marker_count" -eq 1 ]; then
+        afh_actual_block=$(awk -v start="$afh_path_marker" -v finish="$afh_path_end_marker" \
+            '$0 == start { capture = 1 } capture { print } capture && $0 == finish { exit }' "$afh_profile_path")
+        afh_expected_block=$(profile_managed_block)
+        [ "$afh_actual_block" = "$afh_expected_block" ] || \
+            fail 24 "shell profile 中的标准用户 PATH 管理块顺序或正文已损坏：$afh_profile_path"
     fi
 }
 
@@ -770,13 +890,11 @@ validate_managed_file_shape() {
     fi
 }
 
-# 验证受管用户目录的每个固定路径组件都是普通目录，禁止沿预置符号链接写出预期范围。
+# 验证标准 ~/.local/bin 的每个固定路径组件都是普通目录，禁止沿预置符号链接写出预期范围。
 validate_user_tool_directory_path() {
     afh_local_dir=${HOME:?必须设置 HOME}/.local
-    afh_share_dir=$afh_local_dir/share
-    afh_managed_dir=$afh_share_dir/agent-first-harness
-    afh_user_bin=$afh_managed_dir/bin
-    for afh_directory in "$afh_local_dir" "$afh_share_dir" "$afh_managed_dir" "$afh_user_bin"; do
+    afh_user_bin=$afh_local_dir/bin
+    for afh_directory in "$afh_local_dir" "$afh_user_bin"; do
         [ ! -L "$afh_directory" ] || fail 24 "用户级工具目录组件不能是符号链接：$afh_directory"
         if [ -e "$afh_directory" ] && [ ! -d "$afh_directory" ]; then
             fail 24 "用户级工具目录组件不是普通目录：$afh_directory"
@@ -784,10 +902,10 @@ validate_user_tool_directory_path() {
     done
 }
 
-# 逐级创建并复核稳定用户 bin；不用 mkdir -p 跨越未经验证的中间组件。
+# 逐级创建并复核标准用户 bin；不用 mkdir -p 跨越未经验证的中间组件。
 prepare_user_tool_directory() {
     validate_user_tool_directory_path
-    for afh_directory in "$afh_local_dir" "$afh_share_dir" "$afh_managed_dir" "$afh_user_bin"; do
+    for afh_directory in "$afh_local_dir" "$afh_user_bin"; do
         if [ ! -e "$afh_directory" ]; then
             mkdir "$afh_directory" || fail 24 "无法创建用户级工具目录组件：$afh_directory"
         fi
@@ -827,6 +945,98 @@ physical_existing_path() {
     physical_path_with_existing_parent "$afh_resolved_candidate"
 }
 
+# 把已经逐级验证过的用户安装根映射为物理路径；末端尚未创建时也不需要提前产生写入。
+physical_managed_path() {
+    afh_managed_candidate=$1
+    case "$afh_managed_candidate" in
+        "$USER_HOME"/*)
+            afh_managed_trusted_root=$USER_HOME
+            afh_managed_relative=${afh_managed_candidate#"$USER_HOME"/}
+            ;;
+        *)
+            [ "$TEST_MODE" = 1 ] || return 1
+            afh_managed_trusted_root=${USER_HOME%/*}
+            case "$afh_managed_candidate" in
+                "$afh_managed_trusted_root"/*)
+                    afh_managed_relative=${afh_managed_candidate#"$afh_managed_trusted_root"/}
+                    ;;
+                *) return 1 ;;
+            esac
+            ;;
+    esac
+    afh_managed_physical_root=$(CDPATH= cd -P "$afh_managed_trusted_root" 2>/dev/null && pwd -P) || return 1
+    printf '%s/%s\n' "$afh_managed_physical_root" "$afh_managed_relative"
+}
+
+# 在访问 Node.js 发布索引前逐项核对既有版本根；未知版本尚不能核对官方摘要，但所有权、
+# 目录形态、摘要格式、可执行文件范围与本地报告版本都必须已经自洽。
+validate_existing_node_version_root() {
+    afh_node_version_root=$1
+    afh_node_version_name=${afh_node_version_root##*/}
+    [ ! -L "$afh_node_version_root" ] && [ -d "$afh_node_version_root" ] || \
+        fail 24 "Node.js 版本根必须是普通目录：$afh_node_version_root"
+    case "$afh_node_version_name" in
+        v*) afh_node_version_release=${afh_node_version_name#v} ;;
+        *) fail 24 "Node.js 版本根名称不可识别：$afh_node_version_root" ;;
+    esac
+    case "$afh_node_version_release" in
+        *-*|*+*|*[!0-9.]*) fail 24 "Node.js 版本根名称不可识别：$afh_node_version_root" ;;
+        *.*.*) ;;
+        *) fail 24 "Node.js 版本根名称不可识别：$afh_node_version_root" ;;
+    esac
+    afh_node_version_parts=$(printf '%s\n' "$afh_node_version_release" | awk -F. '{print NF ":" $1 ":" $2 ":" $3}')
+    case "$afh_node_version_parts" in
+        3:[0-9]*:[0-9]*:[0-9]*) ;;
+        *) fail 24 "Node.js 版本根名称不可识别：$afh_node_version_root" ;;
+    esac
+
+    afh_node_marker=$afh_node_version_root/.agent-first-harness-managed
+    validate_managed_file_shape "$afh_node_marker" "Node.js 版本所有权标记"
+    [ -f "$afh_node_marker" ] || fail 24 "Node.js 版本根缺少受管所有权标记：$afh_node_version_root"
+    afh_node_marker_lines=$(awk 'END { print NR + 0 }' "$afh_node_marker")
+    [ "$afh_node_marker_lines" -eq 3 ] || fail 24 "Node.js 版本所有权标记格式无效：$afh_node_version_root"
+    afh_node_marker_version=$(sed -n '2p' "$afh_node_marker")
+    [ "$afh_node_marker_version" = "node.version=$afh_node_version_name" ] || \
+        fail 24 "Node.js 版本所有权标记与目录名称不一致：$afh_node_version_root"
+    afh_node_marker_sum_line=$(sed -n '3p' "$afh_node_marker")
+    case "$afh_node_marker_sum_line" in
+        node.archive.sha256=*) afh_node_marker_sum=${afh_node_marker_sum_line#node.archive.sha256=} ;;
+        *) fail 24 "Node.js 版本所有权标记摘要格式无效：$afh_node_version_root" ;;
+    esac
+    case "$afh_node_marker_sum" in
+        ''|*[!0-9A-Fa-f]*) fail 24 "Node.js 版本所有权标记摘要格式无效：$afh_node_version_root" ;;
+    esac
+    [ "${#afh_node_marker_sum}" -eq 64 ] || fail 24 "Node.js 版本所有权标记摘要格式无效：$afh_node_version_root"
+
+    afh_node_version_root_physical=$(physical_managed_path "$afh_node_version_root") || \
+        fail 24 "无法确认 Node.js 版本根：$afh_node_version_root"
+    for afh_node_tool in node npm; do
+        afh_node_tool_path=$afh_node_version_root/bin/$afh_node_tool
+        [ -x "$afh_node_tool_path" ] && [ ! -d "$afh_node_tool_path" ] || \
+            fail 24 "Node.js 版本根缺少可执行文件 $afh_node_tool：$afh_node_version_root"
+        afh_node_tool_physical=$(physical_existing_path "$afh_node_tool_path") || \
+            fail 24 "无法确认 Node.js 版本根中的 $afh_node_tool：$afh_node_version_root"
+        case "$afh_node_tool_physical" in
+            "$afh_node_version_root_physical"/*) ;;
+            *) fail 24 "Node.js 版本根中的 $afh_node_tool 逃逸受管目录：$afh_node_version_root" ;;
+        esac
+    done
+    afh_existing_node_version=$("$afh_node_version_root/bin/node" --version 2>/dev/null) || \
+        fail 24 "Node.js 版本根中的 node 无法执行：$afh_node_version_root"
+    [ "$afh_existing_node_version" = "$afh_node_version_name" ] || \
+        fail 24 "Node.js 版本根中的 node 版本与目录名称不一致：期望 ${afh_node_version_name}，实际 $afh_existing_node_version"
+}
+
+# NODE_HOME 是专用的版本根；在任何网络读取前枚举所有既有对象，拒绝未知、未标记或逃逸内容。
+preflight_existing_node_version_roots() {
+    validate_managed_directory_path "$NODE_HOME" "Node.js 受管安装根"
+    [ -d "$NODE_HOME" ] || return 0
+    for afh_existing_node_root in "$NODE_HOME"/* "$NODE_HOME"/.[!.]* "$NODE_HOME"/..?*; do
+        [ -e "$afh_existing_node_root" ] || [ -L "$afh_existing_node_root" ] || continue
+        validate_existing_node_version_root "$afh_existing_node_root"
+    done
+}
+
 # 在产生下载或安装副作用前确认同名稳定入口可由本门禁安全替换。
 validate_user_tool_destination() {
     tool_name=$1
@@ -837,7 +1047,7 @@ validate_user_tool_destination() {
         fail 24 "用户级工具目标已存在且不受门禁管理：$destination"
     fi
     [ -L "$destination" ] || return 0
-    managed_root_physical=$(CDPATH= cd -P "$managed_root" 2>/dev/null && pwd -P) || fail 24 "无法确认受管安装根：$managed_root"
+    managed_root_physical=$(physical_managed_path "$managed_root") || fail 24 "无法确认受管安装根：$managed_root"
     existing_target=$(readlink "$destination") || fail 24 "无法读取既有用户级工具链接：$destination"
     case "$existing_target" in
         /*) existing_target_path=$existing_target ;;
@@ -850,6 +1060,23 @@ validate_user_tool_destination() {
     esac
 }
 
+# npm 返回后再次解析包装器最终目标；安装前安全不代表安装器没有新建逃逸链接。
+validate_installed_user_tool_range() {
+    installed_tool_path=$1
+    installed_tool_name=$2
+    installed_managed_root=$3
+    [ -x "$installed_tool_path" ] && [ ! -d "$installed_tool_path" ] || \
+        fail 24 "npm 生成的 $installed_tool_name 包装器不可执行或不是普通工具：$installed_tool_path"
+    installed_root_physical=$(physical_managed_path "$installed_managed_root") || \
+        fail 24 "无法确认 npm 当前用户全局前缀：$installed_managed_root"
+    installed_tool_physical=$(physical_existing_path "$installed_tool_path") || \
+        fail 24 "无法确认 npm 生成的 $installed_tool_name 包装器最终目标：$installed_tool_path"
+    case "$installed_tool_physical" in
+        "$installed_root_physical"/*) ;;
+        *) fail 24 "npm 生成的 $installed_tool_name 包装器逃逸标准当前用户前缀：$installed_tool_path" ;;
+    esac
+}
+
 # 在门禁拥有的稳定用户 bin 中原子替换单个工具链接；既有链接也必须指向同一受管安装根。
 link_user_tool() {
     source_path=$1
@@ -859,7 +1086,7 @@ link_user_tool() {
     validate_user_tool_destination "$tool_name" "$managed_root"
     prepare_user_tool_directory
     user_bin=$USER_BIN_DIR
-    managed_root_physical=$(CDPATH= cd -P "$managed_root" 2>/dev/null && pwd -P) || fail 24 "无法确认受管安装根：$managed_root"
+    managed_root_physical=$(physical_managed_path "$managed_root") || fail 24 "无法确认受管安装根：$managed_root"
     source_physical=$(physical_existing_path "$source_path") || fail 24 "无法确认用户级工具源范围：$source_path"
     case "$source_physical" in
         "$managed_root_physical"/*) ;;
@@ -878,14 +1105,25 @@ link_user_tool() {
     LINK_TEMP_DIR=
 }
 
-# 以同目录临时文件更新 shell profile；提交前比较原始快照，避免覆盖并发写入。
-ensure_profile_source() {
+# 以同目录临时文件把标准当前用户目录直接加入 PATH；不创建 Harness 私有环境文件或变量。
+ensure_profile_path() {
     profile_path=$1
-    source_line='[ -r "$HOME/.config/agent-first-harness/env.sh" ] && . "$HOME/.config/agent-first-harness/env.sh"'
+    path_marker='# agent-first-harness: standard current-user tool PATH'
+    path_end_marker='# agent-first-harness: end standard current-user tool PATH'
+    legacy_source_line='[ -r "$HOME/.config/agent-first-harness/env.sh" ] && . "$HOME/.config/agent-first-harness/env.sh"'
     if [ -e "$profile_path" ] && { [ ! -f "$profile_path" ] || [ -L "$profile_path" ]; }; then
         fail 24 "shell profile 不是可安全更新的普通文件：$profile_path"
     fi
-    if [ -f "$profile_path" ] && grep -Fqx "$source_line" "$profile_path"; then
+    has_path_marker=0
+    has_path_end_marker=0
+    has_legacy_source=0
+    if [ -f "$profile_path" ]; then
+        grep -Fqx "$path_marker" "$profile_path" && has_path_marker=1
+        grep -Fqx "$path_end_marker" "$profile_path" && has_path_end_marker=1
+        grep -Fqx "$legacy_source_line" "$profile_path" && has_legacy_source=1
+    fi
+    [ "$has_path_marker" -eq "$has_path_end_marker" ] || fail 24 "shell profile 中的标准用户 PATH 管理块不完整：$profile_path"
+    if [ "$has_path_marker" -eq 1 ] && [ "$has_legacy_source" -eq 0 ]; then
         return
     fi
     profile_parent=${profile_path%/*}
@@ -901,8 +1139,17 @@ ensure_profile_source() {
         PROFILE_SNAPSHOT_FILE=$profile_snapshot
         cp -p "$profile_path" "$profile_snapshot" || fail 24 "无法快照 shell profile：$profile_path"
         cp -p "$profile_path" "$profile_temp" || fail 24 "无法复制 shell profile：$profile_path"
+        if [ "$has_legacy_source" -eq 1 ]; then
+            : > "$profile_temp" || fail 24 "无法准备旧环境入口迁移：$profile_path"
+            while IFS= read -r profile_line || [ -n "$profile_line" ]; do
+                [ "$profile_line" = "$legacy_source_line" ] || printf '%s\n' "$profile_line" >> "$profile_temp"
+            done < "$profile_snapshot"
+        fi
     fi
-    printf '\n%s\n' "$source_line" >> "$profile_temp" || fail 24 "无法准备 shell profile 更新：$profile_path"
+    if [ "$has_path_marker" -eq 0 ]; then
+        printf '\n' >> "$profile_temp" || fail 24 "无法准备 shell profile 更新：$profile_path"
+        profile_managed_block >> "$profile_temp" || fail 24 "无法准备 shell profile 更新：$profile_path"
+    fi
     [ -f "$profile_temp" ] && [ ! -L "$profile_temp" ] || fail 24 "shell profile 临时文件不安全：$profile_path"
     validate_profile_file_shape "$profile_path"
     if [ "$profile_existed" -eq 1 ]; then
@@ -916,7 +1163,10 @@ ensure_profile_source() {
         rm -f "$profile_snapshot" || fail 24 "无法清理 shell profile 快照：$profile_path"
         PROFILE_SNAPSHOT_FILE=
     fi
-    [ -f "$profile_path" ] && [ ! -L "$profile_path" ] && grep -Fqx "$source_line" "$profile_path" || fail 24 "shell profile 写入后复核失败：$profile_path"
+    [ -f "$profile_path" ] && [ ! -L "$profile_path" ] && \
+        grep -Fqx "$path_marker" "$profile_path" && grep -Fqx "$path_end_marker" "$profile_path" || \
+        fail 24 "shell profile 写入后复核失败：$profile_path"
+    ! grep -Fqx "$legacy_source_line" "$profile_path" || fail 24 "shell profile 仍引用旧的 Harness 私有环境文件：$profile_path"
 }
 
 # 只为可证明会加载所写用户配置的常见 shell 建立持久化；未知 shell 在任何安装前失败关闭。
@@ -930,35 +1180,262 @@ validate_user_login_shell() {
     esac
 }
 
+# 任何安装或持久配置写入前，先从不含瞬时探测目录的全新 login shell 复核所有工具。
+# passed 项必须路径与版本完全相同；待安装/升级项的当前探测与持久 PATH 也必须同时缺席或解析到同一路径。
+# 如果本轮将写入标准用户 PATH 块，还要先按写入后的前缀顺序复核，不得先安装再发现隐藏的同名工具。
+verify_persisted_passed_tools_before_write() {
+    preflight_git_path=
+    preflight_rustup_path=
+    preflight_rustc_path=
+    preflight_cargo_path=
+    preflight_node_path=
+    preflight_npm_path=
+    preflight_pnpm_path=
+    preflight_check_git_shadow=0
+    preflight_check_rust_shadow=0
+    preflight_check_node_shadow=0
+    preflight_check_pnpm_shadow=0
+
+    if [ "$GIT_STATUS" = passed ]; then
+        preflight_git_path=$git_path
+    else
+        preflight_check_git_shadow=1
+    fi
+    if [ "$RUST_STATUS" = passed ]; then
+        preflight_rustup_path=$rustup_path
+        preflight_rustc_path=$rustc_path
+        preflight_cargo_path=$cargo_path
+    else
+        preflight_check_rust_shadow=1
+    fi
+    if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
+        if [ "$NODE_STATUS" = passed ]; then
+            preflight_node_path=$node_path
+            preflight_npm_path=$npm_path
+        else
+            preflight_check_node_shadow=1
+        fi
+        if [ "$PNPM_STATUS" = passed ]; then
+            preflight_pnpm_path=$pnpm_path
+        else
+            preflight_check_pnpm_shadow=1
+        fi
+    fi
+
+    preflight_projected_path=
+    if { [ "$RUST_STATUS" != passed ] || {
+        [ "$FRONTEND_REQUIRED" -eq 1 ] && { [ "$NODE_STATUS" != passed ] || [ "$PNPM_STATUS" != passed ]; };
+    }; } && ! { [ "$TEST_MODE" = 1 ] && [ "${AFH_SKIP_PERSIST_PATH:-0}" = 1 ]; }; then
+        preflight_cargo_bin=$MANAGED_CARGO_HOME/bin
+        preflight_user_bin=$PNPM_HOME/bin
+        case "$LOGIN_SHELL_NAME" in
+            fish) preflight_projected_path=$preflight_user_bin:$preflight_cargo_bin ;;
+            *) preflight_projected_path=$preflight_cargo_bin:$preflight_user_bin ;;
+        esac
+    fi
+
+    FRESH_VERIFY_DIR=$(mktemp -d) || fail 24 "无法创建写入前新 shell 复探临时目录"
+    [ -d "$FRESH_VERIFY_DIR" ] && [ ! -L "$FRESH_VERIFY_DIR" ] || fail 24 "写入前新 shell 复探临时目录不安全"
+    preflight_verifier=$(mktemp "$FRESH_VERIFY_DIR/check.XXXXXX") || fail 24 "无法创建写入前新 shell 复探脚本"
+    preflight_launcher=$(mktemp "$FRESH_VERIFY_DIR/launch.XXXXXX") || fail 24 "无法创建写入前新 shell 复探启动器"
+    FRESH_VERIFY_FILE=$preflight_verifier
+    {
+        printf '%s\n' '#!/bin/sh'
+        printf '%s\n' 'set -eu'
+        printf '%s\n' 'if [ -n "${AFH_PROJECTED_PATH-}" ]; then PATH=$AFH_PROJECTED_PATH${PATH:+:$PATH}; export PATH; fi'
+        printf '%s\n' 'check_afh_preflight_tool() {'
+        printf '%s\n' '    afh_tool_name=$1'
+        printf '%s\n' '    afh_expected_path=$2'
+        printf '%s\n' '    afh_expected_version=$3'
+        printf '%s\n' '    afh_resolved=$(command -v "$afh_tool_name" 2>/dev/null) || { printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 51; }'
+        printf '%s\n' '    [ "$afh_resolved" = "$afh_expected_path" ] || { printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 52; }'
+        printf '%s\n' '    afh_actual_version=$("$afh_resolved" --version 2>/dev/null) || { printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 53; }'
+        printf '%s\n' '    [ "$afh_actual_version" = "$afh_expected_version" ] || { printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 54; }'
+        printf '%s\n' '    if [ "$afh_tool_name" = rustc ]; then'
+        printf '%s\n' '        afh_verbose=$("$afh_resolved" -vV 2>/dev/null) || { printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 55; }'
+        printf '%s\n' '        afh_release_tail=${afh_expected_version#rustc }'
+        printf '%s\n' '        afh_expected_release=${afh_release_tail%% *}'
+        printf '%s\n' "        afh_release_count=\$(printf '%s\\n' \"\$afh_verbose\" | awk -F': ' '\$1 == \"release\" { count++ } END { print count + 0 }')"
+        printf '%s\n' "        afh_host_count=\$(printf '%s\\n' \"\$afh_verbose\" | awk -F': ' '\$1 == \"host\" { count++ } END { print count + 0 }')"
+        printf '%s\n' "        afh_verbose_release=\$(printf '%s\\n' \"\$afh_verbose\" | awk -F': ' '\$1 == \"release\" { print \$2 }')"
+        printf '%s\n' "        afh_verbose_host=\$(printf '%s\\n' \"\$afh_verbose\" | awk -F': ' '\$1 == \"host\" { print \$2 }')"
+        printf '%s\n' '        [ "$afh_release_count" -eq 1 ] && [ "$afh_host_count" -eq 1 ] && [ "$afh_verbose_release" = "$afh_expected_release" ] && [ "$afh_verbose_host" = "$AFH_EXPECTED_RUST_HOST" ] || { printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 55; }'
+        printf '%s\n' '    fi'
+        printf '%s\n' '}'
+        printf '%s\n' 'check_afh_no_shell_shadow() {'
+        printf '%s\n' '    afh_tool_name=$1'
+        printf '%s\n' '    afh_current_path=$2'
+        printf '%s\n' '    if afh_resolved=$(command -v "$afh_tool_name" 2>/dev/null); then'
+        printf '%s\n' '        case "$afh_resolved" in /*) ;; *) printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 56 ;; esac'
+        printf '%s\n' '        [ -n "$afh_current_path" ] && [ "$afh_resolved" = "$afh_current_path" ] || { printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 57; }'
+        printf '%s\n' '    elif [ -n "$afh_current_path" ]; then'
+        printf '%s\n' '        printf "ERROR_TOOL=%s\n" "$afh_tool_name"; exit 58'
+        printf '%s\n' '    fi'
+        printf '%s\n' '}'
+        printf '%s\n' 'if [ -n "${AFH_EXPECTED_GIT_PATH-}" ]; then check_afh_preflight_tool git "$AFH_EXPECTED_GIT_PATH" "$AFH_EXPECTED_GIT"; elif [ "$AFH_CHECK_GIT_SHADOW" = 1 ]; then check_afh_no_shell_shadow git "$AFH_CURRENT_GIT_PATH"; fi'
+        printf '%s\n' 'if [ -n "${AFH_EXPECTED_RUSTUP_PATH-}" ]; then'
+        printf '%s\n' '    check_afh_preflight_tool rustup "$AFH_EXPECTED_RUSTUP_PATH" "$AFH_EXPECTED_RUSTUP"'
+        printf '%s\n' '    check_afh_preflight_tool rustc "$AFH_EXPECTED_RUSTC_PATH" "$AFH_EXPECTED_RUSTC"'
+        printf '%s\n' '    check_afh_preflight_tool cargo "$AFH_EXPECTED_CARGO_PATH" "$AFH_EXPECTED_CARGO"'
+        printf '%s\n' 'elif [ "$AFH_CHECK_RUST_SHADOW" = 1 ]; then'
+        printf '%s\n' '    check_afh_no_shell_shadow rustup "$AFH_CURRENT_RUSTUP_PATH"; check_afh_no_shell_shadow rustc "$AFH_CURRENT_RUSTC_PATH"; check_afh_no_shell_shadow cargo "$AFH_CURRENT_CARGO_PATH"'
+        printf '%s\n' 'fi'
+        printf '%s\n' 'if [ -n "${AFH_EXPECTED_NODE_PATH-}" ]; then'
+        printf '%s\n' '    check_afh_preflight_tool node "$AFH_EXPECTED_NODE_PATH" "$AFH_EXPECTED_NODE"'
+        printf '%s\n' '    check_afh_preflight_tool npm "$AFH_EXPECTED_NPM_PATH" "$AFH_EXPECTED_NPM"'
+        printf '%s\n' 'elif [ "$AFH_CHECK_NODE_SHADOW" = 1 ]; then'
+        printf '%s\n' '    check_afh_no_shell_shadow node "$AFH_CURRENT_NODE_PATH"; check_afh_no_shell_shadow npm "$AFH_CURRENT_NPM_PATH"'
+        printf '%s\n' 'fi'
+        printf '%s\n' 'if [ -n "${AFH_EXPECTED_PNPM_PATH-}" ]; then check_afh_preflight_tool pnpm "$AFH_EXPECTED_PNPM_PATH" "$AFH_EXPECTED_PNPM"; elif [ "$AFH_CHECK_PNPM_SHADOW" = 1 ]; then check_afh_no_shell_shadow pnpm "$AFH_CURRENT_PNPM_PATH"; fi'
+        printf '%s\n' 'printf "AFH_PREFLIGHT_PERSISTED=passed\n"'
+    } > "$preflight_verifier" || fail 24 "无法写入写入前新 shell 复探脚本"
+    chmod 700 "$preflight_verifier" || fail 24 "无法保护写入前新 shell 复探脚本"
+    {
+        printf '%s\n' '#!/bin/sh'
+        printf '%s\n' 'set -eu'
+        printf '%s\n' 'unset CARGO_HOME RUSTUP_HOME'
+        printf '%s\n' 'exec "$AFH_LOGIN_SHELL" -l -c "$AFH_LOGIN_COMMAND"'
+    } > "$preflight_launcher" || fail 24 "无法写入写入前新 shell 复探启动器"
+    chmod 700 "$preflight_launcher" || fail 24 "无法保护写入前新 shell 复探启动器"
+
+    preflight_login_command='"$AFH_PREFLIGHT_VERIFY"'
+    case "$LOGIN_SHELL_NAME" in
+        fish) ;;
+        *) preflight_login_command='. "$AFH_PREFLIGHT_VERIFY"' ;;
+    esac
+    preflight_failure=0
+    preflight_environment=$(
+        AFH_LOGIN_SHELL=$LOGIN_SHELL \
+        AFH_LOGIN_COMMAND=$preflight_login_command \
+        AFH_PREFLIGHT_VERIFY=$preflight_verifier \
+        AFH_EXPECTED_GIT_PATH=$preflight_git_path \
+        AFH_EXPECTED_RUSTUP_PATH=$preflight_rustup_path \
+        AFH_EXPECTED_RUSTC_PATH=$preflight_rustc_path \
+        AFH_EXPECTED_CARGO_PATH=$preflight_cargo_path \
+        AFH_EXPECTED_NODE_PATH=$preflight_node_path \
+        AFH_EXPECTED_NPM_PATH=$preflight_npm_path \
+        AFH_EXPECTED_PNPM_PATH=$preflight_pnpm_path \
+        AFH_CURRENT_GIT_PATH=$git_path \
+        AFH_CURRENT_RUSTUP_PATH=$rustup_path \
+        AFH_CURRENT_RUSTC_PATH=$rustc_path \
+        AFH_CURRENT_CARGO_PATH=$cargo_path \
+        AFH_CURRENT_NODE_PATH=${node_path-} \
+        AFH_CURRENT_NPM_PATH=${npm_path-} \
+        AFH_CURRENT_PNPM_PATH=${pnpm_path-} \
+        AFH_PROJECTED_PATH=$preflight_projected_path \
+        AFH_EXPECTED_GIT=$GIT_VERSION \
+        AFH_EXPECTED_RUSTUP=$RUSTUP_VERSION \
+        AFH_EXPECTED_RUSTC=$RUST_VERSION \
+        AFH_EXPECTED_CARGO=$CARGO_VERSION \
+        AFH_EXPECTED_RUST_HOST=$RUST_HOST \
+        AFH_EXPECTED_NODE=$NODE_VERSION \
+        AFH_EXPECTED_NPM=$NPM_VERSION \
+        AFH_EXPECTED_PNPM=$PNPM_VERSION \
+        AFH_CHECK_GIT_SHADOW=$preflight_check_git_shadow \
+        AFH_CHECK_RUST_SHADOW=$preflight_check_rust_shadow \
+        AFH_CHECK_NODE_SHADOW=$preflight_check_node_shadow \
+        AFH_CHECK_PNPM_SHADOW=$preflight_check_pnpm_shadow \
+        PATH=$FRESH_BASE_PATH \
+        "$preflight_launcher" 2>/dev/null
+    ) || preflight_failure=$?
+    preflight_success_count=$(printf '%s\n' "$preflight_environment" | awk -F= '$1 == "AFH_PREFLIGHT_PERSISTED" && $2 == "passed" { count++ } END { print count + 0 }')
+    if [ "$preflight_failure" -ne 0 ] || [ "$preflight_success_count" -ne 1 ]; then
+        preflight_failed_tool=$(printf '%s\n' "$preflight_environment" | awk -F= '$1 == "ERROR_TOOL" { print $2; exit }')
+        fail 24 "写入前新 shell 无法从持久 PATH 精确解析并执行既有工具 ${preflight_failed_tool:-unknown}（子进程退出码 ${preflight_failure}）"
+    fi
+    rm -f "$preflight_verifier" "$preflight_launcher" || fail 24 "无法清理写入前新 shell 复探脚本"
+    FRESH_VERIFY_FILE=
+    rmdir "$FRESH_VERIFY_DIR" || fail 24 "无法清理写入前新 shell 复探临时目录"
+    FRESH_VERIFY_DIR=
+}
+
+# 非默认 Rust 用户根必须能由全新 login shell 自己恢复；当前进程的一次性环境变量不能决定持久安装位置。
+validate_durable_rust_homes() {
+    default_cargo_home=$USER_HOME/.cargo
+    default_rustup_home=$USER_HOME/.rustup
+    if [ "$MANAGED_CARGO_HOME" = "$default_cargo_home" ] && [ "$MANAGED_RUSTUP_HOME" = "$default_rustup_home" ]; then
+        return
+    fi
+    [ "$TEST_MODE" = 1 ] && [ "${AFH_SKIP_PERSIST_PATH:-0}" = 1 ] && return
+
+    RUST_HOME_VERIFY_DIR=$(mktemp -d) || fail 24 "无法创建 Rust 用户根持久化复探临时目录"
+    [ -d "$RUST_HOME_VERIFY_DIR" ] && [ ! -L "$RUST_HOME_VERIFY_DIR" ] || fail 24 "Rust 用户根持久化复探临时目录不安全"
+    rust_home_verifier=$(mktemp "$RUST_HOME_VERIFY_DIR/check.XXXXXX") || fail 24 "无法创建 Rust 用户根持久化复探脚本"
+    rust_home_launcher=$(mktemp "$RUST_HOME_VERIFY_DIR/launch.XXXXXX") || fail 24 "无法创建 Rust 用户根持久化复探启动器"
+    RUST_HOME_VERIFY_FILE=$rust_home_verifier
+    {
+        printf '%s\n' '#!/bin/sh'
+        printf '%s\n' 'set -eu'
+        printf '%s\n' 'printf "AFH_CARGO_HOME=%s\\n" "${CARGO_HOME:-$HOME/.cargo}"'
+        printf '%s\n' 'printf "AFH_RUSTUP_HOME=%s\\n" "${RUSTUP_HOME:-$HOME/.rustup}"'
+    } > "$rust_home_verifier" || fail 24 "无法写入 Rust 用户根持久化复探脚本"
+    chmod 700 "$rust_home_verifier" || fail 24 "无法保护 Rust 用户根持久化复探脚本"
+    {
+        printf '%s\n' '#!/bin/sh'
+        printf '%s\n' 'set -eu'
+        printf '%s\n' 'unset CARGO_HOME RUSTUP_HOME'
+        printf '%s\n' 'exec "$AFH_LOGIN_SHELL" -l -c "$AFH_LOGIN_COMMAND"'
+    } > "$rust_home_launcher" || fail 24 "无法写入 Rust 用户根持久化复探启动器"
+    chmod 700 "$rust_home_launcher" || fail 24 "无法保护 Rust 用户根持久化复探启动器"
+
+    rust_home_failure=0
+    durable_rust_homes=$(
+        AFH_LOGIN_SHELL=$LOGIN_SHELL \
+        AFH_LOGIN_COMMAND='"$AFH_RUST_HOME_VERIFY"' \
+        AFH_RUST_HOME_VERIFY=$rust_home_verifier \
+        PATH=$FRESH_BASE_PATH \
+        "$rust_home_launcher" 2>/dev/null
+    ) || rust_home_failure=$?
+    if [ "$rust_home_failure" -ne 0 ]; then
+        fail 24 "全新 login shell 无法复探非默认 Rust 用户安装根（子进程退出码 ${rust_home_failure}）"
+    fi
+    durable_cargo_count=$(printf '%s\n' "$durable_rust_homes" | awk -F= '$1 == "AFH_CARGO_HOME" { count++ } END { print count + 0 }')
+    durable_rustup_count=$(printf '%s\n' "$durable_rust_homes" | awk -F= '$1 == "AFH_RUSTUP_HOME" { count++ } END { print count + 0 }')
+    durable_cargo_home=$(printf '%s\n' "$durable_rust_homes" | awk -F= '$1 == "AFH_CARGO_HOME" { sub(/^AFH_CARGO_HOME=/, ""); print; exit }')
+    durable_rustup_home=$(printf '%s\n' "$durable_rust_homes" | awk -F= '$1 == "AFH_RUSTUP_HOME" { sub(/^AFH_RUSTUP_HOME=/, ""); print; exit }')
+    [ "$durable_cargo_count" -eq 1 ] && [ "$durable_rustup_count" -eq 1 ] && \
+        [ "$durable_cargo_home" = "$MANAGED_CARGO_HOME" ] && \
+        [ "$durable_rustup_home" = "$MANAGED_RUSTUP_HOME" ] || \
+        fail 24 "非默认 CARGO_HOME/RUSTUP_HOME 必须由用户级 login shell 持久恢复，不能只存在于当前进程"
+
+    rm -f "$rust_home_verifier" "$rust_home_launcher" || fail 24 "无法清理 Rust 用户根持久化复探脚本"
+    RUST_HOME_VERIFY_FILE=
+    rmdir "$RUST_HOME_VERIFY_DIR" || fail 24 "无法清理 Rust 用户根持久化复探临时目录"
+    RUST_HOME_VERIFY_DIR=
+}
+
 # 汇总所有将写入的安装根、profile、受管配置与稳定链接；任何冲突都在下载/安装前失败。
 preflight_user_installation() {
     validate_user_login_shell
-    validate_user_tool_directory_path
+    # 任一工具变化都会写入同时包含 Cargo bin 与 ~/.local/bin 的规范 PATH 块；
+    # 两个前缀必须作为一个集合在下载前验证，不能只检查本轮待安装工具所属的一侧。
+    if ! { [ "$TEST_MODE" = 1 ] && [ "${AFH_SKIP_PERSIST_PATH:-0}" = 1 ]; }; then
+        validate_managed_directory_path "$MANAGED_CARGO_HOME" "Rust Cargo 当前用户 PATH 根"
+        validate_user_tool_directory_path
+    fi
     if [ "$RUST_STATUS" != passed ]; then
-        validate_managed_directory_path "$MANAGED_CARGO_HOME" "Rust Cargo 受管安装根"
-        validate_managed_directory_path "$MANAGED_RUSTUP_HOME" "Rust rustup 受管安装根"
-        for afh_tool in rustup rustc cargo; do
-            validate_user_tool_destination "$afh_tool" "$MANAGED_CARGO_HOME"
-        done
+        validate_managed_directory_path "$MANAGED_CARGO_HOME" "Rust Cargo 当前用户安装根"
+        validate_managed_directory_path "$MANAGED_RUSTUP_HOME" "Rust rustup 当前用户安装根"
     fi
     if [ "$NODE_STATUS" != passed ] && [ "$NODE_STATUS" != not-required ]; then
-        validate_managed_directory_path "$NODE_HOME" "Node.js 受管安装根"
+        preflight_existing_node_version_roots
         for afh_tool in node npm npx corepack; do
             validate_user_tool_destination "$afh_tool" "$NODE_HOME"
         done
     fi
     if [ "$PNPM_STATUS" != passed ] && [ "$PNPM_STATUS" != not-required ]; then
-        validate_managed_directory_path "$PNPM_HOME" "pnpm 受管安装根"
+        validate_user_tool_directory_path
         for afh_tool in pnpm pnpx; do
             validate_user_tool_destination "$afh_tool" "$PNPM_HOME"
         done
+        validate_managed_directory_path "$PNPM_HOME" "npm 当前用户全局前缀"
+        validate_managed_directory_path "$PNPM_HOME/lib" "npm 当前用户全局 lib 目录"
+        validate_managed_directory_path "$PNPM_HOME/lib/node_modules" "npm 当前用户全局包目录"
+        validate_managed_directory_path "$PNPM_HOME/lib/node_modules/pnpm" "pnpm 当前用户全局包目标"
     fi
     [ "$TEST_MODE" = 1 ] && [ "${AFH_SKIP_PERSIST_PATH:-0}" = 1 ] && return
     command -v cp >/dev/null 2>&1 || fail 24 "原子维护 shell profile 需要 cp"
     command -v cmp >/dev/null 2>&1 || fail 24 "原子维护 shell profile 需要 cmp"
-    validate_managed_directory_path "$USER_HOME/.config" "用户级配置目录"
-    validate_managed_directory_path "$USER_HOME/.config/agent-first-harness" "用户级环境目录"
-    validate_managed_file_shape "$USER_HOME/.config/agent-first-harness/env.sh" "用户级环境文件"
     validate_profile_file_shape "$USER_HOME/.profile"
     case "$LOGIN_SHELL_NAME" in
         bash|bash.exe)
@@ -976,14 +1453,21 @@ preflight_user_installation() {
             validate_managed_file_shape "$USER_HOME/.config/fish/conf.d/agent-first-harness.fish" "fish 用户 PATH 配置"
             ;;
     esac
+    validate_durable_rust_homes
 }
 
-# fish 使用原生列表 PATH；写入等价的去空、去重配置，不让 fish 解释 POSIX env.sh。
+# fish 的层级目录先于任何下载或安装逐级建立并复核，后续配置提交不会因新用户缺少 ~/.config 而半途失败。
+prepare_user_configuration_directories() {
+    if [ "$LOGIN_SHELL_NAME" = fish ]; then
+        prepare_managed_directory_path "$USER_HOME/.config/fish/conf.d" "fish 用户配置目录"
+    fi
+}
+
+# fish 使用原生命令把标准当前用户工具目录加入 PATH，不创建私有环境变量。
 write_fish_path_config() {
     fish_root=${HOME:?必须设置 HOME}/.config/fish
     fish_config_dir=$fish_root/conf.d
-    ensure_plain_directory "$fish_root" "fish 用户配置目录"
-    ensure_plain_directory "$fish_config_dir" "fish 用户配置目录"
+    prepare_managed_directory_path "$fish_config_dir" "fish 用户配置目录"
     fish_file=$fish_config_dir/agent-first-harness.fish
     [ ! -e "$fish_file" ] || { [ -f "$fish_file" ] && [ ! -L "$fish_file" ]; } || fail 24 "fish 用户 PATH 配置不是普通文件：$fish_file"
     fish_marker='# managed by agent-first-harness development environment gate'
@@ -995,88 +1479,61 @@ write_fish_path_config() {
     FISH_TEMP_FILE=$fish_temp
     {
         printf '%s\n' "$fish_marker"
-        printf '%s\n' 'set -l afh_user_tool_bin "$HOME/.local/share/agent-first-harness/bin"'
-        printf '%s\n' 'set -l afh_path_result $afh_user_tool_bin'
-        printf '%s\n' 'for afh_path_entry in $PATH'
-        printf '%s\n' '    test -n "$afh_path_entry"; or continue'
-        printf '%s\n' '    string match -qr "^/" -- "$afh_path_entry"; or continue'
-        printf '%s\n' '    contains -- "$afh_path_entry" $afh_path_result; or set -a afh_path_result "$afh_path_entry"'
+        printf '%s\n' 'set -l user_cargo_home "$HOME/.cargo"'
+        printf '%s\n' 'if set -q CARGO_HOME'
+        printf '%s\n' '    set user_cargo_home "$CARGO_HOME"'
         printf '%s\n' 'end'
-        printf '%s\n' 'set -gx PATH $afh_path_result'
+        printf '%s\n' 'set -l user_cargo_safe 1'
+        printf '%s\n' 'if not string match -q -- "$HOME/*" "$user_cargo_home"'
+        printf '%s\n' '    set user_cargo_safe 0'
+        printf '%s\n' 'end'
+        printf '%s\n' 'for user_cargo_unsafe_pattern in "*:*" "*/../*" "*/.." "*/./*" "*/."'
+        printf '%s\n' '    if string match -q -- "$user_cargo_unsafe_pattern" "$user_cargo_home"'
+        printf '%s\n' '        set user_cargo_safe 0'
+        printf '%s\n' '    end'
+        printf '%s\n' 'end'
+        printf '%s\n' 'if test "$user_cargo_safe" -eq 1; and test "$user_cargo_home/bin" != "$HOME/.local/bin"'
+        printf '%s\n' '    fish_add_path --path "$user_cargo_home/bin"'
+        printf '%s\n' 'end'
+        printf '%s\n' 'fish_add_path --path "$HOME/.local/bin"'
+        printf '%s\n' 'set -e user_cargo_home user_cargo_safe user_cargo_unsafe_pattern'
     } > "$fish_temp" || fail 24 "无法写入 fish 用户 PATH 配置"
     [ -f "$fish_temp" ] && [ ! -L "$fish_temp" ] || fail 24 "fish 用户 PATH 临时文件不安全"
     mv -f "$fish_temp" "$fish_file" || fail 24 "无法提交 fish 用户 PATH 配置"
     FISH_TEMP_FILE=
 }
 
-# 有受管工具变化时持久化稳定用户级 PATH；任何工具变化后都由全新 login shell 锁定路径与版本复探。
+# 工具变化后直接持久化标准当前用户 PATH，并由全新 login shell 锁定路径与版本复探。
 persist_user_tool_path() {
     [ "$TEST_MODE" = 1 ] && [ "${AFH_SKIP_PERSIST_PATH:-0}" = 1 ] && return
     validate_user_login_shell
     managed_path_changed=0
     if [ "$RUST_CHANGED" != existing ] || [ "$NODE_CHANGED" != existing ] || [ "$PNPM_CHANGED" != existing ]; then
         managed_path_changed=1
-        [ -n "${USER_BIN_DIR:-}" ] || fail 24 "没有可持久化的用户级工具目录"
-        config_parent=${HOME:?必须设置 HOME}/.config
-        config_dir=$config_parent/agent-first-harness
-        ensure_plain_directory "$config_parent" "用户级配置目录"
-        ensure_plain_directory "$config_dir" "用户级环境目录"
-        env_file=$config_dir/env.sh
-        [ ! -e "$env_file" ] || { [ -f "$env_file" ] && [ ! -L "$env_file" ]; } || fail 24 "用户级环境文件不是普通文件：$env_file"
-        env_marker='# managed by agent-first-harness development environment gate'
-        if [ -f "$env_file" ] && [ "$(sed -n '1p' "$env_file")" != "$env_marker" ]; then
-            fail 24 "用户级环境文件已存在且不受门禁管理：$env_file"
-        fi
-        umask 077
-        env_temp=$(mktemp "$config_dir/.env.sh.tmp.XXXXXX") || fail 24 "无法创建用户级环境临时文件"
-        ENV_TEMP_FILE=$env_temp
-        {
-            printf '%s\n' "$env_marker"
-            printf '%s\n' 'afh_user_tool_bin="$HOME/.local/share/agent-first-harness/bin"'
-            printf '%s\n' 'afh_path_result="$afh_user_tool_bin"'
-            printf '%s\n' 'afh_old_ifs=$IFS'
-            printf '%s\n' 'afh_glob_was_enabled=0'
-            printf '%s\n' 'case $- in *f*) ;; *) set -f; afh_glob_was_enabled=1 ;; esac'
-            printf '%s\n' 'IFS=:'
-            printf '%s\n' 'for afh_path_entry in ${PATH-}; do'
-            printf '%s\n' '    [ -n "$afh_path_entry" ] || continue'
-            printf '%s\n' '    case "$afh_path_entry" in /*) ;; *) continue ;; esac'
-            printf '%s\n' '    [ "$afh_path_entry" = "$afh_user_tool_bin" ] && continue'
-            printf '%s\n' '    case ":$afh_path_result:" in *":$afh_path_entry:"*) ;; *) afh_path_result=$afh_path_result:$afh_path_entry ;; esac'
-            printf '%s\n' 'done'
-            printf '%s\n' 'IFS=$afh_old_ifs'
-            printf '%s\n' '[ "$afh_glob_was_enabled" -eq 0 ] || set +f'
-            printf '%s\n' 'PATH=$afh_path_result'
-            printf '%s\n' 'export PATH'
-            printf '%s\n' 'unset afh_user_tool_bin afh_path_result afh_path_entry afh_old_ifs afh_glob_was_enabled'
-        } > "$env_temp" || fail 24 "无法写入用户级环境文件"
-        [ -f "$env_temp" ] && [ ! -L "$env_temp" ] || fail 24 "用户级环境临时文件不安全"
-        mv -f "$env_temp" "$env_file" || fail 24 "无法提交用户级环境文件"
-        ENV_TEMP_FILE=
-
-        ensure_profile_source "$HOME/.profile"
+        ensure_profile_path "$HOME/.profile"
         case "$LOGIN_SHELL_NAME" in
             bash|bash.exe)
-                ensure_profile_source "$HOME/.bashrc"
+                ensure_profile_path "$HOME/.bashrc"
                 if [ -f "$HOME/.bash_profile" ]; then
-                    ensure_profile_source "$HOME/.bash_profile"
+                    ensure_profile_path "$HOME/.bash_profile"
                 elif [ -f "$HOME/.bash_login" ]; then
-                    ensure_profile_source "$HOME/.bash_login"
+                    ensure_profile_path "$HOME/.bash_login"
                 fi
                 ;;
             zsh)
-                ensure_profile_source "$HOME/.zprofile"
-                ensure_profile_source "$HOME/.zshrc"
+                ensure_profile_path "$HOME/.zprofile"
+                ensure_profile_path "$HOME/.zshrc"
                 ;;
             fish)
                 write_fish_path_config
                 ;;
         esac
-        prepend_probe_path "$USER_BIN_DIR"
+        [ -z "${USER_BIN_DIR:-}" ] || prepend_probe_path "$USER_BIN_DIR"
     fi
     FRESH_VERIFY_DIR=$(mktemp -d) || fail 24 "无法创建新 shell 工具复探临时目录"
     [ -d "$FRESH_VERIFY_DIR" ] && [ ! -L "$FRESH_VERIFY_DIR" ] || fail 24 "新 shell 工具复探临时目录不安全"
     fresh_verifier=$(mktemp "$FRESH_VERIFY_DIR/check.XXXXXX") || fail 24 "无法创建新 shell 工具复探脚本"
+    fresh_launcher=$(mktemp "$FRESH_VERIFY_DIR/launch.XXXXXX") || fail 24 "无法创建新 shell 工具复探启动器"
     FRESH_VERIFY_FILE=$fresh_verifier
     {
         printf '%s\n' '#!/bin/sh'
@@ -1110,6 +1567,13 @@ persist_user_tool_path() {
         printf '%s\n' 'printf "PATH=%s\\n" "$PATH"'
     } > "$fresh_verifier" || fail 24 "无法创建新 shell 工具复探脚本"
     chmod 700 "$fresh_verifier" || fail 24 "无法保护新 shell 工具复探脚本"
+    {
+        printf '%s\n' '#!/bin/sh'
+        printf '%s\n' 'set -eu'
+        printf '%s\n' 'unset CARGO_HOME RUSTUP_HOME'
+        printf '%s\n' 'exec "$AFH_LOGIN_SHELL" -l -c "$AFH_LOGIN_COMMAND"'
+    } > "$fresh_launcher" || fail 24 "无法创建新 shell 工具复探启动器"
+    chmod 700 "$fresh_launcher" || fail 24 "无法保护新 shell 工具复探启动器"
     expected_git_path=$git_path
     expected_rustup_path=$rustup_path
     expected_rustc_path=$rustc_path
@@ -1117,11 +1581,6 @@ persist_user_tool_path() {
     expected_node_path=
     expected_npm_path=
     expected_pnpm_path=
-    if [ "$RUST_CHANGED" != existing ]; then
-        expected_rustup_path=$USER_BIN_DIR/rustup
-        expected_rustc_path=$USER_BIN_DIR/rustc
-        expected_cargo_path=$USER_BIN_DIR/cargo
-    fi
     if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
         expected_node_path=$node_path
         expected_npm_path=$npm_path
@@ -1132,6 +1591,8 @@ persist_user_tool_path() {
     fi
     fresh_failure=0
     persisted_environment=$(
+        AFH_LOGIN_SHELL=$LOGIN_SHELL \
+        AFH_LOGIN_COMMAND='"$AFH_FRESH_VERIFY"' \
         AFH_FRESH_VERIFY=$fresh_verifier \
         AFH_EXPECTED_GIT_PATH=$expected_git_path \
         AFH_EXPECTED_RUSTUP_PATH=$expected_rustup_path \
@@ -1148,27 +1609,33 @@ persist_user_tool_path() {
         AFH_EXPECTED_NODE=$NODE_VERSION \
         AFH_EXPECTED_NPM=$NPM_VERSION \
         AFH_EXPECTED_PNPM=$PNPM_VERSION \
-        CARGO_HOME=$MANAGED_CARGO_HOME \
-        RUSTUP_HOME=$MANAGED_RUSTUP_HOME \
-        PATH=$BASE_SESSION_PATH \
-        "$LOGIN_SHELL" -l -c '"$AFH_FRESH_VERIFY"' 2>/dev/null
+        PATH=$FRESH_BASE_PATH \
+        "$fresh_launcher" 2>/dev/null
     ) || fresh_failure=$?
     if [ "$fresh_failure" -ne 0 ]; then
         rm -f "$fresh_verifier"
         FRESH_VERIFY_FILE=
         fresh_failed_tool=$(printf '%s\n' "$persisted_environment" | awk -F= '$1 == "ERROR_TOOL" { print $2; exit }')
-        fail 24 "新 shell 无法从持久 PATH 解析并执行同一受管工具 ${fresh_failed_tool:-unknown}（子进程退出码 $fresh_failure）"
+        fail 24 "新 shell 无法从持久 PATH 解析并执行同一受管工具 ${fresh_failed_tool:-unknown}（子进程退出码 ${fresh_failure}）"
     fi
-    rm -f "$fresh_verifier" || fail 24 "无法清理新 shell 工具复探脚本"
+    rm -f "$fresh_verifier" "$fresh_launcher" || fail 24 "无法清理新 shell 工具复探脚本"
     FRESH_VERIFY_FILE=
     rmdir "$FRESH_VERIFY_DIR" || fail 24 "无法清理新 shell 工具复探临时目录"
     FRESH_VERIFY_DIR=
     persisted_probe=$(printf '%s\n' "$persisted_environment" | awk -F= '$1 == "PATH" { sub(/^PATH=/, ""); print; exit }')
     if [ "$managed_path_changed" -eq 1 ]; then
-        case ":$persisted_probe:" in
-            *":$USER_BIN_DIR:"*) ;;
-            *) fail 24 "用户级 PATH 写入后无法由新 shell 读取" ;;
-        esac
+        if [ "$RUST_CHANGED" != existing ]; then
+            case ":$persisted_probe:" in
+                *":$CARGO_BIN_DIR:"*) ;;
+                *) fail 24 "Rust 当前用户 bin 写入后无法由新 shell 读取" ;;
+            esac
+        fi
+        if [ "$NODE_CHANGED" != existing ] || [ "$PNPM_CHANGED" != existing ]; then
+            case ":$persisted_probe:" in
+                *":$USER_BIN_DIR:"*) ;;
+                *) fail 24 "标准 ~/.local/bin 写入后无法由新 shell 读取" ;;
+            esac
+        fi
     fi
     [ "$(sanitize_path "$persisted_probe")" = "$persisted_probe" ] || fail 24 "新 shell 的用户级 PATH 仍包含空段或重复项"
     FRESH_SHELL_STATUS=passed
@@ -1243,13 +1710,18 @@ if [ "$MODE" = check ]; then
     exit 0
 fi
 
-# 任何安装都先验证可执行登录 shell；受管用户级工具还要在下载前预检全部持久化目标。
+# 受管用户级工具先完成全部只读目标预检，再从真实持久 login shell 精确复核本轮不变工具；
+# 通过后才允许为 fish 新用户安全准备配置目录，瞬时 AFH_PREREQ_PATH 不得决定任何持久写入。
 if [ "$RUST_STATUS" != passed ] || {
     [ "$FRONTEND_REQUIRED" -eq 1 ] && { [ "$NODE_STATUS" != passed ] || [ "$PNPM_STATUS" != passed ]; };
 }; then
     preflight_user_installation
+    verify_persisted_passed_tools_before_write
+    prepare_user_configuration_directories
 elif [ "$GIT_STATUS" != passed ]; then
     validate_user_login_shell
+    validate_durable_rust_homes
+    verify_persisted_passed_tools_before_write
 fi
 
 if [ "$GIT_STATUS" != passed ]; then
@@ -1259,7 +1731,7 @@ if [ "$GIT_STATUS" != passed ]; then
     git_path=$(find_tool git 2>/dev/null || true)
     [ -n "$git_path" ] || fail 29 "Git 安装完成后仍无法调用 git 可执行文件"
     validate_git "$git_path"
-    [ "$GIT_STATUS" = passed ] || fail 29 "Git 安装或升级后仍低于门禁 $GIT_REQUIREMENT：$GIT_VERSION"
+    [ "$GIT_STATUS" = passed ] || fail 29 "Git 安装或升级后仍低于门禁 ${GIT_REQUIREMENT}：$GIT_VERSION"
 fi
 
 if [ "$RUST_STATUS" != passed ]; then
@@ -1271,7 +1743,7 @@ if [ "$RUST_STATUS" != passed ]; then
     cargo_path=$(find_tool cargo 2>/dev/null || true)
     [ -n "$rustup_path" ] && [ -n "$rustc_path" ] && [ -n "$cargo_path" ] || fail 22 "Rust 安装完成后仍无法调用 rustup、rustc 和 cargo"
     validate_rust "$rustup_path" "$rustc_path" "$cargo_path"
-    [ "$RUST_STATUS" = passed ] || fail 22 "Rust 安装或升级后仍低于 MSRV $MIN_RUST_MAJOR.$MIN_RUST_MINOR.0：$RUST_VERSION"
+    [ "$RUST_STATUS" = passed ] || fail 22 "Rust 安装或升级后仍低于 MSRV $MIN_RUST_MAJOR.$MIN_RUST_MINOR.${MIN_RUST_PATCH}：$RUST_VERSION"
 fi
 
 if [ "$NODE_STATUS" != passed ] && [ "$NODE_STATUS" != not-required ]; then
@@ -1283,8 +1755,8 @@ if [ "$NODE_STATUS" != passed ] && [ "$NODE_STATUS" != not-required ]; then
     [ -n "$node_path" ] && [ -n "$npm_path" ] || fail 26 "Node.js 安装完成后仍无法调用 node 和 npm"
     validate_node "$node_path"
     validate_npm "$npm_path"
-    [ "$NODE_STATUS" = passed ] || fail 26 "Node.js 安装或升级后仍不满足门禁 $NODE_REQUIREMENT：$NODE_VERSION"
-    [ "$NODE_VERSION" = "$SELECTED_NODE_VERSION" ] || fail 26 "Node.js 安装或升级后的版本与已选择稳定版不一致：期望 $SELECTED_NODE_VERSION，实际 $NODE_VERSION"
+    [ "$NODE_STATUS" = passed ] || fail 26 "Node.js 安装或升级后仍不满足门禁 ${NODE_REQUIREMENT}：$NODE_VERSION"
+    [ "$NODE_VERSION" = "$SELECTED_NODE_VERSION" ] || fail 26 "Node.js 安装或升级后的版本与已选择稳定版不一致：期望 ${SELECTED_NODE_VERSION}，实际 $NODE_VERSION"
 fi
 
 if [ "$PNPM_STATUS" != passed ] && [ "$PNPM_STATUS" != not-required ]; then
@@ -1294,7 +1766,7 @@ if [ "$PNPM_STATUS" != passed ] && [ "$PNPM_STATUS" != not-required ]; then
     pnpm_path=$(find_tool pnpm 2>/dev/null || true)
     [ -n "$pnpm_path" ] || fail 28 "pnpm 安装完成后仍无法调用 pnpm 可执行文件"
     validate_pnpm "$pnpm_path"
-    [ "$PNPM_STATUS" = passed ] || fail 28 "pnpm 安装或升级后仍低于门禁 $PNPM_REQUIREMENT：$PNPM_VERSION"
+    [ "$PNPM_STATUS" = passed ] || fail 28 "pnpm 安装或升级后仍低于门禁 ${PNPM_REQUIREMENT}：$PNPM_VERSION"
 fi
 
 if [ "$GIT_CHANGED" != existing ] || [ "$RUST_CHANGED" != existing ] || [ "$NODE_CHANGED" != existing ] || [ "$PNPM_CHANGED" != existing ]; then

@@ -1,4 +1,4 @@
 interface:
   display_name: "准备发布"
-  short_description: "提交发布上下文，推送主分支与版本 tag，再清理周期资源并构建候选"
-  default_prompt: "使用 $desktop-prepare-release 提交已复核范围和双语发布上下文，合并并推送默认主分支，推送版本 tag 后清理登记的分支与 Worktree，再从同一 clean HEAD 构建候选。"
+  short_description: "提交发布上下文并完成 Git 发布；仅终端下游继续构建候选"
+  default_prompt: "使用 $desktop-prepare-release 提交已复核范围和双语发布上下文，合并并推送默认主分支，推送版本 tag 后清理登记的分支与 Worktree；Harness 源至此完成 Git 发布，只有终端下游再从同一 clean HEAD 构建候选。"

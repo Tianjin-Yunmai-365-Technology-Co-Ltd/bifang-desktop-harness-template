@@ -257,6 +257,29 @@ class FileLineLimitTests(RepositoryFixture):
             ["Cargo.lock.notes"],
         )
 
+    def test_excludes_only_root_harness_generated_lock_path(self) -> None:
+        """Harness 来源锁仅在仓库根固定路径排除，同名普通文件仍受门禁。"""
+
+        payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
+        paths = (
+            ".harness/upstream-lock.json",
+            "docs/upstream-lock.json",
+            "nested/.harness/upstream-lock.json",
+        )
+        for relative in paths:
+            self.write(relative, payload)
+        self.track(*paths)
+
+        report = inspect_repository(self.root)
+
+        self.assertEqual(
+            report["excludedGeneratedFiles"], [".harness/upstream-lock.json"]
+        )
+        self.assertEqual(
+            [item["path"] for item in report["violations"]],
+            ["docs/upstream-lock.json", "nested/.harness/upstream-lock.json"],
+        )
+
     def test_invalid_utf8_text_candidate_fails_closed(self) -> None:
         """无 NUL 且无法解码的文件不能静默伪装为二进制。"""
 

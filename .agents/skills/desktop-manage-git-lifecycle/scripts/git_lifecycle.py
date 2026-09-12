@@ -404,10 +404,10 @@ def select_remote(
     if explicit is not None:
         if not valid_remote(explicit):
             raise LifecycleError("invalid-argument", "Remote name is invalid.")
-        if explicit not in remotes:
-            raise LifecycleError("remote-not-found", "Requested Git remote is not configured.")
         if stored is not None and stored != explicit:
             raise LifecycleError("remote-conflict", "Requested Git remote differs from lifecycle state.")
+        if explicit not in remotes:
+            raise LifecycleError("remote-not-found", "Requested Git remote is not configured.")
         return explicit
     if stored is not None:
         if stored not in remotes and required:

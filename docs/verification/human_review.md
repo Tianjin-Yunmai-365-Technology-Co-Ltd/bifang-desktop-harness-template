@@ -12,7 +12,7 @@
 - 自动证据：`python3 -B scripts/validate_harness.py` 与 `--release-review`（35 条历史遗留非阻断行数提示，无新增，无 TODO/FIXME/HACK）均通过；`scripts/` 目录 264 个测试与仓库内全部 41 个 Skill 各自独立测试套件通过（唯一失败为 `desktop-check-development-environment` 工具链探测测试，属本机环境缺口，与本次改动无关，改动前后表现一致）；Rust 中性脚手架资产在声明的最低工具链 1.95.0 上 `cargo fmt --check`、`cargo clippy --all-targets --all-features -- -D warnings`、`cargo test --workspace --all-targets --all-features --locked` 全部通过（7/7 测试）；`.harness/release-context.json` 经 `release_context.py check` 校验为 `valid`。
 - 里程碑结论：`Milestone accepted`。
 - 冒烟/E2E：Harness 根不是具体最终产品；产品启动冒烟和 Computer Use E2E 为 `Not applicable`，未运行且未记为通过。
-- 已知并接受的剩余风险：已有下游项目若仍使用历史四字段 Task 标题、Minor/Patch 曾等于 `100`，或 Agent Policy 仍为 `schema_version: 1/2`，会在下一次校验时立即失败关闭，需要项目负责人手动迁移，详见 `docs/adr/20260911_ADR.md` ADR-20260911-001/002 的"风险与验证"；`docs/TECH_DEBT.md` 中其余 `Open`/`Mitigated` 条目未受本次改动影响，状态不变。
+- 已知并接受的剩余风险：已有下游项目若仍使用历史四字段 Task 标题、Minor/Patch 曾等于 `100`，或 Agent Policy 仍为 `schema_version: 1/2`，会在下一次校验时立即失败关闭，需要项目负责人手动迁移，详见 `docs/adr/20260912_ADR.md` 中保留的 ADR-20260911-001/002“风险与验证”；`docs/TECH_DEBT.md` 中其余 `Open`/`Mitigated` 条目未受本次改动影响，状态不变。
 - 审批边界：本次明确授权提交、推送 `master` 到 `github` 远端，并创建、推送 `v202609111732-20260911` tag；不授权源码归档生成、签名、公证、上传、商店提交或其他真实渠道发布动作。
 - 推送证据：`$desktop-manage-git-lifecycle release --version 202609111732 --date 20260911 --remote github` 返回 `status: released`；推送后本地 `HEAD`、远端跟踪分支 `github/master` 与远端 tag `v202609111732-20260911` 三者精确指向同一提交 `41ba6eaaff0ece7df02451a997b541bf60b94814`。
 

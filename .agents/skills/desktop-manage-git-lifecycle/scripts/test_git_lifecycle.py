@@ -178,6 +178,38 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertTrue((common / "agent-first-harness" / "git-lifecycle.json").is_file())
         self.assertFalse((repository / ".harness" / "git-lifecycle.json").exists())
 
+    def test_registered_remote_precedes_origin_and_conflicting_override_fails(self) -> None:
+        """多远端仓库沿用已登记名称，并拒绝周期中途切换到 origin。"""
+
+        repository, bare = self.initialize_repository(remote=True)
+        assert bare is not None
+        self.git(repository, "remote", "add", "github", str(bare))
+        self.git(repository, "fetch", "github")
+        self.git(repository, "remote", "set-head", "github", "--auto")
+
+        started, _ = self.helper(
+            repository,
+            "start",
+            "--summary",
+            "stored-remote",
+            "--remote",
+            "github",
+        )
+        self.assertEqual(started["remote"], "github")
+        inspected, _ = self.helper(repository, "inspect")
+        self.assertEqual(inspected["remote"], "github")
+
+        rejected, _ = self.helper(repository, "inspect", "--remote", "origin", success=False)
+        self.assertEqual(rejected["code"], "remote-conflict")
+        rejected_missing, _ = self.helper(
+            repository,
+            "inspect",
+            "--remote",
+            "not-configured",
+            success=False,
+        )
+        self.assertEqual(rejected_missing["code"], "remote-conflict")
+
     def test_start_adds_numeric_suffix_for_local_name_collisions(self) -> None:
         """验证基础名和第二候选均碰撞时自动选取第三个唯一分支名。"""
         repository, _ = self.initialize_repository(remote=False)

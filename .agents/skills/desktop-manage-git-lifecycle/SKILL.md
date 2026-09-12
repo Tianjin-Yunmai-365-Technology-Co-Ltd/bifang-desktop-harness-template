@@ -1,6 +1,6 @@
 ---
 name: desktop-manage-git-lifecycle
-description: 在下游 Git 项目中开始开发分支、把登记分支合并并推送默认主分支，以及在发布标签成功后精确清理本发布周期登记的分支与 Worktree；开始修复或功能、用户要求推送或发布时使用。
+description: 在 Harness 源或终端下游 Git 项目中开始开发分支、把登记分支合并并推送默认主分支，以及在发布标签成功后精确清理本发布周期登记的分支与 Worktree；开始修复或功能、用户要求推送或发布时使用。
 ---
 
 # 管理 Git 生命周期
@@ -20,6 +20,8 @@ python3 .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py rel
 ```
 
 `start` 从当前 HEAD 创建并切换到 `feature-<summary>-<Asia/Shanghai YYYYMMDD>`。本地同名分支存在时依次尝试 `-2`、`-3`；当前已经位于本周期登记的同摘要分支时返回幂等结果。当前 Worktree 即使处于 detached HEAD 也可直接开始；若它不是主 Worktree，helper 会在创建分支后把该 Worktree 的规范化精确路径和新分支一起登记，无需预先建立另一层 Task 分支或再调用 `track-worktree`。创建本地分支不要求配置远端。
+
+远端选择优先沿用当前发布周期已经登记的精确名称；显式传入不同名称会以 `remote-conflict` 失败，不能在周期中途静默改绑。没有登记值时才依次选择 `origin`、唯一已配置远端，仍有歧义的真实推送/发布要求显式指定。流程不创建远端、不填写地址，也不处理凭据。
 
 `track-worktree` 用于后来显式创建的内部单元 Worktree；它自行读取指定 Worktree 的具名分支，要求绝对路径和相同 Git common-dir，并把精确路径与分支加入本周期清单。主 Worktree、默认分支、分离 HEAD、其他仓库或发生所有权冲突的登记都会失败。
 

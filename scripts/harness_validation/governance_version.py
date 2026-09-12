@@ -20,19 +20,22 @@ def _validate_materialized_change(
         fail(errors, f"missing version contract file: {display_path(path)}")  # noqa: F405
         return
 
-    matching_lines = [
-        line
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if change_id in line
-        and ("所需 Harness 版本" in line or "required_version" in line)
-    ]
+    matching_lines: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        declared_change = re.search(r"HARNESS-[A-Z0-9-]+", line)
+        if (
+            declared_change is not None
+            and declared_change.group(0) == change_id
+            and ("所需 Harness 版本" in line or "required_version" in line)
+        ):
+            matching_lines.append(line)
     if not matching_lines:
         fail(  # noqa: F405
             errors,
             f"materialized Harness change missing in {display_path(path)}: {change_id}",
         )
         return
-    if not any(required_version in line and "pending" not in line for line in matching_lines):
+    if any(required_version not in line or "pending" in line for line in matching_lines):
         fail(  # noqa: F405
             errors,
             "materialized Harness change has stale required version in "
@@ -141,14 +144,16 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             )
 
     materialized_changes = {
+        "HARNESS-CHANGE-MAINSTREAM-LTS-STANDARD-USER-ENVIRONMENT": "202609122231",
+        "HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE": "202609122231",
         "HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY": "202609111732",
         "HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS": "202609102343",
         "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE": "202609101621",
         "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": "202609101621",
     }
     materialized_paths = (
-        ROOT / "docs" / "changelog" / "20260911_CHANGELOG.md",  # noqa: F405
-        ROOT / "docs" / "adr" / "20260911_ADR.md",  # noqa: F405
+        ROOT / "docs" / "changelog" / "20260912_CHANGELOG.md",  # noqa: F405
+        ROOT / "docs" / "adr" / "20260912_ADR.md",  # noqa: F405
         PRODUCT_SPEC,  # noqa: F405
     )
     for change_id, required_version in materialized_changes.items():

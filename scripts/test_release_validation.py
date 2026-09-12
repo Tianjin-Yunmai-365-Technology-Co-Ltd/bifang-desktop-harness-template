@@ -131,6 +131,196 @@ class ValidatorMutationTests(unittest.TestCase):
         )
         self.assertTrue(any("release selection contract missing" in error for error in errors), errors)
 
+    def test_harness_source_release_requires_git_only_endpoint(self) -> None:
+        """Harness 必须在共享 Git 步骤结束，不能落入产品候选链。"""
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "release_doc",
+            release.ROOT / "docs" / "RELEASE.md",
+            "Harness 在步骤 2 完成并复核 Git 引用后结束",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_candidate_steps_are_explicitly_downstream_only(self) -> None:
+        """产品候选步骤 3–7 只能对终端下游生效。"""
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "release_doc",
+            release.ROOT / "docs" / "RELEASE.md",
+            "步骤 3–7 仅适用于终端下游产品候选",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_candidate_ready_review_is_explicitly_downstream_only(self) -> None:
+        """Harness 完成 Git 发布后不能误入产品候选就绪复核。"""
+
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "prepare_skill",
+            release.PREPARE_RELEASE_SKILL,
+            "以下就绪复核只适用于已经形成产品候选的终端下游",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_prepare_release_entry_metadata_is_harness_git_only(self) -> None:
+        """Skill 的 UI 入口不能把 Harness 源无条件导向产品候选。"""
+
+        path = release.PREPARE_RELEASE_SKILL.parent / "agents" / "openai.yaml"
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "prepare_openai",
+            path,
+            "Harness 源至此完成 Git 发布",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_registered_remote_precedes_origin_in_policy(self) -> None:
+        """已登记远端必须优先，不能因 origin 存在而在周期中途改绑。"""
+
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "agent_policy",
+            release.AGENT_POLICY,
+            "当前发布周期已经登记远端时必须原样沿用",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_release_metadata_commit_requires_notes_and_context_only(self) -> None:
+        """第二提交必须同含日志和上下文，且不能混入 Changelog。"""
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "prepare_skill",
+            release.PREPARE_RELEASE_SKILL,
+            "第二个精确范围提交只能同时包含 `release-notes.json` 与 `.harness/release-context.json`",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_prepare_release_requires_explicit_lifecycle_remote(self) -> None:
+        """发布上下文选择的远端必须显式传给生命周期 helper。"""
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "prepare_skill",
+            release.PREPARE_RELEASE_SKILL,
+            "--remote <remote>",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_release_context_write_requires_current_source_head(self) -> None:
+        """上下文写入必须在元数据提交前绑定当前源码 HEAD。"""
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "context_helper",
+            release.RELEASE_CONTEXT_HELPER,
+            "sourceHead must equal the current HEAD before metadata commit",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_harness_candidate_selections_are_fixed_not_applicable(self) -> None:
+        """Harness 不得询问或制造性能与签名候选选择。"""
+        fragment = (
+            "--performance-selection not-applicable --performance-source not-applicable "
+            "--macos-signing-selection not-applicable --macos-signing-source not-applicable"
+        )
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "prepare_skill",
+            release.PREPARE_RELEASE_SKILL,
+            fragment,
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_optional_harness_archive_cannot_use_product_manifest(self) -> None:
+        """可选源码归档只有摘要旁车，不得套用产品候选 manifest。"""
+        errors = self.validate_mutation(
+            release.validate_harness_source_release_contract,
+            "release_doc",
+            release.ROOT / "docs" / "RELEASE.md",
+            "它不是产品候选，不创建或套用产品 manifest",
+        )
+        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_historical_review_rejects_deleted_daily_adr_path(self) -> None:
+        """历史复核不得继续链接已合并删除的按日 ADR 文件。"""
+        current = release.ROOT / "docs" / "verification" / "human_review.md"
+        source = current.read_text(encoding="utf-8") + "\n`docs/adr/20260911_ADR.md`\n"
+        directory, path = self.temporary_source(source, "human_review.md")
+        try:
+            errors: list[str] = []
+            release.validate_harness_source_release_contract(errors, human_review=path)
+            self.assertTrue(any("retains deleted 20260911 ADR path" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
+
+    def test_methodology_rejects_missing_release_tag_as_non_blocking(self) -> None:
+        """方法论卷不得把正式候选的远程 tag 降级为可缺席证据。"""
+        current = release.ROOT / "docs" / "harness_engineering" / "agent_first_design.md"
+        source = current.read_text(encoding="utf-8")
+        source = source.replace(
+            "其缺席不代替或放宽 Git tag 门禁",
+            "缺席不阻断候选验收或只读就绪复核",
+            1,
+        )
+        directory, path = self.temporary_source(source, current.name)
+        try:
+            errors: list[str] = []
+            release.validate_harness_source_release_contract(errors, methodology_doc=path)
+            self.assertTrue(any("missing release tag" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
+
+    def test_changelog_must_precede_source_head_and_metadata(self) -> None:
+        """Changelog 不能在 sourceHead 或发布元数据提交之后补写。"""
+        source = release.PREPARE_RELEASE_SKILL.read_text(encoding="utf-8")
+        fragment = "任何由独立事件真实触发的 Changelog"
+        self.assertIn(fragment, source)
+        directory, path = self.temporary_source(source.replace(fragment, "", 1) + f"\n{fragment}\n")
+        try:
+            errors: list[str] = []
+            release.validate_harness_source_release_contract(errors, prepare_skill=path)
+            self.assertTrue(any("contract order" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
+
+    def test_shared_steps_must_precede_downstream_candidate_steps(self) -> None:
+        """Harness 终点必须在任何终端下游候选步骤之前。"""
+        release_doc = release.ROOT / "docs" / "RELEASE.md"
+        source = release_doc.read_text(encoding="utf-8")
+        fragment = "步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程"
+        self.assertIn(fragment, source)
+        directory, path = self.temporary_source(source.replace(fragment, "", 1) + f"\n{fragment}\n")
+        try:
+            errors: list[str] = []
+            release.validate_harness_source_release_contract(errors, release_doc=path)
+            self.assertTrue(any("contract order" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
+
+    def test_release_doc_rejects_context_only_legacy_git_sequence(self) -> None:
+        """Git 生命周期摘要也必须先锁 sourceHead，再同提交日志与上下文。"""
+
+        current = release.ROOT / "docs" / "RELEASE.md"
+        source = current.read_text(encoding="utf-8")
+        current_fragment = (
+            "先提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；"
+            "在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 "
+            "`.harness/release-context.json`，再把且只把这两个文件放入同一个发布元数据提交。"
+        )
+        self.assertIn(current_fragment, source)
+        legacy_fragment = (
+            "先把当前版本写入 `.harness/release-context.json` 并提交；随后 "
+            "`release --version <version>`"
+        )
+        directory, path = self.temporary_source(source.replace(current_fragment, legacy_fragment, 1), current.name)
+        try:
+            errors: list[str] = []
+            release.validate_harness_source_release_contract(errors, release_doc=path)
+            self.assertTrue(
+                any("stale context-only Git release" in error for error in errors),
+                errors,
+            )
+        finally:
+            directory.cleanup()
+
     def test_release_context_requires_all_selection_groups(self) -> None:
         """审查、性能和 macOS 签名选择必须同处一个上下文。"""
         for fragment in ('"releaseReview"', '"candidateSelections"'):

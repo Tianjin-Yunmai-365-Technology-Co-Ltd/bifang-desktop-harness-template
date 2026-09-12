@@ -66,6 +66,8 @@ GENERATED_LOCKFILE_NAMES = frozenset(
         "yarn.lock",
     }
 )
+# Harness 升级器原子生成的来源锁；只排除根相对路径，保留同名人工文本检查。
+GENERATED_LOCKFILE_PATHS = frozenset({".harness/upstream-lock.json"})
 
 
 def _canonical_root(root: Path) -> tuple[Path | None, list[str]]:
@@ -205,7 +207,10 @@ def inspect_repository(root: Path) -> dict[str, Any]:
             elif skip_reason == "missing":
                 report["skippedMissingFiles"] += 1
             continue
-        if candidate.name in GENERATED_LOCKFILE_NAMES:
+        if (
+            candidate.name in GENERATED_LOCKFILE_NAMES
+            or relative in GENERATED_LOCKFILE_PATHS
+        ):
             report["excludedGeneratedFiles"].append(relative)
             continue
         text, read_error = _read_text(candidate, relative)

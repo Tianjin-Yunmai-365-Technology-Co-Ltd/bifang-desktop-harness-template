@@ -97,7 +97,7 @@ Bifang Desktop Harness Template
 
 Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/TUI/MCP/GUI 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在 GUI adapter，但其业务效果仍调用 core。维护者可运行 `python3 -B -m unittest discover -s scripts` 验证 Harness 的非空回归。
 
-依赖清单保存经过验证的最低兼容稳定版本范围和完整三段下界，锁文件保存当前实际解析结果；新加入依赖时优先选择 registry 当前最新兼容稳定版。受管开发环境中，缺失工具会安装官方当前最新兼容稳定版，可证明低于最低下界的工具会按当前宿主路线自动升级，范围内稳定版直接复用；Rust/Node.js/pnpm 的受管安装落在用户级全局位置，持久去重 PATH，并由当前进程和新 shell 复探。只读检查零写入并报告 `upgrade-required`；高于显式上界、预发布、无法解析或损坏的工具仍失败关闭，Agent 不会降低门禁、回退依赖、在项目内注入 shim 或改找替代工具链来迁就旧环境。Rust 最低版本为 1.95。文件与测试组织遵守 [工程维护规则](docs/ENGINEERING_RULES.md) 和 [GUI 设计标准索引](docs/design_standards/README.md)：日常只强制 Rust 800 行、前端 1000 行的硬上限，其他人工维护文本也固定为 2000 行硬上限；Rust 401–800、前端 501–1000、其他文本 501–2000 行的建议候选只在当次发布启用语义审查时集中提示。Rust 模块拆分使用 `<module>/mod.rs`。
+依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标，锁文件保存当前实际解析结果；新加入依赖时优先选择 registry 当前最新兼容稳定版。当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析、格式、Clippy 与非空测试；TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选，在真实下游完成最低工具链解析、测试及适用构建前保持 `Unverified`。环境门禁当前要求 Git `>=2.36.0`、Rust `>=1.98.1`、GUI 的 Node.js `>=24.21.0` 与 pnpm `>=12.4.1`：已安装的更高稳定版本直接通过，只有缺失或可证明低于下界时才安装/升级。Node.js 安装选择官方当前最高 LTS 线的最新补丁；Rust 没有 LTS 通道，使用官方当前 stable。Rust/Node.js/pnpm 使用各平台标准的当前用户全局位置与 PATH，不创建 Harness 私有工具环境变量或私有全局前缀；`rustup-init` 使用 `--no-modify-path`，由门禁在完整预检后持久化标准 Cargo bin，这不改变标准安装根。非默认 Rust homes 必须能由新登录会话持久恢复，单一路径根不得夹带 PATH 分隔符，当前进程和新 shell 都必须复探。只读检查零写入并报告 `upgrade-required`；存在显式上界时高于上界仍阻断，预发布、无法解析或损坏的工具同样失败关闭。Agent 不会降低门禁、回退依赖、在项目内注入 shim 或改找替代工具链来迁就旧环境。文件与测试组织遵守 [工程维护规则](docs/ENGINEERING_RULES.md) 和 [GUI 设计标准索引](docs/design_standards/README.md)：日常只强制 Rust 800 行、前端 1000 行的硬上限，其他人工维护文本也固定为 2000 行硬上限；Rust 401–800、前端 501–1000、其他文本 501–2000 行的建议候选只在当次发布启用语义审查时集中提示。Rust 模块拆分使用 `<module>/mod.rs`。
 
 每次正式发布使用同一份双语 `release-notes.json`；每版两类各至多 10 个翻译对并只保留近 5 版。用户可见版本只显示一个小写 `v`，机器字段不带前缀。
 
@@ -135,7 +135,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202609111732
+- 当前版本：v202609122231
 - 发布状态：Released
 - 产品规格：Approved
 - 具体产品源码：不包含

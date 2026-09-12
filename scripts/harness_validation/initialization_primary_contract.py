@@ -13,6 +13,7 @@ def primary_required_fragments(
 ) -> dict[Path, tuple[str, ...]]:
     """返回实例化、初始化和接口能力的主契约片段。"""
 
+    mcp_baseline = MCP_SKILL.parent / "references" / "mcp-baseline.md"  # noqa: F405
     return {
         INSTANTIATE_SKILL: (
             "references/initialization-form.md",
@@ -363,6 +364,14 @@ def primary_required_fragments(
             "门禁成功后只重试原失败命令一次",
             "Rust 始终是常规阻断门禁",
             "仅当已记录的接口选择包含 `GUI` 时，Node.js 和 pnpm 才是常规阻断门禁",
+            "Rust 没有 LTS 通道",
+            "版本 `>=1.98.1`",
+            "Node.js 稳定版必须满足 `>=24.21.0`",
+            "pnpm 稳定版必须满足 `>=12.4.1`",
+            "当前最高 LTS 系列",
+            "任何更高正式版本直接通过",
+            "当前用户标准全局根",
+            "不创建 Harness 私有工具环境变量",
             "必须把两者都报告为 `not-required`",
             "由中性 `$desktop-initialize-rust-project` 调用时",
             "不得为普通开发预建 Verification",
@@ -573,9 +582,17 @@ def primary_required_fragments(
         MCP_SKILL: (
             "不得要求另选目标目录",
             "<project-id>_mcp",
+            "经 registry 元数据筛选的 MCP 候选完整三段下界",
+            "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "只有实际通过后才把候选称为项目 Cargo 兼容下界",
             "Tokio current-thread 异步入口",
             "测量确认的 CPU 密集工作",
             "不得用同步 I/O、休眠、进程等待或 CPU 密集工具工作阻塞 Tokio stdio 运行时",
+        ),
+        mcp_baseline: (
+            "经过 registry 元数据筛选的候选完整三段下界",
+            "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "只有最低直接版本解析与 Rust 1.98.1 实测通过后才可作为项目 Cargo 兼容下界",
         ),
         CLI_SKILL: (
             "CLI 是可选项",
@@ -591,6 +608,8 @@ def primary_required_fragments(
             "Ratatui",
             "tui-realm",
             "tui-realm-stdlib",
+            "经 registry 元数据筛选的 TUI 候选完整三段下界",
+            "在真实 TUI 下游完成最低直接版本解析和测试前保持 `Unverified`",
             "硬规则例外",
             "references/tui-baseline.md",
             "Tokio current-thread 异步入口",
@@ -601,7 +620,9 @@ def primary_required_fragments(
             "Ratatui",
             "tui-realm",
             "tui-realm-stdlib",
-            "最低兼容稳定组合",
+            "经 registry 元数据筛选的候选组合",
+            "在真实 TUI 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "只把实际验证通过的版本写成项目兼容下界",
             "最低直接版本解析",
             "硬规则例外 ADR",
             "Tokio current-thread 异步入口",
@@ -617,7 +638,9 @@ def primary_required_fragments(
             "Jotai",
             "不得把 Query 结果镜像到 Jotai",
             "URL/search 只用于产品明确批准的可分享导航事实",
-            "最低兼容稳定范围",
+            "经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界",
+            "在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`",
+            "实际通过后才可成为该项目的兼容下界",
             "resolutionMode: lowest-direct",
             "TypeScript Compiler AST",
             "Vitest",

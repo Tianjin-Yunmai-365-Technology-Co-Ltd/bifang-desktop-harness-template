@@ -1,12 +1,12 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-09-10
+> 记忆日期：2026-09-12
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-10（用户可见 Task 成为默认关闭、可手动开关的自动拆分策略；启用后按单一结果边界创建，Git Task 固定使用独立 Worktree）
+> 最近范围确认：2026-09-12（开发环境门禁提升到当前主流稳定基线并使用标准当前用户安装位置；Harness 正式发布明确止于可复核的 Git 源码发布）
 
 ## 一句话目标
 
@@ -85,7 +85,14 @@
 - 每次显式发布在任何本地发布提交、测试或构建前解析当次 `reviewSelection: enabled | disabled`。当前请求已经明确时直接复用，否则询问一次；同一发布的修复重跑复用原选择，新发布重新询问。安全、隐私、不可逆副作用、对外兼容契约或渠道硬要求会强制启用，不能被普通偏好关闭。
 - 日常开发与默认 Harness 校验只执行机械硬门禁和本次变化所需的相关回归，不自动列出软行数候选、扫描 `TODO`/`FIXME`/`HACK` 或增加通用人工审查。选择 `enabled` 时发布流程显式运行 `validate_harness.py --release-review`，并对当次发布范围完成语义审查；选择 `disabled` 且无硬要求时记录 `reviewStatus: Not run`、非空原因和剩余风险，不得生成或残留 `reviewEvidence`、`reviewedSourceCommit`。
 - 启用审查时以发布元数据上下文写入前的源码 `sourceHead` 为审查对象，记录 `reviewEvidence` 与 `reviewedSourceCommit = sourceHead`。最终候选 `sourceCommit` 可因随后提交发布元数据及普通合并而不同，不对两者施加祖先、线性或允许路径门禁；若审查对象本身继续变化则必须重新审查。禁用不等于通过，也不能覆盖同一发布已产生的真实审查失败。
-- 所有正式发布候选都先由 `$desktop-prepare-release` 把显式审查结果封装为 `releaseReview`，把适用的 GUI 性能与 macOS 签名选择封装为 `candidateSelections`，与版本、日期、预期 tag 和源码 HEAD 一起写入 `.harness/release-context.json` 并提交。生命周期 helper 随后普通合并、切换并推送主分支，推送版本 tag，成功后清理登记资源；构建开始前和写 manifest 前都只读校验发布上下文、主分支和远端 tag，不能由直接构建入口或对话补写，E2E 仍在构建阶段单独解析。
+- 所有正式发布都先由 `$desktop-prepare-release` 把显式审查结果封装为 `releaseReview`，把适用的 GUI 性能与 macOS 签名选择封装为 `candidateSelections`，与版本、日期、预期 tag 和源码 `sourceHead` 一起写入 `.harness/release-context.json` 并提交。生命周期 helper 随后普通合并、切换并推送主分支，推送版本 tag，成功后清理登记资源；终端下游的构建开始前和写 manifest 前都只读校验发布上下文、主分支和远端 tag，不能由直接构建入口或对话补写，E2E 仍在构建阶段单独解析。
+
+### Harness 源正式发布止于 Git 源码发布
+
+- 变更标识与所需版本：`change_id = HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE`；`required_version = 202609122231`，已由本次 Harness 时间版本发布物化。
+- 正式发布步骤 1–2 由 Harness 源和终端下游共用。提交完整源码/治理变化及独立事件已触发的 Changelog 后锁定 `sourceHead`；只有当前 HEAD 仍等于该值时，才生成未提交的双语 `release-notes.json` 和 `.harness/release-context.json`，随后把且只把这两个路径放进同一个发布元数据提交。Changelog 不得在 `sourceHead` 后补写或混入元数据提交。
+- Harness 源由根 `Version.md` 与活动 `.agents/skills/desktop-instantiate-project/SKILL.md` 同时存在来确定性识别；其性能和 macOS 签名选择/来源固定为 `not-applicable`。Git 生命周期必须显式使用发布上下文所记录的远端，普通合并并推送动态默认主分支、创建并推送版本 tag，复读成功后精确清理登记资源；最终 `sourceCommit` 绑定本地/远端主分支和远端 tag，`sourceHead` 保持发布元数据前的审查输入身份，两者不要求相等。
+- Harness 在上述 Git 引用及发布上下文复核通过后即完成正式发布；步骤 3–7 的产品构建、`release/` manifest、性能、签名、公证、产品 E2E 和产品人工验收全部为 `Not applicable`，不得以中性脚手架制造产品候选。只有用户另行明确要求时才生成源码归档及相邻 `.sha256`，归档包含两份根许可证但不创建或套用产品 manifest；终端下游才继续候选构建和验收。
 
 ### 候选证据原子化与发布后 tracked 记录
 
@@ -93,18 +100,14 @@
 - 构建、收集、候选 E2E、完整验收、`pending` → `accepted` 和就绪复核必须始终保持 clean 动态默认主分支，其本地/远端同名 ref、远端版本 tag 与所有 manifest `sourceCommit` 精确相同。全部候选、摘要、选择、人工签署和运行证据只写入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复，不得修改 tracked Verification、Product Status 或版本状态。
 - Producer/collector 在仓库外同文件系统 sibling 暂存和验证完整精确集合后，才以目录级原子替换提交；验收在准入和写状态前两次验证发布上下文与 tag，E2E/冒烟后复算全部最终字节，随后一次性原子提交所有 `accepted` manifest。就绪复核纯只读。真实渠道发布成功后，才从已发布且带版本 tag 的默认主分支开始下一次开发生命周期，追加 Verification/发布/Product Status 并 finalize 版本周期；独立回顾性人工复核/长期审计不能反向批准活动候选。
 
-### 受管开发环境低于最低门禁时自动升级
+### 主流环境下界、标准当前用户安装与最新兼容稳定选择
 
-- 变更标识：`HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE`；所需 Harness 版本：`202609082335`，已由本次 Harness 时间版本发布物化。
-- 用户级全局开发环境恢复补充变更标识：`HARNESS-CHANGE-USER-GLOBAL-DEVELOPMENT-ENVIRONMENT-RECOVERY`；所需 Harness 版本：`202609082335`，已由本次 Harness 时间版本发布物化。
-- 环境门禁触发范围不变：中性初始化在首次脚手架写入前主动执行一次；初始化完成后只在真实测试/构建命令已出现受管环境错误时针对性恢复并单次重试。写入模式对缺失适用工具安装官方当前最新且满足项目兼容范围的稳定版，对可证明低于最低下界的稳定工具按同一路线升级，对范围内稳定版原样复用。Node.js 25.x 按低于下一段允许下界 26.0.0 处理；`cargo-xwin` 低于 0.23.1 时升级，`>=0.24.0` 仍因越过显式上界而阻断。
-- Rust、Node.js/npm 与 pnpm 必须落在当前用户受管全局根；Rust 固定使用用户 `.cargo`/`.rustup` 并忽略继承的项目内同名环境变量。写入前逐级拒绝安装根、profile/config/env/fish 的 symlink/reparse/非普通对象和错误 marker，稳定链接只有最终目标仍在同一受管根才可替换，冲突必须零下载、零安装失败。Node marker 绑定本次已校验归档的精确版本与摘要，复用和最终复探不得只满足宽泛兼容范围；Unix profile 使用同目录随机临时文件、原字节快照比较后原子替换。持久 PATH 删除空段、所有相对/cwd 段和重复项，POSIX 解析不展开绝对字面 glob；包括仅 Git 改变在内的任何变化，都要求 Windows 新 PowerShell 只从持久 User/Machine PATH、Unix 新登录 shell 从持久 profile/系统 PATH 解析同一路径与版本并实际执行全部适用工具。Git 与系统编译器仅在平台原生受信管理器要求时允许显式系统级/管理员边界。不得在项目目录放置 shim、复制工具或只修复当前会话；`--check-only` / `-CheckOnly` 保持零写入。高于显式上界、预发布、无法解析或损坏的现有工具继续失败关闭，不得降低门禁、回退依赖或寻找替代工具链。
-
-### Rust 1.95 与最新兼容稳定选择
-
-- 变更标识：`HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION`；所需 Harness 版本：`202608281139`。
-- Rust MSRV 提升为 1.95。清单继续表达经过验证的最低兼容范围，新增/主动更新依赖与缺失工具优先选择 registry 当前最新兼容稳定版，经 MSRV、peer、平台和 API/feature 验证后把通过版本写成完整下界；锁文件固定真实解析结果，清单不写 `latest`。已安装工具落入支持范围就直接通过，低于工具门禁下界时按 ADR-20260907-002 自动升级。
-- GUI 当前工具范围是 Node.js `^24.15.0 || >=26.0.0` 与 pnpm `>=11.24.0`；Node.js 25.x 自动升级到下一允许段，预发布、无法解析、损坏状态或存在显式上界时越界的版本继续失败关闭。
+- 变更标识与所需版本：`change_id = HARNESS-CHANGE-MAINSTREAM-LTS-STANDARD-USER-ENVIRONMENT`；`required_version = 202609122231`，已由本次 Harness 时间版本发布物化。
+- 环境门禁触发范围不变：中性初始化在首次脚手架写入前主动执行一次；初始化完成后只在真实测试/构建命令已出现环境错误时针对性恢复并单次重试。现有可解析稳定版只要不低于下界就原样通过，不因主版本更高而升级或阻断；只有缺失或可证明低于下界时才安装/升级。预发布、无法解析或损坏安装继续失败关闭；`cargo-xwin` 等自身明确声明上界的工具仍按其专用范围判定。
+- 当前开发环境下界为 Git `>=2.36.0`、Rust `>=1.98.1`、Node.js `>=24.21.0`、pnpm `>=12.4.1`。Node.js 以当前最高官方 LTS 线的最新补丁作为安装候选，但检测为连续下界，因此 25.x、26.x 及未来更高正式版都可直接通过。Rust 没有 LTS 通道，因此以当前官方 stable `1.98.1` 作为 MSRV 与安装下界；pnpm 同样以当前稳定版作为下界。Git 无 LTS 通道，且 `2.36.0` 已满足 Harness 使用的 `git worktree list --porcelain -z` 能力，故保留功能下界，不为追逐发布号强制替换已兼容安装。
+- 需要写入时只做当前用户的标准全局安装，不建立 Harness 私有工具根或私有环境变量：Rust 使用官方 rustup 标准布局，并尊重位于用户主目录内的标准 `CARGO_HOME`/`RUSTUP_HOME`；非默认 Rust homes 只有在 Unix 新 login shell 或 Windows User 作用域能持久恢复，且恢复值与当前进程一致时才能决定安装，否则在下载前失败关闭。两端的 `rustup-init` 都传 `--no-modify-path`，阻止安装器在完整预检和原子持久化之外改写 shell profile 或 User PATH；门禁随后把标准 Cargo bin 写入普通用户 PATH，该参数不改变安装根。Unix Node.js 安装到 `~/.local/lib/nodejs/<version>` 并在 `~/.local/bin` 建立稳定入口，pnpm 使用 npm 的 `--global --prefix ~/.local`；Windows Node.js 使用 `%LOCALAPPDATA%\Programs\nodejs\<version>`，pnpm 使用 `%APPDATA%\npm`，Rust 使用 rustup 标准用户位置。所有将进入 PATH 的单一路径根在写入或下载前都拒绝对应平台的 PATH 分隔符。持久 PATH 直接纳入这些标准 bin，不再通过 `~/.config/agent-first-harness/env.sh` 或同类 Harness 私有 env 中转；修复时可精确移除旧 source 行，但保留旧文件字节供人工恢复。
+- 依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标，正常锁文件固定实际解析结果；新增或主动更新时优先选择 registry 当前最新兼容稳定版，再以 MSRV、peer、平台和 API/feature 实测决定是否抬高下界。中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析、代码规范检查与非空测试。`rmcp 3.3.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-09-12 经 registry metadata、peer 与 engine 筛选的候选完整三段下界，继续保持 `Unverified`；实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析，以及适用的非空 test、typecheck 和 build，成功后才能成为该项目的兼容下界。前端候选包括 React/React DOM `19.3.0`、Mantine `9.6.1`、TanStack Router `1.170.35`、`i18next` `26.4.2`、`react-i18next` `17.0.13`、Vite `8.3.0`、ESLint `10.10.0`、`typescript-eslint` `8.70.0` 与 Testing Library；Node 类型直接声明为 `@types/node ^24.13.4`，浏览器测试固定使用连续支持 Node.js `>=24.21.0`（包括 25.x）的 `jsdom ^29.0.1`，不得升级到会重新排除 Node.js 25.x 的 30.x。新增成套 peer 下界时必须在清单中显式声明。TypeScript 7、Vitest 5 和 Jotai 3 等需要迁移或尚与现有 peer 范围冲突的跨主版候选不为追求版本号而强制引入。
+- 本节的环境下界、连续 Node.js 判定和标准当前用户安装语义，取代 `HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION`、`HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE` 与 `HARNESS-CHANGE-USER-GLOBAL-DEVELOPMENT-ENVIRONMENT-RECOVERY` 中的旧版本、Node.js 25 分段、Harness 私有安装根和忽略标准 Rust homes 子句；旧决定要求安装器使用 `--no-modify-path` 的安全边界继续有效，但 PATH 现在由门禁直接写入标准用户位置而非 Harness 私有中转。它们关于触发范围、范围内复用、低于下界自动修复、预发布/损坏失败关闭、供应链校验、新 shell 复探和零写入只读模式的其余决定继续有效。
 
 ### Logo 原始候选稳定预览与选择后处理
 
@@ -154,7 +157,7 @@
 - 变更标识：`HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY`；所需 Harness 版本：`202608051301`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
 - 页面交互事件必须绑定到实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身，Card、`Table.Tr`、`Table.Td` 等父级不得代理子控件动作。父级确有独立动作时只执行自身语义并隔离冲突传播；点击表格行或单元格不得切换其中的 `Switch`。回归分别点击控件和周围父级区域。
 - 选择关于页时，其更新区在“检查更新”旁提供元素自身绑定的“更新日志”按钮；即使远程 updater 为 `NotConfigured`，本地日志入口仍可使用。弹窗从候选内同一 `release-notes.json` 按最新在前展示至多 5 个版本，每版“功能优化”和“问题修复”各至多 10 个中英文翻译对；当前语言以 `zh` 开头时选择 `zh-CN` 标题与正文，其他或未知语言选择 `en-US`。未选择关于页时不建立隐藏更新入口。
-- 每次正式发布的候选构建前，`$desktop-prepare-release` 从上一次真实正式发布版本/40 位提交到当前发布源码筛选最重要的用户可见变化；首发从仓库起点计算，比较边界不可靠时失败关闭。根 `release-notes.json` 使用 `schemaVersion: 2`、原子更新、非符号链接普通文件和近 5 版上限；每个逻辑条目绑定非空 `zh-CN` 与 `en-US` 文案，任一语言缺失都失败关闭，每版两类合计至少一个翻译对。中文渲染使用 `更新日志/功能优化/问题修复/无`，英文渲染使用 `Release notes/Feature optimizations/Bug fixes/None`。候选构建只读校验当前版本与摘要并把同一字节打入归档/应用资源；候选形成后任何日志变化都要求重新提交、构建和验收。
+- 每次正式发布时，`$desktop-prepare-release` 从上一次真实正式发布版本/40 位提交到当前发布源码筛选最重要的用户可见变化；首发从仓库起点计算，比较边界不可靠时失败关闭。根 `release-notes.json` 使用 `schemaVersion: 2`、原子更新、非符号链接普通文件和近 5 版上限；每个逻辑条目绑定非空 `zh-CN` 与 `en-US` 文案，任一语言缺失都失败关闭，每版两类合计至少一个翻译对。中文渲染使用 `更新日志/功能优化/问题修复/无`，英文渲染使用 `Release notes/Feature optimizations/Bug fixes/None`。终端下游候选构建只读校验当前版本与摘要并把同一字节打入归档/应用资源，日志变化后必须重新提交、构建和验收；Harness 源只提交发布日志与上下文并重新执行 Git 源码发布复核。
 - 所有用户可见版本号带且只带一个小写 `v`，覆盖窗口标题、侧栏、设置/关于页、更新状态、CLI `--version` 和更新日志。Cargo、JSON/协议、状态文件及 manifest 的机器 `version` 保持原始值；manifest 另以 `releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath` 绑定展示版本与包内日志事实。
 
 ### GUI 进程内页面会话状态
@@ -204,7 +207,7 @@
 - Harness 只提供文档、项目 Skills、中性资产和验证入口，不实现具体业务。
 - `$desktop-instantiate-project` 只执行一次，并通过写入前首轮基础表单收齐中英文展示名（至少一个直接输入，另一个可自动翻译）、ASCII `snake_case` 标识、项目路径、负责人、目标平台、接口和 Agent 策略模式，再按实际选择逐项补全自定义策略与适用 GUI 配置。项目路径末级与标识精确一致时直接作为最终根，否则追加标识；只有解析后的最终根必须不存在或为空。用户确认后该目录是初始化、开发、验证和发布准备的唯一项目根目录。
 - 下游在完整表单确认后、首次脚手架写入前检查并按需安装 Git；全部初始化验证与裁剪成功后建立独立 `main` 仓库并配置 local 身份/模板。`git rev-parse --show-toplevel` 精确等于项目根，初始分支为 `main`，无远端，并只创建一个本地基线提交；完成报告公开 Git 版本、安装变化、身份来源、作用域与提交。
-- 下游默认采用 Rust 2024、Rust 1.95 MSRV（即 MSRV 1.95.0）、共享核心与用户从 CLI/TUI/MCP/GUI 独立选择的适配器；1.95.0 是最低兼容版本而非精确版本锁，未选择任何接口时默认 CLI。
+- 下游默认采用 Rust 2024、Rust 1.98.1 MSRV（即 MSRV 1.98.1）、共享核心与用户从 CLI/TUI/MCP/GUI 独立选择的适配器；1.98.1 是最低兼容版本而非精确版本锁，未选择任何接口时默认 CLI。
 - Core-first 是强制架构约束：凡不依赖某一具体接口或宿主才能成立的领域类型、业务规则、语义校验、业务默认值、用例编排、领域状态转换、稳定领域错误、平台无关权限与持久化策略，都必须在共享 core 中实现并通过明确 API 暴露；即使当前只选择一个适配器也同样适用。
 - CLI、TUI、MCP、GUI 必须保持薄适配层，只负责运行时与依赖装配、接口语法/协议结构解析、展示和交互状态、调用 core，以及把 core 结果与错误映射为接口输出；不得复制、改写或另建业务规则、权威业务状态、迁移、权限策略或平台无关校验。
 - 系统托盘、窗口/WebView 生命周期、通知、自动启动、终端焦点/按键/恢复、MCP stdio 传输和 CLI 参数/退出码等接口或平台机制留在对应适配器；它们触发的业务动作仍必须调用 core。真实边界需要时可由 core 定义运行时中立的能力接口并由适配器实现，但不得为假想需求预建抽象。
@@ -237,7 +240,7 @@
 - 产品目标、边界、约束或成功标准真实变化时仍更新 Product Spec；长期重要决定或硬规则例外写 ADR；符合资格的用户/维护者可感知变化写 Changelog。Product Status/Work Plan 只在用户明确要求、跨会话交接、重要阻断或真实渠道发布后的记录阶段写入；Verification 只在真实渠道发布后或独立回顾性审计生命周期写入。候选构建/E2E/验收/就绪只写忽略的 `release/` 原子证据，不为日常开发制造占位记录。
 - 代码行为变化的本次必要测试至少覆盖核心成功路径和最高风险失败路径；缺陷修复增加回归测试。纯文档、元数据、格式或不可合理单测的机械变更不创建空洞测试，只做证明文件可解析或差异完整所必需的最小检查。
 - 安全、隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、签名、发布和渠道硬要求仍必须取得相应授权或满足硬门禁；这些是当前风险所必需的边界，不得扩张为每次开发的通用步骤。
-- 构建只在用户显式请求时进入对应构建 Skill，不以日常开发完成为由自动触发。Windows GUI 普通“构建/打包/首次安装试包”进入本地开发试包路线：不提交、不生成发布日志、不写 `release/`，也不询问 E2E、性能或语义审查选择。用户明确提出“构建发布候选”或发布时统一先进入 `$desktop-prepare-release`：按当次选择完成或跳过非必要语义审查，提交范围明确改动、发布日志和 `.harness/release-context.json`；随后生命周期 helper 普通合并、切换并推送主分支，创建并推送版本 tag，tag 复读成功后才清理登记 Worktree 和分支，然后从 clean、已推送且带 tag 的主分支进入候选构建。构建 Skill 只另外解析 E2E，不现场解析或制造其他选择/证据；没有合格发布上下文时只报告未就绪。
+- 构建只在用户显式请求时进入对应构建 Skill，不以日常开发完成为由自动触发。Windows GUI 普通“构建/打包/首次安装试包”进入本地开发试包路线：不提交、不生成发布日志、不写 `release/`，也不询问 E2E、性能或语义审查选择。用户明确提出“构建发布候选”或发布时统一先进入 `$desktop-prepare-release`：按当次选择完成或跳过非必要语义审查，先把范围明确改动与已触发 Changelog 提交并锁定 `sourceHead`；只有 HEAD 仍等于该值时才生成未提交的发布日志与 `.harness/release-context.json`，并把且只把这两个路径作为同一个发布元数据提交。随后生命周期 helper 使用上下文记录的明确远端普通合并、切换并推送主分支，创建并推送版本 tag，tag 复读成功后才清理登记 Worktree 和分支。终端下游再从 clean、已推送且带 tag 的主分支进入候选构建；Harness 源只完成并复核 Git 源码发布，不创建产品候选、`release/` manifest 或产品验收结论。构建 Skill 只另外解析 E2E，不现场解析或制造其他选择/证据；没有合格发布上下文时只报告未就绪。
 - GUI 正式发布在开始前必须解析当次性能选择。选择启用或产品/渠道硬要求时，在完整打包前运行独立性能门禁；失败先修复、回归、重建并重测，仍无法解决时才允许询问用户是否以 `performanceStatus: waived` 继续，且 E2E `disabled` 不能跳过已启用门禁。选择关闭且无硬要求时记录 `performanceStatus: Not run` 与剩余风险并跳过耗时探针；`waived` 和主动关闭都不能伪装为通过。
 - 每次构建必须运行项目全部单元测试并确认发现数量非零。Rust 构建运行 workspace 全成员、全 targets、全 features 的锁定测试；GUI 构建同时运行完整 Rust workspace 与前端单元测试套件。任何单元测试失败或零测试都阻断构建。
 - 发布构建 E2E 不与单元测试或编译混跑。选择启用或产品/渠道硬要求时，只在完整最终候选存在后对该候选运行；选择禁用时记录 `Not run` 和剩余风险。唯一例外是 GUI 初始化专用的本机调试二进制 E2E，它是基线提交前的脚手架门禁，不消费构建选择，也不能产生候选验收、签名、发布或人工复核结论。
@@ -286,7 +289,7 @@
 - Harness 与收费下游采用非开源企业专有商业许可；根 `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 保持一致，升级不能自动改写法律文本。
 - CLI/TUI/MCP 使用 Tokio current-thread 异步入口，GUI 复用 Tauri 的由 Tokio 支撑的异步运行时；核心默认保持运行时中立。
 - 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；初始化把实际选择的非空目标平台与接口写入 `[workspace.metadata.agent-first-harness]`，供后续构建跨会话只读路由。Harness 能生成的目标平台集合为 Windows、macOS 和 Linux，不表示每个下游都默认选择三者。
-- 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并在 Rust 1.95 MSRV、三平台和锁定回归门禁内声明经最低直接版本解析与测试证明的兼容下界；新增或主动更新时优先选择经完整兼容验证的 registry 最新稳定版作为新下界，正常锁文件固定真实解析结果。anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
+- 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并在 Rust 1.98.1 MSRV、三平台和锁定回归门禁内声明经最低直接版本解析与测试证明的兼容下界；新增或主动更新时优先选择经完整兼容验证的 registry 最新稳定版作为新下界，正常锁文件固定真实解析结果。anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
 - 选择 CLI 时遵守统一 JSON 信封、错误结构、输出流和退出码契约。
 
 ## 不包含
@@ -348,7 +351,8 @@
 - [x] Product Spec、ADR、Product Status、Work Plan、Changelog 和 Verification 只在各自触发条件满足时更新，不再每项需求全量联动。
 - [x] 普通缺陷修复、纯重构、格式整理、测试补强和内部清理不再因任务类型写入项目记忆，独立治理与交付事件仍可追溯。
 - [x] Harness 与下游日常校验只机械拒绝 Rust 801、前端 1001、其他人工维护文本 2001 行起的硬超限文件；仅在当次发布启用语义审查时列出 Rust 401–800、前端 501–1000、其他文本 501–2000 行的建议候选，并检查 `TODO`/`FIXME`/`HACK`。Rust 拆分规则固定为 `<module>/mod.rs` 目录结构，前端不强制 `index.ts` 桶文件。
-- [x] 每次显式发布候选在开始前由 `$desktop-prepare-release` 解析 `reviewSelection`；无硬要求时用户可禁用并得到 `Not run`、原因和风险，硬风险强制启用。同一发布重跑复用选择，新发布重新询问；启用证据绑定最终 `sourceCommit`，源码后续变化必须重新审查，禁用时审查证据字段完全缺席。完整 `releaseReview` 与 GUI 适用的 `candidateSelections` 写入 `.harness/release-context.json`，构建两次只读验证后消费；任何直接候选入口都不得绕过或伪造生产者，也不得借审查设置分支或路径门禁。
+- [x] 每次显式正式发布在开始前由 `$desktop-prepare-release` 解析 `reviewSelection`；无硬要求时用户可禁用并得到 `Not run`、原因和风险，硬风险强制启用。同一发布重跑复用选择，新发布重新询问；启用证据绑定发布元数据前的 `sourceHead`，源码后续变化必须重新审查，禁用时审查证据字段完全缺席。完整 `releaseReview` 与适用的 `candidateSelections` 写入 `.harness/release-context.json`；终端下游构建两次只读验证后消费，Harness 的候选选择固定为 `not-applicable` 并在 Git 引用复核后结束。任何直接候选入口都不得绕过或伪造生产者，也不得借审查设置分支或路径门禁。
+- [x] Harness 正式发布只执行共享步骤 1–2：Changelog 在 `sourceHead` 前完成，发布日志与上下文同一精确元数据提交，生命周期显式使用上下文远端，最终主分支与 tag 绑定 `sourceCommit`；产品候选步骤 3–7、`release/` manifest 和产品验收均为 `Not applicable`，可选源码归档只带相邻 SHA-256 而不使用产品 manifest。
 - [x] 候选 producer/collector 使用仓库外同文件系统 sibling 暂存并目录级原子提交精确集合；验收在执行前后复核发布上下文并重算最终字节，所有 manifest 状态一次性从 `pending` 变为 `accepted`。候选和纯只读 ready 不写 tracked 记忆，只有真实渠道发布成功后才通过后续自动开发生命周期写 Verification/发布/Product Status 并 finalize。
 - [x] 每次显式发布候选构建都在开始前解析一次当前 E2E 选择，且持久偏好不能替代这次选择；Windows 本地开发试包不解析 E2E/性能选择。
 - [x] 每次构建都运行项目全部非空单元测试；Rust 覆盖 workspace/all-targets/all-features，GUI 同时覆盖完整 Rust 与前端单元测试套件。
@@ -361,7 +365,7 @@
 - [x] `$desktop-upgrade-harness` 提供试运行、来源/基线记录、三方差异、冲突阻断、保护清单、`tombstone` 和更新后验证闭环。
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
-- [x] Rust 1.95、前端依赖及 Node.js/pnpm/cargo-xwin 等受管工具统一表达为经过验证的最低兼容范围；缺失工具安装官方最新兼容稳定版，可证明低于最低下界的工具自动升级，范围内稳定版原样复用，只读模式零写入并报告 `upgrade-required`；受管安装全局复用且不在项目内注入 shim，不得降低门禁或回退依赖来适配旧环境，锁文件继续固定真实解析结果。
+- [x] Rust `>=1.98.1`、Node.js `>=24.21.0` continuous 与 pnpm `>=12.4.1` 作为连续工具下界，更高正式工具直接通过，只在缺失或低于下界时用官方稳定候选安装/升级。Rust/Node.js/npm/pnpm 使用标准当前用户安装根和可持久恢复的标准 Rust homes，不创建 Harness 私有 env 或项目 shim；只读模式零写入并报告 `upgrade-required`。中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选，必须经真实下游最低直接解析和最低工具链 test/typecheck/build 后才成为项目兼容下界，锁文件再固定实际解析结果。
 - [x] Rust CLI 构建默认选择 Windows、macOS、Linux 原生矩阵，只有派发前条件不可用才回退当前平台；已启动矩阵失败不会被回退掩盖。
 - [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单；manifest 状态只使用 `pending`、`rejected` 或 `accepted`，`ready` 仅是对完整 `accepted` 原子集合的纯只读就绪复核结论，不是可写状态。
 - [x] macOS 发布在任何测试、可用性探测或 bundle 前锁定签名选择；默认 `macosSigningSelection: disabled`、`macosSigningSource: not-requested`，直接运行显式带 `--no-sign` 的 DMG 命令且不探测签名/公证条件；只有渠道硬要求、本次主动要求或已批准持久配置才启用，按 `channel-required > requested > configured > not-requested` 记录来源，并在探测通过后运行不含 `--no-sign` 的命令。唯一前置冲突是产品已经启用 macOS 系统通知：关闭签名时不自动升级来源，而是在测试/bundle 前阻断不可验收的 unsigned 候选，要求用户下一轮主动启用签名或先改变产品能力；E2E 关闭不能绕过。
@@ -392,7 +396,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609111732`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名与渠道上传仍须各自真实发生。
+- 当前版本：`202609122231`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名与渠道上传仍须各自真实发生。
 - 变更标识：`HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY`；所需 Harness 版本：`202609111732`，已由本次 Harness 时间版本发布物化。删除 `Version.md` 中的 `1.0.0` 标识并新增反向门禁、Task 序号不再识别历史四字段标题、下游 SemVer 的 Minor/Patch 严格固定 `0..99` 不兼容历史 `100`、Agent Policy 升级 `schema_version: 3` 并把 `milestone_smoke`/`milestone_e2e` 改名为 `acceptance_smoke`/`e2e_hint`。
 - 维护状态：Active。
 - 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对九项初始化组合、三项 Rust-only 固定基线与 dialog 固定 WebView 基线（含 dialog 原生 message/save/open、精确主窗口 capability、零 filesystem 权限、托盘禁用关闭退出、通知授权/投递、自启登录项恢复、单实例/深链接组合、全局快捷键冲突与注销、window-state 安全恢复、页面缺席与详细侧栏持久折叠）、签名更新安装、强更离线恢复、产品级统计同意/撤回、Vite/AST 门禁和最终 dist 扫描的前向构建证据。

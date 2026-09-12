@@ -45,7 +45,7 @@ def executable(path: Path, content: str) -> None:
 def fake_existing_tools(
     bin_dir: Path,
     *,
-    rust: str = "1.95.0",
+    rust: str = "1.98.1",
     git: str = "2.39.0",
     include_git: bool = True,
     python: bool = True,
@@ -69,17 +69,22 @@ def fake_existing_tools(
         executable(bin_dir / "python3", "#!/bin/sh\nprintf '%s\\n' 'Python 3.12.0'\n")
 
 
-def fake_npm_installer(bin_dir: Path, *, pnpm: str = "12.1.0", succeeds: bool = True) -> None:
+def fake_npm_installer(bin_dir: Path, *, pnpm: str = "12.4.1", succeeds: bool = True) -> None:
     """构造 npm 用户级安装器，使 pnpm 安装与升级都只写入测试目录。"""
     if not succeeds:
-        executable(bin_dir / "npm", "#!/bin/sh\nexit 9\n")
+        executable(
+            bin_dir / "npm",
+            "#!/bin/sh\n"
+            "if [ \"${1:-}\" = --version ]; then printf '%s\\n' '11.6.0'; exit 0; fi\n"
+            "exit 9\n",
+        )
         return
     executable(
         bin_dir / "npm",
         f"""#!/bin/sh
 set -eu
 if [ "${1:-}" = --version ]; then printf '%s\n' '11.6.0'; exit 0; fi
-case "$*" in *"pnpm@>=11.24.0"*) ;; *) exit 8 ;; esac
+case "$*" in *"pnpm@>=12.4.1"*) ;; *) exit 8 ;; esac
 prefix=
 registry=
 ignore_scripts=0
@@ -93,14 +98,20 @@ while [ "$#" -gt 0 ]; do
 done
 [ "$registry" = "${{AFH_PNPM_REGISTRY:-https://registry.npmjs.org/}}" ] || exit 7
 [ "$ignore_scripts" -eq 1 ] || exit 6
-mkdir -p "$prefix/bin"
-printf '#!/bin/sh\\nprintf "%%s\\\\n" "{pnpm}"\\n' > "$prefix/bin/pnpm"
-chmod +x "$prefix/bin/pnpm"
+mkdir -p "$prefix/bin" "$prefix/lib/node_modules/pnpm/bin"
+printf '#!/bin/sh\\nprintf "%%s\\\\n" "{pnpm}"\\n' > "$prefix/lib/node_modules/pnpm/bin/pnpm"
+chmod +x "$prefix/lib/node_modules/pnpm/bin/pnpm"
+rm -f "$prefix/bin/pnpm"
+if [ -n "${{AFH_TEST_PNPM_LINK_TARGET:-}}" ]; then
+  ln -s "$AFH_TEST_PNPM_LINK_TARGET" "$prefix/bin/pnpm"
+else
+  ln -s "$prefix/lib/node_modules/pnpm/bin/pnpm" "$prefix/bin/pnpm"
+fi
 """,
     )
 
 
-def fake_frontend_tools(bin_dir: Path, *, node: str = "24.15.0", pnpm: str = "11.24.0") -> None:
+def fake_frontend_tools(bin_dir: Path, *, node: str = "24.21.0", pnpm: str = "12.4.1") -> None:
     """构造既有 Node.js 与 pnpm，验证前端门禁不会修改已满足的环境。"""
     executable(bin_dir / "node", f"#!/bin/sh\nprintf '%s\\n' 'v{node}'\n")
     executable(bin_dir / "pnpm", f"#!/bin/sh\nprintf '%s\\n' '{pnpm}'\n")
@@ -149,10 +160,10 @@ def make_node_dist(
     *,
     valid_checksum: bool = True,
     forced_tuple: tuple[str, str] | None = None,
-    version: str = "v24.15.0",
+    version: str = "v24.21.0",
     reported_version: str | None = None,
 ) -> str:
-    """生成最小本地 Node 镜像，验证跳过 25.x 并选择最新兼容稳定版。"""
+    """生成最小本地 Node 镜像，验证过滤 Current 并选择最高 LTS 最新补丁。"""
     reported_version = reported_version or version
     node_platform, node_arch = forced_tuple or node_tuple()
     release = root / version
@@ -161,6 +172,7 @@ def make_node_dist(
     index.write_text(
         "version\tdate\tfiles\tnpm\tv8\tuv\tzlib\topenssl\tmodules\tlts\tsecurity\n"
         "v25.9.0\t2026-02-01\ttest\t11\t1\t1\t1\t1\t1\t-\t-\n"
+        "v24.21.0\t2026-01-02\ttest\t11\t1\t1\t1\t1\t1\tOlderLTS\t-\n"
         f"{version}\t2026-01-01\ttest\t11\t1\t1\t1\t1\t1\tTestLTS\t-\n",
         encoding="utf-8",
     )
@@ -193,7 +205,7 @@ def rustup_target() -> str:
 def make_rust_dist(
     root: Path,
     *,
-    installed_version: str = "1.95.0",
+    installed_version: str = "1.98.1",
     succeeds: bool = True,
     valid_checksum: bool = True,
     forced_target: str | None = None,
@@ -205,6 +217,10 @@ def make_rust_dist(
     if succeeds:
         body = f"""#!/bin/sh
 set -eu
+case " $* " in
+    *" --no-modify-path "*) ;;
+    *) exit 97 ;;
+esac
 mkdir -p "$CARGO_HOME/bin" "$RUSTUP_HOME"
 for tool in rustc cargo rustup; do
     case "$tool" in
@@ -236,7 +252,7 @@ class PrerequisiteGateTests(unittest.TestCase):
         platform_independent_tests = {
             "test_windows_msvc_gate_installs_signed_build_tools",
             "test_persistence_temp_files_use_unpredictable_mktemp_names",
-            "test_git_bash_full_install_uses_managed_global_roots",
+            "test_git_bash_full_install_uses_standard_user_roots",
         }
         if self._testMethodName not in platform_independent_tests and (
             os.name == "nt" or POSIX_SHELL is None
@@ -255,17 +271,33 @@ class PrerequisiteGateTests(unittest.TestCase):
         probe_path = probe or root / "probe"
         probe_path.mkdir(parents=True, exist_ok=True)
         (root / "home").mkdir(parents=True, exist_ok=True)
+        login_shell_dir = root / "test-login-shell"
+        login_shell_dir.mkdir(parents=True, exist_ok=True)
+        login_shell = login_shell_dir / "sh"
+        executable(
+            login_shell,
+            "#!/bin/sh\n"
+            "[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+            "[ ! -f \"$HOME/.profile\" ] || . \"$HOME/.profile\"\n"
+            "eval \"$3\"\n",
+        )
+        fresh_system = root / "fresh-system"
+        fresh_system.mkdir(exist_ok=True)
+        awk_source = shutil.which("awk")
+        if awk_source is None:
+            self.fail("POSIX gate tests require awk")
+        fresh_awk = fresh_system / "awk"
+        if not fresh_awk.exists():
+            fresh_awk.symlink_to(Path(awk_source).resolve())
         env = os.environ.copy()
         env.update(
             {
                 "AFH_PREREQ_PATH": str(probe_path),
+                "AFH_TEST_SYSTEM_PATH": f"{probe_path}:{fresh_system}",
                 "HOME": str(root / "home"),
-                "CARGO_HOME": str(root / "project" / ".cargo"),
-                "RUSTUP_HOME": str(root / "project" / ".rustup"),
-                "AFH_MANAGED_CARGO_HOME": str(root / "cargo"),
-                "AFH_MANAGED_RUSTUP_HOME": str(root / "rustup"),
-                "AFH_NODE_HOME": str(root / "node-home"),
-                "SHELL": str(POSIX_SHELL),
+                "CARGO_HOME": str(root / "home" / ".cargo"),
+                "RUSTUP_HOME": str(root / "home" / ".rustup"),
+                "SHELL": str(login_shell),
                 "PATH": f"{probe_path}:{env.get('PATH', '')}",
             }
         )
@@ -299,6 +331,14 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertIn("gate.pnpm.status=not-required", result.stdout)
             self.assertIn("gate.changed=false", result.stdout)
 
+    def test_rustup_installer_cannot_mutate_unmanaged_shell_profiles(self) -> None:
+        """rustup 只写标准用户根；持久 PATH 必须留给门禁的预检和原子写入。"""
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn(
+            '"$installer_path" -y --profile minimal --default-toolchain stable --no-modify-path',
+            source,
+        )
+
     def test_missing_rustup_blocks_even_when_rustc_and_cargo_exist(self) -> None:
         """rustup 缺失时不得仅凭 rustc/cargo 误报 Rust 门禁通过。"""
         with tempfile.TemporaryDirectory() as temporary:
@@ -321,9 +361,9 @@ class PrerequisiteGateTests(unittest.TestCase):
                 probe / "rustc",
                 "#!/bin/sh\n"
                 "if [ \"${1:-}\" = -vV ]; then\n"
-                "  printf '%s\\n' 'rustc 1.95.0 (test)' 'host: x86_64-unknown-linux-gnu' 'release: 1.94.0'\n"
+                "  printf '%s\\n' 'rustc 1.98.1 (test)' 'host: x86_64-unknown-linux-gnu' 'release: 1.98.0'\n"
                 "else\n"
-                "  printf '%s\\n' 'rustc 1.95.0 (test)'\n"
+                "  printf '%s\\n' 'rustc 1.98.1 (test)'\n"
                 "fi\n",
             )
             result = self.run_gate(root, "--check-only", probe=probe)
@@ -345,9 +385,9 @@ class PrerequisiteGateTests(unittest.TestCase):
                         probe / "rustc",
                         "#!/bin/sh\n"
                         "if [ \"${1:-}\" = -vV ]; then\n"
-                        "  printf '%s\\n' 'rustc 1.95.0 (test)' 'host: x86_64-unknown-linux-gnu' "
-                        "'host: injected' 'release: 1.95.0'\n"
-                        "else\n  printf '%s\\n' 'rustc 1.95.0 (test)'\nfi\n",
+                        "  printf '%s\\n' 'rustc 1.98.1 (test)' 'host: x86_64-unknown-linux-gnu' "
+                        "'host: injected' 'release: 1.98.1'\n"
+                        "else\n  printf '%s\\n' 'rustc 1.98.1 (test)'\nfi\n",
                     )
                 result = self.run_gate(root, "--check-only", probe=probe)
                 self.assertEqual(result.returncode, 21)
@@ -358,8 +398,8 @@ class PrerequisiteGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            fake_existing_tools(probe, rust="1.96.0")
-            executable(probe / "cargo", "#!/bin/sh\nprintf '%s\\n' 'cargo 1.95.0 (test)'\n")
+            fake_existing_tools(probe, rust="1.99.0")
+            executable(probe / "cargo", "#!/bin/sh\nprintf '%s\\n' 'cargo 1.98.1 (test)'\n")
 
             result = self.run_gate(root, "--check-only", probe=probe)
 
@@ -384,8 +424,8 @@ class PrerequisiteGateTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 24)
             self.assertIn("不支持自动持久化 PATH", result.stderr)
-            self.assertFalse((root / "cargo").exists())
-            self.assertFalse((root / "node-home").exists())
+            self.assertFalse((root / "home" / ".cargo").exists())
+            self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
 
     def test_user_tool_directory_symlink_component_fails_before_installation(self) -> None:
         """稳定用户 bin 的任一路径组件为符号链接时必须在下载前失败。"""
@@ -399,14 +439,95 @@ class PrerequisiteGateTests(unittest.TestCase):
             (home / ".local").symlink_to(redirected, target_is_directory=True)
             probe = root / "probe"
             fake_existing_tools(probe)
-            (probe / "rustup").unlink()
 
-            result = self.run_gate(root, "--install-missing", probe=probe)
+            result = self.run_gate(root, "--install-missing", "--interfaces", "GUI", probe=probe)
 
             self.assertEqual(result.returncode, 24, result.stderr)
-            self.assertIn("工具目录组件不能是符号链接", result.stderr)
-            self.assertFalse((root / "cargo").exists())
+            self.assertIn("不能是符号链接", result.stderr)
+            self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
             self.assertEqual(list(redirected.iterdir()), [])
+
+    def test_pnpm_global_package_symlink_component_fails_before_npm(self) -> None:
+        """npm 全局包目录的中间 symlink 不得把 pnpm 写出当前用户标准前缀。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            local = home / ".local"
+            local.mkdir(parents=True)
+            outside = root / "outside-node-modules"
+            outside.mkdir()
+            (local / "lib").symlink_to(outside, target_is_directory=True)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, pnpm="12.4.0")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("路径组件不能是符号链接", result.stderr)
+            self.assertEqual(list(outside.iterdir()), [])
+
+    def test_pnpm_wrapper_symlink_outside_user_prefix_is_rejected_before_npm(self) -> None:
+        """pnpm/pnpx 包装器链接不得让 npm 穿过链接改写用户前缀之外的文件。"""
+        for wrapper in ("pnpm", "pnpx"):
+            with self.subTest(wrapper=wrapper), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                home = root / "home"
+                user_bin = home / ".local" / "bin"
+                user_bin.mkdir(parents=True)
+                outside = root / f"outside-{wrapper}"
+                original = f"outside-{wrapper}-must-remain\n"
+                outside.write_text(original, encoding="utf-8")
+                (user_bin / wrapper).symlink_to(outside)
+                probe = root / "probe"
+                fake_existing_tools(probe, python=False)
+                fake_frontend_tools(probe, pnpm="12.4.0")
+
+                result = self.run_gate(
+                    root,
+                    "--install-missing",
+                    "--interfaces",
+                    "GUI",
+                    probe=probe,
+                )
+
+                self.assertEqual(result.returncode, 24, result.stderr)
+                self.assertIn("不属于当前受管安装根", result.stderr)
+                self.assertEqual(outside.read_text(encoding="utf-8"), original)
+                self.assertFalse((home / ".profile").exists())
+
+    def test_pnpm_installer_rejects_new_wrapper_symlink_outside_user_prefix(self) -> None:
+        """npm 新生成的 pnpm 链接也必须在安装后复核最终目标范围。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, pnpm="12.4.0")
+            outside = root / "outside-pnpm"
+            executable(outside, "#!/bin/sh\nprintf '%s\\n' '12.4.1'\n")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                AFH_TEST_PNPM_LINK_TARGET=str(outside),
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("包装器逃逸标准当前用户前缀", result.stderr)
+            installed_wrapper = root / "home" / ".local" / "bin" / "pnpm"
+            self.assertTrue(installed_wrapper.is_symlink())
+            self.assertEqual(installed_wrapper.resolve(), outside.resolve())
+            self.assertFalse((root / "home" / ".profile").exists())
 
     def test_unmanaged_user_tool_symlink_is_never_replaced(self) -> None:
         """同名链接只有指向当前受管安装根时才允许原子更新。"""
@@ -417,7 +538,7 @@ class PrerequisiteGateTests(unittest.TestCase):
             fake_existing_tools(probe, python=False)
             fake_npm_installer(probe)
             node_dist = make_node_dist(root / "dist")
-            user_bin = root / "home" / ".local" / "share" / "agent-first-harness" / "bin"
+            user_bin = root / "home" / ".local" / "bin"
             user_bin.mkdir(parents=True)
             outside = root / "outside-node"
             executable(outside, "#!/bin/sh\nprintf '%s\\n' 'v99.0.0'\n")
@@ -437,12 +558,19 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertEqual(result.returncode, 24, result.stderr)
             self.assertIn("不属于当前受管安装根", result.stderr)
             self.assertTrue(destination.is_symlink())
-            self.assertEqual(destination.resolve(), outside)
-            self.assertFalse((root / "node-home").exists())
+            self.assertEqual(destination.resolve(), outside.resolve())
+            self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
 
-    def test_profile_and_managed_config_conflicts_fail_before_download(self) -> None:
-        """所有将写入的 profile/env/fish 路径必须在下载前完成形态与 marker 预检。"""
-        for case in ("env-marker", "profile-symlink", "fish-marker"):
+    def test_profile_and_fish_config_conflicts_fail_before_download(self) -> None:
+        """将写入的 profile/fish 路径必须在下载前完成形态与 marker 预检。"""
+        for case in (
+            "profile-symlink",
+            "profile-incomplete",
+            "profile-empty-block",
+            "profile-reversed-block",
+            "profile-tampered-block",
+            "fish-marker",
+        ):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 home = root / "home"
@@ -451,17 +579,42 @@ class PrerequisiteGateTests(unittest.TestCase):
                 fake_existing_tools(probe)
                 (probe / "rustup").unlink()
                 shell_override = str(POSIX_SHELL)
-                if case == "env-marker":
-                    env_dir = home / ".config" / "agent-first-harness"
-                    env_dir.mkdir(parents=True)
-                    (env_dir / "env.sh").write_text("unmanaged\n", encoding="utf-8")
-                elif case == "profile-symlink":
+                if case == "profile-symlink":
                     outside = root / "outside-profile"
                     outside.write_text("unchanged\n", encoding="utf-8")
                     (home / ".profile").symlink_to(outside)
+                elif case == "profile-incomplete":
+                    (home / ".profile").write_text(
+                        "# agent-first-harness: standard current-user tool PATH\n",
+                        encoding="utf-8",
+                    )
+                elif case == "profile-empty-block":
+                    (home / ".profile").write_text(
+                        "# agent-first-harness: standard current-user tool PATH\n"
+                        "# agent-first-harness: end standard current-user tool PATH\n",
+                        encoding="utf-8",
+                    )
+                elif case == "profile-reversed-block":
+                    (home / ".profile").write_text(
+                        "# agent-first-harness: end standard current-user tool PATH\n"
+                        "# agent-first-harness: standard current-user tool PATH\n",
+                        encoding="utf-8",
+                    )
+                elif case == "profile-tampered-block":
+                    (home / ".profile").write_text(
+                        "# agent-first-harness: standard current-user tool PATH\n"
+                        "PATH=/tmp/untrusted:$PATH\n"
+                        "# agent-first-harness: end standard current-user tool PATH\n",
+                        encoding="utf-8",
+                    )
                 else:
                     fake_fish = root / "fish"
-                    executable(fake_fish, "#!/bin/sh\nexit 0\n")
+                    executable(
+                        fake_fish,
+                        "#!/bin/sh\n"
+                        "[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+                        "eval \"$3\"\n",
+                    )
                     shell_override = str(fake_fish)
                     fish_dir = home / ".config" / "fish" / "conf.d"
                     fish_dir.mkdir(parents=True)
@@ -477,7 +630,11 @@ class PrerequisiteGateTests(unittest.TestCase):
                 )
 
                 self.assertEqual(result.returncode, 24, result.stderr)
-                self.assertFalse((root / "cargo").exists())
+                if case == "profile-incomplete":
+                    self.assertIn("管理块不完整或重复", result.stderr)
+                elif case.startswith("profile-") and case != "profile-symlink":
+                    self.assertIn("管理块顺序或正文已损坏", result.stderr)
+                self.assertFalse((root / "home" / ".cargo").exists())
 
     def test_managed_rust_root_symlink_fails_before_download(self) -> None:
         """受管 Rust 根自身或中间组件为 symlink 时不得启动下载器或安装器。"""
@@ -486,7 +643,7 @@ class PrerequisiteGateTests(unittest.TestCase):
             (root / "home").mkdir()
             outside = root / "outside-cargo"
             outside.mkdir()
-            (root / "cargo").symlink_to(outside, target_is_directory=True)
+            (root / "home" / ".cargo").symlink_to(outside, target_is_directory=True)
             probe = root / "probe"
             fake_existing_tools(probe)
             (probe / "rustup").unlink()
@@ -503,6 +660,65 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertIn("路径组件不能是符号链接", result.stderr)
             self.assertEqual(list(outside.iterdir()), [])
 
+    def test_rust_only_change_validates_local_path_prefix_before_download(self) -> None:
+        """仅安装 Rust 也会写双前缀 PATH 块，必须预检 ~/.local 而不能跟随外部链接。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            home.mkdir()
+            outside = root / "outside-local"
+            outside.mkdir()
+            (home / ".local").symlink_to(outside, target_is_directory=True)
+            probe = root / "probe"
+            fake_existing_tools(probe)
+            for tool in ("rustup", "rustc", "cargo"):
+                (probe / tool).unlink()
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                probe=probe,
+                AFH_RUSTUP_DIST_BASE=(root / "unreachable-rust-dist").as_uri(),
+                AFH_ALLOW_FILE_URLS="1",
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("不能是符号链接", result.stderr)
+            self.assertEqual(list(outside.iterdir()), [])
+            self.assertFalse((home / ".profile").exists())
+            self.assertFalse((home / ".cargo").exists())
+
+    def test_frontend_only_change_validates_cargo_path_prefix_before_download(self) -> None:
+        """仅升级前端也会写双前缀 PATH 块，必须预检 Cargo 根而不能跟随外部链接。"""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            home.mkdir()
+            outside = root / "outside-cargo"
+            outside.mkdir()
+            (home / ".cargo").symlink_to(outside, target_is_directory=True)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, node="24.20.0")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                AFH_NODE_DIST_BASE=(root / "unreachable-node-dist").as_uri(),
+                AFH_ALLOW_FILE_URLS="1",
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("路径组件不能是符号链接", result.stderr)
+            self.assertEqual(list(outside.iterdir()), [])
+            self.assertFalse((home / ".profile").exists())
+            self.assertFalse((home / ".local").exists())
+
     def test_existing_node_version_requires_marker_and_contained_executables(self) -> None:
         """既有同版本目录只有带受管 marker 且最终可执行目标仍在同根内时才可复用。"""
         for case in ("missing-marker", "escaping-node", "wrong-version"):
@@ -513,18 +729,18 @@ class PrerequisiteGateTests(unittest.TestCase):
                 fake_frontend_tools(probe)
                 (probe / "node").unlink()
                 (probe / "npm").unlink()
-                selected_version = "v26.7.0" if case == "wrong-version" else "v24.15.0"
+                selected_version = "v26.7.0" if case == "wrong-version" else "v24.21.0"
                 node_dist = make_node_dist(root / "dist", version=selected_version)
                 archive = next((root / "dist" / selected_version).glob("*.tar.gz"))
                 archive_digest = hashlib.sha256(archive.read_bytes()).hexdigest()
                 archive.unlink()
-                install_bin = root / "node-home" / selected_version / "bin"
+                install_bin = root / "home" / ".local" / "lib" / "nodejs" / selected_version / "bin"
                 install_bin.mkdir(parents=True)
-                installed_report = "v24.15.0" if case == "wrong-version" else selected_version
+                installed_report = "v24.21.0" if case == "wrong-version" else selected_version
                 executable(install_bin / "node", f"#!/bin/sh\nprintf '%s\\n' '{installed_report}'\n")
                 fake_npm_installer(install_bin)
                 if case != "missing-marker":
-                    (root / "node-home" / selected_version / ".agent-first-harness-managed").write_text(
+                    (root / "home" / ".local" / "lib" / "nodejs" / selected_version / ".agent-first-harness-managed").write_text(
                         "# managed by agent-first-harness development environment gate\n"
                         f"node.version={selected_version}\n"
                         f"node.archive.sha256={archive_digest}\n",
@@ -548,25 +764,357 @@ class PrerequisiteGateTests(unittest.TestCase):
 
                 self.assertIn(result.returncode, (24, 26), result.stderr)
                 if case == "wrong-version":
-                    self.assertIn("版本与已选择稳定版不一致", result.stderr)
-                self.assertFalse((root / "home" / ".local" / "share" / "agent-first-harness" / "bin" / "node").exists())
+                    self.assertIn("node 版本与目录名称不一致", result.stderr)
+                self.assertFalse((root / "home" / ".local" / "bin" / "node").exists())
 
     def test_persistence_temp_files_use_unpredictable_mktemp_names(self) -> None:
-        """env/fish/verifier/link 临时对象不得使用可预置并跟随的 PID 文件名。"""
+        """profile/fish/verifier/link 临时对象不得使用可预置并跟随的 PID 文件名。"""
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("tmp.$$", source)
         for fragment in (
             '.link-$tool_name.XXXXXX',
             '.agent-first-harness.fish.tmp.XXXXXX',
-            '.env.sh.tmp.XXXXXX',
             '.$profile_name.agent-first-harness.tmp.XXXXXX',
             '.$profile_name.agent-first-harness.snapshot.XXXXXX',
             'mktemp -d',
             '$FRESH_VERIFY_DIR/check.XXXXXX',
+            '$RUST_HOME_VERIFY_DIR/check.XXXXXX',
+            '$FRESH_VERIFY_DIR/launch.XXXXXX',
+            '$RUST_HOME_VERIFY_DIR/launch.XXXXXX',
         ):
             self.assertIn(fragment, source)
         self.assertNotIn('>> "$profile_path"', source)
         self.assertIn('cmp -s "$profile_path" "$profile_snapshot"', source)
+        self.assertIn("FRESH_BASE_PATH=/usr/bin:/bin:/usr/sbin:/sbin", source)
+        self.assertIn("unset CARGO_HOME RUSTUP_HOME", source)
+        self.assertNotIn("BASE_SESSION_PATH", source)
+
+    def test_fish_path_config_respects_standard_cargo_home(self) -> None:
+        """Fish 持久 PATH 必须安全使用标准 CARGO_HOME，并避免与 ~/.local/bin 重复。"""
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('if set -q CARGO_HOME', source)
+        self.assertIn('set user_cargo_home "$CARGO_HOME"', source)
+        self.assertIn('string match -q -- "$HOME/*" "$user_cargo_home"', source)
+        self.assertIn('"*:*" "*/../*" "*/.." "*/./*" "*/."', source)
+        self.assertIn('test "$user_cargo_home/bin" != "$HOME/.local/bin"', source)
+        self.assertIn('fish_add_path --path "$HOME/.local/bin"', source)
+
+    def test_new_fish_user_config_tree_exists_before_package_install(self) -> None:
+        """新 fish 用户缺少 ~/.config 时，全部配置层级必须先于 npm 安装安全建立。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            home.mkdir()
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, pnpm="12.4.0")
+            executable(
+                probe / "npm",
+                """#!/bin/sh
+set -eu
+if [ "${1:-}" = --version ]; then printf '%s\n' '11.6.0'; exit 0; fi
+[ -d "$HOME/.config" ] && [ -d "$HOME/.config/fish" ] && [ -d "$HOME/.config/fish/conf.d" ] || exit 71
+prefix=
+while [ "$#" -gt 0 ]; do
+  case "$1" in --prefix) prefix=$2; shift 2 ;; *) shift ;; esac
+done
+mkdir -p "$prefix/bin"
+printf '#!/bin/sh\nprintf "%%s\\n" "12.4.1"\n' > "$prefix/bin/pnpm"
+chmod +x "$prefix/bin/pnpm"
+""",
+            )
+            login_shell = root / "fish"
+            executable(
+                login_shell,
+                "#!/bin/sh\n"
+                "[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+                "if [ -f \"$HOME/.config/fish/conf.d/agent-first-harness.fish\" ]; then "
+                "PATH=\"$HOME/.cargo/bin:$HOME/.local/bin:$PATH\"; export PATH; fi\n"
+                "eval \"$3\"\n",
+            )
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                SHELL=str(login_shell),
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("gate.pnpm.change=upgraded", result.stdout)
+            self.assertTrue((home / ".config" / "fish" / "conf.d").is_dir())
+            self.assertTrue((home / ".config" / "fish" / "conf.d" / "agent-first-harness.fish").is_file())
+
+    def test_each_unchanged_tool_must_be_exactly_persistent_before_any_install(self) -> None:
+        """passed 工具只在瞬时探测 PATH 可见时，必须在任何安装和 profile 写入前失败。"""
+        cases = {
+            "git": ("git",),
+            "rust": ("rustup", "rustc", "cargo"),
+            "node": ("node",),
+            "npm": ("npm",),
+            "pnpm": ("pnpm",),
+        }
+        for target, transient_tools in cases.items():
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                shared = root / "persistent"
+                transient = root / "transient"
+                if target == "pnpm":
+                    fake_existing_tools(shared, rust="1.98.0", python=False)
+                    fake_frontend_tools(shared)
+                else:
+                    fake_existing_tools(shared, python=False)
+                    fake_frontend_tools(shared, pnpm="12.4.0")
+                transient.mkdir()
+                for tool in transient_tools:
+                    shutil.copy2(shared / tool, transient / tool)
+                    (shared / tool).unlink()
+
+                result = self.run_gate(
+                    root,
+                    "--install-missing",
+                    "--interfaces",
+                    "GUI",
+                    probe=shared,
+                    AFH_PREREQ_PATH=f"{transient}:{shared}",
+                    AFH_TEST_SYSTEM_PATH=f"{shared}:/usr/bin:/bin:/usr/sbin:/sbin",
+                    AFH_RUSTUP_DIST_BASE=(root / "unreachable-rust-dist").as_uri(),
+                    AFH_ALLOW_FILE_URLS="1",
+                )
+
+                self.assertEqual(result.returncode, 24, result.stderr)
+                self.assertIn("写入前新 shell", result.stderr)
+                self.assertFalse((root / "home" / ".profile").exists())
+                self.assertFalse((root / "home" / ".cargo").exists())
+                self.assertFalse((root / "home" / ".local").exists())
+
+    def test_profile_path_shadow_is_rejected_before_install(self) -> None:
+        """login profile 把同名命令置于既有 passed 路径之前时，必须零安装失败。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            home.mkdir()
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, pnpm="12.4.0")
+            shadow = home / "shadow"
+            shadow.mkdir()
+            executable(shadow / "git", "#!/bin/sh\nprintf '%s\\n' 'git version 2.39.0'\n")
+            profile = home / ".profile"
+            profile_text = f'PATH="{shadow}:$PATH"\nexport PATH\n'
+            profile.write_text(profile_text, encoding="utf-8")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("既有工具 git", result.stderr)
+            self.assertEqual(profile.read_text(encoding="utf-8"), profile_text)
+            self.assertFalse((home / ".local").exists())
+
+    def test_pending_git_profile_shadow_is_rejected_before_package_install(self) -> None:
+        """Git 待升级时，profile 中的另一绝对路径也必须在包管理器执行前拒绝。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            home.mkdir()
+            probe = root / "probe"
+            fake_existing_tools(probe, git="2.35.8", python=False)
+            fake_git_package_manager(probe)
+            shadow = home / "shadow"
+            shadow.mkdir()
+            executable(shadow / "git", "#!/bin/sh\nprintf '%s\\n' 'git version 2.34.1'\n")
+            profile = home / ".profile"
+            profile_text = f'PATH="{shadow}:$PATH"\nexport PATH\n'
+            profile.write_text(profile_text, encoding="utf-8")
+
+            result = self.run_gate(root, "--install-missing", probe=probe)
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("既有工具 git", result.stderr)
+            self.assertEqual(profile.read_text(encoding="utf-8"), profile_text)
+            git_version = subprocess.run(
+                [str(probe / "git"), "--version"],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            self.assertEqual(git_version.stdout.strip(), "git version 2.35.8")
+            self.assertFalse((home / ".local").exists())
+
+    def test_missing_current_node_rejects_persisted_higher_version_before_install(self) -> None:
+        """当前会话缺少 Node 但持久 profile 已有更高版时，必须零安装失败关闭。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            home.mkdir()
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe)
+            (probe / "node").unlink()
+            (probe / "npm").unlink()
+            persistent = home / "persistent-node"
+            persistent.mkdir()
+            executable(persistent / "node", "#!/bin/sh\nprintf '%s\\n' 'v26.8.2'\n")
+            fake_npm_installer(persistent)
+            profile = home / ".profile"
+            profile_text = f'PATH="{persistent}:$PATH"\nexport PATH\n'
+            profile.write_text(profile_text, encoding="utf-8")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("既有工具 node", result.stderr)
+            self.assertEqual(profile.read_text(encoding="utf-8"), profile_text)
+            self.assertFalse((home / ".local").exists())
+
+    def test_projected_user_path_shadow_is_rejected_before_install(self) -> None:
+        """即将前置的标准用户 bin 若会遮蔽 passed Node，必须在 pnpm 安装和 profile 写入前拒绝。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            user_bin = home / ".local" / "bin"
+            user_bin.mkdir(parents=True)
+            executable(user_bin / "node", "#!/bin/sh\nprintf '%s\\n' 'v22.0.0'\n")
+            fake_npm_installer(user_bin)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, node="26.8.2", pnpm="12.4.0")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("既有工具 node", result.stderr)
+            self.assertFalse((home / ".profile").exists())
+            self.assertFalse((user_bin / "pnpm").exists())
+
+    def test_unselected_existing_node_root_conflict_precedes_network(self) -> None:
+        """尚未读取版本索引时，也必须枚举并拒绝 NODE_HOME 内未标记的既有版本根。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, node="24.20.9")
+            existing_bin = root / "home" / ".local" / "lib" / "nodejs" / "v23.0.0" / "bin"
+            existing_bin.mkdir(parents=True)
+            executable(existing_bin / "node", "#!/bin/sh\nprintf '%s\\n' 'v23.0.0'\n")
+            fake_npm_installer(existing_bin)
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                AFH_NODE_DIST_BASE=(root / "unreachable-node-dist").as_uri(),
+                AFH_ALLOW_FILE_URLS="1",
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("缺少受管所有权标记", result.stderr)
+            self.assertNotIn("发布版本索引下载失败", result.stderr)
+            self.assertFalse((root / "home" / ".profile").exists())
+
+    def test_path_separator_in_user_install_root_fails_before_probe_or_write(self) -> None:
+        """受管根含冒号会变成额外 PATH 项，必须在任何探测或安装前拒绝。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe)
+            unsafe = root / "home" / "cargo:outside"
+
+            result = self.run_gate(
+                root,
+                "--check-only",
+                probe=probe,
+                CARGO_HOME=str(unsafe),
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("PATH 分隔符冒号", result.stderr)
+            self.assertFalse(unsafe.exists())
+
+    def test_process_only_custom_rust_homes_fail_before_download(self) -> None:
+        """仅当前进程可见的非默认 Rust homes 不能决定持久安装目标。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, rust="1.98.0")
+            cargo_home = root / "home" / "custom-cargo"
+            rustup_home = root / "home" / "custom-rustup"
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                probe=probe,
+                CARGO_HOME=str(cargo_home),
+                RUSTUP_HOME=str(rustup_home),
+            )
+
+            self.assertEqual(result.returncode, 24, result.stderr)
+            self.assertIn("不能只存在于当前进程", result.stderr)
+            self.assertFalse(cargo_home.exists())
+            self.assertFalse(rustup_home.exists())
+
+    def test_login_persisted_custom_rust_homes_are_used_and_reprobed(self) -> None:
+        """login shell 能恢复的非默认 Rust homes 可供 rustup 安装并在全新会话复探。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            home.mkdir()
+            probe = root / "probe"
+            fake_existing_tools(probe, rust="1.98.0")
+            cargo_home = home / "custom-cargo"
+            rustup_home = home / "custom-rustup"
+            (home / ".profile").write_text(
+                f"export CARGO_HOME='{cargo_home}'\nexport RUSTUP_HOME='{rustup_home}'\n",
+                encoding="utf-8",
+            )
+            login_shell = root / "sh"
+            executable(
+                login_shell,
+                "#!/bin/sh\n"
+                "[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+                "[ ! -f \"$HOME/.profile\" ] || . \"$HOME/.profile\"\n"
+                "eval \"$3\"\n",
+            )
+            rust_dist = make_rust_dist(root / "rustup-dist")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                probe=probe,
+                CARGO_HOME=str(cargo_home),
+                RUSTUP_HOME=str(rustup_home),
+                SHELL=str(login_shell),
+                AFH_RUSTUP_DIST_BASE=rust_dist,
+                AFH_ALLOW_FILE_URLS="1",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("gate.rust.change=upgraded", result.stdout)
+            self.assertIn("gate.fresh_shell.status=passed", result.stdout)
+            self.assertTrue((cargo_home / "bin" / "cargo").is_file())
+            self.assertTrue(rustup_home.is_dir())
 
     def test_profile_atomic_update_does_not_overwrite_concurrent_change(self) -> None:
         """profile 快照后若原文件变化，门禁必须保留并发字节并拒绝原子替换。"""
@@ -623,7 +1171,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                     login_shell,
                     "#!/bin/sh\n"
                     "[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
-                    f'exec "{POSIX_SHELL}" -c "$3"\n',
+                    "eval \"$3\"\n",
                 )
                 base_path = os.environ.get("PATH", "")
                 if probe_is_persistent:
@@ -635,6 +1183,11 @@ class PrerequisiteGateTests(unittest.TestCase):
                     probe=probe,
                     SHELL=str(login_shell),
                     PATH=base_path,
+                    AFH_TEST_SYSTEM_PATH=(
+                        f"{probe}:/usr/bin:/bin:/usr/sbin:/sbin"
+                        if probe_is_persistent
+                        else "/usr/bin:/bin:/usr/sbin:/sbin"
+                    ),
                 )
 
                 if probe_is_persistent:
@@ -646,7 +1199,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 24, result.stderr)
                     self.assertIn("新 shell 无法从持久 PATH", result.stderr)
 
-    def test_git_bash_full_install_uses_managed_global_roots(self) -> None:
+    def test_git_bash_full_install_uses_standard_user_roots(self) -> None:
         """Windows CI 通过 Git Bash 真运行 Unix 安装、持久 PATH 与新 login shell 复探闭环。"""
         if os.name != "nt" or GIT_BASH is None:
             self.skipTest("仅用于 Windows 上的 Git Bash Unix 门禁回归")
@@ -679,16 +1232,12 @@ class PrerequisiteGateTests(unittest.TestCase):
                     "AFH_ALLOW_FILE_URLS": "1",
                     "AFH_RUSTUP_DIST_BASE": rust_dist,
                     "AFH_NODE_DIST_BASE": node_dist,
-                    "AFH_MANAGED_CARGO_HOME": shell_path(root / "cargo"),
-                    "AFH_MANAGED_RUSTUP_HOME": shell_path(root / "rustup"),
-                    "AFH_NODE_HOME": shell_path(root / "node-home"),
-                    "AFH_PNPM_HOME": shell_path(root / "pnpm-home"),
                     "AFH_TEST_HOST_OS": "Linux",
                     "AFH_TEST_HOST_ARCH": "x86_64",
-                    "AFH_TEST_RUST_LIBC": "gnu",
+                    "AFH_TEST_LINUX_LIBC": "gnu",
                     "HOME": shell_path(home),
-                    "CARGO_HOME": shell_path(root / "project" / ".cargo"),
-                    "RUSTUP_HOME": shell_path(root / "project" / ".rustup"),
+                    "CARGO_HOME": shell_path(root / "home" / ".cargo"),
+                    "RUSTUP_HOME": shell_path(root / "home" / ".rustup"),
                     "SHELL": "/bin/sh",
                     "PATH": os.pathsep.join((str(probe), str(git_usr_bin), str(git_mingw_bin))),
                 }
@@ -708,10 +1257,9 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertIn("gate.rust.change=installed", result.stdout)
             self.assertIn("gate.node.change=installed", result.stdout)
             self.assertIn("gate.pnpm.change=installed", result.stdout)
-            self.assertTrue((root / "cargo" / "bin" / "cargo").is_file())
-            self.assertTrue((root / "node-home" / "v24.15.0" / "bin" / "node").is_file())
-            self.assertTrue((root / "pnpm-home" / "bin" / "pnpm").is_file())
-            self.assertFalse((root / "project").exists())
+            self.assertTrue((root / "home" / ".cargo" / "bin" / "cargo").is_file())
+            self.assertTrue((root / "home" / ".local" / "lib" / "nodejs" / "v24.21.0" / "bin" / "node").is_file())
+            self.assertTrue((root / "home" / ".local" / "bin" / "pnpm").is_file())
 
     def test_empty_probe_path_segment_never_resolves_cwd_shim(self) -> None:
         """探测 PATH 的空段必须被丢弃，不能执行当前项目目录中的同名 shim。"""
@@ -768,8 +1316,8 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertIn("gate.changed=false", result.stdout)
 
     def test_newer_stable_rust_versions_satisfy_the_minimum(self) -> None:
-        """高于 1.95.0 的稳定版本与未来主版本必须通过，避免把 MSRV 误作精确版本锁。"""
-        for rust_version in ("1.96.0", "1.97.1", "2.0.0"):
+        """高于 1.98.1 的稳定版本与未来主版本必须通过，避免把 MSRV 误作精确版本锁。"""
+        for rust_version in ("1.98.1", "1.98.2", "1.99.0", "2.0.0"):
             with self.subTest(rust_version=rust_version), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 probe = root / "probe"
@@ -810,7 +1358,18 @@ class PrerequisiteGateTests(unittest.TestCase):
             probe = root / "probe"
             fake_existing_tools(probe, include_git=False)
             fake_git_package_manager(probe)
-            result = self.run_gate(root, "--install-missing", probe=probe)
+            login_shell = root / "sh"
+            executable(
+                login_shell,
+                "#!/bin/sh\n[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+                "eval \"$3\"\n",
+            )
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                probe=probe,
+                SHELL=str(login_shell),
+            )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.git.status=passed", result.stdout)
             self.assertIn("gate.git.version=git version 2.51.0", result.stdout)
@@ -828,14 +1387,18 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.rust.status=passed", result.stdout)
             self.assertIn("gate.node.status=passed", result.stdout)
-            self.assertIn("gate.node.requirement=^24.15.0 || >=26.0.0", result.stdout)
+            self.assertIn("gate.node.requirement=>=24.21.0", result.stdout)
             self.assertIn("gate.pnpm.status=passed", result.stdout)
-            self.assertIn("gate.pnpm.requirement=>=11.24.0", result.stdout)
+            self.assertIn("gate.pnpm.requirement=>=12.4.1", result.stdout)
             self.assertIn("gate.changed=false", result.stdout)
 
     def test_newer_compatible_frontend_tools_are_preserved(self) -> None:
         """高于下界的 Node.js 与 pnpm 仍应通过，兼容要求不能退化为精确版本锁。"""
-        for node_version, pnpm_version in (("24.15.0", "11.24.0"), ("26.7.0", "12.3.0")):
+        for node_version, pnpm_version in (
+            ("24.21.0", "12.4.1"),
+            ("25.9.0", "13.0.0"),
+            ("26.7.0", "13.1.0"),
+        ):
             with self.subTest(node=node_version, pnpm=pnpm_version):
                 with tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary)
@@ -855,8 +1418,8 @@ class PrerequisiteGateTests(unittest.TestCase):
                     self.assertIn("gate.changed=false", result.stdout)
 
     def test_lower_node_versions_require_upgrade_in_check_only(self) -> None:
-        """低于 24.15.0 与 25.x 空档版本应报告升级需求，且只读模式不写入。"""
-        for node_version in ("23.11.9", "24.14.9", "25.9.0"):
+        """低于 24.21.0 的正式版本应报告升级需求，且只读模式不写入。"""
+        for node_version in ("23.11.9", "24.20.9"):
             with self.subTest(node_version=node_version), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 probe = root / "probe"
@@ -868,49 +1431,56 @@ class PrerequisiteGateTests(unittest.TestCase):
                 self.assertIn(f"gate.node.version=v{node_version}", result.stdout)
                 self.assertIn("gate.pnpm.status=passed", result.stdout)
                 self.assertEqual(result.stderr, "")
-                self.assertFalse((root / "node-home").exists())
+                self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
 
     def test_lower_pnpm_requires_upgrade_in_check_only(self) -> None:
-        """pnpm 低于 11.24.0 时应报告升级需求，且只读模式不得安装。"""
+        """pnpm 低于 12.4.1 时应报告升级需求，且只读模式不得安装。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
             fake_existing_tools(probe, python=False)
-            fake_frontend_tools(probe, pnpm="11.23.9")
+            fake_frontend_tools(probe, pnpm="12.4.0")
             result = self.run_gate(root, "--check-only", "--interfaces", "GUI", probe=probe)
             self.assertEqual(result.returncode, 20, result.stderr)
             self.assertIn("gate.node.status=passed", result.stdout)
             self.assertIn("gate.pnpm.status=upgrade-required", result.stdout)
-            self.assertIn("gate.pnpm.version=11.23.9", result.stdout)
+            self.assertIn("gate.pnpm.version=12.4.0", result.stdout)
             self.assertEqual(result.stderr, "")
-            self.assertFalse((root / "home" / ".local" / "share" / "agent-first-pnpm").exists())
+            self.assertFalse((root / "home" / ".local" / "bin" / "pnpm").exists())
 
     def test_check_only_reports_all_lower_versions_without_installing(self) -> None:
         """只读模式必须汇总全部可证明的低版本，并以 20 退出且保持零写入。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            fake_existing_tools(probe, rust="1.94.9", git="1.99.9", python=False)
-            fake_frontend_tools(probe, node="25.9.0", pnpm="11.23.9")
+            fake_existing_tools(probe, rust="1.98.0", git="1.99.9", python=False)
+            fake_frontend_tools(probe, node="24.20.9", pnpm="12.4.0")
             result = self.run_gate(root, "--check-only", "--interfaces", "GUI", probe=probe)
             self.assertEqual(result.returncode, 20, result.stderr)
             for tool in ("git", "rust", "node", "pnpm"):
                 self.assertIn(f"gate.{tool}.status=upgrade-required", result.stdout)
             self.assertEqual(result.stderr, "")
-            self.assertFalse((root / "cargo").exists())
-            self.assertFalse((root / "node-home").exists())
-            self.assertFalse((root / "home").exists())
+            self.assertFalse((root / "home" / ".cargo").exists())
+            self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
+            self.assertEqual(list((root / "home").iterdir()), [])
 
     def test_lower_gui_toolchain_is_upgraded_and_reprobed(self) -> None:
         """初始化模式应沿既有受管路径升级全部低版本，并逐项输出 upgraded。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            fake_existing_tools(probe, rust="1.94.9", git="1.99.9", python=False)
-            fake_frontend_tools(probe, node="25.9.0", pnpm="11.23.9")
+            fake_existing_tools(probe, rust="1.98.0", git="1.99.9", python=False)
+            fake_frontend_tools(probe, node="24.20.9", pnpm="12.4.0")
             fake_git_package_manager(probe)
             rust_dist = make_rust_dist(root / "rustup-dist")
             node_dist = make_node_dist(root / "dist")
+            login_shell = root / "sh"
+            executable(
+                login_shell,
+                "#!/bin/sh\n[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+                "[ ! -f \"$HOME/.profile\" ] || . \"$HOME/.profile\"\n"
+                "eval \"$3\"\n",
+            )
             result = self.run_gate(
                 root,
                 "--install-missing",
@@ -921,24 +1491,106 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_NODE_DIST_BASE=node_dist,
                 AFH_PNPM_REGISTRY="https://registry.example.invalid/",
                 AFH_ALLOW_FILE_URLS="1",
+                SHELL=str(login_shell),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             for tool in ("git", "rust", "node", "pnpm"):
                 self.assertIn(f"gate.{tool}.status=passed", result.stdout)
                 self.assertIn(f"gate.{tool}.change=upgraded", result.stdout)
             self.assertIn("gate.git.version=git version 2.51.0", result.stdout)
-            self.assertIn("gate.rust.version=rustc 1.95.0 (test)", result.stdout)
-            self.assertIn("gate.node.version=v24.15.0", result.stdout)
-            self.assertIn("gate.pnpm.version=12.1.0", result.stdout)
+            self.assertIn("gate.rust.version=rustc 1.98.1 (test)", result.stdout)
+            self.assertIn("gate.node.version=v24.21.0", result.stdout)
+            self.assertIn("gate.pnpm.version=12.4.1", result.stdout)
             self.assertIn("gate.changed=true", result.stdout)
+
+    def test_node_installer_selects_highest_lts_independent_of_index_order(self) -> None:
+        """安装候选必须按语义版本选最高 LTS，而不是采用索引中的首个 LTS。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, node="24.20.9")
+            node_dist = make_node_dist(root / "dist", version="v26.1.0")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                AFH_NODE_DIST_BASE=node_dist,
+                AFH_ALLOW_FILE_URLS="1",
+                AFH_SKIP_PERSIST_PATH="1",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("gate.node.version=v26.1.0", result.stdout)
+            self.assertIn("gate.node.change=upgraded", result.stdout)
+
+    def test_linux_x64_musl_uses_the_official_musl_node_archive(self) -> None:
+        """musl x64 不得下载 glibc Node 制品，必须选择官方 linux-x64-musl 形态。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, node="24.20.9")
+            node_dist = make_node_dist(
+                root / "dist",
+                forced_tuple=("linux", "x64-musl"),
+            )
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                AFH_NODE_DIST_BASE=node_dist,
+                AFH_ALLOW_FILE_URLS="1",
+                AFH_SKIP_PERSIST_PATH="1",
+                AFH_TEST_HOST_OS="Linux",
+                AFH_TEST_HOST_ARCH="x86_64",
+                AFH_TEST_LINUX_LIBC="musl",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("gate.node.version=v24.21.0", result.stdout)
+            self.assertTrue(
+                (root / "home" / ".local" / "lib" / "nodejs" / "v24.21.0" / "bin" / "node").is_file()
+            )
+
+    def test_linux_arm64_musl_without_official_node_archive_fails_before_download(self) -> None:
+        """官方没有 arm64 musl 制品时必须在访问发布索引前明确失败。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, node="24.20.9")
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                AFH_NODE_DIST_BASE=(root / "unreachable-node-dist").as_uri(),
+                AFH_ALLOW_FILE_URLS="1",
+                AFH_TEST_HOST_OS="Linux",
+                AFH_TEST_HOST_ARCH="aarch64",
+                AFH_TEST_LINUX_LIBC="musl",
+            )
+
+            self.assertEqual(result.returncode, 26, result.stderr)
+            self.assertIn("没有官方 Linux arm64 musl 制品", result.stderr)
+            self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
 
     def test_prerelease_versions_are_rejected_without_upgrade(self) -> None:
         """预发布版本仍必须直接失败，不能被归类为可自动升级的低版本。"""
         cases = (
             ("git", "2.50.0.rc1", 29),
-            ("rust", "1.95.0-nightly", 21),
-            ("node", "24.15.0-rc.1", 23),
-            ("pnpm", "11.24.0-beta.1", 28),
+            ("rust", "1.98.1-nightly", 21),
+            ("node", "24.21.0-rc.1", 23),
+            ("pnpm", "12.4.1-beta.1", 28),
         )
         for tool, version, exit_code in cases:
             with self.subTest(tool=tool), tempfile.TemporaryDirectory() as temporary:
@@ -946,7 +1598,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                 probe = root / "probe"
                 fake_existing_tools(
                     probe,
-                    rust=version if tool == "rust" else "1.95.0",
+                    rust=version if tool == "rust" else "1.98.1",
                     git=version if tool == "git" else "2.39.0",
                     python=False,
                 )
@@ -954,42 +1606,49 @@ class PrerequisiteGateTests(unittest.TestCase):
                 if tool in ("node", "pnpm"):
                     fake_frontend_tools(
                         probe,
-                        node=version if tool == "node" else "24.15.0",
-                        pnpm=version if tool == "pnpm" else "11.24.0",
+                        node=version if tool == "node" else "24.21.0",
+                        pnpm=version if tool == "pnpm" else "12.4.1",
                     )
                     args.extend(("--interfaces", "GUI"))
                 result = self.run_gate(root, *args, probe=probe)
                 self.assertEqual(result.returncode, exit_code)
                 self.assertIn("错误：", result.stderr)
-                self.assertFalse((root / "cargo").exists())
-                self.assertFalse((root / "node-home").exists())
+                self.assertFalse((root / "home" / ".cargo").exists())
+                self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
 
     def test_unparseable_versions_are_rejected_without_upgrade(self) -> None:
         """不可解析版本仍必须失败，不能触发任何安装或兼容回退。"""
-        cases = (("git", 29), ("rust", 21), ("node", 23), ("pnpm", 28))
-        for tool, exit_code in cases:
-            with self.subTest(tool=tool), tempfile.TemporaryDirectory() as temporary:
+        cases = (
+            ("git", "unknown", 29),
+            ("rust", "unknown", 21),
+            ("node", "unknown", 23),
+            ("node", "24.21.0.1", 23),
+            ("pnpm", "unknown", 28),
+            ("pnpm", "12.4.1.1", 28),
+        )
+        for tool, version, exit_code in cases:
+            with self.subTest(tool=tool, version=version), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 probe = root / "probe"
                 fake_existing_tools(
                     probe,
-                    rust="unknown" if tool == "rust" else "1.95.0",
-                    git="unknown" if tool == "git" else "2.39.0",
+                    rust=version if tool == "rust" else "1.98.1",
+                    git=version if tool == "git" else "2.39.0",
                     python=False,
                 )
                 args = ["--install-missing"]
                 if tool in ("node", "pnpm"):
                     fake_frontend_tools(
                         probe,
-                        node="unknown" if tool == "node" else "24.15.0",
-                        pnpm="unknown" if tool == "pnpm" else "11.24.0",
+                        node=version if tool == "node" else "24.21.0",
+                        pnpm=version if tool == "pnpm" else "12.4.1",
                     )
                     args.extend(("--interfaces", "GUI"))
                 result = self.run_gate(root, *args, probe=probe)
                 self.assertEqual(result.returncode, exit_code)
                 self.assertIn("识别", result.stderr)
-                self.assertFalse((root / "cargo").exists())
-                self.assertFalse((root / "node-home").exists())
+                self.assertFalse((root / "home" / ".cargo").exists())
+                self.assertFalse((root / "home" / ".local" / "lib" / "nodejs").exists())
 
     def test_missing_gui_toolchain_is_installed_in_isolation(self) -> None:
         """GUI 缺失 Git、Rust、Node.js 与 pnpm 时应全部安装并复探。"""
@@ -1000,6 +1659,27 @@ class PrerequisiteGateTests(unittest.TestCase):
             probe = root / "probe"
             probe.mkdir()
             fake_git_package_manager(probe)
+            legacy_env = root / "home" / ".config" / "agent-first-harness" / "env.sh"
+            legacy_env.parent.mkdir(parents=True)
+            legacy_env.write_text(
+                "# managed by agent-first-harness development environment gate\n"
+                "PATH=\"$HOME/.local/share/agent-first-harness/bin:$PATH\"\n"
+                "export PATH\n",
+                encoding="utf-8",
+            )
+            legacy_source = (
+                '[ -r "$HOME/.config/agent-first-harness/env.sh" ] && '
+                '. "$HOME/.config/agent-first-harness/env.sh"'
+            )
+            profile = root / "home" / ".profile"
+            profile.write_text(f"owner-before\n{legacy_source}\nowner-after\n", encoding="utf-8")
+            login_shell = root / "sh"
+            executable(
+                login_shell,
+                "#!/bin/sh\n[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+                "[ ! -f \"$HOME/.profile\" ] || . \"$HOME/.profile\"\n"
+                "eval \"$3\"\n",
+            )
             result = self.run_gate(
                 root,
                 "--install-missing",
@@ -1009,6 +1689,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_RUSTUP_DIST_BASE=rust_dist,
                 AFH_NODE_DIST_BASE=node_dist,
                 AFH_ALLOW_FILE_URLS="1",
+                SHELL=str(login_shell),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("gate.git.change=installed", result.stdout)
@@ -1016,13 +1697,17 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertIn("gate.node.change=installed", result.stdout)
             self.assertIn("gate.pnpm.change=installed", result.stdout)
             self.assertIn("gate.changed=true", result.stdout)
-            self.assertTrue((root / "cargo" / "bin" / "cargo").is_file())
-            self.assertTrue((root / "rustup").is_dir())
+            self.assertTrue((root / "home" / ".cargo" / "bin" / "cargo").is_file())
+            self.assertTrue((root / "home" / ".rustup").is_dir())
             self.assertFalse((root / "project").exists())
-            self.assertIn("gate.node.version=v24.15.0", result.stdout)
-            self.assertIn("gate.pnpm.version=12.1.0", result.stdout)
-            self.assertTrue((root / "node-home" / "v24.15.0" / "bin" / "node").is_file())
-            self.assertTrue((root / "home" / ".local" / "share" / "agent-first-pnpm" / "bin" / "pnpm").is_file())
+            self.assertIn("gate.node.version=v24.21.0", result.stdout)
+            self.assertIn("gate.pnpm.version=12.4.1", result.stdout)
+            self.assertTrue((root / "home" / ".local" / "lib" / "nodejs" / "v24.21.0" / "bin" / "node").is_file())
+            self.assertTrue((root / "home" / ".local" / "bin" / "pnpm").is_file())
+            migrated_profile = profile.read_text(encoding="utf-8")
+            self.assertNotIn(legacy_source, migrated_profile)
+            self.assertIn("# agent-first-harness: standard current-user tool PATH", migrated_profile)
+            self.assertTrue(legacy_env.is_file())
             session_env = os.environ.copy()
             session_env.update(
                 {
@@ -1054,15 +1739,74 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertEqual(len(persisted_path), len(dict.fromkeys(persisted_path)))
             self.assertIn(f"{root}/literal-*", persisted_path)
             self.assertNotIn(f"{root}/literal-match", persisted_path)
-            self.assertIn("v24.15.0", session.stdout)
-            self.assertIn("12.1.0", session.stdout)
+            self.assertIn("v24.21.0", session.stdout)
+            self.assertIn("12.4.1", session.stdout)
             self.assertIn("rustup 1.28.0", session.stdout)
-            self.assertIn("rustc 1.95.0", session.stdout)
-            self.assertIn("cargo 1.95.0", session.stdout)
+            self.assertIn("rustc 1.98.1", session.stdout)
+            self.assertIn("cargo 1.98.1", session.stdout)
             self.assertIn("GLOB=enabled", session.stdout)
 
-    def test_project_rust_homes_cannot_redirect_managed_install(self) -> None:
-        """继承的项目内 CARGO_HOME/RUSTUP_HOME 不得改变 Rust 的当前用户受管安装目标。"""
+    def test_profile_deduplicates_overlapping_cargo_and_local_bins_and_rejects_unsafe_future_home(self) -> None:
+        """CARGO_HOME=.local 不重复 PATH，后续相对逃逸值也不能注入 profile。"""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root / "probe"
+            fake_existing_tools(probe, python=False)
+            fake_frontend_tools(probe, node="22.16.0", pnpm="12.4.1")
+            node_dist = make_node_dist(root / "dist")
+            home = root / "home"
+            home.mkdir()
+            local_home = home / ".local"
+            (home / ".profile").write_text(
+                f"export CARGO_HOME='{local_home}'\n",
+                encoding="utf-8",
+            )
+            login_shell = root / "sh"
+            executable(
+                login_shell,
+                "#!/bin/sh\n[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n"
+                ". \"$HOME/.profile\"\n"
+                "eval \"$3\"\n",
+            )
+
+            result = self.run_gate(
+                root,
+                "--install-missing",
+                "--interfaces",
+                "GUI",
+                probe=probe,
+                AFH_NODE_DIST_BASE=node_dist,
+                AFH_ALLOW_FILE_URLS="1",
+                SHELL=str(login_shell),
+                CARGO_HOME=str(local_home),
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            profile = home / ".profile"
+            base_env = os.environ.copy()
+            base_env.update({"HOME": str(root / "home"), "PATH": "/usr/bin:/bin"})
+            overlap = subprocess.run(
+                [str(POSIX_SHELL), "-c", '. "$HOME/.profile"; printf "%s\\n" "$PATH"'],
+                text=True,
+                capture_output=True,
+                env={**base_env, "CARGO_HOME": str(local_home)},
+                check=False,
+            )
+            self.assertEqual(overlap.returncode, 0, overlap.stderr)
+            self.assertEqual(overlap.stdout.strip().split(":" ).count(str(local_home / "bin")), 1)
+
+            unsafe = subprocess.run(
+                [str(POSIX_SHELL), "-c", '. "$HOME/.profile"; printf "%s\\n" "$PATH"'],
+                text=True,
+                capture_output=True,
+                env={**base_env, "CARGO_HOME": str(root / "home" / ".." / "outside")},
+                check=False,
+            )
+            self.assertEqual(unsafe.returncode, 0, unsafe.stderr)
+            self.assertNotIn(str(root / "home" / ".." / "outside" / "bin"), unsafe.stdout.strip().split(":"))
+
+    def test_standard_rust_home_settings_are_respected_without_private_overrides(self) -> None:
+        """用户显式设置的标准 CARGO_HOME/RUSTUP_HOME 应被 rustup 原样使用。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
@@ -1070,6 +1814,8 @@ class PrerequisiteGateTests(unittest.TestCase):
             for tool in ("rustup", "rustc", "cargo"):
                 (probe / tool).unlink()
             rust_dist = make_rust_dist(root / "rustup-dist")
+            cargo_home = root / "home" / "toolchains" / "cargo"
+            rustup_home = root / "home" / "toolchains" / "rustup"
 
             result = self.run_gate(
                 root,
@@ -1078,21 +1824,22 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_RUSTUP_DIST_BASE=rust_dist,
                 AFH_ALLOW_FILE_URLS="1",
                 AFH_SKIP_PERSIST_PATH="1",
+                CARGO_HOME=str(cargo_home),
+                RUSTUP_HOME=str(rustup_home),
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue((root / "cargo" / "bin" / "cargo").is_file())
-            self.assertTrue((root / "rustup").is_dir())
-            self.assertFalse((root / "project").exists())
+            self.assertTrue((cargo_home / "bin" / "cargo").is_file())
+            self.assertTrue(rustup_home.is_dir())
 
     def test_fresh_shell_rechecks_unchanged_frontend_tools_after_rust_upgrade(self) -> None:
         """只升级 Rust 时，临时探测 PATH 中的既有 Node/npm/pnpm 不能让新会话闭环误报成功。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            fake_existing_tools(probe, rust="1.94.9")
+            fake_existing_tools(probe, rust="1.98.0")
             fake_frontend_tools(probe)
-            rust_dist = make_rust_dist(root / "rustup-dist", installed_version="1.95.0")
+            rust_dist = make_rust_dist(root / "rustup-dist", installed_version="1.98.1")
 
             result = self.run_gate(
                 root,
@@ -1103,6 +1850,7 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_RUSTUP_DIST_BASE=rust_dist,
                 AFH_ALLOW_FILE_URLS="1",
                 PATH=os.environ.get("PATH", ""),
+                AFH_TEST_SYSTEM_PATH="/usr/bin:/bin:/usr/sbin:/sbin",
             )
 
             self.assertEqual(result.returncode, 24, result.stderr)
@@ -1117,15 +1865,15 @@ class PrerequisiteGateTests(unittest.TestCase):
             self.assertIn("gate.rust.status=missing", result.stdout)
             self.assertIn("gate.git.status=missing", result.stdout)
             self.assertIn("gate.node.status=not-required", result.stdout)
-            self.assertFalse((root / "cargo").exists())
+            self.assertFalse((root / "home" / ".cargo").exists())
 
     def test_rust_upgrade_that_remains_below_msrv_fails_closed(self) -> None:
         """Rust 升级后复探仍低于 MSRV 时必须失败，不能降低项目门禁。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            fake_existing_tools(probe, rust="1.94.9")
-            rust_dist = make_rust_dist(root / "rustup-dist", installed_version="1.94.10")
+            fake_existing_tools(probe, rust="1.98.0")
+            rust_dist = make_rust_dist(root / "rustup-dist", installed_version="1.98.0")
             result = self.run_gate(
                 root,
                 "--install-missing",
@@ -1134,14 +1882,14 @@ class PrerequisiteGateTests(unittest.TestCase):
                 AFH_ALLOW_FILE_URLS="1",
             )
             self.assertEqual(result.returncode, 22)
-            self.assertIn("升级后仍低于 MSRV 1.95.0", result.stderr)
+            self.assertIn("升级后仍低于 MSRV 1.98.1", result.stderr)
 
     def test_rust_installer_failure_blocks_the_gate(self) -> None:
         """Rust 安装器失败必须保留非零结论，不能继续生成项目。"""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             probe = root / "probe"
-            fake_existing_tools(probe, rust="1.94.9")
+            fake_existing_tools(probe, rust="1.98.0")
             rust_dist = make_rust_dist(root / "rustup-dist", succeeds=False)
             result = self.run_gate(
                 root,
@@ -1171,7 +1919,7 @@ class PrerequisiteGateTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 22)
             self.assertIn("rustup-init SHA-256 校验失败", result.stderr)
-            self.assertFalse((root / "cargo").exists())
+            self.assertFalse((root / "home" / ".cargo").exists())
 
     def test_node_checksum_mismatch_blocks_the_gate(self) -> None:
         """Node 升级制品摘要不匹配时必须拒绝，防止不可信下载进入 PATH。"""
@@ -1199,7 +1947,7 @@ class PrerequisiteGateTests(unittest.TestCase):
             root = Path(temporary)
             probe = root / "probe"
             fake_existing_tools(probe, python=False)
-            fake_frontend_tools(probe, pnpm="11.23.9")
+            fake_frontend_tools(probe, pnpm="12.4.0")
             fake_npm_installer(probe, succeeds=False)
             result = self.run_gate(root, "--install-missing", "--interfaces", "GUI", probe=probe)
             self.assertEqual(result.returncode, 28)
@@ -1234,10 +1982,11 @@ class PrerequisiteGateTests(unittest.TestCase):
             '"gate.msvc.change=$MsvcChange"',
             '@("CLI", "TUI", "MCP", "GUI")',
             '$FrontendRequired = $NormalizedInterfaces -contains "GUI"',
-            "$MinimumRustMinor = 95",
-            '$NodeRequirement = "^24.15.0 || >=26.0.0"',
-            '$PnpmRequirement = ">=11.24.0"',
-            '$PnpmInstallRequirement = "pnpm@>=11.24.0"',
+            "$MinimumRustMinor = 98",
+            "$MinimumRustPatch = 1",
+            '$NodeRequirement = ">=24.21.0"',
+            '$PnpmRequirement = ">=12.4.1"',
+            '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
             "Test-NodeVersion",
             "Test-PnpmVersion",
         )

@@ -34,39 +34,103 @@ for override_name in AFH_PREREQ_PATH AFH_TEST_PLATFORM AFH_ALLOW_TEST_OVERRIDES 
 done
 
 USER_HOME=${HOME:?必须设置 HOME}
-MANAGED_CARGO_HOME=$USER_HOME/.cargo
-MANAGED_RUSTUP_HOME=$USER_HOME/.rustup
+case "$USER_HOME" in
+    /*) ;;
+    *) printf '错误：HOME 必须是绝对路径\n' >&2; exit 2 ;;
+esac
+case "$USER_HOME" in
+    *:*) printf '错误：HOME 不能包含 PATH 分隔符冒号\n' >&2; exit 2 ;;
+esac
+
+# 生产调用遵循 Rust 官方标准的当前用户目录；显式标准变量优先，未设置时回退到 HOME 默认值。
+USER_CARGO_HOME=${CARGO_HOME:-$USER_HOME/.cargo}
+USER_RUSTUP_HOME=${RUSTUP_HOME:-$USER_HOME/.rustup}
 if [ "$TEST_MODE" = 1 ]; then
-    MANAGED_CARGO_HOME=${AFH_MANAGED_CARGO_HOME:-$MANAGED_CARGO_HOME}
-    MANAGED_RUSTUP_HOME=${AFH_MANAGED_RUSTUP_HOME:-$MANAGED_RUSTUP_HOME}
+    USER_CARGO_HOME=${AFH_MANAGED_CARGO_HOME:-$USER_CARGO_HOME}
+    USER_RUSTUP_HOME=${AFH_MANAGED_RUSTUP_HOME:-$USER_RUSTUP_HOME}
 fi
-for managed_path in "$MANAGED_CARGO_HOME" "$MANAGED_RUSTUP_HOME"; do
-    case "$managed_path" in
+for user_rust_path in "$USER_CARGO_HOME" "$USER_RUSTUP_HOME"; do
+    case "$user_rust_path" in
         /*) ;;
-        *) printf '错误：受管 Rust 根必须是绝对路径：%s\n' "$managed_path" >&2; exit 2 ;;
+        *) printf '错误：Rust 当前用户安装根必须是绝对路径：%s\n' "$user_rust_path" >&2; exit 2 ;;
+    esac
+    case "$user_rust_path" in
+        *:*) printf '错误：Rust 当前用户安装根不能包含 PATH 分隔符冒号：%s\n' "$user_rust_path" >&2; exit 2 ;;
     esac
 done
 
-# rustup/cargo 的写入根固定到当前用户；既有符号链接或非目录目标失败关闭。
-validate_managed_rust_root() {
-    managed_path=$1
-    managed_label=$2
-    case "$managed_path" in
-        "$USER_HOME"/*) ;;
+# rustup/cargo 使用标准当前用户写入根；既有符号链接或非目录目标失败关闭。
+validate_user_rust_root() {
+    user_rust_path=$1
+    user_rust_label=$2
+    case "$user_rust_path" in
+        "$USER_HOME"/*)
+            user_rust_trusted_root=$USER_HOME
+            user_rust_relative=${user_rust_path#"$USER_HOME"/}
+            ;;
         *)
             test_root=${USER_HOME%/*}
-            [ "$TEST_MODE" = 1 ] || { printf '错误：%s 必须位于当前用户目录内\n' "$managed_label" >&2; exit 36; }
-            case "$managed_path" in
-                "$test_root"/*) ;;
-                *) printf '错误：测试 %s 必须位于隔离 HOME 的同级测试根内\n' "$managed_label" >&2; exit 36 ;;
+            [ "$TEST_MODE" = 1 ] || { printf '错误：%s 必须位于当前用户目录内\n' "$user_rust_label" >&2; exit 36; }
+            case "$user_rust_path" in
+                "$test_root"/*)
+                    user_rust_trusted_root=$test_root
+                    user_rust_relative=${user_rust_path#"$test_root"/}
+                    ;;
+                *) printf '错误：测试 %s 必须位于隔离 HOME 的同级测试根内\n' "$user_rust_label" >&2; exit 36 ;;
             esac
             ;;
     esac
-    [ ! -L "$managed_path" ] || { printf '错误：%s 不能是符号链接：%s\n' "$managed_label" "$managed_path" >&2; exit 36; }
-    if [ -e "$managed_path" ] && [ ! -d "$managed_path" ]; then
-        printf '错误：%s 不是普通目录：%s\n' "$managed_label" "$managed_path" >&2
-        exit 36
+    user_rust_cursor=$user_rust_trusted_root
+    user_rust_old_ifs=$IFS
+    user_rust_glob_was_enabled=0
+    case $- in
+        *f*) ;;
+        *) set -f; user_rust_glob_was_enabled=1 ;;
+    esac
+    IFS=/
+    for user_rust_component in $user_rust_relative; do
+        case "$user_rust_component" in
+            ''|.|..) printf '错误：%s 包含不安全路径组件：%s\n' "$user_rust_label" "$user_rust_path" >&2; exit 36 ;;
+        esac
+        user_rust_cursor=$user_rust_cursor/$user_rust_component
+        [ ! -L "$user_rust_cursor" ] || { printf '错误：%s 的路径组件不能是符号链接：%s\n' "$user_rust_label" "$user_rust_cursor" >&2; exit 36; }
+        if [ -e "$user_rust_cursor" ] && [ ! -d "$user_rust_cursor" ]; then
+            printf '错误：%s 的路径组件不是普通目录：%s\n' "$user_rust_label" "$user_rust_cursor" >&2
+            exit 36
+        fi
+    done
+    IFS=$user_rust_old_ifs
+    [ "$user_rust_glob_was_enabled" -eq 0 ] || set +f
+}
+
+# 非默认 Rust homes 必须由新 login shell 恢复；测试专用受管根只服务隔离夹具。
+validate_durable_rust_homes() {
+    [ "$USER_CARGO_HOME" != "$USER_HOME/.cargo" ] || [ "$USER_RUSTUP_HOME" != "$USER_HOME/.rustup" ] || return 0
+    if [ "$TEST_MODE" = 1 ] && { [ -n "${AFH_MANAGED_CARGO_HOME:-}" ] || [ -n "${AFH_MANAGED_RUSTUP_HOME:-}" ]; }; then
+        return 0
     fi
+    login_shell=${SHELL:-/bin/sh}
+    case "$login_shell" in /*) ;; *) printf '%s\n' "错误：SHELL 必须是绝对路径" >&2; exit 36 ;; esac
+    [ -x "$login_shell" ] && [ ! -d "$login_shell" ] || { printf '%s\n' "错误：SHELL 不是可执行的 login shell：$login_shell" >&2; exit 36; }
+    durable_failure=0
+    durable_environment=$(
+        unset CARGO_HOME RUSTUP_HOME
+        PATH=/usr/bin:/bin:/usr/sbin:/sbin
+        export PATH
+        "$login_shell" -l -c /usr/bin/env
+    ) || durable_failure=$?
+    [ "$durable_failure" -eq 0 ] || { printf '%s\n' "错误：新 login shell 无法恢复 Rust 当前用户安装根" >&2; exit 36; }
+    durable_cargo_count=$(printf '%s\n' "$durable_environment" | awk -F= '$1 == "CARGO_HOME" { count++ } END { print count + 0 }')
+    durable_rustup_count=$(printf '%s\n' "$durable_environment" | awk -F= '$1 == "RUSTUP_HOME" { count++ } END { print count + 0 }')
+    durable_cargo_home=$(printf '%s\n' "$durable_environment" | awk -F= '$1 == "CARGO_HOME" { sub(/^CARGO_HOME=/, ""); print; exit }')
+    durable_rustup_home=$(printf '%s\n' "$durable_environment" | awk -F= '$1 == "RUSTUP_HOME" { sub(/^RUSTUP_HOME=/, ""); print; exit }')
+    [ "$durable_cargo_count" -eq 1 ] || durable_cargo_home=$USER_HOME/.cargo
+    [ "$durable_rustup_count" -eq 1 ] || durable_rustup_home=$USER_HOME/.rustup
+    [ "$durable_cargo_count" -le 1 ] && [ "$durable_rustup_count" -le 1 ] && \
+        [ "$durable_cargo_home" = "$USER_CARGO_HOME" ] && [ "$durable_rustup_home" = "$USER_RUSTUP_HOME" ] || {
+        printf '%s\n' "错误：非默认 CARGO_HOME/RUSTUP_HOME 必须由新 login shell 持久恢复，不能只存在于当前进程" >&2
+        exit 36
+    }
 }
 
 # 删除 PATH 空段和重复项，避免当前工作目录中的 shim 被当作宿主工具。
@@ -190,18 +254,27 @@ activate_brew_formula() {
     esac
 }
 
-# Homebrew 对未安装 formula 也可能返回预期 prefix；只有实际 bin 目录存在才视为已安装。
+# Homebrew 对未安装 formula 也可能返回预期 prefix；以已安装版本清单区分“未安装”与“已安装但损坏”。
 brew_formula_installed() {
     formula=$1
     brew_path=$2
-    prefix=$("$brew_path" --prefix "$formula" 2>/dev/null || true)
-    [ -n "$prefix" ] && [ -d "$prefix/bin" ]
+    formula_versions=
+    if formula_versions=$("$brew_path" list --versions --formula "$formula" 2>/dev/null); then
+        set -- $formula_versions
+        [ "$#" -ge 2 ] && [ "$1" = "$formula" ]
+        return
+    fi
+    return 1
 }
 
 # cargo-xwin 是 Cargo 安装的受管工具；明确低于下界时允许升级，其他范围外版本继续失败关闭。
 validate_cargo_xwin() {
     binary=$1
-    version_output=$(CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$binary" --version 2>/dev/null || true)
+    version_output=
+    if ! version_output=$(CARGO_HOME=$USER_CARGO_HOME RUSTUP_HOME=$USER_RUSTUP_HOME "$binary" --version 2>/dev/null); then
+        printf '%s\n' "错误：既有 cargo-xwin 版本探测返回失败" >&2
+        exit 36
+    fi
     set -- $version_output
     [ "${1:-}" = cargo-xwin ] || {
         printf '%s\n' "错误：既有 cargo-xwin 无法报告可解析的稳定版本" >&2
@@ -257,15 +330,25 @@ probe_all() {
     cargo_xwin_path=$(find_tool cargo-xwin 2>/dev/null || true)
 
     base_missing=0
-    [ -n "$rustup_path" ] || base_missing=1
-    [ -n "$cargo_path" ] || base_missing=1
-    [ -n "$pnpm_path" ] || base_missing=1
+    if [ -z "$rustup_path" ] || ! CARGO_HOME=$USER_CARGO_HOME RUSTUP_HOME=$USER_RUSTUP_HOME "$rustup_path" --version >/dev/null 2>&1; then
+        base_missing=1
+    fi
+    if [ -z "$cargo_path" ] || ! CARGO_HOME=$USER_CARGO_HOME RUSTUP_HOME=$USER_RUSTUP_HOME "$cargo_path" --version >/dev/null 2>&1; then
+        base_missing=1
+    fi
+    if [ -z "$pnpm_path" ] || ! "$pnpm_path" --version >/dev/null 2>&1; then
+        base_missing=1
+    fi
     llvm_missing=0
     llvm_rc_status=0
+    llvm_rc_output=
     if [ -n "$llvm_rc_path" ]; then
-        "$llvm_rc_path" >/dev/null 2>&1 || llvm_rc_status=$?
+        llvm_rc_output=$("$llvm_rc_path" 2>&1) || llvm_rc_status=$?
     fi
-    if [ -z "$llvm_rc_path" ] || [ "$llvm_rc_status" -gt 1 ]; then
+    if [ -z "$llvm_rc_path" ] || [ "$llvm_rc_status" -gt 1 ] || {
+        [ "$llvm_rc_status" -eq 1 ] &&
+            ! printf '%s\n' "$llvm_rc_output" | grep -F -- 'Exactly one input file should be provided.' >/dev/null 2>&1
+    }; then
         llvm_missing=1
     fi
     lld_missing=0
@@ -284,8 +367,15 @@ probe_all() {
         validate_cargo_xwin "$cargo_xwin_path"
     fi
     target_missing=1
-    if [ -n "$rustup_path" ] && CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$rustup_path" target list --installed 2>/dev/null | grep -Fx -- "$TARGET" >/dev/null 2>&1; then
-        target_missing=0
+    if [ -n "$rustup_path" ]; then
+        target_output=
+        if ! target_output=$(CARGO_HOME=$USER_CARGO_HOME RUSTUP_HOME=$USER_RUSTUP_HOME "$rustup_path" target list --installed 2>/dev/null); then
+            printf '%s\n' "错误：既有 rustup 无法列出已安装 target" >&2
+            exit 36
+        fi
+        if printf '%s\n' "$target_output" | grep -Fx -- "$TARGET" >/dev/null 2>&1; then
+            target_missing=0
+        fi
     fi
 }
 
@@ -345,10 +435,13 @@ fi
 }
 
 if [ "$target_missing" -eq 1 ]; then
-    validate_managed_rust_root "$MANAGED_RUSTUP_HOME" "Rust rustup 受管安装根"
+    validate_user_rust_root "$USER_RUSTUP_HOME" "Rust rustup 当前用户安装根"
 fi
 if [ "$xwin_missing" -eq 1 ] || [ "$xwin_upgrade_required" -eq 1 ]; then
-    validate_managed_rust_root "$MANAGED_CARGO_HOME" "Rust Cargo 受管安装根"
+    validate_user_rust_root "$USER_CARGO_HOME" "Rust Cargo 当前用户安装根"
+fi
+if [ "$target_missing" -eq 1 ] || [ "$xwin_missing" -eq 1 ] || [ "$xwin_upgrade_required" -eq 1 ]; then
+    validate_durable_rust_homes
 fi
 
 brew_path=$(find_tool brew 2>/dev/null || true)
@@ -360,11 +453,20 @@ if [ "$llvm_missing" -eq 1 ] || [ "$lld_missing" -eq 1 ] || [ "$nsis_missing" -e
     }
 fi
 
+if [ "$lld_missing" -eq 1 ] && brew_formula_installed lld "$brew_path"; then
+    printf '%s\n' "错误：既有 LLD 缺少 lld-link，拒绝静默升级/重装" >&2
+    exit 33
+fi
+if [ "$llvm_missing" -eq 1 ] && brew_formula_installed llvm "$brew_path"; then
+    printf '%s\n' "错误：既有 LLVM 缺少 llvm-rc，拒绝静默升级/重装" >&2
+    exit 33
+fi
+if [ "$nsis_missing" -eq 1 ] && brew_formula_installed nsis "$brew_path"; then
+    printf '%s\n' "错误：既有 NSIS 缺少 makensis，拒绝静默升级/重装" >&2
+    exit 34
+fi
+
 if [ "$lld_missing" -eq 1 ]; then
-    if brew_formula_installed lld "$brew_path"; then
-        printf '%s\n' "错误：既有 LLD 缺少 lld-link，拒绝静默升级/重装" >&2
-        exit 33
-    fi
     HOMEBREW_NO_AUTO_UPDATE=1 "$brew_path" install lld || {
         printf '%s\n' "错误：LLD 安装失败" >&2
         exit 33
@@ -373,10 +475,6 @@ if [ "$lld_missing" -eq 1 ]; then
 fi
 
 if [ "$llvm_missing" -eq 1 ]; then
-    if brew_formula_installed llvm "$brew_path"; then
-        printf '%s\n' "错误：既有 LLVM 缺少 llvm-rc，拒绝静默升级/重装" >&2
-        exit 33
-    fi
     HOMEBREW_NO_AUTO_UPDATE=1 "$brew_path" install llvm || {
         printf '%s\n' "错误：LLVM 安装失败" >&2
         exit 33
@@ -385,10 +483,6 @@ if [ "$llvm_missing" -eq 1 ]; then
 fi
 
 if [ "$nsis_missing" -eq 1 ]; then
-    if brew_formula_installed nsis "$brew_path"; then
-        printf '%s\n' "错误：既有 NSIS 缺少 makensis，拒绝静默升级/重装" >&2
-        exit 34
-    fi
     HOMEBREW_NO_AUTO_UPDATE=1 "$brew_path" install nsis || {
         printf '%s\n' "错误：NSIS 安装失败" >&2
         exit 34
@@ -397,7 +491,7 @@ if [ "$nsis_missing" -eq 1 ]; then
 fi
 
 if [ "$target_missing" -eq 1 ]; then
-    CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$rustup_path" target add "$TARGET" || {
+    CARGO_HOME=$USER_CARGO_HOME RUSTUP_HOME=$USER_RUSTUP_HOME "$rustup_path" target add "$TARGET" || {
         printf '%s\n' "错误：Windows Rust target 安装失败" >&2
         exit 35
     }
@@ -410,11 +504,11 @@ if [ "$xwin_missing" -eq 1 ] || [ "$xwin_upgrade_required" -eq 1 ]; then
     else
         requested_xwin_change=installed
     fi
-    CARGO_HOME=$MANAGED_CARGO_HOME RUSTUP_HOME=$MANAGED_RUSTUP_HOME "$cargo_path" install --locked --version "$CARGO_XWIN_REQUIREMENT" cargo-xwin || {
+    CARGO_HOME=$USER_CARGO_HOME RUSTUP_HOME=$USER_RUSTUP_HOME "$cargo_path" install --locked --version "$CARGO_XWIN_REQUIREMENT" cargo-xwin || {
         printf '%s\n' "错误：cargo-xwin 安装失败" >&2
         exit 36
     }
-    CARGO_BIN_DIR=$MANAGED_CARGO_HOME/bin
+    CARGO_BIN_DIR=$USER_CARGO_HOME/bin
     prepend_probe_path "$CARGO_BIN_DIR"
     XWIN_CHANGE=$requested_xwin_change
 fi
