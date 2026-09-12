@@ -2,6 +2,30 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-12",
+      "version": "v202609122231",
+      "featureOptimizations": [
+        {
+          "zh-CN": "开发环境门禁升级到 Rust 1.98.1、Node.js 24.21.0 与 pnpm 12.4.1；已安装的更高稳定版直接通过。",
+          "en-US": "Raised development gates to Rust 1.98.1, Node.js 24.21.0, and pnpm 12.4.1 while preserving newer stable installations."
+        },
+        {
+          "zh-CN": "Rust、Node.js 与 pnpm 改用平台标准当前用户全局位置，并同步更新兼容的 CLI 与适配器依赖基线。",
+          "en-US": "Moved Rust, Node.js, and pnpm to standard per-user global locations and refreshed compatible CLI and adapter dependency baselines."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "补齐安装前后 PATH、持久命令身份及 symlink/reparse wrapper 边界检查，阻止越界工具被误判为通过。",
+          "en-US": "Hardened pre/post-install PATH, persisted command identity, and symlink/reparse wrapper checks to reject escaped tools."
+        },
+        {
+          "zh-CN": "修正 Harness 源发布的远端选择、版本物化与发布日志/上下文原子提交顺序。",
+          "en-US": "Corrected Harness source-release remote selection, version materialization, and atomic release-notes/context ordering."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-09-11",
       "version": "v202609111732",
       "featureOptimizations": [
