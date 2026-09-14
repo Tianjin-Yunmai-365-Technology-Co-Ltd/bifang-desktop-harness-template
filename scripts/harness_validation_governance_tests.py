@@ -1036,6 +1036,30 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             errors,
         )
 
+    def test_rejects_remote_only_tag_contract_in_version_source(self) -> None:
+        """版本事实源不得把所有正式发布重新写成强制远端 tag。"""
+
+        mutated = read_repo_text("Version.md").replace(
+            "当前主分支提交必须创建并复读本地 `v{版本}-{YYYYMMDD}`；"
+            "只有当次选择远端发布时才推送并复读远端同名 tag。",
+            "当前主分支提交必须创建并推送 `v{版本}-{YYYYMMDD}`。",
+            1,
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "Version.md"
+            path.write_text(mutated, encoding="utf-8")
+            original = governance.VERSION_FILE
+            governance.VERSION_FILE = path
+            try:
+                errors: list[str] = []
+                governance.validate_version_contract(errors)
+            finally:
+                governance.VERSION_FILE = original
+        self.assertTrue(
+            any("创建并复读本地" in error for error in errors),
+            errors,
+        )
+
 
 class ValidateAgentPolicyTests(unittest.TestCase):
     """覆盖五项持久偏好的合法 schema 与初始化 fail-closed 语义。"""

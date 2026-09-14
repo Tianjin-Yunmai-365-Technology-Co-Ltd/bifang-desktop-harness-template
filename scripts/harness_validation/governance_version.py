@@ -80,6 +80,8 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             "发布状态：Released",
             "唯一事实来源",
             "docs/RELEASE.md",
+            "创建并复读本地 `v{版本}-{YYYYMMDD}`",
+            "只有当次选择远端发布时才推送并复读远端同名 tag",
         ),
         ROOT / "README.md": (  # noqa: F405
             "# 毕方桌面应用Harness模版",
@@ -144,6 +146,7 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             )
 
     materialized_changes = {
+        "HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE": "202609141917",
         "HARNESS-CHANGE-MAINSTREAM-LTS-STANDARD-USER-ENVIRONMENT": "202609122231",
         "HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE": "202609122231",
         "HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY": "202609111732",

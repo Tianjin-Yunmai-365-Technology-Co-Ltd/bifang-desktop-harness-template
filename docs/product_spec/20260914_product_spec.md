@@ -39,8 +39,8 @@
 - 变更标识：`HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT`；所需 Harness 版本：`202608281139`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
 - 完整表单确认后、首次脚手架写入前，环境门禁检查 Git：最低稳定版为 `2.36.0`，以覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`；缺失时安装，可证明低于最低下界时按宿主受管路线升级，范围内稳定版原样复用。Git 仅在平台原生受信包管理器明确要求时进入系统级/管理员边界，权限需求必须显式可见且不得静默提权，无既有权限路线则停止。最终独立仓库建立后，已有有效身份保持不变；缺失字段只在该仓库 local 作用域补齐，名称来自设备账户名的英文翻译/转写，邮箱为 `<ascii-device-username>@gmail.com`。完成输出返回版本、安装/升级变化、身份、来源、作用域、仓库根、模板状态和基线提交。
 - Git 生命周期变更标识：`HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`；所需 Harness 版本：`202609101621`，已由本次 Harness 时间版本发布物化。本条取代既有分支链、保护主分支、严格线性、原子 ref 事务和中转分支兼容决定。
-- 多远端推送变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = pending`。本条只扩展用户明确授权的 `publish`，不改变其唯一主远端、补充远端隔离或不清理资源的语义。
-- 可选远端 Git 发布变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = pending`。正式发布开始时逐次锁定 `gitPublication: local | remote`；远端 push/ref 只有在 `remote` 模式下成为硬门禁，本地模式是完整的本地 Git 发布而不是 waiver。
+- 多远端推送变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。本条只扩展用户明确授权的 `publish`，不改变其唯一主远端、补充远端隔离或不清理资源的语义。
+- 可选远端 Git 发布变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。正式发布开始时逐次锁定 `gitPublication: local | remote`；远端 push/ref 只有在 `remote` 模式下成为硬门禁，本地模式是完整的本地 Git 发布而不是 waiver。
 - 初始化仍只创建无远端的本地主分支基线。远端由用户或外部系统另行配置，但新功能和独立 Bug 修复的本地开发分支创建不依赖远端。`$desktop-manage-git-lifecycle start` 自动建立并切换 `feature-{ascii-kebab-summary}-{YYYYMMDD}`，日期取 `Asia/Shanghai`，碰撞时追加稳定递增后缀，同一工作幂等复用。
 - Git common dir 的 `agent-first-harness/git-lifecycle.json` 使用当前 schema v2，精确登记本发布周期由 helper 创建或接管的开发/Task/单元分支与 Worktree、适用主远端，以及主分支、tag 和逐项清理进度。pending/last release 保存 `gitPublication`、适用 remote 与 `releaseContextSha256`；pending 在任何 merge/fetch/push/tag 前落盘，HEAD 冻结前可为 `null`，重试不得改变模式、remote 或上下文摘要。旧 schema 不兼容且不自动迁移。补充远端不写入生命周期状态。并行写入只要求文件所有权不重叠，允许普通 merge commit，没有保护分支、单写入者、线性、fast-forward-only、lease、atomic push 或审查路径等分支门禁。
 - 用户明确“推送”时，helper 普通合并登记分支，切换主远端的动态默认主分支并推送复读，保留登记资源且不创建 tag；多远端 `publish` 语义保持不变。明确“发布”时，发布上下文唯一锁定 `gitPublication`，生命周期 `release` 必须接收 `--release-context-sha256 <sha256>`，在任何副作用前绑定 tracked 上下文并核对 version/date/expectedTag/defaultBranch/mode/remote。`--local-only` 只合并本地默认主分支、创建/复读本地 tag，成功后按 Worktree、本地分支清理；`--remote <name>` 才 push/复读主分支/tag，成功后按 Worktree、主远端分支、本地分支清理。补充远端不参与 release、tag 或清理。上下文不匹配、tag 冲突或模式内门禁失败零清理，部分清理逐项记录并可按同一模式幂等续作，dirty Worktree 和未登记资源不得强制删除。流程不创建/配置远端或凭据，也没有发布中转分支或旧中转分支兼容代码。
@@ -399,9 +399,9 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609122231`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并复读本地 `v{版本}-{YYYYMMDD}`；只有当次 `gitPublication: remote` 才必须推送并复读远端同名 tag。源码归档、签名与渠道上传仍须各自真实发生。
-- 变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = pending`。正式发布逐次选择本地或远端 Git；发布上下文是唯一冻结选择，远端 push/ref/清理只在远端模式成为门禁，本地模式允许当前宿主候选且零远端访问。
-- 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = pending`。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
+- 当前版本：`202609141917`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并复读本地 `v{版本}-{YYYYMMDD}`；只有当次 `gitPublication: remote` 才必须推送并复读远端同名 tag。源码归档、签名与渠道上传仍须各自真实发生。
+- 变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。正式发布逐次选择本地或远端 Git；发布上下文是唯一冻结选择，远端 push/ref/清理只在远端模式成为门禁，本地模式允许当前宿主候选且零远端访问。
+- 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
 - 变更标识：`HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY`；所需 Harness 版本：`202609111732`，已由本次 Harness 时间版本发布物化。删除 `Version.md` 中的 `1.0.0` 标识并新增反向门禁、Task 序号不再识别历史四字段标题、下游 SemVer 的 Minor/Patch 严格固定 `0..99` 不兼容历史 `100`、Agent Policy 升级 `schema_version: 3` 并把 `milestone_smoke`/`milestone_e2e` 改名为 `acceptance_smoke`/`e2e_hint`。
 - 维护状态：Active。
 - 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对九项初始化组合、三项 Rust-only 固定基线与 dialog 固定 WebView 基线（含 dialog 原生 message/save/open、精确主窗口 capability、零 filesystem 权限、托盘禁用关闭退出、通知授权/投递、自启登录项恢复、单实例/深链接组合、全局快捷键冲突与注销、window-state 安全恢复、页面缺席与详细侧栏持久折叠）、签名更新安装、强更离线恢复、产品级统计同意/撤回、Vite/AST 门禁和最终 dist 扫描的前向构建证据。
