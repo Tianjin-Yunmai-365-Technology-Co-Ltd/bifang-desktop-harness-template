@@ -1052,6 +1052,19 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
                 )
             self.assertTrue(any("stale required version" in error for error in errors), errors)
 
+    def test_optional_remote_adr_requires_complete_supersession_scope(self) -> None:
+        """当前 ADR 必须显式取代三条更早的远端强制候选契约。"""
+
+        source = read_repo_text("docs/adr/20260914_ADR.md")
+        required = governance_version.OPTIONAL_REMOTE_ADR_SUPERSESSION_FRAGMENT
+        self.assertIn(required, source)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "20260914_ADR.md"
+            path.write_text(source.replace(required, "", 1), encoding="utf-8")
+            errors: list[str] = []
+            governance_version._validate_optional_remote_adr_scope(errors, path)
+        self.assertTrue(any("does not supersede" in error for error in errors), errors)
+
     def test_rejects_unreleased_status_in_version_source(self) -> None:
         """活契约要求 Released 时，Version.md 再写 Unreleased 必须被已发货检查器拒绝。"""
 

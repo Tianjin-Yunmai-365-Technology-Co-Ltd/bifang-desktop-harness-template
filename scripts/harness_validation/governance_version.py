@@ -26,6 +26,25 @@ MATERIALIZED_CHANGE_RECORDS = {
     "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": ("202609101621", None),
 }
 
+OPTIONAL_REMOTE_ADR_SUPERSESSION_FRAGMENT = (
+    "同时取代 ADR-20260908-013“正式候选必须从已推送、带远端 tag 的提交构建”、"
+    "ADR-20260908-007“本地/远端默认主分支与远端 tag 必须无条件一致”，以及 "
+    "ADR-20260908-006“生命周期必须完成远端 push、构建只复核远端 tag”的远端强制子句"
+)
+
+
+def _validate_optional_remote_adr_scope(errors: list[str], path: Path) -> None:
+    """锁定当前 ADR 对更早远端强制子句的完整取代范围。"""
+    if not path.is_file():
+        fail(errors, f"missing optional remote ADR: {display_path(path)}")  # noqa: F405
+        return
+    if OPTIONAL_REMOTE_ADR_SUPERSESSION_FRAGMENT not in path.read_text(encoding="utf-8"):
+        fail(  # noqa: F405
+            errors,
+            "optional remote ADR does not supersede every remote-only candidate contract in "
+            f"{display_path(path)}",
+        )
+
 
 def _validate_materialized_change(
     errors: list[str],
@@ -179,3 +198,7 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
                 change_id,
                 required_version,
             )
+    _validate_optional_remote_adr_scope(
+        errors,
+        ROOT / "docs" / "adr" / "20260914_ADR.md",  # noqa: F405
+    )
