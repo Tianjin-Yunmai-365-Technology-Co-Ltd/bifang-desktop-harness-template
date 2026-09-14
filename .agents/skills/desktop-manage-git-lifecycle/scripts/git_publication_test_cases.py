@@ -277,4 +277,3 @@ class GitPublicationJournalTests(GitLifecycleTestCase):
         self.assertIn("current target outcome is uncertain", raised.exception.message)
         self.assertIn("remote 'archive' branch 'delivery'", raised.exception.message)
         verify_local.assert_not_called()
-
