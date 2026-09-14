@@ -175,7 +175,7 @@ class ValidatorMutationTests(unittest.TestCase):
         self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
 
     def test_registered_remote_precedes_origin_in_policy(self) -> None:
-        """主/发布远端必须保持绑定，补充推送不能把它改成 origin。"""
+        """主远端必须保持绑定，补充推送不能把它改成 origin。"""
 
         errors = self.validate_mutation(
             release.validate_harness_source_release_contract,
@@ -210,15 +210,20 @@ class ValidatorMutationTests(unittest.TestCase):
         )
         self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
 
-    def test_prepare_release_requires_explicit_lifecycle_remote(self) -> None:
-        """发布上下文选择的远端必须显式传给生命周期 helper。"""
-        errors = self.validate_mutation(
-            release.validate_harness_source_release_contract,
-            "prepare_skill",
-            release.PREPARE_RELEASE_SKILL,
-            "--remote <remote>",
-        )
-        self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+    def test_prepare_release_requires_explicit_git_publication_modes(self) -> None:
+        """发布准备必须把本地或远端选择显式传给生命周期 helper。"""
+        for fragment in ("--local-only", "--remote <remote>"):
+            with self.subTest(fragment=fragment):
+                errors = self.validate_mutation(
+                    release.validate_harness_source_release_contract,
+                    "prepare_skill",
+                    release.PREPARE_RELEASE_SKILL,
+                    fragment,
+                )
+                self.assertTrue(
+                    any("Harness source release contract missing" in error for error in errors),
+                    errors,
+                )
 
     def test_release_context_write_requires_current_source_head(self) -> None:
         """上下文写入必须在元数据提交前绑定当前源码 HEAD。"""
@@ -267,11 +272,11 @@ class ValidatorMutationTests(unittest.TestCase):
             directory.cleanup()
 
     def test_methodology_rejects_missing_release_tag_as_non_blocking(self) -> None:
-        """方法论卷不得把正式候选的远程 tag 降级为可缺席证据。"""
+        """方法论卷不得把正式候选的模式内 tag 降级为可缺席证据。"""
         current = release.ROOT / "docs" / "harness_engineering" / "agent_first_design.md"
         source = current.read_text(encoding="utf-8")
         source = source.replace(
-            "其缺席不代替或放宽 Git tag 门禁",
+            "其缺席不代替或放宽模式内 Git tag 门禁",
             "缺席不阻断候选验收或只读就绪复核",
             1,
         )
@@ -316,7 +321,7 @@ class ValidatorMutationTests(unittest.TestCase):
         current = release.ROOT / "docs" / "RELEASE.md"
         source = current.read_text(encoding="utf-8")
         current_fragment = (
-            "先提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；"
+            "随后提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；"
             "在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 "
             "`.harness/release-context.json`，再把且只把这两个文件放入同一个发布元数据提交。"
         )
@@ -338,7 +343,7 @@ class ValidatorMutationTests(unittest.TestCase):
 
     def test_release_context_requires_all_selection_groups(self) -> None:
         """审查、性能和 macOS 签名选择必须同处一个上下文。"""
-        for fragment in ('"releaseReview"', '"candidateSelections"'):
+        for fragment in ('"gitPublication"', '"releaseReview"', '"candidateSelections"'):
             with self.subTest(fragment=fragment):
                 errors = self.validate_mutation(
                     release.validate_release_selection_contract,
@@ -374,24 +379,131 @@ class ValidatorMutationTests(unittest.TestCase):
         )
         self.assertTrue(any("release selection contract missing" in error for error in errors), errors)
 
-    def test_git_release_requires_tag_before_cleanup(self) -> None:
-        """tag 推送与复读必须出现在任一资源删除之前。"""
+    def test_git_release_requires_each_mode_tag_before_cleanup(self) -> None:
+        """本地与远端 tag 复读都必须出现在任一资源删除之前。"""
         source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
-        before = """    ensure_release_tag(repository, remote, pending[\"tag\"], pending[\"head\"])
-    cleaned_worktrees = cleanup_worktrees(repository, state)
-"""
-        after = """    cleaned_worktrees = cleanup_worktrees(repository, state)
-    ensure_release_tag(repository, remote, pending[\"tag\"], pending[\"head\"])
-"""
+        for call in (
+            'ensure_release_tag(repository, remote, pending["tag"], pending["head"])',
+            'ensure_local_release_tag(repository, pending["tag"], pending["head"])',
+        ):
+            with self.subTest(call=call):
+                self.assertIn(call, source)
+                directory, path = self.temporary_source(
+                    source.replace(call, call.replace("ensure_", "deferred_"), 1),
+                    "git_lifecycle.py",
+                )
+                try:
+                    errors: list[str] = []
+                    with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
+                        git_lifecycle.validate_git_lifecycle_contract(errors)
+                    self.assertTrue(any("tag-before-cleanup" in error for error in errors), errors)
+                finally:
+                    directory.cleanup()
+
+    def test_git_release_requires_authoritative_context_binding(self) -> None:
+        """生命周期不得移除摘要参数、权威 schema 校验或原始字节读取。"""
+        source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
+        for fragment, replacement in (
+            (
+                'release_parser.add_argument("--release-context-sha256", required=True)',
+                'release_parser.add_argument("--retired-context-sha256", required=True)',
+            ),
+            ("validate_context(value)", "normalize_context(value)"),
+            ("canonical_bytes(value)", "encode_context(value)"),
+            ("def run_git_bytes(", "def retired_run_git_bytes("),
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+                directory, path = self.temporary_source(
+                    source.replace(fragment, replacement, 1),
+                    "git_lifecycle.py",
+                )
+                try:
+                    errors: list[str] = []
+                    with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
+                        git_lifecycle.validate_git_lifecycle_contract(errors)
+                    self.assertTrue(errors, fragment)
+                finally:
+                    directory.cleanup()
+
+    def test_git_release_preserves_fresh_local_and_linked_cwd_guards(self) -> None:
+        """首次本地发布与 linked Worktree 清理保护都必须留在入口主序列。"""
+
+        source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
+        for fragment, replacement in (
+            (
+                'if default_branch is None and state["cycle"] is None and state["lastRelease"] is None:',
+                'if False:',
+            ),
+            (
+                "relocate_cli_cwd_before_release_cleanup(repository, state, arguments)",
+                "None",
+            ),
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, source)
+                directory, path = self.temporary_source(
+                    source.replace(fragment, replacement, 1),
+                    "git_lifecycle.py",
+                )
+                try:
+                    errors: list[str] = []
+                    with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
+                        git_lifecycle.validate_git_lifecycle_contract(errors)
+                    self.assertTrue(errors, fragment)
+                finally:
+                    directory.cleanup()
+
+    def test_release_context_requires_safe_default_branch_validation(self) -> None:
+        """上下文 schema 与写入入口都必须拒绝 revision/伪引用分支文本。"""
+
+        source = release.RELEASE_CONTEXT_HELPER.read_text(encoding="utf-8")
+        fragment = '["check-ref-format", "--branch", arguments.default_branch]'
+        self.assertIn(fragment, source)
+        directory, path = self.temporary_source(
+            source.replace(fragment, '["rev-parse", arguments.default_branch]', 1),
+            "release_context.py",
+        )
+        try:
+            errors: list[str] = []
+            with mock.patch.object(git_lifecycle, "RELEASE_CONTEXT_HELPER", path):
+                git_lifecycle.validate_git_lifecycle_contract(errors)
+            self.assertTrue(any("Git lifecycle contract missing" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
+
+    def test_git_release_freezes_verified_integrated_context_before_push(self) -> None:
+        """整合后的上下文必须先复核并持久化 HEAD，之后才能进入 push。"""
+        source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
+        before = (
+            "    verify_head_release_context_bytes(repository, pending[\"releaseContextSha256\"], head)\n"
+            "    pending[\"head\"] = head\n"
+            "    save_state(repository, state)\n"
+        )
+        after = (
+            "    pending[\"head\"] = head\n"
+            "    save_state(repository, state)\n"
+            "    verify_head_release_context_bytes(repository, pending[\"releaseContextSha256\"], head)\n"
+        )
         self.assertIn(before, source)
         directory, path = self.temporary_source(source.replace(before, after, 1), "git_lifecycle.py")
         try:
             errors: list[str] = []
             with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
                 git_lifecycle.validate_git_lifecycle_contract(errors)
-            self.assertTrue(any("tag-before-cleanup" in error for error in errors), errors)
+            self.assertTrue(any("integrated-context-before-frozen-head" in error for error in errors), errors)
         finally:
             directory.cleanup()
+
+    def test_cross_platform_context_requires_remote_publication(self) -> None:
+        """托管 provider 路线不能接收本地发布上下文。"""
+        errors = self.validate_mutation(
+            release.validate_build_skill_contract,
+            "cross_platform_context_helper",
+            release.CROSS_PLATFORM_RELEASE_CONTEXT_HELPER,
+            'normalized["gitPublication"] != "remote"',
+        )
+        self.assertTrue(any("release contract missing" in error for error in errors), errors)
 
     def test_git_lifecycle_rejects_retired_branch_gates(self) -> None:
         """旧的线性、lease、atomic 或祖先门禁不能重新进入 helper。"""

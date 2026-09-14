@@ -138,18 +138,21 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "publish --project-root",
             "[--also-remote <name>]...",
             "release --project-root",
+            "(--local-only | --remote <name>)",
             "feature-<summary>-<Asia/Shanghai YYYYMMDD>",
             "创建本地分支不要求配置远端",
             "即使命令从关联 Task Worktree 发起",
-            "无论从主 Worktree 还是关联 Task Worktree 发起",
+            "命令从关联 Task Worktree 发起时",
             "普通 `git merge --no-edit`",
             "补充远端不写入生命周期状态",
             "不参与 release、tag 或清理",
             "跨远端推送不是原子操作",
             "不创建标签，也不清理任何资源",
             "`v{version}-{YYYYMMDD}`",
-            "远端标签成功确认之前不会开始清理",
-            "Worktree、精确登记的主远端分支、精确登记的本地分支",
+            "全过程不列举、fetch、push、复读或删除远端 ref",
+            "模式内标签确认之前不会开始清理",
+            "本地模式确认后依次移除精确登记且干净的 Worktree、精确登记的本地分支",
+            "远端模式还在二者之间移除精确登记的主远端分支",
             "不扫描名称前缀",
             "Git common-dir",
             "不会写入项目受跟踪目录",
@@ -160,11 +163,21 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "$desktop-manage-git-lifecycle",
         ),
         GIT_LIFECYCLE_SCRIPT: (
+            "SCHEMA_VERSION = 2",
             'STATE_DIRECTORY = "agent-first-harness"',
             'STATE_FILENAME = "git-lifecycle.json"',
             'LOCK_DIRECTORY = ".git-lifecycle.lock"',
             "def lifecycle_state_lock",
             "def primary_repository",
+            "def relocate_cli_cwd_before_release_cleanup",
+            "def run_git_bytes",
+            "def release_context_binding",
+            "def verify_head_release_context_bytes",
+            "def merge_registered_branches",
+            "def prepare_local_release",
+            "def prepare_remote_release",
+            "def ensure_local_release_tag",
+            "def require_matching_release_mode",
             '["switch", "-c", candidate]',
             'select_remote(repository, state, arguments.remote, required=False)',
             '["merge", "--no-edit", f"refs/heads/{branch}"]',
@@ -178,6 +191,9 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             '["push", remote, f":refs/heads/{branch}"]',
             '["branch", "-D", "--", branch]',
             'commands.add_parser("track-worktree"',
+            'release_parser.add_mutually_exclusive_group(required=True)',
+            'release_parser.add_argument("--release-context-sha256", required=True)',
+            'publication.add_argument("--local-only"',
             "def resolve_additional_remote_targets",
             "def primary_publication_error",
             "def additional_publication_error",
@@ -189,9 +205,18 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             '"additional-local-state-changed"',
             "arguments.also_remote",
             "repository = primary_repository(repository)",
+            'setattr(arguments, "_cli_invocation", True)',
+            'branch in {"@", "HEAD"}',
+            'if default_branch is None and state["cycle"] is None and state["lastRelease"] is None:',
+            'default_branch = context["defaultBranch"]',
+            '"gitPublication": publication_mode',
+            '"releaseContextSha256"',
+            "validate_context(value)",
+            "canonical_bytes(value)",
         ),
         GIT_LIFECYCLE_TESTS: (
             "test_start_without_remote_is_idempotent_and_uses_common_dir_state",
+            "test_branch_validation_rejects_ambiguous_pseudo_refs",
             "test_start_adds_numeric_suffix_for_local_name_collisions",
             "test_concurrent_task_starts_preserve_both_branches_and_worktrees",
             "test_detached_task_worktree_start_is_registered_and_release_removes_it",
@@ -213,14 +238,34 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "test_release_preserves_dirty_worktree_and_resumes_after_it_is_clean",
             "test_release_persists_each_cleanup_item_and_resumes_after_remote_rejection",
             "test_release_tags_before_exact_cleanup_and_retry_is_idempotent",
+            "test_release_requires_exactly_one_publication_mode",
+            "test_first_local_release_initializes_default_branch_without_cycle_state",
+            "test_release_persists_binding_before_local_integration",
+            "test_context_mode_mismatch_fails_before_any_remote_access",
+            "test_invalid_nested_context_and_crlf_bytes_fail_before_pending",
+            "test_integrated_context_drift_stops_before_remote_push_or_tag",
+            "test_remote_head_is_frozen_before_push_verification_failure",
+            "test_local_release_never_accesses_remote_and_preserves_remote_refs",
+            "test_local_pending_retry_requires_same_mode",
+            "test_local_release_tag_conflict_keeps_cycle_resources",
+            "test_local_pending_allows_local_cleanup_without_remote_cleanup_marker",
         ),
         RELEASE_CONTEXT_HELPER: (
             'CONTEXT_RELATIVE_PATH = ".harness/release-context.json"',
+            "def valid_branch_name",
+            '["check-ref-format", "--branch", arguments.default_branch]',
+            '"gitPublication"',
             '"expectedTag"',
             'expected_tag = f"v{version}-{release_date}"',
         ),
+        RELEASE_CONTEXT_HELPER_TESTS: (
+            "test_local_write_uses_explicit_branch_without_accessing_remote",
+            "test_local_default_branch_rejects_ambiguous_ref_syntax",
+            "test_local_verify_requires_only_local_branch_head_context_and_tag",
+        ),
         CROSS_RELEASE_CONTEXT_HELPER: (
             'CONTEXT_PATH = Path(".harness/release-context.json")',
+            'normalized["gitPublication"] != "remote"',
             '"releaseContextSha256"',
             "f\"refs/tags/{normalized['expectedTag']}\"",
         ),
@@ -255,8 +300,14 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
         primary_push_source = _function_source(source, "publish_primary_remote")
         additional_push_source = _function_source(source, "push_additional_remotes")
         release_source = _function_source(source, "command_release")
-        new_release_source = release_source[release_source.find("published = publish(repository, arguments.remote)") :]
+        new_release_source = release_source[release_source.rfind("\n    require_clean(repository)") :]
         completion_source = _function_source(source, "complete_pending_release")
+        context_binding_source = _function_source(source, "release_context_binding")
+        freeze_source = _function_source(source, "freeze_pending_release_head")
+        merge_source = _function_source(source, "merge_registered_branches")
+        local_release_source = _function_source(source, "prepare_local_release")
+        remote_release_source = _function_source(source, "prepare_remote_release")
+        local_tag_source = _function_source(source, "ensure_local_release_tag")
         tag_source = _function_source(source, "ensure_release_tag")
         _require_order(
             errors,
@@ -267,7 +318,7 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
                 '["fetch", remote, f"refs/heads/{default_branch}:refs/remotes/{remote}/{default_branch}"]',
                 "switch_to_default(repository, remote, default_branch)",
                 '["merge", "--no-edit", remote_tracking]',
-                '["merge", "--no-edit", f"refs/heads/{branch}"]',
+                "merge_registered_branches(repository, state, default_branch)",
                 "publish_primary_remote(",
                 "push_additional_remotes(",
             ),
@@ -276,9 +327,20 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
         _require_order(
             errors,
             GIT_LIFECYCLE_SCRIPT,
+            merge_source,
+            (
+                "before = current_head(repository)",
+                '["merge", "--no-edit", f"refs/heads/{branch}"]',
+                "if current_head(repository) == before:",
+            ),
+            label="registered branch merge sequence",
+        )
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
             primary_push_source,
             (
-                '["push", remote, f"refs/heads/{default_branch}:refs/heads/{default_branch}"]',
+                '["push", remote, f"{head}:refs/heads/{default_branch}"]',
                 "remote_branch_oid(repository, remote, default_branch)",
                 "verify_local_position(repository, default_branch, head)",
                 "save_state(repository, state)",
@@ -317,15 +379,67 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
         _require_order(
             errors,
             GIT_LIFECYCLE_SCRIPT,
+            release_source,
+            (
+                "identity = release_identity(",
+                "require_clean(repository)",
+                "context = release_context_binding(",
+                "state = load_state(repository)",
+                "repository = primary_repository(repository)",
+                "relocate_cli_cwd_before_release_cleanup(repository, state, arguments)",
+            ),
+            label="caller-context-before-primary sequence",
+        )
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
             new_release_source,
             (
-                "published = publish(repository, arguments.remote)",
-                "verify_release_tag_compatibility(repository, remote, tag, head)",
                 'cycle["pendingRelease"] = release_record',
                 "save_state(repository, state)",
-                "return complete_pending_release(repository, state, arguments.remote)",
+                "return complete_pending_release(repository, state, arguments)",
             ),
-            label="published-head persistence sequence",
+            label="context-bound pending-before-release sequence",
+        )
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
+            context_binding_source,
+            (
+                "raw = path.read_bytes()",
+                "validate_context(value)",
+                "canonical_bytes(value)",
+                "hashlib.sha256(raw).hexdigest()",
+                '["show", f"HEAD:{RELEASE_CONTEXT_PATH}"]',
+                "committed.stdout != raw",
+            ),
+            label="authoritative tracked release-context sequence",
+        )
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
+            remote_release_source,
+            (
+                '["fetch", remote, f"refs/heads/{default_branch}:refs/remotes/{remote}/{default_branch}"]',
+                "switch_to_default(repository, remote, default_branch)",
+                '["merge", "--no-edit", remote_tracking]',
+                "merge_registered_branches(repository, state, default_branch)",
+            ),
+            label="remote local-integration sequence",
+        )
+        if '"push"' in remote_release_source or "publish_primary_remote(" in remote_release_source:
+            fail(errors, "remote release preparation must freeze HEAD before any push")
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
+            freeze_source,
+            (
+                "prepared = prepare_remote_release(",
+                "verify_head_release_context_bytes(",
+                'pending["head"] = head',
+                "save_state(repository, state)",
+            ),
+            label="integrated-context-before-frozen-head sequence",
         )
         _require_order(
             errors,
@@ -333,12 +447,25 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             completion_source,
             (
                 'ensure_release_tag(repository, remote, pending["tag"], pending["head"])',
+                'ensure_local_release_tag(repository, pending["tag"], pending["head"])',
                 "cleanup_worktrees(repository, state)",
                 "cleanup_remote_branches(repository, state, remote)",
                 "cleanup_local_branches(repository, state)",
             ),
-            label="tag-before-cleanup release sequence",
+            label="local-and-remote tag-before-cleanup release sequence",
         )
+        forbidden_local_tokens = (
+            "select_remote(",
+            "configured_remotes(",
+            "remote_default_branch(",
+            "remote_branch_oid(",
+            "remote_tag_target(",
+            '"fetch"',
+            '"push"',
+        )
+        for token in forbidden_local_tokens:
+            if token in local_release_source + local_tag_source:
+                fail(errors, f"local release path accesses remote operation: {token}")
         _require_order(
             errors,
             GIT_LIFECYCLE_SCRIPT,

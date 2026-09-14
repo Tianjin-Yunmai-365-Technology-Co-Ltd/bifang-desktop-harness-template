@@ -152,6 +152,8 @@ class VerifyReleaseContextTests(unittest.TestCase):
         captured = self.run_verifier("capture")
         self.assertEqual(captured.returncode, 0, captured.stderr)
         snapshot = json.loads(self.snapshot.read_text(encoding="utf-8"))
+        self.assertEqual(snapshot["gitPublication"], "remote")
+        self.assertEqual(snapshot["remote"], "origin")
         self.assertEqual(snapshot["defaultBranch"], "trunk")
         self.assertEqual(snapshot["expectedTag"], "v1.2.3-20260909")
         verified = self.run_verifier("verify")
@@ -171,6 +173,25 @@ class VerifyReleaseContextTests(unittest.TestCase):
         result = self.run_verifier("verify")
         self.assertEqual(result.returncode, 1)
         self.assertIn("changed between build checks", result.stderr)
+
+    def test_local_only_context_is_rejected_by_provider_flow(self) -> None:
+        context_path = self.root / ".harness/release-context.json"
+        context = json.loads(context_path.read_text(encoding="utf-8"))
+        context["gitPublication"] = "local"
+        context["remote"] = None
+        context_path.write_text(json.dumps(context, indent=2) + "\n", encoding="utf-8")
+        self.git("add", ".harness/release-context.json")
+        self.git("commit", "--quiet", "-m", "test: use local-only release context")
+        self.head = self.git("rev-parse", "HEAD").stdout.strip()
+        self.context_sha = hashlib.sha256(context_path.read_bytes()).hexdigest()
+
+        result = self.run_verifier("capture")
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "cross-platform provider release requires remote gitPublication",
+            result.stderr,
+        )
 
 
 if __name__ == "__main__":

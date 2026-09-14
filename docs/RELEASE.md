@@ -36,19 +36,27 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 ## Git 发布生命周期与制品目录
 
-项目根忽略的制品目录 `release/` 不是 Git 分支。新功能和独立 Bug 修复在首次写入前由 `$desktop-manage-git-lifecycle start` 自动创建本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；创建动作不要求远端。生命周期状态位于 Git common dir 的 `agent-first-harness/git-lifecycle.json`，只精确登记本次发布以来由 helper 创建或接管的分支、Worktree、唯一主/发布远端和可重试进度，不进入提交；补充远端不写入生命周期状态。
+项目根忽略的制品目录 `release/` 不是 Git 分支。新功能和独立 Bug 修复在首次写入前由 `$desktop-manage-git-lifecycle start` 自动创建本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；创建动作不要求远端。生命周期状态位于 Git common dir 的 `agent-first-harness/git-lifecycle.json`，当前 schema v2 只精确登记本次发布以来由 helper 创建或接管的分支、Worktree、适用的唯一主远端和可重试进度；pending/last release 保存 `gitPublication`、适用 remote 与 `releaseContextSha256`，pending 在任何 Git 发布副作用前落盘且 HEAD 冻结前可为 `null`，重试必须逐字段匹配，旧 schema 不兼容且不自动迁移。状态不进入提交，补充远端不写入生命周期状态。
 
-`--remote` 与 `state.remote` 始终表示唯一主/发布远端。用户明确说“推送”时，helper 使用普通 merge 把登记开发分支合并到该远端的动态默认主分支，切换到主分支并推送、复读。只有用户对本次推送逐一明确授权其他已配置远端时，`publish` 才可重复接收 `--also-remote <name>`：首个 push 前解析全部目标及各自 advertised default branch，冻结合并后的同一最终 HEAD，先推送并复读主远端，再按参数顺序非强制推送并逐个复读补充目标。补充目标不 fetch、不 merge、不持久、不改绑，也不参与 release、tag 或清理。这次操作不创建 tag，也不清理分支或 Worktree。
+`--remote` 与 `state.remote` 始终表示唯一主远端。用户明确说“推送”时，helper 使用普通 merge 把登记开发分支合并到该远端的动态默认主分支，切换到主分支并推送、复读。只有用户对本次推送逐一明确授权其他已配置远端时，`publish` 才可重复接收 `--also-remote <name>`：首个 push 前解析全部目标及各自 advertised default branch，冻结合并后的同一最终 HEAD，先推送并复读主远端，再按参数顺序非强制推送并逐个复读补充目标。补充目标不 fetch、不 merge、不持久、不改绑，也不参与 release、tag 或清理。这次操作不创建 tag，也不清理分支或 Worktree；既有 `publish` 命令语义不因本地发布能力改变。
 
 跨远端推送不是原子操作；后续目标失败时必须如实说明可能已经成功的前序范围、当前失败目标或阶段，以及后续目标可能尚未尝试，不能回滚或掩盖已经成功的远端。使用完全相同的 `--remote` 与 `--also-remote <name>` 顺序进行同一参数幂等重试时，已指向同一最终 HEAD 的目标保持不变并复读确认，再继续未成功目标。流程不创建/配置远端或凭据。
 
-用户明确说“发布”时，`$desktop-prepare-release` 先提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 `.harness/release-context.json`，再把且只把这两个文件放入同一个发布元数据提交。随后使用上下文中的唯一主/发布远端调用 `release --version <version> --date YYYYMMDD --remote <remote>`；`release` 不接受 `--also-remote <name>`，补充远端不参与 release、tag 或清理。流程按以下不可倒置的顺序执行：
+用户明确说“发布”时，`$desktop-prepare-release` 先复用当前请求已经明确的选择，否则询问并锁定单次 `gitPublication: local | remote`；产品或渠道硬要求远端可获取源码或远程构建时必须选择 `remote`。随后提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 `.harness/release-context.json`，再把且只把这两个文件放入同一个发布元数据提交。tracked 上下文记录 Git 发布位置、默认主分支和适用 remote，是 lifecycle 的唯一冻结选择；`release` 必须接收 `--release-context-sha256 <sha256>`。从关联 Task Worktree 发起时，先校验该调用 Worktree 当前 HEAD 中的上下文 blob 与 working bytes，再路由主 Worktree；任何 merge/fetch/push/tag 前继续核对摘要、version/date/expectedTag/defaultBranch/gitPublication/remote。整合得到 final HEAD 后、冻结 pending HEAD 或 push/tag 前，还必须确认 final HEAD 中同一路径 blob 的摘要未变。CLI 或上下文不一致零副作用失败，不能临时改变模式。`release` 不接受 `--also-remote <name>`，补充远端不参与 release、tag 或清理。
 
-1. 普通合并全部登记开发分支，切换到主远端的动态默认主分支，推送并复读主分支。
-2. 在当前主分支 HEAD 创建轻量 tag `v{version}-{YYYYMMDD}`，日期取 `Asia/Shanghai` 自然日；推送 tag 并复读主远端目标。
-3. 只有主远端 tag 精确指向当前主分支 HEAD，才先删除状态登记的 Worktree，再删除对应主远端分支，最后删除对应本地分支；每项成功后立即保存进度，全部完成后清空本周期状态，并保持当前分支为主分支。
+`gitPublication: local` 使用 `release --version <version> --date YYYYMMDD --release-context-sha256 <sha256> --local-only`，按以下顺序执行：
 
-同名 tag 的本地和远端目标都等于当前 HEAD 时按幂等成功继续；任何目标不同、tag 推送失败或复读不一致都停止且零清理。清理只接受状态精确登记的资源，禁止按前缀或通配符扫描，禁止强制删除 dirty Worktree，也不得删除主分支或未登记资源。部分清理中断后只继续未完成项。流程允许普通 merge commit，不设置保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease、atomic push、审查路径白名单或其他分支门禁，也不存在任何发布中转分支及其识别、迁移、兼容或清理逻辑。
+1. 普通合并全部登记开发分支，切换到本地默认主分支，把 final HEAD 写入 `pendingRelease.head`；不列举、fetch、push、复读或删除任何远端 ref。
+2. 在当前主分支 HEAD 创建或复用轻量 tag `v{version}-{YYYYMMDD}`，日期取 `Asia/Shanghai` 自然日，并复读本地 tag。
+3. 只有本地 tag 精确指向当前主分支 HEAD，才先删除状态登记的 Worktree，再删除对应本地分支；每项成功后立即保存进度，全部完成后清空本周期状态，并保持当前分支为主分支。
+
+`gitPublication: remote` 使用 `release --version <version> --date YYYYMMDD --release-context-sha256 <sha256> --remote <remote>`，按以下顺序执行：
+
+1. 首次执行只在本地 fetch 并普通合并主远端默认分支与全部登记开发分支；得到 final HEAD 后立即写入 `pendingRelease.head`，再推送并复读主分支。pending head 非空的重试绝不再次 fetch/merge 或吸收后来远端漂移，只重试同一固定 HEAD。
+2. 在固定 HEAD 创建或复用同一轻量 tag，推送并复读主远端目标。
+3. 只有主远端 tag 精确指向当前主分支 HEAD，才先删除状态登记的 Worktree，再删除对应主远端分支，最后删除对应本地分支。
+
+同名本地 tag 等于当前 HEAD 时按幂等成功继续；远端模式还要求同名远端 tag 等于该 HEAD。任何同名目标不同或模式内 tag 门禁失败都停止且零清理。清理只接受状态精确登记的资源，禁止改变重试模式、按前缀或通配符扫描、强制删除 dirty Worktree，也不得删除主分支或未登记资源。部分清理中断后只继续同一模式与固定 HEAD 的未完成项。流程允许普通 merge commit，不设置保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease、atomic push、审查路径白名单或其他分支门禁，也不存在任何发布中转分支及其识别、迁移、兼容或清理逻辑。
 
 ## 用户可见版本与更新日志
 
@@ -96,9 +104,9 @@ Harness 模板只有在用户另行明确要求源码归档时才生成，命名
 
 `产品名-vMAJOR.MINOR.PATCH-平台-架构.扩展名`
 
-Harness 源码归档只生成相邻 `<artifact>.sha256` 并核对归档来源提交、摘要与两份根许可证；它不是产品候选，不创建或套用产品 manifest。终端下游实际生成产品归档或安装包时同时生成相邻的 `<artifact>.sha256` 和 manifest。`pending` 产品候选清单至少包含项目、版本、批准的 40 位源码提交、预期 Git tag、发布上下文 SHA-256、明确的构建/运行身份、构建模式、平台、架构、目标、宿主、产物名、SHA-256、全量单元测试结果、当前 `e2eSelection`、当次 `reviewSelection: enabled | disabled`、对应 `reviewStatus: passed | Not run`、`releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath: release-notes.json`、签名证据和 `milestoneAcceptance: pending`。发布审查启用时必须有结构化 `reviewEvidence` 并绑定当前发布上下文和源码 HEAD；关闭且无硬要求时必须记录非空 `reviewReason`、`reviewRemainingRisk` 并让 `reviewEvidence` 缺席。Tauri GUI 还必须包含当次 `performanceSelection: enabled | disabled` 与 `performanceStatus: passed | waived | Not run | Unverified`。选择 `enabled` 或产品/渠道硬要求，且已在目标平台原生测量时，清单必须包含绑定探针候选、提交和平台的结构化 `performanceEvidence`、`performanceProbe*` 与 `performanceRuntimeBinding`；`waived` 必须保存原始失败指标、诊断/修复尝试、风险、原因和用户确认，且原始性能证据必须有 `waiverAllowed: true`，不能改判为通过。选择 `disabled` 且无硬要求时，状态固定为 `Not run`，记录非空原因和剩余风险，并省略所有探针、证据与运行时绑定字段。xwin 只有在性能选择启用但未在真实 Windows 原生运行时记录 `performanceStatus: Unverified`且不伪造原生证据；主动关闭时仍记录 `Not run`。产品/渠道硬要求下，`Unverified` 候选不得进入 `accepted`。所有 Tauri GUI 清单还固定记录产品/发布事实 `updaterEnabled` 和实际 updater plugin/Tauri 版本：官方 updater Rust 插件是无条件安装基线，不受该布尔值、关于页或性能选择控制；`false` 时插件与 `NotConfigured` 零出站回归仍保留，但 updater archive、`.sig` 和制品签名字段必须缺席，`bundle.createUpdaterArtifacts` 不得启用；`true` 时才要求受限 HTTPS endpoints、公钥、channel/target/arch、安全私钥来源、官方 updater archive/`.sig` 与应用公钥实际验签证据。macOS 安装包另记录 `macosSigningSelection: enabled | disabled` 与 `macosSigningSource: configured | requested | channel-required | not-requested`：只有已批准的持久签名/公证配置、本次用户主动要求或渠道硬要求才启用；本机恰好存在身份、工具或凭据不得自行启用。
+Harness 源码归档只生成相邻 `<artifact>.sha256` 并核对归档来源提交、摘要与两份根许可证；它不是产品候选，不创建或套用产品 manifest。终端下游实际生成产品归档或安装包时同时生成相邻的 `<artifact>.sha256` 和 manifest。`pending` 产品候选清单至少包含项目、版本、批准的 40 位源码提交、预期 Git tag、发布上下文 SHA-256、明确的构建/运行身份、构建模式、平台、架构、目标、宿主、产物名、SHA-256、全量单元测试结果、当前 `e2eSelection`、当次 `reviewSelection: enabled | disabled`、对应 `reviewStatus: passed | Not run`、`releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath: release-notes.json`、签名证据和 `milestoneAcceptance: pending`。`gitPublication` 由发布上下文统一保存和校验：`local` 只允许当前宿主本地候选，`remote` 才允许远程跨平台 provider 路线。发布审查启用时必须有结构化 `reviewEvidence` 并绑定当前发布上下文和源码 HEAD；关闭且无硬要求时必须记录非空 `reviewReason`、`reviewRemainingRisk` 并让 `reviewEvidence` 缺席。Tauri GUI 还必须包含当次 `performanceSelection: enabled | disabled` 与 `performanceStatus: passed | waived | Not run | Unverified`。选择 `enabled` 或产品/渠道硬要求，且已在目标平台原生测量时，清单必须包含绑定探针候选、提交和平台的结构化 `performanceEvidence`、`performanceProbe*` 与 `performanceRuntimeBinding`；`waived` 必须保存原始失败指标、诊断/修复尝试、风险、原因和用户确认，且原始性能证据必须有 `waiverAllowed: true`，不能改判为通过。选择 `disabled` 且无硬要求时，状态固定为 `Not run`，记录非空原因和剩余风险，并省略所有探针、证据与运行时绑定字段。xwin 只有在性能选择启用但未在真实 Windows 原生运行时记录 `performanceStatus: Unverified`且不伪造原生证据；主动关闭时仍记录 `Not run`。产品/渠道硬要求下，`Unverified` 候选不得进入 `accepted`。所有 Tauri GUI 清单还固定记录产品/发布事实 `updaterEnabled` 和实际 updater plugin/Tauri 版本：官方 updater Rust 插件是无条件安装基线，不受该布尔值、关于页或性能选择控制；`false` 时插件与 `NotConfigured` 零出站回归仍保留，但 updater archive、`.sig` 和制品签名字段必须缺席，`bundle.createUpdaterArtifacts` 不得启用；`true` 时才要求受限 HTTPS endpoints、公钥、channel/target/arch、安全私钥来源、官方 updater archive/`.sig` 与应用公钥实际验签证据。macOS 安装包另记录 `macosSigningSelection: enabled | disabled` 与 `macosSigningSource: configured | requested | channel-required | not-requested`：只有已批准的持久签名/公证配置、本次用户主动要求或渠道硬要求才启用；本机恰好存在身份、工具或凭据不得自行启用。
 
-候选构建在清理目录、测试或编译前，以及写 manifest 前，都必须只读校验 `.harness/release-context.json`。两次读取的文件 SHA-256、`sourceCommit`、`expectedTag`、`releaseReview` 和 `candidateSelections` 必须逐字段一致，并证明当前 clean 动态默认主分支、本地/远端主分支和远端 tag 都指向同一 HEAD；manifest 的审查证据或 `Not run` 原因/风险、性能选择/关闭风险和 macOS 签名选择/来源都从上下文原样复制，不得从对话补写或重新解释。E2E 仍在构建阶段按当前候选单独解析。
+候选构建在清理目录、测试或编译前，以及写 manifest 前，都必须只读校验 `.harness/release-context.json`。两次读取的文件 SHA-256、`sourceCommit`、`expectedTag`、`gitPublication`、`releaseReview` 和 `candidateSelections` 必须逐字段一致，并证明当前 clean 默认主分支与本地 tag 都指向同一 HEAD；`remote` 模式才额外要求远端主分支和远端 tag 一致，`local` 模式不得访问远端且只允许当前宿主本地候选。manifest 的审查证据或 `Not run` 原因/风险、性能选择/关闭风险和 macOS 签名选择/来源都从上下文原样复制，不得从对话补写或重新解释。E2E 仍在构建阶段按当前候选单独解析。
 
 ## 许可证与第三方声明
 
@@ -107,7 +115,7 @@ Harness 源码归档只生成相邻 `<artifact>.sha256` 并核对归档来源提
 - 实际分发前必须生成并核对该版本的第三方依赖许可证与 NOTICE 清单。本项目的专有商业许可不替代、覆盖或限制第三方许可证依法授予的权利。
 - 商业合同或订单负责确定客户、费用、期限、授权数量和特殊授权；发布物中的通用许可证不得被误报为双方已经签署的商业文件。
 
-所有下游构建结果统一写入项目根 `release/`。该目录由初始化以精确 `/release/` 规则忽略，是“本次构建结果目录”而非历史归档或 `ready` 标志。每次构建在任何单元测试或构建命令前，必须验证规范化后的独立 Git 根目录，拒绝 `release` 符号链接/重解析点和路径越界，把旧目录原子移入同文件系统隔离位置，创建并复核全新空 `release/`，再只删除隔离旧树；不得通过活动目标目录原地递归删除。完成签名、公证与 stapling 后的最终归档或安装包、校验和与清单先在同根唯一暂存区中形成并验证精确的普通文件集合，再删除仍为空且不是重解析点的 `release/`，通过目录级原子重命名，将完整暂存区提交为 `release/`，并复核最终路径和文件集。远端工作流必须检出并复核显式批准的 40 位提交，且每个运行器只能上传清单声明的三个精确路径。结果取回不得依赖含糊提供方“最新”结果或修改时间，不得混入其他项目、旧版本、旧运行、未完成、重复、额外或来源不明文件。`release/` manifest 状态只使用 `pending`、`rejected` 或 `accepted`；`ready` 只是对完整 `accepted` 原子集合的纯只读就绪复核结论，不写回 manifest。
+所有下游构建结果统一写入项目根 `release/`。该目录由初始化以精确 `/release/` 规则忽略，是“本次构建结果目录”而非历史归档或 `ready` 标志。每次构建在任何单元测试或构建命令前，必须验证规范化后的独立 Git 根目录，拒绝 `release` 符号链接/重解析点和路径越界，把旧目录原子移入同文件系统隔离位置，创建并复核全新空 `release/`，再只删除隔离旧树；不得通过活动目标目录原地递归删除。完成签名、公证与 stapling 后的最终归档或安装包、校验和与清单先在同根唯一暂存区中形成并验证精确的普通文件集合，再删除仍为空且不是重解析点的 `release/`，通过目录级原子重命名，将完整暂存区提交为 `release/`，并复核最终路径和文件集。只有 `gitPublication: remote` 可使用远程工作流；它必须检出并复核显式批准的 40 位提交，且每个运行器只能上传清单声明的三个精确路径。`local` 只形成当前宿主本地候选。结果取回不得依赖含糊提供方“最新”结果或修改时间，不得混入其他项目、旧版本、旧运行、未完成、重复、额外或来源不明文件。`release/` manifest 状态只使用 `pending`、`rejected` 或 `accepted`；`ready` 只是对完整 `accepted` 原子集合的纯只读就绪复核结论，不写回 manifest。
 
 构建请求、执行、成功、失败、重试、全量单元测试结果、产物路径/摘要/签名状态，以及候选 E2E、完整验收、状态更新和就绪复核，都不创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 或其他 tracked 项目记忆。候选流程只把这些事实写入忽略的 `release/` 原子集合、manifest 声明的相邻制品证据和最终回复；本地开发试包只写最终回复，不创建 manifest。不得把构建或验收日志复制到项目记忆。真实渠道发布成功后，发布执行方才从已发布且带版本 tag 的默认主分支开始下一次开发生命周期，追加 Verification/发布/Product Status 记录并执行版本周期 finalize；独立回顾性人工复核或长期审计不得反向批准活动候选。
 
@@ -115,23 +123,23 @@ Harness 源码归档只生成相邻 `<artifact>.sha256` 并核对归档来源提
 
 ## 构建、完整验收与发布顺序
 
-E2E 选择只对终端下游发布候选有效；每次候选构建独立解析，当前请求未明确时询问一次，持久建议值不能静默代替。`reviewSelection` 只由 `$desktop-prepare-release` 在发布写入前解析：当前请求已明确时复用，安全/隐私/不可逆操作/对外兼容契约或产品/渠道硬要求强制启用，否则询问一次；同一发布修复重跑复用，新发布重新询问。prepare-release 首先以根 `Version.md` 和活动 `.agents/skills/desktop-instantiate-project/SKILL.md` 同时存在来识别 Harness 源；Harness 的性能与 macOS 签名选择/来源固定为 `not-applicable`，不询问产品候选选择。终端下游 GUI 才按当前请求、产品事实与渠道要求锁定性能和 macOS 签名选择；默认 macOS 签名为 `disabled/not-requested`，不运行可用性探测，只有已批准配置、本次主动要求或渠道硬要求才启用。`system_notification = enabled` 与关闭签名冲突时必须在任何提交前停止，不能由 E2E `disabled` 掩盖。prepare-release 将结构化审查结论或 `Not run` 风险及候选选择写入 `.harness/release-context.json`；下游候选构建一律从已经推送且带预期 tag 的 clean 动态默认主分支只读验证并消费，不能现场解析、补写或从对话恢复这些值。缺少当前上下文或入口条件时只报告候选未就绪。下游候选构建必须运行项目全部非空单元测试，失败或零测试时不得形成候选。明确“构建发布候选”“发布”或“准备并构建发布”请求本身授权本次适用的提交、普通 merge、主分支切换/推送、版本 tag 创建/推送和登记资源清理；终端下游还授权候选构建，Harness 源则在 Git 发布与复核后结束且不创建产品候选。普通开发构建/本地试包不升级为候选，也不提交、推送或修改主分支。上传、商店提交和真实渠道发布仍需各自授权。
+E2E 选择只对终端下游发布候选有效；每次候选构建独立解析，当前请求未明确时询问一次，持久建议值不能静默代替。`gitPublication` 与 `reviewSelection` 只由 `$desktop-prepare-release` 在发布写入前解析：当前请求已明确时复用，否则分别询问一次；产品/渠道要求远端源码或远程构建时强制 `gitPublication: remote`，安全/隐私/不可逆操作/对外兼容契约或产品/渠道审查硬要求强制启用审查。同一发布修复重跑复用，新发布重新询问。prepare-release 首先以根 `Version.md` 和活动 `.agents/skills/desktop-instantiate-project/SKILL.md` 同时存在来识别 Harness 源；Harness 的性能与 macOS 签名选择/来源固定为 `not-applicable`，不询问产品候选选择。终端下游 GUI 才按当前请求、产品事实与渠道要求锁定性能和 macOS 签名选择；默认 macOS 签名为 `disabled/not-requested`，不运行可用性探测，只有已批准配置、本次主动要求或渠道硬要求才启用。`system_notification = enabled` 与关闭签名冲突时必须在任何提交前停止，不能由 E2E `disabled` 掩盖。prepare-release 将 Git 发布位置、结构化审查结论或 `Not run` 风险及候选选择写入 `.harness/release-context.json`；下游候选构建一律从带预期本地 tag 的 clean 默认主分支只读验证并消费，远端模式再复核远端 refs，本地模式不访问远端且只允许当前宿主候选。缺少当前上下文或入口条件时只报告候选未就绪。下游候选构建必须运行项目全部非空单元测试，失败或零测试时不得形成候选。明确“构建发布候选”“发布”或“准备并构建发布”请求本身授权本次适用的提交、普通 merge、主分支切换、版本 tag 创建和登记资源清理；仅 `gitPublication: remote` 授权主分支/tag push、远端复读和主远端分支清理。终端下游还授权适用候选构建，Harness 源则在 Git 发布与复核后结束且不创建产品候选。普通开发构建/本地试包不升级为候选，也不提交、推送或修改主分支。上传、商店提交和真实渠道发布仍需各自授权。
 
 GUI 性能和 macOS 签名选择也在该入口按当前请求、产品事实与渠道要求锁定；本句只适用于终端下游，Harness 的对应值固定为 `not-applicable`。
 
 步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程；Harness 在步骤 2 完成并复核 Git 引用后结束。步骤 3–7 仅适用于终端下游产品候选，Harness 不得进入这些构建、manifest、E2E、性能、签名或验收步骤。
 
-1. 明确正式发布请求后，`$desktop-prepare-release` 先判定 Harness 源或终端下游，并在任何写入前解析本次 `reviewSelection`；Harness 将两类产品候选选择固定为 `not-applicable`，终端下游含 GUI 时才解析 `performanceSelection`，目标含 macOS GUI 时再锁定 `macosSigningSelection`/来源。随后只读执行工作树、范围、缓存、疑似秘密和提交完整性检查。归属明确的已完成源码及本次独立事件已触发的 Changelog 必须在同一源码/治理提交中完成；无关/歧义改动、秘密、hook/签名交互或提交失败立即停止，禁止 `--no-verify`。clean 且无源码变化时不制造空提交。该提交完成后的 HEAD 锁定为 `sourceHead`，此后不得补写 Changelog。`reviewSelection: enabled` 时对上次正式发布 tag 到 `sourceHead` 的累计差异执行一次集中语义审查，发现问题回到当前开发分支修正；`disabled` 且无硬要求时显式形成 `Not run`、原因和风险。这里不检查或限制分支名称、父子形态、merge commit 或主分支写入历史。
-2. 从 `sourceHead` 定位上一次真实正式发布边界，生成双语 `release-notes.json`，但先不提交；只有当前 HEAD 仍精确等于 `sourceHead` 时才能写入 `.harness/release-context.json`，其中包含当前版本、上海日期、预期 tag、`sourceHead` 和审查/候选选择。随后把且只把 `release-notes.json` 与 `.harness/release-context.json` 作为同一个精确范围的发布元数据提交，不得混入 Changelog、源码或其他治理文件；即使日志字节无变化，上下文有变化时仍只形成这一个元数据提交，不制造额外空提交。使用上下文中同一远端调用 `$desktop-manage-git-lifecycle release --version <version> --date YYYYMMDD --remote <remote>`：helper 普通合并登记分支、切换并推送动态默认主分支；在当前 HEAD 创建和推送 `v{version}-{YYYYMMDD}`，远端复读成功后才依次清理登记 Worktree、远端分支和本地分支。最终必须位于 clean 默认主分支，本地/远端主分支和远端 tag 等于同一 40 位 `sourceCommit`，发布上下文复算通过；`sourceHead` 保持源码/治理及审查输入身份，不要求等于 `sourceCommit`。Harness 至此结束本次正式源码 Git 发布。
-3. 从上述 clean 默认主分支在清理目录、测试前只读校验发布上下文和远端 tag，消费其中的审查、性能与 macOS 签名选择，运行版本/更新日志/资源配置检查并只另外解析当前 E2E 选择，再运行项目全部非空单元测试。GUI 性能选择为 `enabled` 或产品/渠道硬要求时，从同一 clean HEAD 生成 release-profile no-bundle 探针候选并调用 `$desktop-test-gui-release-performance`：先精确快照 window-state 原字节或原缺席状态，以一个脱敏种子在每次预热和 5 次冷启动前分别重置并验证，且在成功、失败、超时和取消路径恢复并复核原字节/原缺席；隔离完成后按 `gui-release-v2` 执行，一次预热后 5 次冷启动中位数 ≤2.4 秒且最大 ≤3.6 秒；至少 20 次代表性交互 p95 ≤120ms 且单次 <240ms；不短于 50ms 的 Long Task 必须记录且单次 <240ms；30 秒整进程树空闲 CPU p95 ≤6% 单核，适用隐藏/托盘 ≤2.4%；稳定 RSS ≤360 MiB、峰值 ≤600 MiB；20 轮后增长 ≤`max(18%, 38.4 MiB)`，退出后全部进程回收。v2 相对 v1 只把性能允许上限放宽 20%，其余采样规则不变。指标失败必须自动创建新的修复分支，修复后重新执行发布生命周期并重建；仍无法安全解决时才询问，但只有三项完整性标记均为 `true`、原窗口状态已恢复验证且证据为 `waiverAllowed: true`，才能接受明确继续并记为 `waived`，否则停止。选择为 `disabled` 且无硬要求时不生成探针，并原样记录同一 `Not run` 原因和剩余风险。
+1. 明确正式发布请求后，`$desktop-prepare-release` 先判定 Harness 源或终端下游，并在任何写入前解析本次 `gitPublication` 与 `reviewSelection`；Harness 将两类产品候选选择固定为 `not-applicable`，终端下游含 GUI 时才解析 `performanceSelection`，目标含 macOS GUI 时再锁定 `macosSigningSelection`/来源。随后只读执行工作树、范围、缓存、疑似秘密和提交完整性检查。归属明确的已完成源码及本次独立事件已触发的 Changelog 必须在同一源码/治理提交中完成；无关/歧义改动、秘密、hook/签名交互或提交失败立即停止，禁止 `--no-verify`。clean 且无源码变化时不制造空提交。该提交完成后的 HEAD 锁定为 `sourceHead`，此后不得补写 Changelog。`reviewSelection: enabled` 时对上次正式发布 tag 到 `sourceHead` 的累计差异执行一次集中语义审查，发现问题回到当前开发分支修正；`disabled` 且无硬要求时显式形成 `Not run`、原因和风险。这里不检查或限制分支名称、父子形态、merge commit 或主分支写入历史。
+2. 从 `sourceHead` 定位上一次真实正式发布边界，生成双语 `release-notes.json`，但先不提交；只有当前 HEAD 仍精确等于 `sourceHead` 时才能写入 `.harness/release-context.json`，其中包含 `gitPublication`、当前版本、上海日期、预期 tag、默认主分支、适用 remote、`sourceHead` 和审查/候选选择。随后把且只把 `release-notes.json` 与 `.harness/release-context.json` 作为同一个精确范围的发布元数据提交，不得混入 Changelog、源码或其他治理文件。两种模式都把精确 `--release-context-sha256 <sha256>` 传给 lifecycle，并在任何副作用前验证上下文与 CLI。远端模式调用 `release ... --release-context-sha256 <sha256> --remote <remote>`：首次只在本地 fetch/整合，冻结 final `pendingRelease.head` 后才允许主分支/tag push 与远端复读，之后按 Worktree、主远端分支、本地分支清理；pending head 非空重试只续跑同一固定 HEAD。本地模式调用 `release ... --release-context-sha256 <sha256> --local-only`，完全不访问远端，在本地 tag 复读后按 Worktree、本地分支清理。最终必须位于 clean 默认主分支，本地主分支和本地 tag 等于同一 40 位 `sourceCommit`，远端模式还要求远端主分支/tag 一致，发布上下文复算通过；`sourceHead` 保持源码/治理及审查输入身份，不要求等于 `sourceCommit`。Harness 至此结束本次正式源码 Git 发布。
+3. 从上述 clean 默认主分支在清理目录、测试前只读校验发布上下文和模式适用的 tag/refs，消费其中的 Git 发布位置、审查、性能与 macOS 签名选择，运行版本/更新日志/资源配置检查并只另外解析当前 E2E 选择，再运行项目全部非空单元测试。本地模式只允许当前宿主本地候选，远程跨平台 provider 只接受远端模式。GUI 性能选择为 `enabled` 或产品/渠道硬要求时，从同一 clean HEAD 生成 release-profile no-bundle 探针候选并调用 `$desktop-test-gui-release-performance`：先精确快照 window-state 原字节或原缺席状态，以一个脱敏种子在每次预热和 5 次冷启动前分别重置并验证，且在成功、失败、超时和取消路径恢复并复核原字节/原缺席；隔离完成后按 `gui-release-v2` 执行，一次预热后 5 次冷启动中位数 ≤2.4 秒且最大 ≤3.6 秒；至少 20 次代表性交互 p95 ≤120ms 且单次 <240ms；不短于 50ms 的 Long Task 必须记录且单次 <240ms；30 秒整进程树空闲 CPU p95 ≤6% 单核，适用隐藏/托盘 ≤2.4%；稳定 RSS ≤360 MiB、峰值 ≤600 MiB；20 轮后增长 ≤`max(18%, 38.4 MiB)`，退出后全部进程回收。v2 相对 v1 只把性能允许上限放宽 20%，其余采样规则不变。指标失败必须自动创建新的修复分支，修复后重新执行发布生命周期并重建；仍无法安全解决时才询问，但只有三项完整性标记均为 `true`、原窗口状态已恢复验证且证据为 `waiverAllowed: true`，才能接受明确继续并记为 `waived`，否则停止。选择为 `disabled` 且无硬要求时不生成探针，并原样记录同一 `Not run` 原因和剩余风险。
 4. 性能已启用时只有 `passed`，或原始失败证据明确 `waiverAllowed: true` 后获用户显式 `waived`，才能进入完整打包。`wholeProcessTree`、`probeBytesUnmodified`、`allProcessesRecovered` 任一不为 `true`，或窗口状态恢复未验证时，helper 必须输出 `waiverAllowed: false` 与不可豁免失败，必须先修复并重新验证。性能已关闭且无硬要求时以 `Not run` 继续。Rust CLI 默认走三平台原生矩阵；Tauri GUI 生成适用 DMG/NSIS，每个候选打入同一更新日志并逐字节比较。macOS 默认 `macosSigningSelection: disabled` 并直接使用 `--no-sign`，不探测本机身份或公证凭据；只有已批准持久配置、本次主动要求或渠道硬要求才启用并探测，启用后签名、公证、stapling 全有或全无，失败不得降级。`system_notification = enabled` 与 unsigned 的冲突按入口规则提前阻断，不得把通知已知不可用的包写成候选。任何路径都不得自动创建、索取或输出凭据。
-5. `$desktop-verify-delivery` 在准入时和写最终验收状态前两次只读核对当前 clean 动态默认主分支、本地/远端提交、远端 tag、发布上下文与全部 manifest；对最终候选执行冒烟、当前 E2E 选择和产品/渠道硬要求后，再重新计算所有候选文件、相邻证据、资源和 manifest 声明的最终字节。发布审查关闭时确认 `Not run` 原因/风险且无证据，启用时确认累计差异证据绑定同一发布提交；性能启用时证据仍须绑定同一提交和运行字节，三项完整性标记必须为 `true` 且 window-state 原状态恢复已经验证；`waived` 还必须引用 `waiverAllowed: true` 的原始失败证据并保持可见风险，不能变成 `passed`。性能关闭时确认 `Not run` 的原因/风险和性能字段缺席。Windows xwin 只有在启用性能但缺少原生测量时保持 `Unverified`。任一字节、tag 或发布上下文在执行期间漂移都拒绝候选；只有全部复核通过，才在仓库外同文件系统暂存完整集合并以目录级原子替换一次性把所有 manifest 从 `pending` 更新为 `accepted`，不得逐文件暴露混合状态。
-6. 所有 required/enabled 检查和本次候选需要的人工签署完成后才形成上述 `accepted` 原子集合；这些证据仍只存在于忽略的 `release/` 与最终回复。就绪复核是纯只读操作：检查当前分支为动态默认主分支、本地/远端提交和远端 tag 与候选 `sourceCommit` 相同，以及版本、更新日志、选择/状态、最终哈希和签名一致，不得再改 manifest 或写 tracked 项目记忆。真实渠道发布成功后，才从该已发布且带 tag 的主分支开始下一次开发生命周期，追加 Verification/发布/Product Status 记录并以精确已发布版本和 40 位源码提交执行 `$desktop-manage-version finalize-release`。
+5. `$desktop-verify-delivery` 在准入时和写最终验收状态前两次只读核对当前 clean 默认主分支、本地 tag、发布上下文与全部 manifest，并仅在 `gitPublication: remote` 时核对远端主分支/tag；对最终候选执行冒烟、当前 E2E 选择和产品/渠道硬要求后，再重新计算所有候选文件、相邻证据、资源和 manifest 声明的最终字节。发布审查关闭时确认 `Not run` 原因/风险且无证据，启用时确认累计差异证据绑定同一发布提交；性能启用时证据仍须绑定同一提交和运行字节，三项完整性标记必须为 `true` 且 window-state 原状态恢复已经验证；`waived` 还必须引用 `waiverAllowed: true` 的原始失败证据并保持可见风险，不能变成 `passed`。性能关闭时确认 `Not run` 的原因/风险和性能字段缺席。Windows xwin 只有在启用性能但缺少原生测量时保持 `Unverified`。任一字节、tag 或发布上下文在执行期间漂移都拒绝候选；只有全部复核通过，才在仓库外同文件系统暂存完整集合并以目录级原子替换一次性把所有 manifest 从 `pending` 更新为 `accepted`，不得逐文件暴露混合状态。
+6. 所有 required/enabled 检查和本次候选需要的人工签署完成后才形成上述 `accepted` 原子集合；这些证据仍只存在于忽略的 `release/` 与最终回复。就绪复核是纯只读操作：检查当前分支为默认主分支、本地主分支/tag 与候选 `sourceCommit` 相同，远端模式再核对远端 refs，并验证版本、更新日志、选择/状态、最终哈希和签名一致，不得再改 manifest 或写 tracked 项目记忆。真实渠道发布成功后，才从该已发布且带 tag 的主分支开始下一次开发生命周期，追加 Verification/发布/Product Status 记录并以精确已发布版本和 40 位源码提交执行 `$desktop-manage-version finalize-release`。
 7. 更新日志、签名、公证、stapling、重打包或渠道处理若改变运行字节、启动器、依赖或行为，结果成为新候选并回到步骤 3；当次选择启用时旧性能证据与运行时绑定不得复用，所有候选的旧验收证据都不得复用。渠道处理若在发布前改变字节，禁止先写 tracked 发布记录或 finalize。
 
 ## Harness 模板发布检查清单
 
-本清单只在用户明确准备 Harness 发布时执行。日常开发只运行本次必要单元/回归测试；纯文档、元数据、格式与不可合理单测的机械变更只做最小解析或差异检查。正式源码发布必须重新复核累计差异、必要测试、发布上下文与远端 Git 引用，日常检查结果不能直接冒充该结论。
+本清单只在用户明确准备 Harness 发布时执行。日常开发只运行本次必要单元/回归测试；纯文档、元数据、格式与不可合理单测的机械变更只做最小解析或差异检查。正式源码发布必须重新复核累计差异、必要测试、发布上下文、本地 Git 引用和模式适用的远端引用，日常检查结果不能直接冒充该结论。
 
 模板自身无应用代码，不使用下游的编译、单元测试、CLI 和二进制冒烟门槛。模板发布必须满足：
 
@@ -139,13 +147,13 @@ GUI 性能和 macOS 签名选择也在该入口按当前请求、产品事实与
 - [ ] README、AGENTS、所有已触发的项目记忆文档和全部声明的项目 Skills 完整存在。
 - [ ] `python3 scripts/validate_harness.py` 成功，且输出对应当前发布源码；当次 `reviewSelection: enabled` 时另执行 `python3 scripts/validate_harness.py --release-review` 并处理其集中提示，关闭时不得把提示伪装为已运行。
 - [ ] 发布元数据写入前，当前 HEAD 精确等于包含全部源码/治理变化及已触发 Changelog 的 `sourceHead`；`releaseReview.reviewedSourceCommit` 绑定该 `sourceHead`。随后同一个精确发布元数据提交且只包含 `release-notes.json` 与 `.harness/release-context.json`。
-- [ ] 生命周期完成后再次复算发布上下文字节与 SHA-256；最终 `sourceCommit`、clean 动态默认主分支、远端主分支和远端 `expectedTag` 三者一致。`sourceHead` 仍是元数据提交前的审查输入，不要求等于 `sourceCommit`。
+- [ ] 生命周期完成后再次复算发布上下文字节与 SHA-256；最终 `sourceCommit`、clean 默认主分支和本地 `expectedTag` 一致，`gitPublication: remote` 时远端主分支/tag 也一致，`local` 时没有远端访问。`sourceHead` 仍是元数据提交前的审查输入，不要求等于 `sourceCommit`。
 - [ ] Rust 初始化中性资产通过当前系统的格式、代码规范检查和非空测试；它是脚手架资产而非产品候选，不用冒烟证明产品交付。
 - [ ] Rust 初始化中性资产在声明的最低 Rust 版本 1.98.1 上完成可用工具链验证；这不限制开发或运行环境使用更高稳定版。
-- [ ] 候选工作流示例（`.agents/skills/desktop-prepare-cross-platform-release/assets/github-release-candidate.yml`，下游部署到 `.github/workflows/release-candidate.yml`）通过静态检查，且只读检出发布上下文已批准的带 tag 提交，不自行修改 ref、创建 tag 或执行渠道发布。
+- [ ] 候选工作流示例（`.agents/skills/desktop-prepare-cross-platform-release/assets/github-release-candidate.yml`，下游部署到 `.github/workflows/release-candidate.yml`）通过静态检查，只接受 `gitPublication: remote`，且只读检出发布上下文已批准的带远端 tag 提交，不自行修改 ref、创建 tag 或执行渠道发布。
 - [ ] Harness 时间版本、下游自动版本 Skill/状态保护、Rust 默认值、四类独立适配器、默认 CLI、Agent 策略、构建 E2E 选择和验收适用性在事实来源中一致。
 - [ ] Harness 源发布未冒充产品候选：产品构建、`release/` manifest、性能、签名、公证、产品 E2E 与产品人工验收均为 `Not applicable`；只有用户另行明确要求源码归档时才生成并核对归档与相邻 `.sha256`，不创建产品 manifest。
-- [ ] 若本次源码发布包含符合 Changelog 规则的变化，`Version.md` 与对应按日变更记录汇总的版本一致；否则已确认本次源码发布仅含 Changelog 排除项。远端 tag `v{版本}-{YYYYMMDD}` 已由正式发布生命周期创建并精确指向最终 `sourceCommit`；源码归档只有实际生成时才核对。
+- [ ] 若本次源码发布包含符合 Changelog 规则的变化，`Version.md` 与对应按日变更记录汇总的版本一致；否则已确认本次源码发布仅含 Changelog 排除项。本地 tag `v{版本}-{YYYYMMDD}` 已由正式发布生命周期创建并精确指向最终 `sourceCommit`；远端模式还复核同名远端 tag，源码归档只有实际生成时才核对。
 - [ ] 若本次源码发布包含符合 Changelog 规则的变化，`docs/changelog/` 的日期文件中存在对应版本条目；仅含普通缺陷修复或纯重构时本项为 `Not applicable`，且未制造空记录。
 - [ ] README 包含真实用途、维护状态和反馈入口。
 - [ ] 若生成源码归档，其来源提交和 SHA-256 已记录。
@@ -158,7 +166,7 @@ Harness 根目录没有具体产品，因此下游产物、manifest、性能、�
 本清单只接受已通过完整验收的真实候选。日常开发只运行本次必要单元测试；显式构建运行项目全部非空单元测试，E2E 只在最终候选形成后按当前选择执行。
 
 - [ ] 项目根是独立 Git 顶层目录，工作树干净，当前发布源码已有 40 位提交；manifest `sourceCommit` 精确等于实际构建 HEAD，父仓库、尚无提交或未记录修改不得替代发布源码身份。
-- [ ] 构建 HEAD 位于动态默认主分支，本地与登记远端同名主分支、远端 `v{版本}-{YYYYMMDD}` 均等于 manifest `sourceCommit`；tag 推送后才按 Worktree、远端分支、本地分支顺序完成状态精确登记资源的清理，未按前缀扫描或删除链外资源。
+- [ ] 构建 HEAD 位于上下文默认主分支且本地 `v{版本}-{YYYYMMDD}` 等于 manifest `sourceCommit`。`gitPublication: local` 在本地 tag 复读后按 Worktree、本地分支清理且无远端访问，只形成当前宿主候选；`remote` 还要求远端主分支/tag 一致，并在远端 tag 复读后按 Worktree、主远端分支、本地分支清理。两者均未按前缀扫描或删除链外资源。
 - [ ] 产品规格状态为 Approved。
 - [ ] 中性 `scaffold status` 已由获批的真实业务命令和测试删除或替换，不再返回 `productDefinitionRequired=true`。
 - [ ] 不存在已知未实现逻辑或未修复行为偏差；若用户要求的活动 Work Plan 存在，相关 Todo 全部为 `done`。
@@ -170,7 +178,7 @@ Harness 根目录没有具体产品，因此下游产物、manifest、性能、�
 - [ ] 适用的人类最终复核身份、日期和结论已绑定当前候选字节写入 `release/` 声明证据；候选阶段未写 tracked `docs/verification/human_review.md`。
 - [ ] `$desktop-manage-version check --phase release` 通过，根 Cargo、`.harness/version-state.json` 目标、候选 manifest 与软件显示一致；本检查没有提升版本、重置周期或把候选版本回写到 tracked 项目记忆，既有项目记忆仍只遵循各自独立触发条件。
 - [ ] 根 `release-notes.json` 已在候选构建前按上次正式发布提交到当前源码的差异更新；最新条目匹配当前版本，只保留近 5 版且每版两类各不超过 10 条，文件摘要和包内路径与 manifest 一致。
-- [ ] 版本事实来源、软件显示、发布物名称和远端 tag 一致；所有用户可见版本只带一个小写 `v`，机器版本事实保持原始值；tag 精确为 `v{版本}-{YYYYMMDD}` 并指向候选 `sourceCommit`，缺席或漂移阻断候选。
+- [ ] 版本事实来源、软件显示、发布物名称和本地 tag 一致；所有用户可见版本只带一个小写 `v`，机器版本事实保持原始值；tag 精确为 `v{版本}-{YYYYMMDD}` 并指向候选 `sourceCommit`，远端模式还要求同名远端 tag，任一适用引用缺席或漂移都阻断候选。
 - [ ] `$desktop-rename-project-identity` 残留扫描确认发布配置、Skills、文档、维护路径和两份许可证中没有旧产品身份。
 - [ ] 候选包含符合 Changelog 规则的变化时，`docs/changelog/` 的日期文件中存在对应版本条目；仅含普通缺陷修复或纯重构时本项为 `Not applicable`。
 - [ ] README 包含真实的用途、使用方式、维护状态和反馈入口。

@@ -3,177 +3,26 @@
 
 from __future__ import annotations
 
-import importlib.util
+import argparse
+from datetime import datetime
+import hashlib
 import json
-import os
 from pathlib import Path
-import re
 import subprocess
 import sys
-import tempfile
-from datetime import datetime, timedelta, timezone
 import unittest
 from unittest import mock
 
-
-SCRIPT = Path(__file__).with_name("git_lifecycle.py")
-SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
-
-
-def load_lifecycle_module() -> object:
-    """加载被测 helper 模块，供无法由真实 Git 稳定制造的异常路径做受控注入。"""
-    module_name = "_agent_first_git_lifecycle_test_target"
-    specification = importlib.util.spec_from_file_location(module_name, SCRIPT)
-    if specification is None or specification.loader is None:
-        raise RuntimeError("Git lifecycle test module cannot be loaded.")
-    module = importlib.util.module_from_spec(specification)
-    sys.modules[module_name] = module
-    specification.loader.exec_module(module)
-    return module
+from git_lifecycle_test_support import (
+    GitLifecycleTestCase,
+    LIFECYCLE,
+    SCRIPT,
+    SHANGHAI,
+)
 
 
-LIFECYCLE = load_lifecycle_module()
-
-
-class GitLifecycleTests(unittest.TestCase):
+class GitLifecycleTests(GitLifecycleTestCase):
     """在每个独立临时仓库中验证分支、标签、推送和精确清理行为。"""
-
-    def setUp(self) -> None:
-        """为每个场景建立自动回收的隔离文件系统根。"""
-        self.temporary = tempfile.TemporaryDirectory()
-        self.root = Path(self.temporary.name)
-
-    def tearDown(self) -> None:
-        """回收测试仓库、远端和 Worktree，不触碰真实用户数据。"""
-        self.temporary.cleanup()
-
-    def git(
-        self,
-        cwd: Path,
-        *arguments: str,
-        check: bool = True,
-    ) -> subprocess.CompletedProcess[str]:
-        """以测试专用非交互环境执行 Git，并在意外失败时展示夹具诊断。"""
-        environment = os.environ.copy()
-        environment["GIT_TERMINAL_PROMPT"] = "0"
-        environment["GCM_INTERACTIVE"] = "Never"
-        result = subprocess.run(
-            ["git", "-C", str(cwd), *arguments],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            env=environment,
-            check=False,
-        )
-        if check and result.returncode != 0:
-            self.fail(f"git {' '.join(arguments)} failed: {result.stderr}")
-        return result
-
-    def initialize_repository(self, *, remote: bool) -> tuple[Path, Path | None]:
-        """创建带首个 main 提交的仓库，并按场景选择本地 bare 远端。"""
-        repository = self.root / "repository"
-        repository.mkdir()
-        self.git(repository, "init", "-b", "main")
-        self.git(repository, "config", "user.name", "Lifecycle Test")
-        self.git(repository, "config", "user.email", "lifecycle@example.invalid")
-        (repository / "base.txt").write_text("base\n", encoding="utf-8")
-        self.git(repository, "add", "base.txt")
-        self.git(repository, "commit", "-m", "initial")
-        if not remote:
-            return repository, None
-        bare = self.root / "remote.git"
-        bare.mkdir()
-        self.git(bare, "init", "--bare")
-        self.git(bare, "symbolic-ref", "HEAD", "refs/heads/main")
-        self.git(repository, "remote", "add", "origin", str(bare))
-        self.git(repository, "push", "-u", "origin", "main")
-        return repository, bare
-
-    def add_bare_remote(self, repository: Path, name: str, default_branch: str) -> Path:
-        """增加具有独立默认分支的真实 bare 远端，并以当前 main 初始化它。"""
-        bare = self.root / f"{name}.git"
-        bare.mkdir()
-        self.git(bare, "init", "--bare")
-        self.git(bare, "symbolic-ref", "HEAD", f"refs/heads/{default_branch}")
-        self.git(repository, "remote", "add", name, str(bare))
-        self.git(
-            repository,
-            "push",
-            name,
-            f"refs/heads/main:refs/heads/{default_branch}",
-        )
-        return bare
-
-    def helper(
-        self,
-        repository: Path,
-        *arguments: str,
-        success: bool = True,
-    ) -> tuple[dict[str, object], subprocess.CompletedProcess[str]]:
-        """运行 helper，验证标准输出始终是唯一一行 JSON 和预期退出状态。"""
-        result = subprocess.run(
-            [sys.executable, str(SCRIPT), *arguments, "--project-root", str(repository)],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        self.assertEqual(result.stderr, "")
-        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
-        payload = json.loads(result.stdout)
-        if success:
-            self.assertEqual(result.returncode, 0, payload)
-            self.assertNotEqual(payload.get("status"), "error")
-        else:
-            self.assertNotEqual(result.returncode, 0, payload)
-            self.assertEqual(payload.get("status"), "error")
-        return payload, result
-
-    def commit_file(self, repository: Path, name: str, content: str) -> str:
-        """在指定 Worktree 提交一个可观察文件并返回新提交 OID。"""
-        (repository / name).write_text(content, encoding="utf-8")
-        self.git(repository, "add", name)
-        self.git(repository, "commit", "-m", f"add {name}")
-        return self.git(repository, "rev-parse", "HEAD").stdout.strip()
-
-    def state(self, repository: Path) -> dict[str, object]:
-        """从 Git common-dir 读取 helper 的未跟踪生命周期状态。"""
-        common = self.git(
-            repository,
-            "rev-parse",
-            "--path-format=absolute",
-            "--git-common-dir",
-        ).stdout.strip()
-        return json.loads((Path(common) / "agent-first-harness" / "git-lifecycle.json").read_text())
-
-    def local_branch_exists(self, repository: Path, branch: str) -> bool:
-        """精确判断本地分支是否存在。"""
-        return self.git(
-            repository,
-            "show-ref",
-            "--verify",
-            "--quiet",
-            f"refs/heads/{branch}",
-            check=False,
-        ).returncode == 0
-
-    def remote_branch_exists(self, repository: Path, branch: str) -> bool:
-        """精确判断 origin 上的分支是否存在。"""
-        return bool(
-            self.git(repository, "ls-remote", "--heads", "origin", f"refs/heads/{branch}").stdout.strip()
-        )
-
-    def install_hook(self, bare: Path, body: str) -> None:
-        """安装测试专用 pre-receive hook，以观察标签和清理的远端顺序。"""
-        hook = bare / "hooks" / "pre-receive"
-        hook.write_text("#!/bin/sh\nset -eu\n" + body, encoding="utf-8")
-        hook.chmod(0o755)
 
     def test_help_and_invalid_arguments_are_single_line_json(self) -> None:
         """验证帮助与参数错误也遵守单行 JSON，且不会向标准错误输出用法文本。"""
@@ -209,6 +58,15 @@ class GitLifecycleTests(unittest.TestCase):
         )
         self.assertTrue((common / "agent-first-harness" / "git-lifecycle.json").is_file())
         self.assertFalse((repository / ".harness" / "git-lifecycle.json").exists())
+
+    def test_branch_validation_rejects_ambiguous_pseudo_refs(self) -> None:
+        """验证 Git 接受但命令会歧义解释的伪引用不能进入生命周期状态。"""
+
+        repository, _ = self.initialize_repository(remote=False)
+        resolved = LIFECYCLE.resolve_repository(str(repository))
+        self.assertFalse(LIFECYCLE.valid_branch(resolved, "@"))
+        self.assertFalse(LIFECYCLE.valid_branch(resolved, "HEAD"))
+        self.assertTrue(LIFECYCLE.valid_branch(resolved, "feature/@-safe"))
 
     def test_registered_remote_precedes_origin_and_conflicting_override_fails(self) -> None:
         """多远端仓库沿用已登记名称，并拒绝周期中途切换到 origin。"""
@@ -318,6 +176,13 @@ class GitLifecycleTests(unittest.TestCase):
 
         expected_head = self.commit_file(task_worktree, "task.txt", "task result\n")
         self.git(task_worktree, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
+        context_sha, expected_head = self.prepare_release_context(
+            task_worktree,
+            version="1.2.3",
+            date="20260909",
+            git_publication="remote",
+            remote="origin",
+        )
         released, _ = self.helper(
             task_worktree,
             "release",
@@ -325,6 +190,11 @@ class GitLifecycleTests(unittest.TestCase):
             "1.2.3",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
+            process_cwd=task_worktree,
         )
         self.assertEqual(released["head"], expected_head)
         self.assertEqual(released["tag"], "v1.2.3-20260909")
@@ -905,6 +775,547 @@ class GitLifecycleTests(unittest.TestCase):
             )
         self.assertEqual(self.state(repository)["remote"], "github")
 
+    def test_release_persists_binding_before_local_integration(self) -> None:
+        """验证权威上下文通过后先落盘 head=null pending，再允许本地 merge。"""
+        repository, _ = self.initialize_repository(remote=False)
+        self.helper(repository, "start", "--summary", "pending-first")
+        self.commit_file(repository, "pending.txt", "pending first\n")
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="0.9.0",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+        )
+        self.assertIn(
+            "发布上下文测试".encode("utf-8"),
+            (repository / ".harness/release-context.json").read_bytes(),
+        )
+        resolved = LIFECYCLE.resolve_repository(str(repository))
+        arguments = argparse.Namespace(
+            version="0.9.0",
+            date="20260914",
+            local_only=True,
+            remote=None,
+            release_context_sha256=context_sha,
+        )
+
+        def stop_before_integration(*_: object) -> dict[str, object]:
+            pending = self.state(repository)["cycle"]["pendingRelease"]
+            self.assertIsNone(pending["head"])
+            self.assertEqual(pending["gitPublication"], "local")
+            self.assertIsNone(pending["remote"])
+            self.assertEqual(pending["releaseContextSha256"], context_sha)
+            raise LIFECYCLE.LifecycleError("injected-stop", "Stop before local integration.")
+
+        with mock.patch.object(LIFECYCLE, "prepare_local_release", side_effect=stop_before_integration):
+            with self.assertRaises(LIFECYCLE.LifecycleError):
+                LIFECYCLE.command_release(resolved, arguments)
+        self.assertEqual(self.git(repository, "tag", "--list").stdout, "")
+
+    def test_local_last_release_survives_later_publish_state_change(self) -> None:
+        """验证独立 publish 改写 top-level remote 后，同身份仍按 lastRelease 的 local 模式幂等。"""
+        repository, _ = self.initialize_repository(remote=True)
+        self.helper(repository, "start", "--summary", "local-then-publish")
+        self.commit_file(repository, "local-first.txt", "local first\n")
+        context_sha, released_head = self.prepare_release_context(
+            repository,
+            version="0.9.1",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+        )
+        released, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "0.9.1",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+        )
+        self.assertEqual(released["head"], released_head)
+        self.helper(repository, "publish", "--remote", "origin")
+        self.assertEqual(self.state(repository)["remote"], "origin")
+
+        repeated, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "0.9.1",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+        )
+        self.assertEqual(repeated["status"], "already-released")
+        self.assertEqual(repeated["gitPublication"], "local")
+        self.assertIsNone(repeated["remote"])
+        self.assertEqual(self.state(repository)["lastRelease"]["gitPublication"], "local")
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--tags", "origin", "refs/tags/v0.9.1-20260914").stdout,
+            "",
+        )
+
+    def test_context_mode_mismatch_fails_before_any_remote_access(self) -> None:
+        """验证 local 上下文配 remote CLI 在失联远端前失败，且不建立 pending。"""
+        repository, bare = self.initialize_repository(remote=True)
+        assert bare is not None
+        self.helper(repository, "start", "--summary", "context-mode-mismatch")
+        self.commit_file(repository, "mode.txt", "mode\n")
+        context_sha, current = self.prepare_release_context(
+            repository,
+            version="0.9.2",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+        )
+        unavailable_remote = self.root / "context-mode-remote.git"
+        bare.rename(unavailable_remote)
+
+        rejected, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "0.9.2",
+            "--date",
+            "20260914",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
+            success=False,
+        )
+        self.assertEqual(rejected["code"], "release-context-mismatch")
+        self.assertEqual(self.git(repository, "rev-parse", "HEAD").stdout.strip(), current)
+        self.assertIsNone(self.state(repository)["cycle"]["pendingRelease"])
+        self.assertEqual(self.git(repository, "tag", "--list").stdout, "")
+
+    def test_invalid_nested_context_and_crlf_bytes_fail_before_pending(self) -> None:
+        """验证权威嵌套规则与规范字节都在任何发布副作用前失败关闭。"""
+        original_root = self.root
+        for mutation in ("nested", "crlf"):
+            with self.subTest(mutation=mutation):
+                self.root = original_root / mutation
+                self.root.mkdir()
+                repository, _ = self.initialize_repository(remote=False)
+                self.helper(repository, "start", "--summary", f"invalid-{mutation}")
+                self.commit_file(repository, f"{mutation}.txt", f"{mutation}\n")
+                _, _ = self.prepare_release_context(
+                    repository,
+                    version="0.9.3",
+                    date="20260914",
+                    git_publication="local",
+                    remote=None,
+                )
+                path = repository / ".harness/release-context.json"
+                raw = path.read_bytes()
+                if mutation == "nested":
+                    value = json.loads(raw.decode("utf-8"))
+                    value["candidateSelections"]["performanceSource"] = "requested"
+                    raw = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+                else:
+                    raw = raw.replace(b"\n", b"\r\n")
+                path.write_bytes(raw)
+                self.git(repository, "add", ".harness/release-context.json")
+                self.git(repository, "commit", "-m", f"test: persist invalid {mutation} context")
+                digest = hashlib.sha256(raw).hexdigest()
+
+                rejected, _ = self.helper(
+                    repository,
+                    "release",
+                    "--version",
+                    "0.9.3",
+                    "--date",
+                    "20260914",
+                    "--local-only",
+                    "--release-context-sha256",
+                    digest,
+                    success=False,
+                )
+                self.assertEqual(rejected["code"], "release-context-invalid")
+                self.assertIsNone(self.state(repository)["cycle"]["pendingRelease"])
+                self.assertEqual(self.git(repository, "tag", "--list").stdout, "")
+        self.root = original_root
+
+    def test_integrated_context_drift_stops_before_remote_push_or_tag(self) -> None:
+        """验证后合并分支替换上下文时不冻结 HEAD，也不触碰远端主分支或标签。"""
+        repository, _ = self.initialize_repository(remote=True)
+        remote_main_before = self.git(
+            repository, "ls-remote", "--heads", "origin", "refs/heads/main"
+        ).stdout
+        started, _ = self.helper(repository, "start", "--summary", "bound-context")
+        feature = str(started["branch"])
+        self.commit_file(repository, "bound.txt", "bound\n")
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="0.9.4",
+            date="20260914",
+            git_publication="remote",
+            remote="origin",
+            summary="绑定上下文",
+        )
+        drift_worktree = self.root / "context-drift-worktree"
+        self.git(repository, "worktree", "add", "-b", "context-drift", str(drift_worktree), feature)
+        self.prepare_release_context(
+            drift_worktree,
+            version="0.9.4",
+            date="20260914",
+            git_publication="remote",
+            remote="origin",
+            summary="漂移上下文",
+        )
+        self.helper(repository, "track-worktree", "--worktree", str(drift_worktree))
+
+        rejected, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "0.9.4",
+            "--date",
+            "20260914",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
+            success=False,
+        )
+        self.assertEqual(rejected["code"], "release-context-mismatch")
+        pending = self.state(repository)["cycle"]["pendingRelease"]
+        self.assertIsNone(pending["head"])
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout,
+            remote_main_before,
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--tags", "origin", "refs/tags/v0.9.4-20260914").stdout,
+            "",
+        )
+
+    def test_remote_head_is_frozen_before_push_verification_failure(self) -> None:
+        """验证 push 复读失败前已冻结 HEAD，后续本地主分支漂移不能被重新整合或推送。"""
+        repository, _ = self.initialize_repository(remote=True)
+        self.helper(repository, "start", "--summary", "freeze-before-push")
+        self.commit_file(repository, "freeze.txt", "freeze\n")
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="0.9.5",
+            date="20260914",
+            git_publication="remote",
+            remote="origin",
+        )
+        resolved = LIFECYCLE.resolve_repository(str(repository))
+        arguments = argparse.Namespace(
+            version="0.9.5",
+            date="20260914",
+            local_only=False,
+            remote="origin",
+            release_context_sha256=context_sha,
+        )
+        with mock.patch.object(
+            LIFECYCLE,
+            "remote_branch_oid",
+            side_effect=LIFECYCLE.LifecycleError("remote-read-failed", "Injected reread failure."),
+        ):
+            with self.assertRaises(LIFECYCLE.LifecycleError):
+                LIFECYCLE.command_release(resolved, arguments)
+        pending = self.state(repository)["cycle"]["pendingRelease"]
+        frozen_head = str(pending["head"])
+        self.assertRegex(frozen_head, r"^[0-9a-f]{40}$")
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.startswith(
+                frozen_head + "\t"
+            )
+        )
+        advanced_head = self.commit_file(repository, "after-freeze.txt", "must not publish\n")
+
+        rejected, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "0.9.5",
+            "--date",
+            "20260914",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
+            success=False,
+        )
+        self.assertEqual(rejected["code"], "local-state-changed")
+        self.assertNotEqual(advanced_head, frozen_head)
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.startswith(
+                frozen_head + "\t"
+            )
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--tags", "origin", "refs/tags/v0.9.5-20260914").stdout,
+            "",
+        )
+
+    def test_release_requires_exactly_one_publication_mode(self) -> None:
+        """验证正式发布不能省略模式，也不能同时请求本地与远端发布。"""
+        repository, _ = self.initialize_repository(remote=False)
+
+        missing, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.0.0",
+            "--date",
+            "20260914",
+            "--release-context-sha256",
+            "0" * 64,
+            success=False,
+        )
+        self.assertEqual(missing["code"], "invalid-argument")
+
+        conflicting, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.0.0",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            "0" * 64,
+            success=False,
+        )
+        self.assertEqual(conflicting["code"], "invalid-argument")
+        self.assertEqual(self.git(repository, "tag", "--list").stdout, "")
+
+    def test_first_local_release_initializes_default_branch_without_cycle_state(self) -> None:
+        """验证全新本地仓库无需 start 或既有状态即可由已绑定上下文初始化主分支。"""
+        repository, _ = self.initialize_repository(remote=False)
+        common_dir = Path(
+            self.git(
+                repository,
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-common-dir",
+            ).stdout.strip()
+        )
+        state_path = common_dir / "agent-first-harness" / "git-lifecycle.json"
+        self.assertFalse(state_path.exists())
+        context_sha, expected_head = self.prepare_release_context(
+            repository,
+            version="1.0.1",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+            default_branch="main",
+        )
+        self.assertFalse(state_path.exists())
+
+        released, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.0.1",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+        )
+
+        self.assertEqual(released["status"], "released")
+        self.assertEqual(released["branch"], "main")
+        self.assertEqual(released["head"], expected_head)
+        self.assertEqual(released["gitPublication"], "local")
+        self.assertIsNone(released["remote"])
+        self.assertEqual(
+            self.git(repository, "rev-parse", "refs/tags/v1.0.1-20260914^{commit}").stdout.strip(),
+            expected_head,
+        )
+        state = self.state(repository)
+        self.assertEqual(state["defaultBranch"], "main")
+        self.assertIsNone(state["cycle"])
+        self.assertEqual(state["lastRelease"]["gitPublication"], "local")
+        self.assertIsNone(state["lastRelease"]["remote"])
+
+    def test_local_release_never_accesses_remote_and_preserves_remote_refs(self) -> None:
+        """验证本地发布在已登记远端失联时仍完成，并保留全部远端引用。"""
+        repository, bare = self.initialize_repository(remote=True)
+        assert bare is not None
+        remote_main_before = self.git(bare, "rev-parse", "refs/heads/main").stdout.strip()
+        started, _ = self.helper(repository, "start", "--summary", "local-release")
+        feature = str(started["branch"])
+        expected_head = self.commit_file(repository, "local.txt", "local publication\n")
+        self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
+        context_sha, expected_head = self.prepare_release_context(
+            repository,
+            version="1.1.0",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+        )
+        self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
+        unavailable_remote = self.root / "unavailable-remote.git"
+        bare.rename(unavailable_remote)
+
+        released, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.1.0",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+        )
+
+        self.assertEqual(released["status"], "released")
+        self.assertEqual(released["gitPublication"], "local")
+        self.assertIsNone(released["remote"])
+        self.assertEqual(released["head"], expected_head)
+        self.assertEqual(released["cleanedRemoteBranches"], [])
+        self.assertFalse(self.local_branch_exists(repository, feature))
+        self.assertEqual(
+            self.git(repository, "rev-parse", "refs/tags/v1.1.0-20260914^{commit}").stdout.strip(),
+            expected_head,
+        )
+        self.assertEqual(
+            self.git(unavailable_remote, "rev-parse", "refs/heads/main").stdout.strip(),
+            remote_main_before,
+        )
+        self.assertEqual(
+            self.git(unavailable_remote, "rev-parse", f"refs/heads/{feature}").stdout.strip(),
+            expected_head,
+        )
+        state = self.state(repository)
+        self.assertEqual(state["remote"], "origin")
+        self.assertIsNone(state["cycle"])
+        self.assertEqual(state["lastRelease"]["tag"], "v1.1.0-20260914")
+
+    def test_local_pending_retry_requires_same_mode(self) -> None:
+        """验证本地发布落盘 pending 后，远端模式不能接管，同模式可恢复完成。"""
+        repository, _ = self.initialize_repository(remote=False)
+        started, _ = self.helper(repository, "start", "--summary", "local-retry")
+        feature = str(started["branch"])
+        expected_head = self.commit_file(repository, "retry.txt", "retry\n")
+        context_sha, expected_head = self.prepare_release_context(
+            repository,
+            version="1.2.0",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+        )
+        resolved = LIFECYCLE.resolve_repository(str(repository))
+        arguments = argparse.Namespace(
+            version="1.2.0",
+            date="20260914",
+            local_only=True,
+            remote=None,
+            release_context_sha256=context_sha,
+        )
+        with mock.patch.object(
+            LIFECYCLE,
+            "cleanup_local_branches",
+            side_effect=LIFECYCLE.LifecycleError("cleanup-failed", "Injected local cleanup failure."),
+        ):
+            with self.assertRaises(LIFECYCLE.LifecycleError):
+                LIFECYCLE.command_release(resolved, arguments)
+
+        pending_state = self.state(repository)
+        self.assertIsNone(pending_state["remote"])
+        self.assertEqual(pending_state["cycle"]["pendingRelease"]["head"], expected_head)
+        self.assertFalse(pending_state["cycle"]["branches"][0]["remoteDeleted"])
+
+        conflicting, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.2.0",
+            "--date",
+            "20260914",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
+            success=False,
+        )
+        self.assertEqual(conflicting["code"], "release-context-mismatch")
+
+        resumed, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.2.0",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+        )
+        self.assertEqual(resumed["status"], "released")
+        self.assertEqual(resumed["gitPublication"], "local")
+        self.assertFalse(self.local_branch_exists(repository, feature))
+
+    def test_local_release_tag_conflict_keeps_cycle_resources(self) -> None:
+        """验证本地同名标签冲突在 pending 与清理前失败关闭。"""
+        repository, _ = self.initialize_repository(remote=False)
+        started, _ = self.helper(repository, "start", "--summary", "local-tag-conflict")
+        feature = str(started["branch"])
+        self.commit_file(repository, "conflict-local.txt", "conflict\n")
+        initial = self.git(repository, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="1.3.0",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+        )
+        tag = "v1.3.0-20260914"
+        self.git(repository, "tag", tag, initial)
+
+        conflicted, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.3.0",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+            success=False,
+        )
+
+        self.assertEqual(conflicted["code"], "tag-conflict")
+        self.assertTrue(self.local_branch_exists(repository, feature))
+        self.assertIsNotNone(self.state(repository)["cycle"]["pendingRelease"])
+        self.assertEqual(self.git(repository, "rev-parse", f"{tag}^{{commit}}").stdout.strip(), initial)
+
+    def test_local_pending_allows_local_cleanup_without_remote_cleanup_marker(self) -> None:
+        """验证本地 pending 可持久化 localDeleted=true、remoteDeleted=false 的真实进度。"""
+        repository, _ = self.initialize_repository(remote=False)
+        self.helper(repository, "start", "--summary", "local-progress")
+        resolved = LIFECYCLE.resolve_repository(str(repository))
+        state = LIFECYCLE.load_state(resolved)
+        state["remote"] = None
+        state["cycle"]["pendingRelease"] = {
+            "tag": "v1.4.0-20260914",
+            "head": LIFECYCLE.current_head(resolved),
+            "date": "20260914",
+            "version": "1.4.0",
+            "gitPublication": "local",
+            "remote": None,
+            "releaseContextSha256": "0" * 64,
+        }
+        state["cycle"]["branches"][0]["localDeleted"] = True
+        validated = LIFECYCLE.validate_state(resolved, state)
+        self.assertTrue(validated["cycle"]["branches"][0]["localDeleted"])
+        self.assertFalse(validated["cycle"]["branches"][0]["remoteDeleted"])
+
     def test_release_excludes_additional_remotes_and_rejects_option(self) -> None:
         """验证 release 只推送、打标签并清理主远端，且参数层拒绝补充远端。"""
         repository, github = self.initialize_repository(remote=True)
@@ -923,6 +1334,15 @@ class GitLifecycleTests(unittest.TestCase):
         expected_head = self.commit_file(repository, "release-isolation.txt", "main only\n")
         self.git(repository, "push", "github", f"refs/heads/{feature}:refs/heads/{feature}")
         self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
+        context_sha, expected_head = self.prepare_release_context(
+            repository,
+            version="4.5.6",
+            date="20260914",
+            git_publication="remote",
+            remote="github",
+        )
+        self.git(repository, "push", "github", f"refs/heads/{feature}:refs/heads/{feature}")
+        self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
         additional_default_before = self.git(
             repository, "ls-remote", "--heads", "origin", "refs/heads/stable"
         ).stdout
@@ -937,6 +1357,8 @@ class GitLifecycleTests(unittest.TestCase):
             "20260914",
             "--remote",
             "github",
+            "--release-context-sha256",
+            context_sha,
             "--also-remote",
             "origin",
             success=False,
@@ -960,10 +1382,13 @@ class GitLifecycleTests(unittest.TestCase):
             "20260914",
             "--remote",
             "github",
+            "--release-context-sha256",
+            context_sha,
         )
 
         self.assertEqual(released["status"], "released")
         self.assertEqual(released["remote"], "github")
+        self.assertEqual(released["gitPublication"], "remote")
         self.assertEqual(released["head"], expected_head)
         self.assertTrue(
             self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout.startswith(
@@ -1018,6 +1443,13 @@ class GitLifecycleTests(unittest.TestCase):
         branch = str(started["branch"])
         self.commit_file(repository, "rejected.txt", "rejected\n")
         self.git(repository, "push", "origin", f"refs/heads/{branch}:refs/heads/{branch}")
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="1.0.0",
+            date="20260909",
+            git_publication="remote",
+            remote="origin",
+        )
         self.install_hook(
             bare,
             'while read old new ref; do\n  case "$ref" in refs/tags/*) exit 1 ;; esac\ndone\n',
@@ -1029,6 +1461,10 @@ class GitLifecycleTests(unittest.TestCase):
             "1.0.0",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
             success=False,
         )
         self.assertEqual(rejected["code"], "tag-push-failed")
@@ -1036,6 +1472,34 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertTrue(self.remote_branch_exists(repository, branch))
         pending = self.state(repository)["cycle"]["pendingRelease"]
         self.assertEqual(pending["tag"], "v1.0.0-20260909")
+
+        wrong_mode, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.0.0",
+            "--date",
+            "20260909",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+            success=False,
+        )
+        self.assertEqual(wrong_mode["code"], "release-context-mismatch")
+        wrong_remote, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "1.0.0",
+            "--date",
+            "20260909",
+            "--remote",
+            "github",
+            "--release-context-sha256",
+            context_sha,
+            success=False,
+        )
+        self.assertEqual(wrong_remote["code"], "release-context-mismatch")
 
         detached = self.root / "pending-release-worktree"
         self.git(repository, "worktree", "add", "--detach", str(detached), "HEAD")
@@ -1064,9 +1528,13 @@ class GitLifecycleTests(unittest.TestCase):
             "1.0.0",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
             success=False,
         )
-        self.assertEqual(blocked["code"], "remote-state-changed")
+        self.assertEqual(blocked["code"], "push-rejected")
         self.assertTrue(
             self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.startswith(
                 remote_after + "\t"
@@ -1087,6 +1555,13 @@ class GitLifecycleTests(unittest.TestCase):
         self.commit_file(repository, "conflict.txt", "conflict\n")
         self.git(repository, "push", "origin", f"refs/heads/{branch}:refs/heads/{branch}")
         initial = self.git(repository, "rev-list", "--max-parents=0", "HEAD").stdout.strip()
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="2.0.0",
+            date="20260909",
+            git_publication="remote",
+            remote="origin",
+        )
         conflict_tag = "v2.0.0-20260909"
         self.git(repository, "tag", conflict_tag, initial)
         self.git(repository, "push", "origin", f"refs/tags/{conflict_tag}:refs/tags/{conflict_tag}")
@@ -1098,6 +1573,10 @@ class GitLifecycleTests(unittest.TestCase):
             "2.0.0",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
             success=False,
         )
         self.assertEqual(conflicted["code"], "tag-conflict")
@@ -1115,6 +1594,13 @@ class GitLifecycleTests(unittest.TestCase):
         feature = str(started["branch"])
         self.commit_file(repository, "feature.txt", "feature\n")
         self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="2.1.0",
+            date="20260909",
+            git_publication="remote",
+            remote="origin",
+        )
         tracked_worktree = self.root / "dirty-worktree"
         self.git(repository, "worktree", "add", "-b", "dirty-resource", str(tracked_worktree), feature)
         self.helper(repository, "track-worktree", "--worktree", str(tracked_worktree))
@@ -1128,6 +1614,10 @@ class GitLifecycleTests(unittest.TestCase):
             "2.1.0",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
             success=False,
         )
         self.assertEqual(blocked["code"], "dirty-worktree")
@@ -1154,6 +1644,10 @@ class GitLifecycleTests(unittest.TestCase):
             "2.1.0",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
         )
         self.assertEqual(resumed["status"], "released")
         self.assertFalse(tracked_worktree.exists())
@@ -1177,6 +1671,13 @@ class GitLifecycleTests(unittest.TestCase):
             "refs/heads/partial-resource:refs/heads/partial-resource",
         )
         self.helper(repository, "track-worktree", "--worktree", str(tracked_worktree))
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="2.2.0",
+            date="20260909",
+            git_publication="remote",
+            remote="origin",
+        )
         zeros = "0" * 40
         self.install_hook(
             bare,
@@ -1192,6 +1693,10 @@ class GitLifecycleTests(unittest.TestCase):
             "2.2.0",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
             success=False,
         )
         self.assertEqual(blocked["code"], "cleanup-failed")
@@ -1211,6 +1716,10 @@ class GitLifecycleTests(unittest.TestCase):
             "2.2.0",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
         )
         self.assertEqual(resumed["status"], "released")
         self.assertFalse(self.remote_branch_exists(repository, "partial-resource"))
@@ -1229,6 +1738,14 @@ class GitLifecycleTests(unittest.TestCase):
         started, _ = self.helper(repository, "start", "--summary", "release-cleanup")
         feature = str(started["branch"])
         self.commit_file(repository, "feature.txt", "feature\n")
+        self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="3.4.5",
+            date="20260909",
+            git_publication="remote",
+            remote="origin",
+        )
         self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
         tracked_worktree = self.root / "tracked-worktree"
         self.git(repository, "worktree", "add", "-b", "tracked-resource", str(tracked_worktree), feature)
@@ -1263,6 +1780,10 @@ class GitLifecycleTests(unittest.TestCase):
             "3.4.5",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
         )
         self.assertEqual(released["status"], "released")
         self.assertEqual(released["branch"], "main")
@@ -1290,6 +1811,10 @@ class GitLifecycleTests(unittest.TestCase):
             "3.4.5",
             "--date",
             "20260909",
+            "--remote",
+            "origin",
+            "--release-context-sha256",
+            context_sha,
         )
         self.assertEqual(repeated["status"], "already-released")
         self.assertTrue(keep_worktree.exists())

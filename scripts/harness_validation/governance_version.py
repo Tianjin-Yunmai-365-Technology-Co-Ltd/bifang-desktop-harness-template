@@ -153,7 +153,7 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
     }
     materialized_paths = (
         ROOT / "docs" / "changelog" / "20260914_CHANGELOG.md",  # noqa: F405
-        ROOT / "docs" / "adr" / "20260912_ADR.md",  # noqa: F405
+        ROOT / "docs" / "adr" / "20260914_ADR.md",  # noqa: F405
         PRODUCT_SPEC,  # noqa: F405
     )
     for change_id, required_version in materialized_changes.items():

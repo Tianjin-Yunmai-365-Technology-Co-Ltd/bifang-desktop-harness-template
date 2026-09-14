@@ -2,6 +2,8 @@
 
 ## 新增
 
+- `HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`（所需 Harness 版本 `pending`）：正式发布现在逐次明确选择 `gitPublication: local | remote` 并写入发布上下文。生命周期 `release` 必须携带已跟踪上下文的精确 SHA-256，并在任何副作用前核对版本、日期、tag、默认分支、模式与远端，错配时零变更失败。选择本地时只普通合并到本地默认分支、创建并复读本地版本 tag，再清理精确登记的 Worktree 与本地分支，全程不访问或修改远端；选择远端时，主分支与 tag push、远端复读及主远端登记分支清理才加入工作流并保持硬门禁。生命周期状态升级为当前唯一 schema v2，先持久化带上下文绑定和模式的待完成记录；远端路径在仅本地整合后立即固定最终 HEAD，随后才允许 push，确保重试既不能跨模式扩大授权，也不能重新整合出另一提交。当前宿主候选可消费两种上下文，托管提供方跨平台矩阵只接受远端模式。
+
 - `HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`（所需 Harness 版本 `pending`）：受管 `publish` 已支持用户为本次推送逐一明确授权的补充远端。`--remote`/`state.remote` 继续作为唯一主/发布远端并独占 fetch/merge、生命周期状态、release、tag 与清理；可重复的 `--also-remote <name>` 只把同一最终 HEAD 非强制推送到各补充远端的 advertised default branch 并逐个复读。全部目标在首个 push 前解析，补充远端不写入生命周期状态、不改绑，也不参与 release、tag 或清理。跨远端推送不是原子操作，后续失败会如实报告部分成功，并允许使用完全相同参数进行同一参数幂等重试；流程不创建/配置远端或凭据。
 
 - `HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS`（所需 Harness 版本 `202609102343`，已由本次时间版本发布物化）：新增持久策略 `user_owned_tasks`，推荐预设默认 `disabled`，自定义可开启，初始化后也可通过“开启/关闭左侧 Task”手动切换。关闭时不自动拆 Task但仍响应显式创建；启用后按单一结果边界自动创建。用户可见 Task 采用 `Task {序号} | {当前进度} | {单一结果}`，内部 plan/Subagent/Worktree 等不使用标题且不占用序号；当前与归档的当前/历史有效标题共同延续序号。每项目只允许一个写入型 active Task，Task0 仅协调。创建前必须完成项目、真实 `threadId`、标题、`projectId`、cwd、状态、干净工作区和起始提交核对；Git Task 固定使用独立 Worktree，非 Git 使用 Local，setup 或不符时零实现且不重复创建。`parallel_worktree_subagents` 保持独立。

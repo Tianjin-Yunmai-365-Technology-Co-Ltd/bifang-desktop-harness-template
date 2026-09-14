@@ -1,17 +1,17 @@
 ---
 name: desktop-test-gui-release-performance
-description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求时，在正式打包前对 clean、已推送且被版本 tag 指向的动态默认分支 HEAD 的 release-profile Tauri no-bundle 运行探针并形成可追溯结论。
+description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求时，在正式打包前对 clean、已完成当次 Git 发布位置门禁且被版本 tag 指向的默认分支 HEAD 的 release-profile Tauri no-bundle 运行探针并形成可追溯结论。
 ---
 
 # 测试 GUI 发布候选性能
 
-只对正式打包前从 clean 动态默认主分支 HEAD 生成的原生 release-profile Tauri `--no-bundle` 运行探针作性能结论；该 HEAD 必须已推送且被版本 tag 指向。开发预览、debug、源码调用、模拟窗口、旧探针、安装包容器和 macOS xwin 交叉产物都不能证明真实发布性能。
+只对正式打包前从 clean 默认主分支 HEAD 生成的原生 release-profile Tauri `--no-bundle` 运行探针作性能结论；该 HEAD 必须被本地版本 tag 指向，且 `gitPublication: remote` 时还必须通过远端主分支/tag 门禁。开发预览、debug、源码调用、模拟窗口、旧探针、安装包容器和 macOS xwin 交叉产物都不能证明真实发布性能。
 
 ## 准入
 
-1. 只由 GUI 构建流程在当次 `performanceSelection: enabled` 或产品/渠道硬要求时调用，并且发生在同一 clean、已推送且被版本 tag 指向的动态默认主分支 HEAD 的全量非空测试通过后、任何 bundle/签名/公证/stapling 前。选择 `disabled` 且无硬要求时不得调用本 Skill、不得生成 no-bundle 性能探针或伪造性能证据。性能已启用时，即使当前 E2E 为 `disabled` 仍必须执行；最终候选 E2E 发生在打包后，不能替代本探针门禁。
+1. 只由 GUI 构建流程在当次 `performanceSelection: enabled` 或产品/渠道硬要求时调用，并且发生在同一 clean、已完成当次 `gitPublication` 门禁且被本地版本 tag 指向的默认主分支 HEAD 的全量非空测试通过后、任何 bundle/签名/公证/stapling 前。选择 `disabled` 且无硬要求时不得调用本 Skill、不得生成 no-bundle 性能探针或伪造性能证据。性能已启用时，即使当前 E2E 为 `disabled` 仍必须执行；最终候选 E2E 发生在打包后，不能替代本探针门禁。
 2. 要求 manifest 明确包含 `performanceSelection: enabled`，以普通 basename 命名 `performanceProbe`，并包含 `performanceProbeKind: tauri-no-bundle-executable`、`performanceProbeBuildProfile: release`、探针自身 `performanceProbeSha256`、`sourceTreeState: clean`、40 字符 `sourceCommit`、平台、架构与 `buildMode: native`。不得把后续 DMG/NSIS 的 `installer | archive | sha256` 当作探针事实。
-3. 只在探针的原生目标平台给出 `passed`。xwin NSIS 保持 `runtimeVerification: Unverified` 与 `performanceStatus: Unverified`；必须转到真实 Windows 从相同 clean、已推送且被版本 tag 指向的默认主分支 HEAD 生成原生 release-profile 探针，不能用 macOS 采样替代。
+3. 只在探针的原生目标平台给出 `passed`。xwin NSIS 保持 `runtimeVerification: Unverified` 与 `performanceStatus: Unverified`；远程矩阵必须使用 `gitPublication: remote`，并转到真实 Windows 从相同 clean、已通过远端主分支/tag 门禁的默认主分支 HEAD 生成原生 release-profile 探针，不能用本地发布或 macOS 采样替代。
 
 ## 固定指标
 
@@ -43,7 +43,7 @@ description: 当次 GUI 发布明确启用性能指标或产品/渠道硬要求�
 
 ## 失败、修复与豁免
 
-1. helper 非零、无法观察、窗口状态无法按同一种子隔离、原窗口状态未复原，或任一指标超限时，将探针记录为 `performanceStatus: failed` 并保留完整失败证据。立即返回 `$desktop-implement-change` 定位卡顿、阻塞或资源泄漏，增加本次回归并提交修复；该流程自动创建新的开发分支，重新执行发布生命周期，形成新的 clean、已推送且被版本 tag 指向的默认主分支 HEAD，再重建 no-bundle 探针。新字节必须从头测量，且失败期间不得开始打包。`wholeProcessTree`、`probeBytesUnmodified`、`allProcessesRecovered` 任一不为 `true`，或窗口状态恢复失败，都属于不可豁免的完整性阻断，必须先修复并重新测量，不能用性能 waiver 继续打包。
+1. helper 非零、无法观察、窗口状态无法按同一种子隔离、原窗口状态未复原，或任一指标超限时，将探针记录为 `performanceStatus: failed` 并保留完整失败证据。立即返回 `$desktop-implement-change` 定位卡顿、阻塞或资源泄漏，增加本次回归并提交修复；该流程自动创建新的开发分支，重新执行发布生命周期，形成新的 clean、已完成当次 Git 发布位置门禁且被本地版本 tag 指向的默认主分支 HEAD，再重建 no-bundle 探针。新字节必须从头测量，且失败期间不得开始打包。`wholeProcessTree`、`probeBytesUnmodified`、`allProcessesRecovered` 任一不为 `true`，或窗口状态恢复失败，都属于不可豁免的完整性阻断，必须先修复并重新测量，不能用性能 waiver 继续打包。
 2. 有界修复仍不能满足门禁时，向用户展示失败指标、平台和剩余风险，询问是否继续打包。没有用户在当前请求中的明确确认就必须停止。
 3. 用户明确确认后只能记录 `performanceStatus: waived`；manifest 的 `performanceWaiver` 必须包含非空原因、确认时间、确认摘要和指向原始 `failed` 证据的相对路径。豁免不把失败改写为通过，也不把 xwin 的 `runtimeVerification` 或 `performanceStatus` 改成已验证。
 

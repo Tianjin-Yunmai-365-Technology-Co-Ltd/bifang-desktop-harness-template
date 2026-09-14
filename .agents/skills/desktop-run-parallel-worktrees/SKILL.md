@@ -68,4 +68,4 @@ python3 <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/sc
 
 `remove` 只删除该并行单元自己在 Git common-dir 下的状态登记，返回 `cleanupDeferredToRelease: true`、`worktreeRetained: true` 与 `branchRetained: true`；它不得删除 Worktree 或本地/远端分支。绝不得强制收口状态不干净、身份/所有权缺失或不匹配、越界单元，也不得手工删除 common-dir 中的登记来绕过检查。单元分支是否已提前整合不影响收口，生命周期 helper 仍持有完整精确清单。
 
-这些已由生命周期 helper 精确登记的 Worktree 与分支统一保留到用户明确要求正式发布。正式发布必须先完成主分支合并和推送，再创建并推送当前版本标签；只有远端标签成功复读后，`$desktop-manage-git-lifecycle` 才能删除本周期登记的 Worktree、远端分支和本地分支。普通完成或用户只要求“推送”时不得提前清理。
+这些已由生命周期 helper 精确登记的 Worktree 与分支统一保留到用户明确要求正式发布。正式发布先锁定 `gitPublication: local | remote`：两种模式都完成本地主分支合并并创建、复读当前版本标签，只有远端模式才推送、复读远端主分支/tag 并清理登记远端分支；模式内标签门禁通过后，`$desktop-manage-git-lifecycle` 才能删除本周期登记的适用 Worktree 与分支。普通完成或用户只要求“推送”时不得提前清理。

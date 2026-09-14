@@ -24,7 +24,7 @@ RELEASE_CONTEXT_HELPER = (
 def validate_release_context_helper(
     errors: list[str], helper: Path = RELEASE_CONTEXT_HELPER
 ) -> None:
-    """要求离线候选上下文验证器绑定动态默认分支、tag 与固定源码提交。"""
+    """要求远程矩阵只接收远端发布上下文并绑定分支、tag 与源码提交。"""
 
     if not helper.is_file():
         fail(errors, f"missing release context helper: {display_path(helper)}")
@@ -45,6 +45,8 @@ def validate_release_context_helper(
         "runner must check out the named repository default branch at source_commit",
         "working release context bytes do not match source_commit",
         "release context digest does not match the host-verified input",
+        'normalized["gitPublication"] != "remote"',
+        "cross-platform provider release requires remote gitPublication",
         'f"refs/remotes/origin/{repository_default_branch}"',
         'f"refs/tags/{normalized[\'expectedTag\']}"',
         '"releaseContextSha256": digest',

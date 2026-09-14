@@ -1,4 +1,4 @@
 interface:
   display_name: "准备发布"
-  short_description: "提交发布上下文并完成 Git 发布；仅终端下游继续构建候选"
-  default_prompt: "使用 $desktop-prepare-release 提交已复核范围和双语发布上下文，合并并推送默认主分支，推送版本 tag 后清理登记的分支与 Worktree；Harness 源至此完成 Git 发布，只有终端下游再从同一 clean HEAD 构建候选。"
+  short_description: "锁定本地或远端 Git 发布；仅终端下游继续适用候选"
+  default_prompt: "使用 $desktop-prepare-release 询问并把 gitPublication: local | remote 锁定到 tracked 发布上下文，提交已复核范围，并让 lifecycle 携带精确上下文 SHA-256；本地模式只合并本地默认主分支、创建本地 tag 并清理登记 Worktree/本地分支，远端模式才增加主分支/tag 推送复读和主远端分支清理。Harness 源至此完成 Git 发布，只有终端下游继续适用候选。"

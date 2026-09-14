@@ -125,6 +125,10 @@ def calculate_snapshot(
         raise
     except Exception as error:
         raise ContextVerificationError("release context failed schema validation") from error
+    if normalized["gitPublication"] != "remote":
+        raise ContextVerificationError(
+            "cross-platform provider release requires remote gitPublication"
+        )
     if normalized["defaultBranch"] != repository_default_branch:
         raise ContextVerificationError("provider default branch differs from release context")
     if resolve_ref(root, f"refs/remotes/origin/{repository_default_branch}") != source_commit:
@@ -147,6 +151,8 @@ def calculate_snapshot(
     return {
         "sourceCommit": source_commit,
         "releaseContextSha256": digest,
+        "gitPublication": normalized["gitPublication"],
+        "remote": normalized["remote"],
         "defaultBranch": repository_default_branch,
         "version": normalized["version"],
         "expectedTag": normalized["expectedTag"],

@@ -1,6 +1,6 @@
 # GUI Release 性能证据契约
 
-只在为同一 clean、已推送且被版本 tag 指向的动态默认主分支 HEAD 生成原生 release-profile Tauri `--no-bundle` 运行探针后读取。本契约不接受 DMG、NSIS、归档或签名容器作为性能探针。
+只在为同一 clean、被本地版本 tag 指向且已完成本次模式适用 Git refs 的默认主分支 HEAD 生成原生 release-profile Tauri `--no-bundle` 运行探针后读取；远端发布才额外要求远端主分支与 tag 一致。本契约不接受 DMG、NSIS、归档或签名容器作为性能探针。
 
 ## 探针 manifest 输入
 

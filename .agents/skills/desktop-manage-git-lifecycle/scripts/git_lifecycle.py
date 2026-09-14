@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -18,16 +20,19 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterator, Sequence
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SUMMARY_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 REMOTE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*\Z")
 HEX_OID_RE = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?\Z")
+SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 STATE_DIRECTORY = "agent-first-harness"
 STATE_FILENAME = "git-lifecycle.json"
 LOCK_DIRECTORY = ".git-lifecycle.lock"
 LOCK_TIMEOUT_SECONDS = 30.0
 LOCK_POLL_SECONDS = 0.05
+RELEASE_CONTEXT_PATH = ".harness/release-context.json"
+RELEASE_CONTEXT_HELPER = ".agents/skills/desktop-prepare-release/scripts/release_context.py"
 
 
 class LifecycleError(Exception):
@@ -107,6 +112,32 @@ def run_git(
     return result
 
 
+def run_git_bytes(
+    cwd: Path,
+    arguments: Sequence[str],
+    *,
+    check: bool = True,
+    code: str = "git-error",
+    message: str = "Git operation failed.",
+) -> subprocess.CompletedProcess[bytes]:
+    """以二进制管道执行 Git，供逐字节证明已跟踪发布上下文。"""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(cwd), *arguments],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=git_environment(),
+            timeout=60,
+            check=False,
+        )
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired) as exc:
+        raise LifecycleError(code, message) from exc
+    if check and result.returncode != 0:
+        raise LifecycleError(code, message)
+    return result
+
+
 def resolve_repository(project_root: str) -> Repository:
     """解析独立 Git 工作树及其共享 common-dir，失败时不创建任何目录。"""
     try:
@@ -153,8 +184,13 @@ def new_state() -> dict[str, Any]:
 
 
 def valid_branch(repository: Repository, branch: str) -> bool:
-    """使用 Git 自身规则验证具名本地分支，拒绝可解释为选项的名称。"""
-    if not branch or branch.startswith("-") or any(ord(char) < 32 for char in branch):
+    """使用 Git 自身规则验证具名分支，并拒绝会被解释为伪引用的名称。"""
+    if (
+        not branch
+        or branch.startswith("-")
+        or branch in {"@", "HEAD"}
+        or any(ord(char) < 32 for char in branch)
+    ):
         return False
     return run_git(repository.root, ["check-ref-format", "--branch", branch], check=False).returncode == 0
 
@@ -164,14 +200,41 @@ def valid_remote(remote: str) -> bool:
     return bool(REMOTE_RE.fullmatch(remote)) and ".." not in remote and not remote.endswith("/")
 
 
-def validate_release_record(record: Any, label: str) -> None:
-    """校验待完成或最近发布记录的稳定字段。"""
+def validate_release_record(record: Any, label: str, *, pending: bool) -> None:
+    """校验携带不可变发布模式的待完成或最近发布记录。"""
     if not isinstance(record, dict):
         raise LifecycleError("state-invalid", f"{label} state is invalid.")
-    required = {"tag", "head", "date", "version"}
-    if set(record) != required or not all(isinstance(record[key], str) for key in required):
+    required = {
+        "tag",
+        "head",
+        "date",
+        "version",
+        "gitPublication",
+        "remote",
+        "releaseContextSha256",
+    }
+    if set(record) != required or not all(
+        isinstance(record[key], str)
+        for key in ("tag", "date", "version", "gitPublication", "releaseContextSha256")
+    ):
         raise LifecycleError("state-invalid", f"{label} state is invalid.")
-    if not HEX_OID_RE.fullmatch(record["head"]):
+    if not SHA256_RE.fullmatch(record["releaseContextSha256"]):
+        raise LifecycleError("state-invalid", f"{label} state is invalid.")
+    head = record["head"]
+    if head is None:
+        if not pending:
+            raise LifecycleError("state-invalid", f"{label} state is invalid.")
+    elif not isinstance(head, str) or not HEX_OID_RE.fullmatch(head):
+        raise LifecycleError("state-invalid", f"{label} state is invalid.")
+    publication = record["gitPublication"]
+    remote = record["remote"]
+    if publication == "local":
+        if remote is not None:
+            raise LifecycleError("state-invalid", f"{label} state is invalid.")
+    elif publication == "remote":
+        if not isinstance(remote, str) or not valid_remote(remote):
+            raise LifecycleError("state-invalid", f"{label} state is invalid.")
+    else:
         raise LifecycleError("state-invalid", f"{label} state is invalid.")
 
 
@@ -191,7 +254,7 @@ def validate_state(repository: Repository, state: Any) -> dict[str, Any]:
     ):
         raise LifecycleError("state-invalid", "Lifecycle default branch is invalid.")
     if state["lastRelease"] is not None:
-        validate_release_record(state["lastRelease"], "Last release")
+        validate_release_record(state["lastRelease"], "Last release", pending=False)
     cycle = state["cycle"]
     if cycle is None:
         return state
@@ -230,11 +293,28 @@ def validate_state(repository: Repository, state: Any) -> dict[str, Any]:
         ):
             raise LifecycleError("state-invalid", "Registered worktree state is invalid.")
         worktree_paths.add(path)
-    if cycle["pendingRelease"] is not None:
-        validate_release_record(cycle["pendingRelease"], "Pending release")
+    pending_release = cycle["pendingRelease"]
+    if pending_release is not None:
+        validate_release_record(pending_release, "Pending release", pending=True)
+        if default_branch is None:
+            raise LifecycleError("state-invalid", "Pending release default branch is invalid.")
+        if pending_release["gitPublication"] == "remote" and remote != pending_release["remote"]:
+            raise LifecycleError("state-invalid", "Pending release remote differs from lifecycle state.")
     elif any(entry["remoteDeleted"] or entry["localDeleted"] for entry in cycle["branches"]):
         raise LifecycleError("state-invalid", "Cleanup progress requires a pending release.")
-    if any(entry["localDeleted"] and not entry["remoteDeleted"] for entry in cycle["branches"]):
+    if pending_release is not None and pending_release["head"] is None and any(
+        entry["remoteDeleted"] or entry["localDeleted"] for entry in cycle["branches"]
+    ):
+        raise LifecycleError("state-invalid", "Cleanup progress requires a frozen release HEAD.")
+    local_only_pending = (
+        pending_release is not None and pending_release["gitPublication"] == "local"
+    )
+    if local_only_pending and any(entry["remoteDeleted"] for entry in cycle["branches"]):
+        raise LifecycleError("state-invalid", "Local release cannot record remote cleanup progress.")
+    if (
+        not local_only_pending
+        and any(entry["localDeleted"] and not entry["remoteDeleted"] for entry in cycle["branches"])
+    ):
         raise LifecycleError("state-invalid", "Local cleanup cannot precede remote cleanup.")
     return state
 
@@ -354,6 +434,113 @@ def current_head(repository: Repository, cwd: Path | None = None) -> str:
     if not HEX_OID_RE.fullmatch(head):
         raise LifecycleError("git-error", "Current Git HEAD is invalid.")
     return head
+
+
+def release_context_binding(
+    repository: Repository,
+    expected_sha256: str,
+    identity: dict[str, str],
+    arguments: argparse.Namespace,
+) -> dict[str, Any]:
+    """严格复算已跟踪发布上下文，并在远端选择前绑定调用参数。"""
+    if not SHA256_RE.fullmatch(expected_sha256):
+        raise LifecycleError("invalid-argument", "Release context SHA-256 is invalid.")
+    directory = repository.root / ".harness"
+    path = repository.root / RELEASE_CONTEXT_PATH
+    if directory.is_symlink() or not directory.is_dir() or path.is_symlink() or not path.is_file():
+        raise LifecycleError("release-context-invalid", "Tracked release context is unavailable or unsafe.")
+    helper_path = repository.root / RELEASE_CONTEXT_HELPER
+    if helper_path.is_symlink() or not helper_path.is_file():
+        raise LifecycleError("release-context-invalid", "Release context validator is unavailable or unsafe.")
+    try:
+        helper_raw = helper_path.read_bytes()
+        committed_helper = run_git_bytes(
+            repository.root,
+            ["show", f"HEAD:{RELEASE_CONTEXT_HELPER}"],
+            check=False,
+        )
+        if committed_helper.returncode != 0 or committed_helper.stdout != helper_raw:
+            raise LifecycleError(
+                "release-context-invalid",
+                "Release context validator is not tracked by current HEAD.",
+            )
+        if path.stat().st_size > 1_048_576:
+            raise LifecycleError("release-context-invalid", "Tracked release context is too large.")
+        raw = path.read_bytes()
+        value = json.loads(raw.decode("utf-8"))
+        specification = importlib.util.spec_from_file_location(
+            "_agent_first_release_context_binding",
+            helper_path,
+        )
+        if specification is None or specification.loader is None:
+            raise LifecycleError("release-context-invalid", "Release context validator cannot be loaded.")
+        module = importlib.util.module_from_spec(specification)
+        previous_bytecode_setting = sys.dont_write_bytecode
+        sys.dont_write_bytecode = True
+        try:
+            specification.loader.exec_module(module)
+        finally:
+            sys.dont_write_bytecode = previous_bytecode_setting
+        validate_context = getattr(module, "validate_context", None)
+        canonical_bytes = getattr(module, "canonical_bytes", None)
+        if not callable(validate_context) or not callable(canonical_bytes):
+            raise LifecycleError("release-context-invalid", "Release context validator interface is invalid.")
+        value = validate_context(value)
+        canonical = canonical_bytes(value)
+    except LifecycleError:
+        raise
+    except Exception as exc:
+        raise LifecycleError("release-context-invalid", "Tracked release context cannot be validated.") from exc
+    if hashlib.sha256(raw).hexdigest() != expected_sha256:
+        raise LifecycleError("release-context-mismatch", "Release context SHA-256 does not match.")
+    if canonical != raw:
+        raise LifecycleError("release-context-invalid", "Release context bytes are not canonical.")
+    expected_date = datetime.strptime(identity["date"], "%Y%m%d").strftime("%Y-%m-%d")
+    if (
+        value["version"] != identity["version"]
+        or value["releaseDate"] != expected_date
+        or value["expectedTag"] != identity["tag"]
+    ):
+        raise LifecycleError("release-context-mismatch", "Release context identity does not match the release command.")
+    requested_mode = "local" if arguments.local_only else "remote"
+    requested_remote = None if arguments.local_only else arguments.remote
+    if value["gitPublication"] != requested_mode or value["remote"] != requested_remote:
+        raise LifecycleError(
+            "release-context-mismatch",
+            "Release context Git publication does not match the release command.",
+        )
+    default_branch = value["defaultBranch"]
+    if not isinstance(default_branch, str) or not valid_branch(repository, default_branch):
+        raise LifecycleError("release-context-invalid", "Release context default branch is invalid.")
+    committed = run_git_bytes(
+        repository.root,
+        ["show", f"HEAD:{RELEASE_CONTEXT_PATH}"],
+        check=False,
+    )
+    if committed.returncode != 0 or committed.stdout != raw:
+        raise LifecycleError("release-context-mismatch", "Release context bytes are not tracked by current HEAD.")
+    return value
+
+
+def verify_head_release_context_bytes(
+    repository: Repository,
+    expected_sha256: str,
+    head: str,
+) -> None:
+    """在冻结最终 HEAD 前逐字节确认合并结果仍携带同一发布上下文。"""
+    committed = run_git_bytes(
+        repository.root,
+        ["show", f"{head}:{RELEASE_CONTEXT_PATH}"],
+        check=False,
+    )
+    if (
+        committed.returncode != 0
+        or hashlib.sha256(committed.stdout).hexdigest() != expected_sha256
+    ):
+        raise LifecycleError(
+            "release-context-mismatch",
+            "Integrated release HEAD does not contain the bound release context bytes.",
+        )
 
 
 def is_clean(repository: Repository, cwd: Path | None = None) -> bool:
@@ -575,6 +762,37 @@ def primary_repository(repository: Repository) -> Repository:
     if resolved.common_dir != repository.common_dir:
         raise LifecycleError("repository-mismatch", "Primary worktree belongs to another repository.")
     return resolved
+
+
+def relocate_cli_cwd_before_release_cleanup(
+    repository: Repository,
+    state: dict[str, Any],
+    arguments: argparse.Namespace,
+) -> None:
+    """仅为 CLI 进程离开将被清理的 Worktree，避免宿主锁住其当前目录。"""
+    if not getattr(arguments, "_cli_invocation", False):
+        return
+    cycle = state["cycle"]
+    if cycle is None or not cycle["worktrees"]:
+        return
+    try:
+        current_directory = Path.cwd().resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise LifecycleError("cwd-unavailable", "Current process directory is unavailable.") from exc
+    for entry in cycle["worktrees"]:
+        worktree = canonical_path(entry["path"], strict=False)
+        try:
+            current_directory.relative_to(worktree)
+        except ValueError:
+            continue
+        try:
+            os.chdir(repository.root)
+        except OSError as exc:
+            raise LifecycleError(
+                "cwd-relocation-failed",
+                "Process directory could not be moved to the primary worktree.",
+            ) from exc
+        return
 
 
 def canonical_path(value: str, *, strict: bool) -> Path:
@@ -1022,7 +1240,7 @@ def publish_primary_remote(
         push_message = transport_error.message
     push = run_git(
         repository.root,
-        ["push", remote, f"refs/heads/{default_branch}:refs/heads/{default_branch}"],
+        ["push", remote, f"{head}:refs/heads/{default_branch}"],
         check=False,
         code=push_code,
         message=push_message,
@@ -1092,6 +1310,39 @@ def publish_primary_remote(
         raise
 
 
+def merge_registered_branches(
+    repository: Repository,
+    state: dict[str, Any],
+    default_branch: str,
+) -> tuple[list[str], list[str]]:
+    """把仍存在的精确登记分支普通合并到已检出的本地默认分支。"""
+    merged: list[str] = []
+    already_merged: list[str] = []
+    cycle = state["cycle"]
+    if cycle is None:
+        return merged, already_merged
+    for record in cycle["branches"]:
+        branch = record["name"]
+        if record["localDeleted"]:
+            continue
+        if branch == default_branch:
+            already_merged.append(branch)
+            continue
+        before = current_head(repository)
+        result = run_git(
+            repository.root,
+            ["merge", "--no-edit", f"refs/heads/{branch}"],
+            check=False,
+        )
+        if result.returncode != 0:
+            raise LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.")
+        if current_head(repository) == before:
+            already_merged.append(branch)
+        else:
+            merged.append(branch)
+    return merged, already_merged
+
+
 def publish(
     repository: Repository,
     explicit_remote: str | None,
@@ -1100,6 +1351,8 @@ def publish(
     """只同步主远端并合并登记分支，再把同一 HEAD 非强制推送到全部目标。"""
     require_clean(repository)
     state = load_state(repository)
+    if state["cycle"] is not None and state["cycle"]["pendingRelease"] is not None:
+        raise LifecycleError("release-in-progress", "A release cleanup must finish before publication.")
     remote = select_remote(repository, state, explicit_remote, required=True)
     assert remote is not None
     default_branch = remote_default_branch(repository, remote)
@@ -1116,33 +1369,11 @@ def publish(
         message="Git default branch could not be fetched.",
     )
     switch_to_default(repository, remote, default_branch)
-    merged: list[str] = []
-    already_merged: list[str] = []
     remote_tracking = f"refs/remotes/{remote}/{default_branch}"
     result = run_git(repository.root, ["merge", "--no-edit", remote_tracking], check=False)
     if result.returncode != 0:
         raise LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.")
-    cycle = state["cycle"]
-    if cycle is not None:
-        for record in cycle["branches"]:
-            branch = record["name"]
-            if record["localDeleted"]:
-                continue
-            if branch == default_branch:
-                already_merged.append(branch)
-                continue
-            before = current_head(repository)
-            result = run_git(
-                repository.root,
-                ["merge", "--no-edit", f"refs/heads/{branch}"],
-                check=False,
-            )
-            if result.returncode != 0:
-                raise LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.")
-            if current_head(repository) == before:
-                already_merged.append(branch)
-            else:
-                merged.append(branch)
+    merged, already_merged = merge_registered_branches(repository, state, default_branch)
     require_clean(repository)
     head = current_head(repository)
     primary_target = {"remote": remote, "branch": default_branch}
@@ -1182,6 +1413,60 @@ def command_publish(repository: Repository, arguments: argparse.Namespace) -> di
     return publish(primary_repository(repository), arguments.remote, arguments.also_remote)
 
 
+def prepare_local_release(repository: Repository, state: dict[str, Any]) -> dict[str, Any]:
+    """只在本地默认分支合并登记结果，不解析、读取或修改任何远端。"""
+    require_clean(repository)
+    default_branch = state["defaultBranch"]
+    if default_branch is None or not branch_exists(repository, default_branch):
+        raise LifecycleError("local-default-unavailable", "Recorded local default branch is unavailable.")
+    preflight_cycle_resources(repository, state)
+    if current_branch_or_none(repository) != default_branch:
+        run_git(
+            repository.root,
+            ["switch", default_branch],
+            code="switch-failed",
+            message="Git default branch could not be checked out.",
+        )
+    merged, already_merged = merge_registered_branches(repository, state, default_branch)
+    require_clean(repository)
+    return {
+        "branch": default_branch,
+        "head": current_head(repository),
+        "merged": merged,
+        "alreadyMerged": already_merged,
+    }
+
+
+def prepare_remote_release(
+    repository: Repository,
+    state: dict[str, Any],
+    remote: str,
+    default_branch: str,
+) -> dict[str, Any]:
+    """先在本地获取并整合远端默认分支与登记分支，但尚不执行任何 push。"""
+    require_clean(repository)
+    preflight_cycle_resources(repository, state)
+    run_git(
+        repository.root,
+        ["fetch", remote, f"refs/heads/{default_branch}:refs/remotes/{remote}/{default_branch}"],
+        code="remote-read-failed",
+        message="Git default branch could not be fetched.",
+    )
+    switch_to_default(repository, remote, default_branch)
+    remote_tracking = f"refs/remotes/{remote}/{default_branch}"
+    result = run_git(repository.root, ["merge", "--no-edit", remote_tracking], check=False)
+    if result.returncode != 0:
+        raise LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.")
+    merged, already_merged = merge_registered_branches(repository, state, default_branch)
+    require_clean(repository)
+    return {
+        "branch": default_branch,
+        "head": current_head(repository),
+        "merged": merged,
+        "alreadyMerged": already_merged,
+    }
+
+
 def release_identity(repository: Repository, version: str, date: str | None) -> dict[str, str]:
     """规范化发布版本和日期，并验证生成的轻量标签是合法 Git ref。"""
     if not version or version != version.strip() or version.lower().startswith("v"):
@@ -1214,6 +1499,24 @@ def verify_release_tag_compatibility(
     local_target = local_tag_target(repository, tag)
     if local_target is not None and local_target != head:
         raise LifecycleError("tag-conflict", "Local tag already points to a different commit.")
+
+
+def verify_local_release_tag_compatibility(repository: Repository, tag: str, head: str) -> None:
+    """只核对本地同名标签，供明确本地发布路径使用。"""
+    local_target = local_tag_target(repository, tag)
+    if local_target is not None and local_target != head:
+        raise LifecycleError("tag-conflict", "Local tag already points to a different commit.")
+
+
+def ensure_local_release_tag(repository: Repository, tag: str, head: str) -> None:
+    """创建或复用指向固定 HEAD 的本地标签，并在返回前精确复读。"""
+    verify_local_release_tag_compatibility(repository, tag, head)
+    if local_tag_target(repository, tag) is None:
+        created = run_git(repository.root, ["tag", tag, head], check=False)
+        if created.returncode != 0:
+            raise LifecycleError("tag-create-failed", "Release tag could not be created.")
+    if local_tag_target(repository, tag) != head:
+        raise LifecycleError("tag-verification-failed", "Local release tag did not match local HEAD.")
 
 
 def ensure_release_tag(repository: Repository, remote: str, tag: str, head: str) -> None:
@@ -1346,18 +1649,61 @@ def release_record_matches_identity(record: dict[str, Any], identity: dict[str, 
     return all(record[key] == identity[key] for key in ("tag", "date", "version"))
 
 
+def require_matching_release_mode(record: dict[str, Any], arguments: argparse.Namespace) -> str:
+    """让待完成或已完成发布只能用记录内不可变的模式与远端重试。"""
+    requested_mode = "local" if arguments.local_only else "remote"
+    if record["gitPublication"] != requested_mode:
+        raise LifecycleError("release-mode-conflict", "Release retry mode differs from lifecycle state.")
+    if requested_mode == "remote" and record["remote"] != arguments.remote:
+        raise LifecycleError("release-mode-conflict", "Release retry mode differs from lifecycle state.")
+    if record["releaseContextSha256"] != arguments.release_context_sha256:
+        raise LifecycleError("release-context-conflict", "Release context differs from lifecycle state.")
+    return requested_mode
+
+
+def freeze_pending_release_head(
+    repository: Repository,
+    state: dict[str, Any],
+    arguments: argparse.Namespace,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """完成所选发布整合并立即持久化固定 HEAD，之后才允许标签或清理。"""
+    cycle = state["cycle"]
+    assert cycle is not None
+    pending = cycle["pendingRelease"]
+    assert pending is not None and pending["head"] is None
+    publication_mode = require_matching_release_mode(pending, arguments)
+    if publication_mode == "local":
+        prepared = prepare_local_release(repository, state)
+        head = prepared["head"]
+    else:
+        remote = pending["remote"]
+        assert remote is not None
+        default_branch = state["defaultBranch"]
+        assert default_branch is not None
+        prepared = prepare_remote_release(repository, state, remote, default_branch)
+        head = prepared["head"]
+    verify_head_release_context_bytes(repository, pending["releaseContextSha256"], head)
+    pending["head"] = head
+    save_state(repository, state)
+    return state, pending
+
+
 def complete_pending_release(
     repository: Repository,
     state: dict[str, Any],
-    explicit_remote: str | None,
+    arguments: argparse.Namespace,
 ) -> dict[str, Any]:
-    """只续跑已落盘发布的标签确认与精确清理，绝不重新发布另一个 HEAD。"""
+    """按已落盘模式续跑标签确认与精确清理，绝不重新发布另一个 HEAD。"""
     cycle = state["cycle"]
     assert cycle is not None
     pending = cycle["pendingRelease"]
     assert pending is not None
-    remote = select_remote(repository, state, explicit_remote, required=True)
-    assert remote is not None
+    publication_mode = require_matching_release_mode(pending, arguments)
+    if pending["head"] is None:
+        state, pending = freeze_pending_release_head(repository, state, arguments)
+        cycle = state["cycle"]
+        assert cycle is not None
+    remote = pending["remote"]
     default_branch = state["defaultBranch"]
     if default_branch is None or not branch_exists(repository, default_branch):
         raise LifecycleError("local-state-changed", "Recorded Git default branch is unavailable.")
@@ -1371,21 +1717,37 @@ def complete_pending_release(
         )
     local_head = current_head(repository)
     if local_head != pending["head"]:
-        raise LifecycleError("local-state-changed", "Git default branch changed after the release push.")
-    live_default = remote_default_branch(repository, remote)
-    if live_default != default_branch:
-        raise LifecycleError("remote-default-changed", "Git remote default branch changed during release cleanup.")
-    if remote_branch_oid(repository, remote, default_branch) != pending["head"]:
-        raise LifecycleError("remote-state-changed", "Git remote default branch changed after the release push.")
-    if any(
-        entry["name"] == live_default and not entry["remoteDeleted"]
-        for entry in cycle["branches"]
-    ):
-        raise LifecycleError("cleanup-safety", "Remote default branch is registered for cleanup.")
-
-    ensure_release_tag(repository, remote, pending["tag"], pending["head"])
+        raise LifecycleError("local-state-changed", "Git default branch changed after release publication.")
+    if publication_mode == "remote":
+        assert remote is not None
+        selected = select_remote(repository, state, remote, required=True)
+        assert selected == remote
+        live_default = remote_default_branch(repository, remote)
+        if live_default != default_branch:
+            raise LifecycleError("remote-default-changed", "Git remote default branch changed during release cleanup.")
+        if any(
+            entry["name"] == live_default and not entry["remoteDeleted"]
+            for entry in cycle["branches"]
+        ):
+            raise LifecycleError("cleanup-safety", "Remote default branch is registered for cleanup.")
+        verify_release_tag_compatibility(repository, remote, pending["tag"], pending["head"])
+        publish_primary_remote(
+            repository,
+            state,
+            remote,
+            default_branch,
+            pending["head"],
+            (),
+        )
+        ensure_release_tag(repository, remote, pending["tag"], pending["head"])
+    else:
+        ensure_local_release_tag(repository, pending["tag"], pending["head"])
     cleaned_worktrees = cleanup_worktrees(repository, state)
-    cleaned_remote = cleanup_remote_branches(repository, state, remote)
+    cleaned_remote = (
+        cleanup_remote_branches(repository, state, remote)
+        if publication_mode == "remote" and remote is not None
+        else []
+    )
     cleaned_local = cleanup_local_branches(repository, state)
     state["cycle"] = None
     state["lastRelease"] = pending
@@ -1396,6 +1758,8 @@ def complete_pending_release(
         "branch": default_branch,
         "head": pending["head"],
         "remote": remote,
+        "gitPublication": publication_mode,
+        "releaseContextSha256": pending["releaseContextSha256"],
         "worktree": str(repository.root),
         "tag": pending["tag"],
         "cleanedWorktrees": cleaned_worktrees,
@@ -1405,27 +1769,47 @@ def complete_pending_release(
 
 
 def command_release(repository: Repository, arguments: argparse.Namespace) -> dict[str, Any]:
-    """推送默认分支，落盘固定 HEAD，确认标签后才精确清理本周期资源。"""
-    repository = primary_repository(repository)
+    """按明确本地或远端模式发布固定 HEAD，确认标签后精确清理登记资源。"""
     identity = release_identity(repository, arguments.version, arguments.date)
+    require_clean(repository)
+    context = release_context_binding(
+        repository,
+        arguments.release_context_sha256,
+        identity,
+        arguments,
+    )
     state = load_state(repository)
+    repository = primary_repository(repository)
+    relocate_cli_cwd_before_release_cleanup(repository, state, arguments)
     cycle = state["cycle"]
     if cycle is not None and cycle["pendingRelease"] is not None:
         pending = cycle["pendingRelease"]
         if not release_record_matches_identity(pending, identity):
             raise LifecycleError("release-in-progress", "A different release cleanup is already in progress.")
-        return complete_pending_release(repository, state, arguments.remote)
+        require_matching_release_mode(pending, arguments)
+        if context["defaultBranch"] != state["defaultBranch"]:
+            raise LifecycleError(
+                "release-context-mismatch",
+                "Release context default branch differs from lifecycle state.",
+            )
+        return complete_pending_release(repository, state, arguments)
 
     last_release = state["lastRelease"]
     if cycle is None and last_release is not None and release_record_matches_identity(last_release, identity):
-        remote = select_remote(repository, state, arguments.remote, required=True)
-        assert remote is not None
-        ensure_release_tag(repository, remote, last_release["tag"], last_release["head"])
+        publication_mode = require_matching_release_mode(last_release, arguments)
+        remote = last_release["remote"]
+        if publication_mode == "remote":
+            assert remote is not None
+            ensure_release_tag(repository, remote, last_release["tag"], last_release["head"])
+        else:
+            ensure_local_release_tag(repository, last_release["tag"], last_release["head"])
         return {
             "status": "already-released",
-            "branch": state["defaultBranch"],
+            "branch": context["defaultBranch"],
             "head": last_release["head"],
             "remote": remote,
+            "gitPublication": publication_mode,
+            "releaseContextSha256": last_release["releaseContextSha256"],
             "worktree": str(repository.root),
             "tag": last_release["tag"],
             "cleanedWorktrees": [],
@@ -1433,20 +1817,45 @@ def command_release(repository: Repository, arguments: argparse.Namespace) -> di
             "cleanedLocalBranches": [],
         }
 
-    published = publish(repository, arguments.remote)
-    state = load_state(repository)
-    remote = published["remote"]
-    head = published["head"]
-    tag = identity["tag"]
-    release_record = {"tag": tag, "head": head, "date": identity["date"], "version": identity["version"]}
-    verify_release_tag_compatibility(repository, remote, tag, head)
+    require_clean(repository)
+    if arguments.local_only:
+        remote = None
+        default_branch = state["defaultBranch"]
+        if default_branch is None and state["cycle"] is None and state["lastRelease"] is None:
+            default_branch = context["defaultBranch"]
+            state["defaultBranch"] = default_branch
+        if default_branch is None or not branch_exists(repository, default_branch):
+            raise LifecycleError("local-default-unavailable", "Recorded local default branch is unavailable.")
+        if context["defaultBranch"] != default_branch:
+            raise LifecycleError(
+                "release-context-mismatch",
+                "Release context default branch differs from lifecycle state.",
+            )
+    else:
+        remote = select_remote(repository, state, arguments.remote, required=True)
+        assert remote is not None
+        default_branch = remote_default_branch(repository, remote)
+        if context["defaultBranch"] != default_branch:
+            raise LifecycleError("release-context-mismatch", "Release context default branch differs from Git remote.")
+        state["remote"] = remote
+        state["defaultBranch"] = default_branch
+    preflight_cycle_resources(repository, state)
     cycle = state["cycle"]
     if cycle is None:
         cycle = {"branches": [], "worktrees": [], "pendingRelease": None}
         state["cycle"] = cycle
+    release_record = {
+        "tag": identity["tag"],
+        "head": None,
+        "date": identity["date"],
+        "version": identity["version"],
+        "gitPublication": "local" if arguments.local_only else "remote",
+        "remote": remote,
+        "releaseContextSha256": arguments.release_context_sha256,
+    }
     cycle["pendingRelease"] = release_record
     save_state(repository, state)
-    return complete_pending_release(repository, state, arguments.remote)
+    return complete_pending_release(repository, state, arguments)
 
 
 def build_parser() -> JsonArgumentParser:
@@ -1476,7 +1885,10 @@ def build_parser() -> JsonArgumentParser:
     release_parser.add_argument("--project-root", required=True)
     release_parser.add_argument("--version", required=True)
     release_parser.add_argument("--date")
-    release_parser.add_argument("--remote")
+    release_parser.add_argument("--release-context-sha256", required=True)
+    publication = release_parser.add_mutually_exclusive_group(required=True)
+    publication.add_argument("--local-only", action="store_true")
+    publication.add_argument("--remote")
     release_parser.set_defaults(operation=command_release)
     return parser
 
@@ -1486,6 +1898,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         arguments = build_parser().parse_args(argv)
         repository = resolve_repository(arguments.project_root)
+        if arguments.command == "release":
+            setattr(arguments, "_cli_invocation", True)
         if arguments.command == "inspect":
             result = arguments.operation(repository, arguments)
         else:

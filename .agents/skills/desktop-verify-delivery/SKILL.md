@@ -10,7 +10,7 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 ## 准入
 
 1. 只接受发布/渠道要求、用户明确要求完整验收，或当前构建已明确选择 E2E `enabled` 的请求。读取 Product Spec、当前构建记录、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、相关 ADR、验证/发布规则和适用接口 Skill。
-2. 要求存在与批准场景、40 字符源码提交、版本/构建标识和当前环境绑定的完整真实产物、校验和及 manifest。先运行发布上下文 `verify`，要求工作树 clean、当前具名分支是远端动态默认分支、远端主分支与上下文 `expectedTag` 都指向当前 HEAD，且 tracked `.harness/release-context.json` 字节和 schema 有效。manifest `sourceCommit` 必须等于该 HEAD，`releaseContextSha256`、审查、性能与 macOS 签名字段必须逐字段来自上下文；把这些值锁定为准入快照。缺少上下文、HEAD/ref/tag 漂移或 manifest 自行改写选择都拒绝。随后运行版本检查，并要求候选/manifest/上下文版本相同；验收不得提升版本。该验证不检查分支祖先、合并类型或线性历史。
+2. 要求存在与批准场景、40 字符源码提交、版本/构建标识和当前环境绑定的完整真实产物、校验和及 manifest。先运行发布上下文 `verify`，要求工作树 clean、当前具名分支是上下文默认主分支、本地主分支与 `expectedTag` 都指向当前 HEAD，且 tracked `.harness/release-context.json` 字节和 schema 有效；`gitPublication: remote` 才额外要求远端主分支/tag 一致，`local` 不得访问远端且候选只能来自当前宿主。manifest `sourceCommit` 必须等于该 HEAD，`releaseContextSha256`、审查、性能与 macOS 签名字段必须逐字段来自上下文；把 Git 发布位置及这些值锁定为准入快照。缺少上下文、HEAD/ref/tag 漂移或 manifest 自行改写选择都拒绝。随后运行版本检查，并要求候选/manifest/上下文版本相同；验收不得提升版本。该验证不检查分支祖先、合并类型或线性历史。
 3. 当前存在用户要求的活动 Work Plan 时，相关 Todo 必须全部 `done`；没有 Work Plan 不阻断验收。
 
 ## 工作流程
@@ -23,10 +23,10 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
    - `enabled`：只接受 `reviewStatus: passed`、结构化 `reviewEvidence` 和 `reviewedSourceCommit`，且它们逐字段等于发布上下文。`sourceHead` 描述审查终点，manifest `sourceCommit` 描述合并后被主分支和 tag 指向的候选；不对两者施加祖先、线性或允许路径门禁。
    - `disabled`：只有不存在安全、隐私、不可逆操作、对外兼容契约或产品/渠道审查硬要求时才接受 `reviewStatus: Not run`、非空 `reviewReason`/`reviewRemainingRisk`，并要求 `reviewEvidence` 与 `reviewedSourceCommit` 缺席。
 6. 按每个 GUI manifest 的 `performanceSelection` 条件复核性能，且 E2E 选择不能替代或改变该结论。
-   - `enabled`：复核打包前 `$desktop-test-gui-release-performance` 的 no-bundle 探针证据，要求 `performanceStatus: passed`，或用户看过失败指标后明确批准且仍记录为 `waived`；后一种情况还必须记录 `waiverAllowed: true`。manifest 必须记录 `performanceThresholdProfile: gui-release-v2`，证据的 `thresholdProfile` 必须同为 `gui-release-v2`；探针摘要、clean `sourceCommit`、平台、架构、native buildMode、release profile 与运行时绑定必须一致。DMG/NSIS 容器摘要本身不构成运行时绑定，也不能冒充探针摘要。重新编译、配置/依赖/启动器/行为变化或无法证明绑定时，废弃旧证据并返回同一 clean、已推送且被版本 tag 指向的默认分支 HEAD 重建。
+   - `enabled`：复核打包前 `$desktop-test-gui-release-performance` 的 no-bundle 探针证据，要求 `performanceStatus: passed`，或用户看过失败指标后明确批准且仍记录为 `waived`；后一种情况还必须记录 `waiverAllowed: true`。manifest 必须记录 `performanceThresholdProfile: gui-release-v2`，证据的 `thresholdProfile` 必须同为 `gui-release-v2`；探针摘要、clean `sourceCommit`、平台、架构、native buildMode、release profile 与运行时绑定必须一致。DMG/NSIS 容器摘要本身不构成运行时绑定，也不能冒充探针摘要。重新编译、配置/依赖/启动器/行为变化或无法证明绑定时，废弃旧证据并返回同一 clean、被本地版本 tag 指向且已完成模式适用 refs 的默认分支 HEAD 重建。
    - `disabled`：只有不存在产品/渠道性能硬要求时才接受 `performanceStatus: Not run`，并要求非空 `performanceReason`、`performanceRemainingRisk`，同时要求 `performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 和 `performanceRuntimeBinding` 全部缺席。旧证据残留、状态不匹配、缺少原因或试图用 `Not run` 覆盖同一候选的真实失败都拒绝。
 7. E2E 为 `enabled` 或硬要求时调用 `$desktop-test-final-artifact-e2e`；含 GUI 且 `about_page = enabled` 时，必须从真实候选打开关于页和“更新日志”，对照已核验的候选资源确认当前版本、近五版、固定两类与单个小写 `v`，不能用注入数组或源码夹具代替；禁用时确认路由、入口与运行时命令缺席。E2E 为 `disabled` 时记录 `Not run` 和剩余风险；GUI 性能仍按第 6 步的独立当次选择形成结论。需要凭据、生产数据、支付、发布或不可逆副作用时仍须独立授权。
-8. 全部真实检查、E2E 和必需人工结论完成后，先确定整组唯一结论，但在写入验收状态前再次运行发布上下文 `verify`；要求当前 HEAD、`releaseContextSha256`、`releaseReview`、`candidateSelections` 与准入快照逐字段相等，且全部 manifest 的 `sourceCommit` 都等于 HEAD。然后重新计算全部最终制品、相邻摘要、manifest 声明、包内关键资源和 `release/` 精确集合。任一漂移都拒绝状态写入并返回重建/重验。
+8. 全部真实检查、E2E 和必需人工结论完成后，先确定整组唯一结论，但在写入验收状态前再次运行发布上下文 `verify`；要求当前 HEAD、`releaseContextSha256`、`gitPublication`、`releaseReview`、`candidateSelections` 与准入快照逐字段相等，且全部 manifest 的 `sourceCommit` 都等于 HEAD。然后重新计算全部最终制品、相邻摘要、manifest 声明、包内关键资源和 `release/` 精确集合。任一漂移都拒绝状态写入并返回重建/重验。
 
 9. 只在以上尾检查通过后，于项目根同级、同一文件系统的唯一 staging 复制当前 `release/` 精确集合；在 staging 内原子写入全部 manifests 的同一整组 `milestoneAcceptance` 结论及结构化证据，再复算所有摘要、资源绑定和精确文件集。整组必须同为 `accepted`、`rejected` 或 `pending`，不得混合。复验成功后才目录级原子替换 `release/`；失败保留原集合。验收证据只写忽略的 `release/`，不得在 tracked 源码中补写项目记忆或占位记录。
 
@@ -35,7 +35,7 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 ## 拒绝与修复
 
 1. 产物缺失、不完整、不可运行、偏离批准场景，或任一必需/已启用检查失败、超时、取消或未执行时拒绝候选，并把证据按第 9 步随整组 `rejected` manifest 原子写入 `release/`；不得直接写 tracked `docs/verification/`。已启用的性能失败不得自动降级为警告、改成 `Not run` 或从 manifest 删除原始数值；当次明确关闭且无硬要求的 `Not run` 不是失败，但必须保留风险。
-2. 已批准范围内的实现偏差或已启用性能超限返回 `$desktop-implement-change` 修复并增加回归；该流程自动创建新开发分支，随后重新执行发布生命周期，形成新的 clean、已推送且被版本 tag 指向的默认分支 HEAD，再重新生成探针、证据和完整候选。不得只重写 manifest。
+2. 已批准范围内的实现偏差或已启用性能超限返回 `$desktop-implement-change` 修复并增加回归；该流程自动创建新开发分支，随后重新执行发布生命周期，形成新的 clean、被本地版本 tag 指向且已完成模式适用 refs 的默认分支 HEAD，再重新生成探针、证据和完整候选。不得只重写 manifest。
 3. 新产品边界转交 `$desktop-define-product`；破坏性操作或新的外部副作用必须请求批准。不得以 `Partially verified` 掩盖必需逻辑缺失。
 
 ## 结论

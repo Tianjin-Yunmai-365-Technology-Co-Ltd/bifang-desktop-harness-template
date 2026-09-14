@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write and verify the tracked context for one published release candidate."""
+"""Write and verify the tracked context for one local or remote release."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ REVIEW_CHECKS = [
 
 
 class ReleaseContextError(RuntimeError):
-    """The release context or its published Git binding is invalid."""
+    """The release context or its selected Git release binding is invalid."""
 
 
 def run_git(
@@ -103,6 +103,36 @@ def public_text(value: object, field: str) -> str:
     ):
         raise ReleaseContextError(f"{field} must be 1-500 trimmed printable characters")
     return value
+
+
+def valid_branch_name(value: object) -> bool:
+    """Reject ref and revision syntax that cannot name one Git branch."""
+
+    if (
+        not isinstance(value, str)
+        or not value
+        or value.startswith("-")
+        or value in {"@", "HEAD"}
+    ):
+        return False
+    if (
+        value == "@"
+        or value.endswith(("/", "."))
+        or ".." in value
+        or "@{" in value
+        or "//" in value
+    ):
+        return False
+    forbidden = {" ", "~", "^", ":", "?", "*", "[", "\\"}
+    if any(
+        ord(character) < 32 or ord(character) == 127 or character in forbidden
+        for character in value
+    ):
+        return False
+    return all(
+        component and not component.startswith(".") and not component.endswith(".lock")
+        for component in value.split("/")
+    )
 
 
 def validate_release_review(value: object, source_head: str) -> dict[str, Any]:
@@ -249,6 +279,7 @@ def validate_candidate_selections(value: object) -> dict[str, Any]:
 def validate_context(value: object) -> dict[str, Any]:
     required = {
         "schemaVersion",
+        "gitPublication",
         "sourceHead",
         "version",
         "releaseDate",
@@ -258,7 +289,7 @@ def validate_context(value: object) -> dict[str, Any]:
         "releaseReview",
         "candidateSelections",
     }
-    if not isinstance(value, dict) or set(value) != required or value.get("schemaVersion") != 1:
+    if not isinstance(value, dict) or set(value) != required or value.get("schemaVersion") != 2:
         raise ReleaseContextError("release context fields or schemaVersion are invalid")
     source_head = validate_oid(value["sourceHead"], "sourceHead")
     version = value["version"]
@@ -275,16 +306,22 @@ def validate_context(value: object) -> dict[str, Any]:
     expected_tag = f"v{version}-{release_date}"
     if value["expectedTag"] != expected_tag:
         raise ReleaseContextError("expectedTag does not match v{version}-{YYYYMMDD}")
+    publication_mode = value["gitPublication"]
     remote = value["remote"]
-    if not isinstance(remote, str) or not REMOTE_PATTERN.fullmatch(remote):
-        raise ReleaseContextError("remote is invalid")
+    if publication_mode == "local":
+        if remote is not None:
+            raise ReleaseContextError("local gitPublication requires remote to be null")
+    elif publication_mode == "remote":
+        if not isinstance(remote, str) or not REMOTE_PATTERN.fullmatch(remote):
+            raise ReleaseContextError("remote gitPublication requires a valid remote")
+    else:
+        raise ReleaseContextError("gitPublication must be local or remote")
     default_branch = value["defaultBranch"]
-    if not isinstance(default_branch, str) or not default_branch or any(
-        character.isspace() or ord(character) < 32 for character in default_branch
-    ):
+    if not valid_branch_name(default_branch):
         raise ReleaseContextError("defaultBranch is invalid")
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
+        "gitPublication": publication_mode,
         "sourceHead": source_head,
         "version": version,
         "releaseDate": release_date_iso,
@@ -344,6 +381,18 @@ def remote_ref_oid(root: Path, remote: str, reference: str) -> str:
     return matches[0]
 
 
+def local_ref_oid(root: Path, reference: str) -> str:
+    result = run_git(
+        root,
+        ["rev-parse", "--verify", f"{reference}^{{commit}}"],
+        check=False,
+    )
+    oid = result.stdout.strip()
+    if result.returncode != 0 or not OID_PATTERN.fullmatch(oid):
+        raise ReleaseContextError(f"local ref is missing or invalid: {reference}")
+    return oid
+
+
 def build_review(arguments: argparse.Namespace) -> dict[str, Any]:
     enabled = arguments.review_selection == "enabled"
     return {
@@ -378,15 +427,38 @@ def write_context(arguments: argparse.Namespace) -> dict[str, Any]:
     head = run_git(root, ["rev-parse", "--verify", "HEAD^{commit}"]).stdout.strip()
     if head != arguments.source_head:
         raise ReleaseContextError("sourceHead must equal the current HEAD before metadata commit")
-    default_branch = remote_default_branch(root, arguments.remote)
+    if arguments.local_only:
+        if arguments.default_branch is None:
+            raise ReleaseContextError("--default-branch is required with --local-only")
+        if (
+            not valid_branch_name(arguments.default_branch)
+            or run_git(
+                root,
+                ["check-ref-format", "--branch", arguments.default_branch],
+                check=False,
+            ).returncode
+            != 0
+        ):
+            raise ReleaseContextError("--default-branch must name one safe Git branch")
+        publication_mode = "local"
+        remote = None
+        default_branch = arguments.default_branch
+        local_ref_oid(root, f"refs/heads/{default_branch}")
+    else:
+        if arguments.default_branch is not None:
+            raise ReleaseContextError("--default-branch is only valid with --local-only")
+        publication_mode = "remote"
+        remote = arguments.remote
+        default_branch = remote_default_branch(root, remote)
     value = validate_context(
         {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
+            "gitPublication": publication_mode,
             "sourceHead": arguments.source_head,
             "version": arguments.version,
             "releaseDate": arguments.release_date,
             "expectedTag": f"v{arguments.version}-{arguments.release_date.replace('-', '')}",
-            "remote": arguments.remote,
+            "remote": remote,
             "defaultBranch": default_branch,
             "releaseReview": build_review(arguments),
             "candidateSelections": build_selections(arguments),
@@ -419,6 +491,9 @@ def write_context(arguments: argparse.Namespace) -> dict[str, Any]:
         "path": CONTEXT_RELATIVE_PATH,
         "sourceHead": value["sourceHead"],
         "expectedTag": value["expectedTag"],
+        "gitPublication": value["gitPublication"],
+        "remote": value["remote"],
+        "defaultBranch": value["defaultBranch"],
         "releaseContextSha256": hashlib.sha256(payload).hexdigest(),
     }
 
@@ -431,7 +506,7 @@ def check_context(arguments: argparse.Namespace, *, published: bool) -> dict[str
     if arguments.expected_version is not None and value["version"] != arguments.expected_version:
         raise ReleaseContextError("release context version does not match the expected value")
     result: dict[str, Any] = {
-        "status": "published" if published else "valid",
+        "status": "released" if published else "valid",
         "path": CONTEXT_RELATIVE_PATH,
         "releaseContextSha256": digest,
         **value,
@@ -449,25 +524,32 @@ def check_context(arguments: argparse.Namespace, *, published: bool) -> dict[str
         text=False,
     ).stdout
     if status:
-        raise ReleaseContextError("published release worktree must be clean")
+        raise ReleaseContextError("released worktree must be clean")
     branch_result = run_git(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], check=False)
     branch = branch_result.stdout.strip()
     if branch_result.returncode != 0 or branch != value["defaultBranch"]:
-        raise ReleaseContextError("current branch is not the published remote default branch")
+        raise ReleaseContextError("current branch is not the release default branch")
     committed = run_git(root, ["show", f"HEAD:{CONTEXT_RELATIVE_PATH}"], text=False).stdout
     if committed != raw:
         raise ReleaseContextError("release context bytes are not tracked by HEAD")
-    observed_default = remote_default_branch(root, value["remote"])
-    if observed_default != value["defaultBranch"]:
-        raise ReleaseContextError("remote default branch changed after release preparation")
-    remote_head = remote_ref_oid(
-        root, value["remote"], f"refs/heads/{value['defaultBranch']}"
-    )
-    if remote_head != head:
-        raise ReleaseContextError("remote default branch does not point to HEAD")
-    tag_head = remote_ref_oid(root, value["remote"], f"refs/tags/{value['expectedTag']}")
+    tag_head = local_ref_oid(root, f"refs/tags/{value['expectedTag']}")
     if tag_head != head:
-        raise ReleaseContextError("remote release tag does not point to HEAD")
+        raise ReleaseContextError("local release tag does not point to HEAD")
+    if value["gitPublication"] == "remote":
+        remote = value["remote"]
+        observed_default = remote_default_branch(root, remote)
+        if observed_default != value["defaultBranch"]:
+            raise ReleaseContextError("remote default branch changed after release preparation")
+        remote_head = remote_ref_oid(
+            root, remote, f"refs/heads/{value['defaultBranch']}"
+        )
+        if remote_head != head:
+            raise ReleaseContextError("remote default branch does not point to HEAD")
+        remote_tag_head = remote_ref_oid(
+            root, remote, f"refs/tags/{value['expectedTag']}"
+        )
+        if remote_tag_head != head:
+            raise ReleaseContextError("remote release tag does not point to HEAD")
     result.update({"sourceCommit": head, "branch": branch})
     return result
 
@@ -491,7 +573,10 @@ def build_parser() -> argparse.ArgumentParser:
     write.add_argument("--source-head", required=True)
     write.add_argument("--version", required=True)
     write.add_argument("--release-date", required=True)
-    write.add_argument("--remote", required=True)
+    publication = write.add_mutually_exclusive_group(required=True)
+    publication.add_argument("--local-only", action="store_true")
+    publication.add_argument("--remote")
+    write.add_argument("--default-branch")
     write.add_argument("--review-selection", required=True, choices=("enabled", "disabled"))
     write.add_argument("--scope-base", required=True)
     write.add_argument("--scope-diff-sha256", required=True)

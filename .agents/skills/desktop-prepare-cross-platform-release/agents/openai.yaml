@@ -1,4 +1,4 @@
 interface:
   display_name: "准备跨平台发布候选"
-  short_description: "从已发布上下文、远端版本 tag 与固定选择准备三平台原生候选"
-  default_prompt: "使用 $desktop-prepare-cross-platform-release，验证 release_context_sha256、远端默认分支、版本 tag 与每个运行器的 clean source_commit 后生成 manifests。"
+  short_description: "仅从远端 Git 发布上下文准备并验证三平台原生 Rust CLI 候选"
+  default_prompt: "使用 $desktop-prepare-cross-platform-release，先要求 gitPublication: remote，再验证 release_context_sha256、远端默认分支、版本 tag 与每个运行器的 clean source_commit 后生成 manifests；本地发布不得派发该路线。"

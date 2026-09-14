@@ -322,6 +322,10 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
                 "release context digest does not match the host-verified input",
                 "release context digest accepted",
             ),
+            "remote publication mode": (
+                'normalized["gitPublication"] != "remote"',
+                'normalized["gitPublication"] != "local"',
+            ),
             "remote default": (
                 'f"refs/remotes/origin/{repository_default_branch}"',
                 'f"refs/remotes/origin/main"',

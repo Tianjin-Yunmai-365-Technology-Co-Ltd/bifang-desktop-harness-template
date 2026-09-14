@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -81,7 +82,11 @@ class ReleaseContextTests(unittest.TestCase):
             env=self.env,
         )
 
-    def write_context(self, *extra: str) -> subprocess.CompletedProcess[str]:
+    def write_context(
+        self,
+        *extra: str,
+        publication: tuple[str, ...] = ("--remote", "origin"),
+    ) -> subprocess.CompletedProcess[str]:
         arguments = [
             "write",
             "--project-root",
@@ -92,8 +97,7 @@ class ReleaseContextTests(unittest.TestCase):
             "1.2.3",
             "--release-date",
             "2026-09-09",
-            "--remote",
-            "origin",
+            *publication,
             "--review-selection",
             "disabled",
             "--scope-base",
@@ -116,8 +120,13 @@ class ReleaseContextTests(unittest.TestCase):
         ]
         return self.run_script(*arguments)
 
-    def commit_publish_and_tag(self) -> tuple[str, str]:
-        written = self.write_context()
+    def commit_and_tag(
+        self,
+        *,
+        publication: tuple[str, ...] = ("--remote", "origin"),
+        push: bool = True,
+    ) -> tuple[str, str]:
+        written = self.write_context(publication=publication)
         self.assertEqual(written.returncode, 0, written.stderr)
         digest = json.loads(written.stdout)["releaseContextSha256"]
         self.git("add", ".harness/release-context.json")
@@ -125,9 +134,11 @@ class ReleaseContextTests(unittest.TestCase):
         self.git("switch", "--quiet", "main")
         self.git("merge", "--quiet", "--no-edit", "feature-release-context-20260909")
         head = self.git("rev-parse", "HEAD").stdout.strip()
-        self.git("push", "--quiet", "origin", "main")
+        if push:
+            self.git("push", "--quiet", "origin", "main")
         self.git("tag", "v1.2.3-20260909")
-        self.git("push", "--quiet", "origin", "refs/tags/v1.2.3-20260909")
+        if push:
+            self.git("push", "--quiet", "origin", "refs/tags/v1.2.3-20260909")
         return head, digest
 
     def test_write_derives_tag_and_canonical_context(self) -> None:
@@ -146,7 +157,27 @@ class ReleaseContextTests(unittest.TestCase):
         )
         self.assertEqual(check.returncode, 0, check.stderr)
         context = json.loads((self.root / ".harness/release-context.json").read_text())
+        self.assertEqual(context["schemaVersion"], 2)
+        self.assertEqual(context["gitPublication"], "remote")
+        self.assertEqual(context["remote"], "origin")
         self.assertEqual(context["sourceHead"], self.source_head)
+        self.assertEqual(context["defaultBranch"], "main")
+
+    def test_local_write_uses_explicit_branch_without_accessing_remote(self) -> None:
+        shutil.rmtree(self.remote)
+
+        result = self.write_context(
+            publication=("--local-only", "--default-branch", "main")
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["gitPublication"], "local")
+        self.assertIsNone(payload["remote"])
+        context = json.loads((self.root / ".harness/release-context.json").read_text())
+        self.assertEqual(context["schemaVersion"], 2)
+        self.assertEqual(context["gitPublication"], "local")
+        self.assertIsNone(context["remote"])
         self.assertEqual(context["defaultBranch"], "main")
 
     def test_write_rejects_source_head_that_is_not_current_head(self) -> None:
@@ -161,7 +192,7 @@ class ReleaseContextTests(unittest.TestCase):
         self.assertFalse((self.root / ".harness/release-context.json").exists())
 
     def test_verify_requires_clean_pushed_main_and_remote_tag(self) -> None:
-        head, digest = self.commit_publish_and_tag()
+        head, digest = self.commit_and_tag()
         result = self.run_script(
             "verify",
             "--project-root",
@@ -175,6 +206,46 @@ class ReleaseContextTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["sourceCommit"], head)
         self.assertEqual(payload["expectedTag"], "v1.2.3-20260909")
+        self.assertEqual(payload["gitPublication"], "remote")
+
+    def test_local_verify_requires_only_local_branch_head_context_and_tag(self) -> None:
+        head, digest = self.commit_and_tag(
+            publication=("--local-only", "--default-branch", "main"),
+            push=False,
+        )
+        shutil.rmtree(self.remote)
+
+        result = self.run_script(
+            "verify",
+            "--project-root",
+            str(self.root),
+            "--expected-head",
+            head,
+            "--expected-sha256",
+            digest,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["status"], "released")
+        self.assertEqual(payload["gitPublication"], "local")
+        self.assertIsNone(payload["remote"])
+
+    def test_local_verify_rejects_missing_local_tag(self) -> None:
+        written = self.write_context(
+            publication=("--local-only", "--default-branch", "main")
+        )
+        self.assertEqual(written.returncode, 0, written.stderr)
+        self.git("add", ".harness/release-context.json")
+        self.git("commit", "--quiet", "-m", "chore(release): record release context")
+        self.git("switch", "--quiet", "main")
+        self.git("merge", "--quiet", "--no-edit", "feature-release-context-20260909")
+        shutil.rmtree(self.remote)
+
+        result = self.run_script("verify", "--project-root", str(self.root))
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("local ref is missing or invalid", result.stderr)
 
     def test_verify_rejects_missing_remote_tag(self) -> None:
         result = self.write_context()
@@ -184,12 +255,13 @@ class ReleaseContextTests(unittest.TestCase):
         self.git("switch", "--quiet", "main")
         self.git("merge", "--quiet", "--no-edit", "feature-release-context-20260909")
         self.git("push", "--quiet", "origin", "main")
+        self.git("tag", "v1.2.3-20260909")
         verified = self.run_script("verify", "--project-root", str(self.root))
         self.assertEqual(verified.returncode, 1)
         self.assertIn("remote ref is missing", verified.stderr)
 
     def test_verify_rejects_dirty_or_untracked_context_bytes(self) -> None:
-        _head, _digest = self.commit_publish_and_tag()
+        _head, _digest = self.commit_and_tag()
         (self.root / ".harness/release-context.json").write_text("{}\n", encoding="utf-8")
         result = self.run_script("verify", "--project-root", str(self.root))
         self.assertEqual(result.returncode, 1)
@@ -204,6 +276,71 @@ class ReleaseContextTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 1)
         self.assertIn("performanceReason", result.stderr)
+
+    def test_write_requires_strict_publication_argument_combinations(self) -> None:
+        missing_branch = self.write_context(publication=("--local-only",))
+        self.assertEqual(missing_branch.returncode, 1)
+        self.assertIn("--default-branch is required", missing_branch.stderr)
+
+        remote_with_branch = self.write_context(
+            publication=("--remote", "origin", "--default-branch", "main")
+        )
+        self.assertEqual(remote_with_branch.returncode, 1)
+        self.assertIn("--default-branch is only valid", remote_with_branch.stderr)
+
+        both_modes = self.write_context(
+            publication=("--remote", "origin", "--local-only")
+        )
+        self.assertEqual(both_modes.returncode, 2)
+        self.assertIn("not allowed with argument", both_modes.stderr)
+
+    def test_local_default_branch_rejects_ambiguous_ref_syntax(self) -> None:
+        """验证 revision 或伪引用文本不能伪装成安全的单一分支名。"""
+
+        for invalid_branch in ("main^{}", "HEAD", "@"):
+            with self.subTest(write=invalid_branch):
+                rejected_write = self.write_context(
+                    publication=("--local-only", "--default-branch", invalid_branch)
+                )
+                self.assertEqual(rejected_write.returncode, 1)
+                self.assertIn("must name one safe Git branch", rejected_write.stderr)
+                self.assertFalse((self.root / ".harness/release-context.json").exists())
+
+        written = self.write_context(
+            publication=("--local-only", "--default-branch", "main")
+        )
+        self.assertEqual(written.returncode, 0, written.stderr)
+        path = self.root / ".harness/release-context.json"
+        context = json.loads(path.read_text(encoding="utf-8"))
+        for invalid_branch in ("main^{}", "HEAD", "@"):
+            with self.subTest(check=invalid_branch):
+                context["defaultBranch"] = invalid_branch
+                path.write_text(
+                    json.dumps(context, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                rejected_check = self.run_script("check", "--project-root", str(self.root))
+                self.assertEqual(rejected_check.returncode, 1)
+                self.assertIn("defaultBranch is invalid", rejected_check.stderr)
+
+    def test_check_rejects_publication_mode_and_remote_mismatch(self) -> None:
+        written = self.write_context()
+        self.assertEqual(written.returncode, 0, written.stderr)
+        path = self.root / ".harness/release-context.json"
+        context = json.loads(path.read_text(encoding="utf-8"))
+
+        context["remote"] = None
+        path.write_text(json.dumps(context, indent=2) + "\n", encoding="utf-8")
+        invalid_remote = self.run_script("check", "--project-root", str(self.root))
+        self.assertEqual(invalid_remote.returncode, 1)
+        self.assertIn("remote gitPublication requires a valid remote", invalid_remote.stderr)
+
+        context["gitPublication"] = "local"
+        context["remote"] = "origin"
+        path.write_text(json.dumps(context, indent=2) + "\n", encoding="utf-8")
+        invalid_local = self.run_script("check", "--project-root", str(self.root))
+        self.assertEqual(invalid_local.returncode, 1)
+        self.assertIn("local gitPublication requires remote to be null", invalid_local.stderr)
 
 
 if __name__ == "__main__":
