@@ -1,18 +1,19 @@
 {
-  "schemaVersion": 1,
-  "sourceHead": "7d0f3730bd8f0cead0b46a1a0303c624faa7bfaf",
-  "version": "202609122231",
-  "releaseDate": "2026-09-12",
-  "expectedTag": "v202609122231-20260912",
+  "schemaVersion": 2,
+  "gitPublication": "remote",
+  "sourceHead": "16d3d5ca20117b14347785913a16b253aa6067ef",
+  "version": "202609141917",
+  "releaseDate": "2026-09-14",
+  "expectedTag": "v202609141917-20260914",
   "remote": "github",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "41ba6eaaff0ece7df02451a997b541bf60b94814",
-    "sourceHead": "7d0f3730bd8f0cead0b46a1a0303c624faa7bfaf",
-    "scopeDiffSha256": "d6b50f152abd641472e2ce052feae2aae3110872dc930bf38f90e8807a9ccb0c",
-    "reviewedSourceCommit": "7d0f3730bd8f0cead0b46a1a0303c624faa7bfaf",
+    "scopeBase": "167154eb243d87ab9481a11c24ed6cd0fd05beeb",
+    "sourceHead": "16d3d5ca20117b14347785913a16b253aa6067ef",
+    "scopeDiffSha256": "50650bcd54575083b21f163cbf5151a8089466d5789f407da504a48e404cc8c4",
+    "reviewedSourceCommit": "16d3d5ca20117b14347785913a16b253aa6067ef",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -20,7 +21,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Independent environment and release-governance audits found and fixed post-install wrapper escape, remote-selection precedence, and version-materialization duplicate gaps; final environment, lifecycle, release, Rust fixture, Python, validator, release-review, syntax, and diff checks passed.",
+    "evidenceSummary": "已累计审查上次正式发布提交至 sourceHead 的行为正确性、core/adapter 边界、外部契约、职责规模与临时标记；多远端 publish 的冻结恢复、local/remote release、schema-v2 上下文及错误兼容均通过，未发现 P0/P1/P2。差异完整性、Harness release-review、ADR 取代范围负向门禁及全量 308 项回归通过。",
     "reason": null,
     "remainingRisk": null
   },

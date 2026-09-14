@@ -2,6 +2,30 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-14",
+      "version": "v202609141917",
+      "featureOptimizations": [
+        {
+          "zh-CN": "正式发布现在逐次选择本地或远端 Git；本地模式只在本地默认分支创建并复读版本标签，远端模式才把主分支和标签推送作为门禁。",
+          "en-US": "Formal releases now choose local or remote Git per release: local mode creates and verifies the version tag only on the local default branch, while remote mode alone gates on branch and tag pushes."
+        },
+        {
+          "zh-CN": "受管 publish 支持把同一冻结最终 HEAD 推送到用户明确指定的补充远端，同时唯一主远端继续独占 fetch、merge、release、tag 与清理。",
+          "en-US": "Managed publish can send the same frozen final HEAD to explicitly authorized supplemental remotes while the sole primary remote continues to own fetch, merge, release, tagging, and cleanup."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复多远端部分失败重试可能重新整合并改变 HEAD、丢失恢复 journal 或误报已确认目标的问题；重试现在只沿用冻结目标与逐项进度。",
+          "en-US": "Fixed multi-remote partial-failure retries that could reintegrate a different HEAD, lose the recovery journal, or misreport confirmed targets; retries now reuse only the frozen targets and per-target progress."
+        },
+        {
+          "zh-CN": "修复 detached Task 首次本地发布默认分支缺失，以及 push/tag 非零退出被过早判定的问题；远端复读、schema 兼容与下游分发回归已补齐。",
+          "en-US": "Fixed missing default-branch state for a detached Task's first local release and premature conclusions from nonzero push/tag exits, with remote rereads, schema compatibility, and downstream propagation regressions added."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-09-12",
       "version": "v202609122231",
       "featureOptimizations": [
