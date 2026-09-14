@@ -152,7 +152,7 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
         "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": "202609101621",
     }
     materialized_paths = (
-        ROOT / "docs" / "changelog" / "20260912_CHANGELOG.md",  # noqa: F405
+        ROOT / "docs" / "changelog" / "20260914_CHANGELOG.md",  # noqa: F405
         ROOT / "docs" / "adr" / "20260912_ADR.md",  # noqa: F405
         PRODUCT_SPEC,  # noqa: F405
     )

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -12,10 +13,26 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 import unittest
+from unittest import mock
 
 
 SCRIPT = Path(__file__).with_name("git_lifecycle.py")
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
+
+
+def load_lifecycle_module() -> object:
+    """加载被测 helper 模块，供无法由真实 Git 稳定制造的异常路径做受控注入。"""
+    module_name = "_agent_first_git_lifecycle_test_target"
+    specification = importlib.util.spec_from_file_location(module_name, SCRIPT)
+    if specification is None or specification.loader is None:
+        raise RuntimeError("Git lifecycle test module cannot be loaded.")
+    module = importlib.util.module_from_spec(specification)
+    sys.modules[module_name] = module
+    specification.loader.exec_module(module)
+    return module
+
+
+LIFECYCLE = load_lifecycle_module()
 
 
 class GitLifecycleTests(unittest.TestCase):
@@ -74,6 +91,21 @@ class GitLifecycleTests(unittest.TestCase):
         self.git(repository, "remote", "add", "origin", str(bare))
         self.git(repository, "push", "-u", "origin", "main")
         return repository, bare
+
+    def add_bare_remote(self, repository: Path, name: str, default_branch: str) -> Path:
+        """增加具有独立默认分支的真实 bare 远端，并以当前 main 初始化它。"""
+        bare = self.root / f"{name}.git"
+        bare.mkdir()
+        self.git(bare, "init", "--bare")
+        self.git(bare, "symbolic-ref", "HEAD", f"refs/heads/{default_branch}")
+        self.git(repository, "remote", "add", name, str(bare))
+        self.git(
+            repository,
+            "push",
+            name,
+            f"refs/heads/main:refs/heads/{default_branch}",
+        )
+        return bare
 
     def helper(
         self,
@@ -356,6 +388,610 @@ class GitLifecycleTests(unittest.TestCase):
             )
         )
         self.assertTrue(self.local_branch_exists(repository, feature))
+
+    def test_publish_pushes_same_head_to_additional_remote_without_rebinding(self) -> None:
+        """验证双 bare 远端各用自己的默认分支接收同一 HEAD，主远端绑定保持不变。"""
+        repository, github = self.initialize_repository(remote=True)
+        assert github is not None
+        self.git(repository, "remote", "rename", "origin", "github")
+        self.add_bare_remote(repository, "origin", "stable")
+        started, _ = self.helper(
+            repository,
+            "start",
+            "--summary",
+            "multi-remote",
+            "--remote",
+            "github",
+        )
+        self.assertEqual(started["remote"], "github")
+        expected_head = self.commit_file(repository, "multi-remote.txt", "shared head\n")
+
+        published, _ = self.helper(
+            repository,
+            "publish",
+            "--also-remote",
+            "origin",
+        )
+
+        self.assertEqual(published["remote"], "github")
+        self.assertEqual(published["branch"], "main")
+        self.assertEqual(published["head"], expected_head)
+        self.assertEqual(
+            published["publishedRemotes"],
+            [
+                {"remote": "github", "branch": "main"},
+                {"remote": "origin", "branch": "stable"},
+            ],
+        )
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout.startswith(
+                expected_head + "\t"
+            )
+        )
+        self.assertTrue(
+            self.git(
+                repository,
+                "ls-remote",
+                "--heads",
+                "origin",
+                "refs/heads/stable",
+            ).stdout.startswith(expected_head + "\t")
+        )
+        state = self.state(repository)
+        self.assertEqual(state["remote"], "github")
+        self.assertEqual(state["defaultBranch"], "main")
+
+    def test_publish_rejects_invalid_additional_remote_sets_before_pushing(self) -> None:
+        """验证主远端重复、补充远端重复或未配置时，在任何合并与推送前拒绝。"""
+        repository, github = self.initialize_repository(remote=True)
+        assert github is not None
+        self.git(repository, "remote", "rename", "origin", "github")
+        self.add_bare_remote(repository, "origin", "stable")
+        unborn = self.root / "unborn.git"
+        unborn.mkdir()
+        self.git(unborn, "init", "--bare")
+        self.git(unborn, "symbolic-ref", "HEAD", "refs/heads/unborn")
+        self.git(repository, "remote", "add", "unborn", str(unborn))
+        started, _ = self.helper(
+            repository,
+            "start",
+            "--summary",
+            "invalid-remotes",
+            "--remote",
+            "github",
+        )
+        feature = str(started["branch"])
+        self.commit_file(repository, "invalid-remotes.txt", "must not publish\n")
+        github_before = self.git(
+            repository,
+            "ls-remote",
+            "--heads",
+            "github",
+            "refs/heads/main",
+        ).stdout
+        origin_before = self.git(
+            repository,
+            "ls-remote",
+            "--heads",
+            "origin",
+            "refs/heads/stable",
+        ).stdout
+
+        same_as_primary, _ = self.helper(
+            repository,
+            "publish",
+            "--also-remote",
+            "github",
+            success=False,
+        )
+        self.assertEqual(same_as_primary["code"], "invalid-argument")
+        duplicate, _ = self.helper(
+            repository,
+            "publish",
+            "--also-remote",
+            "origin",
+            "--also-remote",
+            "origin",
+            success=False,
+        )
+        self.assertEqual(duplicate["code"], "invalid-argument")
+        missing, _ = self.helper(
+            repository,
+            "publish",
+            "--also-remote",
+            "missing",
+            success=False,
+        )
+        self.assertEqual(missing["code"], "remote-not-found")
+        unresolved_default, _ = self.helper(
+            repository,
+            "publish",
+            "--also-remote",
+            "origin",
+            "--also-remote",
+            "unborn",
+            success=False,
+        )
+        self.assertEqual(unresolved_default["code"], "remote-default-unavailable")
+        conflicting_primary, _ = self.helper(
+            repository,
+            "publish",
+            "--remote",
+            "origin",
+            success=False,
+        )
+        self.assertEqual(conflicting_primary["code"], "remote-conflict")
+        self.assertEqual(self.git(repository, "branch", "--show-current").stdout.strip(), feature)
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout,
+            github_before,
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/stable").stdout,
+            origin_before,
+        )
+        self.assertEqual(self.state(repository)["remote"], "github")
+
+    def test_publish_primary_failure_context_keeps_additional_targets_unattempted(self) -> None:
+        """验证有补充目标时主远端拒绝会点名主目标、结果和全部未尝试目标。"""
+        repository, github = self.initialize_repository(remote=True)
+        assert github is not None
+        self.git(repository, "remote", "rename", "origin", "github")
+        self.add_bare_remote(repository, "origin", "stable")
+        self.helper(
+            repository,
+            "start",
+            "--summary",
+            "primary-rejected",
+            "--remote",
+            "github",
+        )
+        self.commit_file(repository, "primary-rejected.txt", "reject primary\n")
+        primary_before = self.git(
+            repository, "ls-remote", "--heads", "github", "refs/heads/main"
+        ).stdout
+        additional_before = self.git(
+            repository, "ls-remote", "--heads", "origin", "refs/heads/stable"
+        ).stdout
+        self.install_hook(
+            github,
+            'while read old new ref; do\n  if [ "$ref" = "refs/heads/main" ]; then exit 1; fi\ndone\n',
+        )
+
+        rejected, _ = self.helper(
+            repository,
+            "publish",
+            "--remote",
+            "github",
+            "--also-remote",
+            "origin",
+            success=False,
+        )
+
+        self.assertEqual(rejected["code"], "primary-push-rejected")
+        self.assertIn("Primary Git remote 'github' branch 'main'", rejected["message"])
+        self.assertIn("current target result is rejected", rejected["message"])
+        self.assertIn("all additional targets were not attempted", rejected["message"])
+        self.assertIn("remote 'origin' branch 'stable'", rejected["message"])
+        self.assertIn("same arguments can be retried", rejected["message"])
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout,
+            primary_before,
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/stable").stdout,
+            additional_before,
+        )
+
+    def test_primary_confirmed_push_contextualizes_local_verification_failure(self) -> None:
+        """验证主远端复读已确认后，本地位置异常仍保留主成功与补充未尝试语义。"""
+        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
+        state = {"remote": None, "defaultBranch": None}
+        targets = [{"remote": "origin", "branch": "stable"}]
+        completed = subprocess.CompletedProcess(["git"], 0, "", "")
+        with (
+            mock.patch.object(LIFECYCLE, "run_git", return_value=completed),
+            mock.patch.object(LIFECYCLE, "remote_branch_oid", return_value="a" * 40),
+            mock.patch.object(
+                LIFECYCLE,
+                "verify_local_position",
+                side_effect=LIFECYCLE.LifecycleError("local-state-changed", "local drift"),
+            ),
+            mock.patch.object(LIFECYCLE, "save_state") as save_state,
+        ):
+            with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
+                LIFECYCLE.publish_primary_remote(
+                    repository,
+                    state,
+                    "github",
+                    "main",
+                    "a" * 40,
+                    targets,
+                )
+
+        self.assertEqual(raised.exception.code, "primary-local-state-changed")
+        self.assertIn("Primary Git remote 'github' branch 'main'", raised.exception.message)
+        self.assertIn("current target is confirmed published", raised.exception.message)
+        self.assertIn("all additional targets were not attempted", raised.exception.message)
+        self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
+        self.assertIn("same arguments can be retried", raised.exception.message)
+        save_state.assert_not_called()
+
+    def test_primary_uncertain_failures_contextualize_unattempted_targets(self) -> None:
+        """验证主 push 传输或复读不确定时均保留目标、未尝试范围与重试语义。"""
+        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
+        targets = [{"remote": "origin", "branch": "stable"}]
+        completed = subprocess.CompletedProcess(["git"], 0, "", "")
+
+        def fail_with_requested_context(*_arguments, **keywords):
+            raise LIFECYCLE.LifecycleError(keywords["code"], keywords["message"])
+
+        cases = (
+            (
+                "transport",
+                fail_with_requested_context,
+                "d" * 40,
+                "primary-push-failed",
+            ),
+            (
+                "reread",
+                completed,
+                LIFECYCLE.LifecycleError("remote-read-failed", "read failure"),
+                "primary-verification-failed",
+            ),
+        )
+        for label, push_result, reread_result, expected_code in cases:
+            with self.subTest(label=label):
+                state = {"remote": None, "defaultBranch": None}
+                run_effect = push_result if callable(push_result) else None
+                reread_effect = reread_result if isinstance(reread_result, BaseException) else None
+                with (
+                    mock.patch.object(
+                        LIFECYCLE,
+                        "run_git",
+                        return_value=None if run_effect is not None else push_result,
+                        side_effect=run_effect,
+                    ),
+                    mock.patch.object(
+                        LIFECYCLE,
+                        "remote_branch_oid",
+                        return_value=None if reread_effect is not None else reread_result,
+                        side_effect=reread_effect,
+                    ),
+                    mock.patch.object(LIFECYCLE, "verify_local_position"),
+                    mock.patch.object(LIFECYCLE, "save_state"),
+                ):
+                    with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
+                        LIFECYCLE.publish_primary_remote(
+                            repository,
+                            state,
+                            "github",
+                            "main",
+                            "d" * 40,
+                            targets,
+                        )
+
+                self.assertEqual(raised.exception.code, expected_code)
+                self.assertIn("Primary Git remote 'github' branch 'main'", raised.exception.message)
+                self.assertIn("current target outcome is uncertain", raised.exception.message)
+                self.assertIn("all additional targets were not attempted", raised.exception.message)
+                self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
+                self.assertIn("same arguments can be retried", raised.exception.message)
+
+    def test_primary_confirmed_push_contextualizes_state_save_failure(self) -> None:
+        """验证主远端和本地位置均确认后，状态保存异常仍报告主成功与可重试范围。"""
+        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
+        state = {"remote": None, "defaultBranch": None}
+        targets = [{"remote": "origin", "branch": "stable"}]
+        completed = subprocess.CompletedProcess(["git"], 0, "", "")
+        with (
+            mock.patch.object(LIFECYCLE, "run_git", return_value=completed),
+            mock.patch.object(LIFECYCLE, "remote_branch_oid", return_value="b" * 40),
+            mock.patch.object(LIFECYCLE, "verify_local_position"),
+            mock.patch.object(
+                LIFECYCLE,
+                "save_state",
+                side_effect=LIFECYCLE.LifecycleError("state-write-failed", "state failure"),
+            ),
+        ):
+            with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
+                LIFECYCLE.publish_primary_remote(
+                    repository,
+                    state,
+                    "github",
+                    "main",
+                    "b" * 40,
+                    targets,
+                )
+
+        self.assertEqual(raised.exception.code, "primary-state-write-failed")
+        self.assertIn("Primary Git remote 'github' branch 'main'", raised.exception.message)
+        self.assertIn("current target is confirmed published", raised.exception.message)
+        self.assertIn("all additional targets were not attempted", raised.exception.message)
+        self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
+        self.assertIn("same arguments can be retried", raised.exception.message)
+
+    def test_additional_confirmed_push_contextualizes_local_verification_failure(self) -> None:
+        """验证补充远端复读确认后本地漂移会点名已成功当前目标和未尝试后续目标。"""
+        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
+        targets = [
+            {"remote": "origin", "branch": "stable"},
+            {"remote": "archive", "branch": "delivery"},
+        ]
+        completed = subprocess.CompletedProcess(["git"], 0, "", "")
+        with (
+            mock.patch.object(LIFECYCLE, "run_git", return_value=completed) as run_git,
+            mock.patch.object(LIFECYCLE, "remote_branch_oid", return_value="c" * 40),
+            mock.patch.object(
+                LIFECYCLE,
+                "verify_local_position",
+                side_effect=LIFECYCLE.LifecycleError("local-state-changed", "local drift"),
+            ),
+        ):
+            with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
+                LIFECYCLE.push_additional_remotes(
+                    repository,
+                    targets,
+                    "main",
+                    "c" * 40,
+                )
+
+        self.assertEqual(raised.exception.code, "additional-local-state-changed")
+        self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
+        self.assertIn("current target is confirmed published", raised.exception.message)
+        self.assertIn("subsequent additional targets were not attempted", raised.exception.message)
+        self.assertIn("remote 'archive' branch 'delivery'", raised.exception.message)
+        self.assertIn("same arguments can be retried", raised.exception.message)
+        self.assertEqual(run_git.call_count, 1)
+
+    def test_additional_uncertain_failures_contextualize_partial_progress(self) -> None:
+        """验证补充 push 传输或复读不确定时均披露前序成功与后续未尝试范围。"""
+        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
+        targets = [
+            {"remote": "origin", "branch": "stable"},
+            {"remote": "archive", "branch": "delivery"},
+        ]
+        completed = subprocess.CompletedProcess(["git"], 0, "", "")
+
+        def fail_with_requested_context(*_arguments, **keywords):
+            raise LIFECYCLE.LifecycleError(keywords["code"], keywords["message"])
+
+        cases = (
+            (
+                "transport",
+                fail_with_requested_context,
+                "e" * 40,
+                "additional-push-failed",
+            ),
+            (
+                "reread",
+                completed,
+                LIFECYCLE.LifecycleError("remote-read-failed", "read failure"),
+                "additional-verification-failed",
+            ),
+        )
+        for label, push_result, reread_result, expected_code in cases:
+            with self.subTest(label=label):
+                run_effect = push_result if callable(push_result) else None
+                reread_effect = reread_result if isinstance(reread_result, BaseException) else None
+                with (
+                    mock.patch.object(
+                        LIFECYCLE,
+                        "run_git",
+                        return_value=None if run_effect is not None else push_result,
+                        side_effect=run_effect,
+                    ),
+                    mock.patch.object(
+                        LIFECYCLE,
+                        "remote_branch_oid",
+                        return_value=None if reread_effect is not None else reread_result,
+                        side_effect=reread_effect,
+                    ),
+                    mock.patch.object(LIFECYCLE, "verify_local_position"),
+                ):
+                    with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
+                        LIFECYCLE.push_additional_remotes(
+                            repository,
+                            targets,
+                            "main",
+                            "e" * 40,
+                        )
+
+                self.assertEqual(raised.exception.code, expected_code)
+                self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
+                self.assertIn("primary target and earlier additional targets are confirmed published", raised.exception.message)
+                self.assertIn("current target outcome is uncertain", raised.exception.message)
+                self.assertIn("subsequent additional targets were not attempted", raised.exception.message)
+                self.assertIn("remote 'archive' branch 'delivery'", raised.exception.message)
+                self.assertIn("same arguments can be retried", raised.exception.message)
+
+    def test_publish_additional_remote_rejection_preserves_primary_and_retry_succeeds(self) -> None:
+        """验证三个补充目标按参数顺序推进，第二个拒绝后同参数重试可完整恢复。"""
+        repository, github = self.initialize_repository(remote=True)
+        assert github is not None
+        self.git(repository, "remote", "rename", "origin", "github")
+        origin = self.add_bare_remote(repository, "origin", "stable")
+        backup = self.add_bare_remote(repository, "backup", "integration")
+        self.add_bare_remote(repository, "archive", "delivery")
+        self.helper(
+            repository,
+            "start",
+            "--summary",
+            "retry-additional",
+            "--remote",
+            "github",
+        )
+        expected_head = self.commit_file(repository, "retry-additional.txt", "retry me\n")
+        backup_before = self.git(
+            repository, "ls-remote", "--heads", "backup", "refs/heads/integration"
+        ).stdout
+        archive_before = self.git(
+            repository, "ls-remote", "--heads", "archive", "refs/heads/delivery"
+        ).stdout
+        self.install_hook(
+            backup,
+            'while read old new ref; do\n  if [ "$ref" = "refs/heads/integration" ]; then exit 1; fi\ndone\n',
+        )
+        arguments = (
+            "publish",
+            "--remote",
+            "github",
+            "--also-remote",
+            "origin",
+            "--also-remote",
+            "backup",
+            "--also-remote",
+            "archive",
+        )
+
+        rejected, _ = self.helper(repository, *arguments, success=False)
+
+        self.assertEqual(rejected["code"], "additional-push-rejected")
+        self.assertIn("remote 'backup' branch 'integration'", rejected["message"])
+        self.assertIn("remote 'origin' branch 'stable'", rejected["message"])
+        self.assertIn("remote 'archive' branch 'delivery'", rejected["message"])
+        self.assertIn("current target result is rejected", rejected["message"])
+        self.assertIn("subsequent additional targets were not attempted", rejected["message"])
+        self.assertIn("same arguments can be retried", rejected["message"])
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout.startswith(
+                expected_head + "\t"
+            )
+        )
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/stable").stdout.startswith(
+                expected_head + "\t"
+            )
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "backup", "refs/heads/integration").stdout,
+            backup_before,
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "archive", "refs/heads/delivery").stdout,
+            archive_before,
+        )
+        state = self.state(repository)
+        self.assertEqual(state["remote"], "github")
+        self.assertEqual(state["defaultBranch"], "main")
+        self.install_hook(backup, "while read old new ref; do :; done\n")
+
+        resumed, _ = self.helper(repository, *arguments)
+
+        self.assertEqual(resumed["status"], "published")
+        self.assertEqual(resumed["head"], expected_head)
+        self.assertEqual(
+            resumed["publishedRemotes"],
+            [
+                {"remote": "github", "branch": "main"},
+                {"remote": "origin", "branch": "stable"},
+                {"remote": "backup", "branch": "integration"},
+                {"remote": "archive", "branch": "delivery"},
+            ],
+        )
+        for remote, branch in (
+            ("origin", "stable"),
+            ("backup", "integration"),
+            ("archive", "delivery"),
+        ):
+            self.assertTrue(
+                self.git(
+                    repository,
+                    "ls-remote",
+                    "--heads",
+                    remote,
+                    f"refs/heads/{branch}",
+                ).stdout.startswith(expected_head + "\t")
+            )
+        self.assertEqual(self.state(repository)["remote"], "github")
+
+    def test_release_excludes_additional_remotes_and_rejects_option(self) -> None:
+        """验证 release 只推送、打标签并清理主远端，且参数层拒绝补充远端。"""
+        repository, github = self.initialize_repository(remote=True)
+        assert github is not None
+        self.git(repository, "remote", "rename", "origin", "github")
+        self.add_bare_remote(repository, "origin", "stable")
+        started, _ = self.helper(
+            repository,
+            "start",
+            "--summary",
+            "release-isolation",
+            "--remote",
+            "github",
+        )
+        feature = str(started["branch"])
+        expected_head = self.commit_file(repository, "release-isolation.txt", "main only\n")
+        self.git(repository, "push", "github", f"refs/heads/{feature}:refs/heads/{feature}")
+        self.git(repository, "push", "origin", f"refs/heads/{feature}:refs/heads/{feature}")
+        additional_default_before = self.git(
+            repository, "ls-remote", "--heads", "origin", "refs/heads/stable"
+        ).stdout
+        tag = "v4.5.6-20260914"
+
+        invalid, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "4.5.6",
+            "--date",
+            "20260914",
+            "--remote",
+            "github",
+            "--also-remote",
+            "origin",
+            success=False,
+        )
+        self.assertEqual(invalid["code"], "invalid-argument")
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--tags", "github", f"refs/tags/{tag}").stdout,
+            "",
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--tags", "origin", f"refs/tags/{tag}").stdout,
+            "",
+        )
+
+        released, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "4.5.6",
+            "--date",
+            "20260914",
+            "--remote",
+            "github",
+        )
+
+        self.assertEqual(released["status"], "released")
+        self.assertEqual(released["remote"], "github")
+        self.assertEqual(released["head"], expected_head)
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout.startswith(
+                expected_head + "\t"
+            )
+        )
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--tags", "github", f"refs/tags/{tag}").stdout.startswith(
+                expected_head + "\t"
+            )
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "github", f"refs/heads/{feature}").stdout,
+            "",
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/stable").stdout,
+            additional_default_before,
+        )
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "origin", f"refs/heads/{feature}").stdout.startswith(
+                expected_head + "\t"
+            )
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--tags", "origin", f"refs/tags/{tag}").stdout,
+            "",
+        )
 
     def test_publish_refuses_to_omit_a_missing_registered_branch(self) -> None:
         """验证登记分支异常缺失时不会把不完整结果推到远端 main。"""

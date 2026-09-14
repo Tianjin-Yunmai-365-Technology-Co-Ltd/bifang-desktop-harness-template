@@ -175,15 +175,30 @@ class ValidatorMutationTests(unittest.TestCase):
         self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
 
     def test_registered_remote_precedes_origin_in_policy(self) -> None:
-        """已登记远端必须优先，不能因 origin 存在而在周期中途改绑。"""
+        """主/发布远端必须保持绑定，补充推送不能把它改成 origin。"""
 
         errors = self.validate_mutation(
             release.validate_harness_source_release_contract,
             "agent_policy",
             release.AGENT_POLICY,
-            "当前发布周期已经登记远端时必须原样沿用",
+            "当前发布周期已经登记该远端时必须原样沿用",
         )
         self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
+
+    def test_publish_additional_remote_contract_is_required(self) -> None:
+        """生命周期 Skill 必须公开显式且不改绑的补充远端参数。"""
+
+        source = release.GIT_LIFECYCLE_SKILL.read_text(encoding="utf-8")
+        fragment = "[--also-remote <name>]..."
+        self.assertIn(fragment, source)
+        directory, path = self.temporary_source(source.replace(fragment, "", 1))
+        try:
+            errors: list[str] = []
+            with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SKILL", path):
+                git_lifecycle.validate_git_lifecycle_contract(errors)
+            self.assertTrue(any("Git lifecycle contract missing" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
 
     def test_release_metadata_commit_requires_notes_and_context_only(self) -> None:
         """第二提交必须同含日志和上下文，且不能混入 Changelog。"""
@@ -391,6 +406,24 @@ class ValidatorMutationTests(unittest.TestCase):
                     self.assertTrue(any("branch gate remains" in error for error in errors), errors)
                 finally:
                     directory.cleanup()
+
+    def test_git_lifecycle_requires_additional_remote_verification(self) -> None:
+        """补充远端 push 后必须逐目标复读，不能只凭退出码声称成功。"""
+
+        source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
+        fragment = "remote_branch_oid(repository, remote, branch)"
+        self.assertIn(fragment, source)
+        directory, path = self.temporary_source(source.replace(fragment, "None", 1), "git_lifecycle.py")
+        try:
+            errors: list[str] = []
+            with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
+                git_lifecycle.validate_git_lifecycle_contract(errors)
+            self.assertTrue(
+                any("additional remote publish sequence" in error for error in errors),
+                errors,
+            )
+        finally:
+            directory.cleanup()
 
     def test_release_git_requires_exact_local_cleanup(self) -> None:
         """发布后精确登记分支必须删除，不能由祖先关系决定是否保留。"""

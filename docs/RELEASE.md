@@ -36,13 +36,17 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 ## Git 发布生命周期与制品目录
 
-项目根忽略的制品目录 `release/` 不是 Git 分支。新功能和独立 Bug 修复在首次写入前由 `$desktop-manage-git-lifecycle start` 自动创建本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；创建动作不要求远端。生命周期状态位于 Git common dir 的 `agent-first-harness/git-lifecycle.json`，只精确登记本次发布以来由 helper 创建或接管的分支、Worktree 和可重试进度，不进入提交。
+项目根忽略的制品目录 `release/` 不是 Git 分支。新功能和独立 Bug 修复在首次写入前由 `$desktop-manage-git-lifecycle start` 自动创建本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；创建动作不要求远端。生命周期状态位于 Git common dir 的 `agent-first-harness/git-lifecycle.json`，只精确登记本次发布以来由 helper 创建或接管的分支、Worktree、唯一主/发布远端和可重试进度，不进入提交；补充远端不写入生命周期状态。
 
-用户明确说“推送”时，helper 使用普通 merge 把登记开发分支合并到动态默认主分支，切换到主分支并推送、复读主分支；这次操作不创建 tag，也不清理分支或 Worktree。用户明确说“发布”时，`$desktop-prepare-release` 先提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 `.harness/release-context.json`，再把且只把这两个文件放入同一个发布元数据提交。随后使用上下文中同一远端调用 `release --version <version> --date YYYYMMDD --remote <remote>`，按以下不可倒置的顺序执行：
+`--remote` 与 `state.remote` 始终表示唯一主/发布远端。用户明确说“推送”时，helper 使用普通 merge 把登记开发分支合并到该远端的动态默认主分支，切换到主分支并推送、复读。只有用户对本次推送逐一明确授权其他已配置远端时，`publish` 才可重复接收 `--also-remote <name>`：首个 push 前解析全部目标及各自 advertised default branch，冻结合并后的同一最终 HEAD，先推送并复读主远端，再按参数顺序非强制推送并逐个复读补充目标。补充目标不 fetch、不 merge、不持久、不改绑，也不参与 release、tag 或清理。这次操作不创建 tag，也不清理分支或 Worktree。
 
-1. 普通合并全部登记开发分支，切换到动态默认主分支，推送并复读主分支。
-2. 在当前主分支 HEAD 创建轻量 tag `v{version}-{YYYYMMDD}`，日期取 `Asia/Shanghai` 自然日；推送 tag 并复读远端目标。
-3. 只有远端 tag 精确指向当前主分支 HEAD，才先删除状态登记的 Worktree，再删除对应远端分支，最后删除对应本地分支；每项成功后立即保存进度，全部完成后清空本周期状态，并保持当前分支为主分支。
+跨远端推送不是原子操作；后续目标失败时必须如实说明可能已经成功的前序范围、当前失败目标或阶段，以及后续目标可能尚未尝试，不能回滚或掩盖已经成功的远端。使用完全相同的 `--remote` 与 `--also-remote <name>` 顺序进行同一参数幂等重试时，已指向同一最终 HEAD 的目标保持不变并复读确认，再继续未成功目标。流程不创建/配置远端或凭据。
+
+用户明确说“发布”时，`$desktop-prepare-release` 先提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`；在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 `.harness/release-context.json`，再把且只把这两个文件放入同一个发布元数据提交。随后使用上下文中的唯一主/发布远端调用 `release --version <version> --date YYYYMMDD --remote <remote>`；`release` 不接受 `--also-remote <name>`，补充远端不参与 release、tag 或清理。流程按以下不可倒置的顺序执行：
+
+1. 普通合并全部登记开发分支，切换到主远端的动态默认主分支，推送并复读主分支。
+2. 在当前主分支 HEAD 创建轻量 tag `v{version}-{YYYYMMDD}`，日期取 `Asia/Shanghai` 自然日；推送 tag 并复读主远端目标。
+3. 只有主远端 tag 精确指向当前主分支 HEAD，才先删除状态登记的 Worktree，再删除对应主远端分支，最后删除对应本地分支；每项成功后立即保存进度，全部完成后清空本周期状态，并保持当前分支为主分支。
 
 同名 tag 的本地和远端目标都等于当前 HEAD 时按幂等成功继续；任何目标不同、tag 推送失败或复读不一致都停止且零清理。清理只接受状态精确登记的资源，禁止按前缀或通配符扫描，禁止强制删除 dirty Worktree，也不得删除主分支或未登记资源。部分清理中断后只继续未完成项。流程允许普通 merge commit，不设置保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease、atomic push、审查路径白名单或其他分支门禁，也不存在任何发布中转分支及其识别、迁移、兼容或清理逻辑。
 

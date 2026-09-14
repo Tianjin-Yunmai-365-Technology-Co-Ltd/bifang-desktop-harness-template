@@ -1,12 +1,12 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-09-12
+> 记忆日期：2026-09-14
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-12（开发环境门禁提升到当前主流稳定基线并使用标准当前用户安装位置；Harness 正式发布明确止于可复核的 Git 源码发布）
+> 最近范围确认：2026-09-14（受管 `publish` 支持用户逐一授权的补充远端，同时保持唯一主/发布远端和正式发布边界）
 
 ## 一句话目标
 
@@ -18,7 +18,7 @@
 - 主要场景：Agent 直接完成当前批准范围，并只运行本次开发所需的相关单元/回归测试；除必要 ADR、Changelog 等事件触发记录外，不自动增加持久计划、全仓检查、构建、冒烟、E2E、验收或人工复核步骤。
 - 失败闭环：开发单元测试失败时在当前授权范围内修复并重跑；发现产品边界、安全、破坏性操作、生产/付费/凭据副作用或发布授权缺失时，只增加解决该风险必需的确认或记录，不把它扩张成通用流程仪式。
 - 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。
-- Git 场景：新功能和独立 Bug 修复首次写入前自动建立本地 `feature-{ascii-kebab摘要}-{上海日期}`；用户明确“推送”时普通合并本周期登记分支、切换动态默认主分支并推送，明确“发布”时在主分支推送成功后创建并推送 `v{版本}-{YYYYMMDD}`，远端 tag 复读成功后才依次删除登记 Worktree、远端分支和本地分支。流程没有保护分支、严格线性、单写入者或其他分支门禁。
+- Git 场景：新功能和独立 Bug 修复首次写入前自动建立本地 `feature-{ascii-kebab摘要}-{上海日期}`。`--remote`/`state.remote` 始终表示唯一主/发布远端；用户明确“推送”时普通合并本周期登记分支、切换主远端的动态默认主分支并推送，逐一明确授权其他具名远端时，只有 `publish` 可重复接收 `--also-remote <name>`，把同一最终 HEAD 非强制推向各自 advertised default branch 并逐个复读。补充远端不写入生命周期状态，不 fetch/merge、不改绑，也不参与 release、tag 或清理；跨远端推送不是原子操作，后续失败如实报告部分成功并允许同一参数幂等重试。明确“发布”时仍只在主远端创建并推送 `v{版本}-{YYYYMMDD}`，主远端 tag 复读成功后才依次删除登记 Worktree、主远端分支和本地分支。流程不创建/配置远端或凭据，也没有保护分支、严格线性、单写入者或其他分支门禁。
 - Task 命名场景：只有左侧 user-owned Task 使用 `Task {序号} | {当前进度} | {单一结果}`；单一结果与序号固定，进度只取 `已分配`、`运行中`、`检查中`、`已完成`。同一 `hostId`/`projectId` 清点当前和逐页归档 Task 后取最大有效序号加一，空历史才使用 1、缺号不回填；不识别任何历史标题格式。内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不使用标题合同、不占用 Task 序号。
 - Task 场景：`user_owned_tasks` 默认 `disabled`，不自动创建或拆分左侧 Task，但用户明确要求仍可创建；`enabled` 是按结果边界自动创建的长期授权。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和独立工作区；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化必须新建 Task，同结果测试/review/checkpoint 与必要缺陷修复保留。每项目同时只允许一个写入型 active Task，Task0 仅协调。创建前依次核对项目、Task 历史和 active 写入者；Git 选择 Worktree，非 Git 选择 Local，以 `Task {序号} | 已分配 | {单一结果}` 调用一次 user-owned `create_thread`。只有真实 `threadId` 才继续，并复核标题、`projectId`、cwd、状态、干净工作区及起始提交；`clientThreadId` 或任一不符均零实现、不重复创建、不退化。
 - 决策场景：创建新下游时首轮必须一次列出全部尚未解析的基础字段，只包括双语名称、标识、路径、负责人、平台、接口和策略模式。推荐预设物化五项策略并将 `user_owned_tasks` 默认关闭；选择自定义时每轮确认一个策略字段，可自行开启。初始化后可用“开启/关闭左侧 Task”或“开启/关闭自动 Task 拆分”手动切换，只影响后续结果边界。
@@ -39,9 +39,10 @@
 - 变更标识：`HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT`；所需 Harness 版本：`202608281139`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
 - 完整表单确认后、首次脚手架写入前，环境门禁检查 Git：最低稳定版为 `2.36.0`，以覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`；缺失时安装，可证明低于最低下界时按宿主受管路线升级，范围内稳定版原样复用。Git 仅在平台原生受信包管理器明确要求时进入系统级/管理员边界，权限需求必须显式可见且不得静默提权，无既有权限路线则停止。最终独立仓库建立后，已有有效身份保持不变；缺失字段只在该仓库 local 作用域补齐，名称来自设备账户名的英文翻译/转写，邮箱为 `<ascii-device-username>@gmail.com`。完成输出返回版本、安装/升级变化、身份、来源、作用域、仓库根、模板状态和基线提交。
 - Git 生命周期变更标识：`HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE`；所需 Harness 版本：`202609101621`，已由本次 Harness 时间版本发布物化。本条取代既有分支链、保护主分支、严格线性、原子 ref 事务和中转分支兼容决定。
+- 多远端推送变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = pending`。本条只扩展用户明确授权的 `publish`，不改变唯一主/发布远端、正式发布或资源清理语义。
 - 初始化仍只创建无远端的本地主分支基线。远端由用户或外部系统另行配置，但新功能和独立 Bug 修复的本地开发分支创建不依赖远端。`$desktop-manage-git-lifecycle start` 自动建立并切换 `feature-{ascii-kebab-summary}-{YYYYMMDD}`，日期取 `Asia/Shanghai`，碰撞时追加稳定递增后缀，同一工作幂等复用。
-- Git common dir 的 `agent-first-harness/git-lifecycle.json` 精确登记本发布周期由 helper 创建或接管的开发/Task/单元分支与 Worktree，以及主分支、tag 和逐项清理进度；同一 common-dir 的生命周期写入短时互斥，避免并行 Task 后写覆盖先写。状态不进入提交，不保存分支链、父子 OID、冻结远端或活动叶子。并行写入只要求文件所有权不重叠，允许普通 merge commit，没有保护分支、单写入者、线性、fast-forward-only、lease、atomic push 或审查路径等分支门禁。
-- 用户明确“推送”时，helper 普通合并登记分支，切换动态默认主分支并推送复读，保留登记资源且不创建 tag。明确“发布”时，先执行相同的主分支合并/切换/推送，再在当前 HEAD 创建并推送 `v{版本}-{YYYYMMDD}`；只有远端 tag 复读精确成功，才按 Worktree、远端分支、本地分支顺序删除本周期登记资源。tag 冲突或失败零清理，部分清理逐项记录并可幂等续作，dirty Worktree 和未登记资源不得强制删除。流程没有发布中转分支，也没有任何旧中转分支识别、迁移、兼容或清理代码。
+- Git common dir 的 `agent-first-harness/git-lifecycle.json` 精确登记本发布周期由 helper 创建或接管的开发/Task/单元分支与 Worktree、唯一主/发布远端，以及主分支、tag 和逐项清理进度；同一 common-dir 的生命周期写入短时互斥，避免并行 Task 后写覆盖先写。状态不进入提交，不保存分支链、父子 OID、冻结远端或活动叶子；补充远端不写入生命周期状态。并行写入只要求文件所有权不重叠，允许普通 merge commit，没有保护分支、单写入者、线性、fast-forward-only、lease、atomic push 或审查路径等分支门禁。
+- 用户明确“推送”时，helper 普通合并登记分支，切换主远端的动态默认主分支并推送复读，保留登记资源且不创建 tag。用户逐一授权补充远端时，可重复使用 `--also-remote <name>`；全部远端与 advertised default branch 必须在首个 push 前解析，补充目标只接收同一最终 HEAD，不持久、不改绑、不参与 fetch/merge。跨远端推送不是原子操作，后续失败必须如实说明可能已成功的前序范围、失败目标或阶段及后续可能未尝试，并可用完全相同参数幂等重试。明确“发布”时，只对主远端执行主分支合并/切换/推送，再在当前 HEAD 创建并推送 `v{版本}-{YYYYMMDD}`；只有主远端 tag 复读精确成功，才按 Worktree、主远端分支、本地分支顺序删除本周期登记资源。补充远端不参与 release、tag 或清理。tag 冲突或失败零清理，部分清理逐项记录并可幂等续作，dirty Worktree 和未登记资源不得强制删除。流程不创建/配置远端或凭据，也没有发布中转分支或旧中转分支兼容代码。
 
 ### GUI 官方插件 Skills、三项 Rust-only 固定基线与九字段选择
 
@@ -333,7 +334,7 @@
 
 - [x] 当前模板源只接受 Harness 工程维护和终端下游初始化所需信息；产品目的、业务规则、专属 UI/文案/数据、远程地址、凭据、产品构建与发布需求在任何写入前被拒绝，混合请求只保留合法初始化字段。
 - [x] 完整初始化汇总确认后、首次写入前检查并按需安装 Git；最终独立仓库只在 local 作用域保留或补齐身份与提交模板，完成报告公开版本、安装变化、身份来源和基线提交。
-- [x] 新功能和独立 Bug 修复自动创建本地开发分支且不要求远端；用户说“推送”时普通合并登记分支、切换并推送动态默认主分支且保留资源；说“发布”时先完成主分支推送，再创建并推送 `v{版本}-{YYYYMMDD}`，tag 复读成功后才按 Worktree、远端分支、本地分支顺序精确清理两次发布间登记资源。不存在保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease、atomic push 或发布中转分支逻辑。
+- [x] 新功能和独立 Bug 修复自动创建本地开发分支且不要求远端；`--remote`/`state.remote` 保持唯一主/发布远端。用户说“推送”时普通合并登记分支、切换并推送主远端且保留资源；逐一明确授权补充目标时，只有 `publish` 可重复使用 `--also-remote <name>`，在首个 push 前解析全部目标，并把同一最终 HEAD 推向各自 advertised default branch 后逐个复读。补充远端不写入生命周期状态，不参与 release、tag 或清理；跨远端部分成功如实报告且允许同一参数幂等重试。说“发布”时只在主远端完成主分支和 `v{版本}-{YYYYMMDD}` 推送，tag 复读成功后才按 Worktree、主远端分支、本地分支顺序精确清理两次发布间登记资源。流程不创建/配置远端或凭据，也不存在保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease、atomic push 或发布中转分支逻辑。
 - [x] 三个 Logo 原始候选在选择前固定按 `candidate-1`、`candidate-2`、`candidate-3` 预览且不验证或标准化；选择后只处理所选项，可见变化重新确认，未选项不补做验证或摘要。
 
 - 下游版本 helper 的回归必须证明首功能/周期只升一次 Minor 并锁到真实发布成功、Minor 归零 Patch、不同 `bug-fix` 稳定 ID（问题修复或用户可感知优化）各升一次 Patch 且不受功能锁影响、相同 ID 跨发布仍不重复且历史 `bug-fix` ID 不能改作其他提升分类、回归新 ID 可提升、显式 Major 需用户批准、维护不变、`0.0.99 -> 0.1.0` 与 `0.99.99 -> 1.0.0` 自动进位、Major 支持超过 100 但不得超过 Cargo `u64::MAX`、最高位自动进位越界零写入、Minor/Patch 固定 `0..99` 且历史 `100` 在 Cargo/目标版本/发布日志中一旦出现即失败关闭（无可读取例外），以及构建只读和正式发布后才重置；初始化、开发、构建、候选收集、验收、发布准备及 Harness 升级保护均由 validator 锁定。
@@ -397,6 +398,7 @@
 ## 当前版本与未来候选
 
 - 当前版本：`202609122231`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并推送 `v{版本}-{YYYYMMDD}`；源码归档、签名与渠道上传仍须各自真实发生。
+- 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = pending`。受管 `publish` 已支持用户显式授权的补充远端，主/发布远端与正式发布、tag、清理边界保持唯一。
 - 变更标识：`HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY`；所需 Harness 版本：`202609111732`，已由本次 Harness 时间版本发布物化。删除 `Version.md` 中的 `1.0.0` 标识并新增反向门禁、Task 序号不再识别历史四字段标题、下游 SemVer 的 Minor/Patch 严格固定 `0..99` 不兼容历史 `100`、Agent Policy 升级 `schema_version: 3` 并把 `milestone_smoke`/`milestone_e2e` 改名为 `acceptance_smoke`/`e2e_hint`。
 - 维护状态：Active。
 - 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对九项初始化组合、三项 Rust-only 固定基线与 dialog 固定 WebView 基线（含 dialog 原生 message/save/open、精确主窗口 capability、零 filesystem 权限、托盘禁用关闭退出、通知授权/投递、自启登录项恢复、单实例/深链接组合、全局快捷键冲突与注销、window-state 安全恢复、页面缺席与详细侧栏持久折叠）、签名更新安装、强更离线恢复、产品级统计同意/撤回、Vite/AST 门禁和最终 dist 扫描的前向构建证据。

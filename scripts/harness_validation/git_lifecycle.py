@@ -125,7 +125,7 @@ def _validate_no_retired_runtime(errors: list[str]) -> None:
 
 
 def validate_git_lifecycle_contract(errors: list[str]) -> None:
-    """Validate local start, main publish, tag-first release, and exact cleanup."""
+    """Validate local start, managed multi-remote publish, tag-first release, and cleanup."""
 
     if OLD_SKILL_ROOT.exists() or OLD_SKILL_ROOT.is_symlink():
         fail(errors, f"retired Git lifecycle skill still exists: {display_path(OLD_SKILL_ROOT)}")
@@ -136,16 +136,20 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "start --project-root",
             "track-worktree --project-root",
             "publish --project-root",
+            "[--also-remote <name>]...",
             "release --project-root",
             "feature-<summary>-<Asia/Shanghai YYYYMMDD>",
             "创建本地分支不要求配置远端",
             "即使命令从关联 Task Worktree 发起",
             "无论从主 Worktree 还是关联 Task Worktree 发起",
             "普通 `git merge --no-edit`",
+            "补充远端不写入生命周期状态",
+            "不参与 release、tag 或清理",
+            "跨远端推送不是原子操作",
             "不创建标签，也不清理任何资源",
             "`v{version}-{YYYYMMDD}`",
             "远端标签成功确认之前不会开始清理",
-            "Worktree、精确登记的远端分支、精确登记的本地分支",
+            "Worktree、精确登记的主远端分支、精确登记的本地分支",
             "不扫描名称前缀",
             "Git common-dir",
             "不会写入项目受跟踪目录",
@@ -174,7 +178,16 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             '["push", remote, f":refs/heads/{branch}"]',
             '["branch", "-D", "--", branch]',
             'commands.add_parser("track-worktree"',
-            "return publish(primary_repository(repository), arguments.remote)",
+            "def resolve_additional_remote_targets",
+            "def primary_publication_error",
+            "def additional_publication_error",
+            "def publish_primary_remote",
+            "def push_additional_remotes",
+            'publish_parser.add_argument("--also-remote"',
+            '"publishedRemotes"',
+            '"primary-state-write-failed"',
+            '"additional-local-state-changed"',
+            "arguments.also_remote",
             "repository = primary_repository(repository)",
         ),
         GIT_LIFECYCLE_TESTS: (
@@ -185,6 +198,16 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "test_publish_merges_switches_and_pushes_without_tag_or_cleanup",
             "test_publish_merges_current_remote_default_before_development_branches",
             "test_publish_refuses_to_omit_a_missing_registered_branch",
+            "test_publish_pushes_same_head_to_additional_remote_without_rebinding",
+            "test_publish_rejects_invalid_additional_remote_sets_before_pushing",
+            "test_publish_primary_failure_context_keeps_additional_targets_unattempted",
+            "test_primary_confirmed_push_contextualizes_local_verification_failure",
+            "test_primary_confirmed_push_contextualizes_state_save_failure",
+            "test_primary_uncertain_failures_contextualize_unattempted_targets",
+            "test_additional_confirmed_push_contextualizes_local_verification_failure",
+            "test_additional_uncertain_failures_contextualize_partial_progress",
+            "test_publish_additional_remote_rejection_preserves_primary_and_retry_succeeds",
+            "test_release_excludes_additional_remotes_and_rejects_option",
             "test_release_tag_rejection_leaves_resources_and_remote_drift_blocks_cleanup",
             "test_release_tag_conflict_leaves_cycle_resources",
             "test_release_preserves_dirty_worktree_and_resumes_after_it_is_clean",
@@ -229,6 +252,8 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
     if GIT_LIFECYCLE_SCRIPT.is_file():
         source = GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
         publish_source = _function_source(source, "publish")
+        primary_push_source = _function_source(source, "publish_primary_remote")
+        additional_push_source = _function_source(source, "push_additional_remotes")
         release_source = _function_source(source, "command_release")
         new_release_source = release_source[release_source.find("published = publish(repository, arguments.remote)") :]
         completion_source = _function_source(source, "complete_pending_release")
@@ -238,17 +263,57 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             GIT_LIFECYCLE_SCRIPT,
             publish_source,
             (
+                "resolve_additional_remote_targets(",
                 '["fetch", remote, f"refs/heads/{default_branch}:refs/remotes/{remote}/{default_branch}"]',
                 "switch_to_default(repository, remote, default_branch)",
                 '["merge", "--no-edit", remote_tracking]',
                 '["merge", "--no-edit", f"refs/heads/{branch}"]',
-                '["push", remote, f"refs/heads/{default_branch}:refs/heads/{default_branch}"]',
-                "remote_branch_oid(repository, remote, default_branch)",
+                "publish_primary_remote(",
+                "push_additional_remotes(",
             ),
             label="main publish sequence",
         )
-        if any(token in publish_source for token in ("ensure_release_tag", "cleanup_worktrees", "cleanup_remote_branches", "cleanup_local_branches")):
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
+            primary_push_source,
+            (
+                '["push", remote, f"refs/heads/{default_branch}:refs/heads/{default_branch}"]',
+                "remote_branch_oid(repository, remote, default_branch)",
+                "verify_local_position(repository, default_branch, head)",
+                "save_state(repository, state)",
+            ),
+            label="primary remote publish sequence",
+        )
+        if any(
+            token in publish_source + primary_push_source
+            for token in ("ensure_release_tag", "cleanup_worktrees", "cleanup_remote_branches", "cleanup_local_branches")
+        ):
             fail(errors, "publish must not tag or clean release-cycle resources")
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
+            additional_push_source,
+            (
+                '["push", remote, f"{head}:refs/heads/{branch}"]',
+                "remote_branch_oid(repository, remote, branch)",
+                "verify_local_position(repository, default_branch, head)",
+            ),
+            label="additional remote publish sequence",
+        )
+        if any(
+            token in additional_push_source
+            for token in (
+                "save_state(",
+                "ensure_release_tag",
+                "cleanup_worktrees",
+                "cleanup_remote_branches",
+                "cleanup_local_branches",
+            )
+        ):
+            fail(errors, "additional remotes must not alter lifecycle state, tags, or cleanup")
+        if "arguments.also_remote" in release_source:
+            fail(errors, "release must not publish to additional remotes")
         _require_order(
             errors,
             GIT_LIFECYCLE_SCRIPT,

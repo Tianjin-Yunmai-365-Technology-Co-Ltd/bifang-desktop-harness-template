@@ -457,6 +457,30 @@ def remote_default_branch(repository: Repository, remote: str) -> str:
     raise LifecycleError("remote-default-unavailable", "Git remote does not advertise a default branch.")
 
 
+def resolve_additional_remote_targets(
+    repository: Repository,
+    primary_remote: str,
+    additional_remotes: Sequence[str],
+) -> list[dict[str, str]]:
+    """校验显式补充远端并预读各自默认分支，且不改变本地或生命周期状态。"""
+    configured = set(configured_remotes(repository))
+    seen = {primary_remote}
+    targets: list[dict[str, str]] = []
+    for remote in additional_remotes:
+        if not valid_remote(remote):
+            raise LifecycleError("invalid-argument", "Additional Git remote name is invalid.")
+        if remote in seen:
+            raise LifecycleError(
+                "invalid-argument",
+                "Additional Git remotes must be distinct from the primary remote and each other.",
+            )
+        if remote not in configured:
+            raise LifecycleError("remote-not-found", "Additional Git remote is not configured.")
+        seen.add(remote)
+        targets.append({"remote": remote, "branch": remote_default_branch(repository, remote)})
+    return targets
+
+
 def remote_branch_oid(repository: Repository, remote: str, branch: str) -> str | None:
     """精确复读一个远端分支 OID；不存在返回空值，读取失败则停止。"""
     result = run_git(
@@ -856,13 +880,234 @@ def switch_to_default(repository: Repository, remote: str, default_branch: str) 
     )
 
 
-def publish(repository: Repository, explicit_remote: str | None) -> dict[str, Any]:
-    """先同步远端默认分支，再按登记顺序普通合并、非强制推送并复读。"""
+def describe_publication_targets(targets: Sequence[dict[str, str]]) -> str:
+    """以不含地址或凭据的远端名和分支名描述一组已授权发布目标。"""
+    if not targets:
+        return "none"
+    return ", ".join(
+        f"remote '{target['remote']}' branch '{target['branch']}'" for target in targets
+    )
+
+
+def primary_publication_error(
+    code: str,
+    remote: str,
+    branch: str,
+    detail: str,
+    outcome: str,
+    additional_targets: Sequence[dict[str, str]],
+) -> LifecycleError:
+    """构造主目标 push 后的部分结果错误，明确所有补充目标均尚未尝试。"""
+    targets = describe_publication_targets(additional_targets)
+    return LifecycleError(
+        code,
+        f"Primary Git remote '{remote}' branch '{branch}' {detail}; current target {outcome}, "
+        f"all additional targets were not attempted (targets: {targets}), and the same arguments "
+        "can be retried.",
+    )
+
+
+def additional_publication_error(
+    code: str,
+    target: dict[str, str],
+    detail: str,
+    outcome: str,
+    published: Sequence[dict[str, str]],
+    remaining: Sequence[dict[str, str]],
+) -> LifecycleError:
+    """构造补充目标部分结果错误，点名前序成功范围、当前结果与未尝试目标。"""
+    earlier = describe_publication_targets(published)
+    subsequent = describe_publication_targets(remaining)
+    return LifecycleError(
+        code,
+        f"Additional Git remote '{target['remote']}' branch '{target['branch']}' {detail}; the "
+        "primary target and earlier additional targets are confirmed published "
+        f"(earlier additional targets: {earlier}), current target {outcome}, subsequent additional "
+        f"targets were not attempted (targets: {subsequent}), and the same arguments can be retried.",
+    )
+
+
+def push_additional_remotes(
+    repository: Repository,
+    targets: Sequence[dict[str, str]],
+    default_branch: str,
+    head: str,
+) -> list[dict[str, str]]:
+    """按调用顺序把同一已确定 HEAD 非强制推送到补充远端并逐个复读。"""
+    published: list[dict[str, str]] = []
+    for index, target in enumerate(targets):
+        remote = target["remote"]
+        branch = target["branch"]
+        remaining = targets[index + 1 :]
+        transport_error = additional_publication_error(
+            "additional-push-failed",
+            target,
+            "push transport could not be confirmed",
+            "outcome is uncertain",
+            published,
+            remaining,
+        )
+        pushed = run_git(
+            repository.root,
+            ["push", remote, f"{head}:refs/heads/{branch}"],
+            check=False,
+            code=transport_error.code,
+            message=transport_error.message,
+        )
+        if pushed.returncode != 0:
+            raise additional_publication_error(
+                "additional-push-rejected",
+                target,
+                "rejected the push",
+                "result is rejected",
+                published,
+                remaining,
+            )
+        try:
+            remote_head = remote_branch_oid(repository, remote, branch)
+        except LifecycleError as exc:
+            raise additional_publication_error(
+                "additional-verification-failed",
+                target,
+                "could not be reread after its push",
+                "outcome is uncertain",
+                published,
+                remaining,
+            ) from exc
+        if remote_head != head:
+            raise additional_publication_error(
+                "additional-verification-failed",
+                target,
+                "did not reread the expected published HEAD",
+                "outcome is uncertain",
+                published,
+                remaining,
+            )
+        try:
+            verify_local_position(repository, default_branch, head)
+        except LifecycleError as exc:
+            raise additional_publication_error(
+                "additional-local-state-changed",
+                target,
+                "was confirmed published but local Git state verification failed",
+                "is confirmed published",
+                published,
+                remaining,
+            ) from exc
+        published.append({"remote": remote, "branch": branch})
+    return published
+
+
+def publish_primary_remote(
+    repository: Repository,
+    state: dict[str, Any],
+    remote: str,
+    default_branch: str,
+    head: str,
+    additional_targets: Sequence[dict[str, str]],
+) -> None:
+    """推送、复读并保存主目标；存在补充目标时把 push 后失败转为部分结果语义。"""
+    push_code = "git-error"
+    push_message = "Git operation failed."
+    if additional_targets:
+        transport_error = primary_publication_error(
+            "primary-push-failed",
+            remote,
+            default_branch,
+            "push transport could not be confirmed",
+            "outcome is uncertain",
+            additional_targets,
+        )
+        push_code = transport_error.code
+        push_message = transport_error.message
+    push = run_git(
+        repository.root,
+        ["push", remote, f"refs/heads/{default_branch}:refs/heads/{default_branch}"],
+        check=False,
+        code=push_code,
+        message=push_message,
+    )
+    if push.returncode != 0:
+        if additional_targets:
+            raise primary_publication_error(
+                "primary-push-rejected",
+                remote,
+                default_branch,
+                "rejected the push",
+                "result is rejected",
+                additional_targets,
+            )
+        raise LifecycleError("push-rejected", "Git remote rejected the default branch push.")
+    try:
+        primary_remote_head = remote_branch_oid(repository, remote, default_branch)
+    except LifecycleError as exc:
+        if additional_targets:
+            raise primary_publication_error(
+                "primary-verification-failed",
+                remote,
+                default_branch,
+                "could not be reread after its push",
+                "outcome is uncertain",
+                additional_targets,
+            ) from exc
+        raise
+    if primary_remote_head != head:
+        if additional_targets:
+            raise primary_publication_error(
+                "primary-verification-failed",
+                remote,
+                default_branch,
+                "did not reread the expected published HEAD",
+                "outcome is uncertain",
+                additional_targets,
+            )
+        raise LifecycleError("remote-verification-failed", "Git remote default branch did not match local HEAD.")
+    try:
+        verify_local_position(repository, default_branch, head)
+    except LifecycleError as exc:
+        if additional_targets:
+            raise primary_publication_error(
+                "primary-local-state-changed",
+                remote,
+                default_branch,
+                "was confirmed published but local Git state verification failed",
+                "is confirmed published",
+                additional_targets,
+            ) from exc
+        raise
+    state["remote"] = remote
+    state["defaultBranch"] = default_branch
+    try:
+        save_state(repository, state)
+    except LifecycleError as exc:
+        if additional_targets:
+            raise primary_publication_error(
+                "primary-state-write-failed",
+                remote,
+                default_branch,
+                "was confirmed published but lifecycle state could not be saved",
+                "is confirmed published",
+                additional_targets,
+            ) from exc
+        raise
+
+
+def publish(
+    repository: Repository,
+    explicit_remote: str | None,
+    additional_remotes: Sequence[str] = (),
+) -> dict[str, Any]:
+    """只同步主远端并合并登记分支，再把同一 HEAD 非强制推送到全部目标。"""
     require_clean(repository)
     state = load_state(repository)
     remote = select_remote(repository, state, explicit_remote, required=True)
     assert remote is not None
     default_branch = remote_default_branch(repository, remote)
+    additional_targets = resolve_additional_remote_targets(
+        repository,
+        remote,
+        additional_remotes,
+    )
     preflight_cycle_resources(repository, state)
     run_git(
         repository.root,
@@ -900,19 +1145,24 @@ def publish(repository: Repository, explicit_remote: str | None) -> dict[str, An
                 merged.append(branch)
     require_clean(repository)
     head = current_head(repository)
-    push = run_git(
-        repository.root,
-        ["push", remote, f"refs/heads/{default_branch}:refs/heads/{default_branch}"],
-        check=False,
+    primary_target = {"remote": remote, "branch": default_branch}
+    publish_primary_remote(
+        repository,
+        state,
+        remote,
+        default_branch,
+        head,
+        additional_targets,
     )
-    if push.returncode != 0:
-        raise LifecycleError("push-rejected", "Git remote rejected the default branch push.")
-    if remote_branch_oid(repository, remote, default_branch) != head:
-        raise LifecycleError("remote-verification-failed", "Git remote default branch did not match local HEAD.")
-    verify_local_position(repository, default_branch, head)
-    state["remote"] = remote
-    state["defaultBranch"] = default_branch
-    save_state(repository, state)
+    published_remotes = [primary_target]
+    published_remotes.extend(
+        push_additional_remotes(
+            repository,
+            additional_targets,
+            default_branch,
+            head,
+        )
+    )
     return {
         "status": "published",
         "branch": default_branch,
@@ -921,6 +1171,7 @@ def publish(repository: Repository, explicit_remote: str | None) -> dict[str, An
         "worktree": str(repository.root),
         "merged": merged,
         "alreadyMerged": already_merged,
+        "publishedRemotes": published_remotes,
         "tagged": False,
         "cleaned": False,
     }
@@ -928,7 +1179,7 @@ def publish(repository: Repository, explicit_remote: str | None) -> dict[str, An
 
 def command_publish(repository: Repository, arguments: argparse.Namespace) -> dict[str, Any]:
     """公开 publish 命令并保持其不创建标签、不执行清理的边界。"""
-    return publish(primary_repository(repository), arguments.remote)
+    return publish(primary_repository(repository), arguments.remote, arguments.also_remote)
 
 
 def release_identity(repository: Repository, version: str, date: str | None) -> dict[str, str]:
@@ -1219,6 +1470,7 @@ def build_parser() -> JsonArgumentParser:
     publish_parser = commands.add_parser("publish")
     publish_parser.add_argument("--project-root", required=True)
     publish_parser.add_argument("--remote")
+    publish_parser.add_argument("--also-remote", action="append", default=[])
     publish_parser.set_defaults(operation=command_publish)
     release_parser = commands.add_parser("release")
     release_parser.add_argument("--project-root", required=True)
