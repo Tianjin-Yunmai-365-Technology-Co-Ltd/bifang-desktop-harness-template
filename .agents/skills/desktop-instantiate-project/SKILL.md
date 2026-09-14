@@ -26,7 +26,7 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 初始化收尾还必须由 `$desktop-manage-version init --project-root .` 创建并核对受保护的 `.harness/version-state.json`，并在裁剪中完整保留该版本 Skill、标准库 helper 和测试；不得把 Harness 时间版本写入下游状态。
 
-初始化只复制并完整保留 `$desktop-manage-git-lifecycle` 的 `SKILL.md`、`agents/openai.yaml`、`scripts/git_lifecycle.py` 和 `scripts/test_git_lifecycle.py`，不运行 `start`、`publish` 或 `release`。Git common-dir 生命周期清单只能在初始化完成后的首次真实开发中由该 Skill 创建；`.harness/release-context.json` 只能在未来一次真实发布准备中创建，中性初始化不得预创建二者。
+初始化只复制并完整保留 `$desktop-manage-git-lifecycle` 的 `SKILL.md`、`agents/openai.yaml`、`scripts/git_lifecycle.py`、`scripts/git_publication_report.py`、`scripts/git_lifecycle_test_support.py`、`scripts/git_publication_test_cases.py` 和 `scripts/test_git_lifecycle.py`，不运行 `start`、`publish` 或 `release`。Git common-dir 生命周期清单只能在初始化完成后的首次真实开发中由该 Skill 创建；`.harness/release-context.json` 只能在未来一次真实发布准备中创建，中性初始化不得预创建二者。
 
 ## 重置不变量
 

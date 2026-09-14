@@ -41,9 +41,12 @@ from scripts.harness_validation.governance_policy import (
 from scripts.harness_validation.context import (
     EXPECTED_SKILLS,
     GIT_LIFECYCLE_METADATA,
+    GIT_LIFECYCLE_TEST_SUPPORT,
     GIT_LIFECYCLE_SCRIPT,
     GIT_LIFECYCLE_SKILL,
     GIT_LIFECYCLE_TESTS,
+    GIT_PUBLICATION_TEST_CASES,
+    GIT_PUBLICATION_REPORT,
     GUI_DIALOG_SKILL,
     GUI_GLOBAL_SHORTCUT_BINDING_CONTRACT,
     GUI_GLOBAL_SHORTCUT_CONTRACT_FIXTURE,
@@ -200,6 +203,9 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             GIT_LIFECYCLE_SKILL,
             GIT_LIFECYCLE_METADATA,
             GIT_LIFECYCLE_SCRIPT,
+            GIT_PUBLICATION_REPORT,
+            GIT_LIFECYCLE_TEST_SUPPORT,
+            GIT_PUBLICATION_TEST_CASES,
             GIT_LIFECYCLE_TESTS,
         )
 
@@ -1012,6 +1018,39 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
                 "202609101621",
             )
         self.assertEqual(errors, [])
+
+    def test_multi_remote_change_materialization_rejects_pending_in_declared_records(self) -> None:
+        """多远端变更必须在其真实两份权威记录中保持当前已物化版本。"""
+        change_id = "HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH"
+        required_version, relative_paths = governance_version.MATERIALIZED_CHANGE_RECORDS[change_id]
+        self.assertEqual(required_version, "202609141917")
+        self.assertEqual(
+            relative_paths,
+            (
+                "docs/changelog/20260914_CHANGELOG.md",
+                "docs/product_spec/20260914_product_spec.md",
+            ),
+        )
+        assert relative_paths is not None
+        for relative_path in relative_paths:
+            source = read_repo_text(relative_path)
+            mutated = "\n".join(
+                line.replace(required_version, "pending")
+                if change_id in line
+                else line
+                for line in source.splitlines()
+            )
+            with self.subTest(relative_path=relative_path), tempfile.TemporaryDirectory() as tmp_dir:
+                path = Path(tmp_dir) / Path(relative_path).name
+                path.write_text(mutated, encoding="utf-8")
+                errors: list[str] = []
+                governance_version._validate_materialized_change(
+                    errors,
+                    path,
+                    change_id,
+                    required_version,
+                )
+            self.assertTrue(any("stale required version" in error for error in errors), errors)
 
     def test_rejects_unreleased_status_in_version_source(self) -> None:
         """活契约要求 Released 时，Version.md 再写 Unreleased 必须被已发货检查器拒绝。"""

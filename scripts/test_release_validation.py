@@ -432,8 +432,12 @@ class ValidatorMutationTests(unittest.TestCase):
         source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
         for fragment, replacement in (
             (
-                'if default_branch is None and state["cycle"] is None and state["lastRelease"] is None:',
-                'if False:',
+                'if default_branch is None:\n'
+                '            default_branch = context["defaultBranch"]\n'
+                '            state["defaultBranch"] = default_branch',
+                'if False:\n'
+                '            default_branch = context["defaultBranch"]\n'
+                '            state["defaultBranch"] = default_branch',
             ),
             (
                 "relocate_cli_cwd_before_release_cleanup(repository, state, arguments)",
@@ -453,6 +457,108 @@ class ValidatorMutationTests(unittest.TestCase):
                     self.assertTrue(errors, fragment)
                 finally:
                     directory.cleanup()
+
+    def test_git_lifecycle_requires_legacy_v2_pending_publish_compatibility(self) -> None:
+        """既有 schema-v2 状态的新增可空字段兼容实现与三份权威文字都必须保留。"""
+        runtime = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
+        for fragment, replacement in (
+            (
+                'legacy_v2 = {"schemaVersion", "remote", "defaultBranch", "cycle", "lastRelease"}',
+                'retired_v2 = {"schemaVersion", "remote", "defaultBranch", "cycle", "lastRelease"}',
+            ),
+            ('parsed["pendingPublish"] = None', "pass"),
+        ):
+            with self.subTest(surface="runtime", fragment=fragment):
+                self.assertIn(fragment, runtime)
+                directory, path = self.temporary_source(
+                    runtime.replace(fragment, replacement, 1),
+                    "git_lifecycle.py",
+                )
+                try:
+                    errors: list[str] = []
+                    with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
+                        git_lifecycle.validate_git_lifecycle_contract(errors)
+                    self.assertTrue(errors, fragment)
+                finally:
+                    directory.cleanup()
+
+        compatibility = (
+            "既有合法 v2 状态缺少新增可空 `pendingPublish` 时按 `null` 兼容读取"
+        )
+        for attribute, path in (
+            ("GIT_LIFECYCLE_SKILL", release.GIT_LIFECYCLE_SKILL),
+            ("AGENT_POLICY", release.AGENT_POLICY),
+            ("RELEASE_DOC", release.ROOT / "docs" / "RELEASE.md"),
+        ):
+            with self.subTest(surface=attribute):
+                source = path.read_text(encoding="utf-8")
+                self.assertIn(compatibility, source)
+                directory, mutated = self.temporary_source(
+                    source.replace(compatibility, "", 1),
+                    path.name,
+                )
+                try:
+                    errors = []
+                    with mock.patch.object(git_lifecycle, attribute, mutated):
+                        git_lifecycle.validate_git_lifecycle_contract(errors)
+                    self.assertTrue(errors, attribute)
+                finally:
+                    directory.cleanup()
+
+    def test_git_publish_keeps_journal_until_final_local_verification(self) -> None:
+        """publish 全部远端确认后仍须先复核本地冻结位置，再清除 journal。"""
+        source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
+        before = (
+            '    verify_local_position(repository, primary["branch"], head)\n'
+            '    state["pendingPublish"] = None\n'
+            "    save_state(repository, state)\n"
+        )
+        after = (
+            '    state["pendingPublish"] = None\n'
+            "    save_state(repository, state)\n"
+            '    verify_local_position(repository, primary["branch"], head)\n'
+        )
+        self.assertIn(before, source)
+        directory, path = self.temporary_source(source.replace(before, after, 1), "git_lifecycle.py")
+        try:
+            errors: list[str] = []
+            with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
+                git_lifecycle.validate_git_lifecycle_contract(errors)
+            self.assertTrue(any("publication journal completion" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
+
+    def test_git_publish_preserves_single_target_error_codes(self) -> None:
+        """仅主目标 publish 的既有机器错误码映射必须由 hard validator 锁定。"""
+        source = release.GIT_PUBLICATION_REPORT.read_text(encoding="utf-8")
+        fragment = '"push-failed": "push-rejected"'
+        self.assertIn(fragment, source)
+        directory, path = self.temporary_source(
+            source.replace(fragment, '"push-failed": "primary-push-failed"', 1),
+            "git_publication_report.py",
+        )
+        try:
+            errors: list[str] = []
+            with mock.patch.object(git_lifecycle, "GIT_PUBLICATION_REPORT", path):
+                git_lifecycle.validate_git_lifecycle_contract(errors)
+            self.assertTrue(any("Git lifecycle contract missing" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
+
+        compatibility = "为兼容既有机器调用保留历史稳定 code `push-rejected`"
+        skill_source = release.GIT_LIFECYCLE_SKILL.read_text(encoding="utf-8")
+        self.assertIn(compatibility, skill_source)
+        directory, path = self.temporary_source(
+            skill_source.replace(compatibility, "", 1),
+            "SKILL.md",
+        )
+        try:
+            errors = []
+            with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SKILL", path):
+                git_lifecycle.validate_git_lifecycle_contract(errors)
+            self.assertTrue(any("Git lifecycle contract missing" in error for error in errors), errors)
+        finally:
+            directory.cleanup()
 
     def test_release_context_requires_safe_default_branch_validation(self) -> None:
         """上下文 schema 与写入入口都必须拒绝 revision/伪引用分支文本。"""
@@ -523,15 +629,18 @@ class ValidatorMutationTests(unittest.TestCase):
         """补充远端 push 后必须逐目标复读，不能只凭退出码声称成功。"""
 
         source = release.GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
-        fragment = "remote_branch_oid(repository, remote, branch)"
-        self.assertIn(fragment, source)
-        directory, path = self.temporary_source(source.replace(fragment, "None", 1), "git_lifecycle.py")
+        fragment = 'remote_head = remote_branch_oid(repository, target["remote"], target["branch"])'
+        self.assertEqual(source.count(fragment), 2)
+        directory, path = self.temporary_source(
+            source.replace(fragment, "remote_head = None", 1),
+            "git_lifecycle.py",
+        )
         try:
             errors: list[str] = []
             with mock.patch.object(git_lifecycle, "GIT_LIFECYCLE_SCRIPT", path):
                 git_lifecycle.validate_git_lifecycle_contract(errors)
             self.assertTrue(
-                any("additional remote publish sequence" in error for error in errors),
+                any("frozen publication target" in error for error in errors),
                 errors,
             )
         finally:

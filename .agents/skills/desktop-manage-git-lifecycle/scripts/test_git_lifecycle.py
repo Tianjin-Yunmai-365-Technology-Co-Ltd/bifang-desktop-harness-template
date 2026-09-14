@@ -19,6 +19,7 @@ from git_lifecycle_test_support import (
     SCRIPT,
     SHANGHAI,
 )
+from git_publication_test_cases import GitPublicationJournalTests
 
 
 class GitLifecycleTests(GitLifecycleTestCase):
@@ -67,6 +68,53 @@ class GitLifecycleTests(GitLifecycleTestCase):
         self.assertFalse(LIFECYCLE.valid_branch(resolved, "@"))
         self.assertFalse(LIFECYCLE.valid_branch(resolved, "HEAD"))
         self.assertTrue(LIFECYCLE.valid_branch(resolved, "feature/@-safe"))
+
+    def test_legacy_v2_state_without_pending_publish_is_compatibly_loaded(self) -> None:
+        """验证新增可空 publish journal 不会让既有合法 schema-v2 状态失效。"""
+        repository, _ = self.initialize_repository(remote=False)
+        resolved = LIFECYCLE.resolve_repository(str(repository))
+        path = LIFECYCLE.state_path(resolved)
+        path.parent.mkdir(parents=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 2,
+                    "remote": None,
+                    "defaultBranch": "main",
+                    "cycle": None,
+                    "lastRelease": None,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        inspected, _ = self.helper(repository, "inspect")
+
+        self.assertIsNone(inspected["state"]["pendingPublish"])
+
+    def test_schema_v1_lifecycle_state_is_rejected(self) -> None:
+        """验证旧 schema-v1 生命周期状态不会被猜测迁移或覆盖。"""
+        repository, _ = self.initialize_repository(remote=False)
+        resolved = LIFECYCLE.resolve_repository(str(repository))
+        path = LIFECYCLE.state_path(resolved)
+        path.parent.mkdir(parents=True)
+        path.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "remote": None,
+                    "defaultBranch": "main",
+                    "cycle": None,
+                    "pendingPublish": None,
+                    "lastRelease": None,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        rejected, _ = self.helper(repository, "inspect", success=False)
+
+        self.assertEqual(rejected["code"], "state-invalid")
 
     def test_registered_remote_precedes_origin_and_conflicting_override_fails(self) -> None:
         """多远端仓库沿用已登记名称，并拒绝周期中途切换到 origin。"""
@@ -438,12 +486,12 @@ class GitLifecycleTests(GitLifecycleTestCase):
             success=False,
         )
 
-        self.assertEqual(rejected["code"], "primary-push-rejected")
+        self.assertEqual(rejected["code"], "primary-push-failed")
         self.assertIn("Primary Git remote 'github' branch 'main'", rejected["message"])
-        self.assertIn("current target result is rejected", rejected["message"])
+        self.assertIn("current target outcome is uncertain", rejected["message"])
         self.assertIn("all additional targets were not attempted", rejected["message"])
         self.assertIn("remote 'origin' branch 'stable'", rejected["message"])
-        self.assertIn("same arguments can be retried", rejected["message"])
+        self.assertIn("same target arguments can be retried", rejected["message"])
         self.assertEqual(
             self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout,
             primary_before,
@@ -453,230 +501,8 @@ class GitLifecycleTests(GitLifecycleTestCase):
             additional_before,
         )
 
-    def test_primary_confirmed_push_contextualizes_local_verification_failure(self) -> None:
-        """验证主远端复读已确认后，本地位置异常仍保留主成功与补充未尝试语义。"""
-        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
-        state = {"remote": None, "defaultBranch": None}
-        targets = [{"remote": "origin", "branch": "stable"}]
-        completed = subprocess.CompletedProcess(["git"], 0, "", "")
-        with (
-            mock.patch.object(LIFECYCLE, "run_git", return_value=completed),
-            mock.patch.object(LIFECYCLE, "remote_branch_oid", return_value="a" * 40),
-            mock.patch.object(
-                LIFECYCLE,
-                "verify_local_position",
-                side_effect=LIFECYCLE.LifecycleError("local-state-changed", "local drift"),
-            ),
-            mock.patch.object(LIFECYCLE, "save_state") as save_state,
-        ):
-            with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
-                LIFECYCLE.publish_primary_remote(
-                    repository,
-                    state,
-                    "github",
-                    "main",
-                    "a" * 40,
-                    targets,
-                )
-
-        self.assertEqual(raised.exception.code, "primary-local-state-changed")
-        self.assertIn("Primary Git remote 'github' branch 'main'", raised.exception.message)
-        self.assertIn("current target is confirmed published", raised.exception.message)
-        self.assertIn("all additional targets were not attempted", raised.exception.message)
-        self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
-        self.assertIn("same arguments can be retried", raised.exception.message)
-        save_state.assert_not_called()
-
-    def test_primary_uncertain_failures_contextualize_unattempted_targets(self) -> None:
-        """验证主 push 传输或复读不确定时均保留目标、未尝试范围与重试语义。"""
-        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
-        targets = [{"remote": "origin", "branch": "stable"}]
-        completed = subprocess.CompletedProcess(["git"], 0, "", "")
-
-        def fail_with_requested_context(*_arguments, **keywords):
-            raise LIFECYCLE.LifecycleError(keywords["code"], keywords["message"])
-
-        cases = (
-            (
-                "transport",
-                fail_with_requested_context,
-                "d" * 40,
-                "primary-push-failed",
-            ),
-            (
-                "reread",
-                completed,
-                LIFECYCLE.LifecycleError("remote-read-failed", "read failure"),
-                "primary-verification-failed",
-            ),
-        )
-        for label, push_result, reread_result, expected_code in cases:
-            with self.subTest(label=label):
-                state = {"remote": None, "defaultBranch": None}
-                run_effect = push_result if callable(push_result) else None
-                reread_effect = reread_result if isinstance(reread_result, BaseException) else None
-                with (
-                    mock.patch.object(
-                        LIFECYCLE,
-                        "run_git",
-                        return_value=None if run_effect is not None else push_result,
-                        side_effect=run_effect,
-                    ),
-                    mock.patch.object(
-                        LIFECYCLE,
-                        "remote_branch_oid",
-                        return_value=None if reread_effect is not None else reread_result,
-                        side_effect=reread_effect,
-                    ),
-                    mock.patch.object(LIFECYCLE, "verify_local_position"),
-                    mock.patch.object(LIFECYCLE, "save_state"),
-                ):
-                    with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
-                        LIFECYCLE.publish_primary_remote(
-                            repository,
-                            state,
-                            "github",
-                            "main",
-                            "d" * 40,
-                            targets,
-                        )
-
-                self.assertEqual(raised.exception.code, expected_code)
-                self.assertIn("Primary Git remote 'github' branch 'main'", raised.exception.message)
-                self.assertIn("current target outcome is uncertain", raised.exception.message)
-                self.assertIn("all additional targets were not attempted", raised.exception.message)
-                self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
-                self.assertIn("same arguments can be retried", raised.exception.message)
-
-    def test_primary_confirmed_push_contextualizes_state_save_failure(self) -> None:
-        """验证主远端和本地位置均确认后，状态保存异常仍报告主成功与可重试范围。"""
-        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
-        state = {"remote": None, "defaultBranch": None}
-        targets = [{"remote": "origin", "branch": "stable"}]
-        completed = subprocess.CompletedProcess(["git"], 0, "", "")
-        with (
-            mock.patch.object(LIFECYCLE, "run_git", return_value=completed),
-            mock.patch.object(LIFECYCLE, "remote_branch_oid", return_value="b" * 40),
-            mock.patch.object(LIFECYCLE, "verify_local_position"),
-            mock.patch.object(
-                LIFECYCLE,
-                "save_state",
-                side_effect=LIFECYCLE.LifecycleError("state-write-failed", "state failure"),
-            ),
-        ):
-            with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
-                LIFECYCLE.publish_primary_remote(
-                    repository,
-                    state,
-                    "github",
-                    "main",
-                    "b" * 40,
-                    targets,
-                )
-
-        self.assertEqual(raised.exception.code, "primary-state-write-failed")
-        self.assertIn("Primary Git remote 'github' branch 'main'", raised.exception.message)
-        self.assertIn("current target is confirmed published", raised.exception.message)
-        self.assertIn("all additional targets were not attempted", raised.exception.message)
-        self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
-        self.assertIn("same arguments can be retried", raised.exception.message)
-
-    def test_additional_confirmed_push_contextualizes_local_verification_failure(self) -> None:
-        """验证补充远端复读确认后本地漂移会点名已成功当前目标和未尝试后续目标。"""
-        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
-        targets = [
-            {"remote": "origin", "branch": "stable"},
-            {"remote": "archive", "branch": "delivery"},
-        ]
-        completed = subprocess.CompletedProcess(["git"], 0, "", "")
-        with (
-            mock.patch.object(LIFECYCLE, "run_git", return_value=completed) as run_git,
-            mock.patch.object(LIFECYCLE, "remote_branch_oid", return_value="c" * 40),
-            mock.patch.object(
-                LIFECYCLE,
-                "verify_local_position",
-                side_effect=LIFECYCLE.LifecycleError("local-state-changed", "local drift"),
-            ),
-        ):
-            with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
-                LIFECYCLE.push_additional_remotes(
-                    repository,
-                    targets,
-                    "main",
-                    "c" * 40,
-                )
-
-        self.assertEqual(raised.exception.code, "additional-local-state-changed")
-        self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
-        self.assertIn("current target is confirmed published", raised.exception.message)
-        self.assertIn("subsequent additional targets were not attempted", raised.exception.message)
-        self.assertIn("remote 'archive' branch 'delivery'", raised.exception.message)
-        self.assertIn("same arguments can be retried", raised.exception.message)
-        self.assertEqual(run_git.call_count, 1)
-
-    def test_additional_uncertain_failures_contextualize_partial_progress(self) -> None:
-        """验证补充 push 传输或复读不确定时均披露前序成功与后续未尝试范围。"""
-        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
-        targets = [
-            {"remote": "origin", "branch": "stable"},
-            {"remote": "archive", "branch": "delivery"},
-        ]
-        completed = subprocess.CompletedProcess(["git"], 0, "", "")
-
-        def fail_with_requested_context(*_arguments, **keywords):
-            raise LIFECYCLE.LifecycleError(keywords["code"], keywords["message"])
-
-        cases = (
-            (
-                "transport",
-                fail_with_requested_context,
-                "e" * 40,
-                "additional-push-failed",
-            ),
-            (
-                "reread",
-                completed,
-                LIFECYCLE.LifecycleError("remote-read-failed", "read failure"),
-                "additional-verification-failed",
-            ),
-        )
-        for label, push_result, reread_result, expected_code in cases:
-            with self.subTest(label=label):
-                run_effect = push_result if callable(push_result) else None
-                reread_effect = reread_result if isinstance(reread_result, BaseException) else None
-                with (
-                    mock.patch.object(
-                        LIFECYCLE,
-                        "run_git",
-                        return_value=None if run_effect is not None else push_result,
-                        side_effect=run_effect,
-                    ),
-                    mock.patch.object(
-                        LIFECYCLE,
-                        "remote_branch_oid",
-                        return_value=None if reread_effect is not None else reread_result,
-                        side_effect=reread_effect,
-                    ),
-                    mock.patch.object(LIFECYCLE, "verify_local_position"),
-                ):
-                    with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
-                        LIFECYCLE.push_additional_remotes(
-                            repository,
-                            targets,
-                            "main",
-                            "e" * 40,
-                        )
-
-                self.assertEqual(raised.exception.code, expected_code)
-                self.assertIn("remote 'origin' branch 'stable'", raised.exception.message)
-                self.assertIn("primary target and earlier additional targets are confirmed published", raised.exception.message)
-                self.assertIn("current target outcome is uncertain", raised.exception.message)
-                self.assertIn("subsequent additional targets were not attempted", raised.exception.message)
-                self.assertIn("remote 'archive' branch 'delivery'", raised.exception.message)
-                self.assertIn("same arguments can be retried", raised.exception.message)
-
     def test_publish_additional_remote_rejection_preserves_primary_and_retry_succeeds(self) -> None:
-        """验证三个补充目标按参数顺序推进，第二个拒绝后同参数重试可完整恢复。"""
+        """验证冻结目标逐项推进，部分失败后不会重算 HEAD 且同目标重试可恢复。"""
         repository, github = self.initialize_repository(remote=True)
         assert github is not None
         self.git(repository, "remote", "rename", "origin", "github")
@@ -716,13 +542,13 @@ class GitLifecycleTests(GitLifecycleTestCase):
 
         rejected, _ = self.helper(repository, *arguments, success=False)
 
-        self.assertEqual(rejected["code"], "additional-push-rejected")
+        self.assertEqual(rejected["code"], "additional-push-failed")
         self.assertIn("remote 'backup' branch 'integration'", rejected["message"])
         self.assertIn("remote 'origin' branch 'stable'", rejected["message"])
         self.assertIn("remote 'archive' branch 'delivery'", rejected["message"])
-        self.assertIn("current target result is rejected", rejected["message"])
+        self.assertIn("current target outcome is uncertain", rejected["message"])
         self.assertIn("subsequent additional targets were not attempted", rejected["message"])
-        self.assertIn("same arguments can be retried", rejected["message"])
+        self.assertIn("same target arguments can be retried", rejected["message"])
         self.assertTrue(
             self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout.startswith(
                 expected_head + "\t"
@@ -744,6 +570,46 @@ class GitLifecycleTests(GitLifecycleTestCase):
         state = self.state(repository)
         self.assertEqual(state["remote"], "github")
         self.assertEqual(state["defaultBranch"], "main")
+        self.assertEqual(state["pendingPublish"]["head"], expected_head)
+        self.assertEqual(
+            [target["confirmed"] for target in state["pendingPublish"]["targets"]],
+            [True, True, False, False],
+        )
+        changed_targets, _ = self.helper(
+            repository,
+            "publish",
+            "--remote",
+            "github",
+            "--also-remote",
+            "origin",
+            "--also-remote",
+            "archive",
+            success=False,
+        )
+        self.assertEqual(changed_targets["code"], "publish-in-progress")
+
+        collaborator = self.root / "publish-retry-collaborator"
+        self.git(self.root, "clone", str(github), str(collaborator))
+        self.git(collaborator, "config", "user.name", "Remote Collaborator")
+        self.git(collaborator, "config", "user.email", "remote@example.invalid")
+        advanced_head = self.commit_file(collaborator, "advanced.txt", "remote advanced\n")
+        self.git(collaborator, "push", "origin", "main")
+        frozen, _ = self.helper(repository, *arguments, success=False)
+        self.assertEqual(frozen["code"], "primary-verification-failed")
+        self.assertIn("previously confirmed additional targets", frozen["message"])
+        self.assertIn("remote 'origin' branch 'stable'", frozen["message"])
+        self.assertIn("remaining additional targets were not attempted", frozen["message"])
+        self.assertEqual(self.git(repository, "rev-parse", "HEAD").stdout.strip(), expected_head)
+        self.assertTrue(
+            self.git(repository, "ls-remote", "--heads", "github", "refs/heads/main").stdout.startswith(
+                advanced_head + "\t"
+            )
+        )
+        self.assertEqual(
+            self.git(repository, "ls-remote", "--heads", "backup", "refs/heads/integration").stdout,
+            backup_before,
+        )
+        self.git(github, "update-ref", "refs/heads/main", expected_head)
         self.install_hook(backup, "while read old new ref; do :; done\n")
 
         resumed, _ = self.helper(repository, *arguments)
@@ -772,8 +638,9 @@ class GitLifecycleTests(GitLifecycleTestCase):
                     remote,
                     f"refs/heads/{branch}",
                 ).stdout.startswith(expected_head + "\t")
-            )
+        )
         self.assertEqual(self.state(repository)["remote"], "github")
+        self.assertIsNone(self.state(repository)["pendingPublish"])
 
     def test_release_persists_binding_before_local_integration(self) -> None:
         """验证权威上下文通过后先落盘 head=null pending，再允许本地 merge。"""
@@ -1140,6 +1007,49 @@ class GitLifecycleTests(GitLifecycleTestCase):
         self.assertIsNone(state["cycle"])
         self.assertEqual(state["lastRelease"]["gitPublication"], "local")
         self.assertIsNone(state["lastRelease"]["remote"])
+
+    def test_detached_task_cycle_inherits_context_default_for_local_release(self) -> None:
+        """验证无远端 detached Task 从 start 到本地发布可由权威上下文补齐默认分支。"""
+        repository, _ = self.initialize_repository(remote=False)
+        task_worktree = self.root / "detached-local-task"
+        self.git(repository, "worktree", "add", "--detach", str(task_worktree), "HEAD")
+        started, _ = self.helper(task_worktree, "start", "--summary", "detached-local")
+        feature = str(started["branch"])
+        self.assertIsNone(started["defaultBranch"])
+        inspected, _ = self.helper(task_worktree, "inspect")
+        self.assertIsNone(inspected["defaultBranch"])
+        self.commit_file(task_worktree, "detached.txt", "detached local release\n")
+        context_sha, expected_head = self.prepare_release_context(
+            task_worktree,
+            version="1.0.2",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+            default_branch="main",
+        )
+
+        released, _ = self.helper(
+            task_worktree,
+            "release",
+            "--version",
+            "1.0.2",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+        )
+
+        self.assertEqual(released["status"], "released")
+        self.assertEqual(released["branch"], "main")
+        self.assertEqual(released["head"], expected_head)
+        self.assertFalse(task_worktree.exists())
+        self.assertFalse(self.local_branch_exists(repository, feature))
+        self.assertEqual(
+            self.git(repository, "rev-parse", "refs/tags/v1.0.2-20260914^{commit}").stdout.strip(),
+            expected_head,
+        )
+        self.assertEqual(self.state(repository)["defaultBranch"], "main")
 
     def test_local_release_never_accesses_remote_and_preserves_remote_refs(self) -> None:
         """验证本地发布在已登记远端失联时仍完成，并保留全部远端引用。"""
@@ -1534,7 +1444,7 @@ class GitLifecycleTests(GitLifecycleTestCase):
             context_sha,
             success=False,
         )
-        self.assertEqual(blocked["code"], "push-rejected")
+        self.assertEqual(blocked["code"], "push-failed")
         self.assertTrue(
             self.git(repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.startswith(
                 remote_after + "\t"
@@ -1546,6 +1456,30 @@ class GitLifecycleTests(GitLifecycleTestCase):
             self.git(repository, "ls-remote", "--tags", "origin", f"refs/tags/{pending['tag']}").stdout,
             "",
         )
+
+    def test_nonzero_tag_push_uses_reread_to_determine_outcome(self) -> None:
+        """验证 tag push 非零时以远端复读判定成功或不确定，而不臆测拒绝。"""
+        repository = LIFECYCLE.Repository(root=self.root, common_dir=self.root)
+        head = "d" * 40
+        failed = subprocess.CompletedProcess(["git"], 1, "", "")
+        with (
+            mock.patch.object(LIFECYCLE, "verify_release_tag_compatibility"),
+            mock.patch.object(LIFECYCLE, "local_tag_target", return_value=head),
+            mock.patch.object(LIFECYCLE, "run_git", return_value=failed),
+            mock.patch.object(LIFECYCLE, "remote_tag_target", return_value=head),
+        ):
+            LIFECYCLE.ensure_release_tag(repository, "origin", "v1.0.0-20260914", head)
+
+        with (
+            mock.patch.object(LIFECYCLE, "verify_release_tag_compatibility"),
+            mock.patch.object(LIFECYCLE, "local_tag_target", return_value=head),
+            mock.patch.object(LIFECYCLE, "run_git", return_value=failed),
+            mock.patch.object(LIFECYCLE, "remote_tag_target", return_value=None),
+        ):
+            with self.assertRaises(LIFECYCLE.LifecycleError) as raised:
+                LIFECYCLE.ensure_release_tag(repository, "origin", "v1.0.0-20260914", head)
+        self.assertEqual(raised.exception.code, "tag-push-failed")
+        self.assertIn("could not be confirmed", raised.exception.message)
 
     def test_release_tag_conflict_leaves_cycle_resources(self) -> None:
         """验证同名标签指向其他提交时停止发布且不清理登记资源。"""

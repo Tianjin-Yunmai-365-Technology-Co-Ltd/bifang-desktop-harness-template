@@ -145,6 +145,9 @@ class HarnessScopeAndInitializationBoundaryTests(unittest.TestCase):
             "SKILL.md",
             "agents/openai.yaml",
             "scripts/git_lifecycle.py",
+            "scripts/git_publication_report.py",
+            "scripts/git_lifecycle_test_support.py",
+            "scripts/git_publication_test_cases.py",
             "scripts/test_git_lifecycle.py",
         )
 

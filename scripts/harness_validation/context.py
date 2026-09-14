@@ -171,8 +171,17 @@ GIT_LIFECYCLE_SKILL_ROOT = SKILLS_ROOT / "desktop-manage-git-lifecycle"
 GIT_LIFECYCLE_SKILL = GIT_LIFECYCLE_SKILL_ROOT / "SKILL.md"
 GIT_LIFECYCLE_METADATA = GIT_LIFECYCLE_SKILL_ROOT / "agents" / "openai.yaml"
 GIT_LIFECYCLE_SCRIPT = GIT_LIFECYCLE_SKILL_ROOT / "scripts" / "git_lifecycle.py"
+GIT_PUBLICATION_REPORT = (
+    GIT_LIFECYCLE_SKILL_ROOT / "scripts" / "git_publication_report.py"
+)
 GIT_LIFECYCLE_TESTS = (
     GIT_LIFECYCLE_SKILL_ROOT / "scripts" / "test_git_lifecycle.py"
+)
+GIT_LIFECYCLE_TEST_SUPPORT = (
+    GIT_LIFECYCLE_SKILL_ROOT / "scripts" / "git_lifecycle_test_support.py"
+)
+GIT_PUBLICATION_TEST_CASES = (
+    GIT_LIFECYCLE_SKILL_ROOT / "scripts" / "git_publication_test_cases.py"
 )
 COLLECT_RELEASE_SKILL = SKILLS_ROOT / "desktop-collect-release-artifacts" / "SKILL.md"
 PREPARE_RELEASE_SKILL = SKILLS_ROOT / "desktop-prepare-release" / "SKILL.md"
@@ -446,6 +455,9 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-manage-git-lifecycle/SKILL.md",
     ".agents/skills/desktop-manage-git-lifecycle/agents/openai.yaml",
     ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py",
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_publication_report.py",
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_test_support.py",
+    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_publication_test_cases.py",
     ".agents/skills/desktop-manage-git-lifecycle/scripts/test_git_lifecycle.py",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.sh",
     ".agents/skills/desktop-build-rust-release/scripts/prepare-release-directory.ps1",

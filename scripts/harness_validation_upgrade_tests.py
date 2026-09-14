@@ -188,6 +188,9 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             ".agents/skills/desktop-manage-git-lifecycle/SKILL.md",
             ".agents/skills/desktop-manage-git-lifecycle/agents/openai.yaml",
             ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py",
+            ".agents/skills/desktop-manage-git-lifecycle/scripts/git_publication_report.py",
+            ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_test_support.py",
+            ".agents/skills/desktop-manage-git-lifecycle/scripts/git_publication_test_cases.py",
             ".agents/skills/desktop-manage-git-lifecycle/scripts/test_git_lifecycle.py",
         }
         self.assertTrue(lifecycle_paths.issubset(context.REQUIRED_FILES))

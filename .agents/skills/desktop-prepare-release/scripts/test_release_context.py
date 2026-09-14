@@ -163,6 +163,23 @@ class ReleaseContextTests(unittest.TestCase):
         self.assertEqual(context["sourceHead"], self.source_head)
         self.assertEqual(context["defaultBranch"], "main")
 
+    def test_schema_v1_release_context_is_rejected(self) -> None:
+        """A structurally valid legacy context must fail specifically at the schema boundary."""
+        written = self.write_context()
+        self.assertEqual(written.returncode, 0, written.stderr)
+        path = self.root / ".harness/release-context.json"
+        context = json.loads(path.read_text(encoding="utf-8"))
+        context["schemaVersion"] = 1
+        path.write_text(
+            json.dumps(context, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        rejected = self.run_script("check", "--project-root", str(self.root))
+
+        self.assertEqual(rejected.returncode, 1)
+        self.assertIn("fields or schemaVersion", rejected.stderr)
+
     def test_local_write_uses_explicit_branch_without_accessing_remote(self) -> None:
         shutil.rmtree(self.remote)
 

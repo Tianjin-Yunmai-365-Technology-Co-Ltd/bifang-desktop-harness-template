@@ -9,6 +9,24 @@ from pathlib import Path
 from .context import *  # noqa: F403
 
 
+MATERIALIZED_CHANGE_RECORDS = {
+    "HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH": (
+        "202609141917",
+        (
+            "docs/changelog/20260914_CHANGELOG.md",
+            "docs/product_spec/20260914_product_spec.md",
+        ),
+    ),
+    "HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE": ("202609141917", None),
+    "HARNESS-CHANGE-MAINSTREAM-LTS-STANDARD-USER-ENVIRONMENT": ("202609122231", None),
+    "HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE": ("202609122231", None),
+    "HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY": ("202609111732", None),
+    "HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS": ("202609102343", None),
+    "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE": ("202609101621", None),
+    "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": ("202609101621", None),
+}
+
+
 def _validate_materialized_change(
     errors: list[str],
     path: Path,
@@ -35,7 +53,10 @@ def _validate_materialized_change(
             f"materialized Harness change missing in {display_path(path)}: {change_id}",
         )
         return
-    if any(required_version not in line or "pending" in line for line in matching_lines):
+    if any(
+        required_version not in line or re.search(r"\bpending\b", line)
+        for line in matching_lines
+    ):
         fail(  # noqa: F405
             errors,
             "materialized Harness change has stale required version in "
@@ -145,20 +166,16 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
                 f"legacy version identifier must not be reintroduced in {display_path(path)}",  # noqa: F405
             )
 
-    materialized_changes = {
-        "HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE": "202609141917",
-        "HARNESS-CHANGE-MAINSTREAM-LTS-STANDARD-USER-ENVIRONMENT": "202609122231",
-        "HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE": "202609122231",
-        "HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY": "202609111732",
-        "HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS": "202609102343",
-        "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE": "202609101621",
-        "HARNESS-FIX-PROJECT-TASK-SEQUENCE-AUTO-INCREMENT": "202609101621",
-    }
-    materialized_paths = (
-        ROOT / "docs" / "changelog" / "20260914_CHANGELOG.md",  # noqa: F405
-        ROOT / "docs" / "adr" / "20260914_ADR.md",  # noqa: F405
-        PRODUCT_SPEC,  # noqa: F405
+    default_paths = (
+        "docs/changelog/20260914_CHANGELOG.md",
+        "docs/adr/20260914_ADR.md",
+        "docs/product_spec/20260914_product_spec.md",
     )
-    for change_id, required_version in materialized_changes.items():
-        for path in materialized_paths:
-            _validate_materialized_change(errors, path, change_id, required_version)
+    for change_id, (required_version, declared_paths) in MATERIALIZED_CHANGE_RECORDS.items():
+        for relative_path in declared_paths or default_paths:
+            _validate_materialized_change(
+                errors,
+                ROOT / relative_path,  # noqa: F405
+                change_id,
+                required_version,
+            )

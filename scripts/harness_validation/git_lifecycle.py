@@ -11,10 +11,13 @@ from .context import (
     CROSS_RELEASE_CONTEXT_HELPER_TESTS,
     ENGINEERING_RULES,
     GIT_LIFECYCLE_METADATA,
+    GIT_LIFECYCLE_TEST_SUPPORT,
     GIT_LIFECYCLE_SCRIPT,
     GIT_LIFECYCLE_SKILL,
     GIT_LIFECYCLE_SKILL_ROOT,
     GIT_LIFECYCLE_TESTS,
+    GIT_PUBLICATION_TEST_CASES,
+    GIT_PUBLICATION_REPORT,
     PREPARE_RELEASE_SKILL,
     PRODUCT_SPEC,
     RELEASE_CONTEXT_HELPER,
@@ -29,6 +32,7 @@ from .context import (
 
 
 OLD_SKILL_ROOT = SKILLS_ROOT / "desktop-manage-git-branch-chain"
+RELEASE_DOC = ROOT / "docs" / "RELEASE.md"
 
 
 def _function_source(module_text: str, name: str) -> str:
@@ -144,9 +148,12 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "即使命令从关联 Task Worktree 发起",
             "命令从关联 Task Worktree 发起时",
             "普通 `git merge --no-edit`",
-            "补充远端不写入生命周期状态",
+            "`pendingPublish` 中临时保存冻结目标与确认进度",
+            "既有合法 v2 状态缺少新增可空 `pendingPublish` 时按 `null` 兼容读取",
             "不参与 release、tag 或清理",
             "跨远端推送不是原子操作",
+            "不重新解析默认分支、fetch、merge 或计算新 HEAD",
+            "为兼容既有机器调用保留历史稳定 code `push-rejected`",
             "不创建标签，也不清理任何资源",
             "`v{version}-{YYYYMMDD}`",
             "全过程不列举、fetch、push、复读或删除远端 ref",
@@ -161,6 +168,30 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
         GIT_LIFECYCLE_METADATA: (
             'display_name: "管理 Git 生命周期"',
             "$desktop-manage-git-lifecycle",
+        ),
+        GIT_PUBLICATION_REPORT: (
+            "def primary_failure_message",
+            "def additional_failure_message",
+            "def pending_failure",
+            "later confirmed additional targets remain recorded",
+            '"push-failed": "push-rejected"',
+            '"verification-failed": "remote-verification-failed"',
+            '"local-state-changed": "local-state-changed"',
+            '"state-write-failed": "state-write-failed"',
+        ),
+        GIT_LIFECYCLE_TEST_SUPPORT: (
+            "def load_lifecycle_module",
+            "script_directory = str(SCRIPT.parent)",
+        ),
+        GIT_PUBLICATION_TEST_CASES: (
+            "class GitPublicationJournalTests",
+            "test_publish_primary_only_failure_persists_and_resumes_frozen_head",
+            "test_single_target_pending_errors_preserve_stable_codes",
+            "test_single_target_publish_preserves_transport_phase_error_codes",
+            "test_pending_publish_local_drift_preserves_context",
+            "test_publish_final_local_drift_keeps_frozen_journal",
+            "test_pending_publish_nonzero_push_is_uncertain",
+            "test_additional_drift_reports_later_confirmed_targets",
         ),
         GIT_LIFECYCLE_SCRIPT: (
             "SCHEMA_VERSION = 2",
@@ -195,19 +226,25 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             'release_parser.add_argument("--release-context-sha256", required=True)',
             'publication.add_argument("--local-only"',
             "def resolve_additional_remote_targets",
-            "def primary_publication_error",
-            "def additional_publication_error",
+            "def validate_pending_publish",
+            "def confirm_pending_publish_target",
+            "def complete_pending_publish",
             "def publish_primary_remote",
-            "def push_additional_remotes",
             'publish_parser.add_argument("--also-remote"',
+            'state["pendingPublish"] = {',
+            'legacy_v2 = {"schemaVersion", "remote", "defaultBranch", "cycle", "lastRelease"}',
+            'parsed["pendingPublish"] = None',
             '"publishedRemotes"',
-            '"primary-state-write-failed"',
-            '"additional-local-state-changed"',
+            '"local-state-changed"',
+            'single_target = len(pending["targets"]) == 1',
+            'code="git-error" if single_target else transport_error.code',
+            "if single_target and pushed.returncode == 0:",
             "arguments.also_remote",
             "repository = primary_repository(repository)",
             'setattr(arguments, "_cli_invocation", True)',
             'branch in {"@", "HEAD"}',
-            'if default_branch is None and state["cycle"] is None and state["lastRelease"] is None:',
+            'default_branch = state["defaultBranch"]',
+            'default_branch = context["defaultBranch"]',
             'default_branch = context["defaultBranch"]',
             '"gitPublication": publication_mode',
             '"releaseContextSha256"',
@@ -217,6 +254,8 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
         GIT_LIFECYCLE_TESTS: (
             "test_start_without_remote_is_idempotent_and_uses_common_dir_state",
             "test_branch_validation_rejects_ambiguous_pseudo_refs",
+            "test_legacy_v2_state_without_pending_publish_is_compatibly_loaded",
+            "test_schema_v1_lifecycle_state_is_rejected",
             "test_start_adds_numeric_suffix_for_local_name_collisions",
             "test_concurrent_task_starts_preserve_both_branches_and_worktrees",
             "test_detached_task_worktree_start_is_registered_and_release_removes_it",
@@ -226,20 +265,18 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "test_publish_pushes_same_head_to_additional_remote_without_rebinding",
             "test_publish_rejects_invalid_additional_remote_sets_before_pushing",
             "test_publish_primary_failure_context_keeps_additional_targets_unattempted",
-            "test_primary_confirmed_push_contextualizes_local_verification_failure",
-            "test_primary_confirmed_push_contextualizes_state_save_failure",
-            "test_primary_uncertain_failures_contextualize_unattempted_targets",
-            "test_additional_confirmed_push_contextualizes_local_verification_failure",
-            "test_additional_uncertain_failures_contextualize_partial_progress",
             "test_publish_additional_remote_rejection_preserves_primary_and_retry_succeeds",
+            "from git_publication_test_cases import GitPublicationJournalTests",
             "test_release_excludes_additional_remotes_and_rejects_option",
             "test_release_tag_rejection_leaves_resources_and_remote_drift_blocks_cleanup",
+            "test_nonzero_tag_push_uses_reread_to_determine_outcome",
             "test_release_tag_conflict_leaves_cycle_resources",
             "test_release_preserves_dirty_worktree_and_resumes_after_it_is_clean",
             "test_release_persists_each_cleanup_item_and_resumes_after_remote_rejection",
             "test_release_tags_before_exact_cleanup_and_retry_is_idempotent",
             "test_release_requires_exactly_one_publication_mode",
             "test_first_local_release_initializes_default_branch_without_cycle_state",
+            "test_detached_task_cycle_inherits_context_default_for_local_release",
             "test_release_persists_binding_before_local_integration",
             "test_context_mode_mismatch_fails_before_any_remote_access",
             "test_invalid_nested_context_and_crlf_bytes_fail_before_pending",
@@ -259,6 +296,7 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             'expected_tag = f"v{version}-{release_date}"',
         ),
         RELEASE_CONTEXT_HELPER_TESTS: (
+            "test_schema_v1_release_context_is_rejected",
             "test_local_write_uses_explicit_branch_without_accessing_remote",
             "test_local_default_branch_rejects_ambiguous_ref_syntax",
             "test_local_verify_requires_only_local_branch_head_context_and_tag",
@@ -275,12 +313,21 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             "verify_release_context.py verify",
             '"releaseContextSha256": snapshot["releaseContextSha256"]',
         ),
+        AGENT_POLICY: (
+            "既有合法 v2 状态缺少新增可空 `pendingPublish` 时按 `null` 兼容读取",
+        ),
+        RELEASE_DOC: (
+            "既有合法 v2 状态缺少新增可空 `pendingPublish` 时按 `null` 兼容读取",
+        ),
     }
     for path, fragments in required.items():
         require_fragments(errors, path, fragments, label="Git lifecycle contract")
 
     for path in (
         GIT_LIFECYCLE_SCRIPT,
+        GIT_PUBLICATION_REPORT,
+        GIT_LIFECYCLE_TEST_SUPPORT,
+        GIT_PUBLICATION_TEST_CASES,
         GIT_LIFECYCLE_TESTS,
         RELEASE_CONTEXT_HELPER,
         RELEASE_CONTEXT_HELPER_TESTS,
@@ -297,8 +344,9 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
     if GIT_LIFECYCLE_SCRIPT.is_file():
         source = GIT_LIFECYCLE_SCRIPT.read_text(encoding="utf-8")
         publish_source = _function_source(source, "publish")
+        publish_completion_source = _function_source(source, "complete_pending_publish")
         primary_push_source = _function_source(source, "publish_primary_remote")
-        additional_push_source = _function_source(source, "push_additional_remotes")
+        pending_push_source = _function_source(source, "confirm_pending_publish_target")
         release_source = _function_source(source, "command_release")
         new_release_source = release_source[release_source.rfind("\n    require_clean(repository)") :]
         completion_source = _function_source(source, "complete_pending_release")
@@ -319,10 +367,26 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
                 "switch_to_default(repository, remote, default_branch)",
                 '["merge", "--no-edit", remote_tracking]',
                 "merge_registered_branches(repository, state, default_branch)",
-                "publish_primary_remote(",
-                "push_additional_remotes(",
+                'state["pendingPublish"] = {',
+                "save_state(repository, state)",
+                "complete_pending_publish(repository, state, merged, already_merged)",
             ),
             label="main publish sequence",
+        )
+        publication_completion_tail = publish_completion_source[
+            publish_completion_source.rfind("confirm_pending_publish_target(") :
+        ]
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
+            publication_completion_tail,
+            (
+                "confirm_pending_publish_target(repository, state, index)",
+                'verify_local_position(repository, primary["branch"], head)',
+                'state["pendingPublish"] = None',
+                "save_state(repository, state)",
+            ),
+            label="publication journal completion sequence",
         )
         _require_order(
             errors,
@@ -348,32 +412,29 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             label="primary remote publish sequence",
         )
         if any(
-            token in publish_source + primary_push_source
+            token in publish_source + pending_push_source + primary_push_source
             for token in ("ensure_release_tag", "cleanup_worktrees", "cleanup_remote_branches", "cleanup_local_branches")
         ):
             fail(errors, "publish must not tag or clean release-cycle resources")
         _require_order(
             errors,
             GIT_LIFECYCLE_SCRIPT,
-            additional_push_source,
+            pending_push_source,
             (
-                '["push", remote, f"{head}:refs/heads/{branch}"]',
-                "remote_branch_oid(repository, remote, branch)",
+                'remote_head = remote_branch_oid(repository, target["remote"], target["branch"])',
+                '["push", target["remote"], f"{head}:refs/heads/{target[\'branch\']}"]',
+                "raise transport_error from exc",
+                "if pushed.returncode != 0:",
                 "verify_local_position(repository, default_branch, head)",
+                'target["confirmed"] = True',
+                "save_state(repository, state)",
             ),
-            label="additional remote publish sequence",
+            label="frozen publication target sequence",
         )
-        if any(
-            token in additional_push_source
-            for token in (
-                "save_state(",
-                "ensure_release_tag",
-                "cleanup_worktrees",
-                "cleanup_remote_branches",
-                "cleanup_local_branches",
-            )
-        ):
-            fail(errors, "additional remotes must not alter lifecycle state, tags, or cleanup")
+        if pending_push_source.count(
+            'remote_head = remote_branch_oid(repository, target["remote"], target["branch"])'
+        ) != 2:
+            fail(errors, "frozen publication target must reread before and after push")
         if "arguments.also_remote" in release_source:
             fail(errors, "release must not publish to additional remotes")
         _require_order(
@@ -389,6 +450,19 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
                 "relocate_cli_cwd_before_release_cleanup(repository, state, arguments)",
             ),
             label="caller-context-before-primary sequence",
+        )
+        _require_order(
+            errors,
+            GIT_LIFECYCLE_SCRIPT,
+            new_release_source,
+            (
+                "if arguments.local_only:",
+                'default_branch = state["defaultBranch"]',
+                "if default_branch is None:",
+                'default_branch = context["defaultBranch"]',
+                'state["defaultBranch"] = default_branch',
+            ),
+            label="local context default initialization sequence",
         )
         _require_order(
             errors,
@@ -472,7 +546,8 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
             tag_source,
             (
                 '["push", remote, f"refs/tags/{tag}:refs/tags/{tag}"]',
-                "if remote_tag_target(repository, remote, tag) != head:",
+                "remote_target = remote_tag_target(repository, remote, tag)",
+                "if remote_target != head:",
             ),
             label="remote tag verification sequence",
         )

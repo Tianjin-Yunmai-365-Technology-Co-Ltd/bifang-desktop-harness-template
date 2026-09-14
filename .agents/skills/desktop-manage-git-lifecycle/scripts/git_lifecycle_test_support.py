@@ -29,7 +29,12 @@ def load_lifecycle_module() -> object:
         raise RuntimeError("Git lifecycle test module cannot be loaded.")
     module = importlib.util.module_from_spec(specification)
     sys.modules[module_name] = module
-    specification.loader.exec_module(module)
+    script_directory = str(SCRIPT.parent)
+    sys.path.insert(0, script_directory)
+    try:
+        specification.loader.exec_module(module)
+    finally:
+        sys.path.remove(script_directory)
     return module
 
 

@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterator, Sequence
 
+from git_publication_report import pending_failure
+
 
 SCHEMA_VERSION = 2
 SUMMARY_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
@@ -179,6 +181,7 @@ def new_state() -> dict[str, Any]:
         "remote": None,
         "defaultBranch": None,
         "cycle": None,
+        "pendingPublish": None,
         "lastRelease": None,
     }
 
@@ -238,11 +241,57 @@ def validate_release_record(record: Any, label: str, *, pending: bool) -> None:
         raise LifecycleError("state-invalid", f"{label} state is invalid.")
 
 
+def validate_pending_publish(repository: Repository, state: dict[str, Any]) -> None:
+    """校验单次 publish 冻结的 HEAD、目标顺序和逐项确认进度。"""
+    pending = state["pendingPublish"]
+    if pending is None:
+        return
+    if not isinstance(pending, dict) or set(pending) != {"head", "targets"}:
+        raise LifecycleError("state-invalid", "Pending publication state is invalid.")
+    head = pending["head"]
+    targets = pending["targets"]
+    if not isinstance(head, str) or not HEX_OID_RE.fullmatch(head):
+        raise LifecycleError("state-invalid", "Pending publication HEAD is invalid.")
+    if not isinstance(targets, list) or not targets:
+        raise LifecycleError("state-invalid", "Pending publication targets are invalid.")
+    seen: set[str] = set()
+    reached_unconfirmed = False
+    for target in targets:
+        if not isinstance(target, dict) or set(target) != {"remote", "branch", "confirmed"}:
+            raise LifecycleError("state-invalid", "Pending publication target is invalid.")
+        remote = target["remote"]
+        branch = target["branch"]
+        confirmed = target["confirmed"]
+        if (
+            not isinstance(remote, str)
+            or not valid_remote(remote)
+            or remote in seen
+            or not isinstance(branch, str)
+            or not valid_branch(repository, branch)
+            or not isinstance(confirmed, bool)
+        ):
+            raise LifecycleError("state-invalid", "Pending publication target is invalid.")
+        if reached_unconfirmed and confirmed:
+            raise LifecycleError("state-invalid", "Pending publication progress is invalid.")
+        reached_unconfirmed = reached_unconfirmed or not confirmed
+        seen.add(remote)
+    primary = targets[0]
+    if state["remote"] != primary["remote"] or state["defaultBranch"] != primary["branch"]:
+        raise LifecycleError("state-invalid", "Pending publication primary target is invalid.")
+
+
 def validate_state(repository: Repository, state: Any) -> dict[str, Any]:
     """严格校验删除清单，防止损坏或旧格式状态扩大清理范围。"""
     if not isinstance(state, dict):
         raise LifecycleError("state-invalid", "Lifecycle state is invalid.")
-    expected = {"schemaVersion", "remote", "defaultBranch", "cycle", "lastRelease"}
+    expected = {
+        "schemaVersion",
+        "remote",
+        "defaultBranch",
+        "cycle",
+        "pendingPublish",
+        "lastRelease",
+    }
     if set(state) != expected or state.get("schemaVersion") != SCHEMA_VERSION:
         raise LifecycleError("state-invalid", "Lifecycle state schema is invalid.")
     remote = state["remote"]
@@ -255,6 +304,7 @@ def validate_state(repository: Repository, state: Any) -> dict[str, Any]:
         raise LifecycleError("state-invalid", "Lifecycle default branch is invalid.")
     if state["lastRelease"] is not None:
         validate_release_record(state["lastRelease"], "Last release", pending=False)
+    validate_pending_publish(repository, state)
     cycle = state["cycle"]
     if cycle is None:
         return state
@@ -295,6 +345,8 @@ def validate_state(repository: Repository, state: Any) -> dict[str, Any]:
         worktree_paths.add(path)
     pending_release = cycle["pendingRelease"]
     if pending_release is not None:
+        if state["pendingPublish"] is not None:
+            raise LifecycleError("state-invalid", "Publication and release cannot both be pending.")
         validate_release_record(pending_release, "Pending release", pending=True)
         if default_branch is None:
             raise LifecycleError("state-invalid", "Pending release default branch is invalid.")
@@ -334,6 +386,9 @@ def load_state(repository: Repository) -> dict[str, Any]:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise LifecycleError("state-invalid", "Lifecycle state cannot be read.") from exc
+    legacy_v2 = {"schemaVersion", "remote", "defaultBranch", "cycle", "lastRelease"}
+    if isinstance(parsed, dict) and set(parsed) == legacy_v2 and parsed.get("schemaVersion") == 2:
+        parsed["pendingPublish"] = None
     return validate_state(repository, parsed)
 
 
@@ -908,7 +963,7 @@ def command_inspect(repository: Repository, arguments: argparse.Namespace) -> di
     default_branch = state["defaultBranch"]
     if default_branch is None and remote is not None:
         default_branch = local_remote_default(repository, remote)
-    if default_branch is None and branch is not None:
+    if default_branch is None and state["cycle"] is None and branch is not None:
         default_branch = branch
     return {
         "status": "inspected",
@@ -928,6 +983,8 @@ def command_start(repository: Repository, arguments: argparse.Namespace) -> dict
     if not SUMMARY_RE.fullmatch(summary):
         raise LifecycleError("invalid-summary", "Summary must be lowercase ASCII kebab-case.")
     state = load_state(repository)
+    if state["pendingPublish"] is not None:
+        raise LifecycleError("publish-in-progress", "A publication must finish before new development.")
     branch = current_branch_or_none(repository)
     cycle = state["cycle"]
     if cycle is not None:
@@ -1016,6 +1073,8 @@ def command_track_worktree(repository: Repository, arguments: argparse.Namespace
     if not Path(arguments.worktree).is_absolute():
         raise LifecycleError("invalid-argument", "Worktree path must be absolute.")
     state = load_state(repository)
+    if state["pendingPublish"] is not None:
+        raise LifecycleError("publish-in-progress", "A publication must finish before tracking worktrees.")
     cycle = state["cycle"]
     if cycle is None:
         raise LifecycleError("no-active-cycle", "Start a development cycle before tracking a worktree.")
@@ -1098,122 +1157,142 @@ def switch_to_default(repository: Repository, remote: str, default_branch: str) 
     )
 
 
-def describe_publication_targets(targets: Sequence[dict[str, str]]) -> str:
-    """以不含地址或凭据的远端名和分支名描述一组已授权发布目标。"""
-    if not targets:
-        return "none"
-    return ", ".join(
-        f"remote '{target['remote']}' branch '{target['branch']}'" for target in targets
-    )
-
-
-def primary_publication_error(
-    code: str,
-    remote: str,
-    branch: str,
+def pending_publication_error(
+    pending: dict[str, Any],
+    index: int,
+    kind: str,
     detail: str,
     outcome: str,
-    additional_targets: Sequence[dict[str, str]],
 ) -> LifecycleError:
-    """构造主目标 push 后的部分结果错误，明确所有补充目标均尚未尝试。"""
-    targets = describe_publication_targets(additional_targets)
-    return LifecycleError(
-        code,
-        f"Primary Git remote '{remote}' branch '{branch}' {detail}; current target {outcome}, "
-        f"all additional targets were not attempted (targets: {targets}), and the same arguments "
-        "can be retried.",
-    )
+    """把无副作用的发布结果格式转换成生命周期错误。"""
+    return LifecycleError(*pending_failure(pending, index, kind, detail, outcome))
 
 
-def additional_publication_error(
-    code: str,
-    target: dict[str, str],
-    detail: str,
-    outcome: str,
-    published: Sequence[dict[str, str]],
-    remaining: Sequence[dict[str, str]],
-) -> LifecycleError:
-    """构造补充目标部分结果错误，点名前序成功范围、当前结果与未尝试目标。"""
-    earlier = describe_publication_targets(published)
-    subsequent = describe_publication_targets(remaining)
-    return LifecycleError(
-        code,
-        f"Additional Git remote '{target['remote']}' branch '{target['branch']}' {detail}; the "
-        "primary target and earlier additional targets are confirmed published "
-        f"(earlier additional targets: {earlier}), current target {outcome}, subsequent additional "
-        f"targets were not attempted (targets: {subsequent}), and the same arguments can be retried.",
-    )
-
-
-def push_additional_remotes(
+def confirm_pending_publish_target(
     repository: Repository,
-    targets: Sequence[dict[str, str]],
-    default_branch: str,
-    head: str,
-) -> list[dict[str, str]]:
-    """按调用顺序把同一已确定 HEAD 非强制推送到补充远端并逐个复读。"""
-    published: list[dict[str, str]] = []
-    for index, target in enumerate(targets):
-        remote = target["remote"]
-        branch = target["branch"]
-        remaining = targets[index + 1 :]
-        transport_error = additional_publication_error(
-            "additional-push-failed",
-            target,
+    state: dict[str, Any],
+    index: int,
+) -> None:
+    """复读或推送一个冻结目标，确认后立即原子保存进度。"""
+    pending = state["pendingPublish"]
+    assert pending is not None
+    target = pending["targets"][index]
+    head = pending["head"]
+    single_target = len(pending["targets"]) == 1
+    default_branch = state["defaultBranch"]
+    assert default_branch is not None
+    try:
+        remote_head = remote_branch_oid(repository, target["remote"], target["branch"])
+    except LifecycleError as exc:
+        if single_target:
+            raise
+        raise pending_publication_error(
+            pending,
+            index,
+            "verification-failed",
+            "could not be reread before publication resumed",
+            "outcome is uncertain",
+        ) from exc
+    if target["confirmed"] and remote_head != head:
+        raise pending_publication_error(
+            pending,
+            index,
+            "verification-failed",
+            "no longer matches the frozen published HEAD",
+            "previous confirmation has changed",
+        )
+    if remote_head != head:
+        transport_error = pending_publication_error(
+            pending,
+            index,
+            "push-failed",
             "push transport could not be confirmed",
             "outcome is uncertain",
-            published,
-            remaining,
         )
         pushed = run_git(
             repository.root,
-            ["push", remote, f"{head}:refs/heads/{branch}"],
+            ["push", target["remote"], f"{head}:refs/heads/{target['branch']}"],
             check=False,
-            code=transport_error.code,
-            message=transport_error.message,
+            code="git-error" if single_target else transport_error.code,
+            message="Git operation failed." if single_target else transport_error.message,
         )
-        if pushed.returncode != 0:
-            raise additional_publication_error(
-                "additional-push-rejected",
-                target,
-                "rejected the push",
-                "result is rejected",
-                published,
-                remaining,
-            )
         try:
-            remote_head = remote_branch_oid(repository, remote, branch)
+            remote_head = remote_branch_oid(repository, target["remote"], target["branch"])
         except LifecycleError as exc:
-            raise additional_publication_error(
-                "additional-verification-failed",
-                target,
-                "could not be reread after its push",
-                "outcome is uncertain",
-                published,
-                remaining,
-            ) from exc
+            if single_target and pushed.returncode == 0:
+                raise
+            raise transport_error from exc
         if remote_head != head:
-            raise additional_publication_error(
-                "additional-verification-failed",
-                target,
-                "did not reread the expected published HEAD",
+            if pushed.returncode != 0:
+                raise transport_error
+            raise pending_publication_error(
+                pending,
+                index,
+                "verification-failed",
+                "did not reread the frozen published HEAD",
                 "outcome is uncertain",
-                published,
-                remaining,
             )
-        try:
-            verify_local_position(repository, default_branch, head)
-        except LifecycleError as exc:
-            raise additional_publication_error(
-                "additional-local-state-changed",
-                target,
-                "was confirmed published but local Git state verification failed",
-                "is confirmed published",
-                published,
-                remaining,
-            ) from exc
-        published.append({"remote": remote, "branch": branch})
-    return published
+    try:
+        verify_local_position(repository, default_branch, head)
+    except LifecycleError as exc:
+        raise pending_publication_error(
+            pending,
+            index,
+            "local-state-changed",
+            "was confirmed published but local Git state verification failed",
+            "is confirmed published",
+        ) from exc
+    if target["confirmed"]:
+        return
+    target["confirmed"] = True
+    try:
+        save_state(repository, state)
+    except LifecycleError as exc:
+        raise pending_publication_error(
+            pending,
+            index,
+            "state-write-failed",
+            "was confirmed published but lifecycle state could not be saved",
+            "is confirmed published",
+        ) from exc
+
+
+def complete_pending_publish(
+    repository: Repository,
+    state: dict[str, Any],
+    merged: Sequence[str] = (),
+    already_merged: Sequence[str] = (),
+) -> dict[str, Any]:
+    """只沿用已落盘 HEAD 和有序目标完成 publish，不再 fetch 或 merge。"""
+    pending = state["pendingPublish"]
+    assert pending is not None
+    head = pending["head"]
+    primary = pending["targets"][0]
+    verify_local_position(repository, primary["branch"], head)
+    configured = set(configured_remotes(repository))
+    if any(target["remote"] not in configured for target in pending["targets"]):
+        raise LifecycleError("remote-not-found", "A frozen publication remote is not configured.")
+    for index in range(len(pending["targets"])):
+        confirm_pending_publish_target(repository, state, index)
+    published = [
+        {"remote": target["remote"], "branch": target["branch"]}
+        for target in pending["targets"]
+    ]
+    verify_local_position(repository, primary["branch"], head)
+    state["pendingPublish"] = None
+    save_state(repository, state)
+    return {
+        "status": "published",
+        "branch": primary["branch"],
+        "head": head,
+        "remote": primary["remote"],
+        "worktree": str(repository.root),
+        "merged": list(merged),
+        "alreadyMerged": list(already_merged),
+        "publishedRemotes": published,
+        "tagged": False,
+        "cleaned": False,
+    }
 
 
 def publish_primary_remote(
@@ -1222,92 +1301,27 @@ def publish_primary_remote(
     remote: str,
     default_branch: str,
     head: str,
-    additional_targets: Sequence[dict[str, str]],
 ) -> None:
-    """推送、复读并保存主目标；存在补充目标时把 push 后失败转为部分结果语义。"""
-    push_code = "git-error"
-    push_message = "Git operation failed."
-    if additional_targets:
-        transport_error = primary_publication_error(
-            "primary-push-failed",
-            remote,
-            default_branch,
-            "push transport could not be confirmed",
-            "outcome is uncertain",
-            additional_targets,
-        )
-        push_code = transport_error.code
-        push_message = transport_error.message
+    """向单一发布远端推送并复读；非零退出仅表示结果尚未确认。"""
     push = run_git(
         repository.root,
         ["push", remote, f"{head}:refs/heads/{default_branch}"],
         check=False,
-        code=push_code,
-        message=push_message,
+        code="push-failed",
+        message="Git default branch push could not be confirmed.",
     )
-    if push.returncode != 0:
-        if additional_targets:
-            raise primary_publication_error(
-                "primary-push-rejected",
-                remote,
-                default_branch,
-                "rejected the push",
-                "result is rejected",
-                additional_targets,
-            )
-        raise LifecycleError("push-rejected", "Git remote rejected the default branch push.")
     try:
         primary_remote_head = remote_branch_oid(repository, remote, default_branch)
     except LifecycleError as exc:
-        if additional_targets:
-            raise primary_publication_error(
-                "primary-verification-failed",
-                remote,
-                default_branch,
-                "could not be reread after its push",
-                "outcome is uncertain",
-                additional_targets,
-            ) from exc
-        raise
+        code = "push-failed" if push.returncode != 0 else "remote-verification-failed"
+        raise LifecycleError(code, "Git default branch push could not be confirmed.") from exc
     if primary_remote_head != head:
-        if additional_targets:
-            raise primary_publication_error(
-                "primary-verification-failed",
-                remote,
-                default_branch,
-                "did not reread the expected published HEAD",
-                "outcome is uncertain",
-                additional_targets,
-            )
-        raise LifecycleError("remote-verification-failed", "Git remote default branch did not match local HEAD.")
-    try:
-        verify_local_position(repository, default_branch, head)
-    except LifecycleError as exc:
-        if additional_targets:
-            raise primary_publication_error(
-                "primary-local-state-changed",
-                remote,
-                default_branch,
-                "was confirmed published but local Git state verification failed",
-                "is confirmed published",
-                additional_targets,
-            ) from exc
-        raise
+        code = "push-failed" if push.returncode != 0 else "remote-verification-failed"
+        raise LifecycleError(code, "Git default branch push could not be confirmed.")
+    verify_local_position(repository, default_branch, head)
     state["remote"] = remote
     state["defaultBranch"] = default_branch
-    try:
-        save_state(repository, state)
-    except LifecycleError as exc:
-        if additional_targets:
-            raise primary_publication_error(
-                "primary-state-write-failed",
-                remote,
-                default_branch,
-                "was confirmed published but lifecycle state could not be saved",
-                "is confirmed published",
-                additional_targets,
-            ) from exc
-        raise
+    save_state(repository, state)
 
 
 def merge_registered_branches(
@@ -1351,6 +1365,19 @@ def publish(
     """只同步主远端并合并登记分支，再把同一 HEAD 非强制推送到全部目标。"""
     require_clean(repository)
     state = load_state(repository)
+    pending = state["pendingPublish"]
+    if pending is not None:
+        primary = pending["targets"][0]
+        frozen_additional = [target["remote"] for target in pending["targets"][1:]]
+        if (
+            explicit_remote not in (None, primary["remote"])
+            or list(additional_remotes) != frozen_additional
+        ):
+            raise LifecycleError(
+                "publish-in-progress",
+                "Publication retry arguments differ from the frozen targets.",
+            )
+        return complete_pending_publish(repository, state)
     if state["cycle"] is not None and state["cycle"]["pendingRelease"] is not None:
         raise LifecycleError("release-in-progress", "A release cleanup must finish before publication.")
     remote = select_remote(repository, state, explicit_remote, required=True)
@@ -1376,36 +1403,15 @@ def publish(
     merged, already_merged = merge_registered_branches(repository, state, default_branch)
     require_clean(repository)
     head = current_head(repository)
-    primary_target = {"remote": remote, "branch": default_branch}
-    publish_primary_remote(
-        repository,
-        state,
-        remote,
-        default_branch,
-        head,
-        additional_targets,
-    )
-    published_remotes = [primary_target]
-    published_remotes.extend(
-        push_additional_remotes(
-            repository,
-            additional_targets,
-            default_branch,
-            head,
-        )
-    )
-    return {
-        "status": "published",
-        "branch": default_branch,
+    targets = [{"remote": remote, "branch": default_branch}, *additional_targets]
+    state["remote"] = remote
+    state["defaultBranch"] = default_branch
+    state["pendingPublish"] = {
         "head": head,
-        "remote": remote,
-        "worktree": str(repository.root),
-        "merged": merged,
-        "alreadyMerged": already_merged,
-        "publishedRemotes": published_remotes,
-        "tagged": False,
-        "cleaned": False,
+        "targets": [{**target, "confirmed": False} for target in targets],
     }
+    save_state(repository, state)
+    return complete_pending_publish(repository, state, merged, already_merged)
 
 
 def command_publish(repository: Repository, arguments: argparse.Namespace) -> dict[str, Any]:
@@ -1532,9 +1538,14 @@ def ensure_release_tag(repository: Repository, remote: str, tag: str, head: str)
         ["push", remote, f"refs/tags/{tag}:refs/tags/{tag}"],
         check=False,
     )
-    if pushed.returncode != 0:
-        raise LifecycleError("tag-push-failed", "Git remote rejected the release tag push.")
-    if remote_tag_target(repository, remote, tag) != head:
+    try:
+        remote_target = remote_tag_target(repository, remote, tag)
+    except LifecycleError as exc:
+        code = "tag-push-failed" if pushed.returncode != 0 else "tag-verification-failed"
+        raise LifecycleError(code, "Git release tag push could not be confirmed.") from exc
+    if remote_target != head:
+        if pushed.returncode != 0:
+            raise LifecycleError("tag-push-failed", "Git release tag push could not be confirmed.")
         raise LifecycleError("tag-verification-failed", "Git remote release tag did not match local HEAD.")
 
 
@@ -1737,7 +1748,6 @@ def complete_pending_release(
             remote,
             default_branch,
             pending["head"],
-            (),
         )
         ensure_release_tag(repository, remote, pending["tag"], pending["head"])
     else:
@@ -1779,6 +1789,8 @@ def command_release(repository: Repository, arguments: argparse.Namespace) -> di
         arguments,
     )
     state = load_state(repository)
+    if state["pendingPublish"] is not None:
+        raise LifecycleError("publish-in-progress", "A publication must finish before release.")
     repository = primary_repository(repository)
     relocate_cli_cwd_before_release_cleanup(repository, state, arguments)
     cycle = state["cycle"]
@@ -1821,7 +1833,7 @@ def command_release(repository: Repository, arguments: argparse.Namespace) -> di
     if arguments.local_only:
         remote = None
         default_branch = state["defaultBranch"]
-        if default_branch is None and state["cycle"] is None and state["lastRelease"] is None:
+        if default_branch is None:
             default_branch = context["defaultBranch"]
             state["defaultBranch"] = default_branch
         if default_branch is None or not branch_exists(repository, default_branch):

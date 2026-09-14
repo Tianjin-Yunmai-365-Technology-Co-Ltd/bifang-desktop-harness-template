@@ -458,7 +458,8 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
             "用户明确说“推送”时调用 `publish`",
             "用户明确说“发布”时",
             "--also-remote <name>",
-            "补充远端不写入生命周期状态",
+            "`pendingPublish`",
+            "全部确认才清除 journal",
             "两种模式都不接受 `--also-remote <name>`",
             "跨远端推送不是原子操作",
             "普通 `git merge --no-edit`",
@@ -509,7 +510,8 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
             "$desktop-manage-git-lifecycle publish",
             "--also-remote <name>",
             "唯一主远端",
-            "补充远端不写入生命周期状态",
+            "`pendingPublish`",
+            "全部确认后清除 journal",
             "不退化到 plan、Subagent、Local Git checkout 或普通 Worktree",
             "每完成一个逻辑闭环",
             "`git status --porcelain=v1 --untracked-files=all`",
@@ -627,7 +629,7 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
             "即使处于 detached HEAD 也可直接开始",
             "无需预先建立另一层 Task 分支",
             "--also-remote <name>",
-            "补充远端不写入生命周期状态",
+            "`pendingPublish` 中临时保存冻结目标与确认进度",
             "不参与 release、tag 或清理",
             "普通 `git merge --no-edit`",
             "`v{version}-{YYYYMMDD}`",
@@ -639,10 +641,10 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
             "def command_track_worktree(",
             "def publish(",
             "def resolve_additional_remote_targets(",
-            "def primary_publication_error(",
-            "def additional_publication_error(",
+            "def validate_pending_publish(",
+            "def confirm_pending_publish_target(",
+            "def complete_pending_publish(",
             "def publish_primary_remote(",
-            "def push_additional_remotes(",
             'publish_parser.add_argument("--also-remote"',
             "def command_release(",
             "def complete_pending_release(",
@@ -658,15 +660,20 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
             "test_publish_pushes_same_head_to_additional_remote_without_rebinding",
             "test_publish_rejects_invalid_additional_remote_sets_before_pushing",
             "test_publish_primary_failure_context_keeps_additional_targets_unattempted",
-            "test_primary_confirmed_push_contextualizes_local_verification_failure",
-            "test_primary_confirmed_push_contextualizes_state_save_failure",
-            "test_primary_uncertain_failures_contextualize_unattempted_targets",
-            "test_additional_confirmed_push_contextualizes_local_verification_failure",
-            "test_additional_uncertain_failures_contextualize_partial_progress",
             "test_publish_additional_remote_rejection_preserves_primary_and_retry_succeeds",
             "test_release_excludes_additional_remotes_and_rejects_option",
             "test_release_tag_rejection_leaves_resources_and_remote_drift_blocks_cleanup",
             "test_release_tags_before_exact_cleanup_and_retry_is_idempotent",
+        ),
+        GIT_PUBLICATION_TEST_CASES: (
+            "class GitPublicationJournalTests",
+            "test_publish_primary_only_failure_persists_and_resumes_frozen_head",
+            "test_single_target_pending_errors_preserve_stable_codes",
+            "test_single_target_publish_preserves_transport_phase_error_codes",
+            "test_pending_publish_local_drift_preserves_context",
+            "test_publish_final_local_drift_keeps_frozen_journal",
+            "test_pending_publish_nonzero_push_is_uncertain",
+            "test_additional_drift_reports_later_confirmed_targets",
         ),
         SKILLS_ROOT / "desktop-rename-project-identity" / "SKILL.md": (
             "实例化身份重置",
@@ -854,7 +861,7 @@ def validate_streamlined_development_and_build(errors: list[str]) -> None:
                     f"streamlined workflow rule missing in {display_path(path)}: {fragment}",
                 )
 
-    for path in (GIT_LIFECYCLE_SCRIPT, GIT_LIFECYCLE_TESTS):
+    for path in (GIT_LIFECYCLE_SCRIPT, GIT_PUBLICATION_TEST_CASES, GIT_LIFECYCLE_TESTS):
         if not path.is_file():
             continue
         try:
