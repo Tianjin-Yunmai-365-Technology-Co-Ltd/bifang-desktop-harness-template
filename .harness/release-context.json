@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
   "gitPublication": "remote",
-  "sourceHead": "16d3d5ca20117b14347785913a16b253aa6067ef",
-  "version": "202609141917",
-  "releaseDate": "2026-09-14",
-  "expectedTag": "v202609141917-20260914",
-  "remote": "github",
+  "sourceHead": "c37e6789028e54da388d994235ed96e36164f4ba",
+  "version": "202609172016",
+  "releaseDate": "2026-09-17",
+  "expectedTag": "v202609172016-20260917",
+  "remote": "origin",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "167154eb243d87ab9481a11c24ed6cd0fd05beeb",
-    "sourceHead": "16d3d5ca20117b14347785913a16b253aa6067ef",
-    "scopeDiffSha256": "50650bcd54575083b21f163cbf5151a8089466d5789f407da504a48e404cc8c4",
-    "reviewedSourceCommit": "16d3d5ca20117b14347785913a16b253aa6067ef",
+    "scopeBase": "9d5ce6c1d5a72fe768f3a70f3a3cae4b1d77db66",
+    "sourceHead": "c37e6789028e54da388d994235ed96e36164f4ba",
+    "scopeDiffSha256": "926adc5176f85062e68f0df1a7557eb99c4cea1338ec0eda8a0677a2e0df2368",
+    "reviewedSourceCommit": "c37e6789028e54da388d994235ed96e36164f4ba",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -21,7 +21,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "已累计审查上次正式发布提交至 sourceHead 的行为正确性、core/adapter 边界、外部契约、职责规模与临时标记；多远端 publish 的冻结恢复、local/remote release、schema-v2 上下文及错误兼容均通过，未发现 P0/P1/P2。差异完整性、Harness release-review、ADR 取代范围负向门禁及全量 308 项回归通过。",
+    "evidenceSummary": "Reviewed changes from the prior 202609141917 metadata commit through sourceHead for behavior correctness, core and adapter boundaries, external contracts, responsibility and size, and temporary markers. Harness release review, 311 Python tests, Rust 1.98.1 formatting, Clippy, 7 tests, and diff integrity passed. No blocking issues found; 40 nonblocking existing size advisories remain.",
     "reason": null,
     "remainingRisk": null
   },

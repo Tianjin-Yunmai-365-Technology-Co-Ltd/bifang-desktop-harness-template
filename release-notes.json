@@ -2,6 +2,30 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-17",
+      "version": "v202609172016",
+      "featureOptimizations": [
+        {
+          "zh-CN": "初始化推荐预设关闭当前 Task 内部并行 Worktree 与写入型 Subagent，侧边 Git Task 继续使用独立工作树。",
+          "en-US": "The recommended initialization policy now disables internal parallel Worktrees and writing subagents while keeping isolated Worktrees for separate Git Tasks."
+        },
+        {
+          "zh-CN": "Windows 受权限或组织策略阻断自动安装时，环境门禁提供按缺失项列出的官方安装入口，并在用户完成后只读复探。",
+          "en-US": "When Windows permissions or organization policy block automatic setup, the environment gate provides official installation links for missing tools and rechecks them before resuming."
+        },
+        {
+          "zh-CN": "新增只读开发历史汇总 Skill，可结合项目记忆和 Git 历史追溯决策、现状与有证据的未来方向。",
+          "en-US": "Added a read-only development history Skill that traces decisions, current status, and evidence-backed future directions through project records and Git history."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Harness 校验器对已退役 Skill 的纯字节码缓存目录及最新按日记忆路径的误判，并调整 Windows 文件系统限制下的回归测试。",
+          "en-US": "Fixed Harness validation of cache-only retired Skill directories and the latest dated memory paths, and adapted regression tests to Windows filesystem limits."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-09-14",
       "version": "v202609141917",
       "featureOptimizations": [
