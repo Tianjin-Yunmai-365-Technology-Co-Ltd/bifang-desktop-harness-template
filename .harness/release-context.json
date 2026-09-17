@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
   "gitPublication": "remote",
-  "sourceHead": "5c5601de6923836a429bf67b12e50f88cbeabbcc",
-  "version": "202609172016",
+  "sourceHead": "a72cda7d1e83ba737605475bc49b7dae481de3cd",
+  "version": "202609172303",
   "releaseDate": "2026-09-17",
-  "expectedTag": "v202609172016-20260917",
+  "expectedTag": "v202609172303-20260917",
   "remote": "origin",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "9d5ce6c1d5a72fe768f3a70f3a3cae4b1d77db66",
-    "sourceHead": "5c5601de6923836a429bf67b12e50f88cbeabbcc",
-    "scopeDiffSha256": "9c101621535a37c71a3fec4a5e6efa9142650466cbc0c2a6b9acb666a9e8e8ba",
-    "reviewedSourceCommit": "5c5601de6923836a429bf67b12e50f88cbeabbcc",
+    "scopeBase": "973959e5635addef600323e8f5c80f5904fb6537",
+    "sourceHead": "a72cda7d1e83ba737605475bc49b7dae481de3cd",
+    "scopeDiffSha256": "03932fe9df53ef7abd10613f443c02fa8f3beb555adc284b07f38a73d229dc36",
+    "reviewedSourceCommit": "a72cda7d1e83ba737605475bc49b7dae481de3cd",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -21,7 +21,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed the prior 202609141917 metadata commit through sourceHead for behavior correctness, core and adapter boundaries, external contracts, responsibility and size, and temporary markers. Harness release review, 311 Python tests, 44 Git lifecycle tests, 14 release context tests, Rust 1.98.1 formatting, Clippy, 7 tests, and diff integrity passed. Windows CRLF validation remains fail-closed for other edits. No blocking issues found; 40 nonblocking existing size advisories remain.",
+    "evidenceSummary": "Reviewed behavior, core and adapter boundaries, release-notes JSON compatibility, responsibilities and size, and temporary markers for the cumulative diff. Harness validation and semantic review passed; 40 line-size suggestions remain nonblocking.",
     "reason": null,
     "remainingRisk": null
   },
