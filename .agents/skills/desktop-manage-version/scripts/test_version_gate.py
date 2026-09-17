@@ -536,9 +536,11 @@ class VersionGateTests(unittest.TestCase):
         linked_root = self.root.parent / f"{self.root.name}-link"
         try:
             linked_root.symlink_to(self.root, target_is_directory=True)
-        except OSError as error:
+        except (OSError, NotImplementedError) as error:
             if getattr(error, "winerror", None) == 1314:
                 self.skipTest("Windows host does not grant symbolic-link privilege")
+            if isinstance(error, NotImplementedError):
+                self.skipTest("Host does not support directory symlinks")
             raise
         self.addCleanup(linked_root.unlink)
 

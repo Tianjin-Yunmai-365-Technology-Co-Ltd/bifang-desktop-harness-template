@@ -211,6 +211,7 @@ def validate_agent_policy(
         *PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
         "内部 Subagent 不使用本标题合同、不占用 Task 序号",
         "推荐预设确定性物化五项",
+        "`parallel_worktree_subagents: disabled`、`acceptance_smoke: enabled`",
         "`user_owned_tasks: disabled`",
         "开启左侧 Task",
         "关闭左侧 Task",

@@ -169,9 +169,22 @@ def yaml_string(text: str, key: str) -> str | None:
     match = re.search(rf'^\s*{re.escape(key)}:\s*"([^"]*)"\s*$', text, re.MULTILINE)
     return match.group(1) if match else None
 
+def is_cache_only_skill_directory(path: Path) -> bool:
+    """忽略仅含 Python 字节码残留的目录，不把它误判为活动 Skill。"""
+    files = [entry for entry in path.rglob("*") if entry.is_file()]
+    return bool(files) and all(
+        entry.suffix == ".pyc" and "__pycache__" in entry.relative_to(path).parts
+        for entry in files
+    )
+
+
 def validate_skills(errors: list[str]) -> None:
     """校验 Skill 集合、frontmatter、UI 元数据和入口声明保持一致。"""
-    actual = {path.name for path in SKILLS_ROOT.iterdir() if path.is_dir()}
+    actual = {
+        path.name
+        for path in SKILLS_ROOT.iterdir()
+        if path.is_dir() and not is_cache_only_skill_directory(path)
+    }
     if actual != EXPECTED_SKILLS:
         fail(
             errors,

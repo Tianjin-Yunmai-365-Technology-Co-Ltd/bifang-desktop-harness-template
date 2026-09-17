@@ -1,12 +1,12 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-09-14
+> 记忆日期：2026-09-17
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-14（正式发布逐次选择本地或远端 Git；只有远端模式才启用 push、远端复读与远端清理门禁）
+> 最近范围确认：2026-09-17（推荐预设关闭 Task 内部并行和 Windows 权限阻断人工接续；此前发布决定继续有效）
 
 ## 一句话目标
 
@@ -111,6 +111,17 @@
 - 需要写入时只做当前用户的标准全局安装，不建立 Harness 私有工具根或私有环境变量：Rust 使用官方 rustup 标准布局，并尊重位于用户主目录内的标准 `CARGO_HOME`/`RUSTUP_HOME`；非默认 Rust homes 只有在 Unix 新 login shell 或 Windows User 作用域能持久恢复，且恢复值与当前进程一致时才能决定安装，否则在下载前失败关闭。两端的 `rustup-init` 都传 `--no-modify-path`，阻止安装器在完整预检和原子持久化之外改写 shell profile 或 User PATH；门禁随后把标准 Cargo bin 写入普通用户 PATH，该参数不改变安装根。Unix Node.js 安装到 `~/.local/lib/nodejs/<version>` 并在 `~/.local/bin` 建立稳定入口，pnpm 使用 npm 的 `--global --prefix ~/.local`；Windows Node.js 使用 `%LOCALAPPDATA%\Programs\nodejs\<version>`，pnpm 使用 `%APPDATA%\npm`，Rust 使用 rustup 标准用户位置。所有将进入 PATH 的单一路径根在写入或下载前都拒绝对应平台的 PATH 分隔符。持久 PATH 直接纳入这些标准 bin，不再通过 `~/.config/agent-first-harness/env.sh` 或同类 Harness 私有 env 中转；修复时可精确移除旧 source 行，但保留旧文件字节供人工恢复。
 - 依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标，正常锁文件固定实际解析结果；新增或主动更新时优先选择 registry 当前最新兼容稳定版，再以 MSRV、peer、平台和 API/feature 实测决定是否抬高下界。中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析、代码规范检查与非空测试。`rmcp 3.3.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-09-12 经 registry metadata、peer 与 engine 筛选的候选完整三段下界，继续保持 `Unverified`；实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析，以及适用的非空 test、typecheck 和 build，成功后才能成为该项目的兼容下界。前端候选包括 React/React DOM `19.3.0`、Mantine `9.6.1`、TanStack Router `1.170.35`、`i18next` `26.4.2`、`react-i18next` `17.0.13`、Vite `8.3.0`、ESLint `10.10.0`、`typescript-eslint` `8.70.0` 与 Testing Library；Node 类型直接声明为 `@types/node ^24.13.4`，浏览器测试固定使用连续支持 Node.js `>=24.21.0`（包括 25.x）的 `jsdom ^29.0.1`，不得升级到会重新排除 Node.js 25.x 的 30.x。新增成套 peer 下界时必须在清单中显式声明。TypeScript 7、Vitest 5 和 Jotai 3 等需要迁移或尚与现有 peer 范围冲突的跨主版候选不为追求版本号而强制引入。
 - 本节的环境下界、连续 Node.js 判定和标准当前用户安装语义，取代 `HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION`、`HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE` 与 `HARNESS-CHANGE-USER-GLOBAL-DEVELOPMENT-ENVIRONMENT-RECOVERY` 中的旧版本、Node.js 25 分段、Harness 私有安装根和忽略标准 Rust homes 子句；旧决定要求安装器使用 `--no-modify-path` 的安全边界继续有效，但 PATH 现在由门禁直接写入标准用户位置而非 Harness 私有中转。它们关于触发范围、范围内复用、低于下界自动修复、预发布/损坏失败关闭、供应链校验、新 shell 复探和零写入只读模式的其余决定继续有效。
+
+### Windows 环境受权限阻断时人工接续
+
+- 变更标识：`HARNESS-CHANGE-WINDOWS-ENVIRONMENT-MANUAL-HANDOFF`；所需 Harness 版本：`202609172016`，已由本次 Harness 时间版本发布物化。
+- 中性初始化或真实受管环境错误恢复仍优先由 Agent 按现有门禁自动静默安装/升级并复探。Windows 的管理员权限、UAC 或组织策略使当前 Codex 会话无法继续时，保留表单和原失败事实，只按本次未达标的必需工具提供 Git、Rust、MSVC Build Tools，以及仅 GUI 所需 Node.js、pnpm 的官方安装入口和操作要点。静默参数不能绕过管理员授权，不降低版本或验签门槛。
+- 用户自行安装并告知继续后，Agent 在原项目根和接口选择下先重新读取进程环境并运行只读门禁；全部适用项通过才恢复初始化或对原失败命令单次重试。用户陈述、安装器返回或其他机器结果不替代当前宿主复探。
+
+### 开发历史只读汇总
+
+- 变更标识：`HARNESS-FEAT-DEVELOPMENT-HISTORY-SUMMARY`；所需 Harness 版本：`202609172016`，已由本次 Harness 时间版本发布物化。
+- 终端下游保留 `$desktop-summarize-development-history`，按用户请求从 ADR、Changelog、Product Spec、Status、Work Plan、技术债及有 Git 时的旧版本重建产品脉络，标出决策取代、已实现、已验证、计划、待决与推测。Harness 源只分析自身工程历史。输出给出可复核来源；无证据时明确无法判定，不把未来推测写成批准需求，也不因总结而改写项目记忆、版本或发布状态。
 
 ### Logo 原始候选稳定预览与选择后处理
 
@@ -251,7 +262,7 @@
 ### 持久 Agent 策略
 
 - `docs/AGENT_POLICY.md` 是下游项目 Agent 策略的唯一持久事实来源，使用 schema v3 可解析模式记录 `user_owned_tasks`、`superpowers`、`parallel_worktree_subagents`、`acceptance_smoke` 和 `e2e_hint`。
-- 下游完成初始化前必须明确选择推荐预设或自定义。推荐预设展开为 `user_owned_tasks: disabled`、`superpowers: disabled`、`parallel_worktree_subagents: enabled`、`acceptance_smoke: enabled`、`e2e_hint: disabled`；自定义逐项确认五项。最终五项必须是 `enabled` 或 `disabled`，`pending` 不得进入基线。
+- 下游完成初始化前必须明确选择推荐预设或自定义。推荐预设展开为 `user_owned_tasks: disabled`、`superpowers: disabled`、`parallel_worktree_subagents: disabled`、`acceptance_smoke: enabled`、`e2e_hint: disabled`；自定义逐项确认五项。最终五项必须是 `enabled` 或 `disabled`，`pending` 不得进入基线。
 - `enabled` 表示允许 Agent 在适用场景中自行采用，不表示无条件执行；`disabled` 表示跳过可选能力。产品、渠道、安全和外部副作用硬门禁优先于项目偏好。
 - `user_owned_tasks: disabled` 时不自动创建左侧 Task，`enabled` 时按结果边界自动创建；显式创建始终允许。切换只影响后续结果判断，不迁移既有 Task。本文件只有 `schema_version: 3` 一种有效形态，不为任何缺少字段的旧 schema 提供默认解释或迁移路径。
 - 写入型 Subagent 只有用户在当前请求中明确要求并行、`parallel_worktree_subagents` 为 `enabled`、任务可安全拆成至少两个无重叠写入单元且 Worktree 数据安全检查通过时才使用；否则 Agent 自行采用单 Agent，不重复询问。不存在因开发分支状态或历史形态而禁用写入并行的分支门禁；该字段与左侧 Git Task 自身环境开关互不替代。
@@ -399,7 +410,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609141917`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并复读本地 `v{版本}-{YYYYMMDD}`；只有当次 `gitPublication: remote` 才必须推送并复读远端同名 tag。源码归档、签名与渠道上传仍须各自真实发生。
+- 当前版本：`202609172016`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并复读本地 `v{版本}-{YYYYMMDD}`；只有当次 `gitPublication: remote` 才必须推送并复读远端同名 tag。源码归档、签名与渠道上传仍须各自真实发生。
 - 变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。正式发布逐次选择本地或远端 Git；发布上下文是唯一冻结选择，远端 push/ref/清理只在远端模式成为门禁，本地模式允许当前宿主候选且零远端访问。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
 - 变更标识：`HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY`；所需 Harness 版本：`202609111732`，已由本次 Harness 时间版本发布物化。删除 `Version.md` 中的 `1.0.0` 标识并新增反向门禁、Task 序号不再识别历史四字段标题、下游 SemVer 的 Minor/Patch 严格固定 `0..99` 不兼容历史 `100`、Agent Policy 升级 `schema_version: 3` 并把 `milestone_smoke`/`milestone_e2e` 改名为 `acceptance_smoke`/`e2e_hint`。

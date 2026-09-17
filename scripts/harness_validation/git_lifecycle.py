@@ -5,6 +5,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from .repository import is_cache_only_skill_directory
+
 from .context import (
     AGENT_POLICY,
     CROSS_RELEASE_CONTEXT_HELPER,
@@ -131,7 +133,9 @@ def _validate_no_retired_runtime(errors: list[str]) -> None:
 def validate_git_lifecycle_contract(errors: list[str]) -> None:
     """Validate local start, managed multi-remote publish, tag-first release, and cleanup."""
 
-    if OLD_SKILL_ROOT.exists() or OLD_SKILL_ROOT.is_symlink():
+    if OLD_SKILL_ROOT.is_symlink() or (
+        OLD_SKILL_ROOT.exists() and not is_cache_only_skill_directory(OLD_SKILL_ROOT)
+    ):
         fail(errors, f"retired Git lifecycle skill still exists: {display_path(OLD_SKILL_ROOT)}")
 
     required = {

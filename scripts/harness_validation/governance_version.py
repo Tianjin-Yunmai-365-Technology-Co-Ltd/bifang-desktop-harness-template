@@ -8,13 +8,18 @@ from pathlib import Path
 
 from .context import *  # noqa: F403
 
+LATEST_ADR = latest_matching_file(ADR_DIR, re.compile(r"^\d{8}_ADR\.md$"))  # noqa: F405
+LATEST_CHANGELOG = latest_matching_file(  # noqa: F405
+    CHANGELOG_DIR, re.compile(r"^\d{8}_CHANGELOG\.md$")
+)
+
 
 MATERIALIZED_CHANGE_RECORDS = {
     "HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH": (
         "202609141917",
         (
-            "docs/changelog/20260914_CHANGELOG.md",
-            "docs/product_spec/20260914_product_spec.md",
+            LATEST_CHANGELOG.relative_to(ROOT).as_posix(),  # noqa: F405
+            PRODUCT_SPEC.relative_to(ROOT).as_posix(),  # noqa: F405
         ),
     ),
     "HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE": ("202609141917", None),
@@ -186,9 +191,9 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             )
 
     default_paths = (
-        "docs/changelog/20260914_CHANGELOG.md",
-        "docs/adr/20260914_ADR.md",
-        "docs/product_spec/20260914_product_spec.md",
+        LATEST_CHANGELOG.relative_to(ROOT).as_posix(),  # noqa: F405
+        LATEST_ADR.relative_to(ROOT).as_posix(),  # noqa: F405
+        PRODUCT_SPEC.relative_to(ROOT).as_posix(),  # noqa: F405
     )
     for change_id, (required_version, declared_paths) in MATERIALIZED_CHANGE_RECORDS.items():
         for relative_path in declared_paths or default_paths:
@@ -200,5 +205,5 @@ def validate_version_contract(errors: list[str], version_file: Path) -> None:
             )
     _validate_optional_remote_adr_scope(
         errors,
-        ROOT / "docs" / "adr" / "20260914_ADR.md",  # noqa: F405
+        LATEST_ADR,
     )

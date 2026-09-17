@@ -1,6 +1,9 @@
-# 2026-09-14 变更记录
+# 2026-09-17 变更记录
 
 ## 新增
+
+- `HARNESS-CHANGE-WINDOWS-ENVIRONMENT-MANUAL-HANDOFF`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：Windows 环境门禁继续优先由 Agent 自动静默安装；管理员权限、UAC、组织策略或 Codex 宿主能力阻断时，按本次缺失项提供 Git、Rust、MSVC Build Tools 及仅 GUI 所需 Node.js/pnpm 的官方入口和用户安装步骤。用户告知完成后先在原宿主只读复探，通过才恢复初始化或对原失败命令单次重试。
+- `HARNESS-FEAT-DEVELOPMENT-HISTORY-SUMMARY`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：新增并在下游保留 `$desktop-summarize-development-history`，按用户请求只读追溯 ADR、Changelog、最新产品记忆与 Git 旧版本，汇总开发起因、关键转折、现状和有证据的未来方向；明确区分已实现、已验证、计划与推测，默认不写项目记忆或版本。
 
 - `HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`（所需 Harness 版本 `202609141917`，已由本次 Harness 时间版本发布物化）：正式发布现在逐次明确选择 `gitPublication: local | remote` 并写入发布上下文。生命周期 `release` 必须携带已跟踪上下文的精确 SHA-256，并在任何副作用前核对版本、日期、tag、默认分支、模式与远端，错配时零变更失败。选择本地时只普通合并到本地默认分支、创建并复读本地版本 tag，再清理精确登记的 Worktree 与本地分支，全程不访问或修改远端；选择远端时，主分支与 tag push、远端复读及主远端登记分支清理才加入工作流并保持硬门禁。生命周期状态升级为当前唯一 schema v2，先持久化带上下文绑定和模式的待完成记录；远端路径在仅本地整合后立即固定最终 HEAD，随后才允许 push，确保重试既不能跨模式扩大授权，也不能重新整合出另一提交。当前宿主候选可消费两种上下文，托管提供方跨平台矩阵只接受远端模式。
 
@@ -72,6 +75,8 @@
 - `HARNESS-FEAT-CURATE-MEMORY-HISTORY-SKILL`（所需 Harness 版本 `202608051301`）：新增 `$desktop-curate-harness-memory` Skill，只治理 Harness 自身 `docs/adr/`、`docs/changelog/`。当前最新文件超过 500 行建议重构阈值或项目负责人明确要求时，把已被后续决定完全取代、且不再被任何当前规范引用的过期条目原文迁移到同目录 `ADR_history.md`/`CHANGELOG_history.md` 永久追加保存，当前文件只保留仍在直接约束行为的条目；不确定的条目一律保守保留并列为候选。该 Skill 不加入 `$desktop-instantiate-project` 复制清单，不随下游派生，不适用 Work Plan/Product Status/Product Spec。
 
 ## 变更
+
+- `HARNESS-CHANGE-DEFAULT-INTERNAL-PARALLEL-DISABLED`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：初始化推荐预设将 `parallel_worktree_subagents` 改为 `disabled`。该开关只控制当前 Task 内部的 `codex/unit-*` Worktree 与写入型 Subagent；手动或策略自动新建的 Git 侧边 Task 仍使用独立 Worktree、`feature-*` 分支和可审查提交。策略、表单、初始化 Skills、规格、README 与校验已同步。
 
 - `HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE`（`required_version = 202609122231`，已由本次 Harness 时间版本发布物化）：统一 Harness 源与终端下游的正式发布分支。明确发布仍授权源码/元数据提交、默认主分支与版本 tag 推送、远端复读和登记资源清理；终端下游随后进入真实产品候选构建，Harness 源则在 Git 引用、发布上下文和累计差异复核通过后结束，不再被旧规则误导去生成产品二进制、`release/` manifest、性能/E2E 或产品验收结论。双语 `release-notes.json` 现在明确同时服务模板源码摘要与下游产品资源；prepare-release 必须在源码 HEAD 上先生成日志但不提交，再写上下文，最后把两者作为同一个发布元数据提交，消除 helper 的 `sourceHead` 前置条件与旧两提交文字顺序冲突。
 

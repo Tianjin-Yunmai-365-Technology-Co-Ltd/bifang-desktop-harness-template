@@ -70,7 +70,7 @@ class AgentPolicyTests(unittest.TestCase):
             {
                 "superpowers": "disabled",
                 "user_owned_tasks": "disabled",
-                "parallel_worktree_subagents": "enabled",
+                "parallel_worktree_subagents": "disabled",
                 "acceptance_smoke": "enabled",
                 "e2e_hint": "disabled",
             }
@@ -87,6 +87,28 @@ class AgentPolicyTests(unittest.TestCase):
             self._current_policy(),
             r"(?m)^user_owned_tasks: disabled$",
         )
+
+    def test_recommended_parallel_default_is_off_across_initialization(self) -> None:
+        """The recommended recipe disables internal parallel units only."""
+        sources = (
+            self._current_policy(),
+            read_repo_text(".agents/skills/desktop-instantiate-project/SKILL.md"),
+            read_repo_text(".agents/skills/desktop-instantiate-project/references/initialization-form.md"),
+            read_repo_text(".agents/skills/desktop-initialize-rust-project/SKILL.md"),
+        )
+        for source in sources:
+            self.assertIn("parallel_worktree_subagents: disabled", source)
+        self.assertIn("`codex/unit-*`", sources[0])
+        self.assertIn("user_owned_tasks: disabled", sources[2])
+
+        mutated = sources[0].replace(
+            "`parallel_worktree_subagents: disabled`、`acceptance_smoke: enabled`",
+            "`parallel_worktree_subagents: enabled`、`acceptance_smoke: enabled`",
+            1,
+        )
+        self.assertNotEqual(mutated, sources[0])
+        errors = self._validate(mutated)
+        self.assertTrue(any("parallel_worktree_subagents: disabled" in error for error in errors))
 
     def test_source_default_validator_rejects_enabled_superpowers(self) -> None:
         """模板校验不能只依赖正文中的推荐值而忽略源字段漂移。"""
@@ -422,7 +444,8 @@ class StreamlinedDevelopmentTests(unittest.TestCase):
             self.assertIn(fragment, policy)
 
         self.assertIn("每完成一个逻辑闭环", implement)
-        self.assertIn("保存项目完整路径、`projectId`、repository identity", implement)
+        self.assertIn("保存项目完整路径和 `projectId`；Git Task 还须核对 repository identity", implement)
+        self.assertIn("非 Git Local Task 须核对 cwd", implement)
         self.assertIn("git rev-parse --path-format=absolute --git-common-dir", implement)
         self.assertIn("从具名分支或 detached HEAD 直接创建并切换到", implement)
         self.assertIn("用户明确说“推送”时才合并到主分支", implement)

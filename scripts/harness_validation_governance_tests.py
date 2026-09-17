@@ -1027,8 +1027,8 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         self.assertEqual(
             relative_paths,
             (
-                "docs/changelog/20260914_CHANGELOG.md",
-                "docs/product_spec/20260914_product_spec.md",
+                governance_version.LATEST_CHANGELOG.relative_to(ROOT).as_posix(),
+                governance_version.PRODUCT_SPEC.relative_to(ROOT).as_posix(),
             ),
         )
         assert relative_paths is not None
@@ -1055,11 +1055,11 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
     def test_optional_remote_adr_requires_complete_supersession_scope(self) -> None:
         """当前 ADR 必须显式取代三条更早的远端强制候选契约。"""
 
-        source = read_repo_text("docs/adr/20260914_ADR.md")
+        source = governance_version.LATEST_ADR.read_text(encoding="utf-8")
         required = governance_version.OPTIONAL_REMOTE_ADR_SUPERSESSION_FRAGMENT
         self.assertIn(required, source)
         with tempfile.TemporaryDirectory() as tmp_dir:
-            path = Path(tmp_dir) / "20260914_ADR.md"
+            path = Path(tmp_dir) / governance_version.LATEST_ADR.name
             path.write_text(source.replace(required, "", 1), encoding="utf-8")
             errors: list[str] = []
             governance_version._validate_optional_remote_adr_scope(errors, path)
@@ -1473,3 +1473,22 @@ class ProjectMemoryTriggerTests(unittest.TestCase):
         self.assertIn("不受当前周期的功能提升锁影响", release)
         self.assertIn("普通缺陷仍进入发布日志，但不为此制造 Changelog", prepare)
         self.assertIn("Changelog 仅在独立规则触发时更新", prepare)
+
+
+class SkillDirectoryDiscoveryTests(unittest.TestCase):
+    """Distinguish bytecode debris from an incomplete Skill directory."""
+
+    def test_cache_only_directory_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "old-skill"
+            cache = path / "scripts" / "__pycache__"
+            cache.mkdir(parents=True)
+            (cache / "old.cpython-313.pyc").write_bytes(b"cache")
+            self.assertTrue(repository.is_cache_only_skill_directory(path))
+
+    def test_non_cache_missing_skill_remains_visible(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "broken-skill"
+            path.mkdir()
+            (path / "notes.md").write_text("content", encoding="utf-8")
+            self.assertFalse(repository.is_cache_only_skill_directory(path))

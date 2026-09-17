@@ -43,7 +43,7 @@
 | 8 | 首轮基础 | Agent 策略模式 | 必须选择“推荐预设”或“自定义”。不得从 Harness 源策略推断用户选择。 |
 | 9 | 条件补全 | `user_owned_tasks` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭不影响用户明确要求创建。 |
 | 10 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 11 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
+| 11 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`；此项只控制当前 Task 内部 `codex/unit-*` Worktree 与写入型 Subagent，不关闭侧边 Git Task 的独立工作树。 |
 | 12 | 条件补全 | `acceptance_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
 | 13 | 条件补全 | `e2e_hint` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
 | 14 | 条件补全 | `system_tray` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
@@ -61,12 +61,12 @@
 ```yaml
 user_owned_tasks: disabled
 superpowers: disabled
-parallel_worktree_subagents: enabled
+parallel_worktree_subagents: disabled
 acceptance_smoke: enabled
 e2e_hint: disabled
 ```
 
-推荐预设包含以上全部五项；选择自定义时逐项确认，不能从 Harness 源当前值推断用户选择。
+推荐预设包含以上全部五项；选择自定义时逐项确认，不能从 Harness 源当前值推断用户选择。最终汇总需说明 `parallel_worktree_subagents: disabled` 只关闭当前 Task 内部并行；`user_owned_tasks` 的自动创建开关与用户明确新建的侧边 Task 独立。
 
 ## 目标路径解析
 

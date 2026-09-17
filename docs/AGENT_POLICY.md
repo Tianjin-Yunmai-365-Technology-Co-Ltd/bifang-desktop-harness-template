@@ -142,7 +142,7 @@ Task 绑定：
 ## 初始化与持久化
 
 - `$desktop-instantiate-project` 把“推荐预设”或“自定义”与其他固定基础字段放在首轮一次询问；直接调用 `$desktop-initialize-rust-project` 时把策略模式与接口组合放在同一首轮。推荐预设必须显式确认一次；选择自定义后，每轮只询问一个尚未明确提供的条件字段，每项至多一次。
-- 推荐预设确定性物化五项为 `user_owned_tasks: disabled`、`superpowers: disabled`、`parallel_worktree_subagents: enabled`、`acceptance_smoke: enabled`、`e2e_hint: disabled`。选择自定义时逐项询问五项；`user_owned_tasks` 的推荐/default 值都是 `disabled`。预设只是输入捷径，不新增持久字段，也不得在用户未确认时静默采用其他值。
+- 推荐预设确定性物化五项为 `user_owned_tasks: disabled`、`superpowers: disabled`、`parallel_worktree_subagents: disabled`、`acceptance_smoke: enabled`、`e2e_hint: disabled`。选择自定义时逐项询问五项；`user_owned_tasks` 的推荐/default 值都是 `disabled`。内部并行开关只控制当前 Task 的 `codex/unit-*` Worktree 与写入型 Subagent；用户明确新建的 Git 侧边 Task 仍使用独立 Worktree，`user_owned_tasks: enabled` 时仍可按结果边界自动创建。预设只是输入捷径，不新增持久字段，也不得在用户未确认时静默采用其他值。
 - 五项值全部解析后才以 `schema_version: 3` 一次原子写入本文件；`confirmed_by` 记录真实确认来源，`confirmed_at` 记录最终收齐日期。由 `$desktop-instantiate-project` 进入 `$desktop-initialize-rust-project` 时只验证并复用，不重复询问。
 - `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，五项选择、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
 - 初始化首次写入发生在下游 ADR 尚未创建前，不要求预建 ADR。初始化后，用户可明确说“开启左侧 Task”“关闭左侧 Task”“开启自动 Task 拆分”或“关闭自动 Task 拆分”；Agent 更新 `user_owned_tasks`、`confirmed_by`、`confirmed_at`，并在当日 ADR 记录前后值、原因、影响和恢复条件。用户也可以手动完成同样编辑与 ADR。目标值相同时按幂等 no-op 报告，不重写元数据或 ADR。

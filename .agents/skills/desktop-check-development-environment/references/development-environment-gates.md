@@ -45,6 +45,22 @@
 - Tauri xwin 只在 macOS、GUI 已选且 Windows x64 NSIS 已批准时触发。LLVM、LLD 与 NSIS 使用既有 Homebrew，但只作为宿主能力探测，不把 formula 当前解析版本写成项目兼容契约；Rust target 使用 rustup，`cargo-xwin` 使用 Cargo 的 `--locked --version '>=0.23.1, <0.24.0'` 安装或升级。缺少 Homebrew 时阻断并报告，不执行远程 shell 安装器。已存在但缺失必需命令的 formula 视为损坏并阻断；低于 0.23.1 的可解析稳定 `cargo-xwin` 升级，`>=0.24.0`、预发布、无法解析或损坏的 `cargo-xwin` 阻断。
 - 只能在本参考规定的触发条件与写入模式下升级现有工具。不得降低最低门禁、回退依赖或锁文件、注入 shim、改用旧版工具或寻找替代工具链来适配旧环境。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装/升级后探测发生失败时，必须阻断开发。
 
+## Windows 自动安装受阻后的人工接续
+
+Windows 写入门禁先尝试现有静默路线：Git 使用 `winget --silent --disable-interactivity`，Rust、Node.js、pnpm 安装到当前用户环境，MSVC 使用验签后的微软 Build Tools 引导程序 `--quiet --wait --norestart`。静默表示安装界面最少，不代表可以绕过 UAC、管理员授权或组织策略；微软的 Visual Studio 安装要求管理员权限，标准用户不能以 `--quiet` 绕过。Agent 能在已授权的管理员上下文继续时，仍优先完成自动安装和复探。
+
+若 Windows 宿主中的 Codex 进程无法完成提权、UAC 被拒绝、组织策略阻断或安装器不可由当前会话运行，先停止当前初始化/开发/构建，再在同一项目根与已选接口执行一次 `-CheckOnly -Interfaces <selection>` 只读复探。写入门禁可能在首次失败时提前退出，不能仅凭该退出码推断所有工具状态。复探可运行时，给用户一份**仅含本次已证实未达标必需项**的人工安装清单；复探本身无法运行时，只列已证实的失败项，并将其余适用项标为“未判定”，不得把它们写成已通过或已失败。清单写明原门禁命令、失败阶段和退出码或诊断、目标架构、已选择接口、最低版本、已成功安装项，以及以下相应官方入口；不得给未经核验的聚合包或把用户安装视为已经通过。
+
+| 必需项 | 官方下载/安装入口 | 用户安装要点 |
+|---|---|---|
+| Git（全部接口） | [Git for Windows](https://git-scm.com/install/windows) | 选择当前 Windows 架构的安装器；安装后 `git --version` 至少为稳定版 2.36.0。已有 `winget` 且可用时仍优先由门禁自动静默安装。 |
+| Rust（全部接口） | [Rust 官方安装页](https://rust-lang.org/tools/install/) | 下载当前架构的 `rustup-init.exe`，选择 stable 的 MSVC 工具链；`rustc --version` 至少为稳定版 1.98.1，同时确认 `cargo --version` 与同一 stable minor。 |
+| MSVC C++ Build Tools（Windows Rust） | [微软 Build Tools 2022 引导程序](https://aka.ms/vs/17/release/vs_BuildTools.exe)、[微软安装说明](https://learn.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2022) | 由用户或设备管理员完成 UAC；在安装器中选择 **Desktop development with C++**（`Microsoft.VisualStudio.Workload.VCTools`）及推荐组件，按提示重启。仅安装 Visual C++ Redistributable 不能替代编译工具。 |
+| Node.js（仅 GUI） | [Node.js 官方下载页](https://nodejs.org/en/download) | 选择当前架构、满足 `>=24.21.0` 的稳定版；已有 25.x 或更高正式稳定版可继续使用。安装后核对 `node --version` 与 `npm --version`。 |
+| pnpm（仅 GUI） | [pnpm 官方安装说明](https://pnpm.io/installation) | Node.js 合格后用 npm 在标准用户级全局前缀安装满足 `>=12.4.1` 的稳定版，并核对 `pnpm --version`；不要用远程文本直接执行或降低版本门槛。 |
+
+用户完成安装并明确告知继续后，Agent 在同一项目根和已确认接口下先重新打开进程环境/刷新 PATH，再运行 `.agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -CheckOnly -Interfaces <selection>` 只读复探。所有适用项均为 `passed` 才继续：初始化返回原初始化流程；真实测试/构建错误恢复只重试原失败命令一次。仍未达标时报告具体剩余项及新的诊断并保持阻断，不循环自动安装，也不将未验证的用户操作记为通过。若 Codex 在该 Windows 宿主完全无法运行，用户可在本机 PowerShell 核对上述版本并把结果告知 Agent；Agent 恢复访问后仍必须亲自执行只读门禁，不能仅凭转述宣称环境通过。
+
 ## 证据记录
 
 记录宿主、已选接口/发布目标、工具需求状态、探测命令、观测版本或 `Missing`、`missing` / `upgrade-required`、安装/升级来源和 `installed` / `upgraded` 变更、写入后复探、最终结果，并将其他平台标记为 `Unverified`。xwin 成功仍把 Windows runtime 记为 `Unverified`。遮盖令牌和不必要的用户主目录路径。该证据不得替代项目构建、测试、产物、冒烟、E2E 或人工复核证据。

@@ -190,6 +190,8 @@ class FileLineLimitTests(RepositoryFixture):
 
         payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
         names = [".hidden file.md"]
+        if os.name != "nt":
+            names.append("line\nbreak.txt")
         for name in names:
             self.write(name, payload)
         self.track(*names)

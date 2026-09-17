@@ -625,6 +625,7 @@ EXPECTED_SKILLS = {
     "desktop-prepare-gui-support-surfaces",
     "desktop-rename-project-identity",
     "desktop-run-parallel-worktrees",
+    "desktop-summarize-development-history",
     "desktop-test-final-artifact-e2e",
     "desktop-test-gui-initialization-e2e",
     "desktop-test-gui-release-performance",
