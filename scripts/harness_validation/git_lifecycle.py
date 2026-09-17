@@ -487,9 +487,10 @@ def validate_git_lifecycle_contract(errors: list[str]) -> None:
                 "raw = path.read_bytes()",
                 "validate_context(value)",
                 "canonical_bytes(value)",
-                "hashlib.sha256(raw).hexdigest()",
+                'raw.replace(b"\\r\\n", b"\\n") != canonical',
+                "hashlib.sha256(canonical).hexdigest()",
                 '["show", f"HEAD:{RELEASE_CONTEXT_PATH}"]',
-                "committed.stdout != raw",
+                "committed.stdout != canonical",
             ),
             label="authoritative tracked release-context sequence",
         )

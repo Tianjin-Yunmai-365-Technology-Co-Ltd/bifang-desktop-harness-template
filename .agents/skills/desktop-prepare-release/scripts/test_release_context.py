@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -163,6 +162,30 @@ class ReleaseContextTests(unittest.TestCase):
         self.assertEqual(context["sourceHead"], self.source_head)
         self.assertEqual(context["defaultBranch"], "main")
 
+    def test_verify_accepts_clean_crlf_checkout_of_canonical_context(self) -> None:
+        """Git 的 Windows 行尾转换不改变已跟踪上下文的规范摘要。"""
+        self.git("config", "--local", "core.autocrlf", "true")
+        head, digest = self.commit_and_tag()
+        path = self.root / ".harness/release-context.json"
+        canonical = path.read_bytes().replace(b"\r\n", b"\n")
+        path.write_bytes(canonical.replace(b"\n", b"\r\n"))
+        self.git("add", ".harness/release-context.json")
+        self.assertEqual(self.git("status", "--porcelain").stdout, "")
+
+        verified = self.run_script(
+            "verify",
+            "--project-root",
+            str(self.root),
+            "--expected-version",
+            "1.2.3",
+            "--expected-sha256",
+            digest,
+            "--expected-head",
+            head,
+        )
+        self.assertEqual(verified.returncode, 0, verified.stderr)
+        self.assertEqual(json.loads(verified.stdout)["sourceCommit"], head)
+
     def test_schema_v1_release_context_is_rejected(self) -> None:
         """A structurally valid legacy context must fail specifically at the schema boundary."""
         written = self.write_context()
@@ -181,7 +204,7 @@ class ReleaseContextTests(unittest.TestCase):
         self.assertIn("fields or schemaVersion", rejected.stderr)
 
     def test_local_write_uses_explicit_branch_without_accessing_remote(self) -> None:
-        shutil.rmtree(self.remote)
+        self.remote.rename(self.remote.with_name("offline-remote.git"))
 
         result = self.write_context(
             publication=("--local-only", "--default-branch", "main")
@@ -230,7 +253,7 @@ class ReleaseContextTests(unittest.TestCase):
             publication=("--local-only", "--default-branch", "main"),
             push=False,
         )
-        shutil.rmtree(self.remote)
+        self.remote.rename(self.remote.with_name("offline-remote.git"))
 
         result = self.run_script(
             "verify",
@@ -257,7 +280,7 @@ class ReleaseContextTests(unittest.TestCase):
         self.git("commit", "--quiet", "-m", "chore(release): record release context")
         self.git("switch", "--quiet", "main")
         self.git("merge", "--quiet", "--no-edit", "feature-release-context-20260909")
-        shutil.rmtree(self.remote)
+        self.remote.rename(self.remote.with_name("offline-remote.git"))
 
         result = self.run_script("verify", "--project-root", str(self.root))
 

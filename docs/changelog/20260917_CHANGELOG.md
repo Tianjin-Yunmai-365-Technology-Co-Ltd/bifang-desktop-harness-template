@@ -76,6 +76,8 @@
 
 ## 变更
 
+- `HARNESS-FIX-WINDOWS-RELEASE-VALIDATOR-CRLF`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：修复 Windows Git 将已跟踪的发布上下文校验脚本和 JSON 检出为 CRLF 后，生命周期发布把脚本误判为未跟踪或把上下文摘要误判为不匹配的问题。校验只允许工作文件与 HEAD 的规范 LF 字节相同，或仅将工作文件 CRLF 还原为 LF 后相同；其他脚本或上下文改动仍失败关闭。真实临时仓库回归覆盖干净 CRLF 检出、上下文复读和本地发布。
+
 - `HARNESS-CHANGE-DEFAULT-INTERNAL-PARALLEL-DISABLED`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：初始化推荐预设将 `parallel_worktree_subagents` 改为 `disabled`。该开关只控制当前 Task 内部的 `codex/unit-*` Worktree 与写入型 Subagent；手动或策略自动新建的 Git 侧边 Task 仍使用独立 Worktree、`feature-*` 分支和可审查提交。策略、表单、初始化 Skills、规格、README 与校验已同步。
 
 - `HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE`（`required_version = 202609122231`，已由本次 Harness 时间版本发布物化）：统一 Harness 源与终端下游的正式发布分支。明确发布仍授权源码/元数据提交、默认主分支与版本 tag 推送、远端复读和登记资源清理；终端下游随后进入真实产品候选构建，Harness 源则在 Git 引用、发布上下文和累计差异复核通过后结束，不再被旧规则误导去生成产品二进制、`release/` manifest、性能/E2E 或产品验收结论。双语 `release-notes.json` 现在明确同时服务模板源码摘要与下游产品资源；prepare-release 必须在源码 HEAD 上先生成日志但不提交，再写上下文，最后把两者作为同一个发布元数据提交，消除 helper 的 `sourceHead` 前置条件与旧两提交文字顺序冲突。

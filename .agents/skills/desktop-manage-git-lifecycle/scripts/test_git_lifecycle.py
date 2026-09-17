@@ -785,6 +785,7 @@ class GitLifecycleTests(GitLifecycleTestCase):
                     value["candidateSelections"]["performanceSource"] = "requested"
                     raw = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
                 else:
+                    self.git(repository, "config", "core.autocrlf", "false")
                     raw = raw.replace(b"\n", b"\r\n")
                 path.write_bytes(raw)
                 self.git(repository, "add", ".harness/release-context.json")
@@ -803,10 +804,41 @@ class GitLifecycleTests(GitLifecycleTestCase):
                     digest,
                     success=False,
                 )
-                self.assertEqual(rejected["code"], "release-context-invalid")
+                expected_code = "release-context-invalid" if mutation == "nested" else "release-context-mismatch"
+                self.assertEqual(rejected["code"], expected_code)
                 self.assertIsNone(self.state(repository)["cycle"]["pendingRelease"])
                 self.assertEqual(self.git(repository, "tag", "--list").stdout, "")
         self.root = original_root
+
+    def test_release_accepts_crlf_checkout_of_committed_validator(self) -> None:
+        """Windows 换行转换不应使已跟踪的校验脚本被误判为未跟踪。"""
+        repository, _ = self.initialize_repository(remote=False)
+        context_sha, _ = self.prepare_release_context(
+            repository,
+            version="0.9.5",
+            date="20260914",
+            git_publication="local",
+            remote=None,
+        )
+        helper_path = repository / ".agents/skills/desktop-prepare-release/scripts/release_context.py"
+        canonical = helper_path.read_bytes().replace(b"\r\n", b"\n")
+        self.git(repository, "config", "core.autocrlf", "true")
+        helper_path.write_bytes(canonical.replace(b"\n", b"\r\n"))
+        self.git(repository, "add", str(helper_path.relative_to(repository)))
+        self.assertEqual(self.git(repository, "status", "--porcelain").stdout, "")
+
+        released, _ = self.helper(
+            repository,
+            "release",
+            "--version",
+            "0.9.5",
+            "--date",
+            "20260914",
+            "--local-only",
+            "--release-context-sha256",
+            context_sha,
+        )
+        self.assertEqual(released["status"], "released")
 
     def test_integrated_context_drift_stops_before_remote_push_or_tag(self) -> None:
         """验证后合并分支替换上下文时不冻结 HEAD，也不触碰远端主分支或标签。"""

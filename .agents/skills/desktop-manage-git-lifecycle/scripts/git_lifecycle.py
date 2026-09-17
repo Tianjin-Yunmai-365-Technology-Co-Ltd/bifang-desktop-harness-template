@@ -514,7 +514,10 @@ def release_context_binding(
             ["show", f"HEAD:{RELEASE_CONTEXT_HELPER}"],
             check=False,
         )
-        if committed_helper.returncode != 0 or committed_helper.stdout != helper_raw:
+        if committed_helper.returncode != 0 or committed_helper.stdout not in (
+            helper_raw,
+            helper_raw.replace(b"\r\n", b"\n"),
+        ):
             raise LifecycleError(
                 "release-context-invalid",
                 "Release context validator is not tracked by current HEAD.",
@@ -546,10 +549,10 @@ def release_context_binding(
         raise
     except Exception as exc:
         raise LifecycleError("release-context-invalid", "Tracked release context cannot be validated.") from exc
-    if hashlib.sha256(raw).hexdigest() != expected_sha256:
-        raise LifecycleError("release-context-mismatch", "Release context SHA-256 does not match.")
-    if canonical != raw:
+    if raw.replace(b"\r\n", b"\n") != canonical:
         raise LifecycleError("release-context-invalid", "Release context bytes are not canonical.")
+    if hashlib.sha256(canonical).hexdigest() != expected_sha256:
+        raise LifecycleError("release-context-mismatch", "Release context SHA-256 does not match.")
     expected_date = datetime.strptime(identity["date"], "%Y%m%d").strftime("%Y-%m-%d")
     if (
         value["version"] != identity["version"]
@@ -572,7 +575,7 @@ def release_context_binding(
         ["show", f"HEAD:{RELEASE_CONTEXT_PATH}"],
         check=False,
     )
-    if committed.returncode != 0 or committed.stdout != raw:
+    if committed.returncode != 0 or committed.stdout != canonical:
         raise LifecycleError("release-context-mismatch", "Release context bytes are not tracked by current HEAD.")
     return value
 

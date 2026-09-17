@@ -350,9 +350,10 @@ def load_context(root: Path) -> tuple[dict[str, Any], bytes, str]:
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ReleaseContextError("release context must be valid UTF-8 JSON") from error
     normalized = validate_context(value)
-    if raw != canonical_bytes(normalized):
+    canonical = canonical_bytes(normalized)
+    if raw.replace(b"\r\n", b"\n") != canonical:
         raise ReleaseContextError("release context must use canonical formatting")
-    return normalized, raw, hashlib.sha256(raw).hexdigest()
+    return normalized, canonical, hashlib.sha256(canonical).hexdigest()
 
 
 def remote_default_branch(root: Path, remote: str) -> str:
