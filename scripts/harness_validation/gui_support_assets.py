@@ -77,14 +77,14 @@ EXPECTED_LOCAL_UI_COPY = {
 
 EXPECTED_RELEASE_NOTES_COPY = {
     "zh-CN": {
-        "entry_title": "-----------更新日志 {{date}} {{version}}----------",
-        "feature_optimizations": "###功能优化",
-        "bug_fixes": "###问题修复",
+        "entry_title": "更新日志 {{date}} {{version}}",
+        "feature_optimizations": "功能优化",
+        "bug_fixes": "问题修复",
     },
     "en-US": {
-        "entry_title": "-----------Release notes {{date}} {{version}}----------",
-        "feature_optimizations": "###Feature optimizations",
-        "bug_fixes": "###Bug fixes",
+        "entry_title": "Release notes {{date}} {{version}}",
+        "feature_optimizations": "Feature optimizations",
+        "bug_fixes": "Bug fixes",
     },
 }
 

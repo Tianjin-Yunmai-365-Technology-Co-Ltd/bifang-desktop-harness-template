@@ -17,6 +17,7 @@ from typing import Any, Sequence
 SCHEMA_VERSION = 2
 MAX_RELEASES = 5
 MAX_ITEMS_PER_SECTION = 10
+MAX_RELEASE_NOTES_BYTES = 1024 * 1024
 MAX_SEMVER_MAJOR = (1 << 64) - 1
 MAX_SEMVER_MAJOR_TEXT = str(MAX_SEMVER_MAJOR)
 SUPPORTED_LOCALES = ("zh-CN", "en-US")
@@ -62,6 +63,8 @@ def _decimal_is_at_most(value: str, maximum: str) -> bool:
 def normalize_display_version(value: str) -> str:
     """把机器版本规范化为仅带一个小写 `v` 的用户可见版本。"""
 
+    if not isinstance(value, str):
+        raise ReleaseNotesError("version must be a string")
     normalized = value.strip()
     while normalized[:1].lower() == "v":
         normalized = normalized[1:]
@@ -124,6 +127,12 @@ def _validate_items(value: Any, field: str) -> list[dict[str, str]]:
                     f"{field} {locale} items must be non-empty strings"
                 )
             normalized_text = text.strip()
+            if normalized_text.startswith("\ufeff") or normalized_text.endswith(
+                "\ufeff"
+            ):
+                raise ReleaseNotesError(
+                    f"{field} {locale} items must not contain a boundary BOM"
+                )
             if normalized_text in seen[locale]:
                 raise ReleaseNotesError(
                     f"{field} must not contain duplicate {locale} items"
@@ -173,11 +182,13 @@ def validate_document(value: Any) -> dict[str, Any]:
 
     if not isinstance(value, dict) or set(value) != ROOT_KEYS:
         raise ReleaseNotesError("release notes root keys do not match the schema")
-    if value["schemaVersion"] != SCHEMA_VERSION:
+    if type(value["schemaVersion"]) is not int or value["schemaVersion"] != SCHEMA_VERSION:
         raise ReleaseNotesError(f"schemaVersion must be {SCHEMA_VERSION}")
     releases = value["releases"]
     if not isinstance(releases, list):
         raise ReleaseNotesError("releases must be an array")
+    if not releases:
+        raise ReleaseNotesError("releases must contain at least one entry")
     if len(releases) > MAX_RELEASES:
         raise ReleaseNotesError(f"releases must contain at most {MAX_RELEASES} entries")
     normalized = [validate_release_entry(entry) for entry in releases]
@@ -197,15 +208,35 @@ def _require_regular_file(path: Path) -> None:
         raise ReleaseNotesError(f"release notes must be a regular file: {path}")
 
 
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """拒绝 Rust 结构解码器同样拒绝的重复 JSON 字段。"""
+
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ReleaseNotesError(f"duplicate release notes JSON key: {key}")
+        value[key] = item
+    return value
+
+
 def load_document(path: Path) -> dict[str, Any]:
     """从普通 UTF-8 JSON 文件读取并校验更新日志。"""
 
     _require_regular_file(path)
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        with path.open("rb") as source:
+            raw = source.read(MAX_RELEASE_NOTES_BYTES + 1)
+        if len(raw) > MAX_RELEASE_NOTES_BYTES:
+            raise ReleaseNotesError("release notes exceed the 1 MiB resource limit")
+        value = json.loads(
+            raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_json_keys
+        )
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ReleaseNotesError(f"cannot read valid release notes: {error}") from error
-    return validate_document(value)
+    normalized = validate_document(value)
+    if value != normalized:
+        raise ReleaseNotesError("release notes file contains noncanonical values")
+    return normalized
 
 
 def _write_document(path: Path, document: dict[str, Any]) -> None:
@@ -219,12 +250,13 @@ def _write_document(path: Path, document: dict[str, Any]) -> None:
     serialized = json.dumps(
         validate_document(document), ensure_ascii=False, indent=2
     ) + "\n"
+    encoded = serialized.encode("utf-8")
+    if len(encoded) > MAX_RELEASE_NOTES_BYTES:
+        raise ReleaseNotesError("release notes exceed the 1 MiB resource limit")
     temporary_name: str | None = None
     try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", dir=parent, delete=False
-        ) as temporary:
-            temporary.write(serialized)
+        with tempfile.NamedTemporaryFile("wb", dir=parent, delete=False) as temporary:
+            temporary.write(encoded)
             temporary.flush()
             os.fsync(temporary.fileno())
             temporary_name = temporary.name

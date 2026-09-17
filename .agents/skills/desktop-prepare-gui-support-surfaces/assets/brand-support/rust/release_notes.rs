@@ -113,7 +113,11 @@ fn validate_release_notes(document: &ReleaseNotesDocument) -> Result<(), Release
 
 /// 判断单个语言字段非空、没有空白包围且在该分类下唯一。
 fn is_clean_unique_text<'a>(text: &'a str, seen: &mut HashSet<&'a str>) -> bool {
-    !text.is_empty() && text.trim() == text && seen.insert(text)
+    !text.is_empty()
+        && text.trim() == text
+        && !text.starts_with('\u{feff}')
+        && !text.ends_with('\u{feff}')
+        && seen.insert(text)
 }
 
 /// 要求每个翻译对非空、没有空白包围且同分类逐语言去重。
@@ -238,6 +242,10 @@ mod tests {
                 Err(ReleaseNotesLoadError::Invalid)
             ));
         }
+        assert!(!has_unique_non_empty_items(&[LocalizedReleaseNoteItem {
+            zh_cn: "\u{feff}前缀".to_owned(),
+            en_us: "prefix".to_owned(),
+        }]));
     }
 
     /// 日期必须有效且按最新在前排列，不能仅满足字符串外形。

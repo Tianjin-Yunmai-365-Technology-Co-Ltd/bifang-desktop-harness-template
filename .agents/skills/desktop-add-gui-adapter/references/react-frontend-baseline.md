@@ -47,6 +47,8 @@
 | `jsdom` | `^29.0.1` |
 | `@tauri-apps/cli` | `^2.11.4` |
 
+仅 `about_page = enabled` 的 GUI 另在生产依赖中声明 `react-markdown: ^10.1.0` 与 `remark-gfm: ^4.0.1`；禁用关于页时两者缺席。前者负责安全的 React Markdown 元素映射，后者支持表格、删除线等 GFM 语法；更新日志保留 Mantine 9 `Typography` 排版，忽略原始 HTML，并把链接与图片降为无导航、无加载的文字。该下界依据 [react-markdown 官方文档](https://github.com/remarkjs/react-markdown) 与 [Mantine Typography 文档](https://mantine.dev/core/typography/) 于 2026-09-17 核对；实际下游最低版本解析、类型检查、非空测试和生产构建完成前仍为 `Unverified`。
+
 `@tauri-apps/plugin-dialog` 是所有 GUI 的固定生产依赖，不按 profile 裁剪。前端仅通过官方包调用 dialog guest API；主窗口 capability 必须且只能用一个 `dialog:default` 覆盖 message、open、save 全部官方对话框类型，不得追加 partial allow、deprecated `ask`/`confirm` alias、deny 项、wildcard 或任何文件系统权限。dialog 返回的用户选择只表示路径值或取消结果；实际读取、写入与业务处理仍需独立批准的窄 adapter/core 能力。
 
 `package.json` 必须以 `engines.node: ">=24.21.0"` 和 `engines.pnpm: ">=12.4.1"` 表达当前最低工具范围。已安装的任何更高正式版本都在 Node.js 连续范围内直接通过；缺失或低于下界时，环境门禁选择官方索引中的最高 LTS 系列及其最新稳定补丁安装。`@types/node ^24.13.4` 是 Vite 8 类型声明与复制的 TypeScript 检查脚本直接消费的开发依赖，不能依赖 Vite/Vitest 的 optional peer 被 pnpm 间接提升。测试环境固定使用 `jsdom ^29.0.1`，其 Node.js engine 连续覆盖 `>=24.0.0`；不得升级到会重新排除 Node.js 25.x 等更高正式主版的 jsdom 版本。不得把旧式精确 `packageManager` 字段当作兼容要求；若生成工具为 Corepack 溯源必须写入该字段，它只属于实际解析元数据，不能替代 `engines` 范围或下界验证。正常 `pnpm-lock.yaml` 固定当前解析版本，但不抬高清单下界。

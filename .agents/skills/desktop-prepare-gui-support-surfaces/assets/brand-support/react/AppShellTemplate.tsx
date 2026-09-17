@@ -51,7 +51,7 @@ export function AppShellTemplate({
       data-mode="detailed"
       data-navbar-width={navbarWidth}
       data-testid="app-shell"
-      navbar={{ width: navbarWidth }}
+      navbar={{ breakpoint: 0, width: navbarWidth }}
     >
       <MantineAppShell.Navbar p={0}>
         <AppSidebarTemplate

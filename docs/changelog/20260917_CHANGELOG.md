@@ -2,6 +2,7 @@
 
 ## 新增
 
+- `HARNESS-FEAT-ABOUT-RELEASE-NOTES-MARKDOWN`（所需 Harness 版本 `202609172303`，已由本次 Harness 时间版本发布物化）：可选 GUI 关于页的双语更新日志正文支持 GitHub 风格 Markdown，并沿用 Mantine 排版；阻止正文 HTML、外部链接跳转和远程图片加载。日志加载失败或超时可重试，迟到结果不会覆盖新请求，更新状态不再显示过期的可用版本。
 - `HARNESS-CHANGE-WINDOWS-ENVIRONMENT-MANUAL-HANDOFF`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：Windows 环境门禁继续优先由 Agent 自动静默安装；管理员权限、UAC、组织策略或 Codex 宿主能力阻断时，按本次缺失项提供 Git、Rust、MSVC Build Tools 及仅 GUI 所需 Node.js/pnpm 的官方入口和用户安装步骤。用户告知完成后先在原宿主只读复探，通过才恢复初始化或对原失败命令单次重试。
 - `HARNESS-FEAT-DEVELOPMENT-HISTORY-SUMMARY`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：新增并在下游保留 `$desktop-summarize-development-history`，按用户请求只读追溯 ADR、Changelog、最新产品记忆与 Git 旧版本，汇总开发起因、关键转折、现状和有证据的未来方向；明确区分已实现、已验证、计划与推测，默认不写项目记忆或版本。
 

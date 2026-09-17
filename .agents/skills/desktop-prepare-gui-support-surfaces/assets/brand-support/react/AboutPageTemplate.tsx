@@ -31,6 +31,9 @@ import { loadBundledReleaseNotes } from "./releaseNotesResource";
 import { ReleaseNotesDialogTemplate } from "./ReleaseNotesDialogTemplate";
 import type { UpdatePresentation } from "./updatePresentation";
 
+const RELEASE_NOTES_LOAD_TIMEOUT_MS = 15_000;
+type ReleaseNotesStatus = "idle" | "loading" | "ready" | "error";
+
 /** 关于页的一个产品事实区块。 */
 export interface AboutSection {
   id: string;
@@ -68,45 +71,69 @@ export function AboutPageTemplate({
   const [releaseNotes, setReleaseNotes] = useState<
     readonly LocalizedReleaseNoteEntry[]
   >([]);
-  const [releaseNotesStatus, setReleaseNotesStatus] = useState<
-    "idle" | "loading" | "ready" | "error"
-  >("idle");
+  const [releaseNotesStatus, setReleaseNotesStatus] =
+    useState<ReleaseNotesStatus>("idle");
+  const releaseNotesStatusRef = useRef<ReleaseNotesStatus>("idle");
   const releaseNotesRequest = useRef(0);
+  const releaseNotesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const statusKey = `updater.status_${update.status.replace(/-/g, "_")}`;
   const isChecking = update.status === "checking";
   const isUpdateFailure = update.status === "failed";
   const isRequiredUpdate = update.status === "required-update";
+  const hasAvailableUpdate =
+    isRequiredUpdate || update.status === "optional-update";
 
   useEffect(
     () => () => {
       releaseNotesRequest.current += 1;
+      if (releaseNotesTimer.current !== null) {
+        clearTimeout(releaseNotesTimer.current);
+      }
     },
     [],
   );
 
   /** 只通过已注册的窄命令加载候选资源，并忽略卸载后的异步结果。 */
   const requestReleaseNotes = useCallback(() => {
+    if (releaseNotesStatusRef.current === "loading") return;
     const request = releaseNotesRequest.current + 1;
     releaseNotesRequest.current = request;
+    releaseNotesStatusRef.current = "loading";
     setReleaseNotesStatus("loading");
-    void releaseNotesLoader()
-      .then((loaded) => {
-        if (releaseNotesRequest.current !== request) return;
-        setReleaseNotes(loaded);
-        setReleaseNotesStatus("ready");
-      })
-      .catch(() => {
-        if (releaseNotesRequest.current !== request) return;
-        setReleaseNotes([]);
-        setReleaseNotesStatus("error");
-      });
+    const finish = (
+      status: "ready" | "error",
+      loaded: readonly LocalizedReleaseNoteEntry[],
+    ) => {
+      if (releaseNotesRequest.current !== request) return;
+      if (releaseNotesTimer.current !== null) {
+        clearTimeout(releaseNotesTimer.current);
+        releaseNotesTimer.current = null;
+      }
+      releaseNotesStatusRef.current = status;
+      setReleaseNotes(loaded);
+      setReleaseNotesStatus(status);
+    };
+    releaseNotesTimer.current = setTimeout(() => {
+      if (releaseNotesRequest.current !== request) return;
+      releaseNotesRequest.current += 1;
+      releaseNotesTimer.current = null;
+      releaseNotesStatusRef.current = "error";
+      setReleaseNotes([]);
+      setReleaseNotesStatus("error");
+    }, RELEASE_NOTES_LOAD_TIMEOUT_MS);
+    void Promise.resolve()
+      .then(releaseNotesLoader)
+      .then(
+        (loaded) => finish("ready", loaded),
+        () => finish("error", []),
+      );
   }, [releaseNotesLoader]);
 
   /** 打开弹窗时首次加载资源；已成功加载的同一候选内容在本页复用。 */
   const openReleaseNotes = useCallback(() => {
     setReleaseNotesOpened(true);
-    if (releaseNotesStatus === "idle") requestReleaseNotes();
-  }, [releaseNotesStatus, requestReleaseNotes]);
+    if (releaseNotesStatusRef.current === "idle") requestReleaseNotes();
+  }, [requestReleaseNotes]);
 
   return (
     <Stack data-testid="brand-about-page" gap="xl">
@@ -165,7 +192,7 @@ export function AboutPageTemplate({
             role={isRequiredUpdate || isUpdateFailure ? "alert" : "status"}
             title={t(statusKey)}
           >
-            {update.availableVersion
+            {hasAvailableUpdate && update.availableVersion
               ? t("updater.available_version", {
                   version: formatDisplayVersion(update.availableVersion),
                 })

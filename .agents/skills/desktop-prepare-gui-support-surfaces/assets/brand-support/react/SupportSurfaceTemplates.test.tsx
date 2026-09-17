@@ -1,11 +1,19 @@
-import { Button, MantineProvider, Text } from "@mantine/core";
+import {
+  Button,
+  DEFAULT_THEME,
+  MantineProvider,
+  Text,
+  mergeMantineTheme,
+} from "@mantine/core";
 import { IconLayoutDashboard, IconListCheck } from "@tabler/icons-react";
 import "@testing-library/jest-dom/vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import { createInstance, type i18n } from "i18next";
@@ -36,10 +44,7 @@ import {
   AppSidebarTemplate,
 } from "./AppSidebarTemplate";
 import { AppShellTemplate } from "./AppShellTemplate";
-import {
-  APP_THEME,
-  APP_THEME_CSS_VARIABLES,
-} from "./AppThemeProviderTemplate";
+import { APP_THEME, APP_THEME_CSS_VARIABLES } from "./AppThemeProviderTemplate";
 import { BrandUpdaterBanner } from "./BrandUpdaterBanner";
 import { MandatoryUpdateGateTemplate } from "./MandatoryUpdateGateTemplate";
 import { SponsorPageTemplate } from "./SponsorPageTemplate";
@@ -55,6 +60,7 @@ import { formatDisplayVersion } from "./displayVersion";
 import {
   MAX_VISIBLE_RELEASE_NOTE_ITEMS,
   MAX_VISIBLE_RELEASE_NOTE_VERSIONS,
+  type LocalizedReleaseNoteEntry,
 } from "./releaseNotes";
 import { buildSupportNavigationItems } from "./supportNavigation";
 import { requiresMandatoryUpdate } from "./updatePresentation";
@@ -197,12 +203,14 @@ describe("shared brand support templates", () => {
     expect(capabilityContractNames).toHaveLength(4);
     expect(getSystemNotificationEnabled).not.toHaveBeenCalled();
     expect(getAutostartEnabled).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("switch", { name: "系统通知" }),
-    ).toHaveAttribute("data-authoritative-state", "disabled");
-    expect(
-      screen.getByRole("switch", { name: "开机自启" }),
-    ).toHaveAttribute("data-authoritative-state", "enabled");
+    expect(screen.getByRole("switch", { name: "系统通知" })).toHaveAttribute(
+      "data-authoritative-state",
+      "disabled",
+    );
+    expect(screen.getByRole("switch", { name: "开机自启" })).toHaveAttribute(
+      "data-authoritative-state",
+      "enabled",
+    );
   });
 
   /** 固定侧栏保持功能项向下增长，并把赞助、设置、关于按固定顺序贴底。 */
@@ -299,10 +307,13 @@ describe("shared brand support templates", () => {
     );
 
     expect(screen.getByTestId("app-sidebar")).toHaveStyle({ width: "80px" });
-    expect(screen.getByTestId("app-sidebar-content")).toHaveStyle({
-      gap: "8px",
-      padding: "6px",
-    });
+    const sidebarContent = screen.getByTestId("app-sidebar-content");
+    expect(sidebarContent.style.getPropertyValue("--stack-gap")).toBe(
+      "calc(0.5rem * var(--mantine-scale))",
+    );
+    expect(sidebarContent.style.padding).toBe(
+      "calc(0.375rem * var(--mantine-scale))",
+    );
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
       "data-layout",
       "compact",
@@ -328,14 +339,12 @@ describe("shared brand support templates", () => {
         "icon-above-label",
       );
       expect(item).toHaveAttribute("data-label-alignment", "full-width-center");
-      expect(item).toHaveStyle({
-        alignItems: "center",
-        flexDirection: "column",
-        gap: "4px",
-        minHeight: "56px",
-        paddingBlock: "4px",
-        paddingInline: "0px",
-      });
+      expect(item.style.alignItems).toBe("center");
+      expect(item.style.flexDirection).toBe("column");
+      expect(item.style.gap).toBe("4px");
+      expect(item.style.minHeight).toBe("56px");
+      expect(item.style.paddingBlock).toBe("4px");
+      expect(item.style.paddingInline).toBe("0rem");
     }
     expect(screen.getByTestId("navigation-icon-overview")).toBeVisible();
     expect(screen.getByTestId("navigation-icon-about")).toBeVisible();
@@ -417,9 +426,9 @@ describe("shared brand support templates", () => {
       "width",
       "22",
     );
-    expect(screen.getByTestId("app-sidebar-collapse-toggle")).toHaveAccessibleName(
-      "收起侧栏",
-    );
+    expect(
+      screen.getByTestId("app-sidebar-collapse-toggle"),
+    ).toHaveAccessibleName("收起侧栏");
 
     fireEvent.click(screen.getByTestId("app-sidebar-identity"));
     expect(screen.getByTestId("app-shell")).toHaveAttribute(
@@ -443,13 +452,15 @@ describe("shared brand support templates", () => {
       "data-collapsed",
       "true",
     );
-    expect(screen.queryByTestId("navigation-label-overview")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("navigation-label-overview"),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "总览" })).toHaveAttribute(
       "data-navigation-layout",
       "icon-only",
     );
     fireEvent.mouseEnter(screen.getByRole("button", { name: "总览" }));
-    expect(await screen.findByText("总览")).toBeVisible();
+    await waitFor(() => expect(screen.getByText("总览")).toBeVisible());
 
     firstRender.unmount();
     await renderTemplate(shell);
@@ -471,7 +482,9 @@ describe("shared brand support templates", () => {
 
   /** 初始化主题同时提供可区分的亮色与暗色背景、文字和表面令牌。 */
   it("defines distinct light and dark application theme variables", () => {
-    const variables = APP_THEME_CSS_VARIABLES(APP_THEME);
+    const variables = APP_THEME_CSS_VARIABLES(
+      mergeMantineTheme(DEFAULT_THEME, APP_THEME),
+    );
     for (const name of [
       "--app-accent",
       "--app-background",
@@ -480,7 +493,8 @@ describe("shared brand support templates", () => {
       "--app-text",
       "--app-text-muted",
     ]) {
-      expect(variables.light?.[name]).not.toBe(variables.dark?.[name]);
+      const token = name as keyof NonNullable<typeof variables.light>;
+      expect(variables.light?.[token]).not.toBe(variables.dark?.[token]);
     }
   });
 
@@ -508,7 +522,9 @@ describe("shared brand support templates", () => {
     expect(requiresMandatoryUpdate(update)).toBe(true);
     expect(screen.queryByText("Product feature")).not.toBeInTheDocument();
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-    expect(screen.getByText("Current v3.4.5 → available v4.0.0")).toBeInTheDocument();
+    expect(
+      screen.getByText("Current v3.4.5 → available v4.0.0"),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Install update" }));
     fireEvent.click(screen.getByRole("button", { name: "Exit application" }));
     expect(onInstallUpdate).toHaveBeenCalledOnce();
@@ -580,6 +596,27 @@ describe("shared brand support templates", () => {
     ).toBeInTheDocument();
   });
 
+  /** 失败、检查中或已是最新版时不能继续显示上次检查遗留的可用版本。 */
+  it("does not show a stale available version outside update states", async () => {
+    for (const status of ["failed", "checking", "up-to-date"] as const) {
+      await renderTemplate(
+        <AboutPageTemplate
+          onCheckForUpdates={vi.fn()}
+          productName="Example Utility"
+          update={{
+            availableVersion: "9.9.9",
+            currentVersion: "1.2.3",
+            status,
+          }}
+          version="1.2.3"
+        />,
+      );
+      expect(screen.getByText(/当前版本：v1\.2\.3/)).toBeInTheDocument();
+      expect(screen.queryByText(/可用版本：v9\.9\.9/)).not.toBeInTheDocument();
+      cleanup();
+    }
+  });
+
   /** 更新区容器不代理子按钮动作，且更新日志严格裁剪到五版和每类十条。 */
   it("keeps update actions bound to their own controls and limits release notes", async () => {
     const onCheckForUpdates = vi.fn();
@@ -592,13 +629,10 @@ describe("shared brand support templates", () => {
             "zh-CN": `版本 ${sequence} 修复`,
           },
         ],
-        featureOptimizations: Array.from(
-          { length: 11 },
-          (_, itemIndex) => ({
-            "en-US": `Version ${sequence} improvement ${itemIndex + 1}`,
-            "zh-CN": `版本 ${sequence} 优化 ${itemIndex + 1}`,
-          }),
-        ),
+        featureOptimizations: Array.from({ length: 11 }, (_, itemIndex) => ({
+          "en-US": `Version ${sequence} improvement ${itemIndex + 1}`,
+          "zh-CN": `版本 ${sequence} 优化 ${itemIndex + 1}`,
+        })),
         releaseDate: `2026-08-${20 + sequence}`,
         version: sequence === 6 ? `v1.0.${sequence}` : `1.0.${sequence}`,
       };
@@ -624,14 +658,14 @@ describe("shared brand support templates", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "更新日志" }));
-    expect(screen.getByRole("dialog", { name: "更新日志" })).toBeInTheDocument();
     expect(
-      await screen.findByText(
-        "-----------更新日志 2026-08-26 v1.0.6----------",
-      ),
+      await screen.findByRole("dialog", { name: "更新日志" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("###功能优化")).toHaveLength(5);
-    expect(screen.getAllByText("###问题修复")).toHaveLength(5);
+    expect(
+      await screen.findByText("更新日志 2026-08-26 v1.0.6"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("功能优化")).toHaveLength(5);
+    expect(screen.getAllByText("问题修复")).toHaveLength(5);
     expect(screen.getByText("版本 6 优化 10")).toBeInTheDocument();
     expect(screen.queryByText("版本 6 优化 11")).not.toBeInTheDocument();
     expect(screen.queryByText(/v1\.0\.1/)).not.toBeInTheDocument();
@@ -663,15 +697,113 @@ describe("shared brand support templates", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Release notes" }));
     expect(
-      await screen.findByText(
-        "-----------Release notes 2026-08-28 v1.2.3----------",
-      ),
+      await screen.findByText("Release notes 2026-08-28 v1.2.3"),
     ).toBeInTheDocument();
-    expect(screen.getByText("###Feature optimizations")).toBeInTheDocument();
-    expect(screen.getByText("###Bug fixes")).toBeInTheDocument();
+    expect(screen.getByText("Feature optimizations")).toBeInTheDocument();
+    expect(screen.getByText("Bug fixes")).toBeInTheDocument();
     expect(screen.getByText("Add export")).toBeInTheDocument();
     expect(screen.getByText("Fix startup")).toBeInTheDocument();
     expect(screen.queryByText("新增导出能力")).not.toBeInTheDocument();
+  });
+
+  /** 条目支持常见 Markdown，同时不让打包内容产生导航或远程图片请求。 */
+  it("renders release note Markdown without external links images or raw HTML", async () => {
+    await renderTemplate(
+      <AboutPageTemplate
+        onCheckForUpdates={vi.fn()}
+        productName="Example Utility"
+        releaseNotesLoader={async () => [
+          {
+            bugFixes: [
+              {
+                "en-US": "Fix text",
+                "zh-CN":
+                  "[详情](https://example.com) ![远程图](https://example.com/a.png) <script>alert(1)</script>",
+              },
+            ],
+            featureOptimizations: [
+              {
+                "en-US": "Add formatting",
+                "zh-CN": "**加粗**、`代码`、~~删除~~",
+              },
+            ],
+            releaseDate: "2026-08-28",
+            version: "v1.2.3",
+          },
+        ]}
+        update={{ currentVersion: "1.2.3", status: "idle" }}
+        version="1.2.3"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "更新日志" }));
+    expect(await screen.findByText("加粗")).toHaveProperty("tagName", "STRONG");
+    expect(screen.getByText("代码")).toHaveProperty("tagName", "CODE");
+    expect(screen.getByText("删除")).toHaveProperty("tagName", "DEL");
+    expect(screen.getByText(/详情/)).toBeInTheDocument();
+    expect(screen.getByText(/远程图/)).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.queryByText("alert(1)")).not.toBeInTheDocument();
+  });
+
+  /** 资源命令卡住时展示可重试错误，迟到结果不得覆盖重试成功内容。 */
+  it("times out a stuck release notes request and ignores its late result", async () => {
+    let resolveFirst!: (value: readonly LocalizedReleaseNoteEntry[]) => void;
+    const fresh = [
+      {
+        releaseDate: "2026-08-28",
+        version: "v1.2.3",
+        featureOptimizations: [
+          { "zh-CN": "重试成功", "en-US": "Retry succeeded" },
+        ],
+        bugFixes: [],
+      },
+    ];
+    const releaseNotesLoader = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<readonly LocalizedReleaseNoteEntry[]>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(fresh);
+    await renderTemplate(
+      <AboutPageTemplate
+        onCheckForUpdates={vi.fn()}
+        productName="Example Utility"
+        releaseNotesLoader={releaseNotesLoader}
+        update={{ currentVersion: "1.2.3", status: "idle" }}
+        version="1.2.3"
+      />,
+    );
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "更新日志" }));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(15_000);
+      });
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "无法读取此候选内的更新日志",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText("重试成功")).toBeInTheDocument();
+    await act(async () => {
+      resolveFirst([
+        {
+          ...fresh[0],
+          featureOptimizations: [
+            { "zh-CN": "迟到内容", "en-US": "Late result" },
+          ],
+        },
+      ]);
+    });
+    expect(screen.getByText("重试成功")).toBeInTheDocument();
+    expect(screen.queryByText("迟到内容")).not.toBeInTheDocument();
+    expect(releaseNotesLoader).toHaveBeenCalledTimes(2);
   });
 
   /** 候选资源读取失败时展示本地错误，并允许用户从按钮自身重试。 */
@@ -708,9 +840,7 @@ describe("shared brand support templates", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
     expect(
-      await screen.findByText(
-        "-----------更新日志 2026-08-27 v1.0.7----------",
-      ),
+      await screen.findByText("更新日志 2026-08-27 v1.0.7"),
     ).toBeInTheDocument();
     expect(releaseNotesLoader).toHaveBeenCalledTimes(2);
   });
@@ -730,9 +860,7 @@ describe("shared brand support templates", () => {
     expect(
       screen.getByRole("button", { name: "Check for updates" }),
     ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Release notes" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Release notes" })).toBeEnabled();
     expect(
       screen.queryByRole("button", { name: "Optional action" }),
     ).not.toBeInTheDocument();

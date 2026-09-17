@@ -46,7 +46,7 @@ description: 使用仓库声明的版本方案锁定单次本地或远端 Git �
    python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py render --file release-notes.json --locale en-US
    ```
 
-   文件固定使用 `schemaVersion: 2` 并只保留最近 5 版。中文渲染保持 `-----------更新日志 {发布日期} {发布版本}----------`、`###功能优化`、`###问题修复`；英文渲染保持 `-----------Release notes {release date} {release version}----------`、`###Feature optimizations`、`###Bug fixes`。Changelog 仅在独立规则触发时更新，且必须已在步骤 5 的源码/治理提交中完成；本步骤不得新建或修改 Changelog。普通缺陷仍进入发布日志，但不为此制造 Changelog。
+   文件固定使用 `schemaVersion: 2` 并只保留最近 5 版。只读检查拒绝原文件中需静默规范化的版本或文案、边界 BOM 与超过 1 MiB 的资源；`upsert` 对命令输入继续规范化并在原子写入前检查 UTF-8 字节上限。中文 `render` 命令保持 `-----------更新日志 {发布日期} {发布版本}----------`、`###功能优化`、`###问题修复`；英文 `render` 命令保持 `-----------Release notes {release date} {release version}----------`、`###Feature optimizations`、`###Bug fixes`。Changelog 仅在独立规则触发时更新，且必须已在步骤 5 的源码/治理提交中完成；本步骤不得新建或修改 Changelog。普通缺陷仍进入发布日志，但不为此制造 Changelog。
 8. 用同一 `gitPublication`、版本、日期、`sourceHead`、`releaseReview` 和候选选择生成规范上下文。`releaseDate` 使用 `YYYY-MM-DD`，helper 自动派生 `expectedTag: v{version}-{YYYYMMDD}`；远端模式从精确 remote 派生动态默认分支，本地模式使用显式本地默认主分支且不访问远端：
 
    ```text

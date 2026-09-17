@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -174,12 +175,101 @@ class ReleaseNotesTests(unittest.TestCase):
             1,
         )
 
+    def test_check_rejects_empty_float_schema_and_duplicate_json_keys(self) -> None:
+        """发布检查与 Rust 资源解码器在空文档、类型和重复键上保持一致。"""
+
+        for raw in (
+            '{"schemaVersion":2,"releases":[]}',
+            '{"schemaVersion":2.0,"releases":[]}',
+            '{"schemaVersion":2,"schemaVersion":2,"releases":[]}',
+        ):
+            with self.subTest(raw=raw):
+                self.path.write_text(raw, encoding="utf-8")
+                with self.assertRaises(release_notes.ReleaseNotesError):
+                    release_notes.load_document(self.path)
+
+    def test_check_rejects_non_string_version_with_stable_error(self) -> None:
+        """手工 JSON 的数字或 null 版本必须返回受控错误。"""
+
+        self._upsert("1.2.3", 26)
+        canonical = json.loads(self.path.read_text(encoding="utf-8"))
+        for version in (123, None):
+            with self.subTest(version=version):
+                document = json.loads(json.dumps(canonical, ensure_ascii=False))
+                document["releases"][0]["version"] = version
+                self.path.write_text(
+                    json.dumps(document, ensure_ascii=False), encoding="utf-8"
+                )
+                with self.assertRaisesRegex(
+                    release_notes.ReleaseNotesError, "version must be a string"
+                ):
+                    release_notes.load_document(self.path)
+
+    def test_check_rejects_values_that_runtime_would_reject(self) -> None:
+        """只读检查不得把原文件中的空白或多重 v 静默规范化为通过。"""
+
+        self._upsert("1.2.3", 26)
+        canonical = json.loads(self.path.read_text(encoding="utf-8"))
+        for field, value in (
+            ("version", "vv1.2.3"),
+            ("zh-CN", " 修复 1.2.3 "),
+            ("zh-CN", "\ufeff修复 1.2.3"),
+        ):
+            with self.subTest(field=field, value=value):
+                document = json.loads(json.dumps(canonical, ensure_ascii=False))
+                if field == "version":
+                    document["releases"][0]["version"] = value
+                else:
+                    document["releases"][0]["bugFixes"][0][field] = value
+                self.path.write_text(
+                    json.dumps(document, ensure_ascii=False), encoding="utf-8"
+                )
+                with self.assertRaises(release_notes.ReleaseNotesError):
+                    release_notes.load_document(self.path)
+
+    def test_rejects_resource_over_one_mib_before_read_or_write(self) -> None:
+        """发布脚本和关于页使用同一资源字节上限。"""
+
+        oversized = "x" * release_notes.MAX_RELEASE_NOTES_BYTES
+        with self.assertRaisesRegex(release_notes.ReleaseNotesError, "1 MiB"):
+            release_notes.upsert_release(
+                self.path,
+                release_date="2026-08-26",
+                version="1.2.3",
+                feature_optimizations_zh_cn=[oversized],
+                feature_optimizations_en_us=["Improve release notes"],
+                bug_fixes_zh_cn=[],
+                bug_fixes_en_us=[],
+            )
+        self.assertFalse(self.path.exists())
+        document = {
+            "schemaVersion": 2,
+            "releases": [
+                {
+                    "releaseDate": "2026-08-26",
+                    "version": "v1.2.3",
+                    "featureOptimizations": [
+                        {"zh-CN": oversized, "en-US": "Improve release notes"}
+                    ],
+                    "bugFixes": [],
+                }
+            ],
+        }
+        self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        with self.assertRaisesRegex(release_notes.ReleaseNotesError, "1 MiB"):
+            release_notes.load_document(self.path)
+
     def test_rejects_symlinked_release_notes(self) -> None:
         """符号链接目标不得被读取或在原子更新时覆盖。"""
 
         target = self.root / "target.json"
         target.write_text('{"schemaVersion": 2, "releases": []}\n', encoding="utf-8")
-        self.path.symlink_to(target)
+        try:
+            self.path.symlink_to(target)
+        except OSError as error:
+            if sys.platform == "win32" and error.winerror == 1314:
+                self.skipTest("Windows symlink privilege is unavailable")
+            raise
         with self.assertRaisesRegex(release_notes.ReleaseNotesError, "regular file"):
             release_notes.load_document(self.path)
         with self.assertRaisesRegex(release_notes.ReleaseNotesError, "regular file"):

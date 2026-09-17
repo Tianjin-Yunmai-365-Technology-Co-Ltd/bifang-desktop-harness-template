@@ -8,10 +8,13 @@ import {
   Stack,
   Text,
   Title,
+  Typography,
 } from "@mantine/core";
 import { IconRefresh } from "@tabler/icons-react";
 import type { ReactElement } from "react";
 import { useTranslation } from "react-i18next";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { formatDisplayVersion } from "./displayVersion";
 import {
@@ -19,6 +22,54 @@ import {
   selectVisibleReleaseNotes,
   type LocalizedReleaseNoteEntry,
 } from "./releaseNotes";
+
+const RELEASE_NOTE_MARKDOWN_ELEMENTS = [
+  "a",
+  "blockquote",
+  "br",
+  "code",
+  "del",
+  "em",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "hr",
+  "img",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "strong",
+  "table",
+  "tbody",
+  "td",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+];
+
+/** 只渲染本地格式；链接不导航，图片不加载远端资源。 */
+function ReleaseNoteMarkdown({ text }: { text: string }): ReactElement {
+  return (
+    <Typography fz="sm">
+      <Markdown
+        allowedElements={RELEASE_NOTE_MARKDOWN_ELEMENTS}
+        components={{
+          a: ({ children }) => <>{children}</>,
+          img: ({ alt }) => <>{alt}</>,
+        }}
+        remarkPlugins={[remarkGfm]}
+        skipHtml
+      >
+        {text}
+      </Markdown>
+    </Typography>
+  );
+}
 
 /** 更新日志弹窗所需的本地发布事实和关闭交互。 */
 export interface ReleaseNotesDialogTemplateProps {
@@ -85,7 +136,9 @@ export function ReleaseNotesDialogTemplate({
                 {release.featureOptimizations.length > 0 ? (
                   <List spacing="xs">
                     {release.featureOptimizations.map((item) => (
-                      <List.Item key={item}>{item}</List.Item>
+                      <List.Item key={item}>
+                        <ReleaseNoteMarkdown text={item} />
+                      </List.Item>
                     ))}
                   </List>
                 ) : (
@@ -97,7 +150,9 @@ export function ReleaseNotesDialogTemplate({
                 {release.bugFixes.length > 0 ? (
                   <List spacing="xs">
                     {release.bugFixes.map((item) => (
-                      <List.Item key={item}>{item}</List.Item>
+                      <List.Item key={item}>
+                        <ReleaseNoteMarkdown text={item} />
+                      </List.Item>
                     ))}
                   </List>
                 ) : (

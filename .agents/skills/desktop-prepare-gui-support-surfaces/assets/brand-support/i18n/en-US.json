@@ -119,9 +119,9 @@
   },
   "release_notes": {
     "dialog_title": "Release notes",
-    "entry_title": "-----------Release notes {{date}} {{version}}----------",
-    "feature_optimizations": "###Feature optimizations",
-    "bug_fixes": "###Bug fixes",
+    "entry_title": "Release notes {{date}} {{version}}",
+    "feature_optimizations": "Feature optimizations",
+    "bug_fixes": "Bug fixes",
     "loading": "Reading release notes from this candidate",
     "load_failed": "The release notes bundled with this candidate could not be read. Retry or reinstall the complete candidate.",
     "retry": "Retry",
