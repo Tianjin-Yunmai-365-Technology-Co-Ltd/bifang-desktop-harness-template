@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "gitPublication": "remote",
-  "sourceHead": "c37e6789028e54da388d994235ed96e36164f4ba",
+  "sourceHead": "5c5601de6923836a429bf67b12e50f88cbeabbcc",
   "version": "202609172016",
   "releaseDate": "2026-09-17",
   "expectedTag": "v202609172016-20260917",
@@ -11,9 +11,9 @@
     "selection": "enabled",
     "status": "passed",
     "scopeBase": "9d5ce6c1d5a72fe768f3a70f3a3cae4b1d77db66",
-    "sourceHead": "c37e6789028e54da388d994235ed96e36164f4ba",
-    "scopeDiffSha256": "926adc5176f85062e68f0df1a7557eb99c4cea1338ec0eda8a0677a2e0df2368",
-    "reviewedSourceCommit": "c37e6789028e54da388d994235ed96e36164f4ba",
+    "sourceHead": "5c5601de6923836a429bf67b12e50f88cbeabbcc",
+    "scopeDiffSha256": "9c101621535a37c71a3fec4a5e6efa9142650466cbc0c2a6b9acb666a9e8e8ba",
+    "reviewedSourceCommit": "5c5601de6923836a429bf67b12e50f88cbeabbcc",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -21,7 +21,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed changes from the prior 202609141917 metadata commit through sourceHead for behavior correctness, core and adapter boundaries, external contracts, responsibility and size, and temporary markers. Harness release review, 311 Python tests, Rust 1.98.1 formatting, Clippy, 7 tests, and diff integrity passed. No blocking issues found; 40 nonblocking existing size advisories remain.",
+    "evidenceSummary": "Reviewed the prior 202609141917 metadata commit through sourceHead for behavior correctness, core and adapter boundaries, external contracts, responsibility and size, and temporary markers. Harness release review, 311 Python tests, 44 Git lifecycle tests, 14 release context tests, Rust 1.98.1 formatting, Clippy, 7 tests, and diff integrity passed. Windows CRLF validation remains fail-closed for other edits. No blocking issues found; 40 nonblocking existing size advisories remain.",
     "reason": null,
     "remainingRisk": null
   },

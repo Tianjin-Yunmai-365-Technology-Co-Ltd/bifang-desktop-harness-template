@@ -20,6 +20,10 @@
       ],
       "bugFixes": [
         {
+          "zh-CN": "修复 Windows Git 将发布校验脚本和上下文检出为 CRLF 时，源码发布会误报未跟踪或摘要不匹配的问题。",
+          "en-US": "Fixed source releases on Windows reporting the tracked release validator or context as invalid after Git checks them out with CRLF line endings."
+        },
+        {
           "zh-CN": "修复 Harness 校验器对已退役 Skill 的纯字节码缓存目录及最新按日记忆路径的误判，并调整 Windows 文件系统限制下的回归测试。",
           "en-US": "Fixed Harness validation of cache-only retired Skill directories and the latest dated memory paths, and adapted regression tests to Windows filesystem limits."
         }
