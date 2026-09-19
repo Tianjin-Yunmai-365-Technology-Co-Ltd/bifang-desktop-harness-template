@@ -1,4 +1,4 @@
 interface:
   display_name: "Mantine List View"
   short_description: "统一生成和审查可恢复、可访问的 Mantine 列表页"
-  default_prompt: "使用 $mantine-list-view 创建或审查一个符合统一粘滞、排序、分页、状态恢复和自定义列规范的 Mantine 列表页。"
+  default_prompt: "使用 $mantine-list-view 创建或审查一个符合逐行浅深、hover/focus 强高亮、统一粘滞、稳定排序、分页、状态恢复和自定义列规范的 Mantine 列表页。"

@@ -1,52 +1,72 @@
 # Offset 列表页模式
 
-本文件给出列表页的状态边界和实现骨架。先用真实 API/路由类型替换示例命名，再复制 `../assets/ListPage.template.tsx`；不要为迎合模板而修改业务接口。
+复制 `../assets/` 的完整资产集，再用真实路由、API、i18n 和列定义适配。不要只复制组件主文件，也不要为迎合模板放宽业务接口。
 
-## 1. 数据契约
+## 1. 服务端数据与稳定排序
 
 ```ts
-export type PageSize = 10 | 20 | 50 | 100;
-export type SortDirection = "asc" | "desc";
-export type OrderSortField = "amount" | "createdAt";
+type PageSize = 10 | 20 | 50 | 100;
+type SortDirection = "asc" | "desc";
+type OrderSortField = "amount" | "createdAt";
 
-export interface SortState<TField extends string> {
-  field: TField;
-  direction: SortDirection;
-}
-
-export interface ListRequest<TField extends string, TFilters> {
+interface ListRequest<TFilters> {
   page: number;
   pageSize: PageSize;
-  sort: SortState<TField> | null;
+  sort: { field: OrderSortField; direction: SortDirection } | null;
   filters: TFilters;
 }
 
-export interface ListResponse<TRow> {
-  rows: TRow[];
-  totalCount: number;
+interface ListResponse<TRow> {
+  items: readonly TRow[];
+  totalItems: number;
 }
 ```
 
-- `TRow` 必须有稳定业务 `id`。不要用本页位置、请求 offset 或随机值补 id。
-- 排序字段与筛选结构由具体业务声明。只有服务端允许的字段才能进入联合类型。
-- 页码从 `1` 开始；请求 adapter 在最后一层换算 `offset = (page - 1) * pageSize`。
+- 页码从 1 开始；adapter 最后一层才计算 `offset = (page - 1) * pageSize`，并拒绝非安全整数。
+- 每行使用真实稳定业务 id，由 `businessIdType: "string" | "number"` 显式声明并在所有页、选择状态和响应校验中保持同一类型。视图用 `string:`/`number:` 前缀生成 React key，避免 `1` 与 `"1"` 碰撞。
+- 服务端必须声明确定的默认顺序。任何用户排序都在同值时追加稳定业务 id 作为最终 tie-breaker，例如 `ORDER BY created_at DESC, id ASC`；否则 offset 翻页可能重复或漏行。
+- 成功响应进入 UI 前验证 items 数组、非负安全总数、行数不超过 pageSize/total/剩余范围、当前可信有效页不为空、业务 key 不重复。矛盾响应是契约错误，不是空态。
 
-## 2. 查询状态恢复
+## 2. 类型化路由 adapter
 
-每个列表声明跨版本稳定且全应用唯一的 `listId`，例如 `orders.list.v1`。会话键建议为 `app:list-state:${listId}:v1`。
+每个列表有全应用唯一稳定 `listId` 和 owned search keys。TanStack Router 的 validateSearch 可能已经补默认值，因此“URL 是否显式拥有 key”必须读取原始 search（普通对象或 `URLSearchParams`），不能从补默认后的对象猜。
 
-恢复顺序按一次导航整体执行：
+```ts
+const resolved = resolveInitialListLocation({
+  rawUrlPresence,
+  urlSearch: validatedSearch,
+  sessionStorage,
+  sessionKey,
+  codec,
+});
 
-1. 检查原始 URL 是否包含本列表拥有的任一 query key。只要包含，就进入显式 URL 模式：合法字段采用，缺失或非法字段用默认值补齐，绝不混入本机旧会话快照。
-2. URL 完全没有本列表 query key 时，读取当前标签页的 sessionStorage。解析失败、schema 不匹配或 storage 异常时忽略。
-3. 没有合法会话快照时使用默认值：`page=1`、`sort=null` 和业务筛选默认值；`pageSize` 的全局兜底是 `20`，用户明确指定的合法初始值优先。
-4. 用 `replace` 把规范化结果写回 URL，避免刷新后恢复出另一组状态；随后写入 sessionStorage。
+const canonical = mergeOwnedListSearch(
+  currentSearch,
+  codec.ownedKeys,
+  resolved.canonicalSearch,
+);
 
-只保存“已应用”的搜索/筛选，输入框草稿留在组件本地。搜索提交、清空、筛选、排序或 pageSize 变化时，把 page 设置为 `1`，再进行一次原子 URL 更新。不要先写 page 再写其他字段造成两次请求。
+if (
+  !isOwnedListSearchCanonical(
+    currentSearch,
+    codec.ownedKeys,
+    resolved.canonicalSearch,
+  )
+) {
+  navigate({ search: canonical, replace: true });
+}
+```
 
-URL 和 sessionStorage 都不是安全存储。令牌、秘密、个人敏感值、长文本草稿或一次性输入不得进入其中；出现此类筛选时先改为不持久化并向用户说明。
+恢复顺序只执行一次：
 
-## 3. Query key 与旧数据
+1. 原始 URL 含任一 owned key：合法字段采用，缺失/非法字段补默认，绝不混入旧会话值。
+2. URL 完全没有 owned key：读取 `app namespace + listId + non-PII scope + schema` 隔离的 sessionStorage；损坏或 parser 抛错时删除/忽略。
+3. 没有合法快照：page=1、业务默认 sort/filter、产品合法初始 pageSize 或全局 20。
+4. 在首次 Query 请求前，用单次 `replace` 写入 canonical search；`mergeOwnedListSearch` 保留同一路由其他功能的参数。自动清除隐藏排序与越界纠页也用 replace，并以纠正指纹抑制重复 effect。
+
+只有已应用的搜索/筛选进入 URL/session；输入草稿留在本地。搜索提交、清空、筛选、sort、pageSize 变化用一次 navigation 原子写入并 page=1。令牌、秘密、PII、长文本或一次性值不得持久化。
+
+## 3. Query v5 与 placeholder
 
 ```ts
 const queryKey = [
@@ -61,7 +81,7 @@ const queryKey = [
 
 const query = useQuery({
   queryKey,
-  queryFn: ({ signal }) => fetchPage({ page, pageSize, sort, filters, signal }),
+  queryFn: ({ signal }) => fetchPage({ page, pageSize, sort, filters }, signal),
   placeholderData: (previousData, previousQuery) =>
     previousQuery &&
     JSON.stringify(previousQuery.queryKey.slice(0, -1)) ===
@@ -72,106 +92,66 @@ const query = useQuery({
 });
 ```
 
-- `normalizeFilters` 必须产生确定性、可序列化值；排序无关的对象键应固定，不把函数、Date 实例或未应用草稿放进 key。
-- `cacheScope` 是不含 PII 的租户/用户数据边界；身份不会改变结果时可用固定公共值，但不得省略结果隔离维度。
-- 不把 `query.data` 复制到 Jotai、Web Storage 或组件外数组。每个分页组合自然有自己的 Query key 与缓存项。
-- `placeholderData` 只在除末尾 page 外的 key 完全相同时返回旧数据；排序、搜索、筛选或 pageSize 改变时不得显示不相干旧结果。用 `isPlaceholderData` 或 `isFetching` 表达局部更新，并可在需要时禁用连续翻页。
-- 重新访问页面时先恢复查询控件，再由完整 key 命中缓存并以 `refetchOnMount: "always"` 重新请求；不能用 Web Storage 快照代替服务端获取。Query 缓存可按项目 `gcTime` 正常回收，不承诺把业务行永久留在内存。
+- `cacheScope` 是不含 PII 的结果隔离边界；filters 先规范成确定、可序列化值。行/总数不复制到 Jotai、Web Storage 或组件外数组。
+- `previousQuery.queryKey.slice(0, -1)` 使 placeholder 只用于纯 page 变化。sort/filter/pageSize 变化不能显示无关旧行。
+- TanStack Query v5 的 placeholder 只存在于 pending 阶段。新页 error 后显示该页错误；同 key background error 才保留当前数据。
+- placeholder 行必须 `inert` 且 `aria-disabled`，选择、分页、批量和行内动作禁用；业务 `renderCell(row, { interactive })` 不得忽略 false。
 
-## 4. 越界处理
+## 4. 页码纠正与四态
 
-只在请求成功且响应总数可信时执行：
+只在成功、非 fetching、非 placeholder 且响应已通过校验时计算：
 
 ```ts
-const totalPages = Math.ceil(totalCount / pageSize);
-
-if (totalPages === 0 && page !== 1) {
-  replaceQuery({ ...query, page: 1 });
-} else if (totalPages > 0 && page > totalPages) {
-  replaceQuery({ ...query, page: totalPages });
+const totalPages = Math.ceil(totalItems / pageSize);
+const correctedPage = getCorrectedPage(page, totalPages);
+if (correctedPage !== undefined) {
+  navigate({ ...state, page: correctedPage }, { replace: true });
 }
 ```
 
-加载、错误或 placeholder data 期间不修正 page。修正必须用 URL `replace`，防止浏览器后退在非法页和末页之间循环。后端能直接返回可信 `totalPages` 时优先使用该字段，并验证它是非负整数。
+修正中保持 `aria-busy=true` 并显示 Skeleton；loading/error/placeholder 不纠页。四态顺序为：
 
-## 5. 排序三态
+1. 首次 pending 或纠页：状态文案 + 恰好 pageSize 行稳定槽位 Skeleton。
+2. 无数据且 error：业务 `getErrorPresentation` 决定描述和是否 retry；403/终态契约错误不显示重试。
+3. 成功空：有已应用筛选时显示“无结果”与有效重置；默认筛选空时显示“无数据”及业务提供的可选下一步。
+4. 数据：真实行或只读 placeholder；同 key background fetching/error 就近显示，成功后播报“第 X–Y 条，共 Z 条”。
 
-```ts
-function nextSort<TField extends string>(
-  current: SortState<TField> | null,
-  field: TField,
-): SortState<TField> | null {
-  if (current?.field !== field) return { field, direction: "asc" };
-  if (current.direction === "asc") return { field, direction: "desc" };
-  return null;
-}
-```
+## 5. 排序与逐行视觉
 
-点击或键盘激活同一个真实 button 调用该函数，并原子更新 `{ sort: next, page: 1 }`。`Table.Th` 使用：
+- `nextSort` 固定 asc→desc→none，并与 page=1 原子更新。`aria-sort` 只在当前 th；可见 Tabler icon 与状态一致且 `aria-hidden`。
+- 当前排序摘要放在表格外，即使列因响应式隐藏也能感知和清除；primary/status/actions 必须设置 `required: true`，本身不允许响应式隐藏。
+- 数据行用 `data-row-tone` 交替 light/deep。light scheme 为 `white`/`gray-1`，dark scheme 为 `dark-7`/`dark-6`；hover/`:focus-within` 强化为 `gray-3`/`dark-4`，focus ring 和 forced-colors 独立可见。
+- 行本身不因视觉高亮自动变成可点击或可聚焦；只有真实语义控件进入 Tab 顺序。唯一 primary 单元格使用 `th scope="row"`，选择名称来自 `getRowAccessibleName`。
 
-```ts
-const ariaSort =
-  sort?.field !== field
-    ? undefined
-    : sort.direction === "asc"
-      ? "ascending"
-      : "descending";
-```
-
-只把 `ariaSort` 传给当前排序列；none 状态下整张表不设置 `aria-sort`。
-
-## 6. 四态顺序
-
-1. 没有可展示数据且首次 pending：`pageSize` 行 Skeleton。
-2. 没有可展示数据且 error：错误说明 + 重试。
-3. 成功且 rows 为空：live empty。
-4. 其余：真实或 placeholder rows；后台 fetching/error 在表格附近显示，不清空行。
-
-Skeleton 槽位 key 用固定值集合（例如四个预定义前缀与序号组成的字符串）而不是 `key={index}`。真正数据始终 `key={row.id}`。
-
-## 7. 行选择
-
-在组件 props 或页面常量中公开声明：
+## 6. 选择
 
 ```ts
 type SelectionScope = "none" | "current-page" | "cross-page";
 ```
 
-- `current-page`：翻页或查询条件变化清空；全选只覆盖当前响应 rows。
-- `cross-page`：状态只保存业务 id，必须显示已选范围；查询条件变化执行已声明的清空或保留策略。
-- 服务端批量动作重新校验 id，不把客户端选择当作授权。
+- 启用选择必须提供摘要、清空和可访问 action bar；不能只渲染复选框。
+- current-page 在 full query fingerprint 变化时清空；同 key 成功刷新时把集合裁剪到当前 id。
+- cross-page 只保存 id，并由产品声明 base query 变化时清空/保留策略和范围文案。
+- 批量提交时服务端重新校验 id、权限和当前状态；客户端集合不是授权。行内控件与父行不得互相代理或冒泡成重复动作。
 
-## 8. 列偏好与迁移
+## 7. 列偏好和拖拽
+
+稳定 localStorage key 不含 schemaVersion：
 
 ```ts
 interface ColumnPreferences<TColumnId extends string> {
   schemaVersion: number;
-  order: TColumnId[];
-  hidden: TColumnId[];
+  order: readonly TColumnId[];
+  hidden: readonly TColumnId[];
 }
 ```
 
-localStorage key 建议为 `app:list-columns:${listId}:${nonPiiPreferenceScope}:v${columnSchemaVersion}`；`columnSchemaVersion` 是每个列表显式传入的版本，不是所有列表共享的模板常量。读取后依次：
+读取顺序：验证当前/登记的 legacy key → 必要时调用显式 migration → reconcile 唯一已知 id → 追加新列 → 移除必显列的 hidden → 写回稳定 key → 清理 legacy key。坏 JSON、迁移异常或版本仍不匹配时回退并重写默认。
 
-1. 验证对象形状和 schemaVersion。
-2. 只保留当前定义存在的 columnId，并去重。
-3. 按默认顺序追加新列。
-4. 从 hidden 移除必显列和未知列。
-5. 解析失败时移除坏值、回退默认，并保持页面可用。
+列 schema 运行时失败关闭：columnId 与可访问名称非空、columnId 唯一、sortField 非空且唯一、恰好一个 primary；primary 与存在的 status/actions 必须 `required: true`，并和其他 required 列一样不得 `hideBelow`。列设置使用 bounded scroll area；pointer/keyboard DnD 与左移/右移复用同一更新逻辑并播报新位置。
 
-列菜单使用 Checkbox 控制可见性；必显列显示但禁用或不提供隐藏入口，且始终保留至少一个业务列。提供“重置列”；重置或隐藏当前排序列时同时清除排序并回第 1 页。
+## 8. 窄屏和验证
 
-## 9. 列拖拽
-
-使用 `DndContext`、`SortableContext`、`PointerSensor`、`KeyboardSensor`、`sortableKeyboardCoordinates`、`verticalListSortingStrategy` 和 `arrayMove`。列设置面板按当前列顺序纵向展示可调整项；必显不等于不可排序，是否锁位要单独声明。
-
-每个拖拽手柄都有包含列名的可访问名称。除了 dnd-kit 键盘传感器，再提供可见或菜单内的“左移/右移”动作，复用同一个 `moveColumn(columnId, delta)`，确保触控、键盘和辅助技术均能完成排序。每次合法变更后持久化规范化偏好。
-
-不要引入 `@dnd-kit/utilities` 只为格式化 transform；可直接根据 `transform.x/y/scaleX/scaleY` 生成安全 style 字符串。确需其他依赖时先批准。
-
-## 10. 窄屏降级
-
-- 用列元数据声明 `narrowPriority` 或 Mantine `visibleFrom` 所消费的 `hideBelow`，而不是依赖 DOM 第几个子元素；至少一个业务主列同时设为 `required: true` 且不设 `hideBelow`。
-- 主键/名称、关键状态和必要动作始终可达；次要列可默认隐藏但仍能从列菜单恢复。
-- 只有 `Table.ScrollContainer` 滚动；搜索区、分页器和页面容器回流。
-- 在 320 CSS px、200% 文本缩放、中英文和长业务值下验证。不要用固定高度截断状态或操作。
+- `Table.ScrollContainer type="native" role="region" aria-label=... tabIndex={0}` 提供局部横向键盘滚动；搜索、结果摘要、分页和页面壳回流。
+- Pagination 优先 `layout="responsive"`；旧版本 fallback 必须在 320 CSS px/200% 下证明等价。所有控制名和可见文案走 i18n。
+- 纯函数契约从 `ListPage.contracts.test.ts` 开始；项目组件测试另覆盖角色/名称、真实点击/键盘、placeholder inert、四态、分页标签、选择、列移动和逐行 hover/focus。真实浏览器或服务端未运行时不可冒充验证完成。

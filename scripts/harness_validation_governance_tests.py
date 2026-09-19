@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -61,10 +62,16 @@ from scripts.harness_validation.context import (
     GUI_SUPPORT_SKILL,
     MANTINE_LIST_VIEW_API,
     MANTINE_LIST_VIEW_CHECKLIST,
+    MANTINE_LIST_VIEW_COLUMN_SETTINGS,
+    MANTINE_LIST_VIEW_CONTRACT_TEST,
     MANTINE_LIST_VIEW_PATTERN,
     MANTINE_LIST_VIEW_ROOT,
     MANTINE_LIST_VIEW_SKILL,
+    MANTINE_LIST_VIEW_STATE,
+    MANTINE_LIST_VIEW_STYLES,
+    MANTINE_LIST_VIEW_STYLE_TYPES,
     MANTINE_LIST_VIEW_TEMPLATE,
+    MANTINE_LIST_VIEW_TYPES,
     PRODUCT_SPEC,
     REQUIRED_FILES,
 )
@@ -234,6 +241,12 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
             MANTINE_LIST_VIEW_API,
             MANTINE_LIST_VIEW_CHECKLIST,
             MANTINE_LIST_VIEW_TEMPLATE,
+            MANTINE_LIST_VIEW_STATE,
+            MANTINE_LIST_VIEW_TYPES,
+            MANTINE_LIST_VIEW_COLUMN_SETTINGS,
+            MANTINE_LIST_VIEW_STYLES,
+            MANTINE_LIST_VIEW_STYLE_TYPES,
+            MANTINE_LIST_VIEW_CONTRACT_TEST,
         )
         self.assertIn("mantine-list-view", EXPECTED_SKILLS)
         for path in expected_paths:
@@ -247,6 +260,41 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         agents = read_repo_text("AGENTS.md")
         self.assertIn("$mantine-list-view", agents)
         self.assertIn("已有列表审查", agents)
+
+    def test_mantine_list_view_executable_contracts_pass(self) -> None:
+        """Node 24+ 可用时直接执行列表纯 TypeScript 契约。"""
+
+        node = shutil.which("node")
+        if node is None:
+            self.skipTest("Node.js is not installed on this Harness-only host")
+        version = subprocess.run(
+            [node, "--version"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        try:
+            major = int(version.removeprefix("v").split(".", 1)[0])
+        except ValueError:
+            self.fail(f"unparseable Node.js version: {version!r}")
+        if major < 24:
+            self.skipTest(
+                f"Node.js {version} predates the managed GUI minimum v24.21.0"
+            )
+        result = subprocess.run(
+            [
+                node,
+                "--experimental-strip-types",
+                str(MANTINE_LIST_VIEW_CONTRACT_TEST),
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertIn("mantine-list-view executable contracts passed", result.stdout)
 
     def test_governance_rejects_branch_gate_regression(self) -> None:
         """生命周期 Skill 不能恢复分支拓扑门禁。"""

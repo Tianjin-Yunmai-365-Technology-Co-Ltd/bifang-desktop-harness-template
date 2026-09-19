@@ -2,6 +2,8 @@
 
 ## 新增
 
+- `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`（`required_version = pending`）：列表标准升级为 `mantine-list-view-v2`。真实数据行固定浅/深交替，light scheme 使用 white/gray-1、dark scheme 使用 dark-7/dark-6，hover 或 focus-within 以 gray-3/dark-4 和独立焦点轮廓强化；placeholder 旧行整体 inert，选择、分页、批量和行内副作用全部禁用。原 1000 行起手模板拆为页面、纯状态契约、类型、列设置与 CSS module，并保存可直接执行的 Node 契约测试；同步补齐首次 URL 单次 replace、无关 query 保留、确定性服务端 tie-breaker、安全整数/响应一致性、可见排序图标、响应式且本地化分页、结果范围播报、可聚焦滚动区、主行表头、类型化错误/空态、选择 action bar 和同页刷新裁剪。列偏好改用跨 schema 稳定 key、payload 版本、显式迁移和 legacy 清理；交付 checklist 改为 Required/Conditional/带证据 N/A，并声明 Mantine 9.6.1 与 TanStack Query 5.102.8 的直接复制下界。
+
 - `HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD`（`required_version = pending`）：新增可自动触发的 `$mantine-list-view`、`mantine-list-view-v1` 标准、Mantine 9.x API 参考、offset 模式说明、交付 checklist 与 React/TypeScript 起手模板。列表统一使用 Mantine 原生 sticky Table/ScrollContainer、类型化排序三态、总页数 Pagination、10/20/50/100 页大小、四态、业务 id key、显式选择范围及窄屏降级；查询控件以显式 URL 或当前标签页快照恢复，业务行只归 TanStack Query 且每页 key 独立，列显隐/顺序以版本化 localStorage 持久化并由 dnd-kit 提供指针/键盘重排。普通页面 Jotai 进程状态保持不变；新 Skill 只随 GUI 下游初始化/升级传播，中性脚手架不生成业务页面或预装依赖。
 
 - `HARNESS-FEAT-ABOUT-RELEASE-NOTES-MARKDOWN`（所需 Harness 版本 `202609172303`，已由本次 Harness 时间版本发布物化）：可选 GUI 关于页的双语更新日志正文支持 GitHub 风格 Markdown，并沿用 Mantine 排版；阻止正文 HTML、外部链接跳转和远程图片加载。日志加载失败或超时可重试，迟到结果不会覆盖新请求，更新状态不再显示过期的可用版本。

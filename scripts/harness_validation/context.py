@@ -74,6 +74,20 @@ MANTINE_LIST_VIEW_CHECKLIST = (
 MANTINE_LIST_VIEW_TEMPLATE = (
     MANTINE_LIST_VIEW_ROOT / "assets" / "ListPage.template.tsx"
 )
+MANTINE_LIST_VIEW_STATE = MANTINE_LIST_VIEW_ROOT / "assets" / "listPageState.ts"
+MANTINE_LIST_VIEW_TYPES = MANTINE_LIST_VIEW_ROOT / "assets" / "listPageTypes.ts"
+MANTINE_LIST_VIEW_COLUMN_SETTINGS = (
+    MANTINE_LIST_VIEW_ROOT / "assets" / "ListColumnSettings.tsx"
+)
+MANTINE_LIST_VIEW_STYLES = (
+    MANTINE_LIST_VIEW_ROOT / "assets" / "ListPage.module.css"
+)
+MANTINE_LIST_VIEW_STYLE_TYPES = (
+    MANTINE_LIST_VIEW_ROOT / "assets" / "ListPage.module.css.d.ts"
+)
+MANTINE_LIST_VIEW_CONTRACT_TEST = (
+    MANTINE_LIST_VIEW_ROOT / "assets" / "ListPage.contracts.test.ts"
+)
 GUI_LOCALE_SKILL = SKILLS_ROOT / "desktop-add-gui-system-locale" / "SKILL.md"
 GUI_UPDATER_SKILL = SKILLS_ROOT / "desktop-add-gui-updater" / "SKILL.md"
 GUI_WINDOW_STATE_SKILL = SKILLS_ROOT / "desktop-add-gui-window-state" / "SKILL.md"
@@ -457,6 +471,12 @@ REQUIRED_FILES = (
     ".agents/skills/mantine-list-view/references/mantine-api.md",
     ".agents/skills/mantine-list-view/references/checklist.md",
     ".agents/skills/mantine-list-view/assets/ListPage.template.tsx",
+    ".agents/skills/mantine-list-view/assets/listPageState.ts",
+    ".agents/skills/mantine-list-view/assets/listPageTypes.ts",
+    ".agents/skills/mantine-list-view/assets/ListColumnSettings.tsx",
+    ".agents/skills/mantine-list-view/assets/ListPage.module.css",
+    ".agents/skills/mantine-list-view/assets/ListPage.module.css.d.ts",
+    ".agents/skills/mantine-list-view/assets/ListPage.contracts.test.ts",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-frontend-contract.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-global-shortcut-runtime-contract.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-global-shortcut-contract.fixture.mjs",

@@ -5,71 +5,58 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 # Mantine 列表页
 
-## 触发条件
+## 何时使用
 
-- 创建、修改、重构或审查 React 19.2+、TypeScript、Mantine UI 9.x 的列表页、数据表格、后台管理列表或搜索结果页时使用。
-- 即使用户未写“表格”，只要页面实质上用于检索、浏览或管理重复记录，也必须使用。
-- 审查已有列表组件时同样使用；不因任务只要求“看看问题”而跳过交付检查。
-- 本 Skill 是 [Mantine 列表页设计标准](../../../docs/design_standards/mantine_list_view.md) 的执行入口；冲突时以用户已批准的产品事实和该标准为准。
+- 创建、修改、重构或审查 React、TypeScript、Mantine 的列表页、表格、后台列表或搜索结果页时使用。
+- 即使用户未写“表格”，只要页面实质用于检索、浏览或管理重复记录，也必须使用。
+- 本 Skill 执行 [Mantine 列表页设计标准](../../../docs/design_standards/mantine_list_view.md)，并与 [Tauri GUI 通用设计标准](../../../docs/design_standards/tauri_gui.md) 组合；产品已批准事实优先。
 
-## 开始前的三个决策问题
+## 开始前必须确定
 
-1. 这个列表的稳定 `listId`、业务行 `id`、总条数契约、可排序字段联合类型，以及允许进入 URL/sessionStorage 的已应用搜索与筛选字段分别是什么？
-2. 行选择是禁用、仅当前页，还是跨页？若跨页，跨搜索/筛选/排序后如何失效或保留？
-3. 哪些列必显、哪些列可隐藏、默认顺序和窄屏降级是什么？列偏好是设备级还是用户级，列 schema 版本如何迁移或重置？
+1. 稳定 `listId`、显式 `businessIdType`（`string | number`）单一规范业务 id 类型、总数契约、默认确定性排序、允许的排序字段，以及同值记录的稳定业务 id tie-breaker。
+2. 哪些已应用筛选可进入 URL/sessionStorage；原始 URL key 所有权、类型化路由 adapter、非列表 query 参数保留方式和首次 canonical replace 时机。
+3. 选择是 none/current-page/cross-page；若启用，批量动作、清空入口和服务端 id/权限/状态重验分别是什么。
+4. 哪一列是唯一 `primary`，哪些是关键 `status`/`actions`；必显、默认顺序、窄屏降级、偏好 scope、schema 迁移和旧 key 清理是什么。
 
-不能从现有规格、类型或接口可靠回答时，先向用户确认；不得用无类型字符串或隐含选择语义继续实现。
+答案会改变产品边界且无法从规格、类型或接口确认时停止询问；普通实现细节按本标准推进。
 
-## 约束清单
+## 不可省略的行为契约
 
-### 粘滞与滚动
+### 表格、行与窄屏
 
-- 只用 Mantine `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>`；offset 必须来自共享布局常量，禁止页面内字面量。
-- 禁止手写 `position: sticky`；横向滚动只用 `Table.ScrollContainer`，并声明 `minWidth`。
-- 明确窄屏降级：至少一个业务主列同时设为 `required: true` 且不设 `hideBelow`，必要动作仍可达；次要列允许隐藏，二维数据区局部滚动，页面本身不得横向滚动。
+- 只用 `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>` 与 `Table.ScrollContainer`；offset 来自共享布局常量，禁止手写 sticky。滚动区必须可聚焦、有本地化名称和可见焦点。
+- 每个真实数据行固定浅/深/浅/深交替；浅色主题使用 `white`/`gray-1`，深色主题使用 `dark-7`/`dark-6`。鼠标 hover 或任一行内控件 `:focus-within` 时用更强的 `gray-3`/`dark-4` 高亮；键盘焦点另有清晰轮廓，forced-colors 仍可见。不要只靠颜色表达选择或状态。
+- 唯一 `primary` 列以 `th scope="row"` 渲染，并由业务提供非空行名称。`primary`、声明存在的 `status`/`actions` 必须显式设置 `required: true`，且它们和所有 required 列都不得设置 `hideBelow`；次要列才可隐藏。
+- placeholder 旧行是只读展示：整行 inert、选择和行内副作用禁用，`renderCell` 必须尊重 `interactive=false`。
 
-### 排序
+### 排序、分页与路由
 
-- 只实现 `asc → desc → none` 三态；表头排序控件用原生 button 或 Mantine Button/ActionIcon/UnstyledButton，键盘可达。
-- 每个排序字段只能对应一个表头；只在当前排序列的 `<th>` 设置准确的 `aria-sort`，none 状态不设置该属性，不可排序表头不伪装成可排序。
-- 排序字段必须是联合类型白名单，禁止用裸 `string`；URL、存储和服务端返回值进入状态前都要解析并拒绝非法值。
-- 任何排序变化都把页码重置为 `1`。
+- 排序严格 `asc → desc → none`；字段是非空联合类型白名单。当前列同时有可见 Tabler 图标与准确 `aria-sort`，图标 `aria-hidden`；窄屏仍显示当前排序摘要和清除入口。
+- 服务端默认排序必须确定；所有可排序字段在同值时追加稳定业务 id tie-breaker。排序、搜索、筛选或 pageSize 变化原子重置 page=1。
+- 只支持 offset 分页；pageSize 固定 `[10, 20, 50, 100]`、兜底 20。Mantine Pagination 的 `total` 是总页数，使用 responsive layout、本地化 landmark/首末前后/页码名称，并显示当前范围与总数。
+- 原始 URL 含任一 owned key 时只采用合法 URL 值并以默认值补齐；完全无 owned key 时才读 listId 隔离的 sessionStorage。canonicalization 和自动纠正只 `replace` 一次、保留无关 query 参数并在首次请求前完成。
+- page、total、schemaVersion 与响应计数必须是安全整数。成功响应验证行数/总数/页码一致性；越界页只在成功、非 placeholder、非 fetching 时 replace 到末页，零结果回 page=1。
 
-### 分页、查询与恢复
+### 查询、四态与选择
 
-- 只支持页码式 offset 分页；用 Mantine `<Pagination>`，其 `total` 必须传总页数而不是总条数。
-- `pageSize` 只允许 `[10, 20, 50, 100]`，全局兜底为 `20`；用户明确指定白名单值时作为该列表初始值，但选择器仍保留四项。搜索、筛选或 pageSize 变化把页码重置为 `1`。
-- `page`、`pageSize`、`sort` 与已应用的搜索/筛选同步 URL query。显式 URL 一旦包含本列表任一参数，就只用合法 URL 值并以默认值补齐；URL 完全没有本列表参数时才从 `listId` 隔离的 sessionStorage 恢复，否则使用默认值。
-- 当前页大于成功响应的末页时回落末页并重查；总页数为 `0` 时页码规范化为 `1`；加载或错误状态不得触发回落循环。
-- 业务行数据只由 TanStack Query 缓存，不写入 Jotai、URL、sessionStorage 或 localStorage。query key 至少包含稳定 `listId`、不含 PII 的结果 scope、规范化搜索/筛选、排序、page 和 pageSize。
-- 翻页使用 TanStack Query 的旧数据占位能力保留上一页，避免内容闪烁；恢复查询条件后按 query key 重新获取数据。
+- 业务行、总数和请求结果只由 TanStack Query v5 缓存；query key 包含 listId、非 PII scope、规范化筛选、sort、pageSize、page。只在纯页码变化的 pending 阶段显示旧页 placeholder；换页失败显示该页错误，不伪装成旧页结果。同 key 后台刷新失败保留当前数据。
+- 首次 loading 为恰好 pageSize 行 Skeleton；空态区分“当前筛选无结果”和“全局无数据”；错误由业务分型并只为可重试错误显示 retry；正常态显示结果范围、后台进度和 live feedback。
+- current-page 选择在查询组合变化时清空，并在同 key 成功刷新后裁剪已消失 id；cross-page 只保存 id 并执行声明的失效策略。启用选择必须同时提供摘要、清空与可访问批量动作。
 
-### 四态
+### 列偏好
 
-- 首次加载：渲染 `pageSize` 行 Skeleton，Skeleton key 使用稳定槽位值，不用数组 index。
-- 空：提供说明与恢复动作，并用 `aria-live` 或等价 live region 播报。
-- 错误：说明影响并提供可重试动作；有旧数据时保留旧数据并将刷新错误就近呈现。
-- 正常：展示真实数据；后台刷新保留内容并提供局部进度。四态缺一不可。
+- 列 id 唯一；每个排序字段只属于一列。偏好 key 固定为 app namespace + listId + 非 PII scope，schemaVersion 只放 payload，避免每次升级遗留新 key。
+- 加载时校验 payload、显式迁移兼容旧 schema、清理登记的旧 key、丢弃未知/重复列、追加新列、恢复必显列；损坏或无法迁移时重写默认。始终提供重置列。
+- 拖拽只用项目内声明的 `@dnd-kit/core` 与 `@dnd-kit/sortable`；同时有 pointer/keyboard sensor、命名手柄、至少 24px 左移/右移按钮和成功位置播报。
 
-### 标识与行选择
+## 实施步骤
 
-- React row key 必须使用业务 `id`，禁止 index；业务接口缺少稳定 id 时先修正契约。
-- 行选择必须公开声明为“仅当前页”或“跨页”，不能靠实现细节猜测；跨页选择使用业务 id，并定义查询条件变化后的失效规则。
+1. 完整读取 [offset-list-pattern.md](references/offset-list-pattern.md)、[mantine-api.md](references/mantine-api.md)、[checklist.md](references/checklist.md) 与通用 GUI 标准，只检查本次命中的项目事实。
+2. 确认下游实际使用 React 19.2+、`@mantine/core >=9.6.1 <10`、`@tanstack/react-query >=5.102.8 <6`；若低于下界，先升级或实现并测试等价 fallback，不能直接复制不兼容 API。
+3. 复制并共同适配 `assets/` 中 `ListPage.template.tsx`、`listPageState.ts`、`listPageTypes.ts`、`ListColumnSettings.tsx`、CSS module 及声明；契约测试作为下游测试起点，不当成产品测试替代品。
+4. 先接类型化路由 adapter 和服务端稳定排序，再接 Query/四态/Table/Pagination，最后按真实需求接选择和列偏好；不为未选能力留下假按钮。
+5. 运行项目的 typecheck、相关单元/组件测试和 `node --experimental-strip-types ListPage.contracts.test.ts`；若把契约测试纳入 `tsc`，测试 tsconfig 启用 `allowImportingTsExtensions`。真实浏览器、服务端或 E2E 未运行时明确列为未验证。
 
-### 自定义列
+## 交付判定
 
-- 列必须使用稳定 `columnId`；可见性和顺序以 `app namespace + listId + 非 PII 偏好 scope + 逐列表 schemaVersion` 隔离后写入 localStorage，不得保存行数据、搜索词、分页或排序。
-- 读取偏好时丢弃未知列、补入新增列、强制恢复必显列；损坏或不兼容数据回退默认配置，并提供“重置列”动作。
-- 列拖拽使用 `@dnd-kit/core` 与 `@dnd-kit/sortable`；不得假设全局安装。实现 PointerSensor、KeyboardSensor 和键盘等价的左移/右移操作，拖拽手柄具有可访问名称。
-
-## 生成步骤
-
-1. 完整读取 [offset-list-pattern.md](references/offset-list-pattern.md) 和 [mantine-api.md](references/mantine-api.md)，再检查项目现有路由、API 类型、共享布局常量、QueryClient 与测试约定。
-2. 从 [ListPage.template.tsx](assets/ListPage.template.tsx) 复制并适配，而不是逐字照搬；保留类型白名单、状态解析、缓存边界和可访问性契约。
-3. 先建立类型化 URL/query 状态与存储恢复，再接 TanStack Query、四态、Mantine Table/Pagination，最后接列偏好、拖拽和声明过的行选择。
-4. 用真实用户操作覆盖排序三态、分页/越界、恢复优先级、旧数据保留、四态、列迁移/重置、拖拽键盘路径与窄屏降级。
-5. 审查模式先逐项报告违反约束的位置和影响；只有用户同时授权修改时才实施修复。
-
-## 自检清单入口
-
-交付前完整读取并逐项执行 [checklist.md](references/checklist.md)。任一必选项失败都不能声称列表页已通过验收；记录实际运行的检查和仍未执行的真实浏览器/服务端验证。
+按 [checklist.md](references/checklist.md) 逐项记录 `Required`、`Conditional` 或带理由的 `N/A`。任何 Required 或已触发 Conditional 项失败，都不能声称列表页通过；纯审查只报告证据，不修改实现。

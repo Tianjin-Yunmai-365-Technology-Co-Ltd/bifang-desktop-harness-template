@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-19（新增 Mantine 列表页统一标准及封闭状态例外；此前决定继续有效）
+> 最近范围确认：2026-09-19（Mantine 列表页标准升级为 v2，固化逐行视觉、确定性分页与可执行无障碍契约；此前决定继续有效）
 
 ## 一句话目标
 
@@ -177,12 +177,13 @@
 
 ### Mantine 列表页标准与封闭状态例外
 
-- 变更标识：`HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD`；`required_version = pending`。React 19.2+、TypeScript、Mantine UI 9.x 的列表页、数据表格、后台列表、搜索结果页及已有列表审查必须使用 `$mantine-list-view`；即使请求未明说“表格”，只要实质是重复记录检索、浏览或管理也命中。GUI 下游完整保留该 Skill 与标准知识，非 GUI 下游裁剪；中性 GUI 初始化不生成列表页、不安装 dnd-kit。
-- 表头粘滞只使用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`，二维滚动只使用 `Table.ScrollContainer`，禁止手写 sticky。排序字段使用联合类型白名单并按 asc→desc→none 循环，当前排序列拥有 `aria-sort` 和真实键盘可达 button，排序变化原子重置 page=1。
-- 列表只支持页码式 offset 分页和 Mantine Pagination；`total` 接收总页数。pageSize 白名单为 `10 | 20 | 50 | 100`，全局兜底为 20，用户明确指定合法值时将其作为该列表初始值且仍保留四项选择；page、pageSize、sort 和已应用搜索/筛选同步类型化 URL。显式 URL 只用合法值并以默认值补齐，完全没有本列表参数时才从 `listId` 隔离的 sessionStorage 快照恢复，随后规范化 URL。
-- 业务行、总数与请求结果只由 TanStack Query 缓存；query key 包含稳定 `listId`、非 PII scope、规范化搜索/筛选、排序、page 与 pageSize，每页独立。只有页码变化时允许 placeholder 旧数据，重新访问按恢复状态重新获取；行数据不得写入 Jotai 或任何 Web Storage。成功响应 page 超过非零末页时回落末页，总页数为 0 时归一到第 1 页，loading/error/placeholder 不纠正。
-- 首次加载、空、可重试错误和正常/后台刷新四态完整；Skeleton 行数等于 pageSize，空态可播报，旧数据刷新失败时保留内容。row key 只用业务 id；行选择明确为 none/current-page/cross-page，并定义查询变化行为。
-- 自定义列以稳定 columnId 建模；显隐与顺序只按 `app namespace + listId + 非 PII 偏好 scope + 逐列表 schemaVersion` 写 localStorage，读取时丢弃未知列、追加新列、恢复必显列，坏数据回退且可重置。列重排使用下游局部声明的 `@dnd-kit/core` 与 `@dnd-kit/sortable`，同时提供 pointer、keyboard sensor 和明确的左移/右移等价操作。
+- 变更标识：`HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD` 与 `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`；`required_version = pending`。React 19.2+、TypeScript、Mantine UI 9.x 的列表页、数据表格、后台列表、搜索结果页及已有列表审查必须使用 `$mantine-list-view`；即使请求未明说“表格”，只要实质是重复记录检索、浏览或管理也命中。GUI 下游完整保留 Skill、v2 标准与拆分模板资产，非 GUI 下游裁剪；中性 GUI 初始化不生成业务列表页或预装 dnd-kit。
+- 表头粘滞只使用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`，二维滚动只使用有名称、可聚焦和可见焦点的 `Table.ScrollContainer`。排序字段使用非空联合类型白名单并按 asc→desc→none 循环，当前列同时拥有准确 `aria-sort`、可见 Tabler 方向图标和窄屏可达的排序摘要；服务端默认顺序确定，所有同值排序追加稳定业务 id tie-breaker。
+- 所有真实数据行按顺序固定浅/深/浅/深交替：浅色主题使用 white/gray-1，深色主题使用 dark-7/dark-6；鼠标 hover 或行内控件 focus-within 时使用更强的 gray-3/dark-4 高亮，并保留主题焦点轮廓与 forced-colors 反馈。高亮不把行自动变成可点击元素；唯一业务主列使用行表头和可理解行名称。
+- 列表只支持页码式 offset 分页和 Mantine responsive Pagination；`total` 接收总页数。pageSize 白名单为 `10 | 20 | 50 | 100`，全局兜底 20；控件提供本地化导航名称和当前 X–Y/总数 live summary。page、pageSize、sort 和已应用筛选同步类型化 URL；原始 URL 完全无 owned key 时才读 sessionStorage，canonicalization、隐藏排序和越界纠正只 replace 一次且保留无关 query。
+- 业务行、总数与请求结果只由 TanStack Query v5 缓存；query key 包含稳定 listId、非 PII scope、规范化筛选、排序、pageSize 与 page。纯翻页 pending 可显示上一页 placeholder，但该行整体 inert，选择、分页、批量和行内副作用禁用；换页 error 不再把旧页冒充新页，同 key 刷新失败才保留当前数据。列表显式声明 `businessIdType`，成功响应验证 safe integer、所有页业务 id 类型、数量/页码一致性和业务 key，只有成功非 placeholder 状态可纠页。
+- 首次加载、筛选无结果、全局无数据、类型化错误和正常/后台刷新状态完整。选择明确为 none/current-page/cross-page；启用时必须有摘要、清空和 action bar，current-page 同页刷新裁剪失效 id，批量动作由服务端重验 id、权限和状态。
+- 自定义列以唯一非空 columnId、非空可访问名称和 primary/status/actions/secondary 角色建模；恰好一个 primary，primary/status/actions 必须 `required: true`，所有 required 列不得响应式隐藏。偏好 key 跨 schema 稳定，schemaVersion 只在 payload；显式 migration 后写回并清理登记的 legacy key，坏数据回退默认且可重置。列重排使用局部声明的 `@dnd-kit/core`/`@dnd-kit/sortable`，提供 pointer、keyboard、至少 24px 左右移动和位置播报。
 
 ### 普通 GUI 进程内页面会话状态
 
@@ -362,7 +363,7 @@
 - 下游版本 helper 的回归必须证明首功能/周期只升一次 Minor 并锁到真实发布成功、Minor 归零 Patch、不同 `bug-fix` 稳定 ID（问题修复或用户可感知优化）各升一次 Patch 且不受功能锁影响、相同 ID 跨发布仍不重复且历史 `bug-fix` ID 不能改作其他提升分类、回归新 ID 可提升、显式 Major 需用户批准、维护不变、`0.0.99 -> 0.1.0` 与 `0.99.99 -> 1.0.0` 自动进位、Major 支持超过 100 但不得超过 Cargo `u64::MAX`、最高位自动进位越界零写入、Minor/Patch 固定 `0..99` 且历史 `100` 在 Cargo/目标版本/发布日志中一旦出现即失败关闭（无可读取例外），以及构建只读和正式发布后才重置；初始化、开发、构建、候选收集、验收、发布准备及 Harness 升级保护均由 validator 锁定。
 - [x] 页面动作由语义控件自身拥有，点击父 Card/表格行/单元格不会触发子按钮或切换 `Switch`；选择关于页时，更新区父级同样不代理检查更新或更新日志动作。
 - [x] 选择关于页时，“更新日志”可查看近 5 版 schema v2 中英文结构，每版功能优化/问题修复各至多 10 个完整翻译对，当前 i18n locale 选择对应标题与正文且未知语言回退英文；`NotConfigured` 只禁用远程检查，未选择关于页时没有隐藏入口、路由或运行时组件。
-- [x] 普通 GUI 页面会话状态由应用根 Jotai store 在本次进程跨路由保留，退出恢复默认且不使用持久存储/URL；命中 `$mantine-list-view` 的列表页改用显式 URL 或当前标签页快照恢复查询控件、TanStack Query-only 行数据、版本化 localStorage 列偏好与成功越界末页，并完整覆盖粘滞、排序三态、页大小、四态、业务 id、选择范围和键盘列重排。
+- [x] 普通 GUI 页面会话状态由应用根 Jotai store 在本次进程跨路由保留，退出恢复默认且不使用持久存储/URL；命中 `$mantine-list-view` 的列表页改用类型化 URL/当前标签页快照、TanStack Query-only 行数据、可迁移设备列偏好和成功越界末页，并完整覆盖粘滞、稳定排序、响应式分页、四态、业务 id、选择 action bar、关键列窄屏可达、键盘列重排，以及浅深交替和 hover/focus 强高亮。
 - [x] 发布准备能从上次真实发布边界整理并原子维护 `release-notes.json`，构建/收集只读验证并把同一字节及其版本、摘要、路径绑定进候选，升级不会覆盖下游日志。
 - [x] 发布日志每个逻辑条目同时包含非空 `zh-CN`/`en-US` 翻译，发布准备分别渲染两种语言，Rust/React 双层拒绝缺失翻译，关于页随当前 i18n locale 选择内容。
 - [x] 所有用户可见版本恰有一个小写 `v`，机器版本字段保持无展示前缀的原始值。

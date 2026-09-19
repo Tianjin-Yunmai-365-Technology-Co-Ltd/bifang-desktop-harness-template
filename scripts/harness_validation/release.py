@@ -1476,8 +1476,11 @@ def validate_release_contract(errors: list[str]) -> None:
             "所有用户可见版本号带且只带一个小写 `v`",
             "HARNESS-FEAT-GUI-PROCESS-SESSION-STATE",
             "HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD",
+            "HARNESS-CHANGE-MANTINE-LIST-VIEW-V2",
+            "浅/深/浅/深",
+            "偏好 key 跨 schema 稳定",
             "应用根 Jotai store 的页面级模块 atom",
-            "成功响应 page 超过非零末页时回落末页",
+            "只有成功非 placeholder 状态可纠页",
         ),
     }
     validate_fragment_contract(

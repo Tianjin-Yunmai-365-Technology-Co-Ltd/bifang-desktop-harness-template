@@ -127,20 +127,27 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             rule = (f".agents/skills/{skill_name}/**", "conditional")
             self.assertIn(rule, ordered)
             self.assertLess(ordered.index(rule), ordered.index(generic_rule))
-        list_template = (
-            ".agents/skills/mantine-list-view/assets/ListPage.template.tsx"
-        )
-        matching_rules = [
-            (pattern, mode)
-            for pattern, mode in ordered
-            if fnmatch.fnmatchcase(list_template, pattern)
-        ]
-        self.assertGreaterEqual(len(matching_rules), 2)
-        self.assertEqual(
-            matching_rules[0],
-            (".agents/skills/mantine-list-view/**", "conditional"),
-        )
-        self.assertEqual(matching_rules[-1], generic_rule)
+        for asset_name in (
+            "ListPage.template.tsx",
+            "listPageState.ts",
+            "listPageTypes.ts",
+            "ListColumnSettings.tsx",
+            "ListPage.module.css",
+            "ListPage.module.css.d.ts",
+            "ListPage.contracts.test.ts",
+        ):
+            list_asset = f".agents/skills/mantine-list-view/assets/{asset_name}"
+            matching_rules = [
+                (pattern, mode)
+                for pattern, mode in ordered
+                if fnmatch.fnmatchcase(list_asset, pattern)
+            ]
+            self.assertGreaterEqual(len(matching_rules), 2)
+            self.assertEqual(
+                matching_rules[0],
+                (".agents/skills/mantine-list-view/**", "conditional"),
+            )
+            self.assertEqual(matching_rules[-1], generic_rule)
         self.assertEqual(
             context.GUI_DIALOG_SKILL,
             ROOT / ".agents/skills/desktop-add-gui-dialog/SKILL.md",

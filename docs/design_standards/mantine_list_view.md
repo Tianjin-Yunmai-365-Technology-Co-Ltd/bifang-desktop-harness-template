@@ -1,72 +1,67 @@
 # Mantine 列表页设计标准
 
-`standard_id = mantine-list-view-v1`
+`standard_id = mantine-list-view-v2`
 
-本标准在 React 19.2+、TypeScript、Mantine UI 9.x 页面用于检索、浏览或管理重复记录时命中，包括列表页、数据表格、后台管理列表和搜索结果页。它与 [Tauri GUI 通用设计标准](tauri_gui.md) 组合使用；本文件只覆盖列表页组件、查询状态和列偏好，未覆盖部分继续遵守通用标准。生成或审查实现时使用 `$mantine-list-view`。
+本标准命中 React 19.2+、TypeScript、Mantine UI 9.x 中用于检索、浏览或管理重复记录的列表页、数据表格、后台列表和搜索结果页。它与 [Tauri GUI 通用设计标准](tauri_gui.md) 组合使用；本文件只覆盖列表查询、表格呈现、行交互和列偏好。实现或审查使用 `$mantine-list-view`。
 
-## 状态所有权例外
+## 状态所有权
 
-列表页是普通页面工作状态规则的封闭例外：
+- `page`、`pageSize`、sort 和已应用 filter 以类型化 URL query 为当前权威。原始 URL 含任一 owned key 时，只采用合法 URL 值并以默认补齐；完全无 owned key 时才读取稳定 `listId` 隔离的 sessionStorage。parser 抛错或快照损坏均安全回退。
+- canonical URL 在首次查询前以一次 `replace` 写回，并保留同路由不属于本列表的 query 参数。筛选、排序和 pageSize 变化与 page=1 原子更新；隐藏排序列和越界页的自动纠正只 replace，不污染 Back 历史或产生非法首请求。
+- 业务行、总数、错误和请求结果只由 TanStack Query v5 缓存，不写入 Jotai、URL 或 Web Storage。query key 包含稳定 listId、非 PII 结果 scope、规范化筛选、sort、pageSize 和 page。
+- 列顺序/显隐是设备偏好。localStorage key 为稳定 app namespace + listId + 非 PII preference scope；schemaVersion 只在 payload 中，升级使用显式 migration 并清理登记的 legacy key。查询或业务行不得混入列偏好。
 
-- `page`、`pageSize`、排序和已应用的搜索/筛选以合法 URL query 为当前权威，使刷新、返回和可分享链接恢复同一视图。
-- 当前会话另以稳定 `listId` 隔离写入 sessionStorage。只有 URL 完全没有本列表拥有的参数时才读取会话快照；显式 URL 中合法字段优先、缺失或非法字段用默认值补齐，禁止混入本机旧会话值，以保证同一分享链接在不同设备上确定一致。敏感、一次性或不适合出现在地址栏的值不得进入 URL 或会话存储。
-- 业务行数据、总数和请求结果只由 TanStack Query 缓存，不写入 Jotai、URL、sessionStorage、localStorage、Tauri Store、文件或数据库。
-- 列顺序与可见性属于设备偏好，以稳定 `app namespace + listId + 非 PII 偏好 scope + 逐列表 schemaVersion` 隔离写入 localStorage；不得在该记录中混入查询状态或业务行数据。
-- 本例外不扩大到普通表单、详情页或其他页面状态；未命中本标准的页面继续使用应用根 Jotai process-session 规则。
+## 数据与分页契约
 
-## 表格与窄屏
+- 页码式 offset 是唯一分页模型。pageSize 固定 `10 | 20 | 50 | 100`，兜底 20；Mantine Pagination 的 `total` 是总页数。
+- page、total、schemaVersion、数值业务 id 和 offset 都必须是安全整数。列表显式声明 `businessIdType`，成功响应验证所有页业务 id 类型一致、items 数组、pageSize/total/剩余数量、当前可信有效页非空和业务 key 唯一；矛盾响应是契约错误。
+- 服务端默认排序必须确定；每个允许的排序字段由 TypeScript 非空联合类型表达，并对同值记录追加稳定业务 id tie-breaker，避免 offset 跨页重复或遗漏。
+- 成功、非 fetching、非 placeholder 响应才可纠页：超出非零末页 replace 到末页，totalPages=0 规范为 page=1。loading、error 或 placeholder 不纠正。
+- 分页使用 responsive layout 或经 320 CSS px/200% 验证的紧凑 fallback；具备本地化 navigation landmark、首末前后、页码/当前页名称，以及可见 live 结果摘要“第 X–Y 条，共 Z 条”。
 
-- 表头粘滞只能用 Mantine `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>`。offset 从共享布局常量导入；禁止页内字面量和手写 `position: sticky`。
-- 二维内容只在 `Table.ScrollContainer` 内横向滚动，并声明符合实际列宽的 `minWidth`。页面根不得出现横向滚动。
-- 窄屏保留业务主键或名称、关键状态和必要动作；至少一个主列同时设为 `required: true` 且不设 `hideBelow`。次要列可隐藏或由用户配置，但不能导致可访问名称、排序状态或行操作丢失。
-- 表格行 React key 使用业务 id，禁止 index；缺少稳定业务 id 是数据契约错误，不能在视图层伪造。
+## 表格、排序和窄屏
 
-## 排序
+- 表头粘滞只用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`；禁止手写 sticky。二维内容只在命名、可聚焦、有 focus ring 的 `Table.ScrollContainer` 内横向滚动，页面根不得横向滚动。
+- 排序固定 asc→desc→none；排序变化原子 page=1。当前表头同时有准确 `aria-sort` 和可见 Tabler 方向图标，图标 `aria-hidden`；none 时不设置 aria-sort。表格外显示当前排序摘要和清除入口，窄屏隐藏次要列时仍可感知。
+- 列 schema 的 columnId 和可访问名称非空，columnId 唯一，每个 sortField 只属于一列；恰好一个 `responsiveRole="primary"`。primary、声明存在的 status/actions 必须设置 `required: true`，并和所有 required 列一样不得设置 `hideBelow`；次要列才可响应式隐藏。
+- 唯一 primary 业务单元格为 `th scope="row"`，每行由业务提供非空可理解名称。React key 使用带 id 类型前缀的稳定业务 id，不用 index；行本身不因视觉高亮自动变成链接或按钮。
 
-- 排序循环固定为 `asc → desc → none`。字段是业务允许值组成的 TypeScript 联合类型，所有 URL、存储和网络输入都经白名单解析。
-- 可排序表头内放置语义 button 或 Mantine Button/ActionIcon/UnstyledButton；支持 Tab、Enter 和 Space，保持可见焦点。
-- 每个排序字段只能对应一个表头。只有当前排序列的 `<th>` 设置 `aria-sort`：升序 `ascending`、降序 `descending`；none 状态下整张表不设置该属性，不可排序列不提供排序控件。
-- 排序字段或方向变化立即把页码重置为 `1`，再同步 URL 和会话状态。
+## 数据行视觉与交互
 
-## 页码式分页
+- 所有真实数据行按 DOM 数据顺序固定浅/深/浅/深交替，不把表头、Skeleton、空态或错误态计入条纹。
+- 浅色主题：浅行为 `var(--mantine-color-white)`，深行为 `var(--mantine-color-gray-1)`；深色主题：浅行为 `var(--mantine-color-dark-7)`，深行为 `var(--mantine-color-dark-6)`。
+- 鼠标 hover 或任一行内控件 `:focus-within` 时，以 `gray-3`/`dark-4` 提供更强高亮；focus-within 同时使用主题主色内轮廓，forced-colors 使用系统 Highlight。selected 另有语义状态，但 hover/focus 仍覆盖为强反馈。
+- 行高亮只提供位置反馈，不能成为状态或选择的唯一编码。行内控件保留自己的可见焦点；没有动作的行不增加 tabIndex 或 click handler。
+- 翻页 placeholder 旧行只能只读显示：整行 inert/aria-disabled，选择、分页、批量和所有副作用控件禁用；单元格 renderer 接收并遵守 `interactive=false`。
 
-- 只支持页码式 offset 分页；请求契约把 `page`、`pageSize` 转成 offset/limit，不引入 cursor 模式。
-- 页大小白名单固定为 `10 | 20 | 50 | 100`，全局兜底为 `20`；用户明确指定白名单值时，该值是此列表的初始值，但选择器仍保留四项。pageSize、搜索或筛选变化把 page 重置为 `1`。
-- Mantine `<Pagination total={totalPages}>` 的 `total` 是总页数，不是总条数。总页数由可信响应直接提供，或以 `Math.ceil(totalCount / pageSize)` 计算。
-- 成功响应后，若 page 大于非零 totalPages，则替换为末页并重查；totalPages 为 `0` 时 page 规范化为 `1`。加载或错误不能触发回落。
-- Query key 至少包含 `listId`、规范化搜索/筛选、排序、page 与 pageSize。翻页时保留旧数据；后台刷新不能把已有内容替换成整页 Skeleton。
-
-## 页面四态
+## 四态和错误
 
 | 状态 | 必需表现 |
 |---|---|
-| 首次加载 | 接近真实行结构的 Skeleton，行数严格等于 pageSize，槽位 key 稳定且不是数组 index |
-| 空 | 说明当前条件无结果，提供合理恢复动作，并用 `aria-live` 或 `role="status"` 播报 |
-| 错误 | 说明失败范围，提供重试；已有旧数据时保留内容并就近显示刷新错误 |
-| 正常 | 真实数据、总数和分页一致；后台刷新以局部进度表达 |
+| 首次加载/纠页 | 状态文案 + 恰好 pageSize 行结构化 Skeleton，槽位 key 稳定；表格 aria-busy=true |
+| 筛选无结果 | 播报“当前条件无结果”并显示真实有效的重置筛选 |
+| 全局无数据 | 使用不同文案；只显示业务提供的可执行下一步，不能给无效重置按钮 |
+| 错误 | 业务分型失败范围；可重试错误才显示 retry，403/终态契约错误不显示假恢复 |
+| 正常/刷新 | 真实数据、结果范围、总数和分页一致；后台进度局部表达 |
 
-四态必须互斥且完整。第一页空结果不是错误；错误不得伪装为空态。
+TanStack Query v5 的 placeholder 只覆盖新 key pending。换页 error 后显示新页错误，不把旧页冒充新页；同 key background refresh error 才保留当前数据并就近呈现。
 
-## 行选择
+## 选择和业务动作
 
-- 每个列表明确声明 `none`、`current-page` 或 `cross-page`，界面文案与行为一致。
-- 当前页选择在翻页时清理；跨页选择只保存业务 id，并必须定义搜索、筛选或排序变化时清理还是保留。
-- 跨页选择不能依赖已加载行对象；批量动作必须由服务端重新校验 id、权限和当前状态。
+- 每个列表声明 none/current-page/cross-page。启用选择时必须提供可访问批量 action bar、选择摘要和清空入口，不能只有复选框。
+- current-page 在查询组合或页码变化时清空；同 key 成功刷新后裁剪响应中已消失 id。cross-page 只保存 id，并声明 base query 变化的清空/保留策略和可见范围。
+- 批量动作由服务端重新校验 id、权限和当前状态；客户端选择不是授权。行内控件与父行事件分别测试，不得因冒泡重复执行。
 
-## 自定义列与拖拽
+## 列偏好与拖拽
 
-- 每列有稳定 `columnId`，列定义声明必显、默认可见、默认顺序、排序字段和窄屏优先级；前述主列的 `required`/`hideBelow` 契约由模板在运行时失败关闭。
-- localStorage payload 包含 schema 版本、顺序和可见性。读取时丢弃未知 id、按默认顺序追加新列、强制恢复必显列；损坏或不兼容时删除该 payload 并回退默认值。
-- 页面提供“重置列”动作。列配置变更只影响视图，不改变后端字段、业务权限或导出契约。
-- 拖拽固定使用 `@dnd-kit/core` 与 `@dnd-kit/sortable`，同时配置 pointer 与 keyboard sensor。拖拽手柄具有可访问名称，并提供可发现的“左移/右移”键盘等价动作；不能把指针拖拽作为唯一入口。
+- 读取偏好时验证 payload，显式迁移旧 schema，丢弃未知/重复 id、追加新列并恢复必显列；损坏、迁移异常或版本不匹配时重写默认。提供重置列。
+- 列配置只改变视图，不改变后端字段、权限或导出契约。列面板使用有界滚动，避免长列清单溢出视口。
+- 拖拽固定用 `@dnd-kit/core` 与 `@dnd-kit/sortable` 的 pointer/keyboard sensor。命名手柄之外提供至少 24px 的左移/右移按钮；两条路径复用更新逻辑并播报新位置。
 
-## 最小回归
+## 最小验证
 
-- 排序：三态顺序、联合类型拒绝非法字段、`aria-sort`、键盘触发、排序后 page=1。
-- 查询：URL 优先级、非法 URL 降级、sessionStorage 隔离、刷新/返回恢复、Query key 完整、行数据不进入任何 Web Storage。
-- 分页：四个 pageSize、`totalPages` 语义、搜索/pageSize 后 page=1、越界末页、零结果 page=1、错误不回落、旧数据保留。
-- 状态：pageSize 行 Skeleton、live empty、retry error、正常与后台刷新。
-- 列：坏数据回退、未知列丢弃、新列追加、必显恢复、重置、拖拽和键盘等价路径持久化。
-- 响应式与无障碍：320 CSS px、200% 文本缩放、局部横向滚动、可见焦点、可访问名称和 live region。
+- 纯函数：URL/session 优先级、保留无关 query、单次 replace、safe integer、响应矛盾、id/key、稳定偏好 key、迁移/损坏/legacy 清理、列角色、selection prune。
+- 组件：排序三态与图标/aria-sort、四态、placeholder inert、结果摘要、分页名称、主行表头、选择/action bar、pointer/keyboard/按钮列移动与 live feedback。
+- 视觉/浏览器：浅深条纹、hover/focus/selected/forced-colors，320 CSS px、200% 文本缩放、中英文、长值、Tab/Enter/Space、键盘横向滚动和 Back/Forward/refresh。
 
-完整生成与交付检查由 `$mantine-list-view` 的 `references/checklist.md` 执行。
+完整 Required/Conditional/N/A 判定使用 `$mantine-list-view` 的 `references/checklist.md`；未运行真实浏览器、服务端或 E2E 时如实标记，不以模板契约测试冒充产品验收。
