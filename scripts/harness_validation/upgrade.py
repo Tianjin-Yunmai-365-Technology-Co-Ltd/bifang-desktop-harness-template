@@ -72,6 +72,7 @@ REQUIRED_RULES = {
     ".agents/skills/desktop-add-tui-adapter/**": "conditional",
     ".agents/skills/desktop-add-mcp-adapter/**": "conditional",
     ".agents/skills/desktop-add-gui-adapter/**": "conditional",
+    ".agents/skills/mantine-list-view/**": "conditional",
     ".agents/skills/desktop-add-gui-system-locale/**": "conditional",
     ".agents/skills/desktop-add-gui-updater/**": "conditional",
     ".agents/skills/desktop-add-gui-window-state/**": "conditional",

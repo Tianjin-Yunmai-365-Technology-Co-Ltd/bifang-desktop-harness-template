@@ -1423,8 +1423,8 @@ def validate_release_contract(errors: list[str]) -> None:
         ENGINEERING_RULES: (  # noqa: F405
             "GUI 交互事件必须绑定在实际拥有该动作的语义元素本身",
             "表格中的 `Switch` 只能在用户操作该 `Switch` 时切换",
-            "GUI 中用于恢复页面工作上下文的纯交互状态必须在当前应用进程内跨路由保留",
-            "只有查询成功、当前页码大于 1 且该页结果为空时",
+            "未命中 `$mantine-list-view` 的普通 GUI 页面",
+            "列表查询成功后越界页回落末页",
             "所有用户可见版本号必须在展示边界先移除已有 `v`/`V` 前缀",
             "根 `release-notes.json` 是 Harness 源与终端下游共用的双语发布更新日志事实",
             "使用 `schemaVersion: 2`",
@@ -1455,8 +1455,8 @@ def validate_release_contract(errors: list[str]) -> None:
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (  # noqa: F405
             "GUI 交互事件必须绑定在拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身",
             "表格中的 `Switch` 不得因点击行而切换",
-            "GUI 活动选项卡、查询/筛选、排序、分页页码/每页数量",
-            "加载/错误和第 1 页空结果不得触发循环",
+            "未命中 `$mantine-list-view` 的 GUI 页面工作状态",
+            "loading/error/placeholder 不纠正",
             "所选关于页包含检查更新、更新日志",
             "schema v2 中英文翻译对",
             "version = concat!(\"v\", env!(\"CARGO_PKG_VERSION\"))",
@@ -1464,8 +1464,8 @@ def validate_release_contract(errors: list[str]) -> None:
         ROOT / "README.md": (  # noqa: F405
             "当前版本：v",
             "父级容器不得代理子动作",
-            "GUI 的活动选项卡、查询/筛选、排序和分页",
-            "成功查询的当前页大于 1 且为空",
+            "普通 GUI 页面状态只在当前进程跨路由保留",
+            "Query-only 行数据",
             "每版两类各至多 10 个翻译对并只保留近 5 版",
         ),
         PRODUCT_SPEC: (  # noqa: F405
@@ -1475,8 +1475,9 @@ def validate_release_contract(errors: list[str]) -> None:
             "选择关于页时，其更新区在“检查更新”旁",
             "所有用户可见版本号带且只带一个小写 `v`",
             "HARNESS-FEAT-GUI-PROCESS-SESSION-STATE",
+            "HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD",
             "应用根 Jotai store 的页面级模块 atom",
-            "查询成功、当前页码大于 1 且该页结果为空",
+            "成功响应 page 超过非零末页时回落末页",
         ),
     }
     validate_fragment_contract(

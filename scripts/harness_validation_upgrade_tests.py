@@ -111,6 +111,7 @@ class ValidateUpgradeContractTests(unittest.TestCase):
         )
         self.assertEqual(resolved_mode, "conditional")
         for skill_name in (
+            "mantine-list-view",
             "desktop-add-gui-system-locale",
             "desktop-add-gui-updater",
             "desktop-add-gui-window-state",
@@ -126,6 +127,20 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             rule = (f".agents/skills/{skill_name}/**", "conditional")
             self.assertIn(rule, ordered)
             self.assertLess(ordered.index(rule), ordered.index(generic_rule))
+        list_template = (
+            ".agents/skills/mantine-list-view/assets/ListPage.template.tsx"
+        )
+        matching_rules = [
+            (pattern, mode)
+            for pattern, mode in ordered
+            if fnmatch.fnmatchcase(list_template, pattern)
+        ]
+        self.assertGreaterEqual(len(matching_rules), 2)
+        self.assertEqual(
+            matching_rules[0],
+            (".agents/skills/mantine-list-view/**", "conditional"),
+        )
+        self.assertEqual(matching_rules[-1], generic_rule)
         self.assertEqual(
             context.GUI_DIALOG_SKILL,
             ROOT / ".agents/skills/desktop-add-gui-dialog/SKILL.md",
@@ -259,5 +274,30 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             upgrade.validate_upgrade_contract(errors, manifest_path=path)
         self.assertTrue(
             any("conditional rule must precede" in error for error in errors),
+            errors,
+        )
+
+    def test_rejects_mantine_list_rule_after_generic_skill_rule(self) -> None:
+        """列表页模板资产必须始终由 GUI 条件规则先于通用 Skill 规则命中。"""
+
+        source = json.loads(upgrade.UPGRADE_OWNERSHIP.read_text(encoding="utf-8"))
+        list_rule = next(
+            item
+            for item in source["rules"]
+            if item["pattern"] == ".agents/skills/mantine-list-view/**"
+        )
+        source["rules"].remove(list_rule)
+        source["rules"].append(list_rule)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "ownership.json"
+            path.write_text(json.dumps(source), encoding="utf-8")
+            errors: list[str] = []
+            upgrade.validate_upgrade_contract(errors, manifest_path=path)
+        self.assertTrue(
+            any(
+                "conditional rule must precede" in error
+                and ".agents/skills/mantine-list-view/**" in error
+                for error in errors
+            ),
             errors,
         )

@@ -59,6 +59,12 @@ from scripts.harness_validation.context import (
     GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS,
     GUI_SKILL,
     GUI_SUPPORT_SKILL,
+    MANTINE_LIST_VIEW_API,
+    MANTINE_LIST_VIEW_CHECKLIST,
+    MANTINE_LIST_VIEW_PATTERN,
+    MANTINE_LIST_VIEW_ROOT,
+    MANTINE_LIST_VIEW_SKILL,
+    MANTINE_LIST_VIEW_TEMPLATE,
     PRODUCT_SPEC,
     REQUIRED_FILES,
 )
@@ -217,6 +223,30 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         self.assertIn("创建本地分支不要求配置远端", required[GIT_LIFECYCLE_SKILL])
         self.assertIn("`v{version}-{YYYYMMDD}`", required[GIT_LIFECYCLE_SKILL])
         self.assertIn("不设置任何分支门禁", required[GIT_LIFECYCLE_SKILL])
+
+    def test_mantine_list_view_is_a_complete_required_harness_capability(self) -> None:
+        """列表 Skill 的入口、资源、路由声明与 200 行预算必须同步注册。"""
+
+        expected_paths = (
+            MANTINE_LIST_VIEW_SKILL,
+            MANTINE_LIST_VIEW_ROOT / "agents" / "openai.yaml",
+            MANTINE_LIST_VIEW_PATTERN,
+            MANTINE_LIST_VIEW_API,
+            MANTINE_LIST_VIEW_CHECKLIST,
+            MANTINE_LIST_VIEW_TEMPLATE,
+        )
+        self.assertIn("mantine-list-view", EXPECTED_SKILLS)
+        for path in expected_paths:
+            self.assertTrue(path.is_file(), path)
+            self.assertIn(path.relative_to(ROOT).as_posix(), REQUIRED_FILES)
+
+        skill_text = MANTINE_LIST_VIEW_SKILL.read_text(encoding="utf-8")
+        self.assertLessEqual(len(skill_text.splitlines()), 200)
+        self.assertIn("即使用户没有明说表格也要使用", skill_text)
+        self.assertIn("$mantine-list-view", read_repo_text("README.md"))
+        agents = read_repo_text("AGENTS.md")
+        self.assertIn("$mantine-list-view", agents)
+        self.assertIn("已有列表审查", agents)
 
     def test_governance_rejects_branch_gate_regression(self) -> None:
         """生命周期 Skill 不能恢复分支拓扑门禁。"""

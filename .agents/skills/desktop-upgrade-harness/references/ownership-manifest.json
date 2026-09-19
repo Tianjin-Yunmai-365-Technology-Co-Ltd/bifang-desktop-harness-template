@@ -53,6 +53,7 @@
     {"pattern": ".agents/skills/desktop-add-tui-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-mcp-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-adapter/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/mantine-list-view/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-system-locale/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-updater/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-window-state/**", "mode": "conditional"},

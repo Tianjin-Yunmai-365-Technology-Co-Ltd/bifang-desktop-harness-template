@@ -212,6 +212,10 @@ def validate_skills(errors: list[str]) -> None:
             fail(errors, f"empty skill description: {skill}")
         if "TODO" in skill_file.read_text(encoding="utf-8"):
             fail(errors, f"unresolved TODO in skill: {skill}")
+        if skill == "mantine-list-view":
+            line_count = len(skill_file.read_text(encoding="utf-8").splitlines())
+            if line_count > 200:
+                fail(errors, f"mantine-list-view SKILL.md exceeds 200 lines: {line_count}")
 
         metadata = metadata_file.read_text(encoding="utf-8")
         display_name = yaml_string(metadata, "display_name")

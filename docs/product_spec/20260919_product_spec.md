@@ -1,12 +1,12 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-09-17
+> 记忆日期：2026-09-19
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-17（推荐预设关闭 Task 内部并行和 Windows 权限阻断人工接续；此前发布决定继续有效）
+> 最近范围确认：2026-09-19（新增 Mantine 列表页统一标准及封闭状态例外；此前决定继续有效）
 
 ## 一句话目标
 
@@ -175,13 +175,21 @@
 - 每次正式发布时，`$desktop-prepare-release` 从上一次真实正式发布版本/40 位提交到当前发布源码筛选最重要的用户可见变化；首发从仓库起点计算，比较边界不可靠时失败关闭。根 `release-notes.json` 使用 `schemaVersion: 2`、原子更新、非符号链接普通文件和近 5 版上限；每个逻辑条目绑定非空 `zh-CN` 与 `en-US` 文案，任一语言缺失都失败关闭，每版两类合计至少一个翻译对。中文渲染使用 `更新日志/功能优化/问题修复/无`，英文渲染使用 `Release notes/Feature optimizations/Bug fixes/None`。终端下游候选构建只读校验当前版本与摘要并把同一字节打入归档/应用资源，日志变化后必须重新提交、构建和验收；Harness 源只提交发布日志与上下文并重新执行 Git 源码发布复核。
 - 所有用户可见版本号带且只带一个小写 `v`，覆盖窗口标题、侧栏、设置/关于页、更新状态、CLI `--version` 和更新日志。Cargo、JSON/协议、状态文件及 manifest 的机器 `version` 保持原始值；manifest 另以 `releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath` 绑定展示版本与包内日志事实。
 
-### GUI 进程内页面会话状态
+### Mantine 列表页标准与封闭状态例外
+
+- 变更标识：`HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD`；`required_version = pending`。React 19.2+、TypeScript、Mantine UI 9.x 的列表页、数据表格、后台列表、搜索结果页及已有列表审查必须使用 `$mantine-list-view`；即使请求未明说“表格”，只要实质是重复记录检索、浏览或管理也命中。GUI 下游完整保留该 Skill 与标准知识，非 GUI 下游裁剪；中性 GUI 初始化不生成列表页、不安装 dnd-kit。
+- 表头粘滞只使用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`，二维滚动只使用 `Table.ScrollContainer`，禁止手写 sticky。排序字段使用联合类型白名单并按 asc→desc→none 循环，当前排序列拥有 `aria-sort` 和真实键盘可达 button，排序变化原子重置 page=1。
+- 列表只支持页码式 offset 分页和 Mantine Pagination；`total` 接收总页数。pageSize 白名单为 `10 | 20 | 50 | 100`，全局兜底为 20，用户明确指定合法值时将其作为该列表初始值且仍保留四项选择；page、pageSize、sort 和已应用搜索/筛选同步类型化 URL。显式 URL 只用合法值并以默认值补齐，完全没有本列表参数时才从 `listId` 隔离的 sessionStorage 快照恢复，随后规范化 URL。
+- 业务行、总数与请求结果只由 TanStack Query 缓存；query key 包含稳定 `listId`、非 PII scope、规范化搜索/筛选、排序、page 与 pageSize，每页独立。只有页码变化时允许 placeholder 旧数据，重新访问按恢复状态重新获取；行数据不得写入 Jotai 或任何 Web Storage。成功响应 page 超过非零末页时回落末页，总页数为 0 时归一到第 1 页，loading/error/placeholder 不纠正。
+- 首次加载、空、可重试错误和正常/后台刷新四态完整；Skeleton 行数等于 pageSize，空态可播报，旧数据刷新失败时保留内容。row key 只用业务 id；行选择明确为 none/current-page/cross-page，并定义查询变化行为。
+- 自定义列以稳定 columnId 建模；显隐与顺序只按 `app namespace + listId + 非 PII 偏好 scope + 逐列表 schemaVersion` 写 localStorage，读取时丢弃未知列、追加新列、恢复必显列，坏数据回退且可重置。列重排使用下游局部声明的 `@dnd-kit/core` 与 `@dnd-kit/sortable`，同时提供 pointer、keyboard sensor 和明确的左移/右移等价操作。
+
+### 普通 GUI 进程内页面会话状态
 
 - 变更标识：`HARNESS-FEAT-GUI-PROCESS-SESSION-STATE`；所需 Harness 版本：`202608051301`（当前未发布时间版本，本范围不自动改变 `Version.md`）。
-- GUI 中用于继续页面工作的活动选项卡、已应用查询/筛选、排序、分页页码/每页数量及同类视图选择必须由应用根 Jotai store 的页面级模块 atom 持有，在当前程序进程内跨路由切换、route unmount/remount 以及已启用的关闭隐藏/单实例唤醒保持；真正退出后，新 store 从默认值开始。
-- 页面会话状态不得接入 `atomWithStorage`、localStorage、sessionStorage、IndexedDB、Tauri Store、配置文件、数据库或 URL，不得把 TanStack Query 结果、core 权威状态或持久业务数据复制进 atom。语言、主题与详细侧栏折叠等已批准的设备级偏好按各自独立契约持久化，不受页面会话生命周期限制；侧栏折叠偏好不得进入页面会话 atom。
-- 查询条件、活动数据范围或每页数量变化时页码重置为 1。路由返回后只在查询成功、当前页码大于 1 且该页结果为空时回退第 1 页，并由新 query key 触发一次查询；加载、取消、超时、错误和第 1 页空结果不得触发回退或循环。失效枚举选择按当前可用项回到安全默认。
-- 回归必须用同一个应用根 store 证明页面控件跨 route unmount/remount 保留，用新 store 证明下一次程序运行恢复默认，并覆盖成功空页回退、加载/错误不回退和第 1 页不循环；测试不得以持久存储、URL 参数或 Query 数据镜像替代。
+- 未命中 `$mantine-list-view` 的普通 GUI 页面中，用于继续工作的活动选项卡、已应用查询/筛选、排序、分页页码/每页数量及同类视图选择必须由应用根 Jotai store 的页面级模块 atom 持有，在当前程序进程内跨路由切换、route unmount/remount 以及已启用的关闭隐藏/单实例唤醒保持；真正退出后，新 store 从默认值开始。
+- 普通页面会话状态不得接入 `atomWithStorage`、localStorage、sessionStorage、IndexedDB、Tauri Store、配置文件、数据库或 URL，不得把 TanStack Query 结果、core 权威状态或持久业务数据复制进 atom。语言、主题与详细侧栏折叠等已批准的设备级偏好继续按各自独立契约持久化；列表页只使用上一节精确限定的例外。
+- 普通页面查询条件、活动数据范围或每页数量变化时 page=1；路由返回后只在查询成功、page>1 且该页为空时回第 1 页。回归用同一根 store 证明跨 route remount 保留、新 store 恢复默认，并覆盖成功空页回退、loading/error 不回退和第 1 页不循环；不得以列表页例外弱化普通页面门禁。
 
 ### 下游自动版本管理
 
@@ -276,7 +284,7 @@
 - 新增并在下游永久保留 `$desktop-upgrade-harness`，用于从用户明确提供的 Harness 来源升级工程治理部分。
 - 升级默认只生成试运行计划，要求来源 Harness Git 工作区干净并把来源 `Version.md`、`HEAD`、目标分支/提交/工作树脏状态摘要、路径和控制文件状态绑定到受审计划；未解决冲突前不得写入。
 - 下游使用 `.harness/upstream-lock.json` 记录上次应用的 Harness 版本/来源和受管文件基线摘要；该文件不是产品版本事实源，不能替代根 `Cargo.toml`。
-- 升级清单把内容分为 `managed`、`merge-sections`、`conditional`、`protected` 和 `tombstone` 五类；`managed-self` 是 `managed` 的机器子模式，用于保证更新器自身在普通受管文件后按稳定顺序更新。产品源码、测试、产品记忆、项目状态、技术债、身份、接口选择、持久 Agent 策略、许可证、根 `release-notes.json`、Git 历史和未登记本地文件均受保护；GUI 能力、支持界面、候选/性能 Skills 只随 GUI 条件传播，Windows 本地试包 Skill 还要求持久目标平台包含 Windows。通知/自启是否接线继续读取受保护 profile，终端下游的 `docs/GUI_SUPPORT_SURFACES.md` 始终受保护。
+- 升级清单把内容分为 `managed`、`merge-sections`、`conditional`、`protected` 和 `tombstone` 五类；`managed-self` 是 `managed` 的机器子模式，用于保证更新器自身在普通受管文件后按稳定顺序更新。产品源码、测试、产品记忆、项目状态、技术债、身份、接口选择、持久 Agent 策略、许可证、根 `release-notes.json`、Git 历史和未登记本地文件均受保护；GUI 能力、`$mantine-list-view` 完整知识资产、支持界面、候选/性能 Skills 只随 GUI 条件传播，Windows 本地试包 Skill 还要求持久目标平台包含 Windows。通知/自启是否接线继续读取受保护 profile，终端下游的 `docs/GUI_SUPPORT_SURFACES.md` 始终受保护。
 - `Version.md`、实例化/初始化 Skills、模板校验器、模板方法论文档和 Harness 日期记忆属于 `tombstone`，不得借升级重新进入终端下游。
 - 有历史基线时使用三方比较：只有候选和目标均已存在、仅上游内容或普通权限位变化且目标仍匹配基线的 `update` 可逐文件自动应用；`add`、`manual_add` 和 `delete` 必须人工处理并重新生成计划；仅下游变化保留；两边都变化或新增碰撞必须阻断并请求合并决定。没有历史基线的旧下游先执行引导审计，所有重叠项默认冲突，不能猜测共同祖先。
 - 用户批准候选后才逐文件应用并在每次写入后重新生成计划；普通 `managed` 完成后才处理 `managed-self`，入口脚本最后替换并用新版复验。升级后运行受影响的非空单元测试和相关验证，不把 Harness 模板校验器复制到下游。
@@ -354,7 +362,7 @@
 - 下游版本 helper 的回归必须证明首功能/周期只升一次 Minor 并锁到真实发布成功、Minor 归零 Patch、不同 `bug-fix` 稳定 ID（问题修复或用户可感知优化）各升一次 Patch 且不受功能锁影响、相同 ID 跨发布仍不重复且历史 `bug-fix` ID 不能改作其他提升分类、回归新 ID 可提升、显式 Major 需用户批准、维护不变、`0.0.99 -> 0.1.0` 与 `0.99.99 -> 1.0.0` 自动进位、Major 支持超过 100 但不得超过 Cargo `u64::MAX`、最高位自动进位越界零写入、Minor/Patch 固定 `0..99` 且历史 `100` 在 Cargo/目标版本/发布日志中一旦出现即失败关闭（无可读取例外），以及构建只读和正式发布后才重置；初始化、开发、构建、候选收集、验收、发布准备及 Harness 升级保护均由 validator 锁定。
 - [x] 页面动作由语义控件自身拥有，点击父 Card/表格行/单元格不会触发子按钮或切换 `Switch`；选择关于页时，更新区父级同样不代理检查更新或更新日志动作。
 - [x] 选择关于页时，“更新日志”可查看近 5 版 schema v2 中英文结构，每版功能优化/问题修复各至多 10 个完整翻译对，当前 i18n locale 选择对应标题与正文且未知语言回退英文；`NotConfigured` 只禁用远程检查，未选择关于页时没有隐藏入口、路由或运行时组件。
-- [x] GUI 页面会话状态由应用根 Jotai store 在本次进程内跨路由保留，退出后恢复默认且不使用持久存储/URL；详细侧栏折叠偏好使用独立设备级存储而不进入页面会话 atom；成功空页从大于 1 的页码回退第 1 页，加载/错误和第 1 页空结果不循环。
+- [x] 普通 GUI 页面会话状态由应用根 Jotai store 在本次进程跨路由保留，退出恢复默认且不使用持久存储/URL；命中 `$mantine-list-view` 的列表页改用显式 URL 或当前标签页快照恢复查询控件、TanStack Query-only 行数据、版本化 localStorage 列偏好与成功越界末页，并完整覆盖粘滞、排序三态、页大小、四态、业务 id、选择范围和键盘列重排。
 - [x] 发布准备能从上次真实发布边界整理并原子维护 `release-notes.json`，构建/收集只读验证并把同一字节及其版本、摘要、路径绑定进候选，升级不会覆盖下游日志。
 - [x] 发布日志每个逻辑条目同时包含非空 `zh-CN`/`en-US` 翻译，发布准备分别渲染两种语言，Rust/React 双层拒绝缺失翻译，关于页随当前 i18n locale 选择内容。
 - [x] 所有用户可见版本恰有一个小写 `v`，机器版本字段保持无展示前缀的原始值。

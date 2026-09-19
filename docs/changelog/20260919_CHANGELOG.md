@@ -1,6 +1,8 @@
-# 2026-09-17 变更记录
+# 2026-09-19 变更记录
 
 ## 新增
+
+- `HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD`（`required_version = pending`）：新增可自动触发的 `$mantine-list-view`、`mantine-list-view-v1` 标准、Mantine 9.x API 参考、offset 模式说明、交付 checklist 与 React/TypeScript 起手模板。列表统一使用 Mantine 原生 sticky Table/ScrollContainer、类型化排序三态、总页数 Pagination、10/20/50/100 页大小、四态、业务 id key、显式选择范围及窄屏降级；查询控件以显式 URL 或当前标签页快照恢复，业务行只归 TanStack Query 且每页 key 独立，列显隐/顺序以版本化 localStorage 持久化并由 dnd-kit 提供指针/键盘重排。普通页面 Jotai 进程状态保持不变；新 Skill 只随 GUI 下游初始化/升级传播，中性脚手架不生成业务页面或预装依赖。
 
 - `HARNESS-FEAT-ABOUT-RELEASE-NOTES-MARKDOWN`（所需 Harness 版本 `202609172303`，已由本次 Harness 时间版本发布物化）：可选 GUI 关于页的双语更新日志正文支持 GitHub 风格 Markdown，并沿用 Mantine 排版；阻止正文 HTML、外部链接跳转和远程图片加载。日志加载失败或超时可重试，迟到结果不会覆盖新请求，更新状态不再显示过期的可用版本。
 - `HARNESS-CHANGE-WINDOWS-ENVIRONMENT-MANUAL-HANDOFF`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：Windows 环境门禁继续优先由 Agent 自动静默安装；管理员权限、UAC、组织策略或 Codex 宿主能力阻断时，按本次缺失项提供 Git、Rust、MSVC Build Tools 及仅 GUI 所需 Node.js/pnpm 的官方入口和用户安装步骤。用户告知完成后先在原宿主只读复探，通过才恢复初始化或对原失败命令单次重试。
@@ -101,7 +103,7 @@
 - `HARNESS-FEAT-BIFANG-DESKTOP-HARNESS-IDENTITY`（所需 Harness 版本 `202609020957`）：人类入口 README 的活身份改为中文名称 `毕方桌面应用Harness模版`、English name `Bifang Desktop Harness Template`；`Version.md` 当前版本提升为当天上海时区时间版本，发布状态改为 `Released`。README 补齐给人读的入口说明、Released 不含标签/归档/安装包的边界，以及 Version.md、AGENTS.md 与方法论链接。许可证适用项目名称与版本契约钉死点同步，避免旧 Agent-first 名称继续充当活身份。
 - `HARNESS-FEAT-PRE-GIT-INITIALIZATION-SEQUENCING`（所需 Harness 版本 `202608281139`）：新下游的版本状态初始化与 GUI 初始化 E2E 现在都在目标 pre-Git 状态下完成；父目录中的 Harness/其他 Git 不再被误认作目标仓库边界，`version_gate init` 成为唯一允许在 pre-Git 目标根执行的版本命令。只有相关单元测试和真实 GUI 初始化 E2E 通过、初始化专用能力完成裁剪后，才在目标根建立独立 Git、即时设置 local 提交身份与模板并创建唯一基线提交，避免失败脚手架留下半初始化仓库。
 - `HARNESS-FEAT-GUI-INITIALIZATION-RUNTIME-CONTRACTS`（所需 Harness 版本 `202608281139`）：所有 GUI 的 updater 未配置态改为在 `tauri.conf.json` 显式写入空 `endpoints` 与空 `pubkey`，保持可启动的 `NotConfigured`/零出站状态；`get_app_metadata`、`get_system_locale`、`set_interface_language` 三个固定 IPC 必须返回并更新权威类型化状态，由 React 实际消费，并与条件命令共同进入唯一合并的 `invoke_handler`，同名占位实现或重复 handler 不再通过初始化契约。设置页能力开关继续只由 `Switch` 拥有点击动作，同时通过稳定标题/说明 ID 与 `aria-labelledby`/`aria-describedby` 保留完整可访问语义；本地化 Rust 发布日志 fixture 改用 UTF-8 普通 raw string 后取字节，门禁只拒绝实际含非 ASCII 内容的 raw byte string，不再把合法 ASCII raw byte literal 或注释误判为编译风险。
-- `HARNESS-FEAT-GUI-PROCESS-SESSION-STATE`（所需 Harness 版本 `202608051301`）：GUI 活动选项卡、查询/筛选、排序和分页等页面工作状态由应用根 Jotai store 在本次程序进程内跨路由及已启用的关闭隐藏/单实例唤醒保留，退出后恢复默认且禁止页面会话持久化/URL/Query 数据镜像；详细侧栏折叠偏好作为独立设备级 UI 偏好，不进入页面会话 store。
+- `HARNESS-FEAT-GUI-PROCESS-SESSION-STATE`（所需 Harness 版本 `202608051301`）：未命中 `$mantine-list-view` 的普通 GUI 页面，其活动选项卡、查询/筛选、排序和分页由应用根 Jotai store 在本次进程跨路由及关闭隐藏/单实例唤醒期间保留，退出恢复默认且禁止持久化/URL/Query 镜像；详细侧栏折叠仍是独立设备偏好。列表页的封闭状态例外由 `HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD` 取代该条的对应全局子句。
 - 页面交互事件现在由实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身处理，Card、表格行/单元格等父级不再代理子动作；表格中的 `Switch` 不会因点击所在行而切换，模板回归分别覆盖控件与父级点击。
 - 所有用户可见版本号统一为一个小写 `v` 前缀，覆盖窗口标题、侧栏、设置/关于页、更新状态、CLI `--version` 与更新日志；Cargo、JSON/协议、状态和 manifest 机器版本保持原始值。
 - `HARNESS-FEAT-TIERED-CODE-LINE-LIMITS`（所需 Harness 版本 `202608051301`）：代码行数门禁改为分层配置。Rust 代码超过 400 行进入建议重构复核、超过 800 行强制拆分；前端代码超过 500 行进入建议重构复核、超过 1000 行强制拆分；其他人工维护文本保留 500/2000。Rust 多文件模块固定使用 `<module>/mod.rs` 目录入口，前端按功能职责拆分且不强制 `index.ts` 桶文件；统一检查器与 Harness bridge 现在报告具体 profile、建议阈值和硬上限。

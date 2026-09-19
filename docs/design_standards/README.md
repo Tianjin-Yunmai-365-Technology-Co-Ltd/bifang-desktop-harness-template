@@ -17,6 +17,7 @@
 | 匹配条件 | 标准 | 当前标识 |
 |---|---|---|
 | Tauri 2 + React + Mantine GUI | [Tauri GUI 通用设计标准](tauri_gui.md) | `tauri-gui-common-v1` |
+| React 19.2+ + TypeScript + Mantine UI 9.x + 重复记录检索/浏览/管理 | [Mantine 列表页设计标准](mantine_list_view.md) | `mantine-list-view-v1` |
 | 上述 GUI + 固定左侧栏 + `sidebar_mode = compact` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#精简模式) | `tauri-gui-sidebar-compact-80-v1` |
 | 上述 GUI + 固定左侧栏 + `sidebar_mode = detailed` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#详细模式) | `tauri-gui-sidebar-detailed-v1` |
 

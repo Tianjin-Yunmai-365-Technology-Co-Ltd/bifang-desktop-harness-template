@@ -62,6 +62,18 @@ GUI_SUPPORT_BRAND_ROOT = (
 )
 MCP_SKILL = SKILLS_ROOT / "desktop-add-mcp-adapter" / "SKILL.md"
 GUI_SKILL = SKILLS_ROOT / "desktop-add-gui-adapter" / "SKILL.md"
+MANTINE_LIST_VIEW_ROOT = SKILLS_ROOT / "mantine-list-view"
+MANTINE_LIST_VIEW_SKILL = MANTINE_LIST_VIEW_ROOT / "SKILL.md"
+MANTINE_LIST_VIEW_PATTERN = (
+    MANTINE_LIST_VIEW_ROOT / "references" / "offset-list-pattern.md"
+)
+MANTINE_LIST_VIEW_API = MANTINE_LIST_VIEW_ROOT / "references" / "mantine-api.md"
+MANTINE_LIST_VIEW_CHECKLIST = (
+    MANTINE_LIST_VIEW_ROOT / "references" / "checklist.md"
+)
+MANTINE_LIST_VIEW_TEMPLATE = (
+    MANTINE_LIST_VIEW_ROOT / "assets" / "ListPage.template.tsx"
+)
 GUI_LOCALE_SKILL = SKILLS_ROOT / "desktop-add-gui-system-locale" / "SKILL.md"
 GUI_UPDATER_SKILL = SKILLS_ROOT / "desktop-add-gui-updater" / "SKILL.md"
 GUI_WINDOW_STATE_SKILL = SKILLS_ROOT / "desktop-add-gui-window-state" / "SKILL.md"
@@ -377,6 +389,7 @@ REQUIRED_FILES = (
     "docs/ENGINEERING_RULES.md",
     "docs/design_standards/README.md",
     "docs/design_standards/tauri_gui.md",
+    "docs/design_standards/mantine_list_view.md",
     "docs/design_standards/tauri_sidebar.md",
     "docs/HARNESS_ENGINEERING.md",
     "docs/harness_engineering/foundations.md",
@@ -438,6 +451,12 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-add-gui-adapter/references/mantine-ui-guidelines.md",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs",
     ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.test.ts",
+    ".agents/skills/mantine-list-view/SKILL.md",
+    ".agents/skills/mantine-list-view/agents/openai.yaml",
+    ".agents/skills/mantine-list-view/references/offset-list-pattern.md",
+    ".agents/skills/mantine-list-view/references/mantine-api.md",
+    ".agents/skills/mantine-list-view/references/checklist.md",
+    ".agents/skills/mantine-list-view/assets/ListPage.template.tsx",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-lifecycle-frontend-contract.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-global-shortcut-runtime-contract.mjs",
     ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-global-shortcut-contract.fixture.mjs",
@@ -617,6 +636,7 @@ EXPECTED_SKILLS = {
     "desktop-manage-git-lifecycle",
     "desktop-initialize-rust-project",
     "desktop-instantiate-project",
+    "mantine-list-view",
     "desktop-plan-change",
     "desktop-refactor-code",
     "desktop-prepare-cross-platform-release",

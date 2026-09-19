@@ -25,7 +25,7 @@
 - `tauri.conf.json` 的主应用窗口把 1440×900 逻辑像素、最小 960×640、居中与 `preventOverflow: true` 作为首次启动和持久状态缺失/损坏/离屏的回退；合法状态才恢复尺寸、位置与最大化，并必须夹取到当前可见工作区。不恢复隐藏、最小化、全屏或装饰，避免与托盘关闭隐藏、自启默认可见、单实例/深链接恢复及需求声明的快捷键宿主动作冲突。回退尺寸容纳详细展开侧栏，选择赞助页时还应让三张档位卡同屏横向呈现，较小窗口由响应式布局降列。该窗口与 `bundle.macOS.dmg.windowSize` 的 660×400 安装卷窗口互不替代。
 - Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage color-scheme manager 和唯一 CSS variables resolver；亮色/暗色分别提供页面背景、surface、主/次文字、边框与强调色，设置页允许 `light`/`dark`/`auto` 并持久化。选择赞助页时通过 `useComputedColorScheme` 使用运行时有效主题的明确背景叠层、surface 和对比色，不把初始化宿主主题冻结到产物。
 - 原生窗口标题与 `document.title` 固定使用同一公式 `{applicationName} v{version} {contactChannel}:{contactValue}`。应用名/版本来自权威 Tauri/打包元数据，展示边界先去除已有 `v`/`V` 前缀，再规范化为只带一个小写 `v`，联系字段来自品牌 profile 的 `contacts.windowTitle`，不得写死一次构建版本。
-- 活动选项卡、已应用查询/筛选、排序、分页页码/每页数量及同类可恢复页面工作状态固定由应用根 Jotai store 的模块级 atom 持有，只在当前程序进程内跨路由以及已启用的关闭隐藏/单实例唤醒过程保留；真正退出后回到默认值。不得使用浏览器/Tauri/文件/数据库/URL 持久化，不得把 TanStack Query 结果或 core 权威状态镜像进 atom。window-state 只持久原生窗口几何与最大化，不得借此保存页面或业务上下文。详细侧栏折叠偏好是单独允许的设备级 UI 偏好。查询范围或每页数量变化时页码归 1；只有成功返回的当前页大于 1 且为空时才回退第 1 页并重查，加载/错误和第 1 页空结果不循环。
+- 未命中 `$mantine-list-view` 的普通页面，活动选项卡、查询/筛选、排序和分页固定由应用根 Jotai store 的模块级 atom 持有，只在当前进程跨路由与关闭隐藏/单实例唤醒期间保留；退出后默认，不使用浏览器/Tauri/文件/数据库/URL 持久化，也不镜像 Query/core 数据。查询范围或页大小变化时 page=1，只有成功空页且 page>1 时回第 1 页。列表页命中 `$mantine-list-view` 后改用类型化 URL + 当前标签页 sessionStorage 查询恢复、TanStack Query-only 行数据、localStorage 列偏好与成功越界回末页；该例外不修改共享 `pageSessionState.ts`。window-state 只持久原生窗口几何，详细侧栏折叠仍是独立设备偏好。
 - 不得加载远程内容。
 - 保持 Tauri Rust 边界轻薄：只验证反序列化、协议必填字段和调用 WebView 能力，随后调用一个核心用例并映射有类型的结果；值域、跨字段约束、资源状态和业务权限由核心验证。
 - 调用时为 Tauri/前端直接依赖声明彼此兼容的最低稳定范围，使用最低直接版本解析验证 Rust MSRV、Node.js/pnpm 和目标平台 WebView，再由正常锁文件固定实际解析结果；不得用精确依赖版本或“最新”代替兼容下界。
