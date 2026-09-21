@@ -15,8 +15,7 @@ description: 使用仓库声明的版本方案锁定单次本地或远端 Git �
 2. 先判定当前根是否同时包含 Harness 专用 `Version.md` 与活动 `.agents/skills/desktop-instantiate-project/SKILL.md`。该条件为真就是 Harness 源发布，否则是终端下游发布。完成判定后，在任何提交或发布元数据写入前解析当次 Git 发布位置与 `reviewSelection: enabled | disabled`，并锁定本次全部选择：
    - `gitPublication: local | remote`：当前发布请求已经明确时直接复用，否则询问一次；产品/渠道明确要求远端可获取源码或远程构建时强制 `remote` 并记录来源。`local` 不选择 remote，必须确定当前仓库的本地默认主分支；`remote` 才要求选择唯一主远端的精确名称。两种模式都属于真实 Git 发布，不把本地模式描述为 waiver 或降级。
    - `reviewSelection: enabled | disabled`：当前发布请求已经明确时直接复用；安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求强制启用并记录来源；否则询问用户一次。
-   - Harness 源的 `performanceSelection`/`performanceSource` 与 `macosSigningSelection`/`macosSigningSource` 都固定为 `not-applicable`，原因/风险字段缺席，不询问产品候选选择。终端下游含 GUI 时同轮解析 `performanceSelection: enabled | disabled` 及来源；当前发布请求已经明确时直接复用，产品/渠道硬要求强制启用并记录来源，否则询问用户一次；非 GUI 为 `not-applicable`。
-   - 终端下游含 macOS GUI 时解析 `macosSigningSelection: enabled | disabled` 及来源；不适用时为 `not-applicable`。签名关闭时不得探测本机签名条件。`system_notification = enabled` 且签名关闭时立即 `Not ready`。
+   - Harness 源的 `macosSigningSelection`/`macosSigningSource` 固定为 `not-applicable`，原因/风险字段缺席，不询问产品候选选择。终端下游含 macOS GUI 时解析 `macosSigningSelection: enabled | disabled` 及来源；不适用时为 `not-applicable`。签名关闭时不得探测本机签名条件。`system_notification = enabled` 且签名关闭时立即 `Not ready`。
    这些选择属于单次发布，写入 `.harness/release-context.json`，不修改通用策略。同一发布的中断重试复用已提交上下文且不得改变 Git 发布位置，新发布重新解析。
 3. 使用已声明版本方案。Harness 版本来自 `Version.md`，按 `Asia/Shanghai` 的 `YYYYMMDDHHMM` 时间版本；下游不得继承 Harness `Version.md`，而是通过 `$desktop-manage-version check --phase release` 使用开发阶段已确定的语义化目标版本。发布准备不在此补算 Minor/Patch，也不得另算、手工覆盖或重置正式发布周期。机器版本不带 `v`，可见版本只带一个小写 `v`。
 4. 要求项目根是独立 Git 顶层目录并存在可解析的当前 HEAD；初始化中尚未生成的 `HEAD` 必须声明 `Not ready`，不能伪造提交。运行只读检查，并逐项查看 staged、unstaged、untracked 与真实 diff：
@@ -57,7 +56,7 @@ description: 使用仓库声明的版本方案锁定单次本地或远端 Git �
    python3 .agents/skills/desktop-prepare-release/scripts/release_context.py check --project-root . --expected-version <version> --expected-sha256 <releaseContextSha256>
    ```
 
-   Harness 源必须把候选参数固定传为 `--performance-selection not-applicable --performance-source not-applicable --macos-signing-selection not-applicable --macos-signing-source not-applicable`。`release_context.py write` 会拒绝 `sourceHead` 不等于写入时当前 HEAD 的请求；该前置条件确保发布日志仍未提交、源码/治理提交也未漂移。第二个精确范围提交只能同时包含 `release-notes.json` 与 `.harness/release-context.json`；不得混入 Changelog、源码或其他治理文件。再次运行 `release_git.py inspect`、配置提交身份并用 `release_git.py commit` 提交这两个路径；无变化不创建空提交。
+   Harness 源必须把候选参数固定传为 `--macos-signing-selection not-applicable --macos-signing-source not-applicable`。`release_context.py write` 会拒绝 `sourceHead` 不等于写入时当前 HEAD 的请求；该前置条件确保发布日志仍未提交、源码/治理提交也未漂移。第二个精确范围提交只能同时包含 `release-notes.json` 与 `.harness/release-context.json`；不得混入 Changelog、源码或其他治理文件。再次运行 `release_git.py inspect`、配置提交身份并用 `release_git.py commit` 提交这两个路径；无变化不创建空提交。
 9. 要求最终工作树 clean，按上下文中已锁定的唯一模式调用且不得同时传入两个位置参数：
 
    ```text
@@ -75,7 +74,7 @@ description: 使用仓库声明的版本方案锁定单次本地或远端 Git �
    ```
 
    `sourceHead` 是审查/发布日志来源提交，`sourceCommit` 是完成普通合并后被主分支和 tag 同时指向的最终 Git 发布提交；在终端下游它也作为候选源码提交。两者不要求相等，也不施加线性历史或只允许特定提交形态的门禁。
-11. 若步骤 2 已判定为 Harness 源，完成上一步即结束本次源码 Git 发布：产品构建、`release/` manifest、性能、签名、公证、产品 E2E 与产品人工验收全部为 `Not applicable`，不得调用下游构建或验收 Skill。只有用户另行明确要求源码归档时才按 `docs/RELEASE.md` 生成并核对源码归档及其相邻 `.sha256`；归档必须包含两份根许可证，但不得创建或套用产品候选 manifest。终端下游才按接口调用 `$desktop-build-tauri-release` 或 `$desktop-build-rust-release`；下游构建只另外解析本次 E2E 选择，并从已提交的发布上下文读取 Git 发布位置、审查、性能和签名选择，构建前与写 manifest 前均重新运行发布上下文 `verify`。`gitPublication: local` 只允许当前宿主本地候选，不得调用远程跨平台 provider；该 provider 路线仅接受 `remote`。修复候选问题时通过 `$desktop-implement-change` 自动建立新开发分支，重新提交并执行本流程。
+11. 若步骤 2 已判定为 Harness 源，完成上一步即结束本次源码 Git 发布：产品构建、`release/` manifest、签名、公证、产品 E2E 与产品人工验收全部为 `Not applicable`，不得调用下游构建或验收 Skill。只有用户另行明确要求源码归档时才按 `docs/RELEASE.md` 生成并核对源码归档及其相邻 `.sha256`；归档必须包含两份根许可证，但不得创建或套用产品候选 manifest。终端下游才按接口调用 `$desktop-build-tauri-release` 或 `$desktop-build-rust-release`；下游构建只另外解析本次 E2E 选择，并从已提交的发布上下文读取 Git 发布位置、审查和签名选择，构建前与写 manifest 前均重新运行发布上下文 `verify`。`gitPublication: local` 只允许当前宿主本地候选，不得调用远程跨平台 provider；该 provider 路线仅接受 `remote`。修复候选问题时通过 `$desktop-implement-change` 自动建立新开发分支，重新提交并执行本流程。
 
 发布准备只形成提交、更新日志、上下文和 Git 发布结果，不得在此运行任一测试，绝不得在发布准备中运行冒烟/E2E；终端下游由真实候选构建负责全量测试，Harness 源的中性资产和验证器测试必须已在进入发布准备前通过。候选验收后只允许 `check`/`render` 读取发布日志，任何字节变化都必须形成新提交并重走发布生命周期。`release/` 目录存在绝不表示已满足发布就绪条件。
 
@@ -84,7 +83,7 @@ description: 使用仓库声明的版本方案锁定单次本地或远端 Git �
 以下就绪复核只适用于已经形成产品候选的终端下游；Harness 源没有产品候选，步骤 10 复核成功后不进入本节。
 
 1. 只接受 `$desktop-verify-delivery` 给出的完整 `Milestone accepted` 候选。运行发布上下文 `verify`，要求候选 manifest 的 `sourceCommit`、版本、`releaseContextSha256`、`releaseReview`、`candidateSelections` 与当前上下文逐字段一致，并按 `gitPublication` 只要求适用的本地或远端 refs。
-2. 只读检查更新日志、版本事实、制品、摘要、manifest、测试、E2E、审查、性能、签名/公证和验收状态。任何 tracked 字节或候选字节变化都使原候选失效。
+2. 只读检查更新日志、版本事实、制品、摘要、manifest、测试、E2E、审查、签名/公证和验收状态。任何 tracked 字节或候选字节变化都使原候选失效。
 3. 报告 `Ready`/`Not ready`。本地 tag 已由 Git 发布生命周期在清理前完成；只有远端模式才已有远端 tag。本阶段不再创建 tag、推送、清理或上传渠道，也不把候选成功误报为渠道发布成功。
 
 ## 边界

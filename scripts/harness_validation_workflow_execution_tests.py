@@ -137,10 +137,6 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 "remainingRisk": "fixture-risk",
             }
             candidate_selections = {
-                "performanceSelection": "not-applicable",
-                "performanceSource": "not-applicable",
-                "performanceReason": None,
-                "performanceRemainingRisk": None,
                 "macosSigningSelection": "not-applicable",
                 "macosSigningSource": "not-applicable",
                 "macosSigningReason": None,

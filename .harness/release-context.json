@@ -26,10 +26,6 @@
     "remainingRisk": null
   },
   "candidateSelections": {
-    "performanceSelection": "not-applicable",
-    "performanceSource": "not-applicable",
-    "performanceReason": null,
-    "performanceRemainingRisk": null,
     "macosSigningSelection": "not-applicable",
     "macosSigningSource": "not-applicable",
     "macosSigningReason": null,

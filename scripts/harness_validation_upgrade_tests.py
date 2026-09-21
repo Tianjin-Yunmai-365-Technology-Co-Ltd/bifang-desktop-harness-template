@@ -122,7 +122,6 @@ class ValidateUpgradeContractTests(unittest.TestCase):
             "desktop-add-gui-global-shortcut",
             "desktop-add-gui-system-notifications",
             "desktop-add-gui-autostart",
-            "desktop-test-gui-release-performance",
         ):
             rule = (f".agents/skills/{skill_name}/**", "conditional")
             self.assertIn(rule, ordered)

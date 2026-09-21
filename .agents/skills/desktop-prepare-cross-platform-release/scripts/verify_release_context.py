@@ -137,10 +137,6 @@ def calculate_snapshot(
         raise ContextVerificationError("fetched release tag does not equal source_commit")
 
     cli_selections = {
-        "performanceSelection": "not-applicable",
-        "performanceSource": "not-applicable",
-        "performanceReason": None,
-        "performanceRemainingRisk": None,
         "macosSigningSelection": "not-applicable",
         "macosSigningSource": "not-applicable",
         "macosSigningReason": None,

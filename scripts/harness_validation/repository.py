@@ -124,13 +124,13 @@ def validate_work_plan_contract(
         ),
         re.compile(
             r"^\s*(?:[-*]\s*)?"
-            r"(?:milestoneAcceptance|sourceCommit|buildRun|buildMode|performanceStatus|"
+            r"(?:milestoneAcceptance|sourceCommit|buildRun|buildMode|"
             r"runtimeVerification|signingStatus|notarizationStatus|sha256)\s*[：:]",
             flags=re.IGNORECASE | re.MULTILINE,
         ),
         re.compile(
             r"^\s*(?:[-*]\s*)?"
-            r"(?:(?:候选|构建|E2E|性能)(?:状态|结论)|Candidate\s+(?:status|verdict))"
+            r"(?:(?:候选|构建|E2E)(?:状态|结论)|Candidate\s+(?:status|verdict))"
             r"\s*[：:]\s*`?(?:pending|rejected|accepted|passed|failed|waived|Unverified)\b",
             flags=re.IGNORECASE | re.MULTILINE,
         ),

@@ -236,11 +236,8 @@ class ValidatorMutationTests(unittest.TestCase):
         self.assertTrue(any("Harness source release contract missing" in error for error in errors), errors)
 
     def test_harness_candidate_selections_are_fixed_not_applicable(self) -> None:
-        """Harness 不得询问或制造性能与签名候选选择。"""
-        fragment = (
-            "--performance-selection not-applicable --performance-source not-applicable "
-            "--macos-signing-selection not-applicable --macos-signing-source not-applicable"
-        )
+        """Harness 不得询问或制造签名候选选择。"""
+        fragment = "--macos-signing-selection not-applicable --macos-signing-source not-applicable"
         errors = self.validate_mutation(
             release.validate_harness_source_release_contract,
             "prepare_skill",
@@ -342,7 +339,7 @@ class ValidatorMutationTests(unittest.TestCase):
             directory.cleanup()
 
     def test_release_context_requires_all_selection_groups(self) -> None:
-        """审查、性能和 macOS 签名选择必须同处一个上下文。"""
+        """审查和 macOS 签名选择必须同处一个上下文。"""
         for fragment in ('"gitPublication"', '"releaseReview"', '"candidateSelections"'):
             with self.subTest(fragment=fragment):
                 errors = self.validate_mutation(
@@ -657,37 +654,14 @@ class ValidatorMutationTests(unittest.TestCase):
         self.assertTrue(any("release Git contract missing" in error for error in errors), errors)
 
     def test_tauri_candidate_requires_fixed_selection_contract(self) -> None:
-        """GUI 候选必须锁定性能和签名选择。"""
-        for validator, label, fragment in (
-            (
-                release.validate_gui_release_performance_contract,
-                "GUI performance contract missing",
-                "所有 GUI 候选的 `performanceSelection` 必须精确为 `enabled | disabled`",
-            ),
-            (
-                release.validate_release_selection_contract,
-                "release selection contract missing",
-                "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`",
-            ),
-        ):
-            with self.subTest(fragment=fragment):
-                errors = self.validate_mutation(
-                    validator,
-                    "tauri_skill",
-                    release.TAURI_RELEASE_SKILL,
-                    fragment,
-                )
-                self.assertTrue(any(label in error for error in errors), errors)
-
-    def test_gui_performance_requires_v2_threshold_binding(self) -> None:
-        """最终验收必须复核与探针证据相同的 v2 阈值。"""
+        """GUI 候选必须锁定签名选择。"""
         errors = self.validate_mutation(
-            release.validate_gui_release_performance_contract,
-            "verify_skill",
-            release.VERIFY_DELIVERY_SKILL,
-            "证据的 `thresholdProfile` 必须同为 `gui-release-v2`",
+            release.validate_release_selection_contract,
+            "tauri_skill",
+            release.TAURI_RELEASE_SKILL,
+            "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`",
         )
-        self.assertTrue(any("GUI performance contract missing" in error for error in errors), errors)
+        self.assertTrue(any("release selection contract missing" in error for error in errors), errors)
 
     def test_local_install_cannot_become_release_candidate(self) -> None:
         """普通本地试包必须保持开发制品边界。"""

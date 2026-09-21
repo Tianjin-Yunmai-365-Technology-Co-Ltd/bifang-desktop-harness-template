@@ -77,9 +77,9 @@ Bifang Desktop Harness Template
 - 新功能或独立 Bug 修复开始写入时：使用 `$desktop-manage-git-lifecycle` 在本地自动创建并切换到 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`，名称碰撞自动追加后缀；不要求项目已经配置远端。同一结果的继续修改复用当前登记分支。
 - “推送”：普通合并本发布周期登记的开发分支，切换到动态默认主分支并推送；不创建 tag，也不清理登记资源。`--remote` 指定唯一主远端；只有你明确要求“也推送到某远端”时，才为该次 `publish` 增加一个可重复的 `--also-remote <name>`。所有目标会在首个 push 前解析；同一最终 HEAD、目标顺序和逐项确认进度只在未完成的 `pendingPublish` 中临时保存，成功即清除。补充远端不改绑，也不参与 release、tag 或清理。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
-- “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 或性能选择。
+- “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
 - “构建 CLI 发布候选”或“准备并构建发布”：先使用 `$desktop-prepare-release` 询问并锁定 `gitPublication: local | remote` 及其他本次选择，再提交发布上下文；两种生命周期调用都必须传入其精确 `--release-context-sha256 <sha256>`。本地模式调用 `release ... --release-context-sha256 <sha256> --local-only`，在本地默认主分支合并、创建并复读 `v{版本}-{YYYYMMDD}` 后清理登记 Worktree/本地分支；远端模式调用 `release ... --release-context-sha256 <sha256> --remote <name>`，额外把主分支/tag 推送、远端复读和主远端分支清理作为门禁。最后由 `$desktop-build-rust-release` 从带该 tag 的 clean 主分支构建；本地模式只允许形成当前宿主本地候选。
-- “构建桌面 GUI 发布候选”：同样先使用 `$desktop-prepare-release`，在 `.harness/release-context.json` 中记录本次审查、性能与 macOS 签名选择，再由 `$desktop-build-tauri-release` 只读消费；当前请求已经明确时直接复用，不写入通用持久偏好。
+- “构建桌面 GUI 发布候选”：同样先使用 `$desktop-prepare-release`，在 `.harness/release-context.json` 中记录本次审查与 macOS 签名选择，再由 `$desktop-build-tauri-release` 只读消费；当前请求已经明确时直接复用，不写入通用持久偏好。
 - 普通“构建/打包/本地试包”不会自动升级为发布候选、提交、推送或修改主分支；只有明确发布会合并本地主分支、创建 tag 并精确清理，且仅当本次 `gitPublication: remote` 时才推送和复读远端。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
@@ -93,7 +93,7 @@ Bifang Desktop Harness Template
 
 日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前自动创建并切换到本周期登记的 feature 分支。用户明确说“推送”时才统一普通合并并推送动态默认主分支；明确“发布”时则逐次选择本地或远端 Git 发布。本地模式不访问远端；远端模式的主远端独占 fetch/merge、发布 tag 与远端清理。多远端只扩展显式 `publish`，补充远端按各自 advertised default branch 接收同一最终 HEAD。新功能在当前正式发布周期首次完成时自动提升 Minor 并把 Patch 归零，直到真实发布成功前不再因功能重复提升；每个具有新稳定 ID 的问题修复或用户可感知优化都沿用 `bug-fix` 分类自动提升 Patch，且不受功能锁影响。不改变可观察行为的纯重构、文档或内部清理不会自动升级版本，也不自动增加计划、全仓检查、构建、冒烟、发布候选 E2E 或验收步骤。
 
-显式“发布候选”请求先由发布准备解析当次 `gitPublication` 与语义审查选择；GUI 同轮解析性能与 macOS 签名选择，并把它们写入 `.harness/release-context.json`。发布生命周期完成模式对应的本地/远端主分支与 tag 门禁及登记资源清理后，构建 Skill 只读校验并消费这些记录、把同一日志打入候选，只另外解析本次是否启用 E2E；记录缺失或适用性不符时失败关闭，不从对话补写或兜底询问。本地发布只允许当前宿主本地候选，远程跨平台 provider 路线要求 `gitPublication: remote`。性能选择关闭且没有产品/渠道硬要求时跳过耗时探针，在 manifest 和最终回复记录 `performanceStatus: Not run` 与剩余风险；选择开启时才运行现有定量门禁。随后运行项目全部非空单元测试并构建。普通 Windows 本地安装试包是开发制品，不进入上述候选流程，也不要求发布日志或 clean HEAD。构建事实只写入适用的产物位置和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆。普通 GUI 页面状态只在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页改用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
+显式“发布候选”请求先由发布准备解析当次 `gitPublication` 与语义审查选择；GUI 同轮解析 macOS 签名选择，并把它写入 `.harness/release-context.json`。发布生命周期完成模式对应的本地/远端主分支与 tag 门禁及登记资源清理后，构建 Skill 只读校验并消费这些记录、把同一日志打入候选，只另外解析本次是否启用 E2E；记录缺失或适用性不符时失败关闭，不从对话补写或兜底询问。本地发布只允许当前宿主本地候选，远程跨平台 provider 路线要求 `gitPublication: remote`。随后运行项目全部非空单元测试并构建。普通 Windows 本地安装试包是开发制品，不进入上述候选流程，也不要求发布日志或 clean HEAD。构建事实只写入适用的产物位置和最终回复，不创建或更新 ADR、Changelog、Product Status、Work Plan、Verification 等项目记忆。普通 GUI 页面状态只在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页改用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 
 Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/TUI/MCP/GUI 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在 GUI adapter，但其业务效果仍调用 core。维护者可运行 `python3 -B -m unittest discover -s scripts` 验证 Harness 的非空回归。
 
@@ -119,7 +119,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 
 开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 
-构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-gui-release-performance`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
+构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 ## 可以创建哪些界面
 

@@ -85,7 +85,6 @@ REQUIRED_RULES = {
     ".agents/skills/desktop-add-gui-autostart/**": "conditional",
     ".agents/skills/desktop-prepare-gui-app-identity/**": "conditional",
     ".agents/skills/desktop-prepare-gui-support-surfaces/**": "conditional",
-    ".agents/skills/desktop-test-gui-release-performance/**": "conditional",
     ".agents/skills/desktop-prepare-cross-platform-release/**": "conditional",
     ".agents/skills/desktop-build-tauri-local-install/**": "conditional",
     ".agents/skills/desktop-build-tauri-release/**": "conditional",

@@ -14,7 +14,7 @@ description: 为所有 GUI 基线接入官方 window-state 插件并恢复主窗
 3. 该能力是 Rust-only：不得安装 `@tauri-apps/plugin-window-state`，不得给 WebView `window-state:*` ACL。
 4. 官方插件在状态文件缺失/损坏时使用空状态，并且不恢复与任一当前显示器都不相交的位置；这些官方行为本身不足以证明 Harness 的精确回退值。GUI adapter 必须另提供 `saved_window_geometry_is_recoverable` 与 `ensure_main_window_is_recoverable`，在 plugin 恢复后从 Builder `.setup(...)` 实际调用：尺寸小于 `960×640`、与所有显示器都无交集，或 DPI/显示器变化导致几何无效时，显式设为 `1440×900` 并居中，同时恢复最小 `960×640`；合法状态不得被覆写。`preventOverflow: true` 与实际显示器交集检查共同保证可找回性。
 5. 页面会话状态继续按 Jotai 进程内契约处理，不能借该插件跨进程持久化筛选、分页或业务上下文。托盘隐藏和单实例唤醒只恢复窗口，不覆写已保存几何。
-6. 运行 `window_state_restores_size_position_and_maximized`、`window_state_ignores_saved_visibility`、`window_state_falls_back_for_invalid_or_offscreen_state`、`window_state_preserves_first_launch_defaults` 四个非空回归；后两个必须调用上述几何判定，不得用布尔常量或只比较固定数字代替。初始化 E2E 要分别使用合法状态、损坏 JSON、超远离屏坐标和首启空状态真实重启验证；性能探针必须隔离并恢复状态文件。
+6. 运行 `window_state_restores_size_position_and_maximized`、`window_state_ignores_saved_visibility`、`window_state_falls_back_for_invalid_or_offscreen_state`、`window_state_preserves_first_launch_defaults` 四个非空回归；后两个必须调用上述几何判定，不得用布尔常量或只比较固定数字代替。初始化 E2E 要分别使用合法状态、损坏 JSON、超远离屏坐标和首启空状态真实重启验证。
 
 ## 边界
 
@@ -23,4 +23,4 @@ description: 为所有 GUI 基线接入官方 window-state 插件并恢复主窗
 
 ## 完成输出
 
-报告依赖下界、精确 `StateFlags`、首次/无效状态回退、真实重启恢复和性能测试隔离结果。
+报告依赖下界、精确 `StateFlags`、首次/无效状态回退和真实重启恢复结果。

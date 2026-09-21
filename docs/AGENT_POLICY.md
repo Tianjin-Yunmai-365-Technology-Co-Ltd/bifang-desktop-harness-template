@@ -12,7 +12,7 @@ e2e_hint: pending
 
 # Agent 运行策略
 
-本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好和构建 E2E 建议默认值的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 固定默认 `disabled`；完成初始化的下游五项选择只能是 `enabled` 或 `disabled`，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布位置与 GUI 发布性能选择刻意不进入本文件，每次发布重新解析。
+本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好和构建 E2E 建议默认值的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 固定默认 `disabled`；完成初始化的下游五项选择只能是 `enabled` 或 `disabled`，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布位置不进入本文件，每次发布重新解析。
 
 ## 字段语义
 
@@ -21,7 +21,7 @@ e2e_hint: pending
 - `parallel_worktree_subagents`：`enabled` 只表示用户明确要求并行时允许使用 Worktree + 写入型 Subagent；`disabled` 使用单 Agent 当前工作树。持久启用本身不能触发并行步骤；启用时仍须给每个写入单元分配不重叠的文件所有权，并把创建出的 Worktree 和分支登记到当前 Git 生命周期。
 - `acceptance_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `e2e_hint`：仅作为每次显式发布候选构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前候选的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
-- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前发布候选请求中已经明确的选择，否则在候选构建前询问一次。`gitPublication` 与 GUI 发布性能都不得从持久字段推断，只复用当前发布请求已经明确的选择，否则在本次发布开始前分别询问一次。
+- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前发布候选请求中已经明确的选择，否则在候选构建前询问一次。`gitPublication` 不得从持久字段推断，只复用当前发布请求已经明确的选择，否则在本次发布开始前询问一次。
 
 `enabled` 表示“允许且适用时执行”，`disabled` 表示默认不启用可选能力。`user_owned_tasks: enabled` 是自动建 Task 的明确长期授权；其他字段的持久启用仍不等于无条件执行。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前发布候选的 E2E 明确选择优先于 `e2e_hint` 建议值。`gitPublication: local | remote` 是本次 Git 发布位置，不是持久能力偏好；产品或渠道要求远端来源时必须选择 `remote`。
 
@@ -35,9 +35,9 @@ e2e_hint: pending
 
 含 GUI 的一次性初始化 E2E 是脚手架完成门禁，不属于 `e2e_hint`。初始化器读取固定顺序的九项 GUI profile；同时始终验证不询问、不进入 profile 的 system-locale/updater/window-state 三项 Rust-only 固定基线与 dialog 固定 WebView 基线。dialog 必须证明固定 Rust/前端依赖、唯一有序注册、主窗口精确 `dialog:default` 和零额外文件系统授权。按 profile 分派的 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个独立 Skills 必须分别证明启用完整或禁用无残留，`deep_link = enabled` 必须同时有 `single_instance = enabled`；关于页、赞助页和侧栏仍按实际选择验证。单实例执行双启动，托盘执行可见托盘与关闭隐藏/恢复/退出，通知、自启与深链接宿主事件只在对应字段启用时执行；中性全局快捷键 contract 验证零默认注册与 owned 清理，只有 contract 明确提供安全可观察绑定时才触发实际 chord 并恢复原配置。macOS 需安装包注册才能证明的深链接场景在 debug no-bundle 阶段标为 `Not verified`。托盘禁用时必须实测关闭最后窗口退出。宿主无法判定/观察适用场景，或无法恢复自启、快捷键、窗口状态等被测宿主状态时，初始化必须阻断，不能用持久偏好跳过。
 
-GUI 正式发布性能同样不是持久偏好。每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`：当前请求已经明确时直接复用，否则询问一次；修复后重跑同一发布时复用原选择，新发布必须重新询问。选择 `enabled` 或产品/渠道硬要求时，才由 `$desktop-test-gui-release-performance` 对 release-profile 探针候选执行；它必须隔离 window-state 持久数据，让每次启动使用同一测试基线，并在成功、失败、超时或取消后恢复且复核原字节/原缺席状态。选择 `disabled` 且没有硬要求时跳过探针，在 manifest 和最终回复记录 `performanceStatus: Not run`、原因与剩余风险，并且不得生成 `performanceEvidence`、`performanceProbe` 或 `performanceRuntimeBinding`。已启用后的性能失败仍先回实现修复和重建；用户显式继续只能记录 `performanceStatus: waived` 与原失败证据，不能把它改判为通过，也不能用 `waived` 冒充预先关闭。updater 插件基线不需要策略字段；每次发布候选构建从产品事实解析的 `updaterEnabled` 只控制是否生成和验签 updater archive/`.sig`，不控制是否安装插件。
+updater 插件基线不需要策略字段；每次发布候选构建从产品事实解析的 `updaterEnabled` 只控制是否生成和验签 updater archive/`.sig`，不控制是否安装插件。
 
-“不是持久偏好”不等于依赖对话内存：`$desktop-prepare-release` 必须把 `gitPublication: local | remote`、当次审查结果、GUI 性能选择和适用的 macOS 签名选择/来源写入当前发布的 `.harness/release-context.json`，使同一发布中断重试可复用；其中 Git 发布位置适用于 Harness 源与终端下游，GUI 性能与签名值只适用于终端下游，Harness 源的两类产品候选选择/来源固定为 `not-applicable`。该文件必须随发布元数据提交，且不得成为下一次发布的默认值。终端下游候选构建在清理、测试前和写 manifest 前只读验证并消费这份上下文，只另外解析当前候选的 E2E 选择。
+“不是持久偏好”不等于依赖对话内存：`$desktop-prepare-release` 必须把 `gitPublication: local | remote`、当次审查结果和适用的 macOS 签名选择/来源写入当前发布的 `.harness/release-context.json`，其中候选选择把结果写入 `.harness/release-context.json` 的 `candidateSelections`，使同一发布中断重试可复用；其中 Git 发布位置适用于 Harness 源与终端下游，签名值只适用于终端下游，Harness 源的产品候选签名选择/来源固定为 `not-applicable`。该文件必须随发布元数据提交，且不得成为下一次发布的默认值。终端下游候选构建在清理、测试前和写 manifest 前只读验证并消费这份上下文，只另外解析当前候选的 E2E 选择。
 
 ## 开发分支与主分支发布生命周期
 
@@ -154,24 +154,22 @@ Task 绑定：
 
 - GUI 初始化在相关非空单元测试后固定调用 `$desktop-test-gui-initialization-e2e`，解析九项 profile，始终验证 system-locale/updater/window-state 三项 Rust-only 基线与 dialog 固定 WebView 基线，再按选择验证单实例、托盘、系统通知、自启、深链接、全局快捷键、页面和侧栏，拒绝禁用能力残留；它不询问 E2E 选择、不改写本文件，也不产生发布候选或 Verification。
 - 日常开发直接实施，只运行本次变更需要的单元/回归测试，并只写被独立事件触发的记录；本文件不得成为自动增加 Work Plan、全仓检查、构建、冒烟、E2E 或验收的理由。
-- Windows GUI 的普通“构建/打包/首次安装试包”默认是 `$desktop-build-tauri-local-install` 的本地开发制品，不是发布候选。它不要求 clean HEAD 或 `release-notes.json`，不调用发布准备、不写根 `release/`、不提交、不签名、不安装，也不询问 E2E 或性能选择；只有用户明确说“发布候选”或“准备并构建发布”才进入下列候选门禁。
+- Windows GUI 的普通“构建/打包/首次安装试包”默认是 `$desktop-build-tauri-local-install` 的本地开发制品，不是发布候选。它不要求 clean HEAD 或 `release-notes.json`，不调用发布准备、不写根 `release/`、不提交、不签名、不安装，也不询问 E2E；只有用户明确说“发布候选”或“准备并构建发布”才进入下列候选门禁。
 - 显式发布候选构建必须为当前候选解析一次 E2E 选择。若当前请求已明确 `enabled`/`disabled`，直接复用且不重复询问；否则在任何测试或编译前询问一次，并可把 `e2e_hint` 作为建议默认选项展示。
 - E2E 选择只对终端下游发布候选有效，不得静默改写本文件。选择启用或产品/渠道要求时，E2E 只在最终真实候选形成后运行；选择禁用时只在 `release/` manifest 和最终回复记录 `Not run` 与剩余风险。Harness 源发布不形成产品候选，因此本项为 `Not applicable`。
-- 每次 GUI 发布还必须独立解析当次性能选择。所有正式候选都先经过 `$desktop-prepare-release`：它复用当前请求的明确选择或询问一次，并把结果写入 `.harness/release-context.json` 的 `candidateSelections`；`$desktop-build-tauri-release` 只读消费该记录，缺失时失败关闭，不得从对话补写、兜底询问或静默沿用上次发布或 `e2e_hint`。
 - 明确发布请求本身授权流程复核并提交范围明确的开发结果与发布上下文，并要求在任何生命周期副作用前把 tracked 上下文的精确 SHA-256 传给 `$desktop-manage-git-lifecycle release`。`gitPublication: local` 调用 `release ... --release-context-sha256 <sha256> --local-only`，只普通合并登记分支、切换本地默认主分支、创建并复读本地 `v{版本}-{YYYYMMDD}`，成功后删除登记 Worktree 和本地分支；`gitPublication: remote` 调用 `release ... --release-context-sha256 <sha256> --remote <remote>`，才在冻结 final HEAD 后推送并复读动态默认主分支与 tag，成功后按登记清单删除 Worktree、主远端分支和本地分支。上下文是单次发布位置的唯一冻结选择，CLI 不一致必须在 merge/fetch/push/tag 前零副作用失败。终端下游随后直接进入模式适用的候选构建，无需再次询问；本地模式只形成当前宿主候选，远程跨平台 provider 仅用于远端模式。Harness 源发布则在模式适用的 Git 引用与上下文复核通过后结束，不生成产品候选。用户只说“推送”时仍执行原有主分支合并、切换和推送，并可在逐一明确授权后用重复的 `--also-remote <name>` 把同一最终 HEAD 推向补充远端，但不创建 tag、不清理；普通构建不自动提交、推送、发布或修改主分支。
-- GUI 性能与 E2E 选择相互独立。性能选择为 `enabled` 或产品/渠道要求时执行完整门禁；为 `disabled` 且无硬要求时允许以 `performanceStatus: Not run` 继续，但必须保留原因和剩余风险。已启用后只有安全修复尝试仍不达标时，才询问用户是否以可见 waiver 继续。
 - 构建请求、执行和结果，以及候选 E2E、完整验收、`pending` → `accepted` 和就绪复核，都不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 或其他 tracked 项目记忆；这些候选事实只进入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复，本地开发试包只进入最终回复。真实渠道发布成功后，才从已发布且带版本 tag 的默认主分支开始下一次开发生命周期，追加 Verification/发布/Product Status 记录并 finalize 版本周期；独立回顾性人工复核或长期审计不得反向批准活动候选。
 - 普通缺陷修复、纯重构等维护类型本身不创建 Product Spec、ADR、Status、Changelog 或 Verification；用户明确要求、跨会话交接、安全、发布和长期决定等独立事件仍按各自门禁记录。
 
 ## 执行优先级
 
 1. 安全、批准产品范围和分发渠道硬要求。
-2. 当前请求中用户明确给出的约束；发布候选构建请求中的 E2E 选择和 GUI 发布性能选择属于本级。
+2. 当前请求中用户明确给出的约束；发布候选构建请求中的 E2E 选择属于本级。
 3. 本文件持久策略；`e2e_hint` 只提供建议默认值。
 4. Agent 根据接口、真实产物和批准场景作出的适用性判断。
-5. 发布候选构建请求尚未明确 E2E 时，在测试或编译前询问一次；GUI 发布尚未明确性能选择时，由 `$desktop-prepare-release` 在发布上下文形成前询问一次并封存，且不跨发布复用；其他事项仍无法可靠判断时再询问用户。
+5. 发布候选构建请求尚未明确 E2E 时，在测试或编译前询问一次；其他事项仍无法可靠判断时再询问用户。
 
-执行原则可概括为：能力偏好先复用；本地开发试包不消费 E2E/性能选择；发布候选 E2E 每次都必须有当前选择；GUI 性能与 macOS 签名选择由发布准备逐次解析并封存，构建只读消费。
+执行原则可概括为：能力偏好先复用；本地开发试包不消费 E2E 选择；发布候选 E2E 每次都必须有当前选择；macOS 签名选择由发布准备逐次解析并封存，构建只读消费。
 
 ## 不受影响的能力
 

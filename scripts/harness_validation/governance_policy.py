@@ -219,10 +219,6 @@ def validate_agent_policy(
         "`parallel_worktree_subagents` 只控制当前 Task 内部",
         "日常开发直接实施",
         "显式发布候选构建必须为当前候选解析一次 E2E 选择",
-        "GUI 发布性能选择刻意不进入本文件，每次发布重新解析",
-        "每次 GUI 发布开始前解析当次 `performanceSelection: enabled | disabled`",
-        "选择 `disabled` 且没有硬要求时跳过探针",
-        "产品/渠道要求时执行完整门禁",
     )
     for fragment in required_body_fragments:
         if fragment not in text:

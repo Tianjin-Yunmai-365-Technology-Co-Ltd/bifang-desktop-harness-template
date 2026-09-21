@@ -204,34 +204,6 @@ class PrepareReleaseDirectoryTests(unittest.TestCase):
         self.assertIn("Windows 原生路线不得调用 `.sh` helper", tauri_text)
         self.assertEqual(TAURI_POWERSHELL_HELPER.read_bytes(), POWERSHELL_SCRIPT.read_bytes())
 
-    def test_gui_performance_selection_is_tauri_only_and_conditionally_bound(self) -> None:
-        """Tauri 逐次选择性能；只有启用分支建立探针和包内运行时绑定。"""
-
-        tauri_text = TAURI_SKILL.read_text(encoding="utf-8")
-        for fragment in (
-            "performanceSelection: enabled | disabled",
-            "产品/渠道硬要求强制为 `enabled`",
-            "否则在任何测试或编译前询问用户一次",
-            "$desktop-test-gui-release-performance",
-            "pnpm tauri build --no-bundle",
-            "HEAD == buildSourceCommit",
-            "$desktop-implement-change",
-            "performanceStatus: waived",
-            "performanceThresholdProfile: gui-release-v2",
-            "performanceRuntimeBinding",
-            "binding: byte-identical",
-            "binding: verified-signing-transition",
-            "performanceStatus: Not run",
-            "performanceReason",
-            "performanceRemainingRisk",
-            "不创建 `performanceProbe`、`performanceEvidence`、`performanceThresholdProfile`、`performanceWaiver` 或 `performanceRuntimeBinding`",
-            "性能选择为 `enabled` 时 `performanceStatus` 为 `Unverified`",
-        ):
-            self.assertIn(fragment, tauri_text)
-        rust_text = RUST_SKILL.read_text(encoding="utf-8")
-        self.assertIn("普通 Rust CLI 构建不得触发", rust_text)
-        self.assertNotIn("pnpm tauri build --no-bundle", rust_text)
-
     @unittest.skipUnless(shutil.which("pwsh"), "当前环境没有可用的 pwsh")
     def test_windows_helper_cleans_without_following_child_reparse_point(self) -> None:
         """PowerShell 实际执行时应原子刷新目录且不触及子级链接目标。"""

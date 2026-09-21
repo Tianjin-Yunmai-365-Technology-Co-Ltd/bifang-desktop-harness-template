@@ -107,10 +107,6 @@ class ReleaseContextTests(unittest.TestCase):
             "Optional semantic review was not requested.",
             "--review-remaining-risk",
             "Semantic issues outside required checks may remain.",
-            "--performance-selection",
-            "not-applicable",
-            "--performance-source",
-            "not-applicable",
             "--macos-signing-selection",
             "not-applicable",
             "--macos-signing-source",
@@ -309,13 +305,13 @@ class ReleaseContextTests(unittest.TestCase):
 
     def test_write_rejects_inconsistent_disabled_selection(self) -> None:
         result = self.write_context(
-            "--performance-selection",
+            "--macos-signing-selection",
             "disabled",
-            "--performance-source",
+            "--macos-signing-source",
             "not-requested",
         )
         self.assertEqual(result.returncode, 1)
-        self.assertIn("performanceReason", result.stderr)
+        self.assertIn("macosSigningReason", result.stderr)
 
     def test_write_requires_strict_publication_argument_combinations(self) -> None:
         missing_branch = self.write_context(publication=("--local-only",))

@@ -180,15 +180,6 @@ GUI_LIFECYCLE_PLUGIN_CONTRACT_TESTS = (
     / "gui-lifecycle-plugin-contract.test.mjs"
 )
 VERIFY_DELIVERY_SKILL = SKILLS_ROOT / "desktop-verify-delivery" / "SKILL.md"
-GUI_RELEASE_PERFORMANCE_SKILL = (
-    SKILLS_ROOT / "desktop-test-gui-release-performance" / "SKILL.md"
-)
-GUI_RELEASE_PERFORMANCE_REFERENCE = (
-    SKILLS_ROOT
-    / "desktop-test-gui-release-performance"
-    / "references"
-    / "performance-evidence-schema.md"
-)
 VERIFICATION_DOC = ROOT / "docs" / "VERIFICATION.md"
 PARALLEL_SKILL = SKILLS_ROOT / "desktop-run-parallel-worktrees"
 PARALLEL_WORKTREE_SCRIPT = PARALLEL_SKILL / "scripts" / "parallel_worktrees.py"
@@ -246,18 +237,6 @@ CROSS_RELEASE_CONTEXT_HELPER_TESTS = (
     / "desktop-prepare-cross-platform-release"
     / "scripts"
     / "test_verify_release_context.py"
-)
-GUI_RELEASE_PERFORMANCE_HELPER = (
-    SKILLS_ROOT
-    / "desktop-test-gui-release-performance"
-    / "scripts"
-    / "validate_gui_release_performance.py"
-)
-GUI_RELEASE_PERFORMANCE_TESTS = (
-    SKILLS_ROOT
-    / "desktop-test-gui-release-performance"
-    / "scripts"
-    / "test_validate_gui_release_performance.py"
 )
 VERSION_SKILL = SKILLS_ROOT / "desktop-manage-version"
 VERSION_GATE_HELPER = VERSION_SKILL / "scripts" / "version_gate.py"
@@ -520,11 +499,6 @@ REQUIRED_FILES = (
     ".agents/skills/desktop-prepare-release/scripts/test_release_context.py",
     ".agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_context.py",
     ".agents/skills/desktop-prepare-cross-platform-release/scripts/test_verify_release_context.py",
-    ".agents/skills/desktop-test-gui-release-performance/SKILL.md",
-    ".agents/skills/desktop-test-gui-release-performance/agents/openai.yaml",
-    ".agents/skills/desktop-test-gui-release-performance/references/performance-evidence-schema.md",
-    ".agents/skills/desktop-test-gui-release-performance/scripts/validate_gui_release_performance.py",
-    ".agents/skills/desktop-test-gui-release-performance/scripts/test_validate_gui_release_performance.py",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/pageSessionState.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/assets/brand-support/react/PageSessionState.test.ts",
     ".agents/skills/desktop-prepare-gui-support-surfaces/SKILL.md",
@@ -668,7 +642,6 @@ EXPECTED_SKILLS = {
     "desktop-summarize-development-history",
     "desktop-test-final-artifact-e2e",
     "desktop-test-gui-initialization-e2e",
-    "desktop-test-gui-release-performance",
     "desktop-upgrade-harness",
     "desktop-verify-delivery",
 }

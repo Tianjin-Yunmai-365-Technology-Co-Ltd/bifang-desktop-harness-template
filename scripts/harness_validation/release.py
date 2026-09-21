@@ -195,7 +195,6 @@ def validate_build_skill_contract(
             "provider default branch differs from release context",
             'f"refs/remotes/origin/{repository_default_branch}"',
             'f"refs/tags/{normalized[\'expectedTag\']}"',
-            '"performanceSelection": "not-applicable"',
             '"macosSigningSelection": "not-applicable"',
             '"sourceCommit": source_commit',
             '"releaseContextSha256": digest',
@@ -291,7 +290,7 @@ def validate_tauri_local_install_contract(
             "不得创建、刷新或写入项目根 `release/`",
             "不得计算或提升版本",
             "cargo test --workspace --all-targets --all-features --locked",
-            "不得自动追加格式、lint、类型、全仓治理、冒烟、E2E 或性能测试",
+            "不得自动追加格式、lint、类型、全仓治理、冒烟或 E2E",
             '$env:CI = "true"',
             "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign",
             "禁止 `cargo-xwin`、MSI、`all` bundle 和交叉宿主",
@@ -299,7 +298,7 @@ def validate_tauri_local_install_contract(
             "artifactPurpose: local-install-test",
             "releaseCandidate: false",
             "signingStatus: unsigned",
-            "本 Skill 不询问 E2E 开/关或性能测试开/关",
+            "本 Skill 不询问 E2E 开/关",
             "不得把普通本地试包称为任务升级",
         ),
     }
@@ -564,202 +563,6 @@ def validate_tauri_build_skill_contract(
             )
 
 
-def validate_gui_release_performance_contract(
-    errors: list[str],
-    *,
-    tauri_skill: Path = TAURI_RELEASE_SKILL,  # noqa: F405
-    prepare_skill: Path = PREPARE_RELEASE_SKILL,  # noqa: F405
-    performance_skill: Path = GUI_RELEASE_PERFORMANCE_SKILL,  # noqa: F405
-    performance_reference: Path = GUI_RELEASE_PERFORMANCE_REFERENCE,  # noqa: F405
-    performance_helper: Path = GUI_RELEASE_PERFORMANCE_HELPER,  # noqa: F405
-    performance_tests: Path = GUI_RELEASE_PERFORMANCE_TESTS,  # noqa: F405
-    collect_skill: Path = COLLECT_RELEASE_SKILL,  # noqa: F405
-    verify_skill: Path = VERIFY_DELIVERY_SKILL,  # noqa: F405
-    e2e_skill: Path = E2E_SKILL,  # noqa: F405
-    release_doc: Path = ROOT / "docs" / "RELEASE.md",  # noqa: F405
-    verification_doc: Path = VERIFICATION_DOC,  # noqa: F405
-) -> None:
-    """锁定逐次性能选择及启用、禁用、xwin 三条候选分支。"""
-    required = {
-        prepare_skill: (
-            "`performanceSelection: enabled | disabled`",
-            "当前发布请求已经明确时直接复用",
-            "产品/渠道硬要求强制启用并记录来源",
-            "否则询问用户一次",
-            "这些选择属于单次发布，写入 `.harness/release-context.json`",
-            "构建只另外解析本次 E2E 选择",
-        ),
-        tauri_skill: (
-            "审查、性能和 macOS 签名选择及来源只能从上下文读取",
-            "所有 GUI 候选的 `performanceSelection` 必须精确为 `enabled | disabled`",
-            "同一 `sourceCommit` 重跑复用上下文",
-            "只有 `performanceSelection: enabled` 或产品/渠道硬要求时",
-            "性能已启用时，`e2e_hint` 或本次 E2E 为 `disabled` 都不得跳过",
-            "只在 `performanceSelection: enabled` 时记录 `performanceStatus: Unverified`",
-            "选择 `disabled` 时使用下一条 `Not run` 契约",
-            "选择 `performanceSelection: disabled` 且无产品/渠道硬要求时",
-            "performanceStatus: Not run",
-            "不创建 `performanceProbe`、`performanceEvidence`、`performanceThresholdProfile`、`performanceWaiver` 或 `performanceRuntimeBinding`",
-            "非空 `performanceReason` 和 `performanceRemainingRisk`",
-            "`performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 与 `performanceRuntimeBinding` 必须全部缺席",
-            "性能选择为 `enabled` 时 `performanceStatus` 为 `Unverified`",
-            "选择为 `disabled` 且无硬要求时记录 `performanceStatus: Not run`",
-            "performanceStatus: passed | waived",
-            "原生 macOS 且性能启用时记录 `performanceStatus: passed | waived`、`performanceThresholdProfile: gui-release-v2`",
-            "performanceRuntimeBinding",
-            "原生 Windows 且性能启用时使用相同的 `performanceStatus: passed | waived`",
-            "原生 Windows 选择关闭时使用下一条 `Not run` 契约",
-        ),
-        performance_skill: (
-            "clean 默认主分支 HEAD",
-            "`gitPublication: remote` 时还必须通过远端主分支/tag 门禁",
-            "release-profile Tauri `--no-bundle`",
-            "当次 `performanceSelection: enabled` 或产品/渠道硬要求时调用",
-            "选择 `disabled` 且无硬要求时不得调用本 Skill",
-            "性能已启用时，即使当前 E2E 为 `disabled` 仍必须执行",
-            "manifest 明确包含 `performanceSelection: enabled`",
-            "performanceProbeKind: tauri-no-bundle-executable",
-            "performanceProbeBuildProfile: release",
-            "sourceTreeState: clean",
-            "恰好 5 次冷启动",
-            "中位数不超过 2400 ms",
-            "最大值不超过 3600 ms",
-            "至少 20 次",
-            "nearest-rank p95 不超过 120 ms",
-            "任何一次必须小于 240 ms",
-            "全部不短于 50 ms 的 Long Task",
-            "任何 Long Task 必须小于 240 ms",
-            "整棵进程树",
-            "6%；启用托盘时",
-            "不超过 2.4%",
-            "稳态整棵进程树 RSS 不超过 360 MiB",
-            "峰值不超过 600 MiB",
-            "max(初始 RSS × 18%, 38.4 MiB)",
-            "allProcessesRecovered",
-            "performanceRuntimeBinding",
-            "DMG/NSIS 容器摘要",
-            "performanceStatus: failed",
-            "performanceStatus: waived",
-            "明确确认就必须停止",
-            "本 Skill 不生成 `performanceStatus: Not run`",
-        ),
-        performance_reference: (
-            '"performanceSelection": "enabled"',
-            '"performanceProbeKind": "tauri-no-bundle-executable"',
-            '"sourceTreeState": "clean"',
-            '"probeBytesUnmodified": true',
-            '"wholeProcessTree": true',
-            '"allProcessesRecovered": true',
-            '"performanceRuntimeBinding"',
-            "verified-signing-transition",
-            "容器 SHA-256 永远不能填入 `performanceProbeSha256`",
-            "`performanceSelection: disabled`",
-            "`performanceStatus: Not run`",
-            "不得生成 `performanceProbe`、`performanceProbeSha256`、`performanceEvidence`、`performanceThresholdProfile`、`performanceWaiver` 或 `performanceRuntimeBinding`",
-        ),
-        performance_helper: (
-            "THRESHOLDS = {",
-            '"coldStartRuns": 5',
-            '"coldStartMedianMsMaximum": 2400.0',
-            '"coldStartMaximumMs": 3600.0',
-            '"interactionSamplesMinimum": 20',
-            '"interactionP95MsMaximum": 120.0',
-            '"interactionSingleMsExclusiveMaximum": 240.0',
-            '"longTaskMsMinimum": 50.0',
-            '"longTaskMsExclusiveMaximum": 240.0',
-            '"idleCpuP95PercentMaximum": 6.0',
-            '"hiddenTrayCpuP95PercentMaximum": 2.4',
-            '"steadyRssMiBMaximum": 360.0',
-            '"peakRssMiBMaximum": 600.0',
-            '"rssGrowthPercentMaximum": 18.0',
-            '"rssGrowthMiBMinimumAllowance": 38.4',
-            "def _nearest_rank_p95",
-            'manifest.get("performanceSelection")',
-            "manifest.performanceSelection must be 'enabled' for performance validation",
-            '_expect_equal(evidence, "performanceSelection", "enabled"',
-            "manifest.performanceProbe",
-            "manifest.performanceProbeKind",
-            "manifest.sourceTreeState",
-            "probeBytesUnmodified",
-            "wholeProcessTree",
-            "allProcessesRecovered",
-            "os.replace",
-            'parser.add_argument("--probe"',
-        ),
-        performance_tests: (
-            "test_threshold_boundaries_pass_with_e2e_disabled",
-            "test_disabled_performance_selection_is_rejected",
-            "test_debug_or_cross_compiled_probe_cannot_pass",
-            "test_manifest_must_name_clean_head_no_bundle_probe",
-            "test_rebuilding_probe_or_stale_source_binding_invalidates_evidence",
-            "test_requires_five_starts_twenty_interactions_and_observation",
-            "test_latency_and_long_task_fail_at_exclusive_limits",
-            "test_cpu_rss_and_growth_budgets_are_independent",
-            "test_tray_profile_controls_hidden_sampling",
-            "test_parent_only_sampling_or_failed_cleanup_cannot_pass",
-            "test_cli_preserves_failed_observations_and_never_implies_waiver",
-        ),
-        collect_skill: (
-            "performanceSelection",
-            "performanceStatus: Not run",
-            "非空 `performanceReason` 与 `performanceRemainingRisk`",
-            "`performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 和 `performanceRuntimeBinding` 全部缺席",
-            "performanceStatus: Unverified",
-            "performanceThresholdProfile: gui-release-v2",
-            "performanceRuntimeBinding",
-            "waived` 必须继续引用原始 `failed` 证据",
-        ),
-        verify_skill: (
-            "按每个 GUI manifest 的 `performanceSelection` 条件复核性能",
-            "`enabled`：复核打包前 `$desktop-test-gui-release-performance`",
-            "performanceThresholdProfile: gui-release-v2",
-            "证据的 `thresholdProfile` 必须同为 `gui-release-v2`",
-            "`disabled`：只有不存在产品/渠道性能硬要求时才接受 `performanceStatus: Not run`",
-            "非空 `performanceReason`、`performanceRemainingRisk`",
-            "`performanceEvidence`、`performanceProbe`、`performanceProbeSha256`、`performanceThresholdProfile`、`performanceWaiver` 和 `performanceRuntimeBinding` 全部缺席",
-            "performanceProbeSha256",
-            "performanceRuntimeBinding",
-            "DMG/NSIS 容器摘要本身不构成运行时绑定",
-        ),
-        e2e_skill: (
-            "`$desktop-test-gui-release-performance`",
-            "GUI 性能按 manifest 的当次 `performanceSelection` 独立处理",
-            "选择 `enabled` 或产品/渠道硬要求时",
-            "选择 `disabled` 且无硬要求时",
-            "performanceStatus: Not run",
-            "最终候选 E2E 通过也不能替代性能结论",
-            "安装容器摘要不能冒充探针摘要",
-        ),
-        release_doc: (
-            "GUI 性能和 macOS 签名选择也在该入口按当前请求、产品事实与渠道要求锁定",
-            "GUI 性能选择为 `enabled` 或产品/渠道硬要求时",
-            "performanceSelection",
-            "performanceStatus: passed | waived | Not run | Unverified",
-            "release-profile no-bundle 探针候选",
-            "一次预热后 5 次冷启动中位数 ≤2.4 秒且最大 ≤3.6 秒",
-            "至少 20 次代表性交互 p95 ≤120ms 且单次 <240ms",
-            "稳定 RSS ≤360 MiB、峰值 ≤600 MiB",
-            "仍无法安全解决时才询问",
-            "选择为 `disabled` 且无硬要求时不生成探针",
-            "没有探针、性能证据或运行时绑定字段",
-        ),
-        verification_doc: (
-            "GUI 发布性能是逐次选择",
-            "整个 Tauri/WebView 进程树",
-            "用户显式继续只能记录 `performanceStatus: waived`",
-            "选择 `disabled` 且无硬要求时允许 `performanceStatus: Not run`",
-            "不得伪造探针、性能证据或运行时绑定",
-            "渠道要求下 `Not run` 或 `Unverified` 都不能满足发布条件",
-        ),
-    }
-    validate_fragment_contract(
-        errors,
-        required,
-        label="GUI performance contract",
-        compile_check=(performance_helper, performance_tests),
-    )
-
-
 def validate_release_selection_contract(
     errors: list[str],
     *,
@@ -783,7 +586,6 @@ def validate_release_selection_contract(
             "`reviewSelection: enabled | disabled`",
             "安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求强制启用",
             "当前发布请求已经明确时直接复用",
-            "`performanceSelection: enabled | disabled`",
             "`macosSigningSelection: enabled | disabled`",
             "`system_notification = enabled` 且签名关闭时立即 `Not ready`",
             "这些选择属于单次发布，写入 `.harness/release-context.json`",
@@ -849,8 +651,7 @@ def validate_release_selection_contract(
         tauri_skill: (
             "release_context.py verify --project-root .",
             "`sourceCommit`、`releaseContextSha256`、`releaseReview` 与 `candidateSelections`",
-            "审查、性能和 macOS 签名选择及来源只能从上下文读取",
-            "所有 GUI 候选的 `performanceSelection: enabled | disabled`",
+            "审查和 macOS 签名选择及来源只能从上下文读取",
             "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`",
             "同一 `sourceCommit` 重跑复用上下文",
             "`macosSigningSource` 按 `channel-required > requested > configured > not-requested`",
@@ -931,7 +732,7 @@ def validate_release_selection_contract(
     )
 
     tauri_text = tauri_skill.read_text(encoding="utf-8") if tauri_skill.is_file() else ""
-    early_intent = "审查、性能和 macOS 签名选择及来源只能从上下文读取"
+    early_intent = "审查和 macOS 签名选择及来源只能从上下文读取"
     first_dmg_build = "pnpm tauri build --bundles dmg"
     if (
         early_intent in tauri_text
@@ -983,12 +784,12 @@ def validate_harness_source_release_contract(
     required = {
         prepare_skill: (
             "先判定当前根是否同时包含 Harness 专用 `Version.md`",
-            "Harness 源的 `performanceSelection`/`performanceSource` 与 `macosSigningSelection`/`macosSigningSource` 都固定为 `not-applicable`",
+            "Harness 源的 `macosSigningSelection`/`macosSigningSource` 固定为 `not-applicable`",
             "任何由独立事件真实触发的 Changelog 必须已经写入并纳入这次源码/治理提交",
             "不得在锁定 `sourceHead` 后再补写 Changelog",
             "`release_context.py write` 会拒绝 `sourceHead` 不等于写入时当前 HEAD 的请求",
             "第二个精确范围提交只能同时包含 `release-notes.json` 与 `.harness/release-context.json`",
-            "--performance-selection not-applicable --performance-source not-applicable --macos-signing-selection not-applicable --macos-signing-source not-applicable",
+            "--macos-signing-selection not-applicable --macos-signing-source not-applicable",
             "`gitPublication: local | remote`",
             "--release-context-sha256 <releaseContextSha256>",
             "--remote <remote>",
@@ -1030,7 +831,7 @@ def validate_harness_source_release_contract(
             "Harness 源与已初始化终端下游由 `$desktop-manage-git-lifecycle` 唯一管理",
             "只有当前 HEAD 仍精确等于该值时",
             "把且只把根 `release-notes.json` 与 `.harness/release-context.json` 作为同一个发布元数据提交",
-            "产品构建、`release/` manifest、性能、签名、公证、产品 E2E 和产品人工验收均不适用",
+            "产品构建、`release/` manifest、签名、公证、产品 E2E 和产品人工验收均不适用",
         ),
         release_doc: (
             "步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程",
@@ -1050,7 +851,7 @@ def validate_harness_source_release_contract(
         product_spec: (
             "change_id = HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE",
             "正式发布步骤 1–2 由 Harness 源和终端下游共用",
-            "步骤 3–7 的产品构建、`release/` manifest、性能、签名、公证、产品 E2E 和产品人工验收全部为 `Not applicable`",
+            "步骤 3–7 的产品构建、`release/` manifest、签名、公证、产品 E2E 和产品人工验收全部为 `Not applicable`",
             "源码归档及相邻 `.sha256`",
             "不创建或套用产品 manifest",
         ),
@@ -1313,7 +1114,6 @@ def validate_release_contract(errors: list[str]) -> None:
     validate_build_skill_contract(errors)
     validate_tauri_local_install_contract(errors)
     validate_tauri_build_skill_contract(errors)
-    validate_gui_release_performance_contract(errors)
     validate_release_selection_contract(errors)
     validate_harness_source_release_contract(errors)
     validate_release_git_contract(errors)

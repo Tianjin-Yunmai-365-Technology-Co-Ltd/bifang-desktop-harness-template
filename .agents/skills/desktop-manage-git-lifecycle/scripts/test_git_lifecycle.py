@@ -782,7 +782,7 @@ class GitLifecycleTests(GitLifecycleTestCase):
                 raw = path.read_bytes()
                 if mutation == "nested":
                     value = json.loads(raw.decode("utf-8"))
-                    value["candidateSelections"]["performanceSource"] = "requested"
+                    value["candidateSelections"]["macosSigningSource"] = "requested"
                     raw = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
                 else:
                     self.git(repository, "config", "core.autocrlf", "false")

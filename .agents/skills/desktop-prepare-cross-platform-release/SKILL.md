@@ -16,8 +16,8 @@ description: 仅为远端 Git 发布的 Rust CLI 候选准备三平台原生矩�
    python3 .agents/skills/desktop-prepare-release/scripts/release_context.py verify --project-root . --expected-version <version>
    ```
 
-   首先要求返回的 `gitPublication` 精确为 `remote`；`local` 以稳定错误停止且不得派发 provider。随后锁定 40 位 `sourceCommit`、`releaseContextSha256`、远端动态默认分支、`expectedTag`、`releaseReview` 与 `candidateSelections`。Rust CLI 的性能与 macOS 签名选择必须精确为 `not-applicable`。上下文只描述发布/审查/构建选择；它不限制提交拓扑。
-3. 手动提供方工作流只接受固定 `confirm_candidate_build`、`version`、`source_commit`、`release_context_sha256` 和 `e2e_selection` 输入。摘要必须来自上一步；审查/性能/签名选择不能作为 workflow input 或由对话补齐。版本通过 `$desktop-manage-version check --phase build` 核对，更新日志只读检查并计算摘要。
+   首先要求返回的 `gitPublication` 精确为 `remote`；`local` 以稳定错误停止且不得派发 provider。随后锁定 40 位 `sourceCommit`、`releaseContextSha256`、远端动态默认分支、`expectedTag`、`releaseReview` 与 `candidateSelections`。Rust CLI 的 macOS 签名选择必须精确为 `not-applicable`。上下文只描述发布/审查/构建选择；它不限制提交拓扑。
+3. 手动提供方工作流只接受固定 `confirm_candidate_build`、`version`、`source_commit`、`release_context_sha256` 和 `e2e_selection` 输入。摘要必须来自上一步；审查/签名选择不能作为 workflow input 或由对话补齐。版本通过 `$desktop-manage-version check --phase build` 核对，更新日志只读检查并计算摘要。
 4. 派发前只读确认下游 `.github/workflows/release-candidate.yml` 与本 Skill 的 [assets/github-release-candidate.yml](assets/github-release-candidate.yml) 逐字节相同，并确认提供方、固定 action SHA、原生运行器和结果取回能力可用。缺失或漂移在矩阵启动前判定 provider unavailable，交回 `$desktop-build-rust-release` 走其受限本机回退；已启动作业失败不得改判为回退条件。
 5. 每个运行器固定检出提供方动态默认分支并使用 full fetch、`persist-credentials: false`。运行器要求当前具名分支等于提供方默认分支、`HEAD == source_commit`、`refs/remotes/origin/<default>` 与 `refs/tags/<expectedTag>` 都指向该提交、工作树 clean。默认分支名称不限于 `main/master`。
 6. 在任何项目代码、测试、构建或签名钩子前，用 `scripts/verify_release_context.py capture` 验证：

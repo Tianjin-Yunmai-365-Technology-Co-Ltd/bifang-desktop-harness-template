@@ -204,10 +204,6 @@ def validate_release_review(value: object, source_head: str) -> dict[str, Any]:
 
 def validate_candidate_selections(value: object) -> dict[str, Any]:
     required = {
-        "performanceSelection",
-        "performanceSource",
-        "performanceReason",
-        "performanceRemainingRisk",
         "macosSigningSelection",
         "macosSigningSource",
         "macosSigningReason",
@@ -215,30 +211,6 @@ def validate_candidate_selections(value: object) -> dict[str, Any]:
     }
     if not isinstance(value, dict) or set(value) != required:
         raise ReleaseContextError("candidateSelections fields are invalid")
-
-    performance = value["performanceSelection"]
-    performance_source = value["performanceSource"]
-    if performance == "not-applicable":
-        if performance_source != "not-applicable" or any(
-            value[field] is not None
-            for field in ("performanceReason", "performanceRemainingRisk")
-        ):
-            raise ReleaseContextError("not-applicable performance selection is inconsistent")
-        performance_reason = performance_risk = None
-    elif performance == "enabled":
-        if performance_source not in {"requested", "product-required", "channel-required"} or any(
-            value[field] is not None
-            for field in ("performanceReason", "performanceRemainingRisk")
-        ):
-            raise ReleaseContextError("enabled performance selection is inconsistent")
-        performance_reason = performance_risk = None
-    elif performance == "disabled":
-        if performance_source not in {"requested", "not-requested"}:
-            raise ReleaseContextError("disabled performance selection source is invalid")
-        performance_reason = public_text(value["performanceReason"], "candidateSelections.performanceReason")
-        performance_risk = public_text(value["performanceRemainingRisk"], "candidateSelections.performanceRemainingRisk")
-    else:
-        raise ReleaseContextError("performance selection is invalid")
 
     signing = value["macosSigningSelection"]
     signing_source = value["macosSigningSource"]
@@ -265,10 +237,6 @@ def validate_candidate_selections(value: object) -> dict[str, Any]:
         raise ReleaseContextError("macOS signing selection is invalid")
 
     return {
-        "performanceSelection": performance,
-        "performanceSource": performance_source,
-        "performanceReason": performance_reason,
-        "performanceRemainingRisk": performance_risk,
         "macosSigningSelection": signing,
         "macosSigningSource": signing_source,
         "macosSigningReason": signing_reason,
@@ -412,10 +380,6 @@ def build_review(arguments: argparse.Namespace) -> dict[str, Any]:
 
 def build_selections(arguments: argparse.Namespace) -> dict[str, Any]:
     return {
-        "performanceSelection": arguments.performance_selection,
-        "performanceSource": arguments.performance_source,
-        "performanceReason": arguments.performance_reason,
-        "performanceRemainingRisk": arguments.performance_remaining_risk,
         "macosSigningSelection": arguments.macos_signing_selection,
         "macosSigningSource": arguments.macos_signing_source,
         "macosSigningReason": arguments.macos_signing_reason,
@@ -556,10 +520,6 @@ def check_context(arguments: argparse.Namespace, *, published: bool) -> dict[str
 
 
 def add_selection_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--performance-selection", required=True, choices=("enabled", "disabled", "not-applicable"))
-    parser.add_argument("--performance-source", required=True)
-    parser.add_argument("--performance-reason")
-    parser.add_argument("--performance-remaining-risk")
     parser.add_argument("--macos-signing-selection", required=True, choices=("enabled", "disabled", "not-applicable"))
     parser.add_argument("--macos-signing-source", required=True)
     parser.add_argument("--macos-signing-reason")
