@@ -91,6 +91,7 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
         MANTINE_LIST_VIEW_SKILL: (  # noqa: F405
             "即使用户未写“表格”",
             "stickyHeaderOffset={GLOBAL_OFFSET}",
+            "background-color: var(--mantine-color-body)",
             "asc → desc → none",
             "[10, 20, 50, 100]",
             "浅/深/浅/深",
@@ -107,6 +108,7 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "服务端默认排序必须确定",
             "浅色主题：浅行为",
             "placeholder 旧行只能只读显示",
+            "不透明语义背景",
             "分页使用 responsive layout",
             "@dnd-kit/sortable",
         ),
@@ -139,6 +141,7 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
         ),
         MANTINE_LIST_VIEW_TEMPLATE: (  # noqa: F405
             "stickyHeaderOffset={LIST_STICKY_HEADER_OFFSET}",
+            "className={styles.tableHeader}",
             'from "@tabler/icons-react"',
             "placeholderData:",
             "lastSortCorrection",
@@ -189,6 +192,8 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             'size="compact-sm"',
         ),
         MANTINE_LIST_VIEW_STYLES: (  # noqa: F405
+            ".tableHeader th",
+            "background-color: var(--mantine-color-body)",
             'data-row-tone="light"',
             'data-row-tone="deep"',
             ".dataRow:hover",
@@ -197,7 +202,10 @@ def core_first_requirements() -> dict[Path, tuple[str, ...]]:
             "--mantine-color-dark-4",
             "forced-colors: active",
         ),
-        MANTINE_LIST_VIEW_STYLE_TYPES: ("readonly dataRow: string",),  # noqa: F405
+        MANTINE_LIST_VIEW_STYLE_TYPES: (  # noqa: F405
+            "readonly tableHeader: string",
+            "readonly dataRow: string",
+        ),
         MANTINE_LIST_VIEW_CONTRACT_TEST: (  # noqa: F405
             "resolveInitialListLocation",
             "mergeOwnedListSearch",

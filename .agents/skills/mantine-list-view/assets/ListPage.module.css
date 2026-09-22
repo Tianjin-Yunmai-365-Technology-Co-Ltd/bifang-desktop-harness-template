@@ -15,6 +15,10 @@
   border: 0;
 }
 
+.tableHeader th {
+  background-color: var(--mantine-color-body);
+}
+
 .dataRow {
   background-color: var(--list-row-background);
 }

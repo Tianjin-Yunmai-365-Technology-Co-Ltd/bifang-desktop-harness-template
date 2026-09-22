@@ -21,7 +21,7 @@
 
 ## Required：Table、排序与逐行视觉
 
-- [ ] 使用 `<Table stickyHeader stickyHeaderOffset={共享常量}>`，没有手写 sticky 或 offset 字面量。
+- [ ] 使用 `<Table stickyHeader stickyHeaderOffset={共享常量}>`，没有手写 sticky 或 offset 字面量；`Table.Thead` 有稳定 CSS Module 类，表头 `th` 使用不透明 `var(--mantine-color-body)` 语义背景，滚动时数据行不会透出。
 - [ ] `Table.ScrollContainer` 有真实 `minWidth`、本地化区域名称、键盘入口、可见焦点；页面根不横向滚动。
 - [ ] 数据行严格浅/深/浅/深交替；light 为 `white`/`gray-1`，dark 为 `dark-7`/`dark-6`；hover 和 `:focus-within` 使用更强 `gray-3`/`dark-4` 高亮，焦点/forced-colors 不只靠颜色。
 - [ ] 排序按 asc→desc→none；每个字段只属于一列。当前列同时有可见方向图标和准确 `aria-sort`，none 时不设置；图标对辅助技术隐藏。

@@ -890,7 +890,7 @@ function ListPageWithStableColumnKey<
           aria-busy={query.isFetching || isCorrectingQueryState}
         >
           <Table.Caption>{props.messages.caption}</Table.Caption>
-          <Table.Thead>
+          <Table.Thead className={styles.tableHeader}>
             <Table.Tr>
               {hasSelection ? (
                 <Table.Th scope="col">

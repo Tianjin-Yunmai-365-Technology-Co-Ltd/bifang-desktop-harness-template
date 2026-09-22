@@ -22,6 +22,8 @@ if str(ROOT) not in sys.path:
 
 import scripts.validate_harness as validate_harness
 from scripts.harness_validation import (
+    architecture,
+    architecture_requirements,
     governance,
     governance_descriptions,
     governance_version,
@@ -295,6 +297,53 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
         self.assertIn("mantine-list-view executable contracts passed", result.stdout)
+
+    def test_mantine_list_view_rejects_transparent_sticky_header_regressions(self) -> None:
+        """模板必须同时保留表头类名与不透明主题背景。"""
+
+        template_source = MANTINE_LIST_VIEW_TEMPLATE.read_text(encoding="utf-8")
+        styles_source = MANTINE_LIST_VIEW_STYLES.read_text(encoding="utf-8")
+        template_anchor = "className={styles.tableHeader}"
+        background_anchor = "background-color: var(--mantine-color-body)"
+        self.assertIn(template_anchor, template_source)
+        self.assertIn(background_anchor, styles_source)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            temporary = Path(tmp_dir)
+            template_path = temporary / "ListPage.template.tsx"
+            styles_path = temporary / "ListPage.module.css"
+            template_path.write_text(
+                template_source.replace(template_anchor, "", 1),
+                encoding="utf-8",
+            )
+            styles_path.write_text(
+                styles_source.replace(
+                    background_anchor,
+                    "background-color: transparent",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(
+                    architecture_requirements,
+                    "MANTINE_LIST_VIEW_TEMPLATE",
+                    template_path,
+                ),
+                mock.patch.object(
+                    architecture_requirements,
+                    "MANTINE_LIST_VIEW_STYLES",
+                    styles_path,
+                ),
+            ):
+                errors: list[str] = []
+                architecture.validate_required_fragments(
+                    errors,
+                    architecture_requirements.core_first_requirements(),
+                )
+
+        self.assertTrue(any(template_anchor in error for error in errors), errors)
+        self.assertTrue(any(background_anchor in error for error in errors), errors)
 
     def test_governance_rejects_branch_gate_regression(self) -> None:
         """生命周期 Skill 不能恢复分支拓扑门禁。"""

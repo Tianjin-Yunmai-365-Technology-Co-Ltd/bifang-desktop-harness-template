@@ -15,12 +15,14 @@
   tabIndex={0}
 >
   <Table stickyHeader stickyHeaderOffset={LIST_STICKY_HEADER_OFFSET}>
-    {/* thead / tbody */}
+    <Table.Thead className={styles.tableHeader}>{/* column headers */}</Table.Thead>
+    <Table.Tbody>{/* rows */}</Table.Tbody>
   </Table>
 </Table.ScrollContainer>
 ```
 
 - `stickyHeaderOffset` 来自共享 AppShell 常量；不要给 wrapper、thead 或 th 手写 `position: sticky`。
+- `Table.Thead` 使用稳定 CSS Module 类，并以 `.tableHeader th { background-color: var(--mantine-color-body); }` 提供随主题变化的不透明表头背景；不得使用透明背景，否则滚动数据会从粘性表头下透出。
 - `minWidth` 按真实列宽声明。页面根不横向滚动；命名的 native scroll viewport 可由键盘进入并显示 focus ring。
 - 唯一业务主列使用 `<Table.Th scope="row">`。列标题使用 `<Table.Th scope="col">`；当前排序列才设置 `aria-sort`。
 - 真实数据行通过 CSS module 的 `data-row-tone="light|deep"` 交替着色，hover/`:focus-within` 提升对比，selected 与 forced-colors 保留独立非颜色反馈。

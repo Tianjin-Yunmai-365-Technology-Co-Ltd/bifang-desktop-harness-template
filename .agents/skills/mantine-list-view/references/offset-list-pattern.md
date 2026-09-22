@@ -119,6 +119,7 @@ if (correctedPage !== undefined) {
 ## 5. 排序与逐行视觉
 
 - `nextSort` 固定 asc→desc→none，并与 page=1 原子更新。`aria-sort` 只在当前 th；可见 Tabler icon 与状态一致且 `aria-hidden`。
+- `Table.Thead` 绑定稳定 CSS Module 类，表头 `th` 以 `background-color: var(--mantine-color-body)` 提供不透明语义背景；粘滞定位仍只由 Mantine `stickyHeader` 管理，CSS 不重复声明 sticky。
 - 当前排序摘要放在表格外，即使列因响应式隐藏也能感知和清除；primary/status/actions 必须设置 `required: true`，本身不允许响应式隐藏。
 - 数据行用 `data-row-tone` 交替 light/deep。light scheme 为 `white`/`gray-1`，dark scheme 为 `dark-7`/`dark-6`；hover/`:focus-within` 强化为 `gray-3`/`dark-4`，focus ring 和 forced-colors 独立可见。
 - 行本身不因视觉高亮自动变成可点击或可聚焦；只有真实语义控件进入 Tab 顺序。唯一 primary 单元格使用 `th scope="row"`，选择名称来自 `getRowAccessibleName`。

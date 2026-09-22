@@ -704,6 +704,7 @@ def primary_required_fragments(
         MANTINE_LIST_VIEW_SKILL: (
             "即使用户未写“表格”",
             "Table.ScrollContainer",
+            "background-color: var(--mantine-color-body)",
             "asc → desc → none",
             "[10, 20, 50, 100]",
             "浅/深/浅/深",
@@ -720,6 +721,7 @@ def primary_required_fragments(
         ),
         MANTINE_LIST_VIEW_TEMPLATE: (
             "stickyHeaderOffset={LIST_STICKY_HEADER_OFFSET}",
+            "className={styles.tableHeader}",
             "placeholderData:",
             "lastSortCorrection",
             "data-row-tone",
@@ -743,6 +745,8 @@ def primary_required_fragments(
             "moveColumnRight",
         ),
         MANTINE_LIST_VIEW_STYLES: (
+            ".tableHeader th",
+            "background-color: var(--mantine-color-body)",
             'data-row-tone="light"',
             'data-row-tone="deep"',
             ".dataRow:hover",
@@ -753,7 +757,10 @@ def primary_required_fragments(
             "renderSelectionActions",
             "getErrorPresentation",
         ),
-        MANTINE_LIST_VIEW_STYLE_TYPES: ("readonly dataRow: string",),
+        MANTINE_LIST_VIEW_STYLE_TYPES: (
+            "readonly tableHeader: string",
+            "readonly dataRow: string",
+        ),
         MANTINE_LIST_VIEW_CONTRACT_TEST: (
             "resolveInitialListLocation",
             "validatePageResponse",

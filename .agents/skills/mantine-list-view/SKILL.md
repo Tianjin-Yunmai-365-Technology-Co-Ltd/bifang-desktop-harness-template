@@ -24,7 +24,7 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 ### 表格、行与窄屏
 
-- 只用 `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>` 与 `Table.ScrollContainer`；offset 来自共享布局常量，禁止手写 sticky。滚动区必须可聚焦、有本地化名称和可见焦点。
+- 只用 `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>` 与 `Table.ScrollContainer`；offset 来自共享布局常量，禁止手写 sticky。`Table.Thead` 使用稳定 CSS Module 类，其 `th` 必须以 `background-color: var(--mantine-color-body)` 提供不透明语义背景，禁止透明或单一色彩模式固定色，避免滚动数据透出。滚动区必须可聚焦、有本地化名称和可见焦点。
 - 每个真实数据行固定浅/深/浅/深交替；浅色主题使用 `white`/`gray-1`，深色主题使用 `dark-7`/`dark-6`。鼠标 hover 或任一行内控件 `:focus-within` 时用更强的 `gray-3`/`dark-4` 高亮；键盘焦点另有清晰轮廓，forced-colors 仍可见。不要只靠颜色表达选择或状态。
 - 唯一 `primary` 列以 `th scope="row"` 渲染，并由业务提供非空行名称。`primary`、声明存在的 `status`/`actions` 必须显式设置 `required: true`，且它们和所有 required 列都不得设置 `hideBelow`；次要列才可隐藏。
 - placeholder 旧行是只读展示：整行 inert、选择和行内副作用禁用，`renderCell` 必须尊重 `interactive=false`。

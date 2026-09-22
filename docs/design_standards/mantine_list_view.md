@@ -21,7 +21,7 @@
 
 ## 表格、排序和窄屏
 
-- 表头粘滞只用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`；禁止手写 sticky。二维内容只在命名、可聚焦、有 focus ring 的 `Table.ScrollContainer` 内横向滚动，页面根不得横向滚动。
+- 表头粘滞只用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`；禁止手写 sticky。`Table.Thead` 必须使用稳定 CSS Module 类，并令其 `th` 以 `background-color: var(--mantine-color-body)` 提供不透明语义背景，避免滚动时数据行透出或与表头重合；不得用 `transparent` 或只适配单一色彩模式的固定颜色。二维内容只在命名、可聚焦、有 focus ring 的 `Table.ScrollContainer` 内横向滚动，页面根不得横向滚动。
 - 排序固定 asc→desc→none；排序变化原子 page=1。当前表头同时有准确 `aria-sort` 和可见 Tabler 方向图标，图标 `aria-hidden`；none 时不设置 aria-sort。表格外显示当前排序摘要和清除入口，窄屏隐藏次要列时仍可感知。
 - 列 schema 的 columnId 和可访问名称非空，columnId 唯一，每个 sortField 只属于一列；恰好一个 `responsiveRole="primary"`。primary、声明存在的 status/actions 必须设置 `required: true`，并和所有 required 列一样不得设置 `hideBelow`；次要列才可响应式隐藏。
 - 唯一 primary 业务单元格为 `th scope="row"`，每行由业务提供非空可理解名称。React key 使用带 id 类型前缀的稳定业务 id，不用 index；行本身不因视觉高亮自动变成链接或按钮。
