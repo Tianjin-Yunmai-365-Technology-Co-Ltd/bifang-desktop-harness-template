@@ -33,6 +33,10 @@ CACHED_PATCH_ARGUMENTS = (
     "--no-ext-diff",
     "--no-textconv",
 )
+APPROVABLE_HARNESS_PATHS = {
+    PurePosixPath(".harness/release-context.json"),
+    PurePosixPath(".harness/upstream-lock.json"),
+}
 
 
 class ReleaseGitError(RuntimeError):
@@ -199,10 +203,12 @@ def normalize_approved_path(value: str) -> str:
         or path == PurePosixPath(".harness")
         or (
             path.parts[0] == ".harness"
-            and path != PurePosixPath(".harness/release-context.json")
+            and path not in APPROVABLE_HARNESS_PATHS
         )
     ):
-        raise ReleaseGitError(f"release metadata or Git internals cannot be approved: {value!r}")
+        raise ReleaseGitError(
+            f"unapproved Harness metadata or Git internals cannot be approved: {value!r}"
+        )
     return path.as_posix()
 
 

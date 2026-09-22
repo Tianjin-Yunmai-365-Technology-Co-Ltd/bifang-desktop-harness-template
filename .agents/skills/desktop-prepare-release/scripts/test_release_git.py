@@ -110,12 +110,19 @@ class ReleaseGitTests(unittest.TestCase):
                 result = self.commit(self.inspect(), path.name)
                 self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_release_context_is_the_only_approvable_harness_metadata(self) -> None:
+    def test_only_release_context_and_upstream_lock_are_approvable_harness_metadata(
+        self,
+    ) -> None:
         directory = self.root / ".harness"
         directory.mkdir()
         context = directory / "release-context.json"
         context.write_text("{}\n", encoding="utf-8")
         result = self.commit(self.inspect(), ".harness/release-context.json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        upstream_lock = directory / "upstream-lock.json"
+        upstream_lock.write_text("{}\n", encoding="utf-8")
+        result = self.commit(self.inspect(), ".harness/upstream-lock.json")
         self.assertEqual(result.returncode, 0, result.stderr)
 
         (self.root / "source.txt").write_text("next\n", encoding="utf-8")

@@ -31,7 +31,7 @@ description: 使用仓库声明的版本方案锁定单次本地或远端 Git �
    python3 .agents/skills/desktop-prepare-release/scripts/release_git.py commit --project-root . --expected-status-sha256 <sha256> --message "<Conventional Commit>" --path <reviewed-path> [--path <reviewed-path> ...]
    ```
 
-   明确发布请求已经授权此提交，不再询问第二次审批。脚本使用 literal pathspec，正常运行 hooks 且绝不传 `--no-verify`。工作树原本 clean 时不创建空源码提交。提交后的 clean HEAD 记为 `sourceHead`。
+   明确发布请求已经授权此提交，不再询问第二次审批。脚本使用 literal pathspec，正常运行 hooks 且绝不传 `--no-verify`。已完成并验证的 Harness 升级所维护的 tracked `.harness/upstream-lock.json` 属于本步骤可复核的源码/治理路径；除此之外的 `.harness/*` 仍不得获批，发布元数据步骤也仍只允许日志与 context。工作树原本 clean 时不创建空源码提交。提交后的 clean HEAD 记为 `sourceHead`。
 6. 按选择形成 `releaseReview`：
    - `enabled`：以最近一次真实发布提交到 `sourceHead` 为范围，完成行为正确性、core/adapter 边界、对外契约、职责/规模、临时标记五项检查；Harness 源另运行 `python3 -B scripts/validate_harness.py --release-review`。只有全部通过才记录 `passed`、五项固定检查、`reviewedSourceCommit = sourceHead` 与公开摘要。
    - `disabled`：记录 `reviewStatus: Not run`、公开原因与剩余风险，不生成审查证据。
