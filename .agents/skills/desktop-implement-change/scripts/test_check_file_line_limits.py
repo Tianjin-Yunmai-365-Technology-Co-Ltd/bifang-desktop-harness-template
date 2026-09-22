@@ -5,7 +5,6 @@ from __future__ import annotations
 from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
-import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -190,8 +189,6 @@ class FileLineLimitTests(RepositoryFixture):
 
         payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
         names = [".hidden file.md"]
-        if os.name != "nt":
-            names.append("line\nbreak.txt")
         for name in names:
             self.write(name, payload)
         self.track(*names)
@@ -201,13 +198,15 @@ class FileLineLimitTests(RepositoryFixture):
             sorted(names),
         )
 
-    @unittest.skipIf(os.name == "nt", "Windows filenames cannot contain newlines")
     def test_handles_newlines_in_paths(self) -> None:
-        """支持该文件名的宿主必须以 NUL 清单无歧义处理换行。"""
+        """真实支持换行文件名的宿主必须以 NUL 清单无歧义处理。"""
 
         payload = "x\n" * (DEFAULT_HARD_LINE_LIMIT + 1)
         name = "line\nbreak.txt"
-        self.write(name, payload)
+        try:
+            self.write(name, payload)
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"当前文件系统无法创建换行文件名：{error}")
         self.track(name)
         report = inspect_repository(self.root)
         self.assertEqual([item["path"] for item in report["violations"]], [name])
@@ -225,8 +224,9 @@ class FileLineLimitTests(RepositoryFixture):
         link = self.root / "linked.txt"
         try:
             link.symlink_to(self.root / "target.txt")
-        except (OSError, NotImplementedError):
-            self.skipTest("当前平台不允许创建符号链接")
+        except (OSError, NotImplementedError) as error:
+            self.skipTest(f"当前文件系统无法创建符号链接：{error}")
+        self.assertTrue(link.is_symlink(), "宿主报告创建成功但未形成符号链接")
         self.track("linked.txt")
         report = inspect_repository(self.root)
         self.assertTrue(report["ok"], report)

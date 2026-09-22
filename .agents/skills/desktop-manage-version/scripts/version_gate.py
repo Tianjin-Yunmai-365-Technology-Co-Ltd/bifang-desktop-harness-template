@@ -118,6 +118,26 @@ def _initialization_root(raw: str) -> Path:
     return _project_directory(raw)
 
 
+def _is_independent_git_root(root: Path) -> bool:
+    """判断目录是否已经是独立 Git 顶层；无 Git 或仅位于父仓库内均返回 False。"""
+
+    git_marker = root / ".git"
+    if git_marker.exists() or git_marker.is_symlink():
+        return True
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=root,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return Path(result.stdout.strip()).resolve() == root
+
+
 def _project_root(raw: str) -> Path:
     root = _project_directory(raw)
     try:
@@ -319,7 +339,9 @@ def _consistent_context(root: Path) -> tuple[Path, Path, Version, str, dict[str,
     return cargo_path, state_path, cargo_version, cargo_text, state
 
 
-def initialize(root: Path) -> dict[str, Any]:
+def initialize(
+    root: Path, *, migration_approved: bool = False
+) -> dict[str, Any]:
     cargo_path = root / "Cargo.toml"
     state_path = root / STATE_RELATIVE
     if state_path.exists() or state_path.is_symlink():
@@ -330,18 +352,38 @@ def initialize(root: Path) -> dict[str, Any]:
             "current_version": str(current),
             "state": str(STATE_RELATIVE),
             "pending_change_count": len(state["pending_changes"]),
+            "migration": False,
+            "history_status": "preserved-existing-state",
+            "unrecoverable_history": [],
         }
     version, _ = _cargo_version(cargo_path)
+    migration = _is_independent_git_root(root)
+    if migration and not migration_approved:
+        raise GateError(
+            "version state is missing in an existing independent Git project; "
+            "rerun init with --migration-approved only after explicit user approval; "
+            "prior pending_changes, applied_bug_ids, and last_release history cannot be recovered"
+        )
     if state_path.parent.exists() and state_path.parent.is_symlink():
         raise GateError(f"refusing symlink state directory: {state_path.parent}")
     state = _new_state(version)
     _atomic_write(state_path, _state_json(state))
+    unrecoverable_history = (
+        ["pending_changes", "applied_bug_ids", "last_release"] if migration else []
+    )
     return {
         "action": "init",
         "changed": True,
         "current_version": str(version),
         "state": str(STATE_RELATIVE),
         "pending_change_count": 0,
+        "migration": migration,
+        "history_status": (
+            "unrecoverable-pre-migration-history"
+            if migration
+            else "new-project-empty-baseline"
+        ),
+        "unrecoverable_history": unrecoverable_history,
     }
 
 def _existing_change(state: dict[str, Any], change_id: str) -> dict[str, Any] | None:
@@ -525,6 +567,7 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     init_parser = subparsers.add_parser("init")
     init_parser.add_argument("--project-root", required=True)
+    init_parser.add_argument("--migration-approved", action="store_true")
     for command in ("plan", "apply"):
         change_parser = subparsers.add_parser(command)
         change_parser.add_argument("--project-root", required=True)
@@ -554,7 +597,7 @@ def main(argv: list[str] | None = None) -> int:
             else _project_root(args.project_root)
         )
         if args.command == "init":
-            result = initialize(root)
+            result = initialize(root, migration_approved=args.migration_approved)
         elif args.command in {"plan", "apply"}:
             result = evaluate_change(
                 root,

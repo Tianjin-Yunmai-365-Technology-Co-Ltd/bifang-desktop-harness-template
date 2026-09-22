@@ -16,16 +16,25 @@ description: 管理下游产品的自动语义化版本门禁、base-100 进位�
 - 查询、诊断、复现、未完成或重复处理，以及不改变可观察行为的重构、内部优化、测试补强、文档、格式和内部清理都属于 `maintenance`，不改变版本。
 - 维护不改变版本；不得把维护换名为功能或缺陷修复来绕过分类。
 - Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`；Cargo 或状态 `target_version` 中一旦出现 `100`，`init`、`check`、`plan`、`maintenance` 和 `apply` 一律失败关闭，没有可读取或延迟规范化的旧值例外，必须先手动把版本改回 `0..99` 才能继续任何操作。
+- `init` 在新项目尚未建立独立 Git 时创建初始状态；在已存在的独立 Git 项目缺少状态时，它只接受用户对本次不可逆历史缺口明确批准后的 `--migration-approved`。迁移以当前合法 Cargo 版本建立空周期基线，并报告旧 `pending_changes`、`applied_bug_ids` 与 `last_release` 无法恢复；不得推断、伪造或从 Git/发布日志回填这些历史。
 - 普通构建、`pending` 候选、验收和失败发布都不重置周期。只有正式发布已经成功后才能执行 `finalize-release`；它清空待发布变化并允许下一周期的首个功能再次提升 Minor，但保留历史 `bug-fix` 稳定 ID。
 - Product Spec、ADR、Changelog 或 Work Plan 只有被自身事件独立触发时才记录相应 `change_id` 的 `required_version`。版本变化不得为普通缺陷或维护任务强制创建这些文档；最终发布版本允许高于早先记录的最低所需版本。
 
 ## 工作流程
 
-1. 除初始化流程唯一的 `init` 外，先确认目标是已初始化的下游项目、项目根是独立 Git 顶层目录，并读取根 `Cargo.toml` 与 `.harness/version-state.json`。状态缺失只允许在初始化流程中运行；此时 `init` 是唯一允许在独立 Git 建立前运行的命令，必须在根 Cargo 初始版本写入后、GUI E2E 与一次性裁剪前生成受保护状态，且不得借此提前初始化 Git：
+1. 除 `init` 外，先确认目标是已初始化的下游项目、项目根是独立 Git 顶层目录，并读取根 `Cargo.toml` 与 `.harness/version-state.json`。新项目初始化时，`init` 是唯一允许在独立 Git 建立前运行的命令，必须在根 Cargo 初始版本写入后、GUI E2E 与一次性裁剪前生成受保护状态，且不得借此提前初始化 Git：
 
    ```text
    python3 .agents/skills/desktop-manage-version/scripts/version_gate.py init --project-root .
    ```
+
+   对版本管理上线前已经初始化、已有独立 Git 但缺少状态的旧下游，先说明无法恢复的历史并取得用户对本次迁移的明确批准，再执行：
+
+   ```text
+   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py init --project-root . --migration-approved
+   ```
+
+   该命令只使用当前合法 Cargo 版本创建空 `pending_changes`/`applied_bug_ids` 基线；没有 `--migration-approved` 时必须零写入失败。Harness 升级器只能在工程层升级完成后要求此路径，不能自行执行或写入 protected 状态。
 
 2. 实施前用 `plan` 只读计算分类和所需版本。功能、`bug-fix`（问题修复或用户可感知优化）和显式 Major 变化必须提供稳定 `change_id`；Major 还必须提供用户批准的精确值和 `--user-approved`。`plan` 绝不写入文件。例如：
 
@@ -52,7 +61,7 @@ description: 管理下游产品的自动语义化版本门禁、base-100 进位�
 
 ## 失败关闭
 
-- 根 Cargo 版本与状态目标不一致、状态缺失/损坏、路径为符号链接、Git 根不独立、版本格式不受支持、Minor/Patch 超出支持范围 `0..99`、Major 超出 Cargo `u64` 范围、缺少稳定 ID、当前 `pending_changes` 中的 ID 被不同类别复用、历史 `bug-fix` ID 被改作其他提升类别，或显式 Major 未明确批准时停止；不得手工绕过状态文件。Major 不设 99/100 的业务上限，新生成 Minor/Patch 的 99 边界必须自动进位；只有最高 Major 超出 `u64::MAX` 时才因没有更高数位而失败。
+- 根 Cargo 版本与状态目标不一致、状态缺失/损坏、旧下游迁移未传 `--migration-approved`、路径为符号链接、Git 根不独立、版本格式不受支持、Minor/Patch 超出支持范围 `0..99`、Major 超出 Cargo `u64` 范围、缺少稳定 ID、当前 `pending_changes` 中的 ID 被不同类别复用、历史 `bug-fix` ID 被改作其他提升类别，或显式 Major 未明确批准时停止；不得手工绕过状态文件。Major 不设 99/100 的业务上限，新生成 Minor/Patch 的 99 边界必须自动进位；只有最高 Major 超出 `u64::MAX` 时才因没有更高数位而失败。
 - 不得修改成员 crate 的独立版本；所有成员继续使用 `version.workspace = true`。
 - 不得把 `finalize-release` 当作构建收尾，也不得仅凭 tag、候选存在或发布尝试开始就重置周期。
 

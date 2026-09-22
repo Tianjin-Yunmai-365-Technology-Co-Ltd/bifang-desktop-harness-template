@@ -1,12 +1,12 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-09-21
+> 记忆日期：2026-09-23
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-09-21（删除量化发布探针、相关选择与证据链；此前决定继续有效）
+> 最近范围确认：2026-09-23（旧下游版本状态迁移和现有产品改名版本分类；此前决定继续有效）
 
 ## 一句话目标
 
@@ -17,7 +17,7 @@
 - 核心用户：使用 AI Agent 创建、交付和维护企业收费小工具的项目负责人。
 - 主要场景：Agent 直接完成当前批准范围，并只运行本次开发所需的相关单元/回归测试；除必要 ADR、Changelog 等事件触发记录外，不自动增加持久计划、全仓检查、构建、冒烟、E2E、验收或人工复核步骤。
 - 失败闭环：开发单元测试失败时在当前授权范围内修复并重跑；发现产品边界、安全、破坏性操作、生产/付费/凭据副作用或发布授权缺失时，只增加解决该风险必需的确认或记录，不把它扩张成通用流程仪式。
-- 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。
+- 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。自动版本管理上线前的旧下游若缺少受保护的 `.harness/version-state.json`，工程层升级完成后必须停止自动流程并公开无法恢复的历史；只有用户明确批准，目标项目版本 Skill 才以当前合法 Cargo 版本建立空周期迁移基线，升级器本身始终不得写该状态。
 - Git 场景：新功能和独立 Bug 修复首次写入前自动建立本地 `feature-{ascii-kebab摘要}-{上海日期}`。用户明确“推送”时，`--remote`/`state.remote` 表示唯一主远端，普通合并本周期登记分支、切换其动态默认主分支并推送；逐一明确授权其他具名远端时，只有 `publish` 可重复接收 `--also-remote <name>`。未完成的 `publish` 在 `pendingPublish` 中临时保存冻结 HEAD、有序目标和逐项确认进度，成功即清除；补充远端不改绑主远端，也不参与 release/tag/清理。跨远端推送部分成功如实报告，同目标重试不重新 fetch/merge 或重算 HEAD。明确“发布”时逐次询问并锁定 `gitPublication: local | remote`：本地模式只合并本地默认主分支、创建/复读本地 `v{版本}-{YYYYMMDD}` 后清理登记 Worktree/本地分支，零远端访问；远端模式才要求 `--remote <name>`，把主分支/tag push、远端复读和主远端分支清理作为硬门禁。发布上下文是唯一冻结选择，生命周期必须接收其 SHA-256 并在任何副作用前校验版本、日期、tag、默认分支、模式和 remote。流程不创建/配置远端或凭据，也没有保护分支、严格线性、单写入者或其他分支门禁。
 - Task 命名场景：只有左侧 user-owned Task 使用 `Task {序号} | {当前进度} | {单一结果}`；单一结果与序号固定，进度只取 `已分配`、`运行中`、`检查中`、`已完成`。同一 `hostId`/`projectId` 清点当前和逐页归档 Task 后取最大有效序号加一，空历史才使用 1、缺号不回填；不识别任何历史标题格式。内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不使用标题合同、不占用 Task 序号。
 - Task 场景：`user_owned_tasks` 默认 `disabled`，不自动创建或拆分左侧 Task，但用户明确要求仍可创建；`enabled` 是按结果边界自动创建的长期授权。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和独立工作区；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化必须新建 Task，同结果测试/review/checkpoint 与必要缺陷修复保留。每项目同时只允许一个写入型 active Task，Task0 仅协调。创建前依次核对项目、Task 历史和 active 写入者；Git 选择 Worktree，非 Git 选择 Local，以 `Task {序号} | 已分配 | {单一结果}` 调用一次 user-owned `create_thread`。只有真实 `threadId` 才继续，并复核标题、`projectId`、cwd、状态、干净工作区及起始提交；`clientThreadId` 或任一不符均零实现、不重复创建、不退化。
@@ -194,7 +194,7 @@
 
 - 变更标识：`HARNESS-FEAT-DOWNSTREAM-AUTO-VERSIONING`；所需 Harness 版本：`202608051301`（当前未发布时间版本，自动 SemVer 规则不适用于 Harness 自身）。
 - 补充变更标识：`HARNESS-FEAT-BASE100-AUTO-VERSION-CARRY`；所需 Harness 版本：`202609082335`，已由本次 Harness 时间版本发布物化。
-- 已初始化下游以根 `Cargo.toml` 的 `[workspace.package].version` 作为当前版本唯一事实源，并以受保护的 `.harness/version-state.json` 保存正式发布周期、待发布变化和已消费 `bug-fix` 稳定 ID；所有成员继续使用 workspace 版本。
+- 已初始化下游以根 `Cargo.toml` 的 `[workspace.package].version` 作为当前版本唯一事实源，并以受保护的 `.harness/version-state.json` 保存正式发布周期、待发布变化和已消费 `bug-fix` 稳定 ID；所有成员继续使用 workspace 版本。已有独立 Git 却缺少该状态时，普通 `init` 必须零写入失败；工程层升级并记录基线后，只有用户明确接受旧 `pending_changes`、`applied_bug_ids` 与 `last_release` 无法恢复，才可运行 `init --migration-approved`，以当前合法 Cargo 版本生成空集合基线并明确报告迁移事实。新项目在 Git 初始化前的正常 `init` 不需要该批准。
 - 版本固定为无预发布/构建元数据的 `MAJOR.MINOR.PATCH`。新生成的 Minor/Patch 数位为 `0..99` 并按 base-100 自动进位：`0.0.99 -> 0.1.0`、`0.99.99 -> 1.0.0`；Major 不受 99/100 的业务上限约束，但必须处于 Cargo `u64` 范围 `0..18446744073709551615`，越界进位在写入前失败关闭。显式 Major 只由用户批准精确目标且归零 Minor/Patch；自动进位到 Major 是数值计算例外，不需要也不代表该批准。
 - 一个正式发布周期的首个已完成功能提升一个 Minor 数位并把 Patch 归零，必要时自动进位 Major；后续功能直到真实正式发布成功解锁前不再提升。每个具有新稳定 ID 的已完成问题修复或用户可感知优化统一使用机器分类 `bug-fix`，提升一个 Patch 数位且不受功能锁影响；重复 ID 不提升，发布后回归必须使用新的稳定 ID。
 - 查询、诊断、复现、未完成或重复处理、行为保持重构、内部优化、测试补强、文档、格式和内部清理属于 `maintenance`，不提升版本。版本只在变化完成且本次相关测试通过后提交；`check`、`plan` 和 `maintenance` 对版本文件与状态零写入，普通构建、`pending` 候选、验收或失败发布也不能提升版本或重置周期。只有真实正式发布成功才重置首功能周期，同时保留历史稳定 ID。
@@ -251,7 +251,7 @@
 - 含 GUI 的下游在初始化单元测试通过后、裁剪初始化能力和创建唯一基线提交前，必须固定执行一次 `$desktop-test-gui-initialization-e2e`。结构检查解析九项 profile，始终验证 `os`（system-locale）、updater、window-state 三项 Rust-only 固定基线与 dialog 固定 WebView 基线，对启用条件能力验证完整契约、对禁用能力验证无残留；dialog 验证必须覆盖三处固定依赖、唯一有序注册、主窗口精确 `dialog:default`、全部官方默认 message/save/open 类型、无 wildcard/deprecated `ask`/`confirm` alias/`dialog:deny-*`/filesystem 权限且不进入 `invoke_handler`。真实二进制按选择验证单实例、托盘、开机自启、深链接和全局快捷键，自启、window-state 与快捷键必须恢复执行前状态；系统通知只验证默认关闭的 Switch、失败可见性和结构回归锁定的串行 worker/权限状态机，不以未签名调试二进制触发真实权限、设置跳转或投递。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面可达及未选页面缺席。它独立于 `e2e_hint`，任一适用场景失败或无法观察/恢复都阻断初始化；只能由打包应用证明的 macOS 通知宿主行为与静态 scheme 系统注册必须明确留待候选补验。
 - 产品启用更新时必须使用官方 Tauri updater 的签名制品、公开验证密钥和受限 HTTPS endpoints，签名验证不可关闭，并拒绝降级以及 target、arch、channel 不匹配。检查状态固定为 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`，失败不得伪装为最新版。强更只由 adapter 验证过真实性和目标绑定的 `minimumSupportedVersion` 交给 core，以严格 SemVer 得出；不得信任远端 `forcedUpdate` 布尔值。`RequiredUpdate` 使用根级不可关闭门，只允许安装已验证签名更新或安全退出。任务必须由应用生命周期拥有并具备单飞、取消、超时和关闭回收；一般网络/策略失败默认 fail-open。真实远程能力未批准时保持禁用和零出站。
 - 统计上报默认关闭且不进入初始化设置页。只有产品明确启用统计能力并建立受保护产品事实与独立产品级明确同意界面后，才允许每进程一次 `app_started`，由 Rust GUI adapter 以 HTTPS JSON `POST` body 发送文档声明的精确字段白名单；禁止 GET/query、自由文本、业务载荷、令牌、路径、用户名、主机名和稳定设备/安装标识。队列只驻留内存且最多 32 条，同一时刻最多一个在途请求，撤回同意立即取消并清空，任务与至多两次重试必须可关闭回收；任何新增事件、字段、稳定标识或持久队列都需重新批准。桌面客户端不得保存服务端共享秘密或发布私钥。更新 banner 只有产品选择时进入 bundle，真实 endpoint、统计接收方、公开 updater 配置与安全密钥引用只进入受保护产品事实。
-- 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留轻量 `AGENTS.md` 的非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills；任务专属细节继续由唯一事实源和精确命中的 Skill 承载，不复制回根入口。
+- 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留轻量 `AGENTS.md` 的非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills；任务专属细节继续由唯一事实源和精确命中的 Skill 承载，不复制回根入口。实例化期间用用户确认身份替换中性模板身份不进入产品版本门禁；初始化完成后的现有产品改名固定以稳定 `change_id` 按 `feature` 分类，在任何改名写入前执行版本 `plan`，专项测试与残留检查通过后以完全相同的分类和 ID `apply`，执行者不得自行改判为 maintenance、bug-fix 或豁免。
 - Harness 自身通过 `$desktop-curate-harness-memory` 治理自己的 `docs/adr/`、`docs/changelog/` 历史：当前最新文件超过 500 行建议重构阈值或项目负责人明确要求时，把已被后续决定完全取代、不再被任何当前规范引用的过期条目原文迁移到同目录 `ADR_history.md`/`CHANGELOG_history.md` 永久追加保存，不确定的条目保守保留。该 Skill 与其产生的 `_history.md` 不加入 `$desktop-instantiate-project` 复制清单，不随下游派生；不适用 Work Plan、Product Status、Product Spec，三者继续按整篇重写快照、历史交给 Git。
 - 文件、中文业务注释、文档、测试与例外统一遵守 `docs/ENGINEERING_RULES.md`。Rust 下游从 Cargo workspace 根运行中文声明注释检查器；GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明并接入 lint/validator。机械门禁不检查全部字段、局部变量、闭包或普通匿名回调，不自动生成套话，且只证明注释存在；语义仍由人工/Agent 复核。非 GUI 下游不适用 TypeScript 门禁。
 - 文件规模按上述分层门禁治理；Rust、前端和其他人工维护文本分别使用 400/800、500/1000、500/2000，具体后缀分类、职责复核和排除边界以 `docs/ENGINEERING_RULES.md` 为唯一详细来源。

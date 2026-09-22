@@ -17,6 +17,8 @@ class VersionGateTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         self.root = Path(self.temporary.name)
+        self._write_cargo("0.1.4")
+        version_gate.initialize(self.root)
         subprocess.run(
             ["git", "init", "--initial-branch=main", "."],
             cwd=self.root,
@@ -24,8 +26,6 @@ class VersionGateTests(unittest.TestCase):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        self._write_cargo("0.1.4")
-        version_gate.initialize(self.root)
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -65,13 +65,6 @@ class VersionGateTests(unittest.TestCase):
     def _project_with_version(self, name: str, version: str) -> Path:
         root = self.root / name
         root.mkdir()
-        subprocess.run(
-            ["git", "init", "--initial-branch=main", "."],
-            cwd=root,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
         (root / "Cargo.toml").write_text(
             "[workspace]\n"
             "members = []\n\n"
@@ -80,6 +73,13 @@ class VersionGateTests(unittest.TestCase):
             encoding="utf-8",
         )
         version_gate.initialize(root)
+        subprocess.run(
+            ["git", "init", "--initial-branch=main", "."],
+            cwd=root,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         return root
 
     def test_first_feature_bumps_minor_resets_patch_and_later_feature_does_not(self) -> None:
@@ -531,6 +531,80 @@ class VersionGateTests(unittest.TestCase):
         self.assertTrue((nested / version_gate.STATE_RELATIVE).is_file())
         self.assertNotEqual(checked.returncode, 0)
         self.assertIn("does not equal project root", checked.stderr)
+
+    def test_existing_git_migration_requires_approval_and_reports_lost_history(self) -> None:
+        """旧下游缺状态时必须显式批准，并如实报告无法恢复的历史。"""
+
+        legacy = self.root / "legacy-project"
+        legacy.mkdir()
+        subprocess.run(
+            ["git", "init", "--initial-branch=main", "."],
+            cwd=legacy,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        (legacy / "Cargo.toml").write_text(
+            "[workspace]\n"
+            "members = []\n\n"
+            "[workspace.package]\n"
+            'version = "7.8.9"\n'
+            'edition = "2024"\n',
+            encoding="utf-8",
+        )
+        helper = str(Path(version_gate.__file__))
+        rejected = subprocess.run(
+            [
+                sys.executable,
+                helper,
+                "init",
+                "--project-root",
+                str(legacy),
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        self.assertEqual(rejected.returncode, 2)
+        self.assertFalse((legacy / version_gate.STATE_RELATIVE).exists())
+        self.assertIn("--migration-approved", rejected.stderr)
+        self.assertIn("cannot be recovered", rejected.stderr)
+
+        migrated = subprocess.run(
+            [
+                sys.executable,
+                helper,
+                "init",
+                "--project-root",
+                str(legacy),
+                "--migration-approved",
+            ],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        self.assertEqual(migrated.returncode, 0, migrated.stderr)
+        payload = json.loads(migrated.stdout)
+        self.assertTrue(payload["migration"])
+        self.assertEqual(payload["current_version"], "7.8.9")
+        self.assertEqual(
+            payload["history_status"], "unrecoverable-pre-migration-history"
+        )
+        self.assertEqual(
+            payload["unrecoverable_history"],
+            ["pending_changes", "applied_bug_ids", "last_release"],
+        )
+        state = json.loads(
+            (legacy / version_gate.STATE_RELATIVE).read_text(encoding="utf-8")
+        )
+        self.assertEqual(state["cycle_base_version"], "7.8.9")
+        self.assertEqual(state["target_version"], "7.8.9")
+        self.assertEqual(state["pending_changes"], [])
+        self.assertEqual(state["applied_bug_ids"], [])
 
     def test_symlink_project_root_fails_closed(self) -> None:
         linked_root = self.root.parent / f"{self.root.name}-link"

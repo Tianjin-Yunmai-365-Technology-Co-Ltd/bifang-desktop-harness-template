@@ -12,12 +12,14 @@ from .context import (
     UPGRADE_MUTATION,
     UPGRADE_OWNERSHIP_MODULE,
     UPGRADE_OWNERSHIP,
+    UPGRADE_POLICY,
     UPGRADE_POLICY_MODULE,
     UPGRADE_PREFLIGHT,
     UPGRADE_RECORD,
     UPGRADE_SAFETY,
     UPGRADE_SCRIPT,
     UPGRADE_TESTS,
+    UPGRADE_SKILL,
     display_path,
     fail,
 )
@@ -222,6 +224,47 @@ def validate_upgrade_contract(
                     fail(
                         errors,
                         f"required checker ownership must remain managed: {required_path}",
+                    )
+
+    documentation_contracts = {
+        UPGRADE_SKILL / "SKILL.md": (
+            "Windows PowerShell",
+            "`py -3`",
+            "所有操作命令均保持单行",
+            "--migration-approved",
+            "unrecoverable-pre-migration-history",
+            "不得声称整个升级闭环完成",
+        ),
+        UPGRADE_POLICY: (
+            ".harness/version-state.json",
+            "$desktop-manage-version init --migration-approved",
+            "升级器本身不得调用或代写",
+        ),
+    }
+    for path, fragments in documentation_contracts.items():
+        try:
+            source = path.read_text(encoding="utf-8")
+        except OSError as error:
+            fail(
+                errors,
+                f"cannot read upgrade documentation contract {display_path(path)}: {error}",
+            )
+            continue
+        for fragment in fragments:
+            if fragment not in source:
+                fail(
+                    errors,
+                    "upgrade documentation contract missing from "
+                    f"{display_path(path)}: {fragment}",
+                )
+        if path == UPGRADE_SKILL / "SKILL.md":
+            for action in ("plan", "apply", "record"):
+                continuation = f"harness_upgrade.py {action} " + "\\\n"
+                if continuation in source:
+                    fail(
+                        errors,
+                        "upgrade command examples must not use POSIX line continuation: "
+                        f"{action}",
                     )
 
     for path in python_paths:

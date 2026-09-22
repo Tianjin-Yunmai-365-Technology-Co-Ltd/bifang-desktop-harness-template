@@ -260,7 +260,7 @@ class AgentPolicyTests(unittest.TestCase):
         self.assertIn("不得为普通开发预建 Verification", environment)
 
     def test_public_behavior_and_product_rename_use_direct_development(self) -> None:
-        """公开行为和已批准改名都不能自动制造计划、构建或完整验收。"""
+        """公开行为和改名使用直接开发，且改名版本分类保持确定。"""
         initialize = read_repo_text(".agents/skills/desktop-initialize-rust-project/SKILL.md")
         rename = read_repo_text(".agents/skills/desktop-rename-project-identity/SKILL.md")
         self.assertIn("业务 core 或适配器变化都直接实施", initialize)
@@ -268,6 +268,12 @@ class AgentPolicyTests(unittest.TestCase):
         self.assertIn("现有产品改名", rename)
         self.assertIn("确认后直接实施", rename)
         self.assertIn("不自动创建 Work Plan、候选或完整验收步骤", rename)
+        self.assertIn("该模式不进入 `$desktop-manage-version`", rename)
+        self.assertIn("固定使用 `$desktop-manage-version` 的 `feature` 分类", rename)
+        self.assertIn("在任何改名写入前执行 `plan --kind feature", rename)
+        self.assertIn("不得由执行者", rename)
+        self.assertIn("才使用第 2 步完全相同的 `feature` 分类", rename)
+        self.assertIn("实例化身份重置始终不执行版本门禁", rename)
 
 
 class InitializationFormContractTests(unittest.TestCase):

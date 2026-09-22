@@ -1,4 +1,4 @@
-# 2026-09-21 变更记录
+# 2026-09-23 变更记录
 
 ## 移除
 
@@ -6,6 +6,8 @@
 
 ## 新增
 
+- `HARNESS-CHANGE-LEGACY-VERSION-STATE-MIGRATION`（`required_version = pending`）：自动版本管理上线前的旧下游若在独立 Git 中缺少 `.harness/version-state.json`，工程层升级完成后会停止自动流程并公开无法恢复的待发布变化、已消费缺陷 ID 与上次发布历史；只有用户对本次历史缺口明确批准，目标项目版本 Skill 才接受 `init --migration-approved`，以当前合法 Cargo 版本建立空周期基线。无批准零写入失败，新项目 Git 初始化前的正常 `init` 不受影响，升级器仍不写 protected 状态。
+- `HARNESS-CHANGE-PRODUCT-RENAME-VERSION-CLASSIFICATION`（`required_version = pending`）：实例化期间的中性身份重置继续完全豁免产品版本门禁；初始化后的现有产品改名固定使用稳定 `change_id` 按 `feature` 分类，在改名写入前运行 `plan`，专项测试和残留检查通过后以相同参数 `apply`。执行者不再能把同一公开身份变化分别解释为 maintenance、bug-fix 或豁免。
 - `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`（`required_version = pending`）：列表标准升级为 `mantine-list-view-v2`。真实数据行固定浅/深交替，light scheme 使用 white/gray-1、dark scheme 使用 dark-7/dark-6，hover 或 focus-within 以 gray-3/dark-4 和独立焦点轮廓强化；placeholder 旧行整体 inert，选择、分页、批量和行内副作用全部禁用。原 1000 行起手模板拆为页面、纯状态契约、类型、列设置与 CSS module，并保存可直接执行的 Node 契约测试；同步补齐首次 URL 单次 replace、无关 query 保留、确定性服务端 tie-breaker、安全整数/响应一致性、可见排序图标、响应式且本地化分页、结果范围播报、可聚焦滚动区、主行表头、类型化错误/空态、选择 action bar 和同页刷新裁剪。列偏好改用跨 schema 稳定 key、payload 版本、显式迁移和 legacy 清理；交付 checklist 改为 Required/Conditional/带证据 N/A，并声明 Mantine 9.6.1 与 TanStack Query 5.102.8 的直接复制下界。
 
 - `HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD`（`required_version = pending`）：新增可自动触发的 `$mantine-list-view`、`mantine-list-view-v1` 标准、Mantine 9.x API 参考、offset 模式说明、交付 checklist 与 React/TypeScript 起手模板。列表统一使用 Mantine 原生 sticky Table/ScrollContainer、类型化排序三态、总页数 Pagination、10/20/50/100 页大小、四态、业务 id key、显式选择范围及窄屏降级；查询控件以显式 URL 或当前标签页快照恢复，业务行只归 TanStack Query 且每页 key 独立，列显隐/顺序以版本化 localStorage 持久化并由 dnd-kit 提供指针/键盘重排。普通页面 Jotai 进程状态保持不变；新 Skill 只随 GUI 下游初始化/升级传播，中性脚手架不生成业务页面或预装依赖。
@@ -58,7 +60,7 @@
 - `HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY`（所需 Harness 版本 `202608051301`）：新增标准库 `release_notes.py` 和受保护的根 `release-notes.json` 发布契约。发布准备会从上一次真实发布提交到当前源码整理最重要的功能优化/问题修复，每类至多 10 条并只保留近 5 版；构建只读校验并把同一日志打入候选，manifest 绑定带 `v` 版本、SHA-256 和包内路径。
 - 选择 GUI 关于页时，在“检查更新”旁新增自身绑定的“更新日志”按钮和本地弹窗模板，按当前 i18n locale 展示近 5 版双语日志、每类至多 10 个翻译对；远程更新未配置时只禁用检查按钮，本地日志仍可查看。未选关于页不建立隐藏入口。
 - `HARNESS-FEAT-DOWNSTREAM-AUTO-VERSIONING`（所需 Harness 版本 `202608051301`）：新增 `$desktop-manage-version` 与标准库版本 helper，最初约定首功能/周期升 Minor、稳定缺陷 ID 升 Patch、Major 用户批准与维护不升版本；其 `0..100` 溢出失败及仅缺陷修复走 Patch 的部分现由 `HARNESS-FEAT-BASE100-AUTO-VERSION-CARRY` 取代，Cargo 单一事实源、周期状态、稳定 ID 幂等和发布成功后解锁继续有效。
-- 下游初始化现在创建受保护的 `.harness/version-state.json`，开发在相关测试通过后才提交版本；Rust/Tauri 构建、跨平台候选、产物收集、验收和发布准备只校验当前目标，只有真实正式发布成功才重置首功能周期。升级器可更新版本 Skill 工程资产，但不得覆盖 Cargo 产品版本、发布周期或缺陷 ID 历史。
+- 下游初始化现在创建受保护的 `.harness/version-state.json`，开发在相关测试通过后才提交版本；Rust/Tauri 构建、跨平台候选、产物收集、验收和发布准备只校验当前目标，只有真实正式发布成功才重置首功能周期。升级器可更新版本 Skill 工程资产，但不得覆盖 Cargo 产品版本、发布周期或缺陷 ID 历史；版本管理上线前的旧下游缺状态时，改由 `HARNESS-CHANGE-LEGACY-VERSION-STATE-MIGRATION` 规定工程升级后的显式用户批准与空基线迁移。
 - 新增标准库 Node.js GUI 生命周期契约检查器 `verify-gui-lifecycle-contract.mjs` 及 profile-aware 专项回归：在 GUI 构建前解析七项初始化配置，对启用的单实例/托盘/系统通知/开机自启验证依赖、首插件、图标、菜单、关闭处理、i18n、设置状态机与命名回归，对禁用能力验证相关实现缺席，并要求托盘禁用时存在 `close_last_window_exits_application`。非法、缺失或 `pending` 配置及路径/源码/资产异常均失败关闭。
 - 新增 `$desktop-test-gui-initialization-e2e`：含 GUI 的下游在唯一初始化基线提交前固定构建真实本机 Tauri 调试二进制；单实例启用才双启动，托盘启用才操作真实托盘，托盘禁用则验证关闭最后窗口退出。Computer Use 同时验证所选侧栏、设置页、实际菜单页面和未选页面缺席；失败、无法判定或无法观察任一适用场景均阻断初始化。
 - GUI 初始化新增一次性 E2E 生命周期门禁：它独立于 `milestone_e2e`，只生成本机 debug/no-bundle 二进制，不签名、不打安装包、不写 `release/` 或 Verification；通过后其专用 Skill 与初始化能力一同删除，Harness 升级将其作为 `tombstone`。

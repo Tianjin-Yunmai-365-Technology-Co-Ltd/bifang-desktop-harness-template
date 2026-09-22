@@ -10,7 +10,7 @@
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
 - `conditional`：只在已选接口或已启用能力中存在的工程资产。先确认下游选择，再人工或由对应适配器 Skill 合并。`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart` 与 `$desktop-prepare-gui-support-surfaces` 只随 GUI 下游传播；其中 `$mantine-list-view` 的 SKILL、metadata、references 与完整 `assets/` 资产集是一个条件知识资产，传播本身不生成页面或安装 dnd-kit。系统语言、updater、窗口状态与 dialog 属于固定基线，dialog 固定保持主窗口 `dialog:default` 且不授权 fs，托盘、单实例、深链接、全局快捷键、通知和开机自启是否实际接线继续由 profile 中各自的 `enabled|disabled` 决定。支持界面的 Skill、参考、React 模板、品牌 profile/i18n/manifest 和全部原始媒体属于同一完整工程资产，产品实例 `docs/GUI_SUPPORT_SURFACES.md` 不属于。
-- `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、`.harness/release-context.json` 当前发布事实、验证证据和未知本地文件。升级器只报告，不写入；目标尚无发布上下文时保持缺席，未来只能由目标项目真实执行 `$desktop-prepare-release` 创建。
+- `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、`.harness/release-context.json` 当前发布事实、验证证据和未知本地文件。升级器只报告，不写入；目标尚无发布上下文时保持缺席，未来只能由目标项目真实执行 `$desktop-prepare-release` 创建。旧下游缺少版本状态时也不产生所有权例外：工程层升级与基线记录完成后，必须先说明旧 pending、bug ID 与发布历史无法恢复，再由用户明确批准目标项目单独执行 `$desktop-manage-version init --migration-approved`；升级器本身不得调用或代写。
 - `tombstone`：终端下游永久不应恢复的 Harness 初始化/派生能力和模板专用文件；来源候选必须排除，目标出现时阻断。`$desktop-test-gui-initialization-e2e` 只在 GUI 唯一基线提交前使用，其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs`、夹具与测试都随该前置 Skill 一同删除；升级不得把它重新注入终端下游。
 
 ## 三方比较
@@ -38,7 +38,7 @@
 
 ## 永久保护
 
-以下内容不得由升级自动覆盖：产品规格、产品状态、工作计划、ADR、变更记录、验证记录、技术债、业务源码和测试、Cargo 产品版本与锁定选择、`.harness/version-state.json` 的发布周期/缺陷 ID 历史、`.harness/release-context.json` 的当前发布事实、项目与 GUI 身份、`docs/GUI_SUPPORT_SURFACES.md` 中的支持界面产品实例、接口选择、`docs/AGENT_POLICY.md`、双语许可证、Git 历史与配置、Git common-dir 生命周期清单以及未登记本地文件。`$desktop-manage-version` 与 `$desktop-manage-git-lifecycle` 的 Skill/helper 可以作为工程资产升级，但升级器不得据此初始化、重算或覆盖产品状态与发布上下文，也不得操作 remote、分支、标签或 Worktree。
+以下内容不得由升级自动覆盖：产品规格、产品状态、工作计划、ADR、变更记录、验证记录、技术债、业务源码和测试、Cargo 产品版本与锁定选择、`.harness/version-state.json` 的发布周期/缺陷 ID 历史、`.harness/release-context.json` 的当前发布事实、项目与 GUI 身份、`docs/GUI_SUPPORT_SURFACES.md` 中的支持界面产品实例、接口选择、`docs/AGENT_POLICY.md`、双语许可证、Git 历史与配置、Git common-dir 生命周期清单以及未登记本地文件。`$desktop-manage-version` 与 `$desktop-manage-git-lifecycle` 的 Skill/helper 可以作为工程资产升级，但升级器不得据此初始化、重算或覆盖产品状态与发布上下文，也不得操作 remote、分支、标签或 Worktree。缺失状态的显式迁移只能在工程升级完成后由目标项目版本 Skill 执行，并保持用户批准、当前合法 Cargo 版本空周期基线和不可恢复历史报告三项事实可见。
 
 若新版 Harness 改变法律文本、产品边界或硬规则，升级计划只能报告并请求独立确认；不能把来源仓库的批准事实导入下游。
 
