@@ -6,8 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const SCRIPT = new URL("./rename_project_identity.mjs", import.meta.url);
+const SCRIPT = fileURLToPath(new URL("./rename_project_identity.mjs", import.meta.url));
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "rename-project-identity-"));
@@ -16,7 +17,7 @@ function fixture(t) {
 }
 
 function runScript(root, ...extra) {
-  return spawnSync(process.execPath, [SCRIPT.pathname, "--root", root,
+  return spawnSync(process.execPath, [SCRIPT, "--root", root,
     "--old-display-name-zh", "旧产品", "--new-display-name-zh", "新产品",
     "--old-display-name-en", "Old Product", "--new-display-name-en", "New Product",
     "--old-id", "old_product", "--new-id", "new_product",
@@ -40,7 +41,8 @@ test("preview_then_apply_renames_content_paths_and_licenses", (t) => {
   assert.equal(applied.status, 0, applied.stderr);
   assert.deepEqual(JSON.parse(applied.stdout).residuals, []);
   const renamed = path.join(root, ".agents", "skills", "new-product-tool", "new_product.toml");
-  assert.ok(fs.statSync(renamed).mode & 0o100);
+  // Windows 不保留 POSIX 执行位；只有具备该位的平台才能复核权限随重命名保留。
+  if (process.platform !== "win32") assert.ok(fs.statSync(renamed).mode & 0o100);
   assert.equal(fs.readFileSync(renamed, "utf8"), "name = 'new_product' # New Product");
   assert.equal(fs.readFileSync(path.join(root, "LICENSE.zh-CN.md"), "utf8"), "新产品 new_product");
   assert.equal(fs.readFileSync(path.join(root, "LICENSE.en.md"), "utf8"), "New Product new_product");
@@ -62,7 +64,7 @@ test("symbolic_link_blocks_before_write", (t) => {
   const root = fixture(t);
   const source = path.join(root, "source.txt");
   fs.writeFileSync(source, "Old Product");
-  try { fs.symlinkSync(source, path.join(root, "linked.txt")); } catch (error) { t.skip(error.message); }
+  try { fs.symlinkSync(source, path.join(root, "linked.txt")); } catch (error) { return t.skip(error.message); }
   const result = runScript(root, "--apply");
   assert.equal(result.status, 1);
   assert.equal(fs.readFileSync(source, "utf8"), "Old Product");

@@ -129,7 +129,7 @@ test("handles hidden and spaced paths", () => {
   assert.deepEqual(inspectRepository(root).violations.map((item) => item.path), [".hidden file.md"]);
 });
 
-test("handles newlines in paths", () => {
+test("handles newlines in paths", { skip: process.platform === "win32" }, () => {
   const name = "line\nbreak.txt";
   try { write(name, "x\n".repeat(DEFAULT_HARD_LINE_LIMIT + 1)); }
   catch (error) { if (error?.code === "EINVAL") return; throw error; }

@@ -6,6 +6,9 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+/** 本套件执行 macOS 专用的 `probe-macos-notarization.sh`，只在 POSIX 主机运行。 */
+const posixOnly = { skip: process.platform === "win32" };
+
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "probe-macos-notarization.sh");
 const SECRET_KEYS = [
   "APPLE_API_ISSUER",
@@ -68,7 +71,7 @@ function runProbe(probe, extra = {}, platform = "Darwin") {
   return spawnSync("/bin/sh", [SCRIPT], { encoding: "utf8", env, timeout: 10_000 });
 }
 
-test("complete API credentials are ready without secret output", () => withTemporaryRoot((root) => {
+test("complete API credentials are ready without secret output", posixOnly, () => withTemporaryRoot((root) => {
   const probe = fakeAppleTools(root);
   const key = path.join(root, "AuthKey_TEST.p8");
   const secret = "TOP-SECRET-PRIVATE-KEY";
@@ -85,7 +88,7 @@ test("complete API credentials are ready without secret output", () => withTempo
   for (const value of [secret, "issuer-secret", "key-secret", key]) assert.doesNotMatch(combined, new RegExp(value));
 }));
 
-test("complete Apple ID credentials are ready", () => withTemporaryRoot((root) => {
+test("complete Apple ID credentials are ready", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root), {
     APPLE_ID: "test@example.invalid",
     APPLE_PASSWORD: "app-password-secret",
@@ -96,7 +99,7 @@ test("complete Apple ID credentials are ready", () => withTemporaryRoot((root) =
   assert.doesNotMatch(result.stdout + result.stderr, /app-password-secret/);
 }));
 
-test("authorized keychain profile is ready without profile output", () => withTemporaryRoot((root) => {
+test("authorized keychain profile is ready without profile output", posixOnly, () => withTemporaryRoot((root) => {
   const profile = "secret-profile-name";
   const result = runProbe(fakeAppleTools(root), { APPLE_NOTARYTOOL_PROFILE: profile });
   assert.equal(result.status, 0, result.stderr);
@@ -104,7 +107,7 @@ test("authorized keychain profile is ready without profile output", () => withTe
   assert.doesNotMatch(result.stdout + result.stderr, new RegExp(profile));
 }));
 
-test("unavailable keychain profile is rejected", () => withTemporaryRoot((root) => {
+test("unavailable keychain profile is rejected", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root, { profileReady: false }), {
     APPLE_NOTARYTOOL_PROFILE: "missing-profile",
   });
@@ -112,13 +115,13 @@ test("unavailable keychain profile is rejected", () => withTemporaryRoot((root) 
   assert.match(result.stdout, /keychain-profile-unavailable/);
 }));
 
-test("missing credentials is unavailable, not partially ready", () => withTemporaryRoot((root) => {
+test("missing credentials is unavailable, not partially ready", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root));
   assert.equal(result.status, 3);
   assert.match(result.stdout, /notarization-credentials-missing/);
 }));
 
-test("partial or mixed credentials are rejected", () => withTemporaryRoot((root) => {
+test("partial or mixed credentials are rejected", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root), {
     APPLE_ID: "test@example.invalid",
     APPLE_API_ISSUER: "issuer",
@@ -127,7 +130,7 @@ test("partial or mixed credentials are rejected", () => withTemporaryRoot((root)
   assert.match(result.stdout, /incomplete-or-ambiguous/);
 }));
 
-test("keychain profile cannot be mixed with environment credentials", () => withTemporaryRoot((root) => {
+test("keychain profile cannot be mixed with environment credentials", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root), {
     APPLE_NOTARYTOOL_PROFILE: "profile",
     APPLE_ID: "test@example.invalid",
@@ -138,7 +141,7 @@ test("keychain profile cannot be mixed with environment credentials", () => with
   assert.match(result.stdout, /incomplete-or-ambiguous/);
 }));
 
-test("symlinked API key is rejected", () => withTemporaryRoot((root) => {
+test("symlinked API key is rejected", posixOnly, () => withTemporaryRoot((root) => {
   const target = path.join(root, "real-key.p8");
   const link = path.join(root, "key-link.p8");
   writeFileSync(target, "secret");
@@ -152,7 +155,7 @@ test("symlinked API key is rejected", () => withTemporaryRoot((root) => {
   assert.match(result.stdout, /api-private-key-unreadable/);
 }));
 
-test("multiple identities require an explicit selection", () => withTemporaryRoot((root) => {
+test("multiple identities require an explicit selection", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root, { identities: 2 }), {
     APPLE_ID: "test@example.invalid",
     APPLE_PASSWORD: "password",
@@ -162,7 +165,7 @@ test("multiple identities require an explicit selection", () => withTemporaryRoo
   assert.match(result.stdout, /developer-id-application-ambiguous/);
 }));
 
-test("missing notarytool is unavailable", () => withTemporaryRoot((root) => {
+test("missing notarytool is unavailable", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root, { includeNotarytool: false }), {
     APPLE_ID: "test@example.invalid",
     APPLE_PASSWORD: "password",
@@ -172,7 +175,7 @@ test("missing notarytool is unavailable", () => withTemporaryRoot((root) => {
   assert.match(result.stdout, /notarytool-missing/);
 }));
 
-test("non-macOS host is unavailable", () => withTemporaryRoot((root) => {
+test("non-macOS host is unavailable", posixOnly, () => withTemporaryRoot((root) => {
   const result = runProbe(fakeAppleTools(root), {}, "Linux");
   assert.equal(result.status, 3);
   assert.match(result.stdout, /not-macos-apple-device/);

@@ -92,10 +92,14 @@ test("filesystem_scan_finds_ignored_artifacts_without_entering_generated_trees",
   assert.ok(errors.every((error) => error.includes("Git ignore")));
 }));
 
-test("listed_artifacts_are_reported_once_and_text_fails_closed", () => withTemporaryRoot((root) => {
+test("listed_artifacts_are_reported_once_and_text_fails_closed", (t) => withTemporaryRoot((root) => {
   write(root, "pyproject.toml");
   write(root, "target.sh");
-  fs.symlinkSync(path.join(root, "target.sh"), path.join(root, "linked.sh"));
+  try { fs.symlinkSync(path.join(root, "target.sh"), path.join(root, "linked.sh")); }
+  catch (error) {
+    if (process.platform === "win32" && error.code === "EPERM") return t.skip("当前 Windows 主机未授予创建符号链接的权限");
+    throw error;
+  }
   fs.writeFileSync(path.join(root, "invalid.sh"), Buffer.from([0xff, 0xfe]));
   fs.writeFileSync(path.join(root, "asset.png"), Buffer.from([0x00, 0xff]));
   const errors = inspectProject(root, { files: ["pyproject.toml", "linked.sh", "invalid.sh", "asset.png"] });

@@ -5,7 +5,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { HarnessUpgradeFixture, MANAGED, MANAGED_SECOND, MANAGED_SELF, MIXED, PROTECTED } from "./harness_upgrade_test_support.mjs";
+import { HarnessUpgradeFixture, MANAGED, MANAGED_SECOND, MANAGED_SELF, MIXED, PROTECTED, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
+
+/** POSIX 权限位在 Windows 上不存在，相关用例只在 POSIX 主机运行。 */
+const posixOnly = { skip: process.platform === "win32" };
 
 test("tampered_plan_cannot_overwrite_protected_file", (t) => {
   const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MANAGED, "v1"); f.write(f.target, MANAGED, "v1"); f.write(f.target, PROTECTED, "keep"); f.bootstrap(); f.write(f.candidate, MANAGED, "v2"); f.write(f.candidate, PROTECTED, "malicious");
@@ -15,7 +18,7 @@ test("tampered_plan_cannot_overwrite_protected_file", (t) => {
 
 test("target_parent_symlink_after_plan_cannot_escape", (t) => {
   const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MANAGED, "v1"); f.write(f.target, MANAGED, "v1"); f.bootstrap(); f.write(f.candidate, MANAGED, "v2"); const { planPath } = f.createPlan();
-  const managedParent = path.dirname(path.join(f.target, MANAGED)); fs.rmSync(managedParent, { recursive: true }); const outsideParent = path.join(f.root, "outside-managed"); fs.mkdirSync(outsideParent); const outsideFile = path.join(outsideParent, path.basename(MANAGED)); fs.writeFileSync(outsideFile, "v1"); fs.symlinkSync(outsideParent, managedParent, "dir");
+  const managedParent = path.dirname(path.join(f.target, MANAGED)); fs.rmSync(managedParent, { recursive: true }); const outsideParent = path.join(f.root, "outside-managed"); fs.mkdirSync(outsideParent); const outsideFile = path.join(outsideParent, path.basename(MANAGED)); fs.writeFileSync(outsideFile, "v1"); if (!symlinkOrSkip(t, outsideParent, managedParent, "dir")) return;
   f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", MANAGED], 2); assert.equal(fs.readFileSync(outsideFile, "utf8"), "v1");
 });
 
@@ -46,13 +49,13 @@ test("control_file_drift_blocks_apply_before_write", (t) => {
   f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", MANAGED], 2); assert.equal(fs.readFileSync(path.join(f.target, MANAGED), "utf8"), "v1");
 });
 
-test("permission_mode_changes_follow_three_way_rules", (t) => {
+test("permission_mode_changes_follow_three_way_rules", posixOnly, (t) => {
   const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MANAGED, "v1"); f.write(f.target, MANAGED, "v1"); fs.chmodSync(path.join(f.candidate, MANAGED), 0o644); fs.chmodSync(path.join(f.target, MANAGED), 0o644); f.bootstrap(); fs.chmodSync(path.join(f.candidate, MANAGED), 0o755);
   const { plan, planPath } = f.createPlan(); assert.equal(f.classification(plan, MANAGED), "update"); f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", MANAGED]); assert.equal(fs.statSync(path.join(f.target, MANAGED)).mode & 0o777, 0o755); f.record(f.createPlan(0, "mode-converged").planPath); fs.chmodSync(path.join(f.target, MANAGED), 0o700); assert.equal(f.classification(f.plan(), MANAGED), "preserve_local");
 });
 
 test("special_permission_bits_are_rejected", (t) => {
-  const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MANAGED, "v1"); fs.chmodSync(path.join(f.candidate, MANAGED), 0o1755); const observed = fs.statSync(path.join(f.candidate, MANAGED)).mode & 0o7777; if (!(observed & ~0o777)) t.skip("文件系统会清除特殊权限位"); assert.match(f.runTool(["plan", ...f.sharedArguments()], 2).error, /不受支持的特殊权限位/);
+  const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MANAGED, "v1"); fs.chmodSync(path.join(f.candidate, MANAGED), 0o1755); const observed = fs.statSync(path.join(f.candidate, MANAGED)).mode & 0o7777; if (!(observed & ~0o777)) return t.skip("文件系统会清除特殊权限位"); assert.match(f.runTool(["plan", ...f.sharedArguments()], 2).error, /不受支持的特殊权限位/);
 });
 
 test("full_preflight_prevents_partial_apply", (t) => {

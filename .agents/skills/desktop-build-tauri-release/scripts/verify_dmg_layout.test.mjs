@@ -6,6 +6,9 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+/** 本套件执行 macOS 专用的 `verify-dmg-layout.sh`，只在 POSIX 主机运行。 */
+const posixOnly = { skip: process.platform === "win32" };
+
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "verify-dmg-layout.sh");
 
 function withTemporaryRoot(callback) {
@@ -69,7 +72,7 @@ function runCheck(root, dmg, { mode = "valid", platform = "Darwin" } = {}) {
   return spawnSync("/bin/sh", [SCRIPT, dmg, releaseNotes], { encoding: "utf8", env, timeout: 10_000 });
 }
 
-test("complete read-only volume layout passes and detaches", () => withTemporaryRoot((root) => {
+test("complete read-only volume layout passes and detaches", posixOnly, () => withTemporaryRoot((root) => {
   const dmg = path.join(root, "candidate.dmg");
   writeFileSync(dmg, "dmg");
   const result = runCheck(root, dmg);
@@ -80,7 +83,7 @@ test("complete read-only volume layout passes and detaches", () => withTemporary
   assert.equal(existsSync(path.join(root, "detached")), true);
 }));
 
-test("missing .DS_Store fails closed and detaches", () => withTemporaryRoot((root) => {
+test("missing .DS_Store fails closed and detaches", posixOnly, () => withTemporaryRoot((root) => {
   const dmg = path.join(root, "candidate.dmg");
   writeFileSync(dmg, "dmg");
   const result = runCheck(root, dmg, { mode: "missing-ds-store" });
@@ -89,7 +92,7 @@ test("missing .DS_Store fails closed and detaches", () => withTemporaryRoot((roo
   assert.equal(existsSync(path.join(root, "detached")), true);
 }));
 
-test("wrong Applications link and multiple apps are rejected", () => {
+test("wrong Applications link and multiple apps are rejected", posixOnly, () => {
   for (const [mode, reason] of [
     ["wrong-applications", "applications-link-target-invalid"],
     ["multiple-apps", "app-bundle-count-invalid"],
@@ -102,7 +105,7 @@ test("wrong Applications link and multiple apps are rejected", () => {
   });
 });
 
-test("symlinked DMG is rejected before mount", () => withTemporaryRoot((root) => {
+test("symlinked DMG is rejected before mount", posixOnly, () => withTemporaryRoot((root) => {
   const target = path.join(root, "real.dmg");
   const link = path.join(root, "candidate.dmg");
   writeFileSync(target, "dmg");
@@ -113,7 +116,7 @@ test("symlinked DMG is rejected before mount", () => withTemporaryRoot((root) =>
   assert.equal(existsSync(path.join(root, "detached")), false);
 }));
 
-test("missing or mismatched release notes resource is rejected", () => {
+test("missing or mismatched release notes resource is rejected", posixOnly, () => {
   for (const [mode, reason] of [
     ["missing-release-notes", "release-notes-resource-missing"],
     ["mismatched-release-notes", "release-notes-resource-mismatch"],
@@ -126,7 +129,7 @@ test("missing or mismatched release notes resource is rejected", () => {
   });
 });
 
-test("symlinked release notes source is rejected before mount", () => withTemporaryRoot((root) => {
+test("symlinked release notes source is rejected before mount", posixOnly, () => withTemporaryRoot((root) => {
   const dmg = path.join(root, "candidate.dmg");
   const target = path.join(root, "notes-target.json");
   writeFileSync(dmg, "dmg");
@@ -138,7 +141,7 @@ test("symlinked release notes source is rejected before mount", () => withTempor
   assert.equal(existsSync(path.join(root, "detached")), false);
 }));
 
-test("non-macOS host is not applicable", () => withTemporaryRoot((root) => {
+test("non-macOS host is not applicable", posixOnly, () => withTemporaryRoot((root) => {
   const dmg = path.join(root, "candidate.dmg");
   writeFileSync(dmg, "dmg");
   const result = runCheck(root, dmg, { platform: "Linux" });

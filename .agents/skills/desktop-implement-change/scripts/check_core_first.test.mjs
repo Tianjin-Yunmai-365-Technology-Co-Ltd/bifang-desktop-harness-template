@@ -8,6 +8,9 @@ import { main, validateMetadata } from "./check_core_first.mjs";
 
 const REGISTRY_SOURCE = "registry+https://github.com/rust-lang/crates.io-index";
 
+/** 伪造的 cargo 是 `#!/bin/sh` 脚本，只有 POSIX 主机能直接执行。 */
+const posixOnly = { skip: process.platform === "win32" };
+
 function dependency(name, { kind = null, optional = false, target = null, rename = null, dependencyPath = null, source = REGISTRY_SOURCE } = {}) {
   return { name, kind, optional, target, rename, path: dependencyPath, source };
 }
@@ -163,7 +166,7 @@ test("rejects transitive adapter-to-adapter dependency", () => {
   assert.ok(errors.some((error) => error.includes("sample_cli -> sample_bridge -> sample_mcp") && error.includes("不得依赖 adapter sample_mcp")));
 });
 
-test("CLI returns zero for isolated Cargo metadata", () => withTemporaryRoot((root) => {
+test("CLI returns zero for isolated Cargo metadata", posixOnly, () => withTemporaryRoot((root) => {
   writeFileSync(path.join(root, "Cargo.toml"), "[workspace]\n");
   const fixture = metadata(
     packageFixture("sample_core", { library: true }),
@@ -224,12 +227,14 @@ test("CLI returns two for JSON and Cargo tool failures", () => withTemporaryRoot
     assert.equal(result.code, 2);
     assert.deepEqual(result.payload, { errors: [], ok: false, toolError: "--timeout-seconds 必须为正整数" });
   }
+}));
 
+test("CLI reports a Cargo timeout as a tool failure", posixOnly, () => withTemporaryRoot((root) => {
   writeFileSync(path.join(root, "Cargo.toml"), "[workspace]\n");
   const cargo = path.join(root, "slow-cargo");
   writeFileSync(cargo, "#!/bin/sh\nsleep 2\n");
   chmodSync(cargo, 0o755);
-  result = runMainJson("--workspace-root", root, "--cargo", cargo, "--timeout-seconds", "1");
+  const result = runMainJson("--workspace-root", root, "--cargo", cargo, "--timeout-seconds", "1");
   assert.equal(result.code, 2);
   assert.deepEqual(result.payload, { errors: [], ok: false, toolError: "cargo metadata 在 1 秒后超时" });
   assert.equal(result.stderr, "");

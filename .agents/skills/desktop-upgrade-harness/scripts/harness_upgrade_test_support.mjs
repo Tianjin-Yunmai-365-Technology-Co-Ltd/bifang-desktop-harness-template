@@ -90,3 +90,17 @@ export class HarnessUpgradeFixture {
 
   git(root, ...args) { return runGit(root, ...args); }
 }
+
+/** 创建测试符号链接；Windows 未授予该权限时跳过用例，其余错误照常失败。 */
+export function symlinkOrSkip(context, target, linkPath, type) {
+  try {
+    fs.symlinkSync(target, linkPath, type);
+    return true;
+  } catch (error) {
+    if (process.platform === "win32" && error.code === "EPERM") {
+      context.skip("当前 Windows 主机未授予创建符号链接的权限");
+      return false;
+    }
+    throw error;
+  }
+}

@@ -49,12 +49,26 @@ function hasCommand(command) {
   return run(command, ["--version"]).status === 0;
 }
 
+/** 创建测试符号链接；Windows 未授予该权限时跳过用例，其余错误照常失败。 */
+function symlinkOrSkip(context, target, linkPath, type) {
+  try {
+    symlinkSync(target, linkPath, type);
+    return true;
+  } catch (error) {
+    if (process.platform === "win32" && error.code === "EPERM") {
+      context.skip("当前 Windows 主机未授予创建符号链接的权限");
+      return false;
+    }
+    throw error;
+  }
+}
+
 function directoryLink(link, target) {
   if (hasCommand("cmd") && run("cmd", ["/c", "mklink", "/J", link, target]).status === 0) return;
   symlinkSync(target, link, "dir");
 }
 
-test("cleans every entry without deleting release directory", () => withTemporaryParent((parent) => {
+test("cleans every entry without deleting release directory", (t) => withTemporaryParent((parent) => {
   const root = gitRoot(parent);
   const release = path.join(root, "release");
   mkdirSync(path.join(release, "nested"), { recursive: true });
@@ -63,7 +77,7 @@ test("cleans every entry without deleting release directory", () => withTemporar
   writeFileSync(path.join(release, "nested", "old.txt"), "old");
   const external = path.join(parent, "external.txt");
   writeFileSync(external, "keep");
-  symlinkSync(external, path.join(release, "external-link"));
+  if (!symlinkOrSkip(t, external, path.join(release, "external-link"))) return;
   const result = runHelper(root);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(readdirSync(release), []);
@@ -90,13 +104,13 @@ test("rejects dirty or untracked worktree before cleaning release", () => {
   }
 });
 
-test("rejects release symlink without touching target", () => withTemporaryParent((parent) => {
+test("rejects release symlink without touching target", (t) => withTemporaryParent((parent) => {
   const root = gitRoot(parent);
   const external = path.join(parent, "external");
   mkdirSync(external);
   const marker = path.join(external, "keep.txt");
   writeFileSync(marker, "keep");
-  symlinkSync(external, path.join(root, "release"), "dir");
+  if (!symlinkOrSkip(t, external, path.join(root, "release"), "dir")) return;
   const result = runHelper(root);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /符号链接/);

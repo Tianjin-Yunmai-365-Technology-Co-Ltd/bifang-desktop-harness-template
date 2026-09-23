@@ -14,6 +14,9 @@ import {
   runGate,
 } from "./environment_gates_fixture.mjs";
 
+/** 以下用例执行 `development-environment-gates.sh`；Windows 侧由 environment_gates_windows.test.mjs 覆盖。 */
+const posixOnly = { skip: process.platform === "win32" };
+
 function withTemporaryRoot(callback) {
   const root = mkdtempSync(path.join(tmpdir(), "afh-env-install-"));
   try { callback(root); } finally { rmSync(root, { recursive: true, force: true }); }
@@ -27,7 +30,7 @@ function isolatedInstallOverrides(extra = {}) {
   };
 }
 
-test("missing Git is installed and reprobed", () => withTemporaryRoot((root) => {
+test("missing Git is installed and reprobed", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe, { includeGit: false });
   fakeGitPackageManager(probe);
@@ -41,7 +44,7 @@ test("missing Git is installed and reprobed", () => withTemporaryRoot((root) => 
   assert.match(result.stdout, /gate\.node\.status=passed/);
 }));
 
-test("Node is installed for a non-GUI project while pnpm remains optional", () => withTemporaryRoot((root) => {
+test("Node is installed for a non-GUI project while pnpm remains optional", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe, { includeNode: false });
   const nodeDist = makeNodeDist(path.join(root, "node-dist"));
@@ -56,7 +59,7 @@ test("Node is installed for a non-GUI project while pnpm remains optional", () =
   assert.equal(existsSync(path.join(root, "home", ".local", "bin", "pnpm")), false);
 }));
 
-test("lower Rust is upgraded and reprobed", () => withTemporaryRoot((root) => {
+test("lower Rust is upgraded and reprobed", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe, { rust: "1.98.0" });
   const rustDist = makeRustDist(path.join(root, "rust-dist"));
@@ -70,7 +73,7 @@ test("lower Rust is upgraded and reprobed", () => withTemporaryRoot((root) => {
   assert.match(result.stdout, /gate\.rust\.version=rustc 1\.98\.1/);
 }));
 
-test("Rust upgrade that remains below MSRV fails closed", () => withTemporaryRoot((root) => {
+test("Rust upgrade that remains below MSRV fails closed", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe, { rust: "1.98.0" });
   const rustDist = makeRustDist(path.join(root, "rust-dist"), { installedVersion: "1.98.0" });
@@ -82,7 +85,7 @@ test("Rust upgrade that remains below MSRV fails closed", () => withTemporaryRoo
   assert.match(result.stderr, /仍低于 MSRV/);
 }));
 
-test("Rust installer failure blocks the gate", () => withTemporaryRoot((root) => {
+test("Rust installer failure blocks the gate", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe, { rust: "1.98.0" });
   const rustDist = makeRustDist(path.join(root, "rust-dist"), { succeeds: false });
@@ -94,7 +97,7 @@ test("Rust installer failure blocks the gate", () => withTemporaryRoot((root) =>
   assert.match(result.stderr, /Rust 安装失败/);
 }));
 
-test("Rust checksum mismatch blocks before executing the installer", () => withTemporaryRoot((root) => {
+test("Rust checksum mismatch blocks before executing the installer", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe, { rust: "1.98.0" });
   const rustDist = makeRustDist(path.join(root, "rust-dist"), { validChecksum: false });
@@ -107,7 +110,7 @@ test("Rust checksum mismatch blocks before executing the installer", () => withT
   assert.equal(existsSync(path.join(root, "home", ".cargo", "bin", "rustc")), false);
 }));
 
-test("Node checksum mismatch blocks before installation", () => withTemporaryRoot((root) => {
+test("Node checksum mismatch blocks before installation", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe, { includeNode: false });
   const nodeDist = makeNodeDist(path.join(root, "node-dist"), { validChecksum: false });
@@ -120,7 +123,7 @@ test("Node checksum mismatch blocks before installation", () => withTemporaryRoo
   assert.equal(existsSync(path.join(root, "home", ".local", "bin", "node")), false);
 }));
 
-test("lower GUI toolchain is upgraded and reprobed", () => withTemporaryRoot((root) => {
+test("lower GUI toolchain is upgraded and reprobed", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
   fakeFrontendTools(probe, { node: "24.20.9", pnpm: "12.4.0" });
@@ -136,7 +139,7 @@ test("lower GUI toolchain is upgraded and reprobed", () => withTemporaryRoot((ro
   assert.match(result.stdout, /gate\.pnpm\.version=12\.4\.1/);
 }));
 
-test("pnpm upgrade failure blocks the GUI gate", () => withTemporaryRoot((root) => {
+test("pnpm upgrade failure blocks the GUI gate", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
   fakeFrontendTools(probe, { pnpm: "12.4.0" });
@@ -149,7 +152,7 @@ test("pnpm upgrade failure blocks the GUI gate", () => withTemporaryRoot((root) 
   assert.match(result.stderr, /pnpm 安装失败/);
 }));
 
-test("Node installation selects the highest LTS independently of index order", () => withTemporaryRoot((root) => {
+test("Node installation selects the highest LTS independently of index order", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
   fakeFrontendTools(probe, { node: "24.20.9" });
@@ -163,7 +166,7 @@ test("Node installation selects the highest LTS independently of index order", (
   assert.match(result.stdout, /gate\.node\.change=upgraded/);
 }));
 
-test("Linux x64 musl selects the official musl Node archive", () => withTemporaryRoot((root) => {
+test("Linux x64 musl selects the official musl Node archive", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
   fakeFrontendTools(probe, { node: "24.20.9" });
@@ -182,7 +185,7 @@ test("Linux x64 musl selects the official musl Node archive", () => withTemporar
   assert.equal(existsSync(path.join(root, "home", ".local", "lib", "nodejs", "v24.21.0", "bin", "node")), true);
 }));
 
-test("Linux arm64 musl fails before requesting a nonexistent Node archive", () => withTemporaryRoot((root) => {
+test("Linux arm64 musl fails before requesting a nonexistent Node archive", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
   fakeFrontendTools(probe, { node: "24.20.9" });

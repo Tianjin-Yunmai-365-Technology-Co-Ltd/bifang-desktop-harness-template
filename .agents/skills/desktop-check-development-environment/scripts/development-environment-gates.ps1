@@ -486,7 +486,9 @@ function Initialize-ManagedDirectoryPath {
 function Get-PersistedUserPath {
     if ($TestMode -and $env:AFH_TEST_USER_PATH_FILE) {
         if (Test-Path -LiteralPath $env:AFH_TEST_USER_PATH_FILE -PathType Leaf) {
-            return (Get-Content -LiteralPath $env:AFH_TEST_USER_PATH_FILE -Raw).TrimEnd("`r", "`n")
+            $redirected = Get-Content -LiteralPath $env:AFH_TEST_USER_PATH_FILE -Raw
+            if ($null -eq $redirected) { return "" }
+            return $redirected.TrimEnd("`r", "`n")
         }
         return ""
     }
@@ -612,7 +614,7 @@ function Assert-PersistedCommandIdentity {
     $originalPath = $env:PATH
     try {
         $env:PATH = $PersistentPath
-        $actualVersion = ((& $resolved --version 2>$null) -join "`n")
+        $actualVersion = (((& $resolved --version 2>$null) -join "`n")).Trim()
         $probeExitCode = $LASTEXITCODE
     } finally {
         $env:PATH = $originalPath
@@ -696,7 +698,7 @@ function Assert-ProjectedPathDirectoryOwnership {
         if ($AllowedNames -contains $name) { continue }
         $resolved = Resolve-PathCommand $name $Directory
         if ($resolved) {
-            Stop-Gate 24 "$Label 包含意外的 $name；该目录将在即将写入的 User PATH 中接管其他工具，已在该目录加入 PATH 前停止：$resolved"
+            Stop-Gate 24 "${Label}包含意外的 $name；该目录将在即将写入的 User PATH 中接管其他工具，已在该目录加入 PATH 前停止：$resolved"
         }
     }
 }
@@ -902,7 +904,7 @@ foreach (`$check in `$checks) {
     `$resolvedPath = Resolve-AfhFreshCommand `$name
     if (-not `$resolvedPath) { exit 41 }
     if (-not [string]::Equals(`$resolvedPath, `$expectedPath, [StringComparison]::OrdinalIgnoreCase)) { exit 42 }
-    `$actualVersion = ((& `$resolvedPath `$argument 2>`$null) -join "`n")
+    `$actualVersion = (((& `$resolvedPath `$argument 2>`$null) -join "`n")).Trim()
     if (`$LASTEXITCODE -ne 0) { exit 42 }
     if (`$actualVersion -ne `$expectedVersion) { exit 43 }
     if (`$name -eq "rustc") {
@@ -1011,7 +1013,7 @@ function Assert-ManagedNodeRootInventory {
 # 验证 Node.js 达到连续最低下界；任何更高正式版本都直接通过。
 function Test-NodeVersion {
     param([string]$NodePath)
-    $nodeText = (& $NodePath --version 2>$null)
+    $nodeText = ([string](& $NodePath --version 2>$null)).Trim()
     if ($LASTEXITCODE -ne 0) { Stop-Gate 23 "Node.js 探测失败" }
     if ($nodeText -notmatch '^v(\d+)\.(\d+)\.(\d+)$') {
         Stop-Gate 23 "现有 Node.js 不是可识别的稳定发布版：$nodeText"
@@ -1029,7 +1031,7 @@ function Test-NodeVersion {
 # Node 路线同时要求可解析的稳定 npm，保证全局安装 pnpm 与新会话复探使用同一工具。
 function Test-NpmVersion {
     param([string]$NpmPath)
-    $npmText = (& $NpmPath --version 2>$null)
+    $npmText = ([string](& $NpmPath --version 2>$null)).Trim()
     if ($LASTEXITCODE -ne 0) { Stop-Gate 23 "npm 探测失败" }
     if ($npmText -notmatch '^(\d+)\.(\d+)\.(\d+)$') { Stop-Gate 23 "现有 npm 不是可识别的稳定发布版：$npmText" }
     $script:NpmVersion = $npmText
@@ -1038,7 +1040,7 @@ function Test-NpmVersion {
 # 验证 pnpm 满足最低版本；明确低于下界时返回待升级状态。
 function Test-PnpmVersion {
     param([string]$PnpmPath)
-    $pnpmText = (& $PnpmPath --version 2>$null)
+    $pnpmText = ([string](& $PnpmPath --version 2>$null)).Trim()
     if ($LASTEXITCODE -ne 0) { Stop-Gate 28 "pnpm 探测失败" }
     if ($pnpmText -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
         Stop-Gate 28 "现有 pnpm 不是可识别的稳定发布版：$pnpmText"
@@ -1056,7 +1058,7 @@ function Test-PnpmVersion {
 # Git 是所有初始化路径的基础工具；明确低于下界时返回待升级状态。
 function Test-GitVersion {
     param([string]$GitPath)
-    $gitText = (& $GitPath --version 2>$null)
+    $gitText = ([string](& $GitPath --version 2>$null)).Trim()
     if ($LASTEXITCODE -ne 0) { Stop-Gate 29 "Git 探测失败" }
     if ($gitText -notmatch '^git version (\d+)\.(\d+)\.(\d+)(?:\.windows\.\d+)?(?:\s.*)?$') {
         Stop-Gate 29 "现有 Git 不是可识别的稳定发布版：$gitText"

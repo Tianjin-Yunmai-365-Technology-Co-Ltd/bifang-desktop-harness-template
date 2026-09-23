@@ -35,7 +35,7 @@ test("frontmatter_parser_reads_policy_scalars", () => {
 
 test("test_discovery_includes_root_and_skill_node_suites", () => {
   const tests = discoverTests();
-  assert.ok(tests.some((file) => file.endsWith("scripts/validate_harness.test.mjs")));
+  assert.ok(tests.some((file) => file.endsWith(path.join("scripts", "validate_harness.test.mjs"))));
   assert.ok(tests.some((file) => file.includes(`${path.sep}.agents${path.sep}skills${path.sep}`)));
 });
 

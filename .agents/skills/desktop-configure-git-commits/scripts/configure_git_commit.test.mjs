@@ -6,9 +6,10 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const SCRIPT = new URL("./configure_git_commit.mjs", import.meta.url).pathname;
-const SOURCE_TEMPLATE = new URL("../assets/commit-template.txt", import.meta.url).pathname;
+const SCRIPT = fileURLToPath(new URL("./configure_git_commit.mjs", import.meta.url));
+const SOURCE_TEMPLATE = fileURLToPath(new URL("../assets/commit-template.txt", import.meta.url));
 
 function fixture(t) {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "configure-git-commit-"));

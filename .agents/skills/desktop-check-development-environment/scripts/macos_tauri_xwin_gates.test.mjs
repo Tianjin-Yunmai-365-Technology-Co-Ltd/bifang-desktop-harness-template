@@ -6,6 +6,9 @@ import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+/** 本套件执行 macOS 专用的 `macos-tauri-xwin-gates.sh`，只在 POSIX 主机运行。 */
+const posixOnly = { skip: process.platform === "win32" };
+
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "macos-tauri-xwin-gates.sh");
 
 function shellPath(target) { return path.resolve(target); }
@@ -131,7 +134,7 @@ function runGate(root, probe, args = [], { testMode = true, rustHomeMode = "test
   return spawnSync("/bin/sh", [SCRIPT, ...args], { cwd: root, env, encoding: "utf8", timeout: 30_000 });
 }
 
-test("test overrides require explicit test mode", () => withTemporaryRoot((root) => {
+test("test overrides require explicit test mode", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   mkdirSync(probe);
   const result = runGate(root, probe, ["--check-only"], { testMode: false });
@@ -139,7 +142,7 @@ test("test overrides require explicit test mode", () => withTemporaryRoot((root)
   assert.match(result.stderr, /仅在 AFH_TEST_MODE=1/);
 }));
 
-test("existing environment passes without installing", () => withTemporaryRoot((root) => {
+test("existing environment passes without installing", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: true });
   const result = runGate(root, probe, ["--install-missing"]);
   assert.equal(result.status, 0, result.stderr);
@@ -152,7 +155,7 @@ test("existing environment passes without installing", () => withTemporaryRoot((
   assert.equal(existsSync(path.join(root, "cargo")), false);
 }));
 
-test("missing environment is installed and reprobed", () => withTemporaryRoot((root) => {
+test("missing environment is installed and reprobed", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
   const result = runGate(root, probe, ["--install-missing"]);
@@ -163,7 +166,7 @@ test("missing environment is installed and reprobed", () => withTemporaryRoot((r
   assert.equal(existsSync(path.join(root, "project")), false);
 }));
 
-test("standard Cargo and rustup homes are respected", () => withTemporaryRoot((root) => {
+test("standard Cargo and rustup homes are respected", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
   const loginShell = addPersistedRustHomeLogin(root);
@@ -177,7 +180,7 @@ test("standard Cargo and rustup homes are respected", () => withTemporaryRoot((r
   assert.equal(existsSync(path.join(root, "cargo")), false);
 }));
 
-test("process-only custom Rust homes fail before install", () => withTemporaryRoot((root) => {
+test("process-only custom Rust homes fail before install", posixOnly, () => withTemporaryRoot((root) => {
   mkdirSync(path.join(root, "home"));
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
@@ -189,7 +192,7 @@ test("process-only custom Rust homes fail before install", () => withTemporaryRo
   assert.equal(existsSync(path.join(root, "state", "target")), false);
 }));
 
-test("standard Rust home rejects symlinked intermediate component", () => withTemporaryRoot((root) => {
+test("standard Rust home rejects symlinked intermediate component", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
   const home = path.join(root, "home");
@@ -204,7 +207,7 @@ test("standard Rust home rejects symlinked intermediate component", () => withTe
   assert.deepEqual(readdirSync(outside), []);
 }));
 
-test("path separator in home or Rust root fails before probe", () => {
+test("path separator in home or Rust root fails before probe", posixOnly, () => {
   for (const name of ["HOME", "AFH_MANAGED_CARGO_HOME", "AFH_MANAGED_RUSTUP_HOME"]) withTemporaryRoot((root) => {
     mkdirSync(path.join(root, "home"));
     const probe = addExistingEnvironment(root, { includeCrossTools: false });
@@ -215,7 +218,7 @@ test("path separator in home or Rust root fails before probe", () => {
   });
 });
 
-test("unset standard Rust homes use HOME defaults", () => withTemporaryRoot((root) => {
+test("unset standard Rust homes use HOME defaults", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
   const result = runGate(root, probe, ["--install-missing"], { rustHomeMode: "defaults" });
@@ -224,7 +227,7 @@ test("unset standard Rust homes use HOME defaults", () => withTemporaryRoot((roo
   assert.equal(readFileSync(path.join(root, "state", "rustup-home"), "utf8").trim(), path.join(root, "home", ".rustup"));
 }));
 
-test("install PATH drops empty and duplicate probe segments", () => withTemporaryRoot((root) => {
+test("install PATH drops empty and duplicate probe segments", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
   const result = runGate(root, probe, ["--install-missing"], { extra: { AFH_PREREQ_PATH: `:${probe}::${probe}:` } });
@@ -235,7 +238,7 @@ test("install PATH drops empty and duplicate probe segments", () => withTemporar
   assert.equal(entries.length, new Set(entries).size);
 }));
 
-test("literal glob probe entry is never expanded", () => withTemporaryRoot((root) => {
+test("literal glob probe entry is never expanded", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: true });
   unlinkSync(path.join(probe, "cargo-xwin"));
   const globMatch = path.join(root, "glob-match");
@@ -245,7 +248,7 @@ test("literal glob probe entry is never expanded", () => withTemporaryRoot((root
   assert.match(result.stdout, /gate\.cargo_xwin\.status=missing/);
 }));
 
-test("higher compatible cargo-xwin is preserved", () => withTemporaryRoot((root) => {
+test("higher compatible cargo-xwin is preserved", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: true, cargoXwinVersion: "0.23.9" });
   const result = runGate(root, probe, ["--install-missing"]);
   assert.equal(result.status, 0, result.stderr);
@@ -253,7 +256,7 @@ test("higher compatible cargo-xwin is preserved", () => withTemporaryRoot((root)
   assert.match(result.stdout, /gate\.cargo_xwin\.change=existing/);
 }));
 
-test("failing version and target probes are rejected", () => {
+test("failing version and target probes are rejected", posixOnly, () => {
   withTemporaryRoot((root) => {
     const probe = addExistingEnvironment(root, { includeCrossTools: true });
     executable(path.join(probe, "cargo-xwin"), "#!/bin/sh\nprintf '%s\n' 'cargo-xwin 0.23.1'\nexit 9\n");
@@ -270,7 +273,7 @@ test("failing version and target probes are rejected", () => {
   });
 });
 
-test("unrecognized llvm-rc and failing base tools are not accepted", () => {
+test("unrecognized llvm-rc and failing base tools are not accepted", posixOnly, () => {
   withTemporaryRoot((root) => {
     const probe = addExistingEnvironment(root, { includeCrossTools: true });
     executable(path.join(probe, "llvm-rc"), "#!/bin/sh\nprintf '%s\n' broken >&2\nexit 1\n");
@@ -287,7 +290,7 @@ test("unrecognized llvm-rc and failing base tools are not accepted", () => {
   });
 });
 
-test("outdated cargo-xwin is upgraded and reprobed", () => {
+test("outdated cargo-xwin is upgraded and reprobed", posixOnly, () => {
   for (const version of ["0.22.9", "0.23.0"]) withTemporaryRoot((root) => {
     const probe = addExistingEnvironment(root, { includeCrossTools: true, cargoXwinVersion: version });
     const result = runGate(root, probe, ["--install-missing"]);
@@ -298,7 +301,7 @@ test("outdated cargo-xwin is upgraded and reprobed", () => {
   });
 });
 
-test("check-only reports outdated cargo-xwin without writes", () => withTemporaryRoot((root) => {
+test("check-only reports outdated cargo-xwin without writes", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: true, cargoXwinVersion: "0.23.0" });
   const result = runGate(root, probe, ["--check-only"]);
   assert.equal(result.status, 20, result.stderr);
@@ -306,7 +309,7 @@ test("check-only reports outdated cargo-xwin without writes", () => withTemporar
   assert.equal(existsSync(path.join(root, "cargo")), false);
 }));
 
-test("upgrade failures and invalid versions fail closed", () => {
+test("upgrade failures and invalid versions fail closed", posixOnly, () => {
   withTemporaryRoot((root) => {
     const probe = addExistingEnvironment(root, { includeCrossTools: true, cargoXwinVersion: "0.23.0", cargoInstallExit: 9 });
     const result = runGate(root, probe, ["--install-missing"]);
@@ -328,7 +331,7 @@ test("upgrade failures and invalid versions fail closed", () => {
   });
 });
 
-test("check-only reports missing without writes", () => withTemporaryRoot((root) => {
+test("check-only reports missing without writes", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
   const result = runGate(root, probe, ["--check-only"]);
@@ -338,7 +341,7 @@ test("check-only reports missing without writes", () => withTemporaryRoot((root)
   assert.equal(existsSync(path.join(root, "state", "target")), false);
 }));
 
-test("missing Homebrew and formula install failures block", () => {
+test("missing Homebrew and formula install failures block", posixOnly, () => {
   withTemporaryRoot((root) => {
     const probe = addExistingEnvironment(root, { includeCrossTools: false });
     const result = runGate(root, probe, ["--install-missing"]);
@@ -354,7 +357,7 @@ test("missing Homebrew and formula install failures block", () => {
   });
 });
 
-test("split LLVM installs lld and damaged formulas fail before writes", () => {
+test("split LLVM installs lld and damaged formulas fail before writes", posixOnly, () => {
   withTemporaryRoot((root) => {
     const probe = addExistingEnvironment(root, { includeCrossTools: false });
     addFakeBrew(root, probe);
@@ -378,7 +381,7 @@ test("split LLVM installs lld and damaged formulas fail before writes", () => {
   });
 });
 
-test("all formula conflicts are preflighted before install", () => withTemporaryRoot((root) => {
+test("all formula conflicts are preflighted before install", posixOnly, () => withTemporaryRoot((root) => {
   const probe = addExistingEnvironment(root, { includeCrossTools: false });
   addFakeBrew(root, probe);
   mkdirSync(path.join(root, "brew", "llvm", "bin"), { recursive: true });
@@ -389,7 +392,7 @@ test("all formula conflicts are preflighted before install", () => withTemporary
   assert.equal(existsSync(path.join(root, "brew", "lld")), false);
 }));
 
-test("non-macOS host and unsupported target are rejected", () => {
+test("non-macOS host and unsupported target are rejected", posixOnly, () => {
   withTemporaryRoot((root) => {
     const probe = addExistingEnvironment(root, { includeCrossTools: true });
     const result = runGate(root, probe, ["--check-only"], { extra: { AFH_TEST_PLATFORM: "Linux" } });

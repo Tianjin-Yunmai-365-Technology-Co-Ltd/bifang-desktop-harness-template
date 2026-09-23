@@ -7,8 +7,9 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const SCRIPT = new URL("./parallel_worktrees.mjs", import.meta.url).pathname;
+const SCRIPT = fileURLToPath(new URL("./parallel_worktrees.mjs", import.meta.url));
 const MOCK_LIFECYCLE = `#!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -142,7 +143,7 @@ test("create_rejects_detached_source_without_requiring_branch_prefix", (t) => {
 
 test("create_rejects_symlinked_external_worktree_container", (t) => {
   const ctx = fixture(t); const redirect = path.join(ctx.tempRoot, "redirected"); fs.mkdirSync(redirect);
-  try { fs.symlinkSync(redirect, path.join(ctx.tempRoot, ".codex-worktrees"), "dir"); } catch (error) { t.skip(error.message); }
+  try { fs.symlinkSync(redirect, path.join(ctx.tempRoot, ".codex-worktrees"), "dir"); } catch (error) { return t.skip(error.message); }
   const [result, payload] = ctx.create("core", "src"); assert.equal(result.status, 4); assert.equal(payload.error.code, "worktree_container_unsafe"); assert.deepEqual(fs.readdirSync(redirect), []);
 });
 
@@ -181,7 +182,7 @@ test("guard_rejects_git_root_mismatch_and_symlink_escape", (t) => {
   let [result, body] = ctx.helper(["guard", "--task", "feature", "--unit", "rootcheck", "--write-target", "root-owned"], { cwd: payload.worktreePath }); assert.equal(result.status, 4); assert.equal(body.error.code, "unit_git_root_mismatch");
   [created, payload] = ctx.create("symlink", "symlink-owned"); assert.equal(created.status, 0, created.stderr);
   const outside = path.join(ctx.tempRoot, "outside"); fs.mkdirSync(outside); fs.mkdirSync(path.join(payload.worktreePath, "symlink-owned"));
-  try { fs.symlinkSync(outside, path.join(payload.worktreePath, "symlink-owned", "escape"), "dir"); } catch (error) { t.skip(error.message); }
+  try { fs.symlinkSync(outside, path.join(payload.worktreePath, "symlink-owned", "escape"), "dir"); } catch (error) { return t.skip(error.message); }
   [result, body] = ctx.helper(["guard", "--task", "feature", "--unit", "symlink", "--write-target", "symlink-owned/escape/changed.txt"], { cwd: payload.worktreePath }); assert.equal(result.status, 4); assert.equal(body.error.code, "write_target_outside_worktree");
 });
 

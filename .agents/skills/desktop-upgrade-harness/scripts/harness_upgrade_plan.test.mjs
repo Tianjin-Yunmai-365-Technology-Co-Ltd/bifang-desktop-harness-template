@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { HarnessUpgradeFixture, MANAGED, MIXED, PROTECTED, REQUIRED_MANAGED_CHECKERS, TOMBSTONE } from "./harness_upgrade_test_support.mjs";
+import { HarnessUpgradeFixture, MANAGED, MIXED, PROTECTED, REQUIRED_MANAGED_CHECKERS, TOMBSTONE, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
 import { matchesPattern } from "./harness_upgrade_ownership.mjs";
 
 test("ownership_glob_preserves_fnmatch_character_classes", () => {
@@ -80,7 +80,7 @@ test("tombstone_in_candidate_or_target_blocks", (t) => {
 });
 
 test("target_tombstone_symlink_and_empty_directory_block", (t) => {
-  const f = new HarnessUpgradeFixture(t); const outside = path.join(f.root, "outside-version.txt"); fs.writeFileSync(outside, "outside"); fs.symlinkSync(outside, path.join(f.target, TOMBSTONE)); let plan = f.plan(2); assert.ok(plan.problems.some((item) => item.includes("目标包含 tombstone 路径：Version.md")));
+  const f = new HarnessUpgradeFixture(t); const outside = path.join(f.root, "outside-version.txt"); fs.writeFileSync(outside, "outside"); if (!symlinkOrSkip(t, outside, path.join(f.target, TOMBSTONE))) return; let plan = f.plan(2); assert.ok(plan.problems.some((item) => item.includes("目标包含 tombstone 路径：Version.md")));
   fs.unlinkSync(path.join(f.target, TOMBSTONE)); fs.mkdirSync(path.join(f.target, ".agents", "skills", "desktop-instantiate-project"), { recursive: true }); plan = f.plan(2); assert.ok(plan.problems.some((item) => item.includes("desktop-instantiate-project")));
 });
 
@@ -90,7 +90,7 @@ test("manual_add_cannot_be_recorded_without_creating_target", (t) => {
 });
 
 test("candidate_symlink_blocks_plan_and_bootstrap_record", (t) => {
-  const f = new HarnessUpgradeFixture(t); const outside = path.join(f.root, "outside.txt"); fs.writeFileSync(outside, "secret"); const linked = path.join(f.candidate, MANAGED); fs.mkdirSync(path.dirname(linked), { recursive: true }); fs.symlinkSync(outside, linked);
+  const f = new HarnessUpgradeFixture(t); const outside = path.join(f.root, "outside.txt"); fs.writeFileSync(outside, "secret"); const linked = path.join(f.candidate, MANAGED); fs.mkdirSync(path.dirname(linked), { recursive: true }); if (!symlinkOrSkip(t, outside, linked)) return;
   const { planPath } = f.createPlan(2); f.runTool(["record", "--plan", planPath, "--source-version", f.sourceVersion, "--source-commit", f.sourceCommit, "--bootstrap", "--approval", "bootstrap-verified-baseline"], 2); assert.equal(fs.existsSync(f.lock), false);
 });
 

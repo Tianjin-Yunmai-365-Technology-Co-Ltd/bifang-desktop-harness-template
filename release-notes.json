@@ -7,7 +7,7 @@
       "featureOptimizations": [
         {
           "zh-CN": "工程自动化统一迁移到 Node.js 标准库，并增加检查器阻止活动 Python 依赖与运行步骤回流。",
-          "en-US": "Moved Harness automation to the Node.js standard library and added a gate that rejects active Python dependencies and runtime steps."
+          "en-US": "Moved Harness automation to the Node.js standard library and added a gate that rejects active Python-based dependencies and runtime steps."
         },
         {
           "zh-CN": "新增并强化 Mantine 列表页标准，覆盖可恢复查询状态、稳定分页、不可操作占位行、无障碍交互和列偏好迁移。",

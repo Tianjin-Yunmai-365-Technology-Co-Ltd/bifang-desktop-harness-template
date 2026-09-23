@@ -73,7 +73,7 @@ test("final_target_symlink_is_rejected", (t) => {
   const destination = path.join(root, "destination");
   fs.mkdirSync(destination);
   const target = path.join(root, "sample_tool");
-  try { fs.symlinkSync(destination, target, "dir"); } catch (error) { t.skip(`当前平台不能创建测试符号链接：${error.message}`); }
+  try { fs.symlinkSync(destination, target, "dir"); } catch (error) { return t.skip(`当前平台不能创建测试符号链接：${error.message}`); }
   assert.throws(() => resolveProjectTarget(harness, target, "sample_tool"), /不得是符号链接/);
 });
 

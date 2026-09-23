@@ -100,11 +100,15 @@ test("rejects bundled bytes that differ from source", () => {
   assert.throws(() => verifyBytes(source, bundled), /do not match/);
 });
 
-test("rejects symlinked source or bundled resource", () => {
+test("rejects symlinked source or bundled resource", (t) => {
   const bundledTarget = path.join(root, "bundled-target.json");
   writeFileSync(bundledTarget, readFileSync(source));
   const bundledLink = path.join(root, "bundled-link.json");
-  symlinkSync(bundledTarget, bundledLink);
+  try { symlinkSync(bundledTarget, bundledLink); }
+  catch (error) {
+    if (process.platform === "win32" && error.code === "EPERM") return t.skip("当前 Windows 主机未授予创建符号链接的权限");
+    throw error;
+  }
   assert.throws(() => verifyBytes(source, bundledLink), /regular non-symlink/);
 
   const sourceTarget = path.join(root, "source-target.json");
