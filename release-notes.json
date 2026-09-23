@@ -2,50 +2,42 @@
   "schemaVersion": 2,
   "releases": [
     {
-      "releaseDate": "2026-09-17",
-      "version": "v202609172303",
+      "releaseDate": "2026-09-23",
+      "version": "v202609231623",
       "featureOptimizations": [
         {
-          "zh-CN": "关于页更新日志支持 Markdown 排版，包括加粗、代码、列表和表格，并沿用 Mantine 界面样式。",
-          "en-US": "About-page release notes now support Markdown formatting, including bold text, code, lists, and tables, styled with Mantine."
+          "zh-CN": "工程自动化统一迁移到 Node.js 标准库，并增加检查器阻止活动 Python 依赖与运行步骤回流。",
+          "en-US": "Moved Harness automation to the Node.js standard library and added a gate that rejects active Python dependencies and runtime steps."
+        },
+        {
+          "zh-CN": "新增并强化 Mantine 列表页标准，覆盖可恢复查询状态、稳定分页、不可操作占位行、无障碍交互和列偏好迁移。",
+          "en-US": "Added and strengthened the Mantine list standard with restorable query state, stable pagination, inert placeholder rows, accessible controls, and column preference migration."
+        },
+        {
+          "zh-CN": "旧下游缺失版本状态时提供需明确批准的迁移入口，现有产品改名固定按功能变化进入自动版本门禁。",
+          "en-US": "Added an approval gated migration for older downstream projects missing version state and classified existing product renames as feature changes."
+        },
+        {
+          "zh-CN": "可选 GUI 关于页支持安全 Markdown 双语更新日志与可重试加载。",
+          "en-US": "Added safe Markdown release notes and retryable loading to the optional GUI About page."
+        },
+        {
+          "zh-CN": "移除废弃的量化发布探针及其选择和证据链，简化发布上下文。",
+          "en-US": "Removed the retired quantitative release probes and their selection and evidence path from the release context."
         }
       ],
       "bugFixes": [
         {
-          "zh-CN": "修复发布日志生成器接受运行时会拒绝的非规范 JSON，包括重复字段、首尾空白和超限资源。",
-          "en-US": "Reject noncanonical release-notes JSON before publication, including duplicate fields, boundary whitespace, and oversized resources."
+          "zh-CN": "修复发布准备对已验证 Harness 上游锁文件的提交准入，以及 Windows CRLF 检出下的上下文复核。",
+          "en-US": "Fixed release preparation for verified Harness upstream lock commits and context checks in Windows CRLF checkouts."
         },
         {
-          "zh-CN": "修复日志加载卡住、迟到结果覆盖重试，以及更新状态显示过期可用版本的问题。",
-          "en-US": "Fix stuck release-note loading, stale results overwriting retries, and outdated available versions in update status."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-17",
-      "version": "v202609172016",
-      "featureOptimizations": [
-        {
-          "zh-CN": "初始化推荐预设关闭当前 Task 内部并行 Worktree 与写入型 Subagent，侧边 Git Task 继续使用独立工作树。",
-          "en-US": "The recommended initialization policy now disables internal parallel Worktrees and writing subagents while keeping isolated Worktrees for separate Git Tasks."
+          "zh-CN": "修复 Git 生命周期和治理契约冲突，确保发布上下文、默认分支与远端重试约束一致。",
+          "en-US": "Resolved Git lifecycle and governance contract conflicts around release context, default branches, and remote retries."
         },
         {
-          "zh-CN": "Windows 受权限或组织策略阻断自动安装时，环境门禁提供按缺失项列出的官方安装入口，并在用户完成后只读复探。",
-          "en-US": "When Windows permissions or organization policy block automatic setup, the environment gate provides official installation links for missing tools and rechecks them before resuming."
-        },
-        {
-          "zh-CN": "新增只读开发历史汇总 Skill，可结合项目记忆和 Git 历史追溯决策、现状与有证据的未来方向。",
-          "en-US": "Added a read-only development history Skill that traces decisions, current status, and evidence-backed future directions through project records and Git history."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 Windows Git 将发布校验脚本和上下文检出为 CRLF 时，源码发布会误报未跟踪或摘要不匹配的问题。",
-          "en-US": "Fixed source releases on Windows reporting the tracked release validator or context as invalid after Git checks them out with CRLF line endings."
-        },
-        {
-          "zh-CN": "修复 Harness 校验器对已退役 Skill 的纯字节码缓存目录及最新按日记忆路径的误判，并调整 Windows 文件系统限制下的回归测试。",
-          "en-US": "Fixed Harness validation of cache-only retired Skill directories and the latest dated memory paths, and adapted regression tests to Windows filesystem limits."
+          "zh-CN": "修复列表黏性表头背景透明导致内容透出的显示问题。",
+          "en-US": "Fixed transparent sticky list headers that allowed content to show through."
         }
       ]
     },

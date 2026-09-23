@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
   "gitPublication": "remote",
-  "sourceHead": "a72cda7d1e83ba737605475bc49b7dae481de3cd",
-  "version": "202609172303",
-  "releaseDate": "2026-09-17",
-  "expectedTag": "v202609172303-20260917",
+  "sourceHead": "1a61d78d0242dbe03d06bd19fe80d73dce48f2f2",
+  "version": "202609231623",
+  "releaseDate": "2026-09-23",
+  "expectedTag": "v202609231623-20260923",
   "remote": "origin",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "973959e5635addef600323e8f5c80f5904fb6537",
-    "sourceHead": "a72cda7d1e83ba737605475bc49b7dae481de3cd",
-    "scopeDiffSha256": "03932fe9df53ef7abd10613f443c02fa8f3beb555adc284b07f38a73d229dc36",
-    "reviewedSourceCommit": "a72cda7d1e83ba737605475bc49b7dae481de3cd",
+    "scopeBase": "9d5ce6c1d5a72fe768f3a70f3a3cae4b1d77db66",
+    "sourceHead": "1a61d78d0242dbe03d06bd19fe80d73dce48f2f2",
+    "scopeDiffSha256": "f3fa1b4ee1a689ae072da105a07298d572c76558946eae35417cb5bcaf8a6de7",
+    "reviewedSourceCommit": "1a61d78d0242dbe03d06bd19fe80d73dce48f2f2",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -21,7 +21,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed behavior, core and adapter boundaries, release-notes JSON compatibility, responsibilities and size, and temporary markers for the cumulative diff. Harness validation and semantic review passed; 40 line-size suggestions remain nonblocking.",
+    "evidenceSummary": "Reviewed 287 changed paths from the last tagged release through sourceHead across behavior, core/adapter ownership, external contracts, size, and temporary markers. 709 Node tests passed (14 host skips); 7 Rust tests and Rust 1.98.1 fmt/check/release build passed; Harness validation passed. The 22 size hints are below hard limits; the only TODO is a test fixture. Two untagged 2026-09-17 notes were excluded.",
     "reason": null,
     "remainingRisk": null
   },
