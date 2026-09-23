@@ -7,7 +7,7 @@ import {
   readJson,
   readText,
   relativePath,
-  run,
+  nodeSyntaxError,
 } from "./core.mjs";
 
 export const UPGRADE_ROOT = path.join(ROOT, ".agents", "skills", "desktop-upgrade-harness");
@@ -56,6 +56,8 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-implement-change/scripts/check_core_first.test.mjs", "managed"],
   [".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs", "managed"],
   [".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.test.mjs", "managed"],
+  [".agents/skills/desktop-implement-change/scripts/check_no_python.mjs", "managed"],
+  [".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs", "managed"],
   [".agents/skills/desktop-manage-git-lifecycle/**", "managed"],
   [".agents/skills/desktop-upgrade-harness/**", "managed-self"],
   [".agents/skills/desktop-add-cli-adapter/**", "conditional"],
@@ -250,11 +252,8 @@ function validateModules(errors, modulePaths) {
       fail(errors, `missing upgrade Node module: ${relativePath(modulePath)}`);
       continue;
     }
-    const result = run(process.execPath, ["--check", modulePath], { timeout: 30_000 });
-    if (result.error || result.status !== 0) {
-      const detail = (result.stderr || result.error?.message || "no diagnostic").trim();
-      fail(errors, `invalid upgrade Node module ${relativePath(modulePath)}: ${detail}`);
-    }
+    const detail = nodeSyntaxError(modulePath);
+    if (detail !== null) fail(errors, `invalid upgrade Node module ${relativePath(modulePath)}: ${detail}`);
   }
 }
 

@@ -6,11 +6,11 @@
 
 ## 新增
 
-- `HARNESS-CHANGE-LEGACY-VERSION-STATE-MIGRATION`（`required_version = pending`）：自动版本管理上线前的旧下游若在独立 Git 中缺少 `.harness/version-state.json`，工程层升级完成后会停止自动流程并公开无法恢复的待发布变化、已消费缺陷 ID 与上次发布历史；只有用户对本次历史缺口明确批准，目标项目版本 Skill 才接受 `init --migration-approved`，以当前合法 Cargo 版本建立空周期基线。无批准零写入失败，新项目 Git 初始化前的正常 `init` 不受影响，升级器仍不写 protected 状态。
-- `HARNESS-CHANGE-PRODUCT-RENAME-VERSION-CLASSIFICATION`（`required_version = pending`）：实例化期间的中性身份重置继续完全豁免产品版本门禁；初始化后的现有产品改名固定使用稳定 `change_id` 按 `feature` 分类，在改名写入前运行 `plan`，专项测试和残留检查通过后以相同参数 `apply`。执行者不再能把同一公开身份变化分别解释为 maintenance、bug-fix 或豁免。
-- `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`（`required_version = pending`）：列表标准升级为 `mantine-list-view-v2`。真实数据行固定浅/深交替，light scheme 使用 white/gray-1、dark scheme 使用 dark-7/dark-6，hover 或 focus-within 以 gray-3/dark-4 和独立焦点轮廓强化；placeholder 旧行整体 inert，选择、分页、批量和行内副作用全部禁用。原 1000 行起手模板拆为页面、纯状态契约、类型、列设置与 CSS module，并保存可直接执行的 Node 契约测试；同步补齐首次 URL 单次 replace、无关 query 保留、确定性服务端 tie-breaker、安全整数/响应一致性、可见排序图标、响应式且本地化分页、结果范围播报、可聚焦滚动区、主行表头、类型化错误/空态、选择 action bar 和同页刷新裁剪。列偏好改用跨 schema 稳定 key、payload 版本、显式迁移和 legacy 清理；交付 checklist 改为 Required/Conditional/带证据 N/A，并声明 Mantine 9.6.1 与 TanStack Query 5.102.8 的直接复制下界。
+- `HARNESS-CHANGE-LEGACY-VERSION-STATE-MIGRATION`（`required_version = 202609231623`）：自动版本管理上线前的旧下游若在独立 Git 中缺少 `.harness/version-state.json`，工程层升级完成后会停止自动流程并公开无法恢复的待发布变化、已消费缺陷 ID 与上次发布历史；只有用户对本次历史缺口明确批准，目标项目版本 Skill 才接受 `init --migration-approved`，以当前合法 Cargo 版本建立空周期基线。无批准零写入失败，新项目 Git 初始化前的正常 `init` 不受影响，升级器仍不写 protected 状态。
+- `HARNESS-CHANGE-PRODUCT-RENAME-VERSION-CLASSIFICATION`（`required_version = 202609231623`）：实例化期间的中性身份重置继续完全豁免产品版本门禁；初始化后的现有产品改名固定使用稳定 `change_id` 按 `feature` 分类，在改名写入前运行 `plan`，专项测试和残留检查通过后以相同参数 `apply`。执行者不再能把同一公开身份变化分别解释为 maintenance、bug-fix 或豁免。
+- `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`（`required_version = 202609231623`）：列表标准升级为 `mantine-list-view-v2`。真实数据行固定浅/深交替，light scheme 使用 white/gray-1、dark scheme 使用 dark-7/dark-6，hover 或 focus-within 以 gray-3/dark-4 和独立焦点轮廓强化；placeholder 旧行整体 inert，选择、分页、批量和行内副作用全部禁用。原 1000 行起手模板拆为页面、纯状态契约、类型、列设置与 CSS module，并保存可直接执行的 Node 契约测试；同步补齐首次 URL 单次 replace、无关 query 保留、确定性服务端 tie-breaker、安全整数/响应一致性、可见排序图标、响应式且本地化分页、结果范围播报、可聚焦滚动区、主行表头、类型化错误/空态、选择 action bar 和同页刷新裁剪。列偏好改用跨 schema 稳定 key、payload 版本、显式迁移和 legacy 清理；交付 checklist 改为 Required/Conditional/带证据 N/A，并声明 Mantine 9.6.1 与 TanStack Query 5.102.8 的直接复制下界。
 
-- `HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD`（`required_version = pending`）：新增可自动触发的 `$mantine-list-view`、`mantine-list-view-v1` 标准、Mantine 9.x API 参考、offset 模式说明、交付 checklist 与 React/TypeScript 起手模板。列表统一使用 Mantine 原生 sticky Table/ScrollContainer、类型化排序三态、总页数 Pagination、10/20/50/100 页大小、四态、业务 id key、显式选择范围及窄屏降级；查询控件以显式 URL 或当前标签页快照恢复，业务行只归 TanStack Query 且每页 key 独立，列显隐/顺序以版本化 localStorage 持久化并由 dnd-kit 提供指针/键盘重排。普通页面 Jotai 进程状态保持不变；新 Skill 只随 GUI 下游初始化/升级传播，中性脚手架不生成业务页面或预装依赖。
+- `HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD`（`required_version = 202609231623`）：新增可自动触发的 `$mantine-list-view`、`mantine-list-view-v1` 标准、Mantine 9.x API 参考、offset 模式说明、交付 checklist 与 React/TypeScript 起手模板。列表统一使用 Mantine 原生 sticky Table/ScrollContainer、类型化排序三态、总页数 Pagination、10/20/50/100 页大小、四态、业务 id key、显式选择范围及窄屏降级；查询控件以显式 URL 或当前标签页快照恢复，业务行只归 TanStack Query 且每页 key 独立，列显隐/顺序以版本化 localStorage 持久化并由 dnd-kit 提供指针/键盘重排。普通页面 Jotai 进程状态保持不变；新 Skill 只随 GUI 下游初始化/升级传播，中性脚手架不生成业务页面或预装依赖。
 
 - `HARNESS-FEAT-ABOUT-RELEASE-NOTES-MARKDOWN`（所需 Harness 版本 `202609172303`，已由本次 Harness 时间版本发布物化）：可选 GUI 关于页的双语更新日志正文支持 GitHub 风格 Markdown，并沿用 Mantine 排版；阻止正文 HTML、外部链接跳转和远程图片加载。日志加载失败或超时可重试，迟到结果不会覆盖新请求，更新状态不再显示过期的可用版本。
 - `HARNESS-CHANGE-WINDOWS-ENVIRONMENT-MANUAL-HANDOFF`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：Windows 环境门禁继续优先由 Agent 自动静默安装；管理员权限、UAC、组织策略或 Codex 宿主能力阻断时，按本次缺失项提供 Git、Rust、MSVC Build Tools 及仅 GUI 所需 Node.js/pnpm 的官方入口和用户安装步骤。用户告知完成后先在原宿主只读复探，通过才恢复初始化或对原失败命令单次重试。
@@ -86,7 +86,7 @@
 
 ## 变更
 
-- `HARNESS-CHANGE-NODE-ONLY-AUTOMATION`（`required_version = pending`）：Harness 校验器、Git/版本/发布/初始化/升级等固定 helper、专项回归与跨平台候选 workflow 统一迁移到 Node.js 标准库和 `node:test`，移除活动 Python 源码、解释器选择、内联脚本、依赖入口与字节码残留。Node.js `>=24.21.0` 现在是 CLI/TUI/MCP/GUI 全部接口组合的受管工程运行时，pnpm 仍只在 GUI/前端适用；工程硬规则默认禁止重新引入 Python，只有开发者在当前请求中主动明确要求、说明必要性并在项目内显式声明和隔离时才允许精确例外。历史 ADR/Changelog/Verification 与已完成 Work Plan 中的旧命令保留为真实历史证据，后续活动计划和当前状态不豁免。
+- `HARNESS-CHANGE-NODE-ONLY-AUTOMATION`（`required_version = 202609231623`）：Harness 校验器、Git/版本/发布/初始化/升级等固定 helper、专项回归与跨平台候选 workflow 统一迁移到 Node.js 标准库和 `node:test`，移除活动 Python 源码、解释器选择、内联脚本、依赖入口与字节码残留。Node.js `>=24.21.0` 现在是 CLI/TUI/MCP/GUI 全部接口组合的受管工程运行时，pnpm 仍只在 GUI/前端适用；工程硬规则默认禁止重新引入 Python，只有开发者在当前请求中主动明确要求、说明必要性并在项目内显式声明和隔离时才允许精确例外。历史 ADR/Changelog/Verification 与已完成 Work Plan 中的旧命令保留为真实历史证据，后续活动计划和当前状态不豁免。
 
 - `HARNESS-FIX-WINDOWS-RELEASE-VALIDATOR-CRLF`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：修复 Windows Git 将已跟踪的发布上下文校验脚本和 JSON 检出为 CRLF 后，生命周期发布把脚本误判为未跟踪或把上下文摘要误判为不匹配的问题。校验只允许工作文件与 HEAD 的规范 LF 字节相同，或仅将工作文件 CRLF 还原为 LF 后相同；其他脚本或上下文改动仍失败关闭。真实临时仓库回归覆盖干净 CRLF 检出、上下文复读和本地发布。
 

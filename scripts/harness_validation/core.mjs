@@ -53,6 +53,63 @@ export function run(command, args, options = {}) {
   });
 }
 
+/** 子进程内按 CPU 并发运行 `node --check`，输出每个文件的诊断（通过为 null）。 */
+const PARALLEL_SYNTAX_CHECK = `
+import { execFile } from "node:child_process";
+import { availableParallelism } from "node:os";
+const files = JSON.parse(await new Response(process.stdin).text());
+const results = [];
+let next = 0;
+async function worker() {
+  while (next < files.length) {
+    const file = files[next++];
+    await new Promise((resolve) => execFile(process.execPath, ["--check", file], { timeout: 30000, windowsHide: true }, (error, _stdout, stderr) => {
+      results.push([file, error ? (stderr || error.message || "无诊断").trim() : null]);
+      resolve();
+    }));
+  }
+}
+await Promise.all(Array.from({ length: Math.max(1, availableParallelism()) }, worker));
+process.stdout.write(JSON.stringify(results));
+`;
+const syntaxResults = new Map();
+
+function syntaxKey(filePath) {
+  const stat = fs.statSync(filePath);
+  return `${path.resolve(filePath)}\0${stat.mtimeMs}\0${stat.size}`;
+}
+
+/** 并发检查尚未缓存的模块；同一进程内按路径、mtime 与大小复用结果，避免各校验器重复解析。 */
+export function checkNodeSyntax(filePaths) {
+  const keys = new Map(filePaths.map((filePath) => [path.resolve(filePath), syntaxKey(filePath)]));
+  const pending = [...keys].filter(([, key]) => !syntaxResults.has(key));
+  if (pending.length === 1) {
+    // 单个文件直接检查，避免多一层批处理子进程。
+    const [[filePath, key]] = pending;
+    const result = run(process.execPath, ["--check", filePath], { timeout: 30_000 });
+    syntaxResults.set(key, result.error || result.status !== 0 ? (result.stderr || result.error?.message || "无诊断").trim() : null);
+  } else if (pending.length > 1) {
+    const result = run(process.execPath, ["--input-type=module", "-e", PARALLEL_SYNTAX_CHECK], {
+      input: JSON.stringify(pending.map(([filePath]) => filePath)),
+      timeout: 120_000,
+    });
+    if (result.error || result.status !== 0) {
+      throw new Error(`Node 语法检查无法执行: ${(result.stderr || result.error?.message || "无诊断").trim()}`);
+    }
+    for (const [filePath, detail] of JSON.parse(result.stdout)) syntaxResults.set(keys.get(filePath), detail);
+  }
+  return new Map(filePaths.map((filePath) => [filePath, syntaxResults.get(keys.get(path.resolve(filePath)))]));
+}
+
+/** 返回单个模块的语法诊断，null 表示通过。 */
+export function nodeSyntaxError(filePath) {
+  try {
+    return checkNodeSyntax([filePath]).get(filePath);
+  } catch (error) {
+    return error.message;
+  }
+}
+
 /** 枚举 Git 可见文件；失败时返回明确错误而不退化为不完整扫描。 */
 export function trackedFiles(root = ROOT) {
   const result = run(

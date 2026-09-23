@@ -45,7 +45,7 @@ function canonicalRoot(root) {
   return [resolved, []];
 }
 
-function gitVisiblePaths(root) {
+export function gitVisiblePaths(root) {
   let result;
   try {
     result = spawnSync("git", ["-C", root, "ls-files", "--cached", "--others", "--exclude-standard", "-z"], {
@@ -101,7 +101,7 @@ function readText(candidate, relative) {
   catch (error) { return [null, `无 NUL 的 Git 文件不是 UTF-8，无法分类 ${JSON.stringify(relative)}: ${error.message}`]; }
 }
 
-function lineLimitProfile(relative) {
+export function lineLimitProfile(relative) {
   const suffix = path.extname(relative).toLowerCase();
   const profileName = suffix === ".rs" ? "rust" : FRONTEND_CODE_SUFFIXES.has(suffix) ? "frontend" : "maintained_text";
   const profile = LINE_LIMIT_PROFILES[profileName];

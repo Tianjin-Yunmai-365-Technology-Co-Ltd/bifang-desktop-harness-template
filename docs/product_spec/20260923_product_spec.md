@@ -103,7 +103,7 @@
 
 ### Node-only 工程自动化与 Python 例外门禁
 
-- 变更标识与所需版本：`change_id = HARNESS-CHANGE-NODE-ONLY-AUTOMATION`；`required_version = pending`。
+- 变更标识与所需版本：`change_id = HARNESS-CHANGE-NODE-ONLY-AUTOMATION`；`required_version = 202609231623`。
 - Harness 源和所有终端下游的验证器、Git 生命周期、版本、发布、初始化、升级与治理 helper 统一使用 Node.js `>=24.21.0` 标准库；专项回归使用 `node:test`，托管候选 workflow 不选择或执行其他解释器。Node.js 是 CLI、TUI、MCP、GUI 全部接口组合的受管工程运行时，pnpm 和前端依赖仍只在 GUI 适用。
 - 活动工程树不得包含 Python 源码、字节码、解释器命令、包管理器、虚拟环境、第三方包或运行步骤。只有开发者在当前请求中主动明确要求且 Node/既有依赖无法合理满足时才可精确例外；引入前必须说明必要性，在项目内显式声明、隔离依赖并补齐跨平台测试和删除条件，不能依赖全局包。历史 ADR、Changelog、Verification 与已完成 Work Plan 的旧命令保留为真实历史，不当作活动入口；后续活动 Work Plan 和当前状态不得保留这些入口。
 
@@ -181,7 +181,7 @@
 
 ### Mantine 列表页标准与封闭状态例外
 
-- 变更标识：`HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD` 与 `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`；`required_version = pending`。React 19.2+、TypeScript、Mantine UI 9.x 的列表页、数据表格、后台列表、搜索结果页及已有列表审查必须使用 `$mantine-list-view`；即使请求未明说“表格”，只要实质是重复记录检索、浏览或管理也命中。GUI 下游完整保留 Skill、v2 标准与拆分模板资产，非 GUI 下游裁剪；中性 GUI 初始化不生成业务列表页或预装 dnd-kit。
+- 变更标识：`HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD` 与 `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`；`required_version = 202609231623`。React 19.2+、TypeScript、Mantine UI 9.x 的列表页、数据表格、后台列表、搜索结果页及已有列表审查必须使用 `$mantine-list-view`；即使请求未明说“表格”，只要实质是重复记录检索、浏览或管理也命中。GUI 下游完整保留 Skill、v2 标准与拆分模板资产，非 GUI 下游裁剪；中性 GUI 初始化不生成业务列表页或预装 dnd-kit。
 - 表头粘滞只使用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`，二维滚动只使用有名称、可聚焦和可见焦点的 `Table.ScrollContainer`。排序字段使用非空联合类型白名单并按 asc→desc→none 循环，当前列同时拥有准确 `aria-sort`、可见 Tabler 方向图标和窄屏可达的排序摘要；服务端默认顺序确定，所有同值排序追加稳定业务 id tie-breaker。
 - 所有真实数据行按顺序固定浅/深/浅/深交替：浅色主题使用 white/gray-1，深色主题使用 dark-7/dark-6；鼠标 hover 或行内控件 focus-within 时使用更强的 gray-3/dark-4 高亮，并保留主题焦点轮廓与 forced-colors 反馈。高亮不把行自动变成可点击元素；唯一业务主列使用行表头和可理解行名称。
 - 列表只支持页码式 offset 分页和 Mantine responsive Pagination；`total` 接收总页数。pageSize 白名单为 `10 | 20 | 50 | 100`，全局兜底 20；控件提供本地化导航名称和当前 X–Y/总数 live summary。page、pageSize、sort 和已应用筛选同步类型化 URL；原始 URL 完全无 owned key 时才读 sessionStorage，canonicalization、隐藏排序和越界纠正只 replace 一次且保留无关 query。
@@ -423,7 +423,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609172303`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并复读本地 `v{版本}-{YYYYMMDD}`；只有当次 `gitPublication: remote` 才必须推送并复读远端同名 tag。源码归档、签名与渠道上传仍须各自真实发生。
+- 当前版本：`202609231623`，`Released`；上海时区格式为 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值仍为 `202607301002`，不为任何更早标识保留兼容记录——当前版本就是唯一版本。人类入口身份现为毕方桌面应用Harness模版 / Bifang Desktop Harness Template。未来成功执行正式发布生命周期时必须创建并复读本地 `v{版本}-{YYYYMMDD}`；只有当次 `gitPublication: remote` 才必须推送并复读远端同名 tag。源码归档、签名与渠道上传仍须各自真实发生。
 - 变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。正式发布逐次选择本地或远端 Git；发布上下文是唯一冻结选择，远端 push/ref/清理只在远端模式成为门禁，本地模式允许当前宿主候选且零远端访问。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由本次 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
 - 变更标识：`HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY`；所需 Harness 版本：`202609111732`，已由本次 Harness 时间版本发布物化。删除 `Version.md` 中的 `1.0.0` 标识并新增反向门禁、Task 序号不再识别历史四字段标题、下游 SemVer 的 Minor/Patch 严格固定 `0..99` 不兼容历史 `100`、Agent Policy 升级 `schema_version: 3` 并把 `milestone_smoke`/`milestone_e2e` 改名为 `acceptance_smoke`/`e2e_hint`。

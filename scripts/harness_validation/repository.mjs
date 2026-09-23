@@ -11,6 +11,7 @@ import {
   resolveInsideRoot,
   trackedFiles,
 } from "./core.mjs";
+import { inspectProject as inspectNoPython } from "../../.agents/skills/desktop-implement-change/scripts/check_no_python.mjs";
 import { validateDailyProjectMemory } from "./repository_memory.mjs";
 import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
 
@@ -59,105 +60,6 @@ export const EXPECTED_SKILLS = new Set([
   "desktop-verify-delivery",
   "mantine-list-view",
 ]);
-
-const PYTHON_MANIFEST_NAMES = new Set([
-  ".coveragerc",
-  `.${"pdm"}-${"py"}thon`,
-  ".pylintrc",
-  ".ruff.toml",
-  `${"py"}project.toml`,
-  "pyrightconfig.json",
-  "pytest.ini",
-  "mypy.ini",
-  "pdm.lock",
-  "pdm.toml",
-  `${"hatch"}.toml`,
-  `${"manifest"}.in`,
-  `${"environment"}.yml`,
-  `${"environment"}.yaml`,
-  `${"conda"}-lock.yml`,
-  `${"conda"}-lock.yaml`,
-  `${"pip"}file`,
-  `${"pip"}file.lock`,
-  `${"poetry"}.lock`,
-  `${"poetry"}.toml`,
-  `${"pixi"}.lock`,
-  `${"pixi"}.toml`,
-  "pylock.toml",
-  `${"py"}${"venv"}.cfg`,
-  "requirements.lock",
-  "ruff.toml",
-  `setup.${"py"}`,
-  "setup.cfg",
-  `${"to"}x.ini`,
-  `.${"python"}-version`,
-  `${"uv"}.lock`,
-  "uv.toml",
-]);
-const PYTHON_SOURCE_SUFFIX = new RegExp(`\\.(?:${"py"}|${"py"}i|${"py"}w|${"py"}c)$`, "iu");
-const PYTHON_CACHE_DIRECTORY = `__${"py"}cache__`;
-const PYTHON_RUNTIME_DIRECTORIES = new Set([
-  `.${"venv"}`,
-  ".hypothesis",
-  ".pyre",
-  ".pytype",
-  ".eggs",
-  ".mypy_cache",
-  `.${"no"}x`,
-  ".pytest_cache",
-  ".ruff_cache",
-  `.${"to"}x`,
-  "htmlcov",
-  "site-packages",
-  `${"venv"}`,
-  `__${"py"}packages__`,
-]);
-const FILESYSTEM_SCAN_EXCLUSIONS = new Set([
-  ".git",
-  ".vite",
-  "coverage",
-  "dist",
-  "node_modules",
-  "release",
-  "target",
-]);
-const HISTORICAL_PYTHON_REFERENCE_FILES = new Set([
-  "docs/work_plan/20260901_work_plan.md",
-]);
-const HISTORICAL_PYTHON_REFERENCE_PATTERNS = [
-  /^docs\/adr\/(?:\d{8}_ADR|ADR_history)\.md$/u,
-  /^docs\/changelog\/(?:\d{8}_CHANGELOG|CHANGELOG_history)\.md$/u,
-  /^docs\/verification\/(?:\d{8}(?:-\d{8})?_verification|human_review)\.md$/u,
-];
-const APPROVED_BINARY_REFERENCE_SUFFIXES = new Set([".jpeg", ".jpg", ".png"]);
-
-function isPythonArtifactPath(relative) {
-  const name = path.posix.basename(relative);
-  const segments = relative.split("/");
-  return PYTHON_SOURCE_SUFFIX.test(relative)
-    || segments.includes(PYTHON_CACHE_DIRECTORY)
-    || segments.some((segment) => PYTHON_RUNTIME_DIRECTORIES.has(segment) || /\.(?:egg-info|dist-info)$/iu.test(segment))
-    || PYTHON_MANIFEST_NAMES.has(name.toLowerCase())
-    || /^requirements(?:-[^/]+)?\.(?:in|txt)$/iu.test(name);
-}
-
-/** 枚举 Git ignore 也不能隐藏的 Python 源码、依赖清单和运行时目录。 */
-export function findPythonArtifacts(root = ROOT) {
-  const found = [];
-  const visit = (directory, prefix = "") => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
-      if (entry.isDirectory() && (FILESYSTEM_SCAN_EXCLUSIONS.has(entry.name) || entry.name.startsWith(".release-clean."))) continue;
-      if (isPythonArtifactPath(relative)) {
-        found.push(relative);
-        if (entry.isDirectory()) continue;
-      }
-      if (entry.isDirectory()) visit(path.join(directory, entry.name), relative);
-    }
-  };
-  visit(root);
-  return found.sort();
-}
 
 /** 验证固定入口、许可证、事实源和 Node 校验入口存在。 */
 export function validateRequiredFiles(errors) {
@@ -355,128 +257,6 @@ export function validateMemoryIndexes(errors) {
   }
 }
 
-function isOperationalReferenceFile(relative) {
-  if (HISTORICAL_PYTHON_REFERENCE_FILES.has(relative)) return false;
-  if (HISTORICAL_PYTHON_REFERENCE_PATTERNS.some((pattern) => pattern.test(relative))) return false;
-  return true;
-}
-
-/** 返回单个活动文件中的 Python 运行时残留类别，供门禁与回归共用。 */
-export function pythonReferenceViolations(relative, text) {
-  if (!isOperationalReferenceFile(relative)) return [];
-  const interpreter = `${"py"}thon`;
-  const launcher = "py";
-  const boundary = "(?:^|[^A-Za-z0-9_])";
-  const optionalQuote = `["']?`;
-  const commandTail = `(?=\\s*(?:$|[\\],);|&#<>]|\\\\(?:\\r?\\n)|\\s+(?:[-<]|[A-Za-z0-9_./])))`;
-  const finalObjectValue = (command) => `:\\s*${optionalQuote}${command}${optionalQuote}\\s*\\}`;
-  const packageManagerNames = [
-    `${"pip"}(?:3)?(?:\\.exe)?`,
-    `${"pip"}x`,
-    `${"pip"}env`,
-    `${"poetry"}`,
-    `${"pdm"}`,
-    `${"hatch"}`,
-    `${"rye"}`,
-    `${"py"}env`,
-    `${"virtual"}env`,
-    `${"conda"}`,
-    `${"mamba"}`,
-    `${"pip"}-(?:compile|sync)`,
-  ].join("|");
-  const packageManager = `(?:(?:${packageManagerNames})\\b|${"uv"}x\\b|${"uv"}\\s+(?:add|lock|${"pip"}|run|sync|tool|venv)\\b)`;
-  const toolCommand = [
-    `${"py"}test`,
-    `${"to"}x`,
-    `${"no"}x`,
-    `${"my"}py`,
-    `${"ruff"}`,
-    `${"py"}right`,
-    `${"py"}lint`,
-  ].join("|");
-  const runtimeMarkers = [
-    `^#![^\\n]*\\b${interpreter}(?:3(?:\\.\\d+)*)?\\b`,
-    `PY${"THON_COMMAND"}`,
-    `PY${"THON"}(?:HOME|PATH|NOUSERSITE)`,
-    `P${"IP"}_(?:CONFIG_FILE|INDEX_URL|EXTRA_INDEX_URL|REQUIRE_VIRTUALENV)`,
-    `setup-${interpreter}`,
-    `setup-${"uv"}`,
-    `__${"py"}cache__`,
-    `\\.${"py"}c\\b`,
-    `\\.${"venv"}(?:[\\/]|\\b)`,
-    `VIRTUAL_${"ENV"}`,
-    `CONDA_${"PREFIX"}`,
-    `${interpreter}:\\d`,
-    `${"py"}project\\.toml`,
-    `${"pip"}file(?:\\.lock)?`,
-    `${"poetry"}\\.lock`,
-    `${"uv"}\\.lock`,
-    `requirements(?:-[^/\\s]+)?\\.(?:in|txt)`,
-    `(?:^|[-\\s])${interpreter}\\s*(?:[=<>!~]=?|:)\\s*\\d`,
-    `(?:command\\s+-v|which|where(?:\\.exe)?|Get-Command|type\\s+-P)\\s+(?:${interpreter}(?:3(?:\\.\\d+)*)?(?:\\.exe)?|pip(?:3)?(?:\\.exe)?)\\b`,
-  ].join("|");
-  const prohibited = [
-    [new RegExp(`(?:${boundary}${optionalQuote}${interpreter}(?:3(?:\\.\\d+)*)?(?:\\.exe)?${optionalQuote}${commandTail}|${finalObjectValue(`${interpreter}(?:3(?:\\.\\d+)*)?(?:\\.exe)?`)})`, "imu"), "Python 解释器命令"],
-    [new RegExp(`${boundary}${optionalQuote}${launcher}(?:\\.exe)?${optionalQuote}\\s+-(?=\\S|$)`, "imu"), "Python 启动器命令"],
-    [new RegExp(`(?:${boundary}${optionalQuote}${packageManager}${optionalQuote}${commandTail}|${finalObjectValue(packageManager)})`, "imu"), "Python 包管理命令"],
-    [new RegExp(`(?:${boundary}${optionalQuote}(?:${toolCommand})(?:\\.exe)?${optionalQuote}${commandTail}|${finalObjectValue(`(?:${toolCommand})(?:\\.exe)?`)})`, "imu"), "Python 工具命令"],
-    [new RegExp(`\\.${"py"}\\b`, "iu"), "Python 文件入口"],
-    [new RegExp(runtimeMarkers, "iu"), "Python 运行时标识"],
-  ];
-  return prohibited.filter(([pattern]) => pattern.test(text)).map(([, label]) => label);
-}
-
-/** 阻止任何活动 Python 源码、解释器入口或依赖清单重新进入 Harness。 */
-export function validateNoPythonRuntime(
-  errors,
-  files = null,
-  { root = ROOT, scanFilesystem = files === null } = {},
-) {
-  const candidates = files ?? trackedFiles(root);
-  const rejectedPaths = new Set();
-  for (const relative of candidates) {
-    const name = path.posix.basename(relative);
-    if (isPythonArtifactPath(relative) && !(PYTHON_MANIFEST_NAMES.has(name.toLowerCase()) || /^requirements(?:-[^/]+)?\.(?:in|txt)$/iu.test(name))) {
-      fail(errors, `Harness 不得包含 Python 源码、字节码或运行时目录: ${relative}`);
-      rejectedPaths.add(relative);
-    }
-    if (PYTHON_MANIFEST_NAMES.has(name.toLowerCase()) || /^requirements(?:-[^/]+)?\.(?:in|txt)$/iu.test(name)) {
-      fail(errors, `Harness 不得包含 Python 依赖清单: ${relative}`);
-      rejectedPaths.add(relative);
-    }
-    if (!isOperationalReferenceFile(relative)) continue;
-    const filePath = path.join(root, relative);
-    let stat;
-    try {
-      stat = fs.lstatSync(filePath);
-    } catch (error) {
-      fail(errors, `无法检查活动文件 ${relative}: ${error.message}`);
-      continue;
-    }
-    if (!stat.isFile() || stat.isSymbolicLink()) {
-      fail(errors, `活动文件必须是普通非符号链接文件: ${relative}`);
-      continue;
-    }
-    if (APPROVED_BINARY_REFERENCE_SUFFIXES.has(path.extname(relative).toLowerCase())) continue;
-    let text;
-    try {
-      text = readText(filePath);
-    } catch (error) {
-      fail(errors, `无法检查活动文件 ${relative}: ${error.message}`);
-      continue;
-    }
-    for (const label of pythonReferenceViolations(relative, text)) {
-      fail(errors, `活动文件不得保留 ${label}: ${relative}`);
-    }
-  }
-  if (scanFilesystem) {
-    for (const relative of findPythonArtifacts(root)) {
-      if (rejectedPaths.has(relative)) continue;
-      fail(errors, `Git ignore 不得隐藏 Python 源码、依赖或运行时产物: ${relative}`);
-    }
-  }
-}
-
 /** 执行仓库结构、链接、记忆与无 Python 依赖的完整检查。 */
 export function validateRepository(errors) {
   let files;
@@ -492,5 +272,5 @@ export function validateRepository(errors) {
   validateSkills(errors);
   validateMarkdownLinks(errors, files);
   validateMemoryIndexes(errors);
-  validateNoPythonRuntime(errors, files, { scanFilesystem: true });
+  for (const error of inspectNoPython(ROOT, { files })) fail(errors, `Harness ${error}`);
 }

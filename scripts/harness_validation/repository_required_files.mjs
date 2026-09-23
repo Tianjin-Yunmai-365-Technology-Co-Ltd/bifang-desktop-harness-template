@@ -221,6 +221,8 @@ export const REQUIRED_ROOT_FILES = [
   ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.test.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.test.mjs",
+  ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs",
+  ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
   ".agents/skills/desktop-manage-version/scripts/version_gate.mjs",
   ".agents/skills/desktop-manage-version/scripts/version_gate.test.mjs",
 

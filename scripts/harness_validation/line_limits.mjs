@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { inspectRepository } from "../../.agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs";
+import { inspectRepository, lineLimitProfile as checkerLineLimitProfile } from "../../.agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs";
 import {
   ROOT,
   decodeMaintainedText,
@@ -9,20 +9,16 @@ import {
   trackedFiles,
 } from "./core.mjs";
 
-const FRONTEND_SUFFIXES = new Set([
-  ".astro", ".cjs", ".css", ".cts", ".html", ".js", ".jsx", ".less", ".mjs", ".mts",
-  ".sass", ".scss", ".svelte", ".ts", ".tsx", ".vue",
-]);
 const GENERATED_NAMES = new Set([
   "Cargo.lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
 ]);
 
+const PROFILE_NAMES = { rust: "Rust", frontend: "前端", maintained_text: "人工维护文本" };
+
 /** 按工程规则选择建议阈值与硬上限。 */
 export function lineLimitProfile(relative) {
-  const suffix = path.extname(relative).toLowerCase();
-  if (suffix === ".rs") return { name: "Rust", review: 400, hard: 800 };
-  if (FRONTEND_SUFFIXES.has(suffix)) return { name: "前端", review: 500, hard: 1000 };
-  return { name: "人工维护文本", review: 500, hard: 2000 };
+  const [profileName, review, hard] = checkerLineLimitProfile(relative);
+  return { name: PROFILE_NAMES[profileName], review, hard };
 }
 
 function shouldSkip(relative) {

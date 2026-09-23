@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, readText, relativePath, run, trackedFiles } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, fail, readText, nodeSyntaxError, relativePath, trackedFiles } from "./core.mjs";
 
 export const GIT_LIFECYCLE_SKILL_ROOT = path.join(SKILLS_ROOT, "desktop-manage-git-lifecycle");
 export const GIT_LIFECYCLE_SKILL = path.join(GIT_LIFECYCLE_SKILL_ROOT, "SKILL.md");
@@ -71,10 +71,8 @@ function requireContract(errors, filePath, fragments, label) {
 function validateSyntax(errors, paths) {
   for (const filePath of paths) {
     if (!fs.existsSync(filePath)) continue;
-    const result = run(process.execPath, ["--check", filePath], { timeout: 30_000 });
-    if (result.error || result.status !== 0) {
-      fail(errors, `invalid Git lifecycle Node module ${relativePath(filePath)}: ${(result.stderr || result.error?.message).trim()}`);
-    }
+    const detail = nodeSyntaxError(filePath);
+    if (detail !== null) fail(errors, `invalid Git lifecycle Node module ${relativePath(filePath)}: ${detail}`);
   }
 }
 

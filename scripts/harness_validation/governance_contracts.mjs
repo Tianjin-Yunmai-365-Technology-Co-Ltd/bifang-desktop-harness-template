@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, relativePath, run } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, fail, nodeSyntaxError, relativePath } from "./core.mjs";
 import { validateAgentsEntrypoint } from "./governance.mjs";
 import { PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS } from "./governance_policy.mjs";
 
@@ -370,11 +370,8 @@ export function validateStreamlinedDevelopmentAndBuild(errors, options = {}) {
 
   for (const key of ["gitLifecycleEntry", "gitLifecycleCore", "gitLifecyclePublication", "gitLifecycleTests", "gitLifecycleReleaseTests", "gitPublicationTests"]) {
     if (!texts.has(key)) continue;
-    const result = run(process.execPath, ["--check", paths[key]], { cwd: ROOT });
-    if (result.error || result.status !== 0) {
-      const detail = (result.stderr || result.stdout || result.error?.message || "unknown syntax error").trim();
-      fail(errors, `invalid Git lifecycle Node module ${relativePath(paths[key])}: ${detail}`);
-    }
+    const detail = nodeSyntaxError(paths[key]);
+    if (detail !== null) fail(errors, `invalid Git lifecycle Node module ${relativePath(paths[key])}: ${detail}`);
   }
 
   const forbiddenTierFragments = ["每项任务使用一种路径", "快速路径", "标准路径", "里程碑路径", "当前任务路径", "推荐敏捷预设"];

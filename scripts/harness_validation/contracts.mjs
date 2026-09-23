@@ -1,12 +1,13 @@
-import fs from "node:fs";
 import path from "node:path";
 
 import {
   ROOT,
+  SKILLS_ROOT,
+  checkNodeSyntax,
   fail,
   readText,
   requireFragments,
-  run,
+  relativePath,
   trackedFiles,
 } from "./core.mjs";
 import { validateCoreFirstContract } from "./architecture.mjs";
@@ -27,9 +28,6 @@ import { validateReleaseContract } from "./release.mjs";
 import { validateGitLifecycleContract } from "./git_lifecycle.mjs";
 import { validateWorkflow } from "./workflow.mjs";
 
-const NODE_RUNTIME_RULE = "Node.js 是所有接口组合的受管工程运行时";
-const PYTHON_POLICY_RULE = "只有开发者在当前请求中主动明确要求时才可例外";
-
 /** 验证 Agent 策略字段及 Harness 源默认值。 */
 export function validateAgentPolicy(errors) {
   validatePersistentAgentPolicy(errors, path.join(ROOT, "docs", "AGENT_POLICY.md"), {
@@ -47,7 +45,24 @@ export function validateGovernanceDocuments(errors) {
     "$desktop-refactor-code",
     "node scripts/validate_harness.mjs",
     "node scripts/run_harness_tests.mjs",
+    "工程自动化只使用 Node.js 标准库",
+    "check_no_python.mjs --root .",
   ], "AGENTS.md");
+  requireFragments(errors, path.join(SKILLS_ROOT, "desktop-check-development-environment", "SKILL.md"), [
+    "受管工具集合固定为",
+    "不得探测、安装、升级或建议集合外的解释器",
+  ], "$desktop-check-development-environment");
+  const environmentSkillPrefix = ".agents/skills/desktop-check-development-environment/";
+  try {
+    for (const relative of trackedFiles().filter((file) => file.startsWith(environmentSkillPrefix))) {
+      if (/python/iu.test(readText(path.join(ROOT, relative)))) fail(errors, `环境检查不得提及 Python: ${relative}`);
+    }
+  } catch (error) {
+    fail(errors, `无法检查环境 Skill 文件: ${error.message}`);
+  }
+  for (const skillName of ["desktop-initialize-rust-project", "desktop-upgrade-harness"]) {
+    requireFragments(errors, path.join(SKILLS_ROOT, skillName, "SKILL.md"), ["check_no_python.mjs"], skillName);
+  }
   const bytes = Buffer.byteLength(agents, "utf8");
   const lines = agents ? agents.replaceAll("\r\n", "\n").split("\n").length - (agents.endsWith("\n") ? 1 : 0) : 0;
   if (bytes > 20_000) fail(errors, `AGENTS.md 超过 20,000 UTF-8 字节预算: ${bytes}`);
@@ -55,9 +70,10 @@ export function validateGovernanceDocuments(errors) {
 
   requireFragments(errors, path.join(ROOT, "docs", "ENGINEERING_RULES.md"), [
     "Core-first 是硬规则",
-    NODE_RUNTIME_RULE,
+    "Node.js 是所有接口组合的受管工程运行时",
     "不得引入 Python 源码、解释器、包管理器、虚拟环境、第三方包或 Python 运行步骤",
-    PYTHON_POLICY_RULE,
+    "只有开发者在当前请求中主动明确要求时才可例外",
+    "check_no_python.mjs --root .",
     "node scripts/validate_harness.mjs --release-review",
     "Rust 代码：400 行",
     "前端代码：500 行",
@@ -79,36 +95,6 @@ export function validateGovernanceDocuments(errors) {
   ], "docs/RUST_CLI_TEMPLATE.md");
 }
 
-/** 验证各固定 Node helper 已随下游传播且没有回退成空壳。 */
-export function validateNodeHelperInventory(errors) {
-  const required = [
-    ".agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs",
-    ".agents/skills/desktop-instantiate-project/scripts/resolve_project_target.mjs",
-    ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs",
-    ".agents/skills/desktop-manage-version/scripts/version_gate.mjs",
-    ".agents/skills/desktop-prepare-release/scripts/release_context.mjs",
-    ".agents/skills/desktop-prepare-release/scripts/release_git.mjs",
-    ".agents/skills/desktop-prepare-release/scripts/release_notes.mjs",
-    ".agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_context.mjs",
-    ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.mjs",
-    ".agents/skills/desktop-rename-project-identity/scripts/rename_project_identity.mjs",
-    ".agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs",
-    ".agents/skills/desktop-implement-change/scripts/check_core_first.mjs",
-    ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs",
-    ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs",
-    ".agents/skills/desktop-build-tauri-release/scripts/verify_release_notes_resource.mjs",
-  ];
-  for (const relative of required) {
-    const absolute = path.join(ROOT, relative);
-    if (!fs.existsSync(absolute)) {
-      fail(errors, `缺少 Node helper: ${relative}`);
-      continue;
-    }
-    const text = readText(absolute);
-    if (Buffer.byteLength(text, "utf8") < 200) fail(errors, `Node helper 内容异常为空: ${relative}`);
-  }
-}
-
 /** 对全部 JavaScript 运行 Node 语法检查，并要求存在非空 Node 回归。 */
 export function validateNodeSyntaxAndTests(errors) {
   let files;
@@ -121,12 +107,15 @@ export function validateNodeSyntaxAndTests(errors) {
   const scripts = files.filter((relative) => /\.(?:mjs|cjs|js)$/u.test(relative));
   const tests = files.filter((relative) => /\.test\.(?:mjs|cjs|js)$/u.test(relative));
   if (tests.length === 0) fail(errors, "未发现 Node 回归测试");
-  for (const relative of scripts) {
-    const result = run(process.execPath, ["--check", path.join(ROOT, relative)], { timeout: 30_000 });
-    if (result.error || result.status !== 0) {
-      const detail = (result.stderr || result.error?.message || "无诊断").trim();
-      fail(errors, `Node 语法检查失败 ${relative}: ${detail}`);
-    }
+  let results;
+  try {
+    results = checkNodeSyntax(scripts.map((relative) => path.join(ROOT, relative)));
+  } catch (error) {
+    fail(errors, error.message);
+    return { scripts: scripts.length, tests: tests.length };
+  }
+  for (const [absolute, detail] of results) {
+    if (detail !== null) fail(errors, `Node 语法检查失败 ${relativePath(absolute)}: ${detail}`);
   }
   return { scripts: scripts.length, tests: tests.length };
 }
@@ -154,6 +143,8 @@ export function validateNeutralRustArchitecture(errors) {
 
 /** 组合运行策略、规则、Node helper、workflow 与中性架构契约。 */
 export function validateContracts(errors) {
+  // 先批量并发解析全部模块；顺序只影响速度，后续契约校验命中同一缓存。
+  const nodeInventory = validateNodeSyntaxAndTests(errors);
   validateAgentPolicy(errors);
   validateAgentsEntrypoint(errors);
   validateEngineeringContract(errors);
@@ -162,8 +153,6 @@ export function validateContracts(errors) {
   validateVersionContract(errors);
   validateProductVersioningContract(errors);
   validateGovernanceDocuments(errors);
-  validateNodeHelperInventory(errors);
-  const nodeInventory = validateNodeSyntaxAndTests(errors);
   validateWorkflow(errors);
   validateReleaseContract(errors);
   validateGitLifecycleContract(errors);

@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, readText, relativePath, run } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, fail, readText, nodeSyntaxError, relativePath } from "./core.mjs";
 
 const skill = (name, ...parts) => path.join(SKILLS_ROOT, name, ...parts);
 const latest = (directory, pattern) => fs.readdirSync(directory).filter((name) => pattern.test(name)).sort().at(-1);
@@ -92,10 +92,8 @@ export function validateFragmentContract(errors, required, { label, syntaxCheck 
       if (!text.includes(fragment)) fail(errors, `${label} missing in ${relativePath(filePath)}: ${fragment}`);
     }
     if (checked.has(filePath)) {
-      const result = run(process.execPath, ["--check", filePath], { timeout: 30_000 });
-      if (result.error || result.status !== 0) {
-        fail(errors, `invalid ${label} Node module ${relativePath(filePath)}: ${(result.stderr || result.error?.message).trim()}`);
-      }
+      const detail = nodeSyntaxError(filePath);
+      if (detail !== null) fail(errors, `invalid ${label} Node module ${relativePath(filePath)}: ${detail}`);
     }
   }
 }

@@ -583,7 +583,7 @@ function optionName(value) {
   return value.slice(2).replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
 }
 
-/** 解析固定 CLI，参数结构错误保持 argparse 的退出码 2。 */
+/** 解析固定 CLI，参数结构错误以退出码 2 返回。 */
 export function parseArguments(argv) {
   if (argv.length === 0 || !["write", "check", "verify"].includes(argv[0])) {
     throw Object.assign(new Error("the following arguments are required: command"), { cliExit: 2 });

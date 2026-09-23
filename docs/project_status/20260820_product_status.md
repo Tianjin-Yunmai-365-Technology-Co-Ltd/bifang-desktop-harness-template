@@ -25,7 +25,7 @@
 - 按用户确认建立共享产品家族品牌例外：条件 Skill 完整携带固定三档赞助价格、品牌联系人、中英文文案、两张支付二维码、更新 banner 和暂未使用小图；媒体清单对 13 个文件记录 MIME、尺寸、字节数、SHA-256、用途、敏感性和内部专有复用边界。
 - 新增 About/Sponsor/Media/Banner React/Mantine 模板与产品实例文档模板。赞助页采用响应式布局和主题令牌；支付码具备明确替代文本；本地视频契约强制 controls、字幕、文字稿和无 autoplay，但来源没有已跟踪视频，因此没有伪造视频制品。
 - GUI 初始化保留完整品牌源包，应用 bundle 只接收已选界面所需资源；升级器把 Skill、模板、配置、i18n、manifest 和媒体视为同一 conditional 能力，同时继续保护下游产品实例与本地决定。
-- 全量 141 条 Python 回归、Harness validator 的 128 个必需文件与 24 份 Skill、统一行数门禁、中性 Rust workspace 注释门禁、隔离前端严格 TypeScript/Prettier/31 个 TypeScript 声明门禁/7 条 Vitest，以及 13 张图片的逐字节、摘要、尺寸、解码和视觉检查全部通过；来源身份、固定服务、秘密和绝对路径扫描为零命中。
+- 全量 141 条 Harness 回归、Harness validator 的 128 个必需文件与 24 份 Skill、统一行数门禁、中性 Rust workspace 注释门禁、隔离前端严格 TypeScript/Prettier/31 个 TypeScript 声明门禁/7 条 Vitest，以及 13 张图片的逐字节、摘要、尺寸、解码和视觉检查全部通过；来源身份、固定服务、秘密和绝对路径扫描为零命中。
 
 ## 未运行与剩余风险
 

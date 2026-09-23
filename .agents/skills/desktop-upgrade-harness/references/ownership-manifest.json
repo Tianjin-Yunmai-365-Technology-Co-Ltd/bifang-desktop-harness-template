@@ -48,6 +48,8 @@
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_core_first.test.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.test.mjs", "mode": "managed"},
+    {"pattern": ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs", "mode": "managed"},
+    {"pattern": ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-manage-git-lifecycle/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-upgrade-harness/**", "mode": "managed-self"},
     {"pattern": ".agents/skills/desktop-add-cli-adapter/**", "mode": "conditional"},

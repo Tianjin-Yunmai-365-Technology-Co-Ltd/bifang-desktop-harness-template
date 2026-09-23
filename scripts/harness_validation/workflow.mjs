@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, fail, readText, relativePath, run } from "./core.mjs";
+import { ROOT, fail, readText, nodeSyntaxError, relativePath } from "./core.mjs";
 import {
   CHECKOUT_USE,
   EXPECTED_ACTION_STEPS,
@@ -74,9 +74,9 @@ function validateHelper(errors, helper, fragments, label) {
     fail(errors, `missing ${label}: ${relativePath(helper)} (${error.message})`);
     return "";
   }
-  const checked = run(process.execPath, ["--check", helper], { timeout: 30_000 });
-  if (checked.error || checked.status !== 0) {
-    fail(errors, `cannot parse ${label} ${relativePath(helper)}: ${(checked.stderr || checked.error?.message).trim()}`);
+  const detail = nodeSyntaxError(helper);
+  if (detail !== null) {
+    fail(errors, `cannot parse ${label} ${relativePath(helper)}: ${detail}`);
     return "";
   }
   for (const fragment of fragments) {
