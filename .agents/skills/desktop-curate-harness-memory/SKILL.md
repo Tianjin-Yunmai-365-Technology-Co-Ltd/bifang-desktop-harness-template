@@ -24,7 +24,7 @@ Harness 对自身的 ADR、Changelog 应用与下游相同的“按日记忆只�
    - 上述判定无法确定（既无引用也无明确的完整取代声明）：保守保留在当前文件，不得仅因日期较早迁移；在完成报告中列为“候选”交人工复核，不自动迁移。
 3. 对判定为过期的条目，把原文一字不改追加到同目录 `<TYPE>_history.md` 末尾（文件不存在则新建，标题为 `# <TYPE> 历史决定`，并在文件顶部说明：本文件只追加、不重写、不删除，是从当前最新文件迁出的完整过期条目原文，需配合 Git 历史使用，不是下游可继承的项目记忆）；随后从当前最新文件中删除该条目。写入 `_history.md` 的内容永久不得再编辑或删除，只能继续追加；已迁移条目若被证明误判仍在依据，须从 Git 历史恢复回当前文件，不得反向编辑 `_history.md`。
 4. 更新目标目录 `README.md`：在“日期文件”之后新增指向 `<TYPE>_history.md` 的索引行，并在写入规则中补充一句——不再被任何当前规范引用、已被后续决定完全取代的条目原文迁移到 `<TYPE>_history.md` 永久追加保存，当前文件只保留仍在直接约束行为的条目；本机制仅适用于 Harness 自身，不随下游派生。
-5. 运行 `python3 scripts/validate_harness.py`，确认文件行数、Markdown 链接完整性与既有回归全部通过；确认 `docs/verification/`、`docs/work_plan/`、`docs/project_status/`、`docs/product_spec/` 未被触碰。
+5. 运行 `node scripts/validate_harness.mjs`，确认文件行数、Markdown 链接完整性与既有回归全部通过；确认 `docs/verification/`、`docs/work_plan/`、`docs/project_status/`、`docs/product_spec/` 未被触碰。
 6. 若 `<TYPE>_history.md` 自身超过人工维护文本 2000 行硬上限，按本仓库既有的人工维护文本拆分惯例新建 `<TYPE>_history_2.md` 等续卷，在原文件末尾和 README 索引中注明续卷路径；不得为规避行数上限而重写或精简历史原文。
 
 ## 质量规则

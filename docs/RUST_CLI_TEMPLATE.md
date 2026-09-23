@@ -80,12 +80,11 @@
 | 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor、归零 Patch 并锁到真实发布成功，问题修复或用户可感知优化以新稳定 ID 和 `bug-fix` 升 Patch 且不受功能锁影响；新生成 Minor/Patch 为 `0..99` 并按 base-100 自动进位，Major 不受 99/100 的业务上限约束但不得超过 Cargo `u64::MAX`，显式 Major 仍仅由用户批准 |
 | 锁文件 | 提交根 `Cargo.lock` | 使用 Cargo 生成；不得手工编辑 |
 | Git | 全部初始化：稳定版 `>=2.36.0` | 完整表单确认后检查；覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`，缺失时按受管平台方式安装，可证明低于下界时升级，范围内稳定版原样复用，随后复探 |
-| Node.js | 仅 GUI：`>=24.21.0` | 缺失或低于 24.21.0 时安装/升级到官方当前最高 LTS 线的最新补丁；24.21.0 及任何更高正式版本原样复用，非 GUI 为 `not-required` |
+| Node.js | 所有接口：`>=24.21.0` | Harness 与下游固定 helper 的工程运行时；缺失或低于 24.21.0 时安装/升级到官方当前最高 LTS 线的最新补丁，24.21.0 及任何更高正式版本原样复用 |
 | pnpm | 仅 GUI：`>=12.4.1` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，非 GUI 为 `not-required` |
 | MSVC 构建工具 | Windows 缺失时自动安装 | 验证 Microsoft 签名，安装 C++ 工作负载并复探 |
 | Linux 系统开发库（仅 GUI） | Tauri 2 依赖的 webkit2gtk（`webkit2gtk-4.1-dev` 或 `webkit2gtk-4.0-dev`，视发行版而定）、`libgtk-3-dev`、`librsvg2-dev`、`libayatana-appindicator3-dev` 等发行版对应的开发包 | 非 GUI 为 `not-required`；具体包名随发行版包管理器变化，需按目标发行版核对 |
 | macOS Xcode Command Line Tools（仅 GUI） | 缺失时执行 `xcode-select --install` | 非 GUI 为 `not-required` |
-| Python 3 | 可选 | 缺失时询问是否安装；跳过不阻断初始化，但 Python 检查记为未执行 |
 
 初始化前运行只读探测：
 
@@ -95,12 +94,12 @@ rustc --version
 cargo --version
 rustc -vV
 git --version
-# 仅 GUI
 node --version
+# 仅 GUI
 pnpm --version
 ```
 
-中性初始化在写入脚手架前使用 `$desktop-check-development-environment` 主动运行一次完整适用门禁。初始化完成后，日常开发和显式构建都先运行本次真实测试/构建命令；只有命令已经失败，且命令、退出状态与脱敏诊断明确指向门禁管理的工具链、目标或系统依赖缺失/不兼容时，才运行对应门禁并重试原命令一次。不得仅因新任务、新会话、显式构建、缺少/过期环境证据、工具链要求或版本可能变化而预检。Rust 构建仍阻断于真实缺失或不兼容工具链，Windows 同时要求 MSVC；只有 GUI 命令的环境恢复才增加 Node.js 与 pnpm，其他接口组合不得为此探测、安装或升级二者。
+中性初始化在写入脚手架前使用 `$desktop-check-development-environment` 主动运行一次完整适用门禁。初始化完成后，日常开发和显式构建都先运行本次真实测试/构建命令；只有命令已经失败，且命令、退出状态与脱敏诊断明确指向门禁管理的工具链、目标或系统依赖缺失/不兼容时，才运行对应门禁并重试原命令一次。不得仅因新任务、新会话、显式构建、缺少/过期环境证据、工具链要求或版本可能变化而预检。Rust 构建仍阻断于真实缺失或不兼容工具链，Windows 同时要求 MSVC；Node.js 对所有接口组合都适用，只有 GUI 命令的环境恢复才另外增加 pnpm 与前端系统依赖。
 
 环境需要修复时，Rust 使用官方当前 stable，Node.js 从官方索引选择当前最高 LTS 线的最新补丁，pnpm 从官方 HTTPS registry 解析当前兼容稳定版；已有范围内稳定版不因“更新”被无故替换。Rust、Node.js 与 pnpm 必须使用各平台标准当前用户全局位置：Unix 使用 rustup 标准的 `${CARGO_HOME:-$HOME/.cargo}`/`${RUSTUP_HOME:-$HOME/.rustup}`、`$HOME/.local/lib/nodejs` 与 npm `--prefix $HOME/.local`，并把 Cargo 与 `.local/bin` 直接写入幂等 profile；Windows 使用对应标准用户目录并维护去重 User PATH。`rustup-init` 在两端均传 `--no-modify-path`，阻止安装器在事务预检之外改写 profile/注册表，随后由门禁把标准 Cargo bin 写入普通用户 PATH；该参数不改变安装根。非默认 Rust homes 只有能由 Unix 新 login shell 或 Windows User 作用域持久恢复且与当前进程一致时才可决定安装；任何将进入 PATH 的单一路径根夹带平台分隔符都必须在下载前拒绝。不得新建 Harness 私有工具环境变量、私有全局前缀、项目内 shim，或只修改当前会话；旧版 Harness 的精确 profile source 行会在下一次真实修复时安全移除，旧文件本身不做破坏性删除。两端都移除 PATH 空段/重复项，并在写后由当前进程与新 shell 复探真实命令。测试专用下载源、安装根、探测 PATH 和持久化重定向只有显式 `AFH_TEST_MODE=1` 才允许，生产环境出现这些覆盖立即失败；只读模式不得触碰 PATH、profile、注册表或下载源。
 
@@ -114,7 +113,7 @@ pnpm --version
 .agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
 ```
 
-成功输出必须包含 `gate.git.status=passed` 与 `gate.rust.status=passed`；Rust 门禁接受 1.98.1 及以上稳定版。Windows 还必须包含 `gate.msvc.status=passed`。GUI 额外要求 `gate.node.requirement=>=24.21.0` 与 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.21.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退依赖或锁文件、注入 shim，或寻找替代工具链来适配旧环境。
+成功输出必须包含 `gate.git.status=passed`、`gate.rust.status=passed` 与 `gate.node.requirement=>=24.21.0`；Rust 门禁接受 1.98.1 及以上稳定版，Node.js 对全部接口组合适用。Windows 还必须包含 `gate.msvc.status=passed`，GUI 另外要求 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.21.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退依赖或锁文件、注入 shim，或寻找替代工具链来适配旧环境。
 
 ## 默认依赖
 
@@ -243,8 +242,8 @@ cargo build --workspace --release --locked
 此外必须：
 
 - 中性阶段确认测试数量非零，覆盖核心状态与每个所选适配器；选择 CLI 时覆盖 `productDefinitionRequired=true` 与拒绝未批准业务命令。
-- 通过当前平台可用的 Python 3 解释器从 Cargo workspace 根运行 `.agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.py --root . --json`；它必须扫描所有 member 的 `build.rs`、`src/` 与 `tests/`，并以退出码 0/1/2 区分通过、声明违规和运行错误。非 GUI 项目不适用 TypeScript 注释门禁；GUI 项目还按 React 前端基线从 GUI 前端根运行 AST 门禁。
-- 使用 `cargo metadata --no-deps --locked --format-version 1` 或项目保留的等价检查确认每个适配器直接依赖核心、核心不通过 workspace 依赖路径到达适配器或接口框架、适配器彼此不直接或间接依赖；Python 可用时通过当前平台可用的 Python 3 解释器运行 `.agents/skills/desktop-implement-change/scripts/check_core_first.py`，不得依赖 POSIX 可执行位；不可用时必须执行并记录等价的依赖图审查。
+- 从 Cargo workspace 根运行 `node .agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs --root . --json`；它必须扫描所有 member 的 `build.rs`、`src/` 与 `tests/`，并以退出码 0/1/2 区分通过、声明违规和运行错误。非 GUI 项目不适用 TypeScript 注释门禁；GUI 项目还按 React 前端基线从 GUI 前端根运行 AST 门禁。
+- 使用 `cargo metadata --no-deps --locked --format-version 1` 或项目保留的等价检查确认每个适配器直接依赖核心、核心不通过 workspace 依赖路径到达适配器或接口框架、适配器彼此不直接或间接依赖；随后运行 `node .agents/skills/desktop-implement-change/scripts/check_core_first.mjs --workspace-root .` 复核同一图，不得依赖 POSIX 可执行位或替代解释器。
 - 确认核心异步路径和 CLI Tokio 入口均被实际执行；不得只编译未调用的异步代码。
 - 通过真实 CLI 黑盒测试验证 JSON 信封、标准输出/标准错误、退出码和非交互行为。
 - 从 Cargo 元数据和配置解析二进制文件与目标目录，不根据仓库文件夹名猜测。

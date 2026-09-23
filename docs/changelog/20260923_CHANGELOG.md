@@ -86,6 +86,8 @@
 
 ## 变更
 
+- `HARNESS-CHANGE-NODE-ONLY-AUTOMATION`（`required_version = pending`）：Harness 校验器、Git/版本/发布/初始化/升级等固定 helper、专项回归与跨平台候选 workflow 统一迁移到 Node.js 标准库和 `node:test`，移除活动 Python 源码、解释器选择、内联脚本、依赖入口与字节码残留。Node.js `>=24.21.0` 现在是 CLI/TUI/MCP/GUI 全部接口组合的受管工程运行时，pnpm 仍只在 GUI/前端适用；工程硬规则默认禁止重新引入 Python，只有开发者在当前请求中主动明确要求、说明必要性并在项目内显式声明和隔离时才允许精确例外。历史 ADR/Changelog/Verification 与已完成 Work Plan 中的旧命令保留为真实历史证据，后续活动计划和当前状态不豁免。
+
 - `HARNESS-FIX-WINDOWS-RELEASE-VALIDATOR-CRLF`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：修复 Windows Git 将已跟踪的发布上下文校验脚本和 JSON 检出为 CRLF 后，生命周期发布把脚本误判为未跟踪或把上下文摘要误判为不匹配的问题。校验只允许工作文件与 HEAD 的规范 LF 字节相同，或仅将工作文件 CRLF 还原为 LF 后相同；其他脚本或上下文改动仍失败关闭。真实临时仓库回归覆盖干净 CRLF 检出、上下文复读和本地发布。
 
 - `HARNESS-CHANGE-DEFAULT-INTERNAL-PARALLEL-DISABLED`（所需 Harness 版本 `202609172016`，已由本次 Harness 时间版本发布物化）：初始化推荐预设将 `parallel_worktree_subagents` 改为 `disabled`。该开关只控制当前 Task 内部的 `codex/unit-*` Worktree 与写入型 Subagent；手动或策略自动新建的 Git 侧边 Task 仍使用独立 Worktree、`feature-*` 分支和可审查提交。策略、表单、初始化 Skills、规格、README 与校验已同步。

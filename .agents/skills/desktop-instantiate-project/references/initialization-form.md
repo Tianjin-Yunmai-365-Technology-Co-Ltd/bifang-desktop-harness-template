@@ -73,10 +73,7 @@ e2e_hint: disabled
 收齐 `project_id` 与项目路径后，运行只读 helper：
 
 ```text
-python3 .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.py \
-  --harness-root <harness-root> \
-  --project-path <user-project-path> \
-  --project-id <project-id>
+node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.mjs --harness-root "<harness-root>" --project-path "<user-project-path>" --project-id "<project-id>"
 ```
 
 解析规则固定如下：

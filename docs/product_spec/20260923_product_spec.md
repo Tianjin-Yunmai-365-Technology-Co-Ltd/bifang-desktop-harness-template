@@ -84,7 +84,7 @@
 
 - 变更标识：`HARNESS-CHANGE-PER-RELEASE-SEMANTIC-REVIEW`；所需 Harness 版本：`202609082335`，已由本次 Harness 时间版本发布物化。
 - 每次显式发布在任何本地发布提交、测试或构建前解析当次 `reviewSelection: enabled | disabled`。当前请求已经明确时直接复用，否则询问一次；同一发布的修复重跑复用原选择，新发布重新询问。安全、隐私、不可逆副作用、对外兼容契约或渠道硬要求会强制启用，不能被普通偏好关闭。
-- 日常开发与默认 Harness 校验只执行机械硬门禁和本次变化所需的相关回归，不自动列出软行数候选、扫描 `TODO`/`FIXME`/`HACK` 或增加通用人工审查。选择 `enabled` 时发布流程显式运行 `validate_harness.py --release-review`，并对当次发布范围完成语义审查；选择 `disabled` 且无硬要求时记录 `reviewStatus: Not run`、非空原因和剩余风险，不得生成或残留 `reviewEvidence`、`reviewedSourceCommit`。
+- 日常开发与默认 Harness 校验只执行机械硬门禁和本次变化所需的相关回归，不自动列出软行数候选、扫描 `TODO`/`FIXME`/`HACK` 或增加通用人工审查。选择 `enabled` 时发布流程显式运行 `node scripts/validate_harness.mjs --release-review`，并对当次发布范围完成语义审查；选择 `disabled` 且无硬要求时记录 `reviewStatus: Not run`、非空原因和剩余风险，不得生成或残留 `reviewEvidence`、`reviewedSourceCommit`。
 - 启用审查时以发布元数据上下文写入前的源码 `sourceHead` 为审查对象，记录 `reviewEvidence` 与 `reviewedSourceCommit = sourceHead`。最终候选 `sourceCommit` 可因随后提交发布元数据及普通合并而不同，不对两者施加祖先、线性或允许路径门禁；若审查对象本身继续变化则必须重新审查。禁用不等于通过，也不能覆盖同一发布已产生的真实审查失败。
 - 所有正式发布都先由 `$desktop-prepare-release` 把 `gitPublication`、显式审查结果和适用的 macOS 签名选择，与版本、日期、预期 tag、默认主分支和源码 `sourceHead` 一起写入 `.harness/release-context.json` 并提交。生命周期 helper 必须接收该文件的精确 SHA-256，在任何 Git 副作用前验证 tracked 上下文与 CLI 完全一致；本地模式只完成本地主分支/tag，远端模式才增加 push/远端复读。终端下游构建在开始前和写 manifest 前都只读校验发布上下文与模式适用 refs，不能由直接构建入口或对话补写，E2E 仍在构建阶段单独解析。
 
@@ -101,11 +101,17 @@
 - 构建、收集、候选 E2E、完整验收、`pending` → `accepted` 和就绪复核必须始终保持 clean 上下文默认主分支，其本地主分支/tag 与所有 manifest `sourceCommit` 精确相同；远端模式再要求远端同名 refs 一致，本地模式只允许当前宿主候选且零远端访问。全部候选、摘要、选择、人工签署和运行证据只写入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复，不得修改 tracked Verification、Product Status 或版本状态。
 - Producer/collector 在仓库外同文件系统 sibling 暂存和验证完整精确集合后，才以目录级原子替换提交；验收在准入和写状态前两次验证发布上下文与 tag，E2E/冒烟后复算全部最终字节，随后一次性原子提交所有 `accepted` manifest。就绪复核纯只读。真实渠道发布成功后，才从已发布且带版本 tag 的默认主分支开始下一次开发生命周期，追加 Verification/发布/Product Status 并 finalize 版本周期；独立回顾性人工复核/长期审计不能反向批准活动候选。
 
+### Node-only 工程自动化与 Python 例外门禁
+
+- 变更标识与所需版本：`change_id = HARNESS-CHANGE-NODE-ONLY-AUTOMATION`；`required_version = pending`。
+- Harness 源和所有终端下游的验证器、Git 生命周期、版本、发布、初始化、升级与治理 helper 统一使用 Node.js `>=24.21.0` 标准库；专项回归使用 `node:test`，托管候选 workflow 不选择或执行其他解释器。Node.js 是 CLI、TUI、MCP、GUI 全部接口组合的受管工程运行时，pnpm 和前端依赖仍只在 GUI 适用。
+- 活动工程树不得包含 Python 源码、字节码、解释器命令、包管理器、虚拟环境、第三方包或运行步骤。只有开发者在当前请求中主动明确要求且 Node/既有依赖无法合理满足时才可精确例外；引入前必须说明必要性，在项目内显式声明、隔离依赖并补齐跨平台测试和删除条件，不能依赖全局包。历史 ADR、Changelog、Verification 与已完成 Work Plan 的旧命令保留为真实历史，不当作活动入口；后续活动 Work Plan 和当前状态不得保留这些入口。
+
 ### 主流环境下界、标准当前用户安装与最新兼容稳定选择
 
 - 变更标识与所需版本：`change_id = HARNESS-CHANGE-MAINSTREAM-LTS-STANDARD-USER-ENVIRONMENT`；`required_version = 202609122231`，已由本次 Harness 时间版本发布物化。
 - 环境门禁触发范围不变：中性初始化在首次脚手架写入前主动执行一次；初始化完成后只在真实测试/构建命令已出现环境错误时针对性恢复并单次重试。现有可解析稳定版只要不低于下界就原样通过，不因主版本更高而升级或阻断；只有缺失或可证明低于下界时才安装/升级。预发布、无法解析或损坏安装继续失败关闭；`cargo-xwin` 等自身明确声明上界的工具仍按其专用范围判定。
-- 当前开发环境下界为 Git `>=2.36.0`、Rust `>=1.98.1`、Node.js `>=24.21.0`、pnpm `>=12.4.1`。Node.js 以当前最高官方 LTS 线的最新补丁作为安装候选，但检测为连续下界，因此 25.x、26.x 及未来更高正式版都可直接通过。Rust 没有 LTS 通道，因此以当前官方 stable `1.98.1` 作为 MSRV 与安装下界；pnpm 同样以当前稳定版作为下界。Git 无 LTS 通道，且 `2.36.0` 已满足 Harness 使用的 `git worktree list --porcelain -z` 能力，故保留功能下界，不为追逐发布号强制替换已兼容安装。
+- 当前开发环境下界为 Git `>=2.36.0`、Rust `>=1.98.1`、Node.js `>=24.21.0`、pnpm `>=12.4.1`。Node.js 是 Harness 与所有下游接口固定 helper 的通用工程运行时；pnpm 仍只在 GUI/前端适用。Node.js 以当前最高官方 LTS 线的最新补丁作为安装候选，但检测为连续下界，因此 25.x、26.x 及未来更高正式版都可直接通过。Rust 没有 LTS 通道，因此以当前官方 stable `1.98.1` 作为 MSRV 与安装下界；pnpm 同样以当前稳定版作为下界。Git 无 LTS 通道，且 `2.36.0` 已满足 Harness 使用的 `git worktree list --porcelain -z` 能力，故保留功能下界，不为追逐发布号强制替换已兼容安装。
 - 需要写入时只做当前用户的标准全局安装，不建立 Harness 私有工具根或私有环境变量：Rust 使用官方 rustup 标准布局，并尊重位于用户主目录内的标准 `CARGO_HOME`/`RUSTUP_HOME`；非默认 Rust homes 只有在 Unix 新 login shell 或 Windows User 作用域能持久恢复，且恢复值与当前进程一致时才能决定安装，否则在下载前失败关闭。两端的 `rustup-init` 都传 `--no-modify-path`，阻止安装器在完整预检和原子持久化之外改写 shell profile 或 User PATH；门禁随后把标准 Cargo bin 写入普通用户 PATH，该参数不改变安装根。Unix Node.js 安装到 `~/.local/lib/nodejs/<version>` 并在 `~/.local/bin` 建立稳定入口，pnpm 使用 npm 的 `--global --prefix ~/.local`；Windows Node.js 使用 `%LOCALAPPDATA%\Programs\nodejs\<version>`，pnpm 使用 `%APPDATA%\npm`，Rust 使用 rustup 标准用户位置。所有将进入 PATH 的单一路径根在写入或下载前都拒绝对应平台的 PATH 分隔符。持久 PATH 直接纳入这些标准 bin，不再通过 `~/.config/agent-first-harness/env.sh` 或同类 Harness 私有 env 中转；修复时可精确移除旧 source 行，但保留旧文件字节供人工恢复。
 - 依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标，正常锁文件固定实际解析结果；新增或主动更新时优先选择 registry 当前最新兼容稳定版，再以 MSRV、peer、平台和 API/feature 实测决定是否抬高下界。中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析、代码规范检查与非空测试。`rmcp 3.3.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-09-12 经 registry metadata、peer 与 engine 筛选的候选完整三段下界，继续保持 `Unverified`；实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析，以及适用的非空 test、typecheck 和 build，成功后才能成为该项目的兼容下界。前端候选包括 React/React DOM `19.3.0`、Mantine `9.6.1`、TanStack Router `1.170.35`、`i18next` `26.4.2`、`react-i18next` `17.0.13`、Vite `8.3.0`、ESLint `10.10.0`、`typescript-eslint` `8.70.0` 与 Testing Library；Node 类型直接声明为 `@types/node ^24.13.4`，浏览器测试固定使用连续支持 Node.js `>=24.21.0`（包括 25.x）的 `jsdom ^29.0.1`，不得升级到会重新排除 Node.js 25.x 的 30.x。新增成套 peer 下界时必须在清单中显式声明。TypeScript 7、Vitest 5 和 Jotai 3 等需要迁移或尚与现有 peer 范围冲突的跨主版候选不为追求版本号而强制引入。
 - 本节的环境下界、连续 Node.js 判定和标准当前用户安装语义，取代 `HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION`、`HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE` 与 `HARNESS-CHANGE-USER-GLOBAL-DEVELOPMENT-ENVIRONMENT-RECOVERY` 中的旧版本、Node.js 25 分段、Harness 私有安装根和忽略标准 Rust homes 子句；旧决定要求安装器使用 `--no-modify-path` 的安全边界继续有效，但 PATH 现在由门禁直接写入标准用户位置而非 Harness 私有中转。它们关于触发范围、范围内复用、低于下界自动修复、预发布/损坏失败关闭、供应链校验、新 shell 复探和零写入只读模式的其余决定继续有效。
@@ -113,7 +119,7 @@
 ### Windows 环境受权限阻断时人工接续
 
 - 变更标识：`HARNESS-CHANGE-WINDOWS-ENVIRONMENT-MANUAL-HANDOFF`；所需 Harness 版本：`202609172016`，已由本次 Harness 时间版本发布物化。
-- 中性初始化或真实受管环境错误恢复仍优先由 Agent 按现有门禁自动静默安装/升级并复探。Windows 的管理员权限、UAC 或组织策略使当前 Codex 会话无法继续时，保留表单和原失败事实，只按本次未达标的必需工具提供 Git、Rust、MSVC Build Tools，以及仅 GUI 所需 Node.js、pnpm 的官方安装入口和操作要点。静默参数不能绕过管理员授权，不降低版本或验签门槛。
+- 中性初始化或真实受管环境错误恢复仍优先由 Agent 按现有门禁自动静默安装/升级并复探。Windows 的管理员权限、UAC 或组织策略使当前 Codex 会话无法继续时，保留表单和原失败事实，只按本次未达标的必需工具提供 Git、Rust、所有接口所需 Node.js、MSVC Build Tools，以及仅 GUI 所需 pnpm 的官方安装入口和操作要点。静默参数不能绕过管理员授权，不降低版本或验签门槛。
 - 用户自行安装并告知继续后，Agent 在原项目根和接口选择下先重新读取进程环境并运行只读门禁；全部适用项通过才恢复初始化或对原失败命令单次重试。用户陈述、安装器返回或其他机器结果不替代当前宿主复探。
 
 ### 开发历史只读汇总

@@ -33,7 +33,7 @@ if ($UnsupportedInterfaces.Count -gt 0) {
     [Console]::Error.WriteLine("不支持的接口：$($UnsupportedInterfaces -join ',')")
     exit 2
 }
-$FrontendRequired = $NormalizedInterfaces -contains "GUI"
+$PnpmRequired = $NormalizedInterfaces -contains "GUI"
 $TemporaryDirectories = [System.Collections.Generic.List[string]]::new()
 
 # 使用稳定退出码结束门禁，调用方可以据此区分具体失败阶段。
@@ -674,11 +674,11 @@ function Assert-ProjectedPersistedToolIdentities {
         & $assertProjectedCommand "cargo" $cargo $CargoVersion
         Assert-PersistedRustHostIdentity -RustcPath $rustc -ExpectedVersion $RustVersion -ExpectedHost $RustHost -PersistentPath $projectedPath
     }
-    if ($FrontendRequired -and $nodeState -eq "passed") {
+    if ($nodeState -eq "passed") {
         & $assertProjectedCommand "node" $node $NodeVersion
         & $assertProjectedCommand "npm" $npm $NpmVersion
     }
-    if ($FrontendRequired -and $pnpmState -eq "passed") {
+    if ($PnpmRequired -and $pnpmState -eq "passed") {
         & $assertProjectedCommand "pnpm" $pnpm $PnpmVersion
     }
 }
@@ -813,7 +813,7 @@ function Add-PersistedUserPathEntries {
 
 # 从持久 User/Machine PATH 启动一个全新 PowerShell，并实际调用工具证明新会话可发现它们。
 function Test-FreshPowerShellToolDiscovery {
-    param([bool]$RequireFrontend)
+    param([bool]$RequirePnpm)
 
     $shellName = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh.exe" } else { "powershell.exe" }
     $shellExecutable = Join-Path $PSHOME $shellName
@@ -835,16 +835,18 @@ function Test-FreshPowerShellToolDiscovery {
         $encodedVersion = & $encodeFreshValue ([string]$spec[2])
         $checkRows.Add(('    @("{0}", "--version", "{1}", "{2}")' -f $spec[0], $encodedPath, $encodedVersion))
     }
-    if ($RequireFrontend) {
-        foreach ($spec in @(
-            @("node", $node, $NodeVersion),
-            @("npm", $npm, $NpmVersion),
-            @("pnpm", $pnpm, $PnpmVersion)
-        )) {
-            $encodedPath = & $encodeFreshValue ([IO.Path]::GetFullPath([string]$spec[1]))
-            $encodedVersion = & $encodeFreshValue ([string]$spec[2])
-            $checkRows.Add(('    @("{0}", "--version", "{1}", "{2}")' -f $spec[0], $encodedPath, $encodedVersion))
-        }
+    foreach ($spec in @(
+        @("node", $node, $NodeVersion),
+        @("npm", $npm, $NpmVersion)
+    )) {
+        $encodedPath = & $encodeFreshValue ([IO.Path]::GetFullPath([string]$spec[1]))
+        $encodedVersion = & $encodeFreshValue ([string]$spec[2])
+        $checkRows.Add(('    @("{0}", "--version", "{1}", "{2}")' -f $spec[0], $encodedPath, $encodedVersion))
+    }
+    if ($RequirePnpm) {
+        $encodedPath = & $encodeFreshValue ([IO.Path]::GetFullPath([string]$pnpm))
+        $encodedVersion = & $encodeFreshValue ([string]$PnpmVersion)
+        $checkRows.Add(('    @("pnpm", "--version", "{0}", "{1}")' -f $encodedPath, $encodedVersion))
     }
     $checksLiteral = $checkRows -join ",`n"
     $encodedRustHost = & $encodeFreshValue $RustHost
@@ -1356,18 +1358,18 @@ try {
         $RustHost = "Missing"
         $rustState = "missing"
     }
-    if ($FrontendRequired) {
-        $node = Resolve-GateCommand "node"
-        $npm = Resolve-GateCommand "npm"
+    $node = Resolve-GateCommand "node"
+    $npm = Resolve-GateCommand "npm"
+    if ($node -and $npm) {
+        $nodeState = Test-NodeVersion $node
+        Test-NpmVersion $npm
+    } else {
+        $NodeVersion = "Missing"
+        $NpmVersion = "Missing"
+        $nodeState = "missing"
+    }
+    if ($PnpmRequired) {
         $pnpm = Resolve-GateCommand "pnpm"
-        if ($node -and $npm) {
-            $nodeState = Test-NodeVersion $node
-            Test-NpmVersion $npm
-        } else {
-            $NodeVersion = "Missing"
-            $NpmVersion = "Missing"
-            $nodeState = "missing"
-        }
         if ($pnpm) {
             $pnpmState = Test-PnpmVersion $pnpm
         } else {
@@ -1375,10 +1377,7 @@ try {
             $pnpmState = "missing"
         }
     } else {
-        $NodeVersion = "Not-required"
-        $NpmVersion = "Not-required"
         $PnpmVersion = "Not-required"
-        $nodeState = "not-required"
         $pnpmState = "not-required"
     }
     $msvcMissing = -not (Test-MsvcPrerequisite)
@@ -1399,18 +1398,19 @@ try {
         "gate.pnpm.requirement=$PnpmRequirement"
         "gate.pnpm.version=$PnpmVersion"
         "gate.msvc.status=$(if ($msvcMissing) { 'missing' } else { 'passed' })"
-        if ($gitState -ne "passed" -or $rustState -ne "passed" -or ($FrontendRequired -and ($nodeState -ne "passed" -or $pnpmState -ne "passed")) -or $msvcMissing) { exit 20 }
+        if ($gitState -ne "passed" -or $rustState -ne "passed" -or $nodeState -ne "passed" -or
+            ($PnpmRequired -and $pnpmState -ne "passed") -or $msvcMissing) { exit 20 }
         exit 0
     }
 
     # 所有将使用的用户安装根、已有 Node 版本目录和持久解析顺序都在任何环境写入、winget、下载器或安装器前一次性预检。
-    $requiresChange = $gitState -ne "passed" -or $rustState -ne "passed" -or $msvcMissing -or
-        ($FrontendRequired -and ($nodeState -ne "passed" -or $pnpmState -ne "passed"))
+    $requiresChange = $gitState -ne "passed" -or $rustState -ne "passed" -or
+        $nodeState -ne "passed" -or ($PnpmRequired -and $pnpmState -ne "passed") -or $msvcMissing
     if ($rustState -ne "passed") {
         Assert-ManagedDirectoryPath $script:ManagedCargoHome $UserProfileRoot "Rust Cargo 当前用户安装根"
         Assert-ManagedDirectoryPath $script:ManagedRustupHome $UserProfileRoot "Rust rustup 当前用户安装根"
     }
-    if ($FrontendRequired -and ($nodeState -ne "passed" -or $pnpmState -ne "passed")) {
+    if ($nodeState -ne "passed" -or ($PnpmRequired -and $pnpmState -ne "passed")) {
         Assert-ManagedNodeRootInventory
     }
     if ($pnpmState -ne "passed" -and $pnpmState -ne "not-required") {
@@ -1431,11 +1431,11 @@ try {
             Assert-PersistedCommandIdentity -Name "cargo" -CurrentPath $cargo -ExpectedVersion $CargoVersion -PersistentPath $persistentPath
             Assert-PersistedRustHostIdentity -RustcPath $rustc -ExpectedVersion $RustVersion -ExpectedHost $RustHost -PersistentPath $persistentPath
         }
-        if ($FrontendRequired -and $nodeState -eq "passed") {
+        if ($nodeState -eq "passed") {
             Assert-PersistedCommandIdentity -Name "node" -CurrentPath $node -ExpectedVersion $NodeVersion -PersistentPath $persistentPath
             Assert-PersistedCommandIdentity -Name "npm" -CurrentPath $npm -ExpectedVersion $NpmVersion -PersistentPath $persistentPath
         }
-        if ($FrontendRequired -and $pnpmState -eq "passed") {
+        if ($PnpmRequired -and $pnpmState -eq "passed") {
             Assert-PersistedCommandIdentity -Name "pnpm" -CurrentPath $pnpm -ExpectedVersion $PnpmVersion -PersistentPath $persistentPath
         }
 
@@ -1444,10 +1444,10 @@ try {
         Assert-MachinePathCommandAlignment -Name "rustup" -CurrentPath $rustup -WillInstallToUserRoot $rustInstallChangesPath
         Assert-MachinePathCommandAlignment -Name "rustc" -CurrentPath $rustc -WillInstallToUserRoot $rustInstallChangesPath
         Assert-MachinePathCommandAlignment -Name "cargo" -CurrentPath $cargo -WillInstallToUserRoot $rustInstallChangesPath
-        if ($FrontendRequired) {
-            $nodeInstallChangesPath = $nodeState -ne "passed"
-            Assert-MachinePathCommandAlignment -Name "node" -CurrentPath $node -WillInstallToUserRoot $nodeInstallChangesPath
-            Assert-MachinePathCommandAlignment -Name "npm" -CurrentPath $npm -WillInstallToUserRoot $nodeInstallChangesPath
+        $nodeInstallChangesPath = $nodeState -ne "passed"
+        Assert-MachinePathCommandAlignment -Name "node" -CurrentPath $node -WillInstallToUserRoot $nodeInstallChangesPath
+        Assert-MachinePathCommandAlignment -Name "npm" -CurrentPath $npm -WillInstallToUserRoot $nodeInstallChangesPath
+        if ($PnpmRequired) {
             Assert-MachinePathCommandAlignment -Name "pnpm" -CurrentPath $pnpm -WillInstallToUserRoot ($pnpmState -ne "passed")
         }
 
@@ -1459,11 +1459,11 @@ try {
             Assert-PendingPersistedCommandIdentity -Name "rustc" -CurrentPath $rustc -PersistentPath $persistentPath
             Assert-PendingPersistedCommandIdentity -Name "cargo" -CurrentPath $cargo -PersistentPath $persistentPath
         }
-        if ($FrontendRequired -and $nodeState -ne "passed") {
+        if ($nodeState -ne "passed") {
             Assert-PendingPersistedCommandIdentity -Name "node" -CurrentPath $node -PersistentPath $persistentPath
             Assert-PendingPersistedCommandIdentity -Name "npm" -CurrentPath $npm -PersistentPath $persistentPath
         }
-        if ($FrontendRequired -and $pnpmState -ne "passed") {
+        if ($PnpmRequired -and $pnpmState -ne "passed") {
             Assert-PendingPersistedCommandIdentity -Name "pnpm" -CurrentPath $pnpm -PersistentPath $persistentPath
         }
 
@@ -1483,7 +1483,7 @@ try {
             }
         }
         $plannedPrependedUserEntries = [System.Collections.Generic.List[string]]::new()
-        if ($FrontendRequired -and $pnpmState -ne "passed") {
+        if ($PnpmRequired -and $pnpmState -ne "passed") {
             [void]$plannedPrependedUserEntries.Add($script:ManagedPnpmHome)
         }
         foreach ($entry in $plannedRustUserPathEntries) {
@@ -1552,7 +1552,7 @@ try {
     $changed = if (@($GitChange, $RustChange, $NodeChange, $PnpmChange, $MsvcChange) | Where-Object { $_ -in @("installed", "upgraded") }) { "true" } else { "false" }
     $freshShellStatus = "not-required"
     if ($changed -eq "true" -and $persistenceEnabled) {
-        Test-FreshPowerShellToolDiscovery -RequireFrontend $FrontendRequired
+        Test-FreshPowerShellToolDiscovery -RequirePnpm $PnpmRequired
         $freshShellStatus = "passed"
     }
     "gate.git.status=passed"
@@ -1565,11 +1565,11 @@ try {
     "gate.rust.cargo_version=$CargoVersion"
     "gate.rust.host=$RustHost"
     "gate.rust.change=$RustChange"
-    "gate.node.status=$(if ($FrontendRequired) { 'passed' } else { 'not-required' })"
+    "gate.node.status=passed"
     "gate.node.requirement=$NodeRequirement"
     "gate.node.version=$NodeVersion"
     "gate.node.change=$NodeChange"
-    "gate.pnpm.status=$(if ($FrontendRequired) { 'passed' } else { 'not-required' })"
+    "gate.pnpm.status=$(if ($PnpmRequired) { 'passed' } else { 'not-required' })"
     "gate.pnpm.requirement=$PnpmRequirement"
     "gate.pnpm.version=$PnpmVersion"
     "gate.pnpm.change=$PnpmChange"

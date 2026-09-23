@@ -21,17 +21,17 @@ description: 仅在用户明确要求配置 Git，或下一步将实际创建提
 2. 实际提交前先运行身份只读报告。若 `user.name` 与 `user.email` 已经有效生效，无论来自 local/global/conditional 配置都原样保留；不得为了统一格式创建 local 覆盖。任一字段缺失时，由 Agent 从宿主账户读取设备用户名（POSIX 使用 `id -un`，Windows PowerShell 使用 `[Environment]::UserName`）：安全 ASCII 英文用户名直接使用，非英文值先由 Agent 翻译并归一化为单一 ASCII username/slug；本 Skill 不实现、猜测或调用固定翻译算法。只把该单一值传给 bootstrap，脚本从同一输入确定派生 `user.name = <asciiDeviceUsername>` 与 `user.email = <asciiDeviceUsername>@gmail.com`，并只为缺失字段执行 `git config --local`，然后独立检查并返回 scope/origin/derivation：
 
    ```text
-   python3 .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.py identity-report --project-root .
-   python3 .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.py identity-bootstrap --project-root . --fallback-username "<Agent-provided ASCII English device username>"
-   python3 .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.py identity-check --project-root .
+   node .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs identity-report --project-root .
+   node .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs identity-bootstrap --project-root . --fallback-username "<Agent-provided ASCII English device username>"
+   node .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs identity-check --project-root .
    ```
 
    `identity-report` 与 `identity-check` 只读；`identity-bootstrap` 在身份完整时幂等且不写配置。已有字段无效、Agent 未提供安全 ASCII username/slug、仓库边界异常或 local 写入/复探失败时必须停止，绝不得静默改写已有身份、接受独立且可能不一致的邮箱输入或退回全局配置。
 3. 安装或修复模板时，使用同一标准库脚本。它把受管模板逐字节安装到当前仓库的 Git common dir，并只通过 `git config --local` 设置 `commit.template`、`commit.cleanup=strip`、`commit.verbose=true` 与 `core.commentChar=#`：
 
    ```text
-   python3 .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.py install --project-root .
-   python3 .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.py check --project-root .
+   node .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs install --project-root .
+   node .agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs check --project-root .
    ```
 
 4. 若任一受管模板键已有不同值，脚本必须在写入前失败并报告冲突。只有用户明确批准替换当前仓库模板配置时才重跑 `install --replace`；不得把 `--replace` 当作默认恢复手段。任何模式都不得运行 `git config --global`、`git config --system`，不得修改签名、凭据、远端或 hooks；身份 bootstrap 的唯一写入是缺失 `user.name`/`user.email` 的当前仓库 local 值。

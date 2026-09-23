@@ -13,7 +13,7 @@ PNPM_REGISTRY='https://registry.npmjs.org/'
 TEST_MODE=${AFH_TEST_MODE:-0}
 MODE=install
 INTERFACES=
-FRONTEND_REQUIRED=0
+PNPM_REQUIRED=0
 
 # 输出稳定的命令入口说明，避免调用方误把只读模式当成首次开发安装模式。
 usage() {
@@ -179,7 +179,7 @@ for interface in $(printf '%s' "$normalized_interfaces" | tr ',' ' '); do
     esac
 done
 case ",$normalized_interfaces," in
-    *,GUI,*) FRONTEND_REQUIRED=1 ;;
+    *,GUI,*) PNPM_REQUIRED=1 ;;
 esac
 
 # 仅在门禁探测路径中解析工具，隔离测试可因此隐藏机器已有环境。
@@ -1208,13 +1208,13 @@ verify_persisted_passed_tools_before_write() {
     else
         preflight_check_rust_shadow=1
     fi
-    if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
-        if [ "$NODE_STATUS" = passed ]; then
-            preflight_node_path=$node_path
-            preflight_npm_path=$npm_path
-        else
-            preflight_check_node_shadow=1
-        fi
+    if [ "$NODE_STATUS" = passed ]; then
+        preflight_node_path=$node_path
+        preflight_npm_path=$npm_path
+    else
+        preflight_check_node_shadow=1
+    fi
+    if [ "$PNPM_REQUIRED" -eq 1 ]; then
         if [ "$PNPM_STATUS" = passed ]; then
             preflight_pnpm_path=$pnpm_path
         else
@@ -1223,8 +1223,8 @@ verify_persisted_passed_tools_before_write() {
     fi
 
     preflight_projected_path=
-    if { [ "$RUST_STATUS" != passed ] || {
-        [ "$FRONTEND_REQUIRED" -eq 1 ] && { [ "$NODE_STATUS" != passed ] || [ "$PNPM_STATUS" != passed ]; };
+    if { [ "$RUST_STATUS" != passed ] || [ "$NODE_STATUS" != passed ] || {
+        [ "$PNPM_REQUIRED" -eq 1 ] && [ "$PNPM_STATUS" != passed ];
     }; } && ! { [ "$TEST_MODE" = 1 ] && [ "${AFH_SKIP_PERSIST_PATH:-0}" = 1 ]; }; then
         preflight_cargo_bin=$MANAGED_CARGO_HOME/bin
         preflight_user_bin=$PNPM_HOME/bin
@@ -1581,12 +1581,12 @@ persist_user_tool_path() {
     expected_node_path=
     expected_npm_path=
     expected_pnpm_path=
-    if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
-        expected_node_path=$node_path
-        expected_npm_path=$npm_path
+    expected_node_path=$node_path
+    expected_npm_path=$npm_path
+    [ "$NODE_CHANGED" = existing ] || expected_node_path=$USER_BIN_DIR/node
+    [ "$NODE_CHANGED" = existing ] || expected_npm_path=$USER_BIN_DIR/npm
+    if [ "$PNPM_REQUIRED" -eq 1 ]; then
         expected_pnpm_path=$pnpm_path
-        [ "$NODE_CHANGED" = existing ] || expected_node_path=$USER_BIN_DIR/node
-        [ "$NODE_CHANGED" = existing ] || expected_npm_path=$USER_BIN_DIR/npm
         [ "$PNPM_CHANGED" = existing ] || expected_pnpm_path=$USER_BIN_DIR/pnpm
     fi
     fresh_failure=0
@@ -1662,18 +1662,18 @@ else
     RUST_STATUS=missing
 fi
 
-if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
-    node_path=$(find_tool node 2>/dev/null || true)
-    npm_path=$(find_tool npm 2>/dev/null || true)
+node_path=$(find_tool node 2>/dev/null || true)
+npm_path=$(find_tool npm 2>/dev/null || true)
+if [ -n "$node_path" ] && [ -n "$npm_path" ]; then
+    validate_node "$node_path"
+    validate_npm "$npm_path"
+else
+    NODE_VERSION=Missing
+    NPM_VERSION=Missing
+    NODE_STATUS=missing
+fi
+if [ "$PNPM_REQUIRED" -eq 1 ]; then
     pnpm_path=$(find_tool pnpm 2>/dev/null || true)
-    if [ -n "$node_path" ] && [ -n "$npm_path" ]; then
-        validate_node "$node_path"
-        validate_npm "$npm_path"
-    else
-        NODE_VERSION=Missing
-        NPM_VERSION=Missing
-        NODE_STATUS=missing
-    fi
     if [ -n "$pnpm_path" ]; then
         validate_pnpm "$pnpm_path"
     else
@@ -1681,10 +1681,7 @@ if [ "$FRONTEND_REQUIRED" -eq 1 ]; then
         PNPM_STATUS=missing
     fi
 else
-    NODE_VERSION=Not-required
-    NPM_VERSION=Not-required
     PNPM_VERSION=Not-required
-    NODE_STATUS=not-required
     PNPM_STATUS=not-required
 fi
 
@@ -1705,15 +1702,15 @@ if [ "$MODE" = check ]; then
     printf 'gate.pnpm.version=%s\n' "$PNPM_VERSION"
     [ "$GIT_STATUS" = passed ] &&
         [ "$RUST_STATUS" = passed ] &&
-        { [ "$NODE_STATUS" = passed ] || [ "$NODE_STATUS" = not-required ]; } &&
+        [ "$NODE_STATUS" = passed ] &&
         { [ "$PNPM_STATUS" = passed ] || [ "$PNPM_STATUS" = not-required ]; } || exit 20
     exit 0
 fi
 
 # 受管用户级工具先完成全部只读目标预检，再从真实持久 login shell 精确复核本轮不变工具；
 # 通过后才允许为 fish 新用户安全准备配置目录，瞬时 AFH_PREREQ_PATH 不得决定任何持久写入。
-if [ "$RUST_STATUS" != passed ] || {
-    [ "$FRONTEND_REQUIRED" -eq 1 ] && { [ "$NODE_STATUS" != passed ] || [ "$PNPM_STATUS" != passed ]; };
+if [ "$RUST_STATUS" != passed ] || [ "$NODE_STATUS" != passed ] || {
+    [ "$PNPM_REQUIRED" -eq 1 ] && [ "$PNPM_STATUS" != passed ];
 }; then
     preflight_user_installation
     verify_persisted_passed_tools_before_write
@@ -1789,11 +1786,11 @@ printf 'gate.rust.rustup_version=%s\n' "$RUSTUP_VERSION"
 printf 'gate.rust.cargo_version=%s\n' "$CARGO_VERSION"
 printf 'gate.rust.host=%s\n' "$RUST_HOST"
 printf 'gate.rust.change=%s\n' "$RUST_CHANGED"
-printf 'gate.node.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 1 ] && printf passed || printf not-required)"
+printf 'gate.node.status=passed\n'
 printf 'gate.node.requirement=%s\n' "$NODE_REQUIREMENT"
 printf 'gate.node.version=%s\n' "$NODE_VERSION"
 printf 'gate.node.change=%s\n' "$NODE_CHANGED"
-printf 'gate.pnpm.status=%s\n' "$([ "$FRONTEND_REQUIRED" -eq 1 ] && printf passed || printf not-required)"
+printf 'gate.pnpm.status=%s\n' "$([ "$PNPM_REQUIRED" -eq 1 ] && printf passed || printf not-required)"
 printf 'gate.pnpm.requirement=%s\n' "$PNPM_REQUIREMENT"
 printf 'gate.pnpm.version=%s\n' "$PNPM_VERSION"
 printf 'gate.pnpm.change=%s\n' "$PNPM_CHANGED"

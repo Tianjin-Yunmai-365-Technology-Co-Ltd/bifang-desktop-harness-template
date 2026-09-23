@@ -5,18 +5,18 @@ description: 在 Harness 源或终端下游 Git 项目中开始开发分支、�
 
 # 管理 Git 生命周期
 
-使用自包含标准库 helper 管理一次发布之间的 Git 资源。新功能、问题修复或其他会写入仓库的开发工作开始前运行 `start`；用户要求“推送”时运行 `publish`；用户要求“发布”时运行 `release`。
+使用 Node.js `>=24.21.0` 自包含标准库 helper 管理一次发布之间的 Git 资源。新功能、问题修复或其他会写入仓库的开发工作开始前运行 `start`；用户要求“推送”时运行 `publish`；用户要求“发布”时运行 `release`。
 
 ## 命令
 
 从项目根运行：
 
 ```text
-python3 .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py inspect --project-root . [--remote <name>]
-python3 .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py start --project-root . --summary <ascii-kebab> [--remote <name>]
-python3 .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py track-worktree --project-root . --worktree <absolute-path> [--remote <name>]
-python3 .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py publish --project-root . [--remote <name>] [--also-remote <name>]...
-python3 .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.py release --project-root . --version <version-without-v> --release-context-sha256 <sha256> [--date YYYYMMDD] (--local-only | --remote <name>)
+node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs inspect --project-root . [--remote <name>]
+node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs start --project-root . --summary <ascii-kebab> [--remote <name>]
+node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs track-worktree --project-root . --worktree <absolute-path> [--remote <name>]
+node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs publish --project-root . [--remote <name>] [--also-remote <name>]...
+node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs release --project-root . --version <version-without-v> --release-context-sha256 <sha256> [--date YYYYMMDD] (--local-only | --remote <name>)
 ```
 
 `start` 从当前 HEAD 创建并切换到 `feature-<summary>-<Asia/Shanghai YYYYMMDD>`。本地同名分支存在时依次尝试 `-2`、`-3`；当前已经位于本周期登记的同摘要分支时返回幂等结果。当前 Worktree 即使处于 detached HEAD 也可直接开始；若它不是主 Worktree，helper 会在创建分支后把该 Worktree 的规范化精确路径和新分支一起登记，无需预先建立另一层 Task 分支或再调用 `track-worktree`。创建本地分支不要求配置远端。

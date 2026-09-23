@@ -1,0 +1,496 @@
+import fs from "node:fs";
+import path from "node:path";
+
+import {
+  ROOT,
+  SKILLS_ROOT,
+  fail,
+  parseFrontmatter,
+  readText,
+  relativePath,
+  resolveInsideRoot,
+  trackedFiles,
+} from "./core.mjs";
+import { validateDailyProjectMemory } from "./repository_memory.mjs";
+import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
+
+/** Harness 当前必须保留的 42 个项目 Skill。 */
+export const EXPECTED_SKILLS = new Set([
+  "desktop-add-cli-adapter",
+  "desktop-add-gui-adapter",
+  "desktop-add-gui-autostart",
+  "desktop-add-gui-deep-link",
+  "desktop-add-gui-dialog",
+  "desktop-add-gui-global-shortcut",
+  "desktop-add-gui-single-instance",
+  "desktop-add-gui-system-locale",
+  "desktop-add-gui-system-notifications",
+  "desktop-add-gui-system-tray",
+  "desktop-add-gui-updater",
+  "desktop-add-gui-window-state",
+  "desktop-add-mcp-adapter",
+  "desktop-add-tui-adapter",
+  "desktop-build-rust-release",
+  "desktop-build-tauri-local-install",
+  "desktop-build-tauri-release",
+  "desktop-check-development-environment",
+  "desktop-collect-release-artifacts",
+  "desktop-configure-git-commits",
+  "desktop-curate-harness-memory",
+  "desktop-define-product",
+  "desktop-extract-i18n-strings",
+  "desktop-implement-change",
+  "desktop-initialize-rust-project",
+  "desktop-instantiate-project",
+  "desktop-manage-git-lifecycle",
+  "desktop-manage-version",
+  "desktop-plan-change",
+  "desktop-prepare-cross-platform-release",
+  "desktop-prepare-gui-app-identity",
+  "desktop-prepare-gui-support-surfaces",
+  "desktop-prepare-release",
+  "desktop-refactor-code",
+  "desktop-rename-project-identity",
+  "desktop-run-parallel-worktrees",
+  "desktop-summarize-development-history",
+  "desktop-test-final-artifact-e2e",
+  "desktop-test-gui-initialization-e2e",
+  "desktop-upgrade-harness",
+  "desktop-verify-delivery",
+  "mantine-list-view",
+]);
+
+const PYTHON_MANIFEST_NAMES = new Set([
+  ".coveragerc",
+  `.${"pdm"}-${"py"}thon`,
+  ".pylintrc",
+  ".ruff.toml",
+  `${"py"}project.toml`,
+  "pyrightconfig.json",
+  "pytest.ini",
+  "mypy.ini",
+  "pdm.lock",
+  "pdm.toml",
+  `${"hatch"}.toml`,
+  `${"manifest"}.in`,
+  `${"environment"}.yml`,
+  `${"environment"}.yaml`,
+  `${"conda"}-lock.yml`,
+  `${"conda"}-lock.yaml`,
+  `${"pip"}file`,
+  `${"pip"}file.lock`,
+  `${"poetry"}.lock`,
+  `${"poetry"}.toml`,
+  `${"pixi"}.lock`,
+  `${"pixi"}.toml`,
+  "pylock.toml",
+  `${"py"}${"venv"}.cfg`,
+  "requirements.lock",
+  "ruff.toml",
+  `setup.${"py"}`,
+  "setup.cfg",
+  `${"to"}x.ini`,
+  `.${"python"}-version`,
+  `${"uv"}.lock`,
+  "uv.toml",
+]);
+const PYTHON_SOURCE_SUFFIX = new RegExp(`\\.(?:${"py"}|${"py"}i|${"py"}w|${"py"}c)$`, "iu");
+const PYTHON_CACHE_DIRECTORY = `__${"py"}cache__`;
+const PYTHON_RUNTIME_DIRECTORIES = new Set([
+  `.${"venv"}`,
+  ".hypothesis",
+  ".pyre",
+  ".pytype",
+  ".eggs",
+  ".mypy_cache",
+  `.${"no"}x`,
+  ".pytest_cache",
+  ".ruff_cache",
+  `.${"to"}x`,
+  "htmlcov",
+  "site-packages",
+  `${"venv"}`,
+  `__${"py"}packages__`,
+]);
+const FILESYSTEM_SCAN_EXCLUSIONS = new Set([
+  ".git",
+  ".vite",
+  "coverage",
+  "dist",
+  "node_modules",
+  "release",
+  "target",
+]);
+const HISTORICAL_PYTHON_REFERENCE_FILES = new Set([
+  "docs/work_plan/20260901_work_plan.md",
+]);
+const HISTORICAL_PYTHON_REFERENCE_PATTERNS = [
+  /^docs\/adr\/(?:\d{8}_ADR|ADR_history)\.md$/u,
+  /^docs\/changelog\/(?:\d{8}_CHANGELOG|CHANGELOG_history)\.md$/u,
+  /^docs\/verification\/(?:\d{8}(?:-\d{8})?_verification|human_review)\.md$/u,
+];
+const APPROVED_BINARY_REFERENCE_SUFFIXES = new Set([".jpeg", ".jpg", ".png"]);
+
+function isPythonArtifactPath(relative) {
+  const name = path.posix.basename(relative);
+  const segments = relative.split("/");
+  return PYTHON_SOURCE_SUFFIX.test(relative)
+    || segments.includes(PYTHON_CACHE_DIRECTORY)
+    || segments.some((segment) => PYTHON_RUNTIME_DIRECTORIES.has(segment) || /\.(?:egg-info|dist-info)$/iu.test(segment))
+    || PYTHON_MANIFEST_NAMES.has(name.toLowerCase())
+    || /^requirements(?:-[^/]+)?\.(?:in|txt)$/iu.test(name);
+}
+
+/** 枚举 Git ignore 也不能隐藏的 Python 源码、依赖清单和运行时目录。 */
+export function findPythonArtifacts(root = ROOT) {
+  const found = [];
+  const visit = (directory, prefix = "") => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory() && (FILESYSTEM_SCAN_EXCLUSIONS.has(entry.name) || entry.name.startsWith(".release-clean."))) continue;
+      if (isPythonArtifactPath(relative)) {
+        found.push(relative);
+        if (entry.isDirectory()) continue;
+      }
+      if (entry.isDirectory()) visit(path.join(directory, entry.name), relative);
+    }
+  };
+  visit(root);
+  return found.sort();
+}
+
+/** 验证固定入口、许可证、事实源和 Node 校验入口存在。 */
+export function validateRequiredFiles(errors) {
+  for (const relative of REQUIRED_ROOT_FILES) {
+    const filePath = path.join(ROOT, relative);
+    if (!fs.existsSync(filePath)) {
+      fail(errors, `缺少必需文件: ${relative}`);
+      continue;
+    }
+    const stat = fs.lstatSync(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+      fail(errors, `必需路径必须是普通非符号链接文件: ${relative}`);
+    }
+  }
+}
+
+/** 验证 Skill 集合、frontmatter 与元数据入口保持一一对应。 */
+export function validateSkills(errors) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(SKILLS_ROOT, { withFileTypes: true });
+  } catch (error) {
+    fail(errors, `无法枚举项目 Skills: ${error.message}`);
+    return;
+  }
+  const actual = new Set(entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name));
+  let readme = "";
+  let agents = "";
+  try {
+    readme = readText(path.join(ROOT, "README.md"));
+    agents = readText(path.join(ROOT, "AGENTS.md"));
+  } catch (error) {
+    fail(errors, error.message);
+  }
+  for (const name of EXPECTED_SKILLS) {
+    if (!actual.has(name)) fail(errors, `缺少预期 Skill: ${name}`);
+  }
+  for (const name of actual) {
+    if (!EXPECTED_SKILLS.has(name)) fail(errors, `Skills 地图未登记目录: ${name}`);
+  }
+  for (const name of EXPECTED_SKILLS) {
+    const skillFile = path.join(SKILLS_ROOT, name, "SKILL.md");
+    const metadataFile = path.join(SKILLS_ROOT, name, "agents", "openai.yaml");
+    if (!fs.existsSync(skillFile)) {
+      fail(errors, `Skill 缺少 SKILL.md: ${name}`);
+      continue;
+    }
+    try {
+      const frontmatter = parseFrontmatter(readText(skillFile));
+      if (!frontmatter) {
+        fail(errors, `Skill 缺少合法 frontmatter: ${name}`);
+      } else {
+        const keys = Object.keys(frontmatter).sort();
+        if (keys.join("\0") !== ["description", "name"].join("\0")) {
+          fail(errors, `Skill frontmatter 只能包含 name/description: ${name}`);
+        }
+        if (frontmatter.name !== name) fail(errors, `Skill name 与目录不一致: ${name}`);
+        if (!frontmatter.description?.trim()) fail(errors, `Skill description 不能为空: ${name}`);
+      }
+      const skillText = readText(skillFile);
+      if (skillText.includes("TODO")) fail(errors, `Skill 含未解决 TODO: ${name}`);
+      if (name === "mantine-list-view" && skillText.replaceAll("\r\n", "\n").split("\n").length > 201) {
+        fail(errors, `mantine-list-view SKILL.md 超过 200 行`);
+      }
+    } catch (error) {
+      fail(errors, error.message);
+    }
+    if (!fs.existsSync(metadataFile)) {
+      fail(errors, `Skill 缺少 agents/openai.yaml: ${name}`);
+    } else {
+      try {
+        const metadata = readText(metadataFile);
+        const yamlString = (key) => new RegExp(`^\\s*${key}:\\s*"([^"]*)"\\s*$`, "mu").exec(metadata)?.[1] ?? null;
+        const displayName = yamlString("display_name");
+        const shortDescription = yamlString("short_description");
+        const defaultPrompt = yamlString("default_prompt");
+        if (!displayName) fail(errors, `Skill metadata 缺少 display_name: ${name}`);
+        if (!shortDescription || shortDescription.length < 25 || shortDescription.length > 64) {
+          fail(errors, `Skill metadata short_description 长度必须为 25-64: ${name}`);
+        }
+        if (!defaultPrompt?.includes(`$${name}`)) fail(errors, `Skill metadata default_prompt 必须提及 $${name}`);
+      } catch (error) {
+        fail(errors, error.message);
+      }
+    }
+    if (!readme.includes(`\`${name}\``) && !readme.includes(`\`$${name}\``)) fail(errors, `README 未声明 Skill: ${name}`);
+    if (!agents.includes(`$${name}`)) fail(errors, `AGENTS 路由未提及 Skill: ${name}`);
+  }
+}
+
+/** 校验可选精简 Work Plan 的 Todo 状态、逐项字段和候选事实隔离。 */
+export function validateWorkPlanContract(errors, planPath = null, { required = false } = {}) {
+  const workPlanDirectory = path.join(ROOT, "docs", "work_plan");
+  const selected = planPath ?? fs.readdirSync(workPlanDirectory)
+    .filter((name) => /^\d{8}_work_plan\.md$/u.test(name))
+    .sort()
+    .map((name) => path.join(workPlanDirectory, name))
+    .at(-1);
+  if (!selected || !fs.existsSync(selected)) {
+    if (required) fail(errors, `missing active Work Plan: ${selected ? relativePath(selected) : "docs/work_plan/__missing_latest__.md"}`);
+    return;
+  }
+  const text = readText(selected);
+  if (!text.includes("## Todo")) fail(errors, `active Work Plan has no Todo section: ${relativePath(selected)}`);
+  const headings = [...text.matchAll(/^###\s+(TODO-[A-Z0-9-]+)(.*?)$/gmu)];
+  const todoIds = headings.map((match) => match[1]);
+  if (todoIds.length === 0) fail(errors, `active Work Plan has no stable Todo IDs: ${relativePath(selected)}`);
+  const duplicates = [...new Set(todoIds.filter((id, index) => todoIds.indexOf(id) !== index))].sort();
+  if (duplicates.length > 0) fail(errors, `active Work Plan contains duplicate Todo IDs: ${duplicates.join(", ")}`);
+  for (const [index, match] of headings.entries()) {
+    const states = [...match[2].matchAll(/[（(](pending|in_progress|blocked|done)[）)]/gu)];
+    if (states.length !== 1) fail(errors, `Todo ${match[1]} heading must carry exactly one explicit state`);
+    const blockEnd = headings[index + 1]?.index ?? text.length;
+    const block = text.slice((match.index ?? 0) + match[0].length, blockEnd);
+    const fields = [
+      ["expected behavior", /(?:预期行为|Expected behavior)\s*[：:]/iu],
+      ["ownership/boundary", /(?:影响边界|Ownership\/Boundary)\s*[：:]/iu],
+      ["verification", /(?:完成验证|验证|Verification)\s*[：:]/iu],
+    ];
+    for (const [label, pattern] of fields) {
+      if (!pattern.test(block)) fail(errors, `Todo ${match[1]} is missing per-item ${label}`);
+    }
+  }
+  for (const acceptance of text.matchAll(/^##\s+(?:验证里程碑|完整验收)\b.*$/gmu)) {
+    const block = text.slice((acceptance.index ?? 0) + acceptance[0].length);
+    for (const fragment of ["候选", "`done`", "$desktop-implement-change"]) {
+      if (!block.includes(fragment)) fail(errors, `Work Plan acceptance contract missing in ${relativePath(selected)}: ${fragment}`);
+    }
+    if (!/完整(?:真实| Harness|源树|产物)/u.test(block)) fail(errors, `Work Plan acceptance lacks a complete real candidate: ${relativePath(selected)}`);
+    if (!/模拟|桩|占位|脚手架|开发预览|单段文案/u.test(block)) fail(errors, `Work Plan acceptance lacks substitute rejection: ${relativePath(selected)}`);
+  }
+  const evidencePatterns = [
+    /^\s*(?:[-*]\s*)?(?:(?:当前)?(?:里程碑|验收|技术验收)?(?:状态|结论)|(?:Milestone|Acceptance)\s+(?:status|verdict))\s*[：:]\s*`?(?:Technically\s+accepted|Milestone\s+accepted|accepted|passed|已验收|通过)\b/imu,
+    /^\s*(?:[-*]\s*)?(?:(?:发布|候选)(?:状态|结论)|发布就绪|Release\s+readiness)\s*[：:]\s*`?(?:ready|已就绪|可发布)\b/imu,
+    /^\s*(?:[-*]\s*)?(?:milestoneAcceptance|sourceCommit|buildRun|buildMode|runtimeVerification|signingStatus|notarizationStatus|sha256)\s*[：:]/imu,
+    /^\s*(?:[-*]\s*)?(?:(?:候选|构建|E2E)(?:状态|结论)|Candidate\s+(?:status|verdict))\s*[：:]\s*`?(?:pending|rejected|accepted|passed|failed|waived|Unverified)\b/imu,
+  ];
+  if (evidencePatterns.some((pattern) => pattern.test(text))) {
+    fail(errors, "active Work Plan must not record candidate evidence or an acceptance/readiness verdict");
+  }
+}
+
+/** 解析本地 Markdown 链接并验证目标存在、未越过仓库根。 */
+export function validateMarkdownLinks(errors, files = trackedFiles()) {
+  const markdownFiles = files.filter((relative) => relative.endsWith(".md"));
+  const linkPattern = /!?\[[^\]]*\]\(([^)]+)\)/gu;
+  for (const relative of markdownFiles) {
+    const filePath = path.join(ROOT, relative);
+    let text;
+    try {
+      text = readText(filePath);
+    } catch (error) {
+      fail(errors, error.message);
+      continue;
+    }
+    for (const match of text.matchAll(linkPattern)) {
+      let target = match[1].trim();
+      if (!target || target.startsWith("#") || /^(?:https?:|mailto:|data:|app:|plugin:|codex:)/iu.test(target)) continue;
+      if (target.startsWith("<") && target.endsWith(">")) target = target.slice(1, -1);
+      target = target.split("#", 1)[0].split("?", 1)[0];
+      if (!target) continue;
+      try {
+        target = decodeURIComponent(target);
+        const resolved = resolveInsideRoot(path.dirname(filePath), target);
+        if (!fs.existsSync(resolved)) {
+          fail(errors, `失效本地 Markdown 链接: ${relative} -> ${target}`);
+        }
+      } catch (error) {
+        fail(errors, `${relative} 的本地链接无效: ${error.message}`);
+      }
+    }
+  }
+}
+
+/** 验证日期记忆索引只指向实际存在的最新快照。 */
+export function validateMemoryIndexes(errors) {
+  const configurations = [
+    ["docs/product_spec", /^(\d{8})_product_spec\.md$/u],
+    ["docs/project_status", /^(\d{8})_product_status\.md$/u],
+    ["docs/work_plan", /^(\d{8})_work_plan\.md$/u],
+    ["docs/adr", /^(\d{8})_ADR\.md$/u],
+    ["docs/changelog", /^(\d{8})_CHANGELOG\.md$/u],
+  ];
+  for (const [directory, pattern] of configurations) {
+    const absolute = path.join(ROOT, directory);
+    const files = fs.readdirSync(absolute).filter((name) => pattern.test(name)).sort();
+    if (files.length !== 1) {
+      fail(errors, `${directory} 必须只保留一个日期最新正文，实际 ${files.length} 个`);
+      continue;
+    }
+    const index = readText(path.join(absolute, "README.md"));
+    if (!index.includes(`(${files[0]})`)) {
+      fail(errors, `${directory}/README.md 未索引当前正文 ${files[0]}`);
+    }
+  }
+}
+
+function isOperationalReferenceFile(relative) {
+  if (HISTORICAL_PYTHON_REFERENCE_FILES.has(relative)) return false;
+  if (HISTORICAL_PYTHON_REFERENCE_PATTERNS.some((pattern) => pattern.test(relative))) return false;
+  return true;
+}
+
+/** 返回单个活动文件中的 Python 运行时残留类别，供门禁与回归共用。 */
+export function pythonReferenceViolations(relative, text) {
+  if (!isOperationalReferenceFile(relative)) return [];
+  const interpreter = `${"py"}thon`;
+  const launcher = "py";
+  const boundary = "(?:^|[^A-Za-z0-9_])";
+  const optionalQuote = `["']?`;
+  const commandTail = `(?=\\s*(?:$|[\\],);|&#<>]|\\\\(?:\\r?\\n)|\\s+(?:[-<]|[A-Za-z0-9_./])))`;
+  const finalObjectValue = (command) => `:\\s*${optionalQuote}${command}${optionalQuote}\\s*\\}`;
+  const packageManagerNames = [
+    `${"pip"}(?:3)?(?:\\.exe)?`,
+    `${"pip"}x`,
+    `${"pip"}env`,
+    `${"poetry"}`,
+    `${"pdm"}`,
+    `${"hatch"}`,
+    `${"rye"}`,
+    `${"py"}env`,
+    `${"virtual"}env`,
+    `${"conda"}`,
+    `${"mamba"}`,
+    `${"pip"}-(?:compile|sync)`,
+  ].join("|");
+  const packageManager = `(?:(?:${packageManagerNames})\\b|${"uv"}x\\b|${"uv"}\\s+(?:add|lock|${"pip"}|run|sync|tool|venv)\\b)`;
+  const toolCommand = [
+    `${"py"}test`,
+    `${"to"}x`,
+    `${"no"}x`,
+    `${"my"}py`,
+    `${"ruff"}`,
+    `${"py"}right`,
+    `${"py"}lint`,
+  ].join("|");
+  const runtimeMarkers = [
+    `^#![^\\n]*\\b${interpreter}(?:3(?:\\.\\d+)*)?\\b`,
+    `PY${"THON_COMMAND"}`,
+    `PY${"THON"}(?:HOME|PATH|NOUSERSITE)`,
+    `P${"IP"}_(?:CONFIG_FILE|INDEX_URL|EXTRA_INDEX_URL|REQUIRE_VIRTUALENV)`,
+    `setup-${interpreter}`,
+    `setup-${"uv"}`,
+    `__${"py"}cache__`,
+    `\\.${"py"}c\\b`,
+    `\\.${"venv"}(?:[\\/]|\\b)`,
+    `VIRTUAL_${"ENV"}`,
+    `CONDA_${"PREFIX"}`,
+    `${interpreter}:\\d`,
+    `${"py"}project\\.toml`,
+    `${"pip"}file(?:\\.lock)?`,
+    `${"poetry"}\\.lock`,
+    `${"uv"}\\.lock`,
+    `requirements(?:-[^/\\s]+)?\\.(?:in|txt)`,
+    `(?:^|[-\\s])${interpreter}\\s*(?:[=<>!~]=?|:)\\s*\\d`,
+    `(?:command\\s+-v|which|where(?:\\.exe)?|Get-Command|type\\s+-P)\\s+(?:${interpreter}(?:3(?:\\.\\d+)*)?(?:\\.exe)?|pip(?:3)?(?:\\.exe)?)\\b`,
+  ].join("|");
+  const prohibited = [
+    [new RegExp(`(?:${boundary}${optionalQuote}${interpreter}(?:3(?:\\.\\d+)*)?(?:\\.exe)?${optionalQuote}${commandTail}|${finalObjectValue(`${interpreter}(?:3(?:\\.\\d+)*)?(?:\\.exe)?`)})`, "imu"), "Python 解释器命令"],
+    [new RegExp(`${boundary}${optionalQuote}${launcher}(?:\\.exe)?${optionalQuote}\\s+-(?=\\S|$)`, "imu"), "Python 启动器命令"],
+    [new RegExp(`(?:${boundary}${optionalQuote}${packageManager}${optionalQuote}${commandTail}|${finalObjectValue(packageManager)})`, "imu"), "Python 包管理命令"],
+    [new RegExp(`(?:${boundary}${optionalQuote}(?:${toolCommand})(?:\\.exe)?${optionalQuote}${commandTail}|${finalObjectValue(`(?:${toolCommand})(?:\\.exe)?`)})`, "imu"), "Python 工具命令"],
+    [new RegExp(`\\.${"py"}\\b`, "iu"), "Python 文件入口"],
+    [new RegExp(runtimeMarkers, "iu"), "Python 运行时标识"],
+  ];
+  return prohibited.filter(([pattern]) => pattern.test(text)).map(([, label]) => label);
+}
+
+/** 阻止任何活动 Python 源码、解释器入口或依赖清单重新进入 Harness。 */
+export function validateNoPythonRuntime(
+  errors,
+  files = null,
+  { root = ROOT, scanFilesystem = files === null } = {},
+) {
+  const candidates = files ?? trackedFiles(root);
+  const rejectedPaths = new Set();
+  for (const relative of candidates) {
+    const name = path.posix.basename(relative);
+    if (isPythonArtifactPath(relative) && !(PYTHON_MANIFEST_NAMES.has(name.toLowerCase()) || /^requirements(?:-[^/]+)?\.(?:in|txt)$/iu.test(name))) {
+      fail(errors, `Harness 不得包含 Python 源码、字节码或运行时目录: ${relative}`);
+      rejectedPaths.add(relative);
+    }
+    if (PYTHON_MANIFEST_NAMES.has(name.toLowerCase()) || /^requirements(?:-[^/]+)?\.(?:in|txt)$/iu.test(name)) {
+      fail(errors, `Harness 不得包含 Python 依赖清单: ${relative}`);
+      rejectedPaths.add(relative);
+    }
+    if (!isOperationalReferenceFile(relative)) continue;
+    const filePath = path.join(root, relative);
+    let stat;
+    try {
+      stat = fs.lstatSync(filePath);
+    } catch (error) {
+      fail(errors, `无法检查活动文件 ${relative}: ${error.message}`);
+      continue;
+    }
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+      fail(errors, `活动文件必须是普通非符号链接文件: ${relative}`);
+      continue;
+    }
+    if (APPROVED_BINARY_REFERENCE_SUFFIXES.has(path.extname(relative).toLowerCase())) continue;
+    let text;
+    try {
+      text = readText(filePath);
+    } catch (error) {
+      fail(errors, `无法检查活动文件 ${relative}: ${error.message}`);
+      continue;
+    }
+    for (const label of pythonReferenceViolations(relative, text)) {
+      fail(errors, `活动文件不得保留 ${label}: ${relative}`);
+    }
+  }
+  if (scanFilesystem) {
+    for (const relative of findPythonArtifacts(root)) {
+      if (rejectedPaths.has(relative)) continue;
+      fail(errors, `Git ignore 不得隐藏 Python 源码、依赖或运行时产物: ${relative}`);
+    }
+  }
+}
+
+/** 执行仓库结构、链接、记忆与无 Python 依赖的完整检查。 */
+export function validateRepository(errors) {
+  let files;
+  try {
+    files = trackedFiles();
+  } catch (error) {
+    fail(errors, error.message);
+    return;
+  }
+  validateRequiredFiles(errors);
+  validateDailyProjectMemory(errors);
+  validateWorkPlanContract(errors);
+  validateSkills(errors);
+  validateMarkdownLinks(errors, files);
+  validateMemoryIndexes(errors);
+  validateNoPythonRuntime(errors, files, { scanFilesystem: true });
+}

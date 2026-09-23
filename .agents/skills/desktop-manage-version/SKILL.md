@@ -25,13 +25,13 @@ description: 管理下游产品的自动语义化版本门禁、base-100 进位�
 1. 除 `init` 外，先确认目标是已初始化的下游项目、项目根是独立 Git 顶层目录，并读取根 `Cargo.toml` 与 `.harness/version-state.json`。新项目初始化时，`init` 是唯一允许在独立 Git 建立前运行的命令，必须在根 Cargo 初始版本写入后、GUI E2E 与一次性裁剪前生成受保护状态，且不得借此提前初始化 Git：
 
    ```text
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py init --project-root .
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs init --project-root .
    ```
 
    对版本管理上线前已经初始化、已有独立 Git 但缺少状态的旧下游，先说明无法恢复的历史并取得用户对本次迁移的明确批准，再执行：
 
    ```text
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py init --project-root . --migration-approved
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs init --project-root . --migration-approved
    ```
 
    该命令只使用当前合法 Cargo 版本创建空 `pending_changes`/`applied_bug_ids` 基线；没有 `--migration-approved` 时必须零写入失败。Harness 升级器只能在工程层升级完成后要求此路径，不能自行执行或写入 protected 状态。
@@ -39,10 +39,10 @@ description: 管理下游产品的自动语义化版本门禁、base-100 进位�
 2. 实施前用 `plan` 只读计算分类和所需版本。功能、`bug-fix`（问题修复或用户可感知优化）和显式 Major 变化必须提供稳定 `change_id`；Major 还必须提供用户批准的精确值和 `--user-approved`。`plan` 绝不写入文件。例如：
 
    ```text
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py plan --project-root . --kind feature --change-id FEAT-123
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py plan --project-root . --kind bug-fix --change-id BUG-456
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py plan --project-root . --kind major --change-id BREAK-7 --major 2 --user-approved
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py plan --project-root . --kind maintenance --change-id INVESTIGATE-9
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs plan --project-root . --kind feature --change-id FEAT-123
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs plan --project-root . --kind bug-fix --change-id BUG-456
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs plan --project-root . --kind major --change-id BREAK-7 --major 2 --user-approved
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs plan --project-root . --kind maintenance --change-id INVESTIGATE-9
    ```
 
 3. 完成实现并让本次相关非空测试通过后，使用相同参数把 `plan` 改为 `apply`。不得在查询、诊断、复现、失败尝试或实现尚未完成时提前 `apply`。命令会原子更新当前版本与周期状态；重复 `change_id` 返回幂等结果。
@@ -50,13 +50,13 @@ description: 管理下游产品的自动语义化版本门禁、base-100 进位�
 5. 构建、候选收集、验收与发布准备在任何测试或打包前只运行一致性检查，不得借机提升或重置：
 
    ```text
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py check --project-root . --phase build
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs check --project-root . --phase build
    ```
 
 6. 只有正式发布的真实渠道操作已经成功、精确版本与 40 位源码提交已有证据后，才运行：
 
    ```text
-   python3 .agents/skills/desktop-manage-version/scripts/version_gate.py finalize-release --project-root . --released-version 0.2.1 --source-commit <40-hex> --release-succeeded
+   node .agents/skills/desktop-manage-version/scripts/version_gate.mjs finalize-release --project-root . --released-version 0.2.1 --source-commit <40-hex> --release-succeeded
    ```
 
 ## 失败关闭

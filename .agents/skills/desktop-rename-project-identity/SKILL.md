@@ -23,7 +23,7 @@ description: 在受维护的配置、源代码路径、文档、项目 Skills �
 4. 首先运行自带脚本，但不得添加 `--apply`。提供全部三种标准身份形式以及每个已知的额外精确映射。复核 JSON 计划，尤其是路径冲突、跳过的二进制文件、排除路径、许可证编辑、Skill 编辑和路径改名。
 
    ```text
-   python3 .agents/skills/desktop-rename-project-identity/scripts/rename_project_identity.py \
+   node .agents/skills/desktop-rename-project-identity/scripts/rename_project_identity.mjs \
      --root <project-root> \
      --old-display-name-zh <old-zh-name> --new-display-name-zh <new-zh-name> \
      --old-display-name-en <old-en-name> --new-display-name-en <new-en-name> \
@@ -34,7 +34,7 @@ description: 在受维护的配置、源代码路径、文档、项目 Skills �
 5. 必须拒绝路径冲突、路径越界、符号链接、包含身份但无法解码的受维护文本、含义不明确的部分前缀，以及会修改第三方内容或生成内容的映射。排除目录包括 `.git`、构建、缓存和输出目录、依赖存储和根目录 `release/`；不得为了强行得到干净结果而削弱这些排除规则。
 6. 使用 `--apply` 重新运行已复核的命令。脚本必须先替换文本，再按路径深度从深到浅重命名文件和目录。对于已批准的现有项目标识变更，仅当规范化后的根目录基本名称等于旧标识时才能添加 `--rename-root`；如果同级目标已经存在，脚本必须拒绝执行。新实例化目标已经使用新的基本名称，绝不得使用该选项。脚本以中文映射精确更新 `LICENSE.zh-CN.md`、以英文映射精确更新 `LICENSE.en.md`，并同步受维护的双语资源；任何法律措辞变更都需要单独批准和双语法律复核。
 7. 在整个受维护目录树中搜索每一个旧词元和常见示例身份。解决每一个适用残留。有意保留的通用示例不得继续使用真实的旧项目身份；必须把它们改写为明确的占位符，而不得通过允许列表静默保留残留。
-8. 运行本次身份变化必需的解析、残留搜索和非空单元/回归测试。对于 Rust，如果包或路径名称发生变化，必须使用 Cargo 重新生成 `Cargo.lock`；不得手工编辑校验和。对于 Harness 变更，运行 `python3 scripts/validate_harness.py`。不自动追加格式、lint、独立构建或完整验收。现有产品改名只有在这些检查通过后，才使用第 2 步完全相同的 `feature` 分类和稳定 `change_id` 执行 `apply`；失败、未完成或测试未通过时不得提前提升版本。实例化身份重置始终不执行版本门禁。
+8. 运行本次身份变化必需的解析、残留搜索和非空单元/回归测试。对于 Rust，如果包或路径名称发生变化，必须使用 Cargo 重新生成 `Cargo.lock`；不得手工编辑校验和。对于 Harness 变更，运行 `node scripts/validate_harness.mjs`。不自动追加格式、lint、独立构建或完整验收。现有产品改名只有在这些检查通过后，才使用第 2 步完全相同的 `feature` 分类和稳定 `change_id` 执行 `apply`；失败、未完成或测试未通过时不得提前提升版本。实例化身份重置始终不执行版本门禁。
 9. 实例化身份重置完成后返回 `$desktop-instantiate-project`/`$desktop-initialize-rust-project` 继续中性收尾。现有产品改名完成必要测试与残留扫描后直接收口；普通编译/构建保持开发流程。只有用户明确请求正式发布候选时才先进入 `$desktop-prepare-release`，由发布上下文封存当前范围后调用对应构建 Skill；构建只另外确认 E2E 并全量运行单元测试。只有用户要求完整验收或发布时才调用 `$desktop-verify-delivery`。
 10. 同步当前产品身份和受影响的包元数据、GUI 资料、发布命名及保留 Skills。现有产品改名属于长期决定并更新 Product Spec/ADR，用户可感知改名写入 Changelog；这些记录复用第 2 步的稳定 `change_id` 和 `required_version`。Product Status、Work Plan 和 Verification 仍只在各自独立事件触发时更新。不得篡改历史证据中的旧名称。
 11. 检查最终差异，并报告变更内容、已重命名路径、排除项、剩余旧名称命中、已执行检查、未验证平台和回滚说明。未经单独授权，不得提交、创建标签、推送、发布或修改外部系统。

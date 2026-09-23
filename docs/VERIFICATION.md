@@ -26,7 +26,7 @@
 
 | 层级 | 方法 | 当前要求 |
 |---|---|---|
-| 文件、链接与行数 | 日常 `python3 scripts/validate_harness.py`；发布审查启用时追加 `--release-review` | 必需固定入口、日期记忆索引/正文和本地 Markdown 链接完整；401–800/501–1000/501–2000 行候选只在已启用发布审查中提示，801/1001/2001 行起始终失败；Rust 拆分使用 `<module>/mod.rs` |
+| 文件、链接与行数 | 日常 `node scripts/validate_harness.mjs`；发布审查启用时追加 `--release-review` | 必需固定入口、日期记忆索引/正文和本地 Markdown 链接完整；活动自动化零 Python 依赖；401–800/501–1000/501–2000 行候选只在已启用发布审查中提示，801/1001/2001 行起始终失败；Rust 拆分使用 `<module>/mod.rs` |
 | Skills | 硬契约校验；当次发布审查启用时再做语义审查 | Skills、UI 元数据、参考资料、脚本和资产与事实源一致；独立 WEB Skill 不得存在，`$desktop-upgrade-harness` 必须存在并保留 |
 | 持久 Agent 策略 | 模式定义正负向单元测试 + 初始化契约 | 用户显式选择一次推荐预设或自定义；推荐预设将 `user_owned_tasks` 默认为 `disabled`，自定义可开启，最终 schema v3 五字段原子写入且不得残留 `pending`；后续同值切换零写入、真实切换只影响后续结果边界，每次构建仍单独解析 E2E |
 | 收敛开发与按需计划 | 无计划日常开发、用户要求的精简 Todo、完整候选正负向单元测试 | 日常开发无 Work Plan；持久 Todo 只在明确协调需要时存在；有活动计划时非 `done` 项禁止进入 `accepted` |

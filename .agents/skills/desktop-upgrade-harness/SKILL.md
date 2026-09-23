@@ -12,25 +12,19 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 1. 读取下游的 `AGENTS.md`、`docs/AGENT_POLICY.md`、存在时日期最新的产品规格、产品状态、工作计划和 ADR、`docs/ENGINEERING_RULES.md`、`docs/TECH_DEBT.md`，以及存在时的 `.harness/upstream-lock.json`。读取源 Harness 的 `Version.md`、日期最新的产品规格、产品状态和 ADR，以及其验证命令。
 2. 无法无歧义发现源 Harness 根目录时，要求用户明确指定。将源根目录和下游根目录解析为互不相同的规范绝对路径。要求每个现有 Git 仓库的顶层目录等于其声明根目录；拒绝符号链接根目录、嵌套歧义、源与目标相同，以及声明根目录以外的路径。
 3. 读取 [所有权策略](references/ownership-policy.md)，并使用 [所有权清单](references/ownership-manifest.json)。将该清单视为最低保护策略，而不是复制每个匹配源文件的许可。
-4. 检查下游已选接口、身份映射、保留的 Skills、已批准例外和持久 Agent 策略。构建只包含适用于该下游工程文件的任务局部候选树。排除每个 `protected` 或 `tombstone` 源路径。把下游展示名称、标识符、路径、已选适配器和其他已批准身份差异渲染到候选中；原始 Harness 源目录树绝不是有效候选树。源 Harness 中 `.agents/skills/desktop-implement-change/scripts/check_file_line_limits.py`、`check_rust_chinese_comments.py`、`check_core_first.py` 及其各自测试必须保留内容摘要一致的候选，升级器在生成计划时机械阻断遗漏或旧版占位内容。身份中立的 `docs/design_standards/**` 作为 managed 工程标准传播；下游 `docs/GUI_APP_PROFILE.md` 和 ADR 中已批准的产品像素/例外保持 protected，并在标准匹配时优先，升级不得用新旧 Harness 缺省覆盖。只有已选择 GUI 的下游才同步 `$desktop-add-gui-adapter`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-support-surfaces` 与 `$desktop-build-tauri-release`；`$mantine-list-view` 的 SKILL、metadata、references 与完整 `assets/` 资产集作为同一个知识资产传播，但升级不生成业务列表或安装 dnd-kit。目标平台包含 Windows 时还同步 `$desktop-build-tauri-local-install`。其中系统语言、updater、窗口状态和 dialog 属于 GUI 固定基线，dialog 继续保持主窗口 `dialog:default` 且不授权 fs，托盘、单实例、深链接、全局快捷键、通知和开机自启是否实际接线仍读取受保护 profile，非 GUI 下游不得因此新增 Node/pnpm 或 GUI-only Skill。`$desktop-test-gui-initialization-e2e` 及其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs` 等脚本仍是初始化前 tombstone 资产，终端下游升级不得重新注入。终端下游的 `docs/GUI_SUPPORT_SURFACES.md` 是 `protected` 产品实例，任何接口选择都不得由升级覆盖。
-   所有终端下游都必须同步无需身份渲染的 `$desktop-manage-git-lifecycle` 完整目录：`SKILL.md`、`agents/openai.yaml`、`scripts/git_lifecycle.py`、`scripts/git_publication_report.py`、`scripts/git_lifecycle_test_support.py`、`scripts/git_publication_test_cases.py` 和 `scripts/test_git_lifecycle.py` 均须与源内容摘要一致。升级只传播这些 `managed` 工程文件，不调用 `inspect|start|track-worktree|publish|release`，不创建 common-dir 生命周期清单，也不改动任何 Git remote、分支、标签、历史或 Worktree。目标缺少这些工程文件时按 `add` 逐项人工加入。
+4. 检查下游已选接口、身份映射、保留的 Skills、已批准例外和持久 Agent 策略。构建只包含适用于该下游工程文件的任务局部候选树。排除每个 `protected` 或 `tombstone` 源路径。把下游展示名称、标识符、路径、已选适配器和其他已批准身份差异渲染到候选中；原始 Harness 源目录树绝不是有效候选树。源 Harness 中 `.agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs`、`check_rust_chinese_comments.mjs`、`check_core_first.mjs` 及其各自 `.test.mjs` 测试必须保留内容摘要一致的候选，升级器在生成计划时机械阻断遗漏或旧版占位内容。身份中立的 `docs/design_standards/**` 作为 managed 工程标准传播；下游 `docs/GUI_APP_PROFILE.md` 和 ADR 中已批准的产品像素/例外保持 protected，并在标准匹配时优先，升级不得用新旧 Harness 缺省覆盖。只有已选择 GUI 的下游才同步 `$desktop-add-gui-adapter`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-support-surfaces` 与 `$desktop-build-tauri-release`；`$mantine-list-view` 的 SKILL、metadata、references 与完整 `assets/` 资产集作为同一个知识资产传播，但升级不生成业务列表或安装 dnd-kit。目标平台包含 Windows 时还同步 `$desktop-build-tauri-local-install`。其中系统语言、updater、窗口状态和 dialog 属于 GUI 固定基线，dialog 继续保持主窗口 `dialog:default` 且不授权 fs，托盘、单实例、深链接、全局快捷键、通知和开机自启是否实际接线仍读取受保护 profile，非 GUI 下游不得因此新增 pnpm 或 GUI-only Skill。`$desktop-test-gui-initialization-e2e` 及其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs` 等脚本仍是初始化前 tombstone 资产，终端下游升级不得重新注入。终端下游的 `docs/GUI_SUPPORT_SURFACES.md` 是 `protected` 产品实例，任何接口选择都不得由升级覆盖。
+   所有终端下游都必须同步无需身份渲染的 `$desktop-manage-git-lifecycle` 完整目录：`SKILL.md`、`agents/openai.yaml`、`scripts/git_lifecycle.mjs`、`scripts/git_lifecycle_core.mjs`、`scripts/git_lifecycle_publication.mjs`、`scripts/git_publication_report.mjs`、`scripts/git_lifecycle_test_support.mjs`、`scripts/git_publication_test_cases.test.mjs`、`scripts/git_lifecycle.test.mjs` 和 `scripts/git_lifecycle_release.test.mjs` 均须与源内容摘要一致。升级只传播这些 `managed` 工程文件，不调用 `inspect|start|track-worktree|publish|release`，不创建 common-dir 生命周期清单，也不改动任何 Git remote、分支、标签、历史或 Worktree。目标缺少这些工程文件时按 `add` 逐项人工加入。
    `.harness/version-state.json` 始终是 `protected` 下游状态，来源或候选都不得包含、初始化、重算或覆盖它；Cargo 产品版本同样受保护。`$desktop-manage-version` 的 Skill/helper 属于可升级工程资产，但产品周期与缺陷 ID 历史不属于。首次检查时同时记录目标是否缺少该状态；缺失只表示旧下游需要在工程层升级完成后进入第 14 步的显式人工迁移，绝不授权候选、升级器或 `apply|record` 静默创建它。
    `.harness/release-context.json` 始终是 `protected` 下游发布事实，来源和候选均不得包含、初始化、重算或覆盖它；目标尚无该文件时保持缺席，只有目标项目真实执行 `$desktop-prepare-release` 时才可创建。Git common-dir 生命周期清单位于 tracked 目标树之外，从不进入候选、所有权清单或来源锁。
 5. 要求源 Harness Git 工作树干净，并且其现有 `HEAD` 与声明的源提交匹配；要求声明的源版本与源 `Version.md` 匹配。信任候选之前先运行源 Harness 验证器。不得把该模板专用验证器复制到下游。记录源版本、源提交、候选构建输入、下游分支、提交、脏状态摘要，以及未验证平台。
 
-   本 Skill 的 Python 命令必须先选择当前宿主已证实可用的 Python 3 启动方式：macOS/Linux 通常使用 `python3`，Windows PowerShell 优先使用 `py -3`；若项目环境已证明另一个 Python 3 启动方式可用，则在本次命令中一致使用并报告它。下文 `<python3>` 表示替换为这个完整启动方式，不得把尖括号字面量交给 shell。所有操作命令均保持单行，不依赖 POSIX `\` 续行符、PowerShell 反引号或 shell 变量。
+   本 Skill 的 helper 要求当前宿主具备 Node.js >= 24.21；缺失或版本不足时失败关闭，不得改用其他运行时。所有操作命令均使用 `node` 且保持单行，不依赖 POSIX `\` 续行符、PowerShell 反引号或 shell 变量。
 6. 生成只读计划：
 
-   macOS/Linux（替换路径占位符后直接执行）：
+   macOS、Linux 与 Windows PowerShell 均在替换路径占位符后直接执行：
 
    ```text
-   python3 .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.py plan --source-root "<clean-harness-source-root>" --source-version "<harness-version>" --source-commit "<harness-source-head>" --candidate-root "<rendered-candidate-root>" --target-root "<downstream-root>" --ownership .agents/skills/desktop-upgrade-harness/references/ownership-manifest.json --lock "<downstream-root>/.harness/upstream-lock.json" --output "<new-plan-path-outside-candidate-and-target.json>"
-   ```
-
-   Windows PowerShell（替换路径占位符后直接执行）：
-
-   ```text
-   py -3 .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.py plan --source-root "<clean-harness-source-root>" --source-version "<harness-version>" --source-commit "<harness-source-head>" --candidate-root "<rendered-candidate-root>" --target-root "<downstream-root>" --ownership .agents/skills/desktop-upgrade-harness/references/ownership-manifest.json --lock "<downstream-root>/.harness/upstream-lock.json" --output "<new-plan-path-outside-candidate-and-target.json>"
+   node .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs plan --source-root "<clean-harness-source-root>" --source-version "<harness-version>" --source-commit "<harness-source-head>" --candidate-root "<rendered-candidate-root>" --target-root "<downstream-root>" --ownership .agents/skills/desktop-upgrade-harness/references/ownership-manifest.json --lock "<downstream-root>/.harness/upstream-lock.json" --output "<new-plan-path-outside-candidate-and-target.json>"
    ```
 
    输出路径必须不存在，并且必须位于两棵目录树之外。省略 `--output` 时只打印 JSON，不写入文件。
@@ -38,7 +32,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 8. 锁文件不存在时，执行初始基线审计。把每个重叠的受管理文件或混合所有权文件视为冲突；不得推断共同祖先。使每个受管理重叠项在字节和权限模式上完全收敛，显式解决混合路径，生成新的已复核计划，然后建立第一份基线：
 
    ```text
-   <python3> .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.py record --plan "<reviewed-bootstrap-plan.json>" --source-version "<harness-version>" --source-commit "<harness-source-commit>" --bootstrap --approval bootstrap-verified-baseline
+   node .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs record --plan "<reviewed-bootstrap-plan.json>" --source-version "<harness-version>" --source-commit "<harness-source-commit>" --bootstrap --approval bootstrap-verified-baseline
    ```
 
    初始基线过程绝不豁免符号链接或特殊文件问题、受保护或墓碑路径、存在差异的受管理重叠项，或未经复核的混合路径。
@@ -46,7 +40,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 10. 用户批准试运行后，只应用安全的受管理操作：
 
     ```text
-    <python3> .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.py apply --plan "<task-plan.json>" --approval apply-managed-changes --path "<one-reviewed-update-path>"
+    node .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs apply --plan "<task-plan.json>" --approval apply-managed-changes --path "<one-reviewed-update-path>"
     ```
 
     该命令根据目标拥有的精确所有权清单和 `.harness/upstream-lock.json` 重新构建计划，绑定源与目标 Git 身份，比较完整的已复核 JSON，预检每项操作，并且只原子替换一个现有文件。每应用一个路径后都要生成并复核新计划。普通 `managed` 更新必须先于 `managed-self` 完成；在自更新路径内部，命令行工具强制执行稳定顺序，并最后替换自身入口。计划篡改或源、候选、目标、控制文件发生任何漂移，都会在写入前中止。使用 `apply_patch` 单独解决 `add`、`manual_add`、`delete`、`merge-sections` 和 `conditional` 项；不得仅为避免合并而替换整个混合所有权文件。
@@ -54,12 +48,12 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 12. 重新运行 `plan`。解决每个阻断项和未应用的受管理操作。只有目标包含已复核结果后，才能记录已验证基线：
 
     ```text
-    <python3> .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.py record --plan "<newly-reviewed-converged-plan.json>" --source-version "<harness-version>" --source-commit "<harness-source-commit>" --approval record-verified-baseline
+    node .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs record --plan "<newly-reviewed-converged-plan.json>" --source-version "<harness-version>" --source-commit "<harness-source-commit>" --approval record-verified-baseline
     ```
 
     每个剩余且已复核的 `manual_merge` 分类都必须重复传入 `--resolved-manual <path>`。精确集合必须与计划匹配，否则记录失败。`manual_add` 必须先创建目标并生成新的已复核收敛计划。绝不得记录仍有 `add`、`manual_add`、`delete`、`update`、阻断项、已变更计划、源 Harness 必需 managed 路径遗漏或未经复核混合路径的基线。
 13. 完成任何 `managed-self` 更新后，重新运行升级后更新器的相关测试和只读计划。只更新被独立事件触发的下游记忆：重要阻断或交接更新 Status，符合范围的新增、行为/契约变化、移除或安全事项更新 Changelog，用户要求完整验收或长期审计时更新 Verification。普通缺陷修复、纯重构和内部清理本身不触发这些记忆。不得导入源 Harness 的任何项目记忆或批准历史。
-14. 若第 4 步确认目标是已存在的独立 Git 项目但缺少 `.harness/version-state.json`，必须先完成并记录上述工程层升级，随后停止自动流程，向用户明确说明：旧 `pending_changes`、`applied_bug_ids` 与 `last_release` 历史无法恢复；迁移只会以当前合法 Cargo 版本建立空周期基线；升级器本身没有写入受保护状态。只有用户对这次迁移明确批准后，才由目标项目中的 `$desktop-manage-version` 执行 `<python3> .agents/skills/desktop-manage-version/scripts/version_gate.py init --project-root "<downstream-root>" --migration-approved`，并复核输出的 `migration: true`、`history_status: unrecoverable-pre-migration-history`、空 `pending_changes`/`applied_bug_ids` 与 Cargo 版本一致。未获批准时不得代替用户推断或执行，必须把工程层升级与仍待批准的版本状态迁移分别报告，且不得声称整个升级闭环完成。
+14. 若第 4 步确认目标是已存在的独立 Git 项目但缺少 `.harness/version-state.json`，必须先完成并记录上述工程层升级，随后停止自动流程，向用户明确说明：旧 `pending_changes`、`applied_bug_ids` 与 `last_release` 历史无法恢复；迁移只会以当前合法 Cargo 版本建立空周期基线；升级器本身没有写入受保护状态。只有用户对这次迁移明确批准后，才由目标项目中的 `$desktop-manage-version` 执行 `node .agents/skills/desktop-manage-version/scripts/version_gate.mjs init --project-root "<downstream-root>" --migration-approved`，并复核输出的 `migration: true`、`history_status: unrecoverable-pre-migration-history`、空 `pending_changes`/`applied_bug_ids` 与 Cargo 版本一致。未获批准时不得代替用户推断或执行，必须把工程层升级与仍待批准的版本状态迁移分别报告，且不得声称整个升级闭环完成。
 
 ## 安全边界
 

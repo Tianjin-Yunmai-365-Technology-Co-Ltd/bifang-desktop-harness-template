@@ -17,7 +17,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 - 12 位数字按时间先后可直接排序；不包含秒、时区后缀或预发布后缀。
 - 同一分钟内如需产生第二个不同版本，必须等待下一分钟，不得追加未约定字符。
 - 不为任何更早标识保留兼容记录；当前版本就是唯一版本。
-- Harness 时间版本一旦确认为 Released，必须在同一次原子变化中同步根 `Version.md`、README、最新 Product Spec 与本文件的当前版本镜像，并把本次发布源码已包含的 `required_version = pending` / “所需 Harness 版本 `pending`”记录物化为该版本；发布后产生的新变化继续保持 `pending`。提交前必须运行 `python3 -B scripts/validate_harness.py`，任一镜像或已登记发布记录未同步都不得提交版本变化。
+- Harness 时间版本一旦确认为 Released，必须在同一次原子变化中同步根 `Version.md`、README、最新 Product Spec 与本文件的当前版本镜像，并把本次发布源码已包含的 `required_version = pending` / “所需 Harness 版本 `pending`”记录物化为该版本；发布后产生的新变化继续保持 `pending`。提交前必须运行 `node scripts/validate_harness.mjs`，任一镜像或已登记发布记录未同步都不得提交版本变化。
 
 下游产品使用无预发布/构建元数据的三段语义化版本，并由 `$desktop-manage-version` 执行以下确定性规则：
 
@@ -65,7 +65,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 - 所有面向用户显示的版本号统一使用且只使用一个小写 `v` 前缀，包括 GUI 页面、窗口标题、更新状态、强更提示、CLI `--version`、发布记录和更新日志。Cargo、`.harness/version-state.json`、候选 manifest 的机器版本字段、协议比较值和 SemVer 运算继续保存不带 `v` 的原始版本；展示边界负责先移除已有任意 `v`/`V` 前缀，再规范化为 `v<version>`。
 - 下游在准备首个正式发布时创建根 `release-notes.json`。它是发布制品固定携带、并在 `about_page = enabled` 时由应用关于页通过固定 `load_release_notes` 窄命令复用的用户更新日志事实，使用整数 `schemaVersion: 2` 与非空、按最新在前的 `releases` 数组；每项字段固定为 `releaseDate`、带一个 `v` 的 `version`、`featureOptimizations` 和 `bugFixes`。两个分类中的每个逻辑条目都是键恰好为 `zh-CN` 与 `en-US` 的翻译对，两个值都必须是非空、无首尾空白且无边界 BOM 的字符串；任一翻译缺失或重复 JSON 字段都阻断。只读 `check` 必须拒绝需静默规范化的原文件，写入和读取均拒绝超过 1 MiB 的 UTF-8 资源，与关于页运行时上限一致。所有 GUI 初始化预置但不在调试构建使用 `src-tauri/tauri.release.conf.json`；正式候选构建显式 `--config` 合并该文件，把根日志唯一映射为候选逻辑资源 `release-notes.json`。
 - 每次正式发布时，必须找到上一次真实正式发布的版本与 40 位源码提交；从该提交之后到当前发布源码的真实差异中语义筛选最重要内容，不得直接倾倒提交标题。首个正式发布以仓库起点到当前发布源码为范围。每版“功能优化”和“问题修复”各自最多 10 个逻辑条目，两类合计至少一条；每个条目同时提供中文与英文。Agent 可先整理其中一种语言并自动翻译另一种，但在写入前必须并排复核两种语言的语义对应关系。普通缺陷修复即使不触发按日 Changelog，也进入本次“问题修复”。终端下游随后把同一日志写入产品候选；Harness 源只把它作为 Git 源码发布元数据。
-- 更新当前版本时先替换同版本条目，再置顶并截断为最近 5 个版本。使用 `$desktop-prepare-release` 携带的标准库脚本执行 `python3 .agents/skills/desktop-prepare-release/scripts/release_notes.py upsert ...`，通过配对的 `--feature-optimization-zh-cn`/`--feature-optimization-en-us` 与 `--bug-fix-zh-cn`/`--bug-fix-en-us` 按出现顺序传入每个翻译对，再运行更新日志脚本的 `check --expected-version` 校验，并分别运行 `render --locale zh-CN` 与 `render --locale en-US` 复核可见结果。文件是普通非符号链接 UTF-8 JSON，由脚本在同目录原子替换；Harness 升级将其视为 `protected`。
+- 更新当前版本时先替换同版本条目，再置顶并截断为最近 5 个版本。使用 `$desktop-prepare-release` 携带的 Node 标准库脚本执行 `node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs upsert ...`，通过配对的 `--feature-optimization-zh-cn`/`--feature-optimization-en-us` 与 `--bug-fix-zh-cn`/`--bug-fix-en-us` 按出现顺序传入每个翻译对，再运行更新日志脚本的 `check --expected-version` 校验，并分别运行 `render --locale zh-CN` 与 `render --locale en-US` 复核可见结果。文件是普通非符号链接 UTF-8 JSON，由脚本在同目录原子替换；Harness 升级将其视为 `protected`。
 - 发布脚本的 `render` 命令按 locale 使用以下两套固定纯文本结构，供发布前复核；版本必须已经规范化为一个 `v` 前缀，空分类分别显示“无”或“None”，不得制造虚假条目。GUI 使用普通本地化标题，并以安全 Markdown 展示每条正文；当前语言以 `zh` 开头时选择 `zh-CN`，其他或未知语言回退 `en-US`——`release-notes.json` 目前只提供这两套翻译，`zh-TW`/`zh-HK`/`zh-Hant` 等其他中文变体按设计并入 `zh-CN` 内容而非另行回退英文，此为当前双语范围下的既定简化，不是未定义行为：
 
 ```text
@@ -145,7 +145,7 @@ macOS 签名选择也在该入口按当前请求、产品事实与渠道要求�
 
 - [ ] 产品规格状态为 Approved。
 - [ ] README、AGENTS、所有已触发的项目记忆文档和全部声明的项目 Skills 完整存在。
-- [ ] `python3 scripts/validate_harness.py` 成功，且输出对应当前发布源码；当次 `reviewSelection: enabled` 时另执行 `python3 scripts/validate_harness.py --release-review` 并处理其集中提示，关闭时不得把提示伪装为已运行。
+- [ ] `node scripts/validate_harness.mjs` 成功，且输出对应当前发布源码；当次 `reviewSelection: enabled` 时另执行 `node scripts/validate_harness.mjs --release-review` 并处理其集中提示，关闭时不得把提示伪装为已运行。
 - [ ] 发布元数据写入前，当前 HEAD 精确等于包含全部源码/治理变化及已触发 Changelog 的 `sourceHead`；`releaseReview.reviewedSourceCommit` 绑定该 `sourceHead`。随后同一个精确发布元数据提交且只包含 `release-notes.json` 与 `.harness/release-context.json`。
 - [ ] 生命周期完成后再次复算发布上下文字节与 SHA-256；最终 `sourceCommit`、clean 默认主分支和本地 `expectedTag` 一致，`gitPublication: remote` 时远端主分支/tag 也一致，`local` 时没有远端访问。`sourceHead` 仍是元数据提交前的审查输入，不要求等于 `sourceCommit`。
 - [ ] Rust 初始化中性资产通过当前系统的格式、代码规范检查和非空测试；它是脚手架资产而非产品候选，不用冒烟证明产品交付。
