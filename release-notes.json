@@ -3,6 +3,17 @@
   "releases": [
     {
       "releaseDate": "2026-09-23",
+      "version": "v202609231754",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Windows 检出时的换行、文件 URL 路径解析及 PowerShell 门禁误判，并补齐平台相关测试的跳过条件。",
+          "en-US": "Fixed line endings, file URL path conversion, and PowerShell gate failures in Windows checkouts, and corrected platform-specific test skips."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-23",
       "version": "v202609231623",
       "featureOptimizations": [
         {

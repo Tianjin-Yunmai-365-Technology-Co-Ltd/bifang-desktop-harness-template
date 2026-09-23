@@ -1,19 +1,19 @@
 {
   "schemaVersion": 2,
   "gitPublication": "remote",
-  "sourceHead": "1a61d78d0242dbe03d06bd19fe80d73dce48f2f2",
-  "version": "202609231623",
+  "sourceHead": "45716002e285869d960ea436433ca4587424179c",
+  "version": "202609231754",
   "releaseDate": "2026-09-23",
-  "expectedTag": "v202609231623-20260923",
+  "expectedTag": "v202609231754-20260923",
   "remote": "origin",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "9d5ce6c1d5a72fe768f3a70f3a3cae4b1d77db66",
-    "sourceHead": "1a61d78d0242dbe03d06bd19fe80d73dce48f2f2",
-    "scopeDiffSha256": "f3fa1b4ee1a689ae072da105a07298d572c76558946eae35417cb5bcaf8a6de7",
-    "reviewedSourceCommit": "1a61d78d0242dbe03d06bd19fe80d73dce48f2f2",
+    "scopeBase": "96629a2cab53dd65eb8a8e5193280430959bf8b6",
+    "sourceHead": "45716002e285869d960ea436433ca4587424179c",
+    "scopeDiffSha256": "52d6aa98a44fd1e3c0c6adda27c73d76194de79b9d80683e060eacc1eacb1e2e",
+    "reviewedSourceCommit": "45716002e285869d960ea436433ca4587424179c",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -21,7 +21,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed 287 changed paths from the last tagged release through sourceHead across behavior, core/adapter ownership, external contracts, size, and temporary markers. 709 Node tests passed (14 host skips); 7 Rust tests and Rust 1.98.1 fmt/check/release build passed; Harness validation passed. The 22 size hints are below hard limits; the only TODO is a test fixture. Two untagged 2026-09-17 notes were excluded.",
+    "evidenceSummary": "Reviewed 27 changed paths since the last tagged release for behavior, ownership, external contracts, responsibility, and temporary markers. Harness validation and automation dependency gate passed; 710 Node tests passed, 14 host skips, and 23 nonblocking size or fixture hints were reviewed. Windows PowerShell 5.1 execution remains unverified on this macOS host.",
     "reason": null,
     "remainingRisk": null
   },
