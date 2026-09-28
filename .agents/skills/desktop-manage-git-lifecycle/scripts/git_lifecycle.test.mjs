@@ -118,7 +118,7 @@ scenario("completed_v2_release_migrates_only_with_matching_local_tag_and_main", 
     "parallel_worktree_subagents: disabled", "acceptance_smoke: disabled", "e2e_hint: disabled",
     "post_release_action: push_release_branch", "---", "", "# Agent policy", "",
     "- `post_release_action`：`local_package` or `push_release_branch`", "",
-    "发布后动作直接读取 `post_release_action`。随后必须执行 `post_release_action`。", "",
+    "发布后动作直接读取 `post_release_action`。下游冻结已确认的 `post_release_action`。", "",
     "`push-release --remote <name>`", "",
   ].join("\n"), "utf8");
   item.git(repository, "add", "docs/AGENT_POLICY.md");

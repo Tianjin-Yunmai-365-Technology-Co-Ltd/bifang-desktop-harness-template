@@ -108,11 +108,11 @@
 - 构建、收集、候选 E2E、完整验收与就绪复核须绑定 clean 默认主分支、本地 tag 和全部 manifest 的同一 `sourceCommit`；远程 provider 另要求远端 `release` 分支/tag 指向同一提交。候选选择、摘要、人工签署和运行证据只写入忽略的 `release/` 原子集合及最终回复，不修改 tracked 项目记忆。
 - Producer/collector 在仓库外同文件系统 sibling 暂存并验证精确集合后目录级原子提交；验收前后复核发布上下文和 tag，复算最终字节并原子提交全部 `accepted` manifest。就绪复核纯只读。下一开发分支在首个新改动前从已发布默认主分支/tag 的 HEAD 调用 `finalize-release`；渠道分发不重置版本周期。独立回顾审计不能反向批准活动候选。
 
-### Node-only 工程自动化与 Python 例外门禁
+### Harness 上游 Node 工程自动化与 Python 门禁
 
 - 变更标识与所需版本：`change_id = HARNESS-CHANGE-NODE-ONLY-AUTOMATION`；`required_version = 202609231623`。
 - Harness 源和所有终端下游的验证器、Git 生命周期、版本、发布、初始化、升级与治理 helper 统一使用 Node.js `>=24.21.0` 标准库；专项回归使用 `node:test`，托管候选 workflow 不选择或执行其他解释器。Node.js 是 CLI、TUI、MCP、GUI 全部接口组合的受管工程运行时，pnpm 和前端依赖仍只在 GUI 适用。
-- 活动工程树不得包含 Python 源码、字节码、解释器命令、包管理器、虚拟环境、第三方包或运行步骤。只有开发者在当前请求中主动明确要求且 Node/既有依赖无法合理满足时才可精确例外；引入前必须说明必要性，在项目内显式声明、隔离依赖并补齐跨平台测试和删除条件，不能依赖全局包。历史 ADR、Changelog、Verification 与已完成 Work Plan 的旧命令保留为真实历史，不当作活动入口；后续活动 Work Plan 和当前状态不得保留这些入口。
+- Harness 上游活动工程树不得包含 Python 源码、字节码、解释器命令、包管理器、虚拟环境、第三方包或运行步骤；上游继续使用 `check_no_python.mjs` 执行此门禁。终端下游的创建和升级不复制该检查器或这项禁令；下游项目可以自行选择脚本语言，新增第三方运行时依赖须在项目内声明和隔离，不能依赖全局包。历史 ADR、Changelog、Verification 与已完成 Work Plan 的旧命令保留为真实历史，不当作上游活动入口。
 
 ### 主流环境下界、标准当前用户安装与最新兼容稳定选择
 

@@ -9,11 +9,11 @@ description: 在 Windows 原生宿主构建仅供本机安装检查的 Tauri 2 x
 
 ## 工作流程
 
-1. 读取根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]`，要求 `target-platforms` 包含且当前只构建 `windows`，`interfaces` 包含 `gui`；缺失、空数组、非法值或与请求冲突时停止，不从旧对话、目录名或当前宿主猜测。要求当前宿主为原生 Windows x64、项目根是独立 Git 顶层目录、存在可解析 HEAD、真实 `<project-id>_gui`、`pnpm-lock.yaml` 和项目本地 Tauri CLI。记录 HEAD 与 `git status --porcelain=v1 --untracked-files=all` 是否为空；允许从 dirty 工作树生成本地试包，但必须在结果中明确列出 `sourceTreeState: dirty` 和不可复现风险，不得自动暂存、提交、清理或改写用户变化。
+1. 读取根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]`，要求 `target-platforms` 包含且当前只构建 `windows`，`interfaces` 包含 `gui`；缺失、空数组、非法值或与请求冲突时停止，不从旧对话、目录名或当前宿主猜测。要求当前宿主为原生 Windows x64、项目根是独立 Git 顶层目录、存在可解析 HEAD、从 `gui-root` 解析的真实 GUI 根目录（未声明时为 `<project-id>_gui`）、受 Git 跟踪的 `pnpm-lock.yaml` 和项目本地 Tauri CLI。记录 HEAD 与 `git status --porcelain=v1 --untracked-files=all` 是否为空；允许从 dirty 工作树生成本地试包，但必须在结果中明确列出 `sourceTreeState: dirty` 和不可复现风险，不得自动暂存、提交、清理或改写用户变化。
 2. 本地试包不进入发布流程：不得调用 `$desktop-prepare-release`，不得生成、读取、校验或改写 `release-notes.json`，不得传 `--config src-tauri/tauri.release.conf.json`，不得创建、刷新或写入项目根 `release/`，不得生成候选 manifest、Changelog、Product Status、Work Plan 或 Verification，也不得计算或提升版本。
 3. 初始化后的构建不做例行环境预检。先用当前环境运行真实命令；只有命令已经失败且脱敏诊断明确指向受管 Windows GUI 工具链缺失或不兼容时，才调用 `$desktop-check-development-environment` 的精确恢复路线并重试原失败命令一次。代码、测试、依赖解析、网络或配置错误不得伪装成环境问题。
-4. 打包前运行全部非空单元测试。Rust 先用 `cargo test --workspace --all-targets --all-features --locked -- --list` 或等价方式确认至少发现一个测试，再运行 `cargo test --workspace --all-targets --all-features --locked`；前端运行 `package.json` 与锁文件声明的完整非 watch 单元测试套件并确认非空。不得自动追加格式、lint、类型、全仓治理、冒烟或 E2E。
-5. 在 PowerShell 中执行原生未签名 NSIS 构建，禁止 `cargo-xwin`、MSI、`all` bundle 和交叉宿主：
+4. 打包前运行全部非空单元测试。Rust 对 `rust-test-manifests` 的每个实际工作区分别确认并运行非空全量单元测试；默认根工作区使用 `cargo test --workspace --all-targets --all-features --locked -- --list` 与 `cargo test --workspace --all-targets --all-features --locked`，独立工作区使用对应 `--manifest-path <path>` 的等价命令；前端运行 `package.json` 与锁文件声明的完整非 watch 单元测试套件并确认非空。不得自动追加格式、lint、类型、全仓治理、冒烟或 E2E。
+5. 在已解析的 GUI 根目录下以 PowerShell 执行原生未签名 NSIS 构建，禁止 `cargo-xwin`、MSI、`all` bundle 和交叉宿主：
 
    ```powershell
    $env:CI = "true"

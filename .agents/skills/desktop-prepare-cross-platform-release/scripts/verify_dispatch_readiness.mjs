@@ -5,11 +5,11 @@ import { spawnSync } from "node:child_process";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { validRemote } from "../../desktop-manage-git-lifecycle/scripts/git_lifecycle_core.mjs";
 
 const WORKFLOW_PATH = ".github/workflows/release-candidate.yml";
 const ASSET_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "../assets/github-release-candidate.yml");
 const OID = /^[0-9a-f]{40}$/u;
-const REMOTE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/u;
 const DECODER = new TextDecoder("utf-8", { fatal: true });
 
 /** 不经 shell 执行只读 Git 查询。 */
@@ -54,7 +54,7 @@ function workflowAtAdvertisedHead(root, head) {
 
 /** 检查本地待派发 workflow、远端默认分支 workflow 与远端身份。 */
 export function verifyDispatchReadiness(rootInput, remote) {
-  if (!REMOTE.test(remote)) throw new Error("远端名称无效");
+  if (!validRemote(remote)) throw new Error("远端名称无效");
   const root = realpathSync(resolve(rootInput));
   if (DECODER.decode(git(root, ["rev-parse", "--show-toplevel"])).trim() !== root) {
     throw new Error("项目根必须是 Git 顶层目录");

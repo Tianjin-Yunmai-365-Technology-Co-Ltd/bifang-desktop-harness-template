@@ -102,6 +102,35 @@ beforeEach(() => {
 
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
+test("declared JSON version mirrors stay aligned with Cargo and fail closed on drift", () => {
+  const cargo = path.join(root, "Cargo.toml");
+  writeFileSync(cargo, `${readFileSync(cargo, "utf8")}\n[workspace.metadata.agent-first-harness]\nversion-mirrors = ["tauri.conf.json", "package.json"]\n`);
+  const tauri = path.join(root, "tauri.conf.json");
+  const frontend = path.join(root, "package.json");
+  writeFileSync(tauri, '{"version": "0.1.4", "identifier": "example.app"}\n');
+  writeFileSync(frontend, '{\n  "name": "example",\n  "version": "0.1.4"\n}\n');
+  assert.deepEqual(check(root, "build").version_mirrors, ["tauri.conf.json", "package.json"]);
+  assert.equal(apply("bug-fix", "MIRROR-FIX").after_version, "0.1.5");
+  assert.equal(JSON.parse(readFileSync(tauri, "utf8")).version, "0.1.5");
+  assert.equal(JSON.parse(readFileSync(frontend, "utf8")).version, "0.1.5");
+  assert.match(readFileSync(tauri, "utf8"), /"identifier": "example.app"/u);
+  writeFileSync(tauri, '{"version": "0.1.4", "identifier": "example.app"}\n');
+  const beforeCargo = readFileSync(cargo);
+  assert.throws(() => check(root, "build"), /version drift: tauri.conf.json/u);
+  assert.throws(() => apply("bug-fix", "SECOND-FIX"), /version drift: tauri.conf.json/u);
+  assert.deepEqual(readFileSync(cargo), beforeCargo);
+  assert.equal(state().target_version, "0.1.5");
+});
+
+test("version mirrors reject traversal and ambiguous version fields", () => {
+  const cargo = path.join(root, "Cargo.toml");
+  writeFileSync(cargo, `${readFileSync(cargo, "utf8")}\n[workspace.metadata.agent-first-harness]\nversion-mirrors = ["../outside.json"]\n`);
+  assert.throws(() => check(root, "build"), /project-relative JSON paths/u);
+  writeFileSync(cargo, readFileSync(cargo, "utf8").replace("../outside.json", "tauri.conf.json"));
+  writeFileSync(path.join(root, "tauri.conf.json"), '{"version":"0.1.4","nested":{"version":"0.1.4"}}\n');
+  assert.throws(() => check(root, "build"), /ambiguous version text/u);
+});
+
 test("first feature bumps Minor, resets Patch, and later feature does not", () => {
   const first = apply("feature", "FEAT-1");
   const statePath = path.join(root, STATE_RELATIVE);

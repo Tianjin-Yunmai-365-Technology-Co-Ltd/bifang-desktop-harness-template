@@ -9,14 +9,16 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const POLICY_RELATIVE = path.join("docs", "AGENT_POLICY.md");
-const ACTIONS = new Set(["local_package", "push_release_branch"]);
+/** 发布后动作的唯一合法取值；生命周期与仓库校验器共享同一集合。 */
+export const POST_RELEASE_ACTIONS = Object.freeze(["local_package", "push_release_branch"]);
+const ACTIONS = new Set(POST_RELEASE_ACTIONS);
 const V3_FIELDS = ["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
 const V4_FIELDS = [...V3_FIELDS, "post_release_action"];
 const PREFERENCES = ["superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
 const REQUIRED_BODY = [
   "- `post_release_action`：`local_package`",
   "发布后动作直接读取 `post_release_action`",
-  "随后必须执行 `post_release_action`",
+  "冻结已确认的 `post_release_action`",
   "`push-release --remote <name>`",
 ];
 const STALE_BODY = [
@@ -103,11 +105,24 @@ function readPolicy(root) {
   return policy;
 }
 
+/** 判断策略正文是否已合并当前发布后动作规则；模板源与下游共用同一判定。 */
+export function policyBodyIsCurrent(body) {
+  return policyBodyProblems(body).length === 0;
+}
+
+/** 给受保护正文迁移提供可定位的缺失和过时片段。 */
+export function policyBodyProblems(body) {
+  return [
+    ...REQUIRED_BODY.filter((fragment) => !body.includes(fragment)).map((fragment) => `缺少：${fragment}`),
+    ...STALE_BODY.filter((fragment) => body.includes(fragment)).map((fragment) => `过时：${fragment}`),
+  ];
+}
+
 function assertCurrentPolicyBody(policy) {
   const body = policy.normalized.slice(policy.normalized.indexOf("\n---\n", 4) + 5);
-  if (REQUIRED_BODY.some((fragment) => !body.includes(fragment)) ||
-      STALE_BODY.some((fragment) => body.includes(fragment))) {
-    throw new ActionError("Agent 策略正文尚未合并发布后动作新规则；先保留本地自定义内容并完成受保护正文迁移");
+  const problems = policyBodyProblems(body);
+  if (problems.length > 0) {
+    throw new ActionError(`Agent 策略正文尚未合并发布后动作新规则；先保留本地自定义内容并完成受保护正文迁移。${problems.join("；")}`);
   }
 }
 
@@ -134,12 +149,104 @@ function metadataArray(root, key) {
   return values;
 }
 
+function optionalMetadata(root, key) {
+  const lines = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8").split(/\r?\n/u);
+  const start = lines.findIndex((line) => line.trim() === "[workspace.metadata.agent-first-harness]");
+  if (start < 0) throw new ActionError("Cargo 发布接口元数据缺失");
+  const end = lines.findIndex((line, index) => index > start && /^\s*\[/u.test(line));
+  const section = lines.slice(start + 1, end < 0 ? undefined : end);
+  const matches = section.flatMap((line) => {
+    const match = new RegExp(`^\\s*${key}\\s*=\\s*(.+?)\\s*$`, "u").exec(line);
+    return match ? [match[1]] : [];
+  });
+  if (matches.length === 0) return null;
+  if (matches.length !== 1) throw new ActionError(`Cargo ${key} 元数据重复`);
+  try { return JSON.parse(matches[0]); }
+  catch { throw new ActionError(`Cargo ${key} 元数据无效`); }
+}
+
+function safeProjectRelative(value, label, { allowRoot = false } = {}) {
+  if (allowRoot && value === ".") return ".";
+  if (typeof value !== "string" || !value || value.includes("\\") || value.includes(":") || path.isAbsolute(value)
+      || value.split("/").some((segment) => !segment || segment === "." || segment === "..")) {
+    throw new ActionError(`${label} 必须是项目内规范相对路径`);
+  }
+  return value;
+}
+
+function checkedProjectPath(root, relative, label, directory = false) {
+  let cursor = root;
+  for (const segment of relative === "." ? [] : relative.split("/")) {
+    cursor = path.join(cursor, segment);
+    let stat;
+    try { stat = fs.lstatSync(cursor); }
+    catch { throw new ActionError(`${label} 不存在：${relative}`); }
+    if (stat.isSymbolicLink()) throw new ActionError(`${label} 不得是符号链接：${relative}`);
+  }
+  const stat = fs.lstatSync(cursor);
+  if (directory ? !stat.isDirectory() : !stat.isFile()) throw new ActionError(`${label} 类型不正确：${relative}`);
+  return cursor;
+}
+
+function assertTracked(root, relative, label) {
+  const result = spawnSync("git", ["-C", root, "ls-files", "--error-unmatch", "--", relative], { encoding: "utf8" });
+  if (result.status !== 0) throw new ActionError(`${label} 必须受 Git 跟踪：${relative}`);
+}
+
+function assertNonEmptyRustWorkspace(file, relative) {
+  const source = fs.readFileSync(file, "utf8");
+  const workspace = /^\s*\[workspace\]\s*$/mu.exec(source);
+  if (!workspace || /^\s*\[package\]\s*$/mu.test(source)) return;
+  const rest = source.slice(workspace.index + workspace[0].length);
+  const nextSection = /^\s*\[/mu.exec(rest);
+  const section = rest.slice(0, nextSection?.index);
+  if (/^\s*members\s*=\s*\[\s*\]\s*(?:#.*)?$/mu.test(section)) {
+    throw new ActionError(`Rust 测试清单是空 workspace，须声明实际测试清单：${relative}`);
+  }
+}
+
+function assertGuiPackageReady(root) {
+  const relative = safeProjectRelative(optionalMetadata(root, "gui-root") ?? `${path.basename(root)}_gui`, "gui-root", { allowRoot: true });
+  const gui = checkedProjectPath(root, relative, "GUI 根目录", true);
+  const guiFile = (name, label) => checkedProjectPath(root, path.posix.join(relative, name), label);
+  const packageFile = guiFile("package.json", "GUI package.json");
+  const lockRelative = path.posix.join(relative, "pnpm-lock.yaml");
+  guiFile("pnpm-lock.yaml", "GUI pnpm-lock.yaml");
+  assertTracked(root, lockRelative, "GUI pnpm-lock.yaml");
+  guiFile("src-tauri/tauri.conf.json", "Tauri 配置");
+  let packageJson;
+  try { packageJson = JSON.parse(fs.readFileSync(packageFile, "utf8")); }
+  catch { throw new ActionError("GUI package.json 必须是有效 JSON"); }
+  if (!packageJson?.dependencies?.["@tauri-apps/cli"] && !packageJson?.devDependencies?.["@tauri-apps/cli"]) {
+    throw new ActionError("GUI package.json 缺少项目本地 @tauri-apps/cli");
+  }
+  const manifests = optionalMetadata(root, "rust-test-manifests") ?? ["Cargo.toml"];
+  if (!Array.isArray(manifests) || manifests.length === 0 || new Set(manifests).size !== manifests.length) {
+    throw new ActionError("rust-test-manifests 必须是非空且不重复的路径数组");
+  }
+  for (const manifest of manifests) {
+    const file = safeProjectRelative(manifest, "rust-test-manifests");
+    if (path.posix.basename(file) !== "Cargo.toml") throw new ActionError("rust-test-manifests 只能指向 Cargo.toml");
+    const manifestPath = checkedProjectPath(root, file, "Rust 测试清单");
+    assertNonEmptyRustWorkspace(manifestPath, file);
+    const lock = path.posix.join(path.posix.dirname(file), "Cargo.lock");
+    checkedProjectPath(root, lock, "Rust Cargo.lock");
+    assertTracked(root, lock, "Rust Cargo.lock");
+  }
+  if (relative !== "." && !gui.startsWith(`${root}${path.sep}`)) throw new ActionError("GUI 根目录越出项目");
+}
+
+/** 判断接口与目标平台组合是否存在可执行的本地打包 Skill（CLI，或含 macOS/Windows 的 GUI）。 */
+export function localPackageSupported(interfaces, platforms) {
+  return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => ["macos", "windows"].includes(platform)));
+}
+
 function assertLocalPackageSupported(root) {
   const interfaces = metadataArray(root, "interfaces");
-  const platforms = metadataArray(root, "target-platforms");
-  if (!interfaces.includes("cli") && !(interfaces.includes("gui") && platforms.some((platform) => ["macos", "windows"].includes(platform)))) {
+  if (!localPackageSupported(interfaces, metadataArray(root, "target-platforms"))) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
+  if (!interfaces.includes("cli") && interfaces.includes("gui")) assertGuiPackageReady(root);
 }
 
 function state(policy) {

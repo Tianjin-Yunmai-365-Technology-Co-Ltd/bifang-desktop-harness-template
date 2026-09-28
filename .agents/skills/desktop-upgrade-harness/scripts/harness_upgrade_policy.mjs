@@ -9,6 +9,11 @@ export const VALID_MODES = new Set(["managed", "managed-self", "merge-sections",
 export const AUTO_MODES = new Set(["managed", "managed-self"]);
 export const BLOCKING_CLASSES = new Set(["bootstrap_conflict", "collision", "conflict", "protected_candidate", "tombstone_candidate", "tombstone_present"]);
 export const MANUAL_CLASSES = new Set(["add", "delete", "manual_add", "manual_merge"]);
+/** 旧版曾传播的检查器保留 managed 所有权以便锁迁移，但不再进入下游候选。 */
+export const SOURCE_ONLY_PATHS = [
+  ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs",
+  ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
+];
 export const REQUIRED_MANAGED_SOURCE_PATHS = [
   ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.test.mjs",
@@ -16,8 +21,6 @@ export const REQUIRED_MANAGED_SOURCE_PATHS = [
   ".agents/skills/desktop-implement-change/scripts/check_core_first.test.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.test.mjs",
-  ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs",
-  ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
   ".agents/skills/desktop-manage-git-lifecycle/SKILL.md",
   ".agents/skills/desktop-manage-git-lifecycle/agents/openai.yaml",
   ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs",

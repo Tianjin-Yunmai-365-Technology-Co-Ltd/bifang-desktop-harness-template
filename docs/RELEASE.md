@@ -6,6 +6,7 @@
 - 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
 - 下游 Rust 项目当前版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`；`.harness/version-state.json` 保存正式发布周期、待发布变化及稳定 ID 去重状态
+- 既有下游若由 `tauri.conf.json`、`package.json` 等 JSON 文件决定安装包版本，在根 Cargo 元数据声明实际 `version-mirrors`；版本门禁检查漂移，并在提升根版本时同步声明的镜像
 - Git 发布完成条件：登记分支合并到本地默认主分支，且版本 tag 创建、复读并指向最终 HEAD
 - 发布后动作：完成初始化的下游按本次冻结的 `post_release_action` 本地打包或推送 `release` 分支；Harness 源按用户当次要求处理。这些动作不参与 Git 发布完成判定或下游 SemVer 周期。
 
@@ -29,7 +30,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 - 同一事件或权威记录出现经确认的矛盾时，使用稳定纠错 ID 和两端证据进入 `record-reconciliation`；本发布周期首次纠错统一提升 Minor 并将 Patch 归零，不受功能锁影响。相同 ID 与证据跨周期重试不重复提升；证据不同或未经确认即失败关闭。记录修正和相应验证须在下一次真实下游升级中完成，Harness 只提供并验证这条门禁。
 - 查询、诊断、复现、未完成或重复处理，以及不改变可观察行为的重构、内部优化、测试补强、文档、格式和内部清理属于 `maintenance`，不提升任何版本；`check`、`plan` 和 `maintenance` 始终零写入。
 - 较早变化记录的最低 `required_version` 低于最终发布版本是合法历史，不算记录不一致；同一事件、Cargo/周期状态或 Git 发布事实互相矛盾才属于需要调查的真实冲突。
-- Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`；Cargo、状态 `target_version` 或发布日志中任一出现 `100` 都由 `check`、`plan`、`apply` 与 `finalize-release` 一致拒绝，没有可读取的旧值例外，必须先手动修正到 `0..99` 才能继续。
+- Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`；Cargo、状态 `target_version` 或 `last_release` 中任一出现 `100` 都由 `check`、`plan`、`apply` 与 `finalize-release` 一致拒绝，发布日志 `release-notes.json` 中的 `100` 由更新日志 helper 与 `release` 的最终日志核对拒绝，没有可读取的旧值例外，必须先手动修正到 `0..99` 才能继续。
 - 版本只在合格变化已完成且本次相关测试通过后更新；普通构建、`pending` 候选、验收和失败发布只核对版本，不计算、不提升、不重置。
 - 只有 Git 发布真实成功后，在下一开发分支调用 `finalize-release` 复核默认主分支和 tag 后，才清空待发布变化并开启下一功能周期；本次发布后本地打包或远端推送尚未执行、失败或待复核，都不阻断该复位，也不另切分功能周期。历史 `bug-fix` 与纠错稳定 ID 始终保留，以阻止同一 ID 在未来周期重复提升。
 
@@ -39,7 +40,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 ## Git 发布生命周期与制品目录
 
-项目根忽略的制品目录 `release/` 不是 Git 分支。新功能和独立 Bug 修复在首次写入前由 `$desktop-manage-git-lifecycle start` 自动创建本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；创建动作不要求远端。生命周期状态位于 Git common dir 的 `agent-first-harness/git-lifecycle.json`，schema v3 精确登记受管分支、Worktree、未完成操作、最近一次发布的版本/tag/最终 HEAD/默认主分支及发布后保留的资源清单。合法且静止的 v2 状态可安全迁移；有未完成远端发布或推送的旧状态失败关闭。状态不进入提交。
+项目根忽略的制品目录 `release/` 不是 Git 分支。新功能和独立 Bug 修复在首次写入前由 `$desktop-manage-git-lifecycle start` 自动创建本地 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；创建动作不要求远端。生命周期状态位于 Git common dir 的 `agent-first-harness/git-lifecycle.json`，schema v4 精确登记受管分支、Worktree、未完成操作、最近一次发布的版本/tag/最终 HEAD/默认主分支/冻结发布后动作及发布后保留的资源清单。合法且静止的 v2/v3 状态可安全迁移；有未完成远端发布或推送的旧状态失败关闭。状态不进入提交。
 
 发布前用户明确要求“推送”时，`publish` 保留原有开发分支合并与推送语义：解析唯一主远端及动态默认分支，普通合并登记分支，推送并复读；只有用户逐一指定补充远端时才使用 `--also-remote <name>`。首个 push 前冻结最终 HEAD、目标和顺序，逐项复读并保存进度；补充远端不改绑主远端。该命令不创建版本 tag，也不完成 Git 发布。
 

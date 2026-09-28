@@ -11,6 +11,7 @@ import test from "node:test";
 import {
   readHarnessVersion,
   readHarnessVersionStamp,
+  sameOpenedFile,
   selectHarnessVersion,
   shanghaiTimestamp,
   stampHarnessVersion,
@@ -53,6 +54,14 @@ test("shanghai_timestamp_uses_explicit_zone_at_year_boundary", () => {
   assert.equal(shanghaiTimestamp(new Date("2026-12-31T16:01:00Z")), "202701010001");
   assert.equal(validHarnessTimestamp("202702300001"), false);
   assert.equal(validHarnessTimestamp("202701010001"), true);
+});
+
+test("opened Version.md accepts Windows lstat zero device but rejects a different inode", () => {
+  const metadata = { dev: 0, ino: 562949953796197 };
+  assert.equal(sameOpenedFile(metadata, { dev: 577193077, ino: metadata.ino, isFile: () => true }), true);
+  assert.equal(sameOpenedFile(metadata, { dev: 577193077, ino: metadata.ino + 1, isFile: () => true }), false);
+  assert.equal(sameOpenedFile({ dev: 2, ino: 3 }, { dev: 4, ino: 3, isFile: () => true }), false);
+  assert.equal(sameOpenedFile(metadata, { dev: 577193077, ino: metadata.ino, isFile: () => false }), false);
 });
 
 withHarness("selector_uses_current_shanghai_minute_after_latest_tag", ({ root, git }) => {

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { ROOT, fail, readText, relativePath } from "./core.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
+import { POST_RELEASE_ACTIONS, localPackageSupported, policyBodyIsCurrent } from "../../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs";
 
 export const SESSION_PROGRESS_TITLE_TEMPLATE = "Task {序号} | {当前进度} | {单一结果}";
 export const SESSION_PROGRESS_TITLE_INITIAL = "Task {序号} | 已分配 | {单一结果}";
@@ -110,6 +111,9 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   if (fields.get("decision_mode") !== "reuse_then_infer_then_ask") fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask");
   if (requireSourceDefaults && fields.get("superpowers") !== "disabled") fail(errors, "Harness source Agent policy must default superpowers to disabled");
   if (requireSourceDefaults && fields.get("user_owned_tasks") !== "disabled") fail(errors, "Harness source Agent policy must default user_owned_tasks to disabled");
+  for (const field of ["post_release_action", "confirmed_by", "confirmed_at"]) {
+    if (requireSourceDefaults && fields.get(field) !== "pending") fail(errors, `Harness source Agent policy must leave ${field} pending for downstream confirmation`);
+  }
   const preferences = ["superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
   for (const field of preferences) {
     const value = fields.get(field);
@@ -117,7 +121,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     else if (!allowPending && value === "pending") fail(errors, `initialized downstream Agent policy must resolve ${field}`);
   }
   const postReleaseAction = fields.get("post_release_action");
-  if (!["pending", "local_package", "push_release_branch"].includes(postReleaseAction)) {
+  if (!["pending", ...POST_RELEASE_ACTIONS].includes(postReleaseAction)) {
     fail(errors, "Agent policy post_release_action must be pending, local_package, or push_release_branch");
   } else if (!allowPending && postReleaseAction === "pending") {
     fail(errors, "initialized downstream Agent policy must resolve post_release_action");
@@ -126,13 +130,10 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     const metadata = persistedReleaseMetadata(policyPath, errors);
     const selectedInterfaces = interfaces ?? metadata?.interfaces ?? null;
     const selectedPlatforms = targetPlatforms ?? metadata?.["target-platforms"] ?? null;
-    if (selectedInterfaces !== null) {
-      if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0) {
-        fail(errors, "local_package requires a nonempty persisted interface combination");
-      } else if (!selectedInterfaces.includes("cli") &&
-                 !(selectedInterfaces.includes("gui") && Array.isArray(selectedPlatforms) && selectedPlatforms.some((platform) => ["macos", "windows"].includes(platform)))) {
-        fail(errors, "local_package requires CLI or GUI with a macOS/Windows target; otherwise select push_release_branch");
-      }
+    if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0 || !Array.isArray(selectedPlatforms)) {
+      fail(errors, "local_package requires persisted interfaces and target-platforms metadata");
+    } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms)) {
+      fail(errors, "local_package requires CLI or GUI with a macOS/Windows target; otherwise select push_release_branch");
     }
   }
   for (const field of ["confirmed_by", "confirmed_at"]) {
@@ -186,6 +187,8 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   for (const fragment of requiredBodyFragments) {
     if (!text.includes(fragment)) fail(errors, `Agent policy persistence rule missing in ${relativePath(policyPath)}: ${fragment}`);
   }
+  // 运行时 post_release_action helper 拒绝未合并新规则的正文；模板与下游必须通过同一判定。
+  if (!policyBodyIsCurrent(text)) fail(errors, `Agent policy body in ${relativePath(policyPath)} is rejected by the post_release_action helper`);
   const example = "Task 8 | 运行中 | 左侧 Task 默认关闭并支持开关";
   if (!text.includes(example) || !isValidSessionProgressTitle(example)) fail(errors, `Agent policy must contain a valid progress title example: ${example}`);
 }

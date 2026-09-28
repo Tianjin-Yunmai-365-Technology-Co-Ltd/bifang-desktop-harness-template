@@ -133,9 +133,10 @@ export function lifecycleFixture() {
       "--ignore-submodules=none", scopeBase, sourceHead, "--"], { env, encoding: null });
     assert.equal(scopeDiff.status, 0, scopeDiff.stderr?.toString("utf8"));
     const scopeDiffSha256 = createHash("sha256").update(scopeDiff.stdout).digest("hex");
-    if (reviewSelection === "enabled") {
-      writeFileSync(join(repository, "release-notes.json"), '{"schemaVersion":2,"releases":[]}\n', "utf8");
-    }
+    writeFileSync(join(repository, "release-notes.json"), `${JSON.stringify({ schemaVersion: 2, releases: [{
+      releaseDate: `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)}`, version: `v${version}`,
+      featureOptimizations: [{ "zh-CN": "测试发布。", "en-US": "Test release." }], bugFixes: [],
+    }] }, null, 2)}\n`, "utf8");
     const command = [
       join(repository, ".agents/skills/desktop-prepare-release/scripts/release_context.mjs"),
       "write", "--project-root", repository,
@@ -153,7 +154,7 @@ export function lifecycleFixture() {
     const written = run(process.execPath, command, { env, check: false });
     assert.equal(written.status, 0, written.stderr);
     const payload = JSON.parse(written.stdout);
-    git(repository, "add", ".harness/release-context.json", ...(reviewSelection === "enabled" ? ["release-notes.json"] : []));
+    git(repository, "add", ".harness/release-context.json", "release-notes.json");
     git(repository, "commit", "--quiet", "-m", "chore(release): bind release context");
     return {
       digest: payload.releaseContextSha256,

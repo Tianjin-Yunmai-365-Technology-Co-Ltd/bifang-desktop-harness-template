@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { canonicalBytes, validateContext } from "../../desktop-prepare-release/scripts/release_context.mjs";
+import { CONTEXT_RELATIVE_PATH as RELEASE_CONTEXT_PATH, canonicalBytes, validateContext } from "../../desktop-prepare-release/scripts/release_context.mjs";
+import { validateDocument as validateReleaseNotes } from "../../desktop-prepare-release/scripts/release_notes.mjs";
 import { inspect as inspectPostReleaseAction } from "../../desktop-switch-post-release-action/scripts/post_release_action.mjs";
 import { pendingFailure } from "./git_publication_report.mjs";
 import {
@@ -33,15 +34,25 @@ import {
   validBranch,
   validRemote,
   verifyLocalPosition,
+  worktreeRecords,
 } from "./git_lifecycle_core.mjs";
 
-const RELEASE_CONTEXT_PATH = ".harness/release-context.json";
 const RELEASE_CONTEXT_HELPER = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs";
 const HARNESS_VERSION_CLOCK_HELPER = ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs";
 const HARNESS_INITIALIZATION_SKILL = ".agents/skills/desktop-instantiate-project/SKILL.md";
 const PRODUCT_VERSION_HELPER = ".agents/skills/desktop-manage-version/scripts/version_gate.mjs";
 const PRODUCT_VERSION_STATE = ".harness/version-state.json";
 const RELEASE_NOTES_PATH = "release-notes.json";
+/** 可发布版本：Harness 12 位时间版本，或 Minor/Patch 位于 0..99 的稳定三段版本。 */
+const RELEASE_VERSION_RE = /^(?:\d{12}|(?:0|[1-9]\d*)\.(?:0|[1-9]\d?)\.(?:0|[1-9]\d?))$/u;
+
+/** 工作区文件字节必须等于 HEAD 中同一路径 blob，仅容许 CRLF 检出换行；所有被执行或作为事实源的文件共用此判定。 */
+function workingBytesMatchHead(repository, relative, working = readFileSync(join(repository.root, relative))) {
+  const committed = runGit(repository.root, ["show", `HEAD:${relative}`], { check: false, bytes: true });
+  if (committed.returncode !== 0) return false;
+  return committed.stdout.equals(working) ||
+    committed.stdout.equals(Buffer.from(working.toString("utf8").replaceAll("\r\n", "\n"), "utf8"));
+}
 
 /** Harness 发布时间版本必须有受管取号凭证；下游三段版本不走此路径。 */
 async function verifyHarnessVersionStamp(repository, version, { checkCommittedVersion = false } = {}) {
@@ -57,24 +68,11 @@ async function verifyHarnessVersionStamp(repository, version, { checkCommittedVe
   try {
     const metadata = lstatSync(helperPath);
     if (metadata.isSymbolicLink() || !metadata.isFile()) throw new Error("unsafe");
-    const working = readFileSync(helperPath);
-    const committed = runGit(repository.root, ["show", `HEAD:${HARNESS_VERSION_CLOCK_HELPER}`], { check: false, bytes: true });
-    const normalized = Buffer.from(working.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
-    if (committed.returncode !== 0 || (!working.equals(committed.stdout) && !normalized.equals(committed.stdout))) {
-      throw new Error("helper changed");
-    }
+    if (!workingBytesMatchHead(repository, HARNESS_VERSION_CLOCK_HELPER)) throw new Error("helper changed");
     const clock = await import(`${pathToFileURL(helperPath).href}?binding=${Date.now()}-${Math.random()}`);
     if (typeof clock.readHarnessVersionStamp !== "function") throw new Error("missing reader");
     clock.readHarnessVersionStamp(repository.root, version);
-    if (checkCommittedVersion) {
-      const worktreeBytes = readFileSync(versionFile);
-      const committedVersion = runGit(repository.root, ["show", "HEAD:Version.md"], { check: false, bytes: true });
-      const normalizedVersion = Buffer.from(worktreeBytes.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
-      if (committedVersion.returncode !== 0 ||
-          (!committedVersion.stdout.equals(worktreeBytes) && !committedVersion.stdout.equals(normalizedVersion))) {
-        throw new Error("integrated version differs");
-      }
-    }
+    if (checkCommittedVersion && !workingBytesMatchHead(repository, "Version.md")) throw new Error("integrated version differs");
   } catch {
     throw new LifecycleError("harness-version-stamp-invalid", "Harness release requires its managed current-minute version stamp.");
   }
@@ -87,30 +85,20 @@ async function verifyFinalReleaseVersion(repository, version) {
   const cargoPath = join(repository.root, "Cargo.toml");
   const statePath = join(repository.root, PRODUCT_VERSION_STATE);
   const helperPath = join(repository.root, PRODUCT_VERSION_HELPER);
+  // 三个版本事实源全部缺席时不是受管 Rust 下游；只存在部分时下方 lstat 失败关闭。
   if (![cargoPath, statePath, helperPath].some(existsSync)) return;
   try {
     for (const path of [cargoPath, statePath, helperPath]) {
       const metadata = lstatSync(path);
       if (metadata.isSymbolicLink() || !metadata.isFile()) throw new Error("unsafe version source");
     }
-    const helperBytes = readFileSync(helperPath);
-    const committedHelper = runGit(repository.root, ["show", `HEAD:${PRODUCT_VERSION_HELPER}`], { check: false, bytes: true });
-    const normalizedHelper = Buffer.from(helperBytes.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
-    if (committedHelper.returncode !== 0 ||
-        (!committedHelper.stdout.equals(helperBytes) && !committedHelper.stdout.equals(normalizedHelper))) {
-      throw new Error("untracked version helper");
-    }
+    if (!workingBytesMatchHead(repository, PRODUCT_VERSION_HELPER)) throw new Error("untracked version helper");
     const gate = await import(`${pathToFileURL(helperPath).href}?binding=${Date.now()}-${Math.random()}`);
     if (typeof gate.check !== "function") throw new Error("missing version check");
     const result = gate.check(repository.root, "release");
     if (result.passed !== true || result.current_version !== version) throw new Error("wrong final version");
     for (const relative of ["Cargo.toml", PRODUCT_VERSION_STATE]) {
-      const worktreeBytes = readFileSync(join(repository.root, relative));
-      const committed = runGit(repository.root, ["show", `HEAD:${relative}`], { check: false, bytes: true });
-      const normalized = Buffer.from(worktreeBytes.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
-      if (committed.returncode !== 0 || (!committed.stdout.equals(worktreeBytes) && !committed.stdout.equals(normalized))) {
-        throw new Error("integrated version source differs");
-      }
+      if (!workingBytesMatchHead(repository, relative)) throw new Error("integrated version source differs");
     }
   } catch {
     throw new LifecycleError("release-version-mismatch", "Integrated release HEAD does not match its frozen product version.");
@@ -137,11 +125,7 @@ export async function releaseContextBinding(repository, expectedSha256, identity
   let value;
   let canonical;
   try {
-    const helperRaw = readFileSync(helperPath);
-    const committedHelper = runGit(repository.root, ["show", `HEAD:${RELEASE_CONTEXT_HELPER}`], { check: false, bytes: true });
-    const lfHelper = Buffer.from(helperRaw.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
-    if (committedHelper.returncode !== 0 ||
-        (!committedHelper.stdout.equals(helperRaw) && !committedHelper.stdout.equals(lfHelper))) {
+    if (!workingBytesMatchHead(repository, RELEASE_CONTEXT_HELPER)) {
       throw new LifecycleError("release-context-invalid", "Release context validator is not tracked by current HEAD.");
     }
     if (statSync(path).size > 1_048_576) throw new LifecycleError("release-context-invalid", "Tracked release context is too large.");
@@ -383,6 +367,9 @@ export function releaseIdentity(repository, version, date) {
   if ([...version].some((character) => character.codePointAt(0) < 32) || version.length > 128) {
     throw new LifecycleError("invalid-version", "Version is invalid.");
   }
+  if (!RELEASE_VERSION_RE.test(version)) {
+    throw new LifecycleError("invalid-version", "Version must be a Harness timestamp or stable MAJOR.MINOR.PATCH with Minor/Patch in 0..99.");
+  }
   const releaseDate = date ?? shanghaiDate();
   if (!/^\d{8}$/.test(releaseDate)) throw new LifecycleError("invalid-date", "Release date must be a valid YYYYMMDD value.");
   const parsed = new Date(`${releaseDate.slice(0, 4)}-${releaseDate.slice(4, 6)}-${releaseDate.slice(6)}T00:00:00Z`);
@@ -420,13 +407,29 @@ function requireMatchingReleaseContext(record, args) {
 
 /** 只为新发布冻结一次已确认选择；发布中断后不重新读取当前偏好。 */
 function configuredPostReleaseAction(repository) {
-  let policy;
-  try { policy = inspectPostReleaseAction(repository.root); }
+  try { return inspectPostReleaseAction(repository.root, { requireConfigured: true }).post_release_action; }
   catch { throw new LifecycleError("post-release-action-invalid", "A confirmed schema v4 post-release action is required before release."); }
-  if (policy.schema_version !== 4 || policy.status !== "configured") {
-    throw new LifecycleError("post-release-action-invalid", "A confirmed schema v4 post-release action is required before release.");
+}
+
+/** 比较两个稳定三段版本；任一不是三段版本时返回 null。 */
+function compareStableVersions(left, right) {
+  const parse = (value) => /^(\d+)\.(\d+)\.(\d+)$/u.exec(value)?.slice(1).map(BigInt) ?? null;
+  const [a, b] = [parse(left), parse(right)];
+  if (a === null || b === null) return null;
+  for (let index = 0; index < 3; index += 1) if (a[index] !== b[index]) return a[index] > b[index] ? 1 : -1;
+  return 0;
+}
+
+/** 最终 HEAD 的更新日志必须合法且首条正是本次发布版本，防止带着缺失或陈旧日志打 tag。 */
+function verifyReleaseNotesVersion(repository, head, version) {
+  const blob = runGit(repository.root, ["show", `${head}:${RELEASE_NOTES_PATH}`], { check: false, bytes: true });
+  try {
+    if (blob.returncode !== 0) throw new Error("missing release notes");
+    const document = validateReleaseNotes(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(blob.stdout)));
+    if (document.releases[0].version !== `v${version}`) throw new Error("stale release notes");
+  } catch {
+    throw new LifecycleError("release-notes-mismatch", "Release notes at the final HEAD must be valid and lead with the released version.");
   }
-  return policy.post_release_action;
 }
 
 /** 整合本地登记分支并冻结主分支最终 HEAD。 */
@@ -436,6 +439,7 @@ async function freezePendingReleaseHead(repository, state, reviewed) {
   if (pending.postReleaseAction !== null && configuredPostReleaseAction(repository) !== pending.postReleaseAction) {
     throw new LifecycleError("post-release-action-changed", "Merged release policy differs from the frozen post-release action.");
   }
+  verifyReleaseNotesVersion(repository, prepared.head, pending.version);
   verifyHeadReleaseContextBytes(repository, pending.releaseContextSha256, prepared.head);
   verifyReviewedFinalHead(repository, reviewed, prepared.head);
   await verifyFinalReleaseVersion(repository, pending.version);
@@ -448,7 +452,9 @@ async function freezePendingReleaseHead(repository, state, reviewed) {
 async function completePendingRelease(repository, state, args, reviewed) {
   let pending = state.cycle.pendingRelease;
   requireMatchingReleaseContext(pending, args);
-  if (pending.head === null) pending = await freezePendingReleaseHead(repository, state, reviewed);
+  // 刚冻结的 HEAD 已在 freeze 中完成审查与版本复核；只有恢复既有冻结 HEAD 时才需在此重跑。
+  const resumed = pending.head !== null;
+  if (!resumed) pending = await freezePendingReleaseHead(repository, state, reviewed);
   const defaultBranch = state.defaultBranch;
   if (defaultBranch === null || !branchExists(repository, defaultBranch)) {
     throw new LifecycleError("local-state-changed", "Recorded Git default branch is unavailable.");
@@ -460,8 +466,10 @@ async function completePendingRelease(repository, state, args, reviewed) {
   if (currentHead(repository) !== pending.head) {
     throw new LifecycleError("local-state-changed", "Git default branch changed after release HEAD was frozen.");
   }
-  verifyReviewedFinalHead(repository, reviewed, pending.head);
-  await verifyFinalReleaseVersion(repository, pending.version);
+  if (resumed) {
+    verifyReviewedFinalHead(repository, reviewed, pending.head);
+    await verifyFinalReleaseVersion(repository, pending.version);
+  }
   ensureLocalReleaseTag(repository, pending.tag, pending.head);
   verifyLocalPosition(repository, defaultBranch, pending.head);
   const preservedBranches = state.cycle.branches.map((entry) => ({ ...entry }));
@@ -522,6 +530,10 @@ export async function commandRelease(repository, args) {
       preservedBranches: [], preservedWorktrees: [],
     };
   }
+  // 下游新发布必须高于最近一次 Git 发布，不能以新日期 tag 重发同一或更低版本；Harness 时间版本由取号凭证约束。
+  if (!harnessSource && last !== null && compareStableVersions(identity.version, last.version) !== 1) {
+    throw new LifecycleError("release-version-not-newer", "Release version must be newer than the last completed Git release.");
+  }
   requireClean(repository);
   const defaultBranch = state.defaultBranch ?? context.defaultBranch;
   if (defaultBranch !== context.defaultBranch) {
@@ -542,6 +554,43 @@ export async function commandRelease(repository, args) {
   return completePendingRelease(repository, state, args, reviewed);
 }
 
+const RELEASE_BRANCH = "release";
+
+/** 判断引用是否是 release 分支的大小写变体；大小写不敏感文件系统会把它们解析为同一分支。 */
+function isReleaseCaseVariant(reference) {
+  return reference.toLowerCase() === `refs/heads/${RELEASE_BRANCH}` && reference !== `refs/heads/${RELEASE_BRANCH}`;
+}
+
+/** 本地存在旧大写 Release 等变体时拒绝，防止借大小写折叠复用或移动旧分支。 */
+function assertNoLocalReleaseCaseVariant(repository) {
+  const listed = runGit(repository.root, ["for-each-ref", "--format=%(refname)", "refs/heads"]).stdout.split(/\r?\n/u);
+  if (listed.some(isReleaseCaseVariant)) {
+    throw new LifecycleError("local-release-conflict", "A case variant of the release branch exists locally; the legacy Release branch must not be used.");
+  }
+}
+
+/** 一次读取远端 release 分支与发布 tag，并拒绝远端 release 分支的大小写变体。 */
+function remoteReleaseRefs(repository, remote, tag) {
+  const result = runGit(repository.root, ["ls-remote", "--heads", "--tags", remote], { check: false });
+  if (result.returncode !== 0) throw new LifecycleError("remote-read-failed", "Git remote release refs cannot be read.");
+  let branch = null;
+  let direct = null;
+  let peeled = null;
+  for (const line of result.stdout.split(/\r?\n/u)) {
+    if (!line.includes("\t")) continue;
+    const [oid, reference] = line.split("\t", 2);
+    if (isReleaseCaseVariant(reference)) {
+      throw new LifecycleError("remote-release-conflict", "Remote has a case variant of the release branch; the legacy Release branch must not be used.");
+    }
+    if (reference !== `refs/heads/${RELEASE_BRANCH}` && reference !== `refs/tags/${tag}` && reference !== `refs/tags/${tag}^{}`) continue;
+    if (!HEX_OID_RE.test(oid)) throw new LifecycleError("remote-read-failed", "Git remote release ref response is invalid.");
+    if (reference === `refs/heads/${RELEASE_BRANCH}`) branch = oid;
+    else if (reference === `refs/tags/${tag}`) direct = oid;
+    else peeled = oid;
+  }
+  return { branch, tag: peeled ?? direct };
+}
+
 /** 精确读取本地 release 分支，不把任意本地引用解释为受管发布。 */
 function localReleaseBranchTarget(repository) {
   const result = runGit(repository.root, ["rev-parse", "--verify", "refs/heads/release^{commit}"], { check: false });
@@ -550,11 +599,10 @@ function localReleaseBranchTarget(repository) {
 
 /** 历史 v2 发布迁移后缺少 releasedResources，仍可从原 tag 与上下文证明旧 HEAD。 */
 function isVerifiedHistoricalReleaseHead(repository, state, head) {
-  const listed = runGit(repository.root, ["for-each-ref", "--format=%(refname)", "refs/tags"]);
+  const listed = runGit(repository.root, ["for-each-ref", "--points-at", head, "--format=%(refname)", "refs/tags"]);
   for (const ref of listed.stdout.split(/\r?\n/u)) {
     if (!ref.startsWith("refs/tags/v")) continue;
     const tag = ref.slice("refs/tags/".length);
-    if (localTagTarget(repository, tag) !== head) continue;
     const blob = runGit(repository.root, ["show", `${ref}:${RELEASE_CONTEXT_PATH}`], { check: false, bytes: true });
     if (blob.returncode !== 0) continue;
     try {
@@ -576,8 +624,7 @@ function ensureLocalReleaseBranch(repository, state, head) {
           isVerifiedHistoricalReleaseHead(repository, state, previous))) {
       throw new LifecycleError("local-release-conflict", "Local release branch does not point to a verified prior release.");
     }
-    const worktrees = runGit(repository.root, ["worktree", "list", "--porcelain"]).stdout.split(/\r?\n/u);
-    if (worktrees.includes("branch refs/heads/release")) {
+    if (worktreeRecords(repository).some((record) => record.branch === RELEASE_BRANCH)) {
       throw new LifecycleError("local-release-conflict", "Local release branch is checked out in a worktree.");
     }
   }
@@ -609,7 +656,7 @@ export function commandPushRelease(repository, args) {
   if (!configuredRemotes(repository).includes(remote)) {
     throw new LifecycleError("remote-not-found", "Requested Git remote is not configured.");
   }
-  const branch = "release";
+  const branch = RELEASE_BRANCH;
   if (!branchExists(repository, last.defaultBranch) ||
       runGit(repository.root, ["rev-parse", "--verify", "refs/heads/" + last.defaultBranch + "^{commit}"]).stdout.trim() !== last.head) {
     throw new LifecycleError("local-state-changed", "Released local default branch changed before push.");
@@ -619,12 +666,14 @@ export function commandPushRelease(repository, args) {
   if (localTagTarget(repository, last.tag) !== last.head) {
     throw new LifecycleError("tag-conflict", "Released local tag no longer matches the frozen HEAD.");
   }
-  const existingTag = remoteTagTarget(repository, remote, last.tag);
+  assertNoLocalReleaseCaseVariant(repository);
+  const existing = remoteReleaseRefs(repository, remote, last.tag);
+  const existingTag = existing.tag;
   if (existingTag !== null && existingTag !== last.head) {
     throw new LifecycleError("tag-conflict", "Remote tag already points to a different commit.");
   }
   ensureLocalReleaseBranch(repository, state, last.head);
-  let branchTarget = remoteBranchOid(repository, remote, branch);
+  let branchTarget = existing.branch;
   const branchAlreadyMatched = branchTarget === last.head;
   if (!branchAlreadyMatched) {
     const pushed = runGit(repository.root, ["push", remote, last.head + ":refs/heads/" + branch], { check: false });
@@ -654,8 +703,7 @@ export function commandPushRelease(repository, args) {
   let confirmedBranch;
   let confirmedTag;
   try {
-    confirmedBranch = remoteBranchOid(repository, remote, branch);
-    confirmedTag = remoteTagTarget(repository, remote, last.tag);
+    ({ branch: confirmedBranch, tag: confirmedTag } = remoteReleaseRefs(repository, remote, last.tag));
   } catch {
     throw new LifecycleError("release-push-uncertain", "Remote release refs could not be reread together; local release remains complete.");
   }

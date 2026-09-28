@@ -82,6 +82,12 @@ export function isHarnessSource(root) {
     && existsSync(join(root, ".agents", "skills", "desktop-instantiate-project", "SKILL.md"));
 }
 
+/** Windows 的 lstat.dev 可能为 0，而 fstat.dev 是卷号；仍要求 inode 一致。 */
+export function sameOpenedFile(metadata, opened) {
+  return opened.isFile() && opened.ino === metadata.ino
+    && (metadata.dev === 0 || opened.dev === 0 || opened.dev === metadata.dev);
+}
+
 /** 通过非跟随文件描述符读取，保留后续定点替换所需的原始字节。 */
 function readVersionDocument(root) {
   const file = join(root, "Version.md");
@@ -94,7 +100,7 @@ function readVersionDocument(root) {
   let opened;
   try {
     opened = fstatSync(descriptor);
-    if (!opened.isFile() || opened.dev !== metadata.dev || opened.ino !== metadata.ino) {
+    if (!sameOpenedFile(metadata, opened)) {
       throw new Error("Version.md changed while opening");
     }
     bytes = readFileSync(descriptor);

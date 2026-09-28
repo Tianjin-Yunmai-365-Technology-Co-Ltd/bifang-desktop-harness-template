@@ -47,7 +47,7 @@
 - Harness 源与终端下游的新功能或独立 Bug 修复在写入前通过 `$desktop-manage-git-lifecycle` 自动创建并切换到独立 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支；本地建分支不依赖远端。用户明确说“发布”时，受管流程复核并提交本次范围，把登记分支普通合并到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{YYYYMMDD}`，即完成 Git 发布；`release` 必须传已跟踪发布上下文的 `--release-context-sha256 <sha256>`，不 fetch、push、打包或删除登记资源。完成初始化的下游在发布开始时冻结 `docs/AGENT_POLICY.md` 已确认的 `post_release_action`，随后必须按本次快照执行并检测后续路径；未来切换不回溯改写旧发布；Harness 源的后续源码归档或推送由用户当次决定：`local_package` 沿用适用的本地打包 Skill；`push_release_branch` 将同一已发布 HEAD 放到本地小写 `release` 分支，非强制推送远端同名分支和 tag，复读后才算该路径完成。后续失败不改变本地 Git 发布事实；流程不创建/配置远端或凭据。生命周期清单只记录 Harness 自己创建或明确登记的资源，不设置保护分支、严格线性、fast-forward-only、lease 或 atomic push 门禁，也不创建、迁移或使用旧的大写 `Release` 分支。
 - 对产出物声称“完成”“可用”或“已验证”必须基于真实产物的可观察结果；Mock、stub、源码片段、占位页面、中性 scaffold 或开发预览不能冒充候选验收。人工批准也不能把失败或未执行改判为通过。
 - Product Spec、ADR、Changelog、Product Status、Work Plan 与 Verification 只由各自独立事件触发；Git 发布事实由本地主分支与 tag 复核，候选构建/E2E/验收/就绪复核只写忽略的 `release/` 原子证据，渠道分发或回顾审计各按独立事件写适用 tracked 记录。普通维护不写占位，范围外问题写入 `docs/TECH_DEBT.md`。
-- 工程自动化只使用 Node.js 标准库 `.mjs` helper；除非开发者在当前请求中主动明确要求，否则不得引入 Python 源码、解释器、包管理器、虚拟环境、第三方包或运行步骤，也不得把安装 Python 工具当作环境恢复或替代方案。新增或修改自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`；例外流程见 `docs/ENGINEERING_RULES.md`。
+- 仅当前 Harness 上游工程的工程自动化使用 Node.js 标准库 `.mjs` helper，禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和运行步骤；新增或修改自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。该禁令及检查器不得随创建或升级传播到终端下游；下游按自身需求选择脚本语言，并遵守项目本地显式依赖与不得假设全局第三方包的规则。
 - 不覆盖或撤销用户已有修改，不为假想未来增加抽象、接口或依赖；跨平台实现不得默认单一 Shell、路径分隔符、权限模型或宿主能力。
 
 ## Skills 地图

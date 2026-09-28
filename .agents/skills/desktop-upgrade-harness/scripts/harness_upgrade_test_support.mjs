@@ -70,7 +70,7 @@ export class HarnessUpgradeFixture {
   }
 
   bootstrap() {
-    const { planPath } = this.createPlan(2, "bootstrap");
+    const { planPath } = this.createPlan(0, "bootstrap");
     this.runTool(["record", "--plan", planPath, "--source-version", this.sourceVersion, "--source-commit", this.sourceCommit, "--bootstrap", "--approval", "bootstrap-verified-baseline"]);
   }
 

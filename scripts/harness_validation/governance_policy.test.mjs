@@ -105,7 +105,7 @@ test("initialized downstream accepts either confirmed post-release action", () =
       .replace(/^(superpowers|user_owned_tasks|parallel_worktree_subagents|acceptance_smoke|e2e_hint): pending$/gmu, "$1: disabled");
     withPolicy(resolved, (filePath) => {
       const errors = [];
-      validateAgentPolicy(errors, filePath, { allowPending: false });
+      validateAgentPolicy(errors, filePath, { allowPending: false, interfaces: ["cli"], targetPlatforms: ["macos"] });
       assert.deepEqual(errors, [], action);
     });
   }
@@ -139,7 +139,11 @@ test("TUI/MCP-only downstream rejects local packaging but accepts remote release
     }
     assert.ok(check(["gui"], "local_package", ["linux"]).some((error) => error.includes("local_package requires CLI or GUI with a macOS/Windows target")));
     assert.deepEqual(check(["gui"], "push_release_branch", ["linux"]), []);
-    assert.ok(check([], "local_package").some((error) => error.includes("nonempty persisted interface combination")));
+    assert.ok(check([], "local_package").some((error) => error.includes("requires persisted interfaces and target-platforms")));
+    fs.rmSync(manifestPath);
+    const missingMetadata = [];
+    validateAgentPolicy(missingMetadata, policyPath, { allowPending: false });
+    assert.ok(missingMetadata.some((error) => error.includes("requires persisted interfaces and target-platforms")), "missing Cargo metadata must fail closed");
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
   }
@@ -164,6 +168,26 @@ test("source defaults reject enabled automatic capabilities", () => {
       assert.ok(errors.some((error) => error.includes(field)));
     });
   }
+});
+
+test("source defaults keep downstream confirmation fields pending", () => {
+  const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
+  for (const [field, value] of [["post_release_action", "local_package"], ["confirmed_by", "maintainer"], ["confirmed_at", "2026-09-28"]]) {
+    withPolicy(source.replace(new RegExp(`^${field}:.*$`, "mu"), `${field}: ${value}`), (filePath) => {
+      const errors = [];
+      validateAgentPolicy(errors, filePath, { requireSourceDefaults: true });
+      assert.ok(errors.some((error) => error.includes(`leave ${field} pending`)), field);
+    });
+  }
+});
+
+test("policy body must satisfy the post_release_action helper", () => {
+  const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
+  withPolicy(source.replaceAll("冻结已确认的 `post_release_action`", "冻结选择"), (filePath) => {
+    const errors = [];
+    validateAgentPolicy(errors, filePath);
+    assert.ok(errors.some((error) => error.includes("rejected by the post_release_action helper")));
+  });
 });
 
 test("policy rejects removal of persistent body semantics", () => {

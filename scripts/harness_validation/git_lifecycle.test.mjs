@@ -106,13 +106,16 @@ test("push-release rejects option-like remote names", () => {
 
 test("push-release verifies both remote refs after the tag update", () => {
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    "confirmedBranch = remoteBranchOid(repository, remote, branch)", "confirmedBranch = last.head"), "Git lifecycle contract missing");
+    "({ branch: confirmedBranch, tag: confirmedTag } = remoteReleaseRefs(repository, remote, last.tag))", "confirmedBranch = last.head; confirmedTag = last.head"), "Git lifecycle contract missing");
 });
 
 test("push-release targets the fixed release branch", () => {
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    'const branch = "release"', 'const branch = remoteDefaultBranch(repository, remote)'),
+    "const branch = RELEASE_BRANCH", 'const branch = remoteDefaultBranch(repository, remote)'),
   "independent released-head-and-tag push sequence");
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    'const RELEASE_BRANCH = "release";', 'const RELEASE_BRANCH = "Release";'),
+  "Git lifecycle contract");
 });
 
 test("local release branch must retain recorded provenance and use compare-and-swap", () => {

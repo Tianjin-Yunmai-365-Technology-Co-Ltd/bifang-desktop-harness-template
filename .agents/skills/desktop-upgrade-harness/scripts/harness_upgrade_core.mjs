@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { explicitOwnershipModeForNode, loadLock, loadOwnership, ownershipMode, scanTree } from "./harness_upgrade_ownership.mjs";
-import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION } from "./harness_upgrade_policy.mjs";
+import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, SOURCE_ONLY_PATHS } from "./harness_upgrade_policy.mjs";
 import { UpgradeError, assertSafePath, canonicalDirectory, isWithin, loadJson, requireControlPaths, requireGitRoot, requireSourceIdentity, safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
 
 export function stableJson(value, indent = 0) {
@@ -19,7 +19,7 @@ export function stableJson(value, indent = 0) {
 export function classifyManaged(candidate, target, baseline, { lockLoaded }) {
   if (baseline === null) {
     if (candidate !== null && target === null) return "add";
-    if (candidate !== null && target !== null) return lockLoaded ? (isDeepStrictEqual(candidate, target) ? "converged" : "collision") : "bootstrap_conflict";
+    if (candidate !== null && target !== null) return isDeepStrictEqual(candidate, target) ? "converged" : (lockLoaded ? "collision" : "bootstrap_conflict");
     return "preserve_local";
   }
   const candidateChanged = !isDeepStrictEqual(candidate, baseline.candidate);
@@ -57,10 +57,19 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   const { ownership, lockFile } = requireControlPaths(target, ownershipPath, lockPath);
   const { defaultMode, rules } = loadOwnership(ownership);
   const candidateTree = scanTree(candidate, { targetTree: false });
-  const targetTree = scanTree(target, { targetTree: true });
   const lock = loadLock(lockFile);
   const entries = lock === null ? {} : lock.entries;
+  const retainPaths = [
+    ...Object.keys(candidateTree.files), ...Object.keys(entries),
+    ...rules.filter(([, mode]) => mode === "tombstone").map(([pattern]) => pattern.split("*")[0].replace(/\/$/u, "")),
+  ];
+  const targetTree = scanTree(target, { targetTree: true, retainPaths });
   const problems = candidateTree.unsafe.map((entry) => `候选包含符号链接、特殊文件或 Git 元数据：${entry}`);
+
+  for (const relative of SOURCE_ONLY_PATHS) {
+    if (Object.hasOwn(candidateTree.nodes, relative)) problems.push(`候选不得传播上游专用检查器：${relative}`);
+    if (Object.hasOwn(targetTree.nodes, relative)) problems.push(`目标须先移除旧版上游专用检查器：${relative}`);
+  }
 
   for (const rawPath of REQUIRED_MANAGED_SOURCE_PATHS) {
     const relative = safeRelativePath(rawPath);

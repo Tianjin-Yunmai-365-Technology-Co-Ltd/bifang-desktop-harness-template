@@ -231,6 +231,62 @@ function replaceCargoVersion(text, version) {
   return lines.join("");
 }
 
+/** 已接入项目可声明实际安装包使用的 JSON 版本镜像，未声明时保持现有布局。 */
+function versionMirrorPaths(root) {
+  const cargo = readUtf8FileStrict(path.join(root, "Cargo.toml"), "root Cargo.toml");
+  const lines = cargo.split(/\r?\n/u);
+  const starts = lines.flatMap((line, index) => line.trim() === "[workspace.metadata.agent-first-harness]" ? [index] : []);
+  if (starts.length === 0) return [];
+  if (starts.length !== 1) throw new GateError("workspace metadata section must be unique");
+  const end = lines.findIndex((line, index) => index > starts[0] && /^\s*\[/u.test(line));
+  const section = lines.slice(starts[0] + 1, end < 0 ? undefined : end).join("\n");
+  const mentions = [...section.matchAll(/^\s*version-mirrors\s*=/gmu)];
+  const declarations = [...section.matchAll(/^\s*version-mirrors\s*=\s*(\[[^\n]*\])\s*$/gmu)];
+  if (mentions.length === 0) return [];
+  if (mentions.length !== 1 || declarations.length !== 1) throw new GateError("version-mirrors must be a single inline string array");
+  let values;
+  try { values = JSON.parse(declarations[0][1]); }
+  catch { throw new GateError("version-mirrors must be a JSON-compatible TOML string array"); }
+  if (!Array.isArray(values) || values.length === 0 || values.length > 10 || new Set(values).size !== values.length
+      || values.some((value) => typeof value !== "string" || !value.endsWith(".json") || value.includes("\\")
+        || value.includes(":") || path.isAbsolute(value)
+        || value.startsWith("/") || value.split("/").some((segment) => !segment || segment === "." || segment === ".."))) {
+    throw new GateError("version-mirrors must list 1..10 unique project-relative JSON paths");
+  }
+  return values;
+}
+
+function versionMirrors(root, current) {
+  return versionMirrorPaths(root).map((relative) => {
+    const segments = relative.split("/");
+    let cursor = root;
+    for (const segment of segments) {
+      cursor = path.join(cursor, segment);
+      if (lstatOrNull(cursor)?.isSymbolicLink()) throw new GateError(`version mirror path contains a symlink: ${relative}`);
+    }
+    requireRegularFile(cursor, `version mirror ${relative}`);
+    const text = readUtf8FileStrict(cursor, `version mirror ${relative}`);
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch { throw new GateError(`version mirror must contain valid JSON: ${relative}`); }
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object" || typeof parsed.version !== "string") {
+      throw new GateError(`version mirror must contain a top-level string version: ${relative}`);
+    }
+    const observed = Version.parse(parsed.version);
+    if (!observed.equals(current)) throw new GateError(`version drift: ${relative}=${observed}, Cargo.toml=${current}`);
+    const matches = [...text.matchAll(/"version"\s*:\s*"([^"\\]*)"/gu)];
+    if (matches.length !== 1 || matches[0][1] !== parsed.version) {
+      throw new GateError(`version mirror has ambiguous version text: ${relative}`);
+    }
+    return { relative, file: cursor, text, match: matches[0] };
+  });
+}
+
+function replaceMirrorVersion(mirror, version) {
+  const match = mirror.match;
+  return `${mirror.text.slice(0, match.index)}${match[0].replace(`"${match[1]}"`, `"${version}"`)}${mirror.text.slice(match.index + match[0].length)}`;
+}
+
 function atomicWrite(target, content) {
   mkdirSync(path.dirname(target), { recursive: true });
   if (lstatOrNull(path.dirname(target))?.isSymbolicLink()) {
@@ -425,7 +481,8 @@ function consistentContext(root) {
   const state = loadState(statePath);
   const target = Version.parse(state.target_version);
   if (!current.equals(target)) throw new GateError(`version drift: Cargo.toml=${current}, state target=${target}`);
-  return { cargoPath, statePath, current, cargoText, state };
+  const mirrors = versionMirrors(root, current);
+  return { cargoPath, statePath, current, cargoText, state, mirrors };
 }
 
 /** 只读读取 Git common-dir 的发布状态；首次开发周期尚无生命周期文件时返回空。 */
@@ -482,6 +539,7 @@ export function initialize(root, { migrationApproved = false } = {}) {
     };
   }
   const [version] = cargoVersion(cargoPath);
+  versionMirrors(root, version);
   const migration = isIndependentGitRoot(root);
   if (migration && !migrationApproved) {
     throw new GateError(
@@ -584,7 +642,7 @@ function transition(state, current, { kind, changeId, major, userApproved, confl
 export function evaluateChange(root, {
   action, kind, changeId = null, major = null, userApproved = false, conflictEvidence = null,
 }) {
-  const { cargoPath, statePath, current, cargoText, state } = consistentContext(root);
+  const { cargoPath, statePath, current, cargoText, state, mirrors } = consistentContext(root);
   requireCurrentReleaseCycle(root, state);
   const [nextVersion, nextState, result] = transition(state, current, {
     kind, changeId, major, userApproved, conflictEvidence,
@@ -592,12 +650,26 @@ export function evaluateChange(root, {
   const changed = JSON.stringify(nextState) !== JSON.stringify(state) || !nextVersion.equals(current);
   if (action === "apply" && changed) {
     const newCargo = replaceCargoVersion(cargoText, nextVersion);
-    const cargoChanged = newCargo !== cargoText;
+    const changes = [
+      ...(newCargo === cargoText ? [] : [{ file: cargoPath, before: cargoText, after: newCargo }]),
+      ...mirrors.map((mirror) => ({ file: mirror.file, before: mirror.text, after: replaceMirrorVersion(mirror, nextVersion) }))
+        .filter((item) => item.after !== item.before),
+    ];
+    const written = [];
     try {
-      if (cargoChanged) atomicWrite(cargoPath, newCargo);
+      for (const change of changes) {
+        if (readUtf8FileStrict(change.file, "version source") !== change.before) throw new GateError(`version source changed before apply: ${change.file}`);
+        atomicWrite(change.file, change.after);
+        written.push(change);
+      }
       atomicWrite(statePath, stateJson(nextState));
     } catch (error) {
-      if (cargoChanged) atomicWrite(cargoPath, cargoText);
+      const rollbackErrors = [];
+      for (const change of written.reverse()) {
+        try { atomicWrite(change.file, change.before); }
+        catch (rollbackError) { rollbackErrors.push(`${change.file}: ${rollbackError.message}`); }
+      }
+      if (rollbackErrors.length) throw new GateError(`version apply failed and rollback is incomplete: ${error.message}; ${rollbackErrors.join("; ")}`);
       throw error;
     }
   }
@@ -610,10 +682,11 @@ export function evaluateChange(root, {
 }
 
 export function check(root, phase) {
-  const { current, state } = consistentContext(root);
+  const { current, state, mirrors } = consistentContext(root);
   return {
     action: "check", phase, current_version: current.toString(), cycle_base_version: state.cycle_base_version,
-    feature_bump_applied: state.feature_bump_applied, pending_change_count: state.pending_changes.length, passed: true,
+    feature_bump_applied: state.feature_bump_applied, pending_change_count: state.pending_changes.length,
+    version_mirrors: mirrors.map((mirror) => mirror.relative), passed: true,
   };
 }
 

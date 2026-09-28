@@ -23,7 +23,7 @@ const V3 = [
   "保留本地正文。",
   "- `post_release_action`：`local_package` 或 `push_release_branch`。",
   "发布后动作直接读取 `post_release_action`。",
-  "随后必须执行 `post_release_action`。",
+  "完成初始化的下游冻结已确认的 `post_release_action`。",
   "使用 `push-release --remote <name>`。",
   "",
 ].join("\n");
@@ -153,7 +153,10 @@ test("legacy policy body must be reconciled before a choice can be persisted", (
   const stale = V3.replace("发布后动作直接读取 `post_release_action`。", "推送与打包分别由发布后的用户请求决定。");
   const f = fixture(t, stale);
   assert.equal(f.run("inspect").status, "selection_required");
-  assert.match(f.run("set", setOptions("local_package"), 2).error, /正文尚未合并/u);
+  const rejected = f.run("set", setOptions("local_package"), 2).error;
+  assert.match(rejected, /正文尚未合并/u);
+  assert.match(rejected, /缺少：发布后动作直接读取 `post_release_action`/u);
+  assert.match(rejected, /过时：推送与打包分别由发布后的用户请求决定/u);
   assert.equal(fs.readFileSync(f.policy, "utf8"), stale);
   fs.writeFileSync(f.policy, V3);
   assert.equal(f.run("set", setOptions("local_package")).status, "configured");
@@ -168,6 +171,21 @@ test("local package choice requires an existing CLI or supported GUI package rou
   assert.match(f.run("set", setOptions("local_package"), 2).error, /没有现有本地打包 Skill/u);
   assert.equal(f.run("set", setOptions("push_release_branch")).status, "configured");
   assert.match(f.run("set", setOptions("local_package", "push_release_branch"), 2).error, /没有现有本地打包 Skill/u);
-  fs.writeFileSync(cargo, "[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\n");
+  fs.writeFileSync(cargo, "[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \".\"\nrust-test-manifests = [\"src-tauri/Cargo.toml\"]\n");
+  assert.match(f.run("set", setOptions("local_package", "push_release_branch"), 2).error, /GUI package.json/u);
+  fs.mkdirSync(path.join(f.root, "src-tauri"));
+  fs.writeFileSync(path.join(f.root, "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
+  fs.writeFileSync(path.join(f.root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  fs.writeFileSync(path.join(f.root, "src-tauri", "tauri.conf.json"), '{}\n');
+  fs.writeFileSync(path.join(f.root, "src-tauri", "Cargo.toml"), "[package]\nname = \"example\"\nversion = \"0.1.0\"\n");
+  fs.writeFileSync(path.join(f.root, "src-tauri", "Cargo.lock"), "# lock\n");
+  assert.match(f.run("set", setOptions("local_package", "push_release_branch"), 2).error, /必须受 Git 跟踪/u);
+  const add = spawnSync("git", ["-C", f.root, "add", "pnpm-lock.yaml", "src-tauri/Cargo.lock"], { encoding: "utf8" });
+  assert.equal(add.status, 0, add.stderr);
   assert.equal(f.run("set", setOptions("local_package", "push_release_branch")).status, "configured");
+  fs.writeFileSync(cargo, "[workspace]\nmembers = []\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \".\"\n");
+  fs.writeFileSync(path.join(f.root, "Cargo.lock"), "# empty workspace lock\n");
+  const rootLock = spawnSync("git", ["-C", f.root, "add", "Cargo.lock"], { encoding: "utf8" });
+  assert.equal(rootLock.status, 0, rootLock.stderr);
+  assert.match(f.run("check", [], 2).error, /空 workspace/u);
 });

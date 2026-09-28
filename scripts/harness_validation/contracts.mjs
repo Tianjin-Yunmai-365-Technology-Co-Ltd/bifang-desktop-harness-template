@@ -36,7 +36,7 @@ export function validateAgentPolicy(errors) {
   });
 }
 
-/** 验证根入口预算、Node 命令与无 Python 默认规则。 */
+/** 验证根入口预算、上游 Python 门禁及下游不继承该门禁的约定。 */
 export function validateGovernanceDocuments(errors) {
   const agentsPath = path.join(ROOT, "AGENTS.md");
   const agents = requireFragments(errors, agentsPath, [
@@ -45,7 +45,7 @@ export function validateGovernanceDocuments(errors) {
     "$desktop-refactor-code",
     "node scripts/validate_harness.mjs",
     "node scripts/run_harness_tests.mjs",
-    "工程自动化只使用 Node.js 标准库",
+    "仅当前 Harness 上游工程的工程自动化使用 Node.js 标准库",
     "check_no_python.mjs --root .",
   ], "AGENTS.md");
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-check-development-environment", "SKILL.md"), [
@@ -60,9 +60,9 @@ export function validateGovernanceDocuments(errors) {
   } catch (error) {
     fail(errors, `无法检查环境 Skill 文件: ${error.message}`);
   }
-  for (const skillName of ["desktop-initialize-rust-project", "desktop-upgrade-harness"]) {
-    requireFragments(errors, path.join(SKILLS_ROOT, skillName, "SKILL.md"), ["check_no_python.mjs"], skillName);
-  }
+  requireFragments(errors, path.join(SKILLS_ROOT, "desktop-instantiate-project", "SKILL.md"), ["上游专用的 `check_no_python.mjs`", "从下游 `AGENTS.md` 与 `docs/ENGINEERING_RULES.md` 删除仅属上游的 Python 禁令"], "$desktop-instantiate-project");
+  requireFragments(errors, path.join(SKILLS_ROOT, "desktop-initialize-rust-project", "SKILL.md"), ["删除上游专用的 `check_no_python.mjs`", "不带入上游专用 Python 禁令"], "$desktop-initialize-rust-project");
+  requireFragments(errors, path.join(SKILLS_ROOT, "desktop-upgrade-harness", "SKILL.md"), ["上游专用的 `check_no_python.mjs`", "不得在目标根运行 `check_no_python.mjs`"], "$desktop-upgrade-harness");
   const bytes = Buffer.byteLength(agents, "utf8");
   const lines = agents ? agents.replaceAll("\r\n", "\n").split("\n").length - (agents.endsWith("\n") ? 1 : 0) : 0;
   if (bytes > 20_000) fail(errors, `AGENTS.md 超过 20,000 UTF-8 字节预算: ${bytes}`);
@@ -71,8 +71,8 @@ export function validateGovernanceDocuments(errors) {
   requireFragments(errors, path.join(ROOT, "docs", "ENGINEERING_RULES.md"), [
     "Core-first 是硬规则",
     "Node.js 是所有接口组合的受管工程运行时",
-    "不得引入 Python 源码、解释器、包管理器、虚拟环境、第三方包或 Python 运行步骤",
-    "只有开发者在当前请求中主动明确要求时才可例外",
+    "仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤",
+    "初始化和升级均不得把该检查器及上游专用禁令传播到终端下游",
     "check_no_python.mjs --root .",
     "node scripts/validate_harness.mjs --release-review",
     "Rust 代码：400 行",

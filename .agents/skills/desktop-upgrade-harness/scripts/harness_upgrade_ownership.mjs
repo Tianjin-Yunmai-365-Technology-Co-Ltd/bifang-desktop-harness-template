@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { MINIMUM_OWNERSHIP_RULES, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, VALID_MODES } from "./harness_upgrade_policy.mjs";
 import { UpgradeError, loadJson, safeRelativePath, snapshotFile, validateSnapshot } from "./harness_upgrade_safety.mjs";
 
@@ -76,11 +77,17 @@ export function explicitOwnershipModeForNode(value, { isDirectory, rules }) {
 
 function relativePosix(root, value) { return path.relative(root, value).split(path.sep).join("/"); }
 
+const GENERATED_DIRECTORY_NAMES = new Set(["node_modules", "target", "dist", "coverage", ".vite", ".cache", "release"]);
+
 /** 枚举所有节点及普通文件快照，并报告链接、特殊文件和候选 Git 元数据。 */
-export function scanTree(root, { targetTree }) {
+export function scanTree(root, { targetTree, retainPaths = [] }) {
   const files = {};
   const unsafe = [];
   const nodes = {};
+  const retain = [...new Set(retainPaths)];
+  const canPrune = (relative) => targetTree && GENERATED_DIRECTORY_NAMES.has(path.posix.basename(relative))
+    && !retain.some((required) => required === relative || required.startsWith(`${relative}/`))
+    && spawnSync("git", ["-C", root, "check-ignore", "-q", "--", relative], { encoding: "utf8" }).status === 0;
   const visit = (current) => {
     const entries = fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name, "en"));
     for (const entry of entries) {
@@ -91,7 +98,8 @@ export function scanTree(root, { targetTree }) {
       nodes[relative] = entry.isDirectory();
       if (observed.isSymbolicLink()) { unsafe.push(relative); continue; }
       if (observed.isDirectory()) {
-        if (!targetTree && relative === ".git") unsafe.push(relative); else visit(child);
+        if (!targetTree && relative === ".git") unsafe.push(relative);
+        else if (!canPrune(relative)) visit(child);
       } else if (!observed.isFile()) unsafe.push(relative);
       else files[relative] = snapshotFile(child);
     }

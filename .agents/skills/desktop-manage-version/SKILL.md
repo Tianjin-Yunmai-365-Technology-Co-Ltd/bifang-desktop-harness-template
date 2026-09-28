@@ -7,6 +7,8 @@ description: 管理下游产品的语义化版本门禁、base-100 进位、发�
 
 为已初始化下游产品计算并提交语义化版本。根 `Cargo.toml` 的 `[workspace.package].version` 是当前版本唯一事实源，`.harness/version-state.json` 只保存发布周期、去重和变更所需版本状态；Harness 自身的 `Version.md` 与 `YYYYMMDDHHMM` 方案不属于本 Skill。
 
+既有项目若有独立决定安装包版本的 JSON 文件，可在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 声明 `version-mirrors = ["tauri.conf.json", "package.json"]` 等实际相对路径。每个镜像须为普通非符号链接 JSON 文件，顶层只有一个可定位的字符串 `version`；`init`、`check`、`plan` 和 `apply` 均要求它与根 Cargo 相等，`apply` 升版时同步这些镜像，写入失败尝试恢复已写文件并报告不能恢复的路径。未声明的文件不擅自修改；项目应声明所有实际决定安装包版本的镜像。首次接入时先调查并对齐已有冲突，不用版本提升掩盖旧漂移。
+
 ## 固定语义
 
 - 版本必须是无预发布/构建元数据的 `MAJOR.MINOR.PATCH`。新生成的 Minor/Patch 数位在 `0..99`，采用 base-100 自动进位：`0.0.99 -> 0.1.0`、`0.99.99 -> 1.0.0`；Major 不受 99/100 的业务上限约束，但必须处于 Cargo `u64` 范围 `0..18446744073709551615`。没有更高数位可承接的自动进位必须在写入前失败关闭。

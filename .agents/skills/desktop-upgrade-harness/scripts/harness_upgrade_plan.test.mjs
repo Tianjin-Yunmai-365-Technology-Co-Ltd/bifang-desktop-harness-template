@@ -6,7 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { HarnessUpgradeFixture, MANAGED, MIXED, PROTECTED, REQUIRED_MANAGED_CHECKERS, TOMBSTONE, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
-import { matchesPattern } from "./harness_upgrade_ownership.mjs";
+import { matchesPattern, scanTree } from "./harness_upgrade_ownership.mjs";
+import { snapshotFile } from "./harness_upgrade_safety.mjs";
 
 test("ownership_glob_preserves_fnmatch_character_classes", () => {
   assert.equal(matchesPattern("docs/a.txt", "docs/[ab].txt"), true);
@@ -14,6 +15,50 @@ test("ownership_glob_preserves_fnmatch_character_classes", () => {
   assert.equal(matchesPattern("docs/c.txt", "docs/[!ab].txt"), true);
   assert.equal(matchesPattern("docs/a.txt", "docs/[!ab].txt"), false);
   assert.equal(matchesPattern("docs/a.txt", "docs/[z-a].txt"), false);
+});
+
+test("first bootstrap identifies identical managed overlap as converged", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  f.write(f.candidate, MANAGED, "same bytes");
+  f.write(f.target, MANAGED, "same bytes");
+  const { plan, planPath } = f.createPlan();
+  assert.equal(f.classification(plan, MANAGED), "converged");
+  assert.equal(plan.blocked, false);
+  f.runTool(["record", "--plan", planPath, "--source-version", f.sourceVersion, "--source-commit", f.sourceCommit, "--bootstrap", "--approval", "bootstrap-verified-baseline"]);
+});
+
+test("target scan prunes ignored generated files unless the plan requires them", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  f.write(f.target, ".gitignore", "node_modules/\n");
+  f.write(f.target, "node_modules/pkg/needed.txt", "tracked by plan");
+  assert.equal(Object.hasOwn(scanTree(f.target, { targetTree: true }).files, "node_modules/pkg/needed.txt"), false);
+  assert.equal(Object.hasOwn(scanTree(f.target, { targetTree: true, retainPaths: ["node_modules/pkg/needed.txt"] }).files, "node_modules/pkg/needed.txt"), true);
+});
+
+test("source-only checker is rejected from candidate and retired from an old target", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const checker = ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs";
+  f.write(f.source, checker, "source-only checker");
+  f.git(f.source, "add", checker);
+  f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "add source checker");
+  f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+  f.write(f.candidate, checker, "source-only checker");
+  assert.ok(f.plan(2).problems.some((problem) => problem.includes("候选不得传播上游专用检查器")));
+  fs.rmSync(path.join(f.candidate, checker));
+  f.write(f.target, ["scripts/tool", "py"].join("."), "print('project script')\n");
+  assert.equal(f.plan().blocked, false, "下游产品脚本不受上游检查器限制");
+  f.bootstrap();
+  f.write(f.target, checker, "old checker");
+  const lock = JSON.parse(fs.readFileSync(f.lock, "utf8"));
+  const oldSnapshot = snapshotFile(path.join(f.target, checker));
+  lock.entries[checker] = { mode: "managed", candidate: oldSnapshot, target: oldSnapshot };
+  fs.writeFileSync(f.lock, `${JSON.stringify(lock)}\n`);
+  assert.ok(f.plan(2).problems.some((problem) => problem.includes("目标须先移除旧版上游专用检查器")));
+  fs.rmSync(path.join(f.target, checker));
+  const { plan, planPath } = f.createPlan();
+  assert.equal(f.classification(plan, checker), "converged");
+  f.record(planPath);
+  assert.equal(Object.hasOwn(JSON.parse(fs.readFileSync(f.lock, "utf8")).entries, checker), false);
 });
 
 test("upstream_only_change_can_apply_and_record", (t) => {
@@ -104,7 +149,7 @@ test("target_tombstone_symlink_and_empty_directory_block", (t) => {
 });
 
 test("manual_add_cannot_be_recorded_without_creating_target", (t) => {
-  const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MIXED, "candidate"); const { plan, planPath } = f.createPlan(2); assert.equal(f.classification(plan, MIXED), "manual_add");
+  const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MIXED, "candidate"); const { plan, planPath } = f.createPlan(); assert.equal(f.classification(plan, MIXED), "manual_add");
   f.runTool(["record", "--plan", planPath, "--source-version", f.sourceVersion, "--source-commit", f.sourceCommit, "--resolved-manual", MIXED, "--bootstrap", "--approval", "bootstrap-verified-baseline"], 2); assert.equal(fs.existsSync(f.lock), false);
 });
 

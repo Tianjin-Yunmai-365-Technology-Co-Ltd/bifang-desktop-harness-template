@@ -117,13 +117,20 @@ export function newState() {
   };
 }
 
+/** 本进程内已由 Git 判定过的分支名结果；状态每次加载/保存都会复核全部历史分支，避免重复子进程。 */
+const branchFormatCache = new Map();
+
 /** 使用 Git 自身规则验证具名分支并拒绝伪引用。 */
 export function validBranch(repository, branch) {
   if (
     typeof branch !== "string" || branch.length === 0 || branch.startsWith("-") ||
     branch === "@" || branch === "HEAD" || [...branch].some((character) => character.codePointAt(0) < 32)
   ) return false;
-  return runGit(repository.root, ["check-ref-format", "--branch", branch], { check: false }).returncode === 0;
+  const key = `${repository.root}\0${branch}`;
+  if (!branchFormatCache.has(key)) {
+    branchFormatCache.set(key, runGit(repository.root, ["check-ref-format", "--branch", branch], { check: false }).returncode === 0);
+  }
+  return branchFormatCache.get(key);
 }
 
 /** 验证远端名可安全作为独立子进程参数使用。 */

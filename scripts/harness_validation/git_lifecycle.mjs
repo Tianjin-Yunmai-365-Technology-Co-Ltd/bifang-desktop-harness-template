@@ -177,7 +177,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     '["merge", "--no-edit", `refs/heads/${branch}`]',
   ], "Git lifecycle contract");
   const publication = requireContract(errors, paths.publication, [
-    'const RELEASE_CONTEXT_PATH = ".harness/release-context.json"',
+    'import { CONTEXT_RELATIVE_PATH as RELEASE_CONTEXT_PATH,',
     'const RELEASE_CONTEXT_HELPER = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs"',
     "export async function releaseContextBinding(", "function verifyHeadReleaseContextBytes(",
     "function confirmPendingPublishTarget(", "function completePendingPublish(", "export function publish(",
@@ -189,8 +189,8 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     "function reviewedReleaseMetadata(", "function verifyReviewedFinalHead(",
     'module.verifyReviewScope(repository.root, value)',
     'if (state.cycle === null && state.lastRelease !== null)', 'if (!validRemote(remote))',
-    "confirmedBranch = remoteBranchOid(repository, remote, branch)",
-    "confirmedTag = remoteTagTarget(repository, remote, last.tag)",
+    'const RELEASE_BRANCH = "release";', "function assertNoLocalReleaseCaseVariant(", "function remoteReleaseRefs(",
+    "({ branch: confirmedBranch, tag: confirmedTag } = remoteReleaseRefs(repository, remote, last.tag))",
     "export async function commandRelease(", "export function commandPushRelease(", 'state.pendingPublish = { head, targets:',
     '["push", target.remote, `${head}:refs/heads/${target.branch}`]',
     '["push", remote, last.head + ":refs/heads/" + branch]',
@@ -268,7 +268,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     "release_context_sha256:", "verify_release_context.mjs capture", "verify_release_context.mjs verify",
   ], "Git lifecycle contract");
   requireContract(errors, paths.agentPolicy, ["旧状态若含正在进行的双模式发布或推送，不能静默改写为新语义"], "Git lifecycle contract");
-  requireContract(errors, paths.releaseDoc, ["合法且静止的 v2 状态可安全迁移", "有未完成远端发布或推送的旧状态失败关闭"], "Git lifecycle contract");
+  requireContract(errors, paths.releaseDoc, ["合法且静止的 v2/v3 状态可安全迁移", "有未完成远端发布或推送的旧状态失败关闭"], "Git lifecycle contract");
 
   validateSyntax(errors, [
     paths.script, paths.core, paths.publication, paths.report, paths.support, paths.tests, paths.releaseTests,
@@ -344,14 +344,14 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     const postReleasePush = functionSource(publication, "commandPushRelease");
     requireOrder(errors, postReleasePush, [
       "const last = state.lastRelease", "if (last.postReleaseAction === null)",
-      'if (last.postReleaseAction !== "push_release_branch")', 'const branch = "release"',
+      'if (last.postReleaseAction !== "push_release_branch")', "const branch = RELEASE_BRANCH",
       "const checkoutBranch = currentBranchOrNone(repository)",
       "const checkoutHead = currentHead(repository)", "localTagTarget(",
-      "remoteTagTarget(", "ensureLocalReleaseBranch(repository, state, last.head)",
-      "remoteBranchOid(", '["push", remote, last.head + ":refs/heads/" + branch]',
+      "assertNoLocalReleaseCaseVariant(repository)", "remoteReleaseRefs(repository, remote, last.tag)",
+      "ensureLocalReleaseBranch(repository, state, last.head)",
+      '["push", remote, last.head + ":refs/heads/" + branch]',
       "remoteBranchOid(", '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]',
-      "remoteTagTarget(", "confirmedBranch = remoteBranchOid(",
-      "confirmedTag = remoteTagTarget(", "requireClean(repository)",
+      "remoteTagTarget(", "remoteReleaseRefs(repository, remote, last.tag)", "requireClean(repository)",
       "currentBranchOrNone(repository) !== checkoutBranch", "currentHead(repository) !== checkoutHead",
       "localTagTarget(repository, last.tag) !== last.head", "localReleaseBranchTarget(repository) !== last.head",
     ], "independent released-head-and-tag push sequence");
@@ -360,7 +360,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
       "const previous = localReleaseBranchTarget(repository)",
       '["merge-base", "--is-ancestor", previous, head]',
       "state.releasedResources.some((released) => released.head === previous)",
-      '["worktree", "list", "--porcelain"]',
+      "worktreeRecords(repository).some((record) => record.branch === RELEASE_BRANCH)",
       '["update-ref", "refs/heads/release", head, expected]',
       "localReleaseBranchTarget(repository) !== head",
     ], "local release branch provenance and compare-and-swap sequence");

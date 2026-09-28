@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-/** 阻止 Python 源码、依赖清单、运行时目录或运行步骤进入 Harness 源与终端下游。 */
+/** 只阻止 Python 源码、依赖清单、运行时目录或运行步骤进入 Harness 上游源树。 */
 
 import fs from "node:fs";
 import path from "node:path";
