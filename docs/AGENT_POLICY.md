@@ -1,5 +1,5 @@
 ---
-schema_version: 3
+schema_version: 4
 confirmed_by: pending
 confirmed_at: pending
 decision_mode: reuse_then_infer_then_ask
@@ -8,11 +8,12 @@ user_owned_tasks: disabled
 parallel_worktree_subagents: pending
 acceptance_smoke: pending
 e2e_hint: pending
+post_release_action: pending
 ---
 
 # Agent 运行策略
 
-本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好和构建 E2E 建议默认值的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 固定默认 `disabled`；完成初始化的下游五项选择只能是 `enabled` 或 `disabled`，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布固定在本地默认主分支完成；推送与打包分别由发布后的用户请求决定。
+本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 固定默认 `disabled`；完成初始化的下游五项能力选择只能是 `enabled` 或 `disabled`，`post_release_action` 必须是两项之一，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布固定在本地默认主分支与 tag 完成；完成初始化的下游随后按已确认的发布后动作执行并复核。Harness 源的 `pending` 是待复制模板字段，不阻断 Harness 自身的 Git 发布。
 
 ## 字段语义
 
@@ -21,9 +22,10 @@ e2e_hint: pending
 - `parallel_worktree_subagents`：`enabled` 只表示用户明确要求并行时允许使用 Worktree + 写入型 Subagent；`disabled` 使用单 Agent 当前工作树。持久启用本身不能触发并行步骤；启用时仍须给每个写入单元分配不重叠的文件所有权，并把创建出的 Worktree 和分支登记到当前 Git 生命周期。
 - `acceptance_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `e2e_hint`：仅作为每次显式发布候选构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前候选的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
-- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前候选构建请求中已经明确的选择，否则在构建前询问一次。发布后是否推送、是否打包只由用户各自的明确请求决定。
+- `post_release_action`：`local_package` 表示 Git 发布后进入现有适用的本地打包流程；`push_release_branch` 表示把已发布的同一提交放到本地小写 `release` 分支，非强制推送远端同名分支与发布 tag。初始化表单必须给出两项并以 `local_package` 为建议默认值；仅所选接口含 CLI，或含 GUI 且目标平台含 macOS/Windows 时，该默认项才可确认。纯 TUI/MCP 或仅 Linux GUI 须明确选择 `push_release_branch`，不得暗中应用不可执行的默认项。用户须明确选择或确认可执行的默认值。选择在未来发布中持续生效，可用 `$desktop-switch-post-release-action` 更改。
+- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前候选构建请求中已经明确的选择，否则在构建前询问一次。发布后动作直接读取 `post_release_action`，缺失、非法或 `pending` 都阻断后续流程完成。
 
-`enabled` 表示“允许且适用时执行”，`disabled` 表示默认不启用可选能力。`user_owned_tasks: enabled` 是自动建 Task 的明确长期授权；其他字段的持久启用仍不等于无条件执行。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前候选构建的 E2E 明确选择优先于 `e2e_hint` 建议值。需要远端源码或远程构建的渠道必须等用户明确选择发布后推送，并复核远端主分支与 tag；该要求不改变 Git 发布完成条件。
+`enabled` 表示“允许且适用时执行”，`disabled` 表示默认不启用可选能力。`user_owned_tasks: enabled` 是自动建 Task 的明确长期授权；`post_release_action` 是用户对未来 Git 发布后所选动作的长期授权，不授权配置远端、凭据、签名、渠道分发或绕过候选构建的当次 E2E 选择。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前候选构建的 E2E 明确选择优先于 `e2e_hint` 建议值。需要远端源码或远程构建的渠道必须先走 `push_release_branch` 并复核远端 `release` 分支与 tag；该要求不改变 Git 发布完成条件。
 
 除非用户明确说“当前 Task 内部步骤、plan 或 Subagent”，本文的 Task 一律指 Codex 左侧菜单中用户可独立进入的 user-owned Task/thread。plan、Todo、Subagent、agent thread、Worktree、brief、report、review、checkpoint 和内部单元都不是新的左侧 Task；不得用这些内部结构冒充 `create_thread` 创建的用户可见 Task。
 
@@ -37,20 +39,20 @@ e2e_hint: pending
 
 updater 插件基线不需要策略字段；每次发布候选构建从产品事实解析的 `updaterEnabled` 只控制是否生成和验签 updater archive/`.sig`，不控制是否安装插件。
 
-`$desktop-prepare-release` 把本次版本、日期、默认主分支、预期 tag、源码身份和审查结果写入 `.harness/release-context.json`，与双语更新日志一同提交。发布上下文不保存推送位置、打包或签名选择。终端下游的候选构建在独立请求时复核已发布的本地主分支与 tag，再按本次构建选择解析 E2E、适用签名和远程来源；这些候选选择只进入候选证据，不反写已发布源码。
+`$desktop-prepare-release` 把本次版本、日期、默认主分支、预期 tag、源码身份和审查结果写入 `.harness/release-context.json`，与双语更新日志一同提交。未来偏好保存在本文件；下游 Git 发布开始时将当次 `postReleaseAction` 冻结在 Git common-dir 生命周期记录的 pending/last release 中，不写入 tracked 发布上下文。重试与恢复只消费该次冻结值，后续切换不改旧发布；签名和候选 E2E 仍按本次构建解析。终端下游的候选构建复核已发布的本地主分支与 tag；远程候选另复核远端 `release` 分支与 tag，这些候选选择只进入候选证据，不反写已发布源码。
 
 ## 开发分支与主分支发布生命周期
 
-本节约束 Harness 源和完成初始化的终端下游。终端下游初始化仍可只在本地默认主分支建立中性基线；创建开发分支和 Git 发布均不依赖远端。用户明确要求发布时只执行一次本地 Git 流程：整理并提交本次源码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的版本 tag，随后结束。只有发布后用户另外明确要求推送，才解析具体远端并推送同一已发布提交与 tag；打包也由发布后独立请求触发。流程不得替用户创建远端、填写地址或处理凭据。
+本节约束 Harness 源和完成初始化的终端下游。终端下游初始化仍可只在本地默认主分支建立中性基线；创建开发分支和 Git 发布均不依赖远端。用户明确要求发布时先执行本地 Git 流程：整理并提交本次源码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的版本 tag；这一步即完成 Git 发布。完成初始化的下游在开始该次 Git 发布前冻结已确认的 `post_release_action`，随后必须执行该次冻结的后续路径并检测其真实结果；路径未通过时保留已完成的 Git 发布事实，但不得宣称整个发布后流程完成。Harness 源可保留 `pending`，其 Git 发布后源码归档或推送仍由用户当次明确决定。流程不得替用户创建远端、填写地址或处理凭据。
 
 - 新功能、独立 Bug 修复或其他用户可感知开发在首次写入前自动调用 `$desktop-manage-git-lifecycle start`，创建并切换到 `feature-{ascii-kebab-summary}-{YYYYMMDD}`。日期取 `Asia/Shanghai` 自然日；名称碰撞时由 helper 追加稳定递增后缀。当前分支已登记为同一工作时幂等复用；诊断、同范围实现、相关测试和返工不重复建分支。
 - 生命周期状态只写入 Git common dir 下的 `agent-first-harness/git-lifecycle.json`，精确登记由 helper 创建或明确接管的开发分支、Worktree、待完成的 Git 发布、最近成功发布及独立推送进度。`release` 在任何 merge/tag 副作用前原子记录上下文摘要、tag、日期与版本；最终 HEAD 冻结后只沿用同一 HEAD 幂等重试。旧状态若含正在进行的双模式发布或推送，不能静默改写为新语义。所有写操作由同一 common-dir 短时互斥串行化；状态不进入源码提交，未登记资源不得被删除。
-- 发布后用户明确要求推送时，独立的 `push-release` 只接受最近发布记录中冻结的最终 HEAD 与 tag；每次只解析一个用户指定远端及其默认分支，先检查同名 tag 冲突，再非强制推送两条 ref 并逐项复读。没有用户的精确远端授权不读取或修改远端。已有的普通 `publish` 只处理发布前明确要求的主分支推送，不得冒充发布后推送或移动已发布 tag。
+- `post_release_action: push_release_branch` 时，独立的 `push-release` 只接受最近发布记录中冻结的最终 HEAD 与 tag；先创建或安全快进本地小写 `release` 分支到该 HEAD，再将该分支和 tag 非强制推向一个已配置远端并逐项复读，远端默认主分支不得因此改变。只有一个已配置远端时可直接使用；多个远端须在本次动作前明确选定一个，缺少远端或必要凭据时保持后续流程未完成。已有的普通 `publish` 只处理发布前明确要求的主分支推送，不得冒充发布后推送或移动已发布 tag。
 - 发布前 `publish` 的多远端推送不是原子操作：后续目标失败时如实报告已确认范围、失败目标及未尝试目标；重试沿用 `pendingPublish` 中冻结的 HEAD、目标顺序与进度，不重新 fetch、merge 或计算新 HEAD。发布后 `push-release` 每次只处理一个目标，同一已发布 HEAD/tag 可幂等重试；它没有多目标 journal，推送失败也不撤销已完成的本地 Git 发布。
 - 用户明确说“发布”时，`$desktop-prepare-release` 先把源码/治理变化及已触发 Changelog 提交并锁定 `sourceHead`；只有当前 HEAD 仍等于该值时，才把且只把 `release-notes.json` 与 `.harness/release-context.json` 放进同一个发布元数据提交。tracked 上下文冻结版本、日期、默认主分支、预期 tag 与审查结论；`release` 必须传 `--release-context-sha256 <sha256>`。从关联 Task Worktree 发起时，helper 先核对该 Worktree 的上下文 blob 与工作字节，再路由到主 Worktree；合并前后均核对最终 HEAD 中的同一路径 blob。调用 `release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <sha256>` 只普通合并登记分支、切换本地默认主分支、创建并复读本地轻量 tag；同名 tag 指向固定 HEAD 时幂等复用，指向其他提交时停止。`sourceHead` 是元数据提交前的审查来源，最终 `sourceCommit` 是主分支/tag 指向的合并结果。
-- 默认主分支与本地 tag 精确指向同一最终 HEAD 并复读成功，就是 Git 发布的结束条件。`release` 不在 tag 后执行推送、打包或资源删除；已登记的临时分支和 Worktree 保留为可核查资源，后续清理只在用户独立要求且身份精确复核后执行。
+- 默认主分支与本地 tag 精确指向同一最终 HEAD 并复读成功，就是 Git 发布的结束条件。`release` 不在 tag 后执行推送、打包或资源删除。`local_package` 后续路径只调用现有适用打包 Skill 并复核其实际制品及证据；`push_release_branch` 后续路径要求本地与远端 `release` 分支及远端 tag 都精确指向该 HEAD，复读通过才结束。已登记的临时分支和 Worktree 保留为可核查资源，后续清理只在用户独立要求且身份精确复核后执行。
 - 这里没有分支保护、活动叶子、分支级单写入者、严格线性历史、fast-forward-only、lease、atomic push、审查后路径白名单或其他分支门禁；允许普通 merge commit。用户可见 Task 的“同一项目同时只允许一个写入型 active Task”是创建调度门禁，不是分支历史策略。工作树未提交、合并冲突和 tag 冲突按真实操作失败处理；未配置远端不阻断 Git 发布。这些是数据安全与可恢复性检查，不得扩展成分支策略。
-- 流程没有发布中转分支，也不包含任何旧中转分支的识别、迁移、兼容或清理逻辑。发布后的 tag 是源码版本锚点；推送、候选构建、签名、上传与渠道分发分别由后续请求决定。下游受跟踪版本状态的周期复位在下一次开发分支上复核已完成的主分支/tag 后执行，避免 tag 后写脏主分支。
+- 小写 `release` 仅是 `push_release_branch` 后续路径的源码分支，不参与 Git 发布完成判定；不得创建或使用旧的大写 `Release` 分支。发布后的 tag 是源码版本锚点；候选验收、签名、上传与渠道分发仍由各自请求及硬要求决定。下游受跟踪版本状态的周期复位在下一次开发分支上复核已完成的主分支/tag 后执行，避免 tag 后写脏主分支。
 
 ## 用户可见 Task 开关、粒度与创建门禁
 
@@ -141,12 +143,13 @@ Task 绑定：
 
 ## 初始化与持久化
 
-- `$desktop-instantiate-project` 把“推荐预设”或“自定义”与其他固定基础字段放在首轮一次询问；直接调用 `$desktop-initialize-rust-project` 时把策略模式与接口组合放在同一首轮。推荐预设必须显式确认一次；选择自定义后，每轮只询问一个尚未明确提供的条件字段，每项至多一次。
+- `$desktop-instantiate-project` 把“推荐预设”或“自定义”、发布后动作与其他固定基础字段放在首轮一次询问；直接调用 `$desktop-initialize-rust-project` 时把策略模式、发布后动作与接口组合放在同一首轮。发布后动作固定提供“本地打包”和“提交远程”两项，建议默认“本地打包”；接口/平台没有现成本地打包 Skill 时标为不可用，用户必须明确选择“提交远程”，不能确认不可执行的默认项。其余情况仍须用户选择或确认。推荐预设必须显式确认一次；选择自定义后，每轮只询问一个尚未明确提供的条件字段，每项至多一次。
 - 推荐预设确定性物化五项为 `user_owned_tasks: disabled`、`superpowers: disabled`、`parallel_worktree_subagents: disabled`、`acceptance_smoke: enabled`、`e2e_hint: disabled`。选择自定义时逐项询问五项；`user_owned_tasks` 的推荐/default 值都是 `disabled`。内部并行开关只控制当前 Task 的 `codex/unit-*` Worktree 与写入型 Subagent；用户明确新建的 Git 侧边 Task 仍使用独立 Worktree，`user_owned_tasks: enabled` 时仍可按结果边界自动创建。预设只是输入捷径，不新增持久字段，也不得在用户未确认时静默采用其他值。
-- 五项值全部解析后才以 `schema_version: 3` 一次原子写入本文件；`confirmed_by` 记录真实确认来源，`confirmed_at` 记录最终收齐日期。由 `$desktop-instantiate-project` 进入 `$desktop-initialize-rust-project` 时只验证并复用，不重复询问。
-- `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，五项选择、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
+- 五项能力值和发布后动作全部解析后才以 `schema_version: 4` 一次原子写入本文件；`confirmed_by` 记录真实确认来源，`confirmed_at` 记录最终收齐日期。由 `$desktop-instantiate-project` 进入 `$desktop-initialize-rust-project` 时只验证并复用，不重复询问。
+- `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，五项能力选择、发布后动作、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
 - 初始化首次写入发生在下游 ADR 尚未创建前，不要求预建 ADR。初始化后，用户可明确说“开启左侧 Task”“关闭左侧 Task”“开启自动 Task 拆分”或“关闭自动 Task 拆分”；Agent 更新 `user_owned_tasks`、`confirmed_by`、`confirmed_at`，并在当日 ADR 记录前后值、原因、影响和恢复条件。用户也可以手动完成同样编辑与 ADR。目标值相同时按幂等 no-op 报告，不重写元数据或 ADR。
-- 切换只影响之后的结果边界判断，不迁移、中断、删除或改挂当前与既有 Task/Worktree。关闭后仍响应用户的显式建 Task 请求；开启后也只在出现新结果边界时自动创建。本文件只有 `schema_version: 3` 一种有效形态，不兼容、不推断任何更早 schema 或缺少字段的旧形态（含改名前的 `milestone_smoke`/`milestone_e2e`）；不合规的文件必须由用户重新走五项确认一次性物化为 `schema_version: 3`。
+- 切换 Task 开关只影响之后的结果边界判断，不迁移、中断、删除或改挂当前与既有 Task/Worktree。关闭后仍响应用户的显式建 Task 请求；开启后也只在出现新结果边界时自动创建。完成初始化的下游只接受 `schema_version: 4`。升级前已有合法 `schema_version: 3` 且仅缺 `post_release_action` 的旧策略由 `$desktop-upgrade-harness` 在工程升级后要求用户补选，并由 `$desktop-switch-post-release-action` 保留既有五项能力选择迁移到 v4；不得猜测旧项目选择。旧 Git 生命周期 v3 若有进行中的 `pendingRelease` 或 `pendingPublish`，先按旧流程恢复或人工核对，不自动迁移并把旧发布套用新选择。其他缺失或非法旧字段不能借此迁移，须按原有策略确认流程处理。
+- 初始化后的用户可用 `$desktop-switch-post-release-action` 在 `local_package` 与 `push_release_branch` 之间切换；值相同时幂等无写入。切换只决定未来 Git 发布开始时冻结的动作；已开始/完成的发布仍使用其生命周期记录中的冻结值，不改写已完成发布、已生成制品或已推远端 refs。该 Skill 原子更新受保护的动作字段，保留原有能力选择与初始化确认元数据，并在当日 ADR 记录本次用户确认、前后值、原因、影响和恢复条件；升级补选同样遵守此门禁；迁移旧 schema 3 时 `confirmed_by`/`confirmed_at` 保留此前五项能力的原始确认事实，新动作的本次确认来源和日期记录在 ADR。
 - 其他初始化后的永久策略变更同样必须由用户确认，并在当日 ADR 记录原因、影响和恢复条件。
 - 临时任务约束可以记录在当前工作计划/验证记录中，但不得静默改写本文件。
 
@@ -157,7 +160,7 @@ Task 绑定：
 - Windows GUI 的普通“构建/打包/首次安装试包”默认是 `$desktop-build-tauri-local-install` 的本地开发制品，不是发布候选。它不要求 clean HEAD 或 `release-notes.json`，不调用发布准备、不写根 `release/`、不提交、不签名、不安装，也不询问 E2E；只有用户明确说“发布候选”或“准备并构建发布”才进入下列候选门禁。
 - 显式发布候选构建必须为当前候选解析一次 E2E 选择。若当前请求已明确 `enabled`/`disabled`，直接复用且不重复询问；否则在任何测试或编译前询问一次，并可把 `e2e_hint` 作为建议默认选项展示。
 - E2E 选择只对终端下游发布候选有效，不得静默改写本文件。选择启用或产品/渠道要求时，E2E 只在最终真实候选形成后运行；选择禁用时只在 `release/` manifest 和最终回复记录 `Not run` 与剩余风险。Harness 源发布不形成产品候选，因此本项为 `Not applicable`。
-- 明确发布请求授权复核并提交本次范围和发布上下文，在任何生命周期副作用前将 tracked 上下文 SHA-256 传给 `$desktop-manage-git-lifecycle release`。唯一 `release` 路径普通合并登记分支到本地默认主分支，创建并复读 `v{版本}-{YYYYMMDD}`；主分支和 tag 指向同一最终 HEAD 即结束，不推送、打包或清理。发布后用户独立要求“推送”才调用 `push-release --remote <name>` 推送并复读同一已发布主分支 HEAD 与 tag；用户独立要求构建或打包才进入候选 Skill。发布前用户只说“推送”仍可执行 `publish`，并可在逐一授权后用 `--also-remote` 推向补充远端，但不创建 tag。普通构建不自动提交、推送或修改主分支。
+- 明确发布请求授权复核并提交本次范围和发布上下文，在任何生命周期副作用前将 tracked 上下文 SHA-256 传给 `$desktop-manage-git-lifecycle release`。唯一 `release` 路径普通合并登记分支到本地默认主分支，创建并复读 `v{版本}-{YYYYMMDD}`；主分支和 tag 指向同一最终 HEAD 即结束 Git 发布，不推送、打包或清理。完成初始化的下游随后读取该次发布冻结的 `postReleaseAction`：`local_package` 按现有本地打包 Skill 及其当次选择执行并验证真实制品；`push_release_branch` 调用 `push-release --remote <name>` 并复核远端 `release` 分支和 tag。未完成选择、目标解析、打包或远端复读时，只报告 Git 发布已完成及后续路径阻断，不把整条后续流程报为完成。Harness 源的源码归档或远端动作仍由当次用户要求决定。发布前用户只说“推送”仍可执行 `publish`，并可在逐一授权后用 `--also-remote` 推向补充远端，但不创建 tag。普通构建不自动提交、推送或修改主分支。
 - 构建请求、执行、候选 E2E、完整验收、`pending` → `accepted` 和就绪复核只写忽略的 `release/` 原子证据及最终回复，不自动创建或更新 tracked 项目记忆。Git 发布完成后，下一条开发分支在首个新改动前以精确版本、tag 和 40 位主分支 HEAD 调用 `finalize-release`，再进行新需求优先的版本分类；候选或渠道分发不重复重置版本周期。独立回顾性审计不得反向批准活动候选。
 - 普通缺陷修复、纯重构等维护类型本身不创建 Product Spec、ADR、Status、Changelog 或 Verification；用户明确要求、跨会话交接、安全、发布和长期决定等独立事件仍按各自门禁记录。
 

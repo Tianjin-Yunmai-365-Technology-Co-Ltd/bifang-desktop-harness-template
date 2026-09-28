@@ -5,6 +5,7 @@ import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   LifecycleError,
+  commandCheckPostRelease,
   commandInspect,
   commandStart,
   commandTrackWorktree,
@@ -16,7 +17,7 @@ import { commandPublish, commandPushRelease, commandRelease } from "./git_lifecy
 export * from "./git_lifecycle_core.mjs";
 export * from "./git_lifecycle_publication.mjs";
 
-const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release", "push-release"];
+const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release", "push-release", "check-post-release"];
 
 /** 把 kebab-case CLI 选项转换成 camelCase。 */
 function optionName(value) {
@@ -28,7 +29,7 @@ function invalidArguments() {
   throw new LifecycleError("invalid-argument", "Command arguments are invalid.");
 }
 
-/** 解析五个稳定子命令及显式选项。 */
+/** 解析稳定子命令及显式选项。 */
 export function parseArguments(argv) {
   if (argv.includes("--help") || argv.includes("-h")) return { help: true };
   const command = argv[0];
@@ -40,6 +41,7 @@ export function parseArguments(argv) {
     publish: new Set(["projectRoot", "remote", "alsoRemote"]),
     release: new Set(["projectRoot", "version", "date", "releaseContextSha256"]),
     "push-release": new Set(["projectRoot", "remote"]),
+    "check-post-release": new Set(["projectRoot", "action"]),
   }[command];
   const args = { command, alsoRemote: [] };
   for (let index = 1; index < argv.length; index += 1) {
@@ -63,6 +65,7 @@ export function parseArguments(argv) {
     if (args.version === undefined || args.releaseContextSha256 === undefined) invalidArguments();
   }
   if (command === "push-release" && args.remote === undefined) invalidArguments();
+  if (command === "check-post-release" && args.action === undefined) invalidArguments();
   return args;
 }
 
@@ -95,6 +98,7 @@ export async function main(argv = process.argv.slice(2)) {
     else if (args.command === "track-worktree") operation = () => commandTrackWorktree(repository, args);
     else if (args.command === "publish") operation = () => commandPublish(repository, args);
     else if (args.command === "push-release") operation = () => commandPushRelease(repository, args);
+    else if (args.command === "check-post-release") operation = () => commandCheckPostRelease(repository, args);
     else operation = () => commandRelease(repository, args);
     const result = args.command === "inspect"
       ? await operation()

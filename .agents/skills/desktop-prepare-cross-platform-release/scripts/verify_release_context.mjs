@@ -22,6 +22,7 @@ const OID_PATTERN = /^[0-9a-f]{40}$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const CONTEXT_PATH = ".harness/release-context.json";
 const HELPER_PATH = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs";
+const RELEASE_BRANCH = "release";
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 /** 表示所取源码或已 fetch 的远端 ref 不符合已完成的本地 Git 发布。 */
@@ -82,27 +83,20 @@ async function loadValidator(root) {
 }
 
 /** 计算构建前后必须完全相同的发布上下文快照。 */
-export async function calculateSnapshot(root, sourceCommit, expectedDigest, repositoryDefaultBranch) {
+export async function calculateSnapshot(root, sourceCommit, expectedDigest) {
   if (!OID_PATTERN.test(sourceCommit)) {
     throw new ContextVerificationError("source_commit must be a lowercase 40-character OID");
   }
   if (!SHA256_PATTERN.test(expectedDigest)) {
     throw new ContextVerificationError("release_context_sha256 must be lowercase SHA-256");
   }
-  if (typeof repositoryDefaultBranch !== "string" || !repositoryDefaultBranch || /\s/u.test(repositoryDefaultBranch)) {
-    throw new ContextVerificationError("repository default branch is invalid");
-  }
   const gitRoot = realpathSync(runGit(root, ["rev-parse", "--show-toplevel"]).stdout.toString("utf8").trim());
   if (gitRoot !== root) throw new ContextVerificationError("project root must be the independent Git top level");
-  if (repositoryDefaultBranch.startsWith("-") ||
-      runGit(root, ["check-ref-format", "--branch", repositoryDefaultBranch], { check: false }).returncode !== 0) {
-    throw new ContextVerificationError("repository default branch is invalid");
-  }
   const head = runGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]).stdout.toString("utf8").trim();
   const branchResult = runGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], { check: false });
   const branch = branchResult.stdout.toString("utf8").trim();
-  if (head !== sourceCommit || branchResult.returncode !== 0 || branch !== repositoryDefaultBranch) {
-    throw new ContextVerificationError("runner must check out the named repository default branch at source_commit");
+  if (head !== sourceCommit || branchResult.returncode !== 0 || branch !== RELEASE_BRANCH) {
+    throw new ContextVerificationError("runner must check out the named release branch at source_commit");
   }
   if (runGit(root, ["status", "--porcelain=v1", "--untracked-files=all"]).stdout.length !== 0) {
     throw new ContextVerificationError("runner worktree must remain clean");
@@ -134,8 +128,8 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest, repo
     if (error instanceof ContextVerificationError) throw error;
     throw new ContextVerificationError(`release context failed schema or review scope validation: ${error.message}`);
   }
-  if (resolveRef(root, `refs/remotes/origin/${repositoryDefaultBranch}`) !== sourceCommit) {
-    throw new ContextVerificationError("fetched origin default branch does not equal source_commit");
+  if (resolveRef(root, `refs/remotes/origin/${RELEASE_BRANCH}`) !== sourceCommit) {
+    throw new ContextVerificationError("fetched origin release branch does not equal source_commit");
   }
   if (resolveRef(root, `refs/tags/${normalized.expectedTag}`) !== sourceCommit) {
     throw new ContextVerificationError("fetched release tag does not equal source_commit");
@@ -143,7 +137,7 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest, repo
   return {
     sourceCommit,
     releaseContextSha256: digest,
-    defaultBranch: repositoryDefaultBranch,
+    remoteReleaseBranch: RELEASE_BRANCH,
     releaseDefaultBranch: normalized.defaultBranch,
     version: normalized.version,
     expectedTag: normalized.expectedTag,
@@ -223,7 +217,7 @@ function parseArguments(argv) {
   }
   const args = { mode: argv[0] };
   const allowed = new Set([
-    "projectRoot", "sourceCommit", "expectedContextSha256", "repositoryDefaultBranch", "snapshot",
+    "projectRoot", "sourceCommit", "expectedContextSha256", "snapshot",
   ]);
   for (let index = 1; index < argv.length; index += 1) {
     const token = argv[index];
@@ -235,7 +229,7 @@ function parseArguments(argv) {
     args[name] = argv[index + 1];
     index += 1;
   }
-  for (const name of ["projectRoot", "sourceCommit", "expectedContextSha256", "repositoryDefaultBranch", "snapshot"]) {
+  for (const name of ["projectRoot", "sourceCommit", "expectedContextSha256", "snapshot"]) {
     if (args[name] === undefined) throw Object.assign(new Error("required arguments are missing"), { cliExit: 2 });
   }
   return args;
@@ -257,7 +251,6 @@ export async function main(argv = process.argv.slice(2)) {
       root,
       args.sourceCommit,
       args.expectedContextSha256,
-      args.repositoryDefaultBranch,
     );
     if (args.mode === "capture") {
       writeSnapshot(snapshot, calculated, root);

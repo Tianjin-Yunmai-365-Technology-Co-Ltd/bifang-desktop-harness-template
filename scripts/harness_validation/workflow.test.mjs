@@ -9,8 +9,10 @@ import { gzipSync } from "node:zlib";
 
 import {
   CANDIDATE_WORKFLOW_HELPER,
+  DISPATCH_READINESS_HELPER,
   RELEASE_CONTEXT_HELPER,
   validateCandidateWorkflowHelper,
+  validateDispatchReadinessHelper,
   validateReleaseContextHelper,
   validateWorkflow,
 } from "./workflow.mjs";
@@ -57,7 +59,9 @@ const workflowMutations = [
   ["arbitrary command input", "      version:\n", "      arbitrary_command:\n        type: string\n      version:\n", "inputs must be exactly"],
   ["matrix fail-fast enabled", "      fail-fast: false\n", "      fail-fast: true\n", "forbidden candidate behavior"],
   ["mutable checkout action", "actions/checkout@11d5960a326750d5838078e36cf38b85af677262", "actions/checkout@v4", "action-step allowlist"],
-  ["checkout points at source input", "          ref: ${{ github.event.repository.default_branch }}\n", "          ref: ${{ inputs.source_commit }}\n", "forbidden candidate behavior"],
+  ["checkout points at source input", "          ref: release\n", "          ref: ${{ inputs.source_commit }}\n", "forbidden candidate behavior"],
+  ["checkout points at advertised default", "          ref: release\n", "          ref: ${{ github.event.repository.default_branch }}\n", "forbidden candidate behavior"],
+  ["candidate attempts a remote push", "          ref: release\n", "          ref: release\n          git push origin release\n", "forbidden candidate behavior"],
   ["shallow checkout", "          fetch-depth: 0\n", "          fetch-depth: 1\n", "fetch-depth: 0"],
   ["missing Node setup version", "          node-version: 24.21.0\n", "          node-version: 24.20.0\n", "runtime setup"],
   ["format gate injected into build", "          cargo test --workspace --all-targets --all-features --locked\n", "          cargo fmt --all -- --check\n          cargo test --workspace --all-targets --all-features --locked\n", "forbidden candidate behavior"],
@@ -124,12 +128,12 @@ for (const [name, fragment, replacement] of candidateHelperMutations) {
 }
 
 const contextHelperMutations = [
-  ["named checkout", "runner must check out the named repository default branch at source_commit", "checkout accepted"],
+  ["named checkout", "runner must check out the named release branch at source_commit", "checkout accepted"],
   ["tracked context bytes", "working release context bytes do not match source_commit", "context accepted"],
   ["host-verified digest", "release context digest does not match the host-verified input", "digest accepted"],
-  ["fetched remote default branch", "fetched origin default branch does not equal source_commit", "remote accepted"],
-  ["remote default branch", "`refs/remotes/origin/${repositoryDefaultBranch}`", '"refs/remotes/origin/main"'],
-  ["separate release default branch", "releaseDefaultBranch: normalized.defaultBranch", "releaseDefaultBranch: repositoryDefaultBranch"],
+  ["fetched remote release branch", "fetched origin release branch does not equal source_commit", "remote accepted"],
+  ["remote release branch", "`refs/remotes/origin/${RELEASE_BRANCH}`", '"refs/remotes/origin/main"'],
+  ["separate local default branch", "releaseDefaultBranch: normalized.defaultBranch", "releaseDefaultBranch: RELEASE_BRANCH"],
   ["release tag", "`refs/tags/${normalized.expectedTag}`", '"refs/tags/latest"'],
 ];
 
@@ -140,14 +144,14 @@ for (const [name, fragment, replacement] of contextHelperMutations) {
   });
 }
 
-test("release-context helper rejects restored local/provider branch-name equality", () => {
+test("release-context helper rejects restored advertised-default requirement", () => {
   const errors = validateMutatedHelper(
     RELEASE_CONTEXT_HELPER,
     "releaseDefaultBranch: normalized.defaultBranch",
-    "releaseDefaultBranch: normalized.defaultBranch, // normalized.defaultBranch !== repositoryDefaultBranch",
+    "releaseDefaultBranch: normalized.defaultBranch, // repositoryDefaultBranch must equal sourceCommit",
     "context",
   );
-  assert.ok(errors.some((error) => error.includes("distinct local and provider")), errors.join("\n"));
+  assert.ok(errors.some((error) => error.includes("must not require the advertised remote default branch")), errors.join("\n"));
 });
 
 test("helper validator rejects invalid JavaScript syntax", () => {
@@ -312,5 +316,24 @@ test("direct helper validators pass current files", () => {
   const errors = [];
   validateReleaseContextHelper(errors);
   validateCandidateWorkflowHelper(errors);
+  validateDispatchReadinessHelper(errors);
   assert.deepEqual(errors, []);
+});
+
+test("dispatch preflight gate requires default workflow lookup and forbids ref mutations", () => {
+  const source = fs.readFileSync(DISPATCH_READINESS_HELPER, "utf8");
+  const directory = temporaryDirectory();
+  const helper = path.join(directory, "verify_dispatch_readiness.mjs");
+  try {
+    fs.writeFileSync(helper, changed(source, 'git(root, ["ls-tree", "-z", head, "--", WORKFLOW_PATH])', "Buffer.alloc(0)"));
+    const missing = [];
+    validateDispatchReadinessHelper(missing, helper);
+    assert.ok(missing.some((error) => error.includes("dispatch readiness helper contract missing")));
+    fs.writeFileSync(helper, `${source}\ngit(root, ["push", remote, "HEAD:refs/heads/main"]);\n`);
+    const mutated = [];
+    validateDispatchReadinessHelper(mutated, helper);
+    assert.ok(mutated.some((error) => error.includes("must not mutate local or remote Git refs")));
+  } finally {
+    cleanup(directory);
+  }
 });

@@ -28,6 +28,10 @@ export const REQUIRED_MANAGED_SOURCE_PATHS = [
   ".agents/skills/desktop-manage-git-lifecycle/scripts/git_publication_test_cases.test.mjs",
   ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.test.mjs",
   ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_release.test.mjs",
+  ".agents/skills/desktop-switch-post-release-action/SKILL.md",
+  ".agents/skills/desktop-switch-post-release-action/agents/openai.yaml",
+  ".agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs",
+  ".agents/skills/desktop-switch-post-release-action/scripts/post_release_action.test.mjs",
 ];
 
 export const MINIMUM_OWNERSHIP_RULES = new Map([
@@ -77,6 +81,7 @@ export const MINIMUM_OWNERSHIP_RULES = new Map([
   [".agents/skills/desktop-implement-change/scripts/check_no_python.mjs", "managed"],
   [".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs", "managed"],
   [".agents/skills/desktop-manage-git-lifecycle/**", "managed"],
+  [".agents/skills/desktop-switch-post-release-action/**", "managed"],
   [".agents/skills/desktop-upgrade-harness/**", "managed-self"],
   [".agents/skills/desktop-add-cli-adapter/**", "conditional"],
   [".agents/skills/desktop-add-tui-adapter/**", "conditional"],

@@ -22,10 +22,43 @@ function scenario(name, callback) {
   });
 }
 
+/** 测试下游持久策略；null 表示旧项目尚未写入。 */
+function configurePostReleasePolicy(item, repository, policy) {
+  if (policy === null) return;
+  if (policy.action === "local_package") {
+    const gatePath = join(repository, ".agents/skills/desktop-manage-version/scripts/version_gate.mjs");
+    mkdirSync(dirname(gatePath), { recursive: true });
+    copyFileSync(new URL("../../desktop-manage-version/scripts/version_gate.mjs", import.meta.url), gatePath);
+    writeFileSync(join(repository, "Cargo.toml"),
+      '[workspace]\nmembers = []\n[workspace.package]\nversion = "1.2.3"\n[workspace.metadata.agent-first-harness]\ninterfaces = ["cli"]\ntarget-platforms = ["macos"]\n', "utf8");
+    initializeProductVersion(repository, { migrationApproved: true });
+    item.git(repository, "add", "Cargo.toml", ".harness/version-state.json", ".agents/skills/desktop-manage-version/scripts/version_gate.mjs");
+    item.git(repository, "commit", "--quiet", "-m", "chore: record local package platform");
+  }
+  const fields = [
+    "---", `schema_version: ${policy.schema}`,
+    "confirmed_by: user", "confirmed_at: 2026-09-28",
+    "decision_mode: reuse_then_infer_then_ask", "superpowers: disabled",
+    "user_owned_tasks: disabled", "parallel_worktree_subagents: disabled",
+    "acceptance_smoke: disabled", "e2e_hint: disabled",
+    ...(policy.schema === 4 ? [`post_release_action: ${policy.action}`] : []),
+    "---", "", "# Agent policy", "",
+    "- `post_release_action`：`local_package` or `push_release_branch`", "",
+    "发布后动作直接读取 `post_release_action`。随后必须执行 `post_release_action`。", "",
+    "`push-release --remote <name>`", "",
+  ];
+  mkdirSync(join(repository, "docs"), { recursive: true });
+  writeFileSync(join(repository, "docs/AGENT_POLICY.md"), fields.join("\n"), "utf8");
+  item.git(repository, "add", "docs/AGENT_POLICY.md");
+  item.git(repository, "commit", "--quiet", "-m", "chore: record post-release choice");
+}
+
 /** 创建本地候选并把 schema v3 上下文提交到登记分支。 */
-function candidate(item, { remote = true, worktree = null, version = "1.2.3", date = "20260909", reviewSelection = "disabled" } = {}) {
+function candidate(item, { remote = true, worktree = null, version = "1.2.3", date = "20260909", reviewSelection = "disabled",
+  postReleasePolicy = { schema: 4, action: "push_release_branch" } } = {}) {
   const initialized = item.initializeRepository({ remote });
   const repository = initialized.repository;
+  configurePostReleasePolicy(item, repository, postReleasePolicy);
   const source = worktree ?? repository;
   const branch = item.helper(source, ["start", "--summary", "release-flow"]).payload.branch;
   item.commitFile(source, "candidate.txt", "candidate\n");
@@ -54,9 +87,10 @@ scenario("release_merges_locally_tags_and_preserves_registered_resources_without
   assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout, originalRemoteHead);
   assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.3-20260909").stdout, "");
   const state = item.state(value.repository);
-  assert.equal(state.schemaVersion, 3);
+  assert.equal(state.schemaVersion, 4);
   assert.equal(state.cycle, null);
   assert.equal(state.lastRelease.head, value.context.head);
+  assert.equal(state.lastRelease.postReleaseAction, "push_release_branch");
   assert.equal(state.lastRelease.defaultBranch, "main");
   assert.deepEqual(state.releasedResources[0].branches.map((entry) => entry.name), [value.branch]);
   const repeated = item.helper(value.repository, releaseArgs(value)).payload;
@@ -91,6 +125,7 @@ scenario("publish_after_release_requires_new_cycle_and_cannot_replace_push_relea
 
 scenario("first_release_without_registered_cycle_uses_local_default_branch", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
+  configurePostReleasePolicy(item, repository, { schema: 4, action: "push_release_branch" });
   const value = { repository, version: "2.0.0", date: "20260910" };
   value.context = item.prepareReleaseContext(repository, value);
   const released = item.helper(repository, releaseArgs(value)).payload;
@@ -174,6 +209,7 @@ scenario("harness_release_rechecks_final_version_after_all_registered_merges", (
 
 scenario("downstream_release_rechecks_final_cargo_and_target_version_after_merges", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
+  configurePostReleasePolicy(item, repository, { schema: 4, action: "push_release_branch" });
   item.helper(repository, ["start", "--summary", "first-registered"]);
   const gatePath = join(repository, ".agents/skills/desktop-manage-version/scripts/version_gate.mjs");
   mkdirSync(dirname(gatePath), { recursive: true });
@@ -266,6 +302,7 @@ scenario("enabled_review_rejects_default_branch_changes_after_merge_before_tag",
 
 scenario("release_from_task_worktree_keeps_worktree_and_local_branch", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
+  configurePostReleasePolicy(item, repository, { schema: 4, action: "push_release_branch" });
   const task = join(item.temporary, "task-worktree");
   item.git(repository, "worktree", "add", "--quiet", "--detach", task, "HEAD");
   const branch = item.helper(task, ["start", "--summary", "task-result"]).payload.branch;
@@ -284,6 +321,7 @@ scenario("release_from_task_worktree_keeps_worktree_and_local_branch", (item) =>
 
 scenario("new_cycle_from_old_task_worktree_starts_at_verified_release_head", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
+  configurePostReleasePolicy(item, repository, { schema: 4, action: "push_release_branch" });
   const task = join(item.temporary, "task-worktree");
   item.git(repository, "worktree", "add", "--quiet", "--detach", task, "HEAD");
   const oldBranch = item.helper(task, ["start", "--summary", "old-task"]).payload.branch;
@@ -349,6 +387,7 @@ scenario("release_tag_conflict_keeps_registered_resources_and_pending_head", (it
 
 scenario("dirty_registered_worktree_blocks_release_then_clean_retry_succeeds", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
+  configurePostReleasePolicy(item, repository, { schema: 4, action: "push_release_branch" });
   const task = join(item.temporary, "task");
   item.git(repository, "worktree", "add", "--quiet", "--detach", task, "HEAD");
   item.helper(task, ["start", "--summary", "dirty-task"]);
@@ -363,14 +402,65 @@ scenario("dirty_registered_worktree_blocks_release_then_clean_retry_succeeds", (
 
 scenario("push_release_is_separate_explicit_idempotent_operation", (item) => {
   const value = candidate(item);
+  const defaultHead = item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout;
   item.helper(value.repository, releaseArgs(value));
   const pushed = item.helper(value.repository, ["push-release", "--remote", "origin"]).payload;
   assert.equal(pushed.status, "release-pushed");
+  assert.equal(pushed.branch, "release");
   assert.equal(pushed.head, value.context.head);
-  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.split("\t")[0], value.context.head);
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], value.context.head);
   assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.3-20260909").stdout.split("\t")[0], value.context.head);
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout, defaultHead);
   assert.equal(item.helper(value.repository, ["push-release", "--remote", "origin"]).payload.status, "already-pushed");
+  assert.equal(item.git(value.repository, "rev-parse", "refs/heads/release^{commit}").stdout.trim(), value.context.head);
   assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
+});
+
+for (const [name, policy] of [
+  ["missing", null],
+  ["schema-v3", { schema: 3 }],
+  ["pending", { schema: 4, action: "pending" }],
+]) {
+  scenario(`release_rejects_${name}_policy_before_any_ref_change`, (item) => {
+    const value = candidate(item, { postReleasePolicy: policy });
+    const main = item.git(value.repository, "rev-parse", "refs/heads/main").stdout.trim();
+    const rejected = item.helper(value.repository, releaseArgs(value), { success: false }).payload;
+    assert.equal(rejected.code, "post-release-action-invalid");
+    assert.equal(item.localBranchExists(value.repository, "release"), false);
+    assert.equal(item.remoteBranchExists(value.repository, "origin", "release"), false);
+    assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.3-20260909").stdout, "");
+    assert.equal(item.git(value.repository, "rev-parse", "refs/heads/main").stdout.trim(), main);
+    assert.equal(item.gitUnchecked(value.repository, "show-ref", "--verify", "--quiet", "refs/tags/v1.2.3-20260909").status, 1);
+    assert.equal(item.state(value.repository).cycle.pendingRelease, null);
+  });
+}
+
+scenario("push_release_rejects_frozen_local_package_choice_before_ref_change", (item) => {
+  const value = candidate(item, { postReleasePolicy: { schema: 4, action: "local_package" } });
+  const released = item.helper(value.repository, releaseArgs(value)).payload;
+  assert.equal(item.state(value.repository).lastRelease.postReleaseAction, "local_package");
+  const rejected = item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
+  assert.equal(rejected.code, "post-release-action-mismatch");
+  assert.equal(item.localBranchExists(value.repository, "release"), false);
+  assert.equal(item.remoteBranchExists(value.repository, "origin", "release"), false);
+  assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", `refs/tags/${released.tag}`).stdout, "");
+});
+
+scenario("push_release_keeps_the_release_choice_after_a_future_policy_switch", (item) => {
+  const value = candidate(item);
+  item.helper(value.repository, releaseArgs(value));
+  item.git(value.repository, "switch", "--quiet", "-c", "feature-next-policy");
+  const policyPath = join(value.repository, "docs/AGENT_POLICY.md");
+  writeFileSync(policyPath, readFileSync(policyPath, "utf8").replace(
+    "post_release_action: push_release_branch", "post_release_action: local_package"), "utf8");
+  writeFileSync(join(value.repository, "Cargo.toml"),
+    '[workspace]\nmembers = []\n[workspace.package]\nversion = "1.2.3"\n[workspace.metadata.agent-first-harness]\ninterfaces = ["cli"]\ntarget-platforms = ["macos"]\n', "utf8");
+  item.git(value.repository, "add", "docs/AGENT_POLICY.md", "Cargo.toml");
+  item.git(value.repository, "commit", "--quiet", "-m", "chore: choose local package for future releases");
+  const pushed = item.helper(value.repository, ["push-release", "--remote", "origin"]).payload;
+  assert.equal(pushed.status, "release-pushed");
+  assert.equal(item.state(value.repository).lastRelease.postReleaseAction, "push_release_branch");
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], value.context.head);
 });
 
 scenario("push_release_after_new_cycle_preserves_current_checkout", (item) => {
@@ -388,13 +478,15 @@ scenario("push_release_after_new_cycle_preserves_current_checkout", (item) => {
   assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
 });
 
-scenario("push_release_can_target_a_different_configured_remote_default", (item) => {
+scenario("push_release_targets_release_even_when_remote_default_differs", (item) => {
   const value = candidate(item, { remote: false });
   item.addBareRemote(value.repository, "mirror", "stable");
+  const defaultHead = item.git(value.repository, "ls-remote", "--heads", "mirror", "refs/heads/stable").stdout;
   item.helper(value.repository, releaseArgs(value));
   const pushed = item.helper(value.repository, ["push-release", "--remote", "mirror"]).payload;
-  assert.equal(pushed.branch, "stable");
-  assert.equal(item.git(value.repository, "ls-remote", "--heads", "mirror", "refs/heads/stable").stdout.split("\t")[0], value.context.head);
+  assert.equal(pushed.branch, "release");
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "mirror", "refs/heads/release").stdout.split("\t")[0], value.context.head);
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "mirror", "refs/heads/stable").stdout, defaultHead);
 });
 
 scenario("push_release_rejects_option_like_remote_name", (item) => {
@@ -405,15 +497,107 @@ scenario("push_release_rejects_option_like_remote_name", (item) => {
   assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
 });
 
+scenario("push_release_rejects_foreign_local_release_branch_before_remote_write", (item) => {
+  const value = candidate(item);
+  item.helper(value.repository, releaseArgs(value));
+  const initialHead = item.git(value.repository, "rev-list", "--max-parents=0", "HEAD").stdout.trim();
+  item.git(value.repository, "branch", "release", initialHead);
+  item.git(value.repository, "tag", "v0.0.1-20260901", initialHead);
+  const rejected = item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
+  assert.equal(rejected.code, "local-release-conflict");
+  assert.equal(item.git(value.repository, "rev-parse", "refs/heads/release^{commit}").stdout.trim(), initialHead);
+  assert.equal(item.remoteBranchExists(value.repository, "origin", "release"), false);
+  assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.3-20260909").stdout, "");
+});
+
+scenario("push_release_advances_historical_v2_release_branch_after_new_release", (item) => {
+  const first = candidate(item);
+  item.helper(first.repository, releaseArgs(first));
+  const completed = item.state(first.repository);
+  item.git(first.repository, "branch", "release", first.context.head);
+  item.git(first.repository, "push", "--quiet", "origin", "refs/heads/release:refs/heads/release");
+  item.git(first.repository, "push", "--quiet", "origin", `refs/tags/${completed.lastRelease.tag}`);
+  const legacy = {
+    schemaVersion: 2, remote: null, defaultBranch: "main", cycle: null, pendingPublish: null,
+    lastRelease: {
+      tag: completed.lastRelease.tag, head: completed.lastRelease.head,
+      date: completed.lastRelease.date, version: completed.lastRelease.version,
+      releaseContextSha256: completed.lastRelease.releaseContextSha256,
+      gitPublication: "local", remote: null,
+    },
+  };
+  const common = item.git(first.repository, "rev-parse", "--path-format=absolute", "--git-common-dir").stdout.trim();
+  writeFileSync(join(common, "agent-first-harness/git-lifecycle.json"), `${JSON.stringify(legacy, null, 2)}\n`, "utf8");
+  item.helper(first.repository, ["start", "--summary", "after-v2-release"]);
+  assert.deepEqual(item.state(first.repository).releasedResources, []);
+  const unbound = item.helper(first.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
+  assert.equal(unbound.code, "post-release-action-unbound");
+  assert.equal(item.git(first.repository, "rev-parse", "refs/heads/release^{commit}").stdout.trim(), first.context.head);
+  item.commitFile(first.repository, "after-v2.txt", "after migration\n");
+  const second = {
+    repository: first.repository, version: "1.2.4", date: "20260910",
+    context: item.prepareReleaseContext(first.repository, { version: "1.2.4", date: "20260910" }),
+  };
+  item.helper(first.repository, releaseArgs(second));
+  assert.equal(item.state(first.repository).releasedResources.some((entry) => entry.head === first.context.head), false);
+  const pushed = item.helper(first.repository, ["push-release", "--remote", "origin"]).payload;
+  assert.equal(pushed.status, "release-pushed");
+  assert.equal(item.git(first.repository, "rev-parse", "refs/heads/release^{commit}").stdout.trim(), second.context.head);
+  assert.equal(item.git(first.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], second.context.head);
+  assert.equal(item.git(first.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.4-20260910").stdout.split("\t")[0], second.context.head);
+});
+
+scenario("push_release_advances_recorded_local_branch_after_checked_out_worktree_is_removed", (item) => {
+  const first = candidate(item);
+  item.helper(first.repository, releaseArgs(first));
+  item.helper(first.repository, ["push-release", "--remote", "origin"]);
+  item.helper(first.repository, ["start", "--summary", "following-release"]);
+  item.commitFile(first.repository, "following-release.txt", "following\n");
+  const second = {
+    repository: first.repository,
+    version: "1.2.4",
+    date: "20260910",
+    context: item.prepareReleaseContext(first.repository, { version: "1.2.4", date: "20260910" }),
+  };
+  item.helper(first.repository, releaseArgs(second));
+  const releaseWorktree = join(item.temporary, "release-worktree");
+  item.git(first.repository, "worktree", "add", "--quiet", releaseWorktree, "release");
+  const rejected = item.helper(first.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
+  assert.equal(rejected.code, "local-release-conflict");
+  assert.equal(item.git(first.repository, "rev-parse", "refs/heads/release^{commit}").stdout.trim(), first.context.head);
+  assert.equal(item.git(first.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], first.context.head);
+  item.git(first.repository, "worktree", "remove", "--force", releaseWorktree);
+  const pushed = item.helper(first.repository, ["push-release", "--remote", "origin"]).payload;
+  assert.equal(pushed.status, "release-pushed");
+  assert.equal(item.git(first.repository, "rev-parse", "refs/heads/release^{commit}").stdout.trim(), second.context.head);
+  assert.equal(item.git(first.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], second.context.head);
+  assert.equal(item.git(first.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.4-20260910").stdout.split("\t")[0], second.context.head);
+});
+
+scenario("push_release_rejects_non_fast_forward_remote_release_branch", (item) => {
+  const value = candidate(item);
+  item.helper(value.repository, releaseArgs(value));
+  const initialHead = item.git(value.repository, "rev-list", "--max-parents=0", "HEAD").stdout.trim();
+  item.git(value.repository, "switch", "--quiet", "-c", "divergent-release", initialHead);
+  const foreignHead = item.commitFile(value.repository, "foreign-release.txt", "foreign\n");
+  item.git(value.repository, "push", "--quiet", "origin", "HEAD:refs/heads/release");
+  item.git(value.repository, "switch", "--quiet", "main");
+  const rejected = item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
+  assert.equal(rejected.code, "release-push-failed");
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], foreignHead);
+  assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.3-20260909").stdout, "");
+  assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
+});
+
 scenario("remote_tag_conflict_is_rejected_before_branch_push", (item) => {
   const value = candidate(item);
   item.helper(value.repository, releaseArgs(value));
   const oldHead = item.git(value.repository, "rev-list", "--max-parents=0", "HEAD").stdout.trim();
   item.git(value.bare, "tag", "v1.2.3-20260909", oldHead);
-  const branchBefore = item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout;
+  const branchBefore = item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout;
   const rejected = item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
   assert.equal(rejected.code, "tag-conflict");
-  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout, branchBefore);
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout, branchBefore);
   assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
 });
 
@@ -423,23 +607,23 @@ scenario("tag_push_failure_reports_partial_success_and_retry_keeps_release_compl
   item.installHook(value.bare, 'while read old new ref; do case "$ref" in refs/tags/*) exit 1;; esac; done\nexit 0\n');
   const rejected = item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
   assert.equal(rejected.code, "release-push-partial");
-  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.split("\t")[0], value.context.head);
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], value.context.head);
   assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.3-20260909").stdout, "");
   assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
   rmSync(join(value.bare, "hooks/pre-receive"));
   assert.equal(item.helper(value.repository, ["push-release", "--remote", "origin"]).payload.status, "release-pushed");
 });
 
-scenario("push_release_rechecks_branch_and_tag_together_after_tag_push", (item) => {
+scenario("push_release_rechecks_release_branch_and_tag_together_after_tag_push", (item) => {
   const value = candidate(item);
   const originalRemoteHead = item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.split("\t")[0];
   item.helper(value.repository, releaseArgs(value));
   const hook = join(value.bare, "hooks/post-receive");
-  writeFileSync(hook, `#!/bin/sh\nwhile read old new ref; do\n  case "$ref" in refs/tags/*) git update-ref refs/heads/main ${originalRemoteHead};; esac\ndone\n`, "utf8");
+  writeFileSync(hook, `#!/bin/sh\nwhile read old new ref; do\n  case "$ref" in refs/tags/*) git update-ref refs/heads/release ${originalRemoteHead};; esac\ndone\n`, "utf8");
   chmodSync(hook, 0o755);
   const rejected = item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
   assert.equal(rejected.code, "release-push-uncertain");
-  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout.split("\t")[0], originalRemoteHead);
+  assert.equal(item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], originalRemoteHead);
   assert.equal(item.git(value.repository, "ls-remote", "--tags", "origin", "refs/tags/v1.2.3-20260909").stdout.split("\t")[0], value.context.head);
   assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
   rmSync(hook);

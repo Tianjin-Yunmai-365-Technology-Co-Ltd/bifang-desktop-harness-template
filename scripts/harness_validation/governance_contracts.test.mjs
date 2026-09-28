@@ -44,6 +44,14 @@ test("engineering contract rejects a removed source-of-truth fragment", () => wi
   expectError(errors, anchor);
 }));
 
+test("engineering contract requires the post-release policy field", () => withTemporaryDirectory((directory) => {
+  const anchor = "post_release_action: pending";
+  const agentPolicy = mutatedCopy(directory, "agentPolicy", anchor, "removed-post-release-selection");
+  const errors = [];
+  validateEngineeringContract(errors, { paths: { agentPolicy } });
+  expectError(errors, anchor);
+}));
+
 test("engineering contract fails closed when a referenced file is missing", () => withTemporaryDirectory((directory) => {
   const errors = [];
   validateEngineeringContract(errors, { paths: { rustAssetLib: path.join(directory, "missing.rs") } });
@@ -51,10 +59,18 @@ test("engineering contract fails closed when a referenced file is missing", () =
 }));
 
 test("streamlined contract rejects branch-gate regression", () => withTemporaryDirectory((directory) => {
-  const anchor = "不设置保护分支门禁";
+  const anchor = "不设置租约、原子推送或保护分支门禁";
   const gitLifecycleSkill = mutatedCopy(directory, "gitLifecycleSkill", anchor, "恢复严格线性分支门禁");
   const errors = [];
   validateStreamlinedDevelopmentAndBuild(errors, { paths: { gitLifecycleSkill } });
+  expectError(errors, anchor);
+}));
+
+test("streamlined contract requires the action-switch skill", () => withTemporaryDirectory((directory) => {
+  const anchor = "name: desktop-switch-post-release-action";
+  const switchPostReleaseSkill = mutatedCopy(directory, "switchPostReleaseSkill", anchor, "name: removed-switch-skill");
+  const errors = [];
+  validateStreamlinedDevelopmentAndBuild(errors, { paths: { switchPostReleaseSkill } });
   expectError(errors, anchor);
 }));
 

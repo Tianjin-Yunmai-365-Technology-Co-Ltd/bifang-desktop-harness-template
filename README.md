@@ -17,7 +17,7 @@ Bifang Desktop Harness Template
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、接口组合（CLI/TUI/MCP/GUI）、Agent 策略模式，以及左侧 Git Task 是否使用独立 Worktree。最后一项必须由用户单独选择，不能由推荐预设或 Task 内部并行策略代答。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、接口组合（CLI/TUI/MCP/GUI）、Agent 策略模式、发布后动作（本地打包或提交远程），以及左侧 Git Task 是否使用独立 Worktree。发布后动作建议默认本地打包，仍须用户确认；纯 TUI/MCP 或仅 Linux GUI 没有现有本地打包入口时该默认项不可用，须明确选择提交远程；左侧 Git Task 选择不能由推荐预设或 Task 内部并行策略代答。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、接口、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
@@ -36,7 +36,7 @@ Bifang Desktop Harness Template
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 可选地把新结果创建为绑定保存项目的 Codex 左侧 user-owned Task；自动拆分默认关闭，启用后按结果边界创建，Git Task 使用独立 Worktree 和可审查提交。
 - 初始化的推荐策略将自动 Task 保持关闭；自定义策略可以开启。初始化后也可明确开启或关闭，切换只影响后续结果边界，不移动或删除已有 Task/Worktree。
-- 为新功能和独立 Bug 修复自动创建本地开发分支。明确“发布”时整理并提交当前代码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{YYYYMMDD}`；发布到此结束。推送、打包分别在发布后由你自行决定并单独提出。GUI 候选打包时执行适用的真实启动和交互验证，未真实验证的平台标为 `Unverified`。
+- 为新功能和独立 Bug 修复自动创建本地开发分支。明确“发布”时整理并提交当前代码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{YYYYMMDD}`；Git 发布到此结束。随后按已确认的发布后动作执行并检测：沿用现有本地打包，或把同一提交放到小写 `release` 分支并推送远端分支与 tag。GUI 候选打包时执行适用的真实启动和交互验证，未真实验证的平台标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
 日常开发不会因为任务看起来复杂，就自动增加长计划、全仓检查、构建或端到端测试（E2E）。只有你明确要求，或者任务确实碰到安全、数据迁移、凭据、发布等风险时，才会进入相应流程。
@@ -44,7 +44,7 @@ Bifang Desktop Harness Template
 ## 它不会替你决定什么
 
 - 不会猜测产品要解决什么问题，也不会把中性脚手架当成已经完成的产品。
-- 不会创建或配置远端或凭据，不会强制推送、通配扫描分支、上传制品或操作生产环境。发布不访问远端，也不删除登记的分支或 Worktree。发布后只有明确要求推送时才将同一已发布主分支 HEAD 与 tag 推到指定远端并复读；明确要求打包时才进入构建。发布前的普通 `publish` 仍可在你逐一授权后向多个已配置远端推送同一冻结 HEAD，它不创建 tag。
+- 不会创建或配置远端或凭据，不会强制推送、通配扫描分支、上传制品或操作生产环境。Git 发布命令不访问远端，也不删除登记的分支或 Worktree。发布后只执行初始化或后续切换时已确认的动作；选择提交远程时仅非强制推送小写 `release` 分支与同一 tag，并复读。发布前的普通 `publish` 仍可在你逐一授权后向多个已配置远端推送同一冻结 HEAD，它不创建 tag。
 - 不会为了“以后可能用到”预先加入业务、依赖或复杂架构。
 - 不会绕过安全、隐私、商业许可和分发渠道的硬要求。
 
@@ -78,10 +78,10 @@ Bifang Desktop Harness Template
 - “发布前推送开发进度”：使用 `publish` 普通合并本发布周期登记的开发分支，切换到动态默认主分支并推送；不创建 tag，也不清理登记资源。`--remote` 指定唯一主远端；只有你明确要求“也推送到某远端”时，才为该次 `publish` 增加一个可重复的 `--also-remote <name>`。所有目标会在首个 push 前解析；同一最终 HEAD、目标顺序和逐项确认进度只在未完成的 `pendingPublish` 中临时保存，成功即清除。补充远端不改绑，也不参与 release、tag 或清理。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
 - “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
-- “发布”：使用 `$desktop-prepare-release` 整理本次范围、按当前上海时间取得 Harness 版本（下游使用语义化版本门禁）、提交源码和发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并本地默认主分支并创建、复读版本 tag。`--release-context-sha256 <sha256>` 绑定已跟踪上下文；完成后由你决定是否推送或构建。
-- “发布后推送”：使用 `push-release --remote <name>` 把已发布的固定主分支 HEAD 与 tag 推向所选远端并复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
-- “构建 CLI 或桌面 GUI 候选”：在已有 Git 发布完成后单独请求，分别使用 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release`。构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择；跨平台远程 provider 另要求你已独立推送同一主分支 HEAD 与 tag。
-- 普通“构建/打包/本地试包”不会自动升级为 Git 发布，不提交、推送或修改主分支；正式 Git 发布也不自动进入打包流程。
+- “发布”：使用 `$desktop-prepare-release` 整理本次范围、按当前上海时间取得 Harness 版本（下游使用语义化版本门禁）、提交源码和发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并本地默认主分支并创建、复读版本 tag。`--release-context-sha256 <sha256>` 绑定已跟踪上下文；Git 发布完成后执行并检测持久选择的后续动作。
+- “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写 `release` 分支，推向远端同名分支并推送 tag，逐项复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
+- “本地打包”后续路径：在已有 Git 发布完成后分别使用现有 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。
+- 普通“构建/打包/本地试包”不会自动升级为 Git 发布，不提交、推送或修改主分支；Git 发布后的所选动作仍单独遵守对应流程门禁。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
 - “开启左侧 Task”/“开启自动 Task 拆分”或“关闭左侧 Task”/“关闭自动 Task 拆分”：更新 `docs/AGENT_POLICY.md` 的 `user_owned_tasks` 和确认元数据，并记录当日 ADR。默认关闭；切换只影响后续结果边界，不迁移或中断既有 Task/Worktree。
@@ -92,9 +92,9 @@ Bifang Desktop Harness Template
 
 ## 开发与构建边界
 
-日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。发布后的推送、构建和打包分别要求用户独立提出。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
+日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。发布开始时冻结已确认的 `post_release_action`，随后按本次快照执行本地打包或向远端 `release` 分支推送同一已发布提交与 tag，并检测所选路径；未来可用 `$desktop-switch-post-release-action` 切换，旧发布继续按旧快照。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
 
-显式候选构建只接受已有 clean 默认主分支和精确版本 tag；构建入口只读验证并消费 `.harness/release-context.json`，本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据。远程跨平台 provider 另要求事先独立推送并复读同一已发布 HEAD/tag。候选须运行全部非空单元测试。普通 Windows 本地安装试包是开发制品，不要求发布日志或 clean HEAD。构建事实只写入适用产物位置和最终回复，不自动更新项目记忆。普通 GUI 页面状态在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页使用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
+显式候选构建只接受已有 clean 默认主分支和精确版本 tag；构建入口只读验证并消费 `.harness/release-context.json`，本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据。远程跨平台 provider 另要求远端 `release` 分支与 tag 已复读为同一已发布 HEAD。候选须运行全部非空单元测试。普通 Windows 本地安装试包是开发制品，不要求发布日志或 clean HEAD。构建事实只写入适用产物位置和最终回复，不自动更新项目记忆。普通 GUI 页面状态在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页使用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 
 Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/TUI/MCP/GUI 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在 GUI adapter，但其业务效果仍调用 core。维护者运行 `node scripts/run_harness_tests.mjs` 执行非空回归，并以 `node scripts/validate_harness.mjs` 检查 Harness 硬门禁。
 
@@ -141,7 +141,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 - 产品规格：Approved
 - 具体产品源码：不包含
 
-Harness 版本的唯一事实来源是 [`Version.md`](Version.md)：仅在正式发布时按当前上海时区取 `YYYYMMDDHHMM`，日常修改不提升。模板版本和下游产品版本分开管理。登记分支合并到本地默认主分支、该提交的 `v{版本}-{YYYYMMDD}` 创建并复读成功后才是 `Released`。推送与文件打包分别由发布后的用户决定。
+Harness 版本的唯一事实来源是 [`Version.md`](Version.md)：仅在正式发布时按当前上海时区取 `YYYYMMDDHHMM`，日常修改不提升。模板版本和下游产品版本分开管理。登记分支合并到本地默认主分支、该提交的 `v{版本}-{YYYYMMDD}` 创建并复读成功后才是 `Released`。终端下游的后续动作按初始化或切换时持久确认的选择执行并检测；Harness 源的后续源码归档或推送由用户当次决定。
 
 ## 项目结构
 

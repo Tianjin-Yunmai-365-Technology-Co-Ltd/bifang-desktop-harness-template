@@ -1,0 +1,248 @@
+#!/usr/bin/env node
+
+/** 读取并原子更新终端下游的发布后动作选择。 */
+
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const POLICY_RELATIVE = path.join("docs", "AGENT_POLICY.md");
+const ACTIONS = new Set(["local_package", "push_release_branch"]);
+const V3_FIELDS = ["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
+const V4_FIELDS = [...V3_FIELDS, "post_release_action"];
+const PREFERENCES = ["superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
+const REQUIRED_BODY = [
+  "- `post_release_action`：`local_package`",
+  "发布后动作直接读取 `post_release_action`",
+  "随后必须执行 `post_release_action`",
+  "`push-release --remote <name>`",
+];
+const STALE_BODY = [
+  "推送与打包分别由发布后的用户请求决定",
+  "发布后是否推送、是否打包只由用户各自的明确请求决定",
+  "流程没有发布中转分支",
+  "发布后用户另外明确要求推送",
+];
+
+export class ActionError extends Error {
+  constructor(message) { super(message); this.name = "ActionError"; }
+}
+
+function regularFile(target, label) {
+  let stat;
+  try { stat = fs.lstatSync(target); } catch { throw new ActionError(`${label} 不存在：${target}`); }
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new ActionError(`${label} 必须是普通非符号链接文件：${target}`);
+  return stat;
+}
+
+function validConfirmedAt(value) {
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  }
+  return /^\d{4}-\d{2}-\d{2}T/u.test(value) && !Number.isNaN(Date.parse(value));
+}
+
+function projectRoot(raw) {
+  if (typeof raw !== "string" || !raw || !path.isAbsolute(raw)) throw new ActionError("--project-root 必须是绝对路径");
+  const unresolved = path.resolve(raw);
+  let stat;
+  try { stat = fs.lstatSync(unresolved); } catch { throw new ActionError(`项目根不存在：${unresolved}`); }
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new ActionError("项目根必须是普通非符号链接目录");
+  const root = fs.realpathSync(unresolved);
+  if (root !== unresolved) throw new ActionError("项目根路径包含符号链接");
+  const git = spawnSync("git", ["-C", root, "rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  if (git.status !== 0 || path.resolve(git.stdout.trim()) !== root) throw new ActionError("必须在独立下游 Git 顶层目录执行");
+  if (fs.existsSync(path.join(root, "Version.md")) && fs.existsSync(path.join(root, ".agents", "skills", "desktop-instantiate-project", "SKILL.md"))) {
+    throw new ActionError("Harness 模板源不能设置下游发布后动作");
+  }
+  const docs = path.join(root, "docs");
+  const docsStat = fs.lstatSync(docs);
+  if (!docsStat.isDirectory() || docsStat.isSymbolicLink()) throw new ActionError("docs 必须是普通非符号链接目录");
+  return root;
+}
+
+function readPolicy(root) {
+  const file = path.join(root, POLICY_RELATIVE);
+  const stat = regularFile(file, "Agent 策略");
+  const bytes = fs.readFileSync(file);
+  let source;
+  try { source = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { throw new ActionError("Agent 策略必须是有效 UTF-8"); }
+  if (source.includes("\r") && source.replaceAll("\r\n", "").includes("\r")) throw new ActionError("Agent 策略包含混合换行");
+  if (source.includes("\r\n") && source.replaceAll("\r\n", "").includes("\n")) throw new ActionError("Agent 策略包含混合换行");
+  const newline = source.includes("\r\n") ? "\r\n" : "\n";
+  const normalized = source.replaceAll("\r\n", "\n");
+  const match = /^---\n([\s\S]*?)\n---\n/u.exec(normalized);
+  if (!match) throw new ActionError("Agent 策略缺少完整 YAML frontmatter");
+  const lines = match[1].split("\n");
+  const fields = new Map();
+  for (const line of lines) {
+    const field = /^([a-z][a-z0-9_]*): ([^\n]*)$/u.exec(line);
+    if (!field) throw new ActionError(`不支持的 Agent 策略字段行：${line}`);
+    if (fields.has(field[1])) throw new ActionError(`重复的 Agent 策略字段：${field[1]}`);
+    fields.set(field[1], field[2]);
+  }
+  const schema = fields.get("schema_version");
+  const expected = schema === "3" ? V3_FIELDS : schema === "4" ? V4_FIELDS : null;
+  if (!expected || fields.size !== expected.length || expected.some((field) => !fields.has(field))) {
+    throw new ActionError("Agent 策略 schema 或字段集合不受支持；不得推断发布后动作");
+  }
+  if (fields.get("decision_mode") !== "reuse_then_infer_then_ask") throw new ActionError("Agent 策略 decision_mode 无效");
+  for (const field of PREFERENCES) if (!["enabled", "disabled"].includes(fields.get(field))) throw new ActionError(`下游 Agent 策略 ${field} 尚未确认`);
+  const confirmedBy = fields.get("confirmed_by")?.trim().toLowerCase();
+  if (!confirmedBy || ["pending", "unknown", "unset", "n/a"].includes(confirmedBy)) throw new ActionError("下游 Agent 策略 confirmed_by 尚未确认");
+  if (!validConfirmedAt(fields.get("confirmed_at") ?? "")) throw new ActionError("下游 Agent 策略 confirmed_at 必须是真实 ISO 日期或时间戳");
+  if (schema === "4" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("post_release_action 必须是 local_package 或 push_release_branch");
+  const policy = { file, stat, bytes, source, normalized, newline, lines, fields, schema };
+  if (schema === "4") assertCurrentPolicyBody(policy);
+  if (schema === "4" && fields.get("post_release_action") === "local_package") assertLocalPackageSupported(root);
+  return policy;
+}
+
+function assertCurrentPolicyBody(policy) {
+  const body = policy.normalized.slice(policy.normalized.indexOf("\n---\n", 4) + 5);
+  if (REQUIRED_BODY.some((fragment) => !body.includes(fragment)) ||
+      STALE_BODY.some((fragment) => body.includes(fragment))) {
+    throw new ActionError("Agent 策略正文尚未合并发布后动作新规则；先保留本地自定义内容并完成受保护正文迁移");
+  }
+}
+
+function metadataArray(root, key) {
+  const file = path.join(root, "Cargo.toml");
+  regularFile(file, "Cargo 工作区清单");
+  const lines = fs.readFileSync(file, "utf8").split(/\r?\n/u);
+  const sections = lines.flatMap((line, index) => line.trim() === "[workspace.metadata.agent-first-harness]" ? [index] : []);
+  if (sections.length !== 1) throw new ActionError("Cargo 发布接口元数据缺失或重复");
+  const start = sections[0];
+  const endOffset = lines.slice(start + 1).findIndex((line) => /^\[/u.test(line.trim()));
+  const section = lines.slice(start + 1, endOffset < 0 ? undefined : start + 1 + endOffset);
+  const matches = section.map((line) => new RegExp(`^${key}\\s*=\\s*(\\[[^\\]]*\\])\\s*$`, "u").exec(line)).filter(Boolean);
+  if (matches.length !== 1) throw new ActionError(`Cargo ${key} 元数据缺失或重复`);
+  let values;
+  try { values = JSON.parse(matches[0][1]); } catch { throw new ActionError(`Cargo ${key} 元数据无效`); }
+  if (!Array.isArray(values) || values.length === 0 || values.some((value) => typeof value !== "string")) {
+    throw new ActionError(`Cargo ${key} 元数据无效`);
+  }
+  const allowed = key === "interfaces" ? ["cli", "tui", "mcp", "gui"] : ["windows", "macos", "linux"];
+  if (new Set(values).size !== values.length || values.some((value) => !allowed.includes(value))) {
+    throw new ActionError(`Cargo ${key} 元数据无效`);
+  }
+  return values;
+}
+
+function assertLocalPackageSupported(root) {
+  const interfaces = metadataArray(root, "interfaces");
+  const platforms = metadataArray(root, "target-platforms");
+  if (!interfaces.includes("cli") && !(interfaces.includes("gui") && platforms.some((platform) => ["macos", "windows"].includes(platform)))) {
+    throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
+  }
+}
+
+function state(policy) {
+  const action = policy.schema === "4" ? policy.fields.get("post_release_action") : null;
+  return { schema_version: Number(policy.schema), status: action === null ? "selection_required" : "configured", post_release_action: action };
+}
+
+function atomicWrite(policy, next) {
+  const temporary = path.join(path.dirname(policy.file), `.AGENT_POLICY-${crypto.randomUUID()}.tmp`);
+  let descriptor;
+  try {
+    descriptor = fs.openSync(temporary, "wx", policy.stat.mode & 0o777);
+    fs.writeFileSync(descriptor, next, "utf8");
+    fs.fsyncSync(descriptor);
+    fs.closeSync(descriptor); descriptor = undefined;
+    const currentStat = regularFile(policy.file, "Agent 策略");
+    if (currentStat.dev !== policy.stat.dev || currentStat.ino !== policy.stat.ino || !fs.readFileSync(policy.file).equals(policy.bytes)) {
+      throw new ActionError("Agent 策略在读取后变化；请重新检查选择");
+    }
+    fs.renameSync(temporary, policy.file);
+    try { const parent = fs.openSync(path.dirname(policy.file), fs.constants.O_RDONLY); fs.fsyncSync(parent); fs.closeSync(parent); } catch { /* 部分平台不能同步目录 */ }
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+    try { fs.rmSync(temporary, { force: true }); } catch { /* 写入错误按原异常报告 */ }
+  }
+}
+
+function withPolicyLock(root, operation) {
+  const lock = path.join(root, "docs", ".AGENT_POLICY.post-release.lock");
+  let descriptor;
+  try { descriptor = fs.openSync(lock, "wx", 0o600); }
+  catch { throw new ActionError("Agent 策略正在被修改，或上次修改留下锁；不得并发覆盖"); }
+  try { return operation(); }
+  finally {
+    fs.closeSync(descriptor);
+    fs.rmSync(lock, { force: true });
+  }
+}
+
+export function inspect(rawRoot, { requireConfigured = false } = {}) {
+  const result = state(readPolicy(projectRoot(rawRoot)));
+  if (requireConfigured && result.status !== "configured") throw new ActionError("旧项目尚未选择 post_release_action；发布后流程不得标为完成");
+  return result;
+}
+
+export function setAction(rawRoot, action, expectedAction, { confirmedChoice = false } = {}) {
+  if (!confirmedChoice) throw new ActionError("写入要求 --confirmed-user-choice；先取得用户本次明确选择");
+  if (!ACTIONS.has(action)) throw new ActionError("--action 必须是 local_package 或 push_release_branch");
+  if (!["missing", ...ACTIONS].includes(expectedAction)) throw new ActionError("--expected-action 必须是 missing 或当前合法动作");
+  const root = projectRoot(rawRoot);
+  return withPolicyLock(root, () => {
+    const policy = readPolicy(root);
+    const previous = policy.schema === "4" ? policy.fields.get("post_release_action") : "missing";
+    if (previous !== expectedAction) throw new ActionError(`发布后动作已变化：预期 ${expectedAction}，实际 ${previous}`);
+    if (previous === action) return { ...state(policy), changed: false, previous_action: previous };
+    assertCurrentPolicyBody(policy);
+    if (action === "local_package") assertLocalPackageSupported(root);
+    const lines = [...policy.lines];
+    if (policy.schema === "3") {
+      lines[lines.findIndex((line) => line.startsWith("schema_version:"))] = "schema_version: 4";
+      lines.push(`post_release_action: ${action}`);
+    } else {
+      lines[lines.findIndex((line) => line.startsWith("post_release_action:"))] = `post_release_action: ${action}`;
+    }
+    const body = policy.normalized.slice(policy.normalized.indexOf("\n---\n", 4) + 5);
+    const next = `---\n${lines.join("\n")}\n---\n${body}`.replaceAll("\n", policy.newline);
+    atomicWrite(policy, next);
+    const verified = inspect(root, { requireConfigured: true });
+    if (verified.post_release_action !== action || verified.schema_version !== 4) throw new ActionError("写入后复核发布后动作失败");
+    return { ...verified, changed: true, previous_action: previous };
+  });
+}
+
+function parseArgs(argv) {
+  const [command, ...rest] = argv;
+  if (!["inspect", "check", "set"].includes(command)) throw new ActionError("命令只能是 inspect、check 或 set");
+  const allowed = command === "set" ? new Set(["--project-root", "--action", "--expected-action", "--confirmed-user-choice"]) : new Set(["--project-root"]);
+  const values = new Map();
+  for (let index = 0; index < rest.length; index += 1) {
+    const key = rest[index];
+    if (!allowed.has(key) || values.has(key)) throw new ActionError(`未知或重复参数：${key}`);
+    if (key === "--confirmed-user-choice") values.set(key, true);
+    else {
+      const value = rest[++index];
+      if (!value || value.startsWith("--")) throw new ActionError(`参数 ${key} 缺少值`);
+      values.set(key, value);
+    }
+  }
+  if (!values.has("--project-root")) throw new ActionError("缺少 --project-root");
+  if (command === "set" && (!values.has("--action") || !values.has("--expected-action"))) throw new ActionError("set 需要 --action 与 --expected-action");
+  return { command, values };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    const { command, values } = parseArgs(process.argv.slice(2));
+    const root = values.get("--project-root");
+    const result = command === "set"
+      ? setAction(root, values.get("--action"), values.get("--expected-action"), { confirmedChoice: values.has("--confirmed-user-choice") })
+      : inspect(root, { requireConfigured: command === "check" });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+  } catch (error) {
+    process.stderr.write(`${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n`);
+    process.exitCode = 2;
+  }
+}

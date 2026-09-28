@@ -19,7 +19,7 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const SUMMARY_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const REMOTE_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 export const HEX_OID_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -134,8 +134,8 @@ export function validRemote(remote) {
 /** 校验冻结的本地发布身份；推送位置不属于发布记录。 */
 function validateReleaseRecord(record, label, { pending }) {
   const keys = pending
-    ? ["tag", "head", "date", "version", "releaseContextSha256"]
-    : ["tag", "head", "date", "version", "releaseContextSha256", "defaultBranch"];
+    ? ["tag", "head", "date", "version", "releaseContextSha256", "postReleaseAction"]
+    : ["tag", "head", "date", "version", "releaseContextSha256", "defaultBranch", "postReleaseAction"];
   if (!record || typeof record !== "object" || Array.isArray(record) ||
       Object.keys(record).sort().join("|") !== keys.sort().join("|")) {
     throw new LifecycleError("state-invalid", `${label} state is invalid.`);
@@ -149,6 +149,10 @@ function validateReleaseRecord(record, label, { pending }) {
   }
   if (!SHA256_RE.test(record.releaseContextSha256)) {
     throw new LifecycleError("state-invalid", `${label} state is invalid.`);
+  }
+  if (record.postReleaseAction !== null &&
+      !["local_package", "push_release_branch"].includes(record.postReleaseAction)) {
+    throw new LifecycleError("state-invalid", `${label} post-release action is invalid.`);
   }
   if (record.head === null) {
     if (!pending) throw new LifecycleError("state-invalid", `${label} state is invalid.`);
@@ -329,9 +333,36 @@ function migrateCompletedV2(repository, legacy) {
     state.lastRelease = {
       tag: last.tag, head: last.head, date: last.date, version: last.version,
       releaseContextSha256: last.releaseContextSha256, defaultBranch: legacy.defaultBranch,
+      postReleaseAction: null,
     };
   }
   return validateState(repository, state);
+}
+
+/** 静止的 v3 发布没有动作快照：标记为未绑定，不改释进行中的旧操作。 */
+function migrateV3(repository, legacy) {
+  if ((legacy.pendingPublish !== undefined && legacy.pendingPublish !== null) ||
+      (legacy.cycle?.pendingRelease !== undefined && legacy.cycle?.pendingRelease !== null)) {
+    throw new LifecycleError("legacy-inflight-unsupported", "Finish or repair the existing v3 Git operation before using the new lifecycle.");
+  }
+  const actionless = (record) => {
+    if (record === null) return null;
+    if (!record || typeof record !== "object" || Array.isArray(record) ||
+        Object.hasOwn(record, "postReleaseAction")) {
+      throw new LifecycleError("state-invalid", "Legacy release state is invalid.");
+    }
+    return { ...record, postReleaseAction: null };
+  };
+  const migrated = {
+    ...legacy,
+    schemaVersion: SCHEMA_VERSION,
+    lastRelease: actionless(legacy.lastRelease),
+    cycle: legacy.cycle === null ? null : {
+      ...legacy.cycle,
+      pendingRelease: actionless(legacy.cycle?.pendingRelease),
+    },
+  };
+  return validateState(repository, migrated);
 }
 
 /** 加载 common-dir 状态；缺失时只返回内存默认值。 */
@@ -350,6 +381,7 @@ export function loadState(repository) {
       parsed.pendingPublish = null;
     }
     if (parsed.schemaVersion === 2) return migrateCompletedV2(repository, parsed);
+    if (parsed.schemaVersion === 3) return migrateV3(repository, parsed);
     return validateState(repository, parsed);
   } catch (error) {
     if (error instanceof LifecycleError) throw error;
@@ -727,6 +759,36 @@ export function commandInspect(repository, args) {
   return {
     status: "inspected", branch, head: currentHead(repository), clean: isClean(repository),
     remote, defaultBranch, statePath: statePath(repository), state,
+  };
+}
+
+/** 核对最近一次本地发布冻结的后续动作及其主分支和标签身份。 */
+export function commandCheckPostRelease(repository, args) {
+  if (!["local_package", "push_release_branch"].includes(args.action)) {
+    throw new LifecycleError("invalid-argument", "Post-release action is invalid.");
+  }
+  const state = loadState(repository);
+  if ((state.cycle !== null && state.cycle.pendingRelease !== null) || state.pendingPublish !== null) {
+    throw new LifecycleError("lifecycle-in-progress", "Another Git lifecycle operation must finish first.");
+  }
+  const last = state.lastRelease;
+  if (last === null) throw new LifecycleError("no-release", "No completed local release is recorded.");
+  if (last.postReleaseAction === null) {
+    throw new LifecycleError("post-release-action-unbound", "This release predates a frozen post-release action.");
+  }
+  if (last.postReleaseAction !== args.action) {
+    throw new LifecycleError("post-release-action-mismatch", "The frozen release action differs from the requested action.");
+  }
+  if (!branchExists(repository, last.defaultBranch) ||
+      runGit(repository.root, ["rev-parse", "--verify", `refs/heads/${last.defaultBranch}^{commit}`]).stdout.trim() !== last.head) {
+    throw new LifecycleError("local-state-changed", "Released default branch no longer matches its frozen HEAD.");
+  }
+  if (localTagTarget(repository, last.tag) !== last.head) {
+    throw new LifecycleError("tag-conflict", "Released tag no longer matches its frozen HEAD.");
+  }
+  return {
+    status: "post-release-action-confirmed", action: last.postReleaseAction,
+    branch: last.defaultBranch, head: last.head, tag: last.tag,
   };
 }
 

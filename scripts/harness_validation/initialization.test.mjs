@@ -14,8 +14,11 @@ import {
 } from "./initialization.mjs";
 import { sourceFileHasExecutableMode } from "./initialization_environment.mjs";
 import {
+  AGENT_POLICY,
   ENVIRONMENT_REFERENCE,
   INITIALIZE_SKILL,
+  INSTANTIATE_FORM,
+  INSTANTIATE_SKILL,
   MACOS_DMG_BACKGROUND,
   MACOS_XWIN_GATE,
   PREREQUISITE_UNIX,
@@ -233,6 +236,20 @@ test("repository contract declares Node common runtime and GUI-only pnpm", () =>
   assert.ok(contracts.get(ENVIRONMENT_REFERENCE).includes("Git、Rust 与 Node.js/npm 始终为必需项"));
   assert.ok(contracts.get(RUST_BASELINE).includes("Node.js | 所有接口"));
   assert.ok(contracts.get(RUST_BASELINE).includes("pnpm | 仅 GUI"));
+});
+
+test("initialization contract requires an explicit persisted post-release action", () => {
+  const primary = primaryRequiredFragments(INITIALIZE_SKILL);
+  const repository = repositoryRequiredFragments(ENVIRONMENT_REFERENCE, RUST_BASELINE);
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("post_release_action"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("`local_package`（本地打包，推荐默认）"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("`push_release_branch`（提交远程）"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("纯 TUI/MCP 或仅 Linux GUI 时仍展示本地打包但标为不可用"));
+  assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 4`"));
+  assert.ok(primary.get(INSTANTIATE_SKILL).includes("纯 TUI/MCP 或仅 Linux GUI 选本地打包或默认值是非法基础字段"));
+  assert.ok(primary.get(INITIALIZE_SKILL).includes("`post_release_action` 精确等于 `local_package` 或 `push_release_branch`"));
+  assert.ok(primary.get(INITIALIZE_SKILL).includes("`local_package` 只在接口含 `cli`，或含 `gui` 且目标平台含 `macos`/`windows` 时合法"));
+  assert.ok(repository.get(AGENT_POLICY).includes("post_release_action:"));
 });
 
 test("environment shell gates retain executable source modes", () => {

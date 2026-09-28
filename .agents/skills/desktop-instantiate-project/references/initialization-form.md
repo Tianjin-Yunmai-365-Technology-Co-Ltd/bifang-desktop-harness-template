@@ -4,15 +4,16 @@
 
 ## 交互规则
 
-- 维护字段状态：`待首轮询问`、`待条件询问`、`待校验`、`已解析`、`不适用`。中文项目展示名称、英文项目展示名称、`project_id`、项目路径、负责人、目标平台、接口组合和 Agent 策略模式是固定基础字段；首次问询必须用一份清晰编号的表单，一次列出其中全部尚未解析字段，不得拆成逐字段多轮，也不得用“请提供初始化所需信息”这种无字段提示代替。
+- 维护字段状态：`待首轮询问`、`待条件询问`、`待校验`、`已解析`、`不适用`。中文项目展示名称、英文项目展示名称、`project_id`、项目路径、负责人、目标平台、接口组合、Agent 策略模式和发布后动作是固定基础字段；首次问询必须用一份清晰编号的表单，一次列出其中全部尚未解析字段，不得拆成逐字段多轮，也不得用“请提供初始化所需信息”这种无字段提示代替。
 - 中英文项目展示名称至少由用户直接提供一个。只提供中文时，Agent 在本轮解析中自动翻译并补齐英文；只提供英文时自动翻译并补齐中文，不为译名增加单独问询。原名称含难以直译的专有名词、品牌词或造词时，补齐的另一语言名称允许采用音译、约定俗成译名或保留原文形式，不强求逐字语义翻译，只要在目标语言中可读、不产生歧义即可。两个名称都由用户提供时保持原值，不自行改译；两个都未提供时在首轮同时询问。自动翻译得到的名称必须标记来源，并与用户原始名称一起进入最终完整汇总；用户对汇总的确认同时构成对译名的确认，确认前仍不得写入。
 - 首轮回复后先校验全部基础字段。若其中有缺失或非法值，只集中列出仍需修正的基础字段、各自约束和原值问题；已经合法的基础字段继续复用，不得重问。基础字段全部解析前不得进入条件问询。
 - `user_owned_tasks` 与 `parallel_worktree_subagents` 是两项独立事实：前者决定是否按结果边界自动创建左侧 user-owned Task，后者只决定当前 Task 内部能否按明确请求并行拆分。不得用其中一项回答、推断或覆盖另一项。
+- `post_release_action` 是独立于 Agent 策略预设的必选事实，提供“本地打包”(`local_package`，推荐默认) 与“提交远程”(`push_release_branch`) 两项。表单始终展示本地打包默认项；接口组合不含 CLI 且不含 GUI（纯 TUI/MCP），或仅 GUI 且目标平台只有 Linux 时须标为不可用，因为现有本地候选打包 Skill 只覆盖 CLI 或 macOS/Windows GUI，并明确要求用户选择 `push_release_branch`。用户明确选择默认值时，仅在已选接口包含 CLI，或包含 GUI 且目标平台含 macOS/Windows 时解析为 `local_package`；纯 TUI/MCP 或仅 Linux GUI 的“使用默认值”或显式本地打包都是非法基础字段，必须说明原因并重新确认提交远程。没有答复不能静默填入默认值。它只规定未来 Git 发布完成后的动作，不在初始化时执行打包、建立 release 分支或访问远端。
 - 基础字段全部解析后，再按实际选择逐步补全条件字段：选择自定义策略时依次解析五项策略，选择 GUI 时依次解析八项能力和侧栏模式。每次回复只询问一个当前适用且尚未解析的条件字段；推荐预设或非 GUI 使相应字段直接成为 `不适用`，不得制造多余问询。
 - 用户主动一次提供多个字段时全部解析并记录来源；合法字段不得为了遵守顺序而重问。字段非法时只说明该字段的约束并重新询问同一项。
-- 所有必填和条件字段收齐后，展示一份完整汇总，其中必须包含中英文项目展示名称及各自来源、用户输入的项目路径、解析后的最终项目根目录、派生的 kebab-case 前缀、目标平台、接口、策略及适用的 GUI 九项配置；并说明目标平台与接口将在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中持久保存，供后续构建使用。GUI 汇总同时说明 system-locale、updater、window-state、dialog 是不询问且不进入九字段 profile 的固定基线，dialog 以主窗口 `dialog:default` 开放全部官方对话框类型但不授权通用文件读写；深链启用时展示派生 URL `app-<kebab-prefix>://restore`；全局快捷键启用时明确说明只安装 Rust-only 能力，初始化 contract 为 `actions = []`，不绑定默认 chord、不注册 OS 键位、不创建产品动作或占位界面。本轮只询问是否按该汇总创建。
+- 所有必填和条件字段收齐后，展示一份完整汇总，其中必须包含中英文项目展示名称及各自来源、用户输入的项目路径、解析后的最终项目根目录、派生的 kebab-case 前缀、目标平台、接口、五项 Agent 策略、已确认的 `post_release_action` 及适用的 GUI 九项配置；并说明目标平台与接口将在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中持久保存，发布后动作将在 `docs/AGENT_POLICY.md` 中持久保存，供未来发布流程使用。GUI 汇总同时说明 system-locale、updater、window-state、dialog 是不询问且不进入九字段 profile 的固定基线，dialog 以主窗口 `dialog:default` 开放全部官方对话框类型但不授权通用文件读写；深链启用时展示派生 URL `app-<kebab-prefix>://restore`；全局快捷键启用时明确说明只安装 Rust-only 能力，初始化 contract 为 `actions = []`，不绑定默认 chord、不注册 OS 键位、不创建产品动作或占位界面。本轮只询问是否按该汇总创建。
 - 在用户确认完整汇总前，只允许读取规则、检查已有路径和运行只读解析；不得创建目录、复制文件、安装环境、初始化 Git 或修改任何文件。
-- 当前 Harness 源只接收创建终端下游所必需的本表字段，以及所选 GUI 初始化路径精确要求的身份选择；不接收产品目的、核心输入/输出、业务规则、成功标准、风险、副作用、产品专属页面/文案/数据、远程地址、凭据、反馈渠道或发布需求。即使用户主动提供，也不得把这些内容解析为表单字段、写入 Harness 源、复制到中性脚手架或提前实现；只说明它们已超出当前模板阶段，并要求初始化完成、工作目录切换到 helper 返回的唯一 `targetRoot` 后，再通过 `$desktop-define-product` 重新提出。
+- 当前 Harness 源只接收创建终端下游所必需的本表字段，以及所选 GUI 初始化路径精确要求的身份选择；`post_release_action` 只记录两种固定工程流程中的一项。不接收产品目的、核心输入/输出、业务规则、成功标准、风险、副作用、产品专属页面/文案/数据、远程地址、凭据、反馈渠道、产品发布渠道、产物格式或自定义发布需求。即使用户主动提供，也不得把这些内容解析为表单字段、写入 Harness 源、复制到中性脚手架或提前实现；只说明它们已超出当前模板阶段，并要求初始化完成、工作目录切换到 helper 返回的唯一 `targetRoot` 后，再通过 `$desktop-define-product` 重新提出。
 
 ## 首轮基础问题模板
 
@@ -26,6 +27,7 @@
 6. 目标平台：Windows、macOS、Linux，可多选。
 7. 接口组合：CLI、TUI、MCP、GUI，可多选；可明确选择默认 CLI。
 8. Agent 策略模式：推荐预设或自定义。
+9. 发布后动作：本地打包（`local_package`，推荐默认）或提交远程（`push_release_branch`）；纯 TUI/MCP 或仅 Linux GUI 时仍展示本地打包但标为不可用，须明确选择提交远程；其他接口组合明确答复“使用默认值”表示选择本地打包。
 
 用户已在创建请求中合法提供的基础字段不再显示；其余基础字段必须在这一轮全部显示。
 
@@ -41,20 +43,21 @@
 | 6 | 首轮基础 | 目标平台 | 必填；从 Windows、macOS、Linux 中选择一个或多个，不推断未选择的平台已经验证。 |
 | 7 | 首轮基础 | 接口组合 | 从 CLI、TUI、MCP、GUI 中选择任意组合。用户明确选择“使用默认值”或明确跳过时解析为仅 CLI；选择其他接口时不得附加 CLI。 |
 | 8 | 首轮基础 | Agent 策略模式 | 必须选择“推荐预设”或“自定义”。不得从 Harness 源策略推断用户选择。 |
-| 9 | 条件补全 | `user_owned_tasks` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭不影响用户明确要求创建。 |
-| 10 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 11 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`；此项只控制当前 Task 内部 `codex/unit-*` Worktree 与写入型 Subagent，不关闭侧边 Git Task 的独立工作树。 |
-| 12 | 条件补全 | `acceptance_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 13 | 条件补全 | `e2e_hint` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
-| 14 | 条件补全 | `system_tray` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 15 | 条件补全 | `system_notification` | 仅选择 GUI 时必填；询问是否安装系统通知能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`。 |
-| 16 | 条件补全 | `autostart` | 仅选择 GUI 时必填；询问是否安装开机自启能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`；选择能力不表示替用户注册登录项。 |
-| 17 | 条件补全 | `about_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 18 | 条件补全 | `sponsor_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 19 | 条件补全 | `single_instance` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 20 | 条件补全 | `deep_link` | 仅选择 GUI 时必填；`enabled` 表示启用身份派生的 `app-<kebab-prefix>://restore`，只恢复主窗口，并强制 `single_instance = enabled`。若单实例已禁用，必须请用户在“启用两者”与“保持两者禁用”之间修正，不得生成无效组合。 |
-| 21 | 条件补全 | `global_shortcut` | 仅选择 GUI 时必填；`enabled` 表示安装 Rust-only 全局快捷键能力，并在中性 profile 写入空 `gui-global-shortcut-contract`，初始不绑定 chord、不注册 OS 键位，也不推断动作或界面；`disabled` 时 contract、依赖、插件及全部专属实现缺席。产品动作、固定/可编辑策略与初始 chord 只能在终端下游由明确需求决定。 |
-| 22 | 条件补全 | `sidebar_mode` | 仅选择 GUI 时询问 `compact` 或 `detailed`；用户明确留空、跳过或选择默认值时解析为 `detailed`，显式非法值必须重新询问。 |
+| 9 | 首轮基础 | `post_release_action` | 必须从 `local_package`（本地打包，推荐默认）或 `push_release_branch`（提交远程）中明确选择；纯 TUI/MCP 或仅 Linux GUI 时本地打包不可用，须明确选择提交远程；只有接口含 CLI，或含 GUI 且目标平台含 macOS/Windows 时明确选用默认值才取 `local_package`，不得从 Harness 源 `pending` 或未答复推断选择。 |
+| 10 | 条件补全 | `user_owned_tasks` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭不影响用户明确要求创建。 |
+| 11 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
+| 12 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`；此项只控制当前 Task 内部 `codex/unit-*` Worktree 与写入型 Subagent，不关闭侧边 Git Task 的独立工作树。 |
+| 13 | 条件补全 | `acceptance_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
+| 14 | 条件补全 | `e2e_hint` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
+| 15 | 条件补全 | `system_tray` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 16 | 条件补全 | `system_notification` | 仅选择 GUI 时必填；询问是否安装系统通知能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`。 |
+| 17 | 条件补全 | `autostart` | 仅选择 GUI 时必填；询问是否安装开机自启能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`；选择能力不表示替用户注册登录项。 |
+| 18 | 条件补全 | `about_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 19 | 条件补全 | `sponsor_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 20 | 条件补全 | `single_instance` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
+| 21 | 条件补全 | `deep_link` | 仅选择 GUI 时必填；`enabled` 表示启用身份派生的 `app-<kebab-prefix>://restore`，只恢复主窗口，并强制 `single_instance = enabled`。若单实例已禁用，必须请用户在“启用两者”与“保持两者禁用”之间修正，不得生成无效组合。 |
+| 22 | 条件补全 | `global_shortcut` | 仅选择 GUI 时必填；`enabled` 表示安装 Rust-only 全局快捷键能力，并在中性 profile 写入空 `gui-global-shortcut-contract`，初始不绑定 chord、不注册 OS 键位，也不推断动作或界面；`disabled` 时 contract、依赖、插件及全部专属实现缺席。产品动作、固定/可编辑策略与初始 chord 只能在终端下游由明确需求决定。 |
+| 23 | 条件补全 | `sidebar_mode` | 仅选择 GUI 时询问 `compact` 或 `detailed`；用户明确留空、跳过或选择默认值时解析为 `detailed`，显式非法值必须重新询问。 |
 
 推荐预设一次确认后确定性物化为：
 
@@ -67,6 +70,7 @@ e2e_hint: disabled
 ```
 
 推荐预设包含以上全部五项；选择自定义时逐项确认，不能从 Harness 源当前值推断用户选择。最终汇总需说明 `parallel_worktree_subagents: disabled` 只关闭当前 Task 内部并行；`user_owned_tasks` 的自动创建开关与用户明确新建的侧边 Task 独立。
+发布后动作不属于这五项预设；无论选择推荐预设还是自定义，都必须单独确认 `post_release_action`。
 
 ## 目标路径解析
 
@@ -92,6 +96,7 @@ node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.m
 - 所有必填字段均为 `已解析`，所有条件字段均为 `已解析` 或 `不适用`；
 - 中英文项目展示名称都为非空已解析值，且至少一个来自用户直接输入；自动翻译的另一名称已列入完整汇总；
 - 推荐预设或五项自定义策略已全部解析，五项最终策略均无 `pending`；
+- `post_release_action` 已由用户明确选择；若选用默认值，须确认接口含 CLI，或含 GUI 且目标平台含 macOS/Windows。最终值只能是 `local_package` 或 `push_release_branch`，且已列入完整汇总；纯 TUI/MCP 或仅 Linux GUI 必须为 `push_release_branch`，写入前再次交叉校验接口组合与动作；
 - GUI 被选择时八项能力与侧栏模式已全部解析，无 `pending`；
 - GUI 中 `deep_link = enabled` 时 `single_instance = enabled`，派生 restore URL 已进入最终汇总；`global_shortcut = enabled` 时空 action contract、零默认 chord、零 OS 注册边界已进入最终汇总；
 - 路径 helper 成功，最终项目根目录通过空目录、路径类型和禁止位置检查；

@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  REQUIRED_POST_RELEASE_SWITCH_PATHS,
   REQUIRED_UPGRADE_RULES,
   UPGRADE_MANIFEST,
   UPGRADE_MODULES,
@@ -61,6 +62,22 @@ test("minimum protection cannot remove the Harness version tombstone", () => {
     manifest.rules = manifest.rules.filter(({ pattern }) => pattern !== "Version.md");
     const errors = validateManifest(manifest, directory);
     assert.match(errors.join("\n"), /Version\.md must be tombstone/u);
+  });
+});
+
+test("post-release switch skill remains managed before the generic rule", () => {
+  withTemporaryDirectory((directory) => {
+    const manifest = productionManifest();
+    const switchRule = ".agents/skills/desktop-switch-post-release-action/**";
+    manifest.rules = manifest.rules.filter(({ pattern }) => pattern !== switchRule);
+    assert.match(validateManifest(manifest, directory).join("\n"), /post-release-action\/\*\* must be managed/u);
+
+    const restored = productionManifest();
+    const genericIndex = restored.rules.findIndex(({ pattern }) => pattern === ".agents/skills/**");
+    const switchIndex = restored.rules.findIndex(({ pattern }) => pattern === switchRule);
+    const [rule] = restored.rules.splice(switchIndex, 1);
+    restored.rules.splice(genericIndex + 1, 0, rule);
+    assert.match(validateManifest(restored, directory).join("\n"), /post-release switch managed rule must precede/u);
   });
 });
 
@@ -163,6 +180,24 @@ test("complete Git lifecycle implementation is present in managed scope", () => 
   ];
   for (const relative of files) assert.equal(fs.existsSync(path.join(lifecycleRoot, relative)), true, relative);
   assert.equal(REQUIRED_UPGRADE_RULES.get(".agents/skills/desktop-manage-git-lifecycle/**"), "managed");
+});
+
+test("upgrade policy propagates every post-release switch source", () => {
+  withTemporaryDirectory((directory) => {
+    const sourcePath = path.join(path.dirname(UPGRADE_MANIFEST), "..", "scripts", "harness_upgrade_policy.mjs");
+    const source = fs.readFileSync(sourcePath, "utf8");
+    const missing = REQUIRED_POST_RELEASE_SWITCH_PATHS[2];
+    assert.ok(source.includes(JSON.stringify(missing)));
+    const policyModulePath = path.join(directory, "policy.mjs");
+    fs.writeFileSync(policyModulePath, source.replace(JSON.stringify(missing), '"removed-switch-script"'));
+    const errors = [];
+    validateUpgradeContract(errors, {
+      policyModulePath,
+      modulePaths: [],
+      validateDocs: false,
+    });
+    assert.match(errors.join("\n"), /must propagate post-release switch source/u);
+  });
 });
 
 test("initialization-only GUI lifecycle skill remains tombstoned", () => {

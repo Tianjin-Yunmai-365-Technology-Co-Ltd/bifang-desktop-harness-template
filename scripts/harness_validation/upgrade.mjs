@@ -59,6 +59,7 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-implement-change/scripts/check_no_python.mjs", "managed"],
   [".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs", "managed"],
   [".agents/skills/desktop-manage-git-lifecycle/**", "managed"],
+  [".agents/skills/desktop-switch-post-release-action/**", "managed"],
   [".agents/skills/desktop-upgrade-harness/**", "managed-self"],
   [".agents/skills/desktop-add-cli-adapter/**", "conditional"],
   [".agents/skills/desktop-add-tui-adapter/**", "conditional"],
@@ -105,6 +106,13 @@ export const UPGRADE_MODULES = [
   "harness_upgrade_safety.mjs",
   "harness_upgrade_test_support.mjs",
 ].map((name) => path.join(UPGRADE_ROOT, "scripts", name));
+
+export const REQUIRED_POST_RELEASE_SWITCH_PATHS = [
+  ".agents/skills/desktop-switch-post-release-action/SKILL.md",
+  ".agents/skills/desktop-switch-post-release-action/agents/openai.yaml",
+  ".agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs",
+  ".agents/skills/desktop-switch-post-release-action/scripts/post_release_action.test.mjs",
+];
 
 /** Parse the upgrade ownership manifest while converting all read failures to diagnostics. */
 export function loadUpgradeManifest(errors, manifestPath = UPGRADE_MANIFEST) {
@@ -173,6 +181,7 @@ function validateManifest(errors, manifest) {
   const orderedBeforeGeneric = [
     [".agents/skills/desktop-upgrade-harness/**", "managed-self", "upgrade managed-self rule"],
     [".agents/skills/desktop-manage-git-lifecycle/**", "managed", "upgrade Git lifecycle managed rule"],
+    [".agents/skills/desktop-switch-post-release-action/**", "managed", "upgrade post-release switch managed rule"],
   ];
   for (const [pattern, mode, label] of orderedBeforeGeneric) {
     const index = ordered.findIndex(([candidate, candidateMode]) => candidate === pattern && candidateMode === mode);
@@ -205,11 +214,19 @@ function validateDocumentation(errors) {
       "--migration-approved",
       "unrecoverable-pre-migration-history",
       "不得声称整个升级闭环完成",
+      "所有终端下游还必须同步 `$desktop-switch-post-release-action`",
+      "旧 `schema_version: 3` 且缺少 `post_release_action`",
+      "旧 schema 3 的 `selection_required` 必须询问用户",
+      "post_release_action.mjs check --project-root",
+      "`status: configured`",
     ]],
     [path.join(UPGRADE_ROOT, "references", "ownership-policy.md"), [
       ".harness/version-state.json",
       "$desktop-manage-version init --migration-approved",
       "升级器本身不得调用或代写",
+      "`post_release_action` 也属于 protected 下游选择",
+      "`plan|apply|record` 均不得设置默认值或代写该字段",
+      "`$desktop-switch-post-release-action`",
     ]],
   ]);
   for (const [filePath, fragments] of contracts) {
@@ -232,6 +249,31 @@ function validateDocumentation(errors) {
         }
       }
     }
+  }
+}
+
+function validatePostReleaseSwitchPropagation(errors, policyModulePath) {
+  let source;
+  try {
+    source = readText(policyModulePath);
+  } catch (error) {
+    fail(errors, `cannot read upgrade policy module ${relativePath(policyModulePath)}: ${error.message}`);
+    return;
+  }
+  if (!source.includes("export const REQUIRED_MANAGED_SOURCE_PATHS")) {
+    fail(errors, "upgrade policy must export required managed source paths");
+  }
+  for (const relative of REQUIRED_POST_RELEASE_SWITCH_PATHS) {
+    const absolute = path.join(ROOT, relative);
+    if (!fs.existsSync(absolute)) {
+      fail(errors, `missing post-release switch source: ${relative}`);
+    }
+    if (!source.includes(JSON.stringify(relative))) {
+      fail(errors, `upgrade policy must propagate post-release switch source: ${relative}`);
+    }
+  }
+  if (!source.includes('[' + JSON.stringify(".agents/skills/desktop-switch-post-release-action/**") + ', "managed"]')) {
+    fail(errors, "upgrade policy must keep post-release switch skill managed");
   }
 }
 
@@ -260,10 +302,17 @@ function validateModules(errors, modulePaths) {
 /** Validate ownership floors, ordering, documentation, and every maintained upgrade module. */
 export function validateUpgradeContract(
   errors,
-  { manifestPath = UPGRADE_MANIFEST, modulePaths = UPGRADE_MODULES, validateDocs = true } = {},
+  {
+    manifestPath = UPGRADE_MANIFEST,
+    modulePaths = UPGRADE_MODULES,
+    policyModulePath = path.join(UPGRADE_ROOT, "scripts", "harness_upgrade_policy.mjs"),
+    validateDocs = true,
+    validatePropagation = true,
+  } = {},
 ) {
   const manifest = loadUpgradeManifest(errors, manifestPath);
   if (manifest) validateManifest(errors, manifest);
   if (validateDocs) validateDocumentation(errors);
+  if (validatePropagation) validatePostReleaseSwitchPropagation(errors, policyModulePath);
   validateModules(errors, modulePaths);
 }

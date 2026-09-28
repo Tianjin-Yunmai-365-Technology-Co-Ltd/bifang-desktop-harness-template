@@ -67,6 +67,25 @@ test("release_context_is_a_protected_target_fact", (t) => {
   f.write(f.candidate, releaseContext, '{"release": "source"}\n'); assert.equal(f.classification(f.plan(2), releaseContext), "protected_candidate");
 });
 
+test("post_release_choice_stays_protected_while_switch_skill_is_required_managed_input", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const switchSkill = ".agents/skills/desktop-switch-post-release-action/SKILL.md";
+  assert.ok(REQUIRED_MANAGED_CHECKERS.includes(switchSkill));
+  f.bootstrap();
+  f.write(f.target, PROTECTED, "schema_version: 3\n");
+  f.write(f.source, switchSkill, "managed switch skill\n");
+  f.git(f.source, "add", switchSkill);
+  f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "add switch skill");
+  f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+  const missing = f.plan(2);
+  assert.ok(missing.problems.some((item) => item.includes(switchSkill) && item.includes("候选缺少")));
+  f.write(f.candidate, switchSkill, "managed switch skill\n");
+  const ready = f.plan();
+  assert.equal(f.classification(ready, switchSkill), "add");
+  assert.equal(ready.actions.some((item) => item.path === PROTECTED), false);
+  assert.equal(fs.readFileSync(path.join(f.target, PROTECTED), "utf8"), "schema_version: 3\n");
+});
+
 test("new_path_collision_blocks", (t) => {
   const f = new HarnessUpgradeFixture(t); f.bootstrap(); f.write(f.candidate, MANAGED, "upstream"); f.write(f.target, MANAGED, "local"); assert.equal(f.classification(f.plan(2), MANAGED), "collision");
 });

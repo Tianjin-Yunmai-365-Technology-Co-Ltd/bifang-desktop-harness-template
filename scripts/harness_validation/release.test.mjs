@@ -69,8 +69,10 @@ const buildCases = [
   ["per-candidate E2E choice", "buildSkill", BUILD_RELEASE_SKILL, "本次请求已明确 `enabled`/`disabled` 时直接复用"],
   ["workflow context capture", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "verify_release_context.mjs capture"],
   ["workflow context reverify", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "verify_release_context.mjs verify"],
+  ["release branch checkout", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "ref: release"],
   ["worktree byte binding", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "working release context bytes do not match source_commit"],
-  ["fetched provider default branch", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "fetched origin default branch does not equal source_commit"],
+  ["fetched provider release branch", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "fetched origin release branch does not equal source_commit"],
+  ["fetched release branch ref", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "`refs/remotes/origin/${RELEASE_BRANCH}`"],
   ["separate local release branch identity", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "releaseDefaultBranch: normalized.defaultBranch"],
   ["collection second context verification", "collectSkill", COLLECT_RELEASE_SKILL, "在触碰目标目录前第二次运行发布上下文 `verify`"],
 ];
@@ -80,6 +82,19 @@ for (const [name, option, source, fragment] of buildCases) {
     expectErrors(validateMutation(validateBuildSkillContract, option, source, fragment), "release contract missing");
   });
 }
+
+test("release build rejects a restored advertised-default checkout", () => {
+  const source = fs.readFileSync(CROSS_PLATFORM_RELEASE_WORKFLOW, "utf8");
+  const contents = source.replace("ref: release", "ref: ${{ github.event.repository.default_branch }}");
+  assert.notEqual(contents, source);
+  expectErrors(validateContents(validateBuildSkillContract, "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, contents), "advertised remote default branch");
+});
+
+test("release build rejects a restored advertised-default context dependency", () => {
+  const source = fs.readFileSync(CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "utf8");
+  const contents = `${source}\n// repositoryDefaultBranch must equal sourceCommit\n`;
+  expectErrors(validateContents(validateBuildSkillContract, "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, contents), "advertised remote default branch");
+});
 
 const selectionCases = [
   ["lifecycle release invocation", "prepareSkill", PREPARE_RELEASE_SKILL, "git_lifecycle.mjs release --project-root ."],
@@ -106,9 +121,9 @@ test("release context requires schema v3, default branch, and review result", ()
 });
 
 const harnessCases = [
-  ["Harness Git-only endpoint", "releaseDoc", RELEASE_DOC, "Harness 到此结束"],
-  ["downstream-only candidate steps", "releaseDoc", RELEASE_DOC, "只有用户另行要求构建终端下游候选时"],
-  ["downstream-only candidate request", "prepareSkill", PREPARE_RELEASE_SKILL, "下游候选打包只按用户独立请求进入适用 Skill"],
+  ["Git-only release endpoint", "releaseDoc", RELEASE_DOC, "发布本身不打包、构建或推送"],
+  ["frozen post-release action", "releaseDoc", RELEASE_DOC, "完成初始化的下游读取本次发布冻结的 `postReleaseAction` 并执行所选后续路径"],
+  ["post-release completion gate", "prepareSkill", PREPARE_RELEASE_SKILL, "整个下游发布后流程只有所选路径实际通过才算完成"],
   ["Harness entry metadata endpoint", "prepareOpenai", path.join(path.dirname(PREPARE_RELEASE_SKILL), "agents", "openai.yaml"), "Git 发布至此完成"],
   ["independent post-release push", "agentPolicy", AGENT_POLICY, "`push-release` 只接受最近发布记录中冻结的最终 HEAD 与 tag"],
   ["notes-and-context-only metadata commit", "prepareSkill", PREPARE_RELEASE_SKILL, "把且只把 `release-notes.json` 与 `.harness/release-context.json` 放入同一发布元数据提交"],
@@ -123,10 +138,10 @@ for (const [name, option, source, fragment] of harnessCases) {
   });
 }
 
-test("Harness release requires the sole local Git command and optional push as a later action", () => {
+test("Harness release requires the local Git command and the selected post-release action", () => {
   for (const fragment of [
     "git_lifecycle.mjs release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <releaseContextSha256>",
-    "推送使用独立 `push-release --remote <name>`",
+    "完成初始化的下游在发布后读取生命周期记录里该次冻结的 `postReleaseAction`",
   ]) expectErrors(validateMutation(validateHarnessSourceReleaseContract, "prepareSkill", PREPARE_RELEASE_SKILL, fragment), "Harness source release contract missing");
 });
 

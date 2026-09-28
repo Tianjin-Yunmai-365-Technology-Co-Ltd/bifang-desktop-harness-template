@@ -374,15 +374,17 @@ withFixture("verify_rejects_matching_last_release_with_conflicting_context", (it
 
 withFixture("verify_rejects_unfinished_lifecycle_journals", (item) => {
   const { head, digest } = item.commitAndTag();
-  item.writeLifecycleState({ cycle: {
+  item.writeLifecycleState({ schemaVersion: 4, cycle: {
     branches: [], worktrees: [], pendingRelease: {
       tag: "v1.2.3-20260909", head, date: "20260909", version: "1.2.3", releaseContextSha256: digest,
+      postReleaseAction: null,
     },
   } });
   const pendingRelease = item.invoke("verify", "--project-root", item.root);
   assert.equal(pendingRelease.status, 1);
   assert.match(pendingRelease.stderr, /unfinished publication or release journal/);
   item.writeLifecycleState({
+    schemaVersion: 4,
     remote: "origin",
     pendingPublish: { head, targets: [{ remote: "origin", branch: "main", confirmed: false }] },
   });

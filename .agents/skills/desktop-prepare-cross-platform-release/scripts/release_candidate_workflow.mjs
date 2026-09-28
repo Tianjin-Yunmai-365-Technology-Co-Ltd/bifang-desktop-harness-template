@@ -20,6 +20,7 @@ import { gunzipSync, inflateRawSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
 const OID_PATTERN = /^[0-9a-f]{40}$/;
+const RELEASE_BRANCH = "release";
 const MINIMUM_NODE = [24, 21, 0];
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
@@ -82,17 +83,15 @@ function checkNodeRuntime() {
   }
 }
 
-/** 验证 GitHub checkout 精确绑定动态默认分支与授权提交。 */
+/** 验证 GitHub checkout 精确绑定发布分支与授权提交。 */
 function verifyCheckout() {
   const expected = environment("SOURCE_COMMIT");
   if (!OID_PATTERN.test(expected)) throw new WorkflowError("source_commit 必须是由小写十六进制字符组成的 40 字符 SHA");
-  const defaultBranch = environment("REPOSITORY_DEFAULT_BRANCH");
-  if (/\s/u.test(defaultBranch)) throw new WorkflowError(`GitHub 动态默认分支无效：${JSON.stringify(defaultBranch)}`);
   const observed = run("git", ["rev-parse", "HEAD"]).stdout.trim();
   if (observed !== expected) throw new WorkflowError(`检出源码不匹配：预期=${expected}，实际=${observed}`);
   const branch = run("git", ["symbolic-ref", "--quiet", "--short", "HEAD"]).stdout.trim();
-  if (branch !== defaultBranch) {
-    throw new WorkflowError(`必须检出具名 GitHub 动态默认分支：预期=${JSON.stringify(defaultBranch)}，实际=${JSON.stringify(branch)}`);
+  if (branch !== RELEASE_BRANCH) {
+    throw new WorkflowError(`必须检出具名 release 分支：实际=${JSON.stringify(branch)}`);
   }
   if (run("git", ["status", "--porcelain=v1", "--untracked-files=all"]).stdout.length) {
     throw new WorkflowError("检出后的工作树不 clean");

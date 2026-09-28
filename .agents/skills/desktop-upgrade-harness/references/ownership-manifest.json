@@ -51,6 +51,7 @@
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-manage-git-lifecycle/**", "mode": "managed"},
+    {"pattern": ".agents/skills/desktop-switch-post-release-action/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-upgrade-harness/**", "mode": "managed-self"},
     {"pattern": ".agents/skills/desktop-add-cli-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-tui-adapter/**", "mode": "conditional"},

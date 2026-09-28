@@ -54,7 +54,12 @@ const fixedFragmentCases = [
   ["legacy v2 pendingPublish loader", "core", GIT_LIFECYCLE_CORE, "parsed.pendingPublish = null"],
   ["released resource snapshot", "publication", GIT_LIFECYCLE_PUBLICATION, "state.releasedResources.push({", "state.releasedResources.push /* mutation */ ({"],
   ["independent released tag push", "publication", GIT_LIFECYCLE_PUBLICATION, '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]'],
-  ["schema v3 state", "core", GIT_LIFECYCLE_CORE, "export const SCHEMA_VERSION = 3"],
+  ["schema v4 state", "core", GIT_LIFECYCLE_CORE, "export const SCHEMA_VERSION = 4"],
+  ["v3 actionless migration", "core", GIT_LIFECYCLE_CORE, "function migrateV3("],
+  ["v3 in-flight release rejection", "core", GIT_LIFECYCLE_CORE, 'legacy.cycle?.pendingRelease !== null'],
+  ["frozen pending action", "publication", GIT_LIFECYCLE_PUBLICATION, "postReleaseAction,"],
+  ["frozen push action", "publication", GIT_LIFECYCLE_PUBLICATION, 'if (last.postReleaseAction !== "push_release_branch")'],
+  ["local package action gate", "core", GIT_LIFECYCLE_CORE, "export function commandCheckPostRelease("],
   ["release context digest argument", "script", path.join(path.dirname(GIT_LIFECYCLE_CORE), "git_lifecycle.mjs"), "if (args.version === undefined || args.releaseContextSha256 === undefined) invalidArguments();"],
   ["lifecycle main test inventory", "tests", GIT_LIFECYCLE_TESTS, "publish_refuses_missing_registered_branch"],
   ["lifecycle release test inventory", "releaseTests", GIT_LIFECYCLE_RELEASE_TESTS, "dirty_registered_worktree_blocks_release_then_clean_retry_succeeds"],
@@ -64,7 +69,8 @@ const fixedFragmentCases = [
 for (const [name, option, source, fragment, replacement = ""] of fixedFragmentCases) {
   test(`rejects missing ${name}`, () => expectErrors(
     validateMutation(option, source, fragment, replacement),
-    name === "released resource snapshot" ? "local tag-before-release-record" : "Git lifecycle contract",
+    name === "released resource snapshot" ? "local tag-before-release-record" :
+      name === "frozen pending action" ? "context-bound pending-before-release" : "Git lifecycle contract",
   ));
 }
 
@@ -101,6 +107,22 @@ test("push-release rejects option-like remote names", () => {
 test("push-release verifies both remote refs after the tag update", () => {
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
     "confirmedBranch = remoteBranchOid(repository, remote, branch)", "confirmedBranch = last.head"), "Git lifecycle contract missing");
+});
+
+test("push-release targets the fixed release branch", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    'const branch = "release"', 'const branch = remoteDefaultBranch(repository, remote)'),
+  "independent released-head-and-tag push sequence");
+});
+
+test("local release branch must retain recorded provenance and use compare-and-swap", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "state.releasedResources.some((released) => released.head === previous)", "true"),
+  "local release branch provenance and compare-and-swap sequence");
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    '["update-ref", "refs/heads/release", head, expected]',
+    '["update-ref", "refs/heads/release", head]'),
+  "local release branch provenance and compare-and-swap sequence");
 });
 
 test("publication journal is cleared only after final local verification", () => {

@@ -5,7 +5,7 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 
 # 实施变更
 
-完成当前授权范围。新功能或独立 Bug 以“自动创建或复用本周期 feature 分支 + 实现 + 本次必要单元测试 + 事件触发记录 + 可审查的本地提交”为日常开发闭环。用户明确说“发布”时才整理本周期代码、普通合并到本地默认主分支并创建及复读版本 tag；流程到此结束。推送与打包分别等待发布后的独立请求。
+完成当前授权范围。新功能或独立 Bug 以“自动创建或复用本周期 feature 分支 + 实现 + 本次必要单元测试 + 事件触发记录 + 可审查的本地提交”为日常开发闭环。用户明确说“发布”时才整理本周期代码、普通合并到本地默认主分支并创建及复读版本 tag；Git 发布到此结束。完成初始化的下游随后按 `post_release_action` 已确认的选择执行并检测发布后路径；Harness 源的后续动作由用户当次决定。
 
 ## 工作流程
 
@@ -26,11 +26,11 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 9. 第 7 步的本次相关测试或最小替代检查通过、变化确实完成后，使用与第 2 步相同的参数调用 `$desktop-manage-version apply`。本周期首个功能提升一次 Minor；每个独立 `bug-fix` 稳定 ID 提升一次 Patch；本周期首个已确认记录冲突提升 Minor，即使功能锁已开启，后续冲突共用该版本。相同纠错 ID/证据跨周期重试不重复升级，证据变更失败关闭。新生成 Minor/Patch 采用 `0..99` base-100 自动进位；自动进位到 Major 是数值例外，显式 Major 仍需用户批准。不得在测试失败、修正未完成或诊断阶段提前提交版本。
 10. 只更新被独立事件触发的记忆：产品目标/边界/约束/成功标准变化更新 Product Spec；长期重要决定/硬规则例外写 ADR；合格的可感知变化写 Changelog；重要阻断/交接、发布/完整验收/审计或用户要求再写 Product Status、Work Plan 或 Verification。Product Spec、ADR、Changelog 或 Work Plan 一旦独立触发，必须记录稳定 `change_id` 与版本门禁返回的 `required_version`；版本变化本身不触发任何记忆。构建请求、执行和结果本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification；未触发时不写占位。
 11. 若用户提供了活动计划，只更新其中与本次实现直接对应的 Todo；计划不得改变本 Skill 的最小开发闭环或静默增加检查。
-12. 对 Git 项目每完成一个逻辑闭环，都紧邻真实提交调用 `$desktop-configure-git-commits`，以表达结果的提交信息把当前范围的精确路径创建为可审查的本地提交，正常运行 hooks 且不得使用 `--no-verify`。普通完成不自动推送、发布或删除登记资源。用户明确要求发布时路由 `$desktop-prepare-release`，完成范围与版本审查、发布上下文和日志提交后，以精确 `--release-context-sha256 <sha256>` 调用单一路径 `release`：合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{日期}`；不 fetch、push、打包或清理资源。发布后用户明确要求推送时，调用独立 `push-release --remote <name>` 仅推同一已发布主分支 HEAD 与 tag，并复读远端两条 ref，不重新 fetch/merge。打包另按独立构建请求进入。最终交付前确认测试、权威文档、适用提交与干净工作树；实际未执行的推送或打包明确报告。
+12. 对 Git 项目每完成一个逻辑闭环，都紧邻真实提交调用 `$desktop-configure-git-commits`，以表达结果的提交信息把当前范围的精确路径创建为可审查的本地提交，正常运行 hooks 且不得使用 `--no-verify`。普通完成不自动推送、发布或删除登记资源。用户明确要求发布时路由 `$desktop-prepare-release`，完成范围与版本审查、发布上下文和日志提交后，以精确 `--release-context-sha256 <sha256>` 调用单一路径 `release`：合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{日期}`；不 fetch、push、打包或清理资源。完成初始化的下游随后必须按已确认的 `post_release_action` 调用现有适用打包 Skill，或以独立 `push-release --remote <name>` 把同一已发布 HEAD 放到本地小写 `release` 分支并推送远端同名分支与 tag；复核真实制品或远端 refs 后才报告后续路径完成。最终交付前确认测试、权威文档、适用提交与干净工作树；未完成的所选路径明确报告；Harness 源的后续源码归档或推送仍由用户当次决定。
 13. 第 12 步要求的结果、验证、文档及适用的本地提交、clean 状态，以及用户本次明确要求的推送或发布全部完成后，用户可见 Task 才把标题进度更新为终态 `已完成` 并按真实 `threadId` 用 `list_threads` 有界复读。更新失败不创建替代 Task、不无限重试、不推翻已经完成的结果，并在最终回复报告最后确认状态；阻断时保留最后真实进度。
 
 ## 边界与输出
 
-- `$desktop-manage-git-lifecycle start` 只建立或复用本地 feature 开发周期，不要求或配置 remote。`release` 只在用户明确发布时合并本地默认主分支、创建并复读 tag；它不推送、打包或删除资源。发布后 `push-release --remote <name>` 只在用户明确要求时推送已发布的固定 HEAD 与 tag，目标失败不改变本地发布结论。普通开发期的 `publish` 仅在用户明确要求发布前推送主分支时使用，不能代替发布后推送。
+- `$desktop-manage-git-lifecycle start` 只建立或复用本地 feature 开发周期，不要求或配置 remote。`release` 只在用户明确发布时合并本地默认主分支、创建并复读 tag；它不推送、打包或删除资源。`push-release --remote <name>` 只用于已确认的 `push_release_branch` 后续路径，目标失败不改变本地 Git 发布结论，但该后续路径仍未完成。普通开发期的 `publish` 仅在用户明确要求发布前推送主分支时使用，不能代替发布后推送。
 - 单元测试只证明本次代码单元行为，不代表真实候选可用、完整验收或发布就绪。
 - 报告变更分类、稳定 `change_id`、`required_version`、是否实际提升及幂等原因、本次实际运行的单元测试/最小替代检查、未执行项、剩余风险和适用的用户可见 Task 进度标题状态；左侧 Task 另报告分支、提交哈希和干净状态，只有用户要求的活动计划存在时报告 Todo 状态。

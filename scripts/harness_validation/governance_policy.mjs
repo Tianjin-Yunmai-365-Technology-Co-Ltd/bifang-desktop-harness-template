@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { ROOT, fail, readText, relativePath } from "./core.mjs";
+import { parseCargoToml } from "./initialization_toml.mjs";
 
 export const SESSION_PROGRESS_TITLE_TEMPLATE = "Task {序号} | {当前进度} | {单一结果}";
 export const SESSION_PROGRESS_TITLE_INITIAL = "Task {序号} | 已分配 | {单一结果}";
@@ -80,8 +81,19 @@ function validIsoDate(value) {
   return !Number.isNaN(Date.parse(value));
 }
 
-/** 校验九字段持久 Agent 策略、值域、确认元数据与 Task 语义。 */
-export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs", "AGENT_POLICY.md"), { allowPending = true, requireSourceDefaults = false } = {}) {
+function persistedReleaseMetadata(policyPath, errors) {
+  const manifestPath = path.join(path.dirname(path.dirname(policyPath)), "Cargo.toml");
+  if (!fs.existsSync(manifestPath)) return null;
+  try {
+    return parseCargoToml(readText(manifestPath)).workspace?.metadata?.["agent-first-harness"] ?? null;
+  } catch (error) {
+    fail(errors, `cannot inspect persisted interface/platform metadata for post_release_action: ${error.message}`);
+    return null;
+  }
+}
+
+/** 校验持久 Agent 策略、发布后动作、接口组合、确认元数据与 Task 语义。 */
+export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs", "AGENT_POLICY.md"), { allowPending = true, requireSourceDefaults = false, interfaces = null, targetPlatforms = null } = {}) {
   if (!fs.existsSync(policyPath)) {
     fail(errors, `missing Agent policy: ${relativePath(policyPath)}`);
     return;
@@ -89,12 +101,12 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   const text = readText(policyPath);
   const fields = parsePolicyFrontmatter(text, errors, policyPath);
   if (!fields) return;
-  const expected = new Set(["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"]);
+  const expected = new Set(["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint", "post_release_action"]);
   const actual = new Set(fields.keys());
   const missing = [...expected].filter((key) => !actual.has(key)).sort();
   const extra = [...actual].filter((key) => !expected.has(key)).sort();
   if (missing.length > 0 || extra.length > 0) fail(errors, `Agent policy fields mismatch: missing=${JSON.stringify(missing)}, extra=${JSON.stringify(extra)}`);
-  if (fields.get("schema_version") !== "3") fail(errors, "Agent policy schema_version must be 3");
+  if (fields.get("schema_version") !== "4") fail(errors, "Agent policy schema_version must be 4");
   if (fields.get("decision_mode") !== "reuse_then_infer_then_ask") fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask");
   if (requireSourceDefaults && fields.get("superpowers") !== "disabled") fail(errors, "Harness source Agent policy must default superpowers to disabled");
   if (requireSourceDefaults && fields.get("user_owned_tasks") !== "disabled") fail(errors, "Harness source Agent policy must default user_owned_tasks to disabled");
@@ -103,6 +115,25 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     const value = fields.get(field);
     if (!["enabled", "disabled", "pending"].includes(value)) fail(errors, `Agent policy ${field} must be enabled, disabled, or pending`);
     else if (!allowPending && value === "pending") fail(errors, `initialized downstream Agent policy must resolve ${field}`);
+  }
+  const postReleaseAction = fields.get("post_release_action");
+  if (!["pending", "local_package", "push_release_branch"].includes(postReleaseAction)) {
+    fail(errors, "Agent policy post_release_action must be pending, local_package, or push_release_branch");
+  } else if (!allowPending && postReleaseAction === "pending") {
+    fail(errors, "initialized downstream Agent policy must resolve post_release_action");
+  }
+  if (!allowPending && postReleaseAction === "local_package") {
+    const metadata = persistedReleaseMetadata(policyPath, errors);
+    const selectedInterfaces = interfaces ?? metadata?.interfaces ?? null;
+    const selectedPlatforms = targetPlatforms ?? metadata?.["target-platforms"] ?? null;
+    if (selectedInterfaces !== null) {
+      if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0) {
+        fail(errors, "local_package requires a nonempty persisted interface combination");
+      } else if (!selectedInterfaces.includes("cli") &&
+                 !(selectedInterfaces.includes("gui") && Array.isArray(selectedPlatforms) && selectedPlatforms.some((platform) => ["macos", "windows"].includes(platform)))) {
+        fail(errors, "local_package requires CLI or GUI with a macOS/Windows target; otherwise select push_release_branch");
+      }
+    }
   }
   for (const field of ["confirmed_by", "confirmed_at"]) {
     if (!fields.get(field)) fail(errors, `Agent policy ${field} must not be empty`);
@@ -116,7 +147,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   }
 
   const requiredBodyFragments = [
-    "完成初始化的下游五项选择只能是 `enabled` 或 `disabled`",
+    "完成初始化的下游五项能力选择只能是 `enabled` 或 `disabled`",
     "`user_owned_tasks`：控制是否由 Agent 自动把新结果拆到 Codex 左侧菜单",
     "`user_owned_tasks: disabled` 是默认状态",
     "用户仍可明确要求创建左侧 Task",
@@ -143,10 +174,14 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     "`user_owned_tasks: disabled`",
     "开启左侧 Task",
     "关闭左侧 Task",
-    "不兼容、不推断任何更早 schema 或缺少字段的旧形态",
+    "完成初始化的下游只接受 `schema_version: 4`",
+    "不得猜测旧项目选择",
     "`parallel_worktree_subagents` 只控制当前 Task 内部",
     "日常开发直接实施",
     "显式发布候选构建必须为当前候选解析一次 E2E 选择",
+    "post_release_action",
+    "local_package",
+    "push_release_branch",
   ];
   for (const fragment of requiredBodyFragments) {
     if (!text.includes(fragment)) fail(errors, `Agent policy persistence rule missing in ${relativePath(policyPath)}: ${fragment}`);

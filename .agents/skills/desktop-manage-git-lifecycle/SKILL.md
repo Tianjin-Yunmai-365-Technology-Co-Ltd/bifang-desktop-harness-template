@@ -5,7 +5,7 @@ description: 在 Harness 源或终端下游 Git 项目中登记开发分支、�
 
 # 管理 Git 生命周期
 
-使用 Node.js `>=24.21.0` 自包含标准库 helper 管理 Git 资源。新功能、问题修复或其他会写入仓库的开发工作开始前运行 `start`；发布前明确要求推送时运行 `publish`；用户要求“发布”时运行 `release`。本地发布完成后，用户另外明确指定远端才运行 `push-release`；它不属于发布完成门禁。
+使用 Node.js `>=24.21.0` 自包含标准库 helper 管理 Git 资源。新功能、问题修复或其他会写入仓库的开发工作开始前运行 `start`；发布前明确要求推送时运行 `publish`；用户要求“发布”时运行 `release`。下游本地发布开始时把已确认的 `post_release_action` 冻结为该次 `postReleaseAction`；发布完成后，冻结的 `push_release_branch` 触发 `push-release`；它不属于发布完成门禁。`local_package` 选择由适用的本地打包 Skill 执行。
 
 ## 命令
 
@@ -18,11 +18,12 @@ node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs track
 node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs publish --project-root . [--remote <name>] [--also-remote <name>]...
 node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs release --project-root . --version <version-without-v> --release-context-sha256 <sha256> [--date YYYYMMDD]
 node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs push-release --project-root . --remote <name>
+node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs check-post-release --project-root . --action <local_package|push_release_branch>
 ```
 
 `start` 创建并切换到 `feature-<summary>-<Asia/Shanghai YYYYMMDD>`。本地同名分支存在时依次尝试 `-2`、`-3`；当前已经位于本周期登记的同摘要分支时返回幂等结果。上一次发布后的首个新周期必须先复核本地默认主分支与 tag 都精确指向已发布 HEAD，并从该 HEAD 建新分支；即使从旧 Task Worktree 发起，也不以它的陈旧 HEAD 为基线。此前尚无发布时从当前 HEAD 开始。当前 Worktree 即使处于 detached HEAD 也可直接开始；若它不是主 Worktree，helper 会在创建分支后把规范化精确路径和新分支一起登记。创建本地分支不要求配置远端。
 
-`publish` 的 `--remote` 与生命周期 `state.remote` 表示发布前推送的唯一主远端。选择时优先沿用本周期已经登记的精确名称；显式传入不同名称会以 `remote-conflict` 失败。没有登记值时，`publish` 才依次选择 `origin`、唯一已配置远端，仍有歧义时要求显式指定。`release` 不接收远端或本地模式参数，也不解析、登记或访问远端。`push-release` 必须收到用户本次明确授权的一个具名远端；需要多个远端时，用户须分别授权并逐次调用。流程不创建远端、不填写地址，也不处理凭据。
+`publish` 的 `--remote` 与生命周期 `state.remote` 表示发布前推送的唯一主远端。选择时优先沿用本周期已经登记的精确名称；显式传入不同名称会以 `remote-conflict` 失败。没有登记值时，`publish` 才依次选择 `origin`、唯一已配置远端，仍有歧义时要求显式指定。`release` 不接收远端或本地模式参数，也不解析、登记或访问远端。`push_release_branch` 是未来发布开始时冻结远端路线的持久授权；调用 `push-release` 前从唯一已配置远端确定具名 `--remote`，多个远端时向用户确认精确目标。需要多个远端时，用户须分别授权并逐次调用。流程不创建远端、不填写地址，也不处理凭据。
 
 发布成功而新开发周期尚未开始时，`publish` 必须拒绝执行并提示 `push-release`，防止它只移动已发布主分支而漏推 tag。新周期开始后，`publish` 继续处理该周期发布前的分支推送。
 
@@ -34,20 +35,20 @@ node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs push-
 
 跨远端推送不是原子操作。主远端或较早补充远端成功、后续补充远端失败时，错误必须如实说明可能已经成功的前序范围、当前失败目标或阶段，以及后续目标可能尚未尝试，不能回滚或把整次调用宣称为零写入；用户可使用相同目标参数进行幂等重试。重试只复读已冻结目标并继续尚未确认的目标，不重新解析默认分支、fetch、merge 或计算新 HEAD；已确认目标若漂移则停止。Git push 非零退出只能判为结果不确定，除非远端复读已精确命中冻结 HEAD。仅含主目标的 `publish` 为兼容既有机器调用保留历史稳定 code `push-rejected`；该标识不得被解释为服务端已确定拒绝，实际结果仍按远端复读判定。
 
-`release` 必须接收 `--release-context-sha256 <sha256>`。tracked `.harness/release-context.json` 是版本、日期、预期 tag、`sourceHead`、本地默认主分支及审查结果的唯一冻结上下文，不含推送或打包选择。命令从关联 Task Worktree 发起时，helper 先在该调用 Worktree 校验当前 HEAD 的上下文 blob 与工作树字节，再按同一 Git common-dir 路由到主 Worktree。Harness 源还须在任何合并或状态写入前读取 Git common-dir 中的受管当前分钟取号凭证，核对 `Version.md` 精确字节和时间版本；手工改写时间版本或自造上下文不能代替取号。任何合并或创建 tag 前必须核对 version/date/expectedTag/defaultBranch 与 CLI 和生命周期状态一致；不匹配则零发布副作用失败。整合得到 final HEAD 后、冻结 `pendingRelease.head` 之前，必须再次确认该 HEAD 包含同一上下文摘要。
+`release` 必须接收 `--release-context-sha256 <sha256>`。下游在首个发布状态写入前检查策略 schema v4 与正文并冻结当前动作，重试只能沿用 `pendingRelease.postReleaseAction`；Harness 源保留 `null`。tracked `.harness/release-context.json` 是版本、日期、预期 tag、`sourceHead`、本地默认主分支及审查结果的唯一冻结上下文，不含推送或打包选择。命令从关联 Task Worktree 发起时，helper 先在该调用 Worktree 校验当前 HEAD 的上下文 blob 与工作树字节，再按同一 Git common-dir 路由到主 Worktree。Harness 源还须在任何合并或状态写入前读取 Git common-dir 中的受管当前分钟取号凭证，核对 `Version.md` 精确字节和时间版本；手工改写时间版本或自造上下文不能代替取号。任何合并或创建 tag 前必须核对 version/date/expectedTag/defaultBranch 与 CLI 和生命周期状态一致；不匹配则零发布副作用失败。整合得到 final HEAD 后、冻结 `pendingRelease.head` 之前，必须再次确认该 HEAD 包含同一上下文摘要。
 
 `release` 只在本地默认主分支按登记顺序普通合并本周期开发分支，切换到该分支并冻结 final HEAD，然后创建或复读本地轻量标签 `v{version}-{YYYYMMDD}`。只有主分支 HEAD、本地 tag 和 tracked 上下文精确复核通过才返回 `released`。全过程不列举、fetch、push、复读或删除远端 ref，不打包，也不删除登记分支或 Worktree。中断重试沿用固定版本、上下文摘要与已冻结 HEAD；同名 tag 指向其他提交时失败。发布成功后把本周期精确资源清单保存于 `releasedResources`，重置活动周期；旧资源不会在下一周期被重新合并或自动清理。
 
-`push-release --remote <name>` 是发布后的独立请求。它只读取最近一次已完成发布记录中冻结的 HEAD 与 tag，确认本地主分支及 tag 仍一致，预读指定远端的 advertised default branch 和同名 tag；同名远端 tag 冲突时零 push 失败。随后非强制推送该 HEAD 到远端默认分支，复读确认，再推送同一 tag 并复读。远端拒绝或复读失败时如实报告已确认的分支、未确认的 tag 或不确定结果；本地 `Released` 不回滚，重试无需 fetch、merge 或重算 HEAD。`push-release` 一次只接收一个 `--remote`，不接收 `--also-remote`。
+`push-release --remote <name>` 是发布后的独立步骤，必须要求最近一次发布冻结的 `lastRelease.postReleaseAction` 精确为 `push_release_branch`；旧发布未绑定 `null` 和冻结的 `local_package` 都在本地 ref 或远端变化前拒绝。它只读取最近一次已完成发布记录中冻结的 HEAD 与 tag，确认本地主分支及 tag 仍一致，预读指定远端的小写 `release` 分支和同名 tag；同名远端 tag 冲突时零 push 失败。再创建或安全推进本地 `refs/heads/release`：已有 ref 只有指向本生命周期精确记录的旧发布 HEAD、且是本次 HEAD 祖先、没有被任何 Worktree 检出时才可移动；异源 ref 失败关闭。随后非强制推送该 HEAD 到远端 `refs/heads/release`，复读确认，再推送同一 tag 并复读。此命令不更新远端默认主分支，也不在 tag 后新增提交；本地和远端 `release` 分支直接指向已发布 HEAD。远端拒绝或复读失败时如实报告已确认的分支、未确认的 tag 或不确定结果；本地 `Released` 不回滚，重试无需 fetch、merge 或重算 HEAD。`push-release` 一次只接收一个 `--remote`，不接收 `--also-remote`。
 
-`push-release` 成功返回前还须重新核对远端 advertised default branch、目标分支 HEAD 和 tag 目标三者仍与冻结身份一致；任一漂移报告不确定，保留本地 `Released`。远端名先通过严格语法校验，不能把选项形态的名称传给 Git 子进程。
+`push-release` 成功返回前还须重新核对本地 `refs/heads/release`、远端同名分支和 tag 目标仍与冻结身份一致；任一漂移报告不确定，保留本地 `Released`。远端名先通过严格语法校验，不能把选项形态的名称传给 Git 子进程。
 
-整个流程不创建 `Release` 或其他中转分支，不要求线性历史、快进、租约或原子 ref 更新，也不设置保护分支门禁。普通合并冲突、脏数据保护和标签身份复核始终是 Git 安全检查。发布不因未配置远端而阻断；此处也不执行资源删除。后续若需清理，必须另行明确授权，并依据 `releasedResources` 的精确身份先核对，不能扫描名称前缀或强制删除其他工作。
+`check-post-release --project-root . --action local_package|push_release_branch` 是只读门禁：检查最近发布冻结的动作、主分支 HEAD 与 tag；旧发布没有动作快照时失败。选定本地打包路径在运行候选构建前必须先通过此检查；独立构建请求不受该选择限制。Git 发布本身不创建 `Release` 或其他中转分支；发布后的远端路线使用精确小写 `release` 分支。发布合并不要求线性历史或快进，也不设置租约、原子推送或保护分支门禁；远端 `release` 分支仍按非强制 push 拒绝非快进更新。普通合并冲突、脏数据保护和标签身份复核始终是 Git 安全检查。发布不因未配置远端而阻断；此处也不执行资源删除。后续若需清理，必须另行明确授权，并依据 `releasedResources` 的精确身份先核对，不能扫描名称前缀或强制删除其他工作。
 
 ## 状态与输出
 
 已完成的 v2 发布迁移必须复读其 tag 所指提交中的 `.harness/release-context.json` blob，并要求 SHA-256 等于旧记录的 `releaseContextSha256`。缺少该 blob 或摘要冲突时失败关闭，保留旧状态文件供人工核对。
 
-状态只保存在 Git common-dir 下的 `agent-first-harness/git-lifecycle.json`，不会写入项目受跟踪目录。当前 `schemaVersion: 3`；v1 不兼容。没有进行中发布或推送的 v2 状态可安全迁移：既有合法 v2 状态缺少可空 `pendingPublish` 时先按 `null` 读取，迁移已完成发布前还须核对本地 tag 与主分支；v2 的 `pendingRelease` 或 `pendingPublish` 非空时拒绝自动改释，保留原字节供人工恢复。v3 记录适用的发布前推送主远端、本地默认主分支、本周期精确分支和 Worktree、待完成发布、最近一次成功发布的 `lastRelease`，以及历次 `releasedResources` 精确资源快照。`lastRelease` 保存 tag、版本、日期、默认主分支、HEAD 与 `releaseContextSha256`，不保存推送或打包模式。`release` 在合并/tag 前落盘 pending 的摘要、tag/日期/版本，HEAD 尚未冻结时允许为 `null`；冻结后仅沿用同一 HEAD。`publish` 在首个 push 前以 `pendingPublish` 保存冻结 HEAD、有序目标和逐项确认进度，全部确认才清除。所有会改变分支、状态或远端的命令使用同一 common-dir 短时互斥；`inspect` 只读取状态，不迁移落盘。
+状态只保存在 Git common-dir 下的 `agent-first-harness/git-lifecycle.json`，不会写入项目受跟踪目录。当前 `schemaVersion: 4`；v1 不兼容。没有进行中发布或推送的 v2 状态可安全迁移：既有合法 v2 状态缺少可空 `pendingPublish` 时先按 `null` 读取，迁移已完成发布前还须核对本地 tag 与主分支；v2 的 `pendingRelease` 或 `pendingPublish` 非空时拒绝自动改释，保留原字节供人工恢复。v4 记录适用的发布前推送主远端、本地默认主分支、本周期精确分支和 Worktree、待完成发布、最近一次成功发布的 `lastRelease`，以及历次 `releasedResources` 精确资源快照。`pendingRelease` 与 `lastRelease` 除 tag、版本、日期、默认主分支、HEAD 与 `releaseContextSha256` 外还保存当次 `postReleaseAction`，仅可为 `local_package`、`push_release_branch` 或 Harness 源/旧发布的 `null`；旧 v3 静止发布安全迁移为 `null`，不得用新策略追认旧发布。v3 若仍有 `pendingRelease` 或 `pendingPublish`，失败关闭且保持原状态字节，须先按旧流程恢复或人工核对。`release` 在合并/tag 前落盘 pending 的摘要、tag/日期/版本，HEAD 尚未冻结时允许为 `null`；冻结后仅沿用同一 HEAD。`publish` 在首个 push 前以 `pendingPublish` 保存冻结 HEAD、有序目标和逐项确认进度，全部确认才清除。所有会改变分支、状态或远端的命令使用同一 common-dir 短时互斥；`inspect` 只读取状态，不迁移落盘。
 
 所有正常结果和错误都是单行 JSON。错误返回非零退出码及稳定 `code`，消息不包含 Git 标准错误、远端 URL 或凭据。Git 子进程固定为非交互模式。

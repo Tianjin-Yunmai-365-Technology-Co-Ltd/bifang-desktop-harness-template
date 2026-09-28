@@ -39,6 +39,14 @@ export const CANDIDATE_WORKFLOW_HELPER = path.join(
   "scripts",
   "release_candidate_workflow.mjs",
 );
+export const DISPATCH_READINESS_HELPER = path.join(
+  ROOT,
+  ".agents",
+  "skills",
+  "desktop-prepare-cross-platform-release",
+  "scripts",
+  "verify_dispatch_readiness.mjs",
+);
 
 /** 返回一个顶层函数的源码片段，供顺序门禁使用。 */
 function functionSource(text, name) {
@@ -90,16 +98,17 @@ export function validateReleaseContextHelper(errors, helper = RELEASE_CONTEXT_HE
   const text = validateHelper(errors, helper, [
     'const CONTEXT_PATH = ".harness/release-context.json"',
     'const HELPER_PATH = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs"',
+    'const RELEASE_BRANCH = "release"',
     "export async function calculateSnapshot(",
-    "runner must check out the named repository default branch at source_commit",
+    "runner must check out the named release branch at source_commit",
     "working release context bytes do not match source_commit",
     "release context digest does not match the host-verified input",
-    "fetched origin default branch does not equal source_commit",
+    "fetched origin release branch does not equal source_commit",
     "fetched release tag does not equal source_commit",
-    "`refs/remotes/origin/${repositoryDefaultBranch}`",
+    "`refs/remotes/origin/${RELEASE_BRANCH}`",
     "`refs/tags/${normalized.expectedTag}`",
     "releaseContextSha256: digest",
-    "defaultBranch: repositoryDefaultBranch",
+    "remoteReleaseBranch: RELEASE_BRANCH",
     "releaseDefaultBranch: normalized.defaultBranch",
     '["capture", "verify"].includes',
     "release context changed between build checks",
@@ -107,8 +116,8 @@ export function validateReleaseContextHelper(errors, helper = RELEASE_CONTEXT_HE
   if (text.includes("normalized.gitPublication") || text.includes("normalized.candidateSelections")) {
     fail(errors, "release context helper must not depend on release mode or candidate selections");
   }
-  if (text.includes("normalized.defaultBranch !== repositoryDefaultBranch")) {
-    fail(errors, "release context helper must allow distinct local and provider default branch names");
+  if (text.includes("repositoryDefaultBranch") || text.includes("refs/remotes/origin/${normalized.defaultBranch}")) {
+    fail(errors, "release context helper must not require the advertised remote default branch");
   }
   return text;
 }
@@ -117,6 +126,7 @@ export function validateReleaseContextHelper(errors, helper = RELEASE_CONTEXT_HE
 export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKFLOW_HELPER) {
   const text = validateHelper(errors, helper, [
     "const MINIMUM_NODE = [24, 21, 0]",
+    'const RELEASE_BRANCH = "release"',
     "function verifyCheckout(",
     "function readMsrv(",
     "function hashReleaseNotes(",
@@ -126,7 +136,7 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
     "function writeManifest(",
     "function commitCandidate(",
     "source_commit 必须是由小写十六进制字符组成的 40 字符 SHA",
-    "必须检出具名 GitHub 动态默认分支",
+    "必须检出具名 release 分支",
     "release-notes.json 必须是非符号链接普通文件",
     "未发现测试",
     "测试后源码提交或 clean 状态发生变化",
@@ -146,6 +156,9 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
   if (!text) return;
   if (text.includes("snapshot.candidateSelections") || text.includes("snapshot.gitPublication")) {
     fail(errors, "candidate workflow helper must not source build choices from release context");
+  }
+  if (text.includes("REPOSITORY_DEFAULT_BRANCH")) {
+    fail(errors, "candidate workflow helper must not require the advertised remote default branch");
   }
   const manifest = functionSource(text, "writeManifest");
   requireOrder(errors, manifest, [
@@ -171,6 +184,23 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
     "if (realpathSync(releasePath) !== releasePath)",
     "if (!sameNames(names(releasePath), expected))",
   ], "candidate atomic commit sequence");
+}
+
+/** 确认派发前只读验证远端默认分支已有可触发的 workflow。 */
+export function validateDispatchReadinessHelper(errors, helper = DISPATCH_READINESS_HELPER) {
+  const text = validateHelper(errors, helper, [
+    'const WORKFLOW_PATH = ".github/workflows/release-candidate.yml"',
+    "export function verifyDispatchReadiness(",
+    'git(root, ["ls-remote", "--symref", remote, "HEAD"])',
+    'git(root, ["ls-tree", "-z", head, "--", WORKFLOW_PATH])',
+    "workflow_dispatch:",
+    "plainFile(join(root, WORKFLOW_PATH)).equals(plainFile(ASSET_PATH))",
+    "远端 advertised 默认分支在派发预检期间漂移",
+    "远端默认分支缺少可派发的普通 workflow 文件",
+  ], "dispatch readiness helper");
+  if (/git\(root, \["(?:fetch|push|update-ref|branch)"/u.test(text)) {
+    fail(errors, "dispatch readiness helper must not mutate local or remote Git refs");
+  }
 }
 
 /** 确认 workflow 是受审模板，只构建 pending 候选且不执行产品验收。 */
@@ -199,10 +229,9 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     "workflow_dispatch:", "fail-fast: false", "os: [ubuntu-latest, macos-latest, windows-latest]",
     "contents: read", "e2e_selection:", "E2E_SELECTION: ${{ inputs.e2e_selection }}",
     "release_context_sha256:", "RELEASE_CONTEXT_SHA256: ${{ inputs.release_context_sha256 }}",
-    "REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}",
     "RELEASE_CONTEXT_SNAPSHOT: ${{ runner.temp }}/release-context-snapshot.json",
     CHECKOUT_USE, SETUP_NODE_USE, UPLOAD_USE, "node-version: 24.21.0", "check-latest: false",
-    "ref: ${{ github.event.repository.default_branch }}", "fetch-depth: 0", "persist-credentials: false",
+    "ref: release", "fetch-depth: 0", "persist-credentials: false",
     "release_candidate_workflow.mjs check-node-runtime", "release_candidate_workflow.mjs verify-checkout",
     "verify_release_context.mjs capture", "verify_release_context.mjs verify",
     "release_candidate_workflow.mjs read-msrv", "release_candidate_workflow.mjs verify-version",
@@ -223,7 +252,8 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     "confirm_release:", "run_e2e:", "e2e_command", "E2E_COMMAND", "Smoke candidate", "smoke test",
     "Optional heavy checks", "HEAVY_CHECK", '"smoke"', '"heavyChecks"',
     '"milestoneAcceptance": "accepted"', "fail-fast: true", "continue-on-error:", "|| true",
-    "dist/", "path: release/", "ref: ${{ inputs.source_commit }}", "fetch-depth: 1",
+    "dist/", "path: release/", "ref: ${{ inputs.source_commit }}", "ref: ${{ github.event.repository.default_branch }}",
+    "REPOSITORY_DEFAULT_BRANCH", "git push", "git update-ref", "fetch-depth: 1",
     "cargo fmt", "cargo clippy", `setup-${retiredRuntime}`, `${retiredRuntime}3`, `${retiredRuntime} -`,
   ];
   for (const fragment of forbidden) {
@@ -300,8 +330,8 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
   }
 
   const checkout = new Set(stepBlock({ uses: CHECKOUT_USE }).map((line) => line.trim()));
-  for (const fragment of ["ref: ${{ github.event.repository.default_branch }}", "fetch-depth: 0", "persist-credentials: false"]) {
-    if (!checkout.has(fragment)) fail(errors, `workflow checkout must use dynamic full credential-free history: ${fragment}`);
+  for (const fragment of ["ref: release", "fetch-depth: 0", "persist-credentials: false"]) {
+    if (!checkout.has(fragment)) fail(errors, `workflow checkout must use the release branch with full credential-free history: ${fragment}`);
   }
   const setup = new Set(stepBlock({ uses: SETUP_NODE_USE }).map((line) => line.trim()));
   for (const fragment of ["node-version: 24.21.0", "check-latest: false"]) {
@@ -316,7 +346,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
   const helperArguments = [
     '--project-root "$GITHUB_WORKSPACE"', '--source-commit "$SOURCE_COMMIT"',
     '--expected-context-sha256 "$RELEASE_CONTEXT_SHA256"',
-    '--repository-default-branch "$REPOSITORY_DEFAULT_BRANCH"', '--snapshot "$RELEASE_CONTEXT_SNAPSHOT"',
+    '--snapshot "$RELEASE_CONTEXT_SNAPSHOT"',
   ];
   for (const name of ["捕获已发布上下文", "记录候选清单"]) {
     const block = stepBlock({ name }).join("\n");
@@ -369,4 +399,5 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
 
   validateReleaseContextHelper(errors);
   validateCandidateWorkflowHelper(errors);
+  validateDispatchReadinessHelper(errors);
 }

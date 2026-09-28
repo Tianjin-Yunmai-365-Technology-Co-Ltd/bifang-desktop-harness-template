@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { canonicalBytes, validateContext } from "../../desktop-prepare-release/scripts/release_context.mjs";
+import { inspect as inspectPostReleaseAction } from "../../desktop-switch-post-release-action/scripts/post_release_action.mjs";
 import { pendingFailure } from "./git_publication_report.mjs";
 import {
   HEX_OID_RE,
@@ -416,10 +418,24 @@ function requireMatchingReleaseContext(record, args) {
   }
 }
 
+/** 只为新发布冻结一次已确认选择；发布中断后不重新读取当前偏好。 */
+function configuredPostReleaseAction(repository) {
+  let policy;
+  try { policy = inspectPostReleaseAction(repository.root); }
+  catch { throw new LifecycleError("post-release-action-invalid", "A confirmed schema v4 post-release action is required before release."); }
+  if (policy.schema_version !== 4 || policy.status !== "configured") {
+    throw new LifecycleError("post-release-action-invalid", "A confirmed schema v4 post-release action is required before release.");
+  }
+  return policy.post_release_action;
+}
+
 /** 整合本地登记分支并冻结主分支最终 HEAD。 */
 async function freezePendingReleaseHead(repository, state, reviewed) {
   const pending = state.cycle.pendingRelease;
   const prepared = prepareLocalRelease(repository, state);
+  if (pending.postReleaseAction !== null && configuredPostReleaseAction(repository) !== pending.postReleaseAction) {
+    throw new LifecycleError("post-release-action-changed", "Merged release policy differs from the frozen post-release action.");
+  }
   verifyHeadReleaseContextBytes(repository, pending.releaseContextSha256, prepared.head);
   verifyReviewedFinalHead(repository, reviewed, prepared.head);
   await verifyFinalReleaseVersion(repository, pending.version);
@@ -467,10 +483,11 @@ async function completePendingRelease(repository, state, args, reviewed) {
 
 /** 发布只整合本地主分支并复读本地 tag；不访问远端或清理资源。 */
 export async function commandRelease(repository, args) {
+  const sourceRepository = repository;
   const identity = releaseIdentity(repository, args.version, args.date);
   requireClean(repository);
   const context = await releaseContextBinding(repository, args.releaseContextSha256, identity);
-  await verifyHarnessVersionStamp(repository, identity.version);
+  const harnessSource = await verifyHarnessVersionStamp(repository, identity.version);
   const state = loadState(repository);
   const reviewed = reviewedReleaseMetadata(repository, context, state);
   if (state.pendingPublish !== null) throw new LifecycleError("publish-in-progress", "A publication must finish before release.");
@@ -513,23 +530,77 @@ export async function commandRelease(repository, args) {
   if (!branchExists(repository, defaultBranch)) {
     throw new LifecycleError("local-default-unavailable", "Recorded local default branch is unavailable.");
   }
+  const postReleaseAction = harnessSource ? null : configuredPostReleaseAction(sourceRepository);
   state.defaultBranch = defaultBranch;
   preflightCycleResources(repository, state);
   if (state.cycle === null) state.cycle = { branches: [], worktrees: [], pendingRelease: null };
   state.cycle.pendingRelease = {
     ...identity, head: null, releaseContextSha256: args.releaseContextSha256,
+    postReleaseAction,
   };
   saveState(repository, state);
   return completePendingRelease(repository, state, args, reviewed);
 }
 
-/** 用户在发布完成后独立选择一个远端，推送冻结 HEAD 与 tag 并逐一复读。 */
+/** 精确读取本地 release 分支，不把任意本地引用解释为受管发布。 */
+function localReleaseBranchTarget(repository) {
+  const result = runGit(repository.root, ["rev-parse", "--verify", "refs/heads/release^{commit}"], { check: false });
+  return result.returncode === 0 ? result.stdout.trim() : null;
+}
+
+/** 历史 v2 发布迁移后缺少 releasedResources，仍可从原 tag 与上下文证明旧 HEAD。 */
+function isVerifiedHistoricalReleaseHead(repository, state, head) {
+  const listed = runGit(repository.root, ["for-each-ref", "--format=%(refname)", "refs/tags"]);
+  for (const ref of listed.stdout.split(/\r?\n/u)) {
+    if (!ref.startsWith("refs/tags/v")) continue;
+    const tag = ref.slice("refs/tags/".length);
+    if (localTagTarget(repository, tag) !== head) continue;
+    const blob = runGit(repository.root, ["show", `${ref}:${RELEASE_CONTEXT_PATH}`], { check: false, bytes: true });
+    if (blob.returncode !== 0) continue;
+    try {
+      const context = validateContext(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(blob.stdout)));
+      if (context.expectedTag === tag && context.defaultBranch === state.lastRelease.defaultBranch &&
+          canonicalBytes(context).equals(blob.stdout)) return true;
+    } catch { /* 不是受管发布上下文，不作为旧发布证据 */ }
+  }
+  return false;
+}
+
+/** 只移动由已记录发布 HEAD 形成的本地 release 分支。 */
+function ensureLocalReleaseBranch(repository, state, head) {
+  const previous = localReleaseBranchTarget(repository);
+  if (previous === head) return;
+  if (previous !== null) {
+    if (runGit(repository.root, ["merge-base", "--is-ancestor", previous, head], { check: false }).returncode !== 0 ||
+        !(state.releasedResources.some((released) => released.head === previous) ||
+          isVerifiedHistoricalReleaseHead(repository, state, previous))) {
+      throw new LifecycleError("local-release-conflict", "Local release branch does not point to a verified prior release.");
+    }
+    const worktrees = runGit(repository.root, ["worktree", "list", "--porcelain"]).stdout.split(/\r?\n/u);
+    if (worktrees.includes("branch refs/heads/release")) {
+      throw new LifecycleError("local-release-conflict", "Local release branch is checked out in a worktree.");
+    }
+  }
+  const expected = previous ?? "0".repeat(head.length);
+  const updated = runGit(repository.root, ["update-ref", "refs/heads/release", head, expected], { check: false });
+  if (updated.returncode !== 0 || localReleaseBranchTarget(repository) !== head) {
+    throw new LifecycleError("local-release-conflict", "Local release branch could not be fixed at the published HEAD.");
+  }
+}
+
+/** 用户在发布完成后独立选择一个远端，推送冻结 HEAD 到 release 分支及同一 tag。 */
 export function commandPushRelease(repository, args) {
   repository = primaryRepository(repository);
   requireClean(repository);
   const state = loadState(repository);
   const last = state.lastRelease;
   if (last === null) throw new LifecycleError("no-release", "No completed local release is recorded.");
+  if (last.postReleaseAction === null) {
+    throw new LifecycleError("post-release-action-unbound", "This historical release has no confirmed post-release action.");
+  }
+  if (last.postReleaseAction !== "push_release_branch") {
+    throw new LifecycleError("post-release-action-mismatch", "Frozen post-release action is not push_release_branch.");
+  }
   if (state.cycle?.pendingRelease || state.pendingPublish !== null) {
     throw new LifecycleError("lifecycle-in-progress", "Another Git lifecycle operation must finish first.");
   }
@@ -538,7 +609,7 @@ export function commandPushRelease(repository, args) {
   if (!configuredRemotes(repository).includes(remote)) {
     throw new LifecycleError("remote-not-found", "Requested Git remote is not configured.");
   }
-  const branch = remoteDefaultBranch(repository, remote);
+  const branch = "release";
   if (!branchExists(repository, last.defaultBranch) ||
       runGit(repository.root, ["rev-parse", "--verify", "refs/heads/" + last.defaultBranch + "^{commit}"]).stdout.trim() !== last.head) {
     throw new LifecycleError("local-state-changed", "Released local default branch changed before push.");
@@ -552,6 +623,7 @@ export function commandPushRelease(repository, args) {
   if (existingTag !== null && existingTag !== last.head) {
     throw new LifecycleError("tag-conflict", "Remote tag already points to a different commit.");
   }
+  ensureLocalReleaseBranch(repository, state, last.head);
   let branchTarget = remoteBranchOid(repository, remote, branch);
   const branchAlreadyMatched = branchTarget === last.head;
   if (!branchAlreadyMatched) {
@@ -579,17 +651,15 @@ export function commandPushRelease(repository, args) {
       throw new LifecycleError("release-push-partial", "Remote branch was confirmed, but tag push could not be confirmed; local release remains complete.");
     }
   }
-  let confirmedDefault;
   let confirmedBranch;
   let confirmedTag;
   try {
-    confirmedDefault = remoteDefaultBranch(repository, remote);
     confirmedBranch = remoteBranchOid(repository, remote, branch);
     confirmedTag = remoteTagTarget(repository, remote, last.tag);
   } catch {
     throw new LifecycleError("release-push-uncertain", "Remote release refs could not be reread together; local release remains complete.");
   }
-  if (confirmedDefault !== branch || confirmedBranch !== last.head || confirmedTag !== last.head) {
+  if (confirmedBranch !== last.head || confirmedTag !== last.head) {
     throw new LifecycleError("release-push-uncertain", "Remote release refs changed during final verification; local release remains complete.");
   }
   try {
@@ -597,7 +667,7 @@ export function commandPushRelease(repository, args) {
     if (currentBranchOrNone(repository) !== checkoutBranch || currentHead(repository) !== checkoutHead ||
         !branchExists(repository, last.defaultBranch) ||
         runGit(repository.root, ["rev-parse", "--verify", "refs/heads/" + last.defaultBranch + "^{commit}"]).stdout.trim() !== last.head ||
-        localTagTarget(repository, last.tag) !== last.head) {
+        localTagTarget(repository, last.tag) !== last.head || localReleaseBranchTarget(repository) !== last.head) {
       throw new Error("released local refs or checkout changed");
     }
   } catch {

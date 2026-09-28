@@ -15,7 +15,7 @@ import { inspectProject as inspectNoPython } from "../../.agents/skills/desktop-
 import { validateDailyProjectMemory } from "./repository_memory.mjs";
 import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
 
-/** Harness 当前必须保留的 42 个项目 Skill。 */
+/** Harness 当前必须保留的 43 个项目 Skill。 */
 export const EXPECTED_SKILLS = new Set([
   "desktop-add-cli-adapter",
   "desktop-add-gui-adapter",
@@ -54,6 +54,7 @@ export const EXPECTED_SKILLS = new Set([
   "desktop-rename-project-identity",
   "desktop-run-parallel-worktrees",
   "desktop-summarize-development-history",
+  "desktop-switch-post-release-action",
   "desktop-test-final-artifact-e2e",
   "desktop-test-gui-initialization-e2e",
   "desktop-upgrade-harness",

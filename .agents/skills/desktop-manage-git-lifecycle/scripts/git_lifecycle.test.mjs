@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { SCRIPT, collectProcess, lifecycleFixture, run, spawnHelper } from "./git_lifecycle_test_support.mjs";
-import { resolveRepository, statePath, validBranch } from "./git_lifecycle_core.mjs";
+import { newState, resolveRepository, statePath, validBranch } from "./git_lifecycle_core.mjs";
 
 /** 在隔离 fixture 中执行测试并保证清理。 */
 function scenario(name, callback) {
@@ -58,7 +58,7 @@ scenario("quiescent_v2_state_is_migrated_and_v1_is_rejected", (item) => {
     schemaVersion: 2, remote: null, defaultBranch: "main", cycle: null, lastRelease: null,
   }), "utf8");
   const inspected = item.helper(repository, ["inspect"]).payload;
-  assert.equal(inspected.state.schemaVersion, 3);
+  assert.equal(inspected.state.schemaVersion, 4);
   assert.equal(inspected.state.pendingPublish, null);
   assert.deepEqual(inspected.state.releasedResources, []);
   writeFileSync(path, JSON.stringify({
@@ -80,7 +80,7 @@ scenario("v2_active_cycle_is_migrated_without_losing_registered_branch", (item) 
   state.cycle.branches[0].remoteDeleted = false;
   writeFileSync(path, JSON.stringify(state), "utf8");
   const inspected = item.helper(repository, ["inspect"]).payload.state;
-  assert.equal(inspected.schemaVersion, 3);
+  assert.equal(inspected.schemaVersion, 4);
   assert.deepEqual(inspected.cycle.branches.map((entry) => entry.name), [branch]);
   assert.deepEqual(Object.keys(inspected.cycle.branches[0]).sort(), ["createdAt", "name", "summary"]);
 });
@@ -111,6 +111,18 @@ scenario("v2_inflight_release_or_publish_is_rejected_without_state_rewrite", (it
 
 scenario("completed_v2_release_migrates_only_with_matching_local_tag_and_main", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
+  mkdirSync(join(repository, "docs"), { recursive: true });
+  writeFileSync(join(repository, "docs/AGENT_POLICY.md"), [
+    "---", "schema_version: 4", "confirmed_by: user", "confirmed_at: 2026-09-28",
+    "decision_mode: reuse_then_infer_then_ask", "superpowers: disabled", "user_owned_tasks: disabled",
+    "parallel_worktree_subagents: disabled", "acceptance_smoke: disabled", "e2e_hint: disabled",
+    "post_release_action: push_release_branch", "---", "", "# Agent policy", "",
+    "- `post_release_action`：`local_package` or `push_release_branch`", "",
+    "发布后动作直接读取 `post_release_action`。随后必须执行 `post_release_action`。", "",
+    "`push-release --remote <name>`", "",
+  ].join("\n"), "utf8");
+  item.git(repository, "add", "docs/AGENT_POLICY.md");
+  item.git(repository, "commit", "--quiet", "-m", "chore: record post-release choice");
   const context = item.prepareReleaseContext(repository, { version: "1.2.3", date: "20260920" });
   item.helper(repository, [
     "release", "--version", "1.2.3", "--date", "20260920",
@@ -120,7 +132,7 @@ scenario("completed_v2_release_migrates_only_with_matching_local_tag_and_main", 
   const state = item.state(repository);
   state.schemaVersion = 2;
   delete state.releasedResources;
-  const { defaultBranch: _branch, ...last } = state.lastRelease;
+  const { defaultBranch: _branch, postReleaseAction: _action, ...last } = state.lastRelease;
   state.lastRelease = { ...last, gitPublication: "local", remote: null };
   writeFileSync(path, JSON.stringify(state), "utf8");
   assert.equal(item.helper(repository, ["inspect"]).payload.state.lastRelease.head, context.head);
@@ -133,6 +145,89 @@ scenario("completed_v2_release_migrates_only_with_matching_local_tag_and_main", 
   writeFileSync(path, JSON.stringify(state), "utf8");
   item.git(repository, "tag", "-d", "v1.2.3-20260920");
   assert.equal(item.helper(repository, ["inspect"], { success: false }).payload.code, "legacy-release-unverifiable");
+});
+
+scenario("quiescent_v3_release_actions_migrate_as_unbound_without_rewriting_state", (item) => {
+  const { repository } = item.initializeRepository({ remote: false });
+  const path = statePath(resolveRepository(repository));
+  mkdirSync(dirname(path), { recursive: true });
+  const head = item.git(repository, "rev-parse", "HEAD").stdout.trim();
+  const release = {
+    tag: "v1.2.3-20260920", head, date: "20260920", version: "1.2.3",
+    releaseContextSha256: "a".repeat(64), defaultBranch: "main",
+  };
+  const base = {
+    schemaVersion: 3, remote: null, defaultBranch: "main", cycle: null,
+    pendingPublish: null, lastRelease: release, releasedResources: [],
+  };
+  const bytes = JSON.stringify(base);
+  writeFileSync(path, bytes, "utf8");
+  const inspected = item.helper(repository, ["inspect"]).payload.state;
+  assert.equal(inspected.schemaVersion, 4);
+  assert.equal(inspected.lastRelease.postReleaseAction, null);
+  assert.equal(inspected.lastRelease.head, head);
+  assert.equal(readFileSync(path, "utf8"), bytes);
+
+  const { defaultBranch: _defaultBranch, ...pending } = release;
+  const inFlight = {
+    ...base, lastRelease: null,
+    cycle: { branches: [], worktrees: [], pendingRelease: { ...pending, head: null } },
+  };
+  const inFlightBytes = JSON.stringify(inFlight);
+  writeFileSync(path, inFlightBytes, "utf8");
+  assert.equal(item.helper(repository, ["inspect"], { success: false }).payload.code, "legacy-inflight-unsupported");
+  assert.equal(readFileSync(path, "utf8"), inFlightBytes);
+  const publishing = {
+    ...base, pendingPublish: {
+      head, targets: [{ remote: "origin", branch: "main", confirmed: false }],
+    },
+  };
+  const publishingBytes = JSON.stringify(publishing);
+  writeFileSync(path, publishingBytes, "utf8");
+  assert.equal(item.helper(repository, ["inspect"], { success: false }).payload.code, "legacy-inflight-unsupported");
+  assert.equal(readFileSync(path, "utf8"), publishingBytes);
+  writeFileSync(path, JSON.stringify({ ...base, lastRelease: { ...release, postReleaseAction: "push_release_branch" } }), "utf8");
+  assert.equal(item.helper(repository, ["inspect"], { success: false }).payload.code, "state-invalid");
+});
+
+scenario("post_release_check_uses_frozen_action_and_verifies_local_release_refs", (item) => {
+  const { repository } = item.initializeRepository({ remote: false });
+  const noRelease = item.helper(repository, ["check-post-release", "--action", "local_package"], { success: false }).payload;
+  assert.equal(noRelease.code, "no-release");
+  const head = item.git(repository, "rev-parse", "HEAD").stdout.trim();
+  const tag = "v1.2.3-20260920";
+  item.git(repository, "tag", tag, head);
+  const state = newState();
+  state.defaultBranch = "main";
+  state.lastRelease = {
+    tag, head, date: "20260920", version: "1.2.3", defaultBranch: "main",
+    releaseContextSha256: "a".repeat(64), postReleaseAction: "local_package",
+  };
+  const path = statePath(resolveRepository(repository));
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(state), "utf8");
+  const confirmed = item.helper(repository, ["check-post-release", "--action", "local_package"]).payload;
+  assert.deepEqual({ status: confirmed.status, action: confirmed.action, head: confirmed.head, tag: confirmed.tag }, {
+    status: "post-release-action-confirmed", action: "local_package", head, tag,
+  });
+  assert.equal(item.helper(repository, ["check-post-release", "--action", "push_release_branch"], { success: false }).payload.code,
+    "post-release-action-mismatch");
+  assert.equal(item.helper(repository, ["check-post-release", "--action", "other"], { success: false }).payload.code,
+    "invalid-argument");
+
+  state.lastRelease.postReleaseAction = null;
+  writeFileSync(path, JSON.stringify(state), "utf8");
+  assert.equal(item.helper(repository, ["check-post-release", "--action", "local_package"], { success: false }).payload.code,
+    "post-release-action-unbound");
+  state.lastRelease.postReleaseAction = "local_package";
+  writeFileSync(path, JSON.stringify(state), "utf8");
+  item.git(repository, "tag", "-d", tag);
+  assert.equal(item.helper(repository, ["check-post-release", "--action", "local_package"], { success: false }).payload.code,
+    "tag-conflict");
+  item.git(repository, "tag", tag, head);
+  item.commitFile(repository, "new-main.txt", "later source\n");
+  assert.equal(item.helper(repository, ["check-post-release", "--action", "local_package"], { success: false }).payload.code,
+    "local-state-changed");
 });
 
 scenario("registered_remote_precedes_origin_and_conflicting_override_fails", (item) => {
@@ -180,7 +275,7 @@ scenario("concurrent_task_starts_preserve_both_branches_and_worktrees", async (i
   );
 });
 
-scenario("track_worktree_registers_v3_branch_without_legacy_cleanup_flags", (item) => {
+scenario("track_worktree_registers_v4_branch_without_legacy_cleanup_flags", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
   item.helper(repository, ["start", "--summary", "primary-task"]);
   const worktree = join(item.temporary, "parallel-task");

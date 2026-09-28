@@ -14,8 +14,10 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 3. 读取 [所有权策略](references/ownership-policy.md)，并使用 [所有权清单](references/ownership-manifest.json)。将该清单视为最低保护策略，而不是复制每个匹配源文件的许可。
 4. 检查下游已选接口、身份映射、保留的 Skills、已批准例外和持久 Agent 策略。构建只包含适用于该下游工程文件的任务局部候选树。排除每个 `protected` 或 `tombstone` 源路径。把下游展示名称、标识符、路径、已选适配器和其他已批准身份差异渲染到候选中；原始 Harness 源目录树绝不是有效候选树。源 Harness 中 `.agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs`、`check_rust_chinese_comments.mjs`、`check_core_first.mjs`、`check_no_python.mjs` 及其各自 `.test.mjs` 测试必须保留内容摘要一致的候选，升级器在生成计划时机械阻断遗漏或旧版占位内容。身份中立的 `docs/design_standards/**` 作为 managed 工程标准传播；下游 `docs/GUI_APP_PROFILE.md` 和 ADR 中已批准的产品像素/例外保持 protected，并在标准匹配时优先，升级不得用新旧 Harness 缺省覆盖。只有已选择 GUI 的下游才同步 `$desktop-add-gui-adapter`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-support-surfaces` 与 `$desktop-build-tauri-release`；`$mantine-list-view` 的 SKILL、metadata、references 与完整 `assets/` 资产集作为同一个知识资产传播，但升级不生成业务列表或安装 dnd-kit。目标平台包含 Windows 时还同步 `$desktop-build-tauri-local-install`。其中系统语言、updater、窗口状态和 dialog 属于 GUI 固定基线，dialog 继续保持主窗口 `dialog:default` 且不授权 fs，托盘、单实例、深链接、全局快捷键、通知和开机自启是否实际接线仍读取受保护 profile，非 GUI 下游不得因此新增 pnpm 或 GUI-only Skill。`$desktop-test-gui-initialization-e2e` 及其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs` 等脚本仍是初始化前 tombstone 资产，终端下游升级不得重新注入。终端下游的 `docs/GUI_SUPPORT_SURFACES.md` 是 `protected` 产品实例，任何接口选择都不得由升级覆盖。
    所有终端下游都必须同步无需身份渲染的 `$desktop-manage-git-lifecycle` 完整目录：`SKILL.md`、`agents/openai.yaml`、`scripts/git_lifecycle.mjs`、`scripts/git_lifecycle_core.mjs`、`scripts/git_lifecycle_publication.mjs`、`scripts/git_publication_report.mjs`、`scripts/git_lifecycle_test_support.mjs`、`scripts/git_publication_test_cases.test.mjs`、`scripts/git_lifecycle.test.mjs` 和 `scripts/git_lifecycle_release.test.mjs` 均须与源内容摘要一致。升级只传播这些 `managed` 工程文件，不调用 `inspect|start|track-worktree|publish|release`，不创建 common-dir 生命周期清单，也不改动任何 Git remote、分支、标签、历史或 Worktree。目标缺少这些工程文件时按 `add` 逐项人工加入。
+   所有终端下游还必须同步 `$desktop-switch-post-release-action` 的 `SKILL.md`、`agents/openai.yaml`、`scripts/post_release_action.mjs` 和 `scripts/post_release_action.test.mjs`，并保持源内容摘要一致；升级器在候选遗漏或旧版内容时阻断。只传播该 managed Skill，不调用其写入命令。
    `.harness/version-state.json` 始终是 `protected` 下游状态，来源或候选都不得包含、初始化、重算或覆盖它；Cargo 产品版本同样受保护。`$desktop-manage-version` 的 Skill/helper 属于可升级工程资产，但产品周期与缺陷 ID 历史不属于。首次检查时同时记录目标是否缺少该状态；缺失只表示旧下游需要在工程层升级完成后进入第 14 步的显式人工迁移，绝不授权候选、升级器或 `apply|record` 静默创建它。
    `.harness/release-context.json` 始终是 `protected` 下游发布事实，来源和候选均不得包含、初始化、重算或覆盖它；目标尚无该文件时保持缺席，只有目标项目真实执行 `$desktop-prepare-release` 时才可创建。Git common-dir 生命周期清单位于 tracked 目标树之外，从不进入候选、所有权清单或来源锁。
+   `docs/AGENT_POLICY.md` 继续是受保护的下游事实。第 4 步只读记录发布后动作状态：旧 `schema_version: 3` 且缺少 `post_release_action` 表示需要补选；`schema_version: 4` 只接受 `local_package` 或 `push_release_branch`。重复/缺失字段、未知 schema 或非法值是冲突，不能推断为默认项，也不能宣布升级完成。
 5. 要求源 Harness Git 工作树干净，并且其现有 `HEAD` 与声明的源提交匹配；要求声明的源版本与源 `Version.md` 匹配。信任候选之前先运行源 Harness 验证器。不得把该模板专用验证器复制到下游。记录源版本、源提交、候选构建输入、下游分支、提交、脏状态摘要，以及未验证平台。
 
    本 Skill 的 helper 要求当前宿主具备 Node.js >= 24.21；缺失或版本不足时失败关闭，不得改用其他运行时。所有操作命令均使用 `node` 且保持单行，不依赖 POSIX `\` 续行符、PowerShell 反引号或 shell 变量。
@@ -44,7 +46,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
     ```
 
     该命令根据目标拥有的精确所有权清单和 `.harness/upstream-lock.json` 重新构建计划，绑定源与目标 Git 身份，比较完整的已复核 JSON，预检每项操作，并且只原子替换一个现有文件。每应用一个路径后都要生成并复核新计划。普通 `managed` 更新必须先于 `managed-self` 完成；在自更新路径内部，命令行工具强制执行稳定顺序，并最后替换自身入口。计划篡改或源、候选、目标、控制文件发生任何漂移，都会在写入前中止。使用 `apply_patch` 单独解决 `add`、`manual_add`、`delete`、`merge-sections` 和 `conditional` 项；不得仅为避免合并而替换整个混合所有权文件。
-11. 代码行为变化只运行本次升级实际影响的非空单元/回归测试；纯文档或元数据升级只运行其必要替代验证。不得因 Harness 升级自动追加全仓格式、lint、静态、文件行数、中文注释、依赖图、独立构建、冒烟、E2E 或完整验收；普通构建保持开发流程。用户明确要求 Git 发布时才进入 `$desktop-prepare-release`，在本地主分支合并并打 tag 后结束；之后仅按用户独立请求进入对应构建 Skill。升级应用 `check_no_python.mjs` 后必须在目标根运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`；遗留的 Python 源码、依赖清单或运行步骤作为需人工处理的阻断项报告并迁移到 Node，不得当作本地决定静默保留，已由 ADR 列明的获批例外除外。
+11. 代码行为变化只运行本次升级实际影响的非空单元/回归测试；纯文档或元数据升级只运行其必要替代验证。不得因 Harness 升级自动追加全仓格式、lint、静态、文件行数、中文注释、依赖图、独立构建、冒烟、E2E 或完整验收；普通构建保持开发流程。用户明确要求 Git 发布时才进入 `$desktop-prepare-release`，在本地主分支合并并打 tag 后结束；发布后按已确认的 `post_release_action` 进入所选动作；升级操作本身不触发发布或该动作。升级应用 `check_no_python.mjs` 后必须在目标根运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`；遗留的 Python 源码、依赖清单或运行步骤作为需人工处理的阻断项报告并迁移到 Node，不得当作本地决定静默保留，已由 ADR 列明的获批例外除外。
 12. 重新运行 `plan`。解决每个阻断项和未应用的受管理操作。只有目标包含已复核结果后，才能记录已验证基线：
 
     ```text
@@ -54,11 +56,12 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
     每个剩余且已复核的 `manual_merge` 分类都必须重复传入 `--resolved-manual <path>`。精确集合必须与计划匹配，否则记录失败。`manual_add` 必须先创建目标并生成新的已复核收敛计划。绝不得记录仍有 `add`、`manual_add`、`delete`、`update`、阻断项、已变更计划、源 Harness 必需 managed 路径遗漏或未经复核混合路径的基线。
 13. 完成任何 `managed-self` 更新后，重新运行升级后更新器的相关测试和只读计划。只更新被独立事件触发的下游记忆：重要阻断或交接更新 Status，符合范围的新增、行为/契约变化、移除或安全事项更新 Changelog，用户要求完整验收或长期审计时更新 Verification。普通缺陷修复、纯重构和内部清理本身不触发这些记忆。不得导入源 Harness 的任何项目记忆或批准历史。
 14. 若第 4 步确认目标是已存在的独立 Git 项目但缺少 `.harness/version-state.json`，必须先完成并记录上述工程层升级，随后停止自动流程，向用户明确说明：旧 `pending_changes`、`applied_bug_ids` 与 `last_release` 历史无法恢复；迁移只会以当前合法 Cargo 版本建立空周期基线；升级器本身没有写入受保护状态。只有用户对这次迁移明确批准后，才由目标项目中的 `$desktop-manage-version` 执行 `node .agents/skills/desktop-manage-version/scripts/version_gate.mjs init --project-root "<downstream-root>" --migration-approved`，并复核输出的 `migration: true`、`history_status: unrecoverable-pre-migration-history`、空 `pending_changes`/`applied_bug_ids` 与 Cargo 版本一致。未获批准时不得代替用户推断或执行，必须把工程层升级与仍待批准的版本状态迁移分别报告，且不得声称整个升级闭环完成。
+15. 工程层收敛并记录基线、且第 14 步适用的版本状态迁移完成后，在目标根调用 `node .agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs inspect --project-root "<downstream-root>"`。旧 schema 3 的 `selection_required` 必须询问用户选择本地打包或提交远程，由目标项目中的 `$desktop-switch-post-release-action` 先在保护既有项目规则的前提下合并旧策略正文与新发布后规则，再按本次明确选择原子迁移 frontmatter 至 schema 4，并记录当日 ADR；旧正文中“发布后另行请求”或“无 release 分支”的相反规则未清除时 `set/check` 必须阻断；升级器 `plan|apply|record` 绝不得代写或传入选择。已有合法 schema 4 保留目标选择，不再次询问。随后运行 `node .agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs check --project-root "<downstream-root>"`，复核 `status: configured` 与合法持久值。缺选、非法状态、写入或 ADR 复核失败时，只能报告工程基线已记录，不能声称整个升级闭环完成。
 
 ## 安全边界
 
 - 默认执行 `plan`；绝不得仅因调用本 Skill 就写入。
-- 绝不得覆盖产品源代码、测试、Cargo 产品版本或锁定选择、`.harness/version-state.json`、`.harness/release-context.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、common-dir 生命周期清单、敏感信息或未登记本地文件；传播 Git 生命周期 Skill 不授权执行它。第 14 步只是在工程层升级完成后转交版本 Skill 的显式人工迁移，不能由升级器调用、合并到 `apply|record` 或解释为对 protected 状态的例外。
+- 绝不得覆盖产品源代码、测试、Cargo 产品版本或锁定选择、`.harness/version-state.json`、`.harness/release-context.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、common-dir 生命周期清单、敏感信息或未登记本地文件；传播 Git 生命周期或发布后动作 Skill 不授权执行它。第 15 步的用户确认只授权目标项目专用 Skill 写入该受保护偏好与真实 ADR，不授权升级器改写任何 protected 文件。第 14 步只是在工程层升级完成后转交版本 Skill 的显式人工迁移，不能由升级器调用、合并到 `apply|record` 或解释为对 protected 状态的例外。
 - 绝不得把 `Version.md`、`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、模板验证器文件、`docs/HARNESS_ENGINEERING.md` 或其他活动派生入口恢复到终端下游。
 - 绝不得自动应用 `merge-sections`、`conditional`、`protected`、未知或冲突路径。
 - 更新器绝不自动添加或删除项目文件。已复核的 `add` 或 `delete` 必须在声明的 Todo 内人工执行，然后由新计划显示收敛，才能记录基线。
@@ -67,4 +70,4 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
 
 ## 完成要求
 
-报告源与目标身份、基线状态、试运行分类、已批准和已应用路径、保留的本地修改、冲突、本次测试或替代验证、锁文件更新、未验证平台和剩余风险。未显式请求时，构建与完整验收均为 `Not run`；仅有成功的试运行不代表升级完成。
+报告源与目标身份、基线状态、试运行分类、已批准和已应用路径、保留的本地修改、冲突、本次测试或替代验证、锁文件更新、未验证平台和剩余风险。未显式请求时，构建与完整验收均为 `Not run`；仅有成功的试运行不代表升级完成。必须报告发布后动作的原值、最终值与 schema 4 强制检查结果；旧项目缺选时不得把工程层完成误报为完整升级。

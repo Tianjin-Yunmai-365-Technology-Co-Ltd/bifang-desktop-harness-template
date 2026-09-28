@@ -62,7 +62,7 @@ function run(command, args, options = {}) {
   return result;
 }
 
-/** 建立带 trunk 远端、发布上下文和版本 tag 的隔离仓库。 */
+/** 建立默认分支停留在旧提交、release 与 tag 指向发布提交的隔离仓库。 */
 function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disabled", tamperScopeHash = false } = {}) {
   const temporary = mkdtempSync(join(tmpdir(), "verify-release-context-"));
   const root = join(temporary, "project");
@@ -95,9 +95,9 @@ function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disable
   git("commit", "--quiet", "-m", "feat: candidate source");
   const sourceHead = git("rev-parse", "HEAD").stdout.trim();
   const scopeHash = scopeDiffSha256(root, baseline, sourceHead, env);
-  run("git", ["-C", remote, "symbolic-ref", "HEAD", "refs/heads/trunk"], { env });
+  run("git", ["-C", remote, "symbolic-ref", "HEAD", `refs/heads/${repositoryDefaultBranch}`], { env });
   git("remote", "add", "origin", remote);
-  git("push", "--quiet", "-u", "origin", "trunk");
+  git("push", "--quiet", "origin", `${baseline}:refs/heads/${repositoryDefaultBranch}`);
   const context = run(process.execPath, [
     helper,
     "write",
@@ -127,11 +127,8 @@ function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disable
   git("add", ".harness/release-context.json");
   git("commit", "--quiet", "-m", "chore(release): record context");
   const head = git("rev-parse", "HEAD").stdout.trim();
-  git("push", "--quiet", "origin", `HEAD:refs/heads/${repositoryDefaultBranch}`);
-  if (repositoryDefaultBranch !== "trunk") {
-    run("git", ["-C", remote, "symbolic-ref", "HEAD", `refs/heads/${repositoryDefaultBranch}`], { env });
-    git("switch", "--quiet", "-c", repositoryDefaultBranch);
-  }
+  git("switch", "--quiet", "-c", "release");
+  git("push", "--quiet", "origin", "HEAD:refs/heads/release");
   git("tag", "v1.2.3-20260909");
   git("push", "--quiet", "origin", "refs/tags/v1.2.3-20260909");
   const contextPath = join(root, ".harness/release-context.json");
@@ -143,13 +140,12 @@ function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disable
     "--project-root", root,
     "--source-commit", head,
     "--expected-context-sha256", digest,
-    "--repository-default-branch", repositoryDefaultBranch,
     "--snapshot", snapshot,
   ], { env, cwd: root, check: false });
-  return { temporary, root, git, head, snapshot, invoke, repositoryDefaultBranch };
+  return { temporary, root, remote, env, git, baseline, head, snapshot, invoke, repositoryDefaultBranch };
 }
 
-test("capture_and_verify_accept_non_main_default_branch", () => {
+test("capture_and_verify_accept_release_with_an_unchanged_default_branch", () => {
   const item = fixture();
   try {
     const captured = item.invoke("capture");
@@ -159,9 +155,12 @@ test("capture_and_verify_accept_non_main_default_branch", () => {
     assert.equal("remote" in snapshot, false);
     assert.equal("candidateSelections" in snapshot, false);
     assert.equal(snapshot.releaseReview.selection, "disabled");
-    assert.equal(snapshot.defaultBranch, "trunk");
+    assert.equal(snapshot.remoteReleaseBranch, "release");
+    assert.equal(snapshot.releaseDefaultBranch, "trunk");
     assert.equal(snapshot.expectedTag, "v1.2.3-20260909");
     assert.equal(item.invoke("verify").status, 0);
+    assert.equal(run("git", ["-C", item.remote, "symbolic-ref", "HEAD"], { env: item.env }).stdout.trim(), "refs/heads/trunk");
+    assert.equal(run("git", ["-C", item.remote, "rev-parse", "refs/heads/trunk"], { env: item.env }).stdout.trim(), item.baseline);
   } finally {
     rmSync(item.temporary, { recursive: true, force: true });
   }
@@ -192,16 +191,18 @@ test("capture_rejects_committed_review_scope_digest_mismatch", () => {
   }
 });
 
-test("capture_accepts_pushed_remote_default_with_a_different_local_name", () => {
+test("capture_accepts_advertised_default_with_a_different_name_and_commit", () => {
   const item = fixture({ repositoryDefaultBranch: "stable" });
   try {
     const captured = item.invoke("capture");
     assert.equal(captured.status, 0, captured.stderr);
     const snapshot = JSON.parse(readFileSync(item.snapshot, "utf8"));
-    assert.equal(snapshot.defaultBranch, "stable");
+    assert.equal(snapshot.remoteReleaseBranch, "release");
     assert.equal(snapshot.releaseDefaultBranch, "trunk");
     assert.equal(snapshot.sourceCommit, item.head);
     assert.equal(item.invoke("verify").status, 0);
+    assert.equal(run("git", ["-C", item.remote, "symbolic-ref", "HEAD"], { env: item.env }).stdout.trim(), "refs/heads/stable");
+    assert.equal(run("git", ["-C", item.remote, "rev-parse", "refs/heads/stable"], { env: item.env }).stdout.trim(), item.baseline);
   } finally {
     rmSync(item.temporary, { recursive: true, force: true });
   }
@@ -246,10 +247,10 @@ test("snapshot_change_is_rejected_at_second_gate", () => {
   }
 });
 
-test("missing_fetched_origin_default_branch_is_rejected", () => {
+test("missing_fetched_origin_release_branch_is_rejected", () => {
   const item = fixture();
   try {
-    item.git("update-ref", "-d", "refs/remotes/origin/trunk");
+    item.git("update-ref", "-d", "refs/remotes/origin/release");
     const result = item.invoke("capture");
     assert.equal(result.status, 1);
     assert.match(result.stderr, /missing or invalid fetched ref/);
@@ -258,25 +259,51 @@ test("missing_fetched_origin_default_branch_is_rejected", () => {
   }
 });
 
-test("fetched_origin_default_branch_on_a_different_commit_is_rejected", () => {
+test("fetched_origin_release_branch_on_a_different_commit_is_rejected", () => {
   const item = fixture();
   try {
-    item.git("update-ref", "refs/remotes/origin/trunk", `${item.head}^`);
+    item.git("update-ref", "refs/remotes/origin/release", item.baseline);
     const result = item.invoke("capture");
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /fetched origin default branch does not equal source_commit/);
+    assert.match(result.stderr, /fetched origin release branch does not equal source_commit/);
   } finally {
     rmSync(item.temporary, { recursive: true, force: true });
   }
 });
 
-test("different_named_remote_default_still_requires_exact_fetched_head", () => {
+test("fetched_default_branch_is_not_required_for_release_capture", () => {
   const item = fixture({ repositoryDefaultBranch: "stable" });
   try {
-    item.git("update-ref", "refs/remotes/origin/stable", `${item.head}^`);
+    item.git("update-ref", "-d", "refs/remotes/origin/stable");
     const result = item.invoke("capture");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(item.invoke("verify").status, 0);
+  } finally {
+    rmSync(item.temporary, { recursive: true, force: true });
+  }
+});
+
+test("release_branch_drift_after_capture_is_rejected_before_manifest", () => {
+  const item = fixture();
+  try {
+    assert.equal(item.invoke("capture").status, 0);
+    item.git("update-ref", "refs/remotes/origin/release", item.baseline);
+    const result = item.invoke("verify");
     assert.equal(result.status, 1);
-    assert.match(result.stderr, /fetched origin default branch does not equal source_commit/);
+    assert.match(result.stderr, /fetched origin release branch does not equal source_commit/);
+  } finally {
+    rmSync(item.temporary, { recursive: true, force: true });
+  }
+});
+
+test("tag_drift_after_capture_is_rejected_before_manifest", () => {
+  const item = fixture();
+  try {
+    assert.equal(item.invoke("capture").status, 0);
+    item.git("tag", "-f", "v1.2.3-20260909", item.baseline);
+    const result = item.invoke("verify");
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /fetched release tag does not equal source_commit/);
   } finally {
     rmSync(item.temporary, { recursive: true, force: true });
   }

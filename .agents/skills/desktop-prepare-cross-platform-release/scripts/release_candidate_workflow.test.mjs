@@ -45,8 +45,9 @@ test("context_is_captured_before_tests_and_reverified_before_manifest", () => {
   assert.ok(verify < manifest);
 });
 
-test("checkout_uses_default_branch_full_history_and_no_persisted_credentials", () => {
-  assert.ok(text.includes("ref: ${{ github.event.repository.default_branch }}"));
+test("checkout_uses_release_branch_full_history_and_no_persisted_credentials", () => {
+  assert.ok(text.includes("ref: release"));
+  assert.ok(!text.includes("github.event.repository.default_branch"));
   assert.ok(text.includes("fetch-depth: 0"));
   assert.ok(text.includes("persist-credentials: false"));
 });

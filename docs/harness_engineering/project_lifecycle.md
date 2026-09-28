@@ -132,7 +132,7 @@ tests/                     核心闭环和风险测试
 
 ## 13. 阶段检查清单
 
-阶段检查按事件触发组合：新产品/边界变化使用 `$desktop-define-product`；日常开发直接使用 `$desktop-implement-change` 并在新功能/Bug 首次写入前自动建立本地开发分支；用户明确要求持久计划或跨会话协调时先用 `$desktop-plan-change`。明确的 Git 发布先由 `$desktop-prepare-release` 整理、验证并提交源码及发布元数据，再携带发布上下文精确 SHA-256 由生命周期 helper 普通合并登记分支到本地默认主分支、创建并复读匹配版本的本地 tag；两者指向最终 HEAD 即结束发布。Harness 源随后只询问用户是否另行推送或生成源码归档；终端下游也只在用户独立请求后构建当前宿主候选，已另行推送并复核远端主分支/tag 时才可使用远程跨平台 provider。候选由 `$desktop-verify-delivery` 按请求完整验收，并在形成 `accepted` 原子集合后只读复核就绪。下游下一受管开发分支须在首次变化前先复核主分支/tag 并 `finalize-release`。真实记录冲突在未来下游升级时按稳定纠错 ID、两端证据与独立 Minor 门禁处理，再完成适用验证和 Git 发布。日常维护不为形式完整重复所有阶段。
+阶段检查按事件触发组合：新产品/边界变化使用 `$desktop-define-product`；初始化时从本地打包与提交远程中确认并持久化 `post_release_action`，旧项目升级时补选，之后仍可用 `$desktop-switch-post-release-action` 切换未来选择；日常开发直接使用 `$desktop-implement-change` 并在新功能/Bug 首次写入前自动建立本地开发分支；用户明确要求持久计划或跨会话协调时先用 `$desktop-plan-change`。明确的 Git 发布先由 `$desktop-prepare-release` 整理、验证并提交源码及发布元数据，再携带发布上下文精确 SHA-256 由生命周期 helper 普通合并登记分支到本地默认主分支、创建并复读匹配版本的本地 tag；两者指向最终 HEAD 即结束 Git 发布。发布开始时将已确认选择冻结为本次快照，随后必须执行该次动作：`local_package` 沿用现有本地打包流程，`push_release_branch` 把同一已发布 HEAD 推送至远端小写 `release` 分支及同一 tag 并复读；远程跨平台 provider 只在远端 `release` 分支/tag 复核通过后使用。候选由 `$desktop-verify-delivery` 按请求完整验收，并在形成 `accepted` 原子集合后只读复核就绪。下游下一受管开发分支须在首次变化前先复核主分支/tag 并 `finalize-release`。真实记录冲突在未来下游升级时按稳定纠错 ID、两端证据与独立 Minor 门禁处理，再完成适用验证和 Git 发布。日常维护不为形式完整重复所有阶段。
 
 ## 14. Harness 的积累与演进
 
