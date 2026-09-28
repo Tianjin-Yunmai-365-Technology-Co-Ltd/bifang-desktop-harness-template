@@ -211,10 +211,11 @@ test("About update container cannot proxy child actions", () => withBrand((root,
 }));
 
 test("release-note bounds and display version formatter are fixed", () => withBrand((root, brandRoot) => {
-  mutateText(path.join(brandRoot, "react", "releaseNotes.ts"), (source) => source.replace("MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5", "MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 6").replace("MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10", "MAX_VISIBLE_RELEASE_NOTE_ITEMS = 11"));
+  mutateText(path.join(brandRoot, "react", "releaseNotes.ts"), (source) => source.replace("MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 10", "MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 11").replace("MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10", "MAX_VISIBLE_RELEASE_NOTE_ITEMS = 11"));
+  mutateText(path.join(brandRoot, "rust", "release_notes.rs"), (source) => source.replace("MAX_RELEASE_NOTE_VERSIONS: usize = 10", "MAX_RELEASE_NOTE_VERSIONS: usize = 11"));
   mutateText(path.join(brandRoot, "react", "displayVersion.ts"), (source) => source.replace("return `v${normalized}`", "return normalized"));
   const errors = validateBrand(root, brandRoot);
-  for (const fragment of ["MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5", "MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10", "return `v${normalized}`"]) expectError(errors, fragment);
+  for (const fragment of ["MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 10", "MAX_RELEASE_NOTE_VERSIONS: usize = 10", "MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10", "return `v${normalized}`"]) expectError(errors, fragment);
 }));
 
 test("release-note runtime loader and narrow command are mandatory", () => withBrand((root, brandRoot) => {

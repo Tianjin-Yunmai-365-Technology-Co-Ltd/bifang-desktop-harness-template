@@ -70,22 +70,37 @@ test("semver_reader_enforces_u64_major_and_base_100_minor_patch", () => {
   }
 });
 
-test("upsert_replaces_same_version_and_retains_latest_five", () => {
+test("upsert_keeps_ten_actual_releases_and_replaces_the_current_version", () => {
   const item = fixture();
   try {
-    for (let index = 1; index <= 6; index += 1) upsert(item.path, `1.0.${index}`, 20 + index);
+    const versions = [
+      "1.0.0", "1.0.2", "1.0.99", "1.1.0", "1.1.1", "1.9.0",
+      "1.99.99", "2.0.0", "2.0.1", "2.1.0", "2.1.2",
+    ];
+    for (const [index, version] of versions.entries()) {
+      upsert(item.path, version, index + 1);
+      if (index === 9) {
+        assert.deepEqual(loadDocument(item.path).releases.map((entry) => entry.version),
+          versions.slice(0, 10).reverse().map((released) => `v${released}`));
+      }
+    }
     assert.deepEqual(loadDocument(item.path).releases.map((entry) => entry.version), [
-      "v1.0.6", "v1.0.5", "v1.0.4", "v1.0.3", "v1.0.2",
+      "v2.1.2", "v2.1.0", "v2.0.1", "v2.0.0", "v1.99.99",
+      "v1.9.0", "v1.1.1", "v1.1.0", "v1.0.99", "v1.0.2",
     ]);
+    assert.equal(main(["check", "--file", item.path, "--expected-version", "2.1.2"]), 0);
     upsertRelease(item.path, {
-      releaseDate: "2026-08-26",
-      version: "v1.0.6",
+      releaseDate: "2026-08-11",
+      version: "v2.1.2",
       featureOptimizationsZhCn: ["替换后的优化"],
       featureOptimizationsEnUs: ["Replacement improvement"],
       bugFixesZhCn: [],
       bugFixesEnUs: [],
     });
-    assert.deepEqual(loadDocument(item.path).releases[0].featureOptimizations, [
+    const replaced = loadDocument(item.path);
+    assert.equal(replaced.releases.length, 10);
+    assert.equal(replaced.releases.at(-1).version, "v1.0.2");
+    assert.deepEqual(replaced.releases[0].featureOptimizations, [
       { "zh-CN": "替换后的优化", "en-US": "Replacement improvement" },
     ]);
   } finally { item.cleanup(); }
@@ -108,6 +123,14 @@ test("rejects_item_overflow_empty_release_and_missing_translation", () => {
       releaseDate: "2026-08-26", version: "1.2.3",
       featureOptimizationsZhCn: ["新增能力"], featureOptimizationsEnUs: [], bugFixesZhCn: [], bugFixesEnUs: [],
     }), /same number/);
+    const tenItems = Array.from({ length: 10 }, (_, index) => `Item ${index + 1}`);
+    const fullSections = upsertRelease(item.path, {
+      releaseDate: "2026-08-26", version: "1.2.3",
+      featureOptimizationsZhCn: tenItems, featureOptimizationsEnUs: tenItems,
+      bugFixesZhCn: tenItems, bugFixesEnUs: tenItems,
+    });
+    assert.equal(fullSections.releases[0].featureOptimizations.length, 10);
+    assert.equal(fullSections.releases[0].bugFixes.length, 10);
     const document = upsert(item.path, "1.2.3", 26);
     assert.throws(() => renderDocument(document, "fr-FR"), /locale must be/);
   } finally { item.cleanup(); }

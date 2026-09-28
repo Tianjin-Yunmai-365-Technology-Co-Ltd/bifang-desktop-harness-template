@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** 维护可打包并供已选关于页展示的近五次发布更新日志。 */
+/** 维护可打包并供已选关于页展示的最近十个实际发布版本更新日志。 */
 
 import {
   closeSync,
@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 export const SCHEMA_VERSION = 2;
-export const MAX_RELEASES = 5;
+export const MAX_RELEASES = 10;
 export const MAX_ITEMS_PER_SECTION = 10;
 export const MAX_RELEASE_NOTES_BYTES = 1024 * 1024;
 const MAX_SEMVER_MAJOR = "18446744073709551615";
@@ -162,7 +162,7 @@ export function validateReleaseEntry(value) {
   };
 }
 
-/** 校验整个更新日志的 schema、顺序、唯一版本和五版上限。 */
+/** 校验整个更新日志的 schema、顺序、唯一版本和十版上限。 */
 export function validateDocument(value) {
   if (!hasExactKeys(value, ROOT_KEYS)) {
     throw new ReleaseNotesError("release notes root keys do not match the schema");
@@ -346,7 +346,7 @@ function writeDocument(path, document) {
   }
 }
 
-/** 新增或替换当前版本，置顶后只保留最近五个版本。 */
+/** 新增或替换当前版本，置顶后只保留最近十个实际发布版本。 */
 export function upsertRelease(path, options) {
   const existing = existsSync(path) || (() => {
     try { return lstatSync(path).isSymbolicLink(); } catch { return false; }
@@ -369,7 +369,7 @@ export function upsertRelease(path, options) {
   return validateDocument(document);
 }
 
-/** 按指定语言渲染近五次更新日志。 */
+/** 按指定语言渲染最近十个实际发布版本的更新日志。 */
 export function renderDocument(document, locale) {
   const normalized = validateDocument(document);
   if (!SUPPORTED_LOCALES.includes(locale)) {

@@ -35,6 +35,24 @@ describe("bundled release notes resource", () => {
     expect(invokeCommand).toHaveBeenCalledWith(LOAD_RELEASE_NOTES_COMMAND);
   });
 
+  /** IPC 解码接收最新十个实际发布版本，并拒绝多出的第十一个版本。 */
+  it("accepts ten release versions and rejects eleven", () => {
+    const releases = Array.from({ length: 11 }, (_, index) => ({
+      ...VALID_DOCUMENT.releases[0],
+      releaseDate: `2026-08-${31 - index}`,
+      version: `v1.0.${index}`,
+    }));
+    expect(
+      decodeReleaseNotesDocument({
+        ...VALID_DOCUMENT,
+        releases: releases.slice(0, 10),
+      }).releases,
+    ).toHaveLength(10);
+    expect(() =>
+      decodeReleaseNotesDocument({ ...VALID_DOCUMENT, releases }),
+    ).toThrow("invalid release notes document");
+  });
+
   /** major 接受 Cargo u64 边界；Minor/Patch 固定 0..99，不兼容历史 100，任一越界都失败关闭。 */
   it("accepts u64 major and rejects lower 100 with no compatibility", () => {
     for (const version of ["v101.0.0", "v18446744073709551615.0.0"]) {

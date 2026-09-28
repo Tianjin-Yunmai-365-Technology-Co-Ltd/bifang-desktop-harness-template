@@ -13,7 +13,7 @@
 | `rust-i18n/zh-CN.yml`、`rust-i18n/en-US.yml` | 托盘“显示窗口/退出”原生文案 | 仅选择系统托盘时复制到 Rust locale 目录 |
 | `rust/release_notes.rs`、`react/releaseNotesResource.ts`、`react/AboutPageTemplate.tsx` | 从候选固定资源异步读取并双层校验发布日志，显示 loading/error/retry、检查更新、更新日志、作者、联系方式和免责声明 | 仅选择关于页时复制并注册窄命令/建立路由 |
 | `tauri/tauri.release.conf.json` | 正式构建以 `--config` 合并，把根更新日志唯一映射到候选资源根 | 所有 GUI 保留；中性调试构建不使用 |
-| `react/ReleaseNotesDialogTemplate.tsx`、`react/releaseNotes.ts` | 读取候选内同一双语发布事实，按当前 i18n locale 展示最近 5 版且每类最多 10 个翻译对 | 仅选择关于页时进入运行时 |
+| `react/ReleaseNotesDialogTemplate.tsx`、`react/releaseNotes.ts` | 读取候选内同一双语发布事实，按当前 i18n locale 展示最近 10 版且每类最多 10 个翻译对 | 仅选择关于页时进入运行时 |
 | `react/displayVersion.ts` | 把所有人类可见版本规范化为且只规范化为一个小写 `v` 前缀 | GUI 初始化默认展示边界 |
 | `react/SponsorPageTemplate.tsx` | 响应式展示固定品牌赞助内容与双支付码 | 仅选择赞助页时建立路由 |
 | `react/SupportMedia.tsx` | 统一本地图片与带字幕/文字稿的视频边界 | 页面需要媒体 |
@@ -44,7 +44,7 @@
 ## 关于页约束（仅在选择关于页时）
 
 - 产品名称、版本、标语、功能、许可、隐私和可选动作来自当前下游权威事实。固定作者、作者联系方式和免责声明来自品牌包；模板不含任何来源产品名称或功能清单，所选路由为 `/about`。
-- 版本由当前打包元数据提供，不在组件或翻译文件中写死；所有可见位置调用共享 formatter，先去除已有 `v`/`V` 再添加一个小写 `v`。手动检查更新和稳定状态随关于页存在；未配置时检查按钮禁用、状态为 `NotConfigured` 且零出站，本地更新日志按钮仍可用。它默认调用 `load_release_notes`，由 Rust 以 `BaseDirectory::Resource` + `tokio::fs` 读取固定资源并验证，React 再从 `unknown` 收窄；禁止路径参数、通用文件系统权限和同步读取。更新日志按最新在前最多显示 5 版，每版两个分类各最多 10 个完整 `zh-CN`/`en-US` 翻译对。中文界面显示“更新日志/功能优化/问题修复/无”，英文或未知语言显示“Release notes/Feature optimizations/Bug fixes/None”，正文也只选择对应 locale；任一翻译缺失必须在 Rust/React 边界失败关闭。反馈、许可与隐私仍是独立可选动作，未选择时不渲染占位按钮。若赞助页已选，其入口由 `/sponsor` 路由和应用导航承载，不在关于页重复为按钮。
+- 版本由当前打包元数据提供，不在组件或翻译文件中写死；所有可见位置调用共享 formatter，先去除已有 `v`/`V` 再添加一个小写 `v`。手动检查更新和稳定状态随关于页存在；未配置时检查按钮禁用、状态为 `NotConfigured` 且零出站，本地更新日志按钮仍可用。它默认调用 `load_release_notes`，由 Rust 以 `BaseDirectory::Resource` + `tokio::fs` 读取固定资源并验证，React 再从 `unknown` 收窄；禁止路径参数、通用文件系统权限和同步读取。更新日志按最新在前最多显示 10 版，每版两个分类各最多 10 个完整 `zh-CN`/`en-US` 翻译对。中文界面显示“更新日志/功能优化/问题修复/无”，英文或未知语言显示“Release notes/Feature optimizations/Bug fixes/None”，正文也只选择对应 locale；任一翻译缺失必须在 Rust/React 边界失败关闭。反馈、许可与隐私仍是独立可选动作，未选择时不渲染占位按钮。若赞助页已选，其入口由 `/sponsor` 路由和应用导航承载，不在关于页重复为按钮。
 - 更新状态仅在 `optional-update` 或 `required-update` 显示可用版本，其余状态显示当前版本，避免旧检查结果残留。日志加载超过 15 秒显示可重试错误，超时请求的迟到结果不得覆盖重试成功内容。分类与版本标题是普通本地化文字；每条双语正文由 `react-markdown`、`remark-gfm` 和 Mantine 9 `Typography` 展示，跳过原始 HTML，链接与图片不导航也不加载远端资源。仅选中关于页时添加两项 Markdown 生产依赖。
 - Rust 中包含本地化文本的测试夹具必须用 UTF-8 `str` 后接 `.as_bytes()`，不得使用拒绝非 ASCII 内容的 raw byte string。
 - “检查更新”和“更新日志”的事件只绑定各自 Button；更新区 Paper/Group 不代理动作。其他按钮、链接、`Switch`、`Checkbox` 同样绑定在自身，Card、`Table.Tr`、`Table.Td` 等父级不得代理；表格行点击不能切换行内 `Switch`。
@@ -70,7 +70,7 @@
 
 ## 最小回归
 
-- 关于页：仅在选择关于页时，除 6 版/11 条防御性显示夹具外，还验证 Rust 资源解析成功/畸形与缺失翻译拒绝、命令注册、前端固定命令名与 IPC 解码、loading/error/retry；再验证手动检查、`NotConfigured` 禁用、本地更新日志仍可用、只显示近 5 版/每类 10 个翻译对、中文与英文 locale 各选择对应正文和标题、未知语言英文回退、版本恰有一个 `v`、父容器点击不代理两个按钮、固定作者、联系人、三段免责声明、可选动作/区块的存在与缺失、主题和键盘。未选择时验证路由、导航、命令、加载器与运行时组件缺席。
+- 关于页：仅在选择关于页时，除 11 版/11 条防御性显示夹具外，还验证 Rust 资源解析成功/畸形与缺失翻译拒绝、命令注册、前端固定命令名与 IPC 解码、loading/error/retry；再验证手动检查、`NotConfigured` 禁用、本地更新日志仍可用、只显示近 10 版/每类 10 个翻译对、中文与英文 locale 各选择对应正文和标题、未知语言英文回退、版本恰有一个 `v`、父容器点击不代理两个按钮、固定作者、联系人、三段免责声明、可选动作/区块的存在与缺失、主题和键盘。未选择时验证路由、导航、命令、加载器与运行时组件缺席。
 - 设置与壳层：验证中英文、浅色/深色/跟随系统回调与持久化、亮暗背景/文字/surface 差异，默认设置页没有隐私/统计控件；系统通知/开机自启分别按选择验证 Switch 自身事件、父级不代理、pending 禁用、成功和失败回滚，未选时控件与翻译键缺席。compact/detailed 继续验证各自完整侧栏合同。
 - 托盘 i18n：仅在选择系统托盘时验证中英文精确标签、未知 locale 英文回退、运行时语言切换刷新，以及任何 `tray.*` 原始键都不能成为可见菜单文字；未选择时验证 tray feature、依赖、安装源码和关闭隐藏接线缺席。
 - 赞助页：仅在选择赞助页时分别以亮色和暗色渲染，验证有效主题标记、不同背景/surface、19/199/1999、品牌联系人、三张档位图、两张有 alt 的支付码、响应式列数，以及源码没有固定 800px/全页 pointer-events；未选择时验证路由、导航和运行时媒体缺席。

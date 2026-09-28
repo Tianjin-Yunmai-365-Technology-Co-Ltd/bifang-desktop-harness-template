@@ -26,8 +26,8 @@ export interface ReleaseNoteEntry {
   bugFixes: readonly string[];
 }
 
-/** 关于页最多保留并展示最近五个正式发布版本。 */
-export const MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 5;
+/** 关于页最多保留并展示最近十个正式发布版本。 */
+export const MAX_VISIBLE_RELEASE_NOTE_VERSIONS = 10;
 
 /** 每个版本的功能优化与问题修复各自最多展示十条。 */
 export const MAX_VISIBLE_RELEASE_NOTE_ITEMS = 10;

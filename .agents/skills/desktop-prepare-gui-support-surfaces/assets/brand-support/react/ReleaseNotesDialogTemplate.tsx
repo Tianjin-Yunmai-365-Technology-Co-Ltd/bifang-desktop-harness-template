@@ -80,7 +80,7 @@ export interface ReleaseNotesDialogTemplateProps {
   onClose: () => void;
 }
 
-/** 按当前 i18n locale 展示最多五个版本、每类最多十条的更新日志。 */
+/** 按当前 i18n locale 展示最多十个版本、每类最多十条的更新日志。 */
 export function ReleaseNotesDialogTemplate({
   opened,
   releases,

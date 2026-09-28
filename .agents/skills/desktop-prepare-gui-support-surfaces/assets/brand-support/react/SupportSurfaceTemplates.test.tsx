@@ -617,11 +617,11 @@ describe("shared brand support templates", () => {
     }
   });
 
-  /** 更新区容器不代理子按钮动作，且更新日志严格裁剪到五版和每类十条。 */
+  /** 更新区容器不代理子按钮动作，且更新日志严格裁剪到十版和每类十条。 */
   it("keeps update actions bound to their own controls and limits release notes", async () => {
     const onCheckForUpdates = vi.fn();
-    const releases = Array.from({ length: 6 }, (_, releaseIndex) => {
-      const sequence = 6 - releaseIndex;
+    const releases = Array.from({ length: 11 }, (_, releaseIndex) => {
+      const sequence = 11 - releaseIndex;
       return {
         bugFixes: [
           {
@@ -634,7 +634,7 @@ describe("shared brand support templates", () => {
           "zh-CN": `版本 ${sequence} 优化 ${itemIndex + 1}`,
         })),
         releaseDate: `2026-08-${20 + sequence}`,
-        version: sequence === 6 ? `v1.0.${sequence}` : `1.0.${sequence}`,
+        version: sequence === 11 ? `v1.0.${sequence}` : `1.0.${sequence}`,
       };
     });
     await renderTemplate(
@@ -642,12 +642,12 @@ describe("shared brand support templates", () => {
         onCheckForUpdates={onCheckForUpdates}
         productName="Example Utility"
         releaseNotesLoader={async () => releases}
-        update={{ currentVersion: "1.0.6", status: "idle" }}
-        version="1.0.6"
+        update={{ currentVersion: "1.0.11", status: "idle" }}
+        version="1.0.11"
       />,
     );
 
-    expect(MAX_VISIBLE_RELEASE_NOTE_VERSIONS).toBe(5);
+    expect(MAX_VISIBLE_RELEASE_NOTE_VERSIONS).toBe(10);
     expect(MAX_VISIBLE_RELEASE_NOTE_ITEMS).toBe(10);
     fireEvent.click(screen.getByTestId("about-update-section"));
     expect(onCheckForUpdates).not.toHaveBeenCalled();
@@ -662,14 +662,15 @@ describe("shared brand support templates", () => {
       await screen.findByRole("dialog", { name: "更新日志" }),
     ).toBeInTheDocument();
     expect(
-      await screen.findByText("更新日志 2026-08-26 v1.0.6"),
+      await screen.findByText("更新日志 2026-08-31 v1.0.11"),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("功能优化")).toHaveLength(5);
-    expect(screen.getAllByText("问题修复")).toHaveLength(5);
-    expect(screen.getByText("版本 6 优化 10")).toBeInTheDocument();
-    expect(screen.queryByText("版本 6 优化 11")).not.toBeInTheDocument();
-    expect(screen.queryByText(/v1\.0\.1/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/vv1\.0\.6/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("功能优化")).toHaveLength(10);
+    expect(screen.getAllByText("问题修复")).toHaveLength(10);
+    expect(screen.getByText("版本 11 优化 10")).toBeInTheDocument();
+    expect(screen.queryByText("版本 11 优化 11")).not.toBeInTheDocument();
+    expect(screen.getByText("更新日志 2026-08-22 v1.0.2")).toBeInTheDocument();
+    expect(screen.queryByText("更新日志 2026-08-21 v1.0.1")).not.toBeInTheDocument();
+    expect(screen.queryByText(/vv1\.0\.11/)).not.toBeInTheDocument();
   });
 
   /** 英文界面必须选择同一发布事实的 en-US 文案与英文标题。 */
