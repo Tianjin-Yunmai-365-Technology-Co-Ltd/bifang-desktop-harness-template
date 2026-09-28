@@ -3,6 +3,26 @@
   "releases": [
     {
       "releaseDate": "2026-09-28",
+      "version": "v202609281559",
+      "featureOptimizations": [
+        {
+          "zh-CN": "初始化和旧项目升级现在确认发布后的本地打包或提交远程；每次发布冻结选择，远程路径推送已发布提交至小写 release 分支及版本 tag，并复核结果。",
+          "en-US": "Initialization and upgrades now confirm local packaging or remote submission after release. Each release freezes the choice; the remote path pushes the published commit to the lowercase release branch and version tag, then verifies both refs."
+        },
+        {
+          "zh-CN": "双语更新日志保留当前版及此前最多九个实际发布版本；发布后打包或推送不划分 SemVer 功能周期。",
+          "en-US": "Bilingual release notes retain the current and up to nine earlier published versions; post-release packaging or pushing does not start a new SemVer feature cycle."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 Harness 再次发布取号时，校验器误将上一发布已物化的所需版本判为不等于新版本的问题。",
+          "en-US": "Fixed the release validator rejecting a previously published required version when Harness stamps a new release version."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-28",
       "version": "v202609281202",
       "featureOptimizations": [
         {
