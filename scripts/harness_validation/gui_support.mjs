@@ -19,10 +19,6 @@ export const GUI_SUPPORT_BRAND_ROOT = path.join(supportRoot, "assets", "brand-su
 
 const FIXED_REMOTE_URI = /\b(?:https?|wss?):\/\/[^\s<>()]+/iu;
 
-function display(filePath) {
-  return relativePath(filePath);
-}
-
 function hasNonAsciiRawByteString(source) {
   const identifierCharacter = (character) => character === "_" || /[\p{L}\p{N}]/u.test(character);
   const skipQuoted = (start, quote) => {
@@ -95,17 +91,17 @@ function readContractText(errors, filePath) {
   try {
     stat = fs.lstatSync(filePath);
   } catch {
-    fail(errors, `missing or unsafe GUI support contract file: ${display(filePath)}`);
+    fail(errors, `missing or unsafe GUI support contract file: ${relativePath(filePath)}`);
     return null;
   }
   if (!stat.isFile() || stat.isSymbolicLink()) {
-    fail(errors, `missing or unsafe GUI support contract file: ${display(filePath)}`);
+    fail(errors, `missing or unsafe GUI support contract file: ${relativePath(filePath)}`);
     return null;
   }
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(fs.readFileSync(filePath));
   } catch (error) {
-    fail(errors, `cannot read GUI support contract ${display(filePath)}: ${error.message}`);
+    fail(errors, `cannot read GUI support contract ${relativePath(filePath)}: ${error.message}`);
     return null;
   }
 }
@@ -117,11 +113,11 @@ function readContractJson(errors, filePath) {
   try {
     value = JSON.parse(text);
   } catch (error) {
-    fail(errors, `invalid GUI support JSON in ${display(filePath)}: ${error.message}`);
+    fail(errors, `invalid GUI support JSON in ${relativePath(filePath)}: ${error.message}`);
     return null;
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    fail(errors, `GUI support JSON root must be an object: ${display(filePath)}`);
+    fail(errors, `GUI support JSON root must be an object: ${relativePath(filePath)}`);
     return null;
   }
   return value;
@@ -178,7 +174,7 @@ function validateReactAssets(errors, brandRoot) {
     if (text === null) continue;
     texts.set(filePath, text);
     for (const fragment of fragments) {
-      if (!text.includes(fragment)) fail(errors, `GUI brand React template missing in ${display(filePath)}: ${fragment}`);
+      if (!text.includes(fragment)) fail(errors, `GUI brand React template missing in ${relativePath(filePath)}: ${fragment}`);
     }
   }
   if (hasNonAsciiRawByteString(texts.get(path.join(brandRoot, "rust", "release_notes.rs")) ?? "")) fail(errors, "GUI brand Rust release-note fixtures must encode localized UTF-8 str values with .as_bytes(), not raw byte strings");
@@ -221,7 +217,7 @@ function validateReactAssets(errors, brandRoot) {
   }
   for (const [filePath, text] of texts) {
     if (/\.test\.tsx?$/u.test(path.basename(filePath))) continue;
-    if (FIXED_REMOTE_URI.test(text)) fail(errors, `GUI brand runtime template contains a fixed remote URI: ${display(filePath)}`);
+    if (FIXED_REMOTE_URI.test(text)) fail(errors, `GUI brand runtime template contains a fixed remote URI: ${relativePath(filePath)}`);
   }
 }
 
@@ -254,9 +250,9 @@ export function validateGuiSupportContract(errors, options = {}) {
     const text = readContractText(errors, filePath);
     if (text === null) continue;
     for (const fragment of fragments) {
-      if (!text.includes(fragment)) fail(errors, `GUI support contract missing in ${display(filePath)}: ${fragment}`);
+      if (!text.includes(fragment)) fail(errors, `GUI support contract missing in ${relativePath(filePath)}: ${fragment}`);
     }
-    if (FIXED_REMOTE_URI.test(text)) fail(errors, `GUI support Harness text contains a fixed remote URI in ${display(filePath)}`);
+    if (FIXED_REMOTE_URI.test(text)) fail(errors, `GUI support Harness text contains a fixed remote URI in ${relativePath(filePath)}`);
   }
   const profilePath = path.join(brandRoot, "brand-support-profile.json");
   const manifestPath = path.join(brandRoot, "media-manifest.json");
@@ -275,5 +271,5 @@ export function validateGuiSupportContract(errors, options = {}) {
   if (!isDeepStrictEqual(releaseConfig, expectedConfig)) fail(errors, "GUI release config must contain only the fixed release-notes resource mapping");
   validateReactAssets(errors, brandRoot);
   const productInstancePath = options.productInstancePath ?? path.join(ROOT, "docs", "GUI_SUPPORT_SURFACES.md");
-  if (fs.existsSync(productInstancePath)) fail(errors, `Harness template must not precreate downstream GUI support facts: ${display(productInstancePath)}`);
+  if (fs.existsSync(productInstancePath)) fail(errors, `Harness template must not precreate downstream GUI support facts: ${relativePath(productInstancePath)}`);
 }

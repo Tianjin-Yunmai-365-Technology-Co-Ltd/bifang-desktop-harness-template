@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { loadCargoMetadata, validateMetadata } from "../../.agents/skills/desktop-implement-change/scripts/check_core_first.mjs";
-import { ROOT, SKILLS_ROOT, fail, readText, relativePath } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, fail, latestDatedFile, readText, relativePath } from "./core.mjs";
 
 const RUST_ASSET = path.join(SKILLS_ROOT, "desktop-initialize-rust-project", "assets", "rust-lib-cli");
 const IMPLEMENT_CHANGE = path.join(SKILLS_ROOT, "desktop-implement-change", "scripts");
@@ -41,7 +41,7 @@ export function coreFirstRequirements() {
       "值域、跨字段关系",
       "node scripts/run_harness_tests.mjs",
     ]),
-    [latestProductSpec(), ["Core-first 是强制架构约束", "当前只有一个接口", "系统托盘", "宿主能力约束"]],
+    [latestDatedFile(path.join(ROOT, "docs", "product_spec"), /^\d{8}_product_spec\.md$/u), ["Core-first 是强制架构约束", "当前只有一个接口", "系统托盘", "宿主能力约束"]],
     requirement(".agents/skills/desktop-define-product/SKILL.md", ["接口/宿主无关的业务结果", "业务效果仍委托 core"]),
     requirement(".agents/skills/desktop-plan-change/SKILL.md", ["对业务行为保持 core-first", "接口/宿主专属改动须记录其专属性理由"]),
     requirement(".agents/skills/desktop-implement-change/SKILL.md", ["Core-first 是硬规则", "适配器操作 → core API → core 测试", "违反宿主能力约束", "不得自动追加格式化、lint、静态"]),
@@ -75,12 +75,6 @@ export function coreFirstRequirements() {
     requirement(".agents/skills/desktop-add-mcp-adapter/agents/openai.yaml", ["薄适配器"]),
     requirement(".agents/skills/desktop-add-gui-adapter/agents/openai.yaml", ["薄适配器", "业务效果回到 core"]),
   ]);
-}
-
-function latestProductSpec() {
-  const directory = path.join(ROOT, "docs", "product_spec");
-  const name = fs.readdirSync(directory).filter((entry) => /^\d{8}_product_spec\.md$/u.test(entry)).sort().at(-1);
-  return name ? path.join(directory, name) : path.join(directory, "__missing_latest__.md");
 }
 
 /** 校验 core-first 文本事实与真实中性 Cargo metadata 依赖图。 */

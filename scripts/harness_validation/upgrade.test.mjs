@@ -4,11 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { MINIMUM_OWNERSHIP_RULES, VALID_MODES } from "../../.agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_policy.mjs";
 import {
   REQUIRED_POST_RELEASE_SWITCH_PATHS,
   REQUIRED_UPGRADE_RULES,
   UPGRADE_MANIFEST,
   UPGRADE_MODULES,
+  VALID_UPGRADE_MODES,
   loadUpgradeManifest,
   validateUpgradeContract,
 } from "./upgrade.mjs";
@@ -62,6 +64,23 @@ test("minimum protection cannot remove the Harness version tombstone", () => {
     manifest.rules = manifest.rules.filter(({ pattern }) => pattern !== "Version.md");
     const errors = validateManifest(manifest, directory);
     assert.match(errors.join("\n"), /Version\.md must be tombstone/u);
+  });
+});
+
+test("validator independently anchors the runtime ownership boundary", () => {
+  assert.notStrictEqual(REQUIRED_UPGRADE_RULES, MINIMUM_OWNERSHIP_RULES);
+  assert.notStrictEqual(VALID_UPGRADE_MODES, VALID_MODES);
+  assert.deepEqual(REQUIRED_UPGRADE_RULES, MINIMUM_OWNERSHIP_RULES);
+  assert.deepEqual(VALID_UPGRADE_MODES, VALID_MODES);
+  assert.equal(REQUIRED_UPGRADE_RULES.get("scripts/run_harness_tests.mjs"), "tombstone");
+});
+
+test("minimum protection cannot remove the Harness test runner tombstone", () => {
+  withTemporaryDirectory((directory) => {
+    const manifest = productionManifest();
+    manifest.rules = manifest.rules.filter(({ pattern }) => pattern !== "scripts/run_harness_tests.mjs");
+    const errors = validateManifest(manifest, directory);
+    assert.match(errors.join("\n"), /scripts\/run_harness_tests\.mjs must be tombstone/u);
   });
 });
 

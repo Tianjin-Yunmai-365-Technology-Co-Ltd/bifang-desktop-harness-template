@@ -3,10 +3,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, readText, nodeSyntaxError, relativePath } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, fail, latestDatedFile, readText, nodeSyntaxErrors, relativePath } from "./core.mjs";
 
 const skill = (name, ...parts) => path.join(SKILLS_ROOT, name, ...parts);
-const latest = (directory, pattern) => fs.readdirSync(directory).filter((name) => pattern.test(name)).sort().at(-1);
 
 export const GITIGNORE = path.join(ROOT, ".gitignore");
 export const RUST_ASSET = skill("desktop-initialize-rust-project", "assets", "rust-lib-cli");
@@ -38,7 +37,7 @@ export const AGENT_POLICY = path.join(ROOT, "docs", "AGENT_POLICY.md");
 export const ENGINEERING_RULES = path.join(ROOT, "docs", "ENGINEERING_RULES.md");
 export const RELEASE_DOC = path.join(ROOT, "docs", "RELEASE.md");
 const productSpecDirectory = path.join(ROOT, "docs", "product_spec");
-export const PRODUCT_SPEC = path.join(productSpecDirectory, latest(productSpecDirectory, /^\d{8}_product_spec\.md$/u));
+export const PRODUCT_SPEC = latestDatedFile(productSpecDirectory, /^\d{8}_product_spec\.md$/u);
 export const BUILD_RELEASE_POSIX_HELPER = skill("desktop-build-rust-release", "scripts", "prepare-release-directory.sh");
 export const BUILD_RELEASE_POWERSHELL_HELPER = skill("desktop-build-rust-release", "scripts", "prepare-release-directory.ps1");
 export const BUILD_RELEASE_HELPER_TESTS = skill("desktop-build-rust-release", "scripts", "prepare_release_directory.test.mjs");
@@ -77,7 +76,7 @@ export function validateReleaseIgnore(errors, filePath) {
 
 /** 要求每个普通文件包含全部固定片段，并按需运行 Node 语法检查。 */
 export function validateFragmentContract(errors, required, { label, syntaxCheck = [] } = {}) {
-  const checked = new Set(syntaxCheck);
+  const syntax = nodeSyntaxErrors(syntaxCheck.filter((filePath) => fs.existsSync(filePath)));
   for (const [filePath, fragments] of required) {
     let text;
     try {
@@ -91,10 +90,8 @@ export function validateFragmentContract(errors, required, { label, syntaxCheck 
     for (const fragment of fragments) {
       if (!text.includes(fragment)) fail(errors, `${label} missing in ${relativePath(filePath)}: ${fragment}`);
     }
-    if (checked.has(filePath)) {
-      const detail = nodeSyntaxError(filePath);
-      if (detail !== null) fail(errors, `invalid ${label} Node module ${relativePath(filePath)}: ${detail}`);
-    }
+    const detail = syntax.get(filePath);
+    if (detail) fail(errors, `invalid ${label} Node module ${relativePath(filePath)}: ${detail}`);
   }
 }
 

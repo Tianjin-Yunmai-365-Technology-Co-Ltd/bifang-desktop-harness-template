@@ -79,10 +79,6 @@ const FORBIDDEN_PRODUCT_KEYS = new Set([
   "productName", "route", "secret", "telemetry",
 ]);
 
-function display(filePath) {
-  return relativePath(filePath);
-}
-
 function setEqual(left, right) {
   return left.size === right.size && [...left].every((value) => right.has(value));
 }
@@ -155,32 +151,32 @@ function safeManifestPath(value) {
 
 /** 锁定项目负责人批准的品牌联系人、价格和资源结构。 */
 export function validateBrandProfile(errors, profile, filePath) {
-  if (profile.schemaVersion !== 1 || profile.scope !== "shared-product-family-brand") fail(errors, `brand support profile schema/scope drifted: ${display(filePath)}`);
-  if (profile.publicBasePath !== "/brand-support") fail(errors, `brand support public base path drifted: ${display(filePath)}`);
+  if (profile.schemaVersion !== 1 || profile.scope !== "shared-product-family-brand") fail(errors, `brand support profile schema/scope drifted: ${relativePath(filePath)}`);
+  if (profile.publicBasePath !== "/brand-support") fail(errors, `brand support public base path drifted: ${relativePath(filePath)}`);
   const contacts = profile.contacts;
   if (!contacts || typeof contacts !== "object" || Array.isArray(contacts)) {
-    fail(errors, `brand support contacts are missing: ${display(filePath)}`);
+    fail(errors, `brand support contacts are missing: ${relativePath(filePath)}`);
   } else {
     for (const [role, expected] of Object.entries({ windowTitle: "2222980", support: "2222980" })) {
       const contact = contacts[role];
-      if (!contact || typeof contact !== "object" || Array.isArray(contact) || contact.channel !== "QQ" || contact.value !== expected) fail(errors, `brand support ${role} contact drifted: ${display(filePath)}`);
+      if (!contact || typeof contact !== "object" || Array.isArray(contact) || contact.channel !== "QQ" || contact.value !== expected) fail(errors, `brand support ${role} contact drifted: ${relativePath(filePath)}`);
     }
   }
   const sponsor = profile.sponsor;
   if (!sponsor || typeof sponsor !== "object" || Array.isArray(sponsor)) {
-    fail(errors, `brand sponsor profile is missing: ${display(filePath)}`);
+    fail(errors, `brand sponsor profile is missing: ${relativePath(filePath)}`);
     return;
   }
   const prices = Array.isArray(sponsor.tiers) ? sponsor.tiers.filter((tier) => tier && typeof tier === "object" && !Array.isArray(tier)).map((tier) => tier.price) : [];
-  if (JSON.stringify(prices) !== JSON.stringify([19, 199, 1999])) fail(errors, `brand sponsor prices must remain 19/199/1999: ${display(filePath)}`);
+  if (JSON.stringify(prices) !== JSON.stringify([19, 199, 1999])) fail(errors, `brand sponsor prices must remain 19/199/1999: ${relativePath(filePath)}`);
   const payments = Array.isArray(sponsor.payments) ? sponsor.payments.filter((item) => item && typeof item === "object" && !Array.isArray(item)).map((item) => item.image) : [];
-  if (JSON.stringify(payments) !== JSON.stringify(["sponsor/pay1.png", "sponsor/pay2.png"])) fail(errors, `brand sponsor payment QR mapping drifted: ${display(filePath)}`);
-  if (sponsor.background !== "sponsor/bg.jpg") fail(errors, `brand sponsor background mapping drifted: ${display(filePath)}`);
+  if (JSON.stringify(payments) !== JSON.stringify(["sponsor/pay1.png", "sponsor/pay2.png"])) fail(errors, `brand sponsor payment QR mapping drifted: ${relativePath(filePath)}`);
+  if (sponsor.background !== "sponsor/bg.jpg") fail(errors, `brand sponsor background mapping drifted: ${relativePath(filePath)}`);
   const expectedOptional = new Set(["sponsor/arrow.png", "sponsor/icon1.png", "sponsor/icon2.png", "sponsor/icon3.png", "sponsor/icon4.png", "sponsor/select.png"]);
-  if (!Array.isArray(profile.optionalAssets) || !setEqual(new Set(profile.optionalAssets), expectedOptional)) fail(errors, `brand support optional small-image set is incomplete: ${display(filePath)}`);
-  if (!profile.updater || typeof profile.updater !== "object" || Array.isArray(profile.updater) || profile.updater.banner !== "updater/banner.jpg") fail(errors, `brand updater banner mapping drifted: ${display(filePath)}`);
+  if (!Array.isArray(profile.optionalAssets) || !setEqual(new Set(profile.optionalAssets), expectedOptional)) fail(errors, `brand support optional small-image set is incomplete: ${relativePath(filePath)}`);
+  if (!profile.updater || typeof profile.updater !== "object" || Array.isArray(profile.updater) || profile.updater.banner !== "updater/banner.jpg") fail(errors, `brand updater banner mapping drifted: ${relativePath(filePath)}`);
   const forbidden = [...walkKeys(profile)].filter((key) => FORBIDDEN_PRODUCT_KEYS.has(key)).sort();
-  if (forbidden.length > 0) fail(errors, `brand profile contains downstream product fields ${JSON.stringify(forbidden)}: ${display(filePath)}`);
+  if (forbidden.length > 0) fail(errors, `brand profile contains downstream product fields ${JSON.stringify(forbidden)}: ${relativePath(filePath)}`);
 }
 
 /** 确保品牌文案完整且关于页没有来源产品名或功能字段。 */
@@ -192,27 +188,27 @@ export function validateBrandTranslations(errors, { zh, en, zhPath, enPath }) {
     const about = value.about;
     const sponsor = value.sponsor;
     if (!about || typeof about !== "object" || Array.isArray(about) || !setEqual(new Set(Object.keys(about)), EXPECTED_ABOUT_KEYS)) {
-      fail(errors, `brand about copy must contain only shared fields: ${display(filePath)}`);
+      fail(errors, `brand about copy must contain only shared fields: ${relativePath(filePath)}`);
     } else if (Object.entries(EXPECTED_ABOUT_COPY[locale]).some(([key, expected]) => about[key] !== expected)) {
-      fail(errors, `brand author or disclaimer copy drifted: ${display(filePath)}`);
+      fail(errors, `brand author or disclaimer copy drifted: ${relativePath(filePath)}`);
     }
     for (const [section, expected] of Object.entries(EXPECTED_LOCAL_UI_COPY[locale])) {
-      if (!objectEqual(value[section], expected)) fail(errors, `brand ${section} copy drifted: ${display(filePath)}`);
+      if (!objectEqual(value[section], expected)) fail(errors, `brand ${section} copy drifted: ${relativePath(filePath)}`);
     }
     for (const [section, keys] of Object.entries(EXPECTED_FIXED_UI_KEYS)) {
       const copy = value[section];
-      if (!copy || typeof copy !== "object" || Array.isArray(copy) || !setEqual(new Set(Object.keys(copy)), new Set(keys))) fail(errors, `brand ${section} fixed UI keys drifted: ${display(filePath)}`);
+      if (!copy || typeof copy !== "object" || Array.isArray(copy) || !setEqual(new Set(Object.keys(copy)), new Set(keys))) fail(errors, `brand ${section} fixed UI keys drifted: ${relativePath(filePath)}`);
     }
     const releaseNotes = value.release_notes;
-    if (!releaseNotes || typeof releaseNotes !== "object" || Array.isArray(releaseNotes) || Object.entries(EXPECTED_RELEASE_NOTES_COPY[locale]).some(([key, expected]) => releaseNotes[key] !== expected)) fail(errors, `brand release-note fixed format drifted: ${display(filePath)}`);
+    if (!releaseNotes || typeof releaseNotes !== "object" || Array.isArray(releaseNotes) || Object.entries(EXPECTED_RELEASE_NOTES_COPY[locale]).some(([key, expected]) => releaseNotes[key] !== expected)) fail(errors, `brand release-note fixed format drifted: ${relativePath(filePath)}`);
     if (!sponsor || typeof sponsor !== "object" || Array.isArray(sponsor)) {
-      fail(errors, `brand sponsor translations are missing: ${display(filePath)}`);
+      fail(errors, `brand sponsor translations are missing: ${relativePath(filePath)}`);
       continue;
     }
-    if (sponsor.title !== title || !String(sponsor.payment_instructions ?? "").includes(payment)) fail(errors, `brand sponsor title/contact drifted: ${display(filePath)}`);
+    if (sponsor.title !== title || !String(sponsor.payment_instructions ?? "").includes(payment)) fail(errors, `brand sponsor title/contact drifted: ${relativePath(filePath)}`);
     const required = ["payment_wechat_alt", "payment_alipay_alt", "tier1_name", "tier2_name", "tier3_name", "tier1_b1", "tier2_b1", "tier3_b1"];
-    if (!required.every((key) => Object.hasOwn(sponsor, key))) fail(errors, `brand sponsor translations are incomplete: ${display(filePath)}`);
-    if ([...walkKeys(value)].some((key) => FORBIDDEN_PRODUCT_KEYS.has(key))) fail(errors, `brand translations contain downstream product fields: ${display(filePath)}`);
+    if (!required.every((key) => Object.hasOwn(sponsor, key))) fail(errors, `brand sponsor translations are incomplete: ${relativePath(filePath)}`);
+    if ([...walkKeys(value)].some((key) => FORBIDDEN_PRODUCT_KEYS.has(key))) fail(errors, `brand translations contain downstream product fields: ${relativePath(filePath)}`);
   }
 }
 
@@ -233,9 +229,9 @@ function mediaPaths(mediaRoot, brandRoot) {
 
 /** 逐项核对 manifest 与原始品牌图片字节。 */
 export function validateBrandMediaManifest(errors, manifest, { brandRoot, path: manifestPath }) {
-  if (manifest.schemaVersion !== 1 || manifest.assetCount !== 13) fail(errors, `brand media manifest schema/count drifted: ${display(manifestPath)}`);
+  if (manifest.schemaVersion !== 1 || manifest.assetCount !== 13) fail(errors, `brand media manifest schema/count drifted: ${relativePath(manifestPath)}`);
   const approval = manifest.sourceApproval;
-  if (!approval || typeof approval !== "object" || Array.isArray(approval) || approval.approvedUse !== "internal-proprietary-harness-product-family") fail(errors, `brand media internal reuse approval is missing: ${display(manifestPath)}`);
+  if (!approval || typeof approval !== "object" || Array.isArray(approval) || approval.approvedUse !== "internal-proprietary-harness-product-family") fail(errors, `brand media internal reuse approval is missing: ${relativePath(manifestPath)}`);
   const policy = manifest.bundlePolicy;
   if (!policy || typeof policy !== "object" || Array.isArray(policy)
     || policy.guiSkillPropagation !== "complete"
@@ -243,19 +239,19 @@ export function validateBrandMediaManifest(errors, manifest, { brandRoot, path: 
     || JSON.stringify(policy.defaultMediaSets) !== "[]"
     || JSON.stringify(policy.optionalMediaSets) !== '["sponsor","updater"]'
     || policy.paymentAutomationAuthorized !== false
-    || policy.remoteLoadingAllowed !== false) fail(errors, `brand media bundle policy is unsafe: ${display(manifestPath)}`);
+    || policy.remoteLoadingAllowed !== false) fail(errors, `brand media bundle policy is unsafe: ${relativePath(manifestPath)}`);
   if (!Array.isArray(manifest.assets)) {
-    fail(errors, `brand media manifest assets must be a list: ${display(manifestPath)}`);
+    fail(errors, `brand media manifest assets must be a list: ${relativePath(manifestPath)}`);
     return;
   }
   const byPath = new Map();
   for (const entry of manifest.assets) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry) || !safeManifestPath(entry.sourcePath)) {
-      fail(errors, `brand media manifest has an unsafe asset path: ${display(manifestPath)}`);
+      fail(errors, `brand media manifest has an unsafe asset path: ${relativePath(manifestPath)}`);
       continue;
     }
     if (byPath.has(entry.sourcePath)) {
-      fail(errors, `brand media manifest duplicates ${entry.sourcePath}: ${display(manifestPath)}`);
+      fail(errors, `brand media manifest duplicates ${entry.sourcePath}: ${relativePath(manifestPath)}`);
       continue;
     }
     byPath.set(entry.sourcePath, entry);
@@ -285,7 +281,7 @@ export function validateBrandMediaManifest(errors, manifest, { brandRoot, path: 
       safe = false;
     }
     if (!safe) {
-      fail(errors, `missing or unsafe brand media file: ${display(mediaPath)}`);
+      fail(errors, `missing or unsafe brand media file: ${relativePath(mediaPath)}`);
       continue;
     }
     if (entry.classification !== classification) fail(errors, `brand media classification drifted for ${sourcePath}`);
@@ -294,7 +290,7 @@ export function validateBrandMediaManifest(errors, manifest, { brandRoot, path: 
     try {
       facts = imageFacts(mediaPath);
     } catch (error) {
-      fail(errors, `cannot inspect brand media ${display(mediaPath)}: ${error.message}`);
+      fail(errors, `cannot inspect brand media ${relativePath(mediaPath)}: ${error.message}`);
       continue;
     }
     for (const [field, actualValue] of Object.entries(facts)) {

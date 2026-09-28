@@ -177,6 +177,18 @@ done
   return pathToFileURL(root).href;
 }
 
+let resolvedHostAwk = null;
+
+/** 每个测试进程只解析一次宿主 awk 真实路径。 */
+function hostAwk() {
+  if (resolvedHostAwk === null) {
+    const awk = spawnSync("sh", ["-c", "command -v awk"], { encoding: "utf8" }).stdout.trim();
+    if (!awk) throw new Error("POSIX gate tests require awk");
+    resolvedHostAwk = realpathSync(awk);
+  }
+  return resolvedHostAwk;
+}
+
 export function runGate(root, args, { probe = null, testMode = true, extra = {} } = {}) {
   const probePath = probe ?? path.join(root, "probe");
   mkdirSync(probePath, { recursive: true });
@@ -185,10 +197,8 @@ export function runGate(root, args, { probe = null, testMode = true, extra = {} 
   executable(loginShell, "#!/bin/sh\n[ \"${1:-}\" = -l ] && [ \"${2:-}\" = -c ] || exit 90\n[ ! -f \"$HOME/.profile\" ] || . \"$HOME/.profile\"\neval \"$3\"\n");
   const freshSystem = path.join(root, "fresh-system");
   mkdirSync(freshSystem, { recursive: true });
-  const awk = spawnSync("sh", ["-c", "command -v awk"], { encoding: "utf8" }).stdout.trim();
-  if (!awk) throw new Error("POSIX gate tests require awk");
   const freshAwk = path.join(freshSystem, "awk");
-  if (!existsSync(freshAwk)) symlinkSync(realpathSync(awk), freshAwk);
+  if (!existsSync(freshAwk)) symlinkSync(hostAwk(), freshAwk);
   const env = {
     ...process.env,
     AFH_PREREQ_PATH: probePath,

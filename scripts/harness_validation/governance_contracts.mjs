@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, nodeSyntaxError, relativePath } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, fail, latestDatedFile, nodeSyntaxErrors, relativePath } from "./core.mjs";
 import { validateAgentsEntrypoint } from "./governance.mjs";
 import { PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS } from "./governance_policy.mjs";
 
@@ -9,21 +9,12 @@ function skill(name, ...segments) {
   return path.join(SKILLS_ROOT, name, ...segments);
 }
 
-function latest(directory, pattern) {
-  try {
-    const match = fs.readdirSync(directory).filter((name) => pattern.test(name)).sort().at(-1);
-    return path.join(directory, match ?? "__missing_latest__.md");
-  } catch {
-    return path.join(directory, "__missing_latest__.md");
-  }
-}
-
 const DEFAULT_PATHS = Object.freeze({
   agentsEntrypoint: path.join(ROOT, "AGENTS.md"),
   readme: path.join(ROOT, "README.md"),
   agentPolicy: path.join(ROOT, "docs", "AGENT_POLICY.md"),
   engineeringRules: path.join(ROOT, "docs", "ENGINEERING_RULES.md"),
-  productSpec: latest(path.join(ROOT, "docs", "product_spec"), /^\d{8}_product_spec\.md$/u),
+  productSpec: latestDatedFile(path.join(ROOT, "docs", "product_spec"), /^\d{8}_product_spec\.md$/u),
   rustBaseline: path.join(ROOT, "docs", "RUST_CLI_TEMPLATE.md"),
   release: path.join(ROOT, "docs", "RELEASE.md"),
   verification: path.join(ROOT, "docs", "VERIFICATION.md"),
@@ -374,10 +365,11 @@ export function validateStreamlinedDevelopmentAndBuild(errors, options = {}) {
   const paths = resolvedPaths(options.paths);
   const texts = checkEntries(errors, paths, STREAMLINED_ENTRIES, "missing streamlined workflow contract file", "streamlined workflow rule missing");
 
-  for (const key of ["gitLifecycleEntry", "gitLifecycleCore", "gitLifecyclePublication", "gitLifecycleTests", "gitLifecycleReleaseTests", "gitPublicationTests"]) {
-    if (!texts.has(key)) continue;
-    const detail = nodeSyntaxError(paths[key]);
-    if (detail !== null) fail(errors, `invalid Git lifecycle Node module ${relativePath(paths[key])}: ${detail}`);
+  const lifecycleModules = ["gitLifecycleEntry", "gitLifecycleCore", "gitLifecyclePublication", "gitLifecycleTests", "gitLifecycleReleaseTests", "gitPublicationTests"]
+    .filter((key) => texts.has(key))
+    .map((key) => paths[key]);
+  for (const [filePath, detail] of nodeSyntaxErrors(lifecycleModules)) {
+    if (detail !== null) fail(errors, `invalid Git lifecycle Node module ${relativePath(filePath)}: ${detail}`);
   }
 
   const forbiddenTierFragments = ["每项任务使用一种路径", "快速路径", "标准路径", "里程碑路径", "当前任务路径", "推荐敏捷预设"];

@@ -109,7 +109,8 @@ export function validateSkills(errors) {
       continue;
     }
     try {
-      const frontmatter = parseFrontmatter(readText(skillFile));
+      const skillText = readText(skillFile);
+      const frontmatter = parseFrontmatter(skillText);
       if (!frontmatter) {
         fail(errors, `Skill 缺少合法 frontmatter: ${name}`);
       } else {
@@ -120,7 +121,6 @@ export function validateSkills(errors) {
         if (frontmatter.name !== name) fail(errors, `Skill name 与目录不一致: ${name}`);
         if (!frontmatter.description?.trim()) fail(errors, `Skill description 不能为空: ${name}`);
       }
-      const skillText = readText(skillFile);
       if (skillText.includes("TODO")) fail(errors, `Skill 含未解决 TODO: ${name}`);
       if (name === "mantine-list-view" && skillText.replaceAll("\r\n", "\n").split("\n").length > 201) {
         fail(errors, `mantine-list-view SKILL.md 超过 200 行`);

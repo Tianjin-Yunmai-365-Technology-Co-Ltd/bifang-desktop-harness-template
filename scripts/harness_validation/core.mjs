@@ -75,11 +75,10 @@ process.stdout.write(JSON.stringify(results));
 const syntaxResults = new Map();
 
 function syntaxKey(filePath) {
-  const stat = fs.statSync(filePath);
-  return `${path.resolve(filePath)}\0${stat.mtimeMs}\0${stat.size}`;
+  return `${path.resolve(filePath)}\0${sha256File(filePath)}`;
 }
 
-/** 并发检查尚未缓存的模块；同一进程内按路径、mtime 与大小复用结果，避免各校验器重复解析。 */
+/** 并发检查尚未缓存的模块；同一进程内按路径与内容摘要复用结果，避免等长改写漏检。 */
 export function checkNodeSyntax(filePaths) {
   const keys = new Map(filePaths.map((filePath) => [path.resolve(filePath), syntaxKey(filePath)]));
   const pending = [...keys].filter(([, key]) => !syntaxResults.has(key));
@@ -101,13 +100,29 @@ export function checkNodeSyntax(filePaths) {
   return new Map(filePaths.map((filePath) => [filePath, syntaxResults.get(keys.get(path.resolve(filePath)))]));
 }
 
+/** 返回目录中按名称排序最新的日期文件；目录缺失或无匹配时返回占位路径，由调用方报告缺失。 */
+export function latestDatedFile(directory, pattern) {
+  let names = [];
+  try {
+    names = fs.readdirSync(directory);
+  } catch {
+    // 目录缺失与无匹配同样落到占位路径，避免在模块加载时中断整个校验。
+  }
+  return path.join(directory, names.filter((name) => pattern.test(name)).sort().at(-1) ?? "__missing_latest__.md");
+}
+
+/** 批量返回模块语法诊断，null 表示通过；检查器本身失败时每个文件都得到同一诊断。 */
+export function nodeSyntaxErrors(filePaths) {
+  try {
+    return checkNodeSyntax(filePaths);
+  } catch (error) {
+    return new Map(filePaths.map((filePath) => [filePath, error.message]));
+  }
+}
+
 /** 返回单个模块的语法诊断，null 表示通过。 */
 export function nodeSyntaxError(filePath) {
-  try {
-    return checkNodeSyntax([filePath]).get(filePath);
-  } catch (error) {
-    return error.message;
-  }
+  return nodeSyntaxErrors([filePath]).get(filePath);
 }
 
 /** 枚举 Git 可见文件；失败时返回明确错误而不退化为不完整扫描。 */
@@ -138,13 +153,6 @@ export function trackedFiles(root = ROOT) {
     throw new Error("Git 文件枚举包含重复路径");
   }
   return files;
-}
-
-/** 按跨平台文本分隔符与尾换行语义计算物理行数。 */
-export function physicalLineCount(text) {
-  if (text.length === 0) return 0;
-  const parts = text.split(/\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]/u);
-  return parts.length - (parts.at(-1) === "" ? 1 : 0);
 }
 
 /** 判断字节是否应按人工维护 UTF-8 文本参与治理。 */

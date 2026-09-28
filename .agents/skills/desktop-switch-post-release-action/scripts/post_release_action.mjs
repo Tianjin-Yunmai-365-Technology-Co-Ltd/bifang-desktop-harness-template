@@ -39,7 +39,8 @@ function regularFile(target, label) {
   return stat;
 }
 
-function validConfirmedAt(value) {
+/** 判断 confirmed_at 是否为日历合法的 ISO 日期或带日期前缀的可解析时间戳。 */
+export function validConfirmedAt(value) {
   if (/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
     const [year, month, day] = value.split("-").map(Number);
     const date = new Date(Date.UTC(year, month - 1, day));
@@ -67,12 +68,10 @@ function projectRoot(raw) {
   return root;
 }
 
-function readPolicy(root) {
-  const file = path.join(root, POLICY_RELATIVE);
-  const stat = regularFile(file, "Agent 策略");
-  const bytes = fs.readFileSync(file);
+/** 解析受管策略文档的字节、换行及字段结构，供运行时与 Harness 校验器共用。 */
+export function parseAgentPolicyDocument(bytes) {
   let source;
-  try { source = new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  try { source = typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
   catch { throw new ActionError("Agent 策略必须是有效 UTF-8"); }
   if (source.includes("\r") && source.replaceAll("\r\n", "").includes("\r")) throw new ActionError("Agent 策略包含混合换行");
   if (source.includes("\r\n") && source.replaceAll("\r\n", "").includes("\n")) throw new ActionError("Agent 策略包含混合换行");
@@ -93,13 +92,22 @@ function readPolicy(root) {
   if (!expected || fields.size !== expected.length || expected.some((field) => !fields.has(field))) {
     throw new ActionError("Agent 策略 schema 或字段集合不受支持；不得推断发布后动作");
   }
+  return { source, normalized, newline, lines, fields, schema };
+}
+
+function readPolicy(root) {
+  const file = path.join(root, POLICY_RELATIVE);
+  const stat = regularFile(file, "Agent 策略");
+  const bytes = fs.readFileSync(file);
+  const document = parseAgentPolicyDocument(bytes);
+  const { fields, schema } = document;
   if (fields.get("decision_mode") !== "reuse_then_infer_then_ask") throw new ActionError("Agent 策略 decision_mode 无效");
   for (const field of PREFERENCES) if (!["enabled", "disabled"].includes(fields.get(field))) throw new ActionError(`下游 Agent 策略 ${field} 尚未确认`);
   const confirmedBy = fields.get("confirmed_by")?.trim().toLowerCase();
   if (!confirmedBy || ["pending", "unknown", "unset", "n/a"].includes(confirmedBy)) throw new ActionError("下游 Agent 策略 confirmed_by 尚未确认");
   if (!validConfirmedAt(fields.get("confirmed_at") ?? "")) throw new ActionError("下游 Agent 策略 confirmed_at 必须是真实 ISO 日期或时间戳");
   if (schema === "4" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("post_release_action 必须是 local_package 或 push_release_branch");
-  const policy = { file, stat, bytes, source, normalized, newline, lines, fields, schema };
+  const policy = { file, stat, bytes, ...document };
   if (schema === "4") assertCurrentPolicyBody(policy);
   if (schema === "4" && fields.get("post_release_action") === "local_package") assertLocalPackageSupported(root);
   return policy;
@@ -126,10 +134,9 @@ function assertCurrentPolicyBody(policy) {
   }
 }
 
-function metadataArray(root, key) {
-  const file = path.join(root, "Cargo.toml");
-  regularFile(file, "Cargo 工作区清单");
-  const lines = fs.readFileSync(file, "utf8").split(/\r?\n/u);
+/** 按发布运行时接受的 Cargo metadata 语法读取必需的接口或平台数组。 */
+export function parseReleaseMetadataArray(source, key) {
+  const lines = source.split(/\r?\n/u);
   const sections = lines.flatMap((line, index) => line.trim() === "[workspace.metadata.agent-first-harness]" ? [index] : []);
   if (sections.length !== 1) throw new ActionError("Cargo 发布接口元数据缺失或重复");
   const start = sections[0];
@@ -147,6 +154,12 @@ function metadataArray(root, key) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
   return values;
+}
+
+function metadataArray(root, key) {
+  const file = path.join(root, "Cargo.toml");
+  regularFile(file, "Cargo 工作区清单");
+  return parseReleaseMetadataArray(fs.readFileSync(file, "utf8"), key);
 }
 
 function optionalMetadata(root, key) {

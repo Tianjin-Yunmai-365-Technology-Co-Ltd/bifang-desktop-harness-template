@@ -26,7 +26,7 @@ export function discoverTests(roots = SEARCH_ROOTS) {
   return tests.sort();
 }
 
-/** 串行运行所有 Harness 与 Skill Node 回归，透传原生 TAP 输出和退出码。 */
+/** 按 Node 默认文件级并发运行所有 Harness 与 Skill Node 回归；各测试文件独立进程与临时根，透传原生 TAP 输出和退出码。 */
 export function main() {
   const tests = discoverTests();
   if (tests.length === 0) {
@@ -35,7 +35,7 @@ export function main() {
   }
   const result = spawnSync(
     process.execPath,
-    ["--test", "--test-concurrency=1", ...tests],
+    ["--test", ...tests],
     { cwd: ROOT, stdio: "inherit", env: process.env, windowsHide: true },
   );
   if (result.error) {

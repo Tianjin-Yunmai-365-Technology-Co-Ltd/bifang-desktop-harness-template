@@ -6,6 +6,8 @@ import {
   collectMethodArguments,
   collectRustFunctions,
   desktopTargetDependencyDeclaration,
+  pluginRegistrations,
+  requireSinglePluginRegistration,
   sanitizeRustSource,
   targetDependencyDeclaration,
   tomlAssignment,
@@ -262,19 +264,6 @@ export function validatePluginDependencyContract(rootCargo, guiCargo, profile, e
   ) {
     errors.push("未选择开机自启时不得声明 tauri-plugin-autostart 依赖");
   }
-}
-
-function pluginRegistrations(sourceText, token) {
-  const escaped = token.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  return [...sourceText.matchAll(new RegExp(`\\.plugin\\s*\\(\\s*${escaped}`, "gu"))];
-}
-
-function requireSinglePluginRegistration(sourceText, token, label, errors) {
-  const registrations = pluginRegistrations(sourceText, token);
-  if (registrations.length !== 1) {
-    errors.push(`${label}必须在 Tauri Builder 中恰好注册一次，实际 ${registrations.length} 次`);
-  }
-  return registrations[0]?.index ?? -1;
 }
 
 function validatePluginOrder(sourceText, profile, errors) {

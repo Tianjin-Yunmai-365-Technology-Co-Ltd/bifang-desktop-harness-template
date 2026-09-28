@@ -12,6 +12,8 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { canonicalRoot, lstatOrNull, parseArguments } from "./check_file_line_limits.mjs";
+
 const DECLARATION_KINDS = new Set(["enum", "fn", "struct", "trait", "type", "union"]);
 const FUNCTION_MODIFIERS = new Set(["async", "const", "default", "unsafe"]);
 const SOURCE_DIRECTORIES = ["src", "tests"];
@@ -259,21 +261,6 @@ function inspectSource(relative, source) {
   return [declarations, violations, lexicalErrors];
 }
 
-function lstatOrNull(target) {
-  try { return lstatSync(target); } catch (error) {
-    if (error?.code === "ENOENT" || error?.code === "ENOTDIR") return null;
-    throw error;
-  }
-}
-
-function canonicalRoot(root) {
-  if (lstatOrNull(root)?.isSymbolicLink()) return [null, [`项目根不得是符号链接: ${root}`]];
-  let resolved;
-  try { resolved = realpathSync(root); } catch (error) { return [null, [`无法解析项目根 ${root}: ${error.message}`]]; }
-  if (!lstatSync(resolved).isDirectory()) return [null, [`项目根不是目录: ${resolved}`]];
-  return [resolved, []];
-}
-
 function stripTomlComment(line) {
   let quote = null;
   let escaped = false;
@@ -478,17 +465,6 @@ export function inspectProject(root) {
   report.errors.sort();
   report.ok = report.errors.length === 0 && report.violations.length === 0;
   return report;
-}
-
-function parseArguments(argumentsList) {
-  let root = process.cwd();
-  let json = false;
-  for (let index = 0; index < argumentsList.length; index += 1) {
-    if (argumentsList[index] === "--json") json = true;
-    else if (argumentsList[index] === "--root" && argumentsList[index + 1] !== undefined) { root = argumentsList[index + 1]; index += 1; }
-    else throw new Error(`unsupported argument: ${argumentsList[index]}`);
-  }
-  return { root, json };
 }
 
 export function main(argumentsList = process.argv.slice(2), inspector = inspectProject) {

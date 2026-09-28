@@ -37,7 +37,7 @@ function isSymbolicLink(value) {
 /** 在不改变末级名称语义的前提下得到规范化绝对路径。 */
 export function lexicalAbsolute(value, base) {
   const expanded = expandHome(value);
-  return path.resolve(path.isAbsolute(expanded) ? expanded : path.join(base, expanded));
+  return path.resolve(base, expanded);
 }
 
 /** 找到最近的已存在祖先，并拒绝文件或断裂符号链接阻断创建。 */

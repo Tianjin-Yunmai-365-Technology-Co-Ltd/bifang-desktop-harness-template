@@ -28,6 +28,25 @@ test("current source policy satisfies full persistence contract", () => {
   assert.deepEqual(errors, []);
 });
 
+test("policy validator uses runtime frontmatter syntax for LF and CRLF", () => {
+  const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
+  withPolicy(source.replaceAll("\n", "\r\n"), (filePath) => {
+    const errors = [];
+    validateAgentPolicy(errors, filePath, { requireSourceDefaults: true });
+    assert.deepEqual(errors, []);
+  });
+  for (const invalid of [
+    source.replace("schema_version: 4", "schema_version : 4"),
+    source.replace("schema_version: 4\n", "schema_version: 4\r\n"),
+  ]) {
+    withPolicy(invalid, (filePath) => {
+      const errors = [];
+      validateAgentPolicy(errors, filePath);
+      assert.ok(errors.some((error) => error.includes("invalid Agent policy frontmatter")));
+    });
+  }
+});
+
 test("progress title accepts only exact legal shape", () => {
   assert.equal(isValidSessionProgressTitle("Task 8 | 运行中 | 左侧 Task 默认关闭并支持开关"), true);
   assert.equal(isValidSessionProgressTitle("Task 0 | 运行中 | 结果"), false);
@@ -149,9 +168,46 @@ test("TUI/MCP-only downstream rejects local packaging but accepts remote release
   }
 });
 
+test("policy validator keeps full Cargo syntax checks and shared metadata rules", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "harness-policy-cargo-"));
+  const docs = path.join(directory, "docs");
+  const policyPath = path.join(docs, "AGENT_POLICY.md");
+  const manifestPath = path.join(directory, "Cargo.toml");
+  const policy = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"))
+    .replace(/^confirmed_by:.*$/mu, "confirmed_by: user form confirmation")
+    .replace(/^confirmed_at:.*$/mu, "confirmed_at: 2026-09-28")
+    .replace(/^post_release_action:.*$/mu, "post_release_action: local_package")
+    .replace(/^(superpowers|user_owned_tasks|parallel_worktree_subagents|acceptance_smoke|e2e_hint): pending$/gmu, "$1: disabled");
+  const canonical = "[workspace.metadata.agent-first-harness]\ninterfaces = [\"cli\"]\ntarget-platforms = [\"macos\"]\n";
+  try {
+    fs.mkdirSync(docs);
+    fs.writeFileSync(policyPath, policy);
+    const check = (cargo) => {
+      fs.writeFileSync(manifestPath, cargo);
+      const errors = [];
+      validateAgentPolicy(errors, policyPath, { allowPending: false });
+      return errors;
+    };
+    assert.deepEqual(check(canonical), []);
+    for (const invalid of [
+      canonical.replace('["cli"]', "['cli']"),
+      `${canonical}[workspace.metadata.agent-first-harness]\n`,
+      `${canonical}interfaces = [\"cli\"]\n`,
+      canonical.replace('["cli"]', "[]"),
+      canonical.replace('["cli"]', '["unknown"]'),
+    ]) {
+      assert.ok(check(invalid).some((error) => error.includes("cannot inspect persisted interface/platform metadata")));
+    }
+    assert.ok(check(`${canonical}broken = ???\n`).some((error) => error.includes("cannot inspect persisted interface/platform metadata")));
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test("policy rejects schema version 3 after the release action becomes mandatory", () => {
   const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
-  withPolicy(source.replace(/^schema_version:.*$/mu, "schema_version: 3"), (filePath) => {
+  const legacy = source.replace(/^schema_version:.*$/mu, "schema_version: 3").replace(/^post_release_action:.*\n/mu, "");
+  withPolicy(legacy, (filePath) => {
     const errors = [];
     validateAgentPolicy(errors, filePath);
     assert.ok(errors.some((error) => error.includes("schema_version must be 4")));

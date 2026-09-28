@@ -1,6 +1,9 @@
 import {
   collectMethodArguments,
   collectRustFunctions,
+  escapeRegExp,
+  requireSinglePluginRegistration,
+  sanitizeRustSource,
 } from "./gui-lifecycle-source-analysis.mjs";
 
 export const GLOBAL_SHORTCUT_TEST_NAMES = [
@@ -18,90 +21,6 @@ export const USER_CONFIGURABLE_GLOBAL_SHORTCUT_TEST_NAMES = [
   "global_shortcut_persistence_failure_restores_previous_bindings",
   "global_shortcut_recording_suppresses_dispatch_until_released",
 ];
-
-function requireSinglePluginRegistration(sourceText, token, label, errors) {
-  const escaped = token.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  const registrations = [
-    ...sourceText.matchAll(new RegExp(`\\.plugin\\s*\\(\\s*${escaped}`, "gu")),
-  ];
-  if (registrations.length !== 1) {
-    errors.push(`${label}必须在 Tauri Builder 中恰好注册一次，实际 ${registrations.length} 次`);
-  }
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-/** 屏蔽 Rust 注释，保留字符串与代码位置，避免注释伪造调用或门禁。 */
-function sanitizeRustCode(sourceText, preserveStrings = true) {
-  const mask = (value) => value.replace(/[^\r\n]/gu, " ");
-  let result = "";
-  let index = 0;
-  while (index < sourceText.length) {
-    if (sourceText.startsWith("//", index)) {
-      const end = sourceText.indexOf("\n", index + 2);
-      const boundary = end < 0 ? sourceText.length : end;
-      result += mask(sourceText.slice(index, boundary));
-      index = boundary;
-      continue;
-    }
-    if (sourceText.startsWith("/*", index)) {
-      let depth = 1;
-      let end = index + 2;
-      while (end < sourceText.length && depth > 0) {
-        if (sourceText.startsWith("/*", end)) {
-          depth += 1;
-          end += 2;
-        } else if (sourceText.startsWith("*/", end)) {
-          depth -= 1;
-          end += 2;
-        } else {
-          end += 1;
-        }
-      }
-      result += mask(sourceText.slice(index, end));
-      index = end;
-      continue;
-    }
-    const rawPrefix = sourceText.slice(index).match(/^(?:br|r)(#*)"/u);
-    if (rawPrefix) {
-      const terminator = `"${rawPrefix[1]}`;
-      const contentStart = index + rawPrefix[0].length;
-      const closing = sourceText.indexOf(terminator, contentStart);
-      const end = closing < 0 ? sourceText.length : closing + terminator.length;
-      const rawString = sourceText.slice(index, end);
-      result += preserveStrings ? rawString : mask(rawString);
-      index = end;
-      continue;
-    }
-    if (sourceText[index] === '"') {
-      let end = index + 1;
-      let escaped = false;
-      while (end < sourceText.length) {
-        const character = sourceText[end];
-        if (escaped) escaped = false;
-        else if (character === "\\") escaped = true;
-        else if (character === '"') {
-          end += 1;
-          break;
-        }
-        end += 1;
-      }
-      const stringLiteral = sourceText.slice(index, end);
-      result += preserveStrings ? stringLiteral : mask(stringLiteral);
-      index = end;
-      continue;
-    }
-    result += sourceText[index];
-    index += 1;
-  }
-  return result;
-}
-
-function rustExecutableCode(sourceText) {
-  return sanitizeRustCode(sourceText, false);
-}
 
 function semanticRustIdentifierWords(identifier) {
   return identifier
@@ -140,7 +59,7 @@ function isShortcutRuntimeIdentifier(identifier) {
 }
 
 function collectRustCallArguments(sourceText, methodName) {
-  const code = rustExecutableCode(sourceText);
+  const code = sanitizeRustSource(sourceText, true);
   const pattern = new RegExp(`(?:\\.|::)\\s*${methodName}\\s*\\(`, "gu");
   const argumentsList = [];
   for (const match of code.matchAll(pattern)) {
@@ -162,7 +81,7 @@ function collectRustCallArguments(sourceText, methodName) {
 
 export function invokeHandlerCommands(sourceText) {
   return collectRustCallArguments(sourceText, "invoke_handler").map((argument) => {
-    const macro = sanitizeRustCode(argument).match(
+    const macro = sanitizeRustSource(argument).match(
       /\bgenerate_handler\s*!\s*\[([\s\S]*?)\]/u,
     );
     if (!macro) return [];
@@ -217,7 +136,7 @@ function meaningfulRustCalls(functionText, functionName) {
     "return",
   ]);
   return [
-    ...sanitizeRustCode(functionText).matchAll(/(?:\.\s*|\b)([A-Za-z_][A-Za-z0-9_]*)\s*\(/gu),
+    ...sanitizeRustSource(functionText).matchAll(/(?:\.\s*|\b)([A-Za-z_][A-Za-z0-9_]*)\s*\(/gu),
   ]
     .map((match) => match[1])
     .filter((name) => !ignored.has(name));
@@ -238,7 +157,7 @@ const DISPATCH_EFFECT_SINKS = new Set([
 
 function callNames(sourceText) {
   return [
-    ...rustExecutableCode(sourceText).matchAll(
+    ...sanitizeRustSource(sourceText, true).matchAll(
       /(?:\.\s*|\b)([A-Za-z_][A-Za-z0-9_]*)\s*\(/gu,
     ),
   ].map((match) => match[1]);
@@ -274,12 +193,12 @@ function hasDispatchEffect(candidate, functions, action, visited = new Set()) {
 
 function rustIfStatements(functionText) {
   return [
-    ...sanitizeRustCode(functionText).matchAll(/\bif\s+([^{}]+)\{([^{}]*)\}/gu),
+    ...sanitizeRustSource(functionText).matchAll(/\bif\s+([^{}]+)\{([^{}]*)\}/gu),
   ].map((match) => ({ condition: match[1], body: match[2] }));
 }
 
 function braceDepthAt(sourceText, targetIndex) {
-  const source = sanitizeRustCode(sourceText.slice(0, targetIndex));
+  const source = sanitizeRustSource(sourceText.slice(0, targetIndex));
   let depth = 0;
   let inString = false;
   let escaped = false;
@@ -299,7 +218,7 @@ function braceDepthAt(sourceText, targetIndex) {
 
 function findFixedBindingGuard(functions) {
   return functions.find((candidate) => {
-    const source = sanitizeRustCode(candidate.text);
+    const source = sanitizeRustSource(candidate.text);
     const resolvesActionById =
       /\baction\s*\.\s*id\s*==\s*\w+\s*\.\s*action_id\b/u.test(source) ||
       /\w+\s*\.\s*action_id\s*==\s*action\s*\.\s*id\b/u.test(source);
@@ -329,7 +248,7 @@ function validateMixedPolicySave(functions, errors) {
     errors.push("混合快捷键保存必须逐 ID 校验策略，并在 fixed chord 变化时立即 return Err");
     return;
   }
-  const saveSource = sanitizeRustCode(saveFunction.text);
+  const saveSource = sanitizeRustSource(saveFunction.text);
   const guardAssignment = saveSource.match(
     new RegExp(
       `let\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*${escapeRegExp(guardFunction.name)}\\s*\\(([^;]*)\\)\\s*\\?\\s*;`,
@@ -533,7 +452,7 @@ function validateEmptyShortcutRuntime(sourceText, functions, profile, errors) {
     "ShortcutRecorder",
   ];
   const shortcutAccessors = functions.filter((candidate) =>
-    /(?:\.|::)\s*global_shortcut\s*\(/u.test(rustExecutableCode(candidate.text)),
+    /(?:\.|::)\s*global_shortcut\s*\(/u.test(sanitizeRustSource(candidate.text, true)),
   );
   if (shortcutAccessors.length > 0) {
     errors.push(`空 gui-global-shortcut-contract 不得由任何非测试函数取得 OS shortcut API：${shortcutAccessors.map((candidate) => candidate.name).join("、")}`);
@@ -550,7 +469,7 @@ function validateEmptyShortcutRuntime(sourceText, functions, profile, errors) {
   if (semanticRuntimeFunctions.length > 0) {
     errors.push(`空 gui-global-shortcut-contract 不得保留别名快捷键运行时：${semanticRuntimeFunctions.map((candidate) => candidate.name).join("、")}`);
   }
-  const executableSource = rustExecutableCode(sourceText);
+  const executableSource = sanitizeRustSource(sourceText, true);
   for (const token of runtimeTokens) {
     if (executableSource.includes(token)) {
       errors.push(`空 gui-global-shortcut-contract 不得保留快捷键保存、录制或编辑运行时：${token}`);
@@ -559,7 +478,7 @@ function validateEmptyShortcutRuntime(sourceText, functions, profile, errors) {
   const pluginArgument = collectMethodArguments(sourceText, "plugin").find(
     (argument) => argument.includes("tauri_plugin_global_shortcut::Builder::new"),
   ) ?? "";
-  const normalizedPluginArgument = sanitizeRustCode(pluginArgument).replace(/\s+/gu, "");
+  const normalizedPluginArgument = sanitizeRustSource(pluginArgument).replace(/\s+/gu, "");
   if (
     normalizedPluginArgument !==
     "tauri_plugin_global_shortcut::Builder::new().build()"

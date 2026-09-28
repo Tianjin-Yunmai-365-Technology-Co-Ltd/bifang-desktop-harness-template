@@ -11,7 +11,7 @@ import {
   trackedFiles,
 } from "./core.mjs";
 import { validateCoreFirstContract } from "./architecture.mjs";
-import { validateAgentPolicy as validatePersistentAgentPolicy } from "./governance_policy.mjs";
+import { validateAgentPolicy } from "./governance_policy.mjs";
 import { validateVersionContract } from "./governance_version.mjs";
 import { validateRustChineseComments } from "./rust_comments.mjs";
 import { validateProductVersioningContract } from "./product_versioning.mjs";
@@ -28,18 +28,10 @@ import { validateReleaseContract } from "./release.mjs";
 import { validateGitLifecycleContract } from "./git_lifecycle.mjs";
 import { validateWorkflow } from "./workflow.mjs";
 
-/** 验证 Agent 策略字段及 Harness 源默认值。 */
-export function validateAgentPolicy(errors) {
-  validatePersistentAgentPolicy(errors, path.join(ROOT, "docs", "AGENT_POLICY.md"), {
-    allowPending: true,
-    requireSourceDefaults: true,
-  });
-}
-
-/** 验证根入口预算、上游 Python 门禁及下游不继承该门禁的约定。 */
+/** 验证根入口引用、上游 Python 门禁及下游不继承该门禁的约定；入口预算由 validateAgentsEntrypoint 负责。 */
 export function validateGovernanceDocuments(errors) {
   const agentsPath = path.join(ROOT, "AGENTS.md");
-  const agents = requireFragments(errors, agentsPath, [
+  requireFragments(errors, agentsPath, [
     "docs/AGENT_POLICY.md",
     "$desktop-implement-change",
     "$desktop-refactor-code",
@@ -63,10 +55,6 @@ export function validateGovernanceDocuments(errors) {
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-instantiate-project", "SKILL.md"), ["上游专用的 `check_no_python.mjs`", "从下游 `AGENTS.md` 与 `docs/ENGINEERING_RULES.md` 删除仅属上游的 Python 禁令"], "$desktop-instantiate-project");
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-initialize-rust-project", "SKILL.md"), ["删除上游专用的 `check_no_python.mjs`", "不带入上游专用 Python 禁令"], "$desktop-initialize-rust-project");
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-upgrade-harness", "SKILL.md"), ["上游专用的 `check_no_python.mjs`", "不得在目标根运行 `check_no_python.mjs`"], "$desktop-upgrade-harness");
-  const bytes = Buffer.byteLength(agents, "utf8");
-  const lines = agents ? agents.replaceAll("\r\n", "\n").split("\n").length - (agents.endsWith("\n") ? 1 : 0) : 0;
-  if (bytes > 20_000) fail(errors, `AGENTS.md 超过 20,000 UTF-8 字节预算: ${bytes}`);
-  if (lines > 120) fail(errors, `AGENTS.md 超过 120 行预算: ${lines}`);
 
   requireFragments(errors, path.join(ROOT, "docs", "ENGINEERING_RULES.md"), [
     "Core-first 是硬规则",
@@ -145,7 +133,7 @@ export function validateNeutralRustArchitecture(errors) {
 export function validateContracts(errors) {
   // 先批量并发解析全部模块；顺序只影响速度，后续契约校验命中同一缓存。
   const nodeInventory = validateNodeSyntaxAndTests(errors);
-  validateAgentPolicy(errors);
+  validateAgentPolicy(errors, path.join(ROOT, "docs", "AGENT_POLICY.md"), { requireSourceDefaults: true });
   validateAgentsEntrypoint(errors);
   validateEngineeringContract(errors);
   validateStreamlinedDevelopmentAndBuild(errors);

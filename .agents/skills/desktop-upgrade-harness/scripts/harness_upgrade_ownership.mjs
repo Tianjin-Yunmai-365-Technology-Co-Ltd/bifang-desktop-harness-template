@@ -4,11 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { MINIMUM_OWNERSHIP_RULES, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, VALID_MODES } from "./harness_upgrade_policy.mjs";
-import { UpgradeError, loadJson, safeRelativePath, snapshotFile, validateSnapshot } from "./harness_upgrade_safety.mjs";
-
-function lstatOrNull(value) {
-  try { return fs.lstatSync(value); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
-}
+import { UpgradeError, loadJson, lstatOrNull, safeRelativePath, snapshotFile, validateSnapshot } from "./harness_upgrade_safety.mjs";
 
 function globRegex(pattern) {
   let source = "^";

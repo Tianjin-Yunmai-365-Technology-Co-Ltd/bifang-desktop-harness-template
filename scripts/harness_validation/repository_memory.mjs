@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, readText, relativePath } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, fail, latestDatedFile, readText, relativePath } from "./core.mjs";
 
 const PRODUCT_SPEC_DIR = path.join(ROOT, "docs", "product_spec");
 const PRODUCT_STATUS_DIR = path.join(ROOT, "docs", "project_status");
@@ -15,10 +15,6 @@ function datedFiles(directory, pattern) {
     .filter((name) => pattern.test(name))
     .sort()
     .map((name) => path.join(directory, name));
-}
-
-function latestDatedFile(directory, pattern) {
-  return datedFiles(directory, pattern).at(-1) ?? path.join(directory, "__missing_latest__.md");
 }
 
 const PRODUCT_SPEC = latestDatedFile(PRODUCT_SPEC_DIR, /^\d{8}_product_spec\.md$/u);

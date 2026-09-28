@@ -3,12 +3,12 @@ import path from "node:path";
 
 import { ROOT, fail, readText, relativePath } from "./core.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
-import { POST_RELEASE_ACTIONS, localPackageSupported, policyBodyIsCurrent } from "../../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs";
+import { POST_RELEASE_ACTIONS, localPackageSupported, parseAgentPolicyDocument, parseReleaseMetadataArray, policyBodyIsCurrent, validConfirmedAt } from "../../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs";
 
 export const SESSION_PROGRESS_TITLE_TEMPLATE = "Task {序号} | {当前进度} | {单一结果}";
 export const SESSION_PROGRESS_TITLE_INITIAL = "Task {序号} | 已分配 | {单一结果}";
-export const SESSION_PROGRESS_STATES = ["已分配", "运行中", "检查中", "已完成"];
-const SESSION_PROGRESS_TITLE_PATTERN = /^Task (?<sequence>[1-9][0-9]*) \| (?<progress>已分配|运行中|检查中|已完成) \| (?<singleResult>[^|\r\n]+)$/u;
+const SESSION_PROGRESS_STATES = ["已分配", "运行中", "检查中", "已完成"];
+const SESSION_PROGRESS_TITLE_PATTERN = new RegExp(`^Task (?<sequence>[1-9][0-9]*) \\| (?<progress>${SESSION_PROGRESS_STATES.join("|")}) \\| (?<singleResult>[^|\\r\\n]+)$`, "u");
 
 export const PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS = [
   "`hostId`",
@@ -21,11 +21,16 @@ export const PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS = [
   "内部 Subagent",
 ];
 
+/** 解析满足 user-owned Task 三字段与空白边界的标题；不合法时返回 null。 */
+function parseSessionProgressTitle(title) {
+  if (typeof title !== "string") return null;
+  const match = SESSION_PROGRESS_TITLE_PATTERN.exec(title);
+  return match?.groups?.singleResult && match.groups.singleResult === match.groups.singleResult.trim() ? match.groups : null;
+}
+
 /** 判断标题是否满足 user-owned Task 三字段与空白边界。 */
 export function isValidSessionProgressTitle(title) {
-  if (typeof title !== "string") return false;
-  const match = SESSION_PROGRESS_TITLE_PATTERN.exec(title);
-  return Boolean(match?.groups?.singleResult && match.groups.singleResult === match.groups.singleResult.trim());
+  return parseSessionProgressTitle(title) !== null;
 }
 
 /** 按同宿主和项目的全部合法标题分配连续递增序号。 */
@@ -38,55 +43,22 @@ export function allocateProjectTaskSequences(records, { hostId, projectId, count
   for (const record of records) {
     if (!record || typeof record !== "object" || Array.isArray(record)) continue;
     if (record.kind !== "codex" || record.hostId !== hostId || record.projectId !== projectId) continue;
-    const match = typeof record.title === "string" ? SESSION_PROGRESS_TITLE_PATTERN.exec(record.title) : null;
-    if (match && isValidSessionProgressTitle(record.title)) highest = Math.max(highest, Number(match.groups.sequence));
+    const parsed = parseSessionProgressTitle(record.title);
+    if (parsed) highest = Math.max(highest, Number(parsed.sequence));
   }
   return Array.from({ length: count }, (_, index) => highest + index + 1);
-}
-
-function parsePolicyFrontmatter(text, errors, policyPath) {
-  const normalized = text.replaceAll("\r\n", "\n");
-  if (!normalized.startsWith("---\n")) {
-    fail(errors, `missing Agent policy YAML frontmatter: ${relativePath(policyPath)}`);
-    return null;
-  }
-  const end = normalized.indexOf("\n---\n", 4);
-  if (end < 0) {
-    fail(errors, `missing Agent policy YAML frontmatter: ${relativePath(policyPath)}`);
-    return null;
-  }
-  const fields = new Map();
-  for (const line of normalized.slice(4, end).split("\n")) {
-    const separator = line.indexOf(":");
-    const key = separator >= 0 ? line.slice(0, separator).trim() : "";
-    if (separator < 0 || !key) {
-      fail(errors, `invalid Agent policy frontmatter line: ${line}`);
-      continue;
-    }
-    if (fields.has(key)) {
-      fail(errors, `duplicate Agent policy field: ${key}`);
-      continue;
-    }
-    fields.set(key, line.slice(separator + 1).trim());
-  }
-  return fields;
-}
-
-function validIsoDate(value) {
-  if (/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
-    const [year, month, day] = value.split("-").map(Number);
-    const date = new Date(Date.UTC(year, month - 1, day));
-    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
-  }
-  if (!/^\d{4}-\d{2}-\d{2}T/u.test(value)) return false;
-  return !Number.isNaN(Date.parse(value));
 }
 
 function persistedReleaseMetadata(policyPath, errors) {
   const manifestPath = path.join(path.dirname(path.dirname(policyPath)), "Cargo.toml");
   if (!fs.existsSync(manifestPath)) return null;
   try {
-    return parseCargoToml(readText(manifestPath)).workspace?.metadata?.["agent-first-harness"] ?? null;
+    const source = readText(manifestPath);
+    parseCargoToml(source);
+    return {
+      interfaces: parseReleaseMetadataArray(source, "interfaces"),
+      "target-platforms": parseReleaseMetadataArray(source, "target-platforms"),
+    };
   } catch (error) {
     fail(errors, `cannot inspect persisted interface/platform metadata for post_release_action: ${error.message}`);
     return null;
@@ -100,8 +72,12 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     return;
   }
   const text = readText(policyPath);
-  const fields = parsePolicyFrontmatter(text, errors, policyPath);
-  if (!fields) return;
+  let fields;
+  try { fields = parseAgentPolicyDocument(text).fields; }
+  catch (error) {
+    fail(errors, `invalid Agent policy frontmatter ${relativePath(policyPath)}: ${error.message}`);
+    return;
+  }
   const expected = new Set(["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint", "post_release_action"]);
   const actual = new Set(fields.keys());
   const missing = [...expected].filter((key) => !actual.has(key)).sort();
@@ -144,7 +120,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     const confirmedAt = (fields.get("confirmed_at") ?? "").trim();
     if (["pending", "unknown", "unset", "n/a"].includes(confirmedBy.toLowerCase())) fail(errors, "initialized downstream Agent policy confirmed_by must identify a real confirmation source");
     if (["pending", "unknown", "unset", "n/a"].includes(confirmedAt.toLowerCase())) fail(errors, "initialized downstream Agent policy confirmed_at must be resolved");
-    else if (!validIsoDate(confirmedAt)) fail(errors, "initialized downstream Agent policy confirmed_at must be a calendar-valid ISO date or RFC3339 timestamp");
+    else if (!validConfirmedAt(confirmedAt)) fail(errors, "initialized downstream Agent policy confirmed_at must be a calendar-valid ISO date or RFC3339 timestamp");
   }
 
   const requiredBodyFragments = [

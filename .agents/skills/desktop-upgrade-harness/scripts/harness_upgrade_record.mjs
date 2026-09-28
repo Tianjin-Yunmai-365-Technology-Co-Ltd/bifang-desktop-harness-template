@@ -7,10 +7,8 @@ import { isDeepStrictEqual } from "node:util";
 import { AUTO_MODES, SCHEMA_VERSION } from "./harness_upgrade_policy.mjs";
 import { loadLock } from "./harness_upgrade_ownership.mjs";
 import { stableJson, loadReviewedPlan } from "./harness_upgrade_core.mjs";
-import { UpgradeError, assertSafePath, canonicalDirectory, safeRelativePath } from "./harness_upgrade_safety.mjs";
+import { UpgradeError, assertSafePath, canonicalDirectory, lstatOrNull, safeRelativePath } from "./harness_upgrade_safety.mjs";
 import { assertPlanStillCurrent } from "./harness_upgrade_preflight.mjs";
-
-function lstatOrNull(value) { try { return fs.lstatSync(value); } catch (error) { if (error?.code === "ENOENT") return null; throw error; } }
 
 /** 只在精确 `.harness` 目录内原子替换来源锁。 */
 export function writeLockAtomic(target, lockPath, value) {

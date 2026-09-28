@@ -94,6 +94,25 @@ export function sanitizeRustSource(sourceText, maskStrings = false) {
   return result;
 }
 
+/** 转义正则元字符，供按字面标识构造匹配。 */
+export function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+/** 返回 Tauri Builder 上以指定插件初始化器开头的全部 `.plugin(...)` 注册。 */
+export function pluginRegistrations(sourceText, token) {
+  return [...sourceText.matchAll(new RegExp(`\\.plugin\\s*\\(\\s*${escapeRegExp(token)}`, "gu"))];
+}
+
+/** 要求插件恰好注册一次，返回首个注册位置，缺失时返回 -1。 */
+export function requireSinglePluginRegistration(sourceText, token, label, errors) {
+  const registrations = pluginRegistrations(sourceText, token);
+  if (registrations.length !== 1) {
+    errors.push(`${label}必须在 Tauri Builder 中恰好注册一次，实际 ${registrations.length} 次`);
+  }
+  return registrations[0]?.index ?? -1;
+}
+
 /** 去除 TOML 行尾注释，同时保留字符串中的井号。 */
 function stripTomlComments(text) {
   return text

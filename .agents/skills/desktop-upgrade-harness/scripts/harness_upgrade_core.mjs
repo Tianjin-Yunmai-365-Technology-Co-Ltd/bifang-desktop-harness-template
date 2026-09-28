@@ -5,7 +5,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { explicitOwnershipModeForNode, loadLock, loadOwnership, ownershipMode, scanTree } from "./harness_upgrade_ownership.mjs";
 import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, SOURCE_ONLY_PATHS } from "./harness_upgrade_policy.mjs";
-import { UpgradeError, assertSafePath, canonicalDirectory, isWithin, loadJson, requireControlPaths, requireGitRoot, requireSourceIdentity, safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
+import { UpgradeError, assertSafePath, canonicalDirectory, isWithin, loadJson, lstatOrNull, requireControlPaths, requireGitRoot, requireSourceIdentity, safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
 
 export function stableJson(value, indent = 0) {
   const sort = (item) => {
@@ -44,8 +44,6 @@ export function classifyMixed(candidate, target, baseline) {
 }
 
 function overlaps(left, right) { return left === right || left.startsWith(`${right}${path.sep}`) || right.startsWith(`${left}${path.sep}`); }
-function lexists(value) { try { fs.lstatSync(value); return true; } catch (error) { if (error?.code === "ENOENT") return false; throw error; } }
-
 /** 生成完整只读升级计划，不更改候选、目标或来源锁。 */
 export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot, targetRoot, ownershipPath, lockPath) {
   const { source, identity: sourceIdentity } = requireSourceIdentity(sourceRoot, sourceVersion, sourceCommit);
@@ -74,8 +72,8 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   for (const rawPath of REQUIRED_MANAGED_SOURCE_PATHS) {
     const relative = safeRelativePath(rawPath);
     const sourcePath = assertSafePath(source, path.join(source, ...relative.split("/")), `源 Harness 必需传播路径 ${relative}`, { finalMayBeMissing: true });
-    if (!lexists(sourcePath)) continue;
-    const stat = fs.lstatSync(sourcePath);
+    const stat = lstatOrNull(sourcePath);
+    if (stat === null) continue;
     if (!stat.isFile() || stat.isSymbolicLink()) problems.push(`源 Harness 必需传播路径不是普通文件：${relative}`);
     else if (!candidateTree.files[relative]) problems.push(`候选缺少源 Harness 必需 managed 路径：${relative}`);
     else if (candidateTree.files[relative].sha256 !== snapshotFile(sourcePath).sha256) problems.push(`候选的源 Harness 必需 managed 路径内容不匹配：${relative}`);
@@ -119,7 +117,7 @@ export function writeNewPlan(outputPath, value, forbiddenRoots) {
   const parent = canonicalDirectory(path.dirname(outputPath), "plan 输出父目录");
   const output = path.join(parent, path.basename(outputPath));
   for (const root of forbiddenRoots) if (isWithin(output, root)) throw new UpgradeError(`plan 输出必须位于 ${root} 之外：${output}`);
-  if (lexists(output)) throw new UpgradeError(`plan 输出已存在，拒绝覆盖：${output}`);
+  if (lstatOrNull(output) !== null) throw new UpgradeError(`plan 输出已存在，拒绝覆盖：${output}`);
   let descriptor;
   try {
     descriptor = fs.openSync(output, "wx", 0o600);

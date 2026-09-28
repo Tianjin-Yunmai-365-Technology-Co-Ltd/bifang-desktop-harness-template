@@ -6,6 +6,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { parseAgentPolicyDocument, parseReleaseMetadataArray } from "./post_release_action.mjs";
+
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "post_release_action.mjs");
 const V3 = [
   "---",
@@ -49,6 +51,30 @@ function fixture(t, contents = V3) {
 function setOptions(action, expected = "missing") {
   return ["--action", action, "--expected-action", expected, "--confirmed-user-choice"];
 }
+
+test("shared policy parser preserves runtime field and newline rules", () => {
+  assert.equal(parseAgentPolicyDocument(Buffer.from(V3)).schema, "3");
+  assert.equal(parseAgentPolicyDocument(Buffer.from(V3.replaceAll("\n", "\r\n"))).newline, "\r\n");
+  assert.throws(() => parseAgentPolicyDocument(V3.replace("schema_version: 3", "schema_version : 3")), /不支持的 Agent 策略字段行/u);
+  assert.throws(() => parseAgentPolicyDocument(V3.replace("e2e_hint: disabled", "e2e_hint: disabled\ne2e_hint: disabled")), /重复的 Agent 策略字段/u);
+  assert.throws(() => parseAgentPolicyDocument(V3.replace("schema_version: 3\n", "schema_version: 3\r\n")), /混合换行/u);
+  assert.throws(() => parseAgentPolicyDocument(Buffer.concat([Buffer.from(V3), Buffer.from([0xff])])), /有效 UTF-8/u);
+});
+
+test("shared Cargo metadata parser preserves runtime array syntax", () => {
+  const source = "[workspace.metadata.agent-first-harness]\ninterfaces = [\"cli\"]\ntarget-platforms = [\"macos\"]\n";
+  assert.deepEqual(parseReleaseMetadataArray(source, "interfaces"), ["cli"]);
+  assert.deepEqual(parseReleaseMetadataArray(source.replaceAll("\n", "\r\n"), "target-platforms"), ["macos"]);
+  for (const invalid of [
+    source.replace('["cli"]', "['cli']"),
+    `${source}[workspace.metadata.agent-first-harness]\n`,
+    `${source}interfaces = [\"cli\"]\n`,
+    source.replace('["cli"]', "[]"),
+    source.replace('["cli"]', '["unknown"]'),
+  ]) {
+    assert.throws(() => parseReleaseMetadataArray(invalid, "interfaces"), /Cargo .*元数据/u);
+  }
+});
 
 test("old downstream requires selection and migrates only after confirmed choice", (t) => {
   const f = fixture(t);

@@ -7,18 +7,22 @@ import {
   readJson,
   readText,
   relativePath,
-  nodeSyntaxError,
+  nodeSyntaxErrors,
 } from "./core.mjs";
 
 export const UPGRADE_ROOT = path.join(ROOT, ".agents", "skills", "desktop-upgrade-harness");
 export const UPGRADE_MANIFEST = path.join(UPGRADE_ROOT, "references", "ownership-manifest.json");
 
+// This validator intentionally owns an independent copy of the minimum rules.
+// Sharing the runtime map would let a change to both the runtime and manifest
+// silently weaken the ownership boundary.
 export const REQUIRED_UPGRADE_RULES = new Map([
   ["Version.md", "tombstone"],
   [".agents/skills/desktop-instantiate-project/**", "tombstone"],
   [".agents/skills/desktop-initialize-rust-project/**", "tombstone"],
   [".agents/skills/desktop-test-gui-initialization-e2e/**", "tombstone"],
   ["scripts/validate_harness.mjs", "tombstone"],
+  ["scripts/run_harness_tests.mjs", "tombstone"],
   ["scripts/agile_workflow.test.mjs", "tombstone"],
   ["scripts/harness_scope_and_initialization_boundaries.test.mjs", "tombstone"],
   ["scripts/validate_harness.test.mjs", "tombstone"],
@@ -85,12 +89,7 @@ export const REQUIRED_UPGRADE_RULES = new Map([
 ]);
 
 export const VALID_UPGRADE_MODES = new Set([
-  "managed",
-  "managed-self",
-  "merge-sections",
-  "conditional",
-  "protected",
-  "tombstone",
+  "managed", "managed-self", "merge-sections", "conditional", "protected", "tombstone",
 ]);
 
 export const UPGRADE_MODULES = [
@@ -278,6 +277,7 @@ function validatePostReleaseSwitchPropagation(errors, policyModulePath) {
 }
 
 function validateModules(errors, modulePaths) {
+  const regularModules = [];
   for (const modulePath of modulePaths) {
     let stat;
     try {
@@ -294,7 +294,9 @@ function validateModules(errors, modulePaths) {
       fail(errors, `missing upgrade Node module: ${relativePath(modulePath)}`);
       continue;
     }
-    const detail = nodeSyntaxError(modulePath);
+    regularModules.push(modulePath);
+  }
+  for (const [modulePath, detail] of nodeSyntaxErrors(regularModules)) {
     if (detail !== null) fail(errors, `invalid upgrade Node module ${relativePath(modulePath)}: ${detail}`);
   }
 }

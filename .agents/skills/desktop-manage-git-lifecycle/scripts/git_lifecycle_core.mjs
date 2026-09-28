@@ -714,22 +714,25 @@ export function preflightCycleResources(repository, state) {
   }
 }
 
+const SHANGHAI_CLOCK = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+});
+
+/** 返回当前时刻在固定上海时区的各日期时间字段。 */
+function shanghaiParts() {
+  return Object.fromEntries(SHANGHAI_CLOCK.formatToParts(new Date()).map(({ type, value }) => [type, value]));
+}
+
 /** 返回固定上海时区的 YYYYMMDD。 */
 export function shanghaiDate() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(new Date());
-  const value = Object.fromEntries(parts.map(({ type, value: item }) => [type, item]));
+  const value = shanghaiParts();
   return `${value.year}${value.month}${value.day}`;
 }
 
 /** 返回带 +08:00 的秒级时间戳。 */
 function shanghaiTimestamp() {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  }).formatToParts(new Date());
-  const value = Object.fromEntries(parts.map(({ type, value: item }) => [type, item]));
+  const value = shanghaiParts();
   return `${value.year}-${value.month}-${value.day}T${value.hour}:${value.minute}:${value.second}+08:00`;
 }
 

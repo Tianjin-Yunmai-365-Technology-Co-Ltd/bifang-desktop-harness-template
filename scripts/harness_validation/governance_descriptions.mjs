@@ -1,13 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, readText, relativePath } from "./core.mjs";
-
-function latest(directory, pattern) {
-  if (!fs.existsSync(directory)) return path.join(directory, "__missing_latest__.md");
-  const matches = fs.readdirSync(directory).filter((name) => pattern.test(name)).sort();
-  return path.join(directory, matches.at(-1) ?? "__missing_latest__.md");
-}
+import { ROOT, SKILLS_ROOT, fail, latestDatedFile, readText, relativePath } from "./core.mjs";
 
 const skill = (name, ...parts) => path.join(SKILLS_ROOT, name, ...parts);
 const docs = (...parts) => path.join(ROOT, "docs", ...parts);
@@ -17,9 +11,9 @@ const workPlanDirectory = docs("work_plan");
 const adrDirectory = docs("adr");
 const changelogDirectory = docs("changelog");
 
-export const PRODUCT_SPEC = latest(productSpecDirectory, /^\d{8}_product_spec\.md$/u);
-export const PRODUCT_STATUS = latest(productStatusDirectory, /^\d{8}_product_status\.md$/u);
-export const WORK_PLAN = latest(workPlanDirectory, /^\d{8}_work_plan\.md$/u);
+export const PRODUCT_SPEC = latestDatedFile(productSpecDirectory, /^\d{8}_product_spec\.md$/u);
+export const PRODUCT_STATUS = latestDatedFile(productStatusDirectory, /^\d{8}_product_status\.md$/u);
+export const WORK_PLAN = latestDatedFile(workPlanDirectory, /^\d{8}_work_plan\.md$/u);
 export const TUI_SKILL = skill("desktop-add-tui-adapter", "SKILL.md");
 export const TUI_BASELINE = skill("desktop-add-tui-adapter", "references", "tui-baseline.md");
 export const MCP_SKILL = skill("desktop-add-mcp-adapter", "SKILL.md");
@@ -41,10 +35,6 @@ const ENGINEERING_RULES = docs("ENGINEERING_RULES.md");
 const AGENT_POLICY = docs("AGENT_POLICY.md");
 const INSTANTIATE_FORM = skill("desktop-instantiate-project", "references", "initialization-form.md");
 
-function display(filePath) {
-  return relativePath(filePath);
-}
-
 function regularFile(filePath) {
   try {
     const stat = fs.lstatSync(filePath);
@@ -56,13 +46,13 @@ function regularFile(filePath) {
 
 function sourceText(errors, filePath, missingMessage) {
   if (!regularFile(filePath)) {
-    fail(errors, `${missingMessage}: ${display(filePath)}`);
+    fail(errors, `${missingMessage}: ${relativePath(filePath)}`);
     return null;
   }
   try {
     return readText(filePath);
   } catch (error) {
-    fail(errors, `${missingMessage}: ${display(filePath)}: ${error.message}`);
+    fail(errors, `${missingMessage}: ${relativePath(filePath)}: ${error.message}`);
     return null;
   }
 }
@@ -87,7 +77,7 @@ export function validateUnverifiedAdapterDependencyContract(errors, overrides = 
     const text = sourceText(errors, filePath, "missing adapter dependency evidence contract");
     if (text === null) continue;
     for (const fragment of fragments) {
-      if (!text.includes(fragment)) fail(errors, `adapter dependency evidence contract missing in ${display(filePath)}: ${fragment}`);
+      if (!text.includes(fragment)) fail(errors, `adapter dependency evidence contract missing in ${relativePath(filePath)}: ${fragment}`);
     }
   }
   const superseded = new Map([
@@ -101,7 +91,7 @@ export function validateUnverifiedAdapterDependencyContract(errors, overrides = 
     if (!regularFile(filePath)) continue;
     const text = readText(filePath);
     for (const fragment of fragments) {
-      if (text.includes(fragment)) fail(errors, `unverified adapter dependency baseline is overstated in ${display(filePath)}: ${fragment}`);
+      if (text.includes(fragment)) fail(errors, `unverified adapter dependency baseline is overstated in ${relativePath(filePath)}: ${fragment}`);
     }
   }
 }
@@ -123,20 +113,20 @@ export function validateDependencyEvidenceContract(errors, options = {}) {
     "中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选",
   ];
   for (const fragment of required) {
-    if (!text.includes(fragment)) fail(errors, `dependency evidence contract missing in ${display(productSpec)}: ${fragment}`);
+    if (!text.includes(fragment)) fail(errors, `dependency evidence contract missing in ${relativePath(productSpec)}: ${fragment}`);
   }
   for (const fragment of [
     "本次在 Rust `1.98.1`、Node.js `>=24.21.0` 与 pnpm `>=12.4.1` 门禁下验证后，把 MCP",
     "前端/Rust 直接依赖统一表达为经过验证的最低兼容范围",
   ]) {
-    if (text.includes(fragment)) fail(errors, `unverified dependency baseline is overstated in ${display(productSpec)}: ${fragment}`);
+    if (text.includes(fragment)) fail(errors, `unverified dependency baseline is overstated in ${relativePath(productSpec)}: ${fragment}`);
   }
   const heading = "### 主流环境下界、标准当前用户安装与最新兼容稳定选择";
   const start = text.indexOf(heading);
   const end = start >= 0 ? text.indexOf("\n### ", start + heading.length) : -1;
   const environmentText = start < 0 ? "" : text.slice(start, end >= 0 ? end : undefined);
   for (const fragment of ["经过验证", "本次验证后"]) {
-    if (environmentText.includes(fragment)) fail(errors, `unverified dependency baseline is overstated in ${display(productSpec)}: ${fragment}`);
+    if (environmentText.includes(fragment)) fail(errors, `unverified dependency baseline is overstated in ${relativePath(productSpec)}: ${fragment}`);
   }
   const positiveClaims = [
     /(?:rmcp|TUI|MCP|GUI(?:\/React)?).{0,100}(?:已经|均已|全部已|已完成).{0,16}(?:验证|实测|通过)/su,
@@ -144,7 +134,7 @@ export function validateDependencyEvidenceContract(errors, options = {}) {
     /(?:所有|全部).{0,20}(?:直接依赖|依赖).{0,24}(?:已经|均已|全部已|已完成|已).{0,16}(?:验证|实测|通过)/su,
   ];
   for (const pattern of positiveClaims) {
-    if (pattern.test(environmentText)) fail(errors, `unverified dependency baseline is overstated in ${display(productSpec)}: ${pattern.source}`);
+    if (pattern.test(environmentText)) fail(errors, `unverified dependency baseline is overstated in ${relativePath(productSpec)}: ${pattern.source}`);
   }
   const supporting = new Map([
     [readme, ["依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标", "当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析", "TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选", "保持 `Unverified`"]],
@@ -158,10 +148,10 @@ export function validateDependencyEvidenceContract(errors, options = {}) {
     const source = sourceText(errors, filePath, "missing dependency evidence contract");
     if (source === null) continue;
     for (const fragment of fragments) {
-      if (!source.includes(fragment)) fail(errors, `dependency evidence contract missing in ${display(filePath)}: ${fragment}`);
+      if (!source.includes(fragment)) fail(errors, `dependency evidence contract missing in ${relativePath(filePath)}: ${fragment}`);
     }
     for (const fragment of forbidden.get(filePath)) {
-      if (source.includes(fragment)) fail(errors, `unverified dependency baseline is overstated in ${display(filePath)}: ${fragment}`);
+      if (source.includes(fragment)) fail(errors, `unverified dependency baseline is overstated in ${relativePath(filePath)}: ${fragment}`);
     }
   }
 }
@@ -189,7 +179,7 @@ export function validateStaleFragments(errors, paths) {
     if (!regularFile(filePath)) continue;
     const text = readText(filePath);
     for (const fragment of STALE_FRAGMENTS) {
-      if (text.includes(fragment)) fail(errors, `stale current description in ${display(filePath)}: ${fragment}`);
+      if (text.includes(fragment)) fail(errors, `stale current description in ${relativePath(filePath)}: ${fragment}`);
     }
   }
 }
@@ -218,7 +208,7 @@ function validateFragmentMap(errors, entries, missingLabel, fragmentLabel) {
     const text = sourceText(errors, filePath, missingLabel);
     if (text === null) continue;
     for (const fragment of fragments) {
-      if (!text.includes(fragment)) fail(errors, `${fragmentLabel} in ${display(filePath)}: ${fragment}`);
+      if (!text.includes(fragment)) fail(errors, `${fragmentLabel} in ${relativePath(filePath)}: ${fragment}`);
     }
   }
 }
@@ -241,7 +231,7 @@ export function validateCurrentDescriptions(errors, options = {}) {
   const productText = sourceText(errors, PRODUCT_SPEC, "missing GUI plugin product contract");
   if (productText !== null) {
     for (const fragment of ["HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES", "`os`（system-locale）、updater、window-state 是不询问的三项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线", "八项条件能力的启用/禁用", "包含九项最终配置、三项 Rust-only 固定基线、dialog 固定 WebView 基线", "`deep_link = enabled` 必须同时有 `single_instance = enabled`"]) {
-      if (!productText.includes(fragment)) fail(errors, `GUI plugin product contract missing in ${display(PRODUCT_SPEC)}: ${fragment}`);
+      if (!productText.includes(fragment)) fail(errors, `GUI plugin product contract missing in ${relativePath(PRODUCT_SPEC)}: ${fragment}`);
     }
   }
 
@@ -291,11 +281,11 @@ export function validateCurrentDescriptions(errors, options = {}) {
     if (!regularFile(filePath)) continue;
     const text = readText(filePath);
     for (const fragment of superseded) {
-      if (text.includes(fragment)) fail(errors, `superseded exact/latest version rule remains in ${display(filePath)}: ${fragment}`);
+      if (text.includes(fragment)) fail(errors, `superseded exact/latest version rule remains in ${relativePath(filePath)}: ${fragment}`);
     }
   }
   for (const filePath of currentSkillFiles()) {
     const text = fs.readFileSync(filePath, "utf8");
-    if (text.includes("1.85")) fail(errors, `obsolete Rust 1.85 compatibility remains in current Skill content: ${display(filePath)}`);
+    if (text.includes("1.85")) fail(errors, `obsolete Rust 1.85 compatibility remains in current Skill content: ${relativePath(filePath)}`);
   }
 }

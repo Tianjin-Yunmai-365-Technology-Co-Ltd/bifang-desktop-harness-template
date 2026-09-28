@@ -1,24 +1,9 @@
-import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT } from "./core.mjs";
+import { ROOT, SKILLS_ROOT, latestDatedFile } from "./core.mjs";
 
 function skill(name) {
   return path.join(SKILLS_ROOT, name);
-}
-
-function latestDatedFile(directory, suffix) {
-  let names = [];
-  try {
-    names = fs.readdirSync(directory);
-  } catch {
-    return path.join(directory, `00000000_${suffix}`);
-  }
-  const match = names
-    .filter((name) => /^\d{8}_.+\.md$/u.test(name) && name.endsWith(suffix))
-    .sort()
-    .at(-1);
-  return path.join(directory, match ?? `00000000_${suffix}`);
 }
 
 export const INSTANTIATE_ROOT = skill("desktop-instantiate-project");
@@ -76,7 +61,6 @@ export const GUI_E2E_ROOT = skill("desktop-test-gui-initialization-e2e");
 export const GUI_E2E_SCRIPTS = path.join(GUI_E2E_ROOT, "scripts");
 export const GUI_ADAPTER_SKILL = path.join(skill("desktop-add-gui-adapter"), "SKILL.md");
 export const GUI_SUPPORT_SKILL = path.join(skill("desktop-prepare-gui-support-surfaces"), "SKILL.md");
-export const GUI_IDENTITY_SKILL = path.join(skill("desktop-prepare-gui-app-identity"), "SKILL.md");
 export const GUI_DIALOG_SKILL = path.join(skill("desktop-add-gui-dialog"), "SKILL.md");
 export const MCP_SKILL = path.join(skill("desktop-add-mcp-adapter"), "SKILL.md");
 export const CLI_SKILL = path.join(skill("desktop-add-cli-adapter"), "SKILL.md");
@@ -96,6 +80,6 @@ export const AGENT_POLICY = path.join(ROOT, "docs", "AGENT_POLICY.md");
 export const ENGINEERING_RULES = path.join(ROOT, "docs", "ENGINEERING_RULES.md");
 export const RUST_BASELINE = path.join(ROOT, "docs", "RUST_CLI_TEMPLATE.md");
 export const GITIGNORE = path.join(ROOT, ".gitignore");
-export const PRODUCT_SPEC = latestDatedFile(path.join(ROOT, "docs", "product_spec"), "product_spec.md");
-export const PRODUCT_STATUS = latestDatedFile(path.join(ROOT, "docs", "project_status"), "product_status.md");
-export const WORK_PLAN = latestDatedFile(path.join(ROOT, "docs", "work_plan"), "work_plan.md");
+export const PRODUCT_SPEC = latestDatedFile(path.join(ROOT, "docs", "product_spec"), /^\d{8}_product_spec\.md$/u);
+export const PRODUCT_STATUS = latestDatedFile(path.join(ROOT, "docs", "project_status"), /^\d{8}_product_status\.md$/u);
+export const WORK_PLAN = latestDatedFile(path.join(ROOT, "docs", "work_plan"), /^\d{8}_work_plan\.md$/u);

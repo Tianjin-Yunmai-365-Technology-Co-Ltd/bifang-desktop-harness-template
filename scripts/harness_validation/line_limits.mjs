@@ -1,53 +1,18 @@
 import path from "node:path";
 
-import { inspectRepository, lineLimitProfile as checkerLineLimitProfile } from "../../.agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs";
-import {
-  ROOT,
-  decodeMaintainedText,
-  fail,
-  physicalLineCount,
-  trackedFiles,
-} from "./core.mjs";
-
-const GENERATED_NAMES = new Set([
-  "Cargo.lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
-]);
-
-const PROFILE_NAMES = { rust: "Rust", frontend: "前端", maintained_text: "人工维护文本" };
-
-/** 按工程规则选择建议阈值与硬上限。 */
-export function lineLimitProfile(relative) {
-  const [profileName, review, hard] = checkerLineLimitProfile(relative);
-  return { name: PROFILE_NAMES[profileName], review, hard };
-}
+import { inspectRepository } from "../../.agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs";
+import { ROOT, decodeMaintainedText, fail, trackedFiles } from "./core.mjs";
 
 function shouldSkip(relative) {
-  if (GENERATED_NAMES.has(path.posix.basename(relative))) return true;
-  if (relative.startsWith(".git/") || relative.startsWith("release/") || relative.startsWith("node_modules/") || relative.startsWith("target/")) return true;
-  return false;
+  return relative.startsWith(".git/") || relative.startsWith("release/") || relative.startsWith("node_modules/") || relative.startsWith("target/");
 }
 
 /** 检查分层物理行数；建议区间仅在显式发布审查时产生提示。 */
 export function validateLineLimits(
   errors,
   warnings,
-  { releaseReview = false, files = null, inspect = inspectRepository, root = ROOT } = {},
+  { releaseReview = false, inspect = inspectRepository, root = ROOT } = {},
 ) {
-  if (files !== null) {
-    // 单元测试可用精确文件集合验证 profile；仓库级门禁始终复用下游唯一检查器。
-    let checked = 0;
-    for (const relative of files) {
-      if (shouldSkip(relative)) continue;
-      const text = decodeMaintainedText(path.join(ROOT, relative));
-      if (text === null) continue;
-      checked += 1;
-      const lines = physicalLineCount(text);
-      const profile = lineLimitProfile(relative);
-      if (lines > profile.hard) fail(errors, `${profile.name}文件超过 ${profile.hard} 行硬上限: ${relative} (${lines} 行)`);
-      else if (releaseReview && lines > profile.review) warnings.push(`${profile.name}文件进入 ${profile.review + 1}-${profile.hard} 行语义复核区间: ${relative} (${lines} 行)`);
-    }
-    return { checked };
-  }
   let report;
   try {
     report = inspect(root);

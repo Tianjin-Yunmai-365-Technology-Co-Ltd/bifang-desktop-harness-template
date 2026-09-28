@@ -49,7 +49,7 @@
 - 多远端推送变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。本条只扩展用户明确授权的 `publish`，不改变其唯一主远端、补充远端隔离或不清理资源的语义。
 - 可选远端 Git 发布历史标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，其 `gitPublication` 双模式已被本次唯一 Git 发布决定取代，远端操作改为发布后的独立用户请求。
 - 初始化仍只创建无远端的本地主分支基线。远端由用户或外部系统另行配置，但新功能和独立 Bug 修复的本地开发分支创建不依赖远端。`$desktop-manage-git-lifecycle start` 自动建立并切换 `feature-{ascii-kebab-summary}-{YYYYMMDD}`，日期取 `Asia/Shanghai`，碰撞时追加稳定递增后缀，同一工作幂等复用。
-- Git common dir 的 `agent-first-harness/git-lifecycle.json` 使用 schema v3，精确登记本周期分支、Worktree、pending 与已发布版本/tag/最终 HEAD/默认主分支。合法且静止的 v2 状态可迁移；有未完成推送或发布的旧状态失败关闭。`release` 不清理已登记资源；`releasedResources` 保留其精确身份。发布前 `publish` 的未完成多远端推送仍由 `pendingPublish` 冻结 HEAD、目标顺序和确认进度。并行写入只要求文件所有权不重叠，允许普通 merge commit，不设置线性、fast-forward-only、lease 或 atomic push 门禁。
+- Git common dir 的 `agent-first-harness/git-lifecycle.json` 使用 schema v4，精确登记本周期分支、Worktree、pending、已发布版本/tag/最终 HEAD/默认主分支及当次冻结的发布后动作。合法且静止的 v2/v3 状态可迁移；有未完成推送或发布的旧状态失败关闭。`release` 不清理已登记资源；`releasedResources` 保留其精确身份。发布前 `publish` 的未完成多远端推送仍由 `pendingPublish` 冻结 HEAD、目标顺序和确认进度。并行写入只要求文件所有权不重叠，允许普通 merge commit，不设置线性、fast-forward-only、lease 或 atomic push 门禁。
 - 用户在发布前明确“推送”时，`publish` 普通合并登记分支并推送、复读主远端，按逐一授权可另推补充远端；不创建 tag。明确“发布”时，`release` 接收 `--release-context-sha256 <sha256>`，在任何副作用前复核上下文及 version/date/expectedTag/defaultBranch，普通合并本地默认主分支，创建并复读指向最终 HEAD 的本地 tag 即结束。发布开始时冻结 `post_release_action`，发布后按该次快照执行现有本地打包，或用 `push-release` 把同一 HEAD 放到本地及远端小写 `release` 分支并推送 tag；所选结果必须复核。发布不自动清理资源。
 - `release` 可从关联 Task Worktree 发起，但必须先在调用 Worktree 校验当前 HEAD 的上下文 blob 与 working bytes，再路由主 Worktree；本地整合后，最终 HEAD 中同一路径 blob 仍须等于传入摘要，不能先切换后误读旧上下文。
 
@@ -431,7 +431,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609281559`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。发布后按已确认的 `post_release_action` 执行并检测所选路径。
+- 当前版本：`202609281857`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。发布后按已确认的 `post_release_action` 执行并检测所选路径。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。

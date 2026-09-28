@@ -4,8 +4,8 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { parseFrontmatter, physicalLineCount } from "./harness_validation/core.mjs";
-import { lineLimitProfile } from "./harness_validation/line_limits.mjs";
+import { lineLimitProfile, physicalLineCount } from "../.agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs";
+import { parseFrontmatter } from "./harness_validation/core.mjs";
 import { discoverTests } from "./run_harness_tests.mjs";
 import { validateHarness } from "./validate_harness.mjs";
 
@@ -20,9 +20,9 @@ test("physical_line_count_matches_splitlines_tail_semantics", () => {
 });
 
 test("line_limit_profiles_keep_three_tiers", () => {
-  assert.deepEqual(lineLimitProfile("src/lib.rs"), { name: "Rust", review: 400, hard: 800 });
-  assert.deepEqual(lineLimitProfile("scripts/check.mjs"), { name: "前端", review: 500, hard: 1000 });
-  assert.deepEqual(lineLimitProfile("docs/rules.md"), { name: "人工维护文本", review: 500, hard: 2000 });
+  assert.deepEqual(lineLimitProfile("src/lib.rs"), ["rust", 400, 800]);
+  assert.deepEqual(lineLimitProfile("scripts/check.mjs"), ["frontend", 500, 1000]);
+  assert.deepEqual(lineLimitProfile("docs/rules.md"), ["maintained_text", 500, 2000]);
 });
 
 test("frontmatter_parser_reads_policy_scalars", () => {

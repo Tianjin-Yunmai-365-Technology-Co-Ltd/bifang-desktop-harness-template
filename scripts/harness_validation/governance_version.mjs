@@ -1,20 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { ROOT, SKILLS_ROOT, fail, readText, relativePath } from "./core.mjs";
-import { latestHarnessTagVersion } from "../../.agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs";
-
-function latest(directory, pattern) {
-  const name = fs.readdirSync(directory).filter((entry) => pattern.test(entry)).sort().at(-1);
-  return name ? path.join(directory, name) : path.join(directory, "__missing_latest__.md");
-}
+import { ROOT, SKILLS_ROOT, fail, latestDatedFile, readText, relativePath } from "./core.mjs";
+import { latestHarnessTagVersion, validHarnessTimestamp } from "../../.agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs";
 
 const ADR_DIR = path.join(ROOT, "docs", "adr");
 const CHANGELOG_DIR = path.join(ROOT, "docs", "changelog");
 const PRODUCT_SPEC_DIR = path.join(ROOT, "docs", "product_spec");
-const LATEST_ADR = latest(ADR_DIR, /^\d{8}_ADR\.md$/u);
-const LATEST_CHANGELOG = latest(CHANGELOG_DIR, /^\d{8}_CHANGELOG\.md$/u);
-const PRODUCT_SPEC = latest(PRODUCT_SPEC_DIR, /^\d{8}_product_spec\.md$/u);
+const LATEST_ADR = latestDatedFile(ADR_DIR, /^\d{8}_ADR\.md$/u);
+const LATEST_CHANGELOG = latestDatedFile(CHANGELOG_DIR, /^\d{8}_CHANGELOG\.md$/u);
+const PRODUCT_SPEC = latestDatedFile(PRODUCT_SPEC_DIR, /^\d{8}_product_spec\.md$/u);
 
 export const MATERIALIZED_CHANGE_RECORDS = new Map([
   ["HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH", ["202609141917", [relativePath(LATEST_CHANGELOG), relativePath(PRODUCT_SPEC)]]],
@@ -32,21 +27,6 @@ const RELEASE_BOUND_CHANGE_RECORDS = new Map([
 ]);
 
 export const OPTIONAL_REMOTE_ADR_SUPERSESSION_FRAGMENT = "同时取代 ADR-20260908-013“正式候选必须从已推送、带远端 tag 的提交构建”、ADR-20260908-007“本地/远端默认主分支与远端 tag 必须无条件一致”，以及 ADR-20260908-006“生命周期必须完成远端 push、构建只复核远端 tag”的远端强制子句";
-
-function validWallClockTimestamp(value) {
-  if (!/^\d{12}$/u.test(value)) return false;
-  const year = Number(value.slice(0, 4));
-  const month = Number(value.slice(4, 6));
-  const day = Number(value.slice(6, 8));
-  const hour = Number(value.slice(8, 10));
-  const minute = Number(value.slice(10, 12));
-  const date = new Date(Date.UTC(year, month - 1, day, hour, minute));
-  return date.getUTCFullYear() === year
-    && date.getUTCMonth() === month - 1
-    && date.getUTCDate() === day
-    && date.getUTCHours() === hour
-    && date.getUTCMinutes() === minute;
-}
 
 export function validateMaterializedChange(errors, filePath, changeId, requiredVersion) {
   if (!fs.existsSync(filePath)) {
@@ -85,7 +65,7 @@ export function validateReleaseBoundChange(errors, filePaths, changeId, currentV
   const [version] = versions;
   if (versions.some((value) => value !== version)
     || (currentVersion > latestTaggedVersion && version > latestTaggedVersion && version !== currentVersion)
-    || (version !== "pending" && (!validWallClockTimestamp(version) || version > currentVersion))) {
+    || (version !== "pending" && (!validHarnessTimestamp(version) || version > currentVersion))) {
     fail(errors, `release-bound Harness change has inconsistent required_version: ${changeId}`);
   }
 }
@@ -113,7 +93,7 @@ export function validateVersionContract(errors, versionFile = path.join(ROOT, "V
   const currentVersion = /当前版本：`(\d{12})`/u.exec(versionText)?.[1] ?? "__invalid__";
   if (currentVersion === "__invalid__") {
     fail(errors, "Version.md current Harness version must be 12 digits in YYYYMMDDHHMM");
-  } else if (!validWallClockTimestamp(currentVersion)) {
+  } else if (!validHarnessTimestamp(currentVersion)) {
     fail(errors, `Version.md current Harness version is not a valid Shanghai datetime: ${currentVersion}`);
   }
 

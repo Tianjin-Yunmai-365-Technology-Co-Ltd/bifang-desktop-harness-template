@@ -8,15 +8,15 @@ import { LOCK_RELATIVE, OWNERSHIP_RELATIVE, VERSION_PATTERN } from "./harness_up
 
 export class UpgradeError extends Error {}
 
-function lstatOrNull(value) {
+/** 读取路径本身的 lstat；不存在时返回 null，其他错误照常抛出。 */
+export function lstatOrNull(value) {
   try { return fs.lstatSync(value); } catch (error) { if (error?.code === "ENOENT") return null; throw error; }
 }
 
-export function lexicalAbsolute(value) { return path.resolve(value); }
 export function isWithin(value, root) { return value === root || value.startsWith(`${root}${path.sep}`); }
 
 export function canonicalDirectory(value, label) {
-  const absolute = lexicalAbsolute(value);
+  const absolute = path.resolve(value);
   const stat = lstatOrNull(absolute);
   if (stat?.isSymbolicLink()) throw new UpgradeError(`${label}不得是符号链接：${value}`);
   let resolved;
@@ -34,7 +34,7 @@ export function safeRelativePath(raw) {
 
 /** 拒绝根外路径、任一祖先符号链接及中间非目录。 */
 export function assertSafePath(root, candidate, label, { finalMayBeMissing }) {
-  const absolute = lexicalAbsolute(candidate);
+  const absolute = path.resolve(candidate);
   if (!isWithin(absolute, root)) throw new UpgradeError(`${label}越出声明根目录：${absolute}`);
   const parts = path.relative(root, absolute).split(path.sep).filter(Boolean);
   let cursor = root;
@@ -145,7 +145,7 @@ export function requireControlPaths(target, ownershipPath, lockPath) {
   assertSafePath(target, observedOwnership, "所有权 manifest", { finalMayBeMissing: false });
   if (!fs.statSync(observedOwnership).isFile()) throw new UpgradeError(`缺少所有权 manifest：${observedOwnership}`);
   const expectedLock = path.join(target, LOCK_RELATIVE);
-  const observedLock = lexicalAbsolute(lockPath);
+  const observedLock = path.resolve(lockPath);
   if (observedLock !== expectedLock) throw new UpgradeError(`lock 必须精确位于 ${expectedLock}`);
   assertSafePath(target, observedLock, "上游 lock", { finalMayBeMissing: true });
   return { ownership: observedOwnership, lockFile: observedLock };

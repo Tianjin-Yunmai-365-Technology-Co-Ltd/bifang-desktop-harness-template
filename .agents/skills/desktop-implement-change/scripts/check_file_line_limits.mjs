@@ -29,14 +29,14 @@ const GENERATED_LOCKFILE_NAMES = new Set([
 ]);
 const GENERATED_LOCKFILE_PATHS = new Set([".harness/upstream-lock.json"]);
 
-function lstatOrNull(target) {
+export function lstatOrNull(target) {
   try { return lstatSync(target); } catch (error) {
     if (error?.code === "ENOENT" || error?.code === "ENOTDIR") return null;
     throw error;
   }
 }
 
-function canonicalRoot(root) {
+export function canonicalRoot(root) {
   const stat = lstatOrNull(root);
   if (stat?.isSymbolicLink()) return [null, [`项目根不得是符号链接: ${root}`]];
   let resolved;
@@ -108,7 +108,7 @@ export function lineLimitProfile(relative) {
   return [profileName, profile.reviewThreshold, profile.hardLimit];
 }
 
-function physicalLineCount(text) {
+export function physicalLineCount(text) {
   if (text.length === 0) return 0;
   const parts = text.split(/\r\n|[\n\r\v\f\x1c-\x1e\x85\u2028\u2029]/u);
   if (parts.at(-1) === "") parts.pop();
@@ -165,7 +165,7 @@ export function inspectRepository(root) {
   return report;
 }
 
-function parseArguments(args) {
+export function parseArguments(args) {
   let root = process.cwd();
   let json = false;
   for (let index = 0; index < args.length; index += 1) {
