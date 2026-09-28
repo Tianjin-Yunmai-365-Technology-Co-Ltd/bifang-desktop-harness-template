@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "3612726fa5fbf145229cecef7ff11bc1a21f488e",
-  "version": "202609281559",
+  "sourceHead": "e7c511cfd5be978deaa36b6d1b2b4464704a756d",
+  "version": "202609281857",
   "releaseDate": "2026-09-28",
-  "expectedTag": "v202609281559-20260928",
+  "expectedTag": "v202609281857-20260928",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "f9cf2c9cc5eb38f8018bce55b39cc8bcd2d16a3e",
-    "sourceHead": "3612726fa5fbf145229cecef7ff11bc1a21f488e",
-    "scopeDiffSha256": "3f374bfabc65ba543e30902ab187df0ee900a80a5a03c9a45d4c61e65173caf9",
-    "reviewedSourceCommit": "3612726fa5fbf145229cecef7ff11bc1a21f488e",
+    "scopeBase": "165977277c51b3fcb13738a9718d74f6058459c3",
+    "sourceHead": "e7c511cfd5be978deaa36b6d1b2b4464704a756d",
+    "scopeDiffSha256": "04c1d6fc0f8720a994328fafc5bebeaae79b84833074415f516e52f0523c3985",
+    "reviewedSourceCommit": "e7c511cfd5be978deaa36b6d1b2b4464704a756d",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed cumulative changes for behavior, core/adapter boundaries, external contracts, responsibility/size, and temporary markers; no blocking findings. Node suite: 854 passed, 14 platform skips, 0 failed; Harness hard and release-review checks passed. Rust 1.98.1 neutral asset format, Clippy, 7 tests, and release build passed. Large-file prompts are non-blocking; the TODO match is a test fixture.",
+    "evidenceSummary": "Reviewed 1659772..e7c511c for behavior, core/adapter boundaries, external contracts, size, and temporary markers. Fixed three release gate defects. 875 Node tests passed; 14 platform skips. 25 nonblocking size/fixture warnings assessed.",
     "reason": null,
     "remainingRisk": null
   }

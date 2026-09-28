@@ -3,6 +3,34 @@
   "releases": [
     {
       "releaseDate": "2026-09-28",
+      "version": "v202609281857",
+      "featureOptimizations": [
+        {
+          "zh-CN": "Harness 校验器复用解析与批量语法检查，并用内容摘要识别源码改写，减少重复检查。",
+          "en-US": "Harness validators now share parsing and batched syntax checks, using content digests to catch source rewrites and avoid duplicate checks."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复旧版下游工程层接入时 Python 源限制外溢、版本镜像及发布后动作检查不一致的问题。",
+          "en-US": "Fixed Python source restrictions leaking into existing downstream upgrades, along with version mirror and post-release action checks."
+        },
+        {
+          "zh-CN": "本地打包选择现在拒绝缺少已跟踪锁文件或没有成员的 Rust 测试 workspace。",
+          "en-US": "Local packaging selection now rejects missing tracked lockfiles and Rust test workspaces with no members."
+        },
+        {
+          "zh-CN": "Git 发布最终日志现在严格拒绝重复 JSON 字段、非规范版本和超限文件，包括中断后重试。",
+          "en-US": "Final Git release checks now reject duplicate JSON keys, noncanonical versions, and oversized notes, including resumed releases."
+        },
+        {
+          "zh-CN": "收紧发布策略、发布分支、tag 和上下文的复核，拒绝不一致的本地或远端状态。",
+          "en-US": "Tightened checks of release policy, branch, tag, and context to reject inconsistent local or remote state."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-28",
       "version": "v202609281559",
       "featureOptimizations": [
         {
