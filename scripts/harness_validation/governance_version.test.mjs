@@ -147,6 +147,17 @@ test("release_bound_change_requires_target_version_after_clock_advances", () => 
   });
 });
 
+test("release_bound_change_keeps_a_previous_published_version_after_clock_advances", () => {
+  const changeId = "HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING";
+  temporaryFile("ADR.md", `- \`change_id = ${changeId}\`; \`required_version = 202609281202\`\n`, (first) => {
+    const other = path.join(path.dirname(first), "CHANGELOG.md");
+    fs.writeFileSync(other, `- \`${changeId}\` (\`required_version = 202609281202\`)\n`);
+    const errors = [];
+    validateReleaseBoundChange(errors, [first, other], changeId, "202609281559", "202609281202");
+    assert.deepEqual(errors, []);
+  });
+});
+
 test("release_clock_requires_every_pending_memory_record_to_be_materialized", () => {
   temporaryFile("CHANGELOG.md", "- `HARNESS-FEAT-LATER`（`required_version = pending`）\n", (filePath) => {
     const beforeRelease = [];

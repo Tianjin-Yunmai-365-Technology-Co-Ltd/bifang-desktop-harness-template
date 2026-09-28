@@ -84,7 +84,7 @@ export function validateReleaseBoundChange(errors, filePaths, changeId, currentV
   if (versions.length !== filePaths.length) return;
   const [version] = versions;
   if (versions.some((value) => value !== version)
-    || (currentVersion > latestTaggedVersion && version !== currentVersion)
+    || (currentVersion > latestTaggedVersion && version > latestTaggedVersion && version !== currentVersion)
     || (version !== "pending" && (!validWallClockTimestamp(version) || version > currentVersion))) {
     fail(errors, `release-bound Harness change has inconsistent required_version: ${changeId}`);
   }

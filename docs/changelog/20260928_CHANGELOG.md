@@ -6,7 +6,7 @@
 
 ## 新增
 
-- `HARNESS-FEAT-POST-RELEASE-ACTION-CHOICE`（`required_version = pending`）：初始化固定询问“本地打包”或“提交远程”，建议默认本地打包并要求确认；已初始化旧项目升级后补选，未来可用 `$desktop-switch-post-release-action` 切换。Git 发布仍止于本地主分支与 tag；随后所选本地打包沿用原流程，远程路径把同一提交放到小写 `release` 分支并推送远端分支与 tag，只有实际复核通过才完成后续流程。新增受保护策略 schema v4、升级补选和远程候选回归。
+- `HARNESS-FEAT-POST-RELEASE-ACTION-CHOICE`（`required_version = 202609281559`）：初始化固定询问“本地打包”或“提交远程”，建议默认本地打包并要求确认；已初始化旧项目升级后补选，未来可用 `$desktop-switch-post-release-action` 切换。Git 发布仍止于本地主分支与 tag；随后所选本地打包沿用原流程，远程路径把同一提交放到小写 `release` 分支并推送远端分支与 tag，只有实际复核通过才完成后续流程。新增受保护策略 schema v4、升级补选和远程候选回归。
 - `HARNESS-CHANGE-SINGLE-GIT-RELEASE-AND-RECONCILIATION-GATE`（`required_version = 202609281202`）：Git 发布统一止于本地默认主分支合并及版本 tag 创建、复读；推送同一已发布 HEAD/tag 与构建打包改为发布后的独立请求，登记分支和 Worktree 保留。合并后、打 tag 前复核最终提交的 Harness 取号或下游版本事实，发布状态复核拒绝未合并的登记分支。下游新增经证据确认的记录冲突门禁：首次纠错强制提升 Minor，稳定 ID 与事件证据跨周期去重。Harness 本次只验证门禁，具体记录修正留待下游升级时执行；本条取代既有本地/远端双发布模式。
 - `HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`（`required_version = 202609281202`）：Harness 正式发布时按当前上海时区年月日时分确定唯一版本，`Released` 由登记分支合并到默认主分支和适用 tag/ref 的真实复读结果判定；源码归档改为 Git 发布完成后询问是否继续，不再作为发布条件。下游完成上一发布周期并确认 tag 后，新的改动先识别疑似新需求并优先按功能 Minor 处理，再考虑修复或可感知优化的 Patch。
 
@@ -90,7 +90,7 @@
 
 ## 变更
 
-- `HARNESS-CHANGE-RELEASE-NOTES-TEN-VERSIONS`（`required_version = pending`）：正式发布整理的双语更新日志从含当前版的最近五个实际发布版本扩为十个；SemVer 跳号不占名额，历史不足十版时只保留已有记录。发布日志 helper、GUI Rust/React 资源读取与展示及 Harness 门禁同步放宽至十版，每版“功能优化”“问题修复”仍各限十条；既有日志不补造已截掉的旧发布记录。
+- `HARNESS-CHANGE-RELEASE-NOTES-TEN-VERSIONS`（`required_version = 202609281559`）：正式发布整理的双语更新日志从含当前版的最近五个实际发布版本扩为十个；SemVer 跳号不占名额，历史不足十版时只保留已有记录。发布日志 helper、GUI Rust/React 资源读取与展示及 Harness 门禁同步放宽至十版，每版“功能优化”“问题修复”仍各限十条；既有日志不补造已截掉的旧发布记录。
 
 - `HARNESS-CHANGE-NODE-ONLY-AUTOMATION`（`required_version = 202609231623`）：Harness 校验器、Git/版本/发布/初始化/升级等固定 helper、专项回归与跨平台候选 workflow 统一迁移到 Node.js 标准库和 `node:test`，移除活动 Python 源码、解释器选择、内联脚本、依赖入口与字节码残留。Node.js `>=24.21.0` 现在是 CLI/TUI/MCP/GUI 全部接口组合的受管工程运行时，pnpm 仍只在 GUI/前端适用；工程硬规则默认禁止重新引入 Python，只有开发者在当前请求中主动明确要求、说明必要性并在项目内显式声明和隔离时才允许精确例外。历史 ADR/Changelog/Verification 与已完成 Work Plan 中的旧命令保留为真实历史证据，后续活动计划和当前状态不豁免。
 
