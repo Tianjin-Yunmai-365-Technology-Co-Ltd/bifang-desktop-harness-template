@@ -5,7 +5,7 @@ import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { CONTEXT_RELATIVE_PATH as RELEASE_CONTEXT_PATH, canonicalBytes, validateContext } from "../../desktop-prepare-release/scripts/release_context.mjs";
-import { validateDocument as validateReleaseNotes } from "../../desktop-prepare-release/scripts/release_notes.mjs";
+import { parseDocumentBytes as parseReleaseNotesBytes } from "../../desktop-prepare-release/scripts/release_notes.mjs";
 import { inspect as inspectPostReleaseAction } from "../../desktop-switch-post-release-action/scripts/post_release_action.mjs";
 import { pendingFailure } from "./git_publication_report.mjs";
 import {
@@ -425,7 +425,7 @@ function verifyReleaseNotesVersion(repository, head, version) {
   const blob = runGit(repository.root, ["show", `${head}:${RELEASE_NOTES_PATH}`], { check: false, bytes: true });
   try {
     if (blob.returncode !== 0) throw new Error("missing release notes");
-    const document = validateReleaseNotes(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(blob.stdout)));
+    const document = parseReleaseNotesBytes(blob.stdout);
     if (document.releases[0].version !== `v${version}`) throw new Error("stale release notes");
   } catch {
     throw new LifecycleError("release-notes-mismatch", "Release notes at the final HEAD must be valid and lead with the released version.");
@@ -467,6 +467,7 @@ async function completePendingRelease(repository, state, args, reviewed) {
     throw new LifecycleError("local-state-changed", "Git default branch changed after release HEAD was frozen.");
   }
   if (resumed) {
+    verifyReleaseNotesVersion(repository, pending.head, pending.version);
     verifyReviewedFinalHead(repository, reviewed, pending.head);
     await verifyFinalReleaseVersion(repository, pending.version);
   }

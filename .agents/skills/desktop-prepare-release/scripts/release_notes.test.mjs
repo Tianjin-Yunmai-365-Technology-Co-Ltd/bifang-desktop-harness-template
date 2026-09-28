@@ -19,6 +19,7 @@ import {
   loadDocument,
   main,
   normalizeDisplayVersion,
+  parseDocumentBytes,
   renderDocument,
   upsertRelease,
 } from "./release_notes.mjs";
@@ -146,6 +147,7 @@ test("check_rejects_schema_types_duplicate_keys_and_noncanonical_values", () => 
     ]) {
       writeFileSync(item.path, raw, "utf8");
       assert.throws(() => loadDocument(item.path), ReleaseNotesError);
+      assert.throws(() => parseDocumentBytes(readFileSync(item.path)), ReleaseNotesError);
     }
     unlinkSync(item.path);
     upsert(item.path, "1.2.3", 26);
@@ -162,6 +164,7 @@ test("check_rejects_schema_types_duplicate_keys_and_noncanonical_values", () => 
       else document.releases[0].bugFixes[0][field] = value;
       writeFileSync(item.path, JSON.stringify(document), "utf8");
       assert.throws(() => loadDocument(item.path), ReleaseNotesError);
+      assert.throws(() => parseDocumentBytes(readFileSync(item.path)), ReleaseNotesError);
     }
   } finally { item.cleanup(); }
 });
@@ -192,6 +195,7 @@ test("rejects_resource_over_one_mib_before_read_or_write", () => {
       }],
     }), "utf8");
     assert.throws(() => loadDocument(item.path), /1 MiB/);
+    assert.throws(() => parseDocumentBytes(readFileSync(item.path)), /1 MiB/);
   } finally { item.cleanup(); }
 });
 

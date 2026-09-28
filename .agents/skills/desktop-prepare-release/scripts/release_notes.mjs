@@ -271,6 +271,26 @@ function parseJsonWithoutDuplicateKeys(text) {
   return value;
 }
 
+/** 对文件或 Git blob 的原始字节执行同一套严格更新日志校验。 */
+export function parseDocumentBytes(bytes) {
+  if (!(bytes instanceof Uint8Array)) throw new ReleaseNotesError("release notes must be bytes");
+  if (bytes.byteLength > MAX_RELEASE_NOTES_BYTES) {
+    throw new ReleaseNotesError("release notes exceed the 1 MiB resource limit");
+  }
+  let value;
+  try {
+    value = parseJsonWithoutDuplicateKeys(UTF8_DECODER.decode(bytes));
+  } catch (error) {
+    if (error instanceof ReleaseNotesError) throw error;
+    throw new ReleaseNotesError(`cannot read valid release notes: ${error.message}`);
+  }
+  const normalized = validateDocument(value);
+  if (!isDeepStrictEqual(value, normalized)) {
+    throw new ReleaseNotesError("release notes file contains noncanonical values");
+  }
+  return normalized;
+}
+
 /** 读取普通 UTF-8 JSON 文件并校验规范值。 */
 export function loadDocument(path) {
   let metadata;
@@ -285,18 +305,12 @@ export function loadDocument(path) {
   if (metadata.size > MAX_RELEASE_NOTES_BYTES) {
     throw new ReleaseNotesError("release notes exceed the 1 MiB resource limit");
   }
-  let value;
   try {
-    value = parseJsonWithoutDuplicateKeys(UTF8_DECODER.decode(readFileSync(path)));
+    return parseDocumentBytes(readFileSync(path));
   } catch (error) {
     if (error instanceof ReleaseNotesError) throw error;
     throw new ReleaseNotesError(`cannot read valid release notes: ${error.message}`);
   }
-  const normalized = validateDocument(value);
-  if (!isDeepStrictEqual(value, normalized)) {
-    throw new ReleaseNotesError("release notes file contains noncanonical values");
-  }
-  return normalized;
 }
 
 /** 在同目录原子写入完整更新日志。 */

@@ -96,6 +96,27 @@ scenario("release_rejects_stale_release_notes_before_tag", (item) => {
   assert.equal(item.state(value.repository).cycle.pendingRelease.head, null);
 });
 
+scenario("release_rejects_noncanonical_release_notes_before_tag", (item) => {
+  const value = candidate(item);
+  const notes = JSON.parse(item.git(value.source, "show", "HEAD:release-notes.json").stdout);
+  notes.releases[0].version = "vv1.2.3";
+  item.commitFile(value.source, "release-notes.json", `${JSON.stringify(notes, null, 2)}\n`);
+  const rejected = item.helper(value.source, releaseArgs(value), { success: false }).payload;
+  assert.equal(rejected.code, "release-notes-mismatch");
+  assert.equal(item.state(value.repository).cycle.pendingRelease.head, null);
+});
+
+scenario("release_rejects_duplicate_release_notes_keys_before_tag", (item) => {
+  const value = candidate(item);
+  const notes = item.git(value.source, "show", "HEAD:release-notes.json").stdout;
+  const duplicate = notes.replace('"schemaVersion": 2,', '"schemaVersion": 2,\n  "schemaVersion": 2,');
+  assert.notEqual(duplicate, notes);
+  item.commitFile(value.source, "release-notes.json", duplicate);
+  const rejected = item.helper(value.source, releaseArgs(value), { success: false }).payload;
+  assert.equal(rejected.code, "release-notes-mismatch");
+  assert.equal(item.state(value.repository).cycle.pendingRelease.head, null);
+});
+
 scenario("release_merges_locally_tags_and_preserves_registered_resources_without_remote", (item) => {
   const value = candidate(item);
   const originalRemoteHead = item.git(value.repository, "ls-remote", "--heads", "origin", "refs/heads/main").stdout;
