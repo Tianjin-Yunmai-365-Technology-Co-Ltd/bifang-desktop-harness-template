@@ -11,12 +11,12 @@ import {
   resolveRepository,
   withLifecycleStateLock,
 } from "./git_lifecycle_core.mjs";
-import { commandPublish, commandRelease } from "./git_lifecycle_publication.mjs";
+import { commandPublish, commandPushRelease, commandRelease } from "./git_lifecycle_publication.mjs";
 
 export * from "./git_lifecycle_core.mjs";
 export * from "./git_lifecycle_publication.mjs";
 
-const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release"];
+const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release", "push-release"];
 
 /** 把 kebab-case CLI 选项转换成 camelCase。 */
 function optionName(value) {
@@ -38,19 +38,15 @@ export function parseArguments(argv) {
     start: new Set(["projectRoot", "summary", "remote"]),
     "track-worktree": new Set(["projectRoot", "worktree", "remote"]),
     publish: new Set(["projectRoot", "remote", "alsoRemote"]),
-    release: new Set(["projectRoot", "version", "date", "releaseContextSha256", "localOnly", "remote"]),
+    release: new Set(["projectRoot", "version", "date", "releaseContextSha256"]),
+    "push-release": new Set(["projectRoot", "remote"]),
   }[command];
-  const args = { command, alsoRemote: [], localOnly: false };
+  const args = { command, alsoRemote: [] };
   for (let index = 1; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) invalidArguments();
     const name = optionName(token);
     if (!allowed.has(name)) invalidArguments();
-    if (name === "localOnly") {
-      if (args.localOnly) invalidArguments();
-      args.localOnly = true;
-      continue;
-    }
     if (index + 1 >= argv.length || argv[index + 1].startsWith("--")) invalidArguments();
     const value = argv[index + 1];
     index += 1;
@@ -65,8 +61,8 @@ export function parseArguments(argv) {
   if (command === "track-worktree" && args.worktree === undefined) invalidArguments();
   if (command === "release") {
     if (args.version === undefined || args.releaseContextSha256 === undefined) invalidArguments();
-    if (args.localOnly === (args.remote !== undefined)) invalidArguments();
   }
+  if (command === "push-release" && args.remote === undefined) invalidArguments();
   return args;
 }
 
@@ -98,10 +94,8 @@ export async function main(argv = process.argv.slice(2)) {
     else if (args.command === "start") operation = () => commandStart(repository, args);
     else if (args.command === "track-worktree") operation = () => commandTrackWorktree(repository, args);
     else if (args.command === "publish") operation = () => commandPublish(repository, args);
-    else {
-      args.cliInvocation = true;
-      operation = () => commandRelease(repository, args);
-    }
+    else if (args.command === "push-release") operation = () => commandPushRelease(repository, args);
+    else operation = () => commandRelease(repository, args);
     const result = args.command === "inspect"
       ? await operation()
       : await withLifecycleStateLock(repository, operation);

@@ -120,9 +120,9 @@ export function validateBuildSkillContract(errors, overrides = {}) {
   };
   const required = new Map([
     [paths.buildSkill, [
-      "默认通过 `$desktop-prepare-cross-platform-release` 构建 Windows、macOS 和 Linux 原生候选",
+      "`$desktop-prepare-cross-platform-release`", "明确请求远端矩阵时另复核已推送的主分支与 tag",
       "在执行任何单元测试或构建命令前", "release_notes.mjs check --file release-notes.json --expected-version",
-      "本 Skill 绝不得生成或改写更新日志", "本次请求已明确 `enabled`/`disabled` 时直接复用",
+      "不得计算、提升版本或重置正式发布周期", "本次请求已明确 `enabled`/`disabled` 时直接复用",
       "cargo test --workspace --all-targets --all-features --locked", "不得在构建名义下自动追加格式、lint",
       "必须尝试签名并验证生成的签名", "signingStatus: unsigned", "结构化 `signingEvidence`",
       "目录级原子替换", "项目根 `release/`", "milestoneAcceptance: pending", "e2eSelection",
@@ -134,7 +134,7 @@ export function validateBuildSkillContract(errors, overrides = {}) {
       "cargo test --workspace --all-targets --all-features --locked", "原子隔离旧目录", "必须尝试签名并验证",
       "固定 `confirm_candidate_build`、`version`、`source_commit`、`release_context_sha256` 和 `e2e_selection` 输入",
       "使用 `fetch-depth: 0`", "verify_release_context.mjs capture", "verify_release_context.mjs verify",
-      "完整规范化 `releaseReview`/`candidateSelections`", "上传三个明确的归档/校验和/清单路径",
+      "完整规范化 `releaseReview`", "上传三个明确的归档/校验和/清单路径",
       "milestoneAcceptance: pending", "矩阵本身不得运行 E2E",
     ]],
     [paths.crossPlatformWorkflow, [
@@ -147,14 +147,14 @@ export function validateBuildSkillContract(errors, overrides = {}) {
     [paths.crossPlatformContextHelper, [
       "export async function calculateSnapshot(", "runner must check out the named repository default branch at source_commit",
       "working release context bytes do not match source_commit", "release context digest does not match the host-verified input",
-      'normalized.gitPublication !== "remote"', "cross-platform provider release requires remote gitPublication",
-      "provider default branch differs from release context", "`refs/remotes/origin/${repositoryDefaultBranch}`",
-      "`refs/tags/${normalized.expectedTag}`", 'macosSigningSelection: "not-applicable"',
-      "sourceCommit", "releaseContextSha256: digest", "releaseReview", "candidateSelections",
+      "releaseDefaultBranch: normalized.defaultBranch", "fetched origin default branch does not equal source_commit",
+      "defaultBranch: repositoryDefaultBranch", "`refs/remotes/origin/${repositoryDefaultBranch}`",
+      "`refs/tags/${normalized.expectedTag}`",
+      "sourceCommit", "releaseContextSha256: digest", "releaseReview", "defaultBranch: repositoryDefaultBranch",
       "release context changed between build checks",
     ]],
     [paths.collectSkill, [
-      "releaseNotesVersion", "releaseNotesSha256", "releaseNotesPath", "不得在收集时改写",
+      "releaseNotesVersion", "releaseNotesSha256", "releaseNotesPath", "不得改写发布上下文或更新日志",
       "在全部源结果通过前不得清理、移走或写入它", "在项目根同级、同一文件系统创建唯一且权限受限的 staging",
       "不得逐个平台直接复制到 `release/`", "在 staging 内重新计算每个最终归档或安装包的 SHA-256",
       "在触碰目标目录前第二次运行发布上下文 `verify`", "重新枚举 staging 并按全部清单复算精确集合",
@@ -199,8 +199,8 @@ export function validateTauriBuildSkillContract(errors, overrides = {}) {
   };
   const required = new Map([
     [paths.tauriSkill, [
-      "普通“构建/打包/首次安装试包”转到 `$desktop-build-tauri-local-install`", "release_notes.mjs check --file release-notes.json",
-      "verify_release_notes_resource.mjs config", "--config src-tauri/tauri.release.conf.json", "本 Skill 绝不得生成或改写它",
+      "仅供本机安装检查的试包转到 `$desktop-build-tauri-local-install`", "release_notes.mjs check --file release-notes.json",
+      "verify_release_notes_resource.mjs config", "--config src-tauri/tauri.release.conf.json", "不在构建中改写它",
       "scripts/prepare-release-directory.sh <project-root>", "scripts/prepare-release-directory.ps1 -ProjectRoot <project-root>",
       "Windows 原生路线不得调用 `.sh` helper", "scripts/macos-tauri-xwin-gates.sh --install-missing",
       "CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg", "scripts/verify-dmg-layout.sh",
@@ -260,36 +260,36 @@ export function validateReleaseSelectionContract(errors, overrides = {}) {
   };
   const required = new Map([
     [paths.prepareSkill, [
-      "`gitPublication: local | remote`", "`reviewSelection: enabled | disabled`", "`macosSigningSelection: enabled | disabled`",
-      "这些选择属于单次发布，写入 `.harness/release-context.json`", "node scripts/validate_harness.mjs --release-review",
-      "`reviewStatus: Not run`", "`reviewedSourceCommit = sourceHead`", "release_context.mjs write",
-      "release_context.mjs check", "release_context.mjs verify", "$desktop-manage-git-lifecycle release",
-      "--release-context-sha256 <releaseContextSha256>", "任一不一致零副作用失败", "不得在此运行任一测试",
+      "`reviewSelection: enabled | disabled`", "node scripts/validate_harness.mjs --release-review",
+      "`sourceHead`", "`releaseReview`", "release_context.mjs write",
+      "release_context.mjs check", "release_context.mjs verify", "git_lifecycle.mjs release --project-root .",
+      "--release-context-sha256 <releaseContextSha256>", "本地预期 tag 和上下文均精确一致",
+      "不保存推送模式、远端、候选签名或打包选择",
     ]],
-    [paths.lifecycleSkill, ["`publish` 要求可解析主远端", "`release` 要求 `--release-context-sha256 <sha256>` 与恰好一个模式参数",
-      "`v{version}-{YYYYMMDD}`", "tracked `.harness/release-context.json`", "任何 merge/fetch/push/tag 前", "不设置任何分支门禁"]],
+    [paths.lifecycleSkill, ["`publish` 要求可解析主远端", "`release` 必须接收 `--release-context-sha256 <sha256>`",
+      "`v{version}-{YYYYMMDD}`", "tracked `.harness/release-context.json`", "任何合并或创建 tag 前", "不设置保护分支门禁"]],
     [paths.contextHelper, [
-      'export const CONTEXT_RELATIVE_PATH = ".harness/release-context.json"', "value.schemaVersion !== 2", "gitPublication",
-      'value.gitPublication === "local"', 'value.gitPublication === "remote"',
-      "releaseReview", "candidateSelections", "const expectedTag = `v${value.version}-${compactDate}`",
+      'export const CONTEXT_RELATIVE_PATH = ".harness/release-context.json"', "value.schemaVersion !== 3",
+      '"expectedTag", "defaultBranch", "releaseReview"', "const expectedTag = `v${value.version}-${compactDate}`",
       "releaseReview: validateReleaseReview(value.releaseReview, sourceHead)",
-      "candidateSelections: validateCandidateSelections(value.candidateSelections)",
-      "export function writeContext(", "export function checkContext(", "localOnly", "remote",
+      "export function writeContext(", "export function checkContext(", "value.defaultBranch",
     ]],
-    [paths.contextTests, ["write_derives_tag_and_canonical_context", "schema_v1_release_context_is_rejected",
-      "local_write_uses_explicit_branch_without_accessing_remote", "verify_requires_clean_pushed_main_and_remote_tag",
-      "local_verify_requires_only_local_branch_head_context_and_tag", "verify_rejects_missing_remote_tag",
-      "write_rejects_inconsistent_disabled_selection", "write_requires_strict_publication_argument_combinations"]],
-    [paths.rustSkill, ["release_context.mjs verify --project-root .", "`sourceCommit` 与 `releaseContextSha256`", "只能从上下文读取", "同一 `sourceCommit` 重跑复用上下文"]],
-    [paths.tauriSkill, ["release_context.mjs verify --project-root .", "`sourceCommit`、`releaseContextSha256`、`releaseReview` 与 `candidateSelections`",
-      "审查和 macOS 签名选择及来源只能从上下文读取", "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`",
+    [paths.contextTests, ["write_derives_tag_and_canonical_context", "schema_v2_release_context_is_rejected_without_silent_migration",
+      "write_uses_explicit_branch_without_accessing_remote", "verify_requires_clean_main_and_local_tag",
+      "verify_succeeds_without_remote_access", "verify_rejects_missing_local_tag",
+      "write_requires_default_branch_and_rejects_old_modes", "check_rejects_retired_publication_and_candidate_fields"]],
+    [paths.rustSkill, ["release_context.mjs verify --project-root .", "锁定其 `sourceCommit`、`releaseContextSha256` 与 `releaseReview`",
+      "审查选择、状态、范围摘要", "签名由本次构建的已批准配置"]],
+    [paths.tauriSkill, ["release_context.mjs verify --project-root .", "`sourceCommit`、`releaseContextSha256` 与 `releaseReview`",
+      "发布审查只从上下文读取", "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`",
+      "锁定为本次构建选择并在候选 manifest 中记录，不写入发布上下文",
       "不得以 `--no-sign` 重试或静默降级"]],
-    [paths.collectSkill, ["发布上下文 `verify`", "各 manifest 的上下文摘要与选择必须逐字段匹配", "收集阶段不得补问、推断或改变选择", "不重新构建、签名、执行或发布候选"]],
+    [paths.collectSkill, ["发布上下文 `verify`", "各 manifest 的上下文摘要与审查字段逐字段匹配", "收集阶段不得补问、推断或改变构建选择", "不重新构建、签名、执行或发布候选"]],
     [paths.verifySkill, ["先运行发布上下文 `verify`", "manifest `sourceCommit` 必须等于该 HEAD", "`reviewStatus: passed`", "`reviewStatus: Not run`",
       "在写入验收状态前再次运行发布上下文 `verify`", "在 staging 内原子写入全部 manifests", "目录级原子替换 `release/`"]],
     [paths.e2eSkill, ["`disabled/not-requested` 或实际 unsigned 必须在读取权限前失败", "不能以 E2E `disabled` 或 `Unverified` 绕过", "不写 tracked Verification"]],
-    [paths.releaseDoc, ["`.harness/release-context.json`", "同一发布修复重跑复用，新发布重新询问", "macOS 默认 `macosSigningSelection: disabled`",
-      "下游候选构建一律从带预期本地 tag 的 clean 默认主分支", "远端模式再复核远端 refs，本地模式不访问远端"]],
+    [paths.releaseDoc, ["`.harness/release-context.json`", "重试必须沿用同一上下文及最终 HEAD", "macOS 默认 unsigned",
+      "候选构建在清理目录、测试或编译前", "使用远程 provider 时另复核已明确推送的远端主分支/tag"]],
     [paths.verificationDoc, ["非必要语义审查只读取当前发布 manifest 的 `reviewSelection`", "安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求不能被关闭"]],
   ]);
   validateFragmentContract(errors, required, { label: "release selection contract", syntaxCheck: [paths.contextHelper, paths.contextTests] });
@@ -310,30 +310,30 @@ export function validateHarnessSourceReleaseContract(errors, overrides = {}) {
     prepareOpenai: skill("desktop-prepare-release", "agents", "openai.yaml"), ...overrides,
   };
   const required = new Map([
-    [paths.prepareSkill, ["先判定当前根是否同时包含 Harness 专用 `Version.md`", "Harness 源的 `macosSigningSelection`/`macosSigningSource` 固定为 `not-applicable`",
-      "任何由独立事件真实触发的 Changelog", "不得在锁定 `sourceHead` 后再补写 Changelog", "release_context.mjs write` 会拒绝 `sourceHead`",
-      "第二个精确范围提交只能同时包含 `release-notes.json` 与 `.harness/release-context.json`",
-      "--macos-signing-selection not-applicable --macos-signing-source not-applicable", "`gitPublication: local | remote`",
-      "git_lifecycle.mjs release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <releaseContextSha256> --remote <remote>",
-      "git_lifecycle.mjs release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <releaseContextSha256> --local-only",
-      "tracked `.harness/release-context.json` 是 lifecycle 的唯一冻结选择", "若步骤 2 已判定为 Harness 源", "终端下游才按接口调用",
-      "不得创建或套用产品候选 manifest", "以下就绪复核只适用于已经形成产品候选的终端下游"]],
-    [paths.prepareOpenai, ["锁定本地或远端 Git 发布", "Harness 源至此完成 Git 发布"]],
-    [paths.lifecycleSkill, ["在 Harness 源或终端下游 Git 项目中开始开发分支"]],
+    [paths.prepareSkill, ["根同时包含 Harness `Version.md`", "harness_version_clock.mjs stamp --project-root .",
+      "提交源码/治理变化及已独立触发的 Changelog", "此后不得补写 Changelog", "`write` 拒绝当前 HEAD 不等于 `sourceHead`",
+      "把且只把 `release-notes.json` 与 `.harness/release-context.json` 放入同一发布元数据提交",
+      "不保存推送模式、远端、候选签名或打包选择",
+      "git_lifecycle.mjs release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <releaseContextSha256>",
+      "报告 `Released` 并结束 Git 发布", "推送使用独立 `push-release --remote <name>`",
+      "下游候选打包只按用户独立请求进入适用 Skill"]],
+    [paths.prepareOpenai, ["合并本地默认主分支并创建、复读版本 tag", "Git 发布至此完成"]],
+    [paths.lifecycleSkill, ["在 Harness 源或终端下游 Git 项目中登记开发分支"]],
     [paths.contextHelper, ["sourceHead must equal the current HEAD before metadata commit"]],
     [paths.contextTests, ["write_rejects_source_head_that_is_not_current_head"]],
-    [paths.agentPolicy, ["本节约束 Harness 源和完成初始化的终端下游", "当前发布周期已经登记该远端时必须原样沿用", "唯一主远端", "--also-remote",
-      "`pendingPublish`", "两种模式都不接受 `--also-remote <name>`", "--release-context-sha256 <sha256>", "Harness 源发布则在模式适用的 Git 引用与上下文复核通过后结束"]],
-    [paths.engineeringRules, ["Harness 源与已初始化终端下游由 `$desktop-manage-git-lifecycle` 唯一管理", "只有当前 HEAD 仍精确等于该值时",
-      "把且只把根 `release-notes.json` 与 `.harness/release-context.json` 作为同一个发布元数据提交", "产品构建、`release/` manifest、签名、公证、产品 E2E 和产品人工验收均不适用"]],
-    [paths.releaseDoc, ["步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程", "Harness 在步骤 2 完成并复核 Git 引用后结束",
-      "步骤 3–7 仅适用于终端下游产品候选", "提交源码/治理变化及已触发 Changelog 并锁定 `sourceHead`",
-      "release ... --release-context-sha256 <sha256> --remote <remote>", "release ... --release-context-sha256 <sha256> --local-only",
-      "把且只把 `release-notes.json` 与 `.harness/release-context.json` 作为同一个精确范围的发布元数据提交",
-      "Harness 源码归档只生成相邻 `<artifact>.sha256`", "它不是产品候选，不创建或套用产品 manifest"]],
+    [paths.agentPolicy, ["本节约束 Harness 源和完成初始化的终端下游", "`pendingPublish`", "--also-remote",
+      "`push-release` 只接受最近发布记录中冻结的最终 HEAD 与 tag", "--release-context-sha256 <sha256>",
+      "默认主分支与本地 tag 精确指向同一最终 HEAD 并复读成功，就是 Git 发布的结束条件"]],
+    [paths.engineeringRules, ["正式发布先把源码/治理变化与独立事件已触发的 Changelog 提交并锁定 `sourceHead`", "只有当前 HEAD 仍精确等于该值时",
+      "把且只把根 `release-notes.json` 与 `.harness/release-context.json` 作为同一发布元数据提交", "Harness 源和终端下游的 Git 发布都在这一步结束"]],
+    [paths.releaseDoc, ["Git 发布在本地默认主分支和版本 tag 指向同一最终 HEAD 时结束", "Harness 到此结束",
+      "只有用户另行要求构建终端下游候选时", "提交源码/治理变化及已触发 Changelog",
+      "`release --version <version> --date YYYYMMDD --release-context-sha256 <sha256>`",
+      "把且只把这两个文件作为发布元数据提交", "Harness 源码归档只在 Git 发布完成后由用户另行决定",
+      "不创建产品 manifest"]],
     [paths.productSpec, ["HARNESS-FIX-HARNESS-SOURCE-GIT-ONLY-RELEASE", "正式发布步骤 1–2 由 Harness 源和终端下游共用", "不创建或套用产品 manifest"]],
     [paths.agentsDoc, ["Harness 源与终端下游的新功能或独立 Bug 修复"]],
-    [paths.methodologyDoc, ["正式候选必须先有本地版本 tag", "tag、默认主分支与 manifest `sourceCommit` 精确一致", "其缺席不代替或放宽模式内 Git tag 门禁"]],
+    [paths.methodologyDoc, ["正式候选必须先有本地版本 tag", "tag、本地默认主分支与 manifest `sourceCommit` 精确一致", "其缺席不代替或放宽 Git tag 门禁"]],
   ]);
   validateFragmentContract(errors, required, { label: "Harness source release contract", syntaxCheck: [paths.contextHelper, paths.contextTests] });
   if (fs.existsSync(paths.humanReview) && readText(paths.humanReview).includes("docs/adr/20260911_ADR.md")) fail(errors, "Harness source release contract retains deleted 20260911 ADR path");
@@ -341,15 +341,15 @@ export function validateHarnessSourceReleaseContract(errors, overrides = {}) {
   if (fs.existsSync(paths.releaseDoc) && readText(paths.releaseDoc).includes("写入 `.harness/release-context.json` 并提交；随后 `release --version <version>`")) {
     fail(errors, "Harness source release contract retains stale context-only Git release");
   }
-  validateOrder(errors, paths.prepareSkill, ["任何由独立事件真实触发的 Changelog", "提交后的 clean HEAD 记为 `sourceHead`", "release_context.mjs write` 会拒绝 `sourceHead`",
-    "第二个精确范围提交只能同时包含", "git_lifecycle.mjs release --project-root", "若步骤 2 已判定为 Harness 源", "终端下游才按接口调用"],
+  validateOrder(errors, paths.prepareSkill, ["提交源码/治理变化及已独立触发的 Changelog", "提交后的 clean HEAD 是 `sourceHead`", "release_context.mjs write --project-root",
+    "把且只把 `release-notes.json` 与 `.harness/release-context.json`", "git_lifecycle.mjs release --project-root", "报告 `Released` 并结束 Git 发布", "下游候选打包只按用户独立请求进入适用 Skill"],
   "Harness source release contract order: Changelog/sourceHead must precede metadata, release, Harness endpoint, and downstream candidate");
-  validateOrder(errors, paths.releaseDoc, ["步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程", "步骤 3–7 仅适用于终端下游产品候选",
-    "\n1. 明确正式发布请求后", "\n2. 从 `sourceHead`", "Harness 至此结束本次正式源码 Git 发布", "\n3. 从上述 clean 默认主分支"],
+  validateOrder(errors, paths.releaseDoc, ["Git 发布在本地默认主分支和版本 tag 指向同一最终 HEAD 时结束",
+    "\n1. 发布准备先判定", "\n2. 生成并复核", "Harness 到此结束", "\n3. 只有用户另行要求构建终端下游候选时"],
   "Harness source release contract order: shared steps and Harness endpoint must precede downstream candidate steps");
 }
 
-/** 锁定精确提交、上下文绑定、tag 与清理顺序。 */
+/** 锁定精确提交、上下文绑定、单一本地 tag 与独立发布后推送。 */
 export function validateReleaseGitContract(errors, overrides = {}) {
   const paths = {
     prepareSkill: PREPARE_RELEASE_SKILL, lifecycleSkill: GIT_LIFECYCLE_SKILL,
@@ -358,11 +358,11 @@ export function validateReleaseGitContract(errors, overrides = {}) {
     publicationTests: GIT_PUBLICATION_TEST_CASES, releaseDoc: RELEASE_DOC, readme: path.join(ROOT, "README.md"), ...overrides,
   };
   const required = new Map([
-    [paths.prepareSkill, ["用户明确说“发布”即授权本次已复核范围的本地提交、版本 tag 与登记资源清理", "只有 `gitPublication: remote` 才授权主分支/tag 推送和远端复读/清理",
-      "流程不创建或使用 `Release` 分支", "不设置保护分支、严格线性、fast-forward-only、lease 或 atomic push 门禁",
-      "release_git.mjs inspect --project-root .", "release_git.mjs commit --project-root .", "--expected-status-sha256", "--path <reviewed-path>",
-      "literal pathspec", "绝不传 `--no-verify`", "工作树原本 clean 时不创建空源码提交", "$desktop-manage-git-lifecycle release",
-      "--release-context-sha256 <releaseContextSha256>", "模式内 tag 创建、推送或复读失败时不得开始任何删除"]],
+    [paths.prepareSkill, ["明确“发布”授权本次已复核源码的必要提交、普通合并、本地版本 tag 和精确复核",
+      "不访问远端、不推送、不打包、不删除登记资源", "release_git.mjs inspect --project-root .",
+      "release_git.mjs commit", "`statusSha256`", "literal `--path`", "不使用 `--no-verify`",
+      "clean 且无源码变化时不创建空提交", "git_lifecycle.mjs release --project-root .",
+      "--release-context-sha256 <releaseContextSha256>", "此时报告 `Released` 并结束 Git 发布"]],
     [RELEASE_GIT_HELPER, ["export function inspectRepository(", "export function commitApproved(", "statusSha256", "repositorySnapshotDigest",
       "working tree changed after review", "literalPathspecs", "index contains staged paths outside the reviewed scope",
       "reviewed paths do not cover the complete working tree", "potential secret detected in reviewed staged bytes", "hooks were not bypassed",
@@ -370,27 +370,46 @@ export function validateReleaseGitContract(errors, overrides = {}) {
     [RELEASE_GIT_HELPER_TESTS, ["inspect_reports_exact_head_branch_and_dirty_snapshot", "commit_stages_only_reviewed_paths_and_finishes_clean",
       "commit_allows_any_named_branch_without_protection_rules", "only_release_context_and_upstream_lock_are_approvable_harness_metadata",
       "git_add_window_race_cannot_commit_unreviewed_bytes", "hooks_cannot_fail_or_smuggle_unreviewed_content", "high_confidence_secret_stops_without_advancing_head"]],
-    [paths.lifecycleSkill, ["用户要求“推送”时运行 `publish`", "用户要求“发布”时运行 `release`", "--also-remote <name>", "唯一主远端",
-      "`pendingPublish` 中临时保存冻结目标与确认进度", "跨远端推送不是原子操作", "同目标参数进行幂等重试", "普通 `git merge --no-edit`",
-      "`v{version}-{YYYYMMDD}`", "tracked `.harness/release-context.json` 是唯一冻结选择", "模式内标签确认之前不会开始清理", "不设置任何分支门禁"]],
-    [paths.lifecycleScript, ["export function publish(", "function confirmPendingPublishTarget(", "function completePendingPublish(", "function ensureReleaseTag(",
-      "function cleanupWorktrees(", "function cleanupRemoteBranches(", "function cleanupLocalBranches(",
-      '["push", remote, `refs/tags/${tag}:refs/tags/${tag}`]', '["push", remote, `:refs/heads/${branch}`]', '["branch", "-D", "--", branch]']],
-    [paths.lifecycleCore, ["export function resolveAdditionalRemoteTargets(", "export function mergeRegisteredBranches(", "export function remoteBranchOid("]],
+    [paths.lifecycleSkill, ["用户要求“发布”时运行 `release`", "push-release --project-root . --remote <name>", "--also-remote <name>", "唯一主远端",
+      "`pendingPublish` 中临时保存冻结目标与确认进度", "跨远端推送不是原子操作", "相同目标参数进行幂等重试", "普通 `git merge --no-edit`",
+      "`v{version}-{YYYYMMDD}`", "tracked `.harness/release-context.json`", "不删除登记分支或 Worktree", "不设置保护分支门禁"]],
+    [paths.lifecycleScript, ["export function publish(", "function confirmPendingPublishTarget(", "function completePendingPublish(", "function ensureLocalReleaseTag(",
+      "async function verifyHarnessVersionStamp(", "clock.readHarnessVersionStamp(repository.root, version)",
+      "async function verifyFinalReleaseVersion(", 'gate.check(repository.root, "release")',
+      "export async function commandRelease(", "await verifyHarnessVersionStamp(repository, identity.version)",
+      "export function commandPushRelease(", "state.releasedResources.push({",
+      'if (state.cycle === null && state.lastRelease !== null)', 'if (!validRemote(remote))',
+      "confirmedDefault = remoteDefaultBranch(repository, remote)", "confirmedBranch = remoteBranchOid(repository, remote, branch)",
+      "confirmedTag = remoteTagTarget(repository, remote, last.tag)",
+      '["push", remote, last.head + ":refs/heads/" + branch]', '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]']],
+    [paths.lifecycleCore, ["export function resolveAdditionalRemoteTargets(", "export function mergeRegisteredBranches(", "export function remoteBranchOid(",
+      'createHash("sha256").update(contextBlob.stdout).digest("hex") !== last.releaseContextSha256']],
     [paths.lifecycleTests, ["registered_remote_precedes_origin_and_conflicting_override_fails", "publish_merges_switches_and_pushes_without_tag_or_cleanup",
       "publish_merges_current_remote_default_before_development_branches", "publish_pushes_same_head_to_additional_remote_without_rebinding"]],
-    [paths.lifecycleReleaseTests, ["remote_release_tags_before_exact_cleanup_and_retry_is_idempotent", "local_release_tag_conflict_keeps_cycle_resources",
-      "dirty_registered_worktree_blocks_release_then_clean_retry_succeeds"]],
+    [paths.lifecycleReleaseTests, ["release_merges_locally_tags_and_preserves_registered_resources_without_remote", "release_tag_conflict_keeps_registered_resources_and_pending_head",
+      "harness_release_requires_managed_current_minute_stamp_before_merge_or_tag", "harness_release_accepts_managed_timestamp_stamp",
+      "publish_after_release_requires_new_cycle_and_cannot_replace_push_release", "push_release_rechecks_branch_and_tag_together_after_tag_push",
+      "push_release_rejects_option_like_remote_name",
+      "dirty_registered_worktree_blocks_release_then_clean_retry_succeeds", "push_release_is_separate_explicit_idempotent_operation",
+      "tag_push_failure_reports_partial_success_and_retry_keeps_release_complete"]],
     [paths.publicationTests, ["publish_primary_only_failure_persists_and_resumes_frozen_head", "single_target_pending_errors_preserve_stable_codes",
       "additional_remote_rejection_preserves_prefix_and_retry_succeeds"]],
-    [paths.releaseDoc, ["## Git 发布生命周期与制品目录", "用户明确说“推送”时", "--also-remote", "`pendingPublish`", "`release` 必须接收 `--release-context-sha256 <sha256>`",
-      "`gitPublication: local`", "`gitPublication: remote`", "得到 final HEAD 后立即写入 `pendingRelease.head`", "不设置保护分支、严格线性"]],
-    [paths.readme, ["$desktop-manage-git-lifecycle", "在本地自动创建并切换到 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`", "询问并锁定 `gitPublication: local | remote`",
-      "release ... --release-context-sha256 <sha256> --local-only", "release ... --release-context-sha256 <sha256> --remote <name>"]],
+    [paths.releaseDoc, ["## Git 发布生命周期与制品目录", "发布前用户明确要求“推送”时", "--also-remote", "`pendingPublish`", "`release` 必须传入精确 `--release-context-sha256 <sha256>`",
+      "`release --version <version> --date YYYYMMDD --release-context-sha256 <sha256>`", "两者一致即完成 Git 发布", "全过程不 fetch、push、打包或删除登记分支和 Worktree",
+      "`push-release --remote <name>`", "失败不撤销本地发布", "不设置保护分支、严格线性"]],
+    [paths.readme, ["$desktop-manage-git-lifecycle", "自动创建本地开发分支", "合并本地默认主分支并创建、复读版本 tag",
+      "推送、打包分别在发布后由你自行决定并单独提出", "发布后只有明确要求推送时才将同一已发布主分支 HEAD 与 tag 推到指定远端并复读"]],
   ]);
   validateFragmentContract(errors, required, {
     label: "release Git contract", syntaxCheck: [RELEASE_GIT_HELPER, RELEASE_GIT_HELPER_TESTS, paths.lifecycleScript, paths.lifecycleCore, paths.lifecycleTests, paths.lifecycleReleaseTests, paths.publicationTests],
   });
+  for (const filePath of [paths.prepareSkill, paths.lifecycleSkill, paths.releaseDoc, paths.readme]) {
+    if (!fs.existsSync(filePath)) continue;
+    const contents = readText(filePath);
+    for (const retired of ["gitPublication: local | remote", "--local-only", "--remote <remote> --release-context-sha256", "恰好一个模式参数"]) {
+      if (contents.includes(retired)) fail(errors, `release Git contract retains retired release mode in ${relativePath(filePath)}: ${retired}`);
+    }
+  }
 }
 
 /** 汇总 release ignore、helper、构建、收集和 Git 发布契约。 */
@@ -407,9 +426,9 @@ export function validateReleaseContract(errors) {
     [BUILD_RELEASE_POWERSHELL_HELPER, ["独立 Git 顶层目录", "[IO.FileAttributes]::ReparsePoint", "[IO.Directory]::Move", "Remove-TreeWithoutFollowingReparsePoint", "release.cleaned=true"]],
     [BUILD_RELEASE_HELPER_TESTS, ["cleans every entry without deleting release directory", "rejects release symlink without touching target", "rejects directory that is not Git top level", "Windows helper rejects root reparse point"]],
     [COLLECT_RELEASE_SKILL, ["milestoneAcceptance: pending", "目录存在绝不得提升该状态", "不得尝试新签名、公证或 stapling", "构建产物收集本身不触发任何项目记忆"]],
-    [PREPARE_RELEASE_SKILL, ["## 正式发布共享流程", "## 就绪复核", "release_git.mjs inspect --project-root .", "statusSha256", "release_git.mjs commit --project-root . --expected-status-sha256",
-      "release_notes.mjs upsert --file release-notes.json", "release_notes.mjs check --file release-notes.json --expected-version", "release_notes.mjs render --file release-notes.json --locale zh-CN",
-      "schemaVersion: 2", "只保留最近 5 版", "候选验收后只允许 `check`/`render` 读取", "结构化 `signingEvidence`", "notarizationStatus: notarized-and-stapled"]],
+    [PREPARE_RELEASE_SKILL, ["## 正式发布流程", "release_git.mjs inspect --project-root .", "statusSha256", "release_git.mjs commit",
+      "`release_notes.mjs upsert`", "`check --expected-version`", "两个 locale 的 `render`",
+      "近五版双语 `release-notes.json`", "发布准备不运行构建、冒烟或 E2E", "此时报告 `Released` 并结束 Git 发布"]],
     [RELEASE_NOTES_HELPER, ["export const MAX_RELEASES = 5", "export const MAX_ITEMS_PER_SECTION = 10", "export const SCHEMA_VERSION = 2", 'export const SUPPORTED_LOCALES = ["zh-CN", "en-US"]',
       "pairLocalizedItems", "normalizeDisplayVersion", "validateDocument", "renameSync(temporary, path)", "featureOptimizationZhCn", "bugFixEnUs"]],
     [RELEASE_NOTES_HELPER_TESTS, ["upsert_normalizes_version_and_renders_exact_sections", "upsert_replaces_same_version_and_retains_latest_five", "rejects_item_overflow_empty_release_and_missing_translation", "rejects_symlinked_release_notes"]],

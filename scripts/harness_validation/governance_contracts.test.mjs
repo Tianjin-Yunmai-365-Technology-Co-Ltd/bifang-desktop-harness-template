@@ -51,7 +51,7 @@ test("engineering contract fails closed when a referenced file is missing", () =
 }));
 
 test("streamlined contract rejects branch-gate regression", () => withTemporaryDirectory((directory) => {
-  const anchor = "不设置任何分支门禁";
+  const anchor = "不设置保护分支门禁";
   const gitLifecycleSkill = mutatedCopy(directory, "gitLifecycleSkill", anchor, "恢复严格线性分支门禁");
   const errors = [];
   validateStreamlinedDevelopmentAndBuild(errors, { paths: { gitLifecycleSkill } });

@@ -1,4 +1,4 @@
-/** 校验开发分支、publish、tag 与精确清理生命周期。 */
+/** 校验开发分支、独立推送与本地主分支/tag 发布生命周期。 */
 
 import fs from "node:fs";
 import path from "node:path";
@@ -113,7 +113,7 @@ function validateNoRetiredRuntime(errors) {
   }
 }
 
-/** 验证本地 start、多远端 publish、tag-first release 与精确清理。 */
+/** 验证 start、多远端开发期 publish、单一 Git release 与独立 push-release。 */
 export function validateGitLifecycleContract(errors, overrides = {}) {
   const paths = {
     skill: GIT_LIFECYCLE_SKILL,
@@ -140,30 +140,33 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
   requireContract(errors, paths.skill, [
     "name: desktop-manage-git-lifecycle", "start --project-root", "track-worktree --project-root",
     "publish --project-root", "[--also-remote <name>]...", "release --project-root",
-    "(--local-only | --remote <name>)", "feature-<summary>-<Asia/Shanghai YYYYMMDD>",
+    "push-release --project-root . --remote <name>", "feature-<summary>-<Asia/Shanghai YYYYMMDD>",
     "创建本地分支不要求配置远端", "普通 `git merge --no-edit`", "`pendingPublish` 中临时保存冻结目标与确认进度",
-    "既有合法 v2 状态缺少新增可空 `pendingPublish` 时按 `null` 兼容读取", "不参与 release、tag 或清理",
+    "v2 的 `pendingRelease` 或 `pendingPublish` 非空时拒绝自动改释", "`releasedResources`", "`schemaVersion: 3`",
     "跨远端推送不是原子操作", "不重新解析默认分支、fetch、merge 或计算新 HEAD",
     "为兼容既有机器调用保留历史稳定 code `push-rejected`", "不创建标签，也不清理任何资源",
     "`v{version}-{YYYYMMDD}`", "全过程不列举、fetch、push、复读或删除远端 ref",
-    "模式内标签确认之前不会开始清理", "不扫描名称前缀", "Git common-dir",
-    "不会写入项目受跟踪目录", "多个 Task 同时开始也不会相互覆盖登记",
+    "不打包，也不删除登记分支或 Worktree", "发布后的独立请求", "Git common-dir",
+    "不会写入项目受跟踪目录", "common-dir 短时互斥",
   ], "Git lifecycle contract");
   requireContract(errors, paths.metadata, ['display_name: "管理 Git 生命周期"', "$desktop-manage-git-lifecycle"], "Git lifecycle contract");
   requireContract(errors, paths.script, [
-    'const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release"]',
+    'const COMMANDS = ["inspect", "start", "track-worktree", "publish", "release", "push-release"]',
     "export function parseArguments(",
-    'release: new Set(["projectRoot", "version", "date", "releaseContextSha256", "localOnly", "remote"])',
+    'release: new Set(["projectRoot", "version", "date", "releaseContextSha256"])',
+    '"push-release": new Set(["projectRoot", "remote"])',
     "if (args.version === undefined || args.releaseContextSha256 === undefined) invalidArguments();",
-    'alsoRemote', 'args.cliInvocation = true',
+    'if (command === "push-release" && args.remote === undefined) invalidArguments();', 'alsoRemote',
     "withLifecycleStateLock(repository, operation)", 'code: "interrupted"',
   ], "Git lifecycle contract");
   const core = requireContract(errors, paths.core, [
-    "export const SCHEMA_VERSION = 2", 'export const STATE_DIRECTORY = "agent-first-harness"',
+    "export const SCHEMA_VERSION = 3", 'export const STATE_DIRECTORY = "agent-first-harness"',
     'export const STATE_FILENAME = "git-lifecycle.json"', 'const LOCK_DIRECTORY = ".git-lifecycle.lock"',
     "export function runGit(", "bytes = false", "export function primaryRepository(",
     "export async function withLifecycleStateLock(", "export function resolveAdditionalRemoteTargets(",
-    "export function mergeRegisteredBranches(", 'parsed.pendingPublish = null',
+    "export function mergeRegisteredBranches(", 'parsed.pendingPublish = null', "function migrateCompletedV2(",
+    '"legacy-inflight-unsupported"', "releasedResources: []", "baseReference = `refs/heads/${released.defaultBranch}`",
+    'createHash("sha256").update(contextBlob.stdout).digest("hex") !== last.releaseContextSha256',
     'branch === "@"', 'branch === "HEAD"', '["switch", "-c", defaultBranch, "--track"',
     '["merge", "--no-edit", `refs/heads/${branch}`]',
   ], "Git lifecycle contract");
@@ -171,15 +174,20 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     'const RELEASE_CONTEXT_PATH = ".harness/release-context.json"',
     'const RELEASE_CONTEXT_HELPER = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs"',
     "export async function releaseContextBinding(", "function verifyHeadReleaseContextBytes(",
-    "function relocateCliCwdBeforeReleaseCleanup(", "function confirmPendingPublishTarget(",
-    "function completePendingPublish(", "function publishPrimaryRemote(", "export function publish(",
-    "function prepareLocalRelease(", "function prepareRemoteRelease(", "function ensureLocalReleaseTag(",
-    "function ensureReleaseTag(", "function cleanupWorktrees(", "function cleanupRemoteBranches(",
-    "function cleanupLocalBranches(", "function freezePendingReleaseHead(", "function completePendingRelease(",
-    "export async function commandRelease(", 'state.pendingPublish = { head, targets:',
+    "function confirmPendingPublishTarget(", "function completePendingPublish(", "export function publish(",
+    "function prepareLocalRelease(", "function ensureLocalReleaseTag(",
+    "function freezePendingReleaseHead(", "function completePendingRelease(",
+    "async function verifyHarnessVersionStamp(", "clock.readHarnessVersionStamp(repository.root, version)",
+    "async function verifyFinalReleaseVersion(", 'gate.check(repository.root, "release")',
+    "function reviewedReleaseMetadata(", "function verifyReviewedFinalHead(",
+    'module.verifyReviewScope(repository.root, value)',
+    'if (state.cycle === null && state.lastRelease !== null)', 'if (!validRemote(remote))',
+    "confirmedDefault = remoteDefaultBranch(repository, remote)", "confirmedBranch = remoteBranchOid(repository, remote, branch)",
+    "confirmedTag = remoteTagTarget(repository, remote, last.tag)",
+    "export async function commandRelease(", "export function commandPushRelease(", 'state.pendingPublish = { head, targets:',
     '["push", target.remote, `${head}:refs/heads/${target.branch}`]',
-    '["push", remote, `refs/tags/${tag}:refs/tags/${tag}`]', '["push", remote, `:refs/heads/${branch}`]',
-    '["branch", "-D", "--", branch]',
+    '["push", remote, last.head + ":refs/heads/" + branch]',
+    '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]',
   ], "Git lifecycle contract");
   requireContract(errors, paths.report, [
     "export function primaryFailureMessage", "export function additionalFailureMessage", "export function pendingFailure",
@@ -192,17 +200,30 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
   ], "Git lifecycle contract");
   requireContract(errors, paths.tests, [
     "start_without_remote_is_idempotent_and_uses_common_dir_state", "branch_validation_rejects_ambiguous_pseudo_refs",
-    "legacy_v2_state_is_loaded_and_schema_v1_is_rejected", "concurrent_task_starts_preserve_both_branches_and_worktrees",
+    "quiescent_v2_state_is_migrated_and_v1_is_rejected", "v2_inflight_release_or_publish_is_rejected_without_state_rewrite",
+    "concurrent_task_starts_preserve_both_branches_and_worktrees",
     "publish_merges_switches_and_pushes_without_tag_or_cleanup", "publish_merges_current_remote_default_before_development_branches",
     "publish_pushes_same_head_to_additional_remote_without_rebinding", "publish_rejects_invalid_additional_remote_sets_before_pushing",
     "publish_refuses_missing_registered_branch",
   ], "Git lifecycle contract");
   requireContract(errors, paths.releaseTests, [
-    "remote_release_tags_before_exact_cleanup_and_retry_is_idempotent", "first_local_release_initializes_default_branch_without_cycle_state",
-    "local_release_never_accesses_remote_and_preserves_remote_refs", "detached_task_worktree_is_removed_after_remote_release",
-    "context_mode_mismatch_fails_before_any_remote_access", "release_requires_exactly_one_publication_mode",
-    "invalid_nested_context_fails_before_pending_release", "local_release_tag_conflict_keeps_cycle_resources",
-    "dirty_registered_worktree_blocks_release_then_clean_retry_succeeds",
+    "release_merges_locally_tags_and_preserves_registered_resources_without_remote", "first_release_without_registered_cycle_uses_local_default_branch",
+    "harness_release_requires_managed_current_minute_stamp_before_merge_or_tag", "harness_release_accepts_managed_timestamp_stamp",
+    "publish_after_release_requires_new_cycle_and_cannot_replace_push_release", "push_release_rechecks_branch_and_tag_together_after_tag_push",
+    "push_release_rejects_option_like_remote_name",
+    "release_succeeds_while_remote_is_offline", "release_from_task_worktree_keeps_worktree_and_local_branch",
+    "new_cycle_from_old_task_worktree_starts_at_verified_release_head", "release_rejects_old_mode_flags_before_state_mutation",
+    "release_tag_conflict_keeps_registered_resources_and_pending_head", "dirty_registered_worktree_blocks_release_then_clean_retry_succeeds",
+    "push_release_is_separate_explicit_idempotent_operation", "tag_push_failure_reports_partial_success_and_retry_keeps_release_complete",
+    "harness_release_rechecks_final_version_after_all_registered_merges",
+    "downstream_release_rechecks_final_cargo_and_target_version_after_merges",
+    "push_release_rechecks_local_tag_after_push_hook_changes_it",
+    "push_release_after_new_cycle_preserves_current_checkout",
+    "enabled_review_rejects_registered_branch_added_after_review",
+    "enabled_review_releases_when_source_and_metadata_are_unchanged",
+    "enabled_review_rejects_forged_scope_digest_before_release_state_changes",
+    "enabled_review_rejects_source_added_after_review_even_if_premerged",
+    "enabled_review_rejects_default_branch_changes_after_merge_before_tag",
   ], "Git lifecycle contract");
   requireContract(errors, paths.publicationTests, [
     "publish_primary_only_failure_persists_and_resumes_frozen_head", "single_target_pending_errors_preserve_stable_codes",
@@ -211,28 +232,27 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
   requireContract(errors, paths.contextHelper, [
     'export const CONTEXT_RELATIVE_PATH = ".harness/release-context.json"', "export function validBranchName(",
     '["check-ref-format", "--branch", args.defaultBranch]',
-    'value.gitPublication === "local"', 'value.gitPublication === "remote"',
-    "export function validateContext(", "export function canonicalBytes(",
+    "value.schemaVersion !== 3", '"schemaVersion", "sourceHead", "version", "releaseDate"',
+    "export function validateContext(", "export function canonicalBytes(", "export function verifyReviewScope(",
     'const expectedTag = `v${value.version}-${compactDate}`',
   ], "Git lifecycle contract");
   requireContract(errors, paths.contextTests, [
-    "schema_v1_release_context_is_rejected", "local_write_uses_explicit_branch_without_accessing_remote",
-    "local_default_branch_rejects_ambiguous_ref_syntax", "local_verify_requires_only_local_branch_head_context_and_tag",
+    "schema_v2_release_context_is_rejected_without_silent_migration", "write_uses_explicit_branch_without_accessing_remote",
+    "local_default_branch_rejects_ambiguous_ref_syntax", "verify_requires_clean_main_and_local_tag",
   ], "Git lifecycle contract");
   requireContract(errors, paths.crossHelper, [
-    'const CONTEXT_PATH = ".harness/release-context.json"', 'normalized.gitPublication !== "remote"',
+    'const CONTEXT_PATH = ".harness/release-context.json"',
     "releaseContextSha256: digest", "`refs/tags/${normalized.expectedTag}`",
   ], "Git lifecycle contract");
   requireContract(errors, paths.crossTests, [
     "capture_and_verify_accept_non_main_default_branch", "missing_fetched_tag_is_rejected",
-    "snapshot_change_is_rejected_at_second_gate", "local_only_context_is_rejected_by_provider_flow",
+    "snapshot_change_is_rejected_at_second_gate", "missing_fetched_origin_default_branch_is_rejected",
   ], "Git lifecycle contract");
   requireContract(errors, paths.workflow, [
     "release_context_sha256:", "verify_release_context.mjs capture", "verify_release_context.mjs verify",
   ], "Git lifecycle contract");
-  const compatibility = "既有合法 v2 状态缺少新增可空 `pendingPublish` 时按 `null` 兼容读取";
-  requireContract(errors, paths.agentPolicy, [compatibility], "Git lifecycle contract");
-  requireContract(errors, paths.releaseDoc, [compatibility], "Git lifecycle contract");
+  requireContract(errors, paths.agentPolicy, ["旧状态若含正在进行的双模式发布或推送，不能静默改写为新语义"], "Git lifecycle contract");
+  requireContract(errors, paths.releaseDoc, ["合法且静止的 v2 状态可安全迁移", "有未完成远端发布或推送的旧状态失败关闭"], "Git lifecycle contract");
 
   validateSyntax(errors, [
     paths.script, paths.core, paths.publication, paths.report, paths.support, paths.tests, paths.releaseTests,
@@ -241,6 +261,8 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
 
   if (core && publication) {
     requireOrder(errors, functionSource(publication, "publish"), [
+      "const state = loadState(repository)", "if (state.pendingPublish !== null)",
+      "if (state.cycle === null && state.lastRelease !== null)",
       "resolveAdditionalRemoteTargets(", '["fetch", remote', "switchToDefault(",
       '["merge", "--no-edit", `refs/remotes/${remote}/${defaultBranch}`]', "mergeRegisteredBranches(",
       "state.pendingPublish =", "saveState(repository, state)", "completePendingPublish(",
@@ -264,38 +286,60 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     const release = functionSource(publication, "commandRelease");
     requireOrder(errors, release, [
       "const identity = releaseIdentity(", "requireClean(repository)", "await releaseContextBinding(",
-      "const state = loadState(repository)", "repository = primaryRepository(repository)",
-      "relocateCliCwdBeforeReleaseCleanup(repository, state, args)",
+      "await verifyHarnessVersionStamp(repository, identity.version)",
+      "const state = loadState(repository)", "reviewedReleaseMetadata(repository, context, state)",
+      "repository = primaryRepository(repository)",
     ], "caller-context-before-primary sequence");
     requireOrder(errors, release, [
-      "if (args.localOnly)", "defaultBranch = state.defaultBranch ?? context.defaultBranch",
+      "defaultBranch = state.defaultBranch ?? context.defaultBranch",
       "state.defaultBranch = defaultBranch",
     ], "local context default initialization sequence");
     requireOrder(errors, release, [
-      "cycle.pendingRelease =", "saveState(repository, state)", "return completePendingRelease(repository, state, args)",
+      "state.cycle.pendingRelease =", "saveState(repository, state)", "return completePendingRelease(repository, state, args, reviewed)",
     ], "context-bound pending-before-release sequence");
     requireOrder(errors, functionSource(publication, "releaseContextBinding"), [
       "raw = readFileSync(path)", "module.validateContext(value)", "module.canonicalBytes(value)",
       'createHash("sha256").update(canonical)', '["show", `HEAD:${RELEASE_CONTEXT_PATH}`]',
     ], "authoritative tracked release-context sequence");
-    requireOrder(errors, functionSource(publication, "prepareRemoteRelease"), [
-      '["fetch", remote', "switchToDefault(", '["merge", "--no-edit", `refs/remotes/${remote}/${defaultBranch}`]',
-      "mergeRegisteredBranches(",
-    ], "remote local-integration sequence");
     requireOrder(errors, functionSource(publication, "freezePendingReleaseHead"), [
-      "prepareRemoteRelease(", "verifyHeadReleaseContextBytes(", "pending.head = prepared.head", "saveState(repository, state)",
+      "prepareLocalRelease(", "verifyHeadReleaseContextBytes(", "verifyReviewedFinalHead(", "await verifyFinalReleaseVersion(",
+      "pending.head = prepared.head", "saveState(repository, state)",
     ], "integrated-context-before-frozen-head sequence");
     requireOrder(errors, functionSource(publication, "completePendingRelease"), [
-      "ensureReleaseTag(", "ensureLocalReleaseTag(", "cleanupWorktrees(", "cleanupRemoteBranches(", "cleanupLocalBranches(",
-    ], "local-and-remote tag-before-cleanup release sequence");
-    const localPaths = functionSource(publication, "prepareLocalRelease") + functionSource(publication, "ensureLocalReleaseTag");
-    for (const token of ["selectRemote(", "configuredRemotes(", "remoteDefaultBranch(", "remoteBranchOid(", "remoteTagTarget(", '["fetch"', '["push"']) {
-      if (localPaths.includes(token)) fail(errors, `local release path accesses remote operation: ${token}`);
+      "verifyReviewedFinalHead(", "await verifyFinalReleaseVersion(", "ensureLocalReleaseTag(",
+      "verifyLocalPosition(", "state.releasedResources.push(",
+      "state.lastRelease =", "state.cycle = null", "saveState(repository, state)",
+    ], "local tag-before-release-record sequence");
+    const releasePaths = ["releaseContextBinding", "prepareLocalRelease", "ensureLocalReleaseTag",
+      "freezePendingReleaseHead", "completePendingRelease", "commandRelease"]
+      .map((name) => functionSource(publication, name)).join("\n");
+    for (const token of ["selectRemote(", "configuredRemotes(", "remoteDefaultBranch(", "remoteBranchOid(", "remoteTagTarget(",
+      '["fetch"', '["push"', "cleanupWorktrees(", "cleanupRemoteBranches(", "cleanupLocalBranches("]) {
+      if (releasePaths.includes(token)) fail(errors, `Git release path accesses remote operation or cleanup: ${token}`);
     }
-    requireOrder(errors, functionSource(publication, "ensureReleaseTag"), [
-      '["push", remote, `refs/tags/${tag}:refs/tags/${tag}`]', "remoteTarget = remoteTagTarget(", "if (remoteTarget !== head)",
-    ], "remote tag verification sequence");
-    for (const forbidden of ['"--ff-only"', '"--force-with-lease', '"--atomic"', '"merge-base"']) {
+    const postReleasePush = functionSource(publication, "commandPushRelease");
+    requireOrder(errors, postReleasePush, [
+      "const last = state.lastRelease", "remoteDefaultBranch(", "const checkoutBranch = currentBranchOrNone(repository)",
+      "const checkoutHead = currentHead(repository)", "localTagTarget(",
+      "remoteTagTarget(", "remoteBranchOid(", '["push", remote, last.head + ":refs/heads/" + branch]',
+      "remoteBranchOid(", '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]',
+      "remoteTagTarget(", "confirmedDefault = remoteDefaultBranch(", "confirmedBranch = remoteBranchOid(",
+      "confirmedTag = remoteTagTarget(", "requireClean(repository)",
+      "currentBranchOrNone(repository) !== checkoutBranch", "currentHead(repository) !== checkoutHead",
+      "localTagTarget(repository, last.tag) !== last.head",
+    ], "independent released-head-and-tag push sequence");
+    if (postReleasePush.split("localTagTarget(repository, last.tag)").length - 1 !== 2) {
+      fail(errors, "post-release push must check the frozen local tag before and after push");
+    }
+    for (const token of ['["fetch"', '["merge"', "mergeRegisteredBranches(", "saveState(repository, state)"]) {
+      if (postReleasePush.includes(token)) fail(errors, `post-release push changes local release or fetches/merges: ${token}`);
+    }
+    const firstStart = functionSource(core, "commandStart");
+    requireOrder(errors, firstStart, [
+      "if (cycle === null && state.lastRelease !== null)", "localTagTarget(repository, released.tag)",
+      "baseReference = `refs/heads/${released.defaultBranch}`", '"switch", "-c", candidate',
+    ], "new-cycle start from verified released HEAD sequence");
+    for (const forbidden of ['"--ff-only"', '"--force-with-lease', '"--atomic"']) {
       if ((core + publication).includes(forbidden)) fail(errors, `branch gate remains in lifecycle implementation: ${forbidden}`);
     }
   }

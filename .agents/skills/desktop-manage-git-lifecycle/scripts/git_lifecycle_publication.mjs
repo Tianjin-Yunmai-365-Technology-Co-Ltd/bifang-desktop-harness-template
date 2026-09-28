@@ -1,9 +1,8 @@
-/** Git 生命周期的多远端 publish、发布标签与精确清理。 */
+/** Git 生命周期的远端推送与本地 Git 发布。 */
 
 import { createHash } from "node:crypto";
-import { chdir, cwd as processCwd } from "node:process";
 import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
-import { isAbsolute, join, relative, sep } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { pendingFailure } from "./git_publication_report.mjs";
 import {
@@ -11,7 +10,6 @@ import {
   LifecycleError,
   SHA256_RE,
   branchExists,
-  canonicalPath,
   configuredRemotes,
   currentBranchOrNone,
   currentHead,
@@ -31,15 +29,94 @@ import {
   shanghaiDate,
   switchToDefault,
   validBranch,
+  validRemote,
   verifyLocalPosition,
-  worktreeRecords,
 } from "./git_lifecycle_core.mjs";
 
 const RELEASE_CONTEXT_PATH = ".harness/release-context.json";
 const RELEASE_CONTEXT_HELPER = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs";
+const HARNESS_VERSION_CLOCK_HELPER = ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs";
+const HARNESS_INITIALIZATION_SKILL = ".agents/skills/desktop-instantiate-project/SKILL.md";
+const PRODUCT_VERSION_HELPER = ".agents/skills/desktop-manage-version/scripts/version_gate.mjs";
+const PRODUCT_VERSION_STATE = ".harness/version-state.json";
+const RELEASE_NOTES_PATH = "release-notes.json";
+
+/** Harness 发布时间版本必须有受管取号凭证；下游三段版本不走此路径。 */
+async function verifyHarnessVersionStamp(repository, version, { checkCommittedVersion = false } = {}) {
+  const versionFile = join(repository.root, "Version.md");
+  const initializationSkill = join(repository.root, HARNESS_INITIALIZATION_SKILL);
+  const hasVersionFile = existsSync(versionFile);
+  const hasInitializationSkill = existsSync(initializationSkill);
+  if (!hasVersionFile && !hasInitializationSkill && !/^\d{12}$/u.test(version)) return false;
+  if (!hasVersionFile || !hasInitializationSkill || !/^\d{12}$/u.test(version)) {
+    throw new LifecycleError("harness-version-stamp-invalid", "Harness release identity is incomplete or is not a timestamp version.");
+  }
+  const helperPath = join(repository.root, HARNESS_VERSION_CLOCK_HELPER);
+  try {
+    const metadata = lstatSync(helperPath);
+    if (metadata.isSymbolicLink() || !metadata.isFile()) throw new Error("unsafe");
+    const working = readFileSync(helperPath);
+    const committed = runGit(repository.root, ["show", `HEAD:${HARNESS_VERSION_CLOCK_HELPER}`], { check: false, bytes: true });
+    const normalized = Buffer.from(working.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
+    if (committed.returncode !== 0 || (!working.equals(committed.stdout) && !normalized.equals(committed.stdout))) {
+      throw new Error("helper changed");
+    }
+    const clock = await import(`${pathToFileURL(helperPath).href}?binding=${Date.now()}-${Math.random()}`);
+    if (typeof clock.readHarnessVersionStamp !== "function") throw new Error("missing reader");
+    clock.readHarnessVersionStamp(repository.root, version);
+    if (checkCommittedVersion) {
+      const worktreeBytes = readFileSync(versionFile);
+      const committedVersion = runGit(repository.root, ["show", "HEAD:Version.md"], { check: false, bytes: true });
+      const normalizedVersion = Buffer.from(worktreeBytes.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
+      if (committedVersion.returncode !== 0 ||
+          (!committedVersion.stdout.equals(worktreeBytes) && !committedVersion.stdout.equals(normalizedVersion))) {
+        throw new Error("integrated version differs");
+      }
+    }
+  } catch {
+    throw new LifecycleError("harness-version-stamp-invalid", "Harness release requires its managed current-minute version stamp.");
+  }
+  return true;
+}
+
+/** 合并后复核最终提交的产品版本事实，防止后继分支盖过已冻结版本。 */
+async function verifyFinalReleaseVersion(repository, version) {
+  if (await verifyHarnessVersionStamp(repository, version, { checkCommittedVersion: true })) return;
+  const cargoPath = join(repository.root, "Cargo.toml");
+  const statePath = join(repository.root, PRODUCT_VERSION_STATE);
+  const helperPath = join(repository.root, PRODUCT_VERSION_HELPER);
+  if (![cargoPath, statePath, helperPath].some(existsSync)) return;
+  try {
+    for (const path of [cargoPath, statePath, helperPath]) {
+      const metadata = lstatSync(path);
+      if (metadata.isSymbolicLink() || !metadata.isFile()) throw new Error("unsafe version source");
+    }
+    const helperBytes = readFileSync(helperPath);
+    const committedHelper = runGit(repository.root, ["show", `HEAD:${PRODUCT_VERSION_HELPER}`], { check: false, bytes: true });
+    const normalizedHelper = Buffer.from(helperBytes.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
+    if (committedHelper.returncode !== 0 ||
+        (!committedHelper.stdout.equals(helperBytes) && !committedHelper.stdout.equals(normalizedHelper))) {
+      throw new Error("untracked version helper");
+    }
+    const gate = await import(`${pathToFileURL(helperPath).href}?binding=${Date.now()}-${Math.random()}`);
+    if (typeof gate.check !== "function") throw new Error("missing version check");
+    const result = gate.check(repository.root, "release");
+    if (result.passed !== true || result.current_version !== version) throw new Error("wrong final version");
+    for (const relative of ["Cargo.toml", PRODUCT_VERSION_STATE]) {
+      const worktreeBytes = readFileSync(join(repository.root, relative));
+      const committed = runGit(repository.root, ["show", `HEAD:${relative}`], { check: false, bytes: true });
+      const normalized = Buffer.from(worktreeBytes.toString("utf8").replaceAll("\r\n", "\n"), "utf8");
+      if (committed.returncode !== 0 || (!committed.stdout.equals(worktreeBytes) && !committed.stdout.equals(normalized))) {
+        throw new Error("integrated version source differs");
+      }
+    }
+  } catch {
+    throw new LifecycleError("release-version-mismatch", "Integrated release HEAD does not match its frozen product version.");
+  }
+}
 
 /** 验证已跟踪发布上下文及其固定调用身份。 */
-export async function releaseContextBinding(repository, expectedSha256, identity, args) {
+export async function releaseContextBinding(repository, expectedSha256, identity) {
   if (!SHA256_RE.test(expectedSha256)) throw new LifecycleError("invalid-argument", "Release context SHA-256 is invalid.");
   const directory = join(repository.root, ".harness");
   const path = join(repository.root, RELEASE_CONTEXT_PATH);
@@ -74,6 +151,12 @@ export async function releaseContextBinding(repository, expectedSha256, identity
     }
     value = module.validateContext(value);
     canonical = module.canonicalBytes(value);
+    if (value.releaseReview.selection === "enabled") {
+      if (typeof module.verifyReviewScope !== "function") {
+        throw new LifecycleError("release-context-invalid", "Release review scope verifier is unavailable.");
+      }
+      module.verifyReviewScope(repository.root, value);
+    }
   } catch (error) {
     if (error instanceof LifecycleError) throw error;
     throw new LifecycleError("release-context-invalid", "Tracked release context cannot be validated.");
@@ -87,11 +170,7 @@ export async function releaseContextBinding(repository, expectedSha256, identity
   if (value.version !== identity.version || value.releaseDate !== expectedDate || value.expectedTag !== identity.tag) {
     throw new LifecycleError("release-context-mismatch", "Release context identity does not match the release command.");
   }
-  const requestedMode = args.localOnly ? "local" : "remote";
-  const requestedRemote = args.localOnly ? null : args.remote;
-  if (value.gitPublication !== requestedMode || value.remote !== requestedRemote) {
-    throw new LifecycleError("release-context-mismatch", "Release context Git publication does not match the release command.");
-  }
+  if (value.schemaVersion !== 3) throw new LifecycleError("release-context-invalid", "Release context schema is not supported.");
   if (typeof value.defaultBranch !== "string" || !validBranch(repository, value.defaultBranch)) {
     throw new LifecycleError("release-context-invalid", "Release context default branch is invalid.");
   }
@@ -110,26 +189,50 @@ function verifyHeadReleaseContextBytes(repository, expectedSha256, head) {
   }
 }
 
-/** 为 CLI 进程离开将被清理的 Worktree。 */
-function relocateCliCwdBeforeReleaseCleanup(repository, state, args) {
-  if (!args.cliInvocation || state.cycle === null || state.cycle.worktrees.length === 0) return;
-  let current;
-  try {
-    current = canonicalPath(processCwd(), { strict: true });
-  } catch {
-    throw new LifecycleError("cwd-unavailable", "Current process directory is unavailable.");
+/** 已启用审查时，源码必须止于 sourceHead，之后仅允许两份冻结元数据。 */
+function onlyReviewedReleaseMetadataChanged(repository, sourceHead, head) {
+  const ancestry = runGit(repository.root, ["merge-base", "--is-ancestor", sourceHead, head], { check: false });
+  if (ancestry.returncode !== 0) {
+    throw new LifecycleError("release-review-scope-changed", "Reviewed source is not an ancestor of the release candidate.");
   }
-  for (const entry of state.cycle.worktrees) {
-    const worktree = canonicalPath(entry.path, { strict: false });
-    const relation = relative(worktree, current);
-    const within = relation === "" || (!relation.startsWith(`..${sep}`) && relation !== ".." && !isAbsolute(relation));
-    if (!within) continue;
-    try {
-      chdir(repository.root);
-    } catch {
-      throw new LifecycleError("cwd-relocation-failed", "Process directory could not be moved to the primary worktree.");
+  const changed = runGit(repository.root, ["diff", "--no-renames", "--name-only", "-z", sourceHead, head, "--"],
+    { check: false, bytes: true });
+  if (changed.returncode !== 0) {
+    throw new LifecycleError("release-review-scope-changed", "Reviewed source differences could not be checked.");
+  }
+  const allowed = new Set([RELEASE_CONTEXT_PATH, RELEASE_NOTES_PATH]);
+  const paths = changed.stdout.toString("utf8").split("\0").filter(Boolean);
+  if (paths.some((path) => !allowed.has(path))) {
+    throw new LifecycleError("release-review-scope-changed", "Unreviewed source changes were found after the reviewed source commit.");
+  }
+}
+
+/** 绑定调用者的已审查源码与元数据，防止后来登记未审查分支。 */
+function reviewedReleaseMetadata(repository, context, state) {
+  if (context.releaseReview.selection !== "enabled") return null;
+  const metadataHead = currentHead(repository);
+  onlyReviewedReleaseMetadataChanged(repository, context.sourceHead, metadataHead);
+  const notes = runGit(repository.root, ["show", `${metadataHead}:${RELEASE_NOTES_PATH}`], { check: false, bytes: true });
+  if (notes.returncode !== 0) {
+    throw new LifecycleError("release-review-scope-changed", "Reviewed release notes are missing from the metadata commit.");
+  }
+  for (const branch of state.cycle?.branches ?? []) {
+    const included = runGit(repository.root,
+      ["merge-base", "--is-ancestor", `refs/heads/${branch.name}`, metadataHead], { check: false });
+    if (included.returncode !== 0) {
+      throw new LifecycleError("release-review-scope-changed", `Registered branch ${branch.name} was not included in the reviewed source.`);
     }
-    return;
+  }
+  return { sourceHead: context.sourceHead, releaseNotes: notes.stdout };
+}
+
+/** 合并后的主分支仍只包含已审查源码和完全相同的发布元数据。 */
+function verifyReviewedFinalHead(repository, reviewed, head) {
+  if (reviewed === null) return;
+  onlyReviewedReleaseMetadataChanged(repository, reviewed.sourceHead, head);
+  const notes = runGit(repository.root, ["show", `${head}:${RELEASE_NOTES_PATH}`], { check: false, bytes: true });
+  if (notes.returncode !== 0 || !notes.stdout.equals(reviewed.releaseNotes)) {
+    throw new LifecycleError("release-review-scope-changed", "Integrated release notes differ from the reviewed metadata commit.");
   }
 }
 
@@ -208,24 +311,6 @@ function completePendingPublish(repository, state, merged = [], alreadyMerged = 
   };
 }
 
-/** 向主远端推送固定 HEAD 并复读。 */
-function publishPrimaryRemote(repository, state, remote, defaultBranch, head) {
-  const pushed = runGit(repository.root, ["push", remote, `${head}:refs/heads/${defaultBranch}`], { check: false });
-  let remoteHead;
-  try {
-    remoteHead = remoteBranchOid(repository, remote, defaultBranch);
-  } catch (error) {
-    throw new LifecycleError(pushed.returncode !== 0 ? "push-failed" : "remote-verification-failed", "Git default branch push could not be confirmed.");
-  }
-  if (remoteHead !== head) {
-    throw new LifecycleError(pushed.returncode !== 0 ? "push-failed" : "remote-verification-failed", "Git default branch push could not be confirmed.");
-  }
-  verifyLocalPosition(repository, defaultBranch, head);
-  state.remote = remote;
-  state.defaultBranch = defaultBranch;
-  saveState(repository, state);
-}
-
 /** 合并并把同一 HEAD 非强制推送到全部目标。 */
 export function publish(repository, explicitRemote, additionalRemotes = []) {
   requireClean(repository);
@@ -239,8 +324,11 @@ export function publish(repository, explicitRemote, additionalRemotes = []) {
     }
     return completePendingPublish(repository, state);
   }
+  if (state.cycle === null && state.lastRelease !== null) {
+    throw new LifecycleError("release-already-complete", "Git release is complete; use push-release for its frozen HEAD and tag.");
+  }
   if (state.cycle?.pendingRelease !== null && state.cycle !== null) {
-    throw new LifecycleError("release-in-progress", "A release cleanup must finish before publication.");
+    throw new LifecycleError("release-in-progress", "A release must finish before publication.");
   }
   const remote = selectRemote(repository, state, explicitRemote, { required: true });
   const defaultBranch = remoteDefaultBranch(repository, remote);
@@ -285,22 +373,6 @@ function prepareLocalRelease(repository, state) {
   return { branch: defaultBranch, head: currentHead(repository), merged, alreadyMerged };
 }
 
-/** 获取并整合远端默认分支和登记分支，但不 push。 */
-function prepareRemoteRelease(repository, state, remote, defaultBranch) {
-  requireClean(repository);
-  preflightCycleResources(repository, state);
-  runGit(repository.root, ["fetch", remote, `refs/heads/${defaultBranch}:refs/remotes/${remote}/${defaultBranch}`], {
-    code: "remote-read-failed", message: "Git default branch could not be fetched.",
-  });
-  switchToDefault(repository, remote, defaultBranch);
-  if (runGit(repository.root, ["merge", "--no-edit", `refs/remotes/${remote}/${defaultBranch}`], { check: false }).returncode !== 0) {
-    throw new LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.");
-  }
-  const [merged, alreadyMerged] = mergeRegisteredBranches(repository, state, defaultBranch);
-  requireClean(repository);
-  return { branch: defaultBranch, head: currentHead(repository), merged, alreadyMerged };
-}
-
 /** 规范化发布版本和日期并形成标签。 */
 export function releaseIdentity(repository, version, date) {
   if (!version || version !== version.trim() || version.toLowerCase().startsWith("v")) {
@@ -322,15 +394,7 @@ export function releaseIdentity(repository, version, date) {
   return { tag, date: releaseDate, version };
 }
 
-/** 拒绝已指向其他提交的同名本地或远端标签。 */
-function verifyReleaseTagCompatibility(repository, remote, tag, head) {
-  const remoteTarget = remoteTagTarget(repository, remote, tag);
-  if (remoteTarget !== null && remoteTarget !== head) throw new LifecycleError("tag-conflict", "Remote tag already points to a different commit.");
-  const localTarget = localTagTarget(repository, tag);
-  if (localTarget !== null && localTarget !== head) throw new LifecycleError("tag-conflict", "Local tag already points to a different commit.");
-}
-
-/** 创建或复用固定本地标签。 */
+/** 创建或复用固定本地标签，发布到此即已完成 Git 引用门禁。 */
 function ensureLocalReleaseTag(repository, tag, head) {
   const target = localTagTarget(repository, tag);
   if (target !== null && target !== head) throw new LifecycleError("tag-conflict", "Local tag already points to a different commit.");
@@ -340,135 +404,35 @@ function ensureLocalReleaseTag(repository, tag, head) {
   if (localTagTarget(repository, tag) !== head) throw new LifecycleError("tag-verification-failed", "Local release tag did not match local HEAD.");
 }
 
-/** 创建、推送并复读远端发布标签。 */
-function ensureReleaseTag(repository, remote, tag, head) {
-  verifyReleaseTagCompatibility(repository, remote, tag, head);
-  if (localTagTarget(repository, tag) === null && runGit(repository.root, ["tag", tag, head], { check: false }).returncode !== 0) {
-    throw new LifecycleError("tag-create-failed", "Release tag could not be created.");
-  }
-  const pushed = runGit(repository.root, ["push", remote, `refs/tags/${tag}:refs/tags/${tag}`], { check: false });
-  let remoteTarget;
-  try {
-    remoteTarget = remoteTagTarget(repository, remote, tag);
-  } catch {
-    throw new LifecycleError(pushed.returncode !== 0 ? "tag-push-failed" : "tag-verification-failed", "Git release tag push could not be confirmed.");
-  }
-  if (remoteTarget !== head) {
-    throw new LifecycleError(pushed.returncode !== 0 ? "tag-push-failed" : "tag-verification-failed",
-      pushed.returncode !== 0 ? "Git release tag push could not be confirmed." : "Git remote release tag did not match local HEAD.");
-  }
-}
-
-/** 精确移除登记的非主 Worktree。 */
-function cleanupWorktrees(repository, state) {
-  const cleaned = [];
-  const cycle = state.cycle;
-  for (const entry of [...cycle.worktrees]) {
-    const records = worktreeRecords(repository);
-    const primary = canonicalPath(records[0].path, { strict: true });
-    const registered = canonicalPath(entry.path, { strict: false });
-    if (registered === primary) throw new LifecycleError("cleanup-safety", "Registered cleanup path is the primary Git worktree.");
-    const found = records.find((record) => canonicalPath(record.path, { strict: false }) === registered);
-    if (found) {
-      if (found.branch !== entry.branch || found.detached === "true") throw new LifecycleError("ownership-conflict", "Registered worktree ownership changed.");
-      if (entry.branch === state.defaultBranch) throw new LifecycleError("cleanup-safety", "Default branch worktree cannot be removed.");
-      if (existsSync(registered)) requireClean(repository, registered);
-      const command = existsSync(registered)
-        ? ["worktree", "remove", "--", registered]
-        : ["worktree", "remove", "--force", "--", registered];
-      if (runGit(repository.root, command, { check: false }).returncode !== 0) {
-        throw new LifecycleError("cleanup-failed", "Registered Git worktree could not be removed safely.");
-      }
-      if (worktreeRecords(repository).some((record) => canonicalPath(record.path, { strict: false }) === registered)) {
-        throw new LifecycleError("cleanup-failed", "Registered Git worktree still exists after removal.");
-      }
-    }
-    cycle.worktrees.splice(cycle.worktrees.indexOf(entry), 1);
-    saveState(repository, state);
-    cleaned.push(registered);
-  }
-  return cleaned;
-}
-
-/** 精确删除登记的远端分支并逐项保存。 */
-function cleanupRemoteBranches(repository, state, remote) {
-  const cleaned = [];
-  for (const entry of state.cycle.branches) {
-    if (entry.remoteDeleted) continue;
-    const branch = entry.name;
-    const liveDefault = remoteDefaultBranch(repository, remote);
-    if (branch === state.defaultBranch || branch === liveDefault) throw new LifecycleError("cleanup-safety", "Default branch cannot be removed.");
-    if (remoteBranchOid(repository, remote, branch) !== null) {
-      if (runGit(repository.root, ["push", remote, `:refs/heads/${branch}`], { check: false }).returncode !== 0) {
-        throw new LifecycleError("cleanup-failed", "Registered remote branch could not be removed.");
-      }
-      if (remoteBranchOid(repository, remote, branch) !== null) throw new LifecycleError("cleanup-failed", "Registered remote branch still exists after removal.");
-    }
-    entry.remoteDeleted = true;
-    saveState(repository, state);
-    cleaned.push(branch);
-  }
-  return cleaned;
-}
-
-/** 精确删除登记的本地分支并逐项保存。 */
-function cleanupLocalBranches(repository, state) {
-  const cleaned = [];
-  for (const entry of state.cycle.branches) {
-    if (entry.localDeleted) continue;
-    const branch = entry.name;
-    if (branch === state.defaultBranch) throw new LifecycleError("cleanup-safety", "Default branch cannot be removed.");
-    if (branchExists(repository, branch)) {
-      if (worktreeRecords(repository).some((item) => item.branch === branch)) throw new LifecycleError("cleanup-safety", "Registered branch is still checked out in a worktree.");
-      if (runGit(repository.root, ["branch", "-D", "--", branch], { check: false }).returncode !== 0) {
-        throw new LifecycleError("cleanup-failed", "Registered local branch could not be removed safely.");
-      }
-      if (branchExists(repository, branch)) throw new LifecycleError("cleanup-failed", "Registered local branch still exists after removal.");
-    }
-    entry.localDeleted = true;
-    saveState(repository, state);
-    cleaned.push(branch);
-  }
-  return cleaned;
-}
-
 /** 比较稳定发布身份。 */
 function releaseRecordMatchesIdentity(record, identity) {
   return ["tag", "date", "version"].every((key) => record[key] === identity[key]);
 }
 
-/** 约束发布重试只能沿用固定模式、远端与上下文。 */
-function requireMatchingReleaseMode(record, args) {
-  const requestedMode = args.localOnly ? "local" : "remote";
-  if (record.gitPublication !== requestedMode ||
-      (requestedMode === "remote" && record.remote !== args.remote)) {
-    throw new LifecycleError("release-mode-conflict", "Release retry mode differs from lifecycle state.");
-  }
+/** 发布中断后必须沿用同一上下文摘要。 */
+function requireMatchingReleaseContext(record, args) {
   if (record.releaseContextSha256 !== args.releaseContextSha256) {
     throw new LifecycleError("release-context-conflict", "Release context differs from lifecycle state.");
   }
-  return requestedMode;
 }
 
-/** 完成整合并立即冻结最终 HEAD。 */
-function freezePendingReleaseHead(repository, state, args) {
+/** 整合本地登记分支并冻结主分支最终 HEAD。 */
+async function freezePendingReleaseHead(repository, state, reviewed) {
   const pending = state.cycle.pendingRelease;
-  const mode = requireMatchingReleaseMode(pending, args);
-  const prepared = mode === "local"
-    ? prepareLocalRelease(repository, state)
-    : prepareRemoteRelease(repository, state, pending.remote, state.defaultBranch);
+  const prepared = prepareLocalRelease(repository, state);
   verifyHeadReleaseContextBytes(repository, pending.releaseContextSha256, prepared.head);
+  verifyReviewedFinalHead(repository, reviewed, prepared.head);
+  await verifyFinalReleaseVersion(repository, pending.version);
   pending.head = prepared.head;
   saveState(repository, state);
   return pending;
 }
 
-/** 按已落盘模式续跑标签与精确清理。 */
-function completePendingRelease(repository, state, args) {
+/** 复读主分支和本地标签后完成发布；登记资源留待独立处置。 */
+async function completePendingRelease(repository, state, args, reviewed) {
   let pending = state.cycle.pendingRelease;
-  const mode = requireMatchingReleaseMode(pending, args);
-  if (pending.head === null) pending = freezePendingReleaseHead(repository, state, args);
-  const remote = pending.remote;
+  requireMatchingReleaseContext(pending, args);
+  if (pending.head === null) pending = await freezePendingReleaseHead(repository, state, reviewed);
   const defaultBranch = state.defaultBranch;
   if (defaultBranch === null || !branchExists(repository, defaultBranch)) {
     throw new LifecycleError("local-state-changed", "Recorded Git default branch is unavailable.");
@@ -477,91 +441,170 @@ function completePendingRelease(repository, state, args) {
   if (currentBranchOrNone(repository) !== defaultBranch) {
     runGit(repository.root, ["switch", defaultBranch], { code: "switch-failed", message: "Git default branch could not be checked out." });
   }
-  const localHead = currentHead(repository);
-  if (localHead !== pending.head) throw new LifecycleError("local-state-changed", "Git default branch changed after release publication.");
-  if (mode === "remote") {
-    if (selectRemote(repository, state, remote, { required: true }) !== remote) throw new LifecycleError("remote-conflict", "Requested Git remote differs from lifecycle state.");
-    const liveDefault = remoteDefaultBranch(repository, remote);
-    if (liveDefault !== defaultBranch) throw new LifecycleError("remote-default-changed", "Git remote default branch changed during release cleanup.");
-    if (state.cycle.branches.some((entry) => entry.name === liveDefault && !entry.remoteDeleted)) {
-      throw new LifecycleError("cleanup-safety", "Remote default branch is registered for cleanup.");
-    }
-    verifyReleaseTagCompatibility(repository, remote, pending.tag, pending.head);
-    publishPrimaryRemote(repository, state, remote, defaultBranch, pending.head);
-    ensureReleaseTag(repository, remote, pending.tag, pending.head);
-  } else ensureLocalReleaseTag(repository, pending.tag, pending.head);
-  const cleanedWorktrees = cleanupWorktrees(repository, state);
-  const cleanedRemoteBranches = mode === "remote" ? cleanupRemoteBranches(repository, state, remote) : [];
-  const cleanedLocalBranches = cleanupLocalBranches(repository, state);
+  if (currentHead(repository) !== pending.head) {
+    throw new LifecycleError("local-state-changed", "Git default branch changed after release HEAD was frozen.");
+  }
+  verifyReviewedFinalHead(repository, reviewed, pending.head);
+  await verifyFinalReleaseVersion(repository, pending.version);
+  ensureLocalReleaseTag(repository, pending.tag, pending.head);
+  verifyLocalPosition(repository, defaultBranch, pending.head);
+  const preservedBranches = state.cycle.branches.map((entry) => ({ ...entry }));
+  const preservedWorktrees = state.cycle.worktrees.map((entry) => ({ ...entry }));
+  state.releasedResources.push({
+    tag: pending.tag, head: pending.head,
+    branches: preservedBranches, worktrees: preservedWorktrees,
+  });
+  state.lastRelease = { ...pending, defaultBranch };
   state.cycle = null;
-  state.lastRelease = pending;
   saveState(repository, state);
-  verifyLocalPosition(repository, defaultBranch, localHead);
   return {
-    status: "released", branch: defaultBranch, head: pending.head, remote, gitPublication: mode,
+    status: "released", branch: defaultBranch, head: pending.head,
     releaseContextSha256: pending.releaseContextSha256, worktree: repository.root, tag: pending.tag,
-    cleanedWorktrees, cleanedRemoteBranches, cleanedLocalBranches,
+    preservedBranches: preservedBranches.map((entry) => entry.name),
+    preservedWorktrees: preservedWorktrees.map((entry) => entry.path),
   };
 }
 
-/** 按明确本地或远端模式发布固定 HEAD。 */
+/** 发布只整合本地主分支并复读本地 tag；不访问远端或清理资源。 */
 export async function commandRelease(repository, args) {
   const identity = releaseIdentity(repository, args.version, args.date);
   requireClean(repository);
-  const context = await releaseContextBinding(repository, args.releaseContextSha256, identity, args);
+  const context = await releaseContextBinding(repository, args.releaseContextSha256, identity);
+  await verifyHarnessVersionStamp(repository, identity.version);
   const state = loadState(repository);
+  const reviewed = reviewedReleaseMetadata(repository, context, state);
   if (state.pendingPublish !== null) throw new LifecycleError("publish-in-progress", "A publication must finish before release.");
   repository = primaryRepository(repository);
-  relocateCliCwdBeforeReleaseCleanup(repository, state, args);
-  let cycle = state.cycle;
+  const cycle = state.cycle;
   if (cycle?.pendingRelease) {
     const pending = cycle.pendingRelease;
-    if (!releaseRecordMatchesIdentity(pending, identity)) throw new LifecycleError("release-in-progress", "A different release cleanup is already in progress.");
-    requireMatchingReleaseMode(pending, args);
-    if (context.defaultBranch !== state.defaultBranch) throw new LifecycleError("release-context-mismatch", "Release context default branch differs from lifecycle state.");
-    return completePendingRelease(repository, state, args);
+    if (!releaseRecordMatchesIdentity(pending, identity)) {
+      throw new LifecycleError("release-in-progress", "A different release is already in progress.");
+    }
+    requireMatchingReleaseContext(pending, args);
+    if (context.defaultBranch !== state.defaultBranch) {
+      throw new LifecycleError("release-context-mismatch", "Release context default branch differs from lifecycle state.");
+    }
+    return completePendingRelease(repository, state, args, reviewed);
   }
   const last = state.lastRelease;
   if (cycle === null && last !== null && releaseRecordMatchesIdentity(last, identity)) {
-    const mode = requireMatchingReleaseMode(last, args);
-    if (mode === "remote") ensureReleaseTag(repository, last.remote, last.tag, last.head);
-    else ensureLocalReleaseTag(repository, last.tag, last.head);
+    requireMatchingReleaseContext(last, args);
+    if (context.defaultBranch !== last.defaultBranch) {
+      throw new LifecycleError("release-context-mismatch", "Release context default branch differs from completed release.");
+    }
+    if (!branchExists(repository, last.defaultBranch)) {
+      throw new LifecycleError("local-state-changed", "Released default branch is unavailable.");
+    }
+    const branchHead = runGit(repository.root, ["rev-parse", "--verify", "refs/heads/" + last.defaultBranch + "^{commit}"]).stdout.trim();
+    if (branchHead !== last.head) throw new LifecycleError("local-state-changed", "Released default branch no longer matches the tag HEAD.");
+    ensureLocalReleaseTag(repository, last.tag, last.head);
     return {
-      status: "already-released", branch: context.defaultBranch, head: last.head, remote: last.remote,
-      gitPublication: mode, releaseContextSha256: last.releaseContextSha256,
-      worktree: repository.root, tag: last.tag, cleanedWorktrees: [], cleanedRemoteBranches: [], cleanedLocalBranches: [],
+      status: "already-released", branch: last.defaultBranch, head: last.head,
+      releaseContextSha256: last.releaseContextSha256, worktree: repository.root, tag: last.tag,
+      preservedBranches: [], preservedWorktrees: [],
     };
   }
   requireClean(repository);
-  let remote;
-  let defaultBranch;
-  if (args.localOnly) {
-    remote = null;
-    defaultBranch = state.defaultBranch ?? context.defaultBranch;
-    state.defaultBranch = defaultBranch;
-    if (defaultBranch === null || !branchExists(repository, defaultBranch)) {
-      throw new LifecycleError("local-default-unavailable", "Recorded local default branch is unavailable.");
-    }
-    if (context.defaultBranch !== defaultBranch) throw new LifecycleError("release-context-mismatch", "Release context default branch differs from lifecycle state.");
-  } else {
-    remote = selectRemote(repository, state, args.remote, { required: true });
-    defaultBranch = remoteDefaultBranch(repository, remote);
-    if (context.defaultBranch !== defaultBranch) throw new LifecycleError("release-context-mismatch", "Release context default branch differs from Git remote.");
-    state.remote = remote;
-    state.defaultBranch = defaultBranch;
+  const defaultBranch = state.defaultBranch ?? context.defaultBranch;
+  if (defaultBranch !== context.defaultBranch) {
+    throw new LifecycleError("release-context-mismatch", "Release context default branch differs from lifecycle state.");
   }
+  if (!branchExists(repository, defaultBranch)) {
+    throw new LifecycleError("local-default-unavailable", "Recorded local default branch is unavailable.");
+  }
+  state.defaultBranch = defaultBranch;
   preflightCycleResources(repository, state);
-  if (cycle === null) {
-    cycle = { branches: [], worktrees: [], pendingRelease: null };
-    state.cycle = cycle;
-  }
-  cycle.pendingRelease = {
-    ...identity,
-    head: null,
-    gitPublication: args.localOnly ? "local" : "remote",
-    remote,
-    releaseContextSha256: args.releaseContextSha256,
+  if (state.cycle === null) state.cycle = { branches: [], worktrees: [], pendingRelease: null };
+  state.cycle.pendingRelease = {
+    ...identity, head: null, releaseContextSha256: args.releaseContextSha256,
   };
   saveState(repository, state);
-  return completePendingRelease(repository, state, args);
+  return completePendingRelease(repository, state, args, reviewed);
+}
+
+/** 用户在发布完成后独立选择一个远端，推送冻结 HEAD 与 tag 并逐一复读。 */
+export function commandPushRelease(repository, args) {
+  repository = primaryRepository(repository);
+  requireClean(repository);
+  const state = loadState(repository);
+  const last = state.lastRelease;
+  if (last === null) throw new LifecycleError("no-release", "No completed local release is recorded.");
+  if (state.cycle?.pendingRelease || state.pendingPublish !== null) {
+    throw new LifecycleError("lifecycle-in-progress", "Another Git lifecycle operation must finish first.");
+  }
+  const remote = args.remote;
+  if (!validRemote(remote)) throw new LifecycleError("invalid-argument", "Remote name is invalid.");
+  if (!configuredRemotes(repository).includes(remote)) {
+    throw new LifecycleError("remote-not-found", "Requested Git remote is not configured.");
+  }
+  const branch = remoteDefaultBranch(repository, remote);
+  if (!branchExists(repository, last.defaultBranch) ||
+      runGit(repository.root, ["rev-parse", "--verify", "refs/heads/" + last.defaultBranch + "^{commit}"]).stdout.trim() !== last.head) {
+    throw new LifecycleError("local-state-changed", "Released local default branch changed before push.");
+  }
+  const checkoutBranch = currentBranchOrNone(repository);
+  const checkoutHead = currentHead(repository);
+  if (localTagTarget(repository, last.tag) !== last.head) {
+    throw new LifecycleError("tag-conflict", "Released local tag no longer matches the frozen HEAD.");
+  }
+  const existingTag = remoteTagTarget(repository, remote, last.tag);
+  if (existingTag !== null && existingTag !== last.head) {
+    throw new LifecycleError("tag-conflict", "Remote tag already points to a different commit.");
+  }
+  let branchTarget = remoteBranchOid(repository, remote, branch);
+  const branchAlreadyMatched = branchTarget === last.head;
+  if (!branchAlreadyMatched) {
+    const pushed = runGit(repository.root, ["push", remote, last.head + ":refs/heads/" + branch], { check: false });
+    try {
+      branchTarget = remoteBranchOid(repository, remote, branch);
+    } catch {
+      throw new LifecycleError("release-push-uncertain", "Remote branch push outcome is uncertain; local release remains complete.");
+    }
+    if (branchTarget !== last.head) {
+      throw new LifecycleError(pushed.returncode !== 0 ? "release-push-failed" : "release-push-uncertain",
+        "Remote branch push could not be confirmed; local release remains complete.");
+    }
+  }
+  let tagTarget = existingTag;
+  const tagAlreadyMatched = tagTarget === last.head;
+  if (!tagAlreadyMatched) {
+    const pushed = runGit(repository.root, ["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag], { check: false });
+    try {
+      tagTarget = remoteTagTarget(repository, remote, last.tag);
+    } catch {
+      throw new LifecycleError("release-push-partial", "Remote branch was confirmed, but tag push outcome is uncertain; local release remains complete.");
+    }
+    if (tagTarget !== last.head) {
+      throw new LifecycleError("release-push-partial", "Remote branch was confirmed, but tag push could not be confirmed; local release remains complete.");
+    }
+  }
+  let confirmedDefault;
+  let confirmedBranch;
+  let confirmedTag;
+  try {
+    confirmedDefault = remoteDefaultBranch(repository, remote);
+    confirmedBranch = remoteBranchOid(repository, remote, branch);
+    confirmedTag = remoteTagTarget(repository, remote, last.tag);
+  } catch {
+    throw new LifecycleError("release-push-uncertain", "Remote release refs could not be reread together; local release remains complete.");
+  }
+  if (confirmedDefault !== branch || confirmedBranch !== last.head || confirmedTag !== last.head) {
+    throw new LifecycleError("release-push-uncertain", "Remote release refs changed during final verification; local release remains complete.");
+  }
+  try {
+    requireClean(repository);
+    if (currentBranchOrNone(repository) !== checkoutBranch || currentHead(repository) !== checkoutHead ||
+        !branchExists(repository, last.defaultBranch) ||
+        runGit(repository.root, ["rev-parse", "--verify", "refs/heads/" + last.defaultBranch + "^{commit}"]).stdout.trim() !== last.head ||
+        localTagTarget(repository, last.tag) !== last.head) {
+      throw new Error("released local refs or checkout changed");
+    }
+  } catch {
+    throw new LifecycleError("release-push-uncertain", "Local release refs or checkout changed during push; recorded release remains complete.");
+  }
+  return {
+    status: branchAlreadyMatched && tagAlreadyMatched ? "already-pushed" : "release-pushed",
+    branch, head: last.head, tag: last.tag, remote,
+  };
 }

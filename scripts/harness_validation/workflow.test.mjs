@@ -110,7 +110,6 @@ const candidateHelperMutations = [
   ["manifest E2E projection", 'e2eSelection: environment("E2E_SELECTION")', "e2eChoice: null"],
   ["manifest release-context digest", "releaseContextSha256: snapshot.releaseContextSha256", "contextDigest: null"],
   ["manifest review projection", "releaseReview: review", "reviewProjection: review"],
-  ["manifest candidate selections", "candidateSelections: snapshot.candidateSelections", "selections: snapshot.candidateSelections"],
   ["manifest signing evidence", 'signingEvidence: { verification: environment("SIGNING_EVIDENCE")', "signingEvidence: { verification: null"],
   ["post-test source recheck", "测试后源码提交或 clean 状态发生变化", "测试完成"],
   ["atomic directory rename", "renameSync(stage, releasePath)", "rmdirSync(stage)"],
@@ -128,8 +127,9 @@ const contextHelperMutations = [
   ["named checkout", "runner must check out the named repository default branch at source_commit", "checkout accepted"],
   ["tracked context bytes", "working release context bytes do not match source_commit", "context accepted"],
   ["host-verified digest", "release context digest does not match the host-verified input", "digest accepted"],
-  ["remote publication", 'normalized.gitPublication !== "remote"', 'normalized.gitPublication !== "local"'],
+  ["fetched remote default branch", "fetched origin default branch does not equal source_commit", "remote accepted"],
   ["remote default branch", "`refs/remotes/origin/${repositoryDefaultBranch}`", '"refs/remotes/origin/main"'],
+  ["separate release default branch", "releaseDefaultBranch: normalized.defaultBranch", "releaseDefaultBranch: repositoryDefaultBranch"],
   ["release tag", "`refs/tags/${normalized.expectedTag}`", '"refs/tags/latest"'],
 ];
 
@@ -139,6 +139,16 @@ for (const [name, fragment, replacement] of contextHelperMutations) {
     assert.ok(errors.length > 0, `${name} mutation unexpectedly passed`);
   });
 }
+
+test("release-context helper rejects restored local/provider branch-name equality", () => {
+  const errors = validateMutatedHelper(
+    RELEASE_CONTEXT_HELPER,
+    "releaseDefaultBranch: normalized.defaultBranch",
+    "releaseDefaultBranch: normalized.defaultBranch, // normalized.defaultBranch !== repositoryDefaultBranch",
+    "context",
+  );
+  assert.ok(errors.some((error) => error.includes("distinct local and provider")), errors.join("\n"));
+});
 
 test("helper validator rejects invalid JavaScript syntax", () => {
   const directory = temporaryDirectory();
@@ -209,7 +219,7 @@ function releaseNotesArchive(contents) {
   return gzipSync(Buffer.concat([header, contents, padding, Buffer.alloc(1024)]));
 }
 
-test("write-manifest binds real archive bytes, context, selections, and signing evidence", (context) => {
+test("write-manifest binds real archive bytes, release review, build E2E, and signing evidence", (context) => {
   const probe = runCandidateHelper(["check-node-runtime"]);
   assert.equal(probe.status, 0, probe.stderr);
   const fixture = candidateFixture();
@@ -228,7 +238,6 @@ test("write-manifest binds real archive bytes, context, selections, and signing 
       sourceCommit: "a".repeat(40), releaseContextSha256: contextDigest,
       version: "1.2.3", expectedTag: "v1.2.3-20260923",
       releaseReview: { selection: "disabled", status: "Not run", reason: "fixture", remainingRisk: "fixture-risk" },
-      candidateSelections: { macosSigningSelection: "not-applicable", macosSigningSource: "not-applicable" },
     })}\n`, "utf8");
     const result = runCandidateHelper(["write-manifest"], {
       cwd: fixture.root,
@@ -252,6 +261,8 @@ test("write-manifest binds real archive bytes, context, selections, and signing 
     assert.equal(manifest.releaseContextSha256, contextDigest);
     assert.equal(manifest.releaseTag, "v1.2.3-20260923");
     assert.equal(manifest.reviewStatus, "Not run");
+    assert.equal("candidateSelections" in manifest, false);
+    assert.equal("gitPublication" in manifest, false);
     assert.equal(manifest.signingEvidence.verification, "configured-hook-verify-exit-0");
     assert.deepEqual(fs.readdirSync(fixture.stage).sort(), [fixture.archive, `${fixture.archive}.manifest.json`, `${fixture.archive}.sha256`].sort());
   } finally { cleanup(fixture.sandbox); }

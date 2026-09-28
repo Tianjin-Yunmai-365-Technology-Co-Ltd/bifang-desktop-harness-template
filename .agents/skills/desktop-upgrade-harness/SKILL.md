@@ -44,7 +44,7 @@ description: 在已初始化的下游项目中安全更新由 Harness 维护的�
     ```
 
     该命令根据目标拥有的精确所有权清单和 `.harness/upstream-lock.json` 重新构建计划，绑定源与目标 Git 身份，比较完整的已复核 JSON，预检每项操作，并且只原子替换一个现有文件。每应用一个路径后都要生成并复核新计划。普通 `managed` 更新必须先于 `managed-self` 完成；在自更新路径内部，命令行工具强制执行稳定顺序，并最后替换自身入口。计划篡改或源、候选、目标、控制文件发生任何漂移，都会在写入前中止。使用 `apply_patch` 单独解决 `add`、`manual_add`、`delete`、`merge-sections` 和 `conditional` 项；不得仅为避免合并而替换整个混合所有权文件。
-11. 代码行为变化只运行本次升级实际影响的非空单元/回归测试；纯文档或元数据升级只运行其必要替代验证。不得因 Harness 升级自动追加全仓格式、lint、静态、文件行数、中文注释、依赖图、独立构建、冒烟、E2E 或完整验收；普通构建保持开发流程，用户明确请求正式发布候选时才先经 `$desktop-prepare-release` 封存范围并进入对应构建 Skill。升级应用 `check_no_python.mjs` 后必须在目标根运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`；遗留的 Python 源码、依赖清单或运行步骤作为需人工处理的阻断项报告并迁移到 Node，不得当作本地决定静默保留，已由 ADR 列明的获批例外除外。
+11. 代码行为变化只运行本次升级实际影响的非空单元/回归测试；纯文档或元数据升级只运行其必要替代验证。不得因 Harness 升级自动追加全仓格式、lint、静态、文件行数、中文注释、依赖图、独立构建、冒烟、E2E 或完整验收；普通构建保持开发流程。用户明确要求 Git 发布时才进入 `$desktop-prepare-release`，在本地主分支合并并打 tag 后结束；之后仅按用户独立请求进入对应构建 Skill。升级应用 `check_no_python.mjs` 后必须在目标根运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`；遗留的 Python 源码、依赖清单或运行步骤作为需人工处理的阻断项报告并迁移到 Node，不得当作本地决定静默保留，已由 ADR 列明的获批例外除外。
 12. 重新运行 `plan`。解决每个阻断项和未应用的受管理操作。只有目标包含已复核结果后，才能记录已验证基线：
 
     ```text

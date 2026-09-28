@@ -132,9 +132,9 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "--also-remote",
       "pendingPublish",
       "--release-context-sha256",
-      "local-only",
+      "push-release",
       "`v{version}-{YYYYMMDD}`",
-      "不设置任何分支门禁",
+      "不设置保护分支门禁",
     ]],
     [path.join(lifecycleScript, "git_lifecycle.mjs"), [
       "parseArguments",
@@ -143,6 +143,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       '"track-worktree"',
       '"publish"',
       '"release"',
+      '"push-release"',
     ]],
     [path.join(lifecycleScript, "git_lifecycle_core.mjs"), [
       'STATE_DIRECTORY = "agent-first-harness"',
@@ -174,8 +175,8 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
     ]],
     [path.join(lifecycleScript, "git_lifecycle_release.test.mjs"), [
       "--release-context-sha256",
-      "--local-only",
-      "release-context-mismatch",
+      "push-release",
+      "release_merges_locally_tags_and_preserves_registered_resources_without_remote",
     ]],
     [path.join(lifecycleScript, "git_publication_test_cases.test.mjs"), [
       "pendingPublish",

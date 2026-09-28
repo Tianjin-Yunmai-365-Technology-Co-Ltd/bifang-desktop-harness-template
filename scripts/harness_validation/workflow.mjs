@@ -85,23 +85,32 @@ function validateHelper(errors, helper, fragments, label) {
   return text;
 }
 
-/** 要求远程矩阵只接收远端发布上下文并绑定分支、tag 与源码提交。 */
+/** 要求远程矩阵验证已独立推送的分支、tag 与本地发布源码提交。 */
 export function validateReleaseContextHelper(errors, helper = RELEASE_CONTEXT_HELPER) {
-  return validateHelper(errors, helper, [
+  const text = validateHelper(errors, helper, [
     'const CONTEXT_PATH = ".harness/release-context.json"',
     'const HELPER_PATH = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs"',
     "export async function calculateSnapshot(",
     "runner must check out the named repository default branch at source_commit",
     "working release context bytes do not match source_commit",
     "release context digest does not match the host-verified input",
-    'normalized.gitPublication !== "remote"',
-    "cross-platform provider release requires remote gitPublication",
+    "fetched origin default branch does not equal source_commit",
+    "fetched release tag does not equal source_commit",
     "`refs/remotes/origin/${repositoryDefaultBranch}`",
     "`refs/tags/${normalized.expectedTag}`",
     "releaseContextSha256: digest",
+    "defaultBranch: repositoryDefaultBranch",
+    "releaseDefaultBranch: normalized.defaultBranch",
     '["capture", "verify"].includes',
     "release context changed between build checks",
   ], "release context helper");
+  if (text.includes("normalized.gitPublication") || text.includes("normalized.candidateSelections")) {
+    fail(errors, "release context helper must not depend on release mode or candidate selections");
+  }
+  if (text.includes("normalized.defaultBranch !== repositoryDefaultBranch")) {
+    fail(errors, "release context helper must allow distinct local and provider default branch names");
+  }
+  return text;
 }
 
 /** 验证 workflow Node helper 仍承担源码、测试、manifest 与原子提交门禁。 */
@@ -125,7 +134,6 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
     'e2eSelection: environment("E2E_SELECTION")',
     "releaseContextSha256: snapshot.releaseContextSha256",
     "releaseReview: review",
-    "candidateSelections: snapshot.candidateSelections",
     'signingEvidence: { verification: environment("SIGNING_EVIDENCE")',
     'milestoneAcceptance: "pending"',
     "候选校验和与归档字节不匹配",
@@ -136,6 +144,9 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
     'case "commit-candidate"',
   ], "candidate workflow helper");
   if (!text) return;
+  if (text.includes("snapshot.candidateSelections") || text.includes("snapshot.gitPublication")) {
+    fail(errors, "candidate workflow helper must not source build choices from release context");
+  }
   const manifest = functionSource(text, "writeManifest");
   requireOrder(errors, manifest, [
     "const expectedBefore =",

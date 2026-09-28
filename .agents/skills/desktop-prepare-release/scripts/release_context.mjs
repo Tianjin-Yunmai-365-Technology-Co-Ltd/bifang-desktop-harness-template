@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Write and verify the tracked context for one local or remote release. */
+/** Write and verify the tracked context for one Git release. */
 
 import {
   chmodSync,
@@ -20,10 +20,20 @@ import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  isHarnessSource,
+  latestHarnessTagVersion,
+  readHarnessVersion,
+  readHarnessVersionStamp,
+  validHarnessTimestamp,
+} from "./harness_version_clock.mjs";
+import {
+  loadState as loadLifecycleState,
+  resolveRepository as resolveLifecycleRepository,
+} from "../../desktop-manage-git-lifecycle/scripts/git_lifecycle_core.mjs";
 
 export const OID_PATTERN = /^[0-9a-f]{40}$/;
 export const SHA256_PATTERN = /^[0-9a-f]{64}$/;
-const REMOTE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const VERSION_PATTERN = /^(?:[0-9]+\.[0-9]+\.[0-9]+|[0-9]{12})$/;
 export const CONTEXT_RELATIVE_PATH = ".harness/release-context.json";
 export const REVIEW_CHECKS = [
@@ -235,55 +245,13 @@ export function validateReleaseReview(value, sourceHead) {
   };
 }
 
-/** 校验候选签名选择，确保禁用和不适用状态不携带矛盾证据。 */
-export function validateCandidateSelections(value) {
-  const required = [
-    "macosSigningSelection", "macosSigningSource", "macosSigningReason",
-    "macosSigningRemainingRisk",
-  ];
-  if (!hasExactKeys(value, required)) {
-    throw new ReleaseContextError("candidateSelections fields are invalid");
-  }
-  const signing = value.macosSigningSelection;
-  const source = value.macosSigningSource;
-  let reason;
-  let risk;
-  if (signing === "not-applicable") {
-    if (source !== "not-applicable" || value.macosSigningReason !== null || value.macosSigningRemainingRisk !== null) {
-      throw new ReleaseContextError("not-applicable macOS signing selection is inconsistent");
-    }
-    reason = null;
-    risk = null;
-  } else if (signing === "enabled") {
-    if (!["configured", "requested", "channel-required"].includes(source) || value.macosSigningReason !== null || value.macosSigningRemainingRisk !== null) {
-      throw new ReleaseContextError("enabled macOS signing selection is inconsistent");
-    }
-    reason = null;
-    risk = null;
-  } else if (signing === "disabled") {
-    if (source !== "not-requested") {
-      throw new ReleaseContextError("disabled macOS signing selection source is invalid");
-    }
-    reason = publicText(value.macosSigningReason, "candidateSelections.macosSigningReason");
-    risk = publicText(value.macosSigningRemainingRisk, "candidateSelections.macosSigningRemainingRisk");
-  } else {
-    throw new ReleaseContextError("macOS signing selection is invalid");
-  }
-  return {
-    macosSigningSelection: signing,
-    macosSigningSource: source,
-    macosSigningReason: reason,
-    macosSigningRemainingRisk: risk,
-  };
-}
-
 /** 规范化完整发布上下文并拒绝未知或缺失字段。 */
 export function validateContext(value) {
   const required = [
-    "schemaVersion", "gitPublication", "sourceHead", "version", "releaseDate",
-    "expectedTag", "remote", "defaultBranch", "releaseReview", "candidateSelections",
+    "schemaVersion", "sourceHead", "version", "releaseDate",
+    "expectedTag", "defaultBranch", "releaseReview",
   ];
-  if (!hasExactKeys(value, required) || value.schemaVersion !== 2) {
+  if (!hasExactKeys(value, required) || value.schemaVersion !== 3) {
     throw new ReleaseContextError("release context fields or schemaVersion are invalid");
   }
   const sourceHead = validateOid(value.sourceHead, "sourceHead");
@@ -302,35 +270,68 @@ export function validateContext(value) {
   if (value.expectedTag !== expectedTag) {
     throw new ReleaseContextError("expectedTag does not match v{version}-{YYYYMMDD}");
   }
-  let remote;
-  if (value.gitPublication === "local") {
-    if (value.remote !== null) {
-      throw new ReleaseContextError("local gitPublication requires remote to be null");
-    }
-    remote = null;
-  } else if (value.gitPublication === "remote") {
-    if (typeof value.remote !== "string" || !REMOTE_PATTERN.test(value.remote)) {
-      throw new ReleaseContextError("remote gitPublication requires a valid remote");
-    }
-    remote = value.remote;
-  } else {
-    throw new ReleaseContextError("gitPublication must be local or remote");
-  }
   if (!validBranchName(value.defaultBranch)) {
     throw new ReleaseContextError("defaultBranch is invalid");
   }
   return {
-    schemaVersion: 2,
-    gitPublication: value.gitPublication,
+    schemaVersion: 3,
     sourceHead,
     version: value.version,
     releaseDate: value.releaseDate,
     expectedTag,
-    remote,
     defaultBranch: value.defaultBranch,
     releaseReview: validateReleaseReview(value.releaseReview, sourceHead),
-    candidateSelections: validateCandidateSelections(value.candidateSelections),
   };
+}
+
+/** 复算已启用语义审查的源码范围，摘要取固定 Git diff 的原始字节。 */
+export function verifyReviewScope(root, context) {
+  const review = context.releaseReview;
+  if (review.selection !== "enabled") return;
+  validateOid(context.sourceHead, "sourceHead");
+  validateOid(review.scopeBase, "releaseReview.scopeBase");
+  const ancestry = runGit(root, [
+    "merge-base", "--is-ancestor", review.scopeBase, context.sourceHead,
+  ], { check: false });
+  if (ancestry.returncode !== 0) {
+    throw new ReleaseContextError("enabled releaseReview.scopeBase must be an ancestor of sourceHead");
+  }
+  const diff = runGit(root, [
+    "-c", "core.quotePath=true",
+    "diff", "--binary", "--full-index", "--no-renames", "--no-ext-diff", "--no-textconv",
+    "--no-color", "--no-relative", "--src-prefix=a/", "--dst-prefix=b/",
+    "--diff-algorithm=myers", "--no-indent-heuristic", "--unified=3",
+    "--inter-hunk-context=0", "--submodule=short", "--ignore-submodules=none",
+    review.scopeBase, context.sourceHead, "--",
+  ], { text: false }).stdout;
+  const actual = createHash("sha256").update(diff).digest("hex");
+  if (actual !== review.scopeDiffSha256) {
+    throw new ReleaseContextError("enabled releaseReview.scopeDiffSha256 does not match the Git diff");
+  }
+}
+
+/** Harness 的发布版本只能取当前 Version.md 的上海时间版本。 */
+function assertHarnessVersionBinding(root, version, { requireStamp = false } = {}) {
+  const initializationSkill = join(root, ".agents", "skills", "desktop-instantiate-project", "SKILL.md");
+  if (!isHarnessSource(root)) {
+    if (existsSync(initializationSkill) || (typeof version === "string" && /^\d{12}$/.test(version))) {
+      throw new ReleaseContextError("Harness timestamp release requires Version.md and the active instantiate skill");
+    }
+    return;
+  }
+  let declared;
+  try {
+    declared = readHarnessVersion(root);
+  } catch (error) {
+    throw new ReleaseContextError(error.message);
+  }
+  if (!validHarnessTimestamp(version) || version !== declared) {
+    throw new ReleaseContextError("Harness release context version must equal Version.md current YYYYMMDDHHMM version");
+  }
+  if (requireStamp) {
+    try { readHarnessVersionStamp(root, version); }
+    catch (error) { throw new ReleaseContextError(error.message); }
+  }
 }
 
 /** 生成跨平台固定 LF 与两个空格缩进的规范 JSON 字节。 */
@@ -373,32 +374,6 @@ export function loadContext(root) {
   };
 }
 
-/** 读取远端声明的唯一默认分支。 */
-export function remoteDefaultBranch(root, remote) {
-  if (!runGit(root, ["remote"]).stdout.split(/\r?\n/).includes(remote)) {
-    throw new ReleaseContextError(`remote is not configured: ${remote}`);
-  }
-  const result = runGit(root, ["ls-remote", "--symref", remote, "HEAD"]);
-  const branches = result.stdout.split(/\r?\n/)
-    .filter((line) => line.startsWith("ref: refs/heads/") && line.endsWith("\tHEAD"))
-    .map((line) => line.split("\t", 1)[0].slice("ref: refs/heads/".length));
-  if (branches.length !== 1 || !branches[0]) {
-    throw new ReleaseContextError("remote HEAD is not an unambiguous branch");
-  }
-  return branches[0];
-}
-
-/** 读取一个精确远端引用的 40 位提交。 */
-export function remoteRefOid(root, remote, reference) {
-  const matches = runGit(root, ["ls-remote", remote, reference]).stdout.split(/\r?\n/)
-    .filter((line) => line.endsWith(`\t${reference}`))
-    .map((line) => line.split("\t", 1)[0]);
-  if (matches.length !== 1 || !OID_PATTERN.test(matches[0])) {
-    throw new ReleaseContextError(`remote ref is missing or ambiguous: ${reference}`);
-  }
-  return matches[0];
-}
-
 /** 读取一个精确本地引用最终指向的提交。 */
 export function localRefOid(root, reference) {
   const result = runGit(root, ["rev-parse", "--verify", `${reference}^{commit}`], { check: false });
@@ -407,6 +382,43 @@ export function localRefOid(root, reference) {
     throw new ReleaseContextError(`local ref is missing or invalid: ${reference}`);
   }
   return oid;
+}
+
+/** 以提交祖先关系证明已审查源码及仍登记的分支均进入最终标签。 */
+function requireAncestor(root, ancestor, head, label) {
+  const result = runGit(root, ["merge-base", "--is-ancestor", ancestor, head], { check: false });
+  if (result.returncode !== 0) {
+    throw new ReleaseContextError(`${label} is not included in the release tag commit`);
+  }
+}
+
+/** common-dir 登记若存在，必须与真实 Git 发布一致且没有进行中操作。 */
+function verifyLifecycleRelease(root, context, digest, head) {
+  let state;
+  try {
+    state = loadLifecycleState(resolveLifecycleRepository(root));
+  } catch (error) {
+    throw new ReleaseContextError(`Git lifecycle state is invalid: ${error.message}`);
+  }
+  if (state.pendingPublish !== null || (state.cycle !== null && state.cycle.pendingRelease !== null)) {
+    throw new ReleaseContextError("Git lifecycle has an unfinished publication or release journal");
+  }
+  const last = state.lastRelease;
+  if (last?.tag === context.expectedTag) {
+    if (
+      last.head !== head || last.defaultBranch !== context.defaultBranch ||
+      last.releaseContextSha256 !== digest || last.version !== context.version ||
+      last.date !== context.releaseDate.replaceAll("-", "")
+    ) {
+      throw new ReleaseContextError("Git lifecycle completed release differs from the local tag or context");
+    }
+    // 下一开发周期不会改变已完成发布的 Git 身份。
+    return;
+  }
+  for (const branch of state.cycle?.branches ?? []) {
+    const branchHead = localRefOid(root, `refs/heads/${branch.name}`);
+    requireAncestor(root, branchHead, head, `registered branch ${branch.name}`);
+  }
 }
 
 /** 根据 CLI 选择构造固定发布审查对象。 */
@@ -423,16 +435,6 @@ function buildReview(args) {
     evidenceSummary: enabled ? (args.reviewEvidenceSummary ?? null) : null,
     reason: enabled ? null : (args.reviewReason ?? null),
     remainingRisk: enabled ? null : (args.reviewRemainingRisk ?? null),
-  };
-}
-
-/** 根据 CLI 选择构造候选签名对象。 */
-function buildSelections(args) {
-  return {
-    macosSigningSelection: args.macosSigningSelection,
-    macosSigningSource: args.macosSigningSource,
-    macosSigningReason: args.macosSigningReason ?? null,
-    macosSigningRemainingRisk: args.macosSigningRemainingRisk ?? null,
   };
 }
 
@@ -467,44 +469,32 @@ function atomicWrite(path, payload) {
 /** 写入本次发布唯一规范上下文。 */
 export function writeContext(args) {
   const root = resolveRoot(args.projectRoot);
+  assertHarnessVersionBinding(root, args.version, { requireStamp: true });
+  if (isHarnessSource(root)) {
+    const previousTaggedVersion = latestHarnessTagVersion(root);
+    if (previousTaggedVersion !== null && args.version <= previousTaggedVersion) {
+      throw new ReleaseContextError(`Harness release version must be newer than tagged version ${previousTaggedVersion}`);
+    }
+  }
   const head = runGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]).stdout.trim();
   if (head !== args.sourceHead) {
     throw new ReleaseContextError("sourceHead must equal the current HEAD before metadata commit");
   }
-  let publication;
-  let remote;
-  let defaultBranch;
-  if (args.localOnly) {
-    if (args.defaultBranch === undefined) {
-      throw new ReleaseContextError("--default-branch is required with --local-only");
-    }
-    if (!validBranchName(args.defaultBranch) || runGit(root, ["check-ref-format", "--branch", args.defaultBranch], { check: false }).returncode !== 0) {
-      throw new ReleaseContextError("--default-branch must name one safe Git branch");
-    }
-    publication = "local";
-    remote = null;
-    defaultBranch = args.defaultBranch;
-    localRefOid(root, `refs/heads/${defaultBranch}`);
-  } else {
-    if (args.defaultBranch !== undefined) {
-      throw new ReleaseContextError("--default-branch is only valid with --local-only");
-    }
-    publication = "remote";
-    remote = args.remote;
-    defaultBranch = remoteDefaultBranch(root, remote);
+  if (!validBranchName(args.defaultBranch) || runGit(root, ["check-ref-format", "--branch", args.defaultBranch], { check: false }).returncode !== 0) {
+    throw new ReleaseContextError("--default-branch must name one safe Git branch");
   }
+  const defaultBranch = args.defaultBranch;
+  localRefOid(root, `refs/heads/${defaultBranch}`);
   const value = validateContext({
-    schemaVersion: 2,
-    gitPublication: publication,
+    schemaVersion: 3,
     sourceHead: args.sourceHead,
     version: args.version,
     releaseDate: args.releaseDate,
     expectedTag: `v${args.version}-${args.releaseDate.replaceAll("-", "")}`,
-    remote,
     defaultBranch,
     releaseReview: buildReview(args),
-    candidateSelections: buildSelections(args),
   });
+  verifyReviewScope(root, value);
   const destination = join(root, CONTEXT_RELATIVE_PATH);
   const directory = dirname(destination);
   if (existsSync(directory) && lstatSync(directory).isSymbolicLink()) {
@@ -521,17 +511,17 @@ export function writeContext(args) {
     path: CONTEXT_RELATIVE_PATH,
     sourceHead: value.sourceHead,
     expectedTag: value.expectedTag,
-    gitPublication: value.gitPublication,
-    remote: value.remote,
     defaultBranch: value.defaultBranch,
     releaseContextSha256: createHash("sha256").update(payload).digest("hex"),
   };
 }
 
-/** 校验上下文；发布后模式另验证 HEAD、clean、分支和适用 refs。 */
+/** 校验上下文；发布后模式另验证 HEAD、clean、默认主分支和本地 tag。 */
 export function checkContext(args, { published }) {
   const root = resolveRoot(args.projectRoot);
   const { value, canonical, digest } = loadContext(root);
+  assertHarnessVersionBinding(root, value.version);
+  verifyReviewScope(root, value);
   if (args.expectedSha256 !== undefined && digest !== args.expectedSha256) {
     throw new ReleaseContextError("release context SHA-256 does not match the expected value");
   }
@@ -564,17 +554,8 @@ export function checkContext(args, { published }) {
   if (localRefOid(root, `refs/tags/${value.expectedTag}`) !== head) {
     throw new ReleaseContextError("local release tag does not point to HEAD");
   }
-  if (value.gitPublication === "remote") {
-    if (remoteDefaultBranch(root, value.remote) !== value.defaultBranch) {
-      throw new ReleaseContextError("remote default branch changed after release preparation");
-    }
-    if (remoteRefOid(root, value.remote, `refs/heads/${value.defaultBranch}`) !== head) {
-      throw new ReleaseContextError("remote default branch does not point to HEAD");
-    }
-    if (remoteRefOid(root, value.remote, `refs/tags/${value.expectedTag}`) !== head) {
-      throw new ReleaseContextError("remote release tag does not point to HEAD");
-    }
-  }
+  requireAncestor(root, value.sourceHead, head, "reviewed sourceHead");
+  verifyLifecycleRelease(root, value, digest, head);
   return { ...result, sourceCommit: head, branch };
 }
 
@@ -589,25 +570,18 @@ export function parseArguments(argv) {
     throw Object.assign(new Error("the following arguments are required: command"), { cliExit: 2 });
   }
   const command = argv[0];
-  const booleans = new Set(["localOnly"]);
   const commonCheck = new Set(["projectRoot", "expectedSha256", "expectedVersion", "expectedHead"]);
   const allowed = command === "write" ? new Set([
-    "projectRoot", "sourceHead", "version", "releaseDate", "localOnly", "remote",
+    "projectRoot", "sourceHead", "version", "releaseDate",
     "defaultBranch", "reviewSelection", "scopeBase", "scopeDiffSha256",
     "reviewEvidenceSummary", "reviewReason", "reviewRemainingRisk",
-    "macosSigningSelection", "macosSigningSource", "macosSigningReason",
-    "macosSigningRemainingRisk",
   ]) : commonCheck;
-  const args = { command, localOnly: false };
+  const args = { command };
   for (let index = 1; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) throw Object.assign(new Error("unrecognized arguments"), { cliExit: 2 });
     const name = optionName(token);
     if (!allowed.has(name)) throw Object.assign(new Error(`unrecognized arguments: ${token}`), { cliExit: 2 });
-    if (booleans.has(name)) {
-      args[name] = true;
-      continue;
-    }
     if (index + 1 >= argv.length || argv[index + 1].startsWith("--")) {
       throw Object.assign(new Error(`argument ${token}: expected one argument`), { cliExit: 2 });
     }
@@ -616,22 +590,13 @@ export function parseArguments(argv) {
   }
   if (command === "write") {
     const required = [
-      "projectRoot", "sourceHead", "version", "releaseDate", "reviewSelection",
-      "scopeBase", "scopeDiffSha256", "macosSigningSelection", "macosSigningSource",
+      "projectRoot", "sourceHead", "version", "releaseDate", "defaultBranch",
+      "reviewSelection", "scopeBase", "scopeDiffSha256",
     ];
     const missing = required.filter((field) => args[field] === undefined);
     if (missing.length > 0) throw Object.assign(new Error("the following arguments are required"), { cliExit: 2 });
-    if (args.localOnly && args.remote !== undefined) {
-      throw Object.assign(new Error("argument --local-only: not allowed with argument --remote"), { cliExit: 2 });
-    }
-    if (!args.localOnly && args.remote === undefined) {
-      throw Object.assign(new Error("one of the arguments --local-only --remote is required"), { cliExit: 2 });
-    }
     if (!["enabled", "disabled"].includes(args.reviewSelection)) {
       throw Object.assign(new Error("invalid choice for --review-selection"), { cliExit: 2 });
-    }
-    if (!["enabled", "disabled", "not-applicable"].includes(args.macosSigningSelection)) {
-      throw Object.assign(new Error("invalid choice for --macos-signing-selection"), { cliExit: 2 });
     }
   } else if (args.projectRoot === undefined) {
     throw Object.assign(new Error("the following arguments are required: --project-root"), { cliExit: 2 });

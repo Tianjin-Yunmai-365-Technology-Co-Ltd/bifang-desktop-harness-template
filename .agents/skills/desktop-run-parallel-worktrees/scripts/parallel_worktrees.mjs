@@ -369,7 +369,7 @@ export function removeUnit(identity) {
   const state = loadUnitState(identity); validateUnitContext(identity, false); const changed = verifyRegisteredChanges(state);
   if (runGit(identity.worktreePath, "status", "--porcelain=v1", "--untracked-files=all").stdout.trim()) throw new WorkflowError("worktree_dirty", "受管 Worktree 包含已跟踪或未跟踪修改", 4);
   withTaskStateLock(identity, () => { try { fs.unlinkSync(identity.statePath); } catch (error) { throw new WorkflowError("unit_state_remove_failed", `无法删除受管状态 ${identity.statePath}：${error.message}`, 4); } });
-  return { removed: true, stateRemoved: true, cleanupDeferredToRelease: true, worktreeRetained: true, branchRetained: true, branch: identity.branch, worktreePath: identity.worktreePath, changedPaths: changed };
+  return { removed: true, stateRemoved: true, resourcesRetained: true, worktreeRetained: true, branchRetained: true, branch: identity.branch, worktreePath: identity.worktreePath, changedPaths: changed };
 }
 
 function parseCommand(argv) {

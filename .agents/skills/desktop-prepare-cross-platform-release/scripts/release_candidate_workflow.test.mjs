@@ -31,6 +31,8 @@ test("dispatch_binds_release_context_digest", () => {
   assert.ok(text.includes("RELEASE_CONTEXT_SHA256: ${{ inputs.release_context_sha256 }}"));
   assert.ok(helper.includes("snapshot.releaseContextSha256"));
   assert.ok(helper.includes("snapshot.expectedTag"));
+  assert.ok(!helper.includes("snapshot.candidateSelections"));
+  assert.ok(!helper.includes("snapshot.gitPublication"));
 });
 
 test("context_is_captured_before_tests_and_reverified_before_manifest", () => {

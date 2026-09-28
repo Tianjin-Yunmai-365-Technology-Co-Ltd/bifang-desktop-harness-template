@@ -104,11 +104,11 @@ test("create_rolls_back_when_lifecycle_tracking_fails", (t) => {
   assertNoUnitCreateSideEffects(ctx, "rollback");
 });
 
-test("remove_defers_worktree_and_branch_cleanup_to_release", (t) => {
+test("remove_retains_worktree_and_branch_for_separate_cleanup", (t) => {
   const ctx = fixture(t); const [created, payload] = ctx.create("docs", "docs.txt"); assert.equal(created.status, 0, created.stderr);
   fs.writeFileSync(path.join(payload.worktreePath, "docs.txt"), "done\n"); runGit(payload.worktreePath, "add", "docs.txt"); runGit(payload.worktreePath, "commit", "-m", "complete docs unit");
   const [removed, removal] = ctx.helper(["remove", "--task", "feature", "--unit", "docs"]);
-  assert.equal(removed.status, 0, removed.stderr); assert.equal(removal.cleanupDeferredToRelease, true); assert.equal(removal.stateRemoved, true);
+  assert.equal(removed.status, 0, removed.stderr); assert.equal(removal.resourcesRetained, true); assert.equal(removal.stateRemoved, true);
   assert.equal(fs.existsSync(payload.worktreePath), true); runGit(ctx.root, "show-ref", "--verify", "refs/heads/codex/unit-feature-docs");
   assert.equal(fs.existsSync(path.join(ctx.commonDir(), "codex-parallel-worktrees", "feature", "docs.json")), false);
 });

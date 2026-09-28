@@ -149,6 +149,8 @@ export const REQUIRED_ROOT_FILES = [
   ".agents/skills/desktop-prepare-release/scripts/release_git.test.mjs",
   ".agents/skills/desktop-prepare-release/scripts/release_context.mjs",
   ".agents/skills/desktop-prepare-release/scripts/release_context.test.mjs",
+  ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs",
+  ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.test.mjs",
   ".agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_context.mjs",
   ".agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_context.test.mjs",
   ".agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs",

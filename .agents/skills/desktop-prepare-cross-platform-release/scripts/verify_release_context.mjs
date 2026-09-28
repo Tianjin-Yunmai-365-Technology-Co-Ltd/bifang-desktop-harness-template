@@ -24,7 +24,7 @@ const CONTEXT_PATH = ".harness/release-context.json";
 const HELPER_PATH = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs";
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
-/** 表示所取源码不是其发布上下文描述的远端发布结果。 */
+/** 表示所取源码或已 fetch 的远端 ref 不符合已完成的本地 Git 发布。 */
 export class ContextVerificationError extends Error {
   /** 保存可公开的候选门禁错误。 */
   constructor(message) {
@@ -71,7 +71,8 @@ async function loadValidator(root) {
   }
   try {
     const module = await import(`${pathToFileURL(helper).href}?oid=${Date.now()}-${randomBytes(4).toString("hex")}`);
-    if (typeof module.validateContext !== "function" || typeof module.canonicalBytes !== "function") {
+    if (typeof module.validateContext !== "function" || typeof module.canonicalBytes !== "function" ||
+        typeof module.verifyReviewScope !== "function") {
       throw new Error("validator interface missing");
     }
     return module;
@@ -93,6 +94,10 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest, repo
   }
   const gitRoot = realpathSync(runGit(root, ["rev-parse", "--show-toplevel"]).stdout.toString("utf8").trim());
   if (gitRoot !== root) throw new ContextVerificationError("project root must be the independent Git top level");
+  if (repositoryDefaultBranch.startsWith("-") ||
+      runGit(root, ["check-ref-format", "--branch", repositoryDefaultBranch], { check: false }).returncode !== 0) {
+    throw new ContextVerificationError("repository default branch is invalid");
+  }
   const head = runGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]).stdout.toString("utf8").trim();
   const branchResult = runGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], { check: false });
   const branch = branchResult.stdout.toString("utf8").trim();
@@ -124,15 +129,10 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest, repo
     if (!committed.equals(validator.canonicalBytes(normalized))) {
       throw new ContextVerificationError("release context is not canonical");
     }
+    validator.verifyReviewScope(root, normalized);
   } catch (error) {
     if (error instanceof ContextVerificationError) throw error;
-    throw new ContextVerificationError("release context failed schema validation", { cause: error });
-  }
-  if (normalized.gitPublication !== "remote") {
-    throw new ContextVerificationError("cross-platform provider release requires remote gitPublication");
-  }
-  if (normalized.defaultBranch !== repositoryDefaultBranch) {
-    throw new ContextVerificationError("provider default branch differs from release context");
+    throw new ContextVerificationError(`release context failed schema or review scope validation: ${error.message}`);
   }
   if (resolveRef(root, `refs/remotes/origin/${repositoryDefaultBranch}`) !== sourceCommit) {
     throw new ContextVerificationError("fetched origin default branch does not equal source_commit");
@@ -140,25 +140,14 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest, repo
   if (resolveRef(root, `refs/tags/${normalized.expectedTag}`) !== sourceCommit) {
     throw new ContextVerificationError("fetched release tag does not equal source_commit");
   }
-  const cliSelections = {
-    macosSigningSelection: "not-applicable",
-    macosSigningSource: "not-applicable",
-    macosSigningReason: null,
-    macosSigningRemainingRisk: null,
-  };
-  if (JSON.stringify(normalized.candidateSelections) !== JSON.stringify(cliSelections)) {
-    throw new ContextVerificationError("Rust CLI candidate selections must be exactly not-applicable");
-  }
   return {
     sourceCommit,
     releaseContextSha256: digest,
-    gitPublication: normalized.gitPublication,
-    remote: normalized.remote,
     defaultBranch: repositoryDefaultBranch,
+    releaseDefaultBranch: normalized.defaultBranch,
     version: normalized.version,
     expectedTag: normalized.expectedTag,
     releaseReview: normalized.releaseReview,
-    candidateSelections: normalized.candidateSelections,
   };
 }
 

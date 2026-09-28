@@ -50,7 +50,7 @@ scenario("branch_validation_rejects_ambiguous_pseudo_refs", (item) => {
   assert.equal(validBranch(resolved, "feature/@-safe"), true);
 });
 
-scenario("legacy_v2_state_is_loaded_and_schema_v1_is_rejected", (item) => {
+scenario("quiescent_v2_state_is_migrated_and_v1_is_rejected", (item) => {
   const { repository } = item.initializeRepository({ remote: false });
   const path = statePath(resolveRepository(repository));
   mkdirSync(dirname(path), { recursive: true });
@@ -58,13 +58,81 @@ scenario("legacy_v2_state_is_loaded_and_schema_v1_is_rejected", (item) => {
     schemaVersion: 2, remote: null, defaultBranch: "main", cycle: null, lastRelease: null,
   }), "utf8");
   const inspected = item.helper(repository, ["inspect"]).payload;
+  assert.equal(inspected.state.schemaVersion, 3);
   assert.equal(inspected.state.pendingPublish, null);
+  assert.deepEqual(inspected.state.releasedResources, []);
   writeFileSync(path, JSON.stringify({
     schemaVersion: 1, remote: null, defaultBranch: "main", cycle: null,
     pendingPublish: null, lastRelease: null,
   }), "utf8");
   const rejected = item.helper(repository, ["inspect"], { success: false }).payload;
   assert.equal(rejected.code, "state-invalid");
+});
+
+scenario("v2_active_cycle_is_migrated_without_losing_registered_branch", (item) => {
+  const { repository } = item.initializeRepository({ remote: false });
+  const branch = item.helper(repository, ["start", "--summary", "migrate-cycle"]).payload.branch;
+  const path = statePath(resolveRepository(repository));
+  const state = item.state(repository);
+  state.schemaVersion = 2;
+  delete state.releasedResources;
+  state.cycle.branches[0].localDeleted = false;
+  state.cycle.branches[0].remoteDeleted = false;
+  writeFileSync(path, JSON.stringify(state), "utf8");
+  const inspected = item.helper(repository, ["inspect"]).payload.state;
+  assert.equal(inspected.schemaVersion, 3);
+  assert.deepEqual(inspected.cycle.branches.map((entry) => entry.name), [branch]);
+  assert.deepEqual(Object.keys(inspected.cycle.branches[0]).sort(), ["createdAt", "name", "summary"]);
+});
+
+scenario("v2_inflight_release_or_publish_is_rejected_without_state_rewrite", (item) => {
+  const { repository } = item.initializeRepository({ remote: false });
+  const path = statePath(resolveRepository(repository));
+  mkdirSync(dirname(path), { recursive: true });
+  const base = {
+    schemaVersion: 2, remote: null, defaultBranch: "main", cycle: null,
+    pendingPublish: null, lastRelease: null,
+  };
+  const pending = {
+    tag: "v1.0.0-20260901", head: null, date: "20260901", version: "1.0.0",
+    gitPublication: "local", remote: null, releaseContextSha256: "0".repeat(64),
+  };
+  for (const state of [
+    { ...base, cycle: { branches: [], worktrees: [], pendingRelease: pending } },
+    { ...base, pendingPublish: { head: "0".repeat(40), targets: [] } },
+  ]) {
+    const bytes = JSON.stringify(state);
+    writeFileSync(path, bytes, "utf8");
+    const rejected = item.helper(repository, ["inspect"], { success: false }).payload;
+    assert.equal(rejected.code, "legacy-inflight-unsupported");
+    assert.equal(readFileSync(path, "utf8"), bytes);
+  }
+});
+
+scenario("completed_v2_release_migrates_only_with_matching_local_tag_and_main", (item) => {
+  const { repository } = item.initializeRepository({ remote: false });
+  const context = item.prepareReleaseContext(repository, { version: "1.2.3", date: "20260920" });
+  item.helper(repository, [
+    "release", "--version", "1.2.3", "--date", "20260920",
+    "--release-context-sha256", context.digest,
+  ]);
+  const path = statePath(resolveRepository(repository));
+  const state = item.state(repository);
+  state.schemaVersion = 2;
+  delete state.releasedResources;
+  const { defaultBranch: _branch, ...last } = state.lastRelease;
+  state.lastRelease = { ...last, gitPublication: "local", remote: null };
+  writeFileSync(path, JSON.stringify(state), "utf8");
+  assert.equal(item.helper(repository, ["inspect"]).payload.state.lastRelease.head, context.head);
+  state.lastRelease.releaseContextSha256 = "f".repeat(64);
+  const mismatchedBytes = JSON.stringify(state);
+  writeFileSync(path, mismatchedBytes, "utf8");
+  assert.equal(item.helper(repository, ["inspect"], { success: false }).payload.code, "legacy-release-unverifiable");
+  assert.equal(readFileSync(path, "utf8"), mismatchedBytes);
+  state.lastRelease.releaseContextSha256 = context.digest;
+  writeFileSync(path, JSON.stringify(state), "utf8");
+  item.git(repository, "tag", "-d", "v1.2.3-20260920");
+  assert.equal(item.helper(repository, ["inspect"], { success: false }).payload.code, "legacy-release-unverifiable");
 });
 
 scenario("registered_remote_precedes_origin_and_conflicting_override_fails", (item) => {
@@ -110,6 +178,21 @@ scenario("concurrent_task_starts_preserve_both_branches_and_worktrees", async (i
     new Set(cycle.worktrees.map((entry) => entry.path)),
     new Set(worktrees.map((worktree) => realpathSync(worktree))),
   );
+});
+
+scenario("track_worktree_registers_v3_branch_without_legacy_cleanup_flags", (item) => {
+  const { repository } = item.initializeRepository({ remote: false });
+  item.helper(repository, ["start", "--summary", "primary-task"]);
+  const worktree = join(item.temporary, "parallel-task");
+  item.git(repository, "worktree", "add", "--quiet", "-b", "feature-parallel-task", worktree, "main");
+  const tracked = item.helper(repository, ["track-worktree", "--worktree", worktree]).payload;
+  assert.equal(tracked.status, "worktree-tracked");
+  assert.equal(tracked.branch, "feature-parallel-task");
+  const state = item.state(repository);
+  const branch = state.cycle.branches.find((entry) => entry.name === "feature-parallel-task");
+  assert.deepEqual(Object.keys(branch).sort(), ["createdAt", "name", "summary"]);
+  assert.deepEqual(state.cycle.worktrees.at(-1), { path: realpathSync(worktree), branch: "feature-parallel-task" });
+  assert.equal(item.helper(repository, ["track-worktree", "--worktree", worktree]).payload.status, "worktree-already-tracked");
 });
 
 scenario("publish_merges_switches_and_pushes_without_tag_or_cleanup", (item) => {

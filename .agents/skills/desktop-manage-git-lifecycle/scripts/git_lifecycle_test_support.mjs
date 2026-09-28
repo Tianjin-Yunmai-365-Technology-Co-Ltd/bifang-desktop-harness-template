@@ -1,6 +1,7 @@
 /** Git 生命周期黑盒回归的隔离仓库夹具。 */
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   chmodSync,
   copyFileSync,
@@ -21,6 +22,11 @@ export const RELEASE_CONTEXT_HELPER = resolve(
   SCRIPT_DIRECTORY,
   "../../desktop-prepare-release/scripts/release_context.mjs",
 );
+const HARNESS_VERSION_CLOCK_HELPER = resolve(
+  SCRIPT_DIRECTORY,
+  "../../desktop-prepare-release/scripts/harness_version_clock.mjs",
+);
+const LIFECYCLE_CORE_HELPER = join(SCRIPT_DIRECTORY, "git_lifecycle_core.mjs");
 
 /** 以测试专用非交互环境执行命令。 */
 export function run(command, args, options = {}) {
@@ -76,10 +82,15 @@ export function lifecycleFixture() {
     git(repository, "config", "user.name", "Lifecycle Test");
     git(repository, "config", "user.email", "lifecycle@example.invalid");
     const helperPath = join(repository, ".agents/skills/desktop-prepare-release/scripts/release_context.mjs");
+    const clockPath = join(repository, ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs");
+    const corePath = join(repository, ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_core.mjs");
     mkdirSync(dirname(helperPath), { recursive: true });
+    mkdirSync(dirname(corePath), { recursive: true });
     copyFileSync(RELEASE_CONTEXT_HELPER, helperPath);
+    copyFileSync(HARNESS_VERSION_CLOCK_HELPER, clockPath);
+    copyFileSync(LIFECYCLE_CORE_HELPER, corePath);
     writeFileSync(join(repository, "base.txt"), "base\n", "utf8");
-    git(repository, "add", "base.txt", ".agents/skills/desktop-prepare-release/scripts/release_context.mjs");
+    git(repository, "add", "base.txt", ".agents/skills/desktop-prepare-release/scripts/release_context.mjs", ".agents/skills/desktop-prepare-release/scripts/harness_version_clock.mjs", ".agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle_core.mjs");
     git(repository, "commit", "--quiet", "-m", "initial");
     if (!remote) return { repository, bare: null };
     const bare = join(temporary, "remote.git");
@@ -111,29 +122,38 @@ export function lifecycleFixture() {
   };
   const prepareReleaseContext = (
     repository,
-    { version, date, gitPublication, remote, defaultBranch = "main", summary = "发布上下文测试" },
+    { version, date, defaultBranch = "main", summary = "发布上下文测试", reviewSelection = "disabled" },
   ) => {
     const sourceHead = git(repository, "rev-parse", "HEAD").stdout.trim();
+    const scopeBase = git(repository, "rev-list", "--max-parents=0", "HEAD").stdout.trim();
+    const scopeDiff = spawnSync("git", ["-C", repository, "-c", "core.quotePath=true", "diff",
+      "--binary", "--full-index", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color",
+      "--no-relative", "--src-prefix=a/", "--dst-prefix=b/", "--diff-algorithm=myers",
+      "--no-indent-heuristic", "--unified=3", "--inter-hunk-context=0", "--submodule=short",
+      "--ignore-submodules=none", scopeBase, sourceHead, "--"], { env, encoding: null });
+    assert.equal(scopeDiff.status, 0, scopeDiff.stderr?.toString("utf8"));
+    const scopeDiffSha256 = createHash("sha256").update(scopeDiff.stdout).digest("hex");
+    if (reviewSelection === "enabled") {
+      writeFileSync(join(repository, "release-notes.json"), '{"schemaVersion":2,"releases":[]}\n', "utf8");
+    }
     const command = [
       join(repository, ".agents/skills/desktop-prepare-release/scripts/release_context.mjs"),
       "write", "--project-root", repository,
       "--source-head", sourceHead,
       "--version", version,
       "--release-date", `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)}`,
-      "--review-selection", "disabled",
-      "--scope-base", sourceHead,
-      "--scope-diff-sha256", "0".repeat(64),
-      "--review-reason", summary,
-      "--review-remaining-risk", "测试不执行正式发布语义审查",
-      "--macos-signing-selection", "not-applicable",
-      "--macos-signing-source", "not-applicable",
+      "--default-branch", defaultBranch,
+      "--review-selection", reviewSelection,
+      "--scope-base", scopeBase,
+      "--scope-diff-sha256", scopeDiffSha256,
+      ...(reviewSelection === "enabled"
+        ? ["--review-evidence-summary", summary]
+        : ["--review-reason", summary, "--review-remaining-risk", "测试不执行正式发布语义审查"]),
     ];
-    if (gitPublication === "local") command.push("--local-only", "--default-branch", defaultBranch);
-    else command.push("--remote", remote);
     const written = run(process.execPath, command, { env, check: false });
     assert.equal(written.status, 0, written.stderr);
     const payload = JSON.parse(written.stdout);
-    git(repository, "add", ".harness/release-context.json");
+    git(repository, "add", ".harness/release-context.json", ...(reviewSelection === "enabled" ? ["release-notes.json"] : []));
     git(repository, "commit", "--quiet", "-m", "chore(release): bind release context");
     return {
       digest: payload.releaseContextSha256,

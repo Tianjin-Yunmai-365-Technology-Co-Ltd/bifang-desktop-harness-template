@@ -1,6 +1,6 @@
 /** Git 生命周期的仓库、状态、锁和登记资源基础设施。 */
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   closeSync,
@@ -19,7 +19,7 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const SUMMARY_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const REMOTE_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 export const HEX_OID_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -29,6 +29,7 @@ export const STATE_FILENAME = "git-lifecycle.json";
 const LOCK_DIRECTORY = ".git-lifecycle.lock";
 const LOCK_TIMEOUT_MILLISECONDS = 30_000;
 const LOCK_POLL_MILLISECONDS = 50;
+const RELEASE_CONTEXT_PATH = ".harness/release-context.json";
 
 /** 携带稳定错误码和可公开消息，避免泄露 Git 子进程细节。 */
 export class LifecycleError extends Error {
@@ -112,6 +113,7 @@ export function newState() {
     cycle: null,
     pendingPublish: null,
     lastRelease: null,
+    releasedResources: [],
   };
 }
 
@@ -129,15 +131,21 @@ export function validRemote(remote) {
   return typeof remote === "string" && REMOTE_RE.test(remote) && !remote.includes("..") && !remote.endsWith("/");
 }
 
-/** 校验携带不可变发布模式的发布记录。 */
+/** 校验冻结的本地发布身份；推送位置不属于发布记录。 */
 function validateReleaseRecord(record, label, { pending }) {
-  const keys = ["tag", "head", "date", "version", "gitPublication", "remote", "releaseContextSha256"];
+  const keys = pending
+    ? ["tag", "head", "date", "version", "releaseContextSha256"]
+    : ["tag", "head", "date", "version", "releaseContextSha256", "defaultBranch"];
   if (!record || typeof record !== "object" || Array.isArray(record) ||
       Object.keys(record).sort().join("|") !== keys.sort().join("|")) {
     throw new LifecycleError("state-invalid", `${label} state is invalid.`);
   }
-  for (const key of ["tag", "date", "version", "gitPublication", "releaseContextSha256"]) {
+  for (const key of ["tag", "date", "version", "releaseContextSha256"]) {
     if (typeof record[key] !== "string") throw new LifecycleError("state-invalid", `${label} state is invalid.`);
+  }
+  if (!/^\d{8}$/.test(record.date) || record.version.length === 0 ||
+      record.tag !== `v${record.version}-${record.date}`) {
+    throw new LifecycleError("state-invalid", `${label} identity is invalid.`);
   }
   if (!SHA256_RE.test(record.releaseContextSha256)) {
     throw new LifecycleError("state-invalid", `${label} state is invalid.`);
@@ -147,12 +155,36 @@ function validateReleaseRecord(record, label, { pending }) {
   } else if (typeof record.head !== "string" || !HEX_OID_RE.test(record.head)) {
     throw new LifecycleError("state-invalid", `${label} state is invalid.`);
   }
-  if (record.gitPublication === "local") {
-    if (record.remote !== null) throw new LifecycleError("state-invalid", `${label} state is invalid.`);
-  } else if (record.gitPublication === "remote") {
-    if (!validRemote(record.remote)) throw new LifecycleError("state-invalid", `${label} state is invalid.`);
-  } else {
+  if (!pending && (typeof record.defaultBranch !== "string" || record.defaultBranch.length === 0)) {
     throw new LifecycleError("state-invalid", `${label} state is invalid.`);
+  }
+}
+
+/** 校验精确登记的开发分支与 Worktree，不推断名称前缀。 */
+function validateResources(repository, branches, worktrees, label) {
+  if (!Array.isArray(branches) || !Array.isArray(worktrees)) {
+    throw new LifecycleError("state-invalid", `${label} resources are invalid.`);
+  }
+  const branchNames = new Set();
+  for (const branch of branches) {
+    if (!branch || typeof branch !== "object" || Array.isArray(branch) ||
+        Object.keys(branch).sort().join("|") !== "createdAt|name|summary" ||
+        !validBranch(repository, branch.name) || branchNames.has(branch.name) ||
+        (branch.summary !== null && (typeof branch.summary !== "string" || !SUMMARY_RE.test(branch.summary))) ||
+        typeof branch.createdAt !== "string") {
+      throw new LifecycleError("state-invalid", `${label} branch state is invalid.`);
+    }
+    branchNames.add(branch.name);
+  }
+  const worktreePaths = new Set();
+  for (const worktree of worktrees) {
+    if (!worktree || typeof worktree !== "object" || Array.isArray(worktree) ||
+        Object.keys(worktree).sort().join("|") !== "branch|path" ||
+        typeof worktree.path !== "string" || !isAbsolute(worktree.path) || worktreePaths.has(worktree.path) ||
+        typeof worktree.branch !== "string" || !branchNames.has(worktree.branch)) {
+      throw new LifecycleError("state-invalid", `${label} worktree state is invalid.`);
+    }
+    worktreePaths.add(worktree.path);
   }
 }
 
@@ -189,9 +221,9 @@ function validatePendingPublish(repository, state) {
   }
 }
 
-/** 严格校验精确清理清单。 */
+/** 严格校验当前周期与已发布资源的精确清单。 */
 export function validateState(repository, state) {
-  const expected = ["schemaVersion", "remote", "defaultBranch", "cycle", "pendingPublish", "lastRelease"];
+  const expected = ["schemaVersion", "remote", "defaultBranch", "cycle", "pendingPublish", "lastRelease", "releasedResources"];
   if (!state || typeof state !== "object" || Array.isArray(state) ||
       Object.keys(state).sort().join("|") !== expected.sort().join("|") ||
       state.schemaVersion !== SCHEMA_VERSION) {
@@ -203,8 +235,27 @@ export function validateState(repository, state) {
   if (state.defaultBranch !== null && !validBranch(repository, state.defaultBranch)) {
     throw new LifecycleError("state-invalid", "Lifecycle default branch is invalid.");
   }
-  if (state.lastRelease !== null) validateReleaseRecord(state.lastRelease, "Last release", { pending: false });
+  if (state.lastRelease !== null) {
+    validateReleaseRecord(state.lastRelease, "Last release", { pending: false });
+    if (!validBranch(repository, state.lastRelease.defaultBranch)) {
+      throw new LifecycleError("state-invalid", "Last release default branch is invalid.");
+    }
+  }
   validatePendingPublish(repository, state);
+  if (!Array.isArray(state.releasedResources)) {
+    throw new LifecycleError("state-invalid", "Released resource inventory is invalid.");
+  }
+  const releasedTags = new Set();
+  for (const released of state.releasedResources) {
+    if (!released || typeof released !== "object" || Array.isArray(released) ||
+        Object.keys(released).sort().join("|") !== "branches|head|tag|worktrees" ||
+        typeof released.tag !== "string" || releasedTags.has(released.tag) ||
+        typeof released.head !== "string" || !HEX_OID_RE.test(released.head)) {
+      throw new LifecycleError("state-invalid", "Released resource entry is invalid.");
+    }
+    releasedTags.add(released.tag);
+    validateResources(repository, released.branches, released.worktrees, "Released");
+  }
   const cycle = state.cycle;
   if (cycle === null) return state;
   if (!cycle || typeof cycle !== "object" || Array.isArray(cycle) ||
@@ -212,28 +263,7 @@ export function validateState(repository, state) {
       !Array.isArray(cycle.branches) || !Array.isArray(cycle.worktrees)) {
     throw new LifecycleError("state-invalid", "Lifecycle cycle is invalid.");
   }
-  const branchNames = new Set();
-  for (const branch of cycle.branches) {
-    if (!branch || typeof branch !== "object" || Array.isArray(branch) ||
-        Object.keys(branch).sort().join("|") !== "createdAt|localDeleted|name|remoteDeleted|summary" ||
-        !validBranch(repository, branch.name) || branchNames.has(branch.name) ||
-        (branch.summary !== null && (typeof branch.summary !== "string" || !SUMMARY_RE.test(branch.summary))) ||
-        typeof branch.createdAt !== "string" || typeof branch.remoteDeleted !== "boolean" ||
-        typeof branch.localDeleted !== "boolean") {
-      throw new LifecycleError("state-invalid", "Registered branch state is invalid.");
-    }
-    branchNames.add(branch.name);
-  }
-  const worktreePaths = new Set();
-  for (const worktree of cycle.worktrees) {
-    if (!worktree || typeof worktree !== "object" || Array.isArray(worktree) ||
-        Object.keys(worktree).sort().join("|") !== "branch|path" ||
-        typeof worktree.path !== "string" || !isAbsolute(worktree.path) || worktreePaths.has(worktree.path) ||
-        typeof worktree.branch !== "string" || !branchNames.has(worktree.branch)) {
-      throw new LifecycleError("state-invalid", "Registered worktree state is invalid.");
-    }
-    worktreePaths.add(worktree.path);
-  }
+  validateResources(repository, cycle.branches, cycle.worktrees, "Registered");
   const pending = cycle.pendingRelease;
   if (pending !== null) {
     if (state.pendingPublish !== null) {
@@ -243,23 +273,65 @@ export function validateState(repository, state) {
     if (state.defaultBranch === null) {
       throw new LifecycleError("state-invalid", "Pending release default branch is invalid.");
     }
-    if (pending.gitPublication === "remote" && state.remote !== pending.remote) {
-      throw new LifecycleError("state-invalid", "Pending release remote differs from lifecycle state.");
-    }
-  } else if (cycle.branches.some((entry) => entry.remoteDeleted || entry.localDeleted)) {
-    throw new LifecycleError("state-invalid", "Cleanup progress requires a pending release.");
-  }
-  if (pending !== null && pending.head === null && cycle.branches.some((entry) => entry.remoteDeleted || entry.localDeleted)) {
-    throw new LifecycleError("state-invalid", "Cleanup progress requires a frozen release HEAD.");
-  }
-  const localOnly = pending !== null && pending.gitPublication === "local";
-  if (localOnly && cycle.branches.some((entry) => entry.remoteDeleted)) {
-    throw new LifecycleError("state-invalid", "Local release cannot record remote cleanup progress.");
-  }
-  if (!localOnly && cycle.branches.some((entry) => entry.localDeleted && !entry.remoteDeleted)) {
-    throw new LifecycleError("state-invalid", "Local cleanup cannot precede remote cleanup.");
   }
   return state;
+}
+
+/** 只迁移没有进行中副作用的 v2；已完成发布仍由原标签实证。 */
+function migrateCompletedV2(repository, legacy) {
+  const expected = ["schemaVersion", "remote", "defaultBranch", "cycle", "pendingPublish", "lastRelease"];
+  if (!legacy || typeof legacy !== "object" || Array.isArray(legacy) ||
+      Object.keys(legacy).sort().join("|") !== expected.sort().join("|") || legacy.schemaVersion !== 2) {
+    throw new LifecycleError("state-invalid", "Lifecycle state schema is invalid.");
+  }
+  if (legacy.pendingPublish !== null || legacy.cycle?.pendingRelease != null) {
+    throw new LifecycleError("legacy-inflight-unsupported", "Finish or repair the existing v2 Git operation before using the new lifecycle.");
+  }
+  const state = newState();
+  state.remote = legacy.remote;
+  state.defaultBranch = legacy.defaultBranch;
+  if (legacy.cycle !== null) {
+    if (!legacy.cycle || typeof legacy.cycle !== "object" || Array.isArray(legacy.cycle) ||
+        Object.keys(legacy.cycle).sort().join("|") !== "branches|pendingRelease|worktrees" ||
+        !Array.isArray(legacy.cycle.branches) || !Array.isArray(legacy.cycle.worktrees)) {
+      throw new LifecycleError("state-invalid", "Legacy cycle state is invalid.");
+    }
+    const branches = legacy.cycle.branches.map((branch) => {
+      if (!branch || typeof branch !== "object" || Array.isArray(branch) ||
+          Object.keys(branch).sort().join("|") !== "createdAt|localDeleted|name|remoteDeleted|summary" ||
+          branch.localDeleted !== false || branch.remoteDeleted !== false) {
+        throw new LifecycleError("state-invalid", "Legacy branch state is invalid.");
+      }
+      return { name: branch.name, summary: branch.summary, createdAt: branch.createdAt };
+    });
+    state.cycle = { branches, worktrees: legacy.cycle.worktrees, pendingRelease: null };
+  }
+  if (legacy.lastRelease !== null) {
+    const last = legacy.lastRelease;
+    const keys = ["tag", "head", "date", "version", "gitPublication", "remote", "releaseContextSha256"];
+    if (!last || typeof last !== "object" || Array.isArray(last) ||
+        Object.keys(last).sort().join("|") !== keys.sort().join("|") ||
+        !["local", "remote"].includes(last.gitPublication) ||
+        (last.gitPublication === "local" ? last.remote !== null : !validRemote(last.remote))) {
+      throw new LifecycleError("state-invalid", "Legacy release state is invalid.");
+    }
+    if (legacy.defaultBranch === null || !branchExists(repository, legacy.defaultBranch) ||
+        localTagTarget(repository, last.tag) !== last.head ||
+        runGit(repository.root, ["merge-base", "--is-ancestor", last.head, `refs/heads/${legacy.defaultBranch}`],
+          { check: false }).returncode !== 0) {
+      throw new LifecycleError("legacy-release-unverifiable", "Completed v2 release tag and default branch could not be verified.");
+    }
+    const contextBlob = runGit(repository.root, ["show", `${last.tag}:${RELEASE_CONTEXT_PATH}`], { check: false, bytes: true });
+    if (contextBlob.returncode !== 0 ||
+        createHash("sha256").update(contextBlob.stdout).digest("hex") !== last.releaseContextSha256) {
+      throw new LifecycleError("legacy-release-unverifiable", "Completed v2 release context digest could not be verified from its tag.");
+    }
+    state.lastRelease = {
+      tag: last.tag, head: last.head, date: last.date, version: last.version,
+      releaseContextSha256: last.releaseContextSha256, defaultBranch: legacy.defaultBranch,
+    };
+  }
+  return validateState(repository, state);
 }
 
 /** 加载 common-dir 状态；缺失时只返回内存默认值。 */
@@ -277,6 +349,7 @@ export function loadState(repository) {
         Object.keys(parsed).sort().join("|") === legacy.sort().join("|") && parsed.schemaVersion === 2) {
       parsed.pendingPublish = null;
     }
+    if (parsed.schemaVersion === 2) return migrateCompletedV2(repository, parsed);
     return validateState(repository, parsed);
   } catch (error) {
     if (error instanceof LifecycleError) throw error;
@@ -575,12 +648,9 @@ export function primaryRepository(repository) {
 export function preflightCycleResources(repository, state) {
   const cycle = state.cycle;
   if (cycle === null) return;
-  const pendingRelease = cycle.pendingRelease !== null;
   const registeredBranches = new Set(cycle.branches.map((entry) => entry.name));
   for (const entry of cycle.branches) {
-    if (entry.localDeleted) {
-      if (!pendingRelease) throw new LifecycleError("state-invalid", "Cleaned branch state requires a pending release.");
-    } else if (!branchExists(repository, entry.name)) {
+    if (!branchExists(repository, entry.name)) {
       throw new LifecycleError("registered-branch-missing", "A registered development branch is missing before publication.");
     }
   }
@@ -671,7 +741,7 @@ export function commandStart(repository, args) {
   if (cycle !== null) {
     if (cycle.pendingRelease !== null) throw new LifecycleError("release-in-progress", "A release cleanup must finish before new development.");
     if (branch !== null) {
-      const record = cycle.branches.find((item) => item.name === branch && item.summary === summary && !item.localDeleted);
+      const record = cycle.branches.find((item) => item.name === branch && item.summary === summary);
       if (record && branchExists(repository, branch)) {
         const [worktreeTracked, changed] = ensureCurrentWorktreeTracked(repository, cycle, branch);
         if (changed) saveState(repository, state);
@@ -683,10 +753,24 @@ export function commandStart(repository, args) {
   requireClean(repository);
   const remote = selectRemote(repository, state, args.remote, { required: false });
   const originalHead = currentHead(repository);
+  let startHead = originalHead;
+  let baseReference = null;
+  if (cycle === null && state.lastRelease !== null) {
+    const released = state.lastRelease;
+    if (state.defaultBranch !== released.defaultBranch || !branchExists(repository, released.defaultBranch) ||
+        localTagTarget(repository, released.tag) !== released.head) {
+      throw new LifecycleError("release-baseline-changed", "The last released default branch and tag must be reconciled before new development.");
+    }
+    baseReference = `refs/heads/${released.defaultBranch}`;
+    startHead = runGit(repository.root, ["rev-parse", "--verify", `${baseReference}^{commit}`]).stdout.trim();
+    if (startHead !== released.head) {
+      throw new LifecycleError("release-baseline-changed", "The last released default branch changed before new development.");
+    }
+  }
   const base = `feature-${summary}-${shanghaiDate()}`;
   let candidate = base;
   for (let suffix = 2; branchExists(repository, candidate); suffix += 1) candidate = `${base}-${suffix}`;
-  runGit(repository.root, ["switch", "-c", candidate], {
+  runGit(repository.root, ["switch", "-c", candidate, ...(baseReference === null ? [] : [baseReference])], {
     code: "branch-create-failed", message: "Development branch could not be created.",
   });
   try {
@@ -696,10 +780,10 @@ export function commandStart(repository, args) {
     }
     if (state.defaultBranch === null) state.defaultBranch = (remote ? localRemoteDefault(repository, remote) : null) ?? branch;
     if (remote !== null) state.remote = remote;
-    cycle.branches.push({ name: candidate, summary, createdAt: shanghaiTimestamp(), remoteDeleted: false, localDeleted: false });
+    cycle.branches.push({ name: candidate, summary, createdAt: shanghaiTimestamp() });
     const [worktreeTracked] = ensureCurrentWorktreeTracked(repository, cycle, candidate);
     saveState(repository, state);
-    return { status: "started", branch: candidate, head: originalHead, remote, defaultBranch: state.defaultBranch, worktreeTracked };
+    return { status: "started", branch: candidate, head: startHead, remote, defaultBranch: state.defaultBranch, worktreeTracked };
   } catch (error) {
     runGit(repository.root, branch === null ? ["switch", "--detach", originalHead] : ["switch", branch], { check: false });
     runGit(repository.root, ["branch", "-D", "--", candidate], { check: false });
@@ -714,14 +798,14 @@ export function commandTrackWorktree(repository, args) {
   if (state.pendingPublish !== null) throw new LifecycleError("publish-in-progress", "A publication must finish before tracking worktrees.");
   const cycle = state.cycle;
   if (cycle === null) throw new LifecycleError("no-active-cycle", "Start a development cycle before tracking a worktree.");
-  if (cycle.pendingRelease !== null) throw new LifecycleError("release-in-progress", "A release cleanup must finish before tracking worktrees.");
+  if (cycle.pendingRelease !== null) throw new LifecycleError("release-in-progress", "A release must finish before tracking worktrees.");
   const remote = selectRemote(repository, state, args.remote, { required: false });
   const target = canonicalPath(args.worktree, { strict: true });
   const records = worktreeRecords(repository);
   const normalized = new Map(records.map((record) => [canonicalPath(record.path, { strict: true }), record]));
   if (!normalized.has(target)) throw new LifecycleError("not-a-worktree", "Requested path is not a registered Git worktree.");
   const primary = canonicalPath(records[0].path, { strict: true });
-  if (target === primary) throw new LifecycleError("primary-worktree", "Primary Git worktree cannot be tracked for cleanup.");
+  if (target === primary) throw new LifecycleError("primary-worktree", "Primary Git worktree cannot be tracked as a cycle resource.");
   if (resolveRepository(target).commonDir !== repository.commonDir) throw new LifecycleError("repository-mismatch", "Worktree belongs to a different Git repository.");
   const record = normalized.get(target);
   if (record.detached === "true" || !record.branch) throw new LifecycleError("detached-head", "Tracked worktree must have a named branch.");
@@ -735,9 +819,9 @@ export function commandTrackWorktree(repository, args) {
   }
   const branchRecord = cycle.branches.find((item) => item.name === branch);
   if (!branchRecord) {
-    cycle.branches.push({ name: branch, summary: null, createdAt: shanghaiTimestamp(), remoteDeleted: false, localDeleted: false });
+    cycle.branches.push({ name: branch, summary: null, createdAt: shanghaiTimestamp() });
     changed = true;
-  } else if (branchRecord.localDeleted) throw new LifecycleError("ownership-conflict", "Worktree branch was already cleaned in this cycle.");
+  }
   if (!cycle.worktrees.some((item) => item.path === target)) {
     cycle.worktrees.push({ path: target, branch });
     changed = true;
@@ -769,7 +853,6 @@ export function mergeRegisteredBranches(repository, state, defaultBranch) {
   if (state.cycle === null) return [merged, alreadyMerged];
   for (const record of state.cycle.branches) {
     const branch = record.name;
-    if (record.localDeleted) continue;
     if (branch === defaultBranch) {
       alreadyMerged.push(branch);
       continue;

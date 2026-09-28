@@ -70,7 +70,8 @@ const buildCases = [
   ["workflow context capture", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "verify_release_context.mjs capture"],
   ["workflow context reverify", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "verify_release_context.mjs verify"],
   ["worktree byte binding", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "working release context bytes do not match source_commit"],
-  ["remote publication mode", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, 'normalized.gitPublication !== "remote"'],
+  ["fetched provider default branch", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "fetched origin default branch does not equal source_commit"],
+  ["separate local release branch identity", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "releaseDefaultBranch: normalized.defaultBranch"],
   ["collection second context verification", "collectSkill", COLLECT_RELEASE_SKILL, "在触碰目标目录前第二次运行发布上下文 `verify`"],
 ];
 
@@ -81,7 +82,7 @@ for (const [name, option, source, fragment] of buildCases) {
 }
 
 const selectionCases = [
-  ["lifecycle release invocation", "prepareSkill", PREPARE_RELEASE_SKILL, "$desktop-manage-git-lifecycle release"],
+  ["lifecycle release invocation", "prepareSkill", PREPARE_RELEASE_SKILL, "git_lifecycle.mjs release --project-root ."],
   ["Rust context verification", "rustSkill", BUILD_RELEASE_SKILL, "release_context.mjs verify --project-root ."],
   ["Tauri context verification", "tauriSkill", TAURI_RELEASE_SKILL, "release_context.mjs verify --project-root ."],
   ["delivery pre-status context verification", "verifySkill", VERIFY_DELIVERY_SKILL, "在写入验收状态前再次运行发布上下文 `verify`"],
@@ -94,26 +95,26 @@ for (const [name, option, source, fragment] of selectionCases) {
   });
 }
 
-test("release context requires publication, review, and candidate selection groups", () => {
+test("release context requires schema v3, default branch, and review result", () => {
   for (const fragment of [
-    'value.gitPublication === "local"',
+    "value.schemaVersion !== 3",
+    '"expectedTag", "defaultBranch", "releaseReview"',
     "releaseReview: validateReleaseReview(value.releaseReview, sourceHead)",
-    "candidateSelections: validateCandidateSelections(value.candidateSelections)",
   ]) {
     expectErrors(validateMutation(validateReleaseSelectionContract, "contextHelper", RELEASE_CONTEXT_HELPER, fragment));
   }
 });
 
 const harnessCases = [
-  ["Harness Git-only endpoint", "releaseDoc", RELEASE_DOC, "Harness 在步骤 2 完成并复核 Git 引用后结束"],
-  ["downstream-only candidate steps", "releaseDoc", RELEASE_DOC, "步骤 3–7 仅适用于终端下游产品候选"],
-  ["downstream-only ready review", "prepareSkill", PREPARE_RELEASE_SKILL, "以下就绪复核只适用于已经形成产品候选的终端下游"],
-  ["Harness entry metadata endpoint", "prepareOpenai", path.join(path.dirname(PREPARE_RELEASE_SKILL), "agents", "openai.yaml"), "Harness 源至此完成 Git 发布"],
-  ["registered remote precedence", "agentPolicy", AGENT_POLICY, "当前发布周期已经登记该远端时必须原样沿用"],
-  ["notes-and-context-only metadata commit", "prepareSkill", PREPARE_RELEASE_SKILL, "第二个精确范围提交只能同时包含 `release-notes.json` 与 `.harness/release-context.json`"],
+  ["Harness Git-only endpoint", "releaseDoc", RELEASE_DOC, "Harness 到此结束"],
+  ["downstream-only candidate steps", "releaseDoc", RELEASE_DOC, "只有用户另行要求构建终端下游候选时"],
+  ["downstream-only candidate request", "prepareSkill", PREPARE_RELEASE_SKILL, "下游候选打包只按用户独立请求进入适用 Skill"],
+  ["Harness entry metadata endpoint", "prepareOpenai", path.join(path.dirname(PREPARE_RELEASE_SKILL), "agents", "openai.yaml"), "Git 发布至此完成"],
+  ["independent post-release push", "agentPolicy", AGENT_POLICY, "`push-release` 只接受最近发布记录中冻结的最终 HEAD 与 tag"],
+  ["notes-and-context-only metadata commit", "prepareSkill", PREPARE_RELEASE_SKILL, "把且只把 `release-notes.json` 与 `.harness/release-context.json` 放入同一发布元数据提交"],
   ["current sourceHead binding", "contextHelper", RELEASE_CONTEXT_HELPER, "sourceHead must equal the current HEAD before metadata commit"],
-  ["Harness not-applicable signing", "prepareSkill", PREPARE_RELEASE_SKILL, "--macos-signing-selection not-applicable --macos-signing-source not-applicable"],
-  ["Harness archive without product manifest", "releaseDoc", RELEASE_DOC, "它不是产品候选，不创建或套用产品 manifest"],
+  ["no candidate selection in release context", "prepareSkill", PREPARE_RELEASE_SKILL, "不保存推送模式、远端、候选签名或打包选择"],
+  ["Harness archive without product manifest", "releaseDoc", RELEASE_DOC, "不创建产品 manifest"],
 ];
 
 for (const [name, option, source, fragment] of harnessCases) {
@@ -122,13 +123,11 @@ for (const [name, option, source, fragment] of harnessCases) {
   });
 }
 
-test("Harness release requires explicit local and remote publication modes", () => {
+test("Harness release requires the sole local Git command and optional push as a later action", () => {
   for (const fragment of [
-    "git_lifecycle.mjs release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <releaseContextSha256> --remote <remote>",
-    "git_lifecycle.mjs release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <releaseContextSha256> --local-only",
-  ]) {
-    expectErrors(validateMutation(validateHarnessSourceReleaseContract, "prepareSkill", PREPARE_RELEASE_SKILL, fragment), "Harness source release contract missing");
-  }
+    "git_lifecycle.mjs release --project-root . --version <version> --date YYYYMMDD --release-context-sha256 <releaseContextSha256>",
+    "推送使用独立 `push-release --remote <name>`",
+  ]) expectErrors(validateMutation(validateHarnessSourceReleaseContract, "prepareSkill", PREPARE_RELEASE_SKILL, fragment), "Harness source release contract missing");
 });
 
 test("historical review rejects a deleted daily ADR path", () => {
@@ -140,34 +139,40 @@ test("historical review rejects a deleted daily ADR path", () => {
 test("methodology may not make a missing release tag non-blocking", () => {
   const current = path.join(ROOT, "docs", "harness_engineering", "agent_first_design.md");
   const source = fs.readFileSync(current, "utf8");
-  const contents = source.replace("其缺席不代替或放宽模式内 Git tag 门禁", "缺席不阻断候选验收或只读就绪复核");
+  const contents = source.replace("其缺席不代替或放宽 Git tag 门禁", "缺席不阻断候选验收或只读就绪复核");
   assert.notEqual(contents, source);
   expectErrors(validateContents(validateHarnessSourceReleaseContract, "methodologyDoc", current, contents), "allows a missing release tag");
 });
 
 test("triggered Changelog must precede sourceHead and metadata", () => {
   const source = fs.readFileSync(PREPARE_RELEASE_SKILL, "utf8");
-  const fragment = "任何由独立事件真实触发的 Changelog";
+  const fragment = "提交源码/治理变化及已独立触发的 Changelog";
   const contents = `${source.replace(fragment, "")}\n${fragment}\n`;
   expectErrors(validateContents(validateHarnessSourceReleaseContract, "prepareSkill", PREPARE_RELEASE_SKILL, contents), "contract order");
 });
 
 test("shared Git steps must precede downstream candidate steps", () => {
   const source = fs.readFileSync(RELEASE_DOC, "utf8");
-  const fragment = "步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程";
+  const fragment = "Git 发布在本地默认主分支和版本 tag 指向同一最终 HEAD 时结束";
   const contents = `${source.replace(fragment, "")}\n${fragment}\n`;
   expectErrors(validateContents(validateHarnessSourceReleaseContract, "releaseDoc", RELEASE_DOC, contents), "contract order");
 });
 
 test("release document rejects the context-only legacy Git sequence", () => {
   const source = fs.readFileSync(RELEASE_DOC, "utf8");
-  const marker = "步骤 1–2 是 Harness 源与终端下游的正式 Git 发布共享流程";
+  const marker = "Git 发布在本地默认主分支和版本 tag 指向同一最终 HEAD 时结束";
   const legacy = "写入 `.harness/release-context.json` 并提交；随后 `release --version <version>`";
   expectErrors(validateContents(validateHarnessSourceReleaseContract, "releaseDoc", RELEASE_DOC, `${source}\n${marker}\n${legacy}\n`), "stale context-only Git release");
 });
 
-test("release Git contract requires exact local branch cleanup", () => {
-  expectErrors(validateMutation(validateReleaseGitContract, "lifecycleScript", GIT_LIFECYCLE_PUBLICATION, '["branch", "-D", "--", branch]'), "release Git contract missing");
+test("release Git contract requires retained resource snapshot", () => {
+  expectErrors(validateMutation(validateReleaseGitContract, "lifecycleScript", GIT_LIFECYCLE_PUBLICATION, "state.releasedResources.push({"), "release Git contract missing");
+});
+
+test("release Git contract rejects retired local and remote modes", () => {
+  const source = fs.readFileSync(GIT_LIFECYCLE_SKILL, "utf8");
+  expectErrors(validateContents(validateReleaseGitContract, "lifecycleSkill", GIT_LIFECYCLE_SKILL,
+    `${source}\nrelease --local-only\n`), "retains retired release mode");
 });
 
 test("release Git contract requires additional remote publication semantics", () => {

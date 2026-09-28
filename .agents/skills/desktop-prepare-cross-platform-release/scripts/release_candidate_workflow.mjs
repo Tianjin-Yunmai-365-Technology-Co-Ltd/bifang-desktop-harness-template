@@ -313,7 +313,6 @@ function writeManifest() {
     releaseContextSha256: snapshot.releaseContextSha256,
     releaseTag: snapshot.expectedTag,
     releaseReview: review,
-    candidateSelections: snapshot.candidateSelections,
     reviewSelection: review.selection,
     reviewStatus: review.status,
     releaseNotesVersion: `v${environment("VERSION")}`,

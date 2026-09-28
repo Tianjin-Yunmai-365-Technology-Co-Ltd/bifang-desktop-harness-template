@@ -1,6 +1,6 @@
 ---
 name: desktop-run-parallel-worktrees
-description: 在用户明确要求且策略允许时，将当前已绑定的左侧 Task 拆为具有非重叠写入所有权的内部 Subagent Git Worktree；通过项目/source 绑定、guard、postflight、发布周期登记和延后清理阻止越界与资源遗失。
+description: 在用户明确要求且策略允许时，将当前已绑定的左侧 Task 拆为具有非重叠写入所有权的内部 Subagent Git Worktree；通过项目/source 绑定、guard、postflight、生命周期登记和资源保留阻止越界与资源遗失。
 ---
 
 # 运行并行 Worktree
@@ -50,9 +50,9 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
    postflight 必须证明从登记 `baseHead` 到当前 HEAD 的 committed 路径，以及 staged、unstaged、untracked 和 rename 的源/目标路径都在 ownership 内。任何越界先由对应单元修复；不得在协调 source 中掩盖或手工忽略。
 4. 检查每项差异和证据，拒绝无关编辑、缺失测试、过时注释、敏感信息、绝对本机路径和无证据支持的声明。协调方可以按依赖顺序使用普通、可逆 Git 操作提前整合已验证提交，也可以保留各登记分支，交给用户明确“推送”或“发布”时的生命周期 helper 统一普通合并；不得要求快进、祖先关系、冻结 OID 或其他历史形态。语义冲突由协调方处理，绝不得让多个 Subagent 竞态修改。
 5. 整合后只运行本次变化必需的非空单元/回归测试；非代码变更只运行必要替代验证。不得因并行本身追加格式、lint、静态、构建、冒烟、E2E 或完整验收。
-6. 只有整合后的必要测试通过，才能把存在的 Todo 标记为 `done`。随后返回 `$desktop-implement-change` 收口；普通构建保持开发流程，用户另行明确请求正式发布候选时才先经 `$desktop-prepare-release` 封存范围并进入候选构建。
+6. 只有整合后的必要测试通过，才能把存在的 Todo 标记为 `done`。随后返回 `$desktop-implement-change` 收口；普通构建保持开发流程。用户明确要求 Git 发布时才经 `$desktop-prepare-release` 合并本地主分支并打 tag；候选构建须等用户发布后另行请求。
 
-## 发布前收口与延后清理
+## 单元收口与资源保留
 
 清理前从保存项目 primary 的精确 cwd 检查：
 
@@ -66,6 +66,6 @@ node .agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.mj
 node <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.mjs remove --project-root <absolute-project-root> --source-worktree <absolute-source-worktree> --task <task> --unit <unit>
 ```
 
-`remove` 只删除该并行单元自己在 Git common-dir 下的状态登记，返回 `cleanupDeferredToRelease: true`、`worktreeRetained: true` 与 `branchRetained: true`；它不得删除 Worktree 或本地/远端分支。绝不得强制收口状态不干净、身份/所有权缺失或不匹配、越界单元，也不得手工删除 common-dir 中的登记来绕过检查。单元分支是否已提前整合不影响收口，生命周期 helper 仍持有完整精确清单。
+`remove` 只删除该并行单元自己在 Git common-dir 下的状态登记，返回 `resourcesRetained: true`、`worktreeRetained: true` 与 `branchRetained: true`，表示资源仍由生命周期 helper 精确登记和保留；它不得删除 Worktree 或本地/远端分支。绝不得强制收口状态不干净、身份/所有权缺失或不匹配、越界单元，也不得手工删除 common-dir 中的登记来绕过检查。单元分支是否已提前整合不影响收口。
 
-这些已由生命周期 helper 精确登记的 Worktree 与分支统一保留到用户明确要求正式发布。正式发布先锁定 `gitPublication: local | remote`：两种模式都完成本地主分支合并并创建、复读当前版本标签，只有远端模式才推送、复读远端主分支/tag 并清理登记远端分支；模式内标签门禁通过后，`$desktop-manage-git-lifecycle` 才能删除本周期登记的适用 Worktree 与分支。普通完成或用户只要求“推送”时不得提前清理。
+这些已由生命周期 helper 精确登记的 Worktree 与分支在 Git 发布后仍保留。Git 发布仅普通合并登记分支到本地默认主分支并创建、复读当前版本 tag；推送和打包只按用户之后的独立请求执行。清理是另一项需明确授权、精确核对登记资源的操作；当前发布命令不负责清理，不能因为发布或推送完成就手工删除。

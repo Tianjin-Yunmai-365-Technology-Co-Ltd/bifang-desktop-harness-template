@@ -52,15 +52,20 @@ const fixedFragmentCases = [
   ["additional remote CLI contract", "skill", GIT_LIFECYCLE_SKILL, "[--also-remote <name>]..."],
   ["stable primary push error code", "report", GIT_PUBLICATION_REPORT, '"push-failed": "push-rejected"'],
   ["legacy v2 pendingPublish loader", "core", GIT_LIFECYCLE_CORE, "parsed.pendingPublish = null"],
-  ["exact local branch cleanup", "publication", GIT_LIFECYCLE_PUBLICATION, '["branch", "-D", "--", branch]'],
+  ["released resource snapshot", "publication", GIT_LIFECYCLE_PUBLICATION, "state.releasedResources.push({", "state.releasedResources.push /* mutation */ ({"],
+  ["independent released tag push", "publication", GIT_LIFECYCLE_PUBLICATION, '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]'],
+  ["schema v3 state", "core", GIT_LIFECYCLE_CORE, "export const SCHEMA_VERSION = 3"],
   ["release context digest argument", "script", path.join(path.dirname(GIT_LIFECYCLE_CORE), "git_lifecycle.mjs"), "if (args.version === undefined || args.releaseContextSha256 === undefined) invalidArguments();"],
   ["lifecycle main test inventory", "tests", GIT_LIFECYCLE_TESTS, "publish_refuses_missing_registered_branch"],
   ["lifecycle release test inventory", "releaseTests", GIT_LIFECYCLE_RELEASE_TESTS, "dirty_registered_worktree_blocks_release_then_clean_retry_succeeds"],
   ["publication retry test inventory", "publicationTests", GIT_PUBLICATION_TEST_CASES, "additional_remote_rejection_preserves_prefix_and_retry_succeeds"],
 ];
 
-for (const [name, option, source, fragment] of fixedFragmentCases) {
-  test(`rejects missing ${name}`, () => expectErrors(validateMutation(option, source, fragment), "Git lifecycle contract"));
+for (const [name, option, source, fragment, replacement = ""] of fixedFragmentCases) {
+  test(`rejects missing ${name}`, () => expectErrors(
+    validateMutation(option, source, fragment, replacement),
+    name === "released resource snapshot" ? "local tag-before-release-record" : "Git lifecycle contract",
+  ));
 }
 
 test("release context default branch uses check-ref-format", () => {
@@ -69,11 +74,33 @@ test("release context default branch uses check-ref-format", () => {
   expectErrors(validateMutation("contextHelper", RELEASE_CONTEXT_HELPER, fragment, replacement), "Git lifecycle contract");
 });
 
-test("legacy v2 compatibility wording is required on all authoritative surfaces", () => {
-  const compatibility = "既有合法 v2 状态缺少新增可空 `pendingPublish` 时按 `null` 兼容读取";
-  for (const [option, source] of [["skill", GIT_LIFECYCLE_SKILL], ["agentPolicy", AGENT_POLICY], ["releaseDoc", RELEASE_DOC]]) {
-    expectErrors(validateMutation(option, source, compatibility), "Git lifecycle contract");
-  }
+test("legacy in-flight v2 state cannot be silently reinterpreted", () => {
+  for (const [option, source, fragment] of [
+    ["skill", GIT_LIFECYCLE_SKILL, "v2 的 `pendingRelease` 或 `pendingPublish` 非空时拒绝自动改释"],
+    ["agentPolicy", AGENT_POLICY, "旧状态若含正在进行的双模式发布或推送，不能静默改写为新语义"],
+    ["releaseDoc", RELEASE_DOC, "有未完成远端发布或推送的旧状态失败关闭"],
+  ]) expectErrors(validateMutation(option, source, fragment), "Git lifecycle contract");
+});
+
+test("completed v2 release migration verifies its tagged context digest", () => {
+  expectErrors(validateMutation("core", GIT_LIFECYCLE_CORE,
+    'createHash("sha256").update(contextBlob.stdout).digest("hex") !== last.releaseContextSha256',
+    "false"), "Git lifecycle contract missing");
+});
+
+test("publish cannot move the published branch before a new cycle", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "if (state.cycle === null && state.lastRelease !== null)", "if (false)"), "Git lifecycle contract missing");
+});
+
+test("push-release rejects option-like remote names", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "if (!validRemote(remote))", "if (false)"), "Git lifecycle contract missing");
+});
+
+test("push-release verifies both remote refs after the tag update", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "confirmedBranch = remoteBranchOid(repository, remote, branch)", "confirmedBranch = last.head"), "Git lifecycle contract missing");
 });
 
 test("publication journal is cleared only after final local verification", () => {
@@ -101,9 +128,24 @@ test("additional remote is reread before and after push", () => {
 
 test("release binds context before loading primary lifecycle state", () => {
   const source = fs.readFileSync(GIT_LIFECYCLE_PUBLICATION, "utf8");
-  const before = "await releaseContextBinding(repository, args.releaseContextSha256, identity, args);";
+  const before = "await releaseContextBinding(repository, args.releaseContextSha256, identity);";
   assert.ok(source.includes(before), "release binding fixture changed");
   expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, source.replace(before, "await Promise.resolve();")), "caller-context-before-primary");
+});
+
+test("Harness release checks the managed timestamp stamp before lifecycle state changes", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "await verifyHarnessVersionStamp(repository, identity.version);"), "caller-context-before-primary sequence");
+});
+
+test("release recomputes the enabled review scope before lifecycle state changes", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "module.verifyReviewScope(repository.root, value);"), "Git lifecycle contract");
+});
+
+test("release binds reviewed metadata before switching to primary worktree", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "const reviewed = reviewedReleaseMetadata(repository, context, state);"), "caller-context-before-primary sequence");
 });
 
 test("fresh local release initializes its default branch from context", () => {
@@ -113,14 +155,16 @@ test("fresh local release initializes its default branch from context", () => {
 
 test("release persists pending context before performing release", () => {
   const source = fs.readFileSync(GIT_LIFECYCLE_PUBLICATION, "utf8");
-  const before = "cycle.pendingRelease =";
-  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, source.replace(before, "cycle.retiredPending =")), "context-bound pending-before-release");
+  const before = "state.cycle.pendingRelease =";
+  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, source.replace(before, "state.cycle.retiredPending =")), "context-bound pending-before-release");
 });
 
-test("remote release freezes only a context-verified integrated head", () => {
+test("local release freezes only a context-verified integrated head", () => {
   const source = fs.readFileSync(GIT_LIFECYCLE_PUBLICATION, "utf8");
   const before = [
     "verifyHeadReleaseContextBytes(repository, pending.releaseContextSha256, prepared.head);",
+    "verifyReviewedFinalHead(repository, reviewed, prepared.head);",
+    "await verifyFinalReleaseVersion(repository, pending.version);",
     "pending.head = prepared.head;",
     "saveState(repository, state);",
   ].join("\n  ");
@@ -128,33 +172,63 @@ test("remote release freezes only a context-verified integrated head", () => {
     "pending.head = prepared.head;",
     "saveState(repository, state);",
     "verifyHeadReleaseContextBytes(repository, pending.releaseContextSha256, prepared.head);",
+    "verifyReviewedFinalHead(repository, reviewed, prepared.head);",
+    "await verifyFinalReleaseVersion(repository, pending.version);",
   ].join("\n  ");
   assert.ok(source.includes(before), "freeze sequence fixture changed");
   expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, source.replace(before, after)), "integrated-context-before-frozen-head");
 });
 
-test("local and remote tags are confirmed before any cleanup", () => {
+test("local tag is confirmed before recording Released", () => {
   const source = fs.readFileSync(GIT_LIFECYCLE_PUBLICATION, "utf8");
-  for (const fragment of [
-    "ensureReleaseTag(repository, remote, pending.tag, pending.head);",
-    "ensureLocalReleaseTag(repository, pending.tag, pending.head);",
-  ]) {
-    assert.ok(source.includes(fragment), `tag fixture changed: ${fragment}`);
-    expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, source.replace(fragment, "skipTagVerification();")), "tag-before-cleanup");
-  }
+  const fragment = "ensureLocalReleaseTag(repository, pending.tag, pending.head);";
+  assert.ok(source.includes(fragment), "local tag fixture changed");
+  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, source.replace(fragment, "skipTagVerification();")), "local tag-before-release-record");
 });
 
-test("local release helpers may not access any remote operation", () => {
+test("enabled review checks final integrated head before the tag", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "verifyReviewedFinalHead(repository, reviewed, prepared.head);"), "integrated-context-before-frozen-head");
+});
+
+test("post-release push rereads the local tag after remote confirmation", () => {
   const source = fs.readFileSync(GIT_LIFECYCLE_PUBLICATION, "utf8");
-  const marker = "function prepareLocalRelease(repository, state) {\n";
-  assert.ok(source.includes(marker), "local release fixture changed");
+  const fragment = "localTagTarget(repository, last.tag) !== last.head";
+  const index = source.lastIndexOf(fragment);
+  assert.ok(index > source.indexOf(fragment), "final local tag fixture changed");
+  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION,
+    source.slice(0, index) + "finalTagNotChecked" + source.slice(index + fragment.length)),
+  "post-release push must check the frozen local tag before and after push");
+});
+
+test("Git release path may not access remote or clean registered resources", () => {
+  const source = fs.readFileSync(GIT_LIFECYCLE_PUBLICATION, "utf8");
+  const marker = "export async function commandRelease(repository, args) {\n";
+  assert.ok(source.includes(marker), "release fixture changed");
   const injected = source.replace(marker, `${marker}  selectRemote(repository);\n`);
-  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, injected), "local release path accesses remote operation");
+  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, injected), "Git release path accesses remote operation or cleanup");
+  const injectedCleanup = source.replace(marker, `${marker}  cleanupWorktrees(repository);\n`);
+  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, injectedCleanup), "Git release path accesses remote operation or cleanup");
 });
 
-test("retired linear, lease, atomic, and ancestry gates remain forbidden", () => {
+test("post-release push must keep branch-before-tag verification and no local merge", () => {
+  const source = fs.readFileSync(GIT_LIFECYCLE_PUBLICATION, "utf8");
+  const fragment = '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]';
+  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, source.replace(fragment, '["push", remote, last.head]')), "independent released-head-and-tag push sequence");
+  const marker = "export function commandPushRelease(repository, args) {\n";
+  const injected = source.replace(marker, `${marker}  mergeRegisteredBranches(repository);\n`);
+  expectErrors(validateContents("publication", GIT_LIFECYCLE_PUBLICATION, injected), "post-release push changes local release");
+});
+
+test("new development cycle requires verified released HEAD", () => {
   const source = fs.readFileSync(GIT_LIFECYCLE_CORE, "utf8");
-  for (const token of ['"--ff-only"', '"--force-with-lease', '"--atomic"', '"merge-base"']) {
+  const fragment = "baseReference = `refs/heads/${released.defaultBranch}`";
+  expectErrors(validateContents("core", GIT_LIFECYCLE_CORE, source.replace(fragment, "baseReference = null")), "new-cycle start from verified released HEAD");
+});
+
+test("retired linear, lease, and atomic gates remain forbidden", () => {
+  const source = fs.readFileSync(GIT_LIFECYCLE_CORE, "utf8");
+  for (const token of ['"--ff-only"', '"--force-with-lease', '"--atomic"']) {
     expectErrors(validateContents("core", GIT_LIFECYCLE_CORE, `${source}\n// ${token}\n`), "branch gate remains");
   }
 });

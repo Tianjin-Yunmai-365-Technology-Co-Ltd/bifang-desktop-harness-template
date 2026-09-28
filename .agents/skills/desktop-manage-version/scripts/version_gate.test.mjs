@@ -39,6 +39,23 @@ function apply(kind, changeId = null, { major = null, userApproved = false, targ
   return evaluateChange(targetRoot, { action: "apply", kind, changeId, major, userApproved });
 }
 
+function conflictEvidence(eventId = "EVENT-1") {
+  return {
+    event_id: eventId,
+    record_a: "docs/adr/decision.md#result",
+    value_a: "0.2.0",
+    record_b: "docs/changelog/entry.md#result",
+    value_b: "0.3.0",
+    confirmed: true,
+  };
+}
+
+function reconcile(changeId, evidence = conflictEvidence(), targetRoot = root, action = "apply") {
+  return evaluateChange(targetRoot, {
+    action, kind: "record-reconciliation", changeId, conflictEvidence: evidence,
+  });
+}
+
 function state(targetRoot = root) {
   return JSON.parse(readFileSync(path.join(targetRoot, STATE_RELATIVE), "utf8"));
 }
@@ -54,6 +71,26 @@ function projectWithVersion(name, version) {
   initialize(targetRoot);
   assert.equal(run("git", ["init", "--initial-branch=main", "."], { cwd: targetRoot }).status, 0);
   return targetRoot;
+}
+
+function publishedRelease(targetRoot = root) {
+  assert.equal(run("git", ["add", "Cargo.toml", STATE_RELATIVE], { cwd: targetRoot }).status, 0);
+  assert.equal(run("git", ["-c", "user.name=Version Gate Test", "-c", "user.email=version@example.test", "commit", "-m", "release fixture"], { cwd: targetRoot }).status, 0);
+  const commit = run("git", ["rev-parse", "HEAD"], { cwd: targetRoot }).stdout.trim();
+  const version = state(targetRoot).target_version;
+  const tag = `v${version}-20260928`;
+  assert.equal(run("git", ["tag", tag], { cwd: targetRoot }).status, 0);
+  const commonDir = run("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: targetRoot }).stdout.trim();
+  const lifecycleDir = path.join(commonDir, "agent-first-harness");
+  mkdirSync(lifecycleDir, { recursive: true });
+  const lifecyclePath = path.join(lifecycleDir, "git-lifecycle.json");
+  writeFileSync(lifecyclePath, JSON.stringify({
+    schemaVersion: 3,
+    defaultBranch: "main",
+    lastRelease: { defaultBranch: "main", version, tag, date: "20260928", head: commit },
+  }));
+  assert.equal(run("git", ["switch", "-c", "feature-next-cycle-20260928"], { cwd: targetRoot }).status, 0);
+  return { commit, version, tag, lifecyclePath };
 }
 
 beforeEach(() => {
@@ -111,7 +148,8 @@ test("maintenance and plan do not mutate files", () => {
 test("successful release resets feature gate but retains bug deduplication", () => {
   apply("feature", "FEAT-1");
   apply("bug-fix", "BUG-1");
-  finalizeRelease(root, "0.2.1", "a".repeat(40));
+  const release = publishedRelease();
+  finalizeRelease(root, release.version, release.commit);
   const oldBug = apply("bug-fix", "BUG-1");
   assert.throws(() => apply("feature", "BUG-1"), /already used/);
   const nextFeature = apply("feature", "FEAT-2");
@@ -119,6 +157,169 @@ test("successful release resets feature gate but retains bug deduplication", () 
   assert.equal(oldBug.reason, "bug-id-already-consumed");
   assert.equal(nextFeature.after_version, "0.3.0");
   assert.equal(regression.after_version, "0.3.1");
+});
+
+test("plan and apply reject a completed Git release until the next branch finalizes the cycle", () => {
+  apply("feature", "FEAT-OLD-CYCLE");
+  const release = publishedRelease();
+  const cargoBefore = readFileSync(path.join(root, "Cargo.toml"));
+  const stateBefore = readFileSync(path.join(root, STATE_RELATIVE));
+  assert.throws(() => evaluateChange(root, {
+    action: "plan", kind: "feature", changeId: "FEAT-NEW-CYCLE",
+  }), /run finalize-release before plan\/apply/);
+  assert.throws(() => evaluateChange(root, {
+    action: "apply", kind: "feature", changeId: "FEAT-NEW-CYCLE",
+  }), /run finalize-release before plan\/apply/);
+  assert.throws(() => evaluateChange(root, {
+    action: "apply", kind: "bug-fix", changeId: "BUG-NEW-CYCLE",
+  }), /run finalize-release before plan\/apply/);
+  assert.deepEqual(readFileSync(path.join(root, "Cargo.toml")), cargoBefore);
+  assert.deepEqual(readFileSync(path.join(root, STATE_RELATIVE)), stateBefore);
+  finalizeRelease(root, release.version, release.commit);
+  const planned = evaluateChange(root, { action: "plan", kind: "feature", changeId: "FEAT-NEW-CYCLE" });
+  assert.equal(planned.after_version, "0.3.0");
+});
+
+test("confirmed record conflict forces a fresh Minor despite feature lock and later conflicts share it", () => {
+  apply("feature", "FEAT-1");
+  apply("bug-fix", "BUG-1");
+  const beforePlan = readFileSync(path.join(root, STATE_RELATIVE));
+  const planned = reconcile("RECON-1", conflictEvidence(), root, "plan");
+  assert.equal(planned.after_version, "0.3.0");
+  assert.deepEqual(readFileSync(path.join(root, STATE_RELATIVE)), beforePlan);
+  const first = reconcile("RECON-1");
+  const repeated = reconcile("RECON-1");
+  const second = reconcile("RECON-2", conflictEvidence("EVENT-2"));
+  const laterFeature = apply("feature", "FEAT-2");
+  assert.equal(first.after_version, "0.3.0");
+  assert.equal(first.version_bumped, true);
+  assert.equal(repeated.required_version, "0.3.0");
+  assert.equal(repeated.reason, "change-already-applied");
+  assert.equal(second.after_version, "0.3.0");
+  assert.equal(second.version_bumped, false);
+  assert.equal(laterFeature.after_version, "0.3.0");
+  assert.equal(state().feature_bump_applied, true);
+  assert.deepEqual(state().pending_changes.find((item) => item.change_id === "RECON-1").conflict_evidence, conflictEvidence());
+  assert.equal(state().applied_reconciliations.length, 2);
+});
+
+test("record reconciliation stable ID remains idempotent across releases", () => {
+  reconcile("RECON-1");
+  const release = publishedRelease();
+  const finalized = finalizeRelease(root, release.version, release.commit);
+  assert.equal(finalized.retained_reconciliation_count, 1);
+  assert.deepEqual(state().pending_changes, []);
+  const retried = reconcile("RECON-1");
+  assert.equal(retried.after_version, release.version);
+  assert.equal(retried.required_version, release.version);
+  assert.equal(retried.version_bumped, false);
+  assert.equal(retried.reason, "reconciliation-id-already-consumed");
+  assert.throws(() => reconcile("RECON-1", conflictEvidence("EVENT-CHANGED")), /different conflict evidence/);
+  assert.throws(() => reconcile("RECON-ALIAS", conflictEvidence()), /already associated with another reconciliation ID/);
+  assert.throws(() => apply("feature", "RECON-1"), /already used by kind/);
+  const fresh = reconcile("RECON-2", conflictEvidence("EVENT-2"));
+  assert.equal(fresh.after_version, "0.3.0");
+});
+
+test("legacy protected state without reconciliation history remains readable", () => {
+  const legacy = state();
+  delete legacy.applied_reconciliations;
+  writeState(root, legacy);
+  assert.equal(check(root, "development").passed, true);
+  const result = apply("feature", "FEAT-LEGACY");
+  assert.equal(result.after_version, "0.2.0");
+  assert.deepEqual(state().applied_reconciliations, []);
+});
+
+test("legacy pending reconciliation seeds retained history without a second Minor", () => {
+  reconcile("RECON-LEGACY");
+  const legacy = state();
+  delete legacy.applied_reconciliations;
+  writeState(root, legacy);
+  assert.equal(check(root, "development").passed, true);
+  const another = apply("feature", "FEAT-AFTER-LEGACY-RECON");
+  assert.equal(another.after_version, "0.2.0");
+  assert.equal(another.version_bumped, false);
+  assert.equal(state().applied_reconciliations[0].change_id, "RECON-LEGACY");
+  const corrupt = state();
+  corrupt.applied_reconciliations[0].conflict_evidence.event_id = "OTHER-EVENT";
+  writeState(root, corrupt);
+  assert.throws(() => check(root, "development"), /pending reconciliation must match retained history/);
+});
+
+test("record reconciliation requires distinct confirmed same-event evidence and matching retries", () => {
+  const cargoBefore = readFileSync(path.join(root, "Cargo.toml"));
+  const stateBefore = readFileSync(path.join(root, STATE_RELATIVE));
+  const noAttestation = { ...conflictEvidence(), confirmed: false };
+  assert.throws(() => reconcile("RECON-1", noAttestation), /conflict-confirmed/);
+  assert.throws(() => reconcile("RECON-1", { ...conflictEvidence(), value_b: "0.2.0" }), /different observed values/);
+  assert.throws(() => reconcile("RECON-1", { ...conflictEvidence(), record_b: conflictEvidence().record_a }), /distinct/);
+  assert.throws(() => reconcile("RECON-1", { ...conflictEvidence(), event_id: "" }), /change_id/);
+  assert.deepEqual(readFileSync(path.join(root, "Cargo.toml")), cargoBefore);
+  assert.deepEqual(readFileSync(path.join(root, STATE_RELATIVE)), stateBefore);
+  reconcile("RECON-1");
+  assert.throws(() => reconcile("RECON-1", conflictEvidence("EVENT-DIFFERENT")), /different conflict evidence/);
+  assert.throws(() => reconcile("RECON-ALIAS", conflictEvidence()), /already associated with another reconciliation ID/);
+  const duplicateEvent = state();
+  duplicateEvent.applied_reconciliations.push({
+    change_id: "RECON-ALIAS", conflict_evidence: conflictEvidence(), required_version: duplicateEvent.target_version,
+  });
+  writeState(root, duplicateEvent);
+  assert.throws(() => check(root, "development"), /event IDs must be unique/);
+});
+
+test("Cargo and protected state drift stops reconciliation before any writes", () => {
+  writeCargo(root, "0.1.5");
+  const cargoBefore = readFileSync(path.join(root, "Cargo.toml"));
+  const stateBefore = readFileSync(path.join(root, STATE_RELATIVE));
+  assert.throws(() => reconcile("RECON-DRIFT"), /version drift/);
+  assert.deepEqual(readFileSync(path.join(root, "Cargo.toml")), cargoBefore);
+  assert.deepEqual(readFileSync(path.join(root, STATE_RELATIVE)), stateBefore);
+});
+
+test("finalize-release requires tagged default main and a new feature branch at that commit", () => {
+  apply("feature", "FEAT-RELEASE");
+  const release = publishedRelease();
+  const statePath = path.join(root, STATE_RELATIVE);
+  const before = readFileSync(statePath);
+  assert.throws(() => finalizeRelease(root, release.version, "a".repeat(40)), /lifecycle release/);
+  assert.deepEqual(readFileSync(statePath), before);
+  assert.equal(run("git", ["tag", "-d", release.tag], { cwd: root }).status, 0);
+  assert.throws(() => finalizeRelease(root, release.version, release.commit), /tag cannot be verified/);
+  assert.deepEqual(readFileSync(statePath), before);
+  assert.equal(run("git", ["tag", release.tag], { cwd: root }).status, 0);
+  assert.equal(run("git", ["switch", "main"], { cwd: root }).status, 0);
+  assert.throws(() => finalizeRelease(root, release.version, release.commit), /new feature branch/);
+  assert.deepEqual(readFileSync(statePath), before);
+  assert.equal(run("git", ["switch", "feature-next-cycle-20260928"], { cwd: root }).status, 0);
+  const result = finalizeRelease(root, release.version, release.commit);
+  assert.equal(result.default_branch, "main");
+  assert.equal(result.tag, release.tag);
+  assert.equal(state().last_release.source_commit, release.commit);
+});
+
+test("finalize-release rejects same-version tags on divergent commits", () => {
+  const release = publishedRelease();
+  writeFileSync(path.join(root, "other.txt"), "divergent commit\n");
+  assert.equal(run("git", ["add", "other.txt"], { cwd: root }).status, 0);
+  assert.equal(run("git", ["-c", "user.name=Version Gate Test", "-c", "user.email=version@example.test", "commit", "-m", "divergent"], { cwd: root }).status, 0);
+  assert.equal(run("git", ["tag", `v${release.version}-20260929`], { cwd: root }).status, 0);
+  assert.equal(run("git", ["reset", "--hard", release.commit], { cwd: root }).status, 0);
+  const before = readFileSync(path.join(root, STATE_RELATIVE));
+  assert.throws(() => finalizeRelease(root, release.version, release.commit), /same-version local release tags/);
+  assert.deepEqual(readFileSync(path.join(root, STATE_RELATIVE)), before);
+});
+
+test("finalize-release rejects a default branch moved after the tag", () => {
+  const release = publishedRelease();
+  assert.equal(run("git", ["switch", "main"], { cwd: root }).status, 0);
+  writeFileSync(path.join(root, "main-only.txt"), "later main change\n");
+  assert.equal(run("git", ["add", "main-only.txt"], { cwd: root }).status, 0);
+  assert.equal(run("git", ["-c", "user.name=Version Gate Test", "-c", "user.email=version@example.test", "commit", "-m", "main moved"], { cwd: root }).status, 0);
+  assert.equal(run("git", ["switch", "feature-next-cycle-20260928"], { cwd: root }).status, 0);
+  const before = readFileSync(path.join(root, STATE_RELATIVE));
+  assert.throws(() => finalizeRelease(root, release.version, release.commit), /default branch and release tag/);
+  assert.deepEqual(readFileSync(path.join(root, STATE_RELATIVE)), before);
 });
 
 test("Major above 100 requires approval and resets lower components", () => {
@@ -343,6 +544,30 @@ test("CLI apply emits stable JSON and updates Cargo", () => {
   assert.equal(payload.after_version, "0.1.5");
   assert.equal(payload.required_version, "0.1.5");
   assert.match(readFileSync(path.join(root, "Cargo.toml"), "utf8"), /version = "0\.1\.5"/);
+});
+
+test("CLI record reconciliation requires explicit conflict evidence", () => {
+  const base = [SCRIPT, "plan", "--project-root", root, "--kind", "record-reconciliation", "--change-id", "RECON-CLI"];
+  const missing = run(process.execPath, base);
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /--conflict-event-id is required/);
+  const evidence = [
+    "--conflict-event-id", "EVENT-CLI",
+    "--conflict-record-a", "docs/adr/decision.md#result",
+    "--conflict-value-a", "0.2.0",
+    "--conflict-record-b", "docs/changelog/entry.md#result",
+    "--conflict-value-b", "0.3.0",
+    "--conflict-confirmed",
+  ];
+  const planned = run(process.execPath, [...base, ...evidence]);
+  assert.equal(planned.status, 0, planned.stderr);
+  assert.equal(JSON.parse(planned.stdout).required_version, "0.2.0");
+  const applied = run(process.execPath, [SCRIPT, "apply", ...base.slice(2), ...evidence]);
+  assert.equal(applied.status, 0, applied.stderr);
+  assert.equal(JSON.parse(applied.stdout).after_version, "0.2.0");
+  const misplaced = run(process.execPath, [SCRIPT, "plan", "--project-root", root, "--kind", "feature", "--change-id", "FEAT-1", ...evidence]);
+  assert.equal(misplaced.status, 2);
+  assert.match(misplaced.stderr, /require --kind record-reconciliation/);
 });
 
 test("CLI init is the only command allowed before independent Git", () => {
