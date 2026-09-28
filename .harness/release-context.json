@@ -1,19 +1,17 @@
 {
-  "schemaVersion": 2,
-  "gitPublication": "remote",
-  "sourceHead": "45716002e285869d960ea436433ca4587424179c",
-  "version": "202609231754",
-  "releaseDate": "2026-09-23",
-  "expectedTag": "v202609231754-20260923",
-  "remote": "origin",
+  "schemaVersion": 3,
+  "sourceHead": "add755db9a4b10b28328e697883ac7cf3da899fc",
+  "version": "202609281202",
+  "releaseDate": "2026-09-28",
+  "expectedTag": "v202609281202-20260928",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "96629a2cab53dd65eb8a8e5193280430959bf8b6",
-    "sourceHead": "45716002e285869d960ea436433ca4587424179c",
-    "scopeDiffSha256": "52d6aa98a44fd1e3c0c6adda27c73d76194de79b9d80683e060eacc1eacb1e2e",
-    "reviewedSourceCommit": "45716002e285869d960ea436433ca4587424179c",
+    "scopeBase": "b6ca2a5df2940a104fa4c08c2a7629a8d3033f2c",
+    "sourceHead": "add755db9a4b10b28328e697883ac7cf3da899fc",
+    "scopeDiffSha256": "b4686dab8921b4db98508ce06e22f9d02ca9298306213607ece3a3c93eb98390",
+    "reviewedSourceCommit": "add755db9a4b10b28328e697883ac7cf3da899fc",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -21,14 +19,8 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed 27 changed paths since the last tagged release for behavior, ownership, external contracts, responsibility, and temporary markers. Harness validation and automation dependency gate passed; 710 Node tests passed, 14 host skips, and 23 nonblocking size or fixture hints were reviewed. Windows PowerShell 5.1 execution remains unverified on this macOS host.",
+    "evidenceSummary": "已核对上一 Git 发布到 sourceHead 的真实差异：上海分钟取号、单一本地 Git 发布、下游需求优先与纠错 Minor 均有对应规则和回归；版本逻辑留在 core 门禁，适配层只调度。对外契约有意升级为 context/lifecycle schema v3 与独立 push-release，静止 v2 可核对迁移。完整 Node 测试 802 通过、14 项宿主跳过；发布语义复核的行数提示非阻断，TODO 只在测试夹具。真实下游记录修正和候选构建未运行。",
     "reason": null,
     "remainingRisk": null
-  },
-  "candidateSelections": {
-    "macosSigningSelection": "not-applicable",
-    "macosSigningSource": "not-applicable",
-    "macosSigningReason": null,
-    "macosSigningRemainingRisk": null
   }
 }
