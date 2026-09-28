@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -157,6 +157,24 @@ test("successful release resets feature gate but retains bug deduplication", () 
   assert.equal(oldBug.reason, "bug-id-already-consumed");
   assert.equal(nextFeature.after_version, "0.3.0");
   assert.equal(regression.after_version, "0.3.1");
+});
+
+/** 本地打包尚未执行时，已完成的 Git 发布仍独立开启下一功能周期。 */
+test("local_package_pending_does_not_delay_next_semver_cycle", () => {
+  apply("feature", "FEAT-BEFORE-RELEASE");
+  const release = publishedRelease();
+  const lifecycle = JSON.parse(readFileSync(release.lifecyclePath, "utf8"));
+  lifecycle.schemaVersion = 4;
+  lifecycle.lastRelease.postReleaseAction = "local_package";
+  writeFileSync(release.lifecyclePath, JSON.stringify(lifecycle));
+  assert.equal(existsSync(path.join(root, "release")), false);
+
+  const finalized = finalizeRelease(root, release.version, release.commit);
+  const nextFeature = apply("feature", "FEAT-AFTER-RELEASE");
+  assert.equal(finalized.changed, true);
+  assert.equal(finalized.pending_change_count, 0);
+  assert.equal(nextFeature.after_version, "0.3.0");
+  assert.equal(nextFeature.version_bumped, true);
 });
 
 test("plan and apply reject a completed Git release until the next branch finalizes the cycle", () => {

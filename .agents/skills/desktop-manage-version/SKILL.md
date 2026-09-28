@@ -19,7 +19,7 @@ description: 管理下游产品的语义化版本门禁、base-100 进位、发�
 - 维护不改变版本；不得把维护换名为功能或缺陷修复来绕过分类。
 - Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`；Cargo 或状态 `target_version` 中一旦出现 `100`，`init`、`check`、`plan`、`maintenance` 和 `apply` 一律失败关闭，没有可读取或延迟规范化的旧值例外，必须先手动把版本改回 `0..99` 才能继续任何操作。
 - `init` 在新项目尚未建立独立 Git 时创建初始状态；在已存在的独立 Git 项目缺少状态时，它只接受用户对本次不可逆历史缺口明确批准后的 `--migration-approved`。迁移以当前合法 Cargo 版本建立空周期基线，并报告旧 `pending_changes`、`applied_bug_ids` 与 `last_release` 无法恢复；不得推断、伪造或从 Git/发布日志回填这些历史。
-- 普通构建、`pending` 候选、验收和失败发布都不重置周期。只有本地默认主分支已完成整合，且 `v{版本}-{YYYYMMDD}` 本地 tag 与其 HEAD 精确一致，才视为正式发布成功。`finalize-release` 在该发布之后创建的下一条 `feature-*` 分支上、首次改动前运行；它只读核对 Git common-dir 生命周期状态中的 `lastRelease`、默认主分支、所有同版本本地 tag 与调用者提供的源码提交，然后清空待发布变化并允许下一周期的首个功能再次提升 Minor，保留历史 `bug-fix` 稳定 ID。推送与打包由用户在发布结束后另行决定，不参与此门禁。
+- 普通构建、`pending` 候选、验收和失败发布都不重置周期。只有本地默认主分支已完成整合，且 `v{版本}-{YYYYMMDD}` 本地 tag 与其 HEAD 精确一致，才视为正式发布成功。`finalize-release` 在该发布之后创建的下一条 `feature-*` 分支上、首次改动前运行；它只读核对 Git common-dir 生命周期状态中的 `lastRelease`、默认主分支、所有同版本本地 tag 与调用者提供的源码提交，然后清空待发布变化并允许下一周期的首个功能再次提升 Minor，保留历史 `bug-fix` 稳定 ID。下游按本次发布冻结的 `postReleaseAction` 本地打包或推送 `release` 分支；这些后续动作即使尚未执行、失败或待复核，也不影响 `finalize-release`，不另切分 SemVer 功能周期。
 - Product Spec、ADR、Changelog 或 Work Plan 只有被自身事件独立触发时才记录相应 `change_id` 的 `required_version`。版本变化不得为普通缺陷或维护任务强制创建这些文档；`required_version` 是变化完成当时的最低所需版本，最终发布版本高于它是合法历史，不属于记录不一致，不得据此回写旧记录或另行提升 Minor。真实冲突须先调查并修正其事实来源，明确两份针对同一事件的记录及不同观察值；若根 Cargo 与受保护状态漂移，所有 `plan`/`apply` 均失败关闭，必须先经单独受控修复使二者一致，本 Skill 不自动覆盖状态或以升版掩盖漂移。纠正后运行适用的全部验证并完成上述 Git 发布，才算口径统一修正结束。
 
 ## 工作流程

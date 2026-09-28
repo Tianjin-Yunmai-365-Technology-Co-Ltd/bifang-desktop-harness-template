@@ -7,7 +7,7 @@
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
 - 下游 Rust 项目当前版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`；`.harness/version-state.json` 保存正式发布周期、待发布变化及稳定 ID 去重状态
 - Git 发布完成条件：登记分支合并到本地默认主分支，且版本 tag 创建、复读并指向最终 HEAD
-- 推送、构建和打包：Git 发布完成后分别由用户决定，不属于发布流程
+- 发布后动作：完成初始化的下游按本次冻结的 `post_release_action` 本地打包或推送 `release` 分支；Harness 源按用户当次要求处理。这些动作不参与 Git 发布完成判定或下游 SemVer 周期。
 
 ## 版本规则
 
@@ -31,7 +31,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 - 较早变化记录的最低 `required_version` 低于最终发布版本是合法历史，不算记录不一致；同一事件、Cargo/周期状态或 Git 发布事实互相矛盾才属于需要调查的真实冲突。
 - Minor/Patch 固定为 `0..99`，不兼容任何历史下位分量 `100`；Cargo、状态 `target_version` 或发布日志中任一出现 `100` 都由 `check`、`plan`、`apply` 与 `finalize-release` 一致拒绝，没有可读取的旧值例外，必须先手动修正到 `0..99` 才能继续。
 - 版本只在合格变化已完成且本次相关测试通过后更新；普通构建、`pending` 候选、验收和失败发布只核对版本，不计算、不提升、不重置。
-- 只有 Git 发布真实成功后，在下一开发分支调用 `finalize-release` 复核默认主分支和 tag 后，才清空待发布变化并开启下一功能周期；历史 `bug-fix` 与纠错稳定 ID 始终保留，以阻止同一 ID 在未来周期重复提升。
+- 只有 Git 发布真实成功后，在下一开发分支调用 `finalize-release` 复核默认主分支和 tag 后，才清空待发布变化并开启下一功能周期；本次发布后本地打包或远端推送尚未执行、失败或待复核，都不阻断该复位，也不另切分功能周期。历史 `bug-fix` 与纠错稳定 ID 始终保留，以阻止同一 ID 在未来周期重复提升。
 
 版本变化与 Changelog 写入是独立门禁。Product Spec、ADR、Changelog 或 Work Plan 只有按自身事件独立触发时，才记录相关稳定 `change_id` 及门禁返回的 `required_version`。版本提升不为普通缺陷修复、纯重构或其他排除项创建 Changelog/ADR；较早变化记录的是其最低所需版本，最终发布版本可以因后续合格变化更高。真实记录冲突须先收集证据并确认，下一次下游升级时统一 Minor、修正记录、运行适用验证并完成 Git 发布；不能把低于最终版本的历史 `required_version` 当作冲突。
 
