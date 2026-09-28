@@ -214,4 +214,8 @@ test("local package choice requires an existing CLI or supported GUI package rou
   const rootLock = spawnSync("git", ["-C", f.root, "add", "Cargo.lock"], { encoding: "utf8" });
   assert.equal(rootLock.status, 0, rootLock.stderr);
   assert.match(f.run("check", [], 2).error, /空 workspace/u);
+  fs.writeFileSync(cargo, "[workspace]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \".\"\n");
+  assert.match(f.run("check", [], 2).error, /空 workspace/u);
+  fs.writeFileSync(cargo, "[workspace]\nmembers = [\"src-tauri\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \".\"\n");
+  assert.equal(f.run("check").status, "configured");
 });

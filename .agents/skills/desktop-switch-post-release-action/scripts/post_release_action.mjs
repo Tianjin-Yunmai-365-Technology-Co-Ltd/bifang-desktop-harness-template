@@ -213,7 +213,7 @@ function assertNonEmptyRustWorkspace(file, relative) {
   const rest = source.slice(workspace.index + workspace[0].length);
   const nextSection = /^\s*\[/mu.exec(rest);
   const section = rest.slice(0, nextSection?.index);
-  if (/^\s*members\s*=\s*\[\s*\]\s*(?:#.*)?$/mu.test(section)) {
+  if (!/^\s*members\s*=/mu.test(section) || /^\s*members\s*=\s*\[\s*\]\s*(?:#.*)?$/mu.test(section)) {
     throw new ActionError(`Rust 测试清单是空 workspace，须声明实际测试清单：${relative}`);
   }
 }
