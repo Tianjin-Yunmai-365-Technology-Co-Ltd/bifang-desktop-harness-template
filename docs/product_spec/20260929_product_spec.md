@@ -18,7 +18,7 @@
 - 主要场景：Agent 直接完成当前批准范围，并只运行本次开发所需的相关单元/回归测试；除必要 ADR、Changelog 等事件触发记录外，不自动增加持久计划、全仓检查、构建、冒烟、E2E、验收或人工复核步骤。
 - 失败闭环：开发单元测试失败时在当前授权范围内修复并重跑；发现产品边界、安全、破坏性操作、生产/付费/凭据副作用或发布授权缺失时，只增加解决该风险必需的确认或记录，不把它扩张成通用流程仪式。
 - 维护场景：已有下游项目可从明确的新版 Harness 来源安全升级工程治理部分，同时保护业务源码、产品记忆、身份、项目策略、许可证和本地修改。自动版本管理上线前的旧下游若缺少受保护的 `.harness/version-state.json`，工程层升级完成后必须停止自动流程并公开无法恢复的历史；只有用户明确批准，目标项目版本 Skill 才以当前合法 Cargo 版本建立空周期迁移基线，升级器本身始终不得写该状态。
-- Git 场景：新功能和独立 Bug 修复首次写入前建立本地受管 feature 分支。发布前明确要求推送时，`publish` 可普通合并登记分支并推送唯一主远端；逐一明确授权的补充远端可用重复 `--also-remote`，同一冻结 HEAD 和确认进度保证可重试。明确“发布”时整理并提交本次代码，绑定发布上下文 SHA-256，普通合并登记分支到本地默认主分支，创建、复读指向最终 HEAD 的版本 tag 后结束。发布不访问远端、不打包、不清理登记资源。随后按持久 `post_release_action` 执行现有本地打包流程，或把同一已发布 HEAD 放到本地小写 `release` 分支并非强制推送远端同名分支与 tag；复读通过后后续路径才结束。流程不创建远端/凭据，也不设置分支保护或严格线性。
+- Git 场景：新功能和独立 Bug 修复首次写入前建立本地受管 feature 分支。发布前明确要求推送时，`publish` 可普通合并登记分支并推送唯一主远端；逐一明确授权的补充远端可用重复 `--also-remote`，同一冻结 HEAD 和确认进度保证可重试。明确“发布”时整理并提交本次代码，绑定发布上下文 SHA-256，普通合并登记分支到本地默认主分支，创建、复读指向最终 HEAD 的版本 tag 后结束。发布不访问远端、不打包、不清理登记资源。下游随后按持久 `post_release_action` 执行本地打包，或把同一已发布 HEAD 放到本地小写 `release` 分支并非强制推送远端同名分支与 tag；Harness 源只执行用户当次授权的后续动作。复读通过后后续路径才结束。流程不创建远端/凭据，也不设置分支保护或严格线性。
 - 版本与发布场景：Harness 只在正式发布时按当前上海时区年月日时分确定唯一 `YYYYMMDDHHMM` 版本，日常工程变更不提升；`Released` 仅由登记分支合并后的本地默认主分支、版本 tag 与上下文复核判定。下游上一 Git 发布的主分支与 tag 确认后，下一条 feature 分支在首个改动前 `finalize-release`；新改动先判断是否疑似新需求，优先按 `feature`/Minor，确认没有新需求才考虑 `bug-fix`/Patch。同一事件或权威记录经证据确认有冲突时用独立 `record-reconciliation` 强制 Minor，跨周期稳定 ID 去重；当前 Harness 仅验证门禁，具体下游记录修正留待升级时执行。
 - Task 命名场景：只有左侧 user-owned Task 使用 `Task {序号} | {当前进度} | {单一结果}`；单一结果与序号固定，进度只取 `已分配`、`运行中`、`检查中`、`已完成`。同一 `hostId`/`projectId` 清点当前和逐页归档 Task 后取最大有效序号加一，空历史才使用 1、缺号不回填；不识别任何历史标题格式。内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不使用标题合同、不占用 Task 序号。
 - Task 场景：`user_owned_tasks` 默认 `disabled`，不自动创建或拆分左侧 Task，但用户明确要求仍可创建；`enabled` 是按结果边界自动创建的长期授权。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和独立工作区；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化必须新建 Task，同结果测试/review/checkpoint 与必要缺陷修复保留。每项目同时只允许一个写入型 active Task，Task0 仅协调。创建前依次核对项目、Task 历史和 active 写入者；Git 选择 Worktree，非 Git 选择 Local，以 `Task {序号} | 已分配 | {单一结果}` 调用一次 user-owned `create_thread`。只有真实 `threadId` 才继续，并复核标题、`projectId`、cwd、状态、干净工作区及起始提交；`clientThreadId` 或任一不符均零实现、不重复创建、不退化。
@@ -37,7 +37,7 @@
 ### 唯一 Git 发布与下游记录纠错门禁
 
 - 变更标识：`HARNESS-CHANGE-SINGLE-GIT-RELEASE-AND-RECONCILIATION-GATE`；所需 Harness 版本：`202609281202`，已在本次正式发布取号时物化。
-- Harness 和终端下游的 Git 发布均以受管分支合并到本地默认主分支、创建并复读指向最终 HEAD 的版本 tag 为结束条件。发布上下文不得保存本地/远端模式或候选打包选择；随后按持久选择进入现有本地打包流程或推送小写 `release` 分支与 tag，并检测所选结果。发布后保留登记的分支与 Worktree。
+- Harness 和终端下游的 Git 发布均以受管分支合并到本地默认主分支、创建并复读指向最终 HEAD 的版本 tag 为结束条件。发布上下文不得保存本地/远端模式或候选打包选择；下游随后按持久选择进入本地打包流程或推送小写 `release` 分支与 tag，Harness 源则按用户当次授权执行后续动作，并检测所选结果。发布后保留登记的分支与 Worktree。
 - 下游在下一条开发分支首次新改动前，以已发布主分支和 tag 复核 `finalize-release`。对经证据确认的同一事件、周期状态或 Git 发布事实冲突，使用稳定纠错 ID 走 `record-reconciliation`，本周期首次纠错强制提升 Minor；同 ID 同证据跨周期幂等，证据漂移阻断。Harness 当前只验证可传给下游的规则和门禁；具体冲突记录、完整验证和 Git 发布在该下游真实升级时完成。
 
 ### Harness 模板源请求边界
@@ -56,7 +56,7 @@
 - 可选远端 Git 发布历史标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，其 `gitPublication` 双模式已被本次唯一 Git 发布决定取代，远端操作改为发布后的独立用户请求。
 - 初始化仍只创建无远端的本地主分支基线。远端由用户或外部系统另行配置，但新功能和独立 Bug 修复的本地开发分支创建不依赖远端。`$desktop-manage-git-lifecycle start` 自动建立并切换 `feature-{ascii-kebab-summary}-{YYYYMMDD}`，日期取 `Asia/Shanghai`，碰撞时追加稳定递增后缀，同一工作幂等复用。
 - Git common dir 的 `agent-first-harness/git-lifecycle.json` 使用 schema v4，精确登记本周期分支、Worktree、pending、已发布版本/tag/最终 HEAD/默认主分支及当次冻结的发布后动作。合法且静止的 v2/v3 状态可迁移；有未完成推送或发布的旧状态失败关闭。`release` 不清理已登记资源；`releasedResources` 保留其精确身份。发布前 `publish` 的未完成多远端推送仍由 `pendingPublish` 冻结 HEAD、目标顺序和确认进度。并行写入只要求文件所有权不重叠，允许普通 merge commit，不设置线性、fast-forward-only、lease 或 atomic push 门禁。
-- 用户在发布前明确“推送”时，`publish` 普通合并登记分支并推送、复读主远端，按逐一授权可另推补充远端；不创建 tag。明确“发布”时，`release` 接收 `--release-context-sha256 <sha256>`，在任何副作用前复核上下文及 version/date/expectedTag/defaultBranch，普通合并本地默认主分支，创建并复读指向最终 HEAD 的本地 tag 即结束。发布开始时冻结 `post_release_action`，发布后按该次快照执行现有本地打包，或用 `push-release` 把同一 HEAD 放到本地及远端小写 `release` 分支并推送 tag；所选结果必须复核。发布不自动清理资源。
+- 用户在发布前明确“推送”时，`publish` 普通合并登记分支并推送、复读主远端，按逐一授权可另推补充远端；不创建 tag。明确“发布”时，`release` 接收 `--release-context-sha256 <sha256>`，在任何副作用前复核上下文及 version/date/expectedTag/defaultBranch，普通合并本地默认主分支，创建并复读指向最终 HEAD 的本地 tag 即结束。对下游项目，发布开始时冻结 `post_release_action`，发布后按该次快照执行现有本地打包，或用 `push-release` 把同一 HEAD 放到本地及远端小写 `release` 分支并推送 tag；Harness 源按用户当次授权选择后续动作。所选结果必须复核。发布不自动清理资源。
 - `release` 可从关联 Task Worktree 发起，但必须先在调用 Worktree 校验当前 HEAD 的上下文 blob 与 working bytes，再路由主 Worktree；本地整合后，最终 HEAD 中同一路径 blob 仍须等于传入摘要，不能先切换后误读旧上下文。
 
 ### GUI 官方插件 Skills、三项 Rust-only 固定基线与九字段选择
