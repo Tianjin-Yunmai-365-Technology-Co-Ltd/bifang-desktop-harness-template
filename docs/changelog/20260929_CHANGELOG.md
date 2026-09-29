@@ -90,7 +90,7 @@
 
 ## 变更
 
-- `HARNESS-CHANGE-IGNORE-PROJECT-LOCKFILES`（所需 Harness 时间版本于正式发布时取号）：Harness 源和新建下游忽略 `Cargo.lock`、`pnpm-lock.yaml`，并兼容忽略反馈中的 `pnpm-package.lock` 名称；中性 Rust 资产不再提交锁文件。初始化、发布后动作选择及本地/远程候选构建不再要求项目锁文件存在或受 Git 跟踪，也不使用项目 `--locked`/冻结安装门禁。清单兼容下界、最低工具链测试和候选真实性检查保持适用。
+- `HARNESS-CHANGE-IGNORE-PROJECT-LOCKFILES`（required_version = 202609291534）：Harness 源和新建下游忽略 `Cargo.lock`、`pnpm-lock.yaml`，并兼容忽略反馈中的 `pnpm-package.lock` 名称；中性 Rust 资产不再提交锁文件。初始化、发布后动作选择及本地/远程候选构建不再要求项目锁文件存在或受 Git 跟踪，也不使用项目 `--locked`/冻结安装门禁。清单兼容下界、最低工具链测试和候选真实性检查保持适用。
 
 - `HARNESS-CHANGE-COMPATIBLE-OWNERSHIP-REPAIR`（`required_version = 202609290958`）：旧下游所有权清单只缺新增 Skill 的显式 `managed` 规则、而已有通用规则赋予相同所有权且无冲突规则时，升级器允许生成三方计划并列出待补规则；应用候选清单和记录升级基线前仍严格要求补齐。已有显式冲突或受保护路径缺失继续失败关闭。
 

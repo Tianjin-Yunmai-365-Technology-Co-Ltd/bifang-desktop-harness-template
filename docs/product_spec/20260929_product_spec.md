@@ -30,7 +30,7 @@
 
 ### 项目依赖锁文件的交付边界
 
-- 变更标识：`HARNESS-CHANGE-IGNORE-PROJECT-LOCKFILES`；所需 Harness 时间版本在正式发布时取号。
+- 变更标识：`HARNESS-CHANGE-IGNORE-PROJECT-LOCKFILES`；所需 Harness 版本：`202609291534`（本次正式发布取号）。
 - Harness 源及新建下游的 Git 忽略规则覆盖 `Cargo.lock`、`pnpm-lock.yaml`，并兼容反馈中的 `pnpm-package.lock` 名称；中性资产不提交项目锁文件。初始化、发布后动作选择和本地/远程候选流程不得要求项目锁文件存在、被 Git 跟踪或使用锁文件专属的冻结解析门禁。
 - 工具可在本地生成被忽略的解析结果；项目兼容性仍由清单直接依赖下界、最低工具链解析与相关测试证明。未提交锁文件时，相同源码在不同时点可能解析到不同的传递依赖版本，不得据此声称依赖图或构建字节可复现。
 
@@ -437,7 +437,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202609290958`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。发布后按已确认的 `post_release_action` 执行并检测所选路径。
+- 当前版本：`202609291534`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
