@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "e7c511cfd5be978deaa36b6d1b2b4464704a756d",
-  "version": "202609281857",
-  "releaseDate": "2026-09-28",
-  "expectedTag": "v202609281857-20260928",
+  "sourceHead": "82e9dca420adbc1ce41b1daaa488f04ea12ea485",
+  "version": "202609290958",
+  "releaseDate": "2026-09-29",
+  "expectedTag": "v202609290958-20260929",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "165977277c51b3fcb13738a9718d74f6058459c3",
-    "sourceHead": "e7c511cfd5be978deaa36b6d1b2b4464704a756d",
-    "scopeDiffSha256": "04c1d6fc0f8720a994328fafc5bebeaae79b84833074415f516e52f0523c3985",
-    "reviewedSourceCommit": "e7c511cfd5be978deaa36b6d1b2b4464704a756d",
+    "scopeBase": "c14eff6448e9f2f758835c1ffe821556dc8fc07f",
+    "sourceHead": "82e9dca420adbc1ce41b1daaa488f04ea12ea485",
+    "scopeDiffSha256": "b211b963b7dadbd7be3f90e61baec53de2bf1d2ac92c04444094741f74f15d66",
+    "reviewedSourceCommit": "82e9dca420adbc1ce41b1daaa488f04ea12ea485",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed 1659772..e7c511c for behavior, core/adapter boundaries, external contracts, size, and temporary markers. Fixed three release gate defects. 875 Node tests passed; 14 platform skips. 25 nonblocking size/fixture warnings assessed.",
+    "evidenceSummary": "Passed cumulative source diff review: behavior and tests, core versus adapter ownership, external upgrade contract, module responsibility and size, and temporary markers. Full Node suite passed 878 with 14 platform skips; Harness hard gate and release review passed. Existing review warnings are outside this change.",
     "reason": null,
     "remainingRisk": null
   }

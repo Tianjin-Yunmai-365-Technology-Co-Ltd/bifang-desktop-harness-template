@@ -2,6 +2,22 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-29",
+      "version": "v202609290958",
+      "featureOptimizations": [
+        {
+          "zh-CN": "旧下游所有权清单仅缺新增 Skill 的显式 managed 规则、且通用规则已授予相同所有权时，升级器现在可生成三方计划并列出修复项；记录基线前仍须补齐清单。",
+          "en-US": "The upgrader now plans against legacy ownership manifests missing a new Skill-specific managed rule when a generic rule already grants the same ownership. It lists the repair and requires the manifest to be fixed before recording a baseline."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复上游 Python 检查器将已发布更新日志中的历史描述误判为活动解释器命令的问题。",
+          "en-US": "Fixed the upstream Python gate misclassifying historical descriptions in published release notes as active interpreter commands."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-09-28",
       "version": "v202609281857",
       "featureOptimizations": [
