@@ -112,7 +112,7 @@ function readMsrv() {
 
 /** 从 Cargo metadata 验证目标二进制的唯一版本。 */
 function verifyVersion() {
-  const metadata = JSON.parse(run("cargo", ["metadata", "--locked", "--format-version", "1", "--no-deps"]).stdout);
+  const metadata = JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps"]).stdout);
   const product = environment("PRODUCT_NAME");
   const versions = [...new Set(metadata.packages
     .filter((pkg) => pkg.targets.some((target) => target.name === product && target.kind.includes("bin")))
@@ -137,7 +137,7 @@ function hashReleaseNotes() {
 function listTests() {
   const result = run(
     "cargo",
-    ["test", "--workspace", "--all-targets", "--all-features", "--locked", "--", "--list"],
+    ["test", "--workspace", "--all-targets", "--all-features", "--", "--list"],
     { check: false },
   );
   process.stdout.write(result.stdout);

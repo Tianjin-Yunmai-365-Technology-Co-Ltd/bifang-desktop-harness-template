@@ -301,7 +301,7 @@ const STREAMLINED_ENTRIES = [
   ["e2eSkill", ["当前构建选择为 `enabled`", "e2e_hint` 不能替代当前构建选择", "完整真实最终产物", "没有 Work Plan 不阻断 E2E", "返回 `$desktop-implement-change` 增加回归测试"]],
   ["buildReleaseSkill", [
     "本次请求已明确 `enabled`/`disabled` 时直接复用", "否则在任何测试或编译前询问用户一次", "只强制运行项目全部非空单元测试",
-    "cargo test --workspace --all-targets --all-features --locked", "不得在构建名义下自动追加格式、lint、中文注释或其他开发门禁",
+    "cargo test --workspace --all-targets --all-features", "不得在构建名义下自动追加格式、lint、中文注释或其他开发门禁",
     "不得因显式构建、缺少/过期环境证据", "并重试原失败命令一次", "e2eSelection",
     "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "最终字节和清单形成后立即交给 `$desktop-verify-delivery`",
   ]],
@@ -309,12 +309,12 @@ const STREAMLINED_ENTRIES = [
     "本次请求已明确 `enabled`/`disabled` 时直接复用", "否则在任何测试或编译前询问用户一次",
     "发布审查只从上下文读取", "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`",
     "锁定为本次构建选择并在候选 manifest 中记录", "打包前只先运行项目全部非空单元测试",
-    "cargo test --workspace --all-targets --all-features --locked", "前端必须运行 `package.json` 与锁文件实际声明的完整单元测试套件",
+    "cargo test --workspace --all-targets --all-features", "前端必须运行 `package.json` 声明的完整单元测试套件",
     "不得自动追加格式、lint、类型、中文注释、`dist` 扫描或其他开发门禁", "初始化后的构建不做例行环境预检",
     "只有某条命令已经失败", "并重试原命令一次", "e2eSelection",
     "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "最终字节形成后立即交给 `$desktop-verify-delivery`",
   ]],
-  ["crossPlatformReleaseSkill", ["e2e_selection", "cargo test --workspace --all-targets --all-features --locked", "不得自动追加格式、lint 或其他开发门禁", "e2eSelection", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "矩阵本身不得运行 E2E"]],
+  ["crossPlatformReleaseSkill", ["e2e_selection", "cargo test --workspace --all-targets --all-features", "不得自动追加格式、lint 或其他开发门禁", "e2eSelection", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "矩阵本身不得运行 E2E"]],
   ["collectReleaseSkill", ["e2eSelection", "发布上下文 `verify`", "锁定 clean 当前 HEAD、`releaseContextSha256`", "候选选择则与原始构建 manifest 及声明的构建证据一致", "再次运行发布上下文 `verify`", "不重新构建、签名、执行或发布候选", "收集过程绝不得自行启动冒烟/E2E", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification"]],
   ["prepareReleaseSkill", ["本地默认主分支和版本 tag 指向同一最终提交后，Git 发布即结束", "上下文只冻结版本、日期、默认主分支、预期 tag、源码身份与审查结论", "不保存推送模式、远端、候选签名或打包选择", "不访问远端、不推送、不打包", "读取生命周期记录里该次冻结的 `postReleaseAction`，执行并检测后续路径"]],
   ["engineeringRules", [

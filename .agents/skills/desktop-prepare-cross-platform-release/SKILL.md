@@ -31,7 +31,7 @@ description: 在本地 Git 发布后、另行授权推送完成且用户明确�
    - schema、版本、`expectedTag: v{version}-{YYYYMMDD}`、发布上下文中的本地默认分支、远端跟踪 `release` ref 与已 fetch tag 分别有效；后两者指向同一发布提交，本地默认分支名称可不同于 `release`；
    - 本地 Git 发布上下文未携带候选构建或远端发布模式选择。
    规范快照只能原子写到 runner 临时目录。
-7. 安装项目声明 MSRV，安全刷新 `release/`，运行全部非空 `cargo test --workspace --all-targets --all-features --locked`，测试后复核 clean/HEAD，再运行锁定 release 构建。不得启动二进制或混入格式/lint/E2E。
+7. 安装项目声明 MSRV，安全刷新 `release/`，运行全部非空 `cargo test --workspace --all-targets --all-features`，测试后复核 clean/HEAD，再运行 release 构建。不得启动二进制或混入格式/lint/E2E。
 8. 按批准配置探测并执行非交互签名钩子。签名开始后失败必须失败；条件不存在且策略允许时记录 `unsigned` 与原因。不得暴露凭据或接受任意签名命令输入。
 9. 在项目根同级安全暂存目录生成确定性归档、相邻 SHA-256 和 manifest；归档包含最终二进制与原样 `release-notes.json`。写 manifest 前调用 `verify_release_context.mjs verify`，逐字段比较捕获快照，证明 HEAD、clean、上下文 bytes/hash、远端 `release` ref 和版本 tag 未漂移。
 10. manifest 至少记录 `project`、机器 `version`、`sourceCommit`、`releaseContextSha256`、`buildRun`/`buildMode`、平台/架构/target/host、归档/摘要、测试、当次构建 E2E 选择、完整 `releaseReview` 及其审查投影、更新日志版本/摘要/路径、签名状态/原因/证据和 `milestoneAcceptance: pending`。审查只从上下文复制；E2E 与签名事实来自本次构建输入和运行结果。

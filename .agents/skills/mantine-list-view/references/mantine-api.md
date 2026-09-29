@@ -1,6 +1,6 @@
 # Mantine 与 Query API 边界
 
-本参考于 2026-09-19 对照 Mantine `9.6.1` 与 TanStack Query v5 文档复核。模板使用 `Pagination layout="responsive"`、`formatLabel`、`getItemProps`、`getControlProps` 和 Query v5 `placeholderData(previousData, previousQuery)`，因此直接复制的兼容下界是 `@mantine/core >=9.6.1 <10`、`@tanstack/react-query >=5.102.8 <6`。下游仍使用带完整三段下界的 caret 与锁文件；低于下界时必须先升级，或实现并测试语义等价 fallback。
+本参考于 2026-09-19 对照 Mantine `9.6.1` 与 TanStack Query v5 文档复核。模板使用 `Pagination layout="responsive"`、`formatLabel`、`getItemProps`、`getControlProps` 和 Query v5 `placeholderData(previousData, previousQuery)`，因此直接复制的兼容下界是 `@mantine/core >=9.6.1 <10`、`@tanstack/react-query >=5.102.8 <6`。下游仍使用带完整三段下界的 caret 范围，生成的锁文件由 Git 忽略；低于下界时必须先升级，或实现并测试语义等价 fallback。
 
 ## Table 与滚动区
 
@@ -85,6 +85,6 @@ useQuery({
 
 ## 依赖
 
-模板额外使用 `@tabler/icons-react`、`@dnd-kit/core` 和 `@dnd-kit/sortable`。只有实际生成列表页时才把所需直接依赖写入下游 `package.json` 与锁文件；禁止依赖全局安装或未声明的传递依赖，也不为简单 transform 增加 `@dnd-kit/utilities`。
+模板额外使用 `@tabler/icons-react`、`@dnd-kit/core` 和 `@dnd-kit/sortable`。只有实际生成列表页时才把所需直接依赖写入下游 `package.json`；禁止依赖全局安装或未声明的传递依赖，也不为简单 transform 增加 `@dnd-kit/utilities`。
 
 `ListPage.contracts.test.ts` 使用 Node 原生 assert 与显式 `.ts` 导入，直接执行 `node --experimental-strip-types ListPage.contracts.test.ts`。若项目把该测试纳入 `tsc`，其测试 tsconfig 必须启用 `allowImportingTsExtensions`；产品源码 typecheck 与这条可执行契约都要运行。

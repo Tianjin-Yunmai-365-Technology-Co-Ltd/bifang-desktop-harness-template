@@ -201,11 +201,6 @@ function checkedProjectPath(root, relative, label, directory = false) {
   return cursor;
 }
 
-function assertTracked(root, relative, label) {
-  const result = spawnSync("git", ["-C", root, "ls-files", "--error-unmatch", "--", relative], { encoding: "utf8" });
-  if (result.status !== 0) throw new ActionError(`${label} 必须受 Git 跟踪：${relative}`);
-}
-
 function assertNonEmptyRustWorkspace(file, relative) {
   const source = fs.readFileSync(file, "utf8");
   const workspace = /^\s*\[workspace\]\s*$/mu.exec(source);
@@ -223,9 +218,6 @@ function assertGuiPackageReady(root) {
   const gui = checkedProjectPath(root, relative, "GUI 根目录", true);
   const guiFile = (name, label) => checkedProjectPath(root, path.posix.join(relative, name), label);
   const packageFile = guiFile("package.json", "GUI package.json");
-  const lockRelative = path.posix.join(relative, "pnpm-lock.yaml");
-  guiFile("pnpm-lock.yaml", "GUI pnpm-lock.yaml");
-  assertTracked(root, lockRelative, "GUI pnpm-lock.yaml");
   guiFile("src-tauri/tauri.conf.json", "Tauri 配置");
   let packageJson;
   try { packageJson = JSON.parse(fs.readFileSync(packageFile, "utf8")); }
@@ -242,9 +234,6 @@ function assertGuiPackageReady(root) {
     if (path.posix.basename(file) !== "Cargo.toml") throw new ActionError("rust-test-manifests 只能指向 Cargo.toml");
     const manifestPath = checkedProjectPath(root, file, "Rust 测试清单");
     assertNonEmptyRustWorkspace(manifestPath, file);
-    const lock = path.posix.join(path.posix.dirname(file), "Cargo.lock");
-    checkedProjectPath(root, lock, "Rust Cargo.lock");
-    assertTracked(root, lock, "Rust Cargo.lock");
   }
   if (relative !== "." && !gui.startsWith(`${root}${path.sep}`)) throw new ActionError("GUI 根目录越出项目");
 }

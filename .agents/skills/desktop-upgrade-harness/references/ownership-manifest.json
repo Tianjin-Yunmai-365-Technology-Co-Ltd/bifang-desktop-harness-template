@@ -31,7 +31,6 @@
     {"pattern": "LICENSE.zh-CN.md", "mode": "protected"},
     {"pattern": "LICENSE.en.md", "mode": "protected"},
     {"pattern": "Cargo.toml", "mode": "protected"},
-    {"pattern": "Cargo.lock", "mode": "protected"},
     {"pattern": ".gitignore", "mode": "protected"},
 
     {"pattern": "AGENTS.md", "mode": "merge-sections"},

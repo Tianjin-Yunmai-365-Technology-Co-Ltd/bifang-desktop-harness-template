@@ -31,7 +31,7 @@ export function coreFirstRequirements() {
       "违反宿主能力约束",
       "workspace 依赖路径",
       "scripts/check_core_first.mjs",
-      "cargo metadata --no-deps --locked --format-version 1",
+      "cargo metadata --no-deps --format-version 1",
       "命中 `$mantine-list-view` 的列表页是封闭例外",
       "逐列表 schemaVersion 只保存在 payload",
     ]),

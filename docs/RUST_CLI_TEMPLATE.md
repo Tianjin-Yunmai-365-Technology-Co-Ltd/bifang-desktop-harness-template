@@ -78,7 +78,7 @@
 | MSRV | `1.98.1` | 根工作区写入 `rust-version = "1.98.1"`，表示最低兼容版本；接受 1.98.1 及以上稳定版，不要求精确等于 1.98.1；Rust 无 LTS 通道，本门槛跟随本次核验的当前 stable |
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
 | 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor、归零 Patch 并锁到真实发布成功，问题修复或用户可感知优化以新稳定 ID 和 `bug-fix` 升 Patch 且不受功能锁影响；新生成 Minor/Patch 为 `0..99` 并按 base-100 自动进位，Major 不受 99/100 的业务上限约束但不得超过 Cargo `u64::MAX`，显式 Major 仍仅由用户批准 |
-| 锁文件 | 提交根 `Cargo.lock` | 使用 Cargo 生成；不得手工编辑 |
+| 项目锁文件 | `Cargo.lock`、GUI 的 `pnpm-lock.yaml` 与 `pnpm-package.lock` 均由 Git 忽略 | 标准锁文件可在本地正常解析时生成；不要求存在或提交，不得手工编辑，也不作为门禁 |
 | Git | 全部初始化：稳定版 `>=2.36.0` | 完整表单确认后检查；覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`，缺失时按受管平台方式安装，可证明低于下界时升级，范围内稳定版原样复用，随后复探 |
 | Node.js | 所有接口：`>=24.21.0` | Harness 与下游固定 helper 的工程运行时；缺失或低于 24.21.0 时安装/升级到官方当前最高 LTS 线的最新补丁，24.21.0 及任何更高正式版本原样复用 |
 | pnpm | 仅 GUI：`>=12.4.1` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，非 GUI 为 `not-required` |
@@ -113,7 +113,7 @@ pnpm --version
 .agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
 ```
 
-成功输出必须包含 `gate.git.status=passed`、`gate.rust.status=passed` 与 `gate.node.requirement=>=24.21.0`；Rust 门禁接受 1.98.1 及以上稳定版，Node.js 对全部接口组合适用。Windows 还必须包含 `gate.msvc.status=passed`，GUI 另外要求 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.21.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退依赖或锁文件、注入 shim，或寻找替代工具链来适配旧环境。
+成功输出必须包含 `gate.git.status=passed`、`gate.rust.status=passed` 与 `gate.node.requirement=>=24.21.0`；Rust 门禁接受 1.98.1 及以上稳定版，Node.js 对全部接口组合适用。Windows 还必须包含 `gate.msvc.status=passed`，GUI 另外要求 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.21.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim，或寻找替代工具链来适配旧环境。
 
 ## 默认依赖
 
@@ -146,7 +146,7 @@ tokio = { version = "1.53.1", default-features = false, features = ["macros", "r
 - 核心的异步测试可以通过开发依赖使用工作区 Tokio，但这不构成核心的生产运行时依赖。
 - CLI 黑盒测试使用 `assert_cmd`；需要额外断言库时再加入。
 - 不为中性脚手架默认增加 Axum/Tower、SeaORM、tracing 生态、OpenTelemetry、anyhow、thiserror、config-rs/notify、协议文档、GraphQL、MongoDB/Redis、认证、网络客户端、依赖注入或插件系统；对应能力获批并出现真实使用路径时，必须采用上述固定技术族并从根工作区按需加入。
-- Ratatui、tui-realm、tui-realm-stdlib、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query 与 Jotai 只在对应适配器被选中时加入；根 Rust 工作区统一 Rust 依赖，前端包清单与锁文件统一 JavaScript/TypeScript 依赖。
+- Ratatui、tui-realm、tui-realm-stdlib、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query 与 Jotai 只在对应适配器被选中时加入；根 Rust 工作区统一 Rust 依赖，前端 `package.json` 声明 JavaScript/TypeScript 依赖。
 
 ## 依赖准入
 
@@ -155,9 +155,9 @@ tokio = { version = "1.53.1", default-features = false, features = ["macros", "r
 - 创建下游、增加能力或主动变更依赖时，先查询官方 registry 当前最新的非预发布、非 yanked 候选，再验证实际 API/feature、Rust 1.98.1 MSRV、peer、Windows/macOS/Linux 与安全门槛；验证通过的最高兼容稳定版成为新的直接依赖下界。清单只表达兼容范围，不写字面量 `latest`。
 - Rust registry 直接依赖必须写成包含完整三段下界的 Cargo 兼容要求，例如 `serde = "1.0.203"` 使用 Cargo 默认 caret 语义；普通依赖禁止精确 `=1.0.203`、`*`、无下界范围、tag 或未经批准的 Git revision。内部 path 依赖仍由根 workspace 统一声明，不虚构 registry 版本。
 - 前端 `dependencies`/`devDependencies` 必须使用包含完整三段下界的 caret，或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符或无下界范围。Node.js/pnpm 的兼容事实写入 `engines` 范围；cargo-xwin 等带 SemVer 的受管工具同样使用包含完整下界的兼容范围。旧式精确 `packageManager` 字段不得充当兼容门禁。
-- `Cargo.toml`/`package.json` 表达兼容下界，根锁文件固定正常解析得到的实际版本。锁文件由对应工具生成且提交，不得手工编辑；已安装工具处于支持范围内时直接复用，不因不是最新版而升级。
-- 新增或提高 Rust 直接下界时，在临时副本中执行 `cargo +nightly update -Zdirect-minimal-versions`，再用根 `Cargo.toml` 声明的最低 Rust 工具链运行受影响的非空测试；该不稳定 Cargo 子命令只用于验证，不成为生产构建依赖。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。最低版本验证不能覆盖日常提交的正常锁文件。
-- 只有使用到新 API/feature、修复安全或平台兼容问题，且提高后的下界通过相同验证时，才提高最低版本。日常任务不为追逐版本号自动改写已验证锁文件；依赖更新只运行本次必要单元/回归测试。用户显式请求发布候选构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁；Windows 本地开发试包不解析 E2E 选择。
+- `Cargo.toml`/`package.json` 表达兼容下界；`Cargo.lock`/`pnpm-lock.yaml` 可由对应工具在本地生成；两者及 `pnpm-package.lock` 在 Harness 源和终端下游均由 Git 忽略，不要求存在或受跟踪。已安装工具处于支持范围内时直接复用，不因不是最新版而升级。
+- 新增或提高 Rust 直接下界时，在临时副本中执行 `cargo +nightly update -Zdirect-minimal-versions`，再用根 `Cargo.toml` 声明的最低 Rust 工具链运行受影响的非空测试；该不稳定 Cargo 子命令只用于验证，不成为生产构建依赖。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。最低版本验证不依赖提交项目锁文件。
+- 只有使用到新 API/feature、修复安全或平台兼容问题，且提高后的下界通过相同验证时，才提高最低版本。日常任务不为追逐版本号自动改写清单依赖；依赖更新只运行本次必要单元/回归测试。用户显式请求发布候选构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁；Windows 本地开发试包不解析 E2E 选择。
 
 新增或替换依赖前必须记录：
 
@@ -169,13 +169,12 @@ tokio = { version = "1.53.1", default-features = false, features = ["macros", "r
 
 固定 Rust、TUI 与 React 技术族不参与“是否采用其他框架”的推荐，只核验能力是否真实需要、哪个当前最新兼容稳定候选和最小特性/包集合能够通过验证。若最新候选无法满足 Rust 1.98.1、Node.js/pnpm、peer、目标 WebView、三平台或安全门槛，按版本从新到旧选择第一个通过的稳定版并记录原因；仍无组合时报告阻塞，不得盲装 registry latest 或静默换框架。
 
-所有第三方依赖和工作区内 crate 路径都集中在根 `[workspace.dependencies]`，成员的生产、开发和构建依赖只使用 `workspace = true`，不得重复版本、软件包仓库/Git 来源、路径或基线特性。提交根 `Cargo.lock`，验证使用 `--locked`；不得仅凭较新 Rust 编译成功推断 MSRV 仍然成立。
+所有第三方依赖和工作区内 crate 路径都集中在根 `[workspace.dependencies]`，成员的生产、开发和构建依赖只使用 `workspace = true`，不得重复版本、软件包仓库/Git 来源、路径或基线特性。项目 `Cargo.lock` 由 Git 忽略，验证不使用项目 `--locked` 门禁；不得仅凭较新 Rust 编译成功推断 MSRV 仍然成立。
 
 ## 推荐目录
 
 ```text
 Cargo.toml                 初始化时创建的 workspace 根、版本、全部 members 和共享依赖
-Cargo.lock
 <项目标识>_core/
   Cargo.toml
   src/lib.rs               Draft 时为中性状态；获批实现后为业务规则、领域类型和领域错误
@@ -228,22 +227,22 @@ example_tool_core.workspace = true
 
 ## 初始化与当前平台验证
 
-`assets/rust-lib-cli/` 是共享核心 + 默认 CLI 的中性验证资产。CLI 被选中或使用空选择默认值时可整体采用；显式未选 CLI 时只采用核心结构，并由各接口 Skill 创建所选成员。由 Cargo 生成锁文件。真实项目存在后运行：
+`assets/rust-lib-cli/` 是共享核心 + 默认 CLI 的中性验证资产。CLI 被选中或使用空选择默认值时可整体采用；显式未选 CLI 时只采用核心结构，并由各接口 Skill 创建所选成员。Cargo 在本地解析时可生成被 Git 忽略的锁文件，验证不要求该文件预先存在。真实项目存在后运行：
 
 ```text
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-targets --all-features --locked
-cargo build --workspace --release --locked
+cargo test --workspace --all-targets --all-features
+cargo build --workspace --release
 ```
 
-此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须读取根 `Cargo.toml` 的 `rust-version`，并使用该声明的最低 Rust 工具链（当前模板为 1.98.1）实际执行至少锁定依赖检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须固定为模板当前下界。较新编译器成功不能替代最低版本证据。
+此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须读取根 `Cargo.toml` 的 `rust-version`，并使用该声明的最低 Rust 工具链（当前模板为 1.98.1）实际执行至少清单依赖解析检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须固定为模板当前下界。较新编译器成功不能替代最低版本证据。
 
 此外必须：
 
 - 中性阶段确认测试数量非零，覆盖核心状态与每个所选适配器；选择 CLI 时覆盖 `productDefinitionRequired=true` 与拒绝未批准业务命令。
 - 从 Cargo workspace 根运行 `node .agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs --root . --json`；它必须扫描所有 member 的 `build.rs`、`src/` 与 `tests/`，并以退出码 0/1/2 区分通过、声明违规和运行错误。非 GUI 项目不适用 TypeScript 注释门禁；GUI 项目还按 React 前端基线从 GUI 前端根运行 AST 门禁。
-- 使用 `cargo metadata --no-deps --locked --format-version 1` 或项目保留的等价检查确认每个适配器直接依赖核心、核心不通过 workspace 依赖路径到达适配器或接口框架、适配器彼此不直接或间接依赖；随后运行 `node .agents/skills/desktop-implement-change/scripts/check_core_first.mjs --workspace-root .` 复核同一图，不得依赖 POSIX 可执行位或替代解释器。
+- 使用 `cargo metadata --no-deps --format-version 1` 或项目保留的等价检查确认每个适配器直接依赖核心、核心不通过 workspace 依赖路径到达适配器或接口框架、适配器彼此不直接或间接依赖；随后运行 `node .agents/skills/desktop-implement-change/scripts/check_core_first.mjs --workspace-root .` 复核同一图，不得依赖 POSIX 可执行位或替代解释器。
 - 确认核心异步路径和 CLI Tokio 入口均被实际执行；不得只编译未调用的异步代码。
 - 通过真实 CLI 黑盒测试验证 JSON 信封、标准输出/标准错误、退出码和非交互行为。
 - 从 Cargo 元数据和配置解析二进制文件与目标目录，不根据仓库文件夹名猜测。
@@ -287,18 +286,18 @@ cargo build --workspace --release --locked
 - `$desktop-build-rust-release` 按 Git 发布后已确认的 `local_package` 路径或用户另行明确的候选请求编排 Rust CLI 候选：普通本机构建不访问远端或调用 provider，只形成当前宿主候选；用户另行要求跨平台矩阵且远端 `release` 分支与 tag 已复核为同一发布 HEAD 后，才使用 Windows、macOS、Linux 原生矩阵。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，TUI/MCP 仍使用各自适配器 Skill 的构建与产物门槛。
 - `$desktop-build-tauri-release` 在 macOS 上原生构建 DMG，在 Windows 上原生构建 x64 NSIS，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 从 macOS 交叉构建 Windows x64 NSIS。原生 Windows 路线不使用 `cargo-xwin`，且构建成功本身不等于安装或运行验收。macOS DMG 构建在测试前校验项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的摘要和 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，并在最终字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；headless CI 不得无界等待 Finder AppleScript。xwin 路径不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生运行验证。
 - macOS Tauri 直接分发先解析签名意图：只有产品/渠道已有批准的持久签名公证配置、本次用户主动要求或渠道硬要求时，`macosSigningSelection` 才为 `enabled`；否则固定 `disabled/not-requested`，不探测本机身份/凭据并显式 `--no-sign`。启用后才检查 Developer ID Application、`notarytool`、`stapler` 和完整 Apple 公证凭据，并把签名、公证、stapling 作为全有或全无门禁；不得用 `--skip-stapling`，任一步失败不得静默降级。
-- 每次明确的 Git 发布先由 `$desktop-prepare-release` 在任何发布元数据提交前解析当次 `reviewSelection`；GUI 的 macOS 签名和 E2E 选择只在后续独立候选构建请求中解析。源码/治理变化单独提交并锁定 `sourceHead` 后，把版本、日期、默认主分支、预期 tag、源码身份与审查结论写入 `.harness/release-context.json`，再与根 `release-notes.json` 作为同一个精确范围的发布元数据提交，不混入源码、Changelog 或其他治理文件。`$desktop-manage-git-lifecycle release ... --release-context-sha256 <sha256>` 在任何 Git 副作用前校验上下文，普通合并登记分支到本地默认主分支、创建并复读本地 `v{版本}-{YYYYMMDD}`；两者指向最终 HEAD 时 Git 发布结束。该命令不 fetch、push、打包或清理登记 Worktree/分支。随后按 `post_release_action` 进入现有本地打包流程或 `push-release` 的远端 `release` 分支路径，并复核所选结果。终端下游 Rust/Tauri 候选构建在该 clean 主分支上，于清理、测试前和写 manifest 前只读校验发布上下文、本地 tag；远程矩阵还须复核远端 `release` 分支/tag，缺少合格上下文时不得由构建入口补写。`e2e_hint` 只提供 E2E 建议默认值。日常 Task/Worktree 整合不询问、不运行非必要语义审查，也不受保护分支、严格线性、单写入者或历史形态限制；只保留范围、秘密、测试和 clean 等数据安全检查。候选构建必须用 `cargo test --workspace --all-targets --all-features --locked -- --list` 或等价方式确认非空，再运行 `cargo test --workspace --all-targets --all-features --locked`；GUI 同时运行前端完整单元测试套件。失败或零测试阻断候选。本地开发试包也运行同样的非空全量单元测试，但不消费候选 E2E/审查选择。
+- 每次明确的 Git 发布先由 `$desktop-prepare-release` 在任何发布元数据提交前解析当次 `reviewSelection`；GUI 的 macOS 签名和 E2E 选择只在后续独立候选构建请求中解析。源码/治理变化单独提交并锁定 `sourceHead` 后，把版本、日期、默认主分支、预期 tag、源码身份与审查结论写入 `.harness/release-context.json`，再与根 `release-notes.json` 作为同一个精确范围的发布元数据提交，不混入源码、Changelog 或其他治理文件。`$desktop-manage-git-lifecycle release ... --release-context-sha256 <sha256>` 在任何 Git 副作用前校验上下文，普通合并登记分支到本地默认主分支、创建并复读本地 `v{版本}-{YYYYMMDD}`；两者指向最终 HEAD 时 Git 发布结束。该命令不 fetch、push、打包或清理登记 Worktree/分支。随后按 `post_release_action` 进入现有本地打包流程或 `push-release` 的远端 `release` 分支路径，并复核所选结果。终端下游 Rust/Tauri 候选构建在该 clean 主分支上，于清理、测试前和写 manifest 前只读校验发布上下文、本地 tag；远程矩阵还须复核远端 `release` 分支/tag，缺少合格上下文时不得由构建入口补写。`e2e_hint` 只提供 E2E 建议默认值。日常 Task/Worktree 整合不询问、不运行非必要语义审查，也不受保护分支、严格线性、单写入者或历史形态限制；只保留范围、秘密、测试和 clean 等数据安全检查。候选构建必须用 `cargo test --workspace --all-targets --all-features -- --list` 或等价方式确认非空，再运行 `cargo test --workspace --all-targets --all-features`；GUI 同时运行前端完整单元测试套件。失败或零测试阻断候选。本地开发试包也运行同样的非空全量单元测试，但不消费候选 E2E/审查选择。
 - 构建可在项目已有批准的非交互签名钩子、工具和已授权凭据时尝试签名并验证，再把明确标记 `milestoneAcceptance: pending` 的候选写入根 `release/`。条件缺失时记录 `signingStatus: unsigned` 与原因，条件满足后的签名失败则使平台构建失败；签名后计算最终 SHA-256。当前 E2E 选择为 `enabled` 或硬要求为 `required` 时，最终字节形成后交给 `$desktop-verify-delivery`，不得混入编译/打包命令。
 - 构建请求、执行和结果，以及候选 E2E、完整验收、状态更新和就绪复核，都不创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan、Verification 或其他 tracked 项目记忆；全量单元测试、候选、摘要、签名状态、选择和验收结果只写入忽略的 `release/` 原子集合、manifest 声明的相邻制品证据和最终回复。本地主分支合并并打 tag 的 Git 发布成功后，从该 HEAD 开始下一受管 feature 分支，在首次改动前复核主分支/tag 并 finalize 版本周期，再按独立触发事件追加 Verification/发布/Product Status；渠道分发与候选构建不能反向批准或否定发布。
 - `$desktop-prepare-cross-platform-release` 只在用户另行请求跨平台矩阵，且远端 `release` 分支和 tag 经复核与本地发布 HEAD 一致时，准备 Rust CLI Windows/macOS/Linux 原生候选；所有运行器使用 `fail-fast: false` 留下终态证据。普通本机构建不调用该 provider 路线。其他接口的统一跨平台打包仍是已公开限制，不因 Git 发布完成而自动启动。
 - `$desktop-collect-release-artifacts` 负责提取并核验平台归档、相邻 SHA-256、签名状态、清单和已有验收证据，不自行构建、签名或运行冒烟/E2E；为构建取回结果时可保留 `pending`，发布就绪复核仍只接受与候选匹配的完整 `accepted` 原子集合。
-- 初始化确保根 `.gitignore` 精确一次包含 `/release/`。`$desktop-build-rust-release` 与 `$desktop-build-tauri-release` 在任何单元测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。只有用户另行授权跨平台矩阵且远端 `release` 分支/tag 复核通过，才可调用远程工作流；它必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。本机构建不访问远端且只覆盖当前宿主。目录存在不代表 `ready`。
+- 初始化确保根 `.gitignore` 精确一次包含 `/release/`，并忽略任意层级的 `Cargo.lock`、`pnpm-lock.yaml` 与 `pnpm-package.lock`。`$desktop-build-rust-release` 与 `$desktop-build-tauri-release` 在任何单元测试或构建命令前先验证独立 Git 根，拒绝 `release` 符号链接/重解析点和路径越界，原子隔离旧目录并创建全新空目录，不通过活动目标目录原地递归删除；完成签名、公证和 stapling 后的最终归档/安装包、哈希、清单先在同根唯一暂存区形成精确普通文件集，再通过目录级原子重命名，将完整暂存区提交为 `release/`。只有用户另行授权跨平台矩阵且远端 `release` 分支/tag 复核通过，才可调用远程工作流；它必须绑定并复核显式 40 位提交，只上传声明的精确制品集合。本机构建不访问远端且只覆盖当前宿主。目录存在不代表 `ready`。
 - `$desktop-prepare-release` 在明确发布请求内负责审查选择、发布元数据和 Git 生命周期：它不会脱离该请求另行创建 tag，也不上传、打包或执行渠道分发；Harness 源与终端下游都在本地主分支/tag 与上下文复核后结束 Git 发布。已确认 `local_package` 时终端下游按原有 Skill 编排本地产品候选，并在适用完整验收后做纯只读就绪复核；发布准备不运行冒烟/E2E，也不在候选/就绪阶段写 tracked 记忆。
 - `$desktop-add-mcp-adapter` 只在下游用户明确批准后增加依赖核心的 Rust stdio MCP 适配器；Skill 不自带实现资产。
 - `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费三候选 Logo 与九项 GUI 最终初始化配置，无条件调用 system-locale/updater/window-state 三个固定 Skills，再按 profile 调用 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个条件 Skills，并建立选定的关于页、赞助页和精简/详细侧栏；始终建立动态标题、设置页、i18n 与亮暗主题，不自带产品业务实现。
 - 三个固定 GUI Skills 的插件与回归不得被 profile、关于页或 `updaterEnabled` 裁掉。六个条件 GUI Skills 各自拥有依赖、运行时、禁用无残留与真实宿主场景；`deep_link = enabled` 额外强制 `single_instance = enabled`，但单实例回调仍不复制 URL 解析。
 - `$desktop-prepare-gui-support-surfaces` 为全部 GUI 提供固定壳层和可选择的本地页面/媒体源资产；运行时只纳入 profile 选中的页面与资源。产品修改基线、增加其他支持界面或启用出站能力时再次按需调用；每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试。
-- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI profile 选择的本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围，由锁文件固定实际解析结果，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
+- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI profile 选择的本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围，正常解析可在本地生成被 Git 忽略的锁文件，TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
 - `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
 - `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
 - `$desktop-test-gui-initialization-e2e` 只在含 GUI 的一次性初始化提交前按九项 profile 运行结构检查和真实本机调试二进制；三项固定基线不完整、启用能力不完整、禁用能力有残留、宿主状态无法观察或恢复、关闭语义或所选侧栏/页面不符都阻断。需安装包注册的深链接平台场景在 debug no-bundle 阶段必须标为 `Not verified`，不得误报通过。通过后随初始化能力删除，升级不得把它重新注入终端下游。

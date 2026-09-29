@@ -250,7 +250,7 @@ export function validateCurrentDescriptions(errors, options = {}) {
   validateFragmentMap(errors, msrv, "missing MSRV contract file", "Rust 1.98.1 MSRV contract missing");
 
   const minimumVersions = [
-    [ENGINEERING_RULES, ["完整三段表达可验证的兼容下界", "当前最新非预发布候选", "锁文件与兼容要求职责分离"]],
+    [ENGINEERING_RULES, ["完整三段表达可验证的兼容下界", "当前最新非预发布候选", "锁文件", "由 Git 忽略"]],
     [PRODUCT_SPEC, ["最新兼容稳定选择", "优先选择 registry 当前最新兼容稳定版"]],
     [docs("RUST_CLI_TEMPLATE.md"), ["最低兼容版本策略", "direct-minimal-versions", "resolutionMode: lowest-direct"]],
     [CLI_SKILL, ["完整三段 Cargo 兼容下界", "最低直接版本解析"]],

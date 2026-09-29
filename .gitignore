@@ -2,6 +2,11 @@
 /target/
 **/target/
 
+# 本地解析生成的依赖锁文件
+Cargo.lock
+pnpm-lock.yaml
+pnpm-package.lock
+
 # Node.js 与前端生成物
 /node_modules/
 **/node_modules/

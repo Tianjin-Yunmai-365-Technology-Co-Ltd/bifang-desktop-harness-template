@@ -197,7 +197,7 @@ export function loadCargoMetadata(workspaceRoot, { cargo = "cargo", timeoutSecon
   const manifest = path.join(root, "Cargo.toml");
   try { if (!statSync(manifest).isFile()) throw new Error(); }
   catch { throw new Error(`workspace 根缺少 Cargo.toml: ${root}`); }
-  const args = ["metadata", "--no-deps", "--locked", "--format-version", "1", "--manifest-path", manifest];
+  const args = ["metadata", "--no-deps", "--format-version", "1", "--manifest-path", manifest];
   const result = spawnSync(cargo, args, { cwd: root, encoding: "utf8", timeout: timeoutSeconds * 1000, maxBuffer: 64 * 1024 * 1024 });
   if (result.error?.code === "ENOENT") throw new Error(`无法执行 Cargo: ${cargo}`);
   if (result.error?.code === "ETIMEDOUT") throw new Error(`cargo metadata 在 ${timeoutSeconds} 秒后超时`);

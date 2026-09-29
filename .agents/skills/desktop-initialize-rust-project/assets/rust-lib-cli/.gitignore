@@ -1,3 +1,6 @@
 /target/
+Cargo.lock
+pnpm-lock.yaml
+pnpm-package.lock
 /release/
 /.release-clean.*

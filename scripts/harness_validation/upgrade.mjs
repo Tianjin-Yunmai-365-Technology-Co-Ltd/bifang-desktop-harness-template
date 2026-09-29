@@ -45,7 +45,6 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   ["LICENSE.zh-CN.md", "protected"],
   ["LICENSE.en.md", "protected"],
   ["Cargo.toml", "protected"],
-  ["Cargo.lock", "protected"],
   [".gitignore", "protected"],
   ["AGENTS.md", "merge-sections"],
   ["README.md", "merge-sections"],

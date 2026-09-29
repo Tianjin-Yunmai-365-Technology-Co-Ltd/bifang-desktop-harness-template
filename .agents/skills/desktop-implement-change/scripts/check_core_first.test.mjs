@@ -186,7 +186,7 @@ test("CLI returns zero for isolated Cargo metadata", posixOnly, () => withTempor
     assert.deepEqual(result.payload, { errors: [], ok: true, toolError: null });
     assert.equal(result.stdout, `${JSON.stringify({ errors: [], ok: true, toolError: null })}\n`);
     const cargoArgs = readFileSync(argumentsFile, "utf8");
-    assert.match(cargoArgs, /--locked/);
+    assert.doesNotMatch(cargoArgs, /--locked/);
     assert.match(cargoArgs, /metadata/);
   } finally {
     if (previousMetadata === undefined) delete process.env.AFH_FAKE_METADATA; else process.env.AFH_FAKE_METADATA = previousMetadata;

@@ -3,7 +3,7 @@
 export const CHECKOUT_USE = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262";
 export const SETUP_NODE_USE = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020";
 export const UPLOAD_USE = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02";
-export const EXPECTED_WORKFLOW_SHA256 = "5af395c63ddf5204dbff6ea9fd21e53b000359890f8a823232380d83a0503d87";
+export const EXPECTED_WORKFLOW_SHA256 = "4aa0b3988063235e52f169045f6f318035a5b134f5c6cbf60b54651cf05d42f7";
 export const EXPECTED_INPUTS = new Set([
   "confirm_candidate_build",
   "source_commit",

@@ -110,9 +110,9 @@ jobs:
         shell: bash
         run: |
           node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs list-tests
-          cargo test --workspace --all-targets --all-features --locked
+          cargo test --workspace --all-targets --all-features
           node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs verify-post-test
-          cargo build --workspace --release --locked
+          cargo build --workspace --release
       - name: 尝试 Unix 签名
         if: runner.os != 'Windows' && success()
         shell: bash

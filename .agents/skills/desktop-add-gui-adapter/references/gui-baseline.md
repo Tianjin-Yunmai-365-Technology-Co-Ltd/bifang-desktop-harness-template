@@ -28,7 +28,7 @@
 - 未命中 `$mantine-list-view` 的普通页面，活动选项卡、查询/筛选、排序和分页固定由应用根 Jotai store 的模块级 atom 持有，只在当前进程跨路由与关闭隐藏/单实例唤醒期间保留；退出后默认，不使用浏览器/Tauri/文件/数据库/URL 持久化，也不镜像 Query/core 数据。查询范围或页大小变化时 page=1，只有成功空页且 page>1 时回第 1 页。列表页命中 `$mantine-list-view` 后改用类型化 URL + 当前标签页 sessionStorage 查询恢复、TanStack Query-only 行数据、localStorage 列偏好与成功越界回末页；该例外不修改共享 `pageSessionState.ts`。window-state 只持久原生窗口几何，详细侧栏折叠仍是独立设备偏好。
 - 不得加载远程内容。
 - 保持 Tauri Rust 边界轻薄：只验证反序列化、协议必填字段和调用 WebView 能力，随后调用一个核心用例并映射有类型的结果；值域、跨字段约束、资源状态和业务权限由核心验证。
-- 调用时为 Tauri/前端直接依赖声明彼此兼容的最低稳定范围，使用最低直接版本解析验证 Rust MSRV、Node.js/pnpm 和目标平台 WebView，再由正常锁文件固定实际解析结果；不得用精确依赖版本或“最新”代替兼容下界。
+- 调用时为 Tauri/前端直接依赖声明彼此兼容的最低稳定范围，使用最低直接版本解析验证 Rust MSRV、Node.js/pnpm 和目标平台 WebView，正常解析可生成 Git 忽略的本地锁文件；不得用精确依赖版本或“最新”代替兼容下界。
 - 使用 pnpm 作为前端包管理器。初始化阶段由 `$desktop-check-development-environment` 检查 Node.js 和 pnpm；初始化后不得因缺少当前宿主证据预检，先运行真实 pnpm 命令，只有该命令已因受管环境问题失败时才进入对应恢复并单次重试。
 - 固定前端同时适用于中性 `Draft` 脚手架和已批准产品。不得根据页面数量把它替换为普通 HTML/ES 模块或其他框架。
 - Mantine 主题、布局、状态、响应式与无障碍细节统一遵守 [Mantine UI 设计规范](mantine-ui-guidelines.md)。

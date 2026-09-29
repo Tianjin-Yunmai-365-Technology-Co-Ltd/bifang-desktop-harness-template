@@ -37,12 +37,17 @@ test("dispatch_binds_release_context_digest", () => {
 
 test("context_is_captured_before_tests_and_reverified_before_manifest", () => {
   const capture = text.indexOf("verify_release_context.mjs capture");
-  const tests = text.indexOf("cargo test --workspace --all-targets --all-features --locked");
+  const tests = text.indexOf("cargo test --workspace --all-targets --all-features");
   const verify = text.indexOf("verify_release_context.mjs verify");
   const manifest = text.indexOf("release_candidate_workflow.mjs write-manifest");
   assert.ok(capture >= 0 && capture < tests);
   assert.ok(tests < verify);
   assert.ok(verify < manifest);
+});
+
+test("project_cargo_commands_do_not_require_a_lockfile", () => {
+  assert.doesNotMatch(helper, /["']--locked["']/);
+  assert.doesNotMatch(text, /cargo (?:metadata|test|build)[^\n]*--locked/);
 });
 
 test("checkout_uses_release_branch_full_history_and_no_persisted_credentials", () => {

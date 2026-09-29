@@ -16,11 +16,11 @@
 | LIM-010 | 前置 Shell、PowerShell 和维护脚本曾缺少完整中文业务注释 | 功能修改已为全部门禁函数、测试辅助函数和测试场景补齐中文业务注释；当前相关隔离/静态测试继续由 Node 运行 | 后续修改继续按 `docs/ENGINEERING_RULES.md` 同步维护 | Closed |
 | LIM-011 | Windows MSVC 构建工具自动安装尚未原生前向验证 | 当前只完成 PowerShell 静态契约与 Node 回归检查；真实签名、UAC、组织策略、磁盘、安装返回码 3010 和工作负载复探仍可能阻断 | 在受控干净 Windows 宿主运行缺失安装与复验并记录结构化输出 | Open |
 | LIM-012 | 非 CLI 初始化、superpowers 关闭与 Computer Use E2E 尚无真实下游证据 | Skill 与校验器契约成立，但无法证明跨会话策略、适配器组合及真实最终产物交互 | 首个真实下游分别前向验证 TUI/MCP/GUI、`superpowers: disabled` 和最终产物 E2E | Open |
-| LIM-013 | 固定 TUI 与 Tauri GUI React 前端技术族尚无真实下游兼容下界证据 | Ratatui 0.30.2、tuirealm/tui-realm-stdlib 4.1.0 已通过元数据筛选但尚未在 Rust 1.98.1 真实下游证明；React/Mantine/TanStack/Jotai 的候选下界也可能受 Node.js 或 Tauri WebView 约束 | 在真实 TUI 与 GUI 下游分别声明最新兼容稳定完整三段下界，以最低直接版本和项目最低工具链完成代码规范检查、非空测试、生产/发布构建、真实产物启动和关键交互验收，再以正常锁文件固定实际解析结果 | Open |
-| LIM-014 | P0：非 CLI 适配器缺少可重复脚手架证据 | TUI/MCP/GUI Skills 只有执行规则和参考资料，尚无真实下游最小脚手架、锁文件、测试与最终产物证据 | 逐接口在隔离下游前向执行；重复稳定后再决定是否把最小结构提升为受测资产 | Open |
+| LIM-013 | 固定 TUI 与 Tauri GUI React 前端技术族尚无真实下游兼容下界证据 | Ratatui 0.30.2、tuirealm/tui-realm-stdlib 4.1.0 已通过元数据筛选但尚未在 Rust 1.98.1 真实下游证明；React/Mantine/TanStack/Jotai 的候选下界也可能受 Node.js 或 Tauri WebView 约束 | 在真实 TUI 与 GUI 下游分别声明最新兼容稳定完整三段下界，以最低直接版本和项目最低工具链完成代码规范检查、非空测试、生产/发布构建、真实产物启动和关键交互验收，并记录当次本地依赖解析结果 | Open |
+| LIM-014 | P0：非 CLI 适配器缺少可重复脚手架证据 | TUI/MCP/GUI Skills 只有执行规则和参考资料，尚无真实下游最小脚手架、依赖解析、测试与最终产物证据 | 逐接口在隔离下游前向执行；重复稳定后再决定是否把最小结构提升为受测资产 | Open |
 | LIM-015 | P1：构建与跨平台发布 Skills 仍未覆盖全部接口 | 已新增 Windows 原生 GUI x64 NSIS 本地试包与发布候选合同，并保留 macOS 原生 DMG、macOS→Windows x64 NSIS xwin、Tauri 安装包清单和 macOS 签名+公证+stapling；但 Windows 原生路线尚无真实下游前向证据，TUI、MCP、Linux GUI 与各接口只读冒烟仍未统一 | 在真实 Windows 下游执行原生 NSIS 构建、安装/运行验收和签名分支，再逐接口按已观察到的共同字段泛化矩阵；在此之前 Windows 运行/安装结论保持 `Unverified`，不得用 xwin 或静态合同代证 | Mitigated |
 | LIM-016 | P1：下游 Harness 升级仍缺少真实项目前向证据 | 已交付 `$desktop-upgrade-harness`、来源/目标 Git 绑定、三方基线、最小保护清单、逐文件应用、引导与 28 个基于隔离 Git 夹具的测试；但尚未证明真实身份渲染、混合章节合并、Windows 可移植写入和长期自更新在客户下游稳定 | 至少两个真实下游分别完成有/无旧锁文件的升级并记录冲突、Windows/macOS/Linux 差异和回滚证据后评估关闭 | Mitigated |
-| LIM-017 | P1：缺少统一依赖维护与供应链复核 Skill | Rust 与 React 技术族已有准入规则，但版本检查、锁文件升级、许可证/漏洞/废弃依赖和回滚证据仍分散 | 在真实 Cargo+npm 维护任务中固化 `$maintain-dependencies` 的输入、检查、变更和验证契约 | Open |
+| LIM-017 | P1：缺少统一依赖维护与供应链复核 Skill | Rust 与 React 技术族已有准入规则，但版本检查、依赖解析漂移、许可证/漏洞/废弃依赖和回滚证据仍分散 | 在真实 Cargo+npm 维护任务中固化 `$maintain-dependencies` 的输入、检查、变更和验证契约 | Open |
 | LIM-018 | P2：跨接口安全验收入口尚未统一 | MCP 与 GUI 各自约束协议权限、CSP、WebView 能力和状态边界，但缺少一次性交付前威胁面复核和证据矩阵 | 出现首个含外部输入、网络或平台权限的真实产品时，评估新增 `$review-security` 或扩展 `$desktop-verify-delivery` | Open |
 | LIM-019 | 一次性下游裁剪与 GUI 身份流程尚无真实前向证据 | 规则和校验器可检查模板契约，但尚未证明真实下游能在自删除后保留正确地图，也未证明三种图标路径与 Tauri 平台资产都可用 | 在首个真实下游分别验证仅 CLI 与 GUI 初始化裁剪；GUI 路径验证自动生成、确定性备选方案、上传标准化中的实际选择和最终平台图标 | Open |
 | LIM-020 | 随附的 CLI 测试曾不符合当时声明的最低 Rust 1.90 工具链 rustfmt | 5 处链式调用已按当时工具链机械更新；fmt、锁定依赖检查、Clippy 与 7 个非空测试在 2026-07-29 重跑通过 | 后续修改继续使用根 `Cargo.toml` 当前声明的最低 MSRV 工具链运行格式门禁 | Closed |

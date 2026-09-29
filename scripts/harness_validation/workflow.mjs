@@ -236,8 +236,8 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     "verify_release_context.mjs capture", "verify_release_context.mjs verify",
     "release_candidate_workflow.mjs read-msrv", "release_candidate_workflow.mjs verify-version",
     "release_notes.mjs check --file release-notes.json", "release_candidate_workflow.mjs hash-release-notes",
-    "cargo test --workspace --all-targets --all-features --locked",
-    "release_candidate_workflow.mjs verify-post-test", "cargo build --workspace --release --locked",
+    "cargo test --workspace --all-targets --all-features",
+    "release_candidate_workflow.mjs verify-post-test", "cargo build --workspace --release",
     "prepare-release-directory.sh", "prepare-release-directory.ps1", ".release-signing/sign-candidate.sh",
     ".release-signing/sign-candidate.ps1", "release_candidate_workflow.mjs resolve-artifact",
     "release_candidate_workflow.mjs write-manifest", "release_candidate_workflow.mjs commit-candidate",
@@ -357,9 +357,9 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
   const verify = stepBlock({ name: "验证候选" }).join("\n");
   requireOrder(errors, verify, [
     "release_candidate_workflow.mjs list-tests",
-    "cargo test --workspace --all-targets --all-features --locked",
+    "cargo test --workspace --all-targets --all-features",
     "release_candidate_workflow.mjs verify-post-test",
-    "cargo build --workspace --release --locked",
+    "cargo build --workspace --release",
   ], "workflow candidate verification sequence");
   const manifest = stepBlock({ name: "记录候选清单" }).join("\n");
   requireOrder(errors, manifest, ["verify_release_context.mjs verify", "release_candidate_workflow.mjs write-manifest"], "workflow manifest sequence");

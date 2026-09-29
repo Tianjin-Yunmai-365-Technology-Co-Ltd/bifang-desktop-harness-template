@@ -43,7 +43,7 @@
 - `AFH_PREREQ_PATH`、测试下载镜像、测试安装根、测试 registry、跳过持久化或安全校验等危险覆盖只能用于隔离回归，并且必须在同一进程显式设置 `AFH_TEST_MODE=1`；否则门禁在运行任何受管工具前失败关闭。生产 pnpm registry 不接受覆盖。
 - Windows MSVC 使用 `https://aka.ms/vs/17/release/vs_BuildTools.exe`，要求有效的 Microsoft Authenticode 签名；仅在微软安装器明确要求的管理员边界内安装 `Microsoft.VisualStudio.Workload.VCTools`，不得静默获取或绕过权限，然后重新探测。
 - Tauri xwin 只在 macOS、GUI 已选且 Windows x64 NSIS 已批准时触发。LLVM、LLD 与 NSIS 使用既有 Homebrew，但只作为宿主能力探测，不把 formula 当前解析版本写成项目兼容契约；Rust target 使用 rustup，`cargo-xwin` 使用 Cargo 的 `--locked --version '>=0.23.1, <0.24.0'` 安装或升级。缺少 Homebrew 时阻断并报告，不执行远程 shell 安装器。已存在但缺失必需命令的 formula 视为损坏并阻断；低于 0.23.1 的可解析稳定 `cargo-xwin` 升级，`>=0.24.0`、预发布、无法解析或损坏的 `cargo-xwin` 阻断。
-- 只能在本参考规定的触发条件与写入模式下升级现有工具。不得降低最低门禁、回退依赖或锁文件、注入 shim、改用旧版工具或寻找替代工具链来适配旧环境。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装/升级后探测发生失败时，必须阻断开发。
+- 只能在本参考规定的触发条件与写入模式下升级现有工具。不得降低最低门禁、回退清单依赖、注入 shim、改用旧版工具或寻找替代工具链来适配旧环境。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装/升级后探测发生失败时，必须阻断开发。
 
 ## Windows 自动安装受阻后的人工接续
 

@@ -120,7 +120,7 @@ export function validateBuildSkillContract(errors, overrides = {}) {
       "`$desktop-prepare-cross-platform-release`", "明确请求远端矩阵时另复核已推送的 release 分支与 tag",
       "在执行任何单元测试或构建命令前", "release_notes.mjs check --file release-notes.json --expected-version",
       "不得计算、提升版本或重置正式发布周期", "本次请求已明确 `enabled`/`disabled` 时直接复用",
-      "cargo test --workspace --all-targets --all-features --locked", "不得在构建名义下自动追加格式、lint",
+      "cargo test --workspace --all-targets --all-features", "不得在构建名义下自动追加格式、lint",
       "必须尝试签名并验证生成的签名", "signingStatus: unsigned", "结构化 `signingEvidence`",
       "目录级原子替换", "项目根 `release/`", "milestoneAcceptance: pending", "e2eSelection",
       "releaseNotesVersion", "releaseNotesSha256", "releaseNotesPath: release-notes.json",
@@ -130,7 +130,7 @@ export function validateBuildSkillContract(errors, overrides = {}) {
       "默认 `$desktop-build-rust-release` 路线", "fail-fast: false", "release_notes.mjs check --file release-notes.json",
       "远端小写 `release` 分支和版本 tag",
       "verify_dispatch_readiness.mjs",
-      "cargo test --workspace --all-targets --all-features --locked", "原子隔离旧目录", "必须尝试签名并验证",
+      "cargo test --workspace --all-targets --all-features", "原子隔离旧目录", "必须尝试签名并验证",
       "固定 `confirm_candidate_build`、`version`、`source_commit`、`release_context_sha256` 和 `e2e_selection` 输入",
       "使用 `fetch-depth: 0`", "verify_release_context.mjs capture", "verify_release_context.mjs verify",
       "完整规范化 `releaseReview`", "上传三个明确的归档/校验和/清单路径",
@@ -170,8 +170,8 @@ export function validateBuildSkillContract(errors, overrides = {}) {
     fail(errors, "release contract must not require the advertised remote default branch at source_commit");
   }
   validateOrder(errors, paths.crossPlatformWorkflow, [
-    "verify_release_context.mjs capture", "cargo test --workspace --all-targets --all-features --locked",
-    "cargo build --workspace --release --locked", "verify_release_context.mjs verify",
+    "verify_release_context.mjs capture", "cargo test --workspace --all-targets --all-features",
+    "cargo build --workspace --release", "verify_release_context.mjs verify",
     "release_candidate_workflow.mjs write-manifest", "release_candidate_workflow.mjs commit-candidate",
   ], "release contract order: workflow must capture before tests, reverify before manifest, then atomically commit");
   validateOrder(errors, paths.collectSkill, [
@@ -187,7 +187,7 @@ export function validateTauriLocalInstallContract(errors, localSkill = TAURI_LOC
   validateFragmentContract(errors, new Map([[localSkill, [
     "[workspace.metadata.agent-first-harness]", "target-platforms", "interfaces", "允许从 dirty 工作树生成本地试包",
     "不得调用 `$desktop-prepare-release`", "不得生成、读取、校验或改写 `release-notes.json`",
-    "不得创建、刷新或写入项目根 `release/`", "cargo test --workspace --all-targets --all-features --locked",
+    "不得创建、刷新或写入项目根 `release/`", "cargo test --workspace --all-targets --all-features",
     "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign", "artifactPurpose: local-install-test",
     "releaseCandidate: false", "signingStatus: unsigned", "本 Skill 不询问 E2E 开/关",
   ]]]), { label: "Tauri local install contract" });
@@ -213,7 +213,7 @@ export function validateTauriBuildSkillContract(errors, overrides = {}) {
       "所有会改变字节的布局写入、签名、公证和 stapling 完成后", "写完 manifest 后必须按每份 manifest 枚举并复算",
       "随后才以不跟随链接的目录级原子替换提交到 `release/`", "bundle.createUpdaterArtifacts: true",
       "官方 updater archive 与相邻 `.sig`", "`signatureVerification: passed`", "notarized-and-stapled",
-      "cargo test --workspace --all-targets --all-features --locked", "e2eSelection", "releaseNotesVersion",
+      "cargo test --workspace --all-targets --all-features", "e2eSelection", "releaseNotesVersion",
     ]],
     [paths.verifySkill, ["verify_release_notes_resource.mjs bytes", "releaseNotesPath: release-notes.json", "针对 `release/` 中当前最终字节重新运行"]],
     [paths.e2eSkill, ["GUI 更新日志", "release-notes.json", "最多十版", "各最多十条"]],
