@@ -8,6 +8,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { assertDependencyLocks } from "../../desktop-implement-change/scripts/project_lock_policy.mjs";
+
 const POLICY_RELATIVE = path.join("docs", "AGENT_POLICY.md");
 /** 发布后动作的唯一合法取值；生命周期与仓库校验器共享同一集合。 */
 export const POST_RELEASE_ACTIONS = Object.freeze(["local_package", "push_release_branch"]);
@@ -201,6 +203,31 @@ function checkedProjectPath(root, relative, label, directory = false) {
   return cursor;
 }
 
+/** 要求清单的精确项目相对路径已进入 Git 索引，避免同名通配路径误判。 */
+function assertTrackedFile(root, relative, label) {
+  const tracked = spawnSync("git", ["-C", root, "ls-files", "--cached", "--full-name", "-z", "--", `:(literal)${relative}`], { encoding: "utf8" });
+  if (tracked.status !== 0 || tracked.stdout !== `${relative}\0`) {
+    throw new ActionError(`${label} 必须受 Git 跟踪：${relative}`);
+  }
+}
+
+/** 按唯一的 Tauri 配置定位与之配对的 GUI Cargo 清单。 */
+function guiTauriLayout(root, guiRelative) {
+  const layouts = [
+    { cargo: path.posix.join(guiRelative, "Cargo.toml"), config: path.posix.join(guiRelative, "tauri.conf.json") },
+    { cargo: path.posix.join(guiRelative, "src-tauri/Cargo.toml"), config: path.posix.join(guiRelative, "src-tauri/tauri.conf.json") },
+  ];
+  const present = layouts.filter(({ config }) => {
+    try { fs.lstatSync(path.join(root, config)); return true; }
+    catch (error) { if (error.code === "ENOENT") return false; throw error; }
+  });
+  if (present.length !== 1) throw new ActionError("Tauri 配置必须在 GUI 根目录或 src-tauri 中且只能存在一份");
+  const selected = present[0];
+  checkedProjectPath(root, selected.config, "Tauri 配置");
+  checkedProjectPath(root, selected.cargo, "GUI Rust Cargo 清单");
+  return selected;
+}
+
 function assertNonEmptyRustWorkspace(file, relative) {
   const source = fs.readFileSync(file, "utf8");
   const workspace = /^\s*\[workspace\]\s*$/mu.exec(source);
@@ -218,7 +245,11 @@ function assertGuiPackageReady(root) {
   const gui = checkedProjectPath(root, relative, "GUI 根目录", true);
   const guiFile = (name, label) => checkedProjectPath(root, path.posix.join(relative, name), label);
   const packageFile = guiFile("package.json", "GUI package.json");
-  guiFile("src-tauri/tauri.conf.json", "Tauri 配置");
+  const layout = guiTauriLayout(root, relative);
+  assertTrackedFile(root, "Cargo.toml", "Cargo 工作区清单");
+  assertTrackedFile(root, path.posix.join(relative, "package.json"), "GUI package.json");
+  assertTrackedFile(root, layout.cargo, "GUI Rust Cargo 清单");
+  assertTrackedFile(root, layout.config, "Tauri 配置");
   let packageJson;
   try { packageJson = JSON.parse(fs.readFileSync(packageFile, "utf8")); }
   catch { throw new ActionError("GUI package.json 必须是有效 JSON"); }
@@ -233,8 +264,10 @@ function assertGuiPackageReady(root) {
     const file = safeProjectRelative(manifest, "rust-test-manifests");
     if (path.posix.basename(file) !== "Cargo.toml") throw new ActionError("rust-test-manifests 只能指向 Cargo.toml");
     const manifestPath = checkedProjectPath(root, file, "Rust 测试清单");
+    assertTrackedFile(root, file, "Rust 测试清单");
     assertNonEmptyRustWorkspace(manifestPath, file);
   }
+  assertDependencyLocks(root, { rustTestManifests: manifests, guiRoot: relative });
   if (relative !== "." && !gui.startsWith(`${root}${path.sep}`)) throw new ActionError("GUI 根目录越出项目");
 }
 
@@ -248,7 +281,8 @@ function assertLocalPackageSupported(root) {
   if (!localPackageSupported(interfaces, metadataArray(root, "target-platforms"))) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
-  if (!interfaces.includes("cli") && interfaces.includes("gui")) assertGuiPackageReady(root);
+  if (interfaces.includes("cli")) assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
+  else if (interfaces.includes("gui")) assertGuiPackageReady(root);
 }
 
 function state(policy) {

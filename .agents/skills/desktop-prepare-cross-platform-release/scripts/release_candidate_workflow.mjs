@@ -19,6 +19,8 @@ import { basename, dirname, isAbsolute, join, relative, resolve } from "node:pat
 import { gunzipSync, inflateRawSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
+import { assertDependencyLocks } from "../../desktop-implement-change/scripts/project_lock_policy.mjs";
+
 const OID_PATTERN = /^[0-9a-f]{40}$/;
 const RELEASE_BRANCH = "release";
 const MINIMUM_NODE = [24, 21, 0];
@@ -110,9 +112,22 @@ function readMsrv() {
   process.stdout.write(`使用项目声明的最低 Rust 工具链 ${value}\n`);
 }
 
+/** 按根 Cargo 的显式选择验证锁文件，并向后续固定命令传递唯一允许的标志。 */
+function checkLockPolicy() {
+  const { policy } = assertDependencyLocks(process.cwd(), { rustTestManifests: ["Cargo.toml"] });
+  appendGithubFile("GITHUB_ENV", { CARGO_LOCK_FLAG: policy === "tracked" ? "--locked" : "" });
+  process.stdout.write(`项目依赖锁策略：${policy}\n`);
+}
+
+/** 在每次 Cargo 调用前复核策略，防止元数据命令绕过显式锁门禁。 */
+function cargoLockArgs() {
+  const { policy } = assertDependencyLocks(process.cwd(), { rustTestManifests: ["Cargo.toml"] });
+  return policy === "tracked" ? ["--locked"] : [];
+}
+
 /** 从 Cargo metadata 验证目标二进制的唯一版本。 */
 function verifyVersion() {
-  const metadata = JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps"]).stdout);
+  const metadata = JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps", ...cargoLockArgs()]).stdout);
   const product = environment("PRODUCT_NAME");
   const versions = [...new Set(metadata.packages
     .filter((pkg) => pkg.targets.some((target) => target.name === product && target.kind.includes("bin")))
@@ -137,7 +152,7 @@ function hashReleaseNotes() {
 function listTests() {
   const result = run(
     "cargo",
-    ["test", "--workspace", "--all-targets", "--all-features", "--", "--list"],
+    ["test", "--workspace", "--all-targets", "--all-features", ...cargoLockArgs(), "--", "--list"],
     { check: false },
   );
   process.stdout.write(result.stdout);
@@ -375,6 +390,7 @@ export function main(argv = process.argv.slice(2)) {
       case "check-node-runtime": checkNodeRuntime(); break;
       case "verify-checkout": verifyCheckout(); break;
       case "read-msrv": readMsrv(); break;
+      case "check-lock-policy": checkLockPolicy(); break;
       case "verify-version": verifyVersion(); break;
       case "hash-release-notes": hashReleaseNotes(); break;
       case "list-tests": return listTests();

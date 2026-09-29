@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -192,6 +192,41 @@ test("CLI returns zero for isolated Cargo metadata", posixOnly, () => withTempor
     if (previousMetadata === undefined) delete process.env.AFH_FAKE_METADATA; else process.env.AFH_FAKE_METADATA = previousMetadata;
     if (previousArgs === undefined) delete process.env.AFH_ARGS_FILE; else process.env.AFH_ARGS_FILE = previousArgs;
   }
+}));
+
+test("CLI passes --locked to Cargo only when the workspace opts in", posixOnly, () => withTemporaryRoot((root) => {
+  writeFileSync(path.join(root, "Cargo.toml"), "[workspace]\n[workspace.metadata.agent-first-harness]\ndependency-lock-policy = \"tracked\"\n");
+  const fixture = metadata(
+    packageFixture("sample_core", { library: true }),
+    packageFixture("sample_cli", { packageDependencies: [workspaceDependency("sample_core")] }),
+  );
+  const cargo = path.join(root, "fake-cargo");
+  const argumentsFile = path.join(root, "args.txt");
+  writeFileSync(cargo, "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$AFH_ARGS_FILE\"\nprintf '%s' \"$AFH_FAKE_METADATA\"\n");
+  chmodSync(cargo, 0o755);
+  const prior = { metadata: process.env.AFH_FAKE_METADATA, args: process.env.AFH_ARGS_FILE };
+  process.env.AFH_FAKE_METADATA = JSON.stringify(fixture);
+  process.env.AFH_ARGS_FILE = argumentsFile;
+  try {
+    const result = runMainJson("--workspace-root", root, "--cargo", cargo);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(readFileSync(argumentsFile, "utf8"), /^--locked$/mu);
+  } finally {
+    if (prior.metadata === undefined) delete process.env.AFH_FAKE_METADATA; else process.env.AFH_FAKE_METADATA = prior.metadata;
+    if (prior.args === undefined) delete process.env.AFH_ARGS_FILE; else process.env.AFH_ARGS_FILE = prior.args;
+  }
+}));
+
+test("CLI rejects an invalid lock policy before Cargo runs", posixOnly, () => withTemporaryRoot((root) => {
+  writeFileSync(path.join(root, "Cargo.toml"), "[workspace.metadata.agent-first-harness]\ndependency-lock-policy = true\n");
+  const marker = path.join(root, "cargo-ran");
+  const cargo = path.join(root, "fake-cargo");
+  writeFileSync(cargo, `#!/bin/sh\ntouch "${marker}"\n`);
+  chmodSync(cargo, 0o755);
+  const result = runMainJson("--workspace-root", root, "--cargo", cargo);
+  assert.equal(result.code, 2);
+  assert.match(result.payload.toolError, /dependency-lock-policy/u);
+  assert.equal(existsSync(marker), false);
 }));
 
 test("CLI returns one for architecture violation", () => withTemporaryRoot((root) => {

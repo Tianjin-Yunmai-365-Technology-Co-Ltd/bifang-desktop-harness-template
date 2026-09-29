@@ -219,6 +219,8 @@ export const REQUIRED_ROOT_FILES = [
 
   ".agents/skills/desktop-implement-change/scripts/check_core_first.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_core_first.test.mjs",
+  ".agents/skills/desktop-implement-change/scripts/project_lock_policy.mjs",
+  ".agents/skills/desktop-implement-change/scripts/project_lock_policy.test.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.test.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs",

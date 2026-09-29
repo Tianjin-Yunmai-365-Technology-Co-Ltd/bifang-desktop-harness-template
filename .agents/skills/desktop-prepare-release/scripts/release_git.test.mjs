@@ -104,7 +104,7 @@ test("commit_allows_any_named_branch_without_protection_rules", () => {
   } finally { item.cleanup(); }
 });
 
-test("only_release_context_and_upstream_lock_are_approvable_harness_metadata", () => {
+test("only_known_harness_metadata_paths_are_approvable", () => {
   const item = fixture();
   try {
     mkdirSync(join(item.root, ".harness"));
@@ -117,6 +117,23 @@ test("only_release_context_and_upstream_lock_are_approvable_harness_metadata", (
     const rejected = item.commit(item.inspect(), ".harness/other.json");
     assert.equal(rejected.status, 1);
     assert.match(rejected.stderr, /cannot be approved/);
+  } finally { item.cleanup(); }
+});
+
+test("tracked_version_state_is_approvable_harness_metadata", () => {
+  const item = fixture();
+  try {
+    mkdirSync(join(item.root, ".harness"));
+    const statePath = join(item.root, ".harness", "version-state.json");
+    writeFileSync(statePath, '{"cycle":1}\n', "utf8");
+    item.git("add", ".harness/version-state.json");
+    item.git("commit", "--quiet", "-m", "test: track version state");
+    writeFileSync(statePath, '{"cycle":2}\n', "utf8");
+
+    const result = item.commit(item.inspect(), ".harness/version-state.json");
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(item.git("show", "HEAD:.harness/version-state.json").stdout, '{"cycle":2}\n');
+    assert.equal(item.git("status", "--porcelain").stdout, "");
   } finally { item.cleanup(); }
 });
 

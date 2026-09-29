@@ -52,6 +52,12 @@ function setOptions(action, expected = "missing") {
   return ["--action", action, "--expected-action", expected, "--confirmed-user-choice"];
 }
 
+/** 只将测试场景明确指定的清单放入 Git 索引。 */
+function track(f, ...files) {
+  const added = spawnSync("git", ["-C", f.root, "add", "--", ...files], { encoding: "utf8" });
+  assert.equal(added.status, 0, added.stderr);
+}
+
 test("shared policy parser preserves runtime field and newline rules", () => {
   assert.equal(parseAgentPolicyDocument(Buffer.from(V3)).schema, "3");
   assert.equal(parseAgentPolicyDocument(Buffer.from(V3.replaceAll("\n", "\r\n"))).newline, "\r\n");
@@ -203,6 +209,8 @@ test("local package choice requires an existing CLI or supported GUI package rou
   fs.writeFileSync(path.join(f.root, "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
   fs.writeFileSync(path.join(f.root, "src-tauri", "tauri.conf.json"), '{}\n');
   fs.writeFileSync(path.join(f.root, "src-tauri", "Cargo.toml"), "[package]\nname = \"example\"\nversion = \"0.1.0\"\n");
+  assert.match(f.run("set", setOptions("local_package", "push_release_branch"), 2).error, /必须受 Git 跟踪/u);
+  track(f, "Cargo.toml", "package.json", "src-tauri/Cargo.toml", "src-tauri/tauri.conf.json");
   assert.equal(f.run("set", setOptions("local_package", "push_release_branch")).status, "configured");
   fs.writeFileSync(path.join(f.root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
   fs.writeFileSync(path.join(f.root, "src-tauri", "Cargo.lock"), "# local lock\n");
@@ -213,4 +221,92 @@ test("local package choice requires an existing CLI or supported GUI package rou
   assert.match(f.run("check", [], 2).error, /空 workspace/u);
   fs.writeFileSync(cargo, "[workspace]\nmembers = [\"src-tauri\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \".\"\n");
   assert.equal(f.run("check").status, "configured");
+});
+
+// GUI 根目录内的 Cargo 与 Tauri 配置必须成对，并拒绝同时存在两份配置。
+test("gui_root_cargo_layout_is_supported_and_ambiguous_config_fails_closed", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), "[workspace]\nmembers = [\"app\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \"app\"\nrust-test-manifests = [\"app/Cargo.toml\"]\n");
+  fs.mkdirSync(path.join(f.root, "app"));
+  fs.writeFileSync(path.join(f.root, "app", "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), "[package]\nname = \"example\"\nversion = \"0.1.0\"\n");
+  fs.writeFileSync(path.join(f.root, "app", "tauri.conf.json"), '{}\n');
+  track(f, "Cargo.toml", "app/package.json", "app/Cargo.toml", "app/tauri.conf.json");
+  assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
+  assert.equal(f.run("check").status, "configured");
+  fs.mkdirSync(path.join(f.root, "app", "src-tauri"));
+  fs.writeFileSync(path.join(f.root, "app", "src-tauri", "Cargo.toml"), "[package]\nname = \"duplicate\"\n");
+  fs.writeFileSync(path.join(f.root, "app", "src-tauri", "tauri.conf.json"), '{}\n');
+  assert.match(f.run("check", [], 2).error, /只能存在一份/u);
+  fs.rmSync(path.join(f.root, "app", "src-tauri", "tauri.conf.json"));
+  fs.rmSync(path.join(f.root, "app", "Cargo.toml"));
+  assert.match(f.run("check", [], 2).error, /GUI Rust Cargo 清单 不存在/u, "根配置不能与 src-tauri Cargo 交叉配对");
+});
+
+// 前端清单与选定的 Rust 清单必须逐路径受跟踪，不能由目录名通配命中替代。
+test("gui_manifests_must_be_exactly_git_tracked", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), "[workspace]\nmembers = [\"gui[1]\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \"gui[1]\"\nrust-test-manifests = [\"gui[1]/Cargo.toml\"]\n");
+  fs.mkdirSync(path.join(f.root, "gui[1]"));
+  fs.writeFileSync(path.join(f.root, "gui[1]", "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
+  fs.writeFileSync(path.join(f.root, "gui[1]", "Cargo.toml"), "[package]\nname = \"example\"\n");
+  fs.writeFileSync(path.join(f.root, "gui[1]", "tauri.conf.json"), '{}\n');
+  fs.mkdirSync(path.join(f.root, "gui1"));
+  fs.writeFileSync(path.join(f.root, "gui1", "package.json"), "{}\n");
+  track(f, "Cargo.toml", "gui1/package.json");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /GUI package.json 必须受 Git 跟踪/u);
+  track(f, "gui[1]/package.json");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /GUI Rust Cargo 清单 必须受 Git 跟踪/u);
+  track(f, "gui[1]/Cargo.toml");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /Tauri 配置 必须受 Git 跟踪/u);
+  track(f, "gui[1]/tauri.conf.json");
+  assert.equal(f.run("set", setOptions("local_package")).status, "configured");
+});
+
+// 选择了根布局时，配置链接仍必须经过路径守卫，不能绕过到外部文件。
+test("gui_config_symlink_is_rejected", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), "[workspace]\nmembers = [\"app\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \"app\"\nrust-test-manifests = [\"app/Cargo.toml\"]\n");
+  fs.mkdirSync(path.join(f.root, "app"));
+  fs.writeFileSync(path.join(f.root, "app", "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), "[package]\nname = \"example\"\n");
+  try { fs.symlinkSync(path.join(f.root, "Cargo.toml"), path.join(f.root, "app", "tauri.conf.json")); }
+  catch (error) {
+    if (process.platform === "win32" && error.code === "EPERM") { t.skip("symlink permission unavailable"); return; }
+    throw error;
+  }
+  track(f, "Cargo.toml", "app/package.json", "app/Cargo.toml", "app/tauri.conf.json");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /Tauri 配置 不得是符号链接/u);
+});
+
+// 显式跟踪锁策略必须落实到索引中的实际 Rust 与前端锁文件。
+test("tracked_lock_policy_requires_gui_workspace_and_frontend_locks", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), "[workspace]\nmembers = [\"app\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \"app\"\nrust-test-manifests = [\"Cargo.toml\"]\ndependency-lock-policy = \"tracked\"\n");
+  fs.mkdirSync(path.join(f.root, "app"));
+  fs.writeFileSync(path.join(f.root, "app", "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), "[package]\nname = \"example\"\n");
+  fs.writeFileSync(path.join(f.root, "app", "tauri.conf.json"), '{}\n');
+  track(f, "Cargo.toml", "app/package.json", "app/Cargo.toml", "app/tauri.conf.json");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /Cargo.lock/u);
+  fs.writeFileSync(path.join(f.root, "Cargo.lock"), "# test lock\n");
+  fs.writeFileSync(path.join(f.root, "app", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /Cargo.lock/u);
+  track(f, "Cargo.lock");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /pnpm-lock.yaml/u);
+  track(f, "app/pnpm-lock.yaml");
+  assert.equal(f.run("set", setOptions("local_package")).status, "configured");
+  fs.rmSync(path.join(f.root, "app", "pnpm-lock.yaml"));
+  assert.match(f.run("check", [], 2).error, /pnpm-lock.yaml/u);
+});
+
+// CLI 本地打包也必须遵守显式跟踪锁策略，默认未选择时维持旧行为。
+test("tracked_lock_policy_requires_cli_workspace_lock", (t) => {
+  const f = fixture(t);
+  const cargo = path.join(f.root, "Cargo.toml");
+  fs.writeFileSync(cargo, fs.readFileSync(cargo, "utf8") + 'dependency-lock-policy = "tracked"\n');
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /Cargo.lock/u);
+  fs.writeFileSync(path.join(f.root, "Cargo.lock"), "# test lock\n");
+  track(f, "Cargo.lock");
+  assert.equal(f.run("set", setOptions("local_package")).status, "configured");
 });

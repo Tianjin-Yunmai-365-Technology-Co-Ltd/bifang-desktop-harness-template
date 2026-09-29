@@ -373,7 +373,7 @@ export function validateReleaseGitContract(errors, overrides = {}) {
       "reviewed paths do not cover the complete working tree", "potential secret detected in reviewed staged bytes", "hooks were not bypassed",
       "commit succeeded but working tree is not clean", "APPROVABLE_HARNESS_PATHS"]],
     [RELEASE_GIT_HELPER_TESTS, ["inspect_reports_exact_head_branch_and_dirty_snapshot", "commit_stages_only_reviewed_paths_and_finishes_clean",
-      "commit_allows_any_named_branch_without_protection_rules", "only_release_context_and_upstream_lock_are_approvable_harness_metadata",
+      "commit_allows_any_named_branch_without_protection_rules", "only_known_harness_metadata_paths_are_approvable", "tracked_version_state_is_approvable_harness_metadata",
       "git_add_window_race_cannot_commit_unreviewed_bytes", "hooks_cannot_fail_or_smuggle_unreviewed_content", "high_confidence_secret_stops_without_advancing_head"]],
     [paths.lifecycleSkill, ["用户要求“发布”时运行 `release`", "push-release --project-root . --remote <name>", "--also-remote <name>", "唯一主远端",
       "`pendingPublish` 中临时保存冻结目标与确认进度", "跨远端推送不是原子操作", "相同目标参数进行幂等重试", "普通 `git merge --no-edit`",

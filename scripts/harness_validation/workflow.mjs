@@ -129,6 +129,7 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
     'const RELEASE_BRANCH = "release"',
     "function verifyCheckout(",
     "function readMsrv(",
+    "function checkLockPolicy(",
     "function hashReleaseNotes(",
     "function listTests(",
     "function verifyPostTest(",
@@ -151,6 +152,7 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
     "renameSync(stage, releasePath)",
     "已提交的发布文件集不是精确候选集合",
     'case "write-manifest"',
+    'case "check-lock-policy"',
     'case "commit-candidate"',
   ], "candidate workflow helper");
   if (!text) return;
@@ -235,6 +237,8 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     "release_candidate_workflow.mjs check-node-runtime", "release_candidate_workflow.mjs verify-checkout",
     "verify_release_context.mjs capture", "verify_release_context.mjs verify",
     "release_candidate_workflow.mjs read-msrv", "release_candidate_workflow.mjs verify-version",
+    "release_candidate_workflow.mjs check-lock-policy",
+    "CARGO_LOCK_FLAG", "lock_args=(--locked)",
     "release_notes.mjs check --file release-notes.json", "release_candidate_workflow.mjs hash-release-notes",
     "cargo test --workspace --all-targets --all-features",
     "release_candidate_workflow.mjs verify-post-test", "cargo build --workspace --release",
@@ -319,7 +323,8 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
   const order = [
     namedIndex("确认已授权候选预检"), usesIndex(CHECKOUT_USE), usesIndex(SETUP_NODE_USE),
     namedIndex("验证 Node.js 运行时"), namedIndex("验证已检出源码"), namedIndex("捕获已发布上下文"),
-    namedIndex("读取项目最低 Rust 版本"), namedIndex("选择项目 MSRV"), namedIndex("验证候选版本"),
+    namedIndex("读取项目最低 Rust 版本"), namedIndex("选择项目 MSRV"),
+    namedIndex("验证项目依赖锁策略"), namedIndex("验证候选版本"),
     namedIndex("验证发布更新日志"), Math.min(namedIndex("准备 Unix 发布目录"), namedIndex("准备 Windows 发布目录")),
     namedIndex("验证候选"), Math.min(namedIndex("尝试 Unix 签名"), namedIndex("尝试 Windows 签名")),
     Math.min(namedIndex("打包 Unix 候选"), namedIndex("打包 Windows 候选")), namedIndex("解析候选制品"),
@@ -357,9 +362,9 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
   const verify = stepBlock({ name: "验证候选" }).join("\n");
   requireOrder(errors, verify, [
     "release_candidate_workflow.mjs list-tests",
-    "cargo test --workspace --all-targets --all-features",
+    'cargo test --workspace --all-targets --all-features "${lock_args[@]}"',
     "release_candidate_workflow.mjs verify-post-test",
-    "cargo build --workspace --release",
+    'cargo build --workspace --release "${lock_args[@]}"',
   ], "workflow candidate verification sequence");
   const manifest = stepBlock({ name: "记录候选清单" }).join("\n");
   requireOrder(errors, manifest, ["verify_release_context.mjs verify", "release_candidate_workflow.mjs write-manifest"], "workflow manifest sequence");

@@ -45,9 +45,48 @@ test("context_is_captured_before_tests_and_reverified_before_manifest", () => {
   assert.ok(verify < manifest);
 });
 
-test("project_cargo_commands_do_not_require_a_lockfile", () => {
-  assert.doesNotMatch(helper, /["']--locked["']/);
-  assert.doesNotMatch(text, /cargo (?:metadata|test|build)[^\n]*--locked/);
+test("project_cargo_commands_apply_only_the_checked_lock_policy", () => {
+  const check = text.indexOf("release_candidate_workflow.mjs check-lock-policy");
+  const metadata = text.indexOf("release_candidate_workflow.mjs verify-version");
+  const tests = text.indexOf("release_candidate_workflow.mjs list-tests");
+  assert.ok(check >= 0 && check < metadata && metadata < tests);
+  assert.match(helper, /assertDependencyLocks\(process\.cwd\(\), \{ rustTestManifests: \["Cargo\.toml"\] \}\)/u);
+  assert.match(helper, /CARGO_LOCK_FLAG: policy === "tracked" \? "--locked" : ""/u);
+  assert.match(helper, /"metadata", "--format-version", "1", "--no-deps", \.\.\.cargoLockArgs\(\)/u);
+  assert.match(helper, /"--all-features", \.\.\.cargoLockArgs\(\), "--", "--list"/u);
+  assert.match(text, /cargo test --workspace --all-targets --all-features "\$\{lock_args\[@\]\}"/u);
+  assert.match(text, /cargo build --workspace --release "\$\{lock_args\[@\]\}"/u);
+});
+
+// 候选门禁在缺省时不要求锁文件，显式跟踪时拒绝缺失和未跟踪锁。
+test("check_lock_policy_defaults_to_ignored_and_rejects_missing_tracked_lock", () => {
+  const temporary = mkdtempSync(join(tmpdir(), "candidate-workflow-lock-"));
+  try {
+    const environmentPath = join(temporary, "github-env");
+    const cargo = join(temporary, "Cargo.toml");
+    writeFileSync(cargo, "[workspace]\nmembers = []\n[workspace.metadata.agent-first-harness]\ninterfaces = [\"cli\"]\n", "utf8");
+    writeFileSync(environmentPath, "", "utf8");
+    const ignored = invoke("check-lock-policy", temporary, { GITHUB_ENV: environmentPath });
+    assert.equal(ignored.status, 0, ignored.stderr);
+    assert.equal(readFileSync(environmentPath, "utf8"), "CARGO_LOCK_FLAG=\n");
+    writeFileSync(cargo, readFileSync(cargo, "utf8") + 'dependency-lock-policy = "tracked"\n');
+    const init = spawnSync("git", ["-C", temporary, "init", "-q"], { encoding: "utf8" });
+    assert.equal(init.status, 0, init.stderr);
+    const missing = invoke("check-lock-policy", temporary, { GITHUB_ENV: environmentPath });
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /Cargo.lock/u);
+    writeFileSync(join(temporary, "Cargo.lock"), "# test lock\n", "utf8");
+    const untracked = invoke("check-lock-policy", temporary, { GITHUB_ENV: environmentPath });
+    assert.equal(untracked.status, 1);
+    assert.match(untracked.stderr, /Git 跟踪/u);
+    const added = spawnSync("git", ["-C", temporary, "add", "--", "Cargo.lock"], { encoding: "utf8" });
+    assert.equal(added.status, 0, added.stderr);
+    const tracked = invoke("check-lock-policy", temporary, { GITHUB_ENV: environmentPath });
+    assert.equal(tracked.status, 0, tracked.stderr);
+    assert.equal(readFileSync(environmentPath, "utf8"), "CARGO_LOCK_FLAG=\nCARGO_LOCK_FLAG=--locked\n");
+  } finally {
+    rmSync(temporary, { recursive: true, force: true });
+  }
 });
 
 test("checkout_uses_release_branch_full_history_and_no_persisted_credentials", () => {

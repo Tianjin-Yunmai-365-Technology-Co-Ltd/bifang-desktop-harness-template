@@ -45,6 +45,8 @@
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.test.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_core_first.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_core_first.test.mjs", "mode": "managed"},
+    {"pattern": ".agents/skills/desktop-implement-change/scripts/project_lock_policy.mjs", "mode": "managed"},
+    {"pattern": ".agents/skills/desktop-implement-change/scripts/project_lock_policy.test.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_rust_chinese_comments.test.mjs", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs", "mode": "managed"},

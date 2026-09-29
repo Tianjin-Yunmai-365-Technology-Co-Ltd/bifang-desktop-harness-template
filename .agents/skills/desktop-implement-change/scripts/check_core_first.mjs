@@ -7,6 +7,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { readDependencyLockPolicy } from "./project_lock_policy.mjs";
+
 const ADAPTER_SUFFIXES = ["_cli", "_tui", "_mcp", "_gui"];
 const INTERFACE_CRATE_NAMES = new Set([
   "clap", "crossterm", "dialoguer", "muda", "ratatui", "rmcp", "tauri", "tauri-build",
@@ -197,7 +199,8 @@ export function loadCargoMetadata(workspaceRoot, { cargo = "cargo", timeoutSecon
   const manifest = path.join(root, "Cargo.toml");
   try { if (!statSync(manifest).isFile()) throw new Error(); }
   catch { throw new Error(`workspace 根缺少 Cargo.toml: ${root}`); }
-  const args = ["metadata", "--no-deps", "--format-version", "1", "--manifest-path", manifest];
+  const lockPolicy = readDependencyLockPolicy(root);
+  const args = ["metadata", ...(lockPolicy === "tracked" ? ["--locked"] : []), "--no-deps", "--format-version", "1", "--manifest-path", manifest];
   const result = spawnSync(cargo, args, { cwd: root, encoding: "utf8", timeout: timeoutSeconds * 1000, maxBuffer: 64 * 1024 * 1024 });
   if (result.error?.code === "ENOENT") throw new Error(`无法执行 Cargo: ${cargo}`);
   if (result.error?.code === "ETIMEDOUT") throw new Error(`cargo metadata 在 ${timeoutSeconds} 秒后超时`);

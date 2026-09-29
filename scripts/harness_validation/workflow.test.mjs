@@ -64,8 +64,8 @@ const workflowMutations = [
   ["candidate attempts a remote push", "          ref: release\n", "          ref: release\n          git push origin release\n", "forbidden candidate behavior"],
   ["shallow checkout", "          fetch-depth: 0\n", "          fetch-depth: 1\n", "fetch-depth: 0"],
   ["missing Node setup version", "          node-version: 24.21.0\n", "          node-version: 24.20.0\n", "runtime setup"],
-  ["format gate injected into build", "          cargo test --workspace --all-targets --all-features\n", "          cargo fmt --all -- --check\n          cargo test --workspace --all-targets --all-features\n", "forbidden candidate behavior"],
-  ["lint gate injected into build", "          cargo test --workspace --all-targets --all-features\n", "          cargo clippy --workspace\n          cargo test --workspace --all-targets --all-features\n", "forbidden candidate behavior"],
+  ["format gate injected into build", "          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "          cargo fmt --all -- --check\n          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "forbidden candidate behavior"],
+  ["lint gate injected into build", "          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "          cargo clippy --workspace\n          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "forbidden candidate behavior"],
   ["Unix packaging loses success guard", "        if: runner.os != 'Windows' && success()\n", "        if: runner.os != 'Windows'\n", "exact guard"],
   ["Windows packaging loses success guard", "        if: runner.os == 'Windows' && success()\n", "        if: runner.os == 'Windows'\n", "exact guard"],
   ["upload loses success guard", "        if: success()\n        with:\n", "        with:\n", "upload step"],
@@ -103,7 +103,7 @@ test("rejects missing second context verification", () => {
 test("comments cannot mask active test, pending state, or upload guard", () => {
   const source = baseWorkflow();
   const mutations = [
-    changed(source, "          cargo test --workspace --all-targets --all-features\n", "          # cargo test --workspace --all-targets --all-features\n"),
+    changed(source, "          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "          # cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n"),
     changed(source, "        if: success()\n        with:\n", "        if: always() # if: success()\n        with:\n"),
     `${source}\n# cargo test --workspace --all-targets --all-features\n`,
   ];

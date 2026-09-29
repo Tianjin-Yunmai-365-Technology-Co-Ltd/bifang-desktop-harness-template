@@ -114,18 +114,22 @@ test("managed-self and conditional rules must precede the generic skill rule", (
   });
 });
 
-test("specific checker paths cannot be shadowed by an earlier broad rule", () => {
-  withTemporaryDirectory((directory) => {
-    const manifest = productionManifest();
-    const checker = ".agents/skills/desktop-implement-change/scripts/check_core_first.mjs";
-    const checkerIndex = manifest.rules.findIndex(({ pattern }) => pattern === checker);
-    manifest.rules.splice(checkerIndex, 0, {
-      pattern: ".agents/skills/desktop-implement-change/**",
-      mode: "protected",
+test("required checkers cannot be shadowed by an earlier broad rule", () => {
+  for (const checker of [
+    ".agents/skills/desktop-implement-change/scripts/check_core_first.mjs",
+    ".agents/skills/desktop-implement-change/scripts/project_lock_policy.mjs",
+  ]) {
+    withTemporaryDirectory((directory) => {
+      const manifest = productionManifest();
+      const checkerIndex = manifest.rules.findIndex(({ pattern }) => pattern === checker);
+      manifest.rules.splice(checkerIndex, 0, {
+        pattern: ".agents/skills/desktop-implement-change/**",
+        mode: "protected",
+      });
+      const errors = validateManifest(manifest, directory);
+      assert.match(errors.join("\n"), /required checker ownership must remain managed/u);
     });
-    const errors = validateManifest(manifest, directory);
-    assert.match(errors.join("\n"), /required checker ownership must remain managed/u);
-  });
+  }
 });
 
 test("duplicate patterns and unknown modes fail closed", () => {

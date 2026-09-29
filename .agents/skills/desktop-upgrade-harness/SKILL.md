@@ -20,6 +20,7 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
    `.harness/version-state.json` 始终是 `protected` 下游状态，来源或候选都不得包含、初始化、重算或覆盖它；Cargo 产品版本同样受保护。`$desktop-manage-version` 的 Skill/helper 属于可升级工程资产，但产品周期与缺陷 ID 历史不属于。首次检查时同时记录目标是否缺少该状态；缺失只表示旧下游需要在工程层升级完成后进入第 14 步的显式人工迁移，绝不授权候选、升级器或 `apply|record` 静默创建它。
    `.harness/release-context.json` 始终是 `protected` 下游发布事实，来源和候选均不得包含、初始化、重算或覆盖它；目标尚无该文件时保持缺席，只有目标项目真实执行 `$desktop-prepare-release` 时才可创建。Git common-dir 生命周期清单位于 tracked 目标树之外，从不进入候选、所有权清单或来源锁。
    `docs/AGENT_POLICY.md` 继续是受保护的下游事实。第 4 步只读记录发布后动作状态：旧 `schema_version: 3` 且缺少 `post_release_action` 表示需要补选；`schema_version: 4` 只接受 `local_package` 或 `push_release_branch`。重复/缺失字段、未知 schema 或非法值是冲突，不能推断为默认项，也不能宣布升级完成。
+   同时只读解析目标根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下 `dependency-lock-policy` 字段：缺省或 `"ignored"` 沿用忽略锁文件的工程分支，显式 `"tracked"` 走锁文件受跟踪与冻结解析分支；未知值、错误类型或重复键失败关闭。`tracked` 须核对根及 `rust-test-manifests` 指出的每个独立工作区 `Cargo.lock`，以及已选 GUI 根的 `pnpm-lock.yaml`，均为真实文件、受 Git 跟踪且未被忽略。候选中的通用规则和 Skill 应保留两条分支，并按目标的实际接口与工作区路径渲染；不得以源默认策略覆盖目标的显式选择。根 Cargo 元数据、`.gitignore` 和项目锁文件均为目标受保护事实，升级器 `plan|apply|record` 不修改它们；目标需要首次选择或修复 `tracked` 时，由下游在独立开发范围内显式调整并验证后再继续记录基线。
 5. 要求源 Harness Git 工作树干净，并且其现有 `HEAD` 与声明的源提交匹配；要求声明的源版本与源 `Version.md` 匹配。信任候选之前先运行源 Harness 验证器。不得把该模板专用验证器复制到下游。记录源版本、源提交、候选构建输入、下游分支、提交、脏状态摘要，以及未验证平台。
 
    本 Skill 的 helper 要求当前宿主具备 Node.js >= 24.21；缺失或版本不足时失败关闭，不得改用其他运行时。所有操作命令均使用 `node` 且保持单行，不依赖 POSIX `\` 续行符、PowerShell 反引号或 shell 变量。
@@ -63,7 +64,7 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 ## 安全边界
 
 - 默认执行 `plan`；绝不得仅因调用本 Skill 就写入。
-- 绝不得覆盖产品源代码、测试、Cargo 产品版本或锁定选择、`.harness/version-state.json`、`.harness/release-context.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、common-dir 生命周期清单、敏感信息或未登记本地文件；传播 Git 生命周期或发布后动作 Skill 不授权执行它。第 15 步的用户确认只授权目标项目专用 Skill 写入该受保护偏好与真实 ADR，不授权升级器改写任何 protected 文件。第 14 步只是在工程层升级完成后转交版本 Skill 的显式人工迁移，不能由升级器调用、合并到 `apply|record` 或解释为对 protected 状态的例外。
+- 绝不得覆盖产品源代码、测试、Cargo 产品版本或依赖锁策略、`.gitignore`、项目 `Cargo.lock`/`pnpm-lock.yaml`、`.harness/version-state.json`、`.harness/release-context.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、common-dir 生命周期清单、敏感信息或未登记本地文件；传播 Git 生命周期或发布后动作 Skill 不授权执行它。第 15 步的用户确认只授权目标项目专用 Skill 写入该受保护偏好与真实 ADR，不授权升级器改写任何 protected 文件。第 14 步只是在工程层升级完成后转交版本 Skill 的显式人工迁移，不能由升级器调用、合并到 `apply|record` 或解释为对 protected 状态的例外。
 - 绝不得把 `Version.md`、`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、模板验证器文件、`docs/HARNESS_ENGINEERING.md` 或其他活动派生入口恢复到终端下游。
 - 绝不得自动应用 `merge-sections`、`conditional`、`protected`、未知或冲突路径。
 - 更新器绝不自动添加或删除项目文件。已复核的 `add` 或 `delete` 必须在声明的 Todo 内人工执行，然后由新计划显示收敛，才能记录基线。

@@ -34,6 +34,7 @@ const CACHED_PATCH_ARGUMENTS = [
 const APPROVABLE_HARNESS_PATHS = new Set([
   ".harness/release-context.json",
   ".harness/upstream-lock.json",
+  ".harness/version-state.json",
 ]);
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 

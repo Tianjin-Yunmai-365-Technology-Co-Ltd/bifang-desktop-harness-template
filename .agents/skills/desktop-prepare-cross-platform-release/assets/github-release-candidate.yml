@@ -90,6 +90,9 @@ jobs:
         run: node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs read-msrv
       - name: 选择项目 MSRV
         run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+      - name: 验证项目依赖锁策略
+        shell: bash
+        run: node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs check-lock-policy
       - name: 验证候选版本
         shell: bash
         run: node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs verify-version
@@ -109,10 +112,17 @@ jobs:
       - name: 验证候选
         shell: bash
         run: |
+          lock_args=()
+          if [[ "${CARGO_LOCK_FLAG:-}" == "--locked" ]]; then
+            lock_args=(--locked)
+          elif [[ -n "${CARGO_LOCK_FLAG:-}" ]]; then
+            echo "::error::项目依赖锁标志无效"
+            exit 1
+          fi
           node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs list-tests
-          cargo test --workspace --all-targets --all-features
+          cargo test --workspace --all-targets --all-features "${lock_args[@]}"
           node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs verify-post-test
-          cargo build --workspace --release
+          cargo build --workspace --release "${lock_args[@]}"
       - name: 尝试 Unix 签名
         if: runner.os != 'Windows' && success()
         shell: bash
