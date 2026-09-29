@@ -3,6 +3,26 @@
   "releases": [
     {
       "releaseDate": "2026-09-29",
+      "version": "v202609291802",
+      "featureOptimizations": [
+        {
+          "zh-CN": "已有下游可显式选择跟踪 Cargo 与 pnpm 锁文件；受管安装、测试和构建按实际工作区使用冻结解析，默认仍忽略锁文件。",
+          "en-US": "Existing downstream projects can explicitly track Cargo and pnpm lockfiles. Managed install, test, and build steps use frozen resolution for actual workspaces; the default still ignores lockfiles."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复发布流程拒绝精确审查并提交已跟踪 .harness/version-state.json 的问题。",
+          "en-US": "Fixed release commits rejecting a tracked .harness/version-state.json even when it was explicitly reviewed."
+        },
+        {
+          "zh-CN": "修复发布后动作选择在混合 CLI/GUI、两种 GUI 布局及独立 Cargo 工作区中漏检 GUI 清单或适用锁文件的问题。",
+          "en-US": "Fixed post-release action selection missing GUI manifests or required lockfiles in mixed CLI/GUI projects, both GUI layouts, and independent Cargo workspaces."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-29",
       "version": "v202609291534",
       "featureOptimizations": [],
       "bugFixes": [

@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "74b52740e0d20c71f614d5c8be03746840134511",
-  "version": "202609291534",
+  "sourceHead": "95670cf920b7a8552b7aa1aabc0c752d3f6cc4ce",
+  "version": "202609291802",
   "releaseDate": "2026-09-29",
-  "expectedTag": "v202609291534-20260929",
+  "expectedTag": "v202609291802-20260929",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "b7bed57daf8aaca28af63ed1ca7c609622640f7d",
-    "sourceHead": "74b52740e0d20c71f614d5c8be03746840134511",
-    "scopeDiffSha256": "3650789ad17193fd11480a0bd4b6c174c5efab4aa5352b09fc2a10aa021aa104",
-    "reviewedSourceCommit": "74b52740e0d20c71f614d5c8be03746840134511",
+    "scopeBase": "2cc20fcc62a01e33d239874f68fa93a8ae32a667",
+    "sourceHead": "95670cf920b7a8552b7aa1aabc0c752d3f6cc4ce",
+    "scopeDiffSha256": "70fec77694668df0c22220883b5877e26c5ac6d80612d8846e7a3e7be6bca634",
+    "reviewedSourceCommit": "95670cf920b7a8552b7aa1aabc0c752d3f6cc4ce",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed behavior correctness, core and adapter boundaries, external contracts, file responsibility and size, and temporary markers over the Git diff since the previous release. Harness tests passed (880 passed, 14 platform skips); release review passed with 25 nonblocking size and existing fixture marker hints.",
+    "evidenceSummary": "Reviewed prior tag to sourceHead across behavior, core/adapter boundaries, public contracts, responsibility and size, and temporary markers. Independent code and docs reviews found no blockers. Harness hard and release-review gates passed; Node suite: 926 tests, 912 passed, 14 skipped, 0 failed. Review warnings were non-blocking size thresholds and a test fixture TODO.",
     "reason": null,
     "remainingRisk": null
   }
