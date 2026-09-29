@@ -195,7 +195,9 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]',
     '["update-ref", "refs/heads/release", head, expected]',
     "const postReleaseAction = harnessSource ? null : configuredPostReleaseAction(sourceRepository)",
-    "if (last.postReleaseAction === null)", 'if (last.postReleaseAction !== "push_release_branch")',
+    "function isHarnessSourceRelease(",
+    "if (last.postReleaseAction === null && !isHarnessSourceRelease(repository, last))",
+    'if (last.postReleaseAction !== null && last.postReleaseAction !== "push_release_branch")',
   ], "Git lifecycle contract");
   requireContract(errors, paths.report, [
     "export function primaryFailureMessage", "export function additionalFailureMessage", "export function pendingFailure",
@@ -341,8 +343,8 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     }
     const postReleasePush = functionSource(publication, "commandPushRelease");
     requireOrder(errors, postReleasePush, [
-      "const last = state.lastRelease", "if (last.postReleaseAction === null)",
-      'if (last.postReleaseAction !== "push_release_branch")', "const branch = RELEASE_BRANCH",
+      "const last = state.lastRelease", "if (last.postReleaseAction === null && !isHarnessSourceRelease(repository, last))",
+      'if (last.postReleaseAction !== null && last.postReleaseAction !== "push_release_branch")', "const branch = RELEASE_BRANCH",
       "const checkoutBranch = currentBranchOrNone(repository)",
       "const checkoutHead = currentHead(repository)", "localTagTarget(",
       "assertNoLocalReleaseCaseVariant(repository)", "remoteReleaseRefs(repository, remote, last.tag)",

@@ -207,7 +207,7 @@ scenario("harness_release_requires_managed_current_minute_stamp_before_merge_or_
 });
 
 scenario("harness_release_accepts_managed_timestamp_stamp", (item) => {
-  const { repository } = item.initializeRepository({ remote: false });
+  const { repository } = item.initializeRepository({ remote: true });
   item.helper(repository, ["start", "--summary", "managed-time-version"]);
   const initializationSkill = join(repository, ".agents/skills/desktop-instantiate-project/SKILL.md");
   mkdirSync(dirname(initializationSkill), { recursive: true });
@@ -224,6 +224,12 @@ scenario("harness_release_accepts_managed_timestamp_stamp", (item) => {
     "--release-context-sha256", context.digest]).payload;
   assert.equal(released.status, "released");
   assert.equal(released.tag, `v${version}-${date}`);
+  assert.equal(item.state(repository).lastRelease.postReleaseAction, null);
+  const pushed = item.helper(repository, ["push-release", "--remote", "origin"]).payload;
+  assert.equal(pushed.status, "release-pushed");
+  assert.equal(pushed.head, released.head);
+  assert.equal(item.git(repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], released.head);
+  assert.equal(item.git(repository, "ls-remote", "--tags", "origin", `refs/tags/${released.tag}`).stdout.split("\t")[0], released.head);
 });
 
 scenario("harness_release_rechecks_final_version_after_all_registered_merges", (item) => {

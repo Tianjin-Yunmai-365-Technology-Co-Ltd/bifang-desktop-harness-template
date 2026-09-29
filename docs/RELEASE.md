@@ -50,7 +50,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 `release --version <version> --date YYYYMMDD --release-context-sha256 <sha256>` 普通合并全部登记分支到本地默认主分支，冻结最终 HEAD，创建或复用 `v{version}-{YYYYMMDD}`，并复读 tag 与主分支 HEAD。两者一致即完成 Git 发布。全过程不 fetch、push、打包或删除登记分支和 Worktree；登记资源保留以便用户决定后续处理。同名 tag 指向其他提交、脏工作区、缺失分支、合并冲突或上下文漂移都会失败关闭；重试必须沿用同一上下文及最终 HEAD。
 
-完成初始化的下游在 Git 发布开始前读取已确认的 `docs/AGENT_POLICY.md` 中 `post_release_action`，将当次值冻结在 Git common-dir 生命周期记录；发布后只消费该次冻结值，切换仅影响后续发布。旧发布没有冻结值时不得用升级后的新偏好补推或补打包。`local_package` 沿用适用的本地打包 Skill 及其当次 E2E、签名和产物门禁；`push_release_branch` 另行使用 `push-release --remote <name>`，把上次已发布的同一 HEAD 放到本地小写 `release` 分支，再非强制推到远端同名分支并推送同一 tag，逐项复读确认。只有一个已配置远端时可直接选择，多个远端须先明确目标；不创建远端或凭据。后续路径失败不撤销本地 Git 发布，但不得宣称发布后流程完成，也不重新 fetch、merge、计算 HEAD。Harness 源的待确认模板值不阻断自身 Git 发布，其后续源码归档或推送仍由用户当次决定。流程允许普通 merge commit，不设置保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease 或 atomic push。
+完成初始化的下游在 Git 发布开始前读取已确认的 `docs/AGENT_POLICY.md` 中 `post_release_action`，将当次值冻结在 Git common-dir 生命周期记录；发布后只消费该次冻结值，切换仅影响后续发布。旧发布没有冻结值时不得用升级后的新偏好补推或补打包。`local_package` 沿用适用的本地打包 Skill 及其当次 E2E、签名和产物门禁；`push_release_branch` 另行使用 `push-release --remote <name>`，把上次已发布的同一 HEAD 放到本地小写 `release` 分支，再非强制推到远端同名分支并推送同一 tag，逐项复读确认。只有一个已配置远端时可直接选择，多个远端须先明确目标；不创建远端或凭据。后续路径失败不撤销本地 Git 发布，但不得宣称发布后流程完成，也不重新 fetch、merge、计算 HEAD。Harness 源的待确认模板值不阻断自身 Git 发布；用户当次授权推送后，`push-release --remote <name>` 须从已发布提交核对 Harness 身份，再执行相同的分支和 tag 安全复读。流程允许普通 merge commit，不设置保护分支、严格线性、active leaf、单写入者、fast-forward-only、lease 或 atomic push。
 
 发布上下文记录的本地默认主分支与远端 `release` 分支职责不同；后续远程候选分别验证本地主分支/tag 与远端 `release` 分支/tag，均须指向同一已发布 HEAD。远端 advertised 默认分支不因该路径移动。
 

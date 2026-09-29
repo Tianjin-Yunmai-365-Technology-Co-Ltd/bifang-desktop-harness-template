@@ -557,6 +557,16 @@ export async function commandRelease(repository, args) {
 
 const RELEASE_BRANCH = "release";
 
+/** Harness 源按当次用户请求推送，须由已发布提交中的时间版本和初始化入口共同证明身份。 */
+function isHarnessSourceRelease(repository, last) {
+  if (!/^\d{12}$/u.test(last.version)) return false;
+  const version = runGit(repository.root, ["show", `${last.head}:Version.md`], { check: false });
+  const initialization = runGit(repository.root, ["cat-file", "-e", `${last.head}:${HARNESS_INITIALIZATION_SKILL}`], { check: false });
+  return version.returncode === 0 &&
+    version.stdout.includes(`- 当前版本：\`${last.version}\``) &&
+    initialization.returncode === 0;
+}
+
 /** 判断引用是否是 release 分支的大小写变体；大小写不敏感文件系统会把它们解析为同一分支。 */
 function isReleaseCaseVariant(reference) {
   return reference.toLowerCase() === `refs/heads/${RELEASE_BRANCH}` && reference !== `refs/heads/${RELEASE_BRANCH}`;
@@ -643,10 +653,10 @@ export function commandPushRelease(repository, args) {
   const state = loadState(repository);
   const last = state.lastRelease;
   if (last === null) throw new LifecycleError("no-release", "No completed local release is recorded.");
-  if (last.postReleaseAction === null) {
+  if (last.postReleaseAction === null && !isHarnessSourceRelease(repository, last)) {
     throw new LifecycleError("post-release-action-unbound", "This historical release has no confirmed post-release action.");
   }
-  if (last.postReleaseAction !== "push_release_branch") {
+  if (last.postReleaseAction !== null && last.postReleaseAction !== "push_release_branch") {
     throw new LifecycleError("post-release-action-mismatch", "Frozen post-release action is not push_release_branch.");
   }
   if (state.cycle?.pendingRelease || state.pendingPublish !== null) {
