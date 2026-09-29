@@ -3,6 +3,21 @@
   "releases": [
     {
       "releaseDate": "2026-09-29",
+      "version": "v202609291534",
+      "featureOptimizations": [],
+      "bugFixes": [
+        {
+          "zh-CN": "移除项目锁文件的 Git 跟踪及初始化、候选构建门禁；Harness 与新建下游无需提交 Cargo 或 pnpm 锁文件。",
+          "en-US": "Removed Git tracking and initialization and candidate build gates for project lockfiles; Harness and new downstream projects no longer require committed Cargo or pnpm lockfiles."
+        },
+        {
+          "zh-CN": "修复 Harness 源完成本地 Git 发布后无法按当次授权推送 release 分支与版本 tag 的问题。",
+          "en-US": "Fixed Harness source releases being unable to push the release branch and version tag after local Git release when explicitly requested."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-09-29",
       "version": "v202609290958",
       "featureOptimizations": [
         {
