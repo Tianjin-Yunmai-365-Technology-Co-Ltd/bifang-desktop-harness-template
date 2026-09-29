@@ -90,9 +90,9 @@
 
 ## 变更
 
-- `HARNESS-CHANGE-OPTIONAL-TRACKED-LOCKFILES`（`required_version = pending`）：已有下游可在根 Cargo 元数据中显式选择 `dependency-lock-policy = "tracked"`，继续跟踪真实 Rust 工作区及 GUI 前端锁文件，并在安装、测试和构建中使用冻结解析；非法策略或缺失、未跟踪、被忽略的适用锁文件失败关闭。升级器只读消费该选择，保留目标项目对 Cargo 元数据、`.gitignore` 与锁文件的所有权；新建项目仍保持忽略锁文件的默认值。
-- `HARNESS-FIX-RELEASE-GIT-EXACT-VERSION-STATE`（`required_version = pending`）：`release_git` 允许发布流程精确审查并提交已跟踪的 `.harness/version-state.json`，继续拒绝未跟踪文件、其他受保护路径和超出本次发布范围的变更。
-- `HARNESS-FIX-POST-RELEASE-ACTION-GUI-LAYOUTS`（`required_version = pending`）：发布后动作选择兼容两种受管 Tauri GUI 布局，并按已选 `dependency-lock-policy` 校验实际 Rust 测试 manifest 与适用锁文件；显式 `tracked` 的下游保留其锁定解析约束。
+- `HARNESS-CHANGE-OPTIONAL-TRACKED-LOCKFILES`（`required_version = 202609291802`）：已有下游可在根 Cargo 元数据中显式选择 `dependency-lock-policy = "tracked"`，继续跟踪真实 Rust 工作区及 GUI 前端锁文件，并在安装、测试和构建中使用冻结解析；非法策略或缺失、未跟踪、被忽略的适用锁文件失败关闭。升级器只读消费该选择，保留目标项目对 Cargo 元数据、`.gitignore` 与锁文件的所有权；新建项目仍保持忽略锁文件的默认值。
+- `HARNESS-FIX-RELEASE-GIT-EXACT-VERSION-STATE`（`required_version = 202609291802`）：`release_git` 允许发布流程精确审查并提交已跟踪的 `.harness/version-state.json`，继续拒绝未跟踪文件、其他受保护路径和超出本次发布范围的变更。
+- `HARNESS-FIX-POST-RELEASE-ACTION-GUI-LAYOUTS`（`required_version = 202609291802`）：发布后动作选择兼容两种受管 Tauri GUI 布局；含 CLI 的组合也检查所选 GUI 清单，并按 `dependency-lock-policy` 核对根、实际测试工作区、独立 GUI Cargo 工作区与适用前端锁文件。显式 `tracked` 的下游保留锁定解析约束。
 - `HARNESS-CHANGE-IGNORE-PROJECT-LOCKFILES`（required_version = 202609291534）：Harness 源和新建下游忽略 `Cargo.lock`、`pnpm-lock.yaml`，并兼容忽略反馈中的 `pnpm-package.lock` 名称；中性 Rust 资产不再提交锁文件。初始化、发布后动作选择及本地/远程候选构建不再要求项目锁文件存在或受 Git 跟踪，也不使用项目 `--locked`/冻结安装门禁。清单兼容下界、最低工具链测试和候选真实性检查保持适用。
 
 - `HARNESS-CHANGE-COMPATIBLE-OWNERSHIP-REPAIR`（`required_version = 202609290958`）：旧下游所有权清单只缺新增 Skill 的显式 `managed` 规则、而已有通用规则赋予相同所有权且无冲突规则时，升级器允许生成三方计划并列出待补规则；应用候选清单和记录升级基线前仍严格要求补齐。已有显式冲突或受保护路径缺失继续失败关闭。

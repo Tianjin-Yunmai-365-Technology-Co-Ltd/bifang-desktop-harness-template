@@ -53,7 +53,7 @@
 
 `package.json` 必须以 `engines.node: ">=24.21.0"` 和 `engines.pnpm: ">=12.4.1"` 表达当前最低工具范围。已安装的任何更高正式版本都在 Node.js 连续范围内直接通过；缺失或低于下界时，环境门禁选择官方索引中的最高 LTS 系列及其最新稳定补丁安装。`@types/node ^24.13.4` 是 Vite 8 类型声明与复制的 TypeScript 检查脚本直接消费的开发依赖，不能依赖 Vite/Vitest 的 optional peer 被 pnpm 间接提升。测试环境固定使用 `jsdom ^29.0.1`，其 Node.js engine 连续覆盖 `>=24.0.0`；不得升级到会重新排除 Node.js 25.x 等更高正式主版的 jsdom 版本。不得把旧式精确 `packageManager` 字段当作兼容要求；若生成工具为 Corepack 溯源必须写入该字段，它只属于实际解析元数据，不能替代 `engines` 范围或下界验证。缺省或 `dependency-lock-policy = "ignored"` 时，正常安装可生成 Git 忽略的本地 `pnpm-lock.yaml`；显式 `tracked` 时，GUI 根的 `pnpm-lock.yaml` 必须受 Git 跟踪并以冻结安装复核。锁文件策略不改变清单下界。
 
-新增或提高直接下界时，在临时副本的 `pnpm-workspace.yaml` 中设置 `resolutionMode: lowest-direct`，于声明的最低 Node.js/pnpm 环境运行受影响的类型检查、非空单元测试与生产构建。最低版本解析只用于证明下界；正常安装可选择范围内较新的稳定版本，本地锁文件不进入 Git。
+新增或提高直接下界时，在临时副本的 `pnpm-workspace.yaml` 中设置 `resolutionMode: lowest-direct`，于声明的最低 Node.js/pnpm 环境运行受影响的类型检查、非空单元测试与生产构建。最低版本解析只用于证明下界；正常安装可选择范围内较新的稳定版本。缺省锁策略下本地锁文件不进入 Git；已有下游显式选择 `tracked` 时跟踪 GUI 根锁文件。
 
 ## 状态所有权
 

@@ -67,6 +67,33 @@ function tomlLines(source) {
   return result;
 }
 
+function tomlBasicKey(source) {
+  let value = "";
+  for (let index = 1; index < source.length - 1; index += 1) {
+    const character = source[index];
+    if (character !== "\\") {
+      if (/[\u0000-\u001f\u007f]/u.test(character)) return null;
+      value += character;
+      continue;
+    }
+    const escape = source[++index];
+    if (escape === "u" || escape === "U") {
+      const digits = escape === "u" ? 4 : 8;
+      const hex = source.slice(index + 1, index + 1 + digits);
+      if (hex.length !== digits || !/^[0-9a-f]+$/iu.test(hex)) return null;
+      const codePoint = Number.parseInt(hex, 16);
+      if (codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) return null;
+      value += String.fromCodePoint(codePoint);
+      index += digits;
+    } else {
+      const escaped = { b: "\b", t: "\t", n: "\n", f: "\f", r: "\r", '"': '"', "\\": "\\" }[escape];
+      if (escaped === undefined) return null;
+      value += escaped;
+    }
+  }
+  return value;
+}
+
 function tomlKeyPath(source) {
   const parts = [];
   let index = 0;
@@ -87,8 +114,8 @@ function tomlKeyPath(source) {
       }
       if (index === source.length) return null;
       const quoted = source.slice(start, index + 1);
-      try { part = quote === '"' ? JSON.parse(quoted) : quoted.slice(1, -1); }
-      catch { return null; }
+      part = quote === '"' ? tomlBasicKey(quoted) : quoted.slice(1, -1);
+      if (part === null) return null;
       index += 1;
     } else {
       const match = /^[A-Za-z0-9_-]+/u.exec(source.slice(index));
@@ -160,7 +187,7 @@ export function readDependencyLockPolicy(projectRootValue) {
     const fullPath = key && tablePath ? [...tablePath, ...key] : null;
     const value = separator < 0 ? "" : line.slice(separator + 1).trim();
     if (samePath(fullPath, POLICY_PATH)) values.push(value);
-    else if (key?.includes(POLICY_KEY) || (isPolicyPrefix(fullPath) && value.includes(POLICY_KEY))) {
+    else if (key?.includes(POLICY_KEY) || (isPolicyPrefix(fullPath) && value.startsWith("{"))) {
       throw new Error(`Cargo ${POLICY_KEY} 元数据位置或语法无效`);
     }
   }
@@ -236,23 +263,24 @@ function assertTrackedNotIgnored(root, relative, git) {
   if (ignored.status !== 1) throw new Error(`无法核对锁文件 Git 忽略状态：${relative}`);
 }
 
-function workspaceLockForManifest(root, manifest) {
-  let directory = path.posix.dirname(manifest);
-  while (true) {
-    const ancestorManifest = path.posix.join(directory, "Cargo.toml");
-    const file = path.join(root, ancestorManifest);
-    let source;
-    try { source = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(file)); }
-    catch (error) {
-      if (ancestorManifest === manifest) throw new Error(`无法读取 Rust workspace 清单：${manifest} (${error.message})`);
-      source = "";
-    }
-    if (tomlLines(source).some((line) => line === "[workspace]")) {
-      return path.posix.join(directory, "Cargo.lock");
-    }
-    if (directory === ".") return "Cargo.lock";
-    directory = path.posix.dirname(directory);
+function cargoWorkspaceLock(root, manifest) {
+  const result = spawnSync("cargo", ["locate-project", "--workspace", "--offline", "--message-format", "json",
+    "--manifest-path", path.join(root, manifest)], { cwd: root, encoding: "buffer", maxBuffer: 16 * 1024 * 1024 });
+  if (result.error) throw new Error(`无法执行 Cargo workspace 定位：${result.error.message}`);
+  if (result.status !== 0) throw new Error(`Cargo 无法确认 workspace 根：${manifest} (${gitText(result.stderr).trim()})`);
+  let located;
+  try { located = JSON.parse(gitText(result.stdout)).root; }
+  catch { throw new Error(`Cargo workspace 定位输出无效：${manifest}`); }
+  if (typeof located !== "string" || !path.isAbsolute(located) || path.basename(located) !== "Cargo.toml") {
+    throw new Error(`Cargo workspace 根清单路径无效：${manifest}`);
   }
+  const relative = path.relative(root, located);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`Cargo workspace 根不得离开项目：${manifest}`);
+  }
+  const workspaceManifest = relative.split(path.sep).join("/");
+  checkedPath(root, workspaceManifest, "Cargo workspace 根清单");
+  return path.posix.join(path.posix.dirname(workspaceManifest), "Cargo.lock");
 }
 
 /**
@@ -272,7 +300,7 @@ export function assertDependencyLocks(projectRootValue, { rustTestManifests = ["
     const manifest = safeRelative(manifestValue, "Rust workspace 清单");
     if (path.posix.basename(manifest) !== "Cargo.toml") throw new Error(`Rust workspace 清单必须命名为 Cargo.toml：${manifest}`);
     checkedPath(root, manifest, "Rust workspace 清单");
-    locks.add(workspaceLockForManifest(root, manifest));
+    locks.add(cargoWorkspaceLock(root, manifest));
   }
   if (guiRoot !== null) {
     const relativeGui = safeRelative(guiRoot, "GUI 根", { allowRoot: true });

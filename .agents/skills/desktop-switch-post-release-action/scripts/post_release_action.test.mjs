@@ -223,6 +223,13 @@ test("local package choice requires an existing CLI or supported GUI package rou
   assert.equal(f.run("check").status, "configured");
 });
 
+test("mixed CLI and GUI local package choice still checks GUI readiness", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), "[workspace]\nmembers = [\"app\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"cli\", \"gui\"]\ngui-root = \"app\"\ndependency-lock-policy = \"tracked\"\n");
+  track(f, "Cargo.toml");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /GUI 根目录 不存在/u);
+});
+
 // GUI 根目录内的 Cargo 与 Tauri 配置必须成对，并拒绝同时存在两份配置。
 test("gui_root_cargo_layout_is_supported_and_ambiguous_config_fails_closed", (t) => {
   const f = fixture(t);
@@ -285,7 +292,9 @@ test("tracked_lock_policy_requires_gui_workspace_and_frontend_locks", (t) => {
   fs.writeFileSync(path.join(f.root, "Cargo.toml"), "[workspace]\nmembers = [\"app\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \"app\"\nrust-test-manifests = [\"Cargo.toml\"]\ndependency-lock-policy = \"tracked\"\n");
   fs.mkdirSync(path.join(f.root, "app"));
   fs.writeFileSync(path.join(f.root, "app", "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
-  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), "[package]\nname = \"example\"\n");
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), "[package]\nname = \"example\"\nversion = \"0.1.0\"\n");
+  fs.mkdirSync(path.join(f.root, "app", "src"));
+  fs.writeFileSync(path.join(f.root, "app", "src", "lib.rs"), "pub fn marker() {}\n");
   fs.writeFileSync(path.join(f.root, "app", "tauri.conf.json"), '{}\n');
   track(f, "Cargo.toml", "app/package.json", "app/Cargo.toml", "app/tauri.conf.json");
   assert.match(f.run("set", setOptions("local_package"), 2).error, /Cargo.lock/u);
@@ -298,6 +307,27 @@ test("tracked_lock_policy_requires_gui_workspace_and_frontend_locks", (t) => {
   assert.equal(f.run("set", setOptions("local_package")).status, "configured");
   fs.rmSync(path.join(f.root, "app", "pnpm-lock.yaml"));
   assert.match(f.run("check", [], 2).error, /pnpm-lock.yaml/u);
+});
+
+test("tracked GUI package checks its independent Cargo workspace even when absent from test manifests", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), "[workspace]\nmembers = [\"core\"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"gui\"]\ngui-root = \"app\"\nrust-test-manifests = [\"Cargo.toml\"]\ndependency-lock-policy = \"tracked\"\n");
+  fs.mkdirSync(path.join(f.root, "core", "src"), { recursive: true });
+  fs.writeFileSync(path.join(f.root, "core", "Cargo.toml"), "[package]\nname = \"core\"\nversion = \"0.1.0\"\n");
+  fs.writeFileSync(path.join(f.root, "core", "src", "lib.rs"), "pub fn marker() {}\n");
+  fs.mkdirSync(path.join(f.root, "app"));
+  fs.writeFileSync(path.join(f.root, "app", "package.json"), '{"devDependencies":{"@tauri-apps/cli":"2.0.0"}}\n');
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), "[package]\nname = \"example\"\nversion = \"0.1.0\"\n[workspace]\nmembers = []\n");
+  fs.mkdirSync(path.join(f.root, "app", "src"));
+  fs.writeFileSync(path.join(f.root, "app", "src", "lib.rs"), "pub fn marker() {}\n");
+  fs.writeFileSync(path.join(f.root, "app", "tauri.conf.json"), "{}\n");
+  fs.writeFileSync(path.join(f.root, "Cargo.lock"), "# root lock\n");
+  fs.writeFileSync(path.join(f.root, "app", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+  track(f, "Cargo.toml", "Cargo.lock", "core/Cargo.toml", "core/src/lib.rs", "app/package.json", "app/Cargo.toml", "app/src/lib.rs", "app/tauri.conf.json", "app/pnpm-lock.yaml");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /app\/Cargo.lock/u);
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.lock"), "# GUI lock\n");
+  track(f, "app/Cargo.lock");
+  assert.equal(f.run("set", setOptions("local_package")).status, "configured");
 });
 
 // CLI 本地打包也必须遵守显式跟踪锁策略，默认未选择时维持旧行为。

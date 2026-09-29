@@ -267,7 +267,8 @@ function assertGuiPackageReady(root) {
     assertTrackedFile(root, file, "Rust 测试清单");
     assertNonEmptyRustWorkspace(manifestPath, file);
   }
-  assertDependencyLocks(root, { rustTestManifests: manifests, guiRoot: relative });
+  const lockManifests = [...new Set(["Cargo.toml", ...manifests, layout.cargo])];
+  assertDependencyLocks(root, { rustTestManifests: lockManifests, guiRoot: relative });
   if (relative !== "." && !gui.startsWith(`${root}${path.sep}`)) throw new ActionError("GUI 根目录越出项目");
 }
 
@@ -281,8 +282,8 @@ function assertLocalPackageSupported(root) {
   if (!localPackageSupported(interfaces, metadataArray(root, "target-platforms"))) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
-  if (interfaces.includes("cli")) assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
-  else if (interfaces.includes("gui")) assertGuiPackageReady(root);
+  if (interfaces.includes("gui")) assertGuiPackageReady(root);
+  else if (interfaces.includes("cli")) assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
 }
 
 function state(policy) {
