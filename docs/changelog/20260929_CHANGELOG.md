@@ -1,4 +1,4 @@
-# 2026-09-28 变更记录
+# 2026-09-29 变更记录
 
 ## 移除
 
@@ -89,6 +89,8 @@
 - `HARNESS-FEAT-CURATE-MEMORY-HISTORY-SKILL`（所需 Harness 版本 `202608051301`）：新增 `$desktop-curate-harness-memory` Skill，只治理 Harness 自身 `docs/adr/`、`docs/changelog/`。当前最新文件超过 500 行建议重构阈值或项目负责人明确要求时，把已被后续决定完全取代、且不再被任何当前规范引用的过期条目原文迁移到同目录 `ADR_history.md`/`CHANGELOG_history.md` 永久追加保存，当前文件只保留仍在直接约束行为的条目；不确定的条目一律保守保留并列为候选。该 Skill 不加入 `$desktop-instantiate-project` 复制清单，不随下游派生，不适用 Work Plan/Product Status/Product Spec。
 
 ## 变更
+
+- `HARNESS-CHANGE-COMPATIBLE-OWNERSHIP-REPAIR`（`required_version = 202609290958`）：旧下游所有权清单只缺新增 Skill 的显式 `managed` 规则、而已有通用规则赋予相同所有权且无冲突规则时，升级器允许生成三方计划并列出待补规则；应用候选清单和记录升级基线前仍严格要求补齐。已有显式冲突或受保护路径缺失继续失败关闭。
 
 - `HARNESS-CHANGE-RELEASE-NOTES-TEN-VERSIONS`（`required_version = 202609281559`）：正式发布整理的双语更新日志从含当前版的最近五个实际发布版本扩为十个；SemVer 跳号不占名额，历史不足十版时只保留已有记录。发布日志 helper、GUI Rust/React 资源读取与展示及 Harness 门禁同步放宽至十版，每版“功能优化”“问题修复”仍各限十条；既有日志不补造已截掉的旧发布记录。
 
