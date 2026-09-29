@@ -30,8 +30,9 @@ const RUNTIME_DIRECTORIES = new Set([
 const PACKAGE_METADATA_DIRECTORY = /\.(?:egg-info|dist-info)$/iu;
 const FILESYSTEM_SCAN_EXCLUSIONS = new Set([".git", ".vite", "coverage", "dist", "node_modules", "release", "target"]);
 const BINARY_SUFFIXES = new Set([".jpeg", ".jpg", ".png"]);
-/** 已发生的 ADR、Changelog 与 Verification 是当时证据，保留原命令不改写。 */
+/** 已发布更新日志、已发生的 ADR、Changelog 与 Verification 是当时证据，保留原命令不改写。 */
 const HISTORICAL_RECORDS = [
+  /^release-notes\.json$/u,
   /^docs\/adr\/(?:\d{8}_ADR|ADR_history(?:_\d+)?)\.md$/u,
   /^docs\/changelog\/(?:\d{8}_CHANGELOG|CHANGELOG_history(?:_\d+)?)\.md$/u,
   /^docs\/verification\/(?:\d{8}(?:-\d{8})?_verification|human_review)\.md$/u,

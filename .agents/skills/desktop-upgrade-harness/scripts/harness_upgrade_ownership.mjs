@@ -36,8 +36,26 @@ function globRegex(pattern) {
 
 export function matchesPattern(value, pattern) { return globRegex(pattern).test(value); }
 
+/** 旧清单若已由通用 Skill 规则赋予相同 managed 所有权，可先规划并在记录前修复。 */
+function recoverableManagedOmission(pattern, mode, rules) {
+  if (mode !== "managed" || !pattern.startsWith(".agents/skills/")) return false;
+  const scope = pattern.endsWith("/**") ? pattern.slice(0, -3) : pattern;
+  if ([...scope].some((character) => "*?[".includes(character))) return false;
+  const genericIndex = rules.findIndex(([rule, ruleMode]) => rule === ".agents/skills/**" && ruleMode === "managed");
+  if (genericIndex < 0) return false;
+  for (const [rule, ruleMode] of rules.slice(0, genericIndex)) {
+    if (ruleMode === "managed") continue;
+    const wildcardIndex = [...rule].findIndex((character) => "*?[".includes(character));
+    const fixedPrefix = (wildcardIndex < 0 ? rule : rule.slice(0, wildcardIndex)).replace(/\/$/u, "");
+    if (!fixedPrefix || scope === fixedPrefix || scope.startsWith(`${fixedPrefix}/`) || fixedPrefix.startsWith(`${scope}/`)
+      || (wildcardIndex >= 0 && scope.startsWith(fixedPrefix))) return false;
+  }
+  return ownershipMode(scope, "protected", rules) === "managed"
+    && ownershipMode(`${scope}/__harness_node_probe__`, "protected", rules) === "managed";
+}
+
 /** 加载有序所有权规则；具体规则必须位于兜底规则之前。 */
-export function loadOwnership(file) {
+export function loadOwnership(file, { allowRecoverableManagedOmissions = false } = {}) {
   const data = loadJson(file, "所有权 manifest");
   if (data.schema_version !== 1) throw new UpgradeError("所有权 manifest 的 schema_version 必须为 1");
   if (data.default_mode !== "protected") throw new UpgradeError("所有权 manifest 的 default_mode 必须为 protected");
@@ -52,12 +70,20 @@ export function loadOwnership(file) {
     seen.add(item.pattern); rules.push([item.pattern, item.mode]);
   });
   const observed = new Map(rules);
-  for (const [pattern, mode] of MINIMUM_OWNERSHIP_RULES) if (observed.get(pattern) !== mode) throw new UpgradeError(`所有权 manifest 削弱了必需保护：${pattern} 必须为 ${mode}`);
+  const missingManagedRules = [];
+  for (const [pattern, mode] of MINIMUM_OWNERSHIP_RULES) {
+    if (observed.get(pattern) === mode) continue;
+    if (allowRecoverableManagedOmissions && !observed.has(pattern) && recoverableManagedOmission(pattern, mode, rules)) {
+      missingManagedRules.push(pattern);
+      continue;
+    }
+    throw new UpgradeError(`所有权 manifest 削弱了必需保护：${pattern} 必须为 ${mode}`);
+  }
   const selfIndex = rules.findIndex(([pattern, mode]) => pattern === ".agents/skills/desktop-upgrade-harness/**" && mode === "managed-self");
   const genericIndex = rules.findIndex(([pattern, mode]) => pattern === ".agents/skills/**" && mode === "managed");
   if (selfIndex < 0 || genericIndex < 0 || selfIndex >= genericIndex) throw new UpgradeError("managed-self 所有权规则必须位于通用 managed 规则之前");
   for (const required of REQUIRED_MANAGED_SOURCE_PATHS) if (ownershipMode(required, data.default_mode, rules) !== "managed") throw new UpgradeError(`必需传播路径的有效所有权必须保持 managed：${required}`);
-  return { defaultMode: data.default_mode, rules };
+  return { defaultMode: data.default_mode, rules, missingManagedRules };
 }
 
 export function ownershipMode(value, defaultMode, rules) {

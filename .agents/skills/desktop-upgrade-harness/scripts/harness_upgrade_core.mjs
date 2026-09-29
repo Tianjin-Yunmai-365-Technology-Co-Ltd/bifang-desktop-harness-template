@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { explicitOwnershipModeForNode, loadLock, loadOwnership, ownershipMode, scanTree } from "./harness_upgrade_ownership.mjs";
-import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, SOURCE_ONLY_PATHS } from "./harness_upgrade_policy.mjs";
+import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, OWNERSHIP_RELATIVE, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, SOURCE_ONLY_PATHS } from "./harness_upgrade_policy.mjs";
 import { UpgradeError, assertSafePath, canonicalDirectory, isWithin, loadJson, lstatOrNull, requireControlPaths, requireGitRoot, requireSourceIdentity, safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
 
 export function stableJson(value, indent = 0) {
@@ -53,7 +53,7 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   for (let index = 0; index < roots.length; index += 1) for (const right of roots.slice(index + 1)) if (overlaps(roots[index], right)) throw new UpgradeError("源、候选和目标根目录必须彼此独立且不能嵌套");
   const gitIdentity = requireGitRoot(target);
   const { ownership, lockFile } = requireControlPaths(target, ownershipPath, lockPath);
-  const { defaultMode, rules } = loadOwnership(ownership);
+  const { defaultMode, rules, missingManagedRules } = loadOwnership(ownership, { allowRecoverableManagedOmissions: true });
   const candidateTree = scanTree(candidate, { targetTree: false });
   const lock = loadLock(lockFile);
   const entries = lock === null ? {} : lock.entries;
@@ -63,6 +63,12 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   ];
   const targetTree = scanTree(target, { targetTree: true, retainPaths });
   const problems = candidateTree.unsafe.map((entry) => `候选包含符号链接、特殊文件或 Git 元数据：${entry}`);
+  const candidateOwnership = OWNERSHIP_RELATIVE.split(path.sep).join("/");
+  if (!candidateTree.files[candidateOwnership]) problems.push(`候选缺少所有权 manifest：${candidateOwnership}`);
+  else {
+    try { loadOwnership(path.join(candidate, OWNERSHIP_RELATIVE)); }
+    catch (error) { problems.push(`候选所有权 manifest 无效：${error.message}`); }
+  }
 
   for (const relative of SOURCE_ONLY_PATHS) {
     if (Object.hasOwn(candidateTree.nodes, relative)) problems.push(`候选不得传播上游专用检查器：${relative}`);
@@ -107,7 +113,8 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
     schema_version: SCHEMA_VERSION, source_root: source, source_version: sourceVersion, source_commit: sourceCommit, source_git: sourceIdentity,
     candidate_root: candidate, target_root: target, ownership_path: ownership, ownership_snapshot: snapshotFile(ownership),
     lock_path: lockFile, lock_snapshot: lock === null ? null : snapshotFile(lockFile), target_git: gitIdentity,
-    baseline: lock === null ? "missing" : "loaded", blocked: problems.length > 0 || actions.some((item) => item.blocked),
+    baseline: lock === null ? "missing" : "loaded", ownership_repairs: missingManagedRules,
+    blocked: problems.length > 0 || actions.some((item) => item.blocked),
     manual_required: actions.some((item) => MANUAL_CLASSES.has(item.classification)), problems: problems.sort(), actions,
   };
 }

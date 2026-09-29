@@ -40,6 +40,16 @@ test("historical_records_and_completed_work_plans_are_exempt", () => withTempora
   assert.ok(!errors.some((error) => error.includes("20260805_verification") || error.includes("20260901_work_plan")), errors.join("\n"));
 }));
 
+test("published_release_notes_do_not_disable_active_command_checks", () => withTemporaryRoot((root) => {
+  write(root, "release-notes.json", '{"en-US":"Fixed Python source restrictions leaking into existing downstream upgrades."}\n');
+  write(root, "docs/current.md", "run python3 scripts/check\n");
+  const errors = inspectProject(root, {
+    files: ["release-notes.json", "docs/current.md"],
+    scanFilesystem: false,
+  });
+  assert.deepEqual(errors, ["活动文件不得保留 Python 解释器命令: docs/current.md"]);
+}));
+
 test("paths_classify_sources_manifests_and_environment_artifacts", () => {
   for (const relative of ["tool.py", "__pycache__/tool.pyc", ".venv/bin/activate", "venv/bin/activate", "lib/example.dist-info/METADATA", "lib/site-packages/example"]) {
     assert.equal(pythonArtifactKind(relative), "runtime", relative);

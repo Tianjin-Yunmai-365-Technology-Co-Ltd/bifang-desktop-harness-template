@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { AUTO_MODES, SCHEMA_VERSION } from "./harness_upgrade_policy.mjs";
-import { loadLock } from "./harness_upgrade_ownership.mjs";
+import { loadLock, loadOwnership } from "./harness_upgrade_ownership.mjs";
 import { stableJson, loadReviewedPlan } from "./harness_upgrade_core.mjs";
 import { UpgradeError, assertSafePath, canonicalDirectory, lstatOrNull, safeRelativePath } from "./harness_upgrade_safety.mjs";
 import { assertPlanStillCurrent } from "./harness_upgrade_preflight.mjs";
@@ -50,6 +50,7 @@ export function recordLock(args) {
   const target = canonicalDirectory(plan.target_root, "目标根目录");
   if (args.sourceVersion !== plan.source_version || args.sourceCommit !== plan.source_commit) throw new UpgradeError("record 的源版本/commit 必须与已复核 plan 精确匹配");
   assertPlanStillCurrent(plan);
+  loadOwnership(plan.ownership_path);
   const existingLock = loadLock(plan.lock_path);
   const manualPaths = new Set(plan.actions.filter((item) => item.classification === "manual_merge").map((item) => item.path));
   const resolvedManual = new Set((args.resolvedManual ?? []).map(safeRelativePath));

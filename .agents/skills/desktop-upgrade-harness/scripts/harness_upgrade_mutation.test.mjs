@@ -6,6 +6,21 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { HarnessUpgradeFixture, MANAGED, MANAGED_SECOND, MANAGED_SELF, MIXED, PROTECTED, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
+import { snapshotFile } from "./harness_upgrade_safety.mjs";
+
+const OWNERSHIP_MANIFEST = ".agents/skills/desktop-upgrade-harness/references/ownership-manifest.json";
+const SWITCH_RULE = ".agents/skills/desktop-switch-post-release-action/**";
+
+/** 模拟旧下游已记录的清单，保持来源锁和目标字节一致。 */
+function setLegacyOwnershipBaseline(f) {
+  const manifest = JSON.parse(fs.readFileSync(f.ownership, "utf8"));
+  manifest.rules = manifest.rules.filter((item) => item.pattern !== SWITCH_RULE);
+  fs.writeFileSync(f.ownership, `${JSON.stringify(manifest, null, 2)}\n`);
+  const previous = snapshotFile(f.ownership);
+  const lock = JSON.parse(fs.readFileSync(f.lock, "utf8"));
+  lock.entries[OWNERSHIP_MANIFEST] = { mode: "managed-self", candidate: previous, target: previous };
+  fs.writeFileSync(f.lock, `${JSON.stringify(lock)}\n`);
+}
 
 /** POSIX 权限位在 Windows 上不存在，相关用例只在 POSIX 主机运行。 */
 const posixOnly = { skip: process.platform === "win32" };
@@ -37,6 +52,26 @@ test("ownership_mode_drift_blocks", (t) => {
 
 test("weakened_ownership_manifest_is_rejected", (t) => {
   const f = new HarnessUpgradeFixture(t); const manifest = JSON.parse(fs.readFileSync(f.ownership, "utf8")); manifest.rules = manifest.rules.filter((item) => item.pattern !== "Version.md"); fs.writeFileSync(f.ownership, JSON.stringify(manifest)); assert.match(f.runTool(["plan", ...f.sharedArguments()], 2).error, /削弱了必需保护/);
+});
+
+test("legacy_managed_rule_is_planned_repaired_and_required_before_record", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  f.write(f.candidate, MANAGED, "v1"); f.write(f.target, MANAGED, "v1"); f.bootstrap();
+  setLegacyOwnershipBaseline(f);
+  f.write(f.candidate, MANAGED, "v2");
+  const { plan, planPath } = f.createPlan();
+  assert.deepEqual(plan.ownership_repairs, [SWITCH_RULE]);
+  assert.equal(f.classification(plan, OWNERSHIP_MANIFEST), "update");
+  assert.equal(f.classification(plan, MANAGED), "update");
+  assert.match(f.runTool(["record", "--plan", planPath, "--source-version", f.sourceVersion, "--source-commit", f.sourceCommit, "--approval", "record-verified-baseline"], 2).error, /削弱了必需保护/);
+  assert.match(f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", OWNERSHIP_MANIFEST], 2).error, /managed-self 更新必须等待/);
+  f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", MANAGED]);
+  const afterManaged = f.createPlan();
+  f.runTool(["apply", "--plan", afterManaged.planPath, "--approval", "apply-managed-changes", "--path", OWNERSHIP_MANIFEST]);
+  const repaired = f.createPlan();
+  assert.deepEqual(repaired.plan.ownership_repairs, []);
+  assert.equal(f.classification(repaired.plan, OWNERSHIP_MANIFEST), "converged");
+  f.record(repaired.planPath);
 });
 
 test("source_provenance_is_bound_to_clean_git_head", (t) => {

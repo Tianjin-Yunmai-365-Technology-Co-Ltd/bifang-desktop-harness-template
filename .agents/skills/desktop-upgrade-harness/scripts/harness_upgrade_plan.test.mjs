@@ -131,6 +131,25 @@ test("post_release_choice_stays_protected_while_switch_skill_is_required_managed
   assert.equal(fs.readFileSync(path.join(f.target, PROTECTED), "utf8"), "schema_version: 3\n");
 });
 
+test("legacy_managed_omission_rejects_stale_candidate_and_overlapping_protection", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const switchRule = ".agents/skills/desktop-switch-post-release-action/**";
+  const old = JSON.parse(fs.readFileSync(f.ownership, "utf8"));
+  old.rules = old.rules.filter((item) => item.pattern !== switchRule);
+  fs.writeFileSync(f.ownership, `${JSON.stringify(old)}\n`);
+  const candidateOwnership = path.join(f.candidate, ".agents/skills/desktop-upgrade-harness/references/ownership-manifest.json");
+  fs.writeFileSync(candidateOwnership, `${JSON.stringify(old)}\n`);
+  assert.ok(f.plan(2).problems.some((problem) => problem.includes("候选所有权 manifest 无效")));
+  fs.copyFileSync(path.join(import.meta.dirname, "..", "references", "ownership-manifest.json"), candidateOwnership);
+  old.rules.splice(old.rules.findIndex((item) => item.pattern === ".agents/skills/**"), 0,
+    { pattern: ".agents/skills/desktop-switch-post-release-action/private/**", mode: "protected" });
+  fs.writeFileSync(f.ownership, `${JSON.stringify(old)}\n`);
+  assert.match(f.runTool(["plan", ...f.sharedArguments()], 2).error, /削弱了必需保护/);
+  old.rules.find((item) => item.pattern.endsWith("/private/**")).pattern = ".agents/skills/desktop-switch-post-release-actio?/private/**";
+  fs.writeFileSync(f.ownership, `${JSON.stringify(old)}\n`);
+  assert.match(f.runTool(["plan", ...f.sharedArguments()], 2).error, /削弱了必需保护/);
+});
+
 test("new_path_collision_blocks", (t) => {
   const f = new HarnessUpgradeFixture(t); f.bootstrap(); f.write(f.candidate, MANAGED, "upstream"); f.write(f.target, MANAGED, "local"); assert.equal(f.classification(f.plan(2), MANAGED), "collision");
 });
