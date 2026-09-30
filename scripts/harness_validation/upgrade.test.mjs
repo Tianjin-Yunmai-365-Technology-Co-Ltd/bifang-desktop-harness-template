@@ -70,6 +70,20 @@ test("design_skill_protection_is_required_and_must_precede_generic_managed", () 
   });
 });
 
+test("design_skill_protection_rejects_earlier_custom_rules_for_the_tree_and_nested_paths", () => {
+  withTemporaryDirectory((directory) => {
+    for (const pattern of [".agents/skills/design-*/**", ".agents/skills/design-taste-frontend/private/**", ".agents/skills/design-taste-frontend/SKILL.md"]) {
+      const manifest = productionManifest();
+      const rule = { pattern, mode: "managed" };
+      manifest.rules.unshift(rule);
+      assert.match(validateManifest(manifest, directory).join("\n"), /third-party design skill protected rule is shadowed/u);
+      manifest.rules.shift();
+      manifest.rules.push(rule);
+      assert.deepEqual(validateManifest(manifest, directory), []);
+    }
+  });
+});
+
 test("minimum protection cannot remove the Harness version tombstone", () => {
   withTemporaryDirectory((directory) => {
     const manifest = productionManifest();

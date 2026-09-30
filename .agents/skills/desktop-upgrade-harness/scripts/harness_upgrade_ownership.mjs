@@ -83,6 +83,16 @@ export function loadOwnership(file, { allowRecoverableManagedOmissions = false }
   const genericIndex = rules.findIndex(([pattern, mode]) => pattern === ".agents/skills/**" && mode === "managed");
   const designIndex = rules.findIndex(([pattern, mode]) => pattern === ".agents/skills/design-taste-frontend/**" && mode === "protected");
   if (designIndex < 0 || designIndex >= genericIndex) throw new UpgradeError("第三方设计 Skill 的 protected 规则必须位于通用 managed 规则之前");
+  const designScope = ".agents/skills/design-taste-frontend";
+  for (const [pattern, mode] of rules.slice(0, designIndex)) {
+    if (mode === "protected") continue;
+    const wildcard = [...pattern].findIndex((character) => "*?[".includes(character));
+    const prefix = (wildcard < 0 ? pattern : pattern.slice(0, wildcard)).replace(/\/$/u, "");
+    if (!prefix || designScope === prefix || designScope.startsWith(`${prefix}/`)
+        || prefix.startsWith(`${designScope}/`) || (wildcard >= 0 && designScope.startsWith(prefix))) {
+      throw new UpgradeError(`第三方设计 Skill 的 protected 规则被更早的所有权规则遮蔽：${pattern}`);
+    }
+  }
   if (selfIndex < 0 || genericIndex < 0 || selfIndex >= genericIndex) throw new UpgradeError("managed-self 所有权规则必须位于通用 managed 规则之前");
   for (const required of REQUIRED_MANAGED_SOURCE_PATHS) if (ownershipMode(required, data.default_mode, rules) !== "managed") throw new UpgradeError(`必需传播路径的有效所有权必须保持 managed：${required}`);
   return { defaultMode: data.default_mode, rules, missingManagedRules };

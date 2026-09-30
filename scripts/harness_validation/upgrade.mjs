@@ -189,6 +189,17 @@ function validateManifest(errors, manifest) {
     const index = ordered.findIndex(([candidate, candidateMode]) => candidate === pattern && candidateMode === mode);
     if (index >= 0 && generic >= 0 && index >= generic) fail(errors, `${label} must precede generic managed rule`);
   }
+  const designIndex = ordered.findIndex(([pattern, mode]) => pattern === ".agents/skills/design-taste-frontend/**" && mode === "protected");
+  const designScope = ".agents/skills/design-taste-frontend";
+  if (designIndex >= 0) for (const [pattern, mode] of ordered.slice(0, designIndex)) {
+    if (mode === "protected") continue;
+    const wildcard = [...pattern].findIndex((character) => "*?[".includes(character));
+    const prefix = (wildcard < 0 ? pattern : pattern.slice(0, wildcard)).replace(/\/$/u, "");
+    if (!prefix || designScope === prefix || designScope.startsWith(`${prefix}/`)
+        || prefix.startsWith(`${designScope}/`) || (wildcard >= 0 && designScope.startsWith(prefix))) {
+      fail(errors, `third-party design skill protected rule is shadowed by earlier ownership rule: ${pattern}`);
+    }
+  }
   if (generic >= 0) {
     for (const [pattern, mode] of REQUIRED_UPGRADE_RULES) {
       if (mode !== "conditional") continue;

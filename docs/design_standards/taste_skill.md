@@ -2,21 +2,17 @@
 
 Harness 创建每个终端下游时默认提供 [taste-skill](https://github.com/Leonxlnx/taste-skill) 的默认 Skill `design-taste-frontend`。这是固定工程支持，不增加初始化表单字段、不询问用户，也不安装到全局。所有 CLI/TUI/MCP/GUI 接口组合都执行本地检查并保留该知识资产；安装本身不生成页面或引入前端运行依赖。
 
-## 项目本地安装
+## 项目本地资产
 
 首次安装的唯一目标为 `<downstream-root>/.agents/skills/design-taste-frontend/`。检查只读取该项目目录，全局已安装的同名 Skill 不算项目内已存在。
 
-在下游根 Cargo metadata 已建立、接口实现开始前，由初始化流程执行：
-
-```text
-node .agents/skills/desktop-initialize-rust-project/scripts/ensure_design_skill.mjs --project-root "<downstream-root>"
-```
+创建流程在下游根 Cargo metadata 已建立、接口实现开始前完成检查与安装。初始化完成后，项目本地 Skill 是独立保留的知识资产，不依赖一次性初始化工具。
 
 - 有效本地 `SKILL.md` 已存在：返回 `status: reused`，原样保留用户修改，不升级、不覆盖。
 - 缺失且目录不存在或为空：返回 `status: installed`，从内嵌快照复制原始 `SKILL.md`、上游 `LICENSE` 和 `source.json`。
 - 入口无效、非空目录缺入口、路径含项目内符号链接、快照缺失或摘要不一致：非零退出并保留已有内容，修复后在原根重试；不能把失败报为安装完成。
 
-快照位于初始化 Skill 的 `assets/vendor/design-taste-frontend/`，保持上游字节原样，不参与项目身份替换。`source.json` 记录上游 commit、路径、获取日期和两个原始文件的 SHA-256。创建下游时不访问网络、不执行上游安装脚本、不使用包管理器，也不新增第三方运行依赖。更新快照只在 Harness 维护中重新核对上游并同步来源和摘要。
+Harness 内嵌快照保持上游字节原样，不参与项目身份替换。项目本地 `source.json` 记录上游 commit、路径、获取日期和两个原始文件的 SHA-256。创建下游时不访问网络、不执行上游安装脚本、不使用包管理器，也不新增第三方运行依赖。更新内嵌快照只在 Harness 维护中重新核对上游并同步来源和摘要。
 
 安装后在下游 `AGENTS.md` 的 Skills 地图保留 `$design-taste-frontend`，由本目录索引指向本节使用边界。初始化裁剪会删除 installer 和内嵌快照所在的初始化目录，但不能删除已经安装的项目本地 Skill；它的原文、MIT 许可和来源一起进入下游基线提交。下游独立定制或更新该 Skill 时继续保留上游许可及真实来源；Harness 升级将其完整目录视为 `protected`，不纳入受管候选或来源锁。
 

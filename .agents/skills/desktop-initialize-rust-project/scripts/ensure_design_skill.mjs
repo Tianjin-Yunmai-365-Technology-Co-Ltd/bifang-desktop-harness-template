@@ -25,14 +25,52 @@ function readRegular(file) {
   return fs.readFileSync(file);
 }
 
+/** 读取关键字段的字符串标量；空值、注释、集合与非字符串类型不能冒充描述。 */
+function skillScalar(value, continuation) {
+  const scalar = value.trim();
+  if (/^[|>](?:[+-]?[1-9]?|[1-9][+-]?)(?:[ \t]+#.*)?$/u.test(scalar)) {
+    return continuation.map((line) => line.trim()).join("\n").trim();
+  }
+  if (scalar.startsWith('"')) {
+    const quoted = /^("(?:[^"\\]|\\.)*")(?:[ \t]+#.*)?$/u.exec(scalar);
+    if (!quoted || continuation.some((line) => line.trim())) return null;
+    try { return JSON.parse(quoted[1]); } catch { return null; }
+  }
+  if (scalar.startsWith("'")) {
+    const quoted = /^'((?:[^']|'')*)'(?:[ \t]+#.*)?$/u.exec(scalar);
+    return quoted && !continuation.some((line) => line.trim()) ? quoted[1].replaceAll("''", "'") : null;
+  }
+  const plain = scalar.replace(/[ \t]+#.*$/u, "").trim();
+  if (!plain || /^[#!&*\[\]{},]/u.test(plain) || /:[ \t]/u.test(plain)
+      || /^(?:~|null|true|false|[-+]?(?:\d[\d_]*(?:\.[\d_]*)?(?:e[-+]?[\d_]+)?|\.[\d_]+|0x[\da-f_]+|0o[0-7_]+|0b[01_]+|\.(?:inf|nan)))$/iu.test(plain)) return null;
+  return [plain, ...continuation.map((line) => line.trim())].join("\n").trim();
+}
+
+/** 关键字段只能各出现一次，支持普通、带引号和缩进块形式的本地描述。 */
+function skillFields(frontmatter) {
+  const fields = new Map();
+  const lines = frontmatter.split(/\r?\n/u);
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = /^(name|description|"name"|"description"|'name'|'description')[ \t]*:[ \t]*(.*)$/u.exec(lines[index]);
+    if (!match) continue;
+    const key = match[1].replaceAll(/["']/gu, "");
+    if (fields.has(key)) return null;
+    const continuation = [];
+    while (index + 1 < lines.length && /^(?:[ \t]+|$)/u.test(lines[index + 1])) continuation.push(lines[++index]);
+    fields.set(key, skillScalar(match[2], continuation));
+  }
+  return fields;
+}
+
 /** 本地 Skill 必须声明正确名称和非空描述；已有修改不与上游摘要比较。 */
 function validateSkill(bytes) {
   const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   const header = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u.exec(text);
   const frontmatter = header?.[1];
+  const fields = frontmatter && skillFields(frontmatter);
+  const description = fields?.get("description");
   if (text.includes("\0") || !frontmatter
-      || !/^name:[ \t]*(?:design-taste-frontend|"design-taste-frontend"|'design-taste-frontend')[ \t]*$/mu.test(frontmatter)
-      || !/^description:[ \t]*\S[^\r\n]*$/mu.test(frontmatter)
+      || fields?.get("name") !== SKILL_NAME || typeof description !== "string" || !description.trim()
       || text.slice(header[0].length).trim().length === 0) {
     throw new Error("项目本地 Skill 无效，需修复后重试；不会覆盖已有内容");
   }

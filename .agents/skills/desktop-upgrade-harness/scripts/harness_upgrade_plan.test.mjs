@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { HarnessUpgradeFixture, MANAGED, MIXED, PROTECTED, REQUIRED_MANAGED_CHECKERS, TOMBSTONE, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
-import { matchesPattern, scanTree } from "./harness_upgrade_ownership.mjs";
+import { loadOwnership, matchesPattern, scanTree } from "./harness_upgrade_ownership.mjs";
 import { snapshotFile } from "./harness_upgrade_safety.mjs";
 
 test("ownership_glob_preserves_fnmatch_character_classes", () => {
@@ -123,6 +123,19 @@ test("project_design_skill_is_preserved_and_excluded_from_upgrade_baseline", (t)
   f.write(f.candidate, designSkill, "upstream replacement\n");
   assert.equal(f.classification(f.plan(2), designSkill), "protected_candidate");
   assert.equal(fs.readFileSync(path.join(f.target, designSkill), "utf8"), "project design notes\n");
+});
+
+/** 自定义通配或内部路径不能在 protected 条目前遮蔽设计树；移到其后才合法。 */
+test("earlier_custom_ownership_rules_cannot_shadow_any_part_of_design_skill_tree", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const original = JSON.parse(fs.readFileSync(f.ownership, "utf8"));
+  for (const pattern of [".agents/skills/design-*/**", ".agents/skills/design-taste-frontend/private/**", ".agents/skills/design-taste-frontend/SKILL.md"]) {
+    const rule = { pattern, mode: "managed" };
+    fs.writeFileSync(f.ownership, JSON.stringify({ ...original, rules: [rule, ...original.rules] }));
+    assert.throws(() => loadOwnership(f.ownership), /protected 规则被更早/u, pattern);
+    fs.writeFileSync(f.ownership, JSON.stringify({ ...original, rules: [...original.rules, rule] }));
+    assert.doesNotThrow(() => loadOwnership(f.ownership));
+  }
 });
 
 test("post_release_choice_stays_protected_while_switch_skill_is_required_managed_input", (t) => {

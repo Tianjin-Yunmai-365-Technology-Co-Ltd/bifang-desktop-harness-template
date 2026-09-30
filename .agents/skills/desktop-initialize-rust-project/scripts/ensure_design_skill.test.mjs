@@ -145,6 +145,38 @@ test("quoted_skill_name_is_reused_and_empty_description_is_rejected", () => {
   });
 });
 
+/** 引号空串、注释、非字符串值或重复关键字段都失败，既有字节不被覆盖。 */
+test("invalid_scalar_values_and_duplicate_skill_fields_preserve_local_content", () => {
+  const fields = [
+    ...['""', "''", "# missing", "null", "true", "42", "[]", "{}"].map((value) => `name: design-taste-frontend\ndescription: ${value}`),
+    "name: design-taste-frontend\nname: other-skill\ndescription: valid",
+    'name: design-taste-frontend\n"name" : other-skill\ndescription: valid',
+    "name: design-taste-frontend\ndescription: valid\ndescription: other",
+    "name: design-taste-frontend\ndescription: >-\n  ",
+  ];
+  for (const header of fields) withProject((root) => {
+    const local = path.join(root, ".agents/skills/design-taste-frontend");
+    fs.mkdirSync(local, { recursive: true });
+    const file = path.join(local, "SKILL.md");
+    const original = `---\n${header}\n---\nLocal design guidance.\n`;
+    fs.writeFileSync(file, original);
+    assert.throws(() => ensureDesignSkill(root), /Skill 无效/u, header);
+    assert.equal(fs.readFileSync(file, "utf8"), original);
+  });
+});
+
+/** 带注释的普通或引号标量、空白分隔与非空块描述仍可复用。 */
+test("valid_local_scalar_and_block_descriptions_are_reused", () => {
+  for (const description of ['"Local: guidance # literal" # comment', "'Local designer''s guidance'", "Local guidance # comment", ">-\n  Local guidance.\n  More details.", "|\n  Local guidance."]) {
+    withProject((root) => {
+      const local = path.join(root, ".agents/skills/design-taste-frontend");
+      fs.mkdirSync(local, { recursive: true });
+      fs.writeFileSync(path.join(local, "SKILL.md"), `---\nname: design-taste-frontend # comment\n\ndescription: ${description}\n---\nBody.\n`);
+      assert.equal(ensureDesignSkill(root).status, "reused");
+    });
+  }
+});
+
 /** CLI 必須显式指定下游根且拒绝全局选项；真实两次调用返回 installed/reused。 */
 test("cli_requires_downstream_root_and_is_idempotent", () => {
   withProject((root) => {
@@ -177,6 +209,9 @@ test("copied_initializer_installs_locally_and_pruning_keeps_the_installed_skill"
       assert.deepEqual(fs.readFileSync(path.join(installed.path, file)), fs.readFileSync(path.join(SNAPSHOT_ROOT, file)));
     }
     assert.equal(fs.existsSync(initializer), false);
+    const guidance = fs.readFileSync(new URL("../../../../docs/design_standards/taste_skill.md", import.meta.url), "utf8");
+    assert.match(guidance, /\.agents\/skills\/design-taste-frontend/u);
+    assert.doesNotMatch(guidance, /desktop-initialize-rust-project|ensure_design_skill\.mjs|assets\/vendor\//u);
   });
 });
 
