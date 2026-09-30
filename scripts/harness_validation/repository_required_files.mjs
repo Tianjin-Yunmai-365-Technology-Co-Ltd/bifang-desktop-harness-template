@@ -114,6 +114,12 @@ export const REQUIRED_ROOT_FILES = [
   ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-gui-lifecycle-contract.test.mjs",
   ".agents/skills/desktop-test-gui-initialization-e2e/scripts/verify-release-notes-contract.mjs",
   ".agents/skills/desktop-initialize-rust-project/assets/gui/macos-dmg-background.png",
+  ".agents/skills/desktop-initialize-rust-project/assets/vendor/design-taste-frontend/SKILL.md",
+  ".agents/skills/desktop-initialize-rust-project/assets/vendor/design-taste-frontend/LICENSE",
+  ".agents/skills/desktop-initialize-rust-project/assets/vendor/design-taste-frontend/source.json",
+  ".agents/skills/desktop-initialize-rust-project/scripts/ensure_design_skill.mjs",
+  ".agents/skills/desktop-initialize-rust-project/scripts/ensure_design_skill.test.mjs",
+  "docs/design_standards/taste_skill.md",
 
   ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.mjs",
   ".agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.test.mjs",

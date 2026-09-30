@@ -31,6 +31,7 @@ Bifang Desktop Harness Template
 ## 能做什么
 
 - 从一份简短的初始化表单创建全新的项目，不需要手动复制和改名。
+- 默认检查并补装项目本地的 taste-skill（`design-taste-frontend`），提供适用页面的设计风格支持；不询问、不全局安装，已有有效本地内容原样保留。详见 [设计支持规则](docs/design_standards/taste_skill.md)。
 - 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；没有特别选择时默认使用 CLI。
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。

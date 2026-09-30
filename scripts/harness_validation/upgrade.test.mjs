@@ -58,6 +58,18 @@ test("manifest loader rejects malformed JSON without throwing", () => {
   });
 });
 
+/** 第三方知识资产的保护不得缺失，也不能被较早的通用 managed 规则遮蔽。 */
+test("design_skill_protection_is_required_and_must_precede_generic_managed", () => {
+  withTemporaryDirectory((directory) => {
+    const manifest = productionManifest();
+    const rule = manifest.rules.find(({ pattern }) => pattern === ".agents/skills/design-taste-frontend/**");
+    manifest.rules = manifest.rules.filter((item) => item !== rule);
+    assert.match(validateManifest(manifest, directory).join("\n"), /design-taste-frontend\/\*\* must be protected/u);
+    manifest.rules.push(rule);
+    assert.match(validateManifest(manifest, directory).join("\n"), /third-party design skill protected rule must precede/u);
+  });
+});
+
 test("minimum protection cannot remove the Harness version tombstone", () => {
   withTemporaryDirectory((directory) => {
     const manifest = productionManifest();

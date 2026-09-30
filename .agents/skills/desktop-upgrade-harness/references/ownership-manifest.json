@@ -15,6 +15,7 @@
     {"pattern": "docs/HARNESS_ENGINEERING.md", "mode": "tombstone"},
     {"pattern": "docs/harness_engineering/**", "mode": "tombstone"},
 
+    {"pattern": ".agents/skills/design-taste-frontend/**", "mode": "protected"},
     {"pattern": "docs/AGENT_POLICY.md", "mode": "protected"},
     {"pattern": "docs/GUI_SUPPORT_SURFACES.md", "mode": "protected"},
     {"pattern": "docs/product_spec/**", "mode": "protected"},

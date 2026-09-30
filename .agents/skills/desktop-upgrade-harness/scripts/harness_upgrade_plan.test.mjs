@@ -112,6 +112,19 @@ test("release_context_is_a_protected_target_fact", (t) => {
   f.write(f.candidate, releaseContext, '{"release": "source"}\n'); assert.equal(f.classification(f.plan(2), releaseContext), "protected_candidate");
 });
 
+/** 项目本地第三方 Skill 不进入来源锁，候选试图覆盖时阻断且保留目标字节。 */
+test("project_design_skill_is_preserved_and_excluded_from_upgrade_baseline", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const designSkill = ".agents/skills/design-taste-frontend/SKILL.md";
+  f.write(f.target, designSkill, "project design notes\n");
+  f.bootstrap();
+  assert.equal(Object.hasOwn(JSON.parse(fs.readFileSync(f.lock, "utf8")).entries, designSkill), false);
+  assert.equal(f.plan().actions.some((item) => item.path === designSkill), false);
+  f.write(f.candidate, designSkill, "upstream replacement\n");
+  assert.equal(f.classification(f.plan(2), designSkill), "protected_candidate");
+  assert.equal(fs.readFileSync(path.join(f.target, designSkill), "utf8"), "project design notes\n");
+});
+
 test("post_release_choice_stays_protected_while_switch_skill_is_required_managed_input", (t) => {
   const f = new HarnessUpgradeFixture(t);
   const switchSkill = ".agents/skills/desktop-switch-post-release-action/SKILL.md";

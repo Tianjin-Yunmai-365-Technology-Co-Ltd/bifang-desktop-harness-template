@@ -29,6 +29,7 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   ["scripts/harness_validation/**", "tombstone"],
   ["docs/HARNESS_ENGINEERING.md", "tombstone"],
   ["docs/harness_engineering/**", "tombstone"],
+  [".agents/skills/design-taste-frontend/**", "protected"],
   ["docs/AGENT_POLICY.md", "protected"],
   ["docs/GUI_SUPPORT_SURFACES.md", "protected"],
   ["docs/product_spec/**", "protected"],
@@ -179,6 +180,7 @@ function validateManifest(errors, manifest) {
 
   const generic = ordered.findIndex(([pattern, mode]) => pattern === ".agents/skills/**" && mode === "managed");
   const orderedBeforeGeneric = [
+    [".agents/skills/design-taste-frontend/**", "protected", "third-party design skill protected rule"],
     [".agents/skills/desktop-upgrade-harness/**", "managed-self", "upgrade managed-self rule"],
     [".agents/skills/desktop-manage-git-lifecycle/**", "managed", "upgrade Git lifecycle managed rule"],
     [".agents/skills/desktop-switch-post-release-action/**", "managed", "upgrade post-release switch managed rule"],

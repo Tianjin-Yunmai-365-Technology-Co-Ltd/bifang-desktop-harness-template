@@ -14,6 +14,8 @@
 - `docs/AGENT_POLICY.md` 的 `post_release_action` 也属于 protected 下游选择。旧 schema 3 在工程层升级及来源锁记录后必须询问用户，在目标项目中调用 `$desktop-switch-post-release-action` 先受保护合并旧策略正文的新发布后规则，再原子迁移 frontmatter 至 schema 4 并写入当日 ADR；旧正文未消除相反规则时不得通过 `check`；`check` 返回合法已配置值前，不能把完整升级标记为完成。升级器的候选树、`plan|apply|record` 均不得设置默认值或代写该字段。切换 Skill 的 `SKILL.md`、metadata、helper 与回归测试是所有终端下游都要传播的 managed 工程文件。
 - `tombstone`：终端下游永久不应恢复的 Harness 初始化/派生能力和模板专用文件；来源候选必须排除，目标出现时阻断。`$desktop-test-gui-initialization-e2e` 只在 GUI 唯一基线提交前使用，其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs`、夹具与测试都随该前置 Skill 一同删除；升级不得把它重新注入终端下游。
 
+项目本地 `.agents/skills/design-taste-frontend/**` 是原样安装且可由下游定制的第三方知识资产，始终 `protected`；候选树和来源锁排除该目录，升级不覆盖、删除或重新安装它。旧目标清单缺少这一保护规则时，先按显式清单合并补齐保护，再重新生成计划，不能把通用 managed 规则当成安装或删除授权。
+
 ## 三方比较
 
 `.harness/upstream-lock.json` 为每个受管路径保存旧候选摘要和旧下游摘要。

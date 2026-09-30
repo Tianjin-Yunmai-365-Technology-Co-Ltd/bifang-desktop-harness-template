@@ -38,6 +38,9 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "resolve_project_target.mjs",
       "不得接收、分析、记录到源仓库",
       "$desktop-initialize-rust-project",
+      "ensure_design_skill.mjs --project-root",
+      "不询问用户、不增加表单字段、不使用全局安装",
+      "所有接口组合均完整保留 `.agents/skills/design-taste-frontend/`",
     ]],
     [path.join(path.dirname(INSTANTIATE_SKILL), "agents", "openai.yaml"), [
       "$desktop-instantiate-project",
@@ -78,6 +81,9 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "harness_root_or_ancestor_is_rejected",
     ]],
     [skillFile, [
+      "ensure_design_skill.mjs --project-root",
+      "不询问用户、不增加表单字段、不使用全局安装",
+      "所有接口组合完整保留 `.agents/skills/design-taste-frontend/`",
       "CLI 是可选接口",
       "user_owned_tasks: disabled",
       "parallel_worktree_subagents: disabled",

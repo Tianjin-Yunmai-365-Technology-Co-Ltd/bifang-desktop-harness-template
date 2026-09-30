@@ -81,6 +81,8 @@ export function loadOwnership(file, { allowRecoverableManagedOmissions = false }
   }
   const selfIndex = rules.findIndex(([pattern, mode]) => pattern === ".agents/skills/desktop-upgrade-harness/**" && mode === "managed-self");
   const genericIndex = rules.findIndex(([pattern, mode]) => pattern === ".agents/skills/**" && mode === "managed");
+  const designIndex = rules.findIndex(([pattern, mode]) => pattern === ".agents/skills/design-taste-frontend/**" && mode === "protected");
+  if (designIndex < 0 || designIndex >= genericIndex) throw new UpgradeError("第三方设计 Skill 的 protected 规则必须位于通用 managed 规则之前");
   if (selfIndex < 0 || genericIndex < 0 || selfIndex >= genericIndex) throw new UpgradeError("managed-self 所有权规则必须位于通用 managed 规则之前");
   for (const required of REQUIRED_MANAGED_SOURCE_PATHS) if (ownershipMode(required, data.default_mode, rules) !== "managed") throw new UpgradeError(`必需传播路径的有效所有权必须保持 managed：${required}`);
   return { defaultMode: data.default_mode, rules, missingManagedRules };

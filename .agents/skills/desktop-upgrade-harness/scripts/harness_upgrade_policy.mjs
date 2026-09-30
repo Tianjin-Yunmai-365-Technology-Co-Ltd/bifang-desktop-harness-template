@@ -52,6 +52,7 @@ export const MINIMUM_OWNERSHIP_RULES = new Map([
   ["scripts/harness_validation/**", "tombstone"],
   ["docs/HARNESS_ENGINEERING.md", "tombstone"],
   ["docs/harness_engineering/**", "tombstone"],
+  [".agents/skills/design-taste-frontend/**", "protected"],
   ["docs/AGENT_POLICY.md", "protected"],
   ["docs/GUI_SUPPORT_SURFACES.md", "protected"],
   ["docs/product_spec/**", "protected"],
