@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "95670cf920b7a8552b7aa1aabc0c752d3f6cc4ce",
-  "version": "202609291802",
-  "releaseDate": "2026-09-29",
-  "expectedTag": "v202609291802-20260929",
+  "sourceHead": "d03f834bb5ab16f357b5e8133979afee488a182b",
+  "version": "202609302018",
+  "releaseDate": "2026-09-30",
+  "expectedTag": "v202609302018-20260930",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "2cc20fcc62a01e33d239874f68fa93a8ae32a667",
-    "sourceHead": "95670cf920b7a8552b7aa1aabc0c752d3f6cc4ce",
-    "scopeDiffSha256": "70fec77694668df0c22220883b5877e26c5ac6d80612d8846e7a3e7be6bca634",
-    "reviewedSourceCommit": "95670cf920b7a8552b7aa1aabc0c752d3f6cc4ce",
+    "scopeBase": "06eeb405eed44757c33cfe72e9d1f6528f0954b6",
+    "sourceHead": "d03f834bb5ab16f357b5e8133979afee488a182b",
+    "scopeDiffSha256": "ede5cb1fc078eb772eca4072b8bf6fef9c0655cd5108538b45a93d34a12b0ef5",
+    "reviewedSourceCommit": "d03f834bb5ab16f357b5e8133979afee488a182b",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed prior tag to sourceHead across behavior, core/adapter boundaries, public contracts, responsibility and size, and temporary markers. Independent code and docs reviews found no blockers. Harness hard and release-review gates passed; Node suite: 926 tests, 912 passed, 14 skipped, 0 failed. Review warnings were non-blocking size thresholds and a test fixture TODO.",
+    "evidenceSummary": "Five semantic checks passed for the prior release through sourceHead. Independent reviews rechecked fixes for invalid skill fields, shadowed ownership protection, and pruned tool references; no blockers remain. Hard/release-review/no-Python gates passed. Node: 944 tests, 930 passed, 14 platform skips, 0 failed. Rust 1.98.1: format, Clippy, 7 tests and release build passed. 26 non-blocking warnings are file-size thresholds and an intentional test-fixture TODO.",
     "reason": null,
     "remainingRisk": null
   }

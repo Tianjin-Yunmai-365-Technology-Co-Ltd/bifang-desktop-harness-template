@@ -2,6 +2,25 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-09-30",
+      "version": "v202609302018",
+      "featureOptimizations": [
+        {
+          "zh-CN": "创建下游项目时自动检查并补装项目本地 taste-skill，适用于全部接口组合，无需询问或全局安装，并保留已有有效本地内容。",
+          "en-US": "New downstream projects automatically check and install project-local taste-skill across all interface combinations, without prompts or global installation, while preserving valid local content."
+        },
+        {
+          "zh-CN": "内嵌可校验的上游原文、MIT 许可和来源快照，支持离线安装；适用页面可使用其风格指导，并继续遵守既有技术栈和设计标准。",
+          "en-US": "Bundle a verifiable snapshot of the original upstream skill, MIT license, and provenance for offline installation; matching pages can use its style guidance while following existing technology and design standards."
+        },
+        {
+          "zh-CN": "初始化裁剪后保留独立设计 Skill 及有效使用说明；Harness 升级保护其完整目录，并拒绝自定义规则遮蔽，保留下游定制内容。",
+          "en-US": "Retain the standalone design skill and valid guidance after initialization pruning; Harness upgrades protect its entire directory and reject shadowing custom rules to preserve downstream customizations."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
       "releaseDate": "2026-09-29",
       "version": "v202609291802",
       "featureOptimizations": [
@@ -192,30 +211,6 @@
         {
           "zh-CN": "修复 detached Task 首次本地发布默认分支缺失，以及 push/tag 非零退出被过早判定的问题；远端复读、schema 兼容与下游分发回归已补齐。",
           "en-US": "Fixed missing default-branch state for a detached Task's first local release and premature conclusions from nonzero push/tag exits, with remote rereads, schema compatibility, and downstream propagation regressions added."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-12",
-      "version": "v202609122231",
-      "featureOptimizations": [
-        {
-          "zh-CN": "开发环境门禁升级到 Rust 1.98.1、Node.js 24.21.0 与 pnpm 12.4.1；已安装的更高稳定版直接通过。",
-          "en-US": "Raised development gates to Rust 1.98.1, Node.js 24.21.0, and pnpm 12.4.1 while preserving newer stable installations."
-        },
-        {
-          "zh-CN": "Rust、Node.js 与 pnpm 改用平台标准当前用户全局位置，并同步更新兼容的 CLI 与适配器依赖基线。",
-          "en-US": "Moved Rust, Node.js, and pnpm to standard per-user global locations and refreshed compatible CLI and adapter dependency baselines."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "补齐安装前后 PATH、持久命令身份及 symlink/reparse wrapper 边界检查，阻止越界工具被误判为通过。",
-          "en-US": "Hardened pre/post-install PATH, persisted command identity, and symlink/reparse wrapper checks to reject escaped tools."
-        },
-        {
-          "zh-CN": "修正 Harness 源发布的远端选择、版本物化与发布日志/上下文原子提交顺序。",
-          "en-US": "Corrected Harness source-release remote selection, version materialization, and atomic release-notes/context ordering."
         }
       ]
     }
