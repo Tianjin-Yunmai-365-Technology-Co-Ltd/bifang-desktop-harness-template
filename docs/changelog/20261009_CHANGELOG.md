@@ -12,7 +12,7 @@
 
 ## 新增
 
-- `HARNESS-FEAT-GPUI-DEV-RELOAD`（`required_version = pending`）：GPUI 根 `pnpm dev` 提供标准库文件监听、保存后自动重编译/重启、编译失败恢复和中断进程回收；初始化与既有入口迁移共用合同。词典/资源变化刷新所选 GUI 调试缓存，构建输出不触发重启；进程内临时状态随重启重置，不引入第三方 watcher。
+- `HARNESS-FEAT-GPUI-DEV-RELOAD`（`required_version = 202610090748`）：GPUI 根 `pnpm dev` 提供标准库文件监听、保存后自动重编译/重启、编译失败恢复和中断进程回收；初始化与既有入口迁移共用合同。词典/资源变化刷新所选 GUI 调试缓存，构建输出不触发重启；进程内临时状态随重启重置，不引入第三方 watcher。
 
 - `HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`（`required_version = 202610090050`）：GPUI 按选择生成托盘、系统通知、自启、单实例和真实后台热键模板及项目本地依赖；选完询问配置协助，产品动作在终端下游确认。初始化 Skill 纳入示例全部直接依赖的基础技术选型与最小 features；固定壳层、条件能力和实际用途各自声明。通知复用官方 Kit API，自启不自动注册，单实例仅唤醒窗口，空热键合同零注册；当前托盘/热键限 macOS/Windows，深链接仍不可用。
 

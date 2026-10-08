@@ -45,7 +45,7 @@
 
 ### GPUI 开发入口与自动重启
 
-- 变更标识：`HARNESS-FEAT-GPUI-DEV-RELOAD`；`required_version = pending`。
+- 变更标识：`HARNESS-FEAT-GPUI-DEV-RELOAD`；`required_version = 202610090748`。
 - 根 `pnpm dev` 通过保留的 Node 标准库 helper 解析实际 GUI package/binary，监听 Rust、Cargo 配置、词典与静态资源；保存后防抖、增量编译并自动重启调试应用，编译失败仍监听并在修复后重试，编译期间再次保存必须追加构建。初始化、add-only 与显式工程入口迁移使用同一脚本合同，不覆盖产品 package 字段或冲突脚本。
 - 首次及资源变化刷新所选 GUI 的调试缓存，避免旧 build.rs 或过程宏重用旧词典/资源。构建输出与发布目录不参与监听；重编译前停止 owned 应用，退出回收 owned 构建和应用进程。此路径为原生 Rust 的重编译/重启，进程内临时状态重置，不宣称保留状态的 HMR，不安装第三方 watcher 或 GPUI Shell runtime。
 
@@ -475,7 +475,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202610090129`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202610090748`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
