@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { ROOT, fail, readText, relativePath } from "./core.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
-import { POST_RELEASE_ACTIONS, localPackageSupported, parseAgentPolicyDocument, parseReleaseMetadataArray, policyBodyIsCurrent, validConfirmedAt } from "../../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs";
+import { POST_RELEASE_ACTIONS, localPackageSupported, parseAgentPolicyDocument, parseReleaseGuiFramework, parseReleaseMetadataArray, policyBodyIsCurrent, validConfirmedAt } from "../../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs";
 
 export const SESSION_PROGRESS_TITLE_TEMPLATE = "Task {序号} | {当前进度} | {单一结果}";
 export const SESSION_PROGRESS_TITLE_INITIAL = "Task {序号} | 已分配 | {单一结果}";
@@ -58,6 +58,7 @@ function persistedReleaseMetadata(policyPath, errors) {
     return {
       interfaces: parseReleaseMetadataArray(source, "interfaces"),
       "target-platforms": parseReleaseMetadataArray(source, "target-platforms"),
+      "gui-framework": parseReleaseGuiFramework(source),
     };
   } catch (error) {
     fail(errors, `cannot inspect persisted interface/platform metadata for post_release_action: ${error.message}`);
@@ -108,7 +109,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     const selectedPlatforms = targetPlatforms ?? metadata?.["target-platforms"] ?? null;
     if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0 || !Array.isArray(selectedPlatforms)) {
       fail(errors, "local_package requires persisted interfaces and target-platforms metadata");
-    } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms)) {
+    } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, metadata?.["gui-framework"] ?? "tauri")) {
       fail(errors, "local_package requires CLI or GUI with a macOS/Windows target; otherwise select push_release_branch");
     }
   }

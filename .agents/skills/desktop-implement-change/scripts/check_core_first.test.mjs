@@ -72,6 +72,19 @@ test("accepts renamed normal core dependency", () => {
   assert.deepEqual(validateMetadata(fixture), []);
 });
 
+/** GPUI 和包装 crate 都是适配器依赖，改名或间接经过基础设施也不能进入 core。 */
+test("rejects_gpui_framework_dependencies_reachable_from_core", () => {
+  for (const framework of ["gpui", "gpui-pre", "gpui-kit", "gpui-component", "gpui-component-assets"]) {
+    const fixture = metadata(
+      packageFixture("sample_core", { library: true, packageDependencies: [workspaceDependency("sample_infra")] }),
+      packageFixture("sample_infra", { library: true, packageDependencies: [dependency(framework, { rename: "native_ui", kind: "dev", target: "cfg(unix)" })] }),
+      packageFixture("sample_gui", { packageDependencies: [workspaceDependency("sample_core"), dependency(framework)] }),
+    );
+    const errors = validateMetadata(fixture);
+    assert.ok(errors.some((error) => error.includes(framework)), `${framework}: ${errors.join("; ")}`);
+  }
+});
+
 test("rejects missing unconditional core dependency", () => {
   const fixture = metadata(
     packageFixture("sample_core", { library: true }),

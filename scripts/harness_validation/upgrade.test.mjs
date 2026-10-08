@@ -101,6 +101,37 @@ test("validator independently anchors the runtime ownership boundary", () => {
   assert.equal(REQUIRED_UPGRADE_RULES.get("scripts/run_harness_tests.mjs"), "tombstone");
 });
 
+/** GPUI 工程目录保持 conditional，GUI profile 作为独立产品事实保护。 */
+test("gpui_upgrade_assets_are_conditional_and_gui_profile_is_protected", () => {
+  assert.equal(REQUIRED_UPGRADE_RULES.get(".agents/skills/desktop-add-gpui-adapter/**"), "conditional");
+  assert.equal(REQUIRED_UPGRADE_RULES.get("docs/GUI_APP_PROFILE.md"), "protected");
+  withTemporaryDirectory((directory) => {
+    const manifest = productionManifest();
+    manifest.rules = manifest.rules.filter(({ pattern }) => pattern !== ".agents/skills/desktop-add-gpui-adapter/**");
+    assert.match(validateManifest(manifest, directory).join("\n"), /desktop-add-gpui-adapter\/\*\* must be conditional/u);
+  });
+});
+
+/** GPUI 的精确初始化 tombstone 必须存在，并位于整个 GPUI conditional 目录之前。 */
+test("gpui_initialization_only_tombstones_cannot_be_omitted_or_shadowed", () => {
+  const patterns = [
+    ".agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs",
+    ".agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.test.mjs",
+    ".agents/skills/desktop-add-gpui-adapter/assets/core/**",
+  ];
+  withTemporaryDirectory((directory) => {
+    for (const pattern of patterns) {
+      assert.equal(REQUIRED_UPGRADE_RULES.get(pattern), "tombstone");
+      const manifest = productionManifest();
+      const rule = manifest.rules.find((item) => item.pattern === pattern);
+      manifest.rules = manifest.rules.filter((item) => item !== rule);
+      assert.match(validateManifest(manifest, directory).join("\n"), /must be tombstone/u);
+      manifest.rules.push(rule);
+      assert.match(validateManifest(manifest, directory).join("\n"), /GPUI initialization-only tombstone must precede/u);
+    }
+  });
+});
+
 test("minimum protection cannot remove the Harness test runner tombstone", () => {
   withTemporaryDirectory((directory) => {
     const manifest = productionManifest();

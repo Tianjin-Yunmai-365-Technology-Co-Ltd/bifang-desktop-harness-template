@@ -16,6 +16,8 @@ description: 为已初始化下游明确选择或切换未来 Git 发布完成�
 
 表单默认项只决定表单初始显示；旧项目升级时不得用默认值替用户作选择。用户已选择后可再次调用本 Skill 改变未来流程。选择不回溯改变已完成发布或候选。
 
+GUI 必须先读取 Cargo `gui-framework`，旧 GUI 缺省为 Tauri，非法值拒绝。下文 GUI 的本地打包、前端/Tauri清单和 pnpm 锁文件检查只适用于 Tauri。纯 GPUI 没有现有本地候选打包 Skill，必须选择 `push_release_branch`；GPUI + CLI 的 `local_package` 只覆盖 CLI，以 Rust 清单和 Cargo 锁策略检查，不要求 Tauri、前端或 pnpm 文件，也不表示 GPUI 可发布。
+
 ## 执行
 
 1. 读取下游 `AGENTS.md`、`docs/AGENT_POLICY.md`、`docs/RELEASE.md`、ADR 索引与当前最新 ADR；确认规范 Git 顶层、当前分支和工作区。`docs/AGENT_POLICY.md` 是 protected 下游事实，升级器的候选树、`apply` 与 `record` 不得写它。不得在带有 Harness `Version.md` 和实例化 Skill 的模板根运行。

@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { parseAgentPolicyDocument, parseReleaseMetadataArray } from "./post_release_action.mjs";
+import { localPackageSupported, parseAgentPolicyDocument, parseReleaseGuiFramework, parseReleaseMetadataArray } from "./post_release_action.mjs";
 
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "post_release_action.mjs");
 const V3 = [
@@ -58,6 +58,29 @@ function track(f, ...files) {
   const added = spawnSync("git", ["-C", f.root, "add", "--", ...files], { encoding: "utf8" });
   assert.equal(added.status, 0, added.stderr);
 }
+
+/** 纯 GPUI 尚无候选打包 Skill，不能借用 Tauri 的 macOS/Windows 能力声明。 */
+test("gpui_local_package_is_unavailable_without_cli", (t) => {
+  assert.equal(localPackageSupported(["gui"], ["macos"], "gpui"), false);
+  assert.equal(localPackageSupported(["cli", "gui"], ["macos"], "gpui"), true);
+  assert.equal(localPackageSupported(["gui"], ["macos"]), true);
+  assert.throws(() => localPackageSupported(["gui"], ["macos"], "unknown"), /gui-framework/u);
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["macos"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n');
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /没有现有本地打包 Skill/u);
+  assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
+  assert.equal(f.run("set", setOptions("push_release_branch")).post_release_action, "push_release_branch");
+});
+
+/** 框架字段遵循唯一事实；兼容旧项目但不修正显式错误。 */
+test("gui_framework_metadata_defaults_only_when_absent", () => {
+  const source = '[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\n';
+  assert.equal(parseReleaseGuiFramework(source), "tauri");
+  assert.equal(parseReleaseGuiFramework(`${source}gui-framework = "gpui"\n`), "gpui");
+  for (const suffix of ['gui-framework = "unknown"\n', 'gui-framework = null\n', 'gui-framework = "gpui"\ngui-framework = "tauri"\n']) {
+    assert.throws(() => parseReleaseGuiFramework(source + suffix), /gui-framework/u);
+  }
+});
 
 test("shared policy parser preserves runtime field and newline rules", () => {
   assert.equal(parseAgentPolicyDocument(Buffer.from(V3)).schema, "3");

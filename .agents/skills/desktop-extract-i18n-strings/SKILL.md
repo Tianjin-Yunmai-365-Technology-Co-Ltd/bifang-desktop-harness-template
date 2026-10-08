@@ -1,11 +1,17 @@
 ---
 name: desktop-extract-i18n-strings
-description: 扫描已选 GUI 适配器的 React 前端与 Rust 原生文案，把硬编码用户可见字符串抽取为 i18next/react-i18next 与 rust-i18n 的翻译资源键，不改变默认语言下的可观察行为。仅在下游已通过 `$desktop-add-gui-adapter` 建立 i18n 技术栈后使用。
+description: 按已选桌面框架扫描 GUI 用户可见文案；Tauri使用 i18next/react-i18next 与 rust-i18n，GPUI使用原生 rust-i18n，抽取翻译键且不改变默认语言下的可观察行为。
 ---
 
 # 抽取硬编码文案为 i18n 配置
 
 把 GUI 适配器中硬编码的用户可见文案迁移为 ADR-20260806-001 固定的 i18n 技术栈键值，不新建并行的国际化机制，也不触碰 core。
+
+## 框架分派
+
+先读取根 Cargo metadata 的 `gui-framework`，既有 GUI 缺失时兼容 `tauri`。下述React扫描、i18next、前端测试与Tauri引用只适用于Tauri。`gpui` 先确认 `$desktop-add-gpui-adapter` 已建立 `rust-i18n` 与中文/英文资源，再仅扫描 `<project-id>_gui` 的实际原生视图、导航、设置、关于/赞助与窗口标题文案，复用稳定层级key和 `rust_i18n::t!()`；不创建JSX、React、i18next、前端清单或pnpm依赖，不读取已裁掉的Tauri引用。
+
+GPUI继续执行下述可见文案筛选、core边界、翻译语义、缺失译文记录与独立事件规则；验证改为相关非空Rust回归和本次需要的真实语言切换检查，确保当前语言下导航/页面/标题一致且默认语言展示不变。Rust文件适用800行硬上限，翻译资源适用2000行上限，不能误用前端1000行标准。未建立GPUI语言基础设施时先交给该adapter Skill接入，不另建第二套机制。
 
 ## 工作流程
 

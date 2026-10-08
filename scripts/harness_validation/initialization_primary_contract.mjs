@@ -47,6 +47,11 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "初始化",
     ]],
     [INSTANTIATE_FORM, [
+      "1. Tauri（默认）",
+      "2. GPUI",
+      "gui-framework",
+      "unavailable",
+      "$desktop-add-gpui-adapter",
       "## 首轮基础问题模板",
       "## 字段阶段与顺序",
       "user_owned_tasks",
@@ -81,6 +86,10 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "harness_root_or_ancestor_is_rejected",
     ]],
     [skillFile, [
+      "GUI 框架分派",
+      'gui-framework = "tauri" | "gpui"',
+      "$desktop-add-gpui-adapter",
+      "Computer Use",
       "ensure_design_skill.mjs --project-root",
       "不询问用户、不增加表单字段、不使用全局安装",
       "所有接口组合完整保留 `.agents/skills/design-taste-frontend/`",
@@ -301,7 +310,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "managed Rust root symlinks fail before download",
     ]],
     [ENVIRONMENT_TESTS[3], [
-      "PowerShell gate declares Node as common runtime and pnpm as GUI-only",
+      "PowerShell gate declares Node as common runtime and pnpm as Tauri GUI-only",
       "Windows Node minimum is continuous for every interface",
       "Windows pnpm is required only for GUI",
     ]],

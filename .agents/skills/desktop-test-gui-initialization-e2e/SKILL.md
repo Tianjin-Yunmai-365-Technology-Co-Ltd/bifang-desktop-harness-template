@@ -7,6 +7,8 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 
 只用于 GUI 脚手架和相关非空单元测试完成后、裁剪初始化能力与创建基线提交前。它固定执行一次，不读取 `e2e_hint`，不替代最终候选验收。
 
+本 Skill 是 Tauri 专属入口：先核对根 Cargo metadata，`gui-framework = "gpui"` 时交给 `$desktop-add-gpui-adapter` 的 Rust构建与 Computer Use初始化场景，不运行下述Tauri结构检查、插件断言或pnpm命令。既有 GUI 缺失框架字段时兼容 Tauri，新初始化由表单明确写入。两条路径都须在真实本机窗口通过且进程/隔离偏好已回收后才允许创建基线；GPUI不将 unavailable 原生能力当成缺证据或虚构为通过。
+
 ## 前置条件
 
 1. 当前目录是已规范化的唯一终端下游项目根，GUI 目录精确为 `<project-id>_gui`。新实例化目标在本 E2E 阶段不得提前 `git init`；当前根若已经存在自身 `.git`，其规范化 Git 顶层必须精确等于当前目录，父级仓库不得视为目标自身的 Git 边界。独立 `main` 仓库仍由初始化器在本 E2E 与裁剪成功后、紧邻唯一基线提交时建立。

@@ -32,6 +32,34 @@ test("Rust-only project requires Node but not pnpm", posixOnly, () => withTempor
   ]) assert.ok(result.stdout.includes(fragment), fragment);
 }));
 
+/** GPUI 使用原生 Rust，缺失 pnpm 不应触发安装或阻断初始化。 */
+test("gpui_gui_requires_rust_node_but_never_probes_pnpm", posixOnly, () => withTemporaryRoot((root) => {
+  const probe = path.join(root, "probe");
+  fakeExistingTools(probe);
+  executable(path.join(probe, "pnpm"), "#!/bin/sh\necho 'unexpected pnpm invocation' >&2\nexit 99\n");
+  const result = runGate(root, ["--install-missing", "--interfaces", "GUI", "--gui-framework", "gpui"], { probe });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /gate\.pnpm\.status=not-required/u);
+  assert.match(result.stdout, /gate\.changed=false/u);
+  assert.doesNotMatch(result.stderr, /unexpected pnpm/u);
+}));
+
+/** 未知框架不能被当作原生框架绕过前端门禁。 */
+test("invalid_gui_framework_fails_before_tool_probe", posixOnly, () => withTemporaryRoot((root) => {
+  const result = runGate(root, ["--check-only", "--interfaces", "GUI", "--gui-framework", "unknown"]);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /不支持的 GUI 框架/u);
+  assert.equal(result.stdout, "");
+}));
+
+/** Windows 参数与 POSIX 采用相同闭集及默认框架，运行测试由原生宿主补充。 */
+test("windows_gpui_framework_keeps_pnpm_tauri_only", () => {
+  const source = readFileSync(WINDOWS_SCRIPT, "utf8");
+  assert.match(source, /\[ValidateSet\("tauri", "gpui"\)\]/u);
+  assert.match(source, /\$GuiFramework = "tauri"/u);
+  assert.match(source, /\$PnpmRequired = \(\$NormalizedInterfaces -contains "GUI"\) -and \$GuiFramework -eq "tauri"/u);
+});
+
 test("rustup installer cannot mutate unmanaged shell profiles", () => {
   const source = readFileSync(SCRIPT, "utf8");
   assert.ok(source.includes('"$installer_path" -y --profile minimal --default-toolchain stable --no-modify-path'));
@@ -252,7 +280,7 @@ test("Windows gate retains signed MSVC and current runtime contracts", () => {
     "Install-MissingPnpm", "Install-MissingGit", "Test-GitVersion", "Git.Git",
     '"gate.git.status=passed"', '"gate.git.change=$GitChange"', "if (-not (Test-MsvcPrerequisite))",
     '"gate.msvc.status=passed"', '"gate.msvc.change=$MsvcChange"', '@("CLI", "TUI", "MCP", "GUI")',
-    '$PnpmRequired = $NormalizedInterfaces -contains "GUI"', "$MinimumRustMinor = 98", "$MinimumRustPatch = 1",
+    '$PnpmRequired = ($NormalizedInterfaces -contains "GUI") -and $GuiFramework -eq "tauri"', "$MinimumRustMinor = 98", "$MinimumRustPatch = 1",
     '$NodeRequirement = ">=24.21.0"', '$PnpmRequirement = ">=12.4.1"', '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
     "Test-NodeVersion", "Test-PnpmVersion",
   ]) assert.ok(source.includes(fragment), fragment);

@@ -2,6 +2,10 @@
 
 本文档是所有下游项目在文件组织、代码注释、文档维护、测试组织、规则例外和机械检查方面的唯一详细事实来源。`AGENTS.md`、项目 Skills 和技术基线只保留任务入口、语言特定补充与本文件链接，不复制整套规则。
 
+桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、pnpm、Tauri图标/DMG、Tauri初始化E2E与updater合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对两条路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
+
+GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版六项原生宿主能力明确为 `unavailable` 并写 `disabled`，显式启用请求必须处理为不可用选择，不伪装支持或默许接线。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI无发布候选本地打包Skill，不含CLI时必须选 `push_release_branch`。
+
 ## 1. 适用范围与规则等级
 
 - 本规则适用于所有由 Harness 建立或维护的下游项目。通用规则不绑定语言；语言或工具链文档可以增加不削弱本规则的具体要求。

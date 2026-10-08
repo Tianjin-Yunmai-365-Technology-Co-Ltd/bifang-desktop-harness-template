@@ -5,6 +5,8 @@ description: 为已选 GUI 按九项初始化配置建立标题、侧栏、语�
 
 # 准备 GUI 支持界面
 
+本 Skill 的 React模板、品牌包接线与 Tauri固定能力只适用于根 Cargo metadata `gui-framework = "tauri"`；既有 GUI 缺失该字段时兼容 Tauri。`gpui` 使用 `$desktop-add-gpui-adapter` 的原生关于/赞助/设置模板与 `docs/design_standards/gpui_gui.md`，不执行下述 Tauri插件、前端或资源映射步骤；通用的 core-first、媒体来源、支付材料和零出站边界仍适用。框架不属于九字段 profile，不得在本 Skill 重问。
+
 新项目选择 GUI 时由 `$desktop-add-gui-adapter` 自动消费本 Skill，并严格服从 `docs/GUI_APP_PROFILE.md` 的九项初始化配置。以下固定模板、条件能力和对应回归只适用于该初始化或经批准迁移到相同模板标准的范围；首次接入的既有 GUI 不因保留本 Skill 而被要求改写实际能力。动态标题、Logo→当前版本、设置页、i18n、三态主题和亮暗语义主题始终存在；system-locale、updater、window-state 由各自固定 Skill 无条件接入，三项保持 Rust-only；dialog WebView 基线同样由独立固定 Skill 无条件接入且只授予精确 `dialog:default`，updater 未配置时保持 `NotConfigured` 且零出站。系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接和全局快捷键只在对应能力为 `enabled` 时进入运行时。系统通知与开机自启提供条件 Switch；全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位；初始化设置页不得预置隐私区块或统计开关。
 
 固定模板以 `@tabler/icons-react` 作为唯一图标库，并先按 [`docs/design_standards/README.md`](../../../docs/design_standards/README.md) 匹配标准。`compact` 精确实现 `tauri-gui-sidebar-compact-80-v1`：`80px` 栏宽、`6px` 内容内边距、`36px` Logo、`22px` 图标、全宽居中名称与 `56px` 菜单项，不使用固定 `em/ch` 盒且不折叠。`detailed` 精确实现 `tauri-gui-sidebar-detailed-v1`：`248px` 展开、`76px` 收起、`72px`/`44px` Logo 和统一 `22px` 图标，名称通过右侧零延迟 Mantine `Tooltip` 补充并使用独立 localStorage 键 `APP_SIDEBAR_COLLAPSED_STORAGE_KEY` 持久化。详细折叠状态由 AppShell 拥有，侧栏只从 ActionIcon 调用回调；AppShell 的 `navbar.width` 与 `data-navbar-width` 同源同步。两种模式都保留完整可访问名称，按钮事件绑定在按钮自身。

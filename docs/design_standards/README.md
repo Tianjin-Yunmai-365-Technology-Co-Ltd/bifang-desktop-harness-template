@@ -17,11 +17,14 @@
 | 匹配条件 | 标准 | 当前标识 |
 |---|---|---|
 | Tauri 2 + React + Mantine GUI | [Tauri GUI 通用设计标准](tauri_gui.md) | `tauri-gui-common-v1` |
+| `gui-framework = "gpui"` + 原生 GPUI/gpui-kit GUI | [GPUI GUI 设计标准](gpui_gui.md) | `gpui-gui-common-v1` |
 | React 19.2+ + TypeScript + Mantine UI 9.x + 重复记录检索/浏览/管理 | [Mantine 列表页设计标准](mantine_list_view.md) | `mantine-list-view-v2` |
 | 上述 GUI + 固定左侧栏 + `sidebar_mode = compact` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#精简模式) | `tauri-gui-sidebar-compact-80-v1` |
 | 上述 GUI + 固定左侧栏 + `sidebar_mode = detailed` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#详细模式) | `tauri-gui-sidebar-detailed-v1` |
 
 一个界面可以同时命中通用标准和组件标准；更具体的规则只覆盖它明确声明的范围。未列出的产品页面继续遵守通用标准，并按真实任务补充设计。
+
+桌面框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。GPUI 只命中 GPUI 标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不因同属 GUI 而适用于 GPUI。
 
 ## 设计风格支持
 

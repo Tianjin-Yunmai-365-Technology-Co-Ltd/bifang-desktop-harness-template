@@ -138,8 +138,8 @@ test("TUI/MCP-only downstream rejects local packaging but accepts remote release
   const policyPath = path.join(docs, "AGENT_POLICY.md");
   const manifestPath = path.join(directory, "Cargo.toml");
   try {
-    const check = (interfaces, action, platforms = ["macos"]) => {
-      fs.writeFileSync(manifestPath, `[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n`);
+    const check = (interfaces, action, platforms = ["macos"], framework = null) => {
+      fs.writeFileSync(manifestPath, `[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n${framework === null ? "" : `gui-framework = ${JSON.stringify(framework)}\n`}`);
       fs.writeFileSync(policyPath, source
         .replace(/^confirmed_by:.*$/mu, "confirmed_by: user form confirmation")
         .replace(/^confirmed_at:.*$/mu, "confirmed_at: 2026-09-28")
@@ -153,6 +153,9 @@ test("TUI/MCP-only downstream rejects local packaging but accepts remote release
       assert.ok(check(interfaces, "local_package").some((error) => error.includes("local_package requires CLI or GUI with a macOS/Windows target")));
       assert.deepEqual(check(interfaces, "push_release_branch"), []);
     }
+    assert.ok(check(["gui"], "local_package", ["macos"], "gpui").some((error) => error.includes("local_package requires")));
+    assert.deepEqual(check(["gui"], "push_release_branch", ["macos"], "gpui"), []);
+    assert.deepEqual(check(["cli", "gui"], "local_package", ["macos"], "gpui"), []);
     for (const interfaces of [["cli"], ["gui"], ["cli", "tui"], ["gui", "mcp"]]) {
       assert.deepEqual(check(interfaces, "local_package"), []);
     }

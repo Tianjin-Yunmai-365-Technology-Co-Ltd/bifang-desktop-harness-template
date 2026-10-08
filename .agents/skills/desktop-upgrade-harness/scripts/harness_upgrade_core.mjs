@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { explicitOwnershipModeForNode, loadLock, loadOwnership, ownershipMode, scanTree } from "./harness_upgrade_ownership.mjs";
+import { inapplicableGuiCandidate, readInterfaceSelection } from "./harness_upgrade_interfaces.mjs";
 import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, OWNERSHIP_RELATIVE, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, SOURCE_ONLY_PATHS } from "./harness_upgrade_policy.mjs";
 import { UpgradeError, assertSafePath, canonicalDirectory, isWithin, loadJson, lstatOrNull, requireControlPaths, requireGitRoot, requireSourceIdentity, safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
 
@@ -52,6 +53,7 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   const roots = [source, candidate, target];
   for (let index = 0; index < roots.length; index += 1) for (const right of roots.slice(index + 1)) if (overlaps(roots[index], right)) throw new UpgradeError("源、候选和目标根目录必须彼此独立且不能嵌套");
   const gitIdentity = requireGitRoot(target);
+  const interfaceSelection = readInterfaceSelection(target);
   const { ownership, lockFile } = requireControlPaths(target, ownershipPath, lockPath);
   const { defaultMode, rules, missingManagedRules } = loadOwnership(ownership, { allowRecoverableManagedOmissions: true });
   const candidateTree = scanTree(candidate, { targetTree: false });
@@ -87,6 +89,7 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   for (const [relative, isDirectory] of Object.entries(candidateTree.nodes)) {
     const mode = explicitOwnershipModeForNode(relative, { isDirectory, rules });
     if (["protected", "tombstone"].includes(mode)) problems.push(`候选包含禁止的 ${mode} 路径：${relative}`);
+    if (inapplicableGuiCandidate(relative, interfaceSelection)) problems.push(`候选包含不适用于目标 GUI 框架的工程路径：${relative}`);
   }
   for (const [relative, isDirectory] of Object.entries(targetTree.nodes)) if (explicitOwnershipModeForNode(relative, { isDirectory, rules }) === "tombstone") problems.push(`目标包含 tombstone 路径：${relative}`);
 
@@ -113,6 +116,8 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
     schema_version: SCHEMA_VERSION, source_root: source, source_version: sourceVersion, source_commit: sourceCommit, source_git: sourceIdentity,
     candidate_root: candidate, target_root: target, ownership_path: ownership, ownership_snapshot: snapshotFile(ownership),
     lock_path: lockFile, lock_snapshot: lock === null ? null : snapshotFile(lockFile), target_git: gitIdentity,
+    target_interfaces: interfaceSelection.interfaces, gui_framework: interfaceSelection.guiFramework,
+    interface_manifest_snapshot: interfaceSelection.manifestSnapshot,
     baseline: lock === null ? "missing" : "loaded", ownership_repairs: missingManagedRules,
     blocked: problems.length > 0 || actions.some((item) => item.blocked),
     manual_required: actions.some((item) => MANUAL_CLASSES.has(item.classification)), problems: problems.sort(), actions,

@@ -7,6 +7,10 @@ description: 仅在中性初始化阶段，或初始化后真实测试/构建命
 
 在初始化或观察到真实环境错误后建立、恢复开发工具链：缺失时安装，已确认低于最低下界时按当前宿主的受支持标准路线升级，不依赖生成下游项目后会被删除的初始化 Skills。
 
+## GUI 框架范围
+
+接口含 GUI 时消费根 Cargo metadata 的 `gui-framework`；新初始化必须显式保存 `tauri` 或 `gpui`，旧 GUI 缺省为 `tauri`，非法值失败关闭。POSIX 门禁传 `--gui-framework gpui`，Windows 传 `-GuiFramework gpui`；省略参数保持旧 Tauri 行为。以下 pnpm、WebView、Tauri 系统库与 xwin 规则只适用于 Tauri；GPUI 仍要求 Git、Rust、Node.js/npm 与当前原生编译宿主能力，不探测、安装或要求 pnpm，不进入 Tauri xwin 路线。GPUI 的平台依赖及真实编译检查见 `$desktop-add-gpui-adapter`，不得用 WebKit 安装替代其实际依赖。
+
 ## 工作流程
 
 1. 读取 `AGENTS.md`、Agent Policy、`docs/RUST_CLI_TEMPLATE.md` 和已选接口记录；只在发布、完整验收、长期审计或用户明确要求持久证据时读取适用 Verification。既有环境证据可以提供诊断上下文，但其缺失、过期或指纹变化绝不是调用本 Skill 的触发器。

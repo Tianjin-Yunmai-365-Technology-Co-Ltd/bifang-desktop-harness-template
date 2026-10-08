@@ -11,6 +11,19 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 ## 工作流程
 
+### GUI 框架分派（先于下述 Tauri 专属步骤）
+
+接口含 GUI 时先复用已确认的框架；缺失时单独询问 `1. Tauri（默认）/ 2. GPUI`。未答、留空、跳过或默认取 `tauri`，显式非法值重新询问，合法已有答案不重问。新初始化在 `[workspace.metadata.agent-first-harness]` 写入 `gui-framework = "tauri" | "gpui"`；非 GUI 不写，旧 GUI 缺失时兼容 Tauri。框架不进入 `gui-initialization-config` 九字段。
+
+- `tauri`：执行下述既有 GUI 依赖、插件、Logo/DMG、支持页、九项问询和 Tauri 初始化 E2E；现有行为保持。
+- `gpui`：分派 `$desktop-add-gpui-adapter`，使用 `gpui-kit = "0.7.1"` 与 `rust-i18n = "4.2.0"` 的根 workspace 兼容下界，GUI member 只 `workspace = true`，直接依赖同一 core。不引入 Tauri/React/Mantine/pnpm。只询问关于页、赞助页与 compact/detailed 侧栏；六项宿主能力首版明确 `unavailable`，按既有九字段顺序写 `disabled`，显式 enabled 不能继续。三候选 Logo 选择规则通用，GPUI 的资源路径与图标由新 Skill 负责，不运行 Tauri icon 或 DMG 复制。只有用户明确授权的工程验证临时项目可使用参考中性图，输出必须说明并不得作为正式身份验收。
+- GPUI 初始化由新 Skill 运行非空 Rust测试、实际 `cargo build` 和真实 Computer Use，验证本机窗口、侧栏、设置、语言/主题、条件关于/赞助、关闭退出，并回收隔离偏好和进程；不调用 Tauri 插件结构检查或 `$desktop-test-gui-initialization-e2e`，不产生候选验收声明。
+- 全新 GPUI 工作区使用源专用 `node .agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs --target <已确认的绝对空目标> --project-id <id> --name-zh <中文名> --name-en <英文名> --owner <负责人> --about-page <enabled|disabled> --sponsor-page <enabled|disabled> --sidebar-mode <compact|detailed> --target-platforms <逗号分隔平台> --logo <已选择PNG>`。此 wrapper 只创建中性 core/GUI 与 Cargo/profile，不设置 Git、策略或产品需求；仍由本流程完成其余门禁。工程验证只有已明确批准中性图标时才可省略 `--logo`。已有共享 core 时调用新 Skill 的 add-only 入口，不能整包覆盖。终端裁剪必须删除 wrapper、`create_gpui_workspace.test.mjs` 和 `assets/core/`；保留无 core 派生能力的 renderer、add-only helper 与回归，升级按对应 tombstone 禁止恢复。
+- GPUI 裁剪保留 `$desktop-add-gpui-adapter`、通用工程 Skills 与框架适用的身份规则；删除 `$desktop-add-gui-adapter`、全部 Tauri能力/支持页/打包/初始化E2E Skills、`$mantine-list-view` 与 React/TypeScript专属门禁。Tauri 路径删除不适用的 GPUI adapter；非 GUI 删除两条 GUI 路径。design-taste-frontend 仍在所有接口完整保留。
+- `local_package` 只在含 CLI，或 Tauri GUI 且目标含 macOS/Windows 时合法；不含 CLI 的 GPUI 必须明确选 `push_release_branch`。含 CLI 的 GPUI组合只具备 CLI 本地打包，不宣称GPUI候选支持。
+
+以下“GUI”中的插件、WebView、React/Mantine/Jotai、pnpm、Tauri图标/DMG、Tauri E2E 与 Tauri Skill保留要求均只针对 `gui-framework = "tauri"`；core-first、九字段结构、目标/接口事实、独立仓库、身份选择、版本和无业务边界适用于两条路径。GPUI 的框架专属规则以新 Skill 与 `docs/design_standards/gpui_gui.md` 为准。
+
 1. 读取存在时日期最新的产品状态，以及 `docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/RUST_CLI_TEMPLATE.md` 和 `docs/design_standards/README.md`。刚实例化的下游项目有意不包含产品规格、工作计划、ADR、变更记录或 `docs/VERIFICATION.md`；不得在中性初始化期间创建这些内容。只要求具备当前中英文项目展示名称和 ASCII `snake_case` 标识；中英文至少一个由用户直接提供，只提供其中一个时自动翻译另一个并在首次写入前的完整汇总中确认。`LICENSE.zh-CN.md` 使用确认后的中文名称，`LICENSE.en.md` 使用确认后的英文名称。产品目的、核心输入/输出、业务规则、成功标准、风险、副作用、产品专属页面/文案/数据、远程地址、凭据、产品发布渠道、产物格式和自定义发布需求即使同时提供，也不得在 Harness 源或中性初始化阶段接收、分析、记录或实现；唯一允许的发布相关选择是表单中的 `post_release_action`；必须等初始化结束并切换到唯一终端下游根目录后，再通过 `$desktop-define-product` 重新提出。
 2. 将当前目录解析为唯一的下游项目根目录。如果当前目录是包含根 `Version.md` 与活动 `$desktop-instantiate-project` 的 Harness 源项目，则必须停止、保留文件，并且绝不得创建替代项目目录或接收任何产品业务需求；Harness 源只处理自身工程维护和创建下游所需的固定初始化信息。
 3. 表单完成与最终汇总确认前不检查、安装或升级 Git。确认后、写入脚手架前的环境门禁负责检查 Git 可用性/版本：缺失时按受管路线安装，可证明低于最低下界时按同一路线升级，范围内版本原样复用，随后复探；这个早期门禁不初始化仓库、不读取或设置作者身份/提交模板/仓库配置。独立仓库边界、repo-local 身份补齐和提交模板只在全部初始化检查成功、下一步确实将创建唯一基线提交时按第 14 步即时处理；未来会提交不构成提前创建仓库或写 Git 配置的理由。

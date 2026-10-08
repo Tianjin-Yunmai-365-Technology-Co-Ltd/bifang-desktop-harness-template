@@ -4,6 +4,18 @@
 
 通用工程规则以 [`docs/ENGINEERING_RULES.md`](ENGINEERING_RULES.md) 为唯一详细来源。本文件补充 Rust 工作区、共享核心、Tokio 与可选适配器；CLI 专属规则只在选择 CLI 时适用。
 
+## 桌面框架与适用范围
+
+选择 GUI 后先单独询问 `1. Tauri（默认）/ 2. GPUI`。未回答、留空、跳过或默认取 `tauri`，非法值重问，已有合法答案复用；默认只解析框架，不代替完整初始化汇总确认。GUI新初始化必须在根 `[workspace.metadata.agent-first-harness]` 保存 `gui-framework = "tauri" | "gpui"`，非GUI不得写入，既有GUI缺失时兼容Tauri。框架与九字段 `gui-initialization-config` 分开。
+
+- Tauri走 `$desktop-add-gui-adapter`。下文Tauri插件、Tokio-backed GUI runtime/command、WebView/IPC/ACL、React/Mantine/Jotai、Tabler、pnpm、TS门禁、Tauri图标/DMG/NSIS、updater及Tauri初始化E2E只在这条路径生效。
+- GPUI走 `$desktop-add-gpui-adapter`，直接依赖共享core，根workspace声明 `gpui-kit = "0.7.1"`、`rust-i18n = "4.2.0"` 的三段兼容下界，成员只 `workspace = true`。GPUI原生事件循环与其任务/executor管理GUI生命周期，core保持运行时中立；不因异步core创建嵌套runtime，不把UI线程阻塞等待当成异步。独立关于/赞助/设置模板、主题、i18n与sidebar遵守 [GPUI设计标准](design_standards/gpui_gui.md)。不引入Tauri/React/pnpm，不要求前端锁文件或前端测试。
+- GPUI继续用九字段profile；`about_page`、`sponsor_page`、`sidebar_mode`逐项询问，六项原生宿主能力首版为 `unavailable`，对应值必须 `disabled`。显式启用请求不得静默继续。三候选Logo规则通用，资源/图标路径交给GPUI Skill。仅用户明确授权的工程验证临时项目可采用参考中性图，不能报告正式身份已通过。
+- GPUI初始化运行相关非空Rust测试、真实 `cargo build` 和Computer Use，验证实际窗口、侧栏、设置、语言/主题、条件支持页与关闭退出；不调用Tauri插件结构检查。清理隔离偏好与owned进程后才裁剪初始化能力/创建独立基线，不把本机调试结果当候选验收或其他平台证明。
+- 现有本地候选打包只覆盖CLI或macOS/Windows Tauri。没有CLI的GPUI组合须明确选择 `push_release_branch`；GPUI + CLI的 `local_package` 只覆盖CLI，不推断GPUI发布候选路线。
+
+通用core-first、适配器独立、Rust文件/中文注释/依赖与非空测试、版本/身份/独立仓库规则适用于两条路径；下文未限定框架的GUI技术细节按本节分派，不覆盖GPUI原生机制。
+
 ## 固定边界
 
 - 初始化询问 CLI/TUI/MCP/GUI，允许组合；空选择默认 CLI，用户显式未选择 CLI 时不得额外创建 CLI。

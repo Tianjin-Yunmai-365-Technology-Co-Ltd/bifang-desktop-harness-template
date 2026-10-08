@@ -1,5 +1,7 @@
 # 版本与发布
 
+GUI候选路线先读根Cargo metadata的 `gui-framework`，缺失时兼容 `tauri`。本文Tauri配置、pnpm/前端、DMG/NSIS、updater、图标及Tauri构建Skill只适用于Tauri；GPUI当前只有初始化开发构建与本机检查，没有受管发布候选打包Skill，不能套用Tauri产物或声明发布候选通过。不含CLI的GPUI必须选择 `push_release_branch`；含CLI的组合可使用现有CLI本地打包，但这不形成GPUI候选。Git本地主分支/tag发布、共享SemVer、源码推送与真实证据边界继续适用。
+
 ## 当前状态
 
 - 当前版本：[`Version.md`](../Version.md) 中记录的 `202610081442`（发布状态以适用 Git 引用复核结果为准）

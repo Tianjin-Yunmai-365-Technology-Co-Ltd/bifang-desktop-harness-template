@@ -7,6 +7,14 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 创建一个继承 Harness 长期规则、但不继承 Harness 项目身份、按日期保存的项目记忆、批准结论、验证声明或 Git 历史的下游仓库。
 
+## GUI 框架路由
+
+选择桌面应用(GUI) 后，先按表单单独询问 `1. Tauri（默认）/ 2. GPUI`。未回答、留空、跳过或默认取 `tauri`；非法值重问，合法已有答案复用。该默认只解析框架，不取代最终汇总确认。把 `gui-framework = "tauri" | "gpui"` 与接口/平台交给初始化器；它只在 GUI 选中时持久化到根 Cargo metadata，独立于 profile 九字段；旧 GUI 缺失时兼容 Tauri。
+
+本 Skill 下文关于 Tauri 图标/DMG、四项固定插件、六项宿主能力、Mantine/React、pnpm 与 `$desktop-test-gui-initialization-e2e` 的要求只适用于 Tauri 路径。GPUI 由 `$desktop-add-gpui-adapter` 创建原生 gpui-kit/Rust GUI，单独询问关于页、赞助页和侧栏；六项尚不可用原生能力标为 `unavailable` 并在相同九字段 profile 中写 `disabled`，显式启用请求不能静默通过。GPUI 使用自己的模板、Logo路径、Rust测试、实际构建与 Computer Use 初始化检查，不调用 Tauri能力 Skill。
+
+发布后动作在框架解析后再次校验：不含 CLI 的 GPUI 只能明确选择 `push_release_branch`，含 CLI 时 `local_package` 只复用 CLI 打包。GPUI 当前没有本地候选打包 Skill；以下“GUI 且 macOS/Windows 可本地打包”的既有描述仅指 Tauri。GPUI 终端下游保留新 adapter Skill 与通用规则，裁掉 Tauri/Mantine/React专属 Skills；完整保留 design-taste-frontend 知识资产的通用要求不变。
+
 ## 工作流程
 
 1. 读取源项目的 `AGENTS.md`、`README.md`、`Version.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、`docs/RELEASE.md`、两份许可证，以及 `$desktop-rename-project-identity`/`$desktop-initialize-rust-project`/`$desktop-manage-git-lifecycle` 的当前规则。收到任何创建新下游项目的请求时，还必须先完整读取并执行 [`references/initialization-form.md`](references/initialization-form.md)。实例化排除日期项目记忆，因此不默认加载 Harness 的历史 Product Status、Work Plan、Verification、ADR 或 Changelog 正文。

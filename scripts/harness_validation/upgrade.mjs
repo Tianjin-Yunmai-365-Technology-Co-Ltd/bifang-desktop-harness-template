@@ -21,6 +21,9 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-instantiate-project/**", "tombstone"],
   [".agents/skills/desktop-initialize-rust-project/**", "tombstone"],
   [".agents/skills/desktop-test-gui-initialization-e2e/**", "tombstone"],
+  [".agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs", "tombstone"],
+  [".agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.test.mjs", "tombstone"],
+  [".agents/skills/desktop-add-gpui-adapter/assets/core/**", "tombstone"],
   ["scripts/validate_harness.mjs", "tombstone"],
   ["scripts/run_harness_tests.mjs", "tombstone"],
   ["scripts/agile_workflow.test.mjs", "tombstone"],
@@ -32,6 +35,7 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/design-taste-frontend/**", "protected"],
   ["docs/AGENT_POLICY.md", "protected"],
   ["docs/GUI_SUPPORT_SURFACES.md", "protected"],
+  ["docs/GUI_APP_PROFILE.md", "protected"],
   ["docs/product_spec/**", "protected"],
   ["docs/project_status/**", "protected"],
   ["docs/work_plan/**", "protected"],
@@ -71,6 +75,7 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-add-tui-adapter/**", "conditional"],
   [".agents/skills/desktop-add-mcp-adapter/**", "conditional"],
   [".agents/skills/desktop-add-gui-adapter/**", "conditional"],
+  [".agents/skills/desktop-add-gpui-adapter/**", "conditional"],
   [".agents/skills/mantine-list-view/**", "conditional"],
   [".agents/skills/desktop-add-gui-system-locale/**", "conditional"],
   [".agents/skills/desktop-add-gui-updater/**", "conditional"],
@@ -97,6 +102,8 @@ export const VALID_UPGRADE_MODES = new Set([
 export const UPGRADE_MODULES = [
   "harness_upgrade.mjs",
   "harness_upgrade_core.mjs",
+  "harness_upgrade_interfaces.mjs",
+  "harness_upgrade_interfaces.test.mjs",
   "harness_upgrade_mutation.mjs",
   "harness_upgrade_mutation.test.mjs",
   "harness_upgrade_ownership.mjs",
@@ -210,6 +217,16 @@ function validateManifest(errors, manifest) {
     }
   }
 
+  const gpuiIndex = ordered.findIndex(([pattern]) => pattern === ".agents/skills/desktop-add-gpui-adapter/**");
+  for (const [pattern, mode] of REQUIRED_UPGRADE_RULES) {
+    if (mode !== "tombstone" || !pattern.startsWith(".agents/skills/desktop-add-gpui-adapter/")) continue;
+    const index = ordered.findIndex(([candidate]) => candidate === pattern);
+    const probe = pattern.endsWith("/**") ? `${pattern.slice(0, -3)}/__harness_node_probe__` : pattern;
+    if (index >= gpuiIndex || effectiveMode(probe, ordered, manifest.default_mode) !== "tombstone") {
+      fail(errors, `GPUI initialization-only tombstone must precede GPUI conditional rule without shadowing: ${pattern}`);
+    }
+  }
+
   for (const [requiredPath, mode] of REQUIRED_UPGRADE_RULES) {
     if (mode !== "managed" || requiredPath.includes("*")) continue;
     if (effectiveMode(requiredPath, ordered, manifest.default_mode) !== "managed") {
@@ -232,6 +249,11 @@ function validateDocumentation(errors) {
       "旧 schema 3 的 `selection_required` 必须询问用户",
       "post_release_action.mjs check --project-root",
       "`status: configured`",
+      "`gui-framework = \"gpui\"`",
+      "`gui-framework` 的旧 GUI 下游兼容为 `tauri`",
+      "只同步 `$desktop-add-gpui-adapter`",
+      "`scripts/create_gpui_workspace.mjs`",
+      "`assets/core/**`",
     ]],
     [path.join(UPGRADE_ROOT, "references", "ownership-policy.md"), [
       ".harness/version-state.json",
@@ -240,6 +262,10 @@ function validateDocumentation(errors) {
       "`post_release_action` 也属于 protected 下游选择",
       "`plan|apply|record` 均不得设置默认值或代写该字段",
       "`$desktop-switch-post-release-action`",
+      "`$desktop-add-gpui-adapter` 只适用于 `gui-framework = \"gpui\"`",
+      "`scripts/create_gpui_workspace.mjs`",
+      "`assets/core/**`",
+      "升级计划绑定受保护 Cargo 清单的完整快照",
     ]],
   ]);
   for (const [filePath, fragments] of contracts) {

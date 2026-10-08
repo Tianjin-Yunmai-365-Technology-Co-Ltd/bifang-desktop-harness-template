@@ -94,6 +94,20 @@ export function loadOwnership(file, { allowRecoverableManagedOmissions = false }
     }
   }
   if (selfIndex < 0 || genericIndex < 0 || selfIndex >= genericIndex) throw new UpgradeError("managed-self 所有权规则必须位于通用 managed 规则之前");
+  for (const [pattern, mode] of MINIMUM_OWNERSHIP_RULES) {
+    if (mode !== "conditional") continue;
+    const index = rules.findIndex(([rule, ruleMode]) => rule === pattern && ruleMode === mode);
+    if (index >= genericIndex) throw new UpgradeError(`conditional 所有权规则必须位于通用 managed 规则之前：${pattern}`);
+  }
+  const gpuiIndex = rules.findIndex(([pattern]) => pattern === ".agents/skills/desktop-add-gpui-adapter/**");
+  for (const [pattern, mode] of MINIMUM_OWNERSHIP_RULES) {
+    if (mode !== "tombstone" || !pattern.startsWith(".agents/skills/desktop-add-gpui-adapter/")) continue;
+    const index = rules.findIndex(([rule]) => rule === pattern);
+    const probe = pattern.endsWith("/**") ? `${pattern.slice(0, -3)}/__harness_node_probe__` : pattern;
+    if (index >= gpuiIndex || ownershipMode(probe, data.default_mode, rules) !== "tombstone") {
+      throw new UpgradeError(`GPUI 初始化专用 tombstone 规则必须位于 GPUI conditional 规则之前且不得被遮蔽：${pattern}`);
+    }
+  }
   for (const required of REQUIRED_MANAGED_SOURCE_PATHS) if (ownershipMode(required, data.default_mode, rules) !== "managed") throw new UpgradeError(`必需传播路径的有效所有权必须保持 managed：${required}`);
   return { defaultMode: data.default_mode, rules, missingManagedRules };
 }

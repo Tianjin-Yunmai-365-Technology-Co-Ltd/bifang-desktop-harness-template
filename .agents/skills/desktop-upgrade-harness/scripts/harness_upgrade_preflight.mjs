@@ -22,6 +22,7 @@ export function assertPlanStillCurrent(plan) {
   if (expectedLock === null) { if (lstatOrNull(plan.lock_path) !== null) throw new UpgradeError("上游 lock 在 plan 后出现"); }
   else if (!isDeepStrictEqual(snapshotFile(plan.lock_path), expectedLock)) throw new UpgradeError("上游 lock 在 plan 后发生变化");
   if (!isDeepStrictEqual(requireGitRoot(target), plan.target_git)) throw new UpgradeError("目标 Git 身份或工作树状态在 plan 后发生变化");
+  assertCurrentSnapshot(target, "Cargo.toml", validateSnapshot(plan.interface_manifest_snapshot, "interface_manifest_snapshot"), "目标接口清单");
   for (const item of plan.actions) {
     const relative = safeRelativePath(item.path);
     assertCurrentSnapshot(candidate, relative, validateSnapshot(item.candidate, `${relative}.candidate`), "候选");

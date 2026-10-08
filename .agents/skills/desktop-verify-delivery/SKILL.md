@@ -7,6 +7,8 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 
 验证完整真实候选，不把开发检查、模拟实现或目录存在误报为可用。
 
+GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前端测试、Tauri资源定位、DMG及其 helper 只适用于 Tauri。当前 GPUI Skill 只提供中性脚手架、本机调试构建与初始化交互验证，没有正式候选打包/签名合同；GPUI 开发程序不能进入本 Skill 或被报告为 `Milestone accepted`，须先另行定义并实现对应候选路线。
+
 ## 准入
 
 1. 只接受发布/渠道要求、用户明确要求完整验收，或当前构建已明确选择 E2E `enabled` 的请求。读取 Product Spec、当前构建记录、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、相关 ADR、验证/发布规则和适用接口 Skill。

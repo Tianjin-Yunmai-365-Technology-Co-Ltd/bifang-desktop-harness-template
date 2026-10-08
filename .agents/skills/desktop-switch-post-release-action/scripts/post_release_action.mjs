@@ -168,6 +168,20 @@ function metadataArray(root, key) {
   return parseReleaseMetadataArray(fs.readFileSync(file, "utf8"), key);
 }
 
+/** 读取桌面框架闭集；旧 GUI 没有该字段时沿用 Tauri，重复或非法值拒绝。 */
+export function parseReleaseGuiFramework(source) {
+  const sections = source.split(/^\s*\[workspace\.metadata\.agent-first-harness\]\s*$/mu);
+  if (sections.length !== 2) throw new ActionError("Cargo 发布接口元数据缺失或重复");
+  const section = sections[1].split(/^\s*\[/mu)[0];
+  const values = [...section.matchAll(/^\s*gui-framework\s*=\s*(.*?)\s*$/gmu)];
+  if (values.length === 0) return "tauri";
+  if (values.length !== 1) throw new ActionError("Cargo gui-framework 元数据重复");
+  let framework;
+  try { framework = JSON.parse(values[0][1]); } catch { throw new ActionError("Cargo gui-framework 元数据无效"); }
+  if (!["tauri", "gpui"].includes(framework)) throw new ActionError("Cargo gui-framework 元数据无效");
+  return framework;
+}
+
 function optionalMetadata(root, key) {
   const lines = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8").split(/\r?\n/u);
   const start = lines.findIndex((line) => line.trim() === "[workspace.metadata.agent-first-harness]");
@@ -276,17 +290,19 @@ function assertGuiPackageReady(root) {
   if (relative !== "." && !gui.startsWith(`${root}${path.sep}`)) throw new ActionError("GUI 根目录越出项目");
 }
 
-/** 判断接口与目标平台组合是否存在可执行的本地打包 Skill（CLI，或含 macOS/Windows 的 GUI）。 */
-export function localPackageSupported(interfaces, platforms) {
-  return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => ["macos", "windows"].includes(platform)));
+/** 判断接口、框架与平台是否有现有打包 Skill；GPUI 尚无专用候选打包路线。 */
+export function localPackageSupported(interfaces, platforms, guiFramework = "tauri") {
+  if (!["tauri", "gpui"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效");
+  return interfaces.includes("cli") || (interfaces.includes("gui") && guiFramework === "tauri" && platforms.some((platform) => ["macos", "windows"].includes(platform)));
 }
 
 function assertLocalPackageSupported(root) {
   const interfaces = metadataArray(root, "interfaces");
-  if (!localPackageSupported(interfaces, metadataArray(root, "target-platforms"))) {
+  const framework = parseReleaseGuiFramework(fs.readFileSync(path.join(root, "Cargo.toml"), "utf8"));
+  if (!localPackageSupported(interfaces, metadataArray(root, "target-platforms"), framework)) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
-  if (interfaces.includes("gui")) assertGuiPackageReady(root);
+  if (interfaces.includes("gui") && framework === "tauri") assertGuiPackageReady(root);
   else if (interfaces.includes("cli")) assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
 }
 

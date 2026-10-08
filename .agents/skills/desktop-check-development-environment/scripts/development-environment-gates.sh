@@ -13,11 +13,12 @@ PNPM_REGISTRY='https://registry.npmjs.org/'
 TEST_MODE=${AFH_TEST_MODE:-0}
 MODE=install
 INTERFACES=
+GUI_FRAMEWORK=tauri
 PNPM_REQUIRED=0
 
 # 输出稳定的命令入口说明，避免调用方误把只读模式当成首次开发安装模式。
 usage() {
-    printf '%s\n' "用法：development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI"
+    printf '%s\n' "用法：development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI [--gui-framework tauri|gpui]"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -27,6 +28,15 @@ while [ "$#" -gt 0 ]; do
         --interfaces)
             [ "$#" -ge 2 ] || { usage >&2; exit 2; }
             INTERFACES=$2
+            shift
+            ;;
+        --gui-framework)
+            [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+            GUI_FRAMEWORK=$2
+            case "$GUI_FRAMEWORK" in
+                tauri|gpui) ;;
+                *) printf '不支持的 GUI 框架：%s\n' "$GUI_FRAMEWORK" >&2; exit 2 ;;
+            esac
             shift
             ;;
         --help|-h) usage; exit 0 ;;
@@ -179,7 +189,7 @@ for interface in $(printf '%s' "$normalized_interfaces" | tr ',' ' '); do
     esac
 done
 case ",$normalized_interfaces," in
-    *,GUI,*) PNPM_REQUIRED=1 ;;
+    *,GUI,*) [ "$GUI_FRAMEWORK" != tauri ] || PNPM_REQUIRED=1 ;;
 esac
 
 # 仅在门禁探测路径中解析工具，隔离测试可因此隐藏机器已有环境。

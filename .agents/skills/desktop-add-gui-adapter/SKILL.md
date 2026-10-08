@@ -7,6 +7,8 @@ description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固�
 
 直接在共享核心之上增加最小的已批准 Tauri 2 桌面接口。固定 React/Mantine/Tabler/Router/Query/Jotai/i18n 技术栈是 GUI 硬规则；GUI 与 CLI、TUI 和 MCP 相互独立，业务效果回到 core。
 
+本 Skill 只处理 `gui-framework = "tauri"`，既有 GUI 缺失该 Cargo metadata 字段时兼容 Tauri。入口先读取框架；`gpui` 直接转交 `$desktop-add-gpui-adapter`，不加载本 Skill 的前端、插件、设计、图标、打包或 E2E 引用。这里的固定技术栈只约束 Tauri，不是对用户已选 GPUI 的硬规则例外。框架选择由初始化表单负责，本 Skill 不重复询问。
+
 ## 固定图标契约
 
 - `package.json` 必须把 `@tabler/icons-react` 声明为直接生产依赖，使用经过最低直接版本验证的完整三段 caret 下界；所有图标使用命名导入，保留 tree-shaking。

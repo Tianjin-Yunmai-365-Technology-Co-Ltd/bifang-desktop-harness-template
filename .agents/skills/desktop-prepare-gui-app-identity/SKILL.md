@@ -7,6 +7,8 @@ description: 在 GUI 初始化时按稳定顺序展示未经预处理的 Logo �
 
 GUI 初始化先建立经过用户选择的应用 Logo；首次真实 GUI 开发再补齐其余面向用户的应用身份。中性脚手架仍不得据此推测产品业务。
 
+先读取根 Cargo metadata 的 `gui-framework`，既有 GUI 缺失时兼容 `tauri`。三候选原始预览、明确选择、选择后验证/标准化、身份/版本来源和不得复制产品身份的规则适用于两种框架。下文 `src-tauri/icons`、`public/app-identity`、Tauri `icon`、`bundle.icon`、DMG、`document.title` 与 Tauri标准标识只适用于 Tauri；GPUI资源路径、原生图标/标题与 `gpui-gui-common-v1` 由 `$desktop-add-gpui-adapter` 确定，不为GPUI安装Tauri工具。九字段结构保持相同，GPUI首版六项 unavailable 原生能力只能为 `disabled`。工程验证临时项目只有用户明确授权才可使用参考中性Logo，须单列该来源，不能宣称正式身份已完成；普通下游仍必须完成三候选选择。
+
 ## 工作流程
 
 1. 先判断调用模式。由 `$desktop-initialize-rust-project` 在选择 GUI 后调用时是“初始化 Logo 模式”：只读取当前项目展示名、ASCII 标识、`AGENTS.md`、`docs/ENGINEERING_RULES.md` 与已批准的可选品牌色/源资产，不要求 Product Spec 或 Product Status。首次真实产品 GUI 开发时是“完整身份模式”：再读取最新 Product Spec、Product Status、相关 ADR 和已有 `docs/GUI_APP_PROFILE.md`，确认产品目的已经批准并只补问缺失值。
@@ -17,7 +19,7 @@ GUI 初始化先建立经过用户选择的应用 Logo；首次真实 GUI 开发
 6. 完整身份模式预览初始化所选 Logo，让用户选择保留或重新走“自动生成 / 确定性备选方案 / 用户上传”的三候选流程；重新生成时同样执行稳定标识、原始顺序预览和选择后才验证/标准化的规则。随后确认应用展示名称、简短描述、应用标识符或包标识符、图标方向，以及任何品牌色或源资产。主窗口标题不是自由文案：记录并预览固定公式 `{applicationName} {version} {contactChannel}:{contactValue}`，其中应用名来自本资料、版本来自权威打包元数据、联系字段来自品牌 profile 的 `contacts.windowTitle`；不得保存会漂移的手写版本标题。
 7. 若批准的分发格式包含 macOS DMG，展示初始化生成的 `<project-id>_gui/src-tauri/dmg/background.png`，再让用户批准该中性基线或替换它；同时确认文案语言、660×400 DMG 安装卷窗口尺寸和应用/Applications 落点。批准基线时保留现有字节，替换时把最终 660×400 PNG 写回同一路径并重新展示。软件许可页只按产品/渠道明确要求决定；不得复用 Harness、其他产品或带第三方身份的图片。
 8. 在完整身份模式补全 `docs/GUI_APP_PROFILE.md` 的已批准值、固定标题公式与权威字段来源、应用 Logo/图标来源与溯源、母版/运行时/平台路径及 SHA-256、DMG 背景路径/摘要/尺寸/落点/文案语言和未解决分发元数据。只有身份选择构成长期重要决定时才写 ADR；只有发布/完整验收、重要阻断、跨会话交接或用户要求时才更新 Product Status。
-9. 将资料直接交给 `$desktop-add-gui-adapter`：选中 Logo 必须接入平台图标和侧栏顶部，当前版本紧随 Logo 下方；仅当 `system_tray: enabled` 时还接入托盘并把 `default_window_icon()` 当作必需值。更新显示名后验证平台图标、侧栏 Logo、原生标题与 `document.title`，并仅对已选关于页验证身份/版本来源。系统托盘、系统通知、开机自启、关于页、赞助页和单实例均以配置块为准，身份 Skill 不得自行启用。
+9. 将资料按框架交给 `$desktop-add-gui-adapter` 或 `$desktop-add-gpui-adapter`；以下 Tauri 接线只适用于前者：选中 Logo 必须接入平台图标和侧栏顶部，当前版本紧随 Logo 下方；仅当 `system_tray: enabled` 时还接入托盘并把 `default_window_icon()` 当作必需值。更新显示名后验证平台图标、侧栏 Logo、原生标题与 `document.title`，并仅对已选关于页验证身份/版本来源。系统托盘、系统通知、开机自启、关于页、赞助页和单实例均以配置块为准，身份 Skill 不得自行启用。
 
 ## 边界
 

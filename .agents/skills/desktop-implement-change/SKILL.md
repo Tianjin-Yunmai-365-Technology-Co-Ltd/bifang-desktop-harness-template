@@ -7,6 +7,8 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 
 完成当前授权范围。新功能或独立 Bug 以“自动创建或复用本周期 feature 分支 + 实现 + 本次必要单元测试 + 事件触发记录 + 可审查的本地提交”为日常开发闭环。用户明确说“发布”时才整理本周期代码、普通合并到本地默认主分支并创建及复读版本 tag；Git 发布到此结束。完成初始化的下游随后按 `post_release_action` 已确认的选择执行并检测发布后路径；Harness 源的后续动作由用户当次决定。
 
+修改 GUI 时先读取根 Cargo metadata 的 `gui-framework`，既有 GUI 缺失时兼容 `tauri`。下文 React/Mantine/Jotai/Query、浏览器存储、`$mantine-list-view`、TypeScript与Tauri能力只约束Tauri路径。`gpui` 按 `$desktop-add-gpui-adapter` 与 `docs/design_standards/gpui_gui.md` 使用原生Rust视图、gpui-kit与rust-i18n；页面会话由同一原生根视图在进程内持有，页面切换保留、退出重置，不复制core权威数据。控件自身动作与周围父级不串扰、core-first、中文声明注释和本次相关非空Rust回归同样适用；不得因为通用Skill提到前端而为GPUI安装React、Mantine或pnpm。六项首版unavailable原生能力不能由日常实现静默启用，须先完成真实能力范围与宿主验证。
+
 ## 工作流程
 
 用户可见 Task 的序号按同一 `hostId` 和精确 `projectId` 清点：先读取 `list_threads`，再逐页读取 `list_archived_threads` 清点归档 Task，从最大有效序号继续递增；空历史才从 1 开始，缺号不回填。内部 Subagent 不使用标题合同且不占用序号。Git Task 还必须用 `git rev-parse --path-format=absolute --git-common-dir` 和 `git worktree list --porcelain` 证明独立 Worktree 绑定正确。
