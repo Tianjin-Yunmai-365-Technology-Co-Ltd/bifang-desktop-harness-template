@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "1c9e157df81ce0854200e8ede340f88d34358716",
-  "version": "202610090129",
+  "sourceHead": "c424ceadafb23133c98b513b63bf062c45ca212c",
+  "version": "202610090748",
   "releaseDate": "2026-10-09",
-  "expectedTag": "v202610090129-20261009",
+  "expectedTag": "v202610090748-20261009",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "4a99ee69339dc46e821a979e92d0d803088e2bcd",
-    "sourceHead": "1c9e157df81ce0854200e8ede340f88d34358716",
-    "scopeDiffSha256": "1e98432840d4889c4a648c9bf70165c5e84ec2f2a50c8e11d03fd479806acee8",
-    "reviewedSourceCommit": "1c9e157df81ce0854200e8ede340f88d34358716",
+    "scopeBase": "0b39283875305e8424e8daaf682c272044a76a6e",
+    "sourceHead": "c424ceadafb23133c98b513b63bf062c45ca212c",
+    "scopeDiffSha256": "f34105c0c760e1c76a55faa27d6c12c656f55e921ddbf4d8351feea9312c2e44",
+    "reviewedSourceCommit": "c424ceadafb23133c98b513b63bf062c45ca212c",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed docs/skill/validator diff since 202610090050: pointer consolidation keeps authoritative owners, GPUI routing additions and TECH_DEBT cleanup; validate_harness --release-review passed with only pre-existing size warnings; full Harness test suite passed.",
+    "evidenceSummary": "User enabled review. Five checks passed for GPUI dev/tooling and version mirrors; adapter ownership, script conflicts, argument arrays and tracked locks reviewed. Harness: 1042 pass/16 skip/0 fail; final real-Cargo dev regressions: 6 pass. Release-review gate passed; 27 existing prompts checked. Native GPUI window and Windows/Linux runs not performed; restart resets memory. Windows descendants after leader exit remain unverified.",
     "reason": null,
     "remainingRisk": null
   }

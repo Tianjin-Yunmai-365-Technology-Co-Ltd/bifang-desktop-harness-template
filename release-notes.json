@@ -3,6 +3,26 @@
   "releases": [
     {
       "releaseDate": "2026-10-09",
+      "version": "v202610090748",
+      "featureOptimizations": [
+        {
+          "zh-CN": "GPUI 原生开发支持保存后自动重编译并重启，覆盖 Rust、Cargo、词典和静态资源；编译失败后继续监听，编译期间保存会追加构建。",
+          "en-US": "GPUI native development now rebuilds and restarts automatically after Rust, Cargo, locale or static-resource changes; watching continues after compilation errors and saves during a build trigger another build."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "补齐 GPUI 根 package.json 的 pnpm dev 入口，新建、追加接口和显式迁移共用脚本合同，并拒绝覆盖冲突的产品脚本。",
+          "en-US": "Add the missing pnpm dev script to GPUI root package.json; new workspaces, adapter additions and explicit migrations share the same contract and reject conflicting product scripts."
+        },
+        {
+          "zh-CN": "首次启动及词典/资源变化时刷新所选 GUI 调试缓存，避免旧 build.rs 或过程宏复用过时资源；停止开发会话时清理所拥有的构建和应用进程。",
+          "en-US": "Invalidate the selected GUI debug cache on first launch and locale/resource changes to avoid stale build-script or procedural-macro resources; clean up owned build and application processes when the development session stops."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-09",
       "version": "v202610090129",
       "featureOptimizations": [
         {
@@ -199,26 +219,6 @@
         {
           "zh-CN": "收紧发布策略、发布分支、tag 和上下文的复核，拒绝不一致的本地或远端状态。",
           "en-US": "Tightened checks of release policy, branch, tag, and context to reject inconsistent local or remote state."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-28",
-      "version": "v202609281559",
-      "featureOptimizations": [
-        {
-          "zh-CN": "初始化和旧项目升级现在确认发布后的本地打包或提交远程；每次发布冻结选择，远程路径推送已发布提交至小写 release 分支及版本 tag，并复核结果。",
-          "en-US": "Initialization and upgrades now confirm local packaging or remote submission after release. Each release freezes the choice; the remote path pushes the published commit to the lowercase release branch and version tag, then verifies both refs."
-        },
-        {
-          "zh-CN": "双语更新日志保留当前版及此前最多九个实际发布版本；发布后打包或推送不划分 SemVer 功能周期。",
-          "en-US": "Bilingual release notes retain the current and up to nine earlier published versions; post-release packaging or pushing does not start a new SemVer feature cycle."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 Harness 再次发布取号时，校验器误将上一发布已物化的所需版本判为不等于新版本的问题。",
-          "en-US": "Fixed the release validator rejecting a previously published required version when Harness stamps a new release version."
         }
       ]
     }
