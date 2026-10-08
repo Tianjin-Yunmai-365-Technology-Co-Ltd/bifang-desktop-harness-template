@@ -27,6 +27,7 @@ const V3 = [
   "发布后动作直接读取 `post_release_action`。",
   "完成初始化的下游冻结已确认的 `post_release_action`。",
   "使用 `push-release --remote <name>`。",
+  "远端默认主分支、`release` 分支和 tag 同步到同一已发布 HEAD。",
   "",
 ].join("\n");
 
@@ -194,6 +195,20 @@ test("legacy policy body must be reconciled before a choice can be persisted", (
   assert.equal(f.run("set", setOptions("local_package")).status, "configured");
   fs.writeFileSync(f.policy, fs.readFileSync(f.policy, "utf8").replace("发布后动作直接读取 `post_release_action`。", "发布后是否推送、是否打包只由用户各自的明确请求决定。"));
   assert.match(f.run("check", [], 2).error, /正文尚未合并/u);
+});
+
+test("legacy policy excluding default branch synchronization fails without writes", (t) => {
+  const f = fixture(t);
+  f.run("set", setOptions("push_release_branch"));
+  const current = fs.readFileSync(f.policy, "utf8");
+  for (const legacy of [
+    current.replace("远端默认主分支、`release` 分支和 tag 同步到同一已发布 HEAD。", "只推 release 和 tag。"),
+    ...["远端默认主分支不得因此改变", "不重新合并或改动远端默认主分支", "远端 advertised 默认分支不因该路径移动"].map((line) => `${current}\n${line}\n`),
+  ]) {
+    fs.writeFileSync(f.policy, legacy);
+    assert.match(f.run("check", [], 2).error, /正文尚未合并/u);
+    assert.equal(fs.readFileSync(f.policy, "utf8"), legacy);
+  }
 });
 
 test("local package choice requires an existing CLI or supported GUI package route", (t) => {

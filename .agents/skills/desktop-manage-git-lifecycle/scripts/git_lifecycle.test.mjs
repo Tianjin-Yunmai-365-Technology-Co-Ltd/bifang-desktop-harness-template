@@ -120,6 +120,7 @@ scenario("completed_v2_release_migrates_only_with_matching_local_tag_and_main", 
     "- `post_release_action`：`local_package` or `push_release_branch`", "",
     "发布后动作直接读取 `post_release_action`。下游冻结已确认的 `post_release_action`。", "",
     "`push-release --remote <name>`", "",
+    "远端默认主分支、`release` 分支和 tag 同步到同一已发布 HEAD。", "",
   ].join("\n"), "utf8");
   item.git(repository, "add", "docs/AGENT_POLICY.md");
   item.git(repository, "commit", "--quiet", "-m", "chore: record post-release choice");

@@ -105,9 +105,18 @@ test("push-release rejects option-like remote names", () => {
     "if (!validRemote(remote))", "if (false)"), "Git lifecycle contract missing");
 });
 
-test("push-release verifies both remote refs after the tag update", () => {
+test("push-release verifies all remote refs after the tag update", () => {
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    "({ branch: confirmedBranch, tag: confirmedTag } = remoteReleaseRefs(repository, remote, last.tag))", "confirmedBranch = last.head; confirmedTag = last.head"), "Git lifecycle contract missing");
+    "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag))", "confirmedBranch = last.head; confirmedTag = last.head"), "Git lifecycle contract missing");
+});
+
+test("push-release requires default branch synchronization and final drift checks", () => {
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    '["push", remote, last.head + ":refs/heads/" + defaultBranch]', '[]'),
+  "independent released-head-and-tag push sequence");
+  expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
+    "confirmedDefaultBranch !== defaultBranch || confirmedDefaultHead !== last.head", "false"),
+  "post-release default branch synchronization");
 });
 
 test("push-release targets the fixed release branch", () => {

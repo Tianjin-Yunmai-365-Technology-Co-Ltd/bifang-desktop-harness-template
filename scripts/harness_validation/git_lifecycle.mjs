@@ -188,7 +188,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     'module.verifyReviewScope(repository.root, value)',
     'if (state.cycle === null && state.lastRelease !== null)', 'if (!validRemote(remote))',
     'const RELEASE_BRANCH = "release";', "function assertNoLocalReleaseCaseVariant(", "function remoteReleaseRefs(",
-    "({ branch: confirmedBranch, tag: confirmedTag } = remoteReleaseRefs(repository, remote, last.tag))",
+    "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag))",
     "export async function commandRelease(", "export function commandPushRelease(", 'state.pendingPublish = { head, targets:',
     '["push", target.remote, `${head}:refs/heads/${target.branch}`]',
     '["push", remote, last.head + ":refs/heads/" + branch]',
@@ -235,6 +235,9 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     "push_release_advances_recorded_local_branch_after_checked_out_worktree_is_removed",
     "push_release_rejects_non_fast_forward_remote_release_branch",
     "push_release_after_new_cycle_preserves_current_checkout",
+    "push_release_repairs_default_branch_when_release_and_tag_already_match",
+    "push_release_branch_failure_reports_default_success_and_retries",
+    "push_release_detects_remote_default_${mode}_drift_after_tag_push",
     "enabled_review_rejects_registered_branch_added_after_review",
     "enabled_review_releases_when_source_and_metadata_are_unchanged",
     "enabled_review_rejects_forged_scope_digest_before_release_state_changes",
@@ -349,6 +352,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
       "const checkoutHead = currentHead(repository)", "localTagTarget(",
       "assertNoLocalReleaseCaseVariant(repository)", "remoteReleaseRefs(repository, remote, last.tag)",
       "ensureLocalReleaseBranch(repository, state, last.head)",
+      '["push", remote, last.head + ":refs/heads/" + defaultBranch]', "remoteBranchOid(",
       '["push", remote, last.head + ":refs/heads/" + branch]',
       "remoteBranchOid(", '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]',
       "remoteTagTarget(", "remoteReleaseRefs(repository, remote, last.tag)", "requireClean(repository)",
@@ -367,9 +371,12 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     if (postReleasePush.split("localTagTarget(repository, last.tag)").length - 1 !== 2) {
       fail(errors, "post-release push must check the frozen local tag before and after push");
     }
-    if (postReleasePush.includes("remoteDefaultBranch(")) {
-      fail(errors, "post-release push must target the release branch, not the remote default branch");
-    }
+    requireContract(errors, paths.publication, [
+      '["ls-remote", "--symref", remote, "HEAD", "refs/heads/*"',
+      "confirmedDefaultBranch !== defaultBranch || confirmedDefaultHead !== last.head",
+      "defaultAlreadyMatched && branchAlreadyMatched && tagAlreadyMatched",
+      'defaultBranch === null || !heads.has(defaultBranch) || heads.get(defaultBranch) !== advertisedHead',
+    ], "post-release default branch synchronization");
     for (const token of ['["fetch"', '["merge"', "mergeRegisteredBranches(", "saveState(repository, state)"]) {
       if (postReleasePush.includes(token)) fail(errors, `post-release push changes local release or fetches/merges: ${token}`);
     }

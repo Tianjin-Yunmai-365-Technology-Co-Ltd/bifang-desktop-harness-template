@@ -2,6 +2,8 @@
 
 ## 变化
 
+- `HARNESS-CHANGE-POST-RELEASE-SYNC-DEFAULT-BRANCH`（`required_version = 202610081442`，正式发布时物化）：提交远程同时同步目标远端的默认主分支、release 和版本 tag 到同一已发布 HEAD，逐项及最终联合复读；拒绝默认入口漏推、无法解析的 HEAD 与推送期间引用漂移，部分成功明确报告并可重试。升级后的策略正文必须合并主分支同步规则，保留原有动作选择。当前状态快照改为引用唯一版本与发布上下文，保留历史版本证据。
+
 - `HARNESS-CHANGE-INITIALIZATION-PROGRAM-TYPE-LABELS`（`required_version = 202610080921`，已在本次正式发布取号时物化）：初始化表单把“接口/接口组合”统一显示为“程序类型”，选项改为命令行(CLI)、终端UI(TUI)、MCP、桌面应用(GUI)，保留多选与显式确认默认 CLI。README、实例化和直接初始化入口同步；内部 `CLI/TUI/MCP/GUI` 标识与 Cargo `interfaces` 不变。既有下游升级按 [程序类型名称升级映射](../../.agents/skills/desktop-upgrade-harness/references/program-type-labels.md) 核对已有工程展示文案；不迁移配置值、不重新询问选择、不恢复已删除的初始化入口，无相关展示时记为不适用。
 
 ## 移除

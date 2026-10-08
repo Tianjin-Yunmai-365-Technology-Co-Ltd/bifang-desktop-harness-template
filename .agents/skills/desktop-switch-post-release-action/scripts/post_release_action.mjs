@@ -22,12 +22,16 @@ const REQUIRED_BODY = [
   "发布后动作直接读取 `post_release_action`",
   "冻结已确认的 `post_release_action`",
   "`push-release --remote <name>`",
+  "远端默认主分支、`release` 分支和 tag",
 ];
 const STALE_BODY = [
   "推送与打包分别由发布后的用户请求决定",
   "发布后是否推送、是否打包只由用户各自的明确请求决定",
   "流程没有发布中转分支",
   "发布后用户另外明确要求推送",
+  "远端默认主分支不得因此改变",
+  "不重新合并或改动远端默认主分支",
+  "远端 advertised 默认分支不因该路径移动",
 ];
 
 export class ActionError extends Error {

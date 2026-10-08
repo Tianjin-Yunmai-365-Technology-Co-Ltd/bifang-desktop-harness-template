@@ -580,18 +580,42 @@ function assertNoLocalReleaseCaseVariant(repository) {
   }
 }
 
-/** 一次读取远端 release 分支与发布 tag，并拒绝远端 release 分支的大小写变体。 */
+/** 一次读取远端默认主分支、release 与 tag；要求 advertised HEAD 可解析且没有 release 大小写冲突。 */
 function remoteReleaseRefs(repository, remote, tag) {
-  const result = runGit(repository.root, ["ls-remote", "--heads", "--tags", remote], { check: false });
+  const result = runGit(repository.root, ["ls-remote", "--symref", remote, "HEAD", "refs/heads/*", `refs/tags/${tag}`, `refs/tags/${tag}^{}`], { check: false });
   if (result.returncode !== 0) throw new LifecycleError("remote-read-failed", "Git remote release refs cannot be read.");
+  let defaultBranch = null;
+  let advertisedHead = null;
+  const heads = new Map();
   let branch = null;
   let direct = null;
   let peeled = null;
   for (const line of result.stdout.split(/\r?\n/u)) {
     if (!line.includes("\t")) continue;
     const [oid, reference] = line.split("\t", 2);
+    if (reference === "HEAD" && oid.startsWith("ref: refs/heads/")) {
+      const name = oid.slice("ref: refs/heads/".length);
+      if (defaultBranch !== null || !validBranch(repository, name)) {
+        throw new LifecycleError("remote-default-unavailable", "Remote default branch is invalid.");
+      }
+      defaultBranch = name;
+      continue;
+    }
+    if (reference === "HEAD") {
+      if (advertisedHead !== null || !HEX_OID_RE.test(oid)) {
+        throw new LifecycleError("remote-read-failed", "Git remote HEAD response is invalid.");
+      }
+      advertisedHead = oid;
+      continue;
+    }
     if (isReleaseCaseVariant(reference)) {
       throw new LifecycleError("remote-release-conflict", "Remote has a case variant of the release branch; the legacy Release branch must not be used.");
+    }
+    if (reference.startsWith("refs/heads/")) {
+      if (!HEX_OID_RE.test(oid) || heads.has(reference.slice("refs/heads/".length))) {
+        throw new LifecycleError("remote-read-failed", "Git remote branch response is invalid.");
+      }
+      heads.set(reference.slice("refs/heads/".length), oid);
     }
     if (reference !== `refs/heads/${RELEASE_BRANCH}` && reference !== `refs/tags/${tag}` && reference !== `refs/tags/${tag}^{}`) continue;
     if (!HEX_OID_RE.test(oid)) throw new LifecycleError("remote-read-failed", "Git remote release ref response is invalid.");
@@ -599,7 +623,10 @@ function remoteReleaseRefs(repository, remote, tag) {
     else if (reference === `refs/tags/${tag}`) direct = oid;
     else peeled = oid;
   }
-  return { branch, tag: peeled ?? direct };
+  if (defaultBranch === null || !heads.has(defaultBranch) || heads.get(defaultBranch) !== advertisedHead) {
+    throw new LifecycleError("remote-default-unavailable", "Remote advertised default branch cannot be resolved; no refs were pushed.");
+  }
+  return { defaultBranch, defaultHead: heads.get(defaultBranch), branch, tag: peeled ?? direct };
 }
 
 /** 精确读取本地 release 分支，不把任意本地引用解释为受管发布。 */
@@ -646,7 +673,7 @@ function ensureLocalReleaseBranch(repository, state, head) {
   }
 }
 
-/** 用户在发布完成后独立选择一个远端，推送冻结 HEAD 到 release 分支及同一 tag。 */
+/** 用户在发布完成后独立选择一个远端，逐项同步默认主分支、release 和 tag 到冻结 HEAD。 */
 export function commandPushRelease(repository, args) {
   repository = primaryRepository(repository);
   requireClean(repository);
@@ -684,18 +711,33 @@ export function commandPushRelease(repository, args) {
     throw new LifecycleError("tag-conflict", "Remote tag already points to a different commit.");
   }
   ensureLocalReleaseBranch(repository, state, last.head);
-  let branchTarget = existing.branch;
+  const defaultBranch = existing.defaultBranch;
+  const defaultAlreadyMatched = existing.defaultHead === last.head;
+  if (!defaultAlreadyMatched) {
+    const pushed = runGit(repository.root, ["push", remote, last.head + ":refs/heads/" + defaultBranch], { check: false });
+    let defaultTarget;
+    try {
+      defaultTarget = remoteBranchOid(repository, remote, defaultBranch);
+    } catch {
+      throw new LifecycleError("release-push-uncertain", "Remote default branch push outcome is uncertain; release branch and tag were not attempted; local release remains complete.");
+    }
+    if (defaultTarget !== last.head) {
+      throw new LifecycleError(pushed.returncode !== 0 ? "release-push-failed" : "release-push-uncertain",
+        "Remote default branch push could not be confirmed; release branch and tag were not attempted; local release remains complete.");
+    }
+  }
+  let branchTarget = defaultBranch === branch ? last.head : existing.branch;
   const branchAlreadyMatched = branchTarget === last.head;
   if (!branchAlreadyMatched) {
-    const pushed = runGit(repository.root, ["push", remote, last.head + ":refs/heads/" + branch], { check: false });
+    runGit(repository.root, ["push", remote, last.head + ":refs/heads/" + branch], { check: false });
     try {
       branchTarget = remoteBranchOid(repository, remote, branch);
     } catch {
-      throw new LifecycleError("release-push-uncertain", "Remote branch push outcome is uncertain; local release remains complete.");
+      throw new LifecycleError("release-push-partial", "Remote default branch was confirmed, but release branch push outcome is uncertain; tag was not attempted; local release remains complete.");
     }
     if (branchTarget !== last.head) {
-      throw new LifecycleError(pushed.returncode !== 0 ? "release-push-failed" : "release-push-uncertain",
-        "Remote branch push could not be confirmed; local release remains complete.");
+      throw new LifecycleError("release-push-partial",
+        "Remote default branch was confirmed, but release branch push could not be confirmed; tag was not attempted; local release remains complete.");
     }
   }
   let tagTarget = existingTag;
@@ -705,20 +747,24 @@ export function commandPushRelease(repository, args) {
     try {
       tagTarget = remoteTagTarget(repository, remote, last.tag);
     } catch {
-      throw new LifecycleError("release-push-partial", "Remote branch was confirmed, but tag push outcome is uncertain; local release remains complete.");
+      throw new LifecycleError("release-push-partial", "Remote default and release branches were confirmed, but tag push outcome is uncertain; local release remains complete.");
     }
     if (tagTarget !== last.head) {
-      throw new LifecycleError("release-push-partial", "Remote branch was confirmed, but tag push could not be confirmed; local release remains complete.");
+      throw new LifecycleError("release-push-partial", "Remote default and release branches were confirmed, but tag push could not be confirmed; local release remains complete.");
     }
   }
   let confirmedBranch;
   let confirmedTag;
+  let confirmedDefaultBranch;
+  let confirmedDefaultHead;
   try {
-    ({ branch: confirmedBranch, tag: confirmedTag } = remoteReleaseRefs(repository, remote, last.tag));
+    ({ branch: confirmedBranch, tag: confirmedTag, defaultBranch: confirmedDefaultBranch,
+      defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag));
   } catch {
     throw new LifecycleError("release-push-uncertain", "Remote release refs could not be reread together; local release remains complete.");
   }
-  if (confirmedBranch !== last.head || confirmedTag !== last.head) {
+  if (confirmedDefaultBranch !== defaultBranch || confirmedDefaultHead !== last.head ||
+      confirmedBranch !== last.head || confirmedTag !== last.head) {
     throw new LifecycleError("release-push-uncertain", "Remote release refs changed during final verification; local release remains complete.");
   }
   try {
@@ -733,7 +779,7 @@ export function commandPushRelease(repository, args) {
     throw new LifecycleError("release-push-uncertain", "Local release refs or checkout changed during push; recorded release remains complete.");
   }
   return {
-    status: branchAlreadyMatched && tagAlreadyMatched ? "already-pushed" : "release-pushed",
-    branch, head: last.head, tag: last.tag, remote,
+    status: defaultAlreadyMatched && branchAlreadyMatched && tagAlreadyMatched ? "already-pushed" : "release-pushed",
+    defaultBranch, branch, head: last.head, tag: last.tag, remote,
   };
 }

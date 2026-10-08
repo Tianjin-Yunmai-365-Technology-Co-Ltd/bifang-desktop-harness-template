@@ -37,7 +37,7 @@ Bifang Desktop Harness Template
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 可选地把新结果创建为绑定保存项目的 Codex 左侧 user-owned Task；自动拆分默认关闭，启用后按结果边界创建，Git Task 使用独立 Worktree 和可审查提交。
 - 初始化的推荐策略将自动 Task 保持关闭；自定义策略可以开启。初始化后也可明确开启或关闭，切换只影响后续结果边界，不移动或删除已有 Task/Worktree。
-- 为新功能和独立 Bug 修复自动创建本地开发分支。明确“发布”时整理并提交当前代码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{YYYYMMDD}`；Git 发布到此结束。随后按已确认的发布后动作执行并检测：沿用现有本地打包，或把同一提交放到小写 `release` 分支并推送远端分支与 tag。GUI 候选打包时执行适用的真实启动和交互验证，未真实验证的平台标为 `Unverified`。
+- 为新功能和独立 Bug 修复自动创建本地开发分支。明确“发布”时整理并提交当前代码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{YYYYMMDD}`；Git 发布到此结束。随后按已确认的发布后动作执行并检测：沿用现有本地打包，或把同一提交放到小写 `release` 分支并同步远端默认主分支、release 与 tag。GUI 候选打包时执行适用的真实启动和交互验证，未真实验证的平台标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 
 日常开发不会因为任务看起来复杂，就自动增加长计划、全仓检查、构建或端到端测试（E2E）。只有你明确要求，或者任务确实碰到安全、数据迁移、凭据、发布等风险时，才会进入相应流程。
@@ -45,7 +45,7 @@ Bifang Desktop Harness Template
 ## 它不会替你决定什么
 
 - 不会猜测产品要解决什么问题，也不会把中性脚手架当成已经完成的产品。
-- 不会创建或配置远端或凭据，不会强制推送、通配扫描分支、上传制品或操作生产环境。Git 发布命令不访问远端，也不删除登记的分支或 Worktree。发布后只执行初始化或后续切换时已确认的动作；选择提交远程时仅非强制推送小写 `release` 分支与同一 tag，并复读。发布前的普通 `publish` 仍可在你逐一授权后向多个已配置远端推送同一冻结 HEAD，它不创建 tag。
+- 不会创建或配置远端或凭据，不会强制推送、通配扫描分支、上传制品或操作生产环境。Git 发布命令不访问远端，也不删除登记的分支或 Worktree。发布后执行已确认的动作；选择提交远程时非强制同步目标远端默认主分支、小写 `release` 分支与同一 tag，并逐项及最终联合复读。发布前的普通 `publish` 仍可在你逐一授权后向多个已配置远端推送同一冻结 HEAD，它不创建 tag。
 - 不会为了“以后可能用到”预先加入业务、依赖或复杂架构。
 - 不会绕过安全、隐私、商业许可和分发渠道的硬要求。
 
@@ -80,7 +80,7 @@ Bifang Desktop Harness Template
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
 - “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
 - “发布”：使用 `$desktop-prepare-release` 整理本次范围、按当前上海时间取得 Harness 版本（下游使用语义化版本门禁）、提交源码和发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并本地默认主分支并创建、复读版本 tag。`--release-context-sha256 <sha256>` 绑定已跟踪上下文；Git 发布完成后执行并检测持久选择的后续动作。
-- “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写 `release` 分支，推向远端同名分支并推送 tag，逐项复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
+- “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写 `release` 分支，依次同步远端 advertised 默认主分支、同名 release 分支和 tag，逐项及最终联合复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
 - “本地打包”后续路径：在已有 Git 发布完成后分别使用现有 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。
 - 普通“构建/打包/本地试包”不会自动升级为 Git 发布，不提交、推送或修改主分支；Git 发布后的所选动作仍单独遵守对应流程门禁。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
@@ -93,7 +93,7 @@ Bifang Desktop Harness Template
 
 ## 开发与构建边界
 
-日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。发布开始时冻结已确认的 `post_release_action`，随后按本次快照执行本地打包或向远端 `release` 分支推送同一已发布提交与 tag，并检测所选路径；未来可用 `$desktop-switch-post-release-action` 切换，旧发布继续按旧快照。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
+日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。发布开始时冻结已确认的 `post_release_action`，随后按本次快照执行本地打包或向远端默认主分支与 `release` 分支推送同一已发布提交及 tag，并检测所选路径；未来可用 `$desktop-switch-post-release-action` 切换，旧发布继续按旧快照。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
 
 显式候选构建只接受已有 clean 默认主分支和精确版本 tag；构建入口只读验证并消费 `.harness/release-context.json`，本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据。远程跨平台 provider 另要求远端 `release` 分支与 tag 已复读为同一已发布 HEAD。候选须运行全部非空单元测试。普通 Windows 本地安装试包是开发制品，不要求发布日志或 clean HEAD。构建事实只写入适用产物位置和最终回复，不自动更新项目记忆。普通 GUI 页面状态在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页使用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 
@@ -137,7 +137,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202610080921
+- 当前版本：v202610081442
 - 发布状态：以适用 Git 引用复核结果为准
 - 产品规格：Approved
 - 具体产品源码：不包含

@@ -385,7 +385,7 @@ export function validateReleaseGitContract(errors, overrides = {}) {
       "export function commandPushRelease(", "state.releasedResources.push({",
       'if (state.cycle === null && state.lastRelease !== null)', 'if (!validRemote(remote))',
       "const branch = RELEASE_BRANCH", "assertNoLocalReleaseCaseVariant(repository)",
-      "({ branch: confirmedBranch, tag: confirmedTag } = remoteReleaseRefs(repository, remote, last.tag))",
+      "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag))",
       '["push", remote, last.head + ":refs/heads/" + branch]', '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]']],
     [paths.lifecycleCore, ["export function resolveAdditionalRemoteTargets(", "export function mergeRegisteredBranches(", "export function remoteBranchOid(",
       'createHash("sha256").update(contextBlob.stdout).digest("hex") !== last.releaseContextSha256']],
