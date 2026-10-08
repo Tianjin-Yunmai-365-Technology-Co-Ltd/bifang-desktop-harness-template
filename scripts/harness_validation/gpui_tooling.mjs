@@ -4,7 +4,7 @@ import { ROOT, fail, readText, relativePath, run } from "./core.mjs";
 import { PREREQUISITE_UNIX, PREREQUISITE_WINDOWS } from "./initialization_paths.mjs";
 
 const GPUI_SCRIPTS = ".agents/skills/desktop-add-gpui-adapter/scripts";
-const REQUIRED_NODE_SCRIPTS = ["validate", "release:inspect", "release:notes", "release:context", "release:git", "gpui:package"];
+const REQUIRED_NODE_SCRIPTS = ["dev", "validate", "release:inspect", "release:notes", "release:context", "release:git", "gpui:package"];
 
 // 只渲染中性文件并注入进程执行器，不运行 Rust、发布、安装或真实项目检查。
 const TOOLING_PROBE = `
@@ -61,6 +61,7 @@ function validatePackage(errors, document, sourceRoot, label) {
       continue;
     }
     if (key === "validate" && match[1] !== `${GPUI_SCRIPTS}/gpui_validate.mjs`) fail(errors, `${label} validate must use the retained GPUI runner`);
+    if (key === "dev" && command !== `node ${GPUI_SCRIPTS}/gpui_dev.mjs --root .`) fail(errors, `${label} dev must use the retained GPUI development runner`);
     if (key === "gpui:package" && !match[1].endsWith("/desktop-build-gpui-release/scripts/build_gpui_release.mjs")) fail(errors, `${label} gpui:package must use the GPUI build skill`);
     try { readText(path.join(sourceRoot, match[1])); }
     catch (error) { fail(errors, `${label} script ${key}: ${error.message}`); }

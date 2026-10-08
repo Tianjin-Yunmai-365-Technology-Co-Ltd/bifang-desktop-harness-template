@@ -6,7 +6,7 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-10-08（提交远程同时同步默认主分支、release 和发布 tag）
+> 最近范围确认：2026-10-09（补齐 GPUI 开发入口与保存后自动重编译/重启）
 
 ## 一句话目标
 
@@ -42,6 +42,12 @@
 - 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = 202610090050`。
 - Tauri 与 GPUI 两种 GUI 都要求 Node.js >=24.21.0、pnpm >=12.4.1。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
 - 初始化生成根 package.json，新增 adapter 或既有 GPUI 工程入口迁移只补齐无冲突字段并保留产品配置。升级器继续保护根 package.json，专用合并工具在授权范围内独立执行；同名冲突与已有兼容要求不一致时零写入阻断。实际命令通过只证明对应工程入口，不代替构建、发布或最终验收。
+
+### GPUI 开发入口与自动重启
+
+- 变更标识：`HARNESS-FEAT-GPUI-DEV-RELOAD`；`required_version = pending`。
+- 根 `pnpm dev` 通过保留的 Node 标准库 helper 解析实际 GUI package/binary，监听 Rust、Cargo 配置、词典与静态资源；保存后防抖、增量编译并自动重启调试应用，编译失败仍监听并在修复后重试，编译期间再次保存必须追加构建。初始化、add-only 与显式工程入口迁移使用同一脚本合同，不覆盖产品 package 字段或冲突脚本。
+- 首次及资源变化刷新所选 GUI 的调试缓存，避免旧 build.rs 或过程宏重用旧词典/资源。构建输出与发布目录不参与监听；重编译前停止 owned 应用，退出回收 owned 构建和应用进程。此路径为原生 Rust 的重编译/重启，进程内临时状态重置，不宣称保留状态的 HMR，不安装第三方 watcher 或 GPUI Shell runtime。
 
 ### GPUI 固定模板、core 优先与独立交付管线
 

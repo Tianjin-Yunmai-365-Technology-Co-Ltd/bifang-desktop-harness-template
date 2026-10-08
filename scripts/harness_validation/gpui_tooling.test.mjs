@@ -41,6 +41,17 @@ test("gpui_validator_rejects_a_lowered_generated_pnpm_floor", () => {
   });
 });
 
+/** 缺失开发入口或改到单次 cargo run 时，实际生成结果必须被门禁拒绝。 */
+test("gpui_validator_rejects_missing_or_misrouted_dev_scripts", () => {
+  for (const replacement of ['', "  dev: 'node .agents/skills/desktop-add-gpui-adapter/scripts/gpui_validate.mjs --root .',\n"]) {
+    withMutatedModule("gpui_node_tooling.mjs", source => source.replace(/^  dev:.*\n/mu, replacement), toolingPath => {
+      const errors = [];
+      validateGpuiNodeTooling(errors, { toolingPath });
+      assert.match(errors.join("\n"), /dev must use/u);
+    });
+  }
+});
+
 /** 静默覆盖既有更严格 engine 或同名脚本，会破坏升级时的 protected 文件边界。 */
 test("gpui_validator_rejects_merges_that_silently_overwrite_conflicts", () => {
   withMutatedModule("gpui_node_tooling.mjs", source => source.replace(

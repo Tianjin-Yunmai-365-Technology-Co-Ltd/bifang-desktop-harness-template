@@ -237,7 +237,7 @@ function validateManifest(errors, manifest) {
   if (effectiveMode("package.json", ordered, manifest.default_mode) !== "protected") {
     fail(errors, "root package.json must remain protected; GPUI tooling merge requires its explicit migration command");
   }
-  for (const file of ["gpui_node_tooling.mjs", "gpui_validate.mjs", "merge_gpui_node_tooling.mjs"]) {
+  for (const file of ["gpui_node_tooling.mjs", "gpui_dev.mjs", "gpui_validate.mjs", "merge_gpui_node_tooling.mjs"]) {
     const candidate = `.agents/skills/desktop-add-gpui-adapter/scripts/${file}`;
     if (effectiveMode(candidate, ordered, manifest.default_mode) !== "conditional") {
       fail(errors, `retained GPUI Node tooling must remain conditional: ${candidate}`);

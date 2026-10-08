@@ -23,6 +23,8 @@ export const REQUIRED_ROOT_FILES = [
   ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_adapter_files.mjs",
   ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_node_tooling.mjs",
   ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_node_tooling.test.mjs",
+  ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_dev.mjs",
+  ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_dev.test.mjs",
   ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_validate.mjs",
   ".agents/skills/desktop-add-gpui-adapter/scripts/merge_gpui_node_tooling.mjs",
   ".agents/skills/desktop-add-gpui-adapter/scripts/add_gpui_adapter.mjs",
