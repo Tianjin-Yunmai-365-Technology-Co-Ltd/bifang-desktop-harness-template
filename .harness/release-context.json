@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "1115abfa76890c46e66537d71dad1fbe7c203b1e",
-  "version": "202610080921",
+  "sourceHead": "4b18fd5d74cb954ca0ab459e2eae4e9468ef4114",
+  "version": "202610081442",
   "releaseDate": "2026-10-08",
-  "expectedTag": "v202610080921-20261008",
+  "expectedTag": "v202610081442-20261008",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "ae11ce3449ee75f5d5b7b9155e084b218a6692f9",
-    "sourceHead": "1115abfa76890c46e66537d71dad1fbe7c203b1e",
-    "scopeDiffSha256": "25175c3ec2d64e3b7157f79168a46088cec38e28df3ee313b2ae810d8295292f",
-    "reviewedSourceCommit": "1115abfa76890c46e66537d71dad1fbe7c203b1e",
+    "scopeBase": "c25c594ffc42879d594332cde3831dc000a4eb95",
+    "sourceHead": "4b18fd5d74cb954ca0ab459e2eae4e9468ef4114",
+    "scopeDiffSha256": "a031cbd10ed7a9a869acee7156ce325821e94ac79743737000b935388e1778d6",
+    "reviewedSourceCommit": "4b18fd5d74cb954ca0ab459e2eae4e9468ef4114",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed behavior, core/adapter boundaries, contracts, responsibility/size, and temporary markers for ae11ce3..1115abf. All 26 validator prompts assessed; no blocking findings. Hard gates passed. Node tests: 933 passed, 14 platform skips, 0 failures. Rust 1.98.1 formatting, Clippy, and 7 tests passed. Interface codes and selections remain unchanged.",
+    "evidenceSummary": "Five checks passed for c25c594..4b18fd5: behavior, core/adapter boundary, contracts, responsibility/size and temporary markers. Sync, non-force rejection, partial retries, default ref drift, release alias and policy migration reviewed. Node: 946 pass, 14 platform skips; Rust fmt/Clippy and 7 tests pass. Release validator passed; 26 prompts reviewed (25 coherent files below hard limits; unchanged TODO-A test fixture). No unresolved findings.",
     "reason": null,
     "remainingRisk": null
   }
