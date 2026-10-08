@@ -7,6 +7,11 @@ mod settings;
 use crate::{assets, preferences::{LanguageChoice, Preferences, ThemeChoice, Writer}};
 use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, assets::IconName, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode, button::{Button, ButtonVariants}}, div, img, prelude::*, px};
 
+/// 侧栏内边距同时确定顶部 Logo 与边界控件的垂直原点。
+const SIDEBAR_INSET: f32 = 6.;
+/// 保留详细侧栏原有 pt_7 的 1.75rem 顶部留白，按钮按窗口真实 rem 换算。
+const SIDEBAR_LOGO_TOP: f32 = 1.75;
+
 /// 页面枚举只包含本次初始化实际启用的页面。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Page {
@@ -134,6 +139,11 @@ impl Shell {
         if @@COMPACT@@ { 80. } else if self.preferences.collapsed { 76. } else { 248. }
     }
 
+    /// Logo 与边界按钮共享当前详细侧栏档位，避免折叠后垂直中心漂移。
+    fn sidebar_logo_size(&self) -> f32 {
+        if @@COMPACT@@ { 36. } else if self.preferences.collapsed { 44. } else { 72. }
+    }
+
     /// 具有真实按钮语义的整个菜单项直接拥有点击，不借助父级代理。
     fn navigation_item(&self, page: Page, id: &'static str, key: &str, icon: IconName, cx: &mut Context<Self>) -> AnyElement {
         let label = self.t(key);
@@ -166,17 +176,16 @@ impl Shell {
     /// 功能区向下增长，支持区保持已选赞助、设置、已选关于的稳定顺序。
     fn sidebar(&self, cx: &mut Context<Self>) -> AnyElement {
         let width = self.sidebar_width();
-        let logo_size = if @@COMPACT@@ { 36. } else if self.preferences.collapsed { 44. } else { 72. };
+        let logo_size = self.sidebar_logo_size();
         let identity = div().id("sidebar-identity").test_support().relative().w_full().flex_shrink_0().flex().flex_col().items_center().justify_center().gap_2()
             .when(@@COMPACT@@, |header| header.py_3())
-            .when(!@@COMPACT@@, |header| header.pt_7().pb_3())
-            .child(img(assets::LOGO).size(px(logo_size)))
+            .when(!@@COMPACT@@, |header| header.pt(gpui_kit::rems(SIDEBAR_LOGO_TOP)).pb_3())
+            .child(div().id("sidebar-logo").test_support().size(px(logo_size)).flex_shrink_0().child(img(assets::LOGO).size_full()))
             .child(div().text_xs().text_color(cx.theme().muted_foreground).child(self.version()))
             .when(!@@COMPACT@@ && !self.preferences.collapsed, |header| header.child(div().w_full().min_w_0().whitespace_normal().text_center().text_sm().font_weight(FontWeight::SEMIBOLD).child(self.name())))
-@@COLLAPSE_CONTROL@@
             ;
         let mut sidebar = div().id("sidebar").test_support().w(px(width)).h_full().min_h_0().flex_shrink_0().flex().flex_col()
-            .p(px(6.)).gap_2().border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
+            .p(px(SIDEBAR_INSET)).gap_2().border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
             .child(identity);
         sidebar = sidebar.child(div().flex_1());
 @@SPONSOR_NAV@@
@@ -200,12 +209,13 @@ impl Render for Shell {
             .when(@@SPONSOR_ACTIVE@@, |page| page.p_0())
             .when(!(@@SPONSOR_ACTIVE@@), |page| page.p_8())
             .child(content);
-        div().id("application-shell").test_support().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_color(cx.theme().foreground)
+        div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_color(cx.theme().foreground)
             .child(self.sidebar(cx))
             .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col()
                 .when(!(@@SPONSOR_ACTIVE@@), |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
                     .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
                 .child(content))
+@@COLLAPSE_CONTROL@@
     }
 }
 

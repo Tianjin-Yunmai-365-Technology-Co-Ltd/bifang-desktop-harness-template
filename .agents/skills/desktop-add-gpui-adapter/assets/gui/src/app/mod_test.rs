@@ -35,7 +35,7 @@ fn saved_window_size_uses_content_viewport_without_native_decorations() {
     assert_eq!(next, first);
 }
 
-/// 详细菜单内容真实左对齐；折叠按钮在身份区内，折叠后侧栏和内容使用同一宽度。
+/// 详细菜单左对齐；两档按钮中心都锚定边界和 Logo，伸出的右半边可点击且父级不代理。
 #[gpui_kit::test]
 fn sidebar_alignment_and_toggle_share_the_fixed_shell_bounds(cx: &mut TestAppContext) {
     let (handle, shell, _finish) = open_shell(cx, 1440., 900.);
@@ -54,19 +54,38 @@ fn sidebar_alignment_and_toggle_share_the_fixed_shell_bounds(cx: &mut TestAppCon
             let row = window.find(("nav-settings", 0usize)).bounds();
             assert_eq!(icon.origin.x, row.origin.x, "详细菜单图标不能被 Kit 内层默认居中");
             assert!(icon.origin.x < sidebar.origin.x + px(32.));
-            let identity = window.find("sidebar-identity").bounds();
-            let toggle = window.find("sidebar-toggle").bounds();
-            assert!(toggle.origin.y >= identity.origin.y && toggle.bottom() <= identity.bottom());
-            assert!(toggle.origin.x >= identity.origin.x && toggle.right() <= identity.right());
-            window.click("sidebar-toggle", cx);
+            for collapsed in [false, true] {
+                window.render_frame(cx);
+                let sidebar = window.find("sidebar").bounds();
+                let main = window.find("main-content").bounds();
+                let logo = window.find("sidebar-logo").bounds();
+                let toggle = window.find("sidebar-toggle").bounds();
+                assert_eq!(shell.read(cx).preferences.collapsed, collapsed);
+                assert_eq!(sidebar.size.width, px(if collapsed { 76. } else { 248. }));
+                assert_eq!(logo.size, size(px(if collapsed { 44. } else { 72. }), px(if collapsed { 44. } else { 72. })));
+                assert_eq!(toggle.size, size(px(24.), px(24.)));
+                assert_eq!(toggle.center().x, sidebar.right(), "按钮必须横跨侧栏和内容边界");
+                assert_eq!(toggle.center().y, logo.center().y, "按钮与 Logo 必须沿同一水平中心线");
+                assert_eq!(main.origin.x, sidebar.right());
+                assert_eq!(main.origin.y, sidebar.origin.y);
+                assert_eq!(main.right(), px(1440.));
+                if collapsed {
+                    assert!(window.try_find(("nav-settings", 2usize)).is_none());
+                    let icon = window.find(("nav-settings", 1usize)).bounds();
+                    assert!((icon.center().x - sidebar.center().x).abs() <= px(1.));
+                }
+                println!("toggle geometry collapsed={collapsed}: sidebar={sidebar:?} logo={logo:?} toggle={toggle:?} main={main:?}");
+                // Button 之外的 Logo/身份区与主内容不拥有折叠动作。
+                window.click("sidebar-logo", cx);
+                window.click("sidebar-identity", cx);
+                window.click_at("application-shell", point(sidebar.right() + px(20.), logo.center().y), cx);
+                assert_eq!(shell.read(cx).preferences.collapsed, collapsed, "周围父级不能代理 Button 动作");
+                // 点击按钮右半边，真实指针落在主内容范围内，不能被它覆盖或被侧栏裁切。
+                window.click_at("sidebar-toggle", point(px(18.), px(12.)), cx);
+                assert_eq!(shell.read(cx).preferences.collapsed, !collapsed, "伸出边界的右半边必须实际可点击");
+            }
             window.render_frame(cx);
-            assert!(shell.read(cx).preferences.collapsed);
-            let sidebar = window.find("sidebar").bounds();
-            assert_eq!(sidebar.size.width, px(76.));
-            assert_eq!(window.find("main-content").bounds().origin.x, sidebar.right());
-            assert!(window.try_find(("nav-settings", 2usize)).is_none());
-            let icon = window.find(("nav-settings", 1usize)).bounds();
-            assert!((icon.center().x - sidebar.center().x).abs() <= px(1.));
+            assert!(!shell.read(cx).preferences.collapsed);
         }
     }).expect("更新真实布局测试窗口");
 }

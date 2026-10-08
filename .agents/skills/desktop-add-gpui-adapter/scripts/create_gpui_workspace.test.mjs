@@ -72,7 +72,11 @@ test('fixed_native_shell_and_conditional_layout_regressions_are_generated', () =
     assert.match(app, /\.id\("sidebar-identity"\)/);
     assert.match(app, /\.when\(self.page == Page::Sponsor, \|page\| page.p_0\(\)\)/);
     assert.match(files.get('example_tool_gui/src/app/mod_test.rs'), /sidebar_alignment_and_toggle_share_the_fixed_shell_bounds/);
-    if (sidebarMode === 'detailed') assert.match(app, /Button::new\("sidebar-toggle"\).*\.absolute\(\).top_0\(\).right_0\(\)/);
+    if (sidebarMode === 'detailed') {
+      assert.ok(app.indexOf('Button::new("sidebar-toggle")') > app.indexOf('.child(content))'), '边界按钮必须在主内容之后绘制，避免右半边被覆盖');
+      assert.match(app, /\.left\(px\(self\.sidebar_width\(\) - 12\.\)\)\.top\(px\(SIDEBAR_INSET \+ self\.sidebar_logo_size\(\) \/ 2\. - 12\.\) \+ gpui_kit::rems\(SIDEBAR_LOGO_TOP\)\.to_pixels\(window\.rem_size\(\)\)\)/);
+      assert.match(app, /\.id\("sidebar-logo"\)\.test_support\(\)/);
+    }
     else assert.doesNotMatch(app, /sidebar-toggle/);
   }
   const files = renderGpuiFiles({ ...identity, sponsorPage: 'disabled' });

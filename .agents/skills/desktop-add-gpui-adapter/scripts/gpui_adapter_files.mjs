@@ -115,7 +115,9 @@ export function renderGpuiAdapterFiles(input) {
     SPONSOR_ACTIVE: sponsor ? 'self.page == Page::Sponsor' : 'false',
     ABOUT_NAV: about ? '        sidebar = sidebar.child(self.navigation_item(Page::About, "nav-about", "navigation.about", IconName::Info, cx));' : '',
     SPONSOR_NAV: sponsor ? '        sidebar = sidebar.child(self.navigation_item(Page::Sponsor, "nav-sponsor", "navigation.sponsor", IconName::Heart, cx));' : '',
-    COLLAPSE_CONTROL: compact ? '' : `            .child(Button::new("sidebar-toggle").ghost().icon(IconName::PanelLeft).absolute().top_0().right_0().size(px(24.)).tooltip(self.t("sidebar.toggle")).accessibility_label(self.t("sidebar.toggle"))
+    COLLAPSE_CONTROL: compact ? '' : `            .child(Button::new("sidebar-toggle").ghost().icon(IconName::PanelLeft).absolute()
+                .left(px(self.sidebar_width() - 12.)).top(px(SIDEBAR_INSET + self.sidebar_logo_size() / 2. - 12.) + gpui_kit::rems(SIDEBAR_LOGO_TOP).to_pixels(window.rem_size()))
+                .size(px(24.)).tooltip(self.t("sidebar.toggle")).accessibility_label(self.t("sidebar.toggle"))
                 .on_click(cx.listener(|this, _, _, cx| { this.preferences.collapsed = !this.preferences.collapsed; this.writer.save(&this.preferences); cx.notify(); })))`,
     SPONSOR_ASSETS_LOAD: media.map(asset => `        if path == ${JSON.stringify(asset.bundlePath)} { return Ok(Some(Cow::Borrowed(include_bytes!(${JSON.stringify('../assets/' + asset.bundlePath)})))); }`).join('\n'),
     SPONSOR_ASSETS_LIST: media.length ? `        paths.extend([${media.map(asset => JSON.stringify(asset.bundlePath)).join(', ')}].into_iter().filter(|path| path.starts_with(prefix)).map(SharedString::from));` : '',
