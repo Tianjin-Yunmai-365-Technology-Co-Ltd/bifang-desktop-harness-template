@@ -189,7 +189,7 @@ for interface in $(printf '%s' "$normalized_interfaces" | tr ',' ' '); do
     esac
 done
 case ",$normalized_interfaces," in
-    *,GUI,*) [ "$GUI_FRAMEWORK" != tauri ] || PNPM_REQUIRED=1 ;;
+    *,GUI,*) PNPM_REQUIRED=1 ;;
 esac
 
 # 仅在门禁探测路径中解析工具，隔离测试可因此隐藏机器已有环境。

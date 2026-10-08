@@ -14,6 +14,13 @@ import { candidateSelection, releasedContext, releaseNotes, aboutPageEnabled, re
 import { packagerConfig, packagePath, signingChoice, finalizeSigning, verifyResources, verifyMacIdentity, verifyDmg, verifyNsis } from './gpui_packager.mjs';
 import { renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 
+/** 工程入口只接受完整稳定版本，较高正式版本不必降级到最低 LTS。 */
+export function assertNodeRuntime(version = process.versions.node) {
+  const match = typeof version === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.exec(version);
+  const supported = match && (BigInt(match[1]) > 24n || (BigInt(match[1]) === 24n && BigInt(match[2]) >= 21n));
+  if (!supported) throw new Error('GPUI packaging requires stable Node.js >=24.21.0');
+}
+
 /** 命令以 argv 执行；签名命令隐藏诊断，任何非零/超时直接阻断。 */
 export function commandRunner(root) {
   return (program, args, { env = process.env, quiet = false, timeout = 30 * 60 * 1000 } = {}) => {
@@ -258,6 +265,6 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try { if (Number(process.versions.node.split('.')[0]) < 22) throw new Error('GPUI packaging requires Node.js >= 22'); process.exitCode = main(); }
+  try { assertNodeRuntime(); process.exitCode = main(); }
   catch (error) { process.stderr.write(`GPUI build: ${error.message}\n`); process.exitCode = 1; }
 }

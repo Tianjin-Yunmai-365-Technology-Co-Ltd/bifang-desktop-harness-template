@@ -10,7 +10,7 @@ Bifang Desktop Harness Template
 
 选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。未回答或跳过框架时使用 Tauri；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。当前 GPUI 首版模板尚未提供托盘、通知、自启、单实例、深链接和全局快捷键，表单会明确标为不可用并保持禁用；后续可通过独立能力 Skill、真实实现与宿主验证增加，这不是框架的永久限制。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
-GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 使用 Rust/cargo-packager 管线构建原生 macOS 应用包/DMG 或 Windows x64 NSIS。目标含 macOS/Windows 时可选择本地打包；仅 Linux 且无 CLI 时须选择提交远程。Tauri 的 pnpm、React/Mantine、插件和打包 helper 只适用于 Tauri。
+GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 使用 Rust/cargo-packager 管线构建原生 macOS 应用包/DMG 或 Windows x64 NSIS。目标含 macOS/Windows 时可选择本地打包；仅 Linux 且无 CLI 时须选择提交远程。两种 GUI 都使用 Node.js/pnpm 工程工具；GPUI 在项目根提供验证、发布检查与原生打包脚本，React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 

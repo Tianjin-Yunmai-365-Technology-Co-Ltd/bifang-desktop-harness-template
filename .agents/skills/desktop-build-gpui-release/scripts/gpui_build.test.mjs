@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { executeBuild, runWorkspaceTests, setupPackager } from './build_gpui_release.mjs';
+import { assertNodeRuntime, executeBuild, runWorkspaceTests, setupPackager } from './build_gpui_release.mjs';
 import { renderDefaultConfig, projectFacts, readConfig } from './gpui_config.mjs';
 import { relativePath, safePath, sha256, isolateRelease, publishDirectory } from './gpui_filesystem.mjs';
 import { candidateSelection, containsBytes, renderReleaseNotesRust } from './gpui_evidence.mjs';
@@ -82,6 +82,13 @@ function fakeRun(f, overrides = {}) {
 function hooks(f, fake) { return { run: fake.run, platform: 'darwin', arch: 'arm64', env: { APPLE_SIGNING_IDENTITY: 'must-not-inherit' }, locks: () => {}, context: () => f.context }; }
 function localOptions(root) { return { command: 'build', root, mode: 'local', target: 'aarch64-apple-darwin', format: 'app' }; }
 function candidateOptions(root) { return { ...localOptions(root), mode: 'candidate', e2e: 'disabled', e2eReason: 'User selected no E2E', e2eRisk: 'Installation remains unverified' }; }
+
+test('Node runtime requires complete stable >=24.21.0 and accepts newer release lines', () => {
+  for (const version of ['24.21.0','24.21.1','24.22.0','25.0.0','26.0.0']) assert.doesNotThrow(() => assertNodeRuntime(version));
+  for (const version of ['22.99.99','23.99.99','24.20.99','24.21','24.21.0-beta.1','v24.21.0','024.21.0','24.021.0','24.21.00','unknown',null,24]) {
+    assert.throws(() => assertNodeRuntime(version),/stable Node\.js >=24\.21\.0/u);
+  }
+});
 
 test('strict configuration rejects duplicate, missing and unsafe fields', t => {
   const f = fixture(t); assert.equal(readConfig(f.root).package,'sample_gui');

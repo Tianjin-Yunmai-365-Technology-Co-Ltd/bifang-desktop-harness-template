@@ -2,7 +2,7 @@
 
 只在中性初始化主动门禁，或初始化后真实测试/构建命令已经因受管环境问题失败时使用本参考。它独立于初始化流程，并且在仅用于初始化的 Skills 和文档被删除后继续保留；显式构建、缺少环境证据、新任务或新会话本身都不得触发它。
 
-GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri 使用默认参数，GPUI 使用 `--gui-framework gpui`（Windows：`-GuiFramework gpui`）。参数闭集为 `tauri|gpui`，未知值在工具探测前失败。本文 pnpm 与 Tauri/xwin 条目只适用于 Tauri；原生 GPUI 将 pnpm 报为 `not-required`，不得探测或安装，具体原生平台库由 `$desktop-add-gpui-adapter` 的实际编译需求决定。
+GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri 使用默认参数，GPUI 使用 `--gui-framework gpui`（Windows：`-GuiFramework gpui`）。参数闭集为 `tauri|gpui`，未知值在工具探测前失败。Tauri 与 GPUI 都要求 Node.js/npm 及 pnpm，分别遵守 Node.js 稳定版 `>=24.21.0`、pnpm 稳定版 `>=12.4.1`，供发布、验证等 Node 工程脚本使用。GPUI 不探测或安装 Tauri 的 WebKit/WebView 依赖，不进入 Tauri xwin 路线；具体原生平台库由 `$desktop-add-gpui-adapter` 的实际编译需求决定。
 
 ## 触发与恢复闭环
 

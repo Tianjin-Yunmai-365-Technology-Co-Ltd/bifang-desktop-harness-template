@@ -9,7 +9,7 @@ description: 仅在中性初始化阶段，或初始化后真实测试/构建命
 
 ## GUI 框架范围
 
-接口含 GUI 时消费根 Cargo metadata 的 `gui-framework`；新初始化必须显式保存 `tauri` 或 `gpui`，旧 GUI 缺省为 `tauri`，非法值失败关闭。POSIX 门禁传 `--gui-framework gpui`，Windows 传 `-GuiFramework gpui`；省略参数保持旧 Tauri 行为。以下 pnpm、WebView、Tauri 系统库与 xwin 规则只适用于 Tauri；GPUI 仍要求 Git、Rust、Node.js/npm 与当前原生编译宿主能力，不探测、安装或要求 pnpm，不进入 Tauri xwin 路线。GPUI 的平台依赖及真实编译检查见 `$desktop-add-gpui-adapter`，不得用 WebKit 安装替代其实际依赖。
+接口含 GUI 时消费根 Cargo metadata 的 `gui-framework`；新初始化必须显式保存 `tauri` 或 `gpui`，旧 GUI 缺省为 `tauri`，非法值失败关闭。POSIX 门禁传 `--gui-framework gpui`，Windows 传 `-GuiFramework gpui`；省略参数保持旧 Tauri 行为。Tauri 与 GPUI 共用 Node.js/npm 和 pnpm 门禁，供发布、验证等 Node 工程脚本使用；两者都要求 Node.js 稳定版 `>=24.21.0`、pnpm 稳定版 `>=12.4.1`。WebView、Tauri 系统库与 xwin 规则仍只适用于 Tauri。GPUI 同时要求 Git、Rust 与当前原生编译宿主能力，其平台依赖及真实编译检查见 `$desktop-add-gpui-adapter`，不得探测或安装 Tauri 的 WebKit/WebView 依赖，也不进入 Tauri xwin 路线。
 
 ## 工作流程
 

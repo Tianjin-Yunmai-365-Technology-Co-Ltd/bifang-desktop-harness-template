@@ -2,7 +2,7 @@
 
 本文档是所有下游项目在文件组织、代码注释、文档维护、测试组织、规则例外和机械检查方面的唯一详细事实来源。`AGENTS.md`、项目 Skills 和技术基线只保留任务入口、语言特定补充与本文件链接，不复制整套规则。
 
-桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、pnpm、Tauri图标/DMG、Tauri初始化E2E与updater合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对两条路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
+桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri图标/DMG、Tauri初始化E2E与updater合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对两条路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
 
 GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版六项原生宿主能力明确为 `unavailable` 并写 `disabled`，显式启用请求必须处理为不可用选择，不伪装支持或默许接线。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux 且无 CLI 时必须选 `push_release_branch`。
 
@@ -43,9 +43,9 @@ GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版�
 - 程序入口和接口处理器只负责建立运行环境、装配依赖、委托调用和映射终止结果，不得承载业务规则。
 - 只有独立发布、独立生命周期、独立权限或由工具链强制要求的依赖边界才能新增 crate/包。新增时记录它为什么不能只是现有模块。
 - 直接依赖和受管工具的清单必须用完整三段表达可验证的兼容下界。新增或主动更新时先选择官方 registry 当前最新非预发布候选，再以项目最低 Rust/Node.js/pnpm、peer、平台和实际 API/feature 解析及非空测试决定下界；只有这些真实项目检查通过后才可称为“经过验证”。尚无真实下游的 TUI/MCP/GUI 模板数值只能作为 registry metadata、peer 与 engine 筛选后的候选并标记 `Unverified`，不得冒充项目兼容结论。清单不得写 `latest`、tag、通配符或无下界范围；已安装工具处于支持范围内时直接复用。
-- Harness 自身的工程自动化统一使用 Node.js 标准库；现有下游 Harness helper 继续使用 Node.js 标准库，Node.js 是所有接口组合的受管工程运行时，pnpm 仍只在 GUI/前端确有需要时适用。仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤；新增或修改上游自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。初始化和升级均不得把该检查器及上游专用禁令传播到终端下游；下游可以按自身项目需要使用 Python 或其他脚本语言，新增第三方运行时依赖须说明必要性、获得用户同意、在项目内显式声明并隔离，且不得假设全局包已经安装。
+- Harness 自身的工程自动化统一使用 Node.js 标准库；现有下游 Harness helper 继续使用 Node.js 标准库，Node.js 是所有接口组合的受管工程运行时，pnpm 对 Tauri 与 GPUI 两种 GUI 都适用；GPUI 仅用它运行项目根的 Node 工程脚本，不因此安装前端依赖。仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤；新增或修改上游自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。初始化和升级均不得把该检查器及上游专用禁令传播到终端下游；下游可以按自身项目需要使用 Python 或其他脚本语言，新增第三方运行时依赖须说明必要性、获得用户同意、在项目内显式声明并隔离，且不得假设全局包已经安装。
 - 受管开发环境恢复不得通过修改项目兼容要求迁就旧宿主：工具缺失时安装，可证明低于最低下界时按当前宿主路线自动升级，范围内稳定版原样复用；Node.js 使用连续下界 `>=24.21.0`，25.x、26.x 及未来更高正式版本均直接通过。存在显式上界时，高于上界仍阻断；预发布、无法解析或损坏状态同样失败关闭。Rust、Node.js 与 pnpm 安装到平台标准的当前用户全局位置，只持久维护标准 PATH，不创建 Harness 私有工具环境变量或私有全局前缀；`rustup-init` 必须以 `--no-modify-path` 阻止安装器绕过预检改写 profile/注册表，再由门禁持久化标准 Cargo bin。只读检查必须保持零写入并明确报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim、改用旧版工具，或寻找替代工具链来适配旧环境。
-- Harness 源和新建下游的 `Cargo.lock`、`pnpm-lock.yaml` 与非标准 `pnpm-package.lock` 默认由 Git 忽略。已初始化下游仅可通过根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下设置 `dependency-lock-policy = "tracked"`，显式选择跟踪真实锁文件；缺省或 `"ignored"` 继续忽略且不以锁文件作门禁，未知值、错误类型或重复键失败关闭。选择 `tracked` 时，根工作区及 `rust-test-manifests` 指出的每个独立 Rust 工作区都须跟踪各自的 `Cargo.lock`，已选 GUI 根须跟踪其 `pnpm-lock.yaml`；目标项目应移除相应 Git 忽略规则并由依赖管理工具更新锁文件。`pnpm-package.lock` 不充当标准锁文件。兼容下界由清单和真实检查证明：每个新增或提高的直接下界都必须在声明的最低 Rust/Node.js/pnpm 工具链完成最低直接版本解析和非空测试；最新候选不兼容时按版本从新到旧选择第一个通过者并记录原因。
+- Harness 源和新建下游的 `Cargo.lock`、`pnpm-lock.yaml` 与非标准 `pnpm-package.lock` 默认由 Git 忽略。已初始化下游仅可通过根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下设置 `dependency-lock-policy = "tracked"`，显式选择跟踪真实锁文件；缺省或 `"ignored"` 继续忽略且不以锁文件作门禁，未知值、错误类型或重复键失败关闭。选择 `tracked` 时，根工作区及 `rust-test-manifests` 指出的每个独立 Rust 工作区都须跟踪各自的 `Cargo.lock`，已选 Tauri 前端根须跟踪其 `pnpm-lock.yaml`；GPUI 根的无 npm 依赖脚本入口不要求前端安装或 pnpm 锁文件；目标项目应移除相应 Git 忽略规则并由依赖管理工具更新锁文件。`pnpm-package.lock` 不充当标准锁文件。兼容下界由清单和真实检查证明：每个新增或提高的直接下界都必须在声明的最低 Rust/Node.js/pnpm 工具链完成最低直接版本解析和非空测试；最新候选不兼容时按版本从新到旧选择第一个通过者并记录原因。
 - 应用发布版本、协议/模式版本、Rust edition、平台目标三元组、资产摘要和按安全要求钉住的 CI action commit 不属于依赖兼容范围，不得为了形式统一改写成依赖版本范围。
 - 自动生成代码、内嵌的第三方代码和人工维护代码必须明确隔离。不得直接修改生成物或内嵌的第三方内容。
 
@@ -113,7 +113,7 @@ GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版�
 - 选择 GUI 的下游必须在 GUI 前端保留 TypeScript Compiler AST 中文注释门禁，并同时接入 `pnpm lint` 与项目 validator。机械范围只包括 interface、type alias、enum、class、具名函数、方法/访问器/构造器、直接或后置命名/默认导出的箭头函数组件与 hook，以及测试文件或显式 `vitest` 导入中的 `test`/`it` 测试场景；显而易见的字段、局部变量、循环绑定和普通匿名/极短内联回调不逐项检查，继续由所属结构或函数注释覆盖。
 - TypeScript 门禁只精确排除已声明的生成物（例如根相对的 `src/routeTree.gen.ts`）和依赖/产物目录，不得因任意路径片段名为 `build` 等通用词而跳过人工源码。Rust 与 TypeScript 门禁都必须对无有效扫描对象、语法残缺、非法 UTF-8、NUL、源码符号链接、坏 JSON 或运行超时失败关闭，并报告根相对文件、行、列、声明类别和名称。
 - “包含至少一个汉字”只证明注释存在且归属正确，不证明内容有业务意义；语义质量仍按第 3.2 节由人工或 Agent 复核。门禁不得自动生成或批量补入“保存变量供当前逻辑使用”“执行处理逻辑”等套话。
-- 非 GUI 下游不得因为 TypeScript 门禁额外安装 pnpm、TypeScript 或前端依赖；所有接口都复用固定的 Node.js 工程运行时，GUI 下游再以 `$desktop-add-gui-adapter` 的前端基线和门禁参考实现为唯一接线来源。
+- 非 GUI 下游不得因为 TypeScript 门禁额外安装 pnpm、TypeScript 或前端依赖；所有接口都复用固定的 Node.js 工程运行时，Tauri GUI 下游再以 `$desktop-add-gui-adapter` 的前端基线和门禁参考实现为唯一接线来源；GPUI 用项目根 pnpm 脚本运行保留的 Node 工程门禁。
 
 ## 4. 文档规则
 

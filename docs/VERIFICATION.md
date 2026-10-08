@@ -1,6 +1,6 @@
 # 验证记录
 
-GUI 验证先按根 Cargo `gui-framework` 分派。下文 Tauri 插件、WebView、pnpm、前端、Tauri 初始化 E2E 和打包 helper 只适用于 Tauri；GPUI 的初始化由 `$desktop-add-gpui-adapter` 验证原生窗口，正式候选由 `$desktop-build-gpui-release` 提供独立原生产物和资源证据。GPUI 仍遵守共享 core、完整非空 Rust 测试、最终候选、当次选择与原子证据门禁，不以开发试包或当前宿主结果替代其他平台证明。
+GUI 验证先按根 Cargo `gui-framework` 分派。下文 Tauri 插件、WebView、前端、Tauri 初始化 E2E 和打包 helper 只适用于 Tauri；GPUI 的初始化由 `$desktop-add-gpui-adapter` 验证原生窗口，正式候选由 `$desktop-build-gpui-release` 提供独立原生产物和资源证据。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 在项目根以 `pnpm run validate` 调用保留的机械门禁，以 `pnpm run release:inspect` 只读核对发布事实。GPUI 仍遵守共享 core、完整非空 Rust 测试、最终候选、当次选择与原子证据门禁，不以开发试包或当前宿主结果替代其他平台证明。
 
 ## 验证原则
 

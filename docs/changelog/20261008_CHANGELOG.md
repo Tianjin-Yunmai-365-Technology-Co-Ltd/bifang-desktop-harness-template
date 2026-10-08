@@ -12,6 +12,8 @@
 
 ## 新增
 
+- `HARNESS-CHANGE-GPUI-PNPM-TOOLING`（`required_version = pending`）：GPUI 与 Tauri 共用 Node.js/pnpm 工程工具要求；GPUI 项目根增加验证、Rust 测试、发布检查/日志/上下文/Git 发布与原生打包脚本，生成器和既有项目专用迁移安全合并清单。无 npm 第三方依赖，保留框架原生构建和升级产品配置保护。
+
 - `HARNESS-FEAT-GPUI-PACKAGING`（`required_version = pending`）：新增独立 GPUI Rust/cargo-packager 构建打包 Skill，区分开发试包与发布候选，原生 macOS 应用包/DMG 与 Windows x64 NSIS 按框架传播；macOS/Windows GPUI 可选未来本地打包。GPUI 端侧接入 Tracing 与有界后台滚动文件日志，业务规则与用例继续优先共享 core。
 
 - `HARNESS-FEAT-GPUI-DESKTOP`（基于 Harness `202610081442`，正式发布时物化新时间版本）：桌面应用增加独立框架问题，Tauri 为未回答时默认选项，GPUI 使用原生 Rust/gpui-kit 模板。固化双语身份、三态主题、系统语言、受限窗口恢复、设置、可选关于/赞助页和精简/详细侧栏；六项首版未提供的扩展明确禁用。环境、核心依赖边界、发布后动作和升级按 Cargo 框架事实路由；旧 GUI 保持 Tauri 兼容，GPUI 候选打包由后续独立 Skill 提供，未实现宿主能力仍不得生成验收声明。

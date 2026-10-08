@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertRealPath, normalizeOptions, renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
+import { renderGpuiPackageJson } from './gpui_node_tooling.mjs';
+import { packageSnapshot, assertPackageSnapshot } from './merge_gpui_node_tooling.mjs';
 
 /** 只接受可明确定位的唯一 TOML 节，非受支持布局失败而不猜测写入位置。 */
 function section(source, name) {
@@ -92,14 +94,17 @@ export function addGpuiAdapter(input) {
     ['tracing-appender', '{ version = "0.2.5", default-features = false }'],
   ]) cargo = dependency(cargo, key, value);
   const files = renderGpuiAdapterFiles(options);
+  const originalPackage = packageSnapshot(target);
+  files.set('package.json', renderGpuiPackageJson(originalPackage));
   for (const relative of files.keys()) {
     const file = path.join(target, relative);
     assertRealPath(file, true);
-    if (fs.existsSync(file)) throw new Error(`existing adapter/profile file must not be overwritten: ${relative}`);
+    if (fs.existsSync(file) && !(relative === 'package.json' && originalPackage !== null)) throw new Error(`existing adapter/profile file must not be overwritten: ${relative}`);
   }
   const stage = fs.mkdtempSync(path.join(target, '.gpui-adapter-add-'));
   const installed = [];
   const createdDirectories = [];
+  let packageReplaced = false;
   try {
     for (const [relative, value] of files) {
       const staged = path.join(stage, relative);
@@ -107,8 +112,14 @@ export function addGpuiAdapter(input) {
       fs.writeFileSync(staged, value, { flag: 'wx' });
     }
     fs.writeFileSync(path.join(stage, 'Cargo.toml'), cargo, { flag: 'wx' });
+    if (originalPackage !== null) {
+      fs.writeFileSync(path.join(stage, 'package-original.json'), originalPackage, { flag: 'wx' });
+      fs.chmodSync(path.join(stage, 'package.json'), fs.lstatSync(path.join(target, 'package.json')).mode & 0o777);
+    }
     if (fs.readFileSync(cargoPath, 'utf8') !== original || fs.readFileSync(corePath, 'utf8') !== core) throw new Error('workspace changed during generation');
+    assertPackageSnapshot(target, originalPackage);
     for (const relative of files.keys()) {
+      if (relative === 'package.json' && originalPackage !== null) continue;
       const file = path.join(target, relative);
       assertRealPath(file, true);
       if (fs.existsSync(file)) throw new Error(`target changed during generation: ${relative}`);
@@ -121,8 +132,20 @@ export function addGpuiAdapter(input) {
     }
     assertRealPath(cargoPath);
     if (fs.readFileSync(cargoPath, 'utf8') !== original) throw new Error('workspace changed before Cargo merge');
+    if (originalPackage !== null) {
+      assertPackageSnapshot(target, originalPackage);
+      if (!originalPackage.equals(Buffer.from(files.get('package.json')))) {
+        fs.renameSync(path.join(stage, 'package.json'), path.join(target, 'package.json'));
+        packageReplaced = true;
+      }
+    }
     fs.renameSync(path.join(stage, 'Cargo.toml'), cargoPath);
   } catch (error) {
+    if (packageReplaced) {
+      assertRealPath(path.join(target, 'package.json'));
+      if (!fs.readFileSync(path.join(target, 'package.json')).equals(Buffer.from(files.get('package.json')))) throw new Error('package.json changed before rollback; preserve concurrent user changes', { cause: error });
+      fs.renameSync(path.join(stage, 'package-original.json'), path.join(target, 'package.json'));
+    }
     for (const file of installed.reverse()) fs.unlinkSync(file);
     for (const directory of createdDirectories.reverse()) { if (fs.readdirSync(directory).length === 0) fs.rmdirSync(directory); }
     throw error;

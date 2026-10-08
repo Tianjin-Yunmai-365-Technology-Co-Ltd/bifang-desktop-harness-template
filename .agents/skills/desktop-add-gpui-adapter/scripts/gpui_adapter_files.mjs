@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { renderDefaultConfig } from '../../desktop-build-gpui-release/scripts/gpui_config.mjs';
 import { renderPlatformIcons, renderDmgBackground } from '../../desktop-build-gpui-release/scripts/gpui_icons.mjs';
+import { renderGpuiPackageJson } from './gpui_node_tooling.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const assetsRoot = path.resolve(here, '../assets');
@@ -121,6 +122,7 @@ export function renderGpuiAdapterFiles(input) {
     SPONSOR_TIERS: profile.sponsor.tiers.map((tier, index) => `                            .child(self.sponsor_tier(${index}, ${JSON.stringify(tier.nameKey)}, ${tier.price}, ${JSON.stringify(tier.image)}, ${JSON.stringify(tier.imageAltKey)}, &[${tier.benefits.map(benefit => `(${JSON.stringify(benefit.mainKey)}, ${benefit.noteKey ? `Some(${JSON.stringify(benefit.noteKey)})` : 'None'})`).join(', ')}], cx))`).join('\n'),
   };
   const files = new Map();
+  files.set('package.json', renderGpuiPackageJson());
   files.set(`${projectId}_gui/Cargo.toml`, `[package]\nname = "${projectId}_gui"\nversion.workspace = true\nedition.workspace = true\nrust-version.workspace = true\n\n[dependencies]\n${projectId}_core.workspace = true\ngpui-kit.workspace = true\nrust-i18n.workspace = true\nsys-locale.workspace = true\ntracing.workspace = true\ntracing-subscriber.workspace = true\ntracing-appender.workspace = true\n\n[dev-dependencies]\ngpui-kit = { workspace = true, features = ["test-support"] }\n`);
   files.set(`${projectId}_gui/build.rs`, template('gui/build.rs', tokens));
   for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs'] : [])]) {

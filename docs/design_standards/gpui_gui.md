@@ -2,7 +2,7 @@
 
 稳定标识：`gpui-gui-common-v1`。
 
-仅匹配根 Cargo metadata 中 `interfaces` 包含 `gui` 且 `gui-framework = "gpui"` 的原生桌面界面。技术栈和模板入口由 `$desktop-add-gpui-adapter` 管理；本标准不引入 Tauri、WebView、React、Mantine、pnpm 或 JavaScript 图标库。
+仅匹配根 Cargo metadata 中 `interfaces` 包含 `gui` 且 `gui-framework = "gpui"` 的原生桌面界面。技术栈和模板入口由 `$desktop-add-gpui-adapter` 管理；本标准不引入 Tauri、WebView、React、Mantine 或 JavaScript 图标库；Node.js/pnpm 工程脚本入口由 GPUI adapter Skill 管理。
 
 ## 壳层与信息架构
 

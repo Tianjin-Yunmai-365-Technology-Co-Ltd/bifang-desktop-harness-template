@@ -1,12 +1,12 @@
 # 版本与发布
 
-GUI 候选路线先读根 Cargo metadata 的 `gui-framework`，缺失时兼容 `tauri`。Tauri 配置、pnpm/前端、updater、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用独立 `$desktop-build-gpui-release` 的 Rust/cargo-packager 管线，原生 macOS 应用包/DMG 与 Windows x64 NSIS 可选择 `local_package`；仅 Linux 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于两种框架；开发试包不冒充候选。
+GUI 候选路线先读根 Cargo metadata 的 `gui-framework`，缺失时兼容 `tauri`。Tauri 配置、前端、updater、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用独立 `$desktop-build-gpui-release` 的 Rust/cargo-packager 管线，原生 macOS 应用包/DMG 与 Windows x64 NSIS 可选择 `local_package`；仅 Linux 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于两种框架；开发试包不冒充候选。
 
 ## GPUI 构建路由
 
-GPUI 的可执行命令、固定 cargo-packager 版本、项目本地工具安装、配置字段、原生产物和资源校验，以 [`desktop-build-gpui-release`](../.agents/skills/desktop-build-gpui-release/SKILL.md) 为唯一实现来源。生成器直接接入可维护的 `packaging/gpui.json`；身份、版本与 GUI 二进制来自当前下游和 Cargo metadata。`local` 模式输出忽略的 `target/gpui-packages/` 开发试包；`candidate` 模式复核已发布的 clean 默认主分支/tag/上下文，运行完整非空 Rust workspace 测试，打包两份许可证与同字节更新日志，再形成忽略的 `release/` 原子证据集合。
+GPUI 的可执行命令、固定 cargo-packager 版本、项目本地工具安装、配置字段、原生产物和资源校验，以 [`desktop-build-gpui-release`](../.agents/skills/desktop-build-gpui-release/SKILL.md) 为唯一实现来源。生成器同时接入项目根 `package.json` 的 `pnpm run gpui:package` 入口与可维护的 `packaging/gpui.json`；身份、版本与 GUI 二进制来自当前下游和 Cargo metadata。`local` 模式输出忽略的 `target/gpui-packages/` 开发试包；`candidate` 模式复核已发布的 clean 默认主分支/tag/上下文，运行完整非空 Rust workspace 测试，打包两份许可证与同字节更新日志，再形成忽略的 `release/` 原子证据集合。
 
-不使用 Tauri frontend、插件、配置或 helper。不把 cargo-packager 的安装假设为全局能力；工具按固定版本隔离在项目 target 中。当前只支持原生 macOS 和 Windows x64，Linux 包与跨宿主路线失败关闭。签名启用时必须满足该 Skill 的实际签名/公证/验证门禁，不能降级为 unsigned 成功；关闭时明确记录原因与剩余风险。候选仍为 `pending`，须以最终字节和实际运行场景完成所选验收。
+两种 GUI 都要求 Node.js >=24.21.0 与 pnpm >=12.4.1；GPUI 的 pnpm 只调度标准库 Node helper，无 npm 第三方依赖，无需 `pnpm install` 或前端锁文件。不使用 Tauri frontend、插件、配置或 helper。不把 cargo-packager 的安装假设为全局能力；工具按固定版本隔离在项目 target 中。当前只支持原生 macOS 和 Windows x64，Linux 包与跨宿主路线失败关闭。签名启用时必须满足该 Skill 的实际签名/公证/验证门禁，不能降级为 unsigned 成功；关闭时明确记录原因与剩余风险。候选仍为 `pending`，须以最终字节和实际运行场景完成所选验收。
 
 ## 当前状态
 

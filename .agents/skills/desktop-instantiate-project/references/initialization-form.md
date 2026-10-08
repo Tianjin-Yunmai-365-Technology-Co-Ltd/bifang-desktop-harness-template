@@ -9,7 +9,7 @@
 框架是独立初始化事实，GUI 选中时写入根 Cargo metadata 的 `gui-framework`，不增减 `gui-initialization-config` 九字段。没有该 metadata 字段的既有 GUI 按 Tauri 兼容，新初始化必须明确写入。
 
 - Tauri 复用本文既有九项 GUI 问询、四项插件基线与各能力合同。
-- GPUI 使用 `$desktop-add-gpui-adapter`；逐项询问 `about_page`、`sponsor_page`、`sidebar_mode`。六项原生能力 `system_tray`、`system_notification`、`autostart`、`single_instance`、`deep_link`、`global_shortcut` 当前首版模板尚未提供，标为 `unavailable`，在汇总中明确说明并把对应九字段值归一化为 `disabled`，不逐项询问不可用能力。用户显式要求 `enabled` 时说明当前不可用，不能伪装为支持或静默忽略；须确认采用禁用值或改选 Tauri。GPUI 不接入 Tauri 固定插件、React/Mantine、pnpm、Tauri 图标/DMG 或 Tauri 初始化 E2E。此处不可用描述的是当前模板覆盖范围，不是 GPUI 框架的永久技术限制；后续可在明确授权范围内通过独立能力 Skill、真实实现与宿主验证增加。
+- GPUI 使用 `$desktop-add-gpui-adapter`；逐项询问 `about_page`、`sponsor_page`、`sidebar_mode`。六项原生能力 `system_tray`、`system_notification`、`autostart`、`single_instance`、`deep_link`、`global_shortcut` 当前首版模板尚未提供，标为 `unavailable`，在汇总中明确说明并把对应九字段值归一化为 `disabled`，不逐项询问不可用能力。用户显式要求 `enabled` 时说明当前不可用，不能伪装为支持或静默忽略；须确认采用禁用值或改选 Tauri。GPUI 不接入 Tauri 固定插件、React/Mantine、Tauri 图标/DMG 或 Tauri 初始化 E2E。此处不可用描述的是当前模板覆盖范围，不是 GPUI 框架的永久技术限制；后续可在明确授权范围内通过独立能力 Skill、真实实现与宿主验证增加。
 - `local_package` 适用于接口含 CLI，或 GUI 目标含 macOS/Windows 的组合。Tauri 使用 `$desktop-build-tauri-release`，GPUI 使用独立 `$desktop-build-gpui-release`，后者覆盖本机 macOS `.app`/DMG 与 Windows NSIS；不含 CLI 的仅 Linux GUI 必须明确选择 `push_release_branch`。CLI 与 GUI 组合仍分别生成对应接口的真实产物，不互相冒充。
 
 GUI 的基础发布后动作可以先记录用户选择，框架解析后再完成适用性校验；其余基础字段全部合法后即可进入框架单项问询，不能因动作适用性尚待框架而形成循环。框架改变后只重问不再合法的动作或能力，不重问已解析的合法字段。最终汇总必须单列框架、来源、能力可用性、所用模板/E2E 与本地打包边界；以下提到的 Tauri 固定基线、深链和快捷键提示只在 Tauri 路径适用。

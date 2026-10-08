@@ -1,5 +1,14 @@
 # GPUI 打包配置合同
 
+根 `package.json` 的 `scripts.gpui:package` 固定调用 `node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs`，`engines.node` 与 `engines.pnpm` 分别声明 `>=24.21.0`、`>=12.4.1`。通过 `pnpm run gpui:package preview|setup|icons|build ...` 原样传入子命令和参数，不额外插入 `--`；`pnpm run gpui:package --help` 只显示底层 helper 帮助。纯 GPUI 模板没有第三方 npm 依赖，运行这些工程命令不需要先执行 `pnpm install`，也不要求前端单元测试或 `pnpm-lock.yaml`。
+
+初始化器调用 `$desktop-add-gpui-adapter` 的 `scripts/gpui_node_tooling.mjs` 中 `renderGpuiPackageJson(existingBytes = null)` 生成或受限合并根清单。根 `package.json` 仍是升级器默认保护的产品文件，不得放入受管候选整体替换。既有项目在工程层升级后，可明确执行以下专用合并；只补齐缺失的受管脚本和运行时声明，已有非等值受管字段冲突时停止，保留其它产品字段与依赖。
+
+```sh
+node .agents/skills/desktop-add-gpui-adapter/scripts/merge_gpui_node_tooling.mjs merge --root .
+pnpm run gpui:package --help
+```
+
 根 `packaging/gpui.json` 只持有打包身份/资产；版本来自选定 Cargo workspace package。生成器调用 `scripts/gpui_config.mjs` 的 `renderDefaultConfig({projectId,nameZh,nameEn,owner,logoPath})`，不得手抄示例产品身份。
 
 ```json

@@ -1,6 +1,6 @@
 ---
 name: desktop-build-gpui-release
-description: 为已选择 GPUI 的 Rust GUI 原生构建 macOS app/DMG 或 Windows x64 NSIS；独立处理本地试包和已发布源码候选，不使用 Tauri 管线。
+description: 通过项目根 pnpm 工程入口为 GPUI Rust GUI 原生构建 macOS app/DMG 或 Windows x64 NSIS；独立处理本地试包和已发布源码候选。
 ---
 
 # 构建 GPUI 安装包
@@ -16,12 +16,12 @@ description: 为已选择 GPUI 的 Rust GUI 原生构建 macOS app/DMG 或 Windo
 
 ## 原生执行
 
-入口全部为 Node.js 22+ 标准库，无 npm 或全局包依赖。`packaging/gpui.json` 由 GPUI 初始化模板生成；Cargo metadata 决定实际 workspace、GUI 包/二进制、版本、`target-platforms`、`gui-root`、`rust-test-manifests` 和锁策略。目录名不得代替这些事实。
+在项目根通过 `package.json` 的 `gpui:package` 脚本调用自含的 Node 标准库 helper。工程运行时要求稳定版 Node.js `>=24.21.0`、pnpm `>=12.4.1`，由根 `engines` 声明；不增加 npm 第三方依赖，不要求 `pnpm install`、前端测试或前端锁文件。`packaging/gpui.json` 与根工程入口由 GPUI 初始化模板生成；Cargo metadata 决定实际 workspace、GUI 包/二进制、版本、`target-platforms`、`gui-root`、`rust-test-manifests` 和锁策略。目录名不得代替这些事实。既有工程缺少入口时按[配置合同](references/configuration.md)安全合并，不覆盖已有产品脚本。
 
 先只读预览：
 
 ```sh
-node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs preview --root . --mode local --format app
+pnpm run gpui:package preview --root . --mode local --format app
 ```
 
 首次明确需要打包工具时，在项目私有 `target/harness-tools/cargo-packager-0.11.8` 安装固定版本；工具已存在则验证版本，不覆盖不同版本或残缺目录。此调用安装工具，不安装生成的应用，不修改产品依赖。
@@ -29,32 +29,32 @@ node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs pr
 cargo-packager CLI 本身不依赖全局安装。0.11.8 内部下载的 create-dmg/NSIS 辅助工具使用其官方固定 OS 用户缓存 `.cargo-packager`，没有 tools-dir 配置；不把该缓存说成项目隔离，也不改 HOME。缓存不是可假设已存在的全局 CLI，真实缺失/下载失败仍阻断打包。
 
 ```sh
-node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs setup --root .
+pnpm run gpui:package setup --root .
 ```
 
 初始化已从已选 PNG 生成 ICNS/ICO 与中性 DMG 背景时无需补做图标。既有 GPUI 接入可用 `icons` 仅填充缺失或相同字节的项目本地图标；不同资产不得覆盖，回身份流程处理。源 PNG 必须为方形 256..2048px、非隔行、8-bit RGB/RGBA；中性 SVG 不能冒充确认后的打包 Logo。
 
 ```sh
-node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs icons --root .
+pnpm run gpui:package icons --root .
 ```
 
 macOS 原生支持当前架构或已安装 Apple target 的 `.app.zip`/DMG；Windows x64 原生支持 MSVC NSIS。目标必须已列入 Cargo metadata。Linux、Windows ARM、Docker/xwin 跨系统编译尚无受管产物证据，明确阻断；示例项目有 Docker 实验路线不等于当前 Skill 支持它。
 
 ```sh
-node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs build --root . --mode local --format app
-node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs build --root . --mode local --format dmg
-node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs build --root . --mode local --target x86_64-pc-windows-msvc --format nsis
+pnpm run gpui:package build --root . --mode local --format app
+pnpm run gpui:package build --root . --mode local --format dmg
+pnpm run gpui:package build --root . --mode local --target x86_64-pc-windows-msvc --format nsis
 ```
 
 显式候选示例；参数须来自当前选择：
 
 ```sh
-node .agents/skills/desktop-build-gpui-release/scripts/build_gpui_release.mjs build --root . --mode candidate --format dmg --e2e disabled --e2e-reason "本次未选择 E2E" --e2e-risk "安装与运行行为尚未验收" --signing disabled --signing-source not-requested
+pnpm run gpui:package build --root . --mode candidate --format dmg --e2e disabled --e2e-reason "本次未选择 E2E" --e2e-risk "安装与运行行为尚未验收" --signing disabled --signing-source not-requested
 ```
 
 ## 候选门禁
 
-helper 在测试前验证独立 Git 根、clean 默认主分支/tag、发布上下文、base-100 版本、锁策略及资源；原子隔离旧 `release/`，拒绝链接/重解析、路径越界和覆盖。所有实际 Rust workspaces 分别列出非空全量测试并运行 `cargo test --workspace --all-targets --all-features`；`tracked` 的 metadata、测试、构建全部传 `--locked`，同时核对受跟踪且未被忽略的实际 Cargo.lock。无 React、pnpm 或前端单测要求。
+helper 在测试前验证独立 Git 根、clean 默认主分支/tag、发布上下文、base-100 版本、锁策略及资源；原子隔离旧 `release/`，拒绝链接/重解析、路径越界和覆盖。所有实际 Rust workspaces 分别列出非空全量测试并运行 `cargo test --workspace --all-targets --all-features`；`tracked` 的 metadata、测试、构建全部传 `--locked`，同时核对受跟踪且未被忽略的实际 Cargo.lock。pnpm 只提供 Node 工程命令入口；不触发 React、前端安装/测试或前端锁门禁。
 
 关于页启用时，候选从已验证的根 schema v2 `release-notes.json` 生成临时 Rust 常量，设置 `HARNESS_GPUI_RELEASE_NOTES_RS`；GPUI `build.rs` 复制到 `OUT_DIR/release_notes.rs`，关于页直接使用静态双语条目，二进制必须真实保留同一原始 JSON 字节。关于页禁用时不注入日志 UI。两种情况都逐字节核对包内独立 JSON 与两份许可证；缺少已选关于页的模板合同就阻断候选，不能把“无发布记录”的中性占位当正式日志。
 

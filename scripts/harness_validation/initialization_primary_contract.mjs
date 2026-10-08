@@ -310,7 +310,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "managed Rust root symlinks fail before download",
     ]],
     [ENVIRONMENT_TESTS[3], [
-      "PowerShell gate declares Node as common runtime and pnpm as Tauri GUI-only",
+      "PowerShell gate declares Node as common runtime and pnpm for both GUI frameworks",
       "Windows Node minimum is continuous for every interface",
       "Windows pnpm is required only for GUI",
     ]],

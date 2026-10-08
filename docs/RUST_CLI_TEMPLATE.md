@@ -8,11 +8,13 @@
 
 选择 GUI 后先单独询问 `1. Tauri（默认）/ 2. GPUI`。未回答、留空、跳过或默认取 `tauri`，非法值重问，已有合法答案复用；默认只解析框架，不代替完整初始化汇总确认。GUI新初始化必须在根 `[workspace.metadata.agent-first-harness]` 保存 `gui-framework = "tauri" | "gpui"`，非GUI不得写入，既有GUI缺失时兼容Tauri。框架与九字段 `gui-initialization-config` 分开。
 
-- Tauri走 `$desktop-add-gui-adapter`。下文Tauri插件、Tokio-backed GUI runtime/command、WebView/IPC/ACL、React/Mantine/Jotai、Tabler、pnpm、TS门禁、Tauri图标/DMG/NSIS、updater及Tauri初始化E2E只在这条路径生效。
-- GPUI走 `$desktop-add-gpui-adapter`，直接依赖共享core，根workspace声明 `gpui-kit = "0.7.1"`、`rust-i18n = "4.2.0"` 的三段兼容下界，成员只 `workspace = true`。GPUI原生事件循环与其任务/executor管理GUI生命周期，core保持运行时中立；不因异步core创建嵌套runtime，不把UI线程阻塞等待当成异步。独立关于/赞助/设置模板、主题、i18n与sidebar遵守 [GPUI设计标准](design_standards/gpui_gui.md)。不引入Tauri/React/pnpm，不要求前端锁文件或前端测试。
+- Tauri走 `$desktop-add-gui-adapter`。下文Tauri插件、Tokio-backed GUI runtime/command、WebView/IPC/ACL、React/Mantine/Jotai、Tabler、TS门禁、Tauri图标/DMG/NSIS、updater及Tauri初始化E2E只在这条路径生效。
+- GPUI走 `$desktop-add-gpui-adapter`，直接依赖共享core，根workspace声明 `gpui-kit = "0.7.1"`、`rust-i18n = "4.2.0"` 的三段兼容下界，成员只 `workspace = true`。GPUI原生事件循环与其任务/executor管理GUI生命周期，core保持运行时中立；不因异步core创建嵌套runtime，不把UI线程阻塞等待当成异步。独立关于/赞助/设置模板、主题、i18n与sidebar遵守 [GPUI设计标准](design_standards/gpui_gui.md)。不引入Tauri/React；Node.js/pnpm 用于项目根的验证、发布和打包脚本，不要求前端安装、前端锁文件或前端测试。
 - GPUI继续用九字段profile；`about_page`、`sponsor_page`、`sidebar_mode`逐项询问，六项原生宿主能力首版为 `unavailable`，对应值必须 `disabled`。显式启用请求不得静默继续。三候选Logo规则通用，资源/图标路径交给GPUI Skill。仅用户明确授权的工程验证临时项目可采用参考中性图，不能报告正式身份已通过。
 - GPUI初始化运行相关非空Rust测试、真实 `cargo build` 和Computer Use，验证实际窗口、侧栏、设置、语言/主题、条件支持页与关闭退出；不调用Tauri插件结构检查。清理隔离偏好与owned进程后才裁剪初始化能力/创建独立基线，不把本机调试结果当候选验收或其他平台证明。
-- GPUI 本地打包使用独立 `$desktop-build-gpui-release`，原生 macOS 应用包/DMG 与 Windows x64 NSIS 可选择 `local_package`；仅 Linux 且无 CLI 仍须明确选 `push_release_branch`。它不依赖 Tauri 配置、pnpm 或前端测试，普通本地试包与正式候选分别走 `local`/`candidate` 模式。
+- GPUI 本地打包使用独立 `$desktop-build-gpui-release`，原生 macOS 应用包/DMG 与 Windows x64 NSIS 可选择 `local_package`；仅 Linux 且无 CLI 仍须明确选 `push_release_branch`。它通过项目根 `pnpm run gpui:package` 调用独立 Node helper，不依赖 Tauri 配置或前端测试，普通本地试包与正式候选分别走 `local`/`candidate` 模式。
+
+GPUI 项目根生成无 npm 第三方依赖的 `package.json`，声明 `engines.node >=24.21.0`、`engines.pnpm >=12.4.1`，统一提供 `validate`、`test`、`release:inspect`、`release:notes`、`release:context`、`release:git` 和 `gpui:package` 脚本。以 `pnpm run <script> [参数]` 调用；发布命令继续保留版本、上下文与授权门禁。新增 adapter 或迁移已有项目时保留根清单中的其他字段，同名脚本或兼容范围冲突先停止，不覆盖产品配置。脚本 runner 无需安装 npm 依赖，不要求前端测试或 pnpm 锁文件。
 
 GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限、队列、平台目录和失败/退出处理以 `$desktop-add-gpui-adapter` 的自含 logging 模板为准。core 可按实际业务需要发出脱敏 event/span，订阅器、文件 writer 与 worker 生命周期只由端侧拥有，不向 core 引入 GPUI 或日志文件机制。此为负责人明确选择的 GPUI 诊断基线，覆盖下文“中性脚手架不默认增加 tracing”的通用缺省；其他接口仍按真实能力需求加入。
 
@@ -92,10 +94,10 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 | MSRV | `1.98.1` | 根工作区写入 `rust-version = "1.98.1"`，表示最低兼容版本；接受 1.98.1 及以上稳定版，不要求精确等于 1.98.1；Rust 无 LTS 通道，本门槛跟随本次核验的当前 stable |
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
 | 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 自动管理：首功能/周期升 Minor、归零 Patch 并锁到真实发布成功，问题修复或用户可感知优化以新稳定 ID 和 `bug-fix` 升 Patch 且不受功能锁影响；新生成 Minor/Patch 为 `0..99` 并按 base-100 自动进位，Major 不受 99/100 的业务上限约束但不得超过 Cargo `u64::MAX`，显式 Major 仍仅由用户批准 |
-| 项目锁文件 | 根 Cargo 元数据 `dependency-lock-policy` 缺省/`ignored`；已初始化下游可显式选择 `tracked` | 默认忽略标准锁文件；`tracked` 要求跟踪根及独立 Rust 工作区的 `Cargo.lock`、已选 GUI 根的 `pnpm-lock.yaml`，并使用冻结解析。未知值失败关闭；`pnpm-package.lock` 始终不是标准门禁 |
+| 项目锁文件 | 根 Cargo 元数据 `dependency-lock-policy` 缺省/`ignored`；已初始化下游可显式选择 `tracked` | 默认忽略标准锁文件；`tracked` 要求跟踪根及独立 Rust 工作区的 `Cargo.lock`、已选 Tauri 前端根的 `pnpm-lock.yaml`，并使用冻结解析。未知值失败关闭；`pnpm-package.lock` 始终不是标准门禁 |
 | Git | 全部初始化：稳定版 `>=2.36.0` | 完整表单确认后检查；覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`，缺失时按受管平台方式安装，可证明低于下界时升级，范围内稳定版原样复用，随后复探 |
 | Node.js | 所有接口：`>=24.21.0` | Harness 与下游固定 helper 的工程运行时；缺失或低于 24.21.0 时安装/升级到官方当前最高 LTS 线的最新补丁，24.21.0 及任何更高正式版本原样复用 |
-| pnpm | 仅 GUI：`>=12.4.1` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，非 GUI 为 `not-required` |
+| pnpm | 仅 GUI（Tauri 与 GPUI）：`>=12.4.1` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，非 GUI 为 `not-required` |
 | MSVC 构建工具 | Windows 缺失时自动安装 | 验证 Microsoft 签名，安装 C++ 工作负载并复探 |
 | Linux 系统开发库（仅 GUI） | Tauri 2 依赖的 webkit2gtk（`webkit2gtk-4.1-dev` 或 `webkit2gtk-4.0-dev`，视发行版而定）、`libgtk-3-dev`、`librsvg2-dev`、`libayatana-appindicator3-dev` 等发行版对应的开发包 | 非 GUI 为 `not-required`；具体包名随发行版包管理器变化，需按目标发行版核对 |
 | macOS Xcode Command Line Tools（仅 GUI） | 缺失时执行 `xcode-select --install` | 非 GUI 为 `not-required` |
@@ -113,7 +115,7 @@ node --version
 pnpm --version
 ```
 
-中性初始化在写入脚手架前使用 `$desktop-check-development-environment` 主动运行一次完整适用门禁。初始化完成后，日常开发和显式构建都先运行本次真实测试/构建命令；只有命令已经失败，且命令、退出状态与脱敏诊断明确指向门禁管理的工具链、目标或系统依赖缺失/不兼容时，才运行对应门禁并重试原命令一次。不得仅因新任务、新会话、显式构建、缺少/过期环境证据、工具链要求或版本可能变化而预检。Rust 构建仍阻断于真实缺失或不兼容工具链，Windows 同时要求 MSVC；Node.js 对所有接口组合都适用，只有 GUI 命令的环境恢复才另外增加 pnpm 与前端系统依赖。
+中性初始化在写入脚手架前使用 `$desktop-check-development-environment` 主动运行一次完整适用门禁。初始化完成后，日常开发和显式构建都先运行本次真实测试/构建命令；只有命令已经失败，且命令、退出状态与脱敏诊断明确指向门禁管理的工具链、目标或系统依赖缺失/不兼容时，才运行对应门禁并重试原命令一次。不得仅因新任务、新会话、显式构建、缺少/过期环境证据、工具链要求或版本可能变化而预检。Rust 构建仍阻断于真实缺失或不兼容工具链，Windows 同时要求 MSVC；Node.js 对所有接口组合都适用，Tauri 与 GPUI 的 GUI 命令环境恢复都增加 pnpm；WebKit/WebView 等前端系统依赖仅按 Tauri 路径检查。
 
 环境需要修复时，Rust 使用官方当前 stable，Node.js 从官方索引选择当前最高 LTS 线的最新补丁，pnpm 从官方 HTTPS registry 解析当前兼容稳定版；已有范围内稳定版不因“更新”被无故替换。Rust、Node.js 与 pnpm 必须使用各平台标准当前用户全局位置：Unix 使用 rustup 标准的 `${CARGO_HOME:-$HOME/.cargo}`/`${RUSTUP_HOME:-$HOME/.rustup}`、`$HOME/.local/lib/nodejs` 与 npm `--prefix $HOME/.local`，并把 Cargo 与 `.local/bin` 直接写入幂等 profile；Windows 使用对应标准用户目录并维护去重 User PATH。`rustup-init` 在两端均传 `--no-modify-path`，阻止安装器在事务预检之外改写 profile/注册表，随后由门禁把标准 Cargo bin 写入普通用户 PATH；该参数不改变安装根。非默认 Rust homes 只有能由 Unix 新 login shell 或 Windows User 作用域持久恢复且与当前进程一致时才可决定安装；任何将进入 PATH 的单一路径根夹带平台分隔符都必须在下载前拒绝。不得新建 Harness 私有工具环境变量、私有全局前缀、项目内 shim，或只修改当前会话；旧版 Harness 的精确 profile source 行会在下一次真实修复时安全移除，旧文件本身不做破坏性删除。两端都移除 PATH 空段/重复项，并在写后由当前进程与新 shell 复探真实命令。测试专用下载源、安装根、探测 PATH 和持久化重定向只有显式 `AFH_TEST_MODE=1` 才允许，生产环境出现这些覆盖立即失败；只读模式不得触碰 PATH、profile、注册表或下载源。
 

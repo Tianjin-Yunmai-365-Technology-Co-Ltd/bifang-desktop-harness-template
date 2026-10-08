@@ -28,6 +28,12 @@
 
 ## MVP 包含
 
+### GPUI 的 pnpm 工程工具入口
+
+- 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = pending`。
+- Tauri 与 GPUI 两种 GUI 都要求 Node.js >=24.21.0、pnpm >=12.4.1。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
+- 初始化生成根 package.json，新增 adapter 或既有 GPUI 工程入口迁移只补齐无冲突字段并保留产品配置。升级器继续保护根 package.json，专用合并工具在授权范围内独立执行；同名冲突与已有兼容要求不一致时零写入阻断。实际命令通过只证明对应工程入口，不代替构建、发布或最终验收。
+
 ### GPUI 固定模板、core 优先与独立交付管线
 
 - 变更标识：`HARNESS-FEAT-GPUI-PACKAGING`；`required_version = pending`。

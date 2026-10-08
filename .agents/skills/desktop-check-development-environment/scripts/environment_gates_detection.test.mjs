@@ -32,16 +32,44 @@ test("Rust-only project requires Node but not pnpm", posixOnly, () => withTempor
   ]) assert.ok(result.stdout.includes(fragment), fragment);
 }));
 
-/** GPUI 使用原生 Rust，缺失 pnpm 不应触发安装或阻断初始化。 */
-test("gpui_gui_requires_rust_node_but_never_probes_pnpm", posixOnly, () => withTemporaryRoot((root) => {
+/** GPUI 的工程脚本共用 GUI pnpm 门禁，Tauri 系统库与交叉工具仍不适用。 */
+test("gpui_gui_requires_pnpm_without_probing_tauri_dependencies", posixOnly, () => {
+  for (const [pnpm, status, state] of [
+    [null, 20, "missing"],
+    ["12.4.0", 20, "upgrade-required"],
+    ["12.4.1", 0, "passed"],
+    ["13.0.0", 0, "passed"],
+  ]) withTemporaryRoot((root) => {
+    const probe = path.join(root, "probe");
+    fakeExistingTools(probe);
+    if (pnpm !== null) fakeFrontendTools(probe, { pnpm });
+    for (const tool of ["pkg-config", "WebView2Loader", "cargo-xwin", "llvm-rc", "lld-link", "makensis"]) {
+      executable(path.join(probe, tool), "#!/bin/sh\nprintf '%s\\n' 'unexpected Tauri probe' >> \"$AFH_PREREQ_PATH/tauri-probed\"\nexit 99\n");
+    }
+    const mode = status === 0 ? "--install-missing" : "--check-only";
+    const result = runGate(root, [mode, "--interfaces", "GUI", "--gui-framework", "gpui"], { probe });
+    assert.equal(result.status, status, `${pnpm}: ${result.stderr}`);
+    assert.ok(result.stdout.includes(`gate.pnpm.status=${state}`), result.stdout);
+    assert.match(result.stdout, /gate\.pnpm\.requirement=>=12\.4\.1/u);
+    assert.match(result.stdout, /gate\.node\.status=passed/u);
+    assert.match(result.stdout, /gate\.node\.requirement=>=24\.21\.0/u);
+    if (status === 0) {
+      assert.match(result.stdout, /gate\.pnpm\.change=existing/u);
+      assert.match(result.stdout, /gate\.changed=false/u);
+    }
+    assert.equal(existsSync(path.join(probe, "tauri-probed")), false);
+    assert.equal(existsSync(path.join(root, "home", ".profile")), false);
+  });
+});
+
+test("gpui_gui_enforces_common_node_minimum", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
-  executable(path.join(probe, "pnpm"), "#!/bin/sh\necho 'unexpected pnpm invocation' >&2\nexit 99\n");
-  const result = runGate(root, ["--install-missing", "--interfaces", "GUI", "--gui-framework", "gpui"], { probe });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /gate\.pnpm\.status=not-required/u);
-  assert.match(result.stdout, /gate\.changed=false/u);
-  assert.doesNotMatch(result.stderr, /unexpected pnpm/u);
+  fakeFrontendTools(probe, { node: "24.20.9" });
+  const result = runGate(root, ["--check-only", "--interfaces", "GUI", "--gui-framework", "gpui"], { probe });
+  assert.equal(result.status, 20, result.stderr);
+  assert.match(result.stdout, /gate\.node\.status=upgrade-required/u);
+  assert.match(result.stdout, /gate\.pnpm\.status=passed/u);
 }));
 
 /** 未知框架不能被当作原生框架绕过前端门禁。 */
@@ -53,11 +81,11 @@ test("invalid_gui_framework_fails_before_tool_probe", posixOnly, () => withTempo
 }));
 
 /** Windows 参数与 POSIX 采用相同闭集及默认框架，运行测试由原生宿主补充。 */
-test("windows_gpui_framework_keeps_pnpm_tauri_only", () => {
+test("windows_gui_frameworks_share_the_pnpm_requirement", () => {
   const source = readFileSync(WINDOWS_SCRIPT, "utf8");
   assert.match(source, /\[ValidateSet\("tauri", "gpui"\)\]/u);
   assert.match(source, /\$GuiFramework = "tauri"/u);
-  assert.match(source, /\$PnpmRequired = \(\$NormalizedInterfaces -contains "GUI"\) -and \$GuiFramework -eq "tauri"/u);
+  assert.match(source, /\$PnpmRequired = \(\$NormalizedInterfaces -contains "GUI"\)\r?\n/u);
 });
 
 test("rustup installer cannot mutate unmanaged shell profiles", () => {
@@ -280,7 +308,7 @@ test("Windows gate retains signed MSVC and current runtime contracts", () => {
     "Install-MissingPnpm", "Install-MissingGit", "Test-GitVersion", "Git.Git",
     '"gate.git.status=passed"', '"gate.git.change=$GitChange"', "if (-not (Test-MsvcPrerequisite))",
     '"gate.msvc.status=passed"', '"gate.msvc.change=$MsvcChange"', '@("CLI", "TUI", "MCP", "GUI")',
-    '$PnpmRequired = ($NormalizedInterfaces -contains "GUI") -and $GuiFramework -eq "tauri"', "$MinimumRustMinor = 98", "$MinimumRustPatch = 1",
+    '$PnpmRequired = ($NormalizedInterfaces -contains "GUI")', "$MinimumRustMinor = 98", "$MinimumRustPatch = 1",
     '$NodeRequirement = ">=24.21.0"', '$PnpmRequirement = ">=12.4.1"', '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
     "Test-NodeVersion", "Test-PnpmVersion",
   ]) assert.ok(source.includes(fragment), fragment);

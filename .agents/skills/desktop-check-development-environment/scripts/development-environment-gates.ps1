@@ -35,7 +35,7 @@ if ($UnsupportedInterfaces.Count -gt 0) {
     [Console]::Error.WriteLine("不支持的接口：$($UnsupportedInterfaces -join ',')")
     exit 2
 }
-$PnpmRequired = ($NormalizedInterfaces -contains "GUI") -and $GuiFramework -eq "tauri"
+$PnpmRequired = ($NormalizedInterfaces -contains "GUI")
 $TemporaryDirectories = [System.Collections.Generic.List[string]]::new()
 
 # 使用稳定退出码结束门禁，调用方可以据此区分具体失败阶段。

@@ -112,6 +112,19 @@ test("gpui_upgrade_assets_are_conditional_and_gui_profile_is_protected", () => {
   });
 });
 
+/** 根 package 默认保护，独立迁移入口与验证工具只按 GPUI 条件同步。 */
+test("gpui_node_tooling_retains_protected_package_and_conditional_helpers", () => {
+  withTemporaryDirectory((directory) => {
+    const manifest = productionManifest();
+    manifest.rules.unshift({ pattern: "package.json", mode: "managed" });
+    assert.match(validateManifest(manifest, directory).join("\n"), /root package\.json must remain protected/u);
+
+    const shadowed = productionManifest();
+    shadowed.rules.unshift({ pattern: ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_*.mjs", mode: "tombstone" });
+    assert.match(validateManifest(shadowed, directory).join("\n"), /retained GPUI Node tooling must remain conditional/u);
+  });
+});
+
 /** GPUI 的精确初始化 tombstone 必须存在，并位于整个 GPUI conditional 目录之前。 */
 test("gpui_initialization_only_tombstones_cannot_be_omitted_or_shadowed", () => {
   const patterns = [

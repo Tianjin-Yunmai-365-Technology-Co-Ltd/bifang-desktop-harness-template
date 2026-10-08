@@ -22,7 +22,7 @@ function fixture() {
 /** 保留的 renderer 只产出 GUI/profile 与同框架打包配置，不创建 core 或 workspace。 */
 test('retained_renderer_only_produces_gui_profile_and_gpui_packaging_files', () => {
   const files = renderGpuiAdapterFiles(identity);
-  for (const file of files.keys()) assert.ok(file.startsWith('existing_tool_gui/') || file === 'docs/GUI_APP_PROFILE.md' || ['packaging/gpui.json', 'packaging/macos/background.png'].includes(file));
+  for (const file of files.keys()) assert.ok(file.startsWith('existing_tool_gui/') || file === 'docs/GUI_APP_PROFILE.md' || ['package.json', 'packaging/gpui.json', 'packaging/macos/background.png'].includes(file));
   assert.equal(files.has('Cargo.toml'), false);
   assert.equal(files.has('existing_tool_core/src/lib.rs'), false);
   assert.equal(files.has('.gitignore'), false);
@@ -122,5 +122,56 @@ test('existing_standard_metadata_without_project_id_is_supported', () => {
     const result = addGpuiAdapter({ ...identity, target });
     assert.equal(result.corePreserved, true);
     assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui/src/main.rs')), true);
+  } finally { fs.rmSync(target, { recursive: true, force: true }); }
+});
+
+/** 添加 GUI 时定点合并根 Node 工程入口，保留既有公开性、脚本和其他字段。 */
+test('add_only_merges_existing_package_without_losing_user_fields', () => {
+  const target = fixture();
+  try {
+    fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify({ name: 'user-owned', private: false, packageManager: 'pnpm@12.4.2', scripts: { custom: 'node user.mjs' }, dependencies: { 'user-owned-package': '1.0.0' } }));
+    addGpuiAdapter({ ...identity, target });
+    const content = JSON.parse(fs.readFileSync(path.join(target, 'package.json'), 'utf8'));
+    assert.equal(content.name, 'user-owned');
+    assert.equal(content.private, false);
+    assert.equal(content.packageManager, 'pnpm@12.4.2');
+    assert.equal(content.scripts.custom, 'node user.mjs');
+    assert.equal(content.dependencies['user-owned-package'], '1.0.0');
+    assert.equal(content.engines.node, '>=24.21.0');
+    assert.match(content.scripts['release:git'], /git_lifecycle\.mjs release --project-root \.$/);
+  } finally { fs.rmSync(target, { recursive: true, force: true }); }
+});
+
+/** 不覆盖同名工程脚本、不降低更严格引擎要求；冲突保留 package/core/Cargo 且无半个 GUI。 */
+test('package_conflicts_fail_before_any_adapter_write', () => {
+  for (const document of [{ scripts: { test: 'user-owned-test' } }, { engines: { node: '>=26.0.0' } }, { engines: { pnpm: '>=13.0.0' } }]) {
+    const target = fixture();
+    try {
+      const bytes = JSON.stringify(document);
+      fs.writeFileSync(path.join(target, 'package.json'), bytes);
+      const cargo = fs.readFileSync(path.join(target, 'Cargo.toml'));
+      const core = fs.readFileSync(path.join(target, 'existing_tool_core/src/lib.rs'));
+      assert.throws(() => addGpuiAdapter({ ...identity, target }), /conflicting package\.json/);
+      assert.equal(fs.readFileSync(path.join(target, 'package.json'), 'utf8'), bytes);
+      assert.deepEqual(fs.readFileSync(path.join(target, 'Cargo.toml')), cargo);
+      assert.deepEqual(fs.readFileSync(path.join(target, 'existing_tool_core/src/lib.rs')), core);
+      assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
+      assert.equal(fs.readdirSync(target).some(name => name.startsWith('.gpui-')), false);
+    } finally { fs.rmSync(target, { recursive: true, force: true }); }
+  }
+});
+
+/** 根 package 链接不能借合并器覆盖工程外的用户文件。 */
+test('package_symlink_fails_without_writing_adapter_or_link_target', () => {
+  const target = fixture();
+  try {
+    const outside = path.join(path.dirname(target), `${path.basename(target)}-outside.json`);
+    fs.writeFileSync(outside, '{}');
+    try {
+      fs.symlinkSync(outside, path.join(target, 'package.json'), 'file');
+      assert.throws(() => addGpuiAdapter({ ...identity, target }), /symbolic links/);
+      assert.equal(fs.readFileSync(outside, 'utf8'), '{}');
+      assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
+    } finally { fs.rmSync(outside, { force: true }); }
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
 });
