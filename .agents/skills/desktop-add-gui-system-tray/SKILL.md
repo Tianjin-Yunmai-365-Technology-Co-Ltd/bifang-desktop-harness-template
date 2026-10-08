@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-system-tray
-description: 为已选择 GUI 系统托盘能力的下游安装 tray-icon、双语菜单与关闭隐藏生命周期；未选择时不得接入。
+description: 为已选择 GUI 系统托盘能力的下游安装 tray-icon、双语菜单与关闭隐藏生命周期；未选择时不得接入；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 系统托盘

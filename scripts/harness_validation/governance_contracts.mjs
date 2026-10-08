@@ -104,9 +104,7 @@ const ENGINEERING_ENTRIES = [
     "缺失时安装官方当前最新兼容稳定版、可证明低于最低下界时受管升级",
     "持久去重 PATH，并在当前进程与只读取持久 PATH 的新 shell 绑定路径和版本实际复探",
     "已有有效身份保持，缺失字段只在独立目标仓库 local 作用域补齐", "Git common dir",
-    "用户明确“发布”时只整理本次源码，普通合并登记分支到本地默认主分支",
-    "创建并复读指向最终 HEAD 的版本 tag；Git 发布到此结束",
-    "发布开始时把已确认的 `post_release_action` 冻结为本次 `postReleaseAction`", "非强制推送远端默认主分支、同名 release 分支及 tag 并复读",
+    "用户明确“发布”时只整理本次源码，普通合并登记分支到本地默认主分支并创建复读版本 tag，Git 发布到此结束",
     "候选事实只写入忽略的 `release/` 原子集合", "下一次开发从已发布的本地主分支/tag 建分支",
     "候选构建、E2E、完整验收和就绪复核不得为了留证污染已发布源码",
   ]],
@@ -176,7 +174,7 @@ export function validateEngineeringContract(errors, options = {}) {
 const TASK_SEQUENCE = PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS;
 const STREAMLINED_ENTRIES = [
   ["readme", [
-    "日常开发直接使用 `$desktop-implement-change`", "自动 Task 关闭", "`Task {序号} | {当前进度} | {单一结果}`", ...TASK_SEQUENCE,
+    "日常开发直接使用 `$desktop-implement-change`", "自动 Task 关闭", "`Task {序号} | {当前进度} | {单一结果}`",
     "`已分配`、`运行中`、`检查中`、`已完成`", "内部 Subagent 不使用本标题合同", "只增加并运行本次变更需要的单元/回归测试",
     "不自动增加计划、全仓检查、构建、E2E 或验收",
     "Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag",
@@ -217,7 +215,7 @@ const STREAMLINED_ENTRIES = [
     "日常开发直接交给 `$desktop-implement-change`", "日常计划不得自行增加这些步骤", "不得在执行时静默追加全仓检查、构建或验收",
   ]],
   ["implementSkill", [
-    "直接实现请求", "`Task {序号} | {当前进度} | {单一结果}`", ...TASK_SEQUENCE, "自动调用 `create_thread`", "更新为 `检查中`",
+    "直接实现请求", "`Task {序号} | {当前进度} | {单一结果}`", "自动调用 `create_thread`", "更新为 `检查中`",
     "每次真实转换至多尝试一次", "更新为终态 `已完成`", "结果、验证、文档及适用的本地提交、clean 状态，", "真实 `threadId`",
     "不得重复创建", "只运行第 6 步的测试", "日常开发不得自动追加格式化、lint、静态", "普通构建也只新增全量非空单元测试和实际构建",
     "构建请求、执行和结果本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "只更新被独立事件触发的记忆",
@@ -240,7 +238,7 @@ const STREAMLINED_ENTRIES = [
     "绝不得自动暂存、贮藏或提交用户修改", "不得因并行本身追加格式、lint、静态、构建、冒烟、E2E 或完整验收",
     "resourcesRetained: true", "只管理当前 Task 内部", "不得把两个左侧 Task 安排进同一 Worktree",
   ]],
-  ["initializeSkill", ["用户可见 Task 的标题/粒度/创建门禁", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度、有界复读及序号分配规则", "保持零实现且不得重复创建", "统一描述模板", ...TASK_SEQUENCE, "Git user-owned Task 固定使用独立 Worktree", "内部 Subagent/Worktree 不使用标题合同"]],
+  ["initializeSkill", ["用户可见 Task 的标题/粒度/创建门禁", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度、有界复读及序号分配规则", "保持零实现且不得重复创建", "统一描述模板", "Git user-owned Task 固定使用独立 Worktree", "内部 Subagent/Worktree 不使用标题合同"]],
   ["instantiateSkill", ["必须保留左侧 Task 描述模板", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度和有界复读规则", "精确绑定保存项目/`projectId`", "`clientThreadId` 只表示 setup", "Git 使用独立 Worktree", "`codex/unit-*`", ...TASK_SEQUENCE, "内部 plan、Subagent、Worktree"]],
   ["configureCommitsSkill", ["references/commit-convention.md", "commit.template", "commit.cleanup=strip", "commit.verbose=true", "core.commentChar=#", "git config --local", "install --replace", "用户没有要求创建提交时", "下一步将实际运行 `git commit`", "不得运行本 Skill 的脚本或改写任何 Git 配置", "不得在初始化表单、复制、身份改写、环境门禁、脚手架编写或测试阶段提前运行"]],
   ["productSpec", [

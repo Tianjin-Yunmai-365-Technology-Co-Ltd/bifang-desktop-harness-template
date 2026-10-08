@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-global-shortcut
-description: 为已选择 GUI 全局快捷键能力的下游按明确需求建立固定或可编辑绑定；不预设按键、动作或默认注册，未选择时不得接入。
+description: 为已选择 GUI 全局快捷键能力的下游按明确需求建立固定或可编辑绑定；不预设按键、动作或默认注册，未选择时不得接入；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 全局快捷键

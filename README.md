@@ -112,7 +112,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 `user_owned_tasks: disabled` 时只响应用户明确的新建请求；`enabled` 时还会在新结果超出当前 Task 固定边界时自动创建。创建者先用 `list_projects` 核对项目名称、完整路径和 Git 状态，并用 `list_threads` 确认同项目没有另一个写入型 active Task。Git 项目选择独立 Worktree，非 Git 项目选择 Local，始终绑定精确 `projectId`，禁止 projectless。清点同项目当前与归档标题后分配最大序号加一，再以 `title="Task {序号} | 已分配 | {单一结果}"` 调用一次 user-owned `create_thread`。
 
-序号清点固定使用同一 `hostId` 与精确 `projectId`：先读 `list_threads(limit=50)`，再按 `nextCursor` 逐页读完 `list_archived_threads`，从最大有效序号继续递增；空历史才从 1 开始，缺号不回填。内部 Subagent 不使用标题合同，也不进入这套序号分配。
+序号清点规则（同一 `hostId` 与精确 `projectId`、当前与归档分页清点、缺号不回填）唯一来源是 `docs/AGENT_POLICY.md` 的用户可见 Task 章节。内部 Subagent 不使用标题合同，也不进入这套序号分配。
 
 只有返回真实 `threadId` 才能继续；仅有 `clientThreadId` 表示仍在 setup，必须保持零实现且不得重复创建。取得真实 id 后用 `list_threads` 核对标题、`projectId`、cwd 和状态，并在首次写入前核对干净工作区和起始提交。任一事实为空或不符都阻断，不退化为 plan、Subagent、Local Git checkout 或普通 Worktree。
 
@@ -128,6 +128,12 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 
 构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
+其中 `$desktop-add-gui-*` 系列（系统语言、更新、窗口状态、对话框、托盘、单实例、深链接、全局快捷键、通知、开机自启）与 `$mantine-list-view` 只适用于 Tauri GUI；`gui-framework = "gpui"` 的同类能力统一由 `$desktop-add-gpui-adapter` 及其 `references/native-capabilities.md` 承担。
+
+## 规则的唯一来源
+
+同一条规则只在一处完整表述，其余文档只放指针：版本分类、周期与 base-100 进位见 [`docs/RELEASE.md`](docs/RELEASE.md) 与 `$desktop-manage-version`；发布后动作与 Git 生命周期保证见 [`docs/AGENT_POLICY.md`](docs/AGENT_POLICY.md) 与 `$desktop-manage-git-lifecycle`；用户可见 Task 序号见 `docs/AGENT_POLICY.md`；Core-first 归属清单见 [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)；Git、Rust、Node.js、pnpm 下限数值见 [`docs/RUST_CLI_TEMPLATE.md`](docs/RUST_CLI_TEMPLATE.md) 的环境门禁表。`docs/TECH_DEBT.md` 只保留仍待处理的限制，已关闭条目由 Git 历史保存。
+
 ## 可以创建哪些界面
 
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
@@ -142,7 +148,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202610090050
+- 当前版本：v202610090129
 - 发布状态：以适用 Git 引用复核结果为准
 - 产品规格：Approved
 - 具体产品源码：不包含

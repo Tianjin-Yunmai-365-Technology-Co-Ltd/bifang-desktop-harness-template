@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-system-locale
-description: 为所有 GUI 基线安装官方 os 插件并统一系统语言探测；这是固定能力，不单独询问用户。
+description: 为所有 GUI 基线安装官方 os 插件并统一系统语言探测；这是固定能力，不单独询问用户；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 系统语言探测

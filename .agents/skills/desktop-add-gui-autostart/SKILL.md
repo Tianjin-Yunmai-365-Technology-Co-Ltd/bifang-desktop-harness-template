@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-autostart
-description: 为已选择 GUI 开机自启能力的下游安装官方插件、Rust 状态命令、设置开关和可恢复的真实宿主验证；未选择时不得接入。
+description: 为已选择 GUI 开机自启能力的下游安装官方插件、Rust 状态命令、设置开关和可恢复的真实宿主验证；未选择时不得接入；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 开机自启

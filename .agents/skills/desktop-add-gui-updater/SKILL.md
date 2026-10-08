@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-updater
-description: 为所有 GUI 基线接入官方 updater 插件、零出站默认状态与签名发布门禁；这是固定能力，不单独询问用户。
+description: 为所有 GUI 基线接入官方 updater 插件、零出站默认状态与签名发布门禁；这是固定能力，不单独询问用户；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 更新能力基线

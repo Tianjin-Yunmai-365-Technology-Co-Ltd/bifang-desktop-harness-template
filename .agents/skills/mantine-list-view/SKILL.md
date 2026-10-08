@@ -1,6 +1,6 @@
 ---
 name: mantine-list-view
-description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 9.x list page / data table / admin list / search results（列表页 / 表格 / 后台列表 / 搜索结果页）with consistent behavior and delivery checks. 即使用户没有明说表格也要使用：只要任务实质上涉及重复记录的检索、浏览、管理，或审查已有列表组件，就调用本 Skill。"
+description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 9.x list page / data table / admin list / search results（列表页 / 表格 / 后台列表 / 搜索结果页）with consistent behavior and delivery checks. 即使用户没有明说表格也要使用：只要任务实质上涉及重复记录的检索、浏览、管理，或审查已有列表组件，就调用本 Skill。 仅 Tauri/React/Mantine GUI 适用；`gui-framework = gpui` 不使用。"
 ---
 
 # Mantine 列表页

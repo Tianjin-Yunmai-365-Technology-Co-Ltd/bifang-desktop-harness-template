@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-single-instance
-description: 为已选择 GUI 单实例能力的下游安装官方 single-instance 插件并恢复既有主窗口；未选择时不得接入。
+description: 为已选择 GUI 单实例能力的下游安装官方 single-instance 插件并恢复既有主窗口；未选择时不得接入；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 单实例

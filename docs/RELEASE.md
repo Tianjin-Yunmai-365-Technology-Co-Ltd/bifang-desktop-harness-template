@@ -10,7 +10,7 @@ GPUI 的可执行命令、固定 cargo-packager 版本、项目本地工具安�
 
 ## 当前状态
 
-- 当前版本：[`Version.md`](../Version.md) 中记录的 `202610090050`（发布状态以适用 Git 引用复核结果为准）
+- 当前版本：[`Version.md`](../Version.md) 中记录的 `202610090129`（发布状态以适用 Git 引用复核结果为准）
 - 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
 - 下游 Rust 项目当前版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`；`.harness/version-state.json` 保存正式发布周期、待发布变化及稳定 ID 去重状态

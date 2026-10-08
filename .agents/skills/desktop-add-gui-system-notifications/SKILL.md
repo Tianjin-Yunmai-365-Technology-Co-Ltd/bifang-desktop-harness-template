@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-system-notifications
-description: 为已选择 GUI 系统通知能力的下游安装并接入跨平台原生通知、权限偏好、设置开关和生命周期回归；未选择时不得接入。
+description: 为已选择 GUI 系统通知能力的下游安装并接入跨平台原生通知、权限偏好、设置开关和生命周期回归；未选择时不得接入；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 系统通知

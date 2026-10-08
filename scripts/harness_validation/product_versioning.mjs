@@ -64,10 +64,10 @@ export function validateDownstreamVersionClassification(errors, implementationSk
 export function validateProductVersioningContract(errors) {
   const requirements = new Map([
     [path.join(ROOT, "docs", "RELEASE.md"), ["新生成的 Minor 与 Patch 使用 `0..99` 的 base-100 数位", "第一个已完成新功能", "问题修复或用户可感知优化", "不受当前周期的功能提升锁影响", "`check`、`plan` 和 `maintenance` 始终零写入", "不兼容任何历史下位分量 `100`", "`finalize-release`", "`record-reconciliation`"]],
-    [path.join(ROOT, "docs", "RUST_CLI_TEMPLATE.md"), ["$desktop-manage-version", ".harness/version-state.json", "首功能/周期升 Minor", "新生成 Minor/Patch 为 `0..99`", "用户可感知优化"]],
+    [path.join(ROOT, "docs", "RUST_CLI_TEMPLATE.md"), ["$desktop-manage-version", ".harness/version-state.json"]],
     [path.join(SKILLS_ROOT, "desktop-initialize-rust-project", "SKILL.md"), ["$desktop-manage-version init --project-root .", ".harness/version-state.json", "版本 Skill 及其 Node 标准库 helper/测试必须完整保留"]],
     [path.join(SKILLS_ROOT, "desktop-instantiate-project", "SKILL.md"), ["$desktop-manage-version init --project-root .", ".harness/version-state.json", "完整保留该版本 Skill、标准库 helper 和测试"]],
-    [path.join(SKILLS_ROOT, "desktop-implement-change", "SKILL.md"), ["`plan`", "$desktop-manage-version apply", "required_version", "maintenance", "用户可感知优化", "base-100 自动进位", "`record-reconciliation`", "$desktop-manage-version finalize-release"]],
+    [path.join(SKILLS_ROOT, "desktop-implement-change", "SKILL.md"), ["`plan`", "$desktop-manage-version apply", "required_version", "maintenance", "用户可感知优化", "`record-reconciliation`", "$desktop-manage-version finalize-release"]],
     [path.join(SKILLS_ROOT, "desktop-build-rust-release", "SKILL.md"), ["$desktop-manage-version check --phase build", "不得计算、提升版本或重置正式发布周期"]],
     [path.join(SKILLS_ROOT, "desktop-build-tauri-release", "SKILL.md"), ["$desktop-manage-version check --phase build", "构建不得提升版本"]],
     [path.join(SKILLS_ROOT, "desktop-prepare-release", "SKILL.md"), ["$desktop-manage-version check --phase release", "发布准备不补算 Minor/Patch", "finalize-release"]],

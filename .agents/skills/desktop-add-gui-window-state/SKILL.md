@@ -1,6 +1,6 @@
 ---
 name: desktop-add-gui-window-state
-description: 为所有 GUI 基线接入官方 window-state 插件并恢复主窗口尺寸与位置；这是固定能力，不单独询问用户。
+description: 为所有 GUI 基线接入官方 window-state 插件并恢复主窗口尺寸与位置；这是固定能力，不单独询问用户；仅 `gui-framework` 缺省或为 `tauri` 时适用，`gpui` 改走 `$desktop-add-gpui-adapter`。
 ---
 
 # 增加 GUI 窗口状态恢复
