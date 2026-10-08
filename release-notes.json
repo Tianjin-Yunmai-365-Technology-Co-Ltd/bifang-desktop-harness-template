@@ -2,6 +2,54 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-09",
+      "version": "v202610090050",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增 GPUI 原生桌面初始化，提供双语身份、三态主题、系统语言、受限窗口恢复和可选支持页。",
+          "en-US": "Add GPUI desktop initialization with bilingual identity, three-state themes, system locale, bounded window restoration, and optional support pages."
+        },
+        {
+          "zh-CN": "GPUI 按选择接入托盘、通知、自启、单实例和全局快捷键；未启用能力不生成依赖或实现。",
+          "en-US": "Generate optional GPUI tray, notifications, autostart, single-instance activation, and global shortcuts only when selected."
+        },
+        {
+          "zh-CN": "新增 GPUI 根 pnpm 工程命令，统一验证、Rust 测试、发布和原生打包入口，并安全合并已有配置。",
+          "en-US": "Add root pnpm commands for GPUI validation, Rust tests, release workflows, and native packaging, with safe configuration merging."
+        },
+        {
+          "zh-CN": "新增独立 GPUI 打包流程和有界后台日志；初始化、升级与发布后动作按 GUI 框架路由。",
+          "en-US": "Add separate GPUI packaging and bounded background logging, with framework-aware initialization, upgrades, and post-release actions."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复详细侧栏折叠按钮的位置与点击区域，使其贴合侧栏边界和 Logo 中心。",
+          "en-US": "Fix the detailed sidebar toggle position and hit area to align with the sidebar boundary and logo center."
+        },
+        {
+          "zh-CN": "修复直接退出应用时可能丢失最新窗口位置和尺寸的问题。",
+          "en-US": "Preserve the latest window geometry when quitting the application directly."
+        },
+        {
+          "zh-CN": "自启开关复读系统实际状态；未达到请求状态时明确反馈失败。",
+          "en-US": "Report autostart changes as failed when the operating system readback does not match the requested state."
+        },
+        {
+          "zh-CN": "在任何构建副作用前拒绝开启系统通知的未签名 macOS 候选。",
+          "en-US": "Reject unsigned macOS candidates with system notifications enabled before any build side effects."
+        },
+        {
+          "zh-CN": "修复合法引号框架键被误判为 Tauri，并拒绝重复、错位和表化配置。",
+          "en-US": "Recognize valid quoted GUI framework keys and reject duplicate, misplaced, or table-shaped configuration."
+        },
+        {
+          "zh-CN": "补齐 Windows 原生 ABI 声明文档，并实际验证生成工程的声明检查器。",
+          "en-US": "Document Windows native ABI declarations and run the generated workspace through its retained declaration checker."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-08",
       "version": "v202610081442",
       "featureOptimizations": [],
@@ -171,17 +219,6 @@
         {
           "zh-CN": "收紧发布上下文差异摘要、合并后版本与 Git 引用复核，阻止未审查源码或漂移的版本、tag 被误判为已发布。",
           "en-US": "Hardened release diff evidence, post-merge version checks, and Git ref verification to reject unreviewed source or drifting versions and tags."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-23",
-      "version": "v202609231754",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 Windows 检出时的换行、文件 URL 路径解析及 PowerShell 门禁误判，并补齐平台相关测试的跳过条件。",
-          "en-US": "Fixed line endings, file URL path conversion, and PowerShell gate failures in Windows checkouts, and corrected platform-specific test skips."
         }
       ]
     }

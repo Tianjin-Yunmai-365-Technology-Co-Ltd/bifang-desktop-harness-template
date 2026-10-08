@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "4b18fd5d74cb954ca0ab459e2eae4e9468ef4114",
-  "version": "202610081442",
-  "releaseDate": "2026-10-08",
-  "expectedTag": "v202610081442-20261008",
+  "sourceHead": "970448cb6e5da05e6ece9c9317f8c951f57b5911",
+  "version": "202610090050",
+  "releaseDate": "2026-10-09",
+  "expectedTag": "v202610090050-20261009",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "c25c594ffc42879d594332cde3831dc000a4eb95",
-    "sourceHead": "4b18fd5d74cb954ca0ab459e2eae4e9468ef4114",
-    "scopeDiffSha256": "a031cbd10ed7a9a869acee7156ce325821e94ac79743737000b935388e1778d6",
-    "reviewedSourceCommit": "4b18fd5d74cb954ca0ab459e2eae4e9468ef4114",
+    "scopeBase": "3dada7d5b2ece39101c0b99091f5d2f476c131e6",
+    "sourceHead": "970448cb6e5da05e6ece9c9317f8c951f57b5911",
+    "scopeDiffSha256": "ea63fed476179e623fa5ef08140b90fe850fd3aaf2a08c2027292d79af459bf9",
+    "reviewedSourceCommit": "970448cb6e5da05e6ece9c9317f8c951f57b5911",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Five checks passed for c25c594..4b18fd5: behavior, core/adapter boundary, contracts, responsibility/size and temporary markers. Sync, non-force rejection, partial retries, default ref drift, release alias and policy migration reviewed. Node: 946 pass, 14 platform skips; Rust fmt/Clippy and 7 tests pass. Release validator passed; 26 prompts reviewed (25 coherent files below hard limits; unchanged TODO-A test fixture). No unresolved findings.",
+    "evidenceSummary": "All five review checks passed over the complete release scope. Fixed window snapshots, autostart readback, notification signing, framework parsing and Win32 declaration docs with regressions. Node: 1035 passed, 16 platform skips. Generated Rust workspace: 29 passed. Harness, no-Python and diff gates passed. Reviewed 27 advisory size/fixture findings; no remaining blockers or suspected secrets. Product packaging, signing and cross-platform E2E not performed for this Harness source release.",
     "reason": null,
     "remainingRisk": null
   }
