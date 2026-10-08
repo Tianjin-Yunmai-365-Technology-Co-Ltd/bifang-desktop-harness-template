@@ -713,17 +713,18 @@ export function commandPushRelease(repository, args) {
   ensureLocalReleaseBranch(repository, state, last.head);
   const defaultBranch = existing.defaultBranch;
   const defaultAlreadyMatched = existing.defaultHead === last.head;
+  const unattemptedRefs = defaultBranch === branch ? "tag was not attempted" : "release branch and tag were not attempted";
   if (!defaultAlreadyMatched) {
     const pushed = runGit(repository.root, ["push", remote, last.head + ":refs/heads/" + defaultBranch], { check: false });
     let defaultTarget;
     try {
       defaultTarget = remoteBranchOid(repository, remote, defaultBranch);
     } catch {
-      throw new LifecycleError("release-push-uncertain", "Remote default branch push outcome is uncertain; release branch and tag were not attempted; local release remains complete.");
+      throw new LifecycleError("release-push-uncertain", `Remote default branch push outcome is uncertain; ${unattemptedRefs}; local release remains complete.`);
     }
     if (defaultTarget !== last.head) {
       throw new LifecycleError(pushed.returncode !== 0 ? "release-push-failed" : "release-push-uncertain",
-        "Remote default branch push could not be confirmed; release branch and tag were not attempted; local release remains complete.");
+        `Remote default branch push could not be confirmed; ${unattemptedRefs}; local release remains complete.`);
     }
   }
   let branchTarget = defaultBranch === branch ? last.head : existing.branch;

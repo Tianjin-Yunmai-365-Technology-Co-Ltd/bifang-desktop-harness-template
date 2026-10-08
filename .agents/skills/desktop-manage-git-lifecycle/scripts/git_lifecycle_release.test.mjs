@@ -834,3 +834,33 @@ scenario("push_release_supports_release_as_remote_default_without_duplicate_push
   assert.equal(item.git(value.bare, "rev-parse", `refs/tags/${pushed.tag}`).stdout.trim(), value.context.head);
   assert.equal(item.helper(value.repository, ["push-release", "--remote", "origin"]).payload.status, "already-pushed");
 });
+
+for (const mode of ["rejected", "readback_failed"]) {
+  scenario(`push_release_alias_default_${mode}_reports_only_tag_unattempted`, (item) => {
+    const value = candidate(item);
+    item.git(value.bare, "branch", "release", "HEAD");
+    item.git(value.bare, "symbolic-ref", "HEAD", "refs/heads/release");
+    const oldHead = item.git(value.bare, "rev-parse", "HEAD").stdout.trim();
+    item.helper(value.repository, releaseArgs(value));
+    const pushHook = join(value.repository, ".git/hooks/pre-push");
+    if (mode === "rejected") item.installHook(value.bare, "exit 1\n");
+    else {
+      writeFileSync(pushHook, "#!/bin/sh\ngit remote set-url origin ./missing-release-readback\n", "utf8");
+      chmodSync(pushHook, 0o755);
+    }
+    const rejected = item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload;
+    assert.equal(rejected.code, mode === "rejected" ? "release-push-failed" : "release-push-uncertain");
+    assert.match(rejected.message, /tag was not attempted/u);
+    assert.doesNotMatch(rejected.message, /release branch and tag were not attempted/u);
+    assert.equal(item.git(value.bare, "rev-parse", "HEAD").stdout.trim(),
+      mode === "rejected" ? oldHead : value.context.head);
+    assert.equal(item.git(value.bare, "for-each-ref", "--format=%(refname)", "refs/tags/v1.2.3-20260909").stdout, "");
+    assert.equal(item.state(value.repository).lastRelease.head, value.context.head);
+    if (mode === "rejected") rmSync(join(value.bare, "hooks/pre-receive"));
+    else {
+      rmSync(pushHook);
+      item.git(value.repository, "remote", "set-url", "origin", value.bare);
+    }
+    assert.equal(item.helper(value.repository, ["push-release", "--remote", "origin"]).payload.status, "release-pushed");
+  });
+}
