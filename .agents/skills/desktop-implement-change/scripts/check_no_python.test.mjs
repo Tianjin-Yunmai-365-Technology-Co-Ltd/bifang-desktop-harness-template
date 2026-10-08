@@ -25,6 +25,46 @@ test("active_text_rejects_interpreter_entry_and_runtime_marker", () => {
   assert.deepEqual(pythonReferenceViolations("不得引入 Python 运行步骤"), []);
 });
 
+/** 连字符连接的门禁名称属于说明文案，不应被识别成独立运行命令。 */
+test("compound_gate_names_are_not_interpreter_or_tool_commands", () => {
+  for (const text of [
+    "Hard/release-review/no-Python gates passed.",
+    "The no-python check passed.",
+    "The no-pip checks passed.",
+    "The no-pytest checks passed.",
+    "The no-uv tool checks passed.",
+  ]) {
+    assert.deepEqual(pythonReferenceViolations(text), [], text);
+  }
+});
+
+/** 发布上下文可以描述门禁名称，但同一路径中的真实解释器命令仍必须阻断。 */
+test("release_context_gate_names_pass_but_real_commands_fail", () => withTemporaryRoot((root) => {
+  const relative = ".harness/release-context.json";
+  const evidenceSummary = "Hard/release-review/no-Python gates passed.";
+  write(root, relative, JSON.stringify({ evidenceSummary }));
+  assert.deepEqual(inspectProject(root, { files: [relative], scanFilesystem: false }), []);
+  write(root, relative, JSON.stringify({ evidenceSummary, command: "python3" }));
+  assert.deepEqual(inspectProject(root, { files: [relative], scanFilesystem: false }), [
+    `活动文件不得保留 Python 解释器命令: ${relative}`,
+  ]);
+}));
+
+/** 修正名称边界后，标准绝对路径、Shell 分隔符和赋值中的真实命令仍被识别。 */
+test("real_commands_remain_detected_next_to_gate_names_and_shell_boundaries", () => {
+  for (const command of [
+    "/usr/bin/python3 -V",
+    "no-Python gates passed; python3 -V",
+    "- python3 -V",
+    "command=python3 -V",
+    "$(python3 -V)",
+    "no-pip checks passed; pip install example",
+    "no-pytest checks passed; pytest -q",
+  ]) {
+    assert.ok(pythonReferenceViolations(command).length > 0, command);
+  }
+});
+
 test("historical_records_and_completed_work_plans_are_exempt", () => withTemporaryRoot((root) => {
   write(root, "docs/verification/20260805_verification.md", "python3 old.py\n");
   write(root, "docs/verification/run.sh", "python3 -c pass\n");

@@ -33,7 +33,7 @@
 | LIM-028 | Codex Task setup 缺少可用的 `clientThreadId` 对账或取消桥 | `create_thread` 可能只返回尚不能传给 thread 工具的 `clientThreadId`；当前可用工具不能用它查询、取消或直接取得最终 `threadId`，宿主 setup 若不晋升会留下 queued Task/Worktree | Harness 以一次派发、`SETUP_PENDING` 有界返回、禁止重复创建/代执行和用户明确要求后才用 `list_threads` 对账缓解；待 Codex 提供稳定查询/取消接口后增加有界恢复路径和真实卡死回归 | Mitigated |
 | LIM-029 | Windows 原生完整文件系统回归曾以平台名称预判两个夹具 | 换行文件名与符号链接 Node 回归先真实创建对象，只在宿主返回明确不支持或权限错误时按精确原因 skip；创建成功必须确认真实 symlink 并继续执行原断言，生产门禁语义未放宽 | 在标准非管理员 Windows 与具备符号链接权限的 Windows CI 各运行一次完整 Node 套件，保留能力差异证据 | Mitigated；2026-09-23 平台预判冲突已解决，Windows 原生复验 Not run |
 
-| LIM-030 | 既有发布上下文中的门禁名称被误识别为解释器命令 | 2026-10-08 运行 `node scripts/validate_harness.mjs` 时，未修改且与 HEAD 字节一致的 `.harness/release-context.json` 第 22 行历史审查文字被误报；本次表单文案维护无法取得全仓硬门禁通过结果 | 在独立维护范围补充门禁名称误报回归并修正匹配边界；保持发布上下文原字节与摘要绑定，不在普通文案维护中重写历史 | Open |
+| LIM-030 | 既有发布上下文中的门禁名称曾被误识别为解释器命令 | 命令边界已排除连字符连接的名称；12 项专项回归通过，覆盖名称文案、同一路径中的真实命令与 Shell/路径边界，实际上游运行时检查通过；发布上下文保持原字节 | 后续修改命令匹配时保留正反例回归，不通过豁免发布上下文绕开真实命令检查 | Closed；2026-10-08 |
 
 ## 记录规则
 

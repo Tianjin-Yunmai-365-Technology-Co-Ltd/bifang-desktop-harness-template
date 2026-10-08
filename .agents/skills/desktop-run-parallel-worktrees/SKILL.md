@@ -35,7 +35,7 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
    node <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/scripts/parallel_worktrees.mjs guard --project-root <absolute-project-root> --source-worktree <absolute-source-worktree> --task <task> --unit <unit> --write-target <intended-path> [--write-target <intended-path> ...]
    ```
 
-   guard 只接受创建时已登记 ownership 的相同路径或子路径，并先检查此前所有实际改动；它不能替代宿主沙箱。Subagent 必须返回变更文件、开发检查、阻断项、整合说明，以及自身标题最后一次“已更新并验证”“已请求但未验证”或“更新失败”的状态。
+   guard 只接受创建时已登记 ownership 的相同路径或子路径，并先检查此前所有实际改动；它不能替代宿主沙箱。Subagent 必须返回变更文件、开发检查、阻断项和整合说明。
 
 ## 可见执行与整合
 
@@ -50,7 +50,7 @@ description: 在用户明确要求且策略允许时，将当前已绑定的左�
    postflight 必须证明从登记 `baseHead` 到当前 HEAD 的 committed 路径，以及 staged、unstaged、untracked 和 rename 的源/目标路径都在 ownership 内。任何越界先由对应单元修复；不得在协调 source 中掩盖或手工忽略。
 4. 检查每项差异和证据，拒绝无关编辑、缺失测试、过时注释、敏感信息、绝对本机路径和无证据支持的声明。协调方可以按依赖顺序使用普通、可逆 Git 操作提前整合已验证提交，也可以保留各登记分支，交给用户明确“推送”或“发布”时的生命周期 helper 统一普通合并；不得要求快进、祖先关系、冻结 OID 或其他历史形态。语义冲突由协调方处理，绝不得让多个 Subagent 竞态修改。
 5. 整合后只运行本次变化必需的非空单元/回归测试；非代码变更只运行必要替代验证。不得因并行本身追加格式、lint、静态、构建、冒烟、E2E 或完整验收。
-6. 只有整合后的必要测试通过，才能把存在的 Todo 标记为 `done`。随后返回 `$desktop-implement-change` 收口；普通构建保持开发流程。用户明确要求 Git 发布时才经 `$desktop-prepare-release` 合并本地主分支并打 tag；候选构建须等用户发布后另行请求。
+6. 只有整合后的必要测试通过，才能把存在的 Todo 标记为 `done`。随后返回 `$desktop-implement-change` 收口；普通构建保持开发流程。用户明确要求 Git 发布时才经 `$desktop-prepare-release` 合并本地主分支并打 tag；已初始化下游随后按本次冻结的 `post_release_action` 执行并复核后续路径，Harness 源后续动作由用户当次决定。
 
 ## 单元收口与资源保留
 
@@ -68,4 +68,4 @@ node <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/scrip
 
 `remove` 只删除该并行单元自己在 Git common-dir 下的状态登记，返回 `resourcesRetained: true`、`worktreeRetained: true` 与 `branchRetained: true`，表示资源仍由生命周期 helper 精确登记和保留；它不得删除 Worktree 或本地/远端分支。绝不得强制收口状态不干净、身份/所有权缺失或不匹配、越界单元，也不得手工删除 common-dir 中的登记来绕过检查。单元分支是否已提前整合不影响收口。
 
-这些已由生命周期 helper 精确登记的 Worktree 与分支在 Git 发布后仍保留。Git 发布仅普通合并登记分支到本地默认主分支并创建、复读当前版本 tag；推送和打包只按用户之后的独立请求执行。清理是另一项需明确授权、精确核对登记资源的操作；当前发布命令不负责清理，不能因为发布或推送完成就手工删除。
+这些已由生命周期 helper 精确登记的 Worktree 与分支在 Git 发布后仍保留。Git 发布仅普通合并登记分支到本地默认主分支并创建、复读当前版本 tag；已初始化下游随后按本次冻结的 `post_release_action` 执行并复核后续路径，Harness 源后续动作由用户当次决定。清理是另一项需明确授权、精确核对登记资源的操作；当前发布命令不负责清理，不能因为发布或推送完成就手工删除。

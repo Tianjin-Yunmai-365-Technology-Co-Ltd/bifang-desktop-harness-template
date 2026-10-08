@@ -45,7 +45,8 @@ const ARTIFACT_MESSAGES = {
 
 const INTERPRETER = String.raw`python(?:3(?:\.\d+)*)?(?:\.exe)?`;
 const PIP = String.raw`pip(?:3)?(?:\.exe)?`;
-const BOUNDARY = "(?:^|[^A-Za-z0-9_])";
+/** 连字符连接的门禁或标识名称不是独立命令，路径与 Shell 分隔符仍作为命令边界。 */
+const BOUNDARY = "(?:^|[^A-Za-z0-9_-])";
 const QUOTE = `["']?`;
 const COMMAND_TAIL = String.raw`(?=\s*(?:$|[\],);|&#<>]|\\(?:\r?\n)|\s+(?:[-<]|[A-Za-z0-9_./])))`;
 const PACKAGE_MANAGER = String.raw`(?:(?:${PIP}|pipx|pipenv|poetry|pdm|hatch|rye|pyenv|virtualenv|conda|mamba|pip-(?:compile|sync))\b|uvx\b|uv\s+(?:add|lock|pip|run|sync|tool|venv)\b)`;

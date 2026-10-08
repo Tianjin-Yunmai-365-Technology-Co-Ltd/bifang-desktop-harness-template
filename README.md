@@ -17,7 +17,7 @@ Bifang Desktop Harness Template
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；默认 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程），以及左侧 Git Task 是否使用独立 Worktree。发布后动作建议默认本地打包，仍须用户确认；纯 TUI/MCP 或仅 Linux GUI 没有现有本地打包入口时该默认项不可用，须明确选择提交远程；左侧 Git Task 选择不能由推荐预设或 Task 内部并行策略代答。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；默认 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；纯 TUI/MCP 或仅 Linux GUI 没有现有本地打包入口时该默认项不可用，须明确选择提交远程。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、程序类型、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
