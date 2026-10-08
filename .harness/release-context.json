@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "970448cb6e5da05e6ece9c9317f8c951f57b5911",
-  "version": "202610090050",
+  "sourceHead": "1c9e157df81ce0854200e8ede340f88d34358716",
+  "version": "202610090129",
   "releaseDate": "2026-10-09",
-  "expectedTag": "v202610090050-20261009",
+  "expectedTag": "v202610090129-20261009",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "3dada7d5b2ece39101c0b99091f5d2f476c131e6",
-    "sourceHead": "970448cb6e5da05e6ece9c9317f8c951f57b5911",
-    "scopeDiffSha256": "ea63fed476179e623fa5ef08140b90fe850fd3aaf2a08c2027292d79af459bf9",
-    "reviewedSourceCommit": "970448cb6e5da05e6ece9c9317f8c951f57b5911",
+    "scopeBase": "4a99ee69339dc46e821a979e92d0d803088e2bcd",
+    "sourceHead": "1c9e157df81ce0854200e8ede340f88d34358716",
+    "scopeDiffSha256": "1e98432840d4889c4a648c9bf70165c5e84ec2f2a50c8e11d03fd479806acee8",
+    "reviewedSourceCommit": "1c9e157df81ce0854200e8ede340f88d34358716",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "All five review checks passed over the complete release scope. Fixed window snapshots, autostart readback, notification signing, framework parsing and Win32 declaration docs with regressions. Node: 1035 passed, 16 platform skips. Generated Rust workspace: 29 passed. Harness, no-Python and diff gates passed. Reviewed 27 advisory size/fixture findings; no remaining blockers or suspected secrets. Product packaging, signing and cross-platform E2E not performed for this Harness source release.",
+    "evidenceSummary": "Reviewed docs/skill/validator diff since 202610090050: pointer consolidation keeps authoritative owners, GPUI routing additions and TECH_DEBT cleanup; validate_harness --release-review passed with only pre-existing size warnings; full Harness test suite passed.",
     "reason": null,
     "remainingRisk": null
   }

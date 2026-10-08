@@ -3,6 +3,26 @@
   "releases": [
     {
       "releaseDate": "2026-10-09",
+      "version": "v202610090129",
+      "featureOptimizations": [
+        {
+          "zh-CN": "发布后动作、版本、Task 序号和 Core-first 规则收敛为单一权威来源，其余文档只保留指针，并精简 AGENTS.md。",
+          "en-US": "Consolidate post-release, version, task-numbering and core-first rules into single authoritative sources with pointers elsewhere, and slim AGENTS.md."
+        },
+        {
+          "zh-CN": "GPUI 原生能力补全路由：Tauri 专用 Skill 标明适用范围，设计标准索引与 GUI 路由行指向 GPUI 能力参考，并明确 GPUI 窗口检查的归属。",
+          "en-US": "Complete GPUI routing: mark Tauri-only skills, point the design-standards index and GUI routing row to the GPUI capability references, and name the GPUI window-check owner."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修正 Rust 模板中过期的 Agent Policy schema v3 引用，并清理已关闭的技术债条目和历史叙述。",
+          "en-US": "Fix the stale Agent Policy schema v3 reference in the Rust template and remove closed tech-debt entries and historical narration."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-09",
       "version": "v202610090050",
       "featureOptimizations": [
         {
@@ -199,26 +219,6 @@
         {
           "zh-CN": "修复 Harness 再次发布取号时，校验器误将上一发布已物化的所需版本判为不等于新版本的问题。",
           "en-US": "Fixed the release validator rejecting a previously published required version when Harness stamps a new release version."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-28",
-      "version": "v202609281202",
-      "featureOptimizations": [
-        {
-          "zh-CN": "Git 发布统一在本地默认主分支合并并打版本 tag 后完成；推送已发布提交和打包改为发布后的独立选择。",
-          "en-US": "Git releases now complete when the local default branch and version tag agree; pushing the released commit and packaging are separate choices afterward."
-        },
-        {
-          "zh-CN": "Harness 发布时按上海当前分钟取唯一时间版本；下游新改动先识别需求并优先升 Minor，已确认的记录冲突也走独立 Minor 门禁。",
-          "en-US": "Harness now takes its sole time version from the current Shanghai minute at release; downstream changes check for new requirements first, while confirmed record conflicts use a separate Minor gate."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "收紧发布上下文差异摘要、合并后版本与 Git 引用复核，阻止未审查源码或漂移的版本、tag 被误判为已发布。",
-          "en-US": "Hardened release diff evidence, post-merge version checks, and Git ref verification to reject unreviewed source or drifting versions and tags."
         }
       ]
     }
