@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "d03f834bb5ab16f357b5e8133979afee488a182b",
-  "version": "202609302018",
-  "releaseDate": "2026-09-30",
-  "expectedTag": "v202609302018-20260930",
+  "sourceHead": "1115abfa76890c46e66537d71dad1fbe7c203b1e",
+  "version": "202610080921",
+  "releaseDate": "2026-10-08",
+  "expectedTag": "v202610080921-20261008",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "06eeb405eed44757c33cfe72e9d1f6528f0954b6",
-    "sourceHead": "d03f834bb5ab16f357b5e8133979afee488a182b",
-    "scopeDiffSha256": "ede5cb1fc078eb772eca4072b8bf6fef9c0655cd5108538b45a93d34a12b0ef5",
-    "reviewedSourceCommit": "d03f834bb5ab16f357b5e8133979afee488a182b",
+    "scopeBase": "ae11ce3449ee75f5d5b7b9155e084b218a6692f9",
+    "sourceHead": "1115abfa76890c46e66537d71dad1fbe7c203b1e",
+    "scopeDiffSha256": "25175c3ec2d64e3b7157f79168a46088cec38e28df3ee313b2ae810d8295292f",
+    "reviewedSourceCommit": "1115abfa76890c46e66537d71dad1fbe7c203b1e",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Five semantic checks passed for the prior release through sourceHead. Independent reviews rechecked fixes for invalid skill fields, shadowed ownership protection, and pruned tool references; no blockers remain. Hard/release-review/no-Python gates passed. Node: 944 tests, 930 passed, 14 platform skips, 0 failed. Rust 1.98.1: format, Clippy, 7 tests and release build passed. 26 non-blocking warnings are file-size thresholds and an intentional test-fixture TODO.",
+    "evidenceSummary": "Reviewed behavior, core/adapter boundaries, contracts, responsibility/size, and temporary markers for ae11ce3..1115abf. All 26 validator prompts assessed; no blocking findings. Hard gates passed. Node tests: 933 passed, 14 platform skips, 0 failures. Rust 1.98.1 formatting, Clippy, and 7 tests passed. Interface codes and selections remain unchanged.",
     "reason": null,
     "remainingRisk": null
   }
