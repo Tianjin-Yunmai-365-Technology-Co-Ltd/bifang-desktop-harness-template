@@ -35,6 +35,33 @@ fn saved_window_size_uses_content_viewport_without_native_decorations() {
     assert_eq!(next, first);
 }
 
+/// 窗口变化后直接退出应用也必须刷新最新快照，不依赖窗口关闭回调。
+#[gpui_kit::test]
+fn resized_window_is_saved_when_quitting_without_window_close(cx: &mut TestAppContext) {
+    let root = std::fs::canonicalize(std::env::temp_dir()).expect("读取真实临时目录");
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("读取测试时间").as_nanos();
+    let directory = root.join(format!("gpui-window-quit-test-{}-{stamp}", std::process::id()));
+    std::fs::create_dir(&directory).expect("创建隔离偏好目录");
+    let file = directory.join("preferences.txt");
+    let (preferences, writer) = crate::preferences::load_from(Some(file.clone()));
+    let quit_writer = writer.clone();
+    cx.update(gpui_kit::init);
+    let (handle, shell) = cx.update(|cx| {
+        gpui_kit::open_window(WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(Bounds::new(point(px(0.), px(0.)), size(px(1440.), px(900.))))),
+            ..Default::default()
+        }, cx, |window, cx| cx.new(|cx| Shell::new(preferences, writer, window, cx))).expect("创建隔离测试窗口")
+    });
+    cx.simulate_window_resize(handle, size(px(1200.), px(800.)));
+    cx.update_window(handle, |_, _, cx| {
+        assert_eq!(shell.read(cx).preferences.bounds, Some([0., 0., 1200., 800.]));
+    }).expect("分发原生窗口尺寸变化");
+    quit_writer.finish();
+    let saved = std::fs::read_to_string(file).expect("退出已刷新最后快照");
+    assert!(saved.lines().any(|line| line == "bounds=0,0,1200,800"), "直接退出不能刷新旧窗口快照：{saved}");
+    std::fs::remove_dir_all(directory).expect("清理隔离偏好目录");
+}
+
 /// 详细菜单左对齐；两档按钮中心都锚定边界和 Logo，伸出的右半边可点击且父级不代理。
 #[gpui_kit::test]
 fn sidebar_alignment_and_toggle_share_the_fixed_shell_bounds(cx: &mut TestAppContext) {

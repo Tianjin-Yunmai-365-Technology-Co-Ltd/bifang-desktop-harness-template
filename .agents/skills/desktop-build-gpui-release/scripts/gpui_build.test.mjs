@@ -13,7 +13,7 @@ import { packagerConfig, signingChoice, finalizeSigning, verifyResources, verify
 import { encodePng, decodePng, renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 
 /** 临时根使用 canonical 路径，避免 macOS /var 别名误入路径门禁。 */
-function fixture(t) {
+function fixture(t, { systemNotification = 'disabled' } = {}) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'gpui-build-test-'));
   t.after(() => fs.rmSync(root,{ recursive: true, force: true }));
   const config = renderDefaultConfig({ projectId: 'sample', nameZh: '测试应用', nameEn: 'Test App', owner: 'Owner' });
@@ -26,7 +26,7 @@ function fixture(t) {
     'packaging/macos/background.png': 'background-test',
     'LICENSE.zh-CN.md': '测试应用 商业许可证', 'LICENSE.en.md': 'Test App Commercial License',
     '.gitignore': '/target/\n/release/\n/.release-clean.*\nCargo.lock\n',
-    'docs/GUI_APP_PROFILE.md': '```gui-initialization-config\nabout_page: enabled\n```\n',
+    'docs/GUI_APP_PROFILE.md': `\`\`\`gui-initialization-config\nsystem_tray: disabled\nsystem_notification: ${systemNotification}\nautostart: disabled\nabout_page: enabled\nsponsor_page: disabled\nsingle_instance: disabled\ndeep_link: disabled\nglobal_shortcut: disabled\nsidebar_mode: detailed\n\`\`\`\n`,
     '.agents/skills/desktop-manage-version/scripts/version_gate.mjs': '// fixture version entry\n',
     'release-notes.json': JSON.stringify({ schemaVersion: 2, releases: [{ releaseDate: '2026-10-08', version: 'v0.1.0', featureOptimizations: [{ 'zh-CN': '新增 "日志"\n第二行', 'en-US': 'Added log\nSecond line' }], bugFixes: [] }] }),
   };
@@ -155,6 +155,60 @@ test('candidate requires fresh E2E choice and unsupported signing fails before t
   assert.throws(() => candidateSelection('disabled','',''),/reason/); assert.throws(() => signingChoice('enabled','not-requested'),/invalid/);
 });
 
+/** 通知要求签名的 macOS 候选在任何执行器或候选目录副作用前拒绝，E2E 选择不能绕过。 */
+test('macos_notification_candidates_reject_unsigned_before_commands_and_preserve_existing_release', t => {
+  for (const format of ['app','dmg']) for (const e2e of ['enabled','disabled']) for (const explicit of [false,true]) {
+    const f = fixture(t,{ systemNotification: 'enabled' }), fake = fakeRun(f);
+    const release = path.join(f.root,'release'); fs.mkdirSync(release);
+    const previous = { 'previous.dmg': Buffer.from([0,1,2,255]), 'previous.dmg.manifest.json': Buffer.from('{"milestoneAcceptance":"pending"}\n'), 'previous.dmg.sha256': Buffer.from('previous checksum\n') };
+    for (const [file,bytes] of Object.entries(previous)) fs.writeFileSync(path.join(release,file),bytes);
+    const rootEntries = fs.readdirSync(f.root).sort(), releaseInode = fs.statSync(release).ino;
+    const options = { ...candidateOptions(f.root),format,e2e,...(explicit ? { signing: 'disabled',signingSource: 'not-requested' } : {}) };
+    assert.throws(() => executeBuild(options,hooks(f,fake)),/system_notification.*enabled.*signing/u);
+    assert.ok(fake.calls.every(item => item.program === 'git' || (item.program === 'cargo' && item.args[0] === 'metadata')));
+    assert.deepEqual(fs.readdirSync(f.root).sort(),rootEntries);
+    assert.equal(fs.statSync(release).ino,releaseInode);
+    assert.deepEqual(fs.readdirSync(release).sort(),Object.keys(previous).sort());
+    for (const [file,bytes] of Object.entries(previous)) assert.deepEqual(fs.readFileSync(path.join(release,file)),bytes);
+    assert.equal(fs.existsSync(path.join(f.root,'target/gpui-packaging')),false);
+  }
+});
+
+/** 缺失、无效、重复或未闭合的通知配置不能被当成 disabled 绕过签名门禁。 */
+test('macos_candidate_notification_profile_ambiguity_fails_before_tests', t => {
+  const mutations = [
+    source => source.replace('system_notification: enabled\n',''),
+    source => source.replace('system_notification: enabled','system_notification: pending'),
+    source => source.replace('system_notification: enabled','system_notification: enabled\n  system_notification : disabled'),
+    source => source + source,
+    source => source.slice(0,source.lastIndexOf('```')),
+  ];
+  for (const mutate of mutations) {
+    const f = fixture(t,{ systemNotification: 'enabled' }), fake = fakeRun(f);
+    const profile = path.join(f.root,'docs/GUI_APP_PROFILE.md'); fs.writeFileSync(profile,mutate(fs.readFileSync(profile,'utf8')));
+    assert.throws(() => executeBuild(candidateOptions(f.root),hooks(f,fake)),/GUI profile/u);
+    assert.ok(fake.calls.every(item => item.program === 'git' || (item.program === 'cargo' && item.args[0] === 'metadata')));
+    assert.equal(fs.existsSync(path.join(f.root,'release')),false);
+  }
+});
+
+/** 显式签名仍进入现有未实现阻断，不能把通知要求转换成假签名或 unsigned 回退。 */
+test('macos_notification_candidate_enabled_signing_still_fails_closed', t => {
+  const f = fixture(t,{ systemNotification: 'enabled' }), fake = fakeRun(f);
+  assert.throws(() => executeBuild({ ...candidateOptions(f.root),signing: 'enabled',signingSource: 'requested' },hooks(f,fake)),/signing\/notarization is not implemented/u);
+  assert.ok(fake.calls.every(item => item.program === 'git' || (item.program === 'cargo' && item.args[0] === 'metadata')));
+  assert.equal(fs.existsSync(path.join(f.root,'release')),false);
+});
+
+/** 本机开发试包仍可按原契约生成 unsigned 产物，不取得通知运行或候选验收结论。 */
+test('local_macos_notification_package_remains_unsigned_and_unverified', t => {
+  const f = fixture(t,{ systemNotification: 'enabled' }), fake = fakeRun(f);
+  const output = executeBuild(localOptions(f.root),hooks(f,fake));
+  assert.equal(output.distribution,'local-test-only'); assert.equal(output.signingStatus,'unsigned');
+  assert.equal(output.runtimeVerification,'Unverified'); assert.equal(output.unitTests.passed,1);
+  assert.equal(fs.existsSync(path.join(f.root,'release')),false);
+});
+
 test('release-context drift after test execution prevents a candidate', t => {
   const f = fixture(t), fake = fakeRun(f); let reads = 0;
   assert.throws(() => executeBuild(candidateOptions(f.root),{ ...hooks(f,fake),context: () => ({ ...f.context,releaseContextSha256: (++reads > 1 ? 'c' : 'b').repeat(64) }) }),/changed/);
@@ -222,7 +276,8 @@ test('local initial dirty bytes are allowed but drift during tests blocks', t =>
 });
 
 test('about-disabled candidate keeps packaged log without requiring UI or embedded log', t => {
-  const f = fixture(t); fs.writeFileSync(path.join(f.root,'docs/GUI_APP_PROFILE.md'),'```gui-initialization-config\nabout_page: disabled\n```\n');
+  const f = fixture(t), profile = path.join(f.root,'docs/GUI_APP_PROFILE.md');
+  fs.writeFileSync(profile,fs.readFileSync(profile,'utf8').replace('about_page: enabled','about_page: disabled'));
   spawnSync('git',['add','.'],{ cwd: f.root }); spawnSync('git',['commit','-qm','test: disable about page'],{ cwd: f.root });
   const fake = fakeRun(f,{ missingNotes: true }); const output = executeBuild(candidateOptions(f.root),hooks(f,fake));
   assert.equal(output.milestoneAcceptance,'pending'); assert.equal(output.releaseNotesResourceVerification,'byte-identical');

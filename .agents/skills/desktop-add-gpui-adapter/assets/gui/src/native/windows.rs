@@ -6,6 +6,7 @@ use gpui_kit::Window;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use std::{ffi::c_void, io, mem::size_of};
 
+/// 借用的 Win32 窗口句柄 ABI；不转移所有权，调用方不得解引用此指针。
 type Handle = *mut c_void;
 
 const SW_HIDE: i32 = 0;
@@ -13,6 +14,8 @@ const SW_SHOW: i32 = 5;
 const SW_RESTORE: i32 = 9;
 const FLASHW_ALL: u32 = 3;
 
+/// 与 Win32 FLASHWINFO 保持 C 布局的闪烁参数；窗口句柄须在调用期间有效。
+/// size 是结构体字节数，flags 选择闪烁区域，count 为次数；timeout 以毫秒计，零使用系统默认间隔。
 #[repr(C)]
 struct FlashInfo {
     size: u32,
@@ -30,20 +33,31 @@ const _: () = assert!(size_of::<FlashInfo>() == 20);
 
 #[link(name = "kernel32")]
 unsafe extern "system" {
+    /// 返回调用线程的系统标识，用于确认窗口操作仍在捕获句柄的 UI 线程执行。
     fn GetCurrentThreadId() -> u32;
+    /// 返回当前进程的系统标识，用于复核窗口仍属于本进程。
     fn GetCurrentProcessId() -> u32;
 }
 
 #[link(name = "user32")]
 unsafe extern "system" {
+    /// 请求把有效窗口设为前台；受系统前台限制，非零表示成功，零表示未取得前台。
     fn SetForegroundWindow(window: Handle) -> i32;
+    /// 激活调用线程消息队列所属的有效窗口；返回之前的活动窗口句柄，失败可返回空。
     fn SetActiveWindow(window: Handle) -> Handle;
+    /// 将焦点交给调用线程输入队列关联的有效窗口；返回之前的焦点窗口句柄，失败可返回空。
     fn SetFocus(window: Handle) -> Handle;
+    /// 将有效窗口移至所属 Z 序顶端并请求激活；非零表示调用成功。
     fn BringWindowToTop(window: Handle) -> i32;
+    /// 按有效 FLASHWINFO 指针闪烁窗口；返回调用前窗口是否活动，不是成功状态。
     fn FlashWindowEx(info: *const FlashInfo) -> i32;
+    /// 按 Win32 显示命令隐藏、显示或恢复有效窗口；返回调用前是否可见，不是成功状态。
     fn ShowWindow(window: Handle, command: i32) -> i32;
+    /// 查询窗口是否最小化；非零表示最小化，零表示未最小化。
     fn IsIconic(window: Handle) -> i32;
+    /// 查询句柄当前是否标识窗口；结果不能保证其后仍有效，也不能证明进程或线程归属。
     fn IsWindow(window: Handle) -> i32;
+    /// 返回创建窗口的线程标识，失败返回零；非空 process 指针须可写，用于接收所属进程标识。
     fn GetWindowThreadProcessId(window: Handle, process: *mut u32) -> u32;
 }
 

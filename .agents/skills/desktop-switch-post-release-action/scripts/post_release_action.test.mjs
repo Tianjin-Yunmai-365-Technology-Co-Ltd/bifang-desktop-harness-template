@@ -134,9 +134,67 @@ test("gpui_gui_root_defaults_to_project_identity_inside_renamed_checkouts", (t) 
 test("gui_framework_metadata_defaults_only_when_absent", () => {
   const source = '[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\n';
   assert.equal(parseReleaseGuiFramework(source), "tauri");
-  assert.equal(parseReleaseGuiFramework(`${source}gui-framework = "gpui"\n`), "gpui");
+  for (const declaration of [
+    'gui-framework = "gpui"', '"gui-framework" = "gpui"', "'gui-framework' = 'gpui' # native GUI",
+    '"gui-\\u0066ramework" = "gpui"',
+  ]) assert.equal(parseReleaseGuiFramework(`${source}${declaration}\n`), "gpui");
+  assert.equal(parseReleaseGuiFramework(`${source}"gui-framework" = 'tauri'\n`), "tauri");
   for (const suffix of ['gui-framework = "unknown"\n', 'gui-framework = null\n', 'gui-framework = "gpui"\ngui-framework = "tauri"\n']) {
     assert.throws(() => parseReleaseGuiFramework(source + suffix), /gui-framework/u);
+  }
+});
+
+/** 表、错位与混用引号的重复键均为显式错误，不能退回旧 Tauri 路线。 */
+test("gui_framework_parser_rejects_structural_errors_and_ignores_text", () => {
+  const source = '[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\n';
+  for (const invalid of [
+    `${source}[workspace.metadata.agent-first-harness.gui-framework]\n`,
+    `${source}[[workspace.metadata.agent-first-harness.'gui-framework']]\n`,
+    `${source}gui-framework.name = "gpui"\n`,
+    `${source}[package.metadata]\n"gui-framework" = "gpui"\n`,
+    `gui-framework = "gpui"\n${source}`,
+    `${source}gui-framework = "gpui"\n"gui-framework" = "tauri"\n`,
+    `${source}"gui-framework" = false\n`,
+    `${source}"gui-framework" = "unknown"\n`,
+    `workspace = { metadata = { agent-first-harness = { gui-framework = "gpui" } } }\n${source}`,
+    `${source}"gui-framework\\U00000000" = "gpui"\n`,
+    `${source}"gui-framework" = "gpui\n`,
+  ]) assert.throws(() => parseReleaseGuiFramework(invalid), /gui-framework/u, invalid);
+  const description = '[package]\ndescription = """\n[workspace.metadata.agent-first-harness]\ngui-framework = "unknown"\n"""\n';
+  assert.equal(parseReleaseGuiFramework(`${description}${source}# gui-framework = "unknown"\n`), "tauri");
+  assert.equal(parseReleaseGuiFramework(`${description}${source}"gui-framework" = 'gpui' # chosen\n`), "gpui");
+  assert.equal(parseReleaseGuiFramework("[workspace.metadata.'agent-first-harness'] # metadata\n'gui-framework' = 'gpui'\n"), "gpui");
+  assert.throws(() => parseReleaseGuiFramework(`${source}[workspace.metadata.'agent-first-harness']\n`), /缺失或重复/u);
+});
+
+/** 真实 set/check 按引号框架键选择原生 GPUI，并在框架错误时保持策略与目录字节不变。 */
+test("quoted_gpui_framework_routes_set_check_and_errors_do_not_write", (t) => {
+  const f = fixture(t);
+  const cargo = path.join(f.root, "Cargo.toml");
+  const manifest = '[workspace]\nmembers = ["app"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = ["macos"]\ninterfaces = ["gui"]\ngui-root = "app"\nrust-test-manifests = ["Cargo.toml"]\n';
+  fs.mkdirSync(path.join(f.root, "app"));
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), '[package]\nname = "app"\nversion = "0.1.0"\n');
+  fs.writeFileSync(cargo, `${manifest}"gui-framework" = 'gpui' # native\n`);
+  track(f, "Cargo.toml", "app/Cargo.toml");
+  assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
+  assert.equal(f.run("check").status, "configured");
+  assert.equal(fs.existsSync(path.join(f.root, "app", "package.json")), false);
+  const configured = fs.readFileSync(f.policy);
+  const files = fs.readdirSync(f.docs);
+  for (const suffix of [
+    '[workspace.metadata.agent-first-harness."gui-framework"]\n',
+    '[package.metadata]\n"gui-framework" = "gpui"\n',
+    'gui-framework = "gpui"\n"gui-framework" = "tauri"\n',
+    '"gui-framework" = "unknown"\n',
+  ]) {
+    fs.writeFileSync(cargo, manifest + suffix);
+    assert.match(f.run("check", [], 2).error, /gui-framework/u);
+    assert.ok(fs.readFileSync(f.policy).equals(configured));
+    fs.writeFileSync(f.policy, V3);
+    assert.match(f.run("set", setOptions("local_package"), 2).error, /gui-framework/u);
+    assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
+    assert.deepEqual(fs.readdirSync(f.docs), files);
+    fs.writeFileSync(f.policy, configured);
   }
 });
 

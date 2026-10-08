@@ -12,13 +12,13 @@
 
 ## 新增
 
-- `HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`（`required_version = pending`）：GPUI 按选择生成托盘、系统通知、自启、单实例和真实后台热键模板及项目本地依赖；选完询问配置协助，产品动作在终端下游确认。初始化 Skill 纳入示例全部直接依赖的基础技术选型与最小 features；固定壳层、条件能力和实际用途各自声明。通知复用官方 Kit API，自启不自动注册，单实例仅唤醒窗口，空热键合同零注册；当前托盘/热键限 macOS/Windows，深链接仍不可用。
+- `HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`（`required_version = 202610090050`）：GPUI 按选择生成托盘、系统通知、自启、单实例和真实后台热键模板及项目本地依赖；选完询问配置协助，产品动作在终端下游确认。初始化 Skill 纳入示例全部直接依赖的基础技术选型与最小 features；固定壳层、条件能力和实际用途各自声明。通知复用官方 Kit API，自启不自动注册，单实例仅唤醒窗口，空热键合同零注册；当前托盘/热键限 macOS/Windows，深链接仍不可用。
 
-- `HARNESS-CHANGE-GPUI-PNPM-TOOLING`（`required_version = pending`）：GPUI 与 Tauri 共用 Node.js/pnpm 工程工具要求；GPUI 项目根增加验证、Rust 测试、发布检查/日志/上下文/Git 发布与原生打包脚本，生成器和既有项目专用迁移安全合并清单。无 npm 第三方依赖，保留框架原生构建和升级产品配置保护。
+- `HARNESS-CHANGE-GPUI-PNPM-TOOLING`（`required_version = 202610090050`）：GPUI 与 Tauri 共用 Node.js/pnpm 工程工具要求；GPUI 项目根增加验证、Rust 测试、发布检查/日志/上下文/Git 发布与原生打包脚本，生成器和既有项目专用迁移安全合并清单。无 npm 第三方依赖，保留框架原生构建和升级产品配置保护。
 
-- `HARNESS-FEAT-GPUI-PACKAGING`（`required_version = pending`）：新增独立 GPUI Rust/cargo-packager 构建打包 Skill，区分开发试包与发布候选，原生 macOS 应用包/DMG 与 Windows x64 NSIS 按框架传播；macOS/Windows GPUI 可选未来本地打包。GPUI 端侧接入 Tracing 与有界后台滚动文件日志，业务规则与用例继续优先共享 core。
+- `HARNESS-FEAT-GPUI-PACKAGING`（`required_version = 202610090050`）：新增独立 GPUI Rust/cargo-packager 构建打包 Skill，区分开发试包与发布候选，原生 macOS 应用包/DMG 与 Windows x64 NSIS 按框架传播；macOS/Windows GPUI 可选未来本地打包。GPUI 端侧接入 Tracing 与有界后台滚动文件日志，业务规则与用例继续优先共享 core。
 
-- `HARNESS-FEAT-GPUI-DESKTOP`（基于 Harness `202610081442`，正式发布时物化新时间版本）：桌面应用增加独立框架问题，Tauri 为未回答时默认选项，GPUI 使用原生 Rust/gpui-kit 模板。固化双语身份、三态主题、系统语言、受限窗口恢复、设置、可选关于/赞助页和精简/详细侧栏；原生扩展现按 `HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES` 的五项条件实现与平台边界管理，深链接仍禁用。环境、核心依赖边界、发布后动作和升级按 Cargo 框架事实路由；旧 GUI 保持 Tauri 兼容，GPUI 候选打包由后续独立 Skill 提供，未实现宿主能力仍不得生成验收声明。
+- `HARNESS-FEAT-GPUI-DESKTOP`（required_version = 202610090050）：桌面应用增加独立框架问题，Tauri 为未回答时默认选项，GPUI 使用原生 Rust/gpui-kit 模板。固化双语身份、三态主题、系统语言、受限窗口恢复、设置、可选关于/赞助页和精简/详细侧栏；原生扩展现按 `HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES` 的五项条件实现与平台边界管理，深链接仍禁用。环境、核心依赖边界、发布后动作和升级按 Cargo 框架事实路由；旧 GUI 保持 Tauri 兼容，GPUI 候选打包由独立 Skill 提供，未实现宿主能力仍不得生成验收声明。
 - `HARNESS-FEAT-PROJECT-LOCAL-TASTE-SKILL`（`required_version = 202609302018`）：所有新下游默认检查并补装项目本地 `design-taste-frontend`，不增加问卷或全局安装；已有有效本地内容原样保留。内嵌上游原文、MIT 许可、commit 与摘要，标准库 helper 支持离线安装并拒绝链接/损坏快照及无效或重复关键字段。初始化裁剪保留实际 Skill 和下游地图，设计支持文档不残留一次性安装工具路径；升级按 protected 处理并拒绝更早的自定义规则遮蔽，设计应用继续遵守固定技术栈和精确 UI 标准。
 - `HARNESS-FEAT-POST-RELEASE-ACTION-CHOICE`（`required_version = 202609281559`）：初始化固定询问“本地打包”或“提交远程”，建议默认本地打包并要求确认；已初始化旧项目升级后补选，未来可用 `$desktop-switch-post-release-action` 切换。Git 发布仍止于本地主分支与 tag；随后所选本地打包沿用原流程，远程路径把同一提交放到小写 `release` 分支并推送远端分支与 tag，只有实际复核通过才完成后续流程。新增受保护策略 schema v4、升级补选和远程候选回归。
 - `HARNESS-CHANGE-SINGLE-GIT-RELEASE-AND-RECONCILIATION-GATE`（`required_version = 202609281202`）：Git 发布统一止于本地默认主分支合并及版本 tag 创建、复读；推送同一已发布 HEAD/tag 与构建打包改为发布后的独立请求，登记分支和 Worktree 保留。合并后、打 tag 前复核最终提交的 Harness 取号或下游版本事实，发布状态复核拒绝未合并的登记分支。下游新增经证据确认的记录冲突门禁：首次纠错强制提升 Minor，稳定 ID 与事件证据跨周期去重。Harness 本次只验证门禁，具体记录修正留待下游升级时执行；本条取代既有本地/远端双发布模式。

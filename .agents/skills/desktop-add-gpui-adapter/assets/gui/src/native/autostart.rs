@@ -117,14 +117,15 @@ fn write(handle: &AutoLaunch, enabled: bool) -> Result<(), String> {
     #[cfg(not(windows))]
     { handle.disable().map_err(|_| "autostart_write_failed".into()) }
 }
-/// 写入失败仍复读实际状态，读取失败绝不进行乐观 mutation。
+/// 写入后复读必须匹配请求，OS 拒绝生效和读取失败都保留实际状态并显示错误。
 fn apply<E>(desired: Option<bool>, mut read: impl FnMut() -> Result<bool, E>, mut write: impl FnMut(bool) -> Result<(), E>) -> (Option<bool>, bool) {
     let result = match desired {
         Some(desired) => read().and_then(|actual| if actual == desired { Ok(()) } else { write(desired) }),
         None => Ok(()),
     };
     let actual = read();
-    let failed = result.is_err() || actual.is_err();
+    let failed = result.is_err() || actual.is_err()
+        || desired.is_some_and(|desired| actual.as_ref().is_ok_and(|actual| *actual != desired));
     (actual.ok(), failed)
 }
 
@@ -176,6 +177,15 @@ mod tests {
         assert!(encoded_path("/Applications/A&B.app/Contents/MacOS/app").is_err());
         #[cfg(windows)]
         assert_eq!(encoded_path(r"C:\Program Files\Tool.exe").unwrap(), r#""C:\Program Files\Tool.exe""#);
+    }
+    /// OS 接受写入却保留相反状态时必须显示失败；真实状态变更才算成功。
+    #[test]
+    fn successful_write_requires_readback_to_match_requested_state() {
+        for desired in [false, true] {
+            assert_eq!(apply::<()>(Some(desired), || Ok(!desired), |_| Ok(())), (Some(!desired), true));
+        }
+        let actual = std::cell::Cell::new(false);
+        assert_eq!(apply::<()>(Some(true), || Ok(actual.get()), |desired| { actual.set(desired); Ok(()) }), (Some(true), false));
     }
     /// 纯数据回归不打开注册表；空命令和损坏 DWORD 均不能显示为开启。
     #[test]

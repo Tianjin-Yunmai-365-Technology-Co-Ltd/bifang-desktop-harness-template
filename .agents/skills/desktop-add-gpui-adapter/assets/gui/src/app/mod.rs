@@ -48,7 +48,6 @@ impl Shell {
         window.on_window_should_close(cx, move |window, cx| {
             let _ = weak.update(cx, |this, _| {
                 this.remember_window(window);
-                this.writer.save(&this.preferences);
             });
 @@NATIVE_CLOSE@@
         });
@@ -63,13 +62,14 @@ impl Shell {
         value
     }
 
-    /// GPUI 新建窗口需要内容尺寸，原生 frame 只提供位置，避免标题栏每次恢复叠加。
+    /// 保存内容尺寸与有界后台快照，直接退出也能恢复最新状态且不叠加原生标题栏。
     fn remember_window(&mut self, window: &Window) {
         if window.is_fullscreen() { return }
         self.preferences.maximized = window.is_maximized();
         if !self.preferences.maximized {
             self.preferences.bounds = Some(window_geometry(window.bounds(), window.viewport_size()));
         }
+        self.writer.save(&self.preferences);
     }
 
     /// 当前 locale 决定中英文展示名称，版本始终来自实际 Cargo 包。

@@ -168,18 +168,102 @@ function metadataArray(root, key) {
   return parseReleaseMetadataArray(fs.readFileSync(file, "utf8"), key);
 }
 
-/** 读取桌面框架闭集；旧 GUI 没有该字段时沿用 Tauri，重复或非法值拒绝。 */
+/** 按字符串、注释及容器边界读取语句，避免说明文字伪装成桌面框架事实。 */
+function releaseCargoStatements(source) {
+  const statements = [];
+  const brackets = [];
+  let current = "";
+  let quote = null;
+  let triple = false;
+  let escaped = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (quote !== null) {
+      current += character;
+      if (quote === '"' && escaped) escaped = false;
+      else if (quote === '"' && character === "\\") escaped = true;
+      else if (character === quote && (!triple || source.slice(index, index + 3) === quote.repeat(3))) {
+        if (triple) { current += quote.repeat(2); index += 2; }
+        quote = null;
+      }
+    } else if (character === '"' || character === "'") {
+      quote = character;
+      triple = source.slice(index, index + 3) === character.repeat(3);
+      current += triple ? character.repeat(3) : character;
+      if (triple) index += 2;
+    } else if (character === "#") {
+      while (index + 1 < source.length && source[index + 1] !== "\n") index += 1;
+    } else if (character === "\n" && brackets.length === 0) {
+      if (current.trim()) statements.push(current.trim());
+      current = "";
+    } else {
+      if (character === "[" || character === "{") brackets.push(character);
+      if ((character === "]" || character === "}") && brackets.pop() !== (character === "]" ? "[" : "{")) {
+        throw new ActionError("Cargo gui-framework 解析遇到不匹配的容器边界");
+      }
+      current += character;
+    }
+  }
+  if (quote !== null || brackets.length > 0) throw new ActionError("Cargo gui-framework 解析遇到未结束的字符串或容器");
+  if (current.trim()) statements.push(current.trim());
+  return statements;
+}
+
+/** 仅接受裸键、单行引号键和点分路径；无法确定的键语法失败关闭。 */
+function releaseCargoKey(value) {
+  const parts = [];
+  let remaining = value.trim();
+  while (remaining) {
+    const match = /^(?:([A-Za-z0-9_-]+)|'([^'\r\n]*)'|("(?:[^"\\\r\n]|\\.)*"))\s*/u.exec(remaining);
+    if (!match) throw new ActionError("Cargo gui-framework 解析遇到不支持的键语法");
+    try { parts.push(match[1] ?? match[2] ?? JSON.parse(match[3])); }
+    catch { throw new ActionError("Cargo gui-framework 解析遇到不支持的引号键转义"); }
+    remaining = remaining.slice(match[0].length);
+    if (!remaining) return { parts, value: null };
+    if (remaining.startsWith("=")) return { parts, value: remaining.slice(1).trim() };
+    if (!remaining.startsWith(".")) throw new ActionError("Cargo gui-framework 解析遇到不支持的键语法");
+    remaining = remaining.slice(1).trimStart();
+  }
+  throw new ActionError("Cargo gui-framework 解析遇到空键或残缺点分路径");
+}
+
+/** 只缺省兼容 Tauri；引号键等价，表化、错位、重复及未知受管语法不得猜测。 */
 export function parseReleaseGuiFramework(source) {
-  const sections = source.split(/^\s*\[workspace\.metadata\.agent-first-harness\]\s*$/mu);
-  if (sections.length !== 2) throw new ActionError("Cargo 发布接口元数据缺失或重复");
-  const section = sections[1].split(/^\s*\[/mu)[0];
-  const values = [...section.matchAll(/^\s*gui-framework\s*=\s*(.*?)\s*$/gmu)];
-  if (values.length === 0) return "tauri";
-  if (values.length !== 1) throw new ActionError("Cargo gui-framework 元数据重复");
+  const metadataPath = ["workspace", "metadata", "agent-first-harness"];
+  const frameworkPath = [...metadataPath, "gui-framework"];
+  let section = [];
+  let metadataSections = 0;
   let framework;
-  try { framework = JSON.parse(values[0][1]); } catch { throw new ActionError("Cargo gui-framework 元数据无效"); }
-  if (!["tauri", "gpui"].includes(framework)) throw new ActionError("Cargo gui-framework 元数据无效");
-  return framework;
+  for (const statement of releaseCargoStatements(source)) {
+    if (statement.startsWith("[")) {
+      const array = statement.startsWith("[[");
+      if (!statement.endsWith(array ? "]]" : "]")) throw new ActionError("Cargo gui-framework 表语法无效");
+      const parsed = releaseCargoKey(statement.slice(array ? 2 : 1, array ? -2 : -1));
+      if (parsed.value !== null) throw new ActionError("Cargo gui-framework 表语法无效");
+      section = parsed.parts;
+      if (section.includes("gui-framework")) throw new ActionError("Cargo gui-framework 必须是值，不能是表");
+      if (section.length === metadataPath.length && section.every((part, index) => part === metadataPath[index])) {
+        if (array || ++metadataSections > 1) throw new ActionError("Cargo 发布接口元数据缺失或重复");
+      }
+      continue;
+    }
+    const { parts, value } = releaseCargoKey(statement);
+    if (value === null) throw new ActionError("Cargo gui-framework 解析遇到缺少赋值的字段");
+    const fullPath = [...section, ...parts];
+    if (parts.includes("gui-framework")) {
+      if (fullPath.length !== frameworkPath.length || !fullPath.every((part, index) => part === frameworkPath[index])) {
+        throw new ActionError("Cargo gui-framework 必须位于 workspace.metadata.agent-first-harness");
+      }
+      if (framework !== undefined) throw new ActionError("Cargo gui-framework 元数据重复");
+      try { framework = /^'[^'\r\n]*'$/u.test(value) ? value.slice(1, -1) : JSON.parse(value); }
+      catch { throw new ActionError("Cargo gui-framework 元数据无效"); }
+      if (!["tauri", "gpui"].includes(framework)) throw new ActionError("Cargo gui-framework 元数据无效");
+    } else if (fullPath.length <= metadataPath.length && fullPath.every((part, index) => part === metadataPath[index])) {
+      throw new ActionError("Cargo gui-framework 所属元数据必须使用独立表，不能使用内联值");
+    }
+  }
+  if (metadataSections !== 1) throw new ActionError("Cargo 发布接口元数据缺失或重复");
+  return framework ?? "tauri";
 }
 
 function optionalMetadata(root, key) {

@@ -58,6 +58,17 @@ function assertIgnored(run, relative) {
   if (result.status !== 0) throw new Error(`build directory must be Git-ignored: ${relative}`);
 }
 
+/** macOS 通知候选必须明确选择签名；缺失或歧义 profile 在任何测试和旧候选隔离前失败关闭。 */
+function assertMacosNotificationSigning(root, signing) {
+  const source = fs.readFileSync(safePath(root,'docs/GUI_APP_PROFILE.md',{ type: 'file' }),'utf8');
+  const headers = [...source.matchAll(/^```gui-initialization-config[ \t]*\r?$/gmu)];
+  const blocks = [...source.matchAll(/^```gui-initialization-config[ \t]*\r?\n([\s\S]*?)^```[ \t]*\r?$/gmu)];
+  if (headers.length !== 1 || blocks.length !== 1 || blocks[0][1].includes('```')) throw new Error('GUI profile requires one closed initialization configuration block');
+  const fields = [...blocks[0][1].matchAll(/^[ \t]*system_notification[ \t]*:[ \t]*(.*?)[ \t]*\r?$/gmu)];
+  if (fields.length !== 1 || !['enabled','disabled'].includes(fields[0][1])) throw new Error('GUI profile requires one explicit system_notification choice');
+  if (fields[0][1] === 'enabled' && signing.selection !== 'enabled') throw new Error('macOS candidate with system_notification = enabled requires enabled signing; unsigned candidates are unsupported');
+}
+
 /** 每个真实 workspace 单独运行非空全量单元测试，不用子集或 mock 当构建证据。 */
 export function runWorkspaceTests(root, facts, run, env) {
   const seen = new Set(), suites = [];
@@ -148,6 +159,7 @@ export function executeBuild(options, hooks = {}) {
   if (!['candidate','local'].includes(options.mode)) throw new Error('--mode must be local or candidate');
   const signing = signingChoice(options.signing ?? 'disabled',options.signingSource ?? 'not-requested');
   if (!candidate && signing.selection !== 'disabled') throw new Error('local packages must be explicitly unsigned');
+  if (candidate && info.platform === 'macos') assertMacosNotificationSigning(root,signing);
   if (info.platform === 'macos' && signing.selection === 'enabled') throw new Error('GPUI macOS signing/notarization is not implemented; enabled selection fails closed, never downgraded');
   if (format === 'nsis' && signing.selection === 'enabled' && !config.windows.signing) throw new Error('Windows signing configuration is incomplete');
   const selections = candidate ? candidateSelection(options.e2e,options.e2eReason,options.e2eRisk) : null;

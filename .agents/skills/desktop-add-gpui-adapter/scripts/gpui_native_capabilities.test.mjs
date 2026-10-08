@@ -1,6 +1,12 @@
 /** 原生能力回归验证32种选择的依赖、生命周期接线与禁用裁剪，不触达宿主登录项。 */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { createGpuiWorkspace } from './create_gpui_workspace.mjs';
 import { renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
 import { capabilityKeys, nativeDependencies, trayPixels } from './gpui_native_capabilities.mjs';
 import { parseGpuiInitializationProfile } from './gpui_profile.mjs';
@@ -28,6 +34,36 @@ test('all_32_native_combinations_preserve_profile_and_conditional_files', () => 
     for (const [dependency] of nativeDependencies(options)) assert.ok(member.includes(`${dependency}.workspace = true`));
     for (const value of files.values()) if (typeof value === 'string') assert.doesNotMatch(value, /@@[A-Z_]+@@/);
   }
+});
+
+/** 全能力工作区在任意宿主都扫描所有 Rust 平台模块，实际保留门禁不得因 Windows 声明缺文档失败。 */
+test('generated_native_workspace_passes_retained_rust_comment_check_on_all_hosts', () => {
+  const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'harness-gpui-native-comments-'));
+  try {
+    const target = path.join(temporary, 'workspace');
+    const generated = createGpuiWorkspace({
+      ...identity, target, targetPlatforms: ['macos', 'windows'], sponsorPage: 'disabled',
+      ...Object.fromEntries(capabilityKeys.map(key => [key, 'enabled'])),
+    });
+    const scripts = '.agents/skills/desktop-implement-change/scripts';
+    const retained = path.join(target, scripts);
+    fs.mkdirSync(retained, { recursive: true });
+    for (const name of ['check_rust_chinese_comments.mjs', 'check_file_line_limits.mjs']) {
+      fs.copyFileSync(fileURLToPath(new URL(`../../desktop-implement-change/scripts/${name}`, import.meta.url)), path.join(retained, name));
+    }
+    const result = spawnSync(process.execPath, [path.join(retained, 'check_rust_chinese_comments.mjs'), '--root', target, '--json'], {
+      cwd: target, encoding: 'utf8', shell: false, timeout: 10_000,
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.ok, true);
+    assert.equal(report.checkedPackages, 2);
+    assert.equal(report.checkedRustFiles, generated.files.filter(file => file.endsWith('.rs')).length);
+    assert.ok(report.checkedDeclarations > 0);
+    assert.deepEqual(report.violations, []);
+    assert.deepEqual(report.errors, []);
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
 });
 
 /** 本实现不冒充 Linux 托盘支持；快捷键 Linux 运行时仍需 X11，深链接仍拒绝。 */

@@ -30,7 +30,7 @@
 
 ### GPUI 原生能力与基础技术选型
 
-- 变更标识：`HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`；`required_version = pending`。
+- 变更标识：`HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`；`required_version = 202610090050`。
 - 托盘、系统通知、自启、单实例与全局快捷键按九字段选择生成自含模板和项目本地依赖；禁用项完全缺席，深链接仍 unavailable/disabled。当前托盘与热键限 macOS/Windows，含 Linux 的目标组合在写入前失败关闭。
 - 选择结束后必须询问配置协助，复用已有答案、跳过禁用项。Harness 源只接受中性能力及移交意愿；通知触发事件、额外菜单、动作、键位和固定/可编辑策略在终端下游唯一根目录确认。
 - 系统通知遵循 Kit 官方接口，应用偏好默认关闭，提交不等于系统权限或送达；自启以 OS 为准并限当前用户，初始化不注册；第二实例仅恢复窗口；热键空合同无默认动作和 OS 注册，回滚失败保留 owned 清理。没有实际可用托盘时关闭退出，托盘成功才关闭隐藏。
@@ -39,13 +39,13 @@
 
 ### GPUI 的 pnpm 工程工具入口
 
-- 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = pending`。
+- 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = 202610090050`。
 - Tauri 与 GPUI 两种 GUI 都要求 Node.js >=24.21.0、pnpm >=12.4.1。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
 - 初始化生成根 package.json，新增 adapter 或既有 GPUI 工程入口迁移只补齐无冲突字段并保留产品配置。升级器继续保护根 package.json，专用合并工具在授权范围内独立执行；同名冲突与已有兼容要求不一致时零写入阻断。实际命令通过只证明对应工程入口，不代替构建、发布或最终验收。
 
 ### GPUI 固定模板、core 优先与独立交付管线
 
-- 变更标识：`HARNESS-FEAT-GPUI-PACKAGING`；`required_version = pending`。
+- 变更标识：`HARNESS-FEAT-GPUI-PACKAGING`；`required_version = 202610090050`。
 - 桌面框架独立选择 Tauri（默认）或 GPUI，保存在 Cargo `gui-framework`。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，24px 折叠按钮的中心落在侧栏右边界，并与顶部 Logo 垂直居中，展开/收起均跨边界悬浮且完整可点击，不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
 - GPUI 与 Tauri 共同遵守 core-first：业务规则、值域、跨字段校验、业务默认值、用例编排、状态转换、稳定错误和权威数据属于共享 core；GPUI 只拥有原生展示、纯交互状态、宿主机制与调用/结果映射。异步业务由 core 暴露运行时中立 API，端侧装配执行，不阻塞窗口线程或创建嵌套 runtime。
 - GPUI 固定接入 `tracing`、`tracing-subscriber`、`tracing-appender` 本地诊断：端侧初始化唯一订阅器，有界后台队列同时写标准错误和按日滚动文件，正常退出刷新，失败报告稳定类别；不默认遥测、不记录秘密、个人数据或原始业务载荷。core 可按真实业务需要发出脱敏事件，但不得拥有文件 sink 或 GUI 依赖。
@@ -469,7 +469,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202610081442`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202610090050`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
