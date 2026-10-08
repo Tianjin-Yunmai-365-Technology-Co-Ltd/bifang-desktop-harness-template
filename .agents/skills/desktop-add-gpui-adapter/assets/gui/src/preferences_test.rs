@@ -5,7 +5,7 @@ use super::{LanguageChoice, Preferences, ThemeChoice, load_from};
 /// 三态主题、语言与设备侧栏选择可以原样往返。
 #[test]
 fn preferences_round_trip() {
-    let value = Preferences { theme: ThemeChoice::Dark, language: LanguageChoice::Chinese, collapsed: true, bounds: Some([30., 40., 1200., 800.]), maximized: true };
+    let value = Preferences { theme: ThemeChoice::Dark, language: LanguageChoice::Chinese, collapsed: true, bounds: Some([30., 40., 1200., 800.]), maximized: true, @@NOTIFICATION_TEST_VALUE@@ ..Preferences::default() };
     assert_eq!(Preferences::decode(&value.encode()), value);
 }
 

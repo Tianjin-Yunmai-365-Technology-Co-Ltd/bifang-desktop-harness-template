@@ -11,7 +11,7 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 选择桌面应用(GUI) 后，先按表单单独询问 `1. Tauri（默认）/ 2. GPUI`。未回答、留空、跳过或默认取 `tauri`；非法值重问，合法已有答案复用。该默认只解析框架，不取代最终汇总确认。把 `gui-framework = "tauri" | "gpui"` 与接口/平台交给初始化器；它只在 GUI 选中时持久化到根 Cargo metadata，独立于 profile 九字段；旧 GUI 缺失时兼容 Tauri。
 
-本 Skill 下文关于 Tauri 图标/DMG、四项固定插件、六项宿主能力、Mantine/React 与 `$desktop-test-gui-initialization-e2e` 的要求只适用于 Tauri 路径。GPUI 由 `$desktop-add-gpui-adapter` 创建原生 gpui-kit/Rust GUI，单独询问关于页、赞助页和侧栏；六项尚不可用原生能力标为 `unavailable` 并在相同九字段 profile 中写 `disabled`，显式启用请求不能静默通过。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 在项目根提供 Node 验证与发布/打包脚本。GPUI 使用自己的模板、Logo路径、Rust测试、实际构建与 Computer Use 初始化检查，不调用 Tauri能力 Skill。
+本 Skill 下文关于 Tauri 图标/DMG、四项固定插件、六项宿主能力、Mantine/React 与 `$desktop-test-gui-initialization-e2e` 的要求只适用于 Tauri 路径。GPUI 由 `$desktop-add-gpui-adapter` 创建原生 gpui-kit/Rust GUI，GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助页、单实例、全局快捷键和侧栏；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。选完五项桌面能力后必须询问是否协助配置，具体产品动作在终端下游根目录确认。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 在项目根提供 Node 验证与发布/打包脚本。GPUI 使用自己的模板、Logo路径、Rust测试、实际构建与 Computer Use 初始化检查，不调用 Tauri能力 Skill。
 
 发布后动作在框架解析后再次校验：接口含 CLI，或 GUI 目标含 macOS/Windows 时可明确选择 `local_package`；不含 CLI 的仅 Linux GUI 必须明确选择 `push_release_branch`。GPUI GUI 候选由独立 `$desktop-build-gpui-release` 生成本机 macOS `.app`/DMG 或 Windows NSIS，不借用 CLI 或 Tauri 打包。GPUI 终端下游完整保留该打包 Skill、新 adapter Skill 与通用规则，裁掉 Tauri/Mantine/React专属 Skills；Tauri 和非 GUI 下游裁掉 GPUI 专属打包 Skill。完整保留 design-taste-frontend 知识资产的通用要求不变。
 

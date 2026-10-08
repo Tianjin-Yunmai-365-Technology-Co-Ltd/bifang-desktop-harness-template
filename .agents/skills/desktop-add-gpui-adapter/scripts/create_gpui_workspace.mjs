@@ -5,6 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertRealPath, normalizeOptions, renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
 
+import { nativeDependencies } from './gpui_native_capabilities.mjs';
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** 初始化器组合完整工作区；纯适配器渲染库不创建或覆盖 core。 */
@@ -12,7 +14,7 @@ export function renderGpuiFiles(input) {
   const options = normalizeOptions(input);
   const { projectId, owner } = options;
   const files = renderGpuiAdapterFiles({ ...options, neutralCoreProbe: true });
-  files.set('Cargo.toml', `[workspace]\nresolver = "3"\nmembers = ["${projectId}_core", "${projectId}_gui"]\n\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\nrust-version = "1.98.1"\nauthors = [${JSON.stringify(owner)}]\n\n[workspace.dependencies]\n${projectId}_core = { path = "${projectId}_core" }\ngpui-kit = "0.7.1"\nrust-i18n = "4.2.0"\nsys-locale = "0.3.2"\ntracing = { version = "0.1.44", default-features = false, features = ["std"] }\ntracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "registry", "std"] }\ntracing-appender = { version = "0.2.5", default-features = false }\n\n[workspace.metadata.agent-first-harness]\nproject-id = "${projectId}"\ninterfaces = ["gui"]\ntarget-platforms = [${options.targetPlatforms.map(JSON.stringify).join(', ')}]\ngui-framework = "gpui"\n`);
+  files.set('Cargo.toml', `[workspace]\nresolver = "3"\nmembers = ["${projectId}_core", "${projectId}_gui"]\n\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\nrust-version = "1.98.1"\nauthors = [${JSON.stringify(owner)}]\n\n[workspace.dependencies]\n${projectId}_core = { path = "${projectId}_core" }\ngpui-kit = "0.7.1"\nrust-i18n = "4.2.0"\nsys-locale = "0.3.2"\ntracing = { version = "0.1.44", default-features = false, features = ["std"] }\ntracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "registry", "std"] }\ntracing-appender = { version = "0.2.5", default-features = false }\n${nativeDependencies(options).map(([key, value]) => `${key} = ${value}`).join('\n')}\n\n[workspace.metadata.agent-first-harness]\nproject-id = "${projectId}"\ninterfaces = ["gui"]\ntarget-platforms = [${options.targetPlatforms.map(JSON.stringify).join(', ')}]\ngui-framework = "gpui"\n`);
   files.set(`${projectId}_core/Cargo.toml`, `[package]\nname = "${projectId}_core"\nversion.workspace = true\nedition.workspace = true\nrust-version.workspace = true\n`);
   files.set(`${projectId}_core/src/lib.rs`, fs.readFileSync(path.resolve(here, '../assets/core/src/lib.rs'), 'utf8'));
   files.set('.gitignore', '/target/\n/release/\n/.release-clean.*\nCargo.lock\npnpm-lock.yaml\npnpm-package.lock\n');
@@ -26,7 +28,8 @@ export function createGpuiWorkspace(input) {
   assertRealPath(target, true);
   const existing = fs.existsSync(target);
   if (existing && (!fs.lstatSync(target).isDirectory() || fs.readdirSync(target).length)) throw new Error('target must be an absent or empty ordinary directory');
-  const files = renderGpuiFiles(input);
+  const options = normalizeOptions(input);
+  const files = renderGpuiFiles(options);
   const parent = path.dirname(target);
   if (!fs.existsSync(parent)) throw new Error('target parent must already exist');
   const stage = fs.mkdtempSync(path.join(parent, '.gpui-scaffold-'));
@@ -47,7 +50,7 @@ export function createGpuiWorkspace(input) {
     if (existing && !fs.existsSync(target)) fs.mkdirSync(target);
     throw error;
   }
-  return { target, files: [...files.keys()], guiFramework: 'gpui', nativeCapabilities: 'unavailable' };
+  return { target, files: [...files.keys()], guiFramework: 'gpui', nativeCapabilities: Object.fromEntries(['systemTray', 'systemNotification', 'autostart', 'singleInstance', 'globalShortcut', 'deepLink'].map(key => [key, options[key]])) };
 }
 
 /** 命令行只接收已确认的中性初始化字段，不猜测 Git 或策略确认来源。 */

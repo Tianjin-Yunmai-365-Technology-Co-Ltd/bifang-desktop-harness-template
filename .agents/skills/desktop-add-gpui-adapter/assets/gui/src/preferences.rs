@@ -29,6 +29,7 @@ pub struct Preferences {
     pub collapsed: bool,
     pub bounds: Option<[f32; 4]>,
     pub maximized: bool,
+@@NOTIFICATION_FIELD@@
 }
 
 impl Preferences {
@@ -72,6 +73,7 @@ impl Preferences {
                 "language" => value.language = match field { "zh-CN" => LanguageChoice::Chinese, "en-US" => LanguageChoice::English, _ => LanguageChoice::System },
                 "collapsed" => value.collapsed = field == "true",
                 "maximized" => value.maximized = field == "true",
+@@NOTIFICATION_DECODE@@
                 "bounds" => {
                     let fields: Vec<_> = field.split(',').map(str::parse::<f32>).collect();
                     if let [Ok(x), Ok(y), Ok(width), Ok(height)] = fields.as_slice() {
@@ -89,7 +91,9 @@ impl Preferences {
         let theme = match self.theme { ThemeChoice::System => "system", ThemeChoice::Light => "light", ThemeChoice::Dark => "dark" };
         let language = match self.language { LanguageChoice::System => "system", LanguageChoice::Chinese => "zh-CN", LanguageChoice::English => "en-US" };
         let bounds = self.bounds.map(|b| format!("{},{},{},{}", b[0], b[1], b[2], b[3])).unwrap_or_default();
-        format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\n", self.collapsed, self.maximized)
+        let @@NOTIFICATION_MUT@@text = format!("theme={theme}\nlanguage={language}\ncollapsed={}\nmaximized={}\nbounds={bounds}\n", self.collapsed, self.maximized);
+@@NOTIFICATION_ENCODE@@
+        text
     }
 }
 
@@ -128,6 +132,8 @@ fn path() -> Option<PathBuf> {
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")));
     root.filter(|root| root.is_absolute()).map(|root| root.join("app-@@KEBAB_ID@@").join("preferences.txt"))
 }
+
+@@INSTANCE_DIRECTORY@@
 
 /// 有界读取发生在事件循环前；后台线程在全部信号处理完毕后释放。
 pub fn load() -> (Preferences, Writer) {

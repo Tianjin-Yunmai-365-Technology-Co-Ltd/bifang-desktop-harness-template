@@ -103,10 +103,11 @@ test('gpui_packaging_and_compiled_release_notes_have_neutral_defaults', () => {
   assert.match(files.get('example_tool_gui/src/lifecycle_test.rs'), /native_shutdown_flushes_preferences_and_final_log_exactly_once/);
 });
 
-/** 未成熟的六项能力不能通过参数偷偷启用。 */
+/** 未覆盖的深链接与非法能力选择不能通过参数偷偷启用。 */
 test('unavailable_native_capabilities_fail_closed_before_any_write', () => {
-  for (const key of ['systemTray', 'systemNotification', 'autostart', 'singleInstance', 'deepLink', 'globalShortcut']) {
-    assert.throws(() => renderGpuiFiles({ ...identity, [key]: 'enabled' }), new RegExp(`${key} is unavailable`));
+  assert.throws(() => renderGpuiFiles({ ...identity, deepLink: 'enabled' }), /deepLink is unavailable/);
+  for (const key of ['systemTray', 'systemNotification', 'autostart', 'singleInstance', 'globalShortcut']) {
+    assert.throws(() => renderGpuiFiles({ ...identity, [key]: 'pending' }), new RegExp(`${key} must be`));
   }
 });
 

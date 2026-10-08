@@ -7,10 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { renderDefaultConfig } from '../../desktop-build-gpui-release/scripts/gpui_config.mjs';
 import { renderPlatformIcons, renderDmgBackground } from '../../desktop-build-gpui-release/scripts/gpui_icons.mjs';
 import { renderGpuiPackageJson } from './gpui_node_tooling.mjs';
+import { normalizeCapabilities, nativeTemplate, nativeMemberDependencies, renderNativeProfile, trayPixels } from './gpui_native_capabilities.mjs';
+import { parseGpuiInitializationProfile } from './gpui_profile.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const assetsRoot = path.resolve(here, '../assets');
-const nativeCapabilities = ['systemTray', 'systemNotification', 'autostart', 'singleInstance', 'deepLink', 'globalShortcut'];
 const text = {
   'zh-CN': {
     navigation: { settings: '设置', about: '关于', sponsor: '赞助' },
@@ -43,7 +44,7 @@ export function assertRealPath(value, allowMissing = false) {
   }
 }
 
-/** 输入严格绑定双语身份、支持页与六项尚不可用的原生能力边界。 */
+/** 输入严格绑定双语身份、九字段与条件原生能力平台边界。 */
 export function normalizeOptions(options) {
   const result = { aboutPage: 'enabled', sponsorPage: 'enabled', sidebarMode: 'detailed', targetPlatforms: ['macos'], ...options };
   if (!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(result.projectId ?? '') || result.projectId.length > 64) {
@@ -58,13 +59,10 @@ export function normalizeOptions(options) {
     if (!['enabled', 'disabled'].includes(result[key])) throw new Error(`${key} must be enabled or disabled`);
   }
   if (!['compact', 'detailed'].includes(result.sidebarMode)) throw new Error('sidebarMode must be compact or detailed');
-  for (const key of nativeCapabilities) {
-    if (result[key] !== undefined && result[key] !== 'disabled') throw new Error(`${key} is unavailable in the GPUI baseline; only disabled is supported`);
-    result[key] = 'disabled';
-  }
   if (!Array.isArray(result.targetPlatforms) || !result.targetPlatforms.length || result.targetPlatforms.some(value => !['macos', 'windows', 'linux'].includes(value)) || new Set(result.targetPlatforms).size !== result.targetPlatforms.length) {
     throw new Error('targetPlatforms must contain distinct macos, windows or linux values');
   }
+  normalizeCapabilities(result);
   if (result.logo !== undefined) {
     if (!path.isAbsolute(result.logo)) throw new Error('logo must be an absolute PNG path');
     assertRealPath(result.logo);
@@ -98,14 +96,34 @@ export function renderGpuiAdapterFiles(input) {
   const about = options.aboutPage === 'enabled';
   const sponsor = options.sponsorPage === 'enabled';
   const compact = options.sidebarMode === 'compact';
+  const notification = options.systemNotification === 'enabled';
+  const native = nativeTemplate(options);
+  const nativeDeps = nativeMemberDependencies(options);
   const profile = JSON.parse(fs.readFileSync(path.join(assetsRoot, 'brand-support/brand-support-profile.json'), 'utf8'));
   const contact = profile.contacts.windowTitle;
   const logoExtension = options.logoBytes ? 'png' : 'svg';
   const manifest = JSON.parse(fs.readFileSync(path.join(assetsRoot, 'brand-support/media-manifest.json'), 'utf8'));
   const media = sponsor ? manifest.assets : [];
   const tokens = {
+    ...native.tokens,
     CORE_PROBE: options.neutralCoreProbe ? `        let _definition = ${projectId}_core::product_definition();` : `        use ${projectId}_core as _;`,
     PROJECT_ID: projectId, KEBAB_ID: projectId.replaceAll('_', '-'), NAME_ZH: rustText(nameZh), NAME_EN: rustText(nameEn), OWNER: rustText(owner),
+    APP_IDENTIFIER: `com.${projectId.replaceAll('_', '-')}.app`,
+    NOTIFICATION_MODULE: notification ? 'mod notifications;' : '',
+    SETTINGS_TEST_MODULE: notification ? '#[cfg(test)]\nmod settings_test;' : '',
+    NOTIFICATION_FIELD: notification ? '    pub system_notification: bool,' : '',
+    NOTIFICATION_TEST_VALUE: notification ? 'system_notification: true,' : '',
+    NOTIFICATION_DECODE: notification ? '                "system_notification" => value.system_notification = field == "true",' : '',
+    NOTIFICATION_ENCODE: notification ? '        text.push_str(&format!("system_notification={}\\n", self.system_notification));' : '',
+    NOTIFICATION_MUT: notification ? 'mut ' : '',
+    NOTIFICATION_SETTING: notification ? `            .child(self.card("settings.system_notification", "settings.system_notification_detail", cx)
+                .child(gpui_kit::component::switch::Switch::new("system-notification-switch")
+                    .label(self.t("settings.system_notification")).checked(self.preferences.system_notification)
+                    .on_click(cx.listener(|this, enabled, _, cx| {
+                        this.preferences.system_notification = *enabled;
+                        this.writer.save(&this.preferences);
+                        cx.notify();
+                    }))))` : '',
     LOGO_EXT: logoExtension, COMPACT: String(compact), CONTACT_TITLE: ` ${rustText(contact.channel)}:${rustText(contact.value)}`, BRAND_CONTACT: rustText(profile.contacts.support.value),
     ABOUT_MODULE: about ? 'mod about;' : '', SPONSOR_MODULE: sponsor ? 'mod sponsor;' : '',
     ABOUT_VARIANT: about ? '    About,' : '', SPONSOR_VARIANT: sponsor ? '    Sponsor,' : '',
@@ -127,9 +145,12 @@ export function renderGpuiAdapterFiles(input) {
   files.set('package.json', renderGpuiPackageJson());
   files.set(`${projectId}_gui/Cargo.toml`, `[package]\nname = "${projectId}_gui"\nversion.workspace = true\nedition.workspace = true\nrust-version.workspace = true\n\n[dependencies]\n${projectId}_core.workspace = true\ngpui-kit.workspace = true\nrust-i18n.workspace = true\nsys-locale.workspace = true\ntracing.workspace = true\ntracing-subscriber.workspace = true\ntracing-appender.workspace = true\n\n[dev-dependencies]\ngpui-kit = { workspace = true, features = ["test-support"] }\n`);
   files.set(`${projectId}_gui/build.rs`, template('gui/build.rs', tokens));
-  for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs'] : [])]) {
+  const guiCargo = files.get(`${projectId}_gui/Cargo.toml`);
+  files.set(`${projectId}_gui/Cargo.toml`, guiCargo.replace('\n[dev-dependencies]', `\n${nativeDeps.normal}${nativeDeps.target}\n[dev-dependencies]`));
+  for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', ...native.files, ...(notification ? ['notifications.rs', 'notifications_test.rs', 'app/settings_test.rs'] : []), ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs'] : [])]) {
     files.set(`${projectId}_gui/src/${file}`, template(`gui/src/${file}`, tokens));
   }
+  if (options.systemTray === 'enabled') files.set(`${projectId}_gui/assets/tray.rgba`, trayPixels(options.logoBytes));
   files.set(`${projectId}_gui/assets/logo.${logoExtension}`, options.logoBytes ?? fs.readFileSync(path.join(assetsRoot, 'gui/assets/logo.svg')));
   files.set('packaging/gpui.json', JSON.stringify(renderDefaultConfig({ projectId, nameZh, nameEn, owner, logoPath: `${projectId}_gui/assets/logo.${logoExtension}` }), null, 2) + '\n');
   files.set('packaging/macos/background.png', renderDmgBackground());
@@ -147,6 +168,13 @@ export function renderGpuiAdapterFiles(input) {
     if (sponsor) localized.sponsor = brand.sponsor;
     else delete localized.navigation.sponsor;
     if (compact) delete localized.sidebar;
+    if (notification) Object.assign(localized.settings, locale === 'zh-CN'
+      ? { system_notification: '应用通知', system_notification_detail: '允许应用提交系统通知；系统权限与送达由操作系统决定。开启此项不会发送测试通知。' }
+      : { system_notification: 'Application notifications', system_notification_detail: 'Allow this app to submit system notifications. Permission and delivery are controlled by the operating system. This switch sends no test message.' });
+    if (options.systemTray === 'enabled') localized.tray = locale === 'zh-CN' ? { show_window: '显示窗口', quit: '退出' } : { show_window: 'Show Window', quit: 'Quit' };
+    if (options.autostart === 'enabled') Object.assign(localized.settings, locale === 'zh-CN'
+      ? { autostart: '开机自启', autostart_detail: '登录系统后正常显示应用，实际状态以操作系统登录项为准。', autostart_error: '操作失败；可读取时已显示系统实际状态。', autostart_unknown: '当前无法读取系统登录项，请重试。', reload: '重新读取' }
+      : { autostart: 'Start at login', autostart_detail: 'Show this app normally after sign-in. The operating system registration is authoritative.', autostart_error: 'The operation failed. The actual system state is shown when readable.', autostart_unknown: 'The system login item is unavailable. Retry reading it.', reload: 'Reload' });
     files.set(`${projectId}_gui/locales/${locale}.json`, JSON.stringify(localized, null, 2) + '\n');
   }
   for (const asset of media) {
@@ -156,7 +184,8 @@ export function renderGpuiAdapterFiles(input) {
     if (bytes.length !== asset.sizeBytes || crypto.createHash('sha256').update(bytes).digest('hex') !== asset.sha256) throw new Error(`managed sponsor asset changed: ${asset.sourcePath}`);
     files.set(`${projectId}_gui/assets/${asset.bundlePath}`, bytes);
   }
-  files.set('docs/GUI_APP_PROFILE.md', `# GUI 应用资料\n\n- 中文名称：${nameZh}\n- English name: ${nameEn}\n- GUI framework: gpui\n- owner: ${owner}\n- Logo: ${options.logoBytes ? 'caller-selected PNG; upstream identity evidence remains required' : 'neutral engineering fixture; not a confirmed product identity'}\n- unavailable native capabilities: system_tray, system_notification, autostart, single_instance, deep_link, global_shortcut\n\n\`\`\`gui-initialization-config\nsystem_tray: disabled\nsystem_notification: disabled\nautostart: disabled\nabout_page: ${options.aboutPage}\nsponsor_page: ${options.sponsorPage}\nsingle_instance: disabled\ndeep_link: disabled\nglobal_shortcut: disabled\nsidebar_mode: ${options.sidebarMode}\n\`\`\`\n`);
+  files.set('docs/GUI_APP_PROFILE.md', `# GUI 应用资料\n\n- 中文名称：${nameZh}\n- English name: ${nameEn}\n- GUI framework: gpui\n- owner: ${owner}\n- Logo: ${options.logoBytes ? 'caller-selected PNG; upstream identity evidence remains required' : 'neutral engineering fixture; not a confirmed product identity'}\n- unavailable native capabilities: deep_link\n${renderNativeProfile(options)}`);
+  parseGpuiInitializationProfile(files.get('docs/GUI_APP_PROFILE.md'));
   files.set(`${projectId}_gui/assets/SOURCE.md`, `# 本地资源来源\n\n应用 Logo 来自${options.logoBytes ? '调用方明确选择的 PNG；正式身份核对由初始化器负责' : '本 Skill 自绘中性工程夹具，不代表正式产品身份'}。\n\n${sponsor ? 'sponsor/* 逐字节复用 Harness desktop-prepare-gui-support-surfaces 的受管品牌资产；批准范围、尺寸、SHA-256、敏感支付材料分类及许可责任见 sponsor-media-manifest.json。支付二维码仅静态展示，不授权支付自动化或公开再许可。' : '赞助页未选择，没有赞助媒体或支付材料。'}\n`);
   if (sponsor) files.set(`${projectId}_gui/assets/sponsor-media-manifest.json`, JSON.stringify(manifest, null, 2) + '\n');
   return files;

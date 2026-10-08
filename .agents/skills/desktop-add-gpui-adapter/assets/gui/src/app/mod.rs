@@ -1,6 +1,7 @@
 //! 原生壳层只拥有导航、外观和设备偏好；领域状态始终从直接依赖的共享核心读取。
 
 mod settings;
+@@SETTINGS_TEST_MODULE@@
 @@ABOUT_MODULE@@
 @@SPONSOR_MODULE@@
 
@@ -49,7 +50,7 @@ impl Shell {
                 this.remember_window(window);
                 this.writer.save(&this.preferences);
             });
-            true
+@@NATIVE_CLOSE@@
         });
         let bounds_subscription = cx.observe_window_bounds(window, |this, window, _| { this.remember_window(window); });
         let locale = preferences.locale();
@@ -113,6 +114,7 @@ impl Shell {
     fn select_language(&mut self, language: LanguageChoice, cx: &mut Context<Self>) {
         self.preferences.language = language;
         self.locale = self.preferences.locale();
+@@NATIVE_LANGUAGE@@
         self.apply_language();
         self.writer.save(&self.preferences);
         cx.refresh_windows();

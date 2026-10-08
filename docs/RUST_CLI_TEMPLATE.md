@@ -10,7 +10,7 @@
 
 - Tauri走 `$desktop-add-gui-adapter`。下文Tauri插件、Tokio-backed GUI runtime/command、WebView/IPC/ACL、React/Mantine/Jotai、Tabler、TS门禁、Tauri图标/DMG/NSIS、updater及Tauri初始化E2E只在这条路径生效。
 - GPUI走 `$desktop-add-gpui-adapter`，直接依赖共享core，根workspace声明 `gpui-kit = "0.7.1"`、`rust-i18n = "4.2.0"` 的三段兼容下界，成员只 `workspace = true`。GPUI原生事件循环与其任务/executor管理GUI生命周期，core保持运行时中立；不因异步core创建嵌套runtime，不把UI线程阻塞等待当成异步。独立关于/赞助/设置模板、主题、i18n与sidebar遵守 [GPUI设计标准](design_standards/gpui_gui.md)。不引入Tauri/React；Node.js/pnpm 用于项目根的验证、发布和打包脚本，不要求前端安装、前端锁文件或前端测试。
-- GPUI继续用九字段profile；`about_page`、`sponsor_page`、`sidebar_mode`逐项询问，六项原生宿主能力首版为 `unavailable`，对应值必须 `disabled`。显式启用请求不得静默继续。三候选Logo规则通用，资源/图标路径交给GPUI Skill。仅用户明确授权的工程验证临时项目可采用参考中性图，不能报告正式身份已通过。
+- GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助页、单实例、全局快捷键和侧栏；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。选完五项桌面能力后必须询问是否协助配置，具体产品动作在终端下游根目录确认。初始化必须读取 `$desktop-add-gpui-adapter` 的 `references/dependency-baseline.md`（仅 GPUI 下游保留），参考工程的运行时、序列化、时间、数值、存储、网络和资源库按真实用途选用，不把整张依赖表无条件装入中性壳层。三候选Logo规则通用，资源/图标路径交给GPUI Skill。仅用户明确授权的工程验证临时项目可采用参考中性图，不能报告正式身份已通过。
 - GPUI初始化运行相关非空Rust测试、真实 `cargo build` 和Computer Use，验证实际窗口、侧栏、设置、语言/主题、条件支持页与关闭退出；不调用Tauri插件结构检查。清理隔离偏好与owned进程后才裁剪初始化能力/创建独立基线，不把本机调试结果当候选验收或其他平台证明。
 - GPUI 本地打包使用独立 `$desktop-build-gpui-release`，原生 macOS 应用包/DMG 与 Windows x64 NSIS 可选择 `local_package`；仅 Linux 且无 CLI 仍须明确选 `push_release_branch`。它通过项目根 `pnpm run gpui:package` 调用独立 Node helper，不依赖 Tauri 配置或前端测试，普通本地试包与正式候选分别走 `local`/`candidate` 模式。
 

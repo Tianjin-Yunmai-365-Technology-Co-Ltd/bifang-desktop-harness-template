@@ -8,7 +8,7 @@ Bifang Desktop Harness Template
 
 你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、TUI、MCP、GUI 中的哪些界面。它会创建一个独立的 Git 项目，搭好共享核心、所选界面、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
-选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。未回答或跳过框架时使用 Tauri；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。当前 GPUI 首版模板尚未提供托盘、通知、自启、单实例、深链接和全局快捷键，表单会明确标为不可用并保持禁用；后续可通过独立能力 Skill、真实实现与宿主验证增加，这不是框架的永久限制。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
+选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。未回答或跳过框架时使用 Tauri；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助页、单实例、全局快捷键和侧栏；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。选完五项桌面能力后必须询问是否协助配置，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
 GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 使用 Rust/cargo-packager 管线构建原生 macOS 应用包/DMG 或 Windows x64 NSIS。目标含 macOS/Windows 时可选择本地打包；仅 Linux 且无 CLI 时须选择提交远程。两种 GUI 都使用 Node.js/pnpm 工程工具；GPUI 在项目根提供验证、发布检查与原生打包脚本，React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
 
@@ -70,7 +70,7 @@ GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-b
    ```
 
 2. Agent 会一次询问尚未确定的基础信息：中英文项目名、项目标识、保存路径、负责人、目标平台、界面组合和 Agent 策略。推荐策略包含默认关闭的自动左侧 Task；选择自定义时可逐项开启。中英文名称至少提供一个，另一个可以由 Agent 翻译后一起确认。
-3. 选择 GUI 后先选 Tauri（默认）或 GPUI；GPUI 只继续询问关于页、赞助页和侧栏，其余六项原生能力明确不可用并保持禁用。选择 Tauri 时，Agent 还会逐项确认系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键和侧栏样式；system-locale、updater、window-state、dialog 作为固定基线不额外询问。dialog 默认向主窗口开放全部官方对话框类型，但不授权通用文件读写。启用全局快捷键只安装能力，中性初始化不绑定默认按键或动作；产品动作、固定/可编辑策略和初始 chord 在终端下游完全按需求决定。随后按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示 3 个未经验证或标准化的原始 Logo 候选。只有你选定其中一个后，Agent 才会验证并按需标准化所选项；未选项不会被额外处理。
+3. 选择 GUI 后先选 Tauri（默认）或 GPUI；GPUI 逐项询问八项可选配置，深链接保持禁用；托盘与热键当前限 macOS/Windows。选完桌面能力后继续询问配置协助，产品配置在实例化后的下游处理。选择 Tauri 时，Agent 还会逐项确认系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键和侧栏样式；system-locale、updater、window-state、dialog 作为固定基线不额外询问。dialog 默认向主窗口开放全部官方对话框类型，但不授权通用文件读写。启用全局快捷键只安装能力，中性初始化不绑定默认按键或动作；产品动作、固定/可编辑策略和初始 chord 在终端下游完全按需求决定。随后按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示 3 个未经验证或标准化的原始 Logo 候选。只有你选定其中一个后，Agent 才会验证并按需标准化所选项；未选项不会被额外处理。
 4. 写入前，Agent 会展示完整汇总和最终项目路径。你确认后，它才会创建文件、检查所需环境并初始化项目。
 5. 汇总确认后，Agent 会先检查 Git：缺失时按当前平台的受管方式安装，可证明低于最低下界时自动升级，范围内版本原样复用；随后才写入脚手架。Windows 自动安装若受管理员权限、UAC 或组织策略阻断，Agent 会给出已证实缺失项的官方安装入口和诊断；用户安装并告知继续后，先在原宿主只读复探。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、安装或升级变化、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。
 
@@ -133,7 +133,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
 - **TUI**：适合在终端中用键盘操作，基于 Ratatui 与 tui-realm。
 - **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
-- **GUI**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板。Tauri 路径固定接入系统语言、窗口状态、updater 和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
+- **GUI**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板，按选择加入五项桌面能力并遵守自含依赖标准。Tauri 路径固定接入系统语言、窗口状态、updater 和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
 
 这些界面可以单独使用，也可以组合使用。与界面无关的业务规则统一放在共享核心（shared core）中，界面只负责输入、展示和系统交互。
 

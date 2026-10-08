@@ -1,4 +1,4 @@
-//! 设置页仅展示应用身份、语言和三态主题，不建立未选择的桌面能力控件。
+//! 设置页展示固定偏好与明确选择的桌面能力，事件归属实际控件。
 
 use super::Shell;
 use crate::preferences::{LanguageChoice, ThemeChoice};
@@ -34,6 +34,8 @@ impl Shell {
                         .when(self.preferences.language == language, |button| button.primary())
                         .on_click(cx.listener(move |this, _, _, cx| this.select_language(language, cx)))
                 }))))
+@@NOTIFICATION_SETTING@@
+@@AUTOSTART_SETTING@@
             .into_any_element()
     }
 

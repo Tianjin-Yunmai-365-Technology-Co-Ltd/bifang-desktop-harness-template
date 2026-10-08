@@ -100,6 +100,30 @@ test('conflicting_dependency_fails_without_partial_adapter', () => {
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
 });
 
+/** 按需原生依赖同样遵循冲突零写入，禁用时不引入无关宿主库。 */
+test('native_dependency_selection_and_conflicts_preserve_existing_workspace', () => {
+  for (const conflict of [false, true]) {
+    const target = fixture();
+    try {
+      const file = path.join(target, 'Cargo.toml');
+      let source = fs.readFileSync(file, 'utf8');
+      if (conflict) { source = source.replace('[workspace.dependencies]', '[workspace.dependencies]\ninterprocess = "1.0.0"'); fs.writeFileSync(file, source); }
+      const options = { ...identity, target, singleInstance: 'enabled', systemNotification: 'enabled' };
+      if (conflict) {
+        assert.throws(() => addGpuiAdapter(options), /conflicting workspace dependency interprocess/);
+        assert.equal(fs.readFileSync(file, 'utf8'), source);
+        assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
+      } else {
+        addGpuiAdapter(options);
+        const result = fs.readFileSync(file, 'utf8');
+        assert.match(result, /interprocess = "2\.4\.4"/);
+        assert.doesNotMatch(result, /tray-icon|auto-launch|global-hotkey/);
+        assert.ok(fs.existsSync(path.join(target, 'existing_tool_gui/src/native/instance.rs')));
+      }
+    } finally { fs.rmSync(target, { recursive: true, force: true }); }
+  }
+});
+
 /** 子路径中的符号链接不能用来读取别处 core 或写入别处资源。 */
 test('add_only_rejects_symlink_core_manifest', () => {
   const target = fixture();

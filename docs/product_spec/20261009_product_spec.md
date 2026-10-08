@@ -1,6 +1,6 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-10-08
+> 记忆日期：2026-10-09
 >
 > 状态：Approved
 >
@@ -28,6 +28,15 @@
 
 ## MVP 包含
 
+### GPUI 原生能力与基础技术选型
+
+- 变更标识：`HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`；`required_version = pending`。
+- 托盘、系统通知、自启、单实例与全局快捷键按九字段选择生成自含模板和项目本地依赖；禁用项完全缺席，深链接仍 unavailable/disabled。当前托盘与热键限 macOS/Windows，含 Linux 的目标组合在写入前失败关闭。
+- 选择结束后必须询问配置协助，复用已有答案、跳过禁用项。Harness 源只接受中性能力及移交意愿；通知触发事件、额外菜单、动作、键位和固定/可编辑策略在终端下游唯一根目录确认。
+- 系统通知遵循 Kit 官方接口，应用偏好默认关闭，提交不等于系统权限或送达；自启以 OS 为准并限当前用户，初始化不注册；第二实例仅恢复窗口；热键空合同无默认动作和 OS 注册，回滚失败保留 owned 清理。没有实际可用托盘时关闭退出，托盘成功才关闭隐藏。
+- GPUI 初始化 Skill 必须读取自含 dependency-baseline：示例全部直接库作为基础技术选型，固定壳层无条件、原生能力按选择、运行时/序列化/网络/数值/资源等按真实用途采用最小 features；不复制业务代码、锁文件或未使用依赖，不全局安装。core 与 adapter 的职责仍由 core-first 管理。
+- 成功标准为相关非空生成/冲突/裁剪与 Rust 回归通过，初始化和候选阶段再按实际宿主验证所选能力并恢复测试副作用；未执行平台、打包权限或第三方内部线程限制必须如实报告。
+
 ### GPUI 的 pnpm 工程工具入口
 
 - 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = pending`。
@@ -41,7 +50,7 @@
 - GPUI 与 Tauri 共同遵守 core-first：业务规则、值域、跨字段校验、业务默认值、用例编排、状态转换、稳定错误和权威数据属于共享 core；GPUI 只拥有原生展示、纯交互状态、宿主机制与调用/结果映射。异步业务由 core 暴露运行时中立 API，端侧装配执行，不阻塞窗口线程或创建嵌套 runtime。
 - GPUI 固定接入 `tracing`、`tracing-subscriber`、`tracing-appender` 本地诊断：端侧初始化唯一订阅器，有界后台队列同时写标准错误和按日滚动文件，正常退出刷新，失败报告稳定类别；不默认遥测、不记录秘密、个人数据或原始业务载荷。core 可按真实业务需要发出脱敏事件，但不得拥有文件 sink 或 GUI 依赖。
 - 独立 `$desktop-build-gpui-release` 维护项目本地 cargo-packager 工具、配置和 Rust 构建：原生 macOS 应用包/DMG 与 Windows x64 NSIS；不复用 Tauri 前端或打包 helper。普通本地试包与正式候选分开，候选复核 clean 发布上下文/tag、全量非空 Rust 测试、当次 E2E/签名选择、许可证、更新日志和最终包字节后形成 pending 原子证据；实际验收另行执行。Linux 包与跨宿主构建未支持，不能从当前宿主推断通过。
-- 初始化和升级仅向 GPUI 项目传播该 Skill；macOS/Windows GPUI 可选择未来 local_package，仅 Linux 且无 CLI 仍须选择 push_release_branch。六项原生可选能力及 updater/dialog 的既有 unavailable 边界不由打包能力改变。
+- 初始化和升级仅向 GPUI 项目传播该 Skill；macOS/Windows GPUI 可选择未来 local_package，仅 Linux 且无 CLI 仍须选择 push_release_branch。原生可选能力以本规格 GPUI 原生能力节为准；深链接及 updater/dialog 的 unavailable 边界不由打包能力改变。
 
 ### 发布后远端主分支与 release 同步
 

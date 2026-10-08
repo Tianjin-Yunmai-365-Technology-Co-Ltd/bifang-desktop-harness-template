@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { assertRealPath, normalizeOptions, renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
 import { renderGpuiPackageJson } from './gpui_node_tooling.mjs';
 import { packageSnapshot, assertPackageSnapshot } from './merge_gpui_node_tooling.mjs';
+import { nativeDependencies } from './gpui_native_capabilities.mjs';
 
 /** 只接受可明确定位的唯一 TOML 节，非受支持布局失败而不猜测写入位置。 */
 function section(source, name) {
@@ -92,6 +93,7 @@ export function addGpuiAdapter(input) {
     ['tracing', '{ version = "0.1.44", default-features = false, features = ["std"] }'],
     ['tracing-subscriber', '{ version = "0.3.23", default-features = false, features = ["fmt", "registry", "std"] }'],
     ['tracing-appender', '{ version = "0.2.5", default-features = false }'],
+    ...nativeDependencies(options),
   ]) cargo = dependency(cargo, key, value);
   const files = renderGpuiAdapterFiles(options);
   const originalPackage = packageSnapshot(target);

@@ -4,7 +4,7 @@
 
 桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri图标/DMG、Tauri初始化E2E与updater合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对两条路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
 
-GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版六项原生宿主能力明确为 `unavailable` 并写 `disabled`，显式启用请求必须处理为不可用选择，不伪装支持或默许接线。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux 且无 CLI 时必须选 `push_release_branch`。
+GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助页、单实例、全局快捷键和侧栏；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。选完五项桌面能力后必须询问是否协助配置，具体产品动作在终端下游根目录确认。实际依赖和通知官方 API 边界以 GPUI Skill 的自含引用为准；禁用能力不生成实现或依赖。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux 且无 CLI 时必须选 `push_release_branch`。
 
 ## 1. 适用范围与规则等级
 
