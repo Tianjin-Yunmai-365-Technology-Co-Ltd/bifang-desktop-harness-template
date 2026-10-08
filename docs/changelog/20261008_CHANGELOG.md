@@ -2,7 +2,7 @@
 
 ## 变化
 
-- `HARNESS-CHANGE-INITIALIZATION-PROGRAM-TYPE-LABELS`（`required_version = 202609302018`，当前版本基线；本次未发布，适用源提交须包含本条改动）：初始化表单把“接口/接口组合”统一显示为“程序类型”，选项改为命令行(CLI)、终端UI(TUI)、MCP、桌面应用(GUI)，保留多选与显式确认默认 CLI。README、实例化和直接初始化入口同步；内部 `CLI/TUI/MCP/GUI` 标识与 Cargo `interfaces` 不变。既有下游升级按 [程序类型名称升级映射](../../.agents/skills/desktop-upgrade-harness/references/program-type-labels.md) 核对已有工程展示文案；不迁移配置值、不重新询问选择、不恢复已删除的初始化入口，无相关展示时记为不适用。
+- `HARNESS-CHANGE-INITIALIZATION-PROGRAM-TYPE-LABELS`（`required_version = 202610080921`，已在本次正式发布取号时物化）：初始化表单把“接口/接口组合”统一显示为“程序类型”，选项改为命令行(CLI)、终端UI(TUI)、MCP、桌面应用(GUI)，保留多选与显式确认默认 CLI。README、实例化和直接初始化入口同步；内部 `CLI/TUI/MCP/GUI` 标识与 Cargo `interfaces` 不变。既有下游升级按 [程序类型名称升级映射](../../.agents/skills/desktop-upgrade-harness/references/program-type-labels.md) 核对已有工程展示文案；不迁移配置值、不重新询问选择、不恢复已删除的初始化入口，无相关展示时记为不适用。
 
 ## 移除
 

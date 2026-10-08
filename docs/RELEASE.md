@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- 当前版本：[`Version.md`](../Version.md) 中记录的 `202609302018`（发布状态以适用 Git 引用复核结果为准）
+- 当前版本：[`Version.md`](../Version.md) 中记录的 `202610080921`（发布状态以适用 Git 引用复核结果为准）
 - 时间版本起始值：[`Version.md`](../Version.md) 中记录的 `202607301002`
 - 模板版本事实来源：根目录 `Version.md`；本文件只维护版本与发布规则
 - 下游 Rust 项目当前版本事实来源：根 `Cargo.toml` 的 `[workspace.package].version`；`.harness/version-state.json` 保存正式发布周期、待发布变化及稳定 ID 去重状态
@@ -119,7 +119,7 @@ Harness 源码归档在用户另行要求生成时，只创建相邻 `<artifact>
 
 构建请求、执行、重试、测试结果、产物路径/摘要/签名状态，以及候选 E2E、完整验收和就绪复核，均只进入忽略的 `release/` 原子证据及最终回复，不自动写入 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification。Git 发布已在合并主分支并创建 tag 时结束；下一开发分支须以该主分支/tag 的精确版本和 40 位 HEAD 调用 `finalize-release`，恢复版本周期。真实渠道分发或独立回顾审计可按其独立触发条件追加记录，但不得反向批准活动候选。
 
-发布审查启用时，manifest 另记录 `reviewedSourceCommit`，并要求它逐字段复制 `.harness/release-context.json` 的 `releaseReview.reviewedSourceCommit`，且该值等于上下文 `sourceHead`；最终构建 HEAD/manifest `sourceCommit` 是发布元数据提交和普通合并完成后由主分支与 tag 指向的候选提交，两者不要求相等，也不施加祖先或线性历史门禁。关闭审查时 `reviewedSourceCommit` 与 `reviewEvidence` 一并缺席。发布上下文只保存选择和结果，不设置审查后路径白名单。
+发布审查启用时，manifest 另记录 `reviewedSourceCommit`，并要求它逐字段复制 `.harness/release-context.json` 的 `releaseReview.reviewedSourceCommit`，且该值等于上下文 `sourceHead`；最终构建 HEAD/manifest `sourceCommit` 是发布元数据提交和普通合并完成后由主分支与 tag 指向的候选提交，两者不要求相等，但已审查 `sourceHead` 必须是最终提交的祖先；启用审查时最终提交相对它只能改变被冻结的两份发布元数据，不要求线性历史。关闭审查时 `reviewedSourceCommit` 与 `reviewEvidence` 一并缺席。发布上下文保存审查选择、结果和可复算的范围摘要，后续候选只读复核这些事实。
 
 ## Git 发布后构建与完整验收
 
