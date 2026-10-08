@@ -19,6 +19,9 @@ test('workspace_has_direct_core_dependency_and_central_native_dependencies', () 
   assert.match(root, /gpui-kit = "0\.7\.1"/);
   assert.match(root, /rust-i18n = "4\.2\.0"/);
   assert.match(root, /sys-locale = "0\.3\.2"/);
+  assert.match(root, /tracing = \{ version = "0\.1\.44", default-features = false/);
+  assert.match(root, /tracing-subscriber = \{ version = "0\.3\.23", default-features = false/);
+  assert.match(root, /tracing-appender = \{ version = "0\.2\.5", default-features = false/);
   const gui = files.get('example_tool_gui/Cargo.toml');
   assert.match(gui, /example_tool_core\.workspace = true/);
   assert.doesNotMatch(gui, /version\s*=|tokio|tauri|serde/);
@@ -54,10 +57,46 @@ test('enabled_sponsor_embeds_complete_managed_local_media', () => {
     assert.ok(assets.includes(`include_bytes!("../assets/${asset.bundlePath}")`));
   }
   const sponsor = files.get('example_tool_gui/src/app/sponsor.rs');
-  assert.match(sponsor, /sponsor_tier\("sponsor\.tier1_name", 19/);
-  assert.match(sponsor, /sponsor_tier\("sponsor\.tier2_name", 199/);
-  assert.match(sponsor, /sponsor_tier\("sponsor\.tier3_name", 1999/);
-  assert.match(sponsor, /viewport_size\(\)\.width >= px\(1100\.\)/);
+  assert.match(sponsor, /sponsor_tier\(0, "sponsor\.tier1_name", 19/);
+  assert.match(sponsor, /sponsor_tier\(1, "sponsor\.tier2_name", 199/);
+  assert.match(sponsor, /sponsor_tier\(2, "sponsor\.tier3_name", 1999/);
+  assert.match(sponsor, /window.viewport_size\(\).width\) - self.sidebar_width\(\)/);
+  assert.ok(files.has('example_tool_gui/src/app/sponsor_test.rs'));
+});
+
+/** 两种侧栏配置都带真实布局回归；赞助关闭后条件源码和回归一同裁掉。 */
+test('fixed_native_shell_and_conditional_layout_regressions_are_generated', () => {
+  for (const sidebarMode of ['compact', 'detailed']) {
+    const files = renderGpuiFiles({ ...identity, sidebarMode });
+    const app = files.get('example_tool_gui/src/app/mod.rs');
+    assert.match(app, /\.id\("sidebar-identity"\)/);
+    assert.match(app, /\.when\(self.page == Page::Sponsor, \|page\| page.p_0\(\)\)/);
+    assert.match(files.get('example_tool_gui/src/app/mod_test.rs'), /sidebar_alignment_and_toggle_share_the_fixed_shell_bounds/);
+    if (sidebarMode === 'detailed') assert.match(app, /Button::new\("sidebar-toggle"\).*\.absolute\(\).top_0\(\).right_0\(\)/);
+    else assert.doesNotMatch(app, /sidebar-toggle/);
+  }
+  const files = renderGpuiFiles({ ...identity, sponsorPage: 'disabled' });
+  assert.equal(files.has('example_tool_gui/src/app/sponsor_test.rs'), false);
+});
+
+/** 打包身份与应用身份来自同一输入；发布记录仅由构建阶段注入，初始化不伪造发布。 */
+test('gpui_packaging_and_compiled_release_notes_have_neutral_defaults', () => {
+  const files = renderGpuiFiles(identity);
+  const config = JSON.parse(files.get('packaging/gpui.json'));
+  assert.equal(config.productName, identity.nameZh);
+  assert.equal(config.productNameEn, identity.nameEn);
+  assert.equal(config.package, 'example_tool_gui');
+  assert.equal(config.icons.source, 'example_tool_gui/assets/logo.svg');
+  assert.equal(config.macos.signingIdentity, null);
+  assert.ok(files.get('packaging/macos/background.png').length > 0);
+  assert.equal(files.has('release-notes.json'), false);
+  assert.match(files.get('example_tool_gui/build.rs'), /HARNESS_GPUI_RELEASE_NOTES_RS/);
+  assert.match(files.get('example_tool_gui/build.rs'), /cargo:rerun-if-env-changed=/);
+  assert.match(files.get('example_tool_gui/src/main.rs'), /black_box\(release_notes::RELEASE_NOTES_JSON\)/);
+  assert.match(files.get('example_tool_gui/src/logging.rs'), /NonBlockingBuilder/);
+  assert.match(files.get('example_tool_gui/src/logging_test.rs'), /subscriber/);
+  assert.match(files.get('example_tool_gui/src/main.rs'), /lifecycle::install\(cx, native_shutdown\)/);
+  assert.match(files.get('example_tool_gui/src/lifecycle_test.rs'), /native_shutdown_flushes_preferences_and_final_log_exactly_once/);
 });
 
 /** 未成熟的六项能力不能通过参数偷偷启用。 */

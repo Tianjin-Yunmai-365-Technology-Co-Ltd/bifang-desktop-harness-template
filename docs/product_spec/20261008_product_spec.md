@@ -28,6 +28,15 @@
 
 ## MVP 包含
 
+### GPUI 固定模板、core 优先与独立交付管线
+
+- 变更标识：`HARNESS-FEAT-GPUI-PACKAGING`；`required_version = pending`。
+- 桌面框架独立选择 Tauri（默认）或 GPUI，保存在 Cargo `gui-framework`。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，折叠按钮位于顶部身份区且不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
+- GPUI 与 Tauri 共同遵守 core-first：业务规则、值域、跨字段校验、业务默认值、用例编排、状态转换、稳定错误和权威数据属于共享 core；GPUI 只拥有原生展示、纯交互状态、宿主机制与调用/结果映射。异步业务由 core 暴露运行时中立 API，端侧装配执行，不阻塞窗口线程或创建嵌套 runtime。
+- GPUI 固定接入 `tracing`、`tracing-subscriber`、`tracing-appender` 本地诊断：端侧初始化唯一订阅器，有界后台队列同时写标准错误和按日滚动文件，正常退出刷新，失败报告稳定类别；不默认遥测、不记录秘密、个人数据或原始业务载荷。core 可按真实业务需要发出脱敏事件，但不得拥有文件 sink 或 GUI 依赖。
+- 独立 `$desktop-build-gpui-release` 维护项目本地 cargo-packager 工具、配置和 Rust 构建：原生 macOS 应用包/DMG 与 Windows x64 NSIS；不复用 Tauri 前端或打包 helper。普通本地试包与正式候选分开，候选复核 clean 发布上下文/tag、全量非空 Rust 测试、当次 E2E/签名选择、许可证、更新日志和最终包字节后形成 pending 原子证据；实际验收另行执行。Linux 包与跨宿主构建未支持，不能从当前宿主推断通过。
+- 初始化和升级仅向 GPUI 项目传播该 Skill；macOS/Windows GPUI 可选择未来 local_package，仅 Linux 且无 CLI 仍须选择 push_release_branch。六项原生可选能力及 updater/dialog 的既有 unavailable 边界不由打包能力改变。
+
 ### 发布后远端主分支与 release 同步
 
 - `change_id = HARNESS-CHANGE-POST-RELEASE-SYNC-DEFAULT-BRANCH`；`required_version = 202610081442`（正式发布时物化）。

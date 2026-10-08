@@ -10,6 +10,7 @@ import { HarnessUpgradeFixture, MANAGED } from "./harness_upgrade_test_support.m
 
 const METADATA = "[workspace.metadata.agent-first-harness]\n";
 const GPUI = ".agents/skills/desktop-add-gpui-adapter/SKILL.md";
+const GPUI_BUILD = ".agents/skills/desktop-build-gpui-release/SKILL.md";
 const TAURI = ".agents/skills/desktop-add-gui-adapter/SKILL.md";
 const GPUI_INIT_ONLY = [
   ".agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs",
@@ -44,9 +45,11 @@ test("framework_selection_rejects_unknown_duplicate_and_malformed_metadata", () 
 test("gui_candidate_selection_excludes_the_other_framework_and_non_gui_projects", () => {
   for (const selection of [{ interfaces: ["cli"], guiFramework: null }, { interfaces: ["gui"], guiFramework: "tauri" }]) {
     assert.equal(inapplicableGuiCandidate(GPUI, selection), true);
+    assert.equal(inapplicableGuiCandidate(GPUI_BUILD, selection), true);
   }
   const gpui = { interfaces: ["gui"], guiFramework: "gpui" };
   assert.equal(inapplicableGuiCandidate(GPUI, gpui), false);
+  assert.equal(inapplicableGuiCandidate(GPUI_BUILD, gpui), false);
   for (const name of ["desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-dialog", "desktop-prepare-gui-support-surfaces", "desktop-build-tauri-release"]) {
     assert.equal(inapplicableGuiCandidate(`.agents/skills/${name}/SKILL.md`, gpui), true, name);
   }
@@ -60,6 +63,7 @@ test("gpui_upgrade_plan_isolates_framework_assets_and_preserves_product_files", 
   f.write(f.target, "docs/GUI_APP_PROFILE.md", "local approved profile\n");
   f.write(f.target, "crates/example-gui/src/main.rs", "local product source\n");
   f.write(f.candidate, GPUI, "neutral gpui engineering skill\n");
+  f.write(f.candidate, GPUI_BUILD, "native GPUI packaging skill\n");
   const gpuiRender = ".agents/skills/desktop-add-gpui-adapter/scripts/gpui_adapter_files.mjs";
   const gpuiAdd = ".agents/skills/desktop-add-gpui-adapter/scripts/add_gpui_adapter.mjs";
   f.write(f.candidate, gpuiRender, "pure render library\n");
@@ -70,6 +74,8 @@ test("gpui_upgrade_plan_isolates_framework_assets_and_preserves_product_files", 
   assert.deepEqual(plan.target_interfaces, ["gui"]);
   assert.equal(plan.actions.find((item) => item.path === GPUI).mode, "conditional");
   assert.equal(f.classification(plan, GPUI), "manual_add");
+  assert.equal(plan.actions.find((item) => item.path === GPUI_BUILD).mode, "conditional");
+  assert.equal(f.classification(plan, GPUI_BUILD), "manual_add");
   assert.equal(f.classification(plan, gpuiRender), "manual_add");
   assert.equal(f.classification(plan, gpuiAdd), "manual_add");
   assert.equal(plan.actions.some((item) => item.path.endsWith("main.rs")), false);
@@ -90,9 +96,11 @@ test("legacy_tauri_and_non_gui_plans_enforce_gui_applicability", (t) => {
   f.write(f.target, "Cargo.toml", `${METADATA}interfaces = ["gui"]\n`);
   f.write(f.candidate, TAURI, "tauri engineering skill\n");
   assert.equal(f.plan().gui_framework, "tauri");
-  f.write(f.candidate, GPUI, "gpui engineering skill\n");
-  assert.ok(f.plan(2).blocked);
-  fs.rmSync(path.join(f.candidate, GPUI));
+  for (const relative of [GPUI, GPUI_BUILD]) {
+    f.write(f.candidate, relative, "gpui engineering skill\n");
+    assert.ok(f.plan(2).problems.some((problem) => problem.includes(relative)));
+    fs.rmSync(path.join(f.candidate, relative));
+  }
   f.write(f.target, "Cargo.toml", `${METADATA}interfaces = ["cli"]\n`);
   assert.ok(f.plan(2).problems.some((problem) => problem.includes(TAURI)));
 });
@@ -119,6 +127,20 @@ test("gpui_conditional_rule_must_precede_generic_managed_ownership", (t) => {
   const gpui = manifest.rules.find((item) => item.pattern === ".agents/skills/desktop-add-gpui-adapter/**");
   manifest.rules = manifest.rules.filter((item) => item !== gpui);
   manifest.rules.push(gpui);
+  fs.writeFileSync(f.ownership, JSON.stringify(manifest));
+  assert.throws(() => loadOwnership(f.ownership), /conditional 所有权规则必须位于通用 managed/u);
+});
+
+/** 新打包 Skill 的条件所有权也必须显式存在并位于通用 managed 之前。 */
+test("gpui_build_conditional_ownership_cannot_be_omitted_or_shadowed", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const manifest = JSON.parse(fs.readFileSync(f.ownership, "utf8"));
+  const rule = manifest.rules.find((item) => item.pattern === ".agents/skills/desktop-build-gpui-release/**");
+  assert.equal(rule.mode, "conditional");
+  manifest.rules = manifest.rules.filter((item) => item !== rule);
+  fs.writeFileSync(f.ownership, JSON.stringify(manifest));
+  assert.throws(() => loadOwnership(f.ownership), /所有权 manifest 削弱了必需保护/u);
+  manifest.rules.push(rule);
   fs.writeFileSync(f.ownership, JSON.stringify(manifest));
   assert.throws(() => loadOwnership(f.ownership), /conditional 所有权规则必须位于通用 managed/u);
 });

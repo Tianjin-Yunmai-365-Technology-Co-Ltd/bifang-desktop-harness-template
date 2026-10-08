@@ -4,7 +4,7 @@
 
 桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、pnpm、Tauri图标/DMG、Tauri初始化E2E与updater合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对两条路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
 
-GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版六项原生宿主能力明确为 `unavailable` 并写 `disabled`，显式启用请求必须处理为不可用选择，不伪装支持或默许接线。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI无发布候选本地打包Skill，不含CLI时必须选 `push_release_branch`。
+GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版六项原生宿主能力明确为 `unavailable` 并写 `disabled`，显式启用请求必须处理为不可用选择，不伪装支持或默许接线。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux 且无 CLI 时必须选 `push_release_branch`。
 
 ## 1. 适用范围与规则等级
 
@@ -129,8 +129,8 @@ GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版�
 - 构建请求、执行、成功、失败、重试、全量单元测试结果、产物路径/摘要/签名状态，以及候选 E2E、完整验收、状态更新和就绪复核，都不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification。候选事实只写入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复；Git 发布在本地默认主分支与 tag 复读成功时结束，下游受跟踪周期状态在下一条开发分支复核这两条 ref 后复位。真实渠道分发和回顾性审计各自按独立事件记录，不改写已完成的 Git 发布事实。
 - 中性初始化必须解析非空中文与英文项目展示名称，且至少一个由用户直接提供；只提供一种语言时由 Agent 自动翻译另一种，并在首次写入前通过完整汇总统一确认。`LICENSE.zh-CN.md` 只写确认后的中文名称，`LICENSE.en.md` 只写确认后的英文名称；README 身份摘要和按 locale 拆分的双语 GUI 资源文件（`zh-CN`/`en-US` 各自的字面文本，不含运行时按界面语言注入的 `applicationName`）必须从同一确认结果派生，不得把机器标识当作缺失译名。
 - 根 `release-notes.json` 是 Harness 源与终端下游共用的双语发布更新日志事实，不是按日项目记忆，也不替代 `docs/changelog/`。它只在准备首个正式发布时创建，使用 `schemaVersion: 2`；每个功能优化或问题修复条目把非空 `zh-CN` 与 `en-US` 文案绑定为一个翻译对，任一语言缺失、空白或同语言重复都失败关闭。每次正式发布前，根据上一次正式发布版本到当前发布源码的真实差异更新当前版本，按最新在前只保留包含当前发布版本在内的最近 10 个实际发布版本条目，每版“功能优化”和“问题修复”各不超过 10 个双语条目。普通缺陷修复即使不触发 Changelog，仍应进入对应发布版本的“问题修复”；失败发布可替换同版本条目。更新日志字节变化始终要求重新提交；终端下游还必须重新构建和验收候选，Harness 源则重新执行 Git 源码发布复核，不虚构产品候选。
-- 构建不得整理、生成或改写更新日志；它只读校验发布准备已经整理的最近 10 个版本条目，再通过发布专用 Tauri 合并配置嵌入相同字节。源文件、合并配置、构建后资源、最终 DMG 内资源、manifest 摘要或 About 运行时任一环不一致都阻断对应候选。
-- 上一条“构建”专指发布候选。Windows 原生本地安装试包属于开发制品：使用 `$desktop-build-tauri-local-install`，不读取或生成 `release-notes.json`，不使用发布专用 Tauri 配置，不写 `release/`，不提交，也不解析 E2E 选择；不得把普通“继续构建”升级解释为发布授权。
+- 构建不得整理、生成或改写更新日志；它只读校验发布准备已经整理的最近 10 个版本条目；Tauri 通过发布专用合并配置、GPUI 通过独立构建注入和资源 map 嵌入相同字节。源文件、合并配置、构建后资源、最终 DMG 内资源、manifest 摘要或 About 运行时任一环不一致都阻断对应候选。
+- 上一条“构建”专指发布候选。开发试包按框架分派：Windows Tauri 使用 `$desktop-build-tauri-local-install`，GPUI 使用 `$desktop-build-gpui-release` 的 `local` 模式；两者都不读取或生成 `release-notes.json`，不使用发布专用配置，不写 `release/`，不提交，也不解析 E2E 选择；不得把普通“继续构建”升级解释为发布授权。
 - 同一维护任务若另外改变产品目标/边界/约束/成功标准、引入长期决定或硬规则例外、形成重要阻断/交接、完成真实渠道发布，或另行进入回顾性人工复核/长期审计，才按该独立事件更新对应记忆。候选验收阶段只写忽略的 `release/` 原子证据；任务被称为“修复”或“重构”不能绕过相应的安全、发布或记录要求。
 - 除上述维护排除外，用户或维护者可感知且符合 Changelog 资格的真实行为/流程变化写入当日 Changelog。修改代码或规则时仍须同步受影响的权威设计文档和测试；同步事实不等于创建项目记忆。
 - 修改工程规则时，同步检查 `AGENTS.md` 的入口路由、相关 Skill、本文件和适用的机械检查；任务专属细节只在其唯一事实源中校验，不得为了通过检查复制回根入口。
@@ -226,7 +226,7 @@ GPUI共享九字段结构，但只询问关于页、赞助页和侧栏；首版�
 - 已初始化下游在实施前由 `$desktop-manage-version` 只读分类，且只在变化完成并通过本次相关测试后提交版本：上一 Git 发布的主分支与 tag 复核后，在下一条开发分支复位周期；新改动先识别是否疑似新需求，疑似时优先按 `feature` 处理，本周期首个功能提升 Minor。确认不属于新需求的问题修复或可感知优化按新稳定 ID 使用 `bug-fix` 提升 Patch。真实同一事件、版本状态或 Git 事实冲突须先查明并修复底层漂移，再以稳定证据和 ID 走独立 `record-reconciliation` 门禁强制提升新的 Minor，之后通过适用完整验证与 Git 发布；历史最低 `required_version` 低于最终版不算冲突。新生成 Minor/Patch 为 `0..99` 并按 base-100 自动进位，Major 不超过 Cargo `u64::MAX`；`check`、`plan`、`maintenance` 都不写版本文件或状态，构建只检查一致性。
 - 产品范围、长期决定、合格 Changelog、重要阻断/交接和用户明确要求仍分别触发对应记录或专用流程；候选验收只写 `release/`，真实渠道分发成功和独立回顾性审计才在后续受管开发生命周期记录各自事实。下一次开发从已发布的本地主分支/tag 建分支并在该分支复核后复位版本周期；不得在 tag 后直接写脏主分支。安全/隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道硬要求、签名与发布仍保留解决当前风险必需的授权和检查。
 - 显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则询问一次；持久 `e2e_hint` 仅是建议默认值。该选择只对当前发布候选有效；本地开发试包不解析该选择。
-- 构建必须运行项目全部非空单元测试。Rust 覆盖 workspace 全成员、全 targets、全 features；GUI 同时运行完整 Rust workspace 和前端单元测试套件。项目锁策略缺省或为 `ignored` 时，测试/构建不得依赖项目 `--locked` 或 `--frozen-lockfile`，前端安装使用 `pnpm install --no-frozen-lockfile`。显式为 `tracked` 时，先核对适用锁文件存在、受 Git 跟踪且未被忽略，随后对实际 Rust 工作区的测试/构建使用 `--locked`，GUI 前端安装使用 `pnpm install --frozen-lockfile`；清单与锁文件不一致时停止并由目标项目更新锁文件，不能静默改用非冻结解析。测试失败或零测试阻断构建。
+- 构建必须运行项目全部非空单元测试。Rust 覆盖 workspace 全成员、全 targets、全 features；GUI 中 Tauri 同时运行完整 Rust workspace 和前端单元测试套件；GPUI 只运行完整 Rust workspace，不引入前端工具。项目锁策略缺省或为 `ignored` 时，测试/构建不得依赖项目 `--locked` 或 `--frozen-lockfile`，前端安装使用 `pnpm install --no-frozen-lockfile`。显式为 `tracked` 时，先核对适用锁文件存在、受 Git 跟踪且未被忽略，随后对实际 Rust 工作区的测试/构建使用 `--locked`，GUI 前端安装使用 `pnpm install --frozen-lockfile`；清单与锁文件不一致时停止并由目标项目更新锁文件，不能静默改用非冻结解析。测试失败或零测试阻断构建。
 - 官方 updater 插件、`UpdateController` 与 `NotConfigured` 零出站状态是所有 GUI 的安装基线，不受产品/发布事实 `updaterEnabled` 控制。GUI 构建每次仍从已批准产品事实解析 `updaterEnabled`；`false` 只表示不生成、不签名且不声明 updater archive/`.sig`，不得移除固定插件或伪造更新配置；`true` 才要求受限 HTTPS endpoints、公钥、channel/target/arch、`bundle.createUpdaterArtifacts: true` 和安全私钥来源，并必须生成与当前 platform/channel/target/arch 一致的官方更新 archive 和 `.sig`、使用应用公钥实际验证后记录相对路径、大小、SHA-256 和结论。安装包允许 unsigned 不代表 updater 可不签名；发布私钥与密码只能来自批准的安全运行时，绝不能进入源码、配置、日志、manifest 或制品。
 - 候选构建记录严格遵守第 4.1 节的边界：manifest 和最终回复是发布候选构建的记录出口；本地开发试包只报告实际产物路径和风险。两者都不为构建过程或结果创建、更新任何项目记忆。
 - 发布候选 E2E 不混入单元测试、编译、签名或打包命令。选择启用或产品/渠道硬要求时，只在完整最终候选存在后运行；选择禁用时记录 `Not run` 和剩余风险。GUI 初始化专用的 debug/no-bundle E2E 是唯一前候选例外，只能证明脚手架在当前宿主可构建并满足三项固定基线、按 profile 启用的宿主生命周期、运行时 i18n、固定侧栏、精简设置页和菜单可达；需要安装包注册才能证明的深链接平台场景保持 `Not verified`，不能形成候选验收结论。

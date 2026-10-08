@@ -1,6 +1,12 @@
 # 版本与发布
 
-GUI候选路线先读根Cargo metadata的 `gui-framework`，缺失时兼容 `tauri`。本文Tauri配置、pnpm/前端、DMG/NSIS、updater、图标及Tauri构建Skill只适用于Tauri；GPUI当前只有初始化开发构建与本机检查，没有受管发布候选打包Skill，不能套用Tauri产物或声明发布候选通过。不含CLI的GPUI必须选择 `push_release_branch`；含CLI的组合可使用现有CLI本地打包，但这不形成GPUI候选。Git本地主分支/tag发布、共享SemVer、源码推送与真实证据边界继续适用。
+GUI 候选路线先读根 Cargo metadata 的 `gui-framework`，缺失时兼容 `tauri`。Tauri 配置、pnpm/前端、updater、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用独立 `$desktop-build-gpui-release` 的 Rust/cargo-packager 管线，原生 macOS 应用包/DMG 与 Windows x64 NSIS 可选择 `local_package`；仅 Linux 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于两种框架；开发试包不冒充候选。
+
+## GPUI 构建路由
+
+GPUI 的可执行命令、固定 cargo-packager 版本、项目本地工具安装、配置字段、原生产物和资源校验，以 [`desktop-build-gpui-release`](../.agents/skills/desktop-build-gpui-release/SKILL.md) 为唯一实现来源。生成器直接接入可维护的 `packaging/gpui.json`；身份、版本与 GUI 二进制来自当前下游和 Cargo metadata。`local` 模式输出忽略的 `target/gpui-packages/` 开发试包；`candidate` 模式复核已发布的 clean 默认主分支/tag/上下文，运行完整非空 Rust workspace 测试，打包两份许可证与同字节更新日志，再形成忽略的 `release/` 原子证据集合。
+
+不使用 Tauri frontend、插件、配置或 helper。不把 cargo-packager 的安装假设为全局能力；工具按固定版本隔离在项目 target 中。当前只支持原生 macOS 和 Windows x64，Linux 包与跨宿主路线失败关闭。签名启用时必须满足该 Skill 的实际签名/公证/验证门禁，不能降级为 unsigned 成功；关闭时明确记录原因与剩余风险。候选仍为 `pending`，须以最终字节和实际运行场景完成所选验收。
 
 ## 当前状态
 
@@ -65,10 +71,10 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 - Windows 原生本地安装试包不是发布候选，不进入本文件的更新日志、clean HEAD、manifest、E2E、签名或 `release/` 门禁。普通“构建/打包/首次安装试一下”由 `$desktop-build-tauri-local-install` 处理；只有用户明确要求发布候选或准备发布，才适用下列规则。该试包仍须明确标注未签名、未安装、未验收且不可分发。
 - Harness 源正式发布同样使用根 `release-notes.json` 记录最近 10 个实际发布模板版本的双语维护摘要，但它只是源码发布元数据，不是产品资源、候选 manifest 或产品验收证据。
 - 所有面向用户显示的版本号统一使用且只使用一个小写 `v` 前缀，包括 GUI 页面、窗口标题、更新状态、强更提示、CLI `--version`、发布记录和更新日志。Cargo、`.harness/version-state.json`、候选 manifest 的机器版本字段、协议比较值和 SemVer 运算继续保存不带 `v` 的原始版本；展示边界负责先移除已有任意 `v`/`V` 前缀，再规范化为 `v<version>`。
-- 下游在准备首个正式发布时创建根 `release-notes.json`。它是发布制品固定携带、并在 `about_page = enabled` 时由应用关于页通过固定 `load_release_notes` 窄命令复用的用户更新日志事实，使用整数 `schemaVersion: 2` 与非空、按最新在前的 `releases` 数组；每项字段固定为 `releaseDate`、带一个 `v` 的 `version`、`featureOptimizations` 和 `bugFixes`。两个分类中的每个逻辑条目都是键恰好为 `zh-CN` 与 `en-US` 的翻译对，两个值都必须是非空、无首尾空白且无边界 BOM 的字符串；任一翻译缺失或重复 JSON 字段都阻断。只读 `check` 必须拒绝需静默规范化的原文件，写入和读取均拒绝超过 1 MiB 的 UTF-8 资源，与关于页运行时上限一致。所有 GUI 初始化预置但不在调试构建使用 `src-tauri/tauri.release.conf.json`；正式候选构建显式 `--config` 合并该文件，把根日志唯一映射为候选逻辑资源 `release-notes.json`。
+- 下游在准备首个正式发布时创建根 `release-notes.json`。它是发布制品固定携带的用户更新日志事实；`about_page = enabled` 时 Tauri 通过固定 `load_release_notes` 窄命令复用，GPUI 由构建 helper 校验后编译嵌入同字节日志与双语条目，在原生关于页按 locale 展示，窗口线程不读文件，使用整数 `schemaVersion: 2` 与非空、按最新在前的 `releases` 数组；每项字段固定为 `releaseDate`、带一个 `v` 的 `version`、`featureOptimizations` 和 `bugFixes`。两个分类中的每个逻辑条目都是键恰好为 `zh-CN` 与 `en-US` 的翻译对，两个值都必须是非空、无首尾空白且无边界 BOM 的字符串；任一翻译缺失或重复 JSON 字段都阻断。只读 `check` 必须拒绝需静默规范化的原文件，写入和读取均拒绝超过 1 MiB 的 UTF-8 资源，与关于页运行时上限一致。Tauri GUI 初始化预置但不在调试构建使用 `src-tauri/tauri.release.conf.json`；正式候选构建显式 `--config` 合并该文件，把根日志唯一映射为候选逻辑资源 `release-notes.json`。
 - 每次正式发布时，必须找到上一次真实正式发布的版本与 40 位源码提交；从该提交之后到当前发布源码的真实差异中语义筛选最重要内容，不得直接倾倒提交标题。首个正式发布以仓库起点到当前发布源码为范围。每版“功能优化”和“问题修复”各自最多 10 个逻辑条目，两类合计至少一条；每个条目同时提供中文与英文。Agent 可先整理其中一种语言并自动翻译另一种，但在写入前必须并排复核两种语言的语义对应关系。普通缺陷修复即使不触发按日 Changelog，也进入本次“问题修复”。终端下游随后把同一日志写入产品候选；Harness 源只把它作为 Git 源码发布元数据。
 - 更新当前版本时先替换同版本条目，再置顶并截断为包含当前发布版本在内的最近 10 个实际发布版本条目；按已有发布记录取舍，不按 SemVer 数值补齐跳过的版本。使用 `$desktop-prepare-release` 携带的 Node 标准库脚本执行 `node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs upsert ...`，通过配对的 `--feature-optimization-zh-cn`/`--feature-optimization-en-us` 与 `--bug-fix-zh-cn`/`--bug-fix-en-us` 按出现顺序传入每个翻译对，再运行更新日志脚本的 `check --expected-version` 校验，并分别运行 `render --locale zh-CN` 与 `render --locale en-US` 复核可见结果。文件是普通非符号链接 UTF-8 JSON，由脚本在同目录原子替换；Harness 升级将其视为 `protected`。
-- 发布脚本的 `render` 命令按 locale 使用以下两套固定纯文本结构，供发布前复核；版本必须已经规范化为一个 `v` 前缀，空分类分别显示“无”或“None”，不得制造虚假条目。GUI 使用普通本地化标题，并以安全 Markdown 展示每条正文；当前语言以 `zh` 开头时选择 `zh-CN`，其他或未知语言回退 `en-US`——`release-notes.json` 目前只提供这两套翻译，`zh-TW`/`zh-HK`/`zh-Hant` 等其他中文变体按设计并入 `zh-CN` 内容而非另行回退英文，此为当前双语范围下的既定简化，不是未定义行为：
+- 发布脚本的 `render` 命令按 locale 使用以下两套固定纯文本结构，供发布前复核；版本必须已经规范化为一个 `v` 前缀，空分类分别显示“无”或“None”，不得制造虚假条目。GUI 使用普通本地化标题；Tauri 以安全 Markdown 展示每条正文，GPUI 使用编译期静态原生文本且不执行 HTML 或加载远程媒体；当前语言以 `zh` 开头时选择 `zh-CN`，其他或未知语言回退 `en-US`——`release-notes.json` 目前只提供这两套翻译，`zh-TW`/`zh-HK`/`zh-Hant` 等其他中文变体按设计并入 `zh-CN` 内容而非另行回退英文，此为当前双语范围下的既定简化，不是未定义行为：
 
 ```text
 -----------更新日志 {发布日期} {发布版本}----------

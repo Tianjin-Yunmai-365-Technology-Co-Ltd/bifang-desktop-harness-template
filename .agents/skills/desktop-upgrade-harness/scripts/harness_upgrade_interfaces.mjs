@@ -153,7 +153,7 @@ export function readInterfaceSelection(root) {
 /** GUI 条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
 export function inapplicableGuiCandidate(relative, selection) {
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
-  if (skill === "desktop-add-gpui-adapter") return selection.guiFramework !== "gpui";
+  if (["desktop-add-gpui-adapter", "desktop-build-gpui-release"].includes(skill)) return selection.guiFramework !== "gpui";
   if (TAURI_SKILLS.has(skill)) return selection.guiFramework !== "tauri";
   if (skill === "desktop-prepare-gui-app-identity") return !selection.interfaces.includes("gui");
   return false;

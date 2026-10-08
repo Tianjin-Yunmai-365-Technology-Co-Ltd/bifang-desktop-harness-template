@@ -53,7 +53,7 @@ function dependency(source, key, value) {
   return source.slice(0, range.end).trimEnd() + `\n${key} = ${value}\n\n` + source.slice(range.end);
 }
 
-/** 既有 core 与 Cargo 是先决条件，整个输出只拥有 GUI 与新增 profile。 */
+/** 既有 core 与 Cargo 是先决条件，只增加 GUI、profile 与独立 GPUI 中性打包配置。 */
 export function addGpuiAdapter(input) {
   if (typeof input.target !== 'string' || !path.isAbsolute(input.target)) throw new Error('target must be an existing absolute workspace path');
   const target = path.normalize(input.target);
@@ -84,7 +84,13 @@ export function addGpuiAdapter(input) {
     const range = section(cargo, metadata);
     cargo = cargo.slice(0, range.end).trimEnd() + '\ngui-framework = "gpui"\n\n' + cargo.slice(range.end);
   }
-  for (const [key, value] of [[`${options.projectId}_core`, `{ path = "${options.projectId}_core" }`], ['gpui-kit', '"0.7.1"'], ['rust-i18n', '"4.2.0"'], ['sys-locale', '"0.3.2"']]) cargo = dependency(cargo, key, value);
+  for (const [key, value] of [
+    [`${options.projectId}_core`, `{ path = "${options.projectId}_core" }`],
+    ['gpui-kit', '"0.7.1"'], ['rust-i18n', '"4.2.0"'], ['sys-locale', '"0.3.2"'],
+    ['tracing', '{ version = "0.1.44", default-features = false, features = ["std"] }'],
+    ['tracing-subscriber', '{ version = "0.3.23", default-features = false, features = ["fmt", "registry", "std"] }'],
+    ['tracing-appender', '{ version = "0.2.5", default-features = false }'],
+  ]) cargo = dependency(cargo, key, value);
   const files = renderGpuiAdapterFiles(options);
   for (const relative of files.keys()) {
     const file = path.join(target, relative);

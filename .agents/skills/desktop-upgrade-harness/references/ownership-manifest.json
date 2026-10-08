@@ -64,6 +64,7 @@
     {"pattern": ".agents/skills/desktop-add-mcp-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-adapter/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gpui-adapter/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/desktop-build-gpui-release/**", "mode": "conditional"},
     {"pattern": ".agents/skills/mantine-list-view/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-system-locale/**", "mode": "conditional"},
     {"pattern": ".agents/skills/desktop-add-gui-updater/**", "mode": "conditional"},

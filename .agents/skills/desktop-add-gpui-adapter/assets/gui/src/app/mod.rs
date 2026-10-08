@@ -5,7 +5,7 @@ mod settings;
 @@SPONSOR_MODULE@@
 
 use crate::{assets, preferences::{LanguageChoice, Preferences, ThemeChoice, Writer}};
-use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, assets::IconName, component::{ActiveTheme, Theme, ThemeMode, button::{Button, ButtonVariants}}, div, img, prelude::*, px};
+use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, assets::IconName, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode, button::{Button, ButtonVariants}}, div, img, prelude::*, px};
 
 /// 页面枚举只包含本次初始化实际启用的页面。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -142,16 +142,21 @@ impl Shell {
         if compact {
             Button::new(id).ghost().h(px(56.)).w_full()
                 .tooltip(label.clone()).accessibility_label(label.clone())
-                .child(div().flex().flex_col().items_center().gap_1()
+                .child(div().w_full().flex().flex_col().items_center().gap_1()
                     .child(gpui_kit::component::Icon::new(icon).size(px(22.)))
-                    .child(div().text_size(px(11.)).child(label)))
+                    .child(div().w_full().text_center().text_size(px(11.)).child(label)))
                 .when(self.page == page, |button| button.primary())
                 .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
                 .into_any_element()
         } else {
-            Button::new(id).ghost().icon(gpui_kit::component::Icon::new(icon).size(px(22.))).h(px(44.)).w_full()
+            Button::new(id).ghost().h(px(44.)).w_full()
                 .tooltip(label.clone()).accessibility_label(label.clone())
-                .when(!collapsed, |button| button.label(label))
+                .child(div().id((id, 0usize)).test_support().w_full().min_w_0().flex().items_center().gap_2()
+                    .when(collapsed, |row| row.justify_center())
+                    .when(!collapsed, |row| row.justify_start())
+                    .child(div().id((id, 1usize)).test_support().flex_shrink_0()
+                        .child(gpui_kit::component::Icon::new(icon).size(px(22.))))
+                    .when(!collapsed, |row| row.child(div().id((id, 2usize)).test_support().min_w_0().child(label))))
                 .when(self.page == page, |button| button.primary())
                 .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
                 .into_any_element()
@@ -162,13 +167,17 @@ impl Shell {
     fn sidebar(&self, cx: &mut Context<Self>) -> AnyElement {
         let width = self.sidebar_width();
         let logo_size = if @@COMPACT@@ { 36. } else if self.preferences.collapsed { 44. } else { 72. };
-        let mut sidebar = div().w(px(width)).h_full().flex_shrink_0().flex().flex_col()
-            .p(px(6.)).gap_2().border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
-            .child(div().w_full().flex_shrink_0().flex().flex_col().items_center().justify_center().gap_2().py_3()
-                .child(img(assets::LOGO).size(px(logo_size)))
-                .child(div().text_xs().text_color(cx.theme().muted_foreground).child(self.version()))
-                .when(!@@COMPACT@@ && !self.preferences.collapsed, |header| header.child(div().w_full().min_w_0().whitespace_normal().text_center().text_sm().font_weight(FontWeight::SEMIBOLD).child(self.name()))));
+        let identity = div().id("sidebar-identity").test_support().relative().w_full().flex_shrink_0().flex().flex_col().items_center().justify_center().gap_2()
+            .when(@@COMPACT@@, |header| header.py_3())
+            .when(!@@COMPACT@@, |header| header.pt_7().pb_3())
+            .child(img(assets::LOGO).size(px(logo_size)))
+            .child(div().text_xs().text_color(cx.theme().muted_foreground).child(self.version()))
+            .when(!@@COMPACT@@ && !self.preferences.collapsed, |header| header.child(div().w_full().min_w_0().whitespace_normal().text_center().text_sm().font_weight(FontWeight::SEMIBOLD).child(self.name())))
 @@COLLAPSE_CONTROL@@
+            ;
+        let mut sidebar = div().id("sidebar").test_support().w(px(width)).h_full().min_h_0().flex_shrink_0().flex().flex_col()
+            .p(px(6.)).gap_2().border_r_1().border_color(cx.theme().border).bg(cx.theme().secondary)
+            .child(identity);
         sidebar = sidebar.child(div().flex_1());
 @@SPONSOR_NAV@@
         sidebar = sidebar.child(self.navigation_item(Page::Settings, "nav-settings", "navigation.settings", IconName::Settings, cx));
@@ -187,12 +196,16 @@ impl Render for Shell {
 @@ABOUT_RENDER@@
 @@SPONSOR_RENDER@@
         };
-        div().size_full().flex().bg(cx.theme().background).text_color(cx.theme().foreground)
+        let content = div().id("page-content").test_support().flex_1().min_w_0().min_h_0().overflow_y_scroll().flex().flex_col()
+            .when(@@SPONSOR_ACTIVE@@, |page| page.p_0())
+            .when(!(@@SPONSOR_ACTIVE@@), |page| page.p_8())
+            .child(content);
+        div().id("application-shell").test_support().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_color(cx.theme().foreground)
             .child(self.sidebar(cx))
-            .child(div().flex_1().min_w_0().h_full().flex().flex_col()
-                .child(div().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
-                    .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title())))
-                .child(div().id("page-content").flex_1().min_h_0().overflow_y_scroll().p_8().child(content)))
+            .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col()
+                .when(!(@@SPONSOR_ACTIVE@@), |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
+                    .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
+                .child(content))
     }
 }
 
@@ -203,16 +216,5 @@ fn window_geometry(frame: gpui_kit::Bounds<gpui_kit::Pixels>, viewport: gpui_kit
 }
 
 #[cfg(test)]
-mod tests {
-    use super::window_geometry;
-    use gpui_kit::{Bounds, point, px, size};
-
-    /// 原生标题栏高度不能进入下一次创建的内容尺寸，装饰变化同样不会累计。
-    #[test]
-    fn saved_window_size_uses_content_viewport_without_native_decorations() {
-        let first = window_geometry(Bounds::new(point(px(36.), px(58.)), size(px(1440.), px(933.))), size(px(1440.), px(900.)));
-        assert_eq!(first, [36., 58., 1440., 900.]);
-        let next = window_geometry(Bounds::new(point(px(first[0]), px(first[1])), size(px(first[2]), px(first[3] + 41.))), size(px(first[2]), px(first[3])));
-        assert_eq!(next, first);
-    }
-}
+#[path = "mod_test.rs"]
+mod tests;

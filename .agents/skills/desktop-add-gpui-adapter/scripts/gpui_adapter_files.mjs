@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-/** 仅渲染原生 GUI/profile 文件，不具有创建 workspace、core 或 Git 的写入能力。 */
+/** 仅渲染原生 GUI/profile 与独立打包配置，不具有创建 workspace、core 或 Git 的写入能力。 */
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { renderDefaultConfig } from '../../desktop-build-gpui-release/scripts/gpui_config.mjs';
+import { renderPlatformIcons, renderDmgBackground } from '../../desktop-build-gpui-release/scripts/gpui_icons.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const assetsRoot = path.resolve(here, '../assets');
@@ -13,13 +15,13 @@ const text = {
     navigation: { settings: '设置', about: '关于', sponsor: '赞助' },
     sidebar: { toggle: '展开或收起侧栏' },
     settings: { application: '应用信息', local_preferences: '外观和语言偏好仅保存在此设备。', appearance: '外观', appearance_detail: '选择浅色、深色，或实时跟随操作系统外观。', light: '浅色', dark: '深色', system: '跟随系统', language: '界面语言', language_detail: '默认探测系统语言，可在此随时切换。', chinese: '中文', english: 'English' },
-    about: { application: '关于应用', description: '这是中性桌面脚手架，产品功能尚未定义。', author: '项目负责人', check_updates: '检查更新', release_notes: '更新日志', updater_unavailable: '当前 GPUI 基线未提供更新服务，不会发起网络请求。', no_releases: '当前中性项目尚无发布记录。', local_first: '本地运行', local_first_detail: '设置、语言和静态支持页可离线使用。' },
+    about: { application: '关于应用', description: '这是中性桌面脚手架，产品功能尚未定义。', author: '项目负责人', check_updates: '检查更新', release_notes: '更新日志', release_features: '功能优化', release_fixes: '问题修复', no_changes: '无', updater_unavailable: '当前 GPUI 基线未提供更新服务，不会发起网络请求。', no_releases: '当前构建未嵌入发布记录。', local_first: '本地运行', local_first_detail: '设置、语言和静态支持页可离线使用。' },
   },
   'en-US': {
     navigation: { settings: 'Settings', about: 'About', sponsor: 'Sponsor' },
     sidebar: { toggle: 'Expand or collapse sidebar' },
     settings: { application: 'Application', local_preferences: 'Appearance and language preferences are stored on this device.', appearance: 'Appearance', appearance_detail: 'Choose light, dark, or follow changes to the operating system appearance.', light: 'Light', dark: 'Dark', system: 'Follow system', language: 'Interface language', language_detail: 'Detect the system language by default, or choose a language here.', chinese: '中文', english: 'English' },
-    about: { application: 'About this application', description: 'This is a neutral desktop scaffold. Product features have not been defined.', author: 'Project owner', check_updates: 'Check for updates', release_notes: 'Release notes', updater_unavailable: 'The current GPUI baseline has no update service and makes no network request.', no_releases: 'This neutral project has no published releases.', local_first: 'Runs locally', local_first_detail: 'Settings, languages and static support pages work offline.' },
+    about: { application: 'About this application', description: 'This is a neutral desktop scaffold. Product features have not been defined.', author: 'Project owner', check_updates: 'Check for updates', release_notes: 'Release notes', release_features: 'Feature improvements', release_fixes: 'Bug fixes', no_changes: 'None', updater_unavailable: 'The current GPUI baseline has no update service and makes no network request.', no_releases: 'This build has no embedded release notes.', local_first: 'Runs locally', local_first_detail: 'Settings, languages and static support pages work offline.' },
   },
 };
 
@@ -109,20 +111,29 @@ export function renderGpuiAdapterFiles(input) {
     ABOUT_FIELDS: about ? '    show_update_status: bool,\n    show_release_notes: bool,' : '', ABOUT_DEFAULTS: about ? '            show_update_status: false, show_release_notes: false,' : '',
     ABOUT_TITLE: about ? '            Page::About => "navigation.about",' : '', SPONSOR_TITLE: sponsor ? '            Page::Sponsor => "navigation.sponsor",' : '',
     ABOUT_RENDER: about ? '            Page::About => self.about_page(cx),' : '', SPONSOR_RENDER: sponsor ? '            Page::Sponsor => self.sponsor_page(window, cx),' : '',
+    SPONSOR_ACTIVE: sponsor ? 'self.page == Page::Sponsor' : 'false',
     ABOUT_NAV: about ? '        sidebar = sidebar.child(self.navigation_item(Page::About, "nav-about", "navigation.about", IconName::Info, cx));' : '',
     SPONSOR_NAV: sponsor ? '        sidebar = sidebar.child(self.navigation_item(Page::Sponsor, "nav-sponsor", "navigation.sponsor", IconName::Heart, cx));' : '',
-    COLLAPSE_CONTROL: compact ? '' : `        sidebar = sidebar.child(Button::new("sidebar-toggle").ghost().icon(IconName::PanelLeft).tooltip(self.t("sidebar.toggle")).accessibility_label(self.t("sidebar.toggle"))
-            .on_click(cx.listener(|this, _, _, cx| { this.preferences.collapsed = !this.preferences.collapsed; this.writer.save(&this.preferences); cx.notify(); })));`,
+    COLLAPSE_CONTROL: compact ? '' : `            .child(Button::new("sidebar-toggle").ghost().icon(IconName::PanelLeft).absolute().top_0().right_0().size(px(24.)).tooltip(self.t("sidebar.toggle")).accessibility_label(self.t("sidebar.toggle"))
+                .on_click(cx.listener(|this, _, _, cx| { this.preferences.collapsed = !this.preferences.collapsed; this.writer.save(&this.preferences); cx.notify(); })))`,
     SPONSOR_ASSETS_LOAD: media.map(asset => `        if path == ${JSON.stringify(asset.bundlePath)} { return Ok(Some(Cow::Borrowed(include_bytes!(${JSON.stringify('../assets/' + asset.bundlePath)})))); }`).join('\n'),
     SPONSOR_ASSETS_LIST: media.length ? `        paths.extend([${media.map(asset => JSON.stringify(asset.bundlePath)).join(', ')}].into_iter().filter(|path| path.starts_with(prefix)).map(SharedString::from));` : '',
-    SPONSOR_TIERS: profile.sponsor.tiers.map(tier => `                .child(self.sponsor_tier(${JSON.stringify(tier.nameKey)}, ${tier.price}, ${JSON.stringify(tier.image)}, &[${tier.benefits.map(benefit => `(${JSON.stringify(benefit.mainKey)}, ${benefit.noteKey ? `Some(${JSON.stringify(benefit.noteKey)})` : 'None'})`).join(', ')}], cx))`).join('\n'),
+    SPONSOR_TIERS: profile.sponsor.tiers.map((tier, index) => `                            .child(self.sponsor_tier(${index}, ${JSON.stringify(tier.nameKey)}, ${tier.price}, ${JSON.stringify(tier.image)}, ${JSON.stringify(tier.imageAltKey)}, &[${tier.benefits.map(benefit => `(${JSON.stringify(benefit.mainKey)}, ${benefit.noteKey ? `Some(${JSON.stringify(benefit.noteKey)})` : 'None'})`).join(', ')}], cx))`).join('\n'),
   };
   const files = new Map();
-  files.set(`${projectId}_gui/Cargo.toml`, `[package]\nname = "${projectId}_gui"\nversion.workspace = true\nedition.workspace = true\nrust-version.workspace = true\n\n[dependencies]\n${projectId}_core.workspace = true\ngpui-kit.workspace = true\nrust-i18n.workspace = true\nsys-locale.workspace = true\n`);
-  for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'app/mod.rs', 'app/settings.rs', ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs'] : [])]) {
+  files.set(`${projectId}_gui/Cargo.toml`, `[package]\nname = "${projectId}_gui"\nversion.workspace = true\nedition.workspace = true\nrust-version.workspace = true\n\n[dependencies]\n${projectId}_core.workspace = true\ngpui-kit.workspace = true\nrust-i18n.workspace = true\nsys-locale.workspace = true\ntracing.workspace = true\ntracing-subscriber.workspace = true\ntracing-appender.workspace = true\n\n[dev-dependencies]\ngpui-kit = { workspace = true, features = ["test-support"] }\n`);
+  files.set(`${projectId}_gui/build.rs`, template('gui/build.rs', tokens));
+  for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs'] : [])]) {
     files.set(`${projectId}_gui/src/${file}`, template(`gui/src/${file}`, tokens));
   }
   files.set(`${projectId}_gui/assets/logo.${logoExtension}`, options.logoBytes ?? fs.readFileSync(path.join(assetsRoot, 'gui/assets/logo.svg')));
+  files.set('packaging/gpui.json', JSON.stringify(renderDefaultConfig({ projectId, nameZh, nameEn, owner, logoPath: `${projectId}_gui/assets/logo.${logoExtension}` }), null, 2) + '\n');
+  files.set('packaging/macos/background.png', renderDmgBackground());
+  if (options.logoBytes) {
+    const icons = renderPlatformIcons(options.logoBytes);
+    files.set('packaging/icons/app.icns', icons.macos);
+    files.set('packaging/icons/app.ico', icons.windows);
+  }
   for (const locale of ['zh-CN', 'en-US']) {
     const localized = structuredClone(text[locale]);
     localized.application = { name: locale === 'zh-CN' ? nameZh : nameEn };

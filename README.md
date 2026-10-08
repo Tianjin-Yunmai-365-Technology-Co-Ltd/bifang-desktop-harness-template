@@ -10,7 +10,7 @@ Bifang Desktop Harness Template
 
 选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。未回答或跳过框架时使用 Tauri；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。当前 GPUI 首版模板尚未提供托盘、通知、自启、单实例、深链接和全局快捷键，表单会明确标为不可用并保持禁用；后续可通过独立能力 Skill、真实实现与宿主验证增加，这不是框架的永久限制。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
-GPUI 初始化会执行实际 Rust构建与本机窗口检查；它当前没有发布候选本地打包 Skill，不含 CLI 的 GPUI组合必须选择“提交远程”作为未来发布后动作。含 CLI 时可选择 CLI 本地打包。Tauri 的 pnpm、React/Mantine、插件、DMG/NSIS 与 E2E规则只适用于 Tauri。
+GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 使用 Rust/cargo-packager 管线构建原生 macOS 应用包/DMG 或 Windows x64 NSIS。目标含 macOS/Windows 时可选择本地打包；仅 Linux 且无 CLI 时须选择提交远程。Tauri 的 pnpm、React/Mantine、插件和打包 helper 只适用于 Tauri。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -82,10 +82,11 @@ GPUI 初始化会执行实际 Rust构建与本机窗口检查；它当前没有�
 - 新功能或独立 Bug 修复开始写入时：使用 `$desktop-manage-git-lifecycle` 在本地自动创建并切换到 `feature-{ASCII-kebab摘要}-{YYYYMMDD}`，名称碰撞自动追加后缀；不要求项目已经配置远端。同一结果的继续修改复用当前登记分支。
 - “发布前推送开发进度”：使用 `publish` 普通合并本发布周期登记的开发分支，切换到动态默认主分支并推送；不创建 tag，也不清理登记资源。`--remote` 指定唯一主远端；只有你明确要求“也推送到某远端”时，才为该次 `publish` 增加一个可重复的 `--also-remote <name>`。所有目标会在首个 push 前解析；同一最终 HEAD、目标顺序和逐项确认进度只在未完成的 `pendingPublish` 中临时保存，成功即清除。补充远端不改绑，也不参与 release、tag 或清理。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
+- GPUI 的普通“构建/打包”：使用 `$desktop-build-gpui-release` 的 `local` 模式，生成当前工作树的开发试包；明确发布候选或 Git 发布后的本地打包才使用 `candidate` 模式。
 - “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
 - “发布”：使用 `$desktop-prepare-release` 整理本次范围、按当前上海时间取得 Harness 版本（下游使用语义化版本门禁）、提交源码和发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并本地默认主分支并创建、复读版本 tag。`--release-context-sha256 <sha256>` 绑定已跟踪上下文；Git 发布完成后执行并检测持久选择的后续动作。
 - “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写 `release` 分支，依次同步远端 advertised 默认主分支、同名 release 分支和 tag，逐项及最终联合复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
-- “本地打包”后续路径：在已有 Git 发布完成后分别使用现有 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。
+- “本地打包”后续路径：在已有 Git 发布完成后按接口和框架使用 `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。
 - 普通“构建/打包/本地试包”不会自动升级为 Git 发布，不提交、推送或修改主分支；Git 发布后的所选动作仍单独遵守对应流程门禁。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
@@ -125,7 +126,7 @@ Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD �
 
 开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 
-构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
+构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 ## 可以创建哪些界面
 

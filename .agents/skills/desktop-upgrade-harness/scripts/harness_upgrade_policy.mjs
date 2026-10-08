@@ -99,6 +99,7 @@ export const MINIMUM_OWNERSHIP_RULES = new Map([
   [".agents/skills/desktop-add-mcp-adapter/**", "conditional"],
   [".agents/skills/desktop-add-gui-adapter/**", "conditional"],
   [".agents/skills/desktop-add-gpui-adapter/**", "conditional"],
+  [".agents/skills/desktop-build-gpui-release/**", "conditional"],
   [".agents/skills/mantine-list-view/**", "conditional"],
   [".agents/skills/desktop-add-gui-system-locale/**", "conditional"],
   [".agents/skills/desktop-add-gui-updater/**", "conditional"],

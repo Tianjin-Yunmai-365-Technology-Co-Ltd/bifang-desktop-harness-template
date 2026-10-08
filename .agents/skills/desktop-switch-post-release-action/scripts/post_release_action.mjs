@@ -258,6 +258,22 @@ function assertNonEmptyRustWorkspace(file, relative) {
   }
 }
 
+/** 两种 GUI 框架共用非空且精确受跟踪的 Rust 测试清单边界。 */
+function checkedRustTestManifests(root) {
+  const manifests = optionalMetadata(root, "rust-test-manifests") ?? ["Cargo.toml"];
+  if (!Array.isArray(manifests) || manifests.length === 0 || new Set(manifests).size !== manifests.length) {
+    throw new ActionError("rust-test-manifests 必须是非空且不重复的路径数组");
+  }
+  return manifests.map((manifest) => {
+    const relative = safeProjectRelative(manifest, "rust-test-manifests");
+    if (path.posix.basename(relative) !== "Cargo.toml") throw new ActionError("rust-test-manifests 只能指向 Cargo.toml");
+    const manifestPath = checkedProjectPath(root, relative, "Rust 测试清单");
+    assertTrackedFile(root, relative, "Rust 测试清单");
+    assertNonEmptyRustWorkspace(manifestPath, relative);
+    return relative;
+  });
+}
+
 function assertGuiPackageReady(root) {
   const relative = safeProjectRelative(optionalMetadata(root, "gui-root") ?? `${path.basename(root)}_gui`, "gui-root", { allowRoot: true });
   const gui = checkedProjectPath(root, relative, "GUI 根目录", true);
@@ -274,26 +290,34 @@ function assertGuiPackageReady(root) {
   if (!packageJson?.dependencies?.["@tauri-apps/cli"] && !packageJson?.devDependencies?.["@tauri-apps/cli"]) {
     throw new ActionError("GUI package.json 缺少项目本地 @tauri-apps/cli");
   }
-  const manifests = optionalMetadata(root, "rust-test-manifests") ?? ["Cargo.toml"];
-  if (!Array.isArray(manifests) || manifests.length === 0 || new Set(manifests).size !== manifests.length) {
-    throw new ActionError("rust-test-manifests 必须是非空且不重复的路径数组");
-  }
-  for (const manifest of manifests) {
-    const file = safeProjectRelative(manifest, "rust-test-manifests");
-    if (path.posix.basename(file) !== "Cargo.toml") throw new ActionError("rust-test-manifests 只能指向 Cargo.toml");
-    const manifestPath = checkedProjectPath(root, file, "Rust 测试清单");
-    assertTrackedFile(root, file, "Rust 测试清单");
-    assertNonEmptyRustWorkspace(manifestPath, file);
-  }
+  const manifests = checkedRustTestManifests(root);
   const lockManifests = [...new Set(["Cargo.toml", ...manifests, layout.cargo])];
   assertDependencyLocks(root, { rustTestManifests: lockManifests, guiRoot: relative });
   if (relative !== "." && !gui.startsWith(`${root}${path.sep}`)) throw new ActionError("GUI 根目录越出项目");
 }
 
-/** 判断接口、框架与平台是否有现有打包 Skill；GPUI 尚无专用候选打包路线。 */
+/** 核对 GPUI 原生打包所用 Rust 清单；不要求 Tauri、前端或 pnpm 文件。 */
+function assertGpuiPackageReady(root) {
+  const configuredRoot = optionalMetadata(root, "gui-root");
+  const projectId = optionalMetadata(root, "project-id");
+  if (projectId !== null && (typeof projectId !== "string" || !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(projectId))) {
+    throw new ActionError("Cargo project-id 必须是 ASCII snake_case 标识");
+  }
+  const relative = safeProjectRelative(configuredRoot ?? `${projectId ?? path.basename(root)}_gui`, "gui-root", { allowRoot: true });
+  checkedProjectPath(root, relative, "GPUI GUI 根目录", true);
+  const guiManifest = path.posix.join(relative, "Cargo.toml");
+  const guiFile = checkedProjectPath(root, guiManifest, "GPUI Cargo 清单");
+  if (!/^\s*\[package\]\s*$/mu.test(fs.readFileSync(guiFile, "utf8"))) throw new ActionError("GPUI Cargo 清单必须声明原生 GUI package");
+  assertTrackedFile(root, "Cargo.toml", "Cargo 工作区清单");
+  assertTrackedFile(root, guiManifest, "GPUI Cargo 清单");
+  const manifests = checkedRustTestManifests(root);
+  assertDependencyLocks(root, { rustTestManifests: [...new Set(["Cargo.toml", ...manifests, guiManifest])] });
+}
+
+/** 判断接口、框架与平台是否有适用的 CLI、Tauri 或 GPUI 本地打包 Skill。 */
 export function localPackageSupported(interfaces, platforms, guiFramework = "tauri") {
   if (!["tauri", "gpui"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效");
-  return interfaces.includes("cli") || (interfaces.includes("gui") && guiFramework === "tauri" && platforms.some((platform) => ["macos", "windows"].includes(platform)));
+  return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => ["macos", "windows"].includes(platform)));
 }
 
 function assertLocalPackageSupported(root) {
@@ -303,6 +327,7 @@ function assertLocalPackageSupported(root) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
   if (interfaces.includes("gui") && framework === "tauri") assertGuiPackageReady(root);
+  else if (interfaces.includes("gui") && framework === "gpui") assertGpuiPackageReady(root);
   else if (interfaces.includes("cli")) assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
 }
 

@@ -244,7 +244,7 @@ test("initialization contract requires an explicit persisted post-release action
   assert.ok(primary.get(INSTANTIATE_FORM).includes("post_release_action"));
   assert.ok(primary.get(INSTANTIATE_FORM).includes("`local_package`（本地打包，推荐默认）"));
   assert.ok(primary.get(INSTANTIATE_FORM).includes("`push_release_branch`（提交远程）"));
-  assert.ok(primary.get(INSTANTIATE_FORM).includes("纯 TUI/MCP 或仅 Linux GUI 时仍展示本地打包但标为不可用"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("纯 TUI/MCP 或不含 CLI 的仅 Linux GUI 时仍展示本地打包但标为不可用"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 4`"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("纯 TUI/MCP 或仅 Linux GUI 选本地打包或默认值是非法基础字段"));
   assert.ok(primary.get(INITIALIZE_SKILL).includes("`post_release_action` 精确等于 `local_package` 或 `push_release_branch`"));

@@ -108,7 +108,7 @@ impl Writer {
         let _ = self.sender.try_send(Some(()));
     }
 
-    /// 原生事件循环已经退出后，发送结束信号并等待最后快照完成写入。
+    /// 原生应用进入不可取消退出阶段后，发送结束信号并等待最后快照完成写入。
     pub fn finish(&self) {
         let _ = self.sender.send(None);
         if let Some(thread) = self.thread.lock().expect("偏好线程锁损坏").take() {
@@ -135,7 +135,7 @@ pub fn load() -> (Preferences, Writer) {
 }
 
 /// 可测试的受限加载器只接受已有应用拥有的偏好路径。
-fn load_from(path: Option<PathBuf>) -> (Preferences, Writer) {
+pub(crate) fn load_from(path: Option<PathBuf>) -> (Preferences, Writer) {
     let preferences = path.as_ref().and_then(|path| {
         safe_parent(path).ok()?;
         let metadata = fs::symlink_metadata(path).ok()?;
@@ -152,7 +152,7 @@ fn load_from(path: Option<PathBuf>) -> (Preferences, Writer) {
             let latest = worker_value.lock().expect("偏好内存锁损坏").clone();
             if let Some(path) = &path {
                 if let Err(error) = write(path, &latest.encode()) {
-                    eprintln!("Could not save application preferences: {error}");
+                    tracing::warn!(event = "preference_save_failed", error_kind = ?error.kind());
                 }
             }
             if signal.is_none() { break }
@@ -199,46 +199,5 @@ fn safe_parent(path: &std::path::Path) -> std::io::Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{LanguageChoice, Preferences, ThemeChoice, load_from};
-
-    /// 三态主题、语言与设备侧栏选择可以原样往返。
-    #[test]
-    fn preferences_round_trip() {
-        let value = Preferences { theme: ThemeChoice::Dark, language: LanguageChoice::Chinese, collapsed: true, bounds: Some([30., 40., 1200., 800.]), maximized: true };
-        assert_eq!(Preferences::decode(&value.encode()), value);
-    }
-
-    /// 损坏及未知字段不产生任意状态或文件路径。
-    #[test]
-    fn malformed_preferences_fall_back_to_defaults() {
-        assert_eq!(Preferences::decode("theme=invalid\nlanguage=unknown\nbounds=bad\nunknown=x"), Preferences::default());
-    }
-
-    /// 关闭前最后一次保存必须由后台线程写入，即使队列已合并多次快速点击。
-    #[test]
-    fn writer_flushes_latest_snapshot_after_event_loop() {
-        let root = std::fs::canonicalize(std::env::temp_dir()).expect("读取真实临时目录");
-        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("读取测试时间").as_nanos();
-        let directory = root.join(format!("gpui-preference-test-{}-{stamp}", std::process::id()));
-        std::fs::create_dir(&directory).expect("创建测试临时目录");
-        let file = directory.join("preferences.txt");
-        let (_, writer) = load_from(Some(file.clone()));
-        for index in 0..32 {
-            writer.save(&Preferences { collapsed: index % 2 == 0, ..Preferences::default() });
-        }
-        let expected = Preferences { theme: ThemeChoice::Dark, language: LanguageChoice::English, collapsed: true, ..Preferences::default() };
-        writer.save(&expected);
-        writer.finish();
-        assert_eq!(Preferences::decode(&std::fs::read_to_string(&file).expect("后台已写入")), expected);
-        std::fs::remove_dir_all(directory).expect("清理测试临时目录");
-    }
-
-    /// 明确选择语言时不依赖当前宿主系统的 locale。
-    #[test]
-    fn explicit_language_overrides_system_detection() {
-        assert_eq!(Preferences { language: LanguageChoice::Chinese, ..Preferences::default() }.locale(), "zh-CN");
-        assert_eq!(Preferences { language: LanguageChoice::English, ..Preferences::default() }.locale(), "en-US");
-    }
-
-}
+#[path = "preferences_test.rs"]
+mod tests;

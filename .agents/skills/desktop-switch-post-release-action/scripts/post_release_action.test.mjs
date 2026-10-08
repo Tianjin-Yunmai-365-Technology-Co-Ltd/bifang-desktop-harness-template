@@ -59,17 +59,75 @@ function track(f, ...files) {
   assert.equal(added.status, 0, added.stderr);
 }
 
-/** 纯 GPUI 尚无候选打包 Skill，不能借用 Tauri 的 macOS/Windows 能力声明。 */
-test("gpui_local_package_is_unavailable_without_cli", (t) => {
-  assert.equal(localPackageSupported(["gui"], ["macos"], "gpui"), false);
+/** GPUI 原生 macOS/Windows 路线独立可选，仅 Linux GUI 仍没有本地包路线。 */
+test("gpui_local_package_supports_native_gui_platforms_without_cli", (t) => {
+  assert.equal(localPackageSupported(["gui"], ["macos"], "gpui"), true);
+  assert.equal(localPackageSupported(["gui"], ["windows"], "gpui"), true);
+  assert.equal(localPackageSupported(["gui"], ["linux"], "gpui"), false);
   assert.equal(localPackageSupported(["cli", "gui"], ["macos"], "gpui"), true);
+  assert.equal(localPackageSupported(["cli", "gui"], ["linux"], "gpui"), true);
   assert.equal(localPackageSupported(["gui"], ["macos"]), true);
   assert.throws(() => localPackageSupported(["gui"], ["macos"], "unknown"), /gui-framework/u);
   const f = fixture(t);
-  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["macos"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n');
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["linux"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n');
   assert.match(f.run("set", setOptions("local_package"), 2).error, /没有现有本地打包 Skill/u);
   assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
   assert.equal(f.run("set", setOptions("push_release_branch")).post_release_action, "push_release_branch");
+});
+
+/** GPUI 清单与测试范围受跟踪即可选择原生包，不借用 Tauri 或 pnpm 清单。 */
+test("gpui_local_package_checks_rust_manifests_without_frontend_files", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace]\nmembers = ["app"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = ["macos", "windows"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\ngui-root = "app"\nrust-test-manifests = ["Cargo.toml"]\n');
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /GPUI GUI 根目录 不存在/u);
+  fs.mkdirSync(path.join(f.root, "app", "src"), { recursive: true });
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.toml"), '[package]\nname = "example"\nversion = "0.1.0"\n');
+  fs.writeFileSync(path.join(f.root, "app", "src", "main.rs"), "fn main() {}\n");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /必须受 Git 跟踪/u);
+  track(f, "Cargo.toml", "app/Cargo.toml", "app/src/main.rs");
+  assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
+  const cargo = path.join(f.root, "Cargo.toml");
+  const initial = fs.readFileSync(cargo, "utf8");
+  fs.writeFileSync(cargo, initial.replace('rust-test-manifests = ["Cargo.toml"]', 'rust-test-manifests = []'));
+  assert.match(f.run("check", [], 2).error, /rust-test-manifests/u);
+  fs.writeFileSync(cargo, initial.replace('members = ["app"]', "members = []"));
+  assert.match(f.run("check", [], 2).error, /空 workspace/u);
+  fs.writeFileSync(cargo, initial + 'dependency-lock-policy = "tracked"\n');
+  assert.match(f.run("check", [], 2).error, /Cargo.lock/u);
+  fs.writeFileSync(path.join(f.root, "Cargo.lock"), "# root lock\n");
+  track(f, "Cargo.lock");
+  assert.equal(f.run("check").status, "configured");
+  assert.equal(fs.existsSync(path.join(f.root, "app", "package.json")), false);
+  assert.equal(fs.existsSync(path.join(f.root, "app", "pnpm-lock.yaml")), false);
+});
+
+/** GPUI 独立 GUI workspace 的锁策略同样检查，不能只检查根 Cargo.lock。 */
+test("gpui_local_package_checks_independent_gui_workspace_lock", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace]\nmembers = ["core"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = ["windows"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\ngui-root = "app"\ndependency-lock-policy = "tracked"\n');
+  for (const name of ["core", "app"]) {
+    fs.mkdirSync(path.join(f.root, name, "src"), { recursive: true });
+    fs.writeFileSync(path.join(f.root, name, "Cargo.toml"), `[package]\nname = "${name}"\nversion = "0.1.0"\n${name === "app" ? "[workspace]\n" : ""}`);
+    fs.writeFileSync(path.join(f.root, name, "src", "lib.rs"), "pub fn marker() {}\n");
+  }
+  fs.writeFileSync(path.join(f.root, "Cargo.lock"), "# root lock\n");
+  track(f, "Cargo.toml", "Cargo.lock", "core/Cargo.toml", "core/src/lib.rs", "app/Cargo.toml", "app/src/lib.rs");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /app\/Cargo.lock/u);
+  fs.writeFileSync(path.join(f.root, "app", "Cargo.lock"), "# GUI lock\n");
+  track(f, "app/Cargo.lock");
+  assert.equal(f.run("set", setOptions("local_package")).status, "configured");
+});
+
+/** 缺省 GUI 目录优先使用项目标识，Worktree 根目录名称不改变已选包位置。 */
+test("gpui_gui_root_defaults_to_project_identity_inside_renamed_checkouts", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace]\nmembers = ["example_gui"]\n[workspace.metadata.agent-first-harness]\nproject-id = "example"\ntarget-platforms = ["macos"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n');
+  fs.mkdirSync(path.join(f.root, "example_gui"));
+  fs.writeFileSync(path.join(f.root, "example_gui", "Cargo.toml"), '[package]\nname = "example_gui"\nversion = "0.1.0"\n');
+  track(f, "Cargo.toml", "example_gui/Cargo.toml");
+  assert.equal(f.run("set", setOptions("local_package")).status, "configured");
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), fs.readFileSync(path.join(f.root, "Cargo.toml"), "utf8").replace('project-id = "example"', 'project-id = false'));
+  assert.match(f.run("check", [], 2).error, /project-id/u);
 });
 
 /** 框架字段遵循唯一事实；兼容旧项目但不修正显式错误。 */

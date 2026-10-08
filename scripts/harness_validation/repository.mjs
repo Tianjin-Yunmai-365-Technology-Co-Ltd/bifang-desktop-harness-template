@@ -32,6 +32,7 @@ export const EXPECTED_SKILLS = new Set([
   "desktop-add-gui-window-state",
   "desktop-add-mcp-adapter",
   "desktop-add-tui-adapter",
+  "desktop-build-gpui-release",
   "desktop-build-rust-release",
   "desktop-build-tauri-local-install",
   "desktop-build-tauri-release",

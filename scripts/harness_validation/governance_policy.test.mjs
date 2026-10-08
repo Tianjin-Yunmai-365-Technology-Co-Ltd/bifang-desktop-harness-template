@@ -153,7 +153,10 @@ test("TUI/MCP-only downstream rejects local packaging but accepts remote release
       assert.ok(check(interfaces, "local_package").some((error) => error.includes("local_package requires CLI or GUI with a macOS/Windows target")));
       assert.deepEqual(check(interfaces, "push_release_branch"), []);
     }
-    assert.ok(check(["gui"], "local_package", ["macos"], "gpui").some((error) => error.includes("local_package requires")));
+    assert.deepEqual(check(["gui"], "local_package", ["macos"], "gpui"), []);
+    assert.deepEqual(check(["gui"], "local_package", ["windows"], "gpui"), []);
+    assert.ok(check(["gui"], "local_package", ["linux"], "gpui").some((error) => error.includes("local_package requires")));
+    assert.deepEqual(check(["cli", "gui"], "local_package", ["linux"], "gpui"), []);
     assert.deepEqual(check(["gui"], "push_release_branch", ["macos"], "gpui"), []);
     assert.deepEqual(check(["cli", "gui"], "local_package", ["macos"], "gpui"), []);
     for (const interfaces of [["cli"], ["gui"], ["cli", "tui"], ["gui", "mcp"]]) {

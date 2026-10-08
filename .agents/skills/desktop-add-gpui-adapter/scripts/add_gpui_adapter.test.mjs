@@ -19,15 +19,29 @@ function fixture() {
   return target;
 }
 
-/** 保留在终端下游的纯 renderer 不包含创建 core 或新 workspace 的文件。 */
-test('retained_renderer_only_produces_gui_and_profile_files', () => {
+/** 保留的 renderer 只产出 GUI/profile 与同框架打包配置，不创建 core 或 workspace。 */
+test('retained_renderer_only_produces_gui_profile_and_gpui_packaging_files', () => {
   const files = renderGpuiAdapterFiles(identity);
-  for (const file of files.keys()) assert.ok(file.startsWith('existing_tool_gui/') || file === 'docs/GUI_APP_PROFILE.md');
+  for (const file of files.keys()) assert.ok(file.startsWith('existing_tool_gui/') || file === 'docs/GUI_APP_PROFILE.md' || ['packaging/gpui.json', 'packaging/macos/background.png'].includes(file));
   assert.equal(files.has('Cargo.toml'), false);
   assert.equal(files.has('existing_tool_core/src/lib.rs'), false);
   assert.equal(files.has('.gitignore'), false);
   assert.match(files.get('existing_tool_gui/src/app/mod.rs'), /use existing_tool_core as _;/);
   assert.doesNotMatch(files.get('existing_tool_gui/src/app/mod.rs'), /existing_tool_core::product_definition/);
+});
+
+/** 调用方已有打包配置不被初始化接线覆盖，整个新增操作零写入失败。 */
+test('existing_packaging_config_is_preserved_without_partial_gui', () => {
+  const target = fixture();
+  try {
+    fs.mkdirSync(path.join(target, 'packaging'));
+    fs.writeFileSync(path.join(target, 'packaging/gpui.json'), '{"user":"owned"}\n');
+    const cargo = fs.readFileSync(path.join(target, 'Cargo.toml'));
+    assert.throws(() => addGpuiAdapter({ ...identity, target }), /existing adapter\/profile file/);
+    assert.deepEqual(fs.readFileSync(path.join(target, 'Cargo.toml')), cargo);
+    assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
+    assert.equal(fs.readFileSync(path.join(target, 'packaging/gpui.json'), 'utf8'), '{"user":"owned"}\n');
+  } finally { fs.rmSync(target, { recursive: true, force: true }); }
 });
 
 /** 安全合并唯一 Cargo 根后，已有核心和任意用户文件字节保持原样。 */
