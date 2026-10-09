@@ -39,7 +39,7 @@ description: 在本地 Git 发布后、另行授权推送完成且用户明确�
 
 ## 固定候选契约
 
-- 本 Skill 是默认 `$desktop-build-rust-release` 路线，矩阵固定 `fail-fast: false`。在执行任何单元测试或构建命令前，必须先运行 `release_notes.mjs check --file release-notes.json --expected-version <version>`；本 Skill 不得生成或改写更新日志，也不得自动追加格式、lint 或其他开发门禁。
+- 本 Skill 是默认 `$desktop-build-rust-release` 路线，矩阵固定 `fail-fast: false`。在执行任何单元测试或构建命令前，必须先运行 `inspect_release_notes.mjs check --file release-notes.json --expected-version <version>`；本 Skill 不得生成或改写更新日志，也不得自动追加格式、lint 或其他开发门禁。
 - 运行器使用 `fetch-depth: 0` 获得 fresh 全历史/全部 remote-tracking 分支快照，并保持凭据不持久化；这些数据只用来验证远端 `release` 分支和版本 tag，不检查祖先、线性或合并形态。候选派发前必须运行 `verify_dispatch_readiness.mjs`，只读确认远端默认分支已有可派发 workflow；不得为满足 GitHub 触发条件修改 ref、创建 tag、推送默认分支或执行渠道发布。
 - 在测试和构建前原子隔离旧目录。签名条件成立时必须尝试签名并验证；条件不成立且策略允许时记录 `signingStatus: unsigned`、原因和结构化 `signingEvidence`，不得静默降级或输出凭据。
 - Rust CLI 的 macOS GUI 签名选择不适用，不从发布上下文读取 `candidateSelections`。最终字节形成后且写 manifest 前，第二次校验发布上下文和已 fetch 远端 refs，完整规范化 `releaseReview`。manifest 的 `sourceCommit` 是实际构建 HEAD，绝不能写成审查 `sourceHead`；审查关闭时只复制 `reviewReason`/`reviewRemainingRisk`。
@@ -56,3 +56,5 @@ description: 在本地 Git 发布后、另行授权推送完成且用户明确�
 ## 完成输出
 
 报告本地 Git 发布和独立推送的 ref 复核、工作流路径与 action 固定引用、原生矩阵、`sourceCommit`、`releaseContextSha256`、版本/tag、全量非空单元测试、候选/摘要/manifest、签名、运行器结果、`pending` 状态与下一步；不更新项目记忆。
+
+现有发布日志只读复核使用 `$desktop-inspect-release-notes`；构建不整理或写入条目，内部直接复用原读取库的脚本保持原路径。

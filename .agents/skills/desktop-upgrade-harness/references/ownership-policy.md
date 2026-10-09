@@ -55,3 +55,5 @@
 自动应用一次只替换一个受审路径，之后必须重新生成计划；普通 `managed` 完成后才进入 `managed-self`，升级入口脚本在自更新过程中最后替换。普通权限位参与三方比较；遇到特殊权限位、符号链接、目录联接点和其他特殊节点时，必须以阻断方式失败。
 
 四项跨接口知识入口 `$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-manage-user-tasks`、`$desktop-configure-agent-policy` 及其 references、helper/测试必须完整传播且与源摘要一致；策略实例仍 protected，升级不得启用能力或改写用户选择。
+
+跨接口完整传播 `$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`，只传播工程知识/只读入口，不代写记忆或清单。Tauri GUI 条件完整传播 `$desktop-enable-gui-updates` 与 `$desktop-add-gui-telemetry`；GPUI GUI 条件完整传播 `$desktop-add-gpui-autostart`，均不自动启用。`$desktop-test-gpui-initialization-e2e` 为初始化专用 tombstone，完成基线前删除，升级永久不恢复；产品 profile、支持实例和根清单继续 protected。

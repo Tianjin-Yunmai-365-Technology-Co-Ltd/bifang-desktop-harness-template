@@ -15,7 +15,7 @@
 | LIM-014 | P0：非 CLI 适配器缺少可重复脚手架证据 | TUI/MCP/GUI Skills 只有执行规则和参考资料，尚无真实下游最小脚手架、依赖解析、测试与最终产物证据 | 逐接口在隔离下游前向执行；重复稳定后再决定是否把最小结构提升为受测资产 | Open |
 | LIM-015 | P1：构建与跨平台发布 Skills 仍未覆盖全部接口 | 已新增 Windows 原生 GUI x64 NSIS 本地试包与发布候选合同，并保留 macOS 原生 DMG、macOS→Windows x64 NSIS xwin、Tauri 安装包清单和 macOS 签名+公证+stapling；但 Windows 原生路线尚无真实下游前向证据，TUI、MCP、Linux GUI 与各接口只读冒烟仍未统一 | 在真实 Windows 下游执行原生 NSIS 构建、安装/运行验收和签名分支，再逐接口按已观察到的共同字段泛化矩阵；在此之前 Windows 运行/安装结论保持 `Unverified`，不得用 xwin 或静态合同代证 | Mitigated |
 | LIM-016 | P1：下游 Harness 升级仍缺少真实项目前向证据 | 已交付 `$desktop-upgrade-harness`、来源/目标 Git 绑定、三方基线、最小保护清单、逐文件应用、引导与 28 个基于隔离 Git 夹具的测试；但尚未证明真实身份渲染、混合章节合并、Windows 可移植写入和长期自更新在客户下游稳定 | 至少两个真实下游分别完成有/无旧锁文件的升级并记录冲突、Windows/macOS/Linux 差异和回滚证据后评估关闭 | Mitigated |
-| LIM-017 | P1：缺少统一依赖维护与供应链复核 Skill | Rust 与 React 技术族已有准入规则，但版本检查、依赖解析漂移、许可证/漏洞/废弃依赖和回滚证据仍分散 | 在真实 Cargo+npm 维护任务中固化 `$maintain-dependencies` 的输入、检查、变更和验证契约 | Open |
+| LIM-017 | P1：供应链复核仍缺真实维护证据 | 已抽取 `$desktop-manage-dependencies` 统一准入、下界/特性、锁与最低环境验证；许可证/漏洞/废弃依赖和回滚证据仍待真实 Cargo+npm 维护场景固化 | 复用该入口在真实维护任务补齐供应链与回滚证据，不因文档抽取宣称完成自动化或兼容验证 | Mitigated |
 | LIM-018 | P2：跨接口安全验收入口尚未统一 | MCP 与 GUI 各自约束协议权限、CSP、WebView 能力和状态边界，但缺少一次性交付前威胁面复核和证据矩阵 | 出现首个含外部输入、网络或平台权限的真实产品时，评估新增 `$review-security` 或扩展 `$desktop-verify-delivery` | Open |
 | LIM-019 | 一次性下游裁剪与 GUI 身份流程尚无真实前向证据 | 规则和校验器可检查模板契约，但尚未证明真实下游能在自删除后保留正确地图，也未证明三种图标路径与 Tauri 平台资产都可用 | 在首个真实下游分别验证仅 CLI 与 GUI 初始化裁剪；GUI 路径验证自动生成、确定性备选方案、上传标准化中的实际选择和最终平台图标 | Open |
 | LIM-021 | Subagent Worktree 所有权尚未由宿主机械强制 | 辅助程序已把非重叠 repo-relative 所有权登记、guard 和 committed/uncommitted/untracked postflight 设为默认拒绝门禁，并校验 cwd、Git common-dir、登记 Worktree、分支和符号链接边界；但绕过辅助程序的宿主写入仍不能被仓库脚本阻止 | 在 Codex 宿主或沙箱层强制每个写入型 Subagent 的 cwd 与可写根，并以绕过辅助程序的故意越界场景复验 | Mitigated |

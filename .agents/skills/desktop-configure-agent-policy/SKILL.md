@@ -20,7 +20,7 @@ description: 用户明确修改已初始化下游的永久 Agent 能力偏好时
    ```
 
 5. helper 与发布后动作 writer 共用策略锁，原子更新指定字段和 confirmed_by/confirmed_at，保留其他字段及正文。复读 `inspect` 确认结果；并发、路径、锁或旧值冲突停止，不用覆盖参数绕过。
-6. 变化成功后按项目 ADR 规则记录确认来源、前后值、原因、影响、恢复条件及适用 change_id/required_version；完成必要相关验证与本地提交。helper 不伪造或自动批准 ADR。
+6. 仅 `changed: true` 时调用 `$desktop-record-adr`，复用同一上下文记录确认来源、前后值、原因、影响、恢复条件及适用 change_id/required_version；完成必要相关验证与本地提交。helper 不伪造或自动批准 ADR。
 
 ## 边界与输出
 

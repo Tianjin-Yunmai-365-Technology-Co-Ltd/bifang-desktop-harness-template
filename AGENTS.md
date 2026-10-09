@@ -23,17 +23,19 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 | 范围清楚的日常实现、问题修复或用户可感知优化 | `docs/ENGINEERING_RULES.md`、所选接口事实；已初始化下游再读取版本门禁 | `$desktop-implement-change`、`$desktop-manage-version` |
 | 新功能、Bug 修复、推送或发布的 Git 生命周期 | `docs/AGENT_POLICY.md` 的“开发分支与主分支发布生命周期”；发布时再读 `docs/RELEASE.md` | `$desktop-manage-git-lifecycle`；日常实现仍走 `$desktop-implement-change` |
 | 切换未来发布后动作 | `docs/AGENT_POLICY.md` 的“初始化与持久化”和发布后动作字段；已有发布事实只读 | `$desktop-switch-post-release-action` |
+| 依赖变更、core 边界专项审查或更新日志预览 | 精确命中的 Rust/工程/发布事实 | `$desktop-manage-dependencies`、`$desktop-review-core-boundaries` 或只读 `$desktop-inspect-release-notes` |
+| GUI 远程更新、统计或 GPUI 自启 | 已批准产品能力、框架与受保护 profile | Tauri 按需 `$desktop-enable-gui-updates` / `$desktop-add-gui-telemetry`；GPUI 自启用 `$desktop-add-gpui-autostart`，初始化验收用 `$desktop-test-gpui-initialization-e2e` |
 | 文件读写或外部程序能力 | 已批准范围、相关 Rust/接口事实 | `$desktop-add-file-operations` 或 `$desktop-add-external-process`，返回同一实施流程 |
 | 永久 Agent 能力偏好变更 | Agent Policy 字段语义与初始化后变更规则 | `$desktop-configure-agent-policy`；发布后动作仍用专用 Skill |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md`；Tauri/Mantine 列表页、数据表格、后台列表、搜索结果页及已有列表审查另读 `$mantine-list-view` | 按 `gui-framework` 选择 GUI Skill（`gpui` 另读 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md` 与 `dependency-baseline.md`）；Tauri/Mantine 列表任务即使未明说表格也必须使用 `$mantine-list-view`；不得一次加载全部 GUI Skills |
 | 创建或检查左侧 user-owned Task | `docs/AGENT_POLICY.md` 的“用户可见 Task 开关、粒度与创建门禁” | `$desktop-manage-user-tasks` 与 Codex 项目/Task 工具；`user_owned_tasks` 启用或用户明确要求时调用，Git 使用 Worktree，非 Git 使用 Local |
 | 当前 Task 内部并行 Worktree/Subagent 或提交 | `docs/AGENT_POLICY.md` 的相关章节；提交时再读提交 Skill 的规范引用 | `$desktop-run-parallel-worktrees`、`$desktop-configure-git-commits`（按触发器） |
-| 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-plan-change`（仅在真实触发时） |
+| 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-handoff-project`；持久计划另按触发调用 `$desktop-plan-change` |
 | Windows Tauri GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
 | 显式构建候选 | `docs/RELEASE.md`、Agent Policy 的构建段和所选构建 Skill；每次构建单独解析 E2E 选择 | `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release` |
 | 正式发布候选、完整验收、E2E 或历史证据核对 | `docs/RELEASE.md`、`docs/VERIFICATION.md`；活动候选读忽略的 `release/`，仅历史核对读索引的精确证据卷 | `$desktop-prepare-release`、`$desktop-verify-delivery` 或精确命中的测试 Skill |
-| 长期决定、硬规则例外或 Harness 记忆治理 | `docs/adr/README.md` 与最新 ADR；只追溯其明确引用的旧事实 | 对应记录流程；Harness 历史整理使用 `$desktop-curate-harness-memory` |
+| 长期决定、硬规则例外或 Harness 记忆治理 | `docs/adr/README.md` 与最新 ADR；只追溯其明确引用的旧事实 | `$desktop-record-adr`；Harness 历史整理使用 `$desktop-curate-harness-memory` |
 | 只需理解 Harness 方法论 | `docs/HARNESS_ENGINEERING.md`，再按索引选择一个主题卷 | 不因阅读方法论自动进入计划、构建或验收 |
 | 用户要求回顾开发沿革、决策变化或未来方向 | 当前项目对应记忆索引与最新文件；有 Git 时按范围查旧历史 | `$desktop-summarize-development-history`（只读） |
 | 升级已初始化下游的 Harness 工程层 | 下游当前事实、源 Harness 版本与 `$desktop-upgrade-harness` 指定资料 | `$desktop-upgrade-harness`，默认先预览 |
@@ -58,9 +60,9 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 
 项目 Skills 位于 `.agents/skills/`。先用任务路由选择最小集合；命中后必须完整读取对应 `SKILL.md` 及其要求的精确引用，不得预先加载同类全部 Skills。下游裁剪可以删除不适用条目，但必须让本节与实际保留的 Skills 一致。
 
-- 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
-- 开发与治理：`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-manage-user-tasks`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
-- 构建与验收：`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
+- 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-enable-gui-updates`、`$desktop-add-gui-telemetry`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
+- 开发与治理：`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-manage-user-tasks`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
+- 构建与验收：`$desktop-test-gpui-initialization-e2e`、`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 ## 约束地图
 

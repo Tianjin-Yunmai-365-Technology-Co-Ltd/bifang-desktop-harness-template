@@ -17,6 +17,15 @@ import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
 
 /** Harness 当前必须保留的项目 Skill 集合。 */
 export const EXPECTED_SKILLS = new Set([
+  "desktop-manage-dependencies",
+  "desktop-review-core-boundaries",
+  "desktop-record-adr",
+  "desktop-handoff-project",
+  "desktop-inspect-release-notes",
+  "desktop-enable-gui-updates",
+  "desktop-add-gui-telemetry",
+  "desktop-add-gpui-autostart",
+  "desktop-test-gpui-initialization-e2e",
   "desktop-add-file-operations",
   "desktop-add-external-process",
   "desktop-manage-user-tasks",

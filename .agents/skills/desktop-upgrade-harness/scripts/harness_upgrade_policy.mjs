@@ -15,6 +15,18 @@ export const SOURCE_ONLY_PATHS = [
   ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
 ];
 export const REQUIRED_MANAGED_SOURCE_PATHS = [
+  ".agents/skills/desktop-handoff-project/SKILL.md",
+  ".agents/skills/desktop-handoff-project/agents/openai.yaml",
+  ".agents/skills/desktop-inspect-release-notes/SKILL.md",
+  ".agents/skills/desktop-inspect-release-notes/agents/openai.yaml",
+  ".agents/skills/desktop-inspect-release-notes/scripts/inspect_release_notes.mjs",
+  ".agents/skills/desktop-inspect-release-notes/scripts/inspect_release_notes.test.mjs",
+  ".agents/skills/desktop-manage-dependencies/SKILL.md",
+  ".agents/skills/desktop-manage-dependencies/agents/openai.yaml",
+  ".agents/skills/desktop-record-adr/SKILL.md",
+  ".agents/skills/desktop-record-adr/agents/openai.yaml",
+  ".agents/skills/desktop-review-core-boundaries/SKILL.md",
+  ".agents/skills/desktop-review-core-boundaries/agents/openai.yaml",
   ".agents/skills/desktop-add-external-process/SKILL.md",
   ".agents/skills/desktop-add-external-process/agents/openai.yaml",
   ".agents/skills/desktop-add-external-process/references/external-process.md",
@@ -52,6 +64,15 @@ export const REQUIRED_MANAGED_SOURCE_PATHS = [
 ];
 
 export const MINIMUM_OWNERSHIP_RULES = new Map([
+  [".agents/skills/desktop-manage-dependencies/**", "managed"],
+  [".agents/skills/desktop-review-core-boundaries/**", "managed"],
+  [".agents/skills/desktop-record-adr/**", "managed"],
+  [".agents/skills/desktop-handoff-project/**", "managed"],
+  [".agents/skills/desktop-inspect-release-notes/**", "managed"],
+  [".agents/skills/desktop-enable-gui-updates/**", "conditional"],
+  [".agents/skills/desktop-add-gui-telemetry/**", "conditional"],
+  [".agents/skills/desktop-add-gpui-autostart/**", "conditional"],
+  [".agents/skills/desktop-test-gpui-initialization-e2e/**", "tombstone"],
   ["Version.md", "tombstone"],
   [".agents/skills/desktop-instantiate-project/**", "tombstone"],
   [".agents/skills/desktop-initialize-rust-project/**", "tombstone"],

@@ -69,3 +69,5 @@ E2E 为 `enabled` 或硬要求时，最终候选形成后调用 `$desktop-verify
 ## 完成输出
 
 报告模式、实际源码/dirty 状态、Rust 全量测试数量、target/format、工具版本、真实产物/哈希/manifest、签名与资源检查、当前 E2E 选择及未执行的安装/运行、未验证平台。失败保留本次隔离中间物和旧候选隔离目录，不覆盖源码、不安装应用、不改 Git 发布事实。
+
+候选更新日志的只读校验/双语预览统一用 `$desktop-inspect-release-notes`，构建 helper 仍直接调用原解析库，不改日志或发布上下文；local 模式不因此读取日志。

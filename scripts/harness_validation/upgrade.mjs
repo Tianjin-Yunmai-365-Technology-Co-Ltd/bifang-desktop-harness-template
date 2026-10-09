@@ -17,6 +17,15 @@ export const UPGRADE_MANIFEST = path.join(UPGRADE_ROOT, "references", "ownership
 // Sharing the runtime map would let a change to both the runtime and manifest
 // silently weaken the ownership boundary.
 export const REQUIRED_UPGRADE_RULES = new Map([
+  [".agents/skills/desktop-manage-dependencies/**", "managed"],
+  [".agents/skills/desktop-review-core-boundaries/**", "managed"],
+  [".agents/skills/desktop-record-adr/**", "managed"],
+  [".agents/skills/desktop-handoff-project/**", "managed"],
+  [".agents/skills/desktop-inspect-release-notes/**", "managed"],
+  [".agents/skills/desktop-enable-gui-updates/**", "conditional"],
+  [".agents/skills/desktop-add-gui-telemetry/**", "conditional"],
+  [".agents/skills/desktop-add-gpui-autostart/**", "conditional"],
+  [".agents/skills/desktop-test-gpui-initialization-e2e/**", "tombstone"],
   ["Version.md", "tombstone"],
   [".agents/skills/desktop-instantiate-project/**", "tombstone"],
   [".agents/skills/desktop-initialize-rust-project/**", "tombstone"],

@@ -308,3 +308,20 @@ test("missing GUI support contract files fail closed", () => withTemporaryRoot((
   expectError(errors, "missing or unsafe GUI support contract file");
   assert.equal(existsSync(path.join(root, "missing.md")), false);
 }));
+
+/** 拆分后安全合同的删除仍在真实新路径触发门禁，不依赖旧混合文档。 */
+test("extracted_update_and_telemetry_contracts_fail_closed", () => withTemporaryRoot(root => {
+  const skillsRoot = path.dirname(path.dirname(GUI_SUPPORT_SKILL));
+  for (const [name, file, option, fragment] of [
+    ["desktop-enable-gui-updates", "update-contract.md", "updateContractPath", "签名验证不可关闭"],
+    ["desktop-add-gui-telemetry", "telemetry-contract.md", "telemetryContractPath", "禁止使用 GET/query"],
+    ["desktop-add-gui-telemetry", "telemetry-contract.md", "telemetryContractPath", "最多一个发送任务、一个在途请求和 32 条内存事件"],
+  ]) {
+    const source = path.join(skillsRoot, name, "references", file);
+    const target = path.join(root, file);
+    mutateTextCopy(source, target, text => text.replace(fragment, "removed safeguard"));
+    const errors = [];
+    validateGuiSupportContract(errors, { [option]: target, productInstancePath: path.join(root, "absent.md") });
+    expectError(errors, fragment);
+  }
+}));
