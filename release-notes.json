@@ -3,6 +3,30 @@
   "releases": [
     {
       "releaseDate": "2026-10-09",
+      "version": "v202610091532",
+      "featureOptimizations": [
+        {
+          "zh-CN": "独立抽取 13 个能力与治理 Skills，按任务触发加载，并在初始化和升级时按框架保留或裁剪。",
+          "en-US": "Extract 13 focused capability and governance Skills, loaded by task trigger and retained or pruned by framework during initialization and upgrades."
+        },
+        {
+          "zh-CN": "永久能力策略使用共享锁、旧值核对与原子写入；更新日志预览提供独立只读入口。",
+          "en-US": "Permanent capability preferences use a shared lock, expected-value checks and atomic writes; release-note previews have a dedicated read-only entrypoint."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复保留的升级测试引用下游已裁剪的上游专属清单。",
+          "en-US": "Fix retained upgrade tests importing an upstream-only manifest that is pruned from downstream projects."
+        },
+        {
+          "zh-CN": "策略测试使用独立确认夹具，兼容已初始化下游的能力选择和 LF/CRLF 换行，并保持真实策略字节不变。",
+          "en-US": "Use independent policy test fixtures for initialized downstream preferences and LF/CRLF line endings while preserving the actual policy bytes."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-09",
       "version": "v202610090748",
       "featureOptimizations": [
         {
@@ -191,34 +215,6 @@
         {
           "zh-CN": "修复上游 Python 检查器将已发布更新日志中的历史描述误判为活动解释器命令的问题。",
           "en-US": "Fixed the upstream Python gate misclassifying historical descriptions in published release notes as active interpreter commands."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-28",
-      "version": "v202609281857",
-      "featureOptimizations": [
-        {
-          "zh-CN": "Harness 校验器复用解析与批量语法检查，并用内容摘要识别源码改写，减少重复检查。",
-          "en-US": "Harness validators now share parsing and batched syntax checks, using content digests to catch source rewrites and avoid duplicate checks."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复旧版下游工程层接入时 Python 源限制外溢、版本镜像及发布后动作检查不一致的问题。",
-          "en-US": "Fixed Python source restrictions leaking into existing downstream upgrades, along with version mirror and post-release action checks."
-        },
-        {
-          "zh-CN": "本地打包选择现在拒绝缺少已跟踪锁文件或没有成员的 Rust 测试 workspace。",
-          "en-US": "Local packaging selection now rejects missing tracked lockfiles and Rust test workspaces with no members."
-        },
-        {
-          "zh-CN": "Git 发布最终日志现在严格拒绝重复 JSON 字段、非规范版本和超限文件，包括中断后重试。",
-          "en-US": "Final Git release checks now reject duplicate JSON keys, noncanonical versions, and oversized notes, including resumed releases."
-        },
-        {
-          "zh-CN": "收紧发布策略、发布分支、tag 和上下文的复核，拒绝不一致的本地或远端状态。",
-          "en-US": "Tightened checks of release policy, branch, tag, and context to reject inconsistent local or remote state."
         }
       ]
     }

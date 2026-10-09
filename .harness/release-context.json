@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "c424ceadafb23133c98b513b63bf062c45ca212c",
-  "version": "202610090748",
+  "sourceHead": "ea0e5fe5d0bed682535811ed0e950c3aaa3938a6",
+  "version": "202610091532",
   "releaseDate": "2026-10-09",
-  "expectedTag": "v202610090748-20261009",
+  "expectedTag": "v202610091532-20261009",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "0b39283875305e8424e8daaf682c272044a76a6e",
-    "sourceHead": "c424ceadafb23133c98b513b63bf062c45ca212c",
-    "scopeDiffSha256": "f34105c0c760e1c76a55faa27d6c12c656f55e921ddbf4d8351feea9312c2e44",
-    "reviewedSourceCommit": "c424ceadafb23133c98b513b63bf062c45ca212c",
+    "scopeBase": "da7dbd1de043969d1db5cec4b1304f201136f74f",
+    "sourceHead": "ea0e5fe5d0bed682535811ed0e950c3aaa3938a6",
+    "scopeDiffSha256": "9bc55c1dcc8a2a888a7d736b96e6c572cf1c1feea7f811c2015330c4befc723e",
+    "reviewedSourceCommit": "ea0e5fe5d0bed682535811ed0e950c3aaa3938a6",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "User enabled review. Five checks passed for GPUI dev/tooling and version mirrors; adapter ownership, script conflicts, argument arrays and tracked locks reviewed. Harness: 1042 pass/16 skip/0 fail; final real-Cargo dev regressions: 6 pass. Release-review gate passed; 27 existing prompts checked. Native GPUI window and Windows/Linux runs not performed; restart resets memory. Windows descendants after leader exit remain unverified.",
+    "evidenceSummary": "Reviewed extracted Skills, capability authorization, core/adapter rules, contracts, responsibility and size. Two downstream test regressions fixed with isolated LF/CRLF coverage. Harness suite: 1061 passed, 16 host skips; focused fixes passed 46 and final 21 tests. Rust 1.98.1 assets passed fmt, Clippy and 7 tests. Hard gates passed; 27 advisories assessed as cohesive existing modules, dated ADR and an intentional Work Plan test marker. Product build/E2E not applicable.",
     "reason": null,
     "remainingRisk": null
   }
