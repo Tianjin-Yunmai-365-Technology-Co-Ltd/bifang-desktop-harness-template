@@ -12,7 +12,7 @@
 
 ## 新增
 
-- `HARNESS-FEAT-REUSABLE-SKILL-EXTRACTION`（`required_version = 202610090748`，正式发布时物化）：分两批独立抽取 13 个入口：文件操作、外部进程、用户 Task、永久能力策略、依赖准入、core 边界审查、ADR、交接、只读日志、GUI 更新/遥测、GPUI 自启与初始化 E2E，接入最小读取路由、框架条件保留和升级传播。策略变更使用共享锁与原子比较写入；保留 Skill 不自动启用能力或创建 Task；只读日志拒绝写入命令，初始化 E2E 在基线后永久裁剪。
+- `HARNESS-FEAT-REUSABLE-SKILL-EXTRACTION`（`required_version = 202610091532`，已在本次正式发布物化）：分两批独立抽取 13 个入口：文件操作、外部进程、用户 Task、永久能力策略、依赖准入、core 边界审查、ADR、交接、只读日志、GUI 更新/遥测、GPUI 自启与初始化 E2E，接入最小读取路由、框架条件保留和升级传播。策略变更使用共享锁与原子比较写入；保留 Skill 不自动启用能力或创建 Task；只读日志拒绝写入命令，初始化 E2E 在基线后永久裁剪。
 
 - `HARNESS-FEAT-GPUI-DEV-RELOAD`（`required_version = 202610090748`）：GPUI 根 `pnpm dev` 提供标准库文件监听、保存后自动重编译/重启、编译失败恢复和中断进程回收；初始化与既有入口迁移共用合同。词典/资源变化刷新所选 GUI 调试缓存，构建输出不触发重启；进程内临时状态随重启重置，不引入第三方 watcher。
 

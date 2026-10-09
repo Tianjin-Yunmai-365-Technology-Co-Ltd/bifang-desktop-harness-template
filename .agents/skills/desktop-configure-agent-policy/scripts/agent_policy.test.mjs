@@ -9,11 +9,14 @@ import { CAPABILITY_FIELDS, inspect, main, setCapability } from "./agent_policy.
 import { atomicWrite, readPolicy, setAction } from "../../desktop-switch-post-release-action/scripts/post_release_action.mjs";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+// 测试确认事实与能力固定，不继承已初始化下游的真实偏好。
 const template = fs.readFileSync(path.join(sourceRoot, "docs/AGENT_POLICY.md"), "utf8")
-  .replace("confirmed_by: pending", "confirmed_by: previous-user")
-  .replace("confirmed_at: pending", "confirmed_at: 2026-10-08")
-  .replaceAll(": pending", ": disabled")
-  .replace("post_release_action: disabled", "post_release_action: push_release_branch");
+  .replaceAll("\r\n", "\n")
+  .replace(/^---\r?\n[\s\S]*?\r?\n---(?=\r?\n)/u, [
+    "---", "schema_version: 4", "confirmed_by: previous-user", "confirmed_at: 2026-10-08",
+    "decision_mode: reuse_then_infer_then_ask", ...CAPABILITY_FIELDS.map((field) => `${field}: disabled`),
+    "post_release_action: push_release_branch", "---",
+  ].join("\n"));
 
 /** 在独立临时 Git 仓库中验证策略 writer，不访问实际用户策略。 */
 function fixture(t, text = template) {

@@ -8,14 +8,12 @@ import test from "node:test";
 import { HarnessUpgradeFixture, MANAGED, MIXED, PROTECTED, REQUIRED_MANAGED_CHECKERS, TOMBSTONE, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
 import { loadOwnership, matchesPattern, scanTree } from "./harness_upgrade_ownership.mjs";
 import { REQUIRED_MANAGED_SOURCE_PATHS } from "./harness_upgrade_policy.mjs";
-import { REQUIRED_ROOT_FILES } from "../../../../scripts/harness_validation/repository_required_files.mjs";
 import { safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
 
-test("required file manifests contain unique canonical relative paths", () => {
-  for (const manifest of [REQUIRED_MANAGED_SOURCE_PATHS, REQUIRED_ROOT_FILES]) {
-    assert.equal(new Set(manifest).size, manifest.length);
-    for (const relative of manifest) assert.equal(safeRelativePath(relative), relative);
-  }
+/** 保留入口的清单在下游独立校验，不依赖 Harness 源专用目录。 */
+test("required_managed_paths_are_unique_and_canonical", () => {
+  assert.equal(new Set(REQUIRED_MANAGED_SOURCE_PATHS).size, REQUIRED_MANAGED_SOURCE_PATHS.length);
+  for (const relative of REQUIRED_MANAGED_SOURCE_PATHS) assert.equal(safeRelativePath(relative), relative);
 });
 
 test("ownership_glob_preserves_fnmatch_character_classes", () => {
