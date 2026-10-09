@@ -30,7 +30,7 @@
 
 ### 用户硬规则、业务前 Task 门禁与中文提交
 
-- 变更标识：`change_id = HARNESS-FEAT-USER-HARD-TASK-RULES-CHINESE-COMMITS`；`required_version = 待正式发布时物化`。日常实施不改变 `Version.md` 或既有发布事实。
+- 变更标识：`change_id = HARNESS-FEAT-USER-HARD-TASK-RULES-CHINESE-COMMITS`；`required_version = 202610100058`。本次正式发布已取号；日常实施不改变 `Version.md` 或既有发布事实。
 - 每次开工先完整读取用户级 `AGENTS.md`，再读取项目入口。已确认的用户长期硬规则高于项目默认与五项偏好；推荐预设保持原值，自定义模式复用已明确的 Task 启用授权，汇总分开报告项目值、用户强制规则与有效行为。覆盖不新增 schema/字段，也不启用无关能力或修改已有下游确认元数据。
 - 用户要求 Task Tree 时，业务资料阅读、插件探索、调研分析、方案设计、测试及写入之前先建立所属项目内、未置顶的左侧 user-owned Task。Git 使用独立 Task Worktree，真实 threadId、精确项目/标题/cwd/状态、common-dir、registry、起始提交和 clean 全部复核通过才开工；协调聊天只做编号、创建、绑定、恢复与状态。
 - 按用户阶段隔离要求，调研分析、方案设计、编码实现、正式测试验收、安装发布分别独立，发布与推送也分别独立。开发单元/回归及同范围修复属于实施闭环，不能承担正式验收结论。描述记录固定阶段、前序精确 SHA/证据及允许副作用；只读阶段编译/测试/提交可明确为 Not applicable。
@@ -486,7 +486,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202610091532`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202610100058`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
