@@ -78,3 +78,5 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 ## 完成要求
 
 报告源与目标身份、基线状态、试运行分类、已批准和已应用路径、保留的本地修改、冲突、本次测试或替代验证、锁文件更新、未验证平台和剩余风险。未显式请求时，构建与完整验收均为 `Not run`；仅有成功的试运行不代表升级完成。必须报告发布后动作的原值、最终值与 schema 4 强制检查结果；旧项目缺选时不得把工程层完成误报为完整升级。
+
+四项跨接口知识入口 `$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-manage-user-tasks`、`$desktop-configure-agent-policy` 及其 references、helper/测试必须完整传播且与源摘要一致；策略实例仍 protected，升级不得启用能力或改写用户选择。

@@ -7,7 +7,16 @@ import path from "node:path";
 import test from "node:test";
 import { HarnessUpgradeFixture, MANAGED, MIXED, PROTECTED, REQUIRED_MANAGED_CHECKERS, TOMBSTONE, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
 import { loadOwnership, matchesPattern, scanTree } from "./harness_upgrade_ownership.mjs";
-import { snapshotFile } from "./harness_upgrade_safety.mjs";
+import { REQUIRED_MANAGED_SOURCE_PATHS } from "./harness_upgrade_policy.mjs";
+import { REQUIRED_ROOT_FILES } from "../../../../scripts/harness_validation/repository_required_files.mjs";
+import { safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
+
+test("required file manifests contain unique canonical relative paths", () => {
+  for (const manifest of [REQUIRED_MANAGED_SOURCE_PATHS, REQUIRED_ROOT_FILES]) {
+    assert.equal(new Set(manifest).size, manifest.length);
+    for (const relative of manifest) assert.equal(safeRelativePath(relative), relative);
+  }
+});
 
 test("ownership_glob_preserves_fnmatch_character_classes", () => {
   assert.equal(matchesPattern("docs/a.txt", "docs/[ab].txt"), true);

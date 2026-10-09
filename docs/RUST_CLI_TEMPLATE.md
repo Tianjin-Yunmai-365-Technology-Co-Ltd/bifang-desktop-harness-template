@@ -271,10 +271,10 @@ cargo build --workspace --release
 
 ## 按需能力配方
 
-初始化默认不启用下列能力。真实需求通过范围闸门后，使用 `$desktop-implement-change` 对应参考资料：
+初始化默认不启用下列能力。真实需求通过范围闸门后，由 `$desktop-implement-change` 条件调用对应 Skill：
 
-- 文件读取或写入：`desktop-implement-change/references/capability-file-operations.md`
-- 启动外部程序：`desktop-implement-change/references/capability-external-command.md`
+- 文件读取或写入：`$desktop-add-file-operations`
+- 启动外部程序：`$desktop-add-external-process`
 
 配方是选择与验证规则，不是默认业务实现。只有至少两个真实下游项目证明存在稳定重复后，才把配方提升为可组合代码资产。
 

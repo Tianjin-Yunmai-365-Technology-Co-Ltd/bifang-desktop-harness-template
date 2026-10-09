@@ -11,6 +11,8 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 ## 工作流程
 
+所有接口组合完整保留 `$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-manage-user-tasks` 和 `$desktop-configure-agent-policy` 的知识、metadata、references 与 helper/测试；保留不代表初始化启用能力。
+
 ### GUI 框架分派（先于下述 Tauri 专属步骤）
 
 接口含 GUI 时先复用已确认的框架；缺失时单独询问 `1. Tauri（默认）/ 2. GPUI`。未答、留空、跳过或默认取 `tauri`，显式非法值重新询问，合法已有答案不重问。新初始化在 `[workspace.metadata.agent-first-harness]` 写入 `gui-framework = "tauri" | "gpui"`；非 GUI 不写，旧 GUI 缺失时兼容 Tauri。框架不进入 `gui-initialization-config` 九字段。

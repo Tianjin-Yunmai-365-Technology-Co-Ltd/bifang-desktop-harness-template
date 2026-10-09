@@ -52,10 +52,15 @@ export function validConfirmedAt(value) {
     const date = new Date(Date.UTC(year, month - 1, day));
     return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
   }
-  return /^\d{4}-\d{2}-\d{2}T/u.test(value) && !Number.isNaN(Date.parse(value));
+  const timestamp = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-](\d{2}):(\d{2}))$/u.exec(value);
+  return timestamp !== null && validConfirmedAt(timestamp[1])
+    && Number(timestamp[2]) <= 23 && Number(timestamp[3]) <= 59 && Number(timestamp[4]) <= 59
+    && Number(timestamp[5] ?? 0) <= 23 && Number(timestamp[6] ?? 0) <= 59
+    && !Number.isNaN(Date.parse(value));
 }
 
-function projectRoot(raw) {
+/** 核对策略 writer 共用的独立下游仓库与普通目录边界。 */
+export function projectRoot(raw) {
   if (typeof raw !== "string" || !raw || !path.isAbsolute(raw)) throw new ActionError("--project-root 必须是绝对路径");
   const unresolved = path.resolve(raw);
   let stat;
@@ -101,7 +106,8 @@ export function parseAgentPolicyDocument(bytes) {
   return { source, normalized, newline, lines, fields, schema };
 }
 
-function readPolicy(root) {
+/** 校验已确认策略；只有发布动作路径需要额外检查真实打包资源。 */
+export function readPolicy(root, { validateActionSupport = true } = {}) {
   const file = path.join(root, POLICY_RELATIVE);
   const stat = regularFile(file, "Agent 策略");
   const bytes = fs.readFileSync(file);
@@ -115,7 +121,7 @@ function readPolicy(root) {
   if (schema === "4" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("post_release_action 必须是 local_package 或 push_release_branch");
   const policy = { file, stat, bytes, ...document };
   if (schema === "4") assertCurrentPolicyBody(policy);
-  if (schema === "4" && fields.get("post_release_action") === "local_package") assertLocalPackageSupported(root);
+  if (validateActionSupport && schema === "4" && fields.get("post_release_action") === "local_package") assertLocalPackageSupported(root);
   return policy;
 }
 
@@ -420,7 +426,8 @@ function state(policy) {
   return { schema_version: Number(policy.schema), status: action === null ? "selection_required" : "configured", post_release_action: action };
 }
 
-function atomicWrite(policy, next) {
+/** 保留权限并拒绝读取后漂移，再原子替换普通策略文件。 */
+export function atomicWrite(policy, next) {
   const temporary = path.join(path.dirname(policy.file), `.AGENT_POLICY-${crypto.randomUUID()}.tmp`);
   let descriptor;
   try {
@@ -440,7 +447,8 @@ function atomicWrite(policy, next) {
   }
 }
 
-function withPolicyLock(root, operation) {
+/** 两类永久策略 writer 共用同一短时锁，遗留锁不自动删除。 */
+export function withPolicyLock(root, operation) {
   const lock = path.join(root, "docs", ".AGENT_POLICY.post-release.lock");
   let descriptor;
   try { descriptor = fs.openSync(lock, "wx", 0o600); }

@@ -15,6 +15,18 @@ export const SOURCE_ONLY_PATHS = [
   ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
 ];
 export const REQUIRED_MANAGED_SOURCE_PATHS = [
+  ".agents/skills/desktop-add-external-process/SKILL.md",
+  ".agents/skills/desktop-add-external-process/agents/openai.yaml",
+  ".agents/skills/desktop-add-external-process/references/external-process.md",
+  ".agents/skills/desktop-add-file-operations/SKILL.md",
+  ".agents/skills/desktop-add-file-operations/agents/openai.yaml",
+  ".agents/skills/desktop-add-file-operations/references/file-operations.md",
+  ".agents/skills/desktop-configure-agent-policy/SKILL.md",
+  ".agents/skills/desktop-configure-agent-policy/agents/openai.yaml",
+  ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.mjs",
+  ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.test.mjs",
+  ".agents/skills/desktop-manage-user-tasks/SKILL.md",
+  ".agents/skills/desktop-manage-user-tasks/agents/openai.yaml",
   ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_file_line_limits.test.mjs",
   ".agents/skills/desktop-implement-change/scripts/check_core_first.mjs",

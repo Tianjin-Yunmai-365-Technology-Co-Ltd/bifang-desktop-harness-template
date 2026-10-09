@@ -4,6 +4,18 @@
  * 这里保持显式清单，避免目录仍存在但关键文件被误删时静默通过。
  */
 export const REQUIRED_ROOT_FILES = [
+  ".agents/skills/desktop-add-external-process/SKILL.md",
+  ".agents/skills/desktop-add-external-process/agents/openai.yaml",
+  ".agents/skills/desktop-add-external-process/references/external-process.md",
+  ".agents/skills/desktop-add-file-operations/SKILL.md",
+  ".agents/skills/desktop-add-file-operations/agents/openai.yaml",
+  ".agents/skills/desktop-add-file-operations/references/file-operations.md",
+  ".agents/skills/desktop-configure-agent-policy/SKILL.md",
+  ".agents/skills/desktop-configure-agent-policy/agents/openai.yaml",
+  ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.mjs",
+  ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.test.mjs",
+  ".agents/skills/desktop-manage-user-tasks/SKILL.md",
+  ".agents/skills/desktop-manage-user-tasks/agents/openai.yaml",
   ".gitignore",
   "AGENTS.md",
   "LICENSE.zh-CN.md",

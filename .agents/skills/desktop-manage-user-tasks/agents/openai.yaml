@@ -1,0 +1,4 @@
+interface:
+  display_name: "管理左侧 Task"
+  short_description: "按项目历史创建和绑定用户可见 Task，管理真实身份与进度状态"
+  default_prompt: "使用 $desktop-manage-user-tasks，在授权范围内创建、核对或更新左侧 Task。"
