@@ -2,6 +2,29 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-10",
+      "version": "v202610100058",
+      "featureOptimizations": [
+        {
+          "zh-CN": "优先执行已确认的用户长期硬规则，同时保留模板默认和既有项目策略。",
+          "en-US": "Apply confirmed user rules before project preferences while preserving template defaults and existing policies."
+        },
+        {
+          "zh-CN": "将 Task 真实项目、非置顶、独立 Worktree 与提交基线核对前移到业务阅读之前，并明确阶段隔离、原任务恢复与迁移证据。",
+          "en-US": "Verify each Task identity, project, unpinned state, independent worktree and commit baseline before business reading, with explicit stage boundaries and evidence for recovery and handoff."
+        },
+        {
+          "zh-CN": "统一初始化、开发与发布的中文提交说明，增加只读消息检查、暂存前校验和提交后真实消息复读。",
+          "en-US": "Use Chinese commit descriptions for initialization, development and releases, with read-only message checks, validation before staging and verification of the committed message."
+        },
+        {
+          "zh-CN": "升级时完整传播中文提交校验依赖，并保护已有策略偏好、确认元数据和自定义正文。",
+          "en-US": "Propagate the complete commit-validation dependency set during upgrades while protecting existing policy preferences, confirmation metadata and custom text."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
       "releaseDate": "2026-10-09",
       "version": "v202610091532",
       "featureOptimizations": [
@@ -199,22 +222,6 @@
         {
           "zh-CN": "修复 Harness 源完成本地 Git 发布后无法按当次授权推送 release 分支与版本 tag 的问题。",
           "en-US": "Fixed Harness source releases being unable to push the release branch and version tag after local Git release when explicitly requested."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-29",
-      "version": "v202609290958",
-      "featureOptimizations": [
-        {
-          "zh-CN": "旧下游所有权清单仅缺新增 Skill 的显式 managed 规则、且通用规则已授予相同所有权时，升级器现在可生成三方计划并列出修复项；记录基线前仍须补齐清单。",
-          "en-US": "The upgrader now plans against legacy ownership manifests missing a new Skill-specific managed rule when a generic rule already grants the same ownership. It lists the repair and requires the manifest to be fixed before recording a baseline."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复上游 Python 检查器将已发布更新日志中的历史描述误判为活动解释器命令的问题。",
-          "en-US": "Fixed the upstream Python gate misclassifying historical descriptions in published release notes as active interpreter commands."
         }
       ]
     }

@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "ea0e5fe5d0bed682535811ed0e950c3aaa3938a6",
-  "version": "202610091532",
-  "releaseDate": "2026-10-09",
-  "expectedTag": "v202610091532-20261009",
+  "sourceHead": "4cf8337a8f3162f7ce42e1cd16bd527a7a855bc1",
+  "version": "202610100058",
+  "releaseDate": "2026-10-10",
+  "expectedTag": "v202610100058-20261010",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "da7dbd1de043969d1db5cec4b1304f201136f74f",
-    "sourceHead": "ea0e5fe5d0bed682535811ed0e950c3aaa3938a6",
-    "scopeDiffSha256": "9bc55c1dcc8a2a888a7d736b96e6c572cf1c1feea7f811c2015330c4befc723e",
-    "reviewedSourceCommit": "ea0e5fe5d0bed682535811ed0e950c3aaa3938a6",
+    "scopeBase": "58fe7974e58848350de155c53f344dbdccd71630",
+    "sourceHead": "4cf8337a8f3162f7ce42e1cd16bd527a7a855bc1",
+    "scopeDiffSha256": "ec62d57793083d51f0f5291c1ddca753d195596e06b36a2b04e2d3700db75bbc",
+    "reviewedSourceCommit": "4cf8337a8f3162f7ce42e1cd16bd527a7a855bc1",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed extracted Skills, capability authorization, core/adapter rules, contracts, responsibility and size. Two downstream test regressions fixed with isolated LF/CRLF coverage. Harness suite: 1061 passed, 16 host skips; focused fixes passed 46 and final 21 tests. Rust 1.98.1 assets passed fmt, Clippy and 7 tests. Hard gates passed; 27 advisories assessed as cohesive existing modules, dated ADR and an intentional Work Plan test marker. Product build/E2E not applicable.",
+    "evidenceSummary": "五项审查通过：用户规则、Task 绑定与阶段隔离符合批准范围；共享消息校验由只读 CLI 与提交入口复用，Git 驱动职责及普通合并关系保持；升级依赖完整且策略头原字节保留。正式验收固定提交 1075 通过、16 Windows 用例跳过。硬门禁、Node-only 与发布审查入口通过；26 项规模提示中 22 项未变，4 项仍内聚且低于硬上限；唯一 TODO-A 为测试夹具。Rust 产品边界与真实产品候选不适用。",
     "reason": null,
     "remainingRisk": null
   }
