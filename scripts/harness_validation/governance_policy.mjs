@@ -21,6 +21,29 @@ export const PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS = [
   "内部 Subagent",
 ];
 
+export const USER_HARD_RULE_REQUIRED_FRAGMENTS = [
+  "每次开工先完整读取用户级 `AGENTS.md`",
+  "用户已确认的长期硬规则优先于项目预设",
+  "无需把模板默认 `disabled` 或已有下游五项偏好与确认元数据改写为 `enabled`",
+  "自定义模式复用已明确的 Task 启用授权，不重复询问",
+  "汇总分别报告项目值、用户级强制规则与有效执行行为",
+  "协调聊天仅做编号、创建、绑定、恢复和状态",
+  "业务资料阅读、插件探索、调研、分析、设计与执行都必须先在对应 Task 绑定通过",
+  "未置顶",
+  "用户要求阶段隔离时，调研分析、方案设计、编码实现、正式测试验收、安装发布分别独立",
+  "发布和推送也分别独立",
+  "不能承担正式验收结论",
+  "### 阻断修复与恢复",
+  "工具成功回执不能代替复读",
+  "迁移链",
+  "保留 Task key、编号和单一结果",
+  "长期停止后",
+  "内部业务 Subagent",
+  "阶段与前序输入：",
+  "只读调研/方案阶段的编译、测试和提交为 `Not applicable`",
+  "### 协调参考提示词",
+];
+
 /** 解析满足 user-owned Task 三字段与空白边界的标题；不合法时返回 null。 */
 function parseSessionProgressTitle(title) {
   if (typeof title !== "string") return null;
@@ -125,6 +148,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   }
 
   const requiredBodyFragments = [
+    ...USER_HARD_RULE_REQUIRED_FRAGMENTS,
     "完成初始化的下游五项能力选择只能是 `enabled` 或 `disabled`",
     "`user_owned_tasks`：控制是否由 Agent 自动把新结果拆到 Codex 左侧菜单",
     "`user_owned_tasks: disabled` 是默认状态",

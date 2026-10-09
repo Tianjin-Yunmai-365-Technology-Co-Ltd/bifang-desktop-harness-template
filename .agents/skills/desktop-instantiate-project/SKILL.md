@@ -15,6 +15,10 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 发布后动作在框架解析后再次校验：接口含 CLI，或 GUI 目标含 macOS/Windows 时可明确选择 `local_package`；不含 CLI 的仅 Linux GUI 必须明确选择 `push_release_branch`。GPUI GUI 候选由独立 `$desktop-build-gpui-release` 生成本机 macOS `.app`/DMG 或 Windows NSIS，不借用 CLI 或 Tauri 打包。GPUI 终端下游完整保留该打包 Skill、新 adapter Skill 与通用规则，裁掉 Tauri/Mantine/React专属 Skills；Tauri 和非 GUI 下游裁掉 GPUI 专属打包 Skill。完整保留 design-taste-frontend 知识资产的通用要求不变。
 
+## 用户规则优先
+
+先读取用户级 `AGENTS.md`，用户已确认的长期硬规则优先于项目偏好。模板默认和推荐预设保持原值；已有下游五项偏好及确认元数据原样保留。自定义模式直接复用已明确的 Task 启用授权，不重复询问；汇总分别列出项目值、用户级强制规则与有效执行行为，不启用未授权的其他能力。生成的启动入口必须保留用户规则优先、业务阅读前绑定、非 pinned、主动恢复及阶段隔离指针。
+
 ## 工作流程
 
 1. 读取源项目的 `AGENTS.md`、`README.md`、`Version.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、`docs/RELEASE.md`、两份许可证，以及 `$desktop-rename-project-identity`/`$desktop-initialize-rust-project`/`$desktop-manage-git-lifecycle` 的当前规则。收到任何创建新下游项目的请求时，还必须先完整读取并执行 [`references/initialization-form.md`](references/initialization-form.md)。实例化排除日期项目记忆，因此不默认加载 Harness 的历史 Product Status、Work Plan、Verification、ADR 或 Changelog 正文。

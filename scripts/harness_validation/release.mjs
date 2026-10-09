@@ -376,7 +376,7 @@ export function validateReleaseGitContract(errors, overrides = {}) {
       "commit_allows_any_named_branch_without_protection_rules", "only_known_harness_metadata_paths_are_approvable", "tracked_version_state_is_approvable_harness_metadata",
       "git_add_window_race_cannot_commit_unreviewed_bytes", "hooks_cannot_fail_or_smuggle_unreviewed_content", "high_confidence_secret_stops_without_advancing_head"]],
     [paths.lifecycleSkill, ["用户要求“发布”时运行 `release`", "push-release --project-root . --remote <name>", "--also-remote <name>", "唯一主远端",
-      "`pendingPublish` 中临时保存冻结目标与确认进度", "跨远端推送不是原子操作", "相同目标参数进行幂等重试", "普通 `git merge --no-edit`",
+      "`pendingPublish` 中临时保存冻结目标与确认进度", "跨远端推送不是原子操作", "相同目标参数进行幂等重试", "普通 `git merge --no-edit -m <中文合并消息>`",
       "`v{version}-{YYYYMMDD}`", "tracked `.harness/release-context.json`", "不删除登记分支或 Worktree", "不设置租约、原子推送或保护分支门禁"]],
     [paths.lifecycleScript, ["export function publish(", "function confirmPendingPublishTarget(", "function completePendingPublish(", "function ensureLocalReleaseTag(",
       "async function verifyHarnessVersionStamp(", "clock.readHarnessVersionStamp(repository.root, version)",

@@ -15,6 +15,14 @@ export const SOURCE_ONLY_PATHS = [
   ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
 ];
 export const REQUIRED_MANAGED_SOURCE_PATHS = [
+  ".agents/skills/desktop-configure-git-commits/SKILL.md",
+  ".agents/skills/desktop-configure-git-commits/agents/openai.yaml",
+  ".agents/skills/desktop-configure-git-commits/references/commit-convention.md",
+  ".agents/skills/desktop-configure-git-commits/assets/commit-template.txt",
+  ".agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.mjs",
+  ".agents/skills/desktop-configure-git-commits/scripts/configure_git_commit.test.mjs",
+  ".agents/skills/desktop-prepare-release/scripts/release_git.mjs",
+  ".agents/skills/desktop-prepare-release/scripts/release_git.test.mjs",
   ".agents/skills/desktop-handoff-project/SKILL.md",
   ".agents/skills/desktop-handoff-project/agents/openai.yaml",
   ".agents/skills/desktop-inspect-release-notes/SKILL.md",

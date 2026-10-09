@@ -140,7 +140,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     "publish --project-root", "[--also-remote <name>]...", "release --project-root",
     "push-release --project-root . --remote <name>", "feature-<summary>-<Asia/Shanghai YYYYMMDD>",
     "check-post-release --project-root . --action",
-    "创建本地分支不要求配置远端", "普通 `git merge --no-edit`", "`pendingPublish` 中临时保存冻结目标与确认进度",
+    "创建本地分支不要求配置远端", "普通 `git merge --no-edit -m <中文合并消息>`", "`pendingPublish` 中临时保存冻结目标与确认进度",
     "v2 的 `pendingRelease` 或 `pendingPublish` 非空时拒绝自动改释", "`releasedResources`", "`schemaVersion: 4`",
     "跨远端推送不是原子操作", "不重新解析默认分支、fetch、merge 或计算新 HEAD",
     "为兼容既有机器调用保留历史稳定 code `push-rejected`", "不创建标签，也不清理任何资源",
@@ -172,7 +172,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     "export function commandCheckPostRelease(", "releasedResources: []", "baseReference = `refs/heads/${released.defaultBranch}`",
     'createHash("sha256").update(contextBlob.stdout).digest("hex") !== last.releaseContextSha256',
     'branch === "@"', 'branch === "HEAD"', '["switch", "-c", defaultBranch, "--track"',
-    '["merge", "--no-edit", `refs/heads/${branch}`]',
+    '["merge", "--no-edit", "-m", `合并开发分支 ${branch}`, `refs/heads/${branch}`]',
   ], "Git lifecycle contract");
   const publication = requireContract(errors, paths.publication, [
     'import { CONTEXT_RELATIVE_PATH as RELEASE_CONTEXT_PATH,',
@@ -283,7 +283,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
       "const state = loadState(repository)", "if (state.pendingPublish !== null)",
       "if (state.cycle === null && state.lastRelease !== null)",
       "resolveAdditionalRemoteTargets(", '["fetch", remote', "switchToDefault(",
-      '["merge", "--no-edit", `refs/remotes/${remote}/${defaultBranch}`]', "mergeRegisteredBranches(",
+      '["merge", "--no-edit", "-m", `合并远端默认分支 ${remote}/${defaultBranch}`, `refs/remotes/${remote}/${defaultBranch}`]', "mergeRegisteredBranches(",
       "state.pendingPublish =", "saveState(repository, state)", "completePendingPublish(",
     ], "main publish sequence");
     requireOrder(errors, functionSource(publication, "completePendingPublish"), [
@@ -291,7 +291,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
       "state.pendingPublish = null", "saveState(repository, state)",
     ], "publication journal completion sequence");
     requireOrder(errors, functionSource(core, "mergeRegisteredBranches"), [
-      "const before = currentHead(repository)", '["merge", "--no-edit", `refs/heads/${branch}`]',
+      "const before = currentHead(repository)", '["merge", "--no-edit", "-m", `合并开发分支 ${branch}`, `refs/heads/${branch}`]',
       "currentHead(repository) === before",
     ], "registered branch merge sequence");
     requireOrder(errors, functionSource(core, "commandCheckPostRelease"), [

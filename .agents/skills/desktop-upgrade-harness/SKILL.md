@@ -9,6 +9,8 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 
 目标尚无 Harness 所有权清单或来源锁时，先完整读取 [既有项目首次接入步骤](references/adopt-existing-project.md)，安装精确所有权清单并构造适用候选，再进入下面的 `plan`。不得要求目标先已有 Harness 初始化结果，也不得把源项目记忆或 Python 禁令复制过去。
 
+升级入口先执行用户级 `AGENTS.md` 的长期规则；用户长期硬规则或项目策略要求左侧 Task 时，先完成业务前绑定。按章节合并启动文档的用户规则优先、非 pinned、阶段隔离和恢复入口；`docs/AGENT_POLICY.md` 继续 protected，保留全部 frontmatter 原字节及自定义正文，受保护正文迁移在目标授权范围单独处理。用户级 AGENTS 不进入候选树或来源锁。所有终端下游完整传播 `$desktop-configure-git-commits` 的 Skill、metadata、规范、模板、共享消息校验 helper 与测试，以及消费该 helper 的发布提交入口，候选遗漏/旧版摘要失败关闭。
+
 ## 工作流程
 
 1. 读取下游存在的 `AGENTS.md`、`docs/AGENT_POLICY.md`、日期最新的产品规格、产品状态、工作计划和 ADR、`docs/ENGINEERING_RULES.md`、`docs/TECH_DEBT.md`，以及存在时的 `.harness/upstream-lock.json`。首次接入尚缺这些文件时按接入步骤建立真实项目事实，不从 Harness 源复制批准结论。读取源 Harness 的 `Version.md`、日期最新的产品规格、产品状态和 ADR，以及其验证命令。

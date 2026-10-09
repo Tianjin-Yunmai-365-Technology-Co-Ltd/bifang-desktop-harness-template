@@ -930,7 +930,7 @@ export function mergeRegisteredBranches(repository, state, defaultBranch) {
       continue;
     }
     const before = currentHead(repository);
-    const result = runGit(repository.root, ["merge", "--no-edit", `refs/heads/${branch}`], { check: false });
+    const result = runGit(repository.root, ["merge", "--no-edit", "-m", `合并开发分支 ${branch}`, `refs/heads/${branch}`], { check: false });
     if (result.returncode !== 0) throw new LifecycleError("merge-failed", "Git merge did not complete; inspect the worktree state.");
     (currentHead(repository) === before ? alreadyMerged : merged).push(branch);
   }

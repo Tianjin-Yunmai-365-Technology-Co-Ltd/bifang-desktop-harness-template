@@ -7,6 +7,8 @@ description: 用户明确修改已初始化下游的永久 Agent 能力偏好时
 
 只处理 `superpowers`、`user_owned_tasks`、`parallel_worktree_subagents`、`acceptance_smoke`、`e2e_hint` 的明确永久选择。读取 `docs/AGENT_POLICY.md` 的字段语义和“初始化与持久化”；Harness 源 pending 模板、初始化、schema 迁移与临时任务选择不由本入口写入。
 
+仅修改项目偏好，不能撤销用户级 `AGENTS.md` 的长期硬规则。报告项目值与有效用户要求的区别；不为落实用户规则自动改写五项偏好或确认元数据，也不扩大 helper 的字段、schema 或写入权限。
+
 ## 执行
 
 1. 确认目标是独立终端下游 Git 根，用户明确提供字段与 enabled/disabled 新值。`post_release_action` 委托 `$desktop-switch-post-release-action`；禁止借能力偏好绕过项目硬门禁。

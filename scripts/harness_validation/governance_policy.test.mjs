@@ -9,6 +9,7 @@ import {
   allocateProjectTaskSequences,
   isValidSessionProgressTitle,
   validateAgentPolicy,
+  USER_HARD_RULE_REQUIRED_FRAGMENTS,
 } from "./governance_policy.mjs";
 
 function withPolicy(text, callback) {
@@ -260,4 +261,27 @@ test("policy rejects removal of persistent body semantics", () => {
     validateAgentPolicy(errors, filePath);
     assert.ok(errors.some((error) => error.includes("缺号不回填")));
   });
+});
+
+/** 用户硬规则正文不能因默认关闭或入口裁剪而丢失。 */
+test("user hard-rule contract rejects each removed boundary without mutating policy", () => {
+  const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
+  for (const fragment of USER_HARD_RULE_REQUIRED_FRAGMENTS) {
+    assert.ok(source.includes(fragment), fragment);
+    withPolicy(source.replaceAll(fragment, "已删除合同"), (filePath) => {
+      const before = fs.readFileSync(filePath);
+      const errors = [];
+      validateAgentPolicy(errors, filePath, { requireSourceDefaults: true });
+      assert.ok(errors.some((error) => error.includes(fragment)), fragment);
+      assert.deepEqual(fs.readFileSync(filePath), before);
+    });
+  }
+});
+
+/** 长期恢复的当前、置顶和各归档页证据共享精确项目序列。 */
+test("sequence allocation uses all enumerated pages and never another project's number", () => {
+  const record = (number, extra = {}) => ({ kind: "codex", hostId: "local", projectId: "p1", title: `Task ${number} | 已完成 | 结果`, ...extra });
+  const current = [record(3), record(7, { pinned: true })];
+  const archivedPages = [[record(12)], [record(18)], [record(99, { projectId: "p2" })]];
+  assert.deepEqual(allocateProjectTaskSequences([...current, ...archivedPages.flat()], { hostId: "local", projectId: "p1" }), [19]);
 });

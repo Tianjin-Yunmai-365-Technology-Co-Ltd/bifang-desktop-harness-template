@@ -23,6 +23,7 @@ const DEFAULT_PATHS = Object.freeze({
   tauriSidebar: path.join(ROOT, "docs", "design_standards", "tauri_sidebar.md"),
   planSkill: skill("desktop-plan-change", "SKILL.md"),
   implementSkill: skill("desktop-implement-change", "SKILL.md"),
+  handoffSkill: skill("desktop-handoff-project", "SKILL.md"),
   manageTasksSkill: skill("desktop-manage-user-tasks", "SKILL.md"),
   configurePolicySkill: skill("desktop-configure-agent-policy", "SKILL.md"),
   initializeSkill: skill("desktop-initialize-rust-project", "SKILL.md"),
@@ -175,6 +176,8 @@ export function validateEngineeringContract(errors, options = {}) {
 
 const TASK_SEQUENCE = PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS;
 const STREAMLINED_ENTRIES = [
+  ["agentsEntrypoint", ["每次开工先读取用户级", "业务阅读、插件探索、分析或设计前", "非 pinned"]],
+  ["handoffSkill", ["用户级 `AGENTS.md`", "主动修复原 Task", "只恢复当前固定阶段"]],
   ["readme", [
     "日常开发直接使用 `$desktop-implement-change`", "自动 Task 关闭", "`Task {序号} | {当前进度} | {单一结果}`",
     "`已分配`、`运行中`、`检查中`、`已完成`", "内部 Subagent 不使用本标题合同", "只增加并运行本次变更需要的单元/回归测试",
@@ -217,7 +220,7 @@ const STREAMLINED_ENTRIES = [
     "日常开发直接交给 `$desktop-implement-change`", "日常计划不得自行增加这些步骤", "不得在执行时静默追加全仓检查、构建或验收",
   ]],
   ["implementSkill", [
-    "直接实现请求", "$desktop-manage-user-tasks", "queued 或绑定失败保持零实现", "按真实转换同步",
+    "业务资料阅读、插件探索、分析或设计", "先读取用户级 `AGENTS.md`", "不承担正式验收、发布或推送", "直接实现请求", "$desktop-manage-user-tasks", "queued 或绑定失败保持零实现", "按真实转换同步",
     "只运行第 6 步的测试", "日常开发不得自动追加格式化、lint、静态", "普通构建也只新增全量非空单元测试和实际构建",
     "构建请求、执行和结果本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "只更新被独立事件触发的记忆",
     "当前说明来自左侧 user-owned Task", "$desktop-add-file-operations", "$desktop-add-external-process",
@@ -229,7 +232,7 @@ const STREAMLINED_ENTRIES = [
     "用户明确要求发布时路由 `$desktop-prepare-release`",
   ]],
   ["manageTasksSkill", [
-    "当前宿主", "docs/AGENT_POLICY.md", "list_projects", "list_threads(limit=50)", "list_archived_threads",
+    "每次开工先完整读取用户级", "非 pinned", "业务资料阅读、插件探索、分析、设计", "工具成功回执不能代替复读", "迁移链", "内部业务 Subagent", "正式测试验收", "当前宿主", "docs/AGENT_POLICY.md", "list_projects", "list_threads(limit=50)", "list_archived_threads",
     "RESOLVED → DISPATCHED → VERIFIED → BOUND", "SETUP_PENDING", "保持零实现", "只调用一次 `create_thread`",
     "真实 `threadId`", "set_thread_title", "不创建替代 Task", "common-dir", "worktree registry",
   ]],
@@ -247,9 +250,9 @@ const STREAMLINED_ENTRIES = [
     "绝不得自动暂存、贮藏或提交用户修改", "不得因并行本身追加格式、lint、静态、构建、冒烟、E2E 或完整验收",
     "resourcesRetained: true", "只管理当前 Task 内部", "不得把两个左侧 Task 安排进同一 Worktree",
   ]],
-  ["initializeSkill", ["用户可见 Task 的标题/粒度/创建门禁", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度、有界复读及序号分配规则", "保持零实现且不得重复创建", "统一描述模板", "Git user-owned Task 固定使用独立 Worktree", "内部 Subagent/Worktree 不使用标题合同"]],
-  ["instantiateSkill", ["必须保留左侧 Task 描述模板", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度和有界复读规则", "精确绑定保存项目/`projectId`", "`clientThreadId` 只表示 setup", "Git 使用独立 Worktree", "`codex/unit-*`", ...TASK_SEQUENCE, "内部 plan、Subagent、Worktree"]],
-  ["configureCommitsSkill", ["references/commit-convention.md", "commit.template", "commit.cleanup=strip", "commit.verbose=true", "core.commentChar=#", "git config --local", "install --replace", "用户没有要求创建提交时", "下一步将实际运行 `git commit`", "不得运行本 Skill 的脚本或改写任何 Git 配置", "不得在初始化表单、复制、身份改写、环境门禁、脚手架编写或测试阶段提前运行"]],
+  ["initializeSkill", ["自定义模式直接复用已明确的 Task 启用授权", "模板默认和推荐预设保持原值", "message-check --message-file <file>", "chore: 初始化项目", "用户可见 Task 的标题/粒度/创建门禁", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度、有界复读及序号分配规则", "保持零实现且不得重复创建", "统一描述模板", "Git user-owned Task 固定使用独立 Worktree", "内部 Subagent/Worktree 不使用标题合同"]],
+  ["instantiateSkill", ["自定义模式直接复用已明确的 Task 启用授权", "模板默认和推荐预设保持原值", "汇总分别列出项目值、用户级强制规则与有效执行行为", "必须保留左侧 Task 描述模板", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度和有界复读规则", "精确绑定保存项目/`projectId`", "`clientThreadId` 只表示 setup", "Git 使用独立 Worktree", "`codex/unit-*`", ...TASK_SEQUENCE, "内部 plan、Subagent、Worktree"]],
+  ["configureCommitsSkill", ["message-check --message-file <file>", "主题摘要和正文说明必须使用中文", "git log -1 --format=%B", "references/commit-convention.md", "commit.template", "commit.cleanup=strip", "commit.verbose=true", "core.commentChar=#", "git config --local", "install --replace", "用户没有要求创建提交时", "下一步将实际运行 `git commit`", "不得运行本 Skill 的身份/模板脚本命令或改写任何 Git 配置", "不得在初始化表单、复制、身份改写、环境门禁、脚手架编写或测试阶段提前运行"]],
   ["productSpec", [
     "HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY", "HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE",
     "HARNESS-FEAT-HARNESS-SOURCE-SCOPE-GATE", "HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT",
@@ -276,7 +279,7 @@ const STREAMLINED_ENTRIES = [
   ["gitLifecycleSkill", [
     "name: desktop-manage-git-lifecycle", "创建本地分支不要求配置远端", "即使处于 detached HEAD 也可直接开始",
     "创建本地分支不要求配置远端", "--also-remote <name>", "`pendingPublish` 中临时保存冻结目标与确认进度",
-    "不参与 fetch、merge、release、tag 或清理", "普通 `git merge --no-edit`", "`v{version}-{YYYYMMDD}`", "`release` 只在本地默认主分支", "不设置租约、原子推送或保护分支门禁",
+    "不参与 fetch、merge、release、tag 或清理", "普通 `git merge --no-edit -m <中文合并消息>`", "`v{version}-{YYYYMMDD}`", "`release` 只在本地默认主分支", "不设置租约、原子推送或保护分支门禁",
     "本地 `refs/heads/release`", "远端 `refs/heads/release`",
   ]],
   ["switchPostReleaseSkill", [

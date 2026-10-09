@@ -105,3 +105,25 @@ test("streamlined contract validates active JavaScript syntax", () => withTempor
   validateStreamlinedDevelopmentAndBuild(errors, { paths: { gitLifecycleEntry } });
   expectError(errors, "invalid Git lifecycle Node module");
 }));
+
+/** 业务前绑定与真实消息复读必须同时留在可执行 Skill 入口。 */
+test("streamlined contract rejects lost task or Chinese commit entry points", () => withTemporaryDirectory((directory) => {
+  for (const [key, anchor] of [
+    ["agentsEntrypoint", "每次开工先读取用户级"],
+    ["implementSkill", "不承担正式验收、发布或推送"],
+    ["handoffSkill", "主动修复原 Task"],
+    ["initializeSkill", "自定义模式直接复用已明确的 Task 启用授权"],
+    ["instantiateSkill", "汇总分别列出项目值、用户级强制规则与有效执行行为"],
+    ["manageTasksSkill", "业务资料阅读、插件探索、分析、设计"],
+    ["manageTasksSkill", "工具成功回执不能代替复读"],
+    ["manageTasksSkill", "非 pinned"],
+    ["configureCommitsSkill", "message-check --message-file <file>"],
+    ["configureCommitsSkill", "git log -1 --format=%B"],
+    ["gitLifecycleSkill", "普通 `git merge --no-edit -m <中文合并消息>`"],
+  ]) {
+    const target = mutatedCopy(directory, key, anchor, "已删除合同");
+    const errors = [];
+    validateStreamlinedDevelopmentAndBuild(errors, { paths: { [key]: target } });
+    expectError(errors, anchor);
+  }
+}));

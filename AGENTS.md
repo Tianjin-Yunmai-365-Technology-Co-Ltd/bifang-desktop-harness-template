@@ -8,7 +8,7 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 
 ## 启动门禁
 
-1. 先读取本文件，再读取 `docs/AGENT_POLICY.md` 的 YAML frontmatter 与字段语义；只有创建/执行左侧 Task、显式并行、构建或修改持久策略时，才继续读取该文件的对应章节。
+1. 每次开工先读取用户级 `AGENTS.md`，执行其高于项目预设的长期硬规则，再读取本文件；用户长期硬规则或项目策略要求左侧 Task 时，业务阅读、插件探索、分析或设计前先按 `$desktop-manage-user-tasks` 完成真实 ID、精确项目、非 pinned 与工作区绑定。再读取 `docs/AGENT_POLICY.md` 的 YAML frontmatter 与字段语义；只有创建/执行左侧 Task、显式并行、构建或修改持久策略时，才继续读取该文件的对应章节。
 2. 当前根同时包含 Harness 专用 `Version.md` 与活动 `.agents/skills/desktop-instantiate-project/SKILL.md` 时，先执行 Harness 源范围门禁：只接受 Harness 自身工程维护，以及创建终端下游所需的固定初始化字段和所选初始化路径精确要求的身份选择。产品目的、业务功能、产品专属 UI/文案/数据、远程地址、凭据、产品构建或发布需求一律不得在当前模板源中接收、分析、记录或实施；混合请求只解析允许的初始化字段，并要求用户完成实例化或切换到已存在终端下游的唯一根目录后重新提出其余内容。
 3. 在写入前确认 Git 根、分支和工作区状态，保护用户已有修改；重叠内容无法安全处理时停止。仓库没有声明的命令、能力或验证结果不得虚构。
 4. 先判定任务类型，再只读取下表命中的事实来源和 Skill。发现冲突或缺失时才扩大读取；不要为了“完整”加载全部项目记忆、设计标准、发布规则或 Skills。
@@ -45,7 +45,7 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 - `superpowers: disabled` 时不得调用或遵循任何 `superpowers:*` Skill；其他持久能力只表示允许，不能替代当前任务的触发条件或授权。
 - 日常开发直接实施，只增加并运行本次需要的相关非空单元/回归测试；纯文档、元数据或机械变更只做解析或差异完整性所需的最小检查。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
 - 除非用户明确说当前 Task 内部步骤、plan 或 Subagent，Task 一律指 Codex 左侧 user-owned Task；内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不占用 Task 序号。用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`；同一 `hostId` 与精确 `projectId` 先用 `list_threads(limit=50)` 和同宿主逐页 `list_archived_threads` 清点当前与归档有效标题，再从最大有效序号继续递增，空历史才用 1、缺号不回填。进度只取 `已分配`、`运行中`、`检查中`、`已完成`，每次真实转换至多更新一次并按真实 `threadId` 用 `list_threads` 有界复读；失败必须报告但不阻断已经完成的任务结果，也不得虚写 `已完成`。
-- `user_owned_tasks: disabled` 时不得自动创建或拆分左侧 Task，但仍响应用户明确创建请求；`enabled` 时结果边界变化前自动创建。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和独立工作区；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化都必须拆新 Task，证明同一结果的测试/review/checkpoint 和必要同范围修复不拆。每项目同一时间只允许一个写入型 active Task，Task0 只能协调。任何创建先以 `list_projects` 核对项目路径和 Git 状态；Git 使用独立 Worktree、非 Git 使用 Local，并在真实 `threadId` 到手后用 `list_threads` 核对标题、`projectId`、cwd、状态、干净工作区和起始提交，否则保持零实现且不创建替代 Task。
+- 无更高优先级用户硬规则时，`user_owned_tasks: disabled` 时不得自动创建或拆分左侧 Task，但仍响应用户明确创建请求；`enabled` 时结果边界变化前自动创建。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和独立工作区；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化都必须拆新 Task，证明同一结果的测试/review/checkpoint 和必要同范围修复不拆。每项目同一时间只允许一个写入型 active Task，Task0 只能协调；用户要求阶段隔离时，调研分析、方案设计、编码实现、正式测试验收、安装发布及独立推送分别建 Task，开发回归不能代替正式验收。任何创建先以 `list_projects` 核对项目路径和 Git 状态；Git 使用独立 Worktree、非 Git 使用 Local，并在真实 `threadId` 到手后用 `list_threads` 核对标题、`projectId`、cwd、状态、干净工作区和起始提交，否则保持零实现且不创建替代 Task。
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、渠道硬要求、签名、发布和跨平台最终候选必须进入对应专用门禁；精简上下文不降低授权、失败关闭或真正不可逆交付所需的人工签署。非必要语义审查不得混入日常开发，明确发布时才按当次 `reviewSelection` 询问并执行。
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/TUI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。

@@ -360,3 +360,25 @@ scenario("publish_refuses_missing_registered_branch", (item) => {
   const rejected = item.helper(repository, ["publish"], { success: false }).payload;
   assert.equal(rejected.code, "registered-branch-missing");
 });
+
+/** 远端与本地均前进时两次普通合并均使用中文消息，父提交不变。 */
+scenario("publish_uses_chinese_remote_and_feature_merge_messages", (item) => {
+  const { repository, bare } = item.initializeRepository({ remote: true });
+  const branch = item.helper(repository, ["start", "--summary", "chinese-merge"]).payload.branch;
+  const featureHead = item.commitFile(repository, "feature.txt", "feature\n");
+  item.git(repository, "switch", "main");
+  const localHead = item.commitFile(repository, "local.txt", "local\n");
+  item.git(repository, "switch", branch);
+  const collaborator = join(item.temporary, "collaborator");
+  item.git(item.temporary, "clone", "--quiet", bare, collaborator);
+  item.git(collaborator, "config", "user.name", "Remote Collaborator");
+  item.git(collaborator, "config", "user.email", "remote@example.invalid");
+  const remoteHead = item.commitFile(collaborator, "remote.txt", "remote\n");
+  item.git(collaborator, "push", "--quiet", "origin", "main");
+  const published = item.helper(repository, ["publish"]).payload;
+  const remoteMerge = item.git(repository, "rev-parse", `${published.head}^1`).stdout.trim();
+  assert.equal(item.git(repository, "log", "-1", "--format=%s", published.head).stdout.trim(), `合并开发分支 ${branch}`);
+  assert.equal(item.git(repository, "log", "-1", "--format=%s", remoteMerge).stdout.trim(), "合并远端默认分支 origin/main");
+  assert.deepEqual(item.git(repository, "show", "-s", "--format=%P", published.head).stdout.trim().split(" "), [remoteMerge, featureHead]);
+  assert.deepEqual(item.git(repository, "show", "-s", "--format=%P", remoteMerge).stdout.trim().split(" "), [localHead, remoteHead]);
+});

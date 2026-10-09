@@ -110,13 +110,15 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 
 ## 开始一个左侧 Task
 
-`user_owned_tasks: disabled` 时只响应用户明确的新建请求；`enabled` 时还会在新结果超出当前 Task 固定边界时自动创建。创建者先用 `list_projects` 核对项目名称、完整路径和 Git 状态，并用 `list_threads` 确认同项目没有另一个写入型 active Task。Git 项目选择独立 Worktree，非 Git 项目选择 Local，始终绑定精确 `projectId`，禁止 projectless。清点同项目当前与归档标题后分配最大序号加一，再以 `title="Task {序号} | 已分配 | {单一结果}"` 调用一次 user-owned `create_thread`。
+每次开工先读取用户级 `AGENTS.md`；已确认的长期硬规则优先于项目预设，模板默认值保持不变。无用户级覆盖时，`user_owned_tasks: disabled` 时只响应用户明确的新建请求；`enabled` 时还会在新结果超出当前 Task 固定边界时自动创建。创建者先用 `list_projects` 核对项目名称、完整路径和 Git 状态，并用 `list_threads` 确认同项目没有另一个写入型 active Task。Git 项目选择独立 Worktree，非 Git 项目选择 Local，始终绑定精确 `projectId`，禁止 projectless。清点同项目当前与归档标题后分配最大序号加一，再以 `title="Task {序号} | 已分配 | {单一结果}"` 调用一次 user-owned `create_thread`。
 
 序号清点规则（同一 `hostId` 与精确 `projectId`、当前与归档分页清点、缺号不回填）唯一来源是 `docs/AGENT_POLICY.md` 的用户可见 Task 章节。内部 Subagent 不使用标题合同，也不进入这套序号分配。
 
-只有返回真实 `threadId` 才能继续；仅有 `clientThreadId` 表示仍在 setup，必须保持零实现且不得重复创建。取得真实 id 后用 `list_threads` 核对标题、`projectId`、cwd 和状态，并在首次写入前核对干净工作区和起始提交。任一事实为空或不符都阻断，不退化为 plan、Subagent、Local Git checkout 或普通 Worktree。
+只有返回真实 `threadId` 才能继续；仅有 `clientThreadId` 表示仍在 setup，必须保持零实现且不得重复创建。取得真实 id 后用 `list_threads` 核对标题、`projectId`、cwd 和状态，并在业务阅读、插件探索、分析、设计或写入前核对非 pinned、干净工作区和起始提交。异常先通过受支持工具修复原 Task 并复读，不创建替代 Task。任一事实为空或不符都阻断，不退化为 plan、Subagent、Local Git checkout 或普通 Worktree。
 
 Git Task 从用户明确起点或保存项目默认主分支的已提交 HEAD 建立，在自己的 Worktree 首次写入前调用 `$desktop-manage-git-lifecycle start` 创建并登记唯一 `feature-*` 分支；非 Git Task 使用绑定的 Local 项目目录。内部并行仍由独立的 `parallel_worktree_subagents` 控制，只在用户明确要求时创建 `codex/unit-*` sibling Worktree，不调用 `create_thread`。显示标题与 Git ref 分离；Git 发布后登记资源仍保留，后续清理只按用户独立请求及精确身份复核执行。
+
+用户要求阶段隔离时，调研分析、方案设计、编码实现、正式测试验收、安装发布分别独立，发布和推送也分别独立；开发单元/回归检查留在实现阶段。完整协调参考提示词见 [Agent Policy](docs/AGENT_POLICY.md#协调参考提示词)。Git 提交摘要和正文使用中文，提交前机械检查与差异复核、提交后复读消息。
 
 如果还使用全局 Task 提示词，应保留“一结果一 Task、项目绑定、一次创建、不重复创建、真实 `threadId` 与零写入门禁”。Task0 只能协调；`clientThreadId` 不是 Ready；Git Worktree 的物理路径无需位于保存项目目录内，但必须属于同一 Git common dir 并登记在 worktree 列表中。
 

@@ -31,7 +31,7 @@ node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs check
 
 `track-worktree` 用于后来显式创建的内部单元 Worktree；它自行读取指定 Worktree 的具名分支，要求绝对路径和相同 Git common-dir，并把精确路径与分支加入本周期清单。主 Worktree、默认分支、分离 HEAD、其他仓库或发生所有权冲突的登记都会失败。
 
-`publish` 要求可解析主远端，并在任何主分支写入前确认全部登记分支仍存在、全部登记 Worktree 都没有未提交数据。即使命令从关联 Task Worktree 发起，它也会依据同一 Git common-dir 自动转到主 Worktree 执行后续操作。它只从主远端获取并普通合并其默认分支的当前提交，再按创建顺序对尚未合入的登记分支执行普通 `git merge --no-edit`，保持主 Worktree 切换在该默认分支。合并完成后先把同一最终 HEAD、全部目标顺序和初始确认进度原子写入 `pendingPublish`，再向主远端的 advertised default branch 非强制 push 并复读，随后按参数顺序把该 HEAD 非强制 push 到每个补充远端各自的 advertised default branch 并逐个复读；每项确认后立即保存进度，全部确认才清除 journal。补充远端的不同默认分支名不会改变本地主分支或触发 fetch/merge。登记分支缺失、脏工作区、合并冲突或任一远端结果无法确认都会停止，绝不静默漏掉数据。它不创建标签，也不清理任何资源。
+`publish` 要求可解析主远端，并在任何主分支写入前确认全部登记分支仍存在、全部登记 Worktree 都没有未提交数据。即使命令从关联 Task Worktree 发起，它也会依据同一 Git common-dir 自动转到主 Worktree 执行后续操作。它只从主远端获取并普通合并其默认分支的当前提交，再按创建顺序对尚未合入的登记分支执行普通 `git merge --no-edit -m <中文合并消息>`，保持主 Worktree 切换在该默认分支。合并完成后先把同一最终 HEAD、全部目标顺序和初始确认进度原子写入 `pendingPublish`，再向主远端的 advertised default branch 非强制 push 并复读，随后按参数顺序把该 HEAD 非强制 push 到每个补充远端各自的 advertised default branch 并逐个复读；每项确认后立即保存进度，全部确认才清除 journal。补充远端的不同默认分支名不会改变本地主分支或触发 fetch/merge。登记分支缺失、脏工作区、合并冲突或任一远端结果无法确认都会停止，绝不静默漏掉数据。它不创建标签，也不清理任何资源。
 
 跨远端推送不是原子操作。主远端或较早补充远端成功、后续补充远端失败时，错误必须如实说明可能已经成功的前序范围、当前失败目标或阶段，以及后续目标可能尚未尝试，不能回滚或把整次调用宣称为零写入；用户可使用相同目标参数进行幂等重试。重试只复读已冻结目标并继续尚未确认的目标，不重新解析默认分支、fetch、merge 或计算新 HEAD；已确认目标若漂移则停止。Git push 非零退出只能判为结果不确定，除非远端复读已精确命中冻结 HEAD。仅含主目标的 `publish` 为兼容既有机器调用保留历史稳定 code `push-rejected`；该标识不得被解释为服务端已确定拒绝，实际结果仍按远端复读判定。
 
@@ -44,6 +44,8 @@ node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs check
 `push-release` 成功返回前还须重新核对本地 `refs/heads/release`、远端默认主分支名称未在本次调用中变化，远端默认主分支、`release` 分支和 tag 仍指向冻结 HEAD；任一漂移报告不确定，保留本地 `Released`。远端名先通过严格语法校验，不能把选项形态的名称传给 Git 子进程。
 
 `check-post-release --project-root . --action local_package|push_release_branch` 是只读门禁：检查最近发布冻结的动作、主分支 HEAD 与 tag；旧发布没有动作快照时失败。选定本地打包路径在运行候选构建前必须先通过此检查；独立构建请求不受该选择限制。Git 发布本身不创建 `Release` 或其他中转分支；发布后的远端路线使用精确小写 `release` 分支。发布合并不要求线性历史或快进，也不设置租约、原子推送或保护分支门禁；远端 `release` 分支仍按非强制 push 拒绝非快进更新。普通合并冲突、脏数据保护和标签身份复核始终是 Git 安全检查。发布不因未配置远端而阻断；此处也不执行资源删除。后续若需清理，必须另行明确授权，并依据 `releasedResources` 的精确身份先核对，不能扫描名称前缀或强制删除其他工作。
+
+合并消息固定为中文“合并开发分支 <branch>”或“合并远端默认分支 <remote>/<branch>”，显式传 `-m`；不改变普通合并、父提交关系、冲突与恢复机制，快进不生成额外提交。
 
 ## 状态与输出
 
