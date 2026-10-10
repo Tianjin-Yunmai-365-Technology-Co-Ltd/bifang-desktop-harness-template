@@ -208,6 +208,21 @@ test("atomic_write_refuses_drift_and_cleans_its_temporary_file", (t) => {
   assert.deepEqual(fs.readdirSync(path.dirname(f.file)), ["AGENT_POLICY.md"]);
 });
 
+/** 权限恢复遭文件系统拒绝时，保留原策略及元数据，并清理未提交的临时文件。 */
+test("atomic_write_permission_failure_preserves_original_and_cleans_temporary_file", (t) => {
+  const f = fixture(t);
+  const policy = readPolicy(f.root, { validateActionSupport: false });
+  const before = fs.statSync(f.file);
+  t.mock.method(fs, "fchmodSync", () => { throw Object.assign(new Error("permission restoration denied"), { code: "EPERM" }); });
+  assert.throws(() => atomicWrite(policy, template.replace("e2e_hint: disabled", "e2e_hint: enabled")), { code: "EPERM" });
+  assert.deepEqual(f.bytes(), policy.bytes);
+  const after = fs.statSync(f.file);
+  assert.equal(after.mode, before.mode);
+  assert.equal(after.ino, before.ino);
+  assert.equal(after.mtimeMs, before.mtimeMs);
+  assert.deepEqual(fs.readdirSync(path.dirname(f.file)), ["AGENT_POLICY.md"]);
+});
+
 /** Harness 源与父仓库子目录都不接受下游永久能力写入。 */
 test("source_harness_and_nonroot_targets_are_rejected", (t) => {
   const f = fixture(t);
@@ -230,6 +245,42 @@ test("updates_preserve_mode_and_accept_valid_zoned_timestamps", (t) => {
   assert.equal(fs.statSync(f.file).mode & 0o777, mode);
   assert.equal(inspect(f.root).confirmed_at, "2026-10-09T12:34:56.123+08:00");
 });
+
+// 在独立进程固定 umask，观察真实文件权限与完整策略字节，不改变测试宿主的全局掩码。
+for (const command of ["set", "migrate-task-worktrees"]) {
+  for (const mode of [0o640, 0o664, 0o764]) {
+    /** 普通切换与受限迁移均须保留 umask 会过滤的已有权限，且只产生预期策略变化。 */
+    test(`${command.replaceAll("-", "_")}_preserves_${mode.toString(8)}_under_umask_0022`, {
+      skip: process.platform === "win32" ? "Windows 不提供 POSIX umask 与完整权限位；需在 POSIX 宿主执行" : false,
+    }, (t) => {
+      const f = fixture(t, command === "set" ? template : legacy4);
+      fs.chmodSync(f.file, mode);
+      const before = f.bytes().toString();
+      assert.equal(fs.statSync(f.file).mode & 0o777, mode);
+      const options = migration(f, { value: "enabled" });
+      const args = command === "set"
+        ? [command, "--field", "task_worktrees", "--value", "enabled", "--expected-value", "disabled"]
+        : [command, "--value", "enabled", "--expected-schema", "4", "--expected-sha256", options.expectedSha256];
+      const script = new URL("./agent_policy.mjs", import.meta.url).href;
+      const result = spawnSync(process.execPath, ["--input-type=module", "--eval",
+        `process.umask(0o022); const { main } = await import(${JSON.stringify(script)}); console.log(JSON.stringify(main(process.argv.slice(1))));`,
+        ...args, "--project-root", f.root, "--confirmed-by", options.confirmedBy,
+        "--confirmed-at", options.confirmedAt, "--confirmed-user-choice",
+      ], { encoding: "utf8" });
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      assert.equal(JSON.parse(result.stdout).changed, true);
+      assert.equal(fs.statSync(f.file).mode & 0o777, mode);
+      const expected = command === "set"
+        ? before.replace("task_worktrees: disabled", "task_worktrees: enabled")
+          .replace("confirmed_by: previous-user", `confirmed_by: ${options.confirmedBy}`)
+          .replace("confirmed_at: 2026-10-08", `confirmed_at: ${options.confirmedAt}`)
+        : before.replace("schema_version: 4", "schema_version: 5")
+          .replace("user_owned_tasks: disabled\n", "user_owned_tasks: disabled\ntask_worktrees: enabled\n");
+      assert.equal(f.bytes().toString(), expected);
+      assert.deepEqual(fs.readdirSync(path.dirname(f.file)), ["AGENT_POLICY.md"]);
+    });
+  }
+}
 
 /** 实际支持符号链接的宿主必须拒绝根、docs和策略文件链接。 */
 test("symlinked_policy_paths_are_rejected_without_touching_the_target", (t) => {

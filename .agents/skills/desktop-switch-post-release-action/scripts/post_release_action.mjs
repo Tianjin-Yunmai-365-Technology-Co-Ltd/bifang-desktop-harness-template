@@ -435,6 +435,8 @@ export function atomicWrite(policy, next) {
   try {
     descriptor = fs.openSync(temporary, "wx", policy.stat.mode & 0o777);
     fs.writeFileSync(descriptor, next, "utf8");
+    // 创建权限会受 umask 过滤；写完后按原权限恢复，失败时不替换原文件。
+    fs.fchmodSync(descriptor, policy.stat.mode & 0o777);
     fs.fsyncSync(descriptor);
     fs.closeSync(descriptor); descriptor = undefined;
     const currentStat = regularFile(policy.file, "Agent 策略");

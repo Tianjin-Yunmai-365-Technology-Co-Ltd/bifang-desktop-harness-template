@@ -96,7 +96,7 @@ Windows 环境门禁的自动安装若因管理员权限、UAC、组织策略或
 - 选择 GUI 时，初始化基线始终包含动态标题、设置页、i18n、主题、Logo→版本与最终侧栏模式。`compact` 按 `tauri-gui-sidebar-compact-80-v1` 建立 `80px` 全宽居中竖排菜单且不折叠；`detailed` 是侧栏未选择时的缺省值，并默认 `248px` 展开、`76px` 收起，按钮状态设备级持久化，收起时 Tooltip 显示名称。单实例、托盘、系统通知、开机自启、关于页、赞助页及 sponsor 运行时媒体只在配置启用时存在；未选能力不得留下依赖、feature、插件、命令、Switch、翻译键、路由、入口、关闭拦截或运行时媒体。这些 adapter-only 展示/生命周期机制不得写入 core。
 - Rust 能力按 `docs/RUST_CLI_TEMPLATE.md` 的事实标准选择：Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing + tracing-subscriber + tracing-appender、anyhow、thiserror、serde、jiff；OpenTelemetry 与协议/存储/认证候选只在对应能力获批后采用。只把当前已选接口或已批准真实能力需要的依赖加入根 `[workspace.dependencies]`；不得为中性状态预装未使用的 HTTP、ORM、配置、错误或可观测性依赖，偏离固定技术必须记录硬规则例外。
 - 只有选择 CLI 时，CLI 才遵守 `docs/CLI_CONTRACT.md`。
-- `docs/AGENT_POLICY.md` 持久记录五项项目选择和 `post_release_action`；后续 Agent 必须复用这些选择、推断适用性，并且只在策略缺失/非法、用户明确要求手动切换或问题仍未解决时询问。
+- `docs/AGENT_POLICY.md` 持久记录六项项目选择和 `post_release_action`；后续 Agent 必须复用这些选择、推断适用性，并且只在策略缺失/非法、用户明确要求手动切换或问题仍未解决时询问。
 - `docs/AGENT_POLICY.md` 保存 `user_owned_tasks` 的默认关闭与手动开关、用户可见 Task 的标题/粒度/创建门禁和内部 `parallel_worktree_subagents` 并行策略；内部 Subagent 不使用用户可见 Task 标题合同，三者不得混为同一开关或删除统一描述模板。
 - 产品规格、工作计划、ADR 和变更记录属于下游开发记忆，不属于初始化载荷。
 - 完成收尾的下游项目不能从自身实例化或初始化另一个项目。
