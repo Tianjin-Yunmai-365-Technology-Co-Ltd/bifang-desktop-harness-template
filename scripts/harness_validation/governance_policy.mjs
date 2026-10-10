@@ -5,8 +5,6 @@ import { ROOT, fail, readText, relativePath } from "./core.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
 import { POST_RELEASE_ACTIONS, localPackageSupported, parseAgentPolicyDocument, parseReleaseGuiFramework, parseReleaseMetadataArray, policyBodyIsCurrent, validConfirmedAt } from "../../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs";
 
-export const SESSION_PROGRESS_TITLE_TEMPLATE = "Task {序号} | {当前进度} | {单一结果}";
-export const SESSION_PROGRESS_TITLE_INITIAL = "Task {序号} | 已分配 | {单一结果}";
 const SESSION_PROGRESS_STATES = ["已分配", "运行中", "检查中", "已完成"];
 const SESSION_PROGRESS_TITLE_PATTERN = new RegExp(`^Task (?<sequence>[1-9][0-9]*) \\| (?<progress>${SESSION_PROGRESS_STATES.join("|")}) \\| (?<singleResult>[^|\\r\\n]+)$`, "u");
 

@@ -30,7 +30,7 @@
 
 ### Task 自主执行与 GPUI-Kit Skills
 
-- 变更标识：`HARNESS-FEAT-TASK-AUTONOMY-GPUI-SKILLS`；所需 Harness 版本在未来正式发布时取号，日常维护不改变 `Version.md`。本条取代旧 Task 全局强制开启、无条件阶段拆分和每项目单写入者限制。
+- 变更标识：`HARNESS-FEAT-TASK-AUTONOMY-GPUI-SKILLS`；`required_version = 202610101414`，已在本次正式发布取号时物化。本条取代旧 Task 全局强制开启、无条件阶段拆分和每项目单写入者限制。
 - `user_owned_tasks` 是项目唯一自动创建左侧 Task 子树的开关，默认关闭；初始化和手动切换都记录真实选择及确认来源/日期。单次显式创建不改变永久选择，关闭时当前会话直接完成工作。
 - Task/工作树完整流程集中到 `$desktop-task-workflow`；旧三个 Skill 保留兼容路由。已授权范围内可自主阅读、编辑、测试、修复和提交，自检通过自动执行，无需额外人工 BOUND 授权；不伪造宿主审批，不用文档自授系统权限。
 - 独立工作树按非重叠所有权尽量并行准备、创建和执行。创建只在共享状态预留/登记时使用短锁，checkout 在锁外并行；同 Local cwd 及最终整合串行。
@@ -496,7 +496,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202610101204`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202610101414`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。

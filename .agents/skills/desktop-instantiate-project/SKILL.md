@@ -15,7 +15,7 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 发布后动作在框架解析后再次校验：接口含 CLI，或 GUI 目标含 macOS/Windows 时可明确选择 `local_package`；不含 CLI 的仅 Linux GUI 必须明确选择 `push_release_branch`。GPUI GUI 候选由独立 `$desktop-build-gpui-release` 生成本机 macOS `.app`/DMG 或 Windows NSIS，不借用 CLI 或 Tauri 打包。GPUI 终端下游完整保留该打包 Skill、新 adapter Skill 与通用规则，裁掉 Tauri/Mantine/React专属 Skills；Tauri 和非 GUI 下游裁掉 GPUI 专属打包 Skill。完整保留 design-taste-frontend 知识资产的通用要求不变。GPUI 初始化由 `$desktop-initialize-rust-project` 在删除初始化目录前安装本地 `$gpui-kit` 与 `$gpui-kit-design-guides`，上游快照与许可不参与身份替换；Tauri/非 GUI 不安装。
 
-六项策略中 `task_worktrees` 紧接 `user_owned_tasks`，推荐关闭。自定义询问“是否为 Git 左侧 Task 使用独立工作树”；合法明确答案直接复用，未回答不能视为确认关闭，也不得从 Task Tree 或内部并行推断。最终汇总逐项列出项目值、确认来源与有效行为。新下游即使关闭也完整保留 `$desktop-manage-task-worktrees` 的 SKILL、metadata 和地图；初始化不创建 Task Worktree。项目选择以 Agent Policy 为事实源，执行合同统一使用 `$desktop-task-workflow`。
+六项策略中 `task_worktrees` 紧接 `user_owned_tasks`，推荐关闭。自定义询问“是否为 Git 左侧 Task 使用独立工作树”；合法明确答案直接复用，未回答不能视为确认关闭，也不得从 Task Tree 或内部并行推断。最终汇总逐项列出项目值、确认来源与有效行为。新下游即使关闭也完整保留 `$desktop-task-workflow` 的 SKILL、references、metadata 和地图；初始化不创建 Task Worktree。项目选择以 Agent Policy 为事实源，执行合同统一使用 `$desktop-task-workflow`。
 
 ## 用户规则优先
 
