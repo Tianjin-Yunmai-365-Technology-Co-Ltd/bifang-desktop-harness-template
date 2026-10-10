@@ -4,6 +4,17 @@
  * 这里保持显式清单，避免目录仍存在但关键文件被误删时静默通过。
  */
 export const REQUIRED_ROOT_FILES = [
+  ".agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.mjs",
+  ".agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.test.mjs",
+  ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/source.json",
+  ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/LICENSE-APACHE",
+  ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/gpui-kit/SKILL.md",
+  ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/gpui-kit-design-guides/SKILL.md",
+  ".agents/skills/desktop-task-workflow/SKILL.md",
+  ".agents/skills/desktop-task-workflow/agents/openai.yaml",
+  ".agents/skills/desktop-task-workflow/references/task-contract.md",
+  ".agents/skills/desktop-task-workflow/references/task-description.md",
+  ".agents/skills/desktop-task-workflow/references/worktree-execution.md",
   ".agents/skills/desktop-add-gpui-autostart/SKILL.md",
   ".agents/skills/desktop-add-gpui-autostart/agents/openai.yaml",
   ".agents/skills/desktop-add-gui-telemetry/SKILL.md",

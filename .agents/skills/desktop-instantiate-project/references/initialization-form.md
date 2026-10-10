@@ -16,7 +16,7 @@ GUI 的基础发布后动作可以先记录用户选择，框架解析后再完�
 
 ## 用户规则优先
 
-先读取用户级 `AGENTS.md`，用户已确认的长期硬规则优先于项目偏好。模板默认和推荐预设保持原值；已有下游既有偏好及确认元数据原样保留。自定义模式直接复用已明确的 Task 启用授权，不重复询问；汇总分别列出项目值、用户级强制规则与有效执行行为，不启用未授权的其他能力。生成的启动入口必须保留用户规则优先、业务阅读前绑定、非 pinned、主动恢复及阶段隔离指针。
+先读取用户级 `AGENTS.md`，用户已确认的长期硬规则优先于项目偏好。模板默认和推荐预设保持原值；已有下游既有偏好及确认元数据原样保留。自定义模式直接复用本项目已明确的 Task 选择，不重复询问；汇总分别列出项目值、确认来源与有效执行行为，不启用未授权的其他能力。生成的启动入口必须保留用户规则优先、项目默认关闭、启用时绑定/非 pinned/主动恢复及显式阶段隔离指针。
 
 ## 交互规则
 
@@ -62,7 +62,7 @@ GUI 的基础发布后动作可以先记录用户选择，框架解析后再完�
 | 8 | 首轮基础 | Agent 策略模式 | 必须选择“推荐预设”或“自定义”。不得从 Harness 源策略推断用户选择。 |
 | 9 | 首轮基础 | `post_release_action` | 必须从 `local_package`（本地打包，推荐默认）或 `push_release_branch`（提交远程）中明确选择；纯 TUI/MCP 或不含 CLI 的仅 Linux GUI 时本地打包不可用，须明确选择提交远程；只有接口含 CLI，或含 GUI 且目标平台含 macOS/Windows 时明确选用默认值才取 `local_package`，不得从 Harness 源 `pending` 或未答复推断选择。 |
 | 10 | 条件补全 | `gui_framework` | 仅 GUI；先询问 1. Tauri（默认）/ 2. GPUI。未答、留空、跳过或默认取 `tauri`，合法答案复用，非法值重问；写入 Cargo `gui-framework`，与九字段 profile 分开，再复核发布后动作。 |
-| 11 | 条件补全 | `user_owned_tasks` | 仅自定义策略；复用用户已明确的 Task 启用授权，不重问；其余逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭不影响用户明确要求创建或更高优先级硬规则。 |
+| 11 | 条件补全 | `user_owned_tasks` | 仅自定义策略；复用用户对本项目已明确的 Task 选择，不重问；其余逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭时不自动创建；用户明确单次创建不改变永久选择。 |
 | 12 | 条件补全 | `task_worktrees` | 仅自定义策略；询问“是否为 Git 左侧 Task 使用独立工作树”，推荐关闭。明确合法答案直接复用；未回答不能视为确认关闭，不从 Task Tree、自动 Task 或内部并行推断。 |
 | 13 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
 | 14 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`；此项只控制当前 Task 内部 `codex/unit-*` Worktree 与写入型 Subagent，与 `task_worktrees` 独立。 |
@@ -92,7 +92,7 @@ e2e_hint: disabled
 推荐预设包含以上全部六项；选择自定义时逐项确认，不能从 Harness 源当前值推断用户选择。最终汇总需说明 `parallel_worktree_subagents: disabled` 只关闭当前 Task 内部并行；`user_owned_tasks` 的自动创建开关与用户明确新建的侧边 Task 独立。
 发布后动作不属于这六项预设；无论选择推荐预设还是自定义，都必须单独确认 `post_release_action`。
 
-最终汇总列出六项项目值、用户级覆盖与有效行为。`task_worktrees` 默认关闭；仅开启后调用 `$desktop-manage-task-worktrees`。初始化不创建 Task Worktree；即使关闭，也完整保留该技能与地图，供以后手动启用。
+最终汇总列出六项项目值、确认来源与有效行为。`task_worktrees` 默认关闭；仅开启后调用 `$desktop-manage-task-worktrees`。初始化不创建 Task Worktree；即使关闭，也完整保留该技能与地图，供以后手动启用。
 
 ## 目标路径解析
 

@@ -6,6 +6,20 @@ import { test } from "node:test";
 
 import { findPythonArtifacts, inspectProject, pythonArtifactKind, pythonReferenceViolations } from "./check_no_python.mjs";
 
+/** Rust 紧接括号的内边距方法不误报，普通文件引用仍保持阻断。 */
+test("rust_padding_method_is_not_a_python_file_entry", () => {
+  assert.deepEqual(pythonReferenceViolations("div().py(px(12.))"), []);
+  assert.ok(pythonReferenceViolations("scripts/check.py").includes("Python 文件入口"));
+  assert.equal(pythonArtifactKind("scripts/check.py"), "runtime");
+});
+
+/** 文件入口后出现空格或换行再跟说明括号时，不能被方法调用豁免吞掉。 */
+test("python_file_references_before_spaced_or_newline_parentheses_are_rejected", () => {
+  for (const text of ["scripts/check.py (legacy helper)", "scripts/check.py\n(next step)"]) {
+    assert.ok(pythonReferenceViolations(text).includes("Python 文件入口"), text);
+  }
+});
+
 function withTemporaryRoot(callback) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "check-no-python-"));
   try { return callback(root); }

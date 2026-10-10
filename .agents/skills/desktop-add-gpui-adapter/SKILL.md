@@ -7,6 +7,8 @@ description: 为已明确选择 GPUI 的中性 Rust 下游建立原生桌面薄�
 
 只在初始化已选择 `gui_framework = gpui`，或已初始化下游明确批准增加 GPUI 接口时使用。默认桌面框架仍为 Tauri。GPUI 原生视图使用 Rust；根 pnpm 入口运行保留的 Node 工程检查与发布工具，默认无第三方 npm 依赖，无需前端。不得混装 React、WebView 或 Tauri plugin。当前 Harness 根只维护模板和工程规则，不能把产品业务写入这里。
 
+GPUI 下游创建时安装项目本地官方 `$gpui-kit` 与 `$gpui-kit-design-guides`。界面设计、组件、布局、主题、状态与可见文案按后者读取 Design Guides；架构、Entity 所有权、事件、异步、API 和测试按前者读取 Coding Guides 及命中 references。只读取本次需要的深层主题，不全量加载参考文档。两套 Skill 的 `source.json` 固定来源 revision、大小与 SHA-256，`LICENSE-APACHE` 保留许可，`HARNESS-INTEGRATION.md` 解释原始跨 Skill/仓库引用。用户指令与本项目约束优先，官方知识不改变已确认的模板尺寸、功能范围、依赖或验收责任；API 必须与项目实际依赖版本核对。安装知识不运行远程代码，也不增加全局或运行时依赖。
+
 ## 最小工作流程
 
 1. 按 `AGENTS.md` 读取当前任务命中的工程与 Rust 规范；GUI 设计只读 `docs/design_standards/README.md` 与 `docs/design_standards/gpui_gui.md`。初次中性初始化复用初始化器已经确认的身份、接口、目标平台和九项 GUI profile，不要求 Product Spec、ADR、Work Plan、版本分类或发布上下文。初始化后新增接口才按 `$desktop-manage-version` 处理已批准 feature。

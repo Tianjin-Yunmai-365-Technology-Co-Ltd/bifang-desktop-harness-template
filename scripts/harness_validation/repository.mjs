@@ -14,9 +14,11 @@ import {
 import { inspectProject as inspectNoPython } from "../../.agents/skills/desktop-implement-change/scripts/check_no_python.mjs";
 import { validateDailyProjectMemory } from "./repository_memory.mjs";
 import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
+import { loadGpuiKitSkillsSnapshot } from "../../.agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.mjs";
 
 /** Harness 当前必须保留的项目 Skill 集合。 */
 export const EXPECTED_SKILLS = new Set([
+  "desktop-task-workflow",
   "desktop-manage-dependencies",
   "desktop-review-core-boundaries",
   "desktop-record-adr",
@@ -222,6 +224,18 @@ export function validateWorkPlanContract(errors, planPath = null, { required = f
 /** 解析本地 Markdown 链接并验证目标存在、未越过仓库根。 */
 export function validateMarkdownLinks(errors, files = trackedFiles()) {
   const markdownFiles = files.filter((relative) => relative.endsWith(".md"));
+  const vendor = ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/";
+  let snapshotVerified = false;
+  if (markdownFiles.some(relative => relative.startsWith(vendor))) {
+    try { loadGpuiKitSkillsSnapshot(); snapshotVerified = true; }
+    catch (error) { fail(errors, `GPUI Kit 原样快照校验失败: ${error.message}`); }
+  }
+  const upstreamReferences = new Map([
+    ["gpui-kit/references/coding-guides.md|./design-guides.md", "gpui-kit-design-guides/references/design-guides.md"],
+    ["gpui-kit-design-guides/references/design-guides.md|./coding-guides.md", "gpui-kit/references/coding-guides.md"],
+    ["gpui-kit/references/coding-guides.md|./getting-started.md", null],
+    ["gpui-kit/references/usage.md|../../../examples/ai_recipes/src/bootstrap.rs", null],
+  ]);
   const linkPattern = /!?\[[^\]]*\]\(([^)]+)\)/gu;
   for (const relative of markdownFiles) {
     const filePath = path.join(ROOT, relative);
@@ -240,6 +254,13 @@ export function validateMarkdownLinks(errors, files = trackedFiles()) {
       if (!target) continue;
       try {
         target = decodeURIComponent(target);
+        // 上游原样文档的跨 Skill 和原仓库示例引用由固定快照摘要约束；未知断链仍失败。
+        const key = relative.startsWith(vendor) ? `${relative.slice(vendor.length)}|${target}` : "";
+        if (snapshotVerified && upstreamReferences.has(key)) {
+          const mapped = upstreamReferences.get(key);
+          if (mapped !== null && !fs.existsSync(path.join(ROOT, vendor, mapped))) fail(errors, `GPUI Kit 跨 Skill 引用缺失: ${mapped}`);
+          continue;
+        }
         const resolved = resolveInsideRoot(path.dirname(filePath), target);
         if (!fs.existsSync(resolved)) {
           fail(errors, `失效本地 Markdown 链接: ${relative} -> ${target}`);

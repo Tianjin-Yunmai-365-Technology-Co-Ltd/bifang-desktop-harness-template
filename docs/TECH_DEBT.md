@@ -23,6 +23,7 @@
 | LIM-024 | `$desktop-upgrade-harness` 的命令示例曾依赖宿主特定解释器选择与 POSIX 续行符 | Skill 已统一为跨平台 `node` 单行命令，plan/apply/record 不再选择额外解释器或依赖 shell 续行 | 在 Windows 原生执行一次完整 plan/apply/record 闭环，补充真实宿主证据；不得因未运行而恢复宿主特定命令 | Mitigated；2026-09-23 Node 迁移完成后仍待 Windows 原生闭环 |
 | LIM-028 | Codex Task setup 缺少可用的 `clientThreadId` 对账或取消桥 | `create_thread` 可能只返回尚不能传给 thread 工具的 `clientThreadId`；当前可用工具不能用它查询、取消或直接取得最终 `threadId`，宿主 setup 若不晋升会留下 queued Task/Worktree | Harness 以一次派发、`SETUP_PENDING` 有界返回、禁止重复创建/代执行和用户明确要求后才用 `list_threads` 对账缓解；待 Codex 提供稳定查询/取消接口后增加有界恢复路径和真实卡死回归 | Mitigated |
 | LIM-029 | Windows 原生完整文件系统回归曾以平台名称预判两个夹具 | 换行文件名与符号链接 Node 回归先真实创建对象，只在宿主返回明确不支持或权限错误时按精确原因 skip；创建成功必须确认真实 symlink 并继续执行原断言，生产门禁语义未放宽 | 在标准非管理员 Windows 与具备符号链接权限的 Windows CI 各运行一次完整 Node 套件，保留能力差异证据 | Mitigated；2026-09-23 平台预判冲突已解决，Windows 原生复验 Not run |
+| LIM-030 | GPUI 开发循环取消回归曾遇到进程组探测 EPERM | 2026-10-10 首轮完整 Node 回归中，编译取消用例在 Cargo close 回调的 `process.kill(-pid, 0)` 抛出 EPERM；精确用例随后 4 次及完整回归重跑均通过，尚无法确认当时的进程组状态和底层原因 | 再次出现时记录 owned PID、进程组与宿主权限证据，区分关闭竞态和真实权限拒绝；不得把 EPERM 当作进程不存在或回收成功 | Open；当前未稳定复现 |
 
 
 ## 记录规则

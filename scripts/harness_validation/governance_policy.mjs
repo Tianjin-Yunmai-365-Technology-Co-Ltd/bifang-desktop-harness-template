@@ -23,25 +23,11 @@ export const PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS = [
 
 export const USER_HARD_RULE_REQUIRED_FRAGMENTS = [
   "每次开工先完整读取用户级 `AGENTS.md`",
-  "用户已确认的长期硬规则优先于项目预设",
-  "无需把模板默认 `disabled` 或已有下游偏好与确认元数据改写为 `enabled`",
-  "自定义模式复用已明确的 Task 启用授权，不重复询问",
-  "汇总分别报告项目值、用户级强制规则与有效执行行为",
-  "协调聊天仅做编号、创建、绑定、恢复和状态",
-  "业务资料阅读、插件探索、调研、分析、设计与执行都必须先在对应 Task 绑定通过",
-  "未置顶",
-  "用户要求阶段隔离时，调研分析、方案设计、编码实现、正式测试验收、安装发布分别独立",
-  "发布和推送也分别独立",
-  "不能承担正式验收结论",
-  "### 阻断修复与恢复",
-  "工具成功回执不能代替复读",
-  "迁移链",
-  "保留 Task key、编号和单一结果",
-  "长期停止后",
-  "内部业务 Subagent",
-  "阶段与前序输入：",
-  "只读调研/方案阶段的编译、测试和提交为 `Not applicable`",
-  "### 协调参考提示词",
+  "不再用历史全局 Task Tree 要求绕过项目选择",
+  "$desktop-task-workflow",
+  "自动创建左侧子会话只取本项目已记录的 `user_owned_tasks`",
+  "默认关闭",
+  "`task_worktrees`：仅选择 Git Task 环境",
 ];
 
 /** 解析满足 user-owned Task 三字段与空白边界的标题；不合法时返回 null。 */
@@ -151,47 +137,18 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   const requiredBodyFragments = [
     ...USER_HARD_RULE_REQUIRED_FRAGMENTS,
     "完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`",
-    "`user_owned_tasks`：控制是否由 Agent 自动把新结果拆到 Codex 左侧菜单",
-    "`user_owned_tasks: disabled` 是默认状态",
-    "用户仍可明确要求创建左侧 Task",
-    "`enabled` 是长期授权",
-    "一个用户可见 Task 只对应一个明确、可验收的结果",
-    "交付物类型变化、生命周期阶段变化",
-    "每个项目同一时间只允许一个写入型 active 用户可见 Task",
-    "Task0 可以协调和派发，但不得代替实施 Task 写入",
-    "Git 项目使用",
-    "task_worktrees", "environment.type=local", "冻结环境", "### 所选环境与 Local 串行交接", "串行", "migrate-task-worktrees", "selection_required",
-    "environment.type = worktree",
-    "非 Git 项目固定使用同一 project target 与 `environment.type = local`",
-    "只返回 `clientThreadId` 表示仍在 setup",
-    "保持零实现",
-    "取得真实 `threadId`",
-    "核对该 id 的标题、`projectId`、cwd 和状态",
-    "核对工作区干净及起始提交正确",
-    `\`${SESSION_PROGRESS_TITLE_TEMPLATE}\``,
-    `title="${SESSION_PROGRESS_TITLE_INITIAL}"`,
-    "不识别任何历史标题格式",
-    ...PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
-    "内部 Subagent 不使用本标题合同、不占用 Task 序号",
+    "## 用户可见 Task 开关、粒度与创建门禁",
+    "../.agents/skills/desktop-task-workflow/SKILL.md",
     "推荐预设确定性物化六项",
-    "`parallel_worktree_subagents: disabled`、`acceptance_smoke: enabled`",
-    "`user_owned_tasks: disabled`",
-    "开启左侧 Task",
-    "关闭左侧 Task",
-    "新初始化使用 schema 5",
-    "不得猜测旧项目选择",
-    "`parallel_worktree_subagents` 只控制当前 Task 内部",
+    "migrate-task-worktrees", "selection_required",
     "日常开发直接实施",
     "显式发布候选构建必须为当前候选解析一次 E2E 选择",
-    "post_release_action",
-    "local_package",
-    "push_release_branch",
+    "post_release_action", "local_package", "push_release_branch",
   ];
   for (const fragment of requiredBodyFragments) {
     if (!text.includes(fragment)) fail(errors, `Agent policy persistence rule missing in ${relativePath(policyPath)}: ${fragment}`);
   }
   // 运行时 post_release_action helper 拒绝未合并新规则的正文；模板与下游必须通过同一判定。
   if (!policyBodyIsCurrent(text)) fail(errors, `Agent policy body in ${relativePath(policyPath)} is rejected by the post_release_action helper`);
-  const example = "Task 8 | 运行中 | 左侧 Task 默认关闭并支持开关";
-  if (!text.includes(example) || !isValidSessionProgressTitle(example)) fail(errors, `Agent policy must contain a valid progress title example: ${example}`);
+
 }

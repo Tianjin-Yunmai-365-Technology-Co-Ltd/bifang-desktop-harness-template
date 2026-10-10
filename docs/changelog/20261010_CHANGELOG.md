@@ -2,6 +2,8 @@
 
 ## 变化
 
+- `HARNESS-FEAT-TASK-AUTONOMY-GPUI-SKILLS`（时间版本待未来正式发布取号，本次不改变 `Version.md`）：自动左侧 Task 只按项目 `user_owned_tasks`，默认关闭并持久记录明确选择；单次新建不改变开关。Task/工作树合同集中为 `$desktop-task-workflow`，原三个入口兼容路由。已授权范围继承阅读、实现、开发检查、同范围修复及本地提交，不重复人工绑定或逐单元审批；仅用户明确要求才阶段隔离。独立工作树用短锁预留所有权并在锁外并发 checkout/登记，同一 Local cwd 和共享状态写入串行。取代下列旧记录的全局 Task 覆盖、无条件阶段拆分和项目单写入限制，环境选择、中文提交与原身份保护继续适用。GPUI 新下游离线安装官方 `gpui-kit`、`gpui-kit-design-guides` 固定快照，保留原文、Apache 许可与摘要；非 GPUI 不安装，升级保护项目本地副本。
+
 - `HARNESS-FEAT-OPT-IN-TASK-WORKTREES`（`required_version = 202610101204`）：新增默认关闭的 task_worktrees 与独立工作树技能，和 Task Tree、内部并行分别选择；新初始化推荐六项，关闭时使用精确项目 Local 并串行交接，开启时核对独立 Task Worktree。派发环境冻结，后续切换不迁移既有 Task。策略严格兼容 schema 3/4/5，旧项目不补默认值；明确补选后只受限迁移 schema 4 至 5，保留原确认事实、动作和正文，单字段切换与发布动作保留其他选择。初始化和升级完整保留新技能，目标策略及用户级规则仍受保护。
 
 - `HARNESS-FEAT-USER-HARD-TASK-RULES-CHINESE-COMMITS`（`required_version = 202610100058`）：入口先读取并复用用户长期硬规则，项目默认与既有五项偏好/确认元数据保持；用户要求 Task Tree 时，业务阅读、插件探索、分析和设计前完成真实 ID、精确项目、非置顶、独立 Worktree 与 Git 绑定门禁。新增原 Task 异常主动修复、有界复读、工具证明的 handoff 迁移链和长期序号恢复合同；用户要求的调研、设计、实现、正式验收、安装发布及独立推送分别建 Task。描述增加固定阶段、前序 SHA/证据、允许副作用与只读不适用项，附规范协调参考提示词。

@@ -77,8 +77,8 @@ test("streamlined contract requires the action-switch skill", () => withTemporar
 /** 默认关闭路径与开启技能职责各自受门禁约束，不能退回无条件工作树。 */
 test("task_environment_contract_rejects_each_missing_binding_boundary", () => withTemporaryDirectory((directory) => {
   for (const [key, anchors] of [
-    ["manageTasksSkill", ["仅开启时", "environment.type=local", "Local 没有 startingState", "只读期间", "前序须 idle/completed", "恢复漂移不自动 checkout/stash"]],
-    ["taskWorktreesSkill", ["关闭时不调用", "唯一一次 create_thread", "不得另建第二个 Task", "冻结选择", "不使用普通 create_worktree"]],
+    ["worktreeExecution", ["environment.type=local", "Local 没有 `startingState` 参数", "只读测试期间其他 Task 也不能改变被测 branch、HEAD 或文件", "前序结束并交出可核对的提交后再开工", "恢复漂移先复核实际输入", "普通 `create_worktree`、`git worktree add` 或内部 Subagent 不能冒充其左侧身份"]],
+    ["taskContract", ["对每个结果只调用一次 `create_thread`", "非 pinned", "工具成功回执不能代替复读"]],
   ]) for (const anchor of anchors) {
     const changed = mutatedCopy(directory, key, anchor, "已删除边界");
     const errors = [];
@@ -124,12 +124,12 @@ test("streamlined contract rejects lost task or Chinese commit entry points", ()
   for (const [key, anchor] of [
     ["agentsEntrypoint", "每次开工先读取用户级"],
     ["implementSkill", "不承担正式验收、发布或推送"],
-    ["handoffSkill", "主动修复原 Task"],
-    ["initializeSkill", "自定义模式直接复用已明确的 Task 启用授权"],
-    ["instantiateSkill", "汇总分别列出项目值、用户级强制规则与有效执行行为"],
-    ["manageTasksSkill", "业务资料阅读、插件探索、分析、设计"],
-    ["manageTasksSkill", "工具成功回执不能代替复读"],
-    ["manageTasksSkill", "非 pinned"],
+    ["handoffSkill", "沿原身份、结果和冻结环境主动修复"],
+    ["initializeSkill", "不复制编号、标题、权限、创建或交付合同"],
+    ["instantiateSkill", "项目值、确认来源与有效执行行为"],
+    ["taskWorkflow", "自动创建左侧子会话的唯一项目开关"],
+    ["taskContract", "工具成功回执不能代替复读"],
+    ["taskContract", "非 pinned"],
     ["configureCommitsSkill", "message-check --message-file <file>"],
     ["configureCommitsSkill", "git log -1 --format=%B"],
     ["gitLifecycleSkill", "普通 `git merge --no-edit -m <中文合并消息>`"],

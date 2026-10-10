@@ -58,6 +58,8 @@
 
 跨接口完整传播 `$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`，只传播工程知识/只读入口，不代写记忆或清单。Tauri GUI 条件完整传播 `$desktop-enable-gui-updates` 与 `$desktop-add-gui-telemetry`；GPUI GUI 条件完整传播 `$desktop-add-gpui-autostart`，均不自动启用。`$desktop-test-gpui-initialization-e2e` 为初始化专用 tombstone，完成基线前删除，升级永久不恢复；产品 profile、支持实例和根清单继续 protected。
 
-中文提交的完整 `$desktop-configure-git-commits` Skill、metadata、规范、模板、helper/测试，以及 `$desktop-prepare-release` 的 `release_git.mjs`/测试必须作为同一 managed 依赖闭包传播。合并用户硬规则优先、业务前绑定和阶段隔离等启动正文时，目标 `docs/AGENT_POLICY.md` 的既有 frontmatter（原 schema 的全部偏好与确认元数据）逐字节保留；不得因执行覆盖修改项目默认值。用户级 `AGENTS.md` 位于项目候选和来源锁范围之外，不复制或覆盖；项目 AGENTS/README 继续按 merge-sections 处理。
+中文提交的完整 `$desktop-configure-git-commits` Skill、metadata、规范、模板、helper/测试，以及 `$desktop-prepare-release` 的 `release_git.mjs`/测试必须作为同一 managed 依赖闭包传播。合并 Task 默认关闭与统一 Skill 路由等启动正文时，目标 `docs/AGENT_POLICY.md` 的既有 frontmatter（原 schema 的全部偏好与确认元数据）逐字节保留；不得改变已有项目选择或把旧全局 Task Tree 规则当作项目启用事实。用户级 `AGENTS.md` 位于项目候选和来源锁范围之外，不复制或覆盖；项目 AGENTS/README 继续按 merge-sections 处理。
 
 完整 managed 传播 `$desktop-manage-task-worktrees`（SKILL 与 metadata），即使 task_worktrees 关闭也保留。schema 3/4 发布动作保持合法读取，schema 4 新环境选择为 selection_required；工程升级不得补默认值、改确认元数据、用户级 AGENTS 或迁移既有 Task/Worktree。受保护正文按章节合并后，由用户明确补选并通过 `$desktop-configure-agent-policy migrate-task-worktrees` 从 schema 4 迁移至 5；schema 3 先由动作专用流程迁移至 4。
+
+统一 Task/工作树合同完整 managed 传播 `$desktop-task-workflow` 的 SKILL、metadata 与 references；旧三个入口仅兼容路由，脚本路径保持兼容。独立工作树尽量并行创建，只有同 Local cwd 与共享状态写入短串行。GPUI 项目本地 `.agents/skills/gpui-kit/**` 与 `.agents/skills/gpui-kit-design-guides/**` 是 protected 第三方文档，不进入候选或来源锁，不由升级覆盖/安装；仅新建 GPUI 下游在初始化阶段安装固定来源快照。

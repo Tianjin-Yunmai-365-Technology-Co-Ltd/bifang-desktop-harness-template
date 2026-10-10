@@ -100,7 +100,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "user_owned_tasks: disabled",
       "task_worktrees: disabled",
       "初始化不创建 Task Worktree",
-      "即使关闭也完整保留 `$desktop-manage-task-worktrees`",
+      "完整保留 `$desktop-task-workflow`",
       "parallel_worktree_subagents: disabled",
       "`post_release_action` 精确等于 `local_package` 或 `push_release_branch`",
       "`local_package` 只在接口含 `cli`，或含 `gui` 且目标平台含 `macos`/`windows` 时合法",

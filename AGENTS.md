@@ -8,7 +8,7 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 
 ## 启动门禁
 
-1. 每次开工先读取用户级 `AGENTS.md`，执行其高于项目预设的长期硬规则，再读取本文件；用户长期硬规则或项目策略要求左侧 Task 时，业务阅读、插件探索、分析或设计前先按 `$desktop-manage-user-tasks` 完成真实 ID、精确项目、非 pinned 与工作区绑定。再读取 `docs/AGENT_POLICY.md` 的 YAML frontmatter 与字段语义；只有创建/执行左侧 Task、显式并行、构建或修改持久策略时，才继续读取该文件的对应章节。
+1. 每次开工先读取用户级 `AGENTS.md`，再读取本文件和 `docs/AGENT_POLICY.md` 的 YAML frontmatter 与字段语义。只有项目 `user_owned_tasks: enabled` 才自动创建左侧 Task 子树，默认关闭；明确单次创建不改永久开关。Task、工作树与内部并行统一使用 `$desktop-task-workflow`，只加载命中模式的引用。
 2. 当前根同时包含 Harness 专用 `Version.md` 与活动 `.agents/skills/desktop-instantiate-project/SKILL.md` 时，先执行 Harness 源范围门禁：只接受 Harness 自身工程维护，以及创建终端下游所需的固定初始化字段和所选初始化路径精确要求的身份选择。产品目的、业务功能、产品专属 UI/文案/数据、远程地址、凭据、产品构建或发布需求一律不得在当前模板源中接收、分析、记录或实施；混合请求只解析允许的初始化字段，并要求用户完成实例化或切换到已存在终端下游的唯一根目录后重新提出其余内容。
 3. 在写入前确认 Git 根、分支和工作区状态，保护用户已有修改；重叠内容无法安全处理时停止。仓库没有声明的命令、能力或验证结果不得虚构。
 4. 先判定任务类型，再只读取下表命中的事实来源和 Skill。发现冲突或缺失时才扩大读取；不要为了“完整”加载全部项目记忆、设计标准、发布规则或 Skills。
@@ -29,8 +29,8 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 | 永久 Agent 能力偏好变更 | Agent Policy 字段语义与初始化后变更规则 | `$desktop-configure-agent-policy`；发布后动作仍用专用 Skill |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md`；Tauri/Mantine 列表页、数据表格、后台列表、搜索结果页及已有列表审查另读 `$mantine-list-view` | 按 `gui-framework` 选择 GUI Skill（`gpui` 另读 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md` 与 `dependency-baseline.md`）；Tauri/Mantine 列表任务即使未明说表格也必须使用 `$mantine-list-view`；不得一次加载全部 GUI Skills |
-| 创建或检查左侧 user-owned Task | `docs/AGENT_POLICY.md` 的“用户可见 Task 开关、粒度与创建门禁” | `$desktop-manage-user-tasks` 与 Codex 项目/Task 工具；`user_owned_tasks` 启用或用户明确要求时调用，Git 按 `task_worktrees` 选择 Worktree/Local，非 Git 使用 Local |
-| 当前 Task 内部并行 Worktree/Subagent 或提交 | `docs/AGENT_POLICY.md` 的相关章节；提交时再读提交 Skill 的规范引用 | `$desktop-run-parallel-worktrees`、`$desktop-configure-git-commits`（按触发器） |
+| Task、工作树、子任务权限与并行调度 | `docs/AGENT_POLICY.md` 的项目选择；统一 Skill 的按需引用 | `$desktop-task-workflow`；默认不自动创建左侧 Task，Local 同 cwd 串行，独立 Worktree 尽量并行 |
+| 内部并行 Worktree/Subagent 或提交 | 统一 Skill 的并行引用；提交时读提交规范 | `$desktop-task-workflow`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-handoff-project`；持久计划另按触发调用 `$desktop-plan-change` |
 | Windows Tauri GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
 | 显式构建候选 | `docs/RELEASE.md`、Agent Policy 的构建段和所选构建 Skill；每次构建单独解析 E2E 选择 | `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release` |
@@ -44,8 +44,8 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 
 - `superpowers: disabled` 时不得调用或遵循任何 `superpowers:*` Skill；其他持久能力只表示允许，不能替代当前任务的触发条件或授权。
 - 日常开发直接实施，只增加并运行本次需要的相关非空单元/回归测试；纯文档、元数据或机械变更只做解析或差异完整性所需的最小检查。不得因任务复杂、多模块或 Agent 偏好自动增加持久计划、全仓检查、构建、冒烟、E2E、Verification 或人工复核。
-- 除非用户明确说当前 Task 内部步骤、plan 或 Subagent，Task 一律指 Codex 左侧 user-owned Task；内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不占用 Task 序号。用户可见 Task 使用 `Task {序号} | {当前进度} | {单一结果}`；同一 `hostId` 与精确 `projectId` 先用 `list_threads(limit=50)` 和同宿主逐页 `list_archived_threads` 清点当前与归档有效标题，再从最大有效序号继续递增，空历史才用 1、缺号不回填。进度只取 `已分配`、`运行中`、`检查中`、`已完成`，每次真实转换至多更新一次并按真实 `threadId` 用 `list_threads` 有界复读；失败必须报告但不阻断已经完成的任务结果，也不得虚写 `已完成`。
-- 无更高优先级用户硬规则时，`user_owned_tasks: disabled` 时不得自动创建或拆分左侧 Task，但仍响应用户明确创建请求；`enabled` 时结果边界变化前自动创建。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和所选执行环境；交付物类型、生命周期阶段、外部副作用、禁止范围或验收责任变化都必须拆新 Task，证明同一结果的测试/review/checkpoint 和必要同范围修复不拆。每项目同一时间只允许一个写入型 active Task，Task0 只能协调；用户要求阶段隔离时，调研分析、方案设计、编码实现、正式测试验收、安装发布及独立推送分别建 Task，开发回归不能代替正式验收。任何创建先以 `list_projects` 核对项目路径和 Git 状态；Git 按有效 `task_worktrees` 选择 Worktree/Local，非 Git 使用 Local，并在真实 `threadId` 到手后用 `list_threads` 核对标题、`projectId`、cwd、状态、干净工作区和起始提交，否则保持零实现且不创建替代 Task。
+- Task 指左侧 user-owned 会话，内部 plan/Subagent/Worktree 不占用编号。`Task {序号} | {当前进度} | {单一结果}` 的编号、四种进度、绑定与恢复合同只由 `$desktop-task-workflow` 管理。
+- `user_owned_tasks` 默认关闭，只有项目明确启用才自动建 Task 子树，选择记录在策略文件；关闭时当前会话直接执行。一个 Task 交付一个结果，必要阅读、实现与开发回归不按步骤拆分。独立 Worktree 按非重叠所有权并行，只有同一 Local cwd 和共享 Git 状态写入串行。绑定自检通过后继承已授权开发权限，无需额外人工 BOUND 批准；宿主权限与实际超范围操作仍遵守授权。
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、渠道硬要求、签名、发布和跨平台最终候选必须进入对应专用门禁；精简上下文不降低授权、失败关闭或真正不可逆交付所需的人工签署。非必要语义审查不得混入日常开发，明确发布时才按当次 `reviewSelection` 询问并执行。
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/TUI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
@@ -61,7 +61,7 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 项目 Skills 位于 `.agents/skills/`。先用任务路由选择最小集合；命中后必须完整读取对应 `SKILL.md` 及其要求的精确引用，不得预先加载同类全部 Skills。下游裁剪可以删除不适用条目，但必须让本节与实际保留的 Skills 一致。
 
 - 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-enable-gui-updates`、`$desktop-add-gui-telemetry`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
-- 开发与治理：`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-manage-user-tasks`、`$desktop-manage-task-worktrees`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
+- 开发与治理：`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-task-workflow`、`$desktop-manage-user-tasks`、`$desktop-manage-task-worktrees`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 - 构建与验收：`$desktop-test-gpui-initialization-e2e`、`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 ## 约束地图
@@ -69,7 +69,8 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 | 约束或事实 | 唯一来源 | 何时读取 |
 |---|---|---|
 | 产品目标、范围与成功标准 | `docs/product_spec/README.md` 与最新 Product Spec | 定义产品或改变边界 |
-| Agent 能力、用户可见 Task 开关/标题/创建门禁、E2E 建议默认值与发布后动作 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
+| Agent 能力、Task 项目开关、E2E 建议默认值与发布后动作 | `docs/AGENT_POLICY.md` | 启动时读策略头与字段语义；相关任务再读对应章节 |
+| Task/工作树执行、权限、绑定、编号与并行 | `.agents/skills/desktop-task-workflow/SKILL.md` 及命中引用 | 创建、执行或恢复 Task/工作树 |
 | 文件、注释、文档、测试、记忆触发与例外 | `docs/ENGINEERING_RULES.md` | 代码、测试、文档、规则或 Skill 变更 |
 | Rust core、adapter、MSRV、依赖与运行时 | `docs/RUST_CLI_TEMPLATE.md` | Rust 或接口实现/初始化 |
 | 下游目标平台与接口组合 | 根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` | 初始化、构建或跨宿主判断 |

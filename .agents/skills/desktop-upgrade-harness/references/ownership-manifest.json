@@ -2,6 +2,9 @@
   "schema_version": 1,
   "default_mode": "protected",
   "rules": [
+    {"pattern": ".agents/skills/desktop-task-workflow/**", "mode": "managed"},
+    {"pattern": ".agents/skills/gpui-kit/**", "mode": "protected"},
+    {"pattern": ".agents/skills/gpui-kit-design-guides/**", "mode": "protected"},
     {"pattern": ".agents/skills/desktop-manage-task-worktrees/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-manage-dependencies/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-review-core-boundaries/**", "mode": "managed"},

@@ -267,7 +267,7 @@ test("initialization_recommends_six_explicit_choices_with_worktrees_after_tasks"
   assert.ok(rows[taskIndex + 1].includes("`task_worktrees`"));
   for (const file of [INITIALIZE_SKILL, INSTANTIATE_SKILL]) {
     const text = fs.readFileSync(file, "utf8");
-    assert.ok(text.includes("即使关闭也完整保留 `$desktop-manage-task-worktrees`"));
+    assert.ok(text.includes("完整保留 `$desktop-task-workflow`"));
     assert.ok(text.includes("初始化不创建 Task Worktree"));
   }
 });

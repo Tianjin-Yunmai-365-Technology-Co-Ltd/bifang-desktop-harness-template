@@ -149,7 +149,8 @@ GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助
 | `release-notes.json` | Harness 源与下游在首次正式发布准备时创建；以 schema v2 保存含当前版的最近 10 个实际发布版本的中英文更新日志，下游还供制品与关于页复用；每版两类各最多 10 个翻译对，升级时受保护 |
 | `docs/product_spec/README.md` | 产品规格日期规则和索引 |
 | `docs/product_spec/YYYYMMDD_product_spec.md` | 当日完整产品目标、范围、约束和成功标准；最新日期文件是当前规格 |
-| `docs/AGENT_POLICY.md` | 下游 Agent 能力开关、用户可见 Task 标题与创建门禁、候选验收偏好和发布后动作的持久执行语义 |
+| `docs/AGENT_POLICY.md` | 下游 Agent 能力开关、Task 项目选择与确认事实、候选验收偏好和发布后动作的持久执行语义 |
+| `$desktop-task-workflow` | Task 编号、标题、创建绑定、授权继承和 Worktree 并行执行合同 |
 | `docs/ENGINEERING_RULES.md` | 文件、注释、文档、测试、例外和机械检查详细规则 |
 | `docs/CLI_CONTRACT.md` | 下游 CLI 的统一机器接口契约 |
 | `docs/RUST_CLI_TEMPLATE.md` | 下游 Rust 共享核心与可选适配器初始化基线 |

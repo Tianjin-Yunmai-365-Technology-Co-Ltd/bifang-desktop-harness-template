@@ -15,6 +15,11 @@ export const SOURCE_ONLY_PATHS = [
   ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
 ];
 export const REQUIRED_MANAGED_SOURCE_PATHS = [
+  ".agents/skills/desktop-task-workflow/SKILL.md",
+  ".agents/skills/desktop-task-workflow/agents/openai.yaml",
+  ".agents/skills/desktop-task-workflow/references/task-contract.md",
+  ".agents/skills/desktop-task-workflow/references/task-description.md",
+  ".agents/skills/desktop-task-workflow/references/worktree-execution.md",
   ".agents/skills/desktop-manage-task-worktrees/SKILL.md",
   ".agents/skills/desktop-manage-task-worktrees/agents/openai.yaml",
   ".agents/skills/desktop-configure-git-commits/SKILL.md",
@@ -74,6 +79,9 @@ export const REQUIRED_MANAGED_SOURCE_PATHS = [
 ];
 
 export const MINIMUM_OWNERSHIP_RULES = new Map([
+  [".agents/skills/desktop-task-workflow/**", "managed"],
+  [".agents/skills/gpui-kit/**", "protected"],
+  [".agents/skills/gpui-kit-design-guides/**", "protected"],
   [".agents/skills/desktop-manage-task-worktrees/**", "managed"],
   [".agents/skills/desktop-manage-dependencies/**", "managed"],
   [".agents/skills/desktop-review-core-boundaries/**", "managed"],

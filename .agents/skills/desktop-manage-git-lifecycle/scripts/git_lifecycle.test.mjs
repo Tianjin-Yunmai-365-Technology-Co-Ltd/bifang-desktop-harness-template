@@ -2,7 +2,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { SCRIPT, collectProcess, lifecycleFixture, run, spawnHelper } from "./git_lifecycle_test_support.mjs";
 import { newState, resolveRepository, statePath, validBranch } from "./git_lifecycle_core.mjs";
@@ -289,6 +289,22 @@ scenario("track_worktree_registers_v4_branch_without_legacy_cleanup_flags", (ite
   assert.deepEqual(Object.keys(branch).sort(), ["createdAt", "name", "summary"]);
   assert.deepEqual(state.cycle.worktrees.at(-1), { path: realpathSync(worktree), branch: "feature-parallel-task" });
   assert.equal(item.helper(repository, ["track-worktree", "--worktree", worktree]).payload.status, "worktree-already-tracked");
+});
+
+scenario("track_worktree_ignores_unrelated_missing_inventory_path_and_keeps_target_strict", (item) => {
+  const { repository } = item.initializeRepository({ remote: false });
+  item.helper(repository, ["start", "--summary", "primary-task"]);
+  const missing = join(item.temporary, "disappeared-unit"); const target = join(item.temporary, "healthy-unit");
+  item.git(repository, "worktree", "add", "--quiet", "-b", "feature-disappeared", missing, "main");
+  item.git(repository, "worktree", "add", "--quiet", "-b", "feature-healthy", target, "main");
+  // 保留 inventory 快照记录，模拟另一单元回滚后目录已消失。
+  rmSync(missing, { recursive: true, force: true });
+  const tracked = item.helper(repository, ["track-worktree", "--worktree", target]).payload;
+  assert.equal(tracked.status, "worktree-tracked"); assert.equal(tracked.branch, "feature-healthy");
+  assert.deepEqual(item.state(repository).cycle.worktrees, [{ path: realpathSync(target), branch: "feature-healthy" }]);
+  const stateBefore = item.state(repository);
+  const rejected = item.helper(repository, ["track-worktree", "--worktree", missing], { success: false }).payload;
+  assert.equal(rejected.code, "not-a-worktree"); assert.deepEqual(item.state(repository), stateBefore);
 });
 
 scenario("publish_merges_switches_and_pushes_without_tag_or_cleanup", (item) => {

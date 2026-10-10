@@ -277,11 +277,11 @@ test("policy body must satisfy the post_release_action helper", () => {
 
 test("policy rejects removal of persistent body semantics", () => {
   const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
-  const mutation = source.replaceAll("缺号不回填", "缺失序号可复用");
+  const mutation = source.replaceAll("../.agents/skills/desktop-task-workflow/SKILL.md", "missing-workflow.md");
   withPolicy(mutation, (filePath) => {
     const errors = [];
     validateAgentPolicy(errors, filePath);
-    assert.ok(errors.some((error) => error.includes("缺号不回填")));
+    assert.ok(errors.some((error) => error.includes("desktop-task-workflow/SKILL.md")));
   });
 });
 

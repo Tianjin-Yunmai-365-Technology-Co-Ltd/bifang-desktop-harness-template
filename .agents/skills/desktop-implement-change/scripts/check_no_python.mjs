@@ -82,7 +82,7 @@ const PROHIBITED_REFERENCES = [
   [new RegExp(String.raw`${BOUNDARY}${QUOTE}py(?:\.exe)?${QUOTE}\s+-(?=\S|$)`, "imu"), "Python 启动器命令"],
   [commandPattern(PACKAGE_MANAGER), "Python 包管理命令"],
   [commandPattern(TOOL_COMMAND), "Python 工具命令"],
-  [/\.py\b/iu, "Python 文件入口"],
+  [/\.py\b(?!\()/iu, "Python 文件入口"],
   [new RegExp(RUNTIME_MARKERS, "iu"), "Python 运行时标识"],
 ];
 

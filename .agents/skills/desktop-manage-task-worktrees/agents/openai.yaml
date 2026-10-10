@@ -1,4 +1,4 @@
 interface:
   display_name: "管理 Task 独立工作树"
-  short_description: "仅在工作树选择开启时核对 Git 左侧 Task 的独立环境与恢复"
-  default_prompt: "使用 $desktop-manage-task-worktrees，先确认当前 Git Task 的有效或冻结 task_worktrees 为 enabled；按 Agent Policy 核对真实身份、独立路径、common-dir、registry、起点和 clean，返回 Task 管理入口，不创建第二个 Task 或执行业务。"
+  short_description: "兼容 Task 工作树环境选择，统一委托并行创建和真实绑定流程"
+  default_prompt: "使用 $desktop-manage-task-worktrees 兼容入口并路由到 $desktop-task-workflow，按项目已记录或派发冻结的环境选择管理 Task 工作树，无依赖环境并行创建，自动核对身份后继续已授权范围。"

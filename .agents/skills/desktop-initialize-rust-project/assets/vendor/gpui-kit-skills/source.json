@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/longbridge/gpui-kit",
+  "commit": "0bbd9870ce420af9feacbf948b21d3824d82dc0b",
+  "upstreamPath": "skills",
+  "license": "Apache-2.0",
+  "skills": [
+    "gpui-kit",
+    "gpui-kit-design-guides"
+  ],
+  "files": {
+    "gpui-kit-design-guides/SKILL.md": {
+      "bytes": 4219,
+      "sha256": "de874a5a8db458fc82c3300d5484afe1e0f5352bdae54db923e1f6dde64ea06a",
+      "upstreamPath": "skills/gpui-kit-design-guides/SKILL.md"
+    },
+    "gpui-kit-design-guides/references/design-guides.md": {
+      "bytes": 50941,
+      "sha256": "a8aa022a59cde063a7bfcca0d112bdb88a1f836dbc3b6b9ccece62ba27bb9aa4",
+      "upstreamPath": "skills/gpui-kit-design-guides/references/design-guides.md"
+    },
+    "gpui-kit/SKILL.md": {
+      "bytes": 22497,
+      "sha256": "dadd275d45d17c23c6e1f2fc5c10562ba1cf9af8e81ee3d69a51814208ce76af",
+      "upstreamPath": "skills/gpui-kit/SKILL.md"
+    },
+    "gpui-kit/references/coding-guides.md": {
+      "bytes": 44090,
+      "sha256": "3bc34cc84dd9e1f98586968656a805bc018a30213fb012a913566bbce5e3d5df",
+      "upstreamPath": "skills/gpui-kit/references/coding-guides.md"
+    },
+    "gpui-kit/references/conventions.md": {
+      "bytes": 5362,
+      "sha256": "790f5590d644c986a3634104f2b10373236d6d3580177d243741dcc2b24a9aec",
+      "upstreamPath": "skills/gpui-kit/references/conventions.md"
+    },
+    "gpui-kit/references/gpui/action.md": {
+      "bytes": 5091,
+      "sha256": "9b128fd82d40a93ed645d24b39d46c984bd203b3a0f4c20cc028fe80bf98c47f",
+      "upstreamPath": "skills/gpui-kit/references/gpui/action.md"
+    },
+    "gpui-kit/references/gpui/async.md": {
+      "bytes": 6328,
+      "sha256": "d82d133b2b1e230565b18a2eeb4ff4b668aaef9c58ecd0b856636ffa900bd6bc",
+      "upstreamPath": "skills/gpui-kit/references/gpui/async.md"
+    },
+    "gpui-kit/references/gpui/context.md": {
+      "bytes": 6303,
+      "sha256": "e32a54ab3fe1fa59e3fc9df92a3ffaa8b0b15b7eeb076ad375ee98bed055e25a",
+      "upstreamPath": "skills/gpui-kit/references/gpui/context.md"
+    },
+    "gpui-kit/references/gpui/element-advanced.md": {
+      "bytes": 20530,
+      "sha256": "008b71c775bbf174af091314ed6f9af2dd5edd20ab8042b731e7b979074e3ba6",
+      "upstreamPath": "skills/gpui-kit/references/gpui/element-advanced.md"
+    },
+    "gpui-kit/references/gpui/element-api.md": {
+      "bytes": 11279,
+      "sha256": "769cc2e10160c6c28666e3ffda394eec226354c5f126407b0dd600319895be8f",
+      "upstreamPath": "skills/gpui-kit/references/gpui/element-api.md"
+    },
+    "gpui-kit/references/gpui/element-best-practices.md": {
+      "bytes": 13488,
+      "sha256": "b58c70a1178f520afeb5368ba64bde705cc714ec3e2a61fa4dbe9bacd867589e",
+      "upstreamPath": "skills/gpui-kit/references/gpui/element-best-practices.md"
+    },
+    "gpui-kit/references/gpui/element-examples.md": {
+      "bytes": 18087,
+      "sha256": "1763b92912a180fe7fc2af36dc62cadc555d46655c28b6ad69884e4ad06db580",
+      "upstreamPath": "skills/gpui-kit/references/gpui/element-examples.md"
+    },
+    "gpui-kit/references/gpui/element-id.md": {
+      "bytes": 2433,
+      "sha256": "3a976f0055fdaf39d05894a867b7df6cab291709c30a840d0fc87d2243598e2d",
+      "upstreamPath": "skills/gpui-kit/references/gpui/element-id.md"
+    },
+    "gpui-kit/references/gpui/element-patterns.md": {
+      "bytes": 15041,
+      "sha256": "4f7f23af5a402b462e24055631ff31ea76c4fa4d98c0e01aab72d75ed106cc62",
+      "upstreamPath": "skills/gpui-kit/references/gpui/element-patterns.md"
+    },
+    "gpui-kit/references/gpui/element.md": {
+      "bytes": 3978,
+      "sha256": "95b8bbea3ee0348ec1aef07e032e6ff16e40acad7f1e86b87ec8e1e7691e56b9",
+      "upstreamPath": "skills/gpui-kit/references/gpui/element.md"
+    },
+    "gpui-kit/references/gpui/entity-advanced.md": {
+      "bytes": 12924,
+      "sha256": "9c566a9f494e52a93653dcccb706b59e3853d02ba5ff9a6ece1d804ec8e4d9f2",
+      "upstreamPath": "skills/gpui-kit/references/gpui/entity-advanced.md"
+    },
+    "gpui-kit/references/gpui/entity-api.md": {
+      "bytes": 8739,
+      "sha256": "70fdce9314e06643012afa42df742489fd50e5abaa3aaa659f9a5d4e67712867",
+      "upstreamPath": "skills/gpui-kit/references/gpui/entity-api.md"
+    },
+    "gpui-kit/references/gpui/entity-best-practices.md": {
+      "bytes": 15095,
+      "sha256": "e3d5c728d6826cb9d26be1bf0eb9e775b51960affc00ef521a828b8b90c90b1a",
+      "upstreamPath": "skills/gpui-kit/references/gpui/entity-best-practices.md"
+    },
+    "gpui-kit/references/gpui/entity-patterns.md": {
+      "bytes": 13189,
+      "sha256": "72cf52be722027ebfb629e5c8b2b1fe3680ae2feccb2e54b9c84e629082ce995",
+      "upstreamPath": "skills/gpui-kit/references/gpui/entity-patterns.md"
+    },
+    "gpui-kit/references/gpui/entity.md": {
+      "bytes": 7413,
+      "sha256": "ed95e14711447b1d34c579ee9752ad1de7d50fa305092478e109b7e22bd4ab5f",
+      "upstreamPath": "skills/gpui-kit/references/gpui/entity.md"
+    },
+    "gpui-kit/references/gpui/event.md": {
+      "bytes": 5714,
+      "sha256": "e057203adad925e1fcd853c9590092e8bebf3e16b0efd148f7f49f8655fe7f47",
+      "upstreamPath": "skills/gpui-kit/references/gpui/event.md"
+    },
+    "gpui-kit/references/gpui/focus-handle.md": {
+      "bytes": 7212,
+      "sha256": "773615bb376f1b1998b8b689def019a08957835304882a9fe196063b148cd4d4",
+      "upstreamPath": "skills/gpui-kit/references/gpui/focus-handle.md"
+    },
+    "gpui-kit/references/gpui/global.md": {
+      "bytes": 3933,
+      "sha256": "9790f579b06b9e924dec987016736b2a4cb6f34de533e83f64358a40d9306062",
+      "upstreamPath": "skills/gpui-kit/references/gpui/global.md"
+    },
+    "gpui-kit/references/gpui/layout-style.md": {
+      "bytes": 6360,
+      "sha256": "815c7e295497a56bd8c7785ce61e11d4dff01ca9168afb2e996aba732047c6bb",
+      "upstreamPath": "skills/gpui-kit/references/gpui/layout-style.md"
+    },
+    "gpui-kit/references/gpui/test-examples.md": {
+      "bytes": 3851,
+      "sha256": "2c8ce1a3cb5d27845d2aeed055ca9910bfb5730f2a3e947f5e4974428be46889",
+      "upstreamPath": "skills/gpui-kit/references/gpui/test-examples.md"
+    },
+    "gpui-kit/references/gpui/test-reference.md": {
+      "bytes": 18817,
+      "sha256": "ec80150e2fee2e51e30b74f28c79ec45bcfb09ed527ab9d794b4a8c9648342a6",
+      "upstreamPath": "skills/gpui-kit/references/gpui/test-reference.md"
+    },
+    "gpui-kit/references/gpui/test.md": {
+      "bytes": 18275,
+      "sha256": "5128c78f2a710e8d61ffec7c4f5d7f29c8585f738eb19044b1c5ad266b2a8368",
+      "upstreamPath": "skills/gpui-kit/references/gpui/test.md"
+    },
+    "gpui-kit/references/recipes.md": {
+      "bytes": 5324,
+      "sha256": "7d5762fe5a57f2e6ee80c37c1067ad70c713b7db9ee53f022f5217fb4cd4c36e",
+      "upstreamPath": "skills/gpui-kit/references/recipes.md"
+    },
+    "gpui-kit/references/usage.md": {
+      "bytes": 11463,
+      "sha256": "9b9b9f77d1774cbc766e52fa00ccda00828552f008e0352740bca50e03a0b303",
+      "upstreamPath": "skills/gpui-kit/references/usage.md"
+    },
+    "LICENSE-APACHE": {
+      "bytes": 10305,
+      "sha256": "d1b0449e5478c574ba4f686c2656df7fe77d66821a61f8b6ed3378a58ed9a811",
+      "upstreamPath": "LICENSE-APACHE"
+    }
+  }
+}
