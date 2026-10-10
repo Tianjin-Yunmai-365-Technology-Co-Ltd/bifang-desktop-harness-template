@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "f878cffb00c50655e32a073fb78fc69c31e1f214",
-  "version": "202610101204",
+  "sourceHead": "8e154fda151e8a0c8758d97d8db19899e86480ab",
+  "version": "202610101414",
   "releaseDate": "2026-10-10",
-  "expectedTag": "v202610101204-20261010",
+  "expectedTag": "v202610101414-20261010",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "6f0ca0d2d792cce1c3a905d675c90c8a5e383961",
-    "sourceHead": "f878cffb00c50655e32a073fb78fc69c31e1f214",
-    "scopeDiffSha256": "4aa5850aaeae461cce94220562af2ab1e161ef2373ae84ce412eeada605230a2",
-    "reviewedSourceCommit": "f878cffb00c50655e32a073fb78fc69c31e1f214",
+    "scopeBase": "dd7cb97ddfb95242e9ed70d7ed83300dd0832b29",
+    "sourceHead": "8e154fda151e8a0c8758d97d8db19899e86480ab",
+    "scopeDiffSha256": "a5e905f078d57a437d81c6f866185525e02efd7b19cd91d1f0df20b12665fc40",
+    "reviewedSourceCommit": "8e154fda151e8a0c8758d97d8db19899e86480ab",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计差异及三条登记分支已复核：默认关闭、冻结环境与Local串行一致；旧schema严格兼容及明确迁移保留确认事实；共享策略校验与原子I/O职责清晰，无产品core/adapter变化；初始化、升级与验收合同对齐schema5。硬门禁、Node-only、release-review通过；27条规模提示职责集中且无硬超限，唯一临时标记为测试夹具。Task15关闭F003；C2的1093通过、16项Windows跳过、17项CLI、6项umask仅引用，C3未重跑；原矩阵9/4/3及历史FAIL保留。产品构建与E2E不适用。",
+    "evidenceSummary": "累计差异与登记分支已复核：Task 默认关闭、授权继承、短锁并行及失败资源保留一致；GPUI Kit 固定快照、摘要、Apache 许可、离线安装与升级保护通过。无产品业务/core 或对外接口变化，未发现秘密或未完成实现。Node 回归1121通过、16项平台跳过、零失败；硬门禁、Node-only及发布审查通过。39项提示已按职责复核，无硬超限；第三方原样空白受摘要保护，唯一临时标记为测试夹具。Rust 1.98.1中性资产fmt、Clippy、7项测试及release构建通过。Windows/Linux真实下游与产品候选未验证。",
     "reason": null,
     "remainingRisk": null
   }

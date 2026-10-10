@@ -3,6 +3,30 @@
   "releases": [
     {
       "releaseDate": "2026-10-10",
+      "version": "v202610101414",
+      "featureOptimizations": [
+        {
+          "zh-CN": "左侧 Task 默认关闭，仅按项目明确选择开启；统一 Task 与工作树合同，已授权范围内自检通过即可继续执行。",
+          "en-US": "Sidebar Tasks stay off by default and follow the project’s explicit choice; one Task and worktree contract lets authorized work continue after self-checks."
+        },
+        {
+          "zh-CN": "独立工作树按文件所有权并行创建和执行，预留与登记使用短锁，同一 Local 工作区串行。",
+          "en-US": "Independent worktrees are created and run in parallel by file ownership, with short locks for reservations and registration; one Local workspace remains serial."
+        },
+        {
+          "zh-CN": "GPUI 新下游离线安装项目本地的 GPUI Kit 开发与设计 Skills，保留固定上游快照、摘要和 Apache 许可，并在升级时保护本地副本。",
+          "en-US": "New GPUI downstream projects install local GPUI Kit development and design Skills offline, preserving the pinned upstream snapshot, hashes and Apache license; upgrades protect local copies."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修正初始化保留统一 Task 技能的说明，并清理治理检查器未使用的标题常量。",
+          "en-US": "Corrected the initialization instructions for retaining the unified Task Skill and removed unused title constants from the governance validator."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-10",
       "version": "v202610101204",
       "featureOptimizations": [
         {
@@ -217,26 +241,6 @@
         }
       ],
       "bugFixes": []
-    },
-    {
-      "releaseDate": "2026-09-29",
-      "version": "v202609291802",
-      "featureOptimizations": [
-        {
-          "zh-CN": "已有下游可显式选择跟踪 Cargo 与 pnpm 锁文件；受管安装、测试和构建按实际工作区使用冻结解析，默认仍忽略锁文件。",
-          "en-US": "Existing downstream projects can explicitly track Cargo and pnpm lockfiles. Managed install, test, and build steps use frozen resolution for actual workspaces; the default still ignores lockfiles."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复发布流程拒绝精确审查并提交已跟踪 .harness/version-state.json 的问题。",
-          "en-US": "Fixed release commits rejecting a tracked .harness/version-state.json even when it was explicitly reviewed."
-        },
-        {
-          "zh-CN": "修复发布后动作选择在混合 CLI/GUI、两种 GUI 布局及独立 Cargo 工作区中漏检 GUI 清单或适用锁文件的问题。",
-          "en-US": "Fixed post-release action selection missing GUI manifests or required lockfiles in mixed CLI/GUI projects, both GUI layouts, and independent Cargo workspaces."
-        }
-      ]
     }
   ]
 }
