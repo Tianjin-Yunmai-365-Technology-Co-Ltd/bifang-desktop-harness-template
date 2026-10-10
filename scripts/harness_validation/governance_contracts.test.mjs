@@ -19,7 +19,7 @@ function mutatedCopy(directory, key, anchor, replacement) {
   const source = readFileSync(DEFAULT_PATHS[key], "utf8");
   assert.ok(source.includes(anchor), `${key} fixture must contain ${anchor}`);
   const target = path.join(directory, path.basename(DEFAULT_PATHS[key]));
-  writeFileSync(target, source.replace(anchor, replacement));
+  writeFileSync(target, source.replaceAll(anchor, replacement));
   return target;
 }
 
@@ -72,6 +72,19 @@ test("streamlined contract requires the action-switch skill", () => withTemporar
   const errors = [];
   validateStreamlinedDevelopmentAndBuild(errors, { paths: { switchPostReleaseSkill } });
   expectError(errors, anchor);
+}));
+
+/** 默认关闭路径与开启技能职责各自受门禁约束，不能退回无条件工作树。 */
+test("task_environment_contract_rejects_each_missing_binding_boundary", () => withTemporaryDirectory((directory) => {
+  for (const [key, anchors] of [
+    ["manageTasksSkill", ["仅开启时", "environment.type=local", "Local 没有 startingState", "只读期间", "前序须 idle/completed", "恢复漂移不自动 checkout/stash"]],
+    ["taskWorktreesSkill", ["关闭时不调用", "唯一一次 create_thread", "不得另建第二个 Task", "冻结选择", "不使用普通 create_worktree"]],
+  ]) for (const anchor of anchors) {
+    const changed = mutatedCopy(directory, key, anchor, "已删除边界");
+    const errors = [];
+    validateStreamlinedDevelopmentAndBuild(errors, { paths: { [key]: changed } });
+    expectError(errors, anchor);
+  }
 }));
 
 test("streamlined contract rejects automatic build checks", () => withTemporaryDirectory((directory) => {

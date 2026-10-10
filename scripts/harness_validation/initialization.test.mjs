@@ -245,11 +245,31 @@ test("initialization contract requires an explicit persisted post-release action
   assert.ok(primary.get(INSTANTIATE_FORM).includes("`local_package`（本地打包，推荐默认）"));
   assert.ok(primary.get(INSTANTIATE_FORM).includes("`push_release_branch`（提交远程）"));
   assert.ok(primary.get(INSTANTIATE_FORM).includes("纯 TUI/MCP 或不含 CLI 的仅 Linux GUI 时仍展示本地打包但标为不可用"));
-  assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 4`"));
+  assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 5`"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("纯 TUI/MCP 或仅 Linux GUI 选本地打包或默认值是非法基础字段"));
   assert.ok(primary.get(INITIALIZE_SKILL).includes("`post_release_action` 精确等于 `local_package` 或 `push_release_branch`"));
   assert.ok(primary.get(INITIALIZE_SKILL).includes("`local_package` 只在接口含 `cli`，或含 `gui` 且目标平台含 `macos`/`windows` 时合法"));
   assert.ok(repository.get(AGENT_POLICY).includes("post_release_action:"));
+});
+
+/** 推荐六项默认值精确展开，工作树条件问题紧接自动 Task 开关。 */
+test("initialization_recommends_six_explicit_choices_with_worktrees_after_tasks", () => {
+  const form = fs.readFileSync(INSTANTIATE_FORM, "utf8");
+  const preset = /推荐预设一次确认后确定性物化为：\s+```yaml\n([\s\S]*?)\n```/u.exec(form);
+  assert.ok(preset);
+  assert.deepEqual(preset[1].split("\n"), [
+    "user_owned_tasks: disabled", "task_worktrees: disabled", "superpowers: disabled",
+    "parallel_worktree_subagents: disabled", "acceptance_smoke: enabled", "e2e_hint: disabled",
+  ]);
+  const rows = form.split("\n").filter((line) => /^\| \d+ \| 条件补全 \|/u.test(line));
+  const taskIndex = rows.findIndex((line) => line.includes("`user_owned_tasks`"));
+  assert.ok(taskIndex >= 0);
+  assert.ok(rows[taskIndex + 1].includes("`task_worktrees`"));
+  for (const file of [INITIALIZE_SKILL, INSTANTIATE_SKILL]) {
+    const text = fs.readFileSync(file, "utf8");
+    assert.ok(text.includes("即使关闭也完整保留 `$desktop-manage-task-worktrees`"));
+    assert.ok(text.includes("初始化不创建 Task Worktree"));
+  }
 });
 
 test("environment shell gates retain executable source modes", () => {

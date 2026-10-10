@@ -36,6 +36,8 @@ export const REQUIRED_ROOT_FILES = [
   ".agents/skills/desktop-configure-agent-policy/agents/openai.yaml",
   ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.mjs",
   ".agents/skills/desktop-configure-agent-policy/scripts/agent_policy.test.mjs",
+  ".agents/skills/desktop-manage-task-worktrees/SKILL.md",
+  ".agents/skills/desktop-manage-task-worktrees/agents/openai.yaml",
   ".agents/skills/desktop-manage-user-tasks/SKILL.md",
   ".agents/skills/desktop-manage-user-tasks/agents/openai.yaml",
   ".gitignore",

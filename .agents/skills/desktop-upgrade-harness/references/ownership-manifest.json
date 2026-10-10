@@ -2,6 +2,7 @@
   "schema_version": 1,
   "default_mode": "protected",
   "rules": [
+    {"pattern": ".agents/skills/desktop-manage-task-worktrees/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-manage-dependencies/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-review-core-boundaries/**", "mode": "managed"},
     {"pattern": ".agents/skills/desktop-record-adr/**", "mode": "managed"},

@@ -164,6 +164,37 @@ test("post_release_choice_stays_protected_while_switch_skill_is_required_managed
   assert.equal(fs.readFileSync(path.join(f.target, PROTECTED), "utf8"), "schema_version: 3\n");
 });
 
+/** 关闭工作树偏好的既有下游也接收完整技能，策略字节与权限保持。 */
+test("disabled_task_worktrees_still_receive_skill_without_policy_mutation", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  f.bootstrap();
+  const policy = "---\nschema_version: 5\ntask_worktrees: disabled\n---\n原用户确认及正文\n";
+  f.write(f.target, PROTECTED, policy);
+  const file = path.join(f.target, PROTECTED);
+  const stat = fs.statSync(file);
+  const paths = [".agents/skills/desktop-manage-task-worktrees/SKILL.md", ".agents/skills/desktop-manage-task-worktrees/agents/openai.yaml"];
+  for (const relative of paths) {
+    assert.ok(REQUIRED_MANAGED_SOURCE_PATHS.includes(relative));
+    f.write(f.source, relative, `完整工程文件:${relative}\n`);
+    f.write(f.candidate, relative, `完整工程文件:${relative}\n`);
+  }
+  f.git(f.source, "add", ...paths);
+  f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "新增独立工作树技能");
+  f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+  const { plan } = f.createPlan();
+  for (const relative of paths) assert.equal(f.classification(plan, relative), "add");
+  assert.equal(plan.actions.some((item) => item.path === PROTECTED), false);
+  // add 沿既有流程逐项复核后复制；apply 只处理已存在文件的 update。
+  for (const relative of paths) f.write(f.target, relative, fs.readFileSync(path.join(f.candidate, relative)));
+  const converged = f.createPlan();
+  for (const relative of paths) assert.equal(f.classification(converged.plan, relative), "converged");
+  f.record(converged.planPath);
+  for (const relative of paths) assert.equal(fs.readFileSync(path.join(f.target, relative), "utf8"), `完整工程文件:${relative}\n`);
+  assert.equal(fs.readFileSync(file, "utf8"), policy);
+  assert.equal(fs.statSync(file).mtimeMs, stat.mtimeMs);
+  assert.equal(fs.statSync(file).mode, stat.mode);
+});
+
 test("legacy_managed_omission_rejects_stale_candidate_and_overlapping_protection", (t) => {
   const f = new HarnessUpgradeFixture(t);
   const switchRule = ".agents/skills/desktop-switch-post-release-action/**";

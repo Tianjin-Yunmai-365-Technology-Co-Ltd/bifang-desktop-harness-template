@@ -11,7 +11,7 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 
 ## 工作流程
 
-用户长期硬规则或项目策略要求左侧 Task 时，`$desktop-manage-user-tasks` 的业务前门禁先于业务资料阅读、插件探索、分析或设计：先读取用户级 `AGENTS.md`，复用已确认的长期规则，核对真实 ID、精确项目、非 pinned 和独立 Worktree；异常先修复原 Task。用户要求阶段隔离时，本 Skill 只负责编码实现与必要开发单元/回归，不承担正式验收、发布或推送；后续阶段交给独立 Task。
+用户长期硬规则或项目策略要求左侧 Task 时，`$desktop-manage-user-tasks` 的业务前门禁先于业务资料阅读、插件探索、分析或设计：先读取用户级 `AGENTS.md`，复用已确认的长期规则，核对真实 ID、精确项目、非 pinned 和按冻结选择绑定的环境；异常先修复原 Task。用户要求阶段隔离时，本 Skill 只负责编码实现与必要开发单元/回归，不承担正式验收、发布或推送；后续阶段交给独立 Task。
 
 左侧 Task 的创建、绑定、结果边界与进度操作统一委托 `$desktop-manage-user-tasks`；具体合同只在 Agent Policy 保存。
 

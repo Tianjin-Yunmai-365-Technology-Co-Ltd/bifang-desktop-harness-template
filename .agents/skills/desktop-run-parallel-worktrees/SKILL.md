@@ -69,3 +69,5 @@ node <absolute-project-root>/.agents/skills/desktop-run-parallel-worktrees/scrip
 `remove` 只删除该并行单元自己在 Git common-dir 下的状态登记，返回 `resourcesRetained: true`、`worktreeRetained: true` 与 `branchRetained: true`，表示资源仍由生命周期 helper 精确登记和保留；它不得删除 Worktree 或本地/远端分支。绝不得强制收口状态不干净、身份/所有权缺失或不匹配、越界单元，也不得手工删除 common-dir 中的登记来绕过检查。单元分支是否已提前整合不影响收口。
 
 这些已由生命周期 helper 精确登记的 Worktree 与分支在 Git 发布后仍保留。Git 发布仅普通合并登记分支到本地默认主分支并创建、复读当前版本 tag；已初始化下游随后按本次冻结的 `post_release_action` 执行并复核后续路径，Harness 源后续动作由用户当次决定。清理是另一项需明确授权、精确核对登记资源的操作；当前发布命令不负责清理，不能因为发布或推送完成就手工删除。
+
+source 可以是按冻结环境合法绑定的 Local 或 Task Worktree；task_worktrees 不控制本技能，四种开关组合均独立合法。父 Local 串行占用保持，内部单元只在明确并行请求且 parallel_worktree_subagents 启用时创建，不能代替左侧 Task。

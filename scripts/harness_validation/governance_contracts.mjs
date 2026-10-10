@@ -25,6 +25,7 @@ const DEFAULT_PATHS = Object.freeze({
   implementSkill: skill("desktop-implement-change", "SKILL.md"),
   handoffSkill: skill("desktop-handoff-project", "SKILL.md"),
   manageTasksSkill: skill("desktop-manage-user-tasks", "SKILL.md"),
+  taskWorktreesSkill: skill("desktop-manage-task-worktrees", "SKILL.md"),
   configurePolicySkill: skill("desktop-configure-agent-policy", "SKILL.md"),
   initializeSkill: skill("desktop-initialize-rust-project", "SKILL.md"),
   instantiateSkill: skill("desktop-instantiate-project", "SKILL.md"),
@@ -122,7 +123,7 @@ const ENGINEERING_ENTRIES = [
     "Rust 401–800、前端 501–1000、其他文本 501–2000 行的建议候选只在当次发布启用语义审查时集中提示", "<module>/mod.rs",
   ]],
   ["agentPolicy", [
-    "schema_version: 4", "superpowers:", "user_owned_tasks:", "推荐预设确定性物化五项", "parallel_worktree_subagents:", "acceptance_smoke:", "e2e_hint:",
+    "schema_version: 5", "task_worktrees:", "superpowers:", "user_owned_tasks:", "推荐预设确定性物化六项", "parallel_worktree_subagents:", "acceptance_smoke:", "e2e_hint:",
     "post_release_action: pending", "`local_package`", "`push_release_branch`", "$desktop-switch-post-release-action",
     "日常开发直接实施", "显式发布候选构建必须为当前候选解析一次 E2E 选择",
     "`$desktop-prepare-release` 把本次版本、日期、默认主分支、预期 tag、源码身份和审查结果写入 `.harness/release-context.json`",
@@ -235,6 +236,12 @@ const STREAMLINED_ENTRIES = [
     "每次开工先完整读取用户级", "非 pinned", "业务资料阅读、插件探索、分析、设计", "工具成功回执不能代替复读", "迁移链", "内部业务 Subagent", "正式测试验收", "当前宿主", "docs/AGENT_POLICY.md", "list_projects", "list_threads(limit=50)", "list_archived_threads",
     "RESOLVED → DISPATCHED → VERIFIED → BOUND", "SETUP_PENDING", "保持零实现", "只调用一次 `create_thread`",
     "真实 `threadId`", "set_thread_title", "不创建替代 Task", "common-dir", "worktree registry",
+    "仅开启时", "environment.type=local", "Local 没有 startingState", "只读期间", "前序须 idle/completed", "恢复漂移不自动 checkout/stash",
+  ]],
+  ["taskWorktreesSkill", [
+    "task_worktrees: enabled", "关闭时不调用", "target.type=project", "environment.type=worktree",
+    "唯一一次 create_thread", "不得另建第二个 Task", "clientThreadId", "common-dir", "registry", "clean",
+    "冻结选择", "受支持", "不使用普通 create_worktree", "不运行 start、测试、提交、合并、发布、推送或清理资源",
   ]],
   ["configurePolicySkill", [
     "明确永久选择", "$desktop-switch-post-release-action", "--expected-value", "--confirmed-user-choice",
@@ -250,15 +257,15 @@ const STREAMLINED_ENTRIES = [
     "绝不得自动暂存、贮藏或提交用户修改", "不得因并行本身追加格式、lint、静态、构建、冒烟、E2E 或完整验收",
     "resourcesRetained: true", "只管理当前 Task 内部", "不得把两个左侧 Task 安排进同一 Worktree",
   ]],
-  ["initializeSkill", ["自定义模式直接复用已明确的 Task 启用授权", "模板默认和推荐预设保持原值", "message-check --message-file <file>", "chore: 初始化项目", "用户可见 Task 的标题/粒度/创建门禁", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度、有界复读及序号分配规则", "保持零实现且不得重复创建", "统一描述模板", "Git user-owned Task 固定使用独立 Worktree", "内部 Subagent/Worktree 不使用标题合同"]],
-  ["instantiateSkill", ["自定义模式直接复用已明确的 Task 启用授权", "模板默认和推荐预设保持原值", "汇总分别列出项目值、用户级强制规则与有效执行行为", "必须保留左侧 Task 描述模板", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度和有界复读规则", "精确绑定保存项目/`projectId`", "`clientThreadId` 只表示 setup", "Git 使用独立 Worktree", "`codex/unit-*`", ...TASK_SEQUENCE, "内部 plan、Subagent、Worktree"]],
+  ["initializeSkill", ["自定义模式直接复用已明确的 Task 启用授权", "模板默认和推荐预设保持原值", "message-check --message-file <file>", "chore: 初始化项目", "用户可见 Task 的标题/粒度/创建门禁", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度、有界复读及序号分配规则", "保持零实现且不得重复创建", "统一描述模板", "Git user-owned Task 按有效 `task_worktrees` 选择独立 Worktree 或 Local", "内部 Subagent/Worktree 不使用标题合同"]],
+  ["instantiateSkill", ["自定义模式直接复用已明确的 Task 启用授权", "模板默认和推荐预设保持原值", "汇总分别列出项目值、用户级强制规则与有效执行行为", "必须保留左侧 Task 描述模板", "`Task {序号} | {当前进度} | {单一结果}`", "四种进度和有界复读规则", "精确绑定保存项目/`projectId`", "`clientThreadId` 只表示 setup", "Git 按有效 `task_worktrees` 选择独立 Worktree 或 Local", "`codex/unit-*`", ...TASK_SEQUENCE, "内部 plan、Subagent、Worktree"]],
   ["configureCommitsSkill", ["message-check --message-file <file>", "主题摘要和正文说明必须使用中文", "git log -1 --format=%B", "references/commit-convention.md", "commit.template", "commit.cleanup=strip", "commit.verbose=true", "core.commentChar=#", "git config --local", "install --replace", "用户没有要求创建提交时", "下一步将实际运行 `git commit`", "不得运行本 Skill 的身份/模板脚本命令或改写任何 Git 配置", "不得在初始化表单、复制、身份改写、环境门禁、脚手架编写或测试阶段提前运行"]],
   ["productSpec", [
     "HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY", "HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE",
     "HARNESS-FEAT-HARNESS-SOURCE-SCOPE-GATE", "HARNESS-FEAT-INITIALIZATION-GIT-BOOTSTRAP-RELEASE-AUTOCOMMIT",
     "HARNESS-FEAT-DEFERRED-LOGO-VALIDATION-STABLE-PREVIEW", "HARNESS-CHANGE-SIMPLE-GIT-LIFECYCLE", "HARNESS-FEAT-OPTIONAL-USER-OWNED-TASKS",
     "`Task {序号} | {当前进度} | {单一结果}`", ...TASK_SEQUENCE, 'create_thread(title="Task {序号} | 已分配 | {单一结果}")',
-    "一个 Task 固定一个可验收结果", "`clientThreadId` 只表示 setup", "Git 使用 Worktree，非 Git 使用 Local", "`codex/unit-*`",
+    "一个 Task 固定一个可验收结果", "`clientThreadId` 只表示 setup", "Git 按有效 task_worktrees 选择 Worktree/Local，非 Git 使用 Local", "`codex/unit-*`",
     "发布开始时冻结 `post_release_action`，发布后按该次快照执行现有本地打包", "postflight",
   ]],
   ["parallelScript", [

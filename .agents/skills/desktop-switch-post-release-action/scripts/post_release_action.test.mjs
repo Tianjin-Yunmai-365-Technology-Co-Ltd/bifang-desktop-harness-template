@@ -53,6 +53,36 @@ function setOptions(action, expected = "missing") {
   return ["--action", action, "--expected-action", expected, "--confirmed-user-choice"];
 }
 
+/** 三代合法字段集合严格隔离，任一缺失、额外或重复字段均拒绝。 */
+test("schema3_4_5_require_exact_field_sets_without_default_inference", () => {
+  for (const schema of [3, 4, 5]) {
+    let source = V3.replace("schema_version: 3", `schema_version: ${schema}`);
+    if (schema >= 4) source = source.replace("e2e_hint: disabled\n", "e2e_hint: disabled\npost_release_action: push_release_branch\n");
+    if (schema === 5) source = source.replace("user_owned_tasks: disabled\n", "user_owned_tasks: disabled\ntask_worktrees: disabled\n");
+    const parsed = parseAgentPolicyDocument(source);
+    assert.equal(parsed.fields.size, schema + 6);
+    for (const field of parsed.fields.keys()) assert.throws(() => parseAgentPolicyDocument(source.replace(new RegExp(`^${field}:.*\\n`, "mu"), "")));
+    assert.throws(() => parseAgentPolicyDocument(source.replace("e2e_hint: disabled", "e2e_hint: disabled\nextra: disabled")));
+    assert.throws(() => parseAgentPolicyDocument(source.replace("e2e_hint: disabled", "e2e_hint: disabled\ne2e_hint: enabled")));
+  }
+});
+
+/** 发布动作读写接受 schema 5，保留工作树选择及原确认事实。 */
+test("schema5_action_switch_preserves_task_worktree_choice_and_confirmation", (t) => {
+  for (const value of ["enabled", "disabled"]) {
+    const text = V3.replace("schema_version: 3", "schema_version: 5")
+      .replace("user_owned_tasks: disabled\n", `user_owned_tasks: disabled\ntask_worktrees: ${value}\n`)
+      .replace("e2e_hint: disabled\n", "e2e_hint: disabled\npost_release_action: local_package\n");
+    const f = fixture(t, text);
+    assert.equal(f.run("check").schema_version, 5);
+    assert.equal(f.run("set", setOptions("push_release_branch", "local_package")).schema_version, 5);
+    assert.equal(fs.readFileSync(f.policy, "utf8"), text.replace("post_release_action: local_package", "post_release_action: push_release_branch"));
+    const stat = fs.statSync(f.policy);
+    assert.equal(f.run("set", setOptions("push_release_branch", "push_release_branch")).changed, false);
+    assert.equal(fs.statSync(f.policy).mtimeMs, stat.mtimeMs);
+  }
+});
+
 /** 只将测试场景明确指定的清单放入 Git 索引。 */
 function track(f, ...files) {
   const added = spawnSync("git", ["-C", f.root, "add", "--", ...files], { encoding: "utf8" });

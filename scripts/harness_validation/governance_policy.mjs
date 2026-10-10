@@ -24,7 +24,7 @@ export const PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS = [
 export const USER_HARD_RULE_REQUIRED_FRAGMENTS = [
   "每次开工先完整读取用户级 `AGENTS.md`",
   "用户已确认的长期硬规则优先于项目预设",
-  "无需把模板默认 `disabled` 或已有下游五项偏好与确认元数据改写为 `enabled`",
+  "无需把模板默认 `disabled` 或已有下游偏好与确认元数据改写为 `enabled`",
   "自定义模式复用已明确的 Task 启用授权，不重复询问",
   "汇总分别报告项目值、用户级强制规则与有效执行行为",
   "协调聊天仅做编号、创建、绑定、恢复和状态",
@@ -102,19 +102,20 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     fail(errors, `invalid Agent policy frontmatter ${relativePath(policyPath)}: ${error.message}`);
     return;
   }
-  const expected = new Set(["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint", "post_release_action"]);
+  const expected = new Set(["schema_version", "confirmed_by", "confirmed_at", "decision_mode", "superpowers", "user_owned_tasks", "task_worktrees", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint", "post_release_action"]);
   const actual = new Set(fields.keys());
   const missing = [...expected].filter((key) => !actual.has(key)).sort();
   const extra = [...actual].filter((key) => !expected.has(key)).sort();
   if (missing.length > 0 || extra.length > 0) fail(errors, `Agent policy fields mismatch: missing=${JSON.stringify(missing)}, extra=${JSON.stringify(extra)}`);
-  if (fields.get("schema_version") !== "4") fail(errors, "Agent policy schema_version must be 4");
+  if (fields.get("schema_version") !== "5") fail(errors, "Agent policy schema_version must be 5");
   if (fields.get("decision_mode") !== "reuse_then_infer_then_ask") fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask");
   if (requireSourceDefaults && fields.get("superpowers") !== "disabled") fail(errors, "Harness source Agent policy must default superpowers to disabled");
   if (requireSourceDefaults && fields.get("user_owned_tasks") !== "disabled") fail(errors, "Harness source Agent policy must default user_owned_tasks to disabled");
+  if (requireSourceDefaults && fields.get("task_worktrees") !== "disabled") fail(errors, "Harness source Agent policy must default task_worktrees to disabled");
   for (const field of ["post_release_action", "confirmed_by", "confirmed_at"]) {
     if (requireSourceDefaults && fields.get(field) !== "pending") fail(errors, `Harness source Agent policy must leave ${field} pending for downstream confirmation`);
   }
-  const preferences = ["superpowers", "user_owned_tasks", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
+  const preferences = ["superpowers", "user_owned_tasks", "task_worktrees", "parallel_worktree_subagents", "acceptance_smoke", "e2e_hint"];
   for (const field of preferences) {
     const value = fields.get(field);
     if (!["enabled", "disabled", "pending"].includes(value)) fail(errors, `Agent policy ${field} must be enabled, disabled, or pending`);
@@ -149,7 +150,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
 
   const requiredBodyFragments = [
     ...USER_HARD_RULE_REQUIRED_FRAGMENTS,
-    "完成初始化的下游五项能力选择只能是 `enabled` 或 `disabled`",
+    "完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`",
     "`user_owned_tasks`：控制是否由 Agent 自动把新结果拆到 Codex 左侧菜单",
     "`user_owned_tasks: disabled` 是默认状态",
     "用户仍可明确要求创建左侧 Task",
@@ -158,7 +159,8 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     "交付物类型变化、生命周期阶段变化",
     "每个项目同一时间只允许一个写入型 active 用户可见 Task",
     "Task0 可以协调和派发，但不得代替实施 Task 写入",
-    "Git 项目固定选择",
+    "Git 项目使用",
+    "task_worktrees", "environment.type=local", "冻结环境", "### 所选环境与 Local 串行交接", "串行", "migrate-task-worktrees", "selection_required",
     "environment.type = worktree",
     "非 Git 项目固定使用同一 project target 与 `environment.type = local`",
     "只返回 `clientThreadId` 表示仍在 setup",
@@ -171,12 +173,12 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     "不识别任何历史标题格式",
     ...PROJECT_TASK_SEQUENCE_REQUIRED_FRAGMENTS,
     "内部 Subagent 不使用本标题合同、不占用 Task 序号",
-    "推荐预设确定性物化五项",
+    "推荐预设确定性物化六项",
     "`parallel_worktree_subagents: disabled`、`acceptance_smoke: enabled`",
     "`user_owned_tasks: disabled`",
     "开启左侧 Task",
     "关闭左侧 Task",
-    "完成初始化的下游只接受 `schema_version: 4`",
+    "新初始化使用 schema 5",
     "不得猜测旧项目选择",
     "`parallel_worktree_subagents` 只控制当前 Task 内部",
     "日常开发直接实施",

@@ -37,8 +37,8 @@ test("policy validator uses runtime frontmatter syntax for LF and CRLF", () => {
     assert.deepEqual(errors, []);
   });
   for (const invalid of [
-    source.replace("schema_version: 4", "schema_version : 4"),
-    source.replace("schema_version: 4\n", "schema_version: 4\r\n"),
+    source.replace("schema_version: 5", "schema_version : 5"),
+    source.replace("schema_version: 5\n", "schema_version: 5\r\n"),
   ]) {
     withPolicy(invalid, (filePath) => {
       const errors = [];
@@ -83,6 +83,9 @@ test("policy rejects missing field, invalid preference, and duplicate field", ()
     source.replace(/^post_release_action:.*\n/mu, ""),
     source.replace(/^post_release_action:.*$/mu, "post_release_action: upload_everywhere"),
     source.replace(/^post_release_action:.*$/mu, (line) => `${line}\n${line}`),
+    source.replace(/^task_worktrees:.*\n/mu, ""),
+    source.replace(/^task_worktrees:.*$/mu, "task_worktrees: automatic"),
+    source.replace(/^task_worktrees:.*$/mu, (line) => `${line}\n${line}`),
   ];
   for (const mutation of mutations) {
     withPolicy(mutation, (filePath) => {
@@ -213,22 +216,41 @@ test("policy validator keeps full Cargo syntax checks and shared metadata rules"
 
 test("policy rejects schema version 3 after the release action becomes mandatory", () => {
   const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
-  const legacy = source.replace(/^schema_version:.*$/mu, "schema_version: 3").replace(/^post_release_action:.*\n/mu, "");
+  const legacy = source.replace(/^schema_version:.*$/mu, "schema_version: 3").replace(/^task_worktrees:.*\n/mu, "").replace(/^post_release_action:.*\n/mu, "");
   withPolicy(legacy, (filePath) => {
     const errors = [];
     validateAgentPolicy(errors, filePath);
-    assert.ok(errors.some((error) => error.includes("schema_version must be 4")));
+    assert.ok(errors.some((error) => error.includes("schema_version must be 5")));
   });
 });
 
 test("source defaults reject enabled automatic capabilities", () => {
   const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
-  for (const field of ["superpowers", "user_owned_tasks"]) {
+  for (const field of ["superpowers", "user_owned_tasks", "task_worktrees"]) {
     const mutation = source.replace(new RegExp(`^${field}:.*$`, "mu"), `${field}: enabled`);
     withPolicy(mutation, (filePath) => {
       const errors = [];
       validateAgentPolicy(errors, filePath, { requireSourceDefaults: true });
       assert.ok(errors.some((error) => error.includes(field)));
+    });
+  }
+});
+
+/** Task Tree、独立工作树与内部并行的合法组合均不相互推断。 */
+test("independent_task_and_parallel_choices_allow_all_combinations", () => {
+  const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"))
+    .replace(/^confirmed_by:.*$/mu, "confirmed_by: explicit-user")
+    .replace(/^confirmed_at:.*$/mu, "confirmed_at: 2026-10-10")
+    .replace(/^post_release_action:.*$/mu, "post_release_action: push_release_branch")
+    .replace(/^(superpowers|acceptance_smoke|e2e_hint): pending$/gmu, "$1: disabled");
+  for (const tasks of ["enabled", "disabled"]) for (const worktrees of ["enabled", "disabled"]) for (const parallel of ["enabled", "disabled"]) {
+    const text = source.replace(/^user_owned_tasks:.*$/mu, `user_owned_tasks: ${tasks}`)
+      .replace(/^task_worktrees:.*$/mu, `task_worktrees: ${worktrees}`)
+      .replace(/^parallel_worktree_subagents:.*$/mu, `parallel_worktree_subagents: ${parallel}`);
+    withPolicy(text, (filePath) => {
+      const errors = [];
+      validateAgentPolicy(errors, filePath, { allowPending: false });
+      assert.deepEqual(errors, [], `${tasks}/${worktrees}/${parallel}`);
     });
   }
 });

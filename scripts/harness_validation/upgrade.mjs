@@ -17,6 +17,7 @@ export const UPGRADE_MANIFEST = path.join(UPGRADE_ROOT, "references", "ownership
 // Sharing the runtime map would let a change to both the runtime and manifest
 // silently weaken the ownership boundary.
 export const REQUIRED_UPGRADE_RULES = new Map([
+  [".agents/skills/desktop-manage-task-worktrees/**", "managed"],
   [".agents/skills/desktop-manage-dependencies/**", "managed"],
   [".agents/skills/desktop-review-core-boundaries/**", "managed"],
   [".agents/skills/desktop-record-adr/**", "managed"],
@@ -132,6 +133,11 @@ export const REQUIRED_POST_RELEASE_SWITCH_PATHS = [
   ".agents/skills/desktop-switch-post-release-action/scripts/post_release_action.test.mjs",
 ];
 
+export const REQUIRED_TASK_WORKTREE_PATHS = [
+  ".agents/skills/desktop-manage-task-worktrees/SKILL.md",
+  ".agents/skills/desktop-manage-task-worktrees/agents/openai.yaml",
+];
+
 /** Parse the upgrade ownership manifest while converting all read failures to diagnostics. */
 export function loadUpgradeManifest(errors, manifestPath = UPGRADE_MANIFEST) {
   try {
@@ -201,6 +207,7 @@ function validateManifest(errors, manifest) {
     [".agents/skills/desktop-upgrade-harness/**", "managed-self", "upgrade managed-self rule"],
     [".agents/skills/desktop-manage-git-lifecycle/**", "managed", "upgrade Git lifecycle managed rule"],
     [".agents/skills/desktop-switch-post-release-action/**", "managed", "upgrade post-release switch managed rule"],
+    [".agents/skills/desktop-manage-task-worktrees/**", "managed", "upgrade Task worktree managed rule"],
   ];
   for (const [pattern, mode, label] of orderedBeforeGeneric) {
     const index = ordered.findIndex(([candidate, candidateMode]) => candidate === pattern && candidateMode === mode);
@@ -322,7 +329,7 @@ function validatePostReleaseSwitchPropagation(errors, policyModulePath) {
   if (!source.includes("export const REQUIRED_MANAGED_SOURCE_PATHS")) {
     fail(errors, "upgrade policy must export required managed source paths");
   }
-  for (const relative of REQUIRED_POST_RELEASE_SWITCH_PATHS) {
+  for (const relative of [...REQUIRED_POST_RELEASE_SWITCH_PATHS, ...REQUIRED_TASK_WORKTREE_PATHS]) {
     const absolute = path.join(ROOT, relative);
     if (!fs.existsSync(absolute)) {
       fail(errors, `missing post-release switch source: ${relative}`);

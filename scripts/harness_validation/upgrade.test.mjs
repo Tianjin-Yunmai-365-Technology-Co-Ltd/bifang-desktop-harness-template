@@ -7,6 +7,7 @@ import test from "node:test";
 import { MINIMUM_OWNERSHIP_RULES, VALID_MODES } from "../../.agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_policy.mjs";
 import {
   REQUIRED_POST_RELEASE_SWITCH_PATHS,
+  REQUIRED_TASK_WORKTREE_PATHS,
   REQUIRED_UPGRADE_RULES,
   UPGRADE_MANIFEST,
   UPGRADE_MODULES,
@@ -290,6 +291,25 @@ test("upgrade policy propagates every post-release switch source", () => {
       validateDocs: false,
     });
     assert.match(errors.join("\n"), /must propagate post-release switch source/u);
+  });
+});
+
+/** 关闭选择仍传播独立技能，受保护的策略文件不变成 managed。 */
+test("task_worktree_skill_is_complete_managed_and_policy_stays_protected", () => {
+  assert.equal(REQUIRED_UPGRADE_RULES.get(".agents/skills/desktop-manage-task-worktrees/**"), "managed");
+  assert.equal(REQUIRED_UPGRADE_RULES.get("docs/AGENT_POLICY.md"), "protected");
+  withTemporaryDirectory((directory) => {
+    const manifest = productionManifest();
+    manifest.rules = manifest.rules.filter(({ pattern }) => pattern !== ".agents/skills/desktop-manage-task-worktrees/**");
+    assert.match(validateManifest(manifest, directory).join("\n"), /desktop-manage-task-worktrees\/\*\* must be managed/u);
+    const policySource = fs.readFileSync(path.join(path.dirname(UPGRADE_MANIFEST), "..", "scripts", "harness_upgrade_policy.mjs"), "utf8");
+    for (const missing of REQUIRED_TASK_WORKTREE_PATHS) {
+      const policyModulePath = path.join(directory, "policy.mjs");
+      fs.writeFileSync(policyModulePath, policySource.replace(JSON.stringify(missing), '"removed-worktree-source"'));
+      const errors = [];
+      validateUpgradeContract(errors, { policyModulePath, modulePaths: [], validateDocs: false });
+      assert.ok(errors.some((error) => error.includes(missing)), missing);
+    }
   });
 });
 

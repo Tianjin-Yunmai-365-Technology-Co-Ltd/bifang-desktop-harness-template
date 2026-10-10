@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { CAPABILITY_FIELDS, inspect, main, setCapability } from "./agent_policy.mjs";
+import { CAPABILITY_FIELDS, inspect, main, migrateTaskWorktrees, setCapability } from "./agent_policy.mjs";
 import { atomicWrite, readPolicy, setAction } from "../../desktop-switch-post-release-action/scripts/post_release_action.mjs";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -13,7 +14,7 @@ const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const template = fs.readFileSync(path.join(sourceRoot, "docs/AGENT_POLICY.md"), "utf8")
   .replaceAll("\r\n", "\n")
   .replace(/^---\r?\n[\s\S]*?\r?\n---(?=\r?\n)/u, [
-    "---", "schema_version: 4", "confirmed_by: previous-user", "confirmed_at: 2026-10-08",
+    "---", "schema_version: 5", "confirmed_by: previous-user", "confirmed_at: 2026-10-08",
     "decision_mode: reuse_then_infer_then_ask", ...CAPABILITY_FIELDS.map((field) => `${field}: disabled`),
     "post_release_action: push_release_branch", "---",
   ].join("\n"));
@@ -34,6 +35,84 @@ function fixture(t, text = template) {
 function choice(field = "user_owned_tasks", extra = {}) {
   return { field, value: "enabled", expectedValue: "disabled", confirmedBy: "user-chat", confirmedAt: "2026-10-09", confirmedChoice: true, ...extra };
 }
+
+const legacy4 = template.replace("schema_version: 5", "schema_version: 4").replace("task_worktrees: disabled\n", "");
+/** 摘要来自即将迁移的真实字节；确认来源只进入调用事实。 */
+function migration(f, extra = {}) {
+  return { value: "disabled", expectedSchema: "4", expectedSha256: crypto.createHash("sha256").update(f.bytes()).digest("hex"), confirmedBy: "migration-user", confirmedAt: "2026-10-10", confirmedChoice: true, ...extra };
+}
+
+/** 旧策略保留原五项和动作的读写，不把缺少工作树选择补为关闭。 */
+test("legacy_readers_keep_selection_required_and_original_writers", (t) => {
+  const f = fixture(t, legacy4);
+  assert.deepEqual(inspect(f.root).task_worktrees, { status: "selection_required", value: null });
+  assert.throws(() => setCapability(f.root, choice("task_worktrees")), /selection_required/u);
+  assert.equal(setCapability(f.root, choice()).schema_version, 4);
+  assert.equal(setAction(f.root, "push_release_branch", "push_release_branch", { confirmedChoice: true }).changed, false);
+  assert.ok(!Object.hasOwn(inspect(f.root).capabilities, "task_worktrees"));
+  const v3 = fixture(t, legacy4.replace("schema_version: 4", "schema_version: 3").replace("post_release_action: push_release_branch\n", ""));
+  assert.equal(inspect(v3.root).schema_version, 3);
+  assert.equal(inspect(v3.root).task_worktrees.status, "selection_required");
+});
+
+/** 受限迁移只提升 schema 并插入选项，CRLF、权限、正文和旧确认逐字保留。 */
+test("migration_preserves_original_facts_and_same_value_is_noop", (t) => {
+  for (const value of ["enabled", "disabled"]) {
+    const f = fixture(t, legacy4.replaceAll("\n", "\r\n"));
+    fs.chmodSync(f.file, 0o640);
+    const originalMode = fs.statSync(f.file).mode & 0o777;
+    const before = f.bytes().toString();
+    const options = migration(f, { value });
+    assert.equal(migrateTaskWorktrees(f.root, options).schema_version, 5);
+    assert.equal(f.bytes().toString(), before.replace("schema_version: 4", "schema_version: 5").replace("user_owned_tasks: disabled\r\n", `user_owned_tasks: disabled\r\ntask_worktrees: ${value}\r\n`));
+    const bytes = f.bytes();
+    const stat = fs.statSync(f.file);
+    assert.equal(stat.mode & 0o777, originalMode);
+    assert.equal(migrateTaskWorktrees(f.root, options).changed, false);
+    assert.deepEqual(f.bytes(), bytes);
+    assert.equal(fs.statSync(f.file).ino, stat.ino);
+    assert.equal(fs.statSync(f.file).mtimeMs, stat.mtimeMs);
+    assert.throws(() => migrateTaskWorktrees(f.root, { ...options, value: value === "enabled" ? "disabled" : "enabled" }), /正常 set/u);
+  }
+});
+
+/** 摘要漂移、非法选择、未合并正文或非完整旧 schema 均零写入。 */
+test("migration_fails_closed_on_drift_invalid_schema_and_stale_body", (t) => {
+  for (const text of [
+    legacy4,
+    legacy4.replaceAll("environment.type=local", "removed-local"),
+    `${legacy4}\nGit user-owned Task 固定使用独立 Worktree\n`,
+    legacy4.replace("e2e_hint: disabled\n", ""),
+    legacy4.replace("e2e_hint: disabled", "e2e_hint: disabled\ne2e_hint: enabled"),
+    legacy4.replace("e2e_hint: disabled", "e2e_hint: pending"),
+    legacy4.replace("e2e_hint: disabled", "e2e_hint: disabled\nextra: disabled"),
+    legacy4.replace("schema_version: 4", "schema_version: 3").replace("post_release_action: push_release_branch\n", ""),
+  ]) {
+    const f = fixture(t, text);
+    const before = f.bytes();
+    const options = migration(f, text === legacy4 ? { expectedSha256: "0".repeat(64) } : {});
+    assert.throws(() => migrateTaskWorktrees(f.root, options));
+    assert.deepEqual(f.bytes(), before);
+  }
+  const f = fixture(t, legacy4);
+  for (const extra of [{ confirmedChoice: false }, { value: "pending" }, { expectedSchema: "3" }, { expectedSha256: "bad" }, { confirmedBy: "pending" }, { confirmedAt: "2026-02-30" }]) {
+    assert.throws(() => migrateTaskWorktrees(f.root, migration(f, extra)));
+    assert.equal(f.bytes().toString(), legacy4);
+  }
+  fs.writeFileSync(path.join(f.root, "docs/.AGENT_POLICY.post-release.lock"), "owned-lock");
+  assert.throws(() => migrateTaskWorktrees(f.root, migration(f)), /锁/u);
+  assert.equal(f.bytes().toString(), legacy4);
+});
+
+/** CLI 不接受缺少确认或额外参数，完整调用可复读单一选择。 */
+test("migration_cli_requires_explicit_confirmation_and_exact_arguments", (t) => {
+  const f = fixture(t, legacy4);
+  const options = migration(f);
+  const args = ["migrate-task-worktrees", "--project-root", f.root, "--value", "disabled", "--expected-schema", "4", "--expected-sha256", options.expectedSha256, "--confirmed-by", options.confirmedBy, "--confirmed-at", options.confirmedAt];
+  assert.throws(() => main(args), /缺少/u);
+  assert.throws(() => main([...args, "--confirmed-user-choice", "--field", "e2e_hint"]), /未知/u);
+  assert.equal(main([...args, "--confirmed-user-choice"]).task_worktrees.value, "disabled");
+});
 
 /** 每种能力只修改自身与确认字段，并保留 CRLF、正文、发布动作及其他能力。 */
 test("single_capability_changes_preserve_unselected_fields_body_and_crlf", (t) => {
@@ -86,8 +165,10 @@ test("invalid_choices_and_stale_expected_values_fail_without_writes", (t) => {
 /** 旧 schema、未确认字段和重复frontmatter均不能被能力入口自动修复。 */
 test("unsupported_or_unconfirmed_policies_fail_closed", (t) => {
   for (const text of [
-    template.replace("schema_version: 4", "schema_version: 3").replace("post_release_action: push_release_branch\n", ""),
+    template.replace("schema_version: 5", "schema_version: 3").replace("task_worktrees: disabled\n", "").replace("post_release_action: push_release_branch\n", ""),
     template.replace("superpowers: disabled", "superpowers: pending"),
+    template.replace("task_worktrees: disabled", "task_worktrees: pending"),
+    template.replace("task_worktrees: disabled", "task_worktrees: automatic"),
     template.replace("e2e_hint: disabled", "e2e_hint: disabled\ne2e_hint: enabled"),
     template.replace("post_release_action: push_release_branch", "post_release_action: pending"),
   ]) {

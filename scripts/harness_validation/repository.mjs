@@ -29,6 +29,7 @@ export const EXPECTED_SKILLS = new Set([
   "desktop-add-file-operations",
   "desktop-add-external-process",
   "desktop-manage-user-tasks",
+  "desktop-manage-task-worktrees",
   "desktop-configure-agent-policy",
   "desktop-add-cli-adapter",
   "desktop-add-gpui-adapter",
