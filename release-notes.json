@@ -3,6 +3,34 @@
   "releases": [
     {
       "releaseDate": "2026-10-10",
+      "version": "v202610101204",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增默认关闭的 Task 独立工作树开关，与 Task Tree 和内部并行分别选择；派发时冻结 Worktree 或串行 Local 环境。",
+          "en-US": "Add a default-off switch for independent Task worktrees, separate from Task Tree and internal parallelism; freeze the Worktree or serial Local environment at dispatch."
+        },
+        {
+          "zh-CN": "新初始化使用 schema 5 六项能力；严格读取旧 schema 3/4，仅在明确补选后受限迁移工作树选择并保留原确认事实。",
+          "en-US": "Use six capabilities in schema 5 for new projects; strictly read legacy schemas 3/4 and migrate the worktree choice only after explicit selection while preserving prior confirmation facts."
+        },
+        {
+          "zh-CN": "初始化与升级完整保留独立工作树技能，升级继续保护项目策略、用户级规则和既有 Task 环境。",
+          "en-US": "Retain the independent worktree skill during initialization and upgrades while protecting project policy, user-level rules, and existing Task environments."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复策略原子切换在 umask 影响下丢失原文件权限的问题；权限恢复失败时保留原文件并清理临时文件。",
+          "en-US": "Preserve original file permissions during atomic policy updates despite umask filtering; keep the original file and remove the temporary file if permission restoration fails."
+        },
+        {
+          "zh-CN": "将初始化策略验收合同对齐到 schema 5 六项，并区分旧 schema 3/4 的读取兼容与受限迁移。",
+          "en-US": "Align the initialization policy verification contract with schema 5 and six capabilities, distinguishing legacy schema 3/4 reading from restricted migration."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-10-10",
       "version": "v202610100058",
       "featureOptimizations": [
         {
@@ -207,21 +235,6 @@
         {
           "zh-CN": "修复发布后动作选择在混合 CLI/GUI、两种 GUI 布局及独立 Cargo 工作区中漏检 GUI 清单或适用锁文件的问题。",
           "en-US": "Fixed post-release action selection missing GUI manifests or required lockfiles in mixed CLI/GUI projects, both GUI layouts, and independent Cargo workspaces."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-09-29",
-      "version": "v202609291534",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "移除项目锁文件的 Git 跟踪及初始化、候选构建门禁；Harness 与新建下游无需提交 Cargo 或 pnpm 锁文件。",
-          "en-US": "Removed Git tracking and initialization and candidate build gates for project lockfiles; Harness and new downstream projects no longer require committed Cargo or pnpm lockfiles."
-        },
-        {
-          "zh-CN": "修复 Harness 源完成本地 Git 发布后无法按当次授权推送 release 分支与版本 tag 的问题。",
-          "en-US": "Fixed Harness source releases being unable to push the release branch and version tag after local Git release when explicitly requested."
         }
       ]
     }
