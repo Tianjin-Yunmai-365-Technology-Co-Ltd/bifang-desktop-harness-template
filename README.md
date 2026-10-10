@@ -150,7 +150,7 @@ Git Task 按 Agent Policy 冻结所选环境和准确输入；Local 使用实际
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202610100058
+- 当前版本：v202610101204
 - 发布状态：以适用 Git 引用复核结果为准
 - 产品规格：Approved
 - 具体产品源码：不包含
