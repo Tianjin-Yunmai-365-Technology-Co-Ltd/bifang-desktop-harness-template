@@ -8,6 +8,8 @@ export const TARGETS = {
   'aarch64-apple-darwin': { platform: 'macos', host: 'darwin', arch: 'aarch64', formats: ['app', 'dmg'] },
   'x86_64-apple-darwin': { platform: 'macos', host: 'darwin', arch: 'x86_64', formats: ['app', 'dmg'] },
   'x86_64-pc-windows-msvc': { platform: 'windows', host: 'win32', arch: 'x86_64', formats: ['nsis'] },
+  'aarch64-unknown-linux-gnu': { platform: 'linux', host: 'linux', arch: 'aarch64', debArch: 'arm64', machine: 183, formats: ['deb', 'tar.gz'] },
+  'x86_64-unknown-linux-gnu': { platform: 'linux', host: 'linux', arch: 'x86_64', debArch: 'amd64', machine: 62, formats: ['deb', 'tar.gz'] },
 };
 
 /** 初始化器只写中性身份，不把产品用途或发布选择写入配置。 */
@@ -20,6 +22,7 @@ export function renderDefaultConfig({ projectId, nameZh, nameEn, owner, logoPath
     macos: { minimumSystemVersion: '12.0', signingIdentity: null, background: 'packaging/macos/background.png' },
     windows: { signing: null, extractor: null },
     nsis: { installMode: 'currentUser', languages: ['SimpChinese', 'English'], displayLanguageSelector: true },
+    resources: [],
   };
 }
 
@@ -37,20 +40,22 @@ function keys(object, expected, label) {
 
 /** 单一严格 schema 防止残留 Tauri 配置、hook 或未知签名字段进入工具。 */
 export function validateConfig(value) {
-  keys(value, ['schemaVersion','package','binary','productName','productNameEn','identifier','publisher','icons','macos','windows','nsis'], 'GPUI config');
+  keys(value, ['schemaVersion','package','binary','productName','productNameEn','identifier','publisher','icons','macos','windows','nsis',...(Object.hasOwn(value ?? {},'resources')?['resources']:[]),...(Object.hasOwn(value ?? {},'releaseNotesUi')?['releaseNotesUi']:[])], 'GPUI config');
   if (value.schemaVersion !== 1) throw new Error('unsupported GPUI config schema');
+  if (value.releaseNotesUi !== undefined && typeof value.releaseNotesUi !== 'boolean') throw new Error('releaseNotesUi must be a boolean');
   for (const key of ['package','binary']) if (!/^[A-Za-z][A-Za-z0-9_-]*$/u.test(value[key])) throw new Error(`invalid ${key}`);
   for (const key of ['productName','productNameEn','publisher']) text(value[key], key, key.startsWith('product'));
   if (!/^[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/u.test(value.identifier)) throw new Error('invalid application identifier');
   keys(value.icons, ['source','macos','windows'], 'icons');
   for (const icon of Object.values(value.icons)) relativePath(icon);
   if (!value.icons.source.endsWith('.png') || !value.icons.macos.endsWith('.icns') || !value.icons.windows.endsWith('.ico')) throw new Error('icons require PNG/ICNS/ICO paths');
-  keys(value.macos, ['minimumSystemVersion','signingIdentity','background'], 'macos');
+  keys(value.macos, ['minimumSystemVersion','signingIdentity','background',...(Object.hasOwn(value.macos ?? {},'agent')?['agent']:[])], 'macos');
+  if (value.macos.agent !== undefined && typeof value.macos.agent !== 'boolean') throw new Error('macos.agent must be a boolean');
   if (!/^\d+\.\d+(?:\.\d+)?$/u.test(value.macos.minimumSystemVersion) || Number(value.macos.minimumSystemVersion.split('.')[0]) < 11) throw new Error('GPUI macOS minimum must be >= 11.0');
   relativePath(value.macos.background);
   if (value.macos.signingIdentity !== null && !text(value.macos.signingIdentity,'signingIdentity').startsWith('Developer ID Application: ')) throw new Error('macOS candidate signing needs Developer ID Application');
   keys(value.windows, ['signing','extractor'], 'windows');
-  if (value.windows.extractor !== null) relativePath(value.windows.extractor);
+  if (value.windows.extractor !== null && !['7z','7zr','7z.exe','7zr.exe'].includes(value.windows.extractor)) throw new Error('extractor must name an approved global 7z/7zr CLI; migrate old project-local paths explicitly');
   if (value.windows.signing !== null) {
     keys(value.windows.signing, ['certificateThumbprint','timestampUrl'], 'windows.signing');
     if (!/^[A-Fa-f0-9]{40}$/u.test(value.windows.signing.certificateThumbprint) || !/^https:\/\/[^\s]+$/u.test(value.windows.signing.timestampUrl)) throw new Error('invalid Authenticode configuration');
@@ -58,6 +63,13 @@ export function validateConfig(value) {
   keys(value.nsis, ['installMode','languages','displayLanguageSelector'], 'nsis');
   if (!['currentUser','perMachine','both'].includes(value.nsis.installMode) || typeof value.nsis.displayLanguageSelector !== 'boolean'
       || !Array.isArray(value.nsis.languages) || !value.nsis.languages.length || value.nsis.languages.some(item => !['SimpChinese','English'].includes(item)) || new Set(value.nsis.languages).size !== value.nsis.languages.length) throw new Error('invalid NSIS options');
+  if (value.resources !== undefined) {
+    if (!Array.isArray(value.resources)) throw new Error('resources must be an array');
+    for (const resource of value.resources) {
+      keys(resource,['source','macos','windows',...(Object.hasOwn(resource ?? {},'linux') ? ['linux'] : [])],'resource');
+      for (const [key,item] of Object.entries(resource)) { text(item,`resource ${key}`); relativePath(item); }
+    }
+  }
   return value;
 }
 

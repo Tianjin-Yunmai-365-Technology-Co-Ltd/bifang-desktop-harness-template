@@ -89,18 +89,18 @@ function track(f, ...files) {
   assert.equal(added.status, 0, added.stderr);
 }
 
-/** GPUI 原生 macOS/Windows 路线独立可选，仅 Linux GUI 仍没有本地包路线。 */
+/** GPUI 原生 macOS/Windows 路线独立可选，Linux GNU GUI 同样有本地包路线。 */
 test("gpui_local_package_supports_native_gui_platforms_without_cli", (t) => {
   assert.equal(localPackageSupported(["gui"], ["macos"], "gpui"), true);
   assert.equal(localPackageSupported(["gui"], ["windows"], "gpui"), true);
-  assert.equal(localPackageSupported(["gui"], ["linux"], "gpui"), false);
+  assert.equal(localPackageSupported(["gui"], ["linux"], "gpui"), true);
   assert.equal(localPackageSupported(["cli", "gui"], ["macos"], "gpui"), true);
   assert.equal(localPackageSupported(["cli", "gui"], ["linux"], "gpui"), true);
   assert.equal(localPackageSupported(["gui"], ["macos"]), true);
   assert.throws(() => localPackageSupported(["gui"], ["macos"], "unknown"), /gui-framework/u);
   const f = fixture(t);
   fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["linux"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n');
-  assert.match(f.run("set", setOptions("local_package"), 2).error, /没有现有本地打包 Skill/u);
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /GPUI GUI 根目录/u);
   assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
   assert.equal(f.run("set", setOptions("push_release_branch")).post_release_action, "push_release_branch");
 });

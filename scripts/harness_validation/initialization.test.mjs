@@ -244,11 +244,11 @@ test("initialization contract requires an explicit persisted post-release action
   assert.ok(primary.get(INSTANTIATE_FORM).includes("post_release_action"));
   assert.ok(primary.get(INSTANTIATE_FORM).includes("`local_package`（本地打包，推荐默认）"));
   assert.ok(primary.get(INSTANTIATE_FORM).includes("`push_release_branch`（提交远程）"));
-  assert.ok(primary.get(INSTANTIATE_FORM).includes("纯 TUI/MCP 或不含 CLI 的仅 Linux GUI 时仍展示本地打包但标为不可用"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 5`"));
-  assert.ok(primary.get(INSTANTIATE_SKILL).includes("纯 TUI/MCP 或仅 Linux GUI 选本地打包或默认值是非法基础字段"));
+  assert.ok(primary.get(INSTANTIATE_SKILL).includes("纯 TUI/MCP 或仅 Linux Tauri GUI 选本地打包或默认值是非法基础字段"));
   assert.ok(primary.get(INITIALIZE_SKILL).includes("`post_release_action` 精确等于 `local_package` 或 `push_release_branch`"));
-  assert.ok(primary.get(INITIALIZE_SKILL).includes("`local_package` 只在接口含 `cli`，或含 `gui` 且目标平台含 `macos`/`windows` 时合法"));
+  assert.ok(primary.get(INITIALIZE_SKILL).includes("`local_package` 在含 `cli`、已选 GPUI GUI，或 Tauri GUI 目标含 `macos`/`windows` 时合法"));
   assert.ok(repository.get(AGENT_POLICY).includes("post_release_action:"));
 });
 

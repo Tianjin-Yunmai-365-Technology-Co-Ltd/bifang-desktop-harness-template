@@ -41,16 +41,29 @@ export function snapshotInputs(root, excludedRoots = [], resourcesOnly = false) 
   return hash.digest('hex');
 }
 
-/** leader 退出不代表后代结束；POSIX 进程组由本会话创建并拥有。 */
-function groupAlive(handle) {
-  if (!handle.child.pid) return false;
-  try { process.kill(-handle.child.pid, 0); return true; }
-  catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+/** leader 退出不代表后代结束；权限或其他探测错误保持未知，不能当作组已消失。 */
+export function observeOwnedProcessGroup(handle, probe = process.kill) {
+  if (!handle.child.pid) return { status: 'gone' };
+  try { probe(-handle.child.pid, 0); return { status: 'present' }; }
+  catch (error) { return error.code === 'ESRCH' ? { status: 'gone' } : { status: 'unknown', error }; }
+}
+
+/** 只重查本会话拥有的组；持续不可观测时失败并保留句柄，不扩大终止范围。 */
+export async function knownOwnedProcessGroup(handle, { observe = observeOwnedProcessGroup, timeoutMs = 2000, intervalMs = 20, requireGone = false } = {}) {
+  const deadline = performance.now() + timeoutMs;
+  for (;;) {
+    const result = observe(handle);
+    // leader退出后的未知身份不能因同数字PGID再次存在而恢复发送信号的资格。
+    if (result.status === 'unknown' && handle.exited) handle.groupIdentityUncertain = true;
+    if (result.status === 'gone' || (result.status === 'present' && !requireGone && !handle.groupIdentityUncertain)) return result.status;
+    if (performance.now() >= deadline) throw new Error('could not observe owned development process group; cleanup remains unverified', { cause: result.error });
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
 }
 
 /** 每个构建/应用拥有独立进程组；仅终止本循环创建的进程与后代。 */
 async function terminateProcess(handle) {
-  if (handle.exited && (process.platform === 'win32' || !groupAlive(handle))) { handle.cleanup(); return; }
+  if (handle.exited && (process.platform === 'win32' || await knownOwnedProcessGroup(handle) === 'gone')) { handle.cleanup(); return; }
   if (process.platform === 'win32') {
     await new Promise((resolve, reject) => {
       const killer = spawn('taskkill', ['/PID', String(handle.child.pid), '/T', '/F'], { shell: false, windowsHide: true, stdio: 'ignore' });
@@ -66,9 +79,10 @@ async function terminateProcess(handle) {
     let timer;
     await Promise.race([handle.done.catch(() => {}), new Promise(resolve => { timer = setTimeout(resolve, 2000); })]);
     clearTimeout(timer);
-    if (groupAlive(handle)) kill('SIGKILL');
+    if (await knownOwnedProcessGroup(handle) === 'present') kill('SIGKILL');
   }
   await handle.done.catch(() => {});
+  if (process.platform !== 'win32') await knownOwnedProcessGroup(handle, { requireGone: true });
   handle.cleanup();
 }
 
@@ -117,7 +131,10 @@ export async function startGpuiDev(rootValue, { appArgs = [], pollMs = 250, debo
       child.once('error', error => { handle.exited = true; children.delete(handle); reject(error); });
       child.once('close', (code, signal) => {
         handle.exited = true;
-        if (process.platform === 'win32' || !groupAlive(handle)) handle.cleanup();
+        // 探测失败不能逃出事件回调或提前遗忘后代，done 仍须完成供关闭阶段有界复查。
+        const state = process.platform === 'win32' ? 'gone' : observeOwnedProcessGroup(handle).status;
+        if (state === 'unknown') handle.groupIdentityUncertain = true;
+        if (state === 'gone') handle.cleanup();
         if (partial) onLine?.(partial);
         resolve({ code, signal, output });
       });

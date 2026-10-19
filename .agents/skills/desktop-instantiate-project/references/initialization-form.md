@@ -10,7 +10,7 @@
 
 - Tauri 复用本文既有九项 GUI 问询、四项插件基线与各能力合同。
 - GPUI 使用 `$desktop-add-gpui-adapter`；按同一九字段顺序逐项询问五项桌面能力、关于页、赞助页和侧栏。仅 `deep_link` 当前 unavailable，必须为 disabled；目标含 Linux 时托盘与后台全局快捷键不可用，显式启用须确认禁用或改变目标，不能静默归一化。系统通知复用 GPUI Kit 官方 API；提交不证明权限或送达，自启只提供 OS 状态开关而不自动注册，单实例只恢复窗口，全局快捷键空合同保持零默认注册。实际技术选型读取 GPUI Skill 的 `references/dependency-baseline.md` 与 `references/native-capabilities.md`。不接入 Tauri 固定插件、React/Mantine 或 Tauri 初始化 E2E。
-- `local_package` 适用于接口含 CLI，或 GUI 目标含 macOS/Windows 的组合。Tauri 使用 `$desktop-build-tauri-release`，GPUI 使用独立 `$desktop-build-gpui-release`，后者覆盖本机 macOS `.app`/DMG 与 Windows NSIS；不含 CLI 的仅 Linux GUI 必须明确选择 `push_release_branch`。CLI 与 GUI 组合仍分别生成对应接口的真实产物，不互相冒充。
+- `local_package` 适用于接口含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或 Tauri GUI 目标含 macOS/Windows 的组合。Tauri 使用 `$desktop-build-tauri-release`，GPUI 使用独立 `$desktop-build-gpui-release`，后者覆盖本机 macOS `.app`/DMG、Windows NSIS 与 Linux GNU deb/tar.gz；不含 CLI 的仅 Linux Tauri GUI 必须明确选择 `push_release_branch`。CLI 与 GUI 组合仍分别生成对应接口的真实产物，不互相冒充。
 
 GUI 的基础发布后动作可以先记录用户选择，框架解析后再完成适用性校验；其余基础字段全部合法后即可进入框架单项问询，不能因动作适用性尚待框架而形成循环。框架改变后只重问不再合法的动作或能力，不重问已解析的合法字段。最终汇总必须单列框架、来源、能力可用性、所用模板/E2E 与本地打包边界；以下提到的 Tauri 固定基线和深链提示只在 Tauri 路径适用，全局快捷键空合同边界适用于两种 GUI。
 
@@ -24,7 +24,7 @@ GUI 的基础发布后动作可以先记录用户选择，框架解析后再完�
 - 中英文项目展示名称至少由用户直接提供一个。只提供中文时，Agent 在本轮解析中自动翻译并补齐英文；只提供英文时自动翻译并补齐中文，不为译名增加单独问询。原名称含难以直译的专有名词、品牌词或造词时，补齐的另一语言名称允许采用音译、约定俗成译名或保留原文形式，不强求逐字语义翻译，只要在目标语言中可读、不产生歧义即可。两个名称都由用户提供时保持原值，不自行改译；两个都未提供时在首轮同时询问。自动翻译得到的名称必须标记来源，并与用户原始名称一起进入最终完整汇总；用户对汇总的确认同时构成对译名的确认，确认前仍不得写入。
 - 首轮回复后先校验全部基础字段。若其中有缺失或非法值，只集中列出仍需修正的基础字段、各自约束和原值问题；已经合法的基础字段继续复用，不得重问。除GUI发布后动作的框架适用性可暂待校验外，基础字段全部解析前不得进入条件问询。
 - `user_owned_tasks` 与 `parallel_worktree_subagents` 是两项独立事实：前者决定是否按结果边界自动创建左侧 user-owned Task，后者只决定当前 Task 内部能否按明确请求并行拆分。不得用其中一项回答、推断或覆盖另一项。
-- `post_release_action` 是独立于 Agent 策略预设的必选事实，提供“本地打包”(`local_package`，推荐默认) 与“提交远程”(`push_release_branch`) 两项。表单始终展示本地打包默认项；不含 CLI 的组合若为纯 TUI/MCP 或仅 Linux GUI，须标为不可用，因为现有本地候选打包 Skill 只覆盖 CLI 或 macOS/Windows GUI，并明确要求用户选择 `push_release_branch`。用户明确选择默认值时，仅在已选接口包含 CLI，或包含 GUI 且目标平台含 macOS/Windows 时解析为 `local_package`；其余组合的“使用默认值”或显式本地打包都是非法基础字段，必须说明原因并重新确认提交远程。没有答复不能静默填入默认值。它只规定未来 Git 发布完成后的动作，不在初始化时执行打包、建立 release 分支或访问远端。
+- `post_release_action` 是独立于 Agent 策略预设的必选事实，提供“本地打包”(`local_package`，推荐默认) 与“提交远程”(`push_release_branch`) 两项。表单始终展示本地打包默认项；不含 CLI 的组合若为纯 TUI/MCP 或仅 Linux Tauri GUI，须标为不可用，因为现有本地候选打包 Skill 覆盖 CLI、GPUI GNU Linux 与 macOS/Windows GUI，并明确要求用户选择 `push_release_branch`。用户明确选择默认值时，仅在已选接口包含 CLI、已选择 GPUI GUI，或包含 Tauri GUI 且目标平台含 macOS/Windows 时解析为 `local_package`；其余组合的“使用默认值”或显式本地打包都是非法基础字段，必须说明原因并重新确认提交远程。没有答复不能静默填入默认值。它只规定未来 Git 发布完成后的动作，不在初始化时执行打包、建立 release 分支或访问远端。
 - 基础字段解析后（GUI 发布后动作的框架适用性可暂待校验），先完成桌面框架分派，再按实际选择逐步补全条件字段：选择自定义策略时依次解析六项策略，Tauri 依次解析八项能力和侧栏模式，GPUI 依次解析五项桌面能力、关于页、赞助页和侧栏，深链接标为 unavailable/disabled，托盘与热键按目标平台处理。每次回复只询问一个当前适用且尚未解析的条件字段；推荐预设或非 GUI 使相应字段直接成为 `不适用`，不得制造多余问询。
 - 用户主动一次提供多个字段时全部解析并记录来源；合法字段不得为了遵守顺序而重问。字段非法时只说明该字段的约束并重新询问同一项。
 - 所有必填和条件字段收齐后，展示一份完整汇总，其中必须包含中英文项目展示名称及各自来源、用户输入的项目路径、解析后的最终项目根目录、派生的 kebab-case 前缀、目标平台、程序类型、GUI 框架及其来源、六项 Agent 策略、已确认的 `post_release_action` 及适用的 GUI 九项配置；并说明目标平台、接口与适用的 `gui-framework` 将在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中持久保存，发布后动作将在 `docs/AGENT_POLICY.md` 中持久保存，供未来发布流程使用。Tauri GUI 汇总同时说明 system-locale、updater、window-state、dialog 是不询问且不进入九字段 profile 的固定基线，dialog 以主窗口 `dialog:default` 开放全部官方对话框类型但不授权通用文件读写；深链启用时展示派生 URL `app-<kebab-prefix>://restore`；全局快捷键启用时明确说明只安装 Rust-only 能力，初始化 contract 为 `actions = []`，不绑定默认 chord、不注册 OS 键位、不创建产品动作或占位界面。GPUI 汇总列出实际六项能力选择、深链接 unavailable/disabled、平台限制、按需依赖、配置协助移交，以及 Rust/gpui-kit 模板、本机初始化检查和当前本地候选打包边界，不宣称具有 Tauri 固定插件。本轮只询问是否按该汇总创建。
@@ -44,7 +44,7 @@ GUI 的基础发布后动作可以先记录用户选择，框架解析后再完�
 6. 目标平台：Windows、macOS、Linux，可多选。
 7. 程序类型：命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；可明确选择默认 CLI。
 8. Agent 策略模式：推荐预设或自定义。
-9. 发布后动作：本地打包（`local_package`，推荐默认）或提交远程（`push_release_branch`）；纯 TUI/MCP 或不含 CLI 的仅 Linux GUI 时仍展示本地打包但标为不可用，须明确选择提交远程；只有接口含 CLI，或 GUI 目标含 macOS/Windows 时明确答复“使用默认值”才表示选择本地打包。
+9. 发布后动作：本地打包（`local_package`，推荐默认）或提交远程（`push_release_branch`）；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用，须明确选择提交远程；只有接口含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或 Tauri GUI 目标含 macOS/Windows 时明确答复“使用默认值”才表示选择本地打包。
 
 用户已在创建请求中合法提供的基础字段不再显示；其余基础字段必须在这一轮全部显示。
 
@@ -60,7 +60,7 @@ GUI 的基础发布后动作可以先记录用户选择，框架解析后再完�
 | 6 | 首轮基础 | 目标平台 | 必填；从 Windows、macOS、Linux 中选择一个或多个，不推断未选择的平台已经验证。 |
 | 7 | 首轮基础 | 程序类型 | 从命令行(CLI)、终端UI(TUI)、MCP、桌面应用(GUI) 中选择任意组合；分别映射为内部标识 `CLI`、`TUI`、`MCP`、`GUI`，继续持久化到 Cargo `interfaces`。用户明确选择“使用默认值”或明确跳过时解析为仅 CLI；选择其他接口时不得附加 CLI。 |
 | 8 | 首轮基础 | Agent 策略模式 | 必须选择“推荐预设”或“自定义”。不得从 Harness 源策略推断用户选择。 |
-| 9 | 首轮基础 | `post_release_action` | 必须从 `local_package`（本地打包，推荐默认）或 `push_release_branch`（提交远程）中明确选择；纯 TUI/MCP 或不含 CLI 的仅 Linux GUI 时本地打包不可用，须明确选择提交远程；只有接口含 CLI，或含 GUI 且目标平台含 macOS/Windows 时明确选用默认值才取 `local_package`，不得从 Harness 源 `pending` 或未答复推断选择。 |
+| 9 | 首轮基础 | `post_release_action` | 必须从 `local_package`（本地打包，推荐默认）或 `push_release_branch`（提交远程）中明确选择；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 时本地打包不可用，须明确选择提交远程；只有接口含 CLI，或含 GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时明确选用默认值才取 `local_package`，不得从 Harness 源 `pending` 或未答复推断选择。 |
 | 10 | 条件补全 | `gui_framework` | 仅 GUI；先询问 1. Tauri（默认）/ 2. GPUI。未答、留空、跳过或默认取 `tauri`，合法答案复用，非法值重问；写入 Cargo `gui-framework`，与九字段 profile 分开，再复核发布后动作。 |
 | 11 | 条件补全 | `user_owned_tasks` | 仅自定义策略；复用用户对本项目已明确的 Task 选择，不重问；其余逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭时不自动创建；用户明确单次创建不改变永久选择。 |
 | 12 | 条件补全 | `task_worktrees` | 仅自定义策略；询问“是否为 Git 左侧 Task 使用独立工作树”，推荐关闭。明确合法答案直接复用；未回答不能视为确认关闭，不从 Task Tree、自动 Task 或内部并行推断。 |
@@ -118,10 +118,10 @@ node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.m
 - 所有必填字段均为 `已解析`，所有条件字段均为 `已解析` 或 `不适用`；
 - 中英文项目展示名称都为非空已解析值，且至少一个来自用户直接输入；自动翻译的另一名称已列入完整汇总；
 - 推荐预设或六项自定义策略已全部解析，六项最终策略均无 `pending`；
-- `post_release_action` 已由用户明确选择；若选用默认值，须确认接口含 CLI，或含 GUI 且目标平台含 macOS/Windows。最终值只能是 `local_package` 或 `push_release_branch`，且已列入完整汇总；纯 TUI/MCP 或不含 CLI 的仅 Linux GUI 必须为 `push_release_branch`，写入前再次交叉校验接口组合与动作；
+- `post_release_action` 已由用户明确选择；若选用默认值，须确认接口含 CLI，或含 GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows。最终值只能是 `local_package` 或 `push_release_branch`，且已列入完整汇总；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`，写入前再次交叉校验接口组合与动作；
 - GUI 被选择时八项能力与侧栏模式已全部解析，无 `pending`；
 - GUI 框架已解析为 `tauri` 或 `gpui`，来源已进入汇总，非 GUI 时该字段不适用；GPUI 深链接为 unavailable/disabled，其余八项已经确认且托盘/热键符合平台范围，已完成所选五项能力的配置协助询问或合法跳过，且未调用 Tauri 专属基线；
-- 最终发布后动作已按框架复核：GPUI 的 macOS/Windows GUI 本地包使用 `$desktop-build-gpui-release`；不含 CLI 的仅 Linux GUI 必须明确选 `push_release_branch`，CLI 与 GUI 组合按各自打包 Skill 执行；
+- 最终发布后动作已按框架复核：GPUI 的 macOS/Windows/Linux GNU GUI 本地包使用 `$desktop-build-gpui-release`；不含 CLI 的仅 Linux Tauri GUI 必须明确选 `push_release_branch`，CLI 与 GUI 组合按各自打包 Skill 执行；
 - Tauri GUI 中 `deep_link = enabled` 时 `single_instance = enabled`，派生 restore URL 已进入最终汇总；两种 GUI 中 `global_shortcut = enabled` 时空 action contract、零默认 chord、零 OS 注册边界已进入最终汇总；
 - 路径 helper 成功，最终项目根目录通过空目录、路径类型和禁止位置检查；
 - 用户已经确认包含最终项目根目录的完整汇总。

@@ -102,8 +102,9 @@ function fixture(t, { realLifecycle = false } = {}) {
     for (const target of ownership) args.push("--write-target", target);
     return ctx.helper(args);
   };
-  ctx.spawnCreate = (unit, ...ownership) => {
-    const args = [SCRIPT, "create", "--project-root", root, "--source-worktree", source, "--task", "feature", "--unit", unit];
+  ctx.spawnCreate = (unit, ...ownership) => ctx.spawnCreateWithNodeArgs([], unit, ...ownership);
+  ctx.spawnCreateWithNodeArgs = (nodeArgs, unit, ...ownership) => {
+    const args = [...nodeArgs, SCRIPT, "create", "--project-root", root, "--source-worktree", source, "--task", "feature", "--unit", unit];
     for (const target of ownership) args.push("--write-target", target);
     const child = spawn(process.execPath, args, { cwd: source, stdio: ["ignore", "pipe", "pipe"] });
     t.after(() => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); });
@@ -227,8 +228,17 @@ test("concurrent_create_waits_for_short_state_lock_without_manual_retry", async 
   const ctx = fixture(t); const lock = path.join(ctx.commonDir(), "codex-parallel-worktrees", "feature", ".lock");
   const baseHead = runGit(ctx.source, "rev-parse", "HEAD").stdout.trim();
   fs.mkdirSync(lock, { recursive: true });
-  const pending = ctx.spawnCreate("waiting", "src");
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  const marker = path.join(ctx.tempRoot, "waiting-for-lock"), preload = path.join(ctx.tempRoot, "observe_lock_attempt.mjs");
+  fs.writeFileSync(preload, [
+    'import fs from "node:fs";',
+    'const mkdir = fs.mkdirSync; let observed = false;',
+    'fs.mkdirSync = function(file, ...args) {',
+    `  if (!observed && String(file) === ${JSON.stringify(lock)}) { observed = true; fs.writeFileSync(${JSON.stringify(marker)}, "captured-source-head"); }`,
+    '  return mkdir.call(this, file, ...args);',
+    '};',
+  ].join("\n"));
+  const pending = ctx.spawnCreateWithNodeArgs(["--import", preload], "waiting", "src");
+  await waitForFile(marker);
   assert.equal(pending.child.exitCode, null);
   runGit(ctx.source, "commit", "--allow-empty", "-m", "advance source while creation waits");
   fs.rmdirSync(lock);

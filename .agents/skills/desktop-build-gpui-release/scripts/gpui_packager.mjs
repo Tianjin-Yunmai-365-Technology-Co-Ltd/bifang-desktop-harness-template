@@ -1,11 +1,14 @@
 /** cargo-packager 0.11.8 的原生配置、签名和最终资源核对。 */
 import fs from 'node:fs';
 import path from 'node:path';
-import { safePath, sha256 } from './gpui_filesystem.mjs';
+import { safePath, safeRoot, relativePath, sha256 } from './gpui_filesystem.mjs';
+import { findGlobalTool } from './gpui_global_tools.mjs';
 import { TARGETS } from './gpui_config.mjs';
+import { writeNsisTemplate } from './gpui_nsis.mjs';
+import { localDmgSigningHook, macosAgentPlist, verifyLocalBundle } from './gpui_macos_identity.mjs';
 
 /** 生成工具配置而不运行用户 hook，不继承未批准的自动签名配置。 */
-export function packagerConfig({ root, work, config, facts, target, format, resources, signing }) {
+export function packagerConfig({ root, work, config, facts, target, format, resources, signing, localAdhoc = false, binarySha256 }) {
   const result = {
     name: config.package, productName: config.productName, version: facts.version,
     identifier: config.identifier, publisher: config.publisher,
@@ -13,13 +16,15 @@ export function packagerConfig({ root, work, config, facts, target, format, reso
     outDir: path.join(work, 'packages'), targetTriple: target,
     formats: format === 'dmg' ? ['app', 'dmg'] : [format],
     icons: [safePath(root, config.icons[format === 'nsis' ? 'windows' : 'macos'], { type: 'file' })],
-    resources: resources.map(file => ({ src: path.join(work, 'resources', file), target: file })),
+    resources: resources.map(file => ({ src: path.join(work,'resources',relativePath(file.target)), target: file.target })),
   };
   if (format === 'nsis') {
     result.windows = { allowDowngrades: false };
-    result.nsis = { ...config.nsis, installerIcon: result.icons[0] };
+    result.nsis = { ...config.nsis, installerIcon: result.icons[0], template: writeNsisTemplate(work, config.productNameEn, result.resources.map(file => file.target)) };
   } else {
     result.macos = { minimumSystemVersion: config.macos.minimumSystemVersion };
+    result.macos.infoPlistPath = macosAgentPlist(work, config.macos.agent === true);
+    if (localAdhoc && format === 'dmg') result.beforeEachPackageCommand = localDmgSigningHook(work, path.join(result.outDir, `${config.productName}.app`), config.identifier, config.binary, binarySha256);
     if (signing.selection === 'enabled') result.macos.signingIdentity = config.macos.signingIdentity;
     if (format === 'dmg') result.dmg = {
       background: safePath(root, config.macos.background, { type: 'file' }),
@@ -45,7 +50,11 @@ export function signingChoice(selection, source = 'not-requested') {
 }
 
 /** macOS 签名后只有完整公证、stapling 和验证成功才产生候选。 */
-export function finalizeSigning({ run, config, signing, format, artifact, app, env }) {
+export function finalizeSigning({ run, config, signing, format, artifact, app, env, localAdhoc = false }) {
+  if (localAdhoc) {
+    verifyLocalBundle(run, app, config.identifier, env);
+    return { signingStatus: 'ad-hoc', notarizationStatus: 'not-run', signingEvidence: { ...signing, status: 'verified-local-adhoc', remainingRisk: 'Local bundle identity only; notification permission, delivery and distribution trust remain unverified.' } };
+  }
   if (signing.selection === 'disabled') return { signingStatus: 'unsigned', notarizationStatus: format === 'nsis' ? 'not-applicable' : 'not-run', signingEvidence: { ...signing, status: 'unsigned', remainingRisk: 'Operating-system trust and distribution requirements remain unverified.' } };
   if (format === 'nsis') {
     const settings = config.windows.signing;
@@ -59,10 +68,11 @@ export function finalizeSigning({ run, config, signing, format, artifact, app, e
 
 /** 包内资源必须保持源字节，候选每份许可证与更新日志都核对。 */
 export function verifyResources(resourceRoot, sourceRoot, files) {
+  safeRoot(resourceRoot);
   for (const file of files) {
-    const bundled = safePath(resourceRoot, file, { type: 'file' });
-    const source = safePath(sourceRoot, file, { type: 'file' });
-    if (sha256(bundled) !== sha256(source)) throw new Error(`bundled resource bytes differ: ${file}`);
+    const bundled = safePath(resourceRoot, file.target, { type: 'file' });
+    const source = safePath(sourceRoot, file.source, { type: 'file' });
+    if (sha256(source) !== file.sha256 || sha256(bundled) !== file.sha256) throw new Error(`bundled resource bytes differ: ${file.target}`);
   }
   return 'byte-identical';
 }
@@ -70,14 +80,14 @@ export function verifyResources(resourceRoot, sourceRoot, files) {
 /** 读取最终应用 plist，核对显示壳层以外的稳定安装身份与版本。 */
 export function verifyMacIdentity(run, app, config, facts) {
   const plist = safePath(app,'Contents/Info.plist',{ type: 'file' });
-  for (const [field,expected] of [['CFBundleIdentifier',config.identifier],['CFBundleExecutable',config.binary],['CFBundleShortVersionString',facts.version]]) {
+  for (const [field,expected] of [['CFBundleIdentifier',config.identifier],['CFBundleExecutable',config.binary],['CFBundleShortVersionString',facts.version],['LSUIElement',config.macos.agent ? 'true' : 'false']]) {
     if (run('plutil',['-extract',field,'raw','-o','-',plist],{ quiet: true }).stdout.trim() !== expected) throw new Error(`macOS bundle identity differs: ${field}`);
   }
   return 'verified';
 }
 
 /** 最终 DMG 只读挂载；不接受 SLA、不修改布局或候选字节。 */
-export function verifyDmg({ run, artifact, mount, root, config, facts, resources, binarySha256 }) {
+export function verifyDmg({ run, artifact, mount, root, config, facts, resources, binarySha256, localAdhoc = false, env }) {
   fs.mkdirSync(mount);
   let attached = false;
   try {
@@ -87,6 +97,7 @@ export function verifyDmg({ run, artifact, mount, root, config, facts, resources
     if (apps.length !== 1) throw new Error('DMG must contain exactly one application bundle');
     const app = safePath(mount, apps[0], { type: 'directory' });
     verifyMacIdentity(run,app,config,facts);
+    if (localAdhoc) verifyLocalBundle(run, app, config.identifier, env);
     const store = safePath(mount, '.DS_Store', { type: 'file' });
     if (!fs.statSync(store).size) throw new Error('DMG Finder layout is missing');
     const background = safePath(mount, `.background/${path.basename(config.macos.background)}`, { type: 'file' });
@@ -99,10 +110,11 @@ export function verifyDmg({ run, artifact, mount, root, config, facts, resources
   } finally { if (attached) run('hdiutil', ['detach',mount], { quiet: true }); }
 }
 
-/** NSIS 只读解包到本次暂存区；没有显式项目内解包器时不安装应用来取证。 */
-export function verifyNsis({ run, root, config, artifact, destination, resources, binarySha256 }) {
-  if (!config.windows.extractor) throw new Error('NSIS candidate requires an approved project-local 7z/7zr extractor; local packages remain unverified');
-  const extractor = safePath(root, config.windows.extractor, { type: 'file' });
+/** NSIS 只读解包到本次暂存区；没有显式全局解包器时不安装应用来取证。 */
+export function verifyNsis({ run, root, config, artifact, destination, resources, binarySha256, environment = process.env, platform = process.platform }) {
+  if (!config.windows.extractor) throw new Error('NSIS candidate requires an approved global 7z/7zr extractor; local packages remain unverified');
+  const extractor = findGlobalTool(root, config.windows.extractor, platform, environment);
+  if (!extractor) throw new Error('approved global NSIS extractor is missing from PATH');
   fs.mkdirSync(destination);
   run(extractor, ['x','-y',`-o${destination}`,artifact], { quiet: true });
   const matches = [];
@@ -110,12 +122,19 @@ export function verifyNsis({ run, root, config, artifact, destination, resources
     for (const file of fs.readdirSync(directory)) {
       const full = safePath(destination, path.relative(destination, path.join(directory, file)).split(path.sep).join('/'));
       if (fs.lstatSync(full).isDirectory()) walk(full);
-      else if (file === 'release-notes.json') matches.push(path.dirname(full));
+      else if (file === 'release-notes.json' && fs.existsSync(path.join(path.dirname(full),`${config.binary}.exe`))) matches.push(path.dirname(full));
     }
   }
   walk(destination);
-  if (matches.length !== 1) throw new Error('NSIS must contain one release-notes resource');
-  verifyResources(matches[0], root, resources);
-  if (sha256(safePath(matches[0], `${config.binary}.exe`, { type: 'file' })) !== binarySha256) throw new Error('NSIS binary differs from this build');
+  const verified = [], failures = [];
+  for (const candidate of matches) {
+    try {
+      if (sha256(safePath(candidate, `${config.binary}.exe`, { type: 'file' })) !== binarySha256) throw new Error('NSIS binary differs from this build');
+      verifyResources(candidate, root, resources);
+      verified.push(candidate);
+    } catch (error) { failures.push(error); }
+  }
+  if (!verified.length && failures.length) throw failures[0];
+  if (verified.length !== 1) throw new Error('NSIS must contain one complete application resource root');
   return 'final-installer-byte-identical';
 }

@@ -1,6 +1,8 @@
-# 2026-10-10 变更记录
+# 2026-10-19 变更记录
 
 ## 变化
+
+- `HARNESS-GPUI-ENGINEERING-KNOWLEDGE`（`required_version = pending`，仅正式发布时按当前分钟物化）：GUI 工程知识按依赖/兼容、适配器、性能与打包分工，新增两个按需 Skill 与工程索引，适配器和打包细节下沉自含 references。版本区分声明下界、当次解析与本地补丁；性能保存测量合同和资源/任务机制，不导入下游产品参数或历史数值。完整传播 Linux GNU x64/ARM64 的 deb/tar.gz 工具、资源和 ELF 校验，Linux GPUI 可选本地打包，Tauri 平台边界保持；取代旧 GPUI 仅 macOS/Windows 打包限制。独立打包 CLI 改为全局 PATH 的明确版本/路径校验，setup 安装前核对全局目的地，Windows 解包器只接受显式全局命令。初始化、升级条件所有权与框架裁剪同步；现有开发循环、策略 schema 5、产品身份与已确认能力保持，不借此执行构建、签名、验收、发布或全量下游升级。
 
 - `HARNESS-FEAT-TASK-AUTONOMY-GPUI-SKILLS`（`required_version = 202610101414`，已在本次正式发布取号时物化）：自动左侧 Task 只按项目 `user_owned_tasks`，默认关闭并持久记录明确选择；单次新建不改变开关。Task/工作树合同集中为 `$desktop-task-workflow`，原三个入口兼容路由。已授权范围继承阅读、实现、开发检查、同范围修复及本地提交，不重复人工绑定或逐单元审批；仅用户明确要求才阶段隔离。独立工作树用短锁预留所有权并在锁外并发 checkout/登记，同一 Local cwd 和共享状态写入串行。取代下列旧记录的全局 Task 覆盖、无条件阶段拆分和项目单写入限制，环境选择、中文提交与原身份保护继续适用。GPUI 新下游离线安装官方 `gpui-kit`、`gpui-kit-design-guides` 固定快照，保留原文、Apache 许可与摘要；非 GPUI 不安装，升级保护项目本地副本。
 

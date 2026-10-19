@@ -190,3 +190,13 @@ test("extracted_gui_skills_preserve_framework_and_initialization_ownership", t =
   f.write(f.target, initial, "stale E2E\n");
   assert.equal(f.classification(f.plan(2), initial), "tombstone_present");
 });
+
+/** 新工程知识严格随GPUI传播，Tauri与无GUI候选不得获得这些资产。 */
+test("gpui_engineering_knowledge_is_conditional_and_framework_scoped", () => {
+  const files = [".agents/skills/desktop-manage-gpui-dependencies/SKILL.md", ".agents/skills/desktop-optimize-gpui-performance/references/measurement.md", "docs/GUI_ENGINEERING.md"];
+  for (const relative of files) {
+    assert.equal(inapplicableGuiCandidate(relative, {interfaces:["gui"],guiFramework:"gpui"}), false);
+    assert.equal(inapplicableGuiCandidate(relative, {interfaces:["gui"],guiFramework:"tauri"}), true);
+    assert.equal(inapplicableGuiCandidate(relative, {interfaces:["cli"],guiFramework:null}), true);
+  }
+});

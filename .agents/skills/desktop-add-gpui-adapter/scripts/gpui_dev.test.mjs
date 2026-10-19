@@ -7,10 +7,52 @@ import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { startGpuiDev, snapshotInputs } from './gpui_dev.mjs';
+import { startGpuiDev, snapshotInputs, observeOwnedProcessGroup, knownOwnedProcessGroup } from './gpui_dev.mjs';
 import { renderDefaultConfig } from '../../desktop-build-gpui-release/scripts/gpui_config.mjs';
 
 const runner = fileURLToPath(new URL('./gpui_dev.mjs', import.meta.url));
+
+/** 关闭回调遇到权限错误必须得到未知值，只有ESRCH才能证明组消失。 */
+test('owned_group_observation_preserves_unknown_without_throwing', () => {
+  const handle = { child: { pid: 1234 }, exited: true };
+  const denied = Object.assign(new Error('denied'), { code: 'EPERM' });
+  assert.deepEqual(observeOwnedProcessGroup(handle, () => { throw denied; }), { status: 'unknown', error: denied });
+  assert.deepEqual(observeOwnedProcessGroup(handle, () => { throw Object.assign(new Error('gone'), { code: 'ESRCH' }); }), { status: 'gone' });
+  let requested;
+  assert.deepEqual(observeOwnedProcessGroup(handle, (pid, signal) => { requested = [pid, signal]; }), { status: 'present' });
+  assert.deepEqual(requested, [-1234, 0]);
+});
+
+/** 瞬时权限未知在同一owned组上重查，随后ESRCH才允许收尾。 */
+test('owned_group_transient_unknown_retries_until_confirmed_gone', async () => {
+  const handle = { child: { pid: 1234 }, exited: true };
+  let observations = 0;
+  const status = await knownOwnedProcessGroup(handle, { intervalMs: 1, observe: current => {
+    assert.equal(current, handle);
+    return ++observations === 1 ? { status: 'unknown', error: new Error('EPERM') } : { status: 'gone' };
+  } });
+  assert.equal(status, 'gone'); assert.equal(observations, 2);
+});
+
+/** leader已退出仍不能忘记活后代；持续不可观测或未退出保持明确失败。 */
+test('owned_group_persistent_unknown_or_live_descendants_never_report_cleanup', async () => {
+  const handle = { child: { pid: 1234 }, exited: true };
+  assert.equal(await knownOwnedProcessGroup(handle, { observe: () => ({ status: 'present' }) }), 'present');
+  for (const status of ['unknown', 'present']) {
+    await assert.rejects(knownOwnedProcessGroup(handle, { requireGone: true, timeoutMs: 5, intervalMs: 1, observe: () => ({ status, error: new Error('EPERM') }) }), /cleanup remains unverified/);
+  }
+});
+
+/** leader退出后经历未知，即使同数字进程组再出现也不能恢复信号发送资格。 */
+test('exited_leader_unknown_then_present_does_not_restore_group_identity', async () => {
+  const handle = { child: { pid: 1234 }, exited: true };
+  let observations = 0;
+  await assert.rejects(knownOwnedProcessGroup(handle, { timeoutMs: 5, intervalMs: 1, observe: () => (
+    ++observations === 1 ? { status: 'unknown', error: new Error('EPERM') } : { status: 'present' }
+  ) }), /cleanup remains unverified/);
+  assert.equal(handle.groupIdentityUncertain, true);
+  assert.ok(observations >= 2);
+});
 
 /** 非默认包名/二进制名、含空格目录与未跟踪外部词典的 build.rs 覆盖真实 Cargo 缓存边界。 */
 function fixture() {

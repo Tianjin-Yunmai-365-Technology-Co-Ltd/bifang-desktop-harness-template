@@ -20,6 +20,8 @@ import { loadGpuiKitSkillsSnapshot } from "../../.agents/skills/desktop-initiali
 export const EXPECTED_SKILLS = new Set([
   "desktop-task-workflow",
   "desktop-manage-dependencies",
+  "desktop-manage-gpui-dependencies",
+  "desktop-optimize-gpui-performance",
   "desktop-review-core-boundaries",
   "desktop-record-adr",
   "desktop-handoff-project",

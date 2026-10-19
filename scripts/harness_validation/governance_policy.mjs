@@ -118,7 +118,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0 || !Array.isArray(selectedPlatforms)) {
       fail(errors, "local_package requires persisted interfaces and target-platforms metadata");
     } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, metadata?.["gui-framework"] ?? "tauri")) {
-      fail(errors, "local_package requires CLI or GUI with a macOS/Windows target; otherwise select push_release_branch");
+      fail(errors, "local_package requires CLI, GPUI GNU Linux, or GUI with a macOS/Windows target; otherwise select push_release_branch");
     }
   }
   for (const field of ["confirmed_by", "confirmed_at"]) {

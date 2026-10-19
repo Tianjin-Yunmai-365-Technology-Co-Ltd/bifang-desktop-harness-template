@@ -1,5 +1,7 @@
 # Rust 共享核心与可选适配器初始化基线
 
+GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.md) 分派；只在当前任务需要时读取对应 Skill。
+
 本文档定义下游项目初始化时采用的默认 Rust 技术基线。Harness 根目录不实现、接收或记录具体产品需求；中性初始化资产位于 `$desktop-initialize-rust-project` 的资产。下游可以在产品目的与核心输入输出尚未确定、规格仍为 `Draft` 时先建立工作区，但不得借初始化推测业务。即使用户在 Harness 源或中性初始化阶段同时提供产品目的、业务规则、专属 UI/数据、远程地址、凭据或发布需求，也必须拒绝并要求初始化完成、切换到唯一终端下游根目录后重新提出。若真实产品需要其他语言或不同架构，必须在终端下游先通过范围闸门并在当日 `docs/adr/YYYYMMDD_ADR.md` 记录理由、风险、适用范围和恢复或迁移标准。
 
 通用工程规则以 [`docs/ENGINEERING_RULES.md`](ENGINEERING_RULES.md) 为唯一详细来源。本文件补充 Rust 工作区、共享核心、Tokio 与可选适配器；CLI 专属规则只在选择 CLI 时适用。
@@ -13,7 +15,7 @@
 - GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助页、单实例、全局快捷键和侧栏；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。选完五项桌面能力后必须询问是否协助配置，具体产品动作在终端下游根目录确认。初始化必须读取 `$desktop-add-gpui-adapter` 的 `references/dependency-baseline.md`（仅 GPUI 下游保留），参考工程的运行时、序列化、时间、数值、存储、网络和资源库按真实用途选用，不把整张依赖表无条件装入中性壳层。三候选Logo规则通用，资源/图标路径交给GPUI Skill。仅用户明确授权的工程验证临时项目可采用参考中性图，不能报告正式身份已通过。
 - GPUI初始化运行相关非空Rust测试、真实 `cargo build` 和Computer Use，验证实际窗口、侧栏、设置、语言/主题、条件支持页与关闭退出；不调用Tauri插件结构检查。清理隔离偏好与owned进程后才裁剪初始化能力/创建独立基线，不把本机调试结果当候选验收或其他平台证明。
 - GPUI 的 `pnpm dev` 开发入口、保存后重编译/重启和进程内临时状态重置边界见 `$desktop-add-gpui-adapter` 的“根 pnpm 工程入口”；不安装第三方 watcher，也不把 GPUI Shell 的 JavaScript 热重载当作原生 Rust HMR。
-- GPUI 本地打包使用独立 `$desktop-build-gpui-release`，原生 macOS 应用包/DMG 与 Windows x64 NSIS 可选择 `local_package`；仅 Linux 且无 CLI 仍须明确选 `push_release_branch`。它通过项目根 `pnpm run gpui:package` 调用独立 Node helper，不依赖 Tauri 配置或前端测试，普通本地试包与正式候选分别走 `local`/`candidate` 模式。
+- GPUI 本地打包使用独立 `$desktop-build-gpui-release`，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；仅 Linux Tauri 且无 CLI 仍须明确选 `push_release_branch`。它通过项目根 `pnpm run gpui:package` 调用独立 Node helper，不依赖 Tauri 配置或前端测试，普通本地试包与正式候选分别走 `local`/`candidate` 模式。
 
 GPUI 项目根生成无 npm 第三方依赖的 `package.json`，声明 `engines.node >=24.21.0`、`engines.pnpm >=12.4.1`，统一提供 `validate`、`test`、`release:inspect`、`release:notes`、`release:context`、`release:git` 和 `gpui:package` 脚本。以 `pnpm run <script> [参数]` 调用；发布命令继续保留版本、上下文与授权门禁。新增 adapter 或迁移已有项目时保留根清单中的其他字段，同名脚本或兼容范围冲突先停止，不覆盖产品配置。脚本 runner 无需安装 npm 依赖，不要求前端测试或 pnpm 锁文件。
 

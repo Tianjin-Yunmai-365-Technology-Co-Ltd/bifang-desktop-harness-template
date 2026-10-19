@@ -153,8 +153,9 @@ export function readInterfaceSelection(root) {
 
 /** GUI 条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
 export function inapplicableGuiCandidate(relative, selection) {
+  if (relative === "docs/GUI_ENGINEERING.md") return selection.guiFramework !== "gpui";
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
-  if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-add-gpui-autostart", "desktop-test-gpui-initialization-e2e"].includes(skill)) return selection.guiFramework !== "gpui";
+  if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-manage-gpui-dependencies", "desktop-optimize-gpui-performance", "desktop-add-gpui-autostart", "desktop-test-gpui-initialization-e2e"].includes(skill)) return selection.guiFramework !== "gpui";
   if (TAURI_SKILLS.has(skill)) return selection.guiFramework !== "tauri";
   if (skill === "desktop-prepare-gui-app-identity") return !selection.interfaces.includes("gui");
   return false;
