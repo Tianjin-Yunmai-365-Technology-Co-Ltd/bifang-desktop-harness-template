@@ -36,4 +36,4 @@ macOS 真实投递需要已打包的 `.app` 和系统许可，普通调试进程
 
 当前托盘和后台热键限 macOS/Windows；Linux 热键后端不能可靠报告注册失败，因此当前不启用。Windows 热键库内部释放监听线程不暴露 join；Harness 只拥有管理器、绑定和自身轮询 Task，不宣称回收第三方内部线程。Windows 前台策略可拒绝抢焦点，此时恢复显示并闪烁提示。自启在 Windows 仅操作 HKCU，不调用上游会删除 HKLM 的 disable；含空格路径加引号，macOS XML/Linux XDG 无法安全编码的路径在写入前失败关闭。
 
-Linux 独立原生桥的会话探测、托盘恢复门禁、通知 owner 与 Portal/X11 热键方案见 [Linux 原生宿主方案](linux-native.md)。它们属于经批准后按需实现的机制；不改写上述 Kit 接口快照，不替代真实接线、用户授权与目标宿主验证。
+Linux 独立原生桥的会话探测、托盘恢复门禁、任务栏状态、通知 owner 与 Portal/X11 热键方案见 [Linux 原生宿主方案](linux-native.md)。登录项完整命令/禁用状态读取、旧项显式迁移和隐藏启动见其中的 [登录项章节](linux-native.md#登录项与隐藏启动)，当前 renderer 尚未生成这些扩展。它们属于经批准后按需实现的机制；不改写上述 Kit 接口快照，不替代真实接线、用户授权与目标宿主验证。

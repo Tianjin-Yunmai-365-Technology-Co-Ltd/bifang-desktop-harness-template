@@ -19,7 +19,8 @@ Linux 知识按既有 Skill 职责维护；只读取当前问题对应的引用�
 | 问题 | 知识入口 | 判断边界 |
 | --- | --- | --- |
 | GNU x64/ARM64 系统依赖、root 接续、旧进程 PATH | [环境恢复](../.agents/skills/desktop-check-development-environment/references/development-environment-gates.md#linux-gpui-专项恢复) | 系统安装、原用户 Rust target 复探与真实链接探针分开判断 |
-| X11/XWayland 窗口、托盘恢复、Dock、通知及 Portal 热键 | [Linux 原生宿主方案](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | 中性 renderer 仍拒绝 Linux 托盘/后台热键生成，独立方案不解除限制 |
+| X11/XWayland 窗口、托盘恢复、任务栏/Dock、通知及 Portal 热键 | [Linux 原生宿主方案](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | EWMH 请求与真实桌面效果分开；中性 renderer 仍拒绝 Linux 托盘/后台热键生成 |
+| 登录项读回、旧项迁移、隐藏启动与显窗恢复 | [Linux 登录项与隐藏启动](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md#登录项与隐藏启动)、[$desktop-add-gpui-autostart](../.agents/skills/desktop-add-gpui-autostart/SKILL.md) | 读取跟随真实写入驱动；扩展须独立接线，不因模板生成或旧候选通过宣称已验证 |
 | D-Bus、X11 与 Portal 的依赖选择 | [依赖矩阵](../.agents/skills/desktop-manage-gpui-dependencies/references/dependency-matrix.md) | 按真实消费者裁剪 features，声明依赖不等于服务接线 |
 | 静态首帧、共享设置缓存吞掉首次发布 | [资源与缓存](../.agents/skills/desktop-optimize-gpui-performance/references/resources-and-caches.md)、[运行时与需求](../.agents/skills/desktop-optimize-gpui-performance/references/runtime-and-demand.md) | 正式帧请求和消费者初始化分别回归，不把正确性修复写成性能测量 |
 | deb/tar.gz、交叉链接、权限、图标及 glibc | [Linux 打包合同](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md) | 宿主测试、最终包校验与目标运行验收分别记录 |

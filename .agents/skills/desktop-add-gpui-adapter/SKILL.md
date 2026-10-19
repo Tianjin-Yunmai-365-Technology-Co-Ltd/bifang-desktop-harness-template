@@ -15,7 +15,7 @@ GPUI 下游创建时安装项目本地官方 `$gpui-kit` 与 `$gpui-kit-design-g
 
 初始化及运行时/能力接线读 [runtime-and-native](references/runtime-and-native.md)；侧栏/关于/赞助页变更读 [shell-surfaces](references/shell-surfaces.md)；根 pnpm 脚本或开发循环变更读 [workspace-tooling](references/workspace-tooling.md)。只读取命中主题，保留九字段、禁用裁剪与已有产品接线。
 
-Linux 窗口、托盘恢复、Dock、通知或后台热键变更，再读 [Linux 原生宿主方案](references/linux-native.md)。其中记录可复用机制及验证边界；当前中性 renderer 仍拒绝 Linux 托盘和后台热键生成，已有下游实现与历史候选通过不改变此限制。
+Linux 窗口、托盘恢复、任务栏/Dock、自启、通知或后台热键变更，再读 [Linux 原生宿主方案](references/linux-native.md)。其中记录可复用机制及验证边界；当前中性 renderer 仍拒绝 Linux 托盘和后台热键生成，完整登录命令校验、旧项迁移和隐藏启动协调也未生成。已有下游实现与历史候选通过不改变这些事实。
 
 1. 按 `AGENTS.md` 读取当前任务命中的工程与 Rust 规范；GUI 设计只读 `docs/design_standards/README.md` 与 `docs/design_standards/gpui_gui.md`。初次中性初始化复用初始化器已经确认的身份、接口、目标平台和九项 GUI profile，不要求 Product Spec、ADR、Work Plan、版本分类或发布上下文。初始化后新增接口才按 `$desktop-manage-version` 处理已批准 feature。
 
