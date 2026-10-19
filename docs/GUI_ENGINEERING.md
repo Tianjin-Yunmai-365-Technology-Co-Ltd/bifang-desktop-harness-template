@@ -24,6 +24,8 @@ Linux 知识按既有 Skill 职责维护；只读取当前问题对应的引用�
 | D-Bus、X11 与 Portal 的依赖选择 | [依赖矩阵](../.agents/skills/desktop-manage-gpui-dependencies/references/dependency-matrix.md) | 按真实消费者裁剪 features，声明依赖不等于服务接线 |
 | 静态首帧、共享设置缓存吞掉首次发布 | [资源与缓存](../.agents/skills/desktop-optimize-gpui-performance/references/resources-and-caches.md)、[运行时与需求](../.agents/skills/desktop-optimize-gpui-performance/references/runtime-and-demand.md) | 正式帧请求和消费者初始化分别回归，不把正确性修复写成性能测量 |
 | deb/tar.gz、交叉链接、权限、图标及 glibc | [Linux 打包合同](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md) | 宿主测试、最终包校验与目标运行验收分别记录 |
+| Tauri deb/AppImage、托盘运行库、非 ASCII 产品名派生的非法 Debian 包名 | [Tauri Linux 本地试包与宿主要点](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md) | 只规范安装标识并核对 payload 不变；本地试包不构成 Linux 候选证据 |
+| Tauri 测试临时目录、用户数据隔离、平台目录表与 WebView 资产 origin | [Tauri Linux 本地试包与宿主要点](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md#测试与发现逻辑) | 平台规则放 core 纯函数可跨宿主测试；真实桌面行为仍需目标宿主验收 |
 
 下游历史候选只证明其精确源码、最终字节、架构、桌面会话和场景；其它版本或平台不继承通过状态。产品能力矩阵及原始验收记录留在下游，Harness 只沉淀中性机制与取证要求。新增引用沿已有 GPUI 条件 Skill 传播，不把产品知识库、身份、业务参数或来源锁反向复制进模板。
 

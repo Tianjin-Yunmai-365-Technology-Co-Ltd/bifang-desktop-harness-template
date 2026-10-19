@@ -83,7 +83,7 @@ GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-b
 - “发布前推送开发进度”：使用 `publish` 普通合并本发布周期登记的开发分支，切换到动态默认主分支并推送；不创建 tag，也不清理登记资源。`--remote` 指定唯一主远端；只有你明确要求“也推送到某远端”时，才为该次 `publish` 增加一个可重复的 `--also-remote <name>`。所有目标会在首个 push 前解析；同一最终 HEAD、目标顺序和逐项确认进度只在未完成的 `pendingPublish` 中临时保存，成功即清除。补充远端不改绑，也不参与 release、tag 或清理。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
 - GPUI 的普通“构建/打包”：使用 `$desktop-build-gpui-release` 的 `local` 模式，生成当前工作树的开发试包；明确发布候选或 Git 发布后的本地打包才使用 `candidate` 模式。
-- “在 Windows 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
+- “在 Windows 或 Linux 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，或同架构 deb/AppImage，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
 - “发布”：使用 `$desktop-prepare-release` 整理本次范围、按当前上海时间取得 Harness 版本（下游使用语义化版本门禁）、提交源码和发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并本地默认主分支并创建、复读版本 tag。`--release-context-sha256 <sha256>` 绑定已跟踪上下文；Git 发布完成后执行并检测持久选择的后续动作。
 - “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写 `release` 分支，依次同步远端 advertised 默认主分支、同名 release 分支和 tag，逐项及最终联合复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
 - “本地打包”后续路径：在已有 Git 发布完成后按接口和框架使用 `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。

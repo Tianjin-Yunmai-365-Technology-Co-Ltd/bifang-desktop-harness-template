@@ -34,7 +34,7 @@ GUI 依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI
 | Task、工作树、子任务权限与并行调度 | `docs/AGENT_POLICY.md` 的项目选择；统一 Skill 的按需引用 | `$desktop-task-workflow`；默认不自动创建左侧 Task，Local 同 cwd 串行，独立 Worktree 尽量并行 |
 | 内部并行 Worktree/Subagent 或提交 | 统一 Skill 的并行引用；提交时读提交规范 | `$desktop-task-workflow`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-handoff-project`；持久计划另按触发调用 `$desktop-plan-change` |
-| Windows Tauri GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
+| Windows/Linux Tauri GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；Linux 另读其 `references/tauri-linux.md`；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
 | 显式构建候选 | `docs/RELEASE.md`、Agent Policy 的构建段和所选构建 Skill；每次构建单独解析 E2E 选择 | `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release` |
 | 正式发布候选、完整验收、E2E 或历史证据核对 | `docs/RELEASE.md`、`docs/VERIFICATION.md`；活动候选读忽略的 `release/`，仅历史核对读索引的精确证据卷 | `$desktop-prepare-release`、`$desktop-verify-delivery` 或精确命中的测试 Skill |
 | 长期决定、硬规则例外或 Harness 记忆治理 | `docs/adr/README.md` 与最新 ADR；只追溯其明确引用的旧事实 | `$desktop-record-adr`；Harness 历史整理使用 `$desktop-curate-harness-memory` |

@@ -44,7 +44,7 @@ description: 从 clean HEAD 构建下游 Tauri 2 GUI 发布候选；支持 macOS
 
 ## 边界
 
-- 当前合同覆盖 macOS 原生 DMG、Windows 原生 x64 NSIS 与 macOS→Windows x64 NSIS；真实前向证据仍只覆盖既有路线，Windows 原生安装/运行、Linux GUI、Windows MSI 和其他架构保持 `Unverified`，直到对应最终候选 E2E/验收实际通过。
+- 当前合同覆盖 macOS 原生 DMG、Windows 原生 x64 NSIS 与 macOS→Windows x64 NSIS；真实前向证据仍只覆盖既有路线，Windows 原生安装/运行、Linux GUI、Windows MSI 和其他架构保持 `Unverified`，直到对应最终候选 E2E/验收实际通过。Linux 本地试包和宿主要点见 `$desktop-build-tauri-local-install` 的 `references/tauri-linux.md`，本地试包通过不构成 Linux 候选证据。
 - 不自动安装 Homebrew，不创建、索取、导出、显示或上传安装包签名、公证或 updater 私钥凭据，也不修改项目签名身份。
 - macOS 安装包签名意图与机器可用性严格分离：没有已批准持久配置、本次主动要求或渠道硬要求时固定 unsigned，并且不运行身份/凭据/在线公证探测；一旦明确启用则完整签名、公证、staple，任一步失败都阻断而不降级。
 - 不创建标签、Releases、商店提交、更新 feed；也不移动标签、上传更新制品。始终只读验证已完成 Git 发布创建的本地版本 tag；远端候选仅在另行授权推送完成后验证已推送的远端 tag；构建授权不等于渠道发布授权。
@@ -52,7 +52,7 @@ description: 从 clean HEAD 构建下游 Tauri 2 GUI 发布候选；支持 macOS
 - 固定 updater 插件安装与 `updaterEnabled` 发布门是两件事：所有 GUI 保留 Rust-only 插件与 `NotConfigured` 零出站基线，只有 `updaterEnabled: true` 才生成、签名和声明更新 archive。安装包代码签名与 updater 制品签名是独立门禁；安装包公证另按渠道门禁执行。渠道允许安装包 `unsigned` 不代表 updater archive 可不签名；发布门启用后签名制品缺失或验证失败必须阻断。
 - 构建请求、执行、成功、失败、重试和结果本身不触发任何项目记忆；候选 E2E 与完整验收只把结构化证据和状态原子写入忽略的 `release/` manifest 及其声明证据。渠道分发成功或独立回顾审计如触发后续 tracked 记录，必须作为独立事件处理，且不得反向批准活动或历史候选。
 - 普通构建永不自动暂存或提交工作树；用户独立请求的候选构建只消费已发布的 clean 默认主分支和 tag。
-- 普通 Windows 本地试包由 `$desktop-build-tauri-local-install` 独立处理；不得为了满足本 Skill 的 clean HEAD、更新日志或 E2E 门禁而询问是否把任务升级为发布。
+- 普通 Windows/Linux 本地试包由 `$desktop-build-tauri-local-install` 独立处理；不得为了满足本 Skill 的 clean HEAD、更新日志或 E2E 门禁而询问是否把任务升级为发布。
 - 本 Skill 不创建标签、Releases、商店提交或更新 feed；验证 Git 发布生命周期的本地主分支/tag；本 Skill 的 GUI 路线在当前宿主构建，不因仓库存在远端就自动调用 provider。
 - stapling 与最终只读 Finder 布局检查均通过后的字节才是候选。此后任何布局补写、签名、公证、stapling 或重打包都会产生新候选并返回 `$desktop-verify-delivery`。
 
