@@ -10,6 +10,21 @@
 | 异步/队列/重绘/缓存/图片性能 | [$desktop-optimize-gpui-performance](../.agents/skills/desktop-optimize-gpui-performance/SKILL.md) | 定场景、测成本、最小修改、行为回归、同条件复测 |
 | 本地试包与发布候选 | [$desktop-build-gpui-release](../.agents/skills/desktop-build-gpui-release/SKILL.md) | 公共生命周期 + 按平台引用，产物与运行验收分开 |
 | 最终候选验收 | 保留的 desktop-verify-delivery / desktop-test-final-artifact-e2e | 真实最终字节和目标宿主，构建通过不代替验收 |
+| Linux 宿主、工具链及能力边界 | 下文 Linux 问题索引与对应 Skill 引用 | 区分中性生成、独立接线、协议回归与目标运行证据 |
+
+## Linux 问题索引
+
+Linux 知识按既有 Skill 职责维护；只读取当前问题对应的引用，不自动安装、构建或运行验收。
+
+| 问题 | 知识入口 | 判断边界 |
+| --- | --- | --- |
+| GNU x64/ARM64 系统依赖、root 接续、旧进程 PATH | [环境恢复](../.agents/skills/desktop-check-development-environment/references/development-environment-gates.md#linux-gpui-专项恢复) | 系统安装、原用户 Rust target 复探与真实链接探针分开判断 |
+| X11/XWayland 窗口、托盘恢复、Dock、通知及 Portal 热键 | [Linux 原生宿主方案](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | 中性 renderer 仍拒绝 Linux 托盘/后台热键生成，独立方案不解除限制 |
+| D-Bus、X11 与 Portal 的依赖选择 | [依赖矩阵](../.agents/skills/desktop-manage-gpui-dependencies/references/dependency-matrix.md) | 按真实消费者裁剪 features，声明依赖不等于服务接线 |
+| 静态首帧、共享设置缓存吞掉首次发布 | [资源与缓存](../.agents/skills/desktop-optimize-gpui-performance/references/resources-and-caches.md)、[运行时与需求](../.agents/skills/desktop-optimize-gpui-performance/references/runtime-and-demand.md) | 正式帧请求和消费者初始化分别回归，不把正确性修复写成性能测量 |
+| deb/tar.gz、交叉链接、权限、图标及 glibc | [Linux 打包合同](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md) | 宿主测试、最终包校验与目标运行验收分别记录 |
+
+下游历史候选只证明其精确源码、最终字节、架构、桌面会话和场景；其它版本或平台不继承通过状态。产品能力矩阵及原始验收记录留在下游，Harness 只沉淀中性机制与取证要求。新增引用沿已有 GPUI 条件 Skill 传播，不把产品知识库、身份、业务参数或来源锁反向复制进模板。
 
 ## 方案选择
 

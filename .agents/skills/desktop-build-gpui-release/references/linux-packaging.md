@@ -27,6 +27,12 @@ pnpm run gpui:package build --root . --mode local --target aarch64-unknown-linux
 
 tar.gz 含产品目录、可执行程序、相邻 resources 与 launch；deb 含 /opt/<identifier>、/usr/bin 转发入口、.desktop 和真实派生的 hicolor/512x512 PNG。资源逐项声明 linux 映射；不从其他平台猜测。双语许可证与第三方许可证按配置进入，candidate 另含相同日志字节。tar 清除 TAR_OPTIONS，并用 -- 结束选项。
 
+发行树的目录、主程序和启动入口显式规范为 `0755`，普通资源为 `0644`，不继承构建账户 umask；受限 `umask 077` 的真实 deb/tar.gz 解包回归逐项核对。hicolor 图标须实际派生为 512×512，桌面标识、`StartupWMClass` 与图标名同源，并核对运行中窗口的 `app_id`。打包工具只校验包内事实，不替代宿主解析 `Exec`、桌面分组与真实 Dock 呈现。
+
 最终包真实解包核对精确集合、权限、ELF64机器类型、二进制/资源摘要；deb 还核对控制文件、架构、glibc最低需求、桌面身份与启动入口。构建不安装或运行应用。manifest 分开 hostTarget、target、native/cross-architecture、宿主测试与 runtimeVerification:Unverified。
 
 签名未实现，启用请求失败关闭。工具支持不代表模板已接所有 Linux 桌面能力，也不代表已有远程 CI。local 写 target，candidate 沿公共候选合同写 release；目标运行/桌面托盘/通知/混合DPI按实际候选另验收。
+
+## 维护与验证入口
+
+修改 Linux 打包脚本时运行 `node --test .agents/skills/desktop-build-gpui-release/scripts/gpui_linux.test.mjs .agents/skills/desktop-build-gpui-release/scripts/gpui_build.test.mjs`。前者覆盖 ELF、交叉工具链及受限 umask 下两种真实格式，后者覆盖构建和候选合同；仅在对应变化需要时运行。真实 Linux 用例在其它宿主可能跳过，须报告实际执行与跳过范围。夹具包及历史候选通过，不改变新候选的 `runtimeVerification:Unverified`；原始验收结果留在下游候选证据中。

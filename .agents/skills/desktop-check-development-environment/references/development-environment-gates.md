@@ -1,6 +1,6 @@
 # 开发环境门禁
 
-只在中性初始化主动门禁，或初始化后真实测试/构建命令已经因受管环境问题失败时使用本参考。它独立于初始化流程，并且在仅用于初始化的 Skills 和文档被删除后继续保留；显式构建、缺少环境证据、新任务或新会话本身都不得触发它。
+常规门禁只在中性初始化主动门禁，或初始化后真实测试/构建命令已经因受管环境问题失败时使用。下文 Linux GPUI 专项恢复另接受用户明确要求该工具链的安装/配置。它独立于初始化流程，并且在仅用于初始化的 Skills 和文档被删除后继续保留；显式构建、缺少环境证据、新任务或新会话本身都不得触发它。
 
 GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri 使用默认参数，GPUI 使用 `--gui-framework gpui`（Windows：`-GuiFramework gpui`）。参数闭集为 `tauri|gpui`，未知值在工具探测前失败。Tauri 与 GPUI 都要求 Node.js/npm 及 pnpm，分别遵守 Node.js 稳定版 `>=24.21.0`、pnpm 稳定版 `>=12.4.1`，供发布、验证等 Node 工程脚本使用。GPUI 不探测或安装 Tauri 的 WebKit/WebView 依赖，不进入 Tauri xwin 路线；具体原生平台库由 `$desktop-add-gpui-adapter` 的实际编译需求决定。
 
@@ -46,6 +46,21 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 - Windows MSVC 使用 `https://aka.ms/vs/17/release/vs_BuildTools.exe`，要求有效的 Microsoft Authenticode 签名；仅在微软安装器明确要求的管理员边界内安装 `Microsoft.VisualStudio.Workload.VCTools`，不得静默获取或绕过权限，然后重新探测。
 - Tauri xwin 只在 macOS、GUI 已选且 Windows x64 NSIS 已批准时触发。LLVM、LLD 与 NSIS 使用既有 Homebrew，但只作为宿主能力探测，不把 formula 当前解析版本写成项目兼容契约；Rust target 使用 rustup，`cargo-xwin` 使用 Cargo 的 `--locked --version '>=0.23.1, <0.24.0'` 安装或升级。缺少 Homebrew 时阻断并报告，不执行远程 shell 安装器。已存在但缺失必需命令的 formula 视为损坏并阻断；低于 0.23.1 的可解析稳定 `cargo-xwin` 升级，`>=0.24.0`、预发布、无法解析或损坏的 `cargo-xwin` 阻断。
 - 只能在本参考规定的触发条件与写入模式下升级现有工具。不得降低最低门禁、回退清单依赖、注入 shim、改用旧版工具或寻找替代工具链来适配旧环境。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装/升级后探测发生失败时，必须阻断开发。
+
+## Linux GPUI 专项恢复
+
+GNU x64/ARM64 的目标系统依赖使用 [linux-gpui-dependencies.sh](../scripts/linux-gpui-dependencies.sh)，不进入 Tauri WebKit 或 xwin 路线。只在用户明确要求该工具链，或真实测试/构建失败已证实相关缺失时调用；默认 `--check-only`，`--install` 才通过既有 apt/dpkg 安装。仅支持既有 Debian/Ubuntu 路线，不安装新包管理器，也不因选择 Linux 目标例行执行。
+
+~~~sh
+bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --check-only --target aarch64-unknown-linux-gnu
+bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --install --target x86_64-unknown-linux-gnu
+~~~
+
+普通用户运行时只让 apt 步骤通过正常 sudo 交互提权，Rust target 在原用户账户准备并复探。整个入口已为 root 时只做系统依赖阶段，不运行 root 的 Rust 工具、不猜测原用户 HOME；`linux.status=pending-original-user` 和退出码 `20` 要求回原用户执行输出的 `rustup target add <target>`，随后重新 `--check-only`。这不是工具链已通过。宿主若已有 pkexec，可由正常 Polkit 认证接续管理员阶段；脚本不会自行调用或安装 pkexec，不注入密码或修改 sudo 策略。
+
+脚本检查成功与打包 `setup` 的真实目标 C++ 编译链接、ELF 核对是两阶段证据；setup 不执行目标程序，也不安装系统依赖。GNU 前缀、开发库、交叉 pkg-config 隔离与链接器合同取 [Linux 打包引用](../../desktop-build-gpui-release/references/linux-packaging.md)。协议测试的 dbus-daemon 仅用于 owned 私有地址，实际桌面可使用 dbus-broker，不要求替换用户 session bus。
+
+工具已安装而旧 Agent 仍报 `command not found` 时，先核对受影响命令的新登录 shell 解析或门禁返回路径，不重复安装。若出现 Snap curl 私有临时目录导致的 `curl: (23)` 写入失败，核对后可使用已安装的原生 `/usr/bin/curl`，或为本次恢复将标准 TMPDIR 指向用户已有可访问目录；这是条件排障，不是 helper 自动选择行为。保持下载 TLS/摘要校验与原 HOME，不能用测试覆盖绕过安装安全措施。
 
 ## Windows 自动安装受阻后的人工接续
 

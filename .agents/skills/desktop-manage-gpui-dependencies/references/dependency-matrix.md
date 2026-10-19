@@ -20,4 +20,6 @@
 
 Linux 原生方案分别核对：StatusNotifierItem/会话 D-Bus 托盘（如 `tray-icon/ksni`，不强塞 GTK 循环）、X11/XWayland 原生窗口、Wayland Portal 快捷键与用户批准。声明依赖、实际后台服务接线、注册回执、目标宿主验收是四项独立证据。解除 renderer 限制必须先有完整中性实现与回归，不能只删除 guard。
 
+Linux 依赖按真实消费者选择：会话 D-Bus 客户端可用于托盘宿主探测和通知；X11 客户端按窗口、工作区、输入区域或键盘协议分别裁剪 features；GlobalShortcuts Portal 的依赖准备不等于后台热键服务已接线。具体版本与 target 条件取目标项目 Cargo，不把兼容案例中的完整依赖组合加入中性默认。相关协议与生命周期边界见 [Linux 原生宿主方案](../../desktop-add-gpui-adapter/references/linux-native.md)。
+
 锁策略为 `ignored` 时，本机 Cargo.lock 只代表一次解析；`tracked` 时使用受跟踪锁与 `--locked`。path patch 即使包版本相同也会改变内容身份，报告来源摘要与补丁摘要，不能只报 SemVer。

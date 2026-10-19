@@ -20,9 +20,9 @@ Harness 源只确认中性能力及其固定边界。产品动作、通知内容
 
 配置只能写入下游 profile 的专用块及对应产品事实，不能添加第十个初始化字段或 Agent Policy frontmatter 字段。全局快捷键继续独占既有 contract；未获明确绑定时保持空数组。
 
-## 系统通知官方接口
+## 中性模板的系统通知接口快照
 
-2026-10-09 核对 [GPUI Kit SystemNotification](https://gpui-kit.com/docs/system-notification/) 与 [gpui-kit 0.7.1 API](https://docs.rs/gpui-kit/0.7.1/gpui_kit/)。复用已经声明的 GPUI Kit，不另装通知 crate。启动在 `gpui_kit::init` 后、打开窗口前设置与打包身份一致的 `set_app_identity`。
+2026-10-09 核对 [GPUI Kit SystemNotification](https://gpui-kit.com/docs/system-notification/) 与 [gpui-kit 0.7.1 API](https://docs.rs/gpui-kit/0.7.1/gpui_kit/)。这是中性模板的接口快照，不代表目标产品当前依赖或独立原生桥。复用已经声明的 GPUI Kit，不另装通知 crate。启动在 `gpui_kit::init` 后、打开窗口前设置与打包身份一致的 `set_app_identity`。
 
 原生投递使用 `App::show_system_notification(SystemNotification { tag, title, body, actions })`；仅已批准产品路径可调用，内容有界且不进入日志。返回 `()` 只证明提交，不证明 OS 授权或送达；应用偏好不代表系统权限。中性初始化不发送通知，不覆盖 Kit 安装的全局响应处理器。
 
@@ -35,3 +35,5 @@ macOS 真实投递需要已打包的 `.app` 和系统许可，普通调试进程
 原生托盘、登录项、本地 IPC 和后台热键不能靠标准库与当前 Kit 完整替代；新增第三方 Rust 依赖需先说明理由并取得用户同意。Helper 始终只用 Node 标准库；依赖只按启用能力加入下游 Cargo 工作区，不做全局安装。平台能力缺失或尚未验证必须明确报告，不能以文件生成或单元测试冒充真实宿主结果。
 
 当前托盘和后台热键限 macOS/Windows；Linux 热键后端不能可靠报告注册失败，因此当前不启用。Windows 热键库内部释放监听线程不暴露 join；Harness 只拥有管理器、绑定和自身轮询 Task，不宣称回收第三方内部线程。Windows 前台策略可拒绝抢焦点，此时恢复显示并闪烁提示。自启在 Windows 仅操作 HKCU，不调用上游会删除 HKLM 的 disable；含空格路径加引号，macOS XML/Linux XDG 无法安全编码的路径在写入前失败关闭。
+
+Linux 独立原生桥的会话探测、托盘恢复门禁、通知 owner 与 Portal/X11 热键方案见 [Linux 原生宿主方案](linux-native.md)。它们属于经批准后按需实现的机制；不改写上述 Kit 接口快照，不替代真实接线、用户授权与目标宿主验证。
