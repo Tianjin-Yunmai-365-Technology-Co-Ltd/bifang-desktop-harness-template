@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "8e154fda151e8a0c8758d97d8db19899e86480ab",
-  "version": "202610101414",
-  "releaseDate": "2026-10-10",
-  "expectedTag": "v202610101414-20261010",
+  "sourceHead": "2b7b050fe8ee5fa9540e727be99405971252e486",
+  "version": "202610201054",
+  "releaseDate": "2026-10-20",
+  "expectedTag": "v202610201054-20261020",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "dd7cb97ddfb95242e9ed70d7ed83300dd0832b29",
-    "sourceHead": "8e154fda151e8a0c8758d97d8db19899e86480ab",
-    "scopeDiffSha256": "a5e905f078d57a437d81c6f866185525e02efd7b19cd91d1f0df20b12665fc40",
-    "reviewedSourceCommit": "8e154fda151e8a0c8758d97d8db19899e86480ab",
+    "scopeBase": "e842b15fd49d855a0e7797b6ae644226e170d25c",
+    "sourceHead": "2b7b050fe8ee5fa9540e727be99405971252e486",
+    "scopeDiffSha256": "2535539dc052ce13088a59e983d35d745eed9622e18b2e0e9de6ef14dd6857d5",
+    "reviewedSourceCommit": "2b7b050fe8ee5fa9540e727be99405971252e486",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计差异与登记分支已复核：Task 默认关闭、授权继承、短锁并行及失败资源保留一致；GPUI Kit 固定快照、摘要、Apache 许可、离线安装与升级保护通过。无产品业务/core 或对外接口变化，未发现秘密或未完成实现。Node 回归1121通过、16项平台跳过、零失败；硬门禁、Node-only及发布审查通过。39项提示已按职责复核，无硬超限；第三方原样空白受摘要保护，唯一临时标记为测试夹具。Rust 1.98.1中性资产fmt、Clippy、7项测试及release构建通过。Windows/Linux真实下游与产品候选未验证。",
+    "evidenceSummary": "累计差异及7条登记分支已复核，均包含于sourceHead。初始化唯一表单、按需引用与升级保护保持边界；GPUI三平台打包、工具/资源校验、进程回收和流式发布摘要完成审查。修复Linux候选在编译探针前校验E2E/发布上下文/clean、继承编译器变量污染、Linux试包知识保留及下游文档剥离上游语言禁令遗漏，并经独立复核闭环。根无产品业务，CLI中性状态由core提供、adapter只做语法和协议映射，确定依赖门禁通过。未发现秘密或未完成实现；40项规模/临时提示已按职责复核，无硬超限，唯一临时标记为测试夹具，第三方及历史原文按许可/归档边界保留。最终Node回归1201通过、22宿主条件跳过、零失败；针对性40通过6跳过；硬门禁、发布审查、Node-only及Rust1.98.1 fmt/Clippy/7测试通过。Windows原生安装、Linux真实产品运行、正式签名公证和产品E2E未执行，Tauri deb helper继续受LIM-031本机试包限制。",
     "reason": null,
     "remainingRisk": null
   }
