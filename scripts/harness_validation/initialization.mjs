@@ -29,6 +29,7 @@ import {
   WORK_PLAN,
 } from "./initialization_paths.mjs";
 import { primaryRequiredFragments } from "./initialization_primary_contract.mjs";
+import { validateInitializationFormRouting } from "./initialization_form_contract.mjs";
 import { repositoryRequiredFragments } from "./initialization_repository_contract.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
 
@@ -338,6 +339,7 @@ function validatePrerequisiteScripts(errors) {
     ]],
   ]);
   validateRequiredFragments(errors, required);
+  validateInitializationFormRouting(errors);
 
   const forbidden = new Map([
     [PREREQUISITE_UNIX, [

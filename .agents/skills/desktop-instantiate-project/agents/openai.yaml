@@ -1,4 +1,4 @@
 interface:
   display_name: "实例化项目"
   short_description: "只收集 Harness 初始化信息；表单确认后先门禁 Git，完成中性脚手架后再建立独立仓库与 local 身份"
-  default_prompt: "使用 $desktop-instantiate-project，只收集 Harness 创建终端下游所需的双语名称和固定初始化字段；拒绝接收产品业务需求，并要求我切换至下游后重新提出。表单确认后先门禁 Git，缺失时受管安装；完成中性脚手架后再建立独立仓库与 local 身份，并只在实际创建唯一基线提交前安装提交模板。"
+  default_prompt: "先完整读取 .agents/skills/desktop-instantiate-project/references/initialization-form.md，并使用 initialization_form.mjs --catalog 及同一解析器确定问句、顺序、默认与最新汇总确认；不自行改写表单规则。使用 $desktop-instantiate-project，只收集 Harness 创建终端下游所需的双语名称和固定初始化字段；拒绝接收产品业务需求，并要求我切换至下游后重新提出。表单确认后先门禁 Git，缺失时受管安装；完成中性脚手架后再建立独立仓库与 local 身份，并只在实际创建唯一基线提交前安装提交模板。"

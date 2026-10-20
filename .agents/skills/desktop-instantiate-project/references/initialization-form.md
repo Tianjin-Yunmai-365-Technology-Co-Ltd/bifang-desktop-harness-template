@@ -1,128 +1,94 @@
 # 下游项目初始化表单
 
-收到创建新下游项目的请求后，先完成本表单，再执行 Harness 验证、环境安装、目录创建、复制、Git 初始化或其他写操作。用户已经在当前请求或后续回复中明确给出的合法字段直接记为已解析，不得重复询问。
+本文件是两个初始化入口共用的交互合同。固定问句、选项和字段顺序只在 [initialization_questions.mjs](../scripts/initialization_questions.mjs) 维护；下一问、默认触发、组合校验和汇总摘要只由只读 [initialization_form.mjs](../scripts/initialization_form.mjs) 计算。README、Skill 和 `agents/openai.yaml` 只路由到这里，不再各自定义问询流程。已有项目的持久策略语义仍以 [Agent Policy](../../../../docs/AGENT_POLICY.md) 为准。
 
-## 桌面框架分派
+收到创建请求后先完成表单，再验证 Harness、安装环境或写入目标。用户已明确给出的合法字段直接复用，不重问。不同模型必须使用同一目录和解析器，不自行改写选项含义、调整顺序、扩大默认值或增加表单字段。
 
-程序类型包含桌面应用(GUI) 时，在其他 GUI 条件问题之前单独询问：“要创建哪种桌面应用？1. Tauri（默认）；2. GPUI”。`gui_framework` 规范化为 `tauri` 或 `gpui`；用户未回答、留空、跳过或选择默认值时取 `tauri`，显式非法值重新询问，已给出合法框架不重问。此默认只补全本字段，不视为用户已经确认其余必填项或最终汇总，也不因等待时间经过而授权写入。非 GUI 时字段为 `不适用`，不得询问或持久化。
+## 运行方式与状态
 
-框架是独立初始化事实，GUI 选中时写入根 Cargo metadata 的 `gui-framework`，不增减 `gui-initialization-config` 九字段。没有该 metadata 字段的既有 GUI 按 Tauri 兼容，新初始化必须明确写入。
+首次提问前读取完整合同，并运行只读目录命令：
 
-- Tauri 复用本文既有九项 GUI 问询、四项插件基线与各能力合同。
-- GPUI 使用 `$desktop-add-gpui-adapter`；按同一九字段顺序逐项询问五项桌面能力、关于页、赞助页和侧栏。仅 `deep_link` 当前 unavailable，必须为 disabled；目标含 Linux 时托盘与后台全局快捷键不可用，显式启用须确认禁用或改变目标，不能静默归一化。系统通知复用 GPUI Kit 官方 API；提交不证明权限或送达，自启只提供 OS 状态开关而不自动注册，单实例只恢复窗口，全局快捷键空合同保持零默认注册。实际技术选型读取 GPUI Skill 的 `references/dependency-baseline.md` 与 `references/native-capabilities.md`。不接入 Tauri 固定插件、React/Mantine 或 Tauri 初始化 E2E。
-- `local_package` 适用于接口含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或 Tauri GUI 目标含 macOS/Windows 的组合。Tauri 使用 `$desktop-build-tauri-release`，GPUI 使用独立 `$desktop-build-gpui-release`，后者覆盖本机 macOS `.app`/DMG、Windows NSIS 与 Linux GNU deb/tar.gz；不含 CLI 的仅 Linux Tauri GUI 必须明确选择 `push_release_branch`。CLI 与 GUI 组合仍分别生成对应接口的真实产物，不互相冒充。
+```text
+node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs --catalog
+```
 
-GUI 的基础发布后动作可以先记录用户选择，框架解析后再完成适用性校验；其余基础字段全部合法后即可进入框架单项问询，不能因动作适用性尚待框架而形成循环。框架改变后只重问不再合法的动作或能力，不重问已解析的合法字段。最终汇总必须单列框架、来源、能力可用性、所用模板/E2E 与本地打包边界；以下提到的 Tauri 固定基线和深链提示只在 Tauri 路径适用，全局快捷键空合同边界适用于两种 GUI。
+每次收到用户回复后，把**允许的字段**归一化为下述 JSON，调用 `evaluateInitializationForm(input)`，或通过标准输入调用同一 CLI（不传 `--catalog`）。不把原始整段用户消息、产品内容、远程地址或凭据写进 JSON，不创建会话文件。使用工具的结构化字符串/标准输入传输；不得把用户文本拼进 shell 命令。JSON 只在当前聊天内维护，解析器不写文件、不安装工具、不创建 Git 状态。
 
-## 用户规则优先
+规范输入示例（不是一次真实创建结果）：
 
-先读取用户级 `AGENTS.md`，用户已确认的长期硬规则优先于项目偏好。模板默认和推荐预设保持原值；已有下游既有偏好及确认元数据原样保留。自定义模式直接复用本项目已明确的 Task 选择，不重复询问；汇总分别列出项目值、确认来源与有效执行行为，不启用未授权的其他能力。生成的启动入口必须保留用户规则优先、项目默认关闭、启用时绑定/非 pinned/主动恢复及显式阶段隔离指针。
+```json
+{
+  "schemaVersion": 1,
+  "entry": "instantiate",
+  "harnessRoot": "/absolute/harness-root",
+  "answers": {
+    "name_zh": { "value": "示例工具", "source": "user:本次创建请求" },
+    "name_en": { "value": "Example Tool", "source": "translation:由本次中文名翻译", "basedOn": "示例工具" },
+    "interfaces": { "value": ["cli"], "source": "user:本轮选择" }
+  }
+}
+```
 
-## 交互规则
+- `entry` 为 `instantiate` 时由 `harnessRoot` 和路径 helper 解析新目标。`entry` 为 `initialize` 时必须提供已核实的绝对 `currentRoot`，它就是既定路径，不再询问路径，也不追加项目标识；显式提供另一项目路径会失败，Harness 源也不能直接初始化。
+- `answers` 只保存用户已答字段和已确认项目事实。每项必须包含 `value` 与真实 `source`，前缀仅可为 `user:`、`project:`；只有双语名称允许 `translation:`。不得把源模板的值标成目标项目已确认事实。
+- 实例化名称至少一个来自用户；直接初始化已有项目可以复用此前确认的项目名称。名称空白等同未提供；只有一个名称时，解析器返回 `translation`，Agent 自动翻译并补齐来源，不增加译名问题；翻译答案必须附 `basedOn` 原名，原名变化后解析器要求重译。两个都已提供时不改译。专有名词可采用音译、常见译名或保留原文，译名最终由用户确认。
+- 枚举只使用 catalog 的 `values`；平台/接口为数组，输出按 catalog 固定顺序去重。自然语言和数字答案必须明确绑定当前题目后才能归一化；多题回复中的裸“1/默认/是”无法唯一对应字段时，只追问歧义字段，不猜测，也不向其他字段传播。
+- 缺字段表示尚未答复，继续等待；**无新消息、遗漏答案、等待超时均不算默认或批准**。用户对当前字段明确“默认/跳过”时才传 `default`/`skip`；明确发送空白答复时才传空字符串。仅 catalog 声明默认值的字段接受默认/跳过；空字符串只用于框架和侧栏。程序类型的默认值为 CLI，但未答复仍待问。`task_worktrees` 推荐关闭，未回答不能视为确认关闭。
+- 解析器输出的预设、不可用能力和默认结果不能整包抄回 `answers`；必须保留原始显式答案，否则框架/平台变化后旧派生值可能被误认为用户选择。
+- 未知字段、非法状态结构或伪造来源直接报错，不能借完整汇总确认跳过校验。
 
-- 维护字段状态：`待首轮询问`、`待条件询问`、`待校验`、`已解析`、`不适用`。中文项目展示名称、英文项目展示名称、`project_id`、项目路径、负责人、目标平台、程序类型、Agent 策略模式和发布后动作是固定基础字段；首次问询必须用一份清晰编号的表单，一次列出其中全部尚未解析字段，不得拆成逐字段多轮，也不得用“请提供初始化所需信息”这种无字段提示代替。
-- 中英文项目展示名称至少由用户直接提供一个。只提供中文时，Agent 在本轮解析中自动翻译并补齐英文；只提供英文时自动翻译并补齐中文，不为译名增加单独问询。原名称含难以直译的专有名词、品牌词或造词时，补齐的另一语言名称允许采用音译、约定俗成译名或保留原文形式，不强求逐字语义翻译，只要在目标语言中可读、不产生歧义即可。两个名称都由用户提供时保持原值，不自行改译；两个都未提供时在首轮同时询问。自动翻译得到的名称必须标记来源，并与用户原始名称一起进入最终完整汇总；用户对汇总的确认同时构成对译名的确认，确认前仍不得写入。
-- 首轮回复后先校验全部基础字段。若其中有缺失或非法值，只集中列出仍需修正的基础字段、各自约束和原值问题；已经合法的基础字段继续复用，不得重问。除GUI发布后动作的框架适用性可暂待校验外，基础字段全部解析前不得进入条件问询。
-- `user_owned_tasks` 与 `parallel_worktree_subagents` 是两项独立事实：前者决定是否按结果边界自动创建左侧 user-owned Task，后者只决定当前 Task 内部能否按明确请求并行拆分。不得用其中一项回答、推断或覆盖另一项。
-- `post_release_action` 是独立于 Agent 策略预设的必选事实，提供“本地打包”(`local_package`，推荐默认) 与“提交远程”(`push_release_branch`) 两项。表单始终展示本地打包默认项；不含 CLI 的组合若为纯 TUI/MCP 或仅 Linux Tauri GUI，须标为不可用，因为现有本地候选打包 Skill 覆盖 CLI、GPUI GNU Linux 与 macOS/Windows GUI，并明确要求用户选择 `push_release_branch`。用户明确选择默认值时，仅在已选接口包含 CLI、已选择 GPUI GUI，或包含 Tauri GUI 且目标平台含 macOS/Windows 时解析为 `local_package`；其余组合的“使用默认值”或显式本地打包都是非法基础字段，必须说明原因并重新确认提交远程。没有答复不能静默填入默认值。它只规定未来 Git 发布完成后的动作，不在初始化时执行打包、建立 release 分支或访问远端。
-- 基础字段解析后（GUI 发布后动作的框架适用性可暂待校验），先完成桌面框架分派，再按实际选择逐步补全条件字段：选择自定义策略时依次解析六项策略，Tauri 依次解析八项能力和侧栏模式，GPUI 依次解析五项桌面能力、关于页、赞助页和侧栏，深链接标为 unavailable/disabled，托盘与热键按目标平台处理。每次回复只询问一个当前适用且尚未解析的条件字段；推荐预设或非 GUI 使相应字段直接成为 `不适用`，不得制造多余问询。
-- 用户主动一次提供多个字段时全部解析并记录来源；合法字段不得为了遵守顺序而重问。字段非法时只说明该字段的约束并重新询问同一项。
-- 所有必填和条件字段收齐后，展示一份完整汇总，其中必须包含中英文项目展示名称及各自来源、用户输入的项目路径、解析后的最终项目根目录、派生的 kebab-case 前缀、目标平台、程序类型、GUI 框架及其来源、六项 Agent 策略、已确认的 `post_release_action` 及适用的 GUI 九项配置；并说明目标平台、接口与适用的 `gui-framework` 将在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中持久保存，发布后动作将在 `docs/AGENT_POLICY.md` 中持久保存，供未来发布流程使用。Tauri GUI 汇总同时说明 system-locale、updater、window-state、dialog 是不询问且不进入九字段 profile 的固定基线，dialog 以主窗口 `dialog:default` 开放全部官方对话框类型但不授权通用文件读写；深链启用时展示派生 URL `app-<kebab-prefix>://restore`；全局快捷键启用时明确说明只安装 Rust-only 能力，初始化 contract 为 `actions = []`，不绑定默认 chord、不注册 OS 键位、不创建产品动作或占位界面。GPUI 汇总列出实际六项能力选择、深链接 unavailable/disabled、平台限制、按需依赖、配置协助移交，以及 Rust/gpui-kit 模板、本机初始化检查和当前本地候选打包边界，不宣称具有 Tauri 固定插件。本轮只询问是否按该汇总创建。
-- 五项桌面能力选完后、最终创建汇总前，必须询问是否帮助配置已选能力，复用已有回答且跳过禁用项；没有启用项则跳过。Harness 源只确认中性行为与移交意愿，具体通知事件、键位、额外菜单等产品内容在实例化完成并切换到唯一终端下游根目录后询问和实施；不能用最终创建确认代替配置问询。Tauri 使用对应能力 Skill，GPUI 使用 `references/native-capabilities.md` 的逐项问题。
-- 在用户确认完整汇总前，只允许读取规则、检查已有路径和运行只读解析；不得创建目录、复制文件、安装环境、初始化 Git 或修改任何文件。
-- 当前 Harness 源只接收创建终端下游所必需的本表字段，以及所选 GUI 初始化路径精确要求的身份选择；`post_release_action` 只记录两种固定工程流程中的一项。不接收产品目的、核心输入/输出、业务规则、成功标准、风险、副作用、产品专属页面/文案/数据、远程地址、凭据、反馈渠道、产品发布渠道、产物格式或自定义发布需求。即使用户主动提供，也不得把这些内容解析为表单字段、写入 Harness 源、复制到中性脚手架或提前实现；只说明它们已超出当前模板阶段，并要求初始化完成、工作目录切换到 helper 返回的唯一 `targetRoot` 后，再通过 `$desktop-define-product` 重新提出。
+| 输出 `stage` | Agent 唯一动作 |
+|---|---|
+| `base` | 一次展示 `questions` 中全部待补/待修正基础项，保留原编号；其余合法基础项不重问。 |
+| `translation` | 自动补齐 `translate` 指定名称并重算，不向用户加问。 |
+| `framework` / `policy` / `gui` / `assistance` | 本轮只展示返回的一个问题，含原有选项、说明和 `issue`；等待明确答复。 |
+| `review` | 展示下文规定的完整汇总，只询问是否按此创建；记录 `summaryDigest`。 |
+| `confirmed` | 仅说明当前汇总已有相匹配的显式确认；随后进入既有初始化门禁，不代表初始化成功。 |
+
+问句、选项、说明与错误约束须完整展示；可适配宿主表单排版，不能删减其含义。目录命令失败时停止问询和写入，不临时另写一套表单。
 
 ## 首轮基础问题模板
 
-首次问询只列出用户尚未明确提供的基础字段，并保持以下编号和约束可见：
+从 catalog 的 `number = 1..9` 取原文，首次一次列出全部尚未解析的基础字段。中英文至少已有一个时不再向用户索要另一名称；直接初始化只因当前根已知而省略路径，**不得遗漏项目标识或负责人**。推荐预设问题须连同六项具体行为说明展示，不能只给“推荐/自定义”两个无解释标签。
 
-1. 中文项目展示名称：面向中文用户显示；中英文至少提供一个，缺少另一个时自动翻译。
-2. 英文项目展示名称：面向英文用户显示；中英文至少提供一个，缺少另一个时自动翻译。
-3. `project_id`：ASCII `snake_case` 标识。
-4. 项目路径：最终项目根目录或父目录。
-5. 负责人：真实负责人或明确的责任主体。
-6. 目标平台：Windows、macOS、Linux，可多选。
-7. 程序类型：命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；可明确选择默认 CLI。
-8. Agent 策略模式：推荐预设或自定义。
-9. 发布后动作：本地打包（`local_package`，推荐默认）或提交远程（`push_release_branch`）；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用，须明确选择提交远程；只有接口含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或 Tauri GUI 目标含 macOS/Windows 时明确答复“使用默认值”才表示选择本地打包。
-
-用户已在创建请求中合法提供的基础字段不再显示；其余基础字段必须在这一轮全部显示。
+用户一次给多字段时全部解析；基础缺失或非法集中修正，基础字段合法后才进入条件阶段。GUI 发布后动作在框架未解时可以暂待适用性校验，必须先进入框架单问，不能提前把 Linux GUI 判为不可本地打包而卡住。
 
 ## 字段阶段与顺序
 
-| 顺序 | 阶段 | 字段 | 解析规则 |
-|---|---|---|---|
-| 1 | 首轮基础 | 中文项目展示名称 | 中英文至少一个由用户直接提供；只缺中文时由 Agent 从英文自动翻译，记录为自动翻译并等待最终汇总确认。 |
-| 2 | 首轮基础 | 英文项目展示名称 | 中英文至少一个由用户直接提供；只缺英文时由 Agent 从中文自动翻译，记录为自动翻译并等待最终汇总确认。 |
-| 3 | 首轮基础 | `project_id` | 必填；必须匹配 ASCII `snake_case`：`^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`。可以提供建议值，但必须由用户确认。 |
-| 4 | 首轮基础 | 项目路径 | 必填；允许输入最终项目根目录或其父目录，允许绝对路径或相对 Harness 根目录的路径。按“目标路径解析”计算最终项目根目录。 |
-| 5 | 首轮基础 | 负责人 | 必填；记录真实负责人或用户明确指定的责任主体。 |
-| 6 | 首轮基础 | 目标平台 | 必填；从 Windows、macOS、Linux 中选择一个或多个，不推断未选择的平台已经验证。 |
-| 7 | 首轮基础 | 程序类型 | 从命令行(CLI)、终端UI(TUI)、MCP、桌面应用(GUI) 中选择任意组合；分别映射为内部标识 `CLI`、`TUI`、`MCP`、`GUI`，继续持久化到 Cargo `interfaces`。用户明确选择“使用默认值”或明确跳过时解析为仅 CLI；选择其他接口时不得附加 CLI。 |
-| 8 | 首轮基础 | Agent 策略模式 | 必须选择“推荐预设”或“自定义”。不得从 Harness 源策略推断用户选择。 |
-| 9 | 首轮基础 | `post_release_action` | 必须从 `local_package`（本地打包，推荐默认）或 `push_release_branch`（提交远程）中明确选择；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 时本地打包不可用，须明确选择提交远程；只有接口含 CLI，或含 GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时明确选用默认值才取 `local_package`，不得从 Harness 源 `pending` 或未答复推断选择。 |
-| 10 | 条件补全 | `gui_framework` | 仅 GUI；先询问 1. Tauri（默认）/ 2. GPUI。未答、留空、跳过或默认取 `tauri`，合法答案复用，非法值重问；写入 Cargo `gui-framework`，与九字段 profile 分开，再复核发布后动作。 |
-| 11 | 条件补全 | `user_owned_tasks` | 仅自定义策略；复用用户对本项目已明确的 Task 选择，不重问；其余逐项选择 `enabled` 或 `disabled`，推荐和默认均为 `disabled`。启用表示按结果边界自动创建左侧 user-owned Task；关闭时不自动创建；用户明确单次创建不改变永久选择。 |
-| 12 | 条件补全 | `task_worktrees` | 仅自定义策略；询问“是否为 Git 左侧 Task 使用独立工作树”，推荐关闭。明确合法答案直接复用；未回答不能视为确认关闭，不从 Task Tree、自动 Task 或内部并行推断。 |
-| 13 | 条件补全 | `superpowers` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 14 | 条件补全 | `parallel_worktree_subagents` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`；此项只控制当前 Task 内部 `codex/unit-*` Worktree 与写入型 Subagent，与 `task_worktrees` 独立。 |
-| 15 | 条件补全 | `acceptance_smoke` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`。 |
-| 16 | 条件补全 | `e2e_hint` | 仅自定义策略；逐项选择 `enabled` 或 `disabled`，并说明它只是在以后每次发布候选构建询问时的建议默认值，不适用于本地开发试包。 |
-| 17 | 条件补全 | `system_tray` | 两种 GUI 均询问；GPUI 目标含 Linux 时 unavailable/disabled；逐项选择 `enabled` 或 `disabled`。 |
-| 18 | 条件补全 | `system_notification` | 两种 GUI 均询问；询问是否安装系统通知能力并在设置页提供默认关闭的开关，逐项选择 `enabled` 或 `disabled`。 |
-| 19 | 条件补全 | `autostart` | 两种 GUI 均询问；询问是否安装开机自启能力并在设置页提供实际 OS 状态开关，默认不注册，逐项选择 `enabled` 或 `disabled`；选择能力不表示替用户注册登录项。 |
-| 20 | 条件补全 | `about_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 21 | 条件补全 | `sponsor_page` | 仅选择 GUI 时必填；逐项选择 `enabled` 或 `disabled`。 |
-| 22 | 条件补全 | `single_instance` | 两种 GUI 均询问；逐项选择 `enabled` 或 `disabled`。 |
-| 23 | 条件补全 | `deep_link` | 仅 Tauri GUI 时询问；GPUI 为 unavailable/disabled；`enabled` 表示启用身份派生的 `app-<kebab-prefix>://restore`，只恢复主窗口，并强制 `single_instance = enabled`。若单实例已禁用，必须请用户在“启用两者”与“保持两者禁用”之间修正，不得生成无效组合。 |
-| 24 | 条件补全 | `global_shortcut` | 两种 GUI 均询问；GPUI 目标含 Linux 时 unavailable/disabled；`enabled` 表示安装 Rust-only 全局快捷键能力，并在中性 profile 写入空 `gui-global-shortcut-contract`，初始不绑定 chord、不注册 OS 键位，也不推断动作或界面；`disabled` 时 contract、依赖、插件及全部专属实现缺席。产品动作、固定/可编辑策略与初始 chord 只能在终端下游由明确需求决定。 |
-| 25 | 条件补全 | `sidebar_mode` | 仅选择 GUI 时询问 `compact` 或 `detailed`；用户明确留空、跳过或选择默认值时解析为 `detailed`，显式非法值必须重新询问。 |
+唯一顺序由 catalog 与解析器执行：基础字段 → 缺失译名补齐 → GUI 框架 → 自定义六项策略 → GUI 九项配置 → 已启用桌面能力配置协助 → 路径检查与完整汇总 → 显式确认。路径安全属于基础校验，汇总和写入前会再次复核。
 
-推荐预设一次确认后确定性物化为：
+问题的技术字段依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`target_platforms`、`interfaces`、`policy_mode`、`post_release_action`；GUI 框架为 `gui_framework`。原文框架选项固定包含 `1. Tauri（默认）` 与 `2. GPUI`，写入 Cargo 的键仍为 `gui-framework`；非 GUI 不询问、不持久化框架。
 
-```yaml
-user_owned_tasks: disabled
-task_worktrees: disabled
-superpowers: disabled
-parallel_worktree_subagents: disabled
-acceptance_smoke: enabled
-e2e_hint: disabled
-```
+推荐预设明确选择一次后由解析器展开六项。它不是额外持久字段；自定义按 `POLICY_FIELDS` 顺序逐项解析。推荐预设与用户主动给出的六项有冲突时，只追问策略模式：保留预设并撤回冲突值，或改为自定义并保留明确答案；不得静默覆盖。Agent Policy 的 `pending` 不构成确认，项目 Task、Task 独立工作树、内部并行各自独立。
 
-推荐预设包含以上全部六项；选择自定义时逐项确认，不能从 Harness 源当前值推断用户选择。最终汇总需说明 `parallel_worktree_subagents: disabled` 只关闭当前 Task 内部并行；`user_owned_tasks` 的自动创建开关与用户明确新建的侧边 Task 独立。
-发布后动作不属于这六项预设；无论选择推荐预设还是自定义，都必须单独确认 `post_release_action`。
+发布后动作始终独立展示 `local_package`（本地打包，推荐默认）和 `push_release_branch`（提交远程）。纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`。本地打包适用性由 `localPackageAvailability` 唯一计算；Linux GPUI 支持本地打包，不能在框架解析前套用 Tauri 限制。默认值须明确选择，初始化不执行发布后动作。
 
-最终汇总列出六项项目值、确认来源与有效行为。`task_worktrees` 默认关闭；仅开启后调用 `$desktop-manage-task-worktrees`。初始化不创建 Task Worktree；即使关闭，也完整保留该技能与地图，供以后手动启用。
+GUI 九项按 `GUI_FIELDS` 顺序解析并写入唯一 `gui-initialization-config`，框架不进入 profile。GPUI 的 `deep_link` 固定 `unavailable`/`disabled`；目标含 Linux 时 `system_tray`、`global_shortcut` 同样不可用。未提供这些不可用项时由能力限制派生关闭；用户显式启用必须纠正或修改框架/目标，不能静默关闭。其余 GUI 能力无默认开关，不从预设或漏答推断。
+
+Tauri `deep_link = enabled` 必须同时 `single_instance = enabled`；冲突只请求用户明确修正，不自动开启单实例。全局快捷键中性合同为空动作、零默认键位、零 OS 注册，产品动作在下游确认。用户对 `sidebar_mode` 明确默认、跳过或空白答复才使用 `detailed`；未答继续等待，非法值重新询问。
+
+九项完成后，两种 GUI 都仅汇总共同五项桌面能力中已启用项，并询问一次 `capability_setup_assistance`；全禁用跳过，已有合法回答复用。该移交意愿不加入九字段或 Agent Policy。具体配置由 Tauri 对应能力 Skill 或 GPUI [原生能力合同](../../desktop-add-gpui-adapter/references/native-capabilities.md) 在终端下游根目录继续，不能用最终创建确认代替此问题。
+
+用户修改早先字段后重算全部状态，只重问当前缺失或变为非法的字段；明确移除 GUI 时撤下其旧条件答案，再计算非 GUI 汇总。翻译的原名改变时重译另一名称，不能复用旧译名。任何变化都会使旧汇总确认失效。
 
 ## 目标路径解析
 
-收齐 `project_id` 与项目路径后，运行只读 helper：
+实例化复用只读路径 helper，不另实现近似规则：
 
 ```text
 node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.mjs --harness-root "<harness-root>" --project-path "<user-project-path>" --project-id "<project-id>"
 ```
 
-解析规则固定如下：
+输入末级名称与项目标识区分大小写地精确相等时使用输入路径，否则追加项目标识。相对输入以 Harness 根为基准；解析器拒绝 Harness 根及祖先、最终符号链接、非目录和非空最终目录。父目录可以非空，目标在 Harness 内时复制前仍须冻结源清单。helper 的 `targetRoot` 是唯一后续目标，不得在复制阶段重新猜测路径。路径错误先用 helper 查看诊断，保留用户文件，不创建目录来试探。
 
-1. 相对项目路径以当前 Harness 根目录为基准转为绝对路径，并规范化 `.`、`..` 与已存在的符号链接祖先。
-2. 规范化输入路径的最后一个名称与 `project_id` **区分大小写地精确相等**时，最终项目根目录就是该输入路径。
-3. 最后一个名称不精确相等时，最终项目根目录为 `<项目路径>/<project_id>`。不得用大小写、连字符/下划线转换、前后缀或相似度把不同名称视为相同；例如 `sample-tool` 与 `sample_tool` 不相等，结果为 `sample-tool/sample_tool`。
-4. “不存在或为空”只约束最终项目根目录；作为父目录输入的项目路径可以已经存在并包含其他项目或文件。最终根目录若为符号链接、非目录或非空目录，必须停止且不得覆盖。
-5. 最终项目根目录不得是 Harness 根目录或其任何祖先。通过已存在符号链接解析后再次执行同一检查；目标位于 Harness 内部时仍须在复制前冻结源文件清单并排除目标，以阻止递归复制。
-6. helper 输出的 `targetRoot` 是后续复制、Git 初始化、开发、验证、构建和发布准备唯一使用的规范化项目根目录。完成表单汇总时同时显示原始输入与该值。
+## 完整汇总与完成条件
 
-## 完成条件
+`review` 时完整展示 `summary` 的双语名及来源、项目标识和 kebab 前缀、原始路径输入和唯一 `targetRoot`、负责人、平台/接口、框架和不可用能力、六项策略值及来源/有效行为、发布后动作、GUI 九项和配置移交意愿。完整展示解析器返回的 `summary.notices` 和 `reviewQuestion`，不能自行删减固定基线、框架打包边界、深链 URL、快捷键零注册或 Logo 执行阶段提示；这些提示与最终确认问句同样纳入摘要。模型只调整排版，不另造一份提示文案。
 
-只有以下事实同时成立，表单才算完成：
+只有用户明确确认**最新完整汇总**后，才在输入中增加 `confirmation: { "digest": "<本次 summaryDigest>", "source": "user:<实际确认来源>" }` 再重算。未经用户答复不能自填确认。确认摘要不匹配返回 `review`；不允许靠 `confirmed: true`、预设选择、旧会话同意或超时绕过。解析器即使返回 `confirmed`，也不授权新增范围或跳过环境、路径复核、Logo 选择、脚手架检查和独立基线提交门禁。
 
-- 所有必填字段均为 `已解析`，所有条件字段均为 `已解析` 或 `不适用`；
-- 中英文项目展示名称都为非空已解析值，且至少一个来自用户直接输入；自动翻译的另一名称已列入完整汇总；
-- 推荐预设或六项自定义策略已全部解析，六项最终策略均无 `pending`；
-- `post_release_action` 已由用户明确选择；若选用默认值，须确认接口含 CLI，或含 GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows。最终值只能是 `local_package` 或 `push_release_branch`，且已列入完整汇总；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`，写入前再次交叉校验接口组合与动作；
-- GUI 被选择时八项能力与侧栏模式已全部解析，无 `pending`；
-- GUI 框架已解析为 `tauri` 或 `gpui`，来源已进入汇总，非 GUI 时该字段不适用；GPUI 深链接为 unavailable/disabled，其余八项已经确认且托盘/热键符合平台范围，已完成所选五项能力的配置协助询问或合法跳过，且未调用 Tauri 专属基线；
-- 最终发布后动作已按框架复核：GPUI 的 macOS/Windows/Linux GNU GUI 本地包使用 `$desktop-build-gpui-release`；不含 CLI 的仅 Linux Tauri GUI 必须明确选 `push_release_branch`，CLI 与 GUI 组合按各自打包 Skill 执行；
-- Tauri GUI 中 `deep_link = enabled` 时 `single_instance = enabled`，派生 restore URL 已进入最终汇总；两种 GUI 中 `global_shortcut = enabled` 时空 action contract、零默认 chord、零 OS 注册边界已进入最终汇总；
-- 路径 helper 成功，最终项目根目录通过空目录、路径类型和禁止位置检查；
-- 用户已经确认包含最终项目根目录的完整汇总。
-- 完整汇总只含本表允许的 Harness 初始化事实；任何同时提供的产品业务需求都已明确拒绝并延后到终端下游，不存在被静默保存或实施的内容。
+所有适用值必须合法，无 `pending`；路径检查成功，最新汇总已确认后表单才完成。首次写入前须再次运行同一解析器复核目录仍安全、摘要仍匹配；变更则重新汇总。中性脚手架完成和候选可用仍分别由各自真实验证决定。
+
+## 输入边界
+
+Harness 源只接收本表固定初始化字段与所选路径精确要求的身份选择。产品目的、输入/输出、业务规则、成功标准、产品页面/文案/数据、风险、副作用、远程地址、凭据、反馈/发布渠道、产物格式和自定义发布要求不属于表单。即使同时提供，也不得解析、记录、复制或实施；只说明超出模板阶段，要求完成实例化并切换到唯一 `targetRoot` 后通过 `$desktop-define-product` 重新提出，不复述或保存具体内容。

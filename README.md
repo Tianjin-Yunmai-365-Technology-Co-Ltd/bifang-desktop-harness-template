@@ -8,7 +8,7 @@ Bifang Desktop Harness Template
 
 你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、TUI、MCP、GUI 中的哪些界面。它会创建一个独立的 Git 项目，搭好共享核心、所选界面、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
-选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。未回答或跳过框架时使用 Tauri；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助页、单实例、全局快捷键和侧栏；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。选完五项桌面能力后必须询问是否协助配置，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
+选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
 GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 构建原生 macOS 应用包/DMG、Windows x64 NSIS，以及 Linux GNU x64/ARM64 deb/tar.gz。这些 GPUI 目标均可选择本地打包；仅 Linux Tauri 且无 CLI 时须选择提交远程。两种 GUI 都使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
 
@@ -21,7 +21,7 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；默认 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；不含 CLI 的纯 TUI/MCP 或仅 Linux Tauri GUI 没有现有本地候选打包入口时该默认项不可用，须明确选择提交远程。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；明确默认或跳过才使用 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；不含 CLI 的纯 TUI/MCP 或仅 Linux Tauri GUI 没有现有本地候选打包入口时该默认项不可用，须明确选择提交远程。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、程序类型、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
@@ -36,7 +36,7 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
 
 - 从一份简短的初始化表单创建全新的项目，不需要手动复制和改名。
 - 默认检查并补装项目本地的 taste-skill（`design-taste-frontend`），提供适用页面的设计风格支持；不询问、不全局安装，已有有效本地内容原样保留。详见 [设计支持规则](docs/design_standards/taste_skill.md)。
-- 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；没有特别选择时默认使用 CLI。
+- 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；明确选默认值或跳过时使用 CLI，漏答继续等待。
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 可选地把新结果创建为绑定保存项目的 Codex 左侧 user-owned Task；自动拆分默认关闭，启用后按结果边界创建，Git Task 按 task_worktrees 选择独立 Worktree 或串行 Local，并使用可审查提交。
@@ -69,10 +69,10 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
    请使用 $desktop-instantiate-project 创建一个新项目。
    ```
 
-2. Agent 会一次询问尚未确定的基础信息：中英文项目名、项目标识、保存路径、负责人、目标平台、界面组合和 Agent 策略。推荐策略包含默认关闭的自动左侧 Task；选择自定义时可逐项开启。中英文名称至少提供一个，另一个可以由 Agent 翻译后一起确认。
-3. 选择 GUI 后先选 Tauri（默认）或 GPUI；GPUI 逐项询问八项可选配置，深链接保持禁用；托盘与热键当前限 macOS/Windows。选完桌面能力后继续询问配置协助，产品配置在实例化后的下游处理。选择 Tauri 时，Agent 还会逐项确认系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键和侧栏样式；system-locale、updater、window-state、dialog 作为固定基线不额外询问。dialog 默认向主窗口开放全部官方对话框类型，但不授权通用文件读写。启用全局快捷键只安装能力，中性初始化不绑定默认按键或动作；产品动作、固定/可编辑策略和初始 chord 在终端下游完全按需求决定。随后按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示 3 个未经验证或标准化的原始 Logo 候选。只有你选定其中一个后，Agent 才会验证并按需标准化所选项；未选项不会被额外处理。
-4. 写入前，Agent 会展示完整汇总和最终项目路径。你确认后，它才会创建文件、检查所需环境并初始化项目。
-5. 汇总确认后，Agent 会先检查 Git：缺失时按当前平台的受管方式安装，可证明低于最低下界时自动升级，范围内版本原样复用；随后才写入脚手架。Windows 自动安装若受管理员权限、UAC 或组织策略阻断，Agent 会给出已证实缺失项的官方安装入口和诊断；用户安装并告知继续后，先在原宿主只读复探。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、安装或升级变化、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。
+2. Agent 按 [唯一表单合同](.agents/skills/desktop-instantiate-project/references/initialization-form.md) 一次询问未确定的基础字段：中英文项目名、标识、路径、负责人、目标平台、程序类型、Agent 策略模式和发布后动作。中英文至少提供一个，另一名称自动翻译并在汇总中确认。固定问句由 `initialization_form.mjs --catalog` 输出，其他模型也复用同一解析器。
+3. 根据解析器的下一问补齐 GUI 框架、自定义策略、GUI 配置与适用的配置协助意愿；每轮一个条件问题，明确给过的合法字段不重问。未回答不会自动采用默认值。具体产品配置在下游处理。
+4. 写入前展示完整汇总与唯一目标根目录。确认绑定当前汇总；修改字段后重新确认。确认之前不生成 Logo、不安装环境、不写文件。
+5. 汇总确认后才检查环境与 Git。GUI 的 Logo 在此执行阶段按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示三个原始候选，选中后只验证和标准化所选项。Git：缺失时按当前平台的受管方式安装，可证明低于最低下界时自动升级，范围内版本原样复用；随后才写入脚手架。Windows 自动安装若受管理员权限、UAC 或组织策略阻断，Agent 会给出已证实缺失项的官方安装入口和诊断；用户安装并告知继续后，先在原宿主只读复探。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、安装或升级变化、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。
 
 ## 下游项目日常怎么用
 

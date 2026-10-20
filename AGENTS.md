@@ -2,7 +2,7 @@
 
 ## 项目使命
 
-本仓库是 Agent-first 小工具的无代码 Harness 模板。它只维护跨项目复用的规则、Skills、中性资产与交付工程，不实现任何具体产品；下游可独立选择 CLI、TUI、MCP、GUI，未选择接口时默认 CLI。
+本仓库是 Agent-first 小工具的无代码 Harness 模板。它只维护跨项目复用的规则、Skills、中性资产与交付工程，不实现任何具体产品；下游可独立选择 CLI、TUI、MCP、GUI，明确选择默认接口或跳过时使用 CLI。
 
 GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走现有 Tauri/React/Mantine Skills，`gpui` 走 `$desktop-add-gpui-adapter` 与 `docs/design_standards/gpui_gui.md`。没有该字段的既有 GUI 按 Tauri 兼容；非 GUI 不写该字段。GPUI 不加载 Tauri 插件、前端、Mantine 列表、打包或初始化 E2E 专属规则。
 

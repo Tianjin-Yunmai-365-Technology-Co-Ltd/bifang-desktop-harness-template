@@ -115,7 +115,7 @@ export function repositoryRequiredFragments(gateFile, rustBaseline) {
       "Agent 只接受两类信息",
       "只解析允许的初始化字段",
       "CLI、TUI、MCP、GUI",
-      "系统托盘、系统通知、开机自启",
+      "initialization-form.md",
       "独立、无远端、带初始化提交的 Git 仓库",
     ]],
     [GUI_DIALOG_SKILL, [
