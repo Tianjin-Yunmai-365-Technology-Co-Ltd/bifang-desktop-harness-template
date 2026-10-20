@@ -4,6 +4,8 @@
 
 本策略说明 `$desktop-upgrade-harness` 如何区分可更新工程资产与下游项目事实。机器匹配规则位于同目录 `ownership-manifest.json`；两者冲突时先停止，不自行选择更宽松的一方。
 
+候选树中的 `AGENTS.md` 与 `docs/ENGINEERING_RULES.md` 必须剥离仅限 Harness 上游的 Python 禁令及检查器要求；不得将上游脚本语言限制传播到终端下游。下游继续按自身需求选择脚本语言，并遵守显式本地依赖规则。
+
 ## 五类主要所有权
 
 - `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；产品专属像素和例外写入受保护的 `docs/GUI_APP_PROFILE.md`/ADR，并在标准匹配时优先，升级不得用新旧 Harness 缺省覆盖，不通过编辑目录制造分叉。`$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试是所有终端下游都适用且无需身份渲染的受管工程资产；升级只传播这些文件，不执行 Git 生命周期命令，也不创建 common-dir 状态。
