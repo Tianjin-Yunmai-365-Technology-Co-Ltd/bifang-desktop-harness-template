@@ -10,7 +10,7 @@
 
 ## 平台配置
 
-Tauri 2 会自动把 GUI 根下的 `tauri.linux.conf.json` 合并进主配置。Linux 专属的 bundle 目标、运行库依赖和资源映射写在这里，不改动其他平台：
+Tauri 2 把与主 `tauri.conf.json` 同目录的 `tauri.linux.conf.json` 合并进主配置；传统布局在 `src-tauri/`，Cargo/config 同置布局才在 GUI 根。对象逐键合并，数组整体替换；资源 map 与资源数组不能混为一谈。依据：[平台配置与合并](https://v2.tauri.app/develop/configuration-files/#platform-specific-configuration)（核对：2026-10-20）。Linux 专属配置示例：
 
 ~~~json
 {
@@ -22,7 +22,7 @@ Tauri 2 会自动把 GUI 根下的 `tauri.linux.conf.json` 合并进主配置。
 }
 ~~~
 
-- 托盘：应用在运行时用 `TrayIconBuilder` 创建托盘时，bundler 不会把 AppIndicator 运行库加入 deb 的 `Depends`。只要产品启用了托盘，就必须像上面这样显式声明，否则在未预装该库的系统上安装后托盘缺失。
+- 托盘：不要假定运行时 `TrayIconBuilder` 一定会让当前 bundler 自动识别 AppIndicator。检查实际 deb 的 `Depends`，只在 profile 启用托盘时补足当前实现需要的运行库；上例是采用 Ayatana 的情况，不是所有产品无条件启用托盘。包内声明不证明目标桌面有可见托盘。
 - 资源：许可证、第三方声明和本地更新日志这类随包文件要逐项声明 Linux 映射，不要从其他平台推断。
 
 ## 宿主依赖
@@ -34,25 +34,28 @@ Tauri 2 会自动把 GUI 根下的 `tauri.linux.conf.json` 合并进主配置。
 bundler 用 `productName` 派生 deb 的 `Package:` 字段。中文等非 ASCII 产品名会生成 `dpkg` 拒绝解析的值，导致无法安装。处理方式：
 
 1. 保留 `productName` 作为窗口和桌面项的显示名，不为了打包把它改成 ASCII。
-2. 构建完成后运行 `scripts/normalize_tauri_deb.mjs`，传入产品已批准的稳定 ASCII 安装标识。它只替换 `Package:` 一行，二次解包后逐项核对 payload 的路径、类型、权限、链接目标与摘要，以及其他控制文件全部不变，再原子写出规范包和 `.sha256`、`.inspection.json` 侧车。原始 Tauri 包保留在 `target/release/bundle/deb/` 供复核。
-3. 用 `--require-depends` 把本产品必需的运行库写成门禁，例如 `libwebkit2gtk-4.1-0`、`libgtk-3-0`，启用托盘时再加 `libayatana-appindicator3-1`；缺任何一项都失败关闭。
+2. 构建完成后运行 `scripts/normalize_tauri_deb.mjs`，传入产品已批准的稳定 ASCII 安装标识。它只替换 `Package:` 一行，二次解包后逐项核对 payload 的路径、类型、权限、链接目标与摘要，以及其他控制文件全部不变，再分别原子重命名规范包和 `.sha256`、`.inspection.json` 侧车。原始 Tauri 包保留在 `target/release/bundle/deb/` 供复核；证明范围和失败恢复见下文。
+3. 用 `--require-depends` 把本产品必需的运行库写成门禁，例如 `libwebkit2gtk-4.1-0`、`libgtk-3-0`，启用托盘时再加实际使用的 AppIndicator 库。必需库只接受独立直接依赖；`A | B` 允许仅安装其中之一，不能证明 B 必定存在。这里只核对名称声明，不证明可安装性、版本满足或动态链接成功。依据：[Debian Policy 7.1](https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields)（核对：2026-10-20）。
 
 AppImage 不受 Debian 包名约束，直接使用 Tauri 输出。
 
-## 测试与发现逻辑
+## 运行时与测试
 
-- 临时目录：部分发行版把 `/tmp` 挂载为 tmpfs。产品若按“已确认本地卷”过滤扫描范围，tmpfs 上的测试夹具会被排除，导致测试失败或静默为空。Linux 上运行测试时，把 `TMPDIR` 指向项目所在持久磁盘的忽略目录，例如 `target/test-tmp`。
-- 用户数据隔离：Linux 默认目录发现常读取 `$HOME` 与 XDG 目录。测试必须使用合成的用户根和临时 XDG 目录，不得读取真实用户数据；双次枚举的测试不能依赖真实会话的创建时序。
-- 平台目录表：把“某平台有哪些优先目录”写成接收 OS 标识的纯函数，并放在 core，这样任意宿主都能测试 Windows、macOS 与 Linux 全部分支；adapter 只负责把相对路径拼到真实用户根下，并做文件系统检查。
+用户/XDG 目录、卷枚举与排除、条件 `TMPDIR`、取消、托盘恢复、自启、WebView origin 和应用 command ACL 的唯一知识入口是 [Linux 运行时与测试边界](../../desktop-add-gui-adapter/references/linux-runtime.md)。不要用打包或纯函数测试替代真实桌面证据。
 
-## WebView 与权限
+## helper 的适用边界
 
-- 资产 origin：Windows WebView2 以 `http://tauri.localhost` 提供应用，Linux WebKitGTK 与 macOS 使用 `tauri://localhost`。CSP 的 `connect-src` 要精确列出实际 origin，不能为某个平台放宽成通配源或裸 `http:`/`https:`。
-- 命令权限闭合：每新增一个 Tauri command，都要同时更新 `build.rs` 的命令清单、capability 的 `allow-*` 条目和权限契约测试。缺任何一处，真实 IPC 都会在运行时拒绝调用；单元测试直接调用 Rust 函数时无法发现这个问题。
+- 当前只定位默认 `target/release/bundle/deb/`；配置了 `CARGO_TARGET_DIR`、`build.target-dir` 或显式 target 的其他输出布局时先停止，不能回退选择旧包。
+- payload 比较只覆盖路径、类型、权限位、链接目标及普通文件摘要；不证明 uid/gid、硬链接拓扑、xattr/ACL 全部保留。重打包使用 `--root-owner-group`；需特殊 ownership 的包不适用。
+- deb 与两个侧车分别原子 rename，整个集合没有事务提交保证。中途失败后视为未完成，重新核对包摘要与 inspection 的对应关系；不得消费残留或旧侧车。
+- helper 面向本机本次可信 Tauri 输出，不是任意下载包的安全沙箱。它仍使用同步 `dpkg-deb` 和全文件 hash，未设子进程超时；不能推断有界内存、取消或不可信包处理能力。
+- 更早发行版的兼容范围取决于构建基线、glibc/WebKitGTK 等实际依赖，AppImage 也不代表任意发行版可运行。依据：[Tauri Debian limitations](https://v2.tauri.app/distribute/debian/#limitations)（核对：2026-10-20）。
 
 ## 本地试包命令
 
 在项目根执行；`<gui-root>` 来自根 Cargo metadata 的 `gui-root`：
+
+以下示例假定产品发现测试需要且项目目录确实位于允许的文件系统，才设置 `TMPDIR`；无此要求时使用测试原有临时目录。全新 checkout 在直接编译 GUI crate 前，如 `frontendDist` 尚不存在，先执行项目声明的前端生产构建。
 
 ~~~sh
 mkdir -p target/test-tmp

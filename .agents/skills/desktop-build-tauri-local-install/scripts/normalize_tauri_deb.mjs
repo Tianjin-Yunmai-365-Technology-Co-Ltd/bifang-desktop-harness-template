@@ -35,11 +35,11 @@ export function replacePackageField(control, packageName) {
   return control.replace(/^Package: [^\r\n]*$/m, `Package: ${packageName}`);
 }
 
-/** 返回 `Depends:` 中缺失的必需运行库名；忽略版本约束与备选写法后的修饰。 */
+/** 必需运行库只认可独立直接依赖；备选组允许不安装该库，不能作为必需性证明。 */
 export function missingDepends(control, required) {
   const declared = controlField(control, "Depends")
     .split(",")
-    .flatMap((group) => group.split("|"))
+    .filter((group) => !group.includes("|"))
     .map((value) => value.trim().split(/[ (]/)[0]);
   return required.filter((name) => !declared.includes(name));
 }

@@ -22,7 +22,7 @@ description: 在 Windows 原生宿主构建 Tauri 2 x64 NSIS 试包，或在 Lin
 
    `tracked` 时把 `-- --locked` 追加在上述 Tauri 命令末尾，传给其 Cargo runner；`ignored` 不追加。若用 Cargo metadata 定位输出，`tracked` 也必须为该调用追加 `--locked`。[Tauri 2 CLI build](https://v2.tauri.app/reference/cli/#build) 的尾部参数会传给 runner（核对日期：2026-09-29）。
    从 Tauri 真实输出或 Cargo 元数据定位唯一 `target/x86_64-pc-windows-msvc/release/bundle/nsis/` 安装程序，不猜测产品名。不得启动应用、运行安装程序、请求 UAC、修改注册表或写入系统目录；真实安装和交互测试需要用户另行明确请求，并进入适用的 E2E/验收边界。
-   Linux：先读取 [references/tauri-linux.md](references/tauri-linux.md)。Rust 测试把 `TMPDIR` 指向项目内忽略的持久目录（如 `target/test-tmp`），避免 tmpfs 上的夹具被本地卷策略排除；在 GUI 根目录执行 `CI=true pnpm tauri build --bundles deb,appimage --no-sign`（`tracked` 时同样追加 `-- --locked`），禁止交叉架构、RPM 与 `all` bundle。产品名会派生非法 Debian 包名时，再以产品已批准的 ASCII 安装标识和本产品必需运行库运行 `scripts/normalize_tauri_deb.mjs`；它只替换 `Package:` 并核对安装内容逐项不变，原始包保留。不得安装 deb、运行 AppImage、提权或写入系统目录。
+   Linux：先读取 [references/tauri-linux.md](references/tauri-linux.md)。只有产品的本地卷策略会排除测试夹具所在文件系统时，才把 `TMPDIR` 指向已确认允许的忽略目录（如 `target/test-tmp`）；在 GUI 根目录执行 `CI=true pnpm tauri build --bundles deb,appimage --no-sign`（`tracked` 时同样追加 `-- --locked`），禁止交叉架构、RPM 与 `all` bundle。产品名会派生非法 Debian 包名时，再以产品已批准的 ASCII 安装标识和本产品必需运行库运行 `scripts/normalize_tauri_deb.mjs`；它只替换 `Package:` 并按引用所列维度比较安装内容，原始包保留。不得安装 deb、运行 AppImage、提权或写入系统目录。
 6. 报告真实命令、Rust/前端测试数量、HEAD、`sourceTreeState`、试包绝对路径、大小和 SHA-256（Linux 分别列出 deb、规范化 deb（如有）与 AppImage），并固定标注 `artifactPurpose: local-install-test`、`releaseCandidate: false`、`signingStatus: unsigned`、`E2E: Not run`、`runtimeVerification: Not run`。不得使用 `pending`/`accepted` 候选状态，不得声称可发布、可分发、已安装、已验收或已验证运行时。
 
 ## 边界

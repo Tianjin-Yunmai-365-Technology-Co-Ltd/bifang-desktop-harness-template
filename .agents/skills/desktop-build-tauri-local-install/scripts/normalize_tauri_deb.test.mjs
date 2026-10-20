@@ -40,10 +40,20 @@ test("replaces_only_the_package_field", () => {
   assert.throws(() => replacePackageField(CONTROL, "示例"), /Debian package name/);
 });
 
-/** 必需运行库按包名比较，版本约束与备选依赖不影响判定。 */
+/** 必需运行库允许直接项带版本约束，备选组不能保证具体某个库会安装。 */
 test("reports_missing_runtime_dependencies", () => {
-  assert.deepEqual(missingDepends(CONTROL, ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libayatana-appindicator3-1"]), []);
-  assert.deepEqual(missingDepends(CONTROL, ["libappindicator3-1", "libssl3"]), ["libssl3"]);
+  assert.deepEqual(missingDepends(CONTROL, ["libwebkit2gtk-4.1-0", "libgtk-3-0"]), []);
+  assert.deepEqual(missingDepends(CONTROL, ["libayatana-appindicator3-1", "libappindicator3-1", "libssl3"]),
+    ["libayatana-appindicator3-1", "libappindicator3-1", "libssl3"]);
+});
+
+/** 备选组两侧都不能绕过必需库门禁，另有独立直接项时才通过。 */
+test("alternative_dependencies_do_not_satisfy_required_libraries", () => {
+  for (const depends of ["libother | libneeded", "libneeded (>= 1.0) | libother"]) {
+    const control = `Depends: ${depends}\n`;
+    assert.deepEqual(missingDepends(control, ["libneeded"]), ["libneeded"]);
+    assert.deepEqual(missingDepends(`Depends: ${depends}, libneeded (>= 1.0)\n`, ["libneeded"]), []);
+  }
 });
 
 /** payload 记录覆盖权限、链接目标与内容摘要，并跳过根 DEBIAN 目录。 */

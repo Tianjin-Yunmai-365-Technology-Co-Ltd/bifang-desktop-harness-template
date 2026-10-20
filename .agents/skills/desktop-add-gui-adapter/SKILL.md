@@ -9,6 +9,8 @@ description: 为已初始化的共享核心增加可选 Tauri 2 GUI，采用固�
 
 本 Skill 只处理 `gui-framework = "tauri"`，既有 GUI 缺失该 Cargo metadata 字段时兼容 Tauri。入口先读取框架；`gpui` 直接转交 `$desktop-add-gpui-adapter`，不加载本 Skill 的前端、插件、设计、图标、打包或 E2E 引用。这里的固定技术栈只约束 Tauri，不是对用户已选 GPUI 的硬规则例外。框架选择由初始化表单负责，本 Skill 不重复询问。
 
+目标包含 Linux 且当前工作涉及用户目录、卷扫描、托盘恢复、登录启动或 WebView/IPC 时，按问题读取 [Linux 运行时与测试边界](references/linux-runtime.md)；本地 deb/AppImage 打包仍由 `$desktop-build-tauri-local-install` 负责。阅读知识不触发能力启用、依赖安装或候选验收。
+
 ## 固定图标契约
 
 - `package.json` 必须把 `@tabler/icons-react` 声明为直接生产依赖，使用经过最低直接版本验证的完整三段 caret 下界；所有图标使用命名导入，保留 tree-shaking。
