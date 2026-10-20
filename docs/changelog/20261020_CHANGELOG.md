@@ -12,9 +12,9 @@
 - 版本与候选：下游版本按周期和稳定 ID 管理，维护不升版；Harness 仅正式发布时取上海时间版本。双语日志保存最近十个真实发布版本、每类最多十条；候选只消费已发布源码，CLI 默认当前宿主，跨平台矩阵需明确请求。原子证据、当次 E2E/签名和真实最终产物验收见 [发布规则](../RELEASE.md) 与 [验证规则](../VERIFICATION.md)。
 - 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定；GPUI 知识资产条件传播，taste/Kit 本地来源和许可可追溯；历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261020_ADR.md)。
 
-## 仍待正式发布物化的既有变化
+## 本次正式发布物化的既有变化
 
-- `HARNESS-GPUI-ENGINEERING-KNOWLEDGE`（`required_version = pending`）：保留旧快照已记录的 GPUI 依赖/兼容、性能与三平台打包知识分工及 Linux GNU 支持；实际入口见 [GUI 工程索引](../GUI_ENGINEERING.md)。本次整理不提前物化 Harness 时间版本。
+- `HARNESS-GPUI-ENGINEERING-KNOWLEDGE`（`required_version = 202610201054`）：保留旧快照已记录的 GPUI 依赖/兼容、性能与三平台打包知识分工及 Linux GNU 支持；实际入口见 [GUI 工程索引](../GUI_ENGINEERING.md)。本次正式发布将既有变化绑定到该时间版本，未重写历史验证事实。
 
 ## 历史事件的版本绑定
 
