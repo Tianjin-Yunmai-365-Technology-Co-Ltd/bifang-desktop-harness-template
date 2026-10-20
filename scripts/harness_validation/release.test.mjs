@@ -19,6 +19,11 @@ import {
   RELEASE_DOC,
   TAURI_LOCAL_INSTALL_SKILL,
   TAURI_RELEASE_SKILL,
+  TAURI_MACOS_DMG_REFERENCE,
+  TAURI_MACOS_SIGNING_REFERENCE,
+  TAURI_UPDATER_REFERENCE,
+  TAURI_WINDOWS_NATIVE_REFERENCE,
+  TAURI_WINDOWS_XWIN_REFERENCE,
   VERIFY_DELIVERY_SKILL,
   validateBuildSkillContract,
   validateHarnessSourceReleaseContract,
@@ -27,6 +32,7 @@ import {
   validateReleaseIgnore,
   validateReleaseSelectionContract,
   validateTauriLocalInstallContract,
+  validateTauriBuildSkillContract,
 } from "./release.mjs";
 import { mutateFile, validateMutation, withTemporaryFile } from "./release_test_support.mjs";
 
@@ -103,6 +109,22 @@ const selectionCases = [
   ["delivery pre-status context verification", "verifySkill", VERIFY_DELIVERY_SKILL, "在写入验收状态前再次运行发布上下文 `verify`"],
   ["Tauri macOS signing selection", "tauriSkill", TAURI_RELEASE_SKILL, "当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`"],
 ];
+
+/** 分支详情只能由对应路由引用提供，不能由无关平台文档中的同词句补足。 */
+test("tauri_build_requires_each_routed_branch_contract", () => {
+  for (const [option, source, fragment] of [
+    ["tauriSkill", TAURI_RELEASE_SKILL, "references/tauri-macos-signing.md"],
+    ["macosDmgReference", TAURI_MACOS_DMG_REFERENCE, "scripts/verify-dmg-layout.sh"],
+    ["macosSigningReference", TAURI_MACOS_SIGNING_REFERENCE, "只接受 `Accepted`"],
+    ["updaterReference", TAURI_UPDATER_REFERENCE, "执行实际签名验证"],
+    ["windowsNativeReference", TAURI_WINDOWS_NATIVE_REFERENCE, "本分支禁止 `--runner cargo-xwin`"],
+    ["windowsXwinReference", TAURI_WINDOWS_XWIN_REFERENCE, "gate.path.prepend"],
+  ]) {
+    const contents = fs.readFileSync(source, "utf8");
+    assert.ok(contents.includes(fragment));
+    expectErrors(validateContents(validateTauriBuildSkillContract, option, source, contents.replaceAll(fragment, "removed")), "Tauri release contract missing");
+  }
+});
 
 for (const [name, option, source, fragment] of selectionCases) {
   test(`release selection rejects missing ${name}`, () => {

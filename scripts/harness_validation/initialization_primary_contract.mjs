@@ -73,6 +73,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
     ]],
     [skillFile, [
       "GUI 框架分派",
+      "references/tauri-initialization.md",
       "initialization_form.mjs",
       "$desktop-add-gpui-adapter",
       "Computer Use",

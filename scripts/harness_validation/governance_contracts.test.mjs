@@ -74,6 +74,20 @@ test("streamlined contract requires the action-switch skill", () => withTemporar
   expectError(errors, anchor);
 }));
 
+/** 委托入口与目标所有权保护必须同时存在，移动正文不能使任一检查失效。 */
+test("upgrade_delegation_preserves_policy_boundaries", () => withTemporaryDirectory((directory) => {
+  for (const [key, anchor] of [
+    ["upgradeSkill", "references/ownership-policy.md"],
+    ["upgradePolicy", "目标尚无该文件时保持缺席"],
+    ["implementSkill", "用户明确要求发布时路由 `$desktop-prepare-release`"],
+  ]) {
+    const changed = mutatedCopy(directory, key, anchor, "已删除委托或保护");
+    const errors = [];
+    validateStreamlinedDevelopmentAndBuild(errors, { paths: { [key]: changed } });
+    expectError(errors, anchor);
+  }
+}));
+
 /** 默认关闭路径与开启技能职责各自受门禁约束，不能退回无条件工作树。 */
 test("task_environment_contract_rejects_each_missing_binding_boundary", () => withTemporaryDirectory((directory) => {
   for (const [key, anchors] of [

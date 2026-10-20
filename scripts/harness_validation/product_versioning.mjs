@@ -33,12 +33,9 @@ export function validateDownstreamVersionClassification(errors, implementationSk
   requireOrderedPolicy(errors, "desktop-implement-change step 2", implementationStep, [
     "在首个新改动和 `plan` 前",
     "$desktop-manage-version finalize-release",
-    "新目标、新能力、新使用场景或扩大既有需求",
-    "优先分类为 `feature`/Minor",
-    "确认不属于新需求后",
-    "分类为 `bug-fix`/Patch",
-    "记录互相矛盾时",
-    "`record-reconciliation`/Minor",
+    "[版本分类与工作流程](../desktop-manage-version/SKILL.md)",
+    "通过 `plan`",
+    "保留参数供第 9 步 `apply`",
   ]);
 
   const versionClassification = versionSkill.split("\n").find((line) => line.startsWith("- 已完成正式发布并确认版本 tag"));
@@ -67,7 +64,7 @@ export function validateProductVersioningContract(errors) {
     [path.join(ROOT, "docs", "RUST_CLI_TEMPLATE.md"), ["$desktop-manage-version", ".harness/version-state.json"]],
     [path.join(SKILLS_ROOT, "desktop-initialize-rust-project", "SKILL.md"), ["$desktop-manage-version init --project-root .", ".harness/version-state.json", "版本 Skill 及其 Node 标准库 helper/测试必须完整保留"]],
     [path.join(SKILLS_ROOT, "desktop-instantiate-project", "SKILL.md"), ["$desktop-manage-version init --project-root .", ".harness/version-state.json", "完整保留该版本 Skill、标准库 helper 和测试"]],
-    [path.join(SKILLS_ROOT, "desktop-implement-change", "SKILL.md"), ["`plan`", "$desktop-manage-version apply", "required_version", "maintenance", "用户可感知优化", "`record-reconciliation`", "$desktop-manage-version finalize-release"]],
+    [path.join(SKILLS_ROOT, "desktop-implement-change", "SKILL.md"), ["`plan`", "$desktop-manage-version apply", "required_version", "maintenance", "../desktop-manage-version/SKILL.md", "`record-reconciliation`", "$desktop-manage-version finalize-release"]],
     [path.join(SKILLS_ROOT, "desktop-build-rust-release", "SKILL.md"), ["$desktop-manage-version check --phase build", "不得计算、提升版本或重置正式发布周期"]],
     [path.join(SKILLS_ROOT, "desktop-build-tauri-release", "SKILL.md"), ["$desktop-manage-version check --phase build", "构建不得提升版本"]],
     [path.join(SKILLS_ROOT, "desktop-prepare-release", "SKILL.md"), ["$desktop-manage-version check --phase release", "发布准备不补算 Minor/Patch", "finalize-release"]],

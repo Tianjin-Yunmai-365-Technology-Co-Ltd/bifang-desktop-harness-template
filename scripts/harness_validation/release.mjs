@@ -30,6 +30,11 @@ export const GIT_LIFECYCLE_RELEASE_TESTS = skill("desktop-manage-git-lifecycle",
 export const GIT_PUBLICATION_TEST_CASES = skill("desktop-manage-git-lifecycle", "scripts", "git_publication_test_cases.test.mjs");
 export const TAURI_LOCAL_INSTALL_SKILL = skill("desktop-build-tauri-local-install", "SKILL.md");
 export const TAURI_RELEASE_SKILL = skill("desktop-build-tauri-release", "SKILL.md");
+export const TAURI_UPDATER_REFERENCE = skill("desktop-build-tauri-release", "references", "tauri-updater.md");
+export const TAURI_MACOS_DMG_REFERENCE = skill("desktop-build-tauri-release", "references", "tauri-macos-dmg.md");
+export const TAURI_MACOS_SIGNING_REFERENCE = skill("desktop-build-tauri-release", "references", "tauri-macos-signing.md");
+export const TAURI_WINDOWS_NATIVE_REFERENCE = skill("desktop-build-tauri-release", "references", "tauri-windows-native.md");
+export const TAURI_WINDOWS_XWIN_REFERENCE = skill("desktop-build-tauri-release", "references", "tauri-windows-xwin.md");
 export const VERIFY_DELIVERY_SKILL = skill("desktop-verify-delivery", "SKILL.md");
 export const E2E_SKILL = skill("desktop-test-final-artifact-e2e", "SKILL.md");
 export const VERIFICATION_DOC = path.join(ROOT, "docs", "VERIFICATION.md");
@@ -197,6 +202,9 @@ export function validateTauriLocalInstallContract(errors, localSkill = TAURI_LOC
 export function validateTauriBuildSkillContract(errors, overrides = {}) {
   const paths = {
     tauriSkill: TAURI_RELEASE_SKILL, verifySkill: VERIFY_DELIVERY_SKILL, verificationDoc: VERIFICATION_DOC,
+    updaterReference: TAURI_UPDATER_REFERENCE, macosDmgReference: TAURI_MACOS_DMG_REFERENCE,
+    macosSigningReference: TAURI_MACOS_SIGNING_REFERENCE, windowsNativeReference: TAURI_WINDOWS_NATIVE_REFERENCE,
+    windowsXwinReference: TAURI_WINDOWS_XWIN_REFERENCE,
     xwinGate: MACOS_XWIN_GATE, notarizationHelper: TAURI_NOTARIZATION_HELPER, tauriTests: TAURI_RELEASE_HELPER_TESTS,
     dmgLayoutHelper: TAURI_DMG_LAYOUT_HELPER, dmgLayoutTests: TAURI_DMG_LAYOUT_TESTS,
     releaseNotesHelper: TAURI_RELEASE_NOTES_HELPER, releaseNotesTests: TAURI_RELEASE_NOTES_HELPER_TESTS,
@@ -205,16 +213,21 @@ export function validateTauriBuildSkillContract(errors, overrides = {}) {
   const required = new Map([
     [paths.tauriSkill, [
       "仅供本机安装检查的试包转到 `$desktop-build-tauri-local-install`", "release_notes.mjs check --file release-notes.json",
-      "verify_release_notes_resource.mjs config", "--config src-tauri/tauri.release.conf.json", "不在构建中改写它",
+      "verify_release_notes_resource.mjs config", "src-tauri/tauri.release.conf.json", "不在构建中改写它",
       "scripts/prepare-release-directory.sh <project-root>", "scripts/prepare-release-directory.ps1 -ProjectRoot <project-root>",
       "Windows 原生路线不得调用 `.sh` helper", "scripts/macos-tauri-xwin-gates.sh --install-missing",
-      "CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg", "scripts/verify-dmg-layout.sh",
-      "候选构建中禁止 `--skip-stapling`", "pnpm tauri build --bundles nsis --runner cargo-xwin",
+      "references/tauri-macos-dmg.md", "references/tauri-macos-signing.md", "references/tauri-windows-native.md",
+      "references/tauri-windows-xwin.md", "references/tauri-updater.md", "候选构建中禁止 `--skip-stapling`",
       "所有会改变字节的布局写入、签名、公证和 stapling 完成后", "写完 manifest 后必须按每份 manifest 枚举并复算",
-      "随后才以不跟随链接的目录级原子替换提交到 `release/`", "bundle.createUpdaterArtifacts: true",
-      "官方 updater archive 与相邻 `.sig`", "`signatureVerification: passed`", "notarized-and-stapled",
+      "随后才以不跟随链接的目录级原子替换提交到 `release/`",
+      "`signatureVerification: passed`", "notarized-and-stapled",
       "cargo test --workspace --all-targets --all-features", "e2eSelection", "releaseNotesVersion",
     ]],
+    [paths.updaterReference, ["bundle.createUpdaterArtifacts: true", "官方 updater archive 与相邻 `.sig`", "在任何测试前", "TAURI_SIGNING_PRIVATE_KEY", "执行实际签名验证"]],
+    [paths.macosDmgReference, ["CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg --no-sign", "--no-sign --config src-tauri/tauri.release.conf.json", "scripts/verify-dmg-layout.sh", "只读挂载最终字节", "tauri-macos-signing.md"]],
+    [paths.macosSigningReference, ["pnpm tauri build --bundles dmg --config src-tauri/tauri.release.conf.json", "scripts/probe-macos-notarization.sh", "notarytool submit --wait", "只接受 `Accepted`", "不得以 `--no-sign` 重试或静默降级", "不得输出或记录秘密/profile 名"]],
+    [paths.windowsNativeReference, ["pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --config src-tauri/tauri.release.conf.json", "本分支禁止 `--runner cargo-xwin`", "verify_release_notes_resource.mjs bytes", "runtimeVerification: Unverified"]],
+    [paths.windowsXwinReference, ["pnpm tauri build --bundles nsis --runner cargo-xwin", "--target x86_64-pc-windows-msvc --config src-tauri/tauri.release.conf.json", "gate.path.prepend", "verify_release_notes_resource.mjs bytes", "不得猜测文件名", "`runtimeVerification` 均为 `Unverified`"]],
     [paths.verifySkill, ["verify_release_notes_resource.mjs bytes", "releaseNotesPath: release-notes.json", "针对 `release/` 中当前最终字节重新运行"]],
     [paths.e2eSkill, ["GUI 更新日志", "release-notes.json", "最多十版", "各最多十条"]],
     [paths.verificationDoc, ["Tauri DMG 最终布局", "只读挂载检查"]],

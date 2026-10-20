@@ -198,10 +198,8 @@ const STREAMLINED_ENTRIES = [
     "只运行第 6 步的测试", "日常开发不得自动追加格式化、lint、静态", "普通构建也只新增全量非空单元测试和实际构建",
     "构建请求、执行和结果本身不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "只更新被独立事件触发的记忆",
     "当前说明来自左侧 user-owned Task", "$desktop-add-file-operations", "$desktop-add-external-process",
-    "$desktop-manage-git-lifecycle start", "合并登记分支到本地默认主分支",
-    "`--release-context-sha256 <sha256>`", "不 fetch、push、打包或清理资源",
-    "普通完成不自动推送、发布或删除登记资源", "随后必须按已确认的 `post_release_action`",
-    "`push-release --remote <name>`", "复核真实制品或远端 refs 后才报告后续路径完成",
+    "$desktop-manage-git-lifecycle start",
+    "普通完成不自动推送、发布或删除登记资源",
     "每完成一个逻辑闭环", "最终交付前确认测试、权威文档、适用提交与干净工作树",
     "用户明确要求发布时路由 `$desktop-prepare-release`",
   ]],
@@ -288,7 +286,7 @@ const STREAMLINED_ENTRIES = [
   ]],
   ["crossPlatformReleaseSkill", ["e2e_selection", "cargo test --workspace --all-targets --all-features", "不得自动追加格式、lint 或其他开发门禁", "e2eSelection", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "矩阵本身不得运行 E2E"]],
   ["collectReleaseSkill", ["e2eSelection", "发布上下文 `verify`", "锁定 clean 当前 HEAD、`releaseContextSha256`", "候选选择则与原始构建 manifest 及声明的构建证据一致", "再次运行发布上下文 `verify`", "不重新构建、签名、执行或发布候选", "收集过程绝不得自行启动冒烟/E2E", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification"]],
-  ["prepareReleaseSkill", ["本地默认主分支和版本 tag 指向同一最终提交后，Git 发布即结束", "上下文只冻结版本、日期、默认主分支、预期 tag、源码身份与审查结论", "不保存推送模式、远端、候选签名或打包选择", "不访问远端、不推送、不打包", "读取生命周期记录里该次冻结的 `postReleaseAction`，执行并检测后续路径"]],
+  ["prepareReleaseSkill", ["本地默认主分支和版本 tag 指向同一最终提交后，Git 发布即结束", "上下文只冻结版本、日期、默认主分支、预期 tag、源码身份与审查结论", "不保存推送模式、远端、候选签名或打包选择", "不访问远端、不推送、不打包", "读取生命周期记录里该次冻结的 `postReleaseAction`，执行并检测后续路径", "`push-release --remote <name>`", "整个下游发布后流程只有所选路径实际通过才算完成"]],
   ["engineeringRules", [
     "### 5.3 开发、构建与完整验收", "日常开发统一直接实施，只运行本次变更需要的相关非空单元/回归测试",
     "显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择", "构建必须运行项目全部非空单元测试",
@@ -310,9 +308,9 @@ const STREAMLINED_ENTRIES = [
     "每次明确的 Git 发布先由 `$desktop-prepare-release`", "本地默认主分支", "随后按 `post_release_action` 进入现有本地打包流程或 `push-release`",
   ]],
   ["verification", ["候选 E2E、完整验收、`pending` → `accepted` 状态更新和就绪复核", "仅写入忽略的 `release/` 原子候选集合", "本地主分支和本地版本 tag 指向同一提交", "独立回顾性人工复核或长期审计不得改写活动候选", "不得改写活动候选、覆盖历史失败或反向授予其 `accepted`/`ready`"]],
-  ["upgradeSkill", ["不自动创建 Work Plan、Todo、并行 Worktree/Subagent 或完整验收步骤", "只有用户明确要求并行", "只运行本次升级实际影响的非空单元/回归测试", "不得因 Harness 升级自动追加全仓格式、lint、静态", "$desktop-manage-git-lifecycle", "$desktop-switch-post-release-action", "目标尚无该文件时保持缺席", "旧 schema 3 的 `selection_required` 必须询问用户", "`status: configured`"]],
+  ["upgradeSkill", ["不自动创建 Work Plan、Todo、并行 Worktree/Subagent 或完整验收步骤", "只有用户明确要求并行", "只运行本次升级实际影响的非空单元/回归测试", "不得因 Harness 升级自动追加全仓格式、lint、静态", "references/ownership-policy.md", "旧 schema 3 的 `selection_required` 必须询问用户", "`status: configured`"]],
   ["environmentSkill", ["只接受两类触发", "不得仅因首次修改代码、新任务、新会话、显式构建", "门禁成功后只重试原失败命令一次", "缺少环境证据或工具链版本可能变化而增加探测"]],
-  ["upgradePolicy", ["managed", "managed-self", "merge-sections", "conditional", "protected", "tombstone", "`post_release_action` 也属于 protected 下游选择", "$desktop-switch-post-release-action"]],
+  ["upgradePolicy", ["$desktop-manage-git-lifecycle", "目标尚无该文件时保持缺席", "managed", "managed-self", "merge-sections", "conditional", "protected", "tombstone", "`post_release_action` 也属于 protected 下游选择", "$desktop-switch-post-release-action"]],
 ];
 
 function currentRuleFiles() {

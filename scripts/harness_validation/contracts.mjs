@@ -54,7 +54,9 @@ export function validateGovernanceDocuments(errors) {
   }
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-instantiate-project", "SKILL.md"), ["上游专用的 `check_no_python.mjs`", "从下游 `AGENTS.md` 与 `docs/ENGINEERING_RULES.md` 删除仅属上游的 Python 禁令"], "$desktop-instantiate-project");
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-initialize-rust-project", "SKILL.md"), ["删除上游专用的 `check_no_python.mjs`", "不带入上游专用 Python 禁令"], "$desktop-initialize-rust-project");
-  requireFragments(errors, path.join(SKILLS_ROOT, "desktop-upgrade-harness", "SKILL.md"), ["上游专用的 `check_no_python.mjs`", "不得在目标根运行 `check_no_python.mjs`"], "$desktop-upgrade-harness");
+  requireFragments(errors, path.join(SKILLS_ROOT, "desktop-upgrade-harness", "SKILL.md"), ["references/ownership-policy.md", "不得在目标根运行 `check_no_python.mjs`"], "$desktop-upgrade-harness");
+
+  requireFragments(errors, path.join(SKILLS_ROOT, "desktop-upgrade-harness", "references", "ownership-policy.md"), ["上游专用 `check_no_python.mjs`", "不得再包含它"], "Harness 升级所有权策略");
 
   requireFragments(errors, path.join(ROOT, "docs", "ENGINEERING_RULES.md"), [
     "Core-first 是硬规则",

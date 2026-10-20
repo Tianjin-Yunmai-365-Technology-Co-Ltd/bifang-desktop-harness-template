@@ -5,7 +5,7 @@ description: 为已明确选择 GPUI 的中性 Rust 下游建立原生桌面薄�
 
 # 增加 GPUI 原生适配器
 
-只在初始化已选择 `gui_framework = gpui`，或已初始化下游明确批准增加 GPUI 接口时使用。默认桌面框架仍为 Tauri。GPUI 原生视图使用 Rust；根 pnpm 入口运行保留的 Node 工程检查与发布工具，默认无第三方 npm 依赖，无需前端。不得混装 React、WebView 或 Tauri plugin。当前 Harness 根只维护模板和工程规则，不能把产品业务写入这里。
+在初始化已选择 `gui_framework = gpui`、已初始化下游明确批准增加 GPUI 接口，或维护既有 GPUI 壳层/能力时使用。默认桌面框架仍为 Tauri。GPUI 原生视图使用 Rust；根 pnpm 入口运行保留的 Node 工程检查与发布工具，默认无第三方 npm 依赖，无需前端。不得混装 React、WebView 或 Tauri plugin。当前 Harness 根只维护模板和工程规则，不能把产品业务写入这里。
 
 GPUI 下游创建时安装项目本地官方 `$gpui-kit` 与 `$gpui-kit-design-guides`。界面设计、组件、布局、主题、状态与可见文案按后者读取 Design Guides；架构、Entity 所有权、事件、异步、API 和测试按前者读取 Coding Guides 及命中 references。只读取本次需要的深层主题，不全量加载参考文档。两套 Skill 的 `source.json` 固定来源 revision、大小与 SHA-256，`LICENSE-APACHE` 保留许可，`HARNESS-INTEGRATION.md` 解释原始跨 Skill/仓库引用。用户指令与本项目约束优先，官方知识不改变已确认的模板尺寸、功能范围、依赖或验收责任；API 必须与项目实际依赖版本核对。安装知识不运行远程代码，也不增加全局或运行时依赖。
 
@@ -14,6 +14,8 @@ GPUI 下游创建时安装项目本地官方 `$gpui-kit` 与 `$gpui-kit-design-g
 依赖整理、版本升级与本地兼容补丁使用 `$desktop-manage-gpui-dependencies`；当前产品先取根 Cargo，初始化才读 [renderer 依赖快照](references/dependency-baseline.md)，不按旧下界降级产品。性能请求使用 `$desktop-optimize-gpui-performance`。
 
 初始化及运行时/能力接线读 [runtime-and-native](references/runtime-and-native.md)；侧栏/关于/赞助页变更读 [shell-surfaces](references/shell-surfaces.md)；根 pnpm 脚本或开发循环变更读 [workspace-tooling](references/workspace-tooling.md)。只读取命中主题，保留九字段、禁用裁剪与已有产品接线。
+
+已有 GPUI GUI 新增、调整或禁用通知、托盘或全局快捷键时，再读 [既有 GUI 能力增量接线](references/existing-gui-capabilities.md)，按引用完成后返回同一实施流程，不执行下面新增接口的生成步骤；保留产品定制，不重跑拒绝已有 GUI 的 add-only helper。自启继续交 `$desktop-add-gpui-autostart`。
 
 Linux 窗口、托盘恢复、任务栏/Dock、自启、通知或后台热键变更，再读 [Linux 原生宿主方案](references/linux-native.md)。其中记录可复用机制及验证边界；当前中性 renderer 仍拒绝 Linux 托盘和后台热键生成，完整登录命令校验、旧项迁移和隐藏启动协调也未生成。已有下游实现与历史候选通过不改变这些事实。
 

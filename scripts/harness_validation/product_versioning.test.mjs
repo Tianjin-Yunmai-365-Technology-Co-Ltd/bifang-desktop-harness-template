@@ -30,17 +30,18 @@ test("current_skills_state_requirement_first_and_historical_minimum_rules", () =
   assert.deepEqual(errors, [], errors.join("\n"));
 });
 
-test("requirement_first_classification_rejects_bug_fix_priority", () => {
+test("implementation_requires_classification_delegation_before_plan", () => {
   const { implementation, version } = classificationSkills();
-  const bugFixClause = "确认不属于新需求后，具有新稳定 ID 的问题修复或用户可感知优化分类为 `bug-fix`/Patch。";
-  assert.ok(implementation.includes(bugFixClause));
-  const reversed = implementation.replace(bugFixClause, "").replace(
-    "随后判断变化相对已发布规格与行为的性质。",
-    `${bugFixClause}随后判断变化相对已发布规格与行为的性质。`,
-  );
-  const errors = [];
-  validateDownstreamVersionClassification(errors, reversed, version);
-  assert.ok(errors.some((error) => error.includes("desktop-implement-change step 2")), errors.join("\n"));
+  const delegate = "[版本分类与工作流程](../desktop-manage-version/SKILL.md)";
+  assert.ok(implementation.includes(delegate));
+  for (const changed of [
+    implementation.replace(delegate, "自行选择分类"),
+    implementation.replace(delegate, "").replace("通过 `plan`", `通过 \`plan\` 后再读取 ${delegate}`),
+  ]) {
+    const errors = [];
+    validateDownstreamVersionClassification(errors, changed, version);
+    assert.ok(errors.some((error) => error.includes("desktop-implement-change step 2")), errors.join("\n"));
+  }
 });
 
 test("version_skill_rejects_bug_fix_before_feature", () => {
