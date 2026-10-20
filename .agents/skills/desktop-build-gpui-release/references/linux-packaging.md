@@ -27,6 +27,8 @@ pnpm run gpui:package build --root . --mode local --target aarch64-unknown-linux
 
 tar.gz 含产品目录、可执行程序、相邻 resources 与 launch；deb 含 /opt/<identifier>、/usr/bin 转发入口、.desktop 和真实派生的 hicolor/512x512 PNG。资源逐项声明 linux 映射；不从其他平台猜测。双语许可证与第三方许可证按配置进入，candidate 另含相同日志字节。tar 清除 TAR_OPTIONS，并用 -- 结束选项。
 
+应用中心发现、图标、升级或卸载问题按 [应用目录与桌面安装集成](linux-desktop-integration.md) 区分 Debian 包、桌面入口、AppStream catalog 和包管理后端。当前 Harness helper 尚未生成 catalog；下游 DEP-11 YAML 方案不自动成为本工具能力。最终包字段一致、原生解析通过和目标软件中心实际事务是不同证据。
+
 发行树的目录、主程序和启动入口显式规范为 `0755`，普通资源为 `0644`，不继承构建账户 umask；受限 `umask 077` 的真实 deb/tar.gz 解包回归逐项核对。hicolor 图标须实际派生为 512×512，桌面标识、`StartupWMClass` 与图标名同源，并核对运行中窗口的 `app_id`。打包工具只校验包内事实，不替代宿主解析 `Exec`、桌面分组与真实 Dock 呈现。
 
 最终包真实解包核对精确集合、权限、ELF64机器类型、二进制/资源摘要；deb 还核对控制文件、架构、glibc最低需求、桌面身份与启动入口。构建不安装或运行应用。manifest 分开 hostTarget、target、native/cross-architecture、宿主测试与 runtimeVerification:Unverified。

@@ -36,6 +36,7 @@ Linux 知识按既有 Skill 职责维护；只读取当前问题对应的引用�
 | D-Bus、X11 与 Portal 的依赖选择 | [依赖矩阵](../.agents/skills/desktop-manage-gpui-dependencies/references/dependency-matrix.md) | 按真实消费者裁剪 features，声明依赖不等于服务接线 |
 | 静态首帧、共享设置缓存吞掉首次发布 | [资源与缓存](../.agents/skills/desktop-optimize-gpui-performance/references/resources-and-caches.md)、[运行时与需求](../.agents/skills/desktop-optimize-gpui-performance/references/runtime-and-demand.md) | 正式帧请求和消费者初始化分别回归，不把正确性修复写成性能测量 |
 | deb/tar.gz、交叉链接、权限、图标及 glibc | [Linux 打包合同](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md) | 宿主测试、最终包校验与目标运行验收分别记录 |
+| GPUI deb 的应用中心发现、AppStream、图标、升级和卸载 | [应用目录与桌面安装集成](../.agents/skills/desktop-build-gpui-release/references/linux-desktop-integration.md) | 当前 helper 尚未生成 catalog；包内身份、解析/规范校验、包管理事务和实机呈现分别判断 |
 | Tauri deb/AppImage、托盘运行库、非 ASCII 产品名派生的非法 Debian 包名 | [Tauri Linux 本地试包与宿主要点](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md) | 只规范安装标识并核对 payload 不变；本地试包不构成 Linux 候选证据 |
 | Tauri 用户/XDG 目录、卷边界、发现测试与取消 | [Linux 运行时与测试边界](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | 枚举省略不等于递归排除；策略与宿主 I/O 分开回归 |
 | Tauri 托盘恢复、自启、WebView origin 与应用 command ACL | [Linux 桌面生命周期](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md#托盘窗口与登录启动)、[WebView 与权限](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md#webview-与-command-权限) | 菜单恢复不依赖 Linux 图标事件；ACL 与 origin 按项目实际配置判断 |

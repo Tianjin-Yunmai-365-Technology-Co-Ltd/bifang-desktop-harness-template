@@ -42,6 +42,8 @@ KSNI/StatusNotifierItem 使用会话 D-Bus，不在 GPUI 主线程混入 GTK 循
 
 窗口 `app_id`、桌面文件标识、`StartupWMClass` 及图标名来自同一已确认身份。已批准 Logo 派生窗口 ARGB 图标和实际尺寸的 hicolor PNG；`_NET_WM_ICON` 读回只证明窗口属性，Dock 还须能解析有效 `.desktop` 和 `Exec`。隔离解包运行时宿主未必能访问包内路径，临时宿主映射须精确登记并恢复。最终包解包检查与真实 Dock 呈现分别取证，包布局与图标尺寸见 [Linux 打包合同](../../desktop-build-gpui-release/references/linux-packaging.md)。
 
+Dock 窗口分组与软件中心应用发现是不同消费者。后者的 AppStream 包名关联、stock 图标可见性及安装/卸载边界按 [桌面安装集成](../../desktop-build-gpui-release/references/linux-desktop-integration.md) 核对，不能用窗口图标读回代替软件中心条目或事务证据。
+
 ## freedesktop 通知
 
 [Desktop Notifications](https://specifications.freedesktop.org/notification/latest-single/) 的固定会话服务为 `org.freedesktop.Notifications`；`GetCapabilities` 只证明服务及其能力可查询，没有每应用授权查询。不可达和超时不伪装为用户拒绝。启动不投递测试消息，实际发送遵守应用偏好及 core 事件规则。
