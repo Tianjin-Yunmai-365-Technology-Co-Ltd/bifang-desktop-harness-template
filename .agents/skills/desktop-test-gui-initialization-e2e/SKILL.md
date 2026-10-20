@@ -14,7 +14,7 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 1. 当前目录是已规范化的唯一终端下游项目根，GUI 目录精确为 `<project-id>_gui`。新实例化目标在本 E2E 阶段不得提前 `git init`；当前根若已经存在自身 `.git`，其规范化 Git 顶层必须精确等于当前目录，父级仓库不得视为目标自身的 Git 边界。独立 `main` 仓库仍由初始化器在本 E2E 与裁剪成功后、紧邻唯一基线提交时建立。
 2. 读取 `AGENTS.md`、Agent Policy、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、精确命中的 UI 标准、Rust/GUI 基线及 `docs/GUI_APP_PROFILE.md`。资料必须有且只有一个 `gui-initialization-config` 围栏代码块，字段按固定顺序恰好为 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`；八项能力均为 `enabled`/`disabled`，侧栏模式为 `compact`/`detailed`，且无 `pending`。`deep_link = enabled` 必须同时满足 `single_instance = enabled`。`global_shortcut = enabled` 时还必须有唯一合法 `gui-global-shortcut-contract` JSON 块，中性初始化的 `actions` 必须为空；禁用时该块必须缺席。若用户未选择侧栏，初始化器应已写入 `detailed`；本 E2E 不补写或推断缺失字段。
 3. 读取并使用 `computer-use` Skill 操作真实桌面窗口。只允许本地调试构建和只读界面操作，不签名、不生成安装包、不写 `release/`、不启用远程能力。
-4. 未选能力不是缺失证据；已选能力若当前宿主无法观察、操作或判定，则阻断初始化。唯一例外是 macOS 只能由已打包应用证明的自定义 scheme 系统注册：初始化仍须通过解析器、冷/热事件与窗口恢复边界，并把最终系统注册明确标为 `Not verified` 留给候选验收，不能用该例外跳过其余深链接场景。
+4. 未选能力不是缺失证据；已选能力若当前宿主无法观察、操作或判定，则阻断初始化。唯一例外是静态 scheme 需打包安装才能证明的 OS 注册（macOS/Windows/Linux）：初始化仍须通过解析器、冷/热分发与窗口恢复的非空回归；当前调试程序可观察的宿主事件继续实测，无法通过系统 URL 唤起的部分明确为 `Not verified` 并留给最终安装候选阻断式补验。不得为通过初始化调用运行时注册或改变真实系统关联，也不能把解析器回归冒充 OS 注册通过。
 
 ## 工作流程
 
@@ -36,10 +36,10 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
    - `detailed` 首次无偏好时以 `248px` 展开，使用 `22px` 图标并显示图标+名称；点击身份区父级不变化，点击自身 `ActionIcon` 后以 `76px` 收起，AppShell 主内容偏移同步扩展，只显示图标并通过 `position=right`、`openDelay=0` 的 Tooltip 显示完整名称。重启应用后恢复折叠偏好，再展开并确认偏好更新；
    - 可访问树中每个实际菜单页面非空可达；`/settings` 始终存在，`/about`、`/sponsor` 及入口分别与配置一致，未选页面不得出现占位、404 入口或运行时菜单。关于页启用时点击“更新日志”自身按钮；首次正式发布前根日志尚不存在是预期状态，必须显示本地读取失败与可操作重试且零出站，不得以编译时假数组伪装正式日志。本场景不证明发布候选已嵌入资源。
 5. 先改变主窗口尺寸/位置并正常重启，确认固定 window-state 只恢复尺寸、位置和最大化；隐藏/全屏/装饰状态不恢复，损坏或移到不可见屏幕的隔离状态文件后回退 1440×900、居中、最小 960×640。完成后恢复或删除本 Skill 创建的隔离状态。仅当单实例启用时，再第二次启动同一精确二进制；第二进程 15 秒内退出，原 PID/同一窗口持续且恢复聚焦，宿主只剩一个长期应用主进程和一个主窗口。
-6. 仅当托盘启用时，验证状态栏/通知区域的真实非空图形、中文“显示窗口/退出”和英文“Show Window/Quit”无重启刷新且无 `tray.*` 原始键；再验证原生关闭只隐藏、进程继续、托盘左键和显示项恢复聚焦、退出项结束进程并移除图标。空白点击区域、菜单不止两项或任一状态无法判定都失败。
+6. 仅当托盘启用时，验证状态栏/通知区域的真实非空图形、中文“显示窗口/退出”和英文“Show Window/Quit”无重启刷新且无 `tray.*` 原始键；再验证原生关闭只隐藏、进程继续、显示项恢复聚焦，并在 macOS/Windows 额外验证托盘左键恢复；Linux 不发送 `TrayIconEvent`，必须通过菜单恢复与退出，左键事件场景标为不适用、退出项结束进程并移除图标。空白点击区域、菜单不止两项或任一状态无法判定都失败。
 7. 仅当系统通知启用时，确认设置 Switch 初始关闭、点击周围 Paper 不触发命令、pending/拒绝/失败可见；结构检查和非空回归必须证明 macOS 的查询→条件请求→复读→授权持久化或固定系统设置恢复路径。初始化调试二进制不得实际发送产品通知，不得为测试污染真实授权决定或无条件打开系统设置，也不得作为 macOS 已安装签名候选的权限弹窗、设置跳转或横幅证据；这些宿主行为留给最终安装候选验证。
 8. 仅当开机自启启用时，先读取并记录 OS 登录项状态，再通过 Switch 切换并重读实际状态；随后立即恢复执行前的 OS 登录项状态并再次确认。所有成功、失败、超时、取消和清理路径都必须执行恢复；恢复失败阻断并报告人工恢复步骤。
-9. 仅当深链接启用时，在当前宿主可真实注册自定义 scheme 的前提下分别触发冷启动与热启动 `app-<kebab-id>://restore`，确认非法 scheme/query/fragment 不产生动作、合法 URL 只恢复同一主窗口且热启动事件不丢；macOS debug no-bundle 无法证明 Launch Services 注册时明确记录 `Not verified`，由最终打包候选阻断式补验，不能把解析器单测冒充 OS 深链通过。
+9. 仅当深链接启用时，在当前宿主可真实注册自定义 scheme 的前提下分别触发冷启动与热启动 `app-<kebab-id>://restore`，确认非法 scheme/query/fragment 不产生动作、合法 URL 只恢复同一主窗口且热启动事件不丢；静态路线在 macOS/Windows/Linux 的 debug no-bundle 阶段无法证明 OS scheme 注册或系统 URL 唤起时，按前置条件第 4 项明确记录 `Not verified`，由最终安装候选补验系统注册及真实冷/热启动。初始化通过解析器、事件分发与窗口恢复回归只证明内部边界，不冒充 OS 深链通过。
 10. 仅当全局快捷键启用时读取 contract 与逐项真实状态。中性空 contract 必须确认启动/重启都没有 active binding，且不存在旧 Harness fallback chord。非空 contract 只触发 `e2eSafe = true` 的实际非空 binding；可编辑且初始 `null` 时先快照完整配置，通过正式窄命令临时保存一个可成功注册的 probe chord，再触发并恢复原快照。固定或 probe 注册失败必须以稳定状态可见。随后确认本轮 owned chord 全部释放；没有安全可观察动作时不得随意触发业务或把静态检查报告为真实通过。托盘未启用时另用原生关闭控件确认最后窗口关闭即退出。
 11. 无论成功、失败、超时或取消，都先恢复本 Skill 修改的开机自启状态、window-state 数据、全局快捷键配置和 owned registry，再终止并等待回收本 Skill 拥有的全部进程，禁止遗留 detached task、测试登录项、状态文件、录制 token 或 chord。
 
@@ -48,7 +48,7 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
 - 九字段唯一配置块完整、交叉关系合法，且实现、依赖、设置、路由、资源与每个 enabled/disabled 选择一致；
 - system-locale、updater、window-state 三项 Rust-only 固定基线结构与可观察宿主场景通过，dialog 固定 WebView 基线的依赖、唯一有序注册、主窗口 `dialog:default` 全类型覆盖和零文件系统授权通过；updater 未配置时确认为 `NotConfigured` 且零出站；
 - 本次调试二进制真实启动，所选侧栏模式、设置页和全部实际菜单页面通过；
-- 已选单实例、托盘、系统通知、开机自启、深链接与全局快捷键分别通过适用结构和可执行宿主场景；中性快捷键空 contract 证明零注册，非空 contract 只触发安全动作；需要打包的 macOS 深链接明确留作阻断式后续验证；自启、窗口状态、快捷键配置与 owned registry 均已恢复；
+- 已选单实例、托盘、系统通知、开机自启、深链接与全局快捷键分别通过适用结构和可执行宿主场景；中性快捷键空 contract 证明零注册，非空 contract 只触发安全动作；需要打包安装的各平台深链接 OS 注册及系统唤起明确留作阻断式后续验证；自启、窗口状态、快捷键配置与 owned registry 均已恢复；
 - 发布专用映射始终存在且未污染调试构建；关于页启用时命令/加载失败状态存在，禁用时运行时链路缺席；关于/赞助入口和页面按选择存在或缺席；
 - 所有进程句柄已回收。
 

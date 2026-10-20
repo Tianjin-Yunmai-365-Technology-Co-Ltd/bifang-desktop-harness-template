@@ -47,6 +47,12 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 - Tauri xwin 只在 macOS、GUI 已选且 Windows x64 NSIS 已批准时触发。LLVM、LLD 与 NSIS 使用既有 Homebrew，但只作为宿主能力探测，不把 formula 当前解析版本写成项目兼容契约；Rust target 使用 rustup，`cargo-xwin` 使用 Cargo 的 `--locked --version '>=0.23.1, <0.24.0'` 安装或升级。缺少 Homebrew 时阻断并报告，不执行远程 shell 安装器。已存在但缺失必需命令的 formula 视为损坏并阻断；低于 0.23.1 的可解析稳定 `cargo-xwin` 升级，`>=0.24.0`、预发布、无法解析或损坏的 `cargo-xwin` 阻断。
 - 只能在本参考规定的触发条件与写入模式下升级现有工具。不得降低最低门禁、回退清单依赖、注入 shim、改用旧版工具或寻找替代工具链来适配旧环境。安装程序、校验和、签名、提权、重启、策略、链接器、软件包仓库完整性或安装/升级后探测发生失败时，必须阻断开发。
 
+## Linux Tauri 系统库人工接续
+
+通用 POSIX helper 不检查或安装 WebKitGTK/GTK；Linux GPUI 专项安装器也不负责 Tauri 系统库。真实 Tauri 测试或构建已经失败，且脱敏诊断证实缺少这些开发库时，保留原命令、退出状态和缺项，按当前发行版提供 [Tauri 官方前置条件](https://v2.tauri.app/start/prerequisites/#linux) 的安装指引并保持阻断（核对：2026-10-20）。不运行无关工具门禁、不临时拼装系统安装器、不静默提权。
+
+用户自行完成安装并告知继续后，只读复探原缺失的 pkg-config 库，如 `webkit2gtk-4.1`、`gtk+-3.0`；确认恢复后仅重试原失败命令一次。探测或重试仍失败时保留原始与新诊断并停止，不以用户转述或通用 Git/Rust/Node 门禁通过代替系统库证据。该人工接续不扩大常规 helper 的自动安装集合，也不授权构建以外的系统或运行操作。
+
 ## Linux GPUI 专项恢复
 
 GNU x64/ARM64 的目标系统依赖使用 [linux-gpui-dependencies.sh](../scripts/linux-gpui-dependencies.sh)，不进入 Tauri WebKit 或 xwin 路线。只在用户明确要求该工具链，或真实测试/构建失败已证实相关缺失时调用；默认 `--check-only`，`--install` 才通过既有 apt/dpkg 安装。仅支持既有 Debian/Ubuntu 路线，不安装新包管理器，也不因选择 Linux 目标例行执行。

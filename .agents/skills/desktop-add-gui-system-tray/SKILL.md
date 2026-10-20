@@ -12,9 +12,11 @@ description: 为已选择 GUI 系统托盘能力的下游安装 tray-icon、双�
 1. 该能力不是独立插件，而是 Tauri `tray-icon` feature + GUI adapter 生命周期约束；启用时才在 `tauri` 上打开 feature。
 2. 托盘安装必须从 Builder `.setup(...)` 可达，并在同一实现里绑定 `show_window`/`quit` 双项菜单、必需应用图标、`.icon(...)` 与 `.build(app)`；关闭隐藏从 `.on_window_event(...)` 可达。
 3. 可见标签只通过 `rust-i18n` 解析为中文“显示窗口/退出”与英文 “Show Window/Quit”，语言切换无需重启刷新。
-4. 左键与显示项只恢复既有主窗口；`CloseRequested` 只隐藏，`quit` 才结束进程。禁用时不得残留 feature、菜单、locale 资源、`prevent_close()` 或隐藏调用。
+4. 显示项只恢复既有主窗口；macOS/Windows 的托盘左键同样恢复窗口，Linux 不依赖图标事件而使用菜单恢复；`CloseRequested` 只隐藏，`quit` 才结束进程。禁用时不得残留 feature、菜单、locale 资源、`prevent_close()` 或隐藏调用。
 5. locale 必须来自 `$desktop-add-gui-system-locale`，不得自行探测；Builder 插件顺序由 GUI 基线统一拥有，本 Skill 只通过 `.setup(...)` 和 `.on_window_event(...)` 接线，不插入伪 plugin。
 6. 必须保留 `tray_show_restores_and_focuses_main_window`、`close_request_hides_without_exit`、`tray_quit_exits_application`、`tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english`、`language_change_updates_tray_menu_labels` 六个非空回归和真实宿主托盘场景；透明 32px 图标、空白点击区域、常量真断言或未接线死代码都不能通过。
+
+Linux 不发送托盘图标事件，菜单事件与真实菜单恢复仍是必验路径；不能把缺少图标左键事件判为失败。依据：[Tauri 托盘事件的平台限制](https://v2.tauri.app/learn/system-tray/#listen-to-tray-events)（核对：2026-10-20）。
 
 ## 完成输出
 

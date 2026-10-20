@@ -73,8 +73,8 @@
 - 桌面框架独立选择 Tauri（默认）或 GPUI，保存在 Cargo `gui-framework`。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，24px 折叠按钮的中心落在侧栏右边界，并与顶部 Logo 垂直居中，展开/收起均跨边界悬浮且完整可点击，不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
 - GPUI 与 Tauri 共同遵守 core-first：业务规则、值域、跨字段校验、业务默认值、用例编排、状态转换、稳定错误和权威数据属于共享 core；GPUI 只拥有原生展示、纯交互状态、宿主机制与调用/结果映射。异步业务由 core 暴露运行时中立 API，端侧装配执行，不阻塞窗口线程或创建嵌套 runtime。
 - GPUI 固定接入 `tracing`、`tracing-subscriber`、`tracing-appender` 本地诊断：端侧初始化唯一订阅器，有界后台队列同时写标准错误和按日滚动文件，正常退出刷新，失败报告稳定类别；不默认遥测、不记录秘密、个人数据或原始业务载荷。core 可按真实业务需要发出脱敏事件，但不得拥有文件 sink 或 GUI 依赖。
-- 独立 `$desktop-build-gpui-release` 维护项目本地 cargo-packager 工具、配置和 Rust 构建：原生 macOS 应用包/DMG 与 Windows x64 NSIS；不复用 Tauri 前端或打包 helper。普通本地试包与正式候选分开，候选复核 clean 发布上下文/tag、全量非空 Rust 测试、当次 E2E/签名选择、许可证、更新日志和最终包字节后形成 pending 原子证据；实际验收另行执行。Linux 包与跨宿主构建未支持，不能从当前宿主推断通过。
-- 初始化和升级仅向 GPUI 项目传播该 Skill；macOS/Windows GPUI 可选择未来 local_package，仅 Linux 且无 CLI 仍须选择 push_release_branch。原生可选能力以本规格 GPUI 原生能力节为准；深链接及 updater/dialog 的 unavailable 边界不由打包能力改变。
+- 独立 `$desktop-build-gpui-release` 维护 Rust 构建和平台打包配置：macOS/Windows 使用全局固定兼容 cargo-packager，生成原生 macOS 应用包/DMG 或 Windows x64 NSIS；Linux GNU x64/ARM64 使用系统 tar/dpkg-deb/readelf 生成 deb/tar.gz。不复用 Tauri 前端或打包 helper。普通本地试包与正式候选分开，候选复核 clean 发布上下文/tag、全量非空 Rust 测试、当次 E2E/签名选择、许可证、更新日志和最终包字节后形成 pending 原子证据；实际验收另行执行。Linux 支持同系统 GNU x64/ARM64 交叉架构构建，实际运行仍需匹配目标架构的宿主证据；跨系统构建未支持，不能从当前宿主推断通过。
+- 初始化和升级仅向 GPUI 项目传播该 Skill；macOS/Windows 及 Linux GNU x64/ARM64 GPUI 均可选择未来 local_package；仅 Linux Tauri 且无 CLI 时仍须选择 push_release_branch。原生可选能力以本规格 GPUI 原生能力节为准；深链接及 updater/dialog 的 unavailable 边界不由打包能力改变。
 
 ### 发布后远端主分支与 release 同步
 
@@ -87,7 +87,7 @@
 
 - 变更标识：`HARNESS-CHANGE-IGNORE-PROJECT-LOCKFILES`；所需 Harness 版本：`202609291534`（此前正式发布取号）。
 - Harness 源及新建下游默认忽略 `Cargo.lock`、`pnpm-lock.yaml` 和反馈中的非标准 `pnpm-package.lock`；中性资产不提交项目锁文件。此默认分支不要求锁文件存在、受 Git 跟踪或使用冻结解析门禁。
-- 补充变更标识：`change_id = HARNESS-CHANGE-OPTIONAL-TRACKED-LOCKFILES`；`required_version = 202609291802`。已初始化下游可以在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中显式设置 `dependency-lock-policy = "tracked"`；缺省或 `"ignored"` 保持默认，其他值失败关闭。选择 `tracked` 时，根及实际独立 Rust 工作区的 `Cargo.lock`、已选 GUI 根的 `pnpm-lock.yaml` 必须存在、受 Git 跟踪且未被忽略；安装、测试和构建使用冻结解析，清单与锁文件不一致时停止。目标项目负责该受保护选择、忽略规则和锁文件，Harness 升级不得代写。
+- 补充变更标识：`change_id = HARNESS-CHANGE-OPTIONAL-TRACKED-LOCKFILES`；`required_version = 202609291802`。已初始化下游可以在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中显式设置 `dependency-lock-policy = "tracked"`；缺省或 `"ignored"` 保持默认，其他值失败关闭。选择 `tracked` 时，根及实际独立 Rust 工作区的 `Cargo.lock`、已选 Tauri GUI 前端根的 `pnpm-lock.yaml` 必须存在、受 Git 跟踪且未被忽略；安装、测试和构建使用冻结解析，清单与锁文件不一致时停止。GPUI 的根 pnpm 脚本没有前端安装或 pnpm 锁文件要求，Rust 工作区仍按 tracked 要求 Cargo.lock。目标项目负责该受保护选择、忽略规则和锁文件，Harness 升级不得代写。
 - 工具可在默认分支本地生成被忽略的解析结果；项目兼容性仍由清单直接依赖下界、最低工具链解析与相关测试证明。默认分支不声称传递依赖或构建字节可复现；`tracked` 固定一次依赖解析，但不替代工具链、平台、单元测试或真实候选的验证。
 
 ### 唯一 Git 发布与下游记录纠错门禁
@@ -322,7 +322,7 @@
 - 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
 - 选择 GUI 时必须在中性初始化中调用 `$desktop-prepare-gui-app-identity` 的 Logo 模式：以 `candidate-1`、`candidate-2`、`candidate-3` 固定请求顺序展示三个原始候选，选择前不验证、不计算摘要且不标准化；用户明确选择后只处理所选项，再逐字节接入运行时 `/app-identity/logo.png` 并由项目本地 Tauri 工具生成平台图标。profile 记录稳定顺序、选择及所选项的后置证据，不记录未选项验证结果。不得以文字方案、静默默认或中性占位图完成初始化。首次真实产品 GUI 开发前再次进入完整身份模式并遵守同一时序。
 - 选择 GUI 时，中性初始化必须从初始化 Skill 的受管资产创建项目内 `<项目标识>_gui/src-tauri/dmg/background.png`：它是无产品身份的 660×400 PNG，清楚表达把应用拖到 Applications 的动作；Tauri 配置固定通过 `./dmg/background.png` 引用，并使用应用 `(180, 220)`、Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；初始化 Skill 删除后，运行时与构建不得继续依赖其源资产。
-- 仅当 `system_tray = enabled` 时启用 Tauri `tray-icon`。托盘使用应用图标、稳定 ID `show_window`/`quit` 和由 `rust-i18n` 解析的中英文标签；显示项与主鼠标左键恢复并聚焦主窗口，关闭主窗口只隐藏，退出项结束应用。启用时原有六个固定命名回归、结构检查与真实宿主生命周期仍是硬门禁；禁用时不得保留 feature、安装函数、菜单/locale 资源或关闭隐藏处理，必须从 `.on_window_event(...)` 接线并在主窗口 `CloseRequested` 中显式退出。
+- 仅当 `system_tray = enabled` 时启用 Tauri `tray-icon`。托盘使用应用图标、稳定 ID `show_window`/`quit` 和由 `rust-i18n` 解析的中英文标签；显示项恢复并聚焦主窗口，macOS/Windows 主鼠标左键执行同一恢复，Linux 使用菜单而不要求图标事件，关闭主窗口只隐藏，退出项结束应用。启用时原有六个固定命名回归、结构检查与真实宿主生命周期仍是硬门禁；禁用时不得保留 feature、安装函数、菜单/locale 资源或关闭隐藏处理，必须从 `.on_window_event(...)` 接线并在主窗口 `CloseRequested` 中显式退出。
 - GUI 固定建立 `{applicationName} v{version} {contactChannel}:{contactValue}` 动态标题、`/settings`、语言与三态主题及亮暗语义主题。侧栏严格按 `sidebar_mode` 使用精简或详细布局，底部导航按已选赞助、固定设置、已选关于生成；`/about` 与 `/sponsor` 未选时不建立路由、入口、组件或运行时资源。主应用窗口为 1440×900、最小 960×640并与 DMG 安装卷窗口独立。所选关于页包含 `NotConfigured` 检查更新、可用的近十版更新日志、作者/联系人/免责声明；所选赞助页使用运行时主题并打包完整 sponsor 媒体。Harness 保留完整品牌源资产但不预创建 `docs/GUI_SUPPORT_SURFACES.md`，产品运行时只纳入选择需要的内容。
 - 选择系统托盘时，应用图标必须来自项目本地 Tauri `icon` 生成并由 `bundle.icon` 引用的非透明 `icons/32x32.png`；托盘安装从 `.setup(...)` 可达并绑定双项 `Menu`、必需应用图标和 `.build(app)`，关闭隐藏从 `.on_window_event(...)` 可达，真实 E2E 必须看见非空图形。Linux 还必须把菜单绑定到 tray builder。未选托盘时这些专属资产要求与运行时接线不适用且不得残留。
 - GUI 图标统一使用直接依赖 `@tabler/icons-react` 的命名组件：菜单、操作、状态、空态和图表周边控件存在适用图标时优先从该包选择，不另装图标库，不用手写 SVG、字符或 emoji 替代；图表绘制库仍由真实数据可视化需求决定。所选侧栏中的 Logo、所有当前渲染图标和文字必须沿同一中心线且无裁切。
@@ -368,8 +368,8 @@
 ### Rust CLI 与 Tauri GUI 候选构建及发布目录
 
 - Windows 本地试包与正式候选分离变更标识：`HARNESS-FIX-WINDOWS-LOCAL-INSTALL-CANDIDATE-SEPARATION`；所需 Harness 版本：`202609082335`，已由此前 Harness 时间版本发布物化。
-- `$desktop-build-rust-release` 继续专用于 Rust CLI：默认路线是 Windows、macOS、Linux 原生候选矩阵；只有提供方、权限、三类运行器或结果取回能力在派发前不可用时才回退当前宿主，并记录原因及其他平台 `Unverified`。矩阵一旦启动，任一平台失败、取消或超时都是真实失败。
-- `$desktop-build-tauri-local-install` 专用于 Windows 原生 x64 NSIS 本地开发试包，允许基于 dirty 工作树构建，但固定为未签名、未安装、未验收、不可分发，不消费发布日志或候选状态。`$desktop-build-tauri-release` 专用于 Tauri 2 GUI 发布候选：macOS 宿主可构建原生 DMG，Windows 原生宿主可构建 x64 NSIS，项目批准 Windows x64 目标时仍可从 macOS 使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 NSIS；不得在 macOS 声称生成只支持 Windows 原生 WiX 的 MSI。
+- `$desktop-build-rust-release` 继续专用于 Rust CLI：默认仅构建当前宿主候选，其他平台为 `Unverified`。只有用户明确要求 Windows、macOS、Linux 原生矩阵，另行授权的发布后推送已完成、远端 `release` 分支/tag 与本地发布 HEAD 一致且提供方/权限/三类运行器/取回能力预检通过时，才派发矩阵。派发前无法满足条件须经用户接受范围缩减后才能改为当前宿主；矩阵一旦启动，任一平台失败、取消或超时都是真实失败。
+- `$desktop-build-tauri-local-install` 用于 Windows 原生 x64 NSIS 或 Linux GNU 同架构 deb/AppImage 本地开发试包，允许基于 dirty 工作树构建，但固定为未签名、未安装、未验收、不可分发，不消费发布日志或候选状态。`$desktop-build-tauri-release` 专用于 Tauri 2 GUI 发布候选：macOS 宿主可构建原生 DMG，Windows 原生宿主可构建 x64 NSIS，项目批准 Windows x64 目标时仍可从 macOS 使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 交叉构建 NSIS；不得在 macOS 声称生成只支持 Windows 原生 WiX 的 MSI。
 - macOS→Windows 路线只证明 Windows MSVC 目标可编译并生成 NSIS，不证明 Windows 原生运行、安装或签名成功。清单必须记录 `interface: gui`、`artifactKind: installer`、`bundleFormat`、`buildMode: cross-compiled-xwin`、宿主、目标和 `runtimeVerification: Unverified`；需要原生 Windows/渠道证据时仍使用批准的 Windows 运行器。
 - Windows 原生候选固定使用 `pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --config src-tauri/tauri.release.conf.json`，不传 `--runner cargo-xwin`，并记录 `buildMode: native`。编译成功仍不代替真实安装/运行；E2E 未执行前 `runtimeVerification: Unverified`。GUI-only 下游必须随 Tauri 发布 Skill 保留 PowerShell `release/` helper，不依赖已裁掉的 CLI Skill或 POSIX shell。
 - 中性初始化在写入脚手架前主动运行一次已选接口环境门禁。初始化完成后的 Tauri 交叉构建先使用当前环境执行真实命令；只有该命令已经失败且诊断明确指向受管 xwin 工具时，`$desktop-check-development-environment` 才分别检查 Homebrew `llvm` 与可能拆分的 `lld` formula，并在安全条件具备时安装缺失的 LLVM、LLD、NSIS、`x86_64-pc-windows-msvc` Rust target 与兼容范围 `cargo-xwin >=0.23.1, <0.24.0`，或升级低于 0.23.1 的可解析稳定 `cargo-xwin`；写入后逐项复探并只重试原命令一次。显式构建、目标选择或缺少环境证据不得提前触发该流程；已存在但缺少必需命令的 formula 视为损坏并阻断，`cargo-xwin >=0.24.0`、预发布、无法解析或损坏状态同样失败关闭，不得通过降级、shim 或替代工具链继续；缺少既有 Homebrew、安装/升级失败、目标不兼容或复探失败时同样阻断。
@@ -466,7 +466,7 @@
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
 - [x] Rust `>=1.98.1`、Node.js `>=24.21.0` continuous 与 pnpm `>=12.4.1` 作为连续工具下界，更高正式工具直接通过，只在缺失或低于下界时用官方稳定候选安装/升级。Rust/Node.js/npm/pnpm 使用标准当前用户安装根和可持久恢复的标准 Rust homes，不创建 Harness 私有 env 或项目 shim；只读模式零写入并报告 `upgrade-required`。中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选，必须经真实下游最低直接解析和最低工具链 test/typecheck/build 后才成为项目兼容下界，缺省锁策略下本地解析生成的锁文件不纳入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。
-- [x] Rust CLI 构建默认选择 Windows、macOS、Linux 原生矩阵，只有派发前条件不可用才回退当前平台；已启动矩阵失败不会被回退掩盖。
+- [x] Rust CLI 构建默认当前宿主；明确授权、已推送的发布 refs 与提供方预检通过后才运行三平台原生矩阵；派发前缩减范围须经用户接受，已启动矩阵失败不会被回退掩盖。
 - [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单；manifest 状态只使用 `pending`、`rejected` 或 `accepted`，`ready` 仅是对完整 `accepted` 原子集合的纯只读就绪复核结论，不是可写状态。
 - [x] macOS 发布在任何测试、可用性探测或 bundle 前锁定签名选择；默认 `macosSigningSelection: disabled`、`macosSigningSource: not-requested`，直接运行显式带 `--no-sign` 的 DMG 命令且不探测签名/公证条件；只有渠道硬要求、本次主动要求或已批准持久配置才启用，按 `channel-required > requested > configured > not-requested` 记录来源，并在探测通过后运行不含 `--no-sign` 的命令。唯一前置冲突是产品已经启用 macOS 系统通知：关闭签名时不自动升级来源，而是在测试/bundle 前阻断不可验收的 unsigned 候选，要求用户下一轮主动启用签名或先改变产品能力；E2E 关闭不能绕过。
 - [x] Tauri GUI 合同区分 Windows 本地开发试包、Windows 原生 x64 NSIS 发布候选、macOS 原生 DMG 与 macOS→Windows xwin 候选；本地试包不触发发布授权，xwin 不冒充 Windows 原生证据，Windows 原生安装/运行仍待真实下游前向验证。

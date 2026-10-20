@@ -12,6 +12,18 @@
 | 最终候选验收 | 保留的 desktop-verify-delivery / desktop-test-final-artifact-e2e | 真实最终字节和目标宿主，构建通过不代替验收 |
 | Linux 宿主、工具链及能力边界 | 下文 Linux 问题索引与对应 Skill 引用 | 区分中性生成、独立接线、协议回归与目标运行证据 |
 
+## 各平台方案入口
+
+下表记录现有工程路径，不能据此宣称目标平台已经运行通过。CLI/TUI/MCP 的共享核心、接口边界和工具链见 [Rust 基线](RUST_CLI_TEMPLATE.md)，CLI 候选默认只构建当前宿主；跨平台矩阵按 [构建 Skill](../.agents/skills/desktop-build-rust-release/SKILL.md) 的明确请求与远端来源门禁执行。
+
+| 平台 | Tauri | GPUI | 验证边界 |
+| --- | --- | --- | --- |
+| macOS | [原生 DMG、签名与公证](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [app.zip/DMG](../.agents/skills/desktop-build-gpui-release/references/macos-packaging.md) | 打包、签名、公证与真实窗口/安装行为分别取证 |
+| Windows | [原生 x64 NSIS 试包](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[正式候选及 macOS xwin](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [原生 x64 NSIS](../.agents/skills/desktop-build-gpui-release/references/windows-packaging.md) | xwin 不证明 Windows 安装/运行；UAC、通知和登录项按真实宿主验证 |
+| Linux | [同架构 deb/AppImage 本地试包](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md)、[运行时](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | [GNU x64/ARM64 deb/tar.gz](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md)、[原生能力边界](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | Tauri 本地试包不升级为正式候选；GPUI 同系统交叉架构的运行证据须来自目标架构宿主 |
+
+未执行的原生构建、托管矩阵、签名和目标桌面验收仍为 `Unverified`，既有证据缺口见 [技术债](TECH_DEBT.md)。
+
 ## Linux 问题索引
 
 Linux 知识按既有 Skill 职责维护；只读取当前问题对应的引用，不自动安装、构建或运行验收。

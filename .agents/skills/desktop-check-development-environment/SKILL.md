@@ -11,7 +11,7 @@ Linux GPUI GNU x64/ARM64 的目标编译器/开发库/打包工具使用 `script
 
 ## GUI 框架范围
 
-接口含 GUI 时消费根 Cargo metadata 的 `gui-framework`；新初始化必须显式保存 `tauri` 或 `gpui`，旧 GUI 缺省为 `tauri`，非法值失败关闭。POSIX 门禁传 `--gui-framework gpui`，Windows 传 `-GuiFramework gpui`；省略参数保持旧 Tauri 行为。Tauri 与 GPUI 共用 Node.js/npm 和 pnpm 门禁，供发布、验证等 Node 工程脚本使用；两者都要求 Node.js 稳定版 `>=24.21.0`、pnpm 稳定版 `>=12.4.1`。WebView、Tauri 系统库与 xwin 规则仍只适用于 Tauri。GPUI 同时要求 Git、Rust 与当前原生编译宿主能力，其平台依赖及真实编译检查见 `$desktop-add-gpui-adapter`，不得探测或安装 Tauri 的 WebKit/WebView 依赖，也不进入 Tauri xwin 路线。
+接口含 GUI 时消费根 Cargo metadata 的 `gui-framework`；新初始化必须显式保存 `tauri` 或 `gpui`，旧 GUI 缺省为 `tauri`，非法值失败关闭。POSIX 门禁传 `--gui-framework gpui`，Windows 传 `-GuiFramework gpui`；省略参数保持旧 Tauri 行为。Tauri 与 GPUI 共用 Node.js/npm 和 pnpm 门禁，供发布、验证等 Node 工程脚本使用；两者都要求 Node.js 稳定版 `>=24.21.0`、pnpm 稳定版 `>=12.4.1`。WebView、Tauri 系统库与 xwin 规则仍只适用于 Tauri。通用 POSIX helper 不检查或安装 Linux WebKitGTK/GTK；其真实缺包错误按 [Linux Tauri 系统库人工接续](references/development-environment-gates.md#linux-tauri-系统库人工接续) 人工接续，不得借用 Linux GPUI 安装脚本或把通用门禁通过视为库已恢复。GPUI 同时要求 Git、Rust 与当前原生编译宿主能力，其平台依赖及真实编译检查见 `$desktop-add-gpui-adapter`，不得探测或安装 Tauri 的 WebKit/WebView 依赖，也不进入 Tauri xwin 路线。
 
 ## 工作流程
 

@@ -27,7 +27,7 @@ Tauri 2 把与主 `tauri.conf.json` 同目录的 `tauri.linux.conf.json` 合并�
 
 ## 宿主依赖
 
-构建需要 WebKitGTK 4.1 与 GTK3 的开发包。Debian/Ubuntu 上对应 Tauri 2 官方前置条件：`build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev`（核对日期：2026-10-20，见 [Tauri 2 前置条件](https://v2.tauri.app/start/prerequisites/#linux)）。初始化后的构建不做例行预检：先运行真实命令，只有失败且诊断明确指向缺包时，才交给 `$desktop-check-development-environment` 处理。安装系统包需要用户明确授权，不能静默提权。
+构建需要 WebKitGTK 4.1 与 GTK3 的开发包。Debian/Ubuntu 上对应 Tauri 2 官方前置条件：`build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev`（核对日期：2026-10-20，见 [Tauri 2 前置条件](https://v2.tauri.app/start/prerequisites/#linux)）。初始化后的构建不做例行预检：先运行真实命令，只有失败且诊断明确指向缺包时，才按当前发行版提供上述官方前置条件的安装指引并保持构建阻断；恢复闭环见 [环境 Skill 自有人工接续](../../desktop-check-development-environment/references/development-environment-gates.md#linux-tauri-系统库人工接续)。`$desktop-check-development-environment` 的通用 POSIX helper 只恢复 Git/Rust/Node.js/npm/pnpm，不检查或安装 WebKitGTK/GTK；Linux GPUI 专项脚本也不适用于 Tauri。用户自行完成系统包安装并告知继续后，复探原缺失的 pkg-config 库（如 `webkit2gtk-4.1`、`gtk+-3.0`），通过后只重试原失败命令一次，不以无关工具门禁通过代替系统库恢复。不得静默提权。
 
 ## 非 ASCII 产品名与 Debian 安装标识
 

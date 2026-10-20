@@ -10,7 +10,7 @@ Bifang Desktop Harness Template
 
 选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。未回答或跳过框架时使用 Tauri；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 按九字段顺序询问托盘、系统通知、自启、关于页、赞助页、单实例、全局快捷键和侧栏；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。选完五项桌面能力后必须询问是否协助配置，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
-GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 使用 Rust/cargo-packager 管线构建原生 macOS 应用包/DMG 或 Windows x64 NSIS。目标含 macOS/Windows 时可选择本地打包；仅 Linux 且无 CLI 时须选择提交远程。两种 GUI 都使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
+GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 构建原生 macOS 应用包/DMG、Windows x64 NSIS，以及 Linux GNU x64/ARM64 deb/tar.gz。这些 GPUI 目标均可选择本地打包；仅 Linux Tauri 且无 CLI 时须选择提交远程。两种 GUI 都使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -21,7 +21,7 @@ GPUI 初始化执行实际 Rust 构建与本机窗口检查；独立 `$desktop-b
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；默认 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；纯 TUI/MCP 或仅 Linux GUI 没有现有本地打包入口时该默认项不可用，须明确选择提交远程。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；默认 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；不含 CLI 的纯 TUI/MCP 或仅 Linux Tauri GUI 没有现有本地候选打包入口时该默认项不可用，须明确选择提交远程。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、程序类型、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。

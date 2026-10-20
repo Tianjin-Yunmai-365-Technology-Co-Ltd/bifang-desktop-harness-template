@@ -26,6 +26,7 @@ import {
   validateRequiredPluginTests,
 } from "./gui-lifecycle-plugin-contract.mjs";
 import { validateReleaseNotesRuntimeContract } from "./verify-release-notes-contract.mjs";
+import { parseReleaseMetadataArray } from "../../desktop-switch-post-release-action/scripts/post_release_action.mjs";
 
 /**
  * 委托给 frontend-contract 模块的稳定检查面：
@@ -36,8 +37,6 @@ import { validateReleaseNotesRuntimeContract } from "./verify-release-notes-cont
 
 const TRAY_SOURCE_REQUIREMENTS = [
   ["创建 Tauri 托盘", ["TrayIconBuilder"]],
-  ["处理托盘点击事件", ["on_tray_icon_event", "TrayIconEvent::Click"]],
-  ["只在鼠标左键释放时恢复窗口", ["MouseButton::Left", "MouseButtonState::Up"]],
   ["处理托盘菜单事件", ["on_menu_event"]],
   ["恢复主窗口可见状态", [".show("]],
   ["取消主窗口最小化", [".unminimize("]],
@@ -46,6 +45,11 @@ const TRAY_SOURCE_REQUIREMENTS = [
   ["阻止关闭请求终止进程", ["prevent_close"]],
   ["关闭主窗口时隐藏窗口", [".hide("]],
   ["只由显式退出动作结束应用", [".exit("]],
+];
+
+const TRAY_CLICK_SOURCE_REQUIREMENTS = [
+  ["处理托盘点击事件", ["on_tray_icon_event", "TrayIconEvent::Click"]],
+  ["只在鼠标左键释放时恢复窗口", ["MouseButton::Left", "MouseButtonState::Up"]],
 ];
 
 const TRAY_SOURCE_ALTERNATIVES = [
@@ -518,9 +522,11 @@ function validateTrayIconAsset(guiRoot, errors) {
   }
 }
 
-/** 检查每一组必须同时出现的 Rust 生命周期片段。 */
-function validateTraySourceContract(sourceText, errors) {
-  for (const [label, fragments] of TRAY_SOURCE_REQUIREMENTS) {
+/** 按已确认目标检查托盘生命周期；仅 Linux 目标不要求不受支持的图标点击事件。 */
+function validateTraySourceContract(sourceText, targetPlatforms, errors) {
+  const requiresIconClick = targetPlatforms.some((platform) => platform === "macos" || platform === "windows");
+  const requirements = [...TRAY_SOURCE_REQUIREMENTS, ...(requiresIconClick ? TRAY_CLICK_SOURCE_REQUIREMENTS : [])];
+  for (const [label, fragments] of requirements) {
     const missing = fragments.filter((fragment) => !sourceText.includes(fragment));
     if (missing.length > 0) {
       errors.push(`${label}缺少：${missing.join(", ")}`);
@@ -664,6 +670,7 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
   if (!profile) return errors;
   try {
     const rootCargo = readTextFile(path.join(root, "Cargo.toml"));
+    const targetPlatforms = parseReleaseMetadataArray(rootCargo, "target-platforms");
     const guiCargo = readTextFile(path.join(guiRoot, "src-tauri", "Cargo.toml"));
     const workspaceTauri =
       tomlAssignment(tomlSection(rootCargo, "workspace.dependencies"), "tauri") ||
@@ -719,7 +726,7 @@ export function verifyGuiLifecycleContract(rootInput, guiInput) {
       const sourceText = sourceTexts.join("\n");
       rustSourceText = sourceText;
       if (profile.systemTray) {
-        validateTraySourceContract(sourceText, errors);
+        validateTraySourceContract(sourceText, targetPlatforms, errors);
         validateTrayRuntimeContract(sourceTexts, errors);
       } else {
         validateNoTraySourceContract(sourceTexts, errors);
