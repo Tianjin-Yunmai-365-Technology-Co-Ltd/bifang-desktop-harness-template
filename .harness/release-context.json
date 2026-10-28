@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "2b7b050fe8ee5fa9540e727be99405971252e486",
-  "version": "202610201054",
-  "releaseDate": "2026-10-20",
-  "expectedTag": "v202610201054-20261020",
+  "sourceHead": "fdcbccadac19fd6aee597d4ff9febc1cc60f1721",
+  "version": "202610282034",
+  "releaseDate": "2026-10-28",
+  "expectedTag": "v202610282034-20261028",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "e842b15fd49d855a0e7797b6ae644226e170d25c",
-    "sourceHead": "2b7b050fe8ee5fa9540e727be99405971252e486",
-    "scopeDiffSha256": "2535539dc052ce13088a59e983d35d745eed9622e18b2e0e9de6ef14dd6857d5",
-    "reviewedSourceCommit": "2b7b050fe8ee5fa9540e727be99405971252e486",
+    "scopeBase": "00388772708fce891ecf08edcb8e50a0ff64cf6a",
+    "sourceHead": "fdcbccadac19fd6aee597d4ff9febc1cc60f1721",
+    "scopeDiffSha256": "9345f3822ba416a2654c76cef9c0d757c6ce803dec60b45cef4f4fb98fc059fd",
+    "reviewedSourceCommit": "fdcbccadac19fd6aee597d4ff9febc1cc60f1721",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计差异及7条登记分支已复核，均包含于sourceHead。初始化唯一表单、按需引用与升级保护保持边界；GPUI三平台打包、工具/资源校验、进程回收和流式发布摘要完成审查。修复Linux候选在编译探针前校验E2E/发布上下文/clean、继承编译器变量污染、Linux试包知识保留及下游文档剥离上游语言禁令遗漏，并经独立复核闭环。根无产品业务，CLI中性状态由core提供、adapter只做语法和协议映射，确定依赖门禁通过。未发现秘密或未完成实现；40项规模/临时提示已按职责复核，无硬超限，唯一临时标记为测试夹具，第三方及历史原文按许可/归档边界保留。最终Node回归1201通过、22宿主条件跳过、零失败；针对性40通过6跳过；硬门禁、发布审查、Node-only及Rust1.98.1 fmt/Clippy/7测试通过。Windows原生安装、Linux真实产品运行、正式签名公证和产品E2E未执行，Tauri deb helper继续受LIM-031本机试包限制。",
+    "evidenceSummary": "累计审查范围为上一发布0038877到sourceHead，唯一登记分支已包含。统一UI基座是唯一视觉来源，DESIGN为导航；初始化和升级传播受管基座并保护下游自有设计、第三方资产与历史。新增Token均为GUI展示职责，未迁移core业务、权限或稳定错误，列表状态/分页/选择/存储和条件能力合同保留。修复动态主色色板四项TS2532、compact旧6px断言及GPUI模块文档路径，真实Mantine9.6.2/TS6.0.3 strict+noUncheckedIndexedAccess检查零诊断，新增缺失色板回归通过。此前全量Node1215项：1193通过、22宿主条件跳过、零失败；本轮相关37项通过，隔离真实侧栏组件2项通过。Harness硬门禁、Node-only和diff完整性通过，启用的发布审查39项非阻断提示已按职责复核，临时标记为Plan测试夹具，无硬超限、秘密或未完成实现。完整支持页组件suite因借用环境缺Markdown依赖收集失败、0测试执行；真实下游GUI构建、视觉与E2E未执行，不据此声明产品验收。",
     "reason": null,
     "remainingRisk": null
   }

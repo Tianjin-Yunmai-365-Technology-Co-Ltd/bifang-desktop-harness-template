@@ -2,6 +2,30 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-28",
+      "version": "v202610282034",
+      "featureOptimizations": [
+        {
+          "zh-CN": "将统一 UI 设计基座纳入受管标准，以 DESIGN.md 为导航，贯通初始化、日常实施和下游工程升级。",
+          "en-US": "Add the unified UI foundation to managed standards, using DESIGN.md for navigation across initialization, daily implementation and downstream Harness upgrades."
+        },
+        {
+          "zh-CN": "Tauri 与 GPUI 中性模板集中消费展示 Token，统一亮暗主题、侧栏和支持页；强调色随主题主色变化。",
+          "en-US": "Make Tauri and GPUI neutral templates consume centralized presentation tokens for light and dark themes, sidebars and support pages, with accents following the theme primary color."
+        },
+        {
+          "zh-CN": "退役 taste 自动安装和旧视觉硬锁，保留框架交互、列表数据合同、历史记录与既有下游自有资产保护。",
+          "en-US": "Retire automatic taste installation and old visual constraints while preserving framework interactions, list data contracts, historical records and protection of existing downstream-owned assets."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "升级候选严格核对设计基座完整字节并保护项目自有 DESIGN.md；修正主色色板索引类型、侧栏旧尺寸断言及 GPUI Token 文档路径。",
+          "en-US": "Validate complete design-foundation bytes in upgrade candidates while protecting project-owned DESIGN.md; fix primary-palette index typing, the outdated sidebar-size assertion and the documented GPUI token path."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-20",
       "version": "v202610201054",
       "featureOptimizations": [
@@ -256,26 +280,6 @@
         {
           "zh-CN": "更新当前版本文档和项目状态快照；策略升级校验拒绝仍排除远端默认主分支的旧正文，保留历史版本与验证事实。",
           "en-US": "Refresh current version documents and the project status snapshot; policy upgrade validation rejects legacy text that excludes the remote default branch while preserving historical versions and verification facts."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-08",
-      "version": "v202610080921",
-      "featureOptimizations": [
-        {
-          "zh-CN": "初始化表单统一使用“程序类型”，展示命令行(CLI)、终端UI(TUI)、MCP、桌面应用(GUI)，保留多选和默认 CLI，并提供既有下游的展示名称升级映射。",
-          "en-US": "Initialization forms now use Program Type with Command Line (CLI), Terminal UI (TUI), MCP, and Desktop Application (GUI), preserving multiple selection and the CLI default, with display-label migration guidance for existing downstream projects."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 no-Python 等连字符门禁名称被误识别为解释器命令的问题；真实解释器与包管理命令仍会被阻断，并增加专项回归覆盖。",
-          "en-US": "Prevent hyphenated gate names such as no-Python from being mistaken for interpreter commands, while retaining real interpreter and package-manager command detection and adding regression coverage."
-        },
-        {
-          "zh-CN": "同步过期的 Task、Worktree、发布审查范围和策略数量摘要，使现行说明与已实施规则一致；保留仍有效的 ADR 和历史变更记录。",
-          "en-US": "Align outdated Task, Worktree, release-review scope, and strategy-count summaries with the implemented rules, while preserving effective ADRs and historical change records."
         }
       ]
     }
