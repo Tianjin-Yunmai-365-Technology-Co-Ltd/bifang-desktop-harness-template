@@ -4,9 +4,9 @@
 
 ## 2026-10-28 新增
 
-- `HARNESS-FEAT-UNIFIED-UI-FOUNDATION`：新增根 DESIGN.md 导航与受管 UI 统一设计基座，接入设计索引、Tauri/GPUI、日常实施、实例化/裁剪及升级候选；统一 Token、组件、样式层与反馈，视觉值统一收拢为中央 Token 并清理旧风格，保留列表数据合同、不增加默认业务能力或工具依赖。升级校验必需规范字节并保护项目自有 DESIGN.md；真实下游视觉、构建和 E2E 未执行。见 [UI 基座](../design_standards/ui_foundation.md) 与 [ADR-20261028-001](../adr/20261028_ADR.md)。当前 Harness 时间版本保持 Version.md，未发布。
+- `HARNESS-FEAT-UNIFIED-UI-FOUNDATION`（`required_version = 202610282034`）：新增根 DESIGN.md 导航与受管 UI 统一设计基座，接入设计索引、Tauri/GPUI、日常实施、实例化/裁剪及升级候选；统一 Token、组件、样式层与反馈，视觉值统一收拢为中央 Token 并清理旧风格，保留列表数据合同、不增加默认业务能力或工具依赖。升级校验必需规范字节并保护项目自有 DESIGN.md；真实下游视觉、构建和 E2E 未执行。见 [UI 基座](../design_standards/ui_foundation.md) 与 [ADR-20261028-001](../adr/20261028_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
 
-- `HARNESS-CHANGE-CURRENT-DESIGN-ONLY`：当前 UI 基座成为唯一视觉权威，清理旧侧栏像素硬锁、列表局部色板和重复设计治理；删除 taste 自动安装器、对应测试及完整 vendor 快照。Tauri/GPUI 模板实际消费中央展示 Token，强调色跟随主色；同步规格、初始化与回归合同，保留既有下游自有第三方资产与历史事实。见 [ADR-20261028-003](../adr/20261028_ADR.md)。真实下游窗口、构建和 E2E 未执行。
+- `HARNESS-CHANGE-CURRENT-DESIGN-ONLY`（`required_version = 202610282034`）：当前 UI 基座成为唯一视觉权威，清理旧侧栏像素硬锁、列表局部色板和重复设计治理；删除 taste 自动安装器、对应测试及完整 vendor 快照。Tauri/GPUI 模板实际消费中央展示 Token，强调色跟随主色；同步规格、初始化与回归合同，保留既有下游自有第三方资产与历史事实。见 [ADR-20261028-003](../adr/20261028_ADR.md)。真实下游窗口、构建和 E2E 未执行。
 
 ## 当前能力与契约
 

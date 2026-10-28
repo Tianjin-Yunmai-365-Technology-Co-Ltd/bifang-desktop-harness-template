@@ -4,6 +4,7 @@ import {
   MantineProvider,
   Text,
   mergeMantineTheme,
+  rem,
 } from "@mantine/core";
 import { IconLayoutDashboard, IconListCheck } from "@tabler/icons-react";
 import "@testing-library/jest-dom/vitest";
@@ -313,7 +314,7 @@ describe("shared brand support templates", () => {
       "calc(0.5rem * var(--mantine-scale))",
     );
     expect(sidebarContent.style.padding).toBe(
-      "calc(0.375rem * var(--mantine-scale))",
+      rem(APP_LAYOUT_TOKENS.sidebar.compactPadding),
     );
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute(
       "data-layout",

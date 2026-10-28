@@ -27,6 +27,11 @@ test("primary_color_updates_all_accent_consumers", () => {
   }
 });
 
+/** 缺失主色色板时给出明确配置错误，避免读取未定义值或静默切回其他主色。 */
+test("missing_primary_palette_reports_configuration_error", () => {
+  assert.throws(() => resolveAppThemeTokens(theme("missing")), /应用主题缺少主色色板：missing/u);
+});
+
 /** 两态提供同一组非空语义 Token，暗色不会依赖页面再覆盖浅色。 */
 test("light_and_dark_provide_complete_semantic_token_sets", () => {
   const result = resolveAppThemeTokens(theme("blue"));

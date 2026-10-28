@@ -10,7 +10,9 @@
 
 ## 本日设计约束
 
-- 变更标识：`HARNESS-CHANGE-CURRENT-DESIGN-ONLY`。当前基座、中央主题 Token 和相容的实现合同是唯一设计路径；删除 taste 默认安装与 vendor 风格快照，既有下游自有资产仍 protected。本次不取 Harness 时间版本、不改变 Git 发布事实。
+- 统一 UI 基座接入变更：`HARNESS-FEAT-UNIFIED-UI-FOUNDATION`；`required_version = 202610282034`，在本次正式发布取号时物化。
+
+- 变更标识：`HARNESS-CHANGE-CURRENT-DESIGN-ONLY`；`required_version = 202610282034`。当前基座、中央主题 Token 和相容的实现合同是唯一设计路径；删除 taste 默认安装与 vendor 风格快照，既有下游自有资产仍 protected。开发阶段不取 Harness 时间版本；本次正式发布已将该变化绑定到上述所需版本，发布状态由 Git 引用复核。
 - Token、模板与生成流程运行相关开发回归；真实下游视觉、平台构建和 E2E 必须另有实际执行证据，不继承旧像素测试的通过结论。
 
 ## 一句话目标
@@ -501,7 +503,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202610201054`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202610282034`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。本次正式发布开始时已取当前上海时间；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
