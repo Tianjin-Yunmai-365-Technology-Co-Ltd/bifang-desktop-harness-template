@@ -21,9 +21,9 @@
 
 ## Required：Table、排序与逐行视觉
 
-- [ ] 使用 `<Table stickyHeader stickyHeaderOffset={共享常量}>`，没有手写 sticky 或 offset 字面量；`Table.Thead` 有稳定 CSS Module 类，表头 `th` 使用不透明 `var(--mantine-color-body)` 语义背景，滚动时数据行不会透出。
+- [ ] 使用 `<Table stickyHeader stickyHeaderOffset={共享常量}>`，没有手写 sticky 或 offset 字面量；`Table.Thead` 有稳定 CSS Module 类，表头 `th` 使用不透明 `var(--app-surface)` 语义背景，滚动时数据行不会透出。
 - [ ] `Table.ScrollContainer` 有真实 `minWidth`、本地化区域名称、键盘入口、可见焦点；页面根不横向滚动。
-- [ ] 数据行严格浅/深/浅/深交替；light 为 `white`/`gray-1`，dark 为 `dark-7`/`dark-6`；hover 和 `:focus-within` 使用更强 `gray-3`/`dark-4` 高亮，焦点/forced-colors 不只靠颜色。
+- 数据行通过 `data-row-tone` 消费中央 `--app-table-row` / `--app-table-row-alternate`；hover/focus 使用 `--app-table-row-hover` 与可见焦点，selected 与 forced-colors 保留独立语义。
 - [ ] 排序按 asc→desc→none；每个字段只属于一列。当前列同时有可见方向图标和准确 `aria-sort`，none 时不设置；图标对辅助技术隐藏。
 - [ ] 唯一 `primary`、声明存在的关键 `status`/`actions` 都显式设置 `required: true`，且它们和所有 required 列都不设置 `hideBelow`；窄屏仍显示当前排序摘要和清除入口。
 - [ ] 行选择名称使用可理解业务名称而非仅 UUID；唯一主列为 `th scope="row"`，caption 非空且本地化。

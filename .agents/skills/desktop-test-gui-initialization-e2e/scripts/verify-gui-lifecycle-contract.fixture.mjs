@@ -127,13 +127,13 @@ export const sidebarMode = "detailed";
 export const DEFAULT_DETAILED_SIDEBAR_COLLAPSED = false;
 export const APP_SIDEBAR_COLLAPSED_STORAGE_KEY = "app.sidebar.detailed.collapsed";
 export const APP_SIDEBAR_LOGO_PATH = "/app-identity/logo.png";
-export const APP_SIDEBAR_WIDTHS = { compact: 80, detailedCollapsed: 76, detailedExpanded: 248 };
-export const APP_SIDEBAR_LOGO_SIZES = { compact: 36, detailedCollapsed: 44, detailedExpanded: 72 };
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
-export const APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75;
-export const APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX = 44;
-export const APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX = 18;
-export const APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS = 0;
+export const APP_SIDEBAR_WIDTHS = APP_LAYOUT_TOKENS.sidebar.widths;
+export const APP_SIDEBAR_LOGO_SIZES = APP_LAYOUT_TOKENS.sidebar.logoSizes;
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.navIconSize;
+export const APP_SIDEBAR_ICON_STROKE_WIDTH = APP_LAYOUT_TOKENS.sidebar.iconStroke;
+export const APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX = APP_LAYOUT_TOKENS.sidebar.detailedItemMinHeight;
+export const APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.collapseIconSize;
+export const APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS = APP_LAYOUT_TOKENS.sidebar.tooltipDelay;
 export const routes = ["/settings", "/about", "/sponsor"];
 export function readDetailedSidebarCollapsed() {
   return window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
@@ -189,6 +189,7 @@ export function DetailedAppShell() {
 }
 `,
   );
+  fs.copyFileSync(new URL("../../desktop-prepare-gui-support-surfaces/assets/brand-support/react/appDesignTokens.ts", import.meta.url), path.join(sourceRoot, "appDesignTokens.ts"));
   writeFixedFrontendIpcFixture(sourceRoot);
   fs.writeFileSync(
     path.join(sourceRoot, "routes", "settings.tsx"),
@@ -283,16 +284,16 @@ function writeCompactFrontendFixture(guiRoot) {
 import { AppShell, NavLink } from "@mantine/core";
 
 export const sidebarMode = "compact";
-export const APP_SIDEBAR_WIDTHS = { compact: 80 };
-export const logoSizes = { compact: 36 };
-export const APP_SIDEBAR_COMPACT_PADDING_PX = 6;
-export const APP_SIDEBAR_COMPACT_SECTION_GAP_PX = 8;
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
-export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
-export const APP_SIDEBAR_LABEL_LINE_HEIGHT = 1.25;
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX = 56;
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX = 4;
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX = 4;
+export const APP_SIDEBAR_WIDTHS = APP_LAYOUT_TOKENS.sidebar.widths;
+export const logoSizes = APP_LAYOUT_TOKENS.sidebar.logoSizes;
+export const APP_SIDEBAR_COMPACT_PADDING_PX = APP_LAYOUT_TOKENS.sidebar.compactPadding;
+export const APP_SIDEBAR_COMPACT_SECTION_GAP_PX = APP_LAYOUT_TOKENS.sidebar.sectionGap;
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.navIconSize;
+export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.labelFontSize;
+export const APP_SIDEBAR_LABEL_LINE_HEIGHT = APP_LAYOUT_TOKENS.sidebar.labelLineHeight;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX = APP_LAYOUT_TOKENS.sidebar.compactItemMinHeight;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX = APP_LAYOUT_TOKENS.sidebar.compactItemPadding;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX = APP_LAYOUT_TOKENS.sidebar.compactItemGap;
 export const compactLayout = "icon-above-label";
 export const routes = ["/settings"];
 
@@ -322,6 +323,7 @@ export function CompactAppShell() {
 }
 `,
   );
+  fs.copyFileSync(new URL("../../desktop-prepare-gui-support-surfaces/assets/brand-support/react/appDesignTokens.ts", import.meta.url), path.join(sourceRoot, "appDesignTokens.ts"));
   writeFixedFrontendIpcFixture(sourceRoot);
   fs.writeFileSync(path.join(sourceRoot, "routes", "settings.tsx"), "export function SettingsPage() { return null; }\n");
 }

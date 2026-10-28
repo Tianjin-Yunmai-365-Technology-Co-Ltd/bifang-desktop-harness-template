@@ -138,22 +138,19 @@ test("bottom navigation order is sponsor, settings, about", () => withBrand((roo
   expectError(validateBrand(root, brandRoot), "sponsor/settings/about");
 }));
 
-test("sidebar identity, dimensions, icons, and compact layout are fixed", () => withBrand((root, brandRoot) => {
+test("sidebar identity, shared tokens, icons, and compact behavior are required", () => withBrand((root, brandRoot) => {
   const sidebar = path.join(brandRoot, "react", "AppSidebarTemplate.tsx");
   mutateText(sidebar, (source) => source
-    .replace("compact: 80", "compact: 79")
-    .replace("detailedCollapsed: 76", "detailedCollapsed: 70")
-    .replace("detailedExpanded: 248", "detailedExpanded: 240")
-    .replace("APP_SIDEBAR_NAV_ICON_SIZE_PX = 22", "APP_SIDEBAR_NAV_ICON_SIZE_PX = 21")
-    .replace("APP_SIDEBAR_COMPACT_PADDING_PX = 6", "APP_SIDEBAR_COMPACT_PADDING_PX = 5")
-    .replace("APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75", "APP_SIDEBAR_ICON_STROKE_WIDTH = 2")
+    .replace("APP_SIDEBAR_NAV_ICON_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.navIconSize", "APP_SIDEBAR_NAV_ICON_SIZE_PX = 22")
+    .replace("APP_SIDEBAR_COMPACT_PADDING_PX = APP_LAYOUT_TOKENS.sidebar.compactPadding", "APP_SIDEBAR_COMPACT_PADDING_PX = 6")
+    .replace("APP_SIDEBAR_ICON_STROKE_WIDTH = APP_LAYOUT_TOKENS.sidebar.iconStroke", "APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75")
     .replace('data-testid="app-sidebar-logo"', 'data-testid="temporary-sidebar-item"')
     .replace('data-testid="app-sidebar-version"', 'data-testid="app-sidebar-logo"')
     .replace('data-testid="temporary-sidebar-item"', 'data-testid="app-sidebar-version"')
     .replace('from "@tabler/icons-react"', 'from "@example/icons"')
     .replace('compact ? "icon-above-label" : iconOnly ? "icon-only" : "icon-with-label"', 'compact ? "horizontal" : iconOnly ? "hidden" : "icon-with-label"'));
   const errors = validateBrand(root, brandRoot);
-  for (const fragment of ["compact: 80", "detailedCollapsed: 76", "detailedExpanded: 248", "APP_SIDEBAR_NAV_ICON_SIZE_PX", "APP_SIDEBAR_COMPACT_PADDING_PX", "APP_SIDEBAR_ICON_STROKE_WIDTH", "logo must render above", "@tabler/icons-react", "icon-above-label"]) expectError(errors, fragment);
+  for (const fragment of ["APP_SIDEBAR_NAV_ICON_SIZE_PX", "APP_SIDEBAR_COMPACT_PADDING_PX", "APP_SIDEBAR_ICON_STROKE_WIDTH", "logo must render above", "@tabler/icons-react", "icon-above-label"]) expectError(errors, fragment);
 }));
 
 test("compact labels reject fixed em or ch boxes", () => withBrand((root, brandRoot) => {
@@ -261,7 +258,8 @@ test("page session state stays in memory and resets only on successful stale pag
 
 test("application theme retains auto mode and semantic variables", () => withBrand((root, brandRoot) => {
   const theme = path.join(brandRoot, "react", "AppThemeProviderTemplate.tsx");
-  mutateText(theme, (source) => source.replace('defaultColorScheme="auto"', 'defaultColorScheme="light"').replaceAll('"--app-text"', '"--app-foreground"'));
+  mutateText(theme, (source) => source.replace('defaultColorScheme="auto"', 'defaultColorScheme="light"'));
+  mutateText(path.join(brandRoot, "react", "appDesignTokens.ts"), (source) => source.replaceAll('"--app-text"', '"--app-foreground"'));
   const errors = validateBrand(root, brandRoot);
   expectError(errors, 'defaultColorScheme="auto"');
   expectError(errors, '"--app-text"');
@@ -280,6 +278,12 @@ test("media manifest rejects paths escaping the brand root", () => withBrand((ro
 test("sponsor page rejects fixed desktop-only layout", () => withBrand((root, brandRoot) => {
   mutateText(path.join(brandRoot, "react", "SponsorPageTemplate.tsx"), (source) => source.replace("cols={{ base: 1, sm: 2, lg: 3 }}", "cols={3}"));
   expectError(validateBrand(root, brandRoot), "unsafe fixed layout");
+}));
+
+/** 赞助页不能以局部浅色或独立色板绕过中央主题。 */
+test("sponsor_page_rejects_a_second_local_color_palette", () => withBrand((root, brandRoot) => {
+  mutateText(path.join(brandRoot, "react", "SponsorPageTemplate.tsx"), (source) => source.replace('bg="var(--app-surface-muted)"', 'bg="gray.0"'));
+  expectError(validateBrand(root, brandRoot), "central semantic tokens");
 }));
 
 test("host capability failures must reread authoritative state", () => withBrand((root, brandRoot) => {

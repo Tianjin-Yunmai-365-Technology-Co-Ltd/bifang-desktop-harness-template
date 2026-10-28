@@ -1,6 +1,6 @@
 //! 关于页仅显示当前应用身份与真实本地状态；初始化没有远程更新或发布记录。
 
-use super::Shell;
+use super::{Shell, design_tokens::{IDENTITY_LOGO_LARGE, PAGE_TITLE_SIZE, SURFACE_RADIUS}};
 use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, base::TestSupportExt as _, component::{ActiveTheme, button::Button}, div, img, prelude::*, px};
 
 impl Shell {
@@ -9,9 +9,9 @@ impl Shell {
         div().w_full().flex().flex_col().gap_6()
             .child(self.card("about.application", "about.description", cx)
                 .child(div().flex().items_center().gap_5()
-                    .child(img(crate::assets::LOGO).size(px(72.)))
+                    .child(img(crate::assets::LOGO).size(px(IDENTITY_LOGO_LARGE)))
                     .child(div().flex_1().min_w_0().flex().flex_col().gap_2()
-                        .child(div().w_full().min_w_0().whitespace_normal().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.name()))
+                        .child(div().w_full().min_w_0().whitespace_normal().text_size(px(PAGE_TITLE_SIZE)).font_weight(FontWeight::BOLD).child(self.name()))
                         .child(self.version())))
                 .child(div().w_full().min_w_0().whitespace_normal().text_sm().text_color(cx.theme().muted_foreground).child(format!("{}: @@OWNER@@", self.t("about.author"))))
                 .child(div().flex().gap_3().flex_wrap()
@@ -33,7 +33,7 @@ impl Shell {
     /// 候选构建嵌入已经验证的双语条目，普通构建保持真实空状态且不读取磁盘或网络。
     fn release_notes_panel(&self, cx: &Context<Self>) -> AnyElement {
         let notes = crate::release_notes::RELEASE_NOTES;
-        div().id("release-notes").test_support().w_full().min_w_0().flex_shrink_0().flex().flex_col().gap_4().p_6().rounded_lg()
+        div().id("release-notes").test_support().w_full().min_w_0().flex_shrink_0().flex().flex_col().gap_4().p_6().rounded(px(SURFACE_RADIUS))
             .border_1().border_color(cx.theme().border).bg(cx.theme().secondary)
             .child(div().text_lg().font_weight(FontWeight::SEMIBOLD).child(self.t("about.release_notes")))
             .when(notes.is_empty(), |panel| panel.child(div().id("release-notes-empty").test_support().whitespace_normal().text_sm().child(self.t("about.no_releases"))))

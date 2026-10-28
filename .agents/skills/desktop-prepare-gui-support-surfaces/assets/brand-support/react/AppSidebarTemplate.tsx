@@ -26,6 +26,7 @@ import {
   type SupportNavigationItem,
 } from "./supportNavigation";
 import { formatDisplayVersion } from "./displayVersion";
+import { APP_LAYOUT_TOKENS } from "./appDesignTokens";
 
 /** GUI 初始化可选择持续显示名称的精简模式或可收起的详细模式。 */
 export type AppSidebarMode = "compact" | "detailed";
@@ -41,57 +42,49 @@ export const APP_SIDEBAR_COLLAPSED_STORAGE_KEY =
 export const APP_SIDEBAR_LOGO_PATH = "/app-identity/logo.png";
 
 /** 两种模式及详细模式两种状态的固定宽度。 */
-export const APP_SIDEBAR_WIDTHS = {
-  compact: 80,
-  detailedCollapsed: 76,
-  detailedExpanded: 248,
-} as const;
+export const APP_SIDEBAR_WIDTHS = APP_LAYOUT_TOKENS.sidebar.widths;
 
 /** 精简和详细模式各状态使用的 Logo 尺寸。 */
-export const APP_SIDEBAR_LOGO_SIZES = {
-  compact: 36,
-  detailedCollapsed: 44,
-  detailedExpanded: 72,
-} as const;
+export const APP_SIDEBAR_LOGO_SIZES = APP_LAYOUT_TOKENS.sidebar.logoSizes;
 
 /** 精简栏内容使用明确像素，避免 Mantine xs padding 再压缩可用宽度。 */
-export const APP_SIDEBAR_COMPACT_PADDING_PX = 6;
+export const APP_SIDEBAR_COMPACT_PADDING_PX = APP_LAYOUT_TOKENS.sidebar.compactPadding;
 
 /** 精简栏身份区、分隔线与菜单区之间保持固定间距。 */
-export const APP_SIDEBAR_COMPACT_SECTION_GAP_PX = 8;
+export const APP_SIDEBAR_COMPACT_SECTION_GAP_PX = APP_LAYOUT_TOKENS.sidebar.sectionGap;
 
 /** 两种侧栏模式统一使用的菜单图标尺寸。 */
-export const APP_SIDEBAR_NAV_ICON_SIZE_PX = 22;
+export const APP_SIDEBAR_NAV_ICON_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.navIconSize;
 
 /** 侧栏图标统一使用的 Tabler 描边宽度。 */
-export const APP_SIDEBAR_ICON_STROKE_WIDTH = 1.75;
+export const APP_SIDEBAR_ICON_STROKE_WIDTH = APP_LAYOUT_TOKENS.sidebar.iconStroke;
 
 /** 详细展开态菜单项保持稳定点击高度。 */
-export const APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX = 44;
+export const APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX = APP_LAYOUT_TOKENS.sidebar.detailedItemMinHeight;
 
 /** 详细身份区折叠按钮使用的 Tabler 图标尺寸。 */
-export const APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX = 18;
+export const APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.collapseIconSize;
 
 /** 收起态 Tooltip 立即揭示被隐藏的菜单名称。 */
-export const APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS = 0;
+export const APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS = APP_LAYOUT_TOKENS.sidebar.tooltipDelay;
 
 /** 功能区与固定支持区中的菜单项保持一致间距。 */
-export const APP_SIDEBAR_MENU_STACK_GAP_PX = 4;
+export const APP_SIDEBAR_MENU_STACK_GAP_PX = APP_LAYOUT_TOKENS.sidebar.menuGap;
 
 /** 精简菜单名称使用固定字号并允许最多两行自然换行。 */
-export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = 11;
+export const APP_SIDEBAR_LABEL_FONT_SIZE_PX = APP_LAYOUT_TOKENS.sidebar.labelFontSize;
 
 /** 精简菜单名称允许最多两行，并使用固定行高。 */
-export const APP_SIDEBAR_LABEL_LINE_HEIGHT = 1.25;
+export const APP_SIDEBAR_LABEL_LINE_HEIGHT = APP_LAYOUT_TOKENS.sidebar.labelLineHeight;
 
 /** 精简菜单项保持稳定点击高度。 */
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX = 56;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_MIN_HEIGHT_PX = APP_LAYOUT_TOKENS.sidebar.compactItemMinHeight;
 
 /** 精简菜单项只保留少量垂直内边距。 */
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX = 4;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_PADDING_BLOCK_PX = APP_LAYOUT_TOKENS.sidebar.compactItemPadding;
 
 /** 精简菜单图标与名称之间保持固定间距。 */
-export const APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX = 4;
+export const APP_SIDEBAR_COMPACT_NAV_ITEM_GAP_PX = APP_LAYOUT_TOKENS.sidebar.compactItemGap;
 
 /** 产品功能菜单项由当前下游按显示顺序注入。 */
 export interface FeatureNavigationItem {

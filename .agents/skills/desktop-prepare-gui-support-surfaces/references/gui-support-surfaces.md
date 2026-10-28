@@ -58,7 +58,7 @@
 ### 侧栏、设置与关于/赞助入口
 
 - 默认标题公式固定为 `{applicationName} v{version} {contactChannel}:{contactValue}`。展示名与版本必须来自权威 Tauri/打包元数据，展示边界先去除已有前缀再保证只有一个小写 `v`；联系字段固定来自 profile 的 `contacts.windowTitle`，原生标题与 `document.title` 必须一致，不得写死一次构建值。
-- 左侧菜单由 `sidebar_mode` 决定并只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)。compact 为 `80px`、`6px` 内容内边距、`36px` 本地 Logo、`22px` 图标、全宽居中名称与 `56px` 菜单项，不提供折叠按钮或固定 `em/ch` 名称盒；detailed 首次默认 `248px` 展开、`72px` Logo、`22px` 图标，自身 ActionIcon 收起为 `76px`/`44px` Logo、图标-only + Mantine Tooltip 与独立 local-storage 偏好。detailed 状态由 AppShell 拥有并同步 `navbar.width`/`data-navbar-width`，身份区父级不得代理折叠。两种模式都使用 `@tabler/icons-react` 命名组件、保留可访问名称和清晰选中态；产品功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于的视觉顺序生成。
+- 左侧菜单由 `sidebar_mode` 决定并只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)。侧栏展示值统一消费 `appDesignTokens.ts` 的 `APP_LAYOUT_TOKENS.sidebar`；compact 保持全宽居中竖排且不折叠，detailed 保持展开横排、收起图标与 Tooltip。detailed 状态由 AppShell 拥有并同步 `navbar.width`/`data-navbar-width`，身份区父级不得代理折叠。两种模式都使用 `@tabler/icons-react` 命名组件、保留可访问名称和清晰选中态；产品功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于的视觉顺序生成。
 - `/settings` 是固定路由；`/about` 与 `/sponsor` 分别只在相应选择启用时存在并进入导航。设置页固定提供当前应用/版本、中英文和浅色/深色/跟随系统；系统通知与开机自启只在对应配置启用时增加默认关闭、异步失败可回滚的 Switch，禁用时运行时组件与翻译键缺席；不得包含隐私标题、统计同意或未配置占位。所有 GUI 保存发布专用 Tauri 合并配置，关于页继续通过固定 Rust 异步命令读取候选更新日志。
 - 所选关于页使用当前产品名称和版本；关于页在手动检查更新旁提供本地更新日志，并展示作者 `about.studio`、profile 的 `contacts.support` 与三段免责声明。标语、许可、隐私或反馈动作仍由下游按真实事实注入；外部链接需独立批准、可识别、可键盘访问并通过系统浏览器打开。未选择关于页时，不得保留隐藏路由、导航入口或不可达运行时组件。
 - 页面交互事件绑定在实际拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项，不由 Card、`Table.Tr`、`Table.Td` 等父级代理；父级有独立动作时只执行自己的语义并隔离冲突传播。表格中的 `Switch` 不得因点击行或单元格而切换。

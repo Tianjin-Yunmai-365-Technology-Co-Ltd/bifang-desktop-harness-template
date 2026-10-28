@@ -34,6 +34,8 @@ test('disabled_support_pages_remove_all_runtime_references_and_media', () => {
   const files = renderGpuiFiles({ ...identity, aboutPage: 'disabled', sponsorPage: 'disabled', sidebarMode: 'compact' });
   assert.equal(files.has('example_tool_gui/src/app/about.rs'), false);
   assert.equal(files.has('example_tool_gui/src/app/sponsor.rs'), false);
+  assert.equal(files.has('example_tool_gui/src/app/design_tokens/sponsor.rs'), false);
+  assert.ok(files.has('example_tool_gui/src/app/design_tokens/mod.rs'));
   for (const file of files.keys()) assert.doesNotMatch(file, /assets\/sponsor|media-manifest|src\/app\/(about|sponsor)/);
   const app = files.get('example_tool_gui/src/app/mod.rs');
   assert.doesNotMatch(app, /Page::About|Page::Sponsor|mod about|mod sponsor|sidebar-toggle|show_release_notes|show_update_status/);
@@ -74,7 +76,7 @@ test('fixed_native_shell_and_conditional_layout_regressions_are_generated', () =
     assert.match(files.get('example_tool_gui/src/app/mod_test.rs'), /sidebar_alignment_and_toggle_share_the_fixed_shell_bounds/);
     if (sidebarMode === 'detailed') {
       assert.ok(app.indexOf('Button::new("sidebar-toggle")') > app.indexOf('.child(content))'), '边界按钮必须在主内容之后绘制，避免右半边被覆盖');
-      assert.match(app, /\.left\(px\(self\.sidebar_width\(\) - 12\.\)\)\.top\(px\(SIDEBAR_INSET \+ self\.sidebar_logo_size\(\) \/ 2\. - 12\.\) \+ gpui_kit::rems\(SIDEBAR_LOGO_TOP\)\.to_pixels\(window\.rem_size\(\)\)\)/);
+      assert.match(app, /\.left\(px\(self\.sidebar_width\(\) - SIDEBAR_TOGGLE_SIZE \/ 2\.\)\)\.top\(px\(SIDEBAR_INSET \+ self\.sidebar_logo_size\(\) \/ 2\. - SIDEBAR_TOGGLE_SIZE \/ 2\.\) \+ gpui_kit::rems\(SIDEBAR_LOGO_TOP\)\.to_pixels\(window\.rem_size\(\)\)\)/);
       assert.match(app, /\.id\("sidebar-logo"\)\.test_support\(\)/);
     }
     else assert.doesNotMatch(app, /sidebar-toggle/);

@@ -8,7 +8,7 @@
 
 ## 五类主要所有权
 
-- `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；产品专属像素和例外写入受保护的 `docs/GUI_APP_PROFILE.md`/ADR，并在标准匹配时优先，升级不得用新旧 Harness 缺省覆盖，不通过编辑目录制造分叉。`$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试是所有终端下游都适用且无需身份渲染的受管工程资产；升级只传播这些文件，不执行 Git 生命周期命令，也不创建 common-dir 状态。
+- `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；既有产品设计记录保存在受保护的 `docs/GUI_APP_PROFILE.md`/ADR，升级不能覆盖；旧记录不恢复已退役风格，当前基座冲突在目标授权范围明确处理，不通过修改受管目录制造并行规范。`$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试是所有终端下游都适用且无需身份渲染的受管工程资产；升级只传播这些文件，不执行 Git 生命周期命令，也不创建 common-dir 状态。
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
 - `conditional`：只在已选接口或能力中适用的工程资产，先确认下游事实再构造候选；传播本身不启用能力。根 Cargo 中缺省框架的旧 GUI 下游沿用 `tauri`，未知值、错误类型、重复字段或非 GUI 声明框架都失败关闭。升级计划绑定受保护 Cargo 清单的完整快照，不从候选反推或改写选择。Tauri GUI 只读 [Tauri 工程候选](tauri-ownership.md)，GPUI GUI 只读 [GPUI 工程候选](gpui-ownership.md)；非 GUI 不加载这两份引用。
@@ -20,7 +20,7 @@
 
 根 `package.json` 是 protected 产品文件，不进入候选或来源锁；GPUI 已授权的工程脚本迁移只按对应框架引用处理，通用升级器不调用专用迁移工具。
 
-项目本地 `.agents/skills/design-taste-frontend/**` 是原样安装且可由下游定制的第三方知识资产，始终 `protected`；候选树和来源锁排除该目录，升级不覆盖、删除或重新安装它。旧目标清单缺少这一保护规则时，先按显式清单合并补齐保护，再重新生成计划，不能把通用 managed 规则当成安装或删除授权。该 protected 条目必须排在所有可能匹配设计目录或内部路径的不同 mode 规则之前，包括自定义通配规则；无法证明不重叠的前置规则也会阻断，移到保护条目之后再重新规划。
+既有下游遗留的 `.agents/skills/design-taste-frontend/**` 是项目自有第三方知识资产；Harness 已停止自动安装，该目录始终 `protected`；候选树和来源锁排除该目录，升级不覆盖、删除或重新安装它。旧目标清单缺少这一保护规则时，先按显式清单合并补齐保护，再重新生成计划，不能把通用 managed 规则当成安装或删除授权。该 protected 条目必须排在所有可能匹配设计目录或内部路径的不同 mode 规则之前，包括自定义通配规则；无法证明不重叠的前置规则也会阻断，移到保护条目之后再重新规划。
 
 ## 升级前事实检查
 

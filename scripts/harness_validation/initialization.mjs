@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { loadDesignSkillSnapshot } from "../../.agents/skills/desktop-initialize-rust-project/scripts/ensure_design_skill.mjs";
 
 import { ROOT, fail, readText, relativePath } from "./core.mjs";
 import { sourceFileHasExecutableMode } from "./initialization_environment.mjs";
@@ -503,11 +502,6 @@ export function validateInitializationContract(
   } = {},
 ) {
   validateMacosDmgBackgroundAsset(errors, dmgPath);
-  try {
-    loadDesignSkillSnapshot();
-  } catch (error) {
-    fail(errors, `invalid taste-skill snapshot: ${error.message}`);
-  }
   const required = contracts ?? primaryRequiredFragments(INITIALIZE_SKILL);
   if (includeRepositoryContracts && contracts === null) {
     for (const [file, fragments] of repositoryRequiredFragments(ENVIRONMENT_REFERENCE, RUST_BASELINE)) {

@@ -1,6 +1,6 @@
 //! 固定原生赞助模板：完整介绍、等高三档与独立收款区，内容和媒体仅取受管品牌源。
 
-use super::Shell;
+use super::{Shell, design_tokens::{SURFACE_RADIUS, sponsor as tokens}};
 use gpui_kit::{
     AnyElement, Context, Div, FontWeight, IntoElement, ObjectFit, Role, Window,
     assets::IconName, base::TestSupportExt as _, component::{ActiveTheme, Icon},
@@ -15,16 +15,16 @@ impl Shell {
             .id("sponsor-page").test_support().relative().w_full().min_w_0()
             .flex_grow(1.).flex_shrink_0().flex().flex_col().px_6().pt_3().pb_4()
             .bg(cx.theme().background)
-            .child(img("sponsor/bg.jpg").absolute().top_0().left_0().size_full().object_fit(ObjectFit::Cover).opacity(0.16))
+            .child(img("sponsor/bg.jpg").absolute().top_0().left_0().size_full().object_fit(ObjectFit::Cover).opacity(tokens::BACKDROP_OPACITY))
             .child(
                 div().relative().w_full().min_w_0().flex_grow(1.).flex().flex_col().gap_3()
                     .child(self.sponsor_intro(cx))
                     .child(
                         div().id("sponsor-tiers").test_support().w_full().min_w_0().flex_grow(1.)
-                            .grid().grid_cols(if content_width >= 1000. { 3 } else { 1 }).items_stretch().gap_3()
+                            .grid().grid_cols(if content_width >= tokens::TIERS_BREAKPOINT { 3 } else { 1 }).items_stretch().gap_3()
 @@SPONSOR_TIERS@@
                     )
-                    .child(self.sponsor_payment(content_width >= 924., cx)),
+                    .child(self.sponsor_payment(content_width >= tokens::PAYMENT_BREAKPOINT, cx)),
             )
             .into_any_element()
     }
@@ -34,7 +34,7 @@ impl Shell {
         div().id("sponsor-intro").test_support().w_full().min_w_0().flex().flex_col().items_center().gap_1().text_center()
             .child(
                 div().id("sponsor-title").test_support().w_full().min_w_0().whitespace_normal()
-                    .text_size(px(20.)).font_weight(FontWeight::BOLD).text_color(cx.theme().primary)
+                    .text_size(px(tokens::TITLE_SIZE)).font_weight(FontWeight::BOLD).text_color(cx.theme().primary)
                     .child(self.t("sponsor.title")),
             )
             .child(
@@ -53,7 +53,7 @@ impl Shell {
                                 (IconName::Bot, "sponsor.capability_rpa"),
                             ].into_iter().map(|(icon, key)| {
                                 div().flex().items_center().gap_2()
-                                    .child(Icon::new(icon).size(px(20.)).text_color(cx.theme().primary))
+                                    .child(Icon::new(icon).size(px(tokens::CAPABILITY_ICON_SIZE)).text_color(cx.theme().primary))
                                     .child(div().text_sm().font_weight(FontWeight::BOLD).child(self.t(key)))
                             })),
                     )
@@ -70,19 +70,19 @@ impl Shell {
         self.sponsor_surface(cx).id(("sponsor-tier", index)).role(Role::Article).aria_label(self.t(name)).test_support().min_w_0()
             .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(cx.theme().primary).child(self.t("sponsor.scan_to_sponsor")))
             .child(
-                div().id(("sponsor-tier-summary", index)).test_support().flex().items_center().min_h(px(72.)).gap_3()
+                div().id(("sponsor-tier-summary", index)).test_support().flex().items_center().min_h(px(tokens::SUMMARY_HEIGHT)).gap_3()
                     .child(
                         div().id(("sponsor-illustration", index)).role(Role::Image).aria_label(self.t(image_label)).test_support()
-                            .flex_shrink_0().size(px(64.)).rounded(px(16.)).bg(gpui_kit::rgb(0xFFFFFF)).overflow_hidden()
-                            .child(img(image).size_full().rounded(px(16.)).object_fit(ObjectFit::Contain)),
+                            .flex_shrink_0().size(px(tokens::ILLUSTRATION_SIZE)).rounded(px(SURFACE_RADIUS)).bg(cx.theme().background).overflow_hidden()
+                            .child(img(image).size_full().rounded(px(SURFACE_RADIUS)).object_fit(ObjectFit::Contain)),
                     )
                     .child(
                         div().flex_1().min_w_0().flex().flex_col().gap_1()
-                            .child(div().w_full().min_w_0().whitespace_normal().text_size(px(18.)).line_height(relative(1.25))
+                            .child(div().w_full().min_w_0().whitespace_normal().text_size(px(tokens::TIER_TITLE_SIZE)).line_height(relative(tokens::TIER_TITLE_LINE_HEIGHT))
                                 .font_weight(FontWeight::BOLD).text_color(cx.theme().primary).child(self.t(name)))
                             .child(
                                 div().flex().items_baseline().gap_1()
-                                    .child(div().text_size(px(if price >= 1000 { 26. } else { 32. })).line_height(relative(1.1))
+                                    .child(div().text_size(px(if price >= 1000 { tokens::LONG_PRICE_SIZE } else { tokens::PRICE_SIZE })).line_height(relative(tokens::PRICE_LINE_HEIGHT))
                                         .font_weight(FontWeight::EXTRA_BOLD).child(price.to_string()))
                                     .child(div().text_lg().text_color(cx.theme().muted_foreground).child(self.t("sponsor.currency_unit"))),
                             ),
@@ -93,9 +93,9 @@ impl Shell {
                 div().flex().flex_col().gap_2().children(benefits.iter().map(|(main, note)| {
                     div().flex().items_start().gap_2()
                         .child(
-                            div().flex_shrink_0().size(px(17.)).mt(px(2.)).rounded_full().flex().items_center().justify_center()
+                            div().flex_shrink_0().size(px(tokens::BENEFIT_BADGE_SIZE)).mt(px(tokens::BENEFIT_ICON_OFFSET)).rounded_full().flex().items_center().justify_center()
                                 .bg(cx.theme().success)
-                                .child(Icon::new(IconName::Check).size(px(11.)).text_color(cx.theme().success_foreground)),
+                                .child(Icon::new(IconName::Check).size(px(tokens::BENEFIT_ICON_SIZE)).text_color(cx.theme().success_foreground)),
                         )
                         .child(
                             div().flex_1().min_w_0().flex().flex_col().gap_1()
@@ -117,7 +117,7 @@ impl Shell {
                             .child(
                                 div().flex().items_center().gap_2()
                                     .child(div().flex_1().min_w_0().whitespace_normal().text_lg().font_weight(FontWeight::SEMIBOLD).text_color(cx.theme().primary).child(self.t("sponsor.payment_instructions")))
-                                    .child(Icon::new(IconName::ArrowRight).size(px(24.)).flex_shrink_0()),
+                                    .child(Icon::new(IconName::ArrowRight).size(px(tokens::PAYMENT_ARROW_SIZE)).flex_shrink_0()),
                             )
                             .child(div().w_full().min_w_0().whitespace_normal().text_sm().text_color(cx.theme().muted_foreground).child(self.t("sponsor.sponsor_message"))),
                     )
@@ -130,7 +130,7 @@ impl Shell {
                                 div().id(("sponsor-payment-qr", index)).role(Role::Image).aria_label(self.t(label)).test_support()
                                     .min_w_0().flex().justify_center().border_1().border_color(cx.theme().border)
                                     .child(
-                                        div().id(("sponsor-qr-image", index)).test_support().w(px(120.)).h(px(136.)).flex_shrink_0().bg(gpui_kit::rgb(0xFFFFFF))
+                                        div().id(("sponsor-qr-image", index)).test_support().w(px(tokens::QR_WIDTH)).h(px(tokens::QR_HEIGHT)).flex_shrink_0().bg(gpui_kit::rgb(tokens::QR_BACKGROUND))
                                             .child(img(image).size_full().object_fit(ObjectFit::Contain)),
                                     )
                             })),
@@ -141,7 +141,7 @@ impl Shell {
 
     /// 卡片只消费 Kit 完整语义颜色，切换明暗主题无需重建另一份页面。
     fn sponsor_surface(&self, cx: &Context<Self>) -> Div {
-        div().w_full().min_w_0().flex().flex_col().gap_2().p_3().rounded(px(16.))
+        div().w_full().min_w_0().flex().flex_col().gap_2().p_3().rounded(px(SURFACE_RADIUS))
             .border_1().border_color(cx.theme().border).bg(cx.theme().secondary)
     }
 }

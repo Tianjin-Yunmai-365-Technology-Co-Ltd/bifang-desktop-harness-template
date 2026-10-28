@@ -1,12 +1,17 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-10-10
+> 记忆日期：2026-10-28
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-10-10（项目 Task 默认关闭、自主执行、并行工作树与 GPUI-Kit Skills）
+> 最近范围确认：2026-10-28（当前 UI 基座统一视觉权威、中央 Token 与旧风格清理）
+
+## 本日设计约束
+
+- 变更标识：`HARNESS-CHANGE-CURRENT-DESIGN-ONLY`。当前基座、中央主题 Token 和相容的实现合同是唯一设计路径；删除 taste 默认安装与 vendor 风格快照，既有下游自有资产仍 protected。本次不取 Harness 时间版本、不改变 Git 发布事实。
+- Token、模板与生成流程运行相关开发回归；真实下游视觉、平台构建和 E2E 必须另有实际执行证据，不继承旧像素测试的通过结论。
 
 ## 一句话目标
 
@@ -70,7 +75,7 @@
 ### GPUI 固定模板、core 优先与独立交付管线
 
 - 变更标识：`HARNESS-FEAT-GPUI-PACKAGING`；`required_version = 202610090050`。
-- 桌面框架独立选择 Tauri（默认）或 GPUI，保存在 Cargo `gui-framework`。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，24px 折叠按钮的中心落在侧栏右边界，并与顶部 Logo 垂直居中，展开/收起均跨边界悬浮且完整可点击，不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
+- 桌面框架独立选择 Tauri（默认）或 GPUI，保存在 Cargo `gui-framework`。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，折叠控件的中心落在侧栏右边界，并与顶部 Logo 垂直居中，展开/收起均跨边界悬浮且完整可点击，不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
 - GPUI 与 Tauri 共同遵守 core-first：业务规则、值域、跨字段校验、业务默认值、用例编排、状态转换、稳定错误和权威数据属于共享 core；GPUI 只拥有原生展示、纯交互状态、宿主机制与调用/结果映射。异步业务由 core 暴露运行时中立 API，端侧装配执行，不阻塞窗口线程或创建嵌套 runtime。
 - GPUI 固定接入 `tracing`、`tracing-subscriber`、`tracing-appender` 本地诊断：端侧初始化唯一订阅器，有界后台队列同时写标准错误和按日滚动文件，正常退出刷新，失败报告稳定类别；不默认遥测、不记录秘密、个人数据或原始业务载荷。core 可按真实业务需要发出脱敏事件，但不得拥有文件 sink 或 GUI 依赖。
 - 独立 `$desktop-build-gpui-release` 维护 Rust 构建和平台打包配置：macOS/Windows 使用全局固定兼容 cargo-packager，生成原生 macOS 应用包/DMG 或 Windows x64 NSIS；Linux GNU x64/ARM64 使用系统 tar/dpkg-deb/readelf 生成 deb/tar.gz。不复用 Tauri 前端或打包 helper。普通本地试包与正式候选分开，候选复核 clean 发布上下文/tag、全量非空 Rust 测试、当次 E2E/签名选择、许可证、更新日志和最终包字节后形成 pending 原子证据；实际验收另行执行。Linux 支持同系统 GNU x64/ARM64 交叉架构构建，实际运行仍需匹配目标架构的宿主证据；跨系统构建未支持，不能从当前宿主推断通过。
@@ -228,9 +233,9 @@
 ### UI 设计标准目录与匹配路由
 
 - 变更标识：`HARNESS-FEAT-UI-DESIGN-STANDARDS-CATALOG`；所需 Harness 版本：`202608051301`（历史所需版本，已纳入此前发布；本范围不自动改变 `Version.md`）。
-- `docs/design_standards/README.md` 是用户可见布局、组件语义、交互、可访问性和视觉密度的唯一索引；Tauri GUI 通用规则与固定左侧栏分别由其索引文件维护。初始化或修改 GUI 时先读取 profile、当前请求和批准 ADR，再选择全部条件精确命中的标准。产品已批准标准优先于 Harness 通用缺省，旧模板不得覆盖。
-- 没有精确命中或用户明确要求特殊设计时，必须先完成额外设计并取得批准。像素、密度或信息架构偏离同步更新下游 `docs/GUI_APP_PROFILE.md` 与当日 ADR；没有批准产品事实的中性初始化停止偏离，不自行发明新密度。设计规则只进入 GUI adapter 展示/纯交互层，不下沉到 shared core。
-- `sidebar_mode = compact` 精确命中 `tauri-gui-sidebar-compact-80-v1`：`80px` 栏宽、`6px` 内容内边距、`36px` Logo、`22px`/`1.75` Tabler 图标、`11px`/`1.25` 全宽居中名称、`56px` 菜单项、`4px` 图标名称间距/垂直 padding 和 `8px` 区间距；禁止固定 `em/ch` 名称盒与折叠按钮。AppShell navbar 复用栏宽常量且 Navbar padding 为 `0`。`sidebar_mode = detailed` 精确命中 `tauri-gui-sidebar-detailed-v1`：固定 `248px`/`76px`、`72px`/`44px`、统一 `22px` 图标，展开横排名称，收起 icon-only + 右侧零延迟 Tooltip。
+- `docs/design_standards/ui_foundation.md` 是当前唯一视觉规则来源，`DESIGN.md` 为导航；索引只分派相容的框架接线、组件行为、无障碍与状态合同。历史像素、第三方风格和旧 profile/ADR 不恢复已被取代的设计，后续明确批准可修订基座。
+- 未列出的页面按当前基座与真实需求设计，普通 Token 调整不增加旧像素批准步骤；产品方向或信息架构变化按实际事件确认并记录。设计规则只进入 GUI adapter 展示/纯交互层，不下沉到 shared core。
+- compact 保持全宽居中竖排、名称持续可见且不折叠；detailed 展开时图标与名称横排、收起时保留 Tooltip 和完整可访问名称。所有展示值只在应用中央 Token 定义，AppShell 与侧栏消费同一宽度状态，Navbar padding 为零，不再复制旧像素表。
 
 ### GUI 初始化能力选择与侧栏模式
 
@@ -238,7 +243,7 @@
 - 用户在首轮基础问题中选择 GUI 后，初始化器必须在基础字段全部解析后进入条件问询，逐项确认 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut` 为 `enabled` 或 `disabled`，并提供 `sidebar_mode` 的 `compact` 或 `detailed` 选择。八项能力不得推断；用户未选择侧栏模式时必须写入 `sidebar_mode = detailed`，显式非法值不得按未选择处理。归一化后的九项写入唯一 `gui-initialization-config` 代码块，基线提交前不得缺失或残留 `pending`；深链接启用时必须同时启用单实例。
 - `system_tray = enabled` 时完整实现现有托盘图标、双项本地化菜单、关闭隐藏、两种恢复和退出生命周期；`disabled` 时不启用 `tray-icon`、不安装托盘、不保留托盘 locale/菜单资源或关闭隐藏处理，而由主窗口 `CloseRequested` 显式调用 `AppHandle::exit(0)`，确保关闭即退出。`single_instance = enabled` 时完整实现官方首插件、只恢复既有窗口的回调与真实双启动唯一性；`disabled` 时依赖、插件、回调和双启动场景都必须缺席。
 - `/settings`、动态标题、语言/三态主题和亮暗语义主题仍是所有 GUI 的固定基线。`about_page`、`sponsor_page` 各自只控制相应路由、导航入口、组件和运行时资源；未选页面不得以隐藏路由、不可达组件或无入口媒体残留。选择赞助页时完整 sponsor 媒体进入 bundle，未选择时不得进入运行时 bundle。
-- `compact` 侧栏只实现设计目录中的 `tauri-gui-sidebar-compact-80-v1`，名称始终可见、允许最多两行且不使用固定 `em/ch` 占位盒；`detailed` 侧栏首次默认 `248px` 展开，使用 `72px` Logo、`22px` 图标和图标+名称横排，自身 ActionIcon 可收起为 `76px`，收起后使用 `44px` Logo、只显示图标并以 Mantine Tooltip 显示名称。详细模式折叠状态通过独立 local-storage 键跨重挂载和下次启动恢复，由 AppShell 拥有并同源同步 `navbar.width`/`data-navbar-width`，不进入页面会话 Jotai store。
+- 两种侧栏模式遵守当前基座与中央 Token；详细折叠状态通过独立设备偏好跨重挂载/重启恢复，由 AppShell 拥有并同源同步 `navbar.width`/`data-navbar-width`，不进入页面会话 store。
 - 初始化结构检查和真实本机 E2E 读取同一 profile：启用能力必须完整通过硬门禁，禁用能力必须证明无残留；按选择验证双启动、托盘和开机自启切换/恢复，其中自启登录项必须恢复执行前状态，托盘禁用时实测关闭最后窗口退出。系统通知在初始化阶段只验证默认关闭、串行 worker/权限状态机结构和失败可见性，不以未签名调试二进制触发真实权限或投递；当前应用的 Notifications 设置跳转与真实投递只由满足签名前提的最终安装候选验收。所有组合都验证所选侧栏、设置页、实际菜单页面可达和未选页面缺席。
 
 ### 页面事件归属、发布日志与版本展示
@@ -255,7 +260,7 @@
 
 - 变更标识：`HARNESS-FEAT-MANTINE-LIST-VIEW-STANDARD` 与 `HARNESS-CHANGE-MANTINE-LIST-VIEW-V2`；`required_version = 202609231623`。React 19.2+、TypeScript、Mantine UI 9.x 的列表页、数据表格、后台列表、搜索结果页及已有列表审查必须使用 `$mantine-list-view`；即使请求未明说“表格”，只要实质是重复记录检索、浏览或管理也命中。GUI 下游完整保留 Skill、v2 标准与拆分模板资产，非 GUI 下游裁剪；中性 GUI 初始化不生成业务列表页或预装 dnd-kit。
 - 表头粘滞只使用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`，二维滚动只使用有名称、可聚焦和可见焦点的 `Table.ScrollContainer`。排序字段使用非空联合类型白名单并按 asc→desc→none 循环，当前列同时拥有准确 `aria-sort`、可见 Tabler 方向图标和窄屏可达的排序摘要；服务端默认顺序确定，所有同值排序追加稳定业务 id tie-breaker。
-- 所有真实数据行按顺序固定浅/深/浅/深交替：浅色主题使用 white/gray-1，深色主题使用 dark-7/dark-6；鼠标 hover 或行内控件 focus-within 时使用更强的 gray-3/dark-4 高亮，并保留主题焦点轮廓与 forced-colors 反馈。高亮不把行自动变成可点击元素；唯一业务主列使用行表头和可理解行名称。
+- 数据行交替、hover、focus、selected 统一消费中央 `--app-table-row`、`--app-table-row-alternate`、`--app-table-row-hover`、`--app-table-row-selected` 与 `--app-accent`；forced-colors 与行内焦点保持可见，状态不只依赖颜色，行不自动成为可点击控件。
 - 列表只支持页码式 offset 分页和 Mantine responsive Pagination；`total` 接收总页数。pageSize 白名单为 `10 | 20 | 50 | 100`，全局兜底 20；控件提供本地化导航名称和当前 X–Y/总数 live summary。page、pageSize、sort 和已应用筛选同步类型化 URL；原始 URL 完全无 owned key 时才读 sessionStorage，canonicalization、隐藏排序和越界纠正只 replace 一次且保留无关 query。
 - 业务行、总数与请求结果只由 TanStack Query v5 缓存；query key 包含稳定 listId、非 PII scope、规范化筛选、排序、pageSize 与 page。纯翻页 pending 可显示上一页 placeholder，但该行整体 inert，选择、分页、批量和行内副作用禁用；换页 error 不再把旧页冒充新页，同 key 刷新失败才保留当前数据。列表显式声明 `businessIdType`，成功响应验证 safe integer、所有页业务 id 类型、数量/页码一致性和业务 key，只有成功非 placeholder 状态可纠页。
 - 首次加载、筛选无结果、全局无数据、类型化错误和正常/后台刷新状态完整。选择明确为 none/current-page/cross-page；启用时必须有摘要、清空和 action bar，current-page 同页刷新裁剪失效 id，批量动作由服务端重验 id、权限和状态。
@@ -325,7 +330,7 @@
 - 仅当 `system_tray = enabled` 时启用 Tauri `tray-icon`。托盘使用应用图标、稳定 ID `show_window`/`quit` 和由 `rust-i18n` 解析的中英文标签；显示项恢复并聚焦主窗口，macOS/Windows 主鼠标左键执行同一恢复，Linux 使用菜单而不要求图标事件，关闭主窗口只隐藏，退出项结束应用。启用时原有六个固定命名回归、结构检查与真实宿主生命周期仍是硬门禁；禁用时不得保留 feature、安装函数、菜单/locale 资源或关闭隐藏处理，必须从 `.on_window_event(...)` 接线并在主窗口 `CloseRequested` 中显式退出。
 - GUI 固定建立 `{applicationName} v{version} {contactChannel}:{contactValue}` 动态标题、`/settings`、语言与三态主题及亮暗语义主题。侧栏严格按 `sidebar_mode` 使用精简或详细布局，底部导航按已选赞助、固定设置、已选关于生成；`/about` 与 `/sponsor` 未选时不建立路由、入口、组件或运行时资源。主应用窗口为 1440×900、最小 960×640并与 DMG 安装卷窗口独立。所选关于页包含 `NotConfigured` 检查更新、可用的近十版更新日志、作者/联系人/免责声明；所选赞助页使用运行时主题并打包完整 sponsor 媒体。Harness 保留完整品牌源资产但不预创建 `docs/GUI_SUPPORT_SURFACES.md`，产品运行时只纳入选择需要的内容。
 - 选择系统托盘时，应用图标必须来自项目本地 Tauri `icon` 生成并由 `bundle.icon` 引用的非透明 `icons/32x32.png`；托盘安装从 `.setup(...)` 可达并绑定双项 `Menu`、必需应用图标和 `.build(app)`，关闭隐藏从 `.on_window_event(...)` 可达，真实 E2E 必须看见非空图形。Linux 还必须把菜单绑定到 tray builder。未选托盘时这些专属资产要求与运行时接线不适用且不得残留。
-- GUI 图标统一使用直接依赖 `@tabler/icons-react` 的命名组件：菜单、操作、状态、空态和图表周边控件存在适用图标时优先从该包选择，不另装图标库，不用手写 SVG、字符或 emoji 替代；图表绘制库仍由真实数据可视化需求决定。所选侧栏中的 Logo、所有当前渲染图标和文字必须沿同一中心线且无裁切。
+- GUI 图标统一使用直接依赖 `@tabler/icons-react` 的命名组件：菜单、操作、状态、空态和图表周边控件存在适用图标时优先从该包选择，不另装图标库，不用手写 SVG、字符或 emoji 替代；图表绘制库仍由真实数据可视化需求决定。所选侧栏中的 Logo、图标和文字按当前模式的对齐 Token 排列且无裁切。
 - 含 GUI 的下游在初始化单元测试通过后、裁剪初始化能力和创建唯一基线提交前，必须固定执行一次 `$desktop-test-gui-initialization-e2e`。结构检查解析九项 profile，始终验证 `os`（system-locale）、updater、window-state 三项 Rust-only 固定基线与 dialog 固定 WebView 基线，对启用条件能力验证完整契约、对禁用能力验证无残留；dialog 验证必须覆盖三处固定依赖、唯一有序注册、主窗口精确 `dialog:default`、全部官方默认 message/save/open 类型、无 wildcard/deprecated `ask`/`confirm` alias/`dialog:deny-*`/filesystem 权限且不进入 `invoke_handler`。真实二进制按选择验证单实例、托盘、开机自启、深链接和全局快捷键，自启、window-state 与快捷键必须恢复执行前状态；系统通知只验证默认关闭的 Switch、失败可见性和结构回归锁定的串行 worker/权限状态机，不以未签名调试二进制触发真实权限、设置跳转或投递。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面可达及未选页面缺席。它独立于 `e2e_hint`，任一适用场景失败或无法观察/恢复都阻断初始化；只能由打包应用证明的 macOS 通知宿主行为与静态 scheme 系统注册必须明确留待候选补验。
 - 产品启用更新时必须使用官方 Tauri updater 的签名制品、公开验证密钥和受限 HTTPS endpoints，签名验证不可关闭，并拒绝降级以及 target、arch、channel 不匹配。检查状态固定为 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`，失败不得伪装为最新版。强更只由 adapter 验证过真实性和目标绑定的 `minimumSupportedVersion` 交给 core，以严格 SemVer 得出；不得信任远端 `forcedUpdate` 布尔值。`RequiredUpdate` 使用根级不可关闭门，只允许安装已验证签名更新或安全退出。任务必须由应用生命周期拥有并具备单飞、取消、超时和关闭回收；一般网络/策略失败默认 fail-open。真实远程能力未批准时保持禁用和零出站。
 - 统计上报默认关闭且不进入初始化设置页。只有产品明确启用统计能力并建立受保护产品事实与独立产品级明确同意界面后，才允许每进程一次 `app_started`，由 Rust GUI adapter 以 HTTPS JSON `POST` body 发送文档声明的精确字段白名单；禁止 GET/query、自由文本、业务载荷、令牌、路径、用户名、主机名和稳定设备/安装标识。队列只驻留内存且最多 32 条，同一时刻最多一个在途请求，撤回同意立即取消并清空，任务与至多两次重试必须可关闭回收；任何新增事件、字段、稳定标识或持久队列都需重新批准。桌面客户端不得保存服务端共享秘密或发布私钥。更新 banner 只有产品选择时进入 bundle，真实 endpoint、统计接收方、公开 updater 配置与安全密钥引用只进入受保护产品事实。
@@ -477,9 +482,9 @@
 - [x] GUI 选择后必须完成八项条件能力与侧栏模式的九项专门问询并写入唯一 profile 代码块；`os`（system-locale）、updater、window-state 由独立 Skill 作为不询问的三项 Rust-only 固定基线，dialog 作为不询问且只向主窗口开放精确 `dialog:default` 的固定 WebView 基线，其他插件能力各由独立 Skill 管理，禁用时全部专属依赖与接线缺席。
 - [x] `global_shortcut = enabled` 只建立能力与唯一 action contract；中性初始化固定空 actions、零默认 chord、零 OS 注册和零占位 UI。产品 fixed/user-configurable 动作完全来自需求，Rust action/typed dispatcher 与 contract 逐字段一致，空 contract 不允许隐藏注册或录制 runtime。
 - [x] GUI 初始化生成 3 个 Logo 候选并由用户选择；托盘启用时完整实现非透明图标、本地化双项菜单、关闭隐藏、恢复与退出，托盘禁用时不保留 feature/运行时/资源且关闭最后窗口退出。关于页与赞助页的路由、导航、组件和媒体严格按选择存在或缺席，`/settings`、主题和 i18n 始终存在。
-- [x] UI 设计目录以精确匹配解析通用/组件标准，产品已批准标准优先；无匹配或特殊像素先批准并更新 GUI profile/ADR，布局不进入 core。
-- [x] 侧栏支持精简与详细两种初始化模式：compact 锁定 `80/6/36/22/11/1.25/56/4/8`、全宽居中名称、无固定 `em/ch` 盒/折叠按钮和 AppShell 零 padding 接线；detailed 首次默认 `248px` 展开显示 `22px` 图标+名称，身份父级不代理，自身按钮收起为 `76px` 后使用 icon-only + Tooltip，并通过独立 local-storage 键恢复折叠偏好；AppShell 的 `navbar.width` 与 `data-navbar-width` 始终同步。两种模式的 Logo、图标、文字都居中无裁切。
-- [x] GUI 固定直接依赖 `@tabler/icons-react`，适用图标使用命名组件；所选侧栏的 Logo、全部渲染图标与文字沿同一中心线，图表周边图标优先使用 Tabler，图表绘制能力保持独立。
+- [x] 当前 UI 基座统一视觉权威，框架与组件专项仅提供相容实现/行为合同；普通 Token 调整无旧像素批准步骤，布局不进入 core。
+- [x] 侧栏两种模式消费中央 Token；展开/收起、父级事件隔离、偏好恢复、可访问名称和同源宽度接线具有相关回归。模板工程检查不代表真实下游窗口已验收。
+- [x] GUI 固定直接依赖 `@tabler/icons-react`，适用图标使用命名组件；所选侧栏的 Logo、图标与文字按当前模式对齐且无裁切，图表周边图标优先使用 Tabler，图表绘制能力保持独立。
 - [x] 含 GUI 的下游在唯一基线提交前固定通过九项 profile-aware 结构门禁与真实本机调试 E2E：三项 Rust-only 固定基线与 dialog 固定 WebView 基线始终验证；其余按选择运行双启动、托盘、自启、深链接和全局快捷键场景。系统通知初始化只实测默认关闭、Switch 自身交互与失败可见性，并由结构回归锁定先读权限、只对 `NotDetermined` 请求并复读，以及拒绝/受限/未知时保持关闭并打开当前应用 Notifications 设置的实现；真实权限、设置跳转和投递只在满足签名前提的最终安装候选中验收。全部场景还验证所选侧栏、设置页、实际菜单页面和禁用能力缺席。
 - [x] 发布链路不解析或保存量化探针选择，不生成专用探针候选、manifest 字段、豁免或运行时绑定。
 - [x] `$desktop-prepare-gui-support-surfaces` 固化官方签名 updater、认证最低支持版本 + core SemVer 强更、根级不可绕过更新门，以及默认关闭、明确同意、HTTPS JSON POST、无稳定标识、内存有界队列和生命周期回收的统计契约；`$desktop-build-tauri-release` 在启用 updater 时强制产出并验证 archive/`.sig`，安装包签名状态不能绕过更新制品签名。

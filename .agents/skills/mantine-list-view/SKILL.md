@@ -9,7 +9,7 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 - 创建、修改、重构或审查 React、TypeScript、Mantine 的列表页、表格、后台列表或搜索结果页时使用。
 - 即使用户未写“表格”，只要页面实质用于检索、浏览或管理重复记录，也必须使用。
-- 本 Skill 执行 [Mantine 列表页设计标准](../../../docs/design_standards/mantine_list_view.md)，并与 [Tauri GUI 通用设计标准](../../../docs/design_standards/tauri_gui.md) 组合；产品已批准事实优先。
+- 本 Skill 执行 [Mantine 列表页设计标准](../../../docs/design_standards/mantine_list_view.md)，并与 [Tauri GUI 通用设计标准](../../../docs/design_standards/tauri_gui.md) 组合；视觉唯一依据为 [当前 UI 基座](../../../docs/design_standards/ui_foundation.md)，本 Skill 仅补充相容的列表行为与状态合同。
 
 ## 开始前必须确定
 
@@ -24,8 +24,8 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 ### 表格、行与窄屏
 
-- 只用 `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>` 与 `Table.ScrollContainer`；offset 来自共享布局常量，禁止手写 sticky。`Table.Thead` 使用稳定 CSS Module 类，其 `th` 必须以 `background-color: var(--mantine-color-body)` 提供不透明语义背景，禁止透明或单一色彩模式固定色，避免滚动数据透出。滚动区必须可聚焦、有本地化名称和可见焦点。
-- 每个真实数据行固定浅/深/浅/深交替；浅色主题使用 `white`/`gray-1`，深色主题使用 `dark-7`/`dark-6`。鼠标 hover 或任一行内控件 `:focus-within` 时用更强的 `gray-3`/`dark-4` 高亮；键盘焦点另有清晰轮廓，forced-colors 仍可见。不要只靠颜色表达选择或状态。
+- 只用 `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>` 与 `Table.ScrollContainer`；offset 来自共享布局常量，禁止手写 sticky。`Table.Thead` 使用稳定 CSS Module 类，其 `th` 必须以 `background-color: var(--app-surface)` 提供不透明语义背景，禁止透明或单一色彩模式固定色，避免滚动数据透出。滚动区必须可聚焦、有本地化名称和可见焦点。
+- 数据行通过 `data-row-tone` 消费中央 `--app-table-row` / `--app-table-row-alternate`；hover/focus 使用 `--app-table-row-hover` 与可见焦点，selected 与 forced-colors 保留独立语义。
 - 唯一 `primary` 列以 `th scope="row"` 渲染，并由业务提供非空行名称。`primary`、声明存在的 `status`/`actions` 必须显式设置 `required: true`，且它们和所有 required 列都不得设置 `hideBelow`；次要列才可隐藏。
 - placeholder 旧行是只读展示：整行 inert、选择和行内副作用禁用，`renderCell` 必须尊重 `interactive=false`。
 
@@ -53,7 +53,7 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 1. 完整读取 [offset-list-pattern.md](references/offset-list-pattern.md)、[mantine-api.md](references/mantine-api.md)、[checklist.md](references/checklist.md) 与通用 GUI 标准，只检查本次命中的项目事实。
 2. 确认下游实际使用 React 19.2+、`@mantine/core >=9.6.1 <10`、`@tanstack/react-query >=5.102.8 <6`；若低于下界，先升级或实现并测试等价 fallback，不能直接复制不兼容 API。
-3. 复制并共同适配 `assets/` 中 `ListPage.template.tsx`、`listPageState.ts`、`listPageTypes.ts`、`ListColumnSettings.tsx`、CSS module 及声明；契约测试作为下游测试起点，不当成产品测试替代品。
+3. 先确认应用根 Provider 使用共用 `appDesignTokens.ts` 提供表格语义 CSS Token；再复制并共同适配 `assets/` 中 `ListPage.template.tsx`、`listPageState.ts`、`listPageTypes.ts`、`ListColumnSettings.tsx`、CSS module 及声明；契约测试作为下游测试起点，不当成产品测试替代品。
 4. 先接类型化路由 adapter 和服务端稳定排序，再接 Query/四态/Table/Pagination，最后按真实需求接选择和列偏好；不为未选能力留下假按钮。
 5. 运行项目的 typecheck、相关单元/组件测试和 `node --experimental-strip-types ListPage.contracts.test.ts`；若把契约测试纳入 `tsc`，测试 tsconfig 启用 `allowImportingTsExtensions`。真实浏览器、服务端或 E2E 未运行时明确列为未验证。
 

@@ -2,23 +2,23 @@
 
 稳定标识：`gpui-gui-common-v1`。
 
-先完整读取 [UI 统一设计基座](ui_foundation.md)，以 GPUI Kit 原生主题、间距和组件机制落实共用语义。Kit 原生尺度和本标准精确数值优先，不引入 CSS、React 或前端检查工具，也不为每个 Kit 控件强制增加包装层。
+先完整读取 [UI 统一设计基座](ui_foundation.md)，以 GPUI Kit 原生主题、间距和组件机制落实共用语义。当前基座优先，原生展示值统一来自应用主题 Token，不引入 CSS、React 或前端检查工具，也不为每个 Kit 控件强制增加包装层。
 
 仅匹配根 Cargo metadata 中 `interfaces` 包含 `gui` 且 `gui-framework = "gpui"` 的原生桌面界面。技术栈和模板入口由 `$desktop-add-gpui-adapter` 管理；本标准不引入 Tauri、WebView、React、Mantine 或 JavaScript 图标库；Node.js/pnpm 工程脚本入口由 GPUI adapter Skill 管理。
 
 ## GPUI Kit 官方知识
 
-GPUI 下游创建时在项目 `.agents/skills/` 安装官方 `$gpui-kit` 与 `$gpui-kit-design-guides`，其它框架与非 GUI 不安装。前者用于 Coding Guides、组件/API、实体/事件/异步和测试，后者用于 Design Guides、布局/主题/密度、交互状态和可见文案；按 Skill 的阅读路由加载当前主题。官方原文、全部 references、Apache-2.0 许可与固定 revision/逐文件摘要一起保留，原样跨 Skill/仓库链接的语义映射见各自 `HARNESS-INTEGRATION.md`。来源于 [GPUI Kit 官方 skills](https://github.com/longbridge/gpui-kit/tree/0bbd9870ce420af9feacbf948b21d3824d82dc0b/skills)，于 2026-10-10 核对。
+GPUI 下游创建时在项目 `.agents/skills/` 安装官方 `$gpui-kit` 与 `$gpui-kit-design-guides`，其它框架与非 GUI 不安装。前者用于组件/API、实体/事件/异步和测试，后者仅参考组件机制及原生交互实现；两者原文的独立审美、间距或密度要求不作为设计权威，当前基座统一决定视觉规则。官方原文、全部 references、Apache-2.0 许可与固定 revision/逐文件摘要一起保留，原样跨 Skill/仓库链接的语义映射见各自 `HARNESS-INTEGRATION.md`。来源于 [GPUI Kit 官方 skills](https://github.com/longbridge/gpui-kit/tree/0bbd9870ce420af9feacbf948b21d3824d82dc0b/skills)，于 2026-10-10 核对。
 
-这些知识服从用户指令、本项目工程边界与已确认的 GUI profile；不自动改变下述壳层尺寸或安装新依赖。使用 API 时核对项目实际 gpui-kit 版本。知识资产安装只复制固定本地文件，不联网、不执行远程脚本、不全局安装；通用 Harness 升级保护已安装第三方内容。
+这些知识服从用户指令、当前 UI 基座与项目工程边界；不自动改变产品范围或安装新依赖。使用 API 时核对项目实际 gpui-kit 版本。知识资产安装只复制固定本地文件，不联网、不执行远程脚本、不全局安装；通用 Harness 升级保护已安装第三方内容。
 
 ## 壳层与信息架构
 
 - 原生窗口、根视图、菜单、纯交互状态、主题和语言属于 `<project-id>_gui`；业务规则与权威业务状态仍属于 `<project-id>_core`。中性初始化只显示脚手架状态，不生成业务功能或示例数据。
 - 首次主窗口为 1440×900，最小 960×640，居中且可调整；不得把 DMG 安装卷窗口尺寸当成主窗口尺寸。平台不支持的窗口行为必须明确报告。
 - 侧栏顶部显示本地应用 Logo，当前 Cargo 版本紧随其后，版本展示只有一个小写 `v`。功能项向下增长，底部顺序为已选赞助、固定设置、已选关于。
-- `sidebar_mode = compact` 使用 80px 全宽居中竖排菜单，不提供折叠按钮；`detailed` 使用 248px 展开、76px 收起，只在收起时隐藏名称，并提供完整 Tooltip/可访问名称。详细模式折叠状态属于 adapter 的设备级偏好。
-- 详细模式展开时菜单图标与名称在满宽内行左对齐，收起时图标居中；不能沿用 Kit 按钮内层默认居中。折叠按钮为 24px 悬浮控件，按钮中心的横坐标等于侧栏右边界，纵坐标等于顶部 Logo 中心；展开和收起时均横跨侧栏与主内容各 12px，不占独立行，也不挤动 Logo、版本或名称。按钮必须在内容之上绘制，伸出侧栏的部分不被裁切且可点击。compact 不生成该控件或翻译键。
+- `sidebar_mode = compact` 使用全宽居中竖排菜单，不提供折叠按钮；`detailed` 可展开/收起，只在收起时隐藏名称，并提供完整 Tooltip/可访问名称。宽度、Logo、图标与名称字号只消费 `app/design_tokens/mod.rs`，详细模式折叠状态属于 adapter 的设备级偏好。
+- 详细模式展开时菜单图标与名称在满宽内行左对齐，收起时图标居中；不能沿用 Kit 按钮内层默认居中。折叠控件中心与侧栏右边界、顶部 Logo 中心对齐，不占独立行，也不挤动 Logo、版本或名称。按钮必须在内容之上绘制，伸出侧栏的部分不被裁切且可点击。compact 不生成该控件或翻译键。
 - 侧栏宽度、内容偏移和折叠按钮消费同一状态，不能分别缓存导致错位。动作绑定在拥有该动作的按钮或菜单项自身，点击容器周围区域不能代理子控件动作。
 
 ## 设置、主题与语言
@@ -33,8 +33,8 @@ GPUI 下游创建时在项目 `.agents/skills/` 安装官方 `$gpui-kit` 与 `$g
 - `about_page` 与 `sponsor_page` 分别决定页面、入口、组件和运行时资源是否存在；禁用时全部缺席。模板代码来自受维护的 GPUI 中性资产，不能在初始化后依赖源 `gpui-demo` 的绝对路径。
 - 关于页显示权威应用名、版本、作者/联系人与经批准的免责声明。更新服务未配置时明确显示不可用并保持零出站；不得把静态文字、假成功或 Tauri updater 插件当成 GPUI 更新实现。
 - 赞助页使用本地、可审计的品牌媒体与当前主题，图片保持比例并允许合理滚动；支付二维码不重绘、不解码重建。页面展示不授权订单、权益、支付回调或自动交易。
-- 赞助页使用 `$desktop-add-gpui-adapter` 的 `assets/gui/src/app/sponsor.rs` 原生固定模板（仅 GPUI 下游保留）：内容槽不再添加顶部“赞助”标题、分割线和外层内边距；完整背景从内容区左上角开始，页面自己拥有 24px 水平、12px 顶部与 16px 底部留白。父滚动槽为 `flex_1 + min_h_0 + flex_col`，赞助根为 `w_full + flex_grow(1) + flex_shrink_0`，不得再按侧栏宽度补第二份 margin 或让内容收缩错位。
-- 模板完整包含居中介绍、维护边界、能力图标/PC说明、三档权益与独立支付区。按真实内容宽度（窗口减当前侧栏）≥1000px 三列，否则一列，不出现两张加一张；三列等宽等高。支付区在内容宽度 ≥924px 时左说明右收款码，否则上下排。二维码保持原比例、白底与 120×136 展示尺寸；内容使用 Kit 完整语义色。
+- 赞助页使用 `$desktop-add-gpui-adapter` 的 `assets/gui/src/app/sponsor.rs` 原生固定模板（仅 GPUI 下游保留）：内容槽不再添加顶部“赞助”标题、分割线和外层内边距；完整背景从内容区左上角开始，页面自己消费 Kit 语义间距并拥有唯一留白。父滚动槽为 `flex_1 + min_h_0 + flex_col`，赞助根为 `w_full + flex_grow(1) + flex_shrink_0`，不得再按侧栏宽度补第二份 margin 或让内容收缩错位。
+- 模板完整包含居中介绍、维护边界、能力图标/PC说明、三档权益与独立支付区。内容宽度决定三列或单列、收款区左右或上下排列；阈值、字号、插图和扫码媒体尺寸只在 `app/design_tokens/sponsor.rs` 定义。二维码保持原比例与白色扫描底，普通插图和内容消费 Kit 语义色；卡片与设置共用中央 surface 圆角。
 - 关于页的真实双语更新日志仅消费构建工具已验证并编译嵌入的最近十版同一快照；未注入时显示真实空状态。切换语言只选择同条目的对应译文，不做窗口线程 I/O，也不捏造发布历史。
 - 支持页模块保持独立职责；大视图拆为 Rust `<module>/mod.rs` 和内聚子模块，不以转发空壳规避文件上限。所有模块遵守工程规则的中文声明注释与测试组织要求。
 

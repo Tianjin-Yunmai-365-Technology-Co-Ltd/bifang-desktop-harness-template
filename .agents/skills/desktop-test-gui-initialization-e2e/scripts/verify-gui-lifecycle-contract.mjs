@@ -31,7 +31,7 @@ import { parseReleaseMetadataArray } from "../../desktop-switch-post-release-act
 /**
  * 委托给 frontend-contract 模块的稳定检查面：
  * GUI 固定基线缺少 /settings 路由；未选择${page.label}时不得保留路由或组件；
- * 未选择赞助页时不得保留 public/brand-support/sponsor；侧栏固定检查 22px 图标、
+ * 未选择赞助页时不得保留 public/brand-support/sponsor；侧栏检查中央 Token 引用、
  * DEFAULT_DETAILED_SIDEBAR_COLLAPSED 与 localStorage 持久化。
  */
 

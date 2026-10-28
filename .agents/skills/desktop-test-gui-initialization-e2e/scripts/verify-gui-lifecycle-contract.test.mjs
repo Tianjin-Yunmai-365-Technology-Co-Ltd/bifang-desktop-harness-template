@@ -456,10 +456,10 @@ test("rejects compact sidebar layout drift", () => {
   withFixture(({ root, guiRoot }) => {
     disableTrayAndSingleInstance(root, guiRoot);
     const shell = path.join(guiRoot, "src", "AppShell.tsx");
-    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace("compact: 80", "compact: 79"));
+    fs.writeFileSync(shell, fs.readFileSync(shell, "utf8").replace("APP_SIDEBAR_WIDTHS = APP_LAYOUT_TOKENS.sidebar.widths", "APP_SIDEBAR_WIDTHS = { compact: 80 }"));
     assert.match(
       verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /精简侧栏缺少80px 固定宽度契约/u,
+      /精简侧栏缺少中央宽度 Token契约/u,
     );
   });
 });

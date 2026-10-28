@@ -7,7 +7,7 @@ description: 为已明确选择 GPUI 的中性 Rust 下游建立原生桌面薄�
 
 在初始化已选择 `gui_framework = gpui`、已初始化下游明确批准增加 GPUI 接口，或维护既有 GPUI 壳层/能力时使用。默认桌面框架仍为 Tauri。GPUI 原生视图使用 Rust；根 pnpm 入口运行保留的 Node 工程检查与发布工具，默认无第三方 npm 依赖，无需前端。不得混装 React、WebView 或 Tauri plugin。当前 Harness 根只维护模板和工程规则，不能把产品业务写入这里。
 
-GPUI 下游创建时安装项目本地官方 `$gpui-kit` 与 `$gpui-kit-design-guides`。界面设计、组件、布局、主题、状态与可见文案按后者读取 Design Guides；架构、Entity 所有权、事件、异步、API 和测试按前者读取 Coding Guides 及命中 references。只读取本次需要的深层主题，不全量加载参考文档。两套 Skill 的 `source.json` 固定来源 revision、大小与 SHA-256，`LICENSE-APACHE` 保留许可，`HARNESS-INTEGRATION.md` 解释原始跨 Skill/仓库引用。用户指令与本项目约束优先，官方知识不改变已确认的模板尺寸、功能范围、依赖或验收责任；API 必须与项目实际依赖版本核对。安装知识不运行远程代码，也不增加全局或运行时依赖。
+GPUI 下游创建时安装项目本地官方 `$gpui-kit` 与 `$gpui-kit-design-guides`。界面视觉只按 `docs/design_standards/ui_foundation.md`；两份官方知识仅参考真实组件/API、原生交互、Entity 所有权、事件、异步和测试机制，原文审美不能作为第二套设计规范。只读取本次需要的深层主题，不全量加载参考文档。两套 Skill 的 `source.json` 固定来源 revision、大小与 SHA-256，`LICENSE-APACHE` 保留许可，`HARNESS-INTEGRATION.md` 解释原始跨 Skill/仓库引用。用户指令与本项目约束优先，官方知识不覆盖当前基座与中央展示 Token、功能范围、依赖或验收责任；API 必须与项目实际依赖版本核对。安装知识不运行远程代码，也不增加全局或运行时依赖。
 
 ## 按职责装配
 

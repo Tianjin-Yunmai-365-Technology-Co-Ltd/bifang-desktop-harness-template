@@ -34,6 +34,8 @@ test('fixed_snapshot_contains_two_complete_official_skills_and_license', () => {
     assert.equal(source.upstreamPath, `skills/${name}`);
     assert.equal(source.upstreamModified, false);
     assert.match(files.get('HARNESS-INTEGRATION.md').toString(), /bootstrap\.rs/u);
+    assert.match(files.get('HARNESS-INTEGRATION.md').toString(), /ui_foundation\.md/u);
+    assert.match(files.get('HARNESS-INTEGRATION.md').toString(), /独立审美与旧像素不自动生效/u);
   }
 });
 

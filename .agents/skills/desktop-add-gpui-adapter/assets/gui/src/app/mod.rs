@@ -1,6 +1,8 @@
 //! 原生壳层只拥有导航、外观和设备偏好；领域状态始终从直接依赖的共享核心读取。
 
 mod settings;
+mod design_tokens;
+use design_tokens::{SIDEBAR_INSET, SIDEBAR_LOGO_TOP, SIDEBAR_TOGGLE_SIZE, COMPACT_WIDTH, COLLAPSED_WIDTH, EXPANDED_WIDTH, COMPACT_LOGO, COLLAPSED_LOGO, IDENTITY_LOGO_LARGE, NAV_ICON, NAV_LABEL, COMPACT_ITEM_HEIGHT, DETAILED_ITEM_HEIGHT, PAGE_HEADING_HEIGHT, PAGE_TITLE_SIZE};
 @@SETTINGS_TEST_MODULE@@
 @@ABOUT_MODULE@@
 @@SPONSOR_MODULE@@
@@ -8,10 +10,6 @@ mod settings;
 use crate::{assets, preferences::{LanguageChoice, Preferences, ThemeChoice, Writer}};
 use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, Render, Subscription, Window, WindowAppearance, assets::IconName, base::TestSupportExt as _, component::{ActiveTheme, Theme, ThemeMode, button::{Button, ButtonVariants}}, div, img, prelude::*, px};
 
-/// 侧栏内边距同时确定顶部 Logo 与边界控件的垂直原点。
-const SIDEBAR_INSET: f32 = 6.;
-/// 保留详细侧栏原有 pt_7 的 1.75rem 顶部留白，按钮按窗口真实 rem 换算。
-const SIDEBAR_LOGO_TOP: f32 = 1.75;
 
 /// 页面枚举只包含本次初始化实际启用的页面。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -138,12 +136,12 @@ impl Shell {
 
     /// compact 永远显示名称；detailed 按自身持久偏好展示或收起。
     fn sidebar_width(&self) -> f32 {
-        if @@COMPACT@@ { 80. } else if self.preferences.collapsed { 76. } else { 248. }
+        if @@COMPACT@@ { COMPACT_WIDTH } else if self.preferences.collapsed { COLLAPSED_WIDTH } else { EXPANDED_WIDTH }
     }
 
     /// Logo 与边界按钮共享当前详细侧栏档位，避免折叠后垂直中心漂移。
     fn sidebar_logo_size(&self) -> f32 {
-        if @@COMPACT@@ { 36. } else if self.preferences.collapsed { 44. } else { 72. }
+        if @@COMPACT@@ { COMPACT_LOGO } else if self.preferences.collapsed { COLLAPSED_LOGO } else { IDENTITY_LOGO_LARGE }
     }
 
     /// 具有真实按钮语义的整个菜单项直接拥有点击，不借助父级代理。
@@ -152,22 +150,22 @@ impl Shell {
         let compact = @@COMPACT@@;
         let collapsed = !compact && self.preferences.collapsed;
         if compact {
-            Button::new(id).ghost().h(px(56.)).w_full()
+            Button::new(id).ghost().h(px(COMPACT_ITEM_HEIGHT)).w_full()
                 .tooltip(label.clone()).accessibility_label(label.clone())
                 .child(div().w_full().flex().flex_col().items_center().gap_1()
-                    .child(gpui_kit::component::Icon::new(icon).size(px(22.)))
-                    .child(div().w_full().text_center().text_size(px(11.)).child(label)))
+                    .child(gpui_kit::component::Icon::new(icon).size(px(NAV_ICON)))
+                    .child(div().w_full().text_center().text_size(px(NAV_LABEL)).child(label)))
                 .when(self.page == page, |button| button.primary())
                 .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
                 .into_any_element()
         } else {
-            Button::new(id).ghost().h(px(44.)).w_full()
+            Button::new(id).ghost().h(px(DETAILED_ITEM_HEIGHT)).w_full()
                 .tooltip(label.clone()).accessibility_label(label.clone())
                 .child(div().id((id, 0usize)).test_support().w_full().min_w_0().flex().items_center().gap_2()
                     .when(collapsed, |row| row.justify_center())
                     .when(!collapsed, |row| row.justify_start())
                     .child(div().id((id, 1usize)).test_support().flex_shrink_0()
-                        .child(gpui_kit::component::Icon::new(icon).size(px(22.))))
+                        .child(gpui_kit::component::Icon::new(icon).size(px(NAV_ICON))))
                     .when(!collapsed, |row| row.child(div().id((id, 2usize)).test_support().min_w_0().child(label))))
                 .when(self.page == page, |button| button.primary())
                 .on_click(cx.listener(move |this, _, _, cx| this.navigate(page, cx)))
@@ -214,8 +212,8 @@ impl Render for Shell {
         div().id("application-shell").test_support().relative().size_full().min_w_0().min_h_0().overflow_hidden().flex().bg(cx.theme().background).text_color(cx.theme().foreground)
             .child(self.sidebar(cx))
             .child(div().id("main-content").test_support().flex_1().min_w_0().h_full().flex().flex_col()
-                .when(!(@@SPONSOR_ACTIVE@@), |column| column.child(div().id("page-heading").test_support().h(px(88.)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
-                    .child(div().text_size(px(26.)).font_weight(FontWeight::BOLD).child(self.page_title()))))
+                .when(!(@@SPONSOR_ACTIVE@@), |column| column.child(div().id("page-heading").test_support().h(px(PAGE_HEADING_HEIGHT)).flex_shrink_0().px_8().flex().items_center().border_b_1().border_color(cx.theme().border)
+                    .child(div().text_size(px(PAGE_TITLE_SIZE)).font_weight(FontWeight::BOLD).child(self.page_title()))))
                 .child(content))
 @@COLLAPSE_CONTROL@@
     }

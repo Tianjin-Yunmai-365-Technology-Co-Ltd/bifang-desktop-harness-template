@@ -13,7 +13,7 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 3. 在写入前确认 Git 根、分支和工作区状态，保护用户已有修改；重叠内容无法安全处理时停止。仓库没有声明的命令、能力或验证结果不得虚构。
 4. 先判定任务类型，再只读取下表命中的事实来源和 Skill。发现冲突或缺失时才扩大读取；不要为了“完整”加载全部项目记忆、设计标准、发布规则或 Skills。
 
-GUI 设计入口见 [DESIGN.md](DESIGN.md)，共用基座与专项标准按 [设计标准索引](docs/design_standards/README.md) 读取；依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
+GUI 设计入口见 [DESIGN.md](DESIGN.md)，当前共用基座为唯一视觉依据，专项实现按 [设计标准索引](docs/design_standards/README.md) 读取；依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
 
 ## 按任务渐进读取
 

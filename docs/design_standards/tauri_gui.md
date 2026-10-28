@@ -4,36 +4,20 @@
 
 本标准在界面为 Tauri 2 + React + Mantine 时命中。它约束 GUI adapter 的展示和纯交互层，不建立业务规则、持久业务状态或 core 依赖反向引用。固定左侧栏还必须叠加 [Tauri GUI 左侧栏标准](tauri_sidebar.md)。
 
-先完整读取 [UI 统一设计基座](ui_foundation.md)。基座的 Token/组件分层在本框架通过唯一 Mantine theme、组件默认值和 CSS Modules 实现；精确像素、组件语义及状态合同继续由本标准和命中专项标准确定，不为每个 Mantine 控件强制增加包装层。
-
-## 设计原则
-
-- 任务优先：首屏先突出当前任务，再呈现辅助信息和诊断细节。
-- 克制一致：同一语义使用同一组件、颜色、密度和反馈；不靠额外阴影、颜色或动画制造层级。
-- 渐进披露：低频设置、帮助和诊断进入专用页面或展开区。
-- 可恢复：加载、空态、错误、禁用和破坏性操作都说明当前状态与下一步。
-- 内容驱动：中英文、200% 文本缩放和窄窗口不能造成内容裁切。
-- 无障碍默认开启：键盘、可见焦点、语义名称、对比度、live region 与 reduced motion 是实现基线。
+先完整读取 [UI 统一设计基座](ui_foundation.md)。基座的 Token/组件分层在本框架通过唯一 Mantine theme、组件默认值和 CSS Modules 实现；本标准仅补充相容的框架机制与状态合同，展示值统一来自应用主题 Token，不为每个 Mantine 控件强制增加包装层。
 
 ## Theme 与布局
 
 - React 根只挂载一个 `MantineProvider`。theme 在组件外的稳定模块中定义；语言、主题和已批准的设备偏好留在 GUI adapter。
 - 主题使用显式 `localStorageColorSchemeManager` 与稳定 key，默认跟随系统并允许 `light`、`dark`、`auto`；存储失败回退安全默认，不得阻断启动。亮暗模式都定义页面、surface、主/次文字、边框和强调色语义。
-- 主色、字体、字号、行高、间距、圆角、阴影、断点和组件默认值先进入 `createTheme`。品牌色只从已批准的 `docs/GUI_APP_PROFILE.md` 派生；页面、组件和 CSS 不复制品牌 hex，也不固定只适合一种主题的字体或色值。自定义色必须提供当前 Mantine 版本要求的完整色阶，并验证 hover、active、对比和暗色行为。
+- 主色、字体、字号、行高、间距、圆角、阴影、断点和组件默认值先进入 `createTheme` 与其唯一 `appDesignTokens.ts`。品牌色只从已批准的 `docs/GUI_APP_PROFILE.md` 派生；页面、组件和 CSS 不复制品牌 hex，也不固定只适合一种主题的字体或色值。自定义色必须提供当前 Mantine 版本要求的完整色阶，并验证 hover、active、对比和暗色行为。
 - 样式优先级固定为：theme token/组件 `defaultProps` → Mantine props/简单 style props → CSS Modules 与 Mantine CSS variables → Styles API → 仅由运行时测量得到的一次性内联 `style`。不要用 `!important`、高优先级全局 CSS 或 Mantine 私有 DOM 选择器兜底。
 - 页面按 `page → surface → section → field → action` 组织。DOM、视觉和键盘顺序保持一致；弹层关闭后焦点回到触发器。
 - 普通文字对比至少 `4.5:1`，大号文字、必要非文字信息和焦点指示至少 `3:1`。颜色不能是状态的唯一线索。
 - 交互目标至少满足 `24 × 24 CSS px` 或对应间距例外；高频主操作优先接近 `40 × 40 CSS px`。
 - 主窗口首次启动，或持久状态缺失、损坏、离开所有当前显示器工作区时，以 `1440×900` 逻辑像素、最小 `960×640`、居中和避免溢出作回退；后续启动只恢复合法的尺寸、位置和最大化状态，必须忽略上次的隐藏、最小化、全屏和装饰状态。该窗口不得与 `660×400` 的 macOS DMG 安装卷窗口混淆。最小窗口尺寸必须与最窄可用布局一致，不能依赖最大化完成核心任务。
 
-| 领域 | 语义与约束 |
-|---|---|
-| 间距 | `xs/sm` 用于同组细节和控件内部，`md` 用于常规组件，`lg/xl` 用于区块和页面 |
-| 圆角 | 控件使用 `sm/md`，普通 surface 使用 `lg`，强品牌容器才使用 `xl` |
-| 阴影 | 普通内容优先边框；浮层、拖拽对象或临时脱离页面的区域才使用 `xs/sm/md` 轻阴影 |
-| 品牌色 | `brand` 只用于主动作、选中、焦点和少量强调，不替代正文或所有状态色 |
-| 中性色 | `gray/dark` 统一表达页面、surface、边框和主/次文字，不为每页建立近似灰色 |
-| 状态色 | success/warning/danger/info 必须同时有文字、图标或语义属性，颜色不能独立承载含义 |
+基础视觉语义、控件分级与反馈模式只由 [UI 基座](ui_foundation.md) 定义；`appDesignTokens.ts` 集中维护应用展示值及亮暗 CSS Token，页面和组件不得再次挑选色阶或建立独立尺寸表。
 
 - focus ring 不得关闭；sticky header、overlay 和滚动容器不能遮挡焦点。动画尊重 `prefers-reduced-motion`，且不能成为唯一状态提示。标题按 `h1 → h2 → h3` 连续组织，不为视觉大小跳级。
 - 按等价 `320 CSS px` 宽度、200% 文本缩放和用户覆盖文本间距先保证单向回流，再扩展列数与留白。断点只处理真实结构变化；少量变化使用 Mantine 响应式 props，复杂或复用布局使用 CSS Modules，大列表不逐项生成响应式 style props。
@@ -51,7 +35,7 @@
 - 导航使用链接或语义 button，操作使用 button；不得用 `div onClick` 模拟控件。
 - 点击处理器绑定在实际拥有动作的 `NavLink`、Button、`Switch`、`Checkbox` 或菜单项上。Card、表格行、单元格和其他父容器不得代理子控件动作。
 - 当前路由的选中态由导航项自身表达；焦点、hover、active 和 disabled 必须可区分。
-- Button 文案使用“动词 + 对象”。同一操作组只保留一个主动作：主动作用 brand filled，次要动作用 default/outline，低优先级用 subtle/link；危险动作使用 danger 且不能与品牌主色混淆。
+- 按基座语义把动作映射到 Mantine 的 filled/default/outline/subtle 变体，按钮文案使用“动词 + 对象”；组件默认值与页面消费同一主题。
 - `Paper`/Card 只承载一个明确主题，避免卡片套卡片。提交期间使用 loading/disabled 防止重复提交，完成后提供可感知反馈。破坏性操作显示对象和影响范围，不可轻易恢复时二次确认，并让取消保持安全默认。
 - 首次加载、后台刷新、提交、成功、空态、可重试错误、权限错误和系统错误分别呈现，不把失败显示成空数据或成功。
 - 系统通知和开机自启 Switch 只在 `docs/GUI_APP_PROFILE.md` 对应能力启用时出现，初始化运行状态默认关闭。异步切换期间禁用控件，成功后才更新；权限拒绝或 OS 注册失败时恢复实际状态并就近显示可操作错误。系统通知的应用偏好与开机自启的 OS 注册状态不得混为同一权威来源。

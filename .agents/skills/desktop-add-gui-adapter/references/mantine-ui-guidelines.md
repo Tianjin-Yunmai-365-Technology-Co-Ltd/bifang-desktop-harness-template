@@ -7,4 +7,4 @@ Tauri + React + Mantine 的用户可见设计标准已经迁移到：
 - [Tauri GUI 左侧栏标准](../../../../docs/design_standards/tauri_sidebar.md)：精简/详细模式的唯一尺寸、AppShell 接线和回归。
 - [Mantine 列表页设计标准](../../../../docs/design_standards/mantine_list_view.md)：列表页、数据表格、后台列表、搜索结果页及已有列表审查的粘滞、排序、分页、恢复和列配置；执行入口为 `$mantine-list-view`。
 
-本文件只保留 `$desktop-add-gui-adapter` 的稳定兼容入口。实现 GUI 时必须先从设计标准索引完成精确匹配，再结合 [React 前端基线](react-frontend-baseline.md)和 [GUI 基线](gui-baseline.md)处理依赖、状态所有权、Tauri 生命周期与 core-first 边界。产品 `docs/GUI_APP_PROFILE.md` 中已批准的专属标准优先于 Harness 通用缺省；没有精确命中或用户要求偏离时，不得自行发明密度。
+本文件只保留 `$desktop-add-gui-adapter` 的稳定兼容入口。实现 GUI 时必须先从设计标准索引完成精确匹配，再结合 [React 前端基线](react-frontend-baseline.md)和 [GUI 基线](gui-baseline.md)处理依赖、状态所有权、Tauri 生命周期与 core-first 边界。当前 UI 基座是唯一视觉规则来源，旧像素或第三方建议不能覆盖；普通主题调整由中央 Token 传播，新产品方向或信息架构变化按实际事件处理。

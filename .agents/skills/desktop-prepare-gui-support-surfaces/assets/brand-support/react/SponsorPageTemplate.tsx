@@ -10,7 +10,9 @@ import {
   Title,
   useComputedColorScheme,
 } from "@mantine/core";
+import { IconCheck } from "@tabler/icons-react";
 import type { ReactElement } from "react";
+import { APP_LAYOUT_TOKENS } from "./appDesignTokens";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -31,28 +33,6 @@ interface TierCardProps {
 /** 赞助页只消费 Mantine 已解析后的亮色或暗色主题。 */
 type SponsorColorScheme = "light" | "dark";
 
-/** 为当前主题生成不依赖新 CSS 函数的本地背景叠层。 */
-function sponsorBackgroundImage(
-  colorScheme: SponsorColorScheme,
-  background: string,
-): string {
-  const overlay =
-    colorScheme === "dark"
-      ? "linear-gradient(rgba(9, 11, 18, 0.84), rgba(9, 11, 18, 0.92))"
-      : "linear-gradient(rgba(248, 250, 255, 0.68), rgba(248, 250, 255, 0.82))";
-  return `${overlay}, url("${background}")`;
-}
-
-/** 卡片与说明区块的表面背景随主题切换。 */
-function sponsorSurfaceColor(colorScheme: SponsorColorScheme): string {
-  return colorScheme === "dark" ? "dark.7" : "white";
-}
-
-/** 标题与强调文本的强调色随主题切换。 */
-function sponsorAccentColor(colorScheme: SponsorColorScheme): string {
-  return colorScheme === "dark" ? "blue.3" : "blue.8";
-}
-
 /** 渲染固定价格、档位插图与本地化权益。 */
 function TierCard({
   tier,
@@ -65,7 +45,7 @@ function TierCard({
   return (
     <Paper
       aria-label={name}
-      bg={sponsorSurfaceColor(colorScheme)}
+      bg="var(--app-surface)"
       component="article"
       data-color-scheme={colorScheme}
       data-price={tier.price}
@@ -79,22 +59,22 @@ function TierCard({
           {t("sponsor.scan_to_sponsor")}
         </Badge>
         <Group align="center" gap="md" wrap="nowrap">
-          <Paper bg="gray.0" p={0} radius="lg" withBorder>
+          <Paper bg="var(--app-surface-muted)" p={0} radius="lg" withBorder>
             <Image
               alt={t(tier.imageAltKey)}
               fit="contain"
-              h={86}
+              h={APP_LAYOUT_TOKENS.sponsor.illustrationSize}
               radius="lg"
               src={resolveBrandAssetPath(assetBasePath, tier.image)}
-              w={86}
+              w={APP_LAYOUT_TOKENS.sponsor.illustrationSize}
             />
           </Paper>
           <Box>
-            <Text c={sponsorAccentColor(colorScheme)} fw={600} size="sm">
+            <Text c="var(--app-accent)" fw={600} size="sm">
               {name}
             </Text>
-            <Group align="baseline" gap={4} wrap="nowrap">
-              <Text fw={900} size="3rem">
+            <Group align="baseline" gap="xs" wrap="nowrap">
+              <Text fw={900} size={APP_LAYOUT_TOKENS.sponsor.priceFontSize}>
                 {tier.price}
               </Text>
               <Text c="dimmed" size="lg">
@@ -107,9 +87,7 @@ function TierCard({
           {tier.benefits.map((benefit) => (
             <Box key={benefit.mainKey}>
               <Group align="flex-start" gap="xs" wrap="nowrap">
-                <Text aria-hidden="true" c="green" fw={900}>
-                  ✓
-                </Text>
+                <IconCheck aria-hidden="true" color="var(--app-success)" size={APP_LAYOUT_TOKENS.sponsor.benefitIconSize} />
                 <Text fw={600} size="sm">
                   {t(benefit.mainKey)}
                 </Text>
@@ -162,20 +140,17 @@ export function SponsorPageTemplate({
       data-testid="brand-sponsor-page"
       p={{ base: "sm", sm: "lg" }}
       style={{
-        backgroundColor:
-          colorScheme === "dark"
-            ? "var(--mantine-color-dark-9)"
-            : "var(--mantine-color-blue-0)",
-        backgroundImage: sponsorBackgroundImage(colorScheme, background),
+        backgroundColor: "var(--app-background)",
+        backgroundImage: `var(--app-sponsor-overlay), url("${background}")`,
         backgroundPosition: "center",
         backgroundSize: "cover",
         minHeight: "100%",
         overflowY: "auto",
       }}
     >
-      <Stack gap="lg" maw={1180} mx="auto">
+      <Stack gap="lg" maw={APP_LAYOUT_TOKENS.sponsor.contentMaxWidth} mx="auto">
         <Stack align="center" gap="xs" ta="center">
-          <Title c={sponsorAccentColor(colorScheme)} order={2}>
+          <Title c="var(--app-accent)" order={2}>
             {t("sponsor.title")}
           </Title>
           <Text fw={600}>
@@ -188,7 +163,7 @@ export function SponsorPageTemplate({
 
         <Stack align="center" gap="xs">
           <Group gap="xs" justify="center" wrap="wrap">
-            <Text c={sponsorAccentColor(colorScheme)} fw={600} size="sm">
+            <Text c="var(--app-accent)" fw={600} size="sm">
               {t("sponsor.capabilities_label")}
             </Text>
             {capabilities.map((key) => (
@@ -224,7 +199,7 @@ export function SponsorPageTemplate({
         </SimpleGrid>
 
         <Paper
-          bg={sponsorSurfaceColor(colorScheme)}
+          bg="var(--app-surface)"
           p="lg"
           radius="lg"
           withBorder
@@ -247,7 +222,7 @@ export function SponsorPageTemplate({
             </Stack>
             <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="md">
               {profile.sponsor.payments.map((payment) => (
-                <Box key={payment.id} maw={160} mx="auto">
+                <Box key={payment.id} maw={APP_LAYOUT_TOKENS.sponsor.paymentImageMaxWidth} mx="auto">
                   <SupportMedia
                     media={{
                       alt: t(payment.altKey),

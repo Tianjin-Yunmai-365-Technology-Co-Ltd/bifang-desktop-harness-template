@@ -25,7 +25,7 @@
 
 GUI adapter 负责中央 Builder 与唯一 invoke handler 的装配；各能力 Skill 独占依赖、feature、权限、运行时、UI/i18n、固定回归和禁用无残留合同。禁用时仍执行相应缺席检查。固定 Rust-only 三项与 dialog WebView 基线不写 profile 开关；dialog 的 `dialog:default` 不授予通用文件读写，updater 未配置时为 `NotConfigured` 且零出站。
 
-先按 [设计标准索引](../../../../docs/design_standards/README.md) 选择标准，再按 [Tauri 侧栏标准](../../../../docs/design_standards/tauri_sidebar.md) 将已确认模式接到实际 AppShell。侧栏像素、折叠状态所有权与 `navbar.width`/`data-navbar-width` 同源关系只维护在该标准；不得由模板存在反推另一运行时模式。已批准产品专属标准优先，无精确匹配或要求偏离时在实现前处理批准与 profile/ADR 门禁。
+先按 [设计标准索引](../../../../docs/design_standards/README.md) 选择标准，再按 [Tauri 侧栏标准](../../../../docs/design_standards/tauri_sidebar.md) 将已确认模式接到实际 AppShell。侧栏展示值只来自中央 Token，折叠状态所有权与 `navbar.width`/`data-navbar-width` 同源关系由侧栏合同维护；不得由模板存在反推另一运行时模式。当前基座统一视觉规则；旧像素不再独立优先，新的产品设计方向或信息架构变化才处理确认与 profile/ADR。
 
 设置、标题、窗口回退、i18n、主题、菜单和页面状态由支持界面/GUI adapter 负责；所有图标按其固定 Tabler 合同。初始化不生成列表页或预装 dnd-kit，仅保留 `$mantine-list-view` 知识。不得预创建 `docs/GUI_SUPPORT_SURFACES.md`，不得注入产品更新/统计 endpoint、远程请求或支付自动化；未选能力不得留下运行时入口、媒体或专属资源。
 

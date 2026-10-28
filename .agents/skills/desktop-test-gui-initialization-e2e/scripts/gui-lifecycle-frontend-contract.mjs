@@ -651,6 +651,8 @@ export function validateFrontendInitializationContract(guiRoot, profile, errors,
     .filter((entry) => /(?:^|\/)(?:AppShell|AppSidebar)[^/]*\.(?:[cm]?[jt]sx?)$/u.test(entry.relativePath))
     .map((entry) => entry.text)
     .join("\n");
+  const designTokens = sourceEntries.filter((entry) => /(?:^|\/)appDesignTokens\.ts$/u.test(entry.relativePath));
+  if (designTokens.length !== 1 || !/export\s+const\s+APP_LAYOUT_TOKENS\s*=/u.test(designTokens[0]?.text ?? "")) errors.push("GUI 前端缺少唯一中央 appDesignTokens.ts");
   const selectedModePattern = new RegExp(
     `(?:\\bsidebarMode\\s*(?::[^=;]+)?=|\\bmode\\s*=|\\bmode\\s*:)\\s*["']${mode}["']`,
     "u",
@@ -660,16 +662,11 @@ export function validateFrontendInitializationContract(guiRoot, profile, errors,
   }
   if (mode === "compact") {
     for (const [label, pattern] of [
-      ["80px 固定宽度", /\bcompact\s*:\s*80\b/u],
-      ["36px Logo", /\bcompact\s*:\s*36\b/u],
-      ["6px 内容内边距", /(?:COMPACT_PADDING|compactPadding)[A-Z_a-z]*\s*=\s*6\b/u],
-      ["8px 身份与菜单区间距", /(?:SECTION_GAP|sectionGap)[A-Z_a-z]*\s*=\s*8\b/u],
-      ["22px 图标", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*22\b/u],
-      ["11px 名称", /(?:FONT_SIZE|fontSize)[A-Z_a-z]*\s*=\s*11\b/u],
-      ["1.25 名称行高", /(?:LINE_HEIGHT|lineHeight)[A-Z_a-z]*\s*=\s*1\.25\b/u],
-      ["56px 菜单项最小高度", /(?:MIN_HEIGHT|minHeight)[A-Z_a-z]*\s*=\s*56\b/u],
-      ["4px 菜单项垂直内边距", /(?:PADDING_BLOCK|paddingBlock)[A-Z_a-z]*\s*=\s*4\b/u],
-      ["4px 图标名称间距", /(?:ITEM_GAP|itemGap)[A-Z_a-z]*\s*=\s*4\b/u],
+      ["中央宽度 Token", /APP_SIDEBAR_WIDTHS\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.widths/u],
+      ["中央 Logo Token", /(?:APP_SIDEBAR_LOGO_SIZES|logoSizes)\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.logoSizes/u],
+      ["中央间距 Token", /APP_SIDEBAR_COMPACT_PADDING_PX\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.compactPadding/u],
+      ["中央图标 Token", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.navIconSize/u],
+      ["中央排版 Token", /APP_SIDEBAR_LABEL_FONT_SIZE_PX\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.labelFontSize/u],
       ["图标在上、名称在下", /icon-above-label/u],
       ["NavLink 纵向布局", /flexDirection\s*:\s*(?:compact\s*\?\s*)?["']column["']/u],
       ["NavLink 水平居中", /alignItems\s*:\s*["']center["']/u],
@@ -695,16 +692,15 @@ export function validateFrontendInitializationContract(guiRoot, profile, errors,
     }
   } else {
     for (const [label, pattern] of [
-      ["248px 展开宽度", /\bdetailedExpanded\s*:\s*248\b/u], ["76px 收起宽度", /\bdetailedCollapsed\s*:\s*76\b/u],
-      ["72px 展开 Logo", /\bdetailedExpanded\s*:\s*72\b/u], ["44px 收起 Logo", /\bdetailedCollapsed\s*:\s*44\b/u],
-      ["22px 菜单图标", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*22\b/u], ["1.75 图标描边", /APP_SIDEBAR_ICON_STROKE_WIDTH\s*=\s*1\.75\b/u],
-      ["44px 展开菜单项最小高度", /APP_SIDEBAR_DETAILED_NAV_ITEM_MIN_HEIGHT_PX\s*=\s*44\b/u], ["18px 折叠按钮图标", /APP_SIDEBAR_COLLAPSE_ICON_SIZE_PX\s*=\s*18\b/u],
+      ["中央宽度 Token", /APP_SIDEBAR_WIDTHS\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.widths/u],
+      ["中央 Logo Token", /APP_SIDEBAR_LOGO_SIZES\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.logoSizes/u],
+      ["中央图标 Token", /APP_SIDEBAR_NAV_ICON_SIZE_PX\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.navIconSize/u],
       ["默认展开", /DEFAULT_DETAILED_SIDEBAR_COLLAPSED\s*=\s*false\b/u], ["固定折叠偏好键", /APP_SIDEBAR_COLLAPSED_STORAGE_KEY\s*=\s*["']app\.sidebar\.detailed\.collapsed["']/u],
       ["固定本地 Logo", /APP_SIDEBAR_LOGO_PATH\s*=\s*["']\/app-identity\/logo\.png["']/u], ["严格 true 才收起", /localStorage\.getItem\([^)]*APP_SIDEBAR_COLLAPSED_STORAGE_KEY[^)]*\)\s*===\s*["']true["']/u],
       ["自身折叠按钮", /\bActionIcon\b/u], ["折叠按钮自身事件", /<ActionIcon\b(?=[^>]*data-testid\s*=\s*["']app-sidebar-collapse-toggle["'])(?=[^>]*onClick\s*=)[^>]*>/u],
       ["展开向左折叠图标", /\bIconChevronLeft\b/u], ["收起向右展开图标", /\bIconChevronRight\b/u],
       ["收起名称 Tooltip", /<Tooltip\b/u],
-      ["Tooltip 右侧显示", /<Tooltip\b[^>]*\bposition\s*=\s*["']right["']/u], ["Tooltip 延迟常量", /APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS\s*=\s*0\b/u],
+      ["Tooltip 右侧显示", /<Tooltip\b[^>]*\bposition\s*=\s*["']right["']/u], ["Tooltip 延迟常量", /APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS\s*=\s*APP_LAYOUT_TOKENS\.sidebar\.tooltipDelay/u],
       ["Tooltip 无延迟", /<Tooltip\b[^>]*\bopenDelay\s*=\s*\{(?:0|APP_SIDEBAR_TOOLTIP_OPEN_DELAY_MS)\}/u],
       ["独立折叠偏好", /localStorage\.(?:getItem|setItem)\s*\(/u],
       ["展开图标文字布局", /icon-with-label/u], ["收起纯图标布局", /icon-only/u],

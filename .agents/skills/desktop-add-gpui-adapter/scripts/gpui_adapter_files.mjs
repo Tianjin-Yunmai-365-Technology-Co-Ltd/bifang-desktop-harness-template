@@ -131,11 +131,12 @@ export function renderGpuiAdapterFiles(input) {
     ABOUT_TITLE: about ? '            Page::About => "navigation.about",' : '', SPONSOR_TITLE: sponsor ? '            Page::Sponsor => "navigation.sponsor",' : '',
     ABOUT_RENDER: about ? '            Page::About => self.about_page(cx),' : '', SPONSOR_RENDER: sponsor ? '            Page::Sponsor => self.sponsor_page(window, cx),' : '',
     SPONSOR_ACTIVE: sponsor ? 'self.page == Page::Sponsor' : 'false',
+    SPONSOR_DESIGN_MODULE: sponsor ? 'pub(super) mod sponsor;' : '',
     ABOUT_NAV: about ? '        sidebar = sidebar.child(self.navigation_item(Page::About, "nav-about", "navigation.about", IconName::Info, cx));' : '',
     SPONSOR_NAV: sponsor ? '        sidebar = sidebar.child(self.navigation_item(Page::Sponsor, "nav-sponsor", "navigation.sponsor", IconName::Heart, cx));' : '',
     COLLAPSE_CONTROL: compact ? '' : `            .child(Button::new("sidebar-toggle").ghost().icon(IconName::PanelLeft).absolute()
-                .left(px(self.sidebar_width() - 12.)).top(px(SIDEBAR_INSET + self.sidebar_logo_size() / 2. - 12.) + gpui_kit::rems(SIDEBAR_LOGO_TOP).to_pixels(window.rem_size()))
-                .size(px(24.)).tooltip(self.t("sidebar.toggle")).accessibility_label(self.t("sidebar.toggle"))
+                .left(px(self.sidebar_width() - SIDEBAR_TOGGLE_SIZE / 2.)).top(px(SIDEBAR_INSET + self.sidebar_logo_size() / 2. - SIDEBAR_TOGGLE_SIZE / 2.) + gpui_kit::rems(SIDEBAR_LOGO_TOP).to_pixels(window.rem_size()))
+                .size(px(SIDEBAR_TOGGLE_SIZE)).tooltip(self.t("sidebar.toggle")).accessibility_label(self.t("sidebar.toggle"))
                 .on_click(cx.listener(|this, _, _, cx| { this.preferences.collapsed = !this.preferences.collapsed; this.writer.save(&this.preferences); cx.notify(); })))`,
     SPONSOR_ASSETS_LOAD: media.map(asset => `        if path == ${JSON.stringify(asset.bundlePath)} { return Ok(Some(Cow::Borrowed(include_bytes!(${JSON.stringify('../assets/' + asset.bundlePath)})))); }`).join('\n'),
     SPONSOR_ASSETS_LIST: media.length ? `        paths.extend([${media.map(asset => JSON.stringify(asset.bundlePath)).join(', ')}].into_iter().filter(|path| path.starts_with(prefix)).map(SharedString::from));` : '',
@@ -147,7 +148,7 @@ export function renderGpuiAdapterFiles(input) {
   files.set(`${projectId}_gui/build.rs`, template('gui/build.rs', tokens));
   const guiCargo = files.get(`${projectId}_gui/Cargo.toml`);
   files.set(`${projectId}_gui/Cargo.toml`, guiCargo.replace('\n[dev-dependencies]', `\n${nativeDeps.normal}${nativeDeps.target}\n[dev-dependencies]`));
-  for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', ...native.files, ...(notification ? ['notifications.rs', 'notifications_test.rs', 'app/settings_test.rs'] : []), ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs'] : [])]) {
+  for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', 'app/design_tokens/mod.rs', ...native.files, ...(notification ? ['notifications.rs', 'notifications_test.rs', 'app/settings_test.rs'] : []), ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs', 'app/design_tokens/sponsor.rs'] : [])]) {
     files.set(`${projectId}_gui/src/${file}`, template(`gui/src/${file}`, tokens));
   }
   if (options.systemTray === 'enabled') files.set(`${projectId}_gui/assets/tray.rgba`, trayPixels(options.logoBytes));
