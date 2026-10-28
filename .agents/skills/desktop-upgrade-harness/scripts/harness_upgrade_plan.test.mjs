@@ -16,6 +16,56 @@ test("required_managed_paths_are_unique_and_canonical", () => {
   for (const relative of REQUIRED_MANAGED_SOURCE_PATHS) assert.equal(safeRelativePath(relative), relative);
 });
 
+/** 设计规范必须随候选完整传播，缺失或旧字节都在任何应用前阻断。 */
+test("ui_foundation_requires_complete_current_candidate", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const paths = ["docs/design_standards/README.md", "docs/design_standards/ui_foundation.md"];
+  for (const relative of paths) f.write(f.source, relative, `current:${relative}\n`);
+  f.git(f.source, "add", ...paths);
+  f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "新增设计基座");
+  f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+  const missing = f.plan(2);
+  for (const relative of paths) {
+    assert.ok(missing.problems.some((problem) => problem.includes("候选缺少") && problem.includes(relative)));
+    f.write(f.candidate, relative, `current:${relative}\n`);
+  }
+  assert.equal(f.plan().blocked, false);
+  f.write(f.candidate, paths[1], "stale foundation\n");
+  assert.ok(f.plan(2).problems.some((problem) => problem.includes("内容不匹配") && problem.includes(paths[1])));
+});
+
+/** managed 基座可以更新，但项目自有根设计文件不进入候选、应用或来源锁。 */
+test("ui_foundation_upgrade_preserves_project_design_entry", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const foundation = "docs/design_standards/ui_foundation.md";
+  const productDesign = "# 项目自有设计\n保留品牌与布局决定。\n";
+  f.write(f.candidate, foundation, "foundation v1\n");
+  f.write(f.target, foundation, "foundation v1\n");
+  f.write(f.target, "DESIGN.md", productDesign);
+  const design = path.join(f.target, "DESIGN.md");
+  const before = fs.statSync(design);
+  f.bootstrap();
+  f.write(f.source, foundation, "foundation v2\n");
+  f.git(f.source, "add", foundation);
+  f.git(f.source, "-c", "user.name=Harness Fixture", "-c", "user.email=harness-fixture@example.invalid", "commit", "-m", "更新设计基座");
+  f.sourceCommit = f.git(f.source, "rev-parse", "HEAD").stdout.trim();
+  f.write(f.candidate, foundation, "foundation v2\n");
+  f.write(f.candidate, "DESIGN.md", "upstream entry\n");
+  assert.equal(f.classification(f.plan(2), "DESIGN.md"), "protected_candidate");
+  fs.rmSync(path.join(f.candidate, "DESIGN.md"));
+  const { plan, planPath } = f.createPlan();
+  assert.equal(f.classification(plan, foundation), "update");
+  assert.equal(plan.actions.some((item) => item.path === "DESIGN.md"), false);
+  f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", foundation]);
+  f.record(f.createPlan(0, "design-converged").planPath);
+  assert.equal(fs.readFileSync(path.join(f.target, foundation), "utf8"), "foundation v2\n");
+  assert.equal(fs.readFileSync(design, "utf8"), productDesign);
+  assert.equal(fs.statSync(design).mtimeMs, before.mtimeMs);
+  assert.equal(fs.statSync(design).mode, before.mode);
+  const lock = JSON.parse(fs.readFileSync(f.lock, "utf8"));
+  assert.equal(Object.hasOwn(lock.entries, "DESIGN.md"), false);
+});
+
 test("ownership_glob_preserves_fnmatch_character_classes", () => {
   assert.equal(matchesPattern("docs/a.txt", "docs/[ab].txt"), true);
   assert.equal(matchesPattern("docs/c.txt", "docs/[ab].txt"), false);

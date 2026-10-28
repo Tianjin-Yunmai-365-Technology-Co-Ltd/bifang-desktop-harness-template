@@ -13,7 +13,7 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 3. 在写入前确认 Git 根、分支和工作区状态，保护用户已有修改；重叠内容无法安全处理时停止。仓库没有声明的命令、能力或验证结果不得虚构。
 4. 先判定任务类型，再只读取下表命中的事实来源和 Skill。发现冲突或缺失时才扩大读取；不要为了“完整”加载全部项目记忆、设计标准、发布规则或 Skills。
 
-GUI 依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
+GUI 设计入口见 [DESIGN.md](DESIGN.md)，共用基座与专项标准按 [设计标准索引](docs/design_standards/README.md) 读取；依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
 
 ## 按任务渐进读取
 
@@ -77,7 +77,7 @@ GUI 依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI
 | Rust core、adapter、MSRV、依赖与运行时 | `docs/RUST_CLI_TEMPLATE.md` | Rust 或接口实现/初始化 |
 | 下游目标平台与接口组合 | 根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` | 初始化、构建或跨宿主判断 |
 | CLI 机器接口 | `docs/CLI_CONTRACT.md` | 仅选择或修改 CLI 时 |
-| UI 匹配、布局、组件语义与密度 | `docs/design_standards/README.md` 及精确命中标准 | GUI 展示、交互或初始化 |
+| UI 基座、匹配、布局、组件语义与密度 | `docs/design_standards/README.md`、`docs/design_standards/ui_foundation.md` 及精确命中标准 | GUI 展示、交互或初始化 |
 | 当前进度与下一步 | `docs/project_status/README.md` 与最新 Product Status | 恢复、阻断、交接、发布/验收或用户要求 |
 | 当前持久实施步骤 | `docs/work_plan/README.md` 与最新 Work Plan | 用户要求、活动计划、交接或高风险协调 |
 | 长期决定与硬规则例外 | `docs/adr/README.md` 与最新 ADR | 相关决定或例外 |

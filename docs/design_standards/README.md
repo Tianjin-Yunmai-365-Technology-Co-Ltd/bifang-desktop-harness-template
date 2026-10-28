@@ -7,7 +7,7 @@
 初始化或修改 UI 时按以下顺序解析，不得先套用旧模板再局部修补：
 
 1. 读取 `docs/GUI_APP_PROFILE.md`、当前用户请求和已批准 ADR，确定接口、框架、壳层、`sidebar_mode`、已选支持页和产品专属约束。
-2. 从本索引选择所有前置条件都精确命中的标准；只满足相似条件不算命中。
+2. 所有 GUI 先完整读取 [UI 统一设计基座](ui_foundation.md)，再从本索引选择所有前置条件都精确命中的框架和组件标准；只满足相似条件不算命中。根 `DESIGN.md` 仅作导航；既有下游没有此入口时直接使用本索引。
 3. 当前请求或产品 profile 中已批准的产品专属标准优先于 Harness 通用缺省；不得用旧模板值覆盖它。
 4. 若没有精确标准，或用户明确要求偏离，先完成额外设计并取得明确批准，再实现。像素、密度或信息架构偏离必须同步更新下游 `docs/GUI_APP_PROFILE.md` 与当日 ADR；初始化仍处于中性阶段且没有可记录的批准产品事实时应停止偏离，不得自行发明数值。
 5. 只把最终命中的规则下发到对应 adapter 展示层。UI 布局、主题和纯交互状态不得下沉到 shared core。
@@ -16,15 +16,16 @@
 
 | 匹配条件 | 标准 | 当前标识 |
 |---|---|---|
+| 所有 GUI 的页面、组件与展示层 | [UI 统一设计基座](ui_foundation.md) | `ui-foundation-v1` |
 | Tauri 2 + React + Mantine GUI | [Tauri GUI 通用设计标准](tauri_gui.md) | `tauri-gui-common-v1` |
 | `gui-framework = "gpui"` + 原生 GPUI/gpui-kit GUI | [GPUI GUI 设计标准](gpui_gui.md)；托盘/通知/自启/单实例/热键的实现与平台限制另见 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md`，依赖选型见 `references/dependency-baseline.md` | `gpui-gui-common-v1` |
 | React 19.2+ + TypeScript + Mantine UI 9.x + 重复记录检索/浏览/管理 | [Mantine 列表页设计标准](mantine_list_view.md) | `mantine-list-view-v2` |
 | 上述 GUI + 固定左侧栏 + `sidebar_mode = compact` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#精简模式) | `tauri-gui-sidebar-compact-80-v1` |
 | 上述 GUI + 固定左侧栏 + `sidebar_mode = detailed` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#详细模式) | `tauri-gui-sidebar-detailed-v1` |
 
-一个界面可以同时命中通用标准和组件标准；更具体的规则只覆盖它明确声明的范围。未列出的产品页面继续遵守通用标准，并按真实任务补充设计。
+一个界面同时遵守共用基座与命中的框架、组件标准；更具体的规则只覆盖它明确声明的范围。未列出的产品页面继续遵守通用标准，并按真实任务补充设计。Token、组件复用与样式分层只在基座定义，具体像素和状态合同不复制到基座或根入口。
 
-桌面框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。GPUI 只命中 GPUI 标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不因同属 GUI 而适用于 GPUI。
+桌面框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。GPUI 在共用基座之上只叠加 GPUI 专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不因同属 GUI 而适用于 GPUI。
 
 ## 设计风格支持
 

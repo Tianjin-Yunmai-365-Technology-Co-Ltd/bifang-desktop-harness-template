@@ -4,6 +4,8 @@
 
 本标准在界面为 Tauri 2 + React + Mantine 时命中。它约束 GUI adapter 的展示和纯交互层，不建立业务规则、持久业务状态或 core 依赖反向引用。固定左侧栏还必须叠加 [Tauri GUI 左侧栏标准](tauri_sidebar.md)。
 
+先完整读取 [UI 统一设计基座](ui_foundation.md)。基座的 Token/组件分层在本框架通过唯一 Mantine theme、组件默认值和 CSS Modules 实现；精确像素、组件语义及状态合同继续由本标准和命中专项标准确定，不为每个 Mantine 控件强制增加包装层。
+
 ## 设计原则
 
 - 任务优先：首屏先突出当前任务，再呈现辅助信息和诊断细节。

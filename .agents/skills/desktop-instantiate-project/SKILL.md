@@ -23,6 +23,8 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 ## 工作流程
 
+固定复制快照须包含根 `DESIGN.md` 与 `docs/design_standards/ui_foundation.md`，并完整保留设计标准目录。根文件仅作导航，共用规则只在受管设计目录维护；不得把附件样例色值写成新下游的产品品牌事实。
+
 1. 读取源项目的 `AGENTS.md`、`README.md`、`Version.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、`docs/RELEASE.md`、两份许可证，以及 `$desktop-rename-project-identity`/`$desktop-initialize-rust-project`/`$desktop-manage-git-lifecycle` 的当前规则。收到任何创建新下游项目的请求时，还必须先完整读取并执行 [`references/initialization-form.md`](references/initialization-form.md)。实例化排除日期项目记忆，因此不默认加载 Harness 的历史 Product Status、Work Plan、Verification、ADR 或 Changelog 正文。
 2. 完整读取并执行 [唯一表单合同](references/initialization-form.md)，运行只读 `initialization_form.mjs --catalog`，每次回复后由解析器计算下一问。固定基础字段包括中文项目展示名称、英文项目展示名称、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型、策略模式及 `post_release_action`；问句、默认触发、框架分派、预设/自定义、能力限制与配置协助不在此复制。用户对最新完整汇总的确认必须匹配 `summaryDigest`；首次写入前重新计算并确认仍为 `confirmed`。不得接收、分析、记录到源仓库或脚手架的产品需求，要求切换唯一下游根目录后重新提出。
 3. 在源项目根目录使用 Node.js >= 24.21 运行 `node scripts/validate_harness.mjs`；Node.js 缺失或版本不足时失败关闭，不得改用其他运行时。本阶段只验证 Harness 源，不执行 Git 可用性、版本、身份、提交模板或仓库配置检查，也不安装、升级或初始化 Git。完整表单汇总确认后，由 `$desktop-initialize-rust-project` 在任何脚手架写入前调用环境门禁检查 Git，缺失时按受管路线安装并复探；仓库初始化、作者身份与模板仍统一推迟到全部脚手架和一次性裁剪完成、下一步将实际创建基线提交时即时执行。

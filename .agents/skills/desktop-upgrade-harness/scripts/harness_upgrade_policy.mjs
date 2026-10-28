@@ -15,6 +15,8 @@ export const SOURCE_ONLY_PATHS = [
   ".agents/skills/desktop-implement-change/scripts/check_no_python.test.mjs",
 ];
 export const REQUIRED_MANAGED_SOURCE_PATHS = [
+  "docs/design_standards/README.md",
+  "docs/design_standards/ui_foundation.md",
   ".agents/skills/desktop-task-workflow/SKILL.md",
   ".agents/skills/desktop-task-workflow/agents/openai.yaml",
   ".agents/skills/desktop-task-workflow/references/task-contract.md",

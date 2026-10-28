@@ -67,6 +67,8 @@
 
 ## 工程资产传播
 
+`docs/design_standards/README.md` 与 `docs/design_standards/ui_foundation.md` 是全部终端下游保留的身份中立 managed 工程资料，候选必须包含与源一致的字节；GUI 实现从索引先读共用基座，非 GUI 只保留知识而不启用界面。新增文件仍走已复核的 `add` 流程，不修改运行时主题或业务代码。根 `DESIGN.md` 继续按未知本地文件默认 `protected`，不得放入升级候选或来源锁；既有下游无该文件时直接从标准索引接入，不覆盖其自有设计。合并 AGENTS/README 时指向受管索引，不能生成依赖一个可能缺席的根入口的本地链接。
+
 所有终端下游都必须同步无需身份渲染的 `$desktop-manage-git-lifecycle` 完整目录：`SKILL.md`、`agents/openai.yaml`、`scripts/git_lifecycle.mjs`、`scripts/git_lifecycle_core.mjs`、`scripts/git_lifecycle_publication.mjs`、`scripts/git_publication_report.mjs`、`scripts/git_lifecycle_test_support.mjs`、`scripts/git_publication_test_cases.test.mjs`、`scripts/git_lifecycle.test.mjs` 和 `scripts/git_lifecycle_release.test.mjs` 均须与源内容摘要一致。升级只传播这些 `managed` 工程文件，不调用 `inspect|start|track-worktree|publish|release`，不创建 common-dir 生命周期清单，也不改动任何 Git remote、分支、标签、历史或 Worktree。目标缺少这些工程文件时按 `add` 逐项人工加入。
 
 所有终端下游还必须同步 `$desktop-switch-post-release-action` 的 `SKILL.md`、`agents/openai.yaml`、`scripts/post_release_action.mjs` 和 `scripts/post_release_action.test.mjs`，并保持源内容摘要一致；升级器在候选遗漏或旧版内容时阻断。只传播该 managed Skill，不调用其写入命令。

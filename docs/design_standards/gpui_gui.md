@@ -2,6 +2,8 @@
 
 稳定标识：`gpui-gui-common-v1`。
 
+先完整读取 [UI 统一设计基座](ui_foundation.md)，以 GPUI Kit 原生主题、间距和组件机制落实共用语义。Kit 原生尺度和本标准精确数值优先，不引入 CSS、React 或前端检查工具，也不为每个 Kit 控件强制增加包装层。
+
 仅匹配根 Cargo metadata 中 `interfaces` 包含 `gui` 且 `gui-framework = "gpui"` 的原生桌面界面。技术栈和模板入口由 `$desktop-add-gpui-adapter` 管理；本标准不引入 Tauri、WebView、React、Mantine 或 JavaScript 图标库；Node.js/pnpm 工程脚本入口由 GPUI adapter Skill 管理。
 
 ## GPUI Kit 官方知识

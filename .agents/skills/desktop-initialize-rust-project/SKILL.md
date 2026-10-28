@@ -70,6 +70,8 @@ Windows 环境门禁的自动安装若因管理员权限、UAC、组织策略或
 
 ## 架构不变量
 
+- 最终裁剪保留根 `DESIGN.md` 和完整 `docs/design_standards/`（含 `ui_foundation.md`）；下游 `AGENTS.md` 的 GUI 路由要求从设计索引先读共用基座，再按 Cargo 框架命中专项标准。直接初始化遇到自有 `DESIGN.md` 时保留其内容，只按真实范围接入索引。非 GUI 可保留设计资料，但不得因此要求 GUI、pnpm 或前端依赖。
+
 - 完成收尾的下游项目必须完整保留 `$desktop-manage-git-lifecycle`；它统一创建/登记 Task 的 `feature-*`，并与只供内部单元使用的 `codex/unit-*` 分层保持独立，但不自动创建左侧 Task。初始化不得运行 `start`、`publish` 或 `release`，不得创建开发分支、tag 或 Git common-dir 生命周期清单，也不得预创建 `.harness/release-context.json`；无 remote 的独立 `main` 基线仍是唯一初始结果。
 - 当前项目根目录必须同时是唯一的下游根目录及其独立 Git 顶层目录；父级仓库绝不能替代它。
 - 根 `Cargo.toml` 管理共享核心，并且只管理用户实际选择的适配器成员。
