@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "fdcbccadac19fd6aee597d4ff9febc1cc60f1721",
-  "version": "202610282034",
-  "releaseDate": "2026-10-28",
-  "expectedTag": "v202610282034-20261028",
+  "sourceHead": "4c4ac7084107a614fc4dd53b3e0904cca0df63c4",
+  "version": "202610291622",
+  "releaseDate": "2026-10-29",
+  "expectedTag": "v202610291622-20261029",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "00388772708fce891ecf08edcb8e50a0ff64cf6a",
-    "sourceHead": "fdcbccadac19fd6aee597d4ff9febc1cc60f1721",
-    "scopeDiffSha256": "9345f3822ba416a2654c76cef9c0d757c6ce803dec60b45cef4f4fb98fc059fd",
-    "reviewedSourceCommit": "fdcbccadac19fd6aee597d4ff9febc1cc60f1721",
+    "scopeBase": "7dc2b4711300988a2c3aa436e1dae97c41f6ff03",
+    "sourceHead": "4c4ac7084107a614fc4dd53b3e0904cca0df63c4",
+    "scopeDiffSha256": "24093af8349cc28e28476849934d4b8641420dc8182340ce74964ba6978ee17e",
+    "reviewedSourceCommit": "4c4ac7084107a614fc4dd53b3e0904cca0df63c4",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计审查范围为上一发布0038877到sourceHead，唯一登记分支已包含。统一UI基座是唯一视觉来源，DESIGN为导航；初始化和升级传播受管基座并保护下游自有设计、第三方资产与历史。新增Token均为GUI展示职责，未迁移core业务、权限或稳定错误，列表状态/分页/选择/存储和条件能力合同保留。修复动态主色色板四项TS2532、compact旧6px断言及GPUI模块文档路径，真实Mantine9.6.2/TS6.0.3 strict+noUncheckedIndexedAccess检查零诊断，新增缺失色板回归通过。此前全量Node1215项：1193通过、22宿主条件跳过、零失败；本轮相关37项通过，隔离真实侧栏组件2项通过。Harness硬门禁、Node-only和diff完整性通过，启用的发布审查39项非阻断提示已按职责复核，临时标记为Plan测试夹具，无硬超限、秘密或未完成实现。完整支持页组件suite因借用环境缺Markdown依赖收集失败、0测试执行；真实下游GUI构建、视觉与E2E未执行，不据此声明产品验收。",
+    "evidenceSummary": "累计审查上一发布7dc2b47至sourceHead，全部5条登记分支的当前HEAD均已纳入。窗口标题与语言刷新属于GUI适配器职责；依赖登记、最低环境、Cargo MSRV及TypeScript peer边界与实际生成器和清单检查一致，没有新增产品业务或反向core依赖。修正Product Spec成功标准中旧Rust通用下界，保留模板MSRV1.98.1。Node总套件1255项：1231通过、24项Windows/Linux宿主条件跳过、零失败；标题专项15项通过；Rust1.98.1中性CLI资产fmt、clippy、7项测试及release构建通过。源码最终Harness硬门禁、Node-only及启用的发布审查通过；40项提示已按职责复核，长文件保持同一能力或合同，TODO-A为测试夹具，无硬超限或未完成实现。真实Windows/Linux构建、GUI E2E和已登记前向验证限制仍未验证，本次不宣称产品候选验收。",
     "reason": null,
     "remainingRisk": null
   }

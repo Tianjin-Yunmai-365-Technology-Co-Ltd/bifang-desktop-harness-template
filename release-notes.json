@@ -2,6 +2,34 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-10-29",
+      "version": "v202610291622",
+      "featureOptimizations": [
+        {
+          "zh-CN": "更新并集中登记 68 个 Rust 库和 33 个前端包的兼容候选下界，同步中性资产、生成器与文档，并增加一致性门禁。",
+          "en-US": "Update and centrally record compatible candidate minimums for 68 Rust crates and 33 frontend packages, synchronize neutral assets, generators and documentation, and add consistency checks."
+        },
+        {
+          "zh-CN": "通用环境采用 Rust 1.95.0 与连续 Node.js 24.0.0 下界；Rust 门禁结合项目 Cargo MSRV，按较高下界检查和复探。",
+          "en-US": "Use Rust 1.95.0 and continuous Node.js 24.0.0 as generic environment minimums; combine the Rust minimum with each project's Cargo MSRV and verify against the higher requirement."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "统一 Tauri 与 GPUI 的完整窗口标题，复用权威版本与语言状态，并补齐标题合同及生成资产回归。",
+          "en-US": "Unify complete window titles in Tauri and GPUI using authoritative version and language state, with title contract checks and generated-asset regression coverage."
+        },
+        {
+          "zh-CN": "为 TypeScript 依赖明确声明兼容上界，校验真实前端清单，避免安装超出 typescript-eslint peer 范围的版本。",
+          "en-US": "Declare an explicit compatible upper bound for TypeScript and validate actual frontend manifests to prevent installation beyond the typescript-eslint peer range."
+        },
+        {
+          "zh-CN": "修正成功标准中的旧 Rust 下界表述，明确通用环境下界与中性模板 MSRV 1.98.1 的区别。",
+          "en-US": "Correct the outdated Rust minimum in the success criteria and distinguish the generic environment minimum from the neutral template's MSRV of 1.98.1."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-10-28",
       "version": "v202610282034",
       "featureOptimizations": [
@@ -265,21 +293,6 @@
         {
           "zh-CN": "补齐 Windows 原生 ABI 声明文档，并实际验证生成工程的声明检查器。",
           "en-US": "Document Windows native ABI declarations and run the generated workspace through its retained declaration checker."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-08",
-      "version": "v202610081442",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "修复推送 release 时遗漏远端默认主分支的问题：默认主分支、release 和 tag 使用同一已发布提交，非强制推送后逐项及联合复读，并支持部分成功后的重试。",
-          "en-US": "Fix release pushes omitting the remote default branch: synchronize the default branch, release and tag to the same published commit, verify each non-force update and the final set, and support retries after partial success."
-        },
-        {
-          "zh-CN": "更新当前版本文档和项目状态快照；策略升级校验拒绝仍排除远端默认主分支的旧正文，保留历史版本与验证事实。",
-          "en-US": "Refresh current version documents and the project status snapshot; policy upgrade validation rejects legacy text that excludes the remote default branch while preserving historical versions and verification facts."
         }
       ]
     }
