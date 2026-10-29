@@ -125,7 +125,7 @@ export function validateReleaseContextHelper(errors, helper = RELEASE_CONTEXT_HE
 /** 验证 workflow Node helper 仍承担源码、测试、manifest 与原子提交门禁。 */
 export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKFLOW_HELPER) {
   const text = validateHelper(errors, helper, [
-    "const MINIMUM_NODE = [24, 21, 0]",
+    "const MINIMUM_NODE = [24, 0, 0]",
     'const RELEASE_BRANCH = "release"',
     "function verifyCheckout(",
     "function readMsrv(",
@@ -232,7 +232,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     "contents: read", "e2e_selection:", "E2E_SELECTION: ${{ inputs.e2e_selection }}",
     "release_context_sha256:", "RELEASE_CONTEXT_SHA256: ${{ inputs.release_context_sha256 }}",
     "RELEASE_CONTEXT_SNAPSHOT: ${{ runner.temp }}/release-context-snapshot.json",
-    CHECKOUT_USE, SETUP_NODE_USE, UPLOAD_USE, "node-version: 24.21.0", "check-latest: false",
+    CHECKOUT_USE, SETUP_NODE_USE, UPLOAD_USE, "node-version: lts/*", "check-latest: true",
     "ref: release", "fetch-depth: 0", "persist-credentials: false",
     "release_candidate_workflow.mjs check-node-runtime", "release_candidate_workflow.mjs verify-checkout",
     "verify_release_context.mjs capture", "verify_release_context.mjs verify",
@@ -339,7 +339,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     if (!checkout.has(fragment)) fail(errors, `workflow checkout must use the release branch with full credential-free history: ${fragment}`);
   }
   const setup = new Set(stepBlock({ uses: SETUP_NODE_USE }).map((line) => line.trim()));
-  for (const fragment of ["node-version: 24.21.0", "check-latest: false"]) {
+  for (const fragment of ["node-version: lts/*", "check-latest: true"]) {
     if (!setup.has(fragment)) fail(errors, `workflow runtime setup missing: ${fragment}`);
   }
   const preflight = stepBlock({ name: "确认已授权候选预检" }).join("\n");

@@ -5,7 +5,7 @@ description: 在 Harness 源或终端下游 Git 项目中登记开发分支、�
 
 # 管理 Git 生命周期
 
-使用 Node.js `>=24.21.0` 自包含标准库 helper 管理 Git 资源。新功能、问题修复或其他会写入仓库的开发工作开始前运行 `start`；发布前明确要求推送时运行 `publish`；用户要求“发布”时运行 `release`。下游本地发布开始时把已确认的 `post_release_action` 冻结为该次 `postReleaseAction`；发布完成后，冻结的 `push_release_branch` 触发 `push-release`。Harness 源保留 `null`，只在用户当次明确要求推送且已发布提交能证明 Harness 身份时调用同一 `push-release`；推送不属于 Git 发布完成门禁。`local_package` 选择由适用的本地打包 Skill 执行。
+使用 Node.js `>=24.0.0` 自包含标准库 helper 管理 Git 资源。新功能、问题修复或其他会写入仓库的开发工作开始前运行 `start`；发布前明确要求推送时运行 `publish`；用户要求“发布”时运行 `release`。下游本地发布开始时把已确认的 `post_release_action` 冻结为该次 `postReleaseAction`；发布完成后，冻结的 `push_release_branch` 触发 `push-release`。Harness 源保留 `null`，只在用户当次明确要求推送且已发布提交能证明 Harness 身份时调用同一 `push-release`；推送不属于 Git 发布完成门禁。`local_package` 选择由适用的本地打包 Skill 执行。
 
 ## 命令
 

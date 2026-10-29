@@ -82,7 +82,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "纯 `tui`/`mcp` 或仅 Linux Tauri GUI 必须为 `push_release_branch`",
       "`schema_version: 5`",
       "Node.js",
-      ">=24.21.0",
+      ">=24.0.0",
       "pnpm",
       "workspace = true",
       "[workspace.metadata.agent-first-harness]",
@@ -116,7 +116,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "Git 与 Rust 始终",
       "Node.js 是所有下游 Harness helper 的通用工程运行时",
       "只有已记录的接口选择包含 `GUI` 时才要求 pnpm",
-      ">=24.21.0",
+      ">=24.0.0",
       ">=12.4.1",
       "--check-only",
       "upgrade-required",
@@ -279,7 +279,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
     [ENVIRONMENT_TESTS[1], [
       "missing Git is installed and reprobed",
       "Node is installed for a non-GUI project while pnpm remains optional",
-      "Rust upgrade that remains below MSRV fails closed",
+      "Rust upgrade that remains below the environment minimum fails closed",
       "Node checksum mismatch blocks before installation",
     ]],
     [ENVIRONMENT_TESTS[2], [

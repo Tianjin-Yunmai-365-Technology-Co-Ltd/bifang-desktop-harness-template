@@ -157,6 +157,7 @@ export function makeRustDist(root, {
   const body = succeeds ? `#!/bin/sh
 set -eu
 case " $* " in *" --no-modify-path "*) ;; *) exit 97 ;; esac
+case " $* " in *" --default-toolchain stable "*) ;; *) exit 96 ;; esac
 mkdir -p "$CARGO_HOME/bin" "$RUSTUP_HOME"
 for tool in rustc cargo rustup; do
   case "$tool" in

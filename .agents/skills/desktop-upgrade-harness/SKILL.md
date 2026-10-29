@@ -19,7 +19,7 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 4. 检查下游已选接口、身份映射、保留的 Skills、已批准例外和持久 Agent 策略。按 [所有权策略](references/ownership-policy.md) 的候选树、工程资产传播、框架条件、受保护事实和依赖锁策略构造适用候选；排除每个 `protected` 或 `tombstone` 源路径，原始 Harness 源目录树不是有效候选。首次检查同时只读记录版本状态是否缺失、Agent 策略 schema 与发布后动作状态，分别留待第 14、15 步处理；不得在候选构造中写入受保护事实。程序类型文案另按 [名称升级映射](references/program-type-labels.md) 核对，只映射名称，保留 Cargo `interfaces` 与实际选择，不恢复初始化入口或表单。
 5. 要求源 Harness Git 工作树干净，并且其现有 `HEAD` 与声明的源提交匹配；要求声明的源版本与源 `Version.md` 匹配。信任候选之前先运行源 Harness 验证器。不得把该模板专用验证器复制到下游。记录源版本、源提交、候选构建输入、下游分支、提交、脏状态摘要，以及未验证平台。
 
-   本 Skill 的 helper 要求当前宿主具备 Node.js >= 24.21；缺失或版本不足时失败关闭，不得改用其他运行时。所有操作命令均使用 `node` 且保持单行，不依赖 POSIX `\` 续行符、PowerShell 反引号或 shell 变量。
+   本 Skill 的 helper 要求当前宿主具备 Node.js >= 24.0.0；缺失或版本不足时失败关闭，不得改用其他运行时。所有操作命令均使用 `node` 且保持单行，不依赖 POSIX `\` 续行符、PowerShell 反引号或 shell 变量。
 6. 生成只读计划：
 
    macOS、Linux 与 Windows PowerShell 均在替换路径占位符后直接执行：

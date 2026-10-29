@@ -22,8 +22,8 @@ export { setupPackager } from './gpui_global_tools.mjs';
 /** 工程入口只接受完整稳定版本，较高正式版本不必降级到最低 LTS。 */
 export function assertNodeRuntime(version = process.versions.node) {
   const match = typeof version === 'string' && /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u.exec(version);
-  const supported = match && (BigInt(match[1]) > 24n || (BigInt(match[1]) === 24n && BigInt(match[2]) >= 21n));
-  if (!supported) throw new Error('GPUI packaging requires stable Node.js >=24.21.0');
+  const supported = match && BigInt(match[1]) >= 24n;
+  if (!supported) throw new Error('GPUI packaging requires stable Node.js >=24.0.0');
 }
 
 /** 命令以 argv 执行；签名命令隐藏诊断，任何非零/超时直接阻断。 */

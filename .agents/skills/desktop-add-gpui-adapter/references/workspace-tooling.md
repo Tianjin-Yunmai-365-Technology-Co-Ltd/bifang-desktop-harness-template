@@ -1,6 +1,6 @@
 ## 根 pnpm 工程入口
 
-[gpui_node_tooling.mjs](../scripts/gpui_node_tooling.mjs) 的 `renderGpuiPackageJson(existingBytes = null)` 是标准库纯函数。新 `package.json` 为 `private: true`，仅声明 `engines.node = ">=24.21.0"`、`engines.pnpm = ">=12.4.1"` 和以下脚本；无 npm 依赖，无需先执行安装。已有 package 的公开性、`packageManager`、用户脚本、依赖和其他字段原样保留，只添加缺失的工程脚本与 engine。非等值同名脚本或 engine（包括更严格范围）、重复 JSON 键、非法内容及链接都在任何写入前失败；不得降低已有要求或新增精确 `packageManager` pin。add-only 在安装前复核 package/Cargo/core 快照并在失败时撤销本次文件。
+[gpui_node_tooling.mjs](../scripts/gpui_node_tooling.mjs) 的 `renderGpuiPackageJson(existingBytes = null)` 是标准库纯函数。新 `package.json` 为 `private: true`，仅声明 `engines.node = ">=24.0.0"`、`engines.pnpm = ">=12.4.1"` 和以下脚本；无 npm 依赖，无需先执行安装。已有 package 的公开性、`packageManager`、用户脚本、依赖和其他字段原样保留，只添加缺失的工程脚本与 engine。非等值同名脚本或 engine（包括更严格范围）、重复 JSON 键、非法内容及链接都在任何写入前失败；不得降低已有要求或新增精确 `packageManager` pin。add-only 在安装前复核 package/Cargo/core 快照并在失败时撤销本次文件。
 
 | 命令 | 实际行为 |
 | --- | --- |

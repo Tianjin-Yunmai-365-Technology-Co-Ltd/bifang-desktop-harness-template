@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -61,7 +61,7 @@ test("Node is installed for a non-GUI project while pnpm remains optional", posi
 
 test("lower Rust is upgraded and reprobed", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
-  fakeExistingTools(probe, { rust: "1.98.0" });
+  fakeExistingTools(probe, { rust: "1.94.9" });
   const rustDist = makeRustDist(path.join(root, "rust-dist"));
   const result = runGate(root, ["--install-missing"], {
     probe,
@@ -73,21 +73,44 @@ test("lower Rust is upgraded and reprobed", posixOnly, () => withTemporaryRoot((
   assert.match(result.stdout, /gate\.rust\.version=rustc 1\.98\.1/);
 }));
 
-test("Rust upgrade that remains below MSRV fails closed", posixOnly, () => withTemporaryRoot((root) => {
+test("missing Rust installs the current stable candidate rather than the minimum version", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
-  fakeExistingTools(probe, { rust: "1.98.0" });
-  const rustDist = makeRustDist(path.join(root, "rust-dist"), { installedVersion: "1.98.0" });
+  fakeExistingTools(probe);
+  for (const tool of ["rustc", "cargo", "rustup"]) unlinkSync(path.join(probe, tool));
+  const rustDist = makeRustDist(path.join(root, "rust-dist"), { installedVersion: "2.0.0" });
+  const result = runGate(root, ["--install-missing"], { probe, extra: isolatedInstallOverrides({ AFH_RUSTUP_DIST_BASE: rustDist }) });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /gate\.rust\.change=installed/);
+  assert.match(result.stdout, /gate\.rust\.version=rustc 2\.0\.0/);
+}));
+
+test("Node installation accepts a latest LTS at the new 24.0.0 boundary", posixOnly, () => withTemporaryRoot((root) => {
+  const probe = path.join(root, "probe");
+  fakeExistingTools(probe, { includeNode: false });
+  const dist = path.join(root, "node-dist");
+  const nodeDist = makeNodeDist(dist, { version: "v24.0.0" });
+  writeFileSync(path.join(dist, "index.tab"), "version\tdate\tfiles\tnpm\tv8\tuv\tzlib\topenssl\tmodules\tlts\tsecurity\nv25.9.0\t2026-01-03\ttest\t11\t1\t1\t1\t1\t1\t-\t-\nv24.0.0\t2026-01-02\ttest\t11\t1\t1\t1\t1\t1\tTestLTS\t-\n");
+  const result = runGate(root, ["--install-missing"], { probe, extra: isolatedInstallOverrides({ AFH_NODE_DIST_BASE: nodeDist }) });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /gate\.node\.version=v24\.0\.0/);
+  assert.match(result.stdout, /gate\.node\.change=installed/);
+}));
+
+test("Rust upgrade that remains below the environment minimum fails closed", posixOnly, () => withTemporaryRoot((root) => {
+  const probe = path.join(root, "probe");
+  fakeExistingTools(probe, { rust: "1.94.9" });
+  const rustDist = makeRustDist(path.join(root, "rust-dist"), { installedVersion: "1.94.9" });
   const result = runGate(root, ["--install-missing"], {
     probe,
     extra: isolatedInstallOverrides({ AFH_RUSTUP_DIST_BASE: rustDist }),
   });
   assert.equal(result.status, 22, result.stdout);
-  assert.match(result.stderr, /仍低于 MSRV/);
+  assert.match(result.stderr, /仍低于环境下界/);
 }));
 
 test("Rust installer failure blocks the gate", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
-  fakeExistingTools(probe, { rust: "1.98.0" });
+  fakeExistingTools(probe, { rust: "1.94.9" });
   const rustDist = makeRustDist(path.join(root, "rust-dist"), { succeeds: false });
   const result = runGate(root, ["--install-missing"], {
     probe,
@@ -99,7 +122,7 @@ test("Rust installer failure blocks the gate", posixOnly, () => withTemporaryRoo
 
 test("Rust checksum mismatch blocks before executing the installer", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
-  fakeExistingTools(probe, { rust: "1.98.0" });
+  fakeExistingTools(probe, { rust: "1.94.9" });
   const rustDist = makeRustDist(path.join(root, "rust-dist"), { validChecksum: false });
   const result = runGate(root, ["--install-missing"], {
     probe,
@@ -126,7 +149,7 @@ test("Node checksum mismatch blocks before installation", posixOnly, () => withT
 test("lower GUI toolchain is upgraded and reprobed", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
-  fakeFrontendTools(probe, { node: "24.20.9", pnpm: "12.4.0" });
+  fakeFrontendTools(probe, { node: "23.99.9", pnpm: "12.4.0" });
   const nodeDist = makeNodeDist(path.join(root, "node-dist"));
   const result = runGate(root, ["--install-missing", "--interfaces", "GUI"], {
     probe,
@@ -155,7 +178,7 @@ test("pnpm upgrade failure blocks the GUI gate", posixOnly, () => withTemporaryR
 test("Node installation selects the highest LTS independently of index order", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
-  fakeFrontendTools(probe, { node: "24.20.9" });
+  fakeFrontendTools(probe, { node: "23.99.9" });
   const nodeDist = makeNodeDist(path.join(root, "node-dist"), { version: "v26.1.0" });
   const result = runGate(root, ["--install-missing", "--interfaces", "GUI"], {
     probe,
@@ -169,7 +192,7 @@ test("Node installation selects the highest LTS independently of index order", p
 test("Linux x64 musl selects the official musl Node archive", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
-  fakeFrontendTools(probe, { node: "24.20.9" });
+  fakeFrontendTools(probe, { node: "23.99.9" });
   const nodeDist = makeNodeDist(path.join(root, "node-dist"), { forcedTuple: ["linux", "x64-musl"] });
   const result = runGate(root, ["--install-missing", "--interfaces", "GUI"], {
     probe,
@@ -188,7 +211,7 @@ test("Linux x64 musl selects the official musl Node archive", posixOnly, () => w
 test("Linux arm64 musl fails before requesting a nonexistent Node archive", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
-  fakeFrontendTools(probe, { node: "24.20.9" });
+  fakeFrontendTools(probe, { node: "23.99.9" });
   const result = runGate(root, ["--install-missing", "--interfaces", "GUI"], {
     probe,
     extra: isolatedInstallOverrides({

@@ -138,7 +138,7 @@ test("managed Rust root symlinks fail before download", posixOnly, () => withTem
 test("unmanaged Node version roots are rejected before network access", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
-  fakeFrontendTools(probe, { node: "24.20.9" });
+  fakeFrontendTools(probe, { node: "23.99.9" });
   const existingBin = path.join(root, "home", ".local", "lib", "nodejs", "v23.0.0", "bin");
   mkdirSync(existingBin, { recursive: true });
   executable(path.join(existingBin, "node"), "#!/bin/sh\nprintf '%s\\n' 'v23.0.0'\n");
@@ -179,7 +179,7 @@ test("custom standard Rust homes are honored", posixOnly, () => withTemporaryRoo
 
 test("fresh shell rechecks unchanged Node and pnpm after a Rust upgrade", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
-  fakeExistingTools(probe, { rust: "1.98.0" });
+  fakeExistingTools(probe, { rust: "1.94.9" });
   fakeFrontendTools(probe);
   const rustDist = makeRustDist(path.join(root, "rust-dist"));
   const result = runGate(root, ["--install-missing", "--interfaces", "GUI"], {
@@ -205,7 +205,7 @@ test("every unchanged tool must be identical in the persistent shell before inst
   for (const [target, transientTools] of Object.entries(cases)) withTemporaryRoot((root) => {
     const persistent = path.join(root, "persistent");
     const transient = path.join(root, "transient");
-    fakeExistingTools(persistent, { rust: target === "pnpm" ? "1.98.0" : "1.98.1" });
+    fakeExistingTools(persistent, { rust: target === "pnpm" ? "1.94.9" : "1.98.1" });
     fakeFrontendTools(persistent, { pnpm: target === "pnpm" ? "12.4.1" : "12.4.0" });
     mkdirSync(transient);
     for (const tool of transientTools) {

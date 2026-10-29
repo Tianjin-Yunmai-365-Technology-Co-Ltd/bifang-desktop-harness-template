@@ -25,7 +25,7 @@ description: 在本地 Git 发布后、另行授权推送完成且用户明确�
    ```
 
    它核对下游 `.github/workflows/release-candidate.yml` 与本 Skill 的 [assets/github-release-candidate.yml](assets/github-release-candidate.yml) 逐字节相同，并用远端 advertised 默认分支的精确提交对象确认普通 workflow 文件及 `workflow_dispatch` 入口。缺少该文件、入口、可验证的默认分支提交对象，或预检期间远端默认分支漂移，都在矩阵启动前判定 provider unavailable；预检不 fetch、push 或移动默认分支。另确认提供方、固定 action SHA、原生运行器和结果取回能力可用；全部通过后才以 `ref: release` 派发。不可用时交回 `$desktop-build-rust-release` 走其受限本机回退；已启动作业失败不得改判为回退条件。
-5. 每个运行器固定检出小写 `release` 分支并使用 full fetch、`persist-credentials: false`，再由固定 SHA 的官方 action 安装 Node.js `24.21.0` 并复核运行时不低于 `24.21.0`。运行器要求当前具名分支等于 `release`、`HEAD == source_commit`、`refs/remotes/origin/release` 与 `refs/tags/<expectedTag>` 都指向该提交、工作树 clean。远端 advertised 默认分支只保留其已有身份，不要求它指向该提交。
+5. 每个运行器固定检出小写 `release` 分支并使用 full fetch、`persist-credentials: false`，再由固定 SHA 的官方 action 按 `lts/*` 与 `check-latest: true` 安装执行当时的官方最新 LTS，并复核运行时不低于 `24.0.0`。运行器要求当前具名分支等于 `release`、`HEAD == source_commit`、`refs/remotes/origin/release` 与 `refs/tags/<expectedTag>` 都指向该提交、工作树 clean。远端 advertised 默认分支只保留其已有身份，不要求它指向该提交。
 6. 在任何项目代码、测试、构建或签名钩子前，用 `scripts/verify_release_context.mjs capture` 验证：
    - `.harness/release-context.json` 是普通文件；工作树字节等于 `source_commit` 中的 Git blob；SHA-256 等于输入；
    - schema、版本、`expectedTag: v{version}-{YYYYMMDD}`、发布上下文中的本地默认分支、远端跟踪 `release` ref 与已 fetch tag 分别有效；后两者指向同一发布提交，本地默认分支名称可不同于 `release`；

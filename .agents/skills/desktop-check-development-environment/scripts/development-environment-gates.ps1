@@ -8,11 +8,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-# MSRV 的唯一事实来源见 docs/RUST_CLI_TEMPLATE.md；修改此值时必须同步更新 development-environment-gates.sh。
+# 通用环境下界不替代项目 Cargo MSRV；修改此值时同步更新 development-environment-gates.sh。
 $MinimumRustMajor = 1
-$MinimumRustMinor = 98
-$MinimumRustPatch = 1
-$NodeRequirement = ">=24.21.0"
+$MinimumRustMinor = 95
+$MinimumRustPatch = 0
+$NodeRequirement = ">=24.0.0"
 $PnpmRequirement = ">=12.4.1"
 $PnpmInstallRequirement = "pnpm@>=12.4.1"
 $GitRequirement = ">=2.36.0"
@@ -1023,8 +1023,7 @@ function Test-NodeVersion {
     $major = [int]$Matches[1]
     $minor = [int]$Matches[2]
     $patch = [int]$Matches[3]
-    $compatible = $major -gt 24 -or
-        ($major -eq 24 -and ($minor -gt 21 -or ($minor -eq 21 -and $patch -ge 0)))
+    $compatible = $major -ge 24
     $script:NodeVersion = $nodeText
     if (-not $compatible) { return "upgrade-required" }
     return "passed"
@@ -1216,8 +1215,7 @@ function Install-MissingNode {
             $major = [int]$Matches[1]
             $minor = [int]$Matches[2]
             $patch = [int]$Matches[3]
-            $compatible = ($major -gt 24) -or
-                ($major -eq 24 -and ($minor -gt 21 -or ($minor -eq 21 -and $patch -ge 0)))
+            $compatible = $major -ge 24
             $sortVersion = [version]"$major.$minor.$patch"
         }
         $lts = [string]$_.lts
@@ -1523,7 +1521,7 @@ try {
         $cargo = Resolve-GateCommand "cargo"
         if (-not $rustup -or -not $rustc -or -not $cargo) { Stop-Gate 22 "Rust 安装完成后仍无法调用 rustup、rustc 和 cargo" }
         $rustState = Test-RustVersion $rustup $rustc $cargo
-        if ($rustState -ne "passed") { Stop-Gate 22 "Rust 安装或升级后仍低于 MSRV $MinimumRustMajor.$MinimumRustMinor.$MinimumRustPatch" }
+        if ($rustState -ne "passed") { Stop-Gate 22 "Rust 安装或升级后仍低于环境下界 $MinimumRustMajor.$MinimumRustMinor.$MinimumRustPatch" }
     }
     if ($msvcMissing) {
         Install-MissingMsvc

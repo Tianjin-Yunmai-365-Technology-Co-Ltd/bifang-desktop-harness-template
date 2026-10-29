@@ -146,7 +146,9 @@ test("Windows check-only reports an old Git without writes", windowsRuntime, () 
 
 test("Windows Node minimum is continuous for every interface", windowsRuntime, () => {
   for (const [node, status, state] of [
-    ["24.20.9", 20, "upgrade-required"],
+    ["23.99.9", 20, "upgrade-required"],
+    ["24.0.0", 0, "passed"],
+    ["24.1.0", 0, "passed"],
     ["24.21.0", 0, "passed"],
     ["25.9.0", 0, "passed"],
     ["26.7.0", 0, "passed"],
@@ -200,7 +202,7 @@ test("Windows GPUI requires pnpm without probing Tauri dependencies", windowsRun
 
 test("Windows GPUI enforces the common Node minimum", windowsRuntime, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
-  addBaseTools(probe, { node: "24.20.9", pnpm: "12.4.1" });
+  addBaseTools(probe, { node: "23.99.9", pnpm: "12.4.1" });
   const result = runWindowsGate(root, probe, ["-CheckOnly", "-Interfaces", "GUI", "-GuiFramework", "gpui"]);
   assert.equal(result.status, 20, result.stderr);
   assert.match(result.stdout, /gate\.node\.status=upgrade-required/u);
@@ -249,7 +251,7 @@ test("Windows rejects Machine PATH shadows before user-level upgrades", windowsR
     writeFileSync(userPathFile, scenario === "existing-node" ? probe : "");
     let machinePath = probe;
     if (scenario === "rust") {
-      addBaseTools(probe, { rust: "1.98.0" });
+      addBaseTools(probe, { rust: "1.94.9" });
       command(path.join(probe, "rustup.cmd"), 'if "%1"=="toolchain" type nul > "%~dp0rust-install-called"\r\necho rustup 1.28.2 (test)');
     } else if (scenario === "node") {
       addBaseTools(probe, { node: "22.16.0", pnpm: "12.4.1" });
@@ -349,7 +351,7 @@ test("projected Windows pnpm and Rust paths cannot shadow passed tools", windows
     writeFileSync(userPathFile, probe);
     let prereqPath = probe;
     if (scenario === "rust-node") {
-      addBaseTools(probe, { rust: "1.97.0", node: "26.0.0", pnpm: "12.4.1" });
+      addBaseTools(probe, { rust: "1.94.9", node: "26.0.0", pnpm: "12.4.1" });
       const rustupBin = path.join(root, "rustup-bin");
       const rustcBin = path.join(root, "rustc-bin");
       const cargoBin = path.join(root, "cargo-bin");

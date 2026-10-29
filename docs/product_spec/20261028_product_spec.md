@@ -65,7 +65,7 @@
 ### GPUI 的 pnpm 工程工具入口
 
 - 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = 202610090050`。
-- Tauri 与 GPUI 两种 GUI 都要求 Node.js >=24.21.0、pnpm >=12.4.1。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
+- Tauri 与 GPUI 两种 GUI 都要求 Node.js >=24.0.0、pnpm >=12.4.1。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
 - 初始化生成根 package.json，新增 adapter 或既有 GPUI 工程入口迁移只补齐无冲突字段并保留产品配置。升级器继续保护根 package.json，专用合并工具在授权范围内独立执行；同名冲突与已有兼容要求不一致时零写入阻断。实际命令通过只证明对应工程入口，不代替构建、发布或最终验收。
 
 ### GPUI 开发入口与自动重启
@@ -180,16 +180,16 @@
 ### Harness 上游 Node 工程自动化与 Python 门禁
 
 - 变更标识与所需版本：`change_id = HARNESS-CHANGE-NODE-ONLY-AUTOMATION`；`required_version = 202609231623`。
-- Harness 源和所有终端下游的验证器、Git 生命周期、版本、发布、初始化、升级与治理 helper 统一使用 Node.js `>=24.21.0` 标准库；专项回归使用 `node:test`，托管候选 workflow 不选择或执行其他解释器。Node.js 是 CLI、TUI、MCP、GUI 全部接口组合的受管工程运行时，pnpm 和前端依赖仍只在 GUI 适用。
+- Harness 源和所有终端下游的验证器、Git 生命周期、版本、发布、初始化、升级与治理 helper 统一使用 Node.js `>=24.0.0` 标准库；专项回归使用 `node:test`，托管候选 workflow 不选择或执行其他解释器。Node.js 是 CLI、TUI、MCP、GUI 全部接口组合的受管工程运行时，pnpm 和前端依赖仍只在 GUI 适用。
 - Harness 上游活动工程树不得包含 Python 源码、字节码、解释器命令、包管理器、虚拟环境、第三方包或运行步骤；上游继续使用 `check_no_python.mjs` 执行此门禁。终端下游的创建和升级不复制该检查器或这项禁令；下游项目可以自行选择脚本语言，新增第三方运行时依赖须在项目内声明和隔离，不能依赖全局包。历史 ADR、Changelog、Verification 与已完成 Work Plan 的旧命令保留为真实历史，不当作上游活动入口。
 
 ### 主流环境下界、标准当前用户安装与最新兼容稳定选择
 
 - 变更标识与所需版本：`change_id = HARNESS-CHANGE-MAINSTREAM-LTS-STANDARD-USER-ENVIRONMENT`；`required_version = 202609122231`，已由此前 Harness 时间版本发布物化。
 - 环境门禁触发范围不变：中性初始化在首次脚手架写入前主动执行一次；初始化完成后只在真实测试/构建命令已出现环境错误时针对性恢复并单次重试。现有可解析稳定版只要不低于下界就原样通过，不因主版本更高而升级或阻断；只有缺失或可证明低于下界时才安装/升级。预发布、无法解析或损坏安装继续失败关闭；`cargo-xwin` 等自身明确声明上界的工具仍按其专用范围判定。
-- 当前开发环境下界为 Git `>=2.36.0`、Rust `>=1.98.1`、Node.js `>=24.21.0`、pnpm `>=12.4.1`。Node.js 是 Harness 与所有下游接口固定 helper 的通用工程运行时；pnpm 仍只在 GUI/前端适用。Node.js 以当前最高官方 LTS 线的最新补丁作为安装候选，但检测为连续下界，因此 25.x、26.x 及未来更高正式版都可直接通过。Rust 没有 LTS 通道，因此以当前官方 stable `1.98.1` 作为 MSRV 与安装下界；pnpm 同样以当前稳定版作为下界。Git 无 LTS 通道，且 `2.36.0` 已满足 Harness 使用的 `git worktree list --porcelain -z` 能力，故保留功能下界，不为追逐发布号强制替换已兼容安装。
+- 当前开发环境下界为 Git `>=2.36.0`、Rust 通用环境 `>=1.95.0`、Node.js `>=24.0.0`、pnpm `>=12.4.1`。Node.js 是 Harness 与所有下游接口固定 helper 的通用工程运行时；pnpm 仍只在 GUI/前端适用。Node.js 以当前最高官方 LTS 线的最新补丁作为安装候选，但检测为连续下界，因此 25.x、26.x 及未来更高正式版都可直接通过。Rust 没有 LTS 通道，通用环境下界为 `1.95.0`，缺失或过低时安装执行当时的官方最新 stable；项目 MSRV 继续由根 Cargo `rust-version` 独立校验，不以环境通过替代兼容性证据；pnpm 同样以当前稳定版作为下界。Git 无 LTS 通道，且 `2.36.0` 已满足 Harness 使用的 `git worktree list --porcelain -z` 能力，故保留功能下界，不为追逐发布号强制替换已兼容安装。
 - 需要写入时只做当前用户的标准全局安装，不建立 Harness 私有工具根或私有环境变量：Rust 使用官方 rustup 标准布局，并尊重位于用户主目录内的标准 `CARGO_HOME`/`RUSTUP_HOME`；非默认 Rust homes 只有在 Unix 新 login shell 或 Windows User 作用域能持久恢复，且恢复值与当前进程一致时才能决定安装，否则在下载前失败关闭。两端的 `rustup-init` 都传 `--no-modify-path`，阻止安装器在完整预检和原子持久化之外改写 shell profile 或 User PATH；门禁随后把标准 Cargo bin 写入普通用户 PATH，该参数不改变安装根。Unix Node.js 安装到 `~/.local/lib/nodejs/<version>` 并在 `~/.local/bin` 建立稳定入口，pnpm 使用 npm 的 `--global --prefix ~/.local`；Windows Node.js 使用 `%LOCALAPPDATA%\Programs\nodejs\<version>`，pnpm 使用 `%APPDATA%\npm`，Rust 使用 rustup 标准用户位置。所有将进入 PATH 的单一路径根在写入或下载前都拒绝对应平台的 PATH 分隔符。持久 PATH 直接纳入这些标准 bin，不再通过 `~/.config/agent-first-harness/env.sh` 或同类 Harness 私有 env 中转；修复时可精确移除旧 source 行，但保留旧文件字节供人工恢复。
-- 依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标，缺省或选择 `dependency-lock-policy = "ignored"` 时，本地锁文件只记录当次解析且不进入 Git；已有下游显式选择 `tracked` 时按所选策略跟踪锁文件。新增或主动更新时优先选择 registry 当前最新兼容稳定版，再以 MSRV、peer、平台和 API/feature 实测决定是否抬高下界。中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析、代码规范检查与非空测试。`rmcp 3.3.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-09-12 经 registry metadata、peer 与 engine 筛选的候选完整三段下界，继续保持 `Unverified`；实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析，以及适用的非空 test、typecheck 和 build，成功后才能成为该项目的兼容下界。前端候选包括 React/React DOM `19.3.0`、Mantine `9.6.1`、TanStack Router `1.170.35`、`i18next` `26.4.2`、`react-i18next` `17.0.13`、Vite `8.3.0`、ESLint `10.10.0`、`typescript-eslint` `8.70.0` 与 Testing Library；Node 类型直接声明为 `@types/node ^24.13.4`，浏览器测试固定使用连续支持 Node.js `>=24.21.0`（包括 25.x）的 `jsdom ^29.0.1`，不得升级到会重新排除 Node.js 25.x 的 30.x。新增成套 peer 下界时必须在清单中显式声明。TypeScript 7、Vitest 5 和 Jotai 3 等需要迁移或尚与现有 peer 范围冲突的跨主版候选不为追求版本号而强制引入。
+- 依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标，缺省或选择 `dependency-lock-policy = "ignored"` 时，本地锁文件只记录当次解析且不进入 Git；已有下游显式选择 `tracked` 时按所选策略跟踪锁文件。新增或主动更新时优先选择 registry 当前最新兼容稳定版，再以 MSRV、peer、平台和 API/feature 实测决定是否抬高下界。中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析、代码规范检查与非空测试。`rmcp 3.3.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-09-12 经 registry metadata、peer 与 engine 筛选的候选完整三段下界，继续保持 `Unverified`；实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析，以及适用的非空 test、typecheck 和 build，成功后才能成为该项目的兼容下界。前端候选包括 React/React DOM `19.3.0`、Mantine `9.6.1`、TanStack Router `1.170.35`、`i18next` `26.4.2`、`react-i18next` `17.0.13`、Vite `8.3.0`、ESLint `10.10.0`、`typescript-eslint` `8.70.0` 与 Testing Library；Node 类型直接声明为 `@types/node ^24.13.4`，浏览器测试固定使用连续支持 Node.js `>=24.0.0`（包括 25.x）的 `jsdom ^29.0.1`，不得升级到会重新排除 Node.js 25.x 的 30.x。新增成套 peer 下界时必须在清单中显式声明。TypeScript 7、Vitest 5 和 Jotai 3 等需要迁移或尚与现有 peer 范围冲突的跨主版候选不为追求版本号而强制引入。
 - 本节的环境下界、连续 Node.js 判定和标准当前用户安装语义，取代 `HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION`、`HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE` 与 `HARNESS-CHANGE-USER-GLOBAL-DEVELOPMENT-ENVIRONMENT-RECOVERY` 中的旧版本、Node.js 25 分段、Harness 私有安装根和忽略标准 Rust homes 子句；旧决定要求安装器使用 `--no-modify-path` 的安全边界继续有效，但 PATH 现在由门禁直接写入标准用户位置而非 Harness 私有中转。它们关于触发范围、范围内复用、低于下界自动修复、预发布/损坏失败关闭、供应链校验、新 shell 复探和零写入只读模式的其余决定继续有效。
 
 ### Windows 环境受权限阻断时人工接续
@@ -472,7 +472,7 @@
 - [x] `$desktop-upgrade-harness` 提供试运行、来源/基线记录、三方差异、冲突阻断、保护清单、`tombstone` 和更新后验证闭环。
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
-- [x] Rust `>=1.98.1`、Node.js `>=24.21.0` continuous 与 pnpm `>=12.4.1` 作为连续工具下界，更高正式工具直接通过，只在缺失或低于下界时用官方稳定候选安装/升级。Rust/Node.js/npm/pnpm 使用标准当前用户安装根和可持久恢复的标准 Rust homes，不创建 Harness 私有 env 或项目 shim；只读模式零写入并报告 `upgrade-required`。中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选，必须经真实下游最低直接解析和最低工具链 test/typecheck/build 后才成为项目兼容下界，缺省锁策略下本地解析生成的锁文件不纳入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。
+- [x] Rust `>=1.98.1`、Node.js `>=24.0.0` continuous 与 pnpm `>=12.4.1` 作为连续工具下界，更高正式工具直接通过，只在缺失或低于下界时用官方稳定候选安装/升级。Rust/Node.js/npm/pnpm 使用标准当前用户安装根和可持久恢复的标准 Rust homes，不创建 Harness 私有 env 或项目 shim；只读模式零写入并报告 `upgrade-required`。中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选，必须经真实下游最低直接解析和最低工具链 test/typecheck/build 后才成为项目兼容下界，缺省锁策略下本地解析生成的锁文件不纳入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。
 - [x] Rust CLI 构建默认当前宿主；明确授权、已推送的发布 refs 与提供方预检通过后才运行三平台原生矩阵；派发前缩减范围须经用户接受，已启动矩阵失败不会被回退掩盖。
 - [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单；manifest 状态只使用 `pending`、`rejected` 或 `accepted`，`ready` 仅是对完整 `accepted` 原子集合的纯只读就绪复核结论，不是可写状态。
 - [x] macOS 发布在任何测试、可用性探测或 bundle 前锁定签名选择；默认 `macosSigningSelection: disabled`、`macosSigningSource: not-requested`，直接运行显式带 `--no-sign` 的 DMG 命令且不探测签名/公证条件；只有渠道硬要求、本次主动要求或已批准持久配置才启用，按 `channel-required > requested > configured > not-requested` 记录来源，并在探测通过后运行不含 `--no-sign` 的命令。唯一前置冲突是产品已经启用 macOS 系统通知：关闭签名时不自动升级来源，而是在测试/bundle 前阻断不可验收的 unsigned 候选，要求用户下一轮主动启用签名或先改变产品能力；E2E 关闭不能绕过。

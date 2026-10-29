@@ -186,10 +186,10 @@ test('final NSIS resources verify explicit Windows targets and reject nested tam
   }
 });
 
-test('Node runtime requires complete stable >=24.21.0 and accepts newer release lines', () => {
-  for (const version of ['24.21.0','24.21.1','24.22.0','25.0.0','26.0.0']) assert.doesNotThrow(() => assertNodeRuntime(version));
-  for (const version of ['22.99.99','23.99.99','24.20.99','24.21','24.21.0-beta.1','v24.21.0','024.21.0','24.021.0','24.21.00','unknown',null,24]) {
-    assert.throws(() => assertNodeRuntime(version),/stable Node\.js >=24\.21\.0/u);
+test('Node runtime requires complete stable >=24.0.0 and accepts newer release lines', () => {
+  for (const version of ['24.0.0','24.1.0','24.20.99','24.21.0','24.21.1','24.22.0','25.0.0','26.0.0']) assert.doesNotThrow(() => assertNodeRuntime(version));
+  for (const version of ['22.99.99','23.99.99','24.21','24.21.0-beta.1','v24.21.0','024.21.0','24.021.0','24.21.00','unknown',null,24]) {
+    assert.throws(() => assertNodeRuntime(version),/stable Node\.js >=24\.0\.0/u);
   }
 });
 

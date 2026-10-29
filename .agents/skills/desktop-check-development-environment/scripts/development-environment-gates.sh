@@ -1,11 +1,11 @@
 #!/bin/sh
 set -eu
 
-# MSRV 的唯一事实来源见 docs/RUST_CLI_TEMPLATE.md；修改此值时必须同步更新 development-environment-gates.ps1。
+# 通用环境下界不替代项目 Cargo MSRV；修改此值时同步更新 development-environment-gates.ps1。
 MIN_RUST_MAJOR=1
-MIN_RUST_MINOR=98
-MIN_RUST_PATCH=1
-NODE_REQUIREMENT='>=24.21.0'
+MIN_RUST_MINOR=95
+MIN_RUST_PATCH=0
+NODE_REQUIREMENT='>=24.0.0'
 PNPM_REQUIREMENT='>=12.4.1'
 PNPM_INSTALL_REQUIREMENT='pnpm@>=12.4.1'
 GIT_REQUIREMENT='>=2.36.0'
@@ -337,11 +337,7 @@ validate_node() {
         *[!0-9:]*|::*|*::|*::*:*) fail 23 "无法识别 Node.js 发布版本：$node_text" ;;
     esac
     node_compatible=0
-    if [ "$node_major" -gt 24 ] || {
-        [ "$node_major" -eq 24 ] && {
-            [ "$node_minor" -gt 21 ] || { [ "$node_minor" -eq 21 ] && [ "$node_patch" -ge 0 ]; };
-        };
-    }; then
+    if [ "$node_major" -ge 24 ]; then
         node_compatible=1
     fi
     NODE_VERSION=$node_text
@@ -649,8 +645,7 @@ install_node() {
         NR > 1 && $1 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ && $10 != "" && $10 != "-" {
             raw = substr($1, 2)
             split(raw, parts, ".")
-            if (parts[1] > 24 ||
-                (parts[1] == 24 && (parts[2] > 21 || (parts[2] == 21 && parts[3] >= 0)))) {
+            if (parts[1] >= 24) {
                 if (!found || parts[1] > best_major ||
                     (parts[1] == best_major && (parts[2] > best_minor ||
                     (parts[2] == best_minor && parts[3] > best_patch)))) {
@@ -1750,7 +1745,7 @@ if [ "$RUST_STATUS" != passed ]; then
     cargo_path=$(find_tool cargo 2>/dev/null || true)
     [ -n "$rustup_path" ] && [ -n "$rustc_path" ] && [ -n "$cargo_path" ] || fail 22 "Rust 安装完成后仍无法调用 rustup、rustc 和 cargo"
     validate_rust "$rustup_path" "$rustc_path" "$cargo_path"
-    [ "$RUST_STATUS" = passed ] || fail 22 "Rust 安装或升级后仍低于 MSRV $MIN_RUST_MAJOR.$MIN_RUST_MINOR.${MIN_RUST_PATCH}：$RUST_VERSION"
+    [ "$RUST_STATUS" = passed ] || fail 22 "Rust 安装或升级后仍低于环境下界 $MIN_RUST_MAJOR.$MIN_RUST_MINOR.${MIN_RUST_PATCH}：$RUST_VERSION"
 fi
 
 if [ "$NODE_STATUS" != passed ] && [ "$NODE_STATUS" != not-required ]; then

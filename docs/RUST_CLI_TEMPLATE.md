@@ -17,7 +17,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 - GPUI 的 `pnpm dev` 开发入口、保存后重编译/重启和进程内临时状态重置边界见 `$desktop-add-gpui-adapter` 的“根 pnpm 工程入口”；不安装第三方 watcher，也不把 GPUI Shell 的 JavaScript 热重载当作原生 Rust HMR。
 - GPUI 本地打包使用独立 `$desktop-build-gpui-release`，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；仅 Linux Tauri 且无 CLI 仍须明确选 `push_release_branch`。它通过项目根 `pnpm run gpui:package` 调用独立 Node helper，不依赖 Tauri 配置或前端测试，普通本地试包与正式候选分别走 `local`/`candidate` 模式。
 
-GPUI 项目根生成无 npm 第三方依赖的 `package.json`，声明 `engines.node >=24.21.0`、`engines.pnpm >=12.4.1`，统一提供 `validate`、`test`、`release:inspect`、`release:notes`、`release:context`、`release:git` 和 `gpui:package` 脚本。以 `pnpm run <script> [参数]` 调用；发布命令继续保留版本、上下文与授权门禁。新增 adapter 或迁移已有项目时保留根清单中的其他字段，同名脚本或兼容范围冲突先停止，不覆盖产品配置。脚本 runner 无需安装 npm 依赖，不要求前端测试或 pnpm 锁文件。
+GPUI 项目根生成无 npm 第三方依赖的 `package.json`，声明 `engines.node >=24.0.0`、`engines.pnpm >=12.4.1`，统一提供 `validate`、`test`、`release:inspect`、`release:notes`、`release:context`、`release:git` 和 `gpui:package` 脚本。以 `pnpm run <script> [参数]` 调用；发布命令继续保留版本、上下文与授权门禁。新增 adapter 或迁移已有项目时保留根清单中的其他字段，同名脚本或兼容范围冲突先停止，不覆盖产品配置。脚本 runner 无需安装 npm 依赖，不要求前端测试或 pnpm 锁文件。
 
 GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限、队列、平台目录和失败/退出处理以 `$desktop-add-gpui-adapter` 的自含 logging 模板为准。core 可按实际业务需要发出脱敏 event/span，订阅器、文件 writer 与 worker 生命周期只由端侧拥有，不向 core 引入 GPUI 或日志文件机制。此为负责人明确选择的 GPUI 诊断基线，覆盖下文“中性脚手架不默认增加 tracing”的通用缺省；其他接口仍按真实能力需求加入。
 
@@ -91,17 +91,18 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 
 ## 初始化与错误恢复环境门禁
 
-下表是 Git、Rust MSRV、Node.js、pnpm 下限的唯一数值来源；其他文档与 Skill 引用这些数字时必须与此表一致，调整下限先改此表。
+下表是 Git、Rust 通用环境下界、项目 MSRV、Node.js、pnpm 下限的唯一数值来源；环境门禁和项目兼容声明分别校验，其他文档与 Skill 引用这些数字时必须与此表一致。
 
 | 项目 | 默认值 | 约束 |
 |---|---|---|
 | Rust 语言版本 | `2024` | 稳定版 Rust；不使用 nightly 功能 |
-| MSRV | `1.98.1` | 根工作区写入 `rust-version = "1.98.1"`，表示最低兼容版本；接受 1.98.1 及以上稳定版，不要求精确等于 1.98.1；Rust 无 LTS 通道，本门槛跟随本次核验的当前 stable |
+| Rust 通用环境下界 | `>=1.95.0` | rustc/cargo 属于同一 stable minor，达到下界原样复用；缺失或过低时通过官方 rustup 安装执行当时的最新 stable，不固定安装最低版本 |
+| MSRV | `1.98.1` | 根工作区写入 `rust-version = "1.98.1"`，表示已经核验的项目最低兼容版本；接受 1.98.1 及以上稳定版，不要求精确等于 1.98.1。通用环境门禁通过不替代 Cargo 对项目更高 MSRV 的校验，不能未经最低工具链实测降低兼容声明 |
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
 | 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 按 `docs/RELEASE.md` 的版本规则自动管理，显式 Major 仅由用户批准 |
 | 项目锁文件 | 根 Cargo 元数据 `dependency-lock-policy` 缺省/`ignored`；已初始化下游可显式选择 `tracked` | 默认忽略标准锁文件；`tracked` 要求跟踪根及独立 Rust 工作区的 `Cargo.lock`、已选 Tauri 前端根的 `pnpm-lock.yaml`，并使用冻结解析。未知值失败关闭；`pnpm-package.lock` 始终不是标准门禁 |
 | Git | 全部初始化：稳定版 `>=2.36.0` | 完整表单确认后检查；覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`，缺失时按受管平台方式安装，可证明低于下界时升级，范围内稳定版原样复用，随后复探 |
-| Node.js | 所有接口：`>=24.21.0` | Harness 与下游固定 helper 的工程运行时；缺失或低于 24.21.0 时安装/升级到官方当前最高 LTS 线的最新补丁，24.21.0 及任何更高正式版本原样复用 |
+| Node.js | 所有接口：`>=24.0.0` | Harness 与下游固定 helper 的工程运行时；缺失或低于 24.0.0 时安装/升级到官方当前最高 LTS 线的最新补丁，24.0.0 及任何更高正式版本原样复用 |
 | pnpm | 仅 GUI（Tauri 与 GPUI）：`>=12.4.1` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，非 GUI 为 `not-required` |
 | MSVC 构建工具 | Windows 缺失时自动安装 | 验证 Microsoft 签名，安装 C++ 工作负载并复探 |
 | Linux 系统开发库（仅 GUI） | Tauri 2 依赖的 webkit2gtk（`webkit2gtk-4.1-dev` 或 `webkit2gtk-4.0-dev`，视发行版而定）、`libgtk-3-dev`、`librsvg2-dev`、`libayatana-appindicator3-dev` 等发行版对应的开发包 | 非 GUI 为 `not-required`；具体包名随发行版包管理器变化，需按目标发行版核对 |
@@ -134,7 +135,7 @@ pnpm --version
 .agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
 ```
 
-成功输出必须包含 `gate.git.status=passed`、`gate.rust.status=passed` 与 `gate.node.requirement=>=24.21.0`；Rust 门禁接受 1.98.1 及以上稳定版，Node.js 对全部接口组合适用。Windows 还必须包含 `gate.msvc.status=passed`，GUI 另外要求 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.21.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim，或寻找替代工具链来适配旧环境。
+成功输出必须包含 `gate.git.status=passed`、`gate.rust.status=passed` 与 `gate.node.requirement=>=24.0.0`；Rust 通用环境门禁接受 1.95.0 及以上稳定版，Node.js 对全部接口组合适用。Windows 还必须包含 `gate.msvc.status=passed`，GUI 另外要求 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.0.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim，或寻找替代工具链来适配旧环境。
 
 ## 默认依赖
 

@@ -96,10 +96,10 @@ test("checkout_uses_release_branch_full_history_and_no_persisted_credentials", (
   assert.ok(text.includes("persist-credentials: false"));
 });
 
-test("workflow_pins_the_required_node_runtime", () => {
+test("workflow_installs_the_latest_official_lts_runtime", () => {
   assert.match(text, /actions\/setup-node@[0-9a-f]{40}/);
-  assert.match(text, /node-version:\s*24\.21\.0/);
-  assert.match(text, /check-latest:\s*false/);
+  assert.match(text, /node-version:\s*lts\/\*/);
+  assert.match(text, /check-latest:\s*true/);
 });
 
 test("workflow_has_no_disallowed_legacy_runtime", () => {

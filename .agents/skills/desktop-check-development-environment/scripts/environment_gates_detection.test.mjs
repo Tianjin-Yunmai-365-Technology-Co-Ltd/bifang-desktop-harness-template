@@ -52,7 +52,7 @@ test("gpui_gui_requires_pnpm_without_probing_tauri_dependencies", posixOnly, () 
     assert.ok(result.stdout.includes(`gate.pnpm.status=${state}`), result.stdout);
     assert.match(result.stdout, /gate\.pnpm\.requirement=>=12\.4\.1/u);
     assert.match(result.stdout, /gate\.node\.status=passed/u);
-    assert.match(result.stdout, /gate\.node\.requirement=>=24\.21\.0/u);
+    assert.match(result.stdout, /gate\.node\.requirement=>=24\.0\.0/u);
     if (status === 0) {
       assert.match(result.stdout, /gate\.pnpm\.change=existing/u);
       assert.match(result.stdout, /gate\.changed=false/u);
@@ -65,7 +65,7 @@ test("gpui_gui_requires_pnpm_without_probing_tauri_dependencies", posixOnly, () 
 test("gpui_gui_enforces_common_node_minimum", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
   fakeExistingTools(probe);
-  fakeFrontendTools(probe, { node: "24.20.9" });
+  fakeFrontendTools(probe, { node: "23.99.9" });
   const result = runGate(root, ["--check-only", "--interfaces", "GUI", "--gui-framework", "gpui"], { probe });
   assert.equal(result.status, 20, result.stderr);
   assert.match(result.stdout, /gate\.node\.status=upgrade-required/u);
@@ -181,7 +181,7 @@ test("existing tools support spaces in probe path", posixOnly, () => withTempora
 }));
 
 test("newer stable Rust and Git versions satisfy continuous minimums", posixOnly, () => {
-  for (const rust of ["1.98.1", "1.98.2", "1.99.0", "2.0.0"]) withTemporaryRoot((root) => {
+  for (const rust of ["1.95.0", "1.95.1", "1.98.1", "1.99.0", "2.0.0"]) withTemporaryRoot((root) => {
     const probe = path.join(root, "probe");
     fakeExistingTools(probe, { rust });
     const result = runGate(root, ["--check-only"], { probe });
@@ -215,13 +215,13 @@ test("existing GUI tools are preserved", posixOnly, () => withTemporaryRoot((roo
   const result = runGate(root, ["--install-missing", "--interfaces", "GUI"], { probe });
   assert.equal(result.status, 0, result.stderr);
   for (const fragment of [
-    "gate.rust.status=passed", "gate.node.status=passed", "gate.node.requirement=>=24.21.0",
+    "gate.rust.status=passed", "gate.node.status=passed", "gate.node.requirement=>=24.0.0",
     "gate.pnpm.status=passed", "gate.pnpm.requirement=>=12.4.1", "gate.changed=false",
   ]) assert.ok(result.stdout.includes(fragment), fragment);
 }));
 
 test("newer compatible frontend tools are preserved", posixOnly, () => {
-  for (const [node, pnpm] of [["24.21.0", "12.4.1"], ["25.9.0", "13.0.0"], ["26.7.0", "13.1.0"]]) {
+  for (const [node, pnpm] of [["24.0.0", "12.4.1"], ["24.1.0", "12.4.1"], ["24.20.9", "12.4.1"], ["25.9.0", "13.0.0"], ["26.7.0", "13.1.0"]]) {
     withTemporaryRoot((root) => {
       const probe = path.join(root, "probe");
       fakeExistingTools(probe);
@@ -236,7 +236,7 @@ test("newer compatible frontend tools are preserved", posixOnly, () => {
 });
 
 test("lower Node and pnpm versions require upgrade in check-only", posixOnly, () => {
-  for (const node of ["23.11.9", "24.20.9"]) withTemporaryRoot((root) => {
+  for (const node of ["22.99.9", "23.11.9"]) withTemporaryRoot((root) => {
     const probe = path.join(root, "probe");
     fakeExistingTools(probe);
     fakeFrontendTools(probe, { node });
@@ -258,8 +258,8 @@ test("lower Node and pnpm versions require upgrade in check-only", posixOnly, ()
 
 test("check-only aggregates all lower versions without installing", posixOnly, () => withTemporaryRoot((root) => {
   const probe = path.join(root, "probe");
-  fakeExistingTools(probe, { rust: "1.98.0", git: "1.99.9" });
-  fakeFrontendTools(probe, { node: "24.20.9", pnpm: "12.4.0" });
+  fakeExistingTools(probe, { rust: "1.94.9", git: "1.99.9" });
+  fakeFrontendTools(probe, { node: "23.99.9", pnpm: "12.4.0" });
   const result = runGate(root, ["--check-only", "--interfaces", "GUI"], { probe });
   assert.equal(result.status, 20, result.stderr);
   for (const tool of ["git", "rust", "node", "pnpm"]) assert.match(result.stdout, new RegExp(`gate\\.${tool}\\.status=upgrade-required`));
@@ -308,8 +308,8 @@ test("Windows gate retains signed MSVC and current runtime contracts", () => {
     "Install-MissingPnpm", "Install-MissingGit", "Test-GitVersion", "Git.Git",
     '"gate.git.status=passed"', '"gate.git.change=$GitChange"', "if (-not (Test-MsvcPrerequisite))",
     '"gate.msvc.status=passed"', '"gate.msvc.change=$MsvcChange"', '@("CLI", "TUI", "MCP", "GUI")',
-    '$PnpmRequired = ($NormalizedInterfaces -contains "GUI")', "$MinimumRustMinor = 98", "$MinimumRustPatch = 1",
-    '$NodeRequirement = ">=24.21.0"', '$PnpmRequirement = ">=12.4.1"', '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
+    '$PnpmRequired = ($NormalizedInterfaces -contains "GUI")', "$MinimumRustMinor = 95", "$MinimumRustPatch = 0",
+    '$NodeRequirement = ">=24.0.0"', '$PnpmRequirement = ">=12.4.1"', '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
     "Test-NodeVersion", "Test-PnpmVersion",
   ]) assert.ok(source.includes(fragment), fragment);
   assert.equal(source.includes("pnpm@latest"), false);

@@ -44,7 +44,7 @@ function validatePackage(errors, document, sourceRoot, label) {
     return;
   }
   if (document.private !== true) fail(errors, `${label} must generate a private root package.json`);
-  for (const [key, floor] of [["node", ">=24.21.0"], ["pnpm", ">=12.4.1"]]) {
+  for (const [key, floor] of [["node", ">=24.0.0"], ["pnpm", ">=12.4.1"]]) {
     if (document.engines?.[key] !== floor) fail(errors, `${label} engine ${key} must remain ${floor}`);
   }
   for (const field of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]) {

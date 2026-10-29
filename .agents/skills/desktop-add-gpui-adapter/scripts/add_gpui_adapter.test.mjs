@@ -161,7 +161,7 @@ test('add_only_merges_existing_package_without_losing_user_fields', () => {
     assert.equal(content.packageManager, 'pnpm@12.4.2');
     assert.equal(content.scripts.custom, 'node user.mjs');
     assert.equal(content.dependencies['user-owned-package'], '1.0.0');
-    assert.equal(content.engines.node, '>=24.21.0');
+    assert.equal(content.engines.node, '>=24.0.0');
     assert.match(content.scripts['release:git'], /git_lifecycle\.mjs release --project-root \.$/);
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
 });

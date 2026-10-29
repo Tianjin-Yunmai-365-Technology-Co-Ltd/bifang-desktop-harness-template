@@ -63,7 +63,7 @@ const workflowMutations = [
   ["checkout points at advertised default", "          ref: release\n", "          ref: ${{ github.event.repository.default_branch }}\n", "forbidden candidate behavior"],
   ["candidate attempts a remote push", "          ref: release\n", "          ref: release\n          git push origin release\n", "forbidden candidate behavior"],
   ["shallow checkout", "          fetch-depth: 0\n", "          fetch-depth: 1\n", "fetch-depth: 0"],
-  ["missing Node setup version", "          node-version: 24.21.0\n", "          node-version: 24.20.0\n", "runtime setup"],
+  ["missing Node setup version", "          node-version: lts/*\n", "          node-version: 24.20.0\n", "runtime setup"],
   ["format gate injected into build", "          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "          cargo fmt --all -- --check\n          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "forbidden candidate behavior"],
   ["lint gate injected into build", "          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "          cargo clippy --workspace\n          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "forbidden candidate behavior"],
   ["Unix packaging loses success guard", "        if: runner.os != 'Windows' && success()\n", "        if: runner.os != 'Windows'\n", "exact guard"],

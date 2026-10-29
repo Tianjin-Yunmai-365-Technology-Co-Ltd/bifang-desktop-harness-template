@@ -23,7 +23,7 @@ import { assertDependencyLocks } from "../../desktop-implement-change/scripts/pr
 
 const OID_PATTERN = /^[0-9a-f]{40}$/;
 const RELEASE_BRANCH = "release";
-const MINIMUM_NODE = [24, 21, 0];
+const MINIMUM_NODE = [24, 0, 0];
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 /** 表示 workflow 输入、源码、制品或暂存目录不满足固定候选契约。 */
@@ -80,7 +80,7 @@ function checkNodeRuntime() {
   for (let index = 0; index < 3; index += 1) {
     if (parts[index] > MINIMUM_NODE[index]) return;
     if (parts[index] < MINIMUM_NODE[index]) {
-      throw new WorkflowError("候选 workflow 要求 Node.js >=24.21.0");
+      throw new WorkflowError("候选 workflow 要求 Node.js >=24.0.0");
     }
   }
 }

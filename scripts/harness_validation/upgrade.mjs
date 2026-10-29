@@ -271,7 +271,7 @@ function validateDocumentation(errors) {
   const contracts = new Map([
     [path.join(UPGRADE_ROOT, "SKILL.md"), [
       "Windows PowerShell",
-      "Node.js >= 24.21",
+      "Node.js >= 24.0.0",
       "所有操作命令均使用 `node` 且保持单行",
       "--migration-approved",
       "unrecoverable-pre-migration-history",
