@@ -65,15 +65,15 @@ const DEEP_LINK_TEST_NAMES = [
 ];
 
 const BASELINE_DEPENDENCIES = [
-  ["tauri-plugin-os", "2.3.2", "系统语言"],
-  ["tauri-plugin-updater", "2.11.0", "更新基线"],
-  ["tauri-plugin-window-state", "2.4.1", "窗口状态"],
-  ["tauri-plugin-dialog", "2.7.3", "原生对话框"],
+  ["tauri-plugin-os", "2.4.0", "系统语言"],
+  ["tauri-plugin-updater", "2.14.1", "更新基线"],
+  ["tauri-plugin-window-state", "2.5.0", "窗口状态"],
+  ["tauri-plugin-dialog", "2.8.4", "原生对话框"],
 ];
 
 const CONDITIONAL_DEPENDENCIES = [
-  ["deepLink", "tauri-plugin-deep-link", "2.4.10", "深链接"],
-  ["globalShortcut", "tauri-plugin-global-shortcut", "2.3.2", "全局快捷键"],
+  ["deepLink", "tauri-plugin-deep-link", "2.6.3", "深链接"],
+  ["globalShortcut", "tauri-plugin-global-shortcut", "2.4.1", "全局快捷键"],
 ];
 
 const UPDATER_OUTBOUND_METHOD_PATTERN =
@@ -171,7 +171,7 @@ export function validatePluginDependencyContract(rootCargo, guiCargo, profile, e
       rootCargo,
       guiCargo,
       "tauri-plugin-single-instance",
-      "2.4.4",
+      "2.5.5",
       "单实例",
       errors,
     );
@@ -216,8 +216,8 @@ export function validatePluginDependencyContract(rootCargo, guiCargo, profile, e
     "mac-usernotifications",
   );
   if (profile.systemNotification) {
-    if (!cargoDependencyHasLowerBound(workspaceNotification, "2.4.0")) {
-      errors.push('选择系统通知时 tauri-plugin-notification 兼容下界必须为 "2.4.0"');
+    if (!cargoDependencyHasLowerBound(workspaceNotification, "2.8.0")) {
+      errors.push('选择系统通知时 tauri-plugin-notification 兼容下界必须为 "2.8.0"');
     }
     if (!cargoDependencyHasLowerBound(workspaceMacNotifications, "0.3.1")) {
       errors.push('选择系统通知时 mac-usernotifications 兼容下界必须为 "0.3.1"');
@@ -248,8 +248,8 @@ export function validatePluginDependencyContract(rootCargo, guiCargo, profile, e
   );
   const genericAutostart = memberDependency(guiCargo, "tauri-plugin-autostart");
   if (profile.autostart) {
-    if (!cargoDependencyHasLowerBound(workspaceAutostart, "2.5.1")) {
-      errors.push('选择开机自启时 tauri-plugin-autostart 兼容下界必须为 "2.5.1"');
+    if (!cargoDependencyHasLowerBound(workspaceAutostart, "2.7.0")) {
+      errors.push('选择开机自启时 tauri-plugin-autostart 兼容下界必须为 "2.7.0"');
     }
     if (
       !targetAutostart ||

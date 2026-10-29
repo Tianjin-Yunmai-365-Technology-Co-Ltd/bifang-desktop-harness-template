@@ -108,7 +108,7 @@ test("adapter contracts require their unverified evidence markers", () => {
 });
 
 test("React dependency floors require Node types and continuous jsdom support", () => {
-  for (const fragment of ["`@types/node` | `^24.13.4`", "`jsdom` | `^29.0.1`", "不得升级到会重新排除 Node.js 25.x"]) {
+  for (const fragment of ["`@types/node` | `^24.19.2`", "`jsdom` | `^29.1.1`", "不得升级到会重新排除 Node.js 25.x"]) {
     withTemporaryRoot((root) => {
       const reactBaseline = mutate(root, REACT_BASELINE, (source) => source.replace(fragment, ""));
       const errors = [];
@@ -119,7 +119,7 @@ test("React dependency floors require Node types and continuous jsdom support", 
 });
 
 test("React baseline rejects the jsdom 30 Node 25 regression", () => withTemporaryRoot((root) => {
-  const reactBaseline = mutate(root, REACT_BASELINE, (source) => source.replace("`jsdom` | `^29.0.1`", "`jsdom` | `^30.0.1`"));
+  const reactBaseline = mutate(root, REACT_BASELINE, (source) => source.replace("`jsdom` | `^29.1.1`", "`jsdom` | `^30.0.1`"));
   const errors = [];
   validateCurrentDescriptions(errors, { reactBaseline });
   assert.ok(errors.some((error) => error.includes("superseded exact/latest version rule")), errors.join("\n"));

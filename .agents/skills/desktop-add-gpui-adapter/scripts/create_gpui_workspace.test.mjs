@@ -16,8 +16,8 @@ test('workspace_has_direct_core_dependency_and_central_native_dependencies', () 
   const files = renderGpuiFiles(identity);
   const root = files.get('Cargo.toml');
   assert.match(root, /gui-framework = "gpui"/);
-  assert.match(root, /gpui-kit = "0\.7\.1"/);
-  assert.match(root, /rust-i18n = "4\.2\.0"/);
+  assert.match(root, /gpui-kit = "0\.8\.1"/);
+  assert.match(root, /rust-i18n = "4\.2\.4"/);
   assert.match(root, /sys-locale = "0\.3\.2"/);
   assert.match(root, /tracing = \{ version = "0\.1\.44", default-features = false/);
   assert.match(root, /tracing-subscriber = \{ version = "0\.3\.23", default-features = false/);

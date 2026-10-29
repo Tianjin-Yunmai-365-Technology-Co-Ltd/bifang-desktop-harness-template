@@ -41,10 +41,10 @@ test("dialog_dependencies_are_fixed", () => {
         const cargo = path.join(root, "Cargo.toml");
         fs.writeFileSync(
           cargo,
-          fs.readFileSync(cargo, "utf8").replace('tauri-plugin-dialog = "2.7.3"\n', ""),
+          fs.readFileSync(cargo, "utf8").replace('tauri-plugin-dialog = "2.8.4"\n', ""),
         );
       },
-      pattern: /根 \[workspace\.dependencies\].*"2\.7\.3".*tauri-plugin-dialog/u,
+      pattern: /根 \[workspace\.dependencies\].*"2\.8\.4".*tauri-plugin-dialog/u,
     },
     {
       mutate(_root, guiRoot) {
@@ -65,23 +65,23 @@ test("dialog_dependencies_are_fixed", () => {
         fs.writeFileSync(
           cargo,
           fs.readFileSync(cargo, "utf8").replace(
-            'tauri-plugin-dialog = "2.7.3"',
+            'tauri-plugin-dialog = "2.8.4"',
             'tauri-plugin-dialog = "2.7.2"',
           ),
         );
       },
-      pattern: /"2\.7\.3".*tauri-plugin-dialog/u,
+      pattern: /"2\.8\.4".*tauri-plugin-dialog/u,
     },
     {
       mutate(_root, guiRoot) {
         fs.writeFileSync(
           path.join(guiRoot, "package.json"),
           JSON.stringify({
-            devDependencies: { "@tauri-apps/plugin-dialog": "^2.7.3" },
+            devDependencies: { "@tauri-apps/plugin-dialog": "^2.8.4" },
           }),
         );
       },
-      pattern: /dependencies 生产直依赖 @tauri-apps\/plugin-dialog = \^2\.7\.3/u,
+      pattern: /dependencies 生产直依赖 @tauri-apps\/plugin-dialog = \^2\.8\.4/u,
     },
   ];
   for (const { mutate, pattern } of cases) {
@@ -166,10 +166,10 @@ test("rejects deep-link without single-instance", () => {
 test("rejects a missing system-locale dependency or plugin registration", () => {
   withFixture(({ root, guiRoot }) => {
     const cargo = path.join(root, "Cargo.toml");
-    fs.writeFileSync(cargo, fs.readFileSync(cargo, "utf8").replace('tauri-plugin-os = "2.3.2"\n', ""));
+    fs.writeFileSync(cargo, fs.readFileSync(cargo, "utf8").replace('tauri-plugin-os = "2.4.0"\n', ""));
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(source, fs.readFileSync(source, "utf8").replace(".plugin(tauri_plugin_os::init())", ""));
-    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /2\.3\.2.*os.*恰好注册一次/su);
+    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /2\.4\.0.*os.*恰好注册一次/su);
   });
 });
 

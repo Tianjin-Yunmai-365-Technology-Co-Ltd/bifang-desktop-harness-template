@@ -16,44 +16,49 @@
 
 实施适配器时为每个直接包声明满足实际 API、Node.js、Tauri WebView、平台和安全约束的最低兼容稳定范围。`dependencies`/`devDependencies` 使用带完整三段下界的 caret（例如 `^1.2.3`），或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符和无下界范围。确需因上游缺陷或互操作约束精确固定时，先记录硬规则例外与解除条件。
 
-截至 2026-09-12，当前经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界如下；在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`。实际通过后才可成为该项目的兼容下界；写入 `package.json` 时全部保留 caret 兼容范围，不得改成精确锁定：
+截至 2026-10-29，当前经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界如下；在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`。实际通过后才可成为该项目的兼容下界；写入 `package.json` 时全部保留 caret 兼容范围，不得改成精确锁定：
 
 | 直接包 | 最低兼容范围 |
 |---|---|
-| `@tauri-apps/api` | `^2.11.1` |
-| `@tauri-apps/plugin-dialog` | `^2.7.3` |
-| `react` / `react-dom` | `^19.3.0` |
-| `@mantine/core` / `@mantine/hooks` | `^9.6.1` |
-| `@tabler/icons-react` | `^3.46.0` |
-| `@tanstack/react-router` | `^1.170.35` |
-| `@tanstack/router-plugin` | `^1.168.37` |
-| `@tanstack/react-query` | `^5.102.8` |
-| `jotai` | `^2.20.3` |
-| `i18next` | `^26.4.2` |
-| `react-i18next` | `^17.0.13` |
-| `vite` | `^8.3.0` |
-| `@vitejs/plugin-react` | `^6.1.1` |
+| `@tauri-apps/api` | `^2.12.4` |
+| `@tauri-apps/plugin-dialog` | `^2.8.4` |
+| `react` / `react-dom` | `^19.3.1` |
+| `@mantine/core` / `@mantine/hooks` | `^9.7.4` |
+| `@tabler/icons-react` | `^3.50.0` |
+| `@tanstack/react-router` | `^1.170.46` |
+| `@tanstack/router-plugin` | `^1.168.48` |
+| `@tanstack/react-query` | `^5.105.0` |
+| `jotai` | `^3.0.1` |
+| `i18next` | `^26.5.11` |
+| `react-i18next` | `^17.1.9` |
+| `vite` | `^8.3.5` |
+| `@vitejs/plugin-react` | `^6.1.2` |
 | `typescript` | `^6.0.3` |
-| `eslint` | `^10.10.0` |
-| `typescript-eslint` | `^8.70.0` |
-| `prettier` | `^3.9.6` |
-| `vitest` | `^4.1.11` |
+| `eslint` | `^10.13.0` |
+| `typescript-eslint` | `^8.72.1` |
+| `prettier` | `^3.9.10` |
+| `vitest` | `^4.1.12` |
 | `@types/react` / `@types/react-dom` | `^19.3.0` |
-| `@types/node` | `^24.13.4` |
-| `@testing-library/dom` | `^10.4.1` |
+| `@types/node` | `^24.19.2` |
+| `@testing-library/dom` | `^10.4.2` |
 | `@testing-library/react` | `^16.3.3` |
 | `@testing-library/jest-dom` | `^7.0.1` |
-| `@testing-library/user-event` | `^14.6.7` |
-| `jsdom` | `^29.0.1` |
-| `@tauri-apps/cli` | `^2.11.4` |
+| `@testing-library/user-event` | `^14.6.8` |
+| `jsdom` | `^29.1.1` |
+| `@tauri-apps/cli` | `^2.12.4` |
+
+有列表页时才在对应前端本地依赖中声明 `@dnd-kit/core: ^6.3.1` 与 `@dnd-kit/sortable: ^10.0.0`；无列表页的中性 GUI 不预装。
 
 仅 `about_page = enabled` 的 GUI 另在生产依赖中声明 `react-markdown: ^10.1.0` 与 `remark-gfm: ^4.0.1`；禁用关于页时两者缺席。前者负责安全的 React Markdown 元素映射，后者支持表格、删除线等 GFM 语法；更新日志保留 Mantine 9 `Typography` 排版，忽略原始 HTML，并把链接与图片降为无导航、无加载的文字。该下界依据 [react-markdown 官方文档](https://github.com/remarkjs/react-markdown) 与 [Mantine Typography 文档](https://mantine.dev/core/typography/) 于 2026-09-17 核对；实际下游最低版本解析、类型检查、非空测试和生产构建完成前仍为 `Unverified`。
 
 `@tauri-apps/plugin-dialog` 是所有 GUI 的固定生产依赖，不按 profile 裁剪。前端仅通过官方包调用 dialog guest API；主窗口 capability 必须且只能用一个 `dialog:default` 覆盖 message、open、save 全部官方对话框类型，不得追加 partial allow、deprecated `ask`/`confirm` alias、deny 项、wildcard 或任何文件系统权限。dialog 返回的用户选择只表示路径值或取消结果；实际读取、写入与业务处理仍需独立批准的窄 adapter/core 能力。
 
-`package.json` 必须以 `engines.node: ">=24.0.0"` 和 `engines.pnpm: ">=12.4.1"` 表达当前最低工具范围。已安装的任何更高正式版本都在 Node.js 连续范围内直接通过；缺失或低于下界时，环境门禁选择官方索引中的最高 LTS 系列及其最新稳定补丁安装。`@types/node ^24.13.4` 是 Vite 8 类型声明与复制的 TypeScript 检查脚本直接消费的开发依赖，不能依赖 Vite/Vitest 的 optional peer 被 pnpm 间接提升。测试环境固定使用 `jsdom ^29.0.1`，其 Node.js engine 连续覆盖 `>=24.0.0`；不得升级到会重新排除 Node.js 25.x 等更高正式主版的 jsdom 版本。不得把旧式精确 `packageManager` 字段当作兼容要求；若生成工具为 Corepack 溯源必须写入该字段，它只属于实际解析元数据，不能替代 `engines` 范围或下界验证。缺省或 `dependency-lock-policy = "ignored"` 时，正常安装可生成 Git 忽略的本地 `pnpm-lock.yaml`；显式 `tracked` 时，GUI 根的 `pnpm-lock.yaml` 必须受 Git 跟踪并以冻结安装复核。锁文件策略不改变清单下界。
+`package.json` 必须以 `engines.node: ">=24.0.0"` 和 `engines.pnpm: ">=12.4.1"` 表达当前最低工具范围。已安装的任何更高正式版本都在 Node.js 连续范围内直接通过；缺失或低于下界时，环境门禁选择官方索引中的最高 LTS 系列及其最新稳定补丁安装。`@types/node ^24.19.2` 是 Vite 8 类型声明与复制的 TypeScript 检查脚本直接消费的开发依赖，不能依赖 Vite/Vitest 的 optional peer 被 pnpm 间接提升。测试环境固定使用 `jsdom ^29.1.1`，其 Node.js engine 连续覆盖 `>=24.0.0`；不得升级到会重新排除 Node.js 25.x 等更高正式主版的 jsdom 版本。不得把旧式精确 `packageManager` 字段当作兼容要求；若生成工具为 Corepack 溯源必须写入该字段，它只属于实际解析元数据，不能替代 `engines` 范围或下界验证。缺省或 `dependency-lock-policy = "ignored"` 时，正常安装可生成 Git 忽略的本地 `pnpm-lock.yaml`；显式 `tracked` 时，GUI 根的 `pnpm-lock.yaml` 必须受 Git 跟踪并以冻结安装复核。锁文件策略不改变清单下界。
 
 新增或提高直接下界时，在临时副本的 `pnpm-workspace.yaml` 中设置 `resolutionMode: lowest-direct`，于声明的最低 Node.js/pnpm 环境运行受影响的类型检查、非空单元测试与生产构建。最低版本解析只用于证明下界；正常安装可选择范围内较新的稳定版本。缺省锁策略下本地锁文件不进入 Git；已有下游显式选择 `tracked` 时跟踪 GUI 根锁文件。
+
+
+2026-10-29 兼容筛选保留 TypeScript 6.0.3、Vitest 4.1.12 与 jsdom 29.1.1：TypeScript 7.0.2 不满足当前 typescript-eslint 的 `<6.1.0` peer，Vitest 5.0.5 排除 Node.js 25，jsdom 30.1.3 排除 Node.js 24.0–24.14 和 25。`@types/node` 使用最新 24.x（24.19.2）约束最低运行时可调用的 API；不能据 26.x 类型可安装就假设 Node.js 24 支持对应新 API。Jotai 3.0.1 的公共 atom/store/Provider 用法已按当前模板核对；不使用 v3 删除的 atomFamily、loadable、setSelf。完整候选元数据与来源见 [registry-candidates.json](../../desktop-manage-dependencies/references/registry-candidates.json)。
 
 ## 状态所有权
 
@@ -92,12 +97,12 @@
 
 ## 工具链与质量门禁
 
-- `tsconfig` 至少启用 `strict`、`noUncheckedIndexedAccess`、`noFallthroughCasesInSwitch` 和 `isolatedModules`；不得用大范围排除、`skip` 脚本或独立宽松配置绕过产品源码。
+- `tsconfig` 的标准库包含 ES2025 与 DOM（Mantine 类型使用标准 `ReadonlySetLike`），测试类型使用 `@testing-library/jest-dom/vitest`；`tsconfig` 至少启用 `strict`、`noUncheckedIndexedAccess`、`noFallthroughCasesInSwitch` 和 `isolatedModules`；不得用大范围排除、`skip` 脚本或独立宽松配置绕过产品源码。
 - ESLint 至少拒绝显式 `any`、非空断言和产品源码直接 `console.*`。确需桥接第三方无类型边界时先收窄为 `unknown` 并在单一边界验证；测试或统一日志 sink 的局部例外必须写成精确文件规则。
 - 前端清单提供稳定的 `dev`、`build`、`test`、`typecheck`、`lint` 和 `format:check` 脚本；`lint` 必须同时运行 ESLint 与 [TypeScript AST 中文注释检查器](check-typescript-chinese-comments.cjs)，项目 validator 也独立调用同一检查器，避免只改脚本即可绕过。
 - TypeScript Compiler AST 中文注释检查器及其 [专项测试](check-typescript-chinese-comments.test.ts) 是 GUI 下游保留的治理资产。复制到项目自有工具目录后只修改导入路径和扫描根，不扩张到局部变量/普通匿名回调，也不得增加自动批量注释功能。
 - 门禁跟踪直接及后置命名/默认导出的箭头函数组件与 hook；`test`/`it` 只在 `.test.*`、`.spec.*`、`test/`、`tests/`、`__tests__/` 或显式从 `vitest` 导入的上下文中视为测试场景，避免业务同名调用误报。
-- Testing Library 通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖两种侧栏模式及详细模式持久化、功能区、按选择生成的底部顺序、默认设置页无隐私/统计控件和翻译键、设置固定路由及关于/赞助路由的存在与缺席。选择 Sponsor 或 About 时再覆盖对应主题、媒体、更新与内容约束；未选时锁定没有入口、路由和运行时资源。行内交互还要分别点击语义控件与父级周围区域，证明父级不会代理按钮、链接、`Switch` 或 `Checkbox`。普通页面会话回归用同一根 store 证明跨 route remount 保留、新 store 恢复默认，并覆盖成功空页回第 1 页；列表页回归完整执行 `$mantine-list-view` checklist。视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
+- Testing Library 的 MantineProvider wrapper 使用官方 `env="test"`，避免 jsdom 无布局尺寸触发 Tooltip 的生产 detach 隐藏逻辑；通过角色、可访问名称和用户交互验证可观察行为；不得用 DOM class、实现细节或大快照代替语义断言。测试运行环境使用 jsdom，并在需要 Mantine provider、Router、QueryClient 或 i18n 时装配真实最小 provider。初始化回归必须覆盖两种侧栏模式及详细模式持久化、功能区、按选择生成的底部顺序、默认设置页无隐私/统计控件和翻译键、设置固定路由及关于/赞助路由的存在与缺席。选择 Sponsor 或 About 时再覆盖对应主题、媒体、更新与内容约束；未选时锁定没有入口、路由和运行时资源。行内交互还要分别点击语义控件与父级周围区域，证明父级不会代理按钮、链接、`Switch` 或 `Checkbox`。普通页面会话回归用同一根 store 证明跨 route remount 保留、新 store 恢复默认，并覆盖成功空页回第 1 页；列表页回归完整执行 `$mantine-list-view` checklist。视频模板测试必须覆盖 controls、无 autoplay、字幕与文字稿。
 
 ## 配置、日志与产物
 

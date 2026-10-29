@@ -89,7 +89,7 @@ export function addGpuiAdapter(input) {
   }
   for (const [key, value] of [
     [`${options.projectId}_core`, `{ path = "${options.projectId}_core" }`],
-    ['gpui-kit', '"0.7.1"'], ['rust-i18n', '"4.2.0"'], ['sys-locale', '"0.3.2"'],
+    ['gpui-kit', '"0.8.1"'], ['rust-i18n', '"4.2.4"'], ['sys-locale', '"0.3.2"'],
     ['tracing', '{ version = "0.1.44", default-features = false, features = ["std"] }'],
     ['tracing-subscriber', '{ version = "0.3.23", default-features = false, features = ["fmt", "registry", "std"] }'],
     ['tracing-appender', '{ version = "0.2.5", default-features = false }'],

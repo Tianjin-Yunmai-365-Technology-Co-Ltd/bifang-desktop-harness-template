@@ -107,7 +107,7 @@ test("DMG background rejects a corrupt chunk checksum", () => {
 test("workspace dependency minimums accept registry floors and local paths", () => {
   const errors = [];
   validateWorkspaceDependencyMinimums(errors, {
-    clap: { version: "4.6.6", features: ["derive"] },
+    clap: { version: "4.6.7", features: ["derive"] },
     serde: "^1.0.229",
     local_core: { path: "local_core" },
   });
@@ -163,14 +163,14 @@ test("production Rust asset preserves exact verified floors and workspace inheri
   const errors = [];
   validateRustAssetManifests(errors);
   assert.deepEqual(errors, []);
-  assert.equal(EXPECTED_REGISTRY_FLOORS.get("tokio"), "1.53.1");
+  assert.equal(EXPECTED_REGISTRY_FLOORS.get("tokio"), "1.54.1");
 });
 
 test("Rust asset rejects a drifted registry floor", () => {
   withTemporaryDirectory((directory) => {
     const asset = copyRustAsset(directory);
     const manifest = path.join(asset, "Cargo.toml");
-    const source = fs.readFileSync(manifest, "utf8").replace('clap = { version = "4.6.6"', 'clap = { version = "4.6.5"');
+    const source = fs.readFileSync(manifest, "utf8").replace('clap = { version = "4.6.7"', 'clap = { version = "4.6.5"');
     fs.writeFileSync(manifest, source, "utf8");
     const errors = [];
     validateRustAssetManifests(errors, asset);
@@ -182,7 +182,7 @@ test("Rust asset rejects direct member dependency declarations", () => {
   withTemporaryDirectory((directory) => {
     const asset = copyRustAsset(directory);
     const manifest = path.join(asset, "example_tool_cli", "Cargo.toml");
-    const source = fs.readFileSync(manifest, "utf8").replace("clap.workspace = true", 'clap = "4.6.6"');
+    const source = fs.readFileSync(manifest, "utf8").replace("clap.workspace = true", 'clap = "4.6.7"');
     fs.writeFileSync(manifest, source, "utf8");
     const errors = [];
     validateRustAssetManifests(errors, asset);

@@ -1,0 +1,773 @@
+{
+  "schemaVersion": 1,
+  "checkedOn": "2026-10-29",
+  "scope": "registered stable dependency candidates; no capability is enabled by this catalog",
+  "constraints": {
+    "rustMsrv": "1.98.1",
+    "node": ">=24.0.0",
+    "pnpm": ">=12.4.1"
+  },
+  "verificationBoundary": "Registry metadata and local dependency-admission tests do not establish all target-platform or final-artifact compatibility. Real downstream projects must retain their own verification.",
+  "crates": {
+    "accesskit_macos": {
+      "version": "0.26.3",
+      "latestStable": "0.27.2",
+      "declaredRustVersion": "1.85",
+      "source": "https://crates.io/api/v1/crates/accesskit_macos/0.26.3",
+      "selectionReason": "gpui-pre-macos 0.3.10 requires accesskit_macos ^0.26.0; latest 0.27.2 is outside that API family"
+    },
+    "anyhow": {
+      "version": "1.0.104",
+      "latestStable": "1.0.104",
+      "declaredRustVersion": "1.68",
+      "source": "https://crates.io/api/v1/crates/anyhow/1.0.104"
+    },
+    "argon2": {
+      "version": "0.6.0",
+      "latestStable": "0.6.0",
+      "declaredRustVersion": "1.85",
+      "source": "https://crates.io/api/v1/crates/argon2/0.6.0"
+    },
+    "assert_cmd": {
+      "version": "2.2.2",
+      "latestStable": "2.2.2",
+      "declaredRustVersion": "1.85",
+      "source": "https://crates.io/api/v1/crates/assert_cmd/2.2.2"
+    },
+    "async-graphql": {
+      "version": "7.2.1",
+      "latestStable": "7.2.1",
+      "declaredRustVersion": "1.89.0",
+      "source": "https://crates.io/api/v1/crates/async-graphql/7.2.1"
+    },
+    "async-graphql-axum": {
+      "version": "7.2.1",
+      "latestStable": "7.2.1",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/async-graphql-axum/7.2.1"
+    },
+    "auto-launch": {
+      "version": "0.6.0",
+      "latestStable": "0.6.0",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/auto-launch/0.6.0"
+    },
+    "axum": {
+      "version": "0.8.9",
+      "latestStable": "0.8.9",
+      "declaredRustVersion": "1.80",
+      "source": "https://crates.io/api/v1/crates/axum/0.8.9"
+    },
+    "clap": {
+      "version": "4.6.7",
+      "latestStable": "4.6.7",
+      "declaredRustVersion": "1.85",
+      "source": "https://crates.io/api/v1/crates/clap/4.6.7"
+    },
+    "config": {
+      "version": "0.15.27",
+      "latestStable": "0.15.27",
+      "declaredRustVersion": "1.88.0",
+      "source": "https://crates.io/api/v1/crates/config/0.15.27"
+    },
+    "dirs": {
+      "version": "7.0.0",
+      "latestStable": "7.0.0",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/dirs/7.0.0"
+    },
+    "futures-util": {
+      "version": "0.3.34",
+      "latestStable": "0.3.34",
+      "declaredRustVersion": "1.71",
+      "source": "https://crates.io/api/v1/crates/futures-util/0.3.34"
+    },
+    "global-hotkey": {
+      "version": "0.9.0",
+      "latestStable": "0.9.0",
+      "declaredRustVersion": "1.77",
+      "source": "https://crates.io/api/v1/crates/global-hotkey/0.9.0"
+    },
+    "gpui-kit": {
+      "version": "0.8.1",
+      "latestStable": "0.8.1",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/gpui-kit/0.8.1"
+    },
+    "gpui-pre": {
+      "version": "0.3.10",
+      "latestStable": "0.3.10",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/gpui-pre/0.3.10"
+    },
+    "gpui-pre-apple": {
+      "version": "0.3.10",
+      "latestStable": "0.3.10",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/gpui-pre-apple/0.3.10"
+    },
+    "gpui-pre-macos": {
+      "version": "0.3.10",
+      "latestStable": "0.3.10",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/gpui-pre-macos/0.3.10"
+    },
+    "gpui-pre-wgpu": {
+      "version": "0.3.10",
+      "latestStable": "0.3.10",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/gpui-pre-wgpu/0.3.10"
+    },
+    "gpui-pre-windows": {
+      "version": "0.3.10",
+      "latestStable": "0.3.10",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/gpui-pre-windows/0.3.10"
+    },
+    "interprocess": {
+      "version": "2.4.7",
+      "latestStable": "2.4.7",
+      "declaredRustVersion": "1.75",
+      "source": "https://crates.io/api/v1/crates/interprocess/2.4.7"
+    },
+    "jiff": {
+      "version": "0.2.38",
+      "latestStable": "0.2.38",
+      "declaredRustVersion": "1.70",
+      "source": "https://crates.io/api/v1/crates/jiff/0.2.38"
+    },
+    "jsonwebtoken": {
+      "version": "11.1.0",
+      "latestStable": "11.1.0",
+      "declaredRustVersion": "1.88.0",
+      "source": "https://crates.io/api/v1/crates/jsonwebtoken/11.1.0"
+    },
+    "mac-usernotifications": {
+      "version": "0.3.1",
+      "latestStable": "0.3.1",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/mac-usernotifications/0.3.1"
+    },
+    "mongodb": {
+      "version": "3.9.1",
+      "latestStable": "3.9.1",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/mongodb/3.9.1"
+    },
+    "notify": {
+      "version": "8.2.1",
+      "latestStable": "8.2.1",
+      "declaredRustVersion": "1.85",
+      "source": "https://crates.io/api/v1/crates/notify/8.2.1"
+    },
+    "num-bigint": {
+      "version": "0.5.1",
+      "latestStable": "0.5.1",
+      "declaredRustVersion": "1.60",
+      "source": "https://crates.io/api/v1/crates/num-bigint/0.5.1"
+    },
+    "num-traits": {
+      "version": "0.2.19",
+      "latestStable": "0.2.19",
+      "declaredRustVersion": "1.60",
+      "source": "https://crates.io/api/v1/crates/num-traits/0.2.19"
+    },
+    "opentelemetry": {
+      "version": "0.33.1",
+      "latestStable": "0.33.1",
+      "declaredRustVersion": "1.75.0",
+      "source": "https://crates.io/api/v1/crates/opentelemetry/0.33.1"
+    },
+    "opentelemetry-otlp": {
+      "version": "0.33.1",
+      "latestStable": "0.33.1",
+      "declaredRustVersion": "1.75.0",
+      "source": "https://crates.io/api/v1/crates/opentelemetry-otlp/0.33.1"
+    },
+    "png": {
+      "version": "0.18.1",
+      "latestStable": "0.18.1",
+      "declaredRustVersion": "1.73",
+      "source": "https://crates.io/api/v1/crates/png/0.18.1"
+    },
+    "ratatui": {
+      "version": "0.30.2",
+      "latestStable": "0.30.2",
+      "declaredRustVersion": "1.88.0",
+      "source": "https://crates.io/api/v1/crates/ratatui/0.30.2"
+    },
+    "raw-window-handle": {
+      "version": "0.6.2",
+      "latestStable": "0.6.2",
+      "declaredRustVersion": "1.64",
+      "source": "https://crates.io/api/v1/crates/raw-window-handle/0.6.2"
+    },
+    "redis": {
+      "version": "1.8.0",
+      "latestStable": "1.8.0",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/redis/1.8.0"
+    },
+    "reqwest": {
+      "version": "0.13.5",
+      "latestStable": "0.13.5",
+      "declaredRustVersion": "1.85.0",
+      "source": "https://crates.io/api/v1/crates/reqwest/0.13.5"
+    },
+    "rmcp": {
+      "version": "3.8.0",
+      "latestStable": "3.8.0",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/rmcp/3.8.0"
+    },
+    "rust-embed": {
+      "version": "8.13.0",
+      "latestStable": "8.13.0",
+      "declaredRustVersion": "1.80.0",
+      "source": "https://crates.io/api/v1/crates/rust-embed/8.13.0"
+    },
+    "rust-i18n": {
+      "version": "4.2.4",
+      "latestStable": "4.2.4",
+      "declaredRustVersion": null,
+      "source": "https://crates.io/api/v1/crates/rust-i18n/4.2.4"
+    },
+    "sea-orm": {
+      "version": "2.0.4",
+      "latestStable": "2.0.4",
+      "declaredRustVersion": "1.94.0",
+      "source": "https://crates.io/api/v1/crates/sea-orm/2.0.4"
+    },
+    "serde": {
+      "version": "1.0.229",
+      "latestStable": "1.0.229",
+      "declaredRustVersion": "1.56",
+      "source": "https://crates.io/api/v1/crates/serde/1.0.229"
+    },
+    "serde_json": {
+      "version": "1.0.154",
+      "latestStable": "1.0.154",
+      "declaredRustVersion": "1.71",
+      "source": "https://crates.io/api/v1/crates/serde_json/1.0.154"
+    },
+    "sys-locale": {
+      "version": "0.3.2",
+      "latestStable": "0.3.2",
+      "declaredRustVersion": "1.56",
+      "source": "https://crates.io/api/v1/crates/sys-locale/0.3.2"
+    },
+    "tauri": {
+      "version": "2.12.5",
+      "latestStable": "2.12.5",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri/2.12.5"
+    },
+    "tauri-build": {
+      "version": "2.7.4",
+      "latestStable": "2.7.4",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-build/2.7.4"
+    },
+    "tauri-plugin-autostart": {
+      "version": "2.7.0",
+      "latestStable": "2.7.0",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-autostart/2.7.0"
+    },
+    "tauri-plugin-deep-link": {
+      "version": "2.6.3",
+      "latestStable": "2.6.3",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-deep-link/2.6.3"
+    },
+    "tauri-plugin-dialog": {
+      "version": "2.8.4",
+      "latestStable": "2.8.4",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-dialog/2.8.4"
+    },
+    "tauri-plugin-global-shortcut": {
+      "version": "2.4.1",
+      "latestStable": "2.4.1",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-global-shortcut/2.4.1"
+    },
+    "tauri-plugin-notification": {
+      "version": "2.8.0",
+      "latestStable": "2.8.0",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-notification/2.8.0"
+    },
+    "tauri-plugin-os": {
+      "version": "2.4.0",
+      "latestStable": "2.4.0",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-os/2.4.0"
+    },
+    "tauri-plugin-single-instance": {
+      "version": "2.5.5",
+      "latestStable": "2.5.5",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-single-instance/2.5.5"
+    },
+    "tauri-plugin-updater": {
+      "version": "2.14.1",
+      "latestStable": "2.14.1",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-updater/2.14.1"
+    },
+    "tauri-plugin-window-state": {
+      "version": "2.5.0",
+      "latestStable": "2.5.0",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tauri-plugin-window-state/2.5.0"
+    },
+    "tempfile": {
+      "version": "3.27.0",
+      "latestStable": "3.27.0",
+      "declaredRustVersion": "1.63",
+      "source": "https://crates.io/api/v1/crates/tempfile/3.27.0"
+    },
+    "thiserror": {
+      "version": "2.0.21",
+      "latestStable": "2.0.21",
+      "declaredRustVersion": "1.77",
+      "source": "https://crates.io/api/v1/crates/thiserror/2.0.21"
+    },
+    "tokio": {
+      "version": "1.54.1",
+      "latestStable": "1.54.1",
+      "declaredRustVersion": "1.85",
+      "source": "https://crates.io/api/v1/crates/tokio/1.54.1"
+    },
+    "tokio-tungstenite": {
+      "version": "0.30.0",
+      "latestStable": "0.30.0",
+      "declaredRustVersion": "1.85",
+      "source": "https://crates.io/api/v1/crates/tokio-tungstenite/0.30.0"
+    },
+    "tower": {
+      "version": "0.5.3",
+      "latestStable": "0.5.3",
+      "declaredRustVersion": "1.64.0",
+      "source": "https://crates.io/api/v1/crates/tower/0.5.3"
+    },
+    "tower-http": {
+      "version": "0.7.1",
+      "latestStable": "0.7.1",
+      "declaredRustVersion": "1.65",
+      "source": "https://crates.io/api/v1/crates/tower-http/0.7.1"
+    },
+    "tracing": {
+      "version": "0.1.44",
+      "latestStable": "0.1.44",
+      "declaredRustVersion": "1.65.0",
+      "source": "https://crates.io/api/v1/crates/tracing/0.1.44"
+    },
+    "tracing-appender": {
+      "version": "0.2.5",
+      "latestStable": "0.2.5",
+      "declaredRustVersion": "1.63.0",
+      "source": "https://crates.io/api/v1/crates/tracing-appender/0.2.5"
+    },
+    "tracing-opentelemetry": {
+      "version": "0.34.0",
+      "latestStable": "0.34.0",
+      "declaredRustVersion": "1.75.0",
+      "source": "https://crates.io/api/v1/crates/tracing-opentelemetry/0.34.0"
+    },
+    "tracing-subscriber": {
+      "version": "0.3.23",
+      "latestStable": "0.3.23",
+      "declaredRustVersion": "1.65.0",
+      "source": "https://crates.io/api/v1/crates/tracing-subscriber/0.3.23"
+    },
+    "tray-icon": {
+      "version": "0.26.1",
+      "latestStable": "0.26.1",
+      "declaredRustVersion": "1.90",
+      "source": "https://crates.io/api/v1/crates/tray-icon/0.26.1"
+    },
+    "tui-realm-stdlib": {
+      "version": "4.1.0",
+      "latestStable": "4.1.0",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/tui-realm-stdlib/4.1.0"
+    },
+    "tuirealm": {
+      "version": "4.1.0",
+      "latestStable": "4.1.0",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/tuirealm/4.1.0"
+    },
+    "utoipa": {
+      "version": "6.0.0",
+      "latestStable": "6.0.0",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/utoipa/6.0.0"
+    },
+    "utoipa-axum": {
+      "version": "0.3.0",
+      "latestStable": "0.3.0",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/utoipa-axum/0.3.0"
+    },
+    "utoipa-scalar": {
+      "version": "0.4.0",
+      "latestStable": "0.4.0",
+      "declaredRustVersion": "1.88",
+      "source": "https://crates.io/api/v1/crates/utoipa-scalar/0.4.0"
+    }
+  },
+  "npm": {
+    "@dnd-kit/core": {
+      "version": "6.3.1",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": ">=16.8.0",
+        "react-dom": ">=16.8.0"
+      },
+      "conditional": true,
+      "source": "https://registry.npmjs.org/%40dnd-kit%2Fcore/6.3.1"
+    },
+    "@dnd-kit/sortable": {
+      "version": "10.0.0",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": ">=16.8.0",
+        "@dnd-kit/core": "^6.3.0"
+      },
+      "conditional": true,
+      "source": "https://registry.npmjs.org/%40dnd-kit%2Fsortable/10.0.0"
+    },
+    "@mantine/core": {
+      "version": "9.7.4",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "@mantine/hooks": "9.7.4"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40mantine%2Fcore/9.7.4"
+    },
+    "@mantine/hooks": {
+      "version": "9.7.4",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": "^19.2.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40mantine%2Fhooks/9.7.4"
+    },
+    "@tabler/icons-react": {
+      "version": "3.50.0",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": ">= 16"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40tabler%2Ficons-react/3.50.0"
+    },
+    "@tanstack/react-query": {
+      "version": "5.105.0",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": "^18 || ^19",
+        "@types/react": "^18 || ^19"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40tanstack%2Freact-query/5.105.0"
+    },
+    "@tanstack/react-router": {
+      "version": "1.170.46",
+      "nodeEngine": ">=20.19",
+      "peerDependencies": {
+        "react": ">=18.0.0 || >=19.0.0",
+        "react-dom": ">=18.0.0 || >=19.0.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40tanstack%2Freact-router/1.170.46"
+    },
+    "@tanstack/router-plugin": {
+      "version": "1.168.48",
+      "nodeEngine": ">=20.19",
+      "peerDependencies": {
+        "vite": ">=5.0.0 || >=6.0.0 || >=7.0.0 || >=8.0.0",
+        "webpack": ">=5.92.0",
+        "@rsbuild/core": ">=1.0.2 || ^2.0.0",
+        "vite-plugin-solid": "^2.11.10 || ^3.0.0-0",
+        "@tanstack/react-router": "^1.170.46"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40tanstack%2Frouter-plugin/1.168.48"
+    },
+    "@tauri-apps/api": {
+      "version": "2.12.4",
+      "nodeEngine": null,
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fapi/2.12.4"
+    },
+    "@tauri-apps/cli": {
+      "version": "2.12.4",
+      "nodeEngine": ">= 10",
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fcli/2.12.4"
+    },
+    "@tauri-apps/plugin-dialog": {
+      "version": "2.8.4",
+      "nodeEngine": null,
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40tauri-apps%2Fplugin-dialog/2.8.4"
+    },
+    "@testing-library/dom": {
+      "version": "10.4.2",
+      "nodeEngine": ">=18",
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40testing-library%2Fdom/10.4.2"
+    },
+    "@testing-library/jest-dom": {
+      "version": "7.0.1",
+      "nodeEngine": ">=22",
+      "peerDependencies": {
+        "vitest": ">= 0.32",
+        "@testing-library/dom": ">=10 <11"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40testing-library%2Fjest-dom/7.0.1"
+    },
+    "@testing-library/react": {
+      "version": "16.3.3",
+      "nodeEngine": ">=18",
+      "peerDependencies": {
+        "react": "^18.0.0 || ^19.0.0",
+        "react-dom": "^18.0.0 || ^19.0.0",
+        "@types/react": "^18.0.0 || ^19.0.0",
+        "@types/react-dom": "^18.0.0 || ^19.0.0",
+        "@testing-library/dom": "^10.0.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40testing-library%2Freact/16.3.3"
+    },
+    "@testing-library/user-event": {
+      "version": "14.6.8",
+      "nodeEngine": ">=12",
+      "peerDependencies": {
+        "@testing-library/dom": ">=7.21.4"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40testing-library%2Fuser-event/14.6.8"
+    },
+    "@types/node": {
+      "version": "24.19.2",
+      "nodeEngine": null,
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40types%2Fnode/24.19.2"
+    },
+    "@types/react": {
+      "version": "19.3.0",
+      "nodeEngine": null,
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40types%2Freact/19.3.0"
+    },
+    "@types/react-dom": {
+      "version": "19.3.0",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "@types/react": "^19.3.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40types%2Freact-dom/19.3.0"
+    },
+    "@vitejs/plugin-react": {
+      "version": "6.1.2",
+      "nodeEngine": "^20.19.0 || >=22.12.0",
+      "peerDependencies": {
+        "vite": "^8.0.0",
+        "oxc-transform-react": "^0.152.0",
+        "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0",
+        "babel-plugin-react-compiler": "^1.0.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/%40vitejs%2Fplugin-react/6.1.2"
+    },
+    "eslint": {
+      "version": "10.13.0",
+      "nodeEngine": "^20.19.0 || ^22.13.0 || >=24",
+      "peerDependencies": {
+        "jiti": "*"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/eslint/10.13.0"
+    },
+    "i18next": {
+      "version": "26.5.11",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "typescript": "^5 || ^6 || ^7"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/i18next/26.5.11"
+    },
+    "jotai": {
+      "version": "3.0.1",
+      "nodeEngine": ">=22.12.0",
+      "peerDependencies": {
+        "react": ">=18.0.0",
+        "@types/react": ">=18.0.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/jotai/3.0.1"
+    },
+    "jsdom": {
+      "version": "29.1.1",
+      "nodeEngine": "^20.19.0 || ^22.13.0 || >=24.0.0",
+      "peerDependencies": {
+        "canvas": "^3.0.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/jsdom/29.1.1"
+    },
+    "prettier": {
+      "version": "3.9.10",
+      "nodeEngine": ">=14",
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/prettier/3.9.10"
+    },
+    "react": {
+      "version": "19.3.1",
+      "nodeEngine": ">=0.10.0",
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/react/19.3.1"
+    },
+    "react-dom": {
+      "version": "19.3.1",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": "^19.3.1"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/react-dom/19.3.1"
+    },
+    "react-i18next": {
+      "version": "17.1.9",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "react": ">= 16.8.0",
+        "i18next": ">= 26.2.0",
+        "typescript": "^5 || ^6 || ^7"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/react-i18next/17.1.9"
+    },
+    "react-markdown": {
+      "version": "10.1.0",
+      "nodeEngine": null,
+      "peerDependencies": {
+        "@types/react": ">=18",
+        "react": ">=18"
+      },
+      "conditional": true,
+      "source": "https://registry.npmjs.org/react-markdown/10.1.0"
+    },
+    "remark-gfm": {
+      "version": "4.0.1",
+      "nodeEngine": null,
+      "peerDependencies": {},
+      "conditional": true,
+      "source": "https://registry.npmjs.org/remark-gfm/4.0.1"
+    },
+    "typescript": {
+      "version": "6.0.3",
+      "nodeEngine": ">=14.17",
+      "peerDependencies": {},
+      "conditional": false,
+      "source": "https://registry.npmjs.org/typescript/6.0.3"
+    },
+    "typescript-eslint": {
+      "version": "8.72.1",
+      "nodeEngine": "^18.18.0 || ^20.9.0 || >=21.1.0",
+      "peerDependencies": {
+        "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0",
+        "typescript": ">=4.8.4 <6.1.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/typescript-eslint/8.72.1"
+    },
+    "vite": {
+      "version": "8.3.5",
+      "nodeEngine": "^20.19.0 || >=22.12.0",
+      "peerDependencies": {
+        "tsx": "^4.8.1",
+        "jiti": ">=1.21.0",
+        "less": "^4.0.0",
+        "sass": "^1.70.0",
+        "yaml": "^2.4.2",
+        "stylus": ">=0.54.8",
+        "terser": "^5.16.0",
+        "esbuild": "^0.27.0 || ^0.28.0",
+        "sugarss": "^5.0.0",
+        "@types/node": "^20.19.0 || >=22.12.0",
+        "sass-embedded": "^1.70.0",
+        "@vitejs/devtools": "^0.7.1 || ^0.8.0"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/vite/8.3.5"
+    },
+    "vitest": {
+      "version": "4.1.12",
+      "nodeEngine": "^20.0.0 || ^22.0.0 || >=24.0.0",
+      "peerDependencies": {
+        "vite": "^6.0.0 || ^7.0.0 || ^8.0.0",
+        "jsdom": "*",
+        "happy-dom": "*",
+        "@vitest/ui": "4.1.12",
+        "@types/node": "^20.0.0 || ^22.0.0 || >=24.0.0",
+        "@edge-runtime/vm": "*",
+        "@opentelemetry/api": "^1.9.0",
+        "@vitest/coverage-v8": "4.1.12",
+        "@vitest/browser-preview": "4.1.12",
+        "@vitest/coverage-istanbul": "4.1.12",
+        "@vitest/browser-playwright": "4.1.12",
+        "@vitest/browser-webdriverio": "^4.1.11"
+      },
+      "conditional": false,
+      "source": "https://registry.npmjs.org/vitest/4.1.12"
+    }
+  },
+  "retainedCompatibleLines": [
+    {
+      "name": "typescript",
+      "version": "7.0.2",
+      "reason": "typescript-eslint@8.72.1 requires TypeScript >=4.8.4 <6.1.0; TypeScript 7.0 has no stable compiler API used by the Chinese-comment AST checker"
+    },
+    {
+      "name": "vitest",
+      "version": "5.0.5",
+      "reason": "engines.node ^22.12.0 || ^24.0.0 || >=26.0.0 excludes Node.js 25.x"
+    },
+    {
+      "name": "jsdom",
+      "version": "30.1.3",
+      "reason": "engines.node ^22.22.2 || ^24.15.0 || >=26.0.0 excludes Node.js 24.0-24.14 and 25.x"
+    },
+    {
+      "name": "@types/node",
+      "version": "26.6.6",
+      "reason": "keep latest 24.x types aligned with the declared minimum runtime/API line, instead of exposing Node26-only APIs"
+    },
+    {
+      "name": "accesskit_macos",
+      "version": "0.27.2",
+      "reason": "gpui-pre-macos 0.3.10 requires ^0.26.0; keep the highest compatible 0.26.3 instead of rewriting its transitive ABI family"
+    }
+  ]
+}

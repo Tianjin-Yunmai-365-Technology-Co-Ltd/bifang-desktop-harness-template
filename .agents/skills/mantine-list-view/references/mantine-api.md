@@ -1,6 +1,6 @@
 # Mantine 与 Query API 边界
 
-本参考于 2026-09-19 对照 Mantine `9.6.1` 与 TanStack Query v5 文档复核。模板使用 `Pagination layout="responsive"`、`formatLabel`、`getItemProps`、`getControlProps` 和 Query v5 `placeholderData(previousData, previousQuery)`，因此直接复制的兼容下界是 `@mantine/core >=9.6.1 <10`、`@tanstack/react-query >=5.102.8 <6`。下游仍使用带完整三段下界的 caret 范围，生成的锁文件由 Git 忽略；低于下界时必须先升级，或实现并测试语义等价 fallback。
+本参考于 2026-09-19 对照 Mantine `9.7.4` 与 TanStack Query v5 文档复核。模板使用 `Pagination layout="responsive"`、`formatLabel`、`getItemProps`、`getControlProps` 和 Query v5 `placeholderData(previousData, previousQuery)`，因此直接复制的兼容下界是 `@mantine/core >=9.7.4 <10`、`@tanstack/react-query >=5.105.0 <6`。下游仍使用带完整三段下界的 caret 范围，生成的锁文件由 Git 忽略；低于下界时必须先升级，或实现并测试语义等价 fallback。
 
 ## Table 与滚动区
 

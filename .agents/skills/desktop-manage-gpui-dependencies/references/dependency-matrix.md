@@ -1,18 +1,18 @@
 # GPUI 版本与能力矩阵
 
-核对日期：2026-10-19。这里是工程参考；目标项目根 Cargo 和成员 target 条件为权威，不声称 registry 最新版本。
+核对日期：2026-10-29。中性声明按官方 registry 最新可兼容稳定候选更新；已有产品列保留历史采用事实。目标项目根 Cargo 和成员 target 条件仍为权威，真实下游须复核自身兼容性。
 
 | 角色 | 中性 renderer 的声明下界 | 已有产品采用的声明参考 | 选择条件 |
 | --- | --- | --- | --- |
-| 组件与图标 | `gpui-kit 0.7.1` | `0.7.3` | 固定原生 GUI；避免另装不兼容 GPUI 副本 |
-| 编译期词典 | `rust-i18n 4.2.0` | `4.2.4` | 固定中英词典；更高产品下界不回退 |
+| 组件与图标 | `gpui-kit 0.8.1` | `0.7.3` | 固定原生 GUI；避免另装不兼容 GPUI 副本 |
+| 编译期词典 | `rust-i18n 4.2.4` | `4.2.4` | 固定中英词典；更高产品下界不回退 |
 | 系统语言 | `sys-locale 0.3.2` | `0.3.2` | 固定真实系统语言 |
 | 结构化日志 | `tracing 0.1.44`、`tracing-subscriber 0.3.23`、`tracing-appender 0.2.5` | 同左 | 端侧单 subscriber、有界日志；core 仅 facade |
 | 托盘 | `tray-icon 0.26.1`，关闭默认 features | `=0.26.1` + 路径补丁 | profile 启用；renderer 仍限 macOS/Windows；Linux KSNI 需另有真实接线 |
 | 自启 | `auto-launch 0.6.0` | 同左 | profile 启用；启动不自动注册 |
-| 单实例 IPC | `interprocess 2.4.4` | `2.4.5` | profile 启用；私有锁及有界唤醒消息 |
+| 单实例 IPC | `interprocess 2.4.7` | `2.4.5` | profile 启用；私有锁及有界唤醒消息 |
 | 窗口桥 | `raw-window-handle 0.6.2` | 同左 | renderer 仅 Windows 按需继承；产品按真实平台扩展 |
-| 全局快捷键 | `global-hotkey 0.8.0` | 同左 | renderer 限 macOS/Windows；空 action contract 零注册 |
+| 全局快捷键 | `global-hotkey 0.9.0` | `0.8.0`（历史） | renderer 限 macOS/Windows；空 action contract 零注册 |
 
 以上非 `=` 版本是 Cargo 兼容范围，不能把声明下界差异描述为实际安装降级。中性 renderer 的历史版本表见 [adapter 依赖参考](../../desktop-add-gpui-adapter/references/dependency-baseline.md)，它不替代当前产品清单。
 

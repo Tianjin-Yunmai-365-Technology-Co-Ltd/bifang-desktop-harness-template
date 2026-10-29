@@ -237,6 +237,9 @@ export function validateMarkdownLinks(errors, files = trackedFiles()) {
     ["gpui-kit-design-guides/references/design-guides.md|./coding-guides.md", "gpui-kit/references/coding-guides.md"],
     ["gpui-kit/references/coding-guides.md|./getting-started.md", null],
     ["gpui-kit/references/usage.md|../../../examples/ai_recipes/src/bootstrap.rs", null],
+    ["gpui-kit-design-guides/references/design-guides.md|./style", null],
+    ["gpui-kit-design-guides/references/design-guides.md|./action", null],
+    ["gpui-kit-design-guides/references/design-guides.md|./keybinding", null],
   ]);
   const linkPattern = /!?\[[^\]]*\]\(([^)]+)\)/gu;
   for (const relative of markdownFiles) {

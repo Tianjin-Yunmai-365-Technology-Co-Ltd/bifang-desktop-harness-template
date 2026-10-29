@@ -7,10 +7,10 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 export const SKILL_NAMES = Object.freeze(['gpui-kit', 'gpui-kit-design-guides']);
-export const UPSTREAM_COMMIT = '0bbd9870ce420af9feacbf948b21d3824d82dc0b';
+export const UPSTREAM_COMMIT = '99576db58ec8103417c41a092e891b4022d24e7e';
 export const SNAPSHOT_ROOT = fileURLToPath(new URL('../assets/vendor/gpui-kit-skills/', import.meta.url));
 const REPOSITORY = 'https://github.com/longbridge/gpui-kit';
-const MANIFEST_SHA256 = '1a08f5dcc48c960019eb807b5ddc90d917f40fd8e9ff3a3963203ae6492a19dc';
+const MANIFEST_SHA256 = '341d9b18a9bb28da5304a7b69e1661560daf207a2d211fd80fd9364a41c4040c';
 
 /** 只将真正不存在的路径视为缺失，保留权限与文件系统诊断。 */
 function optionalStat(file) {
@@ -87,7 +87,7 @@ export function loadGpuiKitSkillsSnapshot(snapshotRoot = SNAPSHOT_ROOT) {
     const skill = files.get('SKILL.md')?.toString('utf8');
     if (!skill?.startsWith(`---\nname: ${name}\n`)) throw new Error(`GPUI Kit Skill 名称无效：${name}`);
     files.set('LICENSE-APACHE', license);
-    files.set('HARNESS-INTEGRATION.md', Buffer.from(`# GPUI Kit 本地知识资产\n\n官方 Skill 与 references 保留原始字节；来源固定为 [GPUI Kit ${UPSTREAM_COMMIT}](${REPOSITORY}/tree/${UPSTREAM_COMMIT}/skills)，许可见 [LICENSE-APACHE](LICENSE-APACHE)。本文件由 Harness 添加。\n\n当前视觉唯一依据是项目 docs/design_standards/ui_foundation.md；官方原文仅用于组件/API、Entity/事件、焦点和原生交互机制，独立审美与旧像素不自动生效。用户指令和项目规则优先；这些知识不授权改变框架、依赖、产品范围或验收责任。API 按项目实际依赖版本复核。\n\n上游原样文档中的相对引用按以下语义读取：\n\n- Design Guides：项目本地 .agents/skills/gpui-kit-design-guides/references/design-guides.md。\n- Coding Guides：项目本地 .agents/skills/gpui-kit/references/coding-guides.md。\n- Getting Started：[官方文档](https://gpui-kit.com/docs/getting-started.md)。\n- usage.md 的仓库示例：[bootstrap.rs](${REPOSITORY}/blob/${UPSTREAM_COMMIT}/examples/ai_recipes/src/bootstrap.rs)。该示例是参考，不是本地必需文件或要执行的安装脚本。\n`));
+    files.set('HARNESS-INTEGRATION.md', Buffer.from(`# GPUI Kit 本地知识资产\n\n官方 Skill 与 references 保留原始字节；来源固定为 [GPUI Kit ${UPSTREAM_COMMIT}](${REPOSITORY}/tree/${UPSTREAM_COMMIT}/skills)，许可见 [LICENSE-APACHE](LICENSE-APACHE)。本文件由 Harness 添加。\n\n当前视觉唯一依据是项目 docs/design_standards/ui_foundation.md；官方原文仅用于组件/API、Entity/事件、焦点和原生交互机制，独立审美与旧像素不自动生效。用户指令和项目规则优先；这些知识不授权改变框架、依赖、产品范围或验收责任。API 按项目实际依赖版本复核。\n\n本快照对应 GPUI Kit 0.8.1。上游原样文档中的 gpui-kit 0.7 仍是历史示例，实际版本以项目 Cargo 与当前依赖矩阵为准，不据此回退。默认后端使用 gpui-pre 0.3.10 家族，旧 0.3.9 补丁须重核来源、锚点与 ABI；不因知识更新启用 GPUI Fast、JavaScript Shell 或 WebView。\n\n上游原样文档中的相对引用按以下语义读取：\n\n- Design Guides：项目本地 .agents/skills/gpui-kit-design-guides/references/design-guides.md。\n- Coding Guides：项目本地 .agents/skills/gpui-kit/references/coding-guides.md。\n- Getting Started：[官方文档](https://gpui-kit.com/docs/getting-started.md)。\n- 原样 Design Guides 的 ./style、./action、./keybinding 是官方站点引用，分别读取 [Style](https://gpui-kit.com/docs/style/)、[Action](https://gpui-kit.com/docs/action/) 和 [KeyBinding](https://gpui-kit.com/docs/keybinding/)。\n- usage.md 的仓库示例：[bootstrap.rs](${REPOSITORY}/blob/${UPSTREAM_COMMIT}/examples/ai_recipes/src/bootstrap.rs)。该示例是参考，不是本地必需文件或要执行的安装脚本。\n`));
     const provenance = { schemaVersion: 1, repository: REPOSITORY, commit: UPSTREAM_COMMIT, upstreamPath: `skills/${name}`, license: 'Apache-2.0', upstreamModified: false, integrationGuidance: 'HARNESS-INTEGRATION.md',
       files: Object.fromEntries([...files].map(([file, bytes]) => [file, { bytes: bytes.length, sha256: digest(bytes) }])) };
     files.set('source.json', Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`));

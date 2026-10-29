@@ -59,7 +59,7 @@ test('add_only_preserves_existing_core_and_merges_native_gui', () => {
     assert.match(cargo, /members = \["existing_tool_core","existing_tool_gui"\]/);
     assert.match(cargo, /interfaces = \["cli","gui"\]/);
     assert.match(cargo, /gui-framework = "gpui"/);
-    assert.match(cargo, /gpui-kit = "0\.7\.1"/);
+    assert.match(cargo, /gpui-kit = "0\.8\.1"/);
     assert.equal(fs.existsSync(path.join(target, '.git')), false);
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
 });
@@ -116,7 +116,7 @@ test('native_dependency_selection_and_conflicts_preserve_existing_workspace', ()
       } else {
         addGpuiAdapter(options);
         const result = fs.readFileSync(file, 'utf8');
-        assert.match(result, /interprocess = "2\.4\.4"/);
+        assert.match(result, /interprocess = "2\.4\.7"/);
         assert.doesNotMatch(result, /tray-icon|auto-launch|global-hotkey/);
         assert.ok(fs.existsSync(path.join(target, 'existing_tool_gui/src/native/instance.rs')));
       }

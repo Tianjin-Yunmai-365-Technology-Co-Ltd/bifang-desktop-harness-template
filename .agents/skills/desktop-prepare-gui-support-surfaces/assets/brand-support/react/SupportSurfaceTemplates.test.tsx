@@ -103,7 +103,7 @@ async function renderTemplate(
   const instance = await createTestI18n(locale);
   return render(
     <I18nextProvider i18n={instance}>
-      <MantineProvider forceColorScheme={colorScheme} theme={APP_THEME} cssVariablesResolver={APP_THEME_CSS_VARIABLES}>{node}</MantineProvider>
+      <MantineProvider env="test" forceColorScheme={colorScheme} theme={APP_THEME} cssVariablesResolver={APP_THEME_CSS_VARIABLES}>{node}</MantineProvider>
     </I18nextProvider>,
   );
 }
@@ -795,9 +795,11 @@ describe("shared brand support templates", () => {
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
     expect(await screen.findByText("重试成功")).toBeInTheDocument();
     await act(async () => {
+      const firstFresh = fresh[0];
+      if (!firstFresh) throw new Error("expected a fresh release-note fixture");
       resolveFirst([
         {
-          ...fresh[0],
+          ...firstFresh,
           featureOptimizations: [
             { "zh-CN": "迟到内容", "en-US": "Late result" },
           ],

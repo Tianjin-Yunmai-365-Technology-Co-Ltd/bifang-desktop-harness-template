@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repository": "https://github.com/longbridge/gpui-kit",
-  "commit": "0bbd9870ce420af9feacbf948b21d3824d82dc0b",
+  "commit": "99576db58ec8103417c41a092e891b4022d24e7e",
   "upstreamPath": "skills",
   "license": "Apache-2.0",
   "skills": [
@@ -15,8 +15,8 @@
       "upstreamPath": "skills/gpui-kit-design-guides/SKILL.md"
     },
     "gpui-kit-design-guides/references/design-guides.md": {
-      "bytes": 50941,
-      "sha256": "a8aa022a59cde063a7bfcca0d112bdb88a1f836dbc3b6b9ccece62ba27bb9aa4",
+      "bytes": 52284,
+      "sha256": "44fbafdacc89bd5c250db23afd18f1b427b5a1babd3454122b5600e6fd146635",
       "upstreamPath": "skills/gpui-kit-design-guides/references/design-guides.md"
     },
     "gpui-kit/SKILL.md": {

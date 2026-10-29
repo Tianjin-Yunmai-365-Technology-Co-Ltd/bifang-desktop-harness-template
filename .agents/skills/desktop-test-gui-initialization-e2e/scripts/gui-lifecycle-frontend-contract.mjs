@@ -218,15 +218,15 @@ function validateDialogFrontendContract(guiRoot, errors, readTextFile) {
   const packagePath = path.join(guiRoot, "package.json");
   let packageJson = {};
   if (!fs.existsSync(packagePath)) {
-    errors.push("GUI dialog 基线缺少 package.json 中的生产直依赖 @tauri-apps/plugin-dialog = ^2.7.3");
+    errors.push("GUI dialog 基线缺少 package.json 中的生产直依赖 @tauri-apps/plugin-dialog = ^2.8.4");
   } else {
     try {
       packageJson = JSON.parse(readTextFile(packagePath));
     } catch {
       errors.push("GUI package.json 无法解析，不能验证 dialog 生产直依赖");
     }
-    if (packageJson?.dependencies?.["@tauri-apps/plugin-dialog"] !== "^2.7.3") {
-      errors.push("GUI dialog 基线要求 dependencies 生产直依赖 @tauri-apps/plugin-dialog = ^2.7.3");
+    if (packageJson?.dependencies?.["@tauri-apps/plugin-dialog"] !== "^2.8.4") {
+      errors.push("GUI dialog 基线要求 dependencies 生产直依赖 @tauri-apps/plugin-dialog = ^2.8.4");
     }
   }
 

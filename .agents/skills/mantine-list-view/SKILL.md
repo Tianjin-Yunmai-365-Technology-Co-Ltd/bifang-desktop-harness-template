@@ -52,7 +52,7 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 ## 实施步骤
 
 1. 完整读取 [offset-list-pattern.md](references/offset-list-pattern.md)、[mantine-api.md](references/mantine-api.md)、[checklist.md](references/checklist.md) 与通用 GUI 标准，只检查本次命中的项目事实。
-2. 确认下游实际使用 React 19.2+、`@mantine/core >=9.6.1 <10`、`@tanstack/react-query >=5.102.8 <6`；若低于下界，先升级或实现并测试等价 fallback，不能直接复制不兼容 API。
+2. 确认下游实际使用 React 19.2+、`@mantine/core >=9.7.4 <10`、`@tanstack/react-query >=5.105.0 <6`；若低于下界，先升级或实现并测试等价 fallback，不能直接复制不兼容 API。
 3. 先确认应用根 Provider 使用共用 `appDesignTokens.ts` 提供表格语义 CSS Token；再复制并共同适配 `assets/` 中 `ListPage.template.tsx`、`listPageState.ts`、`listPageTypes.ts`、`ListColumnSettings.tsx`、CSS module 及声明；契约测试作为下游测试起点，不当成产品测试替代品。
 4. 先接类型化路由 adapter 和服务端稳定排序，再接 Query/四态/Table/Pagination，最后按真实需求接选择和列偏好；不为未选能力留下假按钮。
 5. 运行项目的 typecheck、相关单元/组件测试和 `node --experimental-strip-types ListPage.contracts.test.ts`；若把契约测试纳入 `tsc`，测试 tsconfig 启用 `allowImportingTsExtensions`。真实浏览器、服务端或 E2E 未运行时明确列为未验证。

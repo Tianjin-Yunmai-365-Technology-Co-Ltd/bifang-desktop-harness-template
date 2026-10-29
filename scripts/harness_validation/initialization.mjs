@@ -36,11 +36,11 @@ export const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x
 export const CARGO_MINIMUM_REQUIREMENT = /^\^?\d+\.\d+\.\d+$/u;
 export const EXPECTED_REGISTRY_FLOORS = new Map([
   ["assert_cmd", "2.2.2"],
-  ["clap", "4.6.6"],
-  ["jiff", "0.2.35"],
+  ["clap", "4.6.7"],
+  ["jiff", "0.2.38"],
   ["serde", "1.0.229"],
-  ["serde_json", "1.0.151"],
-  ["tokio", "1.53.1"],
+  ["serde_json", "1.0.154"],
+  ["tokio", "1.54.1"],
 ]);
 
 let crcTable;

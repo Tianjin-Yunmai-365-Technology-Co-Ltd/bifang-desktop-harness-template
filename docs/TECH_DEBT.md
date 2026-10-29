@@ -25,6 +25,7 @@
 | LIM-029 | Windows 原生完整文件系统回归曾以平台名称预判两个夹具 | 换行文件名与符号链接 Node 回归先真实创建对象，只在宿主返回明确不支持或权限错误时按精确原因 skip；创建成功必须确认真实 symlink 并继续执行原断言，生产门禁语义未放宽 | 在标准非管理员 Windows 与具备符号链接权限的 Windows CI 各运行一次完整 Node 套件，保留能力差异证据 | Mitigated；2026-09-23 平台预判冲突已解决，Windows 原生复验 Not run |
 | LIM-030 | GPUI 开发循环取消回归曾遇到进程组探测 EPERM | 2026-10-10 首轮完整 Node 回归中，编译取消用例在 Cargo close 回调的 `process.kill(-pid, 0)` 抛出 EPERM；精确用例随后 4 次及完整回归重跑均通过，尚无法确认当时的进程组状态和底层原因 | 再次出现时记录 owned PID、进程组与宿主权限证据，区分关闭竞态和真实权限拒绝；不得把 EPERM 当作进程不存在或回收成功 | Open；当前未稳定复现 |
 | LIM-031 | Tauri deb 规范化 helper 的侧车集合与资源预算尚未形成完整事务合同 | `normalize_tauri_deb.mjs` 对 deb、checksum、inspection 分别 rename；第二或第三次失败时可能留下新包与旧侧车。payload 比较未覆盖 ownership/硬链接/xattr，dpkg 子进程无 timeout，hash 全文件读入内存；当前只适用可信本机输出及默认 target 布局 | 在扩展为发布候选或不可信包处理前，先用 Linux 原生夹具补齐解包/重打包和中途失败不覆盖回归，再明确集合提交/恢复、元数据范围及超时和内存预算；本地试包目前按 Linux 引用保留限制，不宣称事务或运行验收 | Open；2026-10-20 静态审查 |
+| LIM-032 | GPUI 最新兼容链仍含上游 block 0.1.6 的 future-incompatibility 警告 | 2026-10-29 在 Rust 1.98.1 检查 Kit 0.8.1 最小/全能力组合时编译通过，但 Cargo 提示该传递库未来编译器会拒绝部分代码；本轮不改写上游或强制不兼容传递版本 | 上游 GPUI/Apple 依赖链提供兼容修复后更新并重跑最低直接解析及原生编译；更高工具链实际失败时再按真实诊断处理 | Open |
 
 ## 记录规则
 

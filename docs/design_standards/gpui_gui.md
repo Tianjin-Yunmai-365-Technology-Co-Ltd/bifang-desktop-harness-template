@@ -8,7 +8,7 @@
 
 ## GPUI Kit 官方知识
 
-GPUI 下游创建时在项目 `.agents/skills/` 安装官方 `$gpui-kit` 与 `$gpui-kit-design-guides`，其它框架与非 GUI 不安装。前者用于组件/API、实体/事件/异步和测试，后者仅参考组件机制及原生交互实现；两者原文的独立审美、间距或密度要求不作为设计权威，当前基座统一决定视觉规则。官方原文、全部 references、Apache-2.0 许可与固定 revision/逐文件摘要一起保留，原样跨 Skill/仓库链接的语义映射见各自 `HARNESS-INTEGRATION.md`。来源于 [GPUI Kit 官方 skills](https://github.com/longbridge/gpui-kit/tree/0bbd9870ce420af9feacbf948b21d3824d82dc0b/skills)，于 2026-10-10 核对。
+GPUI 下游创建时在项目 `.agents/skills/` 安装官方 `$gpui-kit` 与 `$gpui-kit-design-guides`，其它框架与非 GUI 不安装。前者用于组件/API、实体/事件/异步和测试，后者仅参考组件机制及原生交互实现；两者原文的独立审美、间距或密度要求不作为设计权威，当前基座统一决定视觉规则。官方原文、全部 references、Apache-2.0 许可与固定 revision/逐文件摘要一起保留，原样跨 Skill/仓库链接的语义映射见各自 `HARNESS-INTEGRATION.md`。来源于 [GPUI Kit 官方 skills](https://github.com/longbridge/gpui-kit/tree/99576db58ec8103417c41a092e891b4022d24e7e/skills)，于 2026-10-29 核对 GPUI Kit 0.8.1 对应快照。
 
 这些知识服从用户指令、当前 UI 基座与项目工程边界；不自动改变产品范围或安装新依赖。使用 API 时核对项目实际 gpui-kit 版本。知识资产安装只复制固定本地文件，不联网、不执行远程脚本、不全局安装；通用 Harness 升级保护已安装第三方内容。
 

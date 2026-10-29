@@ -52,7 +52,7 @@ async function renderAppThemeTemplate(node: ReactElement) {
   const instance = await createTestI18n("zh-CN");
   return render(
     <I18nextProvider i18n={instance}>
-      <MantineProvider forceColorScheme="light">
+      <MantineProvider env="test" forceColorScheme="light">
         <AppThemeProviderTemplate>{node}</AppThemeProviderTemplate>
       </MantineProvider>
     </I18nextProvider>,

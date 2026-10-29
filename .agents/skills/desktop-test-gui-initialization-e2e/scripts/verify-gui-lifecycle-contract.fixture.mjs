@@ -341,7 +341,7 @@ function createFixture() {
   fs.writeFileSync(
     path.join(guiRoot, "package.json"),
     JSON.stringify({
-      dependencies: { "@tauri-apps/plugin-dialog": "^2.7.3" },
+      dependencies: { "@tauri-apps/plugin-dialog": "^2.8.4" },
     }),
   );
   fs.writeFileSync(
@@ -354,7 +354,7 @@ function createFixture() {
   );
   fs.writeFileSync(
     path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\nmac-usernotifications = "0.3.1"\ntauri = { version = "2.0.0", features = ["tray-icon"] }\ntauri-plugin-autostart = "2.5.1"\ntauri-plugin-deep-link = "2.4.10"\ntauri-plugin-dialog = "2.7.3"\ntauri-plugin-global-shortcut = "2.3.2"\ntauri-plugin-notification = "2.4.0"\ntauri-plugin-os = "2.3.2"\ntauri-plugin-single-instance = { version = "2.4.4", features = ["deep-link"] }\ntauri-plugin-updater = "2.11.0"\ntauri-plugin-window-state = "2.4.1"\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs", "sync"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\nmac-usernotifications = "0.3.1"\ntauri = { version = "2.12.5", features = ["tray-icon"] }\ntauri-plugin-autostart = "2.7.0"\ntauri-plugin-deep-link = "2.6.3"\ntauri-plugin-dialog = "2.8.4"\ntauri-plugin-global-shortcut = "2.4.1"\ntauri-plugin-notification = "2.8.0"\ntauri-plugin-os = "2.4.0"\ntauri-plugin-single-instance = { version = "2.5.5", features = ["deep-link"] }\ntauri-plugin-updater = "2.14.1"\ntauri-plugin-window-state = "2.5.0"\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs", "sync"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "Cargo.toml"),
@@ -798,7 +798,7 @@ export function disableTrayAndSingleInstance(root, guiRoot) {
   });
   fs.writeFileSync(
     path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\ntauri = { version = "2.0.0" }\ntauri-plugin-dialog = "2.7.3"\ntauri-plugin-os = "2.3.2"\ntauri-plugin-updater = "2.11.0"\ntauri-plugin-window-state = "2.4.1"\n`,
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\ntauri = { version = "2.12.5" }\ntauri-plugin-dialog = "2.8.4"\ntauri-plugin-os = "2.4.0"\ntauri-plugin-updater = "2.14.1"\ntauri-plugin-window-state = "2.5.0"\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "Cargo.toml"),

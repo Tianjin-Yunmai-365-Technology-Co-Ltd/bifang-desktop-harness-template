@@ -22,7 +22,7 @@ Harness 源只确认中性能力及其固定边界。产品动作、通知内容
 
 ## 中性模板的系统通知接口快照
 
-2026-10-09 核对 [GPUI Kit SystemNotification](https://gpui-kit.com/docs/system-notification/) 与 [gpui-kit 0.7.1 API](https://docs.rs/gpui-kit/0.7.1/gpui_kit/)。这是中性模板的接口快照，不代表目标产品当前依赖或独立原生桥。复用已经声明的 GPUI Kit，不另装通知 crate。启动在 `gpui_kit::init` 后、打开窗口前设置与打包身份一致的 `set_app_identity`。
+2026-10-29 核对 [GPUI Kit SystemNotification](https://gpui-kit.com/docs/system-notification/) 与 [gpui-kit 0.8.1 API](https://docs.rs/gpui-kit/0.8.1/gpui_kit/)。这是中性模板的接口快照，不代表目标产品当前依赖或独立原生桥。复用已经声明的 GPUI Kit，不另装通知 crate。启动在 `gpui_kit::init` 后、打开窗口前设置与打包身份一致的 `set_app_identity`。
 
 原生投递使用 `App::show_system_notification(SystemNotification { tag, title, body, actions })`；仅已批准产品路径可调用，内容有界且不进入日志。返回 `()` 只证明提交，不证明 OS 授权或送达；应用偏好不代表系统权限。中性初始化不发送通知，不覆盖 Kit 安装的全局响应处理器。
 

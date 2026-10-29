@@ -23,6 +23,7 @@ import {
 import { validateCurrentDescriptions } from "./governance_descriptions.mjs";
 import { validateGuiSupportContract } from "./gui_support.mjs";
 import { validateGuiWindowTitleContract } from "./gui_title.mjs";
+import { validateDependencyCandidates } from "./dependency_candidates.mjs";
 import { validateInitializationContract } from "./initialization.mjs";
 import { validateUpgradeContract } from "./upgrade.mjs";
 import { validateReleaseContract } from "./release.mjs";
@@ -151,6 +152,7 @@ export function validateContracts(errors) {
   validateInitializationContract(errors);
   validateGuiSupportContract(errors);
   validateGuiWindowTitleContract(errors);
+  validateDependencyCandidates(errors);
   validateNeutralRustArchitecture(errors);
   validateCoreFirstContract(errors);
   validateRustChineseComments(errors);

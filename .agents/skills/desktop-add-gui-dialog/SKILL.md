@@ -9,8 +9,8 @@ description: 为所有 GUI 基线安装官方 dialog 插件并向主 WebView 开
 
 ## 工作流程
 
-1. 只在已选择 GUI 的终端下游使用；初始化不询问该能力，九字段 `docs/GUI_APP_PROFILE.md` 也不记录开关。根 `[workspace.dependencies]` 声明 `tauri-plugin-dialog = "2.7.3"`，GUI member 只以 `workspace = true` 继承。
-2. GUI 前端的生产 `dependencies` 声明 `@tauri-apps/plugin-dialog = "^2.7.3"`；不得放入 `devDependencies`，也不得用浏览器文件选择器、手写 IPC 或其他包替代官方前端 API。
+1. 只在已选择 GUI 的终端下游使用；初始化不询问该能力，九字段 `docs/GUI_APP_PROFILE.md` 也不记录开关。根 `[workspace.dependencies]` 声明 `tauri-plugin-dialog = "2.8.4"`，GUI member 只以 `workspace = true` 继承。
+2. GUI 前端的生产 `dependencies` 声明 `@tauri-apps/plugin-dialog = "^2.8.4"`；不得放入 `devDependencies`，也不得用浏览器文件选择器、手写 IPC 或其他包替代官方前端 API。
 3. 在中央 Tauri Builder 中恰好注册一次 `.plugin(tauri_plugin_dialog::init())`。固定顺序是 window-state 注册之后、notification 注册之前；notification 未启用时仍保持 dialog 紧随 window-state，不为缺席的条件插件写占位注册。
 4. 主窗口/WebView capability 的 `permissions` 数组以 `dialog:default` 作为唯一 dialog 权限项。该默认集合就是本基线批准的全部官方对话框类型；不得再展开子权限、单列已弃用的 ask/confirm 权限，也不得加入任何 `dialog:deny-*`。
 5. dialog 返回的路径只代表用户在原生对话框中的选择结果。该权限不安装或授权 fs 插件，不授予通用文件读取、写入、枚举、删除或路径遍历能力；产品需要处理所选文件时，必须另走对应产品事实、最小文件能力和安全边界。

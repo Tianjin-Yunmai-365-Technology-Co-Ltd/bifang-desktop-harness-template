@@ -5,11 +5,11 @@ description: 为所有 GUI 基线安装官方 os 插件并统一系统语言探�
 
 # 增加 GUI 系统语言探测
 
-该 Skill 是所有 Tauri GUI 的固定基线。它只负责安装并注册官方 `tauri-plugin-os = "2.3.2"`，把系统语言探测统一收口到 `locale()`，并为 GUI 的 i18n、托盘文案和后续原生能力提供同一 locale 来源。
+该 Skill 是所有 Tauri GUI 的固定基线。它只负责安装并注册官方 `tauri-plugin-os = "2.4.0"`，把系统语言探测统一收口到 `locale()`，并为 GUI 的 i18n、托盘文案和后续原生能力提供同一 locale 来源。
 
 ## 工作流程
 
-1. 只在已选择 GUI 的终端下游使用；初始化不询问该能力，`docs/GUI_APP_PROFILE.md` 也不记录开关。根 `[workspace.dependencies]` 声明 `tauri-plugin-os = "2.3.2"`，GUI member 只以 `workspace = true` 继承。
+1. 只在已选择 GUI 的终端下游使用；初始化不询问该能力，`docs/GUI_APP_PROFILE.md` 也不记录开关。根 `[workspace.dependencies]` 声明 `tauri-plugin-os = "2.4.0"`，GUI member 只以 `workspace = true` 继承。
 2. 在中央 Tauri Builder 顺序中恰好注册一次 `.plugin(tauri_plugin_os::init())`。该能力是 Rust-only：不得安装 `@tauri-apps/plugin-os`，不得给 WebView `os:*` ACL。
 3. 启动时直接调用 `tauri_plugin_os::locale()`，只在一个 Rust helper 中完成 BCP-47 大小写/分隔符归一化。已保存的用户语言优先；没有偏好时使用规范化系统 locale，未知或空值回退 `en-US`。
 4. React `i18next`、Rust `rust-i18n`、托盘、通知及其他原生文案只消费该 helper 的结果，不再分别读取浏览器语言、环境变量或平台专有 API；core 保持语言无关。Rust-only 边界始终暴露 `get_system_locale` 与 `set_interface_language` 两个窄 Tauri command，并与 GUI 固定的 `get_app_metadata` 一同注册到唯一合并的 `invoke_handler`；这不授权 WebView 取得通用 OS API 或插件 ACL。

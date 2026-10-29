@@ -21,8 +21,8 @@ export function nativeDependencies(options) {
   const result = [];
   if (options.systemTray === 'enabled') result.push(['tray-icon', '{ version = "0.26.1", default-features = false }']);
   if (options.autostart === 'enabled') result.push(['auto-launch', '"0.6.0"']);
-  if (options.singleInstance === 'enabled') result.push(['interprocess', '"2.4.4"']);
-  if (options.globalShortcut === 'enabled') result.push(['global-hotkey', '"0.8.0"']);
+  if (options.singleInstance === 'enabled') result.push(['interprocess', '"2.4.7"']);
+  if (options.globalShortcut === 'enabled') result.push(['global-hotkey', '"0.9.0"']);
   if (['systemTray', 'autostart', 'singleInstance', 'globalShortcut'].some(key => options[key] === 'enabled')) result.push(['raw-window-handle', '"0.6.2"']);
   return result;
 }

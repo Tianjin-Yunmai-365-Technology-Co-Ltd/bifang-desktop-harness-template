@@ -5,11 +5,11 @@ description: 为所有 GUI 基线接入官方 window-state 插件并恢复主窗
 
 # 增加 GUI 窗口状态恢复
 
-该 Skill 是所有桌面 GUI 的固定基线。它把官方 `tauri-plugin-window-state = "2.4.1"` 接入主窗口生命周期，使窗口尺寸和位置在重启后恢复，同时不把页面业务状态混入窗口持久化。
+该 Skill 是所有桌面 GUI 的固定基线。它把官方 `tauri-plugin-window-state = "2.5.0"` 接入主窗口生命周期，使窗口尺寸和位置在重启后恢复，同时不把页面业务状态混入窗口持久化。
 
 ## 工作流程
 
-1. 只在已选择 GUI 的终端下游使用；初始化不询问该能力，profile 不记录开关。根 `[workspace.dependencies]` 声明 `tauri-plugin-window-state = "2.4.1"`，GUI member 只以 `workspace = true` 继承。
+1. 只在已选择 GUI 的终端下游使用；初始化不询问该能力，profile 不记录开关。根 `[workspace.dependencies]` 声明 `tauri-plugin-window-state = "2.5.0"`，GUI member 只以 `workspace = true` 继承。
 2. 在中央 Builder 顺序中恰好注册一次 `tauri_plugin_window_state::Builder`，并显式使用 `StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED`。禁止 `Builder::default()` 的全量状态语义，明确排除 `VISIBLE`、`DECORATIONS`、`FULLSCREEN` 与最小化状态，避免恢复成隐藏托盘窗口或不可达窗口。
 3. 该能力是 Rust-only：不得安装 `@tauri-apps/plugin-window-state`，不得给 WebView `window-state:*` ACL。
 4. 官方插件在状态文件缺失/损坏时使用空状态，并且不恢复与任一当前显示器都不相交的位置；这些官方行为本身不足以证明 Harness 的精确回退值。GUI adapter 必须另提供 `saved_window_geometry_is_recoverable` 与 `ensure_main_window_is_recoverable`，在 plugin 恢复后从 Builder `.setup(...)` 实际调用：尺寸小于 `960×640`、与所有显示器都无交集，或 DPI/显示器变化导致几何无效时，显式设为 `1440×900` 并居中，同时恢复最小 `960×640`；合法状态不得被覆写。`preventOverflow: true` 与实际显示器交集检查共同保证可找回性。
