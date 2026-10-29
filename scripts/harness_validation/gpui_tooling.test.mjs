@@ -24,7 +24,7 @@ function withMutatedModule(name, mutate, callback) {
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 }
 
-/** 真正模板必须生成工程入口，保留用户字段并执行完整的三个机械门禁。 */
+/** 真正模板必须生成工程入口，保留用户字段并执行完整的四个门禁。 */
 test("production_gpui_node_templates_and_runner_satisfy_the_contract", () => {
   const errors = [];
   validateGpuiNodeTooling(errors);
@@ -68,10 +68,10 @@ test("gpui_validator_rejects_merges_that_silently_overwrite_conflicts", () => {
 test("gpui_validator_rejects_a_runner_that_omits_core_first", () => {
   withMutatedModule("gpui_validate.mjs", source => source
     .replace("'./gpui_adapter_files.mjs'", JSON.stringify(pathToFileURL(path.join(GPUI_DIRECTORY, "gpui_adapter_files.mjs")).href))
-    .replace("  ['check_core_first.mjs', '--workspace-root'],\n", ""), runnerPath => {
+    .replace("  ['desktop-implement-change/scripts/check_core_first.mjs', '--workspace-root'],\n", ""), runnerPath => {
     const errors = [];
     validateGpuiNodeTooling(errors, { runnerPath });
-    assert.match(errors.join("\n"), /runner must execute all three retained Node checks/u);
+    assert.match(errors.join("\n"), /runner must execute all four retained Node checks/u);
   });
 });
 

@@ -24,7 +24,7 @@
 - 所有 GUI 初始化都复制 `src-tauri/tauri.release.conf.json` 发布专用合并配置，但中性调试构建不使用它。正式候选构建必须显式传 `--config src-tauri/tauri.release.conf.json`，把根 `release-notes.json` 唯一映射为 `BaseDirectory::Resource` 下的 `release-notes.json`；这样不会为了初始化提前创建发布事实。`about_page = enabled` 时注册异步 `load_release_notes` 窄命令，使用 `tokio::fs` 读取且由 Rust/React 双边验证 schema、1 MiB、近 10 版/每类 10 条、最新在前和单个小写 `v`，About 页展示 loading/error/retry；不得授予通用文件系统权限。`about_page = disabled` 时命令、React 加载器、弹窗和文案缺席，但 updater Rust 基线与根级强更门仍保留，正式候选也仍携带该发布事实供 manifest 与制品核验。
 - `tauri.conf.json` 的主应用窗口把 1440×900 逻辑像素、最小 960×640、居中与 `preventOverflow: true` 作为首次启动和持久状态缺失/损坏/离屏的回退；合法状态才恢复尺寸、位置与最大化，并必须夹取到当前可见工作区。不恢复隐藏、最小化、全屏或装饰，避免与托盘关闭隐藏、自启默认可见、单实例/深链接恢复及需求声明的快捷键宿主动作冲突。回退尺寸容纳详细展开侧栏，选择赞助页时还应让三张档位卡同屏横向呈现，较小窗口由响应式布局降列。该窗口与 `bundle.macOS.dmg.windowSize` 的 660×400 安装卷窗口互不替代。
 - Mantine provider 使用 `defaultColorScheme="auto"`、显式 local-storage color-scheme manager 和唯一 CSS variables resolver；亮色/暗色分别提供页面背景、surface、主/次文字、边框与强调色，设置页允许 `light`/`dark`/`auto` 并持久化。选择赞助页时通过 `useComputedColorScheme` 使用运行时有效主题的明确背景叠层、surface 和对比色，不把初始化宿主主题冻结到产物。
-- 原生窗口标题与 `document.title` 固定使用同一公式 `{applicationName} v{version} {contactChannel}:{contactValue}`。应用名/版本来自权威 Tauri/打包元数据，展示边界先去除已有 `v`/`V` 前缀，再规范化为只带一个小写 `v`，联系字段来自品牌 profile 的 `contacts.windowTitle`，不得写死一次构建版本。
+- 原生窗口标题与 `document.title` 固定使用同一公式 `{applicationName} v{version} QQ:2222980`。应用名/版本来自权威 Tauri/打包元数据，展示边界先去除已有 `v`/`V` 前缀，再规范化为只带一个小写 `v`，联系字段来自品牌 profile 的 `contacts.windowTitle`，不得写死一次构建版本。
 - 未命中 `$mantine-list-view` 的普通页面，活动选项卡、查询/筛选、排序和分页固定由应用根 Jotai store 的模块级 atom 持有，只在当前进程跨路由与关闭隐藏/单实例唤醒期间保留；退出后默认，不使用浏览器/Tauri/文件/数据库/URL 持久化，也不镜像 Query/core 数据。查询范围或页大小变化时 page=1，只有成功空页且 page>1 时回第 1 页。列表页命中 `$mantine-list-view` 后改用类型化 URL + 当前标签页 sessionStorage 查询恢复、TanStack Query-only 行数据、localStorage 列偏好与成功越界回末页；该例外不修改共享 `pageSessionState.ts`。window-state 只持久原生窗口几何，详细侧栏折叠仍是独立设备偏好。
 - 不得加载远程内容。
 - 保持 Tauri Rust 边界轻薄：只验证反序列化、协议必填字段和调用 WebView 能力，随后调用一个核心用例并映射有类型的结果；值域、跨字段约束、资源状态和业务权限由核心验证。
@@ -130,3 +130,5 @@ Tauri 2 和固定 React 前端技术栈是硬规则。替换它们必须记录�
 - [Tauri macOS 签名与公证](https://v2.tauri.app/distribute/sign/macos/)
 - [Windows 签名行为](https://v2.tauri.app/distribute/sign/windows/)
 - [Linux 签名行为](https://v2.tauri.app/distribute/sign/linux/)
+
+标题回归与门禁同时覆盖 formatter 和实际 `get_app_metadata` 返回的三段标题。后者必须以权威应用名、Cargo 版本和固定 QQ 字段构造，缺字段、字段顺序错误、联系人漂移或重复版本前缀均失败；原生窗口和 `document.title` 消费同一结果。

@@ -8,7 +8,7 @@
 
 - 文档状态、确认来源和日期，以及关联的 Product Spec/应用资料；
 - 对默认标题、侧栏、设置页、关于页或赞助页的修改，以及新增支持界面的 `enabled`、目的、路由或宿主落点、内容/i18n 键、本地资源及来源、可访问名称、主题与键盘行为；
-- 标题差异及允许的动态占位符。默认公式固定为 `{applicationName} v{version} {contactChannel}:{contactValue}`；展示名来自 `docs/GUI_APP_PROFILE.md`/Tauri 产品身份，版本来自当前打包元数据并在展示边界规范化为一个小写 `v`，联系人来自品牌 profile；
+- 标题差异及允许的动态占位符。默认公式固定为 `{applicationName} v{version} QQ:2222980`；展示名来自 `docs/GUI_APP_PROFILE.md`/Tauri 产品身份，版本来自当前打包元数据并在展示边界规范化为一个小写 `v`，联系人来自品牌 profile；
 - 每个远程能力的独立出站记录；
 - 未决字段、禁用原因、人工复核点和仍未验证的平台。
 
@@ -57,7 +57,7 @@
 
 ### 侧栏、设置与关于/赞助入口
 
-- 默认标题公式固定为 `{applicationName} v{version} {contactChannel}:{contactValue}`。展示名与版本必须来自权威 Tauri/打包元数据，展示边界先去除已有前缀再保证只有一个小写 `v`；联系字段固定来自 profile 的 `contacts.windowTitle`，原生标题与 `document.title` 必须一致，不得写死一次构建值。
+- 默认标题公式固定为 `{applicationName} v{version} QQ:2222980`。展示名与版本必须来自权威 Tauri/打包元数据，展示边界先去除已有前缀再保证只有一个小写 `v`；联系字段固定来自 profile 的 `contacts.windowTitle`，原生标题与 `document.title` 必须一致，不得写死一次构建值。
 - 左侧菜单由 `sidebar_mode` 决定并只消费 [`docs/design_standards/tauri_sidebar.md`](../../../../docs/design_standards/tauri_sidebar.md)。侧栏展示值统一消费 `appDesignTokens.ts` 的 `APP_LAYOUT_TOKENS.sidebar`；compact 保持全宽居中竖排且不折叠，detailed 保持展开横排、收起图标与 Tooltip。detailed 状态由 AppShell 拥有并同步 `navbar.width`/`data-navbar-width`，身份区父级不得代理折叠。两种模式都使用 `@tabler/icons-react` 命名组件、保留可访问名称和清晰选中态；产品功能项从顶部向下增长，底部按已选赞助、固定设置、已选关于的视觉顺序生成。
 - `/settings` 是固定路由；`/about` 与 `/sponsor` 分别只在相应选择启用时存在并进入导航。设置页固定提供当前应用/版本、中英文和浅色/深色/跟随系统；系统通知与开机自启只在对应配置启用时增加默认关闭、异步失败可回滚的 Switch，禁用时运行时组件与翻译键缺席；不得包含隐私标题、统计同意或未配置占位。所有 GUI 保存发布专用 Tauri 合并配置，关于页继续通过固定 Rust 异步命令读取候选更新日志。
 - 所选关于页使用当前产品名称和版本；关于页在手动检查更新旁提供本地更新日志，并展示作者 `about.studio`、profile 的 `contacts.support` 与三段免责声明。标语、许可、隐私或反馈动作仍由下游按真实事实注入；外部链接需独立批准、可识别、可键盘访问并通过系统浏览器打开。未选择关于页时，不得保留隐藏路由、导航入口或不可达运行时组件。

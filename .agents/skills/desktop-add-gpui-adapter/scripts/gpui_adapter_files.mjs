@@ -124,7 +124,7 @@ export function renderGpuiAdapterFiles(input) {
                         this.writer.save(&this.preferences);
                         cx.notify();
                     }))))` : '',
-    LOGO_EXT: logoExtension, COMPACT: String(compact), CONTACT_TITLE: ` ${rustText(contact.channel)}:${rustText(contact.value)}`, BRAND_CONTACT: rustText(profile.contacts.support.value),
+    LOGO_EXT: logoExtension, COMPACT: String(compact), CONTACT_CHANNEL: rustText(contact.channel), CONTACT_VALUE: rustText(contact.value), BRAND_CONTACT: rustText(profile.contacts.support.value),
     ABOUT_MODULE: about ? 'mod about;' : '', SPONSOR_MODULE: sponsor ? 'mod sponsor;' : '',
     ABOUT_VARIANT: about ? '    About,' : '', SPONSOR_VARIANT: sponsor ? '    Sponsor,' : '',
     ABOUT_FIELDS: about ? '    show_update_status: bool,\n    show_release_notes: bool,' : '', ABOUT_DEFAULTS: about ? '            show_update_status: false, show_release_notes: false,' : '',
@@ -148,7 +148,7 @@ export function renderGpuiAdapterFiles(input) {
   files.set(`${projectId}_gui/build.rs`, template('gui/build.rs', tokens));
   const guiCargo = files.get(`${projectId}_gui/Cargo.toml`);
   files.set(`${projectId}_gui/Cargo.toml`, guiCargo.replace('\n[dev-dependencies]', `\n${nativeDeps.normal}${nativeDeps.target}\n[dev-dependencies]`));
-  for (const file of ['main.rs', 'assets.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', 'app/design_tokens/mod.rs', ...native.files, ...(notification ? ['notifications.rs', 'notifications_test.rs', 'app/settings_test.rs'] : []), ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs', 'app/design_tokens/sponsor.rs'] : [])]) {
+  for (const file of ['main.rs', 'assets.rs', 'window_title.rs', 'window_title_test.rs', 'preferences.rs', 'preferences_test.rs', 'logging.rs', 'logging_test.rs', 'lifecycle.rs', 'lifecycle_test.rs', 'release_notes.rs', 'app/mod.rs', 'app/mod_test.rs', 'app/settings.rs', 'app/design_tokens/mod.rs', ...native.files, ...(notification ? ['notifications.rs', 'notifications_test.rs', 'app/settings_test.rs'] : []), ...(about ? ['app/about.rs'] : []), ...(sponsor ? ['app/sponsor.rs', 'app/sponsor_test.rs', 'app/design_tokens/sponsor.rs'] : [])]) {
     files.set(`${projectId}_gui/src/${file}`, template(`gui/src/${file}`, tokens));
   }
   if (options.systemTray === 'enabled') files.set(`${projectId}_gui/assets/tray.rgba`, trayPixels(options.logoBytes));

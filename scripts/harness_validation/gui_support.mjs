@@ -3,6 +3,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 
 import { ROOT, SKILLS_ROOT, fail, relativePath } from "./core.mjs";
+import { validateTauriWindowTitle } from "./gui_title.mjs";
 import {
   validateBrandMediaManifest,
   validateBrandProfile,
@@ -225,7 +226,7 @@ function validateReactAssets(errors, brandRoot) {
 
 const SUPPORT_REQUIRED = [
   ["skill",["九项初始化配置","system-locale、updater、window-state 由各自固定 Skill 无条件接入","dialog WebView 基线同样由独立固定 Skill 无条件接入","dialog 选择路径不授权读取或写入该路径","全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位","通知/自启按各自 Skill 接入条件 prop","全局快捷键只对 contract 非空动作接入逐项真实状态","固定策略只读，可编辑策略使用 Rust 权威 load/save/capture 命令","空 contract 不传 prop 或复制翻译键","APP_LAYOUT_TOKENS.sidebar","当前 UI 基座","Tooltip","独立设备偏好恢复","三态主题与应用级亮暗语义","compact 保持全宽居中竖排且不折叠","@tabler/icons-react","初始化设置页不得预置隐私区块或统计开关","tauri/tauri.release.conf.json","一个小写 `v`","父级代理","应用根 Jotai store","成功空页","底部导航为已选赞助、固定设置、已选关于","`/about` 与 `/sponsor` 只在对应配置启用时建立","共享作者、联系方式和免责声明","docs/GUI_SUPPORT_SURFACES.md","升级器必须将其视为 `protected`","领域校验、跨接口可复用的资格判断","秘密只能由已批准的安全运行时来源提供","仅在托盘启用时复制/加载托盘原生文案","13 个源图片","只有 `sponsor_page: enabled` 时","支付二维码是敏感静态品牌材料","$desktop-enable-gui-updates","$desktop-add-gui-telemetry"]],
-  ["reference",["## 所有权矩阵","`{applicationName} v{version} {contactChannel}:{contactValue}`","底部按已选赞助、固定设置、已选关于的视觉顺序生成","APP_LAYOUT_TOKENS.sidebar","detailed 状态由 AppShell","Tooltip","@tabler/icons-react","浅色、深色、跟随系统","关于页在手动检查更新旁提供本地更新日志","发布专用 Tauri 合并配置","固定 Rust 异步命令","更新日志十版/十条裁剪","表格中的 `Switch` 不得因点击行或单元格而切换","普通页面使用共享 `pageSessionState.ts`","新 store 默认","loading/error 不回退","设置页固定提供当前应用/版本、中英文和浅色/深色/跟随系统","系统通知与开机自启只在对应配置启用时增加默认关闭","托盘 i18n：仅在选择系统托盘时","每个远程能力单独记录","生产地址默认 HTTPS","禁用或未同意时请求计数为零","未认证布尔值不能触发强更","13 个源文件"]],
+  ["reference",["## 所有权矩阵","`{applicationName} v{version} QQ:2222980`","底部按已选赞助、固定设置、已选关于的视觉顺序生成","APP_LAYOUT_TOKENS.sidebar","detailed 状态由 AppShell","Tooltip","@tabler/icons-react","浅色、深色、跟随系统","关于页在手动检查更新旁提供本地更新日志","发布专用 Tauri 合并配置","固定 Rust 异步命令","更新日志十版/十条裁剪","表格中的 `Switch` 不得因点击行或单元格而切换","普通页面使用共享 `pageSessionState.ts`","新 store 默认","loading/error 不回退","设置页固定提供当前应用/版本、中英文和浅色/深色/跟随系统","系统通知与开机自启只在对应配置启用时增加默认关闭","托盘 i18n：仅在选择系统托盘时","每个远程能力单独记录","生产地址默认 HTTPS","禁用或未同意时请求计数为零","未认证布尔值不能触发强更","13 个源文件"]],
   ["pages",["## 资产包内容","关于页、赞助页、系统托盘、系统通知、开机自启、单实例、深链接、全局快捷键和侧栏模式则严格消费 GUI 初始化专门问询写入 `docs/GUI_APP_PROFILE.md` 的九项选择","AppThemeProviderTemplate.tsx","AppShellTemplate.tsx","消费中央 `APP_LAYOUT_TOKENS.sidebar` 的 compact/detailed 菜单","同步 fixed 侧栏、Mantine `navbar.width` 与 `data-navbar-width`","设置页始终保留应用/版本、语言与三态主题","系统通知/开机自启能力启用时分别把 Rust command 状态接到模板可选 prop","仅当 `system_tray = enabled` 时","手动检查更新和稳定状态随关于页存在","raw byte string","ReleaseNotesDialog","rust/release_notes.rs","tauri/tauri.release.conf.json","loading/error/retry","只显示近 10 版/每类 10 个翻译对","父容器点击不代理两个按钮","作者、联系人、三段免责声明","固定价格是 19、199、1999 CNY","不得使用固定 `minWidth: 800`","当前品牌包没有视频文件","13 个源文件逐项核对"]],
   ["update",["仅当初始化选择关于页时","旁边的“更新日志”按钮","发布专用 `--config`","向单一合并的 `invoke_handler` 暴露 `check_for_updates` 与 `load_release_notes` 两个窄命令","最近 10 版","各最多 10 个完整 `zh-CN`/`en-US` 翻译对","两个按钮的事件只绑定各自元素","`NotConfigured`"]],
   ["updateContract",["## 更新状态机","`NotConfigured`","`RequiredUpdate`","minimumSupportedVersion","React 不比较 SemVer、不读取远端布尔字段","签名验证不可关闭","强更不是远端一个 `forcedUpdate` 布尔值","普通功能导航和业务页面不挂载"]],
@@ -280,6 +281,7 @@ export function validateGuiSupportContract(errors, options = {}) {
   const expectedConfig = { bundle: { resources: { "../../release-notes.json": "release-notes.json" } } };
   if (!isDeepStrictEqual(releaseConfig, expectedConfig)) fail(errors, "GUI release config must contain only the fixed release-notes resource mapping");
   validateReactAssets(errors, brandRoot);
+  validateTauriWindowTitle(errors, brandRoot);
   const productInstancePath = options.productInstancePath ?? path.join(ROOT, "docs", "GUI_SUPPORT_SURFACES.md");
   if (fs.existsSync(productInstancePath)) fail(errors, `Harness template must not precreate downstream GUI support facts: ${relativePath(productInstancePath)}`);
 }

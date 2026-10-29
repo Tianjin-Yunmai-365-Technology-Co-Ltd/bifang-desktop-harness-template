@@ -21,7 +21,7 @@
 ## 窗口标题
 
 - 默认：enabled
-- 模板：`{applicationName} v{version} {contactChannel}:{contactValue}`；产品展示名与版本必须来自权威 Tauri/打包元数据，展示边界保证只有一个小写 `v`。
+- 模板：`{applicationName} v{version} QQ:2222980`；产品展示名与版本必须来自权威 Tauri/打包元数据，展示边界保证只有一个小写 `v`。
 - 品牌联系字段：固定使用 profile 的 `contacts.windowTitle`，不得误用 `contacts.support`。
 - 原生/前端一致性：原生窗口标题与 `document.title` 必须一致。
 - 本节只记录已批准差异：待填写
@@ -115,7 +115,7 @@
 - [ ] 设置页固定含应用/版本、语言与三态主题；只为 profile 已启用能力加入宿主开关，且没有隐私/统计控件、未配置占位或禁用能力翻译键。
 - [ ] 托盘中文精确显示“显示窗口/退出”，英文精确显示“Show Window/Quit”，未知 locale 回退英文，运行时语言切换无需重启即可刷新；任何 `tray.*` 原始键不可见。
 - [ ] `/settings` 固定存在；系统通知/开机自启 Switch、`/about`、`/sponsor` 及运行时媒体严格按九项初始化选择存在或缺席；全局快捷键再按 contract 分流为空动作无占位、固定动作只读状态、可编辑动作录制/取消/清空。
-- [ ] 原生窗口标题与 `document.title` 都符合 `{applicationName} v{version} {contactChannel}:{contactValue}`，且所有用户可见版本只有一个小写 `v`。
+- [ ] 原生窗口标题与 `document.title` 都符合 `{applicationName} v{version} QQ:2222980`，且所有用户可见版本只有一个小写 `v`。
 - [ ] 关于页完整显示作者、作者联系方式和三段免责声明。
 - [ ] 更新未配置时显示 `NotConfigured` 且零出站；updater 等未选择媒体没有进入最终应用 bundle。
 - [ ] 关于页更新日志按钮可查看近 10 版 schema v2 双语日志，每版两类各不超过 10 个 `zh-CN`/`en-US` 翻译对，标题与正文跟随当前 i18n locale、未知语言回退英文；点击更新区父容器不触发检查或打开日志。

@@ -10,6 +10,7 @@ mod preferences;
 mod logging;
 mod lifecycle;
 mod release_notes;
+mod window_title;
 @@NOTIFICATION_MODULE@@
 @@NATIVE_MODULE@@
 
@@ -47,7 +48,7 @@ fn main() -> std::process::ExitCode {
         let (@@NATIVE_HANDLE@@, _shell) = gpui_kit::open_window(WindowOptions {
             window_bounds: Some(bounds),
             window_min_size: Some(size(px(960.), px(640.))),
-            titlebar: Some(TitlebarOptions { title: Some("@@NAME_EN@@".into()), ..Default::default() }),
+            titlebar: Some(TitlebarOptions { title: Some(window_title::window_title(preferences.locale()).into()), ..Default::default() }),
             app_id: Some("@@APP_IDENTIFIER@@".into()),
             ..Default::default()
         }, cx, |window, cx| cx.new(|cx| app::Shell::new(preferences, writer, window, cx)))

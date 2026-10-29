@@ -121,7 +121,7 @@ test('bilingual_identity_is_required_and_escaped_in_rust_source', () => {
   const files = renderGpuiFiles({ ...identity, nameEn: 'Example "Quoted" Tool' });
   assert.equal(JSON.parse(files.get('example_tool_gui/locales/zh-CN.json')).application.name, identity.nameZh);
   assert.equal(JSON.parse(files.get('example_tool_gui/locales/en-US.json')).application.name, 'Example "Quoted" Tool');
-  assert.match(files.get('example_tool_gui/src/app/mod.rs'), /Example \\"Quoted\\" Tool/);
+  assert.match(files.get('example_tool_gui/src/window_title.rs'), /Example \\"Quoted\\" Tool/);
 });
 
 /** 创建工作区不建立 Git、远端、产品规格或伪造确认状态。 */
@@ -179,6 +179,7 @@ test('invalid_generation_leaves_empty_target_empty', () => {
 /** 身份中的模板形状文本只作为字符串保留，非法代理字符直接失败。 */
 test('identity_is_never_recursively_interpolated_and_requires_unicode_scalars', () => {
   const files = renderGpuiFiles({ ...identity, nameEn: '@@ABOUT_TITLE@@' });
-  assert.ok(files.get('example_tool_gui/src/main.rs').includes('title: Some("@@ABOUT_TITLE@@".into())'));
+  assert.ok(files.get('example_tool_gui/src/window_title.rs').includes('"@@ABOUT_TITLE@@"'));
+  assert.ok(files.get('example_tool_gui/src/main.rs').includes('title: Some(window_title::window_title(preferences.locale()).into())'));
   assert.throws(() => renderGpuiFiles({ ...identity, nameEn: '\ud800' }), /nameEn/);
 });

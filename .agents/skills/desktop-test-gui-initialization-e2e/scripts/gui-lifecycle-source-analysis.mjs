@@ -277,7 +277,7 @@ export function resolveGuiRoot(rootInput, guiInput) {
 }
 
 /** 在忽略字符串与注释中的分隔符后寻找成对括号的末端。 */
-function findMatchingDelimiter(sourceText, openIndex, openCharacter, closeCharacter) {
+export function findMatchingDelimiter(sourceText, openIndex, openCharacter, closeCharacter) {
   let depth = 0;
   let quote = null;
   let escaped = false;

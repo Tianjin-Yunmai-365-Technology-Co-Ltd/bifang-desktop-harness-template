@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { collectRustFunctions } from "./gui-lifecycle-source-analysis.mjs";
+import { validateTauriMetadataTitle } from "./gui-window-title-contract.mjs";
 
 const FIXED_COMMANDS = [
   "get_app_metadata",
@@ -101,6 +102,7 @@ function validateAppMetadataRuntime(sourceText, rustFunctions, errors) {
       errors.push("get_app_metadata 的 title 必须由权威打包版本构造");
     }
   }
+  validateTauriMetadataTitle(command.text, errors);
 }
 
 function stateBinding(functionText, handleName) {

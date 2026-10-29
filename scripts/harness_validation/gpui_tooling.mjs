@@ -20,7 +20,7 @@ const mergedText = renderGpuiPackageJson(JSON.stringify(original));
 const conflicts = [ { engines: { node: ">=26.0.0" } }, { scripts: { validate: "node product-validation.mjs" } } ];
 const rejected = conflicts.map(value => { try { renderGpuiPackageJson(JSON.stringify(value)); return false; } catch { return true; } });
 const calls = [];
-const status = validateGpui(root, (command, args, options) => { calls.push({ command, args, options }); return { status: [17, 0, 29][calls.length - 1] }; });
+const status = validateGpui(root, (command, args, options) => { calls.push({ command, args, options }); return { status: [17, 0, 29, 0][calls.length - 1] }; });
 process.stdout.write(JSON.stringify({ generated: generated === undefined ? null : JSON.parse(generated), fresh: JSON.parse(renderGpuiPackageJson()), original, merged: JSON.parse(mergedText), idempotent: renderGpuiPackageJson(mergedText) === mergedText, rejected, calls, status }));
 `;
 
@@ -68,7 +68,7 @@ function validatePackage(errors, document, sourceRoot, label) {
   }
 }
 
-/** 验证真实模板输出、受限合并和三个保留门禁的调用；不把源码扫描当作下游验收。 */
+/** 验证真实模板输出、受限合并和四个保留门禁的调用；不把源码扫描当作下游验收。 */
 export function validateGpuiNodeTooling(
   errors,
   {
@@ -103,12 +103,13 @@ export function validateGpuiNodeTooling(
     ["check_file_line_limits.mjs", "--root"],
     ["check_rust_chinese_comments.mjs", "--root"],
     ["check_core_first.mjs", "--workspace-root"],
+    ["gpui_title_contract.mjs", "--root"],
   ];
   const actual = result.calls?.map(({ command, args, options }) => [
     command === process.execPath && options?.cwd === sourceRoot && options?.shell === false,
     path.basename(typeof args?.[0] === "string" ? args[0] : ""), args?.[1], args?.[2],
   ]);
   if (JSON.stringify(actual) !== JSON.stringify(expected.map(([file, option]) => [true, file, option, sourceRoot])) || result.status !== 17) {
-    fail(errors, "GPUI validation runner must execute all three retained Node checks and return the first failure");
+    fail(errors, "GPUI validation runner must execute all four retained Node checks and return the first failure");
   }
 }

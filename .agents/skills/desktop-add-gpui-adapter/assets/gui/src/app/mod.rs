@@ -72,7 +72,7 @@ impl Shell {
 
     /// 当前 locale 决定中英文展示名称，版本始终来自实际 Cargo 包。
     fn name(&self) -> &'static str {
-        if self.locale == "zh-CN" { "@@NAME_ZH@@" } else { "@@NAME_EN@@" }
+        crate::window_title::application_name(self.locale)
     }
 
     /// 所有可见文案均从编译期本地词典解析。
@@ -82,7 +82,7 @@ impl Shell {
 
     /// 固定版本显示只允许一个小写前缀。
     fn version(&self) -> String {
-        format!("v{}", env!("CARGO_PKG_VERSION").trim_start_matches(['v', 'V']))
+        crate::window_title::display_version(env!("CARGO_PKG_VERSION"))
     }
 
     /// 系统选择绑定真实原生外观，显式选择直接覆盖当前 Kit 主题。
@@ -198,7 +198,7 @@ impl Shell {
 impl Render for Shell {
     /// 原生窗口标题与视图元数据由同一身份和当前语言派生。
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        window.set_window_title(&format!("{} {}@@CONTACT_TITLE@@", self.name(), self.version()));
+        window.set_window_title(&crate::window_title::window_title(self.locale));
 @@CORE_PROBE@@
         let content = match self.page {
             Page::Settings => self.settings_page(cx),

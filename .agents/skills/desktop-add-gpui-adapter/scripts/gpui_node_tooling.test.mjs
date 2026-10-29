@@ -11,6 +11,7 @@ import { validateGpui } from './gpui_validate.mjs';
 const helperNames = [
   'desktop-add-gpui-adapter/scripts/gpui_dev.mjs',
   'desktop-add-gpui-adapter/scripts/gpui_validate.mjs',
+  'desktop-add-gpui-adapter/scripts/gpui_title_contract.mjs',
   ...['check_file_line_limits.mjs', 'check_rust_chinese_comments.mjs', 'check_core_first.mjs'].map(name => `desktop-implement-change/scripts/${name}`),
   ...['release_git.mjs', 'release_notes.mjs', 'release_context.mjs'].map(name => `desktop-prepare-release/scripts/${name}`),
   'desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs',
@@ -134,7 +135,7 @@ test('migration_rejects_missing_or_symlinked_helpers_and_package', () => {
 });
 
 /** runner 使用当前 Node 和参数数组串行调用保留门禁，汇总失败而不构建 Rust 或调用 Shell。 */
-test('validation_runner_executes_three_retained_checks_and_propagates_failure', () => {
+test('validation_runner_executes_four_retained_checks_and_propagates_failure', () => {
   const root = fixture();
   try {
     const calls = [];
@@ -143,9 +144,10 @@ test('validation_runner_executes_three_retained_checks_and_propagates_failure', 
       return { status: calls.length === 1 ? 7 : 2 };
     });
     assert.equal(status, 7);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.deepEqual(calls.map(call => [path.basename(call.args[0]), call.args[1]]), [
       ['check_file_line_limits.mjs', '--root'], ['check_rust_chinese_comments.mjs', '--root'], ['check_core_first.mjs', '--workspace-root'],
+      ['gpui_title_contract.mjs', '--root'],
     ]);
     for (const call of calls) {
       assert.equal(call.command, process.execPath);
@@ -154,5 +156,7 @@ test('validation_runner_executes_three_retained_checks_and_propagates_failure', 
       assert.equal(call.args[2], root);
     }
     assert.equal(validateGpui(root, () => ({ status: 0 })), 0);
+    let check = 0;
+    assert.equal(validateGpui(root, () => ({ status: ++check === 4 ? 9 : 0 })), 9);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

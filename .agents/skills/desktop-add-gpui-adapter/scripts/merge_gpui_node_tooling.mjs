@@ -51,6 +51,7 @@ function assertGpuiWorkspace(root) {
   const helpers = [
     'desktop-add-gpui-adapter/scripts/gpui_dev.mjs',
     'desktop-add-gpui-adapter/scripts/gpui_validate.mjs',
+    'desktop-add-gpui-adapter/scripts/gpui_title_contract.mjs',
     ...['check_file_line_limits.mjs', 'check_rust_chinese_comments.mjs', 'check_core_first.mjs'].map(name => `desktop-implement-change/scripts/${name}`),
     ...['release_git.mjs', 'release_notes.mjs', 'release_context.mjs'].map(name => `desktop-prepare-release/scripts/${name}`),
     'desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs',
