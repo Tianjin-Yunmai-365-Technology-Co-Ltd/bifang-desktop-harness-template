@@ -13,8 +13,9 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 
 ## 可执行入口
 
-- macOS/Linux：`scripts/development-environment-gates.sh --install-missing --interfaces <comma-separated-selection>`。保留的 `--install-missing` 入口名同时处理缺失安装和低于下界升级。
-- Windows PowerShell 5.1 或更高版本：`scripts/development-environment-gates.ps1 -Interfaces <selection>`；默认写入模式同样安装缺失项并升级低于下界的已有项。
+- macOS/Linux：`scripts/development-environment-gates.sh --install-missing --interfaces <comma-separated-selection> --rust-min-version <project-msrv>`。保留的 `--install-missing` 入口名同时处理缺失安装和低于下界升级。
+- Windows PowerShell 5.1 或更高版本：`scripts/development-environment-gates.ps1 -Interfaces <selection> -RustMinVersion <project-msrv>`；默认写入模式同样安装缺失项并升级低于下界的已有项。
+- 初始化读取即将写入根 Cargo 的真实 `rust-version`，恢复读取现有根声明（含 workspace 继承）；二段版本补零（如 `1.95` → `1.95.0`），未知或无声明先报告，不从宿主或历史推断。传入 `--rust-min-version` / `-RustMinVersion` 后，实际 Rust 下界取 `max(1.95.0, project-msrv)` 并以 `gate.rust.requirement` 输出；不传仅适用于通用基础审计。参数必须为完整三段稳定版本，不接受预发布、范围或重复参数。
 - 仅在只读审计时使用 `--check-only` 或 `-CheckOnly`。该模式始终零写入：缺失项报告 `missing`，可证明低于最低下界的项报告 `upgrade-required`；退出码 `20` 表示至少一个必需工具处于这两类待恢复状态。
 - 解析稳定的 `gate.<environment>.<field>=<value>` 行。Git、Rust 与 Node.js/npm 始终为必需项，初始化完成输出必须复述 `gate.git.status/version/change`。Windows 还必须具备 MSVC Build Tools。仅当选择包含 `GUI` 时才需要 pnpm；否则 pnpm 必须为 `not-required`，Node.js/npm 仍必须通过。
 - macOS Tauri Windows x64 候选在常规 GUI 门禁成功后，额外运行 `scripts/macos-tauri-xwin-gates.sh --install-missing --target x86_64-pc-windows-msvc`。只读审计使用 `--check-only`；退出码 `20` 表示缺失或需要升级，`30` 表示非 macOS。
@@ -24,7 +25,7 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 | 环境 | 适用条件 | 探测命令 | 缺失或低于下界时行为 |
 |---|---|---|---|
 | Git | 始终 | `git --version` | 要求稳定版 `>=2.36.0`，以覆盖 Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`；缺失时安装，低于 2.36.0 时升级。macOS 使用既有 Homebrew，Linux 使用既有受支持系统包管理器，Windows 使用既有 winget 的 `Git.Git`，然后重新探测。 |
-| Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | Rust 没有 LTS 通道；通用环境下界为 `1.95.0`，独立于项目 Cargo MSRV。rustc/cargo 必须属于同一 stable minor 且版本 `>=1.95.0`；任何更高稳定版直接通过。缺失时从已验证的官方 rustup 制品安装执行当时官方最新 stable Rust，可证明低于环境下界时升级到官方最新 stable，然后重复全部探测。 |
+| Rust | 始终 | `rustup --version`、`rustc --version`、`cargo --version`、`rustc -vV` | Rust 没有 LTS 通道；实际下界取通用 `1.95.0` 与调用方传入的项目 Cargo MSRV 的较高值。rustc/cargo 必须属于同一 stable minor，且两者均达到实际下界；满足要求的更高稳定版直接通过。缺失时从已验证的官方 rustup 制品安装执行当时官方最新 stable Rust，可证明低于实际下界时升级到官方最新 stable，然后重复全部探测。 |
 | MSVC Build Tools | Windows Rust 目标 | `cl`，随后使用 `vswhere` 查找 VC 工具组件 | 安装 Microsoft 已签名的 Visual Studio Build Tools C++ 工作负载，然后重新探测。 |
 | Node.js | 所有下游接口 | `node --version`、`npm --version` | 作为 Harness helper 的通用工程运行时，要求正式稳定版 `>=24.0.0` 且 npm 可解析；已装 25.x、26.x 或任何更高正式版本直接通过。缺失或低于下界时，从官方索引识别最高 LTS 系列并选择该系列的最新稳定补丁，验证宿主归档校验和后安装或升级并重新探测。 |
 | pnpm | 已选择 `GUI` | `pnpm --version` | 要求稳定版 `>=12.4.1`；缺失或低于下界时使用 Node.js 的 npm 客户端，从官方 npm 软件包仓库以 `pnpm@>=12.4.1` 解析当前稳定版并安装或升级到标准用户级全局前缀，然后重新探测。 |
@@ -33,7 +34,7 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 | Windows Rust target | macOS Tauri→Windows x64 | `rustup target list --installed` | 运行 `rustup target add x86_64-pc-windows-msvc` 并复探。 |
 | cargo-xwin | macOS Tauri→Windows x64 | `cargo-xwin --version` | 要求稳定版 `>=0.23.1, <0.24.0`；缺失或可解析稳定版低于 0.23.1 时运行 `cargo install --locked --version '>=0.23.1, <0.24.0' cargo-xwin` 安装或升级并复探；`>=0.24.0`、预发布、无法解析或损坏时阻断。 |
 
-现有 Git 稳定版低于 2.36.0、Rust 稳定版低于 1.95.0、Node.js 稳定版低于 24.0.0、pnpm 稳定版低于 12.4.1，以及 `cargo-xwin` 稳定版低于 0.23.1，都是可恢复的 `upgrade-required`：写入模式必须走当前宿主受支持路线升级并复探，不得把它们降级成警告。现有范围内稳定版本原样复用，尤其不得把 Node.js 25.x、26.x 或未来更高正式稳定版本降级到 LTS。`cargo-xwin >=0.24.0`、任何预发布、无法解析或损坏的工具不属于“低于最低下界”的自动升级路径，必须失败关闭。仅检测到工具存在不证明门禁已满足，更不证明单元测试或构建已经通过。
+现有 Git 稳定版低于 2.36.0、Rust 稳定版低于 1.95.0、Node.js 稳定版低于 24.0.0、pnpm 稳定版低于 12.4.1，或现有 Rust 达到通用门槛却低于传入项目 MSRV，以及 `cargo-xwin` 稳定版低于 0.23.1，都是可恢复的 `upgrade-required`：写入模式必须走当前宿主受支持路线升级并复探，不得把它们降级成警告。现有范围内稳定版本原样复用，尤其不得把 Node.js 25.x、26.x 或未来更高正式稳定版本降级到 LTS。`cargo-xwin >=0.24.0`、任何预发布、无法解析或损坏的工具不属于“低于最低下界”的自动升级路径，必须失败关闭。仅检测到工具存在不证明门禁已满足，更不证明单元测试或构建已经通过。
 
 ## 安装安全措施
 
@@ -72,20 +73,20 @@ bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dep
 
 Windows 写入门禁先尝试现有静默路线：Git 使用 `winget --silent --disable-interactivity`，Rust、Node.js、pnpm 安装到当前用户环境，MSVC 使用验签后的微软 Build Tools 引导程序 `--quiet --wait --norestart`。静默表示安装界面最少，不代表可以绕过 UAC、管理员授权或组织策略；微软的 Visual Studio 安装要求管理员权限，标准用户不能以 `--quiet` 绕过。Agent 能在已授权的管理员上下文继续时，仍优先完成自动安装和复探。
 
-若 Windows 宿主中的 Codex 进程无法完成提权、UAC 被拒绝、组织策略阻断或安装器不可由当前会话运行，先停止当前初始化/开发/构建，再在同一项目根与已选接口执行一次 `-CheckOnly -Interfaces <selection>` 只读复探。写入门禁可能在首次失败时提前退出，不能仅凭该退出码推断所有工具状态。复探可运行时，给用户一份**仅含本次已证实未达标必需项**的人工安装清单；复探本身无法运行时，只列已证实的失败项，并将其余适用项标为“未判定”，不得把它们写成已通过或已失败。清单写明原门禁命令、失败阶段和退出码或诊断、目标架构、已选择接口、最低版本、已成功安装项，以及以下相应官方入口；不得给未经核验的聚合包或把用户安装视为已经通过。
+若 Windows 宿主中的 Codex 进程无法完成提权、UAC 被拒绝、组织策略阻断或安装器不可由当前会话运行，先停止当前初始化/开发/构建，再在同一项目根与已选接口执行一次 `-CheckOnly -Interfaces <selection> -RustMinVersion <project-msrv>` 只读复探。写入门禁可能在首次失败时提前退出，不能仅凭该退出码推断所有工具状态。复探可运行时，给用户一份**仅含本次已证实未达标必需项**的人工安装清单；复探本身无法运行时，只列已证实的失败项，并将其余适用项标为“未判定”，不得把它们写成已通过或已失败。清单写明原门禁命令、失败阶段和退出码或诊断、目标架构、已选择接口、最低版本、已成功安装项，以及以下相应官方入口；不得给未经核验的聚合包或把用户安装视为已经通过。
 
 | 必需项 | 官方下载/安装入口 | 用户安装要点 |
 |---|---|---|
 | Git（全部接口） | [Git for Windows](https://git-scm.com/install/windows) | 选择当前 Windows 架构的安装器；安装后 `git --version` 至少为稳定版 2.36.0。已有 `winget` 且可用时仍优先由门禁自动静默安装。 |
-| Rust（全部接口） | [Rust 官方安装页](https://rust-lang.org/tools/install/) | 下载当前架构的 `rustup-init.exe`，选择 stable 的 MSVC 工具链；`rustc --version` 至少为稳定版 1.95.0，同时确认 `cargo --version` 与同一 stable minor。 |
+| Rust（全部接口） | [Rust 官方安装页](https://rust-lang.org/tools/install/) | 下载当前架构的 `rustup-init.exe`，选择 stable 的 MSVC 工具链；`rustc --version` 至少达到 `gate.rust.requirement` 的本次实际下界（通用最低 1.95.0），同时确认 `cargo --version` 与同一 stable minor。 |
 | MSVC C++ Build Tools（Windows Rust） | [微软 Build Tools 2022 引导程序](https://aka.ms/vs/17/release/vs_BuildTools.exe)、[微软安装说明](https://learn.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2022) | 由用户或设备管理员完成 UAC；在安装器中选择 **Desktop development with C++**（`Microsoft.VisualStudio.Workload.VCTools`）及推荐组件，按提示重启。仅安装 Visual C++ Redistributable 不能替代编译工具。 |
 | Node.js（所有下游接口） | [Node.js 官方下载页](https://nodejs.org/en/download) | 选择当前架构、满足 `>=24.0.0` 的稳定版；已有 25.x 或更高正式稳定版可继续使用。安装后核对 `node --version` 与 `npm --version`。 |
 | pnpm（仅 GUI） | [pnpm 官方安装说明](https://pnpm.io/installation) | Node.js 合格后用 npm 在标准用户级全局前缀安装满足 `>=12.4.1` 的稳定版，并核对 `pnpm --version`；不要用远程文本直接执行或降低版本门槛。 |
 
-用户完成安装并明确告知继续后，Agent 在同一项目根和已确认接口下先重新打开进程环境/刷新 PATH，再运行 `.agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -CheckOnly -Interfaces <selection>` 只读复探。所有适用项均为 `passed` 才继续：初始化返回原初始化流程；真实测试/构建错误恢复只重试原失败命令一次。仍未达标时报告具体剩余项及新的诊断并保持阻断，不循环自动安装，也不将未验证的用户操作记为通过。若 Codex 在该 Windows 宿主完全无法运行，用户可在本机 PowerShell 核对上述版本并把结果告知 Agent；Agent 恢复访问后仍必须亲自执行只读门禁，不能仅凭转述宣称环境通过。
+用户完成安装并明确告知继续后，Agent 在同一项目根和已确认接口下先重新打开进程环境/刷新 PATH，再运行 `.agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -CheckOnly -Interfaces <selection> -RustMinVersion <project-msrv>` 只读复探。所有适用项均为 `passed` 才继续：初始化返回原初始化流程；真实测试/构建错误恢复只重试原失败命令一次。仍未达标时报告具体剩余项及新的诊断并保持阻断，不循环自动安装，也不将未验证的用户操作记为通过。若 Codex 在该 Windows 宿主完全无法运行，用户可在本机 PowerShell 核对上述版本并把结果告知 Agent；Agent 恢复访问后仍必须亲自执行只读门禁，不能仅凭转述宣称环境通过。
 
 ## 证据记录
 
 记录宿主、已选接口/发布目标、工具需求状态、探测命令、观测版本或 `Missing`、`missing` / `upgrade-required`、安装/升级来源和 `installed` / `upgraded` 变更、写入后复探、最终结果，并将其他平台标记为 `Unverified`。xwin 成功仍把 Windows runtime 记为 `Unverified`。遮盖令牌和不必要的用户主目录路径。该证据不得替代项目构建、测试、产物、冒烟、E2E 或人工复核证据。
 
-通用 Rust 环境下界 `>=1.95.0` 只决定基础工具可用性，不替代根 Cargo `rust-version`。项目声明更高 MSRV 时必须满足该声明，不能以环境门禁通过代替项目兼容性或反复重装已合格工具。缺失或过低时安装执行当时的官方最新 stable，不固定安装 1.95.0；Node.js 同样选择官方最新 LTS，不固定安装 24.0.0。
+通用 Rust 环境下界 `>=1.95.0` 只决定基础工具可用性，不替代根 Cargo `rust-version`。项目声明更高 MSRV 时必须通过 `--rust-min-version` / `-RustMinVersion` 传入该声明；低于本次实际下界返回 `upgrade-required`，不能以通用门禁通过代替项目兼容性或反复重装已满足实际下界的工具。缺失或过低时安装执行当时的官方最新 stable，不固定安装 1.95.0；Node.js 同样选择官方最新 LTS，不固定安装 24.0.0。

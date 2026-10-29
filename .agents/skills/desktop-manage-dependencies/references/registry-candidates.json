@@ -690,7 +690,8 @@
       "nodeEngine": ">=14.17",
       "peerDependencies": {},
       "conditional": false,
-      "source": "https://registry.npmjs.org/typescript/6.0.3"
+      "source": "https://registry.npmjs.org/typescript/6.0.3",
+      "dependencyRange": ">=6.0.3 <6.1.0"
     },
     "typescript-eslint": {
       "version": "8.72.1",
@@ -747,7 +748,7 @@
     {
       "name": "typescript",
       "version": "7.0.2",
-      "reason": "typescript-eslint@8.72.1 requires TypeScript >=4.8.4 <6.1.0; TypeScript 7.0 has no stable compiler API used by the Chinese-comment AST checker"
+      "reason": "typescript-eslint@8.72.1 requires TypeScript >=4.8.4 <6.1.0; declare >=6.0.3 <6.1.0 so normal resolution cannot select unsupported TypeScript 6.1 or 7, and keep the Chinese-comment AST checker on its tested compiler family"
     },
     {
       "name": "vitest",

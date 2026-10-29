@@ -115,7 +115,7 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 |---|---|---|
 | Rust 语言版本 | `2024` | 稳定版 Rust；不使用 nightly 功能 |
 | Rust 通用环境下界 | `>=1.95.0` | rustc/cargo 属于同一 stable minor，达到下界原样复用；缺失或过低时通过官方 rustup 安装执行当时的最新 stable，不固定安装最低版本 |
-| MSRV | `1.98.1` | 根工作区写入 `rust-version = "1.98.1"`，表示已经核验的项目最低兼容版本；接受 1.98.1 及以上稳定版，不要求精确等于 1.98.1。通用环境门禁通过不替代 Cargo 对项目更高 MSRV 的校验，不能未经最低工具链实测降低兼容声明 |
+| MSRV | `1.98.1` | 根工作区写入 `rust-version = "1.98.1"`，表示已经核验的项目最低兼容版本；接受 1.98.1 及以上稳定版，不要求精确等于 1.98.1。初始化与真实环境错误恢复必须以 `--rust-min-version` / `-RustMinVersion` 传入即将生成或现有 Cargo 的真实 MSRV；脚本按 `max(1.95.0, 项目MSRV)` 检查并输出 `gate.rust.requirement`，不能用通用环境通过代替项目所需版本，不能未经最低工具链实测降低兼容声明 |
 | 包结构 | 工作区 | 当前根目录下的 `<项目标识>_core` + 所选适配器；当前根同时是独立 Git 顶层目录 |
 | 初始版本 | `0.1.0` | 后续由 `$desktop-manage-version` 按 `docs/RELEASE.md` 的版本规则自动管理，显式 Major 仅由用户批准 |
 | 项目锁文件 | 根 Cargo 元数据 `dependency-lock-policy` 缺省/`ignored`；已初始化下游可显式选择 `tracked` | 默认忽略标准锁文件；`tracked` 要求跟踪根及独立 Rust 工作区的 `Cargo.lock`、已选 Tauri 前端根的 `pnpm-lock.yaml`，并使用冻结解析。未知值失败关闭；`pnpm-package.lock` 始终不是标准门禁 |
@@ -147,13 +147,13 @@ pnpm --version
 
 ```text
 # macOS / Linux
-.agents/skills/desktop-check-development-environment/scripts/development-environment-gates.sh --install-missing --interfaces <selection>
+.agents/skills/desktop-check-development-environment/scripts/development-environment-gates.sh --install-missing --interfaces <selection> --rust-min-version <project-msrv>
 
 # Windows PowerShell 5.1+
-.agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection>
+.agents/skills/desktop-check-development-environment/scripts/development-environment-gates.ps1 -Interfaces <selection> -RustMinVersion <project-msrv>
 ```
 
-成功输出必须包含 `gate.git.status=passed`、`gate.rust.status=passed` 与 `gate.node.requirement=>=24.0.0`；Rust 通用环境门禁接受 1.95.0 及以上稳定版，Node.js 对全部接口组合适用。Windows 还必须包含 `gate.msvc.status=passed`，GUI 另外要求 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.0.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim，或寻找替代工具链来适配旧环境。
+成功输出必须包含 `gate.git.status=passed`、`gate.rust.status=passed`、`gate.node.requirement=>=24.0.0` 与本次实际 `gate.rust.requirement`；Rust 接受达到 `max(1.95.0, 项目MSRV)` 的稳定版，Node.js 对全部接口组合适用。Windows 还必须包含 `gate.msvc.status=passed`，GUI 另外要求 `gate.pnpm.requirement=>=12.4.1`。写入模式只安装缺失工具，并自动升级可证明低于最低下界的工具；24.0.0 及任何更高正式 Node.js 版本直接通过。范围内稳定版不重装；`cargo-xwin` 的门禁为 `>=0.23.1, <0.24.0`，低于 0.23.1 的可解析稳定版升级，`>=0.24.0` 仍阻断。预发布、无法解析或损坏状态失败关闭。`--check-only` / `-CheckOnly` 保持零写入并报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim，或寻找替代工具链来适配旧环境。
 
 ## 默认依赖
 

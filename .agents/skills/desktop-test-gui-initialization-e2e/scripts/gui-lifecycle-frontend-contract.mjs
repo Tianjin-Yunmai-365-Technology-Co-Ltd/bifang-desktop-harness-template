@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { collectFiles } from "./gui-lifecycle-source-analysis.mjs";
+import { validateFrontendTypeScriptRange } from "./gui-frontend-dependency-ranges.mjs";
 
 const FRONTEND_SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".ts", ".tsx"]);
 
@@ -228,6 +229,13 @@ function validateDialogFrontendContract(guiRoot, errors, readTextFile) {
     if (packageJson?.dependencies?.["@tauri-apps/plugin-dialog"] !== "^2.8.4") {
       errors.push("GUI dialog 基线要求 dependencies 生产直依赖 @tauri-apps/plugin-dialog = ^2.8.4");
     }
+  }
+
+  try {
+    const catalogUrl = new URL("../../desktop-manage-dependencies/references/registry-candidates.json", import.meta.url);
+    errors.push(...validateFrontendTypeScriptRange(packageJson, JSON.parse(readTextFile(catalogUrl))));
+  } catch {
+    errors.push("GUI TypeScript 候选登记无法解析，不能验证 peer 兼容范围");
   }
 
   const packageSections = [

@@ -4,7 +4,8 @@ param(
     [switch]$CheckOnly,
     [string[]]$Interfaces = @(),
     [ValidateSet("tauri", "gpui")]
-    [string]$GuiFramework = "tauri"
+    [string]$GuiFramework = "tauri",
+    [string]$RustMinVersion = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +13,19 @@ $ErrorActionPreference = "Stop"
 $MinimumRustMajor = 1
 $MinimumRustMinor = 95
 $MinimumRustPatch = 0
+# 项目下界在任何工具探测前校验，不能用参数降低通用最低版本。
+if ($PSBoundParameters.ContainsKey("RustMinVersion")) {
+    if ($RustMinVersion -notmatch '\A(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\z') {
+        [Console]::Error.WriteLine("Rust 项目下界必须是完整三段稳定版本")
+        exit 2
+    }
+    $requestedRustMinimum = [version]$RustMinVersion
+    if ($requestedRustMinimum -gt [version]"$MinimumRustMajor.$MinimumRustMinor.$MinimumRustPatch") {
+        $MinimumRustMajor = $requestedRustMinimum.Major
+        $MinimumRustMinor = $requestedRustMinimum.Minor
+        $MinimumRustPatch = $requestedRustMinimum.Build
+    }
+}
 $NodeRequirement = ">=24.0.0"
 $PnpmRequirement = ">=12.4.1"
 $PnpmInstallRequirement = "pnpm@>=12.4.1"
@@ -1389,6 +1403,7 @@ try {
         "gate.git.requirement=$GitRequirement"
         "gate.git.version=$GitVersion"
         "gate.rust.status=$rustState"
+        "gate.rust.requirement=>=$MinimumRustMajor.$MinimumRustMinor.$MinimumRustPatch"
         "gate.rust.version=$RustVersion"
         "gate.rust.rustup_version=$RustupVersion"
         "gate.rust.cargo_version=$CargoVersion"
@@ -1562,6 +1577,7 @@ try {
     "gate.git.version=$GitVersion"
     "gate.git.change=$GitChange"
     "gate.rust.status=passed"
+    "gate.rust.requirement=>=$MinimumRustMajor.$MinimumRustMinor.$MinimumRustPatch"
     "gate.rust.version=$RustVersion"
     "gate.rust.rustup_version=$RustupVersion"
     "gate.rust.cargo_version=$CargoVersion"

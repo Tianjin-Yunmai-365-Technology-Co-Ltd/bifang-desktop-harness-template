@@ -15,10 +15,38 @@ MODE=install
 INTERFACES=
 GUI_FRAMEWORK=tauri
 PNPM_REQUIRED=0
+RUST_MIN_VERSION_PROVIDED=0
 
 # 输出稳定的命令入口说明，避免调用方误把只读模式当成首次开发安装模式。
 usage() {
-    printf '%s\n' "用法：development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI [--gui-framework tauri|gpui]"
+    printf '%s\n' "用法：development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI [--gui-framework tauri|gpui] [--rust-min-version MAJOR.MINOR.PATCH]"
+}
+
+# 项目 MSRV 由调用方从即将生成或现有 Cargo 读取；只接受有界稳定版本，并保留更高的通用下界。
+set_project_rust_minimum() {
+    requested_rust_minimum=$1
+    case "$requested_rust_minimum" in
+        ''|*[!0-9.]*|.*|*..*|*.) printf '%s\n' 'Rust 项目下界必须是完整三段稳定版本' >&2; exit 2 ;;
+    esac
+    saved_rust_ifs=$IFS
+    IFS=.
+    set -- $requested_rust_minimum
+    IFS=$saved_rust_ifs
+    [ "$#" -eq 3 ] || { printf '%s\n' 'Rust 项目下界必须是完整三段稳定版本' >&2; exit 2; }
+    for requested_part in "$@"; do
+        case "$requested_part" in
+            ''|*[!0-9]*|0[0-9]*|??????????*) printf '%s\n' 'Rust 项目下界必须是完整三段稳定版本' >&2; exit 2 ;;
+        esac
+    done
+    if [ "$1" -gt "$MIN_RUST_MAJOR" ] || {
+        [ "$1" -eq "$MIN_RUST_MAJOR" ] && {
+            [ "$2" -gt "$MIN_RUST_MINOR" ] || { [ "$2" -eq "$MIN_RUST_MINOR" ] && [ "$3" -gt "$MIN_RUST_PATCH" ]; };
+        };
+    }; then
+        MIN_RUST_MAJOR=$1
+        MIN_RUST_MINOR=$2
+        MIN_RUST_PATCH=$3
+    fi
 }
 
 while [ "$#" -gt 0 ]; do
@@ -28,6 +56,12 @@ while [ "$#" -gt 0 ]; do
         --interfaces)
             [ "$#" -ge 2 ] || { usage >&2; exit 2; }
             INTERFACES=$2
+            shift
+            ;;
+        --rust-min-version)
+            [ "$#" -ge 2 ] && [ "$RUST_MIN_VERSION_PROVIDED" -eq 0 ] || { usage >&2; exit 2; }
+            set_project_rust_minimum "$2"
+            RUST_MIN_VERSION_PROVIDED=1
             shift
             ;;
         --gui-framework)
@@ -1695,6 +1729,7 @@ if [ "$MODE" = check ]; then
     printf 'gate.git.requirement=%s\n' "$GIT_REQUIREMENT"
     printf 'gate.git.version=%s\n' "$GIT_VERSION"
     printf 'gate.rust.status=%s\n' "$RUST_STATUS"
+    printf 'gate.rust.requirement=>=%s.%s.%s\n' "$MIN_RUST_MAJOR" "$MIN_RUST_MINOR" "$MIN_RUST_PATCH"
     printf 'gate.rust.version=%s\n' "$RUST_VERSION"
     printf 'gate.rust.rustup_version=%s\n' "$RUSTUP_VERSION"
     printf 'gate.rust.cargo_version=%s\n' "$CARGO_VERSION"
@@ -1786,6 +1821,7 @@ printf 'gate.git.requirement=%s\n' "$GIT_REQUIREMENT"
 printf 'gate.git.version=%s\n' "$GIT_VERSION"
 printf 'gate.git.change=%s\n' "$GIT_CHANGED"
 printf 'gate.rust.status=passed\n'
+printf 'gate.rust.requirement=>=%s.%s.%s\n' "$MIN_RUST_MAJOR" "$MIN_RUST_MINOR" "$MIN_RUST_PATCH"
 printf 'gate.rust.version=%s\n' "$RUST_VERSION"
 printf 'gate.rust.rustup_version=%s\n' "$RUSTUP_VERSION"
 printf 'gate.rust.cargo_version=%s\n' "$CARGO_VERSION"

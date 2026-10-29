@@ -472,3 +472,29 @@ test("Windows rejects reparse roots and wrappers before installers write", windo
     }
   }
 });
+
+/** Windows 以真实项目 MSRV 区分可用、需升级和更高稳定版，check-only 不写用户环境。 */
+test("Windows project MSRV overrides the generic Rust minimum without writes", windowsRuntime, () => {
+  for (const [rust, status] of [["1.95.0", 20], ["1.98.0", 20], ["1.98.1", 0], ["1.99.0", 0]]) withTemporaryRoot((root) => {
+    const probe = path.join(root, "probe");
+    addBaseTools(probe, { rust });
+    const result = runWindowsGate(root, probe, ["-CheckOnly", "-RustMinVersion", "1.98.1"]);
+    assert.equal(result.status, status, `${rust}: ${result.stderr}`);
+    assert.match(result.stdout, /gate\.rust\.requirement=>=1\.98\.1/u);
+    assert.match(result.stdout, status === 0 ? /gate\.rust\.status=passed/u : /gate\.rust\.status=upgrade-required/u);
+    assert.equal(existsSync(path.join(root, "home", ".profile")), false);
+    assert.equal(existsSync(path.join(root, "home", "custom-cargo")), false);
+  });
+});
+
+/** Windows 拒绝预发布、范围或注入字符串，不能把坏输入当成通用门禁继续。 */
+test("Windows rejects invalid project MSRV before tool probing", windowsRuntime, () => {
+  for (const value of ["", "1.98", "1.98.1-beta", "1.98.1\n", ">=1.98.1", "1.98.1; touch marker", "1.9999999999.0"]) withTemporaryRoot((root) => {
+    const probe = path.join(root, "probe");
+    addBaseTools(probe);
+    const result = runWindowsGate(root, probe, ["-CheckOnly", "-RustMinVersion", value]);
+    assert.equal(result.status, 2, `${value}: ${result.stderr}`);
+    assert.equal(result.stdout, "");
+    assert.equal(existsSync(path.join(root, "marker")), false);
+  });
+});

@@ -53,3 +53,25 @@ test("candidate_gate_rejects_unregistered_frontend_versions_and_nonofficial_sour
   assert.match(errors.join("\n"), /frontend dependency candidate drift: react/u);
   assert.match(errors.join("\n"), /official source: react/u);
 }));
+
+/** 选择的最低版可安装不代表整个声明兼容；登记不能遗失 peer 上界。 */
+test("candidate_gate_rejects_typescript_ranges_that_escape_the_eslint_peer", () => {
+  for (const range of ["^6.0.3", ">=6.0.3 <7.0.0", ">=6.0.2 <6.1.0", "6.0.3"]) {
+    mutatedSnapshot(value => { value.npm.typescript.dependencyRange = range; }, errors => {
+      assert.match(errors.join("\n"), /TypeScript dependency range/u, range);
+    });
+  }
+});
+
+/** 文档中的过宽 caret 不能借同一候选版本号通过登记一致性检查。 */
+test("candidate_gate_rejects_frontend_table_without_the_typescript_peer_bound", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dependency-range-baseline-"));
+  try {
+    const baseline = new URL("../../.agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md", import.meta.url);
+    const file = path.join(root, "react-frontend-baseline.md");
+    fs.writeFileSync(file, fs.readFileSync(baseline, "utf8").replaceAll(">=6.0.3 <6.1.0", "^6.0.3"));
+    const errors = [];
+    validateDependencyCandidates(errors, { frontendBaselinePath: file });
+    assert.match(errors.join("\n"), /frontend dependency candidate drift: typescript/u);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});

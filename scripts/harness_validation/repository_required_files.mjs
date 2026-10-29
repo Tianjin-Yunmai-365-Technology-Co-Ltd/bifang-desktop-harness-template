@@ -150,6 +150,8 @@ export const REQUIRED_ROOT_FILES = [
   ".agents/skills/desktop-add-gui-autostart/SKILL.md",
   ".agents/skills/desktop-add-gui-autostart/agents/openai.yaml",
   ".agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md",
+  ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-frontend-dependency-ranges.mjs",
+  ".agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-frontend-dependency-ranges.test.mjs",
   ".agents/skills/desktop-add-gui-adapter/references/gui-baseline.md",
   ".agents/skills/desktop-add-gui-adapter/references/mantine-ui-guidelines.md",
   ".agents/skills/desktop-add-gui-adapter/references/check-typescript-chinese-comments.cjs",

@@ -342,6 +342,7 @@ function createFixture() {
     path.join(guiRoot, "package.json"),
     JSON.stringify({
       dependencies: { "@tauri-apps/plugin-dialog": "^2.8.4" },
+      devDependencies: { typescript: ">=6.0.3 <6.1.0", "typescript-eslint": "^8.72.1" },
     }),
   );
   fs.writeFileSync(

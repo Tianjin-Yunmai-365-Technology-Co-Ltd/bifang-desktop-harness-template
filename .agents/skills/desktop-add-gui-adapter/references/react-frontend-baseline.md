@@ -16,7 +16,7 @@
 
 实施适配器时为每个直接包声明满足实际 API、Node.js、Tauri WebView、平台和安全约束的最低兼容稳定范围。`dependencies`/`devDependencies` 使用带完整三段下界的 caret（例如 `^1.2.3`），或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符和无下界范围。确需因上游缺陷或互操作约束精确固定时，先记录硬规则例外与解除条件。
 
-截至 2026-10-29，当前经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界如下；在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`。实际通过后才可成为该项目的兼容下界；写入 `package.json` 时全部保留 caret 兼容范围，不得改成精确锁定：
+截至 2026-10-29，当前经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界如下；在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`。实际通过后才可成为该项目的兼容下界；写入 `package.json` 时保留表内兼容范围；存在官方 peer 上界的包必须显式保留该上界，不得扩张为 caret 或改成精确锁定：
 
 | 直接包 | 最低兼容范围 |
 |---|---|
@@ -33,7 +33,7 @@
 | `react-i18next` | `^17.1.9` |
 | `vite` | `^8.3.5` |
 | `@vitejs/plugin-react` | `^6.1.2` |
-| `typescript` | `^6.0.3` |
+| `typescript` | `>=6.0.3 <6.1.0` |
 | `eslint` | `^10.13.0` |
 | `typescript-eslint` | `^8.72.1` |
 | `prettier` | `^3.9.10` |
@@ -58,7 +58,7 @@
 新增或提高直接下界时，在临时副本的 `pnpm-workspace.yaml` 中设置 `resolutionMode: lowest-direct`，于声明的最低 Node.js/pnpm 环境运行受影响的类型检查、非空单元测试与生产构建。最低版本解析只用于证明下界；正常安装可选择范围内较新的稳定版本。缺省锁策略下本地锁文件不进入 Git；已有下游显式选择 `tracked` 时跟踪 GUI 根锁文件。
 
 
-2026-10-29 兼容筛选保留 TypeScript 6.0.3、Vitest 4.1.12 与 jsdom 29.1.1：TypeScript 7.0.2 不满足当前 typescript-eslint 的 `<6.1.0` peer，Vitest 5.0.5 排除 Node.js 25，jsdom 30.1.3 排除 Node.js 24.0–24.14 和 25。`@types/node` 使用最新 24.x（24.19.2）约束最低运行时可调用的 API；不能据 26.x 类型可安装就假设 Node.js 24 支持对应新 API。Jotai 3.0.1 的公共 atom/store/Provider 用法已按当前模板核对；不使用 v3 删除的 atomFamily、loadable、setSelf。完整候选元数据与来源见 [registry-candidates.json](../../desktop-manage-dependencies/references/registry-candidates.json)。
+2026-10-29 兼容筛选保留 TypeScript `>=6.0.3 <6.1.0`、Vitest 4.1.12 与 jsdom 29.1.1：`^6.0.3` 会允许 6.1+，因此不能表达当前 typescript-eslint 的 `<6.1.0` peer；初始化构建前直接检查实际 package 声明的完整范围，不能只验证锁中碰巧安装的 6.0.3。TypeScript 7.0.2 同样不满足该 peer，Vitest 5.0.5 排除 Node.js 25，jsdom 30.1.3 排除 Node.js 24.0–24.14 和 25。`@types/node` 使用最新 24.x（24.19.2）约束最低运行时可调用的 API；不能据 26.x 类型可安装就假设 Node.js 24 支持对应新 API。Jotai 3.0.1 的公共 atom/store/Provider 用法已按当前模板核对；不使用 v3 删除的 atomFamily、loadable、setSelf。完整候选元数据与来源见 [registry-candidates.json](../../desktop-manage-dependencies/references/registry-candidates.json)。
 
 ## 状态所有权
 

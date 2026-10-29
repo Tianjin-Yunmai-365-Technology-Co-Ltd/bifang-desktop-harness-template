@@ -1,4 +1,5 @@
 import path from "node:path";
+import { isTypeScriptRangeCompatible, parseBoundedVersionRange } from "../../.agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-frontend-dependency-ranges.mjs";
 import { ROOT, fail, readJson, readText } from "./core.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
 import { renderGpuiFiles } from "../../.agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs";
@@ -68,6 +69,13 @@ export function validateDependencyCandidates(errors, options = {}) {
     }
     if (!coversContinuousNodeRange(item.nodeEngine)) fail(errors, `npm candidate excludes a supported Node release: ${name}`);
   }
+  const typescript = catalog.npm.typescript;
+  const peerRange = catalog.npm["typescript-eslint"]?.peerDependencies?.typescript;
+  const registeredRange = parseBoundedVersionRange(typescript?.dependencyRange);
+  if (!isTypeScriptRangeCompatible(typescript?.dependencyRange, typescript?.version, peerRange)
+      || registeredRange?.minimum.join(".") !== typescript?.version) {
+    fail(errors, "TypeScript dependency range must preserve its registered lower bound and typescript-eslint peer upper bound");
+  }
   if (catalog.crates["gpui-pre-macos"]?.version === "0.3.10" && catalog.crates.accesskit_macos?.version !== "0.26.3") {
     fail(errors, "GPUI 0.3.10 must retain the compatible accesskit_macos 0.26.3 family");
   }
@@ -82,7 +90,8 @@ export function validateDependencyCandidates(errors, options = {}) {
     }
     const baseline = readText(options.frontendBaselinePath ?? FRONTEND_BASELINE);
     for (const [name, item] of Object.entries(catalog.npm)) {
-      const found = baseline.split("\n").some(line => (line.includes(`\`${name}\``) || line.includes(`\`${name}:`)) && line.includes(`^${item.version}`));
+      const rangeToken = item.dependencyRange ? `\`${item.dependencyRange}\`` : `^${item.version}`;
+      const found = baseline.split("\n").some(line => (line.includes(`\`${name}\``) || line.includes(`\`${name}:`)) && line.includes(rangeToken));
       if (!found) fail(errors, `frontend dependency candidate drift: ${name}@${item.version}`);
     }
   } catch (error) { fail(errors, `dependency candidate source check failed: ${error.message}`); }

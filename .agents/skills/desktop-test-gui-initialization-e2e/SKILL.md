@@ -28,7 +28,7 @@ description: 在含 GUI 的下游初始化提交前，按九项配置验证桌�
    - `autostart: enabled`：`tauri-plugin-autostart = "2.7.0"`、`MacosLauncher::LaunchAgent`、无隐藏参数、Rust `ManagerExt` command、OS 权威状态、初始化不 `enable()`、失败回滚、Switch 和固定回归；disabled 时拒绝依赖、插件、command、WebView ACL、Switch、翻译键与启动参数残留。
    - 更新日志：所有 GUI 都必须保留只含固定映射的 `src-tauri/tauri.release.conf.json`，但本次调试构建不传它；`about_page: enabled` 时要求 Tokio `fs`、异步 `load_release_notes`、`BaseDirectory::Resource`、handler 注册、Rust schema v2 与完整 `zh-CN`/`en-US` 翻译对回归、React IPC 解码、当前 i18n locale 内容选择及 loading/error/retry 回归，disabled 时拒绝命令、加载器、弹窗和文案。
    - 前端：`/settings` 与设置页组件始终存在；通知/自启 Switch 及 i18n 严格按选择存在。全局快捷键空 contract 不得保留状态、保存、录制、编辑器或翻译键；固定动作只读显示需求 chord/逐项真实状态，可编辑动作才提供录制、取消、清空和 Rust 权威 load/save/capture；不得通过 localStorage/sessionStorage、Jotai atom 或 TanStack Query 建立绑定或能力状态的第二权威副本。关于/赞助路由和运行时组件分别与选择一致；实际侧栏接线必须等于 `sidebar_mode`。
-2. 在 GUI 目录运行 `pnpm tauri build --debug --no-bundle`。失败或零产物立即失败；只有诊断明确属于受管环境问题时才调用环境恢复并重试原命令一次。
+2. 构建前还须以候选登记的 TypeScript 下界与 typescript-eslint peer 检查实际 GUI `package.json` 的完整范围；缺失、重复、无上界、越过 peer 或无法判定的声明均阻断，不能以当前锁恰好安装了旧版本代替。随后在 GUI 目录运行 `pnpm tauri build --debug --no-bundle`。失败或零产物立即失败；只有诊断明确属于受管环境问题时才调用环境恢复并重试原命令一次。
 3. 以 `cargo metadata --format-version 1 --no-deps` 推导本次真实本机调试二进制，拒绝旧产物、模糊 glob、符号链接或 `pnpm tauri dev`。
 4. 在隔离的 window-state 数据目录启动并持有主进程句柄，最多等待 60 秒直到主窗口可见。使用 Computer Use 保存初始截图并验证：
    - Logo 位于单个小写 `v` 版本之前；设置页固定含应用/版本、语言和三态主题且无隐私/统计区块，系统通知/开机自启 Switch 严格按配置出现，默认不产生权限请求或登录项注册；
