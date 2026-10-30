@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "4c4ac7084107a614fc4dd53b3e0904cca0df63c4",
-  "version": "202610291622",
-  "releaseDate": "2026-10-29",
-  "expectedTag": "v202610291622-20261029",
+  "sourceHead": "20d0be8a5ee05c9733ba2d487b98ca410f794bab",
+  "version": "202610301829",
+  "releaseDate": "2026-10-30",
+  "expectedTag": "v202610301829-20261030",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "7dc2b4711300988a2c3aa436e1dae97c41f6ff03",
-    "sourceHead": "4c4ac7084107a614fc4dd53b3e0904cca0df63c4",
-    "scopeDiffSha256": "24093af8349cc28e28476849934d4b8641420dc8182340ce74964ba6978ee17e",
-    "reviewedSourceCommit": "4c4ac7084107a614fc4dd53b3e0904cca0df63c4",
+    "scopeBase": "72271d652c1c2dcea87687f81a9d6c4b49c94a87",
+    "sourceHead": "20d0be8a5ee05c9733ba2d487b98ca410f794bab",
+    "scopeDiffSha256": "713c15981fc8dd9ea62f26e486c2b857a16c591d73e4cbe57a93ccfee6a765b8",
+    "reviewedSourceCommit": "20d0be8a5ee05c9733ba2d487b98ca410f794bab",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计审查上一发布7dc2b47至sourceHead，全部5条登记分支的当前HEAD均已纳入。窗口标题与语言刷新属于GUI适配器职责；依赖登记、最低环境、Cargo MSRV及TypeScript peer边界与实际生成器和清单检查一致，没有新增产品业务或反向core依赖。修正Product Spec成功标准中旧Rust通用下界，保留模板MSRV1.98.1。Node总套件1255项：1231通过、24项Windows/Linux宿主条件跳过、零失败；标题专项15项通过；Rust1.98.1中性CLI资产fmt、clippy、7项测试及release构建通过。源码最终Harness硬门禁、Node-only及启用的发布审查通过；40项提示已按职责复核，长文件保持同一能力或合同，TODO-A为测试夹具，无硬超限或未完成实现。真实Windows/Linux构建、GUI E2E和已登记前向验证限制仍未验证，本次不宣称产品候选验收。",
+    "evidenceSummary": "审查72271d6至sourceHead，唯一登记分支已纳入。Grid与排版属GUI展示/纯交互，无业务规则或core反向依赖。选择数量、查询指纹、新鲜期和详情接口有类型、运行时校验及迁移说明；独立复核无行为/兼容阻断。表格视图已拆分；列表状态、模板、契约各自围绕同一列表职责，无硬超限。40项非阻断提示已复核，TODO-A为测试夹具，无未完成实现。9项组件/主题、TypeScript源码、列表契约通过；Node1255项：1231通过、24项平台条件跳过。Harness/Node-only/发布审查通过。真实GUI、跨系统字形、200%缩放、性能与E2E未执行；本次为Harness源码发布。",
     "reason": null,
     "remainingRisk": null
   }
