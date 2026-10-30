@@ -4,7 +4,7 @@
 
 ## 2026-10-30 新增
 
-- `HARNESS-FEAT-GRID-TYPOGRAPHY`：统一 [通用 Grid](../design_standards/data_grid.md) 与 [字体排版基座](../design_standards/ui_foundation.md)，同步专项 Skill、检查项和 Tauri 中性资产。网格改用无横滚固定布局、列权重、可键盘查看完整值；选择支持单选/多选及跨页查询确认，刷新保留内容，按新鲜期查询并防重复重试。主题集中原生中文回退、标题/正文/辅助层级、等宽数字与亮暗文字语义。GPUI 补充原生规范，不注入 Web 依赖或网格。详见 [ADR-20261030-001](../adr/20261030_ADR.md)；开发阶段不取 Harness 时间版本，所需发布版本在正式发布时绑定。真实宿主字体、缩放、性能及 E2E 未验证。
+- `HARNESS-FEAT-GRID-TYPOGRAPHY`（`required_version = 202610301829`）：统一 [通用 Grid](../design_standards/data_grid.md) 与 [字体排版基座](../design_standards/ui_foundation.md)，同步专项 Skill、检查项和 Tauri 中性资产。网格改用无横滚固定布局、列权重、可键盘查看完整值；选择支持单选/多选及跨页查询确认，刷新保留内容，按新鲜期查询并防重复重试。主题集中原生中文回退、标题/正文/辅助层级、等宽数字与亮暗文字语义。GPUI 补充原生规范，不注入 Web 依赖或网格。详见 [ADR-20261030-001](../adr/20261030_ADR.md)；本次正式发布将已完成变化绑定到上述所需版本，发布状态以 Git 引用复核为准。真实宿主字体、缩放、性能及 E2E 未验证。
 
 ## 2026-10-28 新增
 
