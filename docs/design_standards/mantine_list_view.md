@@ -2,7 +2,7 @@
 
 `standard_id = mantine-list-view-v2`
 
-本标准命中 React 19.2+、TypeScript、Mantine UI 9.x 中用于检索、浏览或管理重复记录的列表页、数据表格、后台列表和搜索结果页。它与 [Tauri GUI 通用设计标准](tauri_gui.md) 组合使用；本文件只覆盖列表查询、表格呈现、行交互和列偏好。实现或审查使用 `$mantine-list-view`。
+本标准命中 React 19.2+、TypeScript、Mantine UI 9.x 中用于检索、浏览或管理重复记录的列表页、数据表格、后台列表和搜索结果页。它与 [通用 Grid 标准](data_grid.md)、[Tauri GUI 通用设计标准](tauri_gui.md) 组合使用；本文件只覆盖列表查询、表格呈现、行交互和列偏好。实现或审查使用 `$mantine-list-view`。
 
 ## 状态所有权
 
@@ -21,7 +21,7 @@
 
 ## 表格、排序和窄屏
 
-- 表头粘滞只用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`；禁止手写 sticky。`Table.Thead` 必须使用稳定 CSS Module 类，并令其 `th` 以 `background-color: var(--app-surface)` 提供不透明语义背景，避免滚动时数据行透出或与表头重合；不得用 `transparent` 或只适配单一色彩模式的固定颜色。二维内容只在命名、可聚焦、有 focus ring 的 `Table.ScrollContainer` 内横向滚动，页面根不得横向滚动。
+- 表头粘滞只用 Mantine `<Table stickyHeader stickyHeaderOffset={共享布局常量}>`；禁止手写 sticky。`Table.Thead` 必须使用稳定 CSS Module 类，并令其 `th` 以 `background-color: var(--app-surface)` 提供不透明语义背景，避免滚动时数据行透出或与表头重合；不得用 `transparent` 或只适配单一色彩模式的固定颜色。使用命名、可聚焦、有 focus ring 的普通 region 包含 `Table layout="fixed"`，不再使用带 `minWidth` 的 `Table.ScrollContainer`。容器和网格都不得横向滚动；单元格允许收缩、长值换行，列权重来自 schema，数值列使用等宽数字。默认保持所有列可见；确需响应式隐藏时由真实行详情保留完整字段与操作。省略文本使用可键盘打开、Escape 关闭并恢复焦点的完整值视图，中性资产为 `ListTextCell`。
 - 排序固定 asc→desc→none；排序变化原子 page=1。当前表头同时有准确 `aria-sort` 和可见 Tabler 方向图标，图标 `aria-hidden`；none 时不设置 aria-sort。表格外显示当前排序摘要和清除入口，窄屏隐藏次要列时仍可感知。
 - 列 schema 的 columnId 和可访问名称非空，columnId 唯一，每个 sortField 只属于一列；恰好一个 `responsiveRole="primary"`。primary、声明存在的 status/actions 必须设置 `required: true`，并和所有 required 列一样不得设置 `hideBelow`；次要列才可响应式隐藏。
 - 唯一 primary 业务单元格为 `th scope="row"`，每行由业务提供非空可理解名称。React key 使用带 id 类型前缀的稳定业务 id，不用 index；行本身不因视觉高亮自动变成链接或按钮。
@@ -42,14 +42,16 @@
 | 筛选无结果 | 播报“当前条件无结果”并显示真实有效的重置筛选 |
 | 全局无数据 | 使用不同文案；只显示业务提供的可执行下一步，不能给无效重置按钮 |
 | 错误 | 业务分型失败范围；可重试错误才显示 retry，403/终态契约错误不显示假恢复 |
-| 正常/刷新 | 真实数据、结果范围、总数和分页一致；后台进度局部表达 |
+| 正常/刷新 | 真实数据、结果范围、总数和分页一致；后台进度在表格之后的稳定槽位局部表达，不移动表格起点 |
+
+查询接收数据源明确的有限非负 `staleTimeMs`，不再强制每次挂载刷新；同条件更新不导航，消费 AbortSignal，重试 pending 防重复且不取消重启进行中请求。终态错误不自动重试，瞬时失败重试有界；请求错误分类仍由数据源适配决定。
 
 TanStack Query v5 的 placeholder 只覆盖新 key pending。换页 error 后显示新页错误，不把旧页冒充新页；同 key background refresh error 才保留当前数据并就近呈现。
 
 ## 选择和业务动作
 
-- 每个列表声明 none/current-page/cross-page。启用选择时必须提供可访问批量 action bar、选择摘要和清空入口，不能只有复选框。
-- current-page 在查询组合或页码变化时清空；同 key 成功刷新后裁剪响应中已消失 id。cross-page 只保存 id，并声明 base query 变化的清空/保留策略和可见范围。
+- 每个列表声明 none/current-page/cross-page；启用时独立声明 `cardinality: single | multiple`。单选使用同组 Radio，选新项替换旧项，不渲染全选头；多选支持仅当前页的全选/半选/取消全选，跨页其他 id 不受页头影响。启用选择时必须提供可访问批量 action bar、选择摘要和清空入口，不能只有复选框。
+- current-page 在查询组合或页码变化时清空；同 key 成功刷新后裁剪响应中已消失 id。cross-page 只保存 id，并声明 base query 变化的清空/保留策略和可见范围。`queryFingerprint` 必须与当前 base query 一致；父级处理 `onQueryFingerprintChange` 并确认前封锁失效集合及选择动作。
 - 批量动作由服务端重新校验 id、权限和当前状态；客户端选择不是授权。行内控件与父行事件分别测试，不得因冒泡重复执行。
 
 ## 列偏好与拖拽
@@ -62,6 +64,6 @@ TanStack Query v5 的 placeholder 只覆盖新 key pending。换页 error 后显
 
 - 纯函数：URL/session 优先级、保留无关 query、单次 replace、safe integer、响应矛盾、id/key、稳定偏好 key、迁移/损坏/legacy 清理、列角色、selection prune。
 - 组件：排序三态与图标/aria-sort、四态、placeholder inert、结果摘要、分页名称、主行表头、选择/action bar、pointer/keyboard/按钮列移动与 live feedback。
-- 视觉/浏览器：浅深条纹、hover/focus/selected/forced-colors，320 CSS px、200% 文本缩放、中英文、长值、Tab/Enter/Space、键盘横向滚动和 Back/Forward/refresh。
+- 视觉/浏览器：浅深条纹、hover/focus/selected/forced-colors，320 CSS px、200% 文本缩放、文本间距覆盖、中英文、长值、Tab/Enter/Space/Radio 方向键、无横向滚动和 Back/Forward/refresh。
 
 完整 Required/Conditional/N/A 判定使用 `$mantine-list-view` 的 `references/checklist.md`；未运行真实浏览器、服务端或 E2E 时如实标记，不以模板契约测试冒充产品验收。

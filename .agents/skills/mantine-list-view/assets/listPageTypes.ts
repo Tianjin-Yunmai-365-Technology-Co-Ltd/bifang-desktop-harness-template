@@ -31,11 +31,15 @@ export type ListSelection<TId extends BusinessId> =
   | { mode: "none" }
   | {
       mode: "current-page";
+      cardinality: "single" | "multiple";
       selectedIds: ReadonlySet<TId>;
       onChange: (ids: ReadonlySet<TId>) => void;
     }
   | {
       mode: "cross-page";
+      cardinality: "single" | "multiple";
+      /** 集合所属查询；父级按已声明策略处理变化后再确认此指纹。 */
+      queryFingerprint: string;
       selectedIds: ReadonlySet<TId>;
       onChange: (ids: ReadonlySet<TId>) => void;
       onQueryFingerprintChange: (nextFingerprint: string) => void;
@@ -74,6 +78,9 @@ export interface ListPageMessages extends ListColumnSettingsMessages {
   clearSort: (column: string) => string;
   activeSort: (column: string, direction: SortDirection) => string;
   selectCurrentPage: string;
+  selectionColumn: string;
+  selectionPending: string;
+  viewRowDetails: (rowName: string) => string;
   selectRow: (rowName: string) => string;
   clearSelection: string;
   selectionSummary: (
@@ -124,7 +131,11 @@ export interface ListPageProps<
     reset: () => void;
   }) => ReactNode;
   hasActiveFilters: (filters: TFilters) => boolean;
+  /** 返回不含秘密、可理解的已应用条件摘要；无条件时可返回空字符串。 */
+  getFilterSummary: (filters: TFilters) => string;
   renderNoDataAction?: () => ReactNode;
+  /** 响应式隐藏列时必须提供完整行详情，确保字段和操作仍可达。 */
+  renderRowDetails?: (row: TRow, context: ListCellRenderContext) => ReactNode;
   renderSelectionActions?: (input: {
     selectedIds: ReadonlySet<TId>;
     disabled: boolean;
@@ -135,5 +146,6 @@ export interface ListPageProps<
     context: { background: boolean },
   ) => ListErrorPresentation;
   messages: ListPageMessages;
-  tableMinWidth: number;
+  /** 数据新鲜期由实际来源决定；挂载只刷新已过期数据。 */
+  staleTimeMs: number;
 }

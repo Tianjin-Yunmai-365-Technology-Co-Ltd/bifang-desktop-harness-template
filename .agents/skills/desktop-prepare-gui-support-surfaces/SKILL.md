@@ -9,7 +9,7 @@ description: 为已选 GUI 按九项初始化配置建立标题、侧栏、语�
 
 新项目选择 GUI 时由 `$desktop-add-gui-adapter` 自动消费本 Skill，并严格服从 `docs/GUI_APP_PROFILE.md` 的九项初始化配置。以下固定模板、条件能力和对应回归只适用于该初始化或经批准迁移到相同模板标准的范围；首次接入的既有 GUI 不因保留本 Skill 而被要求改写实际能力。动态标题、Logo→当前版本、设置页、i18n、三态主题和亮暗语义主题始终存在；system-locale、updater、window-state 由各自固定 Skill 无条件接入，三项保持 Rust-only；dialog WebView 基线同样由独立固定 Skill 无条件接入且只授予精确 `dialog:default`，updater 未配置时保持 `NotConfigured` 且零出站。系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接和全局快捷键只在对应能力为 `enabled` 时进入运行时。系统通知与开机自启提供条件 Switch；全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位；初始化设置页不得预置隐私区块或统计开关。
 
-固定模板遵守当前 UI 基座，图标统一使用 `@tabler/icons-react`。侧栏展示值统一消费 `appDesignTokens.ts` 的 `APP_LAYOUT_TOKENS.sidebar`；compact 保持全宽居中竖排且不折叠，detailed 保持展开横排、收起图标与 Tooltip。详细折叠状态由 AppShell 拥有并用独立设备偏好恢复；侧栏与主内容偏移同源同步，父级不代理控件动作。
+固定模板遵守当前 UI 基座，字体/层级统一消费 `appDesignTokens.ts` 的 `APP_TYPOGRAPHY`、唯一主题与一次导入的 `appTypography.css`；默认系统中文回退，不下载字体。图标统一使用 `@tabler/icons-react`。侧栏展示值统一消费 `appDesignTokens.ts` 的 `APP_LAYOUT_TOKENS.sidebar`；compact 保持全宽居中竖排且不折叠，detailed 保持展开横排、收起图标与 Tooltip。详细折叠状态由 AppShell 拥有并用独立设备偏好恢复；侧栏与主内容偏移同源同步，父级不代理控件动作。
 
 ## 工作流程
 

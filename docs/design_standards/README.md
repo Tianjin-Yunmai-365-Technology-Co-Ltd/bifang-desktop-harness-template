@@ -17,6 +17,7 @@
 | 匹配条件 | 标准 | 当前标识 |
 |---|---|---|
 | 所有 GUI 的页面、组件与展示层 | [UI 统一设计基座](ui_foundation.md) | `ui-foundation-v1` |
+| 所有 GUI 中按行列浏览重复记录的数据网格 | [通用 Grid 数据网格标准](data_grid.md) | `data-grid-v1` |
 | Tauri 2 + React + Mantine GUI | [Tauri GUI 通用设计标准](tauri_gui.md) | `tauri-gui-common-v1` |
 | `gui-framework = "gpui"` + 原生 GPUI/gpui-kit GUI | [GPUI GUI 设计标准](gpui_gui.md)；托盘/通知/自启/单实例/热键的实现与平台限制另见 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md`，依赖选型见 `references/dependency-baseline.md` | `gpui-gui-common-v1` |
 | React 19.2+ + TypeScript + Mantine UI 9.x + 重复记录检索/浏览/管理 | [Mantine 列表页设计标准](mantine_list_view.md) | `mantine-list-view-v2` |

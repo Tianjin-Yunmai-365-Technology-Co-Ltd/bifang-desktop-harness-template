@@ -2,28 +2,27 @@
 
 本参考于 2026-09-19 对照 Mantine `9.7.4` 与 TanStack Query v5 文档复核。模板使用 `Pagination layout="responsive"`、`formatLabel`、`getItemProps`、`getControlProps` 和 Query v5 `placeholderData(previousData, previousQuery)`，因此直接复制的兼容下界是 `@mantine/core >=9.7.4 <10`、`@tanstack/react-query >=5.105.0 <6`。下游仍使用带完整三段下界的 caret 范围，生成的锁文件由 Git 忽略；低于下界时必须先升级，或实现并测试语义等价 fallback。
 
-## Table 与滚动区
+## Table 与自适应区域
 
 官方文档：[Table](https://mantine.dev/core/table/)
 
 ```tsx
-<Table.ScrollContainer
-  minWidth={TABLE_MIN_WIDTH}
-  type="native"
+<section
+  className={styles.scrollRegion}
   role="region"
   aria-label={messages.scrollRegion}
   tabIndex={0}
 >
-  <Table stickyHeader stickyHeaderOffset={LIST_STICKY_HEADER_OFFSET}>
+  <Table layout="fixed" stickyHeader stickyHeaderOffset={LIST_STICKY_HEADER_OFFSET}>
     <Table.Thead className={styles.tableHeader}>{/* column headers */}</Table.Thead>
     <Table.Tbody>{/* rows */}</Table.Tbody>
   </Table>
-</Table.ScrollContainer>
+</section>
 ```
 
 - `stickyHeaderOffset` 来自共享 AppShell 常量；不要给 wrapper、thead 或 th 手写 `position: sticky`。
 - `Table.Thead` 使用稳定 CSS Module 类，并以 `.tableHeader th { background-color: var(--app-surface); }` 提供随主题变化的不透明表头背景；不得使用透明背景，否则滚动数据会从粘性表头下透出。
-- `minWidth` 按真实列宽声明。页面根不横向滚动；命名的 native scroll viewport 可由键盘进入并显示 focus ring。
+- 不使用 `Table.ScrollContainer` 或列宽下界强制横滚。表格 inline-size=100%、layout=fixed，容器/单元格 min-inline-size=0，长值 overflow-wrap:anywhere；相对列权重来自 schema，数值列 tabular-nums。容器和表格都无横滚，不用 overflow:hidden 隐藏丢失内容。
 - 唯一业务主列使用 `<Table.Th scope="row">`。列标题使用 `<Table.Th scope="col">`；当前排序列才设置 `aria-sort`。
 - 真实数据行通过 CSS module 的 `data-row-tone="light|deep"` 交替着色，hover/`:focus-within` 提升对比，selected 与 forced-colors 保留独立非颜色反馈。
 
@@ -75,12 +74,14 @@ useQuery({
     sameBaseQuery(previousQuery?.queryKey, queryKey)
       ? previousData
       : undefined,
-  refetchOnMount: "always",
+  staleTime: staleTimeMs,
+  refetchOnMount: true,
 });
 ```
 
 - `placeholderData` 只在新 key pending 时提供旧值；新页请求进入 error 后 placeholder 会消失。因此换页错误展示新页的就地错误，只有同 key 后台 refresh error 保留当前数据。
 - `isPlaceholderData` 为 true 时旧行只读：`inert`、选择禁用、行内动作尊重 `interactive=false`，分页也暂时禁用。
+- `staleTimeMs` 是数据源声明的新鲜期，不固定 every-mount 刷新；fetchPage 消费 signal。可重试失败有界自动重试，终态不自动重试。手动 retry 在 fetching 时禁用，并以 `cancelRefetch: false` 复用进行中请求。
 - Query 不负责 URL canonicalization、服务端稳定排序、响应运行时校验、列偏好或 DnD；这些由类型化 route adapter、API/core 和模板纯函数分别承担。
 
 ## 依赖
@@ -88,3 +89,11 @@ useQuery({
 模板额外使用 `@tabler/icons-react`、`@dnd-kit/core` 和 `@dnd-kit/sortable`。只有实际生成列表页时才把所需直接依赖写入下游 `package.json`；禁止依赖全局安装或未声明的传递依赖，也不为简单 transform 增加 `@dnd-kit/utilities`。
 
 `ListPage.contracts.test.ts` 使用 Node 原生 assert 与显式 `.ts` 导入，直接执行 `node --experimental-strip-types ListPage.contracts.test.ts`。若项目把该测试纳入 `tsc`，其测试 tsconfig 必须启用 `allowImportingTsExtensions`；产品源码 typecheck 与这条可执行契约都要运行。
+
+## 选择与完整值
+
+`ListSelection` 的范围与 `cardinality` 分开；单选使用同组 Radio，多选使用 Checkbox，页头只选择本页。cross-page 的 `queryFingerprint` 必须确认当前 base fingerprint；先执行声明的清空/保留策略再回写指纹。已有下游适配这项显式契约，不把未确认旧集合当新查询选择。
+
+`ListTextCell` 默认换行，`truncate` 时需要非空本地化 `fullValueLabel`，由语义按钮打开 Popover；完整值可选、可纵向滚动，支持 Escape 与焦点恢复，placeholder 传 `interactive=false`。不使用仅 hover 的 Tooltip 承载唯一完整值。
+
+按钮名称保留完整数据值，`fullValueLabel` 作为可访问描述；弹层用同一说明命名。存在 `hideBelow` 时必须提供 `renderRowDetails(row, context)` 和 `viewRowDetails(rowName)`，由调用者真实呈现全部字段与操作；中性资产在主列提供入口，不把响应式隐藏当成字段丢弃。

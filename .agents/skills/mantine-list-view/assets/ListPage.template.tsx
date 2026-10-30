@@ -1,22 +1,4 @@
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Group,
-  Pagination,
-  Select,
-  Skeleton,
-  Stack,
-  Table,
-  Text,
-  UnstyledButton,
-  VisuallyHidden,
-} from "@mantine/core";
-import {
-  IconArrowDown,
-  IconArrowsSort,
-  IconArrowUp,
-} from "@tabler/icons-react";
+import { Alert, Button, Group, Pagination, Select, Stack, Text, VisuallyHidden } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import {
   useCallback,
@@ -26,8 +8,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-// 替换为项目实际的共享 AppShell 布局常量；禁止在列表页声明 offset 字面量。
-import { LIST_STICKY_HEADER_OFFSET } from "@/layout/constants";
+import { ListDataTable } from "./ListDataTable";
+import { getPageSelectionState, toggleListPageSelection, toggleListSelection } from "./listSelectionState";
 import { ListColumnSettings } from "./ListColumnSettings";
 import styles from "./ListPage.module.css";
 import type {
@@ -43,12 +25,10 @@ import {
   claimListCorrection,
   defaultColumnPreferences,
   getBrowserListStorage,
-  getBusinessIdKey,
   getCorrectedPage,
   getEffectiveCurrentPageSelection,
   getResultRange,
   loadColumnPreferences,
-  nextSort,
   parsePage,
   parsePageSize,
   pruneCurrentPageSelection,
@@ -61,13 +41,7 @@ import {
   type BusinessId,
   type ListColumnContract,
   type ListQueryState,
-  type SortState,
 } from "./listPageState";
-
-const SKELETON_ROW_IDS = Array.from(
-  { length: 100 },
-  (_, slot) => `list-skeleton-row-${slot + 1}`,
-);
 
 export {
   DEFAULT_PAGE_SIZE,
@@ -106,30 +80,6 @@ export type {
   ListSelection,
 } from "./listPageTypes";
 
-/** 仅在当前排序列返回原生 aria-sort 值。 */
-function getAriaSort<TSortField extends string>(
-  sort: SortState<TSortField>,
-  field: TSortField | undefined,
-): "ascending" | "descending" | undefined {
-  if (field === undefined || sort?.field !== field) return undefined;
-  return sort.direction === "asc" ? "ascending" : "descending";
-}
-
-/** 根据当前排序状态返回视力用户可见、辅助技术忽略的图标。 */
-function SortIndicator<TSortField extends string>(props: {
-  sort: SortState<TSortField>;
-  field: TSortField;
-}): ReactNode {
-  if (props.sort?.field !== props.field) {
-    return <IconArrowsSort aria-hidden="true" size={16} />;
-  }
-  return props.sort.direction === "asc" ? (
-    <IconArrowUp aria-hidden="true" size={16} />
-  ) : (
-    <IconArrowDown aria-hidden="true" size={16} />
-  );
-}
-
 /** 验证模板自身不可由 TypeScript 表达的跨字段展示契约。 */
 function validateListPageProps<
   TRow,
@@ -141,6 +91,9 @@ function validateListPageProps<
   props: ListPageProps<TRow, TId, TColumnId, TSortField, TFilters>,
 ): void {
   defaultColumnPreferences(props.columns, props.columnSchemaVersion);
+  if (props.columns.some((column) => column.hideBelow !== undefined) && props.renderRowDetails === undefined) {
+    throw new Error("ListPage responsive hidden columns require accessible row details");
+  }
   for (const [name, value] of [
     ["appNamespace", props.appNamespace],
     ["listId", props.listId],
@@ -167,8 +120,8 @@ function validateListPageProps<
   if (props.messages.caption.trim().length === 0) {
     throw new Error("ListPage requires a non-empty table caption");
   }
-  if (!Number.isFinite(props.tableMinWidth) || props.tableMinWidth <= 0) {
-    throw new Error("ListPage tableMinWidth must be a positive finite number");
+  if (!Number.isFinite(props.staleTimeMs) || props.staleTimeMs < 0) {
+    throw new Error("ListPage staleTimeMs must be a non-negative finite number");
   }
   if (
     props.selection.mode !== "none" &&
@@ -180,6 +133,9 @@ function validateListPageProps<
   }
   if (props.selection.mode !== "none") {
     validateBusinessIds(props.selection.selectedIds, props.businessIdType);
+    if (props.selection.cardinality === "single" && props.selection.selectedIds.size > 1) {
+      throw new Error("ListPage single selection cannot contain multiple ids");
+    }
   }
 }
 
@@ -335,10 +291,10 @@ function ListPageWithStableColumnKey<
         : undefined;
     },
     enabled: !sortNeedsCorrection,
-    refetchOnMount: "always",
+    staleTime: props.staleTimeMs,
+    refetchOnMount: true,
+    retry: (failureCount, error) => failureCount < 2 && props.getErrorPresentation(error, { background: false }).retryable,
   });
-  const hasSelection = props.selection.mode !== "none";
-  const totalColumns = visibleColumns.length + (hasSelection ? 1 : 0);
   const totalPages = query.data
     ? Math.ceil(query.data.totalItems / queryState.pageSize)
     : 0;
@@ -352,7 +308,7 @@ function ListPageWithStableColumnKey<
   const isCorrectingPage = correctedPage !== undefined;
   const isCorrectingQueryState = sortNeedsCorrection || isCorrectingPage;
   const previousFullFingerprint = useRef(fullQueryFingerprint);
-  const previousBaseFingerprint = useRef(baseQueryFingerprint);
+  const lastSelectionConfirmationRequest = useRef<string | undefined>(undefined);
   const pendingCurrentPageClear = useRef<string | undefined>(undefined);
   const lastSortCorrection = useRef<string | undefined>(undefined);
   const lastPageCorrection = useRef<
@@ -475,11 +431,15 @@ function ListPageWithStableColumnKey<
   useEffect(() => {
     if (
       props.selection.mode === "cross-page" &&
-      previousBaseFingerprint.current !== baseQueryFingerprint
+      props.selection.queryFingerprint !== baseQueryFingerprint &&
+      lastSelectionConfirmationRequest.current !== baseQueryFingerprint
     ) {
+      lastSelectionConfirmationRequest.current = baseQueryFingerprint;
       props.selection.onQueryFingerprintChange(baseQueryFingerprint);
     }
-    previousBaseFingerprint.current = baseQueryFingerprint;
+    if (props.selection.mode === "cross-page" && props.selection.queryFingerprint === baseQueryFingerprint) {
+      lastSelectionConfirmationRequest.current = undefined;
+    }
   }, [baseQueryFingerprint, props.selection]);
 
   const updateState = useCallback(
@@ -487,18 +447,23 @@ function ListPageWithStableColumnKey<
       patch: Partial<ListQueryState<TSortField, TFilters>>,
       options: { replace?: boolean; resetPage?: boolean } = {},
     ) => {
-      props.navigation.navigate(
-        {
+      const next = {
           ...queryState,
           ...patch,
           filters:
             patch.filters === undefined
               ? normalizedFilters
               : props.codec.normalizeFilters(patch.filters),
-          page: options.resetPage ? 1 : (patch.page ?? queryState.page),
-        },
-        { replace: options.replace ?? false },
-      );
+          page: patch.page ?? queryState.page,
+        };
+      if (options.resetPage) {
+        const currentQuery = [queryState.filters, queryState.sort, queryState.pageSize];
+        const nextQuery = [next.filters, next.sort, next.pageSize];
+        if (JSON.stringify(currentQuery) === JSON.stringify(nextQuery)) return;
+        next.page = 1;
+      }
+      if (JSON.stringify(props.codec.serialize(next)) === JSON.stringify(props.codec.serialize(queryState))) return;
+      props.navigation.navigate(next, { replace: options.replace ?? false });
     },
     [normalizedFilters, props.codec, props.navigation, queryState],
   );
@@ -542,6 +507,7 @@ function ListPageWithStableColumnKey<
       query.isPlaceholderData ||
       isCorrectingQueryState ||
       query.data === undefined);
+  const selectionUnconfirmed = props.selection.mode === "cross-page" && props.selection.queryFingerprint !== baseQueryFingerprint;
   const selectedIds =
     props.selection.mode === "current-page"
       ? getEffectiveCurrentPageSelection({
@@ -549,33 +515,18 @@ function ListPageWithStableColumnKey<
           currentIds: query.data?.items.map(props.getRowId) ?? [],
           unsafe: currentPageSelectionUnsafe,
         })
-      : rawSelectedIds;
-  const selectedOnPage = selectableIds.filter((id) => selectedIds.has(id));
-  const allOnPageSelected =
-    selectableIds.length > 0 && selectedOnPage.length === selectableIds.length;
-  const someOnPageSelected =
-    selectedOnPage.length > 0 && !allOnPageSelected;
+      : selectionUnconfirmed ? new Set<TId>() : rawSelectedIds;
+  const { all: allOnPageSelected, some: someOnPageSelected } = getPageSelectionState(selectedIds, selectableIds);
 
   const toggleCurrentPageSelection = useCallback(() => {
-    if (props.selection.mode === "none") return;
-    const next = new Set(selectedIds);
-    for (const id of selectableIds) {
-      if (allOnPageSelected) next.delete(id);
-      else next.add(id);
-    }
-    props.selection.onChange(next);
-  }, [allOnPageSelected, props.selection, selectableIds, selectedIds]);
+    if (props.selection.mode === "none" || props.selection.cardinality !== "multiple" || selectionUnconfirmed) return;
+    props.selection.onChange(toggleListPageSelection(selectedIds, selectableIds));
+  }, [props.selection, selectableIds, selectedIds, selectionUnconfirmed]);
 
-  const toggleRowSelection = useCallback(
-    (id: TId) => {
-      if (props.selection.mode === "none") return;
-      const next = new Set(selectedIds);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      props.selection.onChange(next);
-    },
-    [props.selection, selectedIds],
-  );
+  const toggleRowSelection = useCallback((id: TId) => {
+    if (props.selection.mode === "none" || selectionUnconfirmed) return;
+    props.selection.onChange(toggleListSelection(selectedIds, id, props.selection.cardinality));
+  }, [props.selection, selectedIds, selectionUnconfirmed]);
 
   const clearSelection = useCallback(() => {
     if (props.selection.mode !== "none") {
@@ -607,8 +558,16 @@ function ListPageWithStableColumnKey<
       ? props.getErrorPresentation(query.error, { background: true })
       : undefined;
   const hasActiveFilters = props.hasActiveFilters(normalizedFilters);
+  const retryInFlight = useRef(false);
+  const retry = useCallback(() => {
+    if (query.isFetching || retryInFlight.current) return;
+    retryInFlight.current = true;
+    void query.refetch({ cancelRefetch: false, throwOnError: false }).finally(() => { retryInFlight.current = false; });
+  }, [query.isFetching, query.refetch]);
   const selectionActionsDisabled =
     selectedIds.size === 0 ||
+    selectionUnconfirmed ||
+    query.isPending ||
     query.isPlaceholderData ||
     isCorrectingQueryState;
   const pageAnnouncement = buildListPageAnnouncement({
@@ -639,140 +598,9 @@ function ListPageWithStableColumnKey<
           ),
   });
 
-  /** 按互斥优先级渲染首次加载、错误、空和数据四态。 */
-  const renderBody = (): ReactNode => {
-    if (query.isPending || isCorrectingQueryState) {
-      const message = isCorrectingQueryState
-        ? props.messages.correctingLocation
-        : props.messages.loading;
-      return (
-        <>
-          <Table.Tr>
-            <Table.Td colSpan={totalColumns}>
-              <Text size="sm">{message}</Text>
-            </Table.Td>
-          </Table.Tr>
-          {SKELETON_ROW_IDS.slice(0, queryState.pageSize).map((slotId) => (
-            <Table.Tr key={slotId} aria-hidden="true">
-              {hasSelection ? (
-                <Table.Td>
-                  <Skeleton height={18} width={18} />
-                </Table.Td>
-              ) : null}
-              {visibleColumns.map((column) => (
-                <Table.Td key={column.id} visibleFrom={column.hideBelow}>
-                  <Skeleton height={18} />
-                </Table.Td>
-              ))}
-            </Table.Tr>
-          ))}
-        </>
-      );
-    }
-    if (query.isError && query.data === undefined) {
-      const presentation = props.getErrorPresentation(query.error, {
-        background: false,
-      });
-      return (
-        <Table.Tr>
-          <Table.Td colSpan={totalColumns}>
-            <Alert color="red" role="alert" title={presentation.title}>
-              {presentation.description}
-              {presentation.retryable ? (
-                <Button
-                  type="button"
-                  variant="light"
-                  onClick={() => void query.refetch()}
-                >
-                  {props.messages.retry}
-                </Button>
-              ) : null}
-            </Alert>
-          </Table.Td>
-        </Table.Tr>
-      );
-    }
-    if (!query.isPlaceholderData && query.data?.items.length === 0) {
-      return (
-        <Table.Tr>
-          <Table.Td colSpan={totalColumns}>
-            <Group justify="center" wrap="wrap">
-              <Text>
-                {hasActiveFilters
-                  ? props.messages.noResults
-                  : props.messages.noData}
-              </Text>
-              {hasActiveFilters ? (
-                <Button
-                  type="button"
-                  variant="light"
-                  onClick={() =>
-                    updateState(
-                      { filters: props.codec.defaults.filters },
-                      { resetPage: true },
-                    )
-                  }
-                >
-                  {props.messages.resetFilters}
-                </Button>
-              ) : (
-                props.renderNoDataAction?.()
-              )}
-            </Group>
-          </Table.Td>
-        </Table.Tr>
-      );
-    }
-    return query.data?.items.map((row, rowIndex) => {
-      const rowId = props.getRowId(row);
-      const rowName = props.getRowAccessibleName(row).trim();
-      if (rowName.length === 0) {
-        throw new Error("ListPage row accessible name must not be blank");
-      }
-      const selected = selectedIds.has(rowId);
-      const interactive = !query.isPlaceholderData;
-      return (
-        <Table.Tr
-          key={getBusinessIdKey(rowId)}
-          className={styles.dataRow}
-          data-row-tone={rowIndex % 2 === 0 ? "light" : "deep"}
-          data-selected={selected || undefined}
-          data-placeholder={query.isPlaceholderData || undefined}
-          inert={query.isPlaceholderData || undefined}
-          aria-disabled={query.isPlaceholderData || undefined}
-        >
-          {hasSelection ? (
-            <Table.Td>
-              <Checkbox
-                aria-label={props.messages.selectRow(rowName)}
-                checked={selected}
-                disabled={!interactive}
-                onChange={() => toggleRowSelection(rowId)}
-              />
-            </Table.Td>
-          ) : null}
-          {visibleColumns.map((column) =>
-            column.responsiveRole === "primary" ? (
-              <Table.Th
-                key={column.id}
-                scope="row"
-                visibleFrom={column.hideBelow}
-              >
-                {column.renderCell(row, { interactive })}
-              </Table.Th>
-            ) : (
-              <Table.Td key={column.id} visibleFrom={column.hideBelow}>
-                {column.renderCell(row, { interactive })}
-              </Table.Td>
-            ),
-          )}
-        </Table.Tr>
-      );
-    });
-  };
 
   return (
-    <Stack gap="md">
+    <Stack className={styles.root} gap="md">
       <VisuallyHidden role="status" aria-live="polite" aria-atomic="true">
         {pageAnnouncement}
       </VisuallyHidden>
@@ -785,8 +613,10 @@ function ListPageWithStableColumnKey<
             { resetPage: true },
           ),
       })}
+      {hasActiveFilters ? <Group wrap="wrap"><Text size="sm">{props.getFilterSummary(normalizedFilters)}</Text><Button type="button" variant="subtle" size="compact-sm" onClick={() => updateState({ filters: props.codec.defaults.filters }, { resetPage: true })}>{props.messages.resetFilters}</Button></Group> : null}
       <Group justify="space-between" align="flex-end" wrap="wrap">
         <Select
+          className={styles.pageSize}
           label={props.messages.pageSize}
           data={PAGE_SIZES.map((size) => ({
             value: String(size),
@@ -836,6 +666,7 @@ function ListPageWithStableColumnKey<
               selectedIds.size,
             )}
           </Text>
+          {selectionUnconfirmed ? <Text size="sm">{props.messages.selectionPending}</Text> : null}
           <Button
             type="button"
             variant="subtle"
@@ -859,6 +690,14 @@ function ListPageWithStableColumnKey<
           </fieldset>
         </Group>
       ) : null}
+      <section className={styles.scrollRegion} role="region" aria-label={props.messages.scrollRegion} tabIndex={0}>
+        <ListDataTable {...props} query={query} queryState={queryState} visibleColumns={visibleColumns}
+          isCorrectingQueryState={isCorrectingQueryState} selectedIds={selectedIds} selectableIds={selectableIds}
+          allOnPageSelected={allOnPageSelected} someOnPageSelected={someOnPageSelected}
+          selectionUnconfirmed={selectionUnconfirmed} filtersActive={hasActiveFilters} retry={retry}
+          toggleRowSelection={toggleRowSelection} toggleCurrentPageSelection={toggleCurrentPageSelection} updateState={updateState} />
+      </section>
+      <div className={styles.refreshFeedback}>
       {query.isFetching && !query.isPending ? (
         <Text size="sm">{props.messages.refreshing}</Text>
       ) : null}
@@ -869,90 +708,15 @@ function ListPageWithStableColumnKey<
             <Button
               type="button"
               variant="light"
-              onClick={() => void query.refetch()}
+              disabled={query.isFetching}
+              onClick={retry}
             >
               {props.messages.retry}
             </Button>
           ) : null}
         </Alert>
       ) : null}
-      <Table.ScrollContainer
-        className={styles.scrollRegion}
-        minWidth={props.tableMinWidth}
-        type="native"
-        role="region"
-        aria-label={props.messages.scrollRegion}
-        tabIndex={0}
-      >
-        <Table
-          stickyHeader
-          stickyHeaderOffset={LIST_STICKY_HEADER_OFFSET}
-          aria-busy={query.isFetching || isCorrectingQueryState}
-        >
-          <Table.Caption>{props.messages.caption}</Table.Caption>
-          <Table.Thead className={styles.tableHeader}>
-            <Table.Tr>
-              {hasSelection ? (
-                <Table.Th scope="col">
-                  <Checkbox
-                    aria-label={props.messages.selectCurrentPage}
-                    checked={allOnPageSelected}
-                    indeterminate={someOnPageSelected}
-                    disabled={
-                      selectableIds.length === 0 || query.isPlaceholderData
-                    }
-                    onChange={toggleCurrentPageSelection}
-                  />
-                </Table.Th>
-              ) : null}
-              {visibleColumns.map((column) => {
-                const sortField = column.sortField;
-                const next =
-                  sortField === undefined
-                    ? null
-                    : nextSort(queryState.sort, sortField);
-                const sortLabel =
-                  next === null
-                    ? props.messages.clearSort(column.accessibleName)
-                    : next.direction === "asc"
-                      ? props.messages.sortAscending(column.accessibleName)
-                      : props.messages.sortDescending(column.accessibleName);
-                return (
-                  <Table.Th
-                    key={column.id}
-                    scope="col"
-                    visibleFrom={column.hideBelow}
-                    aria-sort={getAriaSort(queryState.sort, sortField)}
-                  >
-                    {sortField !== undefined ? (
-                      <UnstyledButton
-                        className={styles.sortButton}
-                        type="button"
-                        aria-label={sortLabel}
-                        onClick={() =>
-                          updateState(
-                            { sort: nextSort(queryState.sort, sortField) },
-                            { resetPage: true },
-                          )
-                        }
-                      >
-                        <span className={styles.sortLabel}>{column.header}</span>
-                        <SortIndicator
-                          sort={queryState.sort}
-                          field={sortField}
-                        />
-                      </UnstyledButton>
-                    ) : (
-                      column.header
-                    )}
-                  </Table.Th>
-                );
-              })}
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>{renderBody()}</Table.Tbody>
-        </Table>
-      </Table.ScrollContainer>
+      </div>
       {resultRange !== undefined ? (
         <Text size="sm">
           {props.messages.resultSummary(

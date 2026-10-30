@@ -76,6 +76,9 @@ export interface ListColumnContract<
   defaultVisible?: boolean;
   responsiveRole?: ListColumnResponsiveRole;
   hideBelow?: "xs" | "sm" | "md" | "lg" | "xl";
+  /** 相对列宽权重；不指定时均分可用宽度。 */
+  widthWeight?: number;
+  numeric?: boolean;
 }
 
 /** 持久化的列顺序与显隐偏好；schemaVersion 只属于 payload。 */
@@ -420,6 +423,9 @@ export function validateColumnContracts<
   }
   if (columns.some((column) => column.accessibleName.trim().length === 0)) {
     throw new Error("ListPage requires non-empty column accessible names");
+  }
+  if (columns.some((column) => column.widthWeight !== undefined && (!Number.isSafeInteger(column.widthWeight) || column.widthWeight < 1 || column.widthWeight > 100))) {
+    throw new Error("ListPage widthWeight must be an integer from 1 to 100");
   }
   if (new Set(columnIds).size !== columnIds.length) {
     throw new Error("ListPage requires unique column ids");

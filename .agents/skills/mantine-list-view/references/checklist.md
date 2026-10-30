@@ -22,8 +22,8 @@
 ## Required：Table、排序与逐行视觉
 
 - [ ] 使用 `<Table stickyHeader stickyHeaderOffset={共享常量}>`，没有手写 sticky 或 offset 字面量；`Table.Thead` 有稳定 CSS Module 类，表头 `th` 使用不透明 `var(--app-surface)` 语义背景，滚动时数据行不会透出。
-- [ ] `Table.ScrollContainer` 有真实 `minWidth`、本地化区域名称、键盘入口、可见焦点；页面根不横向滚动。
-- 数据行通过 `data-row-tone` 消费中央 `--app-table-row` / `--app-table-row-alternate`；hover/focus 使用 `--app-table-row-hover` 与可见焦点，selected 与 forced-colors 保留独立语义。
+- [ ] 命名 region 包含 `Table layout="fixed"`，无最小列宽撑开页面；容器和网格均无横向滚动。长值可换行，省略值能用键盘打开完整视图；隐藏次要字段时有完整行详情。排版和内边距消费中央 Token。
+- [ ] 数据行通过 `data-row-tone` 消费中央 `--app-table-row` / `--app-table-row-alternate`；hover/focus 使用 `--app-table-row-hover` 与可见焦点，selected 与 forced-colors 保留独立语义。
 - [ ] 排序按 asc→desc→none；每个字段只属于一列。当前列同时有可见方向图标和准确 `aria-sort`，none 时不设置；图标对辅助技术隐藏。
 - [ ] 唯一 `primary`、声明存在的关键 `status`/`actions` 都显式设置 `required: true`，且它们和所有 required 列都不设置 `hideBelow`；窄屏仍显示当前排序摘要和清除入口。
 - [ ] 行选择名称使用可理解业务名称而非仅 UUID；唯一主列为 `th scope="row"`，caption 非空且本地化。
@@ -33,6 +33,8 @@
 - [ ] 首次加载恰好 pageSize 行 Skeleton，槽位 key 稳定且不是 index；纠页期间 `aria-busy` 仍为 true。
 - [ ] 无筛选且全局无数据与筛选无结果使用不同文案；只有后者显示有效“重置筛选”，前者动作由业务提供或不显示。
 - [ ] 错误由业务分型；403/终态契约错误不显示无效 retry，可重试网络错误有真实按钮；正常/placeholder/background fetching 可区分。
+- [ ] 数据源明确新鲜期，消费取消信号；无变化条件不导航/请求，手动重试防重复且不取消重启进行中请求；终态不自动重试。
+- [ ] 后台刷新保留内容与滚动，反馈槽位不移动表格起点，错误不会闪空，禁用原因就近可读。
 - [ ] 结果范围、刷新、空、错误、选择和列移动反馈使用稳定 live region，且不会因同时挂载多个重复播报相互覆盖。
 
 ## Required：列偏好
@@ -43,16 +45,16 @@
 
 ## Conditional：选择和业务动作
 
-- [ ] （selection != none）有可访问批量 action bar、选择摘要和显式清空；不允许只有复选框而没有下一步。
+- [ ] （selection != none）数量 single/multiple 与范围独立；单选同组 Radio 且无全选，多选全选/半选只计算本页；有可访问批量 action bar、选择摘要和显式清空；不允许只有复选框而没有下一步。
 - [ ] （current-page）翻页/查询组合变化清空；同 key 成功刷新后裁剪已消失 id；全选只覆盖当前真实响应。
-- [ ] （cross-page）只保存业务 id，并明确查询变化后清空/保留策略及可见范围说明。
+- [ ] （cross-page）只保存业务 id，并明确查询变化后清空/保留策略及可见范围说明；新指纹确认前首帧封锁失效集合动作。
 - [ ] （任何批量动作）服务端重新校验 id、权限和当前状态；客户端选择不当授权。
 - [ ] （行内或父行动作）分别点击行内控件与父行，证明事件不会误代理、冒泡触发重复动作；placeholder 期间都不可执行。
 
 ## Conditional：验证范围
 
 - [ ] （实现或修改模板）运行项目 lint/typecheck、相关非空测试，并迁移/运行 `ListPage.contracts.test.ts`；Testing Library 用角色、名称和真实 user-event，不用大快照代替行为。
-- [ ] （实际 GUI 交付、E2E 被产品/构建要求启用）在真实浏览器/Tauri 验证 320 CSS px、200% 文本缩放、中英文、长值、Tab/Enter/Space、横向键盘滚动、hover/focus、Back/Forward/refresh 与服务端错误。
+- [ ] （实际 GUI 交付、E2E 被产品/构建要求启用）在真实浏览器/Tauri 验证 320 CSS px、200% 文本缩放、文本间距覆盖、中英文、长值、Tab/Enter/Space、Radio 方向键、无横向滚动、完整值 Escape/焦点恢复、hover/focus、Back/Forward/refresh 与服务端错误。
 - [ ] （仅审查）按“阻断交付 / 行为错误 / 无障碍或恢复风险 / 建议改进”分级，提供最小文件/行号证据；不修改源码或持久状态。
 
 ## 交付记录

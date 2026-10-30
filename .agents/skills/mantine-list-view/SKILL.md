@@ -9,14 +9,16 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 - 创建、修改、重构或审查 React、TypeScript、Mantine 的列表页、表格、后台列表或搜索结果页时使用。
 - 即使用户未写“表格”，只要页面实质用于检索、浏览或管理重复记录，也必须使用。
-- 本 Skill 执行 [Mantine 列表页设计标准](../../../docs/design_standards/mantine_list_view.md)，并与 [Tauri GUI 通用设计标准](../../../docs/design_standards/tauri_gui.md) 组合；视觉唯一依据为 [当前 UI 基座](../../../docs/design_standards/ui_foundation.md)，本 Skill 仅补充相容的列表行为与状态合同。
+- 本 Skill 执行 [Mantine 列表页设计标准](../../../docs/design_standards/mantine_list_view.md)，并与 [通用 Grid 标准](../../../docs/design_standards/data_grid.md)、[Tauri GUI 通用设计标准](../../../docs/design_standards/tauri_gui.md) 组合；视觉唯一依据为 [当前 UI 基座](../../../docs/design_standards/ui_foundation.md)，本 Skill 仅补充相容的列表行为与状态合同。
 
 ## 开始前必须确定
 
 1. 稳定 `listId`、显式 `businessIdType`（`string | number`）单一规范业务 id 类型、总数契约、默认确定性排序、允许的排序字段，以及同值记录的稳定业务 id tie-breaker。
 2. 哪些已应用筛选可进入 URL/sessionStorage；原始 URL key 所有权、类型化路由 adapter、非列表 query 参数保留方式和首次 canonical replace 时机。
-3. 选择是 none/current-page/cross-page；若启用，批量动作、清空入口和服务端 id/权限/状态重验分别是什么。
+3. 选择范围是 none/current-page/cross-page，数量是 single/multiple；若启用，批量动作、清空入口和服务端 id/权限/状态重验分别是什么。
 4. 哪一列是唯一 `primary`，哪些是关键 `status`/`actions`；必显、默认顺序、窄屏降级、偏好 scope、schema 迁移和旧 key 清理是什么。
+
+响应式隐藏任何次要列时，必须提供 `renderRowDetails` 与本地化 `viewRowDetails`；中性资产在主列提供可键盘打开的完整行详情，未提供时拒绝隐藏配置。选择禁用的查询确认状态使用 `selectionPending` 就近说明原因。
 
 答案会改变产品边界且无法从规格、类型或接口确认时停止询问；普通实现细节按本标准推进。
 
@@ -24,7 +26,7 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 ### 表格、行与窄屏
 
-- 只用 `<Table stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>` 与 `Table.ScrollContainer`；offset 来自共享布局常量，禁止手写 sticky。`Table.Thead` 使用稳定 CSS Module 类，其 `th` 必须以 `background-color: var(--app-surface)` 提供不透明语义背景，禁止透明或单一色彩模式固定色，避免滚动数据透出。滚动区必须可聚焦、有本地化名称和可见焦点。
+- 只用 `<Table layout="fixed" stickyHeader stickyHeaderOffset={GLOBAL_OFFSET}>` 与命名的普通 region，容器和网格均无横向滚动；offset 来自共享布局常量，禁止手写 sticky。`Table.Thead` 使用稳定 CSS Module 类，其 `th` 必须以 `background-color: var(--app-surface)` 提供不透明语义背景，禁止透明或单一色彩模式固定色，避免滚动数据透出。region 可聚焦、有本地化名称和可见焦点；单元格允许收缩换行，省略值用 `ListTextCell` 提供键盘可达的完整值。列用可选 `widthWeight` 分配相对宽度，`numeric` 列使用等宽数字。
 - 数据行通过 `data-row-tone` 消费中央 `--app-table-row` / `--app-table-row-alternate`；hover/focus 使用 `--app-table-row-hover` 与可见焦点，selected 与 forced-colors 保留独立语义。
 - 唯一 `primary` 列以 `th scope="row"` 渲染，并由业务提供非空行名称。`primary`、声明存在的 `status`/`actions` 必须显式设置 `required: true`，且它们和所有 required 列都不得设置 `hideBelow`；次要列才可隐藏。
 - placeholder 旧行是只读展示：整行 inert、选择和行内副作用禁用，`renderCell` 必须尊重 `interactive=false`。
@@ -39,8 +41,9 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 ### 查询、四态与选择
 
-- 业务行、总数和请求结果只由 TanStack Query v5 缓存；query key 包含 listId、非 PII scope、规范化筛选、sort、pageSize、page。只在纯页码变化的 pending 阶段显示旧页 placeholder；换页失败显示该页错误，不伪装成旧页结果。同 key 后台刷新失败保留当前数据。
-- 首次 loading 为恰好 pageSize 行 Skeleton；空态区分“当前筛选无结果”和“全局无数据”；错误由业务分型并只为可重试错误显示 retry；正常态显示结果范围、后台进度和 live feedback。
+- 业务行、总数和请求结果只由 TanStack Query v5 缓存；query key 包含 listId、非 PII scope、规范化筛选、sort、pageSize、page。只在纯页码变化的 pending 阶段显示旧页 placeholder；换页失败显示该页错误，不伪装成旧页结果。同 key 后台刷新失败保留当前数据。新鲜期由 `staleTimeMs` 明确提供，挂载只刷新过期数据，消费取消信号；无变化查询不导航，重试 pending 防重，终态错误不自动重试。
+- 首次 loading 为恰好 pageSize 行 Skeleton；空态区分“当前筛选无结果”和“全局无数据”；错误由业务分型并只为可重试错误显示 retry；正常态显示条件摘要、结果范围、后台进度和 live feedback。刷新反馈放在表格之后的稳定槽位，避免表格起点跳动。
+- 单选使用同组 Radio，不提供全选；多选页头只操作本页并显示半选。当前数量和范围都可见；跨页父级处理条件策略并确认 `queryFingerprint` 前禁用失效集合动作。
 - current-page 选择在查询组合变化时清空，并在同 key 成功刷新后裁剪已消失 id；cross-page 只保存 id 并执行声明的失效策略。启用选择必须同时提供摘要、清空与可访问批量动作。
 
 ### 列偏好
@@ -53,7 +56,7 @@ description: "Create, implement, refactor, or review React 19.2+ and Mantine UI 
 
 1. 完整读取 [offset-list-pattern.md](references/offset-list-pattern.md)、[mantine-api.md](references/mantine-api.md)、[checklist.md](references/checklist.md) 与通用 GUI 标准，只检查本次命中的项目事实。
 2. 确认下游实际使用 React 19.2+、`@mantine/core >=9.7.4 <10`、`@tanstack/react-query >=5.105.0 <6`；若低于下界，先升级或实现并测试等价 fallback，不能直接复制不兼容 API。
-3. 先确认应用根 Provider 使用共用 `appDesignTokens.ts` 提供表格语义 CSS Token；再复制并共同适配 `assets/` 中 `ListPage.template.tsx`、`listPageState.ts`、`listPageTypes.ts`、`ListColumnSettings.tsx`、CSS module 及声明；契约测试作为下游测试起点，不当成产品测试替代品。
+3. 先确认应用根 Provider 使用共用 `appDesignTokens.ts` 提供表格语义 CSS Token；再复制并共同适配 `assets/` 中 `ListPage.template.tsx`、`listPageState.ts`、`listPageTypes.ts`、`ListColumnSettings.tsx`、`ListDataTable.tsx`、`ListTextCell.tsx`、`listSelectionState.ts`、CSS module 及声明；契约测试作为下游测试起点，不当成产品测试替代品。
 4. 先接类型化路由 adapter 和服务端稳定排序，再接 Query/四态/Table/Pagination，最后按真实需求接选择和列偏好；不为未选能力留下假按钮。
 5. 运行项目的 typecheck、相关单元/组件测试和 `node --experimental-strip-types ListPage.contracts.test.ts`；若把契约测试纳入 `tsc`，测试 tsconfig 启用 `allowImportingTsExtensions`。真实浏览器、服务端或 E2E 未运行时明确列为未验证。
 

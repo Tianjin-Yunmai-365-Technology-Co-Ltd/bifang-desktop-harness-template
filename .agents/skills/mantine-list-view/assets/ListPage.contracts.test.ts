@@ -1,3 +1,4 @@
+import { getPageSelectionState, toggleListPageSelection, toggleListSelection } from "./listSelectionState.ts";
 import assert from "node:assert/strict";
 import {
   buildListPageAnnouncement,
@@ -125,6 +126,24 @@ const columns: readonly ListColumnContract<ColumnId, SortField>[] = [
 
 /** 覆盖模板最容易回归的解析、迁移、响应和选择纯函数契约。 */
 function runListPageContractTests(): void {
+  const primaryColumn = columns[0];
+  assert.ok(primaryColumn);
+  // 单选替换、多选切换和页头范围都以稳定 ID 为准。
+  const original = new Set(["other-page", "a"]);
+  assert.deepEqual([...toggleListSelection(original, "b", "single")], ["b"]);
+  assert.deepEqual([...toggleListSelection(original, "a", "single")], ["a"]);
+  assert.deepEqual([...toggleListSelection(original, "a", "multiple")], ["other-page"]);
+  assert.deepEqual([...toggleListPageSelection(original, ["a", "b"])], ["other-page", "a", "b"]);
+  assert.deepEqual([...toggleListPageSelection(new Set(["other-page", "a", "b"]), ["a", "b"])], ["other-page"]);
+  assert.deepEqual([...toggleListPageSelection(original, [])], [...original]);
+  assert.deepEqual(getPageSelectionState(original, ["a", "b"]), { all: false, some: true });
+  assert.deepEqual(getPageSelectionState(new Set(["a", "b"]), ["a", "b"]), { all: true, some: false });
+  assert.deepEqual(getPageSelectionState(original, []), { all: false, some: false });
+  assert.deepEqual([...original], ["other-page", "a"]);
+  for (const widthWeight of [0, -1, Infinity, 0.5, 101]) {
+    assert.throws(() => validateColumnContracts(columns.map((column) => ({ ...column, widthWeight }))), /widthWeight/);
+  }
+  validateColumnContracts(columns.map((column) => ({ ...column, widthWeight: 2 })));
   assert.equal(getBrowserListStorage("session"), undefined);
   assert.equal(parsePageSize("100"), 100);
   assert.equal(parsePageSize(25), undefined);
@@ -449,7 +468,7 @@ function runListPageContractTests(): void {
     () =>
       reconcileColumnPreferences(
         undefined,
-        [columns[0], { ...columns[0] }],
+        [primaryColumn, { ...primaryColumn }],
         1,
       ),
     /unique column ids/,
@@ -458,7 +477,7 @@ function runListPageContractTests(): void {
     () =>
       reconcileColumnPreferences(
         undefined,
-        [{ ...columns[0], hideBelow: "sm" }],
+        [{ ...primaryColumn, hideBelow: "sm" }],
         1,
       ),
     /remain visible on narrow screens/,

@@ -1,3 +1,86 @@
+.root,
+.scrollRegion,
+.cellContent {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+.root,
+.table {
+  inline-size: 100%;
+}
+
+.table {
+  font-size: var(--app-grid-font-size);
+  line-height: var(--app-grid-line-height);
+  color: var(--app-text);
+}
+
+.table th,
+.table td {
+  padding-block: var(--app-grid-padding-block);
+  padding-inline: var(--app-grid-padding-inline);
+  border-block-end: 1px solid var(--app-border);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.table th {
+  font-weight: var(--app-font-weight-emphasis);
+}
+
+.table tbody th {
+  font-weight: var(--app-font-weight-regular);
+}
+
+.cellContent :where(img, video, input, button, select, textarea) {
+  max-inline-size: 100%;
+}
+
+.pageSize {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.refreshFeedback {
+  min-block-size: calc(var(--app-grid-font-size) * var(--app-grid-line-height));
+  overflow-wrap: anywhere;
+}
+
+.fullValueButton {
+  display: block;
+  inline-size: 100%;
+  min-inline-size: 0;
+  text-align: start;
+  min-block-size: var(--app-control-compact-height);
+}
+
+.fullValueButton:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
+}
+
+.truncatedValue {
+  display: block;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.fullValue {
+  max-inline-size: calc(100vw - 2 * var(--mantine-spacing-md));
+  overflow-wrap: anywhere;
+  white-space: normal;
+  max-block-size: 60vh;
+  overflow-y: auto;
+}
+
+.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
 .scrollRegion {
   border-radius: var(--mantine-radius-default);
   outline: none;
@@ -33,6 +116,7 @@
 
 .dataRow[data-selected="true"] {
   background-color: var(--app-table-row-selected);
+  box-shadow: inset 3px 0 var(--app-accent);
 }
 
 .dataRow:hover,
@@ -56,6 +140,16 @@
   padding-inline: var(--mantine-spacing-xs);
   border-radius: var(--mantine-radius-sm);
   text-align: start;
+  display: flex;
+  align-items: flex-start;
+}
+
+.sortButton svg {
+  flex-shrink: 0;
+}
+
+.numeric .sortButton {
+  text-align: end;
 }
 
 .sortButton:focus-visible {
@@ -70,7 +164,9 @@
 
 @media (forced-colors: active) {
   .scrollRegion:focus-visible,
-  .dataRow:focus-within {
+  .dataRow:focus-within,
+  .dataRow[data-selected="true"],
+  .fullValueButton:focus-visible {
     outline: 2px solid Highlight;
     outline-offset: -2px;
     box-shadow: none;

@@ -1,0 +1,12 @@
+/* 应用根只导入一次；原生字体与主题变量同样覆盖 portal 中的控件。 */
+:root {
+  font-synthesis: none;
+}
+
+body {
+  overflow-wrap: anywhere;
+}
+
+:where(button, input, textarea, select) {
+  letter-spacing: inherit;
+}

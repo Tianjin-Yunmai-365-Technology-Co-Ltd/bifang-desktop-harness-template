@@ -88,10 +88,12 @@ const query = useQuery({
       JSON.stringify(queryKey.slice(0, -1))
       ? previousData
       : undefined,
-  refetchOnMount: "always",
+  staleTime: staleTimeMs,
+  refetchOnMount: true,
 });
 ```
 
+- `staleTimeMs` 由数据源明确提供，挂载按 stale 刷新；消耗 AbortSignal，无变化规范状态不导航。刷新进度/错误在表格之后的稳定槽位表达，保留内容与滚动；重试 pending 防重，终态错误零自动重试。
 - `cacheScope` 是不含 PII 的结果隔离边界；filters 先规范成确定、可序列化值。行/总数不复制到 Jotai、Web Storage 或组件外数组。
 - `previousQuery.queryKey.slice(0, -1)` 使 placeholder 只用于纯 page 变化。sort/filter/pageSize 变化不能显示无关旧行。
 - TanStack Query v5 的 placeholder 只存在于 pending 阶段。新页 error 后显示该页错误；同 key background error 才保留当前数据。
@@ -128,11 +130,13 @@ if (correctedPage !== undefined) {
 
 ```ts
 type SelectionScope = "none" | "current-page" | "cross-page";
+type SelectionCardinality = "single" | "multiple";
 ```
 
 - 启用选择必须提供摘要、清空和可访问 action bar；不能只渲染复选框。
 - current-page 在 full query fingerprint 变化时清空；同 key 成功刷新时把集合裁剪到当前 id。
-- cross-page 只保存 id，并由产品声明 base query 变化时清空/保留策略和范围文案。
+- cross-page 只保存 id，并由产品声明 base query 变化时清空/保留策略和范围文案；通过 `onQueryFingerprintChange` 处理后回写 `queryFingerprint`，确认前隐藏失效集合并禁止选择动作。
+- 单选用同组 Radio，选中替换且可显式清空；多选用 Checkbox，全选/半选只计算当前真实页，不改变其他页的集合。
 - 批量提交时服务端重新校验 id、权限和当前状态；客户端集合不是授权。行内控件与父行不得互相代理或冒泡成重复动作。
 
 ## 7. 列偏好和拖拽
@@ -153,6 +157,6 @@ interface ColumnPreferences<TColumnId extends string> {
 
 ## 8. 窄屏和验证
 
-- `Table.ScrollContainer type="native" role="region" aria-label=... tabIndex={0}` 提供局部横向键盘滚动；搜索、结果摘要、分页和页面壳回流。
+- 命名的普通 region 包含 `Table layout="fixed"`，宽度 100%、容器/单元格允许收缩；`widthWeight` 表达相对列宽，`numeric` 表达等宽数字。搜索、筛选摘要、分页和行内动作回流，容器和表格都不横滚。纯文本默认完整换行；省略使用 `ListTextCell` 与本地化完整值按钮，隐藏次要列时由实际行详情保留全部字段。
 - Pagination 优先 `layout="responsive"`；旧版本 fallback 必须在 320 CSS px/200% 下证明等价。所有控制名和可见文案走 i18n。
 - 纯函数契约从 `ListPage.contracts.test.ts` 开始；项目组件测试另覆盖角色/名称、真实点击/键盘、placeholder inert、四态、分页标签、选择、列移动和逐行 hover/focus。真实浏览器或服务端未运行时不可冒充验证完成。

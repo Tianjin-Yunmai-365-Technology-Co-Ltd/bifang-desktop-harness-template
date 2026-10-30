@@ -21,6 +21,7 @@
 | `react/AppSidebarTemplate.tsx` | 消费中央 `APP_LAYOUT_TOKENS.sidebar` 的 compact/detailed 菜单；顶部 Logo→版本、顶部功能区和按所选页面生成的贴底支持区 | GUI 初始化按 `sidebar_mode` 与统一侧栏标准建立壳层 |
 | `react/AppShellTemplate.tsx` | detailed AppShell 读取独立折叠偏好，并同步 fixed 侧栏、Mantine `navbar.width` 与 `data-navbar-width` | 仅在 `sidebar_mode = detailed` 的运行时接入；compact 不得使用此固定 detailed 壳层 |
 | `react/appDesignTokens.ts` | 应用展示尺寸与完整亮暗语义 Token，侧栏、赞助、列表共用 | GUI 初始化与所有主题调整 |
+| `react/appTypography.css`、`react/AppTypography.test.ts` | 根级原生字形合成策略与真实主题文字对比度回归；字体和层级来自同一 `APP_TYPOGRAPHY` | CSS 由唯一 Provider 导入一次；测试按下游测试结构迁移 |
 | `react/AppThemeProviderTemplate.tsx` | 唯一 Mantine provider、三态本地偏好及亮暗背景/surface/文字/边框/强调色 | GUI 初始化默认根壳层 |
 | `react/SettingsPageTemplate.tsx` | 当前版本、中英文和三态主题；按 profile 接入系统通知/开机自启异步 Switch，不含隐私或统计区块 | GUI 初始化默认页面；两个 Switch 仅随对应能力进入运行时 |
 | `react/MandatoryUpdateGateTemplate.tsx`、`react/updatePresentation.ts` | 根级强更门和稳定更新展示状态 | 所有 GUI 随 updater 固定基线保留；产品配置真实 updater 后接线 |

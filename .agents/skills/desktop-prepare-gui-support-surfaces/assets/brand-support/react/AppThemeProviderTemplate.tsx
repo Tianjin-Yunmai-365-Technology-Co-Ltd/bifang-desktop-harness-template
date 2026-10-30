@@ -6,8 +6,9 @@ import {
   useComputedColorScheme,
 } from "@mantine/core";
 import type { ReactElement, ReactNode } from "react";
+import "./appTypography.css";
 
-import { resolveAppThemeTokens } from "./appDesignTokens";
+import { APP_TYPOGRAPHY, resolveAppThemeTokens } from "./appDesignTokens";
 
 /** 设置页支持的主题偏好；auto 表示跟随系统。 */
 export type AppColorScheme = "light" | "dark" | "auto";
@@ -19,6 +20,26 @@ export const APP_COLOR_SCHEME_STORAGE_KEY = "application-color-scheme";
 export const APP_THEME = createTheme({
   defaultRadius: "md",
   primaryColor: "blue",
+  fontFamily: APP_TYPOGRAPHY.fontFamily,
+  fontFamilyMonospace: APP_TYPOGRAPHY.fontFamilyMonospace,
+  fontSizes: APP_TYPOGRAPHY.fontSizes,
+  lineHeights: APP_TYPOGRAPHY.lineHeights,
+  headings: {
+    fontFamily: APP_TYPOGRAPHY.fontFamily,
+    fontWeight: String(APP_TYPOGRAPHY.weight.emphasis),
+    sizes: APP_TYPOGRAPHY.headings,
+  },
+  components: {
+    Button: {
+      styles: {
+        root: { height: "auto", minHeight: "var(--app-control-compact-height)", paddingBlock: "var(--mantine-spacing-xs)", maxWidth: "100%" },
+        label: { whiteSpace: "normal", overflowWrap: "anywhere", fontWeight: APP_TYPOGRAPHY.weight.emphasis },
+      },
+    },
+    Input: {
+      styles: { input: { height: "auto", minHeight: "var(--app-control-compact-height)", lineHeight: APP_TYPOGRAPHY.lineHeights.sm, paddingBlock: "var(--mantine-spacing-xs)" } },
+    },
+  },
   spacing: { xs: "0.25rem", sm: "0.5rem", md: "1rem", lg: "1.5rem", xl: "2rem" },
 });
 
@@ -41,6 +62,10 @@ function AppThemeSurface({ children }: { children: ReactNode }): ReactElement {
       style={{
         backgroundColor: "var(--app-background)",
         color: "var(--app-text)",
+        fontSynthesis: "none",
+        letterSpacing: "var(--app-letter-spacing)",
+        overflowWrap: "anywhere",
+        minInlineSize: 0,
       }}
     >
       {children}
