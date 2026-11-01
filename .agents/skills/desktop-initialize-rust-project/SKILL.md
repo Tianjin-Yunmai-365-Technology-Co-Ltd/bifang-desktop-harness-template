@@ -46,7 +46,7 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
    - GPUI 的资源、视图、能力和零出站边界由其 adapter Skill 承载，不读取上述 Tauri 引用。未选 CLI 时不复制中性资产中的 CLI 成员。
 
 9. Product Spec 不存在或仍为 `Draft` 时，每个已选接口只能公开中性脚手架状态，其中包含 `productDefinitionRequired=true` 或接口等价的可见状态。不得虚构业务命令、工具、数据或副作用。GUI 标题、最终解析的侧栏、设置页、四项固定宿主基线及本轮明确选择的六个条件宿主能力和关于/赞助页面属于无业务副作用的初始化基线；通知与自启只提供默认关闭的设置能力，深链接只执行已确认的主窗口恢复动作，全局快捷键只有空 action contract 和零 OS 注册，updater 保持 `NotConfigured` 与零出站，dialog 不创建产品动作也不授予 fs 权限。未选能力不存在。产品获批后，业务 core 或适配器变化都直接实施；只有产品边界变化才更新 Product Spec。
-10. 缺省锁策略下，Cargo 正常解析可在本地生成由 Git 忽略的 `Cargo.lock`，初始化不要求该文件存在或受跟踪，并只运行初始化本身必需的非空测试。GUI 测试必须覆盖唯一九字段配置块、`deep_link => single_instance`、侧栏缺省/非法值、所选侧栏和页面存在/缺席；四项固定基线与每个已选独立能力还必须运行其 Skill 规定的全部固定非空回归，未选能力运行依赖、feature、配置、命令、状态/UI/i18n 与测试无残留回归。测试不得用 `assert!(true)` 或字面量自比较占位。最低直接版本解析与非 GUI 测试边界保持既有契约。
+10. 缺省锁策略下，Cargo 正常解析可在本地生成由 Git 忽略的 `Cargo.lock`，初始化不要求该文件存在或受跟踪，并只运行初始化本身必需的非空测试。GUI 测试必须覆盖唯一九字段配置块、`deep_link => single_instance`、侧栏缺省/非法值、所选侧栏和页面存在/缺席；四项固定基线与每个已选独立能力还必须运行其 Skill 规定的全部固定非空回归，未选能力运行依赖、feature、配置、命令、状态/UI/i18n 与测试无残留回归。测试不得用 `assert!(true)` 或字面量自比较占位。Rust 正常解析复用满足兼容下限的 stable；前端最低直接版本规则和非 GUI 测试边界继续适用。
 11. 使用实际结果更新保留事实，但不为中性初始化创建产品规格、计划、ADR、Changelog 或 Verification；不创建或更新 `docs/VERIFICATION.md`，也不自动创建 Work Plan、构建候选或完整验收记录。GUI 完成输出必须逐项报告八项能力和侧栏模式、四项固定 GUI 基线、侧栏来自用户选择还是 `detailed` 缺省、`docs/GUI_APP_PROFILE.md` 配置块、已选实现与未选能力缺席证据；托盘、系统通知、开机自启、关于、赞助、单实例、深链接和全局快捷键的专属结果只在被选择时报告。
 12. 选择 GUI 时，必须在非空测试通过后按框架调用一次初始化 E2E：GPUI 使用 `$desktop-test-gpui-initialization-e2e`；Tauri 使用 `$desktop-test-gui-initialization-e2e`。下述插件结构只适用于 Tauri。结构检查器先验证唯一九字段、组合约束、四项固定基线和每个独立能力的启用完整/禁用无残留，再构建并启动真实本机调试二进制，执行所选侧栏、设置页、页面、窗口状态、单实例、托盘、通知、自启、深链接、快捷键及关闭语义中的全部适用场景。dialog 固定结构检查必须覆盖 Rust/前端依赖、唯一 Builder 顺序、主窗口 `dialog:default` 和无 fs 授权。所有由测试创建的登录项、window-state 数据、快捷键注册和进程必须恢复/回收；需要打包安装才能证明的静态 scheme 系统注册（macOS/Windows/Linux）明确留给最终安装候选补验，其余已选能力无法观察或验证都阻断，未选能力不得被当作缺证据。
 
@@ -73,7 +73,7 @@ Windows 环境门禁的自动安装若因管理员权限、UAC、组织策略或
 - 完成收尾的下游项目必须完整保留 `$desktop-manage-git-lifecycle`；它统一创建/登记 Task 的 `feature-*`，并与只供内部单元使用的 `codex/unit-*` 分层保持独立，但不自动创建左侧 Task。初始化不得运行 `start`、`publish` 或 `release`，不得创建开发分支、tag 或 Git common-dir 生命周期清单，也不得预创建 `.harness/release-context.json`；无 remote 的独立 `main` 基线仍是唯一初始结果。
 - 当前项目根目录必须同时是唯一的下游根目录及其独立 Git 顶层目录；父级仓库绝不能替代它。
 - 根 `Cargo.toml` 管理共享核心，并且只管理用户实际选择的适配器成员。
-- Rust 与前端清单声明经过最低直接版本和项目最低工具链测试的兼容下界；新建项目缺省忽略 `Cargo.lock`/`pnpm-lock.yaml`，可将其作为本地解析结果，不以两者或 `pnpm-package.lock` 作初始化门禁；完成初始化后才可由目标项目显式选择 `tracked`，普通依赖不得精确锁死或使用 `latest`、tag、通配符。
+- Rust 清单声明兼容下限并使用已安装且满足下限的 stable 正常解析和测试；不下载 nightly 或历史工具链，前端清单继续按最低直接版本和最低 Node.js/pnpm 环境验证；新建项目缺省忽略 `Cargo.lock`/`pnpm-lock.yaml`，可将其作为本地解析结果，不以两者或 `pnpm-package.lock` 作初始化门禁；完成初始化后才可由目标项目显式选择 `tracked`，普通依赖不得精确锁死或使用 `latest`、tag、通配符。
 - 确定性目录为 `<project-id>_core`、`_cli`、`_tui`、`_mcp` 和 `_gui`。
 - 每个适配器必须直接依赖核心，并且绝不得解析、启动、嵌入或要求另一个适配器。
 - Core-first 按职责而非代码行数判断：领域规则、语义校验、业务默认值、用例编排、状态转换和稳定错误属于 core；适配器只拥有协议/展示/交互/宿主机制和映射。当前只有一个适配器不是例外，偏离只能按硬规则例外 ADR 处理。

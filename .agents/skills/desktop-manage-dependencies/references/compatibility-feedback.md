@@ -7,7 +7,7 @@
 - TypeScript 6.0.3 与 typescript-eslint 8.72.1 可配合；后者的官方 [peer metadata](https://registry.npmjs.org/typescript-eslint/8.72.1) 限制为 `>=4.8.4 <6.1.0`。因此声明 `>=6.0.3 <6.1.0`，不能写成允许 6.1 及以上的 `^6.0.3`。初始化前端合同必须检查实际 `package.json`，不能只检查文档中的候选数字。
 - `Vitest 4.1.12`、`jsdom 29.1.1` 保持当前连续 `Node >=24.0.0` 合同；Vitest 5.0.5 和 jsdom 30.1.3 的 engine 排除了 Node 25，后者也排除 24.0–24.14。若项目继续承诺全部更高正式版本，不能采用这些不连续的 engine。
 - `@types/node` 使用与最低运行时一致的 24 线；类型包可安装不等于较低 Node 已实现对应 API。Jotai 3 使用公共 atom/store/Provider，不生成已移除的 atomFamily、loadable 或 setSelf 调用。具体范围及来源仍取 [候选登记](registry-candidates.json) 与 [技术基线](../../../../docs/RUST_CLI_TEMPLATE.md)；Tauri 项目再按其 GUI Skill 读取前端专项基线。
-- 最低直接版本测试只证明下界。还需使用最终交付范围正常解析，检查 peer，并运行受影响的非空测试；没有锁文件的新项目尤其不能把旧锁中的偶然组合当作范围保证。
+- 前端最低直接版本测试只证明下界；Rust 复用满足兼容下限的已安装 stable 正常解析和测试，不下载 nightly 或历史工具链。还需使用最终交付范围正常解析，检查 peer，并运行受影响的非空测试；没有锁文件的新项目尤其不能把旧锁中的偶然组合当作范围保证。
 
 ## SeaORM 2 的参数化语句与执行器
 

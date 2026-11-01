@@ -9,7 +9,7 @@ Cargo 非 `=` 版本是声明兼容下界，不等同实际 resolved pin。当�
 | 库 | 版本基线 | 用途与启用条件 |
 |---|---|---|
 | `gpui-kit` | `0.8.1` | 固定原生 GUI、组件、图标及系统通知；不另装 GPUI 的不兼容副本 |
-| `rust-i18n` | `4.2.4` | 固定编译期中英文词典，按当次候选进行最低工具链验证 |
+| `rust-i18n` | `4.2.4` | 固定编译期中英文词典，按当次候选在满足兼容下限的已安装 stable 上验证 |
 | `sys-locale` | `0.3.2` | 固定真实系统语言探测 |
 | `tracing` | `0.1.44`，关闭默认 features，`std` | Harness 固定端侧结构化日志，示例外的既有诊断标准 |
 | `tracing-subscriber` | `0.3.23`，关闭默认 features，`fmt,registry,std` | 仅端侧安装一次日志订阅器 |
@@ -42,7 +42,7 @@ Cargo 非 `=` 版本是声明兼容下界，不等同实际 resolved pin。当�
 | `tokio-tungstenite` | `0.30.0`；关闭默认 features，`handshake` | `0.30.0` | 明确 WebSocket 需求时采用；示例此配置不提供 TLS，`wss` 需另核对 TLS features |
 | `reqwest` | `0.13.5`；关闭默认 features，`json,rustls,system-proxy` | `0.13.5` | 明确 HTTP/JSON 需求时采用；不凭初始化产生网络请求 |
 
-新增或提高直接版本下界必须按工程规则在最低工具链完成最低直接版本解析与非空测试。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。后续升级先核对官方文档与真实兼容结果，再调整本表及对应 renderer；不能只改文案。
+新增或提高直接版本下界必须按工程规则复用满足兼容下限的已安装 stable 完成正常依赖解析与非空测试，不下载 nightly 或历史 Rust 工具链。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。后续升级先核对官方文档与真实兼容结果，再调整本表及对应 renderer；不能只改文案。
 
 原生 API 来源：[GPUI Kit 通知](https://gpui-kit.com/docs/system-notification/)、[tray-icon](https://docs.rs/tray-icon/0.26.1/tray_icon/)、[auto-launch](https://docs.rs/auto-launch/0.6.0/auto_launch/)、[interprocess](https://docs.rs/interprocess/2.4.7/interprocess/)、[global-hotkey](https://docs.rs/global-hotkey/0.9.0/global_hotkey/)。
 

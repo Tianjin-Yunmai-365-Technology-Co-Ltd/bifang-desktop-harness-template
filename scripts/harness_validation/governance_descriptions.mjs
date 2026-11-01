@@ -67,10 +67,10 @@ export function validateUnverifiedAdapterDependencyContract(errors, overrides = 
     reactBaseline: overrides.reactBaseline ?? REACT_BASELINE,
   };
   const required = new Map([
-    [paths.tuiSkill, ["经 registry 元数据筛选的 TUI 候选完整三段下界", "在真实 TUI 下游完成最低直接版本解析和测试前保持 `Unverified`", "只有实际通过后才把候选称为项目兼容下界"]],
-    [paths.tuiBaseline, ["经 registry 元数据筛选的候选组合", "在真实 TUI 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`", "只把实际验证通过的版本写成项目兼容下界"]],
-    [paths.mcpSkill, ["经 registry 元数据筛选的 MCP 候选完整三段下界", "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`", "只有实际通过后才把候选称为项目 Cargo 兼容下界"]],
-    [paths.mcpBaseline, ["经过 registry 元数据筛选的候选完整三段下界", "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`", "只有最低直接版本解析与 Rust 1.98.1 实测通过后才可作为项目 Cargo 兼容下界"]],
+    [paths.tuiSkill, ["经 registry 元数据筛选的 TUI 候选完整三段下界", "在真实 TUI 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只有实际通过后才把候选称为项目兼容下界"]],
+    [paths.tuiBaseline, ["经 registry 元数据筛选的候选组合", "在真实 TUI 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只把实际验证通过的版本写成项目兼容下界"]],
+    [paths.mcpSkill, ["经 registry 元数据筛选的 MCP 候选完整三段下界", "在真实 MCP 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只有实际通过后才把候选称为项目 Cargo 兼容下界"]],
+    [paths.mcpBaseline, ["经过 registry 元数据筛选的候选完整三段下界", "在真实 MCP 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只有满足兼容下限的 stable 正常解析与相关测试实际通过后才可作为项目 Cargo 兼容下界"]],
     [paths.reactBaseline, ["经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界", "在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`", "实际通过后才可成为该项目的兼容下界"]],
   ]);
   for (const [filePath, fragments] of required) {
@@ -104,11 +104,11 @@ export function validateDependencyEvidenceContract(errors, options = {}) {
   const text = sourceText(errors, productSpec, "missing dependency evidence contract");
   if (text === null) return;
   const required = [
-    "依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标",
+    "依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable",
     "中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析",
     "`rmcp 3.8.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-10-29 经 registry metadata、peer 与 engine 筛选的候选完整三段下界",
     "继续保持 `Unverified`",
-    "实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析",
+    "实例化真实下游时 Rust 复用满足兼容下限的已安装 stable 正常解析，前端仍在最低 Node.js/pnpm 环境执行最低直接版本解析",
     "成功后才能成为该项目的兼容下界",
     "中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选",
   ];
@@ -137,7 +137,7 @@ export function validateDependencyEvidenceContract(errors, options = {}) {
     if (pattern.test(environmentText)) fail(errors, `unverified dependency baseline is overstated in ${relativePath(productSpec)}: ${pattern.source}`);
   }
   const supporting = new Map([
-    [readme, ["依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标", "当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析", "TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选", "保持 `Unverified`"]],
+    [readme, ["依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable", "当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析", "TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选", "保持 `Unverified`"]],
     [engineeringRules, ["只有这些真实项目检查通过后才可称为“经过验证”", "尚无真实下游的 TUI/MCP/GUI 模板数值只能作为 registry metadata、peer 与 engine 筛选后的候选并标记 `Unverified`"]],
   ]);
   const forbidden = new Map([
@@ -237,28 +237,28 @@ export function validateCurrentDescriptions(errors, options = {}) {
 
   const msrv = [
     [PRODUCT_SPEC, ["MSRV（即 MSRV 1.98.1）", "最低兼容版本而非精确版本锁", "Rust 1.98.1 MSRV"]],
-    [docs("RUST_CLI_TEMPLATE.md"), ['| Rust 通用环境下界 | `>=1.95.0` |', '| MSRV | `1.98.1` |', 'rust-version = "1.98.1"', "不要求精确等于 1.98.1", "使用该声明的最低 Rust 工具链"]],
-    [docs("RELEASE.md"), ["最低 Rust 版本 1.98.1"]],
+    [docs("RUST_CLI_TEMPLATE.md"), ['| Rust 通用环境下界 | `>=1.95.0` |', '| MSRV | `1.98.1` |', 'rust-version = "1.98.1"', "不要求精确等于 1.98.1", "复用满足该兼容下限的 stable"]],
+    [docs("RELEASE.md"), ["满足声明下限的 stable"]],
     [PREREQUISITE_UNIX, ["MIN_RUST_MAJOR=1", "MIN_RUST_MINOR=95", "MIN_RUST_PATCH=0", "通用环境下界不替代项目 Cargo MSRV"]],
     [PREREQUISITE_WINDOWS, ["$MinimumRustMajor = 1", "$MinimumRustMinor = 95", "$MinimumRustPatch = 0", "通用环境下界不替代项目 Cargo MSRV"]],
     [PREREQUISITE_FIXTURE, ['rust = "1.98.1"']],
     [PREREQUISITE_TESTS, ['rust: "1.94.9"', '"1.95.0"', '"1.99.0"', '"2.0.0"']],
     [PREREQUISITE_WINDOWS_TESTS, ['rust = "1.98.1"', '["24.21.0", 0, "passed"]']],
     [path.join(RUST_ASSET, "Cargo.toml"), ['rust-version = "1.98.1"']],
-    [WORKFLOW, ["读取项目最低 Rust 版本", "release_candidate_workflow.mjs read-msrv", 'rustup toolchain install "$RUSTUP_TOOLCHAIN"']],
+    [WORKFLOW, ["读取项目最低 Rust 版本", "release_candidate_workflow.mjs read-msrv", 'rustup toolchain install stable']],
   ];
   validateFragmentMap(errors, msrv, "missing MSRV contract file", "Rust 1.98.1 MSRV contract missing");
 
   const minimumVersions = [
     [ENGINEERING_RULES, ["完整三段表达可验证的兼容下界", "当前最新非预发布候选", "锁文件", "由 Git 忽略"]],
     [PRODUCT_SPEC, ["最新兼容稳定选择", "优先选择 registry 当前最新兼容稳定版"]],
-    [docs("RUST_CLI_TEMPLATE.md"), ["最低兼容版本策略", "direct-minimal-versions", "resolutionMode: lowest-direct"]],
-    [CLI_SKILL, ["完整三段 Cargo 兼容下界", "最低直接版本解析"]],
-    [TUI_SKILL, ["TUI 候选完整三段下界", "direct-minimal-versions", "`Unverified`"]],
-    [TUI_BASELINE, ["registry 元数据筛选的候选组合", "最低直接版本解析", "`Unverified`"]],
-    [MCP_SKILL, ["MCP 候选完整三段下界", "最低直接版本解析", "`Unverified`"]],
-    [MCP_BASELINE, ["候选完整三段下界", "最低直接版本解析", "`Unverified`"]],
-    [GUI_SKILL, ["最低兼容稳定范围", "最低直接版本解析"]],
+    [docs("RUST_CLI_TEMPLATE.md"), ["最低兼容版本策略", "不得安装 nightly 或历史 Rust 工具链", "resolutionMode: lowest-direct"]],
+    [CLI_SKILL, ["完整三段 Cargo 兼容下界", "当前 stable 的正常解析与验证"]],
+    [TUI_SKILL, ["TUI 候选完整三段下界", "当前 stable 的正常解析与验证", "`Unverified`"]],
+    [TUI_BASELINE, ["registry 元数据筛选的候选组合", "stable 完成正常解析和测试", "`Unverified`"]],
+    [MCP_SKILL, ["MCP 候选完整三段下界", "当前 stable 的正常解析与验证", "`Unverified`"]],
+    [MCP_BASELINE, ["候选完整三段下界", "stable 完成正常解析和测试", "`Unverified`"]],
+    [GUI_SKILL, ["最低兼容稳定范围", "已安装 stable 正常解析并运行相关测试"]],
     [reactBaseline, ["GUI 前端候选完整三段下界", "`Unverified`", "engines.node", "engines.pnpm", "resolutionMode: lowest-direct"]],
     [path.join(ENVIRONMENT_SKILL, "SKILL.md"), [">=24.0.0", ">=12.4.1", "upgrade-required", "不得降低项目门槛"]],
     [path.join(ENVIRONMENT_SKILL, "references", "development-environment-gates.md"), [">=24.0.0", ">=12.4.1", ">=0.23.1, <0.24.0", "upgrade-required", "不得降低最低门禁"]],

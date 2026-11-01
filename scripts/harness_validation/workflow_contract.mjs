@@ -3,7 +3,7 @@
 export const CHECKOUT_USE = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262";
 export const SETUP_NODE_USE = "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020";
 export const UPLOAD_USE = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02";
-export const EXPECTED_WORKFLOW_SHA256 = "c3e80c78afe59ace97c090da4e22fb5d11634a8af5c98250dfd2be9f7035405c";
+export const EXPECTED_WORKFLOW_SHA256 = "742c8fd3bca96615eab79b64e232e09023eeef3199e50a2f5f5ba966d12cd000";
 export const EXPECTED_INPUTS = new Set([
   "confirm_candidate_build",
   "source_commit",
@@ -17,7 +17,8 @@ export const EXPECTED_NAMED_STEPS = [
   "验证已检出源码",
   "捕获已发布上下文",
   "读取项目最低 Rust 版本",
-  "选择项目 MSRV",
+  "安装当前 stable Rust",
+  "验证 stable 满足项目兼容下限",
   "验证项目依赖锁策略",
   "验证候选版本",
   "验证发布更新日志",

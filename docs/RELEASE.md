@@ -152,7 +152,7 @@ Git 发布在本地默认主分支和版本 tag 指向同一最终 HEAD 时结�
 - [ ] 发布元数据写入前，当前 HEAD 精确等于包含全部源码/治理变化及已触发 Changelog 的 `sourceHead`；`releaseReview.reviewedSourceCommit` 绑定该 `sourceHead`。随后同一个精确发布元数据提交且只包含 `release-notes.json` 与 `.harness/release-context.json`。
 - [ ] 生命周期完成后再次复算发布上下文字节与 SHA-256；最终 `sourceCommit`、clean 默认主分支和本地 `expectedTag` 一致。`sourceHead` 是元数据提交前的审查输入，不要求等于 `sourceCommit`。
 - [ ] Rust 初始化中性资产通过当前系统的格式、代码规范检查和非空测试；它是脚手架资产而非产品候选，不用冒烟证明产品交付。
-- [ ] Rust 初始化中性资产在声明的最低 Rust 版本 1.98.1 上完成可用工具链验证；这不限制开发或运行环境使用更高稳定版。
+- [ ] Rust 初始化中性资产在已安装且满足声明下限的 stable 上完成相关验证并记录实际版本；不安装 nightly 或历史工具链，不将该结果冒充最低版本实测。
 - [ ] 候选工作流示例通过静态检查；仅在远端 `release` 分支/tag 已精确复核时，才能只读检出批准的提交并形成远程候选。工作流不修改 ref、创建 tag 或执行渠道分发。
 - [ ] Harness 时间版本、下游自动版本 Skill/状态保护、Rust 默认值、四类独立适配器、默认 CLI、Agent 策略、构建 E2E 选择和验收适用性在事实来源中一致。
 - [ ] Harness 源发布未冒充产品候选：产品构建、`release/` manifest、签名、公证、产品 E2E 与产品人工验收均为 `Not applicable`；Git 发布后的源码归档或远端推送只按用户当次要求进入并单独复核。

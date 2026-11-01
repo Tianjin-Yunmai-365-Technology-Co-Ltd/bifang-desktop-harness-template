@@ -45,7 +45,7 @@ test("dependency evidence keeps non-CLI baselines unverified", () => withTempora
 test("dependency evidence rejects explicit and environment-section overclaims", () => {
   for (const update of [
     (source) => `${source}\n前端/Rust 直接依赖统一表达为经过验证的最低兼容范围\n`,
-    (source) => source.replace("依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标", "依赖清单以经过验证的最低兼容范围为目标"),
+    (source) => source.replace("依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable", "依赖清单以经过验证的最低兼容范围为目标"),
     (source) => source.replace("继续保持 `Unverified`", "TUI/MCP/GUI 已完成真实下游最低工具链验证"),
   ]) withTemporaryRoot((root) => {
     const productSpec = mutate(root, PRODUCT_SPEC, update);
@@ -95,8 +95,8 @@ test("adapter contracts reject superseded overclaims", () => {
 
 test("adapter contracts require their unverified evidence markers", () => {
   const cases = [
-    ["tuiSkill", TUI_SKILL, "在真实 TUI 下游完成最低直接版本解析和测试前保持 `Unverified`"],
-    ["mcpSkill", MCP_SKILL, "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`"],
+    ["tuiSkill", TUI_SKILL, "在真实 TUI 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`"],
+    ["mcpSkill", MCP_SKILL, "在真实 MCP 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`"],
     ["reactBaseline", REACT_BASELINE, "在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`"],
   ];
   for (const [key, sourcePath, required] of cases) withTemporaryRoot((root) => {
