@@ -55,7 +55,7 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 - 完成收尾的下游项目必须完整保留 `$desktop-manage-git-lifecycle`；它统一创建/登记 Task 的 `feature-*`，并与只供内部单元使用的 `codex/unit-*` 分层保持独立，但不自动创建左侧 Task。初始化不得运行 `start`、`publish` 或 `release`，不得创建开发分支、tag 或 Git common-dir 生命周期清单，也不得预创建 `.harness/release-context.json`；无 remote 的独立 `main` 基线仍是唯一初始结果。
 - 当前项目根目录必须同时是唯一的下游根目录及其独立 Git 顶层目录；父级仓库绝不能替代它。
 - 根 `Cargo.toml` 管理共享核心，并且只管理用户实际选择的适配器成员。
-- Rust 与前端清单声明经过最低直接版本和项目最低工具链测试的兼容下界；`Cargo.lock`/`pnpm-lock.yaml` 只固定正常解析结果，普通依赖不得精确锁死或使用 `latest`、tag、通配符。
+- Rust 清单声明经编译器兼容核对和已有 stable 测试的完整兼容下界；前端继续在最低环境验证直接版本下界；`Cargo.lock`/`pnpm-lock.yaml` 只固定正常解析结果，普通依赖不得精确锁死或使用 `latest`、tag、通配符。
 - 确定性目录为 `<project-id>_core`、`_cli`、`_tui`、`_mcp` 和 `_gui`。
 - 每个适配器必须直接依赖核心，并且绝不得解析、启动、嵌入或要求另一个适配器。
 - Core-first 按职责而非代码行数判断：领域规则、语义校验、业务默认值、用例编排、状态转换和稳定错误属于 core；适配器只拥有协议/展示/交互/宿主机制和映射。当前只有一个适配器不是例外，偏离只能按硬规则例外 ADR 处理。

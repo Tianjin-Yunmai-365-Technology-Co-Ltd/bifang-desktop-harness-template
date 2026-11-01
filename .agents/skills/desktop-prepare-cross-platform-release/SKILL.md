@@ -25,7 +25,7 @@ description: 仅为远端 Git 发布的 Rust CLI 候选准备三平台原生矩�
    - schema、`gitPublication: remote`、版本、`expectedTag: v{version}-{YYYYMMDD}`、默认分支、远端跟踪 ref 与已 fetch tag 一致；
    - CLI 候选选择精确不适用。
    规范快照只能原子写到 runner 临时目录。
-7. 安装项目声明 MSRV，安全刷新 `release/`，运行全部非空 `cargo test --workspace --all-targets --all-features --locked`，测试后复核 clean/HEAD，再运行锁定 release 构建。不得启动二进制或混入格式/lint/E2E。
+7. 安装当前 stable 并保留项目 MSRV 兼容下限，安全刷新 `release/`，运行全部非空 `cargo test --workspace --all-targets --all-features --locked`，测试后复核 clean/HEAD，再运行锁定 release 构建。不得启动二进制或混入格式/lint/E2E。
 8. 按批准配置探测并执行非交互签名钩子。签名开始后失败必须失败；条件不存在且策略允许时记录 `unsigned` 与原因。不得暴露凭据或接受任意签名命令输入。
 9. 在项目根同级安全暂存目录生成确定性归档、相邻 SHA-256 和 manifest；归档包含最终二进制与原样 `release-notes.json`。写 manifest 前调用 `verify_release_context.py verify`，逐字段比较捕获快照，证明 HEAD、clean、上下文 bytes/hash、默认分支 ref 和版本 tag 未漂移。
 10. manifest 至少记录 `project`、机器 `version`、`sourceCommit`、`releaseContextSha256`、`buildRun`/`buildMode`、平台/架构/target/host、归档/摘要、测试、E2E 选择、完整 `releaseReview`/`candidateSelections` 及其审查投影、更新日志版本/摘要/路径、签名状态/原因/证据和 `milestoneAcceptance: pending`。所有选择只从上下文复制。
@@ -42,7 +42,7 @@ description: 仅为远端 Git 发布的 Rust CLI 候选准备三平台原生矩�
 
 ## 失败条件
 
-- 授权缺失、`gitPublication` 不是 `remote`、dirty、HEAD/source_commit 不同、上下文摘要/schema/版本不同、远端默认 ref 或版本 tag 不指向提交、MSRV/测试/构建/签名失败、候选缺失或取回不完整都必须失败。
+- 授权缺失、`gitPublication` 不是 `remote`、dirty、HEAD/source_commit 不同、上下文摘要/schema/版本不同、远端默认 ref 或版本 tag 不指向提交、stable 兼容下限检查/测试/构建/签名失败、候选缺失或取回不完整都必须失败。
 - 不检查分支祖先、合并类型、线性历史、feature 分支是否仍存在，也不检查或创建名为 `Release` 的分支。
 - 工作流不创建、移动或推送 tag；它只验证发布生命周期已经成功推送的 tag。
 - 矩阵只生成 `pending` 候选；矩阵本身不得运行 E2E、验收或渠道发布，也不更新项目记忆。
@@ -50,3 +50,5 @@ description: 仅为远端 Git 发布的 Rust CLI 候选准备三平台原生矩�
 ## 完成输出
 
 报告 `gitPublication: remote`、工作流路径与 action 固定引用、原生矩阵、`sourceCommit`、`releaseContextSha256`、版本/tag、全量非空单元测试、候选/摘要/manifest、签名、运行器结果、`pending` 状态与下一步；不更新项目记忆。
+
+Rust 检查复用已有且满足根清单 `rust-version` 的 stable；Harness 不安装或切换 nightly、历史 Rust 工具链，不运行最低直接版本解析或最低编译器测试。较新 stable 的测试通过不代表 MSRV 已实际验证。

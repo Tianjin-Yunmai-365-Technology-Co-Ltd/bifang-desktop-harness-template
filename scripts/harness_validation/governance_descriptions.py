@@ -17,23 +17,23 @@ def validate_unverified_adapter_dependency_contract(errors: list[str]) -> None:
     required_fragments = {
         TUI_SKILL: (  # noqa: F405
             "经 registry 元数据筛选的 TUI 候选完整三段下界",
-            "在真实 TUI 下游完成最低直接版本解析和测试前保持 `Unverified`",
+            "在真实 TUI 下游完成已有稳定工具链上的相关非空测试前保持 `Unverified`",
             "只有实际通过后才把候选称为项目兼容下界",
         ),
         TUI_BASELINE: (  # noqa: F405
             "经 registry 元数据筛选的候选组合",
-            "在真实 TUI 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "在真实 TUI 下游完成已有稳定工具链上的相关非空测试前保持 `Unverified`",
             "只把实际验证通过的版本写成项目兼容下界",
         ),
         MCP_SKILL: (  # noqa: F405
             "经 registry 元数据筛选的 MCP 候选完整三段下界",
-            "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+            "在真实 MCP 下游完成已有稳定工具链上的相关非空测试前保持 `Unverified`",
             "只有实际通过后才把候选称为项目 Cargo 兼容下界",
         ),
         MCP_BASELINE: (
             "经过 registry 元数据筛选的候选完整三段下界",
-            "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
-            "只有最低直接版本解析与 Rust 1.98.1 实测通过后才可作为项目 Cargo 兼容下界",
+            "在真实 MCP 下游完成已有稳定工具链上的相关非空测试前保持 `Unverified`",
+            "只有已有稳定工具链上的相关非空测试通过后才可作为项目 Cargo 兼容下界",
         ),
         REACT_BASELINE: (  # noqa: F405
             "经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界",
@@ -87,11 +87,11 @@ def validate_dependency_evidence_contract(
         return
     text = product_spec.read_text(encoding="utf-8")
     required = (
-        "依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标",
+        "依赖清单以完整三段兼容下界为目标，Rust 检查复用满足声明下限的已有 stable",
         "中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析",
         "`rmcp 3.3.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-09-12 经 registry metadata、peer 与 engine 筛选的候选完整三段下界",
         "继续保持 `Unverified`",
-        "实例化真实下游时必须在项目最低 Rust/Node.js/pnpm 工具链执行最低直接版本解析",
+        "实例化真实下游时 Rust 复用已有且满足声明下限的 stable",
         "成功后才能成为该项目的兼容下界",
         "中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选",
     )
@@ -143,7 +143,7 @@ def validate_dependency_evidence_contract(
 
     supporting_contracts = {
         readme: (
-            "依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标",
+            "依赖清单以完整三段兼容下界为目标，Rust 检查复用满足声明下限的已有 stable",
             "当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析",
             "TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选",
             "保持 `Unverified`",
@@ -317,9 +317,9 @@ def validate_current_descriptions(errors: list[str]) -> None:
             '| MSRV | `1.98.1` |',
             'rust-version = "1.98.1"',
             "不要求精确等于 1.98.1",
-            "使用该声明的最低 Rust 工具链",
+            "复用已有且满足声明下限的 stable",
         ),
-        ROOT / "docs" / "RELEASE.md": ("最低 Rust 版本 1.98.1",),
+        ROOT / "docs" / "RELEASE.md": ("已有且满足兼容下限的 stable",),
         PREREQUISITE_UNIX: (
             "MIN_RUST_MAJOR=1",
             "MIN_RUST_MINOR=98",
@@ -344,9 +344,9 @@ def validate_current_descriptions(errors: list[str]) -> None:
         ),
         RUST_ASSET / "Cargo.toml": ('rust-version = "1.98.1"',),
         WORKFLOW: (
-            "读取项目最低 Rust 版本",
-            'environment.write(f"RUSTUP_TOOLCHAIN={version}\\n")',
-            'rustup toolchain install "$RUSTUP_TOOLCHAIN"',
+            "读取项目 Rust 兼容下限",
+            'environment.write(f"RUST_MIN_VERSION={version}\\n")',
+            'rustup toolchain install stable',
         ),
     }
     for path, fragments in msrv_fragments.items():
@@ -373,15 +373,15 @@ def validate_current_descriptions(errors: list[str]) -> None:
         ),
         ROOT / "docs" / "RUST_CLI_TEMPLATE.md": (
             "最低兼容版本策略",
-            "direct-minimal-versions",
+            "stable",
             "resolutionMode: lowest-direct",
         ),
-        CLI_SKILL: ("完整三段 Cargo 兼容下界", "最低直接版本解析"),
-        TUI_SKILL: ("TUI 候选完整三段下界", "direct-minimal-versions", "`Unverified`"),
-        TUI_BASELINE: ("registry 元数据筛选的候选组合", "最低直接版本解析", "`Unverified`"),
-        MCP_SKILL: ("MCP 候选完整三段下界", "最低直接版本解析", "`Unverified`"),
-        MCP_BASELINE: ("候选完整三段下界", "最低直接版本解析", "`Unverified`"),
-        GUI_SKILL: ("最低兼容稳定范围", "最低直接版本解析"),
+        CLI_SKILL: ("完整三段 Cargo 兼容下界", "stable"),
+        TUI_SKILL: ("TUI 候选完整三段下界", "stable", "`Unverified`"),
+        TUI_BASELINE: ("registry 元数据筛选的候选组合", "stable", "`Unverified`"),
+        MCP_SKILL: ("MCP 候选完整三段下界", "stable", "`Unverified`"),
+        MCP_BASELINE: ("候选完整三段下界", "stable", "`Unverified`"),
+        GUI_SKILL: ("最低兼容稳定范围", "stable"),
         REACT_BASELINE: (
             "GUI 前端候选完整三段下界",
             "`Unverified`",
@@ -414,8 +414,8 @@ def validate_current_descriptions(errors: list[str]) -> None:
         ),
         MACOS_XWIN_GATE: ("CARGO_XWIN_REQUIREMENT='>=0.23.1, <0.24.0'",),
         WORKFLOW: (
-            "读取项目最低 Rust 版本",
-            "RUSTUP_TOOLCHAIN={version}",
+            "读取项目 Rust 兼容下限",
+            "RUST_MIN_VERSION={version}",
         ),
     }
     for path, fragments in minimum_version_fragments.items():

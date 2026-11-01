@@ -28,7 +28,7 @@
 - 活动选项卡、已应用查询/筛选、排序、分页页码/每页数量及同类可恢复页面工作状态固定由应用根 Jotai store 的模块级 atom 持有，只在当前程序进程内跨路由以及已启用的关闭隐藏/单实例唤醒过程保留；真正退出后回到默认值。不得使用浏览器/Tauri/文件/数据库/URL 持久化，不得把 TanStack Query 结果或 core 权威状态镜像进 atom。window-state 只持久原生窗口几何与最大化，不得借此保存页面或业务上下文。详细侧栏折叠偏好是单独允许的设备级 UI 偏好。查询范围或每页数量变化时页码归 1；只有成功返回的当前页大于 1 且为空时才回退第 1 页并重查，加载/错误和第 1 页空结果不循环。
 - 不得加载远程内容。
 - 保持 Tauri Rust 边界轻薄：只验证反序列化、协议必填字段和调用 WebView 能力，随后调用一个核心用例并映射有类型的结果；值域、跨字段约束、资源状态和业务权限由核心验证。
-- 调用时为 Tauri/前端直接依赖声明彼此兼容的最低稳定范围，使用最低直接版本解析验证 Rust MSRV、Node.js/pnpm 和目标平台 WebView，再由正常锁文件固定实际解析结果；不得用精确依赖版本或“最新”代替兼容下界。
+- 调用时为 Tauri/前端直接依赖声明彼此兼容的最低稳定范围，复用已有且满足根清单要求的 stable 验证 Rust，前端继续按最低 Node.js/pnpm 环境及目标平台 WebView 验证，再由正常锁文件固定实际解析结果；不得用精确依赖版本或“最新”代替兼容下界。
 - 使用 pnpm 作为前端包管理器。初始化阶段由 `$desktop-check-development-environment` 检查 Node.js 和 pnpm；初始化后不得因缺少当前宿主证据预检，先运行真实 pnpm 命令，只有该命令已因受管环境问题失败时才进入对应恢复并单次重试。
 - 固定前端同时适用于中性 `Draft` 脚手架和已批准产品。不得根据页面数量把它替换为普通 HTML/ES 模块或其他框架。
 - Mantine 主题、布局、状态、响应式与无障碍细节统一遵守 [Mantine UI 设计规范](mantine-ui-guidelines.md)。
@@ -130,3 +130,5 @@ Tauri 2 和固定 React 前端技术栈是硬规则。替换它们必须记录�
 - [Tauri macOS 签名与公证](https://v2.tauri.app/distribute/sign/macos/)
 - [Windows 签名行为](https://v2.tauri.app/distribute/sign/windows/)
 - [Linux 签名行为](https://v2.tauri.app/distribute/sign/linux/)
+
+Rust 检查复用已有且满足根清单 `rust-version` 的 stable；Harness 不安装或切换 nightly、历史 Rust 工具链，不运行最低直接版本解析或最低编译器测试。较新 stable 的测试通过不代表 MSRV 已实际验证。

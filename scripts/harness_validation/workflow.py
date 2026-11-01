@@ -122,10 +122,10 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
         "fail-fast: false",
         "os: [ubuntu-latest, macos-latest, windows-latest]",
         "contents: read",
-        "读取项目最低 Rust 版本",
+        "读取项目 Rust 兼容下限",
         'r"(?ms)^\\[workspace\\.package\\]',
-        'environment.write(f"RUSTUP_TOOLCHAIN={version}\\n")',
-        'rustup toolchain install "$RUSTUP_TOOLCHAIN"',
+        'environment.write(f"RUST_MIN_VERSION={version}\\n")',
+        'rustup toolchain install stable',
         "e2e_selection:",
         "E2E_SELECTION: ${{ inputs.e2e_selection }}",
         "e2e_selection 必须是 enabled 或 disabled",
@@ -309,7 +309,7 @@ def validate_workflow(errors: list[str], workflow: Path = WORKFLOW) -> None:
     python_idx = first_named_step_index("选择 Python 运行时")
     source_verify_idx = first_named_step_index("验证已检出源码")
     context_capture_idx = first_named_step_index("捕获已发布上下文")
-    toolchain_idx = first_named_step_index("选择项目 MSRV")
+    toolchain_idx = first_named_step_index("选择当前 stable")
     if (
         preflight_idx == -1
         or checkout_idx == -1

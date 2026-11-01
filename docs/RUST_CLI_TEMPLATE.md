@@ -1,5 +1,7 @@
 # Rust 共享核心与可选适配器初始化基线
 
+Rust 检查复用已有且满足根清单 `rust-version` 的 stable；Harness 不安装或切换 nightly、历史 Rust 工具链，不运行最低直接版本解析或最低编译器测试。较新 stable 的测试通过不代表 MSRV 已实际验证。
+
 本文档定义下游项目初始化时采用的默认 Rust 技术基线。Harness 根目录不实现、接收或记录具体产品需求；中性初始化资产位于 `$desktop-initialize-rust-project` 的资产。下游可以在产品目的与核心输入输出尚未确定、规格仍为 `Draft` 时先建立工作区，但不得借初始化推测业务。即使用户在 Harness 源或中性初始化阶段同时提供产品目的、业务规则、专属 UI/数据、远程地址、凭据或发布需求，也必须拒绝并要求初始化完成、切换到唯一终端下游根目录后重新提出。若真实产品需要其他语言或不同架构，必须在终端下游先通过范围闸门并在当日 `docs/adr/YYYYMMDD_ADR.md` 记录理由、风险、适用范围和恢复或迁移标准。
 
 通用工程规则以 [`docs/ENGINEERING_RULES.md`](ENGINEERING_RULES.md) 为唯一详细来源。本文件补充 Rust 工作区、共享核心、Tokio 与可选适配器；CLI 专属规则只在选择 CLI 时适用。
@@ -157,7 +159,7 @@ tokio = { version = "1.53.1", default-features = false, features = ["macros", "r
 - Rust registry 直接依赖必须写成包含完整三段下界的 Cargo 兼容要求，例如 `serde = "1.0.203"` 使用 Cargo 默认 caret 语义；普通依赖禁止精确 `=1.0.203`、`*`、无下界范围、tag 或未经批准的 Git revision。内部 path 依赖仍由根 workspace 统一声明，不虚构 registry 版本。
 - 前端 `dependencies`/`devDependencies` 必须使用包含完整三段下界的 caret，或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符或无下界范围。Node.js/pnpm 的兼容事实写入 `engines` 范围；cargo-xwin 等带 SemVer 的受管工具同样使用包含完整下界的兼容范围。旧式精确 `packageManager` 字段不得充当兼容门禁。
 - `Cargo.toml`/`package.json` 表达兼容下界，根锁文件固定正常解析得到的实际版本。锁文件由对应工具生成且提交，不得手工编辑；已安装工具处于支持范围内时直接复用，不因不是最新版而升级。
-- 新增或提高 Rust 直接下界时，在临时副本中执行 `cargo +nightly update -Zdirect-minimal-versions`，再用根 `Cargo.toml` 声明的最低 Rust 工具链运行受影响的非空测试；该不稳定 Cargo 子命令只用于验证，不成为生产构建依赖。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。最低版本验证不能覆盖日常提交的正常锁文件。
+- 新增或提高 Rust 直接下界时，核对依赖声明的编译器兼容要求，复用已有且满足根清单 `rust-version` 的 stable 运行受影响非空测试。Harness 不安装或切换 nightly、历史 Rust 工具链，不运行最低直接版本解析或最低编译器测试；未实际覆盖的 MSRV 保持未验证。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。临时验证不能覆盖日常提交的正常锁文件。
 - 只有使用到新 API/feature、修复安全或平台兼容问题，且提高后的下界通过相同验证时，才提高最低版本。日常任务不为追逐版本号自动改写已验证锁文件；依赖更新只运行本次必要单元/回归测试。用户显式请求发布候选构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁；Windows 本地开发试包不解析 E2E/性能选择。
 
 新增或替换依赖前必须记录：
@@ -238,7 +240,7 @@ cargo test --workspace --all-targets --all-features --locked
 cargo build --workspace --release --locked
 ```
 
-此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须读取根 `Cargo.toml` 的 `rust-version`，并使用该声明的最低 Rust 工具链（当前模板为 1.98.1）实际执行至少锁定依赖检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须固定为模板当前下界。较新编译器成功不能替代最低版本证据。
+此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。读取根 `Cargo.toml` 的 `rust-version` 作为兼容下限，复用已有且满足声明下限的 stable 执行锁定依赖检查、测试和发布构建；不安装最低历史工具链。较新编译器成功不能证明 MSRV 已实际验证。
 
 此外必须：
 
@@ -314,7 +316,6 @@ cargo build --workspace --release --locked
 - [Cargo 工作区](https://doc.rust-lang.org/cargo/reference/workspaces.html)
 - [Cargo 依赖版本要求](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)
 - [Cargo `rust-version`](https://doc.rust-lang.org/cargo/reference/rust-version.html)
-- [Cargo `direct-minimal-versions`](https://doc.rust-lang.org/cargo/reference/unstable.html#direct-minimal-versions)
 - [Cargo 构建](https://doc.rust-lang.org/stable/cargo/commands/cargo-build.html)
 - [Cargo 构建缓存与产物目录](https://doc.rust-lang.org/cargo/reference/build-cache.html)
 - [Rust 标准库 `ExitCode`](https://doc.rust-lang.org/stable/std/process/struct.ExitCode.html)

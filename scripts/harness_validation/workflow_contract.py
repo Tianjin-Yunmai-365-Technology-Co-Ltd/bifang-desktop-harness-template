@@ -3,7 +3,7 @@
 CHECKOUT_USE = "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
 UPLOAD_USE = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
 EXPECTED_WORKFLOW_SHA256 = (
-    "3745f9a49d26d7a9fc325f3d714535d99634ac88cee07cbfeec6e12429e5adf0"
+    "2db6e57aaf016e1c0b912ba7368ce9954a9fc239344d58b85d756d752aabdae3"
 )
 EXPECTED_INPUTS = {
     "confirm_candidate_build",
@@ -17,8 +17,8 @@ EXPECTED_NAMED_STEPS = (
     "选择 Python 运行时",
     "验证已检出源码",
     "捕获已发布上下文",
-    "读取项目最低 Rust 版本",
-    "选择项目 MSRV",
+    "读取项目 Rust 兼容下限",
+    "选择当前 stable",
     "验证候选版本",
     "验证发布更新日志",
     "准备 Unix 发布目录",

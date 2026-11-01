@@ -363,7 +363,7 @@ class ValidateHarnessWorkflowStructureTests(HarnessWorkflowTestCase):
         capture_start, capture_end, _ = self._slice(
             base,
             "      - name: 捕获已发布上下文",
-            "      - name: 读取项目最低 Rust 版本",
+            "      - name: 读取项目 Rust 兼容下限",
         )
         without_capture = base[:capture_start] + base[capture_end:]
         errors = self._validate(without_capture)

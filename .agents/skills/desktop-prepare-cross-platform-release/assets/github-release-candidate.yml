@@ -113,7 +113,7 @@ jobs:
             --expected-context-sha256 "$RELEASE_CONTEXT_SHA256" \
             --repository-default-branch "$REPOSITORY_DEFAULT_BRANCH" \
             --snapshot "$RELEASE_CONTEXT_SNAPSHOT"
-      - name: 读取项目最低 Rust 版本
+      - name: 读取项目 Rust 兼容下限
         shell: bash
         run: |
           "$PYTHON_COMMAND" - <<'PY'
@@ -137,11 +137,12 @@ jobs:
           if version.count(".") == 1:
               version += ".0"
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as environment:
-              environment.write(f"RUSTUP_TOOLCHAIN={version}\n")
-          print(f"使用项目声明的最低 Rust 工具链 {version}")
+              environment.write(f"RUST_MIN_VERSION={version}\n")
+              environment.write("RUSTUP_TOOLCHAIN=stable\n")
+          print(f"使用 stable；项目声明的 Rust 兼容下限为 {version}")
           PY
-      - name: 选择项目 MSRV
-        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+      - name: 选择当前 stable
+        run: rustup toolchain install stable --profile minimal --no-self-update
       - name: 验证候选版本
         shell: bash
         run: |

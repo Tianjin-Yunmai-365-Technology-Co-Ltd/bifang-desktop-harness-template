@@ -295,7 +295,7 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         """环境段不得把仍待真实下游证明的候选统称为经过验证。"""
 
         source = PRODUCT_SPEC.read_text(encoding="utf-8")
-        current = "依赖清单以完整三段、可在项目最低工具链证明的兼容下界为目标"
+        current = "依赖清单以完整三段兼容下界为目标，Rust 检查复用满足声明下限的已有 stable"
         self.assertIn(current, source)
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "product_spec.md"
@@ -391,11 +391,11 @@ class ValidateHarnessEntrypointTests(unittest.TestCase):
         cases = (
             (
                 "TUI_SKILL",
-                "在真实 TUI 下游完成最低直接版本解析和测试前保持 `Unverified`",
+                "在真实 TUI 下游完成已有稳定工具链上的相关非空测试前保持 `Unverified`",
             ),
             (
                 "MCP_SKILL",
-                "在真实 MCP 下游完成最低直接版本解析和 Rust 1.98.1 测试前保持 `Unverified`",
+                "在真实 MCP 下游完成已有稳定工具链上的相关非空测试前保持 `Unverified`",
             ),
             (
                 "REACT_BASELINE",

@@ -36,10 +36,10 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 return candidate
         self.skipTest("Bash is unavailable on this host")
 
-    def test_project_msrv_step_reads_and_normalizes_workspace_minimum(self) -> None:
-        """候选 workflow 必须读取项目下界，不能恢复模板硬编码工具链。"""
+    def test_project_msrv_step_keeps_minimum_separate_from_stable_toolchain(self) -> None:
+        """读取兼容下限供报告，同时使用 stable 而非精确历史工具链。"""
 
-        script = self._run_script(self._base_workflow(), "读取项目最低 Rust 版本")
+        script = self._run_script(self._base_workflow(), "读取项目 Rust 兼容下限")
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             environment_file = root / "github-env"
@@ -60,7 +60,7 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(environment_file.read_text(encoding="utf-8"), "RUSTUP_TOOLCHAIN=1.93.0\n")
+            self.assertEqual(environment_file.read_text(encoding="utf-8"), "RUST_MIN_VERSION=1.93.0\nRUSTUP_TOOLCHAIN=stable\n")
 
             (root / "Cargo.toml").write_text("[workspace]\nmembers = []\n", encoding="utf-8")
             rejected = subprocess.run(
@@ -73,6 +73,30 @@ class ValidateHarnessWorkflowExecutionTests(HarnessWorkflowTestCase):
             )
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("缺少 [workspace.package]", rejected.stderr)
+
+    def test_candidate_installer_requests_stable_even_with_legacy_environment(self) -> None:
+        """真实执行安装步骤，缺失工具链修复不能重新安装历史下限。"""
+
+        _, _, step = self._slice(self._base_workflow(), "      - name: 选择当前 stable", "      - name: 验证候选版本")
+        script = step.split("        run: ", 1)[1].strip()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            calls = root / "calls"
+            rustup = root / "rustup"
+            rustup.write_text('#!/bin/sh\nprintf "%s\\n" "$*" > "$CALLS_FILE"\n', encoding="utf-8")
+            rustup.chmod(0o755)
+            environment = os.environ.copy()
+            environment.update({
+                "PATH": str(root) + os.pathsep + environment.get("PATH", ""),
+                "CALLS_FILE": str(calls),
+                "RUSTUP_TOOLCHAIN": "1.93.0",
+            })
+            result = subprocess.run(
+                [self._bash(), "-c", script], cwd=root, env=environment,
+                capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(calls.read_text(encoding="utf-8"), "toolchain install stable --profile minimal --no-self-update\n")
 
     def test_manifest_and_atomic_commit_run_against_real_files(self) -> None:
         """真实执行 manifest 与目录提交，绑定发布上下文、tag 和精确三件套。"""
