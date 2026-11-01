@@ -170,7 +170,7 @@ test("read-msrv normalizes workspace minimum and fails closed when absent", () =
     fs.writeFileSync(path.join(directory, "Cargo.toml"), '[workspace]\nmembers = []\n\n[workspace.package]\nrust-version = "1.93"\n', "utf8");
     const accepted = runCandidateHelper(["read-msrv"], { cwd: directory, env: { GITHUB_ENV: githubEnv } });
     assert.equal(accepted.status, 0, accepted.stderr);
-    assert.equal(fs.readFileSync(githubEnv, "utf8"), "RUSTUP_TOOLCHAIN=1.93.0\n");
+    assert.equal(fs.readFileSync(githubEnv, "utf8"), "RUST_MIN_VERSION=1.93.0\nRUSTUP_TOOLCHAIN=stable\nRUSTUP_AUTO_INSTALL=0\n");
     fs.writeFileSync(path.join(directory, "Cargo.toml"), "[workspace]\nmembers = []\n", "utf8");
     const rejected = runCandidateHelper(["read-msrv"], { cwd: directory, env: { GITHUB_ENV: githubEnv } });
     assert.notEqual(rejected.status, 0);

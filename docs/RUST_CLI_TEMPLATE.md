@@ -175,7 +175,7 @@ tokio = { version = "1.53.1", default-features = false, features = ["macros", "r
 - Rust registry 直接依赖必须写成包含完整三段下界的 Cargo 兼容要求，例如 `serde = "1.0.203"` 使用 Cargo 默认 caret 语义；普通依赖禁止精确 `=1.0.203`、`*`、无下界范围、tag 或未经批准的 Git revision。内部 path 依赖仍由根 workspace 统一声明，不虚构 registry 版本。
 - 前端 `dependencies`/`devDependencies` 必须使用包含完整三段下界的 caret，或上游官方明确支持的兼容范围；禁止裸精确版本、`latest`、tag、通配符或无下界范围。Node.js/pnpm 的兼容事实写入 `engines` 范围；cargo-xwin 等带 SemVer 的受管工具同样使用包含完整下界的兼容范围。旧式精确 `packageManager` 字段不得充当兼容门禁。
 - `Cargo.toml`/`package.json` 表达兼容下界。Harness 源及新建下游默认忽略 `Cargo.lock`/`pnpm-lock.yaml`；已初始化下游的根 Cargo 元数据显式设为 `dependency-lock-policy = "tracked"` 时，实际 Rust 工作区和已选 GUI 根的标准锁文件必须存在且受 Git 跟踪，安装、测试与构建使用冻结解析。`pnpm-package.lock` 不作为标准锁文件；未知策略值失败关闭。已安装工具处于支持范围内时直接复用，不因不是最新版而升级。
-- 新增或提高 Rust 直接下界时，在临时副本中执行 `cargo +nightly update -Zdirect-minimal-versions`，再用根 `Cargo.toml` 声明的最低 Rust 工具链运行受影响的非空测试；该不稳定 Cargo 子命令只用于验证，不成为生产构建依赖。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。最低版本验证不依赖提交项目锁文件。
+- 新增或提高 Rust 直接下界时，复用已安装且满足根 `Cargo.toml` 的 `rust-version` 下限的 stable，正常解析依赖并运行受影响的非空测试。不得安装 nightly 或历史 Rust 工具链，也不执行不稳定的最低直接版本解析；当前 stable 验证只记录实际版本，不冒充最低版本实测证据。前端在临时配置中使用 pnpm `resolutionMode: lowest-direct`，并在声明的最低 Node.js/pnpm 环境运行类型检查、非空测试和生产构建。最低版本验证不依赖提交项目锁文件。
 - 只有使用到新 API/feature、修复安全或平台兼容问题，且提高后的下界通过相同验证时，才提高最低版本。日常任务不为追逐版本号自动改写清单依赖；依赖更新只运行本次必要单元/回归测试。用户显式请求发布候选构建时逐次解析 E2E 选择，只追加全量非空单元测试和实际构建，不自动追加格式、lint、静态或其他开发门禁；Windows 本地开发试包不解析 E2E 选择。
 
 新增或替换依赖前必须记录：
@@ -255,7 +255,7 @@ cargo test --workspace --all-targets --all-features
 cargo build --workspace --release
 ```
 
-此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。声明 MSRV 兼容时，必须读取根 `Cargo.toml` 的 `rust-version`，并使用该声明的最低 Rust 工具链（当前模板为 1.98.1）实际执行至少清单依赖解析检查、测试和发布构建；这是对最低版本的兼容证明，不表示运行或开发工具链必须固定为模板当前下界。较新编译器成功不能替代最低版本证据。
+此外，发布候选必须用 `cargo test ... -- --list` 或等价的机器检查确认实际发现至少一个测试；仅执行返回零状态的 `cargo test` 不能证明非空测试门禁。发布候选读取根 `Cargo.toml` 的 `rust-version`，复用满足该兼容下限的 stable 完成正常依赖解析、测试和发布构建，CI 使用 stable。不得把该下限设为需要下载的精确工具链；记录实际执行版本，缺少已有最低版本证据时将该兼容性标为未验证，较新编译器成功不能替代最低版本证据。
 
 此外必须：
 
@@ -330,7 +330,7 @@ cargo build --workspace --release
 - [Cargo 工作区](https://doc.rust-lang.org/cargo/reference/workspaces.html)
 - [Cargo 依赖版本要求](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)
 - [Cargo `rust-version`](https://doc.rust-lang.org/cargo/reference/rust-version.html)
-- [Cargo `direct-minimal-versions`](https://doc.rust-lang.org/cargo/reference/unstable.html#direct-minimal-versions)
+- [Rustup 工具链选择](https://rust-lang.github.io/rustup/overrides.html)
 - [Cargo 构建](https://doc.rust-lang.org/stable/cargo/commands/cargo-build.html)
 - [Cargo 构建缓存与产物目录](https://doc.rust-lang.org/cargo/reference/build-cache.html)
 - [Rust 标准库 `ExitCode`](https://doc.rust-lang.org/stable/std/process/struct.ExitCode.html)

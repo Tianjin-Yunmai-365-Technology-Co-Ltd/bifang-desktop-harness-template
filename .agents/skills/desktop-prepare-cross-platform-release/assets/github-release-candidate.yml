@@ -88,8 +88,11 @@ jobs:
       - name: 读取项目最低 Rust 版本
         shell: bash
         run: node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs read-msrv
-      - name: 选择项目 MSRV
-        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --no-self-update
+      - name: 安装当前 stable Rust
+        run: rustup toolchain install stable --profile minimal --no-self-update
+      - name: 验证 stable 满足项目兼容下限
+        shell: bash
+        run: node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs check-rust-runtime
       - name: 验证项目依赖锁策略
         shell: bash
         run: node .agents/skills/desktop-prepare-cross-platform-release/scripts/release_candidate_workflow.mjs check-lock-policy

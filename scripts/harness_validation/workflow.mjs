@@ -237,6 +237,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     "release_candidate_workflow.mjs check-node-runtime", "release_candidate_workflow.mjs verify-checkout",
     "verify_release_context.mjs capture", "verify_release_context.mjs verify",
     "release_candidate_workflow.mjs read-msrv", "release_candidate_workflow.mjs verify-version",
+    "release_candidate_workflow.mjs check-rust-runtime", "rustup toolchain install stable",
     "release_candidate_workflow.mjs check-lock-policy",
     "CARGO_LOCK_FLAG", "lock_args=(--locked)",
     "release_notes.mjs check --file release-notes.json", "release_candidate_workflow.mjs hash-release-notes",
@@ -323,7 +324,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
   const order = [
     namedIndex("确认已授权候选预检"), usesIndex(CHECKOUT_USE), usesIndex(SETUP_NODE_USE),
     namedIndex("验证 Node.js 运行时"), namedIndex("验证已检出源码"), namedIndex("捕获已发布上下文"),
-    namedIndex("读取项目最低 Rust 版本"), namedIndex("选择项目 MSRV"),
+    namedIndex("读取项目最低 Rust 版本"), namedIndex("安装当前 stable Rust"), namedIndex("验证 stable 满足项目兼容下限"),
     namedIndex("验证项目依赖锁策略"), namedIndex("验证候选版本"),
     namedIndex("验证发布更新日志"), Math.min(namedIndex("准备 Unix 发布目录"), namedIndex("准备 Windows 发布目录")),
     namedIndex("验证候选"), Math.min(namedIndex("尝试 Unix 签名"), namedIndex("尝试 Windows 签名")),

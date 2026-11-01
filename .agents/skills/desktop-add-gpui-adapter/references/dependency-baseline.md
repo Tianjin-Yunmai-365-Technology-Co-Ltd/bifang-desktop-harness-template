@@ -40,6 +40,6 @@
 | `tokio-tungstenite` | `0.30.0`；关闭默认 features，`handshake` | 明确 WebSocket 需求时采用；示例此配置不提供 TLS，`wss` 需另核对 TLS features |
 | `reqwest` | `0.13.5`；关闭默认 features，`json,rustls,system-proxy` | 明确 HTTP/JSON 需求时采用；不凭初始化产生网络请求 |
 
-新增或提高直接版本下界必须按工程规则在最低工具链完成最低直接版本解析与非空测试。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。后续升级先核对官方文档与真实兼容结果，再调整本表及对应 renderer；不能只改文案。
+新增或提高直接版本下界必须按工程规则复用满足兼容下限的已安装 stable 完成正常依赖解析与非空测试，不下载 nightly 或历史 Rust 工具链。不要把示例完整锁文件、未使用的传递依赖或业务配置复制进下游。后续升级先核对官方文档与真实兼容结果，再调整本表及对应 renderer；不能只改文案。
 
 原生 API 来源：[GPUI Kit 通知](https://gpui-kit.com/docs/system-notification/)、[tray-icon](https://docs.rs/tray-icon/0.26.1/tray_icon/)、[auto-launch](https://docs.rs/auto-launch/0.6.0/auto_launch/)、[interprocess](https://docs.rs/interprocess/2.4.4/interprocess/)、[global-hotkey](https://docs.rs/global-hotkey/0.8.0/global_hotkey/)。

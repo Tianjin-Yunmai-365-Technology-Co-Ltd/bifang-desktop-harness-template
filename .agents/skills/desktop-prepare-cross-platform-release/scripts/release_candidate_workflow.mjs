@@ -100,7 +100,7 @@ function verifyCheckout() {
   }
 }
 
-/** 从根 Cargo.toml 精确读取 workspace MSRV 并写入 GITHUB_ENV。 */
+/** 读取兼容下限，但始终选择 stable，禁止按 MSRV 下载历史工具链。 */
 function readMsrv() {
   const manifest = UTF8_DECODER.decode(readFileSync("Cargo.toml"));
   const section = /^\[workspace\.package\][ \t]*\r?$\n(?<body>[\s\S]*?)(?=^\[|(?![\s\S]))/m.exec(manifest);
@@ -108,8 +108,32 @@ function readMsrv() {
   const match = /^rust-version\s*=\s*"(?<version>\d+\.\d+(?:\.\d+)?)"\s*$/m.exec(section.groups.body);
   if (!match) throw new WorkflowError("[workspace.package] 缺少可识别的 rust-version");
   const value = match.groups.version.split(".").length === 2 ? `${match.groups.version}.0` : match.groups.version;
-  appendGithubFile("GITHUB_ENV", { RUSTUP_TOOLCHAIN: value });
-  process.stdout.write(`使用项目声明的最低 Rust 工具链 ${value}\n`);
+  appendGithubFile("GITHUB_ENV", { RUST_MIN_VERSION: value, RUSTUP_TOOLCHAIN: "stable", RUSTUP_AUTO_INSTALL: "0" });
+  process.stdout.write(`使用 stable；项目 Rust 兼容下限为 ${value}\n`);
+}
+
+/** 验证实际稳定编译器与 Cargo 满足声明下限，不声称验证了该最低版本。 */
+export function validateRustRuntime(minimum, rustcOutput, cargoOutput) {
+  if (!/^\d+\.\d+\.\d+$/u.test(minimum)) throw new WorkflowError("Rust 兼容下限必须是完整稳定版本");
+  const required = minimum.split(".").map(Number);
+  const observed = [];
+  for (const [tool, output] of [["rustc", rustcOutput], ["cargo", cargoOutput]]) {
+    const match = new RegExp(`^${tool} (\\d+\\.\\d+\\.\\d+)(?: |$)`, "u").exec(output.trim());
+    if (!match) throw new WorkflowError(`${tool} 必须是可识别的稳定版本`);
+    const parts = match[1].split(".").map(Number);
+    const difference = parts.map((part, index) => part - required[index]).find((value) => value !== 0) ?? 0;
+    if (difference < 0) throw new WorkflowError(`${tool} ${match[1]} 低于项目兼容下限 ${minimum}`);
+    observed.push(parts);
+  }
+  if (observed[0][0] !== observed[1][0] || observed[0][1] !== observed[1][1]) {
+    throw new WorkflowError("rustc 与 cargo 必须属于同一 stable minor");
+  }
+}
+
+/** 只检查已安装 stable，不安装或切换到历史工具链。 */
+function checkRustRuntime() {
+  if (environment("RUSTUP_TOOLCHAIN") !== "stable") throw new WorkflowError("候选 workflow 只使用 stable");
+  validateRustRuntime(environment("RUST_MIN_VERSION"), run("rustc", ["--version"]).stdout, run("cargo", ["--version"]).stdout);
 }
 
 /** 按根 Cargo 的显式选择验证锁文件，并向后续固定命令传递唯一允许的标志。 */
@@ -390,6 +414,7 @@ export function main(argv = process.argv.slice(2)) {
       case "check-node-runtime": checkNodeRuntime(); break;
       case "verify-checkout": verifyCheckout(); break;
       case "read-msrv": readMsrv(); break;
+      case "check-rust-runtime": checkRustRuntime(); break;
       case "check-lock-policy": checkLockPolicy(); break;
       case "verify-version": verifyVersion(); break;
       case "hash-release-notes": hashReleaseNotes(); break;

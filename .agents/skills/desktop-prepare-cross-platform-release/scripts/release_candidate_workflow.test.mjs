@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { validateRustRuntime } from "./release_candidate_workflow.mjs";
 
 const DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const WORKFLOW = resolve(DIRECTORY, "../assets/github-release-candidate.yml");
@@ -124,7 +125,7 @@ test("obsolete_branch_envelope_contract_is_absent", () => {
   }
 });
 
-test("read_msrv_reads_only_workspace_package_and_appends_normalized_version", () => {
+test("read_msrv_keeps_compatibility_floor_separate_from_stable_toolchain", () => {
   const temporary = mkdtempSync(join(tmpdir(), "candidate-workflow-"));
   try {
     const environmentPath = join(temporary, "github-env");
@@ -140,10 +141,22 @@ test("read_msrv_reads_only_workspace_package_and_appends_normalized_version", ()
     writeFileSync(environmentPath, "", "utf8");
     const result = invoke("read-msrv", temporary, { GITHUB_ENV: environmentPath });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(readFileSync(environmentPath, "utf8"), "RUSTUP_TOOLCHAIN=1.95.0\n");
+    assert.equal(readFileSync(environmentPath, "utf8"), "RUST_MIN_VERSION=1.95.0\nRUSTUP_TOOLCHAIN=stable\nRUSTUP_AUTO_INSTALL=0\n");
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
+});
+
+test("stable_runtime_accepts_newer_versions_and_rejects_insufficient_or_nightly_tools", () => {
+  assert.doesNotThrow(() => validateRustRuntime("1.95.0", "rustc 1.99.1 (test)", "cargo 1.99.1 (test)"));
+  for (const [rustc, cargo] of [
+    ["rustc 1.94.9 (test)", "cargo 1.94.9 (test)"],
+    ["rustc 1.99.1-nightly (test)", "cargo 1.99.1 (test)"],
+    ["rustc 1.99.1 (test)", "cargo 1.98.1 (test)"],
+  ]) assert.throws(() => validateRustRuntime("1.95.0", rustc, cargo));
+  assert.ok(text.includes("rustup toolchain install stable --profile minimal --no-self-update"));
+  assert.ok(!text.includes('rustup toolchain install "$RUSTUP_TOOLCHAIN"'));
+  assert.ok(text.indexOf("check-rust-runtime") < text.indexOf("release_candidate_workflow.mjs verify-version"));
 });
 
 test("resolve_artifact_requires_one_complete_safe_pair", () => {
