@@ -343,7 +343,7 @@ cargo build --workspace --release
 - `$desktop-test-gui-initialization-e2e` 只在含 GUI 的一次性初始化提交前按九项 profile 运行结构检查和真实本机调试二进制；三项固定基线不完整、启用能力不完整、禁用能力有残留、宿主状态无法观察或恢复、关闭语义或所选侧栏/页面不符都阻断。需安装包注册的深链接平台场景在 debug no-bundle 阶段必须标为 `Not verified`，不得误报通过。通过后随初始化能力删除，升级不得把它重新注入终端下游。
 - updater 插件的安装/`NotConfigured` 零出站基线与产品/发布 `updaterEnabled` 严格分离：`false` 只禁止生成和声明 updater archive/`.sig`，不得删除插件；`true` 才开启 endpoint/公钥/channel/target/arch、`bundle.createUpdaterArtifacts`、安全私钥来源、官方制品和实际验签门禁。
 
-候选归档或安装包命名为 `<product>-v<version>-<platform>-<arch>.<ext>`，每个产物必须有相邻的 `<artifact>.sha256` 和清单。清单必需字段、只使用 `pending`/`rejected`/`accepted` 的候选状态、纯只读就绪复核、Tauri GUI 附加字段与 xwin/公证记录规则统一以 `docs/RELEASE.md`「发布物命名」为唯一权威来源，本文件不重复维护，避免两份清单说明漂移。
+候选归档或安装包按 [发布物命名](RELEASE.md#发布物命名) 区分：exe/dmg 安装包使用展示名称、无 v 原始版本和系统后缀，其他归档沿用原规则；每个产物必须有相邻的 `<artifact>.sha256` 和清单。清单必需字段、只使用 `pending`/`rejected`/`accepted` 的候选状态、纯只读就绪复核、Tauri GUI 附加字段与 xwin/公证记录规则统一以 `docs/RELEASE.md`「发布物命名」为唯一权威来源，本文件不重复维护，避免两份清单说明漂移。
 
 ## 官方与主要资料
 

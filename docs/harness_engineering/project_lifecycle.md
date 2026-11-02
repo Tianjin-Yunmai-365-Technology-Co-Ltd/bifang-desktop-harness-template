@@ -87,7 +87,7 @@
 
 ## 8. 发布物命名与版本认知
 
-发布物命名同样只保留一份权威来源：Rust 下游产品的归档命名模式（`<product>-v<version>-<platform>-<arch>.<ext>`，附带 `.sha256` 与清单）已在 `docs/RUST_CLI_TEMPLATE.md` 给出，模板自身源码归档命名见 `docs/RELEASE.md`。
+发布物命名统一由 [发布规则](../RELEASE.md#发布物命名) 维护：下游 exe/dmg 安装包使用展示名称、无 v 原始版本、架构与系统后缀，其他产品归档及 Harness 源码归档按各自规则命名；校验和与候选清单使用同一最终名称。
 
 文件名、Git 标签和发布标题里的版本必须让人一眼确认彼此对应。Harness 使用 12 位时间版本，下游默认使用 `MAJOR.MINOR.PATCH`，`v` 只是面向人识别的前缀。
 

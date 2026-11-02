@@ -17,6 +17,7 @@ import { collectResources, assertResourcesStable, stageResources } from './gpui_
 import { signLocalBundle, verifyLocalBundle } from './gpui_macos_identity.mjs';
 import { executeLinuxBuild } from './gpui_linux_build.mjs';
 import { findGlobalTool, requirePackager, setupPackager } from './gpui_global_tools.mjs';
+import { installerArtifactName } from '../../desktop-collect-release-artifacts/scripts/installer_artifact_name.mjs';
 export { setupPackager } from './gpui_global_tools.mjs';
 
 /** 工程入口只接受完整稳定版本，较高正式版本不必降级到最低 LTS。 */
@@ -139,6 +140,8 @@ export function executeBuild(options, hooks = {}) {
   const target = options.target ?? run('rustc',['-vV']).stdout.match(/^host: (.+)$/mu)?.[1];
   const info = TARGETS[target], format = options.format ?? (platform === 'darwin' ? 'dmg' : 'nsis');
   if (!info || !info.formats.includes(format) || info.host !== platform || !facts.platforms.includes(info.platform)) throw new Error('unsupported/unselected native GPUI target or format; cross-system packaging is unavailable');
+  const filename = format === 'app' ? `${facts.project.replaceAll('_','-')}-v${facts.version}-${info.platform}-${info.arch}.app.zip`
+    : installerArtifactName({ productName: config.productName, version: facts.version, platform: info.platform, arch: info.arch });
   if (format === 'nsis' && (hooks.arch ?? process.arch) !== 'x64') throw new Error('Windows NSIS currently requires a native x64 host');
   const candidate = options.mode === 'candidate';
   const localAdhoc = !candidate && info.platform === 'macos';
@@ -225,8 +228,6 @@ export function executeBuild(options, hooks = {}) {
   let resourceVerification = format === 'nsis' ? 'Unverified' : 'app-bundle-byte-identical';
   if (format === 'dmg') resourceVerification = verifyDmg({ run, artifact, mount: path.join(work,'mount'), root, config, facts, resources, binarySha256, localAdhoc, env });
   if (candidate && format === 'nsis') resourceVerification = verifyNsis({ run, root, config, artifact, destination: path.join(work,'extracted'), resources, binarySha256, environment, platform });
-  const extension = format === 'app' ? 'app.zip' : format === 'dmg' ? 'dmg' : 'exe';
-  const filename = `${facts.project.replaceAll('_','-')}-v${facts.version}-${info.platform}-${info.arch}.${extension}`;
   if (format === 'app') {
     const zip = path.join(work,filename); run('ditto',['-c','-k','--sequesterRsrc','--keepParent',artifact,zip]); artifact = zip;
     const extracted = path.join(work,'zip-resources'); fs.mkdirSync(extracted);

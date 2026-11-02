@@ -340,10 +340,73 @@ test('local_macos_notification_package_binds_adhoc_identity_and_remains_unverifi
   }
 });
 
+/** Windows 本地与候选共用最终名称，机器架构和原始打包器输出不被改写。 */
+test('nsis_local_and_candidate_publish_display_name_with_matching_sidecars', t => {
+  for (const mode of ['local', 'candidate']) {
+    const f = fixture(t), target = 'x86_64-pc-windows-msvc';
+    f.config.windows.extractor = '7zr.exe';
+    fs.writeFileSync(path.join(f.root, 'packaging/gpui.json'), JSON.stringify(f.config));
+    spawnSync('git', ['add', 'packaging/gpui.json'], { cwd: f.root });
+    spawnSync('git', ['commit', '-qm', 'fixture extractor'], { cwd: f.root });
+    const tool = path.join(path.dirname(f.tool), 'cargo-packager.exe');
+    const extractor = path.join(path.dirname(f.tool), '7zr.exe');
+    fs.writeFileSync(tool, 'fixture tool'); fs.writeFileSync(extractor, 'fixture extractor');
+    const fake = fakeRun(f);
+    let binary, generated;
+    const response = { stdout: '', stderr: '', status: 0 };
+    const run = (program, args, settings = {}) => {
+      if (program === 'cargo' && args[0] === 'build') {
+        binary = path.join(settings.env.CARGO_TARGET_DIR, target, 'release/sample_gui.exe');
+        fs.mkdirSync(path.dirname(binary), { recursive: true });
+        fs.writeFileSync(binary, Buffer.concat([Buffer.from('fixture binary'), fs.readFileSync(path.join(f.root, 'release-notes.json'))]));
+        return { ...response, stdout: JSON.stringify({ reason: 'compiler-artifact', target: { name: 'sample_gui' }, executable: binary }) + '\n' };
+      }
+      if (program === tool && args[0] === '--version') return { ...response, stdout: 'cargo-packager 0.11.8\n' };
+      if (program === tool && args[0] === '--config') {
+        generated = JSON.parse(fs.readFileSync(args[1], 'utf8'));
+        fs.mkdirSync(generated.outDir, { recursive: true });
+        fs.writeFileSync(path.join(generated.outDir, 'sample_gui_0.1.0_x64-setup.exe'), 'fixture installer');
+        return response;
+      }
+      if (program === extractor) {
+        const destination = args.find(arg => arg.startsWith('-o')).slice(2);
+        fs.copyFileSync(binary, path.join(destination, 'sample_gui.exe'));
+        for (const resource of generated.resources) {
+          const destinationFile = path.join(destination, resource.target);
+          fs.mkdirSync(path.dirname(destinationFile), { recursive: true });
+          fs.copyFileSync(resource.src, destinationFile);
+        }
+        return response;
+      }
+      return fake.run(program, args, settings);
+    };
+    const output = executeBuild({ ...candidateOptions(f.root), mode, target, format: 'nsis' },
+      { ...hooks(f, fake), run, platform: 'win32', arch: 'x64' });
+    const filename = '测试应用_0.1.0_x64-setup for Windows.exe';
+    assert.equal(output.artifact, filename);
+    const digest = sha256(path.join(output.directory, filename));
+    assert.equal(fs.readFileSync(path.join(output.directory, filename + '.sha256'), 'utf8'), digest + '  ' + filename + '\n');
+    const manifest = JSON.parse(fs.readFileSync(path.join(output.directory, filename + '.manifest.json')));
+    assert.equal(manifest.artifact, filename);
+    if (mode === 'candidate') {
+      assert.equal(manifest.arch, 'x86_64');
+      assert.equal(manifest.checksum, filename + '.sha256');
+      assert.equal(manifest.milestoneAcceptance, 'pending');
+    }
+    assert.deepEqual(fs.readdirSync(output.directory).sort(), [filename, filename + '.sha256', filename + '.manifest.json'].sort());
+  }
+});
+
 /** DMG 封盘前签名产生新字节，封盘后的挂载校验只能验证，不能补签旁边 App。 */
 test('local_dmg_signs_before_sealing_and_verifies_the_mounted_bundle', t => {
   const f = fixture(t), fake = fakeRun(f);
   const output = executeBuild({ ...localOptions(f.root), format: 'dmg' }, hooks(f, fake));
+  const filename = '测试应用_0.1.0_arm64-setup for macOS.dmg';
+  assert.equal(output.artifact, filename);
+  const digest = sha256(path.join(output.directory, filename));
+  assert.equal(fs.readFileSync(path.join(output.directory, `${filename}.sha256`), 'utf8'), `${digest}  ${filename}\n`);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(output.directory, `${filename}.manifest.json`))).artifact, filename);
+  assert.deepEqual(fs.readdirSync(output.directory).sort(), [filename, `${filename}.sha256`, `${filename}.manifest.json`].sort());
   assert.equal(output.signingStatus, 'ad-hoc');
   assert.equal(output.resourceVerification, 'final-volume-byte-identical');
   const sign = fake.calls.findIndex(call => call.program === '/usr/bin/codesign' && call.args[0] === '--force');

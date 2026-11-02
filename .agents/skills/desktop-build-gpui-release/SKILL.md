@@ -33,6 +33,8 @@ pnpm run gpui:package build --root . --mode local --format app
 
 资源按配置的显式平台映射捕获精确文件集与摘要，包括 Git 忽略的资源；测试后、封包前、manifest 前复核源码/配置/资源/上下文。路径、链接、大小写/前缀冲突及漂移失败关闭。最终包真实解包核对资源与二进制，不能只验证打包前目录。
 
+最终 exe/dmg 的 local/candidate 输出均使用 [发布物命名](../../../docs/RELEASE.md#发布物命名)，由 `$desktop-collect-release-artifacts` 的共用命名 helper 生成；相邻校验和与 manifest 同步引用。cargo-packager 原始输出定位保持其原生名称，app.zip 与 Linux 格式沿用各自归档名称。保留共用 helper 所在的完整 Skill，不因 GPUI/Tauri 框架裁剪删除。
+
 candidate 的最终包、SHA-256 与 manifest 在同根暂存后原子发布到忽略的 release/。保留 milestoneAcceptance:pending、runtimeVerification:Unverified；签名、解包、目标运行和 E2E 分别报告。E2E 启用或硬要求时最终候选形成后才交 $desktop-verify-delivery，不混入构建。失败保留中间物与隔离的旧候选，不改 Git 发布事实。
 
 ## 完成输出
