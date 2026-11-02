@@ -4,7 +4,7 @@
 
 ## 2026-11-02 变化
 
-- `HARNESS-CHANGE-INSTALLER-ARTIFACT-NAMING`：Tauri/GPUI 的 Windows exe 与 macOS dmg 统一使用已确认展示名、无 v 原始版本、x64/arm64 架构及系统后缀；共用名称生成器拒绝非法路径字符，GPUI 本地与候选同步生成相邻校验和和 manifest，Tauri 在最终字节校验后复制命名。其他归档沿用原规则，收集不改写既有候选。见 [发布物命名](../RELEASE.md#发布物命名) 与 [ADR-20261102-001](../adr/20261102_ADR.md)。本次开发不取时间版本，正式发布时物化 required_version；未构建或验收真实产品。
+- `HARNESS-CHANGE-INSTALLER-ARTIFACT-NAMING`（`required_version = 202611021437`）：Tauri/GPUI 的 Windows exe 与 macOS dmg 统一使用已确认展示名、无 v 原始版本、x64/arm64 架构及系统后缀；共用名称生成器拒绝非法路径字符，GPUI 本地与候选同步生成相邻校验和和 manifest，Tauri 在最终字节校验后复制命名。其他归档沿用原规则，收集不改写既有候选。见 [发布物命名](../RELEASE.md#发布物命名) 与 [ADR-20261102-001](../adr/20261102_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准；未构建或验收真实产品。
 
 ## 2026-10-30 新增
 
