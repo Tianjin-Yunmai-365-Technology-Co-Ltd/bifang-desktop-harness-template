@@ -3,6 +3,21 @@
   "releases": [
     {
       "releaseDate": "2026-11-02",
+      "version": "v202611021437",
+      "featureOptimizations": [
+        {
+          "zh-CN": "统一 Tauri/GPUI 的 Windows exe 与 macOS dmg 安装包命名，包含程序展示名称、无 v 原始版本、归一架构与目标系统。",
+          "en-US": "Use one naming format for Tauri and GPUI Windows EXE and macOS DMG installers, including the display name, raw version, normalized architecture and target OS."
+        },
+        {
+          "zh-CN": "本地试包与发布候选共用命名逻辑，保留中文与空格，候选校验和及 manifest 同步引用最终文件名。",
+          "en-US": "Share naming logic across local test packages and release candidates, preserve Chinese text and spaces, and keep candidate checksums and manifests aligned with the final filename."
+        }
+      ],
+      "bugFixes": []
+    },
+    {
+      "releaseDate": "2026-11-02",
       "version": "v202611021025",
       "featureOptimizations": [],
       "bugFixes": [
@@ -244,26 +259,6 @@
         {
           "zh-CN": "策略测试使用独立确认夹具，兼容已初始化下游的能力选择和 LF/CRLF 换行，并保持真实策略字节不变。",
           "en-US": "Use independent policy test fixtures for initialized downstream preferences and LF/CRLF line endings while preserving the actual policy bytes."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-09",
-      "version": "v202610090748",
-      "featureOptimizations": [
-        {
-          "zh-CN": "GPUI 原生开发支持保存后自动重编译并重启，覆盖 Rust、Cargo、词典和静态资源；编译失败后继续监听，编译期间保存会追加构建。",
-          "en-US": "GPUI native development now rebuilds and restarts automatically after Rust, Cargo, locale or static-resource changes; watching continues after compilation errors and saves during a build trigger another build."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "补齐 GPUI 根 package.json 的 pnpm dev 入口，新建、追加接口和显式迁移共用脚本合同，并拒绝覆盖冲突的产品脚本。",
-          "en-US": "Add the missing pnpm dev script to GPUI root package.json; new workspaces, adapter additions and explicit migrations share the same contract and reject conflicting product scripts."
-        },
-        {
-          "zh-CN": "首次启动及词典/资源变化时刷新所选 GUI 调试缓存，避免旧 build.rs 或过程宏复用过时资源；停止开发会话时清理所拥有的构建和应用进程。",
-          "en-US": "Invalidate the selected GUI debug cache on first launch and locale/resource changes to avoid stale build-script or procedural-macro resources; clean up owned build and application processes when the development session stops."
         }
       ]
     }

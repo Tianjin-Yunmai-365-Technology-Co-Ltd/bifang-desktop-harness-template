@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "4c555730c90f074c56621816ae0e2bf8952a9b9c",
-  "version": "202611021025",
+  "sourceHead": "85f1e155fa9af114681ec0d28df47c1c0bcb45e5",
+  "version": "202611021437",
   "releaseDate": "2026-11-02",
-  "expectedTag": "v202611021025-20261102",
+  "expectedTag": "v202611021437-20261102",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "75a995b81dd0d9dd1264db593e2ab2a433b58544",
-    "sourceHead": "4c555730c90f074c56621816ae0e2bf8952a9b9c",
-    "scopeDiffSha256": "04dd889c233850a4cbc3b3da3ef1f3f8d4d3e7b7dd7138a2d2256cda409d96e0",
-    "reviewedSourceCommit": "4c555730c90f074c56621816ae0e2bf8952a9b9c",
+    "scopeBase": "3b5572c6a6ec3b35c798665606691b966fcf26e9",
+    "sourceHead": "85f1e155fa9af114681ec0d28df47c1c0bcb45e5",
+    "scopeDiffSha256": "5ea3535d34dd9dc06e728ce827efa8a0021601ef02d0c9998f1ad2a41eab41b0",
+    "reviewedSourceCommit": "85f1e155fa9af114681ec0d28df47c1c0bcb45e5",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "审查75a995b至4c55573，两条登记分支均已纳入；旧分支以同树合并保留祖先。Rust验证复用stable且保留MSRV下限，CI显式stable并检查rustc/Cargo，当前结果不冒充最低版本实测。无产品业务改动，fixture依赖方向、离线fmt/Clippy及7项非空Rust测试通过。既有Node1232通过、24平台跳过；发布validator通过，40项软提示已复核，TODO-A是测试夹具，无硬超限或未完成逻辑。产品构建、签名与E2E不适用于本次Harness源码发布。",
+    "evidenceSummary": "已审查上次发布到本次源码的累计差异：共用命名和GPUI侧车引用正确，Tauri命令在项目根执行；仅交付工程，无产品core/adapter变化；对外交付名称按用户要求修订并记录兼容影响；相关文件职责内聚且未超硬上限，临时标记为既有测试夹具。相关36项回归、Harness硬门禁和release-review均通过；未构建真实下游产物。",
     "reason": null,
     "remainingRisk": null
   }
