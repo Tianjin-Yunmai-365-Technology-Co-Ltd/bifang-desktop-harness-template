@@ -2,6 +2,8 @@
   "schema_version": 1,
   "default_mode": "protected",
   "rules": [
+    {"pattern": "knowledge/**", "mode": "protected"},
+    {"pattern": ".harness/skills/archify/**", "mode": "protected"},
     {"pattern": ".agents/skills/desktop-task-workflow/**", "mode": "managed"},
     {"pattern": ".agents/skills/gpui-kit/**", "mode": "protected"},
     {"pattern": ".agents/skills/gpui-kit-design-guides/**", "mode": "protected"},

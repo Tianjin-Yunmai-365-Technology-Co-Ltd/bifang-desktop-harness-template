@@ -4,12 +4,27 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { createGpuiWorkspace, renderGpuiFiles } from './create_gpui_workspace.mjs';
 
 const identity = { projectId: 'example_tool', nameZh: '示例工具', nameEn: 'Example Tool', owner: 'Example Owner' };
 
 /** 真实临时根先规范化，避免 macOS /tmp 本身为链接影响目标路径测试。 */
 function temporary() { return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'harness-gpui-test-')); }
+
+/** 真实 Git 解析生成的忽略项，隔离知识产物和 Archify 而保留相似名称业务文件。 */
+test('generated_ignore_rules_keep_knowledge_and_archify_local', t => {
+  const root = temporary();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(root, '.gitignore'), renderGpuiFiles(identity).get('.gitignore'));
+  const env = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: os.devNull };
+  assert.equal(spawnSync('git', ['init', '-q', root], { env }).status, 0);
+  const result = spawnSync('git', ['-C', root, 'check-ignore', '--no-index', '--stdin'], {
+    env, encoding: 'utf8', input: 'knowledge/README.md\n.harness/skills/archify/bin/archify.mjs\nmodule/knowledge/source.md\n.harness/skills/other/source.mjs\n',
+  });
+  assert.equal(result.status, 0);
+  assert.deepEqual(result.stdout.trim().split(/\r?\n/u), ['knowledge/README.md', '.harness/skills/archify/bin/archify.mjs']);
+});
 
 /** GPUI 依赖唯一归根，core 不出现任何框架或宿主引用。 */
 test('workspace_has_direct_core_dependency_and_central_native_dependencies', () => {

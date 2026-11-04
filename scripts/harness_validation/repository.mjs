@@ -60,6 +60,7 @@ export const EXPECTED_SKILLS = new Set([
   "desktop-curate-harness-memory",
   "desktop-define-product",
   "desktop-extract-i18n-strings",
+  "desktop-extract-technical-docs",
   "desktop-implement-change",
   "desktop-initialize-rust-project",
   "desktop-instantiate-project",

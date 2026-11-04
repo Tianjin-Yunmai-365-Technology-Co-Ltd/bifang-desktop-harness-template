@@ -1,0 +1,4 @@
+interface:
+  display_name: "提取技术文档"
+  short_description: "提取技术选型、依赖、架构、目录与技术债，生成知识入口和交互架构图"
+  default_prompt: "使用 $desktop-extract-technical-docs 提取当前工作区技术文档到 knowledge/，以概览为入口，并使用 archify 生成可交互架构图；缺失时安装项目本地依赖。"

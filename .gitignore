@@ -32,3 +32,7 @@ pnpm-package.lock
 Thumbs.db
 *.swp
 *.tmp
+
+# 按需提取的知识快照与项目本地第三方 Skill 包
+/knowledge/
+/.harness/skills/archify/
