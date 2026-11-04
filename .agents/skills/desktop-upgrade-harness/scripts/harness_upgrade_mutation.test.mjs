@@ -7,6 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { HarnessUpgradeFixture, MANAGED, MANAGED_SECOND, MANAGED_SELF, MIXED, PROTECTED, symlinkOrSkip } from "./harness_upgrade_test_support.mjs";
 import { snapshotFile } from "./harness_upgrade_safety.mjs";
+import { writeLockAtomic } from "./harness_upgrade_record.mjs";
 
 const OWNERSHIP_MANIFEST = ".agents/skills/desktop-upgrade-harness/references/ownership-manifest.json";
 const SWITCH_RULE = ".agents/skills/desktop-switch-post-release-action/**";
@@ -24,6 +25,27 @@ function setLegacyOwnershipBaseline(f) {
 
 /** POSIX 权限位在 Windows 上不存在，相关用例只在 POSIX 主机运行。 */
 const posixOnly = { skip: process.platform === "win32" };
+
+// 在临时锁 fsync 后注入真实并发写入，证明最终替换必须保留后来内容。
+for (const present of [false, true]) {
+  test(present ? "record_preserves_lock_changed_after_preflight" : "record_preserves_lock_created_after_preflight", t => {
+    const f = new HarnessUpgradeFixture(t);
+    if (present) f.write(f.target, ".harness/upstream-lock.json", "original");
+    const expected = present ? snapshotFile(f.lock) : null;
+    const originalFsync = fs.fsyncSync;
+    let injected = false;
+    t.mock.method(fs, "fsyncSync", descriptor => {
+      originalFsync(descriptor);
+      if (!injected) {
+        injected = true;
+        fs.writeFileSync(f.lock, "concurrent-user-value");
+      }
+    });
+    assert.throws(() => writeLockAtomic(f.target, f.lock, { recorded: true }, expected), /上游 lock/u);
+    assert.equal(fs.readFileSync(f.lock, "utf8"), "concurrent-user-value");
+    assert.deepEqual(fs.readdirSync(path.dirname(f.lock)), ["upstream-lock.json"]);
+  });
+}
 
 test("tampered_plan_cannot_overwrite_protected_file", (t) => {
   const f = new HarnessUpgradeFixture(t); f.write(f.candidate, MANAGED, "v1"); f.write(f.target, MANAGED, "v1"); f.write(f.target, PROTECTED, "keep"); f.bootstrap(); f.write(f.candidate, MANAGED, "v2"); f.write(f.candidate, PROTECTED, "malicious");

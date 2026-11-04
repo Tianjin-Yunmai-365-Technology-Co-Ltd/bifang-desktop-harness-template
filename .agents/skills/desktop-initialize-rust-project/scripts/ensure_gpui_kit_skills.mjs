@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { parseInterfaceSelection } from '../../desktop-upgrade-harness/scripts/harness_upgrade_interfaces.mjs';
 
 export const SKILL_NAMES = Object.freeze(['gpui-kit', 'gpui-kit-design-guides']);
 export const UPSTREAM_COMMIT = '99576db58ec8103417c41a092e891b4022d24e7e';
@@ -95,39 +96,12 @@ export function loadGpuiKitSkillsSnapshot(snapshotRoot = SNAPSHOT_ROOT) {
   }));
 }
 
-/** 仅去掉字符串外的 TOML 注释，保留引号内字符以便精确解析框架事实。 */
-function withoutComment(line) {
-  let quote = null;
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    if (quote === '"' && char === '\\') { index += 1; continue; }
-    if (quote) { if (char === quote) quote = null; }
-    else if (char === '"' || char === "'") quote = char;
-    else if (char === '#') return line.slice(0, index);
-  }
-  return line;
-}
-
-/** 从实际根 Cargo 的唯一 metadata 解析 GUI 选择；非法声明不能静默跳过。 */
+/** 复用受管 Cargo 解析器识别实际选择，字符串内伪表和非法接口在安装前拒绝。 */
 function isGpuiProject(cargoBytes) {
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(cargoBytes).split(/\r?\n/u).map(withoutComment).join('\n');
-  const sections = [...text.matchAll(/^\s*\[workspace\.metadata\.agent-first-harness\]\s*$/gmu)];
-  if (sections.length !== 1) throw new Error('下游 Cargo 必须具有唯一 Harness metadata');
-  const remaining = text.slice(sections[0].index + sections[0][0].length);
-  const body = remaining.split(/^\s*\[/mu)[0];
-  const interfaces = [...body.matchAll(/^\s*interfaces\s*=\s*(\[[\s\S]*?\])/gmu)];
-  const frameworks = [...body.matchAll(/^\s*gui-framework\s*=\s*([^\n]+)/gmu)];
-  if (interfaces.length !== 1 || frameworks.length > 1) throw new Error('Cargo 接口或框架字段缺失/重复');
-  const literal = interfaces[0][1];
-  const identifiers = [...literal.matchAll(/(?:"([a-z]+)"|'([a-z]+)')/giu)].map(match => (match[1] ?? match[2]).toLowerCase());
-  if (!identifiers.length || literal.replace(/(?:"[a-z]+"|'[a-z]+')/giu, '').replace(/[\s,\[\]]/gu, '')) throw new Error('Cargo interfaces 必须为非空字符串数组');
-  const framework = frameworks[0]?.[1].trim() ?? '"tauri"';
-  if (!/^(?:"(?:tauri|gpui)"|'(?:tauri|gpui)')$/u.test(framework)) throw new Error('Cargo gui-framework 必须为 tauri 或 gpui');
-  if (!identifiers.includes('gui')) {
-    if (frameworks.length) throw new Error('非 GUI 下游不能声明 gui-framework');
-    return false;
-  }
-  return framework.includes('gpui');
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(cargoBytes);
+  const selection = parseInterfaceSelection(text);
+  if (!selection.interfaces.length) throw new Error('Cargo interfaces 必须为非空字符串数组');
+  return selection.guiFramework === 'gpui';
 }
 
 /** 已存在的 Skill 必须与固定安装内容逐字节一致；用户改动和额外文件都不覆盖。 */

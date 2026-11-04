@@ -73,13 +73,14 @@ export function formatBrandWindowTitle(
   return `${normalizedName} ${normalizedVersion} ${contact.channel}:${contact.value}`;
 }
 
-/** 判断路径是否为不含远程 scheme、反斜杠或上级跳转的本地绝对路径。 */
+/** 本地绝对路径拒绝 URL 会剥离的控制字符，防止规范化后变成远程 authority。 */
 export function isLocalSupportPath(value: string): boolean {
   return (
     value.startsWith("/") &&
     !value.startsWith("//") &&
     !value.includes("..") &&
     !value.includes("\\") &&
+    !/[\u0000-\u001f\u007f]/u.test(value) &&
     !value.includes("://")
   );
 }
@@ -96,6 +97,7 @@ export function resolveBrandAssetPath(
     relativePath.startsWith("/") ||
     relativePath.includes("..") ||
     relativePath.includes("\\") ||
+    /[\u0000-\u001f\u007f]/u.test(relativePath) ||
     relativePath.includes("://")
   ) {
     throw new Error("brand support asset path must be a safe relative path");

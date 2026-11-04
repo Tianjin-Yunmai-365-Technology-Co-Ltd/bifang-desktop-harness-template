@@ -1,5 +1,5 @@
-import { Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core";
-import type { ReactElement, ReactNode } from "react";
+import { Badge, Button, FocusTrap, Group, Paper, Stack, Text, Title } from "@mantine/core";
+import { useId, type ReactElement, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { formatDisplayVersion } from "./displayVersion";
@@ -26,49 +26,56 @@ export function MandatoryUpdateGateTemplate({
   onExitApplication,
 }: MandatoryUpdateGateTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
+  const id = useId();
+  const titleId = `${id}-title`;
+  const descriptionId = `${id}-description`;
 
   if (!requiresMandatoryUpdate(update)) {
     return <>{children}</>;
   }
 
   return (
-    <Paper
-      aria-modal="true"
-      data-testid="mandatory-update-gate"
-      maw={640}
-      mx="auto"
-      my="xl"
-      p="xl"
-      radius="lg"
-      role="alertdialog"
-      shadow="md"
-      withBorder
-    >
-      <Stack gap="lg">
-        <Stack gap="xs">
-          <Badge color="red" variant="light">
-            {t("updater.required_badge")}
-          </Badge>
-          <Title order={2}>{t("updater.required_title")}</Title>
-          <Text>{t("updater.required_description")}</Text>
-          <Text c="dimmed" size="sm">
-            {t("updater.version_transition", {
-              current: formatDisplayVersion(update.currentVersion),
-              available: update.availableVersion
-                ? formatDisplayVersion(update.availableVersion)
-                : "—",
-            })}
-          </Text>
+    <FocusTrap active>
+      <Paper
+        aria-describedby={descriptionId}
+        aria-labelledby={titleId}
+        aria-modal="true"
+        data-testid="mandatory-update-gate"
+        maw={640}
+        mx="auto"
+        my="xl"
+        p="xl"
+        radius="lg"
+        role="alertdialog"
+        shadow="md"
+        withBorder
+      >
+        <Stack gap="lg">
+          <Stack gap="xs">
+            <Badge color="red" variant="light">
+              {t("updater.required_badge")}
+            </Badge>
+            <Title id={titleId} order={2}>{t("updater.required_title")}</Title>
+            <Text id={descriptionId}>{t("updater.required_description")}</Text>
+            <Text c="dimmed" size="sm">
+              {t("updater.version_transition", {
+                current: formatDisplayVersion(update.currentVersion),
+                available: update.availableVersion
+                  ? formatDisplayVersion(update.availableVersion)
+                  : "—",
+              })}
+            </Text>
+          </Stack>
+          <Group justify="flex-end">
+            <Button data-autofocus onClick={onExitApplication} variant="default">
+              {t("updater.exit_application")}
+            </Button>
+            <Button loading={installing} onClick={onInstallUpdate}>
+              {t("updater.install_update")}
+            </Button>
+          </Group>
         </Stack>
-        <Group justify="flex-end">
-          <Button onClick={onExitApplication} variant="default">
-            {t("updater.exit_application")}
-          </Button>
-          <Button loading={installing} onClick={onInstallUpdate}>
-            {t("updater.install_update")}
-          </Button>
-        </Group>
-      </Stack>
-    </Paper>
+      </Paper>
+    </FocusTrap>
   );
 }

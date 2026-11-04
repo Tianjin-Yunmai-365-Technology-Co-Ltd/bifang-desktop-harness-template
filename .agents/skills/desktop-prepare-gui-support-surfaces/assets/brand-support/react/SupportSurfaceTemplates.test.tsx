@@ -523,7 +523,9 @@ describe("shared brand support templates", () => {
 
     expect(requiresMandatoryUpdate(update)).toBe(true);
     expect(screen.queryByText("Product feature")).not.toBeInTheDocument();
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    const dialog = screen.getByRole("alertdialog", { name: enUS.updater.required_title });
+    expect(dialog).toHaveAccessibleDescription(enUS.updater.required_description);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Exit application" })).toHaveFocus());
     expect(
       screen.getByText("Current v3.4.5 → available v4.0.0"),
     ).toBeInTheDocument();

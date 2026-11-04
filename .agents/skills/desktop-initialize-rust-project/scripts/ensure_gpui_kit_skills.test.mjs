@@ -170,6 +170,8 @@ test('invalid_or_duplicate_cargo_selections_fail_without_installing', t => {
     'interfaces = ["gui"]\ngui-framework = "gpui"\ngui-framework = "gpui"',
     'interfaces = ["gui"]\ninterfaces = ["gui"]\ngui-framework = "gpui"',
     'interfaces = []\ngui-framework = "gpui"',
+    'interfaces = ["gui", "typo"]\ngui-framework = "gpui"',
+    'interfaces = ["gui", "gui"]\ngui-framework = "gpui"',
   ]) {
     const root = fixture(t, metadata);
     assert.throws(() => ensureGpuiKitSkills(root), /Cargo|非 GUI/u);
@@ -177,9 +179,17 @@ test('invalid_or_duplicate_cargo_selections_fail_without_installing', t => {
   }
 });
 
+/** 多行文案里的伪表不是实际 Cargo 选择，拒绝安装且不创建项目 Skills。 */
+test('metadata_inside_multiline_description_cannot_enable_installation', t => {
+  const root = fixture(t);
+  fs.writeFileSync(path.join(root, 'Cargo.toml'), '[package]\nname = "fixture"\nversion = "0.1.0"\ndescription = """\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n"""\n');
+  assert.throws(() => ensureGpuiKitSkills(root), /Cargo|metadata/u);
+  assert.equal(fs.existsSync(path.join(root, '.agents')), false);
+});
+
 /** 注释、单引号和多行接口列表仍消费实际选择，而非从外部参数推断框架。 */
 test('literal_quotes_multiline_interfaces_and_comments_preserve_gpui_selection', t => {
-  const root = fixture(t, "interfaces = [\n  'CLI', # retained interface\n  'GUI',\n]\ngui-framework = 'gpui' # actual framework\n");
+  const root = fixture(t, "interfaces = [\n  'cli', # retained interface\n  'gui',\n]\ngui-framework = 'gpui' # actual framework\n");
   assert.equal(ensureGpuiKitSkills(root).status, 'installed');
 });
 

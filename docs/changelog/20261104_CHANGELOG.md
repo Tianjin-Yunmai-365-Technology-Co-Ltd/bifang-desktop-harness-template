@@ -4,7 +4,11 @@
 
 ## 2026-11-04 新增
 
-- `HARNESS-FEAT-TECHNICAL-KNOWLEDGE`：新增 `$desktop-extract-technical-docs`，从当前工作区提取技术选型、依赖、架构、文件结构与当前技术债，以 `knowledge/README.md` 为入口并调用 archify 生成交互架构图。缺少项目本地包时从现有完整 Skill 包安装，保留用户内容和原始权威记录；全接口保留提取入口，初始化排除已有快照与下载包，升级保护这些本地产物。Harness 时间版本留待正式发布时绑定，本次不发布。
+- `HARNESS-FEAT-TECHNICAL-KNOWLEDGE`（`required_version = 202611041048`）：新增 `$desktop-extract-technical-docs`，从当前工作区提取技术选型、依赖、架构、文件结构与当前技术债，以 `knowledge/README.md` 为入口并调用 archify 生成交互架构图。缺少项目本地包时从现有完整 Skill 包安装，保留用户内容和原始权威记录；全接口保留提取入口，初始化排除已有快照与下载包，升级保护这些本地产物。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
+
+## 2026-11-04 安全
+
+- `HARNESS-SECURITY-LOCAL-SUPPORT-MEDIA`（`required_version = 202611041048`）：本地品牌媒体的绝对与相对路径拒绝 C0/DEL 控制字符，避免 URL 规范化后绕过仅本地加载边界；普通中文与空格资源名继续可用。真实源码执行回归覆盖原绕过、绝对 base 与相对路径，未触发外部加载。
 
 ## 2026-11-02 变化
 

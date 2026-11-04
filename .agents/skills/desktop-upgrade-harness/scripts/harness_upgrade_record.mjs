@@ -7,12 +7,15 @@ import { isDeepStrictEqual } from "node:util";
 import { AUTO_MODES, SCHEMA_VERSION } from "./harness_upgrade_policy.mjs";
 import { loadLock, loadOwnership } from "./harness_upgrade_ownership.mjs";
 import { stableJson, loadReviewedPlan } from "./harness_upgrade_core.mjs";
-import { UpgradeError, assertSafePath, canonicalDirectory, lstatOrNull, safeRelativePath } from "./harness_upgrade_safety.mjs";
-import { assertPlanStillCurrent } from "./harness_upgrade_preflight.mjs";
+import { UpgradeError, assertSafePath, canonicalDirectory, lstatOrNull, safeRelativePath, validateSnapshot } from "./harness_upgrade_safety.mjs";
+import { assertCurrentSnapshot, assertPlanStillCurrent } from "./harness_upgrade_preflight.mjs";
 
-/** 只在精确 `.harness` 目录内原子替换来源锁。 */
-export function writeLockAtomic(target, lockPath, value) {
+/** 只在精确 `.harness` 目录内替换仍匹配计划快照的来源锁，保留并发创建或改写。 */
+export function writeLockAtomic(target, lockPath, value, expectedSnapshot) {
   assertSafePath(target, lockPath, "上游 lock", { finalMayBeMissing: true });
+  const expected = validateSnapshot(expectedSnapshot, "lock_snapshot");
+  const relative = path.relative(target, lockPath).split(path.sep).join("/");
+  assertCurrentSnapshot(target, relative, expected, "上游 lock");
   const harnessDirectory = path.join(target, ".harness");
   const directoryStat = lstatOrNull(harnessDirectory);
   if (!directoryStat) fs.mkdirSync(harnessDirectory, { mode: 0o755 });
@@ -34,6 +37,7 @@ export function writeLockAtomic(target, lockPath, value) {
     if (beforeReplace && (beforeReplace.isSymbolicLink() || !beforeReplace.isFile())) throw new UpgradeError("上游 lock 不是普通文件");
     const currentDirectory = fs.lstatSync(harnessDirectory);
     if (currentDirectory.isSymbolicLink() || !currentDirectory.isDirectory() || currentDirectory.dev !== directoryIdentity.dev || currentDirectory.ino !== directoryIdentity.ino) throw new UpgradeError(".harness 在 lock 写入期间发生变化");
+    assertCurrentSnapshot(target, relative, expected, "上游 lock");
     fs.renameSync(temporary, lockPath);
     try { const directoryFd = fs.openSync(harnessDirectory, fs.constants.O_RDONLY); fs.fsyncSync(directoryFd); fs.closeSync(directoryFd); } catch { /* 平台可能不允许 fsync 目录 */ }
   } finally {
@@ -82,6 +86,6 @@ export function recordLock(args) {
   }
   const lock = { schema_version: SCHEMA_VERSION, recorded_at: new Date().toISOString().replace("Z", "+00:00"), harness_source: { version: plan.source_version, commit: plan.source_commit }, entries };
   assertPlanStillCurrent(plan);
-  writeLockAtomic(target, plan.lock_path, lock);
+  writeLockAtomic(target, plan.lock_path, lock, plan.lock_snapshot);
   return { recorded: plan.lock_path, entries: Object.keys(entries).length };
 }

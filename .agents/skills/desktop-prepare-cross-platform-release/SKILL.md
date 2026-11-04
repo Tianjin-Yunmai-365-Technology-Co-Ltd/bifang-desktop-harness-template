@@ -40,7 +40,7 @@ description: 在本地 Git 发布后、另行授权推送完成且用户明确�
 ## 固定候选契约
 
 - 本 Skill 是默认 `$desktop-build-rust-release` 路线，矩阵固定 `fail-fast: false`。在执行任何单元测试或构建命令前，必须先运行 `inspect_release_notes.mjs check --file release-notes.json --expected-version <version>`；本 Skill 不得生成或改写更新日志，也不得自动追加格式、lint 或其他开发门禁。
-- 运行器使用 `fetch-depth: 0` 获得 fresh 全历史/全部 remote-tracking 分支快照，并保持凭据不持久化；这些数据只用来验证远端 `release` 分支和版本 tag，不检查祖先、线性或合并形态。候选派发前必须运行 `verify_dispatch_readiness.mjs`，只读确认远端默认分支已有可派发 workflow；不得为满足 GitHub 触发条件修改 ref、创建 tag、推送默认分支或执行渠道发布。
+- 运行器使用 `fetch-depth: 0` 获得 fresh 全历史/全部 remote-tracking 分支快照，并保持凭据不持久化；这些数据用于验证远端 `release` 分支、版本 tag 及发布审查的 `scopeBase`/`sourceHead` 绑定，不额外要求线性历史或特定合并形态。候选派发前必须运行 `verify_dispatch_readiness.mjs`，只读确认远端默认分支已有可派发 workflow；不得为满足 GitHub 触发条件修改 ref、创建 tag、推送默认分支或执行渠道发布。
 - 在测试和构建前原子隔离旧目录。签名条件成立时必须尝试签名并验证；条件不成立且策略允许时记录 `signingStatus: unsigned`、原因和结构化 `signingEvidence`，不得静默降级或输出凭据。
 - Rust CLI 的 macOS GUI 签名选择不适用，不从发布上下文读取 `candidateSelections`。最终字节形成后且写 manifest 前，第二次校验发布上下文和已 fetch 远端 refs，完整规范化 `releaseReview`。manifest 的 `sourceCommit` 是实际构建 HEAD，绝不能写成审查 `sourceHead`；审查关闭时只复制 `reviewReason`/`reviewRemainingRisk`。
 - manifest 还必须包含 `e2eSelection`、`releaseNotesVersion`、`releaseNotesSha256` 与 `releaseNotesPath: release-notes.json`。不能把暂存目录放进工作树或依赖 ignore 隐藏；完整精确集合验证后，把完整的项目根同级暂存目录原子重命名到其位置，并上传三个明确的归档/校验和/清单路径。
@@ -49,7 +49,7 @@ description: 在本地 Git 发布后、另行授权推送完成且用户明确�
 ## 失败条件
 
 - 独立推送或三平台构建授权缺失、dirty、HEAD/source_commit 不同、上下文摘要/schema/版本不同、远端 `release` ref 或版本 tag 不指向提交、远端默认分支缺少可派发 workflow、MSRV/测试/构建/签名失败、候选缺失或取回不完整都必须失败。
-- 不检查分支祖先、合并类型、线性历史、feature 分支是否仍存在，也不要求远端 advertised 默认分支指向发布提交；该分支只为 workflow_dispatch 可派发性做只读预检，不创建或移动它。
+- 不额外限制分支拓扑或要求 feature 分支仍存在，发布审查的来源与变化范围仍按 `docs/RELEASE.md` 核对；不要求远端 advertised 默认分支指向发布提交；该分支只为 workflow_dispatch 可派发性做只读预检，不创建或移动它。
 - 工作流不创建、移动或推送 branch/tag；它只验证 Git 发布后另行授权的推送已经使远端 `release` 分支和 tag 指向已发布源码。
 - 矩阵只生成 `pending` 候选；矩阵本身不得运行 E2E、验收或渠道发布，也不更新项目记忆。
 
