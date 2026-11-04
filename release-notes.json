@@ -2,6 +2,42 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-11-04",
+      "version": "v202611041048",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增技术文档提取 Skill，以 knowledge 概览统一技术选型、依赖、架构、文件结构和技术债，并生成可交互架构图。",
+          "en-US": "Added a technical-documentation skill with a knowledge overview covering technology choices, dependencies, architecture, file structure and technical debt, plus an interactive architecture diagram."
+        },
+        {
+          "zh-CN": "支持项目本地 Archify 按需安装，所有接口保留知识提取入口，初始化和升级保护本地知识产物。",
+          "en-US": "Added on-demand project-local Archify installation, retained the extraction skill for all interfaces, and protected local knowledge artifacts during initialization and upgrades."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 GPUI 知识安装误读 TOML 多行文本以及接受未知或重复接口的问题。",
+          "en-US": "Fixed GPUI knowledge installation incorrectly reading multiline TOML text and accepting unknown or duplicate interfaces."
+        },
+        {
+          "zh-CN": "升级来源锁在最终替换前复核计划快照，避免覆盖预检后并发创建或改写的内容。",
+          "en-US": "Rechecked the planned upstream-lock snapshot immediately before replacement to preserve concurrent creations and edits made after preflight."
+        },
+        {
+          "zh-CN": "补齐强更提示的可访问名称、描述关联和安全退出初始焦点。",
+          "en-US": "Added an accessible name, description association and initial focus on the safe exit action to the mandatory-update prompt."
+        },
+        {
+          "zh-CN": "本地品牌媒体路径拒绝控制字符，防止 URL 规范化绕过仅本地加载边界。",
+          "en-US": "Rejected control characters in local brand-media paths to prevent URL normalization from bypassing local-only loading."
+        },
+        {
+          "zh-CN": "统一候选收集与验收的审查源码绑定，并正确核对远端 release 分支与发布 tag。",
+          "en-US": "Aligned collection and acceptance instructions with reviewed-source provenance checks and the remote release branch and release tag."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-11-02",
       "version": "v202611021437",
       "featureOptimizations": [
@@ -237,30 +273,6 @@
         }
       ],
       "bugFixes": []
-    },
-    {
-      "releaseDate": "2026-10-09",
-      "version": "v202610091532",
-      "featureOptimizations": [
-        {
-          "zh-CN": "独立抽取 13 个能力与治理 Skills，按任务触发加载，并在初始化和升级时按框架保留或裁剪。",
-          "en-US": "Extract 13 focused capability and governance Skills, loaded by task trigger and retained or pruned by framework during initialization and upgrades."
-        },
-        {
-          "zh-CN": "永久能力策略使用共享锁、旧值核对与原子写入；更新日志预览提供独立只读入口。",
-          "en-US": "Permanent capability preferences use a shared lock, expected-value checks and atomic writes; release-note previews have a dedicated read-only entrypoint."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复保留的升级测试引用下游已裁剪的上游专属清单。",
-          "en-US": "Fix retained upgrade tests importing an upstream-only manifest that is pruned from downstream projects."
-        },
-        {
-          "zh-CN": "策略测试使用独立确认夹具，兼容已初始化下游的能力选择和 LF/CRLF 换行，并保持真实策略字节不变。",
-          "en-US": "Use independent policy test fixtures for initialized downstream preferences and LF/CRLF line endings while preserving the actual policy bytes."
-        }
-      ]
     }
   ]
 }
