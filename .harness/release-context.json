@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "9fad5a891bed2658eb8bd4c4e4a1ef351dc7bacc",
-  "version": "202611041048",
-  "releaseDate": "2026-11-04",
-  "expectedTag": "v202611041048-20261104",
+  "sourceHead": "1d205e52b18f6b929296eedb21e1942d06173e77",
+  "version": "202611051535",
+  "releaseDate": "2026-11-05",
+  "expectedTag": "v202611051535-20261105",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "7e2b4279e28c8cec492446a5d3491c8357e1ac88",
-    "sourceHead": "9fad5a891bed2658eb8bd4c4e4a1ef351dc7bacc",
-    "scopeDiffSha256": "9d4d19ae99883e81e25e674b779b1e78a60938989f201cf1688ea89ab7c8f0cd",
-    "reviewedSourceCommit": "9fad5a891bed2658eb8bd4c4e4a1ef351dc7bacc",
+    "scopeBase": "bc4b39a5692dfd413d906fd1273ef81aeb19aea3",
+    "sourceHead": "1d205e52b18f6b929296eedb21e1942d06173e77",
+    "scopeDiffSha256": "04b3b2439ad8fce3f2584fde9d90bb159174852592da22877a63ec575efd9721",
+    "reviewedSourceCommit": "1d205e52b18f6b929296eedb21e1942d06173e77",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "已对63个Skill的工程功能入口、主要实现路径和高风险边界进行分组审查，并复核上次发布至sourceHead的累计差异。已修复初始化接口误判、升级锁最终快照遗漏、强更无障碍、本地媒体控制字符绕过及两类候选交付文案冲突；修复差异经独立复核。core/adapter业务边界未改变，CLI映射及依赖方向验证通过；非法接口和远程资源规范化失败关闭。41条规模/临时标记提示已按职责核对，长文件围绕各自状态机或场景，临时标记为测试夹具。完整Node回归1248通过/24平台条件跳过，真实React/Mantine组件21通过，Rust stable1.99.1格式、Clippy和7项测试通过；发布审查门禁与no-python通过。未执行真实下游产品构建、签名、公证或跨平台E2E，既有TECH_DEBT限制保留。",
+    "evidenceSummary": "已对上次真实发布至 sourceHead 的累计差异审查行为正确性、core/adapter 边界、外部契约、职责规模与临时标记。GPUI、Tauri/React、生命周期门禁、候选矩阵、升级保护与工程文档分别复核；支持模板统计残留及规格框架泛化已修复，无剩余 P1/P2。本次修改保持职责内聚，唯一临时标记属于计划门禁测试夹具。Harness 硬门禁和发布审查检查通过（41 项非阻断提示）；Node 回归 1257 项通过、24 项平台条件跳过、0 失败；Node-only 与差异完整性检查通过。Rust 中性资产在 stable 1.99.1 上通过 fmt、clippy 和 7 项测试；未验证最低 Rust 1.98.1，未执行真实产品构建、安装、签名或 E2E。全部登记分支已包含于 sourceHead，范围、秘密与工作区状态已复核。",
     "reason": null,
     "remainingRisk": null
   }
