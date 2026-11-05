@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import { ROOT } from "./core.mjs";
-import { validateWorkPlanContract } from "./repository.mjs";
+import { validateSkillsMap, validateWorkPlanContract } from "./repository.mjs";
 import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
 import { safeRelativePath } from "../../.agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_safety.mjs";
 import {
@@ -19,6 +19,36 @@ import {
 test("required_root_paths_are_unique_and_canonical", () => {
   assert.equal(new Set(REQUIRED_ROOT_FILES).size, REQUIRED_ROOT_FILES.length);
   for (const relative of REQUIRED_ROOT_FILES) assert.equal(safeRelativePath(relative), relative);
+});
+
+/** 合法目录可使用带或不带美元符号的精确 Skill 名称，后续章节不进入索引范围。 */
+test("skills_map_accepts_exact_complete_inventory", () => {
+  const errors = [];
+  validateSkillsMap(errors, "# Entry\n## Skills 索引\n`$desktop-first`、`desktop-second`\n## Next\n`$desktop-unrelated`\n", {
+    file: "README.md", heading: "## Skills 索引", expected: new Set(["desktop-first", "desktop-second"]),
+  });
+  assert.deepEqual(errors, []);
+});
+
+/** 索引漏项不能由其它段落中的说明补足，防止新增 Skill 后出现不可发现的入口。 */
+test("skills_map_rejects_omission_despite_mentions_elsewhere", () => {
+  const errors = [];
+  validateSkillsMap(errors, "`$desktop-second`\n## Skills 地图\n`$desktop-first`\n## Next\n`$desktop-second`\n", {
+    file: "AGENTS.md", heading: "## Skills 地图", expected: new Set(["desktop-first", "desktop-second"]),
+  });
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /索引遗漏 Skill: desktop-second/u);
+});
+
+/** 已删除技能不能继续作为目录入口；缺少索引标题也必须给出明确失败。 */
+test("skills_map_rejects_retired_entries_and_missing_section", () => {
+  const options = { file: "README.md", heading: "## Skills 索引", expected: new Set(["desktop-first"]) };
+  const errors = [];
+  validateSkillsMap(errors, "## Skills 索引\n`$desktop-first`、`$desktop-retired`\n", options);
+  assert.match(errors[0], /不存在的 Skill: desktop-retired/u);
+  const absent = [];
+  validateSkillsMap(absent, "# Entry\n`$desktop-first`\n", options);
+  assert.match(absent[0], /缺少 Skills 索引章节/u);
 });
 
 /** 复制保留的脚本与引用到隔离下游，不携带上游专属校验目录。 */

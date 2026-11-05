@@ -25,7 +25,7 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 
 ## 固定边界
 
-- 初始化询问 CLI/TUI/MCP/GUI，允许组合；空选择默认 CLI，用户显式未选择 CLI 时不得额外创建 CLI。
+- 初始化询问 CLI/TUI/MCP/GUI，允许组合；明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时才默认采用 CLI。漏答保持待选择，不得按空输入应用默认值；选择其他接口且未选 CLI 时不得额外创建 CLI。
 - 默认使用一个 Cargo 工作区，至少包含独立核心库和实际选择的适配器成员。
 - 产品规格为 `Draft` 时，核心与所选适配器只提供中性状态；CLI JSON 必须包含 `productDefinitionRequired=true`。
 - Core-first 是四类接口共同的硬规则。接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略全部属于核心；即使当前只有一个适配器也不得把这些行为放入适配器。
@@ -267,7 +267,7 @@ example_tool_core.workspace = true
 
 ## 初始化与当前平台验证
 
-`assets/rust-lib-cli/` 是共享核心 + 默认 CLI 的中性验证资产。CLI 被选中或使用空选择默认值时可整体采用；显式未选 CLI 时只采用核心结构，并由各接口 Skill 创建所选成员。中性资产按缺省策略在本地解析时可生成被 Git 忽略的锁文件，验证不要求该文件预先存在。真实项目存在后运行：
+`assets/rust-lib-cli/` 是共享核心 + 默认 CLI 的中性验证资产。CLI 被选中，或用户明确选择默认接口/跳过接口选择而采用 CLI 时可整体采用；显式未选 CLI 时只采用核心结构，并由各接口 Skill 创建所选成员。中性资产按缺省策略在本地解析时可生成被 Git 忽略的锁文件，验证不要求该文件预先存在。真实项目存在后运行：
 
 ```text
 cargo fmt --all -- --check
@@ -321,7 +321,7 @@ cargo build --workspace --release
 
 - 日常代码行为实现只运行本次需要的相关非空单元/回归测试；纯文档或元数据变更只做解析或差异完整性所必需的最小检查。不得自动追加格式、Clippy、静态、集成/契约、全仓测试、构建、冒烟、E2E 或完整验收，也不得把开发证据写成候选通过。
 - 初始化把规范化、非空的目标平台与接口组合分别写入根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下 `target-platforms` 和 `interfaces`；它们是跨会话构建路由的持久事实。构建不得从当前宿主、目录名或旧对话反推项目只支持哪个平台或接口。
-- GUI 初始化是上一条日常规则的唯一一次性例外：初始化器在相关单元测试后调用 `$desktop-test-gui-initialization-e2e` 构建并启动 debug/no-bundle 二进制；该结果只证明当前宿主的初始化脚手架，不等同最终候选验收。
+- GUI 初始化是日常规则的一次性例外：Tauri 初始化器在相关单元测试后调用 `$desktop-test-gui-initialization-e2e` 构建并启动 debug/no-bundle 二进制；GPUI 调用 `$desktop-test-gpui-initialization-e2e` 执行原生初始化检查；该结果只证明当前宿主的初始化脚手架，不等同最终候选验收。
 - `$desktop-build-tauri-local-install` 在原生 Windows x64 宿主用 `pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign` 生成仅供本机检查的开发试包。它允许 dirty 工作树但必须报告风险，不传发布专用配置、不读取或生成更新日志、不写 `release/`、不提交、不安装、不运行，也不询问 E2E 选择；普通“构建/打包”不得升级成发布候选。
 - `$desktop-build-rust-release` 按 Git 发布后已确认的 `local_package` 路径或用户另行明确的候选请求编排 Rust CLI 候选：普通本机构建不访问远端或调用 provider，只形成当前宿主候选；用户另行要求跨平台矩阵且远端 `release` 分支与 tag 已复核为同一发布 HEAD 后，才使用 Windows、macOS、Linux 原生矩阵。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，GPUI GUI 候选转交 `$desktop-build-gpui-release`，TUI/MCP 仍使用各自适配器 Skill 的构建与产物门槛。
 - `$desktop-build-tauri-release` 在 macOS 上原生构建 DMG，在 Windows 上原生构建 x64 NSIS，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 从 macOS 交叉构建 Windows x64 NSIS。原生 Windows 路线不使用 `cargo-xwin`，且构建成功本身不等于安装或运行验收。macOS DMG 构建在测试前校验项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的摘要和 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，并在最终字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；headless CI 不得无界等待 Finder AppleScript。xwin 路径不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生运行验证。

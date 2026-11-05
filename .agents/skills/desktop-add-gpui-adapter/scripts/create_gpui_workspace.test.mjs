@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { createGpuiWorkspace, renderGpuiFiles } from './create_gpui_workspace.mjs';
 
 const identity = { projectId: 'example_tool', nameZh: '示例工具', nameEn: 'Example Tool', owner: 'Example Owner' };
+const confirmed = { ...identity, targetPlatforms: ['macos'], systemTray: 'disabled', systemNotification: 'disabled', autostart: 'disabled', aboutPage: 'enabled', sponsorPage: 'enabled', singleInstance: 'disabled', globalShortcut: 'disabled', sidebarMode: 'detailed' };
 
 /** 真实临时根先规范化，避免 macOS /tmp 本身为链接影响目标路径测试。 */
 function temporary() { return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'harness-gpui-test-')); }
@@ -161,12 +162,60 @@ test('fresh_workspace_is_created_without_git_or_policy_side_effects', () => {
   const root = temporary();
   try {
     const target = path.join(root, 'generated');
-    const result = createGpuiWorkspace({ ...identity, target });
+    const result = createGpuiWorkspace({ ...confirmed, target });
     assert.equal(result.guiFramework, 'gpui');
     assert.equal(fs.existsSync(path.join(target, 'example_tool_gui/src/main.rs')), true);
     assert.equal(fs.existsSync(path.join(target, '.git')), false);
     assert.equal(fs.existsSync(path.join(target, 'docs/AGENT_POLICY.md')), false);
     assert.equal(fs.existsSync(path.join(target, 'docs/product_spec')), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+/** 缺失或非法选择不能借纯渲染默认写出工程，已有空目录与旁边用户文件保持原样。 */
+test('unconfirmed_choices_fail_before_creating_workspace_or_staging', () => {
+  const root = temporary();
+  try {
+    const target = path.join(root, 'target');
+    const sentinel = path.join(root, 'user-notes.txt');
+    fs.writeFileSync(sentinel, 'user-owned bytes');
+    const fields = ['targetPlatforms', 'systemTray', 'systemNotification', 'autostart', 'aboutPage', 'sponsorPage', 'singleInstance', 'globalShortcut', 'sidebarMode'];
+    for (const existing of [false, true]) {
+      if (existing) fs.mkdirSync(target);
+      const names = fs.readdirSync(root).sort();
+      for (const key of fields) {
+        for (const value of [undefined, null, 'pending']) {
+          const input = { ...confirmed, target };
+          if (value === undefined) delete input[key]; else input[key] = value;
+          assert.throws(() => createGpuiWorkspace(input), new RegExp(key));
+          assert.deepEqual(fs.readdirSync(root).sort(), names);
+          assert.equal(fs.existsSync(target), existing);
+          if (existing) assert.deepEqual(fs.readdirSync(target), []);
+          assert.equal(fs.readFileSync(sentinel, 'utf8'), 'user-owned bytes');
+        }
+      }
+      for (const invalid of [{ targetPlatforms: [] }, { targetPlatforms: ['unknown'] }, { targetPlatforms: ['macos', 'macos'] }, { deepLink: 'enabled' }, { deepLink: null }]) {
+        assert.throws(() => createGpuiWorkspace({ ...confirmed, target, ...invalid }), /targetPlatforms|deepLink/);
+        assert.deepEqual(fs.readdirSync(root).sort(), names);
+        assert.equal(fs.existsSync(target), existing);
+        if (existing) assert.deepEqual(fs.readdirSync(target), []);
+      }
+    }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+/** 已物化的九字段和明确平台可正常创建；深链接缺省只派生不可用的 disabled。 */
+test('confirmed_choices_preserve_enabled_and_disabled_support_pages', () => {
+  const root = temporary();
+  try {
+    const target = path.join(root, 'target');
+    createGpuiWorkspace({ ...confirmed, target, aboutPage: 'disabled', sponsorPage: 'disabled', sidebarMode: 'compact', targetPlatforms: ['linux'], deepLink: 'disabled' });
+    const profile = fs.readFileSync(path.join(target, 'docs/GUI_APP_PROFILE.md'), 'utf8');
+    assert.match(profile, /about_page: disabled/);
+    assert.match(profile, /sponsor_page: disabled/);
+    assert.match(profile, /sidebar_mode: compact/);
+    assert.match(profile, /deep_link: disabled/);
+    assert.equal(fs.existsSync(path.join(target, 'example_tool_gui/src/app/about.rs')), false);
+    assert.equal(fs.existsSync(path.join(target, 'example_tool_gui/assets/sponsor')), false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -177,7 +226,7 @@ test('existing_target_contents_are_never_overwritten', () => {
     const target = path.join(root, 'existing');
     fs.mkdirSync(target);
     fs.writeFileSync(path.join(target, 'keep.txt'), 'user-content');
-    assert.throws(() => createGpuiWorkspace({ ...identity, target }), /absent or empty/);
+    assert.throws(() => createGpuiWorkspace({ ...confirmed, target }), /absent or empty/);
     assert.deepEqual(fs.readdirSync(target), ['keep.txt']);
     assert.equal(fs.readFileSync(path.join(target, 'keep.txt'), 'utf8'), 'user-content');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -191,7 +240,7 @@ test('symlink_target_and_ancestor_are_rejected', () => {
     fs.mkdirSync(real);
     const link = path.join(root, 'link');
     fs.symlinkSync(real, link, process.platform === 'win32' ? 'junction' : 'dir');
-    for (const target of [link, path.join(link, 'child')]) assert.throws(() => createGpuiWorkspace({ ...identity, target }), /symbolic links/);
+    for (const target of [link, path.join(link, 'child')]) assert.throws(() => createGpuiWorkspace({ ...confirmed, target }), /symbolic links/);
     assert.deepEqual(fs.readdirSync(real), []);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
@@ -202,7 +251,7 @@ test('invalid_generation_leaves_empty_target_empty', () => {
   try {
     const target = path.join(root, 'target');
     fs.mkdirSync(target);
-    assert.throws(() => createGpuiWorkspace({ ...identity, target, sidebarMode: 'unknown' }), /sidebarMode/);
+    assert.throws(() => createGpuiWorkspace({ ...confirmed, target, sidebarMode: 'unknown' }), /sidebarMode/);
     assert.deepEqual(fs.readdirSync(target), []);
     assert.deepEqual(fs.readdirSync(root), ['target']);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }

@@ -107,4 +107,4 @@ GUI框架是根Cargo metadata的独立 `gui-framework` 事实，不增加本文�
 
 - 本文件不关闭 `.agents/skills/` 中的项目 Skills，也不关闭 Codex 基础工具或安全规则。
 - 已授权的内部并行按 `$desktop-task-workflow` 执行；保留原 helper 路径。独立 Worktree 按所有权并行创建和执行，编号/所有权预留及生命周期共享状态用短锁；不因活动叶子、分支祖先关系或每项目单写入限制阻断。
-- 除 `$desktop-test-gui-initialization-e2e` 的一次性 debug/no-bundle 门禁外，冒烟/E2E 不得在产品定义、计划、日常开发、单元测试、编译、签名、打包、制品收集或发布元数据命令中运行；启用的发布 E2E 只在最终真实候选形成后执行。
+- 除按框架执行的 `$desktop-test-gui-initialization-e2e` 或 `$desktop-test-gpui-initialization-e2e` 一次性本机调试门禁外，冒烟/E2E 不得在产品定义、计划、日常开发、单元测试、编译、签名、打包、制品收集或发布元数据命令中运行；启用的发布 E2E 只在最终真实候选形成后执行。

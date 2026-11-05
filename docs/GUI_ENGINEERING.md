@@ -4,12 +4,14 @@
 
 | 任务 | 入口与事实 | 完成边界 |
 | --- | --- | --- |
-| 依赖清单、版本或 features | [$desktop-manage-gpui-dependencies](../.agents/skills/desktop-manage-gpui-dependencies/SKILL.md)；其中依赖矩阵记录中性声明下界和已有采用参考 | 分清声明/resolved/vendor，实际升级才改清单与回归 |
-| 后端兼容、字体/AX/窗口/托盘问题 | [兼容补丁合同](../.agents/skills/desktop-manage-gpui-dependencies/references/compatibility.md) | 原样来源 + 严格生成 + 按后端证据，不默认复制补丁 |
-| 已有 core 增加 GUI、原生接线 | [$desktop-add-gpui-adapter](../.agents/skills/desktop-add-gpui-adapter/SKILL.md) | 按 profile 装配，禁用能力无残留；不复制业务权威状态 |
-| 异步/队列/重绘/缓存/图片性能 | [$desktop-optimize-gpui-performance](../.agents/skills/desktop-optimize-gpui-performance/SKILL.md) | 定场景、测成本、最小修改、行为回归、同条件复测 |
-| 本地试包与发布候选 | [$desktop-build-gpui-release](../.agents/skills/desktop-build-gpui-release/SKILL.md) | 公共生命周期 + 按平台引用，产物与运行验收分开 |
-| 最终候选验收 | 保留的 desktop-verify-delivery / desktop-test-final-artifact-e2e | 真实最终字节和目标宿主，构建通过不代替验收 |
+| GPUI 依赖清单、版本或 features | [$desktop-manage-gpui-dependencies](../.agents/skills/desktop-manage-gpui-dependencies/SKILL.md)；其中依赖矩阵记录中性声明下界和已有采用参考 | 分清声明/resolved/vendor，实际升级才改清单与回归 |
+| GPUI 后端兼容、字体/AX/窗口/托盘问题 | [兼容补丁合同](../.agents/skills/desktop-manage-gpui-dependencies/references/compatibility.md) | 原样来源 + 严格生成 + 按后端证据，不默认复制补丁 |
+| 已有 core 增加 GPUI GUI、原生接线 | [$desktop-add-gpui-adapter](../.agents/skills/desktop-add-gpui-adapter/SKILL.md) | 按 profile 装配，禁用能力无残留；不复制业务权威状态 |
+| GPUI 异步/队列/重绘/缓存/图片性能 | [$desktop-optimize-gpui-performance](../.agents/skills/desktop-optimize-gpui-performance/SKILL.md) | 定场景、测成本、最小修改、行为回归、同条件复测 |
+| GPUI 本地试包与发布候选 | [$desktop-build-gpui-release](../.agents/skills/desktop-build-gpui-release/SKILL.md) | 公共生命周期 + 按平台引用，产物与运行验收分开 |
+| Tauri 依赖、插件与既有 core 增加 GUI | [$desktop-add-gui-adapter](../.agents/skills/desktop-add-gui-adapter/SKILL.md)、[$desktop-manage-dependencies](../.agents/skills/desktop-manage-dependencies/SKILL.md) | 按已批准范围接线与验证，不加载 GPUI 实现规则 |
+| Tauri 本地试包与发布候选 | [$desktop-build-tauri-local-install](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[$desktop-build-tauri-release](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 按平台与候选身份分派，具体路线见下表 |
+| 最终候选验收 | [$desktop-verify-delivery](../.agents/skills/desktop-verify-delivery/SKILL.md)、[$desktop-test-final-artifact-e2e](../.agents/skills/desktop-test-final-artifact-e2e/SKILL.md) | 真实最终字节和目标宿主，构建通过不代替验收 |
 | Linux 宿主、工具链及能力边界 | 下文 Linux 问题索引与对应 Skill 引用 | 区分中性生成、独立接线、协议回归与目标运行证据 |
 
 ## 各平台方案入口
@@ -43,7 +45,7 @@ Linux 知识按既有 Skill 职责维护；只读取当前问题对应的引用�
 
 下游历史候选只证明其精确源码、最终字节、架构、桌面会话和场景；其它版本或平台不继承通过状态。产品能力矩阵及原始验收记录留在下游，Harness 只沉淀中性机制与取证要求。新增引用沿各框架对应的条件 Skill 传播，不把产品知识库、身份、业务参数或来源锁反向复制进模板。
 
-## 方案选择
+## GPUI 方案选择
 
 原生 GPUI/Kit 负责视图与图标，rust-i18n/sys-locale 负责语言，端侧日志使用有界后台 sink。宿主依赖按 target/profile 裁剪。业务确需才加 Tokio、图片解码、数据库或网络；Tokio 服务拥有 runtime，GPUI loop 仍在同步主线程。renderer 未接线的 Linux 能力保持限制，产品可以通过独立实现扩展，不能反向宣称模板已支持。
 

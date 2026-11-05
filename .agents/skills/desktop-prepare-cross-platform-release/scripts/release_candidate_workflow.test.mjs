@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { validateRustRuntime } from "./release_candidate_workflow.mjs";
+import { validateRustRuntime, validateMatrixSelection } from "./release_candidate_workflow.mjs";
 
 const DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const WORKFLOW = resolve(DIRECTORY, "../assets/github-release-candidate.yml");
@@ -181,5 +181,40 @@ test("resolve_artifact_requires_one_complete_safe_pair", () => {
     assert.equal(rejected.status, 1);
   } finally {
     rmSync(temporary, { recursive: true, force: true });
+  }
+});
+
+
+/** 元数据来自同次 Cargo 解析；CLI 与固定矩阵平台都必须由项目明确选择。 */
+test("fixed_matrix_accepts_valid_cli_and_all_three_runner_platforms", () => {
+  for (const runner of ["Linux", "macOS", "Windows"]) {
+    for (const interfaces of [["cli"], ["cli", "tui", "mcp", "gui"]]) {
+      const metadata = { metadata: { "agent-first-harness": { interfaces, "target-platforms": ["macos", "windows", "linux"] } } };
+      assert.doesNotThrow(() => validateMatrixSelection(metadata, runner));
+    }
+  }
+  assert.ok(helper.includes('validateMatrixSelection(metadata, environment("RUNNER_OS"))'));
+});
+
+/** 缺失、非法或只选择其它接口时，不能借二进制名和版本相同进入 CLI 矩阵。 */
+test("fixed_matrix_rejects_missing_invalid_and_non_cli_interfaces", () => {
+  const makeMetadata = interfaces => ({ metadata: { "agent-first-harness": { interfaces, "target-platforms": ["macos", "windows", "linux"] } } });
+  for (const interfaces of [undefined, null, "cli", [], ["mcp"], ["tui"], ["gui"], ["cli", "cli"], ["cli", "unknown"], [true]]) {
+    assert.throws(() => validateMatrixSelection(makeMetadata(interfaces), "Linux"), /interfaces/u);
+  }
+  for (const metadata of [{}, { metadata: {} }, { metadata: { "agent-first-harness": null } }]) {
+    assert.throws(() => validateMatrixSelection(metadata, "Linux"), /interfaces/u);
+  }
+});
+
+/** 固定三平台不能扩展项目范围，也不接受未知宿主或重复平台伪造完整集合。 */
+test("fixed_matrix_rejects_incomplete_invalid_targets_and_unknown_runner", () => {
+  const makeMetadata = platforms => ({ metadata: { "agent-first-harness": { interfaces: ["cli"], "target-platforms": platforms } } });
+  for (const platforms of [undefined, null, "macos", [], ["macos"], ["linux"], ["macos", "linux"], ["macos", "windows", "windows"], ["macos", "windows", "unknown"], [false]]) {
+    assert.throws(() => validateMatrixSelection(makeMetadata(platforms), "Linux"), /target-platforms|RUNNER_OS/u);
+  }
+  const metadata = makeMetadata(["macos", "windows", "linux"]);
+  for (const runner of [undefined, "", "Darwin", "linux", "FreeBSD"]) {
+    assert.throws(() => validateMatrixSelection(metadata, runner), /RUNNER_OS/u);
   }
 });

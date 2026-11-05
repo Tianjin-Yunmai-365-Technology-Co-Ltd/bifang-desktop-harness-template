@@ -42,7 +42,7 @@ test('generated_native_workspace_passes_retained_rust_comment_check_on_all_hosts
   try {
     const target = path.join(temporary, 'workspace');
     const generated = createGpuiWorkspace({
-      ...identity, target, targetPlatforms: ['macos', 'windows'], sponsorPage: 'disabled',
+      ...identity, target, targetPlatforms: ['macos', 'windows'], aboutPage: 'enabled', sponsorPage: 'disabled', sidebarMode: 'detailed',
       ...Object.fromEntries(capabilityKeys.map(key => [key, 'enabled'])),
     });
     const scripts = '.agents/skills/desktop-implement-change/scripts';

@@ -95,6 +95,21 @@ export function validateRequiredFiles(errors) {
   }
 }
 
+/** 只核对明确的 Skills 索引章节，正文其它位置提及名称不能补足遗漏的目录入口。 */
+export function validateSkillsMap(errors, source, { file, heading, expected = EXPECTED_SKILLS }) {
+  const lines = source.split(/\r?\n/u);
+  const start = lines.indexOf(heading);
+  if (start < 0) {
+    fail(errors, `${file} 缺少 Skills 索引章节: ${heading}`);
+    return;
+  }
+  const followingHeading = lines.findIndex((line, index) => index > start && /^##\s/u.test(line));
+  const section = lines.slice(start + 1, followingHeading < 0 ? undefined : followingHeading).join("\n");
+  const listed = new Set([...section.matchAll(/`\$?((?:desktop-[a-z0-9-]+)|mantine-list-view)`/gu)].map(match => match[1]));
+  for (const name of expected) if (!listed.has(name)) fail(errors, `${file} Skills 索引遗漏 Skill: ${name}`);
+  for (const name of listed) if (!expected.has(name)) fail(errors, `${file} Skills 索引包含不存在的 Skill: ${name}`);
+}
+
 /** 验证 Skill 集合、frontmatter 与元数据入口保持一一对应。 */
 export function validateSkills(errors) {
   let entries = [];
@@ -113,6 +128,8 @@ export function validateSkills(errors) {
   } catch (error) {
     fail(errors, error.message);
   }
+  validateSkillsMap(errors, readme, { file: "README.md", heading: "## Skills 索引" });
+  validateSkillsMap(errors, agents, { file: "AGENTS.md", heading: "## Skills 地图" });
   for (const name of EXPECTED_SKILLS) {
     if (!actual.has(name)) fail(errors, `缺少预期 Skill: ${name}`);
   }
@@ -164,8 +181,6 @@ export function validateSkills(errors) {
         fail(errors, error.message);
       }
     }
-    if (!readme.includes(`\`${name}\``) && !readme.includes(`\`$${name}\``)) fail(errors, `README 未声明 Skill: ${name}`);
-    if (!agents.includes(`$${name}`)) fail(errors, `AGENTS 路由未提及 Skill: ${name}`);
   }
 }
 

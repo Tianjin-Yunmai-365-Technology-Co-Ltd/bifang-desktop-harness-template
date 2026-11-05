@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertRealPath, normalizeOptions, renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
+import { assertRealPath, normalizeOptions, normalizeConfirmedOptions, renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
 
 import { nativeDependencies } from './gpui_native_capabilities.mjs';
 
@@ -28,7 +28,7 @@ export function createGpuiWorkspace(input) {
   assertRealPath(target, true);
   const existing = fs.existsSync(target);
   if (existing && (!fs.lstatSync(target).isDirectory() || fs.readdirSync(target).length)) throw new Error('target must be an absent or empty ordinary directory');
-  const options = normalizeOptions(input);
+  const options = normalizeConfirmedOptions(input);
   const files = renderGpuiFiles(options);
   const parent = path.dirname(target);
   if (!fs.existsSync(parent)) throw new Error('target parent must already exist');

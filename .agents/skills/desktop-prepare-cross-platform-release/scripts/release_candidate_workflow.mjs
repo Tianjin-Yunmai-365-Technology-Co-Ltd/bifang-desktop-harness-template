@@ -149,9 +149,34 @@ function cargoLockArgs() {
   return policy === "tracked" ? ["--locked"] : [];
 }
 
-/** 从 Cargo metadata 验证目标二进制的唯一版本。 */
+/** 固定三平台矩阵只消费已选择 CLI 和完整平台集合的持久元数据。 */
+export function validateMatrixSelection(metadata, runnerOs) {
+  const selection = metadata?.metadata?.["agent-first-harness"];
+  const interfaces = selection?.interfaces;
+  if (!Array.isArray(interfaces) || interfaces.length === 0
+      || interfaces.some(value => !["cli", "tui", "mcp", "gui"].includes(value))
+      || new Set(interfaces).size !== interfaces.length || !interfaces.includes("cli")) {
+    throw new WorkflowError("固定原生候选矩阵要求持久 interfaces 包含 cli，且接口集合完整合法");
+  }
+  const platforms = selection["target-platforms"];
+  if (!Array.isArray(platforms) || platforms.length === 0
+      || platforms.some(value => !["macos", "windows", "linux"].includes(value))
+      || new Set(platforms).size !== platforms.length) {
+    throw new WorkflowError("固定原生候选矩阵要求合法且唯一的 target-platforms");
+  }
+  const runnerPlatform = new Map([["Linux", "linux"], ["macOS", "macos"], ["Windows", "windows"]]).get(runnerOs);
+  if (!runnerPlatform || !platforms.includes(runnerPlatform)) {
+    throw new WorkflowError("RUNNER_OS 必须对应持久 target-platforms 中的明确平台");
+  }
+  if (platforms.length !== 3) {
+    throw new WorkflowError("固定原生候选矩阵要求 target-platforms 明确包含 macos、windows、linux；不得隐式扩展目标");
+  }
+}
+
+/** 从 Cargo metadata 验证持久矩阵选择及目标二进制的唯一版本。 */
 function verifyVersion() {
   const metadata = JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps", ...cargoLockArgs()]).stdout);
+  validateMatrixSelection(metadata, environment("RUNNER_OS"));
   const product = environment("PRODUCT_NAME");
   const versions = [...new Set(metadata.packages
     .filter((pkg) => pkg.targets.some((target) => target.name === product && target.kind.includes("bin")))

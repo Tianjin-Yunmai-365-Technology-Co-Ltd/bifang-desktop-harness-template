@@ -8,6 +8,7 @@ import { addGpuiAdapter } from './add_gpui_adapter.mjs';
 import { renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
 
 const identity = { projectId: 'existing_tool', nameZh: '既有工具', nameEn: 'Existing Tool', owner: 'Confirmed Owner', sponsorPage: 'disabled' };
+const confirmed = { ...identity, targetPlatforms: ['macos'], systemTray: 'disabled', systemNotification: 'disabled', autostart: 'disabled', aboutPage: 'enabled', singleInstance: 'disabled', globalShortcut: 'disabled', sidebarMode: 'detailed' };
 
 /** 独立最小 fixture 只含既有核心与明确 root metadata，不依赖 init-only 入口。 */
 function fixture() {
@@ -30,6 +31,32 @@ test('retained_renderer_only_produces_gui_profile_and_gpui_packaging_files', () 
   assert.doesNotMatch(files.get('existing_tool_gui/src/app/mod.rs'), /existing_tool_core::product_definition/);
 });
 
+/** 未确认或非法的能力选择不改变既有核心、清单、用户文件或目录集合。 */
+test('unconfirmed_choices_preserve_the_existing_workspace_without_partial_adapter', () => {
+  const target = fixture();
+  try {
+    fs.writeFileSync(path.join(target, 'user-notes.txt'), 'user-owned bytes');
+    fs.writeFileSync(path.join(target, 'package.json'), '{"scripts":{"custom":"node user.mjs"}}\n');
+    const names = fs.readdirSync(target, { recursive: true }).sort();
+    const original = names.filter(name => fs.lstatSync(path.join(target, name)).isFile())
+      .map(name => [name, fs.readFileSync(path.join(target, name))]);
+    const fields = ['targetPlatforms', 'systemTray', 'systemNotification', 'autostart', 'aboutPage', 'sponsorPage', 'singleInstance', 'globalShortcut', 'sidebarMode'];
+    const invalidInputs = fields.flatMap(key => [undefined, null, 'pending'].map(value => ({ key, value })));
+    for (const { key, value } of invalidInputs) {
+      const input = { ...confirmed, target };
+      if (value === undefined) delete input[key]; else input[key] = value;
+      assert.throws(() => addGpuiAdapter(input), new RegExp(key));
+      assert.deepEqual(fs.readdirSync(target, { recursive: true }).sort(), names);
+      for (const [name, bytes] of original) assert.deepEqual(fs.readFileSync(path.join(target, name)), bytes, name);
+    }
+    for (const deepLink of ['enabled', null]) {
+      assert.throws(() => addGpuiAdapter({ ...confirmed, target, deepLink }), /deepLink/);
+      assert.deepEqual(fs.readdirSync(target, { recursive: true }).sort(), names);
+      for (const [name, bytes] of original) assert.deepEqual(fs.readFileSync(path.join(target, name)), bytes, name);
+    }
+  } finally { fs.rmSync(target, { recursive: true, force: true }); }
+});
+
 /** 调用方已有打包配置不被初始化接线覆盖，整个新增操作零写入失败。 */
 test('existing_packaging_config_is_preserved_without_partial_gui', () => {
   const target = fixture();
@@ -37,7 +64,7 @@ test('existing_packaging_config_is_preserved_without_partial_gui', () => {
     fs.mkdirSync(path.join(target, 'packaging'));
     fs.writeFileSync(path.join(target, 'packaging/gpui.json'), '{"user":"owned"}\n');
     const cargo = fs.readFileSync(path.join(target, 'Cargo.toml'));
-    assert.throws(() => addGpuiAdapter({ ...identity, target }), /existing adapter\/profile file/);
+    assert.throws(() => addGpuiAdapter({ ...confirmed, target }), /existing adapter\/profile file/);
     assert.deepEqual(fs.readFileSync(path.join(target, 'Cargo.toml')), cargo);
     assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
     assert.equal(fs.readFileSync(path.join(target, 'packaging/gpui.json'), 'utf8'), '{"user":"owned"}\n');
@@ -51,7 +78,7 @@ test('add_only_preserves_existing_core_and_merges_native_gui', () => {
     const corePath = path.join(target, 'existing_tool_core/src/lib.rs');
     const bytes = fs.readFileSync(corePath);
     fs.writeFileSync(path.join(target, 'user-notes.txt'), 'keep me');
-    const result = addGpuiAdapter({ ...identity, target });
+    const result = addGpuiAdapter({ ...confirmed, target });
     assert.equal(result.corePreserved, true);
     assert.deepEqual(fs.readFileSync(corePath), bytes);
     assert.equal(fs.readFileSync(path.join(target, 'user-notes.txt'), 'utf8'), 'keep me');
@@ -68,7 +95,7 @@ test('add_only_preserves_existing_core_and_merges_native_gui', () => {
 test('add_only_refuses_an_empty_target', () => {
   const target = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'harness-gpui-empty-test-'));
   try {
-    assert.throws(() => addGpuiAdapter({ ...identity, target }), /ENOENT/);
+    assert.throws(() => addGpuiAdapter({ ...confirmed, target }), /ENOENT/);
     assert.deepEqual(fs.readdirSync(target), []);
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
 });
@@ -77,10 +104,10 @@ test('add_only_refuses_an_empty_target', () => {
 test('existing_gui_is_preserved_on_repeat', () => {
   const target = fixture();
   try {
-    addGpuiAdapter({ ...identity, target });
+    addGpuiAdapter({ ...confirmed, target });
     const cargo = fs.readFileSync(path.join(target, 'Cargo.toml'));
     const app = fs.readFileSync(path.join(target, 'existing_tool_gui/src/app/mod.rs'));
-    assert.throws(() => addGpuiAdapter({ ...identity, target }), /existing GUI/);
+    assert.throws(() => addGpuiAdapter({ ...confirmed, target }), /existing GUI/);
     assert.deepEqual(fs.readFileSync(path.join(target, 'Cargo.toml')), cargo);
     assert.deepEqual(fs.readFileSync(path.join(target, 'existing_tool_gui/src/app/mod.rs')), app);
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
@@ -93,7 +120,7 @@ test('conflicting_dependency_fails_without_partial_adapter', () => {
     const file = path.join(target, 'Cargo.toml');
     const source = fs.readFileSync(file, 'utf8').replace('[workspace.dependencies]', '[workspace.dependencies]\ngpui-kit = "0.8.0"');
     fs.writeFileSync(file, source);
-    assert.throws(() => addGpuiAdapter({ ...identity, target }), /conflicting workspace dependency gpui-kit/);
+    assert.throws(() => addGpuiAdapter({ ...confirmed, target }), /conflicting workspace dependency gpui-kit/);
     assert.equal(fs.readFileSync(file, 'utf8'), source);
     assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
     assert.equal(fs.readdirSync(target).some(name => name.startsWith('.gpui-')), false);
@@ -108,7 +135,7 @@ test('native_dependency_selection_and_conflicts_preserve_existing_workspace', ()
       const file = path.join(target, 'Cargo.toml');
       let source = fs.readFileSync(file, 'utf8');
       if (conflict) { source = source.replace('[workspace.dependencies]', '[workspace.dependencies]\ninterprocess = "1.0.0"'); fs.writeFileSync(file, source); }
-      const options = { ...identity, target, singleInstance: 'enabled', systemNotification: 'enabled' };
+      const options = { ...confirmed, target, singleInstance: 'enabled', systemNotification: 'enabled' };
       if (conflict) {
         assert.throws(() => addGpuiAdapter(options), /conflicting workspace dependency interprocess/);
         assert.equal(fs.readFileSync(file, 'utf8'), source);
@@ -132,7 +159,7 @@ test('add_only_rejects_symlink_core_manifest', () => {
     const source = path.join(target, 'core-original.toml');
     fs.renameSync(file, source);
     fs.symlinkSync(source, file, 'file');
-    assert.throws(() => addGpuiAdapter({ ...identity, target }), /symbolic links/);
+    assert.throws(() => addGpuiAdapter({ ...confirmed, target }), /symbolic links/);
     assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
 });
@@ -143,7 +170,7 @@ test('existing_standard_metadata_without_project_id_is_supported', () => {
   try {
     const file = path.join(target, 'Cargo.toml');
     fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('project-id = "existing_tool"\n', ''));
-    const result = addGpuiAdapter({ ...identity, target });
+    const result = addGpuiAdapter({ ...confirmed, target });
     assert.equal(result.corePreserved, true);
     assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui/src/main.rs')), true);
   } finally { fs.rmSync(target, { recursive: true, force: true }); }
@@ -154,7 +181,7 @@ test('add_only_merges_existing_package_without_losing_user_fields', () => {
   const target = fixture();
   try {
     fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify({ name: 'user-owned', private: false, packageManager: 'pnpm@12.4.2', scripts: { custom: 'node user.mjs' }, dependencies: { 'user-owned-package': '1.0.0' } }));
-    addGpuiAdapter({ ...identity, target });
+    addGpuiAdapter({ ...confirmed, target });
     const content = JSON.parse(fs.readFileSync(path.join(target, 'package.json'), 'utf8'));
     assert.equal(content.name, 'user-owned');
     assert.equal(content.private, false);
@@ -175,7 +202,7 @@ test('package_conflicts_fail_before_any_adapter_write', () => {
       fs.writeFileSync(path.join(target, 'package.json'), bytes);
       const cargo = fs.readFileSync(path.join(target, 'Cargo.toml'));
       const core = fs.readFileSync(path.join(target, 'existing_tool_core/src/lib.rs'));
-      assert.throws(() => addGpuiAdapter({ ...identity, target }), /conflicting package\.json/);
+      assert.throws(() => addGpuiAdapter({ ...confirmed, target }), /conflicting package\.json/);
       assert.equal(fs.readFileSync(path.join(target, 'package.json'), 'utf8'), bytes);
       assert.deepEqual(fs.readFileSync(path.join(target, 'Cargo.toml')), cargo);
       assert.deepEqual(fs.readFileSync(path.join(target, 'existing_tool_core/src/lib.rs')), core);
@@ -193,7 +220,7 @@ test('package_symlink_fails_without_writing_adapter_or_link_target', () => {
     fs.writeFileSync(outside, '{}');
     try {
       fs.symlinkSync(outside, path.join(target, 'package.json'), 'file');
-      assert.throws(() => addGpuiAdapter({ ...identity, target }), /symbolic links/);
+      assert.throws(() => addGpuiAdapter({ ...confirmed, target }), /symbolic links/);
       assert.equal(fs.readFileSync(outside, 'utf8'), '{}');
       assert.equal(fs.existsSync(path.join(target, 'existing_tool_gui')), false);
     } finally { fs.rmSync(outside, { force: true }); }

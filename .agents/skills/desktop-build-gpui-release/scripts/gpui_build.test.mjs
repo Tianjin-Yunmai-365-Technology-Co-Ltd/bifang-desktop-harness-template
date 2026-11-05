@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { assertNodeRuntime, commandRunner, executeBuild, runWorkspaceTests, setupPackager } from './build_gpui_release.mjs';
 import { renderDefaultConfig, projectFacts, readConfig } from './gpui_config.mjs';
 import { relativePath, safePath, sha256, isolateRelease, publishDirectory } from './gpui_filesystem.mjs';
-import { candidateSelection, containsBytes, renderReleaseNotesRust } from './gpui_evidence.mjs';
+import { candidateSelection, containsBytes, renderReleaseNotesRust, aboutPageEnabled } from './gpui_evidence.mjs';
 import { packagerConfig, signingChoice, finalizeSigning, verifyResources, verifyNsis } from './gpui_packager.mjs';
 import { encodePng, decodePng, renderPlatformIcons, renderDmgBackground } from './gpui_icons.mjs';
 import { collectResources, assertResourcesStable } from './gpui_resources.mjs';
@@ -548,4 +548,32 @@ test('settings release-notes UI embeds and verifies logs with the about page dis
   const f=fixture(t);
   fs.writeFileSync(path.join(f.root,'packaging/gpui.json'),JSON.stringify({...f.config,releaseNotesUi:'true'}));
   assert.throws(()=>readConfig(f.root),/must be a boolean/);
+});
+
+/** 日志嵌入选择严格消费唯一闭合 profile，不把歧义或伪围栏当成关于页关闭。 */
+test('about_page_profile_rejects_ambiguous_fields_and_fences', t => {
+  const f = fixture(t), profile = path.join(f.root,'docs/GUI_APP_PROFILE.md');
+  const source = fs.readFileSync(profile,'utf8').replace('about_page: enabled','about_page: disabled');
+  const mutations = [
+    input => input.replace('about_page: disabled','about_page: disabled\n  about_page : enabled'),
+    input => input + input.replace('gui-initialization-config\n','gui-initialization-config \n'),
+    input => input.replace('```gui-initialization-config','example ```gui-initialization-config'),
+    input => input.replace('about_page: disabled\n',''),
+    input => input.replace('about_page: disabled','about_page: pending'),
+    input => input.slice(0,input.lastIndexOf('```')),
+  ];
+  for (const mutate of mutations) {
+    fs.writeFileSync(profile,mutate(source));
+    assert.throws(() => aboutPageEnabled(f.root),/GUI profile/u);
+  }
+});
+
+/** 合法启用、禁用与跨平台换行保持同一布尔语义，关闭不隐式嵌入日志 UI。 */
+test('about_page_profile_preserves_explicit_enabled_and_disabled_choices', t => {
+  const f = fixture(t), profile = path.join(f.root,'docs/GUI_APP_PROFILE.md');
+  const source = fs.readFileSync(profile,'utf8');
+  for (const choice of ['enabled','disabled']) for (const newline of ['\n','\r\n']) {
+    fs.writeFileSync(profile,source.replace('about_page: enabled',`about_page: ${choice}`).replaceAll('\n',newline));
+    assert.equal(aboutPageEnabled(f.root),choice === 'enabled');
+  }
 });

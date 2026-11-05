@@ -28,10 +28,11 @@ export function releaseNotes(root, version) {
 /** 关于页禁用时不要求日志 UI 或二进制嵌入，但包内独立日志资源仍核对。 */
 export function aboutPageEnabled(root) {
   const source = fs.readFileSync(safePath(root,'docs/GUI_APP_PROFILE.md',{ type: 'file' }),'utf8');
-  const blocks = [...source.matchAll(/```gui-initialization-config\r?\n([\s\S]*?)```/gu)];
-  if (blocks.length !== 1) throw new Error('GUI profile requires one initialization configuration block');
-  const fields = [...blocks[0][1].matchAll(/^about_page:[ \t]*(enabled|disabled)[ \t]*\r?$/gmu)];
-  if (fields.length !== 1 || [...blocks[0][1].matchAll(/^about_page:/gmu)].length !== 1) throw new Error('GUI profile requires one explicit about_page choice');
+  const headers = [...source.matchAll(/^```gui-initialization-config[ \t]*\r?$/gmu)];
+  const blocks = [...source.matchAll(/^```gui-initialization-config[ \t]*\r?\n([\s\S]*?)^```[ \t]*\r?$/gmu)];
+  if (headers.length !== 1 || blocks.length !== 1 || blocks[0][1].includes('```')) throw new Error('GUI profile requires one closed initialization configuration block');
+  const fields = [...blocks[0][1].matchAll(/^[ \t]*about_page[ \t]*:[ \t]*(.*?)[ \t]*\r?$/gmu)];
+  if (fields.length !== 1 || !['enabled','disabled'].includes(fields[0][1])) throw new Error('GUI profile requires one explicit about_page choice');
   return fields[0][1] === 'enabled';
 }
 

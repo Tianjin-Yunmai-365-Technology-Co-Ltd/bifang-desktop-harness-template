@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertRealPath, normalizeOptions, renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
+import { assertRealPath, normalizeConfirmedOptions, renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
 import { renderGpuiPackageJson } from './gpui_node_tooling.mjs';
 import { packageSnapshot, assertPackageSnapshot } from './merge_gpui_node_tooling.mjs';
 import { nativeDependencies } from './gpui_native_capabilities.mjs';
@@ -61,7 +61,7 @@ export function addGpuiAdapter(input) {
   if (typeof input.target !== 'string' || !path.isAbsolute(input.target)) throw new Error('target must be an existing absolute workspace path');
   const target = path.normalize(input.target);
   assertRealPath(target);
-  const options = normalizeOptions(input);
+  const options = normalizeConfirmedOptions(input);
   const cargoPath = path.join(target, 'Cargo.toml');
   const corePath = path.join(target, `${options.projectId}_core`, 'Cargo.toml');
   assertRealPath(cargoPath);

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { renderDefaultConfig } from '../../desktop-build-gpui-release/scripts/gpui_config.mjs';
 import { renderPlatformIcons, renderDmgBackground } from '../../desktop-build-gpui-release/scripts/gpui_icons.mjs';
 import { renderGpuiPackageJson } from './gpui_node_tooling.mjs';
-import { normalizeCapabilities, nativeTemplate, nativeMemberDependencies, renderNativeProfile, trayPixels } from './gpui_native_capabilities.mjs';
+import { capabilityKeys, normalizeCapabilities, nativeTemplate, nativeMemberDependencies, renderNativeProfile, trayPixels } from './gpui_native_capabilities.mjs';
 import { parseGpuiInitializationProfile } from './gpui_profile.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -44,7 +44,21 @@ export function assertRealPath(value, allowMissing = false) {
   }
 }
 
-/** 输入严格绑定双语身份、九字段与条件原生能力平台边界。 */
+/** 实际写入只接收表单已物化的选择；不可用深链接仍可按固定边界派生关闭。 */
+export function normalizeConfirmedOptions(options) {
+  if (!Object.hasOwn(options, 'targetPlatforms')) throw new Error('targetPlatforms must be explicitly provided after confirmation');
+  for (const key of [...capabilityKeys, 'aboutPage', 'sponsorPage']) {
+    if (!Object.hasOwn(options, key) || !['enabled', 'disabled'].includes(options[key])) {
+      throw new Error(`${key} must be explicitly enabled or disabled after confirmation`);
+    }
+  }
+  if (!Object.hasOwn(options, 'sidebarMode') || !['compact', 'detailed'].includes(options.sidebarMode)) {
+    throw new Error('sidebarMode must be explicitly compact or detailed after confirmation');
+  }
+  return normalizeOptions(options);
+}
+
+/** 纯渲染保留中性测试默认值，并校验双语身份与能力平台边界。 */
 export function normalizeOptions(options) {
   const result = { aboutPage: 'enabled', sponsorPage: 'enabled', sidebarMode: 'detailed', targetPlatforms: ['macos'], ...options };
   if (!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(result.projectId ?? '') || result.projectId.length > 64) {

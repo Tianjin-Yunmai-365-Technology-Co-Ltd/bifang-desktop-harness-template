@@ -21,8 +21,8 @@
 | Tauri 2 + React + Mantine GUI | [Tauri GUI 通用设计标准](tauri_gui.md) | `tauri-gui-common-v1` |
 | `gui-framework = "gpui"` + 原生 GPUI/gpui-kit GUI | [GPUI GUI 设计标准](gpui_gui.md)；托盘/通知/自启/单实例/热键的实现与平台限制另见 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md`，依赖选型见 `references/dependency-baseline.md` | `gpui-gui-common-v1` |
 | React 19.2+ + TypeScript + Mantine UI 9.x + 重复记录检索/浏览/管理 | [Mantine 列表页设计标准](mantine_list_view.md) | `mantine-list-view-v2` |
-| 上述 GUI + 固定左侧栏 + `sidebar_mode = compact` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#精简模式) | `tauri-gui-sidebar-compact-80-v1` |
-| 上述 GUI + 固定左侧栏 + `sidebar_mode = detailed` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#详细模式) | `tauri-gui-sidebar-detailed-v1` |
+| Tauri 2 + React + Mantine GUI + 固定左侧栏 + `sidebar_mode = compact` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#精简模式) | `tauri-gui-sidebar-compact-80-v1` |
+| Tauri 2 + React + Mantine GUI + 固定左侧栏 + `sidebar_mode = detailed` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#详细模式) | `tauri-gui-sidebar-detailed-v1` |
 
 所有界面先遵守共用基座；专项文档只映射相容的框架机制、组件行为和状态合同。Token 语义由基座定义，各应用的实际值只在中央主题 Token 模块维护，专项文档不再并列规定颜色、字号、圆角或展示尺寸。
 

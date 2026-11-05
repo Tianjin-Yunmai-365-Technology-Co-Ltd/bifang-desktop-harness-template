@@ -80,7 +80,7 @@ Windows 环境门禁的自动安装若因管理员权限、UAC、组织策略或
 - Rust、前端、其他人工维护文本的日常/初始化门禁只分别强制 800、1000、2000 行硬上限；400、500、500 行起的建议候选只在当次发布启用语义审查时集中列出并复核高内聚、职责单一和职责相近性。硬上限独立于 core-first 语义判断，不能以 ADR、职责集中或测试夹具为由放宽。Rust 多文件模块使用 `<module>/mod.rs` 目录结构，不得以同级文件加同名目录或空壳转发规避；前端按功能职责拆分且不强制 `index.ts` 桶文件。
 - 适配器只拒绝无法解析、缺少协议必填字段或违反宿主能力约束的输入；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行以及影响业务结果的默认值由 core 判定并返回稳定领域错误。
 - 每个适配器公开真实操作时必须记录“适配器操作 → core API → core 测试”；单实例、系统托盘等 adapter-only 机制必须记录其接口/宿主专属性，并把业务效果委托 core。中性单实例回调只恢复窗口，不产生业务效果。
-- CLI、TUI 和 MCP 适配器默认使用 Tokio current-thread 异步入口；GUI 复用 Tauri 由 Tokio 支撑的异步运行时。所有 Rust 适配器工作优先采用异步 I/O 和等待。只有经过测量的 CPU 密集工作才可以进入有边界的线程边界；仅提供阻塞接口的依赖必须被替换，或通过范围与硬规则例外流程获得批准。除非已批准的领域需求另有要求，核心必须保持运行时中立。
+- CLI、TUI 和 MCP 适配器默认使用 Tokio current-thread 异步入口；Tauri GUI 复用其 Tokio 异步运行时，GPUI GUI 使用原生事件循环与任务/executor。所有 Rust 适配器工作优先采用异步 I/O 和等待。只有经过测量的 CPU 密集工作才可以进入有边界的线程边界；仅提供阻塞接口的依赖必须被替换，或通过范围与硬规则例外流程获得批准。除非已批准的领域需求另有要求，核心必须保持运行时中立。
 - 已选 TUI 或 GUI 适配器即使处于 `Draft` 状态也必须应用固定技术栈；替换技术栈需要记录硬规则例外。
 - Rust 能力按 `docs/RUST_CLI_TEMPLATE.md` 的事实标准选择：Tokio、Axum + Tower/Tower HTTP、Clap、SeaORM、config-rs、tracing + tracing-subscriber + tracing-appender、anyhow、thiserror、serde、jiff；OpenTelemetry 与协议/存储/认证候选只在对应能力获批后采用。只把当前已选接口或已批准真实能力需要的依赖加入根 `[workspace.dependencies]`；不得为中性状态预装未使用的 HTTP、ORM、配置、错误或可观测性依赖，偏离固定技术必须记录硬规则例外。
 - 只有选择 CLI 时，CLI 才遵守 `docs/CLI_CONTRACT.md`。

@@ -194,8 +194,9 @@ Harness 根目录没有具体产品，因此下游产物、manifest、签名、�
 - [ ] README 包含真实的用途、使用方式、维护状态和反馈入口。
 - [ ] 发布物来自目标源码提交，且其 SHA-256 已记录。
 - [ ] 每个平台归档、相邻 SHA-256 和清单一致，必需平台/架构恰好出现一次。
-- [ ] GUI 正式构建使用发布专用 `--config`，构建后资源与根更新日志逐字节一致；macOS 最终 DMG 内唯一 `.app/Contents/Resources/release-notes.json` 已重新比较。含 GUI 且 `about_page = enabled` 时，关于页存在元素自身绑定的“更新日志”按钮，能够经固定资源命令查看最近 10 版 schema v2 双语日志，中文/英文 locale 分别显示对应标题与正文、未知语言回退英文，加载失败可重试，且点击父容器不会代理日志按钮动作；`about_page = disabled` 时页面、入口、命令、加载器与弹窗缺席。
-- [ ] 项目根 `release/` 已由 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 在构建前安全刷新，并在本机构建或 `$desktop-collect-release-artifacts` 取回后只包含当前版本、源码提交和明确的构建批次候选；目录内容与清单精确一致且无历史文件。
+- [ ] Tauri GUI 正式构建使用发布专用 `--config`，构建后资源与根更新日志逐字节一致；macOS 最终 DMG 内唯一 `.app/Contents/Resources/release-notes.json` 已重新比较。含 GUI 且 `about_page = enabled` 时，关于页存在元素自身绑定的“更新日志”按钮，能够经固定资源命令查看最近 10 版 schema v2 双语日志，中文/英文 locale 分别显示对应标题与正文、未知语言回退英文，加载失败可重试，且点击父容器不会代理日志按钮动作；`about_page = disabled` 时页面、入口、命令、加载器与弹窗缺席。
+- [ ] GPUI 正式候选由 `$desktop-build-gpui-release` 的 `candidate` 模式生成，按目标平台合同从最终包真实解包核对二进制、显式映射资源、双语许可证和同字节发布日志；关于页启用或明确选择日志 UI 时，同时核对编译期注入的日志。GPUI 不执行 Tauri `--config`、前端测试或 WebView IPC 检查；签名能力不支持当前请求时在测试前阻断，不能降级为 unsigned 成功。
+- [ ] 项目根 `release/` 已由适用的 `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release` 按各自合同安全准备并原子提交候选，或由 `$desktop-collect-release-artifacts` 取回；它只包含当前版本、源码提交和明确构建批次的候选，目录内容与清单精确一致且无历史文件。
 - [ ] 每个平台清单的 `signingStatus` 与证据真实；macOS 同时记录签名选择和来源，`disabled/not-requested` 未运行可用性探测并显式 unsigned，只有 `configured`、`requested` 或 `channel-required` 才允许启用；已签名候选同时具有 `notarizationStatus: notarized-and-stapled` 和可复核证据。若 `system_notification = enabled`，本项同时拒绝 `disabled/not-requested` 或实际 unsigned，且不能由 E2E 关闭绕过。验收后若签名、公证、stapling 或重打包改变字节则已重新验收。
 - [ ] macOS 多个签名启用来源同时存在时按 `channel-required > requested > configured > not-requested` 记录唯一 `macosSigningSource`；`disabled/not-requested` 的 `notarizationEvidence` 与探测派生签名证据缺席，通用 `signingEvidence` 只记录选择、来源、unsigned 结论和风险。
 - [ ] macOS DMG 的最终签名/公证/stapled 字节已通过只读 Finder 布局检查；`.DS_Store`、本地背景、唯一 `.app` 与 `/Applications` 拖拽目标均真实存在，任何布局补写或重打包后已重做签名、公证、摘要和验收。
@@ -207,7 +208,7 @@ Harness 根目录没有具体产品，因此下游产物、manifest、签名、�
 
 Rust 下游项目默认使用 `docs/RUST_CLI_TEMPLATE.md` 中记录的工作区命令和候选产物布局；只有真实文件和命令存在后才能写入候选证据。Git 发布事实由默认主分支和 tag 验证，候选构建/验收事实由忽略的 `release/` 验证，渠道分发与回顾审计各按独立事件写入适用 tracked 记录。候选矩阵生成不等于渠道分发；构建请求不授权创建凭据、GitHub Release、软件包仓库发布或上传。
 
-GUI 的本地生产构建和产物存在检查可在批准渠道允许时使用显式 `unsigned` 候选；完整验收执行启动冒烟时必须准确记录该状态。macOS 直接分发默认不签名、不公证并且不探测本机可用条件；只有已批准持久配置、本次用户主动要求或渠道硬要求时，才启用 Developer ID 签名、公证和 stapling，并且三者必须作为不可降级的完整阶段完成。App Store、Microsoft Store、要求避免 Windows SmartScreen 警告的下载渠道或 Tauri 更新器仍按各自真实渠道要求完成签名/公证/更新签名前不得宣布渠道发布就绪。Linux 普通部署不因缺少签名自动失败，除非项目批准的渠道另有要求。
+GUI 的本地生产构建和产物存在检查可在批准渠道允许时使用显式 `unsigned` 候选；完整验收执行启动冒烟时必须准确记录该状态。macOS 直接分发默认不签名、不公证并且不探测本机可用条件；只有已批准持久配置、本次用户主动要求或渠道硬要求时，才启用 Developer ID 签名、公证和 stapling，并且三者必须作为不可降级的完整阶段完成。App Store、Microsoft Store 或要求避免 Windows SmartScreen 警告的下载渠道，仍按各自真实渠道要求完成签名/公证后才能宣布渠道发布就绪。Linux 普通部署不因缺少签名自动失败，除非项目批准的渠道另有要求。
 
 ## 发布记录模板
 
