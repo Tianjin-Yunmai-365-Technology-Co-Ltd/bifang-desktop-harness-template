@@ -105,7 +105,6 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "SeaORM",
       "config-rs",
       "tracing + tracing-subscriber + tracing-appender",
-      "OpenTelemetry",
       "anyhow",
       "thiserror",
       "serde",

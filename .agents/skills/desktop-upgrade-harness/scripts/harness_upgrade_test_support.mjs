@@ -60,7 +60,9 @@ export class HarnessUpgradeFixture {
   }
 
   sharedArguments(lock = this.lock) {
-    return ["--source-root", this.source, "--source-version", this.sourceVersion, "--source-commit", this.sourceCommit, "--candidate-root", this.candidate, "--target-root", this.target, "--ownership", this.ownership, "--lock", lock];
+    const args = ["--source-root", this.source, "--source-version", this.sourceVersion, "--source-commit", this.sourceCommit, "--candidate-root", this.candidate, "--target-root", this.target, "--ownership", this.ownership, "--lock", lock];
+    if (this.retirementRequest) args.push("--retirement-cleanup", this.retirementRequest);
+    return args;
   }
 
   createPlan(expected = 0, name = "plan") {

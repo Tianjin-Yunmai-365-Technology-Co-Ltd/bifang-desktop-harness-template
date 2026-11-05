@@ -56,6 +56,8 @@ export function recordLock(args) {
   assertPlanStillCurrent(plan);
   loadOwnership(plan.ownership_path);
   const existingLock = loadLock(plan.lock_path);
+  if ((plan.retirement_targets.length && plan.retirement_cleanup.selection !== "preserve")
+    || plan.actions.some(item => ["cleanup_selection_required", "cleanup_required", "retired_candidate"].includes(item.classification))) throw new UpgradeError("退役能力清理尚未完成用户选择或精确路径删除，不能记录升级完成");
   const manualPaths = new Set(plan.actions.filter((item) => item.classification === "manual_merge").map((item) => item.path));
   const resolvedManual = new Set((args.resolvedManual ?? []).map(safeRelativePath));
   if (manualPaths.size !== resolvedManual.size || [...manualPaths].some((item) => !resolvedManual.has(item))) throw new UpgradeError(`record 要求 --resolved-manual 精确列出已复核混合所有权操作的路径：预期=${JSON.stringify([...manualPaths].sort())}，实际=${JSON.stringify([...resolvedManual].sort())}`);
@@ -85,6 +87,9 @@ export function recordLock(args) {
     else entries[item.path] = { mode: item.mode, candidate: item.candidate, target: item.target };
   }
   const lock = { schema_version: SCHEMA_VERSION, recorded_at: new Date().toISOString().replace("Z", "+00:00"), harness_source: { version: plan.source_version, commit: plan.source_commit }, entries };
+  if (plan.retirement_cleanup.selection !== null) lock.retirement_cleanup = plan.retirement_cleanup.source === "remembered"
+    ? existingLock.retirement_cleanup
+    : { scope: plan.retirement_cleanup.scope, selection: plan.retirement_cleanup.selection, confirmed_at: lock.recorded_at };
   assertPlanStillCurrent(plan);
   writeLockAtomic(target, plan.lock_path, lock, plan.lock_snapshot);
   return { recorded: plan.lock_path, entries: Object.keys(entries).length };

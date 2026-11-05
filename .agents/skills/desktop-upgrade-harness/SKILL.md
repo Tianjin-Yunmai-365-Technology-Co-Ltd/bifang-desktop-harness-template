@@ -22,6 +22,8 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
    本 Skill 的 helper 要求当前宿主具备 Node.js >= 24.0.0；缺失或版本不足时失败关闭，不得改用其他运行时。所有操作命令均使用 `node` 且保持单行，不依赖 POSIX `\` 续行符、PowerShell 反引号或 shell 变量。
 6. 生成只读计划：
 
+   更新、统计及 Updater 的退役工程清理按 [清理选择与记忆](references/retirement-cleanup.md) 执行。旧来源锁没有 `retirement_cleanup` 且计划 `retirement_targets` 非空时（含 `cleanup_selection_required` 文件或空目录），先展示精确路径并询问用户清理或保留；普通升级授权不代表已选择清理。收到明确答复后，在下列 `plan` 命令末尾追加 `--retirement-cleanup remove` 或 `--retirement-cleanup preserve`，同次升级的重算继续复用该参数。已记录的选择自动复用，不反复询问；用户主动更改或出现新清理范围时再确认。没有残留时不为此空问。
+
    macOS、Linux 与 Windows PowerShell 均在替换路径占位符后直接执行：
 
    ```text
@@ -30,6 +32,8 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 
    输出路径必须不存在，并且必须位于两棵目录树之外。省略 `--output` 时只打印 JSON，不写入文件。
 7. 复核每一种分类。只有现有 `managed` 或 `managed-self` 文件的内容与普通权限模式仍然匹配基线时，其 `update` 才可自动应用。`ownership_repairs` 非空时按计划中的 `managed-self` 清单动作修复，普通 `managed` 更新仍须先完成；清单有本地改动时按三方分类审查，不覆盖。`add`、`manual_add` 和 `delete` 需要显式人工文件操作，然后重新生成计划；更新器绝不会创建或删除项目文件。`preserve_local` 必须继续锚定旧目标基线，使后续上游变更成为冲突，而不是覆盖本地决定。`manual_merge` 需要按章节合并。`conflict`、`collision`、所有权模式漂移、候选中存在受保护或墓碑路径、路径越界、特殊权限位、特殊文件、目录联接点或相关符号链接都会阻断完成。
+
+   `cleanup_required` 是用户已选清理后仍存在的退役工程文件，不能用 `--resolved-manual` 当作完成；Agent 复核具体字节及本地定制后，按批准的精确清单逐项删除并重新计划，不能递归匹配产品目录。无法安全区分定制职责时先保留现场并确认，不把已有偏好扩张为新范围。`preserve_retired` 表示用户已选保留，报告保留项而不恢复上游能力。`retired_candidate` 始终阻断，须从候选移除。
 8. 锁文件不存在时，执行初始基线审计。字节与权限模式一致的受管理重叠项显示 `converged`；存在差异的受管理重叠项与混合所有权文件须人工复核，不得推断共同祖先。使存在差异的受管理项完全收敛，显式解决混合路径，生成新的已复核计划，然后建立第一份基线：
 
    ```text
@@ -48,6 +52,8 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 11. 代码行为变化只运行本次升级实际影响的非空单元/回归测试；纯文档或元数据升级只运行其必要替代验证。不得因 Harness 升级自动追加全仓格式、lint、静态、文件行数、中文注释、依赖图、独立构建、冒烟、E2E 或完整验收；普通构建保持开发流程。用户明确要求 Git 发布时才进入 `$desktop-prepare-release`，在本地主分支合并并打 tag 后结束；发布后按已确认的 `post_release_action` 进入所选动作；升级操作本身不触发发布或该动作。升级不得在目标根运行 `check_no_python.mjs`，也不得将 Python 源码、依赖清单或运行步骤当作 Harness 升级阻断项；若旧下游受上游禁令约束，先在受审计划中移除该检查器及其测试，并逐节修正 `AGENTS.md`、`docs/ENGINEERING_RULES.md` 中旧禁令，保留目标已有脚本和产品事实。
 12. 重新运行 `plan`。解决每个阻断项和未应用的受管理操作，确认 `ownership_repairs` 为空；`record` 会严格复核目标清单的每条最低规则，不接受尚待修复的兼容缺项。只有目标包含已复核结果后，才能记录已验证基线：
 
+    `record` 同时在目标 `.harness/upstream-lock.json` 保存本项目的清理范围、选择和确认时间，后续升级从该记忆复用。旧 schema 2 锁继续兼容；发现残留而选择缺失、选择非法、退役候选或尚未删除的 `cleanup_required` 都拒绝完成，即使传入 `--resolved-manual` 也不能豁免。失败期间复用当前聊天内已确认的选择，不伪称偏好已经落盘。
+
     ```text
     node .agents/skills/desktop-upgrade-harness/scripts/harness_upgrade.mjs record --plan "<newly-reviewed-converged-plan.json>" --source-version "<harness-version>" --source-commit "<harness-source-commit>" --approval record-verified-baseline
     ```
@@ -60,7 +66,7 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 ## 安全边界
 
 - 默认执行 `plan`；绝不得仅因调用本 Skill 就写入。
-- 绝不得覆盖产品源代码、测试、Cargo 产品版本或依赖锁策略、`.gitignore`、项目 `Cargo.lock`/`pnpm-lock.yaml`、`.harness/version-state.json`、`.harness/release-context.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、common-dir 生命周期清单、敏感信息或未登记本地文件；传播 Git 生命周期或发布后动作 Skill 不授权执行它。第 15 步的用户确认只授权目标项目专用 Skill 写入该受保护偏好与真实 ADR，不授权升级器改写任何 protected 文件。第 14 步只是在工程层升级完成后转交版本 Skill 的显式人工迁移，不能由升级器调用、合并到 `apply|record` 或解释为对 protected 状态的例外。
+- 绝不得覆盖产品源代码、测试、Cargo 产品版本或依赖锁策略、`.gitignore`、项目 `Cargo.lock`/`pnpm-lock.yaml`、`.harness/version-state.json`、`.harness/release-context.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、common-dir 生命周期清单、敏感信息或未登记本地文件；精确退役清单中用户已选清理的工程资产仅按清理参考逐路径处理，不扩展到产品文件。传播 Git 生命周期或发布后动作 Skill 不授权执行它。第 15 步的用户确认只授权目标项目专用 Skill 写入该受保护偏好与真实 ADR，不授权升级器改写任何 protected 文件。第 14 步只是在工程层升级完成后转交版本 Skill 的显式人工迁移，不能由升级器调用、合并到 `apply|record` 或解释为对 protected 状态的例外。
 - 绝不得把 `Version.md`、`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、模板验证器文件、`docs/HARNESS_ENGINEERING.md` 或其他活动派生入口恢复到终端下游。
 - 绝不得自动应用 `merge-sections`、`conditional`、`protected`、未知或冲突路径。
 - 更新器绝不自动添加或删除项目文件。已复核的 `add`、`manual_add` 或 `delete` 必须按已批准的升级范围和精确路径清单人工执行，然后由新计划显示收敛，才能记录基线；已有活动 Todo 时同步相关项，不为这些文件操作另建持久计划。
@@ -70,3 +76,5 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 ## 完成要求
 
 报告源与目标身份、基线状态、试运行分类、已批准和已应用路径、保留的本地修改、冲突、本次测试或替代验证、锁文件更新、未验证平台和剩余风险。未显式请求时，构建与完整验收均为 `Not run`；仅有成功的试运行不代表升级完成。必须报告发布后动作的原值、最终值与 schema 4/5 强制检查结果；旧项目缺选时不得把工程层完成误报为完整升级。
+
+另报告退役清理选择是本次确认还是复用记忆、实际删除/保留项及偏好是否已记录。工程清理不代表已移除下游产品代码中的更新/统计能力；若发现产品实现或旧发布密钥门禁，应列明文件、依赖、配置和验证范围，单独取得目标项目明确授权，再走 `$desktop-implement-change`，不得改写真实发布历史、导出或删除凭据。

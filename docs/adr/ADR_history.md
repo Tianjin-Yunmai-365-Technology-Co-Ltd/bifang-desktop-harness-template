@@ -1,6 +1,6 @@
 # ADR 历史决定
 
-本文件只追加、不重写、不删除，是从当前最新 ADR 文件迁出的完整过期条目原文，需配合 Git 历史使用，不是下游可继承的项目记忆。
+本文件保存历史决定摘录，不是现行执行入口或下游可继承的项目记忆。2026-11-05 按负责人明确授权裁掉退役服务执行合同；原始编号、日期、版本和真实验证事实保留，其他内容仍按只追加规则维护。未经裁剪原文由 Git 提交 `3cd5f4d3d58f164837625d2231da79b8413f6dc8` 恢复，范围见 ADR-20261105-002。
 
 ## ADR-20260910-002：左侧 Git Task 环境成为独立可切换策略
 
@@ -31,7 +31,7 @@
 
 ## 2026-10-20 授权快照归档
 
-本段按 ADR-20261020-001 的一次性明确授权追加，包含仍含有效子句的原始快照；有效约束已在 [当前 ADR](README.md) 逐 ID 承接。原始快照从下一行标题起完整保留，不是旧默认值重新生效。源 SHA-256：`139965aad18e85f25cfc6c52b589e1ee63beef336fb10778b60b690eac99940b`。
+本段按 ADR-20261020-001 的一次性明确授权追加，包含仍含有效子句的原始快照；有效约束已在 [当前 ADR](README.md) 逐 ID 承接。下方现为已裁掉退役执行条款的历史摘录，不是旧默认值重新生效。原始归档源 SHA-256（不是当前摘录文件摘要）：`139965aad18e85f25cfc6c52b589e1ee63beef336fb10778b60b690eac99940b`。
 
 # 2026-10-10 ADR
 
@@ -83,7 +83,7 @@
 - 日期：2026-10-09；状态：Accepted。
 - 背景与确认：负责人批准按审计清单先完成文件操作、外部进程、用户 Task 和永久策略四个入口，再处理其余复用候选。
 - 变更标识与版本：`change_id = HARNESS-FEAT-REUSABLE-SKILL-EXTRACTION`；`required_version = 202610091532`，已在本次正式发布物化，日常维护不提前取号。
-- 决定：把文件与进程能力合同迁入独立 Skill，原路径只保留迁移指针；用户 Task 和永久能力策略由独立入口执行，Agent Policy 继续保存唯一权威规则。直接实施复用同一开发生命周期；保留知识不启用能力，不自动建 Task 或修改策略。五项能力字段共用既有策略锁、原子写入与确认校验，后置动作继续由原 Skill 管理。随后抽取依赖准入、core 边界审查、ADR、交接与只读日志预览；更新和遥测合同独立条件加载，GPUI 自启复用原生驱动，初始化 E2E 独立为基线后裁剪的入口。
+- 决定：把文件与进程能力合同迁入独立 Skill，原路径只保留迁移指针；用户 Task 和永久能力策略由独立入口执行，Agent Policy 继续保存唯一权威规则。直接实施复用同一开发生命周期；保留知识不启用能力，不自动建 Task 或修改策略。五项能力字段共用既有策略锁、原子写入与确认校验，后置动作继续由原 Skill 管理。随后抽取依赖准入、core 边界审查、ADR、交接与只读日志预览；GPUI 自启复用原生驱动，初始化 E2E 独立为基线后裁剪的入口。
 - 影响与理由：初始化和升级完整保留这些接口无关入口，允许按实际能力或治理事件精确加载；减少重复合同，避免拆分造成规则漂移、跳过写入前门禁或误启用可选能力。
 - 风险与验证：必需传播路径必须规范且唯一；queued Task 保持零实现，策略 helper 校验 schema、旧值、确认来源和时间并保护并发变更。运行相关隔离回归与 Harness 硬门禁，不以工程测试证明真实宿主 Task 晋升或下游产品验收。
 - 恢复与调整：后续提取沿用单一事实来源、明确触发、初始化裁剪和升级传播边界；共享 helper 保持兼容，只读日志 wrapper 只导入读取/渲染函数；GPUI 既有 GUI 采用逐处差集合并，不新增整包覆盖工具；只有真实消费者需要时再迁移实现，不把硬门禁改成可选检查。
@@ -94,7 +94,7 @@
 - 关联需求与背景：负责人要求参照示例工程，把托盘、通知、自启、单实例与全局快捷键加入 Harness，选完后询问并帮助配置；明确同意按能力加入项目本地 Rust 依赖，并将示例全部直接库列为 GPUI 初始化基础技术选型。
 - 变更标识与所需版本：`change_id = HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`；`required_version = 202610090050`，Harness 时间版本只在正式发布物化。
 - 决定：在既有 GPUI Skill 内维护自含条件模板、依赖基线和配置问询引用；五项按 profile 选择加入实现与依赖，禁用无残留。Kit 官方 API 提交通知，默认应用偏好关闭，不把返回值解释为权限/送达；自启 OS 状态为权威、只在用户操作注册当前用户登录项；单实例用文件锁和有界本地 IPC，仅恢复窗口；后台热键使用真正 global-hotkey，空合同零键位/零注册。参考代码只提取中性宿主机制，不复制业务、身份或资源。
-- 取代与影响：替代 ADR-20261008-002/003 的“五项原生能力 unavailable”子句；深链接和 updater/dialog 仍 unavailable。同步初始化表单、路由、设计标准和 renderer；目标含 Linux 时托盘/热键失败关闭。示例运行时、序列化、时间、数值、目录、资源与网络库全部列为选型标准，按用途声明最小 features，不能无条件安装未使用库；core 保持运行时中立。
+- 取代与影响：替代 ADR-20261008-002/003 的“五项原生能力 unavailable”子句；深链接和 dialog 仍 unavailable。同步初始化表单、路由、设计标准和 renderer；目标含 Linux 时托盘/热键失败关闭。示例运行时、序列化、时间、数值、目录、资源与网络库全部列为选型标准，按用途声明最小 features，不能无条件安装未使用库；core 保持运行时中立。
 - 问询边界：全部能力选择结束后必须询问配置协助，复用已有答复并跳过禁用项。Harness 源只处理中性选择和移交意愿；产品通知事件、额外菜单、动作与键位在终端下游根目录确认实施，不增加第十个 profile 字段。
 - 风险与验证：生成组合、依赖冲突零写入、禁用裁剪、偏好/通知提交、真实本地 IPC、回滚所有权及原生渲染事件通过相关回归；OS 横幅、登录项、托盘和实际热键按当前下游/宿主单独验证。Windows 自启限制 HKCU 并保护路径编码；Linux 热键上游不能可靠报告注册失败，暂不开放；第三方内部线程不冒充 Harness owned。当前工程维护不执行登录项或真实系统权限变更，不产生候选验收结论。
 - 恢复或调整标准：增加平台、权限查询/动作回执、热键绑定策略或额外库前，核对官方 API、依赖授权、清理所有权与真实宿主结果；同步唯一事实、条件生成与回归，保护下游产品代码和持久选择。
@@ -127,7 +127,7 @@
 - 变更标识与所需版本：`change_id = HARNESS-FEAT-GPUI-PACKAGING`；`required_version = 202610090050`。Harness 时间版本只在正式发布物化，本次不改变发布事实。
 - 决定：GPUI 与 Tauri 按 Cargo 框架事实分派；原生模板直接复用自含壳层、独立赞助布局，详细菜单左对齐，折叠按钮不占独立行。业务规则和用例全部优先共享 core，端侧仅装配调用、展示与宿主机制。端侧持有唯一 Tracing 订阅器与有界滚动本地日志 worker，正常退出刷新，不建立远程遥测或第二套 core 文件日志。
 - 交付决定：新增 `$desktop-build-gpui-release`，项目本地固定 cargo-packager 工具与配置支持原生 macOS app/DMG 和 Windows x64 NSIS，local/candidate 分开；候选消费既有发布上下文和同字节更新日志，按当次 E2E/签名选择保留 pending 原子证据，不套用 Tauri。初始化/升级仅传播到 GPUI，macOS/Windows GPUI 可选择 local_package，Linux-only 无 CLI 仍须提交远程。
-- 取代范围：ADR-20261008-002 中“没有 GPUI 候选打包 Skill、纯 GPUI 只能提交远程”子句由本条替代；下方合并为当前有效描述。能力范围现由 ADR-20261009-001 管理；updater/dialog unavailable、三候选身份和真实候选验收边界保持有效。
+- 取代范围：ADR-20261008-002 中“没有 GPUI 候选打包 Skill、纯 GPUI 只能提交远程”子句由本条替代；下方合并为当前有效描述。能力范围现由 ADR-20261009-001 管理；dialog unavailable、三候选身份和真实候选验收边界保持有效。
 - 影响与理由：固定可维护代码消除每次接入重新拼装产生的偏移；独立 Skill 隔离框架工具链，标准库 helper 不假设全局 cargo-packager。Tracing 沿用现有 Rust 技术族，由用户本次明确要求成为 GPUI 端侧固定诊断基线。
 - 风险与验证：生成/框架裁剪/发布后动作/升级、打包工具及资源校验使用相关回归；原生 Rust 视图与日志使用真实编译/非空测试和当前宿主观察。签名、公证、Windows 安装运行和 Linux 包只按真实执行报告，不把静态或替身测试当交付证据。
 - 恢复或调整标准：修改可支持平台、签名、固定布局或日志策略须同步唯一 Skill、设计标准、初始化/升级和对应真实验证；不得覆盖既有产品代码或持久策略。
@@ -139,7 +139,7 @@
 - 变更标识与版本：`change_id = HARNESS-FEAT-GPUI-DESKTOP`；所需 Harness 版本 `202610090050`，由本次正式发布取号物化；Git 发布事实仍由默认主分支与 tag 精确复核。
 - 决定：程序类型选择 GUI 后，先单独询问 `1. Tauri（默认）/ 2. GPUI`；未回答、留空、跳过或选择默认时取 Tauri，非法值重新询问。最终汇总仍须确认。根 Cargo metadata 在 GUI 路径持久保存 `gui-framework`；旧 GUI 缺失字段兼容 Tauri，非法或重复值失败关闭。九项 GUI profile 的字段和顺序不变。
 - 固定 GPUI 基线：以 gpui-kit、rust-i18n、sys-locale 建立 Rust 原生薄适配器，直接依赖共享 core；使用原生 Entity 状态、同步主线程事件循环、三态主题、系统语言探测、设备偏好、受限窗口恢复、条件关于/赞助页与精简/详细侧栏。参考项目仅用于结构和交互依据，身份和媒体由当前下游及已有受管品牌资产提供。禁止混装 Tauri/WebView/React/Mantine；Node.js/pnpm 工程工具按 ADR-20261008-004 对两种 GUI 共用；现有 Tauri 专属标准只约束 Tauri 路径。
-- 能力与交付边界：GPUI 五项原生扩展按 ADR-20261009-001 条件生成；深链接仍 unavailable/profile disabled。显式启用请求不能静默降级或用 stub 通过。updater/dialog 当前也未提供。未来可通过独立实现、回归与真实宿主验证增加能力。GPUI 候选打包现按 ADR-20261008-003 的独立 Skill 路由；macOS/Windows 可确认 local_package，Linux-only 无 CLI 仍须提交远程。初始化真实 debug 检查不能冒充签名、安装包或跨平台候选验收。
+- 能力与交付边界：GPUI 五项原生扩展按 ADR-20261009-001 条件生成；深链接仍 unavailable/profile disabled。显式启用请求不能静默降级或用 stub 通过。dialog 当前也未提供。未来可通过独立实现、回归与真实宿主验证增加能力。GPUI 候选打包现按 ADR-20261008-003 的独立 Skill 路由；macOS/Windows 可确认 local_package，Linux-only 无 CLI 仍须提交远程。初始化真实 debug 检查不能冒充签名、安装包或跨平台候选验收。
 - 影响与理由：同步问卷、初始化路由、独立 adapter/模板、环境 pnpm 条件、core-first 依赖边界、发布后动作校验和框架感知升级；升级保护 Cargo/profile 并检测计划后框架漂移。终端下游删除创建新项目的 wrapper/core 模板，保留只为已有共享核心增加 GUI 的工程能力。用户已明确允许本次验证工程使用中性图标，正式产品仍须走 Logo 三候选选择。
 - 验证与风险：以生成器参数/覆盖/符号链接/条件资产回归、框架与升级回归、真实 Cargo 测试和本机原生窗口操作验证。GPUI 原生可访问性、其他宿主及候选分发需按后续实际范围验证；不得从本机工程预览推断通过。缺失依赖、无法观察已选场景或关闭/偏好失败时，当前目标继续修复而非提前完成。
 - 恢复或调整标准：调整默认框架、固定技术栈、可用能力或打包路径时须同步事实源、条件裁剪、升级所有权与适用真实验证；不静默将既有 Tauri 项目迁移为 GPUI，也不覆盖产品代码和持久策略。
@@ -577,7 +577,7 @@
 - 意图决定：macOS 候选在任何发布提交、测试、可用性探测或 bundle 前先解析并锁定 `macosSigningSelection: enabled | disabled` 与唯一来源。只有渠道硬要求、本次用户主动要求或项目已有批准的持久签名公证配置时启用；其他情况固定 `disabled/not-requested`。多个来源按 `channel-required > requested > configured > not-requested` 归一化。本机恰好存在身份、工具、环境变量或 Keychain profile 只表示潜在可用性，绝不能改变选择；选择、来源及关闭原因/风险进入当前 `.harness/release-context.json` 的 `candidateSelections`，构建只读消费。
 - 关闭路径：默认及明确禁用直接使用 `--no-sign`，记录 `unsigned`、`notarizationStatus: not-run`、非空原因与剩余分发风险；不得运行签名/公证 probe，`notarizationEvidence` 和任何由身份、凭据、profile 探测派生的证据必须缺席。关闭不是失败，也不能冒充已验证分发。
 - 启用路径：只有启用后才检查 Apple 宿主、Developer ID Application、完整且单一的环境凭据或已授权 Keychain profile、`notarytool` 和 `stapler`。签名、公证、stapling 与验证仍全有或全无；任何条件缺失或执行失败都阻断，绝不得以 `--no-sign` 重试或静默降级，也不得输出“仅签名”中间候选。
-- 保留边界：Tauri updater archive/`.sig` 的更新制品签名是独立安全合同，不由安装包签名选择关闭；本决定不授权创建/索取凭据、修改 Keychain、接受 Apple 许可、上传、商店提交或正式发布。
+- 保留边界：本决定不授权创建/索取凭据、修改 Keychain、接受 Apple 许可、上传、商店提交或正式发布。
 - 通知运行前提：`mac-usernotifications` 要求应用 bundle 至少经过代码签名，而本发布合同不在 `disabled/not-requested` 分支暗中增加 ad-hoc 或第四种签名来源。因此 `system_notification = enabled` 与 unsigned 是不可验收组合，构建必须在测试/bundle 前停止并提示用户下一轮主动启用签名公证，或先经产品变更关闭通知；E2E `disabled` 不能绕过。此失败关闭不改变“默认不探测、不自行签名”的决定。
 - 理由：意图先行把隐私敏感探测和高成本公证限制在确实需要的发布中，同时保留启用后完整的分发真实性门禁；来源优先级让持久配置、本次请求和渠道要求不会产生歧义。
 - 风险与验证：unsigned DMG 可能触发 Gatekeeper 警告或不满足渠道规则，因此 manifest 与最终报告必须公开风险，渠道硬要求强制启用。专项回归必须拒绝默认探测、启用后 unsigned fallback、来源歧义和关闭路径残留证据，并锁定构建/收集/验收/发布准备一致性。
@@ -618,11 +618,11 @@
 - 日期：2026-09-02；状态：Accepted。
 - 关联需求：项目负责人要求为所有 GUI 增加固定 dialog WebView 基线，精确锁定 Rust/GUI/前端依赖、Builder 顺序与主窗口默认权限，同时明确禁止 wildcard、废弃 ask/confirm alias、deny 项和任何 filesystem 授权。
 - 变更标识与所需版本：`change_id = HARNESS-FEAT-GUI-DIALOG-DEFAULT-PERMISSIONS`；`required_version = 202608281139`。本决定不自动改变 `Version.md`。
-- 背景：ADR-20260901-003 已把 `os`（system-locale）、updater、window-state 固定为不进入 profile 的 Rust-only 基线，但尚未给需要从 WebView 调用原生 message/save/open 的 GUI 建立统一 dialog 依赖与 ACL。让下游自行选择 permission 容易出现 wildcard、废弃 alias、过宽 filesystem 权限或把插件 API 错误接入 Rust command handler；把 dialog 误称为第四项 Rust-only 基线又会掩盖它确实向 WebView 开放 ACL 的事实。
-- 固定依赖与注册决定：所有 GUI 无条件安装官方 dialog 插件，不增加初始化问询或 profile 字段。根 `[workspace.dependencies]` 精确声明 `tauri-plugin-dialog = "2.7.3"`，GUI member 精确声明 `tauri-plugin-dialog = { workspace = true }`，前端精确声明 `@tauri-apps/plugin-dialog = "^2.7.3"`。GUI adapter 的稳定 Builder 顺序固定为 `single-instance → deep-link → os → updater → window-state → dialog → notification → autostart → global-shortcut`；条件插件缺席时保持其余插件的相对顺序。dialog 使用官方 plugin API，不增加 Rust command，也不进入唯一 `invoke_handler`。
-- WebView 安全边界：只有主窗口 capability 对 dialog 的授权精确为 `dialog:default`，允许全部官方默认的 message、save、open 对话框类型；不得使用 permission wildcard、deprecated `ask`/`confirm` alias、额外 dialog permission 或任何 `dialog:deny-*` 项。主窗口和其他窗口均不获得 filesystem 权限；open/save 只返回用户在原生对话框中选择的路径，不授权读取、写入、创建、覆盖或删除对应文件。`os`、updater、window-state 继续保持 Rust-only，不安装相应前端包、不开放 WebView ACL，也不因 dialog 基线改变既有 IPC、零出站或安全恢复边界。
-- 影响范围：最新 Product Spec、GUI 初始化/adapter/初始化 E2E 与升级工程层、Rust/Tauri/React 基线、capability 模板、插件契约检查器、Harness validator、回归测试和当日 Changelog。九字段 GUI profile、条件能力选择、业务 core、真实 updater 配置、文件读写能力、签名、构建和发布授权不变。
-- 理由：固定官方依赖和注册顺序消除每个下游重复装配；只给主窗口一个官方审阅过的默认权限集合即可覆盖通用 message/save/open，同时让文件对话框选择与后续文件 I/O 授权保持分离。dialog 明确归类为固定 WebView 基线，保留三项 Rust-only 基线“无前端包、无 ACL”的安全语义。
+- 背景：ADR-20260901-003 已把 `os`（system-locale）、window-state 固定为不进入 profile 的 Rust-only 基线，但尚未给需要从 WebView 调用原生 message/save/open 的 GUI 建立统一 dialog 依赖与 ACL。让下游自行选择 permission 容易出现 wildcard、废弃 alias、过宽 filesystem 权限或把插件 API 错误接入 Rust command handler；把 dialog 误归为 Rust-only 基线又会掩盖它确实向 WebView 开放 ACL 的事实。
+- 固定依赖与注册决定：所有 GUI 无条件安装官方 dialog 插件，不增加初始化问询或 profile 字段。根 `[workspace.dependencies]` 精确声明 `tauri-plugin-dialog = "2.7.3"`，GUI member 精确声明 `tauri-plugin-dialog = { workspace = true }`，前端精确声明 `@tauri-apps/plugin-dialog = "^2.7.3"`。GUI adapter 的稳定 Builder 顺序固定为 `single-instance → deep-link → os → window-state → dialog → notification → autostart → global-shortcut`；条件插件缺席时保持其余插件的相对顺序。dialog 使用官方 plugin API，不增加 Rust command，也不进入唯一 `invoke_handler`。
+- WebView 安全边界：只有主窗口 capability 对 dialog 的授权精确为 `dialog:default`，允许全部官方默认的 message、save、open 对话框类型；不得使用 permission wildcard、deprecated `ask`/`confirm` alias、额外 dialog permission 或任何 `dialog:deny-*` 项。主窗口和其他窗口均不获得 filesystem 权限；open/save 只返回用户在原生对话框中选择的路径，不授权读取、写入、创建、覆盖或删除对应文件。`os`、window-state 继续保持 Rust-only，不安装相应前端包、不开放 WebView ACL，也不因 dialog 基线改变既有 IPC、零出站或安全恢复边界。
+- 影响范围：最新 Product Spec、GUI 初始化/adapter/初始化 E2E 与升级工程层、Rust/Tauri/React 基线、capability 模板、插件契约检查器、Harness validator、回归测试和当日 Changelog。九字段 GUI profile、条件能力选择、业务 core、文件读写能力、签名、构建和发布授权不变。
+- 理由：固定官方依赖和注册顺序消除每个下游重复装配；只给主窗口一个官方审阅过的默认权限集合即可覆盖通用 message/save/open，同时让文件对话框选择与后续文件 I/O 授权保持分离。dialog 明确归类为固定 WebView 基线，保留两项 Rust-only 基线“无前端包、无 ACL”的安全语义。
 - 风险：`dialog:default` 的上游内容或前端 `^2.7.3` 解析结果可能在兼容更新中变化，受损 WebView 也可能滥用原生对话框骚扰用户；open/save 返回的路径可能泄露用户选择的位置。通过 Rust 根版本事实、锁文件、主窗口精确 capability、无 wildcard/deny/filesystem 权限、CSP、依赖与 permission 契约回归降低风险；真实下游仍须观察 message/save/open 的打开、取消与路径返回，不得把静态 fixture 当作候选验收。
 - 验证：机械门禁必须同时证明三处依赖声明、Builder 相对顺序、dialog 不进入 `invoke_handler`、主窗口只有精确 `dialog:default`、全部官方默认 message/save/open 可达，以及 wildcard、ask/confirm alias、deny、额外 dialog permission 与所有 filesystem 权限均缺席；负向回归分别注入每类越权或错误接线并要求失败关闭。Harness 源只验证规则、Skills、模板与契约检查器，真实 GUI/Computer Use、初始化 E2E、构建、签名、公证和发布仍由适用下游执行。
 - 恢复或调整标准：若官方 dialog API、默认 permission 集、Tauri/WebView 兼容性或真实宿主证据变化，必须用新 ADR 记录经过审阅的版本、最小权限、迁移和真实验证后调整；若产品需要读取或写入用户所选文件，必须作为独立 filesystem/业务能力取得产品与安全批准，不能扩大本基线、改用 wildcard 或把文件 I/O 偷渡进 dialog command。
@@ -641,15 +641,15 @@
 - 风险与验证：允许零绑定可能被误解为能力缺失，或可编辑事务可能留下部分注册/陈旧文件。以唯一 machine-readable contract、空 contract 零注册正向回归、固定/可编辑 schema 负向回归、Pressed-only typed dispatch、逐项 `is_registered`、注册/持久化双回滚、录制 token 和 owned cleanup 门禁降低风险。中性初始化 E2E 证明零默认键位；只有明确安全非空动作才触发真实 chord，并在恢复原配置后确认释放。本轮 Harness 源只验证规则、Skills 和契约检查器，不把 fixture 当作真实 Tauri 候选。
 - 恢复或调整标准：只有真实产品需求可在自身 Product Spec/GUI profile 中增加固定或可编辑动作及初始 chord；不得恢复 Harness 通用默认。若官方插件或平台证据证明当前事务/录制模型不可维护，可用新 ADR 调整数据模型和回滚机制，但仍必须保持“无明确需求即零绑定”和 core-first typed dispatch。
 
-## ADR-20260901-003：GUI 官方插件按独立 Skill 管理，系统语言、更新器与窗口状态成为固定基线
+## ADR-20260901-003：GUI 官方插件按独立 Skill 管理（退役能力合同已清理）
 
 - 日期：2026-09-01；状态：Accepted；其中全局快捷键固定 chord/action 子决定已由 ADR-20260901-004 取代。
-- 关联需求：项目负责人要求把已调研的 Tauri v2 完善插件分别沉淀为独立能力 Skill，在选择 GUI 时询问可选能力，并把 updater、window-state 等基础能力设为无需额外询问的基线；同时验证和修复既有固化 GUI Skills。
+- 关联需求：项目负责人要求把已调研的 Tauri v2 完善插件分别沉淀为独立能力 Skill，在选择 GUI 时询问可选能力，并把 window-state 等基础能力设为无需额外询问的基线；同时验证和修复既有固化 GUI Skills。
 - 变更标识与所需版本：`change_id = HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES`；`required_version = 202608281139`。本决定不自动改变 `Version.md`。
-- 决定：所有 GUI 无条件调用 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`。三者不进入 `gui-initialization-config`，不单独询问，并统一采用 Rust-only 接线，不安装相应 JavaScript 包或向 WebView 开放默认 ACL。system-locale 以官方 OS plugin 的 `locale()` 为唯一系统探测源；updater 在缺少 endpoint、公钥、channel/target 产品事实时固定为 `NotConfigured` 且零出站；window-state 只持久化 `SIZE | POSITION | MAXIMIZED`，拒绝恢复隐藏、装饰、全屏或最小化状态，并为首次、损坏和越界状态保留 1440×900 居中、最小 960×640 的安全回退。
+- 决定：所有 GUI 无条件调用 `$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`。两者不进入 `gui-initialization-config`，不单独询问，并统一采用 Rust-only 接线，不安装相应 JavaScript 包或向 WebView 开放默认 ACL。system-locale 以官方 OS plugin 的 `locale()` 为唯一系统探测源；window-state 只持久化 `SIZE | POSITION | MAXIMIZED`，拒绝恢复隐藏、装饰、全屏或最小化状态，并为首次、损坏和越界状态保留 1440×900 居中、最小 960×640 的安全回退。
 - 可选能力：GUI 条件问询固定为系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键八项 `enabled|disabled`，再加侧栏 `compact|detailed`，按此顺序写入唯一九字段 profile。系统托盘、单实例、深链接、全局快捷键分别由新独立 Skill 拥有；通知与自启继续由既有独立 Skill 拥有。禁用时必须同时移除专属依赖、feature、插件注册、命令、ACL、UI/i18n 与测试场景。
 - 组合与真实行为：`deep_link = enabled` 强制要求 `single_instance = enabled`，single-instance 仍是首个 plugin 并启用官方 `deep-link` feature，deep-link 紧随其后。初始化期深链接只接受从已确认项目标识派生的 `app-<kebab-project-id>://restore`，只恢复并聚焦既有主窗口，且静态中性路线不预开运行时注册 API。原决定曾要求全局快捷键固定为 `CommandOrControl+Shift+Space` 并恢复窗口；该子决定现已由 ADR-20260901-004 取代，不再是活动契约。Pressed-only、安全最小权限、冲突可见与 owned 注销边界仍按新动作 contract 继续有效。
-- 注册与发布边界：GUI adapter 统一拥有稳定 plugin 顺序与唯一 command handler，能力 Skill 只拥有自身依赖、运行时、回归和禁用无残留契约。固定 updater 仅表示本地生命周期基线，不授权网络 endpoint、签名密钥或更新制品；正式构建仍由独立 `updaterEnabled` 产品事实决定是否生成并验证官方 archive 与 `.sig`。macOS 深链接的最终协议注册只接受已打包应用证据，debug no-bundle 不得冒充。
+- 注册与发布边界：GUI adapter 统一拥有稳定 plugin 顺序与唯一 command handler，能力 Skill 只拥有自身依赖、运行时、回归和禁用无残留契约。macOS 深链接的最终协议注册只接受已打包应用证据，debug no-bundle 不得冒充。
 - 取代范围：本决定把 ADR-20260831-005 与 ADR-20260827-001 所述七字段 GUI profile 扩为九字段；取代 ADR-20260806-001 中“中性初始化允许暂不接入 `tauri-plugin-os`”的 GUI 初始化时点，但保留其统一 locale、前端/原生语言状态和 core 语言无关边界；既有通知、自启、页面和侧栏语义继续有效。
 - 风险与验证：固定插件若被误解为默认联网或默认恢复隐藏状态，会引入隐私、启动与可找回性风险；深链接/单实例顺序错误会丢失热启动 URL，全局快捷键冲突可能让能力静默失效。以独立 Skill 契约、唯一九字段解析、依赖下界/注册顺序/Rust-only/零出站/无残留检查、非常量单元回归和真实初始化 E2E 失败关闭。本轮在 Harness 源只验证规则、Skill 和标准库校验器，不把中性 fixture 声称为真实 Tauri 候选。
 - 恢复或调整标准：只有官方插件 API、平台限制或真实下游证据证明当前基线不安全或不可维护时，才可用新 ADR 调整版本、顺序、持久化 flags、URL/chord 或是否固定；新增网络配置、前端 ACL、产品动作或协议载荷必须另获产品范围批准，不能由本基线推断。
@@ -833,11 +833,11 @@
 - 问询与事实源决定：用户选择 GUI 后，初始化器必须进入独立问询轮，逐项解析 `system_tray`、`about_page`、`sponsor_page`、`single_instance` 为 `enabled|disabled`，并提供 `sidebar_mode` 的 `compact|detailed` 选择。四项能力不得根据旧默认、推荐策略预设、页面数量或 Agent 偏好推断；用户省略、留空或跳过侧栏选择时，初始化器必须在写 profile 前确定性归一化为 `sidebar_mode = detailed`。明确选择 `compact` 或 `detailed` 时保持原值；显式非法值不是“未选择”，必须重新确认。归一化后的五项原子写入 `docs/GUI_APP_PROFILE.md` 唯一 `gui-initialization-config` 代码块，初始化基线提交前不得缺失或残留 `pending`；后续 GUI Skill 与检查器只消费完整 profile，不重复推断。
 - 托盘与关闭决定：`system_tray = enabled` 时，既有非透明应用图标、稳定双项菜单、运行时 i18n、关闭隐藏、托盘左键/显示项恢复和退出项结束应用的完整契约继续作为硬门禁。`disabled` 时不得启用 `tray-icon` feature、安装托盘、保留托盘菜单/locale 资源或注册关闭隐藏处理；改由 `.on_window_event(...)` 接入主窗口 `CloseRequested` 并显式调用 `AppHandle::exit(0)`，以 `close_last_window_exits_application` 与真实本机关闭场景锁定跨平台关闭退出。
 - 单实例决定：`single_instance = enabled` 时，官方 `tauri-plugin-single-instance` 首插件、只恢复既有主窗口的中性回调、两个固定命名回归和真实双启动唯一性继续作为硬门禁。`disabled` 时不得声明依赖、注册插件、保留回调或执行双启动场景。文件关联、深链和启动参数转发仍需以后独立批准并交给 core 判定业务语义。
-- 页面与资源决定：动态标题、`/settings`、语言与三态主题、亮暗语义主题是所有 GUI 的固定基线。`about_page`、`sponsor_page` 各自决定对应路由、导航入口、React 组件和运行时资源；禁用时不得保留隐藏路由、不可达组件或无入口媒体。选择关于页时保留检查更新、近五版更新日志、作者/联系人/免责声明及既有零出站边界；选择赞助页时完整 sponsor 媒体进入 bundle，禁用时这些媒体只保留在 Harness Skill 源资产而不进入下游运行时 bundle。
+- 页面与资源决定：动态标题、`/settings`、语言与三态主题、亮暗语义主题是所有 GUI 的固定基线。`about_page`、`sponsor_page` 各自决定对应路由、导航入口、React 组件和运行时资源；禁用时不得保留隐藏路由、不可达组件或无入口媒体。选择关于页时保留近五版本地更新日志、作者/联系人/免责声明及既有零出站边界；选择赞助页时完整 sponsor 媒体进入 bundle，禁用时这些媒体只保留在 Harness Skill 源资产而不进入下游运行时 bundle。
 - 侧栏决定（compact 像素/排版已由 ADR-20260827-003 取代）：`compact` 原固定为 `136px`、`56px` Logo、`30px` 图标与 `11px`/`10em` 名称；该旧密度不再具有当前效力。`detailed` 首次默认 `248px` 展开，使用 `72px` Logo 与图标+名称横排；拥有该动作的 ActionIcon 可收起为 `76px`，收起后使用 `44px` Logo、只显示图标并通过 Mantine Tooltip 显示名称。详细模式折叠偏好使用独立 local-storage 键跨重挂载和下次启动恢复，不进入页面会话 Jotai store；菜单仍具有完整可访问名称、选中态和焦点。
 - 导航决定：产品功能项从顶部向下增长，底部按“已选赞助、固定设置、已选关于”的视觉顺序生成。未选页面既不占空位也不保留不可达入口。两种侧栏均直接使用 `@tabler/icons-react` 命名组件，Logo、图标和文字沿同一中心线且无裁切。
 - 验证决定：`verify-gui-lifecycle-contract.mjs` 必须解析五项 profile，对启用能力验证原有完整结构与有断言命名回归，对禁用能力验证依赖、feature、插件、运行时、路由与资源缺席。`$desktop-test-gui-initialization-e2e` 仍在唯一基线提交前固定运行，但只在单实例启用时双启动、只在托盘启用时操作真实托盘；托盘禁用时实测关闭最后窗口退出。所有组合都验证所选侧栏、默认设置页、实际菜单页面可达和未选页面缺席。无法判定或观察某个适用场景仍失败关闭。
-- 取代范围：本决定取代 ADR-20260825-008 的“固定 `136px` 单态侧栏”、ADR-20260825-007 的“所有 GUI 强制单实例”、ADR-20260825-006 与 ADR-20260824-004 的“所有 GUI 强制托盘/关闭隐藏”、ADR-20260825-005 的无条件双启动/托盘 E2E、ADR-20260825-002 的默认收起侧栏、ADR-20260825-001 的统一可折叠侧栏与固定支持路由，以及 ADR-20260820-002/ADR-20260824-004 的赞助媒体默认进入全部 GUI bundle。上述 ADR 中关于能力启用后的实现质量、安全、i18n、品牌事实、更新/统计零出站、主题、图标、真实宿主证据和 core-first 的约束继续有效。
+- 取代范围：本决定取代 ADR-20260825-008 的“固定 `136px` 单态侧栏”、ADR-20260825-007 的“所有 GUI 强制单实例”、ADR-20260825-006 与 ADR-20260824-004 的“所有 GUI 强制托盘/关闭隐藏”、ADR-20260825-005 的无条件双启动/托盘 E2E、ADR-20260825-002 的默认收起侧栏、ADR-20260825-001 的统一可折叠侧栏与固定支持路由，以及 ADR-20260820-002/ADR-20260824-004 的赞助媒体默认进入全部 GUI bundle。上述 ADR 中关于能力启用后的实现质量、安全、i18n、品牌事实、主题、图标、真实宿主证据和 core-first 的约束继续有效。
 - 理由：托盘、单实例和支持页会改变进程生命周期、依赖、包体与信息架构，不应由 Harness 替所有产品静默决定，因此四项能力继续要求显式选择。侧栏未选择不应阻断中性初始化；详细模式保留可见名称，同时仍可折叠获得空间效率，适合作为确定性缺省值，精简模式继续供低菜单数量工具显式选择。启用分支的严格门禁和禁用分支的反向无残留校验保持不变，避免“可选”被误读为弱实现。
 - 风险与缓解：缺省规则若散落在多个消费者中可能造成行为漂移，显式非法输入若被误当作空值会掩盖配置错误；能力组合增多会扩大测试矩阵，localStorage 可能不可用或损坏，托盘禁用会改变用户习惯的退出语义。通过只在初始化器归一化、最终固定五字段 schema、非法值重新确认、组合静态检查、只执行适用真实场景、存储失败回到默认展开、独立 `aria-label`、关闭语义命名回归和禁用能力残留扫描降低风险。首次真实 GUI 下游的各组合仍保持 `Unverified`，不得以 Harness 模板测试冒充前向证据。
 - 验证：Harness 模板增加条件导航与两种侧栏回归；Node.js 生命周期检查器增加 profile 解析、托盘/单实例启用与禁用分支、缺失/非法配置及关闭语义负向测试；Python Harness validator 与初始化主契约测试同步锁定问询、profile、模板、文档和 Skill。当前 Harness 不包含已实例化下游 GUI，因此本轮不运行真实 Tauri 组合 E2E；首次下游初始化仍必须按 profile 完成真实门禁。
@@ -862,10 +862,10 @@
 
 - 日期：2026-08-26
 - 状态：Accepted
-- 关联需求：项目负责人要求页面交互事件绑定到元素自身，禁止通过父级点击切换表格内 `Switch`；关于页在“检查更新”旁增加可查看近 5 次内容的“更新日志”；每次发布前汇总上一次正式发布到当前版本的功能优化与问题修复并只保留近 5 版；所有用户可见版本号统一带 `v`。
+- 关联需求：项目负责人要求页面交互事件绑定到元素自身，禁止通过父级点击切换表格内 `Switch`；关于页增加可查看近 5 次内容的本地“更新日志”；每次发布前汇总上一次正式发布到当前版本的功能优化与问题修复并只保留近 5 版；所有用户可见版本号统一带 `v`。
 - 变更标识与所需版本：`change_id = HARNESS-FEAT-INTERACTION-RELEASE-NOTES-VERSION-DISPLAY`；`required_version = 202608051301`。该值是当前 Harness 未发布时间版本，本决定不自动改变 `Version.md`。
 - 事件归属决定：按钮、链接、`Switch`、`Checkbox` 和菜单项等语义控件自行绑定 handler；Card、`Table.Tr`、`Table.Td` 等父级不得代理子控件动作。父级确有独立动作时只能执行自身语义并隔离冲突传播；测试分别点击控件与周围父级区域，表格行或单元格点击不得切换行内 `Switch`。这项规则适用于所有页面，不只关于页示例。
-- 关于页决定：在 ADR-20260827-001 选择启用关于页时，“检查更新”与“更新日志”作为相邻但独立的 Button，各自拥有事件。更新区 Paper/Group 不注册这两个动作；`NotConfigured` 只禁用远程检查，本地更新日志仍可打开。弹窗按最新在前显示至多 5 版，每版功能优化与问题修复各至多 10 条。未选择关于页时不建立隐藏入口。
+- 关于页决定摘录：已选择的关于页提供独立拥有事件的本地“更新日志”按钮；父容器不代理动作。弹窗按最新在前显示至多 5 版，每版功能优化与问题修复各至多 10 条。未选择关于页时不建立隐藏入口。
 - 发布日志决定：根 `release-notes.json` 是候选包和 GUI 关于页共用的结构化发布日志事实。`$desktop-prepare-release` 在候选构建前从上一次真实正式发布版本及 40 位提交到当前发布源码筛选最重要的用户可见变化；首发从仓库起点计算，无法可靠确定边界时返回 `Not ready`。普通缺陷即使不触发项目 Changelog，也进入当前版本的“问题修复”。
 - 格式决定：每版两类合计至少一条，两类分别最多 10 条，空分类显示“无”；固定渲染标题为 `-----------更新日志 {发布日期} {发布版本}----------`，分类标题为 `###功能优化` 和 `###问题修复`。文件使用固定 schema、规范 ISO 日期、唯一版本、最新在前、最多 5 版、拒绝符号链接/非普通文件并通过同目录暂存原子替换。
 - 候选绑定决定：构建 Skill 在任何测试或编译前只读校验日志最新版与当前机器版本并计算 SHA-256，把根文件同一字节作为 `release-notes.json` 打入 CLI 归档或 GUI 应用资源；manifest 记录 `releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath`。构建、收集、验收和发布就绪复核不得生成、补写、重排或截断日志；候选形成后任何日志变化都要求新提交、新构建和重新验收。Harness 升级把该文件视为 `protected`。
@@ -917,10 +917,10 @@
 - 关联需求：项目负责人依据已初始化下游的截图反馈三项问题：系统托盘直接显示 `tray.show_window`/`tray.quit` 原始键；设置页默认出现不必要的隐私/使用情况统计区块；左侧菜单不应再展开，而应保持当前紧凑形态并改为较宽、较大图标、图标在上文字在下且文字居中，约预留十个汉字宽度。截图只用于说明初始化结果，不代表 Harness 自身界面。
 - 托盘 i18n 决定：`show_window` 与 `quit` 继续只作为稳定事件 ID，不得作为可见标签。托盘创建或更新路径必须直接通过 `rust_i18n::t!("tray.show_window")` 与 `rust_i18n::t!("tray.quit")` 消费当前规范化 locale；中文精确显示“显示窗口/退出”，英文精确显示“Show Window/Quit”，不支持的 locale 回退英文。设置页语言变化必须通知 Rust GUI adapter 并在不重启应用的情况下刷新已安装托盘菜单；任何 `tray.*` 原始键、混合语言或只有重启后才生效都阻断初始化。
 - 托盘门禁决定：在既有三个托盘生命周期回归上增加 `tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english`、`language_change_updates_tray_menu_labels` 三个固定命名且必须含真实断言的回归；与两个单实例回归合计八个固定命名回归。`verify-gui-lifecycle-contract.mjs` 必须检查托盘安装函数中两项 `rust-i18n` 解析、双语资源和新增回归，拒绝把稳定 ID/原始翻译键作为菜单标签。初始化 Computer Use E2E 必须从真实设置页依次切换中文与英文，在不重启应用时逐次打开真实托盘并核对上述精确标签和无原始 key，再继续验证关闭隐藏、恢复与退出生命周期。
-- 设置页决定：初始化固定设置页只展示当前应用/版本、中英文语言选择及浅色/深色/跟随系统三态主题。默认模板、props、翻译资源、回归和真实初始化界面都不得包含隐私标题、统计同意开关、未配置统计占位或对应固定翻译键。统计能力仍是可选的产品级出站能力；只有产品明确启用并记录产品、隐私与出站事实后，才能建立独立产品级明确同意界面，不能恢复初始化设置页中的固定隐私区块。
+- 设置页决定摘录：初始化固定设置页只展示当前应用/版本、中英文语言选择及浅色/深色/跟随系统三态主题，不预置隐私或统计控件。
 - 侧栏决定：初始化侧栏固定为 `136px` 宽的单一状态，不建立 `collapsed` 状态、Jotai 折叠 atom、展开/折叠按钮或 Tooltip-only 名称。顶部按 DOM 顺序显示 `56px` 选中 Logo 与权威当前版本；每个产品功能项和赞助/设置/关于固定项使用 `30px` Tabler 图标，固定图标在上、名称在下，名称使用 `11px` 字号、`10em` 行内宽度、水平居中和最多两行，并保留不截断的完整可访问名称。功能项仍从顶部向下增长，底部视觉顺序仍为赞助、设置、关于；主内容固定偏移 `136px`，1440×900 主窗口继续同时容纳侧栏和三张赞助档位卡。
-- 取代范围：本决定取代 ADR-20260825-001/-002/-004/-005 中关于默认可折叠/默认收起侧栏、折叠 Tooltip、展开 248px 宽度和初始化设置页统计同意的现行部分，并收紧 ADR-20260825-006/-007 的托盘资源门禁；单实例、托盘可见图标、关闭隐藏/恢复/退出、三态主题、关于页更新、赞助页和可选统计传输的安全边界继续有效。
-- 影响范围：最新 Product Spec、AGENTS/README、Agent Policy、工程规则、Rust/GUI/React/Mantine 基线、实例化/初始化/GUI adapter/GUI 支持/GUI 初始化 E2E Skills 及元数据、React 模板与双语资源、GUI 生命周期结构检查器及专项回归、Harness validator/治理回归和当日 Changelog。非 GUI 接口、业务 core、发布签名、最终候选 E2E 选择和可选统计传输协议不变。
+- 取代范围：本决定取代 ADR-20260825-001/-002/-004/-005 中关于默认可折叠/默认收起侧栏、折叠 Tooltip、展开 248px 宽度的现行部分，并收紧 ADR-20260825-006/-007 的托盘资源门禁；单实例、托盘可见图标、关闭隐藏/恢复/退出、三态主题、关于页本地日志及赞助页边界继续有效。
+- 影响范围：最新 Product Spec、AGENTS/README、Agent Policy、工程规则、Rust/GUI/React/Mantine 基线、实例化/初始化/GUI adapter/GUI 支持/GUI 初始化 E2E Skills 及元数据、React 模板与双语资源、GUI 生命周期结构检查器及专项回归、Harness validator/治理回归和当日 Changelog。非 GUI 接口、业务 core、发布签名、最终候选 E2E 选择不变。
 - 理由：原始翻译键可见说明“资源存在”不足以证明原生菜单实际解析并响应当前语言；运行时解析、断言回归和真实双语切换共同关闭该漏检路径。初始化设置页不应为默认禁用的可选出站能力占用空间或暗示产品正在采集数据。固定单态的图标上文字下导航减少无价值状态和交互，较宽侧栏与显式文字又比纯图标/Tooltip 更易识别，并保留足够的中文标签宽度。
 - 风险与缓解：`10em` 只是约十个当前字体字符的布局预算，不保证任意语言单行容纳，因此允许最多两行并保留完整 `aria-label`；真实窗口 E2E 继续检查裁切、中心线和可访问名称。运行时更新原生菜单需要 GUI adapter 持有菜单项或安全重建菜单，必须由应用生命周期拥有且不得重复增加菜单项。严格双语托盘检查会阻断无法观察系统托盘的宿主，这是既有有意失败语义。
 - 验证：Harness 侧模板/validator 回归锁定 `136px`、`56px`、`30px`、`11px`、`10em`、图标上文字下、无折叠控件和默认设置页无隐私/统计内容；Node.js 生命周期检查器专项回归锁定两项 `rust-i18n` 调用、新增三个有断言测试，并验证原始 key 与空断言回归都会失败。当前 Harness 不包含已实例化下游 GUI，因此本轮不构建或操作真实 Tauri 托盘；首次后续 GUI 初始化必须按更新后的 E2E 提供真实中英文刷新、固定侧栏和精简设置页前向证据，其他宿主保持 `Unverified`。
@@ -983,16 +983,16 @@
 - 日期：2026-08-25
 - 状态：Accepted
 - 关联需求：项目负责人要求把更新功能放回关于页；设置页增加深色、浅色、跟随系统；侧栏收起时显示图标并以 Tooltip 显示名称，展开时显示图标与名称；GUI 初始化直接提供包含背景色、文字色等语义的亮色/暗色两套主题。
-- 页面决定：`/settings` 继续展示当前应用名/版本、中文/英文、主题偏好和统计同意，不再承载手动更新。`/about` 在产品事实之后固定展示手动检查更新按钮和完整更新状态，再展示作者、联系方式与三段免责声明；未配置产品更新能力时按钮禁用并显示 `NotConfigured`，保持零出站。更新状态机、官方签名 updater、core SemVer 强更和根级强更门均不改变。
+- 页面决定摘录：`/settings` 展示当前应用名/版本、中文/英文与主题偏好；所选 `/about` 展示本地发布日志、作者、联系方式与三段免责声明。
 - 主题决定：GUI 初始化新增唯一 `AppThemeProviderTemplate`，Mantine 根继续以 `defaultColorScheme="auto"` 启动，使用带明确本地存储 key 的 color-scheme manager 持久化 `light`、`dark`、`auto` 三态偏好。两套主题分别定义页面背景、surface、主文字、次文字、边框和强调色；应用根表面、固定侧栏与 Sponsor 等页面消费这些语义，不得只改变一个页面或只改变文字。`auto` 使用运行时系统主题，不把初始化机器当时的主题固化进产物。该实现遵循 Mantine 官方的 [color schemes](https://mantine.dev/theming/color-schemes/)、[CSS variables resolver](https://mantine.dev/styles/css-variables/) 与 [MantineProvider](https://mantine.dev/theming/mantine-provider/) 契约（核对日期：2026-08-25）。
 - 导航决定：产品功能项及赞助、设置、关于三个固定项的图标全部改为必填。折叠侧栏只隐藏可见文本标签，不隐藏图标；每项用本地化 Tooltip 补充可见名称，并继续以 `aria-label` 提供不依赖 Tooltip 的可访问名称。展开侧栏同时显示图标与名称。Tooltip 的单子节点/ref 要求由 Mantine `NavLink` 满足（[Tooltip](https://mantine.dev/core/tooltip/)，核对日期：2026-08-25）。Logo→版本顺序、默认收起、功能区和固定底部顺序不变。
-- 所有权：语言与主题都是 GUI adapter 的设备级展示偏好，不进入 shared core；React 只调用 Mantine color-scheme context 的 setter，不复制业务状态。更新状态仍由 Rust adapter/core 提供，React 不解析 SemVer、不判断强更、不创建 endpoint。
-- 取代范围：本决定取代 ADR-20260825-001 中“检查更新位于设置页”的页面归属，并补充 ADR-20260825-002 的主题范围从 Sponsor 局部适配扩展为应用级双主题，以及侧栏折叠规则从“保留可访问名称”收紧为“必填图标 + Tooltip + 可访问名称”。其余更新/强更/统计安全边界、Logo/版本顺序、窗口尺寸、i18n 和零出站规则继续有效。
+- 所有权：语言与主题都是 GUI adapter 的设备级展示偏好，不进入 shared core；React 只调用 Mantine color-scheme context 的 setter，不复制业务状态。
+- 取代范围：本决定补充 ADR-20260825-002 的主题范围从 Sponsor 局部适配扩展为应用级双主题，以及侧栏折叠规则从“保留可访问名称”收紧为“必填图标 + Tooltip + 可访问名称”。其余 Logo/版本顺序、窗口尺寸、i18n 和零出站规则继续有效。
 - 影响范围：最新 Product Spec、AGENTS/README、工程规则、Rust/GUI/React/Mantine 基线、初始化/GUI adapter/GUI 支持 Skills 与参考、React 模板、双语资源、Harness validator、专项回归及当日 Changelog。
 - 不包含：本轮不创建真实下游，不配置更新 endpoint，不发送统计，不构建 GUI/DMG/NSIS，不运行冒烟/E2E，也不以模板测试代替真实窗口中的主题对比度、Tooltip 定位或跨平台 WebView 渲染复核。
 - 风险与缓解：图标语义不清会让折叠菜单难辨，主题 token 不完整会产生局部亮暗混杂，本地偏好也可能因浏览器存储不可用而退回默认。通过图标必填、Tooltip 与独立可访问名称、全局语义变量、亮暗差异回归、`auto` 安全默认和真实下游视觉复核降低风险；存储失败不得阻断应用启动。
 - 验证：模板测试覆盖展开/折叠图标、折叠 Tooltip、三态主题切换与本地持久化、亮暗背景/文字/surface 差异、关于页更新动作与未配置禁用状态；Harness validator 增加对应资源键、模板片段与破坏性负向回归。运行 Python 专项/全量 Harness 回归与 validator；仓库未声明可执行前端清单，因此本轮不安装依赖或运行模板 Vitest，真实 GUI、视觉与跨平台范围保持 `Unverified`。
-- 恢复或调整标准：若真实下游证明 Tooltip 或本地存储在目标 WebView 存在兼容问题，基于官方文档和真实候选证据调整实现；不得把更新静默移回设置页、让折叠项丢失图标/名称，或删掉任一主题来规避问题。
+- 恢复或调整标准：若真实下游证明 Tooltip 或本地存储在目标 WebView 存在兼容问题，基于官方文档和真实候选证据调整实现；不得让折叠项丢失图标/名称，或删掉任一主题来规避问题。
 
 ## ADR-20260825-003：Rust、前端依赖与受管工具统一声明可验证的最低兼容版本范围（版本选择与当前下界已由 ADR-20260831-007 取代）
 
@@ -1020,7 +1020,7 @@
 - 侧栏决定：固定侧栏的 Jotai 初始值为收起。选中的本地 Logo 是侧栏 DOM 的第一项，权威当前版本紧随其下；展开和折叠状态均不得隐藏 Logo 或版本。应用名通过 Logo 替代文本和其他权威界面继续可访问，产品功能区与赞助/设置/关于固定底部组维持 ADR-20260825-001 的顺序。
 - 主题决定：Mantine 根使用 `defaultColorScheme="auto"`，同一应用产物始终携带亮色和暗色 token；赞助页通过 `useComputedColorScheme` 消费运行时有效主题，分别选择明确的背景叠层、卡片 surface、强调/对比色，并让非透明亮色档位插图置于受控的中性承载面。初始化宿主当时的主题不得删除另一套呈现，也不得只替换文字颜色后声称完成主题适配。该路线与 Mantine 官方的 [color scheme context 与 computed scheme](https://mantine.dev/theming/color-schemes/) 一致（核对日期：2026-08-25）。
 - 窗口决定：Tauri `app.windows` 的主应用窗口固定使用逻辑像素 `width: 1440`、`height: 900`、`minWidth: 960`、`minHeight: 640`、`center: true`、`preventOverflow: true` 且允许调整大小。默认 1440×900 在展开 248px 侧栏时仍使赞助页三张档位卡横向呈现；工作区较小时由既有响应式布局降为两列或单列。Tauri 官方 `WindowConfig` 支持 `width`、`height`、`minWidth`、`minHeight`、`center` 和 `preventOverflow`（[配置参考](https://v2.tauri.app/reference/config/#windowconfig)，核对日期：2026-08-25）。该主窗口与 `bundle.macOS.dmg.windowSize` 的 660×400 安装卷窗口完全独立，ADR-20260824-002 的 DMG 背景、落点、构建和最终卷验证门禁保持不变。
-- 取代范围：本决定补充并在 GUI 身份时序上取代“只在首次真实 GUI 开发生成/选择图标”的旧条款；补充 ADR-20260825-001 的侧栏规则为“默认收起且 Logo→版本”；补充 ADR-20260824-004 的赞助页为同一产物同时支持亮色/暗色。托盘、关闭隐藏、标题、固定路由/导航、i18n、作者/免责声明、品牌媒体、零出站、更新/强更/统计安全边界均继续有效。
+- 取代范围：本决定补充并在 GUI 身份时序上取代“只在首次真实 GUI 开发生成/选择图标”的旧条款；补充 ADR-20260825-001 的侧栏规则为“默认收起且 Logo→版本”；补充 ADR-20260824-004 的赞助页为同一产物同时支持亮色/暗色。托盘、关闭隐藏、标题、固定路由/导航、i18n、作者/免责声明、品牌媒体、零出站均继续有效。
 - 影响范围：最新 Product Spec、AGENTS/README、工程规则、Rust/GUI 基线、初始化/GUI 身份/GUI adapter/GUI 支持 Skills 与参考、React/Mantine 模板和双语 Logo 替代文本、Harness validator、专项回归及当日 Changelog。
 - 不包含：本轮不为 Harness 自身生成产品 Logo，不创建真实下游，不构建 GUI/DMG/NSIS，不运行冒烟/E2E，也不签名、公证、staple 或发布。模板组件和契约测试不能代替真实下游对候选 Logo、小尺寸清晰度、主题对比度、窗口工作区适配或跨平台渲染的人工/真实产物复核。
 - 理由：在初始化提交前完成 Logo 选择可避免侧栏、平台图标和后续身份资料各自使用不同占位物；固定 Logo→版本顺序使折叠导航仍能表达应用身份和版本。把亮/暗两套语义同时交付比读取初始化机器主题后只生成一种样式更可靠；主窗口与 DMG 窗口分离则消除既有 660×400 发布配置被误当成应用窗口尺寸的歧义。
@@ -1028,26 +1028,25 @@
 - 验证：为 `AppSidebarTemplate` 增加默认收起常量、必填本地 Logo、Logo→版本顺序和两种折叠状态测试；为 `SponsorPageTemplate` 增加运行时 computed scheme、亮/暗主题标记和差异化背景/surface 测试；为 Harness validator 增加候选数量/选择路径、主窗口与 DMG 窗口分离、侧栏顺序/默认值和双主题的正负向回归。运行相关 Python 单元测试、模板 TypeScript/Vitest、Skill quick validator、完整 Harness validator与差异检查；未运行的真实下游、视觉与跨平台范围保持 `Unverified`。
 - 恢复或调整标准：若真实下游证明三候选成本不成比例、1440×900 在目标设备普遍不可用，或 Mantine 主题接口发生兼容变化，项目负责人可基于实际候选、设备矩阵和官方迁移资料以新 ADR 调整候选数、窗口值或主题实现；不得通过静默选择、恢复占位 Logo、隐藏折叠态版本、把 DMG 尺寸当主窗口，或删除另一主题规避本决定。
 
-## ADR-20260825-001：GUI 固定侧栏与设置页，并固化签名更新、强更和最小统计契约（侧栏模式与支持页默认性已由 ADR-20260827-001 取代）
+## ADR-20260825-001：GUI 固定侧栏与设置页（退役服务执行合同已按 ADR-20261105-002 清理）
 
 - 日期：2026-08-25
 - 状态：Accepted
-- 关联需求：项目负责人要求 GUI 始终显示版本号，使用可收起的固定左侧菜单；产品功能从顶部向下排列，底部固定项从下向上为关于、设置、赞助；设置页提供中英文切换和检查更新。同时要求完整审查更新检查、强制更新与统计上报逻辑，并把安全、状态和构建要求固化到对应 Skills。
+- 关联需求：项目负责人要求 GUI 始终显示版本号，使用可收起的固定左侧菜单；产品功能从顶部向下排列，底部固定项从下向上为关于、设置、赞助；设置页提供中英文切换。
 - 来源审计：只读复核一个既有桌面应用来源项目的现有结构后，保留其版本可见、底部支持入口和设置入口等可复用意图，但不记录来源仓库的本机路径，也不照搬其网络实现。来源把桌面共享秘密写入客户端、以带稳定设备标识和系统信息的明文查询参数发送统计、使用 detached 异步任务、直接信任远端 `forcedUpdate` 布尔值，并只对下载地址做宽松协议判断；这些做法无法提供发布者真实性、目标绑定、任务回收或数据最小化保证，不得成为 Harness 默认能力。
 - 导航与版本决定：所有 GUI 初始化固定创建可收起的左侧菜单。产品功能使用单独的可滚动区域从顶部向下注入；底部固定组的视觉顺序为赞助、设置、关于，因此从窗口底部向上读取为关于、设置、赞助。固定路由为 `/sponsor`、`/settings`、`/about`。展开和折叠状态都必须直接显示来自权威打包元数据的版本，不从页面常量复制；主窗口标题继续使用 `{applicationName} {version} {contactChannel}:{contactValue}`。折叠状态、窄窗口、键盘焦点与文本缩放都必须保持入口和版本可发现。
-- 设置页决定：设置页固定展示当前应用名与版本、中英文切换、检查更新状态/动作和统计上报同意。语言切换继续使用 `i18next`/`react-i18next`、`rust-i18n` 与 `tauri-plugin-os` 的统一 locale 事实，并持久化用户选择。中性初始化没有产品出站配置时，检查更新显示 `NotConfigured`，统计开关禁用且默认不同意，所有固定页面保持零出站；设置入口存在不等于远端能力已启用。
-- 更新决定：启用更新时使用官方 Tauri updater 的签名更新制品和公开验证密钥，生产 endpoint 限定 HTTPS，并拒绝降级及 target、arch、channel 不匹配。稳定 UI 状态固定为 `NotConfigured`、`Idle`、`Checking`、`UpToDate`、`OptionalUpdate`、`RequiredUpdate`、`Failed`；失败不得伪装为最新版。检查任务必须单飞并由应用生命周期拥有，具备取消、超时和关闭回收，禁止 detached task。一般检查失败默认 fail-open；若渠道要求 fail-closed，必须另行批准离线和恢复风险。
-- 强更决定：远端 `forcedUpdate` 布尔值不是可信策略。GUI adapter 只把已验证发布者真实性、目标和渠道绑定的 `minimumSupportedVersion` 交给 shared core；core 以严格 SemVer 比较当前版本并返回稳定的必须更新结论。`RequiredUpdate` 由应用根级不可关闭门阻断普通路由挂载，只允许安装已经验证签名的更新或安全退出；安装失败继续留在门内并提供重试/退出。React 不拥有 SemVer 或强更资格判断。
-- 统计决定：统计传输默认关闭，必须取得明确同意。固定基线只允许每进程一次 `app_started`，由 Rust GUI adapter 使用 HTTPS JSON `POST` body 发送精确字段白名单：`schemaVersion`、`eventName`、`applicationCode`、`applicationVersion`、`osFamily`、`architecture`、`locale`、`distributionChannel`、`occurredAtUtc`。禁止 GET/query、稳定设备或安装标识、用户名、主机名、路径、令牌、自由文本和业务载荷。队列只驻留内存且最多 32 条，同一时刻最多一个在途请求，连接/总超时分别为 5/10 秒，最多重试两次并使用 1/4 秒退避；撤回同意立即取消在途请求、清空队列并恢复零出站，进程退出不得为了上报阻塞。新增事件、字段、稳定标识或持久队列必须重新经过产品、隐私和适用法律批准。
-- 客户端秘密决定：桌面二进制和前端 bundle 不能保密。服务端共享口令、发布私钥和任何代表服务端身份的长期 secret 不得进入 Rust/TypeScript、Tauri 配置、样例、测试、日志或前端产物。公开 updater 验证密钥可以随客户端分发；签名私钥只在已批准构建运行时安全来源中存在。
-- 构建决定：`$desktop-build-tauri-release` 从产品事实解析 `updaterEnabled`。启用时要求 `bundle.createUpdaterArtifacts: true`、公开验证密钥、受限 HTTPS endpoints 和安全提供的 `TAURI_SIGNING_PRIVATE_KEY`，收集实际 archive 与 `.sig`、用公开密钥验证，并把 updater/Tauri 版本、channel、target、arch、公钥指纹、相对路径、大小、SHA-256 和签名验证结果写入候选 manifest。安装包代码签名/公证与 updater archive 签名是独立门禁；允许 unsigned 安装包不能绕过 updater 签名。构建不创建更新 feed、不上传制品也不发布。
-- 取代范围：本决定在导航、设置、更新、强更和统计范围内补充并取代 ADR-20260824-004 的“更新检查与遥测继续全部留待未来、初始化只建关于/赞助入口”条款；该 ADR 关于托盘、关闭隐藏、动态标题、作者/联系人/免责声明、固定赞助内容、本地品牌资产和默认零出站的其余决定继续有效。此前 ADR 关于 core-first、i18n、生命周期任务所有权、秘密隔离、真实候选和签名发布门禁继续有效。
+- 设置页决定摘录：设置页展示当前应用名与版本、中英文切换。语言切换使用 `i18next`/`react-i18next`、`rust-i18n` 与 `tauri-plugin-os` 的统一 locale 事实，并持久化用户选择。
+
+
+- 客户端秘密决定：桌面二进制和前端 bundle 不能保密。服务端共享口令、发布私钥和任何代表服务端身份的长期 secret 不得进入 Rust/TypeScript、Tauri 配置、样例、测试、日志或前端产物。
+
+- 取代范围摘录：本决定关于托盘、关闭隐藏、动态标题、作者/联系人/免责声明、固定赞助内容、本地品牌资产和默认零出站的其余决定继续有效；core-first、i18n、生命周期所有权、秘密隔离、真实候选和安装包签名仍由各自规则约束。
 - 影响范围：最新 Product Spec、AGENTS/README、工程规则、Rust/GUI 基线、初始化/GUI adapter/GUI 支持/Tauri 构建 Skills、React/Mantine 模板、双语资源、产品差异模板、Harness validator、专项回归和当日 Changelog。
 - 不包含：不修改来源仓库，不创建或构建真实下游，不配置真实 endpoint、统计接收方、签名私钥、更新 feed 或产品强更版本，不发送统计，不调用生产更新服务，不安装更新，也不运行冒烟、E2E、签名、公证或发布。真实下游运行、更新安装、强更恢复、统计接收和跨平台行为保持 `Unverified`。
-- 理由：导航、版本、语言与本地支持页面是每个 GUI 都需要的一致外壳，可以在初始化时安全建立；网络更新、强更和统计则涉及发布者真实性、隐私、离线恢复和生命周期资源，必须把入口与启用能力分离，并以可验证的状态机、签名、core 规则、最小字段和构建清单约束实现。
-- 风险：根级强更门可能在错误策略下锁死应用，更新签名密钥轮换可能使旧客户端无法升级，统计字段仍可能被接收方关联，侧栏固定布局可能在极窄窗口中挤压内容。通过认证最低支持版本、默认 fail-open、签名与 target/channel 绑定、零稳定标识、明确同意/撤回、字段白名单、无持久队列、折叠/窄窗口测试和安全退出降低风险；真实候选仍需使用实际 endpoint、签名制品和目标平台完成前向验收。
+- 理由摘录：导航、版本、语言与本地支持页面可作为一致外壳在初始化时建立。
+- 风险摘录：侧栏固定布局可能在极窄窗口中挤压内容，保留窄窗口测试和安全退出边界。
 - 验证：为侧栏位置、折叠状态版本可见、顶部功能区、固定底部顺序、设置页中英文切换、`NotConfigured` 零出站和根级强更门增加 React/Testing Library 模板测试；为 Skill/参考/资源键、更新状态、强更所有权、统计字段与生命周期边界、Tauri updater 构建/签名清单增加正负向 validator 回归；运行默认 Python 回归、完整 Harness validator、前端严格 TypeScript/Prettier/Vitest、Skill quick validator 和差异检查。本轮不以模板测试声称真实更新或统计可用。
-- 恢复或调整标准：若真实下游证明导航顺序、支持入口或语言范围需要改变，由项目负责人更新固定产品范围并同步模板和回归；若 updater、渠道或隐私法规要求不同状态、签名轮换、fail-closed、事件或字段，必须提供真实渠道/威胁/合规证据，以新 ADR 同步 core 契约、产品配置、构建、恢复路径和验收，不得通过信任远端布尔值、嵌入客户端 secret、恢复稳定设备标识或取消签名验证规避本决定。
+- 恢复或调整标准摘录：若真实下游证明导航顺序、支持入口或语言范围需要改变，由项目负责人更新范围并同步模板和回归。
 
 ## ADR-20260824-004：GUI 初始化固定托盘、关闭隐藏、动态标题与关于/赞助页面（托盘与支持页默认性已由 ADR-20260827-001 取代）
 
@@ -1058,7 +1057,7 @@
 - 生命周期决定：所有选择 GUI 的初始化固定启用 Tauri `tray-icon` feature。托盘只含本地化“显示窗口”和“退出”；显示菜单与托盘左键都执行主窗口显示、取消最小化和聚焦。主窗口 `WindowEvent::CloseRequested` 必须调用 `prevent_close()` 后隐藏，不能终止进程；只有托盘退出执行显式应用退出，存在生命周期 owned task 时先取消并回收。通知、快捷键、自动启动、伴随进程和其他托盘菜单仍需独立范围批准。
 - 标题决定：主窗口原生标题与前端 `document.title` 固定消费同一事实并组装为 `{applicationName} {version} {contactChannel}:{contactValue}`。应用名来自当前下游 Tauri/GUI 身份，版本来自权威 workspace/打包元数据，联系字段来自共享品牌 profile 的 `contacts.windowTitle`；不得写死一次构建版本或维护第二份标题常量。本次把该联系人从来源旧值校正为当前 `QQ 2222980`，同时保留 `windowTitle` 与 `support` 两个语义角色。
 - 页面决定：GUI 初始化直接建立 `/about` 和 `/sponsor` 文件路由并在应用导航显示。关于页注入当前应用名和权威版本，固定展示 `about.studio` 表示的作者、profile 的 `contacts.support` 以及来源当前三段中英文免责声明；产品标语、许可、隐私和其他动作仍按真实下游事实可选注入。赞助页继续使用 Harness 已改进的响应式 Mantine 结构，固定展示 19/199/1999 CNY 档位、权益、联系人、支付说明和双支付码；初始化完整复制 `media/sponsor/*`，包括当前未引用小图，支付码保持原字节和本地化替代文本。
-- i18n 与网络决定：由于初始化现在包含真实页面和托盘文案，`i18next`/`react-i18next`、`rust-i18n` 与 `tauri-plugin-os` 必须在 GUI 初始化阶段接入，不再延后到首次业务页面。固定资源提供中文与英文，其他缺失系统语言回退英文，语言切换仍可发现且持久化。固定标题、关于页、赞助页和托盘全部是本地能力，不产生网络请求。更新检查、updater banner 打包、遥测、远程帮助、订单、权益、账户、付款确认和支付自动化继续默认禁用并需要独立范围/安全批准。
+- i18n 与网络决定：由于初始化现在包含真实页面和托盘文案，`i18next`/`react-i18next`、`rust-i18n` 与 `tauri-plugin-os` 必须在 GUI 初始化阶段接入，不再延后到首次业务页面。固定资源提供中文与英文，其他缺失系统语言回退英文，语言切换仍可发现且持久化。固定标题、关于页、赞助页和托盘全部是本地能力，不产生网络请求。远程帮助、订单、权益、账户、付款确认和支付自动化继续默认禁用并需要独立范围/安全批准。
 - 产品实例与传播决定：初始化不创建 `docs/GUI_SUPPORT_SURFACES.md`；固定基线由 `$desktop-add-gui-adapter` 自动消费 `$desktop-prepare-gui-support-surfaces` 资产。只有产品修改该基线、增加其他支持界面或启用出站能力时，才创建受保护的差异实例文档。非 GUI 下游继续裁剪全部 GUI Skill/资产。该决定在“选择 GUI 本身不自动创建页面/路由/运行时媒体”和“中性脚手架可延后 i18n”范围内取代 ADR-20260820-002、ADR-20260820-001 与 ADR-20260806-001 的相应条款；它们关于身份隔离、支付边界、媒体摘要、core-first、默认零出站和固定 i18n 技术选型的其余条款继续有效。
 - 影响范围：最新 Product Spec、AGENTS/README、工程规则、Rust/GUI 基线、初始化/GUI adapter/GUI 身份/GUI 支持 Skills、品牌 profile/翻译/About 模板/媒体 manifest、Harness validator、专项回归和当日 Changelog。
 - 不包含：不修改来源仓库，不创建真实下游项目，不加入自动启动、更新服务、遥测或支付业务，不运行生产网络、支付、签名、公证、构建、E2E 或发布；Windows、Linux 与真实下游运行保持 `Unverified`。
@@ -1119,10 +1118,10 @@
 - 状态：Accepted
 - 关联需求：项目负责人要求再次检查真实下游的关于页、赞助页、相关约束与模板，并进一步确认支付二维码、固定价格/联系人、品牌更新 banner 和未使用小图都应整体进入 Harness，因为本 Harness 产出的下游共享同一品牌；来源下游自身的项目名称等仍不得同步。
 - 背景：只读审计确认来源有 12 张赞助图片和 1 张更新 banner，没有已跟踪视频。真实页面同时固化三档赞助价格、品牌联系人、双支付码与中英文品牌赞助说明；关于页还混有来源产品名、产品功能、路由和更新服务。ADR-20260820-001 曾基于去身份化原则排除全部资源，但项目负责人随后明确：工作室品牌、赞助材料和更新视觉不是单一下游身份，而是所有产出产品共享的品牌事实。
-- 边界决定：补充并在资源传播范围上取代 ADR-20260820-001 的“Harness 只传播 Skill/参考且不复制资源”限制。`$desktop-prepare-gui-support-surfaces` 必须携带完整品牌依赖包：13 个原始图片字节、固定赞助档位/价格、品牌联系人、中英文品牌赞助文案、产品实例文档模板、媒体清单、类型化 React 页面/媒体组件与非空组件测试。GUI 下游完整保留该 Skill 资产；只有产品明确选择关于、赞助或更新视觉后，相关文件才进入应用 bundle，选择 GUI 本身仍不自动创建页面、路由或网络请求。
-- 身份隔离决定：共享工作室名称、联系人、赞助价格、支付二维码与 banner 是明确批准的品牌资产；来源下游的产品名称/标识、产品功能文案、路由、版本、固定服务地址、更新/遥测协议字段、秘密、签名身份、绝对路径与历史证据仍必须排除。终端下游按需生成的 `docs/GUI_SUPPORT_SURFACES.md` 继续由升级器保护，Harness 只提供 `.template.md`，不得把某个产品实例作为所有产品的完成事实。
+- 边界决定：补充并在资源传播范围上取代 ADR-20260820-001 的“Harness 只传播 Skill/参考且不复制资源”限制。`$desktop-prepare-gui-support-surfaces` 必须携带完整品牌依赖包：12 张原始赞助图片字节、固定赞助档位/价格、品牌联系人、中英文品牌赞助文案、产品实例文档模板、媒体清单、类型化 React 页面/媒体组件与非空组件测试。GUI 下游完整保留该 Skill 资产；只有产品明确选择关于或赞助后，相关文件才进入应用 bundle，选择 GUI 本身仍不自动创建页面、路由或网络请求。
+- 身份隔离决定：共享工作室名称、联系人、赞助价格、支付二维码是明确批准的品牌资产；来源下游的产品名称/标识、产品功能文案、路由、版本、固定服务地址、秘密、签名身份、绝对路径与历史证据仍必须排除。终端下游按需生成的 `docs/GUI_SUPPORT_SURFACES.md` 继续由升级器保护，Harness 只提供 `.template.md`，不得把某个产品实例作为所有产品的完成事实。
 - 支付与媒体决定：媒体清单逐文件记录路径、MIME、尺寸、SHA-256、用途、品牌/支付敏感性、复制来源类别和内部专有复用批准。支付二维码必须保持原始字节且不得优化、重绘或解码后重建；携带或展示静态支付码不授权订单、权益、账户、自动支付、支付状态确认或生产副作用。图片必须提供语义化 `alt` 或显式装饰声明。来源没有视频，因此不伪造视频文件；媒体组件仍要求本地视频使用 controls、字幕轨、文字稿、可选 poster、禁止 autoplay 与远程追踪，并尊重 reduced motion。
-- 页面决定：关于页保持产品名、版本、功能区块和动作由当前下游事实注入，但默认复用品牌联系人；赞助页默认消费品牌档位、文案与全部赞助资源，同时修复来源的固定 800px、固定三栏、全页 `pointer-events: none` 和支付图片缺少替代文本问题。未使用小图不删除，按原文件完整打包并在清单中标为可选/当前未引用；更新 banner 只作为本地视觉资源，不隐式启用更新检查或固定 endpoint。
+- 页面决定：关于页保持产品名、版本、功能区块和动作由当前下游事实注入，但默认复用品牌联系人；赞助页默认消费品牌档位、文案与全部赞助资源，同时修复来源的固定 800px、固定三栏、全页 `pointer-events: none` 和支付图片缺少替代文本问题。未使用小图不删除，按原文件完整打包并在清单中标为可选/当前未引用。
 - 影响范围：最新 Product Spec、AGENTS/README、工程规则、Rust/GUI 基线、`$desktop-prepare-gui-support-surfaces` 的参考与依赖资产、GUI 初始化/升级条件传播、Harness validator、专项回归、当日 Work Plan、Product Status 与 Changelog。
 - 理由：产品家族共享品牌时，保留原始品牌与支付资产能避免每个下游重复复制或错误替换，并保持赞助信息一致；条件安装、产品实例保护和严格排除来源项目身份仍能维持 scaffold 与具体产品之间的边界。
 - 风险：支付码、价格和联系方式可能过期或被误用于未获批准页面；原始图片的逐文件外部来源记录不足；未使用图片会增加仓库和包体积。通过专有内部复用批准记录、摘要锁定、敏感性标记、只有已选界面才进入 bundle、付款说明人工复核、无自动交易逻辑和未来品牌复核条件降低风险。
@@ -1136,8 +1135,8 @@
 - 关联需求：项目负责人要求从用户指定、已经过真实使用磨合的终端下游中抽象并同步 Harness 工程改进到模板，反复检查到没有遗漏，同时不得同步该下游的项目名称、品牌或其他产品实例。
 - 背景：来源锁与 Git 历史显示，终端下游在既有 Harness 基线上积累了三类可复用改进：Homebrew 将 LLD 从 LLVM 拆包后的 xwin 工具链处理、使用已授权 `notarytool` Keychain profile 的公证探测、以及 GUI 支持界面和 DMG Finder 拖拽布局。来源同时包含产品名称、联系人、赞助资源、固定服务字段、秘密常量、签名身份和打包图片；直接复制会把一个产品的身份、安全缺陷和业务协议变成所有下游的默认值，也会违反中性 scaffold、core-first、升级保护和秘密隔离规则。
 - 抽象决定：反向同步采用“来源锁基线 → 终端下游当前字节 → 当前模板工作树”的三方审计。只接收能脱离产品身份成立、具有明确失败模式和非空回归的工程能力；产品名称/标识、联系人、资源、固定 endpoint/协议字段、秘密、签名身份、版本、产物、哈希、验证结论和业务实现一律排除。来源路径和名称只用于当前任务只读审计，不进入长期 Harness 规则、Skill、脚本、参考或产品事实。
-- GUI 支持界面决定：新增条件 Skill `$desktop-prepare-gui-support-surfaces`。窗口标题、关于/帮助/赞助入口、更新检查和遥测彼此独立，只有已批准 GUI 产品明确选择的项才实现；中性 scaffold 不预装页面、路由、资源、配置或网络请求。终端下游按需创建的 `docs/GUI_SUPPORT_SURFACES.md` 保存产品实例并由升级器保护，Harness 只传播 Skill/参考。展示与宿主机制属于 GUI adapter，跨接口资格、值域、默认值和状态转换属于 core；涉及权益、支付、账户、自更新、强制更新或渠道发布时必须另行定范围。
-- 出站与秘密决定：每项远程能力默认禁用并具有独立的目的、触发器、方法、允许地址/字段/响应、重定向、超时、响应大小、重试/并发、owner/取消/关闭、日志、同意与保留清单。可选网络失败默认 fail-open，但不得把失败解释为成功；禁止 detached task 和无限重试。遥测默认关闭并要求字段级最小化、同意/退出、标识符生命周期、保留与删除边界。秘密实值只来自已批准安全运行时来源，不能进入源码常量、文档、配置样例、测试夹具、日志或前端 bundle。
+- GUI 支持界面决定：新增条件 Skill `$desktop-prepare-gui-support-surfaces`。窗口标题与关于/帮助/赞助入口彼此独立，只有已批准 GUI 产品明确选择的项才实现；中性 scaffold 不预装页面、路由、资源、配置或网络请求。终端下游按需创建的 `docs/GUI_SUPPORT_SURFACES.md` 保存产品实例并由升级器保护，Harness 只传播 Skill/参考。展示与宿主机制属于 GUI adapter，跨接口资格、值域、默认值和状态转换属于 core；涉及权益、支付、账户或渠道发布时必须另行定范围。
+- 出站与秘密决定：每项远程能力默认禁用并具有独立的目的、触发器、方法、允许地址/字段/响应、重定向、超时、响应大小、重试/并发、owner/取消/关闭、日志、同意与保留清单。可选网络失败默认 fail-open，但不得把失败解释为成功；禁止 detached task 和无限重试。秘密实值只来自已批准安全运行时来源，不能进入源码常量、文档、配置样例、测试夹具、日志或前端 bundle。
 - Tauri 分发决定：macOS→Windows xwin 环境门禁分别探测/安装/复探 Homebrew `llvm` 与可能拆分的 `lld`，已存在但缺少命令的 formula 失败关闭而不静默重装。Apple 公证允许一组完整环境凭据或已授权且在线可用的 Keychain profile，两种模式互斥，探测不输出 profile 名或秘密。macOS DMG 必须在最终布局、签名、公证和 stapling 后只读挂载真实字节，验证非空 `.DS_Store`、本地背景、唯一顶层应用包和指向 `/Applications` 的链接，再计算摘要；里程碑验收对当前最终字节重跑同一检查，不得自动接受软件许可或沿用旧候选证据。headless CI 不得无界等待 Finder AppleScript，任何后处理都使旧签名、摘要与验收证据失效。
 - 影响范围：最新 Product Spec、AGENTS/README、工程规则、Rust/GUI 基线、GUI 身份/适配器/初始化 Skills、新支持界面 Skill、Tauri 构建与环境 Skills、发布文档、升级 ownership policy/manifest、Harness validator、专项测试、当日 Work Plan、Product Status 与 Changelog。
 - 不包含：不修改终端下游，不复制其名称、路径、品牌、联系人、资源、服务端协议、秘密、签名/公证身份、候选或历史证据；不在模板创建 `docs/GUI_SUPPORT_SURFACES.md`；不实际构建 DMG/NSIS，不运行冒烟/E2E，不签名、公证、staple、上传、tag、push 或发布。
@@ -1152,7 +1151,7 @@
 - 状态：Accepted
 - 关联需求：项目负责人要求从本机两个成熟下游 Harness 同步有意义的 Rust、前端技术选型，并把中文注释门禁优化到当前 Agent-first Harness。
 - 背景：Rust 来源提供了 HTTP middleware、配置、可观测性、协议/存储/认证候选和可执行中文注释检查器，但采用单 package/single-bin Server 架构、默认多线程 runtime，直接复制会违反当前 workspace/core-first 与四类独立适配器边界。Web 来源补齐 Vite、文件路由、严格 TypeScript、前端质量工具链、Mantine 规范、配置/日志/Release 扫描和 TypeScript AST 注释检查思路，但其中文门禁工作计划仍未完成，机械检查全部局部变量与匿名回调，并自动生成数百条“保存变量”“执行处理逻辑”式套话，与当前语义注释和闭包豁免规则冲突。两个来源工作树均有未提交内容，因此本决定以用户指定的本机工作树字节作为审计输入，不把来源 `HEAD` 当成这些能力的发布溯源。
-- Rust 技术决定：获批 HTTP 服务固定使用 Tokio + Axum + Tower/Tower HTTP；真实配置固定使用 config-rs，`notify` 仅用于批准的窄热重载；本地结构化日志正式固定为 tracing + tracing-subscriber + tracing-appender，OpenTelemetry OTLP/HTTP 只有在产品、隐私、采样、endpoint 和失败行为获批后默认关闭地追加。每个 spawned task 必须有 owner、取消、并发上限和关闭回收，禁止 detached task；timeout 不等于业务成功，锁不得跨越不受控 `.await`，HTTP 在监听前完成必需检查并支持 graceful shutdown。
+- Rust 技术决定：获批 HTTP 服务固定使用 Tokio + Axum + Tower/Tower HTTP；真实配置固定使用 config-rs，`notify` 仅用于批准的窄热重载；本地结构化日志正式固定为 tracing + tracing-subscriber + tracing-appender。每个 spawned task 必须有 owner、取消、并发上限和关闭回收，禁止 detached task；timeout 不等于业务成功，锁不得跨越不受控 `.await`，HTTP 在监听前完成必需检查并支持 graceful shutdown。
 - 条件技术决定：OpenAPI 使用 utoipa + utoipa-axum + Scalar code-first；GraphQL 使用兼容的 async-graphql + async-graphql-axum；非关系型能力优先官方 MongoDB async driver 与 redis-rs Tokio；本地认证优先 jsonwebtoken + Argon2id。这些只是能力触发后的固定候选，不进入中性依赖，且不得绕过消费者、数据、隐私、安全、密钥和生命周期范围闸门。本条扩展而不取消 ADR-20260805-003 的 Tokio、Clap、SeaORM、anyhow、thiserror、serde 与 jiff 事实标准。
 - GUI 技术决定：Tauri React 前端固定追加 Vite、TanStack Router 文件路由与自动 route code splitting、严格 TypeScript、ESLint/`typescript-eslint`、Prettier、Vitest、Testing Library、jest-dom、user-event 与 jsdom。`src/routeTree.gen.ts` 是唯一生成路由树并按根相对精确排除。Mantine 采用单 Provider/单 theme、语义令牌、稳定样式优先级、完整交互状态、窄窗口/文本缩放、键盘/焦点/live region 和 Testing Library 语义测试规范。
 - GUI 配置与日志决定：`development/test/release` 是统一逻辑 profile，但只有真实公开配置出现时才建立配置文件和类型化冻结对象；所有 Vite 变量均视为用户可读，禁止凭据，产品模块不得散落读取 `import.meta.env`。真实前端日志使用稳定 `level/scope/event/context` 和严格脱敏，Tauri 优先通过窄命令汇入 Rust tracing，不建立第二套持久日志或默认远程遥测。Release 在 Tauri 打包前静态检查最终 Vite `dist`，拒绝 source map、开发/测试 endpoint、debug/info 哨兵、本机绝对路径和未经批准的 console 输出。

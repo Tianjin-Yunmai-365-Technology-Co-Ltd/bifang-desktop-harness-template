@@ -44,7 +44,7 @@
 
 完全未接入 Harness 的既有项目先按 [首次接入步骤](adopt-existing-project.md)安装源提交中的所有权清单；这一步只建立 `plan` 的读取前提，不创建来源锁，也不授权覆盖目标内容。目标已有清单时先核对，不能重置为源缺省。旧版来源锁中若仍跟踪上游专用 Python 检查器，所有权 mode 保留 `managed` 以兼容基线迁移，但候选不得再包含它；目标人工移除后重新计划，`record` 才会结束跟踪。
 
-应用更新与统计相关的 `desktop-enable-gui-updates`、`desktop-add-gui-telemetry`、`desktop-add-gui-updater` 已从 Harness 源移除；对应路径只保留 `conditional` 所有权以兼容旧来源锁，不恢复 Skill、不构造传播候选，也不启用下游能力。旧基线文件的删除或本地定制保留沿用 `manual_merge` 逐项审查，禁止自动写入；人工删除后重新计划为 `converged`，或明确保留并复核后记录本地结果。不得将这些历史规则改为通用 `managed` 或 `tombstone` 来绕过既有 mode 一致性检查。
+应用更新与统计相关的 `desktop-enable-gui-updates`、`desktop-add-gui-telemetry`、`desktop-add-gui-updater` 已从 Harness 源移除；对应路径只保留 `conditional` 所有权以兼容旧来源锁，不恢复 Skill、不构造传播候选，也不启用下游能力。[退役服务清理](retirement-cleanup.md) 还覆盖共享 Skill 内已删除的专属合同和资产，发现未登记文件，首次询问清理或保留并在来源锁 `retirement_cleanup` 记忆项目选择。选择清理时逐路径删除，未完成不可 record；保留时记录 `preserve_retired` 并保持字节。不得将历史规则改为通用 `managed` 或 `tombstone` 绕过 mode 一致性检查；清理偏好不授权改写产品实现或秘密。
 
 目标旧清单若只缺新增的 `.agents/skills/` 专项 `managed` 规则，而通用规则已对该完整路径赋予相同有效 mode，`plan` 可继续，并通过 `ownership_repairs` 列出缺项。候选清单必须包含显式新规则；目标清单按已有来源锁进行 `managed-self` 三方更新或人工解决本地差异，重新生成计划后才能 `record`。记录基线时仍严格要求目标清单具有所有最低规则。缺失 `protected`、`tombstone`、`conditional`、`managed-self` 规则，存在重叠的不同 mode，或旧锁中的有效 mode 漂移时继续阻断；此兼容读取不授权覆盖产品事实或省略清单修复。
 

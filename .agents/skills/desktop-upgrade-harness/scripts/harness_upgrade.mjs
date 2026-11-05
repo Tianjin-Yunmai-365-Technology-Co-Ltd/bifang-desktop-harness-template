@@ -14,7 +14,7 @@ function parseCommand(argv) {
   const command = argv[0];
   if (!["plan", "apply", "record"].includes(command)) throw new UpgradeError("必须提供 plan、apply 或 record 子命令");
   let options;
-  if (command === "plan") options = Object.fromEntries(["source-root", "source-version", "source-commit", "candidate-root", "target-root", "ownership", "lock", "output"].map((name) => [name, { type: "string" }]));
+  if (command === "plan") options = Object.fromEntries(["source-root", "source-version", "source-commit", "candidate-root", "target-root", "ownership", "lock", "output", "retirement-cleanup"].map((name) => [name, { type: "string" }]));
   else if (command === "apply") options = { plan: { type: "string" }, approval: { type: "string" }, path: { type: "string" } };
   else options = { plan: { type: "string" }, "source-version": { type: "string" }, "source-commit": { type: "string" }, approval: { type: "string" }, bootstrap: { type: "boolean", default: false }, "resolved-manual": { type: "string", multiple: true, default: [] } };
   let values;
@@ -27,7 +27,7 @@ function parseCommand(argv) {
 export function execute(argv) {
   const { command, values } = parseCommand(argv);
   if (command === "plan") {
-    const result = buildPlan(values["source-root"], values["source-version"], values["source-commit"], values["candidate-root"], values["target-root"], values.ownership, values.lock);
+    const result = buildPlan(values["source-root"], values["source-version"], values["source-commit"], values["candidate-root"], values["target-root"], values.ownership, values.lock, values["retirement-cleanup"] ?? null);
     if (values.output) writeNewPlan(values.output, result, [result.candidate_root, result.target_root]);
     return { result, exitCode: result.blocked ? 2 : 0 };
   }

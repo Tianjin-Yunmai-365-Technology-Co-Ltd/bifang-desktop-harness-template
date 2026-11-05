@@ -172,18 +172,6 @@
       "declaredRustVersion": "1.60",
       "source": "https://crates.io/api/v1/crates/num-traits/0.2.19"
     },
-    "opentelemetry": {
-      "version": "0.33.1",
-      "latestStable": "0.33.1",
-      "declaredRustVersion": "1.75.0",
-      "source": "https://crates.io/api/v1/crates/opentelemetry/0.33.1"
-    },
-    "opentelemetry-otlp": {
-      "version": "0.33.1",
-      "latestStable": "0.33.1",
-      "declaredRustVersion": "1.75.0",
-      "source": "https://crates.io/api/v1/crates/opentelemetry-otlp/0.33.1"
-    },
     "png": {
       "version": "0.18.1",
       "latestStable": "0.18.1",
@@ -363,12 +351,6 @@
       "latestStable": "0.2.5",
       "declaredRustVersion": "1.63.0",
       "source": "https://crates.io/api/v1/crates/tracing-appender/0.2.5"
-    },
-    "tracing-opentelemetry": {
-      "version": "0.34.0",
-      "latestStable": "0.34.0",
-      "declaredRustVersion": "1.75.0",
-      "source": "https://crates.io/api/v1/crates/tracing-opentelemetry/0.34.0"
     },
     "tracing-subscriber": {
       "version": "0.3.23",

@@ -5,6 +5,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { explicitOwnershipModeForNode, loadLock, loadOwnership, ownershipMode, scanTree } from "./harness_upgrade_ownership.mjs";
 import { inapplicableGuiCandidate, readInterfaceSelection } from "./harness_upgrade_interfaces.mjs";
+import { RETIRED_ENGINEERING_PATHS, isRetiredEngineeringPath, retirementSelection } from "./harness_upgrade_retirement.mjs";
 import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, OWNERSHIP_RELATIVE, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, SOURCE_ONLY_PATHS } from "./harness_upgrade_policy.mjs";
 import { UpgradeError, assertSafePath, canonicalDirectory, isWithin, loadJson, lstatOrNull, requireControlPaths, requireGitRoot, requireSourceIdentity, safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
 
@@ -46,7 +47,7 @@ export function classifyMixed(candidate, target, baseline) {
 
 function overlaps(left, right) { return left === right || left.startsWith(`${right}${path.sep}`) || right.startsWith(`${left}${path.sep}`); }
 /** 生成完整只读升级计划，不更改候选、目标或来源锁。 */
-export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot, targetRoot, ownershipPath, lockPath) {
+export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot, targetRoot, ownershipPath, lockPath, retirementRequest = null) {
   const { source, identity: sourceIdentity } = requireSourceIdentity(sourceRoot, sourceVersion, sourceCommit);
   const candidate = canonicalDirectory(candidateRoot, "候选根目录");
   const target = canonicalDirectory(targetRoot, "目标根目录");
@@ -58,13 +59,18 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   const { defaultMode, rules, missingManagedRules } = loadOwnership(ownership, { allowRecoverableManagedOmissions: true });
   const candidateTree = scanTree(candidate, { targetTree: false });
   const lock = loadLock(lockFile);
+  const cleanup = retirementSelection(retirementRequest, lock?.retirement_cleanup);
   const entries = lock === null ? {} : lock.entries;
   const retainPaths = [
-    ...Object.keys(candidateTree.files), ...Object.keys(entries),
+    ...Object.keys(candidateTree.files), ...Object.keys(entries), ...RETIRED_ENGINEERING_PATHS,
     ...rules.filter(([, mode]) => mode === "tombstone").map(([pattern]) => pattern.split("*")[0].replace(/\/$/u, "")),
   ];
-  const targetTree = scanTree(target, { targetTree: true, retainPaths });
+  const targetTree = scanTree(target, { targetTree: true, retainPaths, retainSubtrees: RETIRED_ENGINEERING_PATHS });
+  const retirementTargets = Object.entries(targetTree.nodes).filter(([relative]) => isRetiredEngineeringPath(relative))
+    .map(([relative, isDirectory]) => ({ path: relative, is_directory: isDirectory, mode: explicitOwnershipModeForNode(relative, { isDirectory, rules }) ?? defaultMode }));
   const problems = candidateTree.unsafe.map((entry) => `候选包含符号链接、特殊文件或 Git 元数据：${entry}`);
+  if (retirementTargets.length && cleanup.selection === null) problems.push("发现退役工程资产，须先询问用户清理或保留并记忆项目选择");
+  if (cleanup.selection === "remove") for (const item of retirementTargets) if (["protected", "tombstone"].includes(item.mode)) problems.push(`退役清理范围与受保护所有权冲突，须先单独确认：${item.path}`);
   const candidateOwnership = OWNERSHIP_RELATIVE.split(path.sep).join("/");
   if (!candidateTree.files[candidateOwnership]) problems.push(`候选缺少所有权 manifest：${candidateOwnership}`);
   else {
@@ -87,6 +93,7 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
     else if (candidateTree.files[relative].sha256 !== snapshotFile(sourcePath).sha256) problems.push(`候选的源 Harness 必需 managed 路径内容不匹配：${relative}`);
   }
   for (const [relative, isDirectory] of Object.entries(candidateTree.nodes)) {
+    if (isRetiredEngineeringPath(relative)) problems.push(`候选不得恢复退役工程资产：${relative}`);
     const mode = explicitOwnershipModeForNode(relative, { isDirectory, rules });
     if (["protected", "tombstone"].includes(mode)) problems.push(`候选包含禁止的 ${mode} 路径：${relative}`);
     if (inapplicableGuiCandidate(relative, interfaceSelection)) problems.push(`候选包含不适用于目标 GUI 框架的工程路径：${relative}`);
@@ -94,8 +101,8 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   for (const [relative, isDirectory] of Object.entries(targetTree.nodes)) if (explicitOwnershipModeForNode(relative, { isDirectory, rules }) === "tombstone") problems.push(`目标包含 tombstone 路径：${relative}`);
 
   const relevant = new Set([...Object.keys(candidateTree.files), ...Object.keys(entries)]);
-  for (const relative of Object.keys(targetTree.files)) if (ownershipMode(relative, defaultMode, rules) === "tombstone" || Object.hasOwn(entries, relative)) relevant.add(relative);
-  for (const unsafe of targetTree.unsafe) if ([...relevant].some((relative) => relative === unsafe || relative.startsWith(`${unsafe}/`))) problems.push(`目标相关路径是符号链接或特殊文件：${unsafe}`);
+  for (const relative of Object.keys(targetTree.files)) if (isRetiredEngineeringPath(relative) || ownershipMode(relative, defaultMode, rules) === "tombstone" || Object.hasOwn(entries, relative)) relevant.add(relative);
+  for (const unsafe of targetTree.unsafe) if (RETIRED_ENGINEERING_PATHS.some(relative => relative === unsafe || relative.startsWith(`${unsafe}/`)) || isRetiredEngineeringPath(unsafe) || [...relevant].some((relative) => relative === unsafe || relative.startsWith(`${unsafe}/`))) problems.push(`目标相关路径是符号链接或特殊文件：${unsafe}`);
 
   const actions = [];
   for (const rawPath of [...relevant].sort()) {
@@ -106,7 +113,13 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
     const baseline = entries[relative] ?? null;
     if (baseline !== null && baseline.mode !== mode) problems.push(`${relative} 的所有权 mode 已变化：${baseline.mode} -> ${mode}`);
     let classification;
-    if (mode === "tombstone") classification = candidateSnapshot !== null ? "tombstone_candidate" : (targetSnapshot !== null ? "tombstone_present" : "tombstone_absent");
+    if (isRetiredEngineeringPath(relative) && !["protected", "tombstone"].includes(mode)) {
+      if (candidateSnapshot !== null) classification = "retired_candidate";
+      else if (targetSnapshot === null) classification = "converged";
+      else if (cleanup.selection === null) classification = "cleanup_selection_required";
+      else classification = cleanup.selection === "remove" ? "cleanup_required" : "preserve_retired";
+    }
+    else if (mode === "tombstone") classification = candidateSnapshot !== null ? "tombstone_candidate" : (targetSnapshot !== null ? "tombstone_present" : "tombstone_absent");
     else if (mode === "protected") classification = candidateSnapshot !== null ? "protected_candidate" : "protected";
     else if (AUTO_MODES.has(mode)) classification = classifyManaged(candidateSnapshot, targetSnapshot, baseline, { lockLoaded: lock !== null });
     else classification = classifyMixed(candidateSnapshot, targetSnapshot, baseline);
@@ -119,8 +132,9 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
     target_interfaces: interfaceSelection.interfaces, gui_framework: interfaceSelection.guiFramework,
     interface_manifest_snapshot: interfaceSelection.manifestSnapshot,
     baseline: lock === null ? "missing" : "loaded", ownership_repairs: missingManagedRules,
+    retirement_request: retirementRequest, retirement_cleanup: cleanup, retirement_targets: retirementTargets,
     blocked: problems.length > 0 || actions.some((item) => item.blocked),
-    manual_required: actions.some((item) => MANUAL_CLASSES.has(item.classification)), problems: problems.sort(), actions,
+    manual_required: actions.some((item) => MANUAL_CLASSES.has(item.classification)) || (cleanup.selection === "remove" && retirementTargets.length > 0), problems: problems.sort(), actions,
   };
 }
 
@@ -145,7 +159,7 @@ export function loadReviewedPlan(planPath) {
   const reviewed = loadJson(planPath, "升级 plan");
   if (reviewed.schema_version !== SCHEMA_VERSION) throw new UpgradeError(`升级 plan 的 schema_version 必须为 ${SCHEMA_VERSION}`);
   for (const key of ["source_root", "source_version", "source_commit", "candidate_root", "target_root", "ownership_path", "lock_path"]) if (!Object.hasOwn(reviewed, key)) throw new UpgradeError("升级 plan 缺少 provenance 字段");
-  const recomputed = buildPlan(reviewed.source_root, reviewed.source_version, reviewed.source_commit, reviewed.candidate_root, reviewed.target_root, reviewed.ownership_path, reviewed.lock_path);
+  const recomputed = buildPlan(reviewed.source_root, reviewed.source_version, reviewed.source_commit, reviewed.candidate_root, reviewed.target_root, reviewed.ownership_path, reviewed.lock_path, reviewed.retirement_request ?? null);
   if (!isDeepStrictEqual(reviewed, recomputed)) throw new UpgradeError("已复核 plan 不再匹配源、所有权、lock、Git 身份、候选或目标；请生成并复核新 plan");
   return { plan: reviewed, recomputed };
 }

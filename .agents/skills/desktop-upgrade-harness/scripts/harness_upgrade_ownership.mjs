@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { MINIMUM_OWNERSHIP_RULES, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, VALID_MODES } from "./harness_upgrade_policy.mjs";
 import { UpgradeError, loadJson, lstatOrNull, safeRelativePath, snapshotFile, validateSnapshot } from "./harness_upgrade_safety.mjs";
+import { validateRetirementPreference } from "./harness_upgrade_retirement.mjs";
 
 function globRegex(pattern) {
   let source = "^";
@@ -128,12 +129,13 @@ function relativePosix(root, value) { return path.relative(root, value).split(pa
 const GENERATED_DIRECTORY_NAMES = new Set(["node_modules", "target", "dist", "coverage", ".vite", ".cache", "release"]);
 
 /** 枚举所有节点及普通文件快照，并报告链接、特殊文件和候选 Git 元数据。 */
-export function scanTree(root, { targetTree, retainPaths = [] }) {
+export function scanTree(root, { targetTree, retainPaths = [], retainSubtrees = [] }) {
   const files = {};
   const unsafe = [];
   const nodes = {};
   const retain = [...new Set(retainPaths)];
   const canPrune = (relative) => targetTree && GENERATED_DIRECTORY_NAMES.has(path.posix.basename(relative))
+    && !retainSubtrees.some(subtree => relative === subtree || relative.startsWith(`${subtree}/`))
     && !retain.some((required) => required === relative || required.startsWith(`${relative}/`))
     && spawnSync("git", ["-C", root, "check-ignore", "-q", "--", relative], { encoding: "utf8" }).status === 0;
   const visit = (current) => {
@@ -160,6 +162,7 @@ export function scanTree(root, { targetTree, retainPaths = [] }) {
 export function loadLock(file) {
   if (!lstatOrNull(file)) return null;
   const data = loadJson(file, "上游 lock");
+  validateRetirementPreference(data.retirement_cleanup);
   if (data.schema_version !== SCHEMA_VERSION) throw new UpgradeError(`上游 lock 的 schema_version 必须为 ${SCHEMA_VERSION}`);
   if (!data.entries || Array.isArray(data.entries) || typeof data.entries !== "object") throw new UpgradeError("上游 lock 的 entries 必须是 object");
   for (const [rawPath, entry] of Object.entries(data.entries)) {

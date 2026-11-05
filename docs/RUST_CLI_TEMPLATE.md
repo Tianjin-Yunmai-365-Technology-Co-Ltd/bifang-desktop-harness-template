@@ -74,7 +74,6 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 | 关系型数据库 ORM | SeaORM | 仅在产品明确批准关系型持久化且 ORM 合适时引入；实体映射与驱动位于基础设施边界，迁移策略、事务语义和业务决策归 core |
 | 配置 | config-rs | 仅在存在真实运行配置时引入；采用“编译默认 → 唯一显式配置文件 → 环境变量”的确定性覆盖，schema/语义错误在启动监听或执行副作用前失败关闭；`notify` 只用于明确批准的窄热重载 |
 | 本地可观测性 | tracing + tracing-subscriber + tracing-appender | 使用结构化 event/span、可读 fmt layer 与有界滚动文件贯穿批准路径；不得记录密钥、令牌、个人数据或未脱敏业务载荷 |
-| 远程追踪 | OpenTelemetry OTLP/HTTP | 只有产品、隐私、采样、endpoint 和失败行为均批准后才引入并默认关闭；未配置时不得产生网络传输，遥测失败不得伪装为业务成功 |
 | 应用错误上下文 | anyhow | 仅用于二进制/适配器装配、启动和不可恢复的内部上下文传播；不得成为公开 API 或稳定领域错误类型 |
 | 稳定类型化错误 | thiserror | 用于 core、库与可恢复边界错误的类型化定义，并保留可匹配的稳定语义 |
 | 序列化 | serde | 用于批准的协议、配置、持久化 DTO 或稳定数据交换；领域类型只有在真实跨边界需要时派生序列化 |
@@ -99,7 +98,6 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 | 关系型 ORM | `sea-orm 2.0.4` |
 | 配置与热重载 | `config 0.15.27`、`notify 8.2.1` |
 | 本地日志 | `tracing 0.1.44`、`tracing-subscriber 0.3.23`、`tracing-appender 0.2.5` |
-| 远程追踪 | `opentelemetry 0.33.1`、`opentelemetry-otlp 0.33.1`、`tracing-opentelemetry 0.34.0` |
 | 错误与序列化 | `anyhow 1.0.104`、`thiserror 2.0.21`、`serde 1.0.229`、`serde_json 1.0.154` |
 | OpenAPI | `utoipa 6.0.0`、`utoipa-axum 0.3.0`、`utoipa-scalar 0.4.0` |
 | GraphQL | `async-graphql 7.2.1`、`async-graphql-axum 7.2.1` |
@@ -185,7 +183,7 @@ tokio = { version = "1.54.1", default-features = false, features = ["macros", "r
 - Tokio 显式关闭默认特性，中性 CLI 只启用 `macros` 和 `rt` 并使用 current-thread 运行时；不得为了方便启用 `rt-multi-thread`、`full` 或线程池。文件、网络、进程、时间、同步或信号特性只有对应能力通过范围闸门后才加入。
 - 核心的异步测试可以通过开发依赖使用工作区 Tokio，但这不构成核心的生产运行时依赖。
 - CLI 黑盒测试使用 `assert_cmd`；需要额外断言库时再加入。
-- 不为中性脚手架默认增加 Axum/Tower、SeaORM、tracing 生态、OpenTelemetry、anyhow、thiserror、config-rs/notify、协议文档、GraphQL、MongoDB/Redis、认证、网络客户端、依赖注入或插件系统；对应能力获批并出现真实使用路径时，必须采用上述固定技术族并从根工作区按需加入。
+- 不为中性脚手架默认增加 Axum/Tower、SeaORM、tracing 生态、anyhow、thiserror、config-rs/notify、协议文档、GraphQL、MongoDB/Redis、认证、网络客户端、依赖注入或插件系统；对应能力获批并出现真实使用路径时，必须采用上述固定技术族并从根工作区按需加入。
 - Ratatui、tui-realm、tui-realm-stdlib、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query 与 Jotai 只在对应适配器被选中时加入；根 Rust 工作区统一 Rust 依赖，前端 `package.json` 声明 JavaScript/TypeScript 依赖。
 
 ## 依赖准入
@@ -262,7 +260,7 @@ example_tool_core.workspace = true
 - 路径参数使用 `PathBuf` 或 `OsString`，不假定 UTF-8 或手工拼接分隔符。
 - 标准输出专用于 JSON；每次调用只序列化一个完整文档，以一个换行结束且无 BOM。
 - 日志、警告和诊断只写标准错误；领域错误稳定映射到 `docs/CLI_CONTRACT.md` 的错误码和退出码。
-- 已启用 tracing 时，结构化 event/span 必须通过 `tracing-subscriber` 的可读 `fmt` layer 与 `tracing-appender` 的有界滚动 writer 同时写入本地日志文件，不得只写标准错误或直接丢弃；日志格式至少包含时间戳、级别、target 和事件消息；标准输出仍只用于单一 JSON 文档，日志文件不得污染标准输出，也不得记录密钥、令牌、个人数据或未脱敏业务载荷。OpenTelemetry 仅在批准后追加独立 layer，默认关闭且不替代本地日志（见 ADR-20260806-002）。
+- 已启用 tracing 时，结构化 event/span 必须通过 `tracing-subscriber` 的可读 `fmt` layer 与 `tracing-appender` 的有界滚动 writer 同时写入本地日志文件，不得只写标准错误或直接丢弃；日志格式至少包含时间戳、级别、target 和事件消息；标准输出仍只用于单一 JSON 文档，日志文件不得污染标准输出，也不得记录密钥、令牌、个人数据或未脱敏业务载荷。本地日志规则见 ADR-20260806-002。
 - 破坏性操作要求显式确认参数；非交互模式不得自行确认。
 
 ## 初始化与当前平台验证
