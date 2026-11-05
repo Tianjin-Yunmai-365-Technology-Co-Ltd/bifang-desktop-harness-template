@@ -5,6 +5,7 @@
 | 任务 | 入口与事实 | 完成边界 |
 | --- | --- | --- |
 | GPUI 依赖清单、版本或 features | [$desktop-manage-gpui-dependencies](../.agents/skills/desktop-manage-gpui-dependencies/SKILL.md)；其中依赖矩阵记录中性声明下界和已有采用参考 | 分清声明/resolved/vendor，实际升级才改清单与回归 |
+| 明确采用 GPUI Kit 0.9.0 | [0.9.0 迁移参考](../.agents/skills/desktop-manage-gpui-dependencies/references/gpui-090-migration.md) | 复核平台、API 与补丁链；知识参考不表示 renderer 已迁移 |
 | GPUI 后端兼容、字体/AX/窗口/托盘问题 | [兼容补丁合同](../.agents/skills/desktop-manage-gpui-dependencies/references/compatibility.md) | 原样来源 + 严格生成 + 按后端证据，不默认复制补丁 |
 | 已有 core 增加 GPUI GUI、原生接线 | [$desktop-add-gpui-adapter](../.agents/skills/desktop-add-gpui-adapter/SKILL.md) | 按 profile 装配，禁用能力无残留；不复制业务权威状态 |
 | GPUI 异步/队列/重绘/缓存/图片性能 | [$desktop-optimize-gpui-performance](../.agents/skills/desktop-optimize-gpui-performance/SKILL.md) | 定场景、测成本、最小修改、行为回归、同条件复测 |

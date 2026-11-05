@@ -16,6 +16,8 @@
 
 以上非 `=` 版本是 Cargo 兼容范围，不能把声明下界差异描述为实际安装降级。中性 renderer 的历史版本表见 [adapter 依赖参考](../../desktop-add-gpui-adapter/references/dependency-baseline.md)，它不替代当前产品清单。
 
+2026-11-05 已整理 [Kit 0.9.0 迁移参考](gpui-090-migration.md)，供明确升级请求按需采用；上表仍记录现有 renderer 的 0.8.1 声明快照。本次知识回流没有改变生成器、模板下界或产品设计，也不构成下游兼容验证。
+
 有实际需求再选的解决方案：异步 I/O 可由适配器拥有一个 Tokio runtime；图片可按格式裁剪 `image`/`png`；结构化持久化可按需求选择 Serde 与数据库；CDP、ZIP、HTTP/WebSocket 不属于 GPUI 必选栈。具体版本只取目标清单，不把某产品的数据库、桌宠、CDP 或整套系统 API features 传播到中性模板。
 
 Linux 原生方案分别核对：StatusNotifierItem/会话 D-Bus 托盘（如 `tray-icon/ksni`，不强塞 GTK 循环）、X11/XWayland 原生窗口、Wayland Portal 快捷键与用户批准。声明依赖、实际后台服务接线、注册回执、目标宿主验收是四项独立证据。解除 renderer 限制必须先有完整中性实现与回归，不能只删除 guard。

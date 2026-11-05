@@ -17,4 +17,6 @@
 
 回归分开报告来源/生成摘要、ABI/编译、真实 API 行为、GPU 像素及最终候选运行。macOS 的 Metal 结果不能替代 Windows DirectX 或 Linux WGPU。未执行部分明确标为未验证。
 
+迁往 Kit 0.9.0 / gpui-pre 0.3.11 时，继续遵守本合同，并按 [0.9.0 迁移参考](gpui-090-migration.md)核对 API、Scene/后端/Shader/缓存、DPI 与 vendor 测试入口；不能把旧补丁文本覆盖到新归档后仅凭编译通过交付。
+
 2026-10-29 的中性候选采用 GPUI Kit 0.8.1 及其默认 gpui-pre 0.3.10 后端。上段 0.3.9 是历史产品案例，不能机械改写成已迁移补丁。当前默认 macOS 后端仍要求 accesskit_macos ^0.26.0，因此保留最高兼容 0.26.3；registry 0.27.2 不属于该兼容族。WGPU 后端使用 wgpu ^30.0.1，Windows 后端与 Kit 组件的 windows crate 分属各自 API 族，不为“统一版本”强制合并传递依赖。
