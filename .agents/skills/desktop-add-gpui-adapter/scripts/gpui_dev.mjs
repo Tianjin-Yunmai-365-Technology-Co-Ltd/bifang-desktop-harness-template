@@ -93,7 +93,7 @@ function stopProcess(handle) {
   return handle.stopping;
 }
 
-/** 开发会话只启动调试二进制；编译失败保留监听，后续保存可恢复，关闭时回收所有 owned 进程。 */
+/** 开发会话只启动调试二进制；编译失败保留监听，关闭时停止可追踪进程，Windows leader 退出后的后代回收仍未验证。 */
 export async function startGpuiDev(rootValue, { appArgs = [], pollMs = 250, debounceMs = 200, signal = null, log = message => process.stderr.write(`[gpui dev] ${message}\n`) } = {}) {
   const root = fs.realpathSync(path.resolve(rootValue));
   safePath(root, 'Cargo.toml', { type: 'file' });

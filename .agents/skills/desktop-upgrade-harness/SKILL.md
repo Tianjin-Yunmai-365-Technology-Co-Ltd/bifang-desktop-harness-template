@@ -63,7 +63,7 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 - 绝不得覆盖产品源代码、测试、Cargo 产品版本或依赖锁策略、`.gitignore`、项目 `Cargo.lock`/`pnpm-lock.yaml`、`.harness/version-state.json`、`.harness/release-context.json`、项目记忆、项目身份、已选接口、GUI 身份、GUI 支持界面产品实例、持久 Agent 策略、许可证、Git 配置与历史、远端、分支、标签、Worktree、common-dir 生命周期清单、敏感信息或未登记本地文件；传播 Git 生命周期或发布后动作 Skill 不授权执行它。第 15 步的用户确认只授权目标项目专用 Skill 写入该受保护偏好与真实 ADR，不授权升级器改写任何 protected 文件。第 14 步只是在工程层升级完成后转交版本 Skill 的显式人工迁移，不能由升级器调用、合并到 `apply|record` 或解释为对 protected 状态的例外。
 - 绝不得把 `Version.md`、`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、模板验证器文件、`docs/HARNESS_ENGINEERING.md` 或其他活动派生入口恢复到终端下游。
 - 绝不得自动应用 `merge-sections`、`conditional`、`protected`、未知或冲突路径。
-- 更新器绝不自动添加或删除项目文件。已复核的 `add` 或 `delete` 必须在声明的 Todo 内人工执行，然后由新计划显示收敛，才能记录基线。
+- 更新器绝不自动添加或删除项目文件。已复核的 `add`、`manual_add` 或 `delete` 必须按已批准的升级范围和精确路径清单人工执行，然后由新计划显示收敛，才能记录基线；已有活动 Todo 时同步相关项，不为这些文件操作另建持久计划。
 - 实施和验证完成前不得更新 `.harness/upstream-lock.json`。该锁文件记录 Harness 溯源，不是第二个产品版本来源。
 - 如果无法确定身份渲染、所有权、共同祖先、必需的外部授权或冲突，必须停止并询问用户。
 

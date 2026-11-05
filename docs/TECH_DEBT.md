@@ -26,9 +26,10 @@
 | LIM-030 | GPUI 开发循环取消回归曾遇到进程组探测 EPERM | 2026-10-10 首轮完整 Node 回归中，编译取消用例在 Cargo close 回调的 `process.kill(-pid, 0)` 抛出 EPERM；精确用例随后 4 次及完整回归重跑均通过，尚无法确认当时的进程组状态和底层原因 | 再次出现时记录 owned PID、进程组与宿主权限证据，区分关闭竞态和真实权限拒绝；不得把 EPERM 当作进程不存在或回收成功 | Open；当前未稳定复现 |
 | LIM-031 | Tauri deb 规范化 helper 的侧车集合与资源预算尚未形成完整事务合同 | `normalize_tauri_deb.mjs` 对 deb、checksum、inspection 分别 rename；第二或第三次失败时可能留下新包与旧侧车。payload 比较未覆盖 ownership/硬链接/xattr，dpkg 子进程无 timeout，hash 全文件读入内存；当前只适用可信本机输出及默认 target 布局 | 在扩展为发布候选或不可信包处理前，先用 Linux 原生夹具补齐解包/重打包和中途失败不覆盖回归，再明确集合提交/恢复、元数据范围及超时和内存预算；本地试包目前按 Linux 引用保留限制，不宣称事务或运行验收 | Open；2026-10-20 静态审查 |
 | LIM-032 | GPUI 最新兼容链仍含上游 block 0.1.6 的 future-incompatibility 警告 | 2026-10-29 在 Rust 1.98.1 检查 Kit 0.8.1 最小/全能力组合时编译通过，但 Cargo 提示该传递库未来编译器会拒绝部分代码；本轮不改写上游或强制不兼容传递版本 | 上游 GPUI/Apple 依赖链提供兼容修复后更新并使用满足兼容下限的 stable 重跑正常解析及原生编译；更高工具链实际失败时再按真实诊断处理 | Open |
+| LIM-033 | GPUI Windows 开发循环在 leader 退出后可能遗留后代进程 | `gpui_dev.mjs` 的 Windows close 路径会移除 owned handle，停止路径也跳过已退出 leader；若后代仍运行，后续关闭或重编译无法再通过该 handle 回收。真实后代回归跳过 Windows，当前 macOS 结果不能代证 | 在 Windows 以可靠追踪的进程所有权机制修复，验证 leader 先退出、后代脱离标准流、取消与重编译及清理失败；只停止本会话拥有的进程，不按名称扫描或误杀复用 PID | Open；2026-11-05 静态审查，Windows 原生复验 Not run |
 
 ## 记录规则
 
 - 只记录已观察到且当前接受的问题，不收集假想重构。
 - 每项必须说明影响和何时值得处理。
-- 进入当前范围的项目应转入 `docs/work_plan/` 中日期最新的 `YYYYMMDD_work_plan.md`；完成后从本表删除，历史由 Git 保留。
+- 进入当前范围后按 `$desktop-implement-change` 直接实施；仅在持久计划独立触发时转入 `docs/work_plan/` 的当前计划。完成后从本表删除，历史由 Git 保留。
