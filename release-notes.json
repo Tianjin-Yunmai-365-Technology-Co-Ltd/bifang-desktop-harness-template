@@ -3,6 +3,30 @@
   "releases": [
     {
       "releaseDate": "2026-11-05",
+      "version": "v202611051654",
+      "featureOptimizations": [
+        {
+          "zh-CN": "补充 GPUI Kit 0.9.0 的 API、依赖与 vendor 联合迁移参考，并接入工程索引。",
+          "en-US": "Add GPUI Kit 0.9.0 references for APIs, dependencies, and coordinated vendor migrations to the engineering index."
+        },
+        {
+          "zh-CN": "公开 Windows 开发循环的后代进程回收限制，明确后续原生验证条件。",
+          "en-US": "Document descendant process cleanup limitations in the Windows development loop and the conditions for native verification."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "对齐中性初始化后的产品定义与接口复用顺序，移除升级和技术债流程中强制创建 Todo 的旧描述。",
+          "en-US": "Align product definition and interface reuse with neutral initialization, and remove outdated mandatory Todo wording from upgrade and technical debt workflows."
+        },
+        {
+          "zh-CN": "修正 Dialog 几何观察说明，区分 ElementId 路径与 debug selector。",
+          "en-US": "Correct Dialog geometry guidance by distinguishing ElementId paths from debug selectors."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-11-05",
       "version": "v202611051535",
       "featureOptimizations": [
         {
@@ -244,34 +268,6 @@
         {
           "zh-CN": "修正初始化保留统一 Task 技能的说明，并清理治理检查器未使用的标题常量。",
           "en-US": "Corrected the initialization instructions for retaining the unified Task Skill and removed unused title constants from the governance validator."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-10",
-      "version": "v202610101204",
-      "featureOptimizations": [
-        {
-          "zh-CN": "新增默认关闭的 Task 独立工作树开关，与 Task Tree 和内部并行分别选择；派发时冻结 Worktree 或串行 Local 环境。",
-          "en-US": "Add a default-off switch for independent Task worktrees, separate from Task Tree and internal parallelism; freeze the Worktree or serial Local environment at dispatch."
-        },
-        {
-          "zh-CN": "新初始化使用 schema 5 六项能力；严格读取旧 schema 3/4，仅在明确补选后受限迁移工作树选择并保留原确认事实。",
-          "en-US": "Use six capabilities in schema 5 for new projects; strictly read legacy schemas 3/4 and migrate the worktree choice only after explicit selection while preserving prior confirmation facts."
-        },
-        {
-          "zh-CN": "初始化与升级完整保留独立工作树技能，升级继续保护项目策略、用户级规则和既有 Task 环境。",
-          "en-US": "Retain the independent worktree skill during initialization and upgrades while protecting project policy, user-level rules, and existing Task environments."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复策略原子切换在 umask 影响下丢失原文件权限的问题；权限恢复失败时保留原文件并清理临时文件。",
-          "en-US": "Preserve original file permissions during atomic policy updates despite umask filtering; keep the original file and remove the temporary file if permission restoration fails."
-        },
-        {
-          "zh-CN": "将初始化策略验收合同对齐到 schema 5 六项，并区分旧 schema 3/4 的读取兼容与受限迁移。",
-          "en-US": "Align the initialization policy verification contract with schema 5 and six capabilities, distinguishing legacy schema 3/4 reading from restricted migration."
         }
       ]
     }

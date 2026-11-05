@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "1d205e52b18f6b929296eedb21e1942d06173e77",
-  "version": "202611051535",
+  "sourceHead": "d460615cb3d2053b2783773c758362da254d3d54",
+  "version": "202611051654",
   "releaseDate": "2026-11-05",
-  "expectedTag": "v202611051535-20261105",
+  "expectedTag": "v202611051654-20261105",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "bc4b39a5692dfd413d906fd1273ef81aeb19aea3",
-    "sourceHead": "1d205e52b18f6b929296eedb21e1942d06173e77",
-    "scopeDiffSha256": "04b3b2439ad8fce3f2584fde9d90bb159174852592da22877a63ec575efd9721",
-    "reviewedSourceCommit": "1d205e52b18f6b929296eedb21e1942d06173e77",
+    "scopeBase": "a025491213298020d4ce6dfc91fd06f08ee0a9ad",
+    "sourceHead": "d460615cb3d2053b2783773c758362da254d3d54",
+    "scopeDiffSha256": "201144181192f5d23c766b39306e3f47bc3482687914ecca0a9565c2064574c1",
+    "reviewedSourceCommit": "d460615cb3d2053b2783773c758362da254d3d54",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "已对上次真实发布至 sourceHead 的累计差异审查行为正确性、core/adapter 边界、外部契约、职责规模与临时标记。GPUI、Tauri/React、生命周期门禁、候选矩阵、升级保护与工程文档分别复核；支持模板统计残留及规格框架泛化已修复，无剩余 P1/P2。本次修改保持职责内聚，唯一临时标记属于计划门禁测试夹具。Harness 硬门禁和发布审查检查通过（41 项非阻断提示）；Node 回归 1257 项通过、24 项平台条件跳过、0 失败；Node-only 与差异完整性检查通过。Rust 中性资产在 stable 1.99.1 上通过 fmt、clippy 和 7 项测试；未验证最低 Rust 1.98.1，未执行真实产品构建、安装、签名或 E2E。全部登记分支已包含于 sourceHead，范围、秘密与工作区状态已复核。",
+    "evidenceSummary": "用户明确要求全项目审查。文档/Skills/脚本三路复核完成，修正初始化顺序、Todo 与 Dialog 观察入口描述；core/adapter 边界、外部合同、长文件职责与临时标记通过复核。Harness 硬门禁及发布审查通过（41 项非阻断提示已逐类复核）；完整 Node 1257 通过/24 平台条件跳过/0 失败，相关合同 29 通过，Rust 1.99.1 中性资产 fmt/Clippy/7 测试通过。Windows 开发循环后代回收限制以 LIM-033 公开，原生复验未执行。Harness 源发布无产品候选，产品构建/E2E/签名不适用。",
     "reason": null,
     "remainingRisk": null
   }
