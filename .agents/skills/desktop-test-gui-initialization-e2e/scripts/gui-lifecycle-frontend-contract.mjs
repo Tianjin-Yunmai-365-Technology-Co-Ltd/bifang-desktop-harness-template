@@ -306,7 +306,6 @@ export function validateRustOnlyDesktopCapabilities(guiRoot, profile, errors, re
       "@tauri-apps/plugin-notification",
       "@tauri-apps/plugin-os",
       "@tauri-apps/plugin-autostart",
-      "@tauri-apps/plugin-updater",
       "@tauri-apps/plugin-window-state",
     ]) {
       if (packageText.includes(plugin)) {
@@ -324,7 +323,6 @@ export function validateRustOnlyDesktopCapabilities(guiRoot, profile, errors, re
     "notification:",
     "os:",
     "autostart:",
-    "updater:",
     "window-state:",
   ]) {
     if (capabilityTexts.includes(prefix)) {

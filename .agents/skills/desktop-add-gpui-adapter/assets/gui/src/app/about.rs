@@ -1,10 +1,10 @@
-//! 关于页仅显示当前应用身份与真实本地状态；初始化没有远程更新或发布记录。
+//! 关于页显示当前应用身份和本地发布日志；初始化不伪造发布记录。
 
 use super::{Shell, design_tokens::{IDENTITY_LOGO_LARGE, PAGE_TITLE_SIZE, SURFACE_RADIUS}};
 use gpui_kit::{AnyElement, Context, FontWeight, IntoElement, base::TestSupportExt as _, component::{ActiveTheme, button::Button}, div, img, prelude::*, px};
 
 impl Shell {
-    /// 关于信息、检查状态与更新日志按钮都在实际页面内接线。
+    /// 关于信息与本地发布日志按钮在实际页面内接线。
     pub(super) fn about_page(&self, cx: &mut Context<Self>) -> AnyElement {
         div().w_full().flex().flex_col().gap_6()
             .child(self.card("about.application", "about.description", cx)
@@ -15,11 +15,8 @@ impl Shell {
                         .child(self.version())))
                 .child(div().w_full().min_w_0().whitespace_normal().text_sm().text_color(cx.theme().muted_foreground).child(format!("{}: @@OWNER@@", self.t("about.author"))))
                 .child(div().flex().gap_3().flex_wrap()
-                    .child(Button::new("about-update-check").outline().label(self.t("about.check_updates"))
-                        .on_click(cx.listener(|this, _, _, cx| { this.show_update_status = true; cx.notify(); })))
                     .child(Button::new("about-release-notes").outline().label(self.t("about.release_notes"))
-                        .on_click(cx.listener(|this, _, _, cx| { this.show_release_notes = !this.show_release_notes; cx.notify(); }))))
-                .when(self.show_update_status, |card| card.child(div().w_full().min_w_0().whitespace_normal().text_sm().child(self.t("about.updater_unavailable")))))
+                        .on_click(cx.listener(|this, _, _, cx| { this.show_release_notes = !this.show_release_notes; cx.notify(); })))))
             .when(self.show_release_notes, |page| page.child(self.release_notes_panel(cx)))
             .child(self.card("about.contact_author_title", "about.support_thanks", cx)
                 .child("QQ @@BRAND_CONTACT@@"))

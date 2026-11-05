@@ -53,13 +53,30 @@ test('disabled_support_pages_remove_all_runtime_references_and_media', () => {
   assert.ok(files.has('example_tool_gui/src/app/design_tokens/mod.rs'));
   for (const file of files.keys()) assert.doesNotMatch(file, /assets\/sponsor|media-manifest|src\/app\/(about|sponsor)/);
   const app = files.get('example_tool_gui/src/app/mod.rs');
-  assert.doesNotMatch(app, /Page::About|Page::Sponsor|mod about|mod sponsor|sidebar-toggle|show_release_notes|show_update_status/);
+  assert.doesNotMatch(app, /Page::About|Page::Sponsor|mod about|mod sponsor|sidebar-toggle|show_release_notes/);
   const words = JSON.parse(files.get('example_tool_gui/locales/en-US.json'));
   assert.equal(words.about, undefined);
   assert.equal(words.sponsor, undefined);
   assert.equal(words.navigation.about, undefined);
   assert.equal(words.navigation.sponsor, undefined);
   assert.equal(words.sidebar, undefined);
+});
+
+/** 关于页仅提供本地发布日志，生成结果中没有更新入口或状态。 */
+test('about_page_keeps_release_notes_without_update_controls', () => {
+  const files = renderGpuiFiles(identity);
+  const about = files.get('example_tool_gui/src/app/about.rs');
+  const app = files.get('example_tool_gui/src/app/mod.rs');
+  assert.ok(about.includes('Button::new("about-release-notes")'));
+  assert.match(app, /show_release_notes/);
+  assert.doesNotMatch(about + app, /about-update-check|show_update_status|check_updates|updater_unavailable/);
+  for (const locale of ['zh-CN', 'en-US']) {
+    const words = JSON.parse(files.get(`example_tool_gui/locales/${locale}.json`));
+    assert.ok(words.about.release_notes);
+    assert.equal(words.about.check_updates, undefined);
+    assert.equal(words.about.updater_unavailable, undefined);
+    assert.equal(words.updater, undefined);
+  }
 });
 
 /** 选择赞助页后每个实际媒体都嵌入程序，并具备可追溯摘要。 */

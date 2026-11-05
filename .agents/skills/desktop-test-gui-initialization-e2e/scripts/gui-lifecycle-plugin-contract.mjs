@@ -23,7 +23,6 @@ import {
 } from "./gui-global-shortcut-runtime-contract.mjs";
 import {
   validateFixedIpcRuntimeContract,
-  validateUpdaterConfiguration,
 } from "./gui-fixed-ipc-runtime-contract.mjs";
 import {
   SYSTEM_NOTIFICATION_TEST_NAMES,
@@ -35,11 +34,6 @@ const BASELINE_TEST_NAMES = [
   "system_locale_normalizes_bcp47_once",
   "system_locale_falls_back_to_english",
   "saved_language_precedes_system_locale",
-  "updater_defaults_to_not_configured_without_network",
-  "updater_checks_are_single_flight",
-  "updater_rejects_target_arch_channel_mismatch",
-  "updater_tasks_are_owned_and_cancelled",
-  "updater_failures_never_report_up_to_date",
   "window_state_restores_size_position_and_maximized",
   "window_state_ignores_saved_visibility",
   "window_state_falls_back_for_invalid_or_offscreen_state",
@@ -66,7 +60,6 @@ const DEEP_LINK_TEST_NAMES = [
 
 const BASELINE_DEPENDENCIES = [
   ["tauri-plugin-os", "2.4.0", "系统语言"],
-  ["tauri-plugin-updater", "2.14.1", "更新基线"],
   ["tauri-plugin-window-state", "2.5.0", "窗口状态"],
   ["tauri-plugin-dialog", "2.8.4", "原生对话框"],
 ];
@@ -76,17 +69,7 @@ const CONDITIONAL_DEPENDENCIES = [
   ["globalShortcut", "tauri-plugin-global-shortcut", "2.4.1", "全局快捷键"],
 ];
 
-const UPDATER_OUTBOUND_METHOD_PATTERN =
-  /\.\s*(check|download_and_install|install)\s*\(/gu;
 
-/** 枚举 Rust 运行时代码中的 updater 出站/安装调用，忽略注释和字符串。 */
-function updaterOutboundCalls(sourceText) {
-  return [
-    ...sanitizeRustSource(sourceText, true).matchAll(
-      UPDATER_OUTBOUND_METHOD_PATTERN,
-    ),
-  ];
-}
 
 /** 读取 workspace 中一个直接依赖的 inline 或 table 声明。 */
 function workspaceDependency(text, dependency) {
@@ -149,7 +132,7 @@ function rejectDependency(rootCargo, guiCargo, dependency, label, errors) {
   }
 }
 
-/** 验证四项固定插件与五类条件插件的 Cargo 声明和 target 归属。 */
+/** 验证三项固定插件与五类条件插件的 Cargo 声明和 target 归属。 */
 export function validatePluginDependencyContract(rootCargo, guiCargo, profile, errors) {
   for (const [dependency, version, label] of BASELINE_DEPENDENCIES) {
     requireWorkspaceMemberDependency(
@@ -273,7 +256,6 @@ function validatePluginOrder(sourceText, profile, errors) {
       : []),
     ...(profile.deepLink ? [["deep-link", "tauri_plugin_deep_link::init"]] : []),
     ["os", "tauri_plugin_os::init"],
-    ["updater", "tauri_plugin_updater::Builder::new"],
     ["window-state", "tauri_plugin_window_state::Builder::default"],
     ["dialog", "tauri_plugin_dialog::init"],
     ...(profile.systemNotification
@@ -357,60 +339,6 @@ function validateLocaleRuntime(sourceText, errors) {
   }
 }
 
-function validateUpdaterRuntime(sourceText, exposeCommand, errors) {
-  const runtimeCode = sanitizeRustSource(sourceText, true);
-  requireSinglePluginRegistration(
-    sourceText,
-    "tauri_plugin_updater::Builder::new",
-    "updater 插件",
-    errors,
-  );
-  for (const token of [
-    "UpdateController",
-    "UpdateTaskOwner",
-    "UpdaterStatus::NotConfigured",
-    "AtomicBool",
-    "JoinHandle",
-    ".abort(",
-  ]) {
-    if (!sourceText.includes(token)) errors.push(`updater 基线缺少：${token}`);
-  }
-  const checkFunction = collectRustFunctions(runtimeCode).find(
-    (candidate) => candidate.name === "check_for_updates",
-  );
-  if (!checkFunction) {
-    errors.push("updater 基线缺少 check_for_updates 状态入口");
-  } else {
-    const checkCode = checkFunction.text;
-    const gate = /if\s*!\s*controller\.configured\s*\{\s*return\s+UpdaterStatus::NotConfigured\s*;\s*\}/u.exec(
-      checkCode,
-    );
-    const controlledCalls = updaterOutboundCalls(checkFunction.text);
-    const checkCall = controlledCalls.find((call) => call[1] === "check");
-    if (
-      !gate ||
-      !checkCall ||
-      controlledCalls.some((call) => call.index < gate.index + gate[0].length)
-    ) {
-      errors.push("check_for_updates 必须在官方 .check() 前返回 NotConfigured，保证未配置时零出站");
-    }
-    const allCalls = [...runtimeCode.matchAll(UPDATER_OUTBOUND_METHOD_PATTERN)];
-    if (allCalls.length !== controlledCalls.length) {
-      const observedMethods = [
-        ...new Set(allCalls.map((call) => `.${call[1]}()`)),
-      ].join("、");
-      errors.push(
-        `updater 的 .check()/.download_and_install()/.install() 只能位于受控 check_for_updates/UpdateTaskOwner 路径，发现 ${allCalls.length - controlledCalls.length} 次额外调用${observedMethods ? `（当前方法：${observedMethods}）` : ""}`,
-      );
-    }
-  }
-  if (
-    exposeCommand &&
-    !/#\[tauri::command\]\s*(?:pub\s+)?async\s+fn\s+check_for_updates\s*\(/u.test(runtimeCode)
-  ) {
-    errors.push("about_page 启用时 check_for_updates 必须是已注册的窄 Tauri command");
-  }
-}
 
 function validateWindowStateRuntime(sourceText, pluginArguments, errors) {
   requireSinglePluginRegistration(
@@ -650,9 +578,6 @@ export function validatePluginRuntimeContract(guiRoot, sourceTexts, profile, err
   const pluginArguments = collectMethodArguments(sourceText, "plugin");
   validatePluginOrder(sourceText, profile, errors);
   validateLocaleRuntime(sourceText, errors);
-  // 中性 GUI 必须显式配置 plugins.updater = { endpoints: [], pubkey: "" }
-  validateUpdaterConfiguration(guiRoot, errors);
-  validateUpdaterRuntime(sourceText, profile.aboutPage, errors);
   validateWindowStateRuntime(sourceText, pluginArguments, errors);
   validateDialogRuntime(sourceText, errors);
 

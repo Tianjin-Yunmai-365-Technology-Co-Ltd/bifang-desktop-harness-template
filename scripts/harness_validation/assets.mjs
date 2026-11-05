@@ -61,8 +61,8 @@ export function validateBrandAssets(errors) {
     fail(errors, "品牌媒体 manifest schemaVersion/assets 非法");
     return { assets: 0 };
   }
-  if (manifest.assetCount !== manifest.assets.length || manifest.assets.length !== 13) {
-    fail(errors, `品牌媒体 assetCount 必须与 13 个资产一致，实际 ${manifest.assets.length}`);
+  if (manifest.assetCount !== manifest.assets.length || manifest.assets.length !== 12) {
+    fail(errors, `品牌媒体 assetCount 必须与 12 个资产一致，实际 ${manifest.assets.length}`);
   }
   const bundlePaths = new Set();
   for (const asset of manifest.assets) {
@@ -97,7 +97,6 @@ export function validateBrandAssets(errors) {
     profile?.sponsor?.background,
     ...(profile?.sponsor?.tiers ?? []).map((tier) => tier.image),
     ...(profile?.sponsor?.payments ?? []).map((payment) => payment.image),
-    profile?.updater?.banner,
     ...(profile?.optionalAssets ?? []),
   ].filter(Boolean);
   for (const bundlePath of referenced) {

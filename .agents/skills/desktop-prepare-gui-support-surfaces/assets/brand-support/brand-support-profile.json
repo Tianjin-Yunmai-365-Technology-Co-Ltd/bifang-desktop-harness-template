@@ -90,9 +90,6 @@
       }
     ]
   },
-  "updater": {
-    "banner": "updater/banner.jpg"
-  },
   "optionalAssets": [
     "sponsor/arrow.png",
     "sponsor/icon1.png",

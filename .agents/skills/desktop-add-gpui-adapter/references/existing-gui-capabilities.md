@@ -6,7 +6,7 @@
 
 先核对根 Cargo 的框架、GUI member、目标平台、当前 profile，以及实际入口、设置、设备偏好、服务 owner、关闭和退出回收路径。产品实现优先于中性模板。通知事件、额外托盘菜单、快捷键动作/键位必须来自已批准需求，能力开关本身不提供这些产品事实。
 
-当前模板托盘和后台热键仅支持 macOS/Windows；含 Linux 的目标组合不能靠改 profile 或忽略 renderer 错误启用。独立 Linux 扩展按 [Linux 原生宿主方案](linux-native.md) 接线和验证。深链接仍 unavailable/disabled，updater 与通用原生 dialog 不由本说明启用。实际新增依赖按 `$desktop-manage-dependencies` 与项目当前 API/版本处理，不按 [模板依赖快照](dependency-baseline.md) 降级产品。
+当前模板托盘和后台热键仅支持 macOS/Windows；含 Linux 的目标组合不能靠改 profile 或忽略 renderer 错误启用。独立 Linux 扩展按 [Linux 原生宿主方案](linux-native.md) 接线和验证。深链接仍 unavailable/disabled，通用原生 dialog 不由本说明启用。实际新增依赖按 `$desktop-manage-dependencies` 与项目当前 API/版本处理，不按 [模板依赖快照](dependency-baseline.md) 降级产品。
 
 [add-only helper](../scripts/add_gpui_adapter.mjs) 明确拒绝已有 GUI，不得为增加单项能力重跑它，也不恢复全新工作区 wrapper。可用 [纯 renderer](../scripts/gpui_adapter_files.mjs) 与 [能力模板](../scripts/gpui_native_capabilities.mjs)，显式传入当前已确认身份、Logo、目标平台和全部选择，只改变本次能力值，比较两份内存 Map 识别触点；原生根/member 依赖另对照 `nativeDependencies`。Map 差异是人工合并参考，没有自动迁移或覆盖能力。
 

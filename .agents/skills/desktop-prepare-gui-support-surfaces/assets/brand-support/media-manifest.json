@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "scope": "shared-product-family-brand",
-  "assetCount": 13,
+  "assetCount": 12,
   "sourceApproval": {
     "approvedOn": "2026-08-20",
     "approvedUse": "internal-proprietary-harness-product-family",
@@ -12,7 +12,7 @@
     "guiSkillPropagation": "complete",
     "applicationBundle": "gui-profile-selected-local-surfaces",
     "defaultMediaSets": [],
-    "optionalMediaSets": ["sponsor", "updater"],
+    "optionalMediaSets": ["sponsor"],
     "paymentAutomationAuthorized": false,
     "remoteLoadingAllowed": false
   },
@@ -160,18 +160,6 @@
       "purpose": "optional-selection-decoration",
       "classification": "brand-optional-currently-unreferenced",
       "accessibility": "decorative-empty-alt"
-    },
-    {
-      "sourcePath": "media/updater/banner.jpg",
-      "bundlePath": "updater/banner.jpg",
-      "mimeType": "image/jpeg",
-      "width": 839,
-      "height": 340,
-      "sizeBytes": 24750,
-      "sha256": "75b5b8ca3010c980e00615fbf113c91eabcb8fdeb30255392ccf87f0cb85b4b9",
-      "purpose": "updater-brand-banner",
-      "classification": "brand-presentation",
-      "accessibility": "localized-semantic-alt-required"
     }
   ]
 }

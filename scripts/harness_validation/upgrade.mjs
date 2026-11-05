@@ -26,8 +26,10 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-record-adr/**", "managed"],
   [".agents/skills/desktop-handoff-project/**", "managed"],
   [".agents/skills/desktop-inspect-release-notes/**", "managed"],
+  // 退役路径仅兼容既有 conditional 来源锁，不恢复或传播对应 Skill。
   [".agents/skills/desktop-enable-gui-updates/**", "conditional"],
   [".agents/skills/desktop-add-gui-telemetry/**", "conditional"],
+  [".agents/skills/desktop-add-gui-updater/**", "conditional"],
   [".agents/skills/desktop-add-gpui-autostart/**", "conditional"],
   [".agents/skills/desktop-test-gpui-initialization-e2e/**", "tombstone"],
   ["Version.md", "tombstone"],
@@ -95,7 +97,6 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   ["docs/GUI_ENGINEERING.md", "conditional"],
   [".agents/skills/mantine-list-view/**", "conditional"],
   [".agents/skills/desktop-add-gui-system-locale/**", "conditional"],
-  [".agents/skills/desktop-add-gui-updater/**", "conditional"],
   [".agents/skills/desktop-add-gui-window-state/**", "conditional"],
   [".agents/skills/desktop-add-gui-dialog/**", "conditional"],
   [".agents/skills/desktop-add-gui-system-tray/**", "conditional"],

@@ -48,4 +48,4 @@
 
 - `enabled`：才运行 `scripts/probe-macos-notarization.sh`。只接受 `ready` 后才以同一已批准 Finder 布局策略运行 `CI=true TAURI_BUNDLER_DMG_IGNORE_CI=1 pnpm tauri build --bundles dmg --config src-tauri/tauri.release.conf.json`；`unavailable`、探测失败或条件不完整都阻断，不得切换为 unsigned。环境变量三元组模式不传 `--skip-stapling`，让 Tauri 完成 Developer ID 签名、公证、等待和 stapling；若探测返回 `notarytool-keychain-profile`，Tauri 先完成 Developer ID 签名与 DMG 打包，再立即使用已批准的 profile 调用 `notarytool submit --wait`，只接受 `Accepted`，然后对 app/DMG 执行适用 stapling 与验证。不得输出或记录秘密/profile 名。
 
-8. 启用 macOS 签名后绝不得输出仅 Developer ID 签名但未公证/staple 的候选。签名、公证、stapling、Gatekeeper/ticket 验证任一步失败都使该候选失败；不得以 `--no-sign` 重试或静默降级。候选构建中禁止 `--skip-stapling`。关闭选择的 unsigned 路线不是失败降级，而是探测前已确定并写入清单的默认路线。
+7. 启用 macOS 签名后绝不得输出仅 Developer ID 签名但未公证/staple 的候选。签名、公证、stapling、Gatekeeper/ticket 验证任一步失败都使该候选失败；不得以 `--no-sign` 重试或静默降级。候选构建中禁止 `--skip-stapling`。关闭选择的 unsigned 路线不是失败降级，而是探测前已确定并写入清单的默认路线。

@@ -355,11 +355,11 @@ function createFixture() {
   );
   fs.writeFileSync(
     path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\nmac-usernotifications = "0.3.1"\ntauri = { version = "2.12.5", features = ["tray-icon"] }\ntauri-plugin-autostart = "2.7.0"\ntauri-plugin-deep-link = "2.6.3"\ntauri-plugin-dialog = "2.8.4"\ntauri-plugin-global-shortcut = "2.4.1"\ntauri-plugin-notification = "2.8.0"\ntauri-plugin-os = "2.4.0"\ntauri-plugin-single-instance = { version = "2.5.5", features = ["deep-link"] }\ntauri-plugin-updater = "2.14.1"\ntauri-plugin-window-state = "2.5.0"\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs", "sync"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\nmac-usernotifications = "0.3.1"\ntauri = { version = "2.12.5", features = ["tray-icon"] }\ntauri-plugin-autostart = "2.7.0"\ntauri-plugin-deep-link = "2.6.3"\ntauri-plugin-dialog = "2.8.4"\ntauri-plugin-global-shortcut = "2.4.1"\ntauri-plugin-notification = "2.8.0"\ntauri-plugin-os = "2.4.0"\ntauri-plugin-single-instance = { version = "2.5.5", features = ["deep-link"] }\ntauri-plugin-window-state = "2.5.0"\ntokio = { version = "1.0.0", features = ["macros", "rt", "fs", "sync"] }\nserde = { version = "1.0.0" }\nserde_json = { version = "1.0.0" }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "Cargo.toml"),
-    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-deep-link = { workspace = true }\ntauri-plugin-dialog = { workspace = true }\ntauri-plugin-global-shortcut = { workspace = true }\ntauri-plugin-notification = { workspace = true }\ntauri-plugin-os = { workspace = true }\ntauri-plugin-single-instance = { workspace = true }\ntauri-plugin-updater = { workspace = true }\ntauri-plugin-window-state = { workspace = true }\ntokio = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\n\n[target.'cfg(target_os = "macos")'.dependencies]\nmac-usernotifications = { workspace = true }\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]\ntauri-plugin-autostart = { workspace = true }\n`,
+    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-deep-link = { workspace = true }\ntauri-plugin-dialog = { workspace = true }\ntauri-plugin-global-shortcut = { workspace = true }\ntauri-plugin-notification = { workspace = true }\ntauri-plugin-os = { workspace = true }\ntauri-plugin-single-instance = { workspace = true }\ntauri-plugin-window-state = { workspace = true }\ntokio = { workspace = true }\nserde = { workspace = true }\nserde_json = { workspace = true }\n\n[target.'cfg(target_os = "macos")'.dependencies]\nmac-usernotifications = { workspace = true }\n\n[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies]\ntauri-plugin-autostart = { workspace = true }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "tauri.conf.json"),
@@ -378,7 +378,6 @@ function createFixture() {
       bundle: { icon: ["icons/32x32.png"] },
       plugins: {
         "deep-link": { desktop: { schemes: ["app-sample"] } },
-        updater: { endpoints: [], pubkey: "" },
       },
     }),
   );
@@ -394,11 +393,10 @@ function createFixture() {
 	use tauri::menu::{Menu, MenuItemBuilder};
 	use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 	use std::collections::BTreeMap;
-	use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
+	use std::sync::Mutex;
 	use tauri_plugin_autostart::ManagerExt;
 	use tauri_plugin_deep_link::DeepLinkExt;
 ${renderGlobalShortcutImportFixtureSource([])}
-	use tauri_plugin_updater::UpdaterExt;
 	use tauri_plugin_window_state::StateFlags;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
@@ -414,15 +412,6 @@ ${renderGlobalShortcutActionsFixtureSource([])}
 struct ReleaseNotesDocument; struct LocalizedReleaseNoteItem;
 enum ReleaseNotesLoadError { Invalid }
 ${NOTIFICATION_RUNTIME_FIXTURE_SOURCE}
-	enum UpdaterStatus { NotConfigured, Checking, UpToDate, Failed }
-	struct UpdateController { configured: bool, checking: AtomicBool }
-	struct UpdateTaskOwner { task: Option<JoinHandle<()>> }
-
-	impl Drop for UpdateTaskOwner {
-	    fn drop(&mut self) {
-	        if let Some(task) = self.task.take() { task.abort(); }
-	    }
-	}
 
 	fn normalize_bcp47_locale(raw: Option<String>, saved_language: Option<String>) -> String {
 	    let candidate = saved_language
@@ -459,14 +448,6 @@ ${FIXED_METADATA_LOCALE_RUNTIME_FIXTURE_SOURCE}
 	    Ok(())
 	}
 
-	#[tauri::command]
-	async fn check_for_updates(app: &tauri::AppHandle, controller: &UpdateController) -> UpdaterStatus {
-	    if !controller.configured { return UpdaterStatus::NotConfigured; }
-	    if controller.checking.swap(true, Ordering::AcqRel) { return UpdaterStatus::Checking; }
-	    let result = app.updater().unwrap().check().await;
-	    controller.checking.store(false, Ordering::Release);
-	    if result.is_ok() { UpdaterStatus::UpToDate } else { UpdaterStatus::Failed }
-	}
 
 	fn validate_restore_deep_link(url: &str) -> bool {
 	    url == APP_DEEP_LINK_RESTORE_URL
@@ -633,35 +614,10 @@ fn handle_window(window: &tauri::Window, event: &WindowEvent) {
 	        assert_eq!(locale, "zh-CN");
 	    }
 
-	    #[test]
-	    fn updater_defaults_to_not_configured_without_network() {
-	        let status = UpdaterStatus::NotConfigured;
-	        assert!(matches!(status, UpdaterStatus::NotConfigured));
-	    }
 
-	    #[test]
-	    fn updater_checks_are_single_flight() {
-	        let active_checks = 1;
-	        assert_eq!(active_checks, 1);
-	    }
 
-	    #[test]
-	    fn updater_rejects_target_arch_channel_mismatch() {
-	        let metadata_matches = false;
-	        assert!(!metadata_matches);
-	    }
 
-	    #[test]
-	    fn updater_tasks_are_owned_and_cancelled() {
-	        let owner_released_task = true;
-	        assert!(owner_released_task);
-	    }
 
-	    #[test]
-	    fn updater_failures_never_report_up_to_date() {
-	        let failed_status = UpdaterStatus::Failed;
-	        assert!(!matches!(failed_status, UpdaterStatus::UpToDate));
-	    }
 
 	    #[test]
 	    fn window_state_restores_size_position_and_maximized() {
@@ -799,37 +755,25 @@ export function disableTrayAndSingleInstance(root, guiRoot) {
   });
   fs.writeFileSync(
     path.join(root, "Cargo.toml"),
-    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\ntauri = { version = "2.12.5" }\ntauri-plugin-dialog = "2.8.4"\ntauri-plugin-os = "2.4.0"\ntauri-plugin-updater = "2.14.1"\ntauri-plugin-window-state = "2.5.0"\n`,
+    `[workspace]\nmembers = ["sample_gui/src-tauri"]\n\n[workspace.metadata.agent-first-harness]\ninterfaces = ["gui"]\ngui-framework = "tauri"\ntarget-platforms = ["macos"]\n\n[workspace.dependencies]\ntauri = { version = "2.12.5" }\ntauri-plugin-dialog = "2.8.4"\ntauri-plugin-os = "2.4.0"\ntauri-plugin-window-state = "2.5.0"\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "Cargo.toml"),
-    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-dialog = { workspace = true }\ntauri-plugin-os = { workspace = true }\ntauri-plugin-updater = { workspace = true }\ntauri-plugin-window-state = { workspace = true }\n`,
+    `[package]\nname = "sample_gui"\nversion = "0.1.0"\n\n[dependencies]\ntauri = { workspace = true }\ntauri-plugin-dialog = { workspace = true }\ntauri-plugin-os = { workspace = true }\ntauri-plugin-window-state = { workspace = true }\n`,
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "tauri.conf.json"),
     JSON.stringify({
       app: { windows: [{ center: true, height: 900, label: "main", minHeight: 640, minWidth: 960, width: 1440 }] },
       bundle: { icon: ["icons/32x32.png"] },
-      plugins: { updater: { endpoints: [], pubkey: "" } },
     }),
   );
   fs.writeFileSync(
     path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"),
     `
-use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::WindowEvent;
-use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_window_state::StateFlags;
 
-enum UpdaterStatus { NotConfigured, Checking, UpToDate, Failed }
-struct UpdateController { configured: bool, checking: AtomicBool }
-struct UpdateTaskOwner { task: Option<tauri::async_runtime::JoinHandle<()>> }
-
-impl Drop for UpdateTaskOwner {
-    fn drop(&mut self) {
-        if let Some(task) = self.task.take() { task.abort(); }
-    }
-}
 
 fn normalize_bcp47_locale(raw: Option<String>, saved_language: Option<String>) -> String {
     let candidate = saved_language
@@ -849,18 +793,10 @@ fn resolve_system_locale(saved_language: Option<String>) -> String {
 }
 ${FIXED_METADATA_LOCALE_RUNTIME_FIXTURE_SOURCE}
 
-async fn check_for_updates(app: &tauri::AppHandle, controller: &UpdateController) -> UpdaterStatus {
-    if !controller.configured { return UpdaterStatus::NotConfigured; }
-    if controller.checking.swap(true, Ordering::AcqRel) { return UpdaterStatus::Checking; }
-    let result = app.updater().unwrap().check().await;
-    controller.checking.store(false, Ordering::Release);
-    if result.is_ok() { UpdaterStatus::UpToDate } else { UpdaterStatus::Failed }
-}
 
 fn run() {
     let _builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_window_state::Builder::default().with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED).build())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![get_app_metadata, get_system_locale, set_interface_language])
@@ -890,16 +826,6 @@ mod tests {
     fn system_locale_falls_back_to_english() { let locale = normalize_bcp47_locale(None, None); assert_eq!(locale, "en-US"); }
     #[test]
     fn saved_language_precedes_system_locale() { let locale = normalize_bcp47_locale(Some("en-US".into()), Some("zh-CN".into())); assert_eq!(locale, "zh-CN"); }
-    #[test]
-    fn updater_defaults_to_not_configured_without_network() { let status = UpdaterStatus::NotConfigured; assert!(matches!(status, UpdaterStatus::NotConfigured)); }
-    #[test]
-    fn updater_checks_are_single_flight() { let active_checks = 1; assert_eq!(active_checks, 1); }
-    #[test]
-    fn updater_rejects_target_arch_channel_mismatch() { let matches_target = false; assert!(!matches_target); }
-    #[test]
-    fn updater_tasks_are_owned_and_cancelled() { let cancelled = true; assert!(cancelled); }
-    #[test]
-    fn updater_failures_never_report_up_to_date() { let status = UpdaterStatus::Failed; assert!(!matches!(status, UpdaterStatus::UpToDate)); }
     #[test]
     fn window_state_restores_size_position_and_maximized() { let flags = StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED; assert!(flags.contains(StateFlags::SIZE)); }
     #[test]

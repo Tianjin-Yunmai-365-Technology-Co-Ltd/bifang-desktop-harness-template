@@ -51,7 +51,7 @@ export function summaryNotices(values) {
   if (!values.interfaces.includes("gui")) return notices;
   notices.push("GUI Logo 在本汇总确认后的执行阶段选择：按 candidate-1 → candidate-2 → candidate-3 展示三个原始候选；选择后只验证和标准化所选项。");
   if (values.gui_framework === "tauri") {
-    notices.push("Tauri 使用 desktop-add-gui-adapter 与 desktop-test-gui-initialization-e2e；system-locale/updater/window-state/dialog 是四项固定基线，主窗口精确 dialog:default 不授权通用文件读写。发布候选打包使用 desktop-build-tauri-release。");
+    notices.push("Tauri 使用 desktop-add-gui-adapter 与 desktop-test-gui-initialization-e2e；system-locale/window-state/dialog 是三项固定基线，主窗口精确 dialog:default 不授权通用文件读写。发布候选打包使用 desktop-build-tauri-release。");
     if (values.deep_link === "enabled") notices.push(`深链接只恢复主窗口：app-${values.project_id.replaceAll("_", "-")}://restore；单实例已启用。`);
   } else {
     notices.push("GPUI 使用 Rust/gpui-kit、desktop-add-gpui-adapter 与 desktop-test-gpui-initialization-e2e，不接入 Tauri 专属基线；深链接 unavailable/disabled，目标含 Linux 时托盘与全局快捷键同样不可用。",

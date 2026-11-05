@@ -74,17 +74,15 @@ test("template rejects a precreated downstream product instance", () => withTemp
   expectError(errors, "must not precreate");
 }));
 
+/** 通用出站能力仍须使用已批准的运行时秘密来源，移除更新统计不削弱此边界。 */
 test("safe secret-source rule is mandatory", () => withTemporaryRoot((root) => {
   const skillPath = path.join(root, "SKILL.md");
-  mutateTextCopy(GUI_SUPPORT_SKILL, skillPath, (source) => source.replace("秘密只能由已批准的安全运行时来源提供", "秘密由实现自行决定"));
+  cpSync(GUI_SUPPORT_SKILL, skillPath);
+  mutateText(skillPath, source => source.replace("秘密只能由已批准的安全运行时来源提供", "秘密由实现自行决定"));
   const errors = [];
   validateGuiSupportContract(errors, { skillPath, productInstancePath: path.join(root, "GUI_SUPPORT_SURFACES.md") });
   expectError(errors, "安全运行时来源");
 }));
-
-function mutateTextCopy(sourcePath, targetPath, update) {
-  writeFileSync(targetPath, update(readFileSync(sourcePath, "utf8")));
-}
 
 test("brand media byte drift is rejected", () => withBrand((root, brandRoot) => {
   const target = path.join(brandRoot, "media", "sponsor", "arrow.png");
@@ -177,34 +175,12 @@ test("AppShell width offset and observable width remain synchronized", () => wit
   expectError(errors, "data-navbar-width={navbarWidth}");
 }));
 
-test("default settings reject privacy and telemetry surfaces", () => withBrand((root, brandRoot) => {
-  const settings = path.join(brandRoot, "react", "SettingsPageTemplate.tsx");
-  mutateText(settings, (source) => `${source}\nconst usageReportingConsent = false;\nconst removed = t("settings.privacy_title");\n`);
-  mutateJson(path.join(brandRoot, "i18n", "zh-CN.json"), (value) => { value.settings.privacy_title = "隐私"; });
-  const errors = validateBrand(root, brandRoot);
-  expectError(errors, "forbidden privacy surface");
-  expectError(errors, "fixed UI keys drifted");
-}));
-
 test("sponsor page remains theme-adaptive", () => withBrand((root, brandRoot) => {
   const sponsor = path.join(brandRoot, "react", "SponsorPageTemplate.tsx");
   mutateText(sponsor, (source) => source.replaceAll("useComputedColorScheme", "useMantineTheme").replaceAll('data-color-scheme={colorScheme}', 'data-theme="light"'));
   const errors = validateBrand(root, brandRoot);
   expectError(errors, "useComputedColorScheme");
   expectError(errors, "data-color-scheme");
-}));
-
-test("About update, system theme, and mandatory update gate are required", () => withBrand((root, brandRoot) => {
-  mutateText(path.join(brandRoot, "react", "SettingsPageTemplate.tsx"), (source) => source.replace('t("settings.theme_system")', 't("settings.title")'));
-  mutateText(path.join(brandRoot, "react", "AboutPageTemplate.tsx"), (source) => source.replace('t("about.check_for_updates")', 't("about.version")'));
-  mutateText(path.join(brandRoot, "react", "MandatoryUpdateGateTemplate.tsx"), (source) => source.replace('role="alertdialog"', 'role="dialog"'));
-  const errors = validateBrand(root, brandRoot);
-  for (const fragment of ["settings.theme_system", "about.check_for_updates", 'role="alertdialog"']) expectError(errors, fragment);
-}));
-
-test("About update container cannot proxy child actions", () => withBrand((root, brandRoot) => {
-  mutateText(path.join(brandRoot, "react", "AboutPageTemplate.tsx"), (source) => source.replace('<Paper data-testid="about-update-section"', '<Paper data-testid="about-update-section" onClick={onCheckForUpdates}'));
-  expectError(validateBrand(root, brandRoot), "must not proxy child button actions");
 }));
 
 test("release-note bounds and display version formatter are fixed", () => withBrand((root, brandRoot) => {
@@ -313,19 +289,16 @@ test("missing GUI support contract files fail closed", () => withTemporaryRoot((
   assert.equal(existsSync(path.join(root, "missing.md")), false);
 }));
 
-/** 拆分后安全合同的删除仍在真实新路径触发门禁，不依赖旧混合文档。 */
-test("extracted_update_and_telemetry_contracts_fail_closed", () => withTemporaryRoot(root => {
-  const skillsRoot = path.dirname(path.dirname(GUI_SUPPORT_SKILL));
-  for (const [name, file, option, fragment] of [
-    ["desktop-enable-gui-updates", "update-contract.md", "updateContractPath", "签名验证不可关闭"],
-    ["desktop-add-gui-telemetry", "telemetry-contract.md", "telemetryContractPath", "禁止使用 GET/query"],
-    ["desktop-add-gui-telemetry", "telemetry-contract.md", "telemetryContractPath", "最多一个发送任务、一个在途请求和 32 条内存事件"],
-  ]) {
-    const source = path.join(skillsRoot, name, "references", file);
-    const target = path.join(root, file);
-    mutateTextCopy(source, target, text => text.replace(fragment, "removed safeguard"));
-    const errors = [];
-    validateGuiSupportContract(errors, { [option]: target, productInstancePath: path.join(root, "absent.md") });
-    expectError(errors, fragment);
-  }
+/** 移除更新能力后，关于页本地日志与系统主题仍是独立必需能力。 */
+test("about_release_notes_and_system_theme_remain_required", () => withBrand((root, brandRoot) => {
+  mutateText(path.join(brandRoot, "react", "SettingsPageTemplate.tsx"), source => source.replace('t("settings.theme_system")', 't("settings.title")'));
+  mutateText(path.join(brandRoot, "react", "AboutPageTemplate.tsx"), source => source.replaceAll('t("about.release_notes")', 't("about.version")'));
+  const errors = validateBrand(root, brandRoot);
+  for (const fragment of ["settings.theme_system", "about.release_notes"]) expectError(errors, fragment);
+}));
+
+/** 日志入口只由按钮本身触发，父容器不得代理动作。 */
+test("about_release_notes_container_cannot_proxy_its_action", () => withBrand((root, brandRoot) => {
+  mutateText(path.join(brandRoot, "react", "AboutPageTemplate.tsx"), source => source.replace('<Paper data-testid="about-release-notes-section"', '<Paper data-testid="about-release-notes-section" onClick={openReleaseNotes}'));
+  expectError(validateBrand(root, brandRoot), "must not proxy child button actions");
 }));

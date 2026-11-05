@@ -1,6 +1,10 @@
-# 2026-11-04 变更记录
+# 2026-11-05 变更记录
 
-本文件完整承接 2026-11-02 快照中的当前能力与历史绑定，加入 2026-11-04 实际变更；历史变化不重新声明为本日新增或重新验证。完整旧条目、稳定标识及原始验证部分保留在 [历史原文](CHANGELOG_history.md)；归档边界与恢复方法见 [ADR-20261020-001](../adr/20261102_ADR.md)。
+本文件完整承接 2026-11-04 快照中的当前能力与历史绑定，加入 2026-11-05 实际变更；历史变化不重新声明为本日新增或重新验证。完整旧条目、稳定标识及原始验证部分保留在 [历史原文](CHANGELOG_history.md)；归档边界与恢复方法见 [ADR-20261020-001](../adr/20261105_ADR.md)。
+
+## 2026-11-05 移除
+
+- `HARNESS-REMOVE-UPDATES-TELEMETRY`：删除应用更新、强更与使用统计的专属 Skills、初始化基线、状态界面/翻译/媒体和候选制品门禁，同步依赖候选、升级传播与相关回归。关于页保留权威版本及本地双语发布日志；安装包代码签名和工程层升级继续按现行合同执行，既有下游产品实现受保护。开发阶段不取 Harness 时间版本，所需版本在未来正式发布时绑定。见 [ADR-20261105-001](../adr/20261105_ADR.md)。
 
 ## 2026-11-04 新增
 
@@ -12,17 +16,17 @@
 
 ## 2026-11-02 变化
 
-- `HARNESS-CHANGE-INSTALLER-ARTIFACT-NAMING`（`required_version = 202611021437`）：Tauri/GPUI 的 Windows exe 与 macOS dmg 统一使用已确认展示名、无 v 原始版本、x64/arm64 架构及系统后缀；共用名称生成器拒绝非法路径字符，GPUI 本地与候选同步生成相邻校验和和 manifest，Tauri 在最终字节校验后复制命名。其他归档沿用原规则，收集不改写既有候选。见 [发布物命名](../RELEASE.md#发布物命名) 与 [ADR-20261102-001](../adr/20261102_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准；未构建或验收真实产品。
+- `HARNESS-CHANGE-INSTALLER-ARTIFACT-NAMING`（`required_version = 202611021437`）：Tauri/GPUI 的 Windows exe 与 macOS dmg 统一使用已确认展示名、无 v 原始版本、x64/arm64 架构及系统后缀；共用名称生成器拒绝非法路径字符，GPUI 本地与候选同步生成相邻校验和和 manifest，Tauri 在最终字节校验后复制命名。其他归档沿用原规则，收集不改写既有候选。见 [发布物命名](../RELEASE.md#发布物命名) 与 [ADR-20261102-001](../adr/20261105_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准；未构建或验收真实产品。
 
 ## 2026-10-30 新增
 
-- `HARNESS-FEAT-GRID-TYPOGRAPHY`（`required_version = 202610301829`）：统一 [通用 Grid](../design_standards/data_grid.md) 与 [字体排版基座](../design_standards/ui_foundation.md)，同步专项 Skill、检查项和 Tauri 中性资产。网格改用无横滚固定布局、列权重、可键盘查看完整值；选择支持单选/多选及跨页查询确认，刷新保留内容，按新鲜期查询并防重复重试。主题集中原生中文回退、标题/正文/辅助层级、等宽数字与亮暗文字语义。GPUI 补充原生规范，不注入 Web 依赖或网格。详见 [ADR-20261030-001](../adr/20261102_ADR.md)；本次正式发布将已完成变化绑定到上述所需版本，发布状态以 Git 引用复核为准。真实宿主字体、缩放、性能及 E2E 未验证。
+- `HARNESS-FEAT-GRID-TYPOGRAPHY`（`required_version = 202610301829`）：统一 [通用 Grid](../design_standards/data_grid.md) 与 [字体排版基座](../design_standards/ui_foundation.md)，同步专项 Skill、检查项和 Tauri 中性资产。网格改用无横滚固定布局、列权重、可键盘查看完整值；选择支持单选/多选及跨页查询确认，刷新保留内容，按新鲜期查询并防重复重试。主题集中原生中文回退、标题/正文/辅助层级、等宽数字与亮暗文字语义。GPUI 补充原生规范，不注入 Web 依赖或网格。详见 [ADR-20261030-001](../adr/20261105_ADR.md)；本次正式发布将已完成变化绑定到上述所需版本，发布状态以 Git 引用复核为准。真实宿主字体、缩放、性能及 E2E 未验证。
 
 ## 2026-10-28 新增
 
-- `HARNESS-FEAT-UNIFIED-UI-FOUNDATION`（`required_version = 202610282034`）：新增根 DESIGN.md 导航与受管 UI 统一设计基座，接入设计索引、Tauri/GPUI、日常实施、实例化/裁剪及升级候选；统一 Token、组件、样式层与反馈，视觉值统一收拢为中央 Token 并清理旧风格，保留列表数据合同、不增加默认业务能力或工具依赖。升级校验必需规范字节并保护项目自有 DESIGN.md；真实下游视觉、构建和 E2E 未执行。见 [UI 基座](../design_standards/ui_foundation.md) 与 [ADR-20261028-001](../adr/20261102_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
+- `HARNESS-FEAT-UNIFIED-UI-FOUNDATION`（`required_version = 202610282034`）：新增根 DESIGN.md 导航与受管 UI 统一设计基座，接入设计索引、Tauri/GPUI、日常实施、实例化/裁剪及升级候选；统一 Token、组件、样式层与反馈，视觉值统一收拢为中央 Token 并清理旧风格，保留列表数据合同、不增加默认业务能力或工具依赖。升级校验必需规范字节并保护项目自有 DESIGN.md；真实下游视觉、构建和 E2E 未执行。见 [UI 基座](../design_standards/ui_foundation.md) 与 [ADR-20261028-001](../adr/20261105_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
 
-- `HARNESS-CHANGE-CURRENT-DESIGN-ONLY`（`required_version = 202610282034`）：当前 UI 基座成为唯一视觉权威，清理旧侧栏像素硬锁、列表局部色板和重复设计治理；删除 taste 自动安装器、对应测试及完整 vendor 快照。Tauri/GPUI 模板实际消费中央展示 Token，强调色跟随主色；同步规格、初始化与回归合同，保留既有下游自有第三方资产与历史事实。见 [ADR-20261028-003](../adr/20261102_ADR.md)。真实下游窗口、构建和 E2E 未执行。
+- `HARNESS-CHANGE-CURRENT-DESIGN-ONLY`（`required_version = 202610282034`）：当前 UI 基座成为唯一视觉权威，清理旧侧栏像素硬锁、列表局部色板和重复设计治理；删除 taste 自动安装器、对应测试及完整 vendor 快照。Tauri/GPUI 模板实际消费中央展示 Token，强调色跟随主色；同步规格、初始化与回归合同，保留既有下游自有第三方资产与历史事实。见 [ADR-20261028-003](../adr/20261105_ADR.md)。真实下游窗口、构建和 E2E 未执行。
 
 ## 当前能力与契约
 
@@ -32,7 +36,7 @@
 - 依赖与工程门禁：兼容下界、最小特性、真实最低版本验证及 ignored/tracked 锁策略分别判断；标准用户全局工具只按初始化或真实环境失败恢复，项目依赖保持本地；上游自动化使用 Node 标准库且不向下游传播 Python 禁令。文件规模、中文声明注释和按事件记忆均以 [工程规则](../ENGINEERING_RULES.md) 为准。
 - GUI 与平台：Tauri/GPUI 按 Cargo 框架隔离，九字段 profile、双语、三态主题、窗口与壳层由各自入口管理；桌面能力及品牌资源按选择生成，禁用无残留。普通进程状态与 Mantine 列表的 URL/session/Query/列偏好例外分开。各平台依赖、能力及打包路径见 [GUI 工程索引](../GUI_ENGINEERING.md) 和 [设计标准](../design_standards/README.md)。
 - 版本与候选：下游版本按周期和稳定 ID 管理，维护不升版；Harness 仅正式发布时取上海时间版本。双语日志保存最近十个真实发布版本、每类最多十条；候选只消费已发布源码，CLI 默认当前宿主，跨平台矩阵需明确请求。原子证据、当次 E2E/签名和真实最终产物验收见 [发布规则](../RELEASE.md) 与 [验证规则](../VERIFICATION.md)。
-- 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定；GPUI 知识资产条件传播，Kit API 知识与既有第三方本地资产的来源和许可可追溯；历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261102_ADR.md)。
+- 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定；GPUI 知识资产条件传播，Kit API 知识与既有第三方本地资产的来源和许可可追溯；历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261105_ADR.md)。
 
 ## 2026-10-20 正式发布物化的既有变化
 

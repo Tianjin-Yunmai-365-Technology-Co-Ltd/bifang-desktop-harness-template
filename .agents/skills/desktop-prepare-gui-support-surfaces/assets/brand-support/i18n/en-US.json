@@ -5,8 +5,6 @@
     "support_thanks": "Thank you for your support and feedback",
     "studio": "Shoucheng Studio",
     "contact_label": "QQ {{contact}}",
-    "update_title": "Software updates",
-    "check_for_updates": "Check for updates",
     "release_notes": "Release notes",
     "disclaimer_title": "Disclaimer",
     "disclaimer_1": "This software/service is for learning, research, and lawful use only. Any activity that violates the laws of the People’s Republic of China is strictly prohibited.",
@@ -98,24 +96,6 @@
   },
   "media": {
     "transcript": "View transcript"
-  },
-  "updater": {
-    "banner_alt": "Brand update prompt banner",
-    "status_not_configured": "Updates are not configured for this product",
-    "status_idle": "Updates have not been checked",
-    "status_checking": "Checking for updates",
-    "status_up_to_date": "You are using the latest version",
-    "status_optional_update": "An optional update is available",
-    "status_required_update": "An update is required to continue",
-    "status_failed": "The update check failed; you can continue using this version",
-    "current_version": "Current version: {{version}}",
-    "available_version": "Available version: {{version}}",
-    "required_badge": "Update required",
-    "required_title": "This version is no longer supported",
-    "required_description": "Install the signature-verified update or exit safely. Product features remain unavailable until the update finishes.",
-    "version_transition": "Current {{current}} → available {{available}}",
-    "install_update": "Install update",
-    "exit_application": "Exit application"
   },
   "release_notes": {
     "dialog_title": "Release notes",

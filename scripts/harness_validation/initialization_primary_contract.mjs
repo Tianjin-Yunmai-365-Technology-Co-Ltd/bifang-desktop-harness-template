@@ -96,10 +96,9 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "$desktop-test-gui-initialization-e2e",
       "`gui-initialization-config`",
       "$desktop-add-gui-system-locale",
-      "$desktop-add-gui-updater",
       "$desktop-add-gui-window-state",
       "$desktop-add-gui-dialog",
-      "结构检查器先验证唯一九字段、组合约束、四项固定基线和每个独立能力的启用完整/禁用无残留",
+      "结构检查器先验证唯一九字段、组合约束、三项固定基线和每个独立能力的启用完整/禁用无残留",
       "Tokio",
       "Axum + Tower/Tower HTTP",
       "Clap",
@@ -203,7 +202,6 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "设置页固定区始终只渲染当前应用名/带一个小写 `v` 的版本",
       "唯一 `gui-initialization-config` 代码块",
       "$desktop-add-gui-system-locale",
-      "$desktop-add-gui-updater",
       "$desktop-add-gui-window-state",
       "$desktop-add-gui-dialog",
       "全局快捷键空 contract 不增加占位",
@@ -255,17 +253,15 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
     [path.join(GUI_E2E_SCRIPTS, "gui-lifecycle-plugin-contract.test.mjs"), [
       "dialog_dependencies_are_fixed",
       "deep-link without single-instance",
-      "empty updater configuration",
       "fixed metadata and locale commands",
       "dialog_plugin_is_registered_once_in_fixed_order",
       "rejects treating tauri_plugin_os locale as a Result",
-      "rejects updater code that can check before the NotConfigured gate",
       "rejects window-state setup that is not wired through the recoverable helper",
       "rejects opening deep-link runtime registration APIs on the neutral restore path",
       "rejects a global shortcut handler that fires on press and release",
       "rejects duplicate notification and autostart plugin registrations",
       "rejects enabled commands omitted from the merged invoke handler",
-      "rejects constant-true assertions in fixed plugin tests",
+      "rejects_constant_true_assertions_in_fixed_plugin_tests",
     ]],
   ]);
 
@@ -303,7 +299,6 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
 
   const fixedGuiSkills = [
     "desktop-add-gui-system-locale",
-    "desktop-add-gui-updater",
     "desktop-add-gui-window-state",
     "desktop-add-gui-dialog",
   ];

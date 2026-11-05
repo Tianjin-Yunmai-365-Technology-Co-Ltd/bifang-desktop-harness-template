@@ -5,8 +5,6 @@
     "support_thanks": "感谢您的支持和反馈",
     "studio": "守城工作室",
     "contact_label": "QQ {{contact}}",
-    "update_title": "软件更新",
-    "check_for_updates": "检查更新",
     "release_notes": "更新日志",
     "disclaimer_title": "免责声明",
     "disclaimer_1": "本软件/服务仅供学习研究和合法合规使用，严禁用于任何违反中华人民共和国法律法规的活动",
@@ -98,24 +96,6 @@
   },
   "media": {
     "transcript": "查看文字稿"
-  },
-  "updater": {
-    "banner_alt": "品牌更新提示横幅",
-    "status_not_configured": "当前产品未配置更新服务",
-    "status_idle": "尚未检查更新",
-    "status_checking": "正在检查更新",
-    "status_up_to_date": "当前已是最新版本",
-    "status_optional_update": "发现可选更新",
-    "status_required_update": "必须更新后才能继续使用",
-    "status_failed": "检查更新失败，您仍可继续使用当前版本",
-    "current_version": "当前版本：{{version}}",
-    "available_version": "可用版本：{{version}}",
-    "required_badge": "必须更新",
-    "required_title": "此版本已停止支持",
-    "required_description": "请安装经过签名验证的更新，或安全退出应用。普通功能在完成更新前不可用。",
-    "version_transition": "当前 {{current}} → 可用 {{available}}",
-    "install_update": "安装更新",
-    "exit_application": "退出应用"
   },
   "release_notes": {
     "dialog_title": "更新日志",

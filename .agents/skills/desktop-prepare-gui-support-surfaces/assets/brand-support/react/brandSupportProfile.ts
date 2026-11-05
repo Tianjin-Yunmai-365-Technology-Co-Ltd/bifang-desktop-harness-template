@@ -32,7 +32,7 @@ export interface BrandSupportPayment {
   altKey: string;
 }
 
-/** 关于、赞助和更新视觉共享的品牌事实。 */
+/** 关于和赞助页共享的品牌事实。 */
 export interface BrandSupportProfile {
   schemaVersion: number;
   scope: string;
@@ -49,9 +49,6 @@ export interface BrandSupportProfile {
     background: string;
     tiers: BrandSupportTier[];
     payments: BrandSupportPayment[];
-  };
-  updater: {
-    banner: string;
   };
   optionalAssets: string[];
 }

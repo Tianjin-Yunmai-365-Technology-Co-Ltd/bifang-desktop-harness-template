@@ -14,7 +14,7 @@
 
 | 条件 | 唯一实施入口 |
 |---|---|
-| 所有 Tauri GUI | [system-locale](../../desktop-add-gui-system-locale/SKILL.md)、[updater](../../desktop-add-gui-updater/SKILL.md)、[window-state](../../desktop-add-gui-window-state/SKILL.md)、[dialog](../../desktop-add-gui-dialog/SKILL.md) |
+| 所有 Tauri GUI | [system-locale](../../desktop-add-gui-system-locale/SKILL.md)、[window-state](../../desktop-add-gui-window-state/SKILL.md)、[dialog](../../desktop-add-gui-dialog/SKILL.md) |
 | `system_tray = enabled` | [系统托盘](../../desktop-add-gui-system-tray/SKILL.md) |
 | `system_notification = enabled` | [系统通知](../../desktop-add-gui-system-notifications/SKILL.md) |
 | `autostart = enabled` | [开机自启](../../desktop-add-gui-autostart/SKILL.md) |
@@ -23,7 +23,7 @@
 | `global_shortcut = enabled` | [全局快捷键](../../desktop-add-gui-global-shortcut/SKILL.md) |
 | 标题、侧栏、设置、语言/主题，以及已选关于/赞助 | [GUI 支持界面](../../desktop-prepare-gui-support-surfaces/SKILL.md) |
 
-GUI adapter 负责中央 Builder 与唯一 invoke handler 的装配；各能力 Skill 独占依赖、feature、权限、运行时、UI/i18n、固定回归和禁用无残留合同。禁用时仍执行相应缺席检查。固定 Rust-only 三项与 dialog WebView 基线不写 profile 开关；dialog 的 `dialog:default` 不授予通用文件读写，updater 未配置时为 `NotConfigured` 且零出站。
+GUI adapter 负责中央 Builder 与唯一 invoke handler 的装配；各能力 Skill 独占依赖、feature、权限、运行时、UI/i18n、固定回归和禁用无残留合同。禁用时仍执行相应缺席检查。固定 Rust-only 两项与 dialog WebView 基线不写 profile 开关；dialog 的 `dialog:default` 不授予通用文件读写。
 
 先按 [设计标准索引](../../../../docs/design_standards/README.md) 选择标准，再按 [Tauri 侧栏标准](../../../../docs/design_standards/tauri_sidebar.md) 将已确认模式接到实际 AppShell。侧栏展示值只来自中央 Token，折叠状态所有权与 `navbar.width`/`data-navbar-width` 同源关系由侧栏合同维护；不得由模板存在反推另一运行时模式。当前基座统一视觉规则；旧像素不再独立优先，新的产品设计方向或信息架构变化才处理确认与 profile/ADR。
 

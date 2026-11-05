@@ -47,8 +47,6 @@ import {
 import { AppShellTemplate } from "./AppShellTemplate";
 import { APP_LAYOUT_TOKENS } from "./appDesignTokens";
 import { APP_THEME, APP_THEME_CSS_VARIABLES } from "./AppThemeProviderTemplate";
-import { BrandUpdaterBanner } from "./BrandUpdaterBanner";
-import { MandatoryUpdateGateTemplate } from "./MandatoryUpdateGateTemplate";
 import { SponsorPageTemplate } from "./SponsorPageTemplate";
 import { SupportMedia } from "./SupportMedia";
 import { SettingsPageTemplate } from "./SettingsPageTemplate";
@@ -65,7 +63,6 @@ import {
   type LocalizedReleaseNoteEntry,
 } from "./releaseNotes";
 import { buildSupportNavigationItems } from "./supportNavigation";
-import { requiresMandatoryUpdate } from "./updatePresentation";
 
 /** 为 jsdom 补齐 Mantine 布局组件依赖的只读观察器。 */
 class TestResizeObserver implements ResizeObserver {
@@ -500,69 +497,11 @@ describe("shared brand support templates", () => {
     }
   });
 
-  /** 强更状态由 core 判定后，根级门会隐藏普通功能且只开放安装或退出。 */
-  it("blocks product features for a core-classified mandatory update", async () => {
-    const update = {
-      availableVersion: "4.0.0",
-      currentVersion: "3.4.5",
-      status: "required-update" as const,
-    };
-    const onInstallUpdate = vi.fn();
-    const onExitApplication = vi.fn();
-    await renderTemplate(
-      <MandatoryUpdateGateTemplate
-        installing={false}
-        onExitApplication={onExitApplication}
-        onInstallUpdate={onInstallUpdate}
-        update={update}
-      >
-        <Text>Product feature</Text>
-      </MandatoryUpdateGateTemplate>,
-      "en-US",
-    );
-
-    expect(requiresMandatoryUpdate(update)).toBe(true);
-    expect(screen.queryByText("Product feature")).not.toBeInTheDocument();
-    const dialog = screen.getByRole("alertdialog", { name: enUS.updater.required_title });
-    expect(dialog).toHaveAccessibleDescription(enUS.updater.required_description);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Exit application" })).toHaveFocus());
-    expect(
-      screen.getByText("Current v3.4.5 → available v4.0.0"),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Install update" }));
-    fireEvent.click(screen.getByRole("button", { name: "Exit application" }));
-    expect(onInstallUpdate).toHaveBeenCalledOnce();
-    expect(onExitApplication).toHaveBeenCalledOnce();
-  });
-
-  /** 非强更状态不会包裹或替换普通功能。 */
-  it("leaves product features available for optional updates", async () => {
-    await renderTemplate(
-      <MandatoryUpdateGateTemplate
-        installing={false}
-        onExitApplication={vi.fn()}
-        onInstallUpdate={vi.fn()}
-        update={{
-          availableVersion: "3.5.0",
-          currentVersion: "3.4.5",
-          status: "optional-update",
-        }}
-      >
-        <Text>Product feature</Text>
-      </MandatoryUpdateGateTemplate>,
-    );
-
-    expect(screen.getByText("Product feature")).toBeInTheDocument();
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
-  });
-
   /** 关于页从当前产品注入名称/版本，同时展示固定作者、联系人和免责声明。 */
   it("renders injected product facts and the approved brand contact", async () => {
-    const onCheckForUpdates = vi.fn();
     await renderTemplate(
       <AboutPageTemplate
         actions={<Button>Optional action</Button>}
-        onCheckForUpdates={onCheckForUpdates}
         productName="Example Utility"
         sections={[
           {
@@ -572,7 +511,6 @@ describe("shared brand support templates", () => {
           },
         ]}
         tagline="A product-owned tagline"
-        update={{ currentVersion: "3.4.5", status: "idle" }}
         version="v3.4.5"
       />,
     );
@@ -593,37 +531,13 @@ describe("shared brand support templates", () => {
     expect(
       screen.getByRole("button", { name: "Optional action" }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
-    expect(onCheckForUpdates).toHaveBeenCalledOnce();
     expect(
       screen.getByRole("heading", { name: "Product facts" }),
     ).toBeInTheDocument();
   });
 
-  /** 失败、检查中或已是最新版时不能继续显示上次检查遗留的可用版本。 */
-  it("does not show a stale available version outside update states", async () => {
-    for (const status of ["failed", "checking", "up-to-date"] as const) {
-      await renderTemplate(
-        <AboutPageTemplate
-          onCheckForUpdates={vi.fn()}
-          productName="Example Utility"
-          update={{
-            availableVersion: "9.9.9",
-            currentVersion: "1.2.3",
-            status,
-          }}
-          version="1.2.3"
-        />,
-      );
-      expect(screen.getByText(/当前版本：v1\.2\.3/)).toBeInTheDocument();
-      expect(screen.queryByText(/可用版本：v9\.9\.9/)).not.toBeInTheDocument();
-      cleanup();
-    }
-  });
-
-  /** 更新区容器不代理子按钮动作，且更新日志严格裁剪到十版和每类十条。 */
-  it("keeps update actions bound to their own controls and limits release notes", async () => {
-    const onCheckForUpdates = vi.fn();
+  /** 日志区容器不代理按钮动作，且发布日志严格裁剪到十版和每类十条。 */
+  it("release_note_actions_own_their_control_and_limit_entries", async () => {
     const releases = Array.from({ length: 11 }, (_, releaseIndex) => {
       const sequence = 11 - releaseIndex;
       return {
@@ -641,24 +555,19 @@ describe("shared brand support templates", () => {
         version: sequence === 11 ? `v1.0.${sequence}` : `1.0.${sequence}`,
       };
     });
+    const releaseNotesLoader = vi.fn(async () => releases);
     await renderTemplate(
       <AboutPageTemplate
-        onCheckForUpdates={onCheckForUpdates}
         productName="Example Utility"
-        releaseNotesLoader={async () => releases}
-        update={{ currentVersion: "1.0.11", status: "idle" }}
+        releaseNotesLoader={releaseNotesLoader}
         version="1.0.11"
       />,
     );
 
     expect(MAX_VISIBLE_RELEASE_NOTE_VERSIONS).toBe(10);
     expect(MAX_VISIBLE_RELEASE_NOTE_ITEMS).toBe(10);
-    fireEvent.click(screen.getByTestId("about-update-section"));
-    expect(onCheckForUpdates).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
-    expect(onCheckForUpdates).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByTestId("about-release-notes-section"));
+    expect(releaseNotesLoader).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "更新日志" }));
@@ -691,10 +600,8 @@ describe("shared brand support templates", () => {
     ];
     await renderTemplate(
       <AboutPageTemplate
-        onCheckForUpdates={vi.fn()}
         productName="Example Utility"
         releaseNotesLoader={async () => releases}
-        update={{ currentVersion: "1.2.3", status: "idle" }}
         version="1.2.3"
       />,
       "en-US",
@@ -715,7 +622,6 @@ describe("shared brand support templates", () => {
   it("renders release note Markdown without external links images or raw HTML", async () => {
     await renderTemplate(
       <AboutPageTemplate
-        onCheckForUpdates={vi.fn()}
         productName="Example Utility"
         releaseNotesLoader={async () => [
           {
@@ -736,7 +642,6 @@ describe("shared brand support templates", () => {
             version: "v1.2.3",
           },
         ]}
-        update={{ currentVersion: "1.2.3", status: "idle" }}
         version="1.2.3"
       />,
     );
@@ -775,10 +680,8 @@ describe("shared brand support templates", () => {
       .mockResolvedValueOnce(fresh);
     await renderTemplate(
       <AboutPageTemplate
-        onCheckForUpdates={vi.fn()}
         productName="Example Utility"
         releaseNotesLoader={releaseNotesLoader}
-        update={{ currentVersion: "1.2.3", status: "idle" }}
         version="1.2.3"
       />,
     );
@@ -833,10 +736,8 @@ describe("shared brand support templates", () => {
       .mockRejectedValueOnce(new Error("unavailable"));
     await renderTemplate(
       <AboutPageTemplate
-        onCheckForUpdates={vi.fn()}
         productName="Example Utility"
         releaseNotesLoader={releaseNotesLoader}
-        update={{ currentVersion: "1.0.7", status: "idle" }}
         version="1.0.7"
       />,
     );
@@ -852,21 +753,19 @@ describe("shared brand support templates", () => {
     expect(releaseNotesLoader).toHaveBeenCalledTimes(2);
   });
 
-  /** 未配置更新时，关于页保留禁用入口且不虚构可用服务。 */
-  it("keeps an inert update entry on About when updates are not configured", async () => {
+  /** 关于页保留可用的本地发布日志，不展示更新控件。 */
+  it("update_controls_are_absent_and_local_release_notes_remain_available", async () => {
     await renderTemplate(
       <AboutPageTemplate
-        onCheckForUpdates={vi.fn()}
         productName="Example Utility"
-        update={{ currentVersion: "1.0.0", status: "not-configured" }}
         version="1.0.0"
       />,
       "en-US",
     );
 
     expect(
-      screen.getByRole("button", { name: "Check for updates" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Check for updates" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Release notes" })).toBeEnabled();
     expect(
       screen.queryByRole("button", { name: "Optional action" }),
@@ -877,6 +776,7 @@ describe("shared brand support templates", () => {
 
   /** 赞助页展示三档固定价格、品牌联系人、档位插图和两种支付码。 */
   it("renders the complete fixed sponsor profile with accessible payment images", async () => {
+    expect(BRAND_SUPPORT_PROFILE.optionalAssets).toHaveLength(6);
     await renderTemplate(<SponsorPageTemplate />);
 
     expect(screen.getByText("19")).toBeInTheDocument();
@@ -965,13 +865,4 @@ describe("shared brand support templates", () => {
     ).toThrow();
   });
 
-  /** 更新 banner 只是本地图片，不需要更新 endpoint 或网络 mock。 */
-  it("renders the packaged updater banner as a local accessible image", async () => {
-    await renderTemplate(<BrandUpdaterBanner alt="品牌更新提示横幅" />);
-
-    expect(
-      screen.getByRole("img", { name: "品牌更新提示横幅" }),
-    ).toHaveAttribute("src", "/brand-support/updater/banner.jpg");
-    expect(BRAND_SUPPORT_PROFILE.optionalAssets).toHaveLength(6);
-  });
 });

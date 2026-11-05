@@ -44,6 +44,8 @@
 
 完全未接入 Harness 的既有项目先按 [首次接入步骤](adopt-existing-project.md)安装源提交中的所有权清单；这一步只建立 `plan` 的读取前提，不创建来源锁，也不授权覆盖目标内容。目标已有清单时先核对，不能重置为源缺省。旧版来源锁中若仍跟踪上游专用 Python 检查器，所有权 mode 保留 `managed` 以兼容基线迁移，但候选不得再包含它；目标人工移除后重新计划，`record` 才会结束跟踪。
 
+应用更新与统计相关的 `desktop-enable-gui-updates`、`desktop-add-gui-telemetry`、`desktop-add-gui-updater` 已从 Harness 源移除；对应路径只保留 `conditional` 所有权以兼容旧来源锁，不恢复 Skill、不构造传播候选，也不启用下游能力。旧基线文件的删除或本地定制保留沿用 `manual_merge` 逐项审查，禁止自动写入；人工删除后重新计划为 `converged`，或明确保留并复核后记录本地结果。不得将这些历史规则改为通用 `managed` 或 `tombstone` 来绕过既有 mode 一致性检查。
+
 目标旧清单若只缺新增的 `.agents/skills/` 专项 `managed` 规则，而通用规则已对该完整路径赋予相同有效 mode，`plan` 可继续，并通过 `ownership_repairs` 列出缺项。候选清单必须包含显式新规则；目标清单按已有来源锁进行 `managed-self` 三方更新或人工解决本地差异，重新生成计划后才能 `record`。记录基线时仍严格要求目标清单具有所有最低规则。缺失 `protected`、`tombstone`、`conditional`、`managed-self` 规则，存在重叠的不同 mode，或旧锁中的有效 mode 漂移时继续阻断；此兼容读取不授权覆盖产品事实或省略清单修复。
 
 ## 候选树要求
@@ -75,7 +77,7 @@
 
 四项跨接口知识入口 `$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-manage-user-tasks`、`$desktop-configure-agent-policy` 及其 references、helper/测试必须完整传播且与源摘要一致；策略实例仍 protected，升级不得启用能力或改写用户选择。
 
-跨接口完整传播 `$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`，只传播工程知识/只读入口，不代写记忆或清单。Tauri GUI 条件完整传播 `$desktop-enable-gui-updates` 与 `$desktop-add-gui-telemetry`；GPUI GUI 条件完整传播 `$desktop-add-gpui-autostart`，均不自动启用。`$desktop-test-gpui-initialization-e2e` 为初始化专用 tombstone，完成基线前删除，升级永久不恢复；产品 profile、支持实例和根清单继续 protected。
+跨接口完整传播 `$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`，只传播工程知识/只读入口，不代写记忆或清单。GPUI GUI 条件完整传播 `$desktop-add-gpui-autostart`，均不自动启用。`$desktop-test-gpui-initialization-e2e` 为初始化专用 tombstone，完成基线前删除，升级永久不恢复；产品 profile、支持实例和根清单继续 protected。
 
 中文提交的完整 `$desktop-configure-git-commits` Skill、metadata、规范、模板、helper/测试，以及 `$desktop-prepare-release` 的 `release_git.mjs`/测试必须作为同一 managed 依赖闭包传播。按章节合并启动文档的项目 Task 默认关闭、非 pinned、显式阶段隔离和自主恢复入口；目标 `docs/AGENT_POLICY.md` 的既有 frontmatter（原 schema 的全部偏好与确认元数据）逐字节保留，并保留自定义正文。受保护正文迁移在目标授权范围单独处理；不得改变已有项目选择或把旧全局 Task Tree 规则当作项目启用事实。用户级 `AGENTS.md` 位于项目候选和来源锁范围之外，不复制或覆盖；项目 AGENTS/README 继续按 merge-sections 处理。
 

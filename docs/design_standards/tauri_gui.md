@@ -63,8 +63,7 @@
 | 权限错误 | 说明缺少的条件和安全恢复入口 |
 | 系统错误 | 说明能否继续和数据是否安全，技术细节只进入脱敏日志 |
 
-- 更新的 `NotConfigured`、检查中、最新版、可选更新、强更和失败状态必须使用持久可读区域；固定 updater Rust 基线未配置时任何检查入口都只显示 `NotConfigured` 且零出站，检查失败不得显示为最新版。`RequiredUpdate` 时由应用根只呈现 `role="alertdialog"` 的安装/安全退出界面，不挂载侧栏或业务内容，也不提供关闭图标、Escape 或遮罩绕过。
-- 只有真实需要时才增加 `@mantine/notifications`，每个 React 根只挂载一个容器。Toast 不能承载字段错误、长说明或唯一完成证据。统计同意默认关闭，说明发送时机与撤回方式；未配置时零出站。
+- 只有真实需要时才增加 `@mantine/notifications`，每个 React 根只挂载一个容器。Toast 不能承载字段错误、长说明或唯一完成证据。
 
 ## 无障碍与国际化
 
@@ -75,11 +74,11 @@
 ## 固定支持界面
 
 - `/settings`、语言、三态主题和完整亮暗语义主题始终存在；默认设置页不预置隐私或统计区块。
-- system-locale、updater 和 window-state 是所有 GUI 的不询问 Rust-only 固定基线，不是 `docs/GUI_APP_PROFILE.md` 开关，不直接向 WebView 暴露通用 OS、updater 或窗口状态 API。
+- system-locale 和 window-state 是所有 GUI 的不询问 Rust-only 固定基线，不是 `docs/GUI_APP_PROFILE.md` 开关，不直接向 WebView 暴露通用 OS 或窗口状态 API。
 - dialog 是所有 GUI 的不询问固定 WebView plugin 基线；主窗口仅授予精确 `dialog:default` 以覆盖 message、open、save 全部官方对话框类型，不使用 wildcard、deprecated alias、deny 项或额外文件系统权限。
 - `/about`、`/sponsor`、系统托盘、系统通知、开机自启、单实例、深链接和全局快捷键只按 `docs/GUI_APP_PROFILE.md` 的明确选择存在。`deep_link = enabled` 必须同时有 `single_instance = enabled`。未选能力不得保留依赖、feature、插件/生命周期、配置、命令、ACL、Switch/状态、翻译键、入口、隐藏路由、运行时组件、媒体或专属测试。
 - 支持菜单顺序为已选赞助、固定设置、已选关于。所有用户可见标签走 i18n。
-- 系统通知能力不自动批准产品通知内容或触发器；开机自启能力不表示已经注册登录项；深链接的中性绑定只恢复窗口，全局快捷键的中性能力保持空动作/零绑定，两者都不批准业务 payload 或副作用。固定 updater 插件不等于已启用更新发布；真实 endpoint、公钥、channel/target/arch、强更、统计、隐藏启动、远程帮助或其他出站能力仍需独立产品批准与安全配置。
+- 系统通知能力不自动批准产品通知内容或触发器；开机自启能力不表示已经注册登录项；深链接的中性绑定只恢复窗口，全局快捷键的中性能力保持空动作/零绑定，两者都不批准业务 payload 或副作用。隐藏启动、远程帮助或其他出站能力仍需独立产品批准与安全配置。
 
 ## 最小回归
 

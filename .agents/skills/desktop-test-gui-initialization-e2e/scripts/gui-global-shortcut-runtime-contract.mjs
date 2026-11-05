@@ -98,7 +98,7 @@ export function allowedInitializationCommands(profile) {
     "get_app_metadata",
     "get_system_locale",
     "set_interface_language",
-    ...(profile.aboutPage ? ["check_for_updates", "load_release_notes"] : []),
+    ...(profile.aboutPage ? ["load_release_notes"] : []),
     ...(profile.systemNotification
       ? ["get_system_notification_setting", "set_system_notification_enabled"]
       : []),

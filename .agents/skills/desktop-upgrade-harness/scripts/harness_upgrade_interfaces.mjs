@@ -8,9 +8,8 @@ const METADATA_TABLE = ["workspace", "metadata", "agent-first-harness"];
 const INTERFACES = new Set(["cli", "tui", "mcp", "gui"]);
 const FRAMEWORKS = new Set(["tauri", "gpui"]);
 const TAURI_SKILLS = new Set([
-  "desktop-enable-gui-updates", "desktop-add-gui-telemetry",
   "desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-system-locale",
-  "desktop-add-gui-updater", "desktop-add-gui-window-state", "desktop-add-gui-dialog",
+  "desktop-add-gui-window-state", "desktop-add-gui-dialog",
   "desktop-add-gui-system-tray", "desktop-add-gui-single-instance", "desktop-add-gui-deep-link",
   "desktop-add-gui-global-shortcut", "desktop-add-gui-system-notifications", "desktop-add-gui-autostart",
   "desktop-prepare-gui-support-surfaces", "desktop-build-tauri-local-install", "desktop-build-tauri-release",

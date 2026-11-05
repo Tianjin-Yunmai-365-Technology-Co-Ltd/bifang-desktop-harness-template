@@ -147,7 +147,7 @@ const ENGINEERING_ENTRIES = [
   ]],
   ["rustBaseline", ["docs/ENGINEERING_RULES.md", "design_standards/README.md"]],
   ["designIndex", ["当前 UI 基座是唯一视觉规则来源", "冲突时修改或删除旧内容", "tauri-gui-sidebar-compact-80-v1", "tauri-gui-sidebar-detailed-v1"]],
-  ["tauriGui", ["adapter 的展示和纯交互层", "localStorageColorSchemeManager", "page → surface → section → field → action", "320 CSS px", "@tabler/icons-react", "i18next", "父容器不得代理子控件动作", 'role="alertdialog"', "WCAG 2.2 AA", "Testing Library"]],
+  ["tauriGui", ["adapter 的展示和纯交互层", "localStorageColorSchemeManager", "page → surface → section → field → action", "320 CSS px", "@tabler/icons-react", "i18next", "父容器不得代理子控件动作", "WCAG 2.2 AA", "Testing Library"]],
   ["tauriSidebar", ["APP_LAYOUT_TOKENS.sidebar", "旧的独立像素表与密度硬锁已移除", "navbar.width", "readDetailedSidebarCollapsed()", "detailedSidebarNavbarWidth(collapsed)", "data-navbar-width", "父级身份区不能代理此动作", "可访问名称"]],
   ["planSkill", ["docs/ENGINEERING_RULES.md"]],
   ["implementSkill", ["docs/ENGINEERING_RULES.md", "本次开发需要的相关非空单元/回归测试", "不得自动追加格式化、lint、静态"]],

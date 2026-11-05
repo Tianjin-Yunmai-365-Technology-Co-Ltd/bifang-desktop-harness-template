@@ -1,6 +1,6 @@
 # 版本与发布
 
-GUI 候选路线先读根 Cargo metadata 的 `gui-framework`，缺失时兼容 `tauri`。Tauri 配置、前端、updater、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用独立 `$desktop-build-gpui-release` 的 Rust/cargo-packager 管线，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；仅 Linux Tauri 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于两种框架；开发试包不冒充候选。
+GUI 候选路线先读根 Cargo metadata 的 `gui-framework`，缺失时兼容 `tauri`。Tauri 配置、前端、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用独立 `$desktop-build-gpui-release` 的 Rust/cargo-packager 管线，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；仅 Linux Tauri 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于两种框架；开发试包不冒充候选。
 
 ## GPUI 构建路由
 
@@ -70,7 +70,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 - Windows 原生本地安装试包不是发布候选，不进入本文件的更新日志、clean HEAD、manifest、E2E、签名或 `release/` 门禁。普通“构建/打包/首次安装试一下”由 `$desktop-build-tauri-local-install` 处理；只有用户明确要求发布候选或准备发布，才适用下列规则。该试包仍须明确标注未签名、未安装、未验收且不可分发。
 - Harness 源正式发布同样使用根 `release-notes.json` 记录最近 10 个实际发布模板版本的双语维护摘要，但它只是源码发布元数据，不是产品资源、候选 manifest 或产品验收证据。
-- 所有面向用户显示的版本号统一使用且只使用一个小写 `v` 前缀，包括 GUI 页面、窗口标题、更新状态、强更提示、CLI `--version`、发布记录和更新日志。Cargo、`.harness/version-state.json`、候选 manifest 的机器版本字段、协议比较值和 SemVer 运算继续保存不带 `v` 的原始版本；展示边界负责先移除已有任意 `v`/`V` 前缀，再规范化为 `v<version>`。exe/dmg 安装包文件名按下方「发布物命名」使用无 `v` 的原始版本。
+- 所有面向用户显示的版本号统一使用且只使用一个小写 `v` 前缀，包括 GUI 页面、窗口标题、CLI `--version`、发布记录和更新日志。Cargo、`.harness/version-state.json`、候选 manifest 的机器版本字段、协议比较值和 SemVer 运算继续保存不带 `v` 的原始版本；展示边界负责先移除已有任意 `v`/`V` 前缀，再规范化为 `v<version>`。exe/dmg 安装包文件名按下方「发布物命名」使用无 `v` 的原始版本。
 - 下游在准备首个正式发布时创建根 `release-notes.json`。它是发布制品固定携带的用户更新日志事实；`about_page = enabled` 时 Tauri 通过固定 `load_release_notes` 窄命令复用，GPUI 由构建 helper 校验后编译嵌入同字节日志与双语条目，在原生关于页按 locale 展示，窗口线程不读文件，使用整数 `schemaVersion: 2` 与非空、按最新在前的 `releases` 数组；每项字段固定为 `releaseDate`、带一个 `v` 的 `version`、`featureOptimizations` 和 `bugFixes`。两个分类中的每个逻辑条目都是键恰好为 `zh-CN` 与 `en-US` 的翻译对，两个值都必须是非空、无首尾空白且无边界 BOM 的字符串；任一翻译缺失或重复 JSON 字段都阻断。只读 `check` 必须拒绝需静默规范化的原文件，写入和读取均拒绝超过 1 MiB 的 UTF-8 资源，与关于页运行时上限一致。Tauri GUI 初始化预置但不在调试构建使用 `src-tauri/tauri.release.conf.json`；正式候选构建显式 `--config` 合并该文件，把根日志唯一映射为候选逻辑资源 `release-notes.json`。
 - 每次正式发布时，必须找到上一次真实正式发布的版本与 40 位源码提交；从该提交之后到当前发布源码的真实差异中语义筛选最重要内容，不得直接倾倒提交标题。首个正式发布以仓库起点到当前发布源码为范围。每版“功能优化”和“问题修复”各自最多 10 个逻辑条目，两类合计至少一条；每个条目同时提供中文与英文。Agent 可先整理其中一种语言并自动翻译另一种，但在写入前必须并排复核两种语言的语义对应关系。普通缺陷修复即使不触发按日 Changelog，也进入本次“问题修复”。终端下游随后把同一日志写入产品候选；Harness 源只把它作为 Git 源码发布元数据。
 - 更新当前版本时先替换同版本条目，再置顶并截断为包含当前发布版本在内的最近 10 个实际发布版本条目；按已有发布记录取舍，不按 SemVer 数值补齐跳过的版本。使用 `$desktop-prepare-release` 携带的 Node 标准库脚本执行 `node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs upsert ...`，通过配对的 `--feature-optimization-zh-cn`/`--feature-optimization-en-us` 与 `--bug-fix-zh-cn`/`--bug-fix-en-us` 按出现顺序传入每个翻译对，再运行更新日志脚本的 `check --expected-version` 校验，并分别运行 `render --locale zh-CN` 与 `render --locale en-US` 复核可见结果。文件是普通非符号链接 UTF-8 JSON，由脚本在同目录原子替换；Harness 升级将其视为 `protected`。
@@ -114,12 +114,12 @@ Harness Git 发布完成后询问用户是否继续生成源码归档；只有�
 
 - 程序展示名称来自已确认的打包配置：Tauri 使用实际生效的 `productName`，GPUI 使用 `packaging/gpui.json` 的 `productName`；不使用 crate、binary 或项目机器标识替代。保留中文与名称内空格，两个字段分隔符固定为下划线。
 - 程序版本使用当前 GUI Cargo 包的无 `v` 原始稳定版本。架构 `x86_64/x64` 统一为 `x64`，`aarch64/arm64` 统一为 `arm64`；目标系统严格为 `Windows.exe` 或 `macOS.dmg`，不按构建宿主推断目标。
-- 共用名称生成器为 `.agents/skills/desktop-collect-release-artifacts/scripts/installer_artifact_name.mjs`；仅返回名称，不修改文件。不得为命名改写打包器原始输出定位、应用包内部名称或 updater archive/签名。完成所有签名、公证与最终字节检查后，才按该名称复制最终安装包；候选 checksum 正文、相邻 `<artifact>.sha256`、`<artifact>.manifest.json` 和清单引用使用同一名称，摘要取最终字节。
+- 共用名称生成器为 `.agents/skills/desktop-collect-release-artifacts/scripts/installer_artifact_name.mjs`；仅返回名称，不修改文件。不得为命名改写打包器原始输出定位、应用包内部名称。完成所有签名、公证与最终字节检查后，才按该名称复制最终安装包；候选 checksum 正文、相邻 `<artifact>.sha256`、`<artifact>.manifest.json` 和清单引用使用同一名称，摘要取最终字节。
 - 中性规范示例：`测试应用_1.4.4_x64-setup for Windows.exe`、`测试应用_1.4.4_arm64-setup for macOS.dmg`。包含空格或中文的路径必须以完整 argv 或宿主字面路径操作，不按空格拆分。
 
 其他下游归档（含 CLI、GPUI app.zip、Linux deb/tar.gz）继续使用 `产品名-vMAJOR.MINOR.PATCH-平台-架构.扩展名`；本条不重命名 Tauri Linux 本地试包。
 
-Harness 源码归档在用户另行要求生成时，只创建相邻 `<artifact>.sha256` 并核对来源提交、摘要与两份根许可证，不创建产品 manifest。终端下游实际生成产品归档或安装包时同时生成相邻 `.sha256` 和 manifest。`pending` 产品候选清单至少包含项目、版本、已发布的 40 位源码提交、预期 Git tag、发布上下文 SHA-256、明确的构建/运行身份、构建模式、平台、架构、目标、宿主、产物名、SHA-256、全量单元测试结果、当前 `e2eSelection`、`reviewSelection`/`reviewStatus`、`releaseNotesVersion`/`releaseNotesSha256`/`releaseNotesPath`、签名选择与证据及 `milestoneAcceptance: pending`。跨平台 provider 只在远端 `release` 分支/tag 与本地已发布 HEAD 一致后使用。审查启用时须有绑定上下文与源码 HEAD 的结构化证据；关闭且无硬要求时须记录非空原因和风险且不附审查证据。Tauri GUI 清单还记录 `updaterEnabled`、实际 updater plugin/Tauri 版本；启用 updater 时须有安全配置和实际验签证据。macOS 安装包另记录 `macosSigningSelection`/`macosSigningSource`；仅已批准配置、本次主动要求或渠道硬要求可启用签名，不因本机恰好存在身份、工具或凭据自行启用。
+Harness 源码归档在用户另行要求生成时，只创建相邻 `<artifact>.sha256` 并核对来源提交、摘要与两份根许可证，不创建产品 manifest。终端下游实际生成产品归档或安装包时同时生成相邻 `.sha256` 和 manifest。`pending` 产品候选清单至少包含项目、版本、已发布的 40 位源码提交、预期 Git tag、发布上下文 SHA-256、明确的构建/运行身份、构建模式、平台、架构、目标、宿主、产物名、SHA-256、全量单元测试结果、当前 `e2eSelection`、`reviewSelection`/`reviewStatus`、`releaseNotesVersion`/`releaseNotesSha256`/`releaseNotesPath`、签名选择与证据及 `milestoneAcceptance: pending`。跨平台 provider 只在远端 `release` 分支/tag 与本地已发布 HEAD 一致后使用。审查启用时须有绑定上下文与源码 HEAD 的结构化证据；关闭且无硬要求时须记录非空原因和风险且不附审查证据。macOS 安装包另记录 `macosSigningSelection`/`macosSigningSource`；仅已批准配置、本次主动要求或渠道硬要求可启用签名，不因本机恰好存在身份、工具或凭据自行启用。
 
 候选构建在清理目录、测试或编译前，以及写 manifest 前，均须只读校验 `.harness/release-context.json` 与本地默认主分支/tag。两次读取的文件 SHA-256、`sourceCommit`、`expectedTag` 和 `releaseReview` 必须一致；manifest 的审查证据或 `Not run` 原因/风险从上下文原样复制。E2E 和适用签名选择在现有构建动作中解析并写入候选证据；使用远程 provider 时另复核已推送的远端 `release` 分支/tag。
 
@@ -194,7 +194,7 @@ Harness 根目录没有具体产品，因此下游产物、manifest、签名、�
 - [ ] README 包含真实的用途、使用方式、维护状态和反馈入口。
 - [ ] 发布物来自目标源码提交，且其 SHA-256 已记录。
 - [ ] 每个平台归档、相邻 SHA-256 和清单一致，必需平台/架构恰好出现一次。
-- [ ] GUI 正式构建使用发布专用 `--config`，构建后资源与根更新日志逐字节一致；macOS 最终 DMG 内唯一 `.app/Contents/Resources/release-notes.json` 已重新比较。含 GUI 且 `about_page = enabled` 时，关于页“检查更新”旁存在元素自身绑定的“更新日志”按钮，能够经固定资源命令查看最近 10 版 schema v2 双语日志，中文/英文 locale 分别显示对应标题与正文、未知语言回退英文，加载失败可重试，且点击更新区父容器不会代理任一按钮动作；`about_page = disabled` 时页面、入口、命令、加载器与弹窗缺席，但固定 updater Rust 插件、`UpdateController` 和 `NotConfigured` 零出站基线仍存在。GUI manifest 始终记录 `updaterEnabled` 与 updater plugin/Tauri 版本；`false` 时无 updater archive/`.sig`/制品签名字段，`true` 时官方制品、配置和实际验签证据完整。
+- [ ] GUI 正式构建使用发布专用 `--config`，构建后资源与根更新日志逐字节一致；macOS 最终 DMG 内唯一 `.app/Contents/Resources/release-notes.json` 已重新比较。含 GUI 且 `about_page = enabled` 时，关于页存在元素自身绑定的“更新日志”按钮，能够经固定资源命令查看最近 10 版 schema v2 双语日志，中文/英文 locale 分别显示对应标题与正文、未知语言回退英文，加载失败可重试，且点击父容器不会代理日志按钮动作；`about_page = disabled` 时页面、入口、命令、加载器与弹窗缺席。
 - [ ] 项目根 `release/` 已由 `$desktop-build-rust-release` 或 `$desktop-build-tauri-release` 在构建前安全刷新，并在本机构建或 `$desktop-collect-release-artifacts` 取回后只包含当前版本、源码提交和明确的构建批次候选；目录内容与清单精确一致且无历史文件。
 - [ ] 每个平台清单的 `signingStatus` 与证据真实；macOS 同时记录签名选择和来源，`disabled/not-requested` 未运行可用性探测并显式 unsigned，只有 `configured`、`requested` 或 `channel-required` 才允许启用；已签名候选同时具有 `notarizationStatus: notarized-and-stapled` 和可复核证据。若 `system_notification = enabled`，本项同时拒绝 `disabled/not-requested` 或实际 unsigned，且不能由 E2E 关闭绕过。验收后若签名、公证、stapling 或重打包改变字节则已重新验收。
 - [ ] macOS 多个签名启用来源同时存在时按 `channel-required > requested > configured > not-requested` 记录唯一 `macosSigningSource`；`disabled/not-requested` 的 `notarizationEvidence` 与探测派生签名证据缺席，通用 `signingEvidence` 只记录选择、来源、unsigned 结论和风险。

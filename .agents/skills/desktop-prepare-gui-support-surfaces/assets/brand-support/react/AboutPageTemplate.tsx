@@ -1,5 +1,4 @@
 import {
-  Alert,
   Badge,
   Box,
   Button,
@@ -10,7 +9,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { IconHistory, IconRefresh } from "@tabler/icons-react";
+import { IconHistory } from "@tabler/icons-react";
 import {
   useCallback,
   useEffect,
@@ -29,7 +28,6 @@ import { formatDisplayVersion } from "./displayVersion";
 import type { LocalizedReleaseNoteEntry } from "./releaseNotes";
 import { loadBundledReleaseNotes } from "./releaseNotesResource";
 import { ReleaseNotesDialogTemplate } from "./ReleaseNotesDialogTemplate";
-import type { UpdatePresentation } from "./updatePresentation";
 
 const RELEASE_NOTES_LOAD_TIMEOUT_MS = 15_000;
 type ReleaseNotesStatus = "idle" | "loading" | "ready" | "error";
@@ -49,12 +47,10 @@ export interface AboutPageTemplateProps {
   sections?: AboutSection[];
   actions?: ReactNode;
   contact?: BrandSupportContact;
-  update: UpdatePresentation;
   releaseNotesLoader?: () => Promise<readonly LocalizedReleaseNoteEntry[]>;
-  onCheckForUpdates: () => void;
 }
 
-/** 展示产品事实、更新入口、共享作者、联系方式和固定免责声明。 */
+/** 展示产品事实、本地发布日志、共享作者、联系方式和固定免责声明。 */
 export function AboutPageTemplate({
   productName,
   version,
@@ -62,9 +58,7 @@ export function AboutPageTemplate({
   sections = [],
   actions,
   contact = BRAND_SUPPORT_PROFILE.contacts.support,
-  update,
   releaseNotesLoader = loadBundledReleaseNotes,
-  onCheckForUpdates,
 }: AboutPageTemplateProps): ReactElement {
   const { t } = useTranslation("brandSupport");
   const [releaseNotesOpened, setReleaseNotesOpened] = useState(false);
@@ -76,13 +70,6 @@ export function AboutPageTemplate({
   const releaseNotesStatusRef = useRef<ReleaseNotesStatus>("idle");
   const releaseNotesRequest = useRef(0);
   const releaseNotesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const statusKey = `updater.status_${update.status.replace(/-/g, "_")}`;
-  const isChecking = update.status === "checking";
-  const isUpdateFailure = update.status === "failed";
-  const isRequiredUpdate = update.status === "required-update";
-  const hasAvailableUpdate =
-    isRequiredUpdate || update.status === "optional-update";
-
   useEffect(
     () => () => {
       releaseNotesRequest.current += 1;
@@ -164,43 +151,17 @@ export function AboutPageTemplate({
         </Stack>
       </Paper>
 
-      <Paper data-testid="about-update-section" p="lg" radius="lg" withBorder>
-        <Stack gap="md">
-          <Group justify="space-between" wrap="wrap">
-            <Title order={3}>{t("about.update_title")}</Title>
-            <Group data-testid="about-update-actions" gap="xs">
-              <Button
-                disabled={update.status === "not-configured"}
-                leftSection={<IconRefresh aria-hidden="true" size={18} />}
-                loading={isChecking}
-                onClick={onCheckForUpdates}
-              >
-                {t("about.check_for_updates")}
-              </Button>
-              <Button
-                leftSection={<IconHistory aria-hidden="true" size={18} />}
-                onClick={openReleaseNotes}
-                variant="default"
-              >
-                {t("about.release_notes")}
-              </Button>
-            </Group>
-          </Group>
-          <Alert
-            aria-live="polite"
-            color={isRequiredUpdate || isUpdateFailure ? "red" : "blue"}
-            role={isRequiredUpdate || isUpdateFailure ? "alert" : "status"}
-            title={t(statusKey)}
+      <Paper data-testid="about-release-notes-section" p="lg" radius="lg" withBorder>
+        <Group justify="space-between" wrap="wrap">
+          <Title order={3}>{t("about.release_notes")}</Title>
+          <Button
+            leftSection={<IconHistory aria-hidden="true" size={18} />}
+            onClick={openReleaseNotes}
+            variant="default"
           >
-            {hasAvailableUpdate && update.availableVersion
-              ? t("updater.available_version", {
-                  version: formatDisplayVersion(update.availableVersion),
-                })
-              : t("updater.current_version", {
-                  version: formatDisplayVersion(update.currentVersion),
-                })}
-          </Alert>
-        </Stack>
+            {t("about.release_notes")}
+          </Button>
+        </Group>
       </Paper>
 
       <ReleaseNotesDialogTemplate

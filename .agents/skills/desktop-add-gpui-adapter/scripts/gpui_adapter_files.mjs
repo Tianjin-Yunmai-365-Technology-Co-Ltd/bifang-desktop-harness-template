@@ -17,13 +17,13 @@ const text = {
     navigation: { settings: '设置', about: '关于', sponsor: '赞助' },
     sidebar: { toggle: '展开或收起侧栏' },
     settings: { application: '应用信息', local_preferences: '外观和语言偏好仅保存在此设备。', appearance: '外观', appearance_detail: '选择浅色、深色，或实时跟随操作系统外观。', light: '浅色', dark: '深色', system: '跟随系统', language: '界面语言', language_detail: '默认探测系统语言，可在此随时切换。', chinese: '中文', english: 'English' },
-    about: { application: '关于应用', description: '这是中性桌面脚手架，产品功能尚未定义。', author: '项目负责人', check_updates: '检查更新', release_notes: '更新日志', release_features: '功能优化', release_fixes: '问题修复', no_changes: '无', updater_unavailable: '当前 GPUI 基线未提供更新服务，不会发起网络请求。', no_releases: '当前构建未嵌入发布记录。', local_first: '本地运行', local_first_detail: '设置、语言和静态支持页可离线使用。' },
+    about: { application: '关于应用', description: '这是中性桌面脚手架，产品功能尚未定义。', author: '项目负责人', release_notes: '更新日志', release_features: '功能优化', release_fixes: '问题修复', no_changes: '无', no_releases: '当前构建未嵌入发布记录。', local_first: '本地运行', local_first_detail: '设置、语言和静态支持页可离线使用。' },
   },
   'en-US': {
     navigation: { settings: 'Settings', about: 'About', sponsor: 'Sponsor' },
     sidebar: { toggle: 'Expand or collapse sidebar' },
     settings: { application: 'Application', local_preferences: 'Appearance and language preferences are stored on this device.', appearance: 'Appearance', appearance_detail: 'Choose light, dark, or follow changes to the operating system appearance.', light: 'Light', dark: 'Dark', system: 'Follow system', language: 'Interface language', language_detail: 'Detect the system language by default, or choose a language here.', chinese: '中文', english: 'English' },
-    about: { application: 'About this application', description: 'This is a neutral desktop scaffold. Product features have not been defined.', author: 'Project owner', check_updates: 'Check for updates', release_notes: 'Release notes', release_features: 'Feature improvements', release_fixes: 'Bug fixes', no_changes: 'None', updater_unavailable: 'The current GPUI baseline has no update service and makes no network request.', no_releases: 'This build has no embedded release notes.', local_first: 'Runs locally', local_first_detail: 'Settings, languages and static support pages work offline.' },
+    about: { application: 'About this application', description: 'This is a neutral desktop scaffold. Product features have not been defined.', author: 'Project owner', release_notes: 'Release notes', release_features: 'Feature improvements', release_fixes: 'Bug fixes', no_changes: 'None', no_releases: 'This build has no embedded release notes.', local_first: 'Runs locally', local_first_detail: 'Settings, languages and static support pages work offline.' },
   },
 };
 
@@ -127,7 +127,7 @@ export function renderGpuiAdapterFiles(input) {
     LOGO_EXT: logoExtension, COMPACT: String(compact), CONTACT_CHANNEL: rustText(contact.channel), CONTACT_VALUE: rustText(contact.value), BRAND_CONTACT: rustText(profile.contacts.support.value),
     ABOUT_MODULE: about ? 'mod about;' : '', SPONSOR_MODULE: sponsor ? 'mod sponsor;' : '',
     ABOUT_VARIANT: about ? '    About,' : '', SPONSOR_VARIANT: sponsor ? '    Sponsor,' : '',
-    ABOUT_FIELDS: about ? '    show_update_status: bool,\n    show_release_notes: bool,' : '', ABOUT_DEFAULTS: about ? '            show_update_status: false, show_release_notes: false,' : '',
+    ABOUT_FIELDS: about ? '    show_release_notes: bool,' : '', ABOUT_DEFAULTS: about ? '            show_release_notes: false,' : '',
     ABOUT_TITLE: about ? '            Page::About => "navigation.about",' : '', SPONSOR_TITLE: sponsor ? '            Page::Sponsor => "navigation.sponsor",' : '',
     ABOUT_RENDER: about ? '            Page::About => self.about_page(cx),' : '', SPONSOR_RENDER: sponsor ? '            Page::Sponsor => self.sponsor_page(window, cx),' : '',
     SPONSOR_ACTIVE: sponsor ? 'self.page == Page::Sponsor' : 'false',

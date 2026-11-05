@@ -117,7 +117,7 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 
 ## Skills 索引
 
-初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-enable-gui-updates`、`$desktop-add-gui-telemetry`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
+初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
 
 开发与治理：`$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance`、`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-task-workflow`、`$desktop-manage-user-tasks`、`$desktop-manage-task-worktrees`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 
@@ -134,7 +134,7 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
 - **TUI**：适合在终端中用键盘操作，基于 Ratatui 与 tui-realm。
 - **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
-- **GUI**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板，按选择加入五项桌面能力并遵守自含依赖标准。Tauri 路径固定接入系统语言、窗口状态、updater 和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
+- **GUI**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板，按选择加入五项桌面能力并遵守自含依赖标准。Tauri 路径固定接入系统语言、窗口状态和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
 
 这些界面可以单独使用，也可以组合使用。与界面无关的业务规则统一放在共享核心（shared core）中，界面只负责输入、展示和系统交互。
 

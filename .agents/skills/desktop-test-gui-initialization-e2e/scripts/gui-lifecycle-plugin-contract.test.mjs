@@ -212,97 +212,6 @@ test("rejects system locale wiring without BCP-47 case normalization", () => {
   });
 });
 
-test("rejects updater code that can check before the NotConfigured gate", () => {
-  withFixture(({ root, guiRoot }) => {
-    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
-    fs.writeFileSync(
-      source,
-      fs.readFileSync(source, "utf8").replace(
-        "if !controller.configured { return UpdaterStatus::NotConfigured; }",
-        "if !controller.configured { return UpdaterStatus::Failed; }",
-      ),
-    );
-    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /NotConfigured.*零出站/u);
-  });
-});
-
-test("rejects a missing explicit empty updater configuration", () => {
-  withFixture(({ root, guiRoot }) => {
-    const configPath = path.join(guiRoot, "src-tauri", "tauri.conf.json");
-    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    delete config.plugins.updater;
-    fs.writeFileSync(configPath, JSON.stringify(config));
-    assert.match(
-      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /plugins\.updater = \{ endpoints: \[\], pubkey: "" \}.*零出站/u,
-    );
-  });
-});
-
-test("rejects updater network or install calls outside check_for_updates", () => {
-  for (const method of ["check", "download_and_install", "install"]) {
-    withFixture(({ root, guiRoot }) => {
-      const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
-      fs.appendFileSync(
-        source,
-        `\nasync fn bypass_update_gate(app: &tauri::AppHandle) { let _ = app.updater().unwrap().${method}().await; }\n`,
-      );
-      assert.match(
-        verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-        /updater.*只能位于受控 check_for_updates\/UpdateTaskOwner 路径/u,
-        `method ${method} must be rejected outside the controlled function`,
-      );
-    });
-  }
-});
-
-test("rejects every updater call placed before the NotConfigured early return", () => {
-  withFixture(({ root, guiRoot }) => {
-    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
-    fs.writeFileSync(
-      source,
-      fs.readFileSync(source, "utf8").replace(
-        "if !controller.configured { return UpdaterStatus::NotConfigured; }",
-        "let _ = app.updater().unwrap().download_and_install().await;\n\t    if !controller.configured { return UpdaterStatus::NotConfigured; }",
-      ),
-    );
-    assert.match(
-      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /NotConfigured.*零出站/u,
-    );
-  });
-});
-
-test("ignores updater method-shaped text in Rust comments and strings", () => {
-  withFixture(({ root, guiRoot }) => {
-    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
-    fs.appendFileSync(
-      source,
-      '\n// app.updater().unwrap().download_and_install().await\nconst UPDATE_DIAGNOSTIC: &str = ".install(";\n',
-    );
-    assert.deepEqual(verifyGuiLifecycleContract(root, "sample_gui"), []);
-  });
-});
-
-test("accepts an updater call inside the owned task body of check_for_updates", () => {
-  withFixture(({ root, guiRoot }) => {
-    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
-    fs.writeFileSync(
-      source,
-      fs.readFileSync(source, "utf8").replace(
-        "let result = app.updater().unwrap().check().await;",
-        `let task = tauri::async_runtime::spawn({
-            let app = app.clone();
-            async move { app.updater().unwrap().check().await }
-        });
-        let mut owner = UpdateTaskOwner { task: Some(task) };
-        let result = owner.task.take().unwrap().await.unwrap();`,
-      ),
-    );
-    assert.deepEqual(verifyGuiLifecycleContract(root, "sample_gui"), []);
-  });
-});
-
 test("rejects window-state setup that is not wired through the recoverable helper", () => {
   withFixture(({ root, guiRoot }) => {
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
@@ -733,20 +642,6 @@ test("rejects enabled commands omitted from the merged invoke handler", () => {
   });
 });
 
-test("rejects an enabled about page without the updater check command in the merged handler", () => {
-  withFixture(({ root, guiRoot }) => {
-    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
-    fs.writeFileSync(
-      source,
-      fs.readFileSync(source, "utf8").replace("check_for_updates, load_release_notes", "load_release_notes"),
-    );
-    assert.match(
-      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /generate_handler! 缺少已启用命令：check_for_updates/u,
-    );
-  });
-});
-
 test("keeps the fixed GUI command handler when every optional capability is disabled", () => {
   withFixture(({ root, guiRoot }) => {
     disableTrayAndSingleInstance(root, guiRoot);
@@ -902,30 +797,26 @@ test("rejects set_interface_language without native state synchronization", () =
   });
 });
 
-test("rejects an updater handler entry that is not a Tauri command", () => {
-  withFixture(({ root, guiRoot }) => {
-    const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
-    fs.writeFileSync(
-      source,
-      fs.readFileSync(source, "utf8").replace("#[tauri::command]\n\tasync fn check_for_updates", "async fn check_for_updates"),
-    );
-    assert.match(
-      verifyGuiLifecycleContract(root, "sample_gui").join("\n"),
-      /check_for_updates 必须是已注册的窄 Tauri command/u,
-    );
-  });
-});
-
-test("rejects constant-true assertions in fixed plugin tests", () => {
+/** 固定窗口状态回归必须包含可判定的断言，不能以常量真占位。 */
+test("rejects_constant_true_assertions_in_fixed_plugin_tests", () => {
   withFixture(({ root, guiRoot }) => {
     const source = path.join(guiRoot, "src-tauri", "src", "lifecycle.rs");
     fs.writeFileSync(
       source,
       fs.readFileSync(source, "utf8").replace(
-        /fn updater_checks_are_single_flight\(\) \{[^}]+\}/u,
-        "fn updater_checks_are_single_flight() { assert!(true); }",
+        /fn window_state_ignores_saved_visibility\(\) \{[^}]+\}/u,
+        "fn window_state_ignores_saved_visibility() { assert!(true); }",
       ),
     );
-    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /非平凡断言：updater_checks_are_single_flight/u);
+    assert.match(verifyGuiLifecycleContract(root, "sample_gui").join("\n"), /非平凡断言：window_state_ignores_saved_visibility/u);
+  });
+});
+
+/** 中性 GUI 的实际依赖和生命周期夹具无需更新能力即可通过其余基线合同。 */
+test("accepts_neutral_gui_without_application_update_dependencies_or_runtime", () => {
+  withFixture(({ root, guiRoot }) => {
+    assert.doesNotMatch(fs.readFileSync(path.join(root, "Cargo.toml"), "utf8"), /tauri-plugin-updater/u);
+    assert.doesNotMatch(fs.readFileSync(path.join(guiRoot, "src-tauri", "src", "lifecycle.rs"), "utf8"), /check_for_updates|UpdateController/u);
+    assert.deepEqual(verifyGuiLifecycleContract(root, "sample_gui"), []);
   });
 });

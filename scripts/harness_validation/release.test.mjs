@@ -21,7 +21,6 @@ import {
   TAURI_RELEASE_SKILL,
   TAURI_MACOS_DMG_REFERENCE,
   TAURI_MACOS_SIGNING_REFERENCE,
-  TAURI_UPDATER_REFERENCE,
   TAURI_WINDOWS_NATIVE_REFERENCE,
   TAURI_WINDOWS_XWIN_REFERENCE,
   VERIFY_DELIVERY_SKILL,
@@ -116,7 +115,6 @@ test("tauri_build_requires_each_routed_branch_contract", () => {
     ["tauriSkill", TAURI_RELEASE_SKILL, "references/tauri-macos-signing.md"],
     ["macosDmgReference", TAURI_MACOS_DMG_REFERENCE, "scripts/verify-dmg-layout.sh"],
     ["macosSigningReference", TAURI_MACOS_SIGNING_REFERENCE, "只接受 `Accepted`"],
-    ["updaterReference", TAURI_UPDATER_REFERENCE, "执行实际签名验证"],
     ["windowsNativeReference", TAURI_WINDOWS_NATIVE_REFERENCE, "本分支禁止 `--runner cargo-xwin`"],
     ["windowsXwinReference", TAURI_WINDOWS_XWIN_REFERENCE, "gate.path.prepend"],
   ]) {

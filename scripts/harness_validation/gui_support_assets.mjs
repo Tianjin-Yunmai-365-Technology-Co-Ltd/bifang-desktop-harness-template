@@ -19,12 +19,11 @@ export const EXPECTED_MEDIA = new Map([
   ["media/sponsor/pay1.png", "sensitive-payment-qr"],
   ["media/sponsor/pay2.png", "sensitive-payment-qr"],
   ["media/sponsor/select.png", "brand-optional-currently-unreferenced"],
-  ["media/updater/banner.jpg", "brand-presentation"],
 ]);
 
 const EXPECTED_ABOUT_KEYS = new Set([
   "version", "contact_author_title", "support_thanks", "studio", "contact_label",
-  "update_title", "check_for_updates", "release_notes", "disclaimer_title",
+  "release_notes", "disclaimer_title",
   "disclaimer_1", "disclaimer_2", "disclaimer_3",
 ]);
 
@@ -65,18 +64,12 @@ const EXPECTED_FIXED_UI_KEYS = {
     "theme_light", "theme_dark", "theme_system", "system_notification_description",
     "system_notification_error", "system_notification_title", "system_notification_unknown",
   ],
-  updater: [
-    "banner_alt", "status_not_configured", "status_idle", "status_checking", "status_up_to_date",
-    "status_optional_update", "status_required_update", "status_failed", "current_version",
-    "available_version", "required_badge", "required_title", "required_description",
-    "version_transition", "install_update", "exit_application",
-  ],
   release_notes: ["dialog_title", "entry_title", "feature_optimizations", "bug_fixes", "loading", "load_failed", "retry", "empty", "none"],
 };
 
 const FORBIDDEN_PRODUCT_KEYS = new Set([
   "appCode", "appId", "app_name", "app_tagline", "baseUrl", "endpoint", "productId",
-  "productName", "route", "secret", "telemetry",
+  "productName", "route", "secret",
 ]);
 
 function setEqual(left, right) {
@@ -174,7 +167,6 @@ export function validateBrandProfile(errors, profile, filePath) {
   if (sponsor.background !== "sponsor/bg.jpg") fail(errors, `brand sponsor background mapping drifted: ${relativePath(filePath)}`);
   const expectedOptional = new Set(["sponsor/arrow.png", "sponsor/icon1.png", "sponsor/icon2.png", "sponsor/icon3.png", "sponsor/icon4.png", "sponsor/select.png"]);
   if (!Array.isArray(profile.optionalAssets) || !setEqual(new Set(profile.optionalAssets), expectedOptional)) fail(errors, `brand support optional small-image set is incomplete: ${relativePath(filePath)}`);
-  if (!profile.updater || typeof profile.updater !== "object" || Array.isArray(profile.updater) || profile.updater.banner !== "updater/banner.jpg") fail(errors, `brand updater banner mapping drifted: ${relativePath(filePath)}`);
   const forbidden = [...walkKeys(profile)].filter((key) => FORBIDDEN_PRODUCT_KEYS.has(key)).sort();
   if (forbidden.length > 0) fail(errors, `brand profile contains downstream product fields ${JSON.stringify(forbidden)}: ${relativePath(filePath)}`);
 }
@@ -229,7 +221,7 @@ function mediaPaths(mediaRoot, brandRoot) {
 
 /** 逐项核对 manifest 与原始品牌图片字节。 */
 export function validateBrandMediaManifest(errors, manifest, { brandRoot, path: manifestPath }) {
-  if (manifest.schemaVersion !== 1 || manifest.assetCount !== 13) fail(errors, `brand media manifest schema/count drifted: ${relativePath(manifestPath)}`);
+  if (manifest.schemaVersion !== 1 || manifest.assetCount !== 12) fail(errors, `brand media manifest schema/count drifted: ${relativePath(manifestPath)}`);
   const approval = manifest.sourceApproval;
   if (!approval || typeof approval !== "object" || Array.isArray(approval) || approval.approvedUse !== "internal-proprietary-harness-product-family") fail(errors, `brand media internal reuse approval is missing: ${relativePath(manifestPath)}`);
   const policy = manifest.bundlePolicy;
@@ -237,7 +229,7 @@ export function validateBrandMediaManifest(errors, manifest, { brandRoot, path: 
     || policy.guiSkillPropagation !== "complete"
     || policy.applicationBundle !== "gui-profile-selected-local-surfaces"
     || JSON.stringify(policy.defaultMediaSets) !== "[]"
-    || JSON.stringify(policy.optionalMediaSets) !== '["sponsor","updater"]'
+    || JSON.stringify(policy.optionalMediaSets) !== '["sponsor"]'
     || policy.paymentAutomationAuthorized !== false
     || policy.remoteLoadingAllowed !== false) fail(errors, `brand media bundle policy is unsafe: ${relativePath(manifestPath)}`);
   if (!Array.isArray(manifest.assets)) {

@@ -2,10 +2,6 @@
 
 本文件保留旧路径与章节锚点。完整公共流程以 [构建 Skill](../SKILL.md) 为准，只读取当前路线命中的合同。
 
-## Tauri updater 签名制品
-
-仅 updaterEnabled 为 true 时读取 [对应合同](tauri-updater.md)。
-
 ## macOS→Windows x64
 
 macOS→Windows NSIS 路线读取 [对应合同](tauri-windows-xwin.md)。

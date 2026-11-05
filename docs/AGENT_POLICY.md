@@ -16,7 +16,7 @@ post_release_action: pending
 
 本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 与 `task_worktrees` 固定默认 `disabled`；完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`，`post_release_action` 必须是两项之一，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布固定在本地默认主分支与 tag 完成；完成初始化的下游随后按已确认的发布后动作执行并复核。Harness 源的 `pending` 是待复制模板字段，不阻断 Harness 自身的 Git 发布。
 
-GUI框架是根Cargo metadata的独立 `gui-framework` 事实，不增加本文件frontmatter策略字段或九字段profile。`tauri` 为默认且兼容既有GUI缺失值，`gpui` 分派 `$desktop-add-gpui-adapter`。下文Tauri插件、四项固定基线、前端、Tauri初始化E2E与GUI本地打包条件只适用于Tauri；GPUI使用Rust构建与Computer Use初始化检查。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。GPUI 本地候选由独立 `$desktop-build-gpui-release` 负责，macOS/Windows 与 Linux GNU x64/ARM64 目标可确认 `local_package`；仅 Linux Tauri 且无 CLI 时仍须明确选 `push_release_branch`。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 的项目根脚本用于验证、发布和原生打包。通用策略选择、零写入确认、独立仓库、版本和发布事实边界保持一致。
+GUI框架是根Cargo metadata的独立 `gui-framework` 事实，不增加本文件frontmatter策略字段或九字段profile。`tauri` 为默认且兼容既有GUI缺失值，`gpui` 分派 `$desktop-add-gpui-adapter`。下文Tauri插件、三项固定基线、前端、Tauri初始化E2E与GUI本地打包条件只适用于Tauri；GPUI使用Rust构建与Computer Use初始化检查。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。GPUI 本地候选由独立 `$desktop-build-gpui-release` 负责，macOS/Windows 与 Linux GNU x64/ARM64 目标可确认 `local_package`；仅 Linux Tauri 且无 CLI 时仍须明确选 `push_release_branch`。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 的项目根脚本用于验证、发布和原生打包。通用策略选择、零写入确认、独立仓库、版本和发布事实边界保持一致。
 
 ## 用户要求与项目选择
 
@@ -37,9 +37,8 @@ GUI框架是根Cargo metadata的独立 `gui-framework` 事实，不增加本文�
 
 `enabled` 表示“允许且适用时执行”，`disabled` 表示默认不启用可选能力。`user_owned_tasks: enabled` 是自动建 Task 的明确长期授权；`post_release_action` 是用户对未来 Git 发布后所选动作的长期授权，不授权配置远端、凭据、签名、渠道分发或绕过候选构建的当次 E2E 选择。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前候选构建的 E2E 明确选择优先于 `e2e_hint` 建议值。需要远端源码或远程构建的渠道必须先走 `push_release_branch` 并复核远端 `release` 分支与 tag；该要求不改变 Git 发布完成条件。
 
-含 GUI 的一次性初始化 E2E 是脚手架完成门禁，不属于 `e2e_hint`。初始化器读取固定顺序的九项 GUI profile；同时始终验证不询问、不进入 profile 的 system-locale/updater/window-state 三项 Rust-only 固定基线与 dialog 固定 WebView 基线。dialog 必须证明固定 Rust/前端依赖、唯一有序注册、主窗口精确 `dialog:default` 和零额外文件系统授权。按 profile 分派的 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个独立 Skills 必须分别证明启用完整或禁用无残留，`deep_link = enabled` 必须同时有 `single_instance = enabled`；关于页、赞助页和侧栏仍按实际选择验证。单实例执行双启动，托盘执行可见托盘与关闭隐藏/恢复/退出，通知、自启与深链接宿主事件只在对应字段启用时执行；中性全局快捷键 contract 验证零默认注册与 owned 清理，只有 contract 明确提供安全可观察绑定时才触发实际 chord 并恢复原配置。需打包安装才能证明的深链接 OS scheme 注册场景（macOS/Windows/Linux）在 debug no-bundle 阶段标为 `Not verified`。托盘禁用时必须实测关闭最后窗口退出。宿主无法判定/观察适用场景，或无法恢复自启、快捷键、窗口状态等被测宿主状态时，初始化必须阻断，不能用持久偏好跳过。
+含 GUI 的一次性初始化 E2E 是脚手架完成门禁，不属于 `e2e_hint`。初始化器读取固定顺序的九项 GUI profile；同时始终验证不询问、不进入 profile 的 system-locale/window-state 两项 Rust-only 固定基线与 dialog 固定 WebView 基线。dialog 必须证明固定 Rust/前端依赖、唯一有序注册、主窗口精确 `dialog:default` 和零额外文件系统授权。按 profile 分派的 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个独立 Skills 必须分别证明启用完整或禁用无残留，`deep_link = enabled` 必须同时有 `single_instance = enabled`；关于页、赞助页和侧栏仍按实际选择验证。单实例执行双启动，托盘执行可见托盘与关闭隐藏/恢复/退出，通知、自启与深链接宿主事件只在对应字段启用时执行；中性全局快捷键 contract 验证零默认注册与 owned 清理，只有 contract 明确提供安全可观察绑定时才触发实际 chord 并恢复原配置。需打包安装才能证明的深链接 OS scheme 注册场景（macOS/Windows/Linux）在 debug no-bundle 阶段标为 `Not verified`。托盘禁用时必须实测关闭最后窗口退出。宿主无法判定/观察适用场景，或无法恢复自启、快捷键、窗口状态等被测宿主状态时，初始化必须阻断，不能用持久偏好跳过。
 
-updater 插件基线不需要策略字段；每次发布候选构建从产品事实解析的 `updaterEnabled` 只控制是否生成和验签 updater archive/`.sig`，不控制是否安装插件。
 
 `$desktop-prepare-release` 把本次版本、日期、默认主分支、预期 tag、源码身份和审查结果写入 `.harness/release-context.json`，与双语更新日志一同提交。未来偏好保存在本文件；下游 Git 发布开始时将当次 `postReleaseAction` 冻结在 Git common-dir 生命周期记录的 pending/last release 中，不写入 tracked 发布上下文。重试与恢复只消费该次冻结值，后续切换不改旧发布；签名和候选 E2E 仍按本次构建解析。终端下游的候选构建复核已发布的本地主分支与 tag；远程候选另复核远端 `release` 分支与 tag，这些候选选择只进入候选证据，不反写已发布源码。
 
@@ -84,7 +83,7 @@ updater 插件基线不需要策略字段；每次发布候选构建从产品事
 
 ## 开发与构建
 
-- Tauri GUI 初始化在相关非空单元测试后固定调用 `$desktop-test-gui-initialization-e2e`，解析九项 profile，始终验证 system-locale/updater/window-state 三项 Rust-only 基线与 dialog 固定 WebView 基线，再按选择验证单实例、托盘、系统通知、自启、深链接、全局快捷键、页面和侧栏，拒绝禁用能力残留；它不询问 E2E 选择、不改写本文件，也不产生发布候选或 Verification。
+- Tauri GUI 初始化在相关非空单元测试后固定调用 `$desktop-test-gui-initialization-e2e`，解析九项 profile，始终验证 system-locale/window-state 两项 Rust-only 基线与 dialog 固定 WebView 基线，再按选择验证单实例、托盘、系统通知、自启、深链接、全局快捷键、页面和侧栏，拒绝禁用能力残留；它不询问 E2E 选择、不改写本文件，也不产生发布候选或 Verification。
 - 日常开发直接实施，只运行本次变更需要的单元/回归测试，并只写被独立事件触发的记录；本文件不得成为自动增加 Work Plan、全仓检查、构建、冒烟、E2E 或验收的理由。
 - GPUI 普通本地试包使用 `$desktop-build-gpui-release` 的 `local` 模式，写入忽略的 `target/gpui-packaging/local-*`，不消费候选 E2E、不要求发布上下文、不形成发布候选；明确候选请求或 Git 发布后的 `local_package` 使用该 Skill 的 `candidate` 模式，遵守下列通用候选门禁。
 - Windows Tauri GUI 的普通“构建/打包/首次安装试包”默认是 `$desktop-build-tauri-local-install` 的本地开发制品，不是发布候选。它不要求 clean HEAD 或 `release-notes.json`，不调用发布准备、不写根 `release/`、不提交、不签名、不安装，也不询问 E2E；只有用户明确说“发布候选”或“准备并构建发布”才进入下列候选门禁。

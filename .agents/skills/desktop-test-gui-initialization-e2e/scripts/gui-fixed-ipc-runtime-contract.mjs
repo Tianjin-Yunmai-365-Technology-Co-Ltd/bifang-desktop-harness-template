@@ -1,6 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import { collectRustFunctions } from "./gui-lifecycle-source-analysis.mjs";
 import { validateTauriMetadataTitle } from "./gui-window-title-contract.mjs";
 
@@ -198,30 +195,4 @@ export function validateFixedIpcRuntimeContract(sourceText, errors) {
   const rustFunctions = collectRustFunctions(sourceText);
   validateAppMetadataRuntime(sourceText, rustFunctions, errors);
   validateLocaleStateCommands(sourceText, rustFunctions, errors);
-}
-
-export function validateUpdaterConfiguration(guiRoot, errors) {
-  let config;
-  try {
-    config = JSON.parse(
-      fs.readFileSync(path.join(guiRoot, "src-tauri", "tauri.conf.json"), "utf8"),
-    );
-  } catch (error) {
-    errors.push(`无法读取 updater Tauri 配置：${error.message}`);
-    return;
-  }
-  const updater = config?.plugins?.updater;
-  const keys =
-    updater && typeof updater === "object" && !Array.isArray(updater)
-      ? Object.keys(updater).sort()
-      : [];
-  if (
-    JSON.stringify(keys) !== JSON.stringify(["endpoints", "pubkey"]) ||
-    JSON.stringify(updater?.endpoints) !== "[]" ||
-    updater?.pubkey !== ""
-  ) {
-    errors.push(
-      '中性 GUI 必须显式配置 plugins.updater = { endpoints: [], pubkey: "" }，避免 null 配置阻断启动并保持零出站',
-    );
-  }
 }

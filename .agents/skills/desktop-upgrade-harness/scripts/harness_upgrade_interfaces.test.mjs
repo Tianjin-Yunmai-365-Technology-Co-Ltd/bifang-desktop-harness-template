@@ -11,7 +11,6 @@ import { HarnessUpgradeFixture, MANAGED } from "./harness_upgrade_test_support.m
 const METADATA = "[workspace.metadata.agent-first-harness]\n";
 const GPUI = ".agents/skills/desktop-add-gpui-adapter/SKILL.md";
 const GPUI_AUTOSTART = ".agents/skills/desktop-add-gpui-autostart/SKILL.md";
-const REMOTE_SKILLS = ["desktop-enable-gui-updates", "desktop-add-gui-telemetry"];
 const GPUI_BUILD = ".agents/skills/desktop-build-gpui-release/SKILL.md";
 const TAURI = ".agents/skills/desktop-add-gui-adapter/SKILL.md";
 const GPUI_INIT_ONLY = [
@@ -54,7 +53,7 @@ test("gui_candidate_selection_excludes_the_other_framework_and_non_gui_projects"
   assert.equal(inapplicableGuiCandidate(GPUI, gpui), false);
   assert.equal(inapplicableGuiCandidate(GPUI_BUILD, gpui), false);
   assert.equal(inapplicableGuiCandidate(GPUI_AUTOSTART, gpui), false);
-  for (const name of ["desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-dialog", "desktop-prepare-gui-support-surfaces", "desktop-build-tauri-release", ...REMOTE_SKILLS]) {
+  for (const name of ["desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-dialog", "desktop-prepare-gui-support-surfaces", "desktop-build-tauri-release"]) {
     assert.equal(inapplicableGuiCandidate(`.agents/skills/${name}/SKILL.md`, gpui), true, name);
   }
   assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-prepare-gui-app-identity/SKILL.md", gpui), false);
@@ -173,17 +172,11 @@ test("gpui_initialization_tombstones_must_precede_the_conditional_tree", (t) => 
   assert.throws(() => loadOwnership(f.ownership), /GPUI 初始化专用 tombstone 规则必须位于 GPUI conditional/u);
 });
 
-/** 提取后的远程能力仅随 Tauri 传播，初始化 E2E 永久禁止升级恢复。 */
-test("extracted_gui_skills_preserve_framework_and_initialization_ownership", t => {
+/** 初始化 E2E 永久禁止通过 Harness 升级恢复。 */
+test("initialization_e2e_retains_tombstone_ownership", t => {
   const f = new HarnessUpgradeFixture(t);
   const initial = ".agents/skills/desktop-test-gpui-initialization-e2e/SKILL.md";
   f.write(f.target, "Cargo.toml", METADATA + 'interfaces = ["gui"]\ngui-framework = "tauri"\n');
-  for (const name of REMOTE_SKILLS) {
-    const relative = ".agents/skills/" + name + "/SKILL.md";
-    f.write(f.candidate, relative, "conditional remote capability\n");
-    assert.equal(f.classification(f.plan(), relative), "manual_add");
-    assert.equal(inapplicableGuiCandidate(relative, { interfaces: ["cli"], guiFramework: null }), true);
-  }
   f.write(f.candidate, initial, "initialization-only E2E\n");
   assert.equal(f.classification(f.plan(2), initial), "tombstone_candidate");
   fs.rmSync(path.join(f.candidate, initial));
@@ -200,3 +193,59 @@ test("gpui_engineering_knowledge_is_conditional_and_framework_scoped", () => {
     assert.equal(inapplicableGuiCandidate(relative, {interfaces:["cli"],guiFramework:null}), true);
   }
 });
+
+/** 退役能力只兼容旧来源锁；候选缺席时不自动删除、复制或启用下游能力。 */
+for (const retiredSkill of ["desktop-enable-gui-updates", "desktop-add-gui-telemetry", "desktop-add-gui-updater"]) {
+  test(`retired_${retiredSkill.replaceAll("-", "_")}_preserves_conditional_baseline_until_reviewed_removal`, (t) => {
+    const f = new HarnessUpgradeFixture(t);
+    const relative = `.agents/skills/${retiredSkill}/SKILL.md`;
+    const original = "legacy approved capability\n";
+    const cargo = METADATA + 'interfaces = ["gui"]\n';
+    f.write(f.target, "Cargo.toml", cargo);
+    for (const root of [f.candidate, f.target]) f.write(root, relative, original);
+    f.bootstrap();
+    assert.equal(JSON.parse(fs.readFileSync(f.lock, "utf8")).entries[relative].mode, "conditional");
+    fs.rmSync(path.join(f.candidate, relative));
+    const { plan, planPath } = f.createPlan();
+    const action = plan.actions.find(item => item.path === relative);
+    assert.deepEqual(plan.problems, []);
+    assert.equal(plan.blocked, false);
+    assert.equal(action.mode, "conditional");
+    assert.equal(action.classification, "manual_merge");
+    assert.equal(action.candidate, null);
+    assert.equal(action.auto_apply, false);
+    const rejected = f.runTool(["apply", "--plan", planPath, "--approval", "apply-managed-changes", "--path", relative], 2);
+    assert.match(rejected.error, /必须精确指定一个已复核且可自动应用的 update/u);
+    assert.equal(fs.readFileSync(path.join(f.target, relative), "utf8"), original);
+    assert.equal(fs.readFileSync(path.join(f.target, "Cargo.toml"), "utf8"), cargo);
+    assert.equal(fs.existsSync(path.join(f.candidate, relative)), false);
+    fs.rmSync(path.join(f.target, relative));
+    const resolved = f.createPlan();
+    assert.deepEqual(resolved.plan.problems, []);
+    assert.equal(f.classification(resolved.plan, relative), "converged");
+    f.record(resolved.planPath);
+    assert.equal(Object.hasOwn(JSON.parse(fs.readFileSync(f.lock, "utf8")).entries, relative), false);
+  });
+
+  test(`retired_${retiredSkill.replaceAll("-", "_")}_preserves_explicitly_reviewed_local_customization`, (t) => {
+    const f = new HarnessUpgradeFixture(t);
+    const relative = `.agents/skills/${retiredSkill}/SKILL.md`;
+    for (const root of [f.candidate, f.target]) f.write(root, relative, "legacy capability\n");
+    f.bootstrap();
+    fs.rmSync(path.join(f.candidate, relative));
+    const local = "project-owned customization\n";
+    f.write(f.target, relative, local);
+    const { plan, planPath } = f.createPlan();
+    assert.deepEqual(plan.problems, []);
+    const action = plan.actions.find(item => item.path === relative);
+    assert.equal(action.mode, "conditional");
+    assert.equal(action.classification, "manual_merge");
+    assert.equal(action.auto_apply, false);
+    assert.equal(action.candidate, null);
+    assert.equal(fs.readFileSync(path.join(f.target, relative), "utf8"), local);
+    f.record(planPath, [relative]);
+    assert.equal(f.classification(f.plan(), relative), "unchanged");
+    assert.equal(fs.readFileSync(path.join(f.target, relative), "utf8"), local);
+    assert.equal(fs.existsSync(path.join(f.candidate, relative)), false);
+  });
+}

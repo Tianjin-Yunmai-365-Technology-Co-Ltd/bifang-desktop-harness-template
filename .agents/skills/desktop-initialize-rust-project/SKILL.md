@@ -17,7 +17,7 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 ## 工作流程
 
-所有接口组合完整保留 `$desktop-extract-technical-docs`（含安装 helper、引用和测试；保留根 `.gitignore` 的知识产物/第三方包忽略项，初始化不提取或预生成 `knowledge/`）、`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-task-workflow`、兼容 Task Skills 和 `$desktop-configure-agent-policy` 的知识、metadata、references 与 helper/测试；保留不代表初始化启用能力。Tauri GUI 完整保留 `$desktop-enable-gui-updates` 和 `$desktop-add-gui-telemetry`；GPUI GUI 完整保留 `$desktop-add-gpui-autostart`，不交叉传播或启用。
+所有接口组合完整保留 `$desktop-extract-technical-docs`（含安装 helper、引用和测试；保留根 `.gitignore` 的知识产物/第三方包忽略项，初始化不提取或预生成 `knowledge/`）、`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-task-workflow`、兼容 Task Skills 和 `$desktop-configure-agent-policy` 的知识、metadata、references 与 helper/测试；保留不代表初始化启用能力。GPUI GUI 完整保留 `$desktop-add-gpui-autostart`，不交叉传播或启用。
 
 ### GUI 框架分派（先于下述 Tauri 专属步骤）
 
@@ -42,13 +42,13 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 7.1. 仅 `interfaces` 含 `gui` 且 `gui-framework = "gpui"` 时，在接口实现前执行 `node .agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.mjs --project-root "<downstream-root>"`。安装器只读固定官方快照，不访问网络、不全局安装、不执行远程代码；将 `$gpui-kit`、`$gpui-kit-design-guides` 的全部原样 SKILL/references、Apache-2.0 许可、固定 revision 与逐文件大小/SHA-256 放入项目本地 `.agents/skills/`。相同内容复用；冲突或来源漂移保留原内容并报错，两个 Skill 共同预检，不能静默覆盖。安装完成后按 [GPUI 标准](../../../docs/design_standards/gpui_gui.md) 使用，并把两者加入下游 Skills 地图；其它框架或接口不安装。知识安装不增加表单字段或运行时依赖。
 8. 将每个已记录接口分派给对应薄适配器 Skill：`$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`；GUI 依据已确认框架分派 `$desktop-add-gui-adapter` 或 `$desktop-add-gpui-adapter`。每个适配器直接依赖同一 core，只拥有接口语法/协议、展示/纯交互、宿主机制和结果映射；语义校验、业务编排及稳定领域错误由 core 负责。
    - Tauri GUI 完整读取 [Tauri 初始化接线](references/tauri-initialization.md)，由 GUI adapter 编排 Logo、平台图标、`macos-dmg-background.png` 的 660×400 中性背景复制、所选侧栏和支持界面；具体像素、实现与回归归相应能力 Skill 和设计标准，不在中央入口重复维护。
-   - Tauri 固定调用 `$desktop-add-gui-system-locale`、`$desktop-add-gui-updater`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`；其余能力只按九字段 profile 分派，中央入口复核启用完整/禁用缺席，不复制实现。
+   - Tauri 固定调用 `$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`；其余能力只按九字段 profile 分派，中央入口复核启用完整/禁用缺席，不复制实现。
    - GPUI 的资源、视图、能力和零出站边界由其 adapter Skill 承载，不读取上述 Tauri 引用。未选 CLI 时不复制中性资产中的 CLI 成员。
 
-9. Product Spec 不存在或仍为 `Draft` 时，每个已选接口只能公开中性脚手架状态，其中包含 `productDefinitionRequired=true` 或接口等价的可见状态。不得虚构业务命令、工具、数据或副作用。GUI 标题、最终解析的侧栏、设置页、四项固定宿主基线及本轮明确选择的六个条件宿主能力和关于/赞助页面属于无业务副作用的初始化基线；通知与自启只提供默认关闭的设置能力，深链接只执行已确认的主窗口恢复动作，全局快捷键只有空 action contract 和零 OS 注册，updater 保持 `NotConfigured` 与零出站，dialog 不创建产品动作也不授予 fs 权限。未选能力不存在。产品获批后，业务 core 或适配器变化都直接实施；只有产品边界变化才更新 Product Spec。
-10. 缺省锁策略下，Cargo 正常解析可在本地生成由 Git 忽略的 `Cargo.lock`，初始化不要求该文件存在或受跟踪，并只运行初始化本身必需的非空测试。GUI 测试必须覆盖唯一九字段配置块、`deep_link => single_instance`、侧栏缺省/非法值、所选侧栏和页面存在/缺席；四项固定基线与每个已选独立能力还必须运行其 Skill 规定的全部固定非空回归，未选能力运行依赖、feature、配置、命令、状态/UI/i18n 与测试无残留回归。测试不得用 `assert!(true)` 或字面量自比较占位。Rust 正常解析复用满足兼容下限的 stable；前端最低直接版本规则和非 GUI 测试边界继续适用。
-11. 使用实际结果更新保留事实，但不为中性初始化创建产品规格、计划、ADR、Changelog 或 Verification；不创建或更新 `docs/VERIFICATION.md`，也不自动创建 Work Plan、构建候选或完整验收记录。GUI 完成输出必须逐项报告八项能力和侧栏模式、四项固定 GUI 基线、侧栏来自用户选择还是 `detailed` 缺省、`docs/GUI_APP_PROFILE.md` 配置块、已选实现与未选能力缺席证据；托盘、系统通知、开机自启、关于、赞助、单实例、深链接和全局快捷键的专属结果只在被选择时报告。
-12. 选择 GUI 时，必须在非空测试通过后按框架调用一次初始化 E2E：GPUI 使用 `$desktop-test-gpui-initialization-e2e`；Tauri 使用 `$desktop-test-gui-initialization-e2e`。下述插件结构只适用于 Tauri。结构检查器先验证唯一九字段、组合约束、四项固定基线和每个独立能力的启用完整/禁用无残留，再构建并启动真实本机调试二进制，执行所选侧栏、设置页、页面、窗口状态、单实例、托盘、通知、自启、深链接、快捷键及关闭语义中的全部适用场景。dialog 固定结构检查必须覆盖 Rust/前端依赖、唯一 Builder 顺序、主窗口 `dialog:default` 和无 fs 授权。所有由测试创建的登录项、window-state 数据、快捷键注册和进程必须恢复/回收；需要打包安装才能证明的静态 scheme 系统注册（macOS/Windows/Linux）明确留给最终安装候选补验，其余已选能力无法观察或验证都阻断，未选能力不得被当作缺证据。
+9. Product Spec 不存在或仍为 `Draft` 时，每个已选接口只能公开中性脚手架状态，其中包含 `productDefinitionRequired=true` 或接口等价的可见状态。不得虚构业务命令、工具、数据或副作用。GUI 标题、最终解析的侧栏、设置页、三项固定宿主基线及本轮明确选择的六个条件宿主能力和关于/赞助页面属于无业务副作用的初始化基线；通知与自启只提供默认关闭的设置能力，深链接只执行已确认的主窗口恢复动作，全局快捷键只有空 action contract 和零 OS 注册，dialog 不创建产品动作也不授予 fs 权限。未选能力不存在。产品获批后，业务 core 或适配器变化都直接实施；只有产品边界变化才更新 Product Spec。
+10. 缺省锁策略下，Cargo 正常解析可在本地生成由 Git 忽略的 `Cargo.lock`，初始化不要求该文件存在或受跟踪，并只运行初始化本身必需的非空测试。GUI 测试必须覆盖唯一九字段配置块、`deep_link => single_instance`、侧栏缺省/非法值、所选侧栏和页面存在/缺席；三项固定基线与每个已选独立能力还必须运行其 Skill 规定的全部固定非空回归，未选能力运行依赖、feature、配置、命令、状态/UI/i18n 与测试无残留回归。测试不得用 `assert!(true)` 或字面量自比较占位。Rust 正常解析复用满足兼容下限的 stable；前端最低直接版本规则和非 GUI 测试边界继续适用。
+11. 使用实际结果更新保留事实，但不为中性初始化创建产品规格、计划、ADR、Changelog 或 Verification；不创建或更新 `docs/VERIFICATION.md`，也不自动创建 Work Plan、构建候选或完整验收记录。GUI 完成输出必须逐项报告八项能力和侧栏模式、三项固定 GUI 基线、侧栏来自用户选择还是 `detailed` 缺省、`docs/GUI_APP_PROFILE.md` 配置块、已选实现与未选能力缺席证据；托盘、系统通知、开机自启、关于、赞助、单实例、深链接和全局快捷键的专属结果只在被选择时报告。
+12. 选择 GUI 时，必须在非空测试通过后按框架调用一次初始化 E2E：GPUI 使用 `$desktop-test-gpui-initialization-e2e`；Tauri 使用 `$desktop-test-gui-initialization-e2e`。下述插件结构只适用于 Tauri。结构检查器先验证唯一九字段、组合约束、三项固定基线和每个独立能力的启用完整/禁用无残留，再构建并启动真实本机调试二进制，执行所选侧栏、设置页、页面、窗口状态、单实例、托盘、通知、自启、深链接、快捷键及关闭语义中的全部适用场景。dialog 固定结构检查必须覆盖 Rust/前端依赖、唯一 Builder 顺序、主窗口 `dialog:default` 和无 fs 授权。所有由测试创建的登录项、window-state 数据、快捷键注册和进程必须恢复/回收；需要打包安装才能证明的静态 scheme 系统注册（macOS/Windows/Linux）明确留给最终安装候选补验，其余已选能力无法观察或验证都阻断，未选能力不得被当作缺证据。
 
 13. 只有全部脚手架检查完成后，才能收尾下游仓库：
     - 仅 GPUI GUI 完整保留 `.agents/skills/gpui-kit/` 与 `.agents/skills/gpui-kit-design-guides/`，包含原始 SKILL/references、Apache 许可、来源摘要和 `HARNESS-INTEGRATION.md`；两套上游原文及许可不参与身份替换。初始化目录内 GPUI Kit installer、测试与 vendor 快照随初始化收尾删除，已安装知识资产不依赖这些源路径。通用 Harness 升级保护已安装第三方内容，不覆盖本地改动；
@@ -97,12 +97,11 @@ Windows 环境门禁的自动安装若因管理员权限、UAC、组织策略或
 
 ## 完成要求
 
-
 GPUI Kit 部分仅在选择 GPUI GUI 时报告 `ensure_gpui_kit_skills.mjs` 的实际 `installed|reused`、两个项目本地目录、固定 revision、Apache 许可/来源/逐文件摘要、Skills 地图及原始跨 Skill/仓库引用的 `HARNESS-INTEGRATION.md` 映射。其它框架报告未安装；快照存在不代表下游已安装，安装冲突不能报成功。
 
 版本部分必须报告根 Cargo 初始版本与 `.harness/version-state.json` 一致、`$desktop-manage-version` 已保留且状态已列入约束地图。Git 生命周期部分必须报告 `$desktop-manage-git-lifecycle` 已完整保留、未运行 `start|publish|release`、未创建 common-dir 生命周期清单、未预创建 `.harness/release-context.json`，且基线仍是无 remote 的独立 `main` 提交。
 
-报告写入前环境门禁的 `gate.git.status/version/change`、基线前复探到的最终 Git 版本、最终 Git 边界、有效 `user.name`/`user.email` 及各自 scope/origin/source、是否由单一 ASCII 设备 username 派生并写入 local、提交模板本地配置与检查结果、基线和干净状态，以及已选接口、全部六项策略值（单列 `user_owned_tasks`）、`post_release_action`、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个原始 Logo 候选的稳定预览顺序、用户选择、仅对所选项执行的后置验证/标准化、图标与 DMG 证据、九项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；system-locale、updater、window-state、dialog 分别报告固定基线与零出站/恢复/权限边界证据；对系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键分别报告 `enabled`/`disabled`。全局快捷键启用时另报告 contract 动作数、初始非空 binding 数、实际注册数和 owned 清理；其他启用项报告完整实现/E2E 或需打包验证的明确边界，禁用项报告依赖/feature/插件/命令/Switch/状态/翻译键/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。
+报告写入前环境门禁的 `gate.git.status/version/change`、基线前复探到的最终 Git 版本、最终 Git 边界、有效 `user.name`/`user.email` 及各自 scope/origin/source、是否由单一 ASCII 设备 username 派生并写入 local、提交模板本地配置与检查结果、基线和干净状态，以及已选接口、全部六项策略值（单列 `user_owned_tasks`）、`post_release_action`、已创建成员、本次必要测试、已删除初始化路径、保留 Skills/约束地图、未验证平台及 `productDefinitionRequired=true`。选择 GUI 时还报告三个原始 Logo 候选的稳定预览顺序、用户选择、仅对所选项执行的后置验证/标准化、图标与 DMG 证据、九项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；system-locale、window-state、dialog 分别报告固定基线与零出站/恢复/权限边界证据；对系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键分别报告 `enabled`/`disabled`。全局快捷键启用时另报告 contract 动作数、初始非空 binding 数、实际注册数和 owned 清理；其他启用项报告完整实现/E2E 或需打包验证的明确边界，禁用项报告依赖/feature/插件/命令/Switch/状态/翻译键/路由/入口/媒体缺席和关闭最后窗口退出等对应证据。
 
 GPUI 初始化完成时完整保留 `$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance` 和中性 `docs/GUI_ENGINEERING.md`；Tauri 与非 GUI 裁掉这些专属知识，不遗留失效链接。Linux GPUI 打包保留环境 Skill 的 linux-gpui-dependencies.sh 与回归，按需调用，不自动安装或放开未实现的桌面能力。
 
