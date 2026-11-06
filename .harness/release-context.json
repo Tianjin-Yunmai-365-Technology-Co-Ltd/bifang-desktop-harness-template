@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "727ff82ea8505a96adaad2392a73f0456fb5eeb4",
-  "version": "202611061437",
-  "releaseDate": "2026-11-06",
-  "expectedTag": "v202611061437-20261106",
+  "sourceHead": "96c79a4534063e49913678df0312057322754ebe",
+  "version": "202611070300",
+  "releaseDate": "2026-11-07",
+  "expectedTag": "v202611070300-20261107",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "d86e7fe53bcf90064e1307384bdcc770cfa45d0c",
-    "sourceHead": "727ff82ea8505a96adaad2392a73f0456fb5eeb4",
-    "scopeDiffSha256": "3b26ab20685d8784bcaba65f8bc9f5d39097b2981db3861192169626ca98b6ec",
-    "reviewedSourceCommit": "727ff82ea8505a96adaad2392a73f0456fb5eeb4",
+    "scopeBase": "079bf66462c639447a699b0b5ce17845d8a80721",
+    "sourceHead": "96c79a4534063e49913678df0312057322754ebe",
+    "scopeDiffSha256": "242bf18d749c50d4e1e5972fa1cfaf10e8bfb62b6f417e5e4742f39d1360fb36",
+    "reviewedSourceCommit": "96c79a4534063e49913678df0312057322754ebe",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "两项独立只读审查及主代理复核通过：累计行为、core/adapter边界、外部工程契约、职责规模和临时标记无确定阻断。Node完整回归1358项：1330通过、0失败、28跳过。Rust 1.99.1中性CLI资产格式、Clippy和7项非空测试通过。Harness硬门禁与发布审查通过，41项非阻断提示属于既有规模和测试夹具标记。Windows/Linux原生、真实下游和候选E2E未执行，不升级其验证状态。",
+    "evidenceSummary": "已审查行为、core与适配器边界、外部契约、职责规模及临时标记；Harness全量测试和发布审查通过，中性NSH工程完成macOS/Web最终候选E2E与字节复核。",
     "reason": null,
     "remainingRisk": null
   }

@@ -2,6 +2,34 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-11-07",
+      "version": "v202611070300",
+      "featureOptimizations": [
+        {
+          "zh-CN": "完善 NSH 初始化接线、侧栏与双语关于页，发布日志可在应用内展开查看。",
+          "en-US": "Complete NSH initialization wiring, sidebar behavior, and the bilingual About page with expandable in-app release notes."
+        },
+        {
+          "zh-CN": "接入 NSH 独立候选打包与最终产物证据；中性 macOS 和 Web 工程通过真实构建与界面 E2E。",
+          "en-US": "Add independent NSH candidate packaging and final artifact evidence; a neutral macOS and Web project passed real builds and UI E2E."
+        },
+        {
+          "zh-CN": "移除新项目的 TUI 初始化选项和专用技能；既有 TUI 下游资产仍受保护，升级前需单独迁移。",
+          "en-US": "Remove TUI initialization and its dedicated skill for new projects; existing TUI downstream assets remain protected and require a separate migration before upgrade."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复较大发布日志触发进程环境变量长度限制的问题，并排除生成的 .nsh 缓存。",
+          "en-US": "Avoid process environment limits with large release notes and exclude generated .nsh caches."
+        },
+        {
+          "zh-CN": "纠正 iOS 本地 .app 与正式 IPA 的打包边界，避免将未签名试包误判为渠道产物。",
+          "en-US": "Clarify the boundary between local iOS .app packages and formal IPA distribution so unsigned trial packages are not treated as channel artifacts."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-11-06",
       "version": "v202611061437",
       "featureOptimizations": [
@@ -212,34 +240,6 @@
         {
           "zh-CN": "修正深色选中行辅助文字的对比度，并确保省略值按钮保留数据值作为可访问名称。",
           "en-US": "Correct secondary-text contrast on selected rows in the dark theme and preserve data values as accessible names for truncated-value buttons."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-29",
-      "version": "v202610291622",
-      "featureOptimizations": [
-        {
-          "zh-CN": "更新并集中登记 68 个 Rust 库和 33 个前端包的兼容候选下界，同步中性资产、生成器与文档，并增加一致性门禁。",
-          "en-US": "Update and centrally record compatible candidate minimums for 68 Rust crates and 33 frontend packages, synchronize neutral assets, generators and documentation, and add consistency checks."
-        },
-        {
-          "zh-CN": "通用环境采用 Rust 1.95.0 与连续 Node.js 24.0.0 下界；Rust 门禁结合项目 Cargo MSRV，按较高下界检查和复探。",
-          "en-US": "Use Rust 1.95.0 and continuous Node.js 24.0.0 as generic environment minimums; combine the Rust minimum with each project's Cargo MSRV and verify against the higher requirement."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "统一 Tauri 与 GPUI 的完整窗口标题，复用权威版本与语言状态，并补齐标题合同及生成资产回归。",
-          "en-US": "Unify complete window titles in Tauri and GPUI using authoritative version and language state, with title contract checks and generated-asset regression coverage."
-        },
-        {
-          "zh-CN": "为 TypeScript 依赖明确声明兼容上界，校验真实前端清单，避免安装超出 typescript-eslint peer 范围的版本。",
-          "en-US": "Declare an explicit compatible upper bound for TypeScript and validate actual frontend manifests to prevent installation beyond the typescript-eslint peer range."
-        },
-        {
-          "zh-CN": "修正成功标准中的旧 Rust 下界表述，明确通用环境下界与中性模板 MSRV 1.98.1 的区别。",
-          "en-US": "Correct the outdated Rust minimum in the success criteria and distinguish the generic environment minimum from the neutral template's MSRV of 1.98.1."
         }
       ]
     }
