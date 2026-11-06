@@ -8,7 +8,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 
 ## 桌面框架与适用范围
 
-新项目的 GUI 框架和能力输入统一复用初始化表单的确认结果，问句、默认触发与顺序不在本文件定义；无答复不得应用默认。GUI 新初始化必须在根 `[workspace.metadata.agent-first-harness]` 保存 `gui-framework = "tauri" | "gpui"`，非 GUI 不写，既有 GUI 缺失时兼容 Tauri。框架与九字段 `gui-initialization-config` 分开。
+新项目的 GUI 框架和能力输入统一复用初始化表单的确认结果，问句、默认触发与顺序不在本文件定义；无答复不得应用默认。GUI 新初始化必须在根 `[workspace.metadata.agent-first-harness]` 保存 `gui-framework = "tauri" | "gpui" | "nsh"`，非 GUI 不写，既有 GUI 缺失时兼容 Tauri。框架与九字段 `gui-initialization-config` 分开。
 
 - Tauri走 `$desktop-add-gui-adapter`。下文Tauri插件、Tokio-backed GUI runtime/command、WebView/IPC/ACL、React/Mantine/Jotai、Tabler、TS门禁、Tauri图标/DMG/NSIS及Tauri初始化E2E只在这条路径生效。
 - GPUI走 `$desktop-add-gpui-adapter`，直接依赖共享core，根workspace声明 `gpui-kit = "0.8.1"`、`rust-i18n = "4.2.4"` 的三段兼容下界，成员只 `workspace = true`。GPUI原生事件循环与其任务/executor管理GUI生命周期，core保持运行时中立；不因异步core创建嵌套runtime，不把UI线程阻塞等待当成异步。独立关于/赞助/设置模板、主题、i18n与sidebar遵守 [GPUI设计标准](design_standards/gpui_gui.md)。不引入Tauri/React；Node.js/pnpm 用于项目根的验证、发布和打包脚本，不要求前端安装、前端锁文件或前端测试。

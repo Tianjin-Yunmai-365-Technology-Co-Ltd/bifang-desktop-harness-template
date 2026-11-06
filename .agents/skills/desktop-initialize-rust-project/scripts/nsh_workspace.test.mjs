@@ -33,6 +33,8 @@ test('unavailable_capabilities_reject_before_writing_and_disabled_pages_have_no_
 
 test('fresh_workspace_cargo_metadata_binds_gui_to_core_and_platforms',()=>fixture(parent=>{
   const root=path.join(parent,'new');createNshWorkspace(root,options());
+  const format=spawnSync('cargo',['fmt','--all','--','--check'],{cwd:root,encoding:'utf8'});
+  assert.equal(format.status,0,format.stdout+format.stderr);
   const result=spawnSync('cargo',['metadata','--no-deps','--format-version','1'],{cwd:root,encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   const metadata=JSON.parse(result.stdout);const facts=packageFacts(root,metadata,'web');

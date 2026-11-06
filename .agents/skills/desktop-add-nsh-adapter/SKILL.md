@@ -9,6 +9,8 @@ description: 为明确选择 NSH 的共享 Rust core 增加 Native Shell 薄适�
 
 先读 `docs/design_standards/ui_foundation.md`、`docs/design_standards/nsh_gui.md` 与 [运行时与能力](references/runtime-and-capabilities.md)。维护打包再读 `$desktop-build-nsh-release`。本 Skill 和 helper 使用 Node 标准库，不依赖原移动客户端的工具脚本或机器路径。
 
+生成器在写入前通过已选 Rust 工具链的 `rustfmt`（edition 2024）格式化完整 Rust 输出；该工具属于现有 Rust 开发工具链，不添加第三方 Node 依赖，失败保持零工作区写入。 只有真实失败证明缺少该组件时，按环境恢复流程为当前工具链执行 `rustup component add rustfmt`，再复读 `rustup which rustfmt` 与 `rustfmt --version` 并重试；不升级或替换工具链。
+
 1. 复用身份、平台、九字段 profile 和 Logo 选择。系统语言、三态主题、设置固定建立；关于页、赞助页和侧栏继续询问。六项宿主能力当前均 unavailable/disabled；显式启用时停止并纠正，不用空函数或应用内按键冒充。新增原生扩展必须另有真实实现、平台限制和宿主测试后才能更新能力表。
 2. 运行 `scripts/add_nsh_adapter.mjs --root <已有共享core的根> --options <确认字段JSON文件>`。JSON 含 `projectId,nameZh,nameEn,owner,targetPlatforms,profile` 和可选已选 `logo` 绝对 PNG 路径。路径/身份/依赖/已有 GUI 冲突在写入前拒绝。GUI 直接依赖 core；适配器只拥有界面状态与宿主机制。没有业务需求时不建立示例业务。
 3. 默认使用 NSH Rust UI，`nsh.json` 的 `rust: "."` 与 `root: "App"` 挂载同一根组件；Rust UI 可编译为移动宿主和 WebAssembly。core 保持运行时中立。只把已选框架所需 `nsh-core/nsh-base` 加入 workspace 依赖；Node/pnpm 仅运行工程入口。

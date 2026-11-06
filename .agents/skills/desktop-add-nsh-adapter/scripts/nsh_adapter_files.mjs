@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { renderNshSponsor } from './nsh_support_pages.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -73,6 +74,15 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
   files.set(`${gui}/nsh.json`, JSON.stringify({name:nameZh,id:applicationId,version,build:1,rust:'.',root:'App',appearance:'system',...(options.logo ? {icon:'assets/logo.png'} : {})},null,2)+'\n');
   files.set(`${gui}/App.test.tsx`, `import { expect, open, test } from "nsh/test";\n\ntest("settings language and pages", async () => {\n const app = await open(".");\n const settings = app.texts().includes("设置") ? "设置" : "Settings";\n await app.press(settings);\n await app.press("English");\n expect(app.texts()).toContain("Appearance");\n await app.press("Dark");\n await app.press("Light");\n await app.press("System");\n await app.press("Home");\n expect(app.texts()).toContain(${JSON.stringify(nameEn)});\n ${enabledAbout ? 'await app.press("About"); expect(app.texts().some(text => text.includes("QQ 2222980"))).toBe(true);' : 'expect(app.texts()).not.toContain("About");'}\n ${enabledSponsor ? 'await app.press("Sponsor");' : 'expect(app.texts()).not.toContain("Sponsor");'}\n});\n\ntest("narrow viewport keeps settings reachable", async () => {\n const app = await open(".", { width: 390, height: 844 });\n await app.press(app.texts().includes("设置") ? "设置" : "Settings");\n await app.press("English");\n expect(app.texts()).toContain("Appearance");\n await app.setViewport(1200, 800);\n expect(app.texts()).toContain("Appearance");\n});\n`);
   files.set('docs/GUI_APP_PROFILE.md', `# GUI App Profile\n\n框架事实：根 Cargo metadata 的 nsh。身份：${nameZh} / ${nameEn}；负责人：${owner}。\n\n\`\`\`gui-initialization-config\n${PROFILE_FIELDS.map(key => `${key}: ${profile[key]}`).join('\n')}\n\`\`\`\n\n${options.logo ? '使用已选择 Logo。' : '中性工程验证夹具，无正式品牌确认。'} 六项宿主能力 unavailable/disabled，原生窗口由当前宿主管理；未验证平台不得报通过。\n`);
+  // 在任何工作区写入前格式化完整渲染结果；stdin/stdout 避免创建临时 Rust 项目。
+  for (const [filename, source] of files) {
+    if (!filename.endsWith('.rs')) continue;
+    const result = spawnSync('rustfmt', ['--edition', '2024', '--emit', 'stdout', '--config', 'skip_children=true'], {
+      input: source, encoding: 'utf8', timeout: 30_000, maxBuffer: 4 * 1024 * 1024, windowsHide: true,
+    });
+    if (result.error || result.status !== 0) throw new Error(`Rust toolchain rustfmt failed for ${filename}: ${result.error?.message ?? result.stderr.slice(-2000)}`);
+    files.set(filename, result.stdout);
+  }
   return files;
 }
 

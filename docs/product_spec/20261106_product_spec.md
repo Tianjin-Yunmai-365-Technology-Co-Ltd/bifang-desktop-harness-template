@@ -12,7 +12,7 @@
 
 ### NSH 第三框架
 
-- 变更标识：`HARNESS-FEAT-NSH`；`required_version` 在正式发布时绑定，日常维护不改 Harness 时间版本。新增 NSH：跨平台客户端 支持桌面、移动、Web；Tauri 默认（使用Web技术开发桌面客户端）与 GPUI（高性能原生客户端）保留。
+- 变更标识：`HARNESS-FEAT-NSH`；`required_version = 202611061129`，由本次正式发布绑定，日常维护不改 Harness 时间版本。新增 NSH：跨平台客户端 支持桌面、移动、Web；Tauri 默认（使用Web技术开发桌面客户端）与 GPUI（高性能原生客户端）保留。
 - 统一初始化表单、Cargo metadata、九字段 profile、版本及 Git 发布生命周期不分叉。NSH 使用 Rust UI/共享 core、自含运行时知识、专用 adapter/build/初始化 E2E；不接入 Tauri 前端/插件或 GPUI Kit。原产品业务与签名不进入模板。
 - Android/iOS/Web 只允许 NSH GUI；语言、三态主题、设置固定，关于/赞助/侧栏按选择，六项无中性跨平台实现的宿主能力 unavailable/disabled。NSH 原生构建、Web 静态包、移动 SDK/签名和设备分别取证；初始化中性工程不冒充产品验收。
 - 本地试包与已发布候选分开；候选复核 clean 发布源码/tag/上下文、完整非空 Rust 与 NSH 测试、日志/许可证/文件摘要及当次 E2E。NSH 0.4.0 无法把 tracked 锁传递到生成的 runtime workspace，因此该锁模式打包失败关闭，默认 ignored 可正常执行。初始化后删除专用派生入口，升级只传播所选框架的工程能力。
@@ -516,7 +516,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202611060921`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202611061129`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
