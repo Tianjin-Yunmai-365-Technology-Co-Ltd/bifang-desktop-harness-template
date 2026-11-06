@@ -3,6 +3,30 @@
   "releases": [
     {
       "releaseDate": "2026-11-06",
+      "version": "v202611061129",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增 NSH 第三框架，按平台能力完成桌面、Android、iOS、Web 初始化及共享 Rust core 接线。",
+          "en-US": "Add NSH alongside Tauri and GPUI, with platform-aware initialization and shared Rust core wiring for desktop, Android, iOS and Web."
+        },
+        {
+          "zh-CN": "新增 NSH 本地与候选打包、版本同步、发布元数据及按框架裁剪的升级支持。",
+          "en-US": "Add dedicated NSH local and candidate packaging, version synchronization, release metadata, and framework-specific upgrade pruning."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "处理 iOS 可执行文件与资源目录重名，生成同时兼容 Android 和 Apple 的应用标识。",
+          "en-US": "Prevent iOS executable and resource name collisions, and generate application identifiers accepted by both Android and Apple."
+        },
+        {
+          "zh-CN": "在写入工作区前格式化生成的 Rust，并补齐框架元数据的 NSH 文档声明。",
+          "en-US": "Format generated Rust before writing the workspace and include NSH in the documented GUI framework values."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-11-06",
       "version": "v202611060921",
       "featureOptimizations": [
         {
@@ -208,62 +232,6 @@
         {
           "zh-CN": "升级候选严格核对设计基座完整字节并保护项目自有 DESIGN.md；修正主色色板索引类型、侧栏旧尺寸断言及 GPUI Token 文档路径。",
           "en-US": "Validate complete design-foundation bytes in upgrade candidates while protecting project-owned DESIGN.md; fix primary-palette index typing, the outdated sidebar-size assertion and the documented GPUI token path."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-20",
-      "version": "v202610201054",
-      "featureOptimizations": [
-        {
-          "zh-CN": "拆分 GPUI 依赖兼容、性能和打包知识，并通过 GUI 工程索引按任务加载。",
-          "en-US": "Separate GPUI dependency compatibility, performance and packaging guidance, with task-based routing through the GUI engineering index."
-        },
-        {
-          "zh-CN": "新增 GPUI Linux GNU x64/ARM64 deb、tar.gz 打包流程，补齐 macOS 身份、Windows NSIS、全局工具及最终资源核对。",
-          "en-US": "Add GPUI Linux GNU x64/ARM64 deb and tar.gz packaging workflows, plus macOS identity, Windows NSIS, global-tool and final-resource checks."
-        },
-        {
-          "zh-CN": "新增 Tauri Linux 原生同架构 deb/AppImage 本地试包流程，以及受限 Debian 包名规范化。",
-          "en-US": "Add native same-architecture Tauri Linux deb/AppImage local trial packaging and bounded Debian package-name normalization."
-        },
-        {
-          "zh-CN": "统一新项目初始化的问句、选项、顺序、条件问题和确认摘要；保留合法答案，漏答不自动确认。",
-          "en-US": "Unify new-project initialization questions, options, ordering, conditional prompts and confirmation summaries; preserve valid answers and require explicit completion of missing answers."
-        },
-        {
-          "zh-CN": "补齐 Linux 窗口、托盘、自启、系统依赖和软件中心集成知识，明确经验与已实现能力的边界。",
-          "en-US": "Expand Linux window, tray, autostart, system-dependency and software-center guidance, distinguishing prior experience from implemented capabilities."
-        },
-        {
-          "zh-CN": "精简 Skills 入口并按场景加载引用；提炼当前工程记忆，同时完整保留历史 ADR 与变更记录原文。",
-          "en-US": "Slim skill entrypoints and load references by scenario; distill current engineering memory while preserving the complete original ADR and changelog history."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 GPUI 开发循环遇到 EPERM 等未知进程组状态时的异常逃逸和错误回收判断。",
-          "en-US": "Handle unknown process-group states such as EPERM in the GPUI development loop without uncaught errors or false cleanup claims."
-        },
-        {
-          "zh-CN": "发布审查范围摘要改为临时文件分块哈希，避免大体积二进制补丁超过输出缓冲上限。",
-          "en-US": "Hash release-review diffs in chunks through a temporary file so large binary patches do not exceed subprocess output buffers."
-        },
-        {
-          "zh-CN": "Debian 必需运行库只接受独立直接依赖，避免备选依赖组被误判为保证安装。",
-          "en-US": "Require standalone direct dependencies for mandatory Debian runtime libraries instead of treating alternative dependency groups as guaranteed installation."
-        },
-        {
-          "zh-CN": "Linux 候选在编译探测前核对当次 E2E 选择、发布上下文和干净源码；拒绝时保留旧候选。",
-          "en-US": "Validate the current E2E choice, release context and clean source before Linux candidate compiler probes, preserving previous candidates on rejection."
-        },
-        {
-          "zh-CN": "清理 Linux 交叉构建继承的 CC、CXX、AR 变量，防止高优先级目标变体覆盖已核验的工具链。",
-          "en-US": "Clear inherited CC, CXX and AR variables in Linux cross builds so higher-priority target variants cannot override the verified toolchain."
-        },
-        {
-          "zh-CN": "补齐 Linux 本地试包 Skill 的初始化保留与升级传播，并恢复下游文档剥离上游专用语言禁令的要求。",
-          "en-US": "Retain and propagate the Linux local-packaging skill during initialization and upgrades, and restore removal of upstream-only language prohibitions from downstream documentation."
         }
       ]
     }
