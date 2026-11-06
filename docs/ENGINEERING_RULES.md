@@ -1,10 +1,12 @@
 # 工程规则
 
+NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+
 GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.md) 分派；只在当前任务需要时读取对应 Skill。
 
 本文档是所有下游项目在文件组织、代码注释、文档维护、测试组织、规则例外和机械检查方面的唯一详细事实来源。`AGENTS.md`、项目 Skills 和技术基线只保留任务入口、语言特定补充与本文件链接，不复制整套规则。
 
-桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri图标/DMG、Tauri初始化E2E合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对两条路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
+桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui|nsh`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri图标/DMG、Tauri初始化E2E合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对两条路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
 
 GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。实际依赖和通知官方 API 边界以 GPUI Skill 的自含引用为准；禁用能力不生成实现或依赖。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux Tauri 且无 CLI 时必须选 `push_release_branch`。
 

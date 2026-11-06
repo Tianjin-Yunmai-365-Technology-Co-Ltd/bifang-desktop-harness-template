@@ -134,6 +134,8 @@ rustc -vV
 git --version
 node --version
 # 仅 GUI
+
+NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 pnpm --version
 ```
 

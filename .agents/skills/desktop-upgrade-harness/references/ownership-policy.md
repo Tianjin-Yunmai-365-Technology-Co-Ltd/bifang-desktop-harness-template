@@ -84,3 +84,5 @@
 完整 managed 传播 `$desktop-manage-task-worktrees`（SKILL 与 metadata），即使 task_worktrees 关闭也保留。schema 3/4 发布动作保持合法读取，schema 4 新环境选择为 selection_required；工程升级不得补默认值、改确认元数据、用户级 AGENTS 或迁移既有 Task/Worktree。受保护正文按章节合并后，由用户明确补选并通过 `$desktop-configure-agent-policy migrate-task-worktrees` 从 schema 4 迁移至 5；schema 3 先由动作专用流程迁移至 4。
 
 统一 Task/工作树合同完整 managed 传播 `$desktop-task-workflow` 的 SKILL、metadata 与 references；旧三个入口仅兼容路由，脚本路径保持兼容。独立工作树尽量并行创建，只有同 Local cwd 与共享状态写入短串行。
+
+NSH 工程选择：合法框架包含 nsh；NSH GUI 可选择 local_package 并保留 adapter/build 专用 Skills、运行时知识和共享支持页资产。其他框架裁掉 NSH 专属能力。NSH 初始化 E2E 和初始化 wrapper 不传播；受保护 Cargo、profile、策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。

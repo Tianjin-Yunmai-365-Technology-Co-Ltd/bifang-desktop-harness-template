@@ -5,6 +5,8 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 
 # 实施变更
 
+NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+
 完成当前授权范围，以本地 feature 分支、实现、本次必要测试、事件触发记录和可审查的本地提交构成日常闭环。用户明确要求发布时转 `$desktop-prepare-release`；Git 发布及后续动作由该入口编排。
 
 修改 GUI 时先读取根 Cargo metadata 的 `gui-framework`，既有 GUI 缺失时兼容 `tauri`；随后按 [设计标准索引](../../../docs/design_standards/README.md) 只读取命中标准。Tauri 的展示、交互、页面会话与回归由 [Tauri GUI 标准](../../../docs/design_standards/tauri_gui.md) 约束；列表页、数据表格、后台列表、搜索结果页及已有列表审查必须调用 `$mantine-list-view`。GPUI 的原生视图、进程内会话及能力接线由 `$desktop-add-gpui-adapter` 和 [GPUI 标准](../../../docs/design_standards/gpui_gui.md) 承载，不加载 Tauri/React/Mantine 规则；依赖/补丁与明确性能任务分别交给 `$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance`。

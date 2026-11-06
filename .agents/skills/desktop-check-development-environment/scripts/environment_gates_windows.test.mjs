@@ -111,7 +111,7 @@ function makeWindowsNodeMetadata(root, { digest = "1".repeat(64) } = {}) {
 test("PowerShell gate declares Node as common runtime and pnpm for both GUI frameworks", () => {
   const source = readFileSync(WINDOWS_SCRIPT, "utf8");
   assert.match(source, /\$PnpmRequired = \(\$NormalizedInterfaces -contains "GUI"\)\r?\n/u);
-  assert.ok(source.includes('[ValidateSet("tauri", "gpui")]'));
+  assert.ok(source.includes('[ValidateSet("tauri", "gpui", "nsh")]'));
   assert.ok(source.includes('$node = Resolve-GateCommand "node"'));
   assert.ok(source.includes('"gate.node.status=passed"'));
   assert.ok(source.includes('"gate.pnpm.status=$(if ($PnpmRequired) { \'passed\' } else { \'not-required\' })"'));

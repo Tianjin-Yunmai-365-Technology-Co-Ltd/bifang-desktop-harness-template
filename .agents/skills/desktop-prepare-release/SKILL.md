@@ -42,3 +42,9 @@ description: 整理并验证当前源码，提交发布元数据，合并本地�
 - 已发布 tag 绝不移到另一提交；同名 tag 精确命中可幂等复用。不得编造提交、tag、摘要、候选或验证结果。
 - 发布准备不运行构建、冒烟或 E2E。Harness 中性资产和验证器测试须在进入发布准备前通过；终端下游真实候选的全量测试、签名与验收在另行请求的候选构建及验收流程执行。
 - 发布后动作只授权 `post_release_action` 已选的本地打包或 `release` 分支推送，不授权配置 remote/凭据、force push、历史改写或删除未登记资源。候选验收、上传和渠道分发仍是独立事件；打包路径仍遵守当次候选构建的适用选择与硬要求。
+
+### NSH 路由
+
+根 Cargo `gui-framework = "nsh"` 独立使用 `$desktop-build-nsh-release`，复用通用本地 Git 发布、版本、双语日志和 release 上下文。支持桌面原生包、Android APK、iOS app/IPA 与 Web 完整静态目录；当前 helper 具体格式和签名边界以其 Skill 为准。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 全部持久目标；本机不可构建目标如实阻断，不推断已验证。
+
+NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

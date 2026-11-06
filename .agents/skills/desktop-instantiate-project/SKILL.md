@@ -11,9 +11,9 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 选择桌面应用(GUI) 后，严格复用 [唯一表单合同](references/initialization-form.md) 与 `initialization_form.mjs` 的下一问；不在本入口定义默认或重新询问。已确认框架只在 GUI 选中时写入 Cargo `gui-framework`，独立于 profile 九字段；旧 GUI 缺失时兼容 Tauri。
 
-本 Skill 下文关于 Tauri 图标/DMG、三项固定插件、六项宿主能力、Mantine/React 与 `$desktop-test-gui-initialization-e2e` 的要求只适用于 Tauri 路径。GPUI 由 `$desktop-add-gpui-adapter` 创建原生 gpui-kit/Rust GUI，GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 在项目根提供 Node 验证与发布/打包脚本。GPUI 使用自己的模板、Logo路径、Rust测试、实际构建与 Computer Use 初始化检查，不调用 Tauri能力 Skill。
+本 Skill 下文关于 Tauri 图标/DMG、三项固定插件、六项宿主能力、Mantine/React 与 `$desktop-test-gui-initialization-e2e` 的要求只适用于 Tauri 路径。GPUI 由 `$desktop-add-gpui-adapter` 创建原生 gpui-kit/Rust GUI，GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。三种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 在项目根提供 Node 验证与发布/打包脚本。GPUI 使用自己的模板、Logo路径、Rust测试、实际构建与 Computer Use 初始化检查，不调用 Tauri能力 Skill。
 
-发布后动作在框架解析后再次校验：接口含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或 Tauri GUI 目标含 macOS/Windows 时可明确选择 `local_package`；不含 CLI 的仅 Linux Tauri GUI 必须明确选择 `push_release_branch`。GPUI GUI 候选由独立 `$desktop-build-gpui-release` 生成本机 macOS `.app`/DMG、Windows NSIS 或 Linux GNU deb/tar.gz，不借用 CLI 或 Tauri 打包。GPUI 终端下游完整保留该打包 Skill、新 adapter Skill 与通用规则，裁掉 Tauri/Mantine/React专属 Skills；Tauri 和非 GUI 下游裁掉 GPUI 专属打包 Skill。不再自动安装第三方风格 Skill。GPUI 初始化由 `$desktop-initialize-rust-project` 在删除初始化目录前安装本地 `$gpui-kit` 与 `$gpui-kit-design-guides`，上游快照与许可不参与身份替换；Tauri/非 GUI 不安装。
+发布后动作在框架解析后再次校验：接口含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或已选 NSH GUI，或 Tauri GUI 目标含 macOS/Windows 时可明确选择 `local_package`；不含 CLI 的仅 Linux Tauri GUI 必须明确选择 `push_release_branch`。GPUI GUI 候选由独立 `$desktop-build-gpui-release` 生成本机 macOS `.app`/DMG、Windows NSIS 或 Linux GNU deb/tar.gz，不借用 CLI 或 Tauri 打包。GPUI 终端下游完整保留该打包 Skill、新 adapter Skill 与通用规则，裁掉 Tauri/Mantine/React专属 Skills；Tauri、NSH 和非 GUI 下游裁掉 GPUI 专属打包 Skill。不再自动安装第三方风格 Skill。GPUI 初始化由 `$desktop-initialize-rust-project` 在删除初始化目录前安装本地 `$gpui-kit` 与 `$gpui-kit-design-guides`，上游快照与许可不参与身份替换；Tauri/NSH/非 GUI 不安装。
 
 六项策略中 `task_worktrees` 紧接 `user_owned_tasks`，推荐关闭。自定义询问“是否为 Git 左侧 Task 使用独立工作树”；合法明确答案直接复用，未回答不能视为确认关闭，也不得从 Task Tree 或内部并行推断。最终汇总逐项列出项目值、确认来源与有效行为。新下游即使关闭也完整保留 `$desktop-task-workflow` 的 SKILL、references、metadata 和地图；初始化不创建 Task Worktree。项目选择以 Agent Policy 为事实源，执行合同统一使用 `$desktop-task-workflow`。
 
@@ -70,3 +70,11 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 GPUI 初始化完成时完整保留 `$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance` 和中性 `docs/GUI_ENGINEERING.md`；Tauri 与非 GUI 裁掉这些专属知识，不遗留失效链接。Linux GPUI 打包保留环境 Skill 的 linux-gpui-dependencies.sh 与回归，按需调用，不自动安装或放开未实现的桌面能力。
 
 非 GPUI 初始化裁剪上述两项 Skill 和索引时，同步移除 AGENTS、README、ENGINEERING_RULES、RUST_CLI_TEMPLATE 中指向它们的路由及链接；保留 Tauri/非 GUI 原有入口。
+
+## NSH 初始化分派
+
+Tauri：使用Web技术开发桌面客户端；GPUI：高性能原生客户端；NSH：跨平台客户端 支持桌面、移动、Web。第三选项由同一表单解析，不新增策略字段或 profile 字段。NSH 使用 `$desktop-add-nsh-adapter`，先读其运行时引用并复用九字段：六项当前不可用宿主能力明确 disabled，关于/赞助/侧栏继续逐项询问。Android/iOS/Web 仅 NSH GUI 且不混用其他接口。
+
+中性 core 建立后运行 add-only helper；纯净工程回归可调用初始化器 `scripts/create_nsh_workspace.mjs`（仅源专用 wrapper，不能代替完整实例化的复制/重置/策略/Git 收尾）。普通初始化仍复用选定 Logo；工程临时夹具标记中性。运行非空 Rust workspace、NSH check/test 与 `$desktop-test-nsh-initialization-e2e` 后才裁剪：保留 NSH adapter/build 和共享支持页资产，删除 Tauri/Mantine/GPUI 专属 Skills；保留全部通用生命周期、版本、发布、制品收集与升级规则。删除初始化器及本次 NSH 初始化 E2E，改写地图与失效引用，再创建独立 main 唯一基线。不得把 NSH runner 的临时嵌套 workspace 当产品根。
+
+NSH 发布后可选择 local_package；由 `$desktop-build-nsh-release` 分目标本地构建，签名/移动设备/目标宿主仍是独立事实。不生成 Tauri 配置、前端或 GPUI Kit，不使用两者的初始化 E2E。初始化完成的终端下游不得保留 create_nsh_workspace 或继续派生。

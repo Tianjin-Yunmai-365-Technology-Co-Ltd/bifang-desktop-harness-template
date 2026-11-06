@@ -6,13 +6,13 @@ import { UpgradeError, assertSafePath, lstatOrNull, snapshotFile } from "./harne
 
 const METADATA_TABLE = ["workspace", "metadata", "agent-first-harness"];
 const INTERFACES = new Set(["cli", "tui", "mcp", "gui"]);
-const FRAMEWORKS = new Set(["tauri", "gpui"]);
+const FRAMEWORKS = new Set(["tauri", "gpui", "nsh"]);
 const TAURI_SKILLS = new Set([
   "desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-system-locale",
   "desktop-add-gui-window-state", "desktop-add-gui-dialog",
   "desktop-add-gui-system-tray", "desktop-add-gui-single-instance", "desktop-add-gui-deep-link",
   "desktop-add-gui-global-shortcut", "desktop-add-gui-system-notifications", "desktop-add-gui-autostart",
-  "desktop-prepare-gui-support-surfaces", "desktop-build-tauri-local-install", "desktop-build-tauri-release",
+  "desktop-build-tauri-local-install", "desktop-build-tauri-release",
 ]);
 
 /** 以字符串和数组边界分句，防止注释、多行文本伪装成接口元数据。 */
@@ -135,7 +135,7 @@ export function parseInterfaceSelection(source) {
     }
   }
   const framework = values.has("gui-framework") ? stringValue(values.get("gui-framework"), "gui-framework") : "tauri";
-  if (!FRAMEWORKS.has(framework)) throw new UpgradeError('Cargo gui-framework 必须是 "tauri" 或 "gpui"');
+  if (!FRAMEWORKS.has(framework)) throw new UpgradeError('Cargo gui-framework 必须是 "tauri"、"gpui" 或 "nsh"');
   if (values.has("gui-framework") && !interfaces.includes("gui")) throw new UpgradeError("Cargo gui-framework 只适用于已选择 GUI 的下游");
   return { interfaces, guiFramework: interfaces.includes("gui") ? framework : null };
 }
@@ -155,6 +155,8 @@ export function inapplicableGuiCandidate(relative, selection) {
   if (relative === "docs/GUI_ENGINEERING.md") return selection.guiFramework !== "gpui";
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
   if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-manage-gpui-dependencies", "desktop-optimize-gpui-performance", "desktop-add-gpui-autostart", "desktop-test-gpui-initialization-e2e"].includes(skill)) return selection.guiFramework !== "gpui";
+  if (["desktop-add-nsh-adapter", "desktop-build-nsh-release", "desktop-test-nsh-initialization-e2e"].includes(skill)) return selection.guiFramework !== "nsh";
+  if (skill === "desktop-prepare-gui-support-surfaces") return !["tauri", "nsh"].includes(selection.guiFramework);
   if (TAURI_SKILLS.has(skill)) return selection.guiFramework !== "tauri";
   if (skill === "desktop-prepare-gui-app-identity") return !selection.interfaces.includes("gui");
   return false;

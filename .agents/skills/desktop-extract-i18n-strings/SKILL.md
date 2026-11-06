@@ -5,6 +5,8 @@ description: 按已选桌面框架扫描 GUI 用户可见文案；Tauri使用 i1
 
 # 抽取硬编码文案为 i18n 配置
 
+NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+
 把 GUI 适配器中硬编码的用户可见文案迁移为 ADR-20260806-001 固定的 i18n 技术栈键值，不新建并行的国际化机制，也不触碰 core。
 
 ## 框架分派

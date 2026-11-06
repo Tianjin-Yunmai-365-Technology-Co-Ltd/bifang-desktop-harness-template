@@ -25,6 +25,19 @@ function fixture(run) {
   finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
+/** NSH 与桌面框架共用确认摘要，但移动/Web 目标不可串入其他接口。 */
+test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fixture(({input,set,gui,evaluate}) => {
+  gui("nsh"); set("target_platforms", ["macos","android","ios","web"]);
+  for (const id of ["system_tray","system_notification","autostart","single_instance","deep_link","global_shortcut"]) delete input.answers[id];
+  assert.equal(evaluate().stage,"review");
+  assert.equal(evaluate().summary.unavailable.length,6);
+  assert.equal(localPackageAvailability(evaluate().values),"available");
+  const digest=evaluate().summaryDigest;input.confirmation={digest,source:"user:test-confirmation"};assert.equal(evaluate().stage,"confirmed");
+  set("system_notification","enabled");assert.equal(evaluate().questions[0].id,"system_notification");
+  set("system_notification","disabled");set("gui_framework","gpui");assert.equal(evaluate().questions[0].id,"target_platforms");
+  set("gui_framework","nsh");set("interfaces",["cli","gui"]);assert.equal(evaluate().questions[0].id,"target_platforms");
+}));
+
 /** 空表单集中首轮九项，直调初始化只省既定路径，标识与负责人仍须提问。 */
 test("empty_entries_batch_all_missing_base_fields", () => fixture(({ root, input, evaluate }) => {
   assert.deepEqual(evaluate().questions.map(({ id }) => id), BASE_FIELDS);

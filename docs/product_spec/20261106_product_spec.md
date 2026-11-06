@@ -1,14 +1,23 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-11-05
+> 记忆日期：2026-11-06
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-11-05（移除应用更新与使用统计工程能力）
+> 最近范围确认：2026-11-06（加入 NSH 第三框架与跨平台工程链路）
 
 ## 本日范围确认
+
+### NSH 第三框架
+
+- 变更标识：`HARNESS-FEAT-NSH`；`required_version` 在正式发布时绑定，日常维护不改 Harness 时间版本。新增 NSH：跨平台客户端 支持桌面、移动、Web；Tauri 默认（使用Web技术开发桌面客户端）与 GPUI（高性能原生客户端）保留。
+- 统一初始化表单、Cargo metadata、九字段 profile、版本及 Git 发布生命周期不分叉。NSH 使用 Rust UI/共享 core、自含运行时知识、专用 adapter/build/初始化 E2E；不接入 Tauri 前端/插件或 GPUI Kit。原产品业务与签名不进入模板。
+- Android/iOS/Web 只允许 NSH GUI；语言、三态主题、设置固定，关于/赞助/侧栏按选择，六项无中性跨平台实现的宿主能力 unavailable/disabled。NSH 原生构建、Web 静态包、移动 SDK/签名和设备分别取证；初始化中性工程不冒充产品验收。
+- 本地试包与已发布候选分开；候选复核 clean 发布源码/tag/上下文、完整非空 Rust 与 NSH 测试、日志/许可证/文件摘要及当次 E2E。NSH 0.4.0 无法把 tracked 锁传递到生成的 runtime workspace，因此该锁模式打包失败关闭，默认 ignored 可正常执行。初始化后删除专用派生入口，升级只传播所选框架的工程能力。
+- 详见 [ADR-20261106-001](../adr/20261106_ADR.md)。
+
 
 - 变更标识：`HARNESS-REMOVE-UPDATES-TELEMETRY`；`required_version = 202611051535`。负责人明确要求从 Harness 摘掉应用更新与统计逻辑；初始化、Skills、支持资产、构建和升级工程层不再提供 updater、强更或使用统计能力。关于页保留权威版本与本地发布日志；既有下游产品实现继续受升级保护。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
 
@@ -71,7 +80,7 @@
 ### GPUI 的 pnpm 工程工具入口
 
 - 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = 202610090050`。
-- Tauri 与 GPUI 两种 GUI 都要求 Node.js >=24.0.0、pnpm >=12.4.1。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
+- Tauri、GPUI 与 NSH 三种 GUI 都要求 Node.js >=24.0.0、pnpm >=12.4.1。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
 - 初始化生成根 package.json，新增 adapter 或既有 GPUI 工程入口迁移只补齐无冲突字段并保留产品配置。升级器继续保护根 package.json，专用合并工具在授权范围内独立执行；同名冲突与已有兼容要求不一致时零写入阻断。实际命令通过只证明对应工程入口，不代替构建、发布或最终验收。
 
 ### GPUI 开发入口与自动重启
@@ -83,7 +92,7 @@
 ### GPUI 固定模板、core 优先与独立交付管线
 
 - 变更标识：`HARNESS-FEAT-GPUI-PACKAGING`；`required_version = 202610090050`。
-- 桌面框架独立选择 Tauri（默认）或 GPUI，保存在 Cargo `gui-framework`。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，折叠控件的中心落在侧栏右边界，并与顶部 Logo 垂直居中，展开/收起均跨边界悬浮且完整可点击，不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
+- GUI 框架独立选择 Tauri（默认）、GPUI 或 NSH，保存在 Cargo `gui-framework`。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，折叠控件的中心落在侧栏右边界，并与顶部 Logo 垂直居中，展开/收起均跨边界悬浮且完整可点击，不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
 - GPUI 与 Tauri 共同遵守 core-first：业务规则、值域、跨字段校验、业务默认值、用例编排、状态转换、稳定错误和权威数据属于共享 core；GPUI 只拥有原生展示、纯交互状态、宿主机制与调用/结果映射。异步业务由 core 暴露运行时中立 API，端侧装配执行，不阻塞窗口线程或创建嵌套 runtime。
 - GPUI 固定接入 `tracing`、`tracing-subscriber`、`tracing-appender` 本地诊断：端侧初始化唯一订阅器，有界后台队列同时写标准错误和按日滚动文件，正常退出刷新，失败报告稳定类别；不默认遥测、不记录秘密、个人数据或原始业务载荷。core 可按真实业务需要发出脱敏事件，但不得拥有文件 sink 或 GUI 依赖。
 - 独立 `$desktop-build-gpui-release` 维护 Rust 构建和平台打包配置：macOS/Windows 使用全局固定兼容 cargo-packager，生成原生 macOS 应用包/DMG 或 Windows x64 NSIS；Linux GNU x64/ARM64 使用系统 tar/dpkg-deb/readelf 生成 deb/tar.gz。不复用 Tauri 前端或打包 helper。普通本地试包与正式候选分开，候选复核 clean 发布上下文/tag、全量非空 Rust 测试、当次 E2E/签名选择、许可证、更新日志和最终包字节后形成 pending 原子证据；实际验收另行执行。Linux 支持同系统 GNU x64/ARM64 交叉架构构建，实际运行仍需匹配目标架构的宿主证据；跨系统构建未支持，不能从当前宿主推断通过。

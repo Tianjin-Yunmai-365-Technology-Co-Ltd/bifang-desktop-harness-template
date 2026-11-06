@@ -5,6 +5,8 @@ description: 为已选 GUI 按九项初始化配置建立标题、侧栏、语�
 
 # 准备 GUI 支持界面
 
+NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+
 本 Skill 的 React模板、品牌包接线与 Tauri固定能力只适用于根 Cargo metadata `gui-framework = "tauri"`；既有 GUI 缺失该字段时兼容 Tauri。`gpui` 使用 `$desktop-add-gpui-adapter` 的原生关于/赞助/设置模板与 `docs/design_standards/gpui_gui.md`，不执行下述 Tauri插件、前端或资源映射步骤；通用的 core-first、媒体来源、支付材料和零出站边界仍适用。框架不属于九字段 profile，不得在本 Skill 重问。
 
 新项目选择 GUI 时由 `$desktop-add-gui-adapter` 自动消费本 Skill，并严格服从 `docs/GUI_APP_PROFILE.md` 的九项初始化配置。以下固定模板、条件能力和对应回归只适用于该初始化或经批准迁移到相同模板标准的范围；首次接入的既有 GUI 不因保留本 Skill 而被要求改写实际能力。动态标题、Logo→当前版本、设置页、i18n、三态主题和亮暗语义主题始终存在；system-locale、window-state 由各自固定 Skill 无条件接入，两项保持 Rust-only；dialog WebView 基线同样由独立固定 Skill 无条件接入且只授予精确 `dialog:default`。系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接和全局快捷键只在对应能力为 `enabled` 时进入运行时。系统通知与开机自启提供条件 Switch；全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位；初始化设置页不得预置隐私区块或统计开关。

@@ -14,7 +14,7 @@ const INTERFACE_CRATE_NAMES = new Set([
   "clap", "crossterm", "dialoguer", "gpui", "gpui-pre", "gpui-kit", "gpui-component", "muda", "ratatui", "rmcp", "tauri", "tauri-build",
   "termion", "tray-icon", "tui-realm", "tui-realm-stdlib", "tuirealm", "winit",
 ]);
-const INTERFACE_CRATE_PREFIXES = ["tauri-plugin-", "gpui-"];
+const INTERFACE_CRATE_PREFIXES = ["tauri-plugin-", "gpui-", "nsh-"];
 
 function sortedUnique(values) { return [...new Set(values)].sort(); }
 

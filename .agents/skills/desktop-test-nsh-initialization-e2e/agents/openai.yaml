@@ -1,0 +1,4 @@
+interface:
+  display_name: "NSH 初始化测试"
+  short_description: "验证真实 NSH 初始化壳层与本机包，基线完成后删除初始化入口。"
+  default_prompt: "使用 $desktop-test-nsh-initialization-e2e 完成本次已批准的 NSH 工程任务。"

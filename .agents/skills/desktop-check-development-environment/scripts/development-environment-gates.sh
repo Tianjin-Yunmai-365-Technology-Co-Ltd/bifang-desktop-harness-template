@@ -19,7 +19,7 @@ RUST_MIN_VERSION_PROVIDED=0
 
 # 输出稳定的命令入口说明，避免调用方误把只读模式当成首次开发安装模式。
 usage() {
-    printf '%s\n' "用法：development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI [--gui-framework tauri|gpui] [--rust-min-version MAJOR.MINOR.PATCH]"
+    printf '%s\n' "用法：development-environment-gates.sh [--install-missing|--check-only] --interfaces CLI,TUI,MCP,GUI [--gui-framework tauri|gpui|nsh] [--rust-min-version MAJOR.MINOR.PATCH]"
 }
 
 # 项目 MSRV 由调用方从即将生成或现有 Cargo 读取；只接受有界稳定版本，并保留更高的通用下界。
@@ -68,7 +68,7 @@ while [ "$#" -gt 0 ]; do
             [ "$#" -ge 2 ] || { usage >&2; exit 2; }
             GUI_FRAMEWORK=$2
             case "$GUI_FRAMEWORK" in
-                tauri|gpui) ;;
+                tauri|gpui|nsh) ;;
                 *) printf '不支持的 GUI 框架：%s\n' "$GUI_FRAMEWORK" >&2; exit 2 ;;
             esac
             shift

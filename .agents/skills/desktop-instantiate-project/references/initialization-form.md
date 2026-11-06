@@ -57,7 +57,7 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 
 唯一顺序由 catalog 与解析器执行：基础字段 → 缺失译名补齐 → GUI 框架 → 自定义六项策略 → GUI 九项配置 → 已启用桌面能力配置协助 → 路径检查与完整汇总 → 显式确认。路径安全属于基础校验，汇总和写入前会再次复核。
 
-问题的技术字段依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`target_platforms`、`interfaces`、`policy_mode`、`post_release_action`；GUI 框架为 `gui_framework`。原文框架选项固定包含 `1. Tauri（默认）` 与 `2. GPUI`，写入 Cargo 的键仍为 `gui-framework`；非 GUI 不询问、不持久化框架。
+问题的技术字段依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`target_platforms`、`interfaces`、`policy_mode`、`post_release_action`；GUI 框架为 `gui_framework`。框架选项与说明固定取 catalog 的 Tauri、GPUI、NSH 三项，写入 Cargo 的键仍为 `gui-framework`；非 GUI 不询问、不持久化框架。
 
 推荐预设明确选择一次后由解析器展开六项。它不是额外持久字段；自定义按 `POLICY_FIELDS` 顺序逐项解析。推荐预设与用户主动给出的六项有冲突时，只追问策略模式：保留预设并撤回冲突值，或改为自定义并保留明确答案；不得静默覆盖。Agent Policy 的 `pending` 不构成确认，项目 Task、Task 独立工作树、内部并行各自独立。
 
@@ -92,3 +92,5 @@ node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.m
 ## 输入边界
 
 Harness 源只接收本表固定初始化字段与所选路径精确要求的身份选择。产品目的、输入/输出、业务规则、成功标准、产品页面/文案/数据、风险、副作用、远程地址、凭据、反馈/发布渠道、产物格式和自定义发布要求不属于表单。即使同时提供，也不得解析、记录、复制或实施；只说明超出模板阶段，要求完成实例化并切换到唯一 `targetRoot` 后通过 `$desktop-define-product` 重新提出，不复述或保存具体内容。
+
+NSH 扩展：框架目录第三项为 `3. NSH：跨平台客户端 支持桌面、移动、Web`；Tauri/GPUI 分别显示使用Web技术开发桌面客户端/高性能原生客户端。目标可选 android/ios/web，只允许 NSH 且接口仅 gui。NSH 六项宿主能力派生 unavailable/disabled，显式启用必须修正；关于/赞助/侧栏沿用统一九字段流程。本地打包可用，签名和跨平台执行不由表单确认冒充完成。

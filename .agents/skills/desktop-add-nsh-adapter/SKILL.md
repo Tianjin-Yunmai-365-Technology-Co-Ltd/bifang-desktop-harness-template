@@ -1,0 +1,18 @@
+---
+name: desktop-add-nsh-adapter
+description: 为明确选择 NSH 的共享 Rust core 增加 Native Shell 薄适配器，支持桌面、Android、iOS 与 Web，按平台能力询问并建立双语主题、侧栏和条件支持页。
+---
+
+# 增加 NSH 适配器
+
+`gui-framework = "nsh"` 专用。NSH：跨平台客户端 支持桌面、移动、Web。初始化只复用唯一表单确认结果；已有下游新增接口先进入 `$desktop-implement-change`。不加载 Tauri、React、Mantine 或 GPUI Kit。
+
+先读 `docs/design_standards/ui_foundation.md`、`docs/design_standards/nsh_gui.md` 与 [运行时与能力](references/runtime-and-capabilities.md)。维护打包再读 `$desktop-build-nsh-release`。本 Skill 和 helper 使用 Node 标准库，不依赖原移动客户端的工具脚本或机器路径。
+
+1. 复用身份、平台、九字段 profile 和 Logo 选择。系统语言、三态主题、设置固定建立；关于页、赞助页和侧栏继续询问。六项宿主能力当前均 unavailable/disabled；显式启用时停止并纠正，不用空函数或应用内按键冒充。新增原生扩展必须另有真实实现、平台限制和宿主测试后才能更新能力表。
+2. 运行 `scripts/add_nsh_adapter.mjs --root <已有共享core的根> --options <确认字段JSON文件>`。JSON 含 `projectId,nameZh,nameEn,owner,targetPlatforms,profile` 和可选已选 `logo` 绝对 PNG 路径。路径/身份/依赖/已有 GUI 冲突在写入前拒绝。GUI 直接依赖 core；适配器只拥有界面状态与宿主机制。没有业务需求时不建立示例业务。
+3. 默认使用 NSH Rust UI，`nsh.json` 的 `rust: "."` 与 `root: "App"` 挂载同一根组件；Rust UI 可编译为移动宿主和 WebAssembly。core 保持运行时中立。只把已选框架所需 `nsh-core/nsh-base` 加入 workspace 依赖；Node/pnpm 仅运行工程入口。
+4. 条件页面和 sponsor 媒体只按选择进入 GUI。正式 Logo 使用三原始候选与所选项流程；工程回归可使用明确标记的中性夹具，不能充当品牌确认。
+5. 运行本次 Node 回归与非空 Rust workspace 测试、`nsh check`、`nsh test`。初次初始化必须在裁剪与唯一基线提交前调用 `$desktop-test-nsh-initialization-e2e`。后续开发不恢复初始化入口；打包调用独立 Skill。
+
+生成器不覆盖 core，不创建 Git、策略、产品记忆、发布上下文或下游派生能力。完成初始化时保留本 Skill、知识引用、打包 Skill；删除初始化 wrapper/E2E，地图同步裁剪。报告声明平台与真实验证平台，不能把生成源码称为产品交付。

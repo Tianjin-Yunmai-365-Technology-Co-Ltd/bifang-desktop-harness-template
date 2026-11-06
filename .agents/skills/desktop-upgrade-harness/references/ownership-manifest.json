@@ -2,6 +2,9 @@
   "schema_version": 1,
   "default_mode": "protected",
   "rules": [
+    {"pattern": ".agents/skills/desktop-add-nsh-adapter/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/desktop-build-nsh-release/**", "mode": "conditional"},
+    {"pattern": ".agents/skills/desktop-test-nsh-initialization-e2e/**", "mode": "tombstone"},
     {"pattern": "knowledge/**", "mode": "protected"},
     {"pattern": ".harness/skills/archify/**", "mode": "protected"},
     {"pattern": ".agents/skills/desktop-task-workflow/**", "mode": "managed"},

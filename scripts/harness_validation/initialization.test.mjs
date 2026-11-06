@@ -249,7 +249,7 @@ test("initialization contract requires an explicit persisted post-release action
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 5`"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("initialization_form.mjs --catalog"));
   assert.ok(primary.get(INITIALIZE_SKILL).includes("`post_release_action` 精确等于 `local_package` 或 `push_release_branch`"));
-  assert.ok(primary.get(INITIALIZE_SKILL).includes("`local_package` 在含 `cli`、已选 GPUI GUI，或 Tauri GUI 目标含 `macos`/`windows` 时合法"));
+  assert.ok(primary.get(INITIALIZE_SKILL).includes("`local_package` 在含 `cli`、已选 GPUI GUI、已选 NSH GUI，或 Tauri GUI 目标含 `macos`/`windows` 时合法"));
   assert.ok(repository.get(AGENT_POLICY).includes("post_release_action:"));
 });
 

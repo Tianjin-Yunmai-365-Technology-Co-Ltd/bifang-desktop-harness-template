@@ -42,11 +42,12 @@ export function localPackageAvailability(values) {
   if (values.interfaces.includes("cli")) return "available";
   if (!values.interfaces.includes("gui")) return "unavailable";
   if (!values.gui_framework) return "pending";
-  return values.gui_framework === "gpui" || values.target_platforms.some((platform) => ["macos", "windows"].includes(platform)) ? "available" : "unavailable";
+  return ["gpui", "nsh"].includes(values.gui_framework) || values.target_platforms.some((platform) => ["macos", "windows"].includes(platform)) ? "available" : "unavailable";
 }
 
 /** 按当前框架/平台标注不可用能力；用户显式启用时仍须纠正，不能覆盖答案。 */
 function unavailableGuiFields(values) {
+  if (values.gui_framework === "nsh") return ["system_tray", "system_notification", "autostart", "single_instance", "deep_link", "global_shortcut"];
   if (values.gui_framework !== "gpui") return [];
   return values.target_platforms.includes("linux") ? ["system_tray", "deep_link", "global_shortcut"] : ["deep_link"];
 }
@@ -125,6 +126,10 @@ export function evaluateInitializationForm(input) {
     return output("base", ["interfaces"]);
   }
   if (gui && !values.gui_framework) return output("framework", ["gui_framework"]);
+  if (values.target_platforms.some((platform) => ["android", "ios", "web"].includes(platform)) && (!gui || values.gui_framework !== "nsh" || values.interfaces.length !== 1)) {
+    issues.target_platforms = "Android/iOS/Web 当前只支持 NSH GUI；请选择 NSH 且只选 GUI，或改为桌面目标。";
+    return output("base", ["target_platforms"]);
+  }
   if (values.policy_mode === "recommended") {
     const conflicts = POLICY_FIELDS.filter((id) => issues[id] || (values[id] && values[id] !== POLICY_PRESET[id]));
     if (conflicts.length) {
@@ -142,7 +147,7 @@ export function evaluateInitializationForm(input) {
   if (gui) {
     for (const id of unavailable) {
       if (issues[id] || (values[id] && values[id] !== "disabled")) {
-        issues[id] = "当前 GPUI 框架/目标组合不支持此能力；须明确关闭，或修改框架/目标。";
+        issues[id] = `当前 ${values.gui_framework.toUpperCase()} 框架/目标组合不支持此能力；须明确关闭，或修改框架/目标。`;
         return output("gui", [id], { unavailable });
       }
       if (!values[id]) { values[id] = "disabled"; sources[id] = "capability:unavailable"; }

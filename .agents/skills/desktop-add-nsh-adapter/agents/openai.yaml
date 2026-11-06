@@ -1,0 +1,4 @@
+interface:
+  display_name: "NSH 跨平台适配器"
+  short_description: "按已确认平台和能力创建 NSH 原生 Rust 薄适配器与中性壳层。"
+  default_prompt: "使用 $desktop-add-nsh-adapter 完成本次已批准的 NSH 工程任务。"

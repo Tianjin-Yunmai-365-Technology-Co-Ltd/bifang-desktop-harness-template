@@ -31,3 +31,9 @@ description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI �
 ## 完成输出
 
 报告精确产物、当前构建选择/硬要求来源、场景、可观察证据、清理、通过项、失败项和未验证范围。不得自行签署人工复核字段。
+
+### NSH 路由
+
+根 Cargo `gui-framework = "nsh"` 独立使用 `$desktop-build-nsh-release`，复用通用本地 Git 发布、版本、双语日志和 release 上下文。支持桌面原生包、Android APK、iOS app/IPA 与 Web 完整静态目录；当前 helper 具体格式和签名边界以其 Skill 为准。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 全部持久目标；本机不可构建目标如实阻断，不推断已验证。
+
+NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

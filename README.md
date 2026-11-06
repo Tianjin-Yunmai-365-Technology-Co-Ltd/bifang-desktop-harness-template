@@ -8,9 +8,11 @@ Bifang Desktop Harness Template
 
 你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、TUI、MCP、GUI 中的哪些界面。它会创建一个独立的 Git 项目，搭好共享核心、所选界面、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
-选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）；2. GPUI**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
+选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）：使用Web技术开发桌面客户端；2. GPUI：高性能原生客户端；3. NSH：跨平台客户端 支持桌面、移动、Web**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
-GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 构建原生 macOS 应用包/DMG、Windows x64 NSIS，以及 Linux GNU x64/ARM64 deb/tar.gz。这些 GPUI 目标均可选择本地打包；仅 Linux Tauri 且无 CLI 时须选择提交远程。两种 GUI 都使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
+GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 构建原生 macOS 应用包/DMG、Windows x64 NSIS，以及 Linux GNU x64/ARM64 deb/tar.gz。这些 GPUI 目标均可选择本地打包；仅 Linux Tauri 且无 CLI 时须选择提交远程。三种 GUI 都使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
+
+NSH 使用 Rust UI 与共享 core，通过 `$desktop-test-nsh-initialization-e2e` 检查初始化，通过 `$desktop-build-nsh-release` 构建桌面、Android、iOS 和 Web 包。语言、主题与设置固定接线，关于页、赞助页和侧栏按表单选择；六项尚未接线的宿主能力明确显示不可用。移动或 Web 目标当前只允许 NSH GUI 单接口，具体支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -84,10 +86,11 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
 - “发布前推送开发进度”：使用 `publish` 普通合并本发布周期登记的开发分支，切换到动态默认主分支并推送；不创建 tag，也不清理登记资源。`--remote` 指定唯一主远端；只有你明确要求“也推送到某远端”时，才为该次 `publish` 增加一个可重复的 `--also-remote <name>`。所有目标会在首个 push 前解析；同一最终 HEAD、目标顺序和逐项确认进度只在未完成的 `pendingPublish` 中临时保存，成功即清除。补充远端不改绑，也不参与 release、tag 或清理。
 - “先把产品范围说清楚”：使用 `$desktop-define-product` 整理目标、边界和成功标准。
 - GPUI 的普通“构建/打包”：使用 `$desktop-build-gpui-release` 的 `local` 模式，生成当前工作树的开发试包；明确发布候选或 Git 发布后的本地打包才使用 `candidate` 模式。
-- “在 Windows 或 Linux 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，或同架构 deb/AppImage，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
+- NSH 的普通“构建/打包”：使用 `$desktop-build-nsh-release` 的 `local` 模式，按已确认目标生成开发试包；发布候选使用 `candidate` 模式。
+- Tauri 的“在 Windows 或 Linux 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，或同架构 deb/AppImage，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
 - “发布”：使用 `$desktop-prepare-release` 整理本次范围、按当前上海时间取得 Harness 版本（下游使用语义化版本门禁）、提交源码和发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并本地默认主分支并创建、复读版本 tag。`--release-context-sha256 <sha256>` 绑定已跟踪上下文；Git 发布完成后执行并检测持久选择的后续动作。
 - “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写 `release` 分支，依次同步远端 advertised 默认主分支、同名 release 分支和 tag，逐项及最终联合复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
-- “本地打包”后续路径：在已有 Git 发布完成后按接口和框架使用 `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。
+- “本地打包”后续路径：在已有 Git 发布完成后按接口和框架使用 `$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release` 或 `$desktop-build-nsh-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。
 - 普通“构建/打包/本地试包”不会自动升级为 Git 发布，不提交、推送或修改主分支；Git 发布后的所选动作仍单独遵守对应流程门禁。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
@@ -117,11 +120,11 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 
 ## Skills 索引
 
-初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
+初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-add-nsh-adapter`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
 
 开发与治理：`$desktop-extract-technical-docs`、`$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance`、`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-task-workflow`、`$desktop-manage-user-tasks`、`$desktop-manage-task-worktrees`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 
-构建与验收：`$desktop-test-gpui-initialization-e2e`、`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
+构建与验收：`$desktop-test-gpui-initialization-e2e`、`$desktop-test-nsh-initialization-e2e`、`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-build-nsh-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 其中 `$desktop-add-gui-*` 系列（系统语言、窗口状态、对话框、托盘、单实例、深链接、全局快捷键、通知、开机自启）与 `$mantine-list-view` 只适用于 Tauri GUI；`gui-framework = "gpui"` 的同类能力统一由 `$desktop-add-gpui-adapter` 及其 `references/native-capabilities.md` 承担。
 
@@ -134,7 +137,7 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
 - **TUI**：适合在终端中用键盘操作，基于 Ratatui 与 tui-realm。
 - **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
-- **GUI**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板，按选择加入五项桌面能力并遵守自含依赖标准。Tauri 路径固定接入系统语言、窗口状态和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
+- **GUI**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板，按选择加入五项桌面能力并遵守自含依赖标准；NSH 使用 Rust UI，支持桌面、移动和 Web，并提供独立初始化测试与打包入口。Tauri 路径固定接入系统语言、窗口状态和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
 
 这些界面可以单独使用，也可以组合使用。与界面无关的业务规则统一放在共享核心（shared core）中，界面只负责输入、展示和系统交互。
 
@@ -176,3 +179,11 @@ Harness 版本的唯一事实来源是 [`Version.md`](Version.md)：仅在正式
 本项目是专有商业软件，不是开源项目。使用、复制或分发前，请阅读[中文许可协议](LICENSE.zh-CN.md)或[英文许可协议](LICENSE.en.md)。
 
 GUI 依赖、兼容、性能与平台打包知识按 [GUI 工程索引](docs/GUI_ENGINEERING.md) 精确读取。
+
+| GUI 选项 | 说明 |
+|---|---|
+| Tauri（默认） | 使用Web技术开发桌面客户端 |
+| GPUI | 高性能原生客户端 |
+| NSH | 跨平台客户端 支持桌面、移动、Web |
+
+NSH 入口：`$desktop-add-nsh-adapter`；能力、平台、构建边界见该 Skill 的运行时引用。NSH Rust UI 与共享 core 可复用到六个目标；不把声明目标当已验证结果。

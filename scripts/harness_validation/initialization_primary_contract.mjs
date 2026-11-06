@@ -78,7 +78,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "初始化不创建 Task Worktree",
       "完整保留 `$desktop-task-workflow`",
       "`post_release_action` 精确等于 `local_package` 或 `push_release_branch`",
-      "`local_package` 在含 `cli`、已选 GPUI GUI，或 Tauri GUI 目标含 `macos`/`windows` 时合法",
+      "`local_package` 在含 `cli`、已选 GPUI GUI、已选 NSH GUI，或 Tauri GUI 目标含 `macos`/`windows` 时合法",
       "纯 `tui`/`mcp` 或仅 Linux Tauri GUI 必须为 `push_release_branch`",
       "`schema_version: 5`",
       "Node.js",

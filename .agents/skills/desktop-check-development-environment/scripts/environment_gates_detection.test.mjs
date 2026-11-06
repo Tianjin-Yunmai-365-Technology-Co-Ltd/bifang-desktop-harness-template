@@ -72,6 +72,15 @@ test("gpui_gui_enforces_common_node_minimum", posixOnly, () => withTemporaryRoot
   assert.match(result.stdout, /gate\.pnpm\.status=passed/u);
 }));
 
+/** NSH 接受同一 GUI 工程工具门禁，不安装其他 GUI 框架的依赖。 */
+test("nsh_gui_accepts_framework_and_requires_project_tooling", posixOnly, () => withTemporaryRoot((root) => {
+  const probe=path.join(root,"probe");fakeExistingTools(probe);fakeFrontendTools(probe);
+  const result=runGate(root,["--check-only","--interfaces","GUI","--gui-framework","nsh"],{probe});
+  assert.equal(result.status,0,result.stderr);
+  assert.match(result.stdout,/gate\.pnpm\.status=passed/u);
+  assert.equal(existsSync(path.join(root,"home",".profile")),false);
+}));
+
 /** 未知框架不能被当作原生框架绕过前端门禁。 */
 test("invalid_gui_framework_fails_before_tool_probe", posixOnly, () => withTemporaryRoot((root) => {
   const result = runGate(root, ["--check-only", "--interfaces", "GUI", "--gui-framework", "unknown"]);
@@ -83,7 +92,7 @@ test("invalid_gui_framework_fails_before_tool_probe", posixOnly, () => withTempo
 /** Windows 参数与 POSIX 采用相同闭集及默认框架，运行测试由原生宿主补充。 */
 test("windows_gui_frameworks_share_the_pnpm_requirement", () => {
   const source = readFileSync(WINDOWS_SCRIPT, "utf8");
-  assert.match(source, /\[ValidateSet\("tauri", "gpui"\)\]/u);
+  assert.match(source, /\[ValidateSet\("tauri", "gpui", "nsh"\)\]/u);
   assert.match(source, /\$GuiFramework = "tauri"/u);
   assert.match(source, /\$PnpmRequired = \(\$NormalizedInterfaces -contains "GUI"\)\r?\n/u);
 });

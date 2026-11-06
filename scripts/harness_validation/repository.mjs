@@ -19,6 +19,9 @@ import { loadGpuiKitSkillsSnapshot } from "../../.agents/skills/desktop-initiali
 /** Harness 当前必须保留的项目 Skill 集合。 */
 export const EXPECTED_SKILLS = new Set([
   "desktop-task-workflow",
+  "desktop-add-nsh-adapter",
+  "desktop-build-nsh-release",
+  "desktop-test-nsh-initialization-e2e",
   "desktop-manage-dependencies",
   "desktop-manage-gpui-dependencies",
   "desktop-optimize-gpui-performance",
