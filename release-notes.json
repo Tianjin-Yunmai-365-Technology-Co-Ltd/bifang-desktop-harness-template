@@ -2,6 +2,26 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-11-06",
+      "version": "v202611060921",
+      "featureOptimizations": [
+        {
+          "zh-CN": "下游升级首次确认并记忆退役工程资产的清理或保留选择。",
+          "en-US": "Remember each downstream project’s confirmed choice to remove or preserve retired engineering assets."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "发现旧来源锁未登记的退役文件；清理未完成时拒绝记录升级完成。",
+          "en-US": "Detect retired files absent from legacy source locks and prevent upgrades from being recorded as complete before cleanup finishes."
+        },
+        {
+          "zh-CN": "清除退役更新、统计执行合同和远程追踪依赖候选，保留历史验证事实。",
+          "en-US": "Remove retired update and statistics execution contracts and remote tracing dependency candidates while preserving historical verification facts."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-11-05",
       "version": "v202611051654",
       "featureOptimizations": [
@@ -244,30 +264,6 @@
         {
           "zh-CN": "补齐 Linux 本地试包 Skill 的初始化保留与升级传播，并恢复下游文档剥离上游专用语言禁令的要求。",
           "en-US": "Retain and propagate the Linux local-packaging skill during initialization and upgrades, and restore removal of upstream-only language prohibitions from downstream documentation."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-10",
-      "version": "v202610101414",
-      "featureOptimizations": [
-        {
-          "zh-CN": "左侧 Task 默认关闭，仅按项目明确选择开启；统一 Task 与工作树合同，已授权范围内自检通过即可继续执行。",
-          "en-US": "Sidebar Tasks stay off by default and follow the project’s explicit choice; one Task and worktree contract lets authorized work continue after self-checks."
-        },
-        {
-          "zh-CN": "独立工作树按文件所有权并行创建和执行，预留与登记使用短锁，同一 Local 工作区串行。",
-          "en-US": "Independent worktrees are created and run in parallel by file ownership, with short locks for reservations and registration; one Local workspace remains serial."
-        },
-        {
-          "zh-CN": "GPUI 新下游离线安装项目本地的 GPUI Kit 开发与设计 Skills，保留固定上游快照、摘要和 Apache 许可，并在升级时保护本地副本。",
-          "en-US": "New GPUI downstream projects install local GPUI Kit development and design Skills offline, preserving the pinned upstream snapshot, hashes and Apache license; upgrades protect local copies."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修正初始化保留统一 Task 技能的说明，并清理治理检查器未使用的标题常量。",
-          "en-US": "Corrected the initialization instructions for retaining the unified Task Skill and removed unused title constants from the governance validator."
         }
       ]
     }

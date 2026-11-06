@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "d460615cb3d2053b2783773c758362da254d3d54",
-  "version": "202611051654",
-  "releaseDate": "2026-11-05",
-  "expectedTag": "v202611051654-20261105",
+  "sourceHead": "b84005acb2e81f53ed585e1727f682a16ae4f440",
+  "version": "202611060921",
+  "releaseDate": "2026-11-06",
+  "expectedTag": "v202611060921-20261106",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "a025491213298020d4ce6dfc91fd06f08ee0a9ad",
-    "sourceHead": "d460615cb3d2053b2783773c758362da254d3d54",
-    "scopeDiffSha256": "201144181192f5d23c766b39306e3f47bc3482687914ecca0a9565c2064574c1",
-    "reviewedSourceCommit": "d460615cb3d2053b2783773c758362da254d3d54",
+    "scopeBase": "3cd5f4d3d58f164837625d2231da79b8413f6dc8",
+    "sourceHead": "b84005acb2e81f53ed585e1727f682a16ae4f440",
+    "scopeDiffSha256": "c274b7a4e947425c62e5a28c4a2946ccff7d43cd9001116c072f7630cbc7f6eb",
+    "reviewedSourceCommit": "b84005acb2e81f53ed585e1727f682a16ae4f440",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "用户明确要求全项目审查。文档/Skills/脚本三路复核完成，修正初始化顺序、Todo 与 Dialog 观察入口描述；core/adapter 边界、外部合同、长文件职责与临时标记通过复核。Harness 硬门禁及发布审查通过（41 项非阻断提示已逐类复核）；完整 Node 1257 通过/24 平台条件跳过/0 失败，相关合同 29 通过，Rust 1.99.1 中性资产 fmt/Clippy/7 测试通过。Windows 开发循环后代回收限制以 LIM-033 公开，原生复验未执行。Harness 源发布无产品候选，产品构建/E2E/签名不适用。",
+    "evidenceSummary": "按用户选择启用发布审查，范围为上一真实发布到 sourceHead。两路只读审查覆盖升级 CLI 到 buildPlan、applyPlan、recordLock 的策略/驱动归属、选择记忆、精确删除、保护路径、失败关闭和旧锁兼容；文档及外部合同一致，未发现阻断、秘密或新增未完成标记。完整 Node 回归 1267 通过、24 平台条件跳过、0 失败；Harness 硬门禁、no-python、差异完整性及冻结 sourceHead 后的发布检查通过。41 项非阻断提示中3项本次触及的长文件保持同一职责，其他38项相对发布基线未变，TODO 来自隔离测试夹具。六个版本元数据文件逐项复核。未操作真实下游，产品构建/E2E/签名不适用于 Harness 源 Git 发布。",
     "reason": null,
     "remainingRisk": null
   }
