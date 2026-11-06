@@ -49,8 +49,8 @@ GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前
 
 ### NSH 路由
 
-根 Cargo `gui-framework = "nsh"` 独立使用 `$desktop-build-nsh-release`，复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 全部持久目标；本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；固定 NSH 0.4.0 没有 TUI 运行或打包目标。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于可用 NSH 目标；本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 
-NSH 按每个目标独立复算 `manifest.json` 的 `artifact`、`checksum`、`files`、`sourceSnapshot`、`releaseNotesSha256` 和 `licenses`，并核对 `guiFramework: nsh`、真实格式与签名状态。`releaseNotesResourceVerification: sidecar-byte-identical` 只证明外层日志字节；关于页内容必须由真实窗口或浏览器 E2E 观察。候选没有可证明的运行场景、目标宿主或必要渠道签名时维持 `pending`/`Unverified`，不签署 accepted。
+NSH 按每个目标独立复算 `manifest.json` 的 `artifact`、`checksum`、`files`、`sourceSnapshot`、`releaseNotesSha256` 和 `licenses`。新候选核对 `interface: nsh`、`nshTargets`、真实格式与签名状态；旧 GUI/NSH 候选按原 `guiFramework: nsh` 读取。`releaseNotesResourceVerification: sidecar-byte-identical` 只证明外层日志字节；选择桌面且启用关于页时，内容必须由真实窗口 E2E 观察。候选没有可证明的运行场景、目标宿主或必要渠道签名时维持 `pending`/`Unverified`，不签署 accepted。

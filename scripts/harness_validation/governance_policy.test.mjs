@@ -142,8 +142,8 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
   const policyPath = path.join(docs, "AGENT_POLICY.md");
   const manifestPath = path.join(directory, "Cargo.toml");
   try {
-    const check = (interfaces, action, platforms = ["macos"], framework = null) => {
-      fs.writeFileSync(manifestPath, `[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n${framework === null ? "" : `gui-framework = ${JSON.stringify(framework)}\n`}`);
+    const check = (interfaces, action, platforms = ["macos"], framework = null, nshTargets = null) => {
+      fs.writeFileSync(manifestPath, `[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n${framework === null ? "" : `gui-framework = ${JSON.stringify(framework)}\n`}${nshTargets === null ? "" : `nsh-targets = ${JSON.stringify(nshTargets)}\n`}`);
       fs.writeFileSync(policyPath, source
         .replace(/^confirmed_by:.*$/mu, "confirmed_by: user form confirmation")
         .replace(/^confirmed_at:.*$/mu, "confirmed_at: 2026-09-28")
@@ -154,7 +154,7 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
       return errors;
     };
     for (const interfaces of [["mcp"]]) {
-      assert.ok(check(interfaces, "local_package").some((error) => error.includes("local_package requires CLI, GPUI GNU Linux, or GUI with a macOS/Windows target")));
+      assert.ok(check(interfaces, "local_package").some((error) => error.includes("local_package requires a selected CLI, NSH, GPUI")));
       assert.deepEqual(check(interfaces, "push_release_branch"), []);
     }
     assert.deepEqual(check(["gui"], "local_package", ["macos"], "gpui"), []);
@@ -163,10 +163,13 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
     assert.deepEqual(check(["cli", "gui"], "local_package", ["linux"], "gpui"), []);
     assert.deepEqual(check(["gui"], "push_release_branch", ["macos"], "gpui"), []);
     assert.deepEqual(check(["cli", "gui"], "local_package", ["macos"], "gpui"), []);
+    assert.deepEqual(check(["nsh"], "local_package", ["macos", "android", "web"], null, ["desktop", "mobile", "web"]), []);
+    assert.ok(check(["nsh"], "local_package", ["macos"], null, ["tui"]).some(error => error.includes("nsh-targets")));
+    assert.ok(check(["nsh"], "local_package", ["macos", "web"], null, ["desktop"]).some(error => error.includes("目标类别")));
     for (const interfaces of [["cli"], ["gui"], ["gui", "mcp"]]) {
       assert.deepEqual(check(interfaces, "local_package"), []);
     }
-    assert.ok(check(["gui"], "local_package", ["linux"]).some((error) => error.includes("local_package requires CLI, GPUI GNU Linux, or GUI with a macOS/Windows target")));
+    assert.ok(check(["gui"], "local_package", ["linux"]).some((error) => error.includes("local_package requires a selected CLI, NSH, GPUI")));
     assert.deepEqual(check(["gui"], "push_release_branch", ["linux"]), []);
     assert.ok(check([], "local_package").some((error) => error.includes("requires persisted interfaces and target-platforms")));
     assert.ok(check(["tui"], "push_release_branch").length > 0, "retired TUI metadata must fail closed");

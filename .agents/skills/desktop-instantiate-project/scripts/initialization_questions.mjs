@@ -6,10 +6,11 @@ export const QUESTIONS = [
   { id: "project_path", number: 4, title: "项目放在哪里？", help: "提供最终项目根目录或父目录；相对路径以 Harness 根目录为基准。" },
   { id: "owner", number: 5, title: "项目负责人或责任主体是谁？" },
   { id: "target_platforms", number: 6, title: "支持哪些目标平台？可多选。", options: ["Windows", "macOS", "Linux", "Android（NSH）", "iOS（NSH）", "Web（NSH）"], values: ["windows", "macos", "linux", "android", "ios", "web"] },
-  { id: "interfaces", number: 7, title: "需要哪些程序类型？可多选。", options: ["命令行(CLI，默认)", "MCP", "桌面应用(GUI)"], values: ["cli", "mcp", "gui"], defaultValue: ["cli"], help: "明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。" },
+  { id: "interfaces", number: 7, title: "需要哪些程序类型？可多选。", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。当前 NSH 只能单独选择。" },
   { id: "policy_mode", number: 8, title: "使用哪种 Agent 策略？", options: ["推荐预设", "自定义"], values: ["recommended", "custom"], help: "推荐预设：自动 Task、Task 独立工作树、superpowers、内部并行关闭；候选验收冒烟允许；候选 E2E 建议关闭。自定义按此顺序逐项选择。发布后动作单独确认。" },
   { id: "post_release_action", number: 9, title: "未来 Git 发布完成后执行什么动作？", options: ["本地打包（推荐默认）", "提交远程"], values: ["local_package", "push_release_branch"], defaultValue: "local_package", help: "须明确选择或确认可执行的默认值；初始化只记录选择，不打包、不访问远端、不配置远端或凭据。" },
-  { id: "gui_framework", title: "要创建哪种桌面应用？", options: ["1. Tauri（默认）：使用Web技术开发桌面客户端", "2. GPUI：高性能原生客户端", "3. NSH：跨平台客户端 支持桌面、移动、Web"], values: ["tauri", "gpui", "nsh"], defaultValue: "tauri" },
+  { id: "gui_framework", title: "要创建哪种桌面应用？", options: ["1. Tauri（默认）：使用Web技术开发桌面客户端", "2. GPUI：高性能原生客户端"], values: ["tauri", "gpui"], defaultValue: "tauri" },
+  { id: "nsh_targets", title: "NSH 要支持哪些能力？可多选。", options: ["桌面", "移动", "Web", "TUI（当前固定运行时尚不可用）"], values: ["desktop", "mobile", "web", "tui"], help: "桌面对应 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web；所选能力须与目标平台一致。TUI 在当前 NSH 0.4.0 无运行或打包目标，选择后无法确认创建。" },
   { id: "user_owned_tasks", title: "是否按结果边界自动创建左侧 Task？", help: "推荐关闭；明确单次创建 Task 不改变永久开关。", defaultValue: "disabled" },
   { id: "task_worktrees", title: "是否为 Git 左侧 Task 使用独立工作树？", help: "推荐关闭；仅选择 Task 的 Worktree/Local 环境，不开启自动 Task 或内部并行。未回答不能视为确认关闭。", defaultValue: "disabled" },
   { id: "superpowers", title: "是否允许按任务需要使用 superpowers Skills？", help: "关闭时禁止调用或遵循 superpowers:*；开启只表示允许，不代表每次都执行。" },
@@ -37,6 +38,7 @@ export const POLICY_FIELDS = Object.keys(POLICY_PRESET);
 export const GUI_FIELDS = ["system_tray", "system_notification", "autostart", "about_page", "sponsor_page", "single_instance", "deep_link", "global_shortcut", "sidebar_mode"];
 export const DESKTOP_FIELDS = ["system_tray", "system_notification", "autostart", "single_instance", "global_shortcut"];
 export const BASE_FIELDS = QUESTIONS.slice(0, 9).map(({ id }) => id);
+export const NSH_TARGETS = ["desktop", "mobile", "web", "tui"];
 
 /** 最终确认同样使用固定问句，不把预设确认或超时解释为创建授权。 */
 export const REVIEW_QUESTION = { id: "confirm_summary", title: "是否按以上完整汇总创建项目？", options: ["确认创建", "修改信息"] };
@@ -44,25 +46,28 @@ export const REVIEW_QUESTION = { id: "confirm_summary", title: "是否按以上�
 /** 为完整汇总生成当前路径必需提示；它们随汇总摘要绑定，模型只负责排版。 */
 export function summaryNotices(values) {
   const notices = [
-    "目标平台、接口与适用的 gui-framework 写入根 Cargo metadata；六项策略及发布后动作写入 Agent Policy。",
+    "目标平台、接口与适用的 gui-framework 或 nsh-targets 写入根 Cargo metadata；六项策略及发布后动作写入 Agent Policy。",
     "发布后动作只记录未来 Git 发布后的选择；初始化不打包、不访问远端、不配置远端或凭据。",
     "首次写入前重新校验目标与本次汇总确认；脚手架生成不代表产品已验收。",
   ];
-  if (!values.interfaces.includes("gui")) return notices;
-  notices.push("GUI Logo 在本汇总确认后的执行阶段选择：按 candidate-1 → candidate-2 → candidate-3 展示三个原始候选；选择后只验证和标准化所选项。");
+  const gui = values.interfaces.includes("gui");
+  const nsh = values.interfaces.includes("nsh");
+  if (!gui && !nsh) return notices;
+  notices.push("应用 Logo 在本汇总确认后的执行阶段选择：按 candidate-1 → candidate-2 → candidate-3 展示三个原始候选；选择后只验证和标准化所选项。");
   if (values.gui_framework === "tauri") {
     notices.push("Tauri 使用 desktop-add-gui-adapter 与 desktop-test-gui-initialization-e2e；system-locale/window-state/dialog 是三项固定基线，主窗口精确 dialog:default 不授权通用文件读写。发布候选打包使用 desktop-build-tauri-release。");
     if (values.deep_link === "enabled") notices.push(`深链接只恢复主窗口：app-${values.project_id.replaceAll("_", "-")}://restore；单实例已启用。`);
   } else if (values.gui_framework === "gpui") {
     notices.push("GPUI 使用 Rust/gpui-kit、desktop-add-gpui-adapter 与 desktop-test-gpui-initialization-e2e，不接入 Tauri 专属基线；深链接 unavailable/disabled，目标含 Linux 时托盘与全局快捷键同样不可用。",
       "GPUI 本地候选由 desktop-build-gpui-release 构建 macOS app/DMG、Windows NSIS 或 Linux GNU x64/ARM64 deb/tar.gz；当前声明不代表跨平台结果已验证。");
-  } else {
-    notices.push("NSH 使用 Native Shell/Rust、desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e；桌面、Android、iOS 与 Web 共用薄适配器和 core。当前中性模板的托盘、通知、自启、单实例、深链接、全局快捷键 unavailable/disabled，不用应用内快捷键冒充系统热键。",
-      "NSH 由 desktop-build-nsh-release 独立打包 macOS app、Windows zip、Linux tar.gz、Android APK、iOS 本地 app 与 Web 静态站点；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
+  } else if (nsh) {
+    notices.push(`NSH 是独立程序类型；已选能力：${values.nsh_targets.join('、')}。桌面、Android、iOS 与 Web 目标共用 Native Shell/Rust 薄适配器和 core；初始化使用 desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e。`,
+      "NSH 由 desktop-build-nsh-release 分别打包已选的 macOS app、Windows zip、Linux tar.gz、Android APK、iOS 本地 app 与 Web 静态站点；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
+    if (values.nsh_targets.includes("desktop")) notices.push("NSH 桌面九项能力归入桌面选择；托盘、通知、自启、单实例、深链接和全局快捷键当前 unavailable/disabled，不用应用内快捷键冒充系统热键。");
   }
   if (values.interfaces.includes("cli")) notices.push("CLI 与 GUI 组合分别使用对应打包 Skill 生成真实产物，不互相冒充。");
   if (values.global_shortcut === "enabled") notices.push("全局快捷键只安装 Rust-only 能力；contract 为 actions = []，零默认 chord、零 OS 注册、零产品动作和占位界面。");
-  notices.push("能力依赖只按选择建立；代码生成不证明宿主能力已验证。配置协助只记录移交意愿，不进入九字段 profile 或 Agent Policy；产品动作在终端下游确认。");
+  if (gui || values.nsh_targets.includes("desktop")) notices.push("能力依赖只按选择建立；代码生成不证明宿主能力已验证。配置协助只记录移交意愿，不进入九字段 profile 或 Agent Policy；产品动作在终端下游确认。");
   return notices;
 }
 

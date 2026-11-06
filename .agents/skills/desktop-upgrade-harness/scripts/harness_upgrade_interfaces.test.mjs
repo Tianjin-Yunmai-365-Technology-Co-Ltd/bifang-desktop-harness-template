@@ -26,6 +26,18 @@ test("framework_selection_defaults_legacy_gui_to_tauri_and_parses_explicit_gpui"
   assert.deepEqual(parseInterfaceSelection('[workspace.metadata]\nagent-first-harness.interfaces = ["gui"]\nagent-first-harness.gui-framework = "gpui"\n'), { interfaces: ["gui"], guiFramework: "gpui" });
 });
 
+/** 顶层 NSH 读取显式目标，旧 GUI/NSH 保持原语义。 */
+test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
+  assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop", "mobile", "web"]\n`), { interfaces: ["nsh"], guiFramework: null, nshTargets: ["desktop", "mobile", "web"] });
+  assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["gui"]\ngui-framework = "nsh"\n`), { interfaces: ["gui"], guiFramework: "nsh" });
+  for (const suffix of ['nsh-targets = ["tui"]', 'nsh-targets = []', 'nsh-targets = ["desktop", "desktop"]', 'nsh-targets = ["unknown"]']) {
+    assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\n${suffix}\n`), /Cargo nsh-targets/u);
+  }
+  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["gui"]\nnsh-targets = ["desktop"]\n`), /只适用于顶层 NSH/u);
+  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\n`), /nsh-targets/u);
+  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["cli", "nsh"]\nnsh-targets = ["desktop"]\n`), /独立顶层接口/u);
+});
+
 /** 未知值、错类型、重复键和非法接口不能降级到默认值。 */
 test("framework_selection_rejects_unknown_duplicate_and_malformed_metadata", () => {
   for (const suffix of [
@@ -62,6 +74,10 @@ test("gui_candidate_selection_excludes_the_other_framework_and_non_gui_projects"
   assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", nsh), false);
   assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-build-nsh-release/SKILL.md", nsh), false);
   assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", { interfaces: ["cli"], guiFramework: null }), true);
+  const topLevelNsh = { interfaces: ["nsh"], guiFramework: null, nshTargets: ["mobile", "web"] };
+  assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-build-nsh-release/SKILL.md", topLevelNsh), false);
+  assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-add-gui-adapter/SKILL.md", topLevelNsh), true);
+  assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-prepare-gui-support-surfaces/SKILL.md", topLevelNsh), true);
 });
 
 /** GPUI 工程可规划，Tauri/Mantine 候选阻断，产品 profile 和源码仍受保护。 */

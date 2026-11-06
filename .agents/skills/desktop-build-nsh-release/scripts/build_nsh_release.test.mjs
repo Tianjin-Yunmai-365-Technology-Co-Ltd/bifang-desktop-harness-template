@@ -5,11 +5,24 @@ import path from 'node:path';
 import os from 'node:os';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { buildNshRelease,inventory,releaseNoteBuildInputs,safeOutputPath,validateNshArtifacts } from './build_nsh_release.mjs';
+import { buildNshRelease,inventory,packageFacts,releaseNoteBuildInputs,safeOutputPath,validateNshArtifacts } from './build_nsh_release.mjs';
 import { renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 
 /** 临时包只用于拒绝畸形输入，不能充当运行验证。 */
 function fixture(run){const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'nsh-package-test-')));try{run(root);}finally{fs.rmSync(root,{recursive:true,force:true});}}
+
+/** 新顶层 NSH 包使用独立成员和类别事实；旧 GUI/NSH 包仍可读。 */
+test('package_facts_accepts_top_level_nsh_and_legacy_gui_nsh',()=>fixture(root=>{
+  const metadata=(interfaces,member,extra)=>({workspace_root:root,workspace_members:['member-id'],packages:[{id:'member-id',name:`sample_tool_${member}`,manifest_path:path.join(root,`sample_tool_${member}`,'Cargo.toml'),version:'0.1.0'}],metadata:{'agent-first-harness':{'project-id':'sample_tool',interfaces,'target-platforms':['macos','android','web'],...extra}}});
+  const modern=metadata(['nsh'],'nsh',{'nsh-targets':['desktop','mobile','web']});
+  assert.equal(packageFacts(root,modern,'web').gui,path.join(root,'sample_tool_nsh'));
+  assert.equal(packageFacts(root,modern,'android').modern,true);
+  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui']}),'macos'),/unsupported NSH targets/u);
+  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','web']}),'macos'),/do not match/u);
+  assert.throws(()=>packageFacts(root,modern,'linux'),/not selected/u);
+  const legacy=metadata(['gui'],'gui',{'gui-framework':'nsh'});
+  assert.equal(packageFacts(root,legacy,'macos').modern,false);
+}));
 
 test('tracked_resolution_and_unanswered_candidate_selection_fail_before_build',()=>fixture(root=>{
   fs.writeFileSync(path.join(root,'Cargo.toml'),'[workspace.metadata.agent-first-harness]\ndependency-lock-policy = "tracked"\n');

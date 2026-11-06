@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveProjectTarget } from "./resolve_project_target.mjs";
-import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, REVIEW_QUESTION, questionFor, summaryNotices } from "./initialization_questions.mjs";
+import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, NSH_TARGETS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, REVIEW_QUESTION, questionFor, summaryNotices } from "./initialization_questions.mjs";
 
 /** 拒绝无法解释的状态形状，不把产品字段、凭据或任意配置带入汇总。 */
 function exactKeys(object, allowed, label) {
@@ -28,7 +28,7 @@ function parseAnswer(id, answer) {
     value = structuredClone(definition.defaultValue);
   }
   if (definition.values) {
-    if (["target_platforms", "interfaces"].includes(id)) {
+    if (["target_platforms", "interfaces", "nsh_targets"].includes(id)) {
       if (!Array.isArray(value) || value.length === 0 || value.some((item) => !definition.values.includes(item))) return { issue: "须选择至少一个合法选项。" };
       value = definition.values.filter((item) => value.includes(item));
     } else if (!definition.values.includes(value)) return { issue: "须从列出的选项中明确选择。" };
@@ -40,16 +40,23 @@ function parseAnswer(id, answer) {
 /** 本地打包适用性只由接口、框架与目标共同决定；框架未解时返回待校验。 */
 export function localPackageAvailability(values) {
   if (values.interfaces.includes("cli")) return "available";
+  if (values.interfaces.includes("nsh")) return "available";
   if (!values.interfaces.includes("gui")) return "unavailable";
   if (!values.gui_framework) return "pending";
-  return ["gpui", "nsh"].includes(values.gui_framework) || values.target_platforms.some((platform) => ["macos", "windows"].includes(platform)) ? "available" : "unavailable";
+  return values.gui_framework === "gpui" || values.target_platforms.some((platform) => ["macos", "windows"].includes(platform)) ? "available" : "unavailable";
 }
 
 /** 按当前框架/平台标注不可用能力；用户显式启用时仍须纠正，不能覆盖答案。 */
 function unavailableGuiFields(values) {
-  if (values.gui_framework === "nsh") return ["system_tray", "system_notification", "autostart", "single_instance", "deep_link", "global_shortcut"];
+  if (values.interfaces.includes("nsh")) return ["system_tray", "system_notification", "autostart", "single_instance", "deep_link", "global_shortcut"];
   if (values.gui_framework !== "gpui") return [];
   return values.target_platforms.includes("linux") ? ["system_tray", "deep_link", "global_shortcut"] : ["deep_link"];
+}
+
+/** 将具体目标映射到 NSH 的四类选择；当前固定运行时没有 TUI 的具体目标。 */
+function nshTargetClasses(platforms) {
+  const classes = new Set(platforms.map(platform => ["windows", "macos", "linux"].includes(platform) ? "desktop" : platform === "web" ? "web" : "mobile"));
+  return NSH_TARGETS.filter(target => classes.has(target));
 }
 
 /** 计算问题或汇总；答案可以批量到达，合法值只解析一次并保留来源。 */
@@ -121,14 +128,33 @@ export function evaluateInitializationForm(input) {
   const translated = ["name_zh", "name_en"].filter((id) => !values[id]);
   if (translated.length) return output("translation", [], { translate: translated });
   const gui = values.interfaces.includes("gui");
-  if (!gui && ["gui_framework", ...GUI_FIELDS, "capability_setup_assistance"].some((id) => Object.hasOwn(answers, id))) {
-    issues.interfaces = "未选择 GUI 却提供了 GUI 条件答案；请确认接口组合，或撤下旧 GUI 答案。";
+  const nsh = values.interfaces.includes("nsh");
+  if (nsh && values.interfaces.length !== 1) {
+    issues.interfaces = "当前 NSH 初始化仅支持单独选择；请只选 NSH，或选择其他接口组合。";
+    return output("base", ["interfaces"]);
+  }
+  if ((!gui && Object.hasOwn(answers, "gui_framework")) || (!nsh && Object.hasOwn(answers, "nsh_targets"))) {
+    issues.interfaces = "当前程序类型与旧条件答案不匹配；请确认接口组合，或撤下不适用的框架/NSH 答案。";
     return output("base", ["interfaces"]);
   }
   if (gui && !values.gui_framework) return output("framework", ["gui_framework"]);
-  if (values.target_platforms.some((platform) => ["android", "ios", "web"].includes(platform)) && (!gui || values.gui_framework !== "nsh" || values.interfaces.length !== 1)) {
-    issues.target_platforms = "Android/iOS/Web 当前只支持 NSH GUI；请选择 NSH 且只选 GUI，或改为桌面目标。";
+  if (nsh && !values.nsh_targets) return output("nsh", ["nsh_targets"]);
+  if (nsh && values.nsh_targets.includes("tui")) {
+    issues.nsh_targets = "当前固定的 NSH 0.4.0 没有 TUI 运行或打包目标；请先撤下 TUI，待运行时具备可验证支持后再选择。";
+    return output("nsh", ["nsh_targets"]);
+  }
+  if (nsh && JSON.stringify(nshTargetClasses(values.target_platforms)) !== JSON.stringify(values.nsh_targets)) {
+    issues.target_platforms = "具体目标平台与 NSH 能力类别不一致；桌面对应 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web。请调整目标平台或 NSH 能力。";
     return output("base", ["target_platforms"]);
+  }
+  if (!nsh && values.target_platforms.some((platform) => ["android", "ios", "web"].includes(platform))) {
+    issues.target_platforms = "Android/iOS/Web 当前只支持 NSH；请选择 NSH，或改为桌面目标。";
+    return output("base", ["target_platforms"]);
+  }
+  const desktop = gui || (nsh && values.nsh_targets.includes("desktop"));
+  if (!desktop && [...GUI_FIELDS, "capability_setup_assistance"].some(id => Object.hasOwn(answers, id))) {
+    issues[gui ? "interfaces" : "nsh_targets"] = "未选择桌面能力却提供了桌面条件答案；请确认目标组合，或撤下旧桌面答案。";
+    return output(gui ? "base" : "nsh", [gui ? "interfaces" : "nsh_targets"]);
   }
   if (values.policy_mode === "recommended") {
     const conflicts = POLICY_FIELDS.filter((id) => issues[id] || (values[id] && values[id] !== POLICY_PRESET[id]));
@@ -143,11 +169,11 @@ export function evaluateInitializationForm(input) {
     const next = POLICY_FIELDS.find((id) => !values[id]);
     if (next) return output("policy", [next]);
   }
-  const unavailable = gui ? unavailableGuiFields(values) : [];
-  if (gui) {
+  const unavailable = desktop ? unavailableGuiFields(values) : [];
+  if (desktop) {
     for (const id of unavailable) {
       if (issues[id] || (values[id] && values[id] !== "disabled")) {
-        issues[id] = `当前 ${values.gui_framework.toUpperCase()} 框架/目标组合不支持此能力；须明确关闭，或修改框架/目标。`;
+        issues[id] = `当前 ${nsh ? "NSH 桌面" : values.gui_framework.toUpperCase()} 框架/目标组合不支持此能力；须明确关闭，或修改框架/目标。`;
         return output("gui", [id], { unavailable });
       }
       if (!values[id]) { values[id] = "disabled"; sources[id] = "capability:unavailable"; }

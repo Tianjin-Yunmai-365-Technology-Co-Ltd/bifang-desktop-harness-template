@@ -1,12 +1,12 @@
 # AGENTS.md
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 与 CLI/MCP/DESKTOP 平级，说明为“下一代全平台开发框架”。根 Cargo `interfaces = ["nsh"]`、`nsh-targets` 记录选择；仅 desktop 子目标询问九项桌面能力。固定 0.4.0 的 TUI 不可运行/打包，选中时失败关闭；旧 GUI/NSH 元数据只读兼容。路由 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md`、`$desktop-build-nsh-release`，能力限制见前者的运行时引用。
 
 ## 项目使命
 
-本仓库是 Agent-first 小工具的无代码 Harness 模板。它只维护跨项目复用的规则、Skills、中性资产与交付工程，不实现任何具体产品；下游可独立选择 CLI、MCP、GUI，明确选择默认接口或跳过时使用 CLI。
+本仓库是 Agent-first 小工具的无代码 Harness 模板。它只维护跨项目复用的规则、Skills、中性资产与交付工程，不实现任何具体产品；下游可选择 CLI、MCP、DESKTOP（Cargo `gui`）或 NSH，明确选择默认接口或跳过时使用 CLI。
 
-GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走现有 Tauri/React/Mantine Skills，`gpui` 走 `$desktop-add-gpui-adapter` 与 `docs/design_standards/gpui_gui.md`。没有该字段的既有 GUI 按 Tauri 兼容；非 GUI 不写该字段。GPUI 不加载 Tauri 插件、前端、Mantine 列表、打包或初始化 E2E 专属规则。
+DESKTOP 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走现有 Tauri/React/Mantine Skills，`gpui` 走 `$desktop-add-gpui-adapter` 与 `docs/design_standards/gpui_gui.md`。没有该字段的既有 DESKTOP 按 Tauri 兼容；新 NSH 不写该字段。GPUI 不加载 Tauri 插件、前端、Mantine 列表、打包或初始化 E2E 专属规则。
 
 ## 启动门禁
 
@@ -15,7 +15,7 @@ GUI 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走
 3. 在写入前确认 Git 根、分支和工作区状态，保护用户已有修改；重叠内容无法安全处理时停止。仓库没有声明的命令、能力或验证结果不得虚构。
 4. 先判定任务类型，再只读取下表命中的事实来源和 Skill。发现冲突或缺失时才扩大读取；不要为了“完整”加载全部项目记忆、设计标准、发布规则或 Skills。
 
-GUI 设计入口见 [DESIGN.md](DESIGN.md)，当前共用基座为唯一视觉依据，专项实现按 [设计标准索引](docs/design_standards/README.md) 读取；依赖、兼容、性能与平台打包方案按 [GUI 工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
+客户端设计入口见 [DESIGN.md](DESIGN.md)，当前共用基座为唯一视觉依据，专项实现按 [设计标准索引](docs/design_standards/README.md) 读取；依赖、兼容、性能与平台打包方案按 [客户端工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
 
 ## 按任务渐进读取
 
@@ -34,6 +34,7 @@ GUI 设计入口见 [DESIGN.md](DESIGN.md)，当前共用基座为唯一视觉�
 | 永久 Agent 能力偏好变更 | Agent Policy 字段语义与初始化后变更规则 | `$desktop-configure-agent-policy`；发布后动作仍用专用 Skill |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md`；Tauri/Mantine 列表页、数据表格、后台列表、搜索结果页及已有列表审查另读 `$mantine-list-view` | 按 `gui-framework` 选择 GUI Skill（`gpui` 另读 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md` 与 `dependency-baseline.md`）；Tauri/Mantine 列表任务即使未明说表格也必须使用 `$mantine-list-view`；不得一次加载全部 GUI Skills |
+| NSH | Cargo `interfaces`、`nsh-targets`、`target-platforms`；NSH Skill 的运行时引用 | desktop 才读 `docs/GUI_APP_PROFILE.md`；TUI 失败关闭 |
 | Task、工作树、子任务权限与并行调度 | `docs/AGENT_POLICY.md` 的项目选择；统一 Skill 的按需引用 | `$desktop-task-workflow`；默认不自动创建左侧 Task，Local 同 cwd 串行，独立 Worktree 尽量并行 |
 | 内部并行 Worktree/Subagent 或提交 | 统一 Skill 的并行引用；提交时读提交规范 | `$desktop-task-workflow`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-handoff-project`；持久计划另按触发调用 `$desktop-plan-change` |
@@ -53,7 +54,7 @@ GUI 设计入口见 [DESIGN.md](DESIGN.md)，当前共用基座为唯一视觉�
 - `user_owned_tasks` 默认关闭，只有项目明确启用才自动建 Task 子树，选择记录在策略文件；关闭时当前会话直接执行。一个 Task 交付一个结果，必要阅读、实现与开发回归不按步骤拆分。独立 Worktree 按非重叠所有权并行，只有同一 Local cwd 和共享 Git 状态写入串行。绑定自检通过后继承已授权开发权限，无需额外人工 BOUND 批准；宿主权限与实际超范围操作仍遵守授权。
 - 安全/隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、渠道硬要求、签名、发布和跨平台最终候选必须进入对应专用门禁；精简上下文不降低授权、失败关闭或真正不可逆交付所需的人工签署。非必要语义审查不得混入日常开发，明确发布时才按当次 `reviewSelection` 询问并执行。
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
-- Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/MCP/GUI 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
+- Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/MCP/DESKTOP/NSH 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
 - 已初始化下游的版本只通过 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期/去重状态。分类（`feature`/`bug-fix`/`record-reconciliation`）、周期、`0..99` base-100 进位、Major 上限与含 `100` 值失败关闭的规则，唯一来源是 `docs/RELEASE.md` 与该 Skill。Harness 自身版本只取 `Version.md`，仅在正式发布时按上海时区 `YYYYMMDDHHMM` 确定；`Released` 只由登记分支合并后的默认主分支与本地 tag 精确复核判定。
 - Harness 源与终端下游的新功能或独立 Bug 修复在写入前通过 `$desktop-manage-git-lifecycle` 自动创建并切换到独立 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支。用户明确说“发布”时，受管流程复核并提交本次范围，把登记分支普通合并到本地默认主分支并创建复读 `v{版本}-{YYYYMMDD}`，即完成 Git 发布；`release` 必须传已跟踪发布上下文的 `--release-context-sha256 <sha256>`，不 fetch、push、打包或删除登记资源。下游在发布开始时冻结已确认的 `post_release_action` 并按快照执行；Harness 源的后续归档或推送由用户当次决定。`push_release_branch` 的路径、字段语义与“不设保护分支/线性/lease 门禁、不使用大写 `Release`”等负面保证，唯一来源是 `docs/AGENT_POLICY.md` 与该 Skill；后续失败不改变本地 Git 发布事实，流程不创建/配置远端或凭据。
 - 对产出物声称“完成”“可用”或“已验证”必须基于真实产物的可观察结果；Mock、stub、源码片段、占位页面、中性 scaffold 或开发预览不能冒充候选验收。人工批准也不能把失败或未执行改判为通过。
@@ -103,4 +104,4 @@ GUI 设计入口见 [DESIGN.md](DESIGN.md)，当前共用基座为唯一视觉�
 
 Harness 自身的文档、Skill、脚本或候选 workflow 变化运行 `node scripts/validate_harness.mjs`；该日常入口只运行硬门禁。明确发布且当次 `reviewSelection: enabled` 时另运行 `node scripts/validate_harness.mjs --release-review` 收集非阻断语义/重构提示。修改 Node 门禁行为时还运行 `node scripts/run_harness_tests.mjs`。这些检查不替代真实下游构建、E2E、完整验收或真正必需的人工签署。
 
-NSH Skills 地图：`$desktop-add-nsh-adapter`、`$desktop-build-nsh-release`、初始化专用 `$desktop-test-nsh-initialization-e2e`。NSH 显式构建走独立打包 Skill；不加载 Tauri/Mantine 或 GPUI 专属工程。
+NSH Skills 地图：`$desktop-add-nsh-adapter`、`$desktop-build-nsh-release`、初始化专用 `$desktop-test-nsh-initialization-e2e`；不加载 Tauri/Mantine/GPUI 专属工程。

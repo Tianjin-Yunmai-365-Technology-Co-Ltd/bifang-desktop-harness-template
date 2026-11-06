@@ -11,7 +11,7 @@ Linux GPUI GNU x64/ARM64 的目标编译器/开发库/打包工具使用 `script
 
 ## GUI 框架范围
 
-接口含 GUI 时消费根 Cargo metadata 的 `gui-framework`；新初始化必须显式保存 `tauri`、`gpui` 或 `nsh`，旧 GUI 缺省为 `tauri`，非法值失败关闭。POSIX 门禁传 `--gui-framework gpui`，Windows 传 `-GuiFramework gpui`；省略参数保持旧 Tauri 行为。Tauri、GPUI 与 NSH 共用 Node.js/npm 和 pnpm 门禁，供发布、验证等 Node 工程脚本使用；三者都要求 Node.js 稳定版 `>=24.0.0`、pnpm 稳定版 `>=12.4.1`。WebView、Tauri 系统库与 xwin 规则仍只适用于 Tauri。通用 POSIX helper 不检查或安装 Linux WebKitGTK/GTK；其真实缺包错误按 [Linux Tauri 系统库人工接续](references/development-environment-gates.md#linux-tauri-系统库人工接续) 人工接续，不得借用 Linux GPUI 安装脚本或把通用门禁通过视为库已恢复。GPUI 同时要求 Git、Rust 与当前原生编译宿主能力，其平台依赖及真实编译检查见 `$desktop-add-gpui-adapter`，不得探测或安装 Tauri 的 WebKit/WebView 依赖，也不进入 Tauri xwin 路线。
+接口含 GUI（DESKTOP）时消费根 Cargo metadata 的 `gui-framework`；新 DESKTOP 初始化显式保存 `tauri` 或 `gpui`，旧 GUI 缺省为 `tauri`。顶层 NSH 写 `interfaces = ["nsh"]` 与 `nsh-targets`，不写 `gui-framework`；既有 GUI/NSH 仅保留读取兼容。POSIX 门禁对 GPUI 传 `--interfaces GUI --gui-framework gpui`，对新 NSH 传 `--interfaces NSH`；Windows 分别传 `-Interfaces GUI -GuiFramework gpui` 或 `-Interfaces NSH`。Node.js/npm 是全部接口的通用门禁；只有接口含 GUI 才要求 pnpm 稳定版 `>=12.4.1`，顶层 NSH 不要求 pnpm。Node.js 稳定版均须 `>=24.0.0`。WebView、Tauri 系统库与 xwin 规则仍只适用于 Tauri。通用 POSIX helper 不检查或安装 Linux WebKitGTK/GTK；其真实缺包错误按 [Linux Tauri 系统库人工接续](references/development-environment-gates.md#linux-tauri-系统库人工接续) 人工接续，不得借用 Linux GPUI 安装脚本或把通用门禁通过视为库已恢复。GPUI 同时要求 Git、Rust 与当前原生编译宿主能力，其平台依赖及真实编译检查见 `$desktop-add-gpui-adapter`，不得探测或安装 Tauri 的 WebKit/WebView 依赖，也不进入 Tauri xwin 路线。
 
 ## 工作流程
 
@@ -44,6 +44,6 @@ Linux GPUI GNU x64/ARM64 的目标编译器/开发库/打包工具使用 `script
 
 ## NSH 标准库目标恢复
 
-NSH 与其他 GUI 共用 Node/pnpm 工程工具门禁，使用 --gui-framework nsh。只有真实 NSH 构建已因 E0463 缺少 wasm32-unknown-unknown（Web）或 armv7-linux-androideabi（默认 Android 32 位 ABI）标准库失败时，调用 scripts/recover_nsh_target.mjs（只读），用 --target 指定上述精确目标，需要安装时传 --install-missing。该入口只给当前 Rust 工具链添加官方标准库目标，不升级工具链、不改 PATH、不安装其他工具；安装后复读 Rust 版本与实际 libdir，再重试原构建。该精确目标是本 Skill 受管 Rust 集合的 NSH 扩展；其他移动 SDK/签名不由本入口安装。
+顶层 NSH 与其他接口共用 Node/npm 工程工具门禁，使用 `--interfaces NSH`，不要求 pnpm 或 `--gui-framework`。只有真实 NSH 构建已因 E0463 缺少 wasm32-unknown-unknown（Web）或 armv7-linux-androideabi（默认 Android 32 位 ABI）标准库失败时，调用 scripts/recover_nsh_target.mjs（只读），用 --target 指定上述精确目标，需要安装时传 --install-missing。该入口只给当前 Rust 工具链添加官方标准库目标，不升级工具链、不改 PATH、不安装其他工具；安装后复读 Rust 版本与实际 libdir，再重试原构建。该精确目标是本 Skill 受管 Rust 集合的 NSH 扩展；其他移动 SDK/签名不由本入口安装。
 
-NSH CLI 是所选框架的显式工具扩展。真实命令缺失或版本不匹配时，先读 `$desktop-add-nsh-adapter` 的运行时引用，核对主机/架构与官方 v0.4.0 发行资产及 SHA-256，再按用户标准全局安装位置安装；复读 `nsh --version` 和实际可执行路径，与 runtime revision 一致才重试。不得默认下载 latest、降级其他工具、把 CLI 安装进项目，或在没有真实缺失/不匹配时例行重装。
+NSH CLI 是顶层 NSH 的显式工具扩展。真实命令缺失或版本不匹配时，先读 `$desktop-add-nsh-adapter` 的运行时引用，核对主机/架构与官方 v0.4.0 发行资产及 SHA-256，再按用户标准全局安装位置安装；复读 `nsh --version` 和实际可执行路径，与 runtime revision 一致才重试。不得默认下载 latest、降级其他工具、把 CLI 安装进项目，或在没有真实缺失/不匹配时例行重装。

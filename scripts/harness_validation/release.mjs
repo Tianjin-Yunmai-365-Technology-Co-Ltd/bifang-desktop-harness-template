@@ -220,8 +220,8 @@ export function validateNshBuildContract(errors, overrides = {}) {
     ...overrides,
   };
   validateFragmentContract(errors, new Map([
-    [paths.buildSkill, ["gui-framework = \"nsh\"", "`candidate`", "nsh:package", "release-notes.json", "更新日志", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "sidecar", "milestoneAcceptance: pending", "runtimeVerification: Unverified"]],
-    [paths.buildHelper, ["buildNshRelease(", "cargo',['test','--workspace','--all-targets','--all-features'", "nsh',['check']", "nsh',['test','.']", "nsh',['package','--target'", "renderDocument(notes,'zh-CN')", "renderDocument(notes,'en-US')", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "validateNshArtifacts(", "releaseNotesResourceVerification:'sidecar-byte-identical'", "sourceSnapshot(root)!==before"]],
+    [paths.buildSkill, ["nsh-targets", "`candidate`", "build_nsh_release.mjs", "release-notes.json", "更新日志", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "sidecar", "milestoneAcceptance: pending", "runtimeVerification: Unverified"]],
+    [paths.buildHelper, ["buildNshRelease(", "'nsh-targets'", "cargo',['test','--workspace','--all-targets','--all-features'", "nsh',['check']", "nsh',['test','.']", "nsh',['package','--target'", "renderDocument(notes,'zh-CN')", "renderDocument(notes,'en-US')", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "validateNshArtifacts(", "releaseNotesResourceVerification:'sidecar-byte-identical'", "sourceSnapshot(root)!==before"]],
     [paths.buildTests, ["tracked_resolution_and_unanswered_candidate_selection_fail_before_build", "fake_suffixes_and_incomplete_official_packages_are_rejected", "official_named_web_directory_is_discovered_and_requires_real_wasm_header"]],
     [paths.iosHelper, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],
     [paths.iosTests, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],

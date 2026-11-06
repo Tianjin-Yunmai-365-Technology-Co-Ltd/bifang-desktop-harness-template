@@ -81,6 +81,14 @@ test("nsh_gui_accepts_framework_and_requires_project_tooling", posixOnly, () => 
   assert.equal(existsSync(path.join(root,"home",".profile")),false);
 }));
 
+/** 新顶层 NSH 仅需共享 Rust/Node 工具，不从 DESKTOP 分支附加 pnpm。 */
+test("top_level_nsh_does_not_require_desktop_frontend_tools", posixOnly, () => withTemporaryRoot((root) => {
+  const probe=path.join(root,"probe");fakeExistingTools(probe);
+  const result=runGate(root,["--check-only","--interfaces","NSH"],{probe});
+  assert.equal(result.status,0,result.stderr);
+  assert.match(result.stdout,/gate\.pnpm\.status=not-required/u);
+}));
+
 /** 未知框架不能被当作原生框架绕过前端门禁。 */
 test("invalid_gui_framework_fails_before_tool_probe", posixOnly, () => withTemporaryRoot((root) => {
   const result = runGate(root, ["--check-only", "--interfaces", "GUI", "--gui-framework", "unknown"]);
@@ -95,6 +103,7 @@ test("windows_gui_frameworks_share_the_pnpm_requirement", () => {
   assert.match(source, /\[ValidateSet\("tauri", "gpui", "nsh"\)\]/u);
   assert.match(source, /\$GuiFramework = "tauri"/u);
   assert.match(source, /\$PnpmRequired = \(\$NormalizedInterfaces -contains "GUI"\)\r?\n/u);
+  assert.match(source, /"CLI", "MCP", "GUI", "NSH"/u);
 });
 
 test("rustup installer cannot mutate unmanaged shell profiles", () => {
@@ -322,7 +331,7 @@ test("Windows gate retains signed MSVC and current runtime contracts", () => {
     "Microsoft.VisualStudio.Workload.VCTools", "Install-MissingMsvc", "[string[]]$Interfaces",
     "Install-MissingPnpm", "Install-MissingGit", "Test-GitVersion", "Git.Git",
     '"gate.git.status=passed"', '"gate.git.change=$GitChange"', "if (-not (Test-MsvcPrerequisite))",
-    '"gate.msvc.status=passed"', '"gate.msvc.change=$MsvcChange"', '@("CLI", "MCP", "GUI")',
+    '"gate.msvc.status=passed"', '"gate.msvc.change=$MsvcChange"', '@("CLI", "MCP", "GUI", "NSH")',
     '$PnpmRequired = ($NormalizedInterfaces -contains "GUI")', "$MinimumRustMinor = 95", "$MinimumRustPatch = 0",
     '$NodeRequirement = ">=24.0.0"', '$PnpmRequirement = ">=12.4.1"', '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
     "Test-NodeVersion", "Test-PnpmVersion",

@@ -1,8 +1,8 @@
-# GUI 工程方案索引
+# 客户端工程方案索引
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：新项目的顶层 `interfaces = ["nsh"]`、`nsh-targets` 与具体 `target-platforms` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据只读兼容。桌面能力只在 NSH 桌面子目标配置；固定 NSH 0.4.0 的 TUI 子目标尚不可用，选择时失败关闭。能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
-本文按任务组织 GUI 依赖版本、实现方案、性能和打包知识。根 Cargo 决定实际框架/接口/目标/版本；中性 renderer、已有产品接线与目标运行证据分别判断。普通实现只读命中主题，不自动初始化、升级依赖、跑基准或构建。
+本文按任务组织 DESKTOP 与 NSH 的依赖版本、实现方案、性能和打包知识。根 Cargo 决定实际框架/接口/目标/版本；中性 renderer、已有产品接线与目标运行证据分别判断。普通实现只读命中主题，不自动初始化、升级依赖、跑基准或构建。
 
 | 任务 | 入口与事实 | 完成边界 |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`
 | GPUI 本地试包与发布候选 | [$desktop-build-gpui-release](../.agents/skills/desktop-build-gpui-release/SKILL.md) | 公共生命周期 + 按平台引用，产物与运行验收分开 |
 | Tauri 依赖、插件与既有 core 增加 GUI | [$desktop-add-gui-adapter](../.agents/skills/desktop-add-gui-adapter/SKILL.md)、[$desktop-manage-dependencies](../.agents/skills/desktop-manage-dependencies/SKILL.md) | 按已批准范围接线与验证，不加载 GPUI 实现规则 |
 | Tauri 本地试包与发布候选 | [$desktop-build-tauri-local-install](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[$desktop-build-tauri-release](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 按平台与候选身份分派，具体路线见下表 |
-| NSH 共享 core、薄 GUI 适配器与运行时能力 | [$desktop-add-nsh-adapter](../.agents/skills/desktop-add-nsh-adapter/SKILL.md)、[运行时边界](../.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md) | Rust UI 使用官方 NSH runner；自定义桌面宿主能力须另行接线与验证 |
+| NSH 共享 core、薄适配器与运行时能力 | [$desktop-add-nsh-adapter](../.agents/skills/desktop-add-nsh-adapter/SKILL.md)、[运行时边界](../.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md) | Rust UI 使用官方 NSH runner；桌面能力仅按 desktop 子目标选择，自定义桌面宿主能力须另行接线与验证 |
 | NSH 桌面、移动与 Web 打包 | [$desktop-build-nsh-release](../.agents/skills/desktop-build-nsh-release/SKILL.md) | 目标逐项打包与取证；本机无法构建的目标保留 `Unverified` |
 | 最终候选验收 | [$desktop-verify-delivery](../.agents/skills/desktop-verify-delivery/SKILL.md)、[$desktop-test-final-artifact-e2e](../.agents/skills/desktop-test-final-artifact-e2e/SKILL.md) | 真实最终字节和目标宿主，构建通过不代替验收 |
 | Linux 宿主、工具链及能力边界 | 下文 Linux 问题索引与对应 Skill 引用 | 区分中性生成、独立接线、协议回归与目标运行证据 |

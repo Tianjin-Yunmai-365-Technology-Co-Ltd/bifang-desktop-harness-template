@@ -21,21 +21,52 @@ function fixture(run) {
     base(); set("interfaces", ["gui"]); set("target_platforms", ["macos"]); set("gui_framework", framework);
     for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
   };
-  try { run({ root, input, set, base, gui, evaluate: () => evaluateInitializationForm(input) }); }
+  const nsh = (targets = ["desktop"], platforms = ["macos"]) => {
+    base(); set("interfaces", ["nsh"]); set("target_platforms", platforms); set("nsh_targets", targets);
+    if (targets.includes("desktop")) for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
+  };
+  try { run({ root, input, set, base, gui, nsh, evaluate: () => evaluateInitializationForm(input) }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
-/** NSH 与桌面框架共用确认摘要，但移动/Web 目标不可串入其他接口。 */
-test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fixture(({input,set,gui,evaluate}) => {
-  gui("nsh"); set("target_platforms", ["macos","android","ios","web"]);
+/** NSH 顶层入口按桌面/移动/Web 分类，桌面能力保持确认摘要和失效约束。 */
+test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fixture(({input,set,nsh,evaluate}) => {
+  nsh(["desktop","mobile","web"], ["macos","android","ios","web"]);
   for (const id of ["system_tray","system_notification","autostart","single_instance","deep_link","global_shortcut"]) delete input.answers[id];
   assert.equal(evaluate().stage,"review");
   assert.equal(evaluate().summary.unavailable.length,6);
+  assert.deepEqual(evaluate().values.interfaces,["nsh"]);
+  assert.deepEqual(evaluate().values.nsh_targets,["desktop","mobile","web"]);
   assert.equal(localPackageAvailability(evaluate().values),"available");
   const digest=evaluate().summaryDigest;input.confirmation={digest,source:"user:test-confirmation"};assert.equal(evaluate().stage,"confirmed");
   set("system_notification","enabled");assert.equal(evaluate().questions[0].id,"system_notification");
-  set("system_notification","disabled");set("gui_framework","gpui");assert.equal(evaluate().questions[0].id,"target_platforms");
-  set("gui_framework","nsh");set("interfaces",["cli","gui"]);assert.equal(evaluate().questions[0].id,"target_platforms");
+  set("system_notification","disabled");set("gui_framework","gpui");assert.equal(evaluate().questions[0].id,"interfaces");
+  delete input.answers.gui_framework;set("interfaces",["cli","nsh"]);assert.equal(evaluate().questions[0].id,"interfaces");
+}));
+
+/** NSH 非桌面目标不询问九项桌面配置；类别与具体目标双向校验。 */
+test("nsh_mobile_web_skip_desktop_profile_and_reject_stale_answers", () => fixture(({input,set,nsh,evaluate}) => {
+  nsh(["mobile","web"], ["android","web"]);
+  assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().summary.unavailable,[]);
+  assert.equal(evaluate().values.sidebar_mode,undefined);
+  set("about_page","enabled");assert.equal(evaluate().questions[0].id,"nsh_targets");
+  delete input.answers.about_page;
+  set("nsh_targets",["mobile"]);assert.equal(evaluate().questions[0].id,"target_platforms");
+  set("target_platforms",["android"]);assert.equal(evaluate().stage,"review");
+  delete input.answers.nsh_targets;assert.equal(evaluate().questions[0].id,"nsh_targets");
+}));
+
+/** TUI 与独立旧接口不同；当前固定运行时缺失目标，不能以确认摘要绕过。 */
+test("nsh_tui_choice_is_visible_but_cannot_be_confirmed", () => fixture(({input,set,nsh,evaluate}) => {
+  nsh(["desktop","tui"],["macos"]);
+  assert.equal(evaluate().stage,"nsh");
+  assert.equal(evaluate().questions[0].id,"nsh_targets");
+  assert.match(evaluate().questions[0].issue,/0\.4\.0/u);
+  assert.ok(evaluate().questions[0].options.some(option=>option.includes("TUI")));
+  input.confirmation={digest:"0".repeat(64),source:"user:confirm"};
+  assert.equal(evaluate().stage,"nsh");
+  set("nsh_targets",["desktop"]);assert.equal(evaluate().stage,"review");
 }));
 
 /** 空表单集中首轮九项，直调初始化只省既定路径，标识与负责人仍须提问。 */

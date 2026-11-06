@@ -100,14 +100,24 @@ export function sourceSnapshot(root) {
 /** 只读校验持久框架、版本与选择目标，不能把 CLI 当 NSH 打包。 */
 export function packageFacts(root,metadata,target) {
   const facts=metadata.metadata?.['agent-first-harness'];
-  if(path.resolve(metadata.workspace_root)!==root || facts?.['gui-framework']!=='nsh' || !facts.interfaces?.includes('gui')) throw new Error('requires NSH workspace');
+  const modern=facts?.interfaces?.length===1 && facts.interfaces[0]==='nsh' && facts['gui-framework']===undefined;
+  const legacy=facts?.interfaces?.length===1 && facts.interfaces[0]==='gui' && facts['gui-framework']==='nsh';
+  if(path.resolve(metadata.workspace_root)!==root || !modern && !legacy) throw new Error('requires NSH workspace');
   if(!targets.includes(target) || !facts['target-platforms']?.includes(target==='ios-simulator'?'ios':target)) throw new Error('target is not selected');
-  if(facts['target-platforms'].some(platform=>['android','ios','web'].includes(platform)) && (facts.interfaces.length!==1 || facts.interfaces[0]!=='gui')) throw new Error('mobile/Web NSH targets require GUI-only interfaces');
+  if(modern){
+    const selected=facts['nsh-targets'];
+    if(!Array.isArray(selected) || selected.length===0 || new Set(selected).size!==selected.length || selected.some(value=>!['desktop','mobile','web'].includes(value))) throw new Error('invalid or unsupported NSH targets');
+    for(const [group,platforms] of [['desktop',['macos','windows','linux']],['mobile',['android','ios']],['web',['web']]]) {
+      if(selected.includes(group)!==facts['target-platforms'].some(platform=>platforms.includes(platform))) throw new Error('NSH targets do not match platforms');
+    }
+    if(!selected.includes(target==='web'?'web':['android','ios','ios-simulator'].includes(target)?'mobile':'desktop')) throw new Error('NSH target capability is not selected');
+  }
   const id=facts['project-id'];
   if(!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(id)) throw new Error('invalid project-id');
-  const pkg=metadata.packages.find(value=>value.name===`${id}_gui` && metadata.workspace_members.includes(value.id));
-  if(!pkg || path.dirname(pkg.manifest_path)!==path.join(root,`${id}_gui`)) throw new Error('GUI member missing');
-  return {gui:path.join(root,`${id}_gui`),version:pkg.version,policy:facts};
+  const member=`${id}_${modern?'nsh':'gui'}`;
+  const pkg=metadata.packages.find(value=>value.name===member && metadata.workspace_members.includes(value.id));
+  if(!pkg || path.dirname(pkg.manifest_path)!==path.join(root,member)) throw new Error('NSH member missing');
+  return {gui:path.join(root,member),version:pkg.version,policy:facts,modern};
 }
 /** 构建前解析候选选择，测试和封包不掺入运行验收。 */
 export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}) {
@@ -164,7 +174,7 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   if(mode==='candidate') checkContext({projectRoot:root,expectedSha256:context.releaseContextSha256},{published:true});
   const format={macos:'app.tar.gz',windows:'zip',linux:'tar.gz',android:'apk',ios:'app.tar.gz','ios-simulator':'app.tar.gz',web:'web.tar.gz'}[target];
   const signing=target==='android'?'development-key':target==='ios'?'unsigned-device':target==='macos'||target==='ios-simulator'?'ad-hoc':'not-applicable';
-  const manifest={schemaVersion:1,project:facts.policy['project-id'],interface:'gui',guiFramework:'nsh',mode,target,platform:target==='ios-simulator'?'ios':target,host:process.platform,arch:process.arch,buildMode:'native',buildRun:batch,bundleFormat:format,artifactKind:target==='web'?'web-archive':target==='android'?'installer':'application-archive',artifact,sha256:artifactSha,checksum:`${artifact}.sha256`,version:facts.version,sourceCommit:context?.sourceCommit??null,sourceSnapshot:before,tool:version,e2eSelection:mode==='candidate'?e2e:'not-applicable',e2eStatus:mode==='candidate'&&e2e==='enabled'?'pending':'Not run',...(e2e==='disabled'?{e2eReason,e2eRemainingRisk:e2eRisk}:{}),signingSelection:signing,signingSource:'official-local-packaging-default',unitTests:{status:'passed',testCases:tests.split('\n').filter(line=>line.endsWith(': test')).length,nshRenderTests:'passed'},milestoneAcceptance:'pending',runtimeVerification:'Unverified',files:inventory(stage)};
+  const manifest={schemaVersion:1,project:facts.policy['project-id'],interface:facts.modern?'nsh':'gui',...(facts.modern?{nshTargets:facts.policy['nsh-targets']}:{guiFramework:'nsh'}),mode,target,platform:target==='ios-simulator'?'ios':target,host:process.platform,arch:process.arch,buildMode:'native',buildRun:batch,bundleFormat:format,artifactKind:target==='web'?'web-archive':target==='android'?'installer':'application-archive',artifact,sha256:artifactSha,checksum:`${artifact}.sha256`,version:facts.version,sourceCommit:context?.sourceCommit??null,sourceSnapshot:before,tool:version,e2eSelection:mode==='candidate'?e2e:'not-applicable',e2eStatus:mode==='candidate'&&e2e==='enabled'?'pending':'Not run',...(e2e==='disabled'?{e2eReason,e2eRemainingRisk:e2eRisk}:{}),signingSelection:signing,signingSource:'official-local-packaging-default',unitTests:{status:'passed',testCases:tests.split('\n').filter(line=>line.endsWith(': test')).length,nshRenderTests:'passed'},milestoneAcceptance:'pending',runtimeVerification:'Unverified',files:inventory(stage)};
   manifest.hostArch=process.arch;
   manifest.arch=target==='web'?'wasm32':target==='android'?'universal':target==='ios'?'arm64':process.arch;
   manifest.buildMode=['web','android','ios','ios-simulator'].includes(target)?'cross':'native';

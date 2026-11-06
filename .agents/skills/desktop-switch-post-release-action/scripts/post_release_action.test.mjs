@@ -97,6 +97,8 @@ test("gpui_local_package_supports_native_gui_platforms_without_cli", (t) => {
   assert.equal(localPackageSupported(["cli", "gui"], ["macos"], "gpui"), true);
   assert.equal(localPackageSupported(["cli", "gui"], ["linux"], "gpui"), true);
   assert.equal(localPackageSupported(["gui"], ["macos"]), true);
+  assert.equal(localPackageSupported(["nsh"], ["android", "web"]), true);
+  assert.equal(localPackageSupported(["cli", "nsh"], ["macos"]), false);
   assert.throws(() => localPackageSupported(["gui"], ["macos"], "unknown"), /gui-framework/u);
   const f = fixture(t);
   fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["linux"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\n');
@@ -241,6 +243,7 @@ test("shared Cargo metadata parser preserves runtime array syntax", () => {
   const source = "[workspace.metadata.agent-first-harness]\ninterfaces = [\"cli\"]\ntarget-platforms = [\"macos\"]\n";
   assert.deepEqual(parseReleaseMetadataArray(source, "interfaces"), ["cli"]);
   assert.deepEqual(parseReleaseMetadataArray(source.replaceAll("\n", "\r\n"), "target-platforms"), ["macos"]);
+  assert.deepEqual(parseReleaseMetadataArray(source.replace('interfaces = ["cli"]', 'interfaces = ["nsh"]\nnsh-targets = ["desktop", "web"]'), "nsh-targets"), ["desktop", "web"]);
   for (const invalid of [
     source.replace('["cli"]', "['cli']"),
     `${source}[workspace.metadata.agent-first-harness]\n`,

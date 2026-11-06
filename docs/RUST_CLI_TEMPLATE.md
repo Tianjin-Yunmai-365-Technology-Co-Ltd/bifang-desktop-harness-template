@@ -8,7 +8,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 
 ## 桌面框架与适用范围
 
-新项目的 GUI 框架和能力输入统一复用初始化表单的确认结果，问句、默认触发与顺序不在本文件定义；无答复不得应用默认。GUI 新初始化必须在根 `[workspace.metadata.agent-first-harness]` 保存 `gui-framework = "tauri" | "gpui" | "nsh"`，非 GUI 不写，既有 GUI 缺失时兼容 Tauri。框架与九字段 `gui-initialization-config` 分开。
+新项目的接口与能力输入统一复用初始化表单的确认结果，问句、默认触发与顺序不在本文件定义；无答复不得应用默认。DESKTOP 新初始化在根 `[workspace.metadata.agent-first-harness]` 保存 `gui-framework = "tauri" | "gpui"`，既有 GUI 缺失时兼容 Tauri。NSH 为平级接口，保存 `interfaces = ["nsh"]`、`nsh-targets` 和具体 `target-platforms`，不写 `gui-framework`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。九字段 `gui-initialization-config` 对 NSH 仅适用于桌面子目标。
 
 - Tauri走 `$desktop-add-gui-adapter`。下文Tauri插件、Tokio-backed GUI runtime/command、WebView/IPC/ACL、React/Mantine/Jotai、Tabler、TS门禁、Tauri图标/DMG/NSIS及Tauri初始化E2E只在这条路径生效。
 - GPUI走 `$desktop-add-gpui-adapter`，直接依赖共享core，根workspace声明 `gpui-kit = "0.8.1"`、`rust-i18n = "4.2.4"` 的三段兼容下界，成员只 `workspace = true`。GPUI原生事件循环与其任务/executor管理GUI生命周期，core保持运行时中立；不因异步core创建嵌套runtime，不把UI线程阻塞等待当成异步。独立关于/赞助/设置模板、主题、i18n与sidebar遵守 [GPUI设计标准](design_standards/gpui_gui.md)。不引入Tauri/React；Node.js/pnpm 用于项目根的验证、发布和打包脚本，不要求前端安装、前端锁文件或前端测试。
@@ -21,15 +21,15 @@ GPUI 项目根生成无 npm 第三方依赖的 `package.json`，声明 `engines.
 
 GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限、队列、平台目录和失败/退出处理以 `$desktop-add-gpui-adapter` 的自含 logging 模板为准。core 可按实际业务需要发出脱敏 event/span，订阅器、文件 writer 与 worker 生命周期只由端侧拥有，不向 core 引入 GPUI 或日志文件机制。此为负责人明确选择的 GPUI 诊断基线，覆盖下文“中性脚手架不默认增加 tracing”的通用缺省；其他接口仍按真实能力需求加入。
 
-通用core-first、适配器独立、Rust文件/中文注释/依赖与非空测试、版本/身份/独立仓库规则适用于三条 GUI 路径；下文未限定框架的GUI技术细节按本节分派，不覆盖GPUI或NSH原生机制。
+通用 core-first、适配器独立、Rust 文件/中文注释/依赖与非空测试、版本/身份/独立仓库规则适用于 DESKTOP 与 NSH；下文未限定框架的 GUI 技术细节只按 DESKTOP 分派，不覆盖 GPUI 或 NSH 原生机制。
 
 ## 固定边界
 
-- 初始化询问 CLI/MCP/GUI，允许组合；明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时才默认采用 CLI。漏答保持待选择，不得按空输入应用默认值；选择其他接口且未选 CLI 时不得额外创建 CLI。
+- 初始化询问 CLI/MCP/DESKTOP/NSH；当前 NSH 独立选择，CLI/MCP/DESKTOP 允许组合。明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时才默认采用 CLI。漏答保持待选择，不得按空输入应用默认值；选择其他接口且未选 CLI 时不得额外创建 CLI。
 - 默认使用一个 Cargo 工作区，至少包含独立核心库和实际选择的适配器成员。
 - 产品规格为 `Draft` 时，核心与所选适配器只提供中性状态；CLI JSON 必须包含 `productDefinitionRequired=true`。
 - Core-first 是四类接口共同的硬规则。接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略全部属于核心；即使当前只有一个适配器也不得把这些行为放入适配器。
-- CLI/MCP/GUI 只负责自身运行时与装配、语法或协议结构解析、展示和纯交互状态、调用核心，以及结果/错误映射。包含条件、重试或状态决策的多次核心调用必须提升为单个核心用例 API；薄层按职责而不是代码行数判断。
+- CLI/MCP/DESKTOP/NSH 只负责自身运行时与装配、语法或协议结构解析、展示和纯交互状态、调用核心，以及结果/错误映射。包含条件、重试或状态决策的多次核心调用必须提升为单个核心用例 API；薄层按职责而不是代码行数判断。
 - 适配器可以拒绝无法解析、缺少协议字段或违反宿主能力约束的输入；值域、跨字段约束、资源状态、业务权限、幂等性、可否执行和影响业务结果的默认值由核心判定。格式正确但业务无效的输入必须进入核心，并由所有接口复用同一稳定领域错误。
 - CLI 参数/标准流/退出码、MCP schema 注解/stdio 生命周期，以及 GUI 单实例/深链接/全局快捷键、路由/查询/交互状态、窗口状态/WebView/CSP/系统托盘/通知/自动启动留在对应适配器；这些机制触发的业务动作仍调用核心，中性单实例与深链接只恢复窗口，中性全局快捷键能力不预置动作、chord 或 OS 注册。
 - 每个适配器必须以非可选普通生产依赖直接依赖核心；核心不得依赖任一适配器、clap、rmcp、Tauri、终端 I/O、进程状态或适配器特有序列化；适配器彼此不得依赖、启动或解析输出。
@@ -119,7 +119,7 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 | 项目锁文件 | 根 Cargo 元数据 `dependency-lock-policy` 缺省/`ignored`；已初始化下游可显式选择 `tracked` | 默认忽略标准锁文件；`tracked` 要求跟踪根及独立 Rust 工作区的 `Cargo.lock`、已选 Tauri 前端根的 `pnpm-lock.yaml`，并使用冻结解析。未知值失败关闭；`pnpm-package.lock` 始终不是标准门禁 |
 | Git | 全部初始化：稳定版 `>=2.36.0` | 完整表单确认后检查；覆盖Git 生命周期和并行任务使用的 `git worktree list --porcelain -z`，缺失时按受管平台方式安装，可证明低于下界时升级，范围内稳定版原样复用，随后复探 |
 | Node.js | 所有接口：`>=24.0.0` | Harness 与下游固定 helper 的工程运行时；缺失或低于 24.0.0 时安装/升级到官方当前最高 LTS 线的最新补丁，24.0.0 及任何更高正式版本原样复用 |
-| pnpm | 仅 GUI（Tauri 与 GPUI）：`>=12.4.1` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，非 GUI 为 `not-required` |
+| pnpm | 仅 DESKTOP（Tauri 与 GPUI）：`>=12.4.1` | 缺失或低于下界时解析并安装/升级 registry 当前满足门禁的稳定版；范围内稳定版原样复用，未选择 DESKTOP 时为 `not-required` |
 | MSVC 构建工具 | Windows 缺失时自动安装 | 验证 Microsoft 签名，安装 C++ 工作负载并复探 |
 | Linux 系统开发库（仅 GUI） | Tauri 2 依赖的 webkit2gtk（`webkit2gtk-4.1-dev` 或 `webkit2gtk-4.0-dev`，视发行版而定）、`libgtk-3-dev`、`librsvg2-dev`、`libayatana-appindicator3-dev` 等发行版对应的开发包 | 非 GUI 为 `not-required`；具体包名随发行版包管理器变化，需按目标发行版核对 |
 | macOS Xcode Command Line Tools（仅 GUI） | 缺失时执行 `xcode-select --install` | 非 GUI 为 `not-required` |
@@ -135,7 +135,7 @@ git --version
 node --version
 # 仅 GUI
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 表示顶层 NSH 及其桌面、移动、Web 子目标；TUI 在固定 NSH 0.4.0 不可运行或打包，选中时失败关闭。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据仅供读取兼容。能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 pnpm --version
 ```
 
@@ -323,7 +323,7 @@ cargo build --workspace --release
 - 初始化把规范化、非空的目标平台与接口组合分别写入根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下 `target-platforms` 和 `interfaces`；它们是跨会话构建路由的持久事实。构建不得从当前宿主、目录名或旧对话反推项目只支持哪个平台或接口。
 - GUI 初始化是日常规则的一次性例外：Tauri 初始化器在相关单元测试后调用 `$desktop-test-gui-initialization-e2e` 构建并启动 debug/no-bundle 二进制；GPUI 调用 `$desktop-test-gpui-initialization-e2e` 执行原生初始化检查；该结果只证明当前宿主的初始化脚手架，不等同最终候选验收。
 - `$desktop-build-tauri-local-install` 在原生 Windows x64 宿主用 `pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign` 生成仅供本机检查的开发试包。它允许 dirty 工作树但必须报告风险，不传发布专用配置、不读取或生成更新日志、不写 `release/`、不提交、不安装、不运行，也不询问 E2E 选择；普通“构建/打包”不得升级成发布候选。
-- `$desktop-build-rust-release` 按 Git 发布后已确认的 `local_package` 路径或用户另行明确的候选请求编排 Rust CLI 候选：普通本机构建不访问远端或调用 provider，只形成当前宿主候选；用户另行要求跨平台矩阵且远端 `release` 分支与 tag 已复核为同一发布 HEAD 后，才使用 Windows、macOS、Linux 原生矩阵。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，GPUI GUI 候选转交 `$desktop-build-gpui-release`，NSH GUI 候选转交 `$desktop-build-nsh-release`；MCP 仍使用其适配器 Skill 的构建与产物门槛。
+- `$desktop-build-rust-release` 按 Git 发布后已确认的 `local_package` 路径或用户另行明确的候选请求编排 Rust CLI 候选：普通本机构建不访问远端或调用 provider，只形成当前宿主候选；用户另行要求跨平台矩阵且远端 `release` 分支与 tag 已复核为同一发布 HEAD 后，才使用 Windows、macOS、Linux 原生矩阵。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，GPUI GUI 候选转交 `$desktop-build-gpui-release`，NSH 候选转交 `$desktop-build-nsh-release`；MCP 仍使用其适配器 Skill 的构建与产物门槛。
 - `$desktop-build-tauri-release` 在 macOS 上原生构建 DMG，在 Windows 上原生构建 x64 NSIS，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 从 macOS 交叉构建 Windows x64 NSIS。原生 Windows 路线不使用 `cargo-xwin`，且构建成功本身不等于安装或运行验收。macOS DMG 构建在测试前校验项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的摘要和 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，并在最终字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；headless CI 不得无界等待 Finder AppleScript。xwin 路径不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生运行验证。
 - macOS Tauri 直接分发先解析签名意图：只有产品/渠道已有批准的持久签名公证配置、本次用户主动要求或渠道硬要求时，`macosSigningSelection` 才为 `enabled`；否则固定 `disabled/not-requested`，不探测本机身份/凭据并显式 `--no-sign`。启用后才检查 Developer ID Application、`notarytool`、`stapler` 和完整 Apple 公证凭据，并把签名、公证、stapling 作为全有或全无门禁；不得用 `--skip-stapling`，任一步失败不得静默降级。
 - 每次明确的 Git 发布先由 `$desktop-prepare-release` 在任何发布元数据提交前解析当次 `reviewSelection`；GUI 的 macOS 签名和 E2E 选择只在后续独立候选构建请求中解析。源码/治理变化单独提交并锁定 `sourceHead` 后，把版本、日期、默认主分支、预期 tag、源码身份与审查结论写入 `.harness/release-context.json`，再与根 `release-notes.json` 作为同一个精确范围的发布元数据提交，不混入源码、Changelog 或其他治理文件。`$desktop-manage-git-lifecycle release ... --release-context-sha256 <sha256>` 在任何 Git 副作用前校验上下文，普通合并登记分支到本地默认主分支、创建并复读本地 `v{版本}-{YYYYMMDD}`；两者指向最终 HEAD 时 Git 发布结束。该命令不 fetch、push、打包或清理登记 Worktree/分支。随后按 `post_release_action` 进入现有本地打包流程或 `push-release` 的远端默认主分支、`release` 分支和 tag 同步路径，并复核所选结果。终端下游 Rust/Tauri 候选构建在该 clean 主分支上，于清理、测试前和写 manifest 前只读校验发布上下文、本地 tag；远程矩阵还须复核远端 `release` 分支/tag，缺少合格上下文时不得由构建入口补写。`e2e_hint` 只提供 E2E 建议默认值。日常 Task/Worktree 整合不询问、不运行非必要语义审查，也不受保护分支、严格线性、单写入者或历史形态限制；只保留范围、秘密、测试和 clean 等数据安全检查。候选构建必须用 `cargo test --workspace --all-targets --all-features -- --list` 或等价方式确认非空，再运行 `cargo test --workspace --all-targets --all-features`；Tauri GUI 同时运行前端完整单元测试套件，GPUI 不引入前端。失败或零测试阻断候选。本地开发试包也运行同样的非空全量单元测试，但不消费候选 E2E/审查选择。

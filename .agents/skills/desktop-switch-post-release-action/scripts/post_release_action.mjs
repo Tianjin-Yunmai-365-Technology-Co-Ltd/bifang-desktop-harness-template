@@ -163,7 +163,7 @@ export function parseReleaseMetadataArray(source, key) {
   if (!Array.isArray(values) || values.length === 0 || values.some((value) => typeof value !== "string")) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
-  const allowed = key === "interfaces" ? ["cli", "mcp", "gui"] : ["windows", "macos", "linux", "android", "ios", "web"];
+  const allowed = key === "interfaces" ? ["cli", "mcp", "gui", "nsh"] : key === "nsh-targets" ? ["desktop", "mobile", "web", "tui"] : ["windows", "macos", "linux", "android", "ios", "web"];
   if (new Set(values).size !== values.length || values.some((value) => !allowed.includes(value))) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
@@ -409,6 +409,7 @@ function assertGpuiPackageReady(root) {
 /** 判断接口、框架与平台是否有适用的 CLI、Tauri 或 GPUI 本地打包 Skill。 */
 export function localPackageSupported(interfaces, platforms, guiFramework = "tauri") {
   if (!["tauri", "gpui", "nsh"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效");
+  if (interfaces.includes("nsh")) return interfaces.length === 1 && platforms.some(platform => ["macos", "windows", "linux", "android", "ios", "web"].includes(platform));
   if(platforms.some(platform=>["android","ios","web"].includes(platform))) return guiFramework === "nsh" && interfaces.length === 1 && interfaces[0] === "gui";
   const supported = guiFramework === "nsh" ? ["macos", "windows", "linux", "android", "ios", "web"] : guiFramework === "gpui" ? ["macos", "windows", "linux"] : ["macos", "windows"];
   return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => supported.includes(platform)));
@@ -416,18 +417,31 @@ export function localPackageSupported(interfaces, platforms, guiFramework = "tau
 
 function assertLocalPackageSupported(root) {
   const interfaces = metadataArray(root, "interfaces");
-  const framework = parseReleaseGuiFramework(fs.readFileSync(path.join(root, "Cargo.toml"), "utf8"));
+  const cargoSource = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
+  const framework = parseReleaseGuiFramework(cargoSource);
   if (!localPackageSupported(interfaces, metadataArray(root, "target-platforms"), framework)) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
   if (interfaces.includes("gui") && framework === "tauri") assertGuiPackageReady(root);
   else if (interfaces.includes("gui") && framework === "gpui") assertGpuiPackageReady(root);
-  else if (interfaces.includes("gui") && framework === "nsh") {
-    const members = metadataArray(root, "interfaces");
+  else if (interfaces.includes("nsh") || interfaces.includes("gui") && framework === "nsh") {
+    const modern = interfaces.includes("nsh");
+    if (modern) {
+      if (framework !== "tauri" || optionalMetadata(root, "gui-framework") !== null) throw new ActionError("顶层 NSH 不声明 GUI 框架");
+      const targets = metadataArray(root, "nsh-targets");
+      if (targets.includes("tui")) throw new ActionError("当前 NSH 运行时不支持 TUI 打包");
+      const concrete = metadataArray(root, "target-platforms");
+      const groups = [
+        ["desktop", ["macos", "windows", "linux"]],
+        ["mobile", ["android", "ios"]],
+        ["web", ["web"]],
+      ];
+      if (groups.some(([target, members]) => targets.includes(target) !== concrete.some(platform => members.includes(platform)))) throw new ActionError("NSH 目标类别与具体平台不匹配");
+    }
     const metadata = JSON.parse(spawnSync("cargo", ["metadata", "--no-deps", "--format-version", "1"], { cwd: root, encoding: "utf8" }).stdout);
     const id = metadata.metadata?.["agent-first-harness"]?.["project-id"];
-    if (!members.includes("gui") || !/^[a-z][a-z0-9_]*$/u.test(id)) throw new ActionError("NSH GUI identity missing");
-    const configPath = path.join(root, `${id}_gui/nsh.json`);
+    if (!/^[a-z][a-z0-9_]*$/u.test(id)) throw new ActionError("NSH identity missing");
+    const configPath = path.join(root, `${id}_${modern ? "nsh" : "gui"}/nsh.json`);
     regularFile(configPath, "NSH config");
     const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
     if (config.rust !== "." || config.root !== "App") throw new ActionError("NSH Rust root missing");

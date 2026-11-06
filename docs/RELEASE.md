@@ -1,6 +1,6 @@
 # 版本与发布
 
-GUI 候选路线先读根 Cargo metadata 的 `gui-framework`，缺失时兼容 `tauri`。Tauri 配置、前端、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用独立 `$desktop-build-gpui-release` 的 Rust/cargo-packager 管线，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；NSH 使用独立 `$desktop-build-nsh-release` 的桌面、移动和 Web 打包管线。仅 Linux Tauri 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于三种框架；开发试包不冒充候选。
+候选路线先读根 Cargo metadata 的 `interfaces`：`gui` 再按 `gui-framework` 分派 Tauri（缺省）或 GPUI；顶层 `nsh` 根据 `nsh-targets` 与具体 `target-platforms` 使用独立 `$desktop-build-nsh-release`。Tauri 配置、前端、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用 Rust/cargo-packager 管线，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；NSH 当前只打包桌面、移动和 Web，TUI 在固定 0.4.0 不可运行或打包。仅 Linux Tauri 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于这些路径；开发试包不冒充候选。
 
 ## GPUI 构建路由
 
@@ -224,6 +224,6 @@ GUI 的本地生产构建和产物存在检查可在批准渠道允许时使用�
 
 ### NSH 路由
 
-根 Cargo `gui-framework = "nsh"` 独立使用 `$desktop-build-nsh-release`，复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 全部持久目标；本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立分派 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；`tui` 不可用，正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 已实现的持久目标；本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

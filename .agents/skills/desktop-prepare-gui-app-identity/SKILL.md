@@ -5,11 +5,11 @@ description: 在 GUI 初始化时按稳定顺序展示未经预处理的 Logo �
 
 # 准备 GUI 应用身份
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 使用 `$desktop-add-nsh-adapter` 和 `docs/design_standards/nsh_gui.md`；旧 GUI/NSH 仅保留读取兼容。三候选身份选择适用于实际需要图标的 NSH 目标，但现有九项 NSH 能力仅在 `desktop` 子目标下问询。不应用下文 Tauri/GPUI 的图标路径或专属 E2E；TUI 在固定运行时失败关闭。
 
 GUI 初始化先建立经过用户选择的应用 Logo；首次真实 GUI 开发再补齐其余面向用户的应用身份。中性脚手架仍不得据此推测产品业务。
 
-先读取根 Cargo metadata 的 `gui-framework`，既有 GUI 缺失时兼容 `tauri`。三候选原始预览、明确选择、选择后验证/标准化、身份/版本来源和不得复制产品身份的规则适用于两种框架。下文 `src-tauri/icons`、`public/app-identity`、Tauri `icon`、`bundle.icon`、DMG、`document.title` 与 Tauri标准标识只适用于 Tauri；GPUI资源路径、原生图标/标题与 `gpui-gui-common-v1` 由 `$desktop-add-gpui-adapter` 确定，不为GPUI安装Tauri工具。九字段结构保持相同，GPUI 五项原生能力按选择接线，深链接仍 unavailable/disabled；当前托盘与热键限 macOS/Windows。工程验证临时项目只有用户明确授权才可使用参考中性Logo，须单列该来源，不能宣称正式身份已完成；普通下游仍必须完成三候选选择。
+先读取根 Cargo `interfaces`；DESKTOP 再读 `gui-framework`，既有 GUI 缺失时兼容 `tauri`。三候选原始预览、明确选择、选择后验证/标准化、身份/版本来源和不得复制产品身份的规则适用于 DESKTOP 与 NSH 的应用图标。下文 `src-tauri/icons`、`public/app-identity`、Tauri `icon`、`bundle.icon`、DMG、`document.title` 与 Tauri 标识只适用于 Tauri；GPUI 资源路径、原生图标/标题与 `gpui-gui-common-v1` 由 `$desktop-add-gpui-adapter` 确定；NSH 图标位置由 `$desktop-add-nsh-adapter` 确定。不为 GPUI/NSH 安装 Tauri 工具。DESKTOP 的九字段结构保持相同，GPUI 五项原生能力按选择接线；NSH 九字段只属于桌面子目标。工程验证临时项目只有用户明确授权才可使用参考中性 Logo，须单列来源，不能宣称正式身份已完成；普通下游仍必须完成三候选选择。
 
 ## 工作流程
 

@@ -1,6 +1,6 @@
 # 验证记录
 
-GUI 验证先按根 Cargo `gui-framework` 分派。下文 Tauri 插件、WebView、前端、Tauri 初始化 E2E 和打包 helper 只适用于 Tauri；GPUI 的初始化由 `$desktop-test-gpui-initialization-e2e` 执行 Rust 构建与 Computer Use 原生窗口检查，正式候选由 `$desktop-build-gpui-release` 提供独立原生产物和资源证据。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 在项目根以 `pnpm run validate` 调用保留的机械门禁，以 `pnpm run release:inspect` 只读核对发布事实。GPUI 仍遵守共享 core、完整非空 Rust 测试、最终候选、当次选择与原子证据门禁，不以开发试包或当前宿主结果替代其他平台证明。
+先按根 Cargo `interfaces` 分派验证：DESKTOP 的 `gui-framework` 选择 Tauri（缺省）或 GPUI；NSH 使用顶层 `nsh` 与 `nsh-targets`。下文 Tauri 插件、WebView、前端、Tauri 初始化 E2E 和打包 helper 只适用于 Tauri；GPUI 的初始化由 `$desktop-test-gpui-initialization-e2e` 执行 Rust 构建与 Computer Use 原生窗口检查，正式候选由 `$desktop-build-gpui-release` 提供独立原生产物和资源证据。DESKTOP 要求 Node.js/pnpm，顶层 NSH 仅要求 Node.js 工程工具，GPUI 在项目根以 `pnpm run validate` 调用保留的机械门禁，以 `pnpm run release:inspect` 只读核对发布事实。共享 core、完整非空 Rust 测试、最终候选、当次选择与原子证据门禁均适用，不以开发试包或当前宿主结果替代其他平台证明。
 
 ## 验证原则
 
@@ -39,6 +39,7 @@ GUI 验证先按根 Cargo `gui-framework` 分派。下文 Tauri 插件、WebView
 | Harness 升级 | 真实 CLI + 隔离 Git 测试夹具 | `plan`/`apply`/`record`、三方比较、引导、来源与控制状态绑定、权限、`protected`/`tombstone`；遇到符号链接与碰撞时默认拒绝，真实下游仍需前向证据 |
 | Rust 资产 | 声明的 Rust 工具链 | 日常开发只运行本次必要单元测试；显式构建只追加 workspace 全量非空单元测试与实际构建，E2E 只在最终候选形成后按本次选择执行 |
 | GUI 初始化 E2E | Tauri：`verify-gui-lifecycle-contract.mjs` + `$desktop-test-gui-initialization-e2e` + Computer Use；GPUI：`$desktop-test-gpui-initialization-e2e` + Rust 构建 + Computer Use | 只在含 GUI 的一次性初始化提交前读取九项 profile；Tauri 验证 system-locale/window-state 两项 Rust-only 基线与 dialog 固定 WebView 基线（依赖、顺序、`dialog:default`、零额外文件系统授权），再按选择验证六项宿主能力。GPUI 验证原生语言/主题/窗口状态及五项可选能力，不加载 Tauri 插件/ACL，深链接/dialog unavailable 如实报告；两者均验证禁用无残留、侧栏、设置页、实际菜单页面及状态恢复/进程回收。需安装包的深链接场景明确 `Not verified`；无法观察或恢复即阻断，不作为候选验收证据 |
+| NSH 初始化 E2E | `$desktop-test-nsh-initialization-e2e` + 非空 Rust/NSH 渲染测试 + 适用本机 Computer Use | 顶层 NSH 按 `nsh-targets` 验证；仅 desktop 子目标读取九项桌面 profile。mobile/Web 以各自真实目标单独验证，固定 0.4.0 的 TUI 选择必须在初始化前失败关闭。中性工程基线不能充当候选验收证据 |
 | 发布语义审查 | 当次 `reviewSelection` + 冻结基线到发布 HEAD 的累计差异 | 每次明确发布只解析一次；硬要求强制启用。`enabled` 记录绑定提交和差异范围的通过证据；`disabled` 且无硬要求时记录 `Not run`、原因和风险且不生成证据；日常 Task/Worktree 整合只保留机械安全门禁 |
 | 发布刷新 | 辅助程序与发布校验器正负向测试 | 独立 Git 根、原子隔离旧目录、符号链接/重解析点、不跟随清理、精确忽略规则、默认矩阵和回退边界 |
 | Tauri DMG 最终布局 | `scripts/verify-dmg-layout.sh <final-dmg>` + 只读候选证据 | 构建和完整验收都绑定当前最终字节，验证 `.DS_Store`、本地背景、唯一 `.app` 与 `/Applications` 链接；软件许可需独立人工授权，后处理后旧证据失效 |
@@ -58,6 +59,6 @@ GUI 验证先按根 Cargo `gui-framework` 分派。下文 Tauri 插件、WebView
 
 ### NSH 路由
 
-根 Cargo `gui-framework = "nsh"` 独立使用 `$desktop-build-nsh-release`，复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 全部持久目标；本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；TUI 在固定 NSH 0.4.0 不可运行或打包，正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 已实现的持久目标；本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

@@ -5,7 +5,7 @@ description: 直接实施范围清楚的请求，只运行本次开发需要的�
 
 # 实施变更
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；旧 GUI/NSH 仅保留读取兼容。桌面能力只在 `nsh-targets` 包含 `desktop` 时读取，不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持已选桌面、移动、Web；TUI 在固定运行时失败关闭。精确能力与平台限制见 NSH Skill 的 `references/runtime-and-capabilities.md`。
 
 完成当前授权范围，以本地 feature 分支、实现、本次必要测试、事件触发记录和可审查的本地提交构成日常闭环。用户明确要求发布时转 `$desktop-prepare-release`；Git 发布及后续动作由该入口编排。
 

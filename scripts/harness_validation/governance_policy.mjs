@@ -4,6 +4,7 @@ import path from "node:path";
 import { ROOT, fail, readText, relativePath } from "./core.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
 import { POST_RELEASE_ACTIONS, localPackageSupported, parseAgentPolicyDocument, parseReleaseGuiFramework, parseReleaseMetadataArray, policyBodyIsCurrent, validConfirmedAt } from "../../.agents/skills/desktop-switch-post-release-action/scripts/post_release_action.mjs";
+import { parseInterfaceSelection } from "../../.agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_interfaces.mjs";
 
 const SESSION_PROGRESS_STATES = ["已分配", "运行中", "检查中", "已完成"];
 const SESSION_PROGRESS_TITLE_PATTERN = new RegExp(`^Task (?<sequence>[1-9][0-9]*) \\| (?<progress>${SESSION_PROGRESS_STATES.join("|")}) \\| (?<singleResult>[^|\\r\\n]+)$`, "u");
@@ -62,10 +63,20 @@ function persistedReleaseMetadata(policyPath, errors) {
   try {
     const source = readText(manifestPath);
     parseCargoToml(source);
+    const selection = parseInterfaceSelection(source);
+    const targetPlatforms = parseReleaseMetadataArray(source, "target-platforms");
+    if (selection.nshTargets && [
+      ["desktop", ["windows", "macos", "linux"]],
+      ["mobile", ["android", "ios"]],
+      ["web", ["web"]],
+    ].some(([target, platforms]) => selection.nshTargets.includes(target) !== targetPlatforms.some(platform => platforms.includes(platform)))) {
+      throw new Error("NSH 目标类别与具体目标平台不一致");
+    }
     return {
       interfaces: parseReleaseMetadataArray(source, "interfaces"),
-      "target-platforms": parseReleaseMetadataArray(source, "target-platforms"),
+      "target-platforms": targetPlatforms,
       "gui-framework": parseReleaseGuiFramework(source),
+      "nsh-targets": selection.nshTargets ?? null,
     };
   } catch (error) {
     fail(errors, `cannot inspect persisted interface/platform metadata for post_release_action: ${error.message}`);
@@ -113,7 +124,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   }
   const releaseMetadata = !allowPending ? persistedReleaseMetadata(policyPath, errors) : null;
   const selectedInterfaces = interfaces ?? releaseMetadata?.interfaces ?? null;
-  if (Array.isArray(selectedInterfaces) && selectedInterfaces.some((value) => !["cli", "mcp", "gui"].includes(value))) {
+  if (Array.isArray(selectedInterfaces) && selectedInterfaces.some((value) => !["cli", "mcp", "gui", "nsh"].includes(value))) {
     fail(errors, "Agent policy metadata contains retired or unknown interface");
   }
   if (!allowPending && postReleaseAction === "local_package") {
@@ -121,7 +132,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0 || !Array.isArray(selectedPlatforms)) {
       fail(errors, "local_package requires persisted interfaces and target-platforms metadata");
     } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, releaseMetadata?.["gui-framework"] ?? "tauri")) {
-      fail(errors, "local_package requires CLI, GPUI GNU Linux, or GUI with a macOS/Windows target; otherwise select push_release_branch");
+      fail(errors, "local_package requires a selected CLI, NSH, GPUI, or supported Tauri target; otherwise select push_release_branch");
     }
   }
   for (const field of ["confirmed_by", "confirmed_at"]) {

@@ -1,12 +1,12 @@
 # 工程规则
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：新下游的顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` 与具体 `target-platforms`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；桌面九项配置仅适用于桌面子目标。固定 NSH 0.4.0 无 TUI 运行或打包目标，选中时失败关闭；能力限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
 GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.md) 分派；只在当前任务需要时读取对应 Skill。
 
 本文档是所有下游项目在文件组织、代码注释、文档维护、测试组织、规则例外和机械检查方面的唯一详细事实来源。`AGENTS.md`、项目 Skills 和技术基线只保留任务入口、语言特定补充与本文件链接，不复制整套规则。
 
-桌面框架先读取根 Cargo metadata 的 `gui-framework`；GUI 缺失该字段兼容 `tauri`，合法值为 `tauri|gpui|nsh`，非 GUI 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri图标/DMG、Tauri初始化E2E合同只约束 Tauri GUI；GPUI通过 `$desktop-add-gpui-adapter` 与 [GPUI设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust模块/注释/测试、九字段profile、语义控件事件所有权、真实产物和零出站边界对三条 GUI 路径同样生效。GPUI普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求Jotai或浏览器存储。
+DESKTOP 框架先读取根 Cargo metadata 的 `gui-framework`；DESKTOP 缺失该字段兼容 `tauri`，新建时合法值为 `tauri|gpui`，新 NSH 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri 图标/DMG、Tauri 初始化 E2E 合同只约束 Tauri GUI；GPUI 通过 `$desktop-add-gpui-adapter` 与 [GPUI 设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust 模块/注释/测试、语义控件事件所有权、真实产物和零出站边界同样约束 NSH；九字段 profile 对 DESKTOP 始终适用，对 NSH 仅随桌面子目标适用。GPUI 普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求 Jotai 或浏览器存储。
 
 GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。实际依赖和通知官方 API 边界以 GPUI Skill 的自含引用为准；禁用能力不生成实现或依赖。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux Tauri 且无 CLI 时必须选 `push_release_branch`。
 
@@ -23,7 +23,7 @@ GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailabl
 ### 2.1 硬规则
 
 - Core-first 是硬规则。凡不依赖某一具体接口或宿主才能成立的领域类型、业务规则、语义校验、业务默认值、应用用例与工作流编排、领域状态转换、稳定领域错误、平台无关权限、权威业务状态、迁移和持久化策略，都必须在共享 core 中实现并通过 core 自有类型的明确 API 暴露；即使当前只选择一个适配器也同样适用。
-- CLI、MCP、GUI 适配器必须保持薄层，只负责运行时与依赖装配、接口语法或协议结构解析、展示和纯交互状态、调用 core，以及把 core 结果和错误映射为接口输出。薄层按职责判断，不按文件行数、分支数或协议映射代码量判断。
+- CLI、MCP、DESKTOP、NSH 适配器必须保持薄层，只负责运行时与依赖装配、接口语法或协议结构解析、展示和纯交互状态、调用 core，以及把 core 结果和错误映射为接口输出。薄层按职责判断，不按文件行数、分支数或协议映射代码量判断。
 - 适配器不得复制、改写或另建业务规则、平台无关校验、业务权限、权威业务状态、迁移、持久化策略或稳定领域错误。适配器处理器若需要用条件、重试或状态决策编排多个 core 调用，必须把该编排提升为一个 core 用例 API。
 - 输入检查必须区分接口语法/协议结构与领域语义。无法解析、缺少协议必填字段或违反宿主能力约束的调用可由适配器拒绝；值域、跨字段关系、资源状态、业务权限、幂等性、可否执行和会改变业务结果的默认值必须由 core 判定，并在所有适配器中保留同一稳定领域错误。
 - 接口或宿主特有机制属于对应适配器：例如 CLI 参数、标准流和退出码，MCP schema 注解与 stdio 生命周期，以及 GUI 单实例、深链接、全局快捷键、路由/查询/交互状态、窗口状态、WebView、CSP、系统托盘、通知和自动启动。托盘点击、深链接、快捷键、通知动作或界面事件触发的业务行为仍必须调用 core；中性单实例与深链接只恢复既有窗口，中性全局快捷键能力不预置动作或绑定。这些平台机制本身不构成 core-first 例外。
@@ -43,11 +43,11 @@ GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailabl
 - 命中 `$mantine-list-view` 的列表页采用已批准的封闭例外：页码、页大小、排序和已应用搜索/筛选以类型化 URL 为运行时权威，URL 完全不含本列表参数时才从按稳定 `listId` 隔离的 sessionStorage 快照恢复；显式 URL 的缺失或非法字段使用默认值，不混入本机旧会话。业务行和总数只由 TanStack Query 以 `listId + scope + 查询条件 + 排序 + page + pageSize` 独立 key 缓存；列显隐/顺序以稳定 `app namespace + listId + 非 PII 偏好 scope` key 写入 localStorage，逐列表 schemaVersion 只保存在 payload 并通过显式迁移升级，其他数据不得进入该偏好。列表查询成功后越界页回落末页，总页数为零时归一到第 1 页，加载、错误和 placeholder 期间不纠正页码。完整契约只由 [`docs/design_standards/mantine_list_view.md`](design_standards/mantine_list_view.md) 与 `$mantine-list-view` 承载，不扩大到普通页面。
 - 所有用户可见版本号必须在展示边界先移除已有 `v`/`V` 前缀，再添加且只添加一个小写 `v`，覆盖窗口标题、侧栏、设置/关于页、CLI `--version`、发布物名称和更新日志；exe/dmg 安装包文件名是明确例外，按 [发布物命名](RELEASE.md#发布物命名) 使用无 v 的 Cargo 原始版本。Cargo、JSON/协议、`.harness/version-state.json` 与 manifest 的机器 `version` 字段继续使用不带展示前缀的原始版本；只有明确命名的 `releaseNotesVersion` 保存带 `v` 展示值。
 - 含 GUI 的一次性初始化必须在相关非空单元测试通过后、裁剪初始化能力和创建唯一基线提交前运行 `$desktop-test-gui-initialization-e2e`。新下游在该 E2E 全程保持 pre-Git 状态；即使目标路径位于 Harness 或其他父仓库之下，父 Git 也不构成目标的独立仓库边界，不得提前在目标中执行 `git init` 来满足版本或 E2E 门禁。`version_gate init` 是唯一允许在 pre-Git 目标根写入版本状态的版本命令；其他版本命令继续要求目标精确等于独立 Git 根。只有 E2E 成功且初始化专用能力完成裁剪后，才在目标根创建独立 Git、即时配置 local 提交身份/模板并形成唯一基线提交。检查器读取九项 profile，始终验证 system-locale/window-state 两项 Rust-only 固定基线、dialog 固定 WebView 基线和窗口合法状态重启恢复/无效状态回退；dialog 必须验证固定依赖、唯一且有序注册、前端生产依赖和主窗口精确 `dialog:default`，并拒绝任何额外文件系统授权；按 profile 验证六项条件宿主能力的完整实现或禁用无残留。深链接必须覆盖宿主事件与冷/热分发，但 需要打包安装的自定义 scheme OS 注册（macOS/Windows/Linux）在 debug no-bundle 阶段明确为 `Not verified`；中性全局快捷键 contract 必须证明零默认注册和零残留，只有 contract 明确存在安全可观察的非空绑定时才触发实际 chord，并在恢复原配置后确认临时/owned chord 已释放。任一适用场景失败、无法观察或无法恢复都阻断初始化。
-- 依赖方向必须清晰：每个适配器直接依赖 core；core 不得直接或通过 workspace 中间 crate 反向到达 CLI、MCP、GUI、终端 I/O、进程状态或接口框架；适配器彼此不得直接或通过 workspace 中间 crate 依赖、启动或解析输出。
+- 依赖方向必须清晰：每个适配器直接依赖 core；core 不得直接或通过 workspace 中间 crate 反向到达 CLI、MCP、DESKTOP、NSH、终端 I/O、进程状态或接口框架；适配器彼此不得直接或通过 workspace 中间 crate 依赖、启动或解析输出。
 - 程序入口和接口处理器只负责建立运行环境、装配依赖、委托调用和映射终止结果，不得承载业务规则。
 - 只有独立发布、独立生命周期、独立权限或由工具链强制要求的依赖边界才能新增 crate/包。新增时记录它为什么不能只是现有模块。
 - 直接依赖和受管工具的清单必须用完整三段表达可验证的兼容下界。新增或主动更新时先选择官方 registry 当前最新非预发布候选，再以满足项目下限的已安装 stable Rust、最低 Node.js/pnpm、peer、平台和实际 API/feature 解析及非空测试决定下界；只有这些真实项目检查通过后才可称为“经过验证”。尚无真实下游的 MCP/GUI 模板数值只能作为 registry metadata、peer 与 engine 筛选后的候选并标记 `Unverified`，不得冒充项目兼容结论。清单不得写 `latest`、tag、通配符或无下界范围；已安装工具处于支持范围内时直接复用。
-- Harness 自身的工程自动化统一使用 Node.js 标准库；现有下游 Harness helper 继续使用 Node.js 标准库，Node.js 是所有接口组合的受管工程运行时，pnpm 对 Tauri、GPUI 与 NSH 三种 GUI 都适用；GPUI 与 NSH 仅用它运行项目根的 Node 工程脚本，不因此安装前端依赖。仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤；新增或修改上游自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。初始化和升级均不得把该检查器及上游专用禁令传播到终端下游；下游可以按自身项目需要使用 Python 或其他脚本语言，新增第三方运行时依赖须说明必要性、获得用户同意、在项目内显式声明并隔离，且不得假设全局包已经安装。
+- Harness 自身的工程自动化统一使用 Node.js 标准库；现有下游 Harness helper 继续使用 Node.js 标准库，Node.js 是所有接口组合的受管工程运行时，pnpm 仅对 DESKTOP 的 Tauri/GPUI 适用；顶层 NSH 使用 Node.js 直接运行工程 helper，不因此安装 pnpm 或前端依赖。仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤；新增或修改上游自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。初始化和升级均不得把该检查器及上游专用禁令传播到终端下游；下游可以按自身项目需要使用 Python 或其他脚本语言，新增第三方运行时依赖须说明必要性、获得用户同意、在项目内显式声明并隔离，且不得假设全局包已经安装。
 - 受管开发环境恢复：工具缺失时安装，可证明低于最低下界时按当前宿主路线自动升级，范围内稳定版原样复用；Node.js 使用连续下界 `>=24.0.0`，25.x、26.x 及未来更高正式版本均直接通过。存在显式上界时，高于上界仍阻断；预发布、无法解析或损坏状态同样失败关闭。Rust、Node.js 与 pnpm 安装到平台标准的当前用户全局位置，只持久维护标准 PATH，不创建 Harness 私有工具环境变量或私有全局前缀；`rustup-init` 必须以 `--no-modify-path` 阻止安装器绕过预检改写 profile/注册表，再由门禁持久化标准 Cargo bin。只读检查必须保持零写入并明确报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim、改用旧版工具，或寻找替代工具链来适配旧环境。
 - Harness 源和新建下游的 `Cargo.lock`、`pnpm-lock.yaml` 与非标准 `pnpm-package.lock` 默认由 Git 忽略。已初始化下游仅可通过根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下设置 `dependency-lock-policy = "tracked"`，显式选择跟踪真实锁文件；缺省或 `"ignored"` 继续忽略且不以锁文件作门禁，未知值、错误类型或重复键失败关闭。选择 `tracked` 时，根工作区及 `rust-test-manifests` 指出的每个独立 Rust 工作区都须跟踪各自的 `Cargo.lock`，已选 Tauri 前端根须跟踪其 `pnpm-lock.yaml`；GPUI 根的无 npm 依赖脚本入口不要求前端安装或 pnpm 锁文件；目标项目应移除相应 Git 忽略规则并由依赖管理工具更新锁文件。`pnpm-package.lock` 不充当标准锁文件。兼容下界由清单和真实检查证明：新增或提高 Rust 直接下界时复用已安装且满足根 Cargo `rust-version` 下限的 stable，进行正常依赖解析与相关非空测试；不得为依赖准入、初始化、格式化或构建下载 nightly 或历史 Rust 工具链，也不运行不稳定的最低直接版本解析。`rust-version` 保留为兼容下限，当前 stable 成功不构成最低版本实测证据；前端仍在声明的最低 Node.js/pnpm 环境完成最低直接版本解析和非空测试；最新候选不兼容时按版本从新到旧选择第一个通过者并记录原因。
 - 应用发布版本、协议/模式版本、Rust edition、平台目标三元组、资产摘要和按安全要求钉住的 CI action commit 不属于依赖兼容范围，不得为了形式统一改写成依赖版本范围。

@@ -5,7 +5,7 @@ description: 为已选 GUI 按九项初始化配置建立标题、侧栏、语�
 
 # 准备 GUI 支持界面
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 使用 `$desktop-add-nsh-adapter` 和 `docs/design_standards/nsh_gui.md`；旧 GUI/NSH 仅保留读取兼容。现有九项能力与支持页选择仅属于 NSH 桌面子目标；移动/Web 复用中性 Rust UI，不询问桌面九项能力，也不套用下文 Tauri 前端与插件。TUI 在固定运行时失败关闭；平台限制见 NSH Skill 的 `references/runtime-and-capabilities.md`。
 
 本 Skill 的 React模板、品牌包接线与 Tauri固定能力只适用于根 Cargo metadata `gui-framework = "tauri"`；既有 GUI 缺失该字段时兼容 Tauri。`gpui` 使用 `$desktop-add-gpui-adapter` 的原生关于/赞助/设置模板与 `docs/design_standards/gpui_gui.md`，不执行下述 Tauri插件、前端或资源映射步骤；通用的 core-first、媒体来源、支付材料和零出站边界仍适用。框架不属于九字段 profile，不得在本 Skill 重问。
 

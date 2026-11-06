@@ -44,7 +44,7 @@ $NodeBin = $null
 $PnpmBin = $null
 $SelectedNodeVersion = $null
 $NormalizedInterfaces = @($Interfaces | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToUpperInvariant() })
-$UnsupportedInterfaces = @($NormalizedInterfaces | Where-Object { $_ -and $_ -notin @("CLI", "MCP", "GUI") })
+$UnsupportedInterfaces = @($NormalizedInterfaces | Where-Object { $_ -and $_ -notin @("CLI", "MCP", "GUI", "NSH") })
 if ($UnsupportedInterfaces.Count -gt 0) {
     [Console]::Error.WriteLine("不支持的接口：$($UnsupportedInterfaces -join ',')")
     exit 2

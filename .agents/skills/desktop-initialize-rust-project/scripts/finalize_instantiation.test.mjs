@@ -12,14 +12,14 @@ import { ensureGpuiKitSkills } from './ensure_gpui_kit_skills.mjs';
 function fixtureEvidence(plan) { return { scopeDigest: plan.scopeDigest, ...Object.fromEntries(plan.requiredEvidence.map(key => [key, `tool:fixture-not-real-execution/${key}`])) }; }
 
 /** 每条接口路径裁剪其专属源入口，所有通用工程能力和法律正文继续存在。 */
-for (const framework of [null, 'tauri', 'gpui', 'nsh']) test(`terminal_pruning_preserves_selected_${framework ?? 'cli'}_and_common_contracts`, t => {
+for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web']) test(`terminal_pruning_preserves_selected_${framework ?? 'cli'}_and_common_contracts`, t => {
   const f = prepareFixture(t, framework);
   writeNeutralWorkspace(f);
-  if (framework === 'nsh') {
-    const generatedCache = path.join(f.target, 'regression_tool_gui', '.nsh', 'cache.bin');
+  if (framework?.startsWith('nsh')) {
+    const generatedCache = path.join(f.target, 'regression_tool_nsh', '.nsh', 'cache.bin');
     fs.mkdirSync(path.dirname(generatedCache), { recursive: true });
     fs.writeFileSync(generatedCache, 'generated NSH cache');
-    assert.equal(inventoryTarget(f.target).has('regression_tool_gui/.nsh/cache.bin'), false);
+    assert.equal(inventoryTarget(f.target).has('regression_tool_nsh/.nsh/cache.bin'), false);
     assert.match(fs.readFileSync(path.join(f.target, '.gitignore'), 'utf8'), /\*\*\/\.nsh\//u);
   }
   if (framework === 'gpui') {
@@ -36,9 +36,10 @@ for (const framework of [null, 'tauri', 'gpui', 'nsh']) test(`terminal_pruning_p
   for (const name of ['desktop-manage-version', 'desktop-task-workflow', 'desktop-manage-git-lifecycle', 'desktop-upgrade-harness', 'desktop-implement-change']) assert.ok(fs.existsSync(path.join(f.target, '.agents/skills', name, 'SKILL.md')), name);
   for (const candidate of ['tauri', 'gpui', 'nsh']) {
     const name = candidate === 'tauri' ? 'desktop-add-gui-adapter' : `desktop-add-${candidate}-adapter`;
-    assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name)), candidate === framework, candidate);
+    assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name)), candidate === (framework === 'nsh-mobile-web' ? 'nsh' : framework), candidate);
   }
-  assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_ENGINEERING.md')), framework === 'gpui' || framework === 'nsh');
+  assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_ENGINEERING.md')), framework === 'gpui' || Boolean(framework?.startsWith('nsh')));
+  if (framework === 'nsh-mobile-web') assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_APP_PROFILE.md')), false);
   assert.deepEqual(fs.readFileSync(path.join(f.target, 'LICENSE.zh-CN.md')), beforeLicense);
   const agents = fs.readFileSync(path.join(f.target, 'AGENTS.md'), 'utf8');
   assert.ok(agents.trimEnd().split('\n').length <= 120);

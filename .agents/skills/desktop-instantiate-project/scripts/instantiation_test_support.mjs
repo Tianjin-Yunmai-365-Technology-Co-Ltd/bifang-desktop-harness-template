@@ -12,8 +12,9 @@ export const SOURCE_ROOT = fs.realpathSync(fileURLToPath(new URL('../../../../',
 
 /** 明确标注为测试输入的确认用于验证协议本身，绝不作为真实用户创建授权。 */
 export function confirmedFixtureInput(target, framework = null, sourceRoot = SOURCE_ROOT) {
-  const fields = { name_zh: '回归工具', name_en: 'Regression Tool', project_id: 'regression_tool', project_path: target, owner: 'Fixture Owner', target_platforms: ['macos'], interfaces: framework ? ['gui'] : ['cli'], policy_mode: 'recommended', post_release_action: 'local_package' };
-  if (framework) Object.assign(fields, { gui_framework: framework, ...Object.fromEntries(GUI_FIELDS.map(key => [key, key === 'sidebar_mode' ? 'detailed' : 'disabled'])) });
+  const nsh = framework === 'nsh' || framework === 'nsh-mobile-web';
+  const fields = { name_zh: '回归工具', name_en: 'Regression Tool', project_id: 'regression_tool', project_path: target, owner: 'Fixture Owner', target_platforms: framework === 'nsh-mobile-web' ? ['android', 'web'] : ['macos'], interfaces: nsh ? ['nsh'] : framework ? ['gui'] : ['cli'], policy_mode: 'recommended', post_release_action: 'local_package' };
+  if (framework) Object.assign(fields, { ...(nsh ? { nsh_targets: framework === 'nsh-mobile-web' ? ['mobile', 'web'] : ['desktop'] } : { gui_framework: framework }), ...(framework === 'nsh-mobile-web' ? {} : Object.fromEntries(GUI_FIELDS.map(key => [key, key === 'sidebar_mode' ? 'detailed' : 'disabled']))) });
   const form = { schemaVersion: 1, entry: 'instantiate', harnessRoot: sourceRoot, answers: Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, { value, source: 'user:测试夹具确认，非真实项目授权' }])) };
   const evaluation = evaluateInitializationForm(form);
   if (evaluation.stage !== 'review') throw new Error(`测试表单未完整：${evaluation.stage}`);
@@ -42,11 +43,11 @@ export function writeNeutralWorkspace(f) {
   const id = values.project_id;
   const members = [`${id}_core`, ...values.interfaces.map(kind => `${id}_${kind}`)];
   const write = (relative, bytes) => { fs.mkdirSync(path.dirname(path.join(f.target, relative)), { recursive: true }); fs.writeFileSync(path.join(f.target, relative), bytes, { flag: 'wx' }); };
-  write('Cargo.toml', `[workspace]\nmembers = ${JSON.stringify(members)}\nresolver = "3"\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\n[workspace.dependencies]\n${id}_core = { path = "${id}_core" }\n[workspace.metadata.agent-first-harness]\nproject-id = "${id}"\ninterfaces = ${JSON.stringify(values.interfaces)}\ntarget-platforms = ${JSON.stringify(values.target_platforms)}\n${values.gui_framework ? `gui-framework = "${values.gui_framework}"\n` : ''}`);
+  write('Cargo.toml', `[workspace]\nmembers = ${JSON.stringify(members)}\nresolver = "3"\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\n[workspace.dependencies]\n${id}_core = { path = "${id}_core" }\n[workspace.metadata.agent-first-harness]\nproject-id = "${id}"\ninterfaces = ${JSON.stringify(values.interfaces)}\ntarget-platforms = ${JSON.stringify(values.target_platforms)}\n${values.gui_framework ? `gui-framework = "${values.gui_framework}"\n` : ''}${values.nsh_targets ? `nsh-targets = ${JSON.stringify(values.nsh_targets)}\n` : ''}`);
   for (const member of members) {
     write(`${member}/Cargo.toml`, `[package]\nname = "${member}"\nversion.workspace = true\nedition.workspace = true\n${member.endsWith('_core') ? '' : `[dependencies]\n${id}_core.workspace = true\n`}`);
     write(`${member}/src/${member.endsWith('_core') ? 'lib' : 'main'}.rs`, member.endsWith('_core') ? '//! 中性核心夹具。\n/// 返回中性状态。\npub fn status() -> bool { false }\n' : '/// 测试夹具的适配器入口。\nfn main() {}\n');
   }
-  if (values.gui_framework) write('docs/GUI_APP_PROFILE.md', `# GUI App Profile\n\n\`\`\`gui-initialization-config\n${GUI_FIELDS.map(key => `${key}: ${values[key]}`).join('\n')}\n\`\`\`\n`);
+  if (values.gui_framework || values.nsh_targets?.includes('desktop')) write('docs/GUI_APP_PROFILE.md', `# GUI App Profile\n\n\`\`\`gui-initialization-config\n${GUI_FIELDS.map(key => `${key}: ${values[key]}`).join('\n')}\n\`\`\`\n`);
   initialize(f.target);
 }

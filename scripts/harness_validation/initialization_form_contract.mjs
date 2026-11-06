@@ -1,7 +1,7 @@
 /** 校验唯一表单目录与入口路由，拒绝已确认会使模型行为分叉的旧提示。 */
 import fs from "node:fs";
 import path from "node:path";
-import { BASE_FIELDS, GUI_FIELDS, POLICY_FIELDS, QUESTIONS } from "../../.agents/skills/desktop-instantiate-project/scripts/initialization_questions.mjs";
+import { BASE_FIELDS, GUI_FIELDS, NSH_TARGETS, POLICY_FIELDS, QUESTIONS } from "../../.agents/skills/desktop-instantiate-project/scripts/initialization_questions.mjs";
 import { ROOT, fail } from "./core.mjs";
 
 /** 使用实际目录检查稳定 ID/编号/选项，并验证入口继续消费同一解析器。 */
@@ -10,6 +10,9 @@ export function validateInitializationFormRouting(errors, sourceRoot = ROOT) {
   if (new Set(ids).size !== ids.length) fail(errors, "initialization form contains duplicate field IDs");
   if (QUESTIONS.slice(0, 9).some((question, index) => question.number !== index + 1)) fail(errors, "initialization base field numbers must remain 1..9");
   if (BASE_FIELDS.length !== 9 || POLICY_FIELDS.length !== 6 || GUI_FIELDS.length !== 9) fail(errors, "initialization field partitions must remain 9/6/9");
+  if (JSON.stringify(QUESTIONS.find(question => question.id === "interfaces")?.values) !== JSON.stringify(["cli", "mcp", "gui", "nsh"])) fail(errors, "program types must expose CLI/MCP/DESKTOP/NSH in order");
+  if (JSON.stringify(QUESTIONS.find(question => question.id === "gui_framework")?.values) !== JSON.stringify(["tauri", "gpui"])) fail(errors, "DESKTOP frameworks must be Tauri/GPUI only");
+  if (JSON.stringify(NSH_TARGETS) !== JSON.stringify(["desktop", "mobile", "web", "tui"]) || JSON.stringify(QUESTIONS.find(question => question.id === "nsh_targets")?.values) !== JSON.stringify(NSH_TARGETS)) fail(errors, "NSH capability choices must be desktop/mobile/web/tui");
   for (const question of QUESTIONS) {
     if (!question.id || !question.title || question.options?.length !== question.values?.length) fail(errors, `invalid initialization question: ${question.id}`);
   }

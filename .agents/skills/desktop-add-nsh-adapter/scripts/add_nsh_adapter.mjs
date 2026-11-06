@@ -24,26 +24,26 @@ export function addNshAdapter(root, input) {
   if (command.status !== 0) throw new Error('cargo metadata failed for existing workspace');
   const metadata = JSON.parse(command.stdout);
   const facts = metadata.metadata?.['agent-first-harness'];
-  if (path.resolve(metadata.workspace_root) !== root || facts?.['project-id'] !== options.projectId || !Array.isArray(facts.interfaces) || facts.interfaces.includes('gui')) throw new Error('requires matching existing core workspace without GUI');
+  if (path.resolve(metadata.workspace_root) !== root || facts?.['project-id'] !== options.projectId || !Array.isArray(facts.interfaces) || facts.interfaces.length) throw new Error('requires matching core-only workspace without an interface');
   if (JSON.stringify([...facts['target-platforms']].sort()) !== JSON.stringify([...options.targetPlatforms].sort())) throw new Error('target-platforms mismatch');
-  if(options.targetPlatforms.some(platform=>['android','ios','web'].includes(platform)) && facts.interfaces.length) throw new Error('mobile/Web NSH targets require GUI-only interfaces');
+  if (Object.hasOwn(facts,'nsh-targets')) throw new Error('existing NSH targets conflict');
   const core = metadata.packages.find(pkg => pkg.name === `${options.projectId}_core` && metadata.workspace_members.includes(pkg.id));
   if (!core || path.dirname(core.manifest_path) !== path.join(root,`${options.projectId}_core`)) throw new Error('direct shared core member missing');
-  if(fs.existsSync(path.join(root,`${options.projectId}_gui`))) throw new Error('GUI directory already exists');
+  if(fs.existsSync(path.join(root,`${options.projectId}_nsh`))) throw new Error('NSH directory already exists');
   const cargoPath = path.join(root,'Cargo.toml');
   for (const file of [cargoPath,path.join(root,'package.json'),core.manifest_path]) assertNshPath(file);
   let cargo = fs.readFileSync(cargoPath,'utf8');
   const originalCargo = cargo;
   if (/\b(?:nsh-core|nsh-base)\s*=/u.test(cargo) || /gui-framework\s*=/u.test(cargo)) throw new Error('existing NSH dependencies/framework conflict');
   if ((cargo.match(/^members\s*=\s*\[[^\n]*\]/gmu) ?? []).length !== 1 || (cargo.match(/^interfaces\s*=\s*\[[^\n]*\]/gmu) ?? []).length !== 1) throw new Error('requires single-line members and interfaces arrays');
-  cargo = cargo.replace(/^members\s*=\s*\[[^\n]*\]/mu,`members = ${JSON.stringify([...metadata.workspace_members.map(member=>metadata.packages.find(pkg=>pkg.id===member)).map(pkg=>path.relative(root,path.dirname(pkg.manifest_path)).split(path.sep).join('/')),`${options.projectId}_gui`])}`);
-  cargo = cargo.replace(/^interfaces\s*=\s*\[[^\n]*\]/mu,`interfaces = ${JSON.stringify([...facts.interfaces,'gui'])}\ngui-framework = "nsh"`);
+  cargo = cargo.replace(/^members\s*=\s*\[[^\n]*\]/mu,`members = ${JSON.stringify([...metadata.workspace_members.map(member=>metadata.packages.find(pkg=>pkg.id===member)).map(pkg=>path.relative(root,path.dirname(pkg.manifest_path)).split(path.sep).join('/')),`${options.projectId}_nsh`])}`);
+  cargo = cargo.replace(/^interfaces\s*=\s*\[[^\n]*\]/mu,`interfaces = ["nsh"]\nnsh-targets = ${JSON.stringify(options.nshTargets)}`);
   if (!new RegExp(`^${options.projectId}_core\\s*=`, 'mu').test(cargo)) cargo = cargo.replace('[workspace.dependencies]',`[workspace.dependencies]\n${options.projectId}_core = { path = "${options.projectId}_core" }`);
   cargo = cargo.includes('[workspace.dependencies]') ? cargo.replace('[workspace.dependencies]',`[workspace.dependencies]\n${nshDependencies()}`) : `${cargo}\n[workspace.dependencies]\n${nshDependencies()}\n`;
   if (!new RegExp(`^${options.projectId}_core\\s*=`, 'mu').test(cargo)) cargo = cargo.replace('[workspace.dependencies]',`[workspace.dependencies]\n${options.projectId}_core = { path = "${options.projectId}_core" }`);
   const mirrors = facts['version-mirrors'] ?? [];
   if(!Array.isArray(mirrors) || mirrors.some(value=>typeof value!=='string') || new Set(mirrors).size!==mirrors.length) throw new Error('invalid version mirrors');
-  const nextMirrors = [...new Set([...mirrors, `${options.projectId}_gui/nsh.json`])];
+  const nextMirrors = [...new Set([...mirrors, `${options.projectId}_nsh/nsh.json`])];
   if(nextMirrors.length>10) throw new Error('too many version mirrors');
   const declarations=[...originalCargo.matchAll(/^version-mirrors\s*=/gmu)];
   if(Object.hasOwn(facts,'version-mirrors')) {
@@ -51,11 +51,11 @@ export function addNshAdapter(root, input) {
     cargo=cargo.replace(/^version-mirrors\s*=\s*\[[^\n]*\]/mu, `version-mirrors = ${JSON.stringify(nextMirrors)}`);
   }
   else if(declarations.length) throw new Error('ambiguous version-mirrors declaration');
-  else cargo=cargo.replace('gui-framework = "nsh"', `gui-framework = "nsh"\nversion-mirrors = ${JSON.stringify(nextMirrors)}`);
+  else cargo=cargo.replace(`nsh-targets = ${JSON.stringify(options.nshTargets)}`, `nsh-targets = ${JSON.stringify(options.nshTargets)}\nversion-mirrors = ${JSON.stringify(nextMirrors)}`);
   const files = renderNshAdapterFiles(options,core.version);
   const packagePath = path.join(root,'package.json');
   const originalPackage = fs.existsSync(packagePath) ? fs.readFileSync(packagePath,'utf8') : null;
-  const packageJson = originalPackage === null ? {private:true,type:'module',engines:{node:'>=24.0.0',pnpm:'>=12.4.1'}} : JSON.parse(originalPackage);
+  const packageJson = originalPackage === null ? {private:true,type:'module',engines:{node:'>=24.0.0'}} : JSON.parse(originalPackage);
   const scripts = nshPackageScripts(options.projectId);
   for (const key of Object.keys(scripts)) if (packageJson.scripts?.[key] && packageJson.scripts[key] !== scripts[key]) throw new Error(`package script conflict: ${key}`);
   for (const relative of files.keys()) { assertNshPath(path.join(root,relative)); if (fs.existsSync(path.join(root,relative))) throw new Error(`refusing existing file: ${relative}`); }
@@ -70,7 +70,7 @@ export function addNshAdapter(root, input) {
     if(fs.readFileSync(cargoPath,'utf8')===cargo) fs.writeFileSync(cargoPath,originalCargo);
     throw error;
   }
-  return {guiFramework:'nsh',corePreserved:true,files:[...files.keys(),'Cargo.toml','package.json']};
+  return {interface:'nsh',nshTargets:options.nshTargets,corePreserved:true,files:[...files.keys(),'Cargo.toml','package.json']};
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

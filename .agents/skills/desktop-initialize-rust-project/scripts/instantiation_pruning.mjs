@@ -28,13 +28,14 @@ export function validatePreparation(preparation, current) {
   const cargo = current.get('Cargo.toml')?.bytes.toString('utf8');
   if (!cargo) throw new Error('裁剪前必须完成实际 Cargo 工作区初始化');
   const selection = parseInterfaceSelection(cargo);
-  if (JSON.stringify(selection.interfaces) !== JSON.stringify(values.interfaces) || selection.guiFramework !== (values.gui_framework ?? null)) throw new Error('实际接口或框架与已确认准备清单不一致');
+  if (JSON.stringify(selection.interfaces) !== JSON.stringify(values.interfaces) || selection.guiFramework !== (values.gui_framework ?? null)
+      || JSON.stringify(selection.nshTargets ?? null) !== JSON.stringify(values.nsh_targets ?? null)) throw new Error('实际接口、框架或 NSH 目标与已确认准备清单不一致');
   if (JSON.stringify(parseReleaseMetadataArray(cargo, 'target-platforms')) !== JSON.stringify(values.target_platforms)) throw new Error('实际目标平台与已确认准备清单不一致');
   const policyBytes = current.get('docs/AGENT_POLICY.md')?.bytes;
   if (!policyBytes) throw new Error('缺少已确认策略');
   const policy = parseAgentPolicyDocument(policyBytes);
   for (const key of [...POLICY_FIELDS, 'post_release_action']) if (policy.fields.get(key) !== values[key]) throw new Error(`已确认策略漂移：${key}`);
-  if (selection.guiFramework) {
+  if (selection.guiFramework || selection.nshTargets?.includes('desktop')) {
     const source = current.get('docs/GUI_APP_PROFILE.md')?.bytes.toString('utf8') ?? '';
     const blocks = [...source.matchAll(/```gui-initialization-config\s*\n([\s\S]*?)```/gu)];
     if (blocks.length !== 1) throw new Error('GUI 初始化九字段必须恰好一个配置块');

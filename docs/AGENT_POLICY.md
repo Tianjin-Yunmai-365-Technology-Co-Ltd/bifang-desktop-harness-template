@@ -14,11 +14,11 @@ post_release_action: pending
 
 # Agent 运行策略
 
-NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；不应用下文 Tauri 插件/前端、GPUI Kit 或两者专用 E2E。NSH 共享 core 与薄适配器，支持桌面、Android、iOS、Web；能力与平台限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：新项目的根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 记录顶层 NSH 及桌面、移动、Web 子目标。TUI 虽列在表单中，固定 NSH 0.4.0 尚无运行或打包目标，选中时失败关闭。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。桌面九项配置只随桌面子目标询问；能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
 本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 与 `task_worktrees` 固定默认 `disabled`；完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`，`post_release_action` 必须是两项之一，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布固定在本地默认主分支与 tag 完成；完成初始化的下游随后按已确认的发布后动作执行并复核。Harness 源的 `pending` 是待复制模板字段，不阻断 Harness 自身的 Git 发布。
 
-GUI框架是根Cargo metadata的独立 `gui-framework` 事实，不增加本文件frontmatter策略字段或九字段profile。`tauri` 为默认且兼容既有GUI缺失值，`gpui` 分派 `$desktop-add-gpui-adapter`。下文Tauri插件、三项固定基线、前端、Tauri初始化E2E与GUI本地打包条件只适用于Tauri；GPUI使用Rust构建与Computer Use初始化检查。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。GPUI 本地候选由独立 `$desktop-build-gpui-release` 负责，macOS/Windows 与 Linux GNU x64/ARM64 目标可确认 `local_package`；仅 Linux Tauri 且无 CLI 时仍须明确选 `push_release_branch`。两种 GUI 都要求 Node.js/pnpm 工程工具，GPUI 的项目根脚本用于验证、发布和原生打包。通用策略选择、零写入确认、独立仓库、版本和发布事实边界保持一致。
+DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加本文件 frontmatter 策略字段。`tauri` 为默认且兼容既有 GUI 缺失值，`gpui` 分派 `$desktop-add-gpui-adapter`；新 NSH 不写 `gui-framework`。下文 Tauri 插件、三项固定基线、前端、Tauri 初始化 E2E 与 GUI 本地打包条件只适用于 Tauri；GPUI 使用 Rust 构建与 Computer Use 初始化检查。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。GPUI 本地候选由独立 `$desktop-build-gpui-release` 负责，macOS/Windows 与 Linux GNU x64/ARM64 目标可确认 `local_package`；仅 Linux Tauri 且无 CLI 时仍须明确选 `push_release_branch`。DESKTOP 要求 Node.js/pnpm，顶层 NSH 仅要求 Node.js 工程工具；GPUI 的项目根脚本用于验证、发布和原生打包。通用策略选择、零写入确认、独立仓库、版本和发布事实边界保持一致。
 
 ## 用户要求与项目选择
 
@@ -34,12 +34,12 @@ GUI框架是根Cargo metadata的独立 `gui-framework` 事实，不增加本文�
 - `parallel_worktree_subagents`：只控制当前结果内部的写入型 Subagent Worktree；许可加本次明确并行授权才执行，不创建左侧 Task、不占项目编号、不改变其他开关。所有权明确的独立单元并行创建和执行，同一共享状态写入用短锁。
 - `acceptance_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `e2e_hint`：仅作为每次显式发布候选构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前候选的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
-- `post_release_action`：`local_package` 表示 Git 发布后进入现有适用的本地打包流程；`push_release_branch` 表示把已发布的同一提交放到本地小写 `release` 分支，非强制推送远端默认主分支、同名 release 分支与发布 tag。初始化表单必须给出两项并以 `local_package` 为建议默认值；仅所选接口含 CLI，或含 GPUI/NSH GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时，该默认项才可确认。纯 MCP 或仅 Linux Tauri GUI 须明确选择 `push_release_branch`，不得暗中应用不可执行的默认项。用户须明确选择或确认可执行的默认值。选择在未来发布中持续生效，可用 `$desktop-switch-post-release-action` 更改。
+- `post_release_action`：`local_package` 表示 Git 发布后进入现有适用的本地打包流程；`push_release_branch` 表示把已发布的同一提交放到本地小写 `release` 分支，非强制推送远端默认主分支、同名 release 分支与发布 tag。初始化表单必须给出两项并以 `local_package` 为建议默认值；仅所选接口含 CLI 或 NSH，或含 GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时，该默认项才可确认。纯 MCP 或仅 Linux Tauri GUI 须明确选择 `push_release_branch`，不得暗中应用不可执行的默认项。用户须明确选择或确认可执行的默认值。选择在未来发布中持续生效，可用 `$desktop-switch-post-release-action` 更改。
 - `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前候选构建请求中已经明确的选择，否则在构建前询问一次。发布后动作直接读取 `post_release_action`，缺失、非法或 `pending` 都阻断后续流程完成。
 
 `enabled` 表示“允许且适用时执行”，`disabled` 表示默认不启用可选能力。`user_owned_tasks: enabled` 是自动建 Task 的明确长期授权；`post_release_action` 是用户对未来 Git 发布后所选动作的长期授权，不授权配置远端、凭据、签名、渠道分发或绕过候选构建的当次 E2E 选择。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前候选构建的 E2E 明确选择优先于 `e2e_hint` 建议值。需要远端源码或远程构建的渠道必须先走 `push_release_branch` 并复核远端 `release` 分支与 tag；该要求不改变 Git 发布完成条件。
 
-含 GUI 的一次性初始化 E2E 是脚手架完成门禁，不属于 `e2e_hint`。初始化器读取固定顺序的九项 GUI profile；同时始终验证不询问、不进入 profile 的 system-locale/window-state 两项 Rust-only 固定基线与 dialog 固定 WebView 基线。dialog 必须证明固定 Rust/前端依赖、唯一有序注册、主窗口精确 `dialog:default` 和零额外文件系统授权。按 profile 分派的 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个独立 Skills 必须分别证明启用完整或禁用无残留，`deep_link = enabled` 必须同时有 `single_instance = enabled`；关于页、赞助页和侧栏仍按实际选择验证。单实例执行双启动，托盘执行可见托盘与关闭隐藏/恢复/退出，通知、自启与深链接宿主事件只在对应字段启用时执行；中性全局快捷键 contract 验证零默认注册与 owned 清理，只有 contract 明确提供安全可观察绑定时才触发实际 chord 并恢复原配置。需打包安装才能证明的深链接 OS scheme 注册场景（macOS/Windows/Linux）在 debug no-bundle 阶段标为 `Not verified`。托盘禁用时必须实测关闭最后窗口退出。宿主无法判定/观察适用场景，或无法恢复自启、快捷键、窗口状态等被测宿主状态时，初始化必须阻断，不能用持久偏好跳过。
+含 DESKTOP 或 NSH 的一次性初始化 E2E 是脚手架完成门禁，不属于 `e2e_hint`。NSH 的桌面九项 profile 仅在选择桌面子目标时存在；以下 system-locale/window-state、dialog 和六个 Tauri 插件 Skill 的合同只约束 Tauri GUI。Tauri 初始化器读取固定顺序的九项 GUI profile；同时始终验证不询问、不进入 profile 的 system-locale/window-state 两项 Rust-only 固定基线与 dialog 固定 WebView 基线。dialog 必须证明固定 Rust/前端依赖、唯一有序注册、主窗口精确 `dialog:default` 和零额外文件系统授权。按 profile 分派的 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个独立 Skills 必须分别证明启用完整或禁用无残留，`deep_link = enabled` 必须同时有 `single_instance = enabled`；关于页、赞助页和侧栏仍按实际选择验证。单实例执行双启动，托盘执行可见托盘与关闭隐藏/恢复/退出，通知、自启与深链接宿主事件只在对应字段启用时执行；中性全局快捷键 contract 验证零默认注册与 owned 清理，只有 contract 明确提供安全可观察绑定时才触发实际 chord 并恢复原配置。需打包安装才能证明的深链接 OS scheme 注册场景（macOS/Windows/Linux）在 debug no-bundle 阶段标为 `Not verified`。托盘禁用时必须实测关闭最后窗口退出。宿主无法判定/观察适用场景，或无法恢复自启、快捷键、窗口状态等被测宿主状态时，初始化必须阻断，不能用持久偏好跳过。
 
 
 `$desktop-prepare-release` 把本次版本、日期、默认主分支、预期 tag、源码身份和审查结果写入 `.harness/release-context.json`，与双语更新日志一同提交。未来偏好保存在本文件；下游 Git 发布开始时将当次 `postReleaseAction` 冻结在 Git common-dir 生命周期记录的 pending/last release 中，不写入 tracked 发布上下文。重试与恢复只消费该次冻结值，后续切换不改旧发布；签名和候选 E2E 仍按本次构建解析。终端下游的候选构建复核已发布的本地主分支与 tag；远程候选另复核远端 `release` 分支与 tag，这些候选选择只进入候选证据，不反写已发布源码。
@@ -111,4 +111,4 @@ GUI框架是根Cargo metadata的独立 `gui-framework` 事实，不增加本文�
 - 已授权的内部并行按 `$desktop-task-workflow` 执行；保留原 helper 路径。独立 Worktree 按所有权并行创建和执行，编号/所有权预留及生命周期共享状态用短锁；不因活动叶子、分支祖先关系或每项目单写入限制阻断。
 - 除按框架执行的 `$desktop-test-gui-initialization-e2e` 或 `$desktop-test-gpui-initialization-e2e` 一次性本机调试门禁外，冒烟/E2E 不得在产品定义、计划、日常开发、单元测试、编译、签名、打包、制品收集或发布元数据命令中运行；启用的发布 E2E 只在最终真实候选形成后执行。
 
-NSH 工程选择：合法框架包含 nsh；NSH GUI 可选择 local_package 并保留 adapter/build 专用 Skills、运行时知识和共享支持页资产。其他框架裁掉 NSH 专属能力。NSH 初始化 E2E 和初始化 wrapper 不传播；受保护 Cargo、profile、策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。
+NSH 工程选择：新下游以顶层 `interfaces = ["nsh"]` 和 `nsh-targets` 保存所选子目标，可选择 local_package 并保留 adapter/build 专用 Skills、运行时知识和共享支持页资产；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。未选 NSH 时裁掉专属能力。NSH 初始化 E2E 和初始化 wrapper 不传播；受保护 Cargo、仅桌面适用的 profile、策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。
