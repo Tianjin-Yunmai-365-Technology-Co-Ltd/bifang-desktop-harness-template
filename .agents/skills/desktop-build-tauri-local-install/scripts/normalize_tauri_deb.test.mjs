@@ -4,6 +4,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import { fileURLToPath } from "node:url";
+import { sha256File } from "./tauri_deb_artifacts.mjs";
 
 import {
   controlField,
@@ -12,6 +16,7 @@ import {
   parseArguments,
   payloadRecords,
   replacePackageField,
+  normalizeTauriDeb,
 } from "./normalize_tauri_deb.mjs";
 
 /** Tauri 由中文产品名派生的典型控制文件，Package 值为 dpkg 不接受的非 ASCII。 */
@@ -58,7 +63,7 @@ test("alternative_dependencies_do_not_satisfy_required_libraries", () => {
 
 /** payload 记录覆盖权限、链接目标与内容摘要，并跳过根 DEBIAN 目录。 */
 test("payload_records_detect_mode_link_and_content_changes", (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tauri-deb-payload-"));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "tauri-deb-payload-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.mkdirSync(path.join(root, "DEBIAN"));
   fs.writeFileSync(path.join(root, "DEBIAN/control"), CONTROL);
@@ -86,4 +91,78 @@ test("parses_arguments_strictly", () => {
   assert.throws(() => parseArguments(["--project-root", "."]), /required/);
   assert.throws(() => parseArguments(["--project-root", ".", "--package-name", "a", "--force", "1"]), /invalid argument/);
   assert.throws(() => parseArguments(["--project-root", ".", "--package-name"]), /missing value/);
+});
+
+/** 通过真实 Node CLI 宿主中断调用 main，证明 signal 传递与收尾等待并移除监听器。 */
+test("cli_signal_waits_for_normalization_cleanup_and_removes_handlers", {
+  skip: process.platform === "win32", timeout: 10_000,
+}, async () => {
+  const moduleUrl = new URL("./normalize_tauri_deb.mjs", import.meta.url).href;
+  const source = `import {main} from ${JSON.stringify(moduleUrl)};
+try { await main(['--project-root','.','--package-name','test-app'], async ({signal}) => {
+  if (!signal) throw Error('missing signal');
+  const heartbeat=setInterval(()=>{},1000);
+  process.stdout.write('ready\\n');
+  try { await new Promise(resolve=>signal.addEventListener('abort',resolve,{once:true})); }
+  finally { clearInterval(heartbeat); }
+  await new Promise(resolve=>setTimeout(resolve,100));
+  process.stdout.write('cleanup-complete\\n');
+  throw Error('cancelled');
+}); } catch { process.stdout.write('listeners:'+process.listenerCount('SIGTERM')+'\\n'); process.exitCode=1; }`;
+  const child = spawn(process.execPath, ["--input-type=module", "-e", source], { stdio: ["ignore", "pipe", "pipe"] });
+  let output = ""; child.stdout.on("data", chunk => { output += chunk; });
+  const done = once(child, "close");
+  try {
+    await once(child.stdout, "data");
+    child.kill("SIGTERM");
+    const [code, signal] = await done;
+    assert.equal(code, 1); assert.equal(signal, null);
+    assert.match(output, /cleanup-complete\nlisteners:0/u);
+  } finally { if (child.exitCode === null && child.signalCode === null) { child.kill("SIGKILL"); await done; } }
+});
+
+/** Linux 原生实际打包、解包、替换、重打包及 CLI 输出；其它宿主不声称执行 dpkg。 */
+test("native_dpkg_normalization_preserves_original_payload_and_complete_evidence", {
+  skip: process.platform !== "linux" || !["x64", "arm64"].includes(process.arch), timeout: 30_000,
+}, async t => {
+  const available = spawnSync("dpkg-deb", ["--version"], { encoding: "utf8", timeout: 5000 });
+  if (available.error?.code === "ENOENT") { t.skip("dpkg-deb is not installed on this Linux host"); return; }
+  assert.equal(available.status, 0);
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "tauri-deb-native-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const architecture = process.arch === "x64" ? "amd64" : "arm64";
+  fs.writeFileSync(path.join(root, "Cargo.toml"), '[workspace.package]\nversion = "1.2.3"\n');
+  const originalTree = path.join(root, "package");
+  fs.mkdirSync(path.join(originalTree, "DEBIAN"), { recursive: true });
+  const control = `Package: original-app\nVersion: 1.2.3\nArchitecture: ${architecture}\nMaintainer: Test <test@example.invalid>\nDepends: libc6\nDescription: engineering fixture\n`;
+  fs.writeFileSync(path.join(originalTree, "DEBIAN/control"), control);
+  fs.writeFileSync(path.join(originalTree, "DEBIAN/postinst"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  fs.mkdirSync(path.join(originalTree, "usr/bin"), { recursive: true });
+  fs.writeFileSync(path.join(originalTree, "usr/bin/app"), "#!/bin/sh\nprintf fixture\n", { mode: 0o755 });
+  fs.symlinkSync("app", path.join(originalTree, "usr/bin/app-link"));
+  const bundle = path.join(root, "target/release/bundle/deb"); fs.mkdirSync(bundle, { recursive: true });
+  const input = path.join(bundle, `original-app_1.2.3_${architecture}.deb`);
+  const build = spawnSync("dpkg-deb", ["--build", "--root-owner-group", originalTree, input], { encoding: "utf8", timeout: 10_000 });
+  assert.equal(build.status, 0, build.stderr);
+  const originalHash = sha256File(input);
+  const result = await normalizeTauriDeb({ projectRoot: root, packageName: "normalized-app", input, requireDepends: ["libc6"] });
+  assert.equal(sha256File(input), originalHash);
+  assert.equal(result.originalSha256, originalHash);
+  assert.equal(result.sha256, sha256File(result.output));
+  assert.deepEqual(JSON.parse(fs.readFileSync(`${result.output}.inspection.json`, "utf8")), result);
+  const verified = path.join(root, "verified");
+  const extract = spawnSync("dpkg-deb", ["--raw-extract", result.output, verified], { encoding: "utf8", timeout: 10_000 });
+  assert.equal(extract.status, 0, extract.stderr);
+  assert.equal(fs.readFileSync(path.join(verified, "DEBIAN/control"), "utf8"), replacePackageField(control, "normalized-app"));
+  assert.equal(sha256File(path.join(verified, "DEBIAN/postinst")), sha256File(path.join(originalTree, "DEBIAN/postinst")));
+  assert.deepEqual(payloadRecords(verified), payloadRecords(originalTree));
+  const helper = fileURLToPath(new URL("./normalize_tauri_deb.mjs", import.meta.url));
+  const cli = spawnSync(process.execPath, [helper, "--project-root", root, "--package-name", "normalized-app", "--require-depends", "libc6"], { encoding: "utf8", timeout: 20_000 });
+  assert.equal(cli.status, 0, cli.stderr);
+  const repeated = JSON.parse(cli.stdout);
+  assert.notEqual(repeated.output, result.output);
+  assert.equal(repeated.sha256, sha256File(repeated.output));
+  const before = fs.readdirSync(path.join(root, "target/local-install-linux/artifacts")).sort();
+  await assert.rejects(normalizeTauriDeb({ projectRoot: root, packageName: "normalized-app", input, requireDepends: ["missing-library"] }), /runtime dependencies missing/u);
+  assert.deepEqual(fs.readdirSync(path.join(root, "target/local-install-linux/artifacts")).sort(), before);
 });

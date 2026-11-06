@@ -34,7 +34,7 @@ Tauri 2 把与主 `tauri.conf.json` 同目录的 `tauri.linux.conf.json` 合并�
 bundler 用 `productName` 派生 deb 的 `Package:` 字段。中文等非 ASCII 产品名会生成 `dpkg` 拒绝解析的值，导致无法安装。处理方式：
 
 1. 保留 `productName` 作为窗口和桌面项的显示名，不为了打包把它改成 ASCII。
-2. 构建完成后运行 `scripts/normalize_tauri_deb.mjs`，传入产品已批准的稳定 ASCII 安装标识。它只替换 `Package:` 一行，二次解包后逐项核对 payload 的路径、类型、权限、链接目标与摘要，以及其他控制文件全部不变，再分别原子重命名规范包和 `.sha256`、`.inspection.json` 侧车。原始 Tauri 包保留在 `target/release/bundle/deb/` 供复核；证明范围和失败恢复见下文。
+2. 构建完成后运行 `scripts/normalize_tauri_deb.mjs`，传入产品已批准的稳定 ASCII 安装标识。它只替换 `Package:` 一行，二次解包后逐项核对 payload 的路径、类型、权限、链接目标与摘要，以及其他控制文件全部不变。deb、`.sha256` 和 `.inspection.json` 在同文件系统私有 stage 中完整核对后，以一次目录 rename 提交到本次独占唯一容器的 `artifacts/`；旧集合不覆盖。JSON 的 `artifactDirectory` 和 `output` 给出实际集合及 deb 路径，不猜固定扁平文件名。原始 Tauri 包保留在 `target/release/bundle/deb/`，摘要在解包前绑定并在提交前复核；证明范围和失败恢复见下文。
 3. 用 `--require-depends` 把本产品必需的运行库写成门禁，例如 `libwebkit2gtk-4.1-0`、`libgtk-3-0`，启用托盘时再加实际使用的 AppIndicator 库。必需库只接受独立直接依赖；`A | B` 允许仅安装其中之一，不能证明 B 必定存在。这里只核对名称声明，不证明可安装性、版本满足或动态链接成功。依据：[Debian Policy 7.1](https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields)（核对：2026-10-20）。
 
 AppImage 不受 Debian 包名约束，直接使用 Tauri 输出。
@@ -47,8 +47,8 @@ AppImage 不受 Debian 包名约束，直接使用 Tauri 输出。
 
 - 当前只定位默认 `target/release/bundle/deb/`；配置了 `CARGO_TARGET_DIR`、`build.target-dir` 或显式 target 的其他输出布局时先停止，不能回退选择旧包。
 - payload 比较只覆盖路径、类型、权限位、链接目标及普通文件摘要；不证明 uid/gid、硬链接拓扑、xattr/ACL 全部保留。重打包使用 `--root-owner-group`；需特殊 ownership 的包不适用。
-- deb 与两个侧车分别原子 rename，整个集合没有事务提交保证。中途失败后视为未完成，重新核对包摘要与 inspection 的对应关系；不得消费残留或旧侧车。
-- helper 面向本机本次可信 Tauri 输出，不是任意下载包的安全沙箱。它仍使用同步 `dpkg-deb` 和全文件 hash，未设子进程超时；不能推断有界内存、取消或不可信包处理能力。
+- deb 与两个侧车先形成恰好三个非空普通文件的集合，只在全部对应时提交；失败不覆盖先前结果。本次输出位于 `target/local-install-linux/artifacts/<唯一容器>/artifacts/`，目录 rename 后仍复核完整字节；这不宣称断电持久性或对同用户恶意并发提供宿主沙箱。CLI 失败以 JSON 输出真实错误及适用 `recovery`；提交成功但私有 stage 清理失败时仍返回已提交产物，并附 `retainedPaths` / `cleanupWarnings`，不得把保留的 stage 当正式结果消费。
+- helper 面向本机本次可信 Tauri 输出，不是任意下载包的安全沙箱。文件 hash 使用固定 1 MiB 缓冲，控制/inspection 文本仍按本机可信数据读取，payload 记录数组仍随文件数增长，不宣称整次操作固定内存。每次 `dpkg-deb` 采用独立 owned POSIX 组，限制五分钟及 stdout+stderr 合计 16 MiB，超时、输出溢出、失败和 CLI SIGINT/SIGTERM 先终止本组并有界确认收尾；leader 退出后仍有后代同样失败并回收。权限未知不能当组消失或恢复信号资格，清理无法证实明确失败，不扩大到 PID/名称扫描。
 - 更早发行版的兼容范围取决于构建基线、glibc/WebKitGTK 等实际依赖，AppImage 也不代表任意发行版可运行。依据：[Tauri Debian limitations](https://v2.tauri.app/distribute/debian/#limitations)（核对：2026-10-20）。
 
 ## 本地试包命令
@@ -71,4 +71,4 @@ node .agents/skills/desktop-build-tauri-local-install/scripts/normalize_tauri_de
 
 ## 维护与验证入口
 
-修改 helper 时运行 `node --test .agents/skills/desktop-build-tauri-local-install/scripts/normalize_tauri_deb.test.mjs`。该测试覆盖包名语法、控制字段替换、依赖判定、payload 比较与参数门禁；真实 `dpkg-deb` 打包只在 Linux 宿主执行，其他宿主上须如实报告未执行。
+修改 helper 时运行 `node --test .agents/skills/desktop-build-tauri-local-install/scripts/normalize_tauri_deb.test.mjs .agents/skills/desktop-build-tauri-local-install/scripts/tauri_deb_artifacts.test.mjs .agents/skills/desktop-build-tauri-local-install/scripts/tauri_deb_process.test.mjs`。纯规则及真实临时文件集合覆盖证据一致、侧车/rename/清理失败和流式摘要；POSIX 宿主用真实 Node 进程验证超时、溢出、取消、leader 先退出及无关进程保护，权限未知通过精确故障注入证明失败关闭。完整 `dpkg-deb` 生成、解包、规范化与 CLI 回归只在 Linux 原生且工具实际可用时执行，其它宿主准确跳过；这些结果均不代替真实桌面或产品安装验收。

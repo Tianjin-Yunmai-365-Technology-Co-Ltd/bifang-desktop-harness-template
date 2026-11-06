@@ -5,11 +5,11 @@
  * Tauri bundler 由 `productName` 派生 deb 的 `Package:` 字段；非 ASCII 产品名会生成 dpkg 拒绝解析的值。
  * 本 helper 只替换该字段，保留界面显示名、其他控制字段与全部 payload，原始包保留在 Tauri 输出目录供复核。
  */
-import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ordinaryDirectory, publishDebCollection, sha256File, withDebWorkspace } from "./tauri_deb_artifacts.mjs";
+import { runOwnedCommand } from "./tauri_deb_process.mjs";
 
 /** Debian Policy 5.6.1 的包名语法：小写字母数字开头，至少两个字符，只含 `a-z0-9+.-`。 */
 const DEBIAN_PACKAGE_NAME = /^[a-z0-9][a-z0-9+.-]+$/;
@@ -44,11 +44,6 @@ export function missingDepends(control, required) {
   return required.filter((name) => !declared.includes(name));
 }
 
-/** 计算普通文件的实际字节摘要。 */
-function sha256(file) {
-  return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
-}
-
 /**
  * 以相对路径、类型、权限位、链接目标与文件摘要列出安装内容；不跟随符号链接，跳过根下 `DEBIAN`。
  * 遇到设备、FIFO 等非常规条目直接失败，避免把无法比较的内容当作未变化。
@@ -63,15 +58,15 @@ export function payloadRecords(directory, relative = "") {
     const mode = stat.mode & 0o7777;
     if (stat.isSymbolicLink()) records.push([entry, "link", mode, fs.readlinkSync(absolute)]);
     else if (stat.isDirectory()) records.push([entry, "directory", mode], ...payloadRecords(directory, entry));
-    else if (stat.isFile()) records.push([entry, "file", mode, sha256(absolute)]);
+    else if (stat.isFile()) records.push([entry, "file", mode, sha256File(absolute)]);
     else throw new Error(`unsupported payload entry: ${entry}`);
   }
   return records;
 }
 
-/** 只调用系统 `dpkg-deb` 的固定参数，不经过 shell。 */
-function dpkg(...args) {
-  return execFileSync("dpkg-deb", args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+/** 只调用系统 dpkg-deb 固定参数，单次五分钟/16 MiB 预算并回收 owned 进程组。 */
+async function dpkg(signal, ...args) {
+  return runOwnedCommand("dpkg-deb", args, { signal });
 }
 
 /** 从根 `Cargo.toml` 的 `[workspace.package]` 读取产品版本，作为输入包版本的唯一对照。 */
@@ -106,13 +101,14 @@ export function parseArguments(argv) {
  * 在私有暂存目录解包、改写 `Package:`、重新打包并二次解包核对；全部核对通过后才原子放入
  * `target/local-install-linux/artifacts/`，同时写出 `.sha256` 与 `.inspection.json` 侧车。
  */
-export function normalizeTauriDeb({ projectRoot, packageName, input, requireDepends }) {
+export async function normalizeTauriDeb({ projectRoot, packageName, input, requireDepends = [], signal = null }) {
   if (process.platform !== "linux") throw new Error("Linux native host required");
   if (!isDebianPackageName(packageName)) throw new Error("package name must follow Debian package name syntax");
   const architecture = DEBIAN_ARCHITECTURES[process.arch];
   if (!architecture) throw new Error("unsupported native architecture");
+  projectRoot = ordinaryDirectory(projectRoot);
   const version = workspaceVersion(projectRoot);
-  const bundleRoot = fs.realpathSync(path.join(projectRoot, "target/release/bundle/deb"));
+  const bundleRoot = ordinaryDirectory(path.join(projectRoot, "target/release/bundle/deb"));
   const candidates = fs.readdirSync(bundleRoot).filter((name) => name.endsWith(`_${version}_${architecture}.deb`));
   if (!input && candidates.length !== 1) throw new Error("expected exactly one current-version native deb");
   const source = input ?? path.join(bundleRoot, candidates[0]);
@@ -121,13 +117,10 @@ export function normalizeTauriDeb({ projectRoot, packageName, input, requireDepe
     throw new Error("input must be a regular Tauri deb inside target/release/bundle/deb");
   }
   const outputRoot = path.join(projectRoot, "target/local-install-linux/artifacts");
-  fs.mkdirSync(outputRoot, { recursive: true });
-  if (fs.realpathSync(outputRoot) !== outputRoot) throw new Error("output directory must not traverse symbolic links");
-  const staging = fs.mkdtempSync(path.join(outputRoot, ".deb-normalize-"));
-  fs.chmodSync(staging, 0o700);
-  try {
+  const sourceDigest = sha256File(source);
+  return withDebWorkspace(outputRoot, async staging => {
     const unpacked = path.join(staging, "original");
-    dpkg("--raw-extract", source, unpacked);
+    await dpkg(signal, "--raw-extract", source, unpacked);
     const controlPath = path.join(unpacked, "DEBIAN/control");
     if (!fs.lstatSync(controlPath).isFile()) throw new Error("control must be a regular file");
     const originalControl = fs.readFileSync(controlPath, "utf8");
@@ -143,50 +136,48 @@ export function normalizeTauriDeb({ projectRoot, packageName, input, requireDepe
     }
     const otherControlHashes = controlFiles
       .filter((name) => name !== "control")
-      .map((name) => [name, sha256(path.join(unpacked, "DEBIAN", name))]);
+      .map((name) => [name, sha256File(path.join(unpacked, "DEBIAN", name))]);
     const originalPayload = payloadRecords(unpacked);
     const normalizedControl = replacePackageField(originalControl, packageName);
     fs.writeFileSync(controlPath, normalizedControl);
     const temporary = path.join(staging, "normalized.deb");
-    dpkg("--build", "--root-owner-group", unpacked, temporary);
+    await dpkg(signal, "--build", "--root-owner-group", unpacked, temporary);
     const verified = path.join(staging, "verified");
-    dpkg("--raw-extract", temporary, verified);
+    await dpkg(signal, "--raw-extract", temporary, verified);
     if (fs.readFileSync(path.join(verified, "DEBIAN/control"), "utf8") !== normalizedControl
         || JSON.stringify(payloadRecords(verified)) !== JSON.stringify(originalPayload)) {
       throw new Error("normalized package changed control unexpectedly or changed installed payload");
     }
     const verifiedControlFiles = fs.readdirSync(path.join(verified, "DEBIAN")).sort();
     if (JSON.stringify(controlFiles) !== JSON.stringify(verifiedControlFiles)
-        || otherControlHashes.some(([name, hash]) => sha256(path.join(verified, "DEBIAN", name)) !== hash)) {
+        || otherControlHashes.some(([name, hash]) => sha256File(path.join(verified, "DEBIAN", name)) !== hash)) {
       throw new Error("normalized package changed other control files");
     }
-    const output = path.join(outputRoot, `${packageName}-v${version}-linux-${process.arch}-local.deb`);
-    if (fs.existsSync(output) && !fs.lstatSync(output).isFile()) throw new Error("output is not a regular file");
-    const result = {
+    if (sha256File(source) !== sourceDigest) throw new Error("original deb changed during normalization");
+    if (signal?.aborted) throw new Error("deb normalization cancelled before publication");
+    const filename = `${packageName}-v${version}-linux-${process.arch}-local.deb`;
+    return publishDebCollection(outputRoot, temporary, filename, {
       artifactPurpose: "local-install-test", releaseCandidate: false, signingStatus: "unsigned",
-      original: source, originalSha256: sha256(source), originalPackage: controlField(originalControl, "Package"),
-      output, packageName, version, architecture, payloadUnchanged: true,
-      sha256: sha256(temporary), bytes: fs.statSync(temporary).size,
-    };
-    const checksum = path.join(staging, "checksum");
-    const inspection = path.join(staging, "inspection");
-    fs.writeFileSync(checksum, `${result.sha256}  ${path.basename(output)}\n`, { flag: "wx" });
-    fs.writeFileSync(inspection, `${JSON.stringify(result, null, 2)}\n`, { flag: "wx" });
-    // 同目录原子重命名，绝不跟随已有的符号链接把产物或侧车写到目录外。
-    fs.renameSync(temporary, output);
-    fs.renameSync(checksum, `${output}.sha256`);
-    fs.renameSync(inspection, `${output}.inspection.json`);
-    return result;
-  } finally {
-    fs.rmSync(staging, { recursive: true, force: true });
-  }
+      original: source, originalSha256: sourceDigest, originalPackage: controlField(originalControl, "Package"),
+      packageName, version, architecture, payloadUnchanged: true,
+    });
+  });
+}
+
+/** CLI 中断先取消同一 owned 进程组并等待工作区收尾；不让默认退出遗留 detached dpkg。 */
+export async function main(argv = process.argv.slice(2), normalize = normalizeTauriDeb) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  process.on("SIGINT", abort); process.on("SIGTERM", abort);
+  try { return await normalize({ ...parseArguments(argv), signal: controller.signal }); }
+  finally { process.off("SIGINT", abort); process.off("SIGTERM", abort); }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    console.log(JSON.stringify(normalizeTauriDeb(parseArguments(process.argv.slice(2))), null, 2));
+    console.log(JSON.stringify(await main(), null, 2));
   } catch (error) {
-    console.error(`Tauri deb normalization failed: ${error.message}`);
+    console.error(JSON.stringify({ status: "error", code: "tauri_deb_normalization_failed", message: error.message, ...(error.recovery ? { recovery: error.recovery } : {}) }));
     process.exitCode = 1;
   }
 }
