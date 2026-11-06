@@ -15,6 +15,8 @@ import {
   GIT_LIFECYCLE_PUBLICATION,
   GIT_LIFECYCLE_SKILL,
   PREPARE_RELEASE_SKILL,
+  NSH_RELEASE_HELPER,
+  NSH_BUILD_ASSET,
   RELEASE_CONTEXT_HELPER,
   RELEASE_DOC,
   TAURI_LOCAL_INSTALL_SKILL,
@@ -29,6 +31,7 @@ import {
   validateReleaseContract,
   validateReleaseGitContract,
   validateReleaseIgnore,
+  validateNshBuildContract,
   validateReleaseSelectionContract,
   validateTauriLocalInstallContract,
   validateTauriBuildSkillContract,
@@ -52,6 +55,11 @@ test("current aggregate release contract passes", () => {
   const errors = [];
   validateReleaseContract(errors);
   assert.deepEqual(errors, []);
+});
+
+test("NSH release rejects missing candidate log rendering", () => {
+  expectErrors(validateMutation(validateNshBuildContract, "buildHelper", NSH_RELEASE_HELPER, "renderDocument(notes,'zh-CN')"), "NSH release contract missing");
+  expectErrors(validateMutation(validateNshBuildContract, "buildAsset", NSH_BUILD_ASSET, "HARNESS_RELEASE_NOTES_ZH_PATH"), "NSH release contract missing");
 });
 
 test("release ignore requires exact root-anchored rules", () => {

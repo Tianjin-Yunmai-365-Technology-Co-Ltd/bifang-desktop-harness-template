@@ -19,7 +19,7 @@ helper：`scripts/build_nsh_release.mjs --root <根> --mode local|candidate --ta
 
 macOS 默认 ad-hoc app；Windows zip；Linux tar.gz；Android APK 默认开发签名；iOS 模拟器 ad-hoc app、设备未签名 app；Web 完整静态目录。当前 helper 只产出这些本地可审查格式；正式 Android 签名、iOS IPA/渠道签名需使用官方 CLI 明确身份、keystore/profile 和既有渠道门禁，不传秘密到命令日志，不把开发签名当分发许可。没有签名身份的本地验证仍可运行。Windows/Linux 未测试宿主不报通过。
 
-生成到唯一暂存目录，测试后、打包后复核源码与资源快照，拒绝中途漂移；不覆盖旧批次。候选根 `release/nsh-<目标>-<批次>/` 包含官方包、release-notes.json、双语许可证和 manifest。关于页的日志使用编译期 `HARNESS_RELEASE_NOTES_ZH` 与 `HARNESS_RELEASE_NOTES_EN` 嵌入；外层 sidecar 的字节与根日志一致。不要声称 sidecar 是 NSH 内部资源。manifest 列出实际所有文件摘要、源码、工具版本、目标、签名边界和 E2E 选择，初始 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`。
+生成到唯一暂存目录，测试后、打包后复核源码与资源快照，拒绝中途漂移；不覆盖旧批次。候选根 `release/nsh-<目标>-<批次>/` 包含官方包、release-notes.json、双语许可证和 manifest。关于页的“更新日志”按钮展示编译进应用的双语内容：helper 先从已校验的 schema v2 根日志按最新在前、两类各最多十条渲染到暂存文本，再用 `HARNESS_RELEASE_NOTES_ZH_PATH` 与 `HARNESS_RELEASE_NOTES_EN_PATH` 两个短路径通知 GUI 的标准库 `build.rs` 复制到 `OUT_DIR`，Rust 通过 `include_str!` 嵌入；本地试包写入无已发布日志占位。外层 sidecar 的字节与根日志一致，但 sidecar 不是 NSH 内部资源；最终 E2E 必须实际点击按钮并对照同一候选内容。manifest 列出实际所有文件摘要、源码、工具版本、目标、签名边界和 E2E 选择，初始 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`。
 
 通用 Git 发布仍由 `$desktop-prepare-release` 完成本地 merge/tag；本 Skill 不提交、不推送、不改版本。Git 发布后的 local_package 先运行生命周期 `check-post-release --action local_package`，再调用 candidate。远程构建必须另行复核已推送 release 分支/tag。
 

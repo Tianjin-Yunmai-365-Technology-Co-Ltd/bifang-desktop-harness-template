@@ -4,7 +4,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import test from 'node:test';
-import { buildNshRelease,inventory,safeOutputPath,validateNshArtifacts } from './build_nsh_release.mjs';
+import { spawnSync } from 'node:child_process';
+import { buildNshRelease,inventory,releaseNoteBuildInputs,safeOutputPath,validateNshArtifacts } from './build_nsh_release.mjs';
+import { renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 
 /** 临时包只用于拒绝畸形输入，不能充当运行验证。 */
 function fixture(run){const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'nsh-package-test-')));try{run(root);}finally{fs.rmSync(root,{recursive:true,force:true});}}
@@ -48,4 +50,30 @@ test('official_named_web_directory_is_discovered_and_requires_real_wasm_header',
   fs.writeFileSync(path.join(site,'app.wasm'),Buffer.from([0,97,115,109,1,0,0,0]));
   assert.equal(validateNshArtifacts(root,'web').length,3);
   fs.writeFileSync(path.join(site,'app.wasm'),'not WebAssembly');assert.throws(()=>validateNshArtifacts(root,'web'),/incomplete/u);
+}));
+
+test('large_valid_release_notes_are_transported_by_short_paths',()=>fixture(root=>{
+  const notes={schemaVersion:2,releases:Array.from({length:10},(_,index)=>({
+    version:`v0.${10-index}.0`,releaseDate:'2026-11-07',
+    featureOptimizations:Array.from({length:10},(_,itemIndex)=>({
+      'zh-CN':`第 ${index}-${itemIndex} 项：${'工'.repeat(2390)}`,
+      'en-US':`Item ${index}-${itemIndex}: ${'a'.repeat(2390)}`,
+    })),bugFixes:[],
+  }))};
+  const documentBytes=Buffer.byteLength(JSON.stringify(notes));
+  assert.ok(documentBytes>900_000 && documentBytes<1024*1024,documentBytes);
+  const {env,temporary}=releaseNoteBuildInputs(root,notes,{
+    ...process.env,HARNESS_RELEASE_NOTES_ZH:'stale',HARNESS_RELEASE_NOTES_EN_PATH:'stale',
+  });
+  assert.equal(temporary.length,2);
+  assert.equal(env.HARNESS_RELEASE_NOTES_ZH,undefined);
+  assert.equal(env.HARNESS_RELEASE_NOTES_EN,undefined);
+  assert.equal(fs.readFileSync(env.HARNESS_RELEASE_NOTES_ZH_PATH,'utf8'),renderDocument(notes,'zh-CN'));
+  assert.equal(fs.readFileSync(env.HARNESS_RELEASE_NOTES_EN_PATH,'utf8'),renderDocument(notes,'en-US'));
+  const child=spawnSync(process.execPath,['-e','process.stdout.write("started")'],{env,encoding:'utf8'});
+  assert.equal(child.status,0,child.error?.message);
+  assert.equal(child.stdout,'started');
+  const local=releaseNoteBuildInputs(root,null,env);
+  assert.equal(local.env.HARNESS_RELEASE_NOTES_ZH_PATH,undefined);
+  assert.equal(local.env.HARNESS_RELEASE_NOTES_EN_PATH,undefined);
 }));

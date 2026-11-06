@@ -163,7 +163,7 @@ export function parseReleaseMetadataArray(source, key) {
   if (!Array.isArray(values) || values.length === 0 || values.some((value) => typeof value !== "string")) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
-  const allowed = key === "interfaces" ? ["cli", "tui", "mcp", "gui"] : ["windows", "macos", "linux", "android", "ios", "web"];
+  const allowed = key === "interfaces" ? ["cli", "mcp", "gui"] : ["windows", "macos", "linux", "android", "ios", "web"];
   if (new Set(values).size !== values.length || values.some((value) => !allowed.includes(value))) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }

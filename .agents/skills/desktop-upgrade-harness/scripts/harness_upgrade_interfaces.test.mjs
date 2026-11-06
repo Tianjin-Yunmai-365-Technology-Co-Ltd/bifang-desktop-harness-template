@@ -34,7 +34,7 @@ test("framework_selection_rejects_unknown_duplicate_and_malformed_metadata", () 
     'interfaces = ["gui"]', '[workspace.metadata.agent-first-harness]\ngui-framework = "gpui"',
     '[workspace.metadata.agent-first-harness.gui-framework]',
   ]) assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["gui"]\n${suffix}\n`), /Cargo/u);
-  for (const interfaces of ['"gui"', '["gui", "gui"]', '["unknown"]', '[false]']) {
+  for (const interfaces of ['"gui"', '["gui", "gui"]', '["tui"]', '["cli", "tui"]', '["unknown"]', '[false]']) {
     assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ${interfaces}\n`), /Cargo/u);
   }
   assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["cli"]\ngui-framework = "gpui"\n`), /只适用于已选择 GUI/u);
@@ -53,10 +53,15 @@ test("gui_candidate_selection_excludes_the_other_framework_and_non_gui_projects"
   assert.equal(inapplicableGuiCandidate(GPUI, gpui), false);
   assert.equal(inapplicableGuiCandidate(GPUI_BUILD, gpui), false);
   assert.equal(inapplicableGuiCandidate(GPUI_AUTOSTART, gpui), false);
+  assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", gpui), false);
   for (const name of ["desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-dialog", "desktop-prepare-gui-support-surfaces", "desktop-build-tauri-release"]) {
     assert.equal(inapplicableGuiCandidate(`.agents/skills/${name}/SKILL.md`, gpui), true, name);
   }
   assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-prepare-gui-app-identity/SKILL.md", gpui), false);
+  const nsh = { interfaces: ["gui"], guiFramework: "nsh" };
+  assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", nsh), false);
+  assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-build-nsh-release/SKILL.md", nsh), false);
+  assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", { interfaces: ["cli"], guiFramework: null }), true);
 });
 
 /** GPUI 工程可规划，Tauri/Mantine 候选阻断，产品 profile 和源码仍受保护。 */

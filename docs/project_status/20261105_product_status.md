@@ -6,7 +6,7 @@
 
 ## 当前阶段
 
-- 本仓库是只维护规则、Skills、中性资产与交付工程的 Harness 模板源；最新 [Product Spec](../product_spec/README.md) 为 Approved。终端下游独立选择 CLI、TUI、MCP、GUI；默认 CLI 仅在明确选择默认接口或跳过时应用，漏答继续等待。
+- 本仓库是只维护规则、Skills、中性资产与交付工程的 Harness 模板源；最新 [Product Spec](../product_spec/README.md) 为 Approved。终端下游独立选择 CLI、MCP、GUI；默认 CLI 仅在明确选择默认接口或跳过时应用，漏答继续等待。
 - 唯一版本事实取 [Version.md](../../Version.md)，最近发布的上下文取 [.harness/release-context.json](../../.harness/release-context.json)。本次工程审计不取时间版本、不改写发布上下文，也不创建产品候选。
 - 本次只读复核的最近本地 Git 发布锚点为 tag `v202611041048-20261104`、提交 `bc4b39a5692dfd413d906fd1273ef81aeb19aea3`；本地 master 与该 tag 精确一致。这是本次读取时的事实，未来 Released 判定仍须复核默认主分支、上下文和 tag。
 - 已提交的 `cfeb702` 移除应用更新、强更与使用统计工程能力；本次后续一致性修正在受管 `feature-audit-harness-consistency-20261105` 分支完成，实际提交与检查结果以交付回复和 Git 为准。

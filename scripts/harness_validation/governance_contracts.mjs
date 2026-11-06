@@ -42,7 +42,6 @@ const DEFAULT_PATHS = Object.freeze({
   mcpSkill: skill("desktop-add-mcp-adapter", "SKILL.md"),
   guiAdapterSkill: skill("desktop-add-gui-adapter", "SKILL.md"),
   cliSkill: skill("desktop-add-cli-adapter", "SKILL.md"),
-  tuiSkill: skill("desktop-add-tui-adapter", "SKILL.md"),
   e2eSkill: skill("desktop-test-final-artifact-e2e", "SKILL.md"),
   rustAssetLib: skill("desktop-initialize-rust-project", "assets", "rust-lib-cli", "example_tool_core", "src", "lib.rs"),
   parallelSkill: skill("desktop-run-parallel-worktrees", "SKILL.md"),
@@ -167,7 +166,6 @@ const ENGINEERING_ENTRIES = [
   ["mcpSkill", ["docs/ENGINEERING_RULES.md"]],
   ["guiAdapterSkill", ["docs/ENGINEERING_RULES.md", "docs/design_standards/README.md", "check-typescript-chinese-comments.cjs", "mantine-ui-guidelines.md"]],
   ["cliSkill", ["docs/ENGINEERING_RULES.md"]],
-  ["tuiSkill", ["工程规则"]],
   ["e2eSkill", ["docs/VERIFICATION.md"]],
   ["rustAssetLib", ["#![deny(missing_docs)]"]],
 ];

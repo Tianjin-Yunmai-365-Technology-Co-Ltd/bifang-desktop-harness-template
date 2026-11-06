@@ -114,7 +114,7 @@ export function inventoryTarget(root, relative = '') {
   assertOrdinaryPath(path.join(root, relative));
   for (const entry of fs.readdirSync(path.join(root, relative), { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : 1)) {
     const next = relative ? `${relative}/${entry.name}` : entry.name;
-    if (['target', 'node_modules', 'dist', 'release', 'coverage'].includes(entry.name)) continue;
+    if (['target', 'node_modules', 'dist', 'release', 'coverage', '.nsh'].includes(entry.name)) continue;
     if (entry.name === '.git') throw new Error('终端裁剪必须在独立 Git 基线之前执行');
     if (entry.isSymbolicLink()) throw new Error(`目标包含符号链接：${next}`);
     if (entry.isDirectory()) for (const [file, value] of inventoryTarget(root, next)) files.set(file, value);

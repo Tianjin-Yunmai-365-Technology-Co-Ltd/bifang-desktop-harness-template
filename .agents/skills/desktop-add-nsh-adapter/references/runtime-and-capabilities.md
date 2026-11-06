@@ -1,6 +1,6 @@
 # NSH 运行时与能力
 
-提取来源：诡秘神谕移动客户端的 NSH 运行时来源说明、构建与测试文档，以及 Native Shell 官方 v0.4.0 源码。只提取工程知识，不迁移产品逻辑、网络地址、凭据、移动签名或历史验证结论。原项目没有独立 SKILL 目录，本 Skill 将工程知识整理为可保留入口。
+提取来源：本机 `nsh-desktop` 的 NSH 0.4.0 TSX 应用和自定义桌面宿主，以及 Native Shell 官方 v0.4.0 源码。只提取工程知识，不迁移示例产品逻辑、网络地址、凭据、签名或历史验证结论。
 
 官方来源：[NSH](https://github.com/longbridge/nsh/tree/e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3)、[发布](https://github.com/longbridge/nsh/releases/tag/v0.4.0)、[Rust](https://nsh.dev/docs/rust)、[安装](https://nsh.dev/docs/installation)。固定参考 revision `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3`。NSH 使用 Apache-2.0；本模板自行编写接线，不内嵌第三方源码。UI/API 以实际 CLI 和项目依赖为准，不自动升级。
 
@@ -17,6 +17,8 @@ NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不�
 | 窗口 | 桌面宿主 | 原生 title/frame；移动和 Web 不应用桌面尺寸；窗口恢复扩展须有真实验证 |
 | 对话框 | 平台 API | NSH 原生 dialog/picker；不安装 Tauri plugin 或开放通用文件权限 |
 | 托盘、系统通知、自启、单实例、深链接、系统热键 | unavailable/disabled | 当前无已接线的跨平台实现；菜单 shortcut/keymap 仅应用内，不能当系统热键 |
+
+`nsh-desktop` 的托盘、单实例和深链接在 AppKit/Win32/GTK 自定义宿主中实现，自启另用各平台登录项；示例没有系统通知和 OS 全局热键。当前 Rust UI 的官方 `nsh package` 会生成自己的平台 runner，不会打包项目自定义 `src/main.rs`；Rust UI 也没有可供这些宿主调用的公开 `host.call` 桥接。因此不能仅复制示例源码或把 profile 改为 enabled。未来接入这些能力须先建立 Rust UI 与自定义宿主的明确接口、替换对应平台组包、实现注册和退出/恢复语义，并在真实目标宿主执行 E2E。NSH 应用内菜单和快捷键可以独立使用，但不得记为 `global_shortcut`。
 
 最低平台参考：macOS 14、Windows 10 1809、Linux GTK 4.14、Android API 28、iOS 15、现代浏览器。最低版本是官方声明，不代表已逐台验证。Web core 不得无条件使用 native-only fs、进程、线程 API；真实业务按目标条件装配驱动。
 

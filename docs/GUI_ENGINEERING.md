@@ -14,18 +14,21 @@ NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`
 | GPUI 本地试包与发布候选 | [$desktop-build-gpui-release](../.agents/skills/desktop-build-gpui-release/SKILL.md) | 公共生命周期 + 按平台引用，产物与运行验收分开 |
 | Tauri 依赖、插件与既有 core 增加 GUI | [$desktop-add-gui-adapter](../.agents/skills/desktop-add-gui-adapter/SKILL.md)、[$desktop-manage-dependencies](../.agents/skills/desktop-manage-dependencies/SKILL.md) | 按已批准范围接线与验证，不加载 GPUI 实现规则 |
 | Tauri 本地试包与发布候选 | [$desktop-build-tauri-local-install](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[$desktop-build-tauri-release](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 按平台与候选身份分派，具体路线见下表 |
+| NSH 共享 core、薄 GUI 适配器与运行时能力 | [$desktop-add-nsh-adapter](../.agents/skills/desktop-add-nsh-adapter/SKILL.md)、[运行时边界](../.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md) | Rust UI 使用官方 NSH runner；自定义桌面宿主能力须另行接线与验证 |
+| NSH 桌面、移动与 Web 打包 | [$desktop-build-nsh-release](../.agents/skills/desktop-build-nsh-release/SKILL.md) | 目标逐项打包与取证；本机无法构建的目标保留 `Unverified` |
 | 最终候选验收 | [$desktop-verify-delivery](../.agents/skills/desktop-verify-delivery/SKILL.md)、[$desktop-test-final-artifact-e2e](../.agents/skills/desktop-test-final-artifact-e2e/SKILL.md) | 真实最终字节和目标宿主，构建通过不代替验收 |
 | Linux 宿主、工具链及能力边界 | 下文 Linux 问题索引与对应 Skill 引用 | 区分中性生成、独立接线、协议回归与目标运行证据 |
 
 ## 各平台方案入口
 
-下表记录现有工程路径，不能据此宣称目标平台已经运行通过。CLI/TUI/MCP 的共享核心、接口边界和工具链见 [Rust 基线](RUST_CLI_TEMPLATE.md)，CLI 候选默认只构建当前宿主；跨平台矩阵按 [构建 Skill](../.agents/skills/desktop-build-rust-release/SKILL.md) 的明确请求与远端来源门禁执行。
+下表记录现有工程路径，不能据此宣称目标平台已经运行通过。CLI/MCP 的共享核心、接口边界和工具链见 [Rust 基线](RUST_CLI_TEMPLATE.md)，CLI 候选默认只构建当前宿主；跨平台矩阵按 [构建 Skill](../.agents/skills/desktop-build-rust-release/SKILL.md) 的明确请求与远端来源门禁执行。NSH 单独按目标打包，不使用该 CLI 矩阵。
 
-| 平台 | Tauri | GPUI | 验证边界 |
-| --- | --- | --- | --- |
-| macOS | [原生 DMG、签名与公证](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [app.zip/DMG](../.agents/skills/desktop-build-gpui-release/references/macos-packaging.md) | 打包、签名、公证与真实窗口/安装行为分别取证 |
-| Windows | [原生 x64 NSIS 试包](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[正式候选及 macOS xwin](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [原生 x64 NSIS](../.agents/skills/desktop-build-gpui-release/references/windows-packaging.md) | xwin 不证明 Windows 安装/运行；UAC、通知和登录项按真实宿主验证 |
-| Linux | [同架构 deb/AppImage 本地试包](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md)、[运行时](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | [GNU x64/ARM64 deb/tar.gz](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md)、[原生能力边界](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | Tauri 本地试包不升级为正式候选；GPUI 同系统交叉架构的运行证据须来自目标架构宿主 |
+| 平台 | Tauri | GPUI | NSH | 验证边界 |
+| --- | --- | --- | --- | --- |
+| macOS | [原生 DMG、签名与公证](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [app.zip/DMG](../.agents/skills/desktop-build-gpui-release/references/macos-packaging.md) | 原生 `.app` 归档 | 打包、签名、公证与真实窗口/安装行为分别取证 |
+| Windows | [原生 x64 NSIS 试包](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[正式候选及 macOS xwin](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [原生 x64 NSIS](../.agents/skills/desktop-build-gpui-release/references/windows-packaging.md) | 原生 ZIP | xwin 不证明 Windows 安装/运行；UAC、通知和登录项按真实宿主验证 |
+| Linux | [同架构 deb/AppImage 本地试包](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md)、[运行时](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | [GNU x64/ARM64 deb/tar.gz](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md)、[原生能力边界](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | 原生 tar.gz | Tauri 本地试包不升级为正式候选；GPUI 同系统交叉架构的运行证据须来自目标架构宿主 |
+| Android / iOS / Web | 不适用 | 不适用 | Android 开发签名 APK、iOS 本地 `.app`、Web 静态目录 | 渠道签名与目标设备/浏览器运行分别取证；本地 `.app` 不等于 IPA |
 
 未执行的原生构建、托管矩阵、签名和目标桌面验收仍为 `Unverified`，既有证据缺口见 [技术债](TECH_DEBT.md)。
 

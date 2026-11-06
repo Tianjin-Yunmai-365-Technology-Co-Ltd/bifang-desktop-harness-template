@@ -1,6 +1,6 @@
 ---
 name: desktop-test-final-artifact-e2e
-description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI 候选执行端到端验收；仅在当前构建明确启用或产品/渠道要求时，于最终候选形成后调用。
+description: 通过 Computer Use 对完整真实 CLI、MCP 宿主或 GUI 候选执行端到端验收；仅在当前构建明确启用或产品/渠道要求时，于最终候选形成后调用。
 ---
 
 # 测试最终产物 E2E
@@ -22,7 +22,6 @@ description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI �
 ## 接口覆盖
 
 - CLI：真实二进制调用、输出流、退出状态、取消和关闭。
-- TUI：键盘导航、焦点、尺寸调整、错误恢复和终端还原。
 - MCP：批准真实宿主的发现、调用、错误、取消和干净断开。
 - GUI：启动、完整用户闭环、无障碍状态、错误、持久化和干净退出。GPUI 按 `$desktop-build-gpui-release` 定位最终原生包，不使用 Tauri URL/命令；检查详细菜单左对齐、顶部折叠按钮、独立赞助内容区，以及本地日志实际写入和退出刷新。
 - GUI 系统通知：仅当 `system_notification = enabled` 且当前候选运行在 macOS 时，先验证当前 `.app` 已按 manifest 的 enabled 路线完成签名；`disabled/not-requested` 或实际 unsigned 必须在读取权限前失败，不能以 E2E `disabled` 或 `Unverified` 绕过，也不能由本 Skill 补签。随后读取当前系统授权状态并选择不破坏用户决定的隔离场景。已授权时确认开关成功且持久化；明确拒绝/受限时点击开启必须打开固定 Notifications 系统设置、应用偏好保持关闭并显示稳定恢复信息；设置窗口无法打开时错误可见。`NotDetermined` 只有在用户明确允许本次权限提示时才触发请求并复读，否则记为 `Unverified`，不得为了测试重置或伪造系统授权。其他平台按其官方权限界面验证。
@@ -34,6 +33,8 @@ description: 通过 Computer Use 对完整真实 CLI、TUI、MCP 宿主或 GUI �
 
 ### NSH 路由
 
-根 Cargo `gui-framework = "nsh"` 独立使用 `$desktop-build-nsh-release`，复用通用本地 Git 发布、版本、双语日志和 release 上下文。支持桌面原生包、Android APK、iOS app/IPA 与 Web 完整静态目录；当前 helper 具体格式和签名边界以其 Skill 为准。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 全部持久目标；本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `gui-framework = "nsh"` 独立使用 `$desktop-build-nsh-release`，复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 全部持久目标；本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
+
+NSH macOS `.app` 从候选自身的 `application.tar.gz` 隔离解包，核对解包路径、Mach-O 入口、归档与 manifest SHA-256 后才启动。Web 只从候选归档的完整静态目录提供页面；Android/iOS 必须在所选真实设备或模拟器安装并运行同一候选。关于页启用时点击元素自身的“更新日志”按钮，逐语言对照候选根 `release-notes.json` 的两类与版本；其 sidecar 不等于包内可定位资源，须从界面观察编译期内容。交互结束重新复算原始候选包、清单与 sidecar 字节，测试解包目录只在确认路径后清理。

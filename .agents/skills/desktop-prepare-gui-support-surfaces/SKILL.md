@@ -35,7 +35,7 @@ NSH 专用路由：`gui-framework = "nsh"` 使用 `$desktop-add-nsh-adapter`、`
 
 ## 边界
 
-- 本 Skill 的标题、设置、i18n、主题和所选侧栏模式是 GUI 固定界面基线；system-locale、window-state 是两项 Rust-only 固定宿主基线，dialog 是固定 WebView plugin 基线；托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接和全局快捷键是初始化可选能力，不要求 CLI/TUI/MCP 存在。dialog 选择路径不授权读取或写入该路径，通知不批准产品内容，自启不表示已注册登录项。
+- 本 Skill 的标题、设置、i18n、主题和所选侧栏模式是 GUI 固定界面基线；system-locale、window-state 是两项 Rust-only 固定宿主基线，dialog 是固定 WebView plugin 基线；托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接和全局快捷键是初始化可选能力，不要求 CLI/MCP 存在。dialog 选择路径不授权读取或写入该路径，通知不批准产品内容，自启不表示已注册登录项。
 - `docs/GUI_APP_PROFILE.md` 继续拥有应用展示身份；`docs/GUI_SUPPORT_SURFACES.md` 只拥有对固定基线的已批准修改、额外支持界面与出站清单，两者不得互相覆盖。
 - Harness 不保存来源下游产品名/标识、路由、固定 endpoint、秘密、版本或批准结论；产品家族共享的工作室品牌、联系人、固定赞助内容和 12 个媒体文件是 `assets/brand-support/` 的封闭例外。
 - 本 Skill 在选择 GUI 的终端下游完整保留，包括品牌依赖资产；非 GUI 下游必须在初始化裁剪中删除。Harness 升级传播整个条件 Skill，但不覆盖产品实例文档。

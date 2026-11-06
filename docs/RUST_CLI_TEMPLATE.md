@@ -21,22 +21,22 @@ GPUI 项目根生成无 npm 第三方依赖的 `package.json`，声明 `engines.
 
 GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限、队列、平台目录和失败/退出处理以 `$desktop-add-gpui-adapter` 的自含 logging 模板为准。core 可按实际业务需要发出脱敏 event/span，订阅器、文件 writer 与 worker 生命周期只由端侧拥有，不向 core 引入 GPUI 或日志文件机制。此为负责人明确选择的 GPUI 诊断基线，覆盖下文“中性脚手架不默认增加 tracing”的通用缺省；其他接口仍按真实能力需求加入。
 
-通用core-first、适配器独立、Rust文件/中文注释/依赖与非空测试、版本/身份/独立仓库规则适用于两条路径；下文未限定框架的GUI技术细节按本节分派，不覆盖GPUI原生机制。
+通用core-first、适配器独立、Rust文件/中文注释/依赖与非空测试、版本/身份/独立仓库规则适用于三条 GUI 路径；下文未限定框架的GUI技术细节按本节分派，不覆盖GPUI或NSH原生机制。
 
 ## 固定边界
 
-- 初始化询问 CLI/TUI/MCP/GUI，允许组合；明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时才默认采用 CLI。漏答保持待选择，不得按空输入应用默认值；选择其他接口且未选 CLI 时不得额外创建 CLI。
+- 初始化询问 CLI/MCP/GUI，允许组合；明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时才默认采用 CLI。漏答保持待选择，不得按空输入应用默认值；选择其他接口且未选 CLI 时不得额外创建 CLI。
 - 默认使用一个 Cargo 工作区，至少包含独立核心库和实际选择的适配器成员。
 - 产品规格为 `Draft` 时，核心与所选适配器只提供中性状态；CLI JSON 必须包含 `productDefinitionRequired=true`。
 - Core-first 是四类接口共同的硬规则。接口/宿主无关的领域类型、业务规则、语义校验、默认值、用例编排、状态转换、稳定错误、平台无关权限、迁移和持久化策略全部属于核心；即使当前只有一个适配器也不得把这些行为放入适配器。
-- CLI/TUI/MCP/GUI 只负责自身运行时与装配、语法或协议结构解析、展示和纯交互状态、调用核心，以及结果/错误映射。包含条件、重试或状态决策的多次核心调用必须提升为单个核心用例 API；薄层按职责而不是代码行数判断。
+- CLI/MCP/GUI 只负责自身运行时与装配、语法或协议结构解析、展示和纯交互状态、调用核心，以及结果/错误映射。包含条件、重试或状态决策的多次核心调用必须提升为单个核心用例 API；薄层按职责而不是代码行数判断。
 - 适配器可以拒绝无法解析、缺少协议字段或违反宿主能力约束的输入；值域、跨字段约束、资源状态、业务权限、幂等性、可否执行和影响业务结果的默认值由核心判定。格式正确但业务无效的输入必须进入核心，并由所有接口复用同一稳定领域错误。
-- CLI 参数/标准流/退出码、MCP schema 注解/stdio 生命周期、TUI 焦点/选择/滚动/按键/终端恢复，以及 GUI 单实例/深链接/全局快捷键、路由/查询/交互状态、窗口状态/WebView/CSP/系统托盘/通知/自动启动留在对应适配器；这些机制触发的业务动作仍调用核心，中性单实例与深链接只恢复窗口，中性全局快捷键能力不预置动作、chord 或 OS 注册。
-- 每个适配器必须以非可选普通生产依赖直接依赖核心；核心不得依赖任一适配器、clap、Ratatui/tui-realm、rmcp、Tauri、终端 I/O、进程状态或适配器特有序列化；适配器彼此不得依赖、启动或解析输出。
-- CLI、TUI、MCP 使用 Tokio current-thread 异步入口；GUI 复用由 Tokio 支撑的单例异步运行时并使用普通 `async fn` 命令，不创建嵌套运行时。所有 Rust 适配器的 I/O、等待、计时、进程、协议与命令处理默认优先异步。
+- CLI 参数/标准流/退出码、MCP schema 注解/stdio 生命周期，以及 GUI 单实例/深链接/全局快捷键、路由/查询/交互状态、窗口状态/WebView/CSP/系统托盘/通知/自动启动留在对应适配器；这些机制触发的业务动作仍调用核心，中性单实例与深链接只恢复窗口，中性全局快捷键能力不预置动作、chord 或 OS 注册。
+- 每个适配器必须以非可选普通生产依赖直接依赖核心；核心不得依赖任一适配器、clap、rmcp、Tauri、终端 I/O、进程状态或适配器特有序列化；适配器彼此不得依赖、启动或解析输出。
+- CLI、MCP 使用 Tokio current-thread 异步入口；GUI 复用由 Tokio 支撑的单例异步运行时并使用普通 `async fn` 命令，不创建嵌套运行时。所有 Rust 适配器的 I/O、等待、计时、进程、协议与命令处理默认优先异步。
 - 核心可以暴露不绑定具体运行时的 `async fn`。只有真实业务需要 Tokio 的 I/O、时间、同步、任务或进程原语时，核心才增加 Tokio 生产依赖。
 - 文件系统、网络、外部进程和操作系统 API 的具体驱动位于适配器或职责明确的基础设施模块；调用策略和领域结果解释仍在核心。只有真实能力边界出现时才由核心定义运行时中立的 trait/port 并在适配器装配实现，不预建服务容器、注册器或假想抽象。
-- TUI 固定使用 Ratatui + tui-realm + tui-realm-stdlib。Tauri GUI 前端固定使用 Vite + React + TypeScript + Mantine UI + `@tabler/icons-react` + TanStack Router 文件路由 + TanStack Query + Jotai，并使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library；这些技术族适用于 Draft 与 Approved 项目，偏离必须记录硬规则例外。
+- Tauri GUI 前端固定使用 Vite + React + TypeScript + Mantine UI + `@tabler/icons-react` + TanStack Router 文件路由 + TanStack Query + Jotai，并使用 ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library；这些技术族适用于 Draft 与 Approved 项目，偏离必须记录硬规则例外。
 - Tauri GUI 的界面国际化是初始化硬性必选项：前端固定追加 `i18next` + `react-i18next`，Rust 后端（GUI 适配器层）固定追加 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API；默认语言跟随系统语言，界面必须提供语言切换入口，core 保持语言无关。实际建立的页面与原生界面提供中文/英文资源，其他缺失语言回退英文；未选能力不得保留对应可见键或原生资源。用户可见设计先按 [UI 设计标准目录](design_standards/README.md)精确匹配，技术细节见 [GUI 基线](../.agents/skills/desktop-add-gui-adapter/references/gui-baseline.md)与 [React 前端基线](../.agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md)（见 ADR-20260806-001）。
 - 选择 GUI 后无条件调用 `$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state` 与 `$desktop-add-gui-dialog`，不询问、不在 `gui-initialization-config` 中写开关。根 `[workspace.dependencies]` 固定声明 `tauri-plugin-os = "2.4.0"`、`tauri-plugin-window-state = "2.5.0"`、`tauri-plugin-dialog = "2.8.4"`，GUI member 只以 `workspace = true` 继承；前端生产依赖固定声明 `@tauri-apps/plugin-dialog = "^2.8.4"`。os、window-state 两项保持 Rust-only，不安装对应 JavaScript 包或授予 WebView ACL；dialog 是固定 WebView plugin 基线，主窗口 capability 精确使用 `dialog:default` 开放 message/open/save 全部官方对话框类型，不得使用 wildcard、deprecated `ask`/`confirm` alias、deny 项或额外文件系统权限，也不加入自有 `invoke_handler`。window-state 显式只使用 `SIZE | POSITION | MAXIMIZED`，不恢复隐藏、最小化、全屏或装饰状态。中央 Builder 依次注册启用时的 single-instance、启用时的 deep-link、固定 os/window-state/dialog、启用时的 notification/autostart/global-shortcut，每项恰好一次；托盘只从 `.setup(...)`/`.on_window_event(...)` 接线。
 - GUI 交互事件必须绑定在拥有动作的按钮、链接、`Switch`、`Checkbox` 或菜单项本身，不得由 Card、`Table.Tr`、`Table.Td` 等父级代理。父级有独立动作时只能执行自身语义，并以分别点击控件和周围父级区域的回归证明互不串扰；表格中的 `Switch` 不得因点击行而切换。
@@ -55,7 +55,7 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 - 固定基线始终保留 system-locale 的探测/归一化/回退/用户偏好优先回归，以及 window-state 的精确 flags/忽略可见性/无效或离屏回退/首次启动默认回归。托盘启用时的六个固定回归明确命名为 `tray_show_restores_and_focuses_main_window`、`close_request_hides_without_exit`、`tray_quit_exits_application`、`tray_labels_resolve_for_supported_locales`、`tray_labels_fall_back_to_english` 与 `language_change_updates_tray_menu_labels`；单实例启用时的两个固定回归为 `single_instance_plugin_is_registered_first` 与 `second_launch_restores_existing_main_window`。深链接保留自身四个固定回归；全局快捷键按 contract 的空动作、固定或可编辑模式运行 `$desktop-add-gui-global-shortcut` 声明的公共与条件回归；托盘禁用时改为 `close_last_window_exits_application`。只要求与 profile/contract 选择对应的条件回归，两项固定基线回归不得按 profile 裁掉。
 - 选择 GUI 时，中性初始化必须把随 `$desktop-initialize-rust-project` 提供的无产品身份 660×400 PNG 逐字节复制为 `<项目标识>_gui/src-tauri/dmg/background.png`，并让 `tauri.conf.json` 的 `bundle.macOS.dmg.background` 固定引用 `./dmg/background.png`。DMG 安装卷窗口固定为 660×400，应用与 Applications 落点分别为 `(180, 220)` 和 `(480, 220)`；首次真实 GUI 开发由 `$desktop-prepare-gui-app-identity` 预览批准该基线或在同一路径替换，并记录当前 SHA-256。构建只消费项目内图片，不能依赖初始化结束后被删除的 Skill 资产；该安装卷窗口不得覆盖主应用窗口尺寸。
 - 初始版本为 `0.1.0`；根 `Cargo.toml` 的 `[workspace.package].version` 是唯一当前版本事实来源，各成员使用 `version.workspace = true`。初始化同时由 `$desktop-manage-version` 创建 `.harness/version-state.json`（受保护，不得成为第二版本事实源）；版本数位与失败关闭规则见 `docs/RELEASE.md`。
-- 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_tui`、`_mcp`、`_gui`。
+- 脚手架直接写入当前项目根。核心与接口目录为 `<项目标识>_core`、`_cli`、`_mcp`、`_gui`。
 - 首次脚手架在当前项目根创建 `Cargo.toml`，登记核心与实际选择的适配器；未来只扩展该根清单。
 - GUI `package.json` 必须直接声明带完整三段兼容下界的 `@tabler/icons-react`，并以命名组件提供菜单、操作、状态、空态和图表周边图标；存在适用图标时不得引入其他图标库、手写 SVG、字符或 emoji。图表绘制库仍按真实可视化需求选择。所选侧栏的 Logo、所有当前渲染图标和文字必须显式沿同一中心线且无裁切。
 - 含 GUI 的中性初始化必须在相关非空单元测试后、裁剪初始化能力和唯一基线提交前调用 `$desktop-test-gui-initialization-e2e`。先运行 `verify-gui-lifecycle-contract.mjs` 解析九项 profile，再以 `pnpm tauri build --debug --no-bundle` 形成真实本机调试二进制；始终验证 system-locale/window-state 两项 Rust-only 基线和窗口重启恢复/无效状态回退，按 profile 验证六项条件宿主能力的完整结构、命名回归与实际宿主行为或禁用无残留。单实例双启动、托盘生命周期、通知、自启恢复、深链接宿主事件和全局快捷键真实触发/注销只在对应字段启用时执行；需要打包安装的自定义 scheme OS 注册（macOS/Windows/Linux）在 debug no-bundle 阶段明确为 `Not verified`。托盘禁用时实测关闭最后窗口退出。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面和未选页面缺席；它不消费 `e2e_hint`，不写 `release/` 或 Verification，任一适用场景失败、无法观察或无法恢复即阻断初始化。
@@ -68,7 +68,7 @@ GPUI 端侧固定初始化 Tracing 与本地日志；具体依赖、滚动上限
 
 | 领域 | 固定技术 | 适用边界 |
 |---|---|---|
-| 异步运行时 | Tokio | CLI/TUI/MCP 使用 current-thread 入口，GUI 复用 Tauri 的 Tokio 运行时；仅启用真实 I/O、计时、同步或进程能力所需的最小 feature |
+| 异步运行时 | Tokio | CLI/MCP 使用 current-thread 入口，GUI 复用 Tauri 的 Tokio 运行时；仅启用真实 I/O、计时、同步或进程能力所需的最小 feature |
 | HTTP 服务 | Axum + Tower/Tower HTTP | 仅在产品明确批准 Rust HTTP 服务时引入；Axum 负责路由/提取/响应，Tower 负责通用 middleware 与服务组合，Tower HTTP 只启用真实需要的 HTTP middleware；业务规则仍调用 core，且这不恢复独立 WEB 适配器 |
 | CLI 命令行 | Clap | 仅在选择 CLI 时引入；负责参数、子命令、帮助与版本，不承担领域校验或业务默认值 |
 | 关系型数据库 ORM | SeaORM | 仅在产品明确批准关系型持久化且 ORM 合适时引入；实体映射与驱动位于基础设施边界，迁移策略、事务语义和业务决策归 core |
@@ -186,7 +186,7 @@ tokio = { version = "1.54.1", default-features = false, features = ["macros", "r
 - 核心的异步测试可以通过开发依赖使用工作区 Tokio，但这不构成核心的生产运行时依赖。
 - CLI 黑盒测试使用 `assert_cmd`；需要额外断言库时再加入。
 - 不为中性脚手架默认增加 Axum/Tower、SeaORM、tracing 生态、anyhow、thiserror、config-rs/notify、协议文档、GraphQL、MongoDB/Redis、认证、网络客户端、依赖注入或插件系统；对应能力获批并出现真实使用路径时，必须采用上述固定技术族并从根工作区按需加入。
-- Ratatui、tui-realm、tui-realm-stdlib、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query 与 Jotai 只在对应适配器被选中时加入；根 Rust 工作区统一 Rust 依赖，前端 `package.json` 声明 JavaScript/TypeScript 依赖。
+- React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query 与 Jotai 只在对应 GUI 适配器被选中时加入；根 Rust 工作区统一 Rust 依赖，前端 `package.json` 声明 JavaScript/TypeScript 依赖。
 
 ## 依赖准入
 
@@ -207,7 +207,7 @@ tokio = { version = "1.54.1", default-features = false, features = ["macros", "r
 4. 缺失、初始化失败或运行失败时如何映射到稳定错误与退出码。
 5. 对应的成功路径、最高风险失败路径和外部依赖失败测试。
 
-固定 Rust、TUI 与 React 技术族不参与“是否采用其他框架”的推荐，只核验能力是否真实需要、哪个当前最新兼容稳定候选和最小特性/包集合能够通过验证。若最新候选无法满足 Rust 1.98.1、Node.js/pnpm、peer、目标 WebView、三平台或安全门槛，按版本从新到旧选择第一个通过的稳定版并记录原因；仍无组合时报告阻塞，不得盲装 registry latest 或静默换框架。
+固定 Rust 与 React 技术族不参与“是否采用其他框架”的推荐，只核验能力是否真实需要、哪个当前最新兼容稳定候选和最小特性/包集合能够通过验证。若最新候选无法满足 Rust 1.98.1、Node.js/pnpm、peer、目标 WebView、三平台或安全门槛，按版本从新到旧选择第一个通过的稳定版并记录原因；仍无组合时报告阻塞，不得盲装 registry latest 或静默换框架。
 
 所有第三方依赖和工作区内 crate 路径都集中在根 `[workspace.dependencies]`，成员的生产、开发和构建依赖只使用 `workspace = true`，不得重复版本、软件包仓库/Git 来源、路径或基线特性。缺省/`ignored` 的项目 `Cargo.lock` 由 Git 忽略且验证不使用项目 `--locked`；显式 `tracked` 的项目先复核适用锁文件受跟踪，再对实际工作区使用 `--locked`；不得仅凭较新 Rust 编译成功推断 MSRV 仍然成立。
 
@@ -257,7 +257,7 @@ example_tool_core.workspace = true
 
 ## 进程与输出规则
 
-- CLI/TUI/MCP `main` 使用 `#[tokio::main(flavor = "current_thread")]` 建立最小运行时，异步主入口返回适合该适配器的终止结果，不把 `std::process::exit` 用作常规控制流。GUI 使用 Tauri 已有 Tokio 异步运行时和普通异步命令，不另建运行时。
+- CLI/MCP `main` 使用 `#[tokio::main(flavor = "current_thread")]` 建立最小运行时，异步主入口返回适合该适配器的终止结果，不把 `std::process::exit` 用作常规控制流。GUI 使用 Tauri 已有 Tokio 异步运行时和普通异步命令，不另建运行时。
 - clap 使用 `#[derive(Parser)]`，并以 `version = concat!("v", env!("CARGO_PKG_VERSION"))` 让 `--version` 从 Cargo 权威版本生成且只显示一个小写 `v` 前缀；机器 JSON、协议字段和 SemVer 比较仍使用不带 `v` 的原始 Cargo 版本。
 - 路径参数使用 `PathBuf` 或 `OsString`，不假定 UTF-8 或手工拼接分隔符。
 - 标准输出专用于 JSON；每次调用只序列化一个完整文档，以一个换行结束且无 BOM。
@@ -323,7 +323,7 @@ cargo build --workspace --release
 - 初始化把规范化、非空的目标平台与接口组合分别写入根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下 `target-platforms` 和 `interfaces`；它们是跨会话构建路由的持久事实。构建不得从当前宿主、目录名或旧对话反推项目只支持哪个平台或接口。
 - GUI 初始化是日常规则的一次性例外：Tauri 初始化器在相关单元测试后调用 `$desktop-test-gui-initialization-e2e` 构建并启动 debug/no-bundle 二进制；GPUI 调用 `$desktop-test-gpui-initialization-e2e` 执行原生初始化检查；该结果只证明当前宿主的初始化脚手架，不等同最终候选验收。
 - `$desktop-build-tauri-local-install` 在原生 Windows x64 宿主用 `pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign` 生成仅供本机检查的开发试包。它允许 dirty 工作树但必须报告风险，不传发布专用配置、不读取或生成更新日志、不写 `release/`、不提交、不安装、不运行，也不询问 E2E 选择；普通“构建/打包”不得升级成发布候选。
-- `$desktop-build-rust-release` 按 Git 发布后已确认的 `local_package` 路径或用户另行明确的候选请求编排 Rust CLI 候选：普通本机构建不访问远端或调用 provider，只形成当前宿主候选；用户另行要求跨平台矩阵且远端 `release` 分支与 tag 已复核为同一发布 HEAD 后，才使用 Windows、macOS、Linux 原生矩阵。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，GPUI GUI 候选转交 `$desktop-build-gpui-release`，TUI/MCP 仍使用各自适配器 Skill 的构建与产物门槛。
+- `$desktop-build-rust-release` 按 Git 发布后已确认的 `local_package` 路径或用户另行明确的候选请求编排 Rust CLI 候选：普通本机构建不访问远端或调用 provider，只形成当前宿主候选；用户另行要求跨平台矩阵且远端 `release` 分支与 tag 已复核为同一发布 HEAD 后，才使用 Windows、macOS、Linux 原生矩阵。矩阵启动后的测试、构建、签名、打包、超时或取消失败不得被本机成功掩盖；Tauri GUI 候选转交 `$desktop-build-tauri-release`，GPUI GUI 候选转交 `$desktop-build-gpui-release`，NSH GUI 候选转交 `$desktop-build-nsh-release`；MCP 仍使用其适配器 Skill 的构建与产物门槛。
 - `$desktop-build-tauri-release` 在 macOS 上原生构建 DMG，在 Windows 上原生构建 x64 NSIS，并可使用 `pnpm tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc` 从 macOS 交叉构建 Windows x64 NSIS。原生 Windows 路线不使用 `cargo-xwin`，且构建成功本身不等于安装或运行验收。macOS DMG 构建在测试前校验项目内 `<项目标识>_gui/src-tauri/dmg/background.png`、GUI 资料中的摘要和 `bundle.macOS.dmg.background: "./dmg/background.png"` 一致，并在最终字节上只读验证 `.DS_Store`、本地背景、唯一应用包与 Applications 拖拽目标；headless CI 不得无界等待 Finder AppleScript。xwin 路径不得生成或声称生成 MSI，也不得把交叉构建成功当作 Windows 原生运行验证。
 - macOS Tauri 直接分发先解析签名意图：只有产品/渠道已有批准的持久签名公证配置、本次用户主动要求或渠道硬要求时，`macosSigningSelection` 才为 `enabled`；否则固定 `disabled/not-requested`，不探测本机身份/凭据并显式 `--no-sign`。启用后才检查 Developer ID Application、`notarytool`、`stapler` 和完整 Apple 公证凭据，并把签名、公证、stapling 作为全有或全无门禁；不得用 `--skip-stapling`，任一步失败不得静默降级。
 - 每次明确的 Git 发布先由 `$desktop-prepare-release` 在任何发布元数据提交前解析当次 `reviewSelection`；GUI 的 macOS 签名和 E2E 选择只在后续独立候选构建请求中解析。源码/治理变化单独提交并锁定 `sourceHead` 后，把版本、日期、默认主分支、预期 tag、源码身份与审查结论写入 `.harness/release-context.json`，再与根 `release-notes.json` 作为同一个精确范围的发布元数据提交，不混入源码、Changelog 或其他治理文件。`$desktop-manage-git-lifecycle release ... --release-context-sha256 <sha256>` 在任何 Git 副作用前校验上下文，普通合并登记分支到本地默认主分支、创建并复读本地 `v{版本}-{YYYYMMDD}`；两者指向最终 HEAD 时 Git 发布结束。该命令不 fetch、push、打包或清理登记 Worktree/分支。随后按 `post_release_action` 进入现有本地打包流程或 `push-release` 的远端默认主分支、`release` 分支和 tag 同步路径，并复核所选结果。终端下游 Rust/Tauri 候选构建在该 clean 主分支上，于清理、测试前和写 manifest 前只读校验发布上下文、本地 tag；远程矩阵还须复核远端 `release` 分支/tag，缺少合格上下文时不得由构建入口补写。`e2e_hint` 只提供 E2E 建议默认值。日常 Task/Worktree 整合不询问、不运行非必要语义审查，也不受保护分支、严格线性、单写入者或历史形态限制；只保留范围、秘密、测试和 clean 等数据安全检查。候选构建必须用 `cargo test --workspace --all-targets --all-features -- --list` 或等价方式确认非空，再运行 `cargo test --workspace --all-targets --all-features`；Tauri GUI 同时运行前端完整单元测试套件，GPUI 不引入前端。失败或零测试阻断候选。本地开发试包也运行同样的非空全量单元测试，但不消费候选 E2E/审查选择。
@@ -337,8 +337,8 @@ cargo build --workspace --release
 - `$desktop-add-gui-adapter` 只在下游用户明确批准后增加依赖核心的 Tauri 2 桌面适配器；它自动消费三候选 Logo 与九项 GUI 最终初始化配置，无条件调用 system-locale/window-state 两项 Rust-only 固定 Skills 与 dialog 固定 WebView Skill，再按 profile 调用 system-tray/system-notifications/autostart/single-instance/deep-link/global-shortcut 六个条件 Skills，并建立选定的关于页、赞助页和精简/详细侧栏；始终建立动态标题、设置页、i18n 与亮暗主题，不自带产品业务实现。
 - 三项固定 GUI Skills 的插件与回归不得被 profile、关于页裁掉。六个条件 GUI Skills 各自拥有依赖、运行时、禁用无残留与真实宿主场景；`deep_link = enabled` 额外强制 `single_instance = enabled`，但单实例回调仍不复制 URL 解析。
 - `$desktop-prepare-gui-support-surfaces` 为全部 GUI 提供固定壳层和可选择的本地页面/媒体源资产；运行时只纳入 profile 选中的页面与资源。产品修改基线、增加其他支持界面或启用出站能力时再次按需调用；每项出站能力仍必须有精确能力清单、秘密运行时引用、隐私边界、owner/取消/超时和禁用时零请求测试。
-- `$desktop-add-tui-adapter` 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI profile 选择的本地生命周期和支持页面基线外，四类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围；缺省锁策略下，正常解析可在本地生成被 Git 忽略的锁文件；显式 `tracked` 的下游须更新并提交实际锁文件。TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
-- `$desktop-add-cli-adapter`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter` 与 `$desktop-add-gui-adapter` 分别拥有对应接口边界。
+- Tauri GUI 前端固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。除 GUI profile 选择的本地生命周期和支持页面基线外，三类 adapter Skills 不自带页面/业务实现资产；调用时声明并验证最低兼容稳定范围；缺省锁策略下，正常解析可在本地生成被 Git 忽略的锁文件；显式 `tracked` 的下游须更新并提交实际锁文件。TypeScript 中文注释检查器作为治理参考随 GUI Skill 保留。
+- `$desktop-add-cli-adapter`、`$desktop-add-mcp-adapter` 与按框架选择的 GUI Skill 分别拥有对应接口边界。
 - `$desktop-test-final-artifact-e2e` 只在当前构建明确启用或产品/渠道要求时，通过 Computer Use 验收最终真实产物；它不替代构建和全量单元测试，也不得仅凭持久偏好自动运行。
 - `$desktop-test-gui-initialization-e2e` 只在含 GUI 的一次性初始化提交前按九项 profile 运行结构检查和真实本机调试二进制；三项固定基线不完整、启用能力不完整、禁用能力有残留、宿主状态无法观察或恢复、关闭语义或所选侧栏/页面不符都阻断。需安装包注册的深链接平台场景在 debug no-bundle 阶段必须标为 `Not verified`，不得误报通过。通过后随初始化能力删除，升级不得把它重新注入终端下游。
 

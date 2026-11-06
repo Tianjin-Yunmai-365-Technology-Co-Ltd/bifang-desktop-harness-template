@@ -188,7 +188,7 @@ test("resolve_artifact_requires_one_complete_safe_pair", () => {
 /** 元数据来自同次 Cargo 解析；CLI 与固定矩阵平台都必须由项目明确选择。 */
 test("fixed_matrix_accepts_valid_cli_and_all_three_runner_platforms", () => {
   for (const runner of ["Linux", "macOS", "Windows"]) {
-    for (const interfaces of [["cli"], ["cli", "tui", "mcp", "gui"]]) {
+    for (const interfaces of [["cli"], ["cli", "mcp", "gui"]]) {
       const metadata = { metadata: { "agent-first-harness": { interfaces, "target-platforms": ["macos", "windows", "linux"] } } };
       assert.doesNotThrow(() => validateMatrixSelection(metadata, runner));
     }
@@ -199,7 +199,7 @@ test("fixed_matrix_accepts_valid_cli_and_all_three_runner_platforms", () => {
 /** 缺失、非法或只选择其它接口时，不能借二进制名和版本相同进入 CLI 矩阵。 */
 test("fixed_matrix_rejects_missing_invalid_and_non_cli_interfaces", () => {
   const makeMetadata = interfaces => ({ metadata: { "agent-first-harness": { interfaces, "target-platforms": ["macos", "windows", "linux"] } } });
-  for (const interfaces of [undefined, null, "cli", [], ["mcp"], ["tui"], ["gui"], ["cli", "cli"], ["cli", "unknown"], [true]]) {
+  for (const interfaces of [undefined, null, "cli", [], ["mcp"], ["tui"], ["gui"], ["cli", "tui"], ["cli", "cli"], ["cli", "unknown"], [true]]) {
     assert.throws(() => validateMatrixSelection(makeMetadata(interfaces), "Linux"), /interfaces/u);
   }
   for (const metadata of [{}, { metadata: {} }, { metadata: { "agent-first-harness": null } }]) {

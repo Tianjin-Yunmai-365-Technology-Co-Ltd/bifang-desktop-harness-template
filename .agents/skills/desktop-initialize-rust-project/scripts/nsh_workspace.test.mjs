@@ -27,8 +27,12 @@ test('application_ids_are_valid_for_android_and_apple_without_collisions',()=>{
 test('unavailable_capabilities_reject_before_writing_and_disabled_pages_have_no_files',()=>fixture(parent=>{
   for(const field of NSH_UNAVAILABLE){const input=options();input.profile[field]='enabled';assert.throws(()=>createNshWorkspace(path.join(parent,'new'),input),/unavailable/u);assert.equal(fs.existsSync(path.join(parent,'new')),false);}
   const files=renderNshAdapterFiles(options());
-  assert.equal([...files.keys()].some(file=>/sponsor|about\.rs/u.test(file)),false);
+  assert.equal([...files.keys()].some(file=>/sponsor|about\.rs|build\.rs/u.test(file)),false);
   assert.equal(files.get('sample_tool_gui/Cargo.toml').includes('sample_tool_core.workspace = true'),true);
+  const withAbout=options();withAbout.profile.about_page='enabled';
+  const aboutFiles=renderNshAdapterFiles(withAbout);
+  assert.ok(aboutFiles.has('sample_tool_gui/build.rs'));
+  assert.match(aboutFiles.get('sample_tool_gui/src/about.rs'),/include_str!\(concat!\(env!\("OUT_DIR"\)/u);
 }));
 
 test('fresh_workspace_cargo_metadata_binds_gui_to_core_and_platforms',()=>fixture(parent=>{

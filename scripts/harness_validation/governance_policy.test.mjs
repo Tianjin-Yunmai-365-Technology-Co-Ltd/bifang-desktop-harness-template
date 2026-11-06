@@ -134,7 +134,7 @@ test("initialized downstream accepts either confirmed post-release action", () =
   }
 });
 
-test("TUI/MCP-only downstream rejects local packaging but accepts remote release", () => {
+test("MCP-only downstream rejects local packaging but accepts remote release", () => {
   const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "harness-policy-interfaces-"));
   const docs = path.join(directory, "docs");
@@ -153,7 +153,7 @@ test("TUI/MCP-only downstream rejects local packaging but accepts remote release
       validateAgentPolicy(errors, policyPath, { allowPending: false });
       return errors;
     };
-    for (const interfaces of [["tui"], ["mcp"], ["tui", "mcp"]]) {
+    for (const interfaces of [["mcp"]]) {
       assert.ok(check(interfaces, "local_package").some((error) => error.includes("local_package requires CLI, GPUI GNU Linux, or GUI with a macOS/Windows target")));
       assert.deepEqual(check(interfaces, "push_release_branch"), []);
     }
@@ -163,12 +163,14 @@ test("TUI/MCP-only downstream rejects local packaging but accepts remote release
     assert.deepEqual(check(["cli", "gui"], "local_package", ["linux"], "gpui"), []);
     assert.deepEqual(check(["gui"], "push_release_branch", ["macos"], "gpui"), []);
     assert.deepEqual(check(["cli", "gui"], "local_package", ["macos"], "gpui"), []);
-    for (const interfaces of [["cli"], ["gui"], ["cli", "tui"], ["gui", "mcp"]]) {
+    for (const interfaces of [["cli"], ["gui"], ["gui", "mcp"]]) {
       assert.deepEqual(check(interfaces, "local_package"), []);
     }
     assert.ok(check(["gui"], "local_package", ["linux"]).some((error) => error.includes("local_package requires CLI, GPUI GNU Linux, or GUI with a macOS/Windows target")));
     assert.deepEqual(check(["gui"], "push_release_branch", ["linux"]), []);
     assert.ok(check([], "local_package").some((error) => error.includes("requires persisted interfaces and target-platforms")));
+    assert.ok(check(["tui"], "push_release_branch").length > 0, "retired TUI metadata must fail closed");
+    check(["gui"], "local_package", ["macos"]);
     fs.rmSync(manifestPath);
     const missingMetadata = [];
     validateAgentPolicy(missingMetadata, policyPath, { allowPending: false });

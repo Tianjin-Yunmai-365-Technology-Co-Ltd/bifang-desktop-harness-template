@@ -15,6 +15,13 @@ function fixtureEvidence(plan) { return { scopeDigest: plan.scopeDigest, ...Obje
 for (const framework of [null, 'tauri', 'gpui', 'nsh']) test(`terminal_pruning_preserves_selected_${framework ?? 'cli'}_and_common_contracts`, t => {
   const f = prepareFixture(t, framework);
   writeNeutralWorkspace(f);
+  if (framework === 'nsh') {
+    const generatedCache = path.join(f.target, 'regression_tool_gui', '.nsh', 'cache.bin');
+    fs.mkdirSync(path.dirname(generatedCache), { recursive: true });
+    fs.writeFileSync(generatedCache, 'generated NSH cache');
+    assert.equal(inventoryTarget(f.target).has('regression_tool_gui/.nsh/cache.bin'), false);
+    assert.match(fs.readFileSync(path.join(f.target, '.gitignore'), 'utf8'), /\*\*\/\.nsh\//u);
+  }
   if (framework === 'gpui') {
     ensureGpuiKitSkills(f.target);
     fs.appendFileSync(path.join(f.target, 'AGENTS.md'), '- [$gpui-kit](.agents/skills/gpui-kit/SKILL.md)\n- [$gpui-kit-design-guides](.agents/skills/gpui-kit-design-guides/SKILL.md)\n');
@@ -31,6 +38,7 @@ for (const framework of [null, 'tauri', 'gpui', 'nsh']) test(`terminal_pruning_p
     const name = candidate === 'tauri' ? 'desktop-add-gui-adapter' : `desktop-add-${candidate}-adapter`;
     assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name)), candidate === framework, candidate);
   }
+  assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_ENGINEERING.md')), framework === 'gpui' || framework === 'nsh');
   assert.deepEqual(fs.readFileSync(path.join(f.target, 'LICENSE.zh-CN.md')), beforeLicense);
   const agents = fs.readFileSync(path.join(f.target, 'AGENTS.md'), 'utf8');
   assert.ok(agents.trimEnd().split('\n').length <= 120);

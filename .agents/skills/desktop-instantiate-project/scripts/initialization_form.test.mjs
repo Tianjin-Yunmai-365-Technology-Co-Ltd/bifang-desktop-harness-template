@@ -81,7 +81,7 @@ test("invalid_basic_fields_and_paths_precede_conditional_questions", () => fixtu
   set("project_id", "sample_tool"); set("owner", "owner"); set("interfaces", ["gui"]);
   fs.writeFileSync(path.join(root, "file"), "fixture"); set("project_path", path.join(root, "file"));
   assert.deepEqual(evaluate().questions.map(({ id }) => id), ["project_path"]);
-  set("project_path", path.join(root, "projects")); set("interfaces", ["tui"]); set("owner", "");
+  set("project_path", path.join(root, "projects")); set("interfaces", ["mcp"]); set("owner", "");
   assert.deepEqual(evaluate().questions.map(({ id }) => id), ["owner", "post_release_action"]);
 }));
 
@@ -108,7 +108,7 @@ test("recommended_preset_is_exact_and_conflicts_require_mode_choice", () => fixt
 /** 遍历全部接口/平台组合，Linux GUI 框架待解不会被提前判为不可打包。 */
 test("local_package_matrix_and_linux_framework_revalidation", () => {
   const combinations = (items) => Array.from({ length: 2 ** items.length - 1 }, (_, mask) => items.filter((_, index) => ((mask + 1) & (1 << index)) !== 0));
-  for (const interfaces of combinations(["cli", "tui", "mcp", "gui"])) for (const target_platforms of combinations(["windows", "macos", "linux"])) for (const gui_framework of [undefined, "tauri", "gpui"]) {
+  for (const interfaces of combinations(["cli", "mcp", "gui"])) for (const target_platforms of combinations(["windows", "macos", "linux"])) for (const gui_framework of [undefined, "tauri", "gpui"]) {
     const expected = interfaces.includes("cli") ? "available" : !interfaces.includes("gui") ? "unavailable" : !gui_framework ? "pending" : gui_framework === "gpui" || target_platforms.some((item) => item !== "linux") ? "available" : "unavailable";
     assert.equal(localPackageAvailability({ interfaces, target_platforms, gui_framework }), expected);
   }
@@ -117,14 +117,20 @@ test("local_package_matrix_and_linux_framework_revalidation", () => {
     assert.equal(evaluate().questions[0].id, "gui_framework");
     set("gui_framework", "tauri"); assert.equal(evaluate().questions[0].id, "post_release_action");
     set("gui_framework", "gpui"); assert.equal(evaluate().stage, "review");
-    set("interfaces", ["tui", "mcp"]);
+    set("interfaces", ["mcp"]);
     for (const id of ["gui_framework", ...GUI_FIELDS]) delete input.answers[id];
     delete input.answers.post_release_action;
     assert.match(evaluate().questions[0].options[0], /不可用/u);
     set("post_release_action", "push_release_branch");
-    assert.deepEqual(evaluate().values.interfaces, ["tui", "mcp"]);
+    assert.deepEqual(evaluate().values.interfaces, ["mcp"]);
   });
 });
+
+test("retired_tui_interface_requires_a_new_selection", () => fixture(({ base, set, evaluate }) => {
+  base(); set("interfaces", ["tui"]);
+  assert.equal(evaluate().questions[0].id, "interfaces");
+  assert.ok(evaluate().questions[0].options.every(option => !option.includes("TUI")));
+}));
 
 /** 两框架按同一 profile 顺序逐问，已答晚字段不重复；不可用字段直接派生关闭。 */
 test("gui_order_and_gpui_unavailable_fields_are_deterministic", () => fixture(({ input, set, gui, evaluate }) => {

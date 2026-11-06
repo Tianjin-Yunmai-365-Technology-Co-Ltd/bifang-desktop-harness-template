@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { checkContext } from '../../desktop-prepare-release/scripts/release_context.mjs';
-import { loadDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
+import { loadDocument,renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 import { check as checkVersion } from '../../desktop-manage-version/scripts/version_gate.mjs';
 import { readDependencyLockPolicy } from '../../desktop-implement-change/scripts/project_lock_policy.mjs';
 import { iosPackagingIdentity,restoreIosDisplayIdentity } from './nsh_ios_identity.mjs';
@@ -28,6 +28,19 @@ function run(command,args,cwd,env=process.env,capture=false) {
   if(result.status!==0 && capture && result.stderr) process.stderr.write(result.stderr.slice(-12000));
   if (result.status !== 0) throw new Error(`${command} failed (${result.status ?? result.error?.code ?? 'unknown'})`);
   return result.stdout?.trim();
+}
+/** 候选日志通过短路径交给 Rust build.rs；本地试包显式清除继承值。 */
+export function releaseNoteBuildInputs(stage,notes,baseEnvironment=process.env) {
+  const env={...baseEnvironment};
+  for(const key of ['HARNESS_RELEASE_NOTES','HARNESS_RELEASE_NOTES_ZH','HARNESS_RELEASE_NOTES_EN','HARNESS_RELEASE_NOTES_ZH_PATH','HARNESS_RELEASE_NOTES_EN_PATH']) delete env[key];
+  if(!notes) return {env,temporary:[]};
+  const zh=renderDocument(notes,'zh-CN'),en=renderDocument(notes,'en-US');
+  const zhPath=path.join(stage,'release-notes.zh-CN.txt'),enPath=path.join(stage,'release-notes.en-US.txt');
+  fs.writeFileSync(zhPath,zh,{flag:'wx',mode:0o600});
+  fs.writeFileSync(enPath,en,{flag:'wx',mode:0o600});
+  env.HARNESS_RELEASE_NOTES_ZH_PATH=zhPath;
+  env.HARNESS_RELEASE_NOTES_EN_PATH=enPath;
+  return {env,temporary:[zhPath,enPath]};
 }
 /** 产物目录拒绝链接；签名 bundle 内的框架链接只由官方打包器拥有。 */
 export function inventory(directory) {
@@ -131,10 +144,10 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   fs.mkdirSync(parent,{recursive:true});
   fs.mkdirSync(path.join(root,'target'),{recursive:true});
   const stage=fs.mkdtempSync(path.join(root,'target/.nsh-package-'));
-  const formattedNotes=locale=>notes.releases.map(release=>[release.version,release.releaseDate,...release.featureOptimizations.map(item=>item[locale]),...release.bugFixes.map(item=>item[locale])].join('\n')).join('\n\n');
-  const env={...process.env,...(mode==='candidate'?{HARNESS_RELEASE_NOTES:fs.readFileSync(path.join(root,'release-notes.json'),'utf8'),HARNESS_RELEASE_NOTES_ZH:formattedNotes('zh-CN'),HARNESS_RELEASE_NOTES_EN:formattedNotes('en-US')}:{})};
+  const {env,temporary}=releaseNoteBuildInputs(stage,notes);
   const iosIdentity=['ios','ios-simulator'].includes(target)?iosPackagingIdentity(JSON.parse(fs.readFileSync(path.join(facts.gui,'nsh.json'),'utf8')).name):null;
   run('nsh',['package','--target',target,'--out',path.join(stage,'package'),'--app-version',facts.version,...(iosIdentity?.changed?['--name',iosIdentity.packageName]:[])],facts.gui,env);
+  for(const file of temporary) fs.rmSync(file);
   if(iosIdentity?.changed) {
     const app=restoreIosDisplayIdentity(path.join(stage,'package'),iosIdentity);
     if(target==='ios-simulator'){run('codesign',['--force','--sign','-','--timestamp=none',app],root);run('codesign',['--verify','--deep','--strict',app],root);}

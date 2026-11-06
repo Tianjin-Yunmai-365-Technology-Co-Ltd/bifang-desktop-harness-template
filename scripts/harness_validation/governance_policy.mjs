@@ -111,13 +111,16 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   } else if (!allowPending && postReleaseAction === "pending") {
     fail(errors, "initialized downstream Agent policy must resolve post_release_action");
   }
+  const releaseMetadata = !allowPending ? persistedReleaseMetadata(policyPath, errors) : null;
+  const selectedInterfaces = interfaces ?? releaseMetadata?.interfaces ?? null;
+  if (Array.isArray(selectedInterfaces) && selectedInterfaces.some((value) => !["cli", "mcp", "gui"].includes(value))) {
+    fail(errors, "Agent policy metadata contains retired or unknown interface");
+  }
   if (!allowPending && postReleaseAction === "local_package") {
-    const metadata = persistedReleaseMetadata(policyPath, errors);
-    const selectedInterfaces = interfaces ?? metadata?.interfaces ?? null;
-    const selectedPlatforms = targetPlatforms ?? metadata?.["target-platforms"] ?? null;
+    const selectedPlatforms = targetPlatforms ?? releaseMetadata?.["target-platforms"] ?? null;
     if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0 || !Array.isArray(selectedPlatforms)) {
       fail(errors, "local_package requires persisted interfaces and target-platforms metadata");
-    } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, metadata?.["gui-framework"] ?? "tauri")) {
+    } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, releaseMetadata?.["gui-framework"] ?? "tauri")) {
       fail(errors, "local_package requires CLI, GPUI GNU Linux, or GUI with a macOS/Windows target; otherwise select push_release_branch");
     }
   }

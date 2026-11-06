@@ -178,12 +178,6 @@
       "declaredRustVersion": "1.73",
       "source": "https://crates.io/api/v1/crates/png/0.18.1"
     },
-    "ratatui": {
-      "version": "0.30.2",
-      "latestStable": "0.30.2",
-      "declaredRustVersion": "1.88.0",
-      "source": "https://crates.io/api/v1/crates/ratatui/0.30.2"
-    },
     "raw-window-handle": {
       "version": "0.6.2",
       "latestStable": "0.6.2",
@@ -363,18 +357,6 @@
       "latestStable": "0.26.1",
       "declaredRustVersion": "1.90",
       "source": "https://crates.io/api/v1/crates/tray-icon/0.26.1"
-    },
-    "tui-realm-stdlib": {
-      "version": "4.1.0",
-      "latestStable": "4.1.0",
-      "declaredRustVersion": "1.88",
-      "source": "https://crates.io/api/v1/crates/tui-realm-stdlib/4.1.0"
-    },
-    "tuirealm": {
-      "version": "4.1.0",
-      "latestStable": "4.1.0",
-      "declaredRustVersion": "1.88",
-      "source": "https://crates.io/api/v1/crates/tuirealm/4.1.0"
     },
     "utoipa": {
       "version": "6.0.0",

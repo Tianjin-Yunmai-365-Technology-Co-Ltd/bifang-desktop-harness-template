@@ -8,8 +8,6 @@ import {
   MCP_SKILL,
   PRODUCT_SPEC,
   REACT_BASELINE,
-  TUI_BASELINE,
-  TUI_SKILL,
   validateCurrentDescriptions,
   validateDependencyEvidenceContract,
   validateStaleFragments,
@@ -46,7 +44,7 @@ test("dependency evidence rejects explicit and environment-section overclaims", 
   for (const update of [
     (source) => `${source}\n前端/Rust 直接依赖统一表达为经过验证的最低兼容范围\n`,
     (source) => source.replace("依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable", "依赖清单以经过验证的最低兼容范围为目标"),
-    (source) => source.replace("继续保持 `Unverified`", "TUI/MCP/GUI 已完成真实下游最低工具链验证"),
+    (source) => source.replace("继续保持 `Unverified`", "MCP/GUI 已完成真实下游最低工具链验证"),
   ]) withTemporaryRoot((root) => {
     const productSpec = mutate(root, PRODUCT_SPEC, update);
     const errors = [];
@@ -80,8 +78,6 @@ test("current adapter contracts explicitly remain unverified", () => {
 
 test("adapter contracts reject superseded overclaims", () => {
   const cases = [
-    ["tuiSkill", TUI_SKILL, "TUI 最低兼容稳定组合及当前完整三段下界为"],
-    ["tuiBaseline", TUI_BASELINE, "上表是已验证的最低兼容稳定组合"],
     ["mcpSkill", MCP_SKILL, "MCP 最低兼容稳定下界为"],
     ["reactBaseline", REACT_BASELINE, "当前已核定的 GUI 前端直接兼容下界如下"],
   ];
@@ -95,7 +91,6 @@ test("adapter contracts reject superseded overclaims", () => {
 
 test("adapter contracts require their unverified evidence markers", () => {
   const cases = [
-    ["tuiSkill", TUI_SKILL, "在真实 TUI 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`"],
     ["mcpSkill", MCP_SKILL, "在真实 MCP 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`"],
     ["reactBaseline", REACT_BASELINE, "在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`"],
   ];
@@ -145,6 +140,6 @@ test("stale preference, environment, initialization, and task-title rules fail c
 
 test("missing adapter evidence files fail closed", () => withTemporaryRoot((root) => {
   const errors = [];
-  validateUnverifiedAdapterDependencyContract(errors, { tuiSkill: path.join(root, "missing.md") });
+  validateUnverifiedAdapterDependencyContract(errors, { mcpSkill: path.join(root, "missing.md") });
   assert.ok(errors.some((error) => error.includes("missing adapter dependency evidence contract")), errors.join("\n"));
 }));

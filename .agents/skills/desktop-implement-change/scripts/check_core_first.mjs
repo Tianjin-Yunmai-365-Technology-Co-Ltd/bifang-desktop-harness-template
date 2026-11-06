@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { readDependencyLockPolicy } from "./project_lock_policy.mjs";
 
-const ADAPTER_SUFFIXES = ["_cli", "_tui", "_mcp", "_gui"];
+const ADAPTER_SUFFIXES = ["_cli", "_mcp", "_gui"];
 const INTERFACE_CRATE_NAMES = new Set([
   "clap", "crossterm", "dialoguer", "gpui", "gpui-pre", "gpui-kit", "gpui-component", "muda", "ratatui", "rmcp", "tauri", "tauri-build",
   "termion", "tray-icon", "tui-realm", "tui-realm-stdlib", "tuirealm", "winit",
@@ -134,6 +134,7 @@ export function validateMetadata(metadata) {
   }
   const packageNames = names.map(String);
   if (packageNames.length !== new Set(packageNames).size) errors.push("workspace package name 必须唯一");
+  if (packageNames.some((name) => name.endsWith("_tui"))) errors.push("TUI adapter 已退役，workspace 不得包含 _tui package");
   const corePackages = packages.filter((packageValue) => String(packageValue.name ?? "").endsWith("_core"));
   if (corePackages.length !== 1) {
     errors.push(`workspace 必须且只能包含一个以 _core 结尾的共享核心 package，实际为 ${corePackages.length}`);
@@ -148,7 +149,7 @@ export function validateMetadata(metadata) {
 
   const adapterPackages = packages.filter((packageValue) => ADAPTER_SUFFIXES.some((suffix) => String(packageValue.name ?? "").endsWith(suffix)));
   if (adapterPackages.length === 0) {
-    errors.push("workspace 至少需要一个 _cli/_tui/_mcp/_gui adapter package");
+    errors.push("workspace 至少需要一个 _cli/_mcp/_gui adapter package");
     return sortedUnique(errors);
   }
   const adapterNames = new Set(adapterPackages.map((packageValue) => String(packageValue.name)));

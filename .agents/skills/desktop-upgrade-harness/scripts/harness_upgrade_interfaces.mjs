@@ -5,7 +5,7 @@ import path from "node:path";
 import { UpgradeError, assertSafePath, lstatOrNull, snapshotFile } from "./harness_upgrade_safety.mjs";
 
 const METADATA_TABLE = ["workspace", "metadata", "agent-first-harness"];
-const INTERFACES = new Set(["cli", "tui", "mcp", "gui"]);
+const INTERFACES = new Set(["cli", "mcp", "gui"]);
 const FRAMEWORKS = new Set(["tauri", "gpui", "nsh"]);
 const TAURI_SKILLS = new Set([
   "desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-system-locale",
@@ -152,7 +152,7 @@ export function readInterfaceSelection(root) {
 
 /** GUI 条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
 export function inapplicableGuiCandidate(relative, selection) {
-  if (relative === "docs/GUI_ENGINEERING.md") return selection.guiFramework !== "gpui";
+  if (relative === "docs/GUI_ENGINEERING.md") return !["gpui", "nsh"].includes(selection.guiFramework);
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
   if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-manage-gpui-dependencies", "desktop-optimize-gpui-performance", "desktop-add-gpui-autostart", "desktop-test-gpui-initialization-e2e"].includes(skill)) return selection.guiFramework !== "gpui";
   if (["desktop-add-nsh-adapter", "desktop-build-nsh-release", "desktop-test-nsh-initialization-e2e"].includes(skill)) return selection.guiFramework !== "nsh";

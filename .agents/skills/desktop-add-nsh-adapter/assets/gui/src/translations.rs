@@ -13,6 +13,7 @@ pub fn tr(chinese: bool, key: &'static str) -> &'static str {
         (true, "sponsor") => "赞助", (_, "sponsor") => "Sponsor",
         (true, "collapse") => "收起侧栏", (_, "collapse") => "Collapse sidebar",
         (true, "expand") => "展开侧栏", (_, "expand") => "Expand sidebar",
+        (true, "expand_short") => "展开", (_, "expand_short") => "Expand",
         (true, "neutral") => "中性工程已初始化，请在下游定义产品。", (_, "neutral") => "Neutral workspace initialized. Define the product in this downstream project.",
         (true, "storage_error") => "无法保存设置，请重试。", (_, "storage_error") => "Unable to save settings. Please retry.",
         _ => key,

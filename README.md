@@ -6,7 +6,7 @@ Bifang Desktop Harness Template
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
-你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、TUI、MCP、GUI 中的哪些界面。它会创建一个独立的 Git 项目，搭好共享核心、所选界面、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
+你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、MCP、GUI 中的哪些界面。它会创建一个独立的 Git 项目，搭好共享核心、所选界面、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
 选择桌面应用后，Agent 会继续询问：**1. Tauri（默认）：使用Web技术开发桌面客户端；2. GPUI：高性能原生客户端；3. NSH：跨平台客户端 支持桌面、移动、Web**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
@@ -23,7 +23,7 @@ NSH 使用 Rust UI 与共享 core，通过 `$desktop-test-nsh-initialization-e2e
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / 终端UI(TUI) / MCP / 桌面应用(GUI)，可多选；明确默认或跳过才使用 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；不含 CLI 的纯 TUI/MCP 或仅 Linux Tauri GUI 没有现有本地候选打包入口时该默认项不可用，须明确选择提交远程。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（命令行(CLI) / MCP / 桌面应用(GUI)，可多选；明确默认或跳过才使用 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；不含 CLI 的纯 MCP 或仅 Linux Tauri GUI 没有现有本地候选打包入口时该默认项不可用，须明确选择提交远程。选择 GUI 或自定义策略后，再按表单每轮补充一个适用的条件字段。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、程序类型、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
@@ -38,7 +38,7 @@ NSH 使用 Rust UI 与共享 core，通过 `$desktop-test-nsh-initialization-e2e
 
 - 从一份简短的初始化表单创建全新的项目，不需要手动复制和改名。
 - GUI 统一设计从 [DESIGN.md](DESIGN.md) 进入：共用基座约束语义 Token、标准组件、样式分层及交互一致性，再叠加框架和组件标准；规范随下游创建与受管升级传播，既有项目自有设计受保护。
-- 在 CLI、TUI、MCP、GUI 中自由选择一种或多种界面；明确选默认值或跳过时使用 CLI，漏答继续等待。
+- 在 CLI、MCP、GUI 中自由选择一种或多种界面；明确选默认值或跳过时使用 CLI，漏答继续等待。
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 可选地把新结果创建为绑定保存项目的 Codex 左侧 user-owned Task；自动拆分默认关闭，启用后按结果边界创建，Git Task 按 task_worktrees 选择独立 Worktree 或串行 Local，并使用可审查提交。
@@ -104,9 +104,9 @@ NSH 使用 Rust UI 与共享 core，通过 `$desktop-test-nsh-initialization-e2e
 
 显式候选构建只接受已有 clean 默认主分支和精确版本 tag；构建入口只读验证并消费 `.harness/release-context.json`，本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据。远程跨平台 provider 另要求远端 `release` 分支与 tag 已复读为同一已发布 HEAD。候选须运行全部非空单元测试。普通 Windows 本地安装试包是开发制品，不要求发布日志或 clean HEAD。构建事实只写入适用产物位置和最终回复，不自动更新项目记忆。普通 GUI 页面状态在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页使用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 
-Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/TUI/MCP/GUI 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在 GUI adapter，但其业务效果仍调用 core。维护者运行 `node scripts/run_harness_tests.mjs` 执行非空回归，并以 `node scripts/validate_harness.mjs` 检查 Harness 硬门禁。
+Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/MCP/GUI 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在 GUI adapter，但其业务效果仍调用 core。维护者运行 `node scripts/run_harness_tests.mjs` 执行非空回归，并以 `node scripts/validate_harness.mjs` 检查 Harness 硬门禁。
 
-依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable。Harness 源和新建下游默认忽略 `Cargo.lock` 与 `pnpm-lock.yaml`；已有下游可在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中显式设置 `dependency-lock-policy = "tracked"`，由本项目跟踪实际工作区的锁文件并使用冻结解析。缺省或 `ignored` 保持无锁门禁，其他值失败关闭；`pnpm-package.lock` 仍为非标准文件名且被忽略。新加入依赖时优先选择 registry 当前最新兼容稳定版。当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析、格式、Clippy 与非空测试；TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选，在真实下游完成正常解析、测试及适用构建前保持 `Unverified`。环境门禁当前要求 Git `>=2.36.0`、Rust 通用环境 `>=1.95.0`、所有接口组合的 Node.js `>=24.0.0`，GUI 另要求 pnpm `>=12.4.1`：已安装的更高稳定版本直接通过，只有缺失或可证明低于下界时才安装/升级。Node.js 安装选择官方当前最高 LTS 线的最新补丁；Rust 没有 LTS 通道，使用官方当前 stable。Rust/Node.js/pnpm 使用各平台标准的当前用户全局位置与 PATH，不创建 Harness 私有工具环境变量或私有全局前缀；`rustup-init` 使用 `--no-modify-path`，由门禁在完整预检后持久化标准 Cargo bin，这不改变标准安装根。非默认 Rust homes 必须能由新登录会话持久恢复，单一路径根不得夹带 PATH 分隔符，当前进程和新 shell 都必须复探。只读检查零写入并报告 `upgrade-required`；存在显式上界时高于上界仍阻断，预发布、无法解析或损坏的工具同样失败关闭。Agent 不会降低门禁、回退依赖、在项目内注入 shim 或改找替代工具链来迁就旧环境。文件与测试组织遵守 [工程维护规则](docs/ENGINEERING_RULES.md) 和 [GUI 设计标准索引](docs/design_standards/README.md)：日常只强制 Rust 800 行、前端 1000 行的硬上限，其他人工维护文本也固定为 2000 行硬上限；Rust 401–800、前端 501–1000、其他文本 501–2000 行的建议候选只在当次发布启用语义审查时集中提示。Rust 模块拆分使用 `<module>/mod.rs`。
+依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable。Harness 源和新建下游默认忽略 `Cargo.lock` 与 `pnpm-lock.yaml`；已有下游可在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中显式设置 `dependency-lock-policy = "tracked"`，由本项目跟踪实际工作区的锁文件并使用冻结解析。缺省或 `ignored` 保持无锁门禁，其他值失败关闭；`pnpm-package.lock` 仍为非标准文件名且被忽略。新加入依赖时优先选择 registry 当前最新兼容稳定版。当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析、格式、Clippy 与非空测试；MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选，在真实下游完成正常解析、测试及适用构建前保持 `Unverified`。环境门禁当前要求 Git `>=2.36.0`、Rust 通用环境 `>=1.95.0`、所有接口组合的 Node.js `>=24.0.0`，GUI 另要求 pnpm `>=12.4.1`：已安装的更高稳定版本直接通过，只有缺失或可证明低于下界时才安装/升级。Node.js 安装选择官方当前最高 LTS 线的最新补丁；Rust 没有 LTS 通道，使用官方当前 stable。Rust/Node.js/pnpm 使用各平台标准的当前用户全局位置与 PATH，不创建 Harness 私有工具环境变量或私有全局前缀；`rustup-init` 使用 `--no-modify-path`，由门禁在完整预检后持久化标准 Cargo bin，这不改变标准安装根。非默认 Rust homes 必须能由新登录会话持久恢复，单一路径根不得夹带 PATH 分隔符，当前进程和新 shell 都必须复探。只读检查零写入并报告 `upgrade-required`；存在显式上界时高于上界仍阻断，预发布、无法解析或损坏的工具同样失败关闭。Agent 不会降低门禁、回退依赖、在项目内注入 shim 或改找替代工具链来迁就旧环境。文件与测试组织遵守 [工程维护规则](docs/ENGINEERING_RULES.md) 和 [GUI 设计标准索引](docs/design_standards/README.md)：日常只强制 Rust 800 行、前端 1000 行的硬上限，其他人工维护文本也固定为 2000 行硬上限；Rust 401–800、前端 501–1000、其他文本 501–2000 行的建议候选只在当次发布启用语义审查时集中提示。Rust 模块拆分使用 `<module>/mod.rs`。
 
 每次正式发布使用同一份双语 `release-notes.json`；每版两类各至多 10 个翻译对，并保留包含当前发布版本在内的最近 10 个实际发布版本。用户可见版本只显示一个小写 `v`，机器字段不带前缀。
 
@@ -120,7 +120,7 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 
 ## Skills 索引
 
-初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-tui-adapter`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-add-nsh-adapter`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
+初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-add-nsh-adapter`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
 
 开发与治理：`$desktop-extract-technical-docs`、`$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance`、`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-task-workflow`、`$desktop-manage-user-tasks`、`$desktop-manage-task-worktrees`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
 
@@ -135,7 +135,6 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 ## 可以创建哪些界面
 
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
-- **TUI**：适合在终端中用键盘操作，基于 Ratatui 与 tui-realm。
 - **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
 - **GUI**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板，按选择加入五项桌面能力并遵守自含依赖标准；NSH 使用 Rust UI，支持桌面、移动和 Web，并提供独立初始化测试与打包入口。Tauri 路径固定接入系统语言、窗口状态和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
 
@@ -146,7 +145,7 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202611061437
+- 当前版本：v202611070300
 - 发布状态：以适用 Git 引用复核结果为准
 - 产品规格：Approved
 - 具体产品源码：不包含

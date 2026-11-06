@@ -14,6 +14,7 @@ pnpm-package.lock
 **/dist/
 /coverage/
 **/coverage/
+**/.nsh/
 /.vite/
 **/.vite/
 

@@ -53,6 +53,13 @@ export const TAURI_DMG_LAYOUT_HELPER = skill("desktop-build-tauri-release", "scr
 export const TAURI_DMG_LAYOUT_TESTS = skill("desktop-build-tauri-release", "scripts", "verify_dmg_layout.test.mjs");
 export const TAURI_RELEASE_NOTES_HELPER = skill("desktop-build-tauri-release", "scripts", "verify_release_notes_resource.mjs");
 export const TAURI_RELEASE_NOTES_HELPER_TESTS = skill("desktop-build-tauri-release", "scripts", "verify_release_notes_resource.test.mjs");
+export const NSH_RELEASE_SKILL = skill("desktop-build-nsh-release", "SKILL.md");
+export const NSH_RELEASE_HELPER = skill("desktop-build-nsh-release", "scripts", "build_nsh_release.mjs");
+export const NSH_RELEASE_HELPER_TESTS = skill("desktop-build-nsh-release", "scripts", "build_nsh_release.test.mjs");
+export const NSH_IOS_IDENTITY_HELPER = skill("desktop-build-nsh-release", "scripts", "nsh_ios_identity.mjs");
+export const NSH_IOS_IDENTITY_TESTS = skill("desktop-build-nsh-release", "scripts", "nsh_ios_identity.test.mjs");
+export const NSH_ABOUT_ASSET = skill("desktop-add-nsh-adapter", "assets", "gui", "src", "about.rs");
+export const NSH_BUILD_ASSET = skill("desktop-add-nsh-adapter", "assets", "gui", "build.rs");
 export const MACOS_XWIN_GATE = skill("desktop-check-development-environment", "scripts", "macos-tauri-xwin-gates.sh");
 export const MACOS_XWIN_GATE_TESTS = skill("desktop-check-development-environment", "scripts", "macos_tauri_xwin_gates.test.mjs");
 
@@ -195,6 +202,35 @@ export function validateTauriLocalInstallContract(errors, localSkill = TAURI_LOC
     "pnpm tauri build --bundles nsis --target x86_64-pc-windows-msvc --no-sign", "artifactPurpose: local-install-test",
     "releaseCandidate: false", "signingStatus: unsigned", "本 Skill 不询问 E2E 开/关",
   ]]]), { label: "Tauri local install contract" });
+}
+
+/** 锁定 NSH 独立打包、真实渲染测试、日志 UI 和候选证据边界。 */
+export function validateNshBuildContract(errors, overrides = {}) {
+  const paths = {
+    buildSkill: NSH_RELEASE_SKILL,
+    buildHelper: NSH_RELEASE_HELPER,
+    buildTests: NSH_RELEASE_HELPER_TESTS,
+    iosHelper: NSH_IOS_IDENTITY_HELPER,
+    iosTests: NSH_IOS_IDENTITY_TESTS,
+    aboutAsset: NSH_ABOUT_ASSET,
+    buildAsset: NSH_BUILD_ASSET,
+    releaseDoc: RELEASE_DOC,
+    e2eSkill: E2E_SKILL,
+    verifySkill: VERIFY_DELIVERY_SKILL,
+    ...overrides,
+  };
+  validateFragmentContract(errors, new Map([
+    [paths.buildSkill, ["gui-framework = \"nsh\"", "`candidate`", "nsh:package", "release-notes.json", "更新日志", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "sidecar", "milestoneAcceptance: pending", "runtimeVerification: Unverified"]],
+    [paths.buildHelper, ["buildNshRelease(", "cargo',['test','--workspace','--all-targets','--all-features'", "nsh',['check']", "nsh',['test','.']", "nsh',['package','--target'", "renderDocument(notes,'zh-CN')", "renderDocument(notes,'en-US')", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "validateNshArtifacts(", "releaseNotesResourceVerification:'sidecar-byte-identical'", "sourceSnapshot(root)!==before"]],
+    [paths.buildTests, ["tracked_resolution_and_unanswered_candidate_selection_fail_before_build", "fake_suffixes_and_incomplete_official_packages_are_rejected", "official_named_web_directory_is_discovered_and_requires_real_wasm_header"]],
+    [paths.iosHelper, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],
+    [paths.iosTests, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],
+    [paths.aboutAsset, ["include_str!", "harness_release_notes_zh.txt", "harness_release_notes_en.txt", "更新日志", "Release notes"]],
+    [paths.buildAsset, ["HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "harness_release_notes_zh.txt", "harness_release_notes_en.txt", "OUT_DIR"]],
+    [paths.releaseDoc, ["### NSH 路由", "未签名设备 app", "正式 IPA", "sidecar 不冒充内部资源"]],
+    [paths.e2eSkill, ["NSH", "更新日志"]],
+    [paths.verifySkill, ["NSH", "sidecar"]],
+  ]), {label: "NSH release contract", syntaxCheck: [paths.buildHelper, paths.buildTests, paths.iosHelper, paths.iosTests]});
 }
 
 /** 锁定 Tauri 原生/交叉候选、签名公证、资源和原子提交门禁。 */
@@ -434,6 +470,7 @@ export function validateReleaseContract(errors) {
   validateBuildSkillContract(errors);
   validateTauriLocalInstallContract(errors);
   validateTauriBuildSkillContract(errors);
+  validateNshBuildContract(errors);
   validateReleaseSelectionContract(errors);
   validateHarnessSourceReleaseContract(errors);
   validateReleaseGitContract(errors);

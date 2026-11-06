@@ -23,7 +23,6 @@ import {
   TAURI_DMG_LAYOUT_HELPER,
   TAURI_NOTARIZATION_HELPER,
   TAURI_RELEASE_DIRECTORY_HELPER,
-  TUI_SKILL,
   CLI_SKILL,
   WORK_PLAN,
 } from "./initialization_paths.mjs";
@@ -265,7 +264,6 @@ function validateNaming(errors) {
   const files = [
     INITIALIZE_SKILL,
     CLI_SKILL,
-    TUI_SKILL,
     MCP_SKILL,
     GUI_ADAPTER_SKILL,
     RUST_BASELINE,

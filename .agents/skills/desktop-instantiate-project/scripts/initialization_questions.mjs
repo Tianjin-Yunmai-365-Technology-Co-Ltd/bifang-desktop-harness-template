@@ -6,7 +6,7 @@ export const QUESTIONS = [
   { id: "project_path", number: 4, title: "项目放在哪里？", help: "提供最终项目根目录或父目录；相对路径以 Harness 根目录为基准。" },
   { id: "owner", number: 5, title: "项目负责人或责任主体是谁？" },
   { id: "target_platforms", number: 6, title: "支持哪些目标平台？可多选。", options: ["Windows", "macOS", "Linux", "Android（NSH）", "iOS（NSH）", "Web（NSH）"], values: ["windows", "macos", "linux", "android", "ios", "web"] },
-  { id: "interfaces", number: 7, title: "需要哪些程序类型？可多选。", options: ["命令行(CLI，默认)", "终端UI(TUI)", "MCP", "桌面应用(GUI)"], values: ["cli", "tui", "mcp", "gui"], defaultValue: ["cli"], help: "明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。" },
+  { id: "interfaces", number: 7, title: "需要哪些程序类型？可多选。", options: ["命令行(CLI，默认)", "MCP", "桌面应用(GUI)"], values: ["cli", "mcp", "gui"], defaultValue: ["cli"], help: "明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。" },
   { id: "policy_mode", number: 8, title: "使用哪种 Agent 策略？", options: ["推荐预设", "自定义"], values: ["recommended", "custom"], help: "推荐预设：自动 Task、Task 独立工作树、superpowers、内部并行关闭；候选验收冒烟允许；候选 E2E 建议关闭。自定义按此顺序逐项选择。发布后动作单独确认。" },
   { id: "post_release_action", number: 9, title: "未来 Git 发布完成后执行什么动作？", options: ["本地打包（推荐默认）", "提交远程"], values: ["local_package", "push_release_branch"], defaultValue: "local_package", help: "须明确选择或确认可执行的默认值；初始化只记录选择，不打包、不访问远端、不配置远端或凭据。" },
   { id: "gui_framework", title: "要创建哪种桌面应用？", options: ["1. Tauri（默认）：使用Web技术开发桌面客户端", "2. GPUI：高性能原生客户端", "3. NSH：跨平台客户端 支持桌面、移动、Web"], values: ["tauri", "gpui", "nsh"], defaultValue: "tauri" },
@@ -58,7 +58,7 @@ export function summaryNotices(values) {
       "GPUI 本地候选由 desktop-build-gpui-release 构建 macOS app/DMG、Windows NSIS 或 Linux GNU x64/ARM64 deb/tar.gz；当前声明不代表跨平台结果已验证。");
   } else {
     notices.push("NSH 使用 Native Shell/Rust、desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e；桌面、Android、iOS 与 Web 共用薄适配器和 core。当前中性模板的托盘、通知、自启、单实例、深链接、全局快捷键 unavailable/disabled，不用应用内快捷键冒充系统热键。",
-      "NSH 由 desktop-build-nsh-release 独立打包 macOS app、Windows zip、Linux tar.gz、Android APK、iOS app/IPA 与 Web 静态站点；原生工具链、签名和真实设备验证分别按目标执行，不宣称跨平台已验证。");
+      "NSH 由 desktop-build-nsh-release 独立打包 macOS app、Windows zip、Linux tar.gz、Android APK、iOS 本地 app 与 Web 静态站点；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
   }
   if (values.interfaces.includes("cli")) notices.push("CLI 与 GUI 组合分别使用对应打包 Skill 生成真实产物，不互相冒充。");
   if (values.global_shortcut === "enabled") notices.push("全局快捷键只安装 Rust-only 能力；contract 为 actions = []，零默认 chord、零 OS 注册、零产品动作和占位界面。");

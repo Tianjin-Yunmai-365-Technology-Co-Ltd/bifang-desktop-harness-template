@@ -383,7 +383,7 @@ test("legacy policy excluding default branch synchronization fails without write
 test("local package choice requires an existing CLI or supported GUI package route", (t) => {
   const f = fixture(t);
   const cargo = path.join(f.root, "Cargo.toml");
-  fs.writeFileSync(cargo, "[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"tui\", \"mcp\"]\n");
+  fs.writeFileSync(cargo, "[workspace.metadata.agent-first-harness]\ntarget-platforms = [\"macos\"]\ninterfaces = [\"mcp\"]\n");
   assert.match(f.run("set", setOptions("local_package"), 2).error, /没有现有本地打包 Skill/u);
   assert.equal(f.run("set", setOptions("push_release_branch")).status, "configured");
   assert.match(f.run("set", setOptions("local_package", "push_release_branch"), 2).error, /没有现有本地打包 Skill/u);

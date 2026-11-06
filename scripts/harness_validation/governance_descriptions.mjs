@@ -14,8 +14,6 @@ const changelogDirectory = docs("changelog");
 export const PRODUCT_SPEC = latestDatedFile(productSpecDirectory, /^\d{8}_product_spec\.md$/u);
 export const PRODUCT_STATUS = latestDatedFile(productStatusDirectory, /^\d{8}_product_status\.md$/u);
 export const WORK_PLAN = latestDatedFile(workPlanDirectory, /^\d{8}_work_plan\.md$/u);
-export const TUI_SKILL = skill("desktop-add-tui-adapter", "SKILL.md");
-export const TUI_BASELINE = skill("desktop-add-tui-adapter", "references", "tui-baseline.md");
 export const MCP_SKILL = skill("desktop-add-mcp-adapter", "SKILL.md");
 export const MCP_BASELINE = skill("desktop-add-mcp-adapter", "references", "mcp-baseline.md");
 export const REACT_BASELINE = skill("desktop-add-gui-adapter", "references", "react-frontend-baseline.md");
@@ -57,18 +55,14 @@ function sourceText(errors, filePath, missingMessage) {
   }
 }
 
-/** 锁定 TUI/MCP/GUI 候选版本与真实下游验证证据的边界。 */
+/** 锁定 MCP/GUI 候选版本与真实下游验证证据的边界。 */
 export function validateUnverifiedAdapterDependencyContract(errors, overrides = {}) {
   const paths = {
-    tuiSkill: overrides.tuiSkill ?? TUI_SKILL,
-    tuiBaseline: overrides.tuiBaseline ?? TUI_BASELINE,
     mcpSkill: overrides.mcpSkill ?? MCP_SKILL,
     mcpBaseline: overrides.mcpBaseline ?? MCP_BASELINE,
     reactBaseline: overrides.reactBaseline ?? REACT_BASELINE,
   };
   const required = new Map([
-    [paths.tuiSkill, ["经 registry 元数据筛选的 TUI 候选完整三段下界", "在真实 TUI 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只有实际通过后才把候选称为项目兼容下界"]],
-    [paths.tuiBaseline, ["经 registry 元数据筛选的候选组合", "在真实 TUI 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只把实际验证通过的版本写成项目兼容下界"]],
     [paths.mcpSkill, ["经 registry 元数据筛选的 MCP 候选完整三段下界", "在真实 MCP 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只有实际通过后才把候选称为项目 Cargo 兼容下界"]],
     [paths.mcpBaseline, ["经过 registry 元数据筛选的候选完整三段下界", "在真实 MCP 下游使用满足兼容下限的 stable 完成正常解析和测试前保持 `Unverified`", "只有满足兼容下限的 stable 正常解析与相关测试实际通过后才可作为项目 Cargo 兼容下界"]],
     [paths.reactBaseline, ["经 registry 元数据、peer 与 engine 筛选的 GUI 前端候选完整三段下界", "在真实 GUI 下游完成最低 Node.js/pnpm、lowest-direct 解析、类型检查、非空测试与生产构建前保持 `Unverified`", "实际通过后才可成为该项目的兼容下界"]],
@@ -81,8 +75,6 @@ export function validateUnverifiedAdapterDependencyContract(errors, overrides = 
     }
   }
   const superseded = new Map([
-    [paths.tuiSkill, ["TUI 最低兼容稳定组合及当前完整三段下界为"]],
-    [paths.tuiBaseline, ["上表是已验证的最低兼容稳定组合"]],
     [paths.mcpSkill, ["MCP 最低兼容稳定下界为"]],
     [paths.mcpBaseline, ["作为新的 Cargo 兼容下界"]],
     [paths.reactBaseline, ["当前已核定的 GUI 前端直接兼容下界如下"]],
@@ -106,11 +98,11 @@ export function validateDependencyEvidenceContract(errors, options = {}) {
   const required = [
     "依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable",
     "中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析",
-    "`rmcp 3.8.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-10-29 经 registry metadata、peer 与 engine 筛选的候选完整三段下界",
+    "`rmcp 3.8.0` 和 GUI/React 的版本数值仅为截至 2026-10-29 经 registry metadata、peer 与 engine 筛选的候选完整三段下界",
     "继续保持 `Unverified`",
     "实例化真实下游时 Rust 复用满足兼容下限的已安装 stable 正常解析，前端仍在最低 Node.js/pnpm 环境执行最低直接版本解析",
     "成功后才能成为该项目的兼容下界",
-    "中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选",
+    "中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；MCP/GUI 数值仍为 `Unverified` 候选",
   ];
   for (const fragment of required) {
     if (!text.includes(fragment)) fail(errors, `dependency evidence contract missing in ${relativePath(productSpec)}: ${fragment}`);
@@ -129,16 +121,16 @@ export function validateDependencyEvidenceContract(errors, options = {}) {
     if (environmentText.includes(fragment)) fail(errors, `unverified dependency baseline is overstated in ${relativePath(productSpec)}: ${fragment}`);
   }
   const positiveClaims = [
-    /(?:rmcp|TUI|MCP|GUI(?:\/React)?).{0,100}(?:已经|均已|全部已|已完成).{0,16}(?:验证|实测|通过)/su,
-    /(?:已经|均已|全部已|已完成).{0,16}(?:验证|实测|通过).{0,100}(?:rmcp|TUI|MCP|GUI(?:\/React)?)/su,
+    /(?:rmcp|MCP|GUI(?:\/React)?).{0,100}(?:已经|均已|全部已|已完成).{0,16}(?:验证|实测|通过)/su,
+    /(?:已经|均已|全部已|已完成).{0,16}(?:验证|实测|通过).{0,100}(?:rmcp|MCP|GUI(?:\/React)?)/su,
     /(?:所有|全部).{0,20}(?:直接依赖|依赖).{0,24}(?:已经|均已|全部已|已完成|已).{0,16}(?:验证|实测|通过)/su,
   ];
   for (const pattern of positiveClaims) {
     if (pattern.test(environmentText)) fail(errors, `unverified dependency baseline is overstated in ${relativePath(productSpec)}: ${pattern.source}`);
   }
   const supporting = new Map([
-    [readme, ["依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable", "当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析", "TUI、MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选", "保持 `Unverified`"]],
-    [engineeringRules, ["只有这些真实项目检查通过后才可称为“经过验证”", "尚无真实下游的 TUI/MCP/GUI 模板数值只能作为 registry metadata、peer 与 engine 筛选后的候选并标记 `Unverified`"]],
+    [readme, ["依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable", "当前只有中性 Rust CLI fixture 的 Cargo 直接依赖已在 Rust 1.98.1 上完成最低直接版本解析", "MCP、GUI/React 数值仍是经 registry metadata、peer 与 engine 筛选的候选", "保持 `Unverified`"]],
+    [engineeringRules, ["只有这些真实项目检查通过后才可称为“经过验证”", "尚无真实下游的 MCP/GUI 模板数值只能作为 registry metadata、peer 与 engine 筛选后的候选并标记 `Unverified`"]],
   ]);
   const forbidden = new Map([
     [readme, ["依赖清单保存经过验证的最低兼容稳定版本范围"]],
@@ -254,8 +246,6 @@ export function validateCurrentDescriptions(errors, options = {}) {
     [PRODUCT_SPEC, ["最新兼容稳定选择", "优先选择 registry 当前最新兼容稳定版"]],
     [docs("RUST_CLI_TEMPLATE.md"), ["最低兼容版本策略", "不得安装 nightly 或历史 Rust 工具链", "resolutionMode: lowest-direct"]],
     [CLI_SKILL, ["完整三段 Cargo 兼容下界", "当前 stable 的正常解析与验证"]],
-    [TUI_SKILL, ["TUI 候选完整三段下界", "当前 stable 的正常解析与验证", "`Unverified`"]],
-    [TUI_BASELINE, ["registry 元数据筛选的候选组合", "stable 完成正常解析和测试", "`Unverified`"]],
     [MCP_SKILL, ["MCP 候选完整三段下界", "当前 stable 的正常解析与验证", "`Unverified`"]],
     [MCP_BASELINE, ["候选完整三段下界", "stable 完成正常解析和测试", "`Unverified`"]],
     [GUI_SKILL, ["最低兼容稳定范围", "已安装 stable 正常解析并运行相关测试"]],

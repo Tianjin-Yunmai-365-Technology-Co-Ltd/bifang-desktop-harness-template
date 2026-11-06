@@ -309,6 +309,12 @@ test("removed WEB interface is rejected", posixOnly, () => withTemporaryRoot((ro
   assert.match(result.stderr, /不支持的接口：WEB/);
 }));
 
+test("removed TUI interface is rejected", posixOnly, () => withTemporaryRoot((root) => {
+  const result = runGate(root, ["--check-only", "--interfaces", "TUI"]);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /不支持的接口：TUI/);
+}));
+
 test("Windows gate retains signed MSVC and current runtime contracts", () => {
   const source = readFileSync(WINDOWS_SCRIPT, "utf8");
   for (const fragment of [
@@ -316,7 +322,7 @@ test("Windows gate retains signed MSVC and current runtime contracts", () => {
     "Microsoft.VisualStudio.Workload.VCTools", "Install-MissingMsvc", "[string[]]$Interfaces",
     "Install-MissingPnpm", "Install-MissingGit", "Test-GitVersion", "Git.Git",
     '"gate.git.status=passed"', '"gate.git.change=$GitChange"', "if (-not (Test-MsvcPrerequisite))",
-    '"gate.msvc.status=passed"', '"gate.msvc.change=$MsvcChange"', '@("CLI", "TUI", "MCP", "GUI")',
+    '"gate.msvc.status=passed"', '"gate.msvc.change=$MsvcChange"', '@("CLI", "MCP", "GUI")',
     '$PnpmRequired = ($NormalizedInterfaces -contains "GUI")', "$MinimumRustMinor = 95", "$MinimumRustPatch = 0",
     '$NodeRequirement = ">=24.0.0"', '$PnpmRequirement = ">=12.4.1"', '$PnpmInstallRequirement = "pnpm@>=12.4.1"',
     "Test-NodeVersion", "Test-PnpmVersion",

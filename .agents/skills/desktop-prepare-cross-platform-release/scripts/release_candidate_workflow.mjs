@@ -154,7 +154,7 @@ export function validateMatrixSelection(metadata, runnerOs) {
   const selection = metadata?.metadata?.["agent-first-harness"];
   const interfaces = selection?.interfaces;
   if (!Array.isArray(interfaces) || interfaces.length === 0
-      || interfaces.some(value => !["cli", "tui", "mcp", "gui"].includes(value))
+      || interfaces.some(value => !["cli", "mcp", "gui"].includes(value))
       || new Set(interfaces).size !== interfaces.length || !interfaces.includes("cli")) {
     throw new WorkflowError("固定原生候选矩阵要求持久 interfaces 包含 cli，且接口集合完整合法");
   }

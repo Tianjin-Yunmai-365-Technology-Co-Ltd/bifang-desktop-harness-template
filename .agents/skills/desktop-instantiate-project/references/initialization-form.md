@@ -61,7 +61,7 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 
 推荐预设明确选择一次后由解析器展开六项。它不是额外持久字段；自定义按 `POLICY_FIELDS` 顺序逐项解析。推荐预设与用户主动给出的六项有冲突时，只追问策略模式：保留预设并撤回冲突值，或改为自定义并保留明确答案；不得静默覆盖。Agent Policy 的 `pending` 不构成确认，项目 Task、Task 独立工作树、内部并行各自独立。
 
-发布后动作始终独立展示 `local_package`（本地打包，推荐默认）和 `push_release_branch`（提交远程）。纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用；纯 TUI/MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`。本地打包适用性由 `localPackageAvailability` 唯一计算；Linux GPUI 支持本地打包，不能在框架解析前套用 Tauri 限制。默认值须明确选择，初始化不执行发布后动作。
+发布后动作始终独立展示 `local_package`（本地打包，推荐默认）和 `push_release_branch`（提交远程）。纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用；纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`。本地打包适用性由 `localPackageAvailability` 唯一计算；Linux GPUI 支持本地打包，不能在框架解析前套用 Tauri 限制。默认值须明确选择，初始化不执行发布后动作。
 
 GUI 九项按 `GUI_FIELDS` 顺序解析并写入唯一 `gui-initialization-config`，框架不进入 profile。GPUI 的 `deep_link` 固定 `unavailable`/`disabled`；目标含 Linux 时 `system_tray`、`global_shortcut` 同样不可用。未提供这些不可用项时由能力限制派生关闭；用户显式启用必须纠正或修改框架/目标，不能静默关闭。其余 GUI 能力无默认开关，不从预设或漏答推断。
 

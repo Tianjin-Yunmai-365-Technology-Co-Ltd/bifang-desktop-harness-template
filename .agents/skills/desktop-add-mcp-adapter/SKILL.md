@@ -5,7 +5,7 @@ description: 为具有共享核心的已初始化下游项目增加可选的 Rus
 
 # 增加 MCP 适配器
 
-直接在共享核心之上增加最小的已批准 stdio MCP 接口。MCP 与 CLI、TUI 和 GUI 相互独立。
+直接在共享核心之上增加最小的已批准 stdio MCP 接口。MCP 与 CLI 和 GUI 相互独立。
 
 ## 工作流程
 

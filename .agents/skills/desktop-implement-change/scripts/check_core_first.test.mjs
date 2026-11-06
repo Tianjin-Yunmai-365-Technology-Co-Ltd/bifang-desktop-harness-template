@@ -72,6 +72,15 @@ test("accepts renamed normal core dependency", () => {
   assert.deepEqual(validateMetadata(fixture), []);
 });
 
+test("retired TUI adapter fails even alongside a supported adapter", () => {
+  const fixture = metadata(
+    packageFixture("sample_core", { library: true }),
+    packageFixture("sample_cli", { packageDependencies: [workspaceDependency("sample_core")] }),
+    packageFixture("sample_tui", { packageDependencies: [workspaceDependency("sample_core")] }),
+  );
+  assert.ok(validateMetadata(fixture).some((error) => error.includes("TUI adapter 已退役")));
+});
+
 /** GPUI 和包装 crate 都是适配器依赖，改名或间接经过基础设施也不能进入 core。 */
 test("rejects_gpui_framework_dependencies_reachable_from_core", () => {
   for (const framework of ["gpui", "gpui-pre", "gpui-kit", "gpui-component", "gpui-component-assets"]) {

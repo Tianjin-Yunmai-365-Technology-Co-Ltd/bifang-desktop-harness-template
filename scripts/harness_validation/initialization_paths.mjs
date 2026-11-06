@@ -64,7 +64,6 @@ export const GUI_SUPPORT_SKILL = path.join(skill("desktop-prepare-gui-support-su
 export const GUI_DIALOG_SKILL = path.join(skill("desktop-add-gui-dialog"), "SKILL.md");
 export const MCP_SKILL = path.join(skill("desktop-add-mcp-adapter"), "SKILL.md");
 export const CLI_SKILL = path.join(skill("desktop-add-cli-adapter"), "SKILL.md");
-export const TUI_SKILL = path.join(skill("desktop-add-tui-adapter"), "SKILL.md");
 export const E2E_SKILL = path.join(skill("desktop-test-final-artifact-e2e"), "SKILL.md");
 
 export const TAURI_RELEASE_ROOT = skill("desktop-build-tauri-release");

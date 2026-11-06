@@ -1,22 +1,29 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-11-06
+> 记忆日期：2026-11-07
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-11-06（加入 NSH 第三框架与跨平台工程链路）
+> 最近范围确认：2026-11-07（永久移除 TUI 程序类型）
 
 ## 本日范围确认
 
-### NSH 第三框架
+### 永久移除 TUI 程序类型
+
+- 变更标识：`HARNESS-REMOVE-TUI`；`required_version = 202611070300`。负责人明确要求清理当前 Harness 中所有 TUI 相关技能，并永久移除该选项。
+- 新下游仅从 CLI、MCP、GUI 选择接口；初始化表单、持久 Cargo 元数据、工程门禁、适配器分派、依赖候选和发布路由不再接受 TUI。删除 `$desktop-add-tui-adapter` 及其模板知识，不在任何下游新建 TUI。
+- 既有下游若仍声明 TUI，工程升级失败关闭并要求在目标项目另行迁移；旧来源锁的识别信息可保留以避免误删产品资产，但不能重新传播 TUI。历史已发布决定和验证事实通过 Git 与历史归档追溯，不作为当前选项。
+- 这一范围变更不把终端项目里的产品代码视为 Harness 清理授权。真实初始化、候选和跨平台验证仍分别按实际产物取证；见 [ADR-20261107-001](../adr/20261107_ADR.md)。
+
+### 既有 NSH 工程范围
 
 - 变更标识：`HARNESS-FEAT-NSH`；`required_version = 202611061129`，由本次正式发布绑定，日常维护不改 Harness 时间版本。新增 NSH：跨平台客户端 支持桌面、移动、Web；Tauri 默认（使用Web技术开发桌面客户端）与 GPUI（高性能原生客户端）保留。
 - 统一初始化表单、Cargo metadata、九字段 profile、版本及 Git 发布生命周期不分叉。NSH 使用 Rust UI/共享 core、自含运行时知识、专用 adapter/build/初始化 E2E；不接入 Tauri 前端/插件或 GPUI Kit。原产品业务与签名不进入模板。
 - Android/iOS/Web 只允许 NSH GUI；语言、三态主题、设置固定，关于/赞助/侧栏按选择，六项无中性跨平台实现的宿主能力 unavailable/disabled。NSH 原生构建、Web 静态包、移动 SDK/签名和设备分别取证；初始化中性工程不冒充产品验收。
 - 本地试包与已发布候选分开；候选复核 clean 发布源码/tag/上下文、完整非空 Rust 与 NSH 测试、日志/许可证/文件摘要及当次 E2E。NSH 0.4.0 无法把 tracked 锁传递到生成的 runtime workspace，因此该锁模式打包失败关闭，默认 ignored 可正常执行。初始化后删除专用派生入口，升级只传播所选框架的工程能力。
-- 详见 [ADR-20261106-001](../adr/20261106_ADR.md)。
+- 详见 [ADR-20261106-001](../adr/20261107_ADR.md)。
 
 
 - 变更标识：`HARNESS-REMOVE-UPDATES-TELEMETRY`；`required_version = 202611051535`。负责人明确要求从 Harness 摘掉应用更新与统计逻辑；初始化、Skills、支持资产、构建和升级工程层不再提供 updater、强更或使用统计能力。关于页保留权威版本与本地发布日志；既有下游产品实现继续受升级保护。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
@@ -195,7 +202,7 @@
 ### Harness 上游 Node 工程自动化与 Python 门禁
 
 - 变更标识与所需版本：`change_id = HARNESS-CHANGE-NODE-ONLY-AUTOMATION`；`required_version = 202609231623`。
-- Harness 源和所有终端下游的验证器、Git 生命周期、版本、发布、初始化、升级与治理 helper 统一使用 Node.js `>=24.0.0` 标准库；专项回归使用 `node:test`，托管候选 workflow 不选择或执行其他解释器。Node.js 是 CLI、TUI、MCP、GUI 全部接口组合的受管工程运行时，pnpm 和前端依赖仍只在 GUI 适用。
+- Harness 源和所有终端下游的验证器、Git 生命周期、版本、发布、初始化、升级与治理 helper 统一使用 Node.js `>=24.0.0` 标准库；专项回归使用 `node:test`，托管候选 workflow 不选择或执行其他解释器。Node.js 是 CLI、MCP、GUI 全部接口组合的受管工程运行时，pnpm 和前端依赖仍只在 GUI 适用。
 - Harness 上游活动工程树不得包含 Python 源码、字节码、解释器命令、包管理器、虚拟环境、第三方包或运行步骤；上游继续使用 `check_no_python.mjs` 执行此门禁。终端下游的创建和升级不复制该检查器或这项禁令；下游项目可以自行选择脚本语言，新增第三方运行时依赖须在项目内声明和隔离，不能依赖全局包。历史 ADR、Changelog、Verification 与已完成 Work Plan 的旧命令保留为真实历史，不当作上游活动入口。
 
 ### 主流环境下界、标准当前用户安装与最新兼容稳定选择
@@ -204,7 +211,7 @@
 - 环境门禁触发范围不变：中性初始化在首次脚手架写入前主动执行一次；初始化完成后只在真实测试/构建命令已出现环境错误时针对性恢复并单次重试。现有可解析稳定版只要不低于下界就原样通过，不因主版本更高而升级或阻断；只有缺失或可证明低于下界时才安装/升级。预发布、无法解析或损坏安装继续失败关闭；`cargo-xwin` 等自身明确声明上界的工具仍按其专用范围判定。
 - 当前开发环境下界为 Git `>=2.36.0`、Rust 通用环境 `>=1.95.0`、Node.js `>=24.0.0`、pnpm `>=12.4.1`。Node.js 是 Harness 与所有下游接口固定 helper 的通用工程运行时；pnpm 仍只在 GUI/前端适用。Node.js 以当前最高官方 LTS 线的最新补丁作为安装候选，但检测为连续下界，因此 25.x、26.x 及未来更高正式版都可直接通过。Rust 没有 LTS 通道，通用环境下界为 `1.95.0`，缺失或过低时安装执行当时的官方最新 stable；项目 MSRV 继续由根 Cargo `rust-version` 独立校验，不以环境通过替代兼容性证据；pnpm 同样以当前稳定版作为下界。Git 无 LTS 通道，且 `2.36.0` 已满足 Harness 使用的 `git worktree list --porcelain -z` 能力，故保留功能下界，不为追逐发布号强制替换已兼容安装。
 - 需要写入时只做当前用户的标准全局安装，不建立 Harness 私有工具根或私有环境变量：Rust 使用官方 rustup 标准布局，并尊重位于用户主目录内的标准 `CARGO_HOME`/`RUSTUP_HOME`；非默认 Rust homes 只有在 Unix 新 login shell 或 Windows User 作用域能持久恢复，且恢复值与当前进程一致时才能决定安装，否则在下载前失败关闭。两端的 `rustup-init` 都传 `--no-modify-path`，阻止安装器在完整预检和原子持久化之外改写 shell profile 或 User PATH；门禁随后把标准 Cargo bin 写入普通用户 PATH，该参数不改变安装根。Unix Node.js 安装到 `~/.local/lib/nodejs/<version>` 并在 `~/.local/bin` 建立稳定入口，pnpm 使用 npm 的 `--global --prefix ~/.local`；Windows Node.js 使用 `%LOCALAPPDATA%\Programs\nodejs\<version>`，pnpm 使用 `%APPDATA%\npm`，Rust 使用 rustup 标准用户位置。所有将进入 PATH 的单一路径根在写入或下载前都拒绝对应平台的 PATH 分隔符。持久 PATH 直接纳入这些标准 bin，不再通过 `~/.config/agent-first-harness/env.sh` 或同类 Harness 私有 env 中转；修复时可精确移除旧 source 行，但保留旧文件字节供人工恢复。
-- 依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable，缺省或选择 `dependency-lock-policy = "ignored"` 时，本地锁文件只记录当次解析且不进入 Git；已有下游显式选择 `tracked` 时按所选策略跟踪锁文件。新增或主动更新时优先选择 registry 当前最新兼容稳定版，再以 MSRV、peer、平台和 API/feature 实测决定是否抬高下界。中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析、代码规范检查与非空测试。`rmcp 3.8.0`、TUI 和 GUI/React 的版本数值仅为截至 2026-10-29 经 registry metadata、peer 与 engine 筛选的候选完整三段下界，继续保持 `Unverified`；实例化真实下游时 Rust 复用满足兼容下限的已安装 stable 正常解析，前端仍在最低 Node.js/pnpm 环境执行最低直接版本解析，以及适用的非空 test、typecheck 和 build，成功后才能成为该项目的兼容下界。前端候选包括 React/React DOM `19.3.1`、Mantine `9.7.4`、TanStack Router `1.170.46`、`i18next` `26.5.11`、`react-i18next` `17.1.9`、Vite `8.3.5`、ESLint `10.13.0`、`typescript-eslint` `8.72.1` 与 Testing Library；Node 类型直接声明为 `@types/node ^24.19.2`，浏览器测试固定使用连续支持 Node.js `>=24.0.0`（包括 25.x）的 `jsdom ^29.1.1`，不得升级到会重新排除 Node.js 25.x 的 30.x。新增成套 peer 下界时必须在清单中显式声明。TypeScript 7 不满足当前 typescript-eslint peer，Vitest 5 与 jsdom 30 排除连续 Node.js 范围中的部分正式版本，因此保留兼容线；Jotai 3.0.1 的公共 atom/store/Provider API 已按模板用法核对并纳入候选，不使用已删除的 atomFamily、loadable 和 setSelf。
+- 依赖清单以完整三段的兼容下界为目标，Rust 验证复用已安装且满足项目下限的 stable，缺省或选择 `dependency-lock-policy = "ignored"` 时，本地锁文件只记录当次解析且不进入 Git；已有下游显式选择 `tracked` 时按所选策略跟踪锁文件。新增或主动更新时优先选择 registry 当前最新兼容稳定版，再以 MSRV、peer、平台和 API/feature 实测决定是否抬高下界。中性 Rust CLI fixture 的 Cargo 直接依赖已经在 Rust `1.98.1` 上完成最低直接版本解析、代码规范检查与非空测试。`rmcp 3.8.0` 和 GUI/React 的版本数值仅为截至 2026-10-29 经 registry metadata、peer 与 engine 筛选的候选完整三段下界，继续保持 `Unverified`；实例化真实下游时 Rust 复用满足兼容下限的已安装 stable 正常解析，前端仍在最低 Node.js/pnpm 环境执行最低直接版本解析，以及适用的非空 test、typecheck 和 build，成功后才能成为该项目的兼容下界。前端候选包括 React/React DOM `19.3.1`、Mantine `9.7.4`、TanStack Router `1.170.46`、`i18next` `26.5.11`、`react-i18next` `17.1.9`、Vite `8.3.5`、ESLint `10.13.0`、`typescript-eslint` `8.72.1` 与 Testing Library；Node 类型直接声明为 `@types/node ^24.19.2`，浏览器测试固定使用连续支持 Node.js `>=24.0.0`（包括 25.x）的 `jsdom ^29.1.1`，不得升级到会重新排除 Node.js 25.x 的 30.x。新增成套 peer 下界时必须在清单中显式声明。TypeScript 7 不满足当前 typescript-eslint peer，Vitest 5 与 jsdom 30 排除连续 Node.js 范围中的部分正式版本，因此保留兼容线；Jotai 3.0.1 的公共 atom/store/Provider API 已按模板用法核对并纳入候选，不使用已删除的 atomFamily、loadable 和 setSelf。
 - 本节的环境下界、连续 Node.js 判定和标准当前用户安装语义，取代 `HARNESS-FEAT-RUST-1-95-LATEST-STABLE-SELECTION`、`HARNESS-CHANGE-DEVELOPMENT-ENVIRONMENT-AUTO-UPGRADE` 与 `HARNESS-CHANGE-USER-GLOBAL-DEVELOPMENT-ENVIRONMENT-RECOVERY` 中的旧版本、Node.js 25 分段、Harness 私有安装根和忽略标准 Rust homes 子句；旧决定要求安装器使用 `--no-modify-path` 的安全边界继续有效，但 PATH 现在由门禁直接写入标准用户位置而非 Harness 私有中转。它们关于触发范围、范围内复用、低于下界自动修复、预发布/损坏失败关闭、供应链校验、新 shell 复探和零写入只读模式的其余决定继续有效。
 
 ### Windows 环境受权限阻断时人工接续
@@ -329,11 +336,11 @@
 - Harness 只提供文档、项目 Skills、中性资产和验证入口，不实现具体业务。
 - `$desktop-instantiate-project` 只执行一次，并通过写入前首轮基础表单收齐中英文展示名（至少一个直接输入，另一个可自动翻译）、ASCII `snake_case` 标识、项目路径、负责人、目标平台、接口和 Agent 策略模式，再按实际选择逐项补全自定义策略与适用 GUI 配置。项目路径末级与标识精确一致时直接作为最终根，否则追加标识；只有解析后的最终根必须不存在或为空。用户确认后该目录是初始化、开发、验证和发布准备的唯一项目根目录。
 - 下游在完整表单确认后、首次脚手架写入前检查并按需安装 Git；全部初始化验证与裁剪成功后建立独立 `main` 仓库并配置 local 身份/模板。`git rev-parse --show-toplevel` 精确等于项目根，初始分支为 `main`，无远端，并只创建一个本地基线提交；完成报告公开 Git 版本、安装变化、身份来源、作用域与提交。
-- 下游默认采用 Rust 2024、Rust 1.98.1 MSRV（即 MSRV 1.98.1）、共享核心与用户从 CLI/TUI/MCP/GUI 独立选择的适配器；1.98.1 是最低兼容版本而非精确版本锁，明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时默认采用 CLI；漏答时保持待选择。
+- 下游默认采用 Rust 2024、Rust 1.98.1 MSRV（即 MSRV 1.98.1）、共享核心与用户从 CLI/MCP/GUI 独立选择的适配器；1.98.1 是最低兼容版本而非精确版本锁，明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时默认采用 CLI；漏答时保持待选择。
 - Core-first 是强制架构约束：凡不依赖某一具体接口或宿主才能成立的领域类型、业务规则、语义校验、业务默认值、用例编排、领域状态转换、稳定领域错误、平台无关权限与持久化策略，都必须在共享 core 中实现并通过明确 API 暴露；即使当前只选择一个适配器也同样适用。
-- CLI、TUI、MCP、GUI 必须保持薄适配层，只负责运行时与依赖装配、接口语法/协议结构解析、展示和交互状态、调用 core，以及把 core 结果与错误映射为接口输出；不得复制、改写或另建业务规则、权威业务状态、迁移、权限策略或平台无关校验。
+- CLI、MCP、GUI 必须保持薄适配层，只负责运行时与依赖装配、接口语法/协议结构解析、展示和交互状态、调用 core，以及把 core 结果与错误映射为接口输出；不得复制、改写或另建业务规则、权威业务状态、迁移、权限策略或平台无关校验。
 - 系统托盘、窗口/WebView 生命周期、通知、自动启动、终端焦点/按键/恢复、MCP stdio 传输和 CLI 参数/退出码等接口或平台机制留在对应适配器；它们触发的业务动作仍必须调用 core。真实边界需要时可由 core 定义运行时中立的能力接口并由适配器实现，但不得为假想需求预建抽象。
-- TUI 固定采用 Ratatui、tui-realm 与 tui-realm-stdlib；Tauri GUI 固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。各直接依赖与受管工具必须声明满足已批准能力、平台、MSRV、Node.js 与 WebView 约束的最低兼容稳定版本范围，Rust 复用满足下限的已安装 stable 完成正常解析和相关测试，不安装 nightly 或历史 Rust 工具链；前端仍按声明的最低 Node.js/pnpm 环境验证；缺省或 `ignored` 时本地锁文件不作为交付门禁，显式 `tracked` 则继续执行受保护锁策略。偏离技术族或精确锁死普通依赖版本都必须形成硬规则例外 ADR。
+- Tauri GUI 固定采用 Vite、React、TypeScript、Mantine UI、`@tabler/icons-react`、TanStack Router 文件路由、TanStack Query、Jotai、ESLint/`typescript-eslint`、Prettier、Vitest 与 Testing Library。各直接依赖与受管工具必须声明满足已批准能力、平台、MSRV、Node.js 与 WebView 约束的最低兼容稳定版本范围，Rust 复用满足下限的已安装 stable 完成正常解析和相关测试，不安装 nightly 或历史 Rust 工具链；前端仍按声明的最低 Node.js/pnpm 环境验证；缺省或 `ignored` 时本地锁文件不作为交付门禁，显式 `tracked` 则继续执行受保护锁策略。偏离技术族或精确锁死普通依赖版本都必须形成硬规则例外 ADR。
 - Tauri GUI 的界面国际化（i18n）是初始化硬性必选项，不是可选增强：前端固定采用 `i18next` 与 `react-i18next`，Rust 后端（GUI 适配器层）固定采用 `rust-i18n`，系统语言探测统一使用官方 `tauri-plugin-os` 的 `locale()` API。所有实际建立的界面提供中文/英文资源，缺失语言回退英文；未选页面或托盘不保留对应可见键、原生资源或运行时接线。GUI 必须在固定设置页提供可发现的中英文切换入口并持久化；选择托盘时，语言切换还要无需重启地刷新托盘菜单且不得泄漏 `tray.*` 原始键。core 保持语言无关。偏离必须形成硬规则例外 ADR。
 - Tauri GUI 仅当 `single_instance = enabled` 时使用官方 `tauri-plugin-single-instance`：根 `[workspace.dependencies]` 声明最低兼容稳定下界，GUI member 以 `workspace = true` 继承，且插件作为 Tauri Builder 首个 plugin 注册。第二进程只通知并恢复、取消最小化、聚焦既有 `main` 窗口后退出；回调不记录参数/工作目录或触发业务动作。两个固定命名回归和真实双启动唯一性证据缺一不可。Linux Snap/Flatpak 需声明并验证会话 DBus 权限。选择 `disabled` 时依赖、插件、回调与双启动场景必须缺席。
 - Rust 技术选型固定为：Tokio 负责异步运行时；获批 HTTP 使用 Axum + Tower/Tower HTTP；Clap 负责 CLI；SeaORM 负责关系型 ORM；真实配置使用 config-rs，`notify` 仅用于批准的窄热重载；本地可观测性使用 tracing + tracing-subscriber + tracing-appender；稳定错误、应用上下文、序列化与日期时间分别使用 thiserror、anyhow、serde 与 jiff。偏离必须形成硬规则例外 ADR。
@@ -406,7 +413,7 @@
 ### 商业许可与既有工程边界
 
 - Harness 与收费下游采用非开源企业专有商业许可；根 `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 保持一致，升级不能自动改写法律文本。
-- CLI/TUI/MCP 使用 Tokio current-thread 异步入口；Tauri GUI 复用其 Tokio 异步运行时，GPUI GUI 使用原生事件循环与任务/executor；核心默认保持运行时中立。
+- CLI/MCP 使用 Tokio current-thread 异步入口；Tauri GUI 复用其 Tokio 异步运行时，GPUI GUI 使用原生事件循环与任务/executor；核心默认保持运行时中立。
 - 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；初始化把实际选择的非空目标平台与接口写入 `[workspace.metadata.agent-first-harness]`，供后续构建跨会话只读路由。Harness 能生成的目标平台集合为 Windows、macOS 和 Linux，不表示每个下游都默认选择三者。
 - 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并按声明的 Rust 兼容下限、三平台和相关回归选择依赖，复用满足下限的已安装 stable 正常解析和测试，并记录实际验证环境；新增或主动更新时优先选择经完整兼容验证的 registry 最新稳定版作为新下界，缺省锁策略下本地锁文件不进入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
 - 选择 CLI 时遵守统一 JSON 信封、错误结构、输出流和退出码契约。
@@ -426,8 +433,8 @@
 - 不因项目偏好为 `enabled` 而跳过本次发布候选的 E2E 选择、强制不可拆任务并行，或授权凭据、支付、发布、生产数据和不可逆操作。
 - 不把新版 Harness 整体覆盖到下游，不自动覆盖产品专属规则、本地修改、许可证、策略或项目记忆。
 - 不自动创建或索取签名/公证凭据、配置签名身份、安装 Homebrew、配置远端、强制推送、商店提交或上传渠道。新功能/Bug 自动创建本地开发分支；明确发布只合并本地主分支并创建、复读本地 tag，随后结束。随后按已确认的发布后动作执行并复核本地打包或远端默认主分支、`release` 分支和 tag；只有已批准且可用的非交互条件才允许对应平台签名。
-- 不在 macOS 交叉生成 Windows MSI，不从 xwin 产物推断 Windows 原生运行/安装行为，也不在本轮增加 Linux GUI 交叉构建或统一 TUI/MCP 发布模型。
-- 除固定侧栏/设置及用户选择的托盘、通知、自启、关于/赞助界面所需中文与英文外，不在本轮为具体产品预设额外语言或业务翻译文案；不为 CLI/TUI/MCP 适配器新增 i18n 义务。
+- 不在 macOS 交叉生成 Windows MSI，不从 xwin 产物推断 Windows 原生运行/安装行为，也不在本轮增加 Linux GUI 交叉构建或统一 MCP 发布模型。
+- 除固定侧栏/设置及用户选择的托盘、通知、自启、关于/赞助界面所需中文与英文外，不在本轮为具体产品预设额外语言或业务翻译文案；不为 CLI/MCP 适配器新增 i18n 义务。
 - 不在中性 GUI 中配置远程帮助或其他出站能力，也不把来源下游的产品名称/标识、固定 endpoint 或客户端共享秘密带入 Harness。通知和自启只安装用户明确选择的本地能力，默认均关闭，不能预设产品通知触发点；默认设置页不包含隐私或统计控件。
 - 不复制 Rust Server 的单 package/single-bin 架构、默认多线程 runtime 或整套 HTTP 资产；不复制 Web/Extension/Plasmo/Chrome 资产、浏览器数据协议、固定 API BaseURL 或具体依赖版本。
 - 不机械要求全部局部变量、循环绑定和普通匿名回调逐项注释，也不自动批量生成“保存变量”“执行处理逻辑”等套话。
@@ -485,7 +492,7 @@
 - [x] `$desktop-upgrade-harness` 提供试运行、来源/基线记录、三方差异、冲突阻断、保护清单、`tombstone` 和更新后验证闭环。
 - [x] 旧下游没有基线时进入引导审计，不会把任一端误当共同祖先。
 - [x] 规则、相关 Skills、校验器、README、AGENTS、项目记忆和验证文档保持一致。
-- [x] Rust 通用环境 `>=1.95.0`、Node.js `>=24.0.0` continuous 与 pnpm `>=12.4.1` 作为连续工具下界，更高正式工具直接通过，只在缺失或低于适用下界时用官方稳定候选安装/升级。项目 Cargo `rust-version` 独立决定 MSRV，中性模板仍为 `1.98.1`；环境门禁使用通用下界与项目 MSRV 中的较高值。Rust/Node.js/npm/pnpm 使用标准当前用户安装根和可持久恢复的标准 Rust homes，不创建 Harness 私有 env 或项目 shim；只读模式零写入并报告 `upgrade-required`。中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；TUI/MCP/GUI 数值仍为 `Unverified` 候选，必须经真实下游实际验证后才成为项目兼容下界：Rust 复用满足兼容下限的 stable 正常解析和测试，不下载 nightly 或历史工具链；前端仍执行最低 Node.js/pnpm 下的最低直接解析及 test/typecheck/build，缺省锁策略下本地解析生成的锁文件不纳入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。
+- [x] Rust 通用环境 `>=1.95.0`、Node.js `>=24.0.0` continuous 与 pnpm `>=12.4.1` 作为连续工具下界，更高正式工具直接通过，只在缺失或低于适用下界时用官方稳定候选安装/升级。项目 Cargo `rust-version` 独立决定 MSRV，中性模板仍为 `1.98.1`；环境门禁使用通用下界与项目 MSRV 中的较高值。Rust/Node.js/npm/pnpm 使用标准当前用户安装根和可持久恢复的标准 Rust homes，不创建 Harness 私有 env 或项目 shim；只读模式零写入并报告 `upgrade-required`。中性 Rust CLI fixture 的 Cargo 依赖已在最低 Rust 工具链实测；MCP/GUI 数值仍为 `Unverified` 候选，必须经真实下游实际验证后才成为项目兼容下界：Rust 复用满足兼容下限的 stable 正常解析和测试，不下载 nightly 或历史工具链；前端仍执行最低 Node.js/pnpm 下的最低直接解析及 test/typecheck/build，缺省锁策略下本地解析生成的锁文件不纳入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。
 - [x] Rust CLI 构建默认当前宿主；明确授权、已推送的发布 refs 与提供方预检通过后才运行三平台原生矩阵；派发前缩减范围须经用户接受，已启动矩阵失败不会被回退掩盖。
 - [x] 构建前原子隔离旧根 `release/` 并创建全新空目录，构建后目录只包含当前构建身份的候选、哈希和清单；manifest 状态只使用 `pending`、`rejected` 或 `accepted`，`ready` 仅是对完整 `accepted` 原子集合的纯只读就绪复核结论，不是可写状态。
 - [x] macOS 发布在任何测试、可用性探测或 bundle 前锁定签名选择；默认 `macosSigningSelection: disabled`、`macosSigningSource: not-requested`，直接运行显式带 `--no-sign` 的 DMG 命令且不探测签名/公证条件；只有渠道硬要求、本次主动要求或已批准持久配置才启用，按 `channel-required > requested > configured > not-requested` 记录来源，并在探测通过后运行不含 `--no-sign` 的命令。唯一前置冲突是产品已经启用 macOS 系统通知：关闭签名时不自动升级来源，而是在测试/bundle 前阻断不可验收的 unsigned 候选，要求用户下一轮主动启用签名或先改变产品能力；E2E 关闭不能绕过。
@@ -504,7 +511,7 @@
 - [x] 发布链路不解析或保存量化探针选择，不生成专用探针候选、manifest 字段、豁免或运行时绑定。
 - [x] Harness 已移除应用更新、强更与使用统计 Skills、初始化接线和运行时资产；关于页只提供权威版本、本地发布日志与选定支持内容，发布候选不再要求 updater 制品或签名；升级会发现未登记的旧工程资产，先确认清理或保留并记忆项目选择，清理未完成不得记录升级完成。
 - [x] 品牌包完整保存 12 项图片资源并以清单绑定尺寸、摘要、用途与支付敏感性，不含来源下游产品名称/标识、固定服务地址、客户端共享秘密或默认网络请求；非 GUI 下游不保留该 Skill。
-- [x] CLI/TUI/MCP/GUI、独立 Git 根、一次性初始化裁剪、固定技术栈、双语许可证和版本边界等既有成功标准继续有效。
+- [x] CLI/MCP/GUI、独立 Git 根、一次性初始化裁剪、固定技术栈、双语许可证和版本边界等既有成功标准继续有效。
 - [x] 工程规则、规划/实施/验收 Skills、四类适配器 Skills、中性资产和 Harness 回归门禁一致强制 core-first；每个公开业务操作都能追溯到 core API 与 core 测试，接口/平台特性边界不被误判为业务下沉。
 - [x] Tauri GUI 的 i18n 技术选型（`react-i18next`/`i18next`、`rust-i18n`、`tauri-plugin-os` 语言探测）已固化为事实标准；默认语言跟随系统、界面提供语言切换入口，选择托盘时标签随切换刷新且不显示原始键，未选能力没有相应可见键或原生资源，core 保持语言无关。
 - [x] 下游 core 与全部 Rust 适配器默认对真实 I/O/等待/计时/进程/协议路径使用异步实现，只有纯 CPU 密集且无等待点时保留同步签名；详细边界写入 `docs/RUST_CLI_TEMPLATE.md`，`AGENTS.md` 只在 Rust/adapter 任务中路由到该事实源。
@@ -516,11 +523,11 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202611061437`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202611070300`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
 - 变更标识：`HARNESS-CHANGE-REMOVE-HISTORICAL-COMPATIBILITY`；所需 Harness 版本：`202609111732`，已由此前 Harness 时间版本发布物化。删除 `Version.md` 中的 `1.0.0` 标识并新增反向门禁、Task 序号不再识别历史四字段标题、下游 SemVer 的 Minor/Patch 严格固定 `0..99` 不兼容历史 `100`、Agent Policy 升级 `schema_version: 3` 并把 `milestone_smoke`/`milestone_e2e` 改名为 `acceptance_smoke`/`e2e_hint`。
 - 本次变更标识：`HARNESS-FEAT-POST-RELEASE-ACTION-CHOICE`；`required_version = 202609281559`。初始化必须确认本地打包或提交远程二选一，旧项目升级须补选且不得推断，未来可用专用 Skill 切换；远端默认主分支、小写 `release` 分支与 tag 或本地打包产物须通过对应流程检测。
 - 维护状态：Active。
-- 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、TUI/MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对九项初始化组合、两项 Rust-only 固定基线与 dialog 固定 WebView 基线（含 dialog 原生 message/save/open、精确主窗口 capability、零 filesystem 权限、托盘禁用关闭退出、通知授权/投递、自启登录项恢复、单实例/深链接组合、全局快捷键冲突与注销、window-state 安全恢复、页面缺席与详细侧栏持久折叠）、Vite/AST 门禁和最终 dist 扫描的前向构建证据。
+- 未来候选：至少两个真实下游的 Harness 升级前向证据、策略解析器跨平台封装、MCP 与 Linux GUI 的统一构建产物/签名清单、Tauri xwin/Keychain profile/最终 DMG Finder 布局的真实前向构建证据、宿主级 Worktree 写入强制、依赖供应链维护 Skill，以及首次真实 GUI 下游对九项初始化组合、两项 Rust-only 固定基线与 dialog 固定 WebView 基线（含 dialog 原生 message/save/open、精确主窗口 capability、零 filesystem 权限、托盘禁用关闭退出、通知授权/投递、自启登录项恢复、单实例/深链接组合、全局快捷键冲突与注销、window-state 安全恢复、页面缺席与详细侧栏持久折叠）、Vite/AST 门禁和最终 dist 扫描的前向构建证据。

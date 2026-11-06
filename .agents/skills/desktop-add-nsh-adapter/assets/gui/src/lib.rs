@@ -44,17 +44,17 @@ pub fn App() -> impl IntoElement {
             .child(view().w(move || if window().width < px(tokens::NARROW) { window().width } else { px(if __COMPACT__ || collapsed.get() { tokens::SIDEBAR_COMPACT } else { tokens::SIDEBAR }) })
                 .p_4().gap_4().style_when(move || window().width < px(tokens::NARROW), |s| s.flex_row().flex_wrap()).bg(move || theme().muted)
                 __LOGO__
-                .child(text(move || if chinese() { NAME_ZH } else { NAME_EN }).text_size(px(tokens::TITLE)))
-                .child(text(concat!("v", env!("CARGO_PKG_VERSION"))))
+                .child(text(move || if __COMPACT__ || collapsed.get() { "NSH" } else if chinese() { NAME_ZH } else { NAME_EN }).text_size(px(tokens::TITLE)))
+                .child(when(move || !__COMPACT__ && !collapsed.get(), || text(concat!("v", env!("CARGO_PKG_VERSION")))))
                 .child(button().style_with(tokens::button_style).hover(tokens::hover_style).active(tokens::active_style).on_press(move || page.set(0)).child(text(move || tr(chinese(), "home"))))
                 .child(when(move || window().width >= px(tokens::NARROW), || view().flex_1()))
                 __SPONSOR_MENU__
                 .child(button().style_with(tokens::button_style).hover(tokens::hover_style).active(tokens::active_style).on_press(move || page.set(1)).child(text(move || tr(chinese(), "settings"))))
                 __ABOUT_MENU__
-                .child(when(move || !__COMPACT__ && window().width >= px(tokens::NARROW), move || button().style_with(tokens::button_style).hover(tokens::hover_style).active(tokens::active_style).on_press(move || {
+                .child(when(move || !__COMPACT__ && window().width >= px(tokens::NARROW), move || button().style_with(tokens::button_style).hover(tokens::hover_style).active(tokens::active_style).accessibility_label(move || Some(tr(chinese(), if collapsed.get() { "expand" } else { "collapse" }).into())).on_press(move || {
                     let next = !collapsed.get();
                     if Storage::set_item("sidebar-collapsed", if next { "true" } else { "false" }).is_ok() { collapsed.set(next); } else { error.set(true); }
-                }).child(text(move || tr(chinese(), if collapsed.get() { "expand" } else { "collapse" }))))))
+                }).child(text(move || tr(chinese(), if collapsed.get() { "expand_short" } else { "collapse" }))))))
             .child(scroll().flex_1().child(view().p_6().gap_4()
                 .child(when(move || page.get() == 0, move || view().gap_4()
                     .child(text(move || if chinese() { NAME_ZH } else { NAME_EN }).text_size(px(tokens::TITLE)))
