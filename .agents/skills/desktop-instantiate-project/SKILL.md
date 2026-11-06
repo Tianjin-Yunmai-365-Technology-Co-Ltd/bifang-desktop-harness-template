@@ -23,6 +23,8 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 ## 工作流程
 
+固定复制、身份重置和已确认策略写入统一使用 [确定性工程层入口](references/deterministic-instantiation.md) 的 `instantiate_project.mjs plan/prepare`。完整读取该合同，复用已有真实确认；在以下源验证与环境门禁之后才执行 prepare。不要另写临时复制/批量替换脚本。下列第 6–9 项是 helper 维持的不变量，prepare 已完成时只复核输出，不重复手工复制、改名或写策略。prepare 只返回工程层准备清单，不替代后续中性初始化、真实测试、GUI 初始化 E2E、终端裁剪或 Git 基线。
+
 固定复制快照须包含根 `DESIGN.md` 与 `docs/design_standards/ui_foundation.md`，并完整保留设计标准目录。根文件仅作导航，共用规则只在受管设计目录维护；不得把附件样例色值写成新下游的产品品牌事实。
 
 1. 读取源项目的 `AGENTS.md`、`README.md`、`Version.md`、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、`docs/design_standards/README.md`、`docs/RELEASE.md`、两份许可证，以及 `$desktop-rename-project-identity`/`$desktop-initialize-rust-project`/`$desktop-manage-git-lifecycle` 的当前规则。收到任何创建新下游项目的请求时，还必须先完整读取并执行 [`references/initialization-form.md`](references/initialization-form.md)。实例化排除日期项目记忆，因此不默认加载 Harness 的历史 Product Status、Work Plan、Verification、ADR 或 Changelog 正文。

@@ -6,7 +6,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createGpuiWorkspace } from './create_gpui_workspace.mjs';
 import { renderGpuiAdapterFiles } from './gpui_adapter_files.mjs';
 import { capabilityKeys, nativeDependencies, trayPixels } from './gpui_native_capabilities.mjs';
 import { parseGpuiInitializationProfile } from './gpui_profile.mjs';
@@ -41,10 +40,19 @@ test('generated_native_workspace_passes_retained_rust_comment_check_on_all_hosts
   const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'harness-gpui-native-comments-'));
   try {
     const target = path.join(temporary, 'workspace');
-    const generated = createGpuiWorkspace({
-      ...identity, target, targetPlatforms: ['macos', 'windows'], aboutPage: 'enabled', sponsorPage: 'disabled', sidebarMode: 'detailed',
+    const options = {
+      ...identity, targetPlatforms: ['macos', 'windows'], aboutPage: 'enabled', sponsorPage: 'disabled', sidebarMode: 'detailed',
       ...Object.fromEntries(capabilityKeys.map(key => [key, 'enabled'])),
-    });
+    };
+    // 已存在 core 的测试夹具独立于源专用 wrapper；终端裁剪后仍验证完整原生能力声明。
+    const files = renderGpuiAdapterFiles(options);
+    files.set('Cargo.toml', `[workspace]\nmembers = ["example_tool_core", "example_tool_gui"]\nresolver = "3"\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\nrust-version = "1.98.1"\n[workspace.dependencies]\nexample_tool_core = { path = "example_tool_core" }\ngpui-kit = "0.8.1"\nrust-i18n = "4.2.4"\nsys-locale = "0.3.2"\ntracing = "0.1.44"\ntracing-subscriber = "0.3.23"\ntracing-appender = "0.2.5"\n${nativeDependencies(options).map(([name, value]) => `${name} = ${value}`).join('\n')}\n`);
+    files.set('example_tool_core/Cargo.toml', '[package]\nname = "example_tool_core"\nversion.workspace = true\nedition.workspace = true\n');
+    files.set('example_tool_core/src/lib.rs', '//! 已有共享核心的注释门禁夹具，不提供创建下游项目的入口。\n/// 返回已有核心的中性状态，供适配器测试约束领域边界。\npub fn scaffold_status() -> bool { true }\n');
+    for (const [relative, bytes] of files) {
+      fs.mkdirSync(path.dirname(path.join(target, relative)), { recursive: true });
+      fs.writeFileSync(path.join(target, relative), bytes);
+    }
     const scripts = '.agents/skills/desktop-implement-change/scripts';
     const retained = path.join(target, scripts);
     fs.mkdirSync(retained, { recursive: true });
@@ -59,7 +67,7 @@ test('generated_native_workspace_passes_retained_rust_comment_check_on_all_hosts
     const report = JSON.parse(result.stdout);
     assert.equal(report.ok, true);
     assert.equal(report.checkedPackages, 2);
-    assert.equal(report.checkedRustFiles, generated.files.filter(file => file.endsWith('.rs')).length);
+    assert.equal(report.checkedRustFiles, [...files.keys()].filter(file => file.endsWith('.rs')).length);
     assert.ok(report.checkedDeclarations > 0);
     assert.deepEqual(report.violations, []);
     assert.deepEqual(report.errors, []);
