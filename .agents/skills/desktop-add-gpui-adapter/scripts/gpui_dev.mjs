@@ -9,6 +9,7 @@ import { parseArgs } from 'node:util';
 import { readConfig, projectFacts } from '../../desktop-build-gpui-release/scripts/gpui_config.mjs';
 import { safePath } from '../../desktop-build-gpui-release/scripts/gpui_filesystem.mjs';
 import { readDependencyLockPolicy, assertDependencyLocks } from '../../desktop-implement-change/scripts/project_lock_policy.mjs';
+import { startWindowsJob } from './gpui_windows_job.mjs';
 
 const ignored = new Set(['.git', '.agents', '.harness', 'target', 'node_modules', 'release', 'dist', '.cache']);
 const resources = new Set(['assets', 'resources', 'locales', 'packaging', '.cargo']);
@@ -63,14 +64,9 @@ export async function knownOwnedProcessGroup(handle, { observe = observeOwnedPro
 
 /** 每个构建/应用拥有独立进程组；仅终止本循环创建的进程与后代。 */
 async function terminateProcess(handle) {
-  if (handle.exited && (process.platform === 'win32' || await knownOwnedProcessGroup(handle) === 'gone')) { handle.cleanup(); return; }
-  if (process.platform === 'win32') {
-    await new Promise((resolve, reject) => {
-      const killer = spawn('taskkill', ['/PID', String(handle.child.pid), '/T', '/F'], { shell: false, windowsHide: true, stdio: 'ignore' });
-      killer.once('error', reject);
-      killer.once('exit', code => code === 0 || handle.exited ? resolve() : reject(new Error('could not stop owned development process')));
-    });
-  } else {
+  if (handle.job) { await handle.job.stop(); handle.cleanup(); return; }
+  if (handle.exited && await knownOwnedProcessGroup(handle) === 'gone') { handle.cleanup(); return; }
+  {
     const kill = signal => {
       try { process.kill(-handle.child.pid, signal); }
       catch (error) { if (error.code !== 'ESRCH') throw error; }
@@ -82,18 +78,18 @@ async function terminateProcess(handle) {
     if (await knownOwnedProcessGroup(handle) === 'present') kill('SIGKILL');
   }
   await handle.done.catch(() => {});
-  if (process.platform !== 'win32') await knownOwnedProcessGroup(handle, { requireGone: true });
+  await knownOwnedProcessGroup(handle, { requireGone: true });
   handle.cleanup();
 }
 
-/** 重编译与关闭可能同时收尾同一 handle，复用停止任务避免 Windows 重复 taskkill 误报。 */
+/** 重编译与关闭可能同时收尾同一 handle，复用停止任务并保留清理失败。 */
 function stopProcess(handle) {
   if (!handle) return Promise.resolve();
   handle.stopping ??= terminateProcess(handle);
   return handle.stopping;
 }
 
-/** 开发会话只启动调试二进制；编译失败保留监听，关闭时停止可追踪进程，Windows leader 退出后的后代回收仍未验证。 */
+/** 开发会话只启动调试二进制；Windows 用持有的 Job 管理后代，POSIX 用本会话进程组。 */
 export async function startGpuiDev(rootValue, { appArgs = [], pollMs = 250, debounceMs = 200, signal = null, log = message => process.stderr.write(`[gpui dev] ${message}\n`) } = {}) {
   const root = fs.realpathSync(path.resolve(rootValue));
   safePath(root, 'Cargo.toml', { type: 'file' });
@@ -109,6 +105,7 @@ export async function startGpuiDev(rootValue, { appArgs = [], pollMs = 250, debo
 
   function launch(command, args, onLine = null, capture = false) {
     if (closed) throw new Error('development session is closed');
+    if (process.platform === 'win32') return launchWindows(command, args, onLine, capture);
     const child = spawn(command, args, { cwd: root, shell: false, detached: process.platform !== 'win32', windowsHide: true, stdio: ['ignore', onLine || capture ? 'pipe' : 'inherit', 'inherit'] });
     const handle = { child, exited: false, done: null, cleanup: () => children.delete(handle) };
     children.add(handle);
@@ -132,12 +129,48 @@ export async function startGpuiDev(rootValue, { appArgs = [], pollMs = 250, debo
       child.once('close', (code, signal) => {
         handle.exited = true;
         // 探测失败不能逃出事件回调或提前遗忘后代，done 仍须完成供关闭阶段有界复查。
-        const state = process.platform === 'win32' ? 'gone' : observeOwnedProcessGroup(handle).status;
+        const state = observeOwnedProcessGroup(handle).status;
         if (state === 'unknown') handle.groupIdentityUncertain = true;
         if (state === 'gone') handle.cleanup();
         if (partial) onLine?.(partial);
         resolve({ code, signal, output });
       });
+    });
+    return handle;
+  }
+
+  /** Cargo 等待 Job 清空及输出排空，应用只用 leader 结果报告退出，所有权由 Job 持续持有。 */
+  function launchWindows(command, args, onLine, capture) {
+    const job = startWindowsJob(command, args, {
+      cwd: root, keepDescendants: !onLine && !capture,
+      maxStdoutBytes: capture ? 16 * 1024 * 1024 : Infinity,
+      maxLineBytes: onLine ? 16 * 1024 * 1024 : Infinity,
+    });
+    const handle = { child: job.supervisor, job, exited: false, done: null, cleanup: () => children.delete(handle) };
+    children.add(handle);
+    let output = '', partial = '';
+    job.stderr.pipe(process.stderr, { end: false });
+    if (!onLine && !capture) job.stdout.pipe(process.stdout, { end: false });
+    else {
+      job.stdout.setEncoding('utf8');
+      job.stdout.on('data', chunk => {
+        if (capture) { output += chunk; return; }
+        partial += chunk;
+        let newline;
+        while ((newline = partial.indexOf('\n')) !== -1) {
+          const line = partial.slice(0, newline); partial = partial.slice(newline + 1);
+          onLine(line);
+        }
+      });
+    }
+    job.leader.then(() => { handle.exited = true; }, () => {});
+    job.done.then(handle.cleanup, error => {
+      // 不能在清理未知时继续覆盖 Windows exe；结束整个开发会话并保留真实失败。
+      void close(error).catch(() => {});
+    });
+    handle.done = (onLine || capture ? job.done : job.leader).then(result => {
+      if (partial) onLine?.(partial);
+      return { ...result, output };
     });
     return handle;
   }

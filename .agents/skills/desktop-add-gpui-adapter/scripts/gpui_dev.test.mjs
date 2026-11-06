@@ -201,20 +201,33 @@ test('cli_sigterm_cleans_up_app_and_tracked_lock_policy_builds', { timeout: 60_0
   } finally { if (child?.exitCode === null) child.kill('SIGTERM'); await childDone; fs.rmSync(root, { recursive: true, force: true }); }
 });
 
-/** leader 先退出且后代忽略 TERM 时仍清理整组，不能只回收最外层 GUI/Cargo。 */
-test('shutdown_reaps_owned_descendants_after_the_application_leader_exits', { timeout: 60_000, skip: process.platform === 'win32' }, async () => {
-  const root = fixture(), evidence = path.join(root, 'starts.log'), workerPid = path.join(root, 'worker.log');
+/** leader 主动退出且后代关闭标准流后，关闭和保存重编译都须清理旧进程，不能误杀无关进程。 */
+test('shutdown_and_rebuild_reap_descendants_after_the_application_leader_exits', { timeout: 90_000 }, async () => {
+  const root = fixture(), evidence = path.join(root, 'starts.log'), workerPid = path.join(root, 'worker.log'), messages = [];
+  const sentinel = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000);'], { stdio: 'ignore' });
   let session;
   try {
     const file = path.join(root, 'native ui/src/main.rs');
-    const worker = `process.on('SIGTERM', () => {}); require('node:fs').writeFileSync(process.argv[1], String(process.pid)); setInterval(() => {}, 1000);`;
-    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('let mut file =', `let _worker = std::process::Command::new(&args[3]).args(["-e", ${JSON.stringify(worker)}, &args[4]]).spawn().unwrap();\n    let mut file =`));
-    session = await startGpuiDev(root, { appArgs: [evidence, 'safe', process.execPath, workerPid], log: () => {} });
-    await until(() => fs.existsSync(workerPid) && fs.readFileSync(workerPid, 'utf8').length > 0, 'owned worker did not start');
-    const pid = fs.readFileSync(workerPid, 'utf8');
+    const worker = "process.on('SIGTERM', () => {}); require('node:fs').writeFileSync(process.argv[1], String(process.pid)); setInterval(() => {}, 1000);";
+    const start = 'let _worker = std::process::Command::new(&args[3]).args(["-e", '+JSON.stringify(worker)+', &args[4]]).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).spawn().unwrap();\n    let mut file =';
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('let mut file =', start).replace('loop { thread::sleep(Duration::from_millis(50)); }', 'return;'));
+    session = await startGpuiDev(root, { appArgs: [evidence, 'safe', process.execPath, workerPid], pollMs: 40, debounceMs: 80, log: message => messages.push(message) });
+    await until(() => fs.existsSync(workerPid) && messages.some(message => message.startsWith('Application exited')), 'leader did not exit while worker remained');
+    const first = fs.readFileSync(workerPid, 'utf8'); assert.equal(alive(first), true);
+    fs.writeFileSync(path.join(root, 'core/src/lib.rs'), 'pub fn value() -> &\'static str { "core-two" }\n');
+    await until(() => fs.existsSync(workerPid) && fs.readFileSync(workerPid, 'utf8') !== first, 'save did not restart after leader exit');
+    await until(() => !alive(first), 'old descendant survived rebuild');
+    const second = fs.readFileSync(workerPid, 'utf8');
+    await until(() => messages.filter(message => message.startsWith('Application exited')).length === 2, 'second leader did not exit');
+    assert.equal(alive(second), true); assert.equal(alive(sentinel.pid), true);
     await session.close();
-    await until(() => !alive(pid), 'owned descendant survived watcher shutdown');
-  } finally { await session?.close(); fs.rmSync(root, { recursive: true, force: true }); }
+    await until(() => !alive(second), 'owned descendant survived watcher shutdown');
+    assert.equal(alive(sentinel.pid), true);
+  } finally {
+    await session?.close();
+    const sentinelDone = new Promise(resolve => sentinel.once('close', resolve)); sentinel.kill(); await sentinelDone;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 /** Ctrl+C 等中断在 Cargo 正运行 build.rs 时也必须回收构建后代。 */

@@ -20,4 +20,8 @@
 
 完整标题门禁校验受管 `src/window_title.rs` 及启动/刷新接线。已有 GPUI 产品的源码由升级器保护；旧实现升级工程工具后若缺少该模块，应按同一标题公式显式迁移并运行相关回归，门禁不改写产品源码或把未检查实现当作通过。
 
-Windows 的停止路径对仍存活的 leader 使用 `taskkill /T /F`；leader 已退出且后代仍运行时，当前实现会移除 owned handle，后续关闭或重编译可能遗留后代。上文回收行为不保证覆盖该场景，对应真实后代回归未在 Windows 执行；完整进程树回收须有 Windows 原生所有权与生命周期证据后才能声称通过。
+Windows 开发命令由 [Job 控制器](../scripts/gpui_windows_job.mjs) 和固定 [PowerShell 桥接](../assets/windows_job_supervisor.ps1) 管理。匿名、不可继承的 Job 启用 kill-on-close，使用 `PROC_THREAD_ATTRIBUTE_JOB_LIST` 在 `CreateProcessW` 内原子加入 Job 后才恢复 suspended 主线程；Job 与控制 stdin 不传给应用，只白名单继承 NUL/stdout/stderr。不设置 breakaway，不按 PID/名称重建树，也不回退 taskkill。此路线要求 Windows 10 / Windows Server 2016 或更高版本；Job 属性/宿主嵌套限制失败即停止，不绕过宿主限制。
+
+应用 leader 退出只报告退出，Job 持续持有后代；重编译、关闭或控制 EOF 通过同一 Job 终止并有界核对 active processes 为零。Cargo 命令还等待输出全部排空；协议失败、输出超限、背压取消或清理截止均明确失败并阻止继续覆盖 exe。监督器异常退出由最后 Job HANDLE 关闭兜底，但未收到 job-empty 不声称已证实清理。Node 协议回归和真实 POSIX/Cargo 用例不能代证 Windows API；原生 Job、嵌套权限与目标进程树验证仍须 Windows 宿主运行，未执行保持 `Unverified`。
+
+修改桥接同时运行 `node --test .agents/skills/desktop-add-gpui-adapter/scripts/gpui_windows_job.test.mjs`。该套件将协议/argv 引用测试与明确仅 Windows 执行的原生 Job 用例分开；不新增 npm、NuGet 或 SDK 依赖，不修改 PowerShell ExecutionPolicy。API 依据：[Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)、[UpdateProcThreadAttribute 的 JOB_LIST](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute)（核对：2026-11-06）。
