@@ -3,6 +3,38 @@
   "releases": [
     {
       "releaseDate": "2026-11-06",
+      "version": "v202611061437",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新增确认摘要绑定的工程层准备与终端裁剪，固定复制清单并重置身份和策略，保护许可证及第三方资产。",
+          "en-US": "Add confirmation-bound engineering preparation and terminal pruning with fixed copy manifests, identity and policy reset, and license and vendor protection."
+        },
+        {
+          "zh-CN": "治理文档检查保留稳定引用与命令约束，减少等义措辞改写造成的误报。",
+          "en-US": "Keep stable references and command contracts in governance checks while reducing false failures from equivalent wording changes."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "裁剪保留未知文件，修复身份串联替换、成员版本不一致及清理失败后的恢复状态。",
+          "en-US": "Preserve unknown files during pruning and fix cascading identity replacement, member version drift, and recovery states after cleanup failures."
+        },
+        {
+          "zh-CN": "Windows 开发循环改用持续持有的 Job 管理后代进程，补齐控制中断与输出收尾；原生宿主验证仍待完成。",
+          "en-US": "Manage Windows development descendants through persistent Job ownership with control cancellation and output cleanup; native-host verification remains pending."
+        },
+        {
+          "zh-CN": "Linux 本地 deb 与侧车证据整组提交，增加流式摘要、超时和取消清理；原生 dpkg 验证仍待完成。",
+          "en-US": "Commit Linux local deb packages and sidecar evidence as one collection with streaming hashes, timeouts, and cancellation cleanup; native dpkg verification remains pending."
+        },
+        {
+          "zh-CN": "统一 NSH GUI 本地打包的策略说明与初始化表单条件。",
+          "en-US": "Align NSH GUI local-packaging policy descriptions with initialization-form conditions."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-11-06",
       "version": "v202611061129",
       "featureOptimizations": [
         {
@@ -208,30 +240,6 @@
         {
           "zh-CN": "修正成功标准中的旧 Rust 下界表述，明确通用环境下界与中性模板 MSRV 1.98.1 的区别。",
           "en-US": "Correct the outdated Rust minimum in the success criteria and distinguish the generic environment minimum from the neutral template's MSRV of 1.98.1."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-28",
-      "version": "v202610282034",
-      "featureOptimizations": [
-        {
-          "zh-CN": "将统一 UI 设计基座纳入受管标准，以 DESIGN.md 为导航，贯通初始化、日常实施和下游工程升级。",
-          "en-US": "Add the unified UI foundation to managed standards, using DESIGN.md for navigation across initialization, daily implementation and downstream Harness upgrades."
-        },
-        {
-          "zh-CN": "Tauri 与 GPUI 中性模板集中消费展示 Token，统一亮暗主题、侧栏和支持页；强调色随主题主色变化。",
-          "en-US": "Make Tauri and GPUI neutral templates consume centralized presentation tokens for light and dark themes, sidebars and support pages, with accents following the theme primary color."
-        },
-        {
-          "zh-CN": "退役 taste 自动安装和旧视觉硬锁，保留框架交互、列表数据合同、历史记录与既有下游自有资产保护。",
-          "en-US": "Retire automatic taste installation and old visual constraints while preserving framework interactions, list data contracts, historical records and protection of existing downstream-owned assets."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "升级候选严格核对设计基座完整字节并保护项目自有 DESIGN.md；修正主色色板索引类型、侧栏旧尺寸断言及 GPUI Token 文档路径。",
-          "en-US": "Validate complete design-foundation bytes in upgrade candidates while protecting project-owned DESIGN.md; fix primary-palette index typing, the outdated sidebar-size assertion and the documented GPUI token path."
         }
       ]
     }
