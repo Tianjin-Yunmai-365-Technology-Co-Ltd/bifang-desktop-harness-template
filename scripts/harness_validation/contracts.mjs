@@ -31,15 +31,17 @@ import { validateGitLifecycleContract } from "./git_lifecycle.mjs";
 import { validateWorkflow } from "./workflow.mjs";
 
 /** 验证根入口引用、上游 Python 门禁及下游不继承该门禁的约定；入口预算由 validateAgentsEntrypoint 负责。 */
-export function validateGovernanceDocuments(errors) {
-  const agentsPath = path.join(ROOT, "AGENTS.md");
+export function validateGovernanceDocuments(errors, {
+  agentsPath = path.join(ROOT, "AGENTS.md"),
+  engineeringRulesPath = path.join(ROOT, "docs", "ENGINEERING_RULES.md"),
+} = {}) {
   requireFragments(errors, agentsPath, [
     "docs/AGENT_POLICY.md",
+    "docs/ENGINEERING_RULES.md",
     "$desktop-implement-change",
     "$desktop-refactor-code",
     "node scripts/validate_harness.mjs",
     "node scripts/run_harness_tests.mjs",
-    "仅当前 Harness 上游工程的工程自动化使用 Node.js 标准库",
     "check_no_python.mjs --root .",
   ], "AGENTS.md");
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-check-development-environment", "SKILL.md"), [
@@ -60,16 +62,11 @@ export function validateGovernanceDocuments(errors) {
 
   requireFragments(errors, path.join(SKILLS_ROOT, "desktop-upgrade-harness", "references", "ownership-policy.md"), ["上游专用 `check_no_python.mjs`", "不得再包含它"], "Harness 升级所有权策略");
 
-  requireFragments(errors, path.join(ROOT, "docs", "ENGINEERING_RULES.md"), [
-    "Core-first 是硬规则",
-    "Node.js 是所有接口组合的受管工程运行时",
-    "仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤",
-    "初始化和升级均不得把该检查器及上游专用禁令传播到终端下游",
+  // 领域依赖、实际阈值与源专属禁令由行为门禁验证，这里只绑定可执行命令和事实源。
+  requireFragments(errors, engineeringRulesPath, [
+    "docs/RELEASE.md",
     "check_no_python.mjs --root .",
     "node scripts/validate_harness.mjs --release-review",
-    "Rust 代码：400 行",
-    "前端代码：500 行",
-    "其他人工维护文本：500 行",
   ], "docs/ENGINEERING_RULES.md");
 
   requireFragments(errors, path.join(ROOT, "README.md"), [
