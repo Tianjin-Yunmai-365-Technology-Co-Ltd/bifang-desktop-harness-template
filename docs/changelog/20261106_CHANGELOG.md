@@ -4,7 +4,7 @@
 
 ## 2026-11-06 新增
 
-- `HARNESS-FEAT-DETERMINISTIC-INSTANTIATION`（`required_version = pending`）：增加确认摘要绑定的工程层准备与检查后终端裁剪入口；固定 Git 可见源清单、重置双语身份与策略、保护许可证正文与第三方字节，独占写入并在失败时仅恢复可确认自有项。CLI/Tauri/GPUI/NSH 裁剪矩阵检查实际链接与导入；完整初始化、真实 GUI 检查和独立 Git 基线仍按原流程执行，真实下游及原生跨平台证据未执行。
+- `HARNESS-FEAT-DETERMINISTIC-INSTANTIATION`（`required_version = 202611061437`）：增加确认摘要绑定的工程层准备与检查后终端裁剪入口；固定 Git 可见源清单、重置双语身份与策略、保护许可证正文与第三方字节，独占写入并在失败时仅恢复可确认自有项。CLI/Tauri/GPUI/NSH 裁剪矩阵检查实际链接与导入；完整初始化、真实 GUI 检查和独立 Git 基线仍按原流程执行，真实下游及原生跨平台证据未执行。
 
 - `HARNESS-FEAT-NSH`（`required_version = 202611061129`，本次正式发布绑定）：加入第三个 NSH GUI 选项及三项框架说明；按真实能力询问、初始化接线、条件支持页、独立本地/候选打包、发布后动作和升级隔离。NSH 支持桌面、Android、iOS 与 Web 目标；六项未接入的宿主能力明确不可用，tracked runtime 锁无法传递时阻断。提取工程知识并保留来源，实际运行证据由本次交付报告，未验证平台不报通过。
 
