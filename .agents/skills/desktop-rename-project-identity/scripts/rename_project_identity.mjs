@@ -55,11 +55,18 @@ export function buildReplacements(values) {
   return [...normalized.entries()].sort((left, right) => right[0].length - left[0].length);
 }
 
-/** 按已排序映射替换文本，不推断大小写、词形或法律语义。 */
+/** 将身份词元按长度构造成字面匹配；新文本不会再次进入本轮替换。 */
+function literalPattern(values) {
+  const ordered = [...new Set(values)].sort((left, right) => right.length - left.length);
+  if (ordered.some(value => typeof value !== "string" || !value)) throw new Error("身份词元必须为非空字符串");
+  return ordered.length ? new RegExp(ordered.map(value => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")).join("|"), "gu") : null;
+}
+
+/** 只扫描原文本一次，最长旧词元优先；新名称内含旧词元时也保持用户确认的字节。 */
 export function replaceExact(text, replacements) {
-  let result = text;
-  for (const [oldValue, newValue] of replacements) result = result.split(oldValue).join(newValue);
-  return result;
+  const mapping = new Map(replacements);
+  const pattern = literalPattern([...mapping.keys()]);
+  return pattern ? text.replace(pattern, match => mapping.get(match)) : text;
 }
 
 /** 遍历项目维护树，同时拒绝符号链接并记录确定性排除目录。 */
@@ -171,16 +178,21 @@ export function planRootRename(root, oldId, newId, enabled) {
 }
 
 /** 复扫维护树中的旧身份文本和路径，确保应用后没有静默遗漏。 */
-export function findResiduals(root, oldValues) {
+export function findResiduals(root, oldValues, approvedValues = []) {
   const { files, directories } = inventory(root);
   const residuals = [];
+  const approved = literalPattern(approvedValues);
+  const hasResidual = text => {
+    const originalOnly = approved ? text.replace(approved, "\0") : text;
+    return oldValues.some(oldValue => originalOnly.includes(oldValue));
+  };
   for (const item of [...files, ...directories]) {
     const relative = relativePosix(root, item);
-    if (oldValues.some((oldValue) => relative.includes(oldValue))) residuals.push(`path:${relative}`);
+    if (hasResidual(relative)) residuals.push(`path:${relative}`);
   }
   for (const file of files) {
     const { text, binary } = readText(file);
-    if (!binary && oldValues.some((oldValue) => text.includes(oldValue))) residuals.push(`text:${relativePosix(root, file)}`);
+    if (!binary && hasResidual(text)) residuals.push(`text:${relativePosix(root, file)}`);
   }
   return [...new Set(residuals)].sort();
 }
@@ -210,7 +222,7 @@ function main() {
     applyChanges(contentChanges, pathChanges);
     if (rootDestination) { fs.renameSync(root, rootDestination); root = rootDestination; }
   }
-  const residuals = values.apply ? findResiduals(root, replacements.map(([oldValue]) => oldValue)) : [];
+  const residuals = values.apply ? findResiduals(root, replacements.map(([oldValue]) => oldValue), replacements.map(([, newValue]) => newValue)) : [];
   return {
     exitCode: residuals.length ? 2 : 0,
     result: {

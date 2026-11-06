@@ -111,3 +111,57 @@ test('write_failure_restores_original_tree_without_overwriting_unknown_files', t
   assert.throws(() => finalizeInstantiation(f.preparation, plan.planDigest, fixtureEvidence(plan)), error => error.recovery.unresolved.length === 0);
   assert.deepEqual([...inventoryTarget(f.target)].map(([file, item]) => [file, item.sha256]), before);
 });
+
+/** 准备后新增文档不参与模板重写，失效活动路由只阻断而不修改用户字节。 */
+test('unknown_documents_are_preserved_and_invalid_routes_block_without_rewrite', t => {
+  const f = prepareFixture(t); writeNeutralWorkspace(f);
+  const note = path.join(f.target, 'user-notes.md');
+  const bytes = Buffer.from('仅 Harness 上游源树禁止测试说明。\n普通用户文档。\n');
+  fs.writeFileSync(note, bytes);
+  const plan = planFinalization(f.preparation);
+  assert.equal(plan.operations.some(item => item.path === 'user-notes.md'), false);
+  finalizeInstantiation(f.preparation, plan.planDigest, fixtureEvidence(plan));
+  assert.deepEqual(fs.readFileSync(note), bytes);
+  const g = prepareFixture(t); writeNeutralWorkspace(g);
+  const route = path.join(g.target, 'user-notes.yaml');
+  const original = 'step: $desktop-instantiate-project\n'; fs.writeFileSync(route, original);
+  assert.throws(() => planFinalization(g.preparation), /活动 Skill/u);
+  assert.equal(fs.readFileSync(route, 'utf8'), original);
+});
+
+/** 未登记文件即使位于待裁目录也不是删除授权，重新预览仍保持原物。 */
+test('unknown_files_in_pruning_directories_are_never_removed', t => {
+  for (const relative of ['docs/adr/user-note.md', '.agents/skills/desktop-instantiate-project/user.txt']) {
+    const f = prepareFixture(t); writeNeutralWorkspace(f);
+    const file = path.join(f.target, relative); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, 'keep user bytes');
+    for (let attempt = 0; attempt < 2; attempt++) assert.throws(() => planFinalization(f.preparation), /未登记文件/u);
+    assert.equal(fs.readFileSync(file, 'utf8'), 'keep user bytes');
+  }
+});
+
+/** 成员包继承根版本或明确使用同一版本，不接受独立漂移的产品版本。 */
+test('member_version_must_match_workspace_version', t => {
+  const f = prepareFixture(t); writeNeutralWorkspace(f);
+  const file = path.join(f.target, 'regression_tool_cli/Cargo.toml');
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('version.workspace = true', 'version = "9.9.9"'));
+  assert.throws(() => planFinalization(f.preparation), /成员版本/u);
+  fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('version = "9.9.9"', 'version = "0.1.0"'));
+  assert.doesNotThrow(() => planFinalization(f.preparation));
+});
+
+/** 文件集合提交后清空目录失败是可报告收尾状态，不伪报失去备份的事务失败。 */
+test('empty_directory_cleanup_failure_returns_explicit_retained_paths', t => {
+  const f = prepareFixture(t); writeNeutralWorkspace(f);
+  const plan = planFinalization(f.preparation);
+  const remove = fs.rmdirSync;
+  const injected = path.join(f.target, '.agents/skills/desktop-instantiate-project/scripts');
+  const mock = t.mock.method(fs, 'rmdirSync', (directory, ...args) => {
+    if (directory === injected) throw Object.assign(new Error('cleanup denied'), { code: 'EACCES' });
+    return remove(directory, ...args);
+  });
+  const outcome = finalizeInstantiation(f.preparation, plan.planDigest, fixtureEvidence(plan));
+  mock.mock.restore();
+  assert.equal(outcome.status, 'terminal-pruning-complete');
+  assert.ok(outcome.retainedDirectories.includes(injected));
+  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-instantiate-project/SKILL.md')), false);
+});

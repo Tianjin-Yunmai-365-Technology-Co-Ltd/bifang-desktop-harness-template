@@ -101,7 +101,9 @@ function applyOperations(root, current, rendered, operations) {
     error.recovery = { unresolved, ...(unresolved.length ? { originalsDirectory: stage } : {}), note: '并发或部分写入变化不覆盖；未恢复原件保留供精确恢复。' };
     throw error;
   }
-  fs.rmSync(stage, { recursive: true });
+  // 文件集合已提交，空目录或备份清理失败不能反转为无恢复信息的失败状态。
+  const retainedDirectories = [];
+  try { fs.rmSync(stage, { recursive: true }); } catch { retainedDirectories.push(stage); }
   // 只移除本次明确裁掉文件的空祖先；构建产物和未知条目会让 rmdir 安全停止。
   const directories = new Set();
   for (const { path: relative, action } of operations) if (action === 'remove') {
@@ -109,8 +111,9 @@ function applyOperations(root, current, rendered, operations) {
     while (directory !== root) { directories.add(directory); directory = path.dirname(directory); }
   }
   for (const directory of [...directories].sort((a, b) => b.length - a.length)) {
-    try { assertOrdinaryPath(directory); fs.rmdirSync(directory); } catch (error) { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error; }
+    try { assertOrdinaryPath(directory); fs.rmdirSync(directory); } catch (error) { if (error.code !== 'ENOENT') retainedDirectories.push(directory); }
   }
+  return [...new Set(retainedDirectories)];
 }
 
 /** 调用方在原流程实际完成检查后提供对应引用，不新增用户确认，也不把裁剪结果升级为 E2E 通过。 */
@@ -118,8 +121,8 @@ export function finalizeInstantiation(preparation, expectedPlanDigest, evidence)
   const { root, current, rendered, plan } = build(preparation);
   if (expectedPlanDigest !== plan.planDigest) throw new Error('终端裁剪计划摘要不匹配，请重新预览');
   checkEvidence(evidence, plan);
-  applyOperations(root, current, rendered, plan.operations);
-  return { schemaVersion: 1, status: 'terminal-pruning-complete', targetRoot: root, planDigest: plan.planDigest, removedFiles: [...rendered.removedPaths], retainedSkills: rendered.skills, evidenceReferences: evidence, initializationComplete: false, next: '回到原初始化流程复探 Git，建立唯一独立基线并核对干净状态；本 helper 不认证外部测试或 Computer Use 结果。' };
+  const retainedDirectories = applyOperations(root, current, rendered, plan.operations);
+  return { schemaVersion: 1, status: 'terminal-pruning-complete', targetRoot: root, planDigest: plan.planDigest, removedFiles: [...rendered.removedPaths], retainedSkills: rendered.skills, retainedDirectories, evidenceReferences: evidence, initializationComplete: false, next: '回到原初始化流程复探 Git，建立唯一独立基线并核对干净状态；本 helper 不认证外部测试或 Computer Use 结果。' };
 }
 
 /** CLI 输入仅包含准备结果和原流程的真实检查引用；源 helper 在目标自身删除后仍可完成返回。 */

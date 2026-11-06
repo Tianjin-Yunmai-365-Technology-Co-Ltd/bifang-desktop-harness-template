@@ -83,11 +83,17 @@ export function validateNeutralWorkspace(values, files) {
   const logical = members.map(member => member === `${id}_gui/src-tauri` ? `${id}_gui` : member);
   if (logical.some(member => !expected.includes(member)) || new Set(logical).size !== expected.length) throw new Error('Cargo workspace 必须恰好包含 core 与已选适配器');
   const workspaceCore = root.get('workspace.dependencies')?.get(`${id}_core`);
+  const version = Version.parse(value(root.get('workspace.package')?.get('version'), 'version')).toString();
   for (const [index, member] of members.entries()) {
     if (typeof member !== 'string' || member.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Cargo member 路径非法');
     const manifest = tables(text(`${member}/Cargo.toml`));
     const name = value(manifest.get('package')?.get('name'), 'package.name');
     if (name !== logical[index]) throw new Error('Cargo member 包身份不匹配');
+    const packageFields = manifest.get('package');
+    const memberVersion = packageFields?.get('version');
+    const inheritedVersion = packageFields?.get('version.workspace') === 'true' || /^\{\s*workspace\s*=\s*true\s*\}$/u.test(memberVersion ?? '') || manifest.get('package.version')?.get('workspace') === 'true';
+    const versionForms = Number(memberVersion !== undefined) + Number(packageFields?.has('version.workspace')) + Number(manifest.has('package.version'));
+    if (versionForms !== 1 || (!inheritedVersion && Version.parse(value(memberVersion, 'package.version')).toString() !== version)) throw new Error(`成员版本与根版本不一致：${name}`);
     if (name !== `${id}_core`) {
       const raw = manifest.get('dependencies')?.get(`${id}_core`);
       const explicit = manifest.get(`dependencies.${id}_core`);
@@ -105,7 +111,6 @@ export function validateNeutralWorkspace(values, files) {
       }
     }
   }
-  const version = Version.parse(value(root.get('workspace.package')?.get('version'), 'version')).toString();
   const state = JSON.parse(text('.harness/version-state.json'));
   const expectedKeys = ['schema_version', 'cycle_base_version', 'target_version', 'feature_bump_applied', 'pending_changes', 'applied_bug_ids', 'applied_reconciliations', 'last_release'];
   if (Object.keys(state).sort().join() !== expectedKeys.sort().join() || state.schema_version !== 1 || state.cycle_base_version !== version || state.target_version !== version

@@ -94,13 +94,16 @@ function downstreamRelease(text) {
 /** 对保留的 Markdown/YAML 处理失效的路由与链接，不扫描或改写第三方原文与代码中的保护清单。 */
 export function renderPrunedFiles(preparation, current) {
   const selection = validatePreparation(preparation, current);
-  const removedPaths = new Set([...current.keys()].filter(relative => excluded(relative, selection)));
+  const managedPaths = new Set(preparation.files.map(item => item.path));
+  const removable = [...current.keys()].filter(relative => excluded(relative, selection));
+  for (const relative of removable) if (!managedPaths.has(relative)) throw new Error(`待裁目录含未登记文件，保留并停止：${relative}`);
+  const removedPaths = new Set(removable);
   const result = new Map([...current].filter(([relative]) => !removedPaths.has(relative)));
   const skills = [...result.keys()].filter(file => /^\.agents\/skills\/[^/]+\/SKILL\.md$/u.test(file)).map(file => file.split('/')[2]);
   const removedSkills = new Set([...current.keys()].filter(file => /^\.agents\/skills\/[^/]+\/SKILL\.md$/u.test(file) && removedPaths.has(file)).map(file => file.split('/')[2]));
   const finalPaths = new Set(result.keys());
   for (const [relative, file] of result) {
-    if (!/\.(?:md|yaml)$/u.test(relative) || relative.includes('/assets/vendor/') || /^\.agents\/skills\/(?:gpui-kit|gpui-kit-design-guides|design-taste-frontend)\//u.test(relative)) continue;
+    if (!managedPaths.has(relative) || !/\.(?:md|yaml)$/u.test(relative) || relative.includes('/assets/vendor/') || /^\.agents\/skills\/(?:gpui-kit|gpui-kit-design-guides|design-taste-frontend)\//u.test(relative)) continue;
     let text = file.bytes.toString('utf8');
     // 一次性源命令整段删除，避免把已裁掉脚本留成看似可执行的代码块。
     text = text.replace(/```[^\n]*\n[\s\S]*?```/gu, block => [...removedPaths].some(file => block.includes(file)) ? '' : block);

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { planInstantiation, prepareInstantiation } from './instantiate_project.mjs';
-import { removeUpstreamOnly, snapshotSource } from './instantiation_files.mjs';
+import { removeUpstreamOnly, renderPreparedFiles, snapshotSource } from './instantiation_files.mjs';
 import { confirmedFixtureInput, fixture, SOURCE_ROOT } from './instantiation_test_support.mjs';
 
 /** 未确认、旧摘要和非法日期都不能创建目标。 */
@@ -150,4 +150,19 @@ test('final_tree_verification_rejects_late_edits_and_unknown_hidden_entries', t 
     mock.mock.restore();
     assert.equal(fs.readFileSync(changed, 'utf8'), 'late user bytes');
   }
+});
+
+/** 新标识或展示名可含示例词元，渲染结果与许可证保持同一确认值。 */
+test('confirmed_identity_is_not_rewritten_by_later_replacement_pairs', () => {
+  const snapshot = snapshotSource(SOURCE_ROOT);
+  snapshot.files.set('docs/identity-fixture.txt', { bytes: Buffer.from('Bifang Desktop Harness Template agent_first_harness_template example_tool'), mode: 0o644 });
+  const values = { name_zh: '回归工具', name_en: 'example_tool Studio', project_id: 'example_tool_plus', owner: 'Fixture Owner', target_platforms: ['macos'], interfaces: ['cli'], post_release_action: 'local_package' };
+  const rendered = renderPreparedFiles(snapshot, values, 'user:fixture', '2026-11-06');
+  assert.equal(rendered.get('docs/identity-fixture.txt').bytes.toString(), 'example_tool Studio example_tool_plus example_tool_plus');
+  assert.match(rendered.get('LICENSE.en.md').bytes.toString(), /Applicable Project Name: example_tool Studio\./u);
+  assert.ok(rendered.has('.agents/skills/desktop-initialize-rust-project/assets/rust-lib-cli/example_tool_plus_core/Cargo.toml'));
+  const rules = rendered.get('docs/ENGINEERING_RULES.md').bytes.toString();
+  assert.doesNotMatch(rules, /check_no_python|仅 Harness 上游源树禁止/u);
+  assert.match(rules, /Node.js 是所有接口组合的受管工程运行时/u);
+  assert.match(rules, /新增第三方运行时依赖须说明必要性/u);
 });

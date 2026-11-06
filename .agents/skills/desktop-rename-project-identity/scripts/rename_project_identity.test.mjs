@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { replaceExact, findResiduals } from "./rename_project_identity.mjs";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -136,4 +137,19 @@ test("dotdot_prefixed_in_root_name_is_not_mistaken_for_parent_escape", (t) => {
   const result = runScript(root, "--apply");
   assert.equal(result.status, 0, result.stderr);
   assert.equal(fs.readFileSync(path.join(root, "..new_product.txt"), "utf8"), "New Product");
+});
+
+/** 新值含另一个旧词元时不串联改写，正则元字符与替换符保持字面意义。 */
+test("identity_replacement_scans_original_tokens_only", () => {
+  assert.equal(replaceExact('Old Product example_tool a.b', [['Old Product', 'example_tool Studio'], ['example_tool', 'example_tool_plus'], ['a.b', '$&']]), 'example_tool Studio example_tool_plus $&');
+  assert.equal(replaceExact('abc ab', [['ab', 'short'], ['abc', 'long']]), 'long short');
+});
+
+/** 合法新名称中的旧词元不是残留，独立出现的旧身份仍会报告。 */
+test("residual_check_preserves_approved_new_identity_without_hiding_old_tokens", t => {
+  const root = fixture(t);
+  fs.writeFileSync(path.join(root, 'new.txt'), 'old_product_plus');
+  assert.deepEqual(findResiduals(root, ['old_product'], ['old_product_plus']), []);
+  fs.appendFileSync(path.join(root, 'new.txt'), ' old_product');
+  assert.deepEqual(findResiduals(root, ['old_product'], ['old_product_plus']), ['text:new.txt']);
 });
