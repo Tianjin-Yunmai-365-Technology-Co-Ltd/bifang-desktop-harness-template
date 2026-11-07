@@ -29,17 +29,31 @@ export function addNshAdapter(root, input) {
   if (Object.hasOwn(facts,'nsh-targets')) throw new Error('existing NSH targets conflict');
   const core = metadata.packages.find(pkg => pkg.name === `${options.projectId}_core` && metadata.workspace_members.includes(pkg.id));
   if (!core || path.dirname(core.manifest_path) !== path.join(root,`${options.projectId}_core`)) throw new Error('direct shared core member missing');
+  const coreSourcePath = path.join(root,`${options.projectId}_core`,'src','lib.rs');
+  assertNshPath(coreSourcePath);
+  const coreSource = fs.readFileSync(coreSourcePath,'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/gu,'');
+  const statusType = coreSource.match(/\bpub\s+struct\s+ScaffoldStatus\s*\{([^}]*)\}/u)?.[1] ?? '';
+  if (!/\bpub\s+async\s+fn\s+scaffold_status\s*\(\s*\)\s*->\s*ScaffoldStatus\s*\{/u.test(coreSource) ||
+      !/\bpub\s+initialized\s*:\s*bool\s*[,}]/u.test(statusType) ||
+      !/\bpub\s+product_definition_required\s*:\s*bool\s*[,}]/u.test(statusType)) {
+    throw new Error('existing core must export pub async fn scaffold_status() -> ScaffoldStatus with public initialized and product_definition_required bool fields');
+  }
   if(fs.existsSync(path.join(root,`${options.projectId}_nsh`))) throw new Error('NSH directory already exists');
   const cargoPath = path.join(root,'Cargo.toml');
   for (const file of [cargoPath,path.join(root,'package.json'),core.manifest_path]) assertNshPath(file);
   let cargo = fs.readFileSync(cargoPath,'utf8');
   const originalCargo = cargo;
-  if (/\b(?:nsh-core|nsh-base)\s*=/u.test(cargo) || /gui-framework\s*=/u.test(cargo)) throw new Error('existing NSH dependencies/framework conflict');
+  if (/gui-framework\s*=/u.test(cargo)) throw new Error('existing NSH dependencies/framework conflict');
+  const newDependencies = nshDependencies(options);
+  for (const line of newDependencies.split('\n')) {
+    const name = line.split(' = ')[0];
+    if (new RegExp(`^${name}\\s*=`, 'mu').test(cargo)) throw new Error(`existing NSH dependency conflict: ${name}`);
+  }
   if ((cargo.match(/^members\s*=\s*\[[^\n]*\]/gmu) ?? []).length !== 1 || (cargo.match(/^interfaces\s*=\s*\[[^\n]*\]/gmu) ?? []).length !== 1) throw new Error('requires single-line members and interfaces arrays');
   cargo = cargo.replace(/^members\s*=\s*\[[^\n]*\]/mu,`members = ${JSON.stringify([...metadata.workspace_members.map(member=>metadata.packages.find(pkg=>pkg.id===member)).map(pkg=>path.relative(root,path.dirname(pkg.manifest_path)).split(path.sep).join('/')),`${options.projectId}_nsh`])}`);
   cargo = cargo.replace(/^interfaces\s*=\s*\[[^\n]*\]/mu,`interfaces = ["nsh"]\nnsh-targets = ${JSON.stringify(options.nshTargets)}`);
   if (!new RegExp(`^${options.projectId}_core\\s*=`, 'mu').test(cargo)) cargo = cargo.replace('[workspace.dependencies]',`[workspace.dependencies]\n${options.projectId}_core = { path = "${options.projectId}_core" }`);
-  cargo = cargo.includes('[workspace.dependencies]') ? cargo.replace('[workspace.dependencies]',`[workspace.dependencies]\n${nshDependencies()}`) : `${cargo}\n[workspace.dependencies]\n${nshDependencies()}\n`;
+  cargo = cargo.includes('[workspace.dependencies]') ? cargo.replace('[workspace.dependencies]',`[workspace.dependencies]\n${newDependencies}`) : `${cargo}\n[workspace.dependencies]\n${newDependencies}\n`;
   if (!new RegExp(`^${options.projectId}_core\\s*=`, 'mu').test(cargo)) cargo = cargo.replace('[workspace.dependencies]',`[workspace.dependencies]\n${options.projectId}_core = { path = "${options.projectId}_core" }`);
   const mirrors = facts['version-mirrors'] ?? [];
   if(!Array.isArray(mirrors) || mirrors.some(value=>typeof value!=='string') || new Set(mirrors).size!==mirrors.length) throw new Error('invalid version mirrors');
@@ -56,7 +70,7 @@ export function addNshAdapter(root, input) {
   const packagePath = path.join(root,'package.json');
   const originalPackage = fs.existsSync(packagePath) ? fs.readFileSync(packagePath,'utf8') : null;
   const packageJson = originalPackage === null ? {private:true,type:'module',engines:{node:'>=24.0.0'}} : JSON.parse(originalPackage);
-  const scripts = nshPackageScripts(options.projectId);
+  const scripts = nshPackageScripts(options.projectId, options.nshTargets, options.targetPlatforms);
   for (const key of Object.keys(scripts)) if (packageJson.scripts?.[key] && packageJson.scripts[key] !== scripts[key]) throw new Error(`package script conflict: ${key}`);
   for (const relative of files.keys()) { assertNshPath(path.join(root,relative)); if (fs.existsSync(path.join(root,relative))) throw new Error(`refusing existing file: ${relative}`); }
   const written=[];

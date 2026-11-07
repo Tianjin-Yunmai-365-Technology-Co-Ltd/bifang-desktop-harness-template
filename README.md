@@ -12,7 +12,7 @@ Bifang Desktop Harness Template
 
 GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 构建原生 macOS 应用包/DMG、Windows x64 NSIS，以及 Linux GNU x64/ARM64 deb/tar.gz。这些 GPUI 目标均可选择本地打包；仅 Linux Tauri 且无 CLI 时须选择提交远程。DESKTOP 使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
 
-选择 NSH 后，Agent 会询问桌面、移动、Web、TUI 四类子目标。当前固定 NSH 0.4.0 可生成桌面、Android、iOS 和 Web 工程；TUI 尚无可运行或打包目标，选中时会提示不可用并阻断创建。NSH 仍使用 Rust UI 与共享 core，通过 `$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，再由 `$desktop-build-nsh-release` 按已选目标打包。现有九项 NSH profile 只在选择桌面时询问；六项尚未接线的桌面宿主能力保持不可用。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
+选择 NSH 后，Agent 会询问桌面、移动、Web、TUI 四类子目标。当前固定 NSH 0.4.0 可生成桌面、Android、iOS 和 Web 工程；TUI 尚无可运行或打包目标，选中时会提示不可用并阻断创建。新 NSH 工程使用 Mixed TSX 界面，通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按目标打包。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 

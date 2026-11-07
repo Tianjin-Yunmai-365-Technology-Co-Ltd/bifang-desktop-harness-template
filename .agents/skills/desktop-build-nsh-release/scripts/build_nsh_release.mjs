@@ -11,6 +11,7 @@ import { loadDocument,renderDocument } from '../../desktop-prepare-release/scrip
 import { check as checkVersion } from '../../desktop-manage-version/scripts/version_gate.mjs';
 import { readDependencyLockPolicy } from '../../desktop-implement-change/scripts/project_lock_policy.mjs';
 import { iosPackagingIdentity,restoreIosDisplayIdentity } from './nsh_ios_identity.mjs';
+import { assembleNshDesktopPackage, prepareNshPortableEntry, readNshDesktopProfile } from './nsh_desktop_package.mjs';
 
 const targets = ['macos','windows','linux','android','ios','ios-simulator','web'];
 /** 输出只能落在真实项目目录，拒绝链接目录和已有批次覆盖。 */
@@ -129,6 +130,9 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   safeOutputPath(root,path.join(root,'target'));safeOutputPath(root,path.join(root,'release'));
   const metadata=JSON.parse(run('cargo',['metadata','--no-deps','--format-version','1'],root,process.env,true));
   const facts=packageFacts(root,metadata,target);
+  const modernDesktop=facts.modern && facts.policy['nsh-targets'].includes('desktop');
+  const customDesktopHost=modernDesktop && ['macos','windows','linux'].includes(target);
+  const desktopProfile=modernDesktop?readNshDesktopProfile(root):null;
   const nativeHost={macos:'darwin',windows:'win32',linux:'linux',ios:'darwin','ios-simulator':'darwin'}[target];
   if(nativeHost && nativeHost!==process.platform) throw new Error('target requires its native host');
   const version=run('nsh',['--version'],root,process.env,true);
@@ -156,7 +160,31 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   const stage=fs.mkdtempSync(path.join(root,'target/.nsh-package-'));
   const {env,temporary}=releaseNoteBuildInputs(stage,notes);
   const iosIdentity=['ios','ios-simulator'].includes(target)?iosPackagingIdentity(JSON.parse(fs.readFileSync(path.join(facts.gui,'nsh.json'),'utf8')).name):null;
-  run('nsh',['package','--target',target,'--out',path.join(stage,'package'),'--app-version',facts.version,...(iosIdentity?.changed?['--name',iosIdentity.packageName]:[])],facts.gui,env);
+  if(customDesktopHost) {
+    const bundleDirectory=path.join(stage,'mixed-bundle');
+    run('nsh',['build','--release','--out',bundleDirectory],facts.gui,env);
+    run('cargo',['build','--release','-p',`${facts.policy['project-id']}_nsh`,'--bin',`${facts.policy['project-id']}_nsh_host`],root,env);
+    const assembled=assembleNshDesktopPackage({gui:facts.gui,stage,target,id:facts.policy['project-id'],profile:desktopProfile,targetDirectory:metadata.target_directory,bundleDirectory});
+    fs.rmSync(bundleDirectory,{recursive:true,force:true});
+    if(target==='macos') {
+      run('codesign',['--force','--sign','-','--timestamp=none',assembled.application],root);
+      run('codesign',['--verify','--deep','--strict',assembled.application],root);
+    } else if(target==='windows') {
+      const zip=path.join(assembled.packageRoot,`${facts.policy['project-id']}-windows.zip`);
+      const zipEnv={...env,HARNESS_NSH_PACKAGE_DIR:assembled.application,HARNESS_NSH_ZIP_PATH:zip};
+      run('powershell.exe',['-NoProfile','-NonInteractive','-Command','Compress-Archive -LiteralPath $env:HARNESS_NSH_PACKAGE_DIR -DestinationPath $env:HARNESS_NSH_ZIP_PATH'],root,zipEnv);
+    } else {
+      run('tar',['-czf',path.join(assembled.packageRoot,`${facts.policy['project-id']}-linux.tar.gz`),'-C',assembled.packageRoot,path.basename(assembled.application)],root);
+    }
+  } else {
+    const portableEntry=modernDesktop
+      ? prepareNshPortableEntry(facts.gui,stage) : null;
+    try {
+      run('nsh',['package','--target',target,'--out',path.join(stage,'package'),'--app-version',facts.version,...(iosIdentity?.changed?['--name',iosIdentity.packageName]:[]),...(portableEntry?[portableEntry]:[])],facts.gui,env);
+    } finally {
+      if(portableEntry) fs.rmSync(portableEntry,{recursive:true,force:true});
+    }
+  }
   for(const file of temporary) fs.rmSync(file);
   if(iosIdentity?.changed) {
     const app=restoreIosDisplayIdentity(path.join(stage,'package'),iosIdentity);
@@ -174,7 +202,8 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   if(mode==='candidate') checkContext({projectRoot:root,expectedSha256:context.releaseContextSha256},{published:true});
   const format={macos:'app.tar.gz',windows:'zip',linux:'tar.gz',android:'apk',ios:'app.tar.gz','ios-simulator':'app.tar.gz',web:'web.tar.gz'}[target];
   const signing=target==='android'?'development-key':target==='ios'?'unsigned-device':target==='macos'||target==='ios-simulator'?'ad-hoc':'not-applicable';
-  const manifest={schemaVersion:1,project:facts.policy['project-id'],interface:facts.modern?'nsh':'gui',...(facts.modern?{nshTargets:facts.policy['nsh-targets']}:{guiFramework:'nsh'}),mode,target,platform:target==='ios-simulator'?'ios':target,host:process.platform,arch:process.arch,buildMode:'native',buildRun:batch,bundleFormat:format,artifactKind:target==='web'?'web-archive':target==='android'?'installer':'application-archive',artifact,sha256:artifactSha,checksum:`${artifact}.sha256`,version:facts.version,sourceCommit:context?.sourceCommit??null,sourceSnapshot:before,tool:version,e2eSelection:mode==='candidate'?e2e:'not-applicable',e2eStatus:mode==='candidate'&&e2e==='enabled'?'pending':'Not run',...(e2e==='disabled'?{e2eReason,e2eRemainingRisk:e2eRisk}:{}),signingSelection:signing,signingSource:'official-local-packaging-default',unitTests:{status:'passed',testCases:tests.split('\n').filter(line=>line.endsWith(': test')).length,nshRenderTests:'passed'},milestoneAcceptance:'pending',runtimeVerification:'Unverified',files:inventory(stage)};
+  const manifest={schemaVersion:1,project:facts.policy['project-id'],interface:facts.modern?'nsh':'gui',...(facts.modern?{nshTargets:facts.policy['nsh-targets']}:{guiFramework:'nsh'}),mode,target,platform:target==='ios-simulator'?'ios':target,host:process.platform,arch:process.arch,buildMode:'native',buildRun:batch,bundleFormat:format,artifactKind:target==='web'?'web-archive':target==='android'?'installer':'application-archive',artifact,sha256:artifactSha,checksum:`${artifact}.sha256`,version:facts.version,sourceCommit:context?.sourceCommit??null,sourceSnapshot:before,tool:version,e2eSelection:mode==='candidate'?e2e:'not-applicable',e2eStatus:mode==='candidate'&&e2e==='enabled'?'pending':'Not run',...(e2e==='disabled'?{e2eReason,e2eRemainingRisk:e2eRisk}:{}),signingSelection:signing,signingSource:customDesktopHost?'mixed-custom-desktop-host':'official-local-packaging-default',unitTests:{status:'passed',testCases:tests.split('\n').filter(line=>line.endsWith(': test')).length,nshRenderTests:'passed'},milestoneAcceptance:'pending',runtimeVerification:'Unverified',files:inventory(stage)};
+  if(customDesktopHost) manifest.desktopHost={kind:'mixed-custom',multiWindow:'enabled',profile:{system_tray:desktopProfile.system_tray,autostart:desktopProfile.autostart,single_instance:desktopProfile.single_instance,deep_link:desktopProfile.deep_link,system_notification:desktopProfile.system_notification,global_shortcut:desktopProfile.global_shortcut}};
   manifest.hostArch=process.arch;
   manifest.arch=target==='web'?'wasm32':target==='android'?'universal':target==='ios'?'arm64':process.arch;
   manifest.buildMode=['web','android','ios','ios-simulator'].includes(target)?'cross':'native';

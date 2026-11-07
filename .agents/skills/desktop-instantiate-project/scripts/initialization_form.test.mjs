@@ -29,12 +29,17 @@ function fixture(run) {
   finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
-/** NSH 顶层入口按桌面/移动/Web 分类，桌面能力保持确认摘要和失效约束。 */
+/** NSH 桌面逐问可用宿主能力；通知与系统热键仍失败关闭。 */
 test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fixture(({input,set,nsh,evaluate}) => {
   nsh(["desktop","mobile","web"], ["macos","android","ios","web"]);
   for (const id of ["system_tray","system_notification","autostart","single_instance","deep_link","global_shortcut"]) delete input.answers[id];
+  assert.equal(evaluate().questions[0].id,"system_tray");
+  set("system_tray","disabled");assert.equal(evaluate().questions[0].id,"autostart");
+  set("autostart","disabled");assert.equal(evaluate().questions[0].id,"single_instance");
+  set("single_instance","disabled");assert.equal(evaluate().questions[0].id,"deep_link");
+  set("deep_link","disabled");
   assert.equal(evaluate().stage,"review");
-  assert.equal(evaluate().summary.unavailable.length,6);
+  assert.deepEqual(evaluate().summary.unavailable,["system_notification","global_shortcut"]);
   assert.deepEqual(evaluate().values.interfaces,["nsh"]);
   assert.deepEqual(evaluate().values.nsh_targets,["desktop","mobile","web"]);
   assert.equal(localPackageAvailability(evaluate().values),"available");
@@ -42,6 +47,22 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
   set("system_notification","enabled");assert.equal(evaluate().questions[0].id,"system_notification");
   set("system_notification","disabled");set("gui_framework","gpui");assert.equal(evaluate().questions[0].id,"interfaces");
   delete input.answers.gui_framework;set("interfaces",["cli","nsh"]);assert.equal(evaluate().questions[0].id,"interfaces");
+}));
+
+test("nsh_enabled_native_capabilities_require_explicit_answers_and_deep_link_instance", () => fixture(({input,set,nsh,evaluate}) => {
+  nsh();
+  set("system_tray","enabled");set("autostart","enabled");set("deep_link","enabled");
+  assert.equal(evaluate().questions[0].id,"deep_link");
+  set("single_instance","enabled");
+  assert.equal(evaluate().questions[0].id,"capability_setup_assistance");
+  set("capability_setup_assistance","yes");
+  assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().summary.unavailable,["system_notification","global_shortcut"]);
+  assert.match(evaluate().summary.notices.join(" "),/默认提供多窗口/u);
+  set("global_shortcut","enabled");
+  assert.equal(evaluate().questions[0].id,"global_shortcut");
+  delete input.answers.global_shortcut;
+  assert.equal(evaluate().stage,"review");
 }));
 
 /** NSH 非桌面目标不询问九项桌面配置；类别与具体目标双向校验。 */

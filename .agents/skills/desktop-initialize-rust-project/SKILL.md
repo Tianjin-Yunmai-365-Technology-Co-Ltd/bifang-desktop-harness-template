@@ -110,7 +110,7 @@ GPUI 初始化完成时完整保留 `$desktop-manage-gpui-dependencies`、`$desk
 
 ## NSH 初始化分派
 
-NSH：下一代全平台开发框架，是与 CLI、MCP、DESKTOP 平级的单独接口。表单在 NSH 下选择 desktop/mobile/web/tui；固定 0.4.0 的 TUI 无运行或打包目标，选中即失败关闭。NSH 使用 `$desktop-add-nsh-adapter`，先读其运行时引用；仅 desktop 子目标询问现有九项桌面 profile，其中六项宿主能力当前 unavailable/disabled。mobile/Web 不询问桌面 profile，Android/iOS/Web 按已选 NSH 子目标与具体平台生成。
+NSH：下一代全平台开发框架，是与 CLI、MCP、DESKTOP 平级的单独接口。表单在 NSH 下选择 desktop/mobile/web/tui；固定 0.4.0 的 TUI 无运行或打包目标，选中即失败关闭。NSH 使用 `$desktop-add-nsh-adapter`，先读其运行时引用；新工程创建为 Mixed TSX 界面加共享 Rust core。仅 desktop 子目标询问现有九项桌面 profile，多窗口固定支持，托盘、自启、单实例、深链接按选择生成，系统通知与 OS 全局快捷键必须 disabled。mobile/Web 不询问桌面 profile，Android/iOS/Web 按已选 NSH 子目标与具体平台生成。
 
 中性 core 建立后运行 add-only helper；纯净工程回归可调用初始化器 `scripts/create_nsh_workspace.mjs`（仅源专用 wrapper，不能代替完整实例化的复制/重置/策略/Git 收尾）。选择 NSH desktop 时复用选定 Logo；工程临时夹具标记中性。运行非空 Rust workspace、NSH check/test 与 `$desktop-test-nsh-initialization-e2e` 后才裁剪：保留 NSH adapter/build 和共享支持页资产，删除 Tauri/Mantine/GPUI 专属 Skills；保留全部通用生命周期、版本、发布、制品收集与升级规则。删除初始化器及本次 NSH 初始化 E2E，改写地图与失效引用，再创建独立 main 唯一基线。不得把 NSH runner 的临时嵌套 workspace 当产品根。
 

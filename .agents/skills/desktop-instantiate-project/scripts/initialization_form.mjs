@@ -48,7 +48,7 @@ export function localPackageAvailability(values) {
 
 /** 按当前框架/平台标注不可用能力；用户显式启用时仍须纠正，不能覆盖答案。 */
 function unavailableGuiFields(values) {
-  if (values.interfaces.includes("nsh")) return ["system_tray", "system_notification", "autostart", "single_instance", "deep_link", "global_shortcut"];
+  if (values.interfaces.includes("nsh")) return ["system_notification", "global_shortcut"];
   if (values.gui_framework !== "gpui") return [];
   return values.target_platforms.includes("linux") ? ["system_tray", "deep_link", "global_shortcut"] : ["deep_link"];
 }

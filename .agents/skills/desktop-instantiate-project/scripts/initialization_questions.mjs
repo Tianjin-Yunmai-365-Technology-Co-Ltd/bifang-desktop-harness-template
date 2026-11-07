@@ -61,9 +61,9 @@ export function summaryNotices(values) {
     notices.push("GPUI 使用 Rust/gpui-kit、desktop-add-gpui-adapter 与 desktop-test-gpui-initialization-e2e，不接入 Tauri 专属基线；深链接 unavailable/disabled，目标含 Linux 时托盘与全局快捷键同样不可用。",
       "GPUI 本地候选由 desktop-build-gpui-release 构建 macOS app/DMG、Windows NSIS 或 Linux GNU x64/ARM64 deb/tar.gz；当前声明不代表跨平台结果已验证。");
   } else if (nsh) {
-    notices.push(`NSH 是独立程序类型；已选能力：${values.nsh_targets.join('、')}。桌面、Android、iOS 与 Web 目标共用 Native Shell/Rust 薄适配器和 core；初始化使用 desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e。`,
-      "NSH 由 desktop-build-nsh-release 分别打包已选的 macOS app、Windows zip、Linux tar.gz、Android APK、iOS 本地 app 与 Web 静态站点；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
-    if (values.nsh_targets.includes("desktop")) notices.push("NSH 桌面九项能力归入桌面选择；托盘、通知、自启、单实例、深链接和全局快捷键当前 unavailable/disabled，不用应用内快捷键冒充系统热键。");
+    notices.push(`NSH 是独立程序类型；已选能力：${values.nsh_targets.join('、')}。TSX 界面通过 Mixed 原生模块调用共享 Rust core；初始化使用 desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e。`,
+      "NSH 桌面由已选平台的自定义宿主打包，Android、iOS 与 Web 使用适用的 NSH runner；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
+    if (values.nsh_targets.includes("desktop")) notices.push("NSH 桌面默认提供多窗口；托盘、自启、单实例、深链接逐项确认，深链接依赖单实例。系统通知和 OS 全局快捷键当前 unavailable/disabled；应用菜单快捷键不能冒充系统热键。");
   }
   if (values.interfaces.includes("cli")) notices.push("CLI 与 GUI 组合分别使用对应打包 Skill 生成真实产物，不互相冒充。");
   if (values.global_shortcut === "enabled") notices.push("全局快捷键只安装 Rust-only 能力；contract 为 actions = []，零默认 chord、零 OS 注册、零产品动作和占位界面。");

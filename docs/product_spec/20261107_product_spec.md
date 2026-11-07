@@ -6,15 +6,20 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-11-07（NSH 独立为顶层程序类型）
+> 最近范围确认：2026-11-07（NSH 全目标 Mixed 与桌面原生宿主）
 
 ## 本日范围确认
+
+### NSH 全目标 Mixed 与桌面能力
+
+- 变更标识：`HARNESS-FEAT-NSH-MIXED-DESKTOP`；`required_version = pending`，Harness 仅在正式发布时取时间版本。负责人确认新 NSH 工程在桌面、移动和 Web 全部使用 Mixed：TSX UI 经原生模块调用共享 Rust core。桌面另生成自定义 AppKit、Win32、GTK 宿主并固定提供多窗口；移动/Web 使用 NSH 官方宿主。
+- 桌面九字段仍逐项确认：托盘、自启、单实例、深链接按所选值接线，深链接依赖单实例；关于页、赞助页、侧栏依选择生成，系统通知与 OS 全局快捷键当前必须 disabled。用户批准下游所需、按目标平台最小声明的项目本地 Cargo 依赖。新桌面包由 Mixed bundle、Cargo 宿主和平台资源组成；实际平台能力与签名仍须真实目标验证。旧 GUI/NSH 下游只读兼容，不自动覆盖产品文件。见 [ADR-20261107-003](../adr/20261107_ADR.md)。
 
 ### NSH 顶层程序类型与目标能力
 
 - 变更标识：`HARNESS-CHANGE-NSH-TOP-LEVEL`；`required_version = pending`，Harness 仅在正式发布时取时间版本。负责人明确选择 NSH 与 CLI、MCP、DESKTOP 平齐，说明为“下一代全平台开发框架”。
 - 顶层程序类型为 CLI、MCP、DESKTOP（Cargo `gui`）与 NSH（Cargo `nsh`）。DESKTOP 框架只选 Tauri 或 GPUI；新 NSH 不写 `gui-framework`，写 `nsh-targets`，子目标可选择桌面、移动、Web、TUI，并须与具体 `target-platforms` 一致。NSH 当前只允许单独选择；新适配器成员为 `_nsh`。既有 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 的下游只读兼容，升级不得据此误删能力或自动迁移受保护产品文件。
-- 已有 NSH 九字段能力只在桌面子目标下询问并写入桌面 profile；未选桌面时不问，不把桌面宿主能力应用于移动或 Web。NSH 的共享 core、Rust UI、固定语言与主题机制以及各目标独立验证仍适用，六项尚未接线的桌面宿主能力继续 unavailable/disabled。
+- NSH 九字段能力只在桌面子目标下询问并写入桌面 profile；未选桌面时不问，不把桌面宿主能力应用于移动或 Web。共享 core、固定语言与主题机制以及各目标独立验证继续适用；界面模式与能力范围由本日 Mixed 决定更新。
 - 固定 NSH 0.4.0 尚无可运行或打包的 TUI 目标：表单展示 TUI 但选择后必须失败关闭，不能生成、运行或宣称验收。它属于 NSH 内部未来目标，不恢复此前移除的独立 Ratatui TUI 程序类型；解除限制须另有真实 runtime、构建与验证证据。见 [ADR-20261107-002](../adr/20261107_ADR.md)。
 
 ### 永久移除独立 TUI 程序类型
@@ -27,8 +32,8 @@
 ### NSH 既有工程能力与版本绑定
 
 - 变更标识：`HARNESS-FEAT-NSH`；`required_version = 202611061129`，由既有正式发布绑定，日常维护不改 Harness 时间版本。该版本首次引入 NSH 工程链路；当前顶层分类与说明以上节新决定为准，Tauri 默认和 GPUI 仍属于 DESKTOP。
-- 统一初始化表单、Cargo metadata、九字段 profile、版本及 Git 发布生命周期不分叉。NSH 使用 Rust UI/共享 core、自含运行时知识、专用 adapter/build/初始化 E2E；不接入 Tauri 前端/插件或 GPUI Kit。原产品业务与签名不进入模板。
-- Android/iOS/Web 只允许 NSH；语言、三态主题和设置固定。桌面目标的关于/赞助/侧栏按选择，六项无中性跨平台实现的桌面宿主能力 unavailable/disabled。NSH 原生构建、Web 静态包、移动 SDK/签名和设备分别取证；初始化中性工程不冒充产品验收。
+- 统一初始化表单、Cargo metadata、九字段 profile、版本及 Git 发布生命周期不分叉。NSH 使用共享 core、自含运行时知识、专用 adapter/build/初始化 E2E；当前界面由本日 Mixed 决定更新，不接入 Tauri 前端/插件或 GPUI Kit。原产品业务与签名不进入模板。
+- Android/iOS/Web 只允许 NSH；语言、三态主题和设置固定。桌面目标的关于/赞助/侧栏按选择，四项宿主能力可选、两项继续不可用，具体以本日 Mixed 决定为准。NSH 原生构建、Web 静态包、移动 SDK/签名和设备分别取证；初始化中性工程不冒充产品验收。
 - 本地试包与已发布候选分开；候选复核 clean 发布源码/tag/上下文、完整非空 Rust 与 NSH 测试、日志/许可证/文件摘要及当次 E2E。NSH 0.4.0 无法把 tracked 锁传递到生成的 runtime workspace，因此该锁模式打包失败关闭，默认 ignored 可正常执行。初始化后删除专用派生入口，升级只传播所选接口的工程能力。
 - 详见 [ADR-20261106-001](../adr/20261107_ADR.md)。
 
@@ -271,7 +276,7 @@
 ### GUI 初始化能力选择与侧栏模式
 
 - 变更标识：`HARNESS-FEAT-GUI-INITIALIZATION-CAPABILITY-SELECTION`；所需 Harness 版本：`202608051301`（历史所需版本，已纳入此前发布；本范围不自动改变 `Version.md`）。
-- 用户在首轮基础问题中选择 DESKTOP 或 NSH 的桌面子目标后，初始化器必须在基础字段全部解析后进入条件问询，逐项确认 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut` 为 `enabled` 或 `disabled`，并提供 `sidebar_mode` 的 `compact` 或 `detailed` 选择。八项能力不得推断；用户未选择侧栏模式时必须写入 `sidebar_mode = detailed`，显式非法值不得按未选择处理。归一化后的九项写入唯一 `gui-initialization-config` 代码块，基线提交前不得缺失或残留 `pending`；深链接启用时必须同时启用单实例。
+- 用户在首轮基础问题中选择 DESKTOP 或 NSH 的桌面子目标后，初始化器必须在基础字段全部解析后进入条件问询。支持的能力按字段逐项确认 `enabled` 或 `disabled`；当前 NSH 的 `system_notification` 与 `global_shortcut`、GPUI 的受限字段以 `unavailable/disabled` 明示并在显式启用时失败关闭，不假装询问后可用。九字段顺序为 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`；侧栏选择 `compact` 或 `detailed`，省略时写入 `detailed`，显式非法值不得按未选择处理。归一化后的九项写入唯一 `gui-initialization-config` 代码块，基线提交前不得缺失或残留 `pending`；深链接启用时必须同时启用单实例。
 - `system_tray = enabled` 时完整实现现有托盘图标、双项本地化菜单、关闭隐藏、两种恢复和退出生命周期；`disabled` 时不启用 `tray-icon`、不安装托盘、不保留托盘 locale/菜单资源或关闭隐藏处理，而由主窗口 `CloseRequested` 显式调用 `AppHandle::exit(0)`，确保关闭即退出。`single_instance = enabled` 时完整实现官方首插件、只恢复既有窗口的回调与真实双启动唯一性；`disabled` 时依赖、插件、回调和双启动场景都必须缺席。
 - `/settings`、动态标题、语言/三态主题和亮暗语义主题仍是所有 GUI 的固定基线。`about_page`、`sponsor_page` 各自只控制相应路由、导航入口、组件和运行时资源；未选页面不得以隐藏路由、不可达组件或无入口媒体残留。选择赞助页时完整 sponsor 媒体进入 bundle，未选择时不得进入运行时 bundle。
 - 两种侧栏模式遵守当前基座与中央 Token；详细折叠状态通过独立设备偏好跨重挂载/重启恢复，由 AppShell 拥有并同源同步 `navbar.width`/`data-navbar-width`，不进入页面会话 store。

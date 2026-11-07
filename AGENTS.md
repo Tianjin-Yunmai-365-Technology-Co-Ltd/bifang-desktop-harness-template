@@ -1,6 +1,6 @@
 # AGENTS.md
 
-NSH 与 CLI/MCP/DESKTOP 平级，说明为“下一代全平台开发框架”。根 Cargo `interfaces = ["nsh"]`、`nsh-targets` 记录选择；仅 desktop 子目标询问九项桌面能力。固定 0.4.0 的 TUI 不可运行/打包，选中时失败关闭；旧 GUI/NSH 元数据只读兼容。路由 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md`、`$desktop-build-nsh-release`，能力限制见前者的运行时引用。
+NSH 是平级的“下一代全平台开发框架”。Cargo `interfaces = ["nsh"]`、`nsh-targets` 记录选择；全目标使用 Mixed TSX/共享 Rust core。desktop 固定多窗口，九项能力逐项确认：托盘、自启、单实例、深链接可选，通知与 OS 全局快捷键不可用。0.4.0 TUI 失败关闭；旧 GUI/NSH 只读兼容。路由 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md`、`$desktop-build-nsh-release`。
 
 ## 项目使命
 
