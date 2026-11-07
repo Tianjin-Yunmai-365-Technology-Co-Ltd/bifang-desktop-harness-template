@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { planInstantiation, prepareInstantiation } from './instantiate_project.mjs';
-import { removeUpstreamOnly, renderPreparedFiles, snapshotSource } from './instantiation_files.mjs';
+import { removeUpstreamOnly, renderPreparedFiles, renderProjectSkillMap, SKILL_GROUPS, snapshotSource } from './instantiation_files.mjs';
 import { confirmedFixtureInput, fixture, SOURCE_ROOT } from './instantiation_test_support.mjs';
 
 /** 未确认、旧摘要和非法日期都不能创建目标。 */
@@ -43,6 +43,24 @@ test('prepare_installs_fixed_identity_and_preserves_legal_and_vendor_bytes', t =
   assert.ok(agents.trimEnd().split('\n').length <= 120);
   assert.doesNotMatch(agents, /check_no_python/u);
   assert.equal(prepared.files.some(item => item.path.includes('check_no_python')), false);
+});
+
+/** 技能分类完整覆盖当前项目；下游地图只列实际保留项并保留项目自有入口。 */
+test('project_skill_map_groups_retained_skills_without_stale_or_duplicate_routes', () => {
+  const actual = fs.readdirSync(path.join(SOURCE_ROOT, '.agents/skills'), { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && fs.existsSync(path.join(SOURCE_ROOT, '.agents/skills', entry.name, 'SKILL.md')))
+    .map(entry => entry.name);
+  const grouped = SKILL_GROUPS.flatMap(([, names]) => names);
+  assert.equal(new Set(grouped).size, grouped.length);
+  assert.deepEqual(grouped.toSorted(), actual.toSorted());
+  const map = renderProjectSkillMap(['desktop-add-nsh-adapter', 'desktop-implement-change', 'desktop-add-nsh-adapter', 'project-local-skill']);
+  assert.match(map, /### 接口适配/u);
+  assert.match(map, /### 开发与架构/u);
+  assert.match(map, /### 项目扩展/u);
+  assert.doesNotMatch(map, /### 创建与身份/u);
+  assert.equal([...map.matchAll(/\[\$desktop-add-nsh-adapter\]/gu)].length, 1);
+  assert.doesNotMatch(map, /desktop-add-gui-adapter/u);
+  assert.match(map, /\[\$project-local-skill\]\(\.agents\/skills\/project-local-skill\/SKILL\.md\)/u);
 });
 
 /** 对确认后出现的隐藏文件或目标链接保持原物，不接受旧计划摘要。 */

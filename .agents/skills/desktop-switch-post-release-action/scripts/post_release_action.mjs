@@ -444,7 +444,11 @@ function assertLocalPackageSupported(root) {
     const configPath = path.join(root, `${id}_${modern ? "nsh" : "gui"}/nsh.json`);
     regularFile(configPath, "NSH config");
     const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    if (config.rust !== "." || config.root !== "App") throw new ActionError("NSH Rust root missing");
+    if (config.rust !== "." || (modern ? Object.hasOwn(config, "root") : config.root !== "App")) throw new ActionError("NSH Mixed/Rust 入口无效");
+    if (modern) {
+      regularFile(path.join(path.dirname(configPath), "App.tsx"), "NSH Mixed TSX 入口");
+      regularFile(path.join(root, ".agents/skills/desktop-build-nsh-release/scripts/nsh_desktop_package.mjs"), "NSH Mixed 组包器");
+    }
     regularFile(path.join(root, ".agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs"), "NSH packager");
     assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
   }

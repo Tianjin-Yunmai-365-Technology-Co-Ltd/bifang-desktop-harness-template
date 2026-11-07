@@ -163,15 +163,22 @@ export function readInterfaceSelection(root) {
   return { ...parseInterfaceSelection(source), manifestSnapshot: snapshotFile(file) };
 }
 
-/** GUI 条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
+/** 接口条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
 export function inapplicableGuiCandidate(relative, selection) {
   const nsh = selection.interfaces.includes("nsh") || selection.guiFramework === "nsh";
-  if (relative === "docs/GUI_ENGINEERING.md") return !(selection.guiFramework === "gpui" || nsh);
+  const desktopGraphics = selection.interfaces.includes("gui") || nsh && (!selection.nshTargets || selection.nshTargets.includes("desktop"));
+  const cli = selection.interfaces.includes("cli");
+  if (relative === "docs/CLI_CONTRACT.md") return !cli;
+  if (relative === "docs/GUI_ENGINEERING.md") return !(selection.interfaces.includes("gui") || nsh);
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
+  if (["desktop-add-cli-adapter", "desktop-build-rust-release", "desktop-prepare-cross-platform-release"].includes(skill)) return !cli;
+  if (skill === "desktop-add-mcp-adapter") return !selection.interfaces.includes("mcp");
+  if (skill === "desktop-extract-i18n-strings") return !["tauri", "gpui"].includes(selection.guiFramework);
+  if (skill === "desktop-collect-release-artifacts") return !(cli || ["tauri", "gpui"].includes(selection.guiFramework));
   if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-manage-gpui-dependencies", "desktop-optimize-gpui-performance", "desktop-add-gpui-autostart", "desktop-test-gpui-initialization-e2e"].includes(skill)) return selection.guiFramework !== "gpui";
   if (["desktop-add-nsh-adapter", "desktop-build-nsh-release", "desktop-test-nsh-initialization-e2e"].includes(skill)) return !nsh;
   if (skill === "desktop-prepare-gui-support-surfaces") return !(selection.guiFramework === "tauri" || nsh && (!selection.nshTargets || selection.nshTargets.includes("desktop")));
   if (TAURI_SKILLS.has(skill)) return selection.guiFramework !== "tauri";
-  if (skill === "desktop-prepare-gui-app-identity") return !(selection.interfaces.includes("gui") || nsh);
+  if (skill === "desktop-prepare-gui-app-identity") return !desktopGraphics;
   return false;
 }

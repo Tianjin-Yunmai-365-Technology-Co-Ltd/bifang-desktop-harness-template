@@ -107,6 +107,41 @@ test("gpui_local_package_supports_native_gui_platforms_without_cli", (t) => {
   assert.equal(f.run("set", setOptions("push_release_branch")).post_release_action, "push_release_branch");
 });
 
+/** 顶层 NSH 的 Mixed 入口可选择本地打包，旧 Rust UI 入口不得冒充新工程。 */
+test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace]\nmembers = ["sample_tool_nsh"]\n[workspace.metadata.agent-first-harness]\nproject-id = "sample_tool"\ntarget-platforms = ["macos", "web"]\ninterfaces = ["nsh"]\nnsh-targets = ["desktop", "web"]\n');
+  fs.mkdirSync(path.join(f.root, "sample_tool_nsh", "src"), { recursive: true });
+  fs.writeFileSync(path.join(f.root, "sample_tool_nsh", "Cargo.toml"), '[package]\nname = "sample_tool_nsh"\nversion = "0.1.0"\nedition = "2024"\n');
+  fs.writeFileSync(path.join(f.root, "sample_tool_nsh", "src", "lib.rs"), 'pub fn scaffold() {}\n');
+  const config = path.join(f.root, "sample_tool_nsh", "nsh.json");
+  const app = path.join(f.root, "sample_tool_nsh", "App.tsx");
+  fs.writeFileSync(config, '{"rust":".","name":"Example"}\n');
+  fs.writeFileSync(app, 'import { mount } from "nsh";\nmount(() => null);\n');
+  const build = path.join(f.root, ".agents", "skills", "desktop-build-nsh-release", "scripts");
+  fs.mkdirSync(build, { recursive: true });
+  fs.writeFileSync(path.join(build, "build_nsh_release.mjs"), 'export {};\n');
+  fs.writeFileSync(path.join(build, "nsh_desktop_package.mjs"), 'export {};\n');
+  fs.writeFileSync(config, '{"rust":".","root":"App"}\n');
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /Mixed\/Rust 入口/u);
+  fs.writeFileSync(config, '{"rust":"."}\n');
+  fs.rmSync(app);
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /Mixed TSX 入口/u);
+  fs.writeFileSync(app, 'import { mount } from "nsh";\nmount(() => null);\n');
+  assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
+
+  const legacy = fixture(t);
+  fs.writeFileSync(path.join(legacy.root, "Cargo.toml"), '[workspace]\nmembers = ["sample_tool_gui"]\n[workspace.metadata.agent-first-harness]\nproject-id = "sample_tool"\ntarget-platforms = ["macos"]\ninterfaces = ["gui"]\ngui-framework = "nsh"\n');
+  fs.mkdirSync(path.join(legacy.root, "sample_tool_gui", "src"), { recursive: true });
+  fs.writeFileSync(path.join(legacy.root, "sample_tool_gui", "Cargo.toml"), '[package]\nname = "sample_tool_gui"\nversion = "0.1.0"\nedition = "2024"\n');
+  fs.writeFileSync(path.join(legacy.root, "sample_tool_gui", "src", "lib.rs"), 'pub fn scaffold() {}\n');
+  fs.writeFileSync(path.join(legacy.root, "sample_tool_gui", "nsh.json"), '{"rust":".","root":"App"}\n');
+  const legacyBuild = path.join(legacy.root, ".agents", "skills", "desktop-build-nsh-release", "scripts");
+  fs.mkdirSync(legacyBuild, { recursive: true });
+  fs.writeFileSync(path.join(legacyBuild, "build_nsh_release.mjs"), 'export {};\n');
+  assert.equal(legacy.run("set", setOptions("local_package")).post_release_action, "local_package");
+});
+
 /** GPUI 清单与测试范围受跟踪即可选择原生包，不借用 Tauri 或 pnpm 清单。 */
 test("gpui_local_package_checks_rust_manifests_without_frontend_files", (t) => {
   const f = fixture(t);

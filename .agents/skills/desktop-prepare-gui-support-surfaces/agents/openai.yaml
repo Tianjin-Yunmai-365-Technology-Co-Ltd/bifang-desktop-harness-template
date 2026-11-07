@@ -1,4 +1,4 @@
 interface:
   display_name: "准备 GUI 支持界面"
   short_description: "建立条件宿主能力开关、图标侧栏、三态主题与安全支持页面"
-  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，按九项 GUI 初始化 profile 建立或维护动态标题、精简或详细 Logo→版本侧栏、语言与三态主题设置、所选系统通知/开机自启开关、托盘 i18n、应用级亮暗主题、所选关于页/赞助页和相应品牌资产；固定 window-state、系统语言与 dialog 基线，未选能力不得残留。"
+  default_prompt: "使用 $desktop-prepare-gui-support-surfaces，先读取根 Cargo 接口与框架。Tauri 按九项 profile 建立官方插件和支持页面；NSH desktop 的 Mixed TSX 与宿主能力转交 $desktop-add-nsh-adapter，本 Skill 只提供适用的品牌资产和支持页边界。mobile/Web 不使用桌面 profile；未选能力不得残留。"

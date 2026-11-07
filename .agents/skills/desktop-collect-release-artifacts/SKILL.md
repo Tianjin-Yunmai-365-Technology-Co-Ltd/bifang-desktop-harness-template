@@ -5,7 +5,7 @@ description: 在项目根 release 目录中取回、安全合并并验证当前�
 
 # 收集发布产物
 
-创建一个可复核的当前构建结果目录，不重新构建、签名、执行或发布候选。
+创建一个可复核的当前构建结果目录，不重新构建、签名、执行或发布候选。本 Skill 只收集 Rust CLI、Tauri 和 GPUI 的扁平候选文件集；NSH 使用按目标隔离的 `release/` 批次目录及 sidecar 证据，由 `$desktop-build-nsh-release` 自行提交和校验，不调用本收集器。
 
 `scripts/installer_artifact_name.mjs` 是 Tauri/GPUI 打包共用的只读安装包命名模块与 CLI，遵循 [发布物命名](../../../docs/RELEASE.md#发布物命名)，两种 GUI 均保留本 Skill 及该 helper/测试。名称在构建完成、写 checksum/manifest 前确定；收集既有候选只保留清单中的精确名称，不就地改名或改写证据。
 
@@ -49,6 +49,4 @@ GPUI 的 `bundleFormat: app` 对应 `.app.zip`，`tar.gz` 对应 Linux 应用归
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；固定 NSH 0.4.0 没有 TUI 运行或打包目标。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于可用 NSH 目标；本机不可构建目标如实阻断，不推断已验证。
-
-NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
+根 Cargo `interfaces = ["nsh"]` 的目标由 `$desktop-build-nsh-release` 按目标写入 `release/` 批次目录并校验清单、包、sidecar 日志和许可证。本 Skill 的扁平目录收集与原子替换流程不适用，NSH 下游也不保留本 Skill。目标宿主或设备 E2E 与候选验收继续走各自独立流程。

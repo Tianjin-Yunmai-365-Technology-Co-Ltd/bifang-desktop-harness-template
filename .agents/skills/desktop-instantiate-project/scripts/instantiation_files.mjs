@@ -100,10 +100,74 @@ export function renderProjectReadme(values) {
   return `# ${values.name_zh}\n\n${values.name_en}\n\n- 项目标识：\`${values.project_id}\`\n- 负责人：${values.owner}\n- 目标平台：${values.target_platforms.join('、')}\n- 接口：${values.interfaces.join('、')}${values.gui_framework ? `（DESKTOP: ${values.gui_framework}）` : ''}${values.nsh_targets ? `（NSH: ${values.nsh_targets.join('、')}）` : ''}\n- 产品定义：待定义，\`productDefinitionRequired=true\`\n- 当前版本事实：根 \`Cargo.toml\`；尚未形成产品发布或候选验收结论。\n\n这是独立的终端项目。中性脚手架完成后，在本项目根目录使用 \`$desktop-define-product\` 定义产品，再通过 \`$desktop-implement-change\` 实施。开发规则从 [AGENTS.md](AGENTS.md) 渐进读取；许可见 [中文](LICENSE.zh-CN.md)与[英文](LICENSE.en.md)。\n`;
 }
 
+// Skill 目录名是实例化、裁剪和升级的稳定路径；分组只改变入口的阅读顺序。
+export const SKILL_GROUPS = [
+  ['创建与身份', [
+    'desktop-instantiate-project', 'desktop-initialize-rust-project', 'desktop-check-development-environment',
+    'desktop-rename-project-identity', 'desktop-test-gui-initialization-e2e',
+    'desktop-test-gpui-initialization-e2e', 'desktop-test-nsh-initialization-e2e',
+  ]],
+  ['接口适配', [
+    'desktop-add-cli-adapter', 'desktop-add-mcp-adapter', 'desktop-add-gui-adapter',
+    'desktop-add-gpui-adapter', 'desktop-add-nsh-adapter',
+  ]],
+  ['桌面能力与呈现', [
+    'desktop-add-gpui-autostart', 'desktop-add-gui-autostart', 'desktop-add-gui-deep-link',
+    'desktop-add-gui-dialog', 'desktop-add-gui-global-shortcut', 'desktop-add-gui-single-instance',
+    'desktop-add-gui-system-locale', 'desktop-add-gui-system-notifications',
+    'desktop-add-gui-system-tray', 'desktop-add-gui-window-state',
+    'desktop-prepare-gui-app-identity', 'desktop-prepare-gui-support-surfaces',
+    'desktop-extract-i18n-strings', 'mantine-list-view',
+  ]],
+  ['开发与架构', [
+    'desktop-add-external-process', 'desktop-add-file-operations', 'desktop-implement-change',
+    'desktop-refactor-code', 'desktop-manage-dependencies', 'desktop-manage-gpui-dependencies',
+    'desktop-optimize-gpui-performance', 'desktop-review-core-boundaries',
+  ]],
+  ['Task 与并行', [
+    'desktop-task-workflow', 'desktop-manage-user-tasks', 'desktop-manage-task-worktrees',
+    'desktop-run-parallel-worktrees',
+  ]],
+  ['知识与决策', [
+    'desktop-define-product', 'desktop-extract-technical-docs', 'desktop-curate-harness-memory',
+    'desktop-summarize-development-history', 'desktop-record-adr', 'desktop-plan-change',
+    'desktop-handoff-project',
+  ]],
+  ['版本、策略与 Git', [
+    'desktop-configure-agent-policy', 'desktop-configure-git-commits', 'desktop-manage-git-lifecycle',
+    'desktop-manage-version', 'desktop-switch-post-release-action', 'desktop-upgrade-harness',
+  ]],
+  ['构建、发布与验收', [
+    'desktop-build-gpui-release', 'desktop-build-nsh-release', 'desktop-build-rust-release',
+    'desktop-build-tauri-local-install', 'desktop-build-tauri-release',
+    'desktop-collect-release-artifacts', 'desktop-inspect-release-notes',
+    'desktop-prepare-cross-platform-release', 'desktop-prepare-release',
+    'desktop-test-final-artifact-e2e', 'desktop-verify-delivery',
+  ]],
+];
+
+/** 只显示实际保留的 Skill；项目自有入口也必须可发现且不能重复。 */
+export function renderProjectSkillMap(skills) {
+  const remaining = new Set(skills);
+  const sections = [];
+  const links = names => {
+    const rows = [];
+    for (let index = 0; index < names.length; index += 5) {
+      rows.push(`- ${names.slice(index, index + 5).map(name => `[$${name}](.agents/skills/${name}/SKILL.md)`).join('、')}。`);
+    }
+    return rows.join('\n');
+  };
+  for (const [label, members] of SKILL_GROUPS) {
+    const selected = members.filter(name => remaining.delete(name));
+    if (selected.length) sections.push(`### ${label}\n\n${links(selected)}`);
+  }
+  if (remaining.size) sections.push(`### 项目扩展\n\n${links([...remaining].sort())}`);
+  return sections.join('\n\n');
+}
+
 /** 按实际保留集合生成轻量路由和地图；具体操作合同继续由原 Skill 与规范负责。 */
 export function renderProjectAgents(values, skills, prepared = false) {
-  const names = [...skills].sort();
-  return `# AGENTS.md\n\n## 项目使命\n\n${values.name_zh} / ${values.name_en}；这是终端下游，只在已批准产品边界内实施，不继续派生项目。产品未定义时只保留中性状态。\n\n## 启动门禁\n\n1. 先读取用户级 AGENTS.md，再读本文与 docs/AGENT_POLICY.md 的字段语义，复用已确认授权。\n2. 写入前核对精确 Git 根、分支和工作区，保护用户修改。新功能与独立修复通过 $desktop-manage-git-lifecycle 建立受管分支。\n3. 自动左侧 Task 只由 user_owned_tasks 控制；Task、工作树与内部并行合同统一使用 $desktop-task-workflow。\n4. 按任务读取下表的唯一事实源和 Skill，不预加载全部资料。${prepared ? ' 当前工程层已准备；继续已确认的中性初始化，尚未建立独立 Git 基线。' : ''}\n\n## 按任务渐进读取\n\n| 任务 | 事实源与入口 |\n|---|---|\n| 定义产品 | $desktop-define-product；规格不存在时按该 Skill 创建 |\n| 实施与修复 | docs/ENGINEERING_RULES.md、$desktop-implement-change；下游版本由 $desktop-manage-version 管理 |\n| Rust 与接口 | docs/RUST_CLI_TEMPLATE.md；只读实际选择的 adapter Skill${values.interfaces.includes('cli') ? '；CLI 另读 docs/CLI_CONTRACT.md' : ''} |\n| Task 与工作树 | docs/AGENT_POLICY.md、$desktop-task-workflow |\n| 升级工程层 | $desktop-upgrade-harness；保护产品代码、身份、策略与记忆 |\n| 构建与发布 | docs/RELEASE.md 及所选构建 Skill；真实产物验证由 $desktop-verify-delivery 承担 |\n${values.interfaces.includes('gui') ? '| DESKTOP | docs/design_standards/README.md，先读 ui_foundation.md，再按 Cargo gui-framework 选择 Tauri/GPUI 标准 |\n' : ''}${values.interfaces.includes('nsh') ? `| NSH | $desktop-add-nsh-adapter；按 Cargo nsh-targets 选择桌面、移动或 Web${values.nsh_targets?.includes('desktop') ? '，桌面能力读 docs/GUI_APP_PROFILE.md' : ''} |\n` : ''}\n## 始终生效的边界\n\n- Core-first：接口无关业务、领域校验、状态转换和稳定错误属于 shared core；适配器只负责协议、展示、纯交互与宿主机制。\n- 日常只实施已授权范围并运行相关非空回归，不自动增加持久计划、全仓检查、构建、E2E 或验收。\n- Node.js 是所有接口组合的 helper 运行时；工具依赖按用户级规则安装，项目依赖使用本地显式清单。\n- superpowers: disabled 时不得调用 superpowers:*；能力允许不能替代当前任务的触发与授权。\n- 规格、决定、变更、状态、计划和验证只按独立事件记录，规则见 docs/ENGINEERING_RULES.md。\n- 发布、签名、凭据与破坏性操作遵守各自真实授权；对完成与验证的结论绑定真实结果，不以脚手架代替验收。\n\n## Skills 地图\n\n${names.map(name => `- [$${name}](.agents/skills/${name}/SKILL.md)`).join('\n')}\n\n## 约束地图\n\n| 事实 | 唯一来源 |\n|---|---|\n| 产品与记忆 | 相应事件创建的 docs/product_spec、docs/adr、docs/project_status 等索引 |\n| Agent 选择 | docs/AGENT_POLICY.md |\n| 工程与测试 | docs/ENGINEERING_RULES.md |\n| Rust 与实际接口 | docs/RUST_CLI_TEMPLATE.md、根 Cargo metadata |\n| 版本与周期 | 根 Cargo.toml、受保护 .harness/version-state.json、$desktop-manage-version |\n| 发布与候选 | docs/RELEASE.md、.harness/release-context.json、忽略的 release/ 证据 |\n| 升级来源 | .harness/upstream-lock.json、$desktop-upgrade-harness |\n| 已知限制 | docs/TECH_DEBT.md |\n\n## 每次任务的最小闭环\n\n判定边界与类型 → 按需读取 → 实施并验证当前变化 → 仅更新事件触发记录 → 报告实际变更、检查、未执行项与风险。\n`;
+  return `# AGENTS.md\n\n## 项目使命\n\n${values.name_zh} / ${values.name_en}；这是终端下游，只在已批准产品边界内实施，不继续派生项目。产品未定义时只保留中性状态。\n\n## 启动门禁\n\n1. 先读取用户级 AGENTS.md，再读本文与 docs/AGENT_POLICY.md 的字段语义，复用已确认授权。\n2. 写入前核对精确 Git 根、分支和工作区，保护用户修改。新功能与独立修复通过 $desktop-manage-git-lifecycle 建立受管分支。\n3. 自动左侧 Task 只由 user_owned_tasks 控制；Task、工作树与内部并行合同统一使用 $desktop-task-workflow。\n4. 按任务读取下表的唯一事实源和 Skill，不预加载全部资料。${prepared ? ' 当前工程层已准备；继续已确认的中性初始化，尚未建立独立 Git 基线。' : ''}\n\n## 按任务渐进读取\n\n| 任务 | 事实源与入口 |\n|---|---|\n| 定义产品 | $desktop-define-product；规格不存在时按该 Skill 创建 |\n| 实施与修复 | docs/ENGINEERING_RULES.md、$desktop-implement-change；下游版本由 $desktop-manage-version 管理 |\n| Rust 与接口 | docs/RUST_CLI_TEMPLATE.md；只读实际选择的 adapter Skill${values.interfaces.includes('cli') ? '；CLI 另读 docs/CLI_CONTRACT.md' : ''} |\n| Task 与工作树 | docs/AGENT_POLICY.md、$desktop-task-workflow |\n| 升级工程层 | $desktop-upgrade-harness；保护产品代码、身份、策略与记忆 |\n| 构建与发布 | docs/RELEASE.md 及所选构建 Skill；真实产物验证由 $desktop-verify-delivery 承担 |\n${values.interfaces.includes('gui') ? '| DESKTOP | docs/design_standards/README.md，先读 ui_foundation.md，再按 Cargo gui-framework 选择 Tauri/GPUI 标准 |\n' : ''}${values.interfaces.includes('nsh') ? `| NSH | $desktop-add-nsh-adapter；按 Cargo nsh-targets 选择桌面、移动或 Web${values.nsh_targets?.includes('desktop') ? '，桌面能力读 docs/GUI_APP_PROFILE.md' : ''} |\n` : ''}\n## 始终生效的边界\n\n- Core-first：接口无关业务、领域校验、状态转换和稳定错误属于 shared core；适配器只负责协议、展示、纯交互与宿主机制。\n- 日常只实施已授权范围并运行相关非空回归，不自动增加持久计划、全仓检查、构建、E2E 或验收。\n- Node.js 是所有接口组合的 helper 运行时；工具依赖按用户级规则安装，项目依赖使用本地显式清单。\n- superpowers: disabled 时不得调用 superpowers:*；能力允许不能替代当前任务的触发与授权。\n- 规格、决定、变更、状态、计划和验证只按独立事件记录，规则见 docs/ENGINEERING_RULES.md。\n- 发布、签名、凭据与破坏性操作遵守各自真实授权；对完成与验证的结论绑定真实结果，不以脚手架代替验收。\n\n## Skills 地图\n\n${renderProjectSkillMap(skills)}\n\n## 约束地图\n\n| 事实 | 唯一来源 |\n|---|---|\n| 产品与记忆 | 相应事件创建的 docs/product_spec、docs/adr、docs/project_status 等索引 |\n| Agent 选择 | docs/AGENT_POLICY.md |\n| 工程与测试 | docs/ENGINEERING_RULES.md |\n| Rust 与实际接口 | docs/RUST_CLI_TEMPLATE.md、根 Cargo metadata |\n| 版本与周期 | 根 Cargo.toml、受保护 .harness/version-state.json、$desktop-manage-version |\n| 发布与候选 | docs/RELEASE.md、.harness/release-context.json、忽略的 release/ 证据 |\n| 升级来源 | .harness/upstream-lock.json、$desktop-upgrade-harness |\n| 已知限制 | docs/TECH_DEBT.md |\n\n## 每次任务的最小闭环\n\n判定边界与类型 → 按需读取 → 实施并验证当前变化 → 仅更新事件触发记录 → 报告实际变更、检查、未执行项与风险。\n`;
 }
 
 /** 删除上游专用禁令段落；下游仍遵守通用的显式依赖和标准库优先规则。 */
