@@ -175,7 +175,9 @@ define_class!(
         }
         // NSH_FEATURE_DEEP_LINK_END
         #[unsafe(method(applicationShouldTerminateAfterLastWindowClosed:))]
-        fn should_terminate_after_last_window_closed(&self, _app: &NSApplication) -> bool { false }
+        fn should_terminate_after_last_window_closed(&self, _app: &NSApplication) -> bool {
+            __QUIT_AFTER_LAST_WINDOW__
+        }
         #[unsafe(method(applicationShouldHandleReopen:hasVisibleWindows:))]
         fn should_handle_reopen(&self, _app: &NSApplication, _visible: bool) -> bool { show_all_windows(); false }
         #[unsafe(method(applicationWillTerminate:))]

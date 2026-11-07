@@ -2,7 +2,7 @@
 export const tokens = {
   narrow: 680,
   sidebar: 228,
-  sidebarCompact: 84,
+  sidebarCompact: 128,
   controlHeight: 38,
   radius: 8,
   body: 14,

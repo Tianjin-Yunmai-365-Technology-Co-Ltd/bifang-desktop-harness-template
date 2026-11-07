@@ -96,6 +96,18 @@ fn desktop_entry_enabled(
     {
         return false;
     }
+    if let Some(expected) = expected_executable {
+        let Ok(expected_exec) = desktop_exec(expected) else {
+            return false;
+        };
+        let mut commands = contents.lines().filter_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            (key.trim() == "Exec").then_some(value.trim_end_matches('\r'))
+        });
+        if commands.next() != Some(expected_exec.as_str()) || commands.next().is_some() {
+            return false;
+        }
+    }
     if entry.has_key(DESKTOP_GROUP, "OnlyShowIn").unwrap_or(false) {
         let Ok(only_show_in) = entry.string_list(DESKTOP_GROUP, "OnlyShowIn") else {
             return false;
@@ -314,7 +326,7 @@ mod tests {
 
     #[test]
     fn user_autostart_entry_must_target_the_current_executable() {
-        let entry = "[Desktop Entry]\nType=Application\nExec=/bin/true\nTryExec=/bin/true\n";
+        let entry = "[Desktop Entry]\nType=Application\nExec=\"/bin/true\"\nTryExec=/bin/true\n";
         assert!(desktop_entry_enabled(
             entry,
             &[],
@@ -324,6 +336,16 @@ mod tests {
             entry,
             &[],
             Some(Path::new("/bin/false"))
+        ));
+        assert!(!desktop_entry_enabled(
+            "[Desktop Entry]\nType=Application\nExec=/bin/false\nTryExec=/bin/true\n",
+            &[],
+            Some(Path::new("/bin/true"))
+        ));
+        assert!(!desktop_entry_enabled(
+            "[Desktop Entry]\nType=Application\nExec=\"/bin/true\"\nExec=/bin/false\nTryExec=/bin/true\n",
+            &[],
+            Some(Path::new("/bin/true"))
         ));
         assert!(!desktop_entry_enabled(
             "[Desktop Entry]\nType=Application\nExec=/bin/true\n",
@@ -375,7 +397,7 @@ mod tests {
 
         write_autostart_entry(
             &user,
-            "[Desktop Entry]\nType=Application\nExec=/bin/false\nTryExec=/bin/false\n",
+            "[Desktop Entry]\nType=Application\nExec=\"/bin/false\"\nTryExec=/bin/false\n",
         )
         .expect("current package autostart entry");
         assert_eq!(autostart_enabled_from_paths(paths, &[], current), Ok(true));

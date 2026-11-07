@@ -12,12 +12,12 @@
 
 ### NSH 全目标 Mixed 与桌面能力
 
-- 变更标识：`HARNESS-FEAT-NSH-MIXED-DESKTOP`；`required_version = pending`，Harness 仅在正式发布时取时间版本。负责人确认新 NSH 工程在桌面、移动和 Web 全部使用 Mixed：TSX UI 经原生模块调用共享 Rust core。桌面另生成自定义 AppKit、Win32、GTK 宿主并固定提供多窗口；移动/Web 使用 NSH 官方宿主。
+- 变更标识：`HARNESS-FEAT-NSH-MIXED-DESKTOP`；`required_version = 202611071119`，Harness 仅在正式发布时取时间版本。负责人确认新 NSH 工程在桌面、移动和 Web 全部使用 Mixed：TSX UI 经原生模块调用共享 Rust core。桌面另生成自定义 AppKit、Win32、GTK 宿主并固定提供多窗口；移动/Web 使用 NSH 官方宿主。
 - 桌面九字段仍逐项确认：托盘、自启、单实例、深链接按所选值接线，深链接依赖单实例；关于页、赞助页、侧栏依选择生成，系统通知与 OS 全局快捷键当前必须 disabled。用户批准下游所需、按目标平台最小声明的项目本地 Cargo 依赖。新桌面包由 Mixed bundle、Cargo 宿主和平台资源组成；实际平台能力与签名仍须真实目标验证。旧 GUI/NSH 下游只读兼容，不自动覆盖产品文件。见 [ADR-20261107-003](../adr/20261107_ADR.md)。
 
 ### NSH 顶层程序类型与目标能力
 
-- 变更标识：`HARNESS-CHANGE-NSH-TOP-LEVEL`；`required_version = pending`，Harness 仅在正式发布时取时间版本。负责人明确选择 NSH 与 CLI、MCP、DESKTOP 平齐，说明为“下一代全平台开发框架”。
+- 变更标识：`HARNESS-CHANGE-NSH-TOP-LEVEL`；`required_version = 202611071119`，Harness 仅在正式发布时取时间版本。负责人明确选择 NSH 与 CLI、MCP、DESKTOP 平齐，说明为“下一代全平台开发框架”。
 - 顶层程序类型为 CLI、MCP、DESKTOP（Cargo `gui`）与 NSH（Cargo `nsh`）。DESKTOP 框架只选 Tauri 或 GPUI；新 NSH 不写 `gui-framework`，写 `nsh-targets`，子目标可选择桌面、移动、Web、TUI，并须与具体 `target-platforms` 一致。NSH 当前只允许单独选择；新适配器成员为 `_nsh`。既有 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 的下游只读兼容，升级不得据此误删能力或自动迁移受保护产品文件。
 - NSH 九字段能力只在桌面子目标下询问并写入桌面 profile；未选桌面时不问，不把桌面宿主能力应用于移动或 Web。共享 core、固定语言与主题机制以及各目标独立验证继续适用；界面模式与能力范围由本日 Mixed 决定更新。
 - 固定 NSH 0.4.0 尚无可运行或打包的 TUI 目标：表单展示 TUI 但选择后必须失败关闭，不能生成、运行或宣称验收。它属于 NSH 内部未来目标，不恢复此前移除的独立 Ratatui TUI 程序类型；解除限制须另有真实 runtime、构建与验证证据。见 [ADR-20261107-002](../adr/20261107_ADR.md)。
@@ -535,7 +535,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202611070300`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202611071119`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。

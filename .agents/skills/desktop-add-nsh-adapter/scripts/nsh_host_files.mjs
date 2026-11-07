@@ -81,6 +81,7 @@ function renderSource(filename, options) {
       : 'gio::ApplicationFlags::NON_UNIQUE',
     '__AUTOSTART_FILE__': rustString(`${appId}.desktop`),
     '__LOGIN_AGENT_NAME__': rustString(`${appId}.login.plist`),
+    '__QUIT_AFTER_LAST_WINDOW__': String(options.profile.system_tray !== 'enabled'),
   };
   let source = selectSections(fs.readFileSync(path.join(assetRoot, filename), 'utf8'), options);
   for (const [token, value] of Object.entries(tokens)) source = source.replaceAll(token, value);

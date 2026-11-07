@@ -22,8 +22,8 @@ function Action(props: { label: string; onPress: () => void }) {
   );
 }
 
-/** Only the desktop custom host implements these methods. */
-export function DesktopPanel(props: { language: Language; title: string; onSettings: () => void }) {
+/** Keep the desktop menu mounted across pages so language changes update the active window. */
+export function DesktopPanel(props: { language: Language; title: string; showControls: boolean; onSettings: () => void }) {
   const windows = signal<WindowInfo[]>([]);
   const error = signal("");
   const windowId = typeof host.params.windowId === "number" ? host.params.windowId : 0;
@@ -69,20 +69,22 @@ export function DesktopPanel(props: { language: Language; title: string; onSetti
 
   if (!host.available()) return null;
   return (
-    <View style={{ gap: 10 }}>
-      <Text style={{ color: palette(colorScheme()).foreground, fontSize: tokens.body }}>{tr(props.language, "windows")}</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        <Action label={tr(props.language, "new_window")} onPress={() => { void invoke("window.open"); }} />
-        <Action label={tr(props.language, "show_all")} onPress={() => { void invoke("window.showAll"); }} />
-        <Action label={tr(props.language, "close_window")} onPress={() => { void invoke("window.close", { id: windowId }); }} />
-        <Action label={tr(props.language, "quit")} onPress={() => { void invoke("app.quit"); }} />
-      </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {windows().map((item) => <Action label={item.title} onPress={() => { void invoke("window.focus", { id: item.id }); }} />)}
-      </View>
-      __DEEP_LINK_NODE__
+    <>
+      {props.showControls && <View style={{ gap: 10 }}>
+        <Text style={{ color: palette(colorScheme()).foreground, fontSize: tokens.body }}>{tr(props.language, "windows")}</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          <Action label={tr(props.language, "new_window")} onPress={() => { void invoke("window.open"); }} />
+          <Action label={tr(props.language, "show_all")} onPress={() => { void invoke("window.showAll"); }} />
+          <Action label={tr(props.language, "close_window")} onPress={() => { void invoke("window.close", { id: windowId }); }} />
+          <Action label={tr(props.language, "quit")} onPress={() => { void invoke("app.quit"); }} />
+        </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {windows().map((item) => <Action label={item.title} onPress={() => { void invoke("window.focus", { id: item.id }); }} />)}
+        </View>
+        __DEEP_LINK_NODE__
+      </View>}
       {error() ? <Text style={{ color: palette(colorScheme()).error }}>{error()}</Text> : null}
-    </View>
+    </>
   );
 }
 

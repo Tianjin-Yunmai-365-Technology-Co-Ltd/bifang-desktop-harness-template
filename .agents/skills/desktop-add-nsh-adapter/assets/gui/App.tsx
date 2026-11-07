@@ -137,8 +137,8 @@ function App() {
             <Text style={{ color: colors().muted, fontSize: tokens.body }}>
               {tr(language(), coreStatus() === "loading" ? "status_loading" : coreStatus() === "ready" ? "neutral" : coreStatus() === "uninitialized" ? "status_uninitialized" : "status_error")}
             </Text>
-            __DESKTOP_PANEL__
           </View>}
+        __DESKTOP_PANEL__
         {page() === "settings" &&
           <View style={{ gap: 12 }}>
             <Text style={{ color: colors().foreground, fontSize: tokens.title }}>{tr(language(), "settings")}</Text>
