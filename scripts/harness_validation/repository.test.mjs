@@ -30,6 +30,15 @@ test("skills_map_accepts_exact_complete_inventory", () => {
   assert.deepEqual(errors, []);
 });
 
+/** 分类使用三级标题，索引仍须覆盖其下全部 Skill，不能只检查首类。 */
+test("skills_map_reads_all_categorized_subsections", () => {
+  const errors = [];
+  validateSkillsMap(errors, "# Entry\n## Skills 索引\n### 创建\n[`$desktop-first`](first/SKILL.md)\n### 验收\n[`$desktop-second`](second/SKILL.md)\n## Next\n`$desktop-unrelated`\n", {
+    file: ".agents/skills/README.md", heading: "## Skills 索引", expected: new Set(["desktop-first", "desktop-second"]),
+  });
+  assert.deepEqual(errors, []);
+});
+
 /** 索引漏项不能由其它段落中的说明补足，防止新增 Skill 后出现不可发现的入口。 */
 test("skills_map_rejects_omission_despite_mentions_elsewhere", () => {
   const errors = [];
