@@ -3,6 +3,30 @@
   "releases": [
     {
       "releaseDate": "2026-11-07",
+      "version": "v202611071243",
+      "featureOptimizations": [
+        {
+          "zh-CN": "同步 NSH 桌面能力问询、Skill 与设计标准，明确不可用能力由限制规则关闭。",
+          "en-US": "Align NSH desktop capability questions, the Skill, and design guidance, with unavailable capabilities disabled by the capability rules."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "深链接先在原生宿主排队，再由 TSX 主动领取；关窗后转交未领取链接，避免启动阶段或窗口关闭时丢失。",
+          "en-US": "Queue deep links in the native host for the TSX UI to claim and transfer unclaimed links after a window closes, preventing lost links during startup and window closure."
+        },
+        {
+          "zh-CN": "macOS 单实例 IPC 重试复用请求 ID 并去重，避免同一深链接重复交付。",
+          "en-US": "Reuse and deduplicate macOS single-instance IPC request IDs across retries so the same deep link is delivered only once."
+        },
+        {
+          "zh-CN": "修复 Linux 托盘关窗回调的借用冲突，并以原子替换注册深链接入口，避免覆盖符号链接指向的文件。",
+          "en-US": "Fix Linux tray close-callback borrowing and atomically replace the deep-link desktop entry to avoid overwriting a symlink target."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-11-07",
       "version": "v202611071119",
       "featureOptimizations": [
         {
@@ -239,21 +263,6 @@
         }
       ],
       "bugFixes": []
-    },
-    {
-      "releaseDate": "2026-11-02",
-      "version": "v202611021025",
-      "featureOptimizations": [],
-      "bugFixes": [
-        {
-          "zh-CN": "清理依赖管理、适配器、初始化和发布规则中对 nightly 与历史 Rust 工具链的要求，复用满足兼容下限的 stable，避免检查时重新安装额外版本。",
-          "en-US": "Remove nightly and historical Rust toolchain requirements from dependency management, adapters, initialization and release rules; reuse a compatible stable toolchain so checks do not reinstall extra versions."
-        },
-        {
-          "zh-CN": "候选 CI 改用 stable，将 Cargo MSRV 作为兼容下限核对实际 rustc/Cargo，并同步验证器和回归；当前 stable 通过不再被当作最低版本实测证据。",
-          "en-US": "Use stable in candidate CI and validate the actual rustc/Cargo versions against the Cargo MSRV, with matching validators and regressions; passing on current stable no longer counts as a test of the minimum version."
-        }
-      ]
     }
   ]
 }
