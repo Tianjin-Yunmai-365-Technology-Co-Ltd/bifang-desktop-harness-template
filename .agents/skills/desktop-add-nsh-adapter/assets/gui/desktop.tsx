@@ -10,14 +10,14 @@ interface WindowInfo {
 }
 
 function Action(props: { label: string; onPress: () => void }) {
-  const colors = palette(colorScheme());
+  const colors = () => palette(colorScheme());
   return (
     <BaseButton
       onPress={props.onPress}
       accessibilityLabel={props.label}
-      style={{ minHeight: tokens.controlHeight, paddingHorizontal: 14, paddingVertical: 9, borderRadius: tokens.radius, backgroundColor: colors.surface }}
+      style={{ minHeight: tokens.controlHeight, paddingHorizontal: tokens.controlPaddingHorizontal, paddingVertical: tokens.controlPaddingVertical, borderRadius: tokens.radius, backgroundColor: colors().surface }}
     >
-      <Text style={{ color: colors.foreground }}>{props.label}</Text>
+      <Text style={{ color: colors().foreground }}>{props.label}</Text>
     </BaseButton>
   );
 }
@@ -80,15 +80,15 @@ export function DesktopPanel(props: { language: Language; title: string; showCon
   if (!host.available()) return null;
   return (
     <>
-      {props.showControls && <View style={{ gap: 10 }}>
+      {props.showControls && <View style={{ gap: tokens.settingsGap }}>
         <Text style={{ color: palette(colorScheme()).foreground, fontSize: tokens.body }}>{tr(props.language, "windows")}</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.optionGap }}>
           <Action label={tr(props.language, "new_window")} onPress={() => { void invoke("window.open"); }} />
           <Action label={tr(props.language, "show_all")} onPress={() => { void invoke("window.showAll"); }} />
           <Action label={tr(props.language, "close_window")} onPress={() => { void invoke("window.close", { id: windowId }); }} />
           <Action label={tr(props.language, "quit")} onPress={() => { void invoke("app.quit"); }} />
         </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.optionGap }}>
           {windows().map((item) => <Action label={item.title} onPress={() => { void invoke("window.focus", { id: item.id }); }} />)}
         </View>
         __DEEP_LINK_NODE__

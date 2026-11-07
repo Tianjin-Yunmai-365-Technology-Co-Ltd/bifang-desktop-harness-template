@@ -84,16 +84,16 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '__NAME_ZH__': JSON.stringify(nameZh), '__NAME_EN__': JSON.stringify(nameEn),
     '__COMPACT__': String(profile.sidebar_mode === 'compact'),
     '__DESKTOP_IMPORT__': desktop ? 'import { DesktopPanel' + (autostart ? ', AutostartSetting' : '') + ' } from ' + '"./desktop";' : '',
-    '__DESKTOP_PANEL__': desktop ? '{desktopOnly && <DesktopPanel language={language()} title={title()} showControls={page() === "home"} onSettings={() => page.set("settings")} />}' : '',
-    '__AUTOSTART_SETTING__': autostart ? '{desktopOnly && <AutostartSetting language={language()} />}' : '',
+    '__DESKTOP_PANEL__': desktop ? '{nativeDesktop && <DesktopPanel language={language()} title={title()} showControls={page() === "home"} onSettings={() => page.set("settings")} />}' : '',
+    '__AUTOSTART_SETTING__': autostart ? '{nativeDesktop && <AutostartSetting language={language()} />}' : '',
     '__ABOUT_IMPORT__': about ? 'import { AboutPage } from ' + '"./about";' : '',
-    '__ABOUT_NAV__': about ? '{desktopOnly && <Action label={tr(language(), "about")} selected={page() === "about"} onPress={() => page.set("about")} />}' : '',
-    '__ABOUT_PAGE__': about ? '{desktopOnly && page() === "about" && <AboutPage language={language()} />}' : '',
+    '__ABOUT_NAV__': about ? '{nativeDesktop && <NavAction label={tr(language(), "about")} selected={page() === "about"} rail={rail} onPress={() => page.set("about")} />}' : '',
+    '__ABOUT_PAGE__': about ? '{nativeDesktop && page() === "about" && <AboutPage language={language()} />}' : '',
     '__SPONSOR_IMPORT__': sponsor ? 'import { SponsorPage } from ' + '"./sponsor";' : '',
-    '__SPONSOR_NAV__': sponsor ? '{desktopOnly && <Action label={tr(language(), "sponsor")} selected={page() === "sponsor"} onPress={() => page.set("sponsor")} />}' : '',
-    '__SPONSOR_PAGE__': sponsor ? '{desktopOnly && page() === "sponsor" && <SponsorPage language={language()} />}' : '',
+    '__SPONSOR_NAV__': sponsor ? '{nativeDesktop && <NavAction label={tr(language(), "sponsor")} selected={page() === "sponsor"} rail={rail} onPress={() => page.set("sponsor")} />}' : '',
+    '__SPONSOR_PAGE__': sponsor ? '{nativeDesktop && page() === "sponsor" && <SponsorPage language={language()} />}' : '',
     '__LOGO_IMPORT__': options.logo ? 'import { Image } from "nsh";\nimport logo from ' + '"./assets/logo.png";' : '',
-    '__LOGO_NODE__': options.logo ? '{desktopOnly && <Image src={logo} accessibilityLabel={title() + " Logo"} style={{ width: 48, height: 48 }} />}' : '',
+    '__LOGO_NODE__': options.logo ? '{nativeDesktop && <Image src={logo} accessibilityLabel={title() + " Logo"} style={{ width: tokens.sidebarBrandMark, height: tokens.sidebarBrandMark, borderRadius: tokens.sidebarBrandRadius }} />}' : '',
   };
   files.set(member + '/App.tsx', fill(readAsset('App.tsx'), app));
   if (desktop && options.nshTargets.includes('tui')) {
@@ -105,7 +105,7 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
       '__SPONSOR_IMPORT__': '', '__SPONSOR_NAV__': '', '__SPONSOR_PAGE__': '',
       '__LOGO_IMPORT__': '', '__LOGO_NODE__': '',
     };
-    files.set(member + '/App.tui.tsx', fill(readAsset('App.tsx'), terminalApp).replace(/^const desktopOnly = .*;\n/mu, ''));
+    files.set(member + '/App.tui.tsx', fill(readAsset('App.tsx'), terminalApp));
   }
 
   if (desktop) {
