@@ -8,6 +8,8 @@
 
 ## 2026-11-07 变化
 
+- `HARNESS-SEC-NSH-LINUX-DEEP-LINK-ENTRY`（`required_version = 202611071243`）：新生成的 Linux NSH 深链接注册脚本改为先写同目录私有临时 desktop entry，再原子替换目标，避免已有条目是符号链接时覆盖其指向的同用户文件；增加符号链接、目录目标和失败清理回归。旧下游不会自动改写注册脚本，真实 Linux 宿主运行仍需单独验证。
+
 - `HARNESS-FEAT-NSH-MIXED-DESKTOP`（`required_version = 202611071119`）：新 NSH 下游的桌面、移动和 Web 均创建 Mixed TSX UI + 共享 Rust core；桌面由自定义 AppKit/Win32/GTK 宿主固定提供多窗口，并将托盘、自启、单实例、深链接按九字段配置分别接线。深链接依赖单实例；系统通知与 OS 全局快捷键仍不可用。桌面开发和打包入口改为生成 bundle、编译原生宿主并装配资源；移动/Web 继续走官方 Mixed 宿主。初始化问询、能力引用、设计和技术知识已同步。真实目标平台行为仍须独立取证，既有 GUI/NSH 下游只读兼容。见 [ADR-20261107-003](../adr/20261107_ADR.md)。
 
 - `HARNESS-CHANGE-NSH-TOP-LEVEL`（`required_version = 202611071119`）：NSH 以“下一代全平台开发框架”成为与 CLI、MCP、DESKTOP 平级的程序类型；新工程写 `interfaces = ["nsh"]`、`nsh-targets`、独立 `_nsh` 成员，桌面/移动/Web 子目标与具体平台对应。既有 NSH 九项配置归入桌面目标，未选桌面时不询问或生成该 profile。原 GUI/NSH 下游只读兼容。TUI 子目标在固定 NSH 0.4.0 暂不可创建、运行或打包，表单选择时失败关闭；此前删除的独立 TUI 适配器不恢复。相关接线与回归由本次交付报告确认，真实跨平台产物须另行验证。见 [ADR-20261107-002](../adr/20261107_ADR.md)。
