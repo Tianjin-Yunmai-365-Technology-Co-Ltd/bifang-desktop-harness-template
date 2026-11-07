@@ -3,6 +3,42 @@
   "releases": [
     {
       "releaseDate": "2026-11-07",
+      "version": "v202611071119",
+      "featureOptimizations": [
+        {
+          "zh-CN": "将 NSH 设为独立程序类型，桌面、移动和 Web 新工程统一采用 TSX 界面与共享 Rust 核心的 Mixed 模式。",
+          "en-US": "Make NSH an independent project type and use a Mixed TSX interface with a shared Rust core for new desktop, mobile, and Web projects."
+        },
+        {
+          "zh-CN": "桌面生成对应平台的原生宿主，默认支持多窗口，并按选择接入托盘、自启、单实例和深链接。",
+          "en-US": "Generate platform-native desktop hosts with multi-window support by default and opt-in tray, autostart, single-instance, and deep-link wiring."
+        },
+        {
+          "zh-CN": "整理 Skills、流程和知识索引，按所选接口裁剪无关能力；固定 NSH 0.4.0 的 TUI 目标继续失败关闭。",
+          "en-US": "Align Skills, workflows, and knowledge indexes, prune capabilities outside the selected interface, and keep the NSH 0.4.0 TUI target fail-closed."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 macOS 无托盘时关闭最后窗口后进程仍驻留的问题，并保留启用托盘时的关窗恢复行为。",
+          "en-US": "Exit the macOS process after its last window closes without a tray while preserving close-and-restore behavior when the tray is enabled."
+        },
+        {
+          "zh-CN": "桌面窗口列表按各窗口当前语言更新标题，设置页切语言后菜单同步变化；紧凑侧栏英文标签不再换行。",
+          "en-US": "Update desktop window lists to use each window’s current language, refresh menus after language changes in Settings, and keep English compact-sidebar labels on one line."
+        },
+        {
+          "zh-CN": "修复 Linux 自启状态误报，拒绝会生成无效桌面入口的深链接路径。",
+          "en-US": "Fix incorrect Linux autostart status and reject deep-link paths that would produce invalid desktop entries."
+        },
+        {
+          "zh-CN": "补齐 macOS 深链接 URL 角色声明；组合工程的移动和 Web 包移除桌面专用宿主权限。",
+          "en-US": "Complete the macOS deep-link URL role declaration and remove desktop-only host permissions from mobile and Web packages in combined projects."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-11-07",
       "version": "v202611070300",
       "featureOptimizations": [
         {
@@ -216,30 +252,6 @@
         {
           "zh-CN": "候选 CI 改用 stable，将 Cargo MSRV 作为兼容下限核对实际 rustc/Cargo，并同步验证器和回归；当前 stable 通过不再被当作最低版本实测证据。",
           "en-US": "Use stable in candidate CI and validate the actual rustc/Cargo versions against the Cargo MSRV, with matching validators and regressions; passing on current stable no longer counts as a test of the minimum version."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-10-30",
-      "version": "v202610301829",
-      "featureOptimizations": [
-        {
-          "zh-CN": "统一通用 Grid 规范及中性资产，支持无横滚列布局、单选/多选、跨页选择确认和完整值及行详情。",
-          "en-US": "Unify generic Grid standards and neutral assets with layouts that avoid horizontal scrolling, single and multiple selection, cross-page query confirmation, full-value views and row details."
-        },
-        {
-          "zh-CN": "集中系统中文字体回退、语义排版层级、等宽数字与亮暗主题文字 Token，并同步 Tauri/GPUI 设计规则。",
-          "en-US": "Centralize system font fallbacks for Chinese, semantic typography, tabular numerals and light/dark text tokens, and synchronize Tauri and GPUI design rules."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "避免重复应用相同查询时重置页码和无效请求，限制重复重试，并在后台刷新及失败时保留内容与表格起点。",
-          "en-US": "Avoid page resets and unnecessary requests when unchanged queries are reapplied, deduplicate retries, and retain content and the table start position during background refreshes and failures."
-        },
-        {
-          "zh-CN": "修正深色选中行辅助文字的对比度，并确保省略值按钮保留数据值作为可访问名称。",
-          "en-US": "Correct secondary-text contrast on selected rows in the dark theme and preserve data values as accessible names for truncated-value buttons."
         }
       ]
     }

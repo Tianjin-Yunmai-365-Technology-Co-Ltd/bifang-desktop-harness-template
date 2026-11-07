@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "96c79a4534063e49913678df0312057322754ebe",
-  "version": "202611070300",
+  "sourceHead": "7650b981a4836e980a22060c3cc0907738baacd8",
+  "version": "202611071119",
   "releaseDate": "2026-11-07",
-  "expectedTag": "v202611070300-20261107",
+  "expectedTag": "v202611071119-20261107",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "079bf66462c639447a699b0b5ce17845d8a80721",
-    "sourceHead": "96c79a4534063e49913678df0312057322754ebe",
-    "scopeDiffSha256": "242bf18d749c50d4e1e5972fa1cfaf10e8bfb62b6f417e5e4742f39d1360fb36",
-    "reviewedSourceCommit": "96c79a4534063e49913678df0312057322754ebe",
+    "scopeBase": "987ce7a7f7db97505c4de2e42e4941d1d7532259",
+    "sourceHead": "7650b981a4836e980a22060c3cc0907738baacd8",
+    "scopeDiffSha256": "2940184393699b5628535540d8fea07a1d0cafae9b23988b94e455d67e972a14",
+    "reviewedSourceCommit": "7650b981a4836e980a22060c3cc0907738baacd8",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "已审查行为、core与适配器边界、外部契约、职责规模及临时标记；Harness全量测试和发布审查通过，中性NSH工程完成macOS/Web最终候选E2E与字节复核。",
+    "evidenceSummary": "审查上次发布至 sourceHead 的 109 文件累计差异，五项固定检查通过；Harness 1390 项测试零失败、发布审查门禁通过，45 条非阻断提示已复核；中性 Rust 格式、严格 Clippy 和 7 项测试通过。NSH Mixed 模板 macOS、Web 最终包与界面 E2E 通过；macOS 自启、单实例、深链接及托盘关窗恢复实测。托盘图标视觉、Windows/Linux/移动原生行为未验证，产品候选 E2E 不适用。",
     "reason": null,
     "remainingRisk": null
   }
