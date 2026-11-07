@@ -34,6 +34,10 @@ const NAME: &str = __NAME_EN__;
 const WINDOW_SIZE: NSSize = NSSize::new(900.0, 680.0);
 thread_local! { static DESKTOP: RefCell<Option<Desktop>> = const { RefCell::new(None) }; }
 
+fn valid_window_title(title: &str) -> bool {
+    !title.trim().is_empty() && title.chars().count() <= 200 && !title.chars().any(char::is_control)
+}
+
 struct WindowEntry {
     window: Retained<NSWindow>,
     view: Rc<AppView>,
@@ -71,7 +75,7 @@ impl Desktop {
         params.insert("menuGlobal".to_owned(), json!(true));
         params.insert("menuOwner".to_owned(), json!(self.windows.is_empty()));
         host.set_params(params);
-        for name in ["window.list", "window.open", "window.focus", "window.showAll", "window.close", "app.quit"
+        for name in ["window.list", "window.setTitle", "window.open", "window.focus", "window.showAll", "window.close", "app.quit"
             // NSH_FEATURE_DEEP_LINK_BEGIN
             , "deepLink.takePending"
             // NSH_FEATURE_DEEP_LINK_END
@@ -117,7 +121,7 @@ impl Desktop {
     }
 
     fn window_list(&self) -> Value {
-        Value::Array(self.windows.iter().map(|(id, entry)| json!({"id": id, "title": entry.title})).collect())
+        Value::Array(self.windows.iter().map(|(id, entry)| json!({"id": id, "title": entry.window.title().to_string()})).collect())
     }
 
     fn broadcast_windows(&self) {
@@ -376,6 +380,20 @@ fn handle_call(sender: u64, call: HostCall) {
     let Some(mtm) = MainThreadMarker::new() else { call.reject("Main thread required"); return; };
     match call.name() {
         "window.list" => call.reply(DESKTOP.with(|cell| cell.borrow().as_ref().map(Desktop::window_list).ok_or_else(|| "Host closing".to_owned()))),
+        "window.setTitle" => {
+            let result = call.data().get("title").and_then(Value::as_str).filter(|title| valid_window_title(title))
+                .ok_or_else(|| "Valid window title required".to_owned())
+                .and_then(|title| DESKTOP.with(|cell| {
+                    let mut desktop = cell.borrow_mut(); let desktop = desktop.as_mut().ok_or_else(|| "Host closing".to_owned())?;
+                    let entry = desktop.windows.get_mut(&sender).ok_or_else(|| "Window closed".to_owned())?;
+                    if entry.title == title { return Ok(json!(false)); }
+                    entry.window.setTitle(&NSString::from_str(title));
+                    entry.title = title.to_owned();
+                    desktop.broadcast_windows();
+                    Ok(json!(true))
+                }));
+            call.reply(result);
+        }
         "window.open" => call.reply(DESKTOP.with(|cell| {
             let mut desktop = cell.borrow_mut(); let desktop = desktop.as_mut().ok_or_else(|| "Host closing".to_owned())?;
             if !desktop.windows.contains_key(&sender) { return Err("Window closed".to_owned()); }
@@ -490,4 +508,18 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     app.run();
     app.setDelegate(None);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::valid_window_title;
+
+    #[test]
+    fn title_input_is_bounded_and_keeps_unicode() {
+        assert!(valid_window_title("测试工具 · 2"));
+        assert!(valid_window_title(&"界".repeat(200)));
+        assert!(!valid_window_title(" \t "));
+        assert!(!valid_window_title("bad\nname"));
+        assert!(!valid_window_title(&"界".repeat(201)));
+    }
 }

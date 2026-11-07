@@ -42,12 +42,13 @@ test('all_targets_use_mixed_tsx_and_real_shared_core_bridge',()=>{
   const manifest=JSON.parse(desktop.get('sample_tool_nsh/nsh.json'));
   assert.equal(manifest.rust,'.');
   assert.equal(Object.hasOwn(manifest,'root'),false);
-  assert.deepEqual(manifest.capabilities.host,['window.list','window.open','window.focus','window.showAll','window.close','app.quit']);
+  assert.deepEqual(manifest.capabilities.host,['window.list','window.setTitle','window.open','window.focus','window.showAll','window.close','app.quit']);
   const source=desktop.get('sample_tool_nsh/src/lib.rs');
   assert.match(source,/\[native_module\("sample_tool\/native"\)\]/u);
   assert.match(source,/sample_tool_core::scaffold_status\(\)\s*\.await\s*\.initialized/u);
   assert.match(desktop.get('sample_tool_nsh/App.tsx'),/Scaffold\.status\(\)/u);
   assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/Menu\.setApplicationMenu/u);
+  assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/invoke<boolean>\("window\.setTitle"/u);
   assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/menu\.owner/u);
   assert.doesNotMatch(desktop.get('sample_tool_nsh/desktop.tsx'),/globalShortcut|\.shortcut\(/u);
   assert.ok(desktop.has('sample_tool_nsh/src/macos_host.rs'));
@@ -70,7 +71,7 @@ test('selected_desktop_capabilities_are_conditional_and_deep_links_require_singl
   for(const field of ['system_tray','single_instance','deep_link','autostart']) all.profile[field]='enabled';
   const files=renderNshAdapterFiles(all);
   const config=JSON.parse(files.get('sample_tool_nsh/nsh.json'));
-  assert.deepEqual(config.capabilities.host,['window.list','window.open','window.focus','window.showAll','window.close','app.quit','autostart.get','autostart.set','deepLink.takePending']);
+  assert.deepEqual(config.capabilities.host,['window.list','window.setTitle','window.open','window.focus','window.showAll','window.close','app.quit','autostart.get','autostart.set','deepLink.takePending']);
   assert.match(files.get('sample_tool_nsh/desktop.tsx'),/autostart\.set/u);
   assert.match(files.get('sample_tool_nsh/desktop.tsx'),/deepLink\.takePending/u);
   assert.ok(files.has('sample_tool_nsh/src/deep_link.rs'));

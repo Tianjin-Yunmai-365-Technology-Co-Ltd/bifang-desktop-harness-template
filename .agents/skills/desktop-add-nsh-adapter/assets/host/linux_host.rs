@@ -58,7 +58,7 @@ impl Desktop {
         let mut params = serde_json::Map::new();
         params.insert("windowId".to_owned(), json!(id));
         host.set_params(params);
-        for name in ["window.list", "window.open", "window.focus", "window.showAll", "window.close", "app.quit"
+        for name in ["window.list", "window.setTitle", "window.open", "window.focus", "window.showAll", "window.close", "app.quit"
             // NSH_FEATURE_DEEP_LINK_BEGIN
             , "deepLink.takePending"
             // NSH_FEATURE_DEEP_LINK_END
@@ -87,6 +87,15 @@ impl Desktop {
 
     fn window_list(&self) -> Value {
         Value::Array(self.windows.iter().map(|(id, entry)| json!({"id": id, "title": entry.title})).collect())
+    }
+
+    fn set_window_title(&mut self, id: u64, title: &str) -> Result<bool, String> {
+        let entry = self.windows.get_mut(&id).ok_or_else(|| "Window closed".to_owned())?;
+        if entry.title == title { return Ok(false); }
+        entry.window.set_title(Some(title));
+        entry.title = title.to_owned();
+        self.broadcast_windows();
+        Ok(true)
     }
 
     fn broadcast_windows(&self) {
@@ -129,6 +138,11 @@ fn remove_window(id: u64) {
 fn handle_call(sender: u64, call: HostCall) {
     match call.name() {
         "window.list" => call.reply(DESKTOP.with(|cell| cell.borrow().as_ref().map(Desktop::window_list).ok_or_else(|| "Host closing".to_owned()))),
+        "window.setTitle" => call.reply(call.data().get("title").and_then(Value::as_str)
+            .filter(|title| !title.trim().is_empty() && title.chars().count() <= 200 && !title.chars().any(char::is_control))
+            .ok_or_else(|| "A valid title is required".to_owned())
+            .and_then(|title| DESKTOP.with(|cell| cell.borrow_mut().as_mut().ok_or_else(|| "Host closing".to_owned())?.set_window_title(sender, title)))
+            .map(|changed| json!(changed))),
         "window.open" => call.reply(DESKTOP.with(|cell| {
             let mut desktop = cell.borrow_mut();
             let desktop = desktop.as_mut().ok_or_else(|| "Host closing".to_owned())?;

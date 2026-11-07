@@ -97,6 +97,18 @@ fn handle_call(sender: u64, call: HostCall) {
             let list = DESKTOP.with(|desktop| desktop.borrow().as_ref().map(Desktop::window_list));
             call.reply(list.ok_or_else(|| "The host is closing".to_owned()));
         }
+        "window.setTitle" => {
+            let result = call.data().get("title").and_then(Value::as_str)
+                .filter(|title| !title.trim().is_empty() && title.chars().count() <= 200 && !title.chars().any(char::is_control))
+                .ok_or_else(|| "A valid title is required".to_owned())
+                .and_then(|title| DESKTOP.with(|desktop| {
+                    desktop.borrow_mut().as_mut()
+                        .ok_or_else(|| "The host is closing".to_owned())?
+                        .set_window_title(sender, title)
+                }))
+                .map(Value::Bool);
+            call.reply(result);
+        }
         "window.open" => {
             let result = DESKTOP.with(|desktop| {
                 desktop

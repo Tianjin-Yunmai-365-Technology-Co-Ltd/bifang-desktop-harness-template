@@ -13,7 +13,7 @@ const features = {
   DEEP_LINK: 'deep_link',
   AUTOSTART: 'autostart',
 };
-const alwaysMethods = ['window.list', 'window.open', 'window.focus', 'window.showAll', 'window.close', 'app.quit'];
+const alwaysMethods = ['window.list', 'window.setTitle', 'window.open', 'window.focus', 'window.showAll', 'window.close', 'app.quit'];
 
 function assertOptions(options) {
   if (!options || typeof options !== 'object' || !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(options.projectId) ||

@@ -1,6 +1,6 @@
 import { colorScheme, effect, host, signal, Text, View } from "nsh";
 import { Button as BaseButton } from "nsh/base";
-import { isAvailable as desktopAvailable, Menu, Window } from "nsh/desktop";
+import { isAvailable as desktopAvailable, Menu } from "nsh/desktop";
 import { tr, type Language } from "./translations";
 import { palette, tokens } from "./tokens";
 
@@ -49,9 +49,17 @@ export function DesktopPanel(props: { language: Language; title: string; showCon
     return () => { stop(); stopMenuOwner(); __DEEP_LINK_CLEANUP__ };
   });
 
+  let lastTitle: string | null = null;
+  effect(() => {
+    if (!desktopAvailable || !host.available()) return;
+    const title = windowId > 1 ? `${props.title} · ${windowId}` : props.title;
+    if (title === lastTitle) return;
+    lastTitle = title;
+    void invoke<boolean>("window.setTitle", { title });
+  });
+
   effect(() => {
     if (!desktopAvailable || !host.available() || !menuOwner()) return;
-    Window.setTitle(props.title);
     Menu.setApplicationMenu([
       { label: props.title, submenu: [
         { label: tr(props.language, "new_window"), onSelect: () => { void invoke("window.open"); } },

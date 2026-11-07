@@ -12,13 +12,16 @@ const options = (targetPlatforms = ['macos', 'windows', 'linux'], selected = [])
 test('baseline emits only selected host methods and target-specific workspace dependencies', () => {
   const input = options(['macos']);
   const files = renderNshHostFiles(input);
-  assert.deepEqual(nshHostMethods(input), ['window.list', 'window.open', 'window.focus', 'window.showAll', 'window.close', 'app.quit']);
+  assert.deepEqual(nshHostMethods(input), ['window.list', 'window.setTitle', 'window.open', 'window.focus', 'window.showAll', 'window.close', 'app.quit']);
   assert.deepEqual([...files.keys()].sort(), ['sample_tool_nsh/src/macos_host.rs', 'sample_tool_nsh/src/main.rs']);
   const host = files.get('sample_tool_nsh/src/macos_host.rs');
   assert.match(host, /set_ui_sets\(vec!\[nsh_base::registry\(\), sample_tool_nsh::registry\(\)\]\)/u);
   assert.match(host, /view\.load\(App::Js\(self\.bundle\.clone\(\)\)\)/u);
   assert.match(host, /menuOwner/u);
   assert.match(host, /should_terminate_after_last_window_closed\([^)]*\) -> bool \{\s*true\s*\}/u);
+  assert.match(host, /"title": entry\.window\.title\(\)\.to_string\(\)/u);
+  assert.match(host, /"window.setTitle" => \{/u);
+  assert.match(host, /entry\.title = title\.to_owned\(\);\s*desktop\.broadcast_windows\(\)/u);
   assert.doesNotMatch(host, /NSH_FEATURE_|status_item|claim_instance|deepLink\.takePending|autostart\.get/u);
   assert.match(nshHostCargoDependencies(input), /nsh-platform-macos\.workspace = true/u);
   assert.doesNotMatch(nshHostCargoDependencies(input), /nsh-platform-windows|nsh-platform-linux|version =/u);

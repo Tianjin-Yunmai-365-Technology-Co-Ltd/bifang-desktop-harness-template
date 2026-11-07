@@ -26,6 +26,7 @@ use windows::{
                 CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
                 GetWindowRect, IsIconic, IsWindow, MSG, PostMessageW, RegisterClassW, SW_RESTORE,
                 SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, SetForegroundWindow, SetWindowPos,
+                SetWindowTextW,
                 ShowWindow, TranslateMessage, WINDOW_EX_STYLE, WINDOW_STYLE, WM_APP, WNDCLASSW,
             },
         },
@@ -223,6 +224,7 @@ impl Desktop {
         host.set_params(params);
         let methods = [
             "window.list",
+            "window.setTitle",
             "window.open",
             "window.focus",
             "window.showAll",
@@ -317,6 +319,18 @@ impl Desktop {
                 .map(|(id, entry)| json!({ "id": id, "title": entry.title }))
                 .collect(),
         )
+    }
+
+    fn set_window_title(&mut self, id: u64, title: &str) -> Result<bool, String> {
+        let entry = self.windows.get_mut(&id).ok_or_else(|| "Window closed".to_owned())?;
+        if entry.title == title { return Ok(false); }
+        let text = wide(title);
+        // SAFETY: The HWND is owned by this UI thread, and the NUL-terminated title lives through the call.
+        unsafe { SetWindowTextW(entry.view.hwnd(), PCWSTR(text.as_ptr())) }
+            .map_err(|error| error.to_string())?;
+        entry.title = title.to_owned();
+        self.broadcast_windows();
+        Ok(true)
     }
 
     fn broadcast_windows(&self) {

@@ -23,7 +23,7 @@ NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不�
 | 开机自启 | desktop 可选 | macOS 登录项、Windows 当前用户 Run 项、Linux XDG autostart；`autostart.get/set` 读取真实状态与错误，未选时无设置入口 |
 | 系统通知、OS 全局快捷键 | desktop unavailable/disabled | 当前无接线，显式启用失败关闭；NSH 菜单与 shortcut 仅在应用内生效 |
 
-Mixed 的 `nsh.json` 设置 `rust: "."`，不设置 Rust UI `root`；`App.tsx` 是入口。桌面宿主调用 `set_ui_sets(vec![nsh_base::registry(), <member>::registry()])` 并以 `App::Js(bundle)` 装载 TSX。每个窗口仅注册清单声明的方法：固定 `window.list/open/focus/showAll/close`、`app.quit`，按选择增加 `autostart.get/set` 和 `deepLink.takePending`；托盘和单实例仅由宿主处理。macOS 应用菜单为进程全局，由 `menuOwner` 与 `menu.owner` 事件转交所有权；Windows/Linux 菜单在各窗口中，应用菜单快捷键不构成 OS 全局快捷键。
+Mixed 的 `nsh.json` 设置 `rust: "."`，不设置 Rust UI `root`；`App.tsx` 是入口。桌面宿主调用 `set_ui_sets(vec![nsh_base::registry(), <member>::registry()])` 并以 `App::Js(bundle)` 装载 TSX。每个窗口仅注册清单声明的方法：固定 `window.list/setTitle/open/focus/showAll/close`、`app.quit`，按选择增加 `autostart.get/set` 和 `deepLink.takePending`；托盘和单实例仅由宿主处理。macOS 应用菜单为进程全局，由 `menuOwner` 与 `menu.owner` 事件转交所有权；Windows/Linux 菜单在各窗口中，应用菜单快捷键不构成 OS 全局快捷键。
 
 桌面发布路径先 `nsh build` 生成 bundle，再分别编译自定义宿主并封装 `bundle.js`、`app.json`、`capabilities.json`、assets；官方 `nsh package` 不能替代这一步。移动/Web 继续用 NSH 官方宿主与官方包路径，但仍加载同一 Mixed TSX/native module。组合工程的移动/Web 必须经受管 build helper 的暂存 Mixed 入口，移除仅桌面有效的 `capabilities.host`；直接对原成员运行官方 `nsh package` 会携带桌面 host 声明。macOS 登录项要在真实 `.app` 中测试；Windows/Linux 深链接脚本需要当前用户执行并验证协议处理器，Linux 解压包的脚本不是可执行文件，须用 `sh register-deeplink-linux.sh` 调用，复制脚本本身不是注册成功。平台源码生成、编译、打包、真实运行和候选验收应分别记录，不因示例曾运行就推断本模板已验证。
 
