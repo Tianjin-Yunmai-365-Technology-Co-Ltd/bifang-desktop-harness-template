@@ -13,11 +13,16 @@ applications="$data_home/applications"
 entry="$applications/$scheme.desktop"
 mkdir -p -- "$applications"
 umask 077
+temporary_entry=$(mktemp "$applications/.$scheme.desktop.XXXXXXXX")
+trap 'rm -f -- "$temporary_entry"' 0
+trap 'exit 1' 1 2 3 15
 {
   printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=__HOST_EXE__' 'NoDisplay=true'
   printf 'Exec="%s" %%u\n' "$host_path"
   printf 'MimeType=x-scheme-handler/%s;\n' "$scheme"
   printf '%s\n' 'Terminal=false'
-} > "$entry"
+} > "$temporary_entry"
+mv -fT -- "$temporary_entry" "$entry"
+trap - 0 1 2 3 15
 xdg-mime default "$scheme.desktop" "x-scheme-handler/$scheme"
 printf 'Registered %s for the current user.\n' "$scheme"

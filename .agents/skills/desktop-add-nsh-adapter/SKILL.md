@@ -11,7 +11,7 @@ description: 为顶层 NSH 类型的共享 Rust core 增加 Native Shell 薄适�
 
 生成器在写入前通过已选 Rust 工具链的 `rustfmt`（edition 2024）格式化完整 Rust 输出；该工具属于现有 Rust 开发工具链，不添加第三方 Node 依赖，失败保持零工作区写入。 只有真实失败证明缺少该组件时，按环境恢复流程为当前工具链执行 `rustup component add rustfmt`，再复读 `rustup which rustfmt` 与 `rustfmt --version` 并重试；不升级或替换工具链。
 
-1. 复用身份、平台与 NSH 子目标。仅 desktop 子目标询问既有九字段 profile 和 Logo 选择；系统语言、三态主题、设置固定建立。桌面固定使用自定义多窗口宿主；`system_tray`、`single_instance`、`deep_link`、`autostart` 各自按选择接线，`deep_link` 依赖 `single_instance`。`system_notification` 与 `global_shortcut` 仍 unavailable/disabled，显式启用时停止；应用菜单快捷键不得冒充系统全局快捷键。mobile/Web 不询问桌面 profile，继续由 NSH 官方宿主运行相同 Mixed UI。
+1. 复用身份、平台与 NSH 子目标。仅 desktop 子目标询问既有九字段 profile 和 Logo 选择；系统语言、三态主题、设置固定建立。桌面固定使用自定义多窗口宿主；`system_tray`、`single_instance`、`deep_link`、`autostart` 各自按选择接线，`deep_link` 依赖 `single_instance`。深链接必须先进入宿主待领取队列，通知 TSX 后由订阅者主动领取，不能只向尚未就绪的窗口发送一次性事件；单实例重试不得重复交付。`system_notification` 与 `global_shortcut` 仍 unavailable/disabled，显式启用时停止；应用菜单快捷键不得冒充系统全局快捷键。mobile/Web 不询问桌面 profile，继续由 NSH 官方宿主运行相同 Mixed UI。
 2. 运行 `scripts/add_nsh_adapter.mjs --root <已有共享core的根> --options <确认字段JSON文件>`。JSON 含 `projectId,nameZh,nameEn,owner,targetPlatforms,nshTargets`，desktop 时还含九字段 `profile` 和可选已选 `logo` 绝对 PNG 路径。路径/身份/依赖/已有接口冲突在写入前拒绝。NSH 适配器直接依赖 core；适配器只拥有界面状态与宿主机制。没有业务需求时不建立示例业务。
 3. 所有已选目标使用 NSH Mixed：`App.tsx` 是 TSX 根组件，`nsh.json` 设 `rust: "."`，不设置 Rust UI `root`；同成员的 native module 注册 Rust 导出，薄层调用共享 core。desktop 的自定义 AppKit/Win32/GTK 宿主以 `set_ui_sets` 注册 NSH 基座和成员 registry，以 `App::Js(bundle)` 加载 TSX bundle，仅声明已选 `host.call`。mobile/Web 使用 NSH 官方宿主。core 保持运行时中立；根 `[workspace.dependencies]` 是所有依赖版本和 features 的唯一来源，成员对桌面宿主依赖使用目标条件与 `workspace = true`。
 4. 条件页面和 sponsor 媒体只按 desktop 选择进入 NSH。正式 Logo 使用三原始候选与所选项流程；工程回归可使用明确标记的中性夹具，不能充当品牌确认。

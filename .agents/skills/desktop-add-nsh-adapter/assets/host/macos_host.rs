@@ -15,10 +15,11 @@ use serde_json::{Value, json};
 use nsh_platform_macos::{objc2::{runtime::{AnyObject, Sel}, sel}, objc2_app_kit::{NSMenu, NSMenuItem, NSStatusBar, NSStatusItem, NSVariableStatusItemLength, NSEventMask, NSEventType}};
 // NSH_FEATURE_TRAY_END
 // NSH_FEATURE_SINGLE_INSTANCE_BEGIN
-use std::{fs::{self, File, OpenOptions, TryLockError}, io::{Read, Write}, os::unix::{fs::PermissionsExt, net::{UnixListener, UnixStream}}, sync::atomic::{AtomicBool, Ordering}, thread, time::{Duration, Instant}};
+use std::{fs::{self, File, OpenOptions, TryLockError}, io::{Read, Write}, os::unix::{fs::PermissionsExt, net::{UnixListener, UnixStream}}, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, thread, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 const MAX_INSTANCE_MESSAGE_BYTES: usize = 8192;
 const INSTANCE_WAIT: Duration = Duration::from_secs(30);
 static INSTANCE_CLOSING: AtomicBool = AtomicBool::new(false);
+type InstanceRequests = Arc<Mutex<BTreeMap<String, (bool, Instant)>>>;
 // NSH_FEATURE_SINGLE_INSTANCE_END
 // NSH_FEATURE_DEEP_LINK_BEGIN
 use nsh_platform_macos::objc2_foundation::{NSArray, NSURL};
@@ -116,6 +117,11 @@ impl Desktop {
             pending_links: std::mem::take(&mut self.unassigned_links),
             // NSH_FEATURE_DEEP_LINK_END
         });
+        // NSH_FEATURE_DEEP_LINK_BEGIN
+        if let Some(entry) = self.windows.get(&id) && !entry.pending_links.is_empty() {
+            let _ = entry.host.send("deepLink.available", Value::Null);
+        }
+        // NSH_FEATURE_DEEP_LINK_END
         self.broadcast_windows();
         json!({"id": id, "title": title})
     }
@@ -158,7 +164,10 @@ impl Desktop {
             if self.windows.is_empty() { self.unassigned_links.push(url); self.open_window(mtm); continue; }
             if let Some(id) = self.active_window_id() {
                 self.focus_window(id, mtm);
-                if let Some(entry) = self.windows.get(&id) { let _ = entry.host.send("deepLink", json!(url)); }
+                if let Some(entry) = self.windows.get_mut(&id) {
+                    entry.pending_links.push(url);
+                    let _ = entry.host.send("deepLink.available", Value::Null);
+                }
             }
         }
     }
@@ -238,7 +247,10 @@ define_class!(
                         entry.view.stop();
                         // NSH_FEATURE_DEEP_LINK_BEGIN
                         if !entry.pending_links.is_empty() {
-                            if let Some(next) = desktop.windows.values_mut().next() { next.pending_links.extend(entry.pending_links); }
+                            if let Some(next) = desktop.windows.values_mut().next() {
+                                next.pending_links.extend(entry.pending_links);
+                                let _ = next.host.send("deepLink.available", Value::Null);
+                            }
                             else { desktop.unassigned_links.extend(entry.pending_links); }
                         }
                         // NSH_FEATURE_DEEP_LINK_END
@@ -301,7 +313,8 @@ fn claim_instance(urls: &[String]) -> io::Result<Option<InstanceGuard>> {
     fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))?;
     let lock = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(directory.join("instance.lock"))?;
     let socket_path = directory.join("instance.sock");
-    let payload = serde_json::to_vec(&json!({"urls": urls}))?;
+    let request_id = format!("{}-{}", std::process::id(), SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let payload = serde_json::to_vec(&json!({"id": request_id, "urls": urls}))?;
     if payload.len() > MAX_INSTANCE_MESSAGE_BYTES { return Err(io::Error::new(io::ErrorKind::InvalidInput, "Too many launch URLs")); }
     let deadline = Instant::now() + INSTANCE_WAIT;
     loop {
@@ -337,13 +350,14 @@ fn forward_to_first_instance(socket_path: &PathBuf, payload: &[u8]) -> io::Resul
 }
 
 fn listen_for_second_instances(listener: UnixListener) {
+    let received: InstanceRequests = Arc::new(Mutex::new(BTreeMap::new()));
     for incoming in listener.incoming() {
         let Ok(mut stream) = incoming else { break; };
-        if let Err(error) = receive_second_instance(&mut stream) { eprintln!("Ignoring instance request: {error}"); }
+        if let Err(error) = receive_second_instance(&mut stream, &received) { eprintln!("Ignoring instance request: {error}"); }
     }
 }
 
-fn receive_second_instance(stream: &mut UnixStream) -> io::Result<()> {
+fn receive_second_instance(stream: &mut UnixStream, received: &InstanceRequests) -> io::Result<()> {
     stream.set_read_timeout(Some(Duration::from_secs(2)))?;
     stream.set_write_timeout(Some(Duration::from_secs(2)))?;
     let mut size = [0; 4];
@@ -353,6 +367,9 @@ fn receive_second_instance(stream: &mut UnixStream) -> io::Result<()> {
     let mut payload = vec![0; size];
     stream.read_exact(&mut payload)?;
     let request: Value = serde_json::from_slice(&payload)?;
+    let id = request.get("id").and_then(Value::as_str)
+        .filter(|id| !id.is_empty() && id.len() <= 128)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Request id missing"))?;
     let raw = request.get("urls").and_then(Value::as_array).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "URL list missing"))?;
     let mut urls = Vec::new();
     for value in raw {
@@ -364,15 +381,33 @@ fn receive_second_instance(stream: &mut UnixStream) -> io::Result<()> {
     }
     if INSTANCE_CLOSING.load(Ordering::Acquire) { return Err(io::Error::new(io::ErrorKind::ConnectionAborted, "Host closing")); }
     let mut reply = stream.try_clone()?;
-    DispatchQueue::main().exec_async(move || {
-        if INSTANCE_CLOSING.load(Ordering::Acquire) { return; }
-        if urls.is_empty() { show_all_windows(); }
-        // NSH_FEATURE_DEEP_LINK_BEGIN
-        else { for url in urls { queue_deep_link(url); } deliver_pending_links(); }
-        // NSH_FEATURE_DEEP_LINK_END
-        let _ = reply.write_all(&[1]);
-    });
-    Ok(())
+    let state = {
+        let mut received = received.lock().unwrap_or_else(|error| error.into_inner());
+        received.retain(|_, (_, at)| at.elapsed() < INSTANCE_WAIT * 2);
+        match received.get(id).map(|(done, _)| *done) {
+            Some(true) => 2,
+            Some(false) => 1,
+            None => { received.insert(id.to_owned(), (false, Instant::now())); 0 },
+        }
+    };
+    if state == 0 {
+        let id = id.to_owned();
+        let received = Arc::clone(received);
+        DispatchQueue::main().exec_async(move || {
+            if INSTANCE_CLOSING.load(Ordering::Acquire) { return; }
+            if urls.is_empty() { show_all_windows(); }
+            // NSH_FEATURE_DEEP_LINK_BEGIN
+            else { for url in urls { queue_deep_link(url); } deliver_pending_links(); }
+            // NSH_FEATURE_DEEP_LINK_END
+            received.lock().unwrap_or_else(|error| error.into_inner()).insert(id, (true, Instant::now()));
+            let _ = reply.write_all(&[1]);
+        });
+        Ok(())
+    } else if state == 2 {
+        stream.write_all(&[1])
+    } else {
+        Ok(())
+    }
 }
 // NSH_FEATURE_SINGLE_INSTANCE_END
 

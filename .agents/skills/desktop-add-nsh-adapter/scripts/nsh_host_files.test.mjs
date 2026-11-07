@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { nshHostCargoDependencies, nshHostMethods, nshHostWorkspaceDependencies, renderNshHostFiles } from './nsh_host_files.mjs';
+import { renderNshAdapterFiles } from './nsh_adapter_files.mjs';
 
 const profile = () => ({ system_tray: 'disabled', system_notification: 'disabled', autostart: 'disabled', about_page: 'disabled', sponsor_page: 'disabled', single_instance: 'disabled', deep_link: 'disabled', global_shortcut: 'disabled', sidebar_mode: 'compact' });
 const options = (targetPlatforms = ['macos', 'windows', 'linux'], selected = []) => ({ projectId: 'sample_tool', nameZh: '测试工具', nameEn: 'Test Tool', nshTargets: ['desktop'], targetPlatforms, profile: Object.assign(profile(), Object.fromEntries(selected.map(key => [key, 'enabled']))) });
@@ -61,6 +62,27 @@ test('optional host implementations are absent when disabled', () => {
   assert.doesNotMatch(files.get('sample_tool_nsh/src/linux_host.rs'), /deepLink\.takePending|connect_open/u);
   assert.doesNotMatch(nshHostWorkspaceDependencies(input), /Win32_System_DataExchange/u);
   assert.throws(() => renderNshHostFiles(options(['macos'], ['deep_link'])), /requires single_instance/u);
+});
+
+test('selected deep links use a claimed queue in every desktop host and generated Mixed UI', () => {
+  const input = options(['macos', 'windows', 'linux'], ['single_instance', 'deep_link']);
+  const hosts = renderNshHostFiles(input);
+  for (const platform of ['macos', 'windows', 'linux']) {
+    const host = hosts.get(`sample_tool_nsh/src/${platform}_host.rs`);
+    assert.match(host, /deepLink\.available/u, platform);
+    assert.doesNotMatch(host, /host\.send\("deepLink",/u, platform);
+    assert.match(host, /deepLink\.takePending/u, platform);
+  }
+  const macos = hosts.get('sample_tool_nsh/src/macos_host.rs');
+  assert.match(macos, /"id": request_id, "urls": urls/u);
+  assert.match(macos, /received\.get\(id\).*\*done/u);
+  const generated = renderNshAdapterFiles({ ...input, owner: 'Engineering Fixture' });
+  const desktop = generated.get('sample_tool_nsh/desktop.tsx');
+  assert.match(desktop, /host\.on\("deepLink\.available"/u);
+  assert.match(desktop, /if \(drainingDeepLinks\) \{ drainAgain = true; return; \}/u);
+  assert.match(generated.get('sample_tool_nsh/App.test.tsx'), /queued desktop deep links are claimed once/u);
+  const disabled = renderNshAdapterFiles({ ...options(['macos']), owner: 'Engineering Fixture' });
+  assert.doesNotMatch(disabled.get('sample_tool_nsh/desktop.tsx'), /deepLink|drainingDeepLinks/u);
 });
 
 test('Linux deep-link registration rejects paths that cannot be represented safely', () => {

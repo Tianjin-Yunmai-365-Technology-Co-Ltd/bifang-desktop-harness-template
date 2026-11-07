@@ -94,6 +94,14 @@ export function evaluateInitializationForm(input) {
     schemaVersion: 1, stage, values: { ...values }, sources: { ...sources },
     questions: ids.map((id) => {
       const question = questionFor(id, issues[id]);
+      if (values.interfaces?.includes("nsh") && values.nsh_targets?.includes("desktop")) {
+        if (id === "system_tray") question.help = "中性菜单包含新建窗口、显示所有窗口和退出；启用后由宿主处理关窗与恢复。";
+        if (id === "single_instance") question.help = "再次启动聚焦现有窗口；没有窗口时新建，不转发业务载荷。";
+        if (id === "deep_link") {
+          question.title = "是否启用只恢复应用窗口的深链接？";
+          question.help = "URL 为 app-<kebab-prefix>://restore；聚焦现有窗口，没有窗口时新建；启用必须同时启用单实例。";
+        }
+      }
       if (id === "post_release_action" && values.interfaces && values.target_platforms) {
         question.localPackage = localPackageAvailability(values);
         if (question.localPackage === "unavailable") question.options[0] = "本地打包（推荐默认，当前组合不可用）";

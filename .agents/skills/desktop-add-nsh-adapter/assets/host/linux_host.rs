@@ -41,7 +41,8 @@ struct Desktop {
     windows: BTreeMap<u64, WindowEntry>,
     next_id: u64,
     // NSH_FEATURE_DEEP_LINK_BEGIN
-    pending_links: Vec<String>,
+    pending_links: BTreeMap<u64, Vec<String>>,
+    orphaned_links: Vec<String>,
     // NSH_FEATURE_DEEP_LINK_END
     // NSH_FEATURE_TRAY_BEGIN
     tray: Option<TrayHandle<DesktopTray>>,
@@ -81,6 +82,12 @@ impl Desktop {
         window.connect_destroy(move |_| glib::idle_add_local_once(move || remove_window(id)));
         window.present();
         self.windows.insert(id, WindowEntry { window, view, host, title: title.clone() });
+        // NSH_FEATURE_DEEP_LINK_BEGIN
+        if !self.orphaned_links.is_empty() {
+            self.pending_links.entry(id).or_default().append(&mut self.orphaned_links);
+            if let Some(entry) = self.windows.get(&id) { let _ = entry.host.send("deepLink.available", Value::Null); }
+        }
+        // NSH_FEATURE_DEEP_LINK_END
         self.broadcast_windows();
         json!({"id": id, "title": title})
     }
@@ -113,14 +120,30 @@ impl Desktop {
 
     // NSH_FEATURE_DEEP_LINK_BEGIN
     fn accept_links(&mut self, urls: impl IntoIterator<Item = String>) {
-        for url in urls.into_iter().filter(|url| deep_link::is_supported_url(url)) {
-            if self.windows.is_empty() { self.pending_links.push(url); self.open_window(); continue; }
-            if let Some(entry) = self.windows.values().find(|entry| entry.window.is_active()).or_else(|| self.windows.values().next_back()) {
+        let mut urls = urls.into_iter().filter(|url| deep_link::is_supported_url(url)).collect::<Vec<_>>();
+        if urls.is_empty() { return; }
+        if self.windows.is_empty() { self.open_window(); }
+        let selected = self.windows.iter().find(|(_, entry)| entry.window.is_active())
+            .or_else(|| self.windows.iter().next_back()).map(|(id, _)| *id);
+        if let Some(id) = selected {
+            self.pending_links.entry(id).or_default().append(&mut urls);
+            if let Some(entry) = self.windows.get(&id) {
                 entry.window.present();
-                let _ = entry.host.send("deepLink", json!(url));
-            } else {
-                self.pending_links.push(url);
+                let _ = entry.host.send("deepLink.available", Value::Null);
             }
+        } else {
+            self.orphaned_links.append(&mut urls);
+        }
+    }
+    fn retarget_pending_links(&mut self, closed: u64) {
+        let Some(mut urls) = self.pending_links.remove(&closed) else { return; };
+        let selected = self.windows.iter().find(|(_, entry)| entry.window.is_active())
+            .or_else(|| self.windows.iter().next_back()).map(|(id, _)| *id);
+        if let Some(id) = selected {
+            self.pending_links.entry(id).or_default().append(&mut urls);
+            if let Some(entry) = self.windows.get(&id) { let _ = entry.host.send("deepLink.available", Value::Null); }
+        } else {
+            self.orphaned_links.append(&mut urls);
         }
     }
     // NSH_FEATURE_DEEP_LINK_END
@@ -130,6 +153,9 @@ fn remove_window(id: u64) {
     DESKTOP.with(|desktop| {
         if let Some(desktop) = desktop.borrow_mut().as_mut() {
             if let Some(entry) = desktop.windows.remove(&id) { entry.view.stop(); }
+            // NSH_FEATURE_DEEP_LINK_BEGIN
+            desktop.retarget_pending_links(id);
+            // NSH_FEATURE_DEEP_LINK_END
             desktop.broadcast_windows();
         }
     });
@@ -161,12 +187,15 @@ fn handle_call(sender: u64, call: HostCall) {
             if let Some(window) = window { window.close(); }
         }
         // NSH_FEATURE_DEEP_LINK_BEGIN
-        "deepLink.takePending" => call.reply(DESKTOP.with(|cell| {
+        "deepLink.takePending" => {
+            call.reply(DESKTOP.with(|cell| {
             let mut desktop = cell.borrow_mut();
             let desktop = desktop.as_mut().ok_or_else(|| "Host closing".to_owned())?;
             if !desktop.windows.contains_key(&sender) { return Err("Window closed".to_owned()); }
-            Ok(json!(std::mem::take(&mut desktop.pending_links)))
-        })),
+            let urls = desktop.pending_links.remove(&sender).unwrap_or_default();
+            Ok(json!(urls))
+            }));
+        }
         // NSH_FEATURE_DEEP_LINK_END
         // NSH_FEATURE_AUTOSTART_BEGIN
         "autostart.get" => call.reply(DESKTOP.with(|cell| {
@@ -198,15 +227,22 @@ fn handle_call(sender: u64, call: HostCall) {
 enum TrayAction { NewWindow, ShowAll, Quit }
 
 fn tray_action(action: TrayAction) {
-    glib::idle_add_once(move || DESKTOP.with(|cell| {
-        let mut desktop = cell.borrow_mut();
-        let Some(desktop) = desktop.as_mut() else { return; };
-        match action {
-            TrayAction::NewWindow => { desktop.open_window(); }
-            TrayAction::ShowAll => { if desktop.windows.is_empty() { desktop.open_window(); } else { desktop.show_all(); } },
-            TrayAction::Quit => desktop.app.quit(),
+    glib::idle_add_once(move || {
+        if matches!(action, TrayAction::Quit) {
+            let app = DESKTOP.with(|cell| cell.borrow().as_ref().map(|desktop| desktop.app.clone()));
+            if let Some(app) = app { app.quit(); }
+            return;
         }
-    }));
+        DESKTOP.with(|cell| {
+            if let Some(desktop) = cell.borrow_mut().as_mut() {
+                match action {
+                    TrayAction::NewWindow => { desktop.open_window(); }
+                    TrayAction::ShowAll => { if desktop.windows.is_empty() { desktop.open_window(); } else { desktop.show_all(); } },
+                    TrayAction::Quit => unreachable!("handled above"),
+                }
+            }
+        });
+    });
 }
 
 struct DesktopTray { online: Arc<AtomicBool> }
@@ -233,19 +269,25 @@ impl ksni::Tray for DesktopTray {
     }
     fn watcher_online(&self) {
         self.online.store(true, Ordering::Release);
-        glib::idle_add_once(|| DESKTOP.with(|cell| {
+        let online = Arc::clone(&self.online);
+        glib::idle_add_once(move || {
+            if !online.load(Ordering::Acquire) { return; }
+            DESKTOP.with(|cell| {
             let mut desktop = cell.borrow_mut();
             if let Some(desktop) = desktop.as_mut() {
                 if desktop.tray.is_some() && desktop.tray_hold.is_none() { desktop.tray_hold = Some(desktop.app.hold()); }
             }
-        }));
+            });
+        });
     }
     fn watcher_offline(&self, _: ksni::OfflineReason) -> bool {
         self.online.store(false, Ordering::Release);
-        glib::idle_add_once(|| DESKTOP.with(|cell| {
-            let hold = cell.borrow_mut().as_mut().and_then(|desktop| desktop.tray_hold.take());
+        let online = Arc::clone(&self.online);
+        glib::idle_add_once(move || {
+            if online.load(Ordering::Acquire) { return; }
+            let hold = DESKTOP.with(|cell| cell.borrow_mut().as_mut().and_then(|desktop| desktop.tray_hold.take()));
             drop(hold);
-        }));
+        });
         true
     }
 }
@@ -273,7 +315,7 @@ fn ensure_desktop(app: &gtk::Application, bundle: &Bundle, asset_dir: &PathBuf) 
             app: app.clone(), bundle: bundle.clone(), asset_dir: asset_dir.clone(),
             windows: BTreeMap::new(), next_id: 1,
             // NSH_FEATURE_DEEP_LINK_BEGIN
-            pending_links: Vec::new(),
+            pending_links: BTreeMap::new(), orphaned_links: Vec::new(),
             // NSH_FEATURE_DEEP_LINK_END
             // NSH_FEATURE_TRAY_BEGIN
             tray, tray_hold,

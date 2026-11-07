@@ -34,9 +34,13 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
   nsh(["desktop","mobile","web"], ["macos","android","ios","web"]);
   for (const id of ["system_tray","system_notification","autostart","single_instance","deep_link","global_shortcut"]) delete input.answers[id];
   assert.equal(evaluate().questions[0].id,"system_tray");
+  assert.match(evaluate().questions[0].help,/新建窗口/u);
   set("system_tray","disabled");assert.equal(evaluate().questions[0].id,"autostart");
   set("autostart","disabled");assert.equal(evaluate().questions[0].id,"single_instance");
+  assert.match(evaluate().questions[0].help,/没有窗口时新建/u);
   set("single_instance","disabled");assert.equal(evaluate().questions[0].id,"deep_link");
+  assert.match(evaluate().questions[0].title,/应用窗口/u);
+  assert.match(evaluate().questions[0].help,/app-sample-tool:\/\/restore/u);
   set("deep_link","disabled");
   assert.equal(evaluate().stage,"review");
   assert.deepEqual(evaluate().summary.unavailable,["system_notification","global_shortcut"]);

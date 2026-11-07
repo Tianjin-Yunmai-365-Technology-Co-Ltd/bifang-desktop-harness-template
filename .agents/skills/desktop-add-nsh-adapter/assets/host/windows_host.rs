@@ -303,6 +303,9 @@ impl Desktop {
         let pending = std::mem::take(&mut self.unassigned_links);
         if !pending.is_empty() {
             self.pending_links.entry(id).or_default().extend(pending);
+            if let Some(entry) = self.windows.get(&id) {
+                let _ = entry.host.send("deepLink.available", Value::Null);
+            }
         }
         // NSH_FEATURE_DEEP_LINK_END
         self.broadcast_windows();
@@ -394,6 +397,9 @@ impl Desktop {
                     .entry(id)
                     .or_default()
                     .extend(std::mem::take(&mut self.unassigned_links));
+                if let Some(entry) = self.windows.get(&id) {
+                    let _ = entry.host.send("deepLink.available", Value::Null);
+                }
             }
         }
         // NSH_FEATURE_DEEP_LINK_END
@@ -403,7 +409,9 @@ impl Desktop {
     // NSH_FEATURE_DEEP_LINK_BEGIN
     fn enqueue_deep_link(&mut self, raw: String) {
         if let Some((&id, entry)) = self.windows.iter().next_back() {
-            let _ = entry.host.send("deepLink", json!(raw));
+            let host = entry.host.clone();
+            self.pending_links.entry(id).or_default().push(raw);
+            let _ = host.send("deepLink.available", Value::Null);
             self.focus_window(id);
         } else {
             self.unassigned_links.push(raw);

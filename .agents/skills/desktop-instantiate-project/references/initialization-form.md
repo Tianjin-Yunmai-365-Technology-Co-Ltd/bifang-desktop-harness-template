@@ -65,9 +65,9 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 
 发布后动作始终独立展示 `local_package`（本地打包，推荐默认）和 `push_release_branch`（提交远程）。纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用；纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`。本地打包适用性由 `localPackageAvailability` 唯一计算；Linux GPUI 与已支持目标的 NSH 可本地打包，不能在框架解析前套用 Tauri 限制。TUI 因运行时缺失不能形成 NSH 创建确认，也不能靠发布后动作选择绕过。默认值须明确选择，初始化不执行发布后动作。
 
-DESKTOP 和选择 `nsh_targets` 中 `desktop` 的 NSH 才逐项询问九项桌面能力，按 `GUI_FIELDS` 顺序解析并写入唯一 `gui-initialization-config`，框架/NSH 目标不进入 profile。NSH 只选择移动或 Web 时不询问、不持久化桌面九项；旧桌面答案须撤下。GPUI 的 `deep_link` 固定 `unavailable`/`disabled`；目标含 Linux 时 `system_tray`、`global_shortcut` 同样不可用。NSH 桌面默认支持多窗口，托盘、自启、单实例和深链接各自明确询问；系统通知与 OS 全局快捷键仍固定 `unavailable`/`disabled`。未提供不可用项时由能力限制派生关闭；用户显式启用必须纠正，不能静默关闭。其余桌面能力无默认开关，不从预设或漏答推断。
+DESKTOP 和选择 `nsh_targets` 中 `desktop` 的 NSH 才处理九项桌面配置，按 `GUI_FIELDS` 顺序解析并写入唯一 `gui-initialization-config`，框架/NSH 目标不进入 profile。NSH 只选择移动或 Web 时不询问、不持久化桌面九项；旧桌面答案须撤下。GPUI 的 `deep_link` 固定 `unavailable`/`disabled`；目标含 Linux 时 `system_tray`、`global_shortcut` 同样不可用。NSH 桌面默认支持多窗口，托盘、自启、单实例和深链接各自明确询问；系统通知与 OS 全局快捷键仍固定 `unavailable`/`disabled`。未提供不可用项时由能力限制派生关闭；用户显式启用必须纠正，不能静默关闭。NSH 托盘问句须列出新建窗口、显示所有窗口和退出；单实例及深链接恢复现有窗口，无窗口时新建，不承诺固定主窗口。其余桌面能力无默认开关，不从预设或漏答推断。
 
-Tauri `deep_link = enabled` 必须同时 `single_instance = enabled`；冲突只请求用户明确修正，不自动开启单实例。全局快捷键中性合同为空动作、零默认键位、零 OS 注册，产品动作在下游确认。用户对 `sidebar_mode` 明确默认、跳过或空白答复才使用 `detailed`；未答继续等待，非法值重新询问。
+Tauri 与 NSH desktop 的 `deep_link = enabled` 必须同时 `single_instance = enabled`；冲突只请求用户明确修正，不自动开启单实例。全局快捷键中性合同为空动作、零默认键位、零 OS 注册，产品动作在下游确认。用户对 `sidebar_mode` 明确默认、跳过或空白答复才使用 `detailed`；未答继续等待，非法值重新询问。
 
 九项完成后，仅汇总共同五项桌面能力中已启用项，并询问一次 `capability_setup_assistance`；全禁用跳过，已有合法回答复用。该移交意愿不加入九字段或 Agent Policy。具体配置由 Tauri 对应能力 Skill、GPUI [原生能力合同](../../desktop-add-gpui-adapter/references/native-capabilities.md) 或 NSH 适用能力合同在终端下游根目录继续，不能用最终创建确认代替此问题。
 

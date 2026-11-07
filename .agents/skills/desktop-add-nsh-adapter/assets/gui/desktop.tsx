@@ -40,6 +40,8 @@ export function DesktopPanel(props: { language: Language; title: string; showCon
     }
   }
 
+  __DEEP_LINK_DRAIN__
+
   effect(() => {
     if (!host.available()) return;
     const stop = host.on<WindowInfo[]>("windows", (items) => windows.set(items));
