@@ -8,6 +8,7 @@ const METADATA_TABLE = ["workspace", "metadata", "agent-first-harness"];
 const INTERFACES = new Set(["cli", "mcp", "gui", "nsh"]);
 const FRAMEWORKS = new Set(["tauri", "gpui", "nsh"]);
 const NSH_TARGETS = new Set(["desktop", "mobile", "web", "tui"]);
+const NSH_TUI_PREVIEW_REV = "beeb9fc7707e0d4a195a4f7274f77b30e134c500";
 const TAURI_SKILLS = new Set([
   "desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-system-locale",
   "desktop-add-gui-window-state", "desktop-add-gui-dialog",
@@ -91,6 +92,31 @@ function stringValue(value, label) {
   throw new UpgradeError(`Cargo ${label} 必须是字符串`);
 }
 
+/** A TUI upgrade may only preserve a project already bound to the preview runtime. */
+function hasPinnedTuiPreviewRuntime(source) {
+  let section = [];
+  const revisions = new Set();
+  const seen = new Set();
+  for (const statement of statements(source)) {
+    if (statement.startsWith("[")) {
+      const array = statement.startsWith("[[");
+      section = keyPath(statement.slice(array ? 2 : 1, array ? -2 : -1));
+      continue;
+    }
+    if (!equalPath(section, ["workspace", "dependencies"])) continue;
+    const separator = statement.indexOf("=");
+    if (separator < 0) continue;
+    const keys = keyPath(statement.slice(0, separator));
+    if (keys?.length !== 1 || !["nsh-core", "nsh-base"].includes(keys[0])) continue;
+    if (seen.has(keys[0])) return false;
+    seen.add(keys[0]);
+    const dependency = statement.slice(separator + 1).trim();
+    const exact = new RegExp(`^\\{\\s*version\\s*=\\s*"0\\.4\\.0"\\s*,\\s*git\\s*=\\s*"https://github\\.com/longbridge/nsh\\.git"\\s*,\\s*rev\\s*=\\s*"${NSH_TUI_PREVIEW_REV}"\\s*\\}$`, "u");
+    if (exact.test(dependency)) revisions.add(keys[0]);
+  }
+  return revisions.size === 2;
+}
+
 /** 仅缺省框架沿用 Tauri；接口或框架重复、错位与非法类型均失败关闭。 */
 export function parseInterfaceSelection(source) {
   let section = [];
@@ -144,8 +170,11 @@ export function parseInterfaceSelection(source) {
     if (!raw?.startsWith("[") || !raw.endsWith("]")) throw new UpgradeError("Cargo nsh-targets 必须是非空字符串数组");
     const members = raw.slice(1, -1).trim().replace(/,\s*$/u, "");
     const nshTargets = members ? members.split(",").map((member) => stringValue(member.trim(), "nsh-targets")) : [];
-    if (!nshTargets.length || nshTargets.some((target) => !NSH_TARGETS.has(target)) || new Set(nshTargets).size !== nshTargets.length || nshTargets.includes("tui")) {
-      throw new UpgradeError("Cargo nsh-targets 包含未知、重复或当前运行时不可用的目标");
+    if (!nshTargets.length || nshTargets.some((target) => !NSH_TARGETS.has(target)) || new Set(nshTargets).size !== nshTargets.length) {
+      throw new UpgradeError("Cargo nsh-targets 包含未知或重复目标");
+    }
+    if (nshTargets.includes("tui") && !hasPinnedTuiPreviewRuntime(source)) {
+      throw new UpgradeError("Cargo NSH TUI 需要已确认的官方 main 固定预览运行时；旧 0.4.0 项目不可自动解禁");
     }
     return { interfaces, guiFramework: null, nshTargets };
   }

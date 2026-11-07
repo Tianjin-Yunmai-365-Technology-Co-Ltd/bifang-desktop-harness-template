@@ -91,6 +91,12 @@ test('portable_entry_keeps_mixed_core_and_excludes_desktop_host_permissions', ()
   assert.match(fs.readFileSync(path.join(entry, 'App.tsx'), 'utf8'), /import "\.\.\//u);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(gui, 'nsh.json'), 'utf8')), original);
   fs.rmSync(entry, { recursive: true, force: true });
+  assert.throws(() => prepareNshPortableEntry(gui, stage, { terminal: true }), /ENOENT/u);
+  fs.writeFileSync(path.join(gui, 'App.tui.tsx'), 'mount(() => "terminal");\n');
+  const terminal = prepareNshPortableEntry(gui, stage, { terminal: true });
+  assert.match(fs.readFileSync(path.join(terminal, 'App.tsx'), 'utf8'), /App\.tui\.tsx/u);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(terminal, 'nsh.json'), 'utf8')).capabilities, { speech: true });
+  fs.rmSync(terminal, { recursive: true, force: true });
   fs.writeFileSync(path.join(gui, 'nsh.json'), JSON.stringify({ ...original, root: 'App' }));
   assert.throws(() => prepareNshPortableEntry(gui, stage), /Mixed/u);
 }));

@@ -7,7 +7,7 @@ import test from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { createNshWorkspace } from './create_nsh_workspace.mjs';
 import { addNshAdapter } from '../../desktop-add-nsh-adapter/scripts/add_nsh_adapter.mjs';
-import { renderNshAdapterFiles,NSH_UNAVAILABLE } from '../../desktop-add-nsh-adapter/scripts/nsh_adapter_files.mjs';
+import { renderNshAdapterFiles,NSH_REVISION,NSH_TUI_PREVIEW_REVISION,NSH_UNAVAILABLE } from '../../desktop-add-nsh-adapter/scripts/nsh_adapter_files.mjs';
 import { sourceSnapshot } from '../../desktop-build-nsh-release/scripts/build_nsh_release.mjs';
 import { initialize,check } from '../../desktop-manage-version/scripts/version_gate.mjs';
 
@@ -46,7 +46,8 @@ test('all_targets_use_mixed_tsx_and_real_shared_core_bridge',()=>{
   const source=desktop.get('sample_tool_nsh/src/lib.rs');
   assert.match(source,/\[native_module\("sample_tool\/native"\)\]/u);
   assert.match(source,/sample_tool_core::scaffold_status\(\)\s*\.await\s*\.initialized/u);
-  assert.match(desktop.get('sample_tool_nsh/App.tsx'),/Scaffold\.status\(\)/u);
+  assert.match(desktop.get('sample_tool_nsh/App.tsx'),/from "\.\/App\.shared"/u);
+  assert.match(desktop.get('sample_tool_nsh/App.shared.tsx'),/Scaffold\.status\(\)/u);
   assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/Menu\.setApplicationMenu/u);
   assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/invoke<boolean>\("window\.setTitle"/u);
   assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/menu\.owner/u);
@@ -59,7 +60,8 @@ test('all_targets_use_mixed_tsx_and_real_shared_core_bridge',()=>{
   assert.equal(Object.hasOwn(JSON.parse(mobile.get('sample_tool_nsh/nsh.json')),'root'),false);
   assert.equal(Object.hasOwn(JSON.parse(mobile.get('sample_tool_nsh/nsh.json')),'capabilities'),false);
   assert.match(mobile.get('sample_tool_nsh/src/lib.rs'),/sample_tool_core::scaffold_status\(\)\s*\.await\s*\.initialized/u);
-  assert.match(mobile.get('sample_tool_nsh/App.tsx'),/Scaffold\.status\(\)/u);
+  assert.match(mobile.get('sample_tool_nsh/App.tsx'),/from "\.\/App\.shared"/u);
+  assert.match(mobile.get('sample_tool_nsh/App.shared.tsx'),/Scaffold\.status\(\)/u);
   assert.equal(mobile.has('sample_tool_nsh/desktop.tsx'),false);
   assert.equal([...mobile.keys()].some(file=>file.includes('_host.rs')),false);
 });
@@ -95,7 +97,7 @@ test('fresh_workspace_cargo_metadata_binds_nsh_to_core_and_platforms',()=>fixtur
   assert.equal(metadata.metadata['agent-first-harness']['gui-framework'],undefined);
   const gui=metadata.packages.find(pkg=>pkg.name==='sample_tool_nsh');assert.ok(gui.dependencies.some(dep=>dep.name==='sample_tool_core' && !dep.optional));
   assert.ok(gui.dependencies.some(dep=>dep.name==='nsh-platform-macos'));
-  assert.match(fs.readFileSync(path.join(root,'Cargo.toml'),'utf8'),/nsh-platform-macos = \{ version = "0\.4\.0"/u);
+  assert.match(fs.readFileSync(path.join(root,'Cargo.toml'),'utf8'),new RegExp('nsh-platform-macos = \\{ version = "0\\.4\\.0".*rev = "' + NSH_REVISION + '"','u'));
   initialize(root);assert.deepEqual(check(root,'build').version_mirrors,['sample_tool_nsh/nsh.json']);
   const config=path.join(root,'sample_tool_nsh/nsh.json');const originalConfig=fs.readFileSync(config,'utf8');
   fs.writeFileSync(config,originalConfig.replace('0.1.0','0.2.0'));assert.throws(()=>check(root,'build'),/version|mirror/u);fs.writeFileSync(config,originalConfig);
@@ -146,15 +148,32 @@ test('mobile_web_only_omits_desktop_profile',()=>fixture(parent=>{
   assert.equal(fs.existsSync(path.join(root,'docs/GUI_APP_PROFILE.md')),false);
   assert.ok(fs.existsSync(path.join(root,'sample_tool_nsh/nsh.json')));
   assert.match(fs.readFileSync(path.join(root,'sample_tool_nsh/src/lib.rs'),'utf8'),/sample_tool_core::scaffold_status/u);
-  assert.match(fs.readFileSync(path.join(root,'sample_tool_nsh/App.tsx'),'utf8'),/Scaffold\.status/u);
+  assert.match(fs.readFileSync(path.join(root,'sample_tool_nsh/App.shared.tsx'),'utf8'),/Scaffold\.status/u);
   assert.throws(()=>createNshWorkspace(path.join(parent,'invalid'),{...input,profile:options().profile}),/desktop profile requires desktop/u);
 }));
 
-/** 未接线的 TUI 与目标层级不匹配在写入前拒绝。 */
-test('tui_and_target_class_mismatches_fail_before_write',()=>fixture(parent=>{
-  const target=path.join(parent,'invalid');
-  assert.throws(()=>createNshWorkspace(target,{...options(),nshTargets:['desktop','tui']}),/TUI target unavailable/u);
-  assert.equal(fs.existsSync(target),false);
-  assert.throws(()=>createNshWorkspace(target,{...options(),nshTargets:['desktop']}),/web target-platforms mismatch/u);
-  assert.equal(fs.existsSync(target),false);
+/** TUI 使用 NSH 子目标，继承所选原生平台；不接受桌面 profile 或层级漂移。 */
+test('tui_workspaces_bind_mixed_core_without_desktop_profile',()=>fixture(parent=>{
+  const pure=path.join(parent,'tui');
+  const pureOptions={...options(),nshTargets:['tui'],targetPlatforms:['macos']};delete pureOptions.profile;
+  createNshWorkspace(pure,pureOptions);
+  const pureMeta=spawnSync('cargo',['metadata','--no-deps','--format-version','1'],{cwd:pure,encoding:'utf8'});
+  assert.equal(pureMeta.status,0,pureMeta.stderr);
+  assert.deepEqual(JSON.parse(pureMeta.stdout).metadata['agent-first-harness']['nsh-targets'],['tui']);
+  assert.match(fs.readFileSync(path.join(pure,'Cargo.toml'),'utf8'),new RegExp('nsh-core = \\{ version = "0\\.4\\.0".*rev = "' + NSH_TUI_PREVIEW_REVISION + '"','u'));
+  assert.equal(fs.existsSync(path.join(pure,'docs/GUI_APP_PROFILE.md')),false);
+  assert.match(fs.readFileSync(path.join(pure,'sample_tool_nsh/App.shared.tsx'),'utf8'),/Scaffold\.status/u);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(pure,'package.json'),'utf8')).scripts.dev.includes('run_nsh_tui.mjs'),true);
+  const combined=path.join(parent,'combined');
+  createNshWorkspace(combined,{...options(),nshTargets:['desktop','tui'],targetPlatforms:['macos']});
+  const combinedScripts=JSON.parse(fs.readFileSync(path.join(combined,'package.json'),'utf8')).scripts;
+  assert.match(combinedScripts['dev:tui'],/run_nsh_tui\.mjs/u);
+  assert.match(combinedScripts['nsh:test:tui'],/--test$/u);
+  assert.match(fs.readFileSync(path.join(combined,'Cargo.toml'),'utf8'),new RegExp('nsh-platform-macos = \\{ version = "0\\.4\\.0".*rev = "' + NSH_TUI_PREVIEW_REVISION + '"','u'));
+  assert.equal(fs.existsSync(path.join(combined,'docs/GUI_APP_PROFILE.md')),true);
+  const invalid=path.join(parent,'invalid');
+  assert.throws(()=>createNshWorkspace(invalid,{...options(),nshTargets:['desktop']}),/web target-platforms mismatch/u);
+  assert.equal(fs.existsSync(invalid),false);
+  assert.throws(()=>createNshWorkspace(invalid,{...options(),nshTargets:['tui'],targetPlatforms:['android']}),/target-platforms mismatch/u);
+  assert.equal(fs.existsSync(invalid),false);
 }));

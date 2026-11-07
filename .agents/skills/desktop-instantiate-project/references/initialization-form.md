@@ -59,13 +59,13 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 
 问题的基础技术字段依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`target_platforms`、`interfaces`、`policy_mode`、`post_release_action`。程序类型选项为 CLI、MCP、DESKTOP（技术值 `gui`）、NSH；NSH 展示说明固定为“下一代全平台开发框架”。DESKTOP 的 `gui_framework` 仅可选 Tauri/GPUI 并写入 Cargo 的 `gui-framework`；NSH 独立选中后必须问 `nsh_targets`，不得写入 `gui-framework`。
 
-`nsh_targets` 为可多选的 `desktop`、`mobile`、`web`、`tui`。`target_platforms` 继续记录具体目标，两者必须严格对应：`desktop` 对应至少一个 Windows/macOS/Linux，`mobile` 对应至少一个 Android/iOS，`web` 对应 Web；不得有未选择类别的具体目标。当前固定 NSH 0.4.0 无 TUI 运行或打包目标，TUI 选项仍展示，但选中后只返回待纠正问句，不能进入完整汇总或确认。NSH 当前只支持单独选择，不能与 CLI、MCP 或 DESKTOP 同时实例化；独立旧 TUI 程序类型仍被拒绝。
+`nsh_targets` 为可多选的 `desktop`、`mobile`、`web`、`tui`。`target_platforms` 继续记录具体目标：`desktop` 或 `tui` 要求至少一个 Windows/macOS/Linux，二者可共用同一 OS；`mobile` 对应至少一个 Android/iOS，`web` 对应 Web；不得有未选择类别的具体目标。TUI 使用官方 main 固定提交 `beeb9fc7707e0d4a195a4f7274f77b30e134c500` 的预览版；正式 v0.4.0 CLI 无 TUI 目标。NSH 当前只支持单独选择，不能与 CLI、MCP 或 DESKTOP 同时实例化；独立旧 TUI 程序类型仍被拒绝。
 
 推荐预设明确选择一次后由解析器展开六项。它不是额外持久字段；自定义按 `POLICY_FIELDS` 顺序逐项解析。推荐预设与用户主动给出的六项有冲突时，只追问策略模式：保留预设并撤回冲突值，或改为自定义并保留明确答案；不得静默覆盖。Agent Policy 的 `pending` 不构成确认，项目 Task、Task 独立工作树、内部并行各自独立。
 
-发布后动作始终独立展示 `local_package`（本地打包，推荐默认）和 `push_release_branch`（提交远程）。纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用；纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`。本地打包适用性由 `localPackageAvailability` 唯一计算；Linux GPUI 与已支持目标的 NSH 可本地打包，不能在框架解析前套用 Tauri 限制。TUI 因运行时缺失不能形成 NSH 创建确认，也不能靠发布后动作选择绕过。默认值须明确选择，初始化不执行发布后动作。
+发布后动作始终独立展示 `local_package`（本地打包，推荐默认）和 `push_release_branch`（提交远程）。纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用；纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 必须为 `push_release_branch`。本地打包适用性由 `localPackageAvailability` 唯一计算；Linux GPUI 与不含 TUI 的已支持 NSH 目标可本地打包，不能在框架或 NSH 子目标解析前提前判定。任何包含 TUI 的 NSH 组合因官方 main 预览版尚无 `package --target tui`，只能选 `push_release_branch`；这只记录未来动作，不会自动推送。默认值须明确选择，初始化不执行发布后动作。
 
-DESKTOP 和选择 `nsh_targets` 中 `desktop` 的 NSH 才处理九项桌面配置，按 `GUI_FIELDS` 顺序解析并写入唯一 `gui-initialization-config`，框架/NSH 目标不进入 profile。NSH 只选择移动或 Web 时不询问、不持久化桌面九项；旧桌面答案须撤下。GPUI 的 `deep_link` 固定 `unavailable`/`disabled`；目标含 Linux 时 `system_tray`、`global_shortcut` 同样不可用。NSH 桌面默认支持多窗口，托盘、自启、单实例和深链接各自明确询问；系统通知与 OS 全局快捷键仍固定 `unavailable`/`disabled`。未提供不可用项时由能力限制派生关闭；用户显式启用必须纠正，不能静默关闭。NSH 托盘问句须列出新建窗口、显示所有窗口和退出；单实例及深链接恢复现有窗口，无窗口时新建，不承诺固定主窗口。其余桌面能力无默认开关，不从预设或漏答推断。
+DESKTOP 和选择 `nsh_targets` 中 `desktop` 的 NSH 才处理九项桌面配置，按 `GUI_FIELDS` 顺序解析并写入唯一 `gui-initialization-config`，框架/NSH 目标不进入 profile。NSH 未选择 desktop（包括纯 TUI）时不询问、不持久化桌面九项或 Logo；旧桌面答案须撤下。GPUI 的 `deep_link` 固定 `unavailable`/`disabled`；目标含 Linux 时 `system_tray`、`global_shortcut` 同样不可用。NSH 桌面默认支持多窗口，托盘、自启、单实例和深链接各自明确询问；系统通知与 OS 全局快捷键仍固定 `unavailable`/`disabled`。未提供不可用项时由能力限制派生关闭；用户显式启用必须纠正，不能静默关闭。NSH 托盘问句须列出新建窗口、显示所有窗口和退出；单实例及深链接恢复现有窗口，无窗口时新建，不承诺固定主窗口。其余桌面能力无默认开关，不从预设或漏答推断。
 
 Tauri 与 NSH desktop 的 `deep_link = enabled` 必须同时 `single_instance = enabled`；冲突只请求用户明确修正，不自动开启单实例。全局快捷键中性合同为空动作、零默认键位、零 OS 注册，产品动作在下游确认。用户对 `sidebar_mode` 明确默认、跳过或空白答复才使用 `detailed`；未答继续等待，非法值重新询问。
 
@@ -95,4 +95,4 @@ node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.m
 
 Harness 源只接收本表固定初始化字段与所选路径精确要求的身份选择。产品目的、输入/输出、业务规则、成功标准、产品页面/文案/数据、风险、副作用、远程地址、凭据、反馈/发布渠道、产物格式和自定义发布要求不属于表单。即使同时提供，也不得解析、记录、复制或实施；只说明超出模板阶段，要求完成实例化并切换到唯一 `targetRoot` 后通过 `$desktop-define-product` 重新提出，不复述或保存具体内容。
 
-NSH 扩展：顶层第四项为 `NSH：下一代全平台开发框架`，下设桌面、移动、Web、TUI 四类；Tauri/GPUI 仍仅在 DESKTOP 框架问题中。当前 NSH 0.4.0 只允许桌面、移动、Web 对应的具体目标，TUI 选中即失败关闭。NSH 使用 TSX 与 Rust core 的 Mixed 模式；桌面沿用统一九字段流程，默认多窗口，四项宿主能力逐项确认，通知与系统全局快捷键派生 unavailable/disabled；非桌面不询问这些能力。已支持目标可本地打包，签名和跨平台执行不由表单确认冒充完成。
+NSH 扩展：顶层第四项为 `NSH：下一代全平台开发框架`，下设桌面、移动、Web、TUI 四类；Tauri/GPUI 仍仅在 DESKTOP 框架问题中。TUI 由官方 main 固定提交提供预览版 run/test；正式 v0.4.0 不支持 TUI，main 也没有官方 TUI package target。NSH 使用 TSX 与 Rust core 的 Mixed 模式；桌面沿用统一九字段流程，默认多窗口，四项宿主能力逐项确认，通知与系统全局快捷键派生 unavailable/disabled；未选择 desktop 不询问这些能力。含 TUI 的组合发布后动作仅允许提交远程；签名和跨平台执行不由表单确认冒充完成。

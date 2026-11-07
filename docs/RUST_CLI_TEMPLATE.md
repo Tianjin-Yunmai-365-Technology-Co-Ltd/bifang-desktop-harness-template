@@ -135,7 +135,7 @@ git --version
 node --version
 # 仅 GUI
 
-NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 表示顶层 NSH 及其桌面、移动、Web 子目标；TUI 在固定 NSH 0.4.0 不可运行或打包，选中时失败关闭。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据仅供读取兼容。能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 表示顶层 NSH 及其桌面、移动、Web、TUI 子目标；TUI 使用固定官方 `main` 预览 revision 的 Mixed TSX/Rust 运行时，要求 macOS/Windows/Linux 具体目标及匹配 CLI。正式 0.4.0 的 TUI 仍不可用，旧下游不自动升级。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据仅供读取兼容。能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 pnpm --version
 ```
 

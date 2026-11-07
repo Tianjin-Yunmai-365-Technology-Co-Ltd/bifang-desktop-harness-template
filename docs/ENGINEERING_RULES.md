@@ -1,6 +1,6 @@
 # 工程规则
 
-NSH 专用路由：新下游的顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` 与具体 `target-platforms`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；桌面九项配置仅适用于桌面子目标。固定 NSH 0.4.0 无 TUI 运行或打包目标，选中时失败关闭；能力限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：新下游的顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` 与具体 `target-platforms`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；桌面九项配置仅适用于桌面子目标。新 TUI 子目标依赖固定官方 `main` 预览 revision 与匹配 CLI，只能在所选 macOS/Windows/Linux 终端执行；正式 0.4.0 与旧下游继续按其真实能力失败关闭。打包限制以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
 GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.md) 分派；只在当前任务需要时读取对应 Skill。
 

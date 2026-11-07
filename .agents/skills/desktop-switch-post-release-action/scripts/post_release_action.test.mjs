@@ -129,6 +129,11 @@ test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) 
   assert.match(f.run("set", setOptions("local_package"), 2).error, /Mixed TSX 入口/u);
   fs.writeFileSync(app, 'import { mount } from "nsh";\nmount(() => null);\n');
   assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
+  const policyBeforeTui=fs.readFileSync(f.policy,"utf8");
+  fs.writeFileSync(path.join(f.root,"Cargo.toml"),fs.readFileSync(path.join(f.root,"Cargo.toml"),"utf8").replace('nsh-targets = ["desktop", "web"]','nsh-targets = ["desktop", "web", "tui"]'));
+  assert.match(f.run("check",[],2).error,/TUI release runner 或 package/u);
+  assert.match(f.run("set",setOptions("local_package","local_package"),2).error,/push_release_branch/u);
+  assert.equal(fs.readFileSync(f.policy,"utf8"),policyBeforeTui);
 
   const legacy = fixture(t);
   fs.writeFileSync(path.join(legacy.root, "Cargo.toml"), '[workspace]\nmembers = ["sample_tool_gui"]\n[workspace.metadata.agent-first-harness]\nproject-id = "sample_tool"\ntarget-platforms = ["macos"]\ninterfaces = ["gui"]\ngui-framework = "nsh"\n');

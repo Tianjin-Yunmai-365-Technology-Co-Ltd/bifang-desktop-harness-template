@@ -75,8 +75,8 @@ GPUI 初始化完成时完整保留 `$desktop-manage-gpui-dependencies`、`$desk
 
 ## 顶层 NSH 初始化分派
 
-NSH：下一代全平台开发框架，是与 CLI、MCP、DESKTOP 平级的单独接口。表单在 NSH 下选择 desktop/mobile/web/tui；当前固定 0.4.0 的 TUI 不可运行或打包，选中即失败关闭。NSH 使用 `$desktop-add-nsh-adapter`，先读其运行时引用；新工程采用 Mixed TSX 界面调用共享 Rust core。仅 desktop 子目标复用九字段桌面 profile，固定支持多窗口，托盘、自启、单实例、深链接按表单逐项询问，深链接要求单实例；系统通知与 OS 全局快捷键仍须明确 disabled，关于/赞助/侧栏按选择询问。Android/iOS/Web 由相应 NSH 子目标选择，不混用其他接口。
+NSH：下一代全平台开发框架，是与 CLI、MCP、DESKTOP 平级的单独接口。表单在 NSH 下选择 desktop/mobile/web/tui；TUI 使用固定官方 main 预览 revision，正式 0.4.0 或不匹配运行时失败关闭。NSH 使用 `$desktop-add-nsh-adapter`，先读其运行时引用；新工程采用 Mixed TSX 界面调用共享 Rust core。仅 desktop 子目标复用九字段桌面 profile，固定支持多窗口，托盘、自启、单实例、深链接按表单逐项询问，深链接要求单实例；系统通知与 OS 全局快捷键仍须明确 disabled，关于/赞助/侧栏按选择询问。TUI 使用终端 idiom、macOS/Windows/Linux 平台选择，不询问桌面 profile；Android/iOS/Web 由相应 NSH 子目标选择，不混用其他接口。
 
-中性 core 建立后运行 add-only helper；纯净工程回归可调用初始化器 `scripts/create_nsh_workspace.mjs`（仅源专用 wrapper，不能代替完整实例化的复制/重置/策略/Git 收尾）。选择 NSH desktop 时复用选定 Logo；工程临时夹具标记中性。运行非空 Rust workspace、NSH check/test 与 `$desktop-test-nsh-initialization-e2e` 后才裁剪：保留 NSH adapter/build 和共享支持页资产，删除 Tauri/Mantine/GPUI 专属 Skills；保留全部通用生命周期、版本、发布、制品收集与升级规则。删除初始化器及本次 NSH 初始化 E2E，改写地图与失效引用，再创建独立 main 唯一基线。不得把 NSH runner 的临时嵌套 workspace 当产品根。
+中性 core 建立后运行 add-only helper；纯净工程回归可调用初始化器 `scripts/create_nsh_workspace.mjs`（仅源专用 wrapper，不能代替完整实例化的复制/重置/策略/Git 收尾）。选择 NSH desktop 时复用选定 Logo；工程临时夹具标记中性。运行非空 Rust workspace、所选目标的 NSH check/test（TUI 走固定预览包装器）与 `$desktop-test-nsh-initialization-e2e` 后才裁剪：保留 NSH adapter/build，仅 desktop 保留共享支持页资产，删除 Tauri/Mantine/GPUI 专属 Skills；保留全部通用生命周期、版本、发布、制品收集与升级规则。删除初始化器及本次 NSH 初始化 E2E，改写地图与失效引用，再创建独立 main 唯一基线。不得把 NSH runner 的临时嵌套 workspace 当产品根。
 
-NSH 发布后可选择 local_package；由 `$desktop-build-nsh-release` 分目标本地构建，签名/移动设备/目标宿主仍是独立事实。不生成 Tauri 配置、前端或 GPUI Kit，不使用两者的初始化 E2E。初始化完成的终端下游不得保留 create_nsh_workspace 或继续派生。
+未选 TUI 的 NSH 项目发布后可选择 local_package；含 TUI 时选择 `push_release_branch`，当前 TUI 支持本地预览运行、测试及受管本机预览归档，正式候选仍失败关闭。`$desktop-build-nsh-release` 分目标构建，签名/移动设备/目标宿主仍是独立事实。不生成 Tauri 配置、前端或 GPUI Kit，不使用两者的初始化 E2E。初始化完成的终端下游不得保留 create_nsh_workspace 或继续派生。

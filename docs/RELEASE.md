@@ -1,6 +1,6 @@
 # 版本与发布
 
-候选路线先读根 Cargo metadata 的 `interfaces`：`gui` 再按 `gui-framework` 分派 Tauri（缺省）或 GPUI；顶层 `nsh` 根据 `nsh-targets` 与具体 `target-platforms` 使用独立 `$desktop-build-nsh-release`。Tauri 配置、前端、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用 Rust/cargo-packager 管线，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；NSH 当前只打包桌面、移动和 Web，TUI 在固定 0.4.0 不可运行或打包。仅 Linux Tauri 且无 CLI 时必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于这些路径；开发试包不冒充候选。
+候选路线先读根 Cargo metadata 的 `interfaces`：`gui` 再按 `gui-framework` 分派 Tauri（缺省）或 GPUI；顶层 `nsh` 根据 `nsh-targets` 与具体 `target-platforms` 使用独立 `$desktop-build-nsh-release`。Tauri 配置、前端、图标及 Tauri 打包 helper 只适用于 Tauri。GPUI 使用 Rust/cargo-packager 管线，原生 macOS 应用包/DMG、Windows x64 NSIS 与 Linux GNU x64/ARM64 deb/tar.gz 可选择 `local_package`；NSH 当前只为桌面、移动和 Web 提供正式候选。TUI 在固定官方 main 预览 revision 中支持开发运行、测试和受管本机预览归档，正式 0.4.0 无该目标，预览 revision 仍缺 TUI release runner/package 目标，不能宣称正式候选。含 TUI 的 NSH 不选发布后 `local_package`；仅 Linux Tauri 且无 CLI 时也必须选择 `push_release_branch`。Git 本地主分支/tag、SemVer、当次 E2E/签名选择、真实候选与证据边界适用于已支持的路径；开发试包不冒充候选。
 
 ## GPUI 构建路由
 
@@ -224,6 +224,6 @@ GUI 的本地生产构建和产物存在检查可在批准渠道允许时使用�
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立分派 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。新顶层 NSH 桌面先用 `nsh build --release` 生成 Mixed TSX bundle，再编译与装配自定义 AppKit、Win32 或 GTK 宿主；九字段桌面 profile 精确决定托盘、自启、单实例、深链接，原生多窗口固定提供，通知与 OS 全局快捷键必须禁用。macOS app 的 URL scheme 随包声明；Windows/Linux 仅在深链接启用时附带注册脚本，用户安装或注册的真实行为仍须验证。Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录继续用官方 Mixed runner 打包；`tui` 不可用，正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 local_package 可用于 NSH 已实现的持久目标；本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立分派 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。新顶层 NSH 桌面先用 `nsh build --release` 生成 Mixed TSX bundle，再编译与装配自定义 AppKit、Win32 或 GTK 宿主；九字段桌面 profile 精确决定托盘、自启、单实例、深链接，原生多窗口固定提供，通知与 OS 全局快捷键必须禁用。macOS app 的 URL scheme 随包声明；Windows/Linux 仅在深链接启用时附带注册脚本，用户安装或注册的真实行为仍须验证。Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录继续用官方 Mixed runner 打包；TUI 使用固定官方 main 预览 revision 的配对 CLI/Cargo 运行与测试。`--mode local --target tui` 可将 `nsh build --release` 生成的应用专属开发宿主与完整 Mixed bundle 编成仅供本机验证的预览归档，manifest 标明 `previewOnly` 和 `officialReleaseRunner: false`；它不进入 `release/`，也不满足正式候选验收。上游尚无 TUI release runner/package 目标，`--mode candidate --target tui` 失败关闭。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。当前发布后 `local_package` 只可用于未选 TUI 的 NSH 已实现持久目标；含 TUI 时用 `push_release_branch`，其他已选目标可按独立构建请求形成候选。本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

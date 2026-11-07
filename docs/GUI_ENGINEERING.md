@@ -1,6 +1,6 @@
 # 客户端工程方案索引
 
-NSH 专用路由：新项目的顶层 `interfaces = ["nsh"]`、`nsh-targets` 与具体 `target-platforms` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据只读兼容。桌面能力只在 NSH 桌面子目标配置；固定 NSH 0.4.0 的 TUI 子目标尚不可用，选择时失败关闭。能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：新项目的顶层 `interfaces = ["nsh"]`、`nsh-targets` 与具体 `target-platforms` 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据只读兼容。桌面能力只在 NSH 桌面子目标配置；TUI 使用固定官方 `main` 预览 revision，在所选 macOS/Windows/Linux 终端运行与测试，正式 0.4.0 不含此目标。能力与打包边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
 本文按任务组织 DESKTOP 与 NSH 的依赖版本、实现方案、性能和打包知识。根 Cargo 决定实际框架/接口/目标/版本；中性 renderer、已有产品接线与目标运行证据分别判断。普通实现只读命中主题，不自动初始化、升级依赖、跑基准或构建。
 

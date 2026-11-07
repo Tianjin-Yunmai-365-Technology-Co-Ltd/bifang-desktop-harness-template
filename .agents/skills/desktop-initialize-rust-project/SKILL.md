@@ -25,8 +25,8 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 
 - `tauri`：完整读取 [Tauri 初始化接线](references/tauri-initialization.md)，执行已确认九项配置对应的 GUI 依赖、插件、Logo/DMG、支持页和 `$desktop-test-gui-initialization-e2e`。
 - `gpui`：分派 `$desktop-add-gpui-adapter` 并完整读取 [GPUI 初始化接线](references/gpui-initialization.md)。根 workspace 使用 `gpui-kit = "0.8.1"` 与 `rust-i18n = "4.2.4"` 的兼容下界；`$desktop-test-gpui-initialization-e2e` 使用真实 Computer Use。此路径不执行 Tauri 插件或前端步骤。
-- 顶层 `nsh`：分派 `$desktop-add-nsh-adapter` 并完整读取 [NSH 初始化接线](references/nsh-initialization.md)。desktop/mobile/web 映射已选具体平台；固定 NSH 0.4.0 无 TUI 运行或打包目标，选中即失败关闭。此路径不执行 Tauri 或 GPUI 专属步骤。
-- `local_package` 只在含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或已选顶层 NSH，或 Tauri GUI 目标含 macOS/Windows 时合法；不含 CLI 的仅 Linux Tauri GUI 必须明确选 `push_release_branch`。GPUI 由 `$desktop-build-gpui-release` 独立生成本机 macOS `.app`/DMG、Windows NSIS 或 Linux GNU deb/tar.gz；CLI 组合保留各接口独立打包边界，不把 GUI 包冒充 CLI 产物。初始化只保留打包能力，不执行候选构建。
+- 顶层 `nsh`：分派 `$desktop-add-nsh-adapter` 并完整读取 [NSH 初始化接线](references/nsh-initialization.md)。desktop/mobile/web/tui 映射已选具体平台；TUI 仅使用固定官方 main 预览 revision 的配对 CLI 与 Cargo 依赖运行、测试，正式 0.4.0 与不匹配运行时失败关闭；打包边界以 NSH 构建 Skill 为准。此路径不执行 Tauri 或 GPUI 专属步骤。
+- `local_package` 只在含 CLI，或已选 GPUI GUI（含 Linux GNU x64/ARM64），或未选 TUI 的顶层 NSH，或 Tauri GUI 目标含 macOS/Windows 时合法；含 TUI 的顶层 NSH 必须选择 `push_release_branch`，因为固定 main 预览运行时尚无 TUI release runner/package 目标；不含 CLI 的仅 Linux Tauri GUI也必须明确选 `push_release_branch`。GPUI 由 `$desktop-build-gpui-release` 独立生成本机 macOS `.app`/DMG、Windows NSIS 或 Linux GNU deb/tar.gz；CLI 组合保留各接口独立打包边界，不把 GUI 包冒充 CLI 产物。初始化只保留打包能力，不执行候选构建。
 
 以下“GUI”中的插件、WebView、React/Mantine/Jotai、Tauri图标/DMG、Tauri E2E 与 Tauri Skill 保留要求均只针对 `gui-framework = "tauri"`；core-first、目标/接口事实、独立仓库、身份选择、版本和无业务边界适用于 DESKTOP 与 NSH；九字段结构对 NSH 仅随 desktop 子目标适用。框架细节只读上方命中的初始化引用与 adapter Skill。
 

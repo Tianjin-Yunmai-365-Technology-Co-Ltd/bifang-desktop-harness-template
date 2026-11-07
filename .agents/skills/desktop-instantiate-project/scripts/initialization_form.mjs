@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveProjectTarget } from "./resolve_project_target.mjs";
-import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, NSH_TARGETS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, REVIEW_QUESTION, questionFor, summaryNotices } from "./initialization_questions.mjs";
+import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, REVIEW_QUESTION, questionFor, summaryNotices } from "./initialization_questions.mjs";
 
 /** 拒绝无法解释的状态形状，不把产品字段、凭据或任意配置带入汇总。 */
 function exactKeys(object, allowed, label) {
@@ -40,7 +40,7 @@ function parseAnswer(id, answer) {
 /** 本地打包适用性只由接口、框架与目标共同决定；框架未解时返回待校验。 */
 export function localPackageAvailability(values) {
   if (values.interfaces.includes("cli")) return "available";
-  if (values.interfaces.includes("nsh")) return "available";
+  if (values.interfaces.includes("nsh")) return !values.nsh_targets ? "pending" : values.nsh_targets.includes("tui") ? "unavailable" : "available";
   if (!values.interfaces.includes("gui")) return "unavailable";
   if (!values.gui_framework) return "pending";
   return values.gui_framework === "gpui" || values.target_platforms.some((platform) => ["macos", "windows"].includes(platform)) ? "available" : "unavailable";
@@ -53,10 +53,14 @@ function unavailableGuiFields(values) {
   return values.target_platforms.includes("linux") ? ["system_tray", "deep_link", "global_shortcut"] : ["deep_link"];
 }
 
-/** 将具体目标映射到 NSH 的四类选择；当前固定运行时没有 TUI 的具体目标。 */
-function nshTargetClasses(platforms) {
-  const classes = new Set(platforms.map(platform => ["windows", "macos", "linux"].includes(platform) ? "desktop" : platform === "web" ? "web" : "mobile"));
-  return NSH_TARGETS.filter(target => classes.has(target));
+/** TUI 和 desktop 可以共享具体 OS；mobile 和 web 仍与各自平台双向对应。 */
+function nshTargetsMatchPlatforms(platforms, targets) {
+  const selected = new Set(targets);
+  const native = platforms.some(platform => ["windows", "macos", "linux"].includes(platform));
+  const mobile = platforms.some(platform => ["android", "ios"].includes(platform));
+  const web = platforms.includes("web");
+  return native === (selected.has("desktop") || selected.has("tui")) &&
+    mobile === selected.has("mobile") && web === selected.has("web");
 }
 
 /** 计算问题或汇总；答案可以批量到达，合法值只解析一次并保留来源。 */
@@ -127,7 +131,9 @@ export function evaluateInitializationForm(input) {
     } catch { issues.project_path = "路径解析或最终目录安全检查失败；请用路径 helper 核对并修正。"; delete values.project_path; }
   }
   if (values.interfaces && values.target_platforms && values.post_release_action === "local_package" && localPackageAvailability(values) === "unavailable") {
-    issues.post_release_action = "此接口/平台组合的本地打包不可用；请选择提交远程，或明确修改接口/平台。";
+    issues.post_release_action = values.interfaces.includes("nsh") && values.nsh_targets?.includes("tui")
+      ? "NSH main 预览版尚无官方 TUI package 目标；包含 TUI 的组合请选择提交远程，或撤下 TUI。"
+      : "此接口/平台组合的本地打包不可用；请选择提交远程，或明确修改接口/平台。";
     delete values.post_release_action;
   }
   const missingBase = BASE_FIELDS.filter((id) => !values[id] && !(hasName && ["name_zh", "name_en"].includes(id) && !issues[id]));
@@ -147,12 +153,8 @@ export function evaluateInitializationForm(input) {
   }
   if (gui && !values.gui_framework) return output("framework", ["gui_framework"]);
   if (nsh && !values.nsh_targets) return output("nsh", ["nsh_targets"]);
-  if (nsh && values.nsh_targets.includes("tui")) {
-    issues.nsh_targets = "当前固定的 NSH 0.4.0 没有 TUI 运行或打包目标；请先撤下 TUI，待运行时具备可验证支持后再选择。";
-    return output("nsh", ["nsh_targets"]);
-  }
-  if (nsh && JSON.stringify(nshTargetClasses(values.target_platforms)) !== JSON.stringify(values.nsh_targets)) {
-    issues.target_platforms = "具体目标平台与 NSH 能力类别不一致；桌面对应 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web。请调整目标平台或 NSH 能力。";
+  if (nsh && !nshTargetsMatchPlatforms(values.target_platforms, values.nsh_targets)) {
+    issues.target_platforms = "具体平台与 NSH 能力类别不一致；desktop 或 tui 至少对应一个 Windows/macOS/Linux，二者可共用；mobile 对应 Android/iOS，web 对应 Web。请调整目标平台或 NSH 能力。";
     return output("base", ["target_platforms"]);
   }
   if (!nsh && values.target_platforms.some((platform) => ["android", "ios", "web"].includes(platform))) {

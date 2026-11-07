@@ -27,6 +27,7 @@
 | LIM-031 | Tauri deb 原生与完整元数据证据待补 | 已实现 deb/checksum/inspection 整组目录提交、旧集合保留、1 MiB 流式 hash、dpkg 五分钟/16 MiB 预算及 CLI 中断清理；相关文件/真实 Node 进程回归通过。当前仍仅适用可信本机输出及默认 target 布局，payload 比较不证明 uid/gid、硬链接拓扑、xattr/ACL，macOS 上未执行真实 dpkg 链路 | 在 Linux 原生执行保留的实际解包/重打包/规范化闭环；扩展特殊 ownership、候选或不可信包处理前另补元数据与安全取证，不把当前集合提交视为安装/运行或断电持久性证明 | Mitigated；2026-11-06 工程缺陷已修复，Linux 原生复验 Not run |
 | LIM-032 | GPUI 最新兼容链仍含上游 block 0.1.6 的 future-incompatibility 警告 | 2026-10-29 在 Rust 1.98.1 检查 Kit 0.8.1 最小/全能力组合时编译通过，但 Cargo 提示该传递库未来编译器会拒绝部分代码；本轮不改写上游或强制不兼容传递版本 | 上游 GPUI/Apple 依赖链提供兼容修复后更新并使用满足兼容下限的 stable 重跑正常解析及原生编译；更高工具链实际失败时再按真实诊断处理 | Open |
 | LIM-033 | GPUI Windows Job 原生回收证据待补 | 开发循环已改为 Windows 10+/Server 2016+ 匿名 Job 控制器，创建时原子归属、最后句柄关闭回收，leader 退出后保持所有权；协议/参数/超时回归与真实 POSIX 开发循环通过，但当前 macOS 不能证明 Win32 API、嵌套 Job 与宿主权限行为 | 在 Windows 原生执行已保留的后代脱离标准流、leader 先退出、重编译、控制 EOF、控制器退出及清理失败回归；不得以协议夹具或 POSIX 结果代证 | Mitigated；2026-11-06 工程实现已修复，Windows 原生复验 Not run |
+| LIM-034 | NSH 官方 TUI 预览版缺少 release runner 和 package 目标 | 固定 main 提交提供 `run/test --target tui`，但正式 v0.4.0 尚无 TUI，预览提交也不提供正式 TUI 候选；含 TUI 的项目不能选择发布后 `local_package`，本地开发试包即使可运行也不得冒充候选 | 上游发布应用专属 TUI release runner/package 后核对固定 tag、CLI/Cargo 同源、Mixed native module 和完整包，在目标 macOS/Windows/Linux 终端分别执行实际运行与候选 E2E，再调整构建和发布门禁 | Open |
 
 ## 记录规则
 

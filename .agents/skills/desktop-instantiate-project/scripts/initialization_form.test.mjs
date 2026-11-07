@@ -82,16 +82,25 @@ test("nsh_mobile_web_skip_desktop_profile_and_reject_stale_answers", () => fixtu
   delete input.answers.nsh_targets;assert.equal(evaluate().questions[0].id,"nsh_targets");
 }));
 
-/** TUI 与独立旧接口不同；当前固定运行时缺失目标，不能以确认摘要绕过。 */
-test("nsh_tui_choice_is_visible_but_cannot_be_confirmed", () => fixture(({input,set,nsh,evaluate}) => {
-  nsh(["desktop","tui"],["macos"]);
-  assert.equal(evaluate().stage,"nsh");
-  assert.equal(evaluate().questions[0].id,"nsh_targets");
-  assert.match(evaluate().questions[0].issue,/0\.4\.0/u);
-  assert.ok(evaluate().questions[0].options.some(option=>option.includes("TUI")));
-  input.confirmation={digest:"0".repeat(64),source:"user:confirm"};
-  assert.equal(evaluate().stage,"nsh");
-  set("nsh_targets",["desktop"]);assert.equal(evaluate().stage,"review");
+/** TUI 是 NSH 子目标，纯终端不要求桌面 profile，组合目标共用 OS。 */
+test("nsh_tui_preview_accepts_native_os_and_requires_push_action", () => fixture(({input,set,nsh,evaluate}) => {
+  nsh(["tui"],["macos"]);
+  assert.equal(evaluate().questions[0].id,"post_release_action");
+  assert.match(evaluate().questions[0].issue,/尚无官方 TUI package/u);
+  assert.equal(localPackageAvailability(evaluate().values),"unavailable");
+  set("post_release_action","push_release_branch");
+  assert.equal(evaluate().stage,"review");
+  assert.equal(evaluate().values.sidebar_mode,undefined);
+  assert.deepEqual(evaluate().summary.unavailable,[]);
+  assert.doesNotMatch(evaluate().summary.notices.join("\n"),/Logo 在本汇总确认后/u);
+  const digest=evaluate().summaryDigest; input.confirmation={digest,source:"user:test-confirmation"};
+  assert.equal(evaluate().stage,"confirmed");
+  set("target_platforms",["android"]); assert.equal(evaluate().questions[0].id,"target_platforms");
+  set("target_platforms",["macos"]); set("about_page","enabled"); assert.equal(evaluate().questions[0].id,"nsh_targets");
+  delete input.answers.about_page;
+  nsh(["desktop","tui"],["macos"]); set("post_release_action","push_release_branch");
+  assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.nsh_targets,["desktop","tui"]);
 }));
 
 /** 空表单集中首轮九项，直调初始化只省既定路径，标识与负责人仍须提问。 */

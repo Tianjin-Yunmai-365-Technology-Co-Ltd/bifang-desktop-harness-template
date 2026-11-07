@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { nshHostCargoDependencies, nshHostMethods, nshHostWorkspaceDependencies, renderNshHostFiles } from './nsh_host_files.mjs';
-import { renderNshAdapterFiles } from './nsh_adapter_files.mjs';
+import { NSH_REVISION, NSH_TUI_PREVIEW_REVISION, renderNshAdapterFiles } from './nsh_adapter_files.mjs';
 
 const profile = () => ({ system_tray: 'disabled', system_notification: 'disabled', autostart: 'disabled', about_page: 'disabled', sponsor_page: 'disabled', single_instance: 'disabled', deep_link: 'disabled', global_shortcut: 'disabled', sidebar_mode: 'compact' });
 const options = (targetPlatforms = ['macos', 'windows', 'linux'], selected = []) => ({ projectId: 'sample_tool', nameZh: '测试工具', nameEn: 'Test Tool', nshTargets: ['desktop'], targetPlatforms, profile: Object.assign(profile(), Object.fromEntries(selected.map(key => [key, 'enabled']))) });
@@ -27,6 +27,8 @@ test('baseline emits only selected host methods and target-specific workspace de
   assert.match(nshHostCargoDependencies(input), /nsh-platform-macos\.workspace = true/u);
   assert.doesNotMatch(nshHostCargoDependencies(input), /nsh-platform-windows|nsh-platform-linux|version =/u);
   assert.match(nshHostWorkspaceDependencies(input), /serde_json = "1\.0\.154"/u);
+  assert.match(nshHostWorkspaceDependencies(input), new RegExp(NSH_REVISION, 'u'));
+  assert.doesNotMatch(nshHostWorkspaceDependencies(input), new RegExp(NSH_TUI_PREVIEW_REVISION, 'u'));
   assert.doesNotMatch(nshHostWorkspaceDependencies(input), /nsh-platform-windows|nsh-platform-linux/u);
 });
 

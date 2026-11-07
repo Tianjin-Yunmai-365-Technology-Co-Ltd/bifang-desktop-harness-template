@@ -1,6 +1,6 @@
 # AGENTS.md
 
-NSH 是平级的“下一代全平台开发框架”。Cargo `interfaces = ["nsh"]`、`nsh-targets` 记录选择；全目标使用 Mixed TSX/共享 Rust core。desktop 固定多窗口；九字段桌面配置中托盘、自启、单实例、深链接逐项询问，通知与 OS 全局快捷键标为不可用并派生关闭。0.4.0 TUI 失败关闭；旧 GUI/NSH 只读兼容。路由 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md`、`$desktop-build-nsh-release`。
+NSH 是平级的“下一代全平台开发框架”。Cargo `interfaces = ["nsh"]`、`nsh-targets` 记录选择；全目标使用 Mixed TSX/共享 Rust core。desktop 固定多窗口；九字段桌面配置中托盘、自启、单实例、深链接逐项询问，通知与 OS 全局快捷键标为不可用并派生关闭。TUI 使用固定官方 main 预览源码，仅适用于 macOS/Windows/Linux 终端；正式 0.4.0 不支持 TUI。旧 GUI/NSH 只读兼容。路由 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md`、`$desktop-build-nsh-release`。
 
 ## 项目使命
 
@@ -34,7 +34,7 @@ DESKTOP 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省�
 | 永久 Agent 能力偏好变更 | Agent Policy 字段语义与初始化后变更规则 | `$desktop-configure-agent-policy`；发布后动作仍用专用 Skill |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
 | GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md`；Tauri/Mantine 列表页、数据表格、后台列表、搜索结果页及已有列表审查另读 `$mantine-list-view` | 按 `gui-framework` 选择 GUI Skill（`gpui` 另读 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md` 与 `dependency-baseline.md`）；Tauri/Mantine 列表任务即使未明说表格也必须使用 `$mantine-list-view`；不得一次加载全部 GUI Skills |
-| NSH | Cargo `interfaces`、`nsh-targets`、`target-platforms`；NSH Skill 的运行时引用 | desktop 才读 `docs/GUI_APP_PROFILE.md`；TUI 失败关闭 |
+| NSH | Cargo `interfaces`、`nsh-targets`、`target-platforms`；NSH Skill 的运行时引用 | desktop 才读 `docs/GUI_APP_PROFILE.md`；TUI 先核对固定预览 revision、目标系统和真实运行/构建边界 |
 | Task、工作树、子任务权限与并行调度 | `docs/AGENT_POLICY.md` 的项目选择；统一 Skill 的按需引用 | `$desktop-task-workflow`；默认不自动创建左侧 Task，Local 同 cwd 串行，独立 Worktree 尽量并行 |
 | 内部并行 Worktree/Subagent 或提交 | 统一 Skill 的并行引用；提交时读提交规范 | `$desktop-task-workflow`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-handoff-project`；持久计划另按触发调用 `$desktop-plan-change` |

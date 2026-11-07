@@ -1,10 +1,14 @@
 # 2026-11-07 变更记录
 
-本文件完整承接前一日仍有效能力与历史绑定，加入 2026-11-07 的独立 TUI 退役、NSH 顶层分类和 Mixed 桌面接线；历史变化不重新声明为本日新增或重新验证。历史摘录、稳定标识及原始验证部分保留在 [历史记录](CHANGELOG_history.md)；归档边界与恢复方法见 [ADR-20261020-001](../adr/20261107_ADR.md)。
+本文件完整承接前一日仍有效能力与历史绑定，加入 2026-11-07 的独立 TUI 退役、NSH 顶层分类、Mixed 桌面接线及 NSH 内部 TUI 预览接线；历史变化不重新声明为本日新增或重新验证。历史摘录、稳定标识及原始验证部分保留在 [历史记录](CHANGELOG_history.md)；归档边界与恢复方法见 [ADR-20261020-001](../adr/20261107_ADR.md)。
+
+## 2026-11-07 新增
+
+- `HARNESS-FEAT-NSH-TUI-PREVIEW`（`required_version = pending`，仅正式发布时取号）：NSH 内部 `tui` 子目标接受所选 macOS/Windows/Linux，支持纯 TUI 与 `desktop+tui` 的 Mixed TSX/Rust core 生成；含 TUI 的新工程固定官方 main 提交并检查 CLI/Cargo 同源，提供独立终端运行、测试、桌面宿主能力隔离和本机预览归档。未选 TUI 的新 NSH 工程继续固定正式 v0.4.0。正式 0.4.0 CLI 无 TUI 目标，预览提交尚无 TUI release runner/package，正式候选与含 TUI 的发布后本地打包仍拒绝；真实终端和跨系统结果按实际执行记录，不从生成器测试推断。见 [ADR-20261107-004](../adr/20261107_ADR.md)。
 
 ## 2026-11-07 移除
 
-- `HARNESS-REMOVE-TUI`（`required_version = 202611070300`）：永久移除独立 Ratatui TUI 程序类型、适配器 Skill、依赖候选及构建/验收路由；顶层 `interfaces = ["tui"]` 仍非法。旧下游的 TUI 工程资产仍受保护，声明 TUI 的升级须先在目标项目单独迁移，不能静默删代码。NSH 内部 TUI 目标另受当前运行时不可用门禁，见 [ADR-20261107-001](../adr/20261107_ADR.md)。
+- `HARNESS-REMOVE-TUI`（`required_version = 202611070300`）：永久移除独立 Ratatui TUI 程序类型、适配器 Skill、依赖候选及构建/验收路由；顶层 `interfaces = ["tui"]` 仍非法。旧下游的独立 TUI 工程资产仍受保护，升级须先在目标项目单独迁移，不能静默删代码。新 NSH 内部 `tui` 子目标属于上面的固定预览路线，见 [ADR-20261107-001](../adr/20261107_ADR.md)。
 
 ## 2026-11-07 变化
 
@@ -12,7 +16,7 @@
 
 - `HARNESS-FEAT-NSH-MIXED-DESKTOP`（`required_version = 202611071119`）：新 NSH 下游的桌面、移动和 Web 均创建 Mixed TSX UI + 共享 Rust core；桌面由自定义 AppKit/Win32/GTK 宿主固定提供多窗口，并将托盘、自启、单实例、深链接按九字段配置分别接线。深链接依赖单实例；系统通知与 OS 全局快捷键仍不可用。桌面开发和打包入口改为生成 bundle、编译原生宿主并装配资源；移动/Web 继续走官方 Mixed 宿主。初始化问询、能力引用、设计和技术知识已同步。真实目标平台行为仍须独立取证，既有 GUI/NSH 下游只读兼容。见 [ADR-20261107-003](../adr/20261107_ADR.md)。
 
-- `HARNESS-CHANGE-NSH-TOP-LEVEL`（`required_version = 202611071119`）：NSH 以“下一代全平台开发框架”成为与 CLI、MCP、DESKTOP 平级的程序类型；新工程写 `interfaces = ["nsh"]`、`nsh-targets`、独立 `_nsh` 成员，桌面/移动/Web 子目标与具体平台对应。既有 NSH 九项配置归入桌面目标，未选桌面时不询问或生成该 profile。原 GUI/NSH 下游只读兼容。TUI 子目标在固定 NSH 0.4.0 暂不可创建、运行或打包，表单选择时失败关闭；此前删除的独立 TUI 适配器不恢复。相关接线与回归由本次交付报告确认，真实跨平台产物须另行验证。见 [ADR-20261107-002](../adr/20261107_ADR.md)。
+- `HARNESS-CHANGE-NSH-TOP-LEVEL`（`required_version = 202611071119`）：NSH 以“下一代全平台开发框架”成为与 CLI、MCP、DESKTOP 平级的程序类型；新工程写 `interfaces = ["nsh"]`、`nsh-targets`、独立 `_nsh` 成员，桌面/移动/Web 子目标与具体平台对应。既有 NSH 九项配置归入桌面目标，未选桌面时不询问或生成该 profile。原 GUI/NSH 下游只读兼容。当时固定 NSH 0.4.0 的 TUI 不可创建、运行或打包，后续同日选择的官方 main 预览接线以上述新条目为准；此前删除的独立 TUI 适配器不恢复。相关接线与回归由本次交付报告确认，真实跨平台产物须另行验证。见 [ADR-20261107-002](../adr/20261107_ADR.md)。
 
 - `HARNESS-CHANGE-NSH-WIRING`（`required_version = 202611070300`）：把 NSH 独立打包、真实渲染测试、发布日志按钮、双语分类内容和最终候选证据接入 Harness 硬契约；纠正 iOS 本地 `.app` 与正式 IPA 的边界。中性 macOS 与 Web 工程已完成真实本地打包、候选构建及最终产物界面 E2E；移动平台及正式产品候选仍按各自证据判断。
 
@@ -56,7 +60,7 @@
 - 核心与接口：领域规则、用例和权威状态在 core；CLI 非交互机器协议与 MCP stdio 各自薄适配，DESKTOP 按 Tauri/GPUI 分派，NSH 以独立薄适配器服务桌面、移动和 Web。文件/进程能力独立批准。见 [工程规则](../ENGINEERING_RULES.md)、[Rust 基线](../RUST_CLI_TEMPLATE.md) 和 [CLI 契约](../CLI_CONTRACT.md)。
 - Task 与 Git：项目自动 Task 默认关闭，环境选择独立；真实身份、自主执行、所有权并行及 Local 串行遵守统一 Skill。Git 发布止于本地主分支/tag；冻结的发布后动作持续授权其所选后续路径，不恢复旧的双发布模式或自动资源清理。见 [Agent Policy](../AGENT_POLICY.md) 与 [Task 工作流](../../.agents/skills/desktop-task-workflow/SKILL.md)。
 - 依赖与工程门禁：兼容下界、最小特性、真实最低版本验证及 ignored/tracked 锁策略分别判断；标准用户全局工具只按初始化或真实环境失败恢复，项目依赖保持本地；上游自动化使用 Node 标准库且不向下游传播 Python 禁令。文件规模、中文声明注释和按事件记忆均以 [工程规则](../ENGINEERING_RULES.md) 为准。
-- GUI 与平台：Tauri/GPUI 按 DESKTOP 的 Cargo 框架隔离，NSH 由顶层 `nsh-targets` 选择桌面、移动、Web，三类均为 Mixed TSX UI + 共享 Rust core；九字段 profile 只在 DESKTOP 或 NSH 桌面存在。NSH 桌面固定多窗口，托盘、自启、单实例、深链接按选择生成，通知和 OS 全局快捷键不可用；TUI 子目标在当前固定运行时失败关闭。双语、三态主题、页面和品牌资源按实际目标装配。各平台依赖、能力及打包路径见 [GUI 工程索引](../GUI_ENGINEERING.md) 和 [设计标准](../design_standards/README.md)。
+- GUI 与平台：Tauri/GPUI 按 DESKTOP 的 Cargo 框架隔离，NSH 由顶层 `nsh-targets` 选择桌面、移动、Web、TUI，均为 Mixed TSX UI + 共享 Rust core；九字段 profile 只在 DESKTOP 或 NSH 桌面存在。NSH 桌面固定多窗口，托盘、自启、单实例、深链接按选择生成，通知和 OS 全局快捷键不可用；TUI 仅按固定官方 main 预览 revision 运行与测试，正式候选仍受上游打包缺口限制。双语、三态主题、页面和品牌资源按实际目标装配。各平台依赖、能力及打包路径见 [GUI 工程索引](../GUI_ENGINEERING.md) 和 [设计标准](../design_standards/README.md)。
 - 版本与候选：下游版本按周期和稳定 ID 管理，维护不升版；Harness 仅正式发布时取上海时间版本。双语日志保存最近十个真实发布版本、每类最多十条；候选只消费已发布源码，CLI 默认当前宿主，跨平台矩阵需明确请求。原子证据、当次 E2E/签名和真实最终产物验收见 [发布规则](../RELEASE.md) 与 [验证规则](../VERIFICATION.md)。
 - 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定；GPUI 知识资产条件传播，Kit API 知识与既有第三方本地资产的来源和许可可追溯；历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261107_ADR.md)。
 

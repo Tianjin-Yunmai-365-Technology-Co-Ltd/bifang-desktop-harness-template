@@ -14,7 +14,7 @@ post_release_action: pending
 
 # Agent 运行策略
 
-NSH 专用路由：新项目的根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 记录顶层 NSH 及桌面、移动、Web 子目标。TUI 虽列在表单中，固定 NSH 0.4.0 尚无运行或打包目标，选中时失败关闭。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。桌面九项配置只随桌面子目标询问；能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：新项目的根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 记录顶层 NSH 及桌面、移动、Web、TUI 子目标。含 TUI 的新工程使用固定官方 `main` 预览 revision；未选 TUI 继续使用正式 v0.4.0 固定 revision。TUI 仅面向 macOS/Windows/Linux 终端，必须核对同源 CLI、Rust 依赖及实际运行/测试。正式 0.4.0 无 TUI 目标，旧工程不因元数据声明而自动升级。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。桌面九项配置只随桌面子目标询问；能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
 本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 与 `task_worktrees` 固定默认 `disabled`；完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`，`post_release_action` 必须是两项之一，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布固定在本地默认主分支与 tag 完成；完成初始化的下游随后按已确认的发布后动作执行并复核。Harness 源的 `pending` 是待复制模板字段，不阻断 Harness 自身的 Git 发布。
 
@@ -34,7 +34,7 @@ DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加
 - `parallel_worktree_subagents`：只控制当前结果内部的写入型 Subagent Worktree；许可加本次明确并行授权才执行，不创建左侧 Task、不占项目编号、不改变其他开关。所有权明确的独立单元并行创建和执行，同一共享状态写入用短锁。
 - `acceptance_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `e2e_hint`：仅作为每次显式发布候选构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前候选的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
-- `post_release_action`：`local_package` 表示 Git 发布后进入现有适用的本地打包流程；`push_release_branch` 表示把已发布的同一提交放到本地小写 `release` 分支，非强制推送远端默认主分支、同名 release 分支与发布 tag。初始化表单必须给出两项并以 `local_package` 为建议默认值；仅所选接口含 CLI 或 NSH，或含 GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时，该默认项才可确认。纯 MCP 或仅 Linux Tauri GUI 须明确选择 `push_release_branch`，不得暗中应用不可执行的默认项。用户须明确选择或确认可执行的默认值。选择在未来发布中持续生效，可用 `$desktop-switch-post-release-action` 更改。
+- `post_release_action`：`local_package` 表示 Git 发布后进入现有适用的本地打包流程；`push_release_branch` 表示把已发布的同一提交放到本地小写 `release` 分支，非强制推送远端默认主分支、同名 release 分支与发布 tag。初始化表单必须给出两项并以 `local_package` 为建议默认值；仅所选接口含 CLI、未选 TUI 的 NSH、GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时，该默认项才可确认。含 TUI 的 NSH 因固定 main 预览版尚无 release runner/package 目标，须明确选择 `push_release_branch`；纯 MCP 或仅 Linux Tauri GUI 同样须选此项，不得暗中应用不可执行的默认项。用户须明确选择或确认可执行的默认值。选择在未来发布中持续生效，可用 `$desktop-switch-post-release-action` 更改。
 - `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前候选构建请求中已经明确的选择，否则在构建前询问一次。发布后动作直接读取 `post_release_action`，缺失、非法或 `pending` 都阻断后续流程完成。
 
 `enabled` 表示“允许且适用时执行”，`disabled` 表示默认不启用可选能力。`user_owned_tasks: enabled` 是自动建 Task 的明确长期授权；`post_release_action` 是用户对未来 Git 发布后所选动作的长期授权，不授权配置远端、凭据、签名、渠道分发或绕过候选构建的当次 E2E 选择。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前候选构建的 E2E 明确选择优先于 `e2e_hint` 建议值。需要远端源码或远程构建的渠道必须先走 `push_release_branch` 并复核远端 `release` 分支与 tag；该要求不改变 Git 发布完成条件。
@@ -111,4 +111,4 @@ DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加
 - 已授权的内部并行按 `$desktop-task-workflow` 执行；保留原 helper 路径。独立 Worktree 按所有权并行创建和执行，编号/所有权预留及生命周期共享状态用短锁；不因活动叶子、分支祖先关系或每项目单写入限制阻断。
 - 除按框架执行的 `$desktop-test-gui-initialization-e2e` 或 `$desktop-test-gpui-initialization-e2e` 一次性本机调试门禁外，冒烟/E2E 不得在产品定义、计划、日常开发、单元测试、编译、签名、打包、制品收集或发布元数据命令中运行；启用的发布 E2E 只在最终真实候选形成后执行。
 
-NSH 工程选择：新下游以顶层 `interfaces = ["nsh"]` 和 `nsh-targets` 保存所选子目标，可选择 local_package 并保留 adapter/build 专用 Skills、运行时知识和共享支持页资产；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。未选 NSH 时裁掉专属能力。NSH 初始化 E2E 和初始化 wrapper 不传播；受保护 Cargo、仅桌面适用的 profile、策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。
+NSH 工程选择：新下游以顶层 `interfaces = ["nsh"]` 和 `nsh-targets` 保存所选子目标；未选 TUI 时可选择 local_package，并保留 adapter/build 专用 Skills、运行时知识和共享支持页资产。含 TUI 的工程需固定官方 main 预览 runtime 并选择 `push_release_branch`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。未选 NSH 时裁掉专属能力。NSH 初始化 E2E 和初始化 wrapper 不传播；受保护 Cargo、仅桌面适用的 profile、策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。

@@ -85,4 +85,4 @@
 
 统一 Task/工作树合同完整 managed 传播 `$desktop-task-workflow` 的 SKILL、metadata 与 references；旧三个入口仅兼容路由，脚本路径保持兼容。独立工作树尽量并行创建，只有同 Local cwd 与共享状态写入短串行。
 
-NSH 工程选择：新下游由根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 表示，旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容；两种已建立的 NSH 工程均保留 adapter/build 专用 Skills 和运行时知识，其他接口裁掉 NSH 专属能力。选择桌面才保留适用的桌面支持页工程入口；`tui` 在固定运行时不可用。NSH 初始化 E2E 和初始化 wrapper 不传播；受保护 Cargo、profile、策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。
+NSH 工程选择：新下游由根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 表示，旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容；两种已建立的 NSH 工程均保留 adapter/build 专用 Skills 和运行时知识，其他接口裁掉 NSH 专属能力。选择桌面才保留适用的桌面支持页工程入口。`tui` 仅在目标根 Cargo 的 `nsh-core`、`nsh-base` 均固定到已确认的官方 main 预览 revision 时可被升级器读取；旧 0.4.0 与仅修改元数据的项目失败关闭。CLI 匹配和真实终端运行仍须另行验证，且官方当前无 TUI release runner/package；含 TUI 的发布后 local_package 不可用。NSH 初始化 E2E 与仅初始化阶段的 wrapper 不传播；TUI 的 `run_nsh_tui.mjs` 属保留的运行时适配器；受保护 Cargo、profile、策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。

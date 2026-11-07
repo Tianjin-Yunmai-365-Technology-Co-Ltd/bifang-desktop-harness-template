@@ -2,9 +2,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { nshRevisionForTargets } from './nsh_runtime_revision.mjs';
 
 const assetRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../assets/host');
-const revision = 'e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3';
 const git = 'https://github.com/longbridge/nsh.git';
 const desktops = ['macos', 'windows', 'linux'];
 const features = {
@@ -118,7 +118,7 @@ export function renderNshHostFiles(options) {
   return files;
 }
 
-function nsh(name) { return `${name} = { version = "0.4.0", git = "${git}", rev = "${revision}" }`; }
+function nsh(name, revision) { return `${name} = { version = "0.4.0", git = "${git}", rev = "${revision}" }`; }
 
 /** Append to the mixed member manifest, after its existing [dependencies]. */
 export function nshHostCargoDependencies(options) {
@@ -144,13 +144,14 @@ export function nshHostCargoDependencies(options) {
 export function nshHostWorkspaceDependencies(options) {
   assertOptions(options);
   const selected = desktops.filter(target => options.targetPlatforms.includes(target));
-  const lines = [nsh('nsh-engine'), 'serde_json = "1.0.154"'];
+  const revision = nshRevisionForTargets(options.nshTargets);
+  const lines = [nsh('nsh-engine', revision), 'serde_json = "1.0.154"'];
   if (selected.includes('macos')) {
-    lines.push(nsh('nsh-platform-macos'), 'dispatch2 = "0.3.1"');
+    lines.push(nsh('nsh-platform-macos', revision), 'dispatch2 = "0.3.1"');
     if (options.profile.system_tray === 'enabled') lines.push('objc2-app-kit = { version = "0.3.2", features = ["NSStatusBar", "NSStatusItem", "NSStatusBarButton"] }');
   }
   if (selected.includes('windows')) {
-    lines.push(nsh('nsh-platform-windows'));
+    lines.push(nsh('nsh-platform-windows', revision));
     const windowsFeatures = ['Win32_Foundation', 'Win32_Globalization', 'Win32_System_LibraryLoader', 'Win32_System_Ole', 'Win32_UI_HiDpi', 'Win32_UI_WindowsAndMessaging'];
     if (options.profile.system_tray === 'enabled') windowsFeatures.push('Win32_UI_Shell');
     if (options.profile.single_instance === 'enabled') windowsFeatures.push('Win32_System_Threading', 'Win32_Security');
@@ -159,7 +160,7 @@ export function nshHostWorkspaceDependencies(options) {
     lines.push(`windows = { version = "0.62.2", features = ${JSON.stringify(windowsFeatures.sort())} }`);
   }
   if (selected.includes('linux')) {
-    lines.push(nsh('nsh-platform-linux'));
+    lines.push(nsh('nsh-platform-linux', revision));
     if (options.profile.system_tray === 'enabled') lines.push('ksni = { version = "0.3.7", default-features = false, features = ["blocking", "tokio"] }');
   }
   return lines.join('\n');

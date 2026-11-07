@@ -1,6 +1,6 @@
 import { colorScheme, effect, locale, mount, platform, Scroll, setColorScheme, signal, Storage, Text, View, windowSize } from "nsh";
 import { Button as BaseButton } from "nsh/base";
-import { Scaffold } from "__PROJECT_ID__/native";
+import { HomeContent } from "./App.shared";
 import { tr, type Language } from "./translations";
 import { palette, tokens } from "./tokens";
 __DESKTOP_IMPORT__
@@ -12,7 +12,7 @@ type Page = "home" | "settings" | "about" | "sponsor";
 const COMPACT_SIDEBAR = __COMPACT__;
 const NAME_ZH = __NAME_ZH__;
 const NAME_EN = __NAME_EN__;
-const desktopOnly = platform.os === "macos" || platform.os === "windows" || platform.os === "linux";
+const desktopOnly = platform.idiom !== "terminal" && (platform.os === "macos" || platform.os === "windows" || platform.os === "linux");
 
 function Action(props: { label: string; onPress: () => void; selected?: boolean }) {
   const colors = palette(colorScheme());
@@ -39,19 +39,9 @@ function App() {
   const appearance = signal<"system" | "light" | "dark">("system");
   const collapsed = signal(false);
   const error = signal("");
-  const coreStatus = signal<"loading" | "ready" | "uninitialized" | "error">("loading");
   const narrow = () => windowSize().width < tokens.narrow;
   const title = () => language() === "zh" ? NAME_ZH : NAME_EN;
   const colors = () => palette(colorScheme());
-
-  effect(() => {
-    let live = true;
-    void Scaffold.status().then(
-      (initialized) => { if (live) coreStatus.set(initialized ? "ready" : "uninitialized"); },
-      () => { if (live) coreStatus.set("error"); },
-    );
-    return () => { live = false; };
-  });
 
   effect(() => {
     let live = true;
@@ -131,13 +121,7 @@ function App() {
           <Action label={tr(language(), collapsed() ? "expand" : "collapse")} onPress={() => void toggleSidebar()} />}
       </View>
       <Scroll style={{ flex: 1 }} contentStyle={{ padding: 24, gap: 16 }}>
-        {page() === "home" &&
-          <View style={{ gap: 12 }}>
-            <Text style={{ color: colors().foreground, fontSize: tokens.title }}>{title()}</Text>
-            <Text style={{ color: colors().muted, fontSize: tokens.body }}>
-              {tr(language(), coreStatus() === "loading" ? "status_loading" : coreStatus() === "ready" ? "neutral" : coreStatus() === "uninitialized" ? "status_uninitialized" : "status_error")}
-            </Text>
-          </View>}
+        {page() === "home" && <HomeContent language={language()} title={title()} />}
         __DESKTOP_PANEL__
         {page() === "settings" &&
           <View style={{ gap: 12 }}>

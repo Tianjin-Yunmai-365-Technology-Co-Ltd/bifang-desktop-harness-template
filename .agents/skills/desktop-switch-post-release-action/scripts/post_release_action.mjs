@@ -429,7 +429,7 @@ function assertLocalPackageSupported(root) {
     if (modern) {
       if (framework !== "tauri" || optionalMetadata(root, "gui-framework") !== null) throw new ActionError("顶层 NSH 不声明 GUI 框架");
       const targets = metadataArray(root, "nsh-targets");
-      if (targets.includes("tui")) throw new ActionError("当前 NSH 运行时不支持 TUI 打包");
+      if (targets.includes("tui")) throw new ActionError("NSH main 固定预览运行时支持 TUI run/test，但官方尚无 TUI release runner 或 package 目标；local_package 不能覆盖全部已选目标，请选择 push_release_branch");
       const concrete = metadataArray(root, "target-platforms");
       const groups = [
         ["desktop", ["macos", "windows", "linux"]],

@@ -46,11 +46,12 @@ export function readNshDesktopProfile(root) {
   return values;
 }
 
-/** A combined desktop/mobile/Web project needs portable package metadata without desktop host permissions. */
-export function prepareNshPortableEntry(gui, stage) {
+/** A combined desktop/mobile/Web/TUI project needs portable metadata without desktop host permissions. */
+export function prepareNshPortableEntry(gui, stage, { terminal = false } = {}) {
   const configFile = path.join(gui, 'nsh.json');
-  const appFile = path.join(gui, 'App.tsx');
+  const appFile = path.join(gui, terminal ? 'App.tui.tsx' : 'App.tsx');
   ordinaryFile(configFile);
+  ordinaryFile(path.join(gui, 'App.tsx'));
   ordinaryFile(appFile);
   const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   if (config.rust !== '.' || Object.hasOwn(config, 'root') || !config.capabilities ||

@@ -27,7 +27,7 @@
 
 所有界面先遵守共用基座；专项文档只映射相容的框架机制、组件行为和状态合同。Token 语义由基座定义，各应用的实际值只在中央主题 Token 模块维护，专项文档不再并列规定颜色、字号、圆角或展示尺寸。
 
-DESKTOP 框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；固定 NSH 0.4.0 的 TUI 目标不可用。GPUI 与 NSH 在共用基座之上只叠加各自专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 GPUI 或 NSH。
+DESKTOP 框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；新 TUI 子目标使用固定官方 `main` 预览 revision，正式 0.4.0 不提供该目标。GPUI 与 NSH 在共用基座之上只叠加各自专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 GPUI 或 NSH。
 
 ## 变更治理
 
