@@ -104,7 +104,7 @@ export function assembleNshDesktopPackage({ gui, stage, target, id, profile, tar
     fs.mkdirSync(macos, { recursive: true });
     fs.copyFileSync(binary, path.join(macos, executable));
     const scheme = `app-${id.replaceAll('_', '-')}`;
-    const url = profile.deep_link === 'enabled' ? `<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>${xml(config.id)}.deeplink</string><key>CFBundleURLSchemes</key><array><string>${xml(scheme)}</string></array></dict></array>` : '';
+    const url = profile.deep_link === 'enabled' ? `<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>${xml(config.id)}.deeplink</string><key>CFBundleTypeRole</key><string>Viewer</string><key>CFBundleURLSchemes</key><array><string>${xml(scheme)}</string></array></dict></array>` : '';
     const plist = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>CFBundleDevelopmentRegion</key><string>en</string><key>CFBundleExecutable</key><string>${xml(executable)}</string><key>CFBundleIdentifier</key><string>${xml(config.id)}</string><key>CFBundleName</key><string>${xml(config.name)}</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>${xml(config.version)}</string><key>CFBundleVersion</key><string>${xml(config.build ?? 1)}</string>${url}<key>LSMinimumSystemVersion</key><string>14.0</string><key>NSHighResolutionCapable</key><true/></dict></plist>\n`;
     fs.writeFileSync(path.join(application, 'Contents', 'Info.plist'), plist, { flag: 'wx' });
   } else if (target === 'windows') {

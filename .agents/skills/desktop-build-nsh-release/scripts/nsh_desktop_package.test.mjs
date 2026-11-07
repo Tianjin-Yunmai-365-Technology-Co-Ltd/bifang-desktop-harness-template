@@ -43,12 +43,13 @@ test('macos_custom_host_package_binds_mixed_bundle_and_conditional_scheme', () =
   assert.equal(fs.readFileSync(path.join(value.application, 'Contents/Resources/nsh/bundle.js'), 'utf8'), 'bundle.js');
   let plist = fs.readFileSync(path.join(value.application, 'Contents/Info.plist'), 'utf8');
   assert.match(plist, /示例 &amp; App/u);
-  assert.doesNotMatch(plist, /CFBundleURLTypes/u);
+  assert.doesNotMatch(plist, /CFBundleURLTypes|CFBundleTypeRole/u);
   fs.rmSync(stage, { recursive: true, force: true }); fs.mkdirSync(stage);
   writeProfile({ ...fields, single_instance: 'enabled', deep_link: 'enabled' });
   const enabled = assembleNshDesktopPackage({ gui, stage, target: 'macos', id: 'sample_tool', profile: readNshDesktopProfile(root), targetDirectory });
   plist = fs.readFileSync(path.join(enabled.application, 'Contents/Info.plist'), 'utf8');
   assert.match(plist, /app-sample-tool/u);
+  assert.match(plist, /<key>CFBundleTypeRole<\/key><string>Viewer<\/string>/u);
 }));
 
 test('linux_host_package_rejects_missing_registration_and_bundle_symlinks', () => fixture(({ root, gui, stage, targetDirectory, out, fields, writeProfile }) => {
