@@ -66,6 +66,7 @@ test("gui_candidate_selection_excludes_the_other_framework_and_non_gui_projects"
   assert.equal(inapplicableGuiCandidate(GPUI_BUILD, gpui), false);
   assert.equal(inapplicableGuiCandidate(GPUI_AUTOSTART, gpui), false);
   assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", gpui), false);
+  assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", { interfaces: ["gui"], guiFramework: "tauri" }), false);
   for (const name of ["desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-dialog", "desktop-prepare-gui-support-surfaces", "desktop-build-tauri-release"]) {
     assert.equal(inapplicableGuiCandidate(`.agents/skills/${name}/SKILL.md`, gpui), true, name);
   }
@@ -205,12 +206,23 @@ test("initialization_e2e_retains_tombstone_ownership", t => {
   assert.equal(f.classification(f.plan(2), initial), "tombstone_present");
 });
 
-/** 新工程知识严格随GPUI传播，Tauri与无GUI候选不得获得这些资产。 */
+/** GPUI 专属知识按框架传播，客户端工程索引对所有选中客户端保留。 */
 test("gpui_engineering_knowledge_is_conditional_and_framework_scoped", () => {
-  const files = [".agents/skills/desktop-manage-gpui-dependencies/SKILL.md", ".agents/skills/desktop-optimize-gpui-performance/references/measurement.md", "docs/GUI_ENGINEERING.md"];
+  const files = [".agents/skills/desktop-manage-gpui-dependencies/SKILL.md", ".agents/skills/desktop-optimize-gpui-performance/references/measurement.md"];
   for (const relative of files) {
     assert.equal(inapplicableGuiCandidate(relative, {interfaces:["gui"],guiFramework:"gpui"}), false);
     assert.equal(inapplicableGuiCandidate(relative, {interfaces:["gui"],guiFramework:"tauri"}), true);
     assert.equal(inapplicableGuiCandidate(relative, {interfaces:["cli"],guiFramework:null}), true);
   }
+  for (const selection of [
+    { interfaces: ["gui"], guiFramework: "tauri" },
+    { interfaces: ["gui"], guiFramework: "gpui" },
+    { interfaces: ["gui"], guiFramework: "nsh" },
+    { interfaces: ["nsh"], guiFramework: null, nshTargets: ["desktop"] },
+    { interfaces: ["nsh"], guiFramework: null, nshTargets: ["mobile", "web"] },
+  ]) assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", selection), false);
+  for (const selection of [
+    { interfaces: ["cli"], guiFramework: null },
+    { interfaces: ["mcp"], guiFramework: null },
+  ]) assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", selection), true);
 });

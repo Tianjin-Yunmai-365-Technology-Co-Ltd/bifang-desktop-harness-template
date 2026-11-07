@@ -124,14 +124,17 @@ export function validateSkills(errors) {
   const actual = new Set(entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name));
   let readme = "";
   let agents = "";
+  let skillIndex = "";
   try {
     readme = readText(path.join(ROOT, "README.md"));
     agents = readText(path.join(ROOT, "AGENTS.md"));
+    skillIndex = readText(path.join(SKILLS_ROOT, "README.md"));
   } catch (error) {
     fail(errors, error.message);
   }
   validateSkillsMap(errors, readme, { file: "README.md", heading: "## Skills 索引" });
   validateSkillsMap(errors, agents, { file: "AGENTS.md", heading: "## Skills 地图" });
+  validateSkillsMap(errors, skillIndex, { file: ".agents/skills/README.md", heading: "## Skills 索引" });
   for (const name of EXPECTED_SKILLS) {
     if (!actual.has(name)) fail(errors, `缺少预期 Skill: ${name}`);
   }
