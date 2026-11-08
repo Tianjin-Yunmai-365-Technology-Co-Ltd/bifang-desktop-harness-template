@@ -6,20 +6,20 @@
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-11-08（简化新项目初始化表单）
+> 最近范围确认：2026-11-08（不再询问系统平台，NSH 只问能力）
 
 ## 当前范围确认
 
 ### 新项目初始化问询
 
-- 变更标识：`HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`；`required_version = pending`，仅在正式发布时物化 Harness 时间版本。负责人要求程序类型先于目标平台，Agent 策略直接默认，发布后动作首次发布时询问，并明确 DESKTOP 可与 CLI/MCP 组合、NSH 只能单选。
-- 首轮只问中英文展示名（至少一个由用户直接提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型；程序类型确定后单问目标平台。CLI、MCP 可互相组合，也可与 DESKTOP 组合；NSH 与其余类型互斥。选择 DESKTOP 或 NSH 后仍按所选目标补问既有条件字段。
-- 六项 Agent 策略按固定默认值物化，不出现策略模式问题；新下游 schema 5 先记录 `post_release_action: pending`，首次发布前展示可用动作并持久化用户选择。未选择时不得开始 Git 发布，已初始化下游的持久选择不受此变更重置。见 [ADR-20261108-001](../adr/20261108_ADR.md)。
+- 变更标识：`HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`；`required_version = pending`，仅在正式发布时物化 Harness 时间版本。负责人要求取消系统平台问题，CLI/MCP/DESKTOP 默认支持 Windows/macOS/Linux 全平台，NSH 只问自己的能力；Agent 策略直接默认，发布后动作首次发布时询问，并明确 DESKTOP 可与 CLI/MCP 组合、NSH 只能单选。
+- 首轮只问中英文展示名（至少一个由用户直接提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型。CLI、MCP 可互相组合，也可与 DESKTOP 组合，默认派生完整 Windows/macOS/Linux；NSH 与其余类型互斥，只问桌面、移动、Web、TUI 能力，并分别派生完整对应平台。DESKTOP 继续补问 Tauri/GPUI 框架；适用的桌面九项配置仍逐项确认。具体平台及派生来源在写入前完整汇总确认，旧表单显式平台答案不再影响新项目。
+- 六项 Agent 策略按固定默认值物化，不出现策略模式问题；新下游 schema 5 先记录 `post_release_action: pending`，首次发布前展示可用动作并持久化用户选择。未选择时不得开始 Git 发布，已初始化下游的持久选择不受此变更重置。见 [ADR-20261108-002](../adr/20261108_ADR.md) 与 [ADR-20261108-001](../adr/20261108_ADR.md)。
 
 ### NSH TUI 固定预览源码
 
 - 变更标识：`HARNESS-FEAT-NSH-TUI-PREVIEW`；`required_version = pending`，仅在正式发布时物化 Harness 时间版本。负责人指出官网展示 TUI，并在核对正式版本与预览版差异后明确选择“使用官方 main 的固定提交接入预览版 TUI”。
-- 新 NSH 工程继续使用 Mixed TSX UI 与共享 Rust core，TUI 作为 `nsh-targets` 内部子目标，只适用于所选 macOS/Windows/Linux 终端；TUI-only 不生成桌面九字段 profile，TUI 与 desktop 同选时不得把自定义窗口宿主协议带入终端。新工程的 NSH CLI、Cargo 依赖和 TUI 宿主必须绑定同一固定官方 `main` revision；已初始化的正式 0.4.0 下游不自动升级。旧独立顶层 `interfaces = ["tui"]` 继续非法。
+- 新 NSH 工程继续使用 Mixed TSX UI 与共享 Rust core，TUI 作为 `nsh-targets` 内部子目标，派生 macOS/Windows/Linux 全部终端目标；TUI-only 不生成桌面九字段 profile，TUI 与 desktop 同选时不得把自定义窗口宿主协议带入终端。新工程的 NSH CLI、Cargo 依赖和 TUI 宿主必须绑定同一固定官方 `main` revision；已初始化的正式 0.4.0 下游不自动升级。旧独立顶层 `interfaces = ["tui"]` 继续非法。
 - [正式 v0.4.0 CLI](https://nsh.dev/docs/cli/) 不列 TUI；[固定 main 提交的 TUI 指南](https://github.com/longbridge/nsh/blob/beeb9fc7707e0d4a195a4f7274f77b30e134c500/website/docs/tui.md) 与 [该提交的 CLI](https://github.com/longbridge/nsh/blob/beeb9fc7707e0d4a195a4f7274f77b30e134c500/website/docs/cli.md) 才支持 `nsh run/test --target tui`。main 预览提交的 `nsh package` 仍无 TUI 目标；受管构建器可将完整 Mixed bundle 与应用专属开发宿主制作成本机预览归档，须实际检查解包运行和终端恢复，不把它当正式候选。正式候选仍要求官方 release runner/package 合同。见 [ADR-20261107-004](../adr/20261108_ADR.md)。
 
 ### NSH 全目标 Mixed 与桌面能力
@@ -75,8 +75,8 @@
 - 版本与发布场景：Harness 只在正式发布时按当前上海时区年月日时分确定唯一 `YYYYMMDDHHMM` 版本，日常工程变更不提升；`Released` 仅由登记分支合并后的本地默认主分支、版本 tag 与上下文复核判定。下游上一 Git 发布的主分支与 tag 确认后，下一条 feature 分支在首个改动前 `finalize-release`；新改动先判断是否疑似新需求，优先按 `feature`/Minor，确认没有新需求才考虑 `bug-fix`/Patch。同一事件或权威记录经证据确认有冲突时用独立 `record-reconciliation` 强制 Minor，跨周期稳定 ID 去重；当前 Harness 仅验证门禁，具体下游记录修正留待升级时执行。
 - Task 命名场景：只有左侧 user-owned Task 使用 `Task {序号} | {当前进度} | {单一结果}`；单一结果与序号固定，进度只取 `已分配`、`运行中`、`检查中`、`已完成`。同一 `hostId`/`projectId` 清点当前和逐页归档 Task 后取最大有效序号加一，空历史才使用 1、缺号不回填；不识别任何历史标题格式。内部 plan、Subagent、Worktree、brief、report、review 和 checkpoint 不使用标题合同、不占用 Task 序号。
 - Task 场景：`user_owned_tasks` 默认 `disabled`，关闭时不自动创建或拆分左侧 Task，但用户明确要求仍可创建；`enabled` 是按结果边界自动创建的长期授权。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和所选执行环境；交付物类型、外部副作用、禁止范围或验收责任变化（阶段变化仅在用户明确要求隔离时）必须新建 Task，同结果测试/review/checkpoint 与必要缺陷修复保留。同一 Local cwd 串行，独立 Worktree 按不重叠所有权并行。创建前核对项目与 Task 历史；仅 Local 环境检查同一 cwd 的 active 写入占用；Git 按有效 task_worktrees 选择 Worktree/Local，非 Git 使用 Local，以 `Task {序号} | 已分配 | {单一结果}` 调用一次 user-owned `create_thread`。只有真实 `threadId` 才继续，并复核标题、`projectId`、cwd、状态、干净工作区及起始提交；`clientThreadId` 或任一不符均零实现、不重复创建、不退化。
-- 决策场景：创建新下游时首轮只列出尚未解析的双语名称、标识、路径、负责人和程序类型；程序类型确定后再问目标平台。CLI、MCP 可组合，也可与 DESKTOP 组合；NSH 只能单选。六项 Agent 策略直接按固定默认值物化，不单独询问；发布后动作首次发布前再选。初始化后可用“开启/关闭左侧 Task”或“开启/关闭自动 Task 拆分”手动切换，只影响后续结果边界。
-- 输入：当前 Harness 源只接收 Harness 工程维护信息，或创建终端下游所需的中文项目展示名、英文项目展示名（至少直接提供一个）、ASCII `snake_case` 标识、项目路径、负责人、程序类型和随后选择的目标平台；项目路径可以是最终根目录或父目录。选择 NSH 时另确认桌面、移动、Web、TUI 子目标；TUI 须对应至少一个 macOS/Windows/Linux 具体目标并使用固定官方预览 revision。选择 DESKTOP 或 NSH 桌面时还包括八项条件能力的启用/禁用与可选的精简/详细侧栏选择，省略侧栏选择表示使用详细模式；Tauri 的 `os`（system-locale）、window-state 是不询问的两项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线。发布后动作不是初始化问题，新项目策略先记 `pending`，首次发布前再明确选择；产品目的、业务规则、产品专属 UI/文案/数据、远程地址、凭据、产品构建与发布要求必须在初始化完成并切换到终端下游后重新提出。
+- 决策场景：创建新下游时首轮只列出尚未解析的双语名称、标识、路径、负责人和程序类型；不再询问系统平台。CLI、MCP 可组合，也可与 DESKTOP 组合并默认完整 Windows/macOS/Linux；NSH 只能单选，再问 NSH 能力并派生平台。六项 Agent 策略直接按固定默认值物化，不单独询问；发布后动作首次发布前再选。初始化后可用“开启/关闭左侧 Task”或“开启/关闭自动 Task 拆分”手动切换，只影响后续结果边界。
+- 输入：当前 Harness 源只接收 Harness 工程维护信息，或创建终端下游所需的中文项目展示名、英文项目展示名（至少直接提供一个）、ASCII `snake_case` 标识、项目路径、负责人和程序类型；项目路径可以是最终根目录或父目录。选择 NSH 时再确认桌面、移动、Web、TUI 子目标，TUI 派生 macOS/Windows/Linux 全部终端目标并使用固定官方预览 revision；移动派生 Android/iOS，Web 派生 Web。选择 DESKTOP 或 NSH 桌面时还包括八项条件能力的启用/禁用与可选的精简/详细侧栏选择，省略侧栏选择表示使用详细模式；Tauri 的 `os`（system-locale）、window-state 是不询问的两项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线。发布后动作不是初始化问题，新项目策略先记 `pending`，首次发布前再明确选择；产品目的、业务规则、产品专属 UI/文案/数据、远程地址、凭据、产品构建与发布要求必须在初始化完成并切换到终端下游后重新提出。
 - 输出：独立终端项目根、共享核心与所选适配器；DESKTOP 下游按所选框架输出包含九项最终配置、所选生命周期/页面/侧栏且无禁用能力残留的适配器；NSH 按所选子目标生成 `_nsh`，只有桌面子目标写九字段 profile；Tauri 另包含两项 Rust-only 固定基线与 dialog 固定 WebView 基线，GPUI 使用其原生基线，其中未选择侧栏时 `sidebar_mode = detailed`。完成实现并提供本次必要单元测试证据；显式 Git 发布输出本地默认主分支与 tag 对同一最终 HEAD 的复核，按当次选择处理语义审查；所选 `local_package` 后续路径输出经过全量单元测试的可追溯候选，并解析本次 E2E 与适用签名。Windows 本地开发试包只输出未签名非候选安装程序及风险；macOS 默认 unsigned 且不探测签名条件，只有已配置、主动要求或渠道硬要求时才签名并公证。
 
 ## MVP 包含
@@ -343,8 +343,8 @@
 ### 下游实例化首轮基础表单、条件补全与目标路径归一化
 
 - 变更标识：`HARNESS-FEAT-BATCHED-BASE-INITIALIZATION-FORM`；所需 Harness 版本：`202608281139`（历史所需版本，已纳入此前发布；本范围不自动改变 `Version.md`）。
-- `$desktop-instantiate-project` 在任何写入前维护初始化表单。首轮基础字段为中文项目展示名、英文项目展示名、ASCII `snake_case` 标识、项目路径、负责人和程序类型；程序类型选完才问目标平台。CLI、MCP 可互相组合并可与 DESKTOP 组合，NSH 单选。六项 Agent 策略按固定默认值物化，其中 `user_owned_tasks: disabled`；发布动作待首次发布前选择。
-- 程序类型和目标平台解析后才进入条件阶段。选择 NSH 时再明确 `nsh_targets`，使桌面、移动、Web、TUI 类别与具体目标平台严格一致；TUI 至少对应一个桌面操作系统，只有显式 desktop 子目标才触发九字段 profile。六项策略由固定初始化默认值直接物化，不询问策略模式或单独能力。选择 DESKTOP 或 NSH 的桌面子目标时，系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键和侧栏模式同样每轮补全一个；八项能力必须明确为 `enabled` 或 `disabled`，侧栏明确跳过时采用 `detailed`，显式非法值重新询问，深链接与单实例的非法组合必须重新确认。产品目的、核心输入输出、成功标准、风险、副作用和发布事实不属于中性实例化输入；即使用户同时给出也要拒绝并要求在终端下游重提。
+- `$desktop-instantiate-project` 在任何写入前维护初始化表单。首轮基础字段为中文项目展示名、英文项目展示名、ASCII `snake_case` 标识、项目路径、负责人和程序类型；系统平台不再询问。CLI、MCP 可互相组合并可与 DESKTOP 组合，默认完整 Windows/macOS/Linux；NSH 单选并另问能力。六项 Agent 策略按固定默认值物化，其中 `user_owned_tasks: disabled`；发布动作待首次发布前选择。
+- 程序类型解析后才进入条件阶段。选择 NSH 时明确 `nsh_targets`，并自动派生各类别的全部具体平台；桌面和 TUI 共用 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web。只有显式 desktop 子目标才触发九字段 profile。六项策略由固定初始化默认值直接物化，不询问策略模式或单独能力。选择 DESKTOP 或 NSH 的桌面子目标时，系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键和侧栏模式同样每轮补全一个；八项能力必须明确为 `enabled` 或 `disabled`，侧栏明确跳过时采用 `detailed`，显式非法值重新询问，深链接与单实例的非法组合必须重新确认。产品目的、核心输入输出、成功标准、风险、副作用和发布事实不属于中性实例化输入；即使用户同时给出也要拒绝并要求在终端下游重提。
 - 项目路径输入允许是最终项目根目录或其父目录。规范化输入的末级名称与项目标识区分大小写地精确相等时，最终根就是输入路径；否则无论大小写、连字符/下划线、前后缀或相似度如何，最终根固定为 `<项目路径>/<项目标识>`。只有最终根必须不存在或为空，父目录可以存在且非空。
 - 只读路径 helper 在表单阶段输出原始输入角色、规范化最终根和目标状态，并拒绝非 ASCII `snake_case`、最终根为 Harness/其祖先、符号链接、非目录或非空目录。Agent 在首次写入前展示包含中英文名称、各自来源、最终根与派生 kebab-case 前缀的完整表单汇总并取得确认；之后复制、开发、验证与发布准备只使用该唯一根目录，Git 初始化和提交配置延后到实际基线提交前。
 
@@ -358,7 +358,7 @@
 ### Harness 与下游生命周期
 
 - Harness 只提供文档、项目 Skills、中性资产和验证入口，不实现具体业务。
-- `$desktop-instantiate-project` 只执行一次，并通过写入前首轮基础表单收齐中英文展示名（至少一个直接输入，另一个可自动翻译）、ASCII `snake_case` 标识、项目路径、负责人和程序类型，再询问目标平台，并按实际选择逐项补全 NSH 子目标与适用桌面配置。项目路径末级与标识精确一致时直接作为最终根，否则追加标识；只有解析后的最终根必须不存在或为空。用户确认后该目录是初始化、开发、验证和发布准备的唯一项目根目录。
+- `$desktop-instantiate-project` 只执行一次，并通过写入前首轮基础表单收齐中英文展示名（至少一个直接输入，另一个可自动翻译）、ASCII `snake_case` 标识、项目路径、负责人和程序类型；随后只按实际选择补全 NSH 能力或 DESKTOP 框架与桌面配置，系统平台从默认值或 NSH 能力自动产生。项目路径末级与标识精确一致时直接作为最终根，否则追加标识；只有解析后的最终根必须不存在或为空。用户确认后该目录是初始化、开发、验证和发布准备的唯一项目根目录。
 - 下游在完整表单确认后、首次脚手架写入前检查并按需安装 Git；全部初始化验证与裁剪成功后建立独立 `main` 仓库并配置 local 身份/模板。`git rev-parse --show-toplevel` 精确等于项目根，初始分支为 `main`，无远端，并只创建一个本地基线提交；完成报告公开 Git 版本、安装变化、身份来源、作用域与提交。
 - 下游默认采用 Rust 2024、Rust 1.98.1 MSRV（即 MSRV 1.98.1）、共享核心与用户从 CLI/MCP/DESKTOP/NSH 选择的适配器；1.98.1 是最低兼容版本而非精确版本锁，明确选择 CLI 时接入，只有用户明确选择默认接口或明确跳过接口选择时默认采用 CLI；漏答时保持待选择。
 - Core-first 是强制架构约束：凡不依赖某一具体接口或宿主才能成立的领域类型、业务规则、语义校验、业务默认值、用例编排、领域状态转换、稳定领域错误、平台无关权限与持久化策略，都必须在共享 core 中实现并通过明确 API 暴露；即使当前只选择一个适配器也同样适用。
@@ -438,7 +438,7 @@
 
 - Harness 与收费下游采用非开源企业专有商业许可；根 `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 保持一致，升级不能自动改写法律文本。
 - CLI/MCP 使用 Tokio current-thread 异步入口；Tauri GUI 复用其 Tokio 异步运行时，GPUI GUI 使用原生事件循环与任务/executor；核心默认保持运行时中立。
-- 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；初始化把实际选择的非空目标平台与接口写入 `[workspace.metadata.agent-first-harness]`，供后续构建跨会话只读路由。Harness 能生成的目标平台集合为 Windows、macOS 和 Linux，不表示每个下游都默认选择三者。
+- 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；初始化把完整汇总确认的非空目标平台与接口写入 `[workspace.metadata.agent-first-harness]`，供后续构建跨会话只读路由。CLI/MCP/DESKTOP 默认写 Windows、macOS、Linux 全部目标；NSH 由所选能力写对应的 Windows、macOS、Linux、Android、iOS、Web 子集。平台声明不等于实际构建或验证通过。
 - 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并按声明的 Rust 兼容下限、三平台和相关回归选择依赖，复用满足下限的已安装 stable 正常解析和测试，并记录实际验证环境；新增或主动更新时优先选择经完整兼容验证的 registry 最新稳定版作为新下界，缺省锁策略下本地锁文件不进入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
 - 选择 CLI 时遵守统一 JSON 信封、错误结构、输出流和退出码契约。
 

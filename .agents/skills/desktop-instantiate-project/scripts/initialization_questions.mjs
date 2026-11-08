@@ -5,10 +5,9 @@ export const QUESTIONS = [
   { id: "project_id", number: 3, title: "项目标识是什么？", help: "ASCII snake_case，匹配 ^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$；建议值仍需你确认。" },
   { id: "project_path", number: 4, title: "项目放在哪里？", help: "提供最终项目根目录或父目录；相对路径以 Harness 根目录为基准。" },
   { id: "owner", number: 5, title: "项目负责人或责任主体是谁？" },
-  { id: "interfaces", number: 6, title: "需要哪些程序类型？可多选。", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "CLI、MCP 可互相组合，也可与 DESKTOP 组合；DESKTOP 与 NSH 互斥，NSH 只能单选。明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。选择程序类型后再询问目标平台。" },
-  { id: "target_platforms", number: 7, title: "支持哪些目标平台？可多选。", options: ["Windows", "macOS", "Linux", "Android（NSH）", "iOS（NSH）", "Web（NSH）"], values: ["windows", "macos", "linux", "android", "ios", "web"] },
+  { id: "interfaces", number: 6, title: "需要哪些程序类型？可多选。", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "CLI、MCP 可互相组合，也可与 DESKTOP 组合；DESKTOP 与 NSH 互斥，NSH 只能单选。明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；NSH 另问能力并派生对应平台。" },
   { id: "gui_framework", title: "要创建哪种桌面应用？", options: ["1. Tauri（默认）：使用Web技术开发桌面客户端", "2. GPUI：高性能原生客户端"], values: ["tauri", "gpui"], defaultValue: "tauri" },
-  { id: "nsh_targets", title: "NSH 要支持哪些能力？可多选。", options: ["桌面", "移动", "Web", "TUI（官方 main 固定提交预览）"], values: ["desktop", "mobile", "web", "tui"], help: "desktop 和 tui 对应 Windows/macOS/Linux，可共用同一系统平台；mobile 对应 Android/iOS，web 对应 Web。TUI 使用固定官方 main 预览提交，仅支持 run/test，尚无官方 package 目标；首次发布选择动作时只能选提交远程。正式 v0.4.0 CLI 不支持 TUI。" },
+  { id: "nsh_targets", title: "NSH 要支持哪些能力？可多选。", options: ["桌面", "移动", "Web", "TUI（官方 main 固定提交预览）"], values: ["desktop", "mobile", "web", "tui"], help: "选择桌面或 TUI 即支持 Windows、macOS、Linux 全部系统，两者共用这些平台；选择移动即支持 Android、iOS；选择 Web 即支持 Web。目标平台由本题自动确定并在最终汇总中确认。TUI 使用固定官方 main 预览提交，仅支持 run/test，尚无官方 package 目标；首次发布选择动作时只能选提交远程。正式 v0.4.0 CLI 不支持 TUI。" },
   { id: "system_tray", title: "是否安装系统托盘能力？", help: "中性菜单只含显示窗口/退出；启用后按框架合同处理关闭隐藏与恢复。" },
   { id: "system_notification", title: "是否安装系统通知能力？", help: "设置页提供默认关闭的开关；选择能力不授权发送通知或更改本机权限。" },
   { id: "autostart", title: "是否安装开机自启能力？", help: "设置页提供实际 OS 状态开关；初始化不替你注册登录项。" },
@@ -31,6 +30,13 @@ export const GUI_FIELDS = ["system_tray", "system_notification", "autostart", "a
 export const DESKTOP_FIELDS = ["system_tray", "system_notification", "autostart", "single_instance", "global_shortcut"];
 export const BASE_FIELDS = QUESTIONS.slice(0, 6).map(({ id }) => id);
 export const NSH_TARGETS = ["desktop", "mobile", "web", "tui"];
+export const NSH_PLATFORM_ORDER = ["windows", "macos", "linux", "android", "ios", "web"];
+export const NSH_TARGET_PLATFORMS = Object.freeze({
+  desktop: ["windows", "macos", "linux"],
+  mobile: ["android", "ios"],
+  web: ["web"],
+  tui: ["windows", "macos", "linux"],
+});
 
 /** 最终确认同样使用固定问句，不把预设确认或超时解释为创建授权。 */
 export const REVIEW_QUESTION = { id: "confirm_summary", title: "是否按以上完整汇总创建项目？", options: ["确认创建", "修改信息"] };
@@ -44,6 +50,7 @@ export function summaryNotices(values) {
   ];
   const gui = values.interfaces.includes("gui");
   const nsh = values.interfaces.includes("nsh");
+  if (!nsh) notices.push("CLI/MCP/DESKTOP 默认声明支持 Windows、macOS、Linux 全部系统；请核对本汇总中的具体平台，实际构建和验证仍按目标分别执行。");
   if (!gui && !nsh) return notices;
   if (gui || values.nsh_targets?.includes("desktop")) notices.push("应用 Logo 在本汇总确认后的执行阶段选择：按 candidate-1 → candidate-2 → candidate-3 展示三个原始候选；选择后只验证和标准化所选项。");
   if (values.gui_framework === "tauri") {
@@ -53,6 +60,7 @@ export function summaryNotices(values) {
     notices.push("GPUI 使用 Rust/gpui-kit、desktop-add-gpui-adapter 与 desktop-test-gpui-initialization-e2e，不接入 Tauri 专属基线；深链接 unavailable/disabled，目标含 Linux 时托盘与全局快捷键同样不可用。",
       "GPUI 本地候选由 desktop-build-gpui-release 构建 macOS app/DMG、Windows NSIS 或 Linux GNU x64/ARM64 deb/tar.gz；当前声明不代表跨平台结果已验证。");
   } else if (nsh) {
+    notices.push("NSH 目标平台仅由所选能力自动确定：桌面/TUI 对应 Windows、macOS、Linux 全部系统，移动对应 Android、iOS，Web 对应 Web；请核对本汇总中的具体平台。");
     notices.push(`NSH 是独立程序类型；已选能力：${values.nsh_targets.join('、')}。TSX 界面通过 Mixed 原生模块调用共享 Rust core；初始化使用 desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e。`,
       "NSH 桌面由已选平台的自定义宿主打包，Android、iOS 与 Web 使用适用的 NSH runner；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
     if (values.nsh_targets.includes("desktop")) notices.push("NSH 桌面默认提供多窗口；托盘、自启、单实例、深链接逐项确认，深链接依赖单实例。系统通知和 OS 全局快捷键当前 unavailable/disabled；应用菜单快捷键不能冒充系统热键。");

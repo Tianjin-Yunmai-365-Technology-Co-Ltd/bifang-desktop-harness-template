@@ -5,7 +5,7 @@
 ## 依赖、资产与能力
 
 1. 分派 [$desktop-add-gpui-adapter](../../desktop-add-gpui-adapter/SKILL.md)，根 workspace 的 `gpui-kit = "0.8.1"` 与 `rust-i18n = "4.2.4"` 是兼容下界，GUI member 只用 `workspace = true` 并直接依赖同一 core。Node.js/pnpm 是工程工具；生成的项目根脚本负责真实开发和验证。
-2. 完整读取该 Skill 的 [依赖基线](../../desktop-add-gpui-adapter/references/dependency-baseline.md) 与 [原生能力](../../desktop-add-gpui-adapter/references/native-capabilities.md)：前者确定最小 features 与启用条件，后者拥有配置移交和官方 API 限制。复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用表单中的移交意愿，产品动作在终端下游确认。
+2. 完整读取该 Skill 的 [依赖基线](../../desktop-add-gpui-adapter/references/dependency-baseline.md) 与 [原生能力](../../desktop-add-gpui-adapter/references/native-capabilities.md)：前者确定最小 features 与启用条件，后者拥有配置移交和官方 API 限制。复用统一表单已确认的九字段配置；新项目默认含 Linux，深链接、系统托盘和 OS 全局快捷键均为 `unavailable`/`disabled`。既有不含 Linux 的旧项目仍按受保护的平台和 profile 判断托盘与快捷键。配置协助只复用表单中的移交意愿，产品动作在终端下游确认。
 3. 三个原始 Logo 候选的展示和选择规则仍由 [$desktop-prepare-gui-app-identity](../../desktop-prepare-gui-app-identity/SKILL.md) 执行；GPUI adapter 拥有其资源路径和图标，不调用 Tauri icon 或 DMG 复制。只有用户明确授权的工程验证临时项目可用参考中性图，必须报告其用途，不能当作正式身份验收。
 
 ## 工作区入口

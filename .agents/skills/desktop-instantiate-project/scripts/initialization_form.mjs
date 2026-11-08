@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveProjectTarget } from "./resolve_project_target.mjs";
-import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, REVIEW_QUESTION, questionFor, summaryNotices } from "./initialization_questions.mjs";
+import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, NSH_PLATFORM_ORDER, NSH_TARGET_PLATFORMS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, REVIEW_QUESTION, questionFor, summaryNotices } from "./initialization_questions.mjs";
 
 /** 拒绝无法解释的状态形状，不把产品字段、凭据或任意配置带入汇总。 */
 function exactKeys(object, allowed, label) {
@@ -20,7 +20,7 @@ function parseAnswer(id, answer) {
   if (typeof answer.source !== "string" || !/^(user|project|translation):\S/u.test(answer.source) || /[\x00-\x1f\x7f\u2028\u2029]/u.test(answer.source)) throw new Error("答案必须记录单行 user:/project:/translation: 确认来源");
   if (answer.source.startsWith("translation:") && !["name_zh", "name_en"].includes(id)) throw new Error("只有展示名称允许翻译来源");
   if (answer.source.startsWith("translation:") ? typeof answer.basedOn !== "string" : answer.basedOn !== undefined) throw new Error("翻译答案必须且只能附带原名 basedOn");
-  const definition = questionFor(id);
+  const definition = id === "target_platforms" ? { values: NSH_PLATFORM_ORDER } : questionFor(id);
   let value = answer.value;
   if (["name_zh", "name_en"].includes(id) && typeof value === "string" && !value.trim()) return { missing: true };
   if (value === "default" || value === "skip" || value === "") {
@@ -44,14 +44,10 @@ function unavailableGuiFields(values) {
   return values.target_platforms.includes("linux") ? ["system_tray", "deep_link", "global_shortcut"] : ["deep_link"];
 }
 
-/** TUI 和 desktop 可以共享具体 OS；mobile 和 web 仍与各自平台双向对应。 */
-function nshTargetsMatchPlatforms(platforms, targets) {
-  const selected = new Set(targets);
-  const native = platforms.some(platform => ["windows", "macos", "linux"].includes(platform));
-  const mobile = platforms.some(platform => ["android", "ios"].includes(platform));
-  const web = platforms.includes("web");
-  return native === (selected.has("desktop") || selected.has("tui")) &&
-    mobile === selected.has("mobile") && web === selected.has("web");
+/** NSH 能力是平台选择的唯一输入，同一桌面系统只保留一次。 */
+function platformsForNshTargets(targets) {
+  const selected = new Set(targets.flatMap(target => NSH_TARGET_PLATFORMS[target]));
+  return NSH_PLATFORM_ORDER.filter(platform => selected.has(platform));
 }
 
 /** 计算问题或汇总；答案可以批量到达，合法值只解析一次并保留来源。 */
@@ -61,12 +57,14 @@ export function evaluateInitializationForm(input) {
   const entry = input.entry ?? "instantiate";
   if (!["instantiate", "initialize"].includes(entry)) throw new Error("未知初始化入口");
   const answers = input.answers ?? {};
-  exactKeys(answers, QUESTIONS.map(({ id }) => id), "answers");
+  // 旧表单可能留下平台答案；核对其输入结构后不再把值作为选择或问题。
+  exactKeys(answers, [...QUESTIONS.map(({ id }) => id), "target_platforms"], "answers");
   const values = {};
   const sources = {};
   const issues = {};
   for (const [id, answer] of Object.entries(answers)) {
     const result = parseAnswer(id, answer);
+    if (id === "target_platforms") continue;
     if (result.missing) continue;
     if (result.issue) issues[id] = result.issue;
     else { values[id] = result.value; sources[id] = result.source; }
@@ -89,10 +87,6 @@ export function evaluateInitializationForm(input) {
     schemaVersion: 1, stage, values: { ...values }, sources: { ...sources },
     questions: ids.map((id) => {
       const question = questionFor(id, issues[id]);
-      if (id === "target_platforms" && !values.interfaces?.includes("nsh")) {
-        question.options = question.options.slice(0, 3);
-        question.values = question.values.slice(0, 3);
-      }
       if (values.interfaces?.includes("nsh") && values.nsh_targets?.includes("desktop")) {
         if (id === "system_tray") question.help = "中性菜单包含新建窗口、显示所有窗口和退出；启用后由宿主处理关窗与恢复。";
         if (id === "single_instance") question.help = "再次启动聚焦现有窗口；没有窗口时新建，不转发业务载荷。";
@@ -135,17 +129,15 @@ export function evaluateInitializationForm(input) {
     issues.interfaces = "当前程序类型与旧条件答案不匹配；请确认接口组合，或撤下不适用的框架/NSH 答案。";
     return output("base", ["interfaces"]);
   }
-  if (!values.target_platforms) return output("platform", ["target_platforms"]);
-  if (!nsh && values.target_platforms.some((platform) => ["android", "ios", "web"].includes(platform))) {
-    issues.target_platforms = "Android/iOS/Web 当前只支持 NSH；请选择 NSH，或改为桌面目标。";
-    return output("platform", ["target_platforms"]);
+  if (nsh) {
+    if (!values.nsh_targets) return output("nsh", ["nsh_targets"]);
+    values.target_platforms = platformsForNshTargets(values.nsh_targets);
+    sources.target_platforms = "derived:nsh_targets";
+  } else {
+    values.target_platforms = ["windows", "macos", "linux"];
+    sources.target_platforms = "default:all_desktop_platforms";
   }
   if (gui && !values.gui_framework) return output("framework", ["gui_framework"]);
-  if (nsh && !values.nsh_targets) return output("nsh", ["nsh_targets"]);
-  if (nsh && !nshTargetsMatchPlatforms(values.target_platforms, values.nsh_targets)) {
-    issues.target_platforms = "具体平台与 NSH 能力类别不一致；desktop 或 tui 至少对应一个 Windows/macOS/Linux，二者可共用；mobile 对应 Android/iOS，web 对应 Web。请调整目标平台或 NSH 能力。";
-    return output("platform", ["target_platforms"]);
-  }
   const desktop = gui || (nsh && values.nsh_targets.includes("desktop"));
   if (!desktop && [...GUI_FIELDS, "capability_setup_assistance"].some(id => Object.hasOwn(answers, id))) {
     issues[gui ? "interfaces" : "nsh_targets"] = "未选择桌面能力却提供了桌面条件答案；请确认目标组合，或撤下旧桌面答案。";

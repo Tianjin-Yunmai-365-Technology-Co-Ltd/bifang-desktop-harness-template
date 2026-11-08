@@ -15,7 +15,7 @@ export const SOURCE_ROOT = fs.realpathSync(fileURLToPath(new URL('../../../../',
 export function confirmedFixtureInput(target, framework = null, sourceRoot = SOURCE_ROOT) {
   const nsh = framework?.startsWith('nsh') ?? false;
   const desktop = framework !== 'nsh-mobile-web' && framework !== 'nsh-tui';
-  const fields = { name_zh: '回归工具', name_en: 'Regression Tool', project_id: 'regression_tool', project_path: target, owner: 'Fixture Owner', target_platforms: framework === 'nsh-mobile-web' ? ['android', 'web'] : ['macos'], interfaces: nsh ? ['nsh'] : framework ? ['gui'] : ['cli'] };
+  const fields = { name_zh: '回归工具', name_en: 'Regression Tool', project_id: 'regression_tool', project_path: target, owner: 'Fixture Owner', interfaces: nsh ? ['nsh'] : framework ? ['gui'] : ['cli'] };
   if (framework) Object.assign(fields, { ...(nsh ? { nsh_targets: framework === 'nsh-mobile-web' ? ['mobile', 'web'] : framework === 'nsh-tui' ? ['tui'] : framework === 'nsh-desktop-tui' ? ['desktop', 'tui'] : ['desktop'] } : { gui_framework: framework }), ...(desktop ? Object.fromEntries(GUI_FIELDS.map(key => [key, key === 'sidebar_mode' ? 'detailed' : 'disabled'])) : {}) });
   const form = { schemaVersion: 1, entry: 'instantiate', harnessRoot: sourceRoot, answers: Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, { value, source: 'user:测试夹具确认，非真实项目授权' }])) };
   const evaluation = evaluateInitializationForm(form);

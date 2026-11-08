@@ -6,13 +6,13 @@ Bifang Desktop Harness Template
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
-你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型；选择程序类型后再确定目标平台。NSH 的说明是“下一代全平台开发框架”。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
+你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；选择 NSH 后只需选择桌面、移动、Web、TUI 能力。NSH 的说明是“下一代全平台开发框架”。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
-选择 DESKTOP 后，Agent 会继续询问：**1. Tauri（默认）：使用Web技术开发桌面客户端；2. GPUI：高性能原生客户端**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。DESKTOP 框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
+选择 DESKTOP 后，Agent 会继续询问：**1. Tauri（默认）：使用Web技术开发桌面客户端；2. GPUI：高性能原生客户端**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。新 GPUI 项目默认包含 Linux，因此深链接、系统托盘和 OS 全局快捷键均派生为 `unavailable`/`disabled`；已初始化且不含 Linux 的旧项目仍按其受保护平台和 profile 判断托盘与快捷键。其余九字段配置复用统一表单，配置协助只记录移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。DESKTOP 框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
 GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 构建原生 macOS 应用包/DMG、Windows x64 NSIS，以及 Linux GNU x64/ARM64 deb/tar.gz。这些 GPUI 目标均可选择本地打包；仅 Linux Tauri 且无 CLI 时须选择提交远程。DESKTOP 使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
 
-选择 NSH 后，Agent 会询问桌面、移动、Web、TUI 四类子目标。新 NSH 工程使用 Mixed TSX 界面，通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。TUI 走固定官方 `main` 预览源码，在所选 macOS/Windows/Linux 终端运行与测试；受管构建器可制作仅供本机验证的 TUI 预览归档，正式 0.4.0 的 CLI 无 TUI 目标，预览版也尚无官方 `nsh package --target tui` 或正式候选。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按可打包目标处理。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
+选择 NSH 后，Agent 只询问桌面、移动、Web、TUI 四类能力：桌面或 TUI 对应全部 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web；对应平台会在最终汇总中确认。新 NSH 工程使用 Mixed TSX 界面，通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。TUI 走固定官方 `main` 预览源码，在对应 macOS/Windows/Linux 终端运行与测试；受管构建器可制作仅供本机验证的 TUI 预览归档，正式 0.4.0 的 CLI 无 TUI 目标，预览版也尚无官方 `nsh package --target tui` 或正式候选。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按可打包目标处理。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -25,7 +25,7 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型（CLI / MCP / DESKTOP / NSH；明确默认或跳过才使用 CLI）。CLI、MCP 可组合，也可与 DESKTOP 组合；NSH 单选。程序类型确定后再询问目标平台；DESKTOP 或 NSH 再按表单补充条件字段。六项 Agent 策略直接使用固定默认值，不单独询问。`post_release_action` 初始化时保持 `pending`，首次发布前再询问并记录。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型（CLI / MCP / DESKTOP / NSH；明确默认或跳过才使用 CLI）。CLI、MCP 可组合，也可与 DESKTOP 组合；NSH 单选。程序类型确定后，NSH 只问能力并派生平台，其他类型默认 Windows/macOS/Linux 全平台；DESKTOP 再按表单补充框架和桌面配置。六项 Agent 策略直接使用固定默认值，不单独询问。`post_release_action` 初始化时保持 `pending`，首次发布前再询问并记录。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、程序类型、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
@@ -76,7 +76,7 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
    请使用 $desktop-instantiate-project 创建一个新项目。
    ```
 
-2. Agent 按 [唯一表单合同](.agents/skills/desktop-instantiate-project/references/initialization-form.md) 一次询问未确定的基础字段：中英文项目名、标识、路径、负责人和程序类型；程序类型确定后再问目标平台。中英文至少提供一个，另一名称自动翻译并在汇总中确认。固定问句由 `initialization_form.mjs --catalog` 输出，其他模型也复用同一解析器。
+2. Agent 按 [唯一表单合同](.agents/skills/desktop-instantiate-project/references/initialization-form.md) 一次询问未确定的基础字段：中英文项目名、标识、路径、负责人和程序类型；随后 NSH 只问能力，其他类型默认 Windows/macOS/Linux 全平台。中英文至少提供一个，另一名称自动翻译并在汇总中确认。固定问句由 `initialization_form.mjs --catalog` 输出，其他模型也复用同一解析器。
 3. 根据解析器的下一问补齐 DESKTOP 框架或 NSH 子目标、适用的桌面配置与配置协助意愿；每轮一个条件问题，明确给过的合法字段不重问。未回答不会自动采用默认值。具体产品配置在下游处理。
 4. 写入前展示完整汇总与唯一目标根目录。确认绑定当前汇总；修改字段后重新确认。确认之前不生成 Logo、不安装环境、不写文件。
 5. 汇总确认后才检查环境与 Git。GUI 的 Logo 在此执行阶段按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示三个原始候选，选中后只验证和标准化所选项。Git：缺失时按当前平台的受管方式安装，可证明低于最低下界时自动升级，范围内版本原样复用；随后才写入脚手架。Windows 自动安装若受管理员权限、UAC 或组织策略阻断，Agent 会给出已证实缺失项的官方安装入口和诊断；用户安装并告知继续后，先在原宿主只读复探。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、安装或升级变化、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。

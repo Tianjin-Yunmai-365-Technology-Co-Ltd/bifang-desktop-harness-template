@@ -15,14 +15,14 @@ function fixture(run) {
   const input = { schemaVersion: 1, entry: "instantiate", harnessRoot: root, answers: {} };
   const set = (id, value, source = "user:test-reply") => { input.answers[id] = { value, source }; };
   const base = () => {
-    for (const [id, value] of Object.entries({ name_zh: "示例工具", name_en: "Sample Tool", project_id: "sample_tool", project_path: path.join(root, "projects"), owner: "test-owner", target_platforms: ["linux"], interfaces: ["cli"] })) set(id, value);
+    for (const [id, value] of Object.entries({ name_zh: "示例工具", name_en: "Sample Tool", project_id: "sample_tool", project_path: path.join(root, "projects"), owner: "test-owner", interfaces: ["cli"] })) set(id, value);
   };
   const gui = (framework = "tauri") => {
-    base(); set("interfaces", ["gui"]); set("target_platforms", ["macos"]); set("gui_framework", framework);
+    base(); set("interfaces", ["gui"]); set("gui_framework", framework);
     for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
   };
-  const nsh = (targets = ["desktop"], platforms = ["macos"]) => {
-    base(); set("interfaces", ["nsh"]); set("target_platforms", platforms); set("nsh_targets", targets);
+  const nsh = (targets = ["desktop"]) => {
+    base(); set("interfaces", ["nsh"]); set("nsh_targets", targets);
     if (targets.includes("desktop")) for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
   };
   try { run({ root, input, set, base, gui, nsh, evaluate: () => evaluateInitializationForm(input) }); }
@@ -31,7 +31,7 @@ function fixture(run) {
 
 /** NSH 桌面逐问可用宿主能力；通知与系统热键仍失败关闭。 */
 test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fixture(({input,set,nsh,evaluate}) => {
-  nsh(["desktop","mobile","web"], ["macos","android","ios","web"]);
+  nsh(["desktop","mobile","web"]);
   for (const id of ["system_tray","system_notification","autostart","single_instance","deep_link","global_shortcut"]) delete input.answers[id];
   assert.equal(evaluate().questions[0].id,"system_tray");
   assert.match(evaluate().questions[0].help,/新建窗口/u);
@@ -46,6 +46,8 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
   assert.deepEqual(evaluate().summary.unavailable,["system_notification","global_shortcut"]);
   assert.deepEqual(evaluate().values.interfaces,["nsh"]);
   assert.deepEqual(evaluate().values.nsh_targets,["desktop","mobile","web"]);
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux","android","ios","web"]);
+  assert.equal(evaluate().sources.target_platforms,"derived:nsh_targets");
   assert.equal(evaluate().values.post_release_action,"pending");
   const digest=evaluate().summaryDigest;input.confirmation={digest,source:"user:test-confirmation"};assert.equal(evaluate().stage,"confirmed");
   set("system_notification","enabled");assert.equal(evaluate().questions[0].id,"system_notification");
@@ -69,23 +71,27 @@ test("nsh_enabled_native_capabilities_require_explicit_answers_and_deep_link_ins
   assert.equal(evaluate().stage,"review");
 }));
 
-/** NSH 非桌面目标不询问九项桌面配置；类别与具体目标双向校验。 */
+/** NSH 非桌面目标不询问九项桌面配置；改变能力后重新派生平台。 */
 test("nsh_mobile_web_skip_desktop_profile_and_reject_stale_answers", () => fixture(({input,set,nsh,evaluate}) => {
-  nsh(["mobile","web"], ["android","web"]);
+  nsh(["mobile","web"]);
   assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.target_platforms,["android","ios","web"]);
   assert.deepEqual(evaluate().summary.unavailable,[]);
   assert.equal(evaluate().values.sidebar_mode,undefined);
   set("about_page","enabled");assert.equal(evaluate().questions[0].id,"nsh_targets");
   delete input.answers.about_page;
-  set("nsh_targets",["mobile"]);assert.equal(evaluate().stage,"platform");assert.equal(evaluate().questions[0].id,"target_platforms");
+  set("nsh_targets",["mobile"]);assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.target_platforms,["android","ios"]);
   set("target_platforms",["android"]);assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.target_platforms,["android","ios"]);
   delete input.answers.nsh_targets;assert.equal(evaluate().questions[0].id,"nsh_targets");
 }));
 
 /** TUI 是 NSH 子目标，纯终端不要求桌面 profile，组合目标共用 OS。 */
 test("nsh_tui_preview_defers_release_action", () => fixture(({input,set,nsh,evaluate}) => {
-  nsh(["tui"],["macos"]);
+  nsh(["tui"]);
   assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
   assert.equal(evaluate().values.post_release_action,"pending");
   assert.match(evaluate().summary.notices.join("\n"),/首次发布前只能选择提交远程/u);
   assert.equal(evaluate().values.sidebar_mode,undefined);
@@ -93,12 +99,34 @@ test("nsh_tui_preview_defers_release_action", () => fixture(({input,set,nsh,eval
   assert.doesNotMatch(evaluate().summary.notices.join("\n"),/Logo 在本汇总确认后/u);
   const digest=evaluate().summaryDigest; input.confirmation={digest,source:"user:test-confirmation"};
   assert.equal(evaluate().stage,"confirmed");
-  set("target_platforms",["android"]); assert.equal(evaluate().stage,"platform"); assert.equal(evaluate().questions[0].id,"target_platforms");
-  set("target_platforms",["macos"]); set("about_page","enabled"); assert.equal(evaluate().questions[0].id,"nsh_targets");
+  set("target_platforms",["android"]); assert.equal(evaluate().stage,"confirmed");
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
+  set("about_page","enabled"); assert.equal(evaluate().questions[0].id,"nsh_targets");
   delete input.answers.about_page;
-  nsh(["desktop","tui"],["macos"]);
+  nsh(["desktop","tui"]);
   assert.equal(evaluate().stage,"review");
   assert.deepEqual(evaluate().values.nsh_targets,["desktop","tui"]);
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
+}));
+
+/** NSH 只问能力，旧平台答案不进入汇总；非 NSH 也默认完整桌面平台。 */
+test("nsh_only_asks_capabilities_and_derives_platforms", () => fixture(({input,set,base,evaluate}) => {
+  base(); set("interfaces",["nsh"]);
+  assert.equal(evaluate().stage,"nsh");
+  assert.deepEqual(evaluate().questions.map(({id}) => id),["nsh_targets"]);
+  assert.equal(evaluate().values.target_platforms,undefined);
+  set("nsh_targets",["mobile","web","tui"]);
+  assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux","android","ios","web"]);
+  assert.match(evaluate().summary.notices.join(" "),/目标平台仅由所选能力自动确定/u);
+  set("target_platforms",["android"]);
+  assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux","android","ios","web"]);
+  assert.equal(evaluate().sources.target_platforms,"derived:nsh_targets");
+  set("interfaces",["cli"]); delete input.answers.nsh_targets;
+  assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
+  assert.equal(evaluate().sources.target_platforms,"default:all_desktop_platforms");
 }));
 
 /** 空表单首轮只问身份与程序类型，直调初始化只省既定路径。 */
@@ -122,16 +150,14 @@ test("provided_fields_are_reused_and_translation_is_not_a_user_question", () => 
   set("name_en", "Changed Tool"); assert.equal(evaluate().stage, "translation");
 }));
 
-/** 程序类型漏答不套默认；平台在程序类型之后单独询问。 */
+/** 程序类型漏答不套默认；明确选后直接派生全部桌面平台。 */
 test("missing_answers_wait_while_explicit_defaults_are_field_scoped", () => fixture(({ input, set, base, gui, evaluate }) => {
-  base(); delete input.answers.interfaces; delete input.answers.target_platforms;
+  base(); delete input.answers.interfaces;
   assert.deepEqual(evaluate().questions.map(({ id }) => id), ["interfaces"]);
   set("interfaces", "default");
   assert.deepEqual(evaluate().values.interfaces, ["cli"]);
-  assert.equal(evaluate().stage, "platform");
-  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["target_platforms"]);
-  set("target_platforms", ["linux"]);
   assert.equal(evaluate().stage, "review");
+  assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
   gui(); delete input.answers.gui_framework;
   assert.equal(evaluate().stage, "framework");
   set("gui_framework", "skip"); delete input.answers.sidebar_mode;
@@ -170,21 +196,24 @@ test("policy_defaults_are_derived_without_questions_and_release_is_deferred", ()
   assert.throws(evaluate, /未知字段/u);
 }));
 
-/** CLI/MCP 可组合并可附加 DESKTOP；NSH 与其余类型互斥。 */
-test("interface_combinations_and_platform_followup", () => fixture(({ input, set, base, evaluate }) => {
-  base(); delete input.answers.target_platforms;
-  for (const interfaces of [["cli", "mcp"], ["cli", "gui"], ["mcp", "gui"], ["cli", "mcp", "gui"]]) {
+/** CLI/MCP/DESKTOP 默认完整桌面平台，NSH 与其余类型互斥。 */
+test("interface_combinations_default_to_all_desktop_platforms", () => fixture(({ input, set, base, evaluate }) => {
+  base();
+  for (const interfaces of [["cli", "mcp"], ["mcp"]]) {
     set("interfaces", interfaces);
-    assert.equal(evaluate().stage, "platform");
-    assert.equal(evaluate().questions[0].id, "target_platforms");
-    assert.deepEqual(evaluate().questions[0].values, ["windows", "macos", "linux"]);
+    assert.equal(evaluate().stage, "review");
+    assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
   }
-  set("target_platforms", ["linux"]); set("interfaces", ["cli", "mcp"]);
-  assert.equal(evaluate().stage, "review");
-  set("interfaces", ["cli", "mcp", "gui"]); set("gui_framework", "tauri");
+  set("interfaces", ["cli", "gui"]);
+  assert.equal(evaluate().stage, "framework");
+  set("gui_framework", "tauri");
   for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
+  for (const interfaces of [["cli", "gui"], ["mcp", "gui"], ["cli", "mcp", "gui"]]) {
+    set("interfaces", interfaces);
+    assert.equal(evaluate().stage, "review");
+    assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
+  }
   const combined = evaluate();
-  assert.equal(combined.stage, "review");
   assert.deepEqual(combined.values.interfaces, ["cli", "mcp", "gui"]);
   input.confirmation = { digest: combined.summaryDigest, source: "user:test-confirmation" };
   assert.equal(evaluate().stage, "confirmed");
@@ -193,7 +222,8 @@ test("interface_combinations_and_platform_followup", () => fixture(({ input, set
   set("interfaces", ["gui", "nsh"]);
   assert.equal(evaluate().questions[0].id, "interfaces");
   set("interfaces", ["gui"]); set("target_platforms", ["android"]);
-  assert.equal(evaluate().stage, "platform");
+  assert.equal(evaluate().stage, "review");
+  assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
 }));
 
 test("retired_tui_interface_requires_a_new_selection", () => fixture(({ base, set, evaluate }) => {
@@ -206,9 +236,10 @@ test("retired_tui_interface_requires_a_new_selection", () => fixture(({ base, se
 test("gui_order_and_gpui_unavailable_fields_are_deterministic", () => fixture(({ input, set, gui, evaluate }) => {
   gui(); for (const id of GUI_FIELDS) delete input.answers[id];
   for (const id of GUI_FIELDS) { assert.equal(evaluate().questions[0].id, id); set(id, id === "sidebar_mode" ? "default" : "disabled"); }
-  set("gui_framework", "gpui"); set("target_platforms", ["linux"]);
+  set("gui_framework", "gpui");
   for (const id of ["deep_link", "system_tray", "global_shortcut"]) delete input.answers[id];
   assert.equal(evaluate().stage, "review");
+  assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
   assert.deepEqual(evaluate().summary.unavailable, ["system_tray", "deep_link", "global_shortcut"]);
   set("global_shortcut", "enabled"); assert.equal(evaluate().questions[0].id, "global_shortcut");
   assert.equal(evaluate().values.global_shortcut, "enabled");
@@ -290,6 +321,7 @@ test("cli_is_read_only_and_errors_do_not_echo_unknown_input", () => fixture(({ r
   const run = (args, payload) => spawnSync(process.execPath, [script, ...args], { input: payload, encoding: "utf8" });
   const catalog = run(["--catalog"]); assert.equal(catalog.status, 0);
   assert.deepEqual(JSON.parse(catalog.stdout).map(({ id }) => id), QUESTIONS.map(({ id }) => id));
+  assert.ok(!QUESTIONS.some(({ id }) => id === "target_platforms"));
   const result = run([], JSON.stringify(input)); assert.equal(result.status, 0);
   assert.equal(JSON.parse(result.stdout).stage, "review"); assert.deepEqual(fs.readdirSync(root), []);
   const invalid = run([], JSON.stringify({ ...input, secret_unknown: "DO_NOT_ECHO" }));

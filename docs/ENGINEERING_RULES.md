@@ -8,7 +8,7 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 
 DESKTOP 框架先读取根 Cargo metadata 的 `gui-framework`；DESKTOP 缺失该字段兼容 `tauri`，新建时合法值为 `tauri|gpui`，新 NSH 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri 图标/DMG、Tauri 初始化 E2E 合同只约束 Tauri GUI；GPUI 通过 `$desktop-add-gpui-adapter` 与 [GPUI 设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust 模块/注释/测试、语义控件事件所有权、真实产物和零出站边界同样约束 NSH；九字段 profile 对 DESKTOP 始终适用，对 NSH 仅随桌面子目标适用。GPUI 普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求 Jotai 或浏览器存储。
 
-GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。实际依赖和通知官方 API 边界以 GPUI Skill 的自含引用为准；禁用能力不生成实现或依赖。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux Tauri 且无 CLI 时必须选 `push_release_branch`。
+新 GPUI 项目默认含 Linux，深链接、系统托盘和 OS 全局快捷键均在统一表单中派生为 `unavailable`/`disabled`；既有不含 Linux 的旧项目仍按其受保护平台和 profile 判断托盘与快捷键。其余九字段配置复用统一表单；配置协助只记录移交意愿，具体产品动作在终端下游根目录确认。实际依赖和通知官方 API 边界以 GPUI Skill 的自含引用为准；禁用能力不生成实现或依赖。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux Tauri 且无 CLI 时必须选 `push_release_branch`。
 
 ## 1. 适用范围与规则等级
 

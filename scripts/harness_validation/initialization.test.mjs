@@ -243,7 +243,7 @@ test("initialization contract defers post-release action until first release", (
   const primary = primaryRequiredFragments(INITIALIZE_SKILL);
   const repository = repositoryRequiredFragments(ENVIRONMENT_REFERENCE, RUST_BASELINE);
   assert.ok(primary.get(INSTANTIATE_FORM).includes("`post_release_action: pending`"));
-  assert.ok(primary.get(INSTANTIATE_FORM).includes("程序类型收齐后才展示第 7 项目标平台"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("任何路径都不再询问系统平台"));
   assert.ok(primary.get(INSTANTIATE_FORM).includes("首次发布前由 `$desktop-prepare-release` 调用 `$desktop-switch-post-release-action`"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 5`"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("initialization_form.mjs --catalog"));

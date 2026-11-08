@@ -18,7 +18,7 @@ NSH 专用路由：新项目的根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets
 
 本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。新初始化固定物化六项能力默认值，不单独询问；完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`，`confirmed_by`、`confirmed_at` 记录完整汇总的真实确认来源和日期。新下游的 schema 5 允许 `post_release_action: pending` 留到首次发布前明确选择并记录；未选择时 Git 发布门禁失败关闭。Git 发布固定在本地默认主分支与 tag 完成；下游随后按当次已冻结的发布后动作执行并复核。Harness 源的 `pending` 不阻断 Harness 自身的 Git 发布。
 
-DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加本文件 frontmatter 策略字段。`tauri` 为默认且兼容既有 GUI 缺失值，`gpui` 分派 `$desktop-add-gpui-adapter`；新 NSH 不写 `gui-framework`。下文 Tauri 插件、三项固定基线、前端、Tauri 初始化 E2E 与 GUI 本地打包条件只适用于 Tauri；GPUI 使用 Rust 构建与 Computer Use 初始化检查。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。GPUI 本地候选由独立 `$desktop-build-gpui-release` 负责，macOS/Windows 与 Linux GNU x64/ARM64 目标可确认 `local_package`；仅 Linux Tauri 且无 CLI 时仍须明确选 `push_release_branch`。DESKTOP 要求 Node.js/pnpm，顶层 NSH 仅要求 Node.js 工程工具；GPUI 的项目根脚本用于验证、发布和原生打包。通用策略选择、零写入确认、独立仓库、版本和发布事实边界保持一致。
+DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加本文件 frontmatter 策略字段。`tauri` 为默认且兼容既有 GUI 缺失值，`gpui` 分派 `$desktop-add-gpui-adapter`；新 NSH 不写 `gui-framework`。下文 Tauri 插件、三项固定基线、前端、Tauri 初始化 E2E 与 GUI 本地打包条件只适用于 Tauri；GPUI 使用 Rust 构建与 Computer Use 初始化检查。新 GPUI 项目默认含 Linux，深链接、系统托盘和 OS 全局快捷键均在统一表单中派生为 `unavailable`/`disabled`；既有不含 Linux 的旧项目仍按其受保护平台和 profile 判断托盘与快捷键。其余九字段配置复用统一表单；配置协助只记录移交意愿，具体产品动作在终端下游根目录确认。GPUI 本地候选由独立 `$desktop-build-gpui-release` 负责，macOS/Windows 与 Linux GNU x64/ARM64 目标可确认 `local_package`；仅 Linux Tauri 且无 CLI 时仍须明确选 `push_release_branch`。DESKTOP 要求 Node.js/pnpm，顶层 NSH 仅要求 Node.js 工程工具；GPUI 的项目根脚本用于验证、发布和原生打包。通用策略选择、零写入确认、独立仓库、版本和发布事实边界保持一致。
 
 ## 用户要求与项目选择
 

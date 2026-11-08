@@ -47,7 +47,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "initialization_questions.mjs", "initialization_form.mjs", "evaluateInitializationForm", "`post_release_action: pending`",
       "## 首轮基础问题模板", "## 字段阶段与顺序", "summaryDigest",
       "无新消息、遗漏答案、等待超时均不算默认或批准",
-      "程序类型收齐后才展示第 7 项目标平台", "六项 Agent 策略直接由解析器",
+      "任何路径都不再询问系统平台", "六项 Agent 策略直接由解析器",
       "首次发布前由 `$desktop-prepare-release` 调用 `$desktop-switch-post-release-action`",
       "resolve_project_target.mjs", "区分大小写地精确相等", "targetRoot",
     ]],
