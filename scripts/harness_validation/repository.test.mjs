@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 import { ROOT } from "./core.mjs";
-import { validateSkillsMap, validateWorkPlanContract } from "./repository.mjs";
+import { validateMarkdownLinks, validateSkillsMap, validateWorkPlanContract } from "./repository.mjs";
 import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
 import { safeRelativePath } from "../../.agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_safety.mjs";
 import {
@@ -58,6 +58,22 @@ test("skills_map_rejects_retired_entries_and_missing_section", () => {
   const absent = [];
   validateSkillsMap(absent, "# Entry\n`$desktop-first`\n", options);
   assert.match(absent[0], /缺少 Skills 索引章节/u);
+});
+
+/** 本地章节链接覆盖同页、跨页、重复标题和显式 HTML id。 */
+test("markdown_links_validate_local_fragments", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "harness-markdown-links-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(root, "README.md"), "# 首页\n[同页](#首页)\n[跨页](guide.md#第一章)\n[编码](guide.md#%E7%AC%AC%E4%B8%80%E7%AB%A0)\n[重复](guide.md#重复-1)\n[显式](guide.md#manual-id)\n[外部](https://example.com/#missing)\n");
+  fs.writeFileSync(path.join(root, "guide.md"), "# 第一章\n## 重复\n## 重复\n<a id=\"manual-id\"></a>\n```md\n# 伪标题\n```\n");
+  const errors = [];
+  validateMarkdownLinks(errors, ["README.md", "guide.md"], root);
+  assert.deepEqual(errors, []);
+
+  fs.appendFileSync(path.join(root, "README.md"), "[失效章节](guide.md#不存在)\n[代码伪标题](guide.md#伪标题)\n[失效同页](#不存在)\n");
+  const broken = [];
+  validateMarkdownLinks(broken, ["README.md", "guide.md"], root);
+  assert.equal(broken.filter((error) => error.includes("失效本地 Markdown 锚点")).length, 3, broken.join("\n"));
 });
 
 /** 复制保留的脚本与引用到隔离下游，不携带上游专属校验目录。 */

@@ -8,7 +8,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { assertDependencyLocks } from "../../desktop-implement-change/scripts/project_lock_policy.mjs";
+import { assertDependencyLocks, readDependencyLockPolicy } from "../../desktop-implement-change/scripts/project_lock_policy.mjs";
 
 const POLICY_RELATIVE = path.join("docs", "AGENT_POLICY.md");
 /** 发布后动作的唯一合法取值；生命周期与仓库校验器共享同一集合。 */
@@ -416,6 +416,71 @@ export function localPackageSupported(interfaces, platforms, guiFramework = "tau
   return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => supported.includes(platform)));
 }
 
+/** 发布后的单次本机候选路由；持久动作不暗含全平台或全部接口构建。 */
+export function selectLocalPackageRoute({ interfaces, platforms, guiFramework = "tauri", nshTargets = [], hostPlatform, hostArch = "x64", requestedInterface = null, requestedTarget = null }) {
+  if (!Array.isArray(interfaces) || !Array.isArray(platforms) || !["macos", "windows", "linux"].includes(hostPlatform)) {
+    throw new ActionError("本地候选路由需要已确认接口、平台和当前宿主");
+  }
+  if (!["tauri", "gpui", "nsh"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效");
+  if ((requestedInterface === null) !== (requestedTarget === null)) throw new ActionError("明确改选本地候选时须同时指定接口与目标");
+  const selected = new Set(platforms);
+  const onHost = selected.has(hostPlatform);
+  const result = (interfaceName, target, skill) => ({ interface: interfaceName, target, skill });
+  const routes = [];
+  if (interfaces.includes("nsh")) {
+    if (interfaces.length !== 1 || nshTargets.includes("tui")) return null;
+    if (nshTargets.includes("desktop") && onHost) routes.push(result("nsh", hostPlatform, "desktop-build-nsh-release"));
+    if (nshTargets.includes("mobile") && hostPlatform === "macos" && selected.has("ios")) routes.push(result("nsh", "ios", "desktop-build-nsh-release"));
+    if (nshTargets.includes("mobile") && selected.has("android")) routes.push(result("nsh", "android", "desktop-build-nsh-release"));
+    if (nshTargets.includes("web") && selected.has("web")) routes.push(result("nsh", "web", "desktop-build-nsh-release"));
+  } else {
+    if (interfaces.includes("gui") && onHost) {
+      if (guiFramework === "gpui" && (hostPlatform !== "windows" || hostArch === "x64") && (hostPlatform !== "linux" || ["x64", "arm64"].includes(hostArch))) {
+        routes.push(result("gui", hostPlatform, "desktop-build-gpui-release"));
+      }
+      if (guiFramework === "tauri" && (hostPlatform === "macos" || hostPlatform === "windows" && hostArch === "x64")) {
+        routes.push(result("gui", hostPlatform, "desktop-build-tauri-release"));
+      }
+      if (guiFramework === "nsh") routes.push(result("gui", hostPlatform, "desktop-build-nsh-release"));
+    }
+    if (interfaces.includes("cli") && onHost) routes.push(result("cli", hostPlatform, "desktop-build-rust-release"));
+    if (interfaces.length === 1 && interfaces[0] === "gui" && guiFramework === "nsh") {
+      if (hostPlatform === "macos" && selected.has("ios")) routes.push(result("gui", "ios", "desktop-build-nsh-release"));
+      if (selected.has("android")) routes.push(result("gui", "android", "desktop-build-nsh-release"));
+      if (selected.has("web")) routes.push(result("gui", "web", "desktop-build-nsh-release"));
+    }
+  }
+  if (requestedInterface !== null) {
+    const requested = routes.find(route => route.interface === requestedInterface && route.target === requestedTarget);
+    if (!requested) throw new ActionError("请求的本地候选接口/目标不是当前宿主可构建的已选正式目标");
+    return requested;
+  }
+  return routes[0] ?? null;
+}
+
+/** 从当前仓库读取本机候选唯一目标，不改变策略或 Git 发布事实。 */
+export function localPackageRoute(rawRoot, { requestedInterface = null, requestedTarget = null } = {}) {
+  const root = projectRoot(rawRoot);
+  const source = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
+  const interfaces = metadataArray(root, "interfaces");
+  const guiFramework = parseReleaseGuiFramework(source);
+  if ((interfaces.includes("nsh") || interfaces.includes("gui") && guiFramework === "nsh") && readDependencyLockPolicy(root) === "tracked") {
+    throw new ActionError("NSH 生成的运行时 workspace 尚不能传播 tracked Cargo.lock；本地正式候选路线不可用");
+  }
+  const route = selectLocalPackageRoute({
+    interfaces,
+    platforms: metadataArray(root, "target-platforms"),
+    guiFramework,
+    nshTargets: interfaces.includes("nsh") ? metadataArray(root, "nsh-targets") : [],
+    hostPlatform: { darwin: "macos", win32: "windows", linux: "linux" }[process.platform],
+    hostArch: process.arch,
+    requestedInterface,
+    requestedTarget,
+  });
+  if (route === null) throw new ActionError("当前宿主没有已选且受支持的本地正式候选目标；Git 发布已完成，发布后打包仍阻断");
+  return { status: "selected", ...route };
+}
+
 function assertLocalPackageSupported(root) {
   const interfaces = metadataArray(root, "interfaces");
   const cargoSource = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
@@ -426,6 +491,7 @@ function assertLocalPackageSupported(root) {
   if (interfaces.includes("gui") && framework === "tauri") assertGuiPackageReady(root);
   else if (interfaces.includes("gui") && framework === "gpui") assertGpuiPackageReady(root);
   else if (interfaces.includes("nsh") || interfaces.includes("gui") && framework === "nsh") {
+    if (readDependencyLockPolicy(root) === "tracked") throw new ActionError("NSH 生成的运行时 workspace 尚不能传播 tracked Cargo.lock；请选择 push_release_branch，或先实现锁定解析路线");
     const modern = interfaces.includes("nsh");
     if (modern) {
       if (framework !== "tauri" || optionalMetadata(root, "gui-framework") !== null) throw new ActionError("顶层 NSH 不声明 GUI 框架");
@@ -533,8 +599,9 @@ export function setAction(rawRoot, action, expectedAction, { confirmedChoice = f
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
-  if (!["inspect", "check", "set"].includes(command)) throw new ActionError("命令只能是 inspect、check 或 set");
-  const allowed = command === "set" ? new Set(["--project-root", "--action", "--expected-action", "--confirmed-user-choice"]) : new Set(["--project-root"]);
+  if (!["inspect", "check", "route", "set"].includes(command)) throw new ActionError("命令只能是 inspect、check、route 或 set");
+  const allowed = command === "set" ? new Set(["--project-root", "--action", "--expected-action", "--confirmed-user-choice"])
+    : command === "route" ? new Set(["--project-root", "--interface", "--target"]) : new Set(["--project-root"]);
   const values = new Map();
   for (let index = 0; index < rest.length; index += 1) {
     const key = rest[index];
@@ -548,6 +615,7 @@ function parseArgs(argv) {
   }
   if (!values.has("--project-root")) throw new ActionError("缺少 --project-root");
   if (command === "set" && (!values.has("--action") || !values.has("--expected-action"))) throw new ActionError("set 需要 --action 与 --expected-action");
+  if (command === "route" && (values.has("--interface") !== values.has("--target"))) throw new ActionError("route 的 --interface 与 --target 须同时提供");
   return { command, values };
 }
 
@@ -557,7 +625,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const root = values.get("--project-root");
     const result = command === "set"
       ? setAction(root, values.get("--action"), values.get("--expected-action"), { confirmedChoice: values.has("--confirmed-user-choice") })
-      : inspect(root, { requireConfigured: command === "check" });
+      : command === "route" ? localPackageRoute(root, { requestedInterface: values.get("--interface") ?? null, requestedTarget: values.get("--target") ?? null })
+        : inspect(root, { requireConfigured: command === "check" });
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } catch (error) {
     process.stderr.write(`${JSON.stringify({ error: error instanceof Error ? error.message : String(error) })}\n`);

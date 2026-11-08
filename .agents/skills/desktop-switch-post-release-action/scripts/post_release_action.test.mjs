@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { localPackageSupported, parseAgentPolicyDocument, parseReleaseGuiFramework, parseReleaseMetadataArray } from "./post_release_action.mjs";
+import { localPackageSupported, parseAgentPolicyDocument, parseReleaseGuiFramework, parseReleaseMetadataArray, selectLocalPackageRoute } from "./post_release_action.mjs";
 
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "post_release_action.mjs");
 const V3 = [
@@ -126,6 +126,34 @@ test("gpui_local_package_supports_native_gui_platforms_without_cli", (t) => {
   assert.equal(f.run("set", setOptions("push_release_branch")).post_release_action, "push_release_branch");
 });
 
+/** 同一发布后动作在本机只解析一个候选；多接口和 NSH 多目标顺序固定。 */
+test("local_package_route_is_single_target_and_requires_explicit_reselection", (t) => {
+  const choose = (values) => selectLocalPackageRoute({ hostPlatform: "macos", hostArch: "arm64", ...values });
+  assert.deepEqual(choose({ interfaces: ["cli", "gui"], platforms: ["macos", "windows", "linux"] }),
+    { interface: "gui", target: "macos", skill: "desktop-build-tauri-release" });
+  assert.deepEqual(selectLocalPackageRoute({ interfaces: ["cli", "gui"], platforms: ["macos", "windows", "linux"], hostPlatform: "linux" }),
+    { interface: "cli", target: "linux", skill: "desktop-build-rust-release" });
+  assert.deepEqual(selectLocalPackageRoute({ interfaces: ["cli", "gui"], platforms: ["macos", "windows", "linux"], guiFramework: "gpui", hostPlatform: "linux", hostArch: "arm64" }),
+    { interface: "gui", target: "linux", skill: "desktop-build-gpui-release" });
+  const nsh = { interfaces: ["nsh"], platforms: ["macos", "windows", "linux", "android", "ios", "web"], nshTargets: ["desktop", "mobile", "web"] };
+  assert.deepEqual(choose(nsh), { interface: "nsh", target: "macos", skill: "desktop-build-nsh-release" });
+  assert.deepEqual(selectLocalPackageRoute({ ...nsh, hostPlatform: "windows" }),
+    { interface: "nsh", target: "windows", skill: "desktop-build-nsh-release" });
+  assert.deepEqual(selectLocalPackageRoute({ ...nsh, nshTargets: ["mobile", "web"], hostPlatform: "linux" }),
+    { interface: "nsh", target: "android", skill: "desktop-build-nsh-release" });
+  assert.deepEqual(choose({ ...nsh, nshTargets: ["web"], platforms: ["web"] }),
+    { interface: "nsh", target: "web", skill: "desktop-build-nsh-release" });
+  assert.equal(choose({ ...nsh, nshTargets: [...nsh.nshTargets, "tui"] }), null);
+  assert.deepEqual(choose({ ...nsh, requestedInterface: "nsh", requestedTarget: "web" }),
+    { interface: "nsh", target: "web", skill: "desktop-build-nsh-release" });
+  assert.throws(() => choose({ ...nsh, requestedInterface: "cli", requestedTarget: "macos" }), /当前宿主可构建/u);
+  assert.throws(() => choose({ ...nsh, requestedInterface: "nsh" }), /同时指定/u);
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace.metadata.agent-first-harness]\ntarget-platforms = ["macos", "windows", "linux"]\ninterfaces = ["cli"]\n');
+  assert.equal(f.run("route").target, { darwin: "macos", win32: "windows", linux: "linux" }[process.platform]);
+  assert.match(f.run("route", ["--interface", "gui", "--target", "macos"], 2).error, /当前宿主可构建/u);
+});
+
 /** 顶层 NSH 的 Mixed 入口可选择本地打包，旧 Rust UI 入口不得冒充新工程。 */
 test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) => {
   const f = fixture(t);
@@ -147,6 +175,15 @@ test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) 
   fs.rmSync(app);
   assert.match(f.run("set", setOptions("local_package"), 2).error, /Mixed TSX 入口/u);
   fs.writeFileSync(app, 'import { mount } from "nsh";\nmount(() => null);\n');
+  const cargo = path.join(f.root, "Cargo.toml");
+  const unlocked = fs.readFileSync(cargo, "utf8");
+  fs.writeFileSync(cargo, `${unlocked}dependency-lock-policy = "tracked"\n`);
+  fs.writeFileSync(path.join(f.root, "Cargo.lock"), "# tracked lock\n");
+  track(f, "Cargo.toml", "Cargo.lock");
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /NSH.*tracked Cargo\.lock/u);
+  assert.match(f.run("route", [], 2).error, /NSH.*tracked Cargo\.lock/u);
+  assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
+  fs.writeFileSync(cargo, unlocked);
   assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
   const policyBeforeTui=fs.readFileSync(f.policy,"utf8");
   fs.writeFileSync(path.join(f.root,"Cargo.toml"),fs.readFileSync(path.join(f.root,"Cargo.toml"),"utf8").replace('nsh-targets = ["desktop", "web"]','nsh-targets = ["desktop", "web", "tui"]'));

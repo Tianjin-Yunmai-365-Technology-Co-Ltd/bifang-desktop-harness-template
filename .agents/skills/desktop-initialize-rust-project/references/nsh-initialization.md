@@ -4,7 +4,7 @@
 
 ## 子目标与能力
 
-表单选择 desktop/mobile/web/tui；TUI 仅在固定官方 main 预览 revision 的配对 CLI 与 Cargo 依赖下运行、测试，正式 0.4.0 或不匹配运行时失败关闭。完整读取 [$desktop-add-nsh-adapter](../../desktop-add-nsh-adapter/SKILL.md) 及其 [运行时与能力](../../desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。各子目标均采用 Mixed TSX 界面、Rust native module 与共享 core 调用；TUI 使用终端 idiom 与专用入口，不接桌面宿主能力。仅 desktop 询问九项桌面 profile：多窗口固定支持；托盘、自启、单实例和深链接按选择接线，深链接要求单实例；系统通知与 OS 全局快捷键明确不可用。mobile/Web/tui 不询问桌面 profile，也不生成自定义桌面宿主。
+表单选择 desktop/mobile/web/tui 并派生完整目标平台集合；TUI 仅在固定官方 main 预览 revision 的配对 CLI 与 Cargo 依赖下运行、测试，正式 0.4.0 或不匹配运行时失败关闭。完整读取 [$desktop-add-nsh-adapter](../../desktop-add-nsh-adapter/SKILL.md) 及其 [运行时与能力](../../desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。各子目标均采用 Mixed TSX 界面、Rust native module 与共享 core 调用；TUI 使用终端 idiom 与专用入口，不接桌面宿主能力。仅 desktop 询问九项桌面 profile：多窗口固定支持；托盘、自启、单实例和深链接按选择接线，深链接要求单实例；系统通知与 OS 全局快捷键明确不可用。mobile/Web/tui 不询问桌面 profile，也不生成自定义桌面宿主。
 
 ## 工程与测试
 

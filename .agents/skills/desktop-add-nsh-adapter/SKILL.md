@@ -5,9 +5,9 @@ description: 为顶层 NSH 类型的共享 Rust core 增加 Native Shell Mixed �
 
 # 增加 NSH 适配器
 
-新项目的顶层 `interfaces = ["nsh"]` 专用；NSH 的说明为“下一代全平台开发框架”。`nsh-targets` 可选 desktop、mobile、web、tui。TUI 使用官方 main 固定提交 `beeb9fc7707e0d4a195a4f7274f77b30e134c500` 的预览版，正式 v0.4.0 CLI 无 TUI 目标；仅新建且选择 TUI 的项目将全部 NSH Cargo 依赖固定到该 main 提交；未选择 TUI 的新项目保持正式 v0.4.0 Git 提交 e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3，旧下游不自动升级。具体平台仍记入 `target-platforms`，TUI 要求至少一个 macOS/Windows/Linux，可与 desktop 共用该系统；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容，独立 `interfaces = ["tui"]` 仍拒绝。初始化只复用唯一表单确认结果；已有下游新增接口先进入 `$desktop-implement-change`。不加载 Tauri、React、Mantine 或 GPUI Kit。
+新项目的顶层 `interfaces = ["nsh"]` 专用；NSH 的说明为“下一代全平台开发框架”。`nsh-targets` 可选 desktop、mobile、web、tui。TUI 使用官方 main 固定提交 `beeb9fc7707e0d4a195a4f7274f77b30e134c500` 的预览版，正式 v0.4.0 CLI 无 TUI 目标；仅新建且选择 TUI 的项目将全部 NSH Cargo 依赖固定到该 main 提交；未选择 TUI 的新项目保持正式 v0.4.0 Git 提交 e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3，旧下游不自动升级。新实例化按唯一表单从能力派生完整系统集合：desktop/tui 对应 Windows、macOS、Linux，mobile 对应 Android、iOS，web 对应 Web；确认后写入 `target-platforms`。已有下游 add-only 接入按其受保护 Cargo 平台执行，TUI 至少需要其中一个桌面系统，不扩大旧项目的平台声明。既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容，独立 `interfaces = ["tui"]` 仍拒绝。初始化只复用唯一表单确认结果；已有下游新增接口先进入 `$desktop-implement-change`。不加载 Tauri、React、Mantine 或 GPUI Kit。
 
-先读 `docs/design_standards/ui_foundation.md`、`docs/design_standards/nsh_gui.md` 与 [运行时与能力](references/runtime-and-capabilities.md)。维护打包再读 `$desktop-build-nsh-release`。本 Skill 和 helper 使用 Node 标准库，不依赖原移动客户端的工具脚本或机器路径。
+含 desktop、mobile 或 web 图形目标时先读 `docs/design_standards/ui_foundation.md`，再读 `docs/design_standards/nsh_gui.md` 与 [运行时与能力](references/runtime-and-capabilities.md)；纯 TUI 直接读取后两者，应用 NSH 通用与终端规则，不加载图形基座或桌面专属规则。维护打包再读 `$desktop-build-nsh-release`。本 Skill 和 helper 使用 Node 标准库，不依赖原移动客户端的工具脚本或机器路径。
 
 生成器在写入前通过已选 Rust 工具链的 `rustfmt`（edition 2024）格式化完整 Rust 输出；该工具属于现有 Rust 开发工具链，不添加第三方 Node 依赖，失败保持零工作区写入。 只有真实失败证明缺少该组件时，按环境恢复流程为当前工具链执行 `rustup component add rustfmt`，再复读 `rustup which rustfmt` 与 `rustfmt --version` 并重试；不升级或替换工具链。
 

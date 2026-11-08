@@ -2,7 +2,7 @@
 
 `standard_id = data-grid-v1`
 
-匹配所有 GUI 中按行列浏览重复记录的数据网格，先遵守 [UI 基座](ui_foundation.md)。本标准定义跨框架可观察行为；Tauri/Mantine 继续叠加 [列表页标准](mantine_list_view.md) 与 `$mantine-list-view`，GPUI 使用原生组件和原生可访问性机制，不引入 Web 依赖。它不要求无列表的中性 GUI 预建网格、数据源或业务动作。
+匹配所有图形 GUI 中按行列浏览重复记录的数据网格，先遵守 [UI 基座](ui_foundation.md)；NSH TUI 不适用。本标准定义跨框架可观察行为；Tauri/Mantine 继续叠加 [列表页标准](mantine_list_view.md) 与 `$mantine-list-view`，GPUI 使用原生组件和原生可访问性机制，不引入 Web 依赖。它不要求无列表的中性 GUI 预建网格、数据源或业务动作。
 
 ## 密度、排版与回流
 

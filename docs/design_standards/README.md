@@ -7,9 +7,9 @@
 初始化或修改 UI 时按以下顺序解析，不得先套用旧模板再局部修补：
 
 1. 读取根 Cargo 接口和目标、当前用户请求与已批准 ADR；DESKTOP 或选择桌面的 NSH 还读取实际存在的 `docs/GUI_APP_PROFILE.md`，确定壳层、`sidebar_mode`、支持页和产品专属约束。
-2. 所有图形界面先完整读取 [UI 统一设计基座](ui_foundation.md)，再从本索引选择所有前置条件都精确命中的框架和组件标准；只满足相似条件不算命中。根 `DESIGN.md` 仅作导航；既有下游没有此入口时直接使用本索引。
-3. 当前 UI 基座是唯一视觉规则来源。框架、组件、第三方知识与旧 profile/ADR 只保留相容的实现和行为合同；发生冲突时修改或删除旧内容，不以“更具体”为由覆盖基座。用户之后明确批准的新设计仍可修订当前规则。
-4. 现有框架标准未列出的页面直接按基座与真实需求设计；不为普通 Token 调整重开批准流程。只有改变已批准产品边界、信息架构或引入新的设计方向时确认并同步适用 profile/ADR；旧像素不再构成独立风格门禁。
+2. 所有图形界面先完整读取 [UI 统一设计基座](ui_foundation.md)，再从本索引选择所有前置条件都精确命中的框架和组件标准；只满足相似条件不算命中。NSH TUI 直接读取 NSH 标准的通用规则与 TUI 终端节，不加载图形基座或桌面专属规则。根 `DESIGN.md` 仅作导航；既有下游没有此入口时直接使用本索引。
+3. 对图形界面，当前 UI 基座是唯一视觉规则来源。框架、组件、第三方知识与旧 profile/ADR 只保留相容的实现和行为合同；发生冲突时修改或删除旧内容，不以“更具体”为由覆盖基座。用户之后明确批准的新设计仍可修订当前规则。TUI 的字符布局与输入按 NSH 标准执行。
+4. 现有框架标准未列出的图形页面直接按基座与真实需求设计；不为普通 Token 调整重开批准流程。只有改变已批准产品边界、信息架构或引入新的设计方向时确认并同步适用 profile/ADR；旧像素不再构成独立风格门禁。TUI 未列出的终端视图按 NSH 通用与终端规则处理。
 5. 只把最终命中的规则下发到对应 adapter 展示层。UI 布局、主题和纯交互状态不得下沉到 shared core。
 
 ## 标准索引
@@ -20,14 +20,14 @@
 | 所有图形界面中按行列浏览重复记录的数据网格 | [通用 Grid 数据网格标准](data_grid.md) | `data-grid-v1` |
 | Tauri 2 + React + Mantine GUI | [Tauri GUI 通用设计标准](tauri_gui.md) | `tauri-gui-common-v1` |
 | `gui-framework = "gpui"` + 原生 GPUI/gpui-kit GUI | [GPUI GUI 设计标准](gpui_gui.md)；托盘/通知/自启/单实例/热键的实现与平台限制另见 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md`，依赖选型见 `references/dependency-baseline.md` | `gpui-gui-common-v1` |
-| `interfaces = ["nsh"]` + 已选桌面、移动或 Web 图形目标；旧 GUI/NSH 只读兼容 | [NSH GUI 标准](nsh_gui.md)；桌面九项能力仅在 `nsh-targets` 含 `desktop` 时适用 | `nsh-gui-common-v1` |
+| `interfaces = ["nsh"]` + 已选 desktop、mobile、web 或 tui；旧 GUI/NSH 只读兼容 | [NSH GUI 标准](nsh_gui.md)；TUI 应用通用与终端规则，桌面九项能力仅在 `nsh-targets` 含 `desktop` 时适用 | `nsh-gui-common-v1` |
 | React 19.2+ + TypeScript + Mantine UI 9.x + 重复记录检索/浏览/管理 | [Mantine 列表页设计标准](mantine_list_view.md) | `mantine-list-view-v2` |
 | Tauri 2 + React + Mantine GUI + 固定左侧栏 + `sidebar_mode = compact` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#精简模式) | `tauri-gui-sidebar-compact-80-v1` |
 | Tauri 2 + React + Mantine GUI + 固定左侧栏 + `sidebar_mode = detailed` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#详细模式) | `tauri-gui-sidebar-detailed-v1` |
 
-所有界面先遵守共用基座；专项文档只映射相容的框架机制、组件行为和状态合同。Token 语义由基座定义，各应用的实际值只在中央主题 Token 模块维护，专项文档不再并列规定颜色、字号、圆角或展示尺寸。
+所有图形界面先遵守共用基座；NSH TUI 使用 NSH 通用与终端规则。图形专项文档只映射相容的框架机制、组件行为和状态合同。图形 Token 语义由基座定义，各应用的实际值只在中央主题 Token 模块维护，专项文档不再并列规定颜色、字号、圆角或展示尺寸。
 
-DESKTOP 框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；新 TUI 子目标使用固定官方 `main` 预览 revision，正式 0.4.0 不提供该目标。GPUI 与 NSH 在共用基座之上只叠加各自专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 GPUI 或 NSH。
+DESKTOP 框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；新 TUI 子目标使用固定官方 `main` 预览 revision，正式 0.4.0 不提供该目标。GPUI 与 NSH 图形目标在共用基座之上叠加各自专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 GPUI 或 NSH。
 
 ## 变更治理
 

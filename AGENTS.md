@@ -15,7 +15,7 @@ DESKTOP 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省�
 3. 在写入前确认 Git 根、分支和工作区状态，保护用户已有修改；重叠内容无法安全处理时停止。仓库没有声明的命令、能力或验证结果不得虚构。
 4. 先判定任务类型，再只读取下表命中的事实来源和 Skill。发现冲突或缺失时才扩大读取；不要为了“完整”加载全部项目记忆、设计标准、发布规则或 Skills。
 
-资料分类见[知识索引](docs/README.md)。客户端设计入口见 [DESIGN.md](DESIGN.md)，当前共用基座为唯一视觉依据，专项实现按 [设计标准索引](docs/design_standards/README.md) 读取；依赖、兼容、性能与平台打包方案按 [客户端工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
+资料分类见[知识索引](docs/README.md)。客户端设计入口见 [DESIGN.md](DESIGN.md)，图形界面视觉以共用基座为准，专项实现按 [设计标准索引](docs/design_standards/README.md) 读取；依赖、兼容、性能与平台打包方案按 [客户端工程索引](docs/GUI_ENGINEERING.md) 选择职责，不自动升级、基准或构建。
 
 ## 按任务渐进读取
 
@@ -39,7 +39,7 @@ DESKTOP 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省�
 | 内部并行 Worktree/Subagent 或提交 | 统一 Skill 的并行引用；提交时读提交规范 | `$desktop-task-workflow`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-handoff-project`；持久计划另按触发调用 `$desktop-plan-change` |
 | Windows/Linux Tauri GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；Linux 另读其 `references/tauri-linux.md`；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
-| 显式构建候选 | `docs/RELEASE.md`、Agent Policy 的构建段和所选构建 Skill；每次构建单独解析 E2E 选择 | `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-gpui-release` |
+| 显式构建候选 | `docs/RELEASE.md`、策略构建段；每次解析 E2E | 按接口选择 Rust、Tauri、GPUI 或 NSH 的构建 Skill（见下方地图） |
 | 正式发布候选、完整验收、E2E 或历史证据核对 | `docs/RELEASE.md`、`docs/VERIFICATION.md`；活动候选读忽略的 `release/`，仅历史核对读索引的精确证据卷 | `$desktop-prepare-release`、`$desktop-verify-delivery` 或精确命中的测试 Skill |
 | 长期决定、硬规则例外或 Harness 记忆治理 | `docs/adr/README.md` 与最新 ADR；只追溯其明确引用的旧事实 | `$desktop-record-adr`；Harness 历史整理使用 `$desktop-curate-harness-memory` |
 | 只需理解 Harness 方法论 | `docs/HARNESS_ENGINEERING.md`，再按索引选择一个主题卷 | 不因阅读方法论自动进入计划、构建或验收 |

@@ -241,12 +241,51 @@ export function validateWorkPlanContract(errors, planPath = null, { required = f
   }
 }
 
-/** 解析本地 Markdown 链接并验证目标存在、未越过仓库根。 */
-export function validateMarkdownLinks(errors, files = trackedFiles()) {
+/** 与 GitHub 标题锚点一致地保留 Unicode 字母、数字、下划线和连字符。 */
+function markdownHeadingSlug(heading) {
+  return heading
+    .replace(/<[^>]*>/gu, "")
+    .replace(/!?\[([^\]]*)\]\([^)]+\)/gu, "$1")
+    .replace(/[`*_~]/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\p{M}_\- \t]/gu, "")
+    .replace(/[ \t]+/gu, "-");
+}
+
+/** 提取标题生成锚点与显式 HTML id，跳过 fenced code 里的伪标题。 */
+function markdownAnchors(source) {
+  const anchors = new Set();
+  let fence = null;
+  const lines = source.split(/\r?\n/u);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const marker = /^ {0,3}(`{3,}|~{3,})/u.exec(line)?.[1];
+    if (marker) {
+      if (fence === null) fence = marker;
+      else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
+      continue;
+    }
+    if (fence !== null) continue;
+    for (const match of line.matchAll(/<[^>]*\bid\s*=\s*["']([^"']+)["'][^>]*>/gu)) anchors.add(match[1]);
+    const atx = /^ {0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/u.exec(line)?.[1];
+    const setext = index + 1 < lines.length && /^[ \t]{0,3}(?:=+|-+)[ \t]*$/u.test(lines[index + 1]) ? line.trim() : null;
+    const heading = atx ?? setext;
+    if (!heading) continue;
+    const slug = markdownHeadingSlug(heading);
+    if (!slug) continue;
+    let candidate = slug;
+    for (let suffix = 1; anchors.has(candidate); suffix += 1) candidate = `${slug}-${suffix}`;
+    anchors.add(candidate);
+  }
+  return anchors;
+}
+
+/** 解析本地 Markdown 链接并验证目标、锚点存在且未越过仓库根。 */
+export function validateMarkdownLinks(errors, files = trackedFiles(), root = ROOT) {
   const markdownFiles = files.filter((relative) => relative.endsWith(".md"));
   const vendor = ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/";
   let snapshotVerified = false;
-  if (markdownFiles.some(relative => relative.startsWith(vendor))) {
+  if (root === ROOT && markdownFiles.some(relative => relative.startsWith(vendor))) {
     try { loadGpuiKitSkillsSnapshot(); snapshotVerified = true; }
     catch (error) { fail(errors, `GPUI Kit 原样快照校验失败: ${error.message}`); }
   }
@@ -261,7 +300,7 @@ export function validateMarkdownLinks(errors, files = trackedFiles()) {
   ]);
   const linkPattern = /!?\[[^\]]*\]\(([^)]+)\)/gu;
   for (const relative of markdownFiles) {
-    const filePath = path.join(ROOT, relative);
+    const filePath = path.join(root, relative);
     let text;
     try {
       text = readText(filePath);
@@ -271,22 +310,26 @@ export function validateMarkdownLinks(errors, files = trackedFiles()) {
     }
     for (const match of text.matchAll(linkPattern)) {
       let target = match[1].trim();
-      if (!target || target.startsWith("#") || /^(?:https?:|mailto:|data:|app:|plugin:|codex:)/iu.test(target)) continue;
       if (target.startsWith("<") && target.endsWith(">")) target = target.slice(1, -1);
-      target = target.split("#", 1)[0].split("?", 1)[0];
-      if (!target) continue;
+      if (!target || /^(?:https?:|mailto:|data:|app:|plugin:|codex:)/iu.test(target)) continue;
+      const [rawPath, rawFragment] = target.split("#", 2);
+      target = rawPath.split("?", 1)[0];
+      if (!target && rawFragment === undefined) continue;
       try {
         target = decodeURIComponent(target);
+        const fragment = rawFragment === undefined ? null : decodeURIComponent(rawFragment);
         // 上游原样文档的跨 Skill 和原仓库示例引用由固定快照摘要约束；未知断链仍失败。
         const key = relative.startsWith(vendor) ? `${relative.slice(vendor.length)}|${target}` : "";
         if (snapshotVerified && upstreamReferences.has(key)) {
           const mapped = upstreamReferences.get(key);
-          if (mapped !== null && !fs.existsSync(path.join(ROOT, vendor, mapped))) fail(errors, `GPUI Kit 跨 Skill 引用缺失: ${mapped}`);
+          if (mapped !== null && !fs.existsSync(path.join(root, vendor, mapped))) fail(errors, `GPUI Kit 跨 Skill 引用缺失: ${mapped}`);
           continue;
         }
-        const resolved = resolveInsideRoot(path.dirname(filePath), target);
+        const resolved = resolveInsideRoot(path.dirname(filePath), target || path.basename(filePath), root);
         if (!fs.existsSync(resolved)) {
           fail(errors, `失效本地 Markdown 链接: ${relative} -> ${target}`);
+        } else if (!relative.startsWith(vendor) && fragment && resolved.endsWith(".md") && !markdownAnchors(readText(resolved)).has(fragment)) {
+          fail(errors, `失效本地 Markdown 锚点: ${relative} -> ${target || path.basename(filePath)}#${fragment}`);
         }
       } catch (error) {
         fail(errors, `${relative} 的本地链接无效: ${error.message}`);

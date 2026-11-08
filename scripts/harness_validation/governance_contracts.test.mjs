@@ -44,6 +44,18 @@ test("engineering contract rejects a removed source-of-truth fragment", () => wi
   expectError(errors, anchor);
 }));
 
+test("engineering contract preserves flat and NSH candidate evidence boundaries", () => withTemporaryDirectory((directory) => {
+  for (const anchor of [
+    "扁平候选的 producer/collector 在仓库外同文件系统 sibling 暂存并验证精确集合后目录级原子提交",
+    "NSH 使用按目标隔离的批次目录",
+  ]) {
+    const productSpec = mutatedCopy(directory, "productSpec", anchor, "已删除当前候选证据边界");
+    const errors = [];
+    validateEngineeringContract(errors, { paths: { productSpec } });
+    expectError(errors, anchor);
+  }
+}));
+
 test("engineering contract requires the post-release policy field", () => withTemporaryDirectory((directory) => {
   const anchor = "post_release_action: pending";
   const agentPolicy = mutatedCopy(directory, "agentPolicy", anchor, "removed-post-release-selection");

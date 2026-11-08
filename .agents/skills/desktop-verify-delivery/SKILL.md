@@ -9,6 +9,8 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 
 GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前端测试、Tauri资源定位、DMG及其 helper 只适用于 Tauri。GPUI 候选先读取 `$desktop-build-gpui-release`，只接受其 `candidate` 模式形成的最终包及通用 manifest，包括 Linux GNU x64/ARM64 的 deb/tar.gz；`local` 试包与初始化开发程序没有候选验收资格。资源、许可证、更新日志、最终包摘要与适用签名证据使用该 Skill 的 GPUI 独立实现检查，不调用 Tauri helper。Linux 同系统交叉架构候选的运行场景必须在匹配目标架构的真实宿主执行；跨系统等尚未支持的构建路线不能进入验收。
 
+下文“`release/` 精确集合”“全部 manifest”“整组同状态”和替换整个 `release/` 的步骤用于 CLI/Tauri/GPUI 扁平候选。NSH 按目标批次保留目录，以下准入、二次上下文核对、真实产物和 E2E 门禁仍适用；凡通用步骤 2、7、8 与底部 NSH 路由对集合或状态写入的描述不同，均以 NSH 路由为准，只取显式选定的单个批次。不能让旧批次的 HEAD 或状态阻断当前批次，也不能把旧批次计入本次通过。
+
 ## 准入
 
 1. 只接受发布/渠道要求、用户明确要求完整验收，或当前构建已明确选择 E2E `enabled` 的请求。读取 Product Spec、当前构建记录、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、相关 ADR、验证/发布规则和适用接口 Skill。
@@ -54,3 +56,7 @@ GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 
 NSH 按每个目标独立复算 `manifest.json` 的 `artifact`、`checksum`、`files`、`sourceSnapshot`、`releaseNotesSha256` 和 `licenses`。新候选核对 `interface: nsh`、`nshTargets`、真实格式与签名状态；旧 GUI/NSH 候选按原 `guiFramework: nsh` 读取。`releaseNotesResourceVerification: sidecar-byte-identical` 只证明外层日志字节；选择桌面且启用关于页时，内容必须由真实窗口 E2E 观察。候选没有可证明的运行场景、目标宿主或必要渠道签名时维持 `pending`/`Unverified`，不签署 accepted。
+
+NSH 验收开始前，依据当前构建返回的 `target` 与 `buildRun` 或用户明确提供的同一对值，精确选定一个 `release/<buildRun>/`；`buildRun` 本身须为 `nsh-<target>-<uuid>` 形式的完整目录名，不得再叠加目标前缀，不得选择名称像“最新”的目录、依赖 mtime 或把多个批次合并。要求规范项目根和 `release/`、批次均为普通非符号链接目录，批次名与其中唯一 `manifest.json` 的 `target`/`buildRun` 一致；该 manifest 的 `mode: candidate`、`sourceCommit`、发布上下文摘要、版本和选项须绑定当前本地主分支/tag/HEAD。仅枚举该批次的 manifest 声明文件、sidecar、校验和与验收证据，拒绝批次内部缺失、额外、重复或路径越界；其他批次可以保留不同 HEAD、版本或 `pending|rejected|accepted`，不参与本次判断。
+
+第 7 步的二次上下文和最终字节复算只比较选定批次的当前证据；第 8 步在同一 `release/` 文件系统中为该批次建立唯一受限 staging，只复制该批次的精确集合并写入它自己的 `milestoneAcceptance` 与结构化证据。复算通过后以目录级原子重命名替换该批次，失败恢复原批次；其他批次逐字节保留。接受、拒绝或等待人工复核只改变本批次状态；就绪结论也只针对已选批次的目标和证据，不能由其他批次的 `accepted` 推断本目标通过。TUI 本地预览位于 `target/nsh-packaging/`，始终不能被选择为正式候选。
