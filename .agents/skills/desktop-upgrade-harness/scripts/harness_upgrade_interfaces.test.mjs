@@ -30,7 +30,7 @@ test("framework_selection_defaults_legacy_gui_to_tauri_and_parses_explicit_gpui"
 test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
   assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop", "mobile", "web"]\n`), { interfaces: ["nsh"], guiFramework: null, nshTargets: ["desktop", "mobile", "web"] });
   assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["gui"]\ngui-framework = "nsh"\n`), { interfaces: ["gui"], guiFramework: "nsh" });
-  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /固定预览运行时/u);
+  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /TUI 暂不可用/u);
   for (const suffix of ['nsh-targets = []', 'nsh-targets = ["desktop", "desktop"]', 'nsh-targets = ["unknown"]']) {
     assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\n${suffix}\n`), /Cargo nsh-targets/u);
   }
@@ -39,18 +39,15 @@ test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
   assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["cli", "nsh"]\nnsh-targets = ["desktop"]\n`), /独立顶层接口/u);
 });
 
-/** 只允许已固定官方 main 预览运行时的既有 NSH TUI 工程继续传播；旧 tag 仍失败关闭。 */
-test("tui_upgrade_requires_matching_preview_runtime_dependencies", () => {
+/** 既有 TUI 元数据和任何单个预览依赖都不能继续传播。 */
+test("tui_upgrade_rejects_preview_runtime_dependencies", () => {
   const revision = "beeb9fc7707e0d4a195a4f7274f77b30e134c500";
   const source = `${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n`;
-  const selection = parseInterfaceSelection(source);
-  assert.deepEqual(selection, { interfaces: ["nsh"], guiFramework: null, nshTargets: ["tui"] });
-  assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-build-nsh-release/SKILL.md", selection), false);
-  assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-prepare-gui-support-surfaces/SKILL.md", selection), true);
-  assert.throws(() => parseInterfaceSelection(source.replace(revision, "e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3")), /旧 0\.4\.0/u);
-  assert.throws(() => parseInterfaceSelection(source.replace("[workspace.dependencies]", `[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }`)), /固定预览运行时/u);
-  assert.throws(() => parseInterfaceSelection(source.replace("https://github.com/longbridge/nsh.git", "https://example.invalid/nsh.git")), /固定预览运行时/u);
-  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /固定预览运行时/u);
+  assert.throws(() => parseInterfaceSelection(source), /TUI 暂不可用/u);
+  assert.throws(() => parseInterfaceSelection(source.replace(revision, "e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3")), /TUI 暂不可用/u);
+  assert.throws(() => parseInterfaceSelection(source.replace('nsh-targets = ["tui"]', 'nsh-targets = ["desktop"]')), /正式 v0\.4\.0/u);
+  assert.throws(() => parseInterfaceSelection(source.replace('nsh-targets = ["tui"]', 'nsh-targets = ["desktop"]').replace(`nsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }`, '')), /正式 v0\.4\.0/u);
+  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /TUI 暂不可用/u);
 });
 
 /** 未知值、错类型、重复键和非法接口不能降级到默认值。 */

@@ -87,26 +87,19 @@ test("nsh_mobile_web_skip_desktop_profile_and_reject_stale_answers", () => fixtu
   delete input.answers.nsh_targets;assert.equal(evaluate().questions[0].id,"nsh_targets");
 }));
 
-/** TUI 是 NSH 子目标，纯终端不要求桌面 profile，组合目标共用 OS。 */
-test("nsh_tui_preview_defers_release_action", () => fixture(({input,set,nsh,evaluate}) => {
+/** TUI 不再提供可选项，旧答案不能绕过正式工具链选择。 */
+test("nsh_tui_is_unavailable_in_initialization", () => fixture(({input,set,nsh,evaluate}) => {
   nsh(["tui"]);
-  assert.equal(evaluate().stage,"review");
-  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
-  assert.equal(evaluate().values.post_release_action,"pending");
-  assert.match(evaluate().summary.notices.join("\n"),/首次发布前只能选择提交远程/u);
-  assert.equal(evaluate().values.sidebar_mode,undefined);
-  assert.deepEqual(evaluate().summary.unavailable,[]);
-  assert.doesNotMatch(evaluate().summary.notices.join("\n"),/Logo 在本汇总确认后/u);
-  const digest=evaluate().summaryDigest; input.confirmation={digest,source:"user:test-confirmation"};
-  assert.equal(evaluate().stage,"confirmed");
-  set("target_platforms",["android"]); assert.equal(evaluate().stage,"confirmed");
-  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
-  set("about_page","enabled"); assert.equal(evaluate().questions[0].id,"nsh_targets");
-  delete input.answers.about_page;
+  assert.equal(evaluate().stage,"nsh");
+  assert.deepEqual(evaluate().questions[0].values,["desktop","mobile","web"]);
+  assert.match(evaluate().questions[0].help,/TUI 暂不可用/u);
   nsh(["desktop","tui"]);
+  assert.equal(evaluate().stage,"nsh");
+  for (const id of GUI_FIELDS) delete input.answers[id];
+  set("nsh_targets",["mobile","web"]);
   assert.equal(evaluate().stage,"review");
-  assert.deepEqual(evaluate().values.nsh_targets,["desktop","tui"]);
-  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
+  assert.deepEqual(evaluate().values.target_platforms,["android","ios","web"]);
+  assert.match(evaluate().summary.notices.join("\n"),/TUI 暂不可用/u);
 }));
 
 /** NSH 只问能力，旧平台答案不进入汇总；非 NSH 也默认完整桌面平台。 */
@@ -116,13 +109,13 @@ test("nsh_only_asks_capabilities_and_derives_platforms", () => fixture(({input,s
   assert.deepEqual(evaluate().questions.map(({id}) => id),["nsh_targets"]);
   assert.equal(evaluate().questions[0].inputMode,"multiple");
   assert.equal(evaluate().values.target_platforms,undefined);
-  set("nsh_targets",["mobile","web","tui"]);
+  set("nsh_targets",["mobile","web"]);
   assert.equal(evaluate().stage,"review");
-  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux","android","ios","web"]);
+  assert.deepEqual(evaluate().values.target_platforms,["android","ios","web"]);
   assert.match(evaluate().summary.notices.join(" "),/目标平台仅由所选能力自动确定/u);
   set("target_platforms",["android"]);
   assert.equal(evaluate().stage,"review");
-  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux","android","ios","web"]);
+  assert.deepEqual(evaluate().values.target_platforms,["android","ios","web"]);
   assert.equal(evaluate().sources.target_platforms,"derived:nsh_targets");
   set("interfaces",["cli"]); delete input.answers.nsh_targets;
   assert.equal(evaluate().stage,"review");

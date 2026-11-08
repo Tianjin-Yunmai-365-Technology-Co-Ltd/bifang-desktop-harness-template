@@ -13,7 +13,7 @@ const assetRoot = path.resolve(here, '../assets/gui');
 export const NSH_REVISION = NSH_STABLE_REVISION;
 export { NSH_TUI_PREVIEW_REVISION, nshRevisionForTargets };
 export const NSH_PLATFORMS = ['windows', 'macos', 'linux', 'android', 'ios', 'web'];
-export const NSH_TARGETS = ['desktop', 'mobile', 'web', 'tui'];
+export const NSH_TARGETS = ['desktop', 'mobile', 'web'];
 export const NSH_UNAVAILABLE = ['system_notification', 'global_shortcut'];
 export const PROFILE_FIELDS = ['system_tray', 'system_notification', 'autostart', 'about_page', 'sponsor_page', 'single_instance', 'deep_link', 'global_shortcut', 'sidebar_mode'];
 const TARGET_PLATFORMS = { desktop: ['windows', 'macos', 'linux'], mobile: ['android', 'ios'], web: ['web'] };
@@ -25,10 +25,11 @@ export function normalizeNshOptions(input) {
   if (typeof input.projectId !== 'string' || input.projectId.length > 64 || !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(input.projectId)) throw new Error('invalid projectId');
   for (const key of ['nameZh','nameEn','owner']) if (typeof input[key] !== 'string' || !input[key].trim() || input[key] !== input[key].trim() || input[key].length > 200 || /[\x00-\x1f\x7f]/u.test(input[key]) || (key !== 'owner' && /[\\/:*?"<>|]/u.test(input[key]))) throw new Error('invalid ' + key);
   if (!Array.isArray(input.targetPlatforms) || !input.targetPlatforms.length || new Set(input.targetPlatforms).size !== input.targetPlatforms.length || input.targetPlatforms.some(value => !NSH_PLATFORMS.includes(value))) throw new Error('invalid NSH target platforms');
+  if (input.nshTargets?.includes('tui')) throw new Error('NSH TUI is temporarily unavailable in the released 0.4.0 toolchain');
   if (!Array.isArray(input.nshTargets) || !input.nshTargets.length || new Set(input.nshTargets).size !== input.nshTargets.length || input.nshTargets.some(value => !NSH_TARGETS.includes(value))) throw new Error('invalid NSH targets');
   const selected = new Set(input.nshTargets);
   const native = input.targetPlatforms.some(platform => TARGET_PLATFORMS.desktop.includes(platform));
-  if (native !== (selected.has('desktop') || selected.has('tui'))) throw new Error('NSH desktop/tui target-platforms mismatch');
+  if (native !== selected.has('desktop')) throw new Error('NSH desktop target-platforms mismatch');
   for (const target of ['mobile', 'web']) if (selected.has(target) !== input.targetPlatforms.some(platform => TARGET_PLATFORMS[target].includes(platform))) throw new Error('NSH ' + target + ' target-platforms mismatch');
   if (selected.has('desktop')) {
     if (!input.profile || Array.isArray(input.profile) || typeof input.profile !== 'object' || Object.keys(input.profile).sort().join() !== [...PROFILE_FIELDS].sort().join()) throw new Error('requires exactly nine desktop profile fields');
@@ -364,17 +365,14 @@ export function nshDependencies(input) {
 
 /** Root scripts call only helpers retained by the selected downstream. */
 export function nshPackageScripts(id, targets = ['desktop'], platforms = ['macos']) {
+  nshRevisionForTargets(targets);
   const desktop = targets.includes('desktop');
-  const tui = targets.includes('tui');
-  const pureTui = tui && targets.length === 1;
   const target = platforms.includes('web') ? 'web' : platforms.includes('android') ? 'android' : 'ios-simulator';
-  const tuiCommand = 'node .agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs --root .';
   return {
-    dev: desktop ? 'node .agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_desktop.mjs --root .' : pureTui ? tuiCommand : 'nsh run ' + id + '_nsh --target ' + target,
-    ...(tui ? { 'dev:tui': tuiCommand, 'nsh:test:tui': tuiCommand + ' --test' } : {}),
+    dev: desktop ? 'node .agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_desktop.mjs --root .' : 'nsh run ' + id + '_nsh --target ' + target,
     test: 'cargo test --workspace --all-targets --all-features',
-    'nsh:check': tui ? tuiCommand + ' --check' : 'nsh check ' + id + '_nsh',
-    'nsh:test': pureTui ? tuiCommand + ' --test' : 'nsh test ' + id + '_nsh',
+    'nsh:check': 'nsh check ' + id + '_nsh',
+    'nsh:test': 'nsh test ' + id + '_nsh',
     'nsh:package': 'node .agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs --root .',
     'release:notes': 'node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs',
     'release:context': 'node .agents/skills/desktop-prepare-release/scripts/release_context.mjs',

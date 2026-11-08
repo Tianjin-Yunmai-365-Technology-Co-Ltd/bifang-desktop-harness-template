@@ -12,7 +12,7 @@ import { ensureGpuiKitSkills } from './ensure_gpui_kit_skills.mjs';
 function fixtureEvidence(plan) { return { scopeDigest: plan.scopeDigest, ...Object.fromEntries(plan.requiredEvidence.map(key => [key, `tool:fixture-not-real-execution/${key}`])) }; }
 
 /** 每条接口路径裁剪其专属源入口，所有通用工程能力和法律正文继续存在。 */
-for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web', 'nsh-tui', 'nsh-desktop-tui']) test(`terminal_pruning_preserves_selected_${framework ?? 'cli'}_and_common_contracts`, t => {
+for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web']) test(`terminal_pruning_preserves_selected_${framework ?? 'cli'}_and_common_contracts`, t => {
   const f = prepareFixture(t, framework);
   writeNeutralWorkspace(f);
   if (framework?.startsWith('nsh')) {
@@ -41,13 +41,13 @@ for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web', 'nsh-tu
   assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-add-mcp-adapter/SKILL.md')), false);
   assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-extract-i18n-strings/SKILL.md')), framework === 'tauri' || framework === 'gpui');
   assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-collect-release-artifacts/SKILL.md')), cli || framework === 'tauri' || framework === 'gpui');
-  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-prepare-gui-app-identity/SKILL.md')), graphical && !['nsh-mobile-web','nsh-tui'].includes(framework));
+  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-prepare-gui-app-identity/SKILL.md')), graphical && framework !== 'nsh-mobile-web');
   for (const candidate of ['tauri', 'gpui', 'nsh']) {
     const name = candidate === 'tauri' ? 'desktop-add-gui-adapter' : `desktop-add-${candidate}-adapter`;
     assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name)), candidate === (framework?.startsWith('nsh') ? 'nsh' : framework), candidate);
   }
   assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_ENGINEERING.md')), graphical);
-  if (framework === 'nsh-mobile-web' || framework === 'nsh-tui') assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_APP_PROFILE.md')), false);
+  if (framework === 'nsh-mobile-web') assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_APP_PROFILE.md')), false);
   if (framework?.includes('tui')) {
     assert.ok(fs.existsSync(path.join(f.target, '.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs')));
     assert.ok(fs.existsSync(path.join(f.target, '.agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs')));

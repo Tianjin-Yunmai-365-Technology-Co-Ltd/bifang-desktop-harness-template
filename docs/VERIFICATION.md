@@ -39,7 +39,7 @@
 | Harness 升级 | 真实 CLI + 隔离 Git 测试夹具 | `plan`/`apply`/`record`、三方比较、引导、来源与控制状态绑定、权限、`protected`/`tombstone`；遇到符号链接与碰撞时默认拒绝，真实下游仍需前向证据 |
 | Rust 资产 | 声明的 Rust 工具链 | 日常开发只运行本次必要单元测试；显式构建只追加 workspace 全量非空单元测试与实际构建，E2E 只在最终候选形成后按本次选择执行 |
 | GUI 初始化 E2E | Tauri：`verify-gui-lifecycle-contract.mjs` + `$desktop-test-gui-initialization-e2e` + Computer Use；GPUI：`$desktop-test-gpui-initialization-e2e` + Rust 构建 + Computer Use | 只在含 GUI 的一次性初始化提交前读取九项 profile；Tauri 验证 system-locale/window-state 两项 Rust-only 基线与 dialog 固定 WebView 基线（依赖、顺序、`dialog:default`、零额外文件系统授权），再按选择验证六项宿主能力。GPUI 验证原生语言/主题/窗口状态及五项可选能力，不加载 Tauri 插件/ACL，深链接/dialog unavailable 如实报告；两者均验证禁用无残留、侧栏、设置页、实际菜单页面及状态恢复/进程回收。需安装包的深链接场景明确 `Not verified`；无法观察或恢复即阻断，不作为候选验收证据 |
-| NSH 初始化 E2E | `$desktop-test-nsh-initialization-e2e` + 非空 Rust/Mixed TSX 渲染测试 + 适用本机 Computer Use | 顶层 NSH 按 `nsh-targets` 验证；desktop 使用自定义宿主，固定验证多窗口、TSX 到共享 Rust core 的调用，并按九项 profile 验证托盘、自启、单实例、深链接或禁用无残留；系统通知与 OS 全局快捷键必须禁用。mobile/Web 以各自真实目标单独验证；TUI 在固定官方 main 预览 CLI 与 Cargo revision 配对时，验证真实终端运行、TSX 到共享 Rust core 的调用、键盘交互和终端恢复，正式 0.4.0 或版本不匹配失败关闭。中性工程基线不能充当候选验收证据 |
+| NSH 初始化 E2E | `$desktop-test-nsh-initialization-e2e` + 非空 Rust/Mixed TSX 渲染测试 + 适用本机 Computer Use | 顶层 NSH 按 desktop/mobile/web 已选目标分别验证，统一正式 v0.4.0 CLI/Cargo revision；desktop 使用自定义宿主，固定验证多窗口、TSX 到共享 Rust core 的调用，并按九项 profile 验证托盘、自启、单实例、深链接或禁用无残留；系统通知与 OS 全局快捷键必须禁用。mobile/Web 以各自真实目标单独验证；TUI 暂不可用，选择时失败关闭。中性工程基线不能充当候选验收证据 |
 | 发布语义审查 | 当次 `reviewSelection` + 冻结基线到发布 HEAD 的累计差异 | 每次明确发布只解析一次；硬要求强制启用。`enabled` 记录绑定提交和差异范围的通过证据；`disabled` 且无硬要求时记录 `Not run`、原因和风险且不生成证据；日常 Task/Worktree 整合只保留机械安全门禁 |
 | 发布刷新 | 辅助程序与发布校验器正负向测试 | 独立 Git 根、原子隔离旧目录、符号链接/重解析点、不跟随清理、精确忽略规则、默认矩阵和回退边界 |
 | Tauri DMG 最终布局 | `scripts/verify-dmg-layout.sh <final-dmg>` + 只读候选证据 | 构建和完整验收都绑定当前最终字节，验证 `.DS_Store`、本地背景、唯一 `.app` 与 `/Applications` 链接；软件许可需独立人工授权，后处理后旧证据失效 |
@@ -59,6 +59,6 @@
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。新顶层 NSH 桌面由 Mixed TSX bundle、自定义平台宿主和按 profile 选择的系统接线组成；移动/Web 继续使用官方 Mixed runner。组合工程在受管构建入口中使用临时 Mixed 入口剔除桌面 `capabilities.host`，不得把直接对原成员调用的官方移动/Web 包视为权限隔离通过；TUI 的终端入口同样不得继承桌面宿主能力。helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；TUI 在固定官方 main 预览 revision 可运行、测试和制作本机预览归档，正式 0.4.0 与不匹配运行时必须拒绝。TUI 归档的真实启动与终端恢复可证明本机预览运行，但预览 revision 尚无正式 TUI release runner/package 目标，预览归档不得计入最终候选 E2E 或完整验收。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。含 TUI 的 NSH 不进入发布后 `local_package`，其他目标按独立构建请求核验，本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。新顶层 NSH 桌面由 Mixed TSX bundle、自定义平台宿主和按 profile 选择的系统接线组成；移动/Web 继续使用正式 0.4.0 官方 Mixed runner。组合工程在受管构建入口中使用临时 Mixed 入口剔除桌面 `capabilities.host`，不得把直接对原成员调用的官方移动/Web 包视为权限隔离通过。helper 支持桌面原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录；TUI 暂不可用，元数据、运行或构建请求均失败关闭。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

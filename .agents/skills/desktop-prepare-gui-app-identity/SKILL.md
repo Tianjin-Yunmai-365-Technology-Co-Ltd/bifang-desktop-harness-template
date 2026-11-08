@@ -5,7 +5,7 @@ description: 在 GUI 初始化时按稳定顺序展示未经预处理的 Logo �
 
 # 准备 GUI 应用身份
 
-NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 使用 `$desktop-add-nsh-adapter` 和 `docs/design_standards/nsh_gui.md`；旧 GUI/NSH 仅保留读取兼容。当前三候选 Logo 选择只适用于 NSH `desktop` 子目标；mobile/Web/TUI 没有桌面 profile 或 Logo 选择步骤。不应用下文 Tauri/GPUI 的图标路径或专属 E2E；TUI 的预览运行时与平台限制见 NSH Skill 的运行时引用。
+NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 使用 `$desktop-add-nsh-adapter` 和 `docs/design_standards/nsh_gui.md`；旧 GUI/NSH 仅保留读取兼容。当前三候选 Logo 选择只适用于 NSH `desktop` 子目标；mobile/Web 没有桌面 profile 或 Logo 选择步骤。TUI 暂不可用；不应用下文 Tauri/GPUI 的图标路径或专属 E2E。
 
 GUI 初始化先建立经过用户选择的应用 Logo；首次真实 GUI 开发再补齐其余面向用户的应用身份。中性脚手架仍不得据此推测产品业务。
 

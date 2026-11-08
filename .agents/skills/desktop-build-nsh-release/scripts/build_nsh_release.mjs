@@ -10,16 +10,16 @@ import { checkContext } from '../../desktop-prepare-release/scripts/release_cont
 import { loadDocument,renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 import { check as checkVersion } from '../../desktop-manage-version/scripts/version_gate.mjs';
 import { readDependencyLockPolicy } from '../../desktop-implement-change/scripts/project_lock_policy.mjs';
-import { NSH_STABLE_REVISION, NSH_TUI_PREVIEW_REVISION } from '../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs';
+import { NSH_STABLE_REVISION } from '../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs';
 import { iosPackagingIdentity,restoreIosDisplayIdentity } from './nsh_ios_identity.mjs';
 import { assembleNshDesktopPackage, prepareNshPortableEntry, readNshDesktopProfile } from './nsh_desktop_package.mjs';
 
-const targets = ['macos','windows','linux','android','ios','ios-simulator','web','tui'];
+const targets = ['macos','windows','linux','android','ios','ios-simulator','web'];
 const NSH_UPSTREAM = 'https://github.com/longbridge/nsh.git';
 
-/** 以根清单中的实际 NSH Git pin 约束 CLI 与目标；裸 metadata 不能解禁 TUI。 */
+/** 仅允许受支持目标使用相同正式提交的 CLI 与 Cargo 运行时。 */
 export function assertNshToolchain(root,selected,cliVersion) {
-  if (!Array.isArray(selected) || selected.length===0) throw new Error('NSH target selection missing');
+  if (!Array.isArray(selected) || selected.length===0 || new Set(selected).size!==selected.length || selected.some(target=>!['desktop','mobile','web'].includes(target))) throw new Error('NSH TUI is temporarily unavailable; select only desktop/mobile/web');
   const manifest=fs.readFileSync(path.join(root,'Cargo.toml'),'utf8');
   const revisions=new Map();
   let dependencySection=false;
@@ -41,9 +41,7 @@ export function assertNshToolchain(root,selected,cliVersion) {
   }
   const core=revisions.get('nsh-core'),base=revisions.get('nsh-base');
   if(!core || !base || core!==base || [...revisions.values()].some(value=>value!==core)) throw new Error('NSH runtime dependency revisions must all match');
-  if(![NSH_STABLE_REVISION,NSH_TUI_PREVIEW_REVISION].includes(core)) throw new Error('NSH runtime revision is not a supported fixed revision');
-  if(selected.includes('tui') && core!==NSH_TUI_PREVIEW_REVISION) throw new Error('NSH TUI requires the pinned official main preview runtime');
-  if(!selected.includes('tui') && core!==NSH_STABLE_REVISION) throw new Error('NSH targets without TUI require the pinned official v0.4.0 stable runtime');
+  if(core!==NSH_STABLE_REVISION) throw new Error('NSH targets require the pinned official v0.4.0 stable runtime');
   if(cliVersion.trim()!==`nsh 0.4.0 (${core.slice(0,7)})`) throw new Error('NSH CLI and Cargo runtime revision do not match');
   return core;
 }
@@ -169,6 +167,7 @@ export function sourceSnapshot(root) {
 }
 /** 只读校验持久框架、版本与选择目标，不能把 CLI 当 NSH 打包。 */
 export function packageFacts(root,metadata,target) {
+  if(target==='tui') throw new Error('NSH TUI is temporarily unavailable in the released 0.4.0 toolchain');
   const facts=metadata.metadata?.['agent-first-harness'];
   const modern=facts?.interfaces?.length===1 && facts.interfaces[0]==='nsh' && facts['gui-framework']===undefined;
   const legacy=facts?.interfaces?.length===1 && facts.interfaces[0]==='gui' && facts['gui-framework']==='nsh';
@@ -177,8 +176,8 @@ export function packageFacts(root,metadata,target) {
   if(target==='tui' ? !facts['target-platforms'].some(platform=>['macos','windows','linux'].includes(platform)) : !facts['target-platforms'].includes(target==='ios-simulator'?'ios':target)) throw new Error('target is not selected');
   if(modern){
     const selected=facts['nsh-targets'];
-    if(!Array.isArray(selected) || selected.length===0 || new Set(selected).size!==selected.length || selected.some(value=>!['desktop','mobile','web','tui'].includes(value))) throw new Error('invalid or unsupported NSH targets');
-    if((selected.includes('desktop') || selected.includes('tui'))!==facts['target-platforms'].some(platform=>['macos','windows','linux'].includes(platform))) throw new Error('NSH targets do not match platforms');
+    if(!Array.isArray(selected) || selected.length===0 || new Set(selected).size!==selected.length || selected.some(value=>!['desktop','mobile','web'].includes(value))) throw new Error('invalid or unsupported NSH targets; TUI is temporarily unavailable');
+    if(selected.includes('desktop')!==facts['target-platforms'].some(platform=>['macos','windows','linux'].includes(platform))) throw new Error('NSH targets do not match platforms');
     for(const [group,platforms] of [['mobile',['android','ios']],['web',['web']]]) {
       if(selected.includes(group)!==facts['target-platforms'].some(platform=>platforms.includes(platform))) throw new Error('NSH targets do not match platforms');
     }
@@ -195,8 +194,8 @@ export function packageFacts(root,metadata,target) {
 /** 构建前解析候选选择，测试和封包不掺入运行验收。 */
 export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}) {
   root=fs.realpathSync(root);
+  if(target==='tui') throw new Error('NSH TUI is temporarily unavailable in the released 0.4.0 toolchain');
   if(!['local','candidate'].includes(mode)) throw new Error('mode must be local or candidate');
-  if(target==='tui' && mode==='candidate') throw new Error('official NSH main has no TUI release runner or package target; candidate packaging is unavailable');
   if(mode==='candidate' && !['enabled','disabled'].includes(e2e)) throw new Error('candidate requires explicit e2e');
   if(mode==='candidate' && e2e==='disabled' && [e2eReason,e2eRisk].some(value=>typeof value!=='string' || !value.trim())) throw new Error('disabled E2E requires reason and remaining risk');
   if(readDependencyLockPolicy(root)==='tracked') throw new Error('NSH generated runtime workspace does not propagate tracked locks; packaging is blocked until a frozen resolution route is implemented');
@@ -210,8 +209,13 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   if(nativeHost && nativeHost!==process.platform) throw new Error('target requires its native host');
   if(target==='tui' && !facts.policy['target-platforms'].includes({darwin:'macos',win32:'windows',linux:'linux'}[process.platform])) throw new Error('TUI preview requires its selected native terminal host');
   const version=run('nsh',['--version'],root,process.env,true);
-  if(facts.modern) assertNshToolchain(root,facts.policy['nsh-targets'],version);
-  else if(version!==`nsh 0.4.0 (${NSH_STABLE_REVISION.slice(0,7)})`) throw new Error('legacy NSH CLI must match its v0.4.0 runtime revision');
+  // 旧 GUI/NSH 元数据保留读取兼容，但其 Cargo 依赖同样必须迁到正式提交。
+  const runtimeTargets=facts.modern?facts.policy['nsh-targets']:[
+    ...(['macos','windows','linux'].some(platform=>facts.policy['target-platforms'].includes(platform))?['desktop']:[]),
+    ...(['android','ios'].some(platform=>facts.policy['target-platforms'].includes(platform))?['mobile']:[]),
+    ...(facts.policy['target-platforms'].includes('web')?['web']:[]),
+  ];
+  assertNshToolchain(root,runtimeTargets,version);
   const lockArgs=[];
   let context=null,notes=null;
   if(fs.existsSync(path.join(root,'.harness/version-state.json'))) checkVersion(root,'build');

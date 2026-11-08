@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { assertNshToolchain,buildNshRelease,inventory,nonemptyTuiTestCount,packageFacts,releaseNoteBuildInputs,safeOutputPath,tuiHostExecutableFromCargo,validateNshArtifacts } from './build_nsh_release.mjs';
 import { renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 
@@ -17,36 +18,63 @@ test('package_facts_accepts_top_level_nsh_and_legacy_gui_nsh',()=>fixture(root=>
   const modern=metadata(['nsh'],'nsh',{'nsh-targets':['desktop','mobile','web']});
   assert.equal(packageFacts(root,modern,'web').gui,path.join(root,'sample_tool_nsh'));
   assert.equal(packageFacts(root,modern,'android').modern,true);
-  assert.equal(packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'macos').modern,true);
-  assert.equal(packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'tui').modern,true);
+  assert.equal(packageFacts(root,modern,'macos').modern,true);
+  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'macos'),/TUI is temporarily unavailable/u);
+  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'tui'),/TUI is temporarily unavailable/u);
   const terminal=metadata(['nsh'],'nsh',{'nsh-targets':['tui'],'target-platforms':['macos']});
-  assert.equal(packageFacts(root,terminal,'tui').modern,true);
-  assert.throws(()=>packageFacts(root,terminal,'macos'),/capability is not selected/u);
-  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['tui','mobile','web']}),'macos'),/capability is not selected/u);
+  assert.throws(()=>packageFacts(root,terminal,'tui'),/TUI is temporarily unavailable/u);
+  assert.throws(()=>packageFacts(root,terminal,'macos'),/TUI is temporarily unavailable/u);
+  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['tui','mobile','web']}),'macos'),/TUI is temporarily unavailable/u);
   assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','web']}),'macos'),/do not match/u);
   assert.throws(()=>packageFacts(root,modern,'linux'),/not selected/u);
   const legacy=metadata(['gui'],'gui',{'gui-framework':'nsh'});
   assert.equal(packageFacts(root,legacy,'macos').modern,false);
 }));
 
-/** TUI 和非 TUI 的工具链都绑定根 Cargo 的真实 Git pin，拒绝仅改元数据或旧 CLI。 */
-test('tui_toolchain_requires_matching_pinned_main_cli_and_runtime',()=>fixture(root=>{
+/** 所有受支持目标绑定正式版 Git pin，拒绝预览、旧 CLI 与混合依赖。 */
+test('nsh_toolchain_requires_matching_released_cli_and_runtime',()=>fixture(root=>{
   const preview='beeb9fc7707e0d4a195a4f7274f77b30e134c500';
   const stable='e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3';
   const manifest=revision=>`[workspace]\nmembers = []\n[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n[workspace.metadata.agent-first-harness]\ninterfaces = ["nsh"]\n`;
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview));
-  assert.equal(assertNshToolchain(root,['tui'],'nsh 0.4.0 (beeb9fc)'),preview);
+  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (beeb9fc)'),/TUI is temporarily unavailable/u);
   assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.4.0 (beeb9fc)'),/pinned official v0\.4\.0 stable runtime/u);
-  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (e626a8d)'),/do not match/u);
+  assert.throws(()=>assertNshToolchain(root,['desktop','tui'],'nsh 0.4.0 (e626a8d)'),/TUI is temporarily unavailable/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable));
-  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (e626a8d)'),/pinned official main preview/u);
+  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (e626a8d)'),/TUI is temporarily unavailable/u);
   assert.equal(assertNshToolchain(root,['web'],'nsh 0.4.0 (e626a8d)'),stable);
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.4.0 (beeb9fc)'),/do not match/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview).replace(`nsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${preview}" }`,''));
-  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (beeb9fc)'),/must all match/u);
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.4.0 (e626a8d)'),/must all match/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview).replace('[workspace.metadata.agent-first-harness]',`nsh-engine = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${stable}" }\n[workspace.metadata.agent-first-harness]`));
-  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (beeb9fc)'),/must all match/u);
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.4.0 (e626a8d)'),/must all match/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview).replace('[workspace.metadata.agent-first-harness]','nsh-engine = { workspace = true }\n[workspace.metadata.agent-first-harness]'));
-  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (beeb9fc)'),/pinned official NSH Git runtime/u);
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.4.0 (e626a8d)'),/pinned official NSH Git runtime/u);
+}));
+
+/** 旧 GUI/NSH 元数据仍可识别，但预览 pin 必须在任何构建测试前失败。 */
+test('legacy_gui_nsh_build_requires_released_cargo_pin',()=>fixture(root=>{
+  const stable='e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3';
+  const preview='beeb9fc7707e0d4a195a4f7274f77b30e134c500';
+  const manifest=revision=>`[workspace]\nmembers = ["sample_tool_gui"]\n[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n[workspace.metadata.agent-first-harness]\nproject-id = "sample_tool"\ninterfaces = ["gui"]\ngui-framework = "nsh"\ntarget-platforms = ["web"]\n`;
+  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview));
+  const bin=path.join(root,'fake-bin');fs.mkdirSync(bin);
+  const metadataFile=path.join(root,'metadata.json'),marker=path.join(root,'cargo-test-called');
+  fs.writeFileSync(metadataFile,JSON.stringify({workspace_root:root,workspace_members:['member-id'],packages:[{id:'member-id',name:'sample_tool_gui',manifest_path:path.join(root,'sample_tool_gui','Cargo.toml'),version:'0.1.0'}],metadata:{'agent-first-harness':{'project-id':'sample_tool',interfaces:['gui'],'gui-framework':'nsh','target-platforms':['web']}}}));
+  fs.writeFileSync(path.join(bin,'cargo'),'#!/usr/bin/env node\nconst fs=require("node:fs");\nif(process.argv[2]==="metadata") process.stdout.write(fs.readFileSync(process.env.NSH_FAKE_METADATA));\nelse { fs.writeFileSync(process.env.NSH_FAKE_TEST_MARKER,"called"); process.exitCode=7; }\n',{mode:0o755});
+  fs.writeFileSync(path.join(bin,'nsh'),'#!/usr/bin/env node\nif(process.argv[2]==="--version") process.stdout.write("nsh 0.4.0 (e626a8d)\\n");\nelse process.exitCode=8;\n',{mode:0o755});
+  const script=fileURLToPath(new URL('./build_nsh_release.mjs',import.meta.url));
+  const env={...process.env,PATH:bin+path.delimiter+process.env.PATH,NSH_FAKE_METADATA:metadataFile,NSH_FAKE_TEST_MARKER:marker};
+  const invoke=()=>spawnSync(process.execPath,[script,'--root',root,'--target','web'],{cwd:root,env,encoding:'utf8',timeout:30_000});
+  const blocked=invoke();
+  assert.equal(blocked.status,1,blocked.stderr);
+  assert.match(blocked.stderr,/pinned official v0\.4\.0 stable runtime/u);
+  assert.equal(fs.existsSync(marker),false);
+  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable));
+  const accepted=invoke();
+  assert.equal(accepted.status,1,accepted.stderr);
+  assert.match(accepted.stderr,/cargo failed \(7\)/u);
+  assert.equal(fs.readFileSync(marker,'utf8'),'called');
 }));
 
 test('tracked_resolution_and_unanswered_candidate_selection_fail_before_build',()=>fixture(root=>{
@@ -57,9 +85,9 @@ test('tracked_resolution_and_unanswered_candidate_selection_fail_before_build',(
   assert.equal(fs.readdirSync(root).length,1);
 }));
 
-/** 官方缺少 terminal release runner，候选必须在执行任何构建命令前拒绝。 */
-test('tui_candidate_rejects_before_creating_build_state',()=>fixture(root=>{
-  assert.throws(()=>buildNshRelease({root,mode:'candidate',target:'tui',e2e:'enabled'}),/no TUI release runner/u);
+/** TUI 不论本地试包或候选均须在执行任何构建命令前拒绝。 */
+test('tui_build_rejects_before_creating_build_state',()=>fixture(root=>{
+  for (const mode of ['local','candidate']) assert.throws(()=>buildNshRelease({root,mode,target:'tui',e2e:'enabled'}),/TUI is temporarily unavailable/u);
   assert.equal(fs.readdirSync(root).length,0);
 }));
 

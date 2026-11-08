@@ -207,8 +207,8 @@ test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) 
   assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
   const policyBeforeTui=fs.readFileSync(f.policy,"utf8");
   fs.writeFileSync(path.join(f.root,"Cargo.toml"),fs.readFileSync(path.join(f.root,"Cargo.toml"),"utf8").replace('nsh-targets = ["desktop", "web"]','nsh-targets = ["desktop", "web", "tui"]'));
-  assert.match(f.run("check",[],2).error,/TUI release runner 或 package/u);
-  assert.match(f.run("set",setOptions("local_package","local_package"),2).error,/push_release_branch/u);
+  assert.match(f.run("check",[],2).error,/nsh-targets 元数据无效/u);
+  assert.match(f.run("set",setOptions("local_package","local_package"),2).error,/nsh-targets 元数据无效/u);
   assert.equal(fs.readFileSync(f.policy,"utf8"),policyBeforeTui);
 
   const legacy = fixture(t);

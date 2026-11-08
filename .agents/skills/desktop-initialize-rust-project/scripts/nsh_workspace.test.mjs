@@ -7,7 +7,7 @@ import test from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { createNshWorkspace } from './create_nsh_workspace.mjs';
 import { addNshAdapter } from '../../desktop-add-nsh-adapter/scripts/add_nsh_adapter.mjs';
-import { renderNshAdapterFiles,NSH_REVISION,NSH_TUI_PREVIEW_REVISION,NSH_UNAVAILABLE } from '../../desktop-add-nsh-adapter/scripts/nsh_adapter_files.mjs';
+import { renderNshAdapterFiles,NSH_REVISION,NSH_UNAVAILABLE } from '../../desktop-add-nsh-adapter/scripts/nsh_adapter_files.mjs';
 import { sourceSnapshot } from '../../desktop-build-nsh-release/scripts/build_nsh_release.mjs';
 import { initialize,check } from '../../desktop-manage-version/scripts/version_gate.mjs';
 
@@ -152,28 +152,16 @@ test('mobile_web_only_omits_desktop_profile',()=>fixture(parent=>{
   assert.throws(()=>createNshWorkspace(path.join(parent,'invalid'),{...input,profile:options().profile}),/desktop profile requires desktop/u);
 }));
 
-/** TUI 使用 NSH 子目标，继承所选原生平台；不接受桌面 profile 或层级漂移。 */
-test('tui_workspaces_bind_mixed_core_without_desktop_profile',()=>fixture(parent=>{
-  const pure=path.join(parent,'tui');
+/** TUI 新建或组合目标都须在写入工程文件前失败关闭。 */
+test('tui_workspaces_are_unavailable_before_any_write',()=>fixture(parent=>{
   const pureOptions={...options(),nshTargets:['tui'],targetPlatforms:['macos']};delete pureOptions.profile;
-  createNshWorkspace(pure,pureOptions);
-  const pureMeta=spawnSync('cargo',['metadata','--no-deps','--format-version','1'],{cwd:pure,encoding:'utf8'});
-  assert.equal(pureMeta.status,0,pureMeta.stderr);
-  assert.deepEqual(JSON.parse(pureMeta.stdout).metadata['agent-first-harness']['nsh-targets'],['tui']);
-  assert.match(fs.readFileSync(path.join(pure,'Cargo.toml'),'utf8'),new RegExp('nsh-core = \\{ version = "0\\.4\\.0".*rev = "' + NSH_TUI_PREVIEW_REVISION + '"','u'));
-  assert.equal(fs.existsSync(path.join(pure,'docs/GUI_APP_PROFILE.md')),false);
-  assert.match(fs.readFileSync(path.join(pure,'sample_tool_nsh/App.shared.tsx'),'utf8'),/Scaffold\.status/u);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(pure,'package.json'),'utf8')).scripts.dev.includes('run_nsh_tui.mjs'),true);
-  const combined=path.join(parent,'combined');
-  createNshWorkspace(combined,{...options(),nshTargets:['desktop','tui'],targetPlatforms:['macos']});
-  const combinedScripts=JSON.parse(fs.readFileSync(path.join(combined,'package.json'),'utf8')).scripts;
-  assert.match(combinedScripts['dev:tui'],/run_nsh_tui\.mjs/u);
-  assert.match(combinedScripts['nsh:test:tui'],/--test$/u);
-  assert.match(fs.readFileSync(path.join(combined,'Cargo.toml'),'utf8'),new RegExp('nsh-platform-macos = \\{ version = "0\\.4\\.0".*rev = "' + NSH_TUI_PREVIEW_REVISION + '"','u'));
-  assert.equal(fs.existsSync(path.join(combined,'docs/GUI_APP_PROFILE.md')),true);
+  const combinedOptions={...options(),nshTargets:['desktop','tui'],targetPlatforms:['macos']};
+  for(const [name,input] of [['pure',pureOptions],['combined',combinedOptions]]) {
+    const target=path.join(parent,name);
+    assert.throws(()=>createNshWorkspace(target,input),/TUI is temporarily unavailable/u);
+    assert.equal(fs.existsSync(target),false);
+  }
   const invalid=path.join(parent,'invalid');
   assert.throws(()=>createNshWorkspace(invalid,{...options(),nshTargets:['desktop']}),/web target-platforms mismatch/u);
-  assert.equal(fs.existsSync(invalid),false);
-  assert.throws(()=>createNshWorkspace(invalid,{...options(),nshTargets:['tui'],targetPlatforms:['android']}),/target-platforms mismatch/u);
   assert.equal(fs.existsSync(invalid),false);
 }));

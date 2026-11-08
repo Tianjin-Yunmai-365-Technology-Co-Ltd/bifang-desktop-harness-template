@@ -164,7 +164,7 @@ export function parseReleaseMetadataArray(source, key) {
   if (!Array.isArray(values) || values.length === 0 || values.some((value) => typeof value !== "string")) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
-  const allowed = key === "interfaces" ? ["cli", "mcp", "gui", "nsh"] : key === "nsh-targets" ? ["desktop", "mobile", "web", "tui"] : ["windows", "macos", "linux", "android", "ios", "web"];
+  const allowed = key === "interfaces" ? ["cli", "mcp", "gui", "nsh"] : key === "nsh-targets" ? ["desktop", "mobile", "web"] : ["windows", "macos", "linux", "android", "ios", "web"];
   if (new Set(values).size !== values.length || values.some((value) => !allowed.includes(value))) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
@@ -497,7 +497,6 @@ function assertLocalPackageSupported(root) {
     if (modern) {
       if (framework !== "tauri" || optionalMetadata(root, "gui-framework") !== null) throw new ActionError("顶层 NSH 不声明 GUI 框架");
       const targets = metadataArray(root, "nsh-targets");
-      if (targets.includes("tui")) throw new ActionError("NSH main 固定预览运行时支持 TUI run/test，但官方尚无 TUI release runner 或 package 目标；local_package 不能覆盖全部已选目标，请选择 push_release_branch");
       const concrete = metadataArray(root, "target-platforms");
       const groups = [
         ["desktop", ["macos", "windows", "linux"]],

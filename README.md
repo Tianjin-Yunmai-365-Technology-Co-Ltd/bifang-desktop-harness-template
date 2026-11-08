@@ -6,13 +6,13 @@ Bifang Desktop Harness Template
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
-你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；选择 NSH 后只需选择桌面、移动、Web、TUI 能力。NSH 的说明是“下一代全平台开发框架”。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
+你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；选择 NSH 后只需选择桌面、移动、Web 能力。NSH 的说明是“下一代全平台开发框架”，当前统一正式 0.4.0 工具链，TUI 暂不可用。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
 选择 DESKTOP 后，Agent 会继续询问：**1. Tauri（默认）：使用Web技术开发桌面客户端；2. GPUI：高性能原生客户端**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。新 GPUI 项目默认包含 Linux，因此深链接、系统托盘和 OS 全局快捷键均派生为 `unavailable`/`disabled`；已初始化且不含 Linux 的旧项目仍按其受保护平台和 profile 判断托盘与快捷键。其余九字段配置复用统一表单，配置协助只记录移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。DESKTOP 框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
 GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust 构建与本机窗口检查；独立 `$desktop-build-gpui-release` 构建原生 macOS 应用包/DMG、Windows x64 NSIS，以及 Linux GNU x64/ARM64 deb/tar.gz。这些 GPUI 目标均可选择本地打包；仅 Linux Tauri 且无 CLI 时须选择提交远程。DESKTOP 使用 Node.js/pnpm 工程工具；GPUI 在项目根提供 `pnpm dev` 保存后自动重编译并重启、验证、发布检查与原生打包脚本；开发重启会重置进程内临时状态。React/Mantine、Tauri 插件和打包 helper 仍只适用于 Tauri。
 
-选择 NSH 后，Agent 只询问桌面、移动、Web、TUI 四类能力：桌面或 TUI 对应全部 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web；对应平台会在最终汇总中确认。新 NSH 工程使用 Mixed TSX 界面，通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。TUI 走固定官方 `main` 预览源码，在对应 macOS/Windows/Linux 终端运行与测试；受管构建器可制作仅供本机验证的 TUI 预览归档，正式 0.4.0 的 CLI 无 TUI 目标，预览版也尚无官方 `nsh package --target tui` 或正式候选。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按可打包目标处理。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
+选择 NSH 后，Agent 只询问桌面、移动、Web 三类能力：桌面对应全部 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web；对应平台会在最终汇总中确认。新 NSH 工程使用正式 v0.4.0 固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3` 与匹配 CLI，以 Mixed TSX 界面通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。TUI 暂不可用，表单和构建器拒绝该目标。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按可打包目标处理。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -141,7 +141,7 @@ GPUI 新下游在初始化时离线安装项目本地 `$gpui-kit` 与 `$gpui-kit
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
 - **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
 - **DESKTOP**：Tauri（默认）使用 Tauri 2、React 和 Mantine；GPUI 使用原生 gpui-kit/Rust 与独立设置、关于和赞助模板，按选择加入五项桌面能力并遵守自含依赖标准。Tauri 路径固定接入系统语言、窗口状态和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
-- **NSH**：下一代全平台开发框架，子目标为桌面、移动、Web、TUI。选 TUI 的项目固定官方 `main` 预览提交；未选 TUI 的项目继续使用正式 v0.4.0 固定提交。TUI 在 macOS/Windows/Linux 终端运行与测试，可构建本机预览归档，官方正式 TUI 打包仍受限。现有 NSH 九项配置只属于桌面子目标。
+- **NSH**：下一代全平台开发框架，当前子目标为桌面、移动、Web；统一正式 v0.4.0 固定提交及匹配 CLI。TUI 暂不可用，不能通过历史 main 预览版启用。现有 NSH 九项配置只属于桌面子目标。
 
 CLI、MCP 与 DESKTOP 可以单独或组合使用；当前 NSH 独立选择。与接口无关的业务规则统一放在共享核心（shared core）中，接口只负责输入、展示和系统交互。
 
@@ -191,6 +191,6 @@ Harness 版本的唯一事实来源是 [`Version.md`](Version.md)：仅在正式
 |---|---|
 | Tauri（默认） | 使用Web技术开发桌面客户端 |
 | GPUI | 高性能原生客户端 |
-| NSH | 下一代全平台开发框架；下选桌面、移动、Web、TUI，TUI 使用官方 `main` 预览版的终端运行与测试能力 |
+| NSH | 下一代全平台开发框架；下选桌面、移动、Web，统一正式 0.4.0 工具链；TUI 暂不可用 |
 
 NSH 入口：`$desktop-add-nsh-adapter`；能力、平台、构建边界见该 Skill 的运行时引用。桌面、移动和 Web 的具体平台分别记录在 Cargo `target-platforms`，所选子目标记录在 `nsh-targets`；不把声明目标当已验证结果。
