@@ -140,6 +140,32 @@ function NavAction(props: { label: string; onPress: () => void; selected: boolea
   );
 }
 
+function MobileTabAction(props: { label: string; onPress: () => void; selected: boolean }) {
+  const colors = () => palette(colorScheme());
+  return (
+    <BaseButton
+      onPress={props.onPress}
+      selected={props.selected}
+      accessibilityLabel={props.label}
+      focusStyle={{ borderColor: colors().focus }}
+      style={{
+        flex: 1,
+        minHeight: tokens.mobileTabHeight,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: tokens.controlPaddingHorizontal,
+        paddingVertical: tokens.controlPaddingVertical,
+        borderWidth: tokens.borderWidth,
+        borderColor: props.selected ? colors().selectedBorder : "transparent",
+        borderRadius: tokens.radius,
+        backgroundColor: props.selected ? colors().selected : "transparent",
+      }}
+    >
+      <Text style={{ color: colors().foreground, fontSize: tokens.body, fontWeight: props.selected ? "600" : "400" }}>{props.label}</Text>
+    </BaseButton>
+  );
+}
+
 function SidebarToggle(props: { label: string; onPress: () => void }) {
   const colors = () => palette(colorScheme());
   return (
@@ -172,7 +198,7 @@ function App() {
   const desktopRail = () => nativeDesktop && !narrow();
   const shortBrand = () => desktopRail() && (COMPACT_SIDEBAR || collapsed());
   const sidebarWidth = () => {
-    if (narrow()) return "100%";
+    if (nativeMobile || narrow()) return "100%";
     if (!nativeDesktop) return tokens.sidebarFallback;
     return shortBrand() ? tokens.sidebarCompact : tokens.sidebar;
   };
@@ -244,7 +270,7 @@ function App() {
   );
 
   return (
-    <View style={{ flex: 1, flexDirection: narrow() ? "column" : "row", backgroundColor: colors().background }}>
+    <View style={{ flex: 1, flexDirection: nativeMobile || narrow() ? "column" : "row", backgroundColor: colors().background }}>
       <View style={{
         width: sidebarWidth(),
         padding: tokens.sidebarPadding,
@@ -275,7 +301,7 @@ function App() {
             </Text>
           </View>
         </View>
-        {desktopRail() ? <>
+        {!nativeMobile && (desktopRail() ? <>
           <View style={{ flex: 1, paddingTop: tokens.sidebarFooterTop, gap: tokens.sidebarItemSpacing }}>
             {primaryNavigation(true)}
           </View>
@@ -287,12 +313,12 @@ function App() {
           <View style={{ flexDirection: narrow() ? "row" : "column", flexWrap: "wrap", gap: tokens.optionGap }}>
             {primaryNavigation(false)}
             {secondaryNavigation(false)}
-          </View>}
+          </View>)}
       </View>
-      <Scroll style={{ flex: 1 }} contentStyle={{
+      <Scroll style={{ flex: 1, minHeight: 0 }} contentStyle={{
         padding: narrow() ? tokens.contentGap : tokens.contentPadding,
         paddingRight: (narrow() ? tokens.contentGap : tokens.contentPadding) + (nativeMobile ? safeArea().right : 0),
-        paddingBottom: (narrow() ? tokens.contentGap : tokens.contentPadding) + (nativeMobile ? safeArea().bottom : 0),
+        paddingBottom: narrow() ? tokens.contentGap : tokens.contentPadding,
         paddingLeft: (narrow() ? tokens.contentGap : tokens.contentPadding) + (nativeMobile ? safeArea().left : 0),
         gap: tokens.contentGap,
       }}>
@@ -326,6 +352,20 @@ function App() {
         __SPONSOR_PAGE__
         {error() ? <Text style={{ color: colors().error }}>{error()}</Text> : null}
       </Scroll>
+      {nativeMobile && <View testID="mobile-bottom-nav" style={{
+        flexDirection: "row",
+        gap: tokens.optionGap,
+        paddingTop: tokens.optionGap,
+        paddingBottom: tokens.optionGap + safeArea().bottom,
+        paddingLeft: tokens.sidebarPadding + safeArea().left,
+        paddingRight: tokens.sidebarPadding + safeArea().right,
+        borderTopWidth: tokens.borderWidth,
+        borderTopColor: colors().sidebarBorder,
+        backgroundColor: colors().surface,
+      }}>
+        <MobileTabAction label={tr(language(), "home")} selected={page() === "home"} onPress={() => page.set("home")} />
+        <MobileTabAction label={tr(language(), "settings")} selected={page() === "settings"} onPress={() => page.set("settings")} />
+      </View>}
     </View>
   );
 }

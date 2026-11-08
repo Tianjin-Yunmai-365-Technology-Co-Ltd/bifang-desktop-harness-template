@@ -28,6 +28,7 @@ export const tokens = {
   sidebarToggleText: 12,
   borderWidth: 1,
   controlHeight: 38,
+  mobileTabHeight: 48,
   controlPaddingHorizontal: 14,
   controlPaddingVertical: 9,
   radius: 8,

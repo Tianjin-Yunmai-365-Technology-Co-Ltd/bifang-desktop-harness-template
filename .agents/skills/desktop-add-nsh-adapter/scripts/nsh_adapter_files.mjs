@@ -288,7 +288,20 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
       '});',
     ].join('\n')] : []),
   ].join('\n\n');
-  files.set(member + '/App.test.tsx', fill(readAsset('App.test.tsx'), { '__DESKTOP_TEST__': desktopTest, '__SUPPORT_TEST__': supportTest }));
+  const mobileTest = options.nshTargets.includes('mobile') ? [
+    'for (const mobilePlatform of ["ios", "android"] as const) {',
+    '  test(`${mobilePlatform} bottom navigation switches between home and settings`, async () => {',
+    '    const app = await open(".", { locale: "en-US", platform: mobilePlatform });',
+    '    await app.press("id:mobile-bottom-nav >> role:button[Settings]");',
+    '    await app.waitFor("Appearance");',
+    '    await app.press("Dark");',
+    '    expect(app.storage().appearance).toBe("dark");',
+    '    await app.press("id:mobile-bottom-nav >> role:button[Home]");',
+    '    expect(app.texts()).toContain("Neutral workspace initialized. Define the product in this downstream project.");',
+    '  });',
+    '}',
+  ].join('\n') : '';
+  files.set(member + '/App.test.tsx', fill(readAsset('App.test.tsx'), { '__MOBILE_TEST__': mobileTest, '__DESKTOP_TEST__': desktopTest, '__SUPPORT_TEST__': supportTest }));
   if (options.nshTargets.includes('tui')) files.set(member + '/App.tui.test.tsx', [
     'import { expect, open, test } from "nsh/test";',
     '',

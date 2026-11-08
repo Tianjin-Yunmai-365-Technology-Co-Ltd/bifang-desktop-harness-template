@@ -1,5 +1,7 @@
 import { expect, open, test } from "nsh/test";
 
+__MOBILE_TEST__
+
 test("mixed UI reads the shared Rust core and saves language and theme", async () => {
   const app = await open(".", { locale: "en-US" });
   await app.waitFor("Neutral workspace initialized. Define the product in this downstream project.");
