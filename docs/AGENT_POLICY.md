@@ -6,9 +6,9 @@ decision_mode: reuse_then_infer_then_ask
 superpowers: disabled
 user_owned_tasks: disabled
 task_worktrees: disabled
-parallel_worktree_subagents: pending
-acceptance_smoke: pending
-e2e_hint: pending
+parallel_worktree_subagents: disabled
+acceptance_smoke: enabled
+e2e_hint: disabled
 post_release_action: pending
 ---
 
@@ -16,7 +16,7 @@ post_release_action: pending
 
 NSH 专用路由：新项目的根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 记录顶层 NSH 及桌面、移动、Web、TUI 子目标。含 TUI 的新工程使用固定官方 `main` 预览 revision；未选 TUI 继续使用正式 v0.4.0 固定 revision。TUI 仅面向 macOS/Windows/Linux 终端，必须核对同源 CLI、Rust 依赖及实际运行/测试。正式 0.4.0 无 TUI 目标，旧工程不因元数据声明而自动升级。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。桌面九项配置只随桌面子目标询问；能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
-本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。Harness 源允许尚待下游确认的字段使用 `pending`，但 `user_owned_tasks` 与 `task_worktrees` 固定默认 `disabled`；完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`，`post_release_action` 必须是两项之一，且 `confirmed_by`、`confirmed_at` 必须记录真实确认来源和日期。Git 发布固定在本地默认主分支与 tag 完成；完成初始化的下游随后按已确认的发布后动作执行并复核。Harness 源的 `pending` 是待复制模板字段，不阻断 Harness 自身的 Git 发布。
+本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。新初始化固定物化六项能力默认值，不单独询问；完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`，`confirmed_by`、`confirmed_at` 记录完整汇总的真实确认来源和日期。新下游的 schema 5 允许 `post_release_action: pending` 留到首次发布前明确选择并记录；未选择时 Git 发布门禁失败关闭。Git 发布固定在本地默认主分支与 tag 完成；下游随后按当次已冻结的发布后动作执行并复核。Harness 源的 `pending` 不阻断 Harness 自身的 Git 发布。
 
 DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加本文件 frontmatter 策略字段。`tauri` 为默认且兼容既有 GUI 缺失值，`gpui` 分派 `$desktop-add-gpui-adapter`；新 NSH 不写 `gui-framework`。下文 Tauri 插件、三项固定基线、前端、Tauri 初始化 E2E 与 GUI 本地打包条件只适用于 Tauri；GPUI 使用 Rust 构建与 Computer Use 初始化检查。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。GPUI 本地候选由独立 `$desktop-build-gpui-release` 负责，macOS/Windows 与 Linux GNU x64/ARM64 目标可确认 `local_package`；仅 Linux Tauri 且无 CLI 时仍须明确选 `push_release_branch`。DESKTOP 要求 Node.js/pnpm，顶层 NSH 仅要求 Node.js 工程工具；GPUI 的项目根脚本用于验证、发布和原生打包。通用策略选择、零写入确认、独立仓库、版本和发布事实边界保持一致。
 
@@ -34,8 +34,8 @@ DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加
 - `parallel_worktree_subagents`：只控制当前结果内部的写入型 Subagent Worktree；许可加本次明确并行授权才执行，不创建左侧 Task、不占项目编号、不改变其他开关。所有权明确的独立单元并行创建和执行，同一共享状态写入用短锁。
 - `acceptance_smoke`：只在完整真实候选验收中，允许 Agent 对候选执行适用的冒烟测试。
 - `e2e_hint`：仅作为每次显式发布候选构建询问 E2E 时展示的建议默认值；无论是 `enabled` 还是 `disabled`，都不能替代当前候选的明确选择，也不授权凭据、支付、生产数据、发布或不可逆副作用。
-- `post_release_action`：`local_package` 表示 Git 发布后进入现有适用的本地打包流程；`push_release_branch` 表示把已发布的同一提交放到本地小写 `release` 分支，非强制推送远端默认主分支、同名 release 分支与发布 tag。初始化表单必须给出两项并以 `local_package` 为建议默认值；仅所选接口含 CLI、未选 TUI 的 NSH、GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时，该默认项才可确认。含 TUI 的 NSH 因固定 main 预览版尚无 release runner/package 目标，须明确选择 `push_release_branch`；纯 MCP 或仅 Linux Tauri GUI 同样须选此项，不得暗中应用不可执行的默认项。用户须明确选择或确认可执行的默认值。选择在未来发布中持续生效，可用 `$desktop-switch-post-release-action` 更改。
-- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前候选构建请求中已经明确的选择，否则在构建前询问一次。发布后动作直接读取 `post_release_action`，缺失、非法或 `pending` 都阻断后续流程完成。
+- `post_release_action`：`local_package` 表示 Git 发布后进入现有适用的本地打包流程；`push_release_branch` 表示把已发布的同一提交放到本地小写 `release` 分支，非强制推送远端默认主分支、同名 release 分支与发布 tag。新下游初始化保持 `pending`；首次发布前由 `$desktop-switch-post-release-action` 呈现两项并记录明确选择。仅所选接口含 CLI、未选 TUI 的 NSH、GPUI GUI，或含 Tauri GUI 且目标平台含 macOS/Windows 时，才可选 `local_package`。含 TUI 的 NSH 因固定 main 预览版尚无 release runner/package 目标，须明确选择 `push_release_branch`；纯 MCP 或仅 Linux Tauri GUI 同样须选此项。`pending` 不授权发布，也不隐含本地打包默认值。选择在未来发布中持续生效，可用该 Skill 更改。
+- `decision_mode: reuse_then_infer_then_ask`：复用能力偏好；对 E2E 则先读取建议默认值，再复用当前候选构建请求中已经明确的选择，否则在构建前询问一次。发布后动作直接读取 `post_release_action`；首次发布前未明确选择时先补选，缺失、非法或 `pending` 都阻断 Git 发布与后续流程完成。
 
 `enabled` 表示“允许且适用时执行”，`disabled` 表示默认不启用可选能力。`user_owned_tasks: enabled` 是自动建 Task 的明确长期授权；`post_release_action` 是用户对未来 Git 发布后所选动作的长期授权，不授权配置远端、凭据、签名、渠道分发或绕过候选构建的当次 E2E 选择。安全、产品和渠道硬要求优先于项目偏好，不能用 `disabled` 绕过必需门禁；当前候选构建的 E2E 明确选择优先于 `e2e_hint` 建议值。需要远端源码或远程构建的渠道必须先走 `push_release_branch` 并复核远端 `release` 分支与 tag；该要求不改变 Git 发布完成条件。
 
@@ -72,9 +72,9 @@ DESKTOP 框架是根 Cargo metadata 的独立 `gui-framework` 事实，不增加
 ## 初始化与持久化
 
 - 两种初始化入口的首轮、条件问询、默认触发、冲突修正与最终确认统一由 [唯一表单合同](../.agents/skills/desktop-instantiate-project/references/initialization-form.md) 及其只读解析器执行。本文件只定义持久字段的语义和写入规则，不另维护一套提问顺序；合法已有选择不重问，非法或冲突值仍须修正。
-- 推荐预设确定性物化六项；唯一组合与问句由表单的 `initialization_questions.mjs` 提供，不在本文件复制数值。预设只是输入捷径，不新增持久字段，用户未确认时不得静默采用；自定义保留本项目已明确的合法选择，预设与显式值冲突时按统一表单处理。三个 Task/工作树/内部并行开关独立，语义见上文。
-- 六项能力值和发布后动作全部解析后才以 `schema_version: 5` 一次原子写入本文件；`confirmed_by` 记录真实确认来源，`confirmed_at` 记录最终收齐日期。由 `$desktop-instantiate-project` 进入 `$desktop-initialize-rust-project` 时只验证并复用，不重复询问。
-- `pending` 仅允许存在于 Harness 源和初始化未完成的临时状态。创建下游初始化基线提交前，六项能力选择、发布后动作、`confirmed_by` 和 `confirmed_at` 都必须已解析，任何 `pending` 都阻断完成。
+- 固定初始化默认值确定性物化六项；唯一组合由表单的 `initialization_questions.mjs` 提供，不在本文件复制数值。初始化不单独询问 Agent 策略；完整汇总显示六项值，用户确认整个初始化汇总后写入。三个 Task/工作树/内部并行开关独立，语义见上文。
+- 六项能力值和 `post_release_action: pending` 以 `schema_version: 5` 一次原子写入本文件；`confirmed_by` 记录完整汇总的真实确认来源，`confirmed_at` 记录确认日期。由 `$desktop-instantiate-project` 进入 `$desktop-initialize-rust-project` 时只验证并复用，不重复询问。
+- 创建下游初始化基线提交前，六项能力选择、`confirmed_by` 和 `confirmed_at` 都必须已解析；只有 `post_release_action` 可以保持 `pending`。首次发布开始前必须明确选择并记录该动作，随后才能冻结当次值。schema 4 的动作仍须是两项已选值，其他字段 `pending` 阻断完成。
 - 初始化首次写入发生在下游 ADR 尚未创建前，不要求预建 ADR。初始化后，用户可明确说“开启左侧 Task”“关闭左侧 Task”“开启自动 Task 拆分”或“关闭自动 Task 拆分”；Agent 更新 `user_owned_tasks`、`confirmed_by`、`confirmed_at`，并在当日 ADR 记录前后值、原因、影响和恢复条件。用户也可以手动完成同样编辑与 ADR。目标值相同时按幂等 no-op 报告，不重写元数据或 ADR。
 - 切换 Task 开关只影响之后的结果边界；切换 `task_worktrees` 只影响后续 Git Task 环境，不迁移、中断、删除或改挂既有 Task/Worktree。新初始化使用 schema 5；合法 schema 3/4 保持严格读取兼容，缺失、额外、重复或非法字段失败关闭，不补默认值。schema 3 的发布动作仍由专用 Skill 补选并只迁移到 schema 4，不顺便选择工作树。schema 4 原五项能力配置与发布动作读写继续工作，工作树为 `selection_required`；不得猜测旧项目选择，只阻断新 Git 环境分配，既有 Task 恢复与发布动作不受影响。
 - 明确“开启/关闭 Task 独立工作树”由 `$desktop-configure-agent-policy` 映射到 `task_worktrees`，与“开启/关闭左侧 Task”的 `user_owned_tasks` 分开。schema 5 正常切换只修改指定字段及本次确认元数据；同值保持策略字节、mtime、权限、确认事实和 ADR 不变。

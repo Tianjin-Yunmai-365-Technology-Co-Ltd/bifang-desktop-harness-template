@@ -459,7 +459,7 @@ export function validateReleaseGitContract(errors, overrides = {}) {
       "`release --version <version> --date YYYYMMDD --release-context-sha256 <sha256>`", "两者一致即完成 Git 发布", "全过程不 fetch、push、打包或删除登记分支和 Worktree",
       "`push-release --remote <name>`", "后续路径失败不撤销本地 Git 发布", "不设置保护分支、严格线性"]],
     [paths.readme, ["$desktop-manage-git-lifecycle", "自动创建本地开发分支", "合并本地默认主分支并创建、复读版本 tag",
-      "随后按已确认的发布后动作执行并检测", "把已发布的固定 HEAD 放到本地小写 `release` 分支"]],
+      "首次发布前询问并记录发布后动作", "把已发布的固定 HEAD 放到本地小写 `release` 分支"]],
   ]);
   validateFragmentContract(errors, required, {
     label: "release Git contract", syntaxCheck: [RELEASE_GIT_HELPER, RELEASE_GIT_HELPER_TESTS, paths.lifecycleScript, paths.lifecycleCore, paths.lifecycleTests, paths.lifecycleReleaseTests, paths.publicationTests],

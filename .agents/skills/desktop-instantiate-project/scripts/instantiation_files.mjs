@@ -204,7 +204,7 @@ export function renderPreparedFiles(snapshot, values, confirmationSource, confir
   result.set('README.md', { bytes: Buffer.from(renderProjectReadme(values)), mode: 0o644 });
   result.set('docs/TECH_DEBT.md', { bytes: Buffer.from('# 技术债与已知限制\n\n尚未记录下游特有技术债。继承的工程规范与依赖声明不构成本项目的真实平台验证证据。\n'), mode: 0o644 });
   let policy = result.get('docs/AGENT_POLICY.md').bytes.toString('utf8');
-  const fields = { schema_version: '5', confirmed_by: JSON.stringify(confirmationSource), confirmed_at: confirmedAt, decision_mode: 'reuse_then_infer_then_ask', ...Object.fromEntries(POLICY_FIELDS.map(key => [key, values[key]])), post_release_action: values.post_release_action };
+  const fields = { schema_version: '5', confirmed_by: JSON.stringify(confirmationSource), confirmed_at: confirmedAt, decision_mode: 'reuse_then_infer_then_ask', ...Object.fromEntries(POLICY_FIELDS.map(key => [key, values[key]])), post_release_action: 'pending' };
   policy = policy.replace(/^---\n[\s\S]*?\n---/u, `---\n${Object.entries(fields).map(([key, value]) => `${key}: ${value}`).join('\n')}\n---`);
   result.set('docs/AGENT_POLICY.md', { bytes: Buffer.from(policy), mode: 0o644 });
   for (const relative of ['docs/ENGINEERING_RULES.md']) {

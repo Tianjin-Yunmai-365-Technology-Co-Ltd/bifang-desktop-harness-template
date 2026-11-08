@@ -170,12 +170,18 @@ test("unsupported_or_unconfirmed_policies_fail_closed", (t) => {
     template.replace("task_worktrees: disabled", "task_worktrees: pending"),
     template.replace("task_worktrees: disabled", "task_worktrees: automatic"),
     template.replace("e2e_hint: disabled", "e2e_hint: disabled\ne2e_hint: enabled"),
-    template.replace("post_release_action: push_release_branch", "post_release_action: pending"),
   ]) {
     const f = fixture(t, text);
     assert.throws(() => setCapability(f.root, choice()));
     assert.equal(f.bytes().toString(), text);
   }
+});
+
+test("capability_change_keeps_deferred_release_action", (t) => {
+  const f = fixture(t, template.replace("post_release_action: push_release_branch", "post_release_action: pending"));
+  const result = setCapability(f.root, choice());
+  assert.equal(result.changed, true);
+  assert.match(f.bytes().toString(), /^post_release_action: pending$/mu);
 });
 
 /** 发布动作与能力修改看到同一把锁，不删除已有锁或并发覆盖。 */

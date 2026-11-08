@@ -408,7 +408,7 @@ function requireMatchingReleaseContext(record, args) {
 /** 只为新发布冻结一次已确认选择；发布中断后不重新读取当前偏好。 */
 function configuredPostReleaseAction(repository) {
   try { return inspectPostReleaseAction(repository.root, { requireConfigured: true }).post_release_action; }
-  catch { throw new LifecycleError("post-release-action-invalid", "A confirmed schema v4 post-release action is required before release."); }
+  catch { throw new LifecycleError("post-release-action-invalid", "A confirmed post-release action is required before release."); }
 }
 
 /** 比较两个稳定三段版本；任一不是三段版本时返回 null。 */

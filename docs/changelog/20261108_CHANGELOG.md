@@ -1,14 +1,18 @@
-# 2026-11-07 变更记录
+# 2026-11-08 变更记录
 
-本文件完整承接前一日仍有效能力与历史绑定，加入 2026-11-07 的独立 TUI 退役、NSH 顶层分类、Mixed 桌面接线、NSH 内部 TUI 预览接线和桌面侧栏优化；历史变化不重新声明为本日新增或重新验证。历史摘录、稳定标识及原始验证部分保留在 [历史记录](CHANGELOG_history.md)；归档边界与恢复方法见 [ADR-20261020-001](../adr/20261107_ADR.md)。
+本文件承接 2026-11-07 仍有效能力与历史绑定，并记录本日初始化问询简化。历史变化不重新声明为本日新增或重新验证。历史摘录、稳定标识及原始验证部分保留在 [历史记录](CHANGELOG_history.md)；归档边界与恢复方法见 [ADR-20261020-001](../adr/20261108_ADR.md)。
+
+## 2026-11-08 变化
+
+- `HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`（`required_version = pending`，仅正式发布时取号）：新项目首轮只集中询问名称、标识、路径、负责人和程序类型，随后按所选类型单问目标平台。CLI、MCP、DESKTOP 可按需组合，NSH 只能单选；非 NSH 不展示 Android/iOS/Web 平台。六项 Agent 策略直接使用固定默认值，初始化策略文件保留 `post_release_action: pending`，首次发布前才明确选择并记录本地打包或提交远程。实例化、策略读取、发布门禁和相关回归已同步；真实下游实例化及首次发布仍待前向验证。见 [ADR-20261108-001](../adr/20261108_ADR.md)。
 
 ## 2026-11-07 新增
 
-- `HARNESS-FEAT-NSH-TUI-PREVIEW`（`required_version = pending`，仅正式发布时取号）：NSH 内部 `tui` 子目标接受所选 macOS/Windows/Linux，支持纯 TUI 与 `desktop+tui` 的 Mixed TSX/Rust core 生成；含 TUI 的新工程固定官方 main 提交并检查 CLI/Cargo 同源，提供独立终端运行、测试、桌面宿主能力隔离和本机预览归档。未选 TUI 的新 NSH 工程继续固定正式 v0.4.0。正式 0.4.0 CLI 无 TUI 目标，预览提交尚无 TUI release runner/package，正式候选与含 TUI 的发布后本地打包仍拒绝；真实终端和跨系统结果按实际执行记录，不从生成器测试推断。见 [ADR-20261107-004](../adr/20261107_ADR.md)。
+- `HARNESS-FEAT-NSH-TUI-PREVIEW`（`required_version = pending`，仅正式发布时取号）：NSH 内部 `tui` 子目标接受所选 macOS/Windows/Linux，支持纯 TUI 与 `desktop+tui` 的 Mixed TSX/Rust core 生成；含 TUI 的新工程固定官方 main 提交并检查 CLI/Cargo 同源，提供独立终端运行、测试、桌面宿主能力隔离和本机预览归档。未选 TUI 的新 NSH 工程继续固定正式 v0.4.0。正式 0.4.0 CLI 无 TUI 目标，预览提交尚无 TUI release runner/package，正式候选与含 TUI 的发布后本地打包仍拒绝；真实终端和跨系统结果按实际执行记录，不从生成器测试推断。见 [ADR-20261107-004](../adr/20261108_ADR.md)。
 
 ## 2026-11-07 移除
 
-- `HARNESS-REMOVE-TUI`（`required_version = 202611070300`）：永久移除独立 Ratatui TUI 程序类型、适配器 Skill、依赖候选及构建/验收路由；顶层 `interfaces = ["tui"]` 仍非法。旧下游的独立 TUI 工程资产仍受保护，升级须先在目标项目单独迁移，不能静默删代码。新 NSH 内部 `tui` 子目标属于上面的固定预览路线，见 [ADR-20261107-001](../adr/20261107_ADR.md)。
+- `HARNESS-REMOVE-TUI`（`required_version = 202611070300`）：永久移除独立 Ratatui TUI 程序类型、适配器 Skill、依赖候选及构建/验收路由；顶层 `interfaces = ["tui"]` 仍非法。旧下游的独立 TUI 工程资产仍受保护，升级须先在目标项目单独迁移，不能静默删代码。新 NSH 内部 `tui` 子目标属于上面的固定预览路线，见 [ADR-20261107-001](../adr/20261108_ADR.md)。
 
 ## 2026-11-07 变化
 
@@ -16,9 +20,9 @@
 
 - `HARNESS-SEC-NSH-LINUX-DEEP-LINK-ENTRY`（`required_version = 202611071243`）：新生成的 Linux NSH 深链接注册脚本改为先写同目录私有临时 desktop entry，再原子替换目标，避免已有条目是符号链接时覆盖其指向的同用户文件；增加符号链接、目录目标和失败清理回归。旧下游不会自动改写注册脚本，真实 Linux 宿主运行仍需单独验证。
 
-- `HARNESS-FEAT-NSH-MIXED-DESKTOP`（`required_version = 202611071119`）：新 NSH 下游的桌面、移动和 Web 均创建 Mixed TSX UI + 共享 Rust core；桌面由自定义 AppKit/Win32/GTK 宿主固定提供多窗口，并将托盘、自启、单实例、深链接按九字段配置分别接线。深链接依赖单实例；系统通知与 OS 全局快捷键仍不可用。桌面开发和打包入口改为生成 bundle、编译原生宿主并装配资源；移动/Web 继续走官方 Mixed 宿主。初始化问询、能力引用、设计和技术知识已同步。真实目标平台行为仍须独立取证，既有 GUI/NSH 下游只读兼容。见 [ADR-20261107-003](../adr/20261107_ADR.md)。
+- `HARNESS-FEAT-NSH-MIXED-DESKTOP`（`required_version = 202611071119`）：新 NSH 下游的桌面、移动和 Web 均创建 Mixed TSX UI + 共享 Rust core；桌面由自定义 AppKit/Win32/GTK 宿主固定提供多窗口，并将托盘、自启、单实例、深链接按九字段配置分别接线。深链接依赖单实例；系统通知与 OS 全局快捷键仍不可用。桌面开发和打包入口改为生成 bundle、编译原生宿主并装配资源；移动/Web 继续走官方 Mixed 宿主。初始化问询、能力引用、设计和技术知识已同步。真实目标平台行为仍须独立取证，既有 GUI/NSH 下游只读兼容。见 [ADR-20261107-003](../adr/20261108_ADR.md)。
 
-- `HARNESS-CHANGE-NSH-TOP-LEVEL`（`required_version = 202611071119`）：NSH 以“下一代全平台开发框架”成为与 CLI、MCP、DESKTOP 平级的程序类型；新工程写 `interfaces = ["nsh"]`、`nsh-targets`、独立 `_nsh` 成员，桌面/移动/Web 子目标与具体平台对应。既有 NSH 九项配置归入桌面目标，未选桌面时不询问或生成该 profile。原 GUI/NSH 下游只读兼容。当时固定 NSH 0.4.0 的 TUI 不可创建、运行或打包，后续同日选择的官方 main 预览接线以上述新条目为准；此前删除的独立 TUI 适配器不恢复。相关接线与回归由本次交付报告确认，真实跨平台产物须另行验证。见 [ADR-20261107-002](../adr/20261107_ADR.md)。
+- `HARNESS-CHANGE-NSH-TOP-LEVEL`（`required_version = 202611071119`）：NSH 以“下一代全平台开发框架”成为与 CLI、MCP、DESKTOP 平级的程序类型；新工程写 `interfaces = ["nsh"]`、`nsh-targets`、独立 `_nsh` 成员，桌面/移动/Web 子目标与具体平台对应。既有 NSH 九项配置归入桌面目标，未选桌面时不询问或生成该 profile。原 GUI/NSH 下游只读兼容。当时固定 NSH 0.4.0 的 TUI 不可创建、运行或打包，后续同日选择的官方 main 预览接线以上述新条目为准；此前删除的独立 TUI 适配器不恢复。相关接线与回归由本次交付报告确认，真实跨平台产物须另行验证。见 [ADR-20261107-002](../adr/20261108_ADR.md)。
 
 - `HARNESS-CHANGE-NSH-WIRING`（`required_version = 202611070300`）：把 NSH 独立打包、真实渲染测试、发布日志按钮、双语分类内容和最终候选证据接入 Harness 硬契约；纠正 iOS 本地 `.app` 与正式 IPA 的边界。中性 macOS 与 Web 工程已完成真实本地打包、候选构建及最终产物界面 E2E；移动平台及正式产品候选仍按各自证据判断。
 
@@ -30,9 +34,9 @@
 
 ## 2026-11-05 移除
 
-- `HARNESS-REMOVE-RETIRED-SERVICE-RESIDUE`（`required_version = 202611060921`，仅正式发布时取号）：清理退役服务执行合同、旧更新密钥门禁文字和远程追踪技术候选。升级器识别旧来源锁未登记的退役工程资产，首次询问并记忆本项目清理/保留选择；已选清理但未删除的文件不能记录为升级完成。历史裁剪与原文恢复依据见 [ADR-20261105-002](../adr/20261107_ADR.md)。
+- `HARNESS-REMOVE-RETIRED-SERVICE-RESIDUE`（`required_version = 202611060921`，仅正式发布时取号）：清理退役服务执行合同、旧更新密钥门禁文字和远程追踪技术候选。升级器识别旧来源锁未登记的退役工程资产，首次询问并记忆本项目清理/保留选择；已选清理但未删除的文件不能记录为升级完成。历史裁剪与原文恢复依据见 [ADR-20261105-002](../adr/20261108_ADR.md)。
 
-- `HARNESS-REMOVE-UPDATES-TELEMETRY`（`required_version = 202611051535`）：删除应用更新、强更与使用统计的专属 Skills、初始化基线、状态界面/翻译/媒体和候选制品门禁，同步依赖候选、升级传播与相关回归。关于页保留权威版本及本地双语发布日志；安装包代码签名和工程层升级继续按现行合同执行，既有下游产品实现受保护。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。见 [ADR-20261105-001](../adr/20261107_ADR.md)。
+- `HARNESS-REMOVE-UPDATES-TELEMETRY`（`required_version = 202611051535`）：删除应用更新、强更与使用统计的专属 Skills、初始化基线、状态界面/翻译/媒体和候选制品门禁，同步依赖候选、升级传播与相关回归。关于页保留权威版本及本地双语发布日志；安装包代码签名和工程层升级继续按现行合同执行，既有下游产品实现受保护。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。见 [ADR-20261105-001](../adr/20261108_ADR.md)。
 
 ## 2026-11-04 新增
 
@@ -44,17 +48,17 @@
 
 ## 2026-11-02 变化
 
-- `HARNESS-CHANGE-INSTALLER-ARTIFACT-NAMING`（`required_version = 202611021437`）：Tauri/GPUI 的 Windows exe 与 macOS dmg 统一使用已确认展示名、无 v 原始版本、x64/arm64 架构及系统后缀；共用名称生成器拒绝非法路径字符，GPUI 本地与候选同步生成相邻校验和和 manifest，Tauri 在最终字节校验后复制命名。其他归档沿用原规则，收集不改写既有候选。见 [发布物命名](../RELEASE.md#发布物命名) 与 [ADR-20261102-001](../adr/20261107_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准；未构建或验收真实产品。
+- `HARNESS-CHANGE-INSTALLER-ARTIFACT-NAMING`（`required_version = 202611021437`）：Tauri/GPUI 的 Windows exe 与 macOS dmg 统一使用已确认展示名、无 v 原始版本、x64/arm64 架构及系统后缀；共用名称生成器拒绝非法路径字符，GPUI 本地与候选同步生成相邻校验和和 manifest，Tauri 在最终字节校验后复制命名。其他归档沿用原规则，收集不改写既有候选。见 [发布物命名](../RELEASE.md#发布物命名) 与 [ADR-20261102-001](../adr/20261108_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准；未构建或验收真实产品。
 
 ## 2026-10-30 新增
 
-- `HARNESS-FEAT-GRID-TYPOGRAPHY`（`required_version = 202610301829`）：统一 [通用 Grid](../design_standards/data_grid.md) 与 [字体排版基座](../design_standards/ui_foundation.md)，同步专项 Skill、检查项和 Tauri 中性资产。网格改用无横滚固定布局、列权重、可键盘查看完整值；选择支持单选/多选及跨页查询确认，刷新保留内容，按新鲜期查询并防重复重试。主题集中原生中文回退、标题/正文/辅助层级、等宽数字与亮暗文字语义。GPUI 补充原生规范，不注入 Web 依赖或网格。详见 [ADR-20261030-001](../adr/20261107_ADR.md)；本次正式发布将已完成变化绑定到上述所需版本，发布状态以 Git 引用复核为准。真实宿主字体、缩放、性能及 E2E 未验证。
+- `HARNESS-FEAT-GRID-TYPOGRAPHY`（`required_version = 202610301829`）：统一 [通用 Grid](../design_standards/data_grid.md) 与 [字体排版基座](../design_standards/ui_foundation.md)，同步专项 Skill、检查项和 Tauri 中性资产。网格改用无横滚固定布局、列权重、可键盘查看完整值；选择支持单选/多选及跨页查询确认，刷新保留内容，按新鲜期查询并防重复重试。主题集中原生中文回退、标题/正文/辅助层级、等宽数字与亮暗文字语义。GPUI 补充原生规范，不注入 Web 依赖或网格。详见 [ADR-20261030-001](../adr/20261108_ADR.md)；本次正式发布将已完成变化绑定到上述所需版本，发布状态以 Git 引用复核为准。真实宿主字体、缩放、性能及 E2E 未验证。
 
 ## 2026-10-28 新增
 
-- `HARNESS-FEAT-UNIFIED-UI-FOUNDATION`（`required_version = 202610282034`）：新增根 DESIGN.md 导航与受管 UI 统一设计基座，接入设计索引、Tauri/GPUI、日常实施、实例化/裁剪及升级候选；统一 Token、组件、样式层与反馈，视觉值统一收拢为中央 Token 并清理旧风格，保留列表数据合同、不增加默认业务能力或工具依赖。升级校验必需规范字节并保护项目自有 DESIGN.md；真实下游视觉、构建和 E2E 未执行。见 [UI 基座](../design_standards/ui_foundation.md) 与 [ADR-20261028-001](../adr/20261107_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
+- `HARNESS-FEAT-UNIFIED-UI-FOUNDATION`（`required_version = 202610282034`）：新增根 DESIGN.md 导航与受管 UI 统一设计基座，接入设计索引、Tauri/GPUI、日常实施、实例化/裁剪及升级候选；统一 Token、组件、样式层与反馈，视觉值统一收拢为中央 Token 并清理旧风格，保留列表数据合同、不增加默认业务能力或工具依赖。升级校验必需规范字节并保护项目自有 DESIGN.md；真实下游视觉、构建和 E2E 未执行。见 [UI 基座](../design_standards/ui_foundation.md) 与 [ADR-20261028-001](../adr/20261108_ADR.md)。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
 
-- `HARNESS-CHANGE-CURRENT-DESIGN-ONLY`（`required_version = 202610282034`）：当前 UI 基座成为唯一视觉权威，清理旧侧栏像素硬锁、列表局部色板和重复设计治理；删除 taste 自动安装器、对应测试及完整 vendor 快照。Tauri/GPUI 模板实际消费中央展示 Token，强调色跟随主色；同步规格、初始化与回归合同，保留既有下游自有第三方资产与历史事实。见 [ADR-20261028-003](../adr/20261107_ADR.md)。真实下游窗口、构建和 E2E 未执行。
+- `HARNESS-CHANGE-CURRENT-DESIGN-ONLY`（`required_version = 202610282034`）：当前 UI 基座成为唯一视觉权威，清理旧侧栏像素硬锁、列表局部色板和重复设计治理；删除 taste 自动安装器、对应测试及完整 vendor 快照。Tauri/GPUI 模板实际消费中央展示 Token，强调色跟随主色；同步规格、初始化与回归合同，保留既有下游自有第三方资产与历史事实。见 [ADR-20261028-003](../adr/20261108_ADR.md)。真实下游窗口、构建和 E2E 未执行。
 
 ## 当前能力与契约
 
@@ -64,7 +68,7 @@
 - 依赖与工程门禁：兼容下界、最小特性、真实最低版本验证及 ignored/tracked 锁策略分别判断；标准用户全局工具只按初始化或真实环境失败恢复，项目依赖保持本地；上游自动化使用 Node 标准库且不向下游传播 Python 禁令。文件规模、中文声明注释和按事件记忆均以 [工程规则](../ENGINEERING_RULES.md) 为准。
 - GUI 与平台：Tauri/GPUI 按 DESKTOP 的 Cargo 框架隔离，NSH 由顶层 `nsh-targets` 选择桌面、移动、Web、TUI，均为 Mixed TSX UI + 共享 Rust core；九字段 profile 只在 DESKTOP 或 NSH 桌面存在。NSH 桌面固定多窗口，托盘、自启、单实例、深链接按选择生成，通知和 OS 全局快捷键不可用；TUI 仅按固定官方 main 预览 revision 运行与测试，正式候选仍受上游打包缺口限制。双语、三态主题、页面和品牌资源按实际目标装配。各平台依赖、能力及打包路径见 [GUI 工程索引](../GUI_ENGINEERING.md) 和 [设计标准](../design_standards/README.md)。
 - 版本与候选：下游版本按周期和稳定 ID 管理，维护不升版；Harness 仅正式发布时取上海时间版本。双语日志保存最近十个真实发布版本、每类最多十条；候选只消费已发布源码，CLI 默认当前宿主，跨平台矩阵需明确请求。原子证据、当次 E2E/签名和真实最终产物验收见 [发布规则](../RELEASE.md) 与 [验证规则](../VERIFICATION.md)。
-- 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定；GPUI 知识资产条件传播，Kit API 知识与既有第三方本地资产的来源和许可可追溯；历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261107_ADR.md)。
+- 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定；GPUI 知识资产条件传播，Kit API 知识与既有第三方本地资产的来源和许可可追溯；历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261108_ADR.md)。
 
 ## 2026-10-20 正式发布物化的既有变化
 

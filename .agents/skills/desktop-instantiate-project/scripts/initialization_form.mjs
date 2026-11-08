@@ -37,15 +37,6 @@ function parseAnswer(id, answer) {
   return { value, source: answer.source };
 }
 
-/** 本地打包适用性只由接口、框架与目标共同决定；框架未解时返回待校验。 */
-export function localPackageAvailability(values) {
-  if (values.interfaces.includes("cli")) return "available";
-  if (values.interfaces.includes("nsh")) return !values.nsh_targets ? "pending" : values.nsh_targets.includes("tui") ? "unavailable" : "available";
-  if (!values.interfaces.includes("gui")) return "unavailable";
-  if (!values.gui_framework) return "pending";
-  return values.gui_framework === "gpui" || values.target_platforms.some((platform) => ["macos", "windows"].includes(platform)) ? "available" : "unavailable";
-}
-
 /** 按当前框架/平台标注不可用能力；用户显式启用时仍须纠正，不能覆盖答案。 */
 function unavailableGuiFields(values) {
   if (values.interfaces.includes("nsh")) return ["system_notification", "global_shortcut"];
@@ -98,6 +89,10 @@ export function evaluateInitializationForm(input) {
     schemaVersion: 1, stage, values: { ...values }, sources: { ...sources },
     questions: ids.map((id) => {
       const question = questionFor(id, issues[id]);
+      if (id === "target_platforms" && !values.interfaces?.includes("nsh")) {
+        question.options = question.options.slice(0, 3);
+        question.values = question.values.slice(0, 3);
+      }
       if (values.interfaces?.includes("nsh") && values.nsh_targets?.includes("desktop")) {
         if (id === "system_tray") question.help = "中性菜单包含新建窗口、显示所有窗口和退出；启用后由宿主处理关窗与恢复。";
         if (id === "single_instance") question.help = "再次启动聚焦现有窗口；没有窗口时新建，不转发业务载荷。";
@@ -105,11 +100,6 @@ export function evaluateInitializationForm(input) {
           question.title = "是否启用只恢复应用窗口的深链接？";
           question.help = "URL 为 app-<kebab-prefix>://restore；聚焦现有窗口，没有窗口时新建；启用必须同时启用单实例。";
         }
-      }
-      if (id === "post_release_action" && values.interfaces && values.target_platforms) {
-        question.localPackage = localPackageAvailability(values);
-        if (question.localPackage === "unavailable") question.options[0] = "本地打包（推荐默认，当前组合不可用）";
-        if (question.localPackage === "pending") question.help += " GUI 框架解析后再校验本地打包适用性。";
       }
       if (id === "deep_link" && values.project_id) question.help = question.help.replace("<kebab-prefix>", values.project_id.replaceAll("_", "-"));
       return question;
@@ -130,12 +120,6 @@ export function evaluateInitializationForm(input) {
       target = entry === "instantiate" ? resolveProjectTarget(input.harnessRoot, values.project_path, values.project_id) : { targetRoot: values.project_path, targetState: "existing-initialize-root" };
     } catch { issues.project_path = "路径解析或最终目录安全检查失败；请用路径 helper 核对并修正。"; delete values.project_path; }
   }
-  if (values.interfaces && values.target_platforms && values.post_release_action === "local_package" && localPackageAvailability(values) === "unavailable") {
-    issues.post_release_action = values.interfaces.includes("nsh") && values.nsh_targets?.includes("tui")
-      ? "NSH main 预览版尚无官方 TUI package 目标；包含 TUI 的组合请选择提交远程，或撤下 TUI。"
-      : "此接口/平台组合的本地打包不可用；请选择提交远程，或明确修改接口/平台。";
-    delete values.post_release_action;
-  }
   const missingBase = BASE_FIELDS.filter((id) => !values[id] && !(hasName && ["name_zh", "name_en"].includes(id) && !issues[id]));
   if (missingBase.length) return output("base", missingBase);
   if (!hasName) throw new Error("至少一个展示名称必须来自用户或已确认项目事实");
@@ -144,41 +128,32 @@ export function evaluateInitializationForm(input) {
   const gui = values.interfaces.includes("gui");
   const nsh = values.interfaces.includes("nsh");
   if (nsh && values.interfaces.length !== 1) {
-    issues.interfaces = "当前 NSH 初始化仅支持单独选择；请只选 NSH，或选择其他接口组合。";
+    issues.interfaces = "NSH 只能单独选择，不能与 CLI、MCP 或 DESKTOP 组合；CLI、MCP 可互相组合，也可与 DESKTOP 组合。";
     return output("base", ["interfaces"]);
   }
   if ((!gui && Object.hasOwn(answers, "gui_framework")) || (!nsh && Object.hasOwn(answers, "nsh_targets"))) {
     issues.interfaces = "当前程序类型与旧条件答案不匹配；请确认接口组合，或撤下不适用的框架/NSH 答案。";
     return output("base", ["interfaces"]);
   }
+  if (!values.target_platforms) return output("platform", ["target_platforms"]);
+  if (!nsh && values.target_platforms.some((platform) => ["android", "ios", "web"].includes(platform))) {
+    issues.target_platforms = "Android/iOS/Web 当前只支持 NSH；请选择 NSH，或改为桌面目标。";
+    return output("platform", ["target_platforms"]);
+  }
   if (gui && !values.gui_framework) return output("framework", ["gui_framework"]);
   if (nsh && !values.nsh_targets) return output("nsh", ["nsh_targets"]);
   if (nsh && !nshTargetsMatchPlatforms(values.target_platforms, values.nsh_targets)) {
     issues.target_platforms = "具体平台与 NSH 能力类别不一致；desktop 或 tui 至少对应一个 Windows/macOS/Linux，二者可共用；mobile 对应 Android/iOS，web 对应 Web。请调整目标平台或 NSH 能力。";
-    return output("base", ["target_platforms"]);
-  }
-  if (!nsh && values.target_platforms.some((platform) => ["android", "ios", "web"].includes(platform))) {
-    issues.target_platforms = "Android/iOS/Web 当前只支持 NSH；请选择 NSH，或改为桌面目标。";
-    return output("base", ["target_platforms"]);
+    return output("platform", ["target_platforms"]);
   }
   const desktop = gui || (nsh && values.nsh_targets.includes("desktop"));
   if (!desktop && [...GUI_FIELDS, "capability_setup_assistance"].some(id => Object.hasOwn(answers, id))) {
     issues[gui ? "interfaces" : "nsh_targets"] = "未选择桌面能力却提供了桌面条件答案；请确认目标组合，或撤下旧桌面答案。";
     return output(gui ? "base" : "nsh", [gui ? "interfaces" : "nsh_targets"]);
   }
-  if (values.policy_mode === "recommended") {
-    const conflicts = POLICY_FIELDS.filter((id) => issues[id] || (values[id] && values[id] !== POLICY_PRESET[id]));
-    if (conflicts.length) {
-      issues.policy_mode = `推荐预设与显式字段冲突：${conflicts.join(", ")}；请保留预设并撤回冲突值，或选择自定义保留已给答案。`;
-      return output("policy", ["policy_mode"]);
-    }
-    for (const id of POLICY_FIELDS) {
-      if (!values[id]) { values[id] = POLICY_PRESET[id]; sources[id] = `preset:${sources.policy_mode}`; }
-    }
-  } else {
-    const next = POLICY_FIELDS.find((id) => !values[id]);
-    if (next) return output("policy", [next]);
-  }
+  for (const id of POLICY_FIELDS) { values[id] = POLICY_PRESET[id]; sources[id] = "default:initialization"; }
+  values.post_release_action = "pending";
+  sources.post_release_action = "deferred:first_release";
   const unavailable = desktop ? unavailableGuiFields(values) : [];
   if (desktop) {
     for (const id of unavailable) {

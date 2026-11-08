@@ -120,7 +120,8 @@ export function readPolicy(root, { validateActionSupport = true } = {}) {
   const confirmedBy = fields.get("confirmed_by")?.trim().toLowerCase();
   if (!confirmedBy || ["pending", "unknown", "unset", "n/a"].includes(confirmedBy)) throw new ActionError("下游 Agent 策略 confirmed_by 尚未确认");
   if (!validConfirmedAt(fields.get("confirmed_at") ?? "")) throw new ActionError("下游 Agent 策略 confirmed_at 必须是真实 ISO 日期或时间戳");
-  if (schema !== "3" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("post_release_action 必须是 local_package 或 push_release_branch");
+  if (schema === "4" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("schema 4 的 post_release_action 必须是 local_package 或 push_release_branch");
+  if (schema === "5" && fields.get("post_release_action") !== "pending" && !ACTIONS.has(fields.get("post_release_action"))) throw new ActionError("schema 5 的 post_release_action 必须是 pending、local_package 或 push_release_branch");
   const policy = { file, stat, bytes, ...document };
   if (schema !== "3") assertCurrentPolicyBody(policy);
   if (validateActionSupport && schema !== "3" && fields.get("post_release_action") === "local_package") assertLocalPackageSupported(root);
@@ -457,7 +458,7 @@ function assertLocalPackageSupported(root) {
 
 function state(policy) {
   const action = policy.schema !== "3" ? policy.fields.get("post_release_action") : null;
-  return { schema_version: Number(policy.schema), status: action === null ? "selection_required" : "configured", post_release_action: action };
+  return { schema_version: Number(policy.schema), status: action === null || action === "pending" ? "selection_required" : "configured", post_release_action: action };
 }
 
 /** 保留权限并拒绝读取后漂移，再原子替换普通策略文件。 */
@@ -505,7 +506,7 @@ export function inspect(rawRoot, { requireConfigured = false } = {}) {
 export function setAction(rawRoot, action, expectedAction, { confirmedChoice = false } = {}) {
   if (!confirmedChoice) throw new ActionError("写入要求 --confirmed-user-choice；先取得用户本次明确选择");
   if (!ACTIONS.has(action)) throw new ActionError("--action 必须是 local_package 或 push_release_branch");
-  if (!["missing", ...ACTIONS].includes(expectedAction)) throw new ActionError("--expected-action 必须是 missing 或当前合法动作");
+  if (!["missing", "pending", ...ACTIONS].includes(expectedAction)) throw new ActionError("--expected-action 必须是 missing、pending 或当前合法动作");
   const root = projectRoot(rawRoot);
   return withPolicyLock(root, () => {
     const policy = readPolicy(root);

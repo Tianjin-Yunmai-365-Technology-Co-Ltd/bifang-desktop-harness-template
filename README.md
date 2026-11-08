@@ -6,7 +6,7 @@ Bifang Desktop Harness Template
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
-你只需要告诉 Agent：项目叫什么、放在哪里、要支持哪些平台，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。NSH 的说明是“下一代全平台开发框架”。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
+你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型；选择程序类型后再确定目标平台。NSH 的说明是“下一代全平台开发框架”。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
 选择 DESKTOP 后，Agent 会继续询问：**1. Tauri（默认）：使用Web技术开发桌面客户端；2. GPUI：高性能原生客户端**。明确选择默认值或跳过框架时使用 Tauri，未答复则等待；选择 GPUI 则建立原生 Rust/gpui-kit 界面，复用共享核心、文件组织、双语与主题规则，并使用固化的设置、关于和赞助页模板。GPUI 复用统一表单已确认的九字段配置；仅深链接为 `unavailable`/`disabled`。当前托盘与后台热键模板限 macOS/Windows，含 Linux 的目标组合不能启用这两项。配置协助只复用统一表单中的移交意愿，具体产品动作在终端下游根目录确认。基础依赖选型见 [GPUI依赖标准](.agents/skills/desktop-add-gpui-adapter/references/dependency-baseline.md)。DESKTOP 框架选择记录在 Cargo `gui-framework`，既有 GUI 缺失时兼容 Tauri。
 
@@ -25,7 +25,7 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人、目标平台、程序类型（CLI / MCP / DESKTOP / NSH；明确默认或跳过才使用 CLI）、Agent 策略模式、发布后动作（本地打包或提交远程）。发布后动作建议默认本地打包，仍须用户确认；不含 CLI 的纯 MCP 或仅 Linux Tauri DESKTOP 没有现有本地候选打包入口时该默认项不可用，须明确选择提交远程。选择 DESKTOP、NSH 或自定义策略后，再按表单补充适用的条件字段。
+2. 首轮集中收集尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型（CLI / MCP / DESKTOP / NSH；明确默认或跳过才使用 CLI）。CLI、MCP 可组合，也可与 DESKTOP 组合；NSH 单选。程序类型确定后再询问目标平台；DESKTOP 或 NSH 再按表单补充条件字段。六项 Agent 策略直接使用固定默认值，不单独询问。`post_release_action` 初始化时保持 `pending`，首次发布前再询问并记录。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、程序类型、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
@@ -44,8 +44,8 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
 - 默认使用 Rust 2024 和共享核心，让业务规则只写一次，再由不同界面调用。
 - 为日常开发、测试、版本管理、构建和发布准备好对应的自动化流程（Skills）。
 - 可选地把新结果创建为绑定保存项目的 Codex 左侧 user-owned Task；自动拆分默认关闭，启用后按结果边界创建，Git Task 按 task_worktrees 选择独立 Worktree 或串行 Local，并使用可审查提交。
-- 初始化的推荐策略将自动 Task 保持关闭；自定义策略可以开启。初始化后也可明确开启或关闭，切换只影响后续结果边界，不移动或删除已有 Task/Worktree。
-- 为新功能和独立 Bug 修复自动创建本地开发分支。明确“发布”时整理并提交当前代码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{YYYYMMDD}`；Git 发布到此结束。随后按已确认的发布后动作执行并检测：沿用现有本地打包，或把同一提交放到小写 `release` 分支并同步远端默认主分支、release 与 tag。GUI 候选打包时执行适用的真实启动和交互验证，未真实验证的平台标为 `Unverified`。
+- 初始化固定关闭自动 Task、Task 工作树、superpowers 和内部并行，允许候选验收冒烟，并把候选 E2E 建议设为关闭；初始化后可明确调整持久能力偏好。
+- 为新功能和独立 Bug 修复自动创建本地开发分支。明确“发布”时整理并提交当前代码，普通合并登记分支到本地默认主分支，创建并复读指向最终 HEAD 的 `v{版本}-{YYYYMMDD}`；Git 发布到此结束。首次发布前询问并记录发布后动作，随后按该次冻结选择执行并检测：沿用现有本地打包，或把同一提交放到小写 `release` 分支并同步远端默认主分支、release 与 tag。GUI 候选打包时执行适用的真实启动和交互验证，未真实验证的平台标为 `Unverified`。
 - 把新版 Harness 的工程规则安全同步到已有项目，同时保护产品代码和本地决定。
 - 使用 `$desktop-extract-technical-docs` 提取技术选型、依赖清单、项目架构、文件结构与当前技术债，以工作区根 `knowledge/README.md` 为入口，并通过 archify 生成可交互架构图；项目缺少 archify 时按需安装本地包。知识快照不随初始化复制，可在项目中按需刷新。
 
@@ -76,8 +76,8 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
    请使用 $desktop-instantiate-project 创建一个新项目。
    ```
 
-2. Agent 按 [唯一表单合同](.agents/skills/desktop-instantiate-project/references/initialization-form.md) 一次询问未确定的基础字段：中英文项目名、标识、路径、负责人、目标平台、程序类型、Agent 策略模式和发布后动作。中英文至少提供一个，另一名称自动翻译并在汇总中确认。固定问句由 `initialization_form.mjs --catalog` 输出，其他模型也复用同一解析器。
-3. 根据解析器的下一问补齐 DESKTOP 框架或 NSH 子目标、自定义策略、适用的桌面配置与配置协助意愿；每轮一个条件问题，明确给过的合法字段不重问。未回答不会自动采用默认值。具体产品配置在下游处理。
+2. Agent 按 [唯一表单合同](.agents/skills/desktop-instantiate-project/references/initialization-form.md) 一次询问未确定的基础字段：中英文项目名、标识、路径、负责人和程序类型；程序类型确定后再问目标平台。中英文至少提供一个，另一名称自动翻译并在汇总中确认。固定问句由 `initialization_form.mjs --catalog` 输出，其他模型也复用同一解析器。
+3. 根据解析器的下一问补齐 DESKTOP 框架或 NSH 子目标、适用的桌面配置与配置协助意愿；每轮一个条件问题，明确给过的合法字段不重问。未回答不会自动采用默认值。具体产品配置在下游处理。
 4. 写入前展示完整汇总与唯一目标根目录。确认绑定当前汇总；修改字段后重新确认。确认之前不生成 Logo、不安装环境、不写文件。
 5. 汇总确认后才检查环境与 Git。GUI 的 Logo 在此执行阶段按固定的 `candidate-1` → `candidate-2` → `candidate-3` 顺序展示三个原始候选，选中后只验证和标准化所选项。Git：缺失时按当前平台的受管方式安装，可证明低于最低下界时自动升级，范围内版本原样复用；随后才写入脚手架。Windows 自动安装若受管理员权限、UAC 或组织策略阻断，Agent 会给出已证实缺失项的官方安装入口和诊断；用户安装并告知继续后，先在原宿主只读复探。建立独立仓库时，若作者信息缺失，会只在这个仓库静默使用设备账户名的英文形式和 `<设备账户名>@gmail.com` 补齐，不修改全局 Git 设置。完成后会返回 Git 版本、安装或升级变化、作者信息、来源、作用域和基线提交，并得到一个独立、无远端、带初始化提交的 Git 仓库。
 
@@ -104,7 +104,7 @@ GPUI 初始化通过 `$desktop-test-gpui-initialization-e2e` 执行实际 Rust �
 
 ## 开发与构建边界
 
-日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。发布开始时冻结已确认的 `post_release_action`，随后按本次快照执行本地打包或向远端默认主分支与 `release` 分支推送同一已发布提交及 tag，并检测所选路径；未来可用 `$desktop-switch-post-release-action` 切换，旧发布继续按旧快照。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
+日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。首次发布前先询问并记录 `post_release_action`，发布开始时冻结已确认选择，随后按本次快照执行本地打包或向远端默认主分支与 `release` 分支推送同一已发布提交及 tag，并检测所选路径；未来可用 `$desktop-switch-post-release-action` 切换，旧发布继续按旧快照。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
 
 显式候选构建只接受已有 clean 默认主分支和精确版本 tag；构建入口只读验证并消费 `.harness/release-context.json`，本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据。远程跨平台 provider 另要求远端 `release` 分支与 tag 已复读为同一已发布 HEAD。候选须运行全部非空单元测试。普通 Windows 本地安装试包是开发制品，不要求发布日志或 clean HEAD。构建事实只写入适用产物位置和最终回复，不自动更新项目记忆。普通 GUI 页面状态在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页使用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 

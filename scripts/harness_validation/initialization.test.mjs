@@ -239,22 +239,21 @@ test("repository contract declares Node common runtime and GUI-only pnpm", () =>
   assert.ok(contracts.get(RUST_BASELINE).includes("pnpm | 仅 DESKTOP"));
 });
 
-test("initialization contract requires an explicit persisted post-release action", () => {
+test("initialization contract defers post-release action until first release", () => {
   const primary = primaryRequiredFragments(INITIALIZE_SKILL);
   const repository = repositoryRequiredFragments(ENVIRONMENT_REFERENCE, RUST_BASELINE);
-  assert.ok(primary.get(INSTANTIATE_FORM).includes("post_release_action"));
-  assert.ok(primary.get(INSTANTIATE_FORM).includes("`local_package`（本地打包，推荐默认）"));
-  assert.ok(primary.get(INSTANTIATE_FORM).includes("`push_release_branch`（提交远程）"));
-  assert.ok(primary.get(INSTANTIATE_FORM).includes("纯 MCP 或不含 CLI 的仅 Linux Tauri GUI 时仍展示本地打包但标为不可用"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("`post_release_action: pending`"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("程序类型收齐后才展示第 7 项目标平台"));
+  assert.ok(primary.get(INSTANTIATE_FORM).includes("首次发布前由 `$desktop-prepare-release` 调用 `$desktop-switch-post-release-action`"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("`schema_version: 5`"));
   assert.ok(primary.get(INSTANTIATE_SKILL).includes("initialization_form.mjs --catalog"));
-  assert.ok(primary.get(INITIALIZE_SKILL).includes("`post_release_action` 精确等于 `local_package` 或 `push_release_branch`"));
-  assert.ok(primary.get(INITIALIZE_SKILL).includes("`local_package` 在含 `cli`、已选 GPUI GUI、已选顶层 NSH，或 Tauri GUI 目标含 `macos`/`windows` 时合法"));
+  assert.ok(primary.get(INITIALIZE_SKILL).includes("`post_release_action` 精确为 `pending`"));
+  assert.ok(primary.get(INITIALIZE_SKILL).includes("首次发布前由 `$desktop-switch-post-release-action`"));
   assert.ok(repository.get(AGENT_POLICY).includes("post_release_action:"));
 });
 
-/** 推荐六项默认值精确展开，工作树条件问题紧接自动 Task 开关。 */
-test("initialization_recommends_six_explicit_choices_with_worktrees_after_tasks", () => {
+/** 六项默认值精确展开，自动 Task 与工作树各自独立。 */
+test("initialization_derives_six_fixed_policy_defaults", () => {
   assert.deepEqual(POLICY_PRESET, {
     user_owned_tasks: "disabled", task_worktrees: "disabled", superpowers: "disabled",
     parallel_worktree_subagents: "disabled", acceptance_smoke: "enabled", e2e_hint: "disabled",

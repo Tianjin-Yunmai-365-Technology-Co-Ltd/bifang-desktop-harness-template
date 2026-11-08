@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { evaluateInitializationForm, localPackageAvailability } from "./initialization_form.mjs";
+import { evaluateInitializationForm } from "./initialization_form.mjs";
 import { BASE_FIELDS, GUI_FIELDS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, questionFor } from "./initialization_questions.mjs";
 
 /** 构造仅含明确答复的快照；测试目录只由夹具建立，表单必须保持只读。 */
@@ -15,7 +15,7 @@ function fixture(run) {
   const input = { schemaVersion: 1, entry: "instantiate", harnessRoot: root, answers: {} };
   const set = (id, value, source = "user:test-reply") => { input.answers[id] = { value, source }; };
   const base = () => {
-    for (const [id, value] of Object.entries({ name_zh: "示例工具", name_en: "Sample Tool", project_id: "sample_tool", project_path: path.join(root, "projects"), owner: "test-owner", target_platforms: ["linux"], interfaces: ["cli"], policy_mode: "recommended", post_release_action: "local_package" })) set(id, value);
+    for (const [id, value] of Object.entries({ name_zh: "示例工具", name_en: "Sample Tool", project_id: "sample_tool", project_path: path.join(root, "projects"), owner: "test-owner", target_platforms: ["linux"], interfaces: ["cli"] })) set(id, value);
   };
   const gui = (framework = "tauri") => {
     base(); set("interfaces", ["gui"]); set("target_platforms", ["macos"]); set("gui_framework", framework);
@@ -46,7 +46,7 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
   assert.deepEqual(evaluate().summary.unavailable,["system_notification","global_shortcut"]);
   assert.deepEqual(evaluate().values.interfaces,["nsh"]);
   assert.deepEqual(evaluate().values.nsh_targets,["desktop","mobile","web"]);
-  assert.equal(localPackageAvailability(evaluate().values),"available");
+  assert.equal(evaluate().values.post_release_action,"pending");
   const digest=evaluate().summaryDigest;input.confirmation={digest,source:"user:test-confirmation"};assert.equal(evaluate().stage,"confirmed");
   set("system_notification","enabled");assert.equal(evaluate().questions[0].id,"system_notification");
   set("system_notification","disabled");set("gui_framework","gpui");assert.equal(evaluate().questions[0].id,"interfaces");
@@ -77,33 +77,31 @@ test("nsh_mobile_web_skip_desktop_profile_and_reject_stale_answers", () => fixtu
   assert.equal(evaluate().values.sidebar_mode,undefined);
   set("about_page","enabled");assert.equal(evaluate().questions[0].id,"nsh_targets");
   delete input.answers.about_page;
-  set("nsh_targets",["mobile"]);assert.equal(evaluate().questions[0].id,"target_platforms");
+  set("nsh_targets",["mobile"]);assert.equal(evaluate().stage,"platform");assert.equal(evaluate().questions[0].id,"target_platforms");
   set("target_platforms",["android"]);assert.equal(evaluate().stage,"review");
   delete input.answers.nsh_targets;assert.equal(evaluate().questions[0].id,"nsh_targets");
 }));
 
 /** TUI 是 NSH 子目标，纯终端不要求桌面 profile，组合目标共用 OS。 */
-test("nsh_tui_preview_accepts_native_os_and_requires_push_action", () => fixture(({input,set,nsh,evaluate}) => {
+test("nsh_tui_preview_defers_release_action", () => fixture(({input,set,nsh,evaluate}) => {
   nsh(["tui"],["macos"]);
-  assert.equal(evaluate().questions[0].id,"post_release_action");
-  assert.match(evaluate().questions[0].issue,/尚无官方 TUI package/u);
-  assert.equal(localPackageAvailability(evaluate().values),"unavailable");
-  set("post_release_action","push_release_branch");
   assert.equal(evaluate().stage,"review");
+  assert.equal(evaluate().values.post_release_action,"pending");
+  assert.match(evaluate().summary.notices.join("\n"),/首次发布前只能选择提交远程/u);
   assert.equal(evaluate().values.sidebar_mode,undefined);
   assert.deepEqual(evaluate().summary.unavailable,[]);
   assert.doesNotMatch(evaluate().summary.notices.join("\n"),/Logo 在本汇总确认后/u);
   const digest=evaluate().summaryDigest; input.confirmation={digest,source:"user:test-confirmation"};
   assert.equal(evaluate().stage,"confirmed");
-  set("target_platforms",["android"]); assert.equal(evaluate().questions[0].id,"target_platforms");
+  set("target_platforms",["android"]); assert.equal(evaluate().stage,"platform"); assert.equal(evaluate().questions[0].id,"target_platforms");
   set("target_platforms",["macos"]); set("about_page","enabled"); assert.equal(evaluate().questions[0].id,"nsh_targets");
   delete input.answers.about_page;
-  nsh(["desktop","tui"],["macos"]); set("post_release_action","push_release_branch");
+  nsh(["desktop","tui"],["macos"]);
   assert.equal(evaluate().stage,"review");
   assert.deepEqual(evaluate().values.nsh_targets,["desktop","tui"]);
 }));
 
-/** 空表单集中首轮九项，直调初始化只省既定路径，标识与负责人仍须提问。 */
+/** 空表单首轮只问身份与程序类型，直调初始化只省既定路径。 */
 test("empty_entries_batch_all_missing_base_fields", () => fixture(({ root, input, evaluate }) => {
   assert.deepEqual(evaluate().questions.map(({ id }) => id), BASE_FIELDS);
   input.entry = "initialize"; input.currentRoot = root;
@@ -124,12 +122,15 @@ test("provided_fields_are_reused_and_translation_is_not_a_user_question", () => 
   set("name_en", "Changed Tool"); assert.equal(evaluate().stage, "translation");
 }));
 
-/** 漏答不套默认，只有相应字段的显式默认或跳过才归一化。 */
+/** 程序类型漏答不套默认；平台在程序类型之后单独询问。 */
 test("missing_answers_wait_while_explicit_defaults_are_field_scoped", () => fixture(({ input, set, base, gui, evaluate }) => {
-  base(); delete input.answers.interfaces; delete input.answers.post_release_action;
-  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["interfaces", "post_release_action"]);
-  set("interfaces", "default"); set("post_release_action", "default");
+  base(); delete input.answers.interfaces; delete input.answers.target_platforms;
+  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["interfaces"]);
+  set("interfaces", "default");
   assert.deepEqual(evaluate().values.interfaces, ["cli"]);
+  assert.equal(evaluate().stage, "platform");
+  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["target_platforms"]);
+  set("target_platforms", ["linux"]);
   assert.equal(evaluate().stage, "review");
   gui(); delete input.answers.gui_framework;
   assert.equal(evaluate().stage, "framework");
@@ -147,49 +148,53 @@ test("invalid_basic_fields_and_paths_precede_conditional_questions", () => fixtu
   fs.writeFileSync(path.join(root, "file"), "fixture"); set("project_path", path.join(root, "file"));
   assert.deepEqual(evaluate().questions.map(({ id }) => id), ["project_path"]);
   set("project_path", path.join(root, "projects")); set("interfaces", ["mcp"]); set("owner", "");
-  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["owner", "post_release_action"]);
+  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["owner"]);
 }));
 
-/** 自定义六项按唯一顺序逐问；主动批量给出的合法值不会被清除。 */
-test("custom_policy_orders_questions_and_reuses_batched_answers", () => fixture(({ set, base, evaluate }) => {
-  base(); set("policy_mode", "custom"); set("e2e_hint", "enabled");
-  for (const id of POLICY_FIELDS.filter((id) => id !== "e2e_hint")) {
-    assert.equal(evaluate().questions[0].id, id); set(id, "disabled");
-  }
-  assert.equal(evaluate().stage, "review");
-  assert.equal(evaluate().values.e2e_hint, "enabled");
-}));
-
-/** 推荐预设一次物化，但不覆盖与用户显式答案冲突的字段。 */
-test("recommended_preset_is_exact_and_conflicts_require_mode_choice", () => fixture(({ set, base, evaluate }) => {
+/** 六项策略固定物化且不进入问句；发布动作到首次发布前补选。 */
+test("policy_defaults_are_derived_without_questions_and_release_is_deferred", () => fixture(({ input, set, base, evaluate }) => {
   base();
-  assert.deepEqual(Object.fromEntries(POLICY_FIELDS.map((id) => [id, evaluate().values[id]])), POLICY_PRESET);
+  const result = evaluate();
+  assert.equal(result.stage, "review");
+  assert.deepEqual(Object.fromEntries(POLICY_FIELDS.map((id) => [id, result.values[id]])), POLICY_PRESET);
+  assert.ok(POLICY_FIELDS.every((id) => result.sources[id] === "default:initialization"));
+  assert.equal(result.values.post_release_action, "pending");
+  assert.equal(result.sources.post_release_action, "deferred:first_release");
+  set("policy_mode", "recommended");
+  assert.throws(evaluate, /未知字段/u);
+  delete input.answers.policy_mode;
+  set("post_release_action", "local_package");
+  assert.throws(evaluate, /未知字段/u);
+  delete input.answers.post_release_action;
   set("task_worktrees", "enabled");
-  assert.equal(evaluate().questions[0].id, "policy_mode");
-  assert.equal(evaluate().values.task_worktrees, "enabled");
-  set("policy_mode", "custom"); assert.equal(evaluate().questions[0].id, "user_owned_tasks");
+  assert.throws(evaluate, /未知字段/u);
 }));
 
-/** 遍历全部接口/平台组合，Linux GUI 框架待解不会被提前判为不可打包。 */
-test("local_package_matrix_and_linux_framework_revalidation", () => {
-  const combinations = (items) => Array.from({ length: 2 ** items.length - 1 }, (_, mask) => items.filter((_, index) => ((mask + 1) & (1 << index)) !== 0));
-  for (const interfaces of combinations(["cli", "mcp", "gui"])) for (const target_platforms of combinations(["windows", "macos", "linux"])) for (const gui_framework of [undefined, "tauri", "gpui"]) {
-    const expected = interfaces.includes("cli") ? "available" : !interfaces.includes("gui") ? "unavailable" : !gui_framework ? "pending" : gui_framework === "gpui" || target_platforms.some((item) => item !== "linux") ? "available" : "unavailable";
-    assert.equal(localPackageAvailability({ interfaces, target_platforms, gui_framework }), expected);
+/** CLI/MCP 可组合并可附加 DESKTOP；NSH 与其余类型互斥。 */
+test("interface_combinations_and_platform_followup", () => fixture(({ input, set, base, evaluate }) => {
+  base(); delete input.answers.target_platforms;
+  for (const interfaces of [["cli", "mcp"], ["cli", "gui"], ["mcp", "gui"], ["cli", "mcp", "gui"]]) {
+    set("interfaces", interfaces);
+    assert.equal(evaluate().stage, "platform");
+    assert.equal(evaluate().questions[0].id, "target_platforms");
+    assert.deepEqual(evaluate().questions[0].values, ["windows", "macos", "linux"]);
   }
-  fixture(({ input, set, gui, evaluate }) => {
-    gui(); set("target_platforms", ["linux"]); delete input.answers.gui_framework;
-    assert.equal(evaluate().questions[0].id, "gui_framework");
-    set("gui_framework", "tauri"); assert.equal(evaluate().questions[0].id, "post_release_action");
-    set("gui_framework", "gpui"); assert.equal(evaluate().stage, "review");
-    set("interfaces", ["mcp"]);
-    for (const id of ["gui_framework", ...GUI_FIELDS]) delete input.answers[id];
-    delete input.answers.post_release_action;
-    assert.match(evaluate().questions[0].options[0], /不可用/u);
-    set("post_release_action", "push_release_branch");
-    assert.deepEqual(evaluate().values.interfaces, ["mcp"]);
-  });
-});
+  set("target_platforms", ["linux"]); set("interfaces", ["cli", "mcp"]);
+  assert.equal(evaluate().stage, "review");
+  set("interfaces", ["cli", "mcp", "gui"]); set("gui_framework", "tauri");
+  for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
+  const combined = evaluate();
+  assert.equal(combined.stage, "review");
+  assert.deepEqual(combined.values.interfaces, ["cli", "mcp", "gui"]);
+  input.confirmation = { digest: combined.summaryDigest, source: "user:test-confirmation" };
+  assert.equal(evaluate().stage, "confirmed");
+  set("interfaces", ["cli", "nsh"]);
+  assert.equal(evaluate().questions[0].id, "interfaces");
+  set("interfaces", ["gui", "nsh"]);
+  assert.equal(evaluate().questions[0].id, "interfaces");
+  set("interfaces", ["gui"]); set("target_platforms", ["android"]);
+  assert.equal(evaluate().stage, "platform");
+}));
 
 test("retired_tui_interface_requires_a_new_selection", () => fixture(({ base, set, evaluate }) => {
   base(); set("interfaces", ["tui"]);

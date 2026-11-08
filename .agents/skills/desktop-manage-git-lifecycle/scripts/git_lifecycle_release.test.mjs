@@ -41,7 +41,8 @@ function configurePostReleasePolicy(item, repository, policy) {
     "decision_mode: reuse_then_infer_then_ask", "superpowers: disabled",
     "user_owned_tasks: disabled", "parallel_worktree_subagents: disabled",
     "acceptance_smoke: disabled", "e2e_hint: disabled",
-    ...(policy.schema === 4 ? [`post_release_action: ${policy.action}`] : []),
+    ...(policy.schema === 5 ? ["task_worktrees: disabled"] : []),
+    ...([4, 5].includes(policy.schema) ? [`post_release_action: ${policy.action}`] : []),
     "---", "", "# Agent policy", "",
     "- `post_release_action`：`local_package` or `push_release_branch`", "",
     "发布后动作直接读取 `post_release_action`。下游冻结已确认的 `post_release_action`。", "",
@@ -489,6 +490,7 @@ for (const [name, policy] of [
   ["missing", null],
   ["schema-v3", { schema: 3 }],
   ["pending", { schema: 4, action: "pending" }],
+  ["schema-v5-pending", { schema: 5, action: "pending" }],
 ]) {
   scenario(`release_rejects_${name}_policy_before_any_ref_change`, (item) => {
     const value = candidate(item, { postReleasePolicy: policy });
@@ -503,6 +505,13 @@ for (const [name, policy] of [
     assert.equal(item.state(value.repository).cycle.pendingRelease, null);
   });
 }
+
+scenario("first_release_freezes_schema_v5_selected_action", (item) => {
+  const value = candidate(item, { postReleasePolicy: { schema: 5, action: "push_release_branch" } });
+  const released = item.helper(value.repository, releaseArgs(value)).payload;
+  assert.equal(released.status, "released");
+  assert.equal(item.state(value.repository).lastRelease.postReleaseAction, "push_release_branch");
+});
 
 scenario("push_release_rejects_frozen_local_package_choice_before_ref_change", (item) => {
   const value = candidate(item, { postReleasePolicy: { schema: 4, action: "local_package" } });

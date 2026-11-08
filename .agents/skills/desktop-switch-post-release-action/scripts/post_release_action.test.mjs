@@ -83,6 +83,25 @@ test("schema5_action_switch_preserves_task_worktree_choice_and_confirmation", (t
   }
 });
 
+/** 新下游保留 pending 到首次发布；明确选择前只读可见且发布门禁失败。 */
+test("schema5_pending_requires_first_release_choice_and_preserves_confirmation", (t) => {
+  const source = V3.replace("schema_version: 3", "schema_version: 5")
+    .replace("user_owned_tasks: disabled\n", "user_owned_tasks: disabled\ntask_worktrees: disabled\n")
+    .replace("e2e_hint: disabled\n", "e2e_hint: disabled\npost_release_action: pending\n");
+  const f = fixture(t, source);
+  assert.deepEqual(f.run("inspect"), { schema_version: 5, status: "selection_required", post_release_action: "pending" });
+  assert.match(f.run("check", [], 2).error, /尚未选择/u);
+  assert.match(f.run("set", ["--action", "push_release_branch", "--expected-action", "pending"], 2).error, /confirmed-user-choice/u);
+  assert.equal(fs.readFileSync(f.policy, "utf8"), source);
+  assert.match(f.run("set", setOptions("push_release_branch", "missing"), 2).error, /已变化/u);
+  assert.equal(fs.readFileSync(f.policy, "utf8"), source);
+  assert.deepEqual(f.run("set", setOptions("push_release_branch", "pending")), {
+    schema_version: 5, status: "configured", post_release_action: "push_release_branch", changed: true, previous_action: "pending",
+  });
+  assert.equal(fs.readFileSync(f.policy, "utf8"), source.replace("post_release_action: pending", "post_release_action: push_release_branch"));
+  assert.equal(f.run("check").status, "configured");
+});
+
 /** 只将测试场景明确指定的清单放入 Git 索引。 */
 function track(f, ...files) {
   const added = spawnSync("git", ["-C", f.root, "add", "--", ...files], { encoding: "utf8" });

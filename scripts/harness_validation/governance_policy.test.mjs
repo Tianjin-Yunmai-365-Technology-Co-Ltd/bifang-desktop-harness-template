@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { ROOT, readText } from "./core.mjs";
+import { NSH_TUI_PREVIEW_REVISION } from "../../.agents/skills/desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs";
 import {
   allocateProjectTaskSequences,
   isValidSessionProgressTitle,
@@ -96,7 +97,7 @@ test("policy rejects missing field, invalid preference, and duplicate field", ()
   }
 });
 
-test("initialized downstream rejects pending and unresolved confirmation metadata", () => {
+test("initialized downstream allows deferred action but rejects pending capabilities and confirmation", () => {
   const source = readText(path.join(ROOT, "docs", "AGENT_POLICY.md"));
   const pending = source
     .replace(/^e2e_hint:.*$/mu, "e2e_hint: pending")
@@ -105,7 +106,7 @@ test("initialized downstream rejects pending and unresolved confirmation metadat
     const errors = [];
     validateAgentPolicy(errors, filePath, { allowPending: false });
     assert.ok(errors.some((error) => error.includes("resolve e2e_hint")));
-    assert.ok(errors.some((error) => error.includes("resolve post_release_action")));
+    assert.ok(!errors.some((error) => error.includes("post_release_action")));
   });
   const unresolved = source
     .replace(/^confirmed_by:.*$/mu, "confirmed_by: pending")
@@ -143,7 +144,8 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
   const manifestPath = path.join(directory, "Cargo.toml");
   try {
     const check = (interfaces, action, platforms = ["macos"], framework = null, nshTargets = null) => {
-      fs.writeFileSync(manifestPath, `[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n${framework === null ? "" : `gui-framework = ${JSON.stringify(framework)}\n`}${nshTargets === null ? "" : `nsh-targets = ${JSON.stringify(nshTargets)}\n`}`);
+      const previewDependencies = nshTargets?.includes("tui") ? `[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${NSH_TUI_PREVIEW_REVISION}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${NSH_TUI_PREVIEW_REVISION}" }\n` : "";
+      fs.writeFileSync(manifestPath, `${previewDependencies}[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n${framework === null ? "" : `gui-framework = ${JSON.stringify(framework)}\n`}${nshTargets === null ? "" : `nsh-targets = ${JSON.stringify(nshTargets)}\n`}`);
       fs.writeFileSync(policyPath, source
         .replace(/^confirmed_by:.*$/mu, "confirmed_by: user form confirmation")
         .replace(/^confirmed_at:.*$/mu, "confirmed_at: 2026-09-28")

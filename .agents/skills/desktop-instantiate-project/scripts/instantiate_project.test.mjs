@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { planInstantiation, prepareInstantiation } from './instantiate_project.mjs';
+import { POLICY_PRESET } from './initialization_questions.mjs';
 import { removeUpstreamOnly, renderPreparedFiles, renderProjectSkillMap, SKILL_GROUPS, snapshotSource } from './instantiation_files.mjs';
 import { confirmedFixtureInput, fixture, SOURCE_ROOT } from './instantiation_test_support.mjs';
 
@@ -174,7 +175,7 @@ test('final_tree_verification_rejects_late_edits_and_unknown_hidden_entries', t 
 test('confirmed_identity_is_not_rewritten_by_later_replacement_pairs', () => {
   const snapshot = snapshotSource(SOURCE_ROOT);
   snapshot.files.set('docs/identity-fixture.txt', { bytes: Buffer.from('Bifang Desktop Harness Template agent_first_harness_template example_tool'), mode: 0o644 });
-  const values = { name_zh: '回归工具', name_en: 'example_tool Studio', project_id: 'example_tool_plus', owner: 'Fixture Owner', target_platforms: ['macos'], interfaces: ['cli'], post_release_action: 'local_package' };
+  const values = { name_zh: '回归工具', name_en: 'example_tool Studio', project_id: 'example_tool_plus', owner: 'Fixture Owner', target_platforms: ['macos'], interfaces: ['cli'], ...POLICY_PRESET, post_release_action: 'pending' };
   const rendered = renderPreparedFiles(snapshot, values, 'user:fixture', '2026-11-06');
   assert.equal(rendered.get('docs/identity-fixture.txt').bytes.toString(), 'example_tool Studio example_tool_plus example_tool_plus');
   assert.match(rendered.get('LICENSE.en.md').bytes.toString(), /Applicable Project Name: example_tool Studio\./u);

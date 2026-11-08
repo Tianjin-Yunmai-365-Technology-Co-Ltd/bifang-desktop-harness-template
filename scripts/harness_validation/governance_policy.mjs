@@ -66,10 +66,10 @@ function persistedReleaseMetadata(policyPath, errors) {
     const selection = parseInterfaceSelection(source);
     const targetPlatforms = parseReleaseMetadataArray(source, "target-platforms");
     if (selection.nshTargets && [
-      ["desktop", ["windows", "macos", "linux"]],
+      ["native", ["windows", "macos", "linux"]],
       ["mobile", ["android", "ios"]],
       ["web", ["web"]],
-    ].some(([target, platforms]) => selection.nshTargets.includes(target) !== targetPlatforms.some(platform => platforms.includes(platform)))) {
+    ].some(([target, platforms]) => (target === "native" ? selection.nshTargets.some(value => ["desktop", "tui"].includes(value)) : selection.nshTargets.includes(target)) !== targetPlatforms.some(platform => platforms.includes(platform)))) {
       throw new Error("NSH 目标类别与具体目标平台不一致");
     }
     return {
@@ -104,9 +104,10 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   if (missing.length > 0 || extra.length > 0) fail(errors, `Agent policy fields mismatch: missing=${JSON.stringify(missing)}, extra=${JSON.stringify(extra)}`);
   if (fields.get("schema_version") !== "5") fail(errors, "Agent policy schema_version must be 5");
   if (fields.get("decision_mode") !== "reuse_then_infer_then_ask") fail(errors, "Agent policy decision_mode must be reuse_then_infer_then_ask");
-  if (requireSourceDefaults && fields.get("superpowers") !== "disabled") fail(errors, "Harness source Agent policy must default superpowers to disabled");
-  if (requireSourceDefaults && fields.get("user_owned_tasks") !== "disabled") fail(errors, "Harness source Agent policy must default user_owned_tasks to disabled");
-  if (requireSourceDefaults && fields.get("task_worktrees") !== "disabled") fail(errors, "Harness source Agent policy must default task_worktrees to disabled");
+  const sourceDefaults = { superpowers: "disabled", user_owned_tasks: "disabled", task_worktrees: "disabled", parallel_worktree_subagents: "disabled", acceptance_smoke: "enabled", e2e_hint: "disabled" };
+  if (requireSourceDefaults) for (const [field, expected] of Object.entries(sourceDefaults)) {
+    if (fields.get(field) !== expected) fail(errors, `Harness source Agent policy must default ${field} to ${expected}`);
+  }
   for (const field of ["post_release_action", "confirmed_by", "confirmed_at"]) {
     if (requireSourceDefaults && fields.get(field) !== "pending") fail(errors, `Harness source Agent policy must leave ${field} pending for downstream confirmation`);
   }
@@ -119,8 +120,8 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
   const postReleaseAction = fields.get("post_release_action");
   if (!["pending", ...POST_RELEASE_ACTIONS].includes(postReleaseAction)) {
     fail(errors, "Agent policy post_release_action must be pending, local_package, or push_release_branch");
-  } else if (!allowPending && postReleaseAction === "pending") {
-    fail(errors, "initialized downstream Agent policy must resolve post_release_action");
+  } else if (!allowPending && postReleaseAction === "pending" && fields.get("schema_version") !== "5") {
+    fail(errors, "only schema 5 downstream Agent policy may defer post_release_action");
   }
   const releaseMetadata = !allowPending ? persistedReleaseMetadata(policyPath, errors) : null;
   const selectedInterfaces = interfaces ?? releaseMetadata?.interfaces ?? null;
@@ -131,6 +132,8 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     const selectedPlatforms = targetPlatforms ?? releaseMetadata?.["target-platforms"] ?? null;
     if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0 || !Array.isArray(selectedPlatforms)) {
       fail(errors, "local_package requires persisted interfaces and target-platforms metadata");
+    } else if (releaseMetadata?.["nsh-targets"]?.includes("tui")) {
+      fail(errors, "local_package is unavailable when nsh-targets includes tui");
     } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, releaseMetadata?.["gui-framework"] ?? "tauri")) {
       fail(errors, "local_package requires a selected CLI, NSH, GPUI, or supported Tauri target; otherwise select push_release_branch");
     }
@@ -151,7 +154,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     "完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`",
     "## 用户可见 Task 开关、粒度与创建门禁",
     "../.agents/skills/desktop-task-workflow/SKILL.md",
-    "推荐预设确定性物化六项",
+    "固定初始化默认值确定性物化六项",
     "migrate-task-worktrees", "selection_required",
     "日常开发直接实施",
     "显式发布候选构建必须为当前候选解析一次 E2E 选择",

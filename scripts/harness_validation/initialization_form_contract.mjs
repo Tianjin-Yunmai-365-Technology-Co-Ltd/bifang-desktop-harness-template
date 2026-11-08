@@ -8,8 +8,10 @@ import { ROOT, fail } from "./core.mjs";
 export function validateInitializationFormRouting(errors, sourceRoot = ROOT) {
   const ids = QUESTIONS.map(({ id }) => id);
   if (new Set(ids).size !== ids.length) fail(errors, "initialization form contains duplicate field IDs");
-  if (QUESTIONS.slice(0, 9).some((question, index) => question.number !== index + 1)) fail(errors, "initialization base field numbers must remain 1..9");
-  if (BASE_FIELDS.length !== 9 || POLICY_FIELDS.length !== 6 || GUI_FIELDS.length !== 9) fail(errors, "initialization field partitions must remain 9/6/9");
+  if (QUESTIONS.slice(0, 7).some((question, index) => question.number !== index + 1)) fail(errors, "initialization numbered fields must remain 1..7");
+  if (BASE_FIELDS.length !== 6 || POLICY_FIELDS.length !== 6 || GUI_FIELDS.length !== 9) fail(errors, "initialization field partitions must remain 6/6/9");
+  if (JSON.stringify(BASE_FIELDS) !== JSON.stringify(["name_zh", "name_en", "project_id", "project_path", "owner", "interfaces"]) || QUESTIONS[6]?.id !== "target_platforms") fail(errors, "program type must precede the separate platform question");
+  if (QUESTIONS.some(({ id }) => ["policy_mode", "post_release_action", ...POLICY_FIELDS].includes(id))) fail(errors, "Agent policy and release action must not be initialization questions");
   if (JSON.stringify(QUESTIONS.find(question => question.id === "interfaces")?.values) !== JSON.stringify(["cli", "mcp", "gui", "nsh"])) fail(errors, "program types must expose CLI/MCP/DESKTOP/NSH in order");
   if (JSON.stringify(QUESTIONS.find(question => question.id === "gui_framework")?.values) !== JSON.stringify(["tauri", "gpui"])) fail(errors, "DESKTOP frameworks must be Tauri/GPUI only");
   if (JSON.stringify(NSH_TARGETS) !== JSON.stringify(["desktop", "mobile", "web", "tui"]) || JSON.stringify(QUESTIONS.find(question => question.id === "nsh_targets")?.values) !== JSON.stringify(NSH_TARGETS)) fail(errors, "NSH capability choices must be desktop/mobile/web/tui");

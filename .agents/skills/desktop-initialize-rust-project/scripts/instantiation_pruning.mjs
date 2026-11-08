@@ -34,7 +34,8 @@ export function validatePreparation(preparation, current) {
   const policyBytes = current.get('docs/AGENT_POLICY.md')?.bytes;
   if (!policyBytes) throw new Error('缺少已确认策略');
   const policy = parseAgentPolicyDocument(policyBytes);
-  for (const key of [...POLICY_FIELDS, 'post_release_action']) if (policy.fields.get(key) !== values[key]) throw new Error(`已确认策略漂移：${key}`);
+  for (const key of POLICY_FIELDS) if (policy.fields.get(key) !== values[key]) throw new Error(`已确认策略漂移：${key}`);
+  if (policy.fields.get('post_release_action') !== 'pending') throw new Error('初始化期间发布后动作必须保持 pending');
   if (selection.guiFramework || selection.nshTargets?.includes('desktop')) {
     const source = current.get('docs/GUI_APP_PROFILE.md')?.bytes.toString('utf8') ?? '';
     const blocks = [...source.matchAll(/```gui-initialization-config\s*\n([\s\S]*?)```/gu)];
