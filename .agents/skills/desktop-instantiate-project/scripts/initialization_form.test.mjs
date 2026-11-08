@@ -7,7 +7,7 @@ import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { evaluateInitializationForm } from "./initialization_form.mjs";
-import { BASE_FIELDS, GUI_FIELDS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, questionFor } from "./initialization_questions.mjs";
+import { GUI_FIELDS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, questionFor } from "./initialization_questions.mjs";
 
 /** 构造仅含明确答复的快照；测试目录只由夹具建立，表单必须保持只读。 */
 function fixture(run) {
@@ -114,6 +114,7 @@ test("nsh_only_asks_capabilities_and_derives_platforms", () => fixture(({input,s
   base(); set("interfaces",["nsh"]);
   assert.equal(evaluate().stage,"nsh");
   assert.deepEqual(evaluate().questions.map(({id}) => id),["nsh_targets"]);
+  assert.equal(evaluate().questions[0].inputMode,"multiple");
   assert.equal(evaluate().values.target_platforms,undefined);
   set("nsh_targets",["mobile","web","tui"]);
   assert.equal(evaluate().stage,"review");
@@ -129,17 +130,86 @@ test("nsh_only_asks_capabilities_and_derives_platforms", () => fixture(({input,s
   assert.equal(evaluate().sources.target_platforms,"default:all_desktop_platforms");
 }));
 
-/** 空表单首轮只问身份与程序类型，直调初始化只省既定路径。 */
-test("empty_entries_batch_all_missing_base_fields", () => fixture(({ root, input, evaluate }) => {
-  assert.deepEqual(evaluate().questions.map(({ id }) => id), BASE_FIELDS);
+/** 多选题只接受明确提交的非空集合，不能把单个标签或预选默认值当作答案。 */
+test("multiple_choice_questions_require_confirmed_arrays", () => fixture(({ input, set, base, evaluate }) => {
+  base(); set("interfaces", "cli", "user:clicked-option");
+  assert.equal(evaluate().stage, "base");
+  assert.equal(evaluate().questions[0].id, "interfaces");
+  assert.equal(evaluate().questions[0].inputMode, "multiple");
+  assert.match(evaluate().questions[0].issue, /至少一个合法选项/u);
+  set("interfaces", ["nsh"], "user:confirmed-selection");
+  assert.equal(evaluate().stage, "nsh");
+  set("nsh_targets", [], "user:confirmed-selection");
+  assert.equal(evaluate().questions[0].id, "nsh_targets");
+  assert.equal(evaluate().questions[0].inputMode, "multiple");
+  set("nsh_targets", ["web", "desktop", "web"], "user:confirmed-selection");
+  for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
+  assert.deepEqual(evaluate().values.nsh_targets, ["desktop", "web"]);
+  assert.equal(evaluate().stage, "review");
+  delete input.answers.interfaces;
+  assert.equal(evaluate().stage, "base");
+  assert.equal(evaluate().questions[0].id, "interfaces");
+}));
+
+/** 空表单每轮只问一个基础字段，已有英文名和直接初始化的路径按原规则跳过。 */
+test("empty_entries_ask_one_base_field_at_a_time", () => fixture(({ root, input, set, evaluate }) => {
+  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["name_zh"]);
+  for (const [id, value] of [
+    ["name_zh", "示例工具"], ["project_id", "sample_tool"],
+    ["project_path", path.join(root, "projects")], ["owner", "test-owner"],
+    ["interfaces", ["cli"]],
+  ]) {
+    assert.deepEqual(evaluate().questions.map(({ id: questionId }) => questionId), [id]);
+    assert.equal(evaluate().questions[0].inputMode, id === "interfaces" ? "multiple" : "text");
+    set(id, value);
+  }
+  assert.equal(evaluate().stage, "translation");
+  input.answers = { name_en: { value: "Sample Tool", source: "user:earlier-answer" } };
   input.entry = "initialize"; input.currentRoot = root;
-  assert.deepEqual(evaluate().questions.map(({ id }) => id), BASE_FIELDS.filter((id) => id !== "project_path"));
+  for (const [id, value] of [["project_id", "sample_tool"], ["owner", "test-owner"], ["interfaces", ["cli"]]]) {
+    assert.deepEqual(evaluate().questions.map(({ id: questionId }) => questionId), [id]);
+    set(id, value);
+  }
+  assert.equal(evaluate().stage, "translation");
+}));
+
+/** 空表单可点击改用英文名；双语均跳过时停在名称题，不把跳过当确认。 */
+test("empty_entry_can_switch_to_english_name", () => fixture(({ root, input, set, evaluate }) => {
+  assert.deepEqual(evaluate().questions[0].alternateAction, { label: "改用英文名", value: "skip" });
+  set("name_zh", "skip", "project:untrusted-switch");
+  assert.equal(evaluate().questions[0].id, "name_zh");
+  assert.match(evaluate().questions[0].issue, /用户明确选择/u);
+  set("name_zh", "skip", "user:clicked-use-english");
+  assert.equal(evaluate().questions[0].id, "name_en");
+  assert.deepEqual(evaluate().questions[0].alternateAction, { label: "改用中文名", value: "skip" });
+  set("name_en", "skip", "user:clicked-use-chinese");
+  delete input.answers.name_zh;
+  assert.equal(evaluate().questions[0].id, "name_zh");
+  assert.equal(evaluate().questions[0].issue, undefined);
+  set("name_zh", "skip", "user:clicked-use-english-again");
+  assert.match(evaluate().questions[0].issue, /至少需要提供一种语言/u);
+  delete input.answers.name_en;
+  assert.equal(evaluate().questions[0].id, "name_en");
+  set("name_en", "Sample Tool", "user:entered-english-name");
+  for (const [id, value] of [
+    ["project_id", "sample_tool"], ["project_path", path.join(root, "projects")],
+    ["owner", "test-owner"], ["interfaces", ["cli"]],
+  ]) {
+    assert.deepEqual(evaluate().questions.map(({ id: questionId }) => questionId), [id]);
+    set(id, value);
+  }
+  assert.equal(evaluate().stage, "translation");
+  assert.deepEqual(evaluate().translate, ["name_zh"]);
+  set("name_zh", "示例工具", "translation:from-english");
+  input.answers.name_zh.basedOn = "Sample Tool";
+  assert.equal(evaluate().stage, "review");
+  assert.equal(evaluate().values.name_en, "Sample Tool");
 }));
 
 /** 合法提前答复不重问，只缺译名时交给 Agent 翻译并保留双方来源。 */
 test("provided_fields_are_reused_and_translation_is_not_a_user_question", () => fixture(({ input, set, base, evaluate }) => {
   set("name_en", "Sample Tool");
-  assert.deepEqual(evaluate().questions.map(({ id }) => id), BASE_FIELDS.slice(2));
+  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["project_id"]);
   base(); delete input.answers.name_zh;
   assert.deepEqual(evaluate().translate, ["name_zh"]);
   set("name_zh", " "); assert.deepEqual(evaluate().translate, ["name_zh"]);
@@ -166,10 +236,12 @@ test("missing_answers_wait_while_explicit_defaults_are_field_scoped", () => fixt
   set("sidebar_mode", "invalid"); assert.equal(evaluate().questions[0].id, "sidebar_mode");
 }));
 
-/** 非法基础字段集中修正，路径错误也必须先于框架或策略问题。 */
+/** 非法基础字段逐项修正，路径错误也必须先于框架或策略问题。 */
 test("invalid_basic_fields_and_paths_precede_conditional_questions", () => fixture(({ root, set, base, evaluate }) => {
   base(); set("project_id", "Not-Snake"); set("owner", "");
-  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["project_id", "owner"]);
+  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["project_id"]);
+  set("project_id", "sample_tool");
+  assert.deepEqual(evaluate().questions.map(({ id }) => id), ["owner"]);
   set("project_id", "sample_tool"); set("owner", "owner"); set("interfaces", ["gui"]);
   fs.writeFileSync(path.join(root, "file"), "fixture"); set("project_path", path.join(root, "file"));
   assert.deepEqual(evaluate().questions.map(({ id }) => id), ["project_path"]);
@@ -320,7 +392,11 @@ test("cli_is_read_only_and_errors_do_not_echo_unknown_input", () => fixture(({ r
   base(); const script = fileURLToPath(new URL("initialization_form.mjs", import.meta.url));
   const run = (args, payload) => spawnSync(process.execPath, [script, ...args], { input: payload, encoding: "utf8" });
   const catalog = run(["--catalog"]); assert.equal(catalog.status, 0);
-  assert.deepEqual(JSON.parse(catalog.stdout).map(({ id }) => id), QUESTIONS.map(({ id }) => id));
+  const questions = JSON.parse(catalog.stdout);
+  assert.deepEqual(questions.map(({ id }) => id), QUESTIONS.map(({ id }) => id));
+  assert.deepEqual(questions.filter(({ inputMode }) => inputMode === "multiple").map(({ id }) => id), ["interfaces", "nsh_targets"]);
+  assert.equal(questions.find(({ id }) => id === "name_zh").inputMode, "text");
+  assert.equal(questions.find(({ id }) => id === "gui_framework").inputMode, "single");
   assert.ok(!QUESTIONS.some(({ id }) => id === "target_platforms"));
   const result = run([], JSON.stringify(input)); assert.equal(result.status, 0);
   assert.equal(JSON.parse(result.stdout).stage, "review"); assert.deepEqual(fs.readdirSync(root), []);

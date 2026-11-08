@@ -4,7 +4,8 @@
 
 ## 2026-11-08 变化
 
-- `HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`（`required_version = pending`，仅正式发布时取号）：新项目首轮只集中询问名称、标识、路径、负责人和程序类型，不再询问系统平台。CLI、MCP、DESKTOP 可按需组合并默认声明 Windows/macOS/Linux 全部目标；NSH 只能单选，只问桌面、移动、Web、TUI 能力，再按能力派生完整对应平台并在最终汇总中确认。六项 Agent 策略直接使用固定默认值，初始化策略文件保留 `post_release_action: pending`，首次发布前才明确选择并记录本地打包或提交远程。表单与相关回归已同步；真实下游实例化及首次发布仍待前向验证。见 [ADR-20261108-002](../adr/20261108_ADR.md) 与 [ADR-20261108-001](../adr/20261108_ADR.md)。
+- `HARNESS-CHANGE-SEQUENTIAL-INITIALIZATION-QUESTIONS`（`required_version = pending`，仅正式发布时取号）：新项目基础字段与后续条件字段统一为每轮一题，其他结构化补问同样逐项呈现；问句标明文本、单选或多选，名称题可点击改用另一语言。选项通过宿主可点击控件确认，多选优先复选；仅有单选工具时逐项点击并确认所选集合，不要求用户手打选项。目录标记不等于当前宿主已经提供原生复选框，真实控件能力须按运行环境确认。见 [ADR-20261108-003](../adr/20261108_ADR.md)。
+- `HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`（`required_version = pending`，仅正式发布时取号）：新项目按顺序逐项询问名称、标识、路径、负责人和程序类型，不再询问系统平台。CLI、MCP、DESKTOP 可按需组合并默认声明 Windows/macOS/Linux 全部目标；NSH 只能单选，只问桌面、移动、Web、TUI 能力，再按能力派生完整对应平台并在最终汇总中确认。六项 Agent 策略直接使用固定默认值，初始化策略文件保留 `post_release_action: pending`，首次发布前才明确选择并记录本地打包或提交远程。表单与相关回归已同步；真实下游实例化及首次发布仍待前向验证。见 [ADR-20261108-002](../adr/20261108_ADR.md) 与 [ADR-20261108-001](../adr/20261108_ADR.md)。
 
 ## 2026-11-07 新增
 

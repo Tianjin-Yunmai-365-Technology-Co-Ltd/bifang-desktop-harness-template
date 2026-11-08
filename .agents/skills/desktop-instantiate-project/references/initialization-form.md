@@ -32,32 +32,38 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 - `entry` 为 `instantiate` 时由 `harnessRoot` 和路径 helper 解析新目标。`entry` 为 `initialize` 时必须提供已核实的绝对 `currentRoot`，它就是既定路径，不再询问路径，也不追加项目标识；显式提供另一项目路径会失败，Harness 源也不能直接初始化。
 - `answers` 只保存用户已答字段和已确认项目事实。每项必须包含 `value` 与真实 `source`，前缀仅可为 `user:`、`project:`；只有双语名称允许 `translation:`。不得把源模板的值标成目标项目已确认事实。
 - 实例化名称至少一个来自用户；直接初始化已有项目可以复用此前确认的项目名称。名称空白等同未提供；只有一个名称时，解析器返回 `translation`，Agent 自动翻译并补齐来源，不增加译名问题；翻译答案必须附 `basedOn` 原名，原名变化后解析器要求重译。两个都已提供时不改译。专有名词可采用音译、常见译名或保留原文，译名最终由用户确认。
-- 枚举只使用 catalog 的 `values`；接口和 NSH 能力为数组，输出按 catalog 固定顺序去重。自然语言和数字答案必须明确绑定当前题目后才能归一化；多题回复中的裸“1/默认/是”无法唯一对应字段时，只追问歧义字段，不猜测，也不向其他字段传播。
-- 缺字段表示尚未答复，继续等待；**无新消息、遗漏答案、等待超时均不算默认或批准**。用户对当前字段明确“默认/跳过”时才传 `default`/`skip`；明确发送空白答复时才传空字符串。仅 catalog 声明默认值的字段接受默认/跳过；空字符串只用于框架和侧栏。程序类型的默认值为 CLI，但未答复仍待问。六项 Agent 策略由固定初始化默认值派生，不作为表单问题或答案。
+- 枚举只使用 catalog 的 `values`；接口和 NSH 能力为数组，输出按 catalog 固定顺序去重。用户已在消息中明确给出的多个合法字段可一并复用；自然语言和数字答案必须明确绑定对应题目后才能归一化，裸“1/默认/是”有歧义时只重问当前字段。
+- 缺字段表示尚未答复，继续等待；**无新消息、遗漏答案、等待超时均不算默认或批准**。用户对当前字段明确“默认/跳过”时才传 `default`/`skip`；明确发送空白答复时才传空字符串。仅 catalog 声明默认值的字段接受默认/跳过，名称题例外：点击“改用英文名/改用中文名”写入来源为 `user:` 的 `skip`，使下一轮询问另一语言；切换回原语言时先撤下该语言原有的 `skip`，两种名称都跳过时必须重新询问，不能继续。空字符串只用于框架和侧栏。程序类型的默认值为 CLI，但未答复仍待问。六项 Agent 策略由固定初始化默认值派生，不作为表单问题或答案。
 - 解析器输出的预设、不可用能力、目标平台和默认结果不能整包抄回 `answers`；必须保留原始显式答案，否则框架或能力变化后旧派生值可能被误认为用户选择。旧版 `target_platforms` 答案可留在输入以便恢复会话，但不再产生问题，也不影响结果；新表单不得主动收集该字段。
 - 未知字段、非法状态结构或伪造来源直接报错，不能借完整汇总确认跳过校验。
 
 | 输出 `stage` | Agent 唯一动作 |
 |---|---|
-| `base` | 一次展示 `questions` 中全部待补/待修正基础项，保留原编号；其余合法基础项不重问。 |
+| `base` | 只展示 `questions` 中当前一个待补/待修正基础项，保留原编号；其余合法基础项不重问。 |
 | `translation` | 自动补齐 `translate` 指定名称并重算，不向用户加问。 |
 | `framework` / `nsh` / `gui` / `assistance` | 本轮只展示返回的一个问题，含原有选项、说明和 `issue`；等待明确答复。 |
 | `review` | 展示下文规定的完整汇总，只询问是否按此创建；记录 `summaryDigest`。 |
 | `confirmed` | 仅说明当前汇总已有相匹配的显式确认；随后进入既有初始化门禁，不代表初始化成功。 |
 
-问句、选项、说明与错误约束须完整展示；可适配宿主表单排版，不能删减其含义。目录命令失败时停止问询和写入，不临时另写一套表单。
+每次只向用户发起当前 `questions` 中的一个字段；`reviewQuestion` 是独立的最终汇总确认。问句、选项、说明与错误约束须完整展示，不能删减其含义。目录命令失败时停止问询和写入，不临时另写一套表单。
 
-## 首轮基础问题模板
+### 选项控件与确认
 
-从 catalog 的 `number = 1..6` 取原文，首次一次列出全部尚未解析的基础字段。中英文至少已有一个时不再向用户索要另一名称；直接初始化只因当前根已知而省略路径，**不得遗漏项目标识或负责人**。第 6 项程序类型收齐后，NSH 只问 `nsh_targets`；DESKTOP 只问 `gui_framework` 再进入适用的桌面配置；纯 CLI/MCP 可进入汇总。任何路径都不再询问系统平台。
+解析器给每题标记 `inputMode`：`text` 为自由文本，`single` 为单选，`multiple` 为多选；`interfaces` 与 `nsh_targets` 必须是 `multiple`。存在宿主交互式问询工具时，文本题使用输入框，单选题使用可点击选项；两道名称题的 `alternateAction` 同时提供可点击的语言切换，不把跳过当成已提供名称。多选题优先在同一复选控件中勾选多项，再由用户点击确认。选项标签与技术值必须逐项对应，不能要求用户自行输入选项编号、名称或 JSON 数组，也不能由 Agent 代替用户确认。
 
-用户一次给多字段时全部解析；基础缺失或非法集中修正，基础字段合法后才进入适用的条件阶段。CLI、MCP 可互相组合，也可与 DESKTOP 组合；NSH 必须单选，与 DESKTOP 及其他接口互斥。
+若宿主只有可点击的单选工具而没有复选控件，当前多选题的每个选项依目录顺序分别弹出“选择/不选择”，形成非空集合后再展示已选标签并弹出“确认所选/重新选择”；确认后才把数组写入 `answers` 并请求下一题。这是单选工具的明确回退，不得声称已弹出复选框。没有任何可点击选项工具且用户尚未明确提供答案时，说明当前宿主不能提供所需选择控件并等待可用输入方式，不改用让用户手打枚举值。已明确给出的合法字段直接复用，不为了展示控件而重问。选项提交和最终完整汇总确认都是显式用户动作；未响应、预选项或超时均不是确认。
+
+## 逐项基础问题模板
+
+从 catalog 的 `number = 1..6` 取原文，每轮只问当前一个尚未解析的基础字段，修正非法值时也只重问该字段。空表单先问中文名；只提供英文名时可点击“改用英文名”，下一轮才问英文名。中英文至少已有一个时不再向用户索要另一名称；直接初始化只因当前根已知而省略路径，**不得遗漏项目标识或负责人**。第 6 项程序类型收齐后，NSH 只问 `nsh_targets`；DESKTOP 只问 `gui_framework` 再进入适用的桌面配置；纯 CLI/MCP 可进入汇总。任何路径都不再询问系统平台。
+
+用户提前一次给出多个字段时全部解析；只把仍缺失或非法的首个字段交给当前一轮问询，基础字段合法后才进入适用的条件阶段。CLI、MCP 可互相组合，也可与 DESKTOP 组合；NSH 必须单选，与 DESKTOP 及其他接口互斥。
 
 ## 字段阶段与顺序
 
 唯一顺序由 catalog 与解析器执行：基础身份及程序类型 → 缺失译名补齐 → NSH 的四类能力或 DESKTOP 的 GUI 框架 → 适用的桌面九项配置 → 已启用桌面能力配置协助 → 路径检查与完整汇总 → 显式确认。非 NSH 的全平台默认值和 NSH 的平台映射在汇总前计算。路径安全属于基础校验，汇总和写入前会再次复核。
 
-问题的首轮字段依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`interfaces`；程序类型选项为 CLI、MCP、DESKTOP（技术值 `gui`）、NSH，NSH 展示说明固定为“下一代全平台开发框架”。CLI/MCP/DESKTOP 的 `target_platforms` 固定派生为 `windows, macos, linux`，来源 `default:all_desktop_platforms`；NSH 只问 `nsh_targets` 并派生平台，不写入 `gui-framework`。DESKTOP 的 `gui_framework` 仅可选 Tauri/GPUI 并写入 Cargo 的 `gui-framework`。
+基础字段顺序依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`interfaces`；已确认一个展示名称时，另一个自动翻译并在汇总确认。程序类型选项为 CLI、MCP、DESKTOP（技术值 `gui`）、NSH，NSH 展示说明固定为“下一代全平台开发框架”。CLI/MCP/DESKTOP 的 `target_platforms` 固定派生为 `windows, macos, linux`，来源 `default:all_desktop_platforms`；NSH 只问 `nsh_targets` 并派生平台，不写入 `gui-framework`。DESKTOP 的 `gui_framework` 仅可选 Tauri/GPUI 并写入 Cargo 的 `gui-framework`。
 
 `nsh_targets` 为可多选的 `desktop`、`mobile`、`web`、`tui`，是 NSH 平台选择的唯一输入。`desktop` 或 `tui` 各自派生完整 Windows/macOS/Linux 集合，两者同选只保留一份；`mobile` 派生 Android/iOS，`web` 派生 Web。派生的非空 `target_platforms` 与来源 `derived:nsh_targets` 进入完整汇总，确认后才写入 Cargo。若旧一轮已提供显式 `target_platforms`，任何程序类型都忽略旧答案并按当前默认或能力重新计算，不再展示系统平台问题。TUI 使用官方 main 固定提交 `beeb9fc7707e0d4a195a4f7274f77b30e134c500` 的预览版；正式 v0.4.0 CLI 无 TUI 目标。NSH 当前只支持单独选择，不能与 CLI、MCP 或 DESKTOP 同时实例化；独立旧 TUI 程序类型仍被拒绝。
 
@@ -85,7 +91,7 @@ node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.m
 
 ## 完整汇总与完成条件
 
-`review` 时完整展示 `summary` 的双语名及来源、项目标识和 kebab 前缀、原始路径输入和唯一 `targetRoot`、负责人、具体平台/程序类型、适用的框架或 NSH 目标类别、不可用能力、六项固定策略默认值及来源/有效行为、`post_release_action: pending` 与首次发布补选时点、适用的桌面九项和配置移交意愿。非 NSH 的具体平台必须标明全平台默认，NSH 的具体平台必须标明由所选能力派生，并请用户在这一处核对。完整展示解析器返回的 `summary.notices` 和 `reviewQuestion`，不能自行删减固定基线、框架打包边界、深链 URL、快捷键零注册或 Logo 执行阶段提示；这些提示与最终确认问句同样纳入摘要。模型只调整排版，不另造一份提示文案。
+`review` 时完整展示 `summary` 的双语名及来源、项目标识和 kebab 前缀、原始路径输入和唯一 `targetRoot`、负责人、具体平台/程序类型、适用的框架或 NSH 目标类别、不可用能力、六项固定策略默认值及来源/有效行为、`post_release_action: pending` 与首次发布补选时点、适用的桌面九项和配置移交意愿。非 NSH 的具体平台必须标明全平台默认，NSH 的具体平台必须标明由所选能力派生，并请用户在这一处核对。完整展示解析器返回的 `summary.notices` 和 `reviewQuestion`，通过可点击单选控件确认或修改；不能自行删减固定基线、框架打包边界、深链 URL、快捷键零注册或 Logo 执行阶段提示。这些提示与最终确认问句同样纳入摘要。模型只调整排版，不另造一份提示文案。
 
 只有用户明确确认**最新完整汇总**后，才在输入中增加 `confirmation: { "digest": "<本次 summaryDigest>", "source": "user:<实际确认来源>" }` 再重算。未经用户答复不能自填确认。确认摘要不匹配返回 `review`；不允许靠 `confirmed: true`、预设选择、旧会话同意或超时绕过。解析器即使返回 `confirmed`，也不授权新增范围或跳过环境、路径复核、Logo 选择、脚手架检查和独立基线提交门禁。
 

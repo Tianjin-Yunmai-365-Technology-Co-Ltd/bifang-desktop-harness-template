@@ -23,6 +23,7 @@ function parseAnswer(id, answer) {
   const definition = id === "target_platforms" ? { values: NSH_PLATFORM_ORDER } : questionFor(id);
   let value = answer.value;
   if (["name_zh", "name_en"].includes(id) && typeof value === "string" && !value.trim()) return { missing: true };
+  if (["name_zh", "name_en"].includes(id) && value === "skip") return answer.source.startsWith("user:") ? { skipped: true } : { issue: "切换展示名称语言须由用户明确选择。" };
   if (value === "default" || value === "skip" || value === "") {
     if (definition.defaultValue === undefined || (value === "" && !["gui_framework", "sidebar_mode"].includes(id))) return { issue: "该字段须明确提供合法值；空白不是确认。" };
     value = structuredClone(definition.defaultValue);
@@ -62,9 +63,11 @@ export function evaluateInitializationForm(input) {
   const values = {};
   const sources = {};
   const issues = {};
+  const skippedNames = new Set();
   for (const [id, answer] of Object.entries(answers)) {
     const result = parseAnswer(id, answer);
     if (id === "target_platforms") continue;
+    if (result.skipped) { skippedNames.add(id); continue; }
     if (result.missing) continue;
     if (result.issue) issues[id] = result.issue;
     else { values[id] = result.value; sources[id] = result.source; }
@@ -83,22 +86,25 @@ export function evaluateInitializationForm(input) {
     sources.project_path = "project:currentRoot";
     delete issues.project_path;
   }
-  const output = (stage, ids = [], extra = {}) => ({
-    schemaVersion: 1, stage, values: { ...values }, sources: { ...sources },
-    questions: ids.map((id) => {
-      const question = questionFor(id, issues[id]);
-      if (values.interfaces?.includes("nsh") && values.nsh_targets?.includes("desktop")) {
-        if (id === "system_tray") question.help = "中性菜单包含新建窗口、显示所有窗口和退出；启用后由宿主处理关窗与恢复。";
-        if (id === "single_instance") question.help = "再次启动聚焦现有窗口；没有窗口时新建，不转发业务载荷。";
-        if (id === "deep_link") {
-          question.title = "是否启用只恢复应用窗口的深链接？";
-          question.help = "URL 为 app-<kebab-prefix>://restore；聚焦现有窗口，没有窗口时新建；启用必须同时启用单实例。";
+  const output = (stage, ids = [], extra = {}) => {
+    if (ids.length > 1) throw new Error("每轮只能询问一个字段");
+    return {
+      schemaVersion: 1, stage, values: { ...values }, sources: { ...sources },
+      questions: ids.map((id) => {
+        const question = questionFor(id, issues[id]);
+        if (values.interfaces?.includes("nsh") && values.nsh_targets?.includes("desktop")) {
+          if (id === "system_tray") question.help = "中性菜单包含新建窗口、显示所有窗口和退出；启用后由宿主处理关窗与恢复。";
+          if (id === "single_instance") question.help = "再次启动聚焦现有窗口；没有窗口时新建，不转发业务载荷。";
+          if (id === "deep_link") {
+            question.title = "是否启用只恢复应用窗口的深链接？";
+            question.help = "URL 为 app-<kebab-prefix>://restore；聚焦现有窗口，没有窗口时新建；启用必须同时启用单实例。";
+          }
         }
-      }
-      if (id === "deep_link" && values.project_id) question.help = question.help.replace("<kebab-prefix>", values.project_id.replaceAll("_", "-"));
-      return question;
-    }), ...extra,
-  });
+        if (id === "deep_link" && values.project_id) question.help = question.help.replace("<kebab-prefix>", values.project_id.replaceAll("_", "-"));
+        return question;
+      }), ...extra,
+    };
+  };
   for (const id of ["name_zh", "name_en"]) {
     const original = id === "name_zh" ? "name_en" : "name_zh";
     if (sources[id]?.startsWith("translation:") && answers[id].basedOn !== values[original]) {
@@ -114,8 +120,12 @@ export function evaluateInitializationForm(input) {
       target = entry === "instantiate" ? resolveProjectTarget(input.harnessRoot, values.project_path, values.project_id) : { targetRoot: values.project_path, targetState: "existing-initialize-root" };
     } catch { issues.project_path = "路径解析或最终目录安全检查失败；请用路径 helper 核对并修正。"; delete values.project_path; }
   }
-  const missingBase = BASE_FIELDS.filter((id) => !values[id] && !(hasName && ["name_zh", "name_en"].includes(id) && !issues[id]));
-  if (missingBase.length) return output("base", missingBase);
+  if (!hasName && skippedNames.size === 2) {
+    issues.name_zh = "至少需要提供一种语言的展示名称；请输入中文名，或修改英文名答案。";
+    return output("base", ["name_zh"]);
+  }
+  const missingBase = BASE_FIELDS.filter((id) => !values[id] && !skippedNames.has(id) && !(hasName && ["name_zh", "name_en"].includes(id) && !issues[id]));
+  if (missingBase.length) return output("base", [missingBase[0]]);
   if (!hasName) throw new Error("至少一个展示名称必须来自用户或已确认项目事实");
   const translated = ["name_zh", "name_en"].filter((id) => !values[id]);
   if (translated.length) return output("translation", [], { translate: translated });

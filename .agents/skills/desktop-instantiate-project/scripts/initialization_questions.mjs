@@ -1,13 +1,13 @@
 /** 初始化问句的唯一目录；选项值供解析器使用，中文文案直接供所有模型展示。 */
 export const QUESTIONS = [
-  { id: "name_zh", number: 1, title: "中文项目展示名称是什么？", help: "中英文至少提供一个；另一名称由 Agent 翻译，在最终汇总中确认。" },
-  { id: "name_en", number: 2, title: "英文项目展示名称是什么？", help: "中英文至少提供一个；另一名称由 Agent 翻译，在最终汇总中确认。" },
+  { id: "name_zh", number: 1, title: "中文项目展示名称是什么？", alternateAction: { label: "改用英文名", value: "skip" }, help: "中英文至少提供一个；若只提供英文名，可点击“改用英文名”。另一名称由 Agent 翻译，在最终汇总中确认。" },
+  { id: "name_en", number: 2, title: "英文项目展示名称是什么？", alternateAction: { label: "改用中文名", value: "skip" }, help: "中英文至少提供一个；若改为提供中文名，可点击“改用中文名”。另一名称由 Agent 翻译，在最终汇总中确认。" },
   { id: "project_id", number: 3, title: "项目标识是什么？", help: "ASCII snake_case，匹配 ^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$；建议值仍需你确认。" },
   { id: "project_path", number: 4, title: "项目放在哪里？", help: "提供最终项目根目录或父目录；相对路径以 Harness 根目录为基准。" },
   { id: "owner", number: 5, title: "项目负责人或责任主体是谁？" },
-  { id: "interfaces", number: 6, title: "需要哪些程序类型？可多选。", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "CLI、MCP 可互相组合，也可与 DESKTOP 组合；DESKTOP 与 NSH 互斥，NSH 只能单选。明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；NSH 另问能力并派生对应平台。" },
+  { id: "interfaces", number: 6, title: "需要哪些程序类型？可多选。", inputMode: "multiple", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "CLI、MCP 可互相组合，也可与 DESKTOP 组合；DESKTOP 与 NSH 互斥，NSH 只能单选。明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；NSH 另问能力并派生对应平台。" },
   { id: "gui_framework", title: "要创建哪种桌面应用？", options: ["1. Tauri（默认）：使用Web技术开发桌面客户端", "2. GPUI：高性能原生客户端"], values: ["tauri", "gpui"], defaultValue: "tauri" },
-  { id: "nsh_targets", title: "NSH 要支持哪些能力？可多选。", options: ["桌面", "移动", "Web", "TUI（官方 main 固定提交预览）"], values: ["desktop", "mobile", "web", "tui"], help: "选择桌面或 TUI 即支持 Windows、macOS、Linux 全部系统，两者共用这些平台；选择移动即支持 Android、iOS；选择 Web 即支持 Web。目标平台由本题自动确定并在最终汇总中确认。TUI 使用固定官方 main 预览提交，仅支持 run/test，尚无官方 package 目标；首次发布选择动作时只能选提交远程。正式 v0.4.0 CLI 不支持 TUI。" },
+  { id: "nsh_targets", title: "NSH 要支持哪些能力？可多选。", inputMode: "multiple", options: ["桌面", "移动", "Web", "TUI（官方 main 固定提交预览）"], values: ["desktop", "mobile", "web", "tui"], help: "选择桌面或 TUI 即支持 Windows、macOS、Linux 全部系统，两者共用这些平台；选择移动即支持 Android、iOS；选择 Web 即支持 Web。目标平台由本题自动确定并在最终汇总中确认。TUI 使用固定官方 main 预览提交，仅支持 run/test，尚无官方 package 目标；首次发布选择动作时只能选提交远程。正式 v0.4.0 CLI 不支持 TUI。" },
   { id: "system_tray", title: "是否安装系统托盘能力？", help: "中性菜单只含显示窗口/退出；启用后按框架合同处理关闭隐藏与恢复。" },
   { id: "system_notification", title: "是否安装系统通知能力？", help: "设置页提供默认关闭的开关；选择能力不授权发送通知或更改本机权限。" },
   { id: "autostart", title: "是否安装开机自启能力？", help: "设置页提供实际 OS 状态开关；初始化不替你注册登录项。" },
@@ -39,7 +39,7 @@ export const NSH_TARGET_PLATFORMS = Object.freeze({
 });
 
 /** 最终确认同样使用固定问句，不把预设确认或超时解释为创建授权。 */
-export const REVIEW_QUESTION = { id: "confirm_summary", title: "是否按以上完整汇总创建项目？", options: ["确认创建", "修改信息"] };
+export const REVIEW_QUESTION = { id: "confirm_summary", title: "是否按以上完整汇总创建项目？", inputMode: "single", options: ["确认创建", "修改信息"] };
 
 /** 为完整汇总生成当前路径必需提示；它们随汇总摘要绑定，模型只负责排版。 */
 export function summaryNotices(values) {
@@ -81,6 +81,7 @@ export function questionFor(id, issue) {
     question.options = ["启用", "关闭"];
     question.values = ["enabled", "disabled"];
   }
+  question.inputMode ??= question.options ? "single" : "text";
   if (issue) question.issue = issue;
   return question;
 }

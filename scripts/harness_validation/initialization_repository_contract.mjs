@@ -81,7 +81,7 @@ export function repositoryRequiredFragments(gateFile, rustBaseline) {
     ]],
     [PRODUCT_SPEC, [
       "HARNESS-FEAT-BATCHED-BASE-INITIALIZATION-FORM",
-      "首轮只列出尚未解析的双语名称、标识、路径、负责人和程序类型",
+      "创建新下游时按固定顺序每轮只问一个尚未解析的双语名称、标识、路径、负责人或程序类型字段",
       "程序类型解析后才进入条件阶段",
       "CLI/MCP/DESKTOP/NSH",
       "明确选择默认接口或明确跳过接口选择时默认采用 CLI；漏答时保持待选择",
