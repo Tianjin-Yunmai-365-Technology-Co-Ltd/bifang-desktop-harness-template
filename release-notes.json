@@ -3,6 +3,30 @@
   "releases": [
     {
       "releaseDate": "2026-11-08",
+      "version": "v202611082001",
+      "featureOptimizations": [
+        {
+          "zh-CN": "NSH 桌面模板的设置、关于和赞助页面采用统一布局与双语状态反馈。",
+          "en-US": "NSH desktop templates now use consistent layouts and bilingual state feedback for Settings, About, and Sponsor pages."
+        },
+        {
+          "zh-CN": "NSH 移动模板加入固定底部导航、安全区域留白与状态栏外观同步。",
+          "en-US": "NSH mobile templates now provide fixed bottom navigation, safe area spacing, and matching status bar appearance."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "暂停与正式工具链不兼容的 TUI 预览目标，并统一 NSH 0.4.0 CLI 与 Cargo 依赖。",
+          "en-US": "Paused the TUI preview target that conflicted with the formal toolchain and aligned NSH 0.4.0 CLI and Cargo dependencies."
+        },
+        {
+          "zh-CN": "补齐移动候选的 Device Hub 与模拟器交互检查，避免误判无法验证。",
+          "en-US": "Added Device Hub and simulator interaction checks for mobile candidates to avoid incorrectly marking them untestable."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-11-08",
       "version": "v202611081358",
       "featureOptimizations": [
         {
@@ -246,42 +270,6 @@
         {
           "zh-CN": "统一 CLI 默认选择、Tauri/GPUI 运行时与测试分流及工程记忆描述，清理退役统计条款和过期授权表述。",
           "en-US": "Aligned CLI default selection, Tauri/GPUI runtime and test routing, and engineering records; removed retired telemetry clauses and stale authorization wording."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-11-04",
-      "version": "v202611041048",
-      "featureOptimizations": [
-        {
-          "zh-CN": "新增技术文档提取 Skill，以 knowledge 概览统一技术选型、依赖、架构、文件结构和技术债，并生成可交互架构图。",
-          "en-US": "Added a technical-documentation skill with a knowledge overview covering technology choices, dependencies, architecture, file structure and technical debt, plus an interactive architecture diagram."
-        },
-        {
-          "zh-CN": "支持项目本地 Archify 按需安装，所有接口保留知识提取入口，初始化和升级保护本地知识产物。",
-          "en-US": "Added on-demand project-local Archify installation, retained the extraction skill for all interfaces, and protected local knowledge artifacts during initialization and upgrades."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "修复 GPUI 知识安装误读 TOML 多行文本以及接受未知或重复接口的问题。",
-          "en-US": "Fixed GPUI knowledge installation incorrectly reading multiline TOML text and accepting unknown or duplicate interfaces."
-        },
-        {
-          "zh-CN": "升级来源锁在最终替换前复核计划快照，避免覆盖预检后并发创建或改写的内容。",
-          "en-US": "Rechecked the planned upstream-lock snapshot immediately before replacement to preserve concurrent creations and edits made after preflight."
-        },
-        {
-          "zh-CN": "补齐强更提示的可访问名称、描述关联和安全退出初始焦点。",
-          "en-US": "Added an accessible name, description association and initial focus on the safe exit action to the mandatory-update prompt."
-        },
-        {
-          "zh-CN": "本地品牌媒体路径拒绝控制字符，防止 URL 规范化绕过仅本地加载边界。",
-          "en-US": "Rejected control characters in local brand-media paths to prevent URL normalization from bypassing local-only loading."
-        },
-        {
-          "zh-CN": "统一候选收集与验收的审查源码绑定，并正确核对远端 release 分支与发布 tag。",
-          "en-US": "Aligned collection and acceptance instructions with reviewed-source provenance checks and the remote release branch and release tag."
         }
       ]
     }
