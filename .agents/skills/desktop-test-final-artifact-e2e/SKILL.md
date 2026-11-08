@@ -37,4 +37,6 @@ description: 通过 Computer Use 对完整真实 CLI、MCP 宿主或 GUI 候选�
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 
+移动候选须从实际安装的应用检查顶部与底部安全区、首页/设置底栏的位置和选中态、切页以及语言和主题变化。macOS 上先通过 Computer Use 检查可操作的 Device Hub（`com.apple.dt.Devices`，若可用）与 Simulator.app；`simctl` 可以辅助安装和截图，但未见 Simulator.app 窗口不足以判定模拟器无法点击。确无可操作界面时记录已检查的工具和未验证范围，不以 headless 渲染测试替代真实交互。
+
 NSH macOS `.app` 从候选自身的 `application.tar.gz` 隔离解包，核对解包路径、Mach-O 入口、归档与 manifest SHA-256 后才启动。Web 只从候选归档的完整静态目录提供页面；Android/iOS 必须在所选真实设备或模拟器安装并运行同一候选。仅当选择桌面且关于页启用时，点击元素自身的“更新日志”按钮，逐语言对照候选根 `release-notes.json` 的两类与版本；其 sidecar 不等于包内可定位资源，须从界面观察编译期内容。交互结束重新复算原始候选包、清单与 sidecar 字节，测试解包目录只在确认路径后清理。
