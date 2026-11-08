@@ -1,4 +1,4 @@
-import { colorScheme, effect, locale, mount, platform, Scroll, setColorScheme, signal, Storage, Text, View, windowSize, type JSX } from "nsh";
+import { colorScheme, effect, locale, mount, platform, safeArea, Scroll, setColorScheme, signal, Storage, Text, View, windowSize, type JSX } from "nsh";
 import { Button as BaseButton, Radio, RadioGroup } from "nsh/base";
 import { HomeContent } from "./App.shared";
 import { tr, type Language } from "./translations";
@@ -13,6 +13,7 @@ const COMPACT_SIDEBAR = __COMPACT__;
 const NAME_ZH = __NAME_ZH__;
 const NAME_EN = __NAME_EN__;
 const nativeDesktop = String(platform.idiom) !== "terminal" && (platform.os === "macos" || platform.os === "windows" || platform.os === "linux");
+const nativeMobile = platform.os === "ios" || platform.os === "android";
 
 function Action(props: { label: string; onPress: () => void; selected?: boolean }) {
   const colors = () => palette(colorScheme());
@@ -247,6 +248,9 @@ function App() {
       <View style={{
         width: sidebarWidth(),
         padding: tokens.sidebarPadding,
+        paddingTop: tokens.sidebarPadding + (nativeMobile ? safeArea().top : 0),
+        paddingRight: tokens.sidebarPadding + (nativeMobile ? safeArea().right : 0),
+        paddingLeft: tokens.sidebarPadding + (nativeMobile ? safeArea().left : 0),
         gap: desktopRail() ? 0 : tokens.settingsGap,
         backgroundColor: desktopRail() ? colors().sidebar : colors().surface,
         borderRightWidth: desktopRail() ? tokens.borderWidth : 0,
@@ -285,10 +289,16 @@ function App() {
             {secondaryNavigation(false)}
           </View>}
       </View>
-      <Scroll style={{ flex: 1 }} contentStyle={{ padding: narrow() ? tokens.contentGap : tokens.contentPadding, gap: tokens.contentGap }}>
+      <Scroll style={{ flex: 1 }} contentStyle={{
+        padding: narrow() ? tokens.contentGap : tokens.contentPadding,
+        paddingRight: (narrow() ? tokens.contentGap : tokens.contentPadding) + (nativeMobile ? safeArea().right : 0),
+        paddingBottom: (narrow() ? tokens.contentGap : tokens.contentPadding) + (nativeMobile ? safeArea().bottom : 0),
+        paddingLeft: (narrow() ? tokens.contentGap : tokens.contentPadding) + (nativeMobile ? safeArea().left : 0),
+        gap: tokens.contentGap,
+      }}>
         {page() === "home" && <HomeContent language={language()} title={title()} />}
         __DESKTOP_PANEL__
-        {page() === "settings" && nativeDesktop &&
+        {page() === "settings" &&
           <View style={{ width: "100%", maxWidth: tokens.settingsMaxWidth, alignSelf: "center", gap: tokens.sectionGap }}>
             <View style={{ gap: tokens.optionGap }}>
               <Text style={{ color: colors().foreground, fontSize: tokens.title, fontWeight: "600" }}>{tr(language(), "settings")}</Text>
@@ -311,21 +321,6 @@ function App() {
               />
             </SettingsSection>
             __AUTOSTART_SETTING__
-          </View>}
-        {page() === "settings" && !nativeDesktop &&
-          <View style={{ gap: tokens.settingsGap }}>
-            <Text style={{ color: colors().foreground, fontSize: tokens.title }}>{tr(language(), "settings")}</Text>
-            <Text style={{ color: colors().muted }}>{tr(language(), "language")}</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.optionGap }}>
-              <Action label="中文" onPress={() => void saveLanguage("zh")} />
-              <Action label="English" onPress={() => void saveLanguage("en")} />
-            </View>
-            <Text style={{ color: colors().muted }}>{tr(language(), "appearance")}</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.optionGap }}>
-              <Action label={tr(language(), "system")} onPress={() => void saveAppearance("system")} />
-              <Action label={tr(language(), "light")} onPress={() => void saveAppearance("light")} />
-              <Action label={tr(language(), "dark")} onPress={() => void saveAppearance("dark")} />
-            </View>
           </View>}
         __ABOUT_PAGE__
         __SPONSOR_PAGE__

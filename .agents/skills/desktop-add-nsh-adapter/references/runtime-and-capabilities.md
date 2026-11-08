@@ -15,7 +15,7 @@ NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不�
 | desktop、mobile、web | 支持生成 | AppKit/Win32/GTK、UIKit/Android、HTML + WASM；各目标独立构建和验证 |
 | tui | 暂不可用 | 正式 v0.4.0 无该目标；历史 main 预览版不属于当前支持工具链，任何新选择或既有元数据均失败关闭 |
 | 语言 | 固定 | TSX `locale()` 初始化中文/英文，未知语言回退英文，用户选择优先；偏好经 NSH Storage 保存 |
-| 主题 | 固定 | TSX `setColorScheme("system"/"light"/"dark")`，中央 Token 统一语义色 |
+| 主题 | 固定 | TSX `setColorScheme("system"/"light"/"dark")`，中央 Token 统一语义色；mobile 状态栏使用 `auto` 前景和 `statusBar` capability 随应用外观更新 |
 | 设置、侧栏、关于、赞助 | 固定/桌面按选择 | TSX signal 管页面会话，NSH Storage 保存语言、主题与详细侧栏折叠；九项 profile 只在 desktop 子目标询问 |
 | 窗口 | desktop 固定多窗口 | AppKit/Win32/GTK 自定义宿主，每个窗口独立加载同一 TSX bundle；`window.list/open/focus/showAll/close` 与 `windows` 事件；移动/Web 不应用桌面尺寸 |
 | 对话框 | 平台 API | NSH 原生 dialog/picker；不安装 Tauri plugin 或开放通用文件权限 |
@@ -25,9 +25,9 @@ NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不�
 | 开机自启 | desktop 可选 | macOS 登录项、Windows 当前用户 Run 项、Linux XDG autostart；`autostart.get/set` 读取真实状态与错误，未选时无设置入口 |
 | 系统通知、OS 全局快捷键 | desktop unavailable/disabled | 当前无接线，显式启用失败关闭；NSH 菜单与 shortcut 仅在应用内生效 |
 
-支持页的 NSH TSX 实现：设置页使用 `nsh/base` 的 `RadioGroup`/`Radio` 显示语言与主题选择，并在可选自启项使用 `Switch`。自启开关只在宿主状态明确时可操作；请求中的禁用态、读取/写入错误及重试由界面显示，不能用本地 signal 推断 OS 已切换。关于页消费生成器给出的结构化中英文字段，联系信息、更新日志和免责声明分别成区，免责声明逐段渲染。赞助页由 `nsh_support_pages.mjs` 从项目资料生成档位与支付媒体，按窗口可用宽度减去侧栏和内容内边距计算一至三列；共用 Token 管制图片、卡片、排版与控件尺寸。禁用的关于、赞助、自启仍须从生成结果完全裁剪。这里是 desktop 图形布局要求，不应用于 mobile/Web。
+支持页的 NSH TSX 实现：desktop/mobile/Web 共用设置页卡片分区，并以 `nsh/base` 的 `RadioGroup`/`Radio` 显示语言与主题选择。仅已选 desktop 自启项使用 `Switch`；开关只在宿主状态明确时可操作，请求中的禁用态、读取/写入错误及重试由界面显示，不能用本地 signal 推断 OS 已切换。关于页消费生成器给出的结构化中英文字段，联系信息、更新日志和免责声明分别成区，免责声明逐段渲染。赞助页由 `nsh_support_pages.mjs` 从项目资料生成档位与支付媒体，按窗口可用宽度减去侧栏和内容内边距计算一至三列；共用 Token 管制图片、卡片、排版与控件尺寸。关于、赞助、自启仅属 desktop 的条件能力；禁用时须从生成结果完全裁剪。
 
-Mixed 的 `nsh.json` 设置 `rust: "."`，不设置 Rust UI `root`；`App.tsx` 是入口。桌面宿主调用 `set_ui_sets(vec![nsh_base::registry(), <member>::registry()])` 并以 `App::Js(bundle)` 装载 TSX。每个窗口仅注册清单声明的方法：固定 `window.list/setTitle/open/focus/showAll/close`、`app.quit`，按选择增加 `autostart.get/set` 和 `deepLink.takePending`；托盘和单实例仅由宿主处理。深链接先进入宿主待领取队列，再发送 `deepLink.available`；TSX 订阅后主动领取并串行处理，目标窗口关闭时将未领取项转给仍存活的窗口。macOS 单实例请求重试须使用同一请求标识去重。macOS 应用菜单为进程全局，由 `menuOwner` 与 `menu.owner` 事件转交所有权；Windows/Linux 菜单在各窗口中，应用菜单快捷键不构成 OS 全局快捷键。
+Mixed 的 `nsh.json` 设置 `rust: "."`，不设置 Rust UI `root`；`App.tsx` 是入口。mobile 同时设置 `statusBar: { foreground: "auto" }` 与 `capabilities.statusBar: true`，使应用内浅深色偏好切换后状态栏图标保持可见；仅配置 `auto` 而未授予 capability 不会生效。移动根布局使用 NSH `safeArea()`，顶部导航避开状态栏，滚动内容底部和横向避开系统占用。桌面宿主调用 `set_ui_sets(vec![nsh_base::registry(), <member>::registry()])` 并以 `App::Js(bundle)` 装载 TSX。每个窗口仅注册清单声明的方法：固定 `window.list/setTitle/open/focus/showAll/close`、`app.quit`，按选择增加 `autostart.get/set` 和 `deepLink.takePending`；托盘和单实例仅由宿主处理。深链接先进入宿主待领取队列，再发送 `deepLink.available`；TSX 订阅后主动领取并串行处理，目标窗口关闭时将未领取项转给仍存活的窗口。macOS 单实例请求重试须使用同一请求标识去重。macOS 应用菜单为进程全局，由 `menuOwner` 与 `menu.owner` 事件转交所有权；Windows/Linux 菜单在各窗口中，应用菜单快捷键不构成 OS 全局快捷键。
 
 TUI 预览模式的终端细节属于历史研究资料，当前不生成其入口、不执行运行脚本，也不据此声明目标支持。
 

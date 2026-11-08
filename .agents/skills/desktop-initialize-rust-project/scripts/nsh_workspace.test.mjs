@@ -56,9 +56,11 @@ test('all_targets_use_mixed_tsx_and_real_shared_core_bridge',()=>{
   const mobileWeb={...options(),nshTargets:['mobile','web'],targetPlatforms:['android','ios','web']};
   delete mobileWeb.profile;
   const mobile=renderNshAdapterFiles(mobileWeb);
-  assert.equal(JSON.parse(mobile.get('sample_tool_nsh/nsh.json')).rust,'.');
-  assert.equal(Object.hasOwn(JSON.parse(mobile.get('sample_tool_nsh/nsh.json')),'root'),false);
-  assert.equal(Object.hasOwn(JSON.parse(mobile.get('sample_tool_nsh/nsh.json')),'capabilities'),false);
+  const mobileManifest=JSON.parse(mobile.get('sample_tool_nsh/nsh.json'));
+  assert.equal(mobileManifest.rust,'.');
+  assert.equal(Object.hasOwn(mobileManifest,'root'),false);
+  assert.deepEqual(mobileManifest.capabilities,{statusBar:true});
+  assert.deepEqual(mobileManifest.statusBar,{foreground:'auto'});
   assert.match(mobile.get('sample_tool_nsh/src/lib.rs'),/sample_tool_core::scaffold_status\(\)\s*\.await\s*\.initialized/u);
   assert.match(mobile.get('sample_tool_nsh/App.tsx'),/from "\.\/App\.shared"/u);
   assert.match(mobile.get('sample_tool_nsh/App.shared.tsx'),/Scaffold\.status\(\)/u);

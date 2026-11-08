@@ -59,6 +59,7 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
   const { projectId: id, nameZh, nameEn, owner } = options;
   const profile = options.profile ?? NEUTRAL_PROFILE;
   const desktop = options.nshTargets.includes('desktop');
+  const mobile = options.nshTargets.includes('mobile');
   const about = desktop && profile.about_page === 'enabled';
   const sponsor = desktop && profile.sponsor_page === 'enabled';
   const autostart = desktop && profile.autostart === 'enabled';
@@ -338,8 +339,12 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
   const applicationId = 'com.' + id.split('_').map(part => 'p' + part).join('.') + '.app';
   files.set(member + '/nsh.json', JSON.stringify({
     name: nameZh, id: applicationId, version, build: 1, rust: '.', appearance: 'system',
+    ...(mobile ? { statusBar: { foreground: 'auto' } } : {}),
     ...(options.logo ? { icon: 'assets/logo.png' } : {}),
-    ...(desktop ? { capabilities: { host: nshHostMethods(options) } } : {}),
+    ...(desktop || mobile ? { capabilities: {
+      ...(mobile ? { statusBar: true } : {}),
+      ...(desktop ? { host: nshHostMethods(options) } : {}),
+    } } : {}),
   }, null, 2) + '\n');
   if (desktop) files.set('docs/GUI_APP_PROFILE.md', '# NSH 桌面能力配置\n\n接口事实：根 Cargo metadata 的 nsh；桌面目标由 nsh-targets 声明。身份：' + nameZh + ' / ' + nameEn + '；负责人：' + owner + '。\n\n```gui-initialization-config\n' + PROFILE_FIELDS.map(key => key + ': ' + profile[key]).join('\n') + '\n```\n\n' + (options.logo ? '使用已选择 Logo。' : '中性工程验证夹具，无正式品牌确认。') + ' 桌面多窗口由自定义宿主固定提供；托盘、单实例、深链接、自启仅按已选字段接线。系统通知与系统全局快捷键仍不可用。未验证平台不得报通过。\n');
 

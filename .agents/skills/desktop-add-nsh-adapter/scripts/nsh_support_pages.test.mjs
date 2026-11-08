@@ -35,6 +35,8 @@ test('enabled support pages use structured copy, available content width, and ho
   const sponsor = files.get(member + 'sponsor.tsx');
   const desktop = files.get(member + 'desktop.tsx');
   const labels = files.get(member + 'translations.ts');
+  assert.match(app, /\{page\(\) === "settings" &&/u);
+  assert.match(app, /\{nativeDesktop && <AutostartSetting language=\{language\(\)\} \/>\}/u);
   assert.match(app, /SponsorPage language=\{language\(\)\} availableWidth=\{Math\.max\(0, windowSize\(\)\.width - \(narrow\(\) \? 0 : Number\(sidebarWidth\(\)\)\)/u);
   const content = JSON.parse(about.match(/const CONTENT_EN = (\{[^\n]+\});/u)?.[1] ?? 'null');
   assert.equal(content.owner, 'Fixture Owner');
