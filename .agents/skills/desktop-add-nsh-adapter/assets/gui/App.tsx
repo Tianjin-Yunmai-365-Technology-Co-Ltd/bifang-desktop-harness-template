@@ -1,5 +1,5 @@
-import { colorScheme, effect, locale, mount, platform, Scroll, setColorScheme, signal, Storage, Text, View, windowSize } from "nsh";
-import { Button as BaseButton } from "nsh/base";
+import { colorScheme, effect, locale, mount, platform, Scroll, setColorScheme, signal, Storage, Text, View, windowSize, type JSX } from "nsh";
+import { Button as BaseButton, Radio, RadioGroup } from "nsh/base";
 import { HomeContent } from "./App.shared";
 import { tr, type Language } from "./translations";
 import { palette, tokens } from "./tokens";
@@ -12,7 +12,7 @@ type Page = "home" | "settings" | "about" | "sponsor";
 const COMPACT_SIDEBAR = __COMPACT__;
 const NAME_ZH = __NAME_ZH__;
 const NAME_EN = __NAME_EN__;
-const nativeDesktop = platform.idiom !== "terminal" && (platform.os === "macos" || platform.os === "windows" || platform.os === "linux");
+const nativeDesktop = String(platform.idiom) !== "terminal" && (platform.os === "macos" || platform.os === "windows" || platform.os === "linux");
 
 function Action(props: { label: string; onPress: () => void; selected?: boolean }) {
   const colors = () => palette(colorScheme());
@@ -34,6 +34,68 @@ function Action(props: { label: string; onPress: () => void; selected?: boolean 
     >
       <Text style={{ color: colors().foreground, fontSize: tokens.body }}>{props.label}</Text>
     </BaseButton>
+  );
+}
+
+function SettingsSection(props: { title: string; description: string; children: JSX.Element }) {
+  const colors = () => palette(colorScheme());
+  return (
+    <View style={{
+      gap: tokens.settingsGap,
+      padding: tokens.cardPadding,
+      backgroundColor: colors().surface,
+      borderWidth: tokens.borderWidth,
+      borderColor: colors().sidebarBorder,
+      borderRadius: tokens.cardRadius,
+    }}>
+      <Text style={{ color: colors().foreground, fontSize: tokens.sectionTitle, fontWeight: "600" }}>{props.title}</Text>
+      <Text style={{ color: colors().muted, fontSize: tokens.body, lineHeight: tokens.bodyLineHeight }}>{props.description}</Text>
+      {props.children}
+    </View>
+  );
+}
+
+function SettingsChoices<T extends string>(props: {
+  groupLabel: string;
+  options: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  const colors = () => palette(colorScheme());
+  return (
+    <RadioGroup
+      style={{
+        width: "100%",
+        maxWidth: tokens.settingsControlMaxWidth,
+        height: tokens.segmentedHeight,
+        flexDirection: "row",
+        padding: tokens.segmentedInset,
+        backgroundColor: colors().background,
+        borderWidth: tokens.borderWidth,
+        borderColor: colors().sidebarBorder,
+        borderRadius: tokens.cardRadius,
+      }}
+    >
+      {props.options.map((option) => (
+        <Radio
+          checked={props.value === option.value}
+          onChange={() => props.onChange(option.value)}
+          accessibilityLabel={`${props.groupLabel}: ${option.label}`}
+          focusStyle={{ borderColor: colors().focus }}
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: tokens.borderWidth,
+            borderColor: props.value === option.value ? colors().selectedBorder : "transparent",
+            backgroundColor: props.value === option.value ? colors().selected : "transparent",
+            borderRadius: tokens.radius,
+          }}
+        >
+          <Text style={{ color: props.value === option.value ? colors().foreground : colors().muted, fontSize: tokens.body, fontWeight: props.value === option.value ? "600" : "400" }}>{option.label}</Text>
+        </Radio>
+      ))}
+    </RadioGroup>
   );
 }
 
@@ -223,10 +285,34 @@ function App() {
             {secondaryNavigation(false)}
           </View>}
       </View>
-      <Scroll style={{ flex: 1 }} contentStyle={{ padding: tokens.contentPadding, gap: tokens.contentGap }}>
+      <Scroll style={{ flex: 1 }} contentStyle={{ padding: narrow() ? tokens.contentGap : tokens.contentPadding, gap: tokens.contentGap }}>
         {page() === "home" && <HomeContent language={language()} title={title()} />}
         __DESKTOP_PANEL__
-        {page() === "settings" &&
+        {page() === "settings" && nativeDesktop &&
+          <View style={{ width: "100%", maxWidth: tokens.settingsMaxWidth, alignSelf: "center", gap: tokens.sectionGap }}>
+            <View style={{ gap: tokens.optionGap }}>
+              <Text style={{ color: colors().foreground, fontSize: tokens.title, fontWeight: "600" }}>{tr(language(), "settings")}</Text>
+              <Text style={{ color: colors().muted, fontSize: tokens.body, lineHeight: tokens.bodyLineHeight }}>{tr(language(), "settings_description")}</Text>
+            </View>
+            <SettingsSection title={tr(language(), "language")} description={tr(language(), "language_description")}>
+              <SettingsChoices
+                groupLabel={tr(language(), "language")}
+                options={[{ value: "zh", label: "中文" }, { value: "en", label: "English" }]}
+                value={language()}
+                onChange={(next) => { void saveLanguage(next); }}
+              />
+            </SettingsSection>
+            <SettingsSection title={tr(language(), "appearance")} description={tr(language(), "appearance_description")}>
+              <SettingsChoices
+                groupLabel={tr(language(), "appearance")}
+                options={[{ value: "system", label: tr(language(), "system") }, { value: "light", label: tr(language(), "light") }, { value: "dark", label: tr(language(), "dark") }]}
+                value={appearance()}
+                onChange={(next) => { void saveAppearance(next); }}
+              />
+            </SettingsSection>
+            __AUTOSTART_SETTING__
+          </View>}
+        {page() === "settings" && !nativeDesktop &&
           <View style={{ gap: tokens.settingsGap }}>
             <Text style={{ color: colors().foreground, fontSize: tokens.title }}>{tr(language(), "settings")}</Text>
             <Text style={{ color: colors().muted }}>{tr(language(), "language")}</Text>
@@ -240,7 +326,6 @@ function App() {
               <Action label={tr(language(), "light")} onPress={() => void saveAppearance("light")} />
               <Action label={tr(language(), "dark")} onPress={() => void saveAppearance("dark")} />
             </View>
-            __AUTOSTART_SETTING__
           </View>}
         __ABOUT_PAGE__
         __SPONSOR_PAGE__

@@ -25,6 +25,8 @@ NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不�
 | 开机自启 | desktop 可选 | macOS 登录项、Windows 当前用户 Run 项、Linux XDG autostart；`autostart.get/set` 读取真实状态与错误，未选时无设置入口 |
 | 系统通知、OS 全局快捷键 | desktop unavailable/disabled | 当前无接线，显式启用失败关闭；NSH 菜单与 shortcut 仅在应用内生效 |
 
+支持页的 NSH TSX 实现：设置页使用 `nsh/base` 的 `RadioGroup`/`Radio` 显示语言与主题选择，并在可选自启项使用 `Switch`。自启开关只在宿主状态明确时可操作；请求中的禁用态、读取/写入错误及重试由界面显示，不能用本地 signal 推断 OS 已切换。关于页消费生成器给出的结构化中英文字段，联系信息、更新日志和免责声明分别成区，免责声明逐段渲染。赞助页由 `nsh_support_pages.mjs` 从项目资料生成档位与支付媒体，按窗口可用宽度减去侧栏和内容内边距计算一至三列；共用 Token 管制图片、卡片、排版与控件尺寸。禁用的关于、赞助、自启仍须从生成结果完全裁剪。这里是图形 desktop 布局要求，不应用于 TUI Cell 布局。
+
 Mixed 的 `nsh.json` 设置 `rust: "."`，不设置 Rust UI `root`；`App.tsx` 是入口。桌面宿主调用 `set_ui_sets(vec![nsh_base::registry(), <member>::registry()])` 并以 `App::Js(bundle)` 装载 TSX。每个窗口仅注册清单声明的方法：固定 `window.list/setTitle/open/focus/showAll/close`、`app.quit`，按选择增加 `autostart.get/set` 和 `deepLink.takePending`；托盘和单实例仅由宿主处理。深链接先进入宿主待领取队列，再发送 `deepLink.available`；TSX 订阅后主动领取并串行处理，目标窗口关闭时将未领取项转给仍存活的窗口。macOS 单实例请求重试须使用同一请求标识去重。macOS 应用菜单为进程全局，由 `menuOwner` 与 `menu.owner` 事件转交所有权；Windows/Linux 菜单在各窗口中，应用菜单快捷键不构成 OS 全局快捷键。
 
 TUI 的 [`platform.idiom`](https://github.com/longbridge/nsh/blob/beeb9fc7707e0d4a195a4f7274f77b30e134c500/website/docs/tui.md#laying-out-for-the-terminal) 是 `terminal`，但 `platform.os` 仍是本机系统且 `platform.desktop` 为真。模板以 `platform.idiom !== "terminal"` 隔离自定义桌面窗口、菜单、托盘和自启界面。共用产品主视图及 Rust core 调用位于 `App.shared.tsx`，各 Mixed 入口导入它；后续跨端内容在该文件维护。纯 TUI 不生成桌面宿主、九字段 profile 或 Logo。desktop+tui 共用一个 Mixed 成员时，生成不含桌面导入与 `host.call` 的 `App.tui.tsx`；终端开发/测试入口再用暂存的 `nsh.json` 移除 `capabilities.host`，不将桌面宿主方法交给终端 host；暂存目录在退出时删除。TUI 是终端渲染后端，不能将桌面应用菜单快捷键声称为 OS 全局快捷键。

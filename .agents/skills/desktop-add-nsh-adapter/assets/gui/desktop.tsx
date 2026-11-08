@@ -1,5 +1,6 @@
 import { colorScheme, effect, host, signal, Text, View } from "nsh";
 import { Button as BaseButton } from "nsh/base";
+__AUTOSTART_IMPORT__
 import { isAvailable as desktopAvailable, Menu } from "nsh/desktop";
 import { tr, type Language } from "./translations";
 import { palette, tokens } from "./tokens";

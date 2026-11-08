@@ -61,6 +61,7 @@ export const NSH_DESKTOP_PACKAGE_TESTS = skill("desktop-build-nsh-release", "scr
 export const NSH_IOS_IDENTITY_HELPER = skill("desktop-build-nsh-release", "scripts", "nsh_ios_identity.mjs");
 export const NSH_IOS_IDENTITY_TESTS = skill("desktop-build-nsh-release", "scripts", "nsh_ios_identity.test.mjs");
 export const NSH_ABOUT_ASSET = skill("desktop-add-nsh-adapter", "assets", "gui", "about.tsx");
+export const NSH_SUPPORT_GENERATOR = skill("desktop-add-nsh-adapter", "scripts", "nsh_adapter_files.mjs");
 export const NSH_NATIVE_ASSET = skill("desktop-add-nsh-adapter", "assets", "gui", "src", "lib.rs");
 export const NSH_BUILD_ASSET = skill("desktop-add-nsh-adapter", "assets", "gui", "build.rs");
 export const MACOS_XWIN_GATE = skill("desktop-check-development-environment", "scripts", "macos-tauri-xwin-gates.sh");
@@ -218,6 +219,7 @@ export function validateNshBuildContract(errors, overrides = {}) {
     iosHelper: NSH_IOS_IDENTITY_HELPER,
     iosTests: NSH_IOS_IDENTITY_TESTS,
     aboutAsset: NSH_ABOUT_ASSET,
+    supportGenerator: NSH_SUPPORT_GENERATOR,
     nativeAsset: NSH_NATIVE_ASSET,
     buildAsset: NSH_BUILD_ASSET,
     releaseDoc: RELEASE_DOC,
@@ -233,13 +235,14 @@ export function validateNshBuildContract(errors, overrides = {}) {
     [paths.desktopPackageTests, ["desktop_profile_rejects_duplicates_and_unsupported_capabilities", "macos_custom_host_package_binds_mixed_bundle_and_conditional_scheme"]],
     [paths.iosHelper, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],
     [paths.iosTests, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],
-    [paths.aboutAsset, ["Scaffold.releaseNotes", "更新日志", "Release notes"]],
+    [paths.aboutAsset, ["Scaffold.releaseNotes", "labels.releaseNotes", "__CONTENT_ZH__", "__CONTENT_EN__"]],
+    [paths.supportGenerator, ["releaseNotes: translations[locale].about.release_notes", "'__CONTENT_ZH__': JSON.stringify(content('zh-CN'))", "'__CONTENT_EN__': JSON.stringify(content('en-US'))"]],
     [paths.nativeAsset, ["__RELEASE_NOTES_METHOD__", "#[native_module"]],
     [paths.buildAsset, ["HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "harness_release_notes_zh.txt", "harness_release_notes_en.txt", "OUT_DIR"]],
     [paths.releaseDoc, ["### NSH 路由", "未签名设备 app", "正式 IPA", "sidecar 不冒充内部资源"]],
     [paths.e2eSkill, ["NSH", "更新日志"]],
     [paths.verifySkill, ["NSH", "sidecar"]],
-  ]), {label: "NSH release contract", syntaxCheck: [paths.buildHelper, paths.buildTests, paths.desktopPackageHelper, paths.desktopPackageTests, paths.iosHelper, paths.iosTests]});
+  ]), {label: "NSH release contract", syntaxCheck: [paths.buildHelper, paths.buildTests, paths.desktopPackageHelper, paths.desktopPackageTests, paths.iosHelper, paths.iosTests, paths.supportGenerator]});
 }
 
 /** 锁定 Tauri 原生/交叉候选、签名公证、资源和原子提交门禁。 */

@@ -37,7 +37,8 @@ test('pure TUI uses the pinned Mixed core without desktop host or profile', () =
   assert.equal(JSON.parse(files.get('sample_tool_nsh/nsh.json')).capabilities, undefined);
   assert.ok(!files.has('docs/GUI_APP_PROFILE.md'));
   assert.ok(!files.has('sample_tool_nsh/src/bin/sample_tool_nsh_host.rs'));
-  assert.match(files.get('sample_tool_nsh/App.tsx'), /platform\.idiom !== "terminal"/u);
+  assert.match(files.get('sample_tool_nsh/App.tsx'), /String\(platform\.idiom\) !== "terminal"/u);
+  assert.match(files.get('sample_tool_nsh/App.tsx'), /page\(\) === "settings" && !nativeDesktop/u);
   assert.match(nshDependencies(options), new RegExp(NSH_TUI_PREVIEW_REVISION, 'u'));
   const scripts = nshPackageScripts('sample_tool', ['tui'], ['macos']);
   assert.equal(scripts.dev, 'node .agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs --root .');
@@ -54,7 +55,8 @@ test('desktop and TUI share the native OS but terminal entry stays isolated', ()
   const files = renderNshAdapterFiles(options);
   assert.ok(files.has('docs/GUI_APP_PROFILE.md'));
   assert.ok(JSON.parse(files.get('sample_tool_nsh/nsh.json')).capabilities.host.length > 0);
-  assert.match(files.get('sample_tool_nsh/App.tsx'), /platform\.idiom !== "terminal"/u);
+  assert.match(files.get('sample_tool_nsh/App.tsx'), /String\(platform\.idiom\) !== "terminal"/u);
+  assert.match(files.get('sample_tool_nsh/App.tui.tsx'), /page\(\) === "settings" && !nativeDesktop/u);
   assert.ok(files.has('sample_tool_nsh/App.tui.tsx'));
   assert.doesNotMatch(files.get('sample_tool_nsh/App.tui.tsx'), /from "\.\/desktop"|host\.call|nsh\/desktop|desktopOnly/u);
   assert.match(files.get('sample_tool_nsh/App.tsx'), /from "\.\/App\.shared"/u);

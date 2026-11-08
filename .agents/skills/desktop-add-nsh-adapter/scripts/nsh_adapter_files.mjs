@@ -74,7 +74,16 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
   files.set(member + '/src/lib.rs', fill(readAsset('src/lib.rs'), {
     '__PROJECT_ID__': id, '__RELEASE_NOTES_METHOD__': releaseMethod,
   }));
-  files.set(member + '/translations.ts', readAsset('translations.ts').split('\n').filter(line => (about || !/^\s+(?:about):/u.test(line)) && (sponsor || !/^\s+(?:sponsor):/u.test(line))).join('\n'));
+  const omittedLabels = new Set([
+    ...(!about ? ['about'] : []),
+    ...(!sponsor ? ['sponsor'] : []),
+    ...(!autostart ? ['start_at_login', 'start_at_login_description', 'enabled', 'disabled', 'unknown', 'refresh', 'autostart_error'] : []),
+    ...(!deepLink ? ['deep_link_received'] : []),
+  ]);
+  files.set(member + '/translations.ts', readAsset('translations.ts').split('\n').filter(line => {
+    const key = /^\s+([a-z_]+):/u.exec(line)?.[1];
+    return !key || !omittedLabels.has(key);
+  }).join('\n'));
   files.set(member + '/tokens.ts', readAsset('tokens.ts'));
   files.set(member + '/App.shared.tsx', fill(readAsset('App.shared.tsx'), { '__PROJECT_ID__': id }));
   files.set(member + '/tsconfig.json', readAsset('tsconfig.json'));
@@ -91,7 +100,7 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '__ABOUT_PAGE__': about ? '{nativeDesktop && page() === "about" && <AboutPage language={language()} />}' : '',
     '__SPONSOR_IMPORT__': sponsor ? 'import { SponsorPage } from ' + '"./sponsor";' : '',
     '__SPONSOR_NAV__': sponsor ? '{nativeDesktop && <NavAction label={tr(language(), "sponsor")} selected={page() === "sponsor"} rail={rail} onPress={() => page.set("sponsor")} />}' : '',
-    '__SPONSOR_PAGE__': sponsor ? '{nativeDesktop && page() === "sponsor" && <SponsorPage language={language()} />}' : '',
+    '__SPONSOR_PAGE__': sponsor ? '{nativeDesktop && page() === "sponsor" && <SponsorPage language={language()} availableWidth={Math.max(0, windowSize().width - (narrow() ? 0 : Number(sidebarWidth())) - (narrow() ? tokens.contentGap : tokens.contentPadding) * 2)} />}' : '',
     '__LOGO_IMPORT__': options.logo ? 'import { Image } from "nsh";\nimport logo from ' + '"./assets/logo.png";' : '',
     '__LOGO_NODE__': options.logo ? '{nativeDesktop && <Image src={logo} accessibilityLabel={title() + " Logo"} style={{ width: tokens.sidebarBrandMark, height: tokens.sidebarBrandMark, borderRadius: tokens.sidebarBrandRadius }} />}' : '',
   };
@@ -119,22 +128,62 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
       '    catch { actual.set(null); error.set(true); }',
       '  }',
       '  effect(() => { if (host.available()) void refresh(); });',
-      '  async function toggle() {',
+      '  const colors = () => palette(colorScheme());',
+      '  async function update(next: boolean) {',
       '    if (actual() === null || busy()) return;',
       '    busy.set(true);',
-      '    try { await host.call<boolean>("autostart.set", { enabled: !actual() }); await refresh(); }',
+      '    try { await host.call<boolean>("autostart.set", { enabled: next }); await refresh(); }',
       '    catch { actual.set(null); error.set(true); }',
       '    finally { busy.set(false); }',
       '  }',
       '  if (!host.available()) return null;',
-      '  return <View style={{ gap: 8 }}>',
-      '    <Text style={{ color: palette(colorScheme()).foreground }}>{tr(props.language, "start_at_login")}: {tr(props.language, actual() === null ? "unknown" : actual() ? "enabled" : "disabled")}</Text>',
-      '    <Action label={actual() === null ? tr(props.language, "refresh") : tr(props.language, "start_at_login")} onPress={() => { void (actual() === null ? refresh() : toggle()); }} />',
-      '    {error() && <Text style={{ color: palette(colorScheme()).error }}>{tr(props.language, "autostart_error")}</Text>}',
+      '  return <View style={{',
+      '    gap: tokens.settingsGap,',
+      '    padding: tokens.cardPadding,',
+      '    backgroundColor: colors().surface,',
+      '    borderWidth: tokens.borderWidth,',
+      '    borderColor: colors().sidebarBorder,',
+      '    borderRadius: tokens.cardRadius,',
+      '  }}>',
+      '    <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.settingsGap }}>',
+      '      <View style={{ flex: 1, gap: tokens.optionGap }}>',
+      '        <Text style={{ color: colors().foreground, fontSize: tokens.sectionTitle, fontWeight: "600" }}>{tr(props.language, "start_at_login")}</Text>',
+      '        <Text style={{ color: colors().muted, fontSize: tokens.body, lineHeight: tokens.bodyLineHeight }}>{tr(props.language, "start_at_login_description")}</Text>',
+      '      </View>',
+      '      <BaseSwitch',
+      '        checked={actual() === true}',
+      '        disabled={actual() === null || busy()}',
+      '        onChange={({ checked }) => { void update(checked); }}',
+      '        accessibilityLabel={tr(props.language, "start_at_login")}',
+      '        hitSlop={8}',
+      '        focusStyle={{ borderColor: colors().focus }}',
+      '        style={{ padding: tokens.optionGap / 2, borderWidth: tokens.borderWidth, borderColor: "transparent", borderRadius: tokens.switchHeight / 2 + tokens.optionGap / 2 }}',
+      '        trackStyle={{',
+      '          width: tokens.switchWidth,',
+      '          height: tokens.switchHeight,',
+      '          padding: tokens.switchInset,',
+      '          borderRadius: tokens.switchHeight / 2,',
+      '          borderWidth: tokens.borderWidth,',
+      '          borderColor: actual() ? colors().accent : colors().sidebarBorder,',
+      '          backgroundColor: actual() ? colors().accent : colors().background,',
+      '        }}',
+      '        thumbStyle={{',
+      '          width: tokens.switchThumb,',
+      '          height: tokens.switchThumb,',
+      '          borderRadius: tokens.switchThumb / 2,',
+      '          backgroundColor: colors().surface,',
+      '          transform: [{ translateX: actual() ? tokens.switchTravel : 0 }],',
+      '        }}',
+      '      />',
+      '    </View>',
+      '    <Text style={{ color: colors().muted, fontSize: tokens.body }}>{tr(props.language, actual() === null ? "unknown" : actual() ? "enabled" : "disabled")}</Text>',
+      '    {actual() === null && <Action label={tr(props.language, "refresh")} onPress={() => { void refresh(); }} />}',
+      '    {error() && <Text style={{ color: colors().error, fontSize: tokens.body }}>{tr(props.language, "autostart_error")}</Text>}',
       '  </View>;',
       '}',
     ].join('\n') : '';
     const desktopTokens = {
+      '__AUTOSTART_IMPORT__': autostart ? 'import { Switch as BaseSwitch } from "nsh/base";' : '',
       '__AUTOSTART_IMPL__': autostartImpl,
       '__DEEP_LINK_STATE__': deepLink ? 'const deepLinkCount = signal(0);' : '',
       '__DEEP_LINK_DRAIN__': deepLink ? [
@@ -185,8 +234,14 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '  } } });',
     '  await app.waitFor("Second window");',
     '  await app.press("Settings");',
-    '  await app.press("中文");',
+    '  expect(app.texts()).toContain("Choose your interface language and appearance.");',
+    '  expect(app.texts()).toContain("Choose the language shown throughout the app.");',
+    '  expect(app.texts()).toContain("Use a light or dark theme, or follow the system.");',
+    '  await app.press("label:Appearance: Dark");',
+    '  expect(app.storage().appearance).toBe("dark");',
+    '  await app.press("label:Interface language: 中文");',
     '  await app.waitFor("外观主题");',
+    '  expect(app.texts()).toContain("调整界面语言与外观偏好。");',
     '  expect(app.host.calls().filter((call) => call.name === "window.setTitle")).toEqual([',
     '    { name: "window.setTitle", data: { title: ' + JSON.stringify(nameEn + ' · 2') + ' } },',
     '    { name: "window.setTitle", data: { title: ' + JSON.stringify(nameZh + ' · 2') + ' } },',
@@ -245,8 +300,17 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
 
   const shared = path.resolve(here, '../../desktop-prepare-gui-support-surfaces/assets/brand-support');
   const translations = about || sponsor ? Object.fromEntries(['zh-CN','en-US'].map(locale => [locale, JSON.parse(fs.readFileSync(path.join(shared,'i18n',locale + '.json'),'utf8'))])) : {};
+  const brand = about || sponsor ? JSON.parse(fs.readFileSync(path.join(shared,'brand-support-profile.json'),'utf8')) : null;
   if (about) {
-    const content = locale => [translations[locale].about.contact_author_title, owner, 'QQ 2222980', translations[locale].about.support_thanks, translations[locale].about.disclaimer_title, ...[1,2,3].map(index => translations[locale].about['disclaimer_' + index])].join('\n\n');
+    const content = locale => ({
+      contact: translations[locale].about.contact_author_title,
+      owner,
+      contactDetail: translations[locale].about.contact_label.replaceAll('{{contact}}', brand.contacts.support.value),
+      thanks: translations[locale].about.support_thanks,
+      disclaimer: translations[locale].about.disclaimer_title,
+      disclaimerItems: [1, 2, 3].map(index => translations[locale].about['disclaimer_' + index]),
+      releaseNotes: translations[locale].about.release_notes,
+    });
     files.set(member + '/about.tsx', fill(readAsset('about.tsx'), {
       '__PROJECT_ID__': id, '__CONTENT_ZH__': JSON.stringify(content('zh-CN')),
       '__CONTENT_EN__': JSON.stringify(content('en-US')), '__VERSION__': JSON.stringify(version),
@@ -254,7 +318,6 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     files.set(member + '/build.rs', readAsset('build.rs'));
   }
   if (sponsor) {
-    const brand = JSON.parse(fs.readFileSync(path.join(shared,'brand-support-profile.json'),'utf8'));
     files.set(member + '/sponsor.tsx', renderNshSponsor(translations, brand));
     for (const name of fs.readdirSync(path.join(shared,'media/sponsor'))) {
       const file = path.join(shared,'media/sponsor',name);
