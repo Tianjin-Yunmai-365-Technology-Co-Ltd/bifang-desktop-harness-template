@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "20f022277e6981518cb03eff81fad4bed7544946",
-  "version": "202611071243",
-  "releaseDate": "2026-11-07",
-  "expectedTag": "v202611071243-20261107",
+  "sourceHead": "9e09e3a2847769d536a3a021c59e7c4cf2a754cb",
+  "version": "202611081358",
+  "releaseDate": "2026-11-08",
+  "expectedTag": "v202611081358-20261108",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "b96e0aa04013826719365be024c5178cc7b0d65d",
-    "sourceHead": "20f022277e6981518cb03eff81fad4bed7544946",
-    "scopeDiffSha256": "2e06e01b46c5156aeec29aee9f3d47853c03e75f7967d972b6e01ee07284bd59",
-    "reviewedSourceCommit": "20f022277e6981518cb03eff81fad4bed7544946",
+    "scopeBase": "87bb61878b6a6dab5f1b972fb9a56c33f132d227",
+    "sourceHead": "9e09e3a2847769d536a3a021c59e7c4cf2a754cb",
+    "scopeDiffSha256": "2c6ae86e12b81dd1de9a0bbad40467f747c7ebb31891a97387cea088ddb70760",
+    "reviewedSourceCommit": "9e09e3a2847769d536a3a021c59e7c4cf2a754cb",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "Reviewed 23-file source delta for behavior, core/adapter boundary, external contracts, size, and markers; no blocking finding. Targeted Node tests 32/32; full Harness suite 1367 passed, 28 skipped, 0 failed; hard validation passed. Release review emitted 45 nonblocking warnings. Isolated generated Mixed fixture passed macOS and Web builds and real UI E2E, including cold/hot deep links and IPC deduplication. Windows, Linux, and mobile native hosts remain unverified.",
+    "evidenceSummary": "审查上次发布至 sourceHead 的六个登记分支：初始化逐项问询、平台派生、NSH TUI 预览与打包边界经回归核对；发现并修复无本机候选仍可选择本地打包的问题。NSH 适配器保持共享 Rust core，Rust 中性资产 core-first、格式、Clippy 与 7 项测试通过；对外问询和发布契约与文档一致。Harness 全量回归 1390 通过、28 跳过，发布语义门禁通过。45 条非阻断规模提示已复核，TODO-A 是 Work Plan 测试夹具。",
     "reason": null,
     "remainingRisk": null
   }
