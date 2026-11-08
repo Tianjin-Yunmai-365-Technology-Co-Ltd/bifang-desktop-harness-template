@@ -126,6 +126,26 @@ test("gpui_local_package_supports_native_gui_platforms_without_cli", (t) => {
   assert.equal(f.run("set", setOptions("push_release_branch")).post_release_action, "push_release_branch");
 });
 
+/** 发布前的动作选择必须与发布后使用的当前宿主路由一致。 */
+test("local_package_selection_requires_a_route_on_the_current_host", (t) => {
+  assert.equal(localPackageSupported(["gui"], ["macos", "windows", "linux"], "tauri"), true);
+  assert.equal(selectLocalPackageRoute({ interfaces: ["gui"], platforms: ["macos", "windows", "linux"], guiFramework: "tauri", hostPlatform: "linux" }), null);
+  const f = fixture(t);
+  const host = { darwin: "macos", win32: "windows", linux: "linux" }[process.platform];
+  assert.ok(host);
+  const other = host === "macos" ? "windows" : "macos";
+  const cargo = path.join(f.root, "Cargo.toml");
+  fs.writeFileSync(cargo, `[workspace.metadata.agent-first-harness]\ntarget-platforms = ["${other}"]\ninterfaces = ["cli"]\n`);
+  assert.match(f.run("set", setOptions("local_package"), 2).error, /当前宿主没有已选且受支持的本地正式候选目标/u);
+  assert.equal(fs.readFileSync(f.policy, "utf8"), V3);
+  fs.writeFileSync(cargo, `[workspace.metadata.agent-first-harness]\ntarget-platforms = ["${host}"]\ninterfaces = ["cli"]\n`);
+  assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
+  fs.writeFileSync(cargo, `[workspace.metadata.agent-first-harness]\ntarget-platforms = ["${other}"]\ninterfaces = ["cli"]\n`);
+  assert.match(f.run("check", [], 2).error, /当前宿主没有已选且受支持的本地正式候选目标/u);
+  assert.equal(f.run("set", setOptions("push_release_branch", "local_package")).post_release_action, "push_release_branch");
+  assert.equal(f.run("check").status, "configured");
+});
+
 /** 同一发布后动作在本机只解析一个候选；多接口和 NSH 多目标顺序固定。 */
 test("local_package_route_is_single_target_and_requires_explicit_reselection", (t) => {
   const choose = (values) => selectLocalPackageRoute({ hostPlatform: "macos", hostArch: "arm64", ...values });
@@ -232,7 +252,7 @@ test("gpui_local_package_checks_rust_manifests_without_frontend_files", (t) => {
 /** GPUI 独立 GUI workspace 的锁策略同样检查，不能只检查根 Cargo.lock。 */
 test("gpui_local_package_checks_independent_gui_workspace_lock", (t) => {
   const f = fixture(t);
-  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace]\nmembers = ["core"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = ["windows"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\ngui-root = "app"\ndependency-lock-policy = "tracked"\n');
+  fs.writeFileSync(path.join(f.root, "Cargo.toml"), '[workspace]\nmembers = ["core"]\n[workspace.metadata.agent-first-harness]\ntarget-platforms = ["macos", "windows", "linux"]\ninterfaces = ["gui"]\ngui-framework = "gpui"\ngui-root = "app"\ndependency-lock-policy = "tracked"\n');
   for (const name of ["core", "app"]) {
     fs.mkdirSync(path.join(f.root, name, "src"), { recursive: true });
     fs.writeFileSync(path.join(f.root, name, "Cargo.toml"), `[package]\nname = "${name}"\nversion = "0.1.0"\n${name === "app" ? "[workspace]\n" : ""}`);

@@ -16,7 +16,7 @@ description: 为已初始化下游明确选择或切换未来 Git 发布完成�
 
 新下游初始化保持 `pending`，首次发布前才询问并记录；不得用默认值替用户作选择。用户已选择后可再次调用本 Skill 改变未来流程。选择不回溯改变已完成发布或候选。
 
-GUI 必须先读取 Cargo `gui-framework`，旧 GUI 缺省为 Tauri，非法值拒绝。GUI 目标含 macOS/Windows 时，两种框架均可选择 `local_package`：Tauri 使用 `$desktop-build-tauri-release`，GPUI 使用独立 `$desktop-build-gpui-release` 生成本机 macOS `.app`/DMG、Windows NSIS 或 Linux GNU deb/tar.gz。GPUI 检查实际 `gui-root`、受 Git 跟踪的根/GUI Cargo 与 Rust 测试清单，以及适用 Cargo 锁策略；前端/Tauri清单、项目本地 Tauri CLI 和 pnpm 锁文件检查只适用于 Tauri。不含 CLI 的仅 Linux Tauri GUI 必须选择 `push_release_branch`。
+GUI 必须先读取 Cargo `gui-framework`，旧 GUI 缺省为 Tauri，非法值拒绝。`local_package` 在选择时要求当前宿主与架构能按发布后的同一固定路由解析出至少一个已选正式候选目标。Tauri 使用 `$desktop-build-tauri-release` 生成本机 macOS 或 Windows x64 候选；GPUI 使用独立 `$desktop-build-gpui-release` 生成本机 macOS `.app`/DMG、Windows NSIS 或 Linux GNU deb/tar.gz。GPUI 检查实际 `gui-root`、受 Git 跟踪的根/GUI Cargo 与 Rust 测试清单，以及适用 Cargo 锁策略；前端/Tauri清单、项目本地 Tauri CLI 和 pnpm 锁文件检查只适用于 Tauri。Linux 宿主上的纯 Tauri GUI 即使声明全部桌面平台，也必须选择 `push_release_branch`。
 
 ## 执行
 

@@ -485,7 +485,8 @@ function assertLocalPackageSupported(root) {
   const interfaces = metadataArray(root, "interfaces");
   const cargoSource = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
   const framework = parseReleaseGuiFramework(cargoSource);
-  if (!localPackageSupported(interfaces, metadataArray(root, "target-platforms"), framework)) {
+  const platforms = metadataArray(root, "target-platforms");
+  if (!localPackageSupported(interfaces, platforms, framework)) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
   if (interfaces.includes("gui") && framework === "tauri") assertGuiPackageReady(root);
@@ -520,6 +521,15 @@ function assertLocalPackageSupported(root) {
     assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
   }
   else if (interfaces.includes("cli")) assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });
+  const route = selectLocalPackageRoute({
+    interfaces,
+    platforms,
+    guiFramework: framework,
+    nshTargets: interfaces.includes("nsh") ? metadataArray(root, "nsh-targets") : [],
+    hostPlatform: { darwin: "macos", win32: "windows", linux: "linux" }[process.platform],
+    hostArch: process.arch,
+  });
+  if (route === null) throw new ActionError("当前宿主没有已选且受支持的本地正式候选目标；请选择 push_release_branch");
 }
 
 function state(policy) {
@@ -575,7 +585,7 @@ export function setAction(rawRoot, action, expectedAction, { confirmedChoice = f
   if (!["missing", "pending", ...ACTIONS].includes(expectedAction)) throw new ActionError("--expected-action 必须是 missing、pending 或当前合法动作");
   const root = projectRoot(rawRoot);
   return withPolicyLock(root, () => {
-    const policy = readPolicy(root);
+    const policy = readPolicy(root, { validateActionSupport: action === "local_package" });
     const previous = policy.schema !== "3" ? policy.fields.get("post_release_action") : "missing";
     if (previous !== expectedAction) throw new ActionError(`发布后动作已变化：预期 ${expectedAction}，实际 ${previous}`);
     if (previous === action) return { ...state(policy), changed: false, previous_action: previous };

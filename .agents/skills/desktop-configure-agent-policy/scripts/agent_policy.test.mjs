@@ -196,11 +196,13 @@ test("both_policy_writers_share_the_same_lock", (t) => {
   assert.deepEqual(f.bytes(), before);
 });
 
-/** 能力配置不依赖本地打包资产，原发布动作仍保留自己的适用性检查。 */
+/** 能力配置不依赖本地打包资产；旧动作失效时可明确改选远端。 */
 test("capability_changes_do_not_disable_post_release_validation", (t) => {
   const f = fixture(t, template.replace("post_release_action: push_release_branch", "post_release_action: local_package"));
   assert.equal(setCapability(f.root, choice()).post_release_action, "local_package");
-  assert.throws(() => setAction(f.root, "push_release_branch", "local_package", { confirmedChoice: true }));
+  assert.throws(() => readPolicy(f.root), /Cargo|本地/u);
+  assert.equal(setAction(f.root, "push_release_branch", "local_package", { confirmedChoice: true }).post_release_action, "push_release_branch");
+  assert.equal(readPolicy(f.root).fields.get("post_release_action"), "push_release_branch");
 });
 
 /** 原子写入拒绝读取后的真实字节漂移并清理临时文件。 */

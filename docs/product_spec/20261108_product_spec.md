@@ -12,14 +12,14 @@
 
 ### 新项目初始化问询
 
-- 变更标识：`HARNESS-CHANGE-SEQUENTIAL-INITIALIZATION-QUESTIONS`；`required_version = pending`，仅在正式发布时物化 Harness 时间版本。负责人要求首次基础表单、后续条件题及其他结构化补问每轮只问一个字段；程序类型与 NSH 能力等多选项优先弹出复选控件供勾选并确认，不要求用户手打选项。空表单先问中文名时提供可点击的“改用英文名”，避免只提供英文名的用户被卡住。宿主仅支持单选工具时，逐个选项点击选择/不选择，再点击确认最终集合；没有可点击选项工具时如实说明限制，不伪称已弹出复选框。提前明确给出的合法字段仍直接复用，最终完整汇总继续单独确认。见 [ADR-20261108-003](../adr/20261108_ADR.md)。
-- 变更标识：`HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`；`required_version = pending`，仅在正式发布时物化 Harness 时间版本。负责人要求取消系统平台问题，CLI/MCP/DESKTOP 默认支持 Windows/macOS/Linux 全平台，NSH 只问自己的能力；Agent 策略直接默认，发布后动作首次发布时询问，并明确 DESKTOP 可与 CLI/MCP 组合、NSH 只能单选。
+- 变更标识：`HARNESS-CHANGE-SEQUENTIAL-INITIALIZATION-QUESTIONS`；`required_version = 202611081358`，仅在正式发布时物化 Harness 时间版本。负责人要求首次基础表单、后续条件题及其他结构化补问每轮只问一个字段；程序类型与 NSH 能力等多选项优先弹出复选控件供勾选并确认，不要求用户手打选项。空表单先问中文名时提供可点击的“改用英文名”，避免只提供英文名的用户被卡住。宿主仅支持单选工具时，逐个选项点击选择/不选择，再点击确认最终集合；没有可点击选项工具时如实说明限制，不伪称已弹出复选框。提前明确给出的合法字段仍直接复用，最终完整汇总继续单独确认。见 [ADR-20261108-003](../adr/20261108_ADR.md)。
+- 变更标识：`HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`；`required_version = 202611081358`，仅在正式发布时物化 Harness 时间版本。负责人要求取消系统平台问题，CLI/MCP/DESKTOP 默认支持 Windows/macOS/Linux 全平台，NSH 只问自己的能力；Agent 策略直接默认，发布后动作首次发布时询问，并明确 DESKTOP 可与 CLI/MCP 组合、NSH 只能单选。
 - 基础字段按顺序逐项询问中英文展示名（至少一个由用户直接提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型。CLI、MCP 可互相组合，也可与 DESKTOP 组合，默认派生完整 Windows/macOS/Linux；NSH 与其余类型互斥，只问桌面、移动、Web、TUI 能力，并分别派生完整对应平台。DESKTOP 继续补问 Tauri/GPUI 框架；适用的桌面九项配置仍逐项确认。具体平台及派生来源在写入前完整汇总确认，旧表单显式平台答案不再影响新项目。
 - 六项 Agent 策略按固定默认值物化，不出现策略模式问题；新下游 schema 5 先记录 `post_release_action: pending`，首次发布前展示可用动作并持久化用户选择。未选择时不得开始 Git 发布，已初始化下游的持久选择不受此变更重置。见 [ADR-20261108-002](../adr/20261108_ADR.md) 与 [ADR-20261108-001](../adr/20261108_ADR.md)。
 
 ### NSH TUI 固定预览源码
 
-- 变更标识：`HARNESS-FEAT-NSH-TUI-PREVIEW`；`required_version = pending`，仅在正式发布时物化 Harness 时间版本。负责人指出官网展示 TUI，并在核对正式版本与预览版差异后明确选择“使用官方 main 的固定提交接入预览版 TUI”。
+- 变更标识：`HARNESS-FEAT-NSH-TUI-PREVIEW`；`required_version = 202611081358`，仅在正式发布时物化 Harness 时间版本。负责人指出官网展示 TUI，并在核对正式版本与预览版差异后明确选择“使用官方 main 的固定提交接入预览版 TUI”。
 - 新 NSH 工程继续使用 Mixed TSX UI 与共享 Rust core，TUI 作为 `nsh-targets` 内部子目标，派生 macOS/Windows/Linux 全部终端目标；TUI-only 不生成桌面九字段 profile，TUI 与 desktop 同选时不得把自定义窗口宿主协议带入终端。新工程的 NSH CLI、Cargo 依赖和 TUI 宿主必须绑定同一固定官方 `main` revision；已初始化的正式 0.4.0 下游不自动升级。旧独立顶层 `interfaces = ["tui"]` 继续非法。
 - [正式 v0.4.0 CLI](https://nsh.dev/docs/cli/) 不列 TUI；[固定 main 提交的 TUI 指南](https://github.com/longbridge/nsh/blob/beeb9fc7707e0d4a195a4f7274f77b30e134c500/website/docs/tui.md) 与 [该提交的 CLI](https://github.com/longbridge/nsh/blob/beeb9fc7707e0d4a195a4f7274f77b30e134c500/website/docs/cli.md) 才支持 `nsh run/test --target tui`。main 预览提交的 `nsh package` 仍无 TUI 目标；受管构建器可将完整 Mixed bundle 与应用专属开发宿主制作成本机预览归档，须实际检查解包运行和终端恢复，不把它当正式候选。正式候选仍要求官方 release runner/package 合同。见 [ADR-20261107-004](../adr/20261108_ADR.md)。
 
@@ -548,7 +548,7 @@
 
 ## 当前版本与未来候选
 
-- 当前版本：`202611071243`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
+- 当前版本：`202611081358`；上海时区格式 `YYYYMMDDHHMM`，唯一事实来源为根 `Version.md`；时间版本起始值 `202607301002`。该值由本次正式发布按当前上海时间取号；登记分支合并到本地默认主分支、tag 创建并精确复读成功后才是 `Released`。下游发布后按已确认的 `post_release_action` 执行并检测所选路径；Harness 源只执行用户当次授权的后续动作。
 - 变更标识：`HARNESS-CHANGE-RELEASE-TIME-AND-REQUIREMENT-FIRST-VERSIONING`；`required_version = 202609281202`。本次规则变化已在 Harness 正式发布开始时物化时间版本；开发阶段未改动数值。
 - 历史变更标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，此前已发布。本次唯一 Git 发布决定取代其双模式发布及自动远端副作用；远端推送由发布后的独立用户请求触发。
 - 变更标识：`HARNESS-FEAT-MANAGED-MULTI-REMOTE-PUBLISH`；`required_version = 202609141917`，已由此前 Harness 时间版本发布物化。受管 `publish` 已支持用户显式授权的补充远端，唯一主远端与补充远端边界保持不变；该命令仍不创建 tag 或清理资源。
