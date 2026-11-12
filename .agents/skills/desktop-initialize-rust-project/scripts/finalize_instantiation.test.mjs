@@ -43,16 +43,13 @@ for (const framework of [null, 'tauri', 'nsh', 'nsh-mobile-web']) test(`terminal
   }
   assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_ENGINEERING.md')), graphical);
   if (framework === 'nsh-mobile-web') assert.equal(fs.existsSync(path.join(f.target, 'docs/GUI_APP_PROFILE.md')), false);
-  if (framework?.includes('tui')) {
-    assert.ok(fs.existsSync(path.join(f.target, '.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs')));
-    assert.ok(fs.existsSync(path.join(f.target, '.agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs')));
-  }
+  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs')), false);
   assert.deepEqual(fs.readFileSync(path.join(f.target, 'LICENSE.zh-CN.md')), beforeLicense);
   const agents = fs.readFileSync(path.join(f.target, 'AGENTS.md'), 'utf8');
   assert.ok(agents.trimEnd().split('\n').length <= 120);
   assert.match(agents, /## Skills 地图/u);
   assert.match(agents, /## 约束地图/u);
-  assert.doesNotMatch(agents, /\$desktop-instantiate-project|check_no_python|gpui/iu);
+  assert.doesNotMatch(agents, /\$desktop-instantiate-project|check_no_python|\b(?:gpui|tui)\b/iu);
   assert.ok(![...inventoryTarget(f.target).keys()].some(relative => /gpui/iu.test(relative)));
   const listed = [...agents.matchAll(/\[\$([^\]]+)\]\(\.agents\/skills\/([^/]+)\/SKILL\.md\)/gu)].map(([, label, name]) => {
     assert.equal(label, name);

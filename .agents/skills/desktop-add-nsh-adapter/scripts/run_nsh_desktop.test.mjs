@@ -44,7 +44,7 @@ test('development rejects unavailable or unknown NSH targets', () => fixture((ro
   const facts=metadata.metadata['agent-first-harness'];
   for(const selected of [['desktop','tui'],['desktop','future'],['desktop','desktop']]) {
     facts['nsh-targets']=selected;
-    assert.throws(()=>desktopDevCommands(root,metadata,'darwin'),/invalid or unavailable/u);
+    assert.throws(()=>desktopDevCommands(root,metadata,'darwin'),/invalid NSH targets/u);
   }
   facts['nsh-targets']=['desktop'];
   facts.interfaces=['gui','nsh'];

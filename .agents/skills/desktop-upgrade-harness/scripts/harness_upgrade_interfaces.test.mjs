@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { inapplicableGuiCandidate, parseInterfaceSelection } from "./harness_upgrade_interfaces.mjs";
+import { snapshotFile } from "./harness_upgrade_safety.mjs";
 import { HarnessUpgradeFixture, MANAGED } from "./harness_upgrade_test_support.mjs";
 
 const METADATA = "[workspace.metadata.agent-first-harness]\n";
@@ -27,7 +28,7 @@ test("desktop_upgrade_rejects_retired_framework_without_mutation", (t) => {
 test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
   assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop", "mobile", "web"]\n`), { interfaces: ["nsh"], guiFramework: null, nshTargets: ["desktop", "mobile", "web"] });
   assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["gui"]\ngui-framework = "nsh"\n`), { interfaces: ["gui"], guiFramework: "nsh" });
-  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /TUI 暂不可用/u);
+  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /未知或重复目标/u);
   for (const suffix of ['nsh-targets = []', 'nsh-targets = ["desktop", "desktop"]', 'nsh-targets = ["unknown"]']) {
     assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\n${suffix}\n`), /Cargo nsh-targets/u);
   }
@@ -36,15 +37,12 @@ test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
   assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["cli", "nsh"]\nnsh-targets = ["desktop"]\n`), /独立顶层接口/u);
 });
 
-/** 既有 TUI 元数据和任何单个预览依赖都不能继续传播。 */
-test("tui_upgrade_rejects_preview_runtime_dependencies", () => {
+/** 升级拒绝与正式运行时不一致的依赖，即使项目声明了受支持的目标。 */
+test("nsh_upgrade_rejects_unpinned_runtime_dependencies", () => {
   const revision = "beeb9fc7707e0d4a195a4f7274f77b30e134c500";
-  const source = `${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n`;
-  assert.throws(() => parseInterfaceSelection(source), /TUI 暂不可用/u);
-  assert.throws(() => parseInterfaceSelection(source.replace(revision, "e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3")), /TUI 暂不可用/u);
-  assert.throws(() => parseInterfaceSelection(source.replace('nsh-targets = ["tui"]', 'nsh-targets = ["desktop"]')), /正式 v0\.4\.0/u);
-  assert.throws(() => parseInterfaceSelection(source.replace('nsh-targets = ["tui"]', 'nsh-targets = ["desktop"]').replace(`nsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }`, '')), /正式 v0\.4\.0/u);
-  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /TUI 暂不可用/u);
+  const source = `${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop"]\n[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n`;
+  assert.throws(() => parseInterfaceSelection(source), /正式 v0\.4\.0/u);
+  assert.throws(() => parseInterfaceSelection(source.replace(/^nsh-base.*$/mu, '')), /正式 v0\.4\.0/u);
 });
 
 /** 未知值、错类型、重复键和非法接口不能降级到默认值。 */
@@ -103,6 +101,8 @@ test("legacy_tauri_and_non_gui_plans_enforce_gui_applicability", (t) => {
     ".agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh",
     ".agents/skills/desktop-check-development-environment/scripts/linux_gpui_dependencies.test.mjs",
     ".agents/skills/desktop-upgrade-harness/references/gpui-ownership.md",
+    ".agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs",
+    ".agents/skills/desktop-add-nsh-adapter/scripts/nsh_tui_adapter.test.mjs",
   ];
   for (const relative of retired) f.write(f.candidate, relative, "retired engineering asset\n");
   const problems = f.plan(2).problems;
@@ -112,6 +112,31 @@ test("legacy_tauri_and_non_gui_plans_enforce_gui_applicability", (t) => {
   }
   f.write(f.target, "Cargo.toml", `${METADATA}interfaces = ["cli"]\n`);
   assert.ok(f.plan(2).problems.some((problem) => problem.includes(TAURI)));
+});
+
+/** 退役资产旧基线退出 Harness 管理，已有文件字节及其他工程基线仍保留。 */
+test("upgrade_forgets_retired_ownership_without_deleting_target_files", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  f.write(f.target, "Cargo.toml", `${METADATA}interfaces = ["cli"]\n`);
+  f.write(f.candidate, MANAGED, "current engineering skill\n");
+  f.write(f.target, MANAGED, "current engineering skill\n");
+  f.bootstrap();
+  const lock = JSON.parse(fs.readFileSync(f.lock, "utf8"));
+  const retired = ".agents/skills/desktop-add-tui-adapter/SKILL.md";
+  const file = path.join(f.target, retired);
+  f.write(f.target, retired, "old harness bytes\n");
+  const baseline = snapshotFile(file);
+  lock.entries[retired] = { mode: "conditional", candidate: baseline, target: baseline };
+  fs.writeFileSync(f.lock, JSON.stringify(lock));
+  f.write(f.target, retired, "user maintained local copy\n");
+  const { plan, planPath } = f.createPlan();
+  assert.equal(plan.blocked, false);
+  assert.equal(plan.actions.some(item => item.path === retired), false);
+  f.record(planPath);
+  const recorded = JSON.parse(fs.readFileSync(f.lock, "utf8"));
+  assert.equal(Object.hasOwn(recorded.entries, retired), false);
+  assert.deepEqual(recorded.entries[MANAGED], lock.entries[MANAGED]);
+  assert.equal(fs.readFileSync(file, "utf8"), "user maintained local copy\n");
 });
 
 /** 框架事实在计划后改变，即使 Git 脏状态相同也禁止应用其他受管更新。 */

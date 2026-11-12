@@ -11,7 +11,7 @@ import { readDependencyLockPolicy } from "./project_lock_policy.mjs";
 
 const ADAPTER_SUFFIXES = ["_cli", "_mcp", "_gui"];
 const INTERFACE_CRATE_NAMES = new Set([
-  "clap", "crossterm", "dialoguer", "gpui", "gpui-pre", "gpui-kit", "gpui-component", "muda", "ratatui", "rmcp", "tauri", "tauri-build",
+  "clap", "crossterm", "dialoguer", "gpui", "muda", "ratatui", "rmcp", "tauri", "tauri-build",
   "termion", "tray-icon", "tui-realm", "tui-realm-stdlib", "tuirealm", "winit",
 ]);
 const INTERFACE_CRATE_PREFIXES = ["tauri-plugin-", "gpui-", "nsh-"];

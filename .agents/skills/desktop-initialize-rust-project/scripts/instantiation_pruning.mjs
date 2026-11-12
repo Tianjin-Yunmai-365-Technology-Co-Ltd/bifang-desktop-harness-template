@@ -1,6 +1,6 @@
 /** 根据已确认接口建立终端工程清单；只移除明确的一次性能力，不改业务源码。 */
 import path from 'node:path';
-import { inapplicableGuiCandidate, parseInterfaceSelection } from '../../desktop-upgrade-harness/scripts/harness_upgrade_interfaces.mjs';
+import { inapplicableGuiCandidate, isRetiredInterfaceAsset, parseInterfaceSelection } from '../../desktop-upgrade-harness/scripts/harness_upgrade_interfaces.mjs';
 import { parseAgentPolicyDocument, parseReleaseMetadataArray } from '../../desktop-switch-post-release-action/scripts/post_release_action.mjs';
 import { GUI_FIELDS, POLICY_FIELDS } from '../../desktop-instantiate-project/scripts/initialization_questions.mjs';
 import { removeUpstreamOnly, renderProjectAgents, sha256 } from '../../desktop-instantiate-project/scripts/instantiation_files.mjs';
@@ -12,7 +12,7 @@ const MEMORY_DIRECTORIES = ['docs/adr/', 'docs/changelog/', 'docs/product_spec/'
 /** 新实例化只裁剪预定路径；未知文件与所有实际产品文件保持原样。 */
 function excluded(relative, selection) {
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
-  return INITIALIZATION_SKILLS.has(skill) || inapplicableGuiCandidate(relative, selection)
+  return INITIALIZATION_SKILLS.has(skill) || isRetiredInterfaceAsset(relative) || inapplicableGuiCandidate(relative, selection)
     || relative.startsWith('scripts/harness_validation/') || ['scripts/validate_harness.mjs', 'scripts/run_harness_tests.mjs', 'docs/HARNESS_ENGINEERING.md', 'docs/VERIFICATION.md', 'Version.md'].includes(relative)
     || relative.startsWith('docs/harness_engineering/') || MEMORY_DIRECTORIES.some(prefix => relative.startsWith(prefix))
     || /(?:^|\/)check_no_python(?:\.test)?\.mjs$/u.test(relative);

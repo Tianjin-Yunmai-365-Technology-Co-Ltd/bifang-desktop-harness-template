@@ -12,7 +12,6 @@ export const SOURCE_ROOT = fs.realpathSync(fileURLToPath(new URL('../../../../',
 
 /** 明确标注为测试输入的确认用于验证协议本身，绝不作为真实用户创建授权。 */
 export function confirmedFixtureInput(target, framework = null, sourceRoot = SOURCE_ROOT) {
-  if (['nsh-tui', 'nsh-desktop-tui'].includes(framework)) throw new Error('NSH TUI is temporarily unavailable');
   const nsh = framework?.startsWith('nsh') ?? false;
   const desktop = framework !== 'nsh-mobile-web';
   const fields = { name_zh: '回归工具', name_en: 'Regression Tool', project_id: 'regression_tool', project_path: target, owner: 'Fixture Owner', interfaces: nsh ? ['nsh'] : framework ? ['gui'] : ['cli'] };

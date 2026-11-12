@@ -144,7 +144,10 @@ test("local_package_route_is_single_target_and_requires_explicit_reselection", (
     { interface: "nsh", target: "android", skill: "desktop-build-nsh-release" });
   assert.deepEqual(choose({ ...nsh, nshTargets: ["web"], platforms: ["web"] }),
     { interface: "nsh", target: "web", skill: "desktop-build-nsh-release" });
-  assert.equal(choose({ ...nsh, nshTargets: [...nsh.nshTargets, "tui"] }), null);
+  assert.equal(choose({ ...nsh, guiFramework: "nsh" }), null);
+  for (const nshTargets of [null, [], ["desktop", "tui"], ["desktop", "desktop"], ["web", "unknown"]]) {
+    assert.equal(choose({ ...nsh, nshTargets }), null);
+  }
   assert.deepEqual(choose({ ...nsh, requestedInterface: "nsh", requestedTarget: "web" }),
     { interface: "nsh", target: "web", skill: "desktop-build-nsh-release" });
   assert.throws(() => choose({ ...nsh, requestedInterface: "cli", requestedTarget: "macos" }), /当前宿主可构建/u);
@@ -187,7 +190,12 @@ test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) 
   fs.writeFileSync(cargo, unlocked);
   assert.equal(f.run("set", setOptions("local_package")).post_release_action, "local_package");
   const policyBeforeTui=fs.readFileSync(f.policy,"utf8");
-  fs.writeFileSync(path.join(f.root,"Cargo.toml"),fs.readFileSync(path.join(f.root,"Cargo.toml"),"utf8").replace('nsh-targets = ["desktop", "web"]','nsh-targets = ["desktop", "web", "tui"]'));
+  for (const framework of ['"gui-framework" = "tauri"', "'gui-framework' = 'nsh'"]) {
+    fs.writeFileSync(cargo, `${unlocked}${framework}\n`);
+    assert.match(f.run("route", [], 2).error, /顶层 NSH 不声明 GUI 框架/u);
+    assert.match(f.run("check", [], 2).error, /顶层 NSH 不声明 GUI 框架/u);
+  }
+  fs.writeFileSync(cargo, unlocked.replace('nsh-targets = ["desktop", "web"]','nsh-targets = ["desktop", "web", "tui"]'));
   assert.match(f.run("check",[],2).error,/nsh-targets 元数据无效/u);
   assert.match(f.run("set",setOptions("local_package","local_package"),2).error,/nsh-targets 元数据无效/u);
   assert.equal(fs.readFileSync(f.policy,"utf8"),policyBeforeTui);
@@ -202,6 +210,9 @@ test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) 
   fs.mkdirSync(legacyBuild, { recursive: true });
   fs.writeFileSync(path.join(legacyBuild, "build_nsh_release.mjs"), 'export {};\n');
   assert.equal(legacy.run("set", setOptions("local_package")).post_release_action, "local_package");
+  fs.appendFileSync(path.join(legacy.root, "Cargo.toml"), '"nsh-targets" = ["tui"]\n');
+  assert.match(legacy.run("route", [], 2).error, /只适用于顶层 NSH/u);
+  assert.match(legacy.run("check", [], 2).error, /只适用于顶层 NSH/u);
 });
 
 /** 框架字段遵循唯一事实；兼容旧项目但不修正显式错误。 */

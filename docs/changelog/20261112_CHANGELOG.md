@@ -1,28 +1,17 @@
 # 2026-11-12 变更记录
 
-本文件承接既有变更与历史版本绑定。旧 GPUI 记录仅反映当时的交付范围。
+本文件承接既有变更与历史版本绑定。退役接口的发布记录见[历史原文](CHANGELOG_history.md)。
 
 ## 2026-11-12 移除
 
-- `HARNESS-REMOVE-GPUI`（`required_version = 202611121721`）：Desktop 统一使用 Tauri，选择 Desktop 后直接进入桌面配置。移除 GPUI 脚手架、Skills、Kit 快照、Linux 工具链、构建和验收路由；显式声明 GPUI 的旧工程不会被自动当作 Tauri 升级。见 [ADR-20261112-001](../adr/20261112_ADR.md)。
+- `HARNESS-RETIRE-TUI-GPUI-LEGACY`（`required_version = pending`）：移除剩余 TUI 预览工具、生成与打包代码。新下游和升级候选仅传播受支持的接口；退役工程条目退出来源锁，已有项目文件由原项目持有。现行创建、能力、构建与验收入口统一按 DESKTOP（Tauri）和 NSH 的 desktop、mobile、web 子目标导航。见 [ADR-20261112-002](../adr/20261112_ADR.md)。
 
 ## 2026-11-08 变化
 
-- `HARNESS-CHANGE-NSH-TUI-PAUSE`（`required_version = 202611082001`，仅正式发布时取号）：新 NSH 工程只接受桌面、移动、Web，统一绑定正式 v0.4.0 固定提交与匹配 CLI；TUI 选择和旧元数据在初始化、接入、运行、升级及构建时失败关闭。此前已发布的 `main` 预览接线不再作为当前能力，也不会自动改写已有下游；恢复 TUI 须另行确认同源工具链与真实运行、打包证据。见 [ADR-20261108-005](../adr/20261112_ADR.md)。
 - `HARNESS-CHANGE-DETERMINISTIC-LOCAL-PACKAGE-ROUTE`（`required_version = 202611081358`，仅正式发布时取号）：Git 发布后的 `local_package` 现在按当前宿主和已选接口确定一个正式候选目标；CLI＋GUI 与 NSH 多目标有固定顺序和可显式改选的只读路由。目标失败时保留已完成的 Git 发布并报告后续动作阻断，不自动换目标；一个 `pending` 候选只完成本次打包动作，不代表其他平台已构建或验收。NSH 候选按 `release/<buildRun>/` 批次保存，验收只检查并原子更新选定批次；受跟踪锁的 NSH 在选择本地打包时提前拒绝。见 [ADR-20261108-004](../adr/20261112_ADR.md)。
 - `HARNESS-CHANGE-ACTIVE-CONTRACT-CONSISTENCY`（`required_version = 202611081358`，仅正式发布时取号）：上一版本明确 Tauri 插件和初始化 E2E 不套用 GPUI/NSH；当时的 NSH 纯 TUI 读取通用与终端规则，不加载图形基座或桌面 profile，该 TUI 路线已由本次暂停决定取代。新实例化的完整平台派生与已有下游按 Cargo 定向接入分别说明；Markdown 本地章节链接增加锚点校验，避免文档标题变化后仍通过日常门禁。
 - `HARNESS-CHANGE-SEQUENTIAL-INITIALIZATION-QUESTIONS`（`required_version = 202611081358`，仅正式发布时取号）：新项目基础字段与后续条件字段统一为每轮一题，其他结构化补问同样逐项呈现；问句标明文本、单选或多选，名称题可点击改用另一语言。选项通过宿主可点击控件确认，多选优先复选；仅有单选工具时逐项点击并确认所选集合，不要求用户手打选项。目录标记不等于当前宿主已经提供原生复选框，真实控件能力须按运行环境确认。见 [ADR-20261108-003](../adr/20261112_ADR.md)。
 - `HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`（`required_version = 202611081358`，仅正式发布时取号）：新项目按顺序逐项询问名称、标识、路径、负责人和程序类型，不再询问系统平台。CLI、MCP、DESKTOP 可按需组合并默认声明 Windows/macOS/Linux 全部目标；NSH 只能单选，只问桌面、移动、Web、TUI 能力，再按能力派生完整对应平台并在最终汇总中确认。六项 Agent 策略直接使用固定默认值，初始化策略文件保留 `post_release_action: pending`，首次发布前才明确选择并记录本地打包或提交远程。表单与相关回归已同步；真实下游实例化及首次发布仍待前向验证。见 [ADR-20261108-002](../adr/20261112_ADR.md) 与 [ADR-20261108-001](../adr/20261112_ADR.md)。
-
-## 2026-11-07 新增
-
-以下 TUI 预览条目记录上一正式版本的历史能力；本次发布已按上方 `HARNESS-CHANGE-NSH-TUI-PAUSE` 暂停，不再作为当前可选目标。
-
-- `HARNESS-FEAT-NSH-TUI-PREVIEW`（`required_version = 202611081358`，仅正式发布时取号）：NSH 内部 `tui` 子目标接受所选 macOS/Windows/Linux，支持纯 TUI 与 `desktop+tui` 的 Mixed TSX/Rust core 生成；含 TUI 的新工程固定官方 main 提交并检查 CLI/Cargo 同源，提供独立终端运行、测试、桌面宿主能力隔离和本机预览归档。未选 TUI 的新 NSH 工程继续固定正式 v0.4.0。正式 0.4.0 CLI 无 TUI 目标，预览提交尚无 TUI release runner/package，正式候选与含 TUI 的发布后本地打包仍拒绝；真实终端和跨系统结果按实际执行记录，不从生成器测试推断。见 [ADR-20261107-004](../adr/20261112_ADR.md)。
-
-## 2026-11-07 移除
-
-- `HARNESS-REMOVE-TUI`（`required_version = 202611070300`）：永久移除独立 Ratatui TUI 程序类型、适配器 Skill、依赖候选及构建/验收路由；顶层 `interfaces = ["tui"]` 仍非法。旧下游的独立 TUI 工程资产仍受保护，升级须先在目标项目单独迁移，不能静默删代码。新 NSH 内部 `tui` 子目标属于上面的固定预览路线，见 [ADR-20261107-001](../adr/20261112_ADR.md)。
 
 ## 2026-11-07 变化
 
@@ -76,13 +65,9 @@
 - 核心与接口：领域规则、用例和权威状态在 core；CLI 非交互机器协议与 MCP stdio 各自薄适配，DESKTOP 使用 Tauri，NSH 以独立薄适配器服务桌面、移动和 Web。文件/进程能力独立批准。见 [工程规则](../ENGINEERING_RULES.md)、[Rust 基线](../RUST_CLI_TEMPLATE.md) 和 [CLI 契约](../CLI_CONTRACT.md)。
 - Task 与 Git：项目自动 Task 默认关闭，环境选择独立；真实身份、自主执行、所有权并行及 Local 串行遵守统一 Skill。Git 发布止于本地主分支/tag；冻结的发布后动作持续授权其所选后续路径，不恢复旧的双发布模式或自动资源清理。见 [Agent Policy](../AGENT_POLICY.md) 与 [Task 工作流](../../.agents/skills/desktop-task-workflow/SKILL.md)。
 - 依赖与工程门禁：兼容下界、最小特性、真实最低版本验证及 ignored/tracked 锁策略分别判断；标准用户全局工具只按初始化或真实环境失败恢复，项目依赖保持本地；上游自动化使用 Node 标准库且不向下游传播 Python 禁令。文件规模、中文声明注释和按事件记忆均以 [工程规则](../ENGINEERING_RULES.md) 为准。
-- GUI 与平台：DESKTOP 固定使用 Tauri，NSH 由顶层 `nsh-targets` 选择桌面、移动、Web，均为 Mixed TSX UI + 共享 Rust core；九字段 profile 只在 DESKTOP 或 NSH 桌面存在。NSH 桌面固定多窗口，托盘、自启、单实例、深链接按选择生成，通知和 OS 全局快捷键不可用；TUI 当前暂停，选择或旧元数据失败关闭。双语、三态主题、页面和品牌资源按实际目标装配。各平台依赖、能力及打包路径见 [GUI 工程索引](../GUI_ENGINEERING.md) 和 [设计标准](../design_standards/README.md)。
+- GUI 与平台：DESKTOP 固定使用 Tauri，NSH 由顶层 `nsh-targets` 选择桌面、移动、Web，均为 Mixed TSX UI + 共享 Rust core；九字段 profile 只在 DESKTOP 或 NSH 桌面存在。NSH 桌面固定多窗口，托盘、自启、单实例、深链接按选择生成，通知和 OS 全局快捷键不可用。双语、三态主题、页面和品牌资源按实际目标装配。各平台依赖、能力及打包路径见 [GUI 工程索引](../GUI_ENGINEERING.md) 和 [设计标准](../design_standards/README.md)。
 - 版本与候选：下游版本按周期和稳定 ID 管理，维护不升版；Harness 仅正式发布时取上海时间版本。双语日志保存最近十个真实发布版本、每类最多十条；候选只消费已发布源码，CLI 默认当前宿主，跨平台矩阵需明确请求。原子证据、当次 E2E/签名和真实最终产物验收见 [发布规则](../RELEASE.md) 与 [验证规则](../VERIFICATION.md)。
-- 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定；显式声明 GPUI 的旧项目不进入当前升级；历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261112_ADR.md)。
-
-## 2026-10-20 正式发布物化的既有变化
-
-- `HARNESS-GPUI-ENGINEERING-KNOWLEDGE`（`required_version = 202610201054`）：旧快照记录了当时的 GPUI 依赖、兼容、性能及三平台打包知识；现已退役，可从历史发布提交查阅。2026-10-20 正式发布将既有变化绑定到该时间版本，未重写历史验证事实。
+- 升级与知识：三方工程升级保护产品代码、身份、策略、记忆及本地决定。不受支持的接口配置须先在原项目迁移。历史查询及本次记忆提炼不冒充真实产品验收。见 [升级 Skill](../../.agents/skills/desktop-upgrade-harness/SKILL.md) 与 [当前有效决定](../adr/20261112_ADR.md)。
 
 ## 历史事件的版本绑定
 

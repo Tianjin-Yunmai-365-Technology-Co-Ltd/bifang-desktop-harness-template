@@ -11,7 +11,7 @@
 - `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；既有产品设计记录保存在受保护的 `docs/GUI_APP_PROFILE.md`/ADR，升级不能覆盖；旧记录不恢复已退役风格，当前基座冲突在目标授权范围明确处理，不通过修改受管目录制造并行规范。`$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试是所有终端下游都适用且无需身份渲染的受管工程资产；升级只传播这些文件，不执行 Git 生命周期命令，也不创建 common-dir 状态。
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
-- `conditional`：只在已选接口或能力中适用的工程资产，先确认下游事实再构造候选；传播本身不启用能力。根 Cargo 中缺省框架的旧 GUI 下游沿用 `tauri`，未知值、错误类型、重复字段或非 GUI 声明框架都失败关闭。升级计划绑定受保护 Cargo 清单的完整快照，不从候选反推或改写选择。Tauri GUI 只读 [Tauri 工程候选](tauri-ownership.md)。显式 `gui-framework = "gpui"` 的旧下游停止升级，保留产品与工程文件原状。
+- `conditional`：只在已选接口或能力中适用的工程资产，先确认下游事实再构造候选；传播本身不启用能力。根 Cargo 中缺省框架的旧 GUI 下游沿用 `tauri`，未知值、错误类型、重复字段或非 GUI 声明框架都失败关闭。升级计划绑定受保护 Cargo 清单的完整快照，不从候选反推或改写选择。Tauri GUI 只读 [Tauri 工程候选](tauri-ownership.md)。不受支持的接口或框架须先在原项目迁移。
 非 GUI 下游不得因此新增 pnpm 或 GUI-only Skill。框架选择不授权迁移或替换产品代码、profile、偏好或已选桌面能力。
 
 - `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、`.harness/release-context.json` 当前发布事实、验证证据和未知本地文件。升级器只报告，不写入；目标尚无发布上下文时保持缺席，未来只能由目标项目真实执行 `$desktop-prepare-release` 创建。旧下游缺少版本状态时也不产生所有权例外：工程层升级与基线记录完成后，必须先说明旧 pending、bug ID 与发布历史无法恢复，再由用户明确批准目标项目单独执行 `$desktop-manage-version init --migration-approved`；升级器本身不得调用或代写。
@@ -58,7 +58,8 @@
 4. 来自通过自身验证器、Git 工作区干净且 `HEAD`/`Version.md` 与计划声明一致的明确 Harness 版本和提交。
 5. 位于目标仓库之外的任务专用目录，且不含符号链接或特殊文件。
 6. 源 Harness 存在无需身份渲染的必需 `managed` 传播文件时，候选必须包含内容摘要一致的结果。当前包括行数、Rust 中文注释与 core-first 检查器及各自专属测试，以及 `$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试。遗漏或内容过期都会阻断计划与基线记录。
-7. 候选排除上游的 Skills 总索引、`$desktop-curate-harness-memory` 目录，以及上游专用 `check_no_python.mjs` 与其测试。旧目标残留的上游专用 `check_no_python.mjs` 和测试须经审查后移除，才能继续升级。
+7. 候选排除退役接口工程资产。升级计划跳过这些路径，下一次记录时将其退出来源锁，目标工程文件由原项目持有。
+8. 候选排除上游的 Skills 总索引、`$desktop-curate-harness-memory` 目录，以及上游专用 `check_no_python.mjs` 与其测试。旧目标残留的上游专用 `check_no_python.mjs` 和测试须经审查后移除，才能继续升级。
 
 ## 永久保护
 
@@ -86,4 +87,4 @@
 
 统一 Task/工作树合同完整 managed 传播 `$desktop-task-workflow` 的 SKILL、metadata 与 references；旧三个入口仅兼容路由，脚本路径保持兼容。独立工作树尽量并行创建，只有同 Local cwd 与共享状态写入短串行。
 
-NSH 工程选择：新下游由根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 表示，旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容；两种已建立的 NSH 工程均保留 adapter/build 专用 Skills 和运行时知识，其他接口裁掉 NSH 专属能力。选择 desktop 才保留适用的桌面支持页工程入口。TUI 暂不可用，目标根 Cargo 含 `tui` 时升级失败关闭，即使旧 `nsh-core`/`nsh-base` 固定到 main 预览 revision 也不能例外；受保护 Cargo、profile、策略、产品源码及签名不改写。NSH 初始化 E2E 与仅初始化阶段的 wrapper 不传播；历史 `run_nsh_tui.mjs` 不构成当前可用能力。升级不会把声明支持改写为验证通过。
+NSH 工程选择：新下游由根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 表示，旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容；两种已建立的 NSH 工程均保留 adapter/build 专用 Skills 和运行时知识，其他接口裁掉 NSH 专属能力。选择 desktop 才保留适用的桌面支持页工程入口。受保护 Cargo、profile、策略、产品源码及签名不改写。NSH 初始化 E2E 与仅初始化阶段的 wrapper 不传播。升级不会把声明支持改写为验证通过。

@@ -160,7 +160,7 @@ test('tui_workspaces_are_unavailable_before_any_write',()=>fixture(parent=>{
   const combinedOptions={...options(),nshTargets:['desktop','tui'],targetPlatforms:['macos']};
   for(const [name,input] of [['pure',pureOptions],['combined',combinedOptions]]) {
     const target=path.join(parent,name);
-    assert.throws(()=>createNshWorkspace(target,input),/TUI is temporarily unavailable/u);
+    assert.throws(()=>createNshWorkspace(target,input),/invalid NSH targets/u);
     assert.equal(fs.existsSync(target),false);
   }
   const invalid=path.join(parent,'invalid');

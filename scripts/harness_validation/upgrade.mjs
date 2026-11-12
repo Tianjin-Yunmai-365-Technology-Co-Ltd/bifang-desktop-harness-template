@@ -80,7 +80,6 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-switch-post-release-action/**", "managed"],
   [".agents/skills/desktop-upgrade-harness/**", "managed-self"],
   [".agents/skills/desktop-add-cli-adapter/**", "conditional"],
-  [".agents/skills/desktop-add-tui-adapter/**", "conditional"],
   [".agents/skills/desktop-add-mcp-adapter/**", "conditional"],
   [".agents/skills/desktop-add-gui-adapter/**", "conditional"],
   [".agents/skills/desktop-add-nsh-adapter/**", "conditional"],

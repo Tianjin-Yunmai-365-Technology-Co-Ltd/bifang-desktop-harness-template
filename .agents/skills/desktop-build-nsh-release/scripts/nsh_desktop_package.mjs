@@ -46,12 +46,11 @@ export function readNshDesktopProfile(root) {
   return values;
 }
 
-/** A combined desktop/mobile/Web/TUI project needs portable metadata without desktop host permissions. */
-export function prepareNshPortableEntry(gui, stage, { terminal = false } = {}) {
+/** 为同时选择桌面和移动或 Web 的项目创建不含桌面宿主权限的入口。 */
+export function prepareNshPortableEntry(gui, stage) {
   const configFile = path.join(gui, 'nsh.json');
-  const appFile = path.join(gui, terminal ? 'App.tui.tsx' : 'App.tsx');
+  const appFile = path.join(gui, 'App.tsx');
   ordinaryFile(configFile);
-  ordinaryFile(path.join(gui, 'App.tsx'));
   ordinaryFile(appFile);
   const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   if (config.rust !== '.' || Object.hasOwn(config, 'root') || !config.capabilities ||

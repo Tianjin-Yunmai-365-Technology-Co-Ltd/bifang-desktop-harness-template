@@ -6,22 +6,21 @@ import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { assertNshToolchain } from '../../desktop-build-nsh-release/scripts/build_nsh_release.mjs';
+import { nshRevisionForTargets } from './nsh_runtime_revision.mjs';
 
 const platformName = { darwin: 'macos', win32: 'windows', linux: 'linux' };
 
-/** 从 Cargo 元数据生成当前宿主的桌面开发步骤，并拒绝暂不可用目标。 */
+/** 依据 Cargo 已选目标生成当前宿主的桌面开发步骤。 */
 export function desktopDevCommands(root, metadata, platform = process.platform) {
   if (typeof root !== 'string' || !path.isAbsolute(root)) throw new Error('root must be absolute');
   if (path.resolve(metadata?.workspace_root ?? '') !== root) throw new Error('Cargo workspace root mismatch');
   const facts = metadata?.metadata?.['agent-first-harness'];
   const selected = facts?.['nsh-targets'];
-  if (!Array.isArray(selected) || !selected.length || new Set(selected).size !== selected.length || selected.some(target => !['desktop', 'mobile', 'web'].includes(target))) {
-    throw new Error('NSH desktop targets are invalid or unavailable; TUI is temporarily unavailable');
-  }
+  nshRevisionForTargets(selected);
   const id = facts?.['project-id'];
   const target = platformName[platform];
   if (!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(id ?? '') ||
-      !Array.isArray(facts?.interfaces) || facts.interfaces.length !== 1 || facts.interfaces[0] !== 'nsh' ||
+      !Array.isArray(facts?.interfaces) || facts.interfaces.length !== 1 || facts.interfaces[0] !== 'nsh' || facts['gui-framework'] !== undefined ||
       !selected.includes('desktop') ||
       !target || !Array.isArray(facts?.['target-platforms']) || !facts['target-platforms'].includes(target)) {
     throw new Error('current OS is not a selected NSH desktop target');

@@ -5,15 +5,14 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { renderNshSponsor } from './nsh_support_pages.mjs';
 import { renderNshHostFiles, nshHostCargoDependencies, nshHostMethods, nshHostWorkspaceDependencies } from './nsh_host_files.mjs';
-import { NSH_STABLE_REVISION, NSH_TUI_PREVIEW_REVISION, nshRevisionForTargets } from './nsh_runtime_revision.mjs';
+import { NSH_STABLE_REVISION, NSH_TARGETS, nshRevisionForTargets } from './nsh_runtime_revision.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const assetRoot = path.resolve(here, '../assets/gui');
 /** Compatibility export for existing stable-only generator checks. */
 export const NSH_REVISION = NSH_STABLE_REVISION;
-export { NSH_TUI_PREVIEW_REVISION, nshRevisionForTargets };
+export { NSH_TARGETS, nshRevisionForTargets };
 export const NSH_PLATFORMS = ['windows', 'macos', 'linux', 'android', 'ios', 'web'];
-export const NSH_TARGETS = ['desktop', 'mobile', 'web'];
 export const NSH_UNAVAILABLE = ['system_notification', 'global_shortcut'];
 export const PROFILE_FIELDS = ['system_tray', 'system_notification', 'autostart', 'about_page', 'sponsor_page', 'single_instance', 'deep_link', 'global_shortcut', 'sidebar_mode'];
 const TARGET_PLATFORMS = { desktop: ['windows', 'macos', 'linux'], mobile: ['android', 'ios'], web: ['web'] };
@@ -25,8 +24,7 @@ export function normalizeNshOptions(input) {
   if (typeof input.projectId !== 'string' || input.projectId.length > 64 || !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(input.projectId)) throw new Error('invalid projectId');
   for (const key of ['nameZh','nameEn','owner']) if (typeof input[key] !== 'string' || !input[key].trim() || input[key] !== input[key].trim() || input[key].length > 200 || /[\x00-\x1f\x7f]/u.test(input[key]) || (key !== 'owner' && /[\\/:*?"<>|]/u.test(input[key]))) throw new Error('invalid ' + key);
   if (!Array.isArray(input.targetPlatforms) || !input.targetPlatforms.length || new Set(input.targetPlatforms).size !== input.targetPlatforms.length || input.targetPlatforms.some(value => !NSH_PLATFORMS.includes(value))) throw new Error('invalid NSH target platforms');
-  if (input.nshTargets?.includes('tui')) throw new Error('NSH TUI is temporarily unavailable in the released 0.4.0 toolchain');
-  if (!Array.isArray(input.nshTargets) || !input.nshTargets.length || new Set(input.nshTargets).size !== input.nshTargets.length || input.nshTargets.some(value => !NSH_TARGETS.includes(value))) throw new Error('invalid NSH targets');
+  nshRevisionForTargets(input.nshTargets);
   const selected = new Set(input.nshTargets);
   const native = input.targetPlatforms.some(platform => TARGET_PLATFORMS.desktop.includes(platform));
   if (native !== selected.has('desktop')) throw new Error('NSH desktop target-platforms mismatch');
@@ -107,17 +105,6 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '__LOGO_NODE__': options.logo ? '{nativeDesktop && <Image src={logo} accessibilityLabel={title() + " Logo"} style={{ width: tokens.sidebarBrandMark, height: tokens.sidebarBrandMark, borderRadius: tokens.sidebarBrandRadius }} />}' : '',
   };
   files.set(member + '/App.tsx', fill(readAsset('App.tsx'), app));
-  if (desktop && options.nshTargets.includes('tui')) {
-    const terminalApp = {
-      ...app,
-      '__COMPACT__': 'false',
-      '__DESKTOP_IMPORT__': '', '__DESKTOP_PANEL__': '', '__AUTOSTART_SETTING__': '',
-      '__ABOUT_IMPORT__': '', '__ABOUT_NAV__': '', '__ABOUT_PAGE__': '',
-      '__SPONSOR_IMPORT__': '', '__SPONSOR_NAV__': '', '__SPONSOR_PAGE__': '',
-      '__LOGO_IMPORT__': '', '__LOGO_NODE__': '',
-    };
-    files.set(member + '/App.tui.tsx', fill(readAsset('App.tsx'), terminalApp));
-  }
 
   if (desktop) {
     const autostartImpl = autostart ? [
@@ -302,16 +289,6 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '}',
   ].join('\n') : '';
   files.set(member + '/App.test.tsx', fill(readAsset('App.test.tsx'), { '__MOBILE_TEST__': mobileTest, '__DESKTOP_TEST__': desktopTest, '__SUPPORT_TEST__': supportTest }));
-  if (options.nshTargets.includes('tui')) files.set(member + '/App.tui.test.tsx', [
-    'import { expect, open, test } from "nsh/test";',
-    '',
-    'test("terminal host renders the shared Mixed core", async () => {',
-    '  const app = await open(".", { locale: "en-US" });',
-    '  await app.waitFor("Neutral workspace initialized. Define the product in this downstream project.");',
-    '  expect(app.texts()).toContain("Neutral workspace initialized. Define the product in this downstream project.");',
-    '});',
-    '',
-  ].join('\n'));
 
   const shared = path.resolve(here, '../../desktop-prepare-gui-support-surfaces/assets/brand-support');
   const translations = about || sponsor ? Object.fromEntries(['zh-CN','en-US'].map(locale => [locale, JSON.parse(fs.readFileSync(path.join(shared,'i18n',locale + '.json'),'utf8'))])) : {};

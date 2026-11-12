@@ -51,7 +51,7 @@ DESKTOP 候选使用 Tauri 的前端测试、资源定位及相应打包 helper�
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选 desktop 原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录，全部使用正式 0.4.0 固定 revision 与匹配 CLI。TUI 暂不可用，含 `tui` 的元数据、构建或候选请求失败关闭；历史预览程序或归档不能进入正式候选验收。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS。本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选 desktop 原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录，全部使用正式 0.4.0 固定 revision 与匹配 CLI。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS。本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 
@@ -59,4 +59,4 @@ NSH 按每个目标独立复算 `manifest.json` 的 `artifact`、`checksum`、`f
 
 NSH 验收开始前，依据当前构建返回的 `target` 与 `buildRun` 或用户明确提供的同一对值，精确选定一个 `release/<buildRun>/`；`buildRun` 本身须为 `nsh-<target>-<uuid>` 形式的完整目录名，不得再叠加目标前缀，不得选择名称像“最新”的目录、依赖 mtime 或把多个批次合并。要求规范项目根和 `release/`、批次均为普通非符号链接目录，批次名与其中唯一 `manifest.json` 的 `target`/`buildRun` 一致；该 manifest 的 `mode: candidate`、`sourceCommit`、发布上下文摘要、版本和选项须绑定当前本地主分支/tag/HEAD。仅枚举该批次的 manifest 声明文件、sidecar、校验和与验收证据，拒绝批次内部缺失、额外、重复或路径越界；其他批次可以保留不同 HEAD、版本或 `pending|rejected|accepted`，不参与本次判断。
 
-第 7 步的二次上下文和最终字节复算只比较选定批次的当前证据；第 8 步在同一 `release/` 文件系统中为该批次建立唯一受限 staging，只复制该批次的精确集合并写入它自己的 `milestoneAcceptance` 与结构化证据。复算通过后以目录级原子重命名替换该批次，失败恢复原批次；其他批次逐字节保留。接受、拒绝或等待人工复核只改变本批次状态；就绪结论也只针对已选批次的目标和证据，不能由其他批次的 `accepted` 推断本目标通过。历史 TUI 本地预览始终不能被选择为正式候选。
+第 7 步的二次上下文和最终字节复算只比较选定批次的当前证据；第 8 步在同一 `release/` 文件系统中为该批次建立唯一受限 staging，只复制该批次的精确集合并写入它自己的 `milestoneAcceptance` 与结构化证据。复算通过后以目录级原子重命名替换该批次，失败恢复原批次；其他批次逐字节保留。接受、拒绝或等待人工复核只改变本批次状态；就绪结论也只针对已选批次的目标和证据，不能由其他批次的 `accepted` 推断本目标通过。

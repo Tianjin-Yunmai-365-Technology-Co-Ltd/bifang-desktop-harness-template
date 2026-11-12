@@ -1,11 +1,11 @@
 ---
 name: desktop-add-nsh-adapter
-description: 为顶层 NSH 类型的共享 Rust core 增加 Native Shell Mixed 薄适配器，按桌面、移动和 Web 子目标生成；TUI 暂不可用。
+description: 为顶层 NSH 类型的共享 Rust core 增加 Native Shell Mixed 薄适配器，按桌面、移动和 Web 子目标生成。
 ---
 
 # 增加 NSH 适配器
 
-新项目的顶层 `interfaces = ["nsh"]` 专用；NSH 的说明为“下一代全平台开发框架”。`nsh-targets` 仅可选 desktop、mobile、web，全部 NSH Cargo 依赖固定到正式 v0.4.0 Git 提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3`，并要求全局 `nsh` CLI 匹配 `nsh 0.4.0 (e626a8d)`。TUI 暂不可用，选择或保留 `tui` 时失败关闭；旧下游不自动升级。新实例化按唯一表单从能力派生完整系统集合：desktop 对应 Windows、macOS、Linux，mobile 对应 Android、iOS，web 对应 Web；确认后写入 `target-platforms`。已有下游 add-only 接入按其受保护 Cargo 平台执行，不扩大旧项目的平台声明。既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容，独立 `interfaces = ["tui"]` 仍拒绝。初始化只复用唯一表单确认结果；已有下游新增接口先进入 `$desktop-implement-change`。不加载 Tauri、React、Mantine。
+新项目的顶层 `interfaces = ["nsh"]` 专用；NSH 的说明为“下一代全平台开发框架”。`nsh-targets` 仅可选 desktop、mobile、web，全部 NSH Cargo 依赖固定到正式 v0.4.0 Git 提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3`，并要求全局 `nsh` CLI 匹配 `nsh 0.4.0 (e626a8d)`。新实例化按唯一表单从能力派生完整系统集合：desktop 对应 Windows、macOS、Linux，mobile 对应 Android、iOS，web 对应 Web；确认后写入 `target-platforms`。已有下游 add-only 接入按其受保护 Cargo 平台执行，不扩大旧项目的平台声明。既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。初始化只复用唯一表单确认结果；已有下游新增接口先进入 `$desktop-implement-change`。不加载 Tauri、React、Mantine。
 
 先读 `docs/design_standards/ui_foundation.md`，再读 `docs/design_standards/nsh_gui.md` 与 [运行时与能力](references/runtime-and-capabilities.md)；维护打包再读 `$desktop-build-nsh-release`。本 Skill 和 helper 使用 Node 标准库，不依赖原移动客户端的工具脚本或机器路径。
 

@@ -107,14 +107,12 @@ test("nsh_tui_is_unavailable_in_initialization", () => fixture(({input,set,nsh,e
   nsh(["tui"]);
   assert.equal(evaluate().stage,"nsh");
   assert.deepEqual(evaluate().questions[0].values,["desktop","mobile","web"]);
-  assert.match(evaluate().questions[0].help,/TUI 暂不可用/u);
   nsh(["desktop","tui"]);
   assert.equal(evaluate().stage,"nsh");
   for (const id of GUI_FIELDS) delete input.answers[id];
   set("nsh_targets",["mobile","web"]);
   assert.equal(evaluate().stage,"review");
   assert.deepEqual(evaluate().values.target_platforms,["android","ios","web"]);
-  assert.match(evaluate().summary.notices.join("\n"),/TUI 暂不可用/u);
 }));
 
 /** NSH 只问能力，旧平台答案不进入汇总；非 NSH 也默认完整桌面平台。 */

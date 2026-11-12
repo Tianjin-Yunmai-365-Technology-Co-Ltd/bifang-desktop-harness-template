@@ -10,7 +10,7 @@ import { checkContext } from '../../desktop-prepare-release/scripts/release_cont
 import { loadDocument,renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 import { check as checkVersion } from '../../desktop-manage-version/scripts/version_gate.mjs';
 import { readDependencyLockPolicy } from '../../desktop-implement-change/scripts/project_lock_policy.mjs';
-import { NSH_STABLE_REVISION } from '../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs';
+import { nshRevisionForTargets } from '../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs';
 import { iosPackagingIdentity,restoreIosDisplayIdentity } from './nsh_ios_identity.mjs';
 import { assembleNshDesktopPackage, prepareNshPortableEntry, readNshDesktopProfile } from './nsh_desktop_package.mjs';
 
@@ -19,7 +19,7 @@ const NSH_UPSTREAM = 'https://github.com/longbridge/nsh.git';
 
 /** 仅允许受支持目标使用相同正式提交的 CLI 与 Cargo 运行时。 */
 export function assertNshToolchain(root,selected,cliVersion) {
-  if (!Array.isArray(selected) || selected.length===0 || new Set(selected).size!==selected.length || selected.some(target=>!['desktop','mobile','web'].includes(target))) throw new Error('NSH TUI is temporarily unavailable; select only desktop/mobile/web');
+  const expectedRevision = nshRevisionForTargets(selected);
   const manifest=fs.readFileSync(path.join(root,'Cargo.toml'),'utf8');
   const revisions=new Map();
   let dependencySection=false;
@@ -41,7 +41,7 @@ export function assertNshToolchain(root,selected,cliVersion) {
   }
   const core=revisions.get('nsh-core'),base=revisions.get('nsh-base');
   if(!core || !base || core!==base || [...revisions.values()].some(value=>value!==core)) throw new Error('NSH runtime dependency revisions must all match');
-  if(core!==NSH_STABLE_REVISION) throw new Error('NSH targets require the pinned official v0.4.0 stable runtime');
+  if(core!==expectedRevision) throw new Error('NSH targets require the pinned official v0.4.0 stable runtime');
   if(cliVersion.trim()!==`nsh 0.4.0 (${core.slice(0,7)})`) throw new Error('NSH CLI and Cargo runtime revision do not match');
   return core;
 }
@@ -60,27 +60,6 @@ function run(command,args,cwd,env=process.env,capture=false) {
   if(result.status!==0 && capture && result.stderr) process.stderr.write(result.stderr.slice(-12000));
   if (result.status !== 0) throw new Error(`${command} failed (${result.status ?? result.error?.code ?? 'unknown'})`);
   return result.stdout?.trim();
-}
-/** 官方 CLI 的测试摘要写 stderr；明确拒绝零条或失败的 TUI 断言。 */
-export function nonemptyTuiTestCount(output) {
-  const clean=String(output).replace(/\u001b\[[0-9;]*m/gu,'');
-  const summary=/\b([0-9]+) tests?: ([0-9]+) passed, ([0-9]+) failed\b/u.exec(clean);
-  if(!summary || Number(summary[1])<1 || Number(summary[2])<1 || Number(summary[3])!==0 || Number(summary[2])!==Number(summary[1])) throw new Error('nonempty passing NSH TUI render tests required');
-  return Number(summary[2]);
-}
-/** Cargo JSON 精确定位本次编译的应用宿主 bin，避免目标覆盖时误取旧文件。 */
-export function tuiHostExecutableFromCargo(output,packageId,binName) {
-  const matches=[];
-  for(const line of String(output).split(/\r?\n/u)) {
-    if(!line.trim()) continue;
-    let message;
-    try{message=JSON.parse(line);}catch{throw new Error('invalid Cargo JSON build message');}
-    if(message.reason!=='compiler-artifact' || message.package_id!==packageId || message.target?.name!==binName || !message.target.kind?.includes('bin')) continue;
-    if(typeof message.executable!=='string' || !path.isAbsolute(message.executable)) throw new Error('TUI host Cargo artifact has no executable path');
-    matches.push(message.executable);
-  }
-  if(matches.length!==1) throw new Error('expected exactly one current TUI host executable artifact');
-  return matches[0];
 }
 /** 候选日志通过短路径交给 Rust build.rs；本地试包显式清除继承值。 */
 export function releaseNoteBuildInputs(stage,notes,baseEnvironment=process.env) {
@@ -115,26 +94,12 @@ export function inventory(directory) {
 }
 /** 校验官方输出的真实入口与文件头，不按文件名子串判成功。 */
 export function validateNshArtifacts(directory,target) {
+  if(!targets.includes(target)) throw new Error('unsupported NSH packaging target');
   const files=inventory(directory).filter(file=>file.sha256);
   const bytes=file=>fs.readFileSync(path.join(directory,file.path));
   const one=(list,label)=>{if(list.length!==1) throw new Error(`expected exactly one ${label}`);return list[0];};
   const zipped=file=>{const data=bytes(file);if(data.length<22 || data.readUInt32LE(0)!==0x04034b50) throw new Error('invalid ZIP/APK header');};
-  if(target==='tui') {
-    const bundle=one(files.filter(file=>/^[^/]+\/bundle\.js$/u.test(file.path)),'TUI bundle');
-    if(bundle.size===0) throw new Error('empty TUI bundle');
-    const bundleRoot=path.posix.dirname(bundle.path);
-    const app=one(files.filter(file=>file.path===path.posix.join(bundleRoot,'app.json')),'TUI app manifest');
-    try{JSON.parse(bytes(app).toString('utf8'));}catch{throw new Error('invalid TUI app manifest');}
-    one(files.filter(file=>file.path===path.posix.join(bundleRoot,'bundle.js.map')),'TUI source map');
-    const executables=files.filter(file=>path.posix.dirname(file.path)===bundleRoot && file.path!==bundle.path).filter(file=>{
-      const header=bytes(file).subarray(0,4).toString('hex');
-      return process.platform==='win32' ? header.startsWith('4d5a') : process.platform==='darwin' ? ['cffaedfe','cefaedfe','feedfacf','cafebabe','bebafeca'].includes(header) : header==='7f454c46';
-    });
-    one(executables,'TUI generated host executable');
-    const archive=one(files.filter(file=>!file.path.includes('/') && file.path.endsWith(process.platform==='win32'?'-tui-preview.zip':'-tui-preview.tar.gz')),'TUI preview archive');
-    if(process.platform==='win32') zipped(archive);
-    else if(!bytes(archive).subarray(0,2).equals(Buffer.from([31,139]))) throw new Error('invalid TUI preview archive');
-  } else if(target==='web') {
+  if(target==='web') {
     one(files.filter(file=>path.posix.basename(file.path)==='index.html'),'Web index');
     if(!files.some(file=>file.path.endsWith('.wasm') && bytes(file).subarray(0,8).equals(Buffer.from([0,97,115,109,1,0,0,0]))) || !files.some(file=>file.path.endsWith('.js') && file.size>0)) throw new Error('Web runtime is incomplete');
   } else if(target==='android') zipped(one(files.filter(file=>file.path.endsWith('.apk')),'APK'));
@@ -167,23 +132,23 @@ export function sourceSnapshot(root) {
 }
 /** 只读校验持久框架、版本与选择目标，不能把 CLI 当 NSH 打包。 */
 export function packageFacts(root,metadata,target) {
-  if(target==='tui') throw new Error('NSH TUI is temporarily unavailable in the released 0.4.0 toolchain');
+  if(!targets.includes(target)) throw new Error('unsupported NSH packaging target');
   const facts=metadata.metadata?.['agent-first-harness'];
   const modern=facts?.interfaces?.length===1 && facts.interfaces[0]==='nsh' && facts['gui-framework']===undefined;
-  const legacy=facts?.interfaces?.length===1 && facts.interfaces[0]==='gui' && facts['gui-framework']==='nsh';
+  const legacy=facts?.interfaces?.length===1 && facts.interfaces[0]==='gui' && facts['gui-framework']==='nsh' && facts['nsh-targets']===undefined;
   if(path.resolve(metadata.workspace_root)!==root || !modern && !legacy) throw new Error('requires NSH workspace');
-  if(!targets.includes(target) || !Array.isArray(facts['target-platforms'])) throw new Error('target is not selected');
-  if(target==='tui' ? !facts['target-platforms'].some(platform=>['macos','windows','linux'].includes(platform)) : !facts['target-platforms'].includes(target==='ios-simulator'?'ios':target)) throw new Error('target is not selected');
+  const platform = target === 'ios-simulator' ? 'ios' : target;
+  if(!Array.isArray(facts['target-platforms']) || !facts['target-platforms'].includes(platform)) throw new Error('target is not selected');
   if(modern){
     const selected=facts['nsh-targets'];
-    if(!Array.isArray(selected) || selected.length===0 || new Set(selected).size!==selected.length || selected.some(value=>!['desktop','mobile','web'].includes(value))) throw new Error('invalid or unsupported NSH targets; TUI is temporarily unavailable');
+    nshRevisionForTargets(selected);
     if(selected.includes('desktop')!==facts['target-platforms'].some(platform=>['macos','windows','linux'].includes(platform))) throw new Error('NSH targets do not match platforms');
     for(const [group,platforms] of [['mobile',['android','ios']],['web',['web']]]) {
       if(selected.includes(group)!==facts['target-platforms'].some(platform=>platforms.includes(platform))) throw new Error('NSH targets do not match platforms');
     }
-    if(!selected.includes(target==='tui'?'tui':target==='web'?'web':['android','ios','ios-simulator'].includes(target)?'mobile':'desktop')) throw new Error('NSH target capability is not selected');
+    const capability = platform === 'web' ? 'web' : ['android', 'ios'].includes(platform) ? 'mobile' : 'desktop';
+    if(!selected.includes(capability)) throw new Error('NSH target capability is not selected');
   }
-  if(!modern && target==='tui') throw new Error('legacy NSH project has no TUI preview target');
   const id=facts['project-id'];
   if(!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(id)) throw new Error('invalid project-id');
   const member=`${id}_${modern?'nsh':'gui'}`;
@@ -193,8 +158,8 @@ export function packageFacts(root,metadata,target) {
 }
 /** 构建前解析候选选择，测试和封包不掺入运行验收。 */
 export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}) {
+  if(!targets.includes(target)) throw new Error('unsupported NSH packaging target');
   root=fs.realpathSync(root);
-  if(target==='tui') throw new Error('NSH TUI is temporarily unavailable in the released 0.4.0 toolchain');
   if(!['local','candidate'].includes(mode)) throw new Error('mode must be local or candidate');
   if(mode==='candidate' && !['enabled','disabled'].includes(e2e)) throw new Error('candidate requires explicit e2e');
   if(mode==='candidate' && e2e==='disabled' && [e2eReason,e2eRisk].some(value=>typeof value!=='string' || !value.trim())) throw new Error('disabled E2E requires reason and remaining risk');
@@ -207,7 +172,6 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   const desktopProfile=modernDesktop?readNshDesktopProfile(root):null;
   const nativeHost={macos:'darwin',windows:'win32',linux:'linux',ios:'darwin','ios-simulator':'darwin'}[target];
   if(nativeHost && nativeHost!==process.platform) throw new Error('target requires its native host');
-  if(target==='tui' && !facts.policy['target-platforms'].includes({darwin:'macos',win32:'windows',linux:'linux'}[process.platform])) throw new Error('TUI preview requires its selected native terminal host');
   const version=run('nsh',['--version'],root,process.env,true);
   // 旧 GUI/NSH 元数据保留读取兼容，但其 Cargo 依赖同样必须迁到正式提交。
   const runtimeTargets=facts.modern?facts.policy['nsh-targets']:[
@@ -228,21 +192,8 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   const tests=run('cargo',['test','--workspace','--all-targets','--all-features',...lockArgs,'--','--list'],root,process.env,true);
   if(!/^.+: test$/mu.test(tests)) throw new Error('nonempty workspace tests required');
   run('cargo',['test','--workspace','--all-targets','--all-features',...lockArgs],root);
-  let tuiTestCases=null;
-  if(target==='tui') {
-    const wrapper=path.join(root,'.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs');
-    if(!fs.statSync(wrapper,{throwIfNoEntry:false})?.isFile()) throw new Error('NSH TUI wrapper is missing');
-    const tuiEnv={...process.env,CARGO_TARGET_DIR:path.join(root,'target')};
-    run(process.execPath,[wrapper,'--root',root,'--check'],root,tuiEnv);
-    const result=spawnSync(process.execPath,[wrapper,'--root',root,'--test'],{cwd:root,env:tuiEnv,encoding:'utf8',stdio:'pipe',maxBuffer:32*1024*1024});
-    if(result.stderr) process.stderr.write(result.stderr);
-    if(result.stdout) process.stdout.write(result.stdout);
-    if(result.status!==0) throw new Error(`NSH TUI render tests failed (${result.status ?? result.error?.code ?? 'unknown'})`);
-    tuiTestCases=nonemptyTuiTestCount(result.stderr);
-  } else {
-    run('nsh',['check'],facts.gui);
-    run('nsh',['test','.'],facts.gui);
-  }
+  run('nsh',['check'],facts.gui);
+  run('nsh',['test','.'],facts.gui);
   if(sourceSnapshot(root)!==before) throw new Error('source changed during tests');
   const batch=`nsh-${target}-${randomUUID()}`;
   const parent=path.join(root,mode==='candidate'?'release':'target/nsh-packaging');
@@ -252,40 +203,7 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   const stage=fs.mkdtempSync(path.join(root,'target/.nsh-package-'));
   const {env,temporary}=releaseNoteBuildInputs(stage,notes);
   const iosIdentity=['ios','ios-simulator'].includes(target)?iosPackagingIdentity(JSON.parse(fs.readFileSync(path.join(facts.gui,'nsh.json'),'utf8')).name):null;
-  let tuiExecutableName=null;
-  if(target==='tui') {
-    const portableEntry=modernDesktop?prepareNshPortableEntry(facts.gui,stage,{terminal:true}):null;
-    try {
-      const entry=portableEntry??facts.gui;
-      const bundleDirectory=path.join(stage,'mixed-bundle');
-      const tuiBuildEnv={...env,CARGO_TARGET_DIR:path.join(root,'target')};
-      run('nsh',['build','--release','--out',bundleDirectory,...(portableEntry?[portableEntry]:[])],facts.gui,tuiBuildEnv);
-      const generatedWorkspace=safeOutputPath(root,path.join(entry,'.nsh','rust','Cargo.toml'));
-      const generatedHost=safeOutputPath(root,path.join(entry,'.nsh','rust','tui-host','Cargo.toml'));
-      if(!fs.statSync(generatedWorkspace,{throwIfNoEntry:false})?.isFile() || !fs.statSync(generatedHost,{throwIfNoEntry:false})?.isFile()) throw new Error('Mixed app-specific TUI host was not generated');
-      const generated=JSON.parse(run('cargo',['metadata','--no-deps','--format-version','1','--manifest-path',generatedWorkspace],root,tuiBuildEnv,true));
-      const host=generated.packages.find(pkg=>path.resolve(pkg.manifest_path)===generatedHost);
-      const bins=host?.targets?.filter(value=>value.kind.includes('bin')) ?? [];
-      if(bins.length!==1 || !/^nsh-app-.+-tui-host$/u.test(host.name)) throw new Error('Mixed app-specific TUI host package is invalid');
-      const cargoMessages=run('cargo',['build','--release','--message-format=json','--manifest-path',generatedWorkspace,'-p',host.name],root,tuiBuildEnv,true);
-      const executable=safeOutputPath(root,tuiHostExecutableFromCargo(cargoMessages,host.id,bins[0].name));
-      if(!fs.lstatSync(executable,{throwIfNoEntry:false})?.isFile()) throw new Error('Mixed TUI host executable missing');
-      tuiExecutableName=path.basename(executable);
-      const application=path.join(stage,'package',`${facts.policy['project-id']}-tui`);
-      fs.mkdirSync(application,{recursive:true});
-      inventory(bundleDirectory);
-      fs.cpSync(bundleDirectory,application,{recursive:true});
-      fs.copyFileSync(executable,path.join(application,path.basename(executable)));
-      if(process.platform!=='win32') fs.chmodSync(path.join(application,path.basename(executable)),fs.statSync(executable).mode);
-      if(process.platform==='win32') {
-        const zip=path.join(stage,'package',`${facts.policy['project-id']}-tui-preview.zip`);
-        run('powershell.exe',['-NoProfile','-NonInteractive','-Command','Compress-Archive -LiteralPath $env:HARNESS_NSH_PACKAGE_DIR -DestinationPath $env:HARNESS_NSH_ZIP_PATH'],root,{...env,HARNESS_NSH_PACKAGE_DIR:application,HARNESS_NSH_ZIP_PATH:zip});
-      } else run('tar',['-czf',path.join(stage,'package',`${facts.policy['project-id']}-tui-preview.tar.gz`),'-C',path.dirname(application),path.basename(application)],root);
-      fs.rmSync(bundleDirectory,{recursive:true,force:true});
-    } finally {
-      if(portableEntry) fs.rmSync(portableEntry,{recursive:true,force:true});
-    }
-  } else if(customDesktopHost) {
+  if(customDesktopHost) {
     const bundleDirectory=path.join(stage,'mixed-bundle');
     run('nsh',['build','--release','--out',bundleDirectory],facts.gui,env);
     run('cargo',['build','--release','-p',`${facts.policy['project-id']}_nsh`,'--bin',`${facts.policy['project-id']}_nsh_host`],root,env);
@@ -318,21 +236,16 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   const artifacts=validateNshArtifacts(path.join(stage,'package'),target);
   if(mode==='candidate') for(const name of ['release-notes.json','LICENSE.zh-CN.md','LICENSE.en.md']) fs.copyFileSync(path.join(root,name),path.join(stage,name));
   // 使用平台自带归档器，保留官方生成的完整目录及签名 app。
-  const primary=target==='web'?'web.tar.gz':target==='macos' || target.startsWith('ios') ? 'application.tar.gz' : artifacts.find(file=>(target!=='tui' || !file.path.includes('/')) && file.path.endsWith(target==='tui'?(process.platform==='win32'?'-tui-preview.zip':'-tui-preview.tar.gz'):{windows:'.zip',linux:'.tar.gz',android:'.apk'}[target]))?.path;
+  const primary=target==='web'?'web.tar.gz':target==='macos' || target.startsWith('ios') ? 'application.tar.gz' : artifacts.find(file=>file.path.endsWith({windows:'.zip',linux:'.tar.gz',android:'.apk'}[target]))?.path;
   if(['web','macos','ios','ios-simulator'].includes(target)) run('tar',['-czf',path.join(stage,primary),'-C',path.join(stage,'package'),'.'],root);
   const artifact=['web','macos','ios','ios-simulator'].includes(target)?primary:path.posix.join('package',primary);
   const artifactSha=createHash('sha256').update(fs.readFileSync(path.join(stage,artifact))).digest('hex');
   fs.writeFileSync(path.join(stage,`${artifact}.sha256`),`${artifactSha}  ${path.basename(artifact)}\n`);
   if(sourceSnapshot(root)!==before) throw new Error('source changed during packaging');
   if(mode==='candidate') checkContext({projectRoot:root,expectedSha256:context.releaseContextSha256},{published:true});
-  const format={macos:'app.tar.gz',windows:'zip',linux:'tar.gz',android:'apk',ios:'app.tar.gz','ios-simulator':'app.tar.gz',web:'web.tar.gz',tui:process.platform==='win32'?'terminal-preview.zip':'terminal-preview.tar.gz'}[target];
+  const format={macos:'app.tar.gz',windows:'zip',linux:'tar.gz',android:'apk',ios:'app.tar.gz','ios-simulator':'app.tar.gz',web:'web.tar.gz'}[target];
   const signing=target==='android'?'development-key':target==='ios'?'unsigned-device':target==='macos'||target==='ios-simulator'?'ad-hoc':'not-applicable';
-  const manifest={schemaVersion:1,project:facts.policy['project-id'],interface:facts.modern?'nsh':'gui',...(facts.modern?{nshTargets:facts.policy['nsh-targets']}:{guiFramework:'nsh'}),mode,target,platform:target==='ios-simulator'?'ios':target==='tui'?{darwin:'macos',win32:'windows',linux:'linux'}[process.platform]:target,host:process.platform,arch:process.arch,buildMode:'native',buildRun:batch,bundleFormat:format,artifactKind:target==='tui'?'terminal-preview-archive':target==='web'?'web-archive':target==='android'?'installer':'application-archive',artifact,sha256:artifactSha,checksum:`${artifact}.sha256`,version:facts.version,sourceCommit:context?.sourceCommit??null,sourceSnapshot:before,tool:version,e2eSelection:mode==='candidate'?e2e:'not-applicable',e2eStatus:mode==='candidate'&&e2e==='enabled'?'pending':'Not run',...(e2e==='disabled'?{e2eReason,e2eRemainingRisk:e2eRisk}:{}),signingSelection:signing,signingSource:target==='tui'?'generated-terminal-development-host':customDesktopHost?'mixed-custom-desktop-host':'official-local-packaging-default',unitTests:{status:'passed',testCases:tests.split('\n').filter(line=>line.endsWith(': test')).length,nshRenderTests:'passed',...(tuiTestCases?{nshRenderTestCases:tuiTestCases}:{})},milestoneAcceptance:'pending',runtimeVerification:'Unverified',files:inventory(stage)};
-  if(target==='tui') {
-    manifest.previewOnly=true;
-    manifest.milestoneAcceptance='not-applicable-preview';
-    manifest.tuiPreview={previewOnly:true,host:'app-specific-generated-development-host',officialReleaseRunner:false,launch:`./${facts.policy['project-id']}-tui/${tuiExecutableName} --bundle ./${facts.policy['project-id']}-tui/bundle.js`};
-  }
+  const manifest={schemaVersion:1,project:facts.policy['project-id'],interface:facts.modern?'nsh':'gui',...(facts.modern?{nshTargets:facts.policy['nsh-targets']}:{guiFramework:'nsh'}),mode,target,platform:target==='ios-simulator'?'ios':target,host:process.platform,arch:process.arch,buildMode:'native',buildRun:batch,bundleFormat:format,artifactKind:target==='web'?'web-archive':target==='android'?'installer':'application-archive',artifact,sha256:artifactSha,checksum:`${artifact}.sha256`,version:facts.version,sourceCommit:context?.sourceCommit??null,sourceSnapshot:before,tool:version,e2eSelection:mode==='candidate'?e2e:'not-applicable',e2eStatus:mode==='candidate'&&e2e==='enabled'?'pending':'Not run',...(e2e==='disabled'?{e2eReason,e2eRemainingRisk:e2eRisk}:{}),signingSelection:signing,signingSource:customDesktopHost?'mixed-custom-desktop-host':'official-local-packaging-default',unitTests:{status:'passed',testCases:tests.split('\n').filter(line=>line.endsWith(': test')).length,nshRenderTests:'passed'},milestoneAcceptance:'pending',runtimeVerification:'Unverified',files:inventory(stage)};
   if(customDesktopHost) manifest.desktopHost={kind:'mixed-custom',multiWindow:'enabled',profile:{system_tray:desktopProfile.system_tray,autostart:desktopProfile.autostart,single_instance:desktopProfile.single_instance,deep_link:desktopProfile.deep_link,system_notification:desktopProfile.system_notification,global_shortcut:desktopProfile.global_shortcut}};
   manifest.hostArch=process.arch;
   manifest.arch=target==='web'?'wasm32':target==='android'?'universal':target==='ios'?'arm64':process.arch;
@@ -345,6 +258,6 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk}
   return {output,manifest:path.join(output,'manifest.json'),...manifest};
 }
 if(process.argv[1] && import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href) {
-  try {const {values}=parseArgs({options:{root:{type:'string',default:'.'},mode:{type:'string',default:'local'},target:{type:'string'},e2e:{type:'string'},'e2e-reason':{type:'string'},'e2e-risk':{type:'string'}}});const result=buildNshRelease({...values,e2eReason:values['e2e-reason'],e2eRisk:values['e2e-risk']});process.stdout.write(JSON.stringify({output:result.output,manifest:result.manifest,mode:result.mode,target:result.target,previewOnly:result.previewOnly??false,version:result.version,artifact:result.artifact,sha256:result.sha256,unitTests:result.unitTests})+'\n');}
+  try {const {values}=parseArgs({options:{root:{type:'string',default:'.'},mode:{type:'string',default:'local'},target:{type:'string'},e2e:{type:'string'},'e2e-reason':{type:'string'},'e2e-risk':{type:'string'}}});const result=buildNshRelease({...values,e2eReason:values['e2e-reason'],e2eRisk:values['e2e-risk']});process.stdout.write(JSON.stringify({output:result.output,manifest:result.manifest,mode:result.mode,target:result.target,version:result.version,artifact:result.artifact,sha256:result.sha256,unitTests:result.unitTests})+'\n');}
   catch(error){process.stderr.write(`NSH build: ${error.message}\n`);process.exitCode=1;}
 }

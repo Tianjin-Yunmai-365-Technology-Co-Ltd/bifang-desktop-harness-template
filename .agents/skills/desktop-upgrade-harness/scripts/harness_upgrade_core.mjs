@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { explicitOwnershipModeForNode, loadLock, loadOwnership, ownershipMode, scanTree } from "./harness_upgrade_ownership.mjs";
-import { inapplicableGuiCandidate, readInterfaceSelection } from "./harness_upgrade_interfaces.mjs";
+import { inapplicableGuiCandidate, isRetiredInterfaceAsset, readInterfaceSelection } from "./harness_upgrade_interfaces.mjs";
 import { RETIRED_ENGINEERING_PATHS, isRetiredEngineeringPath, retirementSelection } from "./harness_upgrade_retirement.mjs";
 import { AUTO_MODES, BLOCKING_CLASSES, MANUAL_CLASSES, OWNERSHIP_RELATIVE, REQUIRED_MANAGED_SOURCE_PATHS, SCHEMA_VERSION, SOURCE_ONLY_PATHS } from "./harness_upgrade_policy.mjs";
 import { UpgradeError, assertSafePath, canonicalDirectory, isWithin, loadJson, lstatOrNull, requireControlPaths, requireGitRoot, requireSourceIdentity, safeRelativePath, snapshotFile } from "./harness_upgrade_safety.mjs";
@@ -60,7 +60,8 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
   const candidateTree = scanTree(candidate, { targetTree: false });
   const lock = loadLock(lockFile);
   const cleanup = retirementSelection(retirementRequest, lock?.retirement_cleanup);
-  const entries = lock === null ? {} : lock.entries;
+  // 退役接口资产退出受管范围。下次记录省略旧基线，目标文件仍归原项目。
+  const entries = Object.fromEntries(Object.entries(lock?.entries ?? {}).filter(([relative]) => !isRetiredInterfaceAsset(relative)));
   const retainPaths = [
     ...Object.keys(candidateTree.files), ...Object.keys(entries), ...RETIRED_ENGINEERING_PATHS,
     ...rules.filter(([, mode]) => mode === "tombstone").map(([pattern]) => pattern.split("*")[0].replace(/\/$/u, "")),
@@ -97,7 +98,7 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
     else if (candidateTree.files[relative].sha256 !== snapshotFile(sourcePath).sha256) problems.push(`候选的源 Harness 必需 managed 路径内容不匹配：${relative}`);
   }
   for (const [relative, isDirectory] of Object.entries(candidateTree.nodes)) {
-    if (isRetiredEngineeringPath(relative)) problems.push(`候选不得恢复退役工程资产：${relative}`);
+    if (isRetiredEngineeringPath(relative) || isRetiredInterfaceAsset(relative)) problems.push(`候选不得恢复退役工程资产：${relative}`);
     const mode = explicitOwnershipModeForNode(relative, { isDirectory, rules });
     if (["protected", "tombstone"].includes(mode)) problems.push(`候选包含禁止的 ${mode} 路径：${relative}`);
     if (inapplicableGuiCandidate(relative, interfaceSelection)) problems.push(`候选包含不适用于目标 GUI 框架的工程路径：${relative}`);

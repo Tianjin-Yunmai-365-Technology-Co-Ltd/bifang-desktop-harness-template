@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { planInstantiation, prepareInstantiation } from './instantiate_project.mjs';
 import { POLICY_PRESET } from './initialization_questions.mjs';
-import { removeUpstreamOnly, renderPreparedFiles, renderProjectSkillMap, SKILL_GROUPS, snapshotSource } from './instantiation_files.mjs';
+import { includedSourcePath, removeUpstreamOnly, renderPreparedFiles, renderProjectSkillMap, SKILL_GROUPS, snapshotSource } from './instantiation_files.mjs';
 import { confirmedFixtureInput, fixture, SOURCE_ROOT } from './instantiation_test_support.mjs';
 
 /** 未确认、旧摘要和非法日期都不能创建目标。 */
@@ -193,6 +193,17 @@ test('final_tree_verification_rejects_late_edits_and_unknown_hidden_entries', t 
     mock.mock.restore();
     assert.equal(fs.readFileSync(changed, 'utf8'), 'late user bytes');
   }
+});
+
+/** 实例化在读取源文件前排除退役路径，保留已支持的适配器。 */
+test('instantiation_excludes_retired_interface_assets_from_its_snapshot', () => {
+  assert.equal(includedSourcePath('.agents/skills/desktop-add-tui-adapter/SKILL.md'), false);
+  assert.equal(includedSourcePath('.agents/skills/desktop-add-gpui-adapter/SKILL.md'), false);
+  assert.equal(includedSourcePath('.agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/source.json'), false);
+  assert.equal(includedSourcePath('.agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.mjs'), false);
+  assert.equal(includedSourcePath('.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs'), false);
+  assert.equal(includedSourcePath('.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_desktop.mjs'), true);
+  assert.equal(includedSourcePath('.agents/skills/desktop-add-gui-adapter/SKILL.md'), true);
 });
 
 /** 新标识或展示名可含示例词元，渲染结果与许可证保持同一确认值。 */

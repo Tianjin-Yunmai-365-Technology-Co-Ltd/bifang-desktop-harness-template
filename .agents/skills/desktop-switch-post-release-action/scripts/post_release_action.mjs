@@ -177,6 +177,16 @@ function metadataArray(root, key) {
   return parseReleaseMetadataArray(fs.readFileSync(file, "utf8"), key);
 }
 
+/** 仅顶层 NSH 声明目标集合，已有 GUI 工程按其平台事实读取。 */
+function readNshTargets(root, interfaces, metadata) {
+  if (interfaces.includes("nsh")) {
+    if (metadata.framework !== undefined) throw new ActionError("顶层 NSH 不声明 GUI 框架");
+    return metadataArray(root, "nsh-targets");
+  }
+  if (metadata.hasNshTargets) throw new ActionError("Cargo nsh-targets 只适用于顶层 NSH 接口");
+  return [];
+}
+
 /** 按字符串、注释及容器边界读取语句，避免说明文字伪装成桌面框架事实。 */
 function releaseCargoStatements(source) {
   const statements = [];
@@ -237,12 +247,14 @@ function releaseCargoKey(value) {
 }
 
 /** 只缺省兼容 Tauri；引号键等价，表化、错位、重复及未知受管语法不得猜测。 */
-export function parseReleaseGuiFramework(source) {
+function releaseFrameworkMetadata(source) {
   const metadataPath = ["workspace", "metadata", "agent-first-harness"];
   const frameworkPath = [...metadataPath, "gui-framework"];
+  const isNshTargetPath = (parts) => parts[metadataPath.length] === "nsh-targets" && metadataPath.every((part, index) => parts[index] === part);
   let section = [];
   let metadataSections = 0;
   let framework;
+  let hasNshTargets = false;
   for (const statement of releaseCargoStatements(source)) {
     if (statement.startsWith("[")) {
       const array = statement.startsWith("[[");
@@ -250,6 +262,7 @@ export function parseReleaseGuiFramework(source) {
       const parsed = releaseCargoKey(statement.slice(array ? 2 : 1, array ? -2 : -1));
       if (parsed.value !== null) throw new ActionError("Cargo gui-framework 表语法无效");
       section = parsed.parts;
+      hasNshTargets ||= isNshTargetPath(section);
       if (section.includes("gui-framework")) throw new ActionError("Cargo gui-framework 必须是值，不能是表");
       if (section.length === metadataPath.length && section.every((part, index) => part === metadataPath[index])) {
         if (array || ++metadataSections > 1) throw new ActionError("Cargo 发布接口元数据缺失或重复");
@@ -259,6 +272,7 @@ export function parseReleaseGuiFramework(source) {
     const { parts, value } = releaseCargoKey(statement);
     if (value === null) throw new ActionError("Cargo gui-framework 解析遇到缺少赋值的字段");
     const fullPath = [...section, ...parts];
+    hasNshTargets ||= isNshTargetPath(fullPath);
     if (parts.includes("gui-framework")) {
       if (fullPath.length !== frameworkPath.length || !fullPath.every((part, index) => part === frameworkPath[index])) {
         throw new ActionError("Cargo gui-framework 必须位于 workspace.metadata.agent-first-harness");
@@ -272,7 +286,12 @@ export function parseReleaseGuiFramework(source) {
     }
   }
   if (metadataSections !== 1) throw new ActionError("Cargo 发布接口元数据缺失或重复");
-  return framework ?? "tauri";
+  return { framework, hasNshTargets };
+}
+
+/** 既有 GUI 缺省框架时使用 Tauri，显式值由 Cargo 元数据确定。 */
+export function parseReleaseGuiFramework(source) {
+  return releaseFrameworkMetadata(source).framework ?? "tauri";
 }
 
 function optionalMetadata(root, key) {
@@ -410,7 +429,8 @@ export function selectLocalPackageRoute({ interfaces, platforms, guiFramework = 
   const result = (interfaceName, target, skill) => ({ interface: interfaceName, target, skill });
   const routes = [];
   if (interfaces.includes("nsh")) {
-    if (interfaces.length !== 1 || nshTargets.includes("tui")) return null;
+    if (interfaces.length !== 1 || guiFramework !== "tauri" || !Array.isArray(nshTargets) || nshTargets.length === 0 ||
+        new Set(nshTargets).size !== nshTargets.length || nshTargets.some(target => !["desktop", "mobile", "web"].includes(target))) return null;
     if (nshTargets.includes("desktop") && onHost) routes.push(result("nsh", hostPlatform, "desktop-build-nsh-release"));
     if (nshTargets.includes("mobile") && hostPlatform === "macos" && selected.has("ios")) routes.push(result("nsh", "ios", "desktop-build-nsh-release"));
     if (nshTargets.includes("mobile") && selected.has("android")) routes.push(result("nsh", "android", "desktop-build-nsh-release"));
@@ -442,7 +462,8 @@ export function localPackageRoute(rawRoot, { requestedInterface = null, requeste
   const root = projectRoot(rawRoot);
   const source = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
   const interfaces = metadataArray(root, "interfaces");
-  const guiFramework = parseReleaseGuiFramework(source);
+  const metadata = releaseFrameworkMetadata(source);
+  const guiFramework = metadata.framework ?? "tauri";
   if ((interfaces.includes("nsh") || interfaces.includes("gui") && guiFramework === "nsh") && readDependencyLockPolicy(root) === "tracked") {
     throw new ActionError("NSH 生成的运行时 workspace 尚不能传播 tracked Cargo.lock；本地正式候选路线不可用");
   }
@@ -450,7 +471,7 @@ export function localPackageRoute(rawRoot, { requestedInterface = null, requeste
     interfaces,
     platforms: metadataArray(root, "target-platforms"),
     guiFramework,
-    nshTargets: interfaces.includes("nsh") ? metadataArray(root, "nsh-targets") : [],
+    nshTargets: readNshTargets(root, interfaces, metadata),
     hostPlatform: { darwin: "macos", win32: "windows", linux: "linux" }[process.platform],
     hostArch: process.arch,
     requestedInterface,
@@ -463,8 +484,10 @@ export function localPackageRoute(rawRoot, { requestedInterface = null, requeste
 function assertLocalPackageSupported(root) {
   const interfaces = metadataArray(root, "interfaces");
   const cargoSource = fs.readFileSync(path.join(root, "Cargo.toml"), "utf8");
-  const framework = parseReleaseGuiFramework(cargoSource);
+  const releaseMetadata = releaseFrameworkMetadata(cargoSource);
+  const framework = releaseMetadata.framework ?? "tauri";
   const platforms = metadataArray(root, "target-platforms");
+  const nshTargets = readNshTargets(root, interfaces, releaseMetadata);
   if (!localPackageSupported(interfaces, platforms, framework)) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
@@ -473,15 +496,12 @@ function assertLocalPackageSupported(root) {
     if (readDependencyLockPolicy(root) === "tracked") throw new ActionError("NSH 生成的运行时 workspace 尚不能传播 tracked Cargo.lock；请选择 push_release_branch，或先实现锁定解析路线");
     const modern = interfaces.includes("nsh");
     if (modern) {
-      if (framework !== "tauri" || optionalMetadata(root, "gui-framework") !== null) throw new ActionError("顶层 NSH 不声明 GUI 框架");
-      const targets = metadataArray(root, "nsh-targets");
-      const concrete = metadataArray(root, "target-platforms");
       const groups = [
         ["desktop", ["macos", "windows", "linux"]],
         ["mobile", ["android", "ios"]],
         ["web", ["web"]],
       ];
-      if (groups.some(([target, members]) => targets.includes(target) !== concrete.some(platform => members.includes(platform)))) throw new ActionError("NSH 目标类别与具体平台不匹配");
+      if (groups.some(([target, members]) => nshTargets.includes(target) !== platforms.some(platform => members.includes(platform)))) throw new ActionError("NSH 目标类别与具体平台不匹配");
     }
     const metadata = JSON.parse(spawnSync("cargo", ["metadata", "--no-deps", "--format-version", "1"], { cwd: root, encoding: "utf8" }).stdout);
     const id = metadata.metadata?.["agent-first-harness"]?.["project-id"];
@@ -502,7 +522,7 @@ function assertLocalPackageSupported(root) {
     interfaces,
     platforms,
     guiFramework: framework,
-    nshTargets: interfaces.includes("nsh") ? metadataArray(root, "nsh-targets") : [],
+    nshTargets,
     hostPlatform: { darwin: "macos", win32: "windows", linux: "linux" }[process.platform],
     hostArch: process.arch,
   });

@@ -6,13 +6,13 @@ Bifang Desktop Harness Template
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
-你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；选择 NSH 后只需选择桌面、移动、Web 能力。NSH 的说明是“下一代全平台开发框架”，当前统一正式 0.4.0 工具链，TUI 暂不可用。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
+你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；选择 NSH 后只需选择桌面、移动、Web 能力。NSH 的说明是“下一代全平台开发框架”，当前统一正式 0.4.0 工具链。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
 选择 **DESKTOP** 即使用 **Tauri**，无需另选框架。随后按顺序确认九项桌面配置，并在完整汇总中确认平台和所选能力。
 
 DESKTOP 使用 Node.js/pnpm 工程工具，初始化通过 Tauri 专用结构检查和本机窗口检查；仅 Linux 且无 CLI 的 Desktop 项目首次发布时须选择推送 release 分支。
 
-选择 NSH 后，Agent 只询问桌面、移动、Web 三类能力：桌面对应全部 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web；对应平台会在最终汇总中确认。新 NSH 工程使用正式 v0.4.0 固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3` 与匹配 CLI，以 Mixed TSX 界面通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。TUI 暂不可用，表单和构建器拒绝该目标。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按可打包目标处理。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
+选择 NSH 后，Agent 只询问桌面、移动、Web 三类能力：桌面对应全部 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web；对应平台会在最终汇总中确认。新 NSH 工程使用正式 v0.4.0 固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3` 与匹配 CLI，以 Mixed TSX 界面通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按可打包目标处理。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -138,7 +138,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
 - **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
 - **DESKTOP**：使用 Tauri 2、React 和 Mantine。固定接入系统语言、窗口状态和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
-- **NSH**：下一代全平台开发框架，当前子目标为桌面、移动、Web；统一正式 v0.4.0 固定提交及匹配 CLI。TUI 暂不可用，不能通过历史 main 预览版启用。现有 NSH 九项配置只属于桌面子目标。
+- **NSH**：下一代全平台开发框架，当前子目标为桌面、移动、Web；统一正式 v0.4.0 固定提交及匹配 CLI。Cargo 的 `nsh-targets` 记录子目标，`target-platforms` 记录具体平台。九项桌面配置只适用于桌面子目标。
 
 CLI、MCP 与 DESKTOP 可以单独或组合使用；当前 NSH 独立选择。与接口无关的业务规则统一放在共享核心（shared core）中，接口只负责输入、展示和系统交互。
 
@@ -175,18 +175,10 @@ Harness 版本的唯一事实来源是 [`Version.md`](Version.md)：仅在正式
 - [工程维护规则](docs/ENGINEERING_RULES.md)
 - [Harness 方法论](docs/HARNESS_ENGINEERING.md)
 - [Rust 与各类界面的初始化基线](docs/RUST_CLI_TEMPLATE.md)
+- [客户端依赖、兼容、性能与打包](docs/GUI_ENGINEERING.md)
 - [构建与发布规则](docs/RELEASE.md)
 - [验证方式与证据入口](docs/VERIFICATION.md)
 
 ## 许可
 
 本项目是专有商业软件，不是开源项目。使用、复制或分发前，请阅读[中文许可协议](LICENSE.zh-CN.md)或[英文许可协议](LICENSE.en.md)。
-
-客户端依赖、兼容、性能与平台打包知识按 [客户端工程索引](docs/GUI_ENGINEERING.md) 精确读取。
-
-| 顶层类型 | 说明 |
-|---|---|
-| DESKTOP（Tauri） | 使用 Tauri、React 和 Mantine 开发桌面应用 |
-| NSH | 下一代全平台开发框架；下选桌面、移动、Web，统一正式 0.4.0 工具链；TUI 暂不可用 |
-
-NSH 入口：`$desktop-add-nsh-adapter`；能力、平台、构建边界见该 Skill 的运行时引用。桌面、移动和 Web 的具体平台分别记录在 Cargo `target-platforms`，所选子目标记录在 `nsh-targets`；不把声明目标当已验证结果。

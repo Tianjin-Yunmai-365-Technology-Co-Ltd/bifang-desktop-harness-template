@@ -6,7 +6,7 @@ import os from 'node:os';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assertNshToolchain,buildNshRelease,inventory,nonemptyTuiTestCount,packageFacts,releaseNoteBuildInputs,safeOutputPath,tuiHostExecutableFromCargo,validateNshArtifacts } from './build_nsh_release.mjs';
+import { assertNshToolchain,buildNshRelease,inventory,packageFacts,releaseNoteBuildInputs,safeOutputPath,validateNshArtifacts } from './build_nsh_release.mjs';
 import { renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 
 /** 临时包只用于拒绝畸形输入，不能充当运行验证。 */
@@ -19,16 +19,13 @@ test('package_facts_accepts_top_level_nsh_and_legacy_gui_nsh',()=>fixture(root=>
   assert.equal(packageFacts(root,modern,'web').gui,path.join(root,'sample_tool_nsh'));
   assert.equal(packageFacts(root,modern,'android').modern,true);
   assert.equal(packageFacts(root,modern,'macos').modern,true);
-  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'macos'),/TUI is temporarily unavailable/u);
-  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'tui'),/TUI is temporarily unavailable/u);
-  const terminal=metadata(['nsh'],'nsh',{'nsh-targets':['tui'],'target-platforms':['macos']});
-  assert.throws(()=>packageFacts(root,terminal,'tui'),/TUI is temporarily unavailable/u);
-  assert.throws(()=>packageFacts(root,terminal,'macos'),/TUI is temporarily unavailable/u);
-  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['tui','mobile','web']}),'macos'),/TUI is temporarily unavailable/u);
+  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'macos'),/invalid NSH targets/u);
   assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','web']}),'macos'),/do not match/u);
   assert.throws(()=>packageFacts(root,modern,'linux'),/not selected/u);
   const legacy=metadata(['gui'],'gui',{'gui-framework':'nsh'});
   assert.equal(packageFacts(root,legacy,'macos').modern,false);
+  const invalidLegacy=metadata(['gui'],'gui',{'gui-framework':'nsh','nsh-targets':['tui']});
+  assert.throws(()=>packageFacts(root,invalidLegacy,'macos'),/requires NSH workspace/u);
 }));
 
 /** 所有受支持目标绑定正式版 Git pin，拒绝预览、旧 CLI 与混合依赖。 */
@@ -37,11 +34,8 @@ test('nsh_toolchain_requires_matching_released_cli_and_runtime',()=>fixture(root
   const stable='e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3';
   const manifest=revision=>`[workspace]\nmembers = []\n[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n[workspace.metadata.agent-first-harness]\ninterfaces = ["nsh"]\n`;
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview));
-  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (beeb9fc)'),/TUI is temporarily unavailable/u);
   assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.4.0 (beeb9fc)'),/pinned official v0\.4\.0 stable runtime/u);
-  assert.throws(()=>assertNshToolchain(root,['desktop','tui'],'nsh 0.4.0 (e626a8d)'),/TUI is temporarily unavailable/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable));
-  assert.throws(()=>assertNshToolchain(root,['tui'],'nsh 0.4.0 (e626a8d)'),/TUI is temporarily unavailable/u);
   assert.equal(assertNshToolchain(root,['web'],'nsh 0.4.0 (e626a8d)'),stable);
   assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.4.0 (beeb9fc)'),/do not match/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview).replace(`nsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${preview}" }`,''));
@@ -85,49 +79,11 @@ test('tracked_resolution_and_unanswered_candidate_selection_fail_before_build',(
   assert.equal(fs.readdirSync(root).length,1);
 }));
 
-/** TUI 不论本地试包或候选均须在执行任何构建命令前拒绝。 */
-test('tui_build_rejects_before_creating_build_state',()=>fixture(root=>{
-  for (const mode of ['local','candidate']) assert.throws(()=>buildNshRelease({root,mode,target:'tui',e2e:'enabled'}),/TUI is temporarily unavailable/u);
+/** 不受支持的目标在任何构建命令前被拒绝。 */
+test('unsupported_target_rejects_before_creating_build_state',()=>fixture(root=>{
+  for (const mode of ['local','candidate']) assert.throws(()=>buildNshRelease({root,mode,target:'tui',e2e:'enabled'}),/unsupported NSH packaging target/u);
+  assert.throws(()=>validateNshArtifacts(path.join(root,'missing'),'tui'),/unsupported NSH packaging target/u);
   assert.equal(fs.readdirSync(root).length,0);
-}));
-
-/** 测试摘要来自 stderr；零测试、失败和未识别输出均不能写入通过证据。 */
-test('tui_test_summary_requires_nonempty_passing_assertions',()=>{
-  assert.equal(nonemptyTuiTestCount('\u001b[32m✓ 2 tests: 2 passed, 0 failed (4m 54s)\u001b[0m'),2);
-  assert.equal(nonemptyTuiTestCount('✓ 1 test: 1 passed, 0 failed (2m 37s)'),1);
-  for(const result of ['✓ 0 tests: 0 passed, 0 failed','✓ 2 tests: 1 passed, 1 failed','no tests found']) assert.throws(()=>nonemptyTuiTestCount(result),/nonempty passing/u);
-});
-
-/** 目标 triple 改写输出目录时，只能采用本次 Cargo JSON 报告的专属宿主可执行文件。 */
-test('tui_host_uses_current_cargo_artifact_executable_path',()=>fixture(root=>{
-  const packageId='path+file:///generated/tui-host#nsh-app-sample-tui-host@0.0.0';
-  const binName='nsh-app-sample-tui-host';
-  const executable=path.join(root,'target','aarch64-apple-darwin','release',binName);
-  const message={reason:'compiler-artifact',package_id:packageId,target:{name:binName,kind:['bin']},executable};
-  const other={...message,package_id:'registry+other'};
-  assert.equal(tuiHostExecutableFromCargo([other,message].map(value=>JSON.stringify(value)).join('\n'),packageId,binName),executable);
-  assert.throws(()=>tuiHostExecutableFromCargo(JSON.stringify(other),packageId,binName),/exactly one current/u);
-  assert.throws(()=>tuiHostExecutableFromCargo([message,message].map(value=>JSON.stringify(value)).join('\n'),packageId,binName),/exactly one current/u);
-  assert.throws(()=>tuiHostExecutableFromCargo(JSON.stringify({...message,executable:null}),packageId,binName),/no executable path/u);
-}));
-
-/** 本地 TUI 预览至少保留可运行宿主、Mixed bundle 与配套元数据，拒绝残缺和伪造文件头。 */
-test('tui_preview_requires_generated_host_bundle_and_archive',()=>fixture(root=>{
-  const app=path.join(root,'sample_tool-tui');fs.mkdirSync(app);
-  fs.writeFileSync(path.join(app,'bundle.js'),'console.log("preview")');
-  fs.writeFileSync(path.join(app,'app.json'),'{}');
-  fs.writeFileSync(path.join(app,'bundle.js.map'),'{}');
-  const magic=process.platform==='win32'?Buffer.from([77,90,0,0]):process.platform==='darwin'?Buffer.from([207,250,237,254]):Buffer.from([127,69,76,70]);
-  const host=path.join(app,'nsh-app-sample_tool_nsh-tui-host'+(process.platform==='win32'?'.exe':''));
-  fs.writeFileSync(host,magic);
-  const archive=path.join(root,'sample_tool-tui-preview.'+(process.platform==='win32'?'zip':'tar.gz'));
-  fs.writeFileSync(archive,process.platform==='win32'?Buffer.from([80,75,3,4,...Array(18).fill(0)]):Buffer.from([31,139,0,0]));
-  assert.equal(validateNshArtifacts(root,'tui').length,5);
-  fs.rmSync(path.join(app,'bundle.js.map'));
-  assert.throws(()=>validateNshArtifacts(root,'tui'),/source map/u);
-  fs.writeFileSync(path.join(app,'bundle.js.map'),'{}');
-  fs.writeFileSync(host,'not an executable');
-  assert.throws(()=>validateNshArtifacts(root,'tui'),/host executable/u);
 }));
 
 test('output_and_artifact_links_cannot_escape_root',()=>fixture(root=>{

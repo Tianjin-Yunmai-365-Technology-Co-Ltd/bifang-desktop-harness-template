@@ -23,11 +23,7 @@
 | LIM-024 | `$desktop-upgrade-harness` 的命令示例曾依赖宿主特定解释器选择与 POSIX 续行符 | Skill 已统一为跨平台 `node` 单行命令，plan/apply/record 不再选择额外解释器或依赖 shell 续行 | 在 Windows 原生执行一次完整 plan/apply/record 闭环，补充真实宿主证据；不得因未运行而恢复宿主特定命令 | Mitigated；2026-09-23 Node 迁移完成后仍待 Windows 原生闭环 |
 | LIM-028 | Codex Task setup 缺少可用的 `clientThreadId` 对账或取消桥 | `create_thread` 可能只返回尚不能传给 thread 工具的 `clientThreadId`；当前可用工具不能用它查询、取消或直接取得最终 `threadId`，宿主 setup 若不晋升会留下 queued Task/Worktree | Harness 以一次派发、`SETUP_PENDING` 有界返回、禁止重复创建/代执行和用户明确要求后才用 `list_threads` 对账缓解；待 Codex 提供稳定查询/取消接口后增加有界恢复路径和真实卡死回归 | Mitigated |
 | LIM-029 | Windows 原生完整文件系统回归曾以平台名称预判两个夹具 | 换行文件名与符号链接 Node 回归先真实创建对象，只在宿主返回明确不支持或权限错误时按精确原因 skip；创建成功必须确认真实 symlink 并继续执行原断言，生产门禁语义未放宽 | 在标准非管理员 Windows 与具备符号链接权限的 Windows CI 各运行一次完整 Node 套件，保留能力差异证据 | Mitigated；2026-09-23 平台预判冲突已解决，Windows 原生复验 Not run |
-| LIM-030 | GPUI 开发循环取消回归曾遇到进程组探测 EPERM | 2026-10-10 首轮完整 Node 回归中，编译取消用例在 Cargo close 回调的 `process.kill(-pid, 0)` 抛出 EPERM；精确用例随后 4 次及完整回归重跑均通过，尚无法确认当时的进程组状态和底层原因 | 再次出现时记录 owned PID、进程组与宿主权限证据，区分关闭竞态和真实权限拒绝；不得把 EPERM 当作进程不存在或回收成功 | Retired；GPUI 路径已移除 |
 | LIM-031 | Tauri deb 原生与完整元数据证据待补 | 已实现 deb/checksum/inspection 整组目录提交、旧集合保留、1 MiB 流式 hash、dpkg 五分钟/16 MiB 预算及 CLI 中断清理；相关文件/真实 Node 进程回归通过。当前仍仅适用可信本机输出及默认 target 布局，payload 比较不证明 uid/gid、硬链接拓扑、xattr/ACL，macOS 上未执行真实 dpkg 链路 | 在 Linux 原生执行保留的实际解包/重打包/规范化闭环；扩展特殊 ownership、候选或不可信包处理前另补元数据与安全取证，不把当前集合提交视为安装/运行或断电持久性证明 | Mitigated；2026-11-06 工程缺陷已修复，Linux 原生复验 Not run |
-| LIM-032 | GPUI 最新兼容链仍含上游 block 0.1.6 的 future-incompatibility 警告 | 2026-10-29 在 Rust 1.98.1 检查 Kit 0.8.1 最小/全能力组合时编译通过，但 Cargo 提示该传递库未来编译器会拒绝部分代码；本轮不改写上游或强制不兼容传递版本 | 上游 GPUI/Apple 依赖链提供兼容修复后更新并使用满足兼容下限的 stable 重跑正常解析及原生编译；更高工具链实际失败时再按真实诊断处理 | Retired；GPUI 路径已移除 |
-| LIM-033 | GPUI Windows Job 原生回收证据待补 | 开发循环已改为 Windows 10+/Server 2016+ 匿名 Job 控制器，创建时原子归属、最后句柄关闭回收，leader 退出后保持所有权；协议/参数/超时回归与真实 POSIX 开发循环通过，但当前 macOS 不能证明 Win32 API、嵌套 Job 与宿主权限行为 | 在 Windows 原生执行已保留的后代脱离标准流、leader 先退出、重编译、控制 EOF、控制器退出及清理失败回归；不得以协议夹具或 POSIX 结果代证 | Retired；GPUI 路径已移除（旧实现的 Windows 原生场景未复核） |
-| LIM-034 | NSH TUI 暂不可用 | 正式 v0.4.0 无 TUI，先前固定 main 预览提交不作为当前支持工具链；初始化、接入、升级、构建和验收均须对 `tui` 失败关闭。历史预览代码保留不代表功能可用 | 待上游正式发布应用专属 TUI release runner/package 后，核对固定 tag、CLI/Cargo 同源、Mixed native module 和完整包，并在 macOS/Windows/Linux 目标终端分别执行运行与候选 E2E，才重新评估开放 | Open |
 
 ## 记录规则
 

@@ -1,19 +1,16 @@
 # NSH 运行时与能力
 
-提取来源：本机 `nsh-desktop` 的 NSH 0.4.0 TSX 应用和自定义桌面宿主，以及 Native Shell 官方 v0.4.0 文档。只提取工程知识，不迁移示例产品逻辑、网络地址、凭据、签名或历史验证结论。TUI 预览资料仅保留为历史背景，当前不作为支持能力。
+提取来源：本机 `nsh-desktop` 的 NSH 0.4.0 TSX 应用和自定义桌面宿主，以及 Native Shell 官方 v0.4.0 文档。只提取工程知识，不迁移示例产品逻辑、网络地址、凭据、签名或历史验证结论。
 
-官方来源：[v0.4.0 发布](https://github.com/longbridge/nsh/releases/tag/v0.4.0)、[Rust](https://nsh.dev/docs/rust)、[安装](https://nsh.dev/docs/installation)。正式版 CLI 应显示 `nsh 0.4.0 (e626a8d)`，全部 NSH Cargo Git 依赖固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3`。2026-11-07 对照确认正式版无 TUI 目标；此前固定 main 预览提交不进入当前生成或构建工具链。NSH 使用 Apache-2.0；本模板自行编写接线，不内嵌第三方源码。既有下游不自动升级。
+官方来源：[v0.4.0 发布](https://github.com/longbridge/nsh/releases/tag/v0.4.0)、[Rust](https://nsh.dev/docs/rust)、[安装](https://nsh.dev/docs/installation)。正式版 CLI 应显示 `nsh 0.4.0 (e626a8d)`，全部 NSH Cargo Git 依赖固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3`。NSH 使用 Apache-2.0；本模板自行编写接线，不内嵌第三方源码。既有下游不自动升级。
 
-TUI 暂不可用：初始化、add-only 接入、构建、升级和验收遇到 `tui` 时失败关闭。不得安装或选择 main 预览 CLI 来绕过门禁；已有预览工程必须在目标项目独立迁移、验证后再使用正式工具链。
-
-NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不是 React。新下游把 NSH 作为与 CLI、MCP、DESKTOP 平级的接口：Cargo `interfaces = ["nsh"]`，`nsh-targets` 只记录 desktop/mobile/web，`target-platforms` 记录具体系统。新实例化按能力派生完整平台集合：desktop 对应 Windows、macOS、Linux，mobile 对应 Android、iOS，web 对应 Web；已有下游 add-only 接入尊重受保护的既有平台。独立 `interfaces = ["tui"]` 仍拒绝。既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。`nsh` 是全局 CLI，Cargo 运行时依赖在项目本地。全部可用目标均采用 Mixed：TSX 根组件配合 Rust native module 导出，薄模块调用共享 core。`nsh-core`、`nsh-base` 及桌面宿主的 NSH crate 与 CLI/runtime 固定同一正式 Git revision：crates.io v0.4.0 的 iOS 包遗漏共享 speech 源文件；不得把源机器 Cargo 缓存绝对路径写入下游。
+NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不是 React。新下游把 NSH 作为与 CLI、MCP、DESKTOP 平级的接口：Cargo `interfaces = ["nsh"]`，`nsh-targets` 只记录 desktop/mobile/web，`target-platforms` 记录具体系统。新实例化按能力派生完整平台集合：desktop 对应 Windows、macOS、Linux，mobile 对应 Android、iOS，web 对应 Web；已有下游 add-only 接入尊重受保护的既有平台。既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 只读兼容。`nsh` 是全局 CLI，Cargo 运行时依赖在项目本地。全部可用目标均采用 Mixed：TSX 根组件配合 Rust native module 导出，薄模块调用共享 core。`nsh-core`、`nsh-base` 及桌面宿主的 NSH crate 与 CLI/runtime 固定同一正式 Git revision：crates.io v0.4.0 的 iOS 包遗漏共享 speech 源文件；不得把源机器 Cargo 缓存绝对路径写入下游。
 
 应用标识由 snake_case 每段加 `p` 前缀后点分隔，例如 `sample_tool` 为 `com.psample.ptool.app`；同时满足 Android/Apple 字符要求，数字分段合法且不因去掉下划线而碰撞。不得复用含连字符的桌面专用 bundle 标识。
 
 | 能力 | 当前模板 | 机制/边界 |
 |---|---|---|
 | desktop、mobile、web | 支持生成 | AppKit/Win32/GTK、UIKit/Android、HTML + WASM；各目标独立构建和验证 |
-| tui | 暂不可用 | 正式 v0.4.0 无该目标；历史 main 预览版不属于当前支持工具链，任何新选择或既有元数据均失败关闭 |
 | 语言 | 固定 | TSX `locale()` 初始化中文/英文，未知语言回退英文，用户选择优先；偏好经 NSH Storage 保存 |
 | 主题 | 固定 | TSX `setColorScheme("system"/"light"/"dark")`，中央 Token 统一语义色；mobile 状态栏使用 `auto` 前景和 `statusBar` capability 随应用外观更新 |
 | 设置、侧栏、关于、赞助 | 固定/桌面按选择 | TSX signal 管页面会话，NSH Storage 保存语言、主题与详细侧栏折叠；九项 profile 只在 desktop 子目标询问 |
@@ -29,12 +26,10 @@ NSH 是 Rust 原生渲染引擎；TSX 使用自己的 reactive/JS 模块，不�
 
 Mixed 的 `nsh.json` 设置 `rust: "."`，不设置 Rust UI `root`；`App.tsx` 是入口。mobile 同时设置 `statusBar: { foreground: "auto" }` 与 `capabilities.statusBar: true`，使应用内浅深色偏好切换后状态栏图标保持可见；仅配置 `auto` 而未授予 capability 不会生效。移动根布局固定竖向：顶部品牌标题用 `safeArea().top` 避开状态栏，滚动内容只消费横向安全区，独立的底部导航消费 `safeArea().bottom/left/right`，首页/设置按钮等宽且至少 48 点高；手机或平板宽度均不显示顶部菜单，Web 和桌面仍保留各自导航。桌面宿主调用 `set_ui_sets(vec![nsh_base::registry(), <member>::registry()])` 并以 `App::Js(bundle)` 装载 TSX。每个窗口仅注册清单声明的方法：固定 `window.list/setTitle/open/focus/showAll/close`、`app.quit`，按选择增加 `autostart.get/set` 和 `deepLink.takePending`；托盘和单实例仅由宿主处理。深链接先进入宿主待领取队列，再发送 `deepLink.available`；TSX 订阅后主动领取并串行处理，目标窗口关闭时将未领取项转给仍存活的窗口。macOS 单实例请求重试须使用同一请求标识去重。macOS 应用菜单为进程全局，由 `menuOwner` 与 `menu.owner` 事件转交所有权；Windows/Linux 菜单在各窗口中，应用菜单快捷键不构成 OS 全局快捷键。
 
-TUI 预览模式的终端细节属于历史研究资料，当前不生成其入口、不执行运行脚本，也不据此声明目标支持。
-
 桌面发布路径先 `nsh build` 生成 bundle，再分别编译自定义宿主并封装 `bundle.js`、`app.json`、`capabilities.json`、assets；官方 `nsh package` 不能替代这一步。移动/Web 继续用 NSH 官方宿主与官方包路径，但仍加载同一 Mixed TSX/native module。组合工程的移动/Web 必须经受管 build helper 的暂存 Mixed 入口，移除仅桌面有效的 `capabilities.host`；直接对原成员运行官方 `nsh package` 会携带桌面 host 声明。macOS 登录项要在真实 `.app` 中测试；Windows/Linux 深链接脚本需要当前用户执行并验证协议处理器，Linux 脚本先写同目录临时 desktop entry、再原子替换已有条目，避免跟随旧符号链接；解压包根须用 `sh register-deeplink-linux.sh` 调用，复制脚本本身不是注册成功。平台源码生成、编译、打包、真实运行和候选验收应分别记录，不因示例曾运行就推断本模板已验证。
 
 最低平台参考：macOS 14、Windows 10 1809、Linux GTK 4.14、Android API 28、iOS 15、现代浏览器。最低版本是官方声明，不代表已逐台验证。Web core 不得无条件使用 native-only fs、进程、线程 API；真实业务按目标条件装配驱动。
 
-命令：`nsh check`；`nsh test` 检查 Mixed TSX 和 Rust native module；desktop 开发脚本先 `nsh build` 再运行自定义宿主；只选择移动/Web 的工程可直接使用正式 0.4.0 CLI 的 `nsh run --target <目标>`。桌面构建走本项目 `$desktop-build-nsh-release`；移动/Web 包由同一 Skill 调用官方 `nsh package --target android|ios|ios-simulator|web --out <新目录>`，组合工程必须使用暂存入口隔离桌面 host 声明。TUI 暂不可用，`dev:tui`、`nsh:test:tui` 及 `--target tui` 均不得作为当前开发、打包或验收入口。测试与打包共享 NSH `.nsh/`，串行执行。macOS/Windows/Linux 原生包分别是 `.app`、目录+zip、目录+tar.gz；Android 是 APK，iOS 未签名设备 app/已签名 IPA、模拟器 app；Web 是完整静态目录。包结构验证不证明实际启动。Android debug 签名不能冒充商店签名，iOS 真机与渠道签名留待明确身份和授权。
+命令：`nsh check`；`nsh test` 检查 Mixed TSX 和 Rust native module；desktop 开发脚本先 `nsh build` 再运行自定义宿主；只选择移动/Web 的工程可直接使用正式 0.4.0 CLI 的 `nsh run --target <目标>`。桌面构建走本项目 `$desktop-build-nsh-release`；移动/Web 包由同一 Skill 调用官方 `nsh package --target android|ios|ios-simulator|web --out <新目录>`，组合工程必须使用暂存入口隔离桌面 host 声明。测试与打包共享 NSH `.nsh/`，串行执行。macOS/Windows/Linux 原生包分别是 `.app`、目录+zip、目录+tar.gz；Android 是 APK，iOS 未签名设备 app/已签名 IPA、模拟器 app；Web 是完整静态目录。包结构验证不证明实际启动。Android debug 签名不能冒充商店签名，iOS 真机与渠道签名留待明确身份和授权。
 
 iOS 0.4.0 打包兼容：展示名过滤出的 ASCII 可执行名若恰为 nsh，在 macOS 大小写不敏感目录上会撞到资源目录。独立构建 Skill 已处理临时内部命名、公开身份恢复和模拟器重新签名；移动打包应走该 Skill 的 local/candidate 入口。Web 官方输出位于以展示名命名的子目录，manifest.webRoot 指向实际站点入口，不假定 index.html 在最外层。

@@ -4,7 +4,7 @@
 
 ## 子目标与能力
 
-表单仅选择 desktop/mobile/web 并派生完整目标平台集合；全部使用正式 0.4.0 固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3` 与匹配 CLI。TUI 暂不可用，选择或保留 `tui` 时失败关闭。完整读取 [$desktop-add-nsh-adapter](../../desktop-add-nsh-adapter/SKILL.md) 及其 [运行时与能力](../../desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。各子目标均采用 Mixed TSX 界面、Rust native module 与共享 core 调用。仅 desktop 询问九项桌面 profile：多窗口固定支持；托盘、自启、单实例和深链接按选择接线，深链接要求单实例；系统通知与 OS 全局快捷键明确不可用。mobile/Web 不询问桌面 profile，也不生成自定义桌面宿主。
+表单仅选择 desktop/mobile/web 并派生完整目标平台集合；全部使用正式 0.4.0 固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3` 与匹配 CLI。完整读取 [$desktop-add-nsh-adapter](../../desktop-add-nsh-adapter/SKILL.md) 及其 [运行时与能力](../../desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。各子目标均采用 Mixed TSX 界面、Rust native module 与共享 core 调用。仅 desktop 询问九项桌面 profile：多窗口固定支持；托盘、自启、单实例和深链接按选择接线，深链接要求单实例；系统通知与 OS 全局快捷键明确不可用。mobile/Web 不询问桌面 profile，也不生成自定义桌面宿主。
 
 ## 工程与测试
 

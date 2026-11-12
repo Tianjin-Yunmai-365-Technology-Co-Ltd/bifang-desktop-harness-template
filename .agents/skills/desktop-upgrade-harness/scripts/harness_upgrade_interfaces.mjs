@@ -168,7 +168,6 @@ export function parseInterfaceSelection(source) {
     if (!raw?.startsWith("[") || !raw.endsWith("]")) throw new UpgradeError("Cargo nsh-targets 必须是非空字符串数组");
     const members = raw.slice(1, -1).trim().replace(/,\s*$/u, "");
     const nshTargets = members ? members.split(",").map((member) => stringValue(member.trim(), "nsh-targets")) : [];
-    if (nshTargets.includes("tui")) throw new UpgradeError("Cargo NSH TUI 暂不可用；请先迁移到正式 v0.4.0 工具链与受支持目标");
     if (!nshTargets.length || nshTargets.some((target) => !NSH_TARGETS.has(target)) || new Set(nshTargets).size !== nshTargets.length) {
       throw new UpgradeError("Cargo nsh-targets 包含未知或重复目标");
     }
@@ -189,16 +188,25 @@ export function readInterfaceSelection(root) {
   return { ...parseInterfaceSelection(source), manifestSnapshot: snapshotFile(file) };
 }
 
-/** 接口条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
-export function inapplicableGuiCandidate(relative, selection) {
-  // 旧候选即使带有历史所有权声明，也不能重新传播退役的桌面资产。
-  if (/^\.agents\/skills\/(?:desktop-add-tui-adapter|desktop-[^/]*-gpui-[^/]+|gpui-kit(?:-design-guides)?)(?:\/|$)/u.test(relative)
+/** 识别不能继续传播或登记为 Harness 所有的退役工程路径。 */
+export function isRetiredInterfaceAsset(relative) {
+  return /^\.agents\/skills\/(?:desktop-add-tui-adapter|desktop-[^/]*-gpui-[^/]+|gpui-kit(?:-design-guides)?)(?:\/|$)/u.test(relative)
       || [
         "docs/design_standards/gpui_gui.md",
         ".agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh",
         ".agents/skills/desktop-check-development-environment/scripts/linux_gpui_dependencies.test.mjs",
+        ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills",
+        ".agents/skills/desktop-initialize-rust-project/references/gpui-initialization.md",
+        ".agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.mjs",
+        ".agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.test.mjs",
         ".agents/skills/desktop-upgrade-harness/references/gpui-ownership.md",
-      ].includes(relative)) return true;
+        ".agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs",
+        ".agents/skills/desktop-add-nsh-adapter/scripts/nsh_tui_adapter.test.mjs",
+      ].some(asset => relative === asset || relative.startsWith(`${asset}/`));
+}
+
+/** 接口条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
+export function inapplicableGuiCandidate(relative, selection) {
   const nsh = selection.interfaces.includes("nsh") || selection.guiFramework === "nsh";
   const desktopGraphics = selection.interfaces.includes("gui") || nsh && (!selection.nshTargets || selection.nshTargets.includes("desktop"));
   const cli = selection.interfaces.includes("cli");

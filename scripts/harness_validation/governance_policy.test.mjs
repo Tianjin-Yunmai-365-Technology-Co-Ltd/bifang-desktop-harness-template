@@ -5,7 +5,6 @@ import path from "node:path";
 import test from "node:test";
 
 import { ROOT, readText } from "./core.mjs";
-import { NSH_TUI_PREVIEW_REVISION } from "../../.agents/skills/desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs";
 import {
   allocateProjectTaskSequences,
   isValidSessionProgressTitle,
@@ -144,8 +143,7 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
   const manifestPath = path.join(directory, "Cargo.toml");
   try {
     const check = (interfaces, action, platforms = ["macos"], framework = null, nshTargets = null) => {
-      const previewDependencies = nshTargets?.includes("tui") ? `[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${NSH_TUI_PREVIEW_REVISION}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${NSH_TUI_PREVIEW_REVISION}" }\n` : "";
-      fs.writeFileSync(manifestPath, `${previewDependencies}[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n${framework === null ? "" : `gui-framework = ${JSON.stringify(framework)}\n`}${nshTargets === null ? "" : `nsh-targets = ${JSON.stringify(nshTargets)}\n`}`);
+      fs.writeFileSync(manifestPath, `[workspace.metadata.agent-first-harness]\ninterfaces = ${JSON.stringify(interfaces)}\ntarget-platforms = ${JSON.stringify(platforms)}\n${framework === null ? "" : `gui-framework = ${JSON.stringify(framework)}\n`}${nshTargets === null ? "" : `nsh-targets = ${JSON.stringify(nshTargets)}\n`}`);
       fs.writeFileSync(policyPath, source
         .replace(/^confirmed_by:.*$/mu, "confirmed_by: user form confirmation")
         .replace(/^confirmed_at:.*$/mu, "confirmed_at: 2026-09-28")
@@ -160,7 +158,7 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
       assert.deepEqual(check(interfaces, "push_release_branch"), []);
     }
     assert.deepEqual(check(["nsh"], "local_package", ["macos", "android", "web"], null, ["desktop", "mobile", "web"]), []);
-    assert.ok(check(["nsh"], "local_package", ["macos"], null, ["tui"]).some(error => error.includes("TUI 暂不可用")));
+    assert.ok(check(["nsh"], "local_package", ["macos"], null, ["tui"]).some(error => error.includes("未知或重复目标")));
     assert.ok(check(["nsh"], "local_package", ["macos", "web"], null, ["desktop"]).some(error => error.includes("目标类别")));
     for (const interfaces of [["cli"], ["gui"], ["gui", "mcp"]]) {
       assert.deepEqual(check(interfaces, "local_package"), []);

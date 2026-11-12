@@ -217,7 +217,7 @@ GUI 的本地生产构建和产物存在检查可在批准渠道允许时使用�
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立分派 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。新顶层 NSH 桌面先用 `nsh build --release` 生成 Mixed TSX bundle，再编译与装配自定义 AppKit、Win32 或 GTK 宿主；九字段桌面 profile 精确决定托盘、自启、单实例、深链接，原生多窗口固定提供，通知与 OS 全局快捷键必须禁用。macOS app 的 URL scheme 随包声明；Windows/Linux 仅在深链接启用时附带注册脚本，用户安装或注册的真实行为仍须验证。Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录继续用正式 NSH 0.4.0 Mixed runner 打包；TUI 暂不可用，`--target tui` 无论 local 或 candidate 均失败关闭。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS。`local_package` 只可用于已实现的 desktop/mobile/web 持久目标。本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立分派 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。新顶层 NSH 桌面先用 `nsh build --release` 生成 Mixed TSX bundle，再编译与装配自定义 AppKit、Win32 或 GTK 宿主；九字段桌面 profile 精确决定托盘、自启、单实例、深链接，原生多窗口固定提供，通知与 OS 全局快捷键必须禁用。macOS app 的 URL scheme 随包声明；Windows/Linux 仅在深链接启用时附带注册脚本，用户安装或注册的真实行为仍须验证。Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录继续用正式 NSH 0.4.0 Mixed runner 打包。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS。`local_package` 只可用于已实现的 desktop/mobile/web 持久目标。本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 
