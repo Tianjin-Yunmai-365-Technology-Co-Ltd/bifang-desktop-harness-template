@@ -6,13 +6,7 @@ NSH 专用路由：新下游顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` �
 
 | 任务 | 入口与事实 | 完成边界 |
 | --- | --- | --- |
-| GPUI 依赖清单、版本或 features | [$desktop-manage-gpui-dependencies](../.agents/skills/desktop-manage-gpui-dependencies/SKILL.md)；其中依赖矩阵记录中性声明下界和已有采用参考 | 分清声明/resolved/vendor，实际升级才改清单与回归 |
-| 明确采用 GPUI Kit 0.9.0 | [0.9.0 迁移参考](../.agents/skills/desktop-manage-gpui-dependencies/references/gpui-090-migration.md) | 复核平台、API 与补丁链；知识参考不表示 renderer 已迁移 |
-| GPUI 后端兼容、字体/AX/窗口/托盘问题 | [兼容补丁合同](../.agents/skills/desktop-manage-gpui-dependencies/references/compatibility.md) | 原样来源 + 严格生成 + 按后端证据，不默认复制补丁 |
-| 已有 core 增加 GPUI GUI、原生接线 | [$desktop-add-gpui-adapter](../.agents/skills/desktop-add-gpui-adapter/SKILL.md) | 按 profile 装配，禁用能力无残留；不复制业务权威状态 |
-| GPUI 异步/队列/重绘/缓存/图片性能 | [$desktop-optimize-gpui-performance](../.agents/skills/desktop-optimize-gpui-performance/SKILL.md) | 定场景、测成本、最小修改、行为回归、同条件复测 |
-| GPUI 本地试包与发布候选 | [$desktop-build-gpui-release](../.agents/skills/desktop-build-gpui-release/SKILL.md) | 公共生命周期 + 按平台引用，产物与运行验收分开 |
-| Tauri 依赖、插件与既有 core 增加 GUI | [$desktop-add-gui-adapter](../.agents/skills/desktop-add-gui-adapter/SKILL.md)、[$desktop-manage-dependencies](../.agents/skills/desktop-manage-dependencies/SKILL.md) | 按已批准范围接线与验证，不加载 GPUI 实现规则 |
+| Tauri 依赖、插件与既有 core 增加 GUI | [$desktop-add-gui-adapter](../.agents/skills/desktop-add-gui-adapter/SKILL.md)、[$desktop-manage-dependencies](../.agents/skills/desktop-manage-dependencies/SKILL.md) | 按已批准范围接线与验证 |
 | Tauri 本地试包与发布候选 | [$desktop-build-tauri-local-install](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[$desktop-build-tauri-release](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 按平台与候选身份分派，具体路线见下表 |
 | NSH 共享 core、Mixed 薄适配器与运行时能力 | [$desktop-add-nsh-adapter](../.agents/skills/desktop-add-nsh-adapter/SKILL.md)、[运行时边界](../.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md) | desktop/mobile/Web 均为 TSX UI + Rust native module 调用共享 core；桌面固定自定义多窗口宿主，四项能力按选择接线，两项仍不可用 |
 | NSH 桌面、移动与 Web 打包 | [$desktop-build-nsh-release](../.agents/skills/desktop-build-nsh-release/SKILL.md) | 目标逐项打包与取证；本机无法构建的目标保留 `Unverified` |
@@ -23,12 +17,12 @@ NSH 专用路由：新下游顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` �
 
 下表记录现有工程路径，不能据此宣称目标平台已经运行通过。CLI/MCP 的共享核心、接口边界和工具链见 [Rust 基线](RUST_CLI_TEMPLATE.md)，CLI 候选默认只构建当前宿主；跨平台矩阵按 [构建 Skill](../.agents/skills/desktop-build-rust-release/SKILL.md) 的明确请求与远端来源门禁执行。NSH 单独按目标打包，不使用该 CLI 矩阵。
 
-| 平台 | Tauri | GPUI | NSH | 验证边界 |
-| --- | --- | --- | --- | --- |
-| macOS | [原生 DMG、签名与公证](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [app.zip/DMG](../.agents/skills/desktop-build-gpui-release/references/macos-packaging.md) | 原生 `.app` 归档 | 打包、签名、公证与真实窗口/安装行为分别取证 |
-| Windows | [原生 x64 NSIS 试包](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[正式候选及 macOS xwin](../.agents/skills/desktop-build-tauri-release/SKILL.md) | [原生 x64 NSIS](../.agents/skills/desktop-build-gpui-release/references/windows-packaging.md) | 原生 ZIP | xwin 不证明 Windows 安装/运行；UAC、通知和登录项按真实宿主验证 |
-| Linux | [同架构 deb/AppImage 本地试包](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md)、[运行时](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | [GNU x64/ARM64 deb/tar.gz](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md)、[原生能力边界](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | 原生 tar.gz | Tauri 本地试包不升级为正式候选；GPUI 同系统交叉架构的运行证据须来自目标架构宿主 |
-| Android / iOS / Web | 不适用 | 不适用 | Android 开发签名 APK、iOS 本地 `.app`、Web 静态目录 | 渠道签名与目标设备/浏览器运行分别取证；本地 `.app` 不等于 IPA |
+| 平台 | Tauri | NSH | 验证边界 |
+| --- | --- | --- | --- |
+| macOS | [原生 DMG、签名与公证](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 原生 `.app` 归档 | 打包、签名、公证与真实窗口/安装行为分别取证 |
+| Windows | [原生 x64 NSIS 试包](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[正式候选及 macOS xwin](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 原生 ZIP | xwin 不证明 Windows 安装/运行；UAC、通知和登录项按真实宿主验证 |
+| Linux | [同架构 deb/AppImage 本地试包](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md)、[运行时](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | 原生 tar.gz | Tauri 本地试包不升级为正式候选 |
+| Android / iOS / Web | 不适用 | Android 开发签名 APK、iOS 本地 `.app`、Web 静态目录 | 渠道签名与目标设备/浏览器运行分别取证；本地 `.app` 不等于 IPA |
 
 未执行的原生构建、托管矩阵、签名和目标桌面验收仍为 `Unverified`，既有证据缺口见 [技术债](TECH_DEBT.md)。
 
@@ -38,27 +32,12 @@ Linux 知识按既有 Skill 职责维护；只读取当前问题对应的引用�
 
 | 问题 | 知识入口 | 判断边界 |
 | --- | --- | --- |
-| GNU x64/ARM64 系统依赖、root 接续、旧进程 PATH | [环境恢复](../.agents/skills/desktop-check-development-environment/references/development-environment-gates.md#linux-gpui-专项恢复) | 系统安装、原用户 Rust target 复探与真实链接探针分开判断 |
-| X11/XWayland 窗口、托盘恢复、任务栏/Dock、通知及 Portal 热键 | [Linux 原生宿主方案](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md) | EWMH 请求与真实桌面效果分开；中性 renderer 仍拒绝 Linux 托盘/后台热键生成 |
-| 登录项读回、旧项迁移、隐藏启动与显窗恢复 | [Linux 登录项与隐藏启动](../.agents/skills/desktop-add-gpui-adapter/references/linux-native.md#登录项与隐藏启动)、[$desktop-add-gpui-autostart](../.agents/skills/desktop-add-gpui-autostart/SKILL.md) | 读取跟随真实写入驱动；扩展须独立接线，不因模板生成或旧候选通过宣称已验证 |
-| D-Bus、X11 与 Portal 的依赖选择 | [依赖矩阵](../.agents/skills/desktop-manage-gpui-dependencies/references/dependency-matrix.md) | 按真实消费者裁剪 features，声明依赖不等于服务接线 |
-| 静态首帧、共享设置缓存吞掉首次发布 | [资源与缓存](../.agents/skills/desktop-optimize-gpui-performance/references/resources-and-caches.md)、[运行时与需求](../.agents/skills/desktop-optimize-gpui-performance/references/runtime-and-demand.md) | 正式帧请求和消费者初始化分别回归，不把正确性修复写成性能测量 |
-| deb/tar.gz、交叉链接、权限、图标及 glibc | [Linux 打包合同](../.agents/skills/desktop-build-gpui-release/references/linux-packaging.md) | 宿主测试、最终包校验与目标运行验收分别记录 |
-| GPUI deb 的应用中心发现、AppStream、图标、升级和卸载 | [应用目录与桌面安装集成](../.agents/skills/desktop-build-gpui-release/references/linux-desktop-integration.md) | 当前 helper 尚未生成 catalog；包内身份、解析/规范校验、包管理事务和实机呈现分别判断 |
 | Tauri deb/AppImage、托盘运行库、非 ASCII 产品名派生的非法 Debian 包名 | [Tauri Linux 本地试包与宿主要点](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md) | 只规范安装标识并核对 payload 不变；本地试包不构成 Linux 候选证据 |
 | Tauri 用户/XDG 目录、卷边界、发现测试与取消 | [Linux 运行时与测试边界](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | 枚举省略不等于递归排除；策略与宿主 I/O 分开回归 |
 | Tauri 托盘恢复、自启、WebView origin 与应用 command ACL | [Linux 桌面生命周期](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md#托盘窗口与登录启动)、[WebView 与权限](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md#webview-与-command-权限) | 菜单恢复不依赖 Linux 图标事件；ACL 与 origin 按项目实际配置判断 |
 
 下游历史候选只证明其精确源码、最终字节、架构、桌面会话和场景；其它版本或平台不继承通过状态。产品能力矩阵及原始验收记录留在下游，Harness 只沉淀中性机制与取证要求。新增引用沿各框架对应的条件 Skill 传播，不把产品知识库、身份、业务参数或来源锁反向复制进模板。
 
-## GPUI 方案选择
-
-原生 GPUI/Kit 负责视图与图标，rust-i18n/sys-locale 负责语言，端侧日志使用有界后台 sink。宿主依赖按 target/profile 裁剪。业务确需才加 Tokio、图片解码、数据库或网络；Tokio 服务拥有 runtime，GPUI loop 仍在同步主线程。renderer 未接线的 Linux 能力保持限制，产品可以通过独立实现扩展，不能反向宣称模板已支持。
-
-性能优化优先减少无消费者的工作、合并最新意图、限制并发/驻留和完善失效。CPU像素、GPU纹理、Scene及任务分别拥有寿命；API/微基准、整应用短窗、长期及跨平台结论分层，不以固定产品阈值替代测量。
-
-macOS 使用 app.zip/DMG，Windows x64 使用 NSIS；两者核对全局 cargo-packager 0.11.8。Linux GNU x64/ARM64 使用系统 tar/dpkg-deb/readelf，可同系统交叉架构。独立 CLI 全局安装，产品 Rust/Node 依赖仍按项目清单；本索引不授权安装。local 不发布，candidate 只消费已发布源码与当次选择；签名、解包、运行各自取证。
-
 ## Skills 维护与传播
 
-adapter 只负责装配，依赖 Skill 管版本/补丁，性能 Skill 管定位/测量，build Skill 管产物。平台是 build 的按需 reference，不另建重复生命周期的 Skill。新增两个 GPUI Skill 仅向 Cargo 已选 gpui 的下游传播；Tauri 与非 GUI 不接收。共享规则通过索引引用，产品参数和历史性能证据留在产品文档。回流 Harness 定点合并中性工程，不覆盖产品源码/身份/策略或其他新工具，也不伪造完整升级来源锁。
+adapter 只负责装配，依赖 Skill 管版本/补丁，性能 Skill 管定位/测量，build Skill 管产物。平台是 build 的按需 reference，不另建重复生命周期的 Skill。只按下游实际接口传播适用的工程能力。共享规则通过索引引用，产品参数和历史性能证据留在产品文档。回流 Harness 定点合并中性工程，不覆盖产品源码/身份/策略或其他新工具，也不伪造完整升级来源锁。

@@ -2,7 +2,7 @@
 
 `standard_id = data-grid-v1`
 
-匹配所有图形 GUI 中按行列浏览重复记录的数据网格，先遵守 [UI 基座](ui_foundation.md)；NSH TUI 暂不可用。本标准定义跨框架可观察行为；Tauri/Mantine 继续叠加 [列表页标准](mantine_list_view.md) 与 `$mantine-list-view`，GPUI 使用原生组件和原生可访问性机制，不引入 Web 依赖。它不要求无列表的中性 GUI 预建网格、数据源或业务动作。
+匹配所有图形 GUI 中按行列浏览重复记录的数据网格，先遵守 [UI 基座](ui_foundation.md)；NSH TUI 暂不可用。本标准定义跨框架可观察行为；Tauri/Mantine 继续叠加 [列表页标准](mantine_list_view.md) 与 `$mantine-list-view`。它不要求无列表的中性 GUI 预建网格、数据源或业务动作。
 
 ## 密度、排版与回流
 
@@ -18,7 +18,7 @@
 - 支持真实数据源允许的搜索、筛选、排序、分页和每页数量切换；不为尚无能力的字段展示假入口。查询草稿与已应用条件分开，明确显示已应用摘要、重置入口、排序字段/方向、总数与当前 X–Y 范围。
 - 相同排序值维持稳定次序，以稳定业务 ID 作最终 tie-breaker；默认排序也确定。搜索、筛选、排序、每页数量改变时与 page=1 原子提交；规范化后条件未变时不触发新导航或请求。
 - 只在可信成功响应后纠正越界；零数据规范为第 1 页，不显示不存在的范围。loading/error/旧页 placeholder 不能驱动纠页。
-- Tauri/Mantine 的 offset 分页、固定页大小、URL/session 与 Query 所有权以专项标准为准；不新增并行状态源。GPUI 由原生页面状态与实际数据源接线，不复制浏览器存储合同。
+- Tauri/Mantine 的 offset 分页、固定页大小、URL/session 与 Query 所有权以专项标准为准；不新增并行状态源。NSH 由原生页面状态与实际数据源接线，不复制浏览器存储合同。
 
 ## 单选、多选与范围
 

@@ -5,8 +5,7 @@ export const QUESTIONS = [
   { id: "project_id", number: 3, title: "项目标识是什么？", help: "ASCII snake_case，匹配 ^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$；建议值仍需你确认。" },
   { id: "project_path", number: 4, title: "项目放在哪里？", help: "提供最终项目根目录或父目录；相对路径以 Harness 根目录为基准。" },
   { id: "owner", number: 5, title: "项目负责人或责任主体是谁？" },
-  { id: "interfaces", number: 6, title: "需要哪些程序类型？可多选。", inputMode: "multiple", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "CLI、MCP 可互相组合，也可与 DESKTOP 组合；DESKTOP 与 NSH 互斥，NSH 只能单选。明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；NSH 另问能力并派生对应平台。" },
-  { id: "gui_framework", title: "要创建哪种桌面应用？", options: ["1. Tauri（默认）：使用Web技术开发桌面客户端", "2. GPUI：高性能原生客户端"], values: ["tauri", "gpui"], defaultValue: "tauri" },
+  { id: "interfaces", number: 6, title: "需要哪些程序类型？可多选。", inputMode: "multiple", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP，Tauri)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "CLI、MCP 可互相组合，也可与 DESKTOP 组合；DESKTOP 与 NSH 互斥，NSH 只能单选。明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；NSH 另问能力并派生对应平台。" },
   { id: "nsh_targets", title: "NSH 要支持哪些能力？可多选。", inputMode: "multiple", options: ["桌面", "移动", "Web"], values: ["desktop", "mobile", "web"], help: "选择桌面即支持 Windows、macOS、Linux 全部系统；选择移动即支持 Android、iOS；选择 Web 即支持 Web。目标平台由本题自动确定并在最终汇总中确认。当前只使用正式发布的 NSH v0.4.0 工具链；TUI 暂不可用。" },
   { id: "system_tray", title: "是否安装系统托盘能力？", help: "中性菜单只含显示窗口/退出；启用后按框架合同处理关闭隐藏与恢复。" },
   { id: "system_notification", title: "是否安装系统通知能力？", help: "设置页提供默认关闭的开关；选择能力不授权发送通知或更改本机权限。" },
@@ -55,9 +54,6 @@ export function summaryNotices(values) {
   if (values.gui_framework === "tauri") {
     notices.push("Tauri 使用 desktop-add-gui-adapter 与 desktop-test-gui-initialization-e2e；system-locale/window-state/dialog 是三项固定基线，主窗口精确 dialog:default 不授权通用文件读写。发布候选打包使用 desktop-build-tauri-release。");
     if (values.deep_link === "enabled") notices.push(`深链接只恢复主窗口：app-${values.project_id.replaceAll("_", "-")}://restore；单实例已启用。`);
-  } else if (values.gui_framework === "gpui") {
-    notices.push("GPUI 使用 Rust/gpui-kit、desktop-add-gpui-adapter 与 desktop-test-gpui-initialization-e2e，不接入 Tauri 专属基线；深链接 unavailable/disabled，目标含 Linux 时托盘与全局快捷键同样不可用。",
-      "GPUI 本地候选由 desktop-build-gpui-release 构建 macOS app/DMG、Windows NSIS 或 Linux GNU x64/ARM64 deb/tar.gz；当前声明不代表跨平台结果已验证。");
   } else if (nsh) {
     notices.push("NSH 目标平台仅由所选能力自动确定：桌面对应 Windows、macOS、Linux 全部系统，移动对应 Android、iOS，Web 对应 Web；请核对本汇总中的具体平台。TUI 暂不可用，所有已选能力使用正式 v0.4.0 工具链。");
     notices.push(`NSH 是独立程序类型；已选能力：${values.nsh_targets.join('、')}。TSX 界面通过 Mixed 原生模块调用共享 Rust core；初始化使用 desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e。`,

@@ -1,8 +1,8 @@
 # 开发环境门禁
 
-常规门禁只在中性初始化主动门禁，或初始化后真实测试/构建命令已经因受管环境问题失败时使用。下文 Linux GPUI 专项恢复另接受用户明确要求该工具链的安装/配置。它独立于初始化流程，并且在仅用于初始化的 Skills 和文档被删除后继续保留；显式构建、缺少环境证据、新任务或新会话本身都不得触发它。
+常规门禁只在中性初始化主动门禁，或初始化后真实测试/构建命令已经因受管环境问题失败时使用。它独立于初始化流程，并且在仅用于初始化的 Skills 和文档被删除后继续保留；显式构建、缺少环境证据、新任务或新会话本身都不得触发它。
 
-GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri 使用默认参数，GPUI 使用 `--gui-framework gpui`（Windows：`-GuiFramework gpui`）。参数闭集为 `tauri|gpui`，未知值在工具探测前失败。Tauri 与 GPUI 都要求 Node.js/npm 及 pnpm，分别遵守 Node.js 稳定版 `>=24.0.0`、pnpm 稳定版 `>=12.4.1`，供发布、验证等 Node 工程脚本使用。GPUI 不探测或安装 Tauri 的 WebKit/WebView 依赖，不进入 Tauri xwin 路线；具体原生平台库由 `$desktop-add-gpui-adapter` 的实际编译需求决定。
+DESKTOP 默认使用 Tauri 参数。旧 GUI/NSH 仅保留读取兼容；未知框架值在工具探测前失败。Node.js 稳定版须 `>=24.0.0`，DESKTOP 的 pnpm 稳定版须 `>=12.4.1`。
 
 ## 触发与恢复闭环
 
@@ -50,24 +50,9 @@ GUI 调用方必须从已确认表单或 Cargo `gui-framework` 分派：Tauri �
 
 ## Linux Tauri 系统库人工接续
 
-通用 POSIX helper 不检查或安装 WebKitGTK/GTK；Linux GPUI 专项安装器也不负责 Tauri 系统库。真实 Tauri 测试或构建已经失败，且脱敏诊断证实缺少这些开发库时，保留原命令、退出状态和缺项，按当前发行版提供 [Tauri 官方前置条件](https://v2.tauri.app/start/prerequisites/#linux) 的安装指引并保持阻断（核对：2026-10-20）。不运行无关工具门禁、不临时拼装系统安装器、不静默提权。
+通用 POSIX helper 不检查或安装 WebKitGTK/GTK。真实 Tauri 测试或构建已经失败，且脱敏诊断证实缺少这些开发库时，保留原命令、退出状态和缺项，按当前发行版提供 [Tauri 官方前置条件](https://v2.tauri.app/start/prerequisites/#linux) 的安装指引并保持阻断（核对：2026-10-20）。不运行无关工具门禁、不临时拼装系统安装器、不静默提权。
 
 用户自行完成安装并告知继续后，只读复探原缺失的 pkg-config 库，如 `webkit2gtk-4.1`、`gtk+-3.0`；确认恢复后仅重试原失败命令一次。探测或重试仍失败时保留原始与新诊断并停止，不以用户转述或通用 Git/Rust/Node 门禁通过代替系统库证据。该人工接续不扩大常规 helper 的自动安装集合，也不授权构建以外的系统或运行操作。
-
-## Linux GPUI 专项恢复
-
-GNU x64/ARM64 的目标系统依赖使用 [linux-gpui-dependencies.sh](../scripts/linux-gpui-dependencies.sh)，不进入 Tauri WebKit 或 xwin 路线。只在用户明确要求该工具链，或真实测试/构建失败已证实相关缺失时调用；默认 `--check-only`，`--install` 才通过既有 apt/dpkg 安装。仅支持既有 Debian/Ubuntu 路线，不安装新包管理器，也不因选择 Linux 目标例行执行。
-
-~~~sh
-bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --check-only --target aarch64-unknown-linux-gnu
-bash .agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh --install --target x86_64-unknown-linux-gnu
-~~~
-
-普通用户运行时只让 apt 步骤通过正常 sudo 交互提权，Rust target 在原用户账户准备并复探。整个入口已为 root 时只做系统依赖阶段，不运行 root 的 Rust 工具、不猜测原用户 HOME；`linux.status=pending-original-user` 和退出码 `20` 要求回原用户执行输出的 `rustup target add <target>`，随后重新 `--check-only`。这不是工具链已通过。宿主若已有 pkexec，可由正常 Polkit 认证接续管理员阶段；脚本不会自行调用或安装 pkexec，不注入密码或修改 sudo 策略。
-
-脚本检查成功与打包 `setup` 的真实目标 C++ 编译链接、ELF 核对是两阶段证据；setup 不执行目标程序，也不安装系统依赖。GNU 前缀、开发库、交叉 pkg-config 隔离与链接器合同取 [Linux 打包引用](../../desktop-build-gpui-release/references/linux-packaging.md)。协议测试的 dbus-daemon 仅用于 owned 私有地址，实际桌面可使用 dbus-broker，不要求替换用户 session bus。
-
-工具已安装而旧 Agent 仍报 `command not found` 时，先核对受影响命令的新登录 shell 解析或门禁返回路径，不重复安装。若出现 Snap curl 私有临时目录导致的 `curl: (23)` 写入失败，核对后可使用已安装的原生 `/usr/bin/curl`，或为本次恢复将标准 TMPDIR 指向用户已有可访问目录；这是条件排障，不是 helper 自动选择行为。保持下载 TLS/摘要校验与原 HOME，不能用测试覆盖绕过安装安全措施。
 
 ## Windows 自动安装受阻后的人工接续
 

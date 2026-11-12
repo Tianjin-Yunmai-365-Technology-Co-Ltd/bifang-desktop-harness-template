@@ -23,9 +23,9 @@ description: 通过 Computer Use 对完整真实 CLI、MCP 宿主或 GUI 候选�
 
 - CLI：真实二进制调用、输出流、退出状态、取消和关闭。
 - MCP：批准真实宿主的发现、调用、错误、取消和干净断开。
-- GUI：启动、完整用户闭环、无障碍状态、错误、持久化和干净退出。GPUI 按 `$desktop-build-gpui-release` 定位最终原生包，不使用 Tauri URL/命令；检查详细菜单左对齐、顶部折叠按钮、独立赞助内容区，以及本地日志实际写入和退出刷新。
+- GUI：启动、完整用户闭环、无障碍状态、错误、持久化和干净退出。
 - GUI 系统通知：仅当 `system_notification = enabled` 且当前候选运行在 macOS 时，先验证当前 `.app` 已按 manifest 的 enabled 路线完成签名；`disabled/not-requested` 或实际 unsigned 必须在读取权限前失败，不能以 E2E `disabled` 或 `Unverified` 绕过，也不能由本 Skill 补签。随后读取当前系统授权状态并选择不破坏用户决定的隔离场景。已授权时确认开关成功且持久化；明确拒绝/受限时点击开启必须打开固定 Notifications 系统设置、应用偏好保持关闭并显示稳定恢复信息；设置窗口无法打开时错误可见。`NotDetermined` 只有在用户明确允许本次权限提示时才触发请求并复读，否则记为 `Unverified`，不得为了测试重置或伪造系统授权。其他平台按其官方权限界面验证。
-- GUI 更新日志：先从最终候选自身只读定位并校验 `release-notes.json`；`about_page = enabled` 时在真实应用打开关于页（Tauri `/about`；GPUI 原生导航），点击“更新日志”自身按钮，确认加载来自候选资源、按最新在前最多十版、每版固定“功能优化/问题修复”各最多十条、当前版本与全部版本仅一个小写 `v`，并验证关闭后重开仍显示同一候选事实。资源缺失/损坏的受控失败候选只在已有隔离夹具且无需破坏最终候选时验证本地错误与重试；不得改写正式候选制造失败。`about_page = disabled` 时确认关于路由、入口、命令和弹窗均缺席。
+- GUI 更新日志：先从最终候选自身只读定位并校验 `release-notes.json`；`about_page = enabled` 时在真实应用打开关于页（`/about`），点击“更新日志”自身按钮，确认加载来自候选资源、按最新在前最多十版、每版固定“功能优化/问题修复”各最多十条、当前版本与全部版本仅一个小写 `v`，并验证关闭后重开仍显示同一候选事实。资源缺失/损坏的受控失败候选只在已有隔离夹具且无需破坏最终候选时验证本地错误与重试；不得改写正式候选制造失败。`about_page = disabled` 时确认关于路由、入口、命令和弹窗均缺席。
 
 ## 完成输出
 
@@ -33,7 +33,7 @@ description: 通过 Computer Use 对完整真实 CLI、MCP 宿主或 GUI 候选�
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选 desktop 原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录，全部使用正式 0.4.0 固定 revision 与匹配 CLI。TUI 暂不可用，含 `tui` 的元数据、构建或候选请求失败关闭；历史预览程序或归档不能进入正式候选验收。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选 desktop 原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录，全部使用正式 0.4.0 固定 revision 与匹配 CLI。TUI 暂不可用，含 `tui` 的元数据、构建或候选请求失败关闭；历史预览程序或归档不能进入正式候选验收。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS。本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 

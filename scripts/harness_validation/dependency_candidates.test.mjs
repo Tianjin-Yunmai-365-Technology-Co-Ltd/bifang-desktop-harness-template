@@ -19,7 +19,7 @@ function mutatedSnapshot(change, verify) {
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
 
-test("registered_candidates_match_cli_gpui_and_frontend_sources", () => {
+test("registered_candidates_match_cli_and_frontend_sources", () => {
   const errors = [];
   validateDependencyCandidates(errors);
   assert.deepEqual(errors, []);
@@ -36,14 +36,6 @@ test("candidate_gate_rejects_node_exclusions_and_excessive_rust_msrv", () => mut
 }, errors => {
   assert.match(errors.join("\n"), /excludes a supported Node release: vitest/u);
   assert.match(errors.join("\n"), /exceeds project MSRV: tokio/u);
-}));
-
-test("candidate_gate_rejects_stale_gpui_renderer_and_wrong_accesskit_family", () => mutatedSnapshot(value => {
-  value.crates["gpui-kit"].version = "0.7.1";
-  value.crates.accesskit_macos.version = "0.27.2";
-}, errors => {
-  assert.match(errors.join("\n"), /GPUI template dependency candidate drift: gpui-kit/u);
-  assert.match(errors.join("\n"), /compatible accesskit_macos/u);
 }));
 
 test("candidate_gate_rejects_unregistered_frontend_versions_and_nonofficial_sources", () => mutatedSnapshot(value => {

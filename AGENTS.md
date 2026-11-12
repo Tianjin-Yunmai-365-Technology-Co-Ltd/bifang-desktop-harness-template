@@ -6,7 +6,7 @@ NSH 是平级的“下一代全平台开发框架”。Cargo `interfaces = ["nsh
 
 本仓库是 Agent-first 小工具的无代码 Harness 模板。它只维护跨项目复用的规则、Skills、中性资产与交付工程，不实现任何具体产品；下游可选择 CLI、MCP、DESKTOP（Cargo `gui`）或 NSH，明确选择默认接口或跳过时使用 CLI。
 
-DESKTOP 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省）走现有 Tauri/React/Mantine Skills，`gpui` 走 `$desktop-add-gpui-adapter` 与 `docs/design_standards/gpui_gui.md`。没有该字段的既有 DESKTOP 按 Tauri 兼容；新 NSH 不写该字段。GPUI 不加载 Tauri 插件、前端、Mantine 列表、打包或初始化 E2E 专属规则。
+DESKTOP（Cargo `gui`）固定使用 Tauri 2、React 和 Mantine。新项目直接派生 `gui-framework = "tauri"`，既有 GUI 缺省时也按 Tauri 读取；新 NSH 不写该字段。
 
 ## 启动门禁
 
@@ -29,17 +29,16 @@ DESKTOP 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省�
 | 新功能、Bug 修复、推送或发布的 Git 生命周期 | `docs/AGENT_POLICY.md` 的“开发分支与主分支发布生命周期”；发布时再读 `docs/RELEASE.md` | `$desktop-manage-git-lifecycle`；日常实现仍走 `$desktop-implement-change` |
 | 切换未来发布后动作 | `docs/AGENT_POLICY.md` 的“初始化与持久化”和发布后动作字段；已有发布事实只读 | `$desktop-switch-post-release-action` |
 | 依赖变更、core 边界专项审查或更新日志预览 | 精确命中的 Rust/工程/发布事实 | `$desktop-manage-dependencies`、`$desktop-review-core-boundaries` 或只读 `$desktop-inspect-release-notes` |
-| GPUI 自启 | 已批准产品能力、框架与受保护 profile | `$desktop-add-gpui-autostart`，初始化验收用 `$desktop-test-gpui-initialization-e2e` |
 | 文件读写或外部程序能力 | 已批准范围、相关 Rust/接口事实 | `$desktop-add-file-operations` 或 `$desktop-add-external-process`，返回同一实施流程 |
 | 永久 Agent 能力偏好变更 | Agent Policy 字段语义与初始化后变更规则 | `$desktop-configure-agent-policy`；发布后动作仍用专用 Skill |
 | CLI 或 Rust core/adapter | `docs/CLI_CONTRACT.md`（仅 CLI）、`docs/RUST_CLI_TEMPLATE.md` | 对应 adapter Skill；实现仍走 `$desktop-implement-change` |
-| GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md`；Tauri/Mantine 列表页、数据表格、后台列表、搜索结果页及已有列表审查另读 `$mantine-list-view` | 按 `gui-framework` 选择 GUI Skill（`gpui` 另读 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md` 与 `dependency-baseline.md`）；Tauri/Mantine 列表任务即使未明说表格也必须使用 `$mantine-list-view`；不得一次加载全部 GUI Skills |
+| GUI 展示、交互、初始化或桌面能力 | `docs/design_standards/README.md` 后只读精确命中的标准；再读 `docs/RUST_CLI_TEMPLATE.md`、存在时的 `docs/GUI_APP_PROFILE.md`；Tauri/Mantine 列表页、数据表格、后台列表、搜索结果页及已有列表审查另读 `$mantine-list-view` | 按所需能力读取 Tauri Skill；Tauri/Mantine 列表任务即使未明说表格也必须使用 `$mantine-list-view`；不得一次加载全部 GUI Skills |
 | NSH | Cargo `interfaces`、`nsh-targets`、`target-platforms`；NSH Skill 的运行时引用 | 仅 desktop、mobile、web 可用；统一正式 0.4.0 固定提交与匹配 CLI；遇到 TUI 失败关闭；desktop 才读 `docs/GUI_APP_PROFILE.md` |
 | Task、工作树、子任务权限与并行调度 | `docs/AGENT_POLICY.md` 的项目选择；统一 Skill 的按需引用 | `$desktop-task-workflow`；默认不自动创建左侧 Task，Local 同 cwd 串行，独立 Worktree 尽量并行 |
 | 内部并行 Worktree/Subagent 或提交 | 统一 Skill 的并行引用；提交时读提交规范 | `$desktop-task-workflow`、`$desktop-configure-git-commits`（按触发器） |
 | 恢复进度、重要阻断或跨会话交接 | 最新 Product Status；用户要求持久计划或存在活动计划时再读最新 Work Plan | `$desktop-handoff-project`；持久计划另按触发调用 `$desktop-plan-change` |
 | Windows/Linux Tauri GUI 本地安装试包 | 根 Cargo 持久目标平台/接口事实与本地构建 Skill；Linux 另读其 `references/tauri-linux.md`；不读取发布记录 | `$desktop-build-tauri-local-install`；不得升级成发布候选 |
-| 显式构建候选 | `docs/RELEASE.md`、策略构建段；每次解析 E2E | 按接口选择 Rust、Tauri、GPUI 或 NSH 的构建 Skill（见下方地图） |
+| 显式构建候选 | `docs/RELEASE.md`、策略构建段；每次解析 E2E | 按接口选择 Rust、Tauri或 NSH 的构建 Skill（见下方地图） |
 | 正式发布候选、完整验收、E2E 或历史证据核对 | `docs/RELEASE.md`、`docs/VERIFICATION.md`；活动候选读忽略的 `release/`，仅历史核对读索引的精确证据卷 | `$desktop-prepare-release`、`$desktop-verify-delivery` 或精确命中的测试 Skill |
 | 长期决定、硬规则例外或 Harness 记忆治理 | `docs/adr/README.md` 与最新 ADR；只追溯其明确引用的旧事实 | `$desktop-record-adr`；Harness 历史整理使用 `$desktop-curate-harness-memory` |
 | 只需理解 Harness 方法论 | `docs/HARNESS_ENGINEERING.md`，再按索引选择一个主题卷 | 不因阅读方法论自动进入计划、构建或验收 |
@@ -66,9 +65,9 @@ DESKTOP 另按根 Cargo metadata 的 `gui-framework` 分派：`tauri`（缺省�
 
 项目 Skills 位于 `.agents/skills/`，按职责见[分类索引](.agents/skills/README.md)。先用任务路由选择最小集合；命中后必须完整读取对应 `SKILL.md` 及其精确引用。下游只列实际保留的 Skills。
 
-- 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-gpui-adapter`、`$desktop-add-nsh-adapter`、`$desktop-add-gpui-autostart`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
-- 开发与治理：`$desktop-extract-technical-docs`、`$desktop-manage-gpui-dependencies`、`$desktop-optimize-gpui-performance`、`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-task-workflow`、`$desktop-manage-user-tasks`、`$desktop-manage-task-worktrees`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
-- 构建与验收：`$desktop-test-gpui-initialization-e2e`、`$desktop-test-nsh-initialization-e2e`、`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-gpui-release`、`$desktop-build-nsh-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
+- 初始化与接口：`$desktop-instantiate-project`、`$desktop-initialize-rust-project`、`$desktop-check-development-environment`、`$desktop-add-cli-adapter`、`$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-add-mcp-adapter`、`$desktop-add-gui-adapter`、`$desktop-add-nsh-adapter`、`$mantine-list-view`、`$desktop-add-gui-system-locale`、`$desktop-add-gui-window-state`、`$desktop-add-gui-dialog`、`$desktop-add-gui-system-tray`、`$desktop-add-gui-single-instance`、`$desktop-add-gui-deep-link`、`$desktop-add-gui-global-shortcut`、`$desktop-add-gui-system-notifications`、`$desktop-add-gui-autostart`、`$desktop-prepare-gui-app-identity`、`$desktop-prepare-gui-support-surfaces`、`$desktop-rename-project-identity`、`$desktop-extract-i18n-strings`。
+- 开发与治理：`$desktop-extract-technical-docs`、`$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`、`$desktop-define-product`、`$desktop-plan-change`、`$desktop-implement-change`、`$desktop-refactor-code`、`$desktop-manage-version`、`$desktop-manage-git-lifecycle`、`$desktop-switch-post-release-action`、`$desktop-task-workflow`、`$desktop-manage-user-tasks`、`$desktop-manage-task-worktrees`、`$desktop-configure-agent-policy`、`$desktop-configure-git-commits`、`$desktop-run-parallel-worktrees`、`$desktop-summarize-development-history`、`$desktop-curate-harness-memory`、`$desktop-upgrade-harness`。
+- 构建与验收：`$desktop-test-nsh-initialization-e2e`、`$desktop-build-tauri-local-install`、`$desktop-prepare-release`、`$desktop-build-rust-release`、`$desktop-build-tauri-release`、`$desktop-build-nsh-release`、`$desktop-prepare-cross-platform-release`、`$desktop-collect-release-artifacts`、`$desktop-test-gui-initialization-e2e`、`$desktop-test-final-artifact-e2e`、`$desktop-verify-delivery`。
 
 ## 约束地图
 

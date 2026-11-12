@@ -18,8 +18,6 @@ export const UPGRADE_MANIFEST = path.join(UPGRADE_ROOT, "references", "ownership
 // silently weaken the ownership boundary.
 export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-task-workflow/**", "managed"],
-  [".agents/skills/gpui-kit/**", "protected"],
-  [".agents/skills/gpui-kit-design-guides/**", "protected"],
   [".agents/skills/desktop-manage-task-worktrees/**", "managed"],
   [".agents/skills/desktop-manage-dependencies/**", "managed"],
   [".agents/skills/desktop-review-core-boundaries/**", "managed"],
@@ -30,15 +28,10 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-enable-gui-updates/**", "conditional"],
   [".agents/skills/desktop-add-gui-telemetry/**", "conditional"],
   [".agents/skills/desktop-add-gui-updater/**", "conditional"],
-  [".agents/skills/desktop-add-gpui-autostart/**", "conditional"],
-  [".agents/skills/desktop-test-gpui-initialization-e2e/**", "tombstone"],
   ["Version.md", "tombstone"],
   [".agents/skills/desktop-instantiate-project/**", "tombstone"],
   [".agents/skills/desktop-initialize-rust-project/**", "tombstone"],
   [".agents/skills/desktop-test-gui-initialization-e2e/**", "tombstone"],
-  [".agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs", "tombstone"],
-  [".agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.test.mjs", "tombstone"],
-  [".agents/skills/desktop-add-gpui-adapter/assets/core/**", "tombstone"],
   ["scripts/validate_harness.mjs", "tombstone"],
   ["scripts/run_harness_tests.mjs", "tombstone"],
   ["scripts/agile_workflow.test.mjs", "tombstone"],
@@ -93,10 +86,6 @@ export const REQUIRED_UPGRADE_RULES = new Map([
   [".agents/skills/desktop-add-nsh-adapter/**", "conditional"],
   [".agents/skills/desktop-build-nsh-release/**", "conditional"],
   [".agents/skills/desktop-test-nsh-initialization-e2e/**", "tombstone"],
-  [".agents/skills/desktop-add-gpui-adapter/**", "conditional"],
-  [".agents/skills/desktop-build-gpui-release/**", "conditional"],
-  [".agents/skills/desktop-manage-gpui-dependencies/**", "conditional"],
-  [".agents/skills/desktop-optimize-gpui-performance/**", "conditional"],
   ["docs/GUI_ENGINEERING.md", "conditional"],
   [".agents/skills/mantine-list-view/**", "conditional"],
   [".agents/skills/desktop-add-gui-system-locale/**", "conditional"],
@@ -244,16 +233,6 @@ function validateManifest(errors, manifest) {
     }
   }
 
-  const gpuiIndex = ordered.findIndex(([pattern]) => pattern === ".agents/skills/desktop-add-gpui-adapter/**");
-  for (const [pattern, mode] of REQUIRED_UPGRADE_RULES) {
-    if (mode !== "tombstone" || !pattern.startsWith(".agents/skills/desktop-add-gpui-adapter/")) continue;
-    const index = ordered.findIndex(([candidate]) => candidate === pattern);
-    const probe = pattern.endsWith("/**") ? `${pattern.slice(0, -3)}/__harness_node_probe__` : pattern;
-    if (index >= gpuiIndex || effectiveMode(probe, ordered, manifest.default_mode) !== "tombstone") {
-      fail(errors, `GPUI initialization-only tombstone must precede GPUI conditional rule without shadowing: ${pattern}`);
-    }
-  }
-
   for (const [requiredPath, mode] of REQUIRED_UPGRADE_RULES) {
     if (mode !== "managed" || requiredPath.includes("*")) continue;
     if (effectiveMode(requiredPath, ordered, manifest.default_mode) !== "managed") {
@@ -261,14 +240,9 @@ function validateManifest(errors, manifest) {
     }
   }
   if (effectiveMode("package.json", ordered, manifest.default_mode) !== "protected") {
-    fail(errors, "root package.json must remain protected; GPUI tooling merge requires its explicit migration command");
+    fail(errors, "root package.json must remain protected");
   }
-  for (const file of ["gpui_node_tooling.mjs", "gpui_dev.mjs", "gpui_validate.mjs", "merge_gpui_node_tooling.mjs"]) {
-    const candidate = `.agents/skills/desktop-add-gpui-adapter/scripts/${file}`;
-    if (effectiveMode(candidate, ordered, manifest.default_mode) !== "conditional") {
-      fail(errors, `retained GPUI Node tooling must remain conditional: ${candidate}`);
-    }
-  }
+
 }
 
 function validateDocumentation(errors) {
@@ -295,19 +269,10 @@ function validateDocumentation(errors) {
       "`plan|apply|record` 均不得设置默认值或代写该字段",
       "`$desktop-switch-post-release-action`",
       "tauri-ownership.md",
-      "gpui-ownership.md",
       "升级计划绑定受保护 Cargo 清单的完整快照",
       "所有终端下游还必须同步 `$desktop-switch-post-release-action`",
       "旧 `schema_version: 3` 且缺少 `post_release_action`",
       "根 Cargo 中缺省框架的旧 GUI 下游沿用 `tauri`",
-    ]],
-    [path.join(UPGRADE_ROOT, "references", "gpui-ownership.md"), [
-      "`$desktop-add-gpui-adapter` 与 `$desktop-build-gpui-release` 只适用于 `gui-framework = \"gpui\"`",
-      "`scripts/create_gpui_workspace.mjs`",
-      "`assets/core/**`",
-      "Tauri 与非 GUI 下游不得接收 GPUI 打包 Skill",
-      "Tauri/非 GUI 候选出现时阻断",
-      "merge_gpui_node_tooling.mjs merge --root .",
     ]],
     [path.join(UPGRADE_ROOT, "references", "tauri-ownership.md"), [
       "$desktop-build-tauri-local-install",

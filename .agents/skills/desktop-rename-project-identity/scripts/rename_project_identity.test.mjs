@@ -52,7 +52,7 @@ test("preview_then_apply_renames_content_paths_and_licenses", (t) => {
 // 第三方 Skill 按项目根相对路径保护原文与文件名，不扩大到相似名称或其它位置。
 test("installed_third_party_skills_are_preserved_and_reported_without_skipping_product_skills", (t) => {
   const root = fixture(t);
-  const protectedSkills = ["gpui-kit", "gpui-kit-design-guides", "design-taste-frontend"];
+  const protectedSkills = ["design-taste-frontend"];
   const original = Buffer.from("旧产品 / Old Product / old_product / old-product / button\n");
   for (const name of protectedSkills) {
     const skill = path.join(root, ".agents", "skills", name);
@@ -62,8 +62,8 @@ test("installed_third_party_skills_are_preserved_and_reported_without_skipping_p
   }
   const maintainedSkills = [
     ".agents/skills/old-product-tool",
-    ".agents/skills/gpui-kit-extension",
-    "tools/gpui-kit",
+    ".agents/skills/design-taste-frontend-extension",
+    "tools/design-taste-frontend",
   ];
   for (const relative of maintainedSkills) {
     const skill = path.join(root, relative);

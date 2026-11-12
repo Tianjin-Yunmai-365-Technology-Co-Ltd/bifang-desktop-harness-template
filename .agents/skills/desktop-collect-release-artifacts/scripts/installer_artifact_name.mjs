@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Tauri 与 GPUI 共用最终安装包名称；只生成名称，不移动产物或改写候选证据。 */
+/** 统一最终安装包名称；只生成名称，不移动产物或改写候选证据。 */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';

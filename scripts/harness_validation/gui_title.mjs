@@ -1,8 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, fail, run } from './core.mjs';
-import { renderGpuiAdapterFiles } from '../../.agents/skills/desktop-add-gpui-adapter/scripts/gpui_adapter_files.mjs';
-import { validateGpuiTitleSources } from '../../.agents/skills/desktop-add-gpui-adapter/scripts/gpui_title_contract.mjs';
 
 // 在有超时的独立进程中执行实际 TS 模块；只链接本地版本函数和受管 JSON。
 const TAURI_PROBE = `
@@ -41,10 +39,9 @@ export function validateTauriWindowTitle(errors, brandRoot) {
   } catch (error) { fail(errors, `Tauri window title contract failed: ${error.message.trim()}`); }
 }
 
-/** 上游同时检查两种侧栏/支持页组合的真实 GPUI 生成结果与唯一标题规范。 */
-export function validateGuiWindowTitleContract(errors, { sourceRoot = ROOT, render = renderGpuiAdapterFiles } = {}) {
+/** 上游检查桌面身份 Skill 的标题规范。 */
+export function validateGuiWindowTitleContract(errors, { sourceRoot = ROOT } = {}) {
   for (const [relative, formula] of [
-    ['docs/design_standards/gpui_gui.md', '{applicationName} v{version} QQ:2222980'],
     ['.agents/skills/desktop-prepare-gui-app-identity/SKILL.md', '{applicationName} v{version} QQ:2222980'],
   ]) {
     try {
@@ -52,11 +49,5 @@ export function validateGuiWindowTitleContract(errors, { sourceRoot = ROOT, rend
       if (!source.includes(formula) || source.includes('联系人只有经确认后才加入')) fail(errors, `GUI title rule must require ${formula}: ${relative}`);
     } catch (error) { fail(errors, `GUI title rule cannot be read: ${error.message}`); }
   }
-  for (const sidebarMode of ['compact', 'detailed']) {
-    try {
-      const files = render({ projectId: 'title_probe', nameZh: '标题验证', nameEn: 'Title Probe', owner: 'Owner', sidebarMode, aboutPage: 'disabled', sponsorPage: 'disabled' });
-      const titleErrors = validateGpuiTitleSources({ title: files.get('title_probe_gui/src/window_title.rs'), main: files.get('title_probe_gui/src/main.rs'), shell: files.get('title_probe_gui/src/app/mod.rs') });
-      for (const error of titleErrors) fail(errors, error);
-    } catch (error) { fail(errors, `GPUI window title generation failed: ${error.message}`); }
-  }
+
 }

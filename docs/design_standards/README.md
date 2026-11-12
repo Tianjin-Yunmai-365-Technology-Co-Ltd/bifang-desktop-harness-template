@@ -19,7 +19,6 @@
 | 所有 DESKTOP 与 NSH 图形界面的页面、组件与展示层 | [UI 统一设计基座](ui_foundation.md) | `ui-foundation-v1` |
 | 所有图形界面中按行列浏览重复记录的数据网格 | [通用 Grid 数据网格标准](data_grid.md) | `data-grid-v1` |
 | Tauri 2 + React + Mantine GUI | [Tauri GUI 通用设计标准](tauri_gui.md) | `tauri-gui-common-v1` |
-| `gui-framework = "gpui"` + 原生 GPUI/gpui-kit GUI | [GPUI GUI 设计标准](gpui_gui.md)；托盘/通知/自启/单实例/热键的实现与平台限制另见 `$desktop-add-gpui-adapter` 的 `references/native-capabilities.md`，依赖选型见 `references/dependency-baseline.md` | `gpui-gui-common-v1` |
 | `interfaces = ["nsh"]` + 已选 desktop、mobile 或 web；旧 GUI/NSH 只读兼容 | [NSH GUI 标准](nsh_gui.md)；桌面九项能力仅在 `nsh-targets` 含 `desktop` 时适用，TUI 暂不可用 | `nsh-gui-common-v1` |
 | React 19.2+ + TypeScript + Mantine UI 9.x + 重复记录检索/浏览/管理 | [Mantine 列表页设计标准](mantine_list_view.md) | `mantine-list-view-v2` |
 | Tauri 2 + React + Mantine GUI + 固定左侧栏 + `sidebar_mode = compact` | [Tauri GUI 左侧栏标准](tauri_sidebar.md#精简模式) | `tauri-gui-sidebar-compact-80-v1` |
@@ -27,7 +26,7 @@
 
 所有图形界面先遵守共用基座。图形专项文档只映射相容的框架机制、组件行为和状态合同。图形 Token 语义由基座定义，各应用的实际值只在中央主题 Token 模块维护，专项文档不再并列规定颜色、字号、圆角或展示尺寸。
 
-DESKTOP 框架从根 Cargo metadata 的 `gui-framework` 读取，既有 GUI 缺失时按 `tauri` 兼容。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；仅 desktop/mobile/web 可用，统一正式 0.4.0 工具链，TUI 暂不可用。GPUI 与 NSH 图形目标在共用基座之上叠加各自专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 GPUI 或 NSH。
+DESKTOP 固定使用 Tauri，既有 GUI 缺失 `gui-framework` 时也按 Tauri 读取。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；仅 desktop/mobile/web 可用，统一正式 0.4.0 工具链，TUI 暂不可用。NSH 图形目标在共用基座之上叠加专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 NSH。
 
 ## 变更治理
 

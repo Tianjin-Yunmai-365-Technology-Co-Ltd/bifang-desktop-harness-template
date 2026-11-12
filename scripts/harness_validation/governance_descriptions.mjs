@@ -222,7 +222,7 @@ export function validateCurrentDescriptions(errors, options = {}) {
 
   const productText = sourceText(errors, PRODUCT_SPEC, "missing GUI plugin product contract");
   if (productText !== null) {
-    for (const fragment of ["HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES", "`os`（system-locale）、window-state 是不询问的两项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线", "八项条件能力的启用/禁用", "按所选框架输出包含九项最终配置", "`deep_link = enabled` 必须同时有 `single_instance = enabled`"]) {
+    for (const fragment of ["HARNESS-FEAT-GUI-PLUGIN-CAPABILITY-MODULES", "`os`（system-locale）、window-state 是不询问的两项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线", "八项条件能力的启用/禁用", "输出包含九项最终配置", "`deep_link = enabled` 必须同时有 `single_instance = enabled`"]) {
       if (!productText.includes(fragment)) fail(errors, `GUI plugin product contract missing in ${relativePath(PRODUCT_SPEC)}: ${fragment}`);
     }
   }

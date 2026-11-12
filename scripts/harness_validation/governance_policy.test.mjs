@@ -156,22 +156,16 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
       return errors;
     };
     for (const interfaces of [["mcp"]]) {
-      assert.ok(check(interfaces, "local_package").some((error) => error.includes("local_package requires a selected CLI, NSH, GPUI")));
+      assert.ok(check(interfaces, "local_package").some((error) => error.includes("local_package requires a selected CLI, NSH, or supported Tauri")));
       assert.deepEqual(check(interfaces, "push_release_branch"), []);
     }
-    assert.deepEqual(check(["gui"], "local_package", ["macos"], "gpui"), []);
-    assert.deepEqual(check(["gui"], "local_package", ["windows"], "gpui"), []);
-    assert.deepEqual(check(["gui"], "local_package", ["linux"], "gpui"), []);
-    assert.deepEqual(check(["cli", "gui"], "local_package", ["linux"], "gpui"), []);
-    assert.deepEqual(check(["gui"], "push_release_branch", ["macos"], "gpui"), []);
-    assert.deepEqual(check(["cli", "gui"], "local_package", ["macos"], "gpui"), []);
     assert.deepEqual(check(["nsh"], "local_package", ["macos", "android", "web"], null, ["desktop", "mobile", "web"]), []);
     assert.ok(check(["nsh"], "local_package", ["macos"], null, ["tui"]).some(error => error.includes("TUI 暂不可用")));
     assert.ok(check(["nsh"], "local_package", ["macos", "web"], null, ["desktop"]).some(error => error.includes("目标类别")));
     for (const interfaces of [["cli"], ["gui"], ["gui", "mcp"]]) {
       assert.deepEqual(check(interfaces, "local_package"), []);
     }
-    assert.ok(check(["gui"], "local_package", ["linux"]).some((error) => error.includes("local_package requires a selected CLI, NSH, GPUI")));
+    assert.ok(check(["gui"], "local_package", ["linux"]).some((error) => error.includes("local_package requires a selected CLI, NSH, or supported Tauri")));
     assert.deepEqual(check(["gui"], "push_release_branch", ["linux"]), []);
     assert.ok(check([], "local_package").some((error) => error.includes("requires persisted interfaces and target-platforms")));
     assert.ok(check(["tui"], "push_release_branch").length > 0, "retired TUI metadata must fail closed");

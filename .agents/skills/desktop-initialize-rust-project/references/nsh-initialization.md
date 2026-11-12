@@ -12,6 +12,6 @@
 
 ## 返回中央流程
 
-保留 NSH adapter/build Skill、适用的桌面支持页资产，以及通用生命周期、版本、发布与升级规则；NSH 批次产物由自身构建 Skill 取证，不保留只支持 CLI/Tauri/GPUI 扁平目录的制品收集 Skill。删除 Tauri/Mantine/GPUI 专属 Skills。删除源专用初始化器和本次 NSH 初始化 E2E，重写下游地图并清理失效引用，然后才创建独立 `main` 唯一基线。不能生成 Tauri 配置、前端或 GPUI Kit，也不能运行其初始化 E2E；终端下游不得保留 `create_nsh_workspace` 或继续派生项目。
+保留 NSH adapter/build Skill、适用的桌面支持页资产，以及通用生命周期、版本、发布与升级规则；NSH 批次产物由自身构建 Skill 取证，不保留只支持 CLI/Tauri 扁平目录的制品收集 Skill。删除 Tauri/Mantine 专属 Skills。删除源专用初始化器和本次 NSH 初始化 E2E，重写下游地图并清理失效引用，然后才创建独立 `main` 唯一基线。不能生成 Tauri 配置或前端，也不能运行 Tauri 初始化 E2E；终端下游不得保留 `create_nsh_workspace` 或继续派生项目。
 
 NSH 的 `local_package` 只表示将来可由 [$desktop-build-nsh-release](../../desktop-build-nsh-release/SKILL.md) 按目标本地构建；组合工程的移动/Web 打包须用临时 Mixed 入口移除桌面 host 权限。签名、移动设备运行与目标宿主验证仍是独立事实。初始化不执行候选构建或宣称产品完成。

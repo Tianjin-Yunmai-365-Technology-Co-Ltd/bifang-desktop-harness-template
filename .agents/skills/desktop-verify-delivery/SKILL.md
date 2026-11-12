@@ -7,9 +7,9 @@ description: 对发布候选、用户明确要求完整验收或当前构建启�
 
 验证完整真实候选，不把开发检查、模拟实现或目录存在误报为可用。
 
-GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前端测试、Tauri资源定位、DMG及其 helper 只适用于 Tauri。GPUI 候选先读取 `$desktop-build-gpui-release`，只接受其 `candidate` 模式形成的最终包及通用 manifest，包括 Linux GNU x64/ARM64 的 deb/tar.gz；`local` 试包与初始化开发程序没有候选验收资格。资源、许可证、更新日志、最终包摘要与适用签名证据使用该 Skill 的 GPUI 独立实现检查，不调用 Tauri helper。Linux 同系统交叉架构候选的运行场景必须在匹配目标架构的真实宿主执行；跨系统等尚未支持的构建路线不能进入验收。
+DESKTOP 候选使用 Tauri 的前端测试、资源定位及相应打包 helper。NSH 使用自己的构建与批次证据；本地试包与初始化调试程序不能进入候选验收。
 
-下文“`release/` 精确集合”“全部 manifest”“整组同状态”和替换整个 `release/` 的步骤用于 CLI/Tauri/GPUI 扁平候选。NSH 按目标批次保留目录，以下准入、二次上下文核对、真实产物和 E2E 门禁仍适用；凡通用步骤 2、7、8 与底部 NSH 路由对集合或状态写入的描述不同，均以 NSH 路由为准，只取显式选定的单个批次。不能让旧批次的 HEAD 或状态阻断当前批次，也不能把旧批次计入本次通过。
+下文“`release/` 精确集合”“全部 manifest”“整组同状态”和替换整个 `release/` 的步骤用于 CLI/Tauri 扁平候选。NSH 按目标批次保留目录，以下准入、二次上下文核对、真实产物和 E2E 门禁仍适用；凡通用步骤 2、7、8 与底部 NSH 路由对集合或状态写入的描述不同，均以 NSH 路由为准，只取显式选定的单个批次。不能让旧批次的 HEAD 或状态阻断当前批次，也不能把旧批次计入本次通过。
 
 ## 准入
 
@@ -20,7 +20,7 @@ GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前
 ## 工作流程
 
 1. 明确核心成功路径、最高风险失败路径、真实输入/输出和可观察结果，区分外部前置项与产品逻辑。
-2. 核对当前构建已经运行项目全部非空单元测试。Rust 证据必须覆盖 workspace/all-targets/all-features 的完整测试；Tauri GUI 还必须覆盖完整前端单元测试套件；GPUI 不要求前端。只有源码提交、候选构建身份与对应测试证据完全匹配时才复用该证据；任何变化都必须返回构建 Skill 重建，不在验收中重复一套隐式构建流程。
+2. 核对当前构建已经运行项目全部非空单元测试。Rust 证据必须覆盖 workspace/all-targets/all-features 的完整测试；Tauri GUI 还必须覆盖完整前端单元测试套件。只有源码提交、候选构建身份与对应测试证据完全匹配时才复用该证据；任何变化都必须返回构建 Skill 重建，不在验收中重复一套隐式构建流程。
 3. 运行候选自身所必需的真实产物存在性、接口/渠道和最终字节检查。所有 GUI 候选先核对 manifest 的 `releaseNotesVersion`、`releaseNotesSha256`、`releaseNotesPath: release-notes.json` 与根事实；Tauri 对可定位的实际应用资源运行 `node .agents/skills/desktop-build-tauri-release/scripts/verify_release_notes_resource.mjs bytes --source release-notes.json --bundled <discovered-resource>`。macOS Tauri DMG 必须针对 `release/` 中当前最终字节重新运行 `$desktop-build-tauri-release` 的 `scripts/verify-dmg-layout.sh <final-dmg> <project-root>/release-notes.json`，只读挂载并再次证明唯一 `.app/Contents/Resources/release-notes.json` 逐字节一致；不得自动接受软件许可或沿用旧 DMG 的布局证据，也不得沿用旧更新日志证据。xwin NSIS 保持 `runtimeVerification: Unverified`，不能据交叉构建成功或未安装资源目录检查推断 Windows 行为。
 4. 解析运行时检查：产品/渠道/安全硬要求优先；冒烟读取 `acceptance_smoke`；E2E 只读取当前构建的明确选择，`e2e_hint` 仅用于当时询问的建议默认值，不能在此替代或反转选择。发布语义审查只读取 manifest 的当次 `reviewSelection`；不得在验收阶段补问、推断或把 `disabled` 静默翻转，任何硬要求与关闭选择冲突时拒绝候选并返回新构建。
 5. 按每个 manifest 的 `reviewSelection` 核对发布语义审查，且机械安全门禁与最终人类签署不受该选择控制。
@@ -51,7 +51,7 @@ GUI 先按根 Cargo `gui-framework` 分派，缺省旧 GUI 为 Tauri。下文前
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选 desktop 原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录，全部使用正式 0.4.0 固定 revision 与匹配 CLI。TUI 暂不可用，含 `tui` 的元数据、构建或候选请求失败关闭；历史预览程序或归档不能进入正式候选验收。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS 或 GPUI cargo-packager。本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。当前 helper 支持所选 desktop 原生包、Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录，全部使用正式 0.4.0 固定 revision 与匹配 CLI。TUI 暂不可用，含 `tui` 的元数据、构建或候选请求失败关闭；历史预览程序或归档不能进入正式候选验收。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS。本机不可构建目标如实阻断，不推断已验证。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 

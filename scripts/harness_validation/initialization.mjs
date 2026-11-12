@@ -4,7 +4,6 @@ import path from "node:path";
 
 import { ROOT, fail, readText, relativePath } from "./core.mjs";
 import { sourceFileHasExecutableMode } from "./initialization_environment.mjs";
-import { validateGpuiNodeTooling, validateGuiNodeEnvironment } from "./gpui_tooling.mjs";
 import {
   E2E_SKILL,
   ENVIRONMENT_REFERENCE,
@@ -511,7 +510,5 @@ export function validateInitializationContract(
   validateNeutralAsset(errors, rustAsset);
   validateNaming(errors);
   validatePrerequisiteScripts(errors);
-  validateGuiNodeEnvironment(errors);
-  validateGpuiNodeTooling(errors);
   validateRustAssetManifests(errors, rustAsset);
 }

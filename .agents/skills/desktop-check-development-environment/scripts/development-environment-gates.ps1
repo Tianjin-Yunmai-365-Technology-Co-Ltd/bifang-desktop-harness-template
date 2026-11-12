@@ -3,7 +3,7 @@
 param(
     [switch]$CheckOnly,
     [string[]]$Interfaces = @(),
-    [ValidateSet("tauri", "gpui", "nsh")]
+    [ValidateSet("tauri", "nsh")]
     [string]$GuiFramework = "tauri",
     [string]$RustMinVersion = ""
 )

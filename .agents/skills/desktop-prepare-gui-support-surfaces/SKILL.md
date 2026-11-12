@@ -7,7 +7,7 @@ description: 为已选 GUI 按九项初始化配置建立标题、侧栏、语�
 
 NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 使用 `$desktop-add-nsh-adapter` 和 `docs/design_standards/nsh_gui.md`；旧 GUI/NSH 仅保留读取兼容。现有九项能力与支持页选择仅属于 NSH desktop 子目标；mobile/Web 复用 Mixed TSX 与 Rust native module 调用共享 core，不询问桌面九项能力，也不套用下文 Tauri 前端与插件。TUI 暂不可用，平台限制见 NSH Skill 的 `references/runtime-and-capabilities.md`。
 
-本 Skill 的 React模板、品牌包接线与 Tauri固定能力只适用于根 Cargo metadata `gui-framework = "tauri"`；既有 GUI 缺失该字段时兼容 Tauri。`gpui` 使用 `$desktop-add-gpui-adapter` 的原生关于/赞助/设置模板与 `docs/design_standards/gpui_gui.md`，不执行下述 Tauri插件、前端或资源映射步骤；通用的 core-first、媒体来源、支付材料和零出站边界仍适用。框架不属于九字段 profile，不得在本 Skill 重问。
+本 Skill 的 React模板、品牌包接线与 Tauri固定能力只适用于根 Cargo metadata `gui-framework = "tauri"`；既有 GUI 缺失该字段时兼容 Tauri。通用的 core-first、媒体来源、支付材料和零出站边界仍适用。框架不属于九字段 profile，不得在本 Skill 重问。
 
 新项目选择 GUI 时由 `$desktop-add-gui-adapter` 自动消费本 Skill，并严格服从 `docs/GUI_APP_PROFILE.md` 的九项初始化配置。以下固定模板、条件能力和对应回归只适用于该初始化或经批准迁移到相同模板标准的范围；首次接入的既有 GUI 不因保留本 Skill 而被要求改写实际能力。动态标题、Logo→当前版本、设置页、i18n、三态主题和亮暗语义主题始终存在；system-locale、window-state 由各自固定 Skill 无条件接入，两项保持 Rust-only；dialog WebView 基线同样由独立固定 Skill 无条件接入且只授予精确 `dialog:default`。系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接和全局快捷键只在对应能力为 `enabled` 时进入运行时。系统通知与开机自启提供条件 Switch；全局快捷键界面只按 contract 的非空固定/可编辑动作生成，空 contract 无占位；初始化设置页不得预置隐私区块或统计开关。
 
@@ -38,7 +38,7 @@ NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 使用 `$d
 - 本 Skill 的标题、设置、i18n、主题和所选侧栏模式是 GUI 固定界面基线；system-locale、window-state 是两项 Rust-only 固定宿主基线，dialog 是固定 WebView plugin 基线；托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接和全局快捷键是初始化可选能力，不要求 CLI/MCP 存在。dialog 选择路径不授权读取或写入该路径，通知不批准产品内容，自启不表示已注册登录项。
 - `docs/GUI_APP_PROFILE.md` 继续拥有应用展示身份；`docs/GUI_SUPPORT_SURFACES.md` 只拥有对固定基线的已批准修改、额外支持界面与出站清单，两者不得互相覆盖。
 - Harness 不保存来源下游产品名/标识、路由、固定 endpoint、秘密、版本或批准结论；产品家族共享的工作室品牌、联系人、固定赞助内容和 12 个媒体文件是 `assets/brand-support/` 的封闭例外。
-- 本 Skill 在选择 Tauri GUI 或 NSH desktop 的终端下游保留，包括适用的品牌依赖资产；GPUI、纯 CLI/MCP 与仅选 NSH mobile/Web 的下游在初始化裁剪中删除。Harness 升级只按实际接口传播整个条件 Skill，不覆盖产品实例文档。
+- 本 Skill 在选择 Tauri GUI 或 NSH desktop 的终端下游保留，包括适用的品牌依赖资产；纯 CLI/MCP 与仅选 NSH mobile/Web 的下游在初始化裁剪中删除。Harness 升级只按实际接口传播整个条件 Skill，不覆盖产品实例文档。
 - 支付二维码是敏感静态品牌材料。携带或展示它不授权订单、权益、账户、自动支付、支付回调或支付状态确认；真实交易副作用必须独立定范围和授权。
 
 ## 完成输出

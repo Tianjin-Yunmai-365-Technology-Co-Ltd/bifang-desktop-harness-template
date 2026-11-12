@@ -6,15 +6,13 @@ import { GUI_FIELDS, POLICY_FIELDS } from '../../desktop-instantiate-project/scr
 import { removeUpstreamOnly, renderProjectAgents, sha256 } from '../../desktop-instantiate-project/scripts/instantiation_files.mjs';
 import { validateNeutralWorkspace } from './initialization_workspace.mjs';
 
-const INITIALIZATION_SKILLS = new Set(['desktop-instantiate-project', 'desktop-initialize-rust-project', 'desktop-test-gui-initialization-e2e', 'desktop-test-gpui-initialization-e2e', 'desktop-test-nsh-initialization-e2e', 'desktop-curate-harness-memory']);
+const INITIALIZATION_SKILLS = new Set(['desktop-instantiate-project', 'desktop-initialize-rust-project', 'desktop-test-gui-initialization-e2e', 'desktop-test-nsh-initialization-e2e', 'desktop-curate-harness-memory']);
 const MEMORY_DIRECTORIES = ['docs/adr/', 'docs/changelog/', 'docs/product_spec/', 'docs/work_plan/', 'docs/project_status/', 'docs/verification/'];
-const GPUI_WRAPPER_PATHS = ['.agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs', '.agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.test.mjs', '.agents/skills/desktop-add-gpui-adapter/assets/core/'];
 
 /** 新实例化只裁剪预定路径；未知文件与所有实际产品文件保持原样。 */
 function excluded(relative, selection) {
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
   return INITIALIZATION_SKILLS.has(skill) || inapplicableGuiCandidate(relative, selection)
-    || GPUI_WRAPPER_PATHS.some(item => relative === item || (item.endsWith('/') && relative.startsWith(item)))
     || relative.startsWith('scripts/harness_validation/') || ['scripts/validate_harness.mjs', 'scripts/run_harness_tests.mjs', 'docs/HARNESS_ENGINEERING.md', 'docs/VERIFICATION.md', 'Version.md'].includes(relative)
     || relative.startsWith('docs/harness_engineering/') || MEMORY_DIRECTORIES.some(prefix => relative.startsWith(prefix))
     || /(?:^|\/)check_no_python(?:\.test)?\.mjs$/u.test(relative);
@@ -52,9 +50,7 @@ export function validatePreparation(preparation, current) {
     if (!file) throw new Error(`准备后的受管文件缺失，须先复核：${entry.path}`);
     if (file.sha256 !== entry.sha256 || file.mode !== entry.mode) {
       const sourceSkills = preparation.files.filter(item => /^\.agents\/skills\/[^/]+\/SKILL\.md$/u.test(item.path)).map(item => item.path.split('/')[2]);
-      const allowedGpuiMap = entry.path === 'AGENTS.md' && selection.guiFramework === 'gpui' && file.mode === entry.mode
-        && file.bytes.toString('utf8').split('\n').filter(line => !/^- \[\$gpui-kit(?:-design-guides)?\]\(\.agents\/skills\/gpui-kit(?:-design-guides)?\/SKILL\.md\)$/u.test(line)).join('\n') === renderProjectAgents(values, sourceSkills, true);
-      if (!allowedGpuiMap) throw new Error(`准备后的受管文件漂移，须先复核：${entry.path}`);
+      throw new Error(`准备后的受管文件漂移，须先复核：${entry.path}`);
     }
   }
   for (const license of ['LICENSE.zh-CN.md', 'LICENSE.en.md']) if (!seen.has(license)) throw new Error('准备清单必须包含两份原始许可证身份映射');
@@ -105,7 +101,7 @@ export function renderPrunedFiles(preparation, current) {
   const removedSkills = new Set([...current.keys()].filter(file => /^\.agents\/skills\/[^/]+\/SKILL\.md$/u.test(file) && removedPaths.has(file)).map(file => file.split('/')[2]));
   const finalPaths = new Set(result.keys());
   for (const [relative, file] of result) {
-    if (!managedPaths.has(relative) || !/\.(?:md|yaml)$/u.test(relative) || relative.includes('/assets/vendor/') || /^\.agents\/skills\/(?:gpui-kit|gpui-kit-design-guides|design-taste-frontend)\//u.test(relative)) continue;
+    if (!managedPaths.has(relative) || !/\.(?:md|yaml)$/u.test(relative) || relative.includes('/assets/vendor/') || /^\.agents\/skills\/(?:design-taste-frontend)\//u.test(relative)) continue;
     let text = file.bytes.toString('utf8');
     // 一次性源命令整段删除，避免把已裁掉脚本留成看似可执行的代码块。
     text = text.replace(/```[^\n]*\n[\s\S]*?```/gu, block => [...removedPaths].some(file => block.includes(file)) ? '' : block);
@@ -127,7 +123,7 @@ export function renderPrunedFiles(preparation, current) {
 export function validateFinalReferences(files, removedSkills) {
   const paths = new Set(files.keys());
   for (const [relative, file] of files) {
-    if (relative.includes('/assets/vendor/') || /^\.agents\/skills\/(?:gpui-kit|gpui-kit-design-guides|design-taste-frontend)\//u.test(relative)) continue;
+    if (relative.includes('/assets/vendor/') || /^\.agents\/skills\/(?:design-taste-frontend)\//u.test(relative)) continue;
     const text = file.bytes.toString('utf8');
     if (/\.(?:md|yaml)$/u.test(relative)) {
       if ([...removedSkills].some(name => text.includes(`$${name}`) || text.includes(`.agents/skills/${name}/`))) throw new Error(`裁剪后仍有活动 Skill 路由：${relative}`);

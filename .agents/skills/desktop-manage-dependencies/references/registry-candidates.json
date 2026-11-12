@@ -9,13 +9,6 @@
   },
   "verificationBoundary": "Registry metadata and local dependency-admission tests do not establish all target-platform or final-artifact compatibility. Real downstream projects must retain their own verification.",
   "crates": {
-    "accesskit_macos": {
-      "version": "0.26.3",
-      "latestStable": "0.27.2",
-      "declaredRustVersion": "1.85",
-      "source": "https://crates.io/api/v1/crates/accesskit_macos/0.26.3",
-      "selectionReason": "gpui-pre-macos 0.3.10 requires accesskit_macos ^0.26.0; latest 0.27.2 is outside that API family"
-    },
     "anyhow": {
       "version": "1.0.104",
       "latestStable": "1.0.104",
@@ -46,12 +39,6 @@
       "declaredRustVersion": null,
       "source": "https://crates.io/api/v1/crates/async-graphql-axum/7.2.1"
     },
-    "auto-launch": {
-      "version": "0.6.0",
-      "latestStable": "0.6.0",
-      "declaredRustVersion": null,
-      "source": "https://crates.io/api/v1/crates/auto-launch/0.6.0"
-    },
     "axum": {
       "version": "0.8.9",
       "latestStable": "0.8.9",
@@ -81,54 +68,6 @@
       "latestStable": "0.3.34",
       "declaredRustVersion": "1.71",
       "source": "https://crates.io/api/v1/crates/futures-util/0.3.34"
-    },
-    "global-hotkey": {
-      "version": "0.9.0",
-      "latestStable": "0.9.0",
-      "declaredRustVersion": "1.77",
-      "source": "https://crates.io/api/v1/crates/global-hotkey/0.9.0"
-    },
-    "gpui-kit": {
-      "version": "0.8.1",
-      "latestStable": "0.8.1",
-      "declaredRustVersion": null,
-      "source": "https://crates.io/api/v1/crates/gpui-kit/0.8.1"
-    },
-    "gpui-pre": {
-      "version": "0.3.10",
-      "latestStable": "0.3.10",
-      "declaredRustVersion": null,
-      "source": "https://crates.io/api/v1/crates/gpui-pre/0.3.10"
-    },
-    "gpui-pre-apple": {
-      "version": "0.3.10",
-      "latestStable": "0.3.10",
-      "declaredRustVersion": null,
-      "source": "https://crates.io/api/v1/crates/gpui-pre-apple/0.3.10"
-    },
-    "gpui-pre-macos": {
-      "version": "0.3.10",
-      "latestStable": "0.3.10",
-      "declaredRustVersion": null,
-      "source": "https://crates.io/api/v1/crates/gpui-pre-macos/0.3.10"
-    },
-    "gpui-pre-wgpu": {
-      "version": "0.3.10",
-      "latestStable": "0.3.10",
-      "declaredRustVersion": null,
-      "source": "https://crates.io/api/v1/crates/gpui-pre-wgpu/0.3.10"
-    },
-    "gpui-pre-windows": {
-      "version": "0.3.10",
-      "latestStable": "0.3.10",
-      "declaredRustVersion": null,
-      "source": "https://crates.io/api/v1/crates/gpui-pre-windows/0.3.10"
-    },
-    "interprocess": {
-      "version": "2.4.7",
-      "latestStable": "2.4.7",
-      "declaredRustVersion": "1.75",
-      "source": "https://crates.io/api/v1/crates/interprocess/2.4.7"
     },
     "jiff": {
       "version": "0.2.38",
@@ -178,12 +117,6 @@
       "declaredRustVersion": "1.73",
       "source": "https://crates.io/api/v1/crates/png/0.18.1"
     },
-    "raw-window-handle": {
-      "version": "0.6.2",
-      "latestStable": "0.6.2",
-      "declaredRustVersion": "1.64",
-      "source": "https://crates.io/api/v1/crates/raw-window-handle/0.6.2"
-    },
     "redis": {
       "version": "1.8.0",
       "latestStable": "1.8.0",
@@ -231,12 +164,6 @@
       "latestStable": "1.0.154",
       "declaredRustVersion": "1.71",
       "source": "https://crates.io/api/v1/crates/serde_json/1.0.154"
-    },
-    "sys-locale": {
-      "version": "0.3.2",
-      "latestStable": "0.3.2",
-      "declaredRustVersion": "1.56",
-      "source": "https://crates.io/api/v1/crates/sys-locale/0.3.2"
     },
     "tauri": {
       "version": "2.12.5",
@@ -351,12 +278,6 @@
       "latestStable": "0.3.23",
       "declaredRustVersion": "1.65.0",
       "source": "https://crates.io/api/v1/crates/tracing-subscriber/0.3.23"
-    },
-    "tray-icon": {
-      "version": "0.26.1",
-      "latestStable": "0.26.1",
-      "declaredRustVersion": "1.90",
-      "source": "https://crates.io/api/v1/crates/tray-icon/0.26.1"
     },
     "utoipa": {
       "version": "6.0.0",
@@ -722,11 +643,6 @@
       "name": "@types/node",
       "version": "26.6.6",
       "reason": "keep latest 24.x types aligned with the declared minimum runtime/API line, instead of exposing Node26-only APIs"
-    },
-    {
-      "name": "accesskit_macos",
-      "version": "0.27.2",
-      "reason": "gpui-pre-macos 0.3.10 requires ^0.26.0; keep the highest compatible 0.26.3 instead of rewriting its transitive ABI family"
     }
   ]
 }

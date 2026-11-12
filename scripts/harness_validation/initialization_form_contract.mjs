@@ -13,7 +13,7 @@ export function validateInitializationFormRouting(errors, sourceRoot = ROOT) {
   if (JSON.stringify(BASE_FIELDS) !== JSON.stringify(["name_zh", "name_en", "project_id", "project_path", "owner", "interfaces"]) || QUESTIONS.some(question => question.id === "target_platforms")) fail(errors, "initialization must not ask for desktop target platforms");
   if (QUESTIONS.some(({ id }) => ["policy_mode", "post_release_action", ...POLICY_FIELDS].includes(id))) fail(errors, "Agent policy and release action must not be initialization questions");
   if (JSON.stringify(QUESTIONS.find(question => question.id === "interfaces")?.values) !== JSON.stringify(["cli", "mcp", "gui", "nsh"])) fail(errors, "program types must expose CLI/MCP/DESKTOP/NSH in order");
-  if (JSON.stringify(QUESTIONS.find(question => question.id === "gui_framework")?.values) !== JSON.stringify(["tauri", "gpui"])) fail(errors, "DESKTOP frameworks must be Tauri/GPUI only");
+  if (QUESTIONS.some(question => question.id === "gui_framework")) fail(errors, "DESKTOP must derive Tauri without asking for a framework");
   if (JSON.stringify(NSH_TARGETS) !== JSON.stringify(["desktop", "mobile", "web"]) || JSON.stringify(QUESTIONS.find(question => question.id === "nsh_targets")?.values) !== JSON.stringify(NSH_TARGETS)) fail(errors, "NSH capability choices must be desktop/mobile/web only");
   if (JSON.stringify(NSH_PLATFORM_ORDER) !== JSON.stringify(["windows", "macos", "linux", "android", "ios", "web"])) fail(errors, "NSH derived platforms must keep their canonical order");
   if (JSON.stringify(NSH_TARGET_PLATFORMS) !== JSON.stringify({ desktop: ["windows", "macos", "linux"], mobile: ["android", "ios"], web: ["web"] })) fail(errors, "NSH capabilities must derive their complete platform groups");
@@ -40,7 +40,7 @@ export function validateInitializationFormRouting(errors, sourceRoot = ROOT) {
       }
     }
   }
-  for (const relative of ["README.md", "docs/RUST_CLI_TEMPLATE.md", ".agents/skills/desktop-instantiate-project/SKILL.md", ".agents/skills/desktop-initialize-rust-project/SKILL.md", ".agents/skills/desktop-add-gpui-adapter/SKILL.md"]) {
+  for (const relative of ["README.md", "docs/RUST_CLI_TEMPLATE.md", ".agents/skills/desktop-instantiate-project/SKILL.md", ".agents/skills/desktop-initialize-rust-project/SKILL.md"]) {
     let source;
     try { source = fs.readFileSync(path.join(sourceRoot, relative), "utf8"); }
     catch { fail(errors, `initialization form source missing: ${relative}`); continue; }

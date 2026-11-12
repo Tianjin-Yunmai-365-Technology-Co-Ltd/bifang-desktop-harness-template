@@ -2,7 +2,7 @@
 
 `standard_id = nsh-gui-common-v1`，新项目匹配根 Cargo `interfaces = ["nsh"]`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。`nsh-targets` 仅支持 desktop/mobile/web；统一正式 0.4.0 固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3`。TUI 暂不可用，现行标准不启用终端布局。
 
-desktop、mobile、Web 图形目标先应用 [共用基座](ui_foundation.md)。三类目标均使用 Mixed 模式：TSX 组件、NSH `nsh/base` 语义控件、reactive signal 和 Rust native module；共享业务规则留在 Rust core。颜色、字号、间距和断点集中在 TSX Token。TSX 是 NSH 自有运行时，不套用 Tauri CSS、Mantine、React hooks 或 GPUI Entity 合同。
+desktop、mobile、Web 图形目标先应用 [共用基座](ui_foundation.md)。三类目标均使用 Mixed 模式：TSX 组件、NSH `nsh/base` 语义控件、reactive signal 和 Rust native module；共享业务规则留在 Rust core。颜色、字号、间距和断点集中在 TSX Token。TSX 是 NSH 自有运行时，不套用 Tauri CSS、Mantine、React hooks 合同。
 
 TSX 根组件拥有页面会话，切页保留，退出重置；语言与三态主题使用独立 NSH Storage 偏好，desktop 详细侧栏折叠另存偏好，失败须可见。系统语言来自 `locale()`，用户选择优先，中文/英文和未知语言回退完整。界面文字进入同一翻译模块。控件自身拥有动作，周围容器不代理点击。
 

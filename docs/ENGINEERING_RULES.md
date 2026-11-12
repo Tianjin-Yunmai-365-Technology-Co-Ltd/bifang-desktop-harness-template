@@ -6,9 +6,9 @@ GUI 版本/兼容、性能和打包方案按 [GUI 工程索引](GUI_ENGINEERING.
 
 本文档是所有下游项目在文件组织、代码注释、文档维护、测试组织、规则例外和机械检查方面的唯一详细事实来源。`AGENTS.md`、项目 Skills 和技术基线只保留任务入口、语言特定补充与本文件链接，不复制整套规则。
 
-DESKTOP 框架先读取根 Cargo metadata 的 `gui-framework`；DESKTOP 缺失该字段兼容 `tauri`，新建时合法值为 `tauri|gpui`，新 NSH 不写。下文插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、Tauri 图标/DMG、Tauri 初始化 E2E 合同只约束 Tauri GUI；GPUI 通过 `$desktop-add-gpui-adapter` 与 [GPUI 设计标准](design_standards/gpui_gui.md) 实现。Core-first、Rust 模块/注释/测试、语义控件事件所有权、真实产物和零出站边界同样约束 NSH；九字段 profile 对 DESKTOP 始终适用，对 NSH 仅随桌面子目标适用。GPUI 普通页面会话状态由原生根视图持有，进程内保留、退出重置，不要求 Jotai 或浏览器存储。
+DESKTOP 固定使用 Tauri，既有 GUI 缺失 `gui-framework` 也按 Tauri 读取。下文 Tauri 插件、WebView/IPC/ACL、React/Mantine/Jotai/Query、TypeScript、图标、打包和初始化 E2E 合同只约束 DESKTOP。Core-first、Rust 模块/注释/测试、语义控件事件所有权、真实产物和零出站边界同样约束 NSH；九字段 profile 对 DESKTOP 始终适用，对 NSH 仅随桌面子目标适用。
 
-新 GPUI 项目默认含 Linux，深链接、系统托盘和 OS 全局快捷键均在统一表单中派生为 `unavailable`/`disabled`；既有不含 Linux 的旧项目仍按其受保护平台和 profile 判断托盘与快捷键。其余九字段配置复用统一表单；配置协助只记录移交意愿，具体产品动作在终端下游根目录确认。实际依赖和通知官方 API 边界以 GPUI Skill 的自含引用为准；禁用能力不生成实现或依赖。初始化由新Skill运行非空Rust测试、实际构建和Computer Use检查，不能用Tauri插件静态检查代替。三候选Logo流程通用；用户明确批准的工程验证临时项目可用参考中性图，但不得作为正式身份或发布验收。GPUI 原生 macOS 应用包/DMG 与 Windows x64 NSIS 使用独立 `$desktop-build-gpui-release`；仅 Linux Tauri 且无 CLI 时必须选 `push_release_branch`。
+三候选 Logo 流程适用于 DESKTOP 与 NSH desktop；经明确批准的工程验证临时项目可用参考中性图，不作为正式身份或发布验收。
 
 ## 1. 适用范围与规则等级
 
@@ -47,9 +47,9 @@ DESKTOP 框架先读取根 Cargo metadata 的 `gui-framework`；DESKTOP 缺失�
 - 程序入口和接口处理器只负责建立运行环境、装配依赖、委托调用和映射终止结果，不得承载业务规则。
 - 只有独立发布、独立生命周期、独立权限或由工具链强制要求的依赖边界才能新增 crate/包。新增时记录它为什么不能只是现有模块。
 - 直接依赖和受管工具的清单必须用完整三段表达可验证的兼容下界。新增或主动更新时先选择官方 registry 当前最新非预发布候选，再以满足项目下限的已安装 stable Rust、最低 Node.js/pnpm、peer、平台和实际 API/feature 解析及非空测试决定下界；只有这些真实项目检查通过后才可称为“经过验证”。尚无真实下游的 MCP/GUI 模板数值只能作为 registry metadata、peer 与 engine 筛选后的候选并标记 `Unverified`，不得冒充项目兼容结论。清单不得写 `latest`、tag、通配符或无下界范围；已安装工具处于支持范围内时直接复用。
-- Harness 自身的工程自动化统一使用 Node.js 标准库；现有下游 Harness helper 继续使用 Node.js 标准库，Node.js 是所有接口组合的受管工程运行时，pnpm 仅对 DESKTOP 的 Tauri/GPUI 适用；顶层 NSH 使用 Node.js 直接运行工程 helper，不因此安装 pnpm 或前端依赖。仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤；新增或修改上游自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。初始化和升级均不得把该检查器及上游专用禁令传播到终端下游；下游可以按自身项目需要使用 Python 或其他脚本语言，新增第三方运行时依赖须说明必要性、获得用户同意、在项目内显式声明并隔离，且不得假设全局包已经安装。
+- Harness 自身的工程自动化统一使用 Node.js 标准库；现有下游 Harness helper 继续使用 Node.js 标准库，Node.js 是所有接口组合的受管工程运行时，pnpm 仅对 DESKTOP 适用；顶层 NSH 使用 Node.js 直接运行工程 helper，不因此安装 pnpm 或前端依赖。仅 Harness 上游源树禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和 Python 运行步骤；新增或修改上游自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。初始化和升级均不得把该检查器及上游专用禁令传播到终端下游；下游可以按自身项目需要使用 Python 或其他脚本语言，新增第三方运行时依赖须说明必要性、获得用户同意、在项目内显式声明并隔离，且不得假设全局包已经安装。
 - 受管开发环境恢复：工具缺失时安装，可证明低于最低下界时按当前宿主路线自动升级，范围内稳定版原样复用；Node.js 使用连续下界 `>=24.0.0`，25.x、26.x 及未来更高正式版本均直接通过。存在显式上界时，高于上界仍阻断；预发布、无法解析或损坏状态同样失败关闭。Rust、Node.js 与 pnpm 安装到平台标准的当前用户全局位置，只持久维护标准 PATH，不创建 Harness 私有工具环境变量或私有全局前缀；`rustup-init` 必须以 `--no-modify-path` 阻止安装器绕过预检改写 profile/注册表，再由门禁持久化标准 Cargo bin。只读检查必须保持零写入并明确报告 `upgrade-required`。不得降低门禁、回退清单依赖、注入 shim、改用旧版工具，或寻找替代工具链来适配旧环境。
-- Harness 源和新建下游的 `Cargo.lock`、`pnpm-lock.yaml` 与非标准 `pnpm-package.lock` 默认由 Git 忽略。已初始化下游仅可通过根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下设置 `dependency-lock-policy = "tracked"`，显式选择跟踪真实锁文件；缺省或 `"ignored"` 继续忽略且不以锁文件作门禁，未知值、错误类型或重复键失败关闭。选择 `tracked` 时，根工作区及 `rust-test-manifests` 指出的每个独立 Rust 工作区都须跟踪各自的 `Cargo.lock`，已选 Tauri 前端根须跟踪其 `pnpm-lock.yaml`；GPUI 根的无 npm 依赖脚本入口不要求前端安装或 pnpm 锁文件；目标项目应移除相应 Git 忽略规则并由依赖管理工具更新锁文件。`pnpm-package.lock` 不充当标准锁文件。兼容下界由清单和真实检查证明：新增或提高 Rust 直接下界时复用已安装且满足根 Cargo `rust-version` 下限的 stable，进行正常依赖解析与相关非空测试；不得为依赖准入、初始化、格式化或构建下载 nightly 或历史 Rust 工具链，也不运行不稳定的最低直接版本解析。`rust-version` 保留为兼容下限，当前 stable 成功不构成最低版本实测证据；前端仍在声明的最低 Node.js/pnpm 环境完成最低直接版本解析和非空测试；最新候选不兼容时按版本从新到旧选择第一个通过者并记录原因。
+- Harness 源和新建下游的 `Cargo.lock`、`pnpm-lock.yaml` 与非标准 `pnpm-package.lock` 默认由 Git 忽略。已初始化下游仅可通过根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下设置 `dependency-lock-policy = "tracked"`，显式选择跟踪真实锁文件；缺省或 `"ignored"` 继续忽略且不以锁文件作门禁，未知值、错误类型或重复键失败关闭。选择 `tracked` 时，根工作区及 `rust-test-manifests` 指出的每个独立 Rust 工作区都须跟踪各自的 `Cargo.lock`，已选 Tauri 前端根须跟踪其 `pnpm-lock.yaml`；目标项目应移除相应 Git 忽略规则并由依赖管理工具更新锁文件。`pnpm-package.lock` 不充当标准锁文件。兼容下界由清单和真实检查证明：新增或提高 Rust 直接下界时复用已安装且满足根 Cargo `rust-version` 下限的 stable，进行正常依赖解析与相关非空测试；不得为依赖准入、初始化、格式化或构建下载 nightly 或历史 Rust 工具链，也不运行不稳定的最低直接版本解析。`rust-version` 保留为兼容下限，当前 stable 成功不构成最低版本实测证据；前端仍在声明的最低 Node.js/pnpm 环境完成最低直接版本解析和非空测试；最新候选不兼容时按版本从新到旧选择第一个通过者并记录原因。
 - 应用发布版本、协议/模式版本、Rust edition、平台目标三元组、资产摘要和按安全要求钉住的 CI action commit 不属于依赖兼容范围，不得为了形式统一改写成依赖版本范围。
 - 自动生成代码、内嵌的第三方代码和人工维护代码必须明确隔离。不得直接修改生成物或内嵌的第三方内容。
 
@@ -117,7 +117,7 @@ DESKTOP 框架先读取根 Cargo metadata 的 `gui-framework`；DESKTOP 缺失�
 - 选择 Tauri GUI 的下游必须在 GUI 前端保留 TypeScript Compiler AST 中文注释门禁，并同时接入 `pnpm lint` 与项目 validator。机械范围只包括 interface、type alias、enum、class、具名函数、方法/访问器/构造器、直接或后置命名/默认导出的箭头函数组件与 hook，以及测试文件或显式 `vitest` 导入中的 `test`/`it` 测试场景；显而易见的字段、局部变量、循环绑定和普通匿名/极短内联回调不逐项检查，继续由所属结构或函数注释覆盖。
 - TypeScript 门禁只精确排除已声明的生成物（例如根相对的 `src/routeTree.gen.ts`）和依赖/产物目录，不得因任意路径片段名为 `build` 等通用词而跳过人工源码。Rust 与 TypeScript 门禁都必须对无有效扫描对象、语法残缺、非法 UTF-8、NUL、源码符号链接、坏 JSON 或运行超时失败关闭，并报告根相对文件、行、列、声明类别和名称。
 - “包含至少一个汉字”只证明注释存在且归属正确，不证明内容有业务意义；语义质量仍按第 3.2 节由人工或 Agent 复核。门禁不得自动生成或批量补入“保存变量供当前逻辑使用”“执行处理逻辑”等套话。
-- 非 GUI 下游不得因为 TypeScript 门禁额外安装 pnpm、TypeScript 或前端依赖；所有接口都复用固定的 Node.js 工程运行时，Tauri GUI 下游再以 `$desktop-add-gui-adapter` 的前端基线和门禁参考实现为唯一接线来源；GPUI 用项目根 pnpm 脚本运行保留的 Node 工程门禁。
+- 非 GUI 下游不得因为 TypeScript 门禁额外安装 pnpm、TypeScript 或前端依赖；所有接口都复用固定的 Node.js 工程运行时，Tauri GUI 下游再以 `$desktop-add-gui-adapter` 的前端基线和门禁参考实现为唯一接线来源。
 
 ## 4. 文档规则
 
@@ -133,8 +133,8 @@ DESKTOP 框架先读取根 Cargo metadata 的 `gui-framework`；DESKTOP 缺失�
 - 构建请求、执行、成功、失败、重试、全量单元测试结果、产物路径/摘要/签名状态，以及候选 E2E、完整验收、状态更新和就绪复核，都不触发 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification。候选事实只写入忽略的 `release/` 原子集合、manifest 声明的相邻证据和最终回复；Git 发布在本地默认主分支与 tag 复读成功时结束，下游受跟踪周期状态在下一条开发分支复核这两条 ref 后复位。真实渠道分发和回顾性审计各自按独立事件记录，不改写已完成的 Git 发布事实。
 - 中性初始化必须解析非空中文与英文项目展示名称，且至少一个由用户直接提供；只提供一种语言时由 Agent 自动翻译另一种，并在首次写入前通过完整汇总统一确认。`LICENSE.zh-CN.md` 只写确认后的中文名称，`LICENSE.en.md` 只写确认后的英文名称；README 身份摘要和按 locale 拆分的双语 GUI 资源文件（`zh-CN`/`en-US` 各自的字面文本，不含运行时按界面语言注入的 `applicationName`）必须从同一确认结果派生，不得把机器标识当作缺失译名。
 - 根 `release-notes.json` 是 Harness 源与终端下游共用的双语发布更新日志事实，不是按日项目记忆，也不替代 `docs/changelog/`。它只在准备首个正式发布时创建，使用 `schemaVersion: 2`；每个功能优化或问题修复条目把非空 `zh-CN` 与 `en-US` 文案绑定为一个翻译对，任一语言缺失、空白或同语言重复都失败关闭。每次正式发布前，根据上一次正式发布版本到当前发布源码的真实差异更新当前版本，按最新在前只保留包含当前发布版本在内的最近 10 个实际发布版本条目，每版“功能优化”和“问题修复”各不超过 10 个双语条目。普通缺陷修复即使不触发 Changelog，仍应进入对应发布版本的“问题修复”；失败发布可替换同版本条目。更新日志字节变化始终要求重新提交；终端下游还必须重新构建和验收候选，Harness 源则重新执行 Git 源码发布复核，不虚构产品候选。
-- 构建不得整理、生成或改写更新日志；它只读校验发布准备已经整理的最近 10 个版本条目；Tauri 通过发布专用合并配置、GPUI 通过独立构建注入和资源 map 嵌入相同字节。源文件、合并配置、构建后资源、最终 DMG 内资源、manifest 摘要或 About 运行时任一环不一致都阻断对应候选。
-- 上一条“构建”专指发布候选。开发试包按框架分派：Windows Tauri 使用 `$desktop-build-tauri-local-install`，GPUI 使用 `$desktop-build-gpui-release` 的 `local` 模式；两者都不读取或生成 `release-notes.json`，不使用发布专用配置，不写 `release/`，不提交，也不解析 E2E 选择；不得把普通“继续构建”升级解释为发布授权。
+- 构建不得整理、生成或改写更新日志；它只读校验发布准备已经整理的最近 10 个版本条目；Tauri 通过发布专用合并配置嵌入相同字节。源文件、合并配置、构建后资源、最终 DMG 内资源、manifest 摘要或 About 运行时任一环不一致都阻断对应候选。
+- 上一条“构建”专指发布候选。开发试包使用 `$desktop-build-tauri-local-install` 的适用宿主路径；试包不读取或生成 `release-notes.json`，不使用发布专用配置，不写 `release/`，不提交，也不解析 E2E 选择；不得把普通“继续构建”升级解释为发布授权。
 - 同一维护任务若另外改变产品目标/边界/约束/成功标准、引入长期决定或硬规则例外、形成重要阻断/交接、完成真实渠道发布，或另行进入回顾性人工复核/长期审计，才按该独立事件更新对应记忆。候选验收阶段只写忽略的 `release/` 原子证据；任务被称为“修复”或“重构”不能绕过相应的安全、发布或记录要求。
 - 除上述维护排除外，用户或维护者可感知且符合 Changelog 资格的真实行为/流程变化写入当日 Changelog。修改代码或规则时仍须同步受影响的权威设计文档和测试；同步事实不等于创建项目记忆。
 - 修改工程规则时，同步检查 `AGENTS.md` 的入口路由、相关 Skill、本文件和适用的机械检查；任务专属细节只在其唯一事实源中校验，不得为了通过检查复制回根入口。
@@ -233,9 +233,9 @@ DESKTOP 框架先读取根 Cargo metadata 的 `gui-framework`；DESKTOP 缺失�
 - 已初始化下游在实施前由 `$desktop-manage-version` 只读分类，且只在变化完成并通过本次相关测试后提交版本；分类、周期、`record-reconciliation`、base-100 与失败关闭规则见 `docs/RELEASE.md` 与该 Skill。`check`、`plan`、`maintenance` 都不写版本文件或状态，构建只检查一致性。
 - 产品范围、长期决定、合格 Changelog、重要阻断/交接和用户明确要求仍分别触发对应记录或专用流程；候选验收只写 `release/`，真实渠道分发成功和独立回顾性审计才在后续受管开发生命周期记录各自事实。下一次开发从已发布的本地主分支/tag 建分支并在该分支复核后复位版本周期；不得在 tag 后直接写脏主分支。安全/隐私、数据迁移、破坏性操作、凭据/生产/付费副作用、对外兼容契约、渠道硬要求、签名与发布仍保留解决当前风险必需的授权和检查。
 - 显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择：当前请求已明确 `enabled`/`disabled` 时直接复用，否则询问一次；持久 `e2e_hint` 仅是建议默认值。该选择只对当前发布候选有效；本地开发试包不解析该选择。
-- 构建必须运行项目全部非空单元测试。Rust 覆盖 workspace 全成员、全 targets、全 features；GUI 中 Tauri 同时运行完整 Rust workspace 和前端单元测试套件；GPUI 只运行完整 Rust workspace，不引入前端工具。项目锁策略缺省或为 `ignored` 时，测试/构建不得依赖项目 `--locked` 或 `--frozen-lockfile`，前端安装使用 `pnpm install --no-frozen-lockfile`。显式为 `tracked` 时，先核对适用锁文件存在、受 Git 跟踪且未被忽略，随后对实际 Rust 工作区的测试/构建使用 `--locked`，GUI 前端安装使用 `pnpm install --frozen-lockfile`；清单与锁文件不一致时停止并由目标项目更新锁文件，不能静默改用非冻结解析。测试失败或零测试阻断构建。
+- 构建必须运行项目全部非空单元测试。Rust 覆盖 workspace 全成员、全 targets、全 features；GUI 中 Tauri 同时运行完整 Rust workspace 和前端单元测试套件。项目锁策略缺省或为 `ignored` 时，测试/构建不得依赖项目 `--locked` 或 `--frozen-lockfile`，前端安装使用 `pnpm install --no-frozen-lockfile`。显式为 `tracked` 时，先核对适用锁文件存在、受 Git 跟踪且未被忽略，随后对实际 Rust 工作区的测试/构建使用 `--locked`，GUI 前端安装使用 `pnpm install --frozen-lockfile`；清单与锁文件不一致时停止并由目标项目更新锁文件，不能静默改用非冻结解析。测试失败或零测试阻断构建。
 - 候选构建记录严格遵守第 4.1 节的边界：manifest 和最终回复是发布候选构建的记录出口；本地开发试包只报告实际产物路径和风险。两者都不为构建过程或结果创建、更新任何项目记忆。
-- 发布候选 E2E 不混入单元测试、编译、签名或打包命令。选择启用或产品/渠道硬要求时，只在完整最终候选存在后运行；选择禁用时记录 `Not run` 和剩余风险。Tauri GUI 初始化专用的 debug/no-bundle E2E 是该框架的前候选初始化门禁，只能证明脚手架在当前宿主可构建并满足三项固定基线、按 profile 启用的宿主生命周期、运行时 i18n、固定侧栏、精简设置页和菜单可达；需要安装包注册才能证明的深链接平台场景保持 `Not verified`，不能形成候选验收结论。 GPUI 与 NSH 初始化 E2E 分别按专用 Skill 执行，也不构成产品候选验收。
+- 发布候选 E2E 不混入单元测试、编译、签名或打包命令。选择启用或产品/渠道硬要求时，只在完整最终候选存在后运行；选择禁用时记录 `Not run` 和剩余风险。Tauri GUI 初始化专用的 debug/no-bundle E2E 是该框架的前候选初始化门禁，只能证明脚手架在当前宿主可构建并满足三项固定基线、按 profile 启用的宿主生命周期、运行时 i18n、固定侧栏、精简设置页和菜单可达；需要安装包注册才能证明的深链接平台场景保持 `Not verified`，不能形成候选验收结论。 NSH 初始化 E2E 分别按专用 Skill 执行，也不构成产品候选验收。
 - 完整候选必须绑定批准场景、源码提交、运行环境和可观察结果；模拟实现、测试替身、占位页面、中性脚手架、开发预览、源码片段或只调用内部函数的结果不具备验收资格。验收失败保存证据并返回开发循环；只有存在用户要求的持久计划时才重开 Todo。
 - 构建候选可以标记 `milestoneAcceptance: pending`，但不是 `ready` 或发布物。若验收后的签名、公证或打包改变产物字节、启动器、依赖或运行行为，结果是新候选，必须重新验收。
 

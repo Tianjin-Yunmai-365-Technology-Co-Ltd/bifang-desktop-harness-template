@@ -6,7 +6,7 @@ import { UpgradeError, assertSafePath, lstatOrNull, snapshotFile } from "./harne
 
 const METADATA_TABLE = ["workspace", "metadata", "agent-first-harness"];
 const INTERFACES = new Set(["cli", "mcp", "gui", "nsh"]);
-const FRAMEWORKS = new Set(["tauri", "gpui", "nsh"]);
+const FRAMEWORKS = new Set(["tauri", "nsh"]);
 const NSH_TARGETS = new Set(["desktop", "mobile", "web"]);
 const NSH_STABLE_REV = "e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3";
 const TAURI_SKILLS = new Set([
@@ -160,7 +160,7 @@ export function parseInterfaceSelection(source) {
     }
   }
   const framework = values.has("gui-framework") ? stringValue(values.get("gui-framework"), "gui-framework") : "tauri";
-  if (!FRAMEWORKS.has(framework)) throw new UpgradeError('Cargo gui-framework 必须是 "tauri"、"gpui" 或 "nsh"');
+  if (!FRAMEWORKS.has(framework)) throw new UpgradeError('Cargo gui-framework 必须是 "tauri" 或旧版 "nsh"；DESKTOP 仅支持 Tauri');
   if (values.has("gui-framework") && !interfaces.includes("gui")) throw new UpgradeError("Cargo gui-framework 只适用于已选择 GUI 的下游");
   if (interfaces.includes("nsh")) {
     if (interfaces.length !== 1 || values.has("gui-framework")) throw new UpgradeError("Cargo NSH 当前必须是独立顶层接口，不能同时声明 GUI 框架");
@@ -191,6 +191,9 @@ export function readInterfaceSelection(root) {
 
 /** 接口条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
 export function inapplicableGuiCandidate(relative, selection) {
+  // 旧候选即使带有历史所有权声明，也不能重新传播退役的桌面资产。
+  if (/^\.agents\/skills\/(?:desktop-[^/]*-gpui-[^/]+|gpui-kit(?:-design-guides)?)(?:\/|$)/u.test(relative)
+      || relative === "docs/design_standards/gpui_gui.md") return true;
   const nsh = selection.interfaces.includes("nsh") || selection.guiFramework === "nsh";
   const desktopGraphics = selection.interfaces.includes("gui") || nsh && (!selection.nshTargets || selection.nshTargets.includes("desktop"));
   const cli = selection.interfaces.includes("cli");
@@ -199,9 +202,8 @@ export function inapplicableGuiCandidate(relative, selection) {
   const skill = /^\.agents\/skills\/([^/]+)(?:\/|$)/u.exec(relative)?.[1];
   if (["desktop-add-cli-adapter", "desktop-build-rust-release", "desktop-prepare-cross-platform-release"].includes(skill)) return !cli;
   if (skill === "desktop-add-mcp-adapter") return !selection.interfaces.includes("mcp");
-  if (skill === "desktop-extract-i18n-strings") return !["tauri", "gpui"].includes(selection.guiFramework);
-  if (skill === "desktop-collect-release-artifacts") return !(cli || ["tauri", "gpui"].includes(selection.guiFramework));
-  if (["desktop-add-gpui-adapter", "desktop-build-gpui-release", "desktop-manage-gpui-dependencies", "desktop-optimize-gpui-performance", "desktop-add-gpui-autostart", "desktop-test-gpui-initialization-e2e"].includes(skill)) return selection.guiFramework !== "gpui";
+  if (skill === "desktop-extract-i18n-strings") return selection.guiFramework !== "tauri";
+  if (skill === "desktop-collect-release-artifacts") return !(cli || selection.guiFramework === "tauri");
   if (["desktop-add-nsh-adapter", "desktop-build-nsh-release", "desktop-test-nsh-initialization-e2e"].includes(skill)) return !nsh;
   if (skill === "desktop-prepare-gui-support-surfaces") return !(selection.guiFramework === "tauri" || nsh && (!selection.nshTargets || selection.nshTargets.includes("desktop")));
   if (TAURI_SKILLS.has(skill)) return selection.guiFramework !== "tauri";

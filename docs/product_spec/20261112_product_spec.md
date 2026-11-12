@@ -1,54 +1,56 @@
 # Agent-first Harness 模板产品规格
 
-> 记忆日期：2026-11-08
+> 记忆日期：2026-11-12
 >
 > 状态：Approved
 >
 > 初次批准日期：2026-07-21
 >
-> 最近范围确认：2026-11-08（NSH TUI 暂停，初始化仅选择桌面、移动、Web）
+> 最近范围确认：2026-11-12（DESKTOP 固定 Tauri；NSH 保持独立）
 
 ## 当前范围确认
 
+- `HARNESS-REMOVE-GPUI`（正式发布时取号）：DESKTOP 固定使用 Tauri，选择后直接进入九项桌面配置；旧 GUI 缺省框架兼容 Tauri。显式声明 GPUI 的旧项目须在本版升级前独立处理，不自动迁移。见 [ADR-20261112-001](../adr/20261112_ADR.md)。
+
 ### 新项目初始化问询
 
-- 变更标识：`HARNESS-CHANGE-SEQUENTIAL-INITIALIZATION-QUESTIONS`；`required_version = 202611081358`，仅在正式发布时物化 Harness 时间版本。负责人要求首次基础表单、后续条件题及其他结构化补问每轮只问一个字段；程序类型与 NSH 能力等多选项优先弹出复选控件供勾选并确认，不要求用户手打选项。空表单先问中文名时提供可点击的“改用英文名”，避免只提供英文名的用户被卡住。宿主仅支持单选工具时，逐个选项点击选择/不选择，再点击确认最终集合；没有可点击选项工具时如实说明限制，不伪称已弹出复选框。提前明确给出的合法字段仍直接复用，最终完整汇总继续单独确认。见 [ADR-20261108-003](../adr/20261108_ADR.md)。
+- 变更标识：`HARNESS-CHANGE-SEQUENTIAL-INITIALIZATION-QUESTIONS`；`required_version = 202611081358`，仅在正式发布时物化 Harness 时间版本。负责人要求首次基础表单、后续条件题及其他结构化补问每轮只问一个字段；程序类型与 NSH 能力等多选项优先弹出复选控件供勾选并确认，不要求用户手打选项。空表单先问中文名时提供可点击的“改用英文名”，避免只提供英文名的用户被卡住。宿主仅支持单选工具时，逐个选项点击选择/不选择，再点击确认最终集合；没有可点击选项工具时如实说明限制，不伪称已弹出复选框。提前明确给出的合法字段仍直接复用，最终完整汇总继续单独确认。见 [ADR-20261108-003](../adr/20261112_ADR.md)。
 - 变更标识：`HARNESS-CHANGE-SIMPLIFIED-INITIALIZATION-FORM`；`required_version = 202611081358`，仅在正式发布时物化 Harness 时间版本。负责人要求取消系统平台问题，CLI/MCP/DESKTOP 默认支持 Windows/macOS/Linux 全平台，NSH 只问自己的能力；Agent 策略直接默认，发布后动作首次发布时询问，并明确 DESKTOP 可与 CLI/MCP 组合、NSH 只能单选。
-- 基础字段按顺序逐项询问中英文展示名（至少一个由用户直接提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型。CLI、MCP 可互相组合，也可与 DESKTOP 组合，默认派生完整 Windows/macOS/Linux；NSH 与其余类型互斥，只问桌面、移动、Web 能力，并分别派生完整对应平台。DESKTOP 继续补问 Tauri/GPUI 框架；适用的桌面九项配置仍逐项确认。具体平台及派生来源在写入前完整汇总确认，旧表单显式平台答案不再影响新项目。
-- 六项 Agent 策略按固定默认值物化，不出现策略模式问题；新下游 schema 5 先记录 `post_release_action: pending`，首次发布前展示可用动作并持久化用户选择。未选择时不得开始 Git 发布，已初始化下游的持久选择不受此变更重置。见 [ADR-20261108-002](../adr/20261108_ADR.md) 与 [ADR-20261108-001](../adr/20261108_ADR.md)。
+- 基础字段按顺序逐项询问中英文展示名（至少一个由用户直接提供）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型。CLI、MCP 可互相组合，也可与 DESKTOP 组合，默认派生完整 Windows/macOS/Linux；NSH 与其余类型互斥，只问桌面、移动、Web 能力，并分别派生完整对应平台。DESKTOP 直接派生 Tauri；适用的桌面九项配置仍逐项确认。具体平台及派生来源在写入前完整汇总确认，旧表单显式平台答案不再影响新项目。
+- 六项 Agent 策略按固定默认值物化，不出现策略模式问题；新下游 schema 5 先记录 `post_release_action: pending`，首次发布前展示可用动作并持久化用户选择。未选择时不得开始 Git 发布，已初始化下游的持久选择不受此变更重置。见 [ADR-20261108-002](../adr/20261112_ADR.md) 与 [ADR-20261108-001](../adr/20261112_ADR.md)。
 
 ### NSH TUI 暂停与正式工具链
 
-- 变更标识：`HARNESS-CHANGE-NSH-TUI-PAUSE`；`required_version = 202611082001`，仅在正式发布时物化 Harness 时间版本。负责人在本次发布前明确选择按当前实现暂停 TUI，取代此前 [ADR-20261107-004](../adr/20261108_ADR.md) 的固定 `main` 预览接线路线；历史发布事实保留。
+- 变更标识：`HARNESS-CHANGE-NSH-TUI-PAUSE`；`required_version = 202611082001`，仅在正式发布时物化 Harness 时间版本。负责人在本次发布前明确选择按当前实现暂停 TUI，取代此前 [ADR-20261107-004](../adr/20261112_ADR.md) 的固定 `main` 预览接线路线；历史发布事实保留。
 - 新 NSH 工程只接受 `desktop`、`mobile`、`web` 子目标，全部使用正式 v0.4.0 的固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3` 与匹配 CLI。初始化、接入、运行、构建、升级遇到 `tui` 选择或旧元数据时失败关闭；不自动改写既有下游的 Cargo、产品代码或选择。旧独立顶层 `interfaces = ["tui"]` 继续非法。
-- 正式 v0.4.0 工具链不提供已验证的 TUI 目标；历史 `main` 预览接线不能作为当前可用能力或正式候选。恢复 TUI 前须重新确认范围，并证明同一固定工具链具备实际运行、测试、打包和最终产物验证路径。见 [ADR-20261108-005](../adr/20261108_ADR.md)。
+- 正式 v0.4.0 工具链不提供已验证的 TUI 目标；历史 `main` 预览接线不能作为当前可用能力或正式候选。恢复 TUI 前须重新确认范围，并证明同一固定工具链具备实际运行、测试、打包和最终产物验证路径。见 [ADR-20261108-005](../adr/20261112_ADR.md)。
 
 ### NSH 全目标 Mixed 与桌面能力
 
 - 变更标识：`HARNESS-FEAT-NSH-MIXED-DESKTOP`；`required_version = 202611071119`，Harness 仅在正式发布时取时间版本。负责人确认新 NSH 工程在桌面、移动和 Web 全部使用 Mixed：TSX UI 经原生模块调用共享 Rust core。桌面另生成自定义 AppKit、Win32、GTK 宿主并固定提供多窗口；移动/Web 使用 NSH 官方宿主。
-- 桌面九字段仍逐项确认：托盘、自启、单实例、深链接按所选值接线，深链接依赖单实例；关于页、赞助页、侧栏依选择生成，系统通知与 OS 全局快捷键当前必须 disabled。用户批准下游所需、按目标平台最小声明的项目本地 Cargo 依赖。新桌面包由 Mixed bundle、Cargo 宿主和平台资源组成；实际平台能力与签名仍须真实目标验证。旧 GUI/NSH 下游只读兼容，不自动覆盖产品文件。见 [ADR-20261107-003](../adr/20261108_ADR.md)。
+- 桌面九字段仍逐项确认：托盘、自启、单实例、深链接按所选值接线，深链接依赖单实例；关于页、赞助页、侧栏依选择生成，系统通知与 OS 全局快捷键当前必须 disabled。用户批准下游所需、按目标平台最小声明的项目本地 Cargo 依赖。新桌面包由 Mixed bundle、Cargo 宿主和平台资源组成；实际平台能力与签名仍须真实目标验证。旧 GUI/NSH 下游只读兼容，不自动覆盖产品文件。见 [ADR-20261107-003](../adr/20261112_ADR.md)。
 
 ### NSH 顶层程序类型与目标能力
 
 - 变更标识：`HARNESS-CHANGE-NSH-TOP-LEVEL`；`required_version = 202611071119`，Harness 仅在正式发布时取时间版本。负责人明确选择 NSH 与 CLI、MCP、DESKTOP 平齐，说明为“下一代全平台开发框架”。
-- 顶层程序类型为 CLI、MCP、DESKTOP（Cargo `gui`）与 NSH（Cargo `nsh`）。DESKTOP 框架只选 Tauri 或 GPUI；新 NSH 不写 `gui-framework`，写 `nsh-targets`，子目标只可选择桌面、移动、Web，并须与具体 `target-platforms` 一致。NSH 当前只允许单独选择；新适配器成员为 `_nsh`。既有 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 的下游只读兼容，升级不得据此误删能力或自动迁移受保护产品文件。
+- 顶层程序类型为 CLI、MCP、DESKTOP（Cargo `gui`）与 NSH（Cargo `nsh`）。DESKTOP 固定使用 Tauri；新 NSH 不写 `gui-framework`，写 `nsh-targets`，子目标只可选择桌面、移动、Web，并须与具体 `target-platforms` 一致。NSH 当前只允许单独选择；新适配器成员为 `_nsh`。既有 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 的下游只读兼容，升级不得据此误删能力或自动迁移受保护产品文件。
 - NSH 九字段能力只在桌面子目标下询问并写入桌面 profile；未选桌面时不问，不把桌面宿主能力应用于移动或 Web。共享 core、固定语言与主题机制以及各目标独立验证继续适用；界面模式与能力范围由本日 Mixed 决定更新。
-- TUI 当前暂停，表单选择或旧元数据声明均失败关闭；此前固定官方 `main` 的预览路线已被本日确认的暂停决定取代，不恢复独立 Ratatui TUI 程序类型。见 [ADR-20261107-002](../adr/20261108_ADR.md) 与 [ADR-20261108-005](../adr/20261108_ADR.md)。
+- TUI 当前暂停，表单选择或旧元数据声明均失败关闭；此前固定官方 `main` 的预览路线已被本日确认的暂停决定取代，不恢复独立 Ratatui TUI 程序类型。见 [ADR-20261107-002](../adr/20261112_ADR.md) 与 [ADR-20261108-005](../adr/20261112_ADR.md)。
 
 ### 永久移除独立 TUI 程序类型
 
 - 变更标识：`HARNESS-REMOVE-TUI`；`required_version = 202611070300`。负责人明确要求清理当前 Harness 中所有 TUI 相关技能，并永久移除该选项。
 - 新下游不再接受顶层 `interfaces = ["tui"]`；删除 `$desktop-add-tui-adapter` 及其模板知识，不在任何下游新建独立 Ratatui TUI。NSH 内部 TUI 当前也失败关闭，不能借历史预览接线恢复该独立接口。
 - 既有下游若仍声明 TUI，工程升级失败关闭并要求在目标项目另行迁移；旧来源锁的识别信息可保留以避免误删产品资产，但不能重新传播 TUI。历史已发布决定和验证事实通过 Git 与历史归档追溯，不作为当前选项。
-- 这一范围变更不把终端项目里的产品代码视为 Harness 清理授权。真实初始化、候选和跨平台验证仍分别按实际产物取证；见 [ADR-20261107-001](../adr/20261108_ADR.md)。
+- 这一范围变更不把终端项目里的产品代码视为 Harness 清理授权。真实初始化、候选和跨平台验证仍分别按实际产物取证；见 [ADR-20261107-001](../adr/20261112_ADR.md)。
 
 ### NSH 既有工程能力与版本绑定
 
-- 变更标识：`HARNESS-FEAT-NSH`；`required_version = 202611061129`，由既有正式发布绑定，日常维护不改 Harness 时间版本。该版本首次引入 NSH 工程链路；当前顶层分类与说明以上节新决定为准，Tauri 默认和 GPUI 仍属于 DESKTOP。
-- 统一初始化表单、Cargo metadata、九字段 profile、版本及 Git 发布生命周期不分叉。NSH 使用共享 core、自含运行时知识、专用 adapter/build/初始化 E2E；当前界面由本日 Mixed 决定更新，不接入 Tauri 前端/插件或 GPUI Kit。原产品业务与签名不进入模板。
+- 变更标识：`HARNESS-FEAT-NSH`；`required_version = 202611061129`，由既有正式发布绑定，日常维护不改 Harness 时间版本。该版本首次引入 NSH 工程链路；当前顶层分类与说明以上节新决定为准。
+- 统一初始化表单、Cargo metadata、九字段 profile、版本及 Git 发布生命周期不分叉。NSH 使用共享 core、自含运行时知识、专用 adapter/build/初始化 E2E；当前界面由本日 Mixed 决定更新，不接入 Tauri 前端/插件。原产品业务与签名不进入模板。
 - Android/iOS/Web 只允许 NSH；语言、三态主题和设置固定。桌面目标的关于/赞助/侧栏按选择，四项宿主能力可选、两项继续不可用，具体以本日 Mixed 决定为准。NSH 原生构建、Web 静态包、移动 SDK/签名和设备分别取证；初始化中性工程不冒充产品验收。
 - 本地试包与已发布候选分开；候选复核 clean 发布源码/tag/上下文、完整非空 Rust 与 NSH 测试、日志/许可证/文件摘要及当次 E2E。NSH 0.4.0 无法把 tracked 锁传递到生成的 runtime workspace，因此该锁模式打包失败关闭，默认 ignored 可正常执行。初始化后删除专用派生入口，升级只传播所选接口的工程能力。
-- 详见 [ADR-20261106-001](../adr/20261108_ADR.md)。
+- 详见 [ADR-20261106-001](../adr/20261112_ADR.md)。
 
 
 - 变更标识：`HARNESS-REMOVE-UPDATES-TELEMETRY`；`required_version = 202611051535`。负责人明确要求从 Harness 摘掉应用更新与统计逻辑；初始化、Skills、支持资产、构建和升级工程层不再提供 updater、强更或使用统计能力。关于页保留权威版本与本地发布日志；既有下游产品实现继续受升级保护。本次正式发布将该变化绑定到上述所需版本，发布状态以 Git 引用复核为准。
@@ -78,17 +80,16 @@
 - Task 场景：`user_owned_tasks` 默认 `disabled`，关闭时不自动创建或拆分左侧 Task，但用户明确要求仍可创建；`enabled` 是按结果边界自动创建的长期授权。一个 Task 固定一个可验收结果、范围、禁止范围、完成条件和所选执行环境；交付物类型、外部副作用、禁止范围或验收责任变化（阶段变化仅在用户明确要求隔离时）必须新建 Task，同结果测试/review/checkpoint 与必要缺陷修复保留。同一 Local cwd 串行，独立 Worktree 按不重叠所有权并行。创建前核对项目与 Task 历史；仅 Local 环境检查同一 cwd 的 active 写入占用；Git 按有效 task_worktrees 选择 Worktree/Local，非 Git 使用 Local，以 `Task {序号} | 已分配 | {单一结果}` 调用一次 user-owned `create_thread`。只有真实 `threadId` 才继续，并复核标题、`projectId`、cwd、状态、干净工作区及起始提交；`clientThreadId` 或任一不符均零实现、不重复创建、不退化。
 - 决策场景：创建新下游时按固定顺序每轮只问一个尚未解析的双语名称、标识、路径、负责人或程序类型字段；不再询问系统平台。CLI、MCP 可组合，也可与 DESKTOP 组合并默认完整 Windows/macOS/Linux；NSH 只能单选，再问 NSH 能力并派生平台。可选项以可点击控件确认，多选优先复选；宿主只有单选控件时逐项点选并确认集合。六项 Agent 策略直接按固定默认值物化，不单独询问；发布后动作首次发布前再选。初始化后可用“开启/关闭左侧 Task”或“开启/关闭自动 Task 拆分”手动切换，只影响后续结果边界。
 - 输入：当前 Harness 源只接收 Harness 工程维护信息，或创建终端下游所需的中文项目展示名、英文项目展示名（至少直接提供一个）、ASCII `snake_case` 标识、项目路径、负责人和程序类型；项目路径可以是最终根目录或父目录。选择 NSH 时再确认桌面、移动、Web 子目标；桌面派生 Windows/macOS/Linux，移动派生 Android/iOS，Web 派生 Web，TUI 选择失败关闭。选择 DESKTOP 或 NSH 桌面时还包括八项条件能力的启用/禁用最终配置与精简/详细侧栏选择；仅适用且可选的能力由用户逐项确认，不可用能力按框架与平台派生为 `disabled` 并明示来源；侧栏仅在用户明确选择默认、跳过或提交空白时使用详细模式，未答继续等待；Tauri 的 `os`（system-locale）、window-state 是不询问的两项 Rust-only 固定基线，dialog 是不询问的固定 WebView 基线。发布后动作不是初始化问题，新项目策略先记 `pending`，首次发布前再明确选择；产品目的、业务规则、产品专属 UI/文案/数据、远程地址、凭据、产品构建与发布要求必须在初始化完成并切换到终端下游后重新提出。
-- 输出：独立终端项目根、共享核心与所选适配器；DESKTOP 下游按所选框架输出包含九项最终配置、所选生命周期/页面/侧栏且无禁用能力残留的适配器；NSH 按所选子目标生成 `_nsh`，只有桌面子目标写九字段 profile；Tauri 另包含两项 Rust-only 固定基线与 dialog 固定 WebView 基线，GPUI 使用其原生基线，其中明确选择默认、跳过或提交空白时 `sidebar_mode = detailed`，未答继续等待。完成实现并提供本次必要单元测试证据；显式 Git 发布输出本地默认主分支与 tag 对同一最终 HEAD 的复核，按当次选择处理语义审查；所选 `local_package` 后续路径输出本次一个已选接口/目标、经过全量单元测试的可追溯候选，并解析本次 E2E 与适用签名。Windows 本地开发试包只输出未签名非候选安装程序及风险；macOS 默认 unsigned 且不探测签名条件，只有已配置、主动要求或渠道硬要求时才签名并公证。
+- 输出：独立终端项目根、共享核心与所选适配器；DESKTOP 下游输出包含九项最终配置、所选生命周期/页面/侧栏且无禁用能力残留的适配器；NSH 按所选子目标生成 `_nsh`，只有桌面子目标写九字段 profile；Tauri 另包含两项 Rust-only 固定基线与 dialog 固定 WebView 基线，其中明确选择默认、跳过或提交空白时 `sidebar_mode = detailed`，未答继续等待。完成实现并提供本次必要单元测试证据；显式 Git 发布输出本地默认主分支与 tag 对同一最终 HEAD 的复核，按当次选择处理语义审查；所选 `local_package` 后续路径输出本次一个已选接口/目标、经过全量单元测试的可追溯候选，并解析本次 E2E 与适用签名。Windows 本地开发试包只输出未签名非候选安装程序及风险；macOS 默认 unsigned 且不探测签名条件，只有已配置、主动要求或渠道硬要求时才签名并公证。
 
 ## MVP 包含
 
-### Task 自主执行与 GPUI-Kit Skills
+### Task 自主执行
 
-- 变更标识：`HARNESS-FEAT-TASK-AUTONOMY-GPUI-SKILLS`；`required_version = 202610101414`，已在本次正式发布取号时物化。本条取代旧 Task 全局强制开启、无条件阶段拆分和每项目单写入者限制。
+- 变更标识：`HARNESS-FEAT-TASK-AUTONOMY-GPUI-SKILLS`；`required_version = 202610101414`，已在历史发布中物化。本条取代旧 Task 全局强制开启、无条件阶段拆分和每项目单写入者限制。
 - `user_owned_tasks` 是项目唯一自动创建左侧 Task 子树的开关，默认关闭；初始化和手动切换都记录真实选择及确认来源/日期。单次显式创建不改变永久选择，关闭时当前会话直接完成工作。
 - Task/工作树完整流程集中到 `$desktop-task-workflow`；旧三个 Skill 保留兼容路由。已授权范围内可自主阅读、编辑、测试、修复和提交，自检通过自动执行，无需额外人工 BOUND 授权；不伪造宿主审批，不用文档自授系统权限。
 - 独立工作树按非重叠所有权尽量并行准备、创建和执行。创建只在共享状态预留/登记时使用短锁，checkout 在锁外并行；同 Local cwd 及最终整合串行。
-- 新建 GPUI 下游本地安装官方 `$gpui-kit` 与 `$gpui-kit-design-guides`，固定上游提交、逐文件摘要并携带 Apache-2.0 许可；Tauri/非 GUI 不安装，不使用全局第三方包，不执行远程代码。升级将已安装第三方 Skills 作为 protected 资产。
 
 ### 用户硬规则、业务前 Task 门禁与中文提交
 
@@ -99,36 +100,6 @@
 - 绑定、菜单或真实身份异常先在授权范围用受支持工具修复原 Task 并有界复读。handoff 改 ID 时保留 Task key、编号与单一结果，工具证明迁移链；不凭相似标题接管、不新建替代、不用协调聊天或内部业务 Subagent 代做。其他任务问题只修复已授权阻断，不进入其业务；不能修复时保留证据并保持零业务执行。长期停止后新结果仍完整枚举同宿主/项目当前及逐页归档，从最大有效序号加一。
 - Git 提交主题摘要和正文说明使用中文，type、scope、技术标识符和必要 Git 语义可保留。实际提交前复核 diff 和消息文件，提交后复读真实消息。标准库 message-check 只读拒绝空、非法编码/控制字符和纯英文摘要；机械通过不证明表达质量或与 diff 一致。发布 helper 在暂存前调用共享校验，并复查 hook 改写后的实际消息；初始化基线与普通 merge 使用中文，保留普通合并及父提交关系。
 - 初始化保留入口规则与消息 helper；升级传播其依赖闭包，同时保留目标项目受保护策略字节及用户级规则边界。治理回归覆盖入口丢失、消息失败前零暂存、真实中文基线/合并、hook 改写和升级保护。工程检查不冒充宿主晋升、产品验收或发布结论。
-
-### GPUI 原生能力与基础技术选型
-
-- 变更标识：`HARNESS-FEAT-GPUI-NATIVE-CAPABILITIES`；`required_version = 202610090050`。
-- 托盘、系统通知、自启、单实例与全局快捷键按九字段选择生成自含模板和项目本地依赖；禁用项完全缺席，深链接仍 unavailable/disabled。当前托盘与热键限 macOS/Windows，含 Linux 的目标组合在写入前失败关闭。
-- 选择结束后必须询问配置协助，复用已有答案、跳过禁用项。Harness 源只接受中性能力及移交意愿；通知触发事件、额外菜单、动作、键位和固定/可编辑策略在终端下游唯一根目录确认。
-- 系统通知遵循 Kit 官方接口，应用偏好默认关闭，提交不等于系统权限或送达；自启以 OS 为准并限当前用户，初始化不注册；第二实例仅恢复窗口；热键空合同无默认动作和 OS 注册，回滚失败保留 owned 清理。没有实际可用托盘时关闭退出，托盘成功才关闭隐藏。
-- GPUI 初始化 Skill 必须读取自含 dependency-baseline：示例全部直接库作为基础技术选型，固定壳层无条件、原生能力按选择、运行时/序列化/网络/数值/资源等按真实用途采用最小 features；不复制业务代码、锁文件或未使用依赖，不全局安装。core 与 adapter 的职责仍由 core-first 管理。
-- 成功标准为相关非空生成/冲突/裁剪与 Rust 回归通过，初始化和候选阶段再按实际宿主验证所选能力并恢复测试副作用；未执行平台、打包权限或第三方内部线程限制必须如实报告。
-
-### GPUI 的 pnpm 工程工具入口
-
-- 变更标识：`HARNESS-CHANGE-GPUI-PNPM-TOOLING`；`required_version = 202610090050`。
-- 当时的 Tauri、GPUI 与 NSH GUI 路由要求 Node.js >=24.0.0、pnpm >=12.4.1；当前顶层 NSH 要求 Node.js 与 Rust 工具链，不从 DESKTOP 路由附加 pnpm 门禁。GPUI 在项目根提供验证、Rust 测试、发布检查/日志/上下文/Git 发布和独立原生打包脚本；pnpm 只调度 Node 标准库 helper，不引入前端或 npm 第三方依赖，也不要求安装或前端锁文件。
-- 初始化生成根 package.json，新增 adapter 或既有 GPUI 工程入口迁移只补齐无冲突字段并保留产品配置。升级器继续保护根 package.json，专用合并工具在授权范围内独立执行；同名冲突与已有兼容要求不一致时零写入阻断。实际命令通过只证明对应工程入口，不代替构建、发布或最终验收。
-
-### GPUI 开发入口与自动重启
-
-- 变更标识：`HARNESS-FEAT-GPUI-DEV-RELOAD`；`required_version = 202610090748`。
-- 根 `pnpm dev` 通过保留的 Node 标准库 helper 解析实际 GUI package/binary，监听 Rust、Cargo 配置、词典与静态资源；保存后防抖、增量编译并自动重启调试应用，编译失败仍监听并在修复后重试，编译期间再次保存必须追加构建。初始化、add-only 与显式工程入口迁移使用同一脚本合同，不覆盖产品 package 字段或冲突脚本。
-- 首次及资源变化刷新所选 GUI 的调试缓存，避免旧 build.rs 或过程宏重用旧词典/资源。构建输出与发布目录不参与监听；重编译前停止 owned 应用，退出回收 owned 构建和应用进程。此路径为原生 Rust 的重编译/重启，进程内临时状态重置，不宣称保留状态的 HMR，不安装第三方 watcher 或 GPUI Shell runtime。
-
-### GPUI 固定模板、core 优先与独立交付管线
-
-- 变更标识：`HARNESS-FEAT-GPUI-PACKAGING`；`required_version = 202610090050`。
-- DESKTOP 框架独立选择 Tauri（默认）或 GPUI，保存在 Cargo `gui-framework`；NSH 现为独立顶层类型，不写该字段。GPUI 生成自含原生模板：详细侧栏展开菜单左对齐，折叠控件的中心落在侧栏右边界，并与顶部 Logo 垂直居中，展开/收起均跨边界悬浮且完整可点击，不独占一行；赞助页直接占用内容区域，不叠加通用页头、分割线或双重留白。主题、双语、条件页面和精简模式继续由同一根视图维护。
-- GPUI 与 Tauri 共同遵守 core-first：业务规则、值域、跨字段校验、业务默认值、用例编排、状态转换、稳定错误和权威数据属于共享 core；GPUI 只拥有原生展示、纯交互状态、宿主机制与调用/结果映射。异步业务由 core 暴露运行时中立 API，端侧装配执行，不阻塞窗口线程或创建嵌套 runtime。
-- GPUI 固定接入 `tracing`、`tracing-subscriber`、`tracing-appender` 本地诊断：端侧初始化唯一订阅器，有界后台队列同时写标准错误和按日滚动文件，正常退出刷新，失败报告稳定类别；不默认遥测、不记录秘密、个人数据或原始业务载荷。core 可按真实业务需要发出脱敏事件，但不得拥有文件 sink 或 GUI 依赖。
-- 独立 `$desktop-build-gpui-release` 维护 Rust 构建和平台打包配置：macOS/Windows 使用全局固定兼容 cargo-packager，生成原生 macOS 应用包/DMG 或 Windows x64 NSIS；Linux GNU x64/ARM64 使用系统 tar/dpkg-deb/readelf 生成 deb/tar.gz。不复用 Tauri 前端或打包 helper。普通本地试包与正式候选分开，候选复核 clean 发布上下文/tag、全量非空 Rust 测试、当次 E2E/签名选择、许可证、更新日志和最终包字节后形成 pending 原子证据；实际验收另行执行。Linux 支持同系统 GNU x64/ARM64 交叉架构构建，实际运行仍需匹配目标架构的宿主证据；跨系统构建未支持，不能从当前宿主推断通过。
-- 初始化和升级仅向 GPUI 项目传播该 Skill；macOS/Windows 及 Linux GNU x64/ARM64 GPUI 均可选择未来 local_package；仅 Linux Tauri 且无 CLI 时仍须选择 push_release_branch。原生可选能力以本规格 GPUI 原生能力节为准；深链接及 dialog 的 unavailable 边界不由打包能力改变。
 
 ### 发布后远端主分支与 release 同步
 
@@ -141,7 +112,7 @@
 
 - 变更标识：`HARNESS-CHANGE-IGNORE-PROJECT-LOCKFILES`；所需 Harness 版本：`202609291534`（此前正式发布取号）。
 - Harness 源及新建下游默认忽略 `Cargo.lock`、`pnpm-lock.yaml` 和反馈中的非标准 `pnpm-package.lock`；中性资产不提交项目锁文件。此默认分支不要求锁文件存在、受 Git 跟踪或使用冻结解析门禁。
-- 补充变更标识：`change_id = HARNESS-CHANGE-OPTIONAL-TRACKED-LOCKFILES`；`required_version = 202609291802`。已初始化下游可以在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中显式设置 `dependency-lock-policy = "tracked"`；缺省或 `"ignored"` 保持默认，其他值失败关闭。选择 `tracked` 时，根及实际独立 Rust 工作区的 `Cargo.lock`、已选 Tauri GUI 前端根的 `pnpm-lock.yaml` 必须存在、受 Git 跟踪且未被忽略；安装、测试和构建使用冻结解析，清单与锁文件不一致时停止。GPUI 的根 pnpm 脚本没有前端安装或 pnpm 锁文件要求，Rust 工作区仍按 tracked 要求 Cargo.lock。目标项目负责该受保护选择、忽略规则和锁文件，Harness 升级不得代写。
+- 补充变更标识：`change_id = HARNESS-CHANGE-OPTIONAL-TRACKED-LOCKFILES`；`required_version = 202609291802`。已初始化下游可以在根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 中显式设置 `dependency-lock-policy = "tracked"`；缺省或 `"ignored"` 保持默认，其他值失败关闭。选择 `tracked` 时，根及实际独立 Rust 工作区的 `Cargo.lock`、已选 Tauri GUI 前端根的 `pnpm-lock.yaml` 必须存在、受 Git 跟踪且未被忽略；安装、测试和构建使用冻结解析，清单与锁文件不一致时停止。目标项目负责该受保护选择、忽略规则和锁文件，Harness 升级不得代写。
 - 工具可在默认分支本地生成被忽略的解析结果；项目兼容性仍由清单依赖声明、满足下限的 stable 正常解析与相关测试记录支撑。默认分支不声称传递依赖或构建字节可复现；`tracked` 固定一次依赖解析，但不替代工具链、平台、单元测试或真实候选的验证。
 
 ### 唯一 Git 发布与下游记录纠错门禁
@@ -289,9 +260,9 @@
 ### GUI 初始化能力选择与侧栏模式
 
 - 变更标识：`HARNESS-FEAT-GUI-INITIALIZATION-CAPABILITY-SELECTION`；所需 Harness 版本：`202608051301`（历史所需版本，已纳入此前发布；本范围不自动改变 `Version.md`）。
-- 用户在基础和接口问题中选择 DESKTOP 或 NSH 的桌面子目标后，初始化器必须在基础字段全部解析后进入条件问询。支持的能力按字段逐项点击确认 `enabled` 或 `disabled`；当前 NSH 的 `system_notification` 与 `global_shortcut`、GPUI 的受限字段以 `unavailable/disabled` 明示并在显式启用时失败关闭，不假装询问后可用。九字段顺序为 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`；侧栏选择 `compact` 或 `detailed`，明确选择默认、跳过或提交空白时写入 `detailed`，未答继续等待；显式非法值不得按跳过处理。归一化后的九项写入唯一 `gui-initialization-config` 代码块，基线提交前不得缺失或残留 `pending`；深链接启用时必须同时启用单实例。
+- 用户在基础和接口问题中选择 DESKTOP 或 NSH 的桌面子目标后，初始化器必须在基础字段全部解析后进入条件问询。支持的能力按字段逐项点击确认 `enabled` 或 `disabled`；当前 NSH 的 `system_notification` 与 `global_shortcut`以 `unavailable/disabled` 明示并在显式启用时失败关闭，不假装询问后可用。九字段顺序为 `system_tray`、`system_notification`、`autostart`、`about_page`、`sponsor_page`、`single_instance`、`deep_link`、`global_shortcut`、`sidebar_mode`；侧栏选择 `compact` 或 `detailed`，明确选择默认、跳过或提交空白时写入 `detailed`，未答继续等待；显式非法值不得按跳过处理。归一化后的九项写入唯一 `gui-initialization-config` 代码块，基线提交前不得缺失或残留 `pending`；深链接启用时必须同时启用单实例。
 - `system_tray = enabled` 时完整实现现有托盘图标、双项本地化菜单、关闭隐藏、两种恢复和退出生命周期；`disabled` 时不启用 `tray-icon`、不安装托盘、不保留托盘 locale/菜单资源或关闭隐藏处理，而由主窗口 `CloseRequested` 显式调用 `AppHandle::exit(0)`，确保关闭即退出。`single_instance = enabled` 时完整实现官方首插件、只恢复既有窗口的回调与真实双启动唯一性；`disabled` 时依赖、插件、回调和双启动场景都必须缺席。
-- Tauri GUI 的 `/settings`、动态标题、语言/三态主题和亮暗语义主题仍是固定基线。`about_page`、`sponsor_page` 各自只控制相应路由、导航入口、组件和运行时资源；未选页面不得以隐藏路由、不可达组件或无入口媒体残留。选择赞助页时完整 sponsor 媒体进入 bundle，未选择时不得进入运行时 bundle。GPUI 与 NSH 的设置和支持页按各自框架标准执行。
+- Tauri GUI 的 `/settings`、动态标题、语言/三态主题和亮暗语义主题仍是固定基线。`about_page`、`sponsor_page` 各自只控制相应路由、导航入口、组件和运行时资源；未选页面不得以隐藏路由、不可达组件或无入口媒体残留。选择赞助页时完整 sponsor 媒体进入 bundle，未选择时不得进入运行时 bundle。NSH 的设置和支持页按其框架标准执行。
 - 两种侧栏模式遵守当前基座与中央 Token；详细折叠状态通过独立设备偏好跨重挂载/重启恢复，由 AppShell 拥有并同源同步 `navbar.width`/`data-navbar-width`，不进入页面会话 store。
 - 初始化结构检查和真实本机 E2E 读取同一 profile：启用能力必须完整通过硬门禁，禁用能力必须证明无残留；按选择验证双启动、托盘和开机自启切换/恢复，其中自启登录项必须恢复执行前状态，托盘禁用时实测关闭最后窗口退出。系统通知在初始化阶段只验证默认关闭、串行 worker/权限状态机结构和失败可见性，不以未签名调试二进制触发真实权限或投递；当前应用的 Notifications 设置跳转与真实投递只由满足签名前提的最终安装候选验收。所有组合都验证所选侧栏、设置页、实际菜单页面可达和未选页面缺席。
 
@@ -374,13 +345,13 @@
 - 已启用 tracing 时，结构化 event/span 必须通过 tracing-subscriber + tracing-appender 同时落盘到本地可读、可滚动日志文件。标准输出仍只用于统一 JSON 信封，日志不得记录密钥、令牌、个人数据或未脱敏业务载荷（见 ADR-20260806-002）。
 - 产出物验收以真实可用为准：对产出物给出“完成”“可用”结论必须基于真实运行产出物本身得到的可观察结果，不得以模拟实现、测试替身、占位页面或仅调用内部函数的结果冒充验收证据；单元/集成测试仍可对不可控外部依赖使用受控测试替身保证确定性，但该替身证据不能替代产出物真实可用的验收依据（见 ADR-20260806-002）。
 - 产品规格缺失或为 `Draft` 时仅允许无业务副作用的 `scaffold status`，CLI JSON 明确返回 `productDefinitionRequired=true`；它只能证明中性工程骨架，不是可验收的产品里程碑。
-- 选择 Tauri GUI 时必须在中性初始化中调用 `$desktop-prepare-gui-app-identity` 的 Logo 模式；GPUI 由其 adapter 使用相同候选与选择时序、独立资源路径和图标工具。Tauri 路径：以 `candidate-1`、`candidate-2`、`candidate-3` 固定请求顺序展示三个原始候选，选择前不验证、不计算摘要且不标准化；用户明确选择后只处理所选项，再逐字节接入运行时 `/app-identity/logo.png` 并由项目本地 Tauri 工具生成平台图标。profile 记录稳定顺序、选择及所选项的后置证据，不记录未选项验证结果。不得以文字方案、静默默认或中性占位图完成初始化。首次真实产品 GUI 开发前再次进入完整身份模式并遵守同一时序。
+- 选择 Tauri GUI 时必须在中性初始化中调用 `$desktop-prepare-gui-app-identity` 的 Logo 模式。Tauri 路径：以 `candidate-1`、`candidate-2`、`candidate-3` 固定请求顺序展示三个原始候选，选择前不验证、不计算摘要且不标准化；用户明确选择后只处理所选项，再逐字节接入运行时 `/app-identity/logo.png` 并由项目本地 Tauri 工具生成平台图标。profile 记录稳定顺序、选择及所选项的后置证据，不记录未选项验证结果。不得以文字方案、静默默认或中性占位图完成初始化。首次真实产品 GUI 开发前再次进入完整身份模式并遵守同一时序。
 - 选择 Tauri GUI 时，中性初始化必须从初始化 Skill 的受管资产创建项目内 `<项目标识>_gui/src-tauri/dmg/background.png`：它是无产品身份的 660×400 PNG，清楚表达把应用拖到 Applications 的动作；Tauri 配置固定通过 `./dmg/background.png` 引用，并使用应用 `(180, 220)`、Applications `(480, 220)` 落点。首次真实 GUI 开发必须预览批准该基线或在同一路径替换并记录 SHA-256；初始化 Skill 删除后，运行时与构建不得继续依赖其源资产。
 - Tauri GUI 仅当 `system_tray = enabled` 时启用 `tray-icon`。托盘使用应用图标、稳定 ID `show_window`/`quit` 和由 `rust-i18n` 解析的中英文标签；显示项恢复并聚焦主窗口，macOS/Windows 主鼠标左键执行同一恢复，Linux 使用菜单而不要求图标事件，关闭主窗口只隐藏，退出项结束应用。启用时原有六个固定命名回归、结构检查与真实宿主生命周期仍是硬门禁；禁用时不得保留 feature、安装函数、菜单/locale 资源或关闭隐藏处理，必须从 `.on_window_event(...)` 接线并在主窗口 `CloseRequested` 中显式退出。
 - Tauri GUI 固定建立 `{applicationName} v{version} {contactChannel}:{contactValue}` 动态标题、`/settings`、语言与三态主题及亮暗语义主题。侧栏严格按 `sidebar_mode` 使用精简或详细布局，底部导航按已选赞助、固定设置、已选关于生成；`/about` 与 `/sponsor` 未选时不建立路由、入口、组件或运行时资源。主应用窗口为 1440×900、最小 960×640并与 DMG 安装卷窗口独立。所选关于页包含近十版更新日志、作者/联系人/免责声明；所选赞助页使用运行时主题并打包完整 sponsor 媒体。Harness 保留完整品牌源资产但不预创建 `docs/GUI_SUPPORT_SURFACES.md`，产品运行时只纳入选择需要的内容。
 - Tauri GUI 选择系统托盘时，应用图标必须来自项目本地 Tauri `icon` 生成并由 `bundle.icon` 引用的非透明 `icons/32x32.png`；托盘安装从 `.setup(...)` 可达并绑定双项 `Menu`、必需应用图标和 `.build(app)`，关闭隐藏从 `.on_window_event(...)` 可达，真实 E2E 必须看见非空图形。Linux 还必须把菜单绑定到 tray builder。未选托盘时这些专属资产要求与运行时接线不适用且不得残留。
 - Tauri GUI 图标统一使用直接依赖 `@tabler/icons-react` 的命名组件：菜单、操作、状态、空态和图表周边控件存在适用图标时优先从该包选择，不另装图标库，不用手写 SVG、字符或 emoji 替代；图表绘制库仍由真实数据可视化需求决定。所选侧栏中的 Logo、图标和文字按当前模式的对齐 Token 排列且无裁切。
-- 含 Tauri GUI 的下游在初始化单元测试通过后、裁剪初始化能力和创建唯一基线提交前，必须固定执行一次 `$desktop-test-gui-initialization-e2e`。GPUI 使用 `$desktop-test-gpui-initialization-e2e` 的独立原生检查，不执行下述 Tauri 插件结构门禁。结构检查解析九项 profile，始终验证 `os`（system-locale）、window-state 两项 Rust-only 固定基线与 dialog 固定 WebView 基线，对启用条件能力验证完整契约、对禁用能力验证无残留；dialog 验证必须覆盖三处固定依赖、唯一有序注册、主窗口精确 `dialog:default`、全部官方默认 message/save/open 类型、无 wildcard/deprecated `ask`/`confirm` alias/`dialog:deny-*`/filesystem 权限且不进入 `invoke_handler`。真实二进制按选择验证单实例、托盘、开机自启、深链接和全局快捷键，自启、window-state 与快捷键必须恢复执行前状态；系统通知只验证默认关闭的 Switch、失败可见性和结构回归锁定的串行 worker/权限状态机，不以未签名调试二进制触发真实权限、设置跳转或投递。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面可达及未选页面缺席。它独立于 `e2e_hint`，任一适用场景失败或无法观察/恢复都阻断初始化；只能由打包应用证明的 macOS 通知宿主行为与静态 scheme 系统注册必须明确留待候选补验。
+- 含 Tauri GUI 的下游在初始化单元测试通过后、裁剪初始化能力和创建唯一基线提交前，必须固定执行一次 `$desktop-test-gui-initialization-e2e`。结构检查解析九项 profile，始终验证 `os`（system-locale）、window-state 两项 Rust-only 固定基线与 dialog 固定 WebView 基线，对启用条件能力验证完整契约、对禁用能力验证无残留；dialog 验证必须覆盖三处固定依赖、唯一有序注册、主窗口精确 `dialog:default`、全部官方默认 message/save/open 类型、无 wildcard/deprecated `ask`/`confirm` alias/`dialog:deny-*`/filesystem 权限且不进入 `invoke_handler`。真实二进制按选择验证单实例、托盘、开机自启、深链接和全局快捷键，自启、window-state 与快捷键必须恢复执行前状态；系统通知只验证默认关闭的 Switch、失败可见性和结构回归锁定的串行 worker/权限状态机，不以未签名调试二进制触发真实权限、设置跳转或投递。Computer Use 始终验证主窗口、所选侧栏、设置页、实际菜单页面可达及未选页面缺席。它独立于 `e2e_hint`，任一适用场景失败或无法观察/恢复都阻断初始化；只能由打包应用证明的 macOS 通知宿主行为与静态 scheme 系统注册必须明确留待候选补验。
 - 初始化完成后删除实例化、初始化和模板专用派生入口，同时保留轻量 `AGENTS.md` 的非空 Skills 地图和约束地图，以及适用的开发、验证、发布、身份改名和 `$desktop-upgrade-harness` Skills；任务专属细节继续由唯一事实源和精确命中的 Skill 承载，不复制回根入口。实例化期间用用户确认身份替换中性模板身份不进入产品版本门禁；初始化完成后的现有产品改名固定以稳定 `change_id` 按 `feature` 分类，在任何改名写入前执行版本 `plan`，专项测试与残留检查通过后以完全相同的分类和 ID `apply`，执行者不得自行改判为 maintenance、bug-fix 或豁免。
 - Harness 自身通过 `$desktop-curate-harness-memory` 治理自己的 `docs/adr/`、`docs/changelog/` 历史：当前最新文件超过 500 行建议重构阈值或项目负责人明确要求时，把已被后续决定完全取代、不再被任何当前规范引用的过期条目原文迁移到同目录 `ADR_history.md`/`CHANGELOG_history.md` 永久追加保存，不确定的条目保守保留。该 Skill 与其产生的 `_history.md` 不加入 `$desktop-instantiate-project` 复制清单，不随下游派生；不适用 Work Plan、Product Status、Product Spec，三者继续按整篇重写快照、历史交给 Git。
 - 文件、中文业务注释、文档、测试与例外统一遵守 `docs/ENGINEERING_RULES.md`。Rust 下游从 Cargo workspace 根运行中文声明注释检查器；Tauri GUI 下游另外通过 TypeScript Compiler AST 门禁检查明确声明并接入 lint/validator。机械门禁不检查全部字段、局部变量、闭包或普通匿名回调，不自动生成套话，且只证明注释存在；语义仍由人工/Agent 复核。非 GUI 下游不适用 TypeScript 门禁。
@@ -393,8 +364,8 @@
 - 代码行为变化的本次必要测试至少覆盖核心成功路径和最高风险失败路径；缺陷修复增加回归测试。纯文档、元数据、格式或不可合理单测的机械变更不创建空洞测试，只做证明文件可解析或差异完整所必需的最小检查。
 - 安全、隐私、数据迁移、破坏性操作、生产/付费/凭据副作用、对外兼容契约、签名、发布和渠道硬要求仍必须取得相应授权或满足硬门禁；这些是当前风险所必需的边界，不得扩张为每次开发的通用步骤。
 - 构建只在用户本次显式请求，或本次发布冻结的已确认 `local_package` 构成持久授权时进入对应构建 Skill。Windows GUI 普通本地试包不提交、不生成发布日志、不写 `release/`，也不询问 E2E 或审查。正式 Git 发布由 `$desktop-prepare-release` 整理源码、版本、审查和双语日志，提交 `.harness/release-context.json` 后以其 SHA-256 调用单一路径 `release`，本地主分支合并并创建、复读 tag 后结束。终端下游按持久选择在 Git 发布后为本次一个明确接口/目标形成本地候选（具体规则见 [发布规则](../RELEASE.md#git-发布后构建与完整验收)），或推送并复读远端默认主分支、`release` 分支和 tag；本地候选仍从 clean 已发布 HEAD 构建并在本次确定 E2E 与适用签名，远程 provider 另复核 refs。Harness 源不创建产品候选、manifest 或产品验收结论。
-- 每次构建必须运行项目全部单元测试并确认发现数量非零。Rust 构建运行 workspace 全成员、全 targets、全 features 的测试；缺省/显式 `ignored` 不要求项目锁文件，显式 `tracked` 则先核对适用锁文件并使用冻结解析。Tauri GUI 构建同时运行完整 Rust workspace 与前端单元测试套件；GPUI 只运行完整 Rust workspace，不要求前端测试。任何单元测试失败或零测试都阻断构建。
-- 发布构建 E2E 不与单元测试或编译混跑。选择启用或产品/渠道硬要求时，只在完整最终候选存在后对该候选运行；选择禁用时记录 `Not run` 和剩余风险。唯一例外是 DESKTOP/NSH 初始化的一次性目标宿主检查：Tauri/GPUI 使用真实本机调试二进制，NSH 按已选目标使用真实桌面应用、移动设备或模拟器、Web 静态包；TUI 不进入初始化。该检查是基线提交前的脚手架门禁，不消费候选构建选择，也不能产生候选验收、签名、发布或人工复核结论。
+- 每次构建必须运行项目全部单元测试并确认发现数量非零。Rust 构建运行 workspace 全成员、全 targets、全 features 的测试；缺省/显式 `ignored` 不要求项目锁文件，显式 `tracked` 则先核对适用锁文件并使用冻结解析。Tauri GUI 构建同时运行完整 Rust workspace 与前端单元测试套件。任何单元测试失败或零测试都阻断构建。
+- 发布构建 E2E 不与单元测试或编译混跑。选择启用或产品/渠道硬要求时，只在完整最终候选存在后对该候选运行；选择禁用时记录 `Not run` 和剩余风险。唯一例外是 DESKTOP/NSH 初始化的一次性目标宿主检查：Tauri 使用真实本机调试二进制，NSH 按已选目标使用真实桌面应用、移动设备或模拟器、Web 静态包；TUI 不进入初始化。该检查是基线提交前的脚手架门禁，不消费候选构建选择，也不能产生候选验收、签名、发布或人工复核结论。
 
 ### 持久 Agent 策略
 
@@ -438,7 +409,7 @@
 ### 商业许可与既有工程边界
 
 - Harness 与收费下游采用非开源企业专有商业许可；根 `LICENSE.zh-CN.md` 和 `LICENSE.en.md` 保持一致，升级不能自动改写法律文本。
-- CLI/MCP 使用 Tokio current-thread 异步入口；Tauri GUI 复用其 Tokio 异步运行时，GPUI GUI 使用原生事件循环与任务/executor；核心默认保持运行时中立。
+- CLI/MCP 使用 Tokio current-thread 异步入口；Tauri GUI 复用其 Tokio 异步运行时；核心默认保持运行时中立。
 - 根 Cargo 工作区是依赖版本、来源、内部路径和基础特性的唯一来源；初始化把完整汇总确认的非空目标平台与接口写入 `[workspace.metadata.agent-first-harness]`，供后续构建跨会话只读路由。CLI/MCP/DESKTOP 默认写 Windows、macOS、Linux 全部目标；NSH 由所选能力写对应的 Windows、macOS、Linux、Android、iOS、Web 子集。平台声明不等于实际构建或验证通过。
 - 固定 Rust 技术族只启用满足真实能力所需的最小 feature，并按声明的 Rust 兼容下限、三平台和相关回归选择依赖，复用满足下限的已安装 stable 正常解析和测试，并记录实际验证环境；新增或主动更新时优先选择经完整兼容验证的 registry 最新稳定版作为新下界，缺省锁策略下本地锁文件不进入 Git；已有下游显式选择 `tracked` 时按该策略跟踪。anyhow 不得作为公开稳定领域错误契约，tracing 不得记录密钥、令牌、个人数据或未脱敏业务载荷。
 - 选择 CLI 时遵守统一 JSON 信封、错误结构、输出流和退出码契约。
@@ -507,7 +478,7 @@
 - [x] Harness 正式发布只执行 Git 流程：Changelog 在 `sourceHead` 前完成，发布日志与上下文同一精确元数据提交，生命周期绑定上下文 SHA-256，本地默认主分支/tag 绑定同一 `sourceCommit` 后结束。产品候选、`release/` manifest 和产品验收均为 `Not applicable`；Harness 源源码归档仍由用户在 Git 发布后当次要求并生成相邻 SHA-256；下游选 `local_package` 时沿用产品打包 Skill。
 - [x] 扁平候选的 producer/collector 使用仓库外同文件系统 sibling 暂存和目录级原子提交；NSH 候选使用独立目标批次。验收前后复核上下文并重算本次选定集合的最终字节，原子推进其全部 manifest。下一开发分支在首个新改动前以已发布默认主分支/tag 调用 `finalize-release`，候选和 ready 不自动写 tracked 记忆。
 - [x] 每次显式发布候选构建都在开始前解析一次当前 E2E 选择，且持久偏好不能替代这次选择；Windows 本地开发试包不解析 E2E 选择。
-- [x] 每次构建都运行项目全部非空单元测试；Rust 覆盖 workspace/all-targets/all-features，Tauri GUI 同时覆盖完整 Rust 与前端单元测试套件，GPUI GUI 只运行完整 Rust workspace 测试。
+- [x] 每次构建都运行项目全部非空单元测试；Rust 覆盖 workspace/all-targets/all-features，Tauri GUI 同时覆盖完整 Rust 与前端单元测试套件。
 - [x] 里程碑只接受完整、可运行、符合批准场景且不含模拟实现/占位逻辑的真实产物。
 - [x] 验收发现缺失或偏差时返回开发循环、增加回归测试并重新验收；只有用户要求持久 Todo 时才重开或新增 Todo。
 - [x] 下游初始化一次确认并持久化六项 Agent 策略；后续发布候选仍逐次确认 E2E，本地开发试包不消费该值，其他能力按策略和适用性判断。
@@ -532,7 +503,7 @@
 - [x] 当前 UI 基座统一视觉权威，框架与组件专项仅提供相容实现/行为合同；普通 Token 调整无旧像素批准步骤，布局不进入 core。
 - [x] 侧栏两种模式消费中央 Token；展开/收起、父级事件隔离、偏好恢复、可访问名称和同源宽度接线具有相关回归。模板工程检查不代表真实下游窗口已验收。
 - [x] Tauri GUI 固定直接依赖 `@tabler/icons-react`，适用图标使用命名组件；所选侧栏的 Logo、图标与文字按当前模式对齐且无裁切，图表周边图标优先使用 Tabler，图表绘制能力保持独立。
-- [x] 含 Tauri GUI 的下游在唯一基线提交前固定通过九项 profile-aware 结构门禁与真实本机调试 E2E；GPUI 使用其独立原生初始化 E2E。Tauri 检查范围：两项 Rust-only 固定基线与 dialog 固定 WebView 基线始终验证；其余按选择运行双启动、托盘、自启、深链接和全局快捷键场景。系统通知初始化只实测默认关闭、Switch 自身交互与失败可见性，并由结构回归锁定先读权限、只对 `NotDetermined` 请求并复读，以及拒绝/受限/未知时保持关闭并打开当前应用 Notifications 设置的实现；真实权限、设置跳转和投递只在满足签名前提的最终安装候选中验收。全部场景还验证所选侧栏、设置页、实际菜单页面和禁用能力缺席。
+- [x] 含 Tauri GUI 的下游在唯一基线提交前固定通过九项 profile-aware 结构门禁与真实本机调试 E2E。Tauri 检查范围：两项 Rust-only 固定基线与 dialog 固定 WebView 基线始终验证；其余按选择运行双启动、托盘、自启、深链接和全局快捷键场景。系统通知初始化只实测默认关闭、Switch 自身交互与失败可见性，并由结构回归锁定先读权限、只对 `NotDetermined` 请求并复读，以及拒绝/受限/未知时保持关闭并打开当前应用 Notifications 设置的实现；真实权限、设置跳转和投递只在满足签名前提的最终安装候选中验收。全部场景还验证所选侧栏、设置页、实际菜单页面和禁用能力缺席。
 - [x] 发布链路不解析或保存量化探针选择，不生成专用探针候选、manifest 字段、豁免或运行时绑定。
 - [x] Harness 已移除应用更新、强更与使用统计 Skills、初始化接线和运行时资产；关于页只提供权威版本、本地发布日志与选定支持内容，发布候选不再要求 updater 制品或签名；升级会发现未登记的旧工程资产，先确认清理或保留并记忆项目选择，清理未完成不得记录升级完成。
 - [x] 品牌包完整保存 12 项图片资源并以清单绑定尺寸、摘要、用途与支付敏感性，不含来源下游产品名称/标识、固定服务地址、客户端共享秘密或默认网络请求；仅适用的 DESKTOP 与 NSH 桌面目标保留其支持页面 Skill。

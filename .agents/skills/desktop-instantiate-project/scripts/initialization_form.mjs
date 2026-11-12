@@ -20,7 +20,7 @@ function parseAnswer(id, answer) {
   if (typeof answer.source !== "string" || !/^(user|project|translation):\S/u.test(answer.source) || /[\x00-\x1f\x7f\u2028\u2029]/u.test(answer.source)) throw new Error("答案必须记录单行 user:/project:/translation: 确认来源");
   if (answer.source.startsWith("translation:") && !["name_zh", "name_en"].includes(id)) throw new Error("只有展示名称允许翻译来源");
   if (answer.source.startsWith("translation:") ? typeof answer.basedOn !== "string" : answer.basedOn !== undefined) throw new Error("翻译答案必须且只能附带原名 basedOn");
-  const definition = id === "target_platforms" ? { values: NSH_PLATFORM_ORDER } : questionFor(id);
+  const definition = id === "target_platforms" ? { values: NSH_PLATFORM_ORDER } : id === "gui_framework" ? { values: ["tauri"], defaultValue: "tauri" } : questionFor(id);
   let value = answer.value;
   if (["name_zh", "name_en"].includes(id) && typeof value === "string" && !value.trim()) return { missing: true };
   if (["name_zh", "name_en"].includes(id) && value === "skip") return answer.source.startsWith("user:") ? { skipped: true } : { issue: "切换展示名称语言须由用户明确选择。" };
@@ -41,8 +41,7 @@ function parseAnswer(id, answer) {
 /** 按当前框架/平台标注不可用能力；用户显式启用时仍须纠正，不能覆盖答案。 */
 function unavailableGuiFields(values) {
   if (values.interfaces.includes("nsh")) return ["system_notification", "global_shortcut"];
-  if (values.gui_framework !== "gpui") return [];
-  return values.target_platforms.includes("linux") ? ["system_tray", "deep_link", "global_shortcut"] : ["deep_link"];
+  return [];
 }
 
 /** NSH 能力是平台选择的唯一输入，同一桌面系统只保留一次。 */
@@ -58,8 +57,8 @@ export function evaluateInitializationForm(input) {
   const entry = input.entry ?? "instantiate";
   if (!["instantiate", "initialize"].includes(entry)) throw new Error("未知初始化入口");
   const answers = input.answers ?? {};
-  // 旧表单可能留下平台答案；核对其输入结构后不再把值作为选择或问题。
-  exactKeys(answers, [...QUESTIONS.map(({ id }) => id), "target_platforms"], "answers");
+  // 旧表单可带平台与 Tauri 答案；新表单只派生这些字段。
+  exactKeys(answers, [...QUESTIONS.map(({ id }) => id), "target_platforms", "gui_framework"], "answers");
   const values = {};
   const sources = {};
   const issues = {};
@@ -147,7 +146,8 @@ export function evaluateInitializationForm(input) {
     values.target_platforms = ["windows", "macos", "linux"];
     sources.target_platforms = "default:all_desktop_platforms";
   }
-  if (gui && !values.gui_framework) return output("framework", ["gui_framework"]);
+  if (gui && issues.gui_framework) throw new Error("DESKTOP 只支持 Tauri；请移除旧框架答案。");
+  if (gui) { values.gui_framework = "tauri"; sources.gui_framework = "derived:desktop"; }
   const desktop = gui || (nsh && values.nsh_targets.includes("desktop"));
   if (!desktop && [...GUI_FIELDS, "capability_setup_assistance"].some(id => Object.hasOwn(answers, id))) {
     issues[gui ? "interfaces" : "nsh_targets"] = "未选择桌面能力却提供了桌面条件答案；请确认目标组合，或撤下旧桌面答案。";
@@ -160,7 +160,7 @@ export function evaluateInitializationForm(input) {
   if (desktop) {
     for (const id of unavailable) {
       if (issues[id] || (values[id] && values[id] !== "disabled")) {
-        issues[id] = `当前 ${nsh ? "NSH 桌面" : values.gui_framework.toUpperCase()} 框架/目标组合不支持此能力；须明确关闭，或修改框架/目标。`;
+        issues[id] = "NSH 桌面不支持此能力；须明确关闭，或修改目标。";
         return output("gui", [id], { unavailable });
       }
       if (!values[id]) { values[id] = "disabled"; sources[id] = "capability:unavailable"; }

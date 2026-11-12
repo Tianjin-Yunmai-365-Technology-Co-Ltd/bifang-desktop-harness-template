@@ -222,8 +222,8 @@ test("missing_answers_wait_while_explicit_defaults_are_field_scoped", () => fixt
   assert.equal(evaluate().stage, "review");
   assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
   gui(); delete input.answers.gui_framework;
-  assert.equal(evaluate().stage, "framework");
-  set("gui_framework", "skip"); delete input.answers.sidebar_mode;
+  assert.equal(evaluate().stage, "review");
+  delete input.answers.sidebar_mode;
   assert.equal(evaluate().questions[0].id, "sidebar_mode");
   set("sidebar_mode", ""); assert.equal(evaluate().values.sidebar_mode, "detailed");
   set("sidebar_mode", "invalid"); assert.equal(evaluate().questions[0].id, "sidebar_mode");
@@ -270,8 +270,7 @@ test("interface_combinations_default_to_all_desktop_platforms", () => fixture(({
     assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
   }
   set("interfaces", ["cli", "gui"]);
-  assert.equal(evaluate().stage, "framework");
-  set("gui_framework", "tauri");
+  assert.equal(evaluate().questions[0].id, "system_tray");
   for (const id of GUI_FIELDS) set(id, id === "sidebar_mode" ? "detailed" : "disabled");
   for (const interfaces of [["cli", "gui"], ["mcp", "gui"], ["cli", "mcp", "gui"]]) {
     set("interfaces", interfaces);
@@ -297,17 +296,19 @@ test("retired_tui_interface_requires_a_new_selection", () => fixture(({ base, se
   assert.ok(evaluate().questions[0].options.every(option => !option.includes("TUI")));
 }));
 
-/** 两框架按同一 profile 顺序逐问，已答晚字段不重复；不可用字段直接派生关闭。 */
-test("gui_order_and_gpui_unavailable_fields_are_deterministic", () => fixture(({ input, set, gui, evaluate }) => {
-  gui(); for (const id of GUI_FIELDS) delete input.answers[id];
-  for (const id of GUI_FIELDS) { assert.equal(evaluate().questions[0].id, id); set(id, id === "sidebar_mode" ? "default" : "disabled"); }
-  set("gui_framework", "gpui");
-  for (const id of ["deep_link", "system_tray", "global_shortcut"]) delete input.answers[id];
+/** DESKTOP 跳过框架问句，逐项确认 Tauri 能力，旧框架输入失败关闭。 */
+test("desktop_derives_tauri_and_asks_profile_in_order", () => fixture(({ input, set, gui, evaluate }) => {
+  gui(); delete input.answers.gui_framework;
+  for (const id of GUI_FIELDS) delete input.answers[id];
+  for (const id of GUI_FIELDS) {
+    assert.equal(evaluate().questions[0].id, id);
+    set(id, id === "sidebar_mode" ? "default" : "disabled");
+  }
   assert.equal(evaluate().stage, "review");
-  assert.deepEqual(evaluate().values.target_platforms, ["windows", "macos", "linux"]);
-  assert.deepEqual(evaluate().summary.unavailable, ["system_tray", "deep_link", "global_shortcut"]);
-  set("global_shortcut", "enabled"); assert.equal(evaluate().questions[0].id, "global_shortcut");
-  assert.equal(evaluate().values.global_shortcut, "enabled");
+  assert.equal(evaluate().values.gui_framework, "tauri");
+  assert.deepEqual(evaluate().summary.unavailable, []);
+  set("gui_framework", "gpui");
+  assert.throws(evaluate, /DESKTOP 只支持 Tauri/u);
 }));
 
 /** 已知深链接冲突立即纠正，不继续问快捷键/侧栏，也不擅自开启单实例。 */
@@ -326,20 +327,14 @@ test("review_notices_follow_framework_and_enabled_capabilities", () => fixture((
   assert.match(tauri.summary.notices.join("\n"), /actions = \[\]/u);
   assert.match(tauri.summary.notices.join("\n"), /dialog:default/u);
   assert.equal(tauri.reviewQuestion.title, "是否按以上完整汇总创建项目？");
-  gui("gpui");
-  const gpui = evaluate();
-  assert.match(gpui.summary.notices.join("\n"), /Linux GNU x64\/ARM64/u);
-  assert.doesNotMatch(gpui.summary.notices.join("\n"), /dialog:default/u);
 }));
 
 /** 配置协助仅在共同五项有启用项时询问一次，复用明确回答。 */
 test("assistance_is_required_only_for_enabled_desktop_capabilities", () => fixture(({ input, set, gui, evaluate }) => {
-  for (const framework of ["tauri", "gpui"]) {
-    delete input.answers.capability_setup_assistance;
-    gui(framework); assert.equal(evaluate().stage, "review");
-    set("system_notification", "enabled"); assert.equal(evaluate().questions[0].id, "capability_setup_assistance");
-    set("capability_setup_assistance", "no"); assert.equal(evaluate().stage, "review");
-  }
+  delete input.answers.capability_setup_assistance;
+  gui(); assert.equal(evaluate().stage, "review");
+  set("system_notification", "enabled"); assert.equal(evaluate().questions[0].id, "capability_setup_assistance");
+  set("capability_setup_assistance", "no"); assert.equal(evaluate().stage, "review");
 }));
 
 /** 汇总确认绑定内容、来源和目标状态；旧确认及漏答均不能进入 confirmed。 */
@@ -389,7 +384,7 @@ test("cli_is_read_only_and_errors_do_not_echo_unknown_input", () => fixture(({ r
   assert.deepEqual(questions.map(({ id }) => id), QUESTIONS.map(({ id }) => id));
   assert.deepEqual(questions.filter(({ inputMode }) => inputMode === "multiple").map(({ id }) => id), ["interfaces", "nsh_targets"]);
   assert.equal(questions.find(({ id }) => id === "name_zh").inputMode, "text");
-  assert.equal(questions.find(({ id }) => id === "gui_framework").inputMode, "single");
+  assert.ok(!questions.some(({ id }) => id === "gui_framework"));
   assert.ok(!QUESTIONS.some(({ id }) => id === "target_platforms"));
   const result = run([], JSON.stringify(input)); assert.equal(result.status, 0);
   assert.equal(JSON.parse(result.stdout).stage, "review"); assert.deepEqual(fs.readdirSync(root), []);

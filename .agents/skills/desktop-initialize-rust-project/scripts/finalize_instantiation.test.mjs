@@ -6,13 +6,12 @@ import path from 'node:path';
 import { prepareFixture, writeNeutralWorkspace } from '../../desktop-instantiate-project/scripts/instantiation_test_support.mjs';
 import { inventoryTarget } from '../../desktop-instantiate-project/scripts/instantiation_io.mjs';
 import { finalizeInstantiation, planFinalization } from './finalize_instantiation.mjs';
-import { ensureGpuiKitSkills } from './ensure_gpui_kit_skills.mjs';
 
 /** 夹具只提供外部引用形状，不把此值当真实 E2E 执行证据。 */
 function fixtureEvidence(plan) { return { scopeDigest: plan.scopeDigest, ...Object.fromEntries(plan.requiredEvidence.map(key => [key, `tool:fixture-not-real-execution/${key}`])) }; }
 
 /** 每条接口路径裁剪其专属源入口，所有通用工程能力和法律正文继续存在。 */
-for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web']) test(`terminal_pruning_preserves_selected_${framework ?? 'cli'}_and_common_contracts`, t => {
+for (const framework of [null, 'tauri', 'nsh', 'nsh-mobile-web']) test(`terminal_pruning_preserves_selected_${framework ?? 'cli'}_and_common_contracts`, t => {
   const f = prepareFixture(t, framework);
   writeNeutralWorkspace(f);
   if (framework?.startsWith('nsh')) {
@@ -22,27 +21,23 @@ for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web']) test(`
     assert.equal(inventoryTarget(f.target).has('regression_tool_nsh/.nsh/cache.bin'), false);
     assert.match(fs.readFileSync(path.join(f.target, '.gitignore'), 'utf8'), /\*\*\/\.nsh\//u);
   }
-  if (framework === 'gpui') {
-    ensureGpuiKitSkills(f.target);
-    fs.appendFileSync(path.join(f.target, 'AGENTS.md'), '- [$gpui-kit](.agents/skills/gpui-kit/SKILL.md)\n- [$gpui-kit-design-guides](.agents/skills/gpui-kit-design-guides/SKILL.md)\n');
-  }
   const beforeLicense = fs.readFileSync(path.join(f.target, 'LICENSE.zh-CN.md'));
   const plan = planFinalization(f.preparation);
   const outcome = finalizeInstantiation(f.preparation, plan.planDigest, fixtureEvidence(plan));
   assert.equal(outcome.status, 'terminal-pruning-complete');
   assert.equal(outcome.initializationComplete, false);
   assert.equal(fs.existsSync(path.join(f.target, '.git')), false);
-  for (const name of ['desktop-instantiate-project', 'desktop-initialize-rust-project', 'desktop-test-gui-initialization-e2e', 'desktop-test-gpui-initialization-e2e', 'desktop-test-nsh-initialization-e2e']) assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name)), false, name);
+  for (const name of ['desktop-instantiate-project', 'desktop-initialize-rust-project', 'desktop-test-gui-initialization-e2e', 'desktop-test-nsh-initialization-e2e']) assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name)), false, name);
   for (const name of ['desktop-manage-version', 'desktop-task-workflow', 'desktop-manage-git-lifecycle', 'desktop-upgrade-harness', 'desktop-implement-change']) assert.ok(fs.existsSync(path.join(f.target, '.agents/skills', name, 'SKILL.md')), name);
   const cli = framework === null;
   const graphical = framework !== null;
   for (const name of ['desktop-add-cli-adapter', 'desktop-build-rust-release', 'desktop-prepare-cross-platform-release']) assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name, 'SKILL.md')), cli, name);
   assert.equal(fs.existsSync(path.join(f.target, 'docs/CLI_CONTRACT.md')), cli);
   assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-add-mcp-adapter/SKILL.md')), false);
-  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-extract-i18n-strings/SKILL.md')), framework === 'tauri' || framework === 'gpui');
-  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-collect-release-artifacts/SKILL.md')), cli || framework === 'tauri' || framework === 'gpui');
+  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-extract-i18n-strings/SKILL.md')), framework === 'tauri');
+  assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-collect-release-artifacts/SKILL.md')), cli || framework === 'tauri');
   assert.equal(fs.existsSync(path.join(f.target, '.agents/skills/desktop-prepare-gui-app-identity/SKILL.md')), graphical && framework !== 'nsh-mobile-web');
-  for (const candidate of ['tauri', 'gpui', 'nsh']) {
+  for (const candidate of ['tauri', 'nsh']) {
     const name = candidate === 'tauri' ? 'desktop-add-gui-adapter' : `desktop-add-${candidate}-adapter`;
     assert.equal(fs.existsSync(path.join(f.target, '.agents/skills', name)), candidate === (framework?.startsWith('nsh') ? 'nsh' : framework), candidate);
   }
@@ -57,7 +52,8 @@ for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web']) test(`
   assert.ok(agents.trimEnd().split('\n').length <= 120);
   assert.match(agents, /## Skills 地图/u);
   assert.match(agents, /## 约束地图/u);
-  assert.doesNotMatch(agents, /\$desktop-instantiate-project|check_no_python/u);
+  assert.doesNotMatch(agents, /\$desktop-instantiate-project|check_no_python|gpui/iu);
+  assert.ok(![...inventoryTarget(f.target).keys()].some(relative => /gpui/iu.test(relative)));
   const listed = [...agents.matchAll(/\[\$([^\]]+)\]\(\.agents\/skills\/([^/]+)\/SKILL\.md\)/gu)].map(([, label, name]) => {
     assert.equal(label, name);
     return name;
@@ -74,7 +70,7 @@ for (const framework of [null, 'tauri', 'gpui', 'nsh', 'nsh-mobile-web']) test(`
 
 /** 没有真实初始化结构、版本状态或外部证据引用时不删除任何源入口。 */
 test('missing_workspace_checks_or_gui_observation_never_prunes', t => {
-  const f = prepareFixture(t, 'gpui');
+  const f = prepareFixture(t, 'tauri');
   assert.throws(() => planFinalization(f.preparation), /Cargo/u);
   writeNeutralWorkspace(f);
   const plan = planFinalization(f.preparation);

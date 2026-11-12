@@ -186,7 +186,7 @@ const STREAMLINED_ENTRIES = [
   ["worktreeExecution", ["common-dir","guard","postflight","--write-target","--source-worktree","environment.type=local","Local 没有 `startingState` 参数","只读测试期间其他 Task 也不能改变被测 branch、HEAD 或文件","前序结束并交出可核对的提交后再开工","恢复漂移先复核实际输入","普通 `create_worktree`、`git worktree add` 或内部 Subagent 不能冒充其左侧身份"]],
   ["agentsEntrypoint", ["每次开工先读取用户级", "$desktop-task-workflow", "默认关闭"]],
   ["handoffSkill", ["用户级 `AGENTS.md`","$desktop-task-workflow","关闭时在当前聊天恢复","沿原身份、结果和冻结环境主动修复","无需重复人工审批"]],
-  ["readme", ["日常开发直接使用 `$desktop-implement-change`","只增加并运行本次变更需要的单元/回归测试","不自动增加计划、全仓检查、构建、E2E 或验收","Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag","首次发布前先询问并记录 `post_release_action`","未来可用 `$desktop-switch-post-release-action` 切换","候选须运行全部非空单元测试","不自动更新项目记忆","## Task 与工作树","$desktop-task-workflow","只有项目开启才自动创建左侧 Task 子树","不改变永久选择","独立 Worktree","并行创建和执行","同一 Local cwd","不额外等待人工 BOUND 批准","gpui-kit-design-guides","本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据","普通 Windows 本地安装试包是开发制品","不要求发布日志或 clean HEAD","构建事实只写入适用产物位置和最终回复"]],
+  ["readme", ["日常开发直接使用 `$desktop-implement-change`","只增加并运行本次变更需要的单元/回归测试","不自动增加计划、全仓检查、构建、E2E 或验收","Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag","首次发布前先询问并记录 `post_release_action`","未来可用 `$desktop-switch-post-release-action` 切换","候选须运行全部非空单元测试","不自动更新项目记忆","## Task 与工作树","$desktop-task-workflow","只有项目开启才自动创建左侧 Task 子树","不改变永久选择","独立 Worktree","并行创建和执行","同一 Local cwd","不额外等待人工 BOUND 批准","本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据","普通 Windows 本地安装试包是开发制品","不要求发布日志或 clean HEAD","构建事实只写入适用产物位置和最终回复"]],
   ["agentPolicy", ["decision_mode: reuse_then_infer_then_ask","## 用户可见 Task 开关、粒度与创建门禁","$desktop-task-workflow","user_owned_tasks","task_worktrees","固定初始化默认值","日常开发直接实施","显式发布候选构建必须为当前候选解析一次 E2E 选择","E2E 选择只对终端下游发布候选有效","本地开发试包不消费 E2E 选择","只写忽略的 `release/` 原子证据及最终回复","不得反向批准活动候选","未来偏好保存在本文件；下游 Git 发布开始时将当次 `postReleaseAction` 冻结","终端下游的候选构建复核已发布的本地主分支与 tag","候选选择只进入候选证据","## 开发分支与主分支发布生命周期","`feature-{ascii-kebab-summary}-{YYYYMMDD}`","`--also-remote`","允许普通 merge commit","Git common dir 下的 `agent-first-harness/git-lifecycle.json`","这里没有分支保护、活动叶子、分支级单写入者、严格线性历史、fast-forward-only、lease、atomic push","候选 E2E、完整验收、`pending` → `accepted` 和就绪复核","默认主分支与本地 tag 精确指向同一最终 HEAD 并复读成功","e2e_hint` 只提供建议默认值","用户明确说“发布”时","`pendingPublish` 中冻结的 HEAD、目标顺序与进度","多远端推送不是原子操作","推送失败也不撤销已完成的本地 Git 发布","小写 `release` 仅是 `push_release_branch` 后续路径的源码分支"]],
   ["planSkill", [
     "只在持久计划能解决真实协调问题时建立 Todo", "多步骤、多模块、中等风险、可并行或 Agent 偏好本身不构成准入",
@@ -209,8 +209,8 @@ const STREAMLINED_ENTRIES = [
     "no-op", "共用策略锁", "保留其他字段及正文", "不重写已冻结发布",
   ]],
   ["parallelSkill", ["$desktop-task-workflow","references/worktree-execution.md","scripts/parallel_worktrees.mjs","兼容"]],
-  ["initializeSkill", ["$desktop-task-workflow","user_owned_tasks","task_worktrees","message-check --message-file <file>","chore: 初始化项目","gpui-kit-design-guides","不复制编号、标题、权限、创建或交付合同"]],
-  ["instantiateSkill", ["新项目使用固定策略默认值","已有下游偏好及确认元数据原样保留","$desktop-task-workflow","默认关闭","项目值、确认来源与有效执行行为","gpui-kit-design-guides","不复制编号、标题、权限、创建或交付合同"]],
+  ["initializeSkill", ["$desktop-task-workflow","user_owned_tasks","task_worktrees","message-check --message-file <file>","chore: 初始化项目","不复制编号、标题、权限、创建或交付合同"]],
+  ["instantiateSkill", ["新项目使用固定策略默认值","已有下游偏好及确认元数据原样保留","$desktop-task-workflow","默认关闭","项目值、确认来源与有效执行行为","不复制编号、标题、权限、创建或交付合同"]],
   ["configureCommitsSkill", ["message-check --message-file <file>", "主题摘要和正文说明必须使用中文", "git log -1 --format=%B", "references/commit-convention.md", "commit.template", "commit.cleanup=strip", "commit.verbose=true", "core.commentChar=#", "git config --local", "install --replace", "用户没有要求创建提交时", "下一步将实际运行 `git commit`", "不得运行本 Skill 的身份/模板脚本命令或改写任何 Git 配置", "不得在初始化表单、复制、身份改写、环境门禁、脚手架编写或测试阶段提前运行"]],
   ["productSpec", [
     "HARNESS-FEAT-INDEPENDENT-TASK-WORKTREE-DELIVERY", "HARNESS-FIX-PROJECT-BOUND-TASK-AND-SUBAGENT-WORKTREE",

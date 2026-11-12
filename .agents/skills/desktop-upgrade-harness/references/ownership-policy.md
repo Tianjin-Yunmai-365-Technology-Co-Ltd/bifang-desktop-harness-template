@@ -11,14 +11,14 @@
 - `managed`：由 Harness 维护且候选已经完成下游身份渲染的纯工程文件。只有既有文件仍等于旧基线时才能自动更新；新增和删除仍需人工逐项处理。`docs/design_standards/**` 是身份中立的受管设计目录；既有产品设计记录保存在受保护的 `docs/GUI_APP_PROFILE.md`/ADR，升级不能覆盖；旧记录不恢复已退役风格，当前基座冲突在目标授权范围明确处理，不通过修改受管目录制造并行规范。`$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试是所有终端下游都适用且无需身份渲染的受管工程资产；升级只传播这些文件，不执行 Git 生命周期命令，也不创建 common-dir 状态。
   - `managed-self` 是 `managed` 的机器子模式，不是第六类所有权；它表示升级器自身，必须在其他安全变更后最后应用并由新版复验。
 - `merge-sections`：Harness 与下游共同拥有的文件，例如 `AGENTS.md`、README 和规范文档。必须按章节合并，禁止整文件覆盖。
-- `conditional`：只在已选接口或能力中适用的工程资产，先确认下游事实再构造候选；传播本身不启用能力。根 Cargo 中缺省框架的旧 GUI 下游沿用 `tauri`，未知值、错误类型、重复字段或非 GUI 声明框架都失败关闭。升级计划绑定受保护 Cargo 清单的完整快照，不从候选反推或改写选择。Tauri GUI 只读 [Tauri 工程候选](tauri-ownership.md)，GPUI GUI 只读 [GPUI 工程候选](gpui-ownership.md)；非 GUI 不加载这两份引用。
+- `conditional`：只在已选接口或能力中适用的工程资产，先确认下游事实再构造候选；传播本身不启用能力。根 Cargo 中缺省框架的旧 GUI 下游沿用 `tauri`，未知值、错误类型、重复字段或非 GUI 声明框架都失败关闭。升级计划绑定受保护 Cargo 清单的完整快照，不从候选反推或改写选择。Tauri GUI 只读 [Tauri 工程候选](tauri-ownership.md)。显式 `gui-framework = "gpui"` 的旧下游停止升级，保留产品与工程文件原状。
 非 GUI 下游不得因此新增 pnpm 或 GUI-only Skill。框架选择不授权迁移或替换产品代码、profile、偏好或已选桌面能力。
 
 - `protected`：产品源码、项目记忆、策略、身份、许可证、Cargo 当前版本、`.harness/version-state.json` 发布周期/去重状态、`.harness/release-context.json` 当前发布事实、验证证据和未知本地文件。升级器只报告，不写入；目标尚无发布上下文时保持缺席，未来只能由目标项目真实执行 `$desktop-prepare-release` 创建。旧下游缺少版本状态时也不产生所有权例外：工程层升级与基线记录完成后，必须先说明旧 pending、bug ID 与发布历史无法恢复，再由用户明确批准目标项目单独执行 `$desktop-manage-version init --migration-approved`；升级器本身不得调用或代写。
 - `docs/AGENT_POLICY.md` 的 `post_release_action` 也属于 protected 下游选择。旧 schema 3 在工程层升级及来源锁记录后必须询问用户，在目标项目中调用 `$desktop-switch-post-release-action` 先受保护合并旧策略正文的新发布后规则，再原子迁移 frontmatter 至 schema 4 并写入当日 ADR；旧正文未消除相反规则时不得通过 `check`；`check` 返回合法已配置值前，不能把完整升级标记为完成。升级器的候选树、`plan|apply|record` 均不得设置默认值或代写该字段。切换 Skill 的 `SKILL.md`、metadata、helper 与回归测试是所有终端下游都要传播的 managed 工程文件。
 - `tombstone`：终端下游永久不应恢复的 Harness 初始化/派生能力和模板专用文件；来源候选必须排除，目标出现时阻断。`$desktop-test-gui-initialization-e2e` 只在 GUI 唯一基线提交前使用，其 `verify-gui-lifecycle-contract.mjs`、`gui-lifecycle-plugin-contract.mjs`、夹具与测试都随该前置 Skill 一同删除；升级不得把它重新注入终端下游。
 
-根 `package.json` 是 protected 产品文件，不进入候选或来源锁；GPUI 已授权的工程脚本迁移只按对应框架引用处理，通用升级器不调用专用迁移工具。
+根 `package.json` 是 protected 产品文件，不进入候选或来源锁。
 
 既有下游遗留的 `.agents/skills/design-taste-frontend/**` 是项目自有第三方知识资产；Harness 已停止自动安装，该目录始终 `protected`；候选树和来源锁排除该目录，升级不覆盖、删除或重新安装它。旧目标清单缺少这一保护规则时，先按显式清单合并补齐保护，再重新生成计划，不能把通用 managed 规则当成安装或删除授权。该 protected 条目必须排在所有可能匹配设计目录或内部路径的不同 mode 规则之前，包括自定义通配规则；无法证明不重叠的前置规则也会阻断，移到保护条目之后再重新规划。
 
@@ -77,7 +77,7 @@
 
 四项跨接口知识入口 `$desktop-add-file-operations`、`$desktop-add-external-process`、`$desktop-manage-user-tasks`、`$desktop-configure-agent-policy` 及其 references、helper/测试必须完整传播且与源摘要一致；策略实例仍 protected，升级不得启用能力或改写用户选择。
 
-跨接口完整传播 `$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`，只传播工程知识/只读入口，不代写记忆或清单。GPUI GUI 条件完整传播 `$desktop-add-gpui-autostart`，均不自动启用。`$desktop-test-gpui-initialization-e2e` 为初始化专用 tombstone，完成基线前删除，升级永久不恢复；产品 profile、支持实例和根清单继续 protected。
+跨接口完整传播 `$desktop-manage-dependencies`、`$desktop-review-core-boundaries`、`$desktop-record-adr`、`$desktop-handoff-project`、`$desktop-inspect-release-notes`，只传播工程知识/只读入口，不代写记忆或清单。产品 profile、支持实例和根清单继续 protected。
 
 中文提交的完整 `$desktop-configure-git-commits` Skill、metadata、规范、模板、helper/测试，以及 `$desktop-prepare-release` 的 `release_git.mjs`/测试必须作为同一 managed 依赖闭包传播。按章节合并启动文档的项目 Task 默认关闭、非 pinned、显式阶段隔离和自主恢复入口；目标 `docs/AGENT_POLICY.md` 的既有 frontmatter（原 schema 的全部偏好与确认元数据）逐字节保留，并保留自定义正文。受保护正文迁移在目标授权范围单独处理；不得改变已有项目选择或把旧全局 Task Tree 规则当作项目启用事实。用户级 `AGENTS.md` 位于项目候选和来源锁范围之外，不复制或覆盖；项目 AGENTS/README 继续按 merge-sections 处理。
 

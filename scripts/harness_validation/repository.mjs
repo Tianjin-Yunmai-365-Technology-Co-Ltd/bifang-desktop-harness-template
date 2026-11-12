@@ -14,7 +14,6 @@ import {
 import { inspectProject as inspectNoPython } from "../../.agents/skills/desktop-implement-change/scripts/check_no_python.mjs";
 import { validateDailyProjectMemory } from "./repository_memory.mjs";
 import { REQUIRED_ROOT_FILES } from "./repository_required_files.mjs";
-import { loadGpuiKitSkillsSnapshot } from "../../.agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.mjs";
 
 /** Harness 当前必须保留的项目 Skill 集合。 */
 export const EXPECTED_SKILLS = new Set([
@@ -23,21 +22,16 @@ export const EXPECTED_SKILLS = new Set([
   "desktop-build-nsh-release",
   "desktop-test-nsh-initialization-e2e",
   "desktop-manage-dependencies",
-  "desktop-manage-gpui-dependencies",
-  "desktop-optimize-gpui-performance",
   "desktop-review-core-boundaries",
   "desktop-record-adr",
   "desktop-handoff-project",
   "desktop-inspect-release-notes",
-  "desktop-add-gpui-autostart",
-  "desktop-test-gpui-initialization-e2e",
   "desktop-add-file-operations",
   "desktop-add-external-process",
   "desktop-manage-user-tasks",
   "desktop-manage-task-worktrees",
   "desktop-configure-agent-policy",
   "desktop-add-cli-adapter",
-  "desktop-add-gpui-adapter",
   "desktop-add-gui-adapter",
   "desktop-add-gui-autostart",
   "desktop-add-gui-deep-link",
@@ -49,7 +43,6 @@ export const EXPECTED_SKILLS = new Set([
   "desktop-add-gui-system-tray",
   "desktop-add-gui-window-state",
   "desktop-add-mcp-adapter",
-  "desktop-build-gpui-release",
   "desktop-build-rust-release",
   "desktop-build-tauri-local-install",
   "desktop-build-tauri-release",
@@ -283,21 +276,6 @@ function markdownAnchors(source) {
 /** 解析本地 Markdown 链接并验证目标、锚点存在且未越过仓库根。 */
 export function validateMarkdownLinks(errors, files = trackedFiles(), root = ROOT) {
   const markdownFiles = files.filter((relative) => relative.endsWith(".md"));
-  const vendor = ".agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/";
-  let snapshotVerified = false;
-  if (root === ROOT && markdownFiles.some(relative => relative.startsWith(vendor))) {
-    try { loadGpuiKitSkillsSnapshot(); snapshotVerified = true; }
-    catch (error) { fail(errors, `GPUI Kit 原样快照校验失败: ${error.message}`); }
-  }
-  const upstreamReferences = new Map([
-    ["gpui-kit/references/coding-guides.md|./design-guides.md", "gpui-kit-design-guides/references/design-guides.md"],
-    ["gpui-kit-design-guides/references/design-guides.md|./coding-guides.md", "gpui-kit/references/coding-guides.md"],
-    ["gpui-kit/references/coding-guides.md|./getting-started.md", null],
-    ["gpui-kit/references/usage.md|../../../examples/ai_recipes/src/bootstrap.rs", null],
-    ["gpui-kit-design-guides/references/design-guides.md|./style", null],
-    ["gpui-kit-design-guides/references/design-guides.md|./action", null],
-    ["gpui-kit-design-guides/references/design-guides.md|./keybinding", null],
-  ]);
   const linkPattern = /!?\[[^\]]*\]\(([^)]+)\)/gu;
   for (const relative of markdownFiles) {
     const filePath = path.join(root, relative);
@@ -318,17 +296,10 @@ export function validateMarkdownLinks(errors, files = trackedFiles(), root = ROO
       try {
         target = decodeURIComponent(target);
         const fragment = rawFragment === undefined ? null : decodeURIComponent(rawFragment);
-        // 上游原样文档的跨 Skill 和原仓库示例引用由固定快照摘要约束；未知断链仍失败。
-        const key = relative.startsWith(vendor) ? `${relative.slice(vendor.length)}|${target}` : "";
-        if (snapshotVerified && upstreamReferences.has(key)) {
-          const mapped = upstreamReferences.get(key);
-          if (mapped !== null && !fs.existsSync(path.join(root, vendor, mapped))) fail(errors, `GPUI Kit 跨 Skill 引用缺失: ${mapped}`);
-          continue;
-        }
         const resolved = resolveInsideRoot(path.dirname(filePath), target || path.basename(filePath), root);
         if (!fs.existsSync(resolved)) {
           fail(errors, `失效本地 Markdown 链接: ${relative} -> ${target}`);
-        } else if (!relative.startsWith(vendor) && fragment && resolved.endsWith(".md") && !markdownAnchors(readText(resolved)).has(fragment)) {
+        } else if (fragment && resolved.endsWith(".md") && !markdownAnchors(readText(resolved)).has(fragment)) {
           fail(errors, `失效本地 Markdown 锚点: ${relative} -> ${target || path.basename(filePath)}#${fragment}`);
         }
       } catch (error) {

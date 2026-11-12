@@ -108,10 +108,10 @@ function makeWindowsNodeMetadata(root, { digest = "1".repeat(64) } = {}) {
   return pathToFileURL(root).href;
 }
 
-test("PowerShell gate declares Node as common runtime and pnpm for both GUI frameworks", () => {
+test("PowerShell gate declares Node as common runtime and pnpm for GUI", () => {
   const source = readFileSync(WINDOWS_SCRIPT, "utf8");
   assert.match(source, /\$PnpmRequired = \(\$NormalizedInterfaces -contains "GUI"\)\r?\n/u);
-  assert.ok(source.includes('[ValidateSet("tauri", "gpui", "nsh")]'));
+  assert.ok(source.includes('[ValidateSet("tauri", "nsh")]'));
   assert.ok(source.includes('$node = Resolve-GateCommand "node"'));
   assert.ok(source.includes('"gate.node.status=passed"'));
   assert.ok(source.includes('"gate.pnpm.status=$(if ($PnpmRequired) { \'passed\' } else { \'not-required\' })"'));
@@ -170,43 +170,6 @@ test("Windows pnpm is required only for GUI", windowsRuntime, () => withTemporar
   const gui = runWindowsGate(root, probe, ["-CheckOnly", "-Interfaces", "GUI"]);
   assert.equal(gui.status, 20, gui.stderr);
   assert.match(gui.stdout, /gate\.pnpm\.status=missing/);
-}));
-
-test("Windows GPUI requires pnpm without probing Tauri dependencies", windowsRuntime, () => {
-  for (const [pnpm, status, state] of [
-    [null, 20, "missing"],
-    ["12.4.0", 20, "upgrade-required"],
-    ["12.4.1", 0, "passed"],
-    ["13.0.0", 0, "passed"],
-  ]) withTemporaryRoot((root) => {
-    const probe = path.join(root, "probe");
-    addBaseTools(probe, { pnpm });
-    for (const tool of ["pkg-config", "WebView2Loader", "cargo-xwin", "llvm-rc", "lld-link", "makensis"]) {
-      command(path.join(probe, `${tool}.cmd`), 'type nul > "%~dp0tauri-probed"\r\nexit /b 99');
-    }
-    const args = ["-Interfaces", "GUI", "-GuiFramework", "gpui"];
-    if (status !== 0) args.unshift("-CheckOnly");
-    const result = runWindowsGate(root, probe, args);
-    assert.equal(result.status, status, `${pnpm}: ${result.stderr}`);
-    assert.ok(result.stdout.includes(`gate.pnpm.status=${state}`), result.stdout);
-    assert.match(result.stdout, /gate\.pnpm\.requirement=>=12\.4\.1/u);
-    assert.match(result.stdout, /gate\.node\.status=passed/u);
-    assert.match(result.stdout, /gate\.node\.requirement=>=24\.21\.0/u);
-    if (status === 0) {
-      assert.match(result.stdout, /gate\.pnpm\.change=existing/u);
-      assert.match(result.stdout, /gate\.changed=false/u);
-    }
-    assert.equal(existsSync(path.join(probe, "tauri-probed")), false);
-  });
-});
-
-test("Windows GPUI enforces the common Node minimum", windowsRuntime, () => withTemporaryRoot((root) => {
-  const probe = path.join(root, "probe");
-  addBaseTools(probe, { node: "23.99.9", pnpm: "12.4.1" });
-  const result = runWindowsGate(root, probe, ["-CheckOnly", "-Interfaces", "GUI", "-GuiFramework", "gpui"]);
-  assert.equal(result.status, 20, result.stderr);
-  assert.match(result.stdout, /gate\.node\.status=upgrade-required/u);
-  assert.match(result.stdout, /gate\.pnpm\.status=passed/u);
 }));
 
 test("Windows test overrides require explicit test mode", windowsRuntime, () => withTemporaryRoot((root) => {

@@ -71,7 +71,6 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "DESKTOP 框架与 NSH 分派",
       "references/tauri-initialization.md",
       "initialization_form.mjs",
-      "$desktop-add-gpui-adapter",
       "Computer Use",
       "CLI 是可选接口",
       "初始化不创建 Task Worktree",
@@ -281,7 +280,7 @@ export function primaryRequiredFragments(skillFile = INITIALIZE_SKILL) {
       "managed Rust root symlinks fail before download",
     ]],
     [ENVIRONMENT_TESTS[3], [
-      "PowerShell gate declares Node as common runtime and pnpm for both GUI frameworks",
+      "PowerShell gate declares Node as common runtime and pnpm for GUI",
       "Windows Node minimum is continuous for every interface",
       "Windows pnpm is required only for GUI",
     ]],

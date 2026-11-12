@@ -10,7 +10,7 @@ import { validateInitializationFormRouting } from "./initialization_form_contrac
 /** 仅复制路由文档到隔离目录，不执行安装、初始化或真实项目写入。 */
 function fixture(run) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "harness-form-routing-"));
-  const files = ["README.md", "docs/RUST_CLI_TEMPLATE.md", ".agents/skills/desktop-add-gpui-adapter/SKILL.md"];
+  const files = ["README.md", "docs/RUST_CLI_TEMPLATE.md"];
   for (const skill of ["desktop-instantiate-project", "desktop-initialize-rust-project"]) {
     for (const name of ["SKILL.md", "agents/openai.yaml"]) files.push(`.agents/skills/${skill}/${name}`);
   }

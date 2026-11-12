@@ -14,8 +14,6 @@ const EXCLUDED_DIRECTORIES = new Set([
 ]);
 // 只保护已知的项目本地第三方 Skill，普通产品 Skill 仍参与身份重命名。
 const EXCLUDED_SKILL_PATHS = new Set([
-  ".agents/skills/gpui-kit",
-  ".agents/skills/gpui-kit-design-guides",
   ".agents/skills/design-taste-frontend",
 ]);
 const SNAKE_CASE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;

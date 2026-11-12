@@ -19,7 +19,7 @@ node .agents/skills/desktop-instantiate-project/scripts/instantiate_project.mjs 
 
 输出 `engineering-copy-prepared` 与准备清单，只表示工程层准备成功；`initializationComplete` 明确为 `false`。把该 JSON 结果保留在本次执行上下文，交给原中性初始化流程继续建立 core、所选成员、Cargo metadata、版本状态与适用 GUI profile，不创建原始表单的持久副本。
 
-prepare 后的目标已包含工程规则，不能再调用只接受绝对空目标的 GPUI/NSH 全新 workspace wrapper 覆盖它。按原初始化流程先建立真实共享 core，再使用已有 core 的 add-only 路径；也可复用源专用纯 renderer 的确定性文件集合，在逐路径无覆盖检查后补齐所选中性成员。始终复用已确认选择，不为绕过空目录检查删除工程层或重建目标。
+prepare 后的目标已包含工程规则，不能再调用只接受绝对空目标的 NSH 全新 workspace wrapper 覆盖它。按原初始化流程先建立真实共享 core，再使用已有 core 的 add-only 路径；也可复用源专用纯 renderer 的确定性文件集合，在逐路径无覆盖检查后补齐所选中性成员。始终复用已确认选择，不为绕过空目录检查删除工程层或重建目标。
 
 ## 检查后裁剪
 
@@ -38,7 +38,7 @@ node .agents/skills/desktop-initialize-rust-project/scripts/finalize_instantiati
 
 以上字段是**已有结果的引用**，不是新测试或额外用户审批。缺失引用、错误快照、未知字段或 `passed` 一类自填成功开关都拒绝；helper 只核对引用存在与工程绑定，不认证外部命令或 Computer Use 的成功。Agent 必须根据原流程实际结果决定能否进入此步骤，不能把任意非空字符串当通过证据。失败、未执行或无法观察仍遵守原初始化阻断规则。
 
-裁剪先核对准备文件未漂移、真实 Cargo 身份/成员/直接核心依赖、已确认策略、GUI 九字段和一致的初始版本状态；GPUI 安装知识后的 AGENTS 只允许精确的两项本地知识地图追加，其余用户修改均停止。完整预检通过后，按固定清单移除初始化/派生入口和未选框架，保留通用版本、Git 生命周期、Task、升级能力及双语许可证；重建轻量 AGENTS，转换已删除入口的文档路由和链接，保留代码中用于拒绝恢复的 tombstone 数据。实际本地链接和相对模块 import 在写入前检查，第三方知识原文不改写。
+裁剪先核对准备文件未漂移、真实 Cargo 身份/成员/直接核心依赖、已确认策略、GUI 九字段和一致的初始版本状态；准备后的 AGENTS 漂移也会阻断。完整预检通过后，按固定清单移除初始化/派生入口和未选框架，保留通用版本、Git 生命周期、Task、升级能力及双语许可证；重建轻量 AGENTS，转换已删除入口的文档路由和链接，保留代码中用于拒绝恢复的 tombstone 数据。实际本地链接和相对模块 import 在写入前检查，第三方知识原文不改写。
 
 裁剪删除和文档重写只作用于 prepare 清单中登记的工程文件。准备后新增的未知文件保持原字节；待裁目录中的未知内容或新增文档里的失效活动引用会阻断，不因重新预览自动获得删除或改写授权。成员包版本必须继承根版本或明确等于根版本。
 

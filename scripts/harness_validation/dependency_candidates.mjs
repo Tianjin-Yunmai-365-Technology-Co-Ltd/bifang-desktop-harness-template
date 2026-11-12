@@ -2,13 +2,10 @@ import path from "node:path";
 import { isTypeScriptRangeCompatible, parseBoundedVersionRange } from "../../.agents/skills/desktop-test-gui-initialization-e2e/scripts/gui-frontend-dependency-ranges.mjs";
 import { ROOT, fail, readJson, readText } from "./core.mjs";
 import { parseCargoToml } from "./initialization_toml.mjs";
-import { renderGpuiFiles } from "../../.agents/skills/desktop-add-gpui-adapter/scripts/create_gpui_workspace.mjs";
 
 export const DEPENDENCY_CANDIDATES = path.join(ROOT, ".agents/skills/desktop-manage-dependencies/references/registry-candidates.json");
 const RUST_MANIFEST = path.join(ROOT, ".agents/skills/desktop-initialize-rust-project/assets/rust-lib-cli/Cargo.toml");
 const FRONTEND_BASELINE = path.join(ROOT, ".agents/skills/desktop-add-gui-adapter/references/react-frontend-baseline.md");
-const RUST_BASELINE = path.join(ROOT, "docs/RUST_CLI_TEMPLATE.md");
-const INITIALIZE_SKILL = path.join(ROOT, ".agents/skills/desktop-initialize-rust-project/SKILL.md");
 const STABLE_VERSION = /^\d+\.\d+\.\d+$/u;
 
 /** 比较已由调用方校验的完整或二段稳定版本；缺失 patch 视为零。 */
@@ -43,7 +40,7 @@ function compareWorkspaceDependencies(errors, dependencies, catalog, label) {
   }
 }
 
-/** 检查 registry 快照与真实 CLI/GPUI 生成器、前端登记的一致性；离线门禁不声称实时最新。 */
+/** 检查 registry 快照与真实 CLI 生成器、前端登记的一致性；离线门禁不声称实时最新。 */
 export function validateDependencyCandidates(errors, options = {}) {
   let catalog;
   try { catalog = readJson(options.catalogPath ?? DEPENDENCY_CANDIDATES); }
@@ -76,18 +73,9 @@ export function validateDependencyCandidates(errors, options = {}) {
       || registeredRange?.minimum.join(".") !== typescript?.version) {
     fail(errors, "TypeScript dependency range must preserve its registered lower bound and typescript-eslint peer upper bound");
   }
-  if (catalog.crates["gpui-pre-macos"]?.version === "0.3.10" && catalog.crates.accesskit_macos?.version !== "0.26.3") {
-    fail(errors, "GPUI 0.3.10 must retain the compatible accesskit_macos 0.26.3 family");
-  }
   try {
     const rust = parseCargoToml(readText(options.rustManifestPath ?? RUST_MANIFEST));
     compareWorkspaceDependencies(errors, rust.workspace?.dependencies, catalog, "CLI template");
-    const render = options.gpuiRender ?? renderGpuiFiles;
-    const files = render({ projectId: "dependency_probe", nameZh: "依赖核查", nameEn: "Dependency Probe", owner: "Owner", systemTray: "enabled", systemNotification: "enabled", autostart: "enabled", singleInstance: "enabled", globalShortcut: "enabled", aboutPage: "disabled", sponsorPage: "disabled", targetPlatforms: ["macos"] });
-    compareWorkspaceDependencies(errors, parseCargoToml(files.get("Cargo.toml")).workspace?.dependencies, catalog, "GPUI template");
-    for (const file of [RUST_BASELINE, INITIALIZE_SKILL]) {
-      if (!readText(file).includes(`gpui-kit = "${catalog.crates["gpui-kit"].version}"`)) fail(errors, `GPUI dependency routing fact drift: ${path.basename(file)}`);
-    }
     const baseline = readText(options.frontendBaselinePath ?? FRONTEND_BASELINE);
     for (const [name, item] of Object.entries(catalog.npm)) {
       const rangeToken = item.dependencyRange ? `\`${item.dependencyRange}\`` : `^${item.version}`;

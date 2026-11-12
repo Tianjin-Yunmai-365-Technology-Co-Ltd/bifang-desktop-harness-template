@@ -1,6 +1,6 @@
 # Tauri 初始化接线
 
-仅在初始化已选择 GUI 且 `gui-framework = "tauri"`（既有 GUI 缺失值兼容 Tauri）时完整读取。中央初始化器拥有阶段顺序与完成门禁；下面的能力 Skill、GUI adapter 和设计标准拥有各自唯一实施合同。GPUI 不读取本引用。
+仅在初始化已选择 GUI 且 `gui-framework = "tauri"`（既有 GUI 缺失值兼容 Tauri）时完整读取。中央初始化器拥有阶段顺序与完成门禁；下面的能力 Skill、GUI adapter 和设计标准拥有各自唯一实施合同。
 
 ## 身份与初始化源资产
 

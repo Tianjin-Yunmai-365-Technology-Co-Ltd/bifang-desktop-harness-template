@@ -265,8 +265,8 @@ export function parseReleaseGuiFramework(source) {
       }
       if (framework !== undefined) throw new ActionError("Cargo gui-framework 元数据重复");
       try { framework = /^'[^'\r\n]*'$/u.test(value) ? value.slice(1, -1) : JSON.parse(value); }
-      catch { throw new ActionError("Cargo gui-framework 元数据无效"); }
-      if (!["tauri", "gpui", "nsh"].includes(framework)) throw new ActionError("Cargo gui-framework 元数据无效");
+      catch { throw new ActionError("Cargo gui-framework 元数据无效；DESKTOP 仅支持 Tauri"); }
+      if (!["tauri", "nsh"].includes(framework)) throw new ActionError("Cargo gui-framework 元数据无效；DESKTOP 仅支持 Tauri");
     } else if (fullPath.length <= metadataPath.length && fullPath.every((part, index) => part === metadataPath[index])) {
       throw new ActionError("Cargo gui-framework 所属元数据必须使用独立表，不能使用内联值");
     }
@@ -389,30 +389,12 @@ function assertGuiPackageReady(root) {
   if (relative !== "." && !gui.startsWith(`${root}${path.sep}`)) throw new ActionError("GUI 根目录越出项目");
 }
 
-/** 核对 GPUI 原生打包所用 Rust 清单；不要求 Tauri、前端或 pnpm 文件。 */
-function assertGpuiPackageReady(root) {
-  const configuredRoot = optionalMetadata(root, "gui-root");
-  const projectId = optionalMetadata(root, "project-id");
-  if (projectId !== null && (typeof projectId !== "string" || !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(projectId))) {
-    throw new ActionError("Cargo project-id 必须是 ASCII snake_case 标识");
-  }
-  const relative = safeProjectRelative(configuredRoot ?? `${projectId ?? path.basename(root)}_gui`, "gui-root", { allowRoot: true });
-  checkedProjectPath(root, relative, "GPUI GUI 根目录", true);
-  const guiManifest = path.posix.join(relative, "Cargo.toml");
-  const guiFile = checkedProjectPath(root, guiManifest, "GPUI Cargo 清单");
-  if (!/^\s*\[package\]\s*$/mu.test(fs.readFileSync(guiFile, "utf8"))) throw new ActionError("GPUI Cargo 清单必须声明原生 GUI package");
-  assertTrackedFile(root, "Cargo.toml", "Cargo 工作区清单");
-  assertTrackedFile(root, guiManifest, "GPUI Cargo 清单");
-  const manifests = checkedRustTestManifests(root);
-  assertDependencyLocks(root, { rustTestManifests: [...new Set(["Cargo.toml", ...manifests, guiManifest])] });
-}
-
-/** 判断接口、框架与平台是否有适用的 CLI、Tauri 或 GPUI 本地打包 Skill。 */
+/** 判断接口、框架与平台是否有适用的 CLI、Tauri 或 NSH 本地打包 Skill。 */
 export function localPackageSupported(interfaces, platforms, guiFramework = "tauri") {
-  if (!["tauri", "gpui", "nsh"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效");
+  if (!["tauri", "nsh"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效；DESKTOP 仅支持 Tauri");
   if (interfaces.includes("nsh")) return interfaces.length === 1 && platforms.some(platform => ["macos", "windows", "linux", "android", "ios", "web"].includes(platform));
   if(platforms.some(platform=>["android","ios","web"].includes(platform))) return guiFramework === "nsh" && interfaces.length === 1 && interfaces[0] === "gui";
-  const supported = guiFramework === "nsh" ? ["macos", "windows", "linux", "android", "ios", "web"] : guiFramework === "gpui" ? ["macos", "windows", "linux"] : ["macos", "windows"];
+  const supported = guiFramework === "nsh" ? ["macos", "windows", "linux", "android", "ios", "web"] : ["macos", "windows"];
   return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => supported.includes(platform)));
 }
 
@@ -421,7 +403,7 @@ export function selectLocalPackageRoute({ interfaces, platforms, guiFramework = 
   if (!Array.isArray(interfaces) || !Array.isArray(platforms) || !["macos", "windows", "linux"].includes(hostPlatform)) {
     throw new ActionError("本地候选路由需要已确认接口、平台和当前宿主");
   }
-  if (!["tauri", "gpui", "nsh"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效");
+  if (!["tauri", "nsh"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效；DESKTOP 仅支持 Tauri");
   if ((requestedInterface === null) !== (requestedTarget === null)) throw new ActionError("明确改选本地候选时须同时指定接口与目标");
   const selected = new Set(platforms);
   const onHost = selected.has(hostPlatform);
@@ -435,9 +417,6 @@ export function selectLocalPackageRoute({ interfaces, platforms, guiFramework = 
     if (nshTargets.includes("web") && selected.has("web")) routes.push(result("nsh", "web", "desktop-build-nsh-release"));
   } else {
     if (interfaces.includes("gui") && onHost) {
-      if (guiFramework === "gpui" && (hostPlatform !== "windows" || hostArch === "x64") && (hostPlatform !== "linux" || ["x64", "arm64"].includes(hostArch))) {
-        routes.push(result("gui", hostPlatform, "desktop-build-gpui-release"));
-      }
       if (guiFramework === "tauri" && (hostPlatform === "macos" || hostPlatform === "windows" && hostArch === "x64")) {
         routes.push(result("gui", hostPlatform, "desktop-build-tauri-release"));
       }
@@ -490,7 +469,6 @@ function assertLocalPackageSupported(root) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
   if (interfaces.includes("gui") && framework === "tauri") assertGuiPackageReady(root);
-  else if (interfaces.includes("gui") && framework === "gpui") assertGpuiPackageReady(root);
   else if (interfaces.includes("nsh") || interfaces.includes("gui") && framework === "nsh") {
     if (readDependencyLockPolicy(root) === "tracked") throw new ActionError("NSH 生成的运行时 workspace 尚不能传播 tracked Cargo.lock；请选择 push_release_branch，或先实现锁定解析路线");
     const modern = interfaces.includes("nsh");
