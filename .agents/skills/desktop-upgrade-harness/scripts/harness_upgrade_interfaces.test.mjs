@@ -65,8 +65,6 @@ test("framework_selection_rejects_unknown_duplicate_and_malformed_metadata", () 
 
 /** GUI 工程目录按持久框架选择，不从候选中的技能反推接口。 */
 test("gui_candidate_selection_excludes_the_other_framework_and_non_gui_projects", () => {
-  for (const selection of [{ interfaces: ["cli"], guiFramework: null }, { interfaces: ["gui"], guiFramework: "tauri" }]) {
-  }
   const nsh = { interfaces: ["gui"], guiFramework: "nsh" };
   assert.equal(inapplicableGuiCandidate("docs/GUI_ENGINEERING.md", nsh), false);
   assert.equal(inapplicableGuiCandidate(".agents/skills/desktop-build-nsh-release/SKILL.md", nsh), false);

@@ -4,7 +4,7 @@
 
 ## 2026-11-12 移除
 
-- `HARNESS-REMOVE-GPUI`：Desktop 统一使用 Tauri，选择 Desktop 后直接进入桌面配置。移除 GPUI 脚手架、Skills、Kit 快照、Linux 工具链、构建和验收路由；显式声明 GPUI 的旧工程不会被自动当作 Tauri 升级。见 [ADR-20261112-001](../adr/20261112_ADR.md)。
+- `HARNESS-REMOVE-GPUI`（`required_version = 202611121721`）：Desktop 统一使用 Tauri，选择 Desktop 后直接进入桌面配置。移除 GPUI 脚手架、Skills、Kit 快照、Linux 工具链、构建和验收路由；显式声明 GPUI 的旧工程不会被自动当作 Tauri 升级。见 [ADR-20261112-001](../adr/20261112_ADR.md)。
 
 ## 2026-11-08 变化
 

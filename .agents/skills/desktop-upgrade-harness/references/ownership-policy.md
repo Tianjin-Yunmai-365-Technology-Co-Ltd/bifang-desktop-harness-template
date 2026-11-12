@@ -57,7 +57,8 @@
 3. 使用下游展示名、snake_case/kebab-case 标识、crate 路径、接口选择和已批准例外完成渲染。
 4. 来自通过自身验证器、Git 工作区干净且 `HEAD`/`Version.md` 与计划声明一致的明确 Harness 版本和提交。
 5. 位于目标仓库之外的任务专用目录，且不含符号链接或特殊文件。
-6. 源 Harness 存在无需身份渲染的必需 `managed` 传播文件时，候选必须包含内容摘要一致的结果；当前包括行数、Rust 中文注释与 core-first 检查器及各自专属测试；上游的 Skills 总索引、`$desktop-curate-harness-memory` 目录及上游专用 `check_no_python.mjs` 与其测试必须从候选排除，旧目标中对应文件须经审查后移除，以及 `$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试，遗漏或内容过期都会阻断计划与基线记录。
+6. 源 Harness 存在无需身份渲染的必需 `managed` 传播文件时，候选必须包含内容摘要一致的结果。当前包括行数、Rust 中文注释与 core-first 检查器及各自专属测试，以及 `$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试。遗漏或内容过期都会阻断计划与基线记录。
+7. 候选排除上游的 Skills 总索引、`$desktop-curate-harness-memory` 目录，以及上游专用 `check_no_python.mjs` 与其测试。旧目标残留的上游专用 `check_no_python.mjs` 和测试须经审查后移除，才能继续升级。
 
 ## 永久保护
 
