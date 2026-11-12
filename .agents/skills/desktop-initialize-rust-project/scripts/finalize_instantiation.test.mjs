@@ -23,6 +23,9 @@ for (const framework of [null, 'tauri', 'nsh', 'nsh-mobile-web', 'nsh-tui']) tes
   }
   const beforeLicense = fs.readFileSync(path.join(f.target, 'LICENSE.zh-CN.md'));
   const plan = planFinalization(f.preparation);
+  if (framework === 'nsh') assert.deepEqual(plan.requiredEvidence, ['unitTests','nshDesktopPackage','nshDesktopRun']);
+  if (framework === 'nsh-mobile-web') assert.deepEqual(plan.requiredEvidence, ['unitTests','nshMobileRun','nshWebPackage','nshWebRun']);
+  if (framework === 'nsh-tui') assert.deepEqual(plan.requiredEvidence, ['unitTests','nshTuiTests','nshTuiRun']);
   const outcome = finalizeInstantiation(f.preparation, plan.planDigest, fixtureEvidence(plan));
   assert.equal(outcome.status, 'terminal-pruning-complete');
   assert.equal(outcome.initializationComplete, false);

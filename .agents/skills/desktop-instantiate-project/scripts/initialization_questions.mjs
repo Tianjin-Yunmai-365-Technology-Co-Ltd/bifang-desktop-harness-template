@@ -1,4 +1,6 @@
 /** 初始化问句的唯一目录；选项值供解析器使用，中文文案直接供所有模型展示。 */
+import { NSH_TARGETS, NSH_PLATFORMS as NSH_PLATFORM_ORDER, NSH_TARGET_PLATFORMS } from "../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs";
+export { NSH_TARGETS, NSH_PLATFORM_ORDER, NSH_TARGET_PLATFORMS };
 export const QUESTIONS = [
   { id: "name_zh", number: 1, title: "中文项目展示名称是什么？", alternateAction: { label: "改用英文名", value: "skip" }, help: "中英文至少提供一个；若只提供英文名，可点击“改用英文名”。另一名称由 Agent 翻译，在最终汇总中确认。" },
   { id: "name_en", number: 2, title: "英文项目展示名称是什么？", alternateAction: { label: "改用中文名", value: "skip" }, help: "中英文至少提供一个；若改为提供中文名，可点击“改用中文名”。另一名称由 Agent 翻译，在最终汇总中确认。" },
@@ -6,7 +8,7 @@ export const QUESTIONS = [
   { id: "project_path", number: 4, title: "项目放在哪里？", help: "提供最终项目根目录或父目录；相对路径以 Harness 根目录为基准。" },
   { id: "owner", number: 5, title: "项目负责人或责任主体是谁？" },
   { id: "interfaces", number: 6, title: "需要哪些程序类型？可多选。", inputMode: "multiple", options: ["命令行(CLI，默认)", "MCP", "桌面应用(DESKTOP，Tauri)", "NSH：下一代全平台开发框架"], values: ["cli", "mcp", "gui", "nsh"], defaultValue: ["cli"], help: "CLI、MCP 可互相组合，也可与 DESKTOP 组合；DESKTOP 与 NSH 互斥，NSH 只能单选。明确选择默认值或跳过才使用 CLI；未答复会继续等待，选择其他接口不会附加 CLI。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；NSH 另问能力并派生对应平台。" },
-  { id: "nsh_targets", title: "NSH 要支持哪些能力？可多选。", inputMode: "multiple", options: ["桌面", "移动", "Web", "TUI（终端界面）"], values: ["desktop", "mobile", "web", "tui"], help: "选择桌面即支持 Windows、macOS、Linux 全部系统；选择移动即支持 Android、iOS；选择 Web 即支持 Web；TUI 对应 Windows、macOS、Linux 的终端。目标平台由本题自动确定并在最终汇总中确认。当前只使用正式发布的 NSH v0.5.0 工具链。" },
+  { id: "nsh_targets", title: "NSH 要支持哪些目标？可多选。", inputMode: "multiple", options: ["桌面", "移动", "Web", "TUI（终端界面）"], values: NSH_TARGETS, help: "桌面对应 Windows、macOS、Linux；移动对应 Android、iOS；Web 对应浏览器；TUI 对应 Windows、macOS、Linux 的终端，支持运行和测试。系统平台由本题派生，随最终汇总确认。" },
   { id: "system_tray", title: "是否安装系统托盘能力？", help: "中性菜单只含显示窗口/退出；启用后按框架合同处理关闭隐藏与恢复。" },
   { id: "system_notification", title: "是否安装系统通知能力？", help: "设置页提供默认关闭的开关；选择能力不授权发送通知或更改本机权限。" },
   { id: "autostart", title: "是否安装开机自启能力？", help: "设置页提供实际 OS 状态开关；初始化不替你注册登录项。" },
@@ -28,14 +30,6 @@ export const POLICY_FIELDS = Object.keys(POLICY_PRESET);
 export const GUI_FIELDS = ["system_tray", "system_notification", "autostart", "about_page", "sponsor_page", "single_instance", "deep_link", "global_shortcut", "sidebar_mode"];
 export const DESKTOP_FIELDS = ["system_tray", "system_notification", "autostart", "single_instance", "global_shortcut"];
 export const BASE_FIELDS = QUESTIONS.slice(0, 6).map(({ id }) => id);
-export const NSH_TARGETS = ["desktop", "mobile", "web", "tui"];
-export const NSH_PLATFORM_ORDER = ["windows", "macos", "linux", "android", "ios", "web"];
-export const NSH_TARGET_PLATFORMS = Object.freeze({
-  desktop: ["windows", "macos", "linux"],
-  mobile: ["android", "ios"],
-  web: ["web"],
-  tui: ["windows", "macos", "linux"],
-});
 
 /** 最终确认同样使用固定问句，不把预设确认或超时解释为创建授权。 */
 export const REVIEW_QUESTION = { id: "confirm_summary", title: "是否按以上完整汇总创建项目？", inputMode: "single", options: ["确认创建", "修改信息"] };
@@ -44,7 +38,7 @@ export const REVIEW_QUESTION = { id: "confirm_summary", title: "是否按以上�
 export function summaryNotices(values) {
   const notices = [
     "目标平台、接口与适用的 gui-framework 或 nsh-targets 写入根 Cargo metadata；六项 Agent 策略按固定默认值写入 Agent Policy，不单独询问。",
-    "发布后动作在首次发布前询问并记录；初始化保持 pending，不打包、不访问远端、不配置远端或凭据。",
+    "发布后动作在首次发布前确认；初始化保持 pending。所选界面按其初始化验证流程执行。",
     "首次写入前重新校验目标与本次汇总确认；脚手架生成不代表产品已验收。",
   ];
   const gui = values.interfaces.includes("gui");
@@ -59,7 +53,7 @@ export function summaryNotices(values) {
     notices.push("NSH 目标平台仅由所选能力自动确定：桌面对应 Windows、macOS、Linux 全部系统，移动对应 Android、iOS，Web 对应 Web，TUI 对应 Windows、macOS、Linux 的终端；请核对本汇总中的具体平台。所有已选能力使用正式 v0.5.0 工具链。");
     notices.push(`NSH 是独立程序类型；已选能力：${values.nsh_targets.join('、')}。TSX 界面通过 Mixed 原生模块调用共享 Rust core；初始化使用 desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e，并自动安装项目本地官方 NSH 编码与设计 Skills。`,
       "NSH 桌面、Android、iOS 与 Web 使用官方打包器；TUI 使用官方运行和测试命令，0.5.0 未提供 TUI 打包；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
-    if (values.nsh_targets.includes("desktop")) notices.push("NSH 桌面默认提供官方多窗口；托盘、单实例、深链接逐项确认，深链接依赖单实例。自启、系统通知与 OS 全局快捷键不接入中性模板。");
+    if (values.nsh_targets.includes("desktop")) notices.push("NSH 桌面默认提供官方多窗口。选择单实例后可继续选择深链接。自启、系统通知和 OS 全局快捷键在中性模板中关闭。");
   }
   if (values.interfaces.includes("cli") && gui) notices.push("CLI 与 GUI 组合分别使用对应打包 Skill 生成真实产物，不互相冒充。");
   if (values.global_shortcut === "enabled") notices.push("全局快捷键只安装 Rust-only 能力；contract 为 actions = []，零默认 chord、零 OS 注册、零产品动作和占位界面。");

@@ -61,21 +61,23 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 
 ## 字段阶段与顺序
 
-唯一顺序由 catalog 与解析器执行：基础身份及程序类型 → 缺失译名补齐 → NSH 的桌面、移动、Web、TUI 能力（仅 NSH） → 适用的桌面九项配置 → 已启用桌面能力配置协助 → 路径检查与完整汇总 → 显式确认。非 NSH 的全平台默认值和 NSH 的平台映射在汇总前计算。路径安全属于基础校验，汇总和写入前会再次复核。
+唯一顺序由 catalog 与解析器执行：基础身份及程序类型 → 缺失译名补齐 → NSH 的桌面、移动、Web、TUI 能力（仅 NSH） → 适用的桌面条件问题 → 已启用桌面能力配置协助 → 路径检查与完整汇总 → 显式确认。非 NSH 的全平台默认值和 NSH 的平台映射在汇总前计算。路径安全属于基础校验，汇总和写入前会再次复核。
 
 基础字段顺序依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`interfaces`；已确认一个展示名称时，另一个自动翻译并在汇总确认。程序类型选项为 CLI、MCP、DESKTOP（技术值 `gui`）、NSH，NSH 展示说明固定为“下一代全平台开发框架”。CLI/MCP/DESKTOP 的 `target_platforms` 固定派生为 `windows, macos, linux`，来源 `default:all_desktop_platforms`；NSH 只问 `nsh_targets` 并派生平台，不写入 `gui-framework`。DESKTOP 的汇总固定派生 `gui_framework: tauri`（来源 `derived:desktop`），写入 Cargo 的 `gui-framework`。不询问框架；旧表单的合法 Tauri 答案只作兼容输入，其他显式框架值失败关闭。
 
 `nsh_targets` 为可多选的 `desktop`、`mobile`、`web`、`tui`，是 NSH 平台选择的唯一输入。`desktop` 和 `tui` 都派生完整 Windows/macOS/Linux 集合；`mobile` 派生 Android/iOS，`web` 派生 Web。派生的非空 `target_platforms` 与来源 `derived:nsh_targets` 进入完整汇总，确认后才写入 Cargo。若旧一轮已提供显式 `target_platforms`，任何程序类型都忽略旧答案并按当前默认或能力重新计算，不再展示系统平台问题。全部 NSH 依赖使用正式 v0.5.0 固定提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI。NSH 当前只支持单独选择，不能与 CLI、MCP 或 DESKTOP 同时实例化。
 
+NSH 的双语展示名要能作为官方包文件名，长度、保留名称和路径字符在汇总前检查。项目标识最多 64 个 ASCII 字符，负责人最多 200 个字符，身份字段首尾不得留空白。
+
 六项 Agent 策略直接由解析器的 `POLICY_PRESET` 固定派生：自动 Task、Task 工作树、superpowers 与内部并行关闭，候选验收冒烟允许，候选 E2E 建议关闭。初始化不问策略模式或六项单独选择，也不把派生值放回 `answers`；完整汇总显示具体值及 `default:initialization` 来源。初始化后的明确变更走 `$desktop-configure-agent-policy`。
 
 初始化将 `post_release_action: pending` 写入 schema 5 策略，完整汇总明确显示首次发布前再选择。`pending` 不影响中性基线；首次发布前由 `$desktop-prepare-release` 调用 `$desktop-switch-post-release-action`，展示本地打包与提交远程并记录用户明确选择。适用性由该发布动作 Skill 按已持久化接口、平台、框架或 NSH 子目标校验；纯 MCP、仅 Linux Tauri GUI 只能选择 `push_release_branch`。未选择时不得启动 Git 发布，也不得暗用本地打包默认值。
 
-DESKTOP 和选择 `nsh_targets` 中 `desktop` 的 NSH 才处理九项桌面配置，按 `GUI_FIELDS` 顺序解析并写入唯一 `gui-initialization-config`，框架/NSH 目标不进入 profile。NSH 未选择 desktop 时不询问、不持久化桌面九项或 Logo；旧桌面答案须撤下。NSH 桌面默认支持多窗口，托盘、单实例和深链接各自明确询问；自启、系统通知与 OS 全局快捷键仍固定 `unavailable`/`disabled`。未提供不可用项时由能力限制派生关闭；用户显式启用必须纠正，不能静默关闭。NSH 托盘问句须列出新建窗口、显示所有窗口和退出；单实例及深链接由官方宿主恢复主窗口，模板只消费固定恢复 URL。其余桌面能力无默认开关，不从预设或漏答推断。
+DESKTOP 保持原有九项问询。选了 NSH desktop 时按托盘 → 单实例 → 深链接（仅单实例启用时）→ 关于页 → 赞助页 → 侧栏模式询问。单实例关闭时，未回答的深链接派生为关闭。显式冲突只在对应问题纠正。自启、通知和 OS 全局快捷键在中性模板固定关闭，旧启用答案须明确纠正。两条路线仍按原有 `GUI_FIELDS` 顺序写入唯一九字段 `gui-initialization-config`。非桌面 NSH 无这些问题和 Logo。
 
 Tauri 与 NSH desktop 的 `deep_link = enabled` 必须同时 `single_instance = enabled`；冲突只请求用户明确修正，不自动开启单实例。全局快捷键中性合同为空动作、零默认键位、零 OS 注册，产品动作在下游确认。用户对 `sidebar_mode` 明确默认、跳过或空白答复才使用 `detailed`；未答继续等待，非法值重新询问。
 
-九项完成后，仅汇总共同五项桌面能力中已启用项，并询问一次 `capability_setup_assistance`；全禁用跳过，已有合法回答复用。该移交意愿不加入九字段或 Agent Policy。具体配置由 Tauri 对应能力 Skill 或 NSH 适用能力合同在终端下游根目录继续，不能用最终创建确认代替此问题。
+适用问题完成后，汇总已启用的宿主能力（NSH 包含深链接），并询问一次 `capability_setup_assistance`；全禁用跳过，已有合法回答复用。该移交意愿不加入九字段或 Agent Policy。具体配置由 Tauri 对应能力 Skill 或 NSH 适用能力合同在终端下游根目录继续，不能用最终创建确认代替此问题。
 
 用户修改早先字段后重算全部状态，只重问当前缺失或变为非法的字段；明确移除 DESKTOP/NSH 或 NSH 桌面目标时撤下其旧条件答案，再计算新汇总。翻译的原名改变时重译另一名称，不能复用旧译名。有效汇总值、来源或合同变化会使旧确认失效；被忽略的旧平台答案变化不改变汇总。
 

@@ -432,7 +432,9 @@ export function selectLocalPackageRoute({ interfaces, platforms, guiFramework = 
     if (interfaces.length !== 1 || guiFramework !== "tauri" || !Array.isArray(nshTargets) || nshTargets.length === 0 ||
         new Set(nshTargets).size !== nshTargets.length || nshTargets.some(target => !["desktop", "mobile", "web", "tui"].includes(target))) return null;
     if (nshTargets.includes("desktop") && onHost) routes.push(result("nsh", hostPlatform, "desktop-build-nsh-release"));
-    if (nshTargets.includes("mobile") && hostPlatform === "macos" && selected.has("ios")) routes.push(result("nsh", "ios", "desktop-build-nsh-release"));
+    if (nshTargets.includes("mobile") && hostPlatform === "macos" && selected.has("ios")) {
+      routes.push(result("nsh", "ios", "desktop-build-nsh-release"), result("nsh", "ios-simulator", "desktop-build-nsh-release"));
+    }
     if (nshTargets.includes("mobile") && selected.has("android")) routes.push(result("nsh", "android", "desktop-build-nsh-release"));
     if (nshTargets.includes("web") && selected.has("web")) routes.push(result("nsh", "web", "desktop-build-nsh-release"));
   } else {
@@ -444,7 +446,9 @@ export function selectLocalPackageRoute({ interfaces, platforms, guiFramework = 
     }
     if (interfaces.includes("cli") && onHost) routes.push(result("cli", hostPlatform, "desktop-build-rust-release"));
     if (interfaces.length === 1 && interfaces[0] === "gui" && guiFramework === "nsh") {
-      if (hostPlatform === "macos" && selected.has("ios")) routes.push(result("gui", "ios", "desktop-build-nsh-release"));
+      if (hostPlatform === "macos" && selected.has("ios")) {
+        routes.push(result("gui", "ios", "desktop-build-nsh-release"), result("gui", "ios-simulator", "desktop-build-nsh-release"));
+      }
       if (selected.has("android")) routes.push(result("gui", "android", "desktop-build-nsh-release"));
       if (selected.has("web")) routes.push(result("gui", "web", "desktop-build-nsh-release"));
     }

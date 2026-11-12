@@ -1,39 +1,62 @@
-/** 隔离组合项目的桌面配置，避免在移动/Web 注册桌面协议。 */
+/** 保留官方应用目录与 Cargo 相对路径，在隔离的副本中移除桌面专用配置。 */
 import fs from 'node:fs';
 import path from 'node:path';
 
-function ordinaryFile(file) {
-  if (!fs.lstatSync(file).isFile()) throw new Error('expected an ordinary file: ' + file);
+export const NSH_BUILD_CACHE_NAMES = new Set(['.git', '.nsh', 'target', 'release', 'node_modules']);
+const portableCaches = new Set([...NSH_BUILD_CACHE_NAMES].filter(name => name !== 'node_modules'));
+
+function isWithin(root, file) {
+  return file.startsWith(root + path.sep);
 }
 
-export function prepareNshPortableEntry(gui, stage) {
-  const configFile = path.join(gui, 'nsh.json');
-  const appFile = path.join(gui, 'App.tsx');
-  ordinaryFile(configFile);
-  ordinaryFile(appFile);
-  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-  if (config.rust !== '.' || Object.hasOwn(config, 'root') || !config.capabilities ||
-      typeof config.capabilities !== 'object' || Array.isArray(config.capabilities)) throw new Error('combined NSH project requires Mixed desktop metadata');
-  const entry = path.join(stage, 'portable-entry');
-  fs.mkdirSync(entry, { recursive: false });
-  const relative = file => path.relative(entry, file).split(path.sep).join('/');
-  config.rust = relative(gui);
-  delete config.capabilities.windows;
-  delete config.singleInstance;
-  delete config.schemes;
-  delete config.window;
-  if (Object.keys(config.capabilities).length === 0) delete config.capabilities;
-  if (config.icon !== undefined) {
-    if (typeof config.icon !== 'string' || path.isAbsolute(config.icon)) throw new Error('invalid NSH icon');
-    const icon = path.resolve(gui, config.icon);
-    if (!icon.startsWith(gui + path.sep)) throw new Error('NSH icon escapes member');
-    ordinaryFile(icon);
-    const destination = path.join(entry, 'assets', 'logo.png');
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.copyFileSync(icon, destination);
-    config.icon = 'assets/logo.png';
+/** NSH 只打包应用根内的静态资源，必须复制工作区布局，不能用跨目录入口或链接。 */
+export function prepareNshPortableEntry(root, member, stage) {
+  const relative = path.relative(root, member);
+  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+    throw new Error('NSH app must belong to its workspace');
   }
-  fs.writeFileSync(path.join(entry, 'nsh.json'), JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
-  fs.writeFileSync(path.join(entry, 'App.tsx'), `import ${JSON.stringify(relative(appFile))};\n`, { flag: 'wx' });
+  const canonicalRoot = fs.realpathSync(root);
+  const workspace = path.join(stage, 'portable-source');
+  fs.mkdirSync(workspace);
+  const copyOptions = {
+    recursive: true,
+    errorOnExist: true,
+    force: false,
+    verbatimSymlinks: true,
+    filter(source) {
+      const segments = path.relative(root, source).split(path.sep);
+      if (!segments.includes('node_modules') && portableCaches.has(path.basename(source))) return false;
+      const stat = fs.lstatSync(source);
+      if (stat.isSymbolicLink() && segments.includes('node_modules')) {
+        const link = fs.readlinkSync(source);
+        if (path.isAbsolute(link) || !isWithin(root, path.resolve(path.dirname(source), link)) ||
+            !isWithin(canonicalRoot, fs.realpathSync(source))) throw new Error('portable NSH dependencies must use project-local relative links');
+        return true;
+      }
+      if (!stat.isDirectory() && !stat.isFile()) throw new Error('portable NSH source must use ordinary files and directories');
+      return true;
+    },
+  };
+  for (const name of fs.readdirSync(root)) {
+    if (!portableCaches.has(name)) fs.cpSync(path.join(root, name), path.join(workspace, name), copyOptions);
+  }
+  const entry = path.join(workspace, relative);
+  const configFile = path.join(entry, 'nsh.json');
+  const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  if (config.rust !== '.' || Object.hasOwn(config, 'root')) throw new Error('combined NSH project requires a Mixed app');
+  if (config.capabilities != null) {
+    if (typeof config.capabilities !== 'object' || Array.isArray(config.capabilities)) throw new Error('invalid NSH capabilities');
+    delete config.capabilities.windows;
+    // An explicit empty object denies all capabilities. Omitting the field grants all by default.
+  }
+  delete config.singleInstance;
+  delete config.window;
+  // The generated scheme is desktop-only. Product-specific schemes may also serve Android or iOS.
+  if (Array.isArray(config.schemes)) {
+    const generatedScheme = 'app-' + path.basename(member, '_nsh').replaceAll('_', '-');
+    config.schemes = config.schemes.filter(scheme => scheme !== generatedScheme);
+    if (!config.schemes.length) delete config.schemes;
+  }
+  fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
   return entry;
 }

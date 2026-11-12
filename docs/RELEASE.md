@@ -217,7 +217,7 @@ GUI 的本地生产构建和产物存在检查可在批准渠道允许时使用�
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 分派 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据仅保留读取兼容。新 NSH 的 desktop、mobile、Web 均走官方 `nsh package`；TUI 只支持官方运行与测试，0.5.0 没有 TUI 打包目标。组合工程的移动/Web 包通过临时 Mixed 入口剔除桌面窗口、单实例和 URL Scheme 声明。构建复用版本、Git tag/上下文、非空 Rust 与 NSH 测试。桌面包由对应原生宿主生成；Android 默认开发签名 APK，iOS 模拟器为 ad-hoc app、设备为未签名设备 app；正式 IPA 使用官方签名流程。Web 输出完整静态站点。关于页的双语更新日志须在真实应用中验证，sidecar 不冒充内部资源。NSH 生成的运行时 workspace 未证明可传递 tracked lock，受管打包仍失败关闭。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 分派 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据仅保留读取兼容。新 NSH 的 desktop、mobile、Web 均走官方 `nsh package`；TUI 只支持官方运行与测试，0.5.0 没有 TUI 打包目标。组合工程的移动/Web 包使用保留相对资源路径的工作区副本，隔离桌面窗口、单实例与模板恢复协议。构建复用版本、Git tag/上下文、非空 Rust 与 NSH 测试。桌面包由对应原生宿主生成；Android 默认开发签名 APK，iOS 模拟器为 ad-hoc app、设备为未签名设备 app；正式 IPA 使用官方签名参数。Android 可用官方 AAB 与 ABI 选项，macOS 可用官方架构选项。Web 输出完整静态站点。关于页的双语更新日志须在真实应用中验证，sidecar 不冒充内部资源。NSH 生成的运行时 workspace 未证明可传递 tracked lock，受管打包仍失败关闭。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 

@@ -34,7 +34,7 @@ node .agents/skills/desktop-initialize-rust-project/scripts/finalize_instantiati
 
 - `scopeDigest`：本次 plan 输出的当前工程快照摘要，必须与实际检查所对应的最终工程一致。
 - `unitTests`：原流程真实相关非空测试的工具结果引用（`tool:`）或普通绝对日志文件路径。
-- GUI 路径另有 `initializationBuild` 与 `computerUse`，分别引用原流程真实构建和实际宿主观察结果。
+- Tauri GUI 路径另有 `initializationBuild` 与 `computerUse`，分别引用真实构建和宿主观察结果。NSH 按已选目标逐项返回初始化验证引用名，见 `$desktop-test-nsh-initialization-e2e`。
 
 以上字段是**已有结果的引用**，不是新测试或额外用户审批。缺失引用、错误快照、未知字段或 `passed` 一类自填成功开关都拒绝；helper 只核对引用存在与工程绑定，不认证外部命令或 Computer Use 的成功。Agent 必须根据原流程实际结果决定能否进入此步骤，不能把任意非空字符串当通过证据。失败、未执行或无法观察仍遵守原初始化阻断规则。
 

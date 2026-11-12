@@ -229,13 +229,13 @@ export function validateNshBuildContract(errors, overrides = {}) {
   };
   validateFragmentContract(errors, new Map([
     [paths.buildSkill, ["nsh-targets", "`candidate`", "build_nsh_release.mjs", "release-notes.json", "更新日志", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "sidecar", "milestoneAcceptance: pending", "runtimeVerification: Unverified"]],
-    [paths.buildHelper, ["buildNshRelease(", "'nsh-targets'", "cargo',['test','--workspace','--all-targets','--all-features'", "nsh',['check']", "nsh',['test','.']", "nsh',['package','--target'", "renderDocument(notes,'zh-CN')", "renderDocument(notes,'en-US')", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "validateNshArtifacts(", "releaseNotesResourceVerification:'sidecar-byte-identical'", "sourceSnapshot(root)!==before"]],
+    [paths.buildHelper, ["buildNshRelease(", "'nsh-targets'", "['test','--workspace','--all-targets','--all-features'", "['check']", "['test', '.', '--junit'", "['package','--target'", "renderDocument(notes,'zh-CN')", "renderDocument(notes,'en-US')", "HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "validateNshArtifacts(", "releaseNotesResourceVerification:'sidecar-byte-identical'", "sourceSnapshot(root) !== before"]],
     [paths.buildTests, ["tracked_resolution_and_unanswered_candidate_selection_fail_before_build", "fake_suffixes_and_incomplete_official_packages_are_rejected", "official_named_web_directory_is_discovered_and_requires_real_wasm_header"]],
     [paths.portableEntryHelper, ["prepareNshPortableEntry", "delete config.capabilities.windows", "delete config.schemes", "delete config.singleInstance"]],
     [paths.portableEntryTests, ["portable_entry_keeps_mixed_core_without_registering_desktop_schemes"]],
     [paths.iosHelper, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],
     [paths.iosTests, ["iosPackagingIdentity", "restoreIosDisplayIdentity"]],
-    [paths.aboutAsset, ["Scaffold.releaseNotes", "labels.releaseNotes", "__CONTENT_ZH__", "__CONTENT_EN__"]],
+    [paths.aboutAsset, ["Scaffold.releaseNotes", "labels().releaseNotes", "__CONTENT_ZH__", "__CONTENT_EN__"]],
     [paths.supportGenerator, ["releaseNotes: translations[locale].about.release_notes", "'__CONTENT_ZH__': JSON.stringify(content('zh-CN'))", "'__CONTENT_EN__': JSON.stringify(content('en-US'))"]],
     [paths.nativeAsset, ["__RELEASE_NOTES_METHOD__", "#[native_module"]],
     [paths.buildAsset, ["HARNESS_RELEASE_NOTES_ZH_PATH", "HARNESS_RELEASE_NOTES_EN_PATH", "harness_release_notes_zh.txt", "harness_release_notes_en.txt", "OUT_DIR"]],

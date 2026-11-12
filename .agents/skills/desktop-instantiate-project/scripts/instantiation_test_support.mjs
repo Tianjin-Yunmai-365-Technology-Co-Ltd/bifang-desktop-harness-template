@@ -7,6 +7,7 @@ import { evaluateInitializationForm } from './initialization_form.mjs';
 import { planInstantiation, prepareInstantiation } from './instantiate_project.mjs';
 import { GUI_FIELDS } from './initialization_questions.mjs';
 import { initialize } from '../../desktop-manage-version/scripts/version_gate.mjs';
+import { addNshAdapter } from '../../desktop-add-nsh-adapter/scripts/add_nsh_adapter.mjs';
 
 export const SOURCE_ROOT = fs.realpathSync(fileURLToPath(new URL('../../../../', import.meta.url)));
 
@@ -43,19 +44,20 @@ export function prepareFixture(t, framework = null) {
 export function writeNeutralWorkspace(f) {
   const values = f.preparation.values;
   const id = values.project_id;
-  const members = [`${id}_core`, ...values.interfaces.map(kind => `${id}_${kind}`)];
+  const nsh = values.interfaces.includes('nsh');
+  const members = [`${id}_core`, ...(nsh ? [] : values.interfaces.map(kind => `${id}_${kind}`))];
   const write = (relative, bytes) => { fs.mkdirSync(path.dirname(path.join(f.target, relative)), { recursive: true }); fs.writeFileSync(path.join(f.target, relative), bytes, { flag: 'wx' }); };
-  write('Cargo.toml', `[workspace]\nmembers = ${JSON.stringify(members)}\nresolver = "3"\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\n[workspace.dependencies]\n${id}_core = { path = "${id}_core" }\n[workspace.metadata.agent-first-harness]\nproject-id = "${id}"\ninterfaces = ${JSON.stringify(values.interfaces)}\ntarget-platforms = ${JSON.stringify(values.target_platforms)}\n${values.gui_framework ? `gui-framework = "${values.gui_framework}"\n` : ''}${values.nsh_targets ? `nsh-targets = ${JSON.stringify(values.nsh_targets)}\n` : ''}`);
+  write('Cargo.toml', `[workspace]\nmembers = ${JSON.stringify(members)}\nresolver = "3"\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\n[workspace.dependencies]\n${id}_core = { path = "${id}_core" }\n[workspace.metadata.agent-first-harness]\nproject-id = "${id}"\ninterfaces = ${JSON.stringify(nsh ? [] : values.interfaces)}\ntarget-platforms = ${JSON.stringify(values.target_platforms)}\n${values.gui_framework ? `gui-framework = "${values.gui_framework}"\n` : ''}`);
   for (const member of members) {
     write(`${member}/Cargo.toml`, `[package]\nname = "${member}"\nversion.workspace = true\nedition.workspace = true\n${member.endsWith('_core') ? '' : `[dependencies]\n${id}_core.workspace = true\n`}`);
-    write(`${member}/src/${member.endsWith('_core') ? 'lib' : 'main'}.rs`, member.endsWith('_core') ? '//! 中性核心夹具。\n/// 返回中性状态。\npub fn status() -> bool { false }\n' : '/// 测试夹具的适配器入口。\nfn main() {}\n');
+    const core = '//! 中性核心夹具。\npub struct ScaffoldStatus { pub initialized: bool, pub product_definition_required: bool }\npub async fn scaffold_status() -> ScaffoldStatus { ScaffoldStatus { initialized: true, product_definition_required: true } }\n';
+    write(`${member}/src/${member.endsWith('_core') ? 'lib' : 'main'}.rs`, member.endsWith('_core') ? core : '/// 测试夹具的适配器入口。\nfn main() {}\n');
   }
-  if (values.gui_framework || values.nsh_targets?.includes('desktop')) write('docs/GUI_APP_PROFILE.md', `# GUI App Profile\n\n\`\`\`gui-initialization-config\n${GUI_FIELDS.map(key => `${key}: ${values[key]}`).join('\n')}\n\`\`\`\n`);
-  if (values.interfaces.includes('nsh')) {
-    for (const name of ['nsh', 'nsh-design-guides']) {
-      fs.cpSync(path.join(f.target, '.agents/skills/desktop-add-nsh-adapter/assets/vendor', name),
-        path.join(f.target, '.agents/skills', name), { recursive: true, errorOnExist: true, force: false });
-    }
+  if (values.gui_framework) write('docs/GUI_APP_PROFILE.md', `# GUI App Profile\n\n\`\`\`gui-initialization-config\n${GUI_FIELDS.map(key => `${key}: ${values[key]}`).join('\n')}\n\`\`\`\n`);
+  if (nsh) {
+    addNshAdapter(f.target, {projectId:id,nameZh:values.name_zh,nameEn:values.name_en,owner:values.owner,
+      nshTargets:values.nsh_targets,targetPlatforms:values.target_platforms,
+      ...(values.nsh_targets.includes('desktop') ? {profile:Object.fromEntries(GUI_FIELDS.map(key => [key, values[key]]))} : {})});
   }
   initialize(f.target);
 }

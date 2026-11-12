@@ -14,7 +14,7 @@ const desktopProfile = {
 test('mobile Mixed app uses safe-area bottom tabs and follows its own theme', () => {
   const files = renderNshAdapterFiles({ ...base, targetPlatforms: ['android', 'ios'], nshTargets: ['mobile'] });
   const app = files.get('sample_tool_nsh/App.tsx');
-  const appTest = files.get('sample_tool_nsh/App.test.tsx');
+  const appTest = files.get('sample_tool_nsh/App.platform.test.tsx');
   const tokens = files.get('sample_tool_nsh/tokens.ts');
   const config = JSON.parse(files.get('sample_tool_nsh/nsh.json'));
   assert.match(app, /import \{[^\n]*safeArea[^\n]*\} from "nsh";/u);

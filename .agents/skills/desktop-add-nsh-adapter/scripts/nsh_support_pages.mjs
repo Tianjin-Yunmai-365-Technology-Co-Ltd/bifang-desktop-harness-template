@@ -68,7 +68,7 @@ function TierCard(props: { tier: typeof tiers[number]; language: Language; width
 /** Bundled illustrations and payment codes remain informational; no tier starts a payment. */
 export function SponsorPage(props: { language: Language; availableWidth: number }) {
   const colors = () => palette(colorScheme());
-  const labels = copy[props.language];
+  const labels = () => copy[props.language];
   const width = () => Math.min(tokens.sponsorMaxWidth, props.availableWidth);
   const columns = () => width() >= tokens.sponsorCardMinWidth * 3 + tokens.contentGap * 2
     ? 3
@@ -83,15 +83,15 @@ export function SponsorPage(props: { language: Language; availableWidth: number 
     <View style={{ width: width(), alignSelf: "center", gap: tokens.sectionGap }}>
       <View style={{ overflow: "hidden", padding: tokens.sponsorCardPadding, gap: tokens.optionGap, alignItems: "center", borderWidth: tokens.borderWidth, borderColor: colors().sidebarBorder, borderRadius: tokens.cardRadius, backgroundColor: colors().surface }}>
         <Image src={backgroundImage} style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, objectFit: "cover", opacity: 0.12, pointerEvents: "none" }} />
-        <Text style={{ color: colors().accent, fontSize: tokens.title, fontWeight: "600", textAlign: "center" }}>{labels.title}</Text>
-        <Text style={{ color: colors().muted, fontSize: tokens.body, textAlign: "center" }}>{labels.subtitle}</Text>
-        <Text style={{ color: colors().foreground, fontSize: tokens.body, textAlign: "center" }}>{labels.message}</Text>
+        <Text style={{ color: colors().accent, fontSize: tokens.title, fontWeight: "600", textAlign: "center" }}>{labels().title}</Text>
+        <Text style={{ color: colors().muted, fontSize: tokens.body, textAlign: "center" }}>{labels().subtitle}</Text>
+        <Text style={{ color: colors().foreground, fontSize: tokens.body, textAlign: "center" }}>{labels().message}</Text>
       </View>
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "stretch", gap: tokens.contentGap }}>
         {tiers.map((tier) => <TierCard tier={tier} language={props.language} width={cardWidth()} />)}
       </View>
       <View style={{ padding: tokens.sponsorCardPadding, flexDirection: widePayment() ? "row" : "column", gap: tokens.sectionGap, borderWidth: tokens.borderWidth, borderColor: colors().sidebarBorder, borderRadius: tokens.cardRadius, backgroundColor: colors().surface }}>
-        <Text style={{ flex: widePayment() ? 1 : undefined, color: colors().foreground, fontSize: tokens.body, fontWeight: "600" }}>{labels.payment}</Text>
+        <Text style={{ flex: widePayment() ? 1 : undefined, color: colors().foreground, fontSize: tokens.body, fontWeight: "600" }}>{labels().payment}</Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: tokens.contentGap }}>
           {payments.map((payment) => <View style={{ width: paymentImageSize(), gap: tokens.optionGap }}>
             <Text style={{ color: colors().muted, fontSize: tokens.body, textAlign: "center" }}>{payment.alt[props.language]}</Text>

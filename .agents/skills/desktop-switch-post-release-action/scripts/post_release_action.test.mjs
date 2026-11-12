@@ -150,6 +150,8 @@ test("local_package_route_is_single_target_and_requires_explicit_reselection", (
   }
   assert.deepEqual(choose({ ...nsh, requestedInterface: "nsh", requestedTarget: "web" }),
     { interface: "nsh", target: "web", skill: "desktop-build-nsh-release" });
+  assert.deepEqual(choose({ ...nsh, requestedInterface: "nsh", requestedTarget: "ios-simulator" }),
+    { interface: "nsh", target: "ios-simulator", skill: "desktop-build-nsh-release" });
   assert.throws(() => choose({ ...nsh, requestedInterface: "cli", requestedTarget: "macos" }), /当前宿主可构建/u);
   assert.throws(() => choose({ ...nsh, requestedInterface: "nsh" }), /同时指定/u);
   const f = fixture(t);

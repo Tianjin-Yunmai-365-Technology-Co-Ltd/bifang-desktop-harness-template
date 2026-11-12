@@ -59,6 +59,6 @@
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 分派 `$desktop-build-nsh-release`。新 NSH 的 desktop、mobile、Web 均走官方 `nsh package`；TUI 只支持官方运行与测试，0.5.0 没有 TUI 打包目标。组合工程的移动/Web 包通过临时 Mixed 入口剔除桌面窗口、单实例和 URL Scheme 声明。最终候选按实际选定平台检查安装或启动、共享 core、双语更新日志与该平台的功能；未运行的平台保持 Unverified。sidecar 摘要只证明外层日志文件。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 分派 `$desktop-build-nsh-release`。新 NSH 的 desktop、mobile、Web 均走官方 `nsh package`；TUI 只支持官方运行与测试，0.5.0 没有 TUI 打包目标。组合工程的移动/Web 包通过保留应用资源和 Cargo 相对路径的工作区副本隔离桌面窗口、单实例与模板恢复协议。最终候选按实际选定平台检查安装或启动、共享 core、双语更新日志与该平台的功能；未运行的平台保持 Unverified。sidecar 摘要只证明外层日志文件。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

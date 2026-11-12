@@ -165,11 +165,12 @@ function SidebarToggle(props: { label: string; onPress: () => void }) {
   );
 }
 
-function App() {
+const language = signal<Language>("en");
+const appearance = signal<"system" | "light" | "dark">("system");
+const collapsed = signal(false);
+
+function App(props: { secondary?: boolean } = {}) {
   const page = signal<Page>("home");
-  const language = signal<Language>(locale().startsWith("zh") ? "zh" : "en");
-  const appearance = signal<"system" | "light" | "dark">("system");
-  const collapsed = signal(false);
   const error = signal("");
   const narrow = () => terminal || windowSize().width < tokens.narrow;
   const desktopRail = () => nativeDesktop && !narrow();
@@ -182,26 +183,32 @@ function App() {
   const title = () => language() === "zh" ? NAME_ZH : NAME_EN;
   const colors = () => palette(colorScheme());
 
-  effect(() => {
-    let live = true;
-    void Storage.getItem("interface-language").then(
-      (saved) => { if (live && (saved === "zh" || saved === "en")) language.set(saved); },
-      () => { if (live) error.set(tr(language(), "storage_error")); },
-    );
-    void Storage.getItem("appearance").then(
-      (saved) => { if (live && (saved === "system" || saved === "light" || saved === "dark")) appearance.set(saved); },
-      () => { if (live) error.set(tr(language(), "storage_error")); },
-    );
-    if (nativeDesktop && !COMPACT_SIDEBAR) {
-      void Storage.getItem("sidebar-collapsed").then(
-        (saved) => { if (live) collapsed.set(saved === "true"); },
+  if (!props.secondary) {
+    language.set(locale().startsWith("zh") ? "zh" : "en");
+    effect(() => {
+      let live = true;
+      void Storage.getItem("interface-language").then(
+        (saved) => { if (live && (saved === "zh" || saved === "en")) language.set(saved); },
         () => { if (live) error.set(tr(language(), "storage_error")); },
       );
-    }
-    return () => { live = false; };
-  });
-
-  effect(() => setColorScheme(appearance()));
+      void Storage.getItem("appearance").then(
+        (saved) => {
+          if (live && (saved === "system" || saved === "light" || saved === "dark")) {
+            appearance.set(saved);
+            setColorScheme(saved);
+          }
+        },
+        () => { if (live) error.set(tr(language(), "storage_error")); },
+      );
+      if (nativeDesktop && !COMPACT_SIDEBAR) {
+        void Storage.getItem("sidebar-collapsed").then(
+          (saved) => { if (live) collapsed.set(saved === "true"); },
+          () => { if (live) error.set(tr(language(), "storage_error")); },
+        );
+      }
+      return () => { live = false; };
+    });
+  }
 
   async function saveLanguage(next: Language) {
     try {
@@ -217,6 +224,7 @@ function App() {
     try {
       await Storage.setItem("appearance", next);
       appearance.set(next);
+      setColorScheme(next);
       error.set("");
     } catch {
       error.set(tr(language(), "storage_error"));

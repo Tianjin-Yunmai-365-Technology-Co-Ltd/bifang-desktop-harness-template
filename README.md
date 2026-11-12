@@ -12,7 +12,7 @@ Bifang Desktop Harness Template
 
 DESKTOP 使用 Node.js/pnpm 工程工具，初始化通过 Tauri 专用结构检查和本机窗口检查；仅 Linux 且无 CLI 的 Desktop 项目首次发布时须选择推送 release 分支。
 
-NSH 可多选桌面、移动、Web、TUI 四类能力：桌面与 TUI 对应 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web。新项目使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI，四类目标都通过 Mixed TSX 调用共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。TUI 使用 `dev:tui` 和 `nsh:test:tui`；该版本没有 TUI 打包目标。已有 0.4.0 项目保留原运行链路。
+NSH 可多选桌面、移动、Web、TUI 四类能力：桌面与 TUI 对应 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web。新项目使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI，四类目标都通过 Mixed TSX 调用共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。项目按所选目标生成开发及测试命令。iOS 模拟器开发使用 `dev:ios`，模拟器打包选择 `ios-simulator`。TUI 使用 `dev:tui` 和 `nsh:test:tui`，0.5.0 的官方打包器覆盖桌面、移动和 Web。已有 0.4.0 项目保留原运行链路。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 

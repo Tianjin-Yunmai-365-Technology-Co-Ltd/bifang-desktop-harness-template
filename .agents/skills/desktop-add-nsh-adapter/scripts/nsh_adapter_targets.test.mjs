@@ -39,3 +39,20 @@ test('generation_rejects_unsupported_nsh_targets', () => {
     assert.throws(() => nshPackageScripts(options.projectId, options.nshTargets, options.targetPlatforms), /invalid NSH targets/u);
   }
 });
+
+test('selected iOS runs and tests on ios while terminal tests select an explicit file', () => {
+  const ios = nshPackageScripts('sample_tool', ['mobile'], ['ios']);
+  assert.equal(ios.dev, 'nsh run sample_tool_nsh --target ios');
+  assert.equal(ios['dev:android'], undefined);
+  const mixed = nshPackageScripts('sample_tool', ['desktop','mobile','web','tui'], ['macos','ios','android','web']);
+  assert.equal(mixed['dev:web'], 'nsh run sample_tool_nsh --target web');
+  assert.equal(mixed['nsh:test:macos'], 'nsh test sample_tool_nsh/App.test.tsx --target macos');
+  assert.equal(mixed['nsh:test:tui'], 'nsh test sample_tool_nsh/App.test.tsx --target tui');
+});
+
+test('renderer preserves literal dollar replacements and token-shaped names', () => {
+  const options = {...base, nameZh:'工具 $& __PROJECT_ID__', nshTargets:['tui'], targetPlatforms:['macos']};
+  const files = renderNshAdapterFiles(options);
+  assert.equal(JSON.parse(files.get('sample_tool_nsh/nsh.json')).name, options.nameZh);
+  assert.ok(files.get('sample_tool_nsh/App.tsx').includes(JSON.stringify(options.nameZh)));
+});

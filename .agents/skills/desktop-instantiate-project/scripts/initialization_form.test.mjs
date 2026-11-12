@@ -36,12 +36,13 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
   assert.equal(evaluate().questions[0].id,"system_tray");
   assert.match(evaluate().questions[0].help,/新建窗口/u);
   set("system_tray","disabled");assert.equal(evaluate().questions[0].id,"single_instance");
-  assert.match(evaluate().questions[0].help,/NSH 恢复主窗口/u);
-  set("single_instance","disabled");assert.equal(evaluate().questions[0].id,"deep_link");
+  assert.match(evaluate().questions[0].help,/处理二次启动并恢复主窗口/u);
+  set("single_instance","enabled");assert.equal(evaluate().questions[0].id,"deep_link");
   assert.match(evaluate().questions[0].title,/应用窗口/u);
   assert.match(evaluate().questions[0].help,/app-sample-tool:\/\/restore/u);
-  set("deep_link","disabled");
+  set("single_instance","disabled");
   assert.equal(evaluate().stage,"review");
+  assert.equal(evaluate().sources.deep_link,"derived:single_instance");
   assert.deepEqual(evaluate().summary.unavailable,["system_notification","autostart","global_shortcut"]);
   assert.deepEqual(evaluate().values.interfaces,["nsh"]);
   assert.deepEqual(evaluate().values.nsh_targets,["desktop","mobile","web"]);
@@ -50,6 +51,8 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
   assert.equal(evaluate().values.post_release_action,"pending");
   const digest=evaluate().summaryDigest;input.confirmation={digest,source:"user:test-confirmation"};assert.equal(evaluate().stage,"confirmed");
   set("system_notification","enabled");assert.equal(evaluate().questions[0].id,"system_notification");
+  assert.deepEqual(evaluate().questions[0].values,["disabled"]);
+  assert.match(evaluate().questions[0].help,/官方通知 API/u);
   set("system_notification","disabled");set("gui_framework","gpui");assert.equal(evaluate().questions[0].id,"interfaces");
   delete input.answers.gui_framework;set("interfaces",["cli","nsh"]);assert.equal(evaluate().questions[0].id,"interfaces");
 }));
@@ -402,4 +405,27 @@ test("cli_is_read_only_and_errors_do_not_echo_unknown_input", () => fixture(({ r
   const invalid = run([], JSON.stringify({ ...input, secret_unknown: "DO_NOT_ECHO" }));
   assert.equal(invalid.status, 2); assert.doesNotMatch(invalid.stderr, /DO_NOT_ECHO/u);
   assert.equal(questionFor("global_shortcut").values.length, 2);
+}));
+
+test("NSH validates package identity before confirmation and orders desktop dependencies first", () => fixture(({input,set,nsh,evaluate}) => {
+  nsh();
+  for (const [id, invalid, valid] of [
+    ["name_zh", "..", "示例工具"],
+    ["name_en", "Tool: Writer", "Tool Writer"],
+    ["project_id", "a".repeat(65), "sample_tool"],
+    ["owner", " owner ", "owner"],
+  ]) {
+    set(id, invalid);
+    assert.equal(evaluate().questions[0].id, id);
+    set(id, valid);
+  }
+  for (const id of GUI_FIELDS) delete input.answers[id];
+  set("system_notification","enabled");
+  for (const [id, value] of [["system_tray","disabled"], ["single_instance","enabled"], ["deep_link","disabled"],
+    ["about_page","disabled"], ["sponsor_page","disabled"], ["sidebar_mode","detailed"]]) {
+    assert.equal(evaluate().questions[0].id, id);
+    set(id, value);
+  }
+  assert.equal(evaluate().questions[0].id, "system_notification");
+  assert.deepEqual(evaluate().questions[0].values, ["disabled"]);
 }));

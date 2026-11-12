@@ -1,6 +1,7 @@
 /** 裁剪只接受已建立的中性工作区，静态核对身份、成员、直接核心依赖和初始版本状态。 */
 import path from 'node:path';
 import { Version } from '../../desktop-manage-version/scripts/version_gate.mjs';
+import { nshDependencies, nshPackageScripts, PROFILE_FIELDS } from '../../desktop-add-nsh-adapter/scripts/nsh_adapter_files.mjs';
 
 /** 以 TOML 字符串/数组边界分句，不把注释或多行文本中的伪表当事实。 */
 function statements(source) {
@@ -84,6 +85,34 @@ export function validateNeutralWorkspace(values, files) {
   if (logical.some(member => !expected.includes(member)) || new Set(logical).size !== expected.length) throw new Error('Cargo workspace 必须恰好包含 core 与已选适配器');
   const workspaceCore = root.get('workspace.dependencies')?.get(`${id}_core`);
   const version = Version.parse(value(root.get('workspace.package')?.get('version'), 'version')).toString();
+  if (values.interfaces.includes('nsh')) {
+    const member = id + '_nsh';
+    const config = JSON.parse(text(member + '/nsh.json'));
+    const desktop = values.nsh_targets.includes('desktop');
+    const options = {projectId:id, nameZh:values.name_zh, nameEn:values.name_en, owner:values.owner,
+      nshTargets:values.nsh_targets, targetPlatforms:values.target_platforms,
+      ...(desktop ? {profile:Object.fromEntries(PROFILE_FIELDS.map(field => [field, values[field]]))} : {})};
+    if (config.name !== values.name_zh || config.version !== version || config.rust !== '.' || Object.hasOwn(config, 'root')) {
+      throw new Error('NSH Mixed 配置与已确认项目身份或版本不一致');
+    }
+    for (const filename of ['App.tsx', 'App.test.tsx', 'src/lib.rs']) {
+      if (!text(member + '/' + filename).trim()) throw new Error('NSH Mixed 文件为空：' + filename);
+    }
+    const adapterDeps = tables(text(member + '/Cargo.toml')).get('dependencies');
+    for (const line of nshDependencies(options).split('\n')) {
+      const separator = line.indexOf(' = ');
+      const name = line.slice(0, separator);
+      const declaration = line.slice(separator + 3);
+      if (root.get('workspace.dependencies')?.get(name) !== declaration || adapterDeps?.get(name + '.workspace') !== 'true') {
+        throw new Error('NSH 依赖缺少固定版本或 workspace 接线：' + name);
+      }
+    }
+    const scripts = JSON.parse(text('package.json')).scripts;
+    for (const [name, command] of Object.entries(nshPackageScripts(id, values.nsh_targets, values.target_platforms))) {
+      if (scripts?.[name] !== command) throw new Error('NSH 脚本与已确认目标不一致：' + name);
+    }
+    if (!desktop && files.has('docs/GUI_APP_PROFILE.md')) throw new Error('NSH 非桌面目标不应有桌面 profile');
+  }
   for (const [index, member] of members.entries()) {
     if (typeof member !== 'string' || member.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Cargo member 路径非法');
     const manifest = tables(text(`${member}/Cargo.toml`));

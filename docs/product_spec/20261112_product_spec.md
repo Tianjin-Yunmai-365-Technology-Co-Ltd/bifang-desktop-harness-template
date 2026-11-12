@@ -22,7 +22,7 @@
 ### NSH 全目标 Mixed 与桌面能力
 
 - `HARNESS-NSH-05-OFFICIAL`（`required_version = pending`）：所有新 NSH 目标使用同版本官方运行时、Mixed TSX 和共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。见 [ADR-20261112-003](../adr/20261112_ADR.md)。
-- 新 NSH 的 desktop、mobile、Web 均走官方 `nsh package`；TUI 只支持官方运行与测试，0.5.0 没有 TUI 打包目标。组合工程的移动/Web 包通过临时 Mixed 入口剔除桌面窗口、单实例和 URL Scheme 声明。已存在的 0.4.0 产品文件和 Cargo 不自动改写。
+- 新 NSH 的 desktop、mobile、Web 均走官方 `nsh package`；TUI 只支持官方运行与测试，0.5.0 没有 TUI 打包目标。组合工程的移动/Web 包通过保留应用资源和 Cargo 相对路径的工作区副本隔离桌面窗口、单实例与模板恢复协议。已存在的 0.4.0 产品文件和 Cargo 不自动改写。
 
 ### NSH 顶层程序类型与目标能力
 

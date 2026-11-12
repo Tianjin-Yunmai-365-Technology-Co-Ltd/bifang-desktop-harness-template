@@ -42,7 +42,7 @@ test('enabled support pages use structured copy, available content width', () =>
   assert.equal(typeof content.contactDetail, 'string');
   assert.equal(content.disclaimerItems.length, 3);
   assert.equal(typeof content.releaseNotes, 'string');
-  assert.match(about, /labels\.disclaimerItems\.map/u);
+  assert.match(about, /labels\(\)\.disclaimerItems\.map/u);
   assert.match(sponsor, /props\.availableWidth|tokens\.sponsorCardMinWidth \* 3|backgroundImage|paymentImageSize/u);
   assert.doesNotMatch(desktop, /__AUTOSTART_IMPORT__|__[A-Z][A-Z_]+__/u);
 });

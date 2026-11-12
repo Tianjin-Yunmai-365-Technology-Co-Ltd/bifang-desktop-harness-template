@@ -6,7 +6,7 @@ import os from 'node:os';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { assertNshToolchain,buildNshRelease,inventory,packageFacts,releaseNoteBuildInputs,safeOutputPath,validateNshArtifacts } from './build_nsh_release.mjs';
+import { assertNshToolchain,buildNshRelease,inventory,packageFacts,passingNshCases,releaseNoteBuildInputs,safeOutputPath,validateNshArtifacts } from './build_nsh_release.mjs';
 import { renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 
 /** 临时包只用于拒绝畸形输入，不能充当运行验证。 */
@@ -22,7 +22,7 @@ test('package_facts_accepts_top_level_nsh_and_legacy_gui_nsh',()=>fixture(root=>
   assert.equal(packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','tui','mobile','web']}),'macos').modern,true);
   assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['tui'],'target-platforms':['macos']}),'macos'),/target capability is not selected/u);
   assert.throws(()=>packageFacts(root,modern,'tui'),/unsupported NSH packaging target/u);
-  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','web']}),'macos'),/do not match/u);
+  assert.throws(()=>packageFacts(root,metadata(['nsh'],'nsh',{'nsh-targets':['desktop','web']}),'macos'),/target-platforms mismatch/u);
   assert.throws(()=>packageFacts(root,modern,'linux'),/not selected/u);
   const legacy=metadata(['gui'],'gui',{'gui-framework':'nsh'});
   assert.equal(packageFacts(root,legacy,'macos').modern,false);
@@ -67,10 +67,13 @@ test('legacy_gui_nsh_build_requires_released_cargo_pin',()=>fixture(root=>{
   assert.match(blocked.stderr,/pinned official v0\.5\.0 stable runtime/u);
   assert.equal(fs.existsSync(marker),false);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable));
+  fs.mkdirSync(path.join(root,'sample_tool_gui'));
+  fs.writeFileSync(path.join(root,'sample_tool_gui/nsh.json'),JSON.stringify({name:'Example',id:'com.example.fixture',version:'0.1.0'}));
   const accepted=invoke();
   assert.equal(accepted.status,1,accepted.stderr);
   assert.match(accepted.stderr,/cargo failed \(7\)/u);
   assert.equal(fs.readFileSync(marker,'utf8'),'called');
+  assert.deepEqual(fs.readdirSync(path.join(root,'target/nsh-packaging')),[]);
 }));
 
 test('tracked_resolution_and_unanswered_candidate_selection_fail_before_build',()=>fixture(root=>{
@@ -146,3 +149,24 @@ test('large_valid_release_notes_are_transported_by_short_paths',()=>fixture(root
   assert.equal(local.env.HARNESS_RELEASE_NOTES_ZH_PATH,undefined);
   assert.equal(local.env.HARNESS_RELEASE_NOTES_EN_PATH,undefined);
 }));
+
+test('official Windows ZIP remains primary when Inno Setup and updater archives are present',()=>fixture(root=>{
+  const zip = Buffer.alloc(22);
+  zip.set([80,75,3,4]);
+  fs.mkdirSync(path.join(root,'Example'));
+  fs.writeFileSync(path.join(root,'Example/Example.exe'),'MZ runner');
+  fs.writeFileSync(path.join(root,'Example-setup.exe'),'MZ installer');
+  fs.writeFileSync(path.join(root,'Example.zip'),zip);
+  fs.writeFileSync(path.join(root,'Example-0.1.0-x64.zip'),zip);
+  assert.equal(validateNshArtifacts(root,'windows',{name:'Example'}).length,4);
+  fs.unlinkSync(path.join(root,'Example/Example.exe'));
+  assert.throws(()=>validateNshArtifacts(root,'windows',{name:'Example'}),/Windows runner/u);
+}));
+
+test('JUnit rejects Rust-only and skipped NSH suites despite successful process exit', () => {
+  const report = suites => '<testsuites name="nsh test" tests="3" failures="0" errors="0" skipped="1" time="1.000">' + suites + '</testsuites>';
+  const suite = (name, total, skipped) => `<testsuite name="${name}" tests="${total}" failures="0" errors="0" skipped="${skipped}"></testsuite>`;
+  const rust = suite('workspace Cargo tests',2,0);
+  assert.throws(()=>passingNshCases(report(rust+suite('App.test.tsx',1,1))),/nonempty passing/u);
+  assert.equal(passingNshCases(report(rust+suite('App.test.tsx',2,1))),1);
+});

@@ -23,7 +23,18 @@ function build(preparation) {
     const after = rendered.files.get(relative);
     if (!after || after.mode !== before.mode || !after.bytes.equals(before.bytes)) operations.push({ path: relative, action: after ? 'replace' : 'remove', before: before.sha256, ...(after ? { after: sha256(after.bytes) } : {}) });
   }
-  const body = { schemaVersion: 1, targetRoot: root, summaryDigest: preparation.summaryDigest, scopeDigest, operations, retainedSkills: rendered.skills, requiredEvidence: rendered.selection.guiFramework || rendered.selection.interfaces.includes('nsh') ? ['unitTests', 'initializationBuild', 'computerUse'] : ['unitTests'] };
+  const requiredEvidence = ['unitTests'];
+  if (rendered.selection.guiFramework) requiredEvidence.push('initializationBuild', 'computerUse');
+  if (rendered.selection.nshTargets) {
+    const references = {
+      desktop: ['nshDesktopPackage', 'nshDesktopRun'],
+      mobile: ['nshMobileRun'],
+      web: ['nshWebPackage', 'nshWebRun'],
+      tui: ['nshTuiTests', 'nshTuiRun'],
+    };
+    for (const target of rendered.selection.nshTargets) requiredEvidence.push(...references[target]);
+  }
+  const body = { schemaVersion: 1, targetRoot: root, summaryDigest: preparation.summaryDigest, scopeDigest, operations, retainedSkills: rendered.skills, requiredEvidence };
   return { root, current, rendered, plan: { ...body, planDigest: sha256(JSON.stringify(body)) } };
 }
 

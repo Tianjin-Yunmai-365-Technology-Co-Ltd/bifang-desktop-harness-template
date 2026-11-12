@@ -15,6 +15,52 @@ export function assertNshPath(file) {
   }
 }
 
+function readManifest(file) {
+  try {
+    if (!fs.lstatSync(file).isFile()) throw new Error('expected an ordinary manifest: ' + file);
+    return fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+/** 同目录暂存完整清单，已有清单保留权限，新清单禁止覆盖竞争写入。 */
+function replaceManifest(file, original, content, retainedDirectories) {
+  const stage = fs.mkdtempSync(path.join(path.dirname(file), '.nsh-manifest-'));
+  try {
+    const candidate = path.join(stage, 'manifest');
+    const mode = original === null ? 0o644 : fs.lstatSync(file).mode & 0o777;
+    fs.writeFileSync(candidate, content, {flag:'wx', mode});
+    if (original !== null) fs.chmodSync(candidate, mode);
+    const installed = fs.lstatSync(candidate);
+    if (readManifest(file) !== original) throw new Error('workspace manifest changed: ' + file);
+    if (original === null) fs.linkSync(candidate, file);
+    else fs.renameSync(candidate, file);
+    return installed;
+  } finally {
+    try { fs.rmSync(stage, {recursive:true, force:true}); }
+    catch { retainedDirectories.push(stage); }
+  }
+}
+
+/** 逐层创建目录，只登记本次成功创建的 inode。 */
+function createOwnedDirectories(directory, root, owned) {
+  if (directory === root) return;
+  createOwnedDirectories(path.dirname(directory), root, owned);
+  assertNshPath(directory);
+  try {
+    fs.mkdirSync(directory);
+    owned.push({file:directory, stat:fs.lstatSync(directory)});
+  } catch (error) {
+    if (error.code !== 'EEXIST' || !fs.lstatSync(directory).isDirectory()) throw error;
+  }
+}
+
+function sameInode(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
 /** Cargo 自己解析已有工作区；只支持可安全定点合并的清单。 */
 export function addNshAdapter(root, input) {
   root = path.resolve(root);
@@ -34,8 +80,8 @@ export function addNshAdapter(root, input) {
   const coreSource = fs.readFileSync(coreSourcePath,'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/gu,'');
   const statusType = coreSource.match(/\bpub\s+struct\s+ScaffoldStatus\s*\{([^}]*)\}/u)?.[1] ?? '';
   if (!/\bpub\s+async\s+fn\s+scaffold_status\s*\(\s*\)\s*->\s*ScaffoldStatus\s*\{/u.test(coreSource) ||
-      !/\bpub\s+initialized\s*:\s*bool\s*[,}]/u.test(statusType) ||
-      !/\bpub\s+product_definition_required\s*:\s*bool\s*[,}]/u.test(statusType)) {
+      !/\bpub\s+initialized\s*:\s*bool\s*(?:,|$)/u.test(statusType) ||
+      !/\bpub\s+product_definition_required\s*:\s*bool\s*(?:,|$)/u.test(statusType)) {
     throw new Error('existing core must export pub async fn scaffold_status() -> ScaffoldStatus with public initialized and product_definition_required bool fields');
   }
   if(fs.existsSync(path.join(root,`${options.projectId}_nsh`))) throw new Error('NSH directory already exists');
@@ -68,23 +114,70 @@ export function addNshAdapter(root, input) {
   else cargo=cargo.replace(`nsh-targets = ${JSON.stringify(options.nshTargets)}`, `nsh-targets = ${JSON.stringify(options.nshTargets)}\nversion-mirrors = ${JSON.stringify(nextMirrors)}`);
   const files = renderNshAdapterFiles(options,core.version);
   const packagePath = path.join(root,'package.json');
-  const originalPackage = fs.existsSync(packagePath) ? fs.readFileSync(packagePath,'utf8') : null;
+  const originalPackage = readManifest(packagePath);
   const packageJson = originalPackage === null ? {private:true,type:'module',engines:{node:'>=24.0.0'}} : JSON.parse(originalPackage);
+  if (!packageJson || typeof packageJson !== 'object' || Array.isArray(packageJson) ||
+      (Object.hasOwn(packageJson, 'scripts') && (!packageJson.scripts || typeof packageJson.scripts !== 'object' || Array.isArray(packageJson.scripts)))) {
+    throw new Error('package.json and its scripts must be objects');
+  }
   const scripts = nshPackageScripts(options.projectId, options.nshTargets, options.targetPlatforms);
-  for (const key of Object.keys(scripts)) if (packageJson.scripts?.[key] && packageJson.scripts[key] !== scripts[key]) throw new Error(`package script conflict: ${key}`);
+  for (const key of Object.keys(scripts)) if (Object.hasOwn(packageJson.scripts ?? {}, key) && packageJson.scripts[key] !== scripts[key]) throw new Error(`package script conflict: ${key}`);
   for (const relative of files.keys()) { assertNshPath(path.join(root,relative)); if (fs.existsSync(path.join(root,relative))) throw new Error(`refusing existing file: ${relative}`); }
-  const written=[];
+  const written = [];
+  const ownedDirectories = [];
+  const retainedDirectories = [];
+  let installedCargo;
   try {
-    if(fs.readFileSync(cargoPath,'utf8')!==originalCargo || (fs.existsSync(packagePath)?fs.readFileSync(packagePath,'utf8'):null)!==originalPackage) throw new Error('workspace changed during planning');
-    for (const [relative,bytes] of files) { const file = path.join(root,relative); fs.mkdirSync(path.dirname(file),{recursive:true}); fs.writeFileSync(file,bytes,{flag:'wx'}); written.push(file); }
-    fs.writeFileSync(cargoPath,cargo);
-    fs.writeFileSync(packagePath,JSON.stringify({...packageJson,scripts:{...packageJson.scripts,...scripts}},null,2)+'\n');
+    if (readManifest(cargoPath) !== originalCargo || readManifest(packagePath) !== originalPackage) throw new Error('workspace changed during planning');
+    for (const [relative, bytes] of files) {
+      const file = path.join(root, relative);
+      createOwnedDirectories(path.dirname(file), root, ownedDirectories);
+      assertNshPath(file);
+      const fd = fs.openSync(file, 'wx');
+      try {
+        const record = {file, bytes:Buffer.from(bytes), stat:fs.fstatSync(fd), complete:false};
+        written.push(record);
+        fs.writeFileSync(fd, record.bytes);
+        record.complete = true;
+      } finally { fs.closeSync(fd); }
+    }
+    installedCargo = replaceManifest(cargoPath, originalCargo, cargo, retainedDirectories);
+    replaceManifest(packagePath, originalPackage, JSON.stringify({...packageJson,scripts:{...packageJson.scripts,...scripts}},null,2)+'\n', retainedDirectories);
   } catch(error) {
-    for(const file of written.reverse()) fs.rmSync(file);
-    if(fs.readFileSync(cargoPath,'utf8')===cargo) fs.writeFileSync(cargoPath,originalCargo);
+    const failures = [error];
+    for (const {file, bytes, stat, complete} of written.reverse()) {
+      try {
+        assertNshPath(file);
+        const current = fs.lstatSync(file);
+        if (!current.isFile() || !sameInode(stat, current) || current.mode !== stat.mode) continue;
+        const actual = fs.readFileSync(file);
+        if (actual.equals(complete ? bytes : bytes.subarray(0, actual.length))) fs.unlinkSync(file);
+      } catch (rollback) { if (rollback.code !== 'ENOENT') failures.push(rollback); }
+    }
+    for (const {file, stat} of ownedDirectories.reverse()) {
+      try {
+        assertNshPath(file);
+        const current = fs.lstatSync(file);
+        if (current.isDirectory() && sameInode(stat, current) && current.mode === stat.mode) fs.rmdirSync(file);
+      } catch (rollback) { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(rollback.code)) failures.push(rollback); }
+    }
+    try {
+      if (installedCargo) {
+        assertNshPath(cargoPath);
+        const current = fs.lstatSync(cargoPath);
+        if (current.isFile() && sameInode(installedCargo, current) && current.mode === installedCargo.mode &&
+            readManifest(cargoPath) === cargo) {
+          replaceManifest(cargoPath, cargo, originalCargo, retainedDirectories);
+        }
+      }
+    }
+    catch (rollback) { failures.push(rollback); }
+    if (retainedDirectories.length) failures.push(new Error('retained manifest stage: ' + retainedDirectories.join(', ')));
+    if (failures.length > 1) throw new AggregateError(failures, 'NSH adapter rollback could not restore all files');
     throw error;
   }
-  return {interface:'nsh',nshTargets:options.nshTargets,corePreserved:true,files:[...files.keys(),'Cargo.toml','package.json']};
+  return {interface:'nsh',nshTargets:options.nshTargets,corePreserved:true,files:[...files.keys(),'Cargo.toml','package.json'],
+    ...(retainedDirectories.length ? {retainedDirectories} : {})};
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

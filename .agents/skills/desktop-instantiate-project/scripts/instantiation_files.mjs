@@ -193,7 +193,7 @@ export function renderPreparedFiles(snapshot, values, confirmationSource, confir
       const next = relative.includes('zh-CN') ? values.name_zh : values.name_en;
       const source = bytes.toString('utf8');
       if (source.split(old).length !== 2) throw new Error('许可证项目名称必须恰好出现一次');
-      bytes = Buffer.from(source.replace(old, next));
+      bytes = Buffer.from(source.replace(old, () => next));
     } else if (!vendor && !bytes.includes(0)) {
       let text;
       try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { text = null; }
@@ -207,7 +207,7 @@ export function renderPreparedFiles(snapshot, values, confirmationSource, confir
   result.set('docs/TECH_DEBT.md', { bytes: Buffer.from('# 技术债与已知限制\n\n尚未记录下游特有技术债。继承的工程规范与依赖声明不构成本项目的真实平台验证证据。\n'), mode: 0o644 });
   let policy = result.get('docs/AGENT_POLICY.md').bytes.toString('utf8');
   const fields = { schema_version: '5', confirmed_by: JSON.stringify(confirmationSource), confirmed_at: confirmedAt, decision_mode: 'reuse_then_infer_then_ask', ...Object.fromEntries(POLICY_FIELDS.map(key => [key, values[key]])), post_release_action: 'pending' };
-  policy = policy.replace(/^---\n[\s\S]*?\n---/u, `---\n${Object.entries(fields).map(([key, value]) => `${key}: ${value}`).join('\n')}\n---`);
+  policy = policy.replace(/^---\n[\s\S]*?\n---/u, () => `---\n${Object.entries(fields).map(([key, value]) => `${key}: ${value}`).join('\n')}\n---`);
   result.set('docs/AGENT_POLICY.md', { bytes: Buffer.from(policy), mode: 0o644 });
   for (const relative of ['docs/ENGINEERING_RULES.md']) {
     const file = result.get(relative);

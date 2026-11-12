@@ -108,12 +108,18 @@ test('fresh_workspace_cargo_metadata_binds_nsh_to_core_and_platforms',()=>fixtur
   assert.throws(()=>createNshWorkspace(root,options()),/absent or empty/u);
 }));
 
-test('add_only_preserves_existing_core_and_refuses_symlink_manifests',()=>fixture(parent=>{
-  const root=path.join(parent,'existing');fs.mkdirSync(path.join(root,'sample_tool_core/src'),{recursive:true});
+const bridgeCore='//! Existing core with an explicit NSH bridge contract.\n\npub struct ScaffoldStatus {\n    pub initialized: bool,\n    pub product_definition_required: bool,\n}\n\npub async fn scaffold_status() -> ScaffoldStatus {\n    ScaffoldStatus { initialized: true, product_definition_required: false }\n}\n';
+
+function writeExistingCore(root) {
+  fs.mkdirSync(path.join(root,'sample_tool_core/src'),{recursive:true});
   fs.writeFileSync(path.join(root,'Cargo.toml'),'[workspace]\nmembers = ["sample_tool_core",]\nresolver = "3"\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\n[workspace.dependencies]\nsample_tool_core = { path = "sample_tool_core" }\n[workspace.metadata.agent-first-harness]\nproject-id = "sample_tool"\ninterfaces = []\ntarget-platforms = ["macos"]\n');
   fs.writeFileSync(path.join(root,'sample_tool_core/Cargo.toml'),'[package]\nname = "sample_tool_core"\nversion.workspace = true\nedition.workspace = true\n');
-  const bridgeCore='//! Existing core with an explicit NSH bridge contract.\n\npub struct ScaffoldStatus {\n    pub initialized: bool,\n    pub product_definition_required: bool,\n}\n\npub async fn scaffold_status() -> ScaffoldStatus {\n    ScaffoldStatus { initialized: true, product_definition_required: false }\n}\n';
   fs.writeFileSync(path.join(root,'sample_tool_core/src/lib.rs'),bridgeCore);
+}
+
+test('add_only_preserves_existing_core_and_refuses_symlink_manifests',()=>fixture(parent=>{
+  const root=path.join(parent,'existing');
+  writeExistingCore(root);
   const cargoFile=path.join(root,'Cargo.toml'),initialCargo=fs.readFileSync(cargoFile,'utf8');
   fs.writeFileSync(cargoFile,initialCargo.replace('interfaces = []','interfaces = ["cli"]'));
   assert.throws(()=>addNshAdapter(root,{...options(),nshTargets:['desktop'],targetPlatforms:['macos']}),/without an interface/u);
@@ -141,6 +147,50 @@ test('add_only_preserves_existing_core_and_refuses_symlink_manifests',()=>fixtur
   assert.throws(()=>addNshAdapter(root,desktopOptions),/without an interface/u);
 }));
 
+test('add_only_rolls_back_owned_empty_directories_and_can_retry_after_manifest_failure',t=>fixture(root=>{
+  writeExistingCore(root);
+  const cargoFile = path.join(root, 'Cargo.toml');
+  const originalCargo = fs.readFileSync(cargoFile, 'utf8');
+  const pkgFile = path.join(root, 'package.json');
+  const member = path.join(root, 'sample_tool_nsh');
+  const skills = path.join(root, '.agents', 'skills');
+  fs.mkdirSync(skills, {recursive:true});
+  const originalLink = fs.linkSync;
+  const mock = t.mock.method(fs, 'linkSync', (from, to) => {
+    if (to !== pkgFile) return originalLink(from, to);
+    // A concurrent file in an owned directory must keep that directory alive.
+    fs.writeFileSync(path.join(skills, 'nsh', 'local.md'), 'concurrent content');
+    throw new Error('simulated package manifest failure');
+  });
+  const input = {...options(), nshTargets:['desktop'], targetPlatforms:['macos']};
+  try {
+    assert.throws(() => addNshAdapter(root, input), /simulated package manifest failure/u);
+  } finally { mock.mock.restore(); }
+  assert.equal(fs.readFileSync(cargoFile, 'utf8'), originalCargo);
+  assert.equal(fs.existsSync(pkgFile), false);
+  assert.equal(fs.existsSync(member), false);
+  assert.deepEqual(fs.readdirSync(path.join(skills, 'nsh')), ['local.md']);
+  assert.equal(fs.readFileSync(path.join(skills, 'nsh', 'local.md'), 'utf8'), 'concurrent content');
+  assert.doesNotThrow(() => addNshAdapter(root, input));
+  assert.equal(fs.readFileSync(path.join(skills, 'nsh', 'local.md'), 'utf8'), 'concurrent content');
+}));
+
+test('add_only_reports_manifest_cleanup_failure_after_successful_install',t=>fixture(root=>{
+  writeExistingCore(root);
+  const originalRm = fs.rmSync;
+  const mock = t.mock.method(fs, 'rmSync', (file, ...args) => {
+    if (path.basename(file).startsWith('.nsh-manifest-')) throw new Error('simulated manifest cleanup failure');
+    return originalRm(file, ...args);
+  });
+  let result;
+  try { result = addNshAdapter(root, {...options(), nshTargets:['desktop'], targetPlatforms:['macos']}); }
+  finally { mock.mock.restore(); }
+  assert.equal(result.retainedDirectories.length, 2);
+  assert.match(fs.readFileSync(path.join(root, 'Cargo.toml'), 'utf8'), /interfaces = \["nsh"\]/u);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts['nsh:check'], 'nsh check sample_tool_nsh');
+  assert.ok(fs.existsSync(path.join(root, 'sample_tool_nsh', 'nsh.json')));
+}));
+
 /** 非桌面 NSH 仅写内部中性 UI 默认值，不生成桌面能力 profile。 */
 test('mobile_web_only_omits_desktop_profile',()=>fixture(parent=>{
   const input={...options(),nshTargets:['mobile','web'],targetPlatforms:['android','ios','web']};
@@ -161,7 +211,7 @@ test('tui_workspace_installs_official_skills_and_terminal_commands',()=>fixture(
   createNshWorkspace(root,input);
   const scripts=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).scripts;
   assert.equal(scripts.dev,'nsh run sample_tool_nsh --target tui');
-  assert.equal(scripts['nsh:test:tui'],'nsh test sample_tool_nsh --target tui');
+  assert.equal(scripts['nsh:test:tui'],'nsh test sample_tool_nsh/App.test.tsx --target tui');
   assert.equal(scripts['nsh:package'],undefined);
   assert.equal(fs.existsSync(path.join(root,'docs/GUI_APP_PROFILE.md')),false);
   assert.equal(fs.existsSync(path.join(root,'sample_tool_nsh/desktop.tsx')),false);

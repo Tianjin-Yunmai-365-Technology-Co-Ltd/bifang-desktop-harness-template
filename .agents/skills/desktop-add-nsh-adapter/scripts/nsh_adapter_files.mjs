@@ -4,30 +4,25 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { renderNshSponsor } from './nsh_support_pages.mjs';
-import { NSH_STABLE_REVISION, NSH_TARGETS, nshRevisionForTargets } from './nsh_runtime_revision.mjs';
+import { NSH_STABLE_REVISION, NSH_STABLE_VERSION, NSH_TARGETS, nshRevisionForTargets, validNshIdentity, validateNshPlatforms } from './nsh_runtime_revision.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const assetRoot = path.resolve(here, '../assets/gui');
 /** Compatibility export for existing stable-only generator checks. */
 export const NSH_REVISION = NSH_STABLE_REVISION;
 export { NSH_TARGETS, nshRevisionForTargets };
-export const NSH_PLATFORMS = ['windows', 'macos', 'linux', 'android', 'ios', 'web'];
 export const NSH_UNAVAILABLE = ['system_notification', 'autostart', 'global_shortcut'];
 export const PROFILE_FIELDS = ['system_tray', 'system_notification', 'autostart', 'about_page', 'sponsor_page', 'single_instance', 'deep_link', 'global_shortcut', 'sidebar_mode'];
-const TARGET_PLATFORMS = { desktop: ['windows', 'macos', 'linux'], mobile: ['android', 'ios'], web: ['web'] };
 const NEUTRAL_PROFILE = Object.freeze(Object.fromEntries(PROFILE_FIELDS.map(key => [key, key === 'sidebar_mode' ? 'detailed' : 'disabled'])));
 
 /** Reject unknown fields and unsupported host requests before any output is written. */
 export function normalizeNshOptions(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !['projectId','nameZh','nameEn','owner','targetPlatforms','nshTargets','profile','logo'].includes(key))) throw new Error('unknown NSH initialization fields');
-  if (typeof input.projectId !== 'string' || input.projectId.length > 64 || !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(input.projectId)) throw new Error('invalid projectId');
-  for (const key of ['nameZh','nameEn','owner']) if (typeof input[key] !== 'string' || !input[key].trim() || input[key] !== input[key].trim() || input[key].length > 200 || /[\x00-\x1f\x7f]/u.test(input[key]) || (key !== 'owner' && /[\\/:*?"<>|]/u.test(input[key]))) throw new Error('invalid ' + key);
-  if (!Array.isArray(input.targetPlatforms) || !input.targetPlatforms.length || new Set(input.targetPlatforms).size !== input.targetPlatforms.length || input.targetPlatforms.some(value => !NSH_PLATFORMS.includes(value))) throw new Error('invalid NSH target platforms');
-  nshRevisionForTargets(input.nshTargets);
+  for (const key of ['projectId', 'nameZh', 'nameEn', 'owner']) {
+    if (!validNshIdentity(key, input[key])) throw new Error('invalid ' + key);
+  }
+  validateNshPlatforms(input.nshTargets, input.targetPlatforms);
   const selected = new Set(input.nshTargets);
-  const native = input.targetPlatforms.some(platform => TARGET_PLATFORMS.desktop.includes(platform));
-  if (native !== (selected.has('desktop') || selected.has('tui'))) throw new Error('NSH desktop/TUI target-platforms mismatch');
-  for (const target of ['mobile', 'web']) if (selected.has(target) !== input.targetPlatforms.some(platform => TARGET_PLATFORMS[target].includes(platform))) throw new Error('NSH ' + target + ' target-platforms mismatch');
   if (selected.has('desktop')) {
     if (!input.profile || Array.isArray(input.profile) || typeof input.profile !== 'object' || Object.keys(input.profile).sort().join() !== [...PROFILE_FIELDS].sort().join()) throw new Error('requires exactly nine desktop profile fields');
     for (const key of PROFILE_FIELDS) if (!(key === 'sidebar_mode' ? ['compact','detailed'] : ['enabled','disabled']).includes(input.profile[key])) throw new Error('invalid ' + key);
@@ -38,16 +33,19 @@ export function normalizeNshOptions(input) {
     if (!selected.has('desktop')) throw new Error('NSH logo selection requires desktop target');
     if (!path.isAbsolute(input.logo) || !fs.lstatSync(input.logo).isFile() || fs.lstatSync(input.logo).isSymbolicLink()) throw new Error('logo must be a selected ordinary PNG');
     const bytes = fs.readFileSync(input.logo);
-    if (!bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) || bytes.readUInt32BE(16) !== bytes.readUInt32BE(20)) throw new Error('logo must be a square PNG');
+    if (bytes.length < 24 || !bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ||
+        bytes.subarray(12,16).toString() !== 'IHDR' || !bytes.readUInt32BE(16) ||
+        bytes.readUInt32BE(16) !== bytes.readUInt32BE(20)) throw new Error('logo must be a square PNG');
   }
   return { ...structuredClone(input), nshTargets: NSH_TARGETS.filter(target => selected.has(target)) };
 }
 
 function readAsset(name) { return fs.readFileSync(path.join(assetRoot, name), 'utf8'); }
 function fill(source, replacements) {
-  for (const [token, value] of Object.entries(replacements)) source = source.replaceAll(token, value);
-  if (/__[A-Z][A-Z_]+__/u.test(source)) throw new Error('unresolved NSH template token');
-  return source;
+  return source.replace(/__[A-Z]+(?:_[A-Z]+)*__/gu, token => {
+    if (!Object.hasOwn(replacements, token)) throw new Error('unresolved NSH template token: ' + token);
+    return replacements[token];
+  });
 }
 
 /** Conditional TSX, native-module, and host assets for one selected interface. */
@@ -99,7 +97,7 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '__NAME_ZH__': JSON.stringify(nameZh), '__NAME_EN__': JSON.stringify(nameEn),
     '__COMPACT__': String(profile.sidebar_mode === 'compact'),
     '__DESKTOP_IMPORT__': desktop ? 'import { DesktopPanel } from ' + '"./desktop";' : '',
-    '__DESKTOP_PANEL__': desktop ? '{nativeDesktop && <DesktopPanel language={language()} title={title()} showControls={page() === "home"} onSettings={() => page.set("settings")} renderWindow={() => <App />} />}' : '',
+    '__DESKTOP_PANEL__': desktop ? '{nativeDesktop && <DesktopPanel language={language()} title={title()} showControls={page() === "home"} onSettings={() => page.set("settings")} renderWindow={() => <App secondary />} />}' : '',
     '__ABOUT_IMPORT__': about ? 'import { AboutPage } from ' + '"./about";' : '',
     '__ABOUT_NAV__': about ? '{nativeDesktop && <NavAction label={tr(language(), "about")} selected={page() === "about"} rail={rail} onPress={() => page.set("about")} />}' : '',
     '__ABOUT_PAGE__': about ? '{nativeDesktop && page() === "about" && <AboutPage language={language()} />}' : '',
@@ -189,7 +187,10 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '  });',
     '}',
   ].join('\n') : '';
-  files.set(member + '/App.test.tsx', fill(readAsset('App.test.tsx'), { '__MOBILE_TEST__': mobileTest, '__DESKTOP_TEST__': desktopTest, '__SUPPORT_TEST__': supportTest }));
+  files.set(member + '/App.test.tsx', readAsset('App.test.tsx'));
+  const platformTests = [mobileTest, desktopTest, supportTest].filter(Boolean);
+  if (platformTests.length) files.set(member + '/App.platform.test.tsx',
+    'import { expect, open, test } from "nsh/test";\n\n' + platformTests.join('\n\n') + '\n');
 
   const shared = path.resolve(here, '../../desktop-prepare-gui-support-surfaces/assets/brand-support');
   const translations = about || sponsor ? Object.fromEntries(['zh-CN','en-US'].map(locale => [locale, JSON.parse(fs.readFileSync(path.join(shared,'i18n',locale + '.json'),'utf8'))])) : {};
@@ -206,7 +207,7 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     });
     files.set(member + '/about.tsx', fill(readAsset('about.tsx'), {
       '__PROJECT_ID__': id, '__CONTENT_ZH__': JSON.stringify(content('zh-CN')),
-      '__CONTENT_EN__': JSON.stringify(content('en-US')), '__VERSION__': JSON.stringify(version),
+      '__CONTENT_EN__': JSON.stringify(content('en-US')),
     }));
     files.set(member + '/build.rs', readAsset('build.rs'));
   }
@@ -258,21 +259,39 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
 export function nshDependencies(input) {
   const options = normalizeNshOptions(input);
   const revision = nshRevisionForTargets(options.nshTargets);
-  const baseline = ['nsh-core','nsh-base'].map(name => name + ' = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "' + revision + '" }').join('\n');
-  return baseline;
+  return ['nsh-core', 'nsh-base'].map(name =>
+    `${name} = { version = "${NSH_STABLE_VERSION}", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }`).join('\n');
 }
 
 /** Root scripts call only helpers retained by the selected downstream. */
 export function nshPackageScripts(id, targets = ['desktop'], platforms = ['macos']) {
-  nshRevisionForTargets(targets);
-  const desktop = targets.includes('desktop');
-  const tui = targets.includes('tui');
-  const target = tui ? 'tui' : platforms.includes('web') ? 'web' : platforms.includes('android') ? 'android' : 'ios-simulator';
+  validateNshPlatforms(targets, platforms);
+  const member = id + '_nsh';
+  const run = 'nsh run ' + member;
+  const targetScripts = {};
+  // NSH defaults to the current native desktop backend. iOS run uses ios, while package uses ios-simulator.
+  if (targets.includes('desktop')) targetScripts['dev:desktop'] = run;
+  for (const [target, enabled] of [
+    ['tui', targets.includes('tui')],
+    ['web', targets.includes('web')],
+    ['android', platforms.includes('android')],
+    ['ios', platforms.includes('ios')],
+  ]) {
+    if (!enabled) continue;
+    targetScripts['dev:' + target] = run + ' --target ' + target;
+    targetScripts['nsh:test:' + target] = 'nsh test ' + member + '/App.test.tsx --target ' + target;
+  }
+  if (targets.includes('desktop')) {
+    for (const platform of platforms.filter(value => ['macos', 'windows', 'linux'].includes(value))) {
+      targetScripts['nsh:test:' + platform] = 'nsh test ' + member + '/App.test.tsx --target ' + platform;
+    }
+  }
   return {
-    dev: 'nsh run ' + id + '_nsh' + (desktop ? '' : ' --target ' + target),
-    ...(tui ? { 'dev:tui': 'nsh run ' + id + '_nsh --target tui', 'nsh:test:tui': 'nsh test ' + id + '_nsh --target tui' + (targets.some(value => value === 'desktop' || value === 'mobile') ? ' --filter "mixed UI reads"' : '') } : {}),
+    dev: Object.values(targetScripts)[0],
+    ...targetScripts,
     test: 'cargo test --workspace --all-targets --all-features',
     'nsh:check': 'nsh check ' + id + '_nsh',
+    'nsh:build': 'nsh build ' + id + '_nsh',
     'nsh:test': 'nsh test ' + id + '_nsh',
     ...(targets.some(value => value !== 'tui') ? { 'nsh:package': 'node .agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs --root .' } : {}),
     'release:notes': 'node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs',

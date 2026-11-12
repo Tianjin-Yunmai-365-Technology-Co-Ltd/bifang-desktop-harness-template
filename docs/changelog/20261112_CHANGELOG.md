@@ -4,6 +4,8 @@
 
 ## 2026-11-12 变化
 
+- `HARNESS-NSH-WORKFLOW-STABILITY`（`required_version = pending`）：按能力依赖顺序收集 NSH 桌面问题，提前校验包身份，裁剪前逐目标校验运行证据。开发脚本使用官方目标名称与独立测试入口。组合项目保留资源布局打包，批次返回准确产物与签名元数据，支持官方架构、Android AAB 和 iOS IPA 选项。
+
 - `HARNESS-NSH-05-OFFICIAL`（`required_version = pending`）：新 NSH 项目固定官方 0.5.0。桌面以官方多窗口、托盘、单实例、URL Scheme 和打包替换自定义宿主；新增 TUI 运行与测试，不提供官方未实现的 TUI 打包；选择 NSH 自动安装项目本地官方编码及设计 Skills。见 [ADR-20261112-003](../adr/20261112_ADR.md)。
 
 ## 2026-11-12 移除

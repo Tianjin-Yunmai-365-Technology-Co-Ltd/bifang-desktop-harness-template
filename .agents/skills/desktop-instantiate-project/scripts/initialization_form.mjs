@@ -6,7 +6,16 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { resolveProjectTarget } from "./resolve_project_target.mjs";
+import { validNshIdentity } from "../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs";
 import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, NSH_PLATFORM_ORDER, NSH_TARGET_PLATFORMS, POLICY_FIELDS, POLICY_PRESET, QUESTIONS, REVIEW_QUESTION, questionFor, summaryNotices } from "./initialization_questions.mjs";
+
+const NSH_DESKTOP_QUESTIONS = ["system_tray", "single_instance", "deep_link", "about_page", "sponsor_page", "sidebar_mode"];
+const NSH_FIXED_OFF_HELP = {
+  system_notification: "NSH 提供官方通知 API，由下游按产品需求及目标平台接入。",
+  autostart: "NSH 0.5.0 尚无官方开机自启 API。",
+  global_shortcut: "NSH 提供官方全局快捷键 API，由下游按实际动作及目标平台接入。",
+};
+const NSH_FIXED_OFF = Object.keys(NSH_FIXED_OFF_HELP);
 
 /** 拒绝无法解释的状态形状，不把产品字段、凭据或任意配置带入汇总。 */
 function exactKeys(object, allowed, label) {
@@ -38,12 +47,6 @@ function parseAnswer(id, answer) {
   return { value, source: answer.source };
 }
 
-/** 按当前框架/平台标注不可用能力；用户显式启用时仍须纠正，不能覆盖答案。 */
-function unavailableGuiFields(values) {
-  if (values.interfaces.includes("nsh")) return ["system_notification", "autostart", "global_shortcut"];
-  return [];
-}
-
 /** NSH 能力是平台选择的唯一输入，同一桌面系统只保留一次。 */
 function platformsForNshTargets(targets) {
   const selected = new Set(targets.flatMap(target => NSH_TARGET_PLATFORMS[target]));
@@ -71,6 +74,18 @@ export function evaluateInitializationForm(input) {
     if (result.issue) issues[id] = result.issue;
     else { values[id] = result.value; sources[id] = result.source; }
   }
+  if (values.interfaces?.includes("nsh")) {
+    for (const [id, field, issue] of [
+      ["name_zh", "nameZh", "展示名称须能作为各平台的应用包文件名，请修正路径字符、保留名称、首尾空白或长度。"],
+      ["name_en", "nameEn", "展示名称须能作为各平台的应用包文件名，请修正路径字符、保留名称、首尾空白或长度。"],
+      ["project_id", "projectId", "NSH 项目标识最多 64 个 ASCII 字符，采用 snake_case。"],
+      ["owner", "owner", "负责人须为最多 200 字符的非空单行文本，首尾不含空白。"],
+    ]) {
+      if (!Object.hasOwn(values, id) || validNshIdentity(field, values[id])) continue;
+      delete values[id]; delete sources[id];
+      issues[id] = issue;
+    }
+  }
   if (entry === "initialize") {
     if (typeof input.currentRoot !== "string" || !path.isAbsolute(input.currentRoot)) throw new Error("直接初始化必须提供已核实的绝对 currentRoot");
     if (!fs.statSync(input.currentRoot).isDirectory()) throw new Error("currentRoot 不是现有目录");
@@ -93,11 +108,16 @@ export function evaluateInitializationForm(input) {
         const question = questionFor(id, issues[id]);
         if (values.interfaces?.includes("nsh") && values.nsh_targets?.includes("desktop")) {
           if (id === "system_tray") question.help = "中性菜单包含新建窗口、显示所有窗口和退出；启用后由宿主处理关窗与恢复。";
-          if (id === "single_instance") question.help = "再次启动聚焦现有窗口；由 NSH 恢复主窗口，不转发业务载荷。";
+          if (id === "single_instance") question.help = "Windows 和 Linux 的打包应用由 NSH 处理二次启动并恢复主窗口；macOS 由系统复用已打开的应用包。";
           if (id === "deep_link") {
             question.title = "是否启用只恢复应用窗口的深链接？";
-            question.help = "URL 为 app-<kebab-prefix>://restore；由 NSH 恢复主窗口，应用只处理固定恢复 URL；启用必须同时启用单实例。";
+            question.help = "使用官方 URL Scheme app-<kebab-prefix>://restore。模板仅消费这个恢复 URL，并要求同时启用单实例。";
           }
+          if (NSH_FIXED_OFF.includes(id) || (id === "deep_link" && values.single_instance === "disabled")) {
+            question.options = ["关闭"];
+            question.values = ["disabled"];
+          }
+          if (Object.hasOwn(NSH_FIXED_OFF_HELP, id)) question.help = NSH_FIXED_OFF_HELP[id];
         }
         if (id === "deep_link" && values.project_id) question.help = question.help.replace("<kebab-prefix>", values.project_id.replaceAll("_", "-"));
         return question;
@@ -157,11 +177,23 @@ export function evaluateInitializationForm(input) {
   for (const id of POLICY_FIELDS) { values[id] = POLICY_PRESET[id]; sources[id] = "default:initialization"; }
   values.post_release_action = "pending";
   sources.post_release_action = "deferred:first_release";
-  const unavailable = desktop ? unavailableGuiFields(values) : [];
+  const unavailable = desktop && nsh ? NSH_FIXED_OFF : [];
   if (desktop) {
+    if (nsh) {
+      const deepLinkConflict = values.deep_link === "enabled" && values.single_instance === "disabled";
+      const next = NSH_DESKTOP_QUESTIONS.find(id => {
+        if (id === "deep_link" && values.single_instance === "disabled") return deepLinkConflict || Boolean(issues[id]);
+        return !values[id];
+      });
+      if (next === "deep_link" && deepLinkConflict) {
+        issues.deep_link = "模板只在启用单实例后提供深链接。可关闭深链接，或把单实例改为启用。";
+      }
+      if (next) return output("gui", [next], { unavailable });
+      if (!values.deep_link) { values.deep_link = "disabled"; sources.deep_link = "derived:single_instance"; }
+    }
     for (const id of unavailable) {
       if (issues[id] || (values[id] && values[id] !== "disabled")) {
-        issues[id] = "NSH 桌面不支持此能力；须明确关闭，或修改目标。";
+        issues[id] = "当前 NSH 中性模板将此能力固定为关闭，请确认关闭。";
         return output("gui", [id], { unavailable });
       }
       if (!values[id]) { values[id] = "disabled"; sources[id] = "capability:unavailable"; }
@@ -172,7 +204,7 @@ export function evaluateInitializationForm(input) {
     }
     const next = GUI_FIELDS.find((id) => !values[id]);
     if (next) return output("gui", [next], { unavailable });
-    const enabledDesktop = DESKTOP_FIELDS.filter((id) => values[id] === "enabled");
+    const enabledDesktop = (nsh ? [...DESKTOP_FIELDS, "deep_link"] : DESKTOP_FIELDS).filter((id) => values[id] === "enabled");
     if (enabledDesktop.length && !values.capability_setup_assistance) return output("assistance", ["capability_setup_assistance"], { enabledDesktop, unavailable });
     if (!enabledDesktop.length) { delete values.capability_setup_assistance; delete sources.capability_setup_assistance; }
   } else {
