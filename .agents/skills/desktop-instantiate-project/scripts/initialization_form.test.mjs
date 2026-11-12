@@ -35,15 +35,14 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
   for (const id of ["system_tray","system_notification","autostart","single_instance","deep_link","global_shortcut"]) delete input.answers[id];
   assert.equal(evaluate().questions[0].id,"system_tray");
   assert.match(evaluate().questions[0].help,/新建窗口/u);
-  set("system_tray","disabled");assert.equal(evaluate().questions[0].id,"autostart");
-  set("autostart","disabled");assert.equal(evaluate().questions[0].id,"single_instance");
-  assert.match(evaluate().questions[0].help,/没有窗口时新建/u);
+  set("system_tray","disabled");assert.equal(evaluate().questions[0].id,"single_instance");
+  assert.match(evaluate().questions[0].help,/NSH 恢复主窗口/u);
   set("single_instance","disabled");assert.equal(evaluate().questions[0].id,"deep_link");
   assert.match(evaluate().questions[0].title,/应用窗口/u);
   assert.match(evaluate().questions[0].help,/app-sample-tool:\/\/restore/u);
   set("deep_link","disabled");
   assert.equal(evaluate().stage,"review");
-  assert.deepEqual(evaluate().summary.unavailable,["system_notification","global_shortcut"]);
+  assert.deepEqual(evaluate().summary.unavailable,["system_notification","autostart","global_shortcut"]);
   assert.deepEqual(evaluate().values.interfaces,["nsh"]);
   assert.deepEqual(evaluate().values.nsh_targets,["desktop","mobile","web"]);
   assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux","android","ios","web"]);
@@ -57,14 +56,14 @@ test("nsh_platforms_capabilities_confirmation_and_framework_isolation", () => fi
 
 test("nsh_enabled_native_capabilities_require_explicit_answers_and_deep_link_instance", () => fixture(({input,set,nsh,evaluate}) => {
   nsh();
-  set("system_tray","enabled");set("autostart","enabled");set("deep_link","enabled");
+  set("system_tray","enabled");set("deep_link","enabled");
   assert.equal(evaluate().questions[0].id,"deep_link");
   set("single_instance","enabled");
   assert.equal(evaluate().questions[0].id,"capability_setup_assistance");
   set("capability_setup_assistance","yes");
   assert.equal(evaluate().stage,"review");
-  assert.deepEqual(evaluate().summary.unavailable,["system_notification","global_shortcut"]);
-  assert.match(evaluate().summary.notices.join(" "),/默认提供多窗口/u);
+  assert.deepEqual(evaluate().summary.unavailable,["system_notification","autostart","global_shortcut"]);
+  assert.match(evaluate().summary.notices.join(" "),/默认提供官方多窗口/u);
   set("global_shortcut","enabled");
   assert.equal(evaluate().questions[0].id,"global_shortcut");
   delete input.answers.global_shortcut;
@@ -102,17 +101,16 @@ test("non_desktop_interfaces_with_stale_desktop_answers_stay_in_base", () => fix
   }
 }));
 
-/** TUI 不再提供可选项，旧答案不能绕过正式工具链选择。 */
-test("nsh_tui_is_unavailable_in_initialization", () => fixture(({input,set,nsh,evaluate}) => {
+/** TUI 单选不需要桌面配置；与桌面并选时去重系统。 */
+test("nsh_tui_selection_derives_terminal_hosts", () => fixture(({nsh,evaluate}) => {
   nsh(["tui"]);
-  assert.equal(evaluate().stage,"nsh");
-  assert.deepEqual(evaluate().questions[0].values,["desktop","mobile","web"]);
-  nsh(["desktop","tui"]);
-  assert.equal(evaluate().stage,"nsh");
-  for (const id of GUI_FIELDS) delete input.answers[id];
-  set("nsh_targets",["mobile","web"]);
   assert.equal(evaluate().stage,"review");
-  assert.deepEqual(evaluate().values.target_platforms,["android","ios","web"]);
+  assert.equal(evaluate().values.sidebar_mode,undefined);
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
+  nsh(["desktop","tui"]);
+  assert.equal(evaluate().stage,"review");
+  assert.deepEqual(evaluate().values.nsh_targets,["desktop","tui"]);
+  assert.deepEqual(evaluate().values.target_platforms,["windows","macos","linux"]);
 }));
 
 /** NSH 只问能力，旧平台答案不进入汇总；非 NSH 也默认完整桌面平台。 */

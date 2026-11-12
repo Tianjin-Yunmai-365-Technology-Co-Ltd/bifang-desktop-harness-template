@@ -40,7 +40,7 @@ function parseAnswer(id, answer) {
 
 /** 按当前框架/平台标注不可用能力；用户显式启用时仍须纠正，不能覆盖答案。 */
 function unavailableGuiFields(values) {
-  if (values.interfaces.includes("nsh")) return ["system_notification", "global_shortcut"];
+  if (values.interfaces.includes("nsh")) return ["system_notification", "autostart", "global_shortcut"];
   return [];
 }
 
@@ -93,10 +93,10 @@ export function evaluateInitializationForm(input) {
         const question = questionFor(id, issues[id]);
         if (values.interfaces?.includes("nsh") && values.nsh_targets?.includes("desktop")) {
           if (id === "system_tray") question.help = "中性菜单包含新建窗口、显示所有窗口和退出；启用后由宿主处理关窗与恢复。";
-          if (id === "single_instance") question.help = "再次启动聚焦现有窗口；没有窗口时新建，不转发业务载荷。";
+          if (id === "single_instance") question.help = "再次启动聚焦现有窗口；由 NSH 恢复主窗口，不转发业务载荷。";
           if (id === "deep_link") {
             question.title = "是否启用只恢复应用窗口的深链接？";
-            question.help = "URL 为 app-<kebab-prefix>://restore；聚焦现有窗口，没有窗口时新建；启用必须同时启用单实例。";
+            question.help = "URL 为 app-<kebab-prefix>://restore；由 NSH 恢复主窗口，应用只处理固定恢复 URL；启用必须同时启用单实例。";
           }
         }
         if (id === "deep_link" && values.project_id) question.help = question.help.replace("<kebab-prefix>", values.project_id.replaceAll("_", "-"));

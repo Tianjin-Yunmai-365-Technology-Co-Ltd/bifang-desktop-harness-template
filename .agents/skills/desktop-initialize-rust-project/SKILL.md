@@ -24,8 +24,8 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 接口含 DESKTOP（Cargo `gui`）或 NSH 时，严格复用 [唯一表单合同](../desktop-instantiate-project/references/initialization-form.md) 与 `initialization_form.mjs` 的结果；本入口不另定义提问顺序或默认触发。新 DESKTOP 自动将 `tauri` 写入根 Cargo `gui-framework`，旧 GUI 缺失时兼容 Tauri；新 NSH 写入 `interfaces = ["nsh"]`、`nsh-targets` 与具体 `target-platforms`，不写框架。九字段 profile 对 DESKTOP 始终适用，对 NSH 仅随 desktop 子目标适用。
 
 - `tauri`：完整读取 [Tauri 初始化接线](references/tauri-initialization.md)，执行已确认九项配置对应的 GUI 依赖、插件、Logo/DMG、支持页和 `$desktop-test-gui-initialization-e2e`。
-- 顶层 `nsh`：分派 `$desktop-add-nsh-adapter` 并完整读取 [NSH 初始化接线](references/nsh-initialization.md)。desktop/mobile/web 映射已选具体平台，统一正式 0.4.0 固定提交和匹配 CLI。打包边界以 NSH 构建 Skill 为准。此路径不执行 Tauri 专属步骤。
-- `local_package` 只在含 CLI，或已选 desktop/mobile/web 的顶层 NSH，或 Tauri GUI 目标含 macOS/Windows 时合法。NSH 受跟踪锁策略另按发布动作 Skill 限制；不含 CLI 的仅 Linux Tauri GUI 也必须明确选 `push_release_branch`。CLI 组合保留各接口独立打包边界，不把 GUI 包冒充 CLI 产物。初始化只保留打包能力，不执行候选构建。
+- 顶层 `nsh`：分派 `$desktop-add-nsh-adapter` 并完整读取 [NSH 初始化接线](references/nsh-initialization.md)。desktop/mobile/web/tui 映射已选具体平台，统一正式 0.5.0 固定提交和匹配 CLI。打包边界以 NSH 构建 Skill 为准。此路径不执行 Tauri 专属步骤。
+- `local_package` 只在含 CLI，或已选 desktop、mobile 或 web 的顶层 NSH，或 Tauri GUI 目标含 macOS/Windows 时合法。NSH 受跟踪锁策略另按发布动作 Skill 限制；不含 CLI 的仅 Linux Tauri GUI 也必须明确选 `push_release_branch`。CLI 组合保留各接口独立打包边界，不把 GUI 包冒充 CLI 产物。初始化只保留打包能力，不执行候选构建。
 
 以下“GUI”中的插件、WebView、React/Mantine/Jotai、Tauri图标/DMG、Tauri E2E 与 Tauri Skill 保留要求均只针对 `gui-framework = "tauri"`；core-first、目标/接口事实、独立仓库、身份选择、版本和无业务边界适用于 DESKTOP 与 NSH；九字段结构对 NSH 仅随 desktop 子目标适用。框架细节只读上方命中的初始化引用与 adapter Skill。
 
@@ -98,7 +98,7 @@ Windows 环境门禁的自动安装若因管理员权限、UAC、组织策略或
 
 Tauri GUI 另报告三个原始 Logo 候选的稳定预览顺序、用户选择、仅对所选项执行的后置验证/标准化、图标与 DMG 证据、九项 GUI 初始化配置、侧栏模式及持久折叠测试、设置页与主题；system-locale、window-state、dialog 分别报告固定基线与零出站/恢复/权限边界证据；对系统托盘、系统通知、开机自启、关于页、赞助页、单实例、深链接、全局快捷键分别报告 `enabled`/`disabled`。全局快捷键启用时另报告 contract 动作数、初始非空 binding 数、实际注册数和 owned 清理；其他启用项报告完整实现/E2E 或需打包验证的明确边界，禁用项报告对应依赖、插件、命令、状态、翻译键、路由、入口与媒体缺席的证据。
 
-NSH desktop 报告 Mixed TSX 与共享 core 接线、Logo、固定多窗口、九项 profile、四项可选宿主能力和两项不可用能力；NSH mobile/Web 报告各自 Mixed 目标的实际测试，不要求桌面 Logo、profile 或宿主能力。所有目标只报告实际执行的平台验证。
+NSH 报告已选目标的 Mixed/core 接线、项目本地官方 Skills 及实际执行的平台验证。desktop 额外报告 Logo、官方多窗口、九项 profile 和已选托盘、单实例、深链接；TUI 报告终端渲染、键盘与退出行为。
 
 DESKTOP 或 NSH 保留中性 `docs/GUI_ENGINEERING.md`，仅 CLI/MCP 下游裁掉该客户端索引；保留的索引不得包含已裁剪 Skill 的失效链接。
 

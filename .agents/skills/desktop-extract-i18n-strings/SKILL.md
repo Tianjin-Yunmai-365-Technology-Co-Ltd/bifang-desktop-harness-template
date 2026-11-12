@@ -5,7 +5,7 @@ description: 抽取 DESKTOP 的 Tauri/React 与 Rust 用户可见文案，复用
 
 # 抽取硬编码文案为 i18n 配置
 
-NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 读取 `nsh-targets`，使用 `$desktop-add-nsh-adapter` 与 `docs/design_standards/nsh_gui.md`；旧 GUI/NSH 仅保留读取兼容。NSH 使用自己的双语资源与运行时语言接线，不应用下文 Tauri 国际化技术栈。桌面九项能力仅在 `nsh-targets` 包含 `desktop` 时读取；仅 desktop/mobile/web 可用。精确平台限制见 NSH Skill 的 `references/runtime-and-capabilities.md`。
+NSH 专用路由：根 Cargo `interfaces = ["nsh"]` 读取 `nsh-targets`，使用 `$desktop-add-nsh-adapter` 与 `docs/design_standards/nsh_gui.md`；旧 GUI/NSH 仅保留读取兼容。NSH 使用自己的双语资源与运行时语言接线，不应用下文 Tauri 国际化技术栈。桌面九项能力仅在 `nsh-targets` 包含 `desktop` 时读取；仅 desktop/mobile/web/tui 可用。精确平台限制见 NSH Skill 的 `references/runtime-and-capabilities.md`。
 
 把 GUI 适配器中硬编码的用户可见文案迁移为 ADR-20260806-001 固定的 i18n 技术栈键值，不新建并行的国际化机制，也不触碰 core。
 

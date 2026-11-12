@@ -4,7 +4,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { renderNshSponsor } from './nsh_support_pages.mjs';
-import { renderNshHostFiles, nshHostCargoDependencies, nshHostMethods, nshHostWorkspaceDependencies } from './nsh_host_files.mjs';
 import { NSH_STABLE_REVISION, NSH_TARGETS, nshRevisionForTargets } from './nsh_runtime_revision.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -13,7 +12,7 @@ const assetRoot = path.resolve(here, '../assets/gui');
 export const NSH_REVISION = NSH_STABLE_REVISION;
 export { NSH_TARGETS, nshRevisionForTargets };
 export const NSH_PLATFORMS = ['windows', 'macos', 'linux', 'android', 'ios', 'web'];
-export const NSH_UNAVAILABLE = ['system_notification', 'global_shortcut'];
+export const NSH_UNAVAILABLE = ['system_notification', 'autostart', 'global_shortcut'];
 export const PROFILE_FIELDS = ['system_tray', 'system_notification', 'autostart', 'about_page', 'sponsor_page', 'single_instance', 'deep_link', 'global_shortcut', 'sidebar_mode'];
 const TARGET_PLATFORMS = { desktop: ['windows', 'macos', 'linux'], mobile: ['android', 'ios'], web: ['web'] };
 const NEUTRAL_PROFILE = Object.freeze(Object.fromEntries(PROFILE_FIELDS.map(key => [key, key === 'sidebar_mode' ? 'detailed' : 'disabled'])));
@@ -27,7 +26,7 @@ export function normalizeNshOptions(input) {
   nshRevisionForTargets(input.nshTargets);
   const selected = new Set(input.nshTargets);
   const native = input.targetPlatforms.some(platform => TARGET_PLATFORMS.desktop.includes(platform));
-  if (native !== selected.has('desktop')) throw new Error('NSH desktop target-platforms mismatch');
+  if (native !== (selected.has('desktop') || selected.has('tui'))) throw new Error('NSH desktop/TUI target-platforms mismatch');
   for (const target of ['mobile', 'web']) if (selected.has(target) !== input.targetPlatforms.some(platform => TARGET_PLATFORMS[target].includes(platform))) throw new Error('NSH ' + target + ' target-platforms mismatch');
   if (selected.has('desktop')) {
     if (!input.profile || Array.isArray(input.profile) || typeof input.profile !== 'object' || Object.keys(input.profile).sort().join() !== [...PROFILE_FIELDS].sort().join()) throw new Error('requires exactly nine desktop profile fields');
@@ -60,10 +59,17 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
   const mobile = options.nshTargets.includes('mobile');
   const about = desktop && profile.about_page === 'enabled';
   const sponsor = desktop && profile.sponsor_page === 'enabled';
-  const autostart = desktop && profile.autostart === 'enabled';
+  const tray = desktop && profile.system_tray === 'enabled';
   const deepLink = desktop && profile.deep_link === 'enabled';
   const member = id + '_nsh';
   const files = new Map();
+  // Vendored upstream bytes are installed as project skills with the same release as the runtime.
+  for (const name of ['nsh', 'nsh-design-guides']) {
+    const source = path.resolve(here, '../assets/vendor', name);
+    for (const relative of ['SKILL.md', 'LICENSE-APACHE', ...fs.readdirSync(path.join(source, 'references')).sort().map(file => 'references/' + file)]) {
+      files.set('.agents/skills/' + name + '/' + relative, fs.readFileSync(path.join(source, relative)));
+    }
+  }
   const releaseMethod = about ? [
     '/// Read the bilingual release notes embedded by the paired build script.',
     'pub fn release_notes(chinese: bool) -> String {',
@@ -77,7 +83,7 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
   const omittedLabels = new Set([
     ...(!about ? ['about'] : []),
     ...(!sponsor ? ['sponsor'] : []),
-    ...(!autostart ? ['start_at_login', 'start_at_login_description', 'enabled', 'disabled', 'unknown', 'refresh', 'autostart_error'] : []),
+    'start_at_login', 'start_at_login_description', 'enabled', 'disabled', 'unknown', 'refresh', 'autostart_error', 'window_error',
     ...(!deepLink ? ['deep_link_received'] : []),
   ]);
   files.set(member + '/translations.ts', readAsset('translations.ts').split('\n').filter(line => {
@@ -92,9 +98,8 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '__PROJECT_ID__': id,
     '__NAME_ZH__': JSON.stringify(nameZh), '__NAME_EN__': JSON.stringify(nameEn),
     '__COMPACT__': String(profile.sidebar_mode === 'compact'),
-    '__DESKTOP_IMPORT__': desktop ? 'import { DesktopPanel' + (autostart ? ', AutostartSetting' : '') + ' } from ' + '"./desktop";' : '',
-    '__DESKTOP_PANEL__': desktop ? '{nativeDesktop && <DesktopPanel language={language()} title={title()} showControls={page() === "home"} onSettings={() => page.set("settings")} />}' : '',
-    '__AUTOSTART_SETTING__': autostart ? '{nativeDesktop && <AutostartSetting language={language()} />}' : '',
+    '__DESKTOP_IMPORT__': desktop ? 'import { DesktopPanel } from ' + '"./desktop";' : '',
+    '__DESKTOP_PANEL__': desktop ? '{nativeDesktop && <DesktopPanel language={language()} title={title()} showControls={page() === "home"} onSettings={() => page.set("settings")} renderWindow={() => <App />} />}' : '',
     '__ABOUT_IMPORT__': about ? 'import { AboutPage } from ' + '"./about";' : '',
     '__ABOUT_NAV__': about ? '{nativeDesktop && <NavAction label={tr(language(), "about")} selected={page() === "about"} rail={rail} onPress={() => page.set("about")} />}' : '',
     '__ABOUT_PAGE__': about ? '{nativeDesktop && page() === "about" && <AboutPage language={language()} />}' : '',
@@ -106,157 +111,53 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
   };
   files.set(member + '/App.tsx', fill(readAsset('App.tsx'), app));
 
+  let desktopTest = '';
   if (desktop) {
-    const autostartImpl = autostart ? [
-      'export function AutostartSetting(props: { language: Language }) {',
-      '  const actual = signal<boolean | null>(null);',
-      '  const busy = signal(false);',
-      '  const error = signal(false);',
-      '  async function refresh() {',
-      '    try { actual.set(await host.call<boolean>("autostart.get")); error.set(false); }',
-      '    catch { actual.set(null); error.set(true); }',
-      '  }',
-      '  effect(() => { if (host.available()) void refresh(); });',
-      '  const colors = () => palette(colorScheme());',
-      '  async function update(next: boolean) {',
-      '    if (actual() === null || busy()) return;',
-      '    busy.set(true);',
-      '    try { await host.call<boolean>("autostart.set", { enabled: next }); await refresh(); }',
-      '    catch { actual.set(null); error.set(true); }',
-      '    finally { busy.set(false); }',
-      '  }',
-      '  if (!host.available()) return null;',
-      '  return <View style={{',
-      '    gap: tokens.settingsGap,',
-      '    padding: tokens.cardPadding,',
-      '    backgroundColor: colors().surface,',
-      '    borderWidth: tokens.borderWidth,',
-      '    borderColor: colors().sidebarBorder,',
-      '    borderRadius: tokens.cardRadius,',
-      '  }}>',
-      '    <View style={{ flexDirection: "row", alignItems: "center", gap: tokens.settingsGap }}>',
-      '      <View style={{ flex: 1, gap: tokens.optionGap }}>',
-      '        <Text style={{ color: colors().foreground, fontSize: tokens.sectionTitle, fontWeight: "600" }}>{tr(props.language, "start_at_login")}</Text>',
-      '        <Text style={{ color: colors().muted, fontSize: tokens.body, lineHeight: tokens.bodyLineHeight }}>{tr(props.language, "start_at_login_description")}</Text>',
-      '      </View>',
-      '      <BaseSwitch',
-      '        checked={actual() === true}',
-      '        disabled={actual() === null || busy()}',
-      '        onChange={({ checked }) => { void update(checked); }}',
-      '        accessibilityLabel={tr(props.language, "start_at_login")}',
-      '        hitSlop={8}',
-      '        focusStyle={{ borderColor: colors().focus }}',
-      '        style={{ padding: tokens.optionGap / 2, borderWidth: tokens.borderWidth, borderColor: "transparent", borderRadius: tokens.switchHeight / 2 + tokens.optionGap / 2 }}',
-      '        trackStyle={{',
-      '          width: tokens.switchWidth,',
-      '          height: tokens.switchHeight,',
-      '          padding: tokens.switchInset,',
-      '          borderRadius: tokens.switchHeight / 2,',
-      '          borderWidth: tokens.borderWidth,',
-      '          borderColor: actual() ? colors().accent : colors().sidebarBorder,',
-      '          backgroundColor: actual() ? colors().accent : colors().background,',
-      '        }}',
-      '        thumbStyle={{',
-      '          width: tokens.switchThumb,',
-      '          height: tokens.switchThumb,',
-      '          borderRadius: tokens.switchThumb / 2,',
-      '          backgroundColor: colors().surface,',
-      '          transform: [{ translateX: actual() ? tokens.switchTravel : 0 }],',
-      '        }}',
-      '      />',
-      '    </View>',
-      '    <Text style={{ color: colors().muted, fontSize: tokens.body }}>{tr(props.language, actual() === null ? "unknown" : actual() ? "enabled" : "disabled")}</Text>',
-      '    {actual() === null && <Action label={tr(props.language, "refresh")} onPress={() => { void refresh(); }} />}',
-      '    {error() && <Text style={{ color: colors().error, fontSize: tokens.body }}>{tr(props.language, "autostart_error")}</Text>}',
-      '  </View>;',
-      '}',
-    ].join('\n') : '';
-    const desktopTokens = {
-      '__AUTOSTART_IMPORT__': autostart ? 'import { Switch as BaseSwitch } from "nsh/base";' : '',
-      '__AUTOSTART_IMPL__': autostartImpl,
-      '__DEEP_LINK_STATE__': deepLink ? 'const deepLinkCount = signal(0);' : '',
-      '__DEEP_LINK_DRAIN__': deepLink ? [
-        'let drainingDeepLinks = false;',
-        'let drainAgain = false;',
-        'async function drainDeepLinks() {',
-        '  if (!host.available()) return;',
-        '  if (drainingDeepLinks) { drainAgain = true; return; }',
-        '  drainingDeepLinks = true;',
-        '  try {',
-        '    do {',
-        '      drainAgain = false;',
-        '      const links = await host.call<unknown>("deepLink.takePending");',
-        '      if (!Array.isArray(links) || links.some((link) => typeof link !== "string")) throw new Error("Invalid Deep Link queue");',
-        '      deepLinkCount.update((count) => count + links.length);',
-        '    } while (drainAgain);',
-        '  } catch { error.set(tr(props.language, "window_error")); }',
-        '  finally { drainingDeepLinks = false; }',
-        '}',
+    const scheme = 'app-' + id.replaceAll('_', '-');
+    files.set(member + '/desktop.tsx', fill(readAsset('desktop.tsx'), {
+      '__DESKTOP_OPTIONAL_IMPORTS__': [
+        ...(tray ? ['import { Tray } from "nsh/desktop";', 'import trayIcon from ' + '"./assets/tray.svg";'] : []),
+        ...(deepLink ? ['import { signal, UrlScheme } from "nsh";'] : []),
+      ].join('\n'),
+      '__DESKTOP_CLOSE__': tray ? 'if (win.main) win.hide(); else win.close();' : 'win.close();',
+      '__TRAY_SETUP__': tray ? [
+        'win.on("closePress", () => win.hide());',
+        'effect(() => Tray.set({ icon: trayIcon, tooltip: props.title, onClick: () => win.focus(), menu: [',
+        '  { label: tr(props.language, "new_window"), onSelect: openWindow },',
+        '  { label: tr(props.language, "show_all"), onSelect: showAll },',
+        '  { label: tr(props.language, "quit"), onSelect: quit },',
+        '] }));',
       ].join('\n') : '',
-      '__DEEP_LINK_INIT__': deepLink ? 'const stopDeepLink = host.on("deepLink.available", () => { void drainDeepLinks(); });\n    void drainDeepLinks();' : '',
-      '__DEEP_LINK_CLEANUP__': deepLink ? 'stopDeepLink();' : '',
+      '__DEEP_LINK_SETUP__': deepLink ? [
+        'const deepLinkCount = signal(0);',
+        'if (win.main) UrlScheme.on("open", ({ url }) => { if (url === ' + JSON.stringify(scheme + '://restore') + ') deepLinkCount.update(count => count + 1); });',
+      ].join('\n') : '',
       '__DEEP_LINK_NODE__': deepLink ? '{deepLinkCount() > 0 && <Text style={{ color: palette(colorScheme()).muted }}>{tr(props.language, "deep_link_received")}: {deepLinkCount()}</Text>}' : '',
-    };
-    files.set(member + '/desktop.tsx', fill(readAsset('desktop.tsx'), desktopTokens));
-    for (const [relative, source] of renderNshHostFiles(options)) {
-      if (files.has(relative)) throw new Error('duplicate NSH host file: ' + relative);
-      files.set(relative, source);
-    }
+    }));
+    if (tray) files.set(member + '/assets/tray.svg', readAsset('tray.svg'));
+    // The official headless API injects startup and runtime URLs without registering an OS handler.
+    desktopTest = [
+      'test("official desktop window opens and closes through WindowRef", async () => {',
+      '  const app = await open(".", { locale: "en-US", platform: "macos" });',
+      '  const secondary = app.window("window-1");',
+      '  expect(secondary.state()).toBe(null);',
+      '  await app.press("New window");',
+      '  expect(secondary.state()?.visible).toBe(true);',
+      '  await secondary.pressClose();',
+      '  expect(secondary.state()).toBe(null);',
+      '});',
+    ].join('\n');
+    if (deepLink) desktopTest += '\n\n' + [
+      'test("official URL scheme delivers startup and subsequent links", async () => {',
+      '  const app = await open(".", { locale: "en-US", platform: "macos", urlScheme: ' + JSON.stringify(scheme + '://restore') + ' });',
+      '  await app.waitFor("Received desktop deep link: 1");',
+      '  await app.openWithUrl(' + JSON.stringify(scheme + '://restore') + ');',
+      '  await app.waitFor("Received desktop deep link: 2");',
+      '});',
+    ].join('\n');
   }
 
   const fixturePlatform = options.targetPlatforms.find(value => ['macos','windows','linux'].includes(value));
-  const desktopTest = desktop ? [
-    'test("desktop controls use the declared host methods", async () => {',
-    '  const app = await open(".", { locale: "en-US", platform: ' + JSON.stringify(fixturePlatform) + ', host: { params: { windowId: 1 }, handlers: {',
-    '    "window.list": () => [{ id: 1, title: "Main window" }],',
-    '    "window.setTitle": () => true,',
-    '    "window.open": () => ({ id: 2, title: "Second window" }),',
-    '  } } });',
-    '  await app.press("New window");',
-    '  expect(app.host.calls().filter((call) => call.name === "window.open")).toEqual([{ name: "window.open", data: null }]);',
-    '});',
-    '',
-    'test("second window title stays localized in settings without menu ownership", async () => {',
-    '  const app = await open(".", { locale: "en-US", platform: ' + JSON.stringify(fixturePlatform) + ', host: { params: { windowId: 2, menuGlobal: true, menuOwner: false }, handlers: {',
-    '    "window.list": () => [{ id: 2, title: "Second window" }],',
-    '    "window.setTitle": () => true,',
-    '  } } });',
-    '  await app.waitFor("Second window");',
-    '  await app.press("Settings");',
-    '  expect(app.texts()).toContain("Choose your interface language and appearance.");',
-    '  expect(app.texts()).toContain("Choose the language shown throughout the app.");',
-    '  expect(app.texts()).toContain("Use a light or dark theme, or follow the system.");',
-    '  await app.press("label:Appearance: Dark");',
-    '  expect(app.storage().appearance).toBe("dark");',
-    '  await app.press("label:Interface language: 中文");',
-    '  await app.waitFor("外观主题");',
-    '  expect(app.texts()).toContain("调整界面语言与外观偏好。");',
-    '  expect(app.host.calls().filter((call) => call.name === "window.setTitle")).toEqual([',
-    '    { name: "window.setTitle", data: { title: ' + JSON.stringify(nameEn + ' · 2') + ' } },',
-    '    { name: "window.setTitle", data: { title: ' + JSON.stringify(nameZh + ' · 2') + ' } },',
-    '  ]);',
-    '  await app.press("首页");',
-    '  await app.waitFor("窗口");',
-    '  expect(app.host.calls().filter((call) => call.name === "window.list")).toEqual([{ name: "window.list", data: null }]);',
-    '});',
-    ...(deepLink ? [
-      '',
-      'test("queued desktop deep links are claimed once after startup and host notifications", async () => {',
-      '  const pending = ["app-' + options.projectId.replaceAll('_', '-') + '://restore"];',
-      '  const app = await open(".", { locale: "en-US", platform: ' + JSON.stringify(fixturePlatform) + ', host: { params: { windowId: 1 }, handlers: {',
-      '    "window.list": () => [{ id: 1, title: "Main window" }],',
-      '    "window.setTitle": () => true,',
-      '    "deepLink.takePending": () => pending.splice(0),',
-      '  } } });',
-      '  await app.waitFor("Received desktop deep link: 1");',
-      '  pending.push("app-' + options.projectId.replaceAll('_', '-') + '://restore");',
-      '  await app.host.send("deepLink.available", null);',
-      '  await app.waitFor("Received desktop deep link: 2");',
-      '  await app.host.send("deepLink.available", null);',
-      '  expect(app.texts()).toContain("Received desktop deep link: 2");',
-      '});',
-    ] : []),
-  ].join('\n') : '';
   const supportTest = [
     ...(about ? [[
       'test("about page reads embedded release notes from the native module", async () => {',
@@ -323,7 +224,7 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     '[package]', 'name = "' + member + '"', 'version.workspace = true', 'edition.workspace = true', 'publish = false',
     '', '[lib]', 'crate-type = ["rlib"]', '', '[dependencies]', id + '_core.workspace = true',
     'nsh-core.workspace = true', 'nsh-base.workspace = true',
-    ...(desktop ? [nshHostCargoDependencies(options).trimEnd()] : []), '',
+    '',
   ].join('\n');
   files.set(member + '/Cargo.toml', manifest);
   const applicationId = 'com.' + id.split('_').map(part => 'p' + part).join('.') + '.app';
@@ -331,12 +232,15 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
     name: nameZh, id: applicationId, version, build: 1, rust: '.', appearance: 'system',
     ...(mobile ? { statusBar: { foreground: 'auto' } } : {}),
     ...(options.logo ? { icon: 'assets/logo.png' } : {}),
-    ...(desktop || mobile ? { capabilities: {
+    ...(desktop ? { window: { title: nameZh, defaultSize: { width: 1024, height: 700 }, ...(tray ? { closeOnPress: false } : {}) } } : {}),
+    ...(desktop && profile.single_instance === 'enabled' ? { singleInstance: true } : {}),
+    ...(deepLink ? { schemes: ['app-' + id.replaceAll('_', '-')] } : {}),
+    capabilities: {
       ...(mobile ? { statusBar: true } : {}),
-      ...(desktop ? { host: nshHostMethods(options) } : {}),
-    } } : {}),
+      ...(desktop ? { windows: { kinds: ['normal'], levels: ['normal'] } } : {}),
+    },
   }, null, 2) + '\n');
-  if (desktop) files.set('docs/GUI_APP_PROFILE.md', '# NSH 桌面能力配置\n\n接口事实：根 Cargo metadata 的 nsh；桌面目标由 nsh-targets 声明。身份：' + nameZh + ' / ' + nameEn + '；负责人：' + owner + '。\n\n```gui-initialization-config\n' + PROFILE_FIELDS.map(key => key + ': ' + profile[key]).join('\n') + '\n```\n\n' + (options.logo ? '使用已选择 Logo。' : '中性工程验证夹具，无正式品牌确认。') + ' 桌面多窗口由自定义宿主固定提供；托盘、单实例、深链接、自启仅按已选字段接线。系统通知与系统全局快捷键仍不可用。未验证平台不得报通过。\n');
+  if (desktop) files.set('docs/GUI_APP_PROFILE.md', '# NSH 桌面能力配置\n\n接口事实：根 Cargo metadata 的 nsh；桌面目标由 nsh-targets 声明。身份：' + nameZh + ' / ' + nameEn + '；负责人：' + owner + '。\n\n```gui-initialization-config\n' + PROFILE_FIELDS.map(key => key + ': ' + profile[key]).join('\n') + '\n```\n\n' + (options.logo ? '使用已选择 Logo。' : '中性工程验证夹具，无正式品牌确认。') + ' 多窗口由 NSH 官方运行时提供；托盘、单实例、深链接仅按已选字段接线。自启、系统通知与系统全局快捷键未接入中性模板。未验证平台不得报通过。\n');
 
   // Format all rendered Rust before the caller can write the workspace.
   for (const [filename, source] of files) {
@@ -354,21 +258,23 @@ export function renderNshAdapterFiles(input, version = '0.1.0') {
 export function nshDependencies(input) {
   const options = normalizeNshOptions(input);
   const revision = nshRevisionForTargets(options.nshTargets);
-  const baseline = ['nsh-core','nsh-base'].map(name => name + ' = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "' + revision + '" }').join('\n');
-  return options.nshTargets.includes('desktop') ? baseline + '\n' + nshHostWorkspaceDependencies(options) : baseline;
+  const baseline = ['nsh-core','nsh-base'].map(name => name + ' = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "' + revision + '" }').join('\n');
+  return baseline;
 }
 
 /** Root scripts call only helpers retained by the selected downstream. */
 export function nshPackageScripts(id, targets = ['desktop'], platforms = ['macos']) {
   nshRevisionForTargets(targets);
   const desktop = targets.includes('desktop');
-  const target = platforms.includes('web') ? 'web' : platforms.includes('android') ? 'android' : 'ios-simulator';
+  const tui = targets.includes('tui');
+  const target = tui ? 'tui' : platforms.includes('web') ? 'web' : platforms.includes('android') ? 'android' : 'ios-simulator';
   return {
-    dev: desktop ? 'node .agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_desktop.mjs --root .' : 'nsh run ' + id + '_nsh --target ' + target,
+    dev: 'nsh run ' + id + '_nsh' + (desktop ? '' : ' --target ' + target),
+    ...(tui ? { 'dev:tui': 'nsh run ' + id + '_nsh --target tui', 'nsh:test:tui': 'nsh test ' + id + '_nsh --target tui' + (targets.some(value => value === 'desktop' || value === 'mobile') ? ' --filter "mixed UI reads"' : '') } : {}),
     test: 'cargo test --workspace --all-targets --all-features',
     'nsh:check': 'nsh check ' + id + '_nsh',
     'nsh:test': 'nsh test ' + id + '_nsh',
-    'nsh:package': 'node .agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs --root .',
+    ...(targets.some(value => value !== 'tui') ? { 'nsh:package': 'node .agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs --root .' } : {}),
     'release:notes': 'node .agents/skills/desktop-prepare-release/scripts/release_notes.mjs',
     'release:context': 'node .agents/skills/desktop-prepare-release/scripts/release_context.mjs',
     'release:git': 'node .agents/skills/desktop-manage-git-lifecycle/scripts/git_lifecycle.mjs',

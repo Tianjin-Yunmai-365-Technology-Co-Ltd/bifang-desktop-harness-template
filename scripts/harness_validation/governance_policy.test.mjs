@@ -158,7 +158,8 @@ test("MCP-only downstream rejects local packaging but accepts remote release", (
       assert.deepEqual(check(interfaces, "push_release_branch"), []);
     }
     assert.deepEqual(check(["nsh"], "local_package", ["macos", "android", "web"], null, ["desktop", "mobile", "web"]), []);
-    assert.ok(check(["nsh"], "local_package", ["macos"], null, ["tui"]).some(error => error.includes("未知或重复目标")));
+    assert.ok(check(["nsh"], "local_package", ["macos"], null, ["tui"]).some(error => error.includes("local_package requires")));
+    assert.deepEqual(check(["nsh"], "push_release_branch", ["macos"], null, ["tui"]), []);
     assert.ok(check(["nsh"], "local_package", ["macos", "web"], null, ["desktop"]).some(error => error.includes("目标类别")));
     for (const interfaces of [["cli"], ["gui"], ["gui", "mcp"]]) {
       assert.deepEqual(check(interfaces, "local_package"), []);

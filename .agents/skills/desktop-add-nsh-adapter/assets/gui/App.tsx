@@ -1,6 +1,6 @@
 import { colorScheme, effect, locale, mount, platform, safeArea, Scroll, setColorScheme, signal, Storage, Text, View, windowSize, type JSX } from "nsh";
 import { Button as BaseButton, Radio, RadioGroup } from "nsh/base";
-import { HomeContent } from "./App.shared";
+import { Action, HomeContent, nativeDesktop } from "./App.shared";
 import { tr, type Language } from "./translations";
 import { palette, tokens } from "./tokens";
 __DESKTOP_IMPORT__
@@ -12,31 +12,8 @@ type Page = "home" | "settings" | "about" | "sponsor";
 const COMPACT_SIDEBAR = __COMPACT__;
 const NAME_ZH = __NAME_ZH__;
 const NAME_EN = __NAME_EN__;
-const nativeDesktop = String(platform.idiom) !== "terminal" && (platform.os === "macos" || platform.os === "windows" || platform.os === "linux");
+const terminal = platform.idiom === "terminal";
 const nativeMobile = platform.os === "ios" || platform.os === "android";
-
-function Action(props: { label: string; onPress: () => void; selected?: boolean }) {
-  const colors = () => palette(colorScheme());
-  return (
-    <BaseButton
-      onPress={props.onPress}
-      selected={props.selected}
-      accessibilityLabel={props.label}
-      focusStyle={nativeDesktop ? { borderColor: colors().focus } : undefined}
-      style={{
-        minHeight: tokens.controlHeight,
-        paddingHorizontal: tokens.controlPaddingHorizontal,
-        paddingVertical: tokens.controlPaddingVertical,
-        borderWidth: nativeDesktop ? tokens.borderWidth : 0,
-        borderColor: "transparent",
-        borderRadius: tokens.radius,
-        backgroundColor: props.selected ? colors().selected : colors().surface,
-      }}
-    >
-      <Text style={{ color: colors().foreground, fontSize: tokens.body }}>{props.label}</Text>
-    </BaseButton>
-  );
-}
 
 function SettingsSection(props: { title: string; description: string; children: JSX.Element }) {
   const colors = () => palette(colorScheme());
@@ -194,7 +171,7 @@ function App() {
   const appearance = signal<"system" | "light" | "dark">("system");
   const collapsed = signal(false);
   const error = signal("");
-  const narrow = () => windowSize().width < tokens.narrow;
+  const narrow = () => terminal || windowSize().width < tokens.narrow;
   const desktopRail = () => nativeDesktop && !narrow();
   const shortBrand = () => desktopRail() && (COMPACT_SIDEBAR || collapsed());
   const sidebarWidth = () => {
@@ -346,7 +323,6 @@ function App() {
                 onChange={(next) => { void saveAppearance(next); }}
               />
             </SettingsSection>
-            __AUTOSTART_SETTING__
           </View>}
         __ABOUT_PAGE__
         __SPONSOR_PAGE__

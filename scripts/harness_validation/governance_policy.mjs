@@ -69,7 +69,7 @@ function persistedReleaseMetadata(policyPath, errors) {
       ["native", ["windows", "macos", "linux"]],
       ["mobile", ["android", "ios"]],
       ["web", ["web"]],
-    ].some(([target, platforms]) => (target === "native" ? selection.nshTargets.includes("desktop") : selection.nshTargets.includes(target)) !== targetPlatforms.some(platform => platforms.includes(platform)))) {
+    ].some(([target, platforms]) => (target === "native" ? (selection.nshTargets.includes("desktop") || selection.nshTargets.includes("tui")) : selection.nshTargets.includes(target)) !== targetPlatforms.some(platform => platforms.includes(platform)))) {
       throw new Error("NSH 目标类别与具体目标平台不一致");
     }
     return {
@@ -132,7 +132,7 @@ export function validateAgentPolicy(errors, policyPath = path.join(ROOT, "docs",
     const selectedPlatforms = targetPlatforms ?? releaseMetadata?.["target-platforms"] ?? null;
     if (!Array.isArray(selectedInterfaces) || selectedInterfaces.length === 0 || !Array.isArray(selectedPlatforms)) {
       fail(errors, "local_package requires persisted interfaces and target-platforms metadata");
-    } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, releaseMetadata?.["gui-framework"] ?? "tauri")) {
+    } else if (!localPackageSupported(selectedInterfaces, selectedPlatforms, releaseMetadata?.["gui-framework"] ?? "tauri", releaseMetadata?.["nsh-targets"] ?? [])) {
       fail(errors, "local_package requires a selected CLI, NSH, or supported Tauri target; otherwise select push_release_branch");
     }
   }

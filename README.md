@@ -6,13 +6,13 @@ Bifang Desktop Harness Template
 
 一个让 AI Agent 帮你创建和维护跨平台小工具的工程模板。
 
-你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；选择 NSH 后只需选择桌面、移动、Web 能力。NSH 的说明是“下一代全平台开发框架”，当前统一正式 0.4.0 工具链。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
+你只需要告诉 Agent：项目叫什么、放在哪里，以及需要 CLI、MCP、DESKTOP 或 NSH 中的哪些程序类型。CLI/MCP/DESKTOP 默认支持 Windows、macOS、Linux 全平台；选择 NSH 后只需选择桌面、移动、Web、TUI 能力。NSH 的说明是“下一代全平台开发框架”，当前统一正式 0.5.0 工具链。它会创建一个独立的 Git 项目，搭好共享核心、所选接口、开发规则和交付流程。之后你可以直接说要改什么，Agent 会完成实现并运行这次改动真正需要的测试。
 
 选择 **DESKTOP** 即使用 **Tauri**，无需另选框架。随后按顺序确认九项桌面配置，并在完整汇总中确认平台和所选能力。
 
 DESKTOP 使用 Node.js/pnpm 工程工具，初始化通过 Tauri 专用结构检查和本机窗口检查；仅 Linux 且无 CLI 的 Desktop 项目首次发布时须选择推送 release 分支。
 
-选择 NSH 后，Agent 只询问桌面、移动、Web 三类能力：桌面对应全部 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web；对应平台会在最终汇总中确认。新 NSH 工程使用正式 v0.4.0 固定提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3` 与匹配 CLI，以 Mixed TSX 界面通过原生模块调用共享 Rust core；桌面另生成自定义原生宿主和默认多窗口能力。仅在选择桌面时逐项询问托盘、自启、单实例和深链接，并询问关于页、赞助页与侧栏；系统通知和 OS 全局快捷键仍不可用。`$desktop-test-nsh-initialization-e2e` 检查适用初始化路径，`$desktop-build-nsh-release` 按可打包目标处理。当前 NSH 单独选择，不与 CLI、MCP 或 DESKTOP 合并；精确支持范围见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
+NSH 可多选桌面、移动、Web、TUI 四类能力：桌面与 TUI 对应 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web。新项目使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI，四类目标都通过 Mixed TSX 调用共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。TUI 使用 `dev:tui` 和 `nsh:test:tui`；该版本没有 TUI 打包目标。已有 0.4.0 项目保留原运行链路。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -138,7 +138,7 @@ Core-first 是强制规则：值域、跨字段关系、业务默认值和可复
 - **CLI**：适合脚本和 Agent 调用，支持非交互运行和统一 JSON 输出。
 - **MCP**：提供 Rust stdio MCP 服务器，让其他 Agent 或 MCP 客户端调用共享能力。
 - **DESKTOP**：使用 Tauri 2、React 和 Mantine。固定接入系统语言、窗口状态和原生 dialog 基线，并可按初始化选择加入托盘、单实例、深链接、全局快捷键、系统通知、开机自启、关于页和赞助页。
-- **NSH**：下一代全平台开发框架，当前子目标为桌面、移动、Web；统一正式 v0.4.0 固定提交及匹配 CLI。Cargo 的 `nsh-targets` 记录子目标，`target-platforms` 记录具体平台。九项桌面配置只适用于桌面子目标。
+- **NSH**：下一代全平台开发框架，当前子目标为桌面、移动、Web、TUI；统一正式 v0.5.0 固定提交及匹配 CLI。Cargo 的 `nsh-targets` 记录子目标，`target-platforms` 记录具体平台。九项桌面配置只适用于桌面子目标。
 
 CLI、MCP 与 DESKTOP 可以单独或组合使用；当前 NSH 独立选择。与接口无关的业务规则统一放在共享核心（shared core）中，接口只负责输入、展示和系统交互。
 

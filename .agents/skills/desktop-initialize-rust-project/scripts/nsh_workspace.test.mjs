@@ -42,17 +42,18 @@ test('all_targets_use_mixed_tsx_and_real_shared_core_bridge',()=>{
   const manifest=JSON.parse(desktop.get('sample_tool_nsh/nsh.json'));
   assert.equal(manifest.rust,'.');
   assert.equal(Object.hasOwn(manifest,'root'),false);
-  assert.deepEqual(manifest.capabilities.host,['window.list','window.setTitle','window.open','window.focus','window.showAll','window.close','app.quit']);
+  assert.deepEqual(manifest.capabilities, { windows: { kinds: ['normal'], levels: ['normal'] } });
+  assert.equal(manifest.singleInstance, undefined);
+  assert.equal(manifest.schemes, undefined);
   const source=desktop.get('sample_tool_nsh/src/lib.rs');
   assert.match(source,/\[native_module\("sample_tool\/native"\)\]/u);
   assert.match(source,/sample_tool_core::scaffold_status\(\)\s*\.await\s*\.initialized/u);
   assert.match(desktop.get('sample_tool_nsh/App.tsx'),/from "\.\/App\.shared"/u);
   assert.match(desktop.get('sample_tool_nsh/App.shared.tsx'),/Scaffold\.status\(\)/u);
   assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/Menu\.setApplicationMenu/u);
-  assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/invoke<boolean>\("window\.setTitle"/u);
-  assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/menu\.owner/u);
+  assert.match(desktop.get('sample_tool_nsh/desktop.tsx'),/Window\.open/u);
   assert.doesNotMatch(desktop.get('sample_tool_nsh/desktop.tsx'),/globalShortcut|\.shortcut\(/u);
-  assert.ok(desktop.has('sample_tool_nsh/src/macos_host.rs'));
+  assert.equal(desktop.has('sample_tool_nsh/src/macos_host.rs'),false);
   const mobileWeb={...options(),nshTargets:['mobile','web'],targetPlatforms:['android','ios','web']};
   delete mobileWeb.profile;
   const mobile=renderNshAdapterFiles(mobileWeb);
@@ -72,17 +73,16 @@ test('selected_desktop_capabilities_are_conditional_and_deep_links_require_singl
   const invalid=options();invalid.profile.deep_link='enabled';
   assert.throws(()=>renderNshAdapterFiles(invalid),/deep_link requires single_instance/u);
   const all=options();
-  for(const field of ['system_tray','single_instance','deep_link','autostart']) all.profile[field]='enabled';
+  for(const field of ['system_tray','single_instance','deep_link']) all.profile[field]='enabled';
   const files=renderNshAdapterFiles(all);
   const config=JSON.parse(files.get('sample_tool_nsh/nsh.json'));
-  assert.deepEqual(config.capabilities.host,['window.list','window.setTitle','window.open','window.focus','window.showAll','window.close','app.quit','autostart.get','autostart.set','deepLink.takePending']);
-  assert.match(files.get('sample_tool_nsh/desktop.tsx'),/autostart\.set/u);
-  assert.match(files.get('sample_tool_nsh/desktop.tsx'),/deepLink\.takePending/u);
-  assert.ok(files.has('sample_tool_nsh/src/deep_link.rs'));
-  assert.ok(files.has('sample_tool_nsh/src/macos_autostart.rs'));
-  assert.match(files.get('sample_tool_nsh/src/deep_link.rs'),/app-sample-tool:\/\/";\s*const RESTORE: &str = "restore"/u);
-  assert.doesNotMatch(files.get('sample_tool_nsh/Cargo.toml'),/version = "0\.4\.0"/u);
-  assert.match(files.get('sample_tool_nsh/Cargo.toml'),/nsh-platform-macos\.workspace = true/u);
+  assert.equal(config.singleInstance, true);
+  assert.deepEqual(config.schemes, ['app-sample-tool']);
+  assert.equal(config.window.closeOnPress, false);
+  assert.equal(config.capabilities.host, undefined);
+  assert.match(files.get('sample_tool_nsh/desktop.tsx'),/Tray\.set/u);
+  assert.match(files.get('sample_tool_nsh/desktop.tsx'),/UrlScheme\.on/u);
+  assert.ok(files.has('sample_tool_nsh/assets/tray.svg'));
 });
 
 /** 新 NSH 成员与目标层级写入 Cargo，版本镜像绑定实际 adapter 清单。 */
@@ -98,8 +98,8 @@ test('fresh_workspace_cargo_metadata_binds_nsh_to_core_and_platforms',()=>fixtur
   assert.deepEqual(metadata.metadata['agent-first-harness']['target-platforms'],['macos','web']);
   assert.equal(metadata.metadata['agent-first-harness']['gui-framework'],undefined);
   const gui=metadata.packages.find(pkg=>pkg.name==='sample_tool_nsh');assert.ok(gui.dependencies.some(dep=>dep.name==='sample_tool_core' && !dep.optional));
-  assert.ok(gui.dependencies.some(dep=>dep.name==='nsh-platform-macos'));
-  assert.match(fs.readFileSync(path.join(root,'Cargo.toml'),'utf8'),new RegExp('nsh-platform-macos = \\{ version = "0\\.4\\.0".*rev = "' + NSH_REVISION + '"','u'));
+  assert.equal(gui.dependencies.some(dep=>dep.name.startsWith('nsh-platform-')), false);
+  assert.ok(gui.dependencies.some(dep=>dep.name==='nsh-core' && dep.source.endsWith(NSH_REVISION)));
   initialize(root);assert.deepEqual(check(root,'build').version_mirrors,['sample_tool_nsh/nsh.json']);
   const config=path.join(root,'sample_tool_nsh/nsh.json');const originalConfig=fs.readFileSync(config,'utf8');
   fs.writeFileSync(config,originalConfig.replace('0.1.0','0.2.0'));assert.throws(()=>check(root,'build'),/version|mirror/u);fs.writeFileSync(config,originalConfig);
@@ -137,7 +137,7 @@ test('add_only_preserves_existing_core_and_refuses_symlink_manifests',()=>fixtur
   assert.deepEqual(JSON.parse(metadata.stdout).metadata['agent-first-harness']['version-mirrors'],['sample_tool_nsh/nsh.json']);
   assert.deepEqual(JSON.parse(metadata.stdout).metadata['agent-first-harness']['nsh-targets'],['desktop']);
   assert.equal(JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).scripts['nsh:check'],'nsh check sample_tool_nsh');
-  assert.match(JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).scripts.dev,/run_nsh_desktop\.mjs/u);
+  assert.match(JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).scripts.dev,/^nsh run sample_tool_nsh$/u);
   assert.throws(()=>addNshAdapter(root,desktopOptions),/without an interface/u);
 }));
 
@@ -154,16 +154,23 @@ test('mobile_web_only_omits_desktop_profile',()=>fixture(parent=>{
   assert.throws(()=>createNshWorkspace(path.join(parent,'invalid'),{...input,profile:options().profile}),/desktop profile requires desktop/u);
 }));
 
-/** TUI 新建或组合目标都须在写入工程文件前失败关闭。 */
-test('tui_workspaces_are_unavailable_before_any_write',()=>fixture(parent=>{
-  const pureOptions={...options(),nshTargets:['tui'],targetPlatforms:['macos']};delete pureOptions.profile;
-  const combinedOptions={...options(),nshTargets:['desktop','tui'],targetPlatforms:['macos']};
-  for(const [name,input] of [['pure',pureOptions],['combined',combinedOptions]]) {
-    const target=path.join(parent,name);
-    assert.throws(()=>createNshWorkspace(target,input),/invalid NSH targets/u);
-    assert.equal(fs.existsSync(target),false);
+/** 单独选择 TUI 时不生成桌面宿主或打包入口，同时安装两份官方 Skills。 */
+test('tui_workspace_installs_official_skills_and_terminal_commands',()=>fixture(parent=>{
+  const input={...options(),nshTargets:['tui'],targetPlatforms:['macos']}; delete input.profile;
+  const root=path.join(parent,'tui');
+  createNshWorkspace(root,input);
+  const scripts=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).scripts;
+  assert.equal(scripts.dev,'nsh run sample_tool_nsh --target tui');
+  assert.equal(scripts['nsh:test:tui'],'nsh test sample_tool_nsh --target tui');
+  assert.equal(scripts['nsh:package'],undefined);
+  assert.equal(fs.existsSync(path.join(root,'docs/GUI_APP_PROFILE.md')),false);
+  assert.equal(fs.existsSync(path.join(root,'sample_tool_nsh/desktop.tsx')),false);
+  for(const name of ['nsh','nsh-design-guides']) {
+    const source=new URL('../../desktop-add-nsh-adapter/assets/vendor/'+name+'/',import.meta.url);
+    const destination=path.join(root,'.agents/skills',name);
+    for(const relative of fs.readdirSync(source,{recursive:true}).filter(file=>fs.statSync(new URL(file,source)).isFile())){
+      assert.deepEqual(fs.readFileSync(path.join(destination,relative)),fs.readFileSync(new URL(relative,source)));
+    }
   }
-  const invalid=path.join(parent,'invalid');
-  assert.throws(()=>createNshWorkspace(invalid,{...options(),nshTargets:['desktop']}),/web target-platforms mismatch/u);
-  assert.equal(fs.existsSync(invalid),false);
+  assert.throws(()=>createNshWorkspace(path.join(parent,'invalid'),{...input,targetPlatforms:['web']}),/target-platforms mismatch/u);
 }));

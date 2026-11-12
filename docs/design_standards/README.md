@@ -7,7 +7,7 @@
 初始化或修改 UI 时按以下顺序解析，不得先套用旧模板再局部修补：
 
 1. 读取根 Cargo 接口和目标、当前用户请求与已批准 ADR；DESKTOP 或选择桌面的 NSH 还读取实际存在的 `docs/GUI_APP_PROFILE.md`，确定壳层、`sidebar_mode`、支持页和产品专属约束。
-2. 所有图形界面先完整读取 [UI 统一设计基座](ui_foundation.md)，再从本索引选择所有前置条件都精确命中的框架和组件标准；只满足相似条件不算命中。NSH 仅支持 desktop/mobile/web 图形目标。根 `DESIGN.md` 仅作导航；既有下游没有此入口时直接使用本索引。
+2. 所有图形界面先完整读取 [UI 统一设计基座](ui_foundation.md)，再从本索引选择所有前置条件都精确命中的框架和组件标准；只满足相似条件不算命中。NSH 的 desktop、mobile 和 web 使用图形基座；TUI 使用官方终端设计指南。根 `DESIGN.md` 仅作导航；既有下游没有此入口时直接使用本索引。
 3. 对图形界面，当前 UI 基座是唯一视觉规则来源。框架、组件、第三方知识与旧 profile/ADR 只保留相容的实现和行为合同；发生冲突时修改或删除旧内容，不以“更具体”为由覆盖基座。用户之后明确批准的新设计仍可修订当前规则。
 4. 现有框架标准未列出的图形页面直接按基座与真实需求设计；不为普通 Token 调整重开批准流程。只有改变已批准产品边界、信息架构或引入新的设计方向时确认并同步适用 profile/ADR；旧像素不再构成独立风格门禁。
 5. 只把最终命中的规则下发到对应 adapter 展示层。UI 布局、主题和纯交互状态不得下沉到 shared core。
@@ -26,7 +26,7 @@
 
 所有图形界面先遵守共用基座。图形专项文档只映射相容的框架机制、组件行为和状态合同。图形 Token 语义由基座定义，各应用的实际值只在中央主题 Token 模块维护，专项文档不再并列规定颜色、字号、圆角或展示尺寸。
 
-DESKTOP 固定使用 Tauri，既有 GUI 缺失 `gui-framework` 时也按 Tauri 读取。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；仅 desktop/mobile/web 可用，统一正式 0.4.0 工具链。NSH 图形目标在共用基座之上叠加专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 NSH。
+DESKTOP 固定使用 Tauri，既有 GUI 缺失 `gui-framework` 时也按 Tauri 读取。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；仅 desktop/mobile/web/tui 可用，统一正式 0.5.0 工具链。NSH 图形目标在共用基座之上叠加专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 NSH。
 
 ## 变更治理
 

@@ -164,7 +164,7 @@ export function parseReleaseMetadataArray(source, key) {
   if (!Array.isArray(values) || values.length === 0 || values.some((value) => typeof value !== "string")) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
-  const allowed = key === "interfaces" ? ["cli", "mcp", "gui", "nsh"] : key === "nsh-targets" ? ["desktop", "mobile", "web"] : ["windows", "macos", "linux", "android", "ios", "web"];
+  const allowed = key === "interfaces" ? ["cli", "mcp", "gui", "nsh"] : key === "nsh-targets" ? ["desktop", "mobile", "web", "tui"] : ["windows", "macos", "linux", "android", "ios", "web"];
   if (new Set(values).size !== values.length || values.some((value) => !allowed.includes(value))) {
     throw new ActionError(`Cargo ${key} 元数据无效`);
   }
@@ -409,9 +409,9 @@ function assertGuiPackageReady(root) {
 }
 
 /** 判断接口、框架与平台是否有适用的 CLI、Tauri 或 NSH 本地打包 Skill。 */
-export function localPackageSupported(interfaces, platforms, guiFramework = "tauri") {
+export function localPackageSupported(interfaces, platforms, guiFramework = "tauri", nshTargets = []) {
   if (!["tauri", "nsh"].includes(guiFramework)) throw new ActionError("Cargo gui-framework 元数据无效；DESKTOP 仅支持 Tauri");
-  if (interfaces.includes("nsh")) return interfaces.length === 1 && platforms.some(platform => ["macos", "windows", "linux", "android", "ios", "web"].includes(platform));
+  if (interfaces.includes("nsh")) return interfaces.length === 1 && nshTargets.some(target => target !== "tui") && platforms.some(platform => ["macos", "windows", "linux", "android", "ios", "web"].includes(platform));
   if(platforms.some(platform=>["android","ios","web"].includes(platform))) return guiFramework === "nsh" && interfaces.length === 1 && interfaces[0] === "gui";
   const supported = guiFramework === "nsh" ? ["macos", "windows", "linux", "android", "ios", "web"] : ["macos", "windows"];
   return interfaces.includes("cli") || (interfaces.includes("gui") && platforms.some((platform) => supported.includes(platform)));
@@ -430,7 +430,7 @@ export function selectLocalPackageRoute({ interfaces, platforms, guiFramework = 
   const routes = [];
   if (interfaces.includes("nsh")) {
     if (interfaces.length !== 1 || guiFramework !== "tauri" || !Array.isArray(nshTargets) || nshTargets.length === 0 ||
-        new Set(nshTargets).size !== nshTargets.length || nshTargets.some(target => !["desktop", "mobile", "web"].includes(target))) return null;
+        new Set(nshTargets).size !== nshTargets.length || nshTargets.some(target => !["desktop", "mobile", "web", "tui"].includes(target))) return null;
     if (nshTargets.includes("desktop") && onHost) routes.push(result("nsh", hostPlatform, "desktop-build-nsh-release"));
     if (nshTargets.includes("mobile") && hostPlatform === "macos" && selected.has("ios")) routes.push(result("nsh", "ios", "desktop-build-nsh-release"));
     if (nshTargets.includes("mobile") && selected.has("android")) routes.push(result("nsh", "android", "desktop-build-nsh-release"));
@@ -488,7 +488,7 @@ function assertLocalPackageSupported(root) {
   const framework = releaseMetadata.framework ?? "tauri";
   const platforms = metadataArray(root, "target-platforms");
   const nshTargets = readNshTargets(root, interfaces, releaseMetadata);
-  if (!localPackageSupported(interfaces, platforms, framework)) {
+  if (!localPackageSupported(interfaces, platforms, framework, nshTargets)) {
     throw new ActionError("当前接口/目标平台没有现有本地打包 Skill；请选择 push_release_branch");
   }
   if (interfaces.includes("gui") && framework === "tauri") assertGuiPackageReady(root);
@@ -501,7 +501,7 @@ function assertLocalPackageSupported(root) {
         ["mobile", ["android", "ios"]],
         ["web", ["web"]],
       ];
-      if (groups.some(([target, members]) => nshTargets.includes(target) !== platforms.some(platform => members.includes(platform)))) throw new ActionError("NSH 目标类别与具体平台不匹配");
+      if (groups.some(([target, members]) => (nshTargets.includes(target) || target === "desktop" && nshTargets.includes("tui")) !== platforms.some(platform => members.includes(platform)))) throw new ActionError("NSH 目标类别与具体平台不匹配");
     }
     const metadata = JSON.parse(spawnSync("cargo", ["metadata", "--no-deps", "--format-version", "1"], { cwd: root, encoding: "utf8" }).stdout);
     const id = metadata.metadata?.["agent-first-harness"]?.["project-id"];
@@ -512,7 +512,6 @@ function assertLocalPackageSupported(root) {
     if (config.rust !== "." || (modern ? Object.hasOwn(config, "root") : config.root !== "App")) throw new ActionError("NSH Mixed/Rust 入口无效");
     if (modern) {
       regularFile(path.join(path.dirname(configPath), "App.tsx"), "NSH Mixed TSX 入口");
-      regularFile(path.join(root, ".agents/skills/desktop-build-nsh-release/scripts/nsh_desktop_package.mjs"), "NSH Mixed 组包器");
     }
     regularFile(path.join(root, ".agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs"), "NSH packager");
     assertDependencyLocks(root, { rustTestManifests: ["Cargo.toml"] });

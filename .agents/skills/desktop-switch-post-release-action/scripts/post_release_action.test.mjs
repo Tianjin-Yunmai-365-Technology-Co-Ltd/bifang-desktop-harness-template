@@ -145,7 +145,7 @@ test("local_package_route_is_single_target_and_requires_explicit_reselection", (
   assert.deepEqual(choose({ ...nsh, nshTargets: ["web"], platforms: ["web"] }),
     { interface: "nsh", target: "web", skill: "desktop-build-nsh-release" });
   assert.equal(choose({ ...nsh, guiFramework: "nsh" }), null);
-  for (const nshTargets of [null, [], ["desktop", "tui"], ["desktop", "desktop"], ["web", "unknown"]]) {
+  for (const nshTargets of [null, [], ["tui"], ["desktop", "desktop"], ["web", "unknown"]]) {
     assert.equal(choose({ ...nsh, nshTargets }), null);
   }
   assert.deepEqual(choose({ ...nsh, requestedInterface: "nsh", requestedTarget: "web" }),
@@ -172,7 +172,6 @@ test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) 
   const build = path.join(f.root, ".agents", "skills", "desktop-build-nsh-release", "scripts");
   fs.mkdirSync(build, { recursive: true });
   fs.writeFileSync(path.join(build, "build_nsh_release.mjs"), 'export {};\n');
-  fs.writeFileSync(path.join(build, "nsh_desktop_package.mjs"), 'export {};\n');
   fs.writeFileSync(config, '{"rust":".","root":"App"}\n');
   assert.match(f.run("set", setOptions("local_package"), 2).error, /Mixed\/Rust 入口/u);
   fs.writeFileSync(config, '{"rust":"."}\n');
@@ -196,8 +195,8 @@ test("nsh_mixed_local_package_requires_tsx_and_preserves_legacy_gui_shape", (t) 
     assert.match(f.run("check", [], 2).error, /顶层 NSH 不声明 GUI 框架/u);
   }
   fs.writeFileSync(cargo, unlocked.replace('nsh-targets = ["desktop", "web"]','nsh-targets = ["desktop", "web", "tui"]'));
-  assert.match(f.run("check",[],2).error,/nsh-targets 元数据无效/u);
-  assert.match(f.run("set",setOptions("local_package","local_package"),2).error,/nsh-targets 元数据无效/u);
+  assert.equal(f.run("check").post_release_action,"local_package");
+  assert.equal(f.run("set",setOptions("local_package","local_package")).post_release_action,"local_package");
   assert.equal(fs.readFileSync(f.policy,"utf8"),policyBeforeTui);
 
   const legacy = fixture(t);

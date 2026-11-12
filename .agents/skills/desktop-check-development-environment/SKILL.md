@@ -45,4 +45,4 @@ DESKTOP 固定使用 Tauri，既有 GUI 缺省兼容 Tauri。顶层 NSH 传 `--i
 
 顶层 NSH 与其他接口共用 Node/npm 工程工具门禁，使用 `--interfaces NSH`，不要求 pnpm 或 `--gui-framework`。只有真实 NSH 构建已因 E0463 缺少 wasm32-unknown-unknown（Web）或 armv7-linux-androideabi（默认 Android 32 位 ABI）标准库失败时，调用 scripts/recover_nsh_target.mjs（只读），用 --target 指定上述精确目标，需要安装时传 --install-missing。该入口只给当前 Rust 工具链添加官方标准库目标，不升级工具链、不改 PATH、不安装其他工具；安装后复读 Rust 版本与实际 libdir，再重试原构建。该精确目标是本 Skill 受管 Rust 集合的 NSH 扩展；其他移动 SDK/签名不由本入口安装。
 
-NSH CLI 是顶层 NSH 的显式工具扩展。真实命令缺失或版本不匹配时，先读 `$desktop-add-nsh-adapter` 的运行时引用，核对主机/架构与官方 v0.4.0 发行资产及 SHA-256，再按用户标准全局安装位置安装；复读 `nsh --version` 和实际可执行路径，与 runtime revision 一致才重试。不得默认下载 latest、降级其他工具、把 CLI 安装进项目，或在没有真实缺失/不匹配时例行重装。
+NSH CLI 是顶层 NSH 的显式工具扩展。真实命令缺失或版本不匹配时，先读 `$desktop-add-nsh-adapter` 的运行时引用，核对主机/架构与官方 v0.5.0 发行资产及 SHA-256，再按用户标准全局安装位置安装；复读 `nsh --version` 和实际可执行路径，与 runtime revision 一致才重试。不得默认下载 latest、降级其他工具、把 CLI 安装进项目，或在没有真实缺失/不匹配时例行重装。

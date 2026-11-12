@@ -217,8 +217,8 @@ GUI 的本地生产构建和产物存在检查可在批准渠道允许时使用�
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立分派 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 复用通用本地 Git 发布、版本、双语日志和 release 上下文。新顶层 NSH 桌面先用 `nsh build --release` 生成 Mixed TSX bundle，再编译与装配自定义 AppKit、Win32 或 GTK 宿主；九字段桌面 profile 精确决定托盘、自启、单实例、深链接，原生多窗口固定提供，通知与 OS 全局快捷键必须禁用。macOS app 的 URL scheme 随包声明；Windows/Linux 仅在深链接启用时附带注册脚本，用户安装或注册的真实行为仍须验证。Android 开发签名 APK、iOS 未签名设备 app/模拟器临时签名 app，以及 Web 完整静态目录继续用正式 NSH 0.4.0 Mixed runner 打包。正式 IPA 与渠道签名需要另行明确身份和官方流程。不得走 Tauri 前端/NSIS。`local_package` 只可用于已实现的 desktop/mobile/web 持久目标。本机不可构建目标如实阻断，不推断已验证。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 分派 `$desktop-build-nsh-release`；旧 GUI/NSH 元数据仅保留读取兼容。新 NSH 的 desktop、mobile、Web 均走官方 `nsh package`；TUI 只支持官方运行与测试，0.5.0 没有 TUI 打包目标。组合工程的移动/Web 包通过临时 Mixed 入口剔除桌面窗口、单实例和 URL Scheme 声明。构建复用版本、Git tag/上下文、非空 Rust 与 NSH 测试。桌面包由对应原生宿主生成；Android 默认开发签名 APK，iOS 模拟器为 ad-hoc app、设备为未签名设备 app；正式 IPA 使用官方签名流程。Web 输出完整静态站点。关于页的双语更新日志须在真实应用中验证，sidecar 不冒充内部资源。NSH 生成的运行时 workspace 未证明可传递 tracked lock，受管打包仍失败关闭。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。
 
-NSH 显式 `dependency-lock-policy = "tracked"` 时，生成的运行时 workspace 尚不能传播受跟踪 Cargo 锁，构建 helper 在编译前拒绝；发布后动作选择也须提前拒绝 `local_package`。锁策略适用且本机存在已选正式 desktop/mobile/web 目标时，`route` 只选择一个候选，其他目标仍按独立请求构建。
+NSH 显式 `dependency-lock-policy = "tracked"` 时，生成的运行时 workspace 尚不能传播受跟踪 Cargo 锁，构建 helper 在编译前拒绝；发布后动作选择也须提前拒绝 `local_package`。锁策略适用且本机存在已选正式 desktop/mobile/web 打包目标时，`route` 只选择一个候选，其他目标仍按独立请求构建。

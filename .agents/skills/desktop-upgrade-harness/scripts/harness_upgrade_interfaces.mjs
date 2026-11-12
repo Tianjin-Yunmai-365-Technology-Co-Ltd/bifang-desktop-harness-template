@@ -7,8 +7,8 @@ import { UpgradeError, assertSafePath, lstatOrNull, snapshotFile } from "./harne
 const METADATA_TABLE = ["workspace", "metadata", "agent-first-harness"];
 const INTERFACES = new Set(["cli", "mcp", "gui", "nsh"]);
 const FRAMEWORKS = new Set(["tauri", "nsh"]);
-const NSH_TARGETS = new Set(["desktop", "mobile", "web"]);
-const NSH_STABLE_REV = "e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3";
+const NSH_TARGETS = new Set(["desktop", "mobile", "web", "tui"]);
+const NSH_STABLE_REV = "f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1";
 const TAURI_SKILLS = new Set([
   "desktop-add-gui-adapter", "mantine-list-view", "desktop-add-gui-system-locale",
   "desktop-add-gui-window-state", "desktop-add-gui-dialog",
@@ -110,7 +110,7 @@ function hasNonstableNshRuntime(source) {
     const version = /\bversion\s*=\s*"([^"]+)"/u.exec(dependency)?.[1];
     const git = /\bgit\s*=\s*"([^"]+)"/u.exec(dependency)?.[1];
     const revision = /\brev\s*=\s*"([0-9a-f]{40})"/u.exec(dependency)?.[1];
-    if (version !== "0.4.0" || git !== "https://github.com/longbridge/nsh.git" || revision !== NSH_STABLE_REV) return true;
+    if (version !== "0.5.0" || git !== "https://github.com/longbridge/nsh.git" || revision !== NSH_STABLE_REV) return true;
   }
   return false;
 }
@@ -171,7 +171,7 @@ export function parseInterfaceSelection(source) {
     if (!nshTargets.length || nshTargets.some((target) => !NSH_TARGETS.has(target)) || new Set(nshTargets).size !== nshTargets.length) {
       throw new UpgradeError("Cargo nsh-targets 包含未知或重复目标");
     }
-    if (hasNonstableNshRuntime(source)) throw new UpgradeError("Cargo NSH 运行时须先迁移到正式 v0.4.0 固定提交");
+    if (hasNonstableNshRuntime(source)) throw new UpgradeError("Cargo NSH 运行时须先迁移到正式 v0.5.0 固定提交");
     return { interfaces, guiFramework: null, nshTargets };
   }
   if (values.has("nsh-targets")) throw new UpgradeError("Cargo nsh-targets 只适用于顶层 NSH 接口");

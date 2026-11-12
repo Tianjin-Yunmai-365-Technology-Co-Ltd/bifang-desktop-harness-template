@@ -1,6 +1,6 @@
-/** 当前仅支持正式发布的 NSH 0.4.0 运行时。 */
-export const NSH_STABLE_REVISION = 'e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3';
-export const NSH_TARGETS = Object.freeze(['desktop', 'mobile', 'web']);
+/** 当前仅支持正式发布的 NSH 0.5.0 运行时。 */
+export const NSH_STABLE_REVISION = 'f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1';
+export const NSH_TARGETS = Object.freeze(['desktop', 'mobile', 'web', 'tui']);
 
 /** 校验受支持能力集合，并返回唯一正式工具链提交。 */
 export function nshRevisionForTargets(targets) {

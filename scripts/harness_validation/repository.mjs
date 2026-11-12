@@ -278,6 +278,8 @@ export function validateMarkdownLinks(errors, files = trackedFiles(), root = ROO
   const markdownFiles = files.filter((relative) => relative.endsWith(".md"));
   const linkPattern = /!?\[[^\]]*\]\(([^)]+)\)/gu;
   for (const relative of markdownFiles) {
+    // These two upstream snapshots resolve relative links against the NSH website.
+    if (/^\.agents\/skills\/desktop-add-nsh-adapter\/assets\/vendor\/(?:nsh\/references\/coding-guides|nsh-design-guides\/references\/design-guides)\.md$/u.test(relative)) continue;
     const filePath = path.join(root, relative);
     let text;
     try {

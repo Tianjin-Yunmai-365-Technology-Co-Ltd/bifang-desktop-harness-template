@@ -1,16 +1,14 @@
 ---
 name: desktop-test-nsh-initialization-e2e
-description: 在 NSH 中性下游基线前执行非空 Rust/NSH 测试、所选目标真实本机运行或打包与 Computer Use 初始化检查，完成后删除本入口。
+description: 在 NSH 中性下游基线前执行非空 Rust/NSH 测试与已选目标的实际运行检查，完成后删除本入口。
 ---
 
 # NSH 初始化真实检查
 
-只在根 Cargo `interfaces = ["nsh"]` 且尚未裁剪/创建唯一基线时调用；旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 的既有下游按原事实读取。不消费候选 E2E 偏好，不生成产品验收结论。先读 `nsh-targets`、具体目标平台和 `$desktop-add-nsh-adapter` 的运行时引用；只有选择桌面时读取生成的 `docs/GUI_APP_PROFILE.md`。
+仅用于尚未裁剪或创建唯一基线的顶层 NSH 下游。先读 Cargo `nsh-targets`、具体目标平台和 [$desktop-add-nsh-adapter](../desktop-add-nsh-adapter/SKILL.md) 的运行时引用；只有选择 desktop 才读生成的 `docs/GUI_APP_PROFILE.md`。此门禁独立于候选 E2E 偏好，不作产品验收结论。
 
-1. `cargo test --workspace --all-targets --all-features` 必须非空；`nsh check` 与所选 desktop/mobile/Web 目标的 `nsh test .` 必须通过。先核对全局 CLI 为 `nsh 0.4.0 (e626a8d)`，根 Cargo 全部 NSH 依赖固定到正式提交 `e626a8dd8f8d8b277b9507cfd5ac74d0e67020f3`。TSX 渲染测试还要调用 Mixed 原生模块的中性 core API；启用深链接时覆盖订阅前入队、通知与主动领取交错、窗口关闭后的未领取项转移和同一单实例请求重试不重复交付。`nsh/test` 的模拟 host handler 只证明协议映射，不证明 OS 宿主行为。
-2. 选择桌面时使用 `$desktop-build-nsh-release` 的 `local` 模式构建本机 Mixed bundle 与自定义宿主并组包，启动该次真实 app；不能使用会生成单窗口 runner 的 `nsh package` 冒充当前桌面入口。使用 Computer Use 检查双语标题、设置、Light/Dark/System、侧栏、条件关于/赞助页面和禁用入口缺席；检查默认多窗口的新建、切换、显示全部、关闭与最后窗口生命周期，页面会话按窗口隔离，退出后重置，偏好保持。检查原生应用菜单动作与语言变化；应用菜单快捷键不算 OS 全局快捷键。点击控件周围不得触发。
-3. 按桌面 profile 逐项实测：托盘启用时图标可见，关窗隐藏、菜单恢复和显式退出；托盘禁用时关最后窗口退出。单实例启用时二次启动转给原进程并恢复现有窗口，禁用时不安装该限制。深链接启用时从实际安装后的 OS scheme 冷/热启动只触发受限恢复动作，且单实例已启用；禁用时无 scheme 注册与监听。自启启用时读取真实 OS 状态、切换、失败回读并恢复测试前状态；禁用时无登录项操作和设置入口。目标宿主无法观察或恢复任一已启用能力时阻断初始化，不用源码和模拟 handler 代证。
-4. 选择 Web 时经 `$desktop-build-nsh-release` 的 `local --target web` 入口构建实际官方宿主包，再用本地静态服务器和浏览器检查完整包、窄屏、按钮及主题。选择移动时以可用模拟器/设备执行真实构建与安装；不可用设备/宿主明确 Not verified，不能把桌面或 headless 测试当移动通过。macOS 上先检查当前可操作的模拟器界面，包括 Device Hub（`com.apple.dt.Devices`，若已安装或运行）和 Simulator.app；`simctl` 能截图但未显示 Simulator.app 窗口，不足以判定模拟器无法点击。通过 Computer Use 实际进入设置并检查导航、语言和主题；确无可操作界面时才记录未验证及已查工具。组合工程的受管构建入口会在临时 Mixed 源入口剔除 `capabilities.host` 后调用官方 `nsh package`；直接以原桌面成员打移动/Web 包会携带桌面 host 声明，不符合隔离要求。mobile/Web 最终生成物不得注册桌面 host 方法或装入桌面菜单。用户要求全流程时持续修复可执行范围；不可得硬前置如签名/目标宿主如实报告。
-5. 系统通知与 OS 全局快捷键保持 unavailable/disabled，不能把应用菜单快捷键算作全局注册；初始壳层不发送通知或注册 OS 热键。还原本次修改的偏好与自启状态，退出 owned 进程，保留脱敏的工程测试证据。测试专用夹具不得伪装正式品牌或产品。
-
-初始化编排继续复制规范、保留适用 Skills、建立受保护版本状态、裁掉初始化目录和本 Skill，最后创建独立 main 唯一基线与 clean 工作树。缺少真实本机观察时不得宣称初始化 E2E 通过。后续最终候选使用 `$desktop-test-final-artifact-e2e`。
+1. 复核 CLI `nsh 0.5.0 (f4d68f7)` 与 Cargo 固定提交、项目本地两份官方 Skill、非空 `cargo test --workspace --all-targets --all-features`、`nsh check` 和 `nsh test`。启用深链接时覆盖官方事件的启动与运行中交付；headless 测试不证明 OS 注册。
+2. desktop 用 `$desktop-build-nsh-release` 的 `local` 模式生成官方本机包，启动该次应用并通过 Computer Use 检查多窗口、新建/显示全部/关闭与最后窗口生命周期、应用菜单、双语、三态主题、窄屏、侧栏及条件支持页。已选托盘验证关窗隐藏、菜单恢复与退出；单实例验证二次启动；深链接在官方声明或注册后分别验证冷/热启动。不验证或启用中性模板未接入的自启、通知和 OS 全局快捷键。
+3. TUI 运行项目 `nsh:test:tui`，在真实终端通过 `dev:tui` 确认可见内容、窄终端、Tab/Enter 进入设置、切换语言或主题、退出和终端恢复。无需伪造打包步骤。
+4. Web 通过 `local --target web` 构建官方静态站点，启动本机静态服务器，用浏览器检查实际包、窄屏、设置及主题。移动在所选模拟器/设备检查导航、安全区、语言和主题；macOS 可分别检查 Simulator.app 与 Device Hub，截图不能代替交互。组合项目通过受管打包入口隔离桌面窗口和协议声明。
+5. 还原本次验证改动的偏好与宿主注册。精确报告已测与未测宿主、可观察结果及不能完成的门禁；未执行的桌面能力、设备或终端行为不能记作通过。

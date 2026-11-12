@@ -46,7 +46,7 @@ test('mobile Mixed app uses safe-area bottom tabs and follows its own theme', ()
   assert.deepEqual(config.capabilities, { statusBar: true });
 });
 
-test('combined targets retain desktop host while mobile receives status-bar permission', () => {
+test('combined targets retain official desktop windows while mobile receives status-bar permission', () => {
   const mixed = renderNshAdapterFiles({
     ...base, targetPlatforms: ['macos', 'android', 'ios'], nshTargets: ['desktop', 'mobile'],
     profile: desktopProfile,
@@ -54,11 +54,11 @@ test('combined targets retain desktop host while mobile receives status-bar perm
   const mixedConfig = JSON.parse(mixed.get('sample_tool_nsh/nsh.json'));
   assert.deepEqual(mixedConfig.statusBar, { foreground: 'auto' });
   assert.equal(mixedConfig.capabilities.statusBar, true);
-  assert.ok(mixedConfig.capabilities.host.includes('window.list'));
+  assert.deepEqual(mixedConfig.capabilities.windows, { kinds: ['normal'], levels: ['normal'] });
 
   const web = renderNshAdapterFiles({ ...base, targetPlatforms: ['web'], nshTargets: ['web'] });
   const webConfig = JSON.parse(web.get('sample_tool_nsh/nsh.json'));
   assert.equal(webConfig.statusBar, undefined);
-  assert.equal(webConfig.capabilities, undefined);
+  assert.deepEqual(webConfig.capabilities, {});
   assert.doesNotMatch(web.get('sample_tool_nsh/App.test.tsx'), /mobile-bottom-nav|__MOBILE_TEST__/u);
 });

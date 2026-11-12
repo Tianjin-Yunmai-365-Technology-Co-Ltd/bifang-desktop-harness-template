@@ -27,16 +27,14 @@ test('disabled support pages and autostart leave no desktop imports, assets, or 
   }
 });
 
-test('enabled support pages use structured copy, available content width, and host-backed switch', () => {
-  const files = renderNshAdapterFiles(options(['about_page', 'sponsor_page', 'autostart']));
+test('enabled support pages use structured copy, available content width', () => {
+  const files = renderNshAdapterFiles(options(['about_page', 'sponsor_page']));
   const member = 'sample_tool_nsh/';
   const app = files.get(member + 'App.tsx');
   const about = files.get(member + 'about.tsx');
   const sponsor = files.get(member + 'sponsor.tsx');
   const desktop = files.get(member + 'desktop.tsx');
-  const labels = files.get(member + 'translations.ts');
   assert.match(app, /\{page\(\) === "settings" &&/u);
-  assert.match(app, /\{nativeDesktop && <AutostartSetting language=\{language\(\)\} \/>\}/u);
   assert.match(app, /SponsorPage language=\{language\(\)\} availableWidth=\{Math\.max\(0, windowSize\(\)\.width - \(narrow\(\) \? 0 : Number\(sidebarWidth\(\)\)\)/u);
   const content = JSON.parse(about.match(/const CONTENT_EN = (\{[^\n]+\});/u)?.[1] ?? 'null');
   assert.equal(content.owner, 'Fixture Owner');
@@ -46,10 +44,6 @@ test('enabled support pages use structured copy, available content width, and ho
   assert.equal(typeof content.releaseNotes, 'string');
   assert.match(about, /labels\.disclaimerItems\.map/u);
   assert.match(sponsor, /props\.availableWidth|tokens\.sponsorCardMinWidth \* 3|backgroundImage|paymentImageSize/u);
-  assert.match(desktop, /import \{ Switch as BaseSwitch \} from "nsh\/base";/u);
-  assert.match(desktop, /<BaseSwitch|checked=\{actual\(\) === true\}|disabled=\{actual\(\) === null \|\| busy\(\)\}/u);
-  assert.match(desktop, /autostart\.get|autostart\.set|start_at_login_description|actual\(\) === null && <Action/u);
-  assert.match(labels, /start_at_login_description/u);
   assert.doesNotMatch(desktop, /__AUTOSTART_IMPORT__|__[A-Z][A-Z_]+__/u);
 });
 

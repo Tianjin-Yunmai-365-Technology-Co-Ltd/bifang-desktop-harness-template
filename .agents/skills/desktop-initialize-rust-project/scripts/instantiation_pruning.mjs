@@ -42,6 +42,18 @@ export function validatePreparation(preparation, current) {
     if (lines.length !== GUI_FIELDS.length || lines.some((line, index) => line !== `${GUI_FIELDS[index]}: ${values[GUI_FIELDS[index]]}`)) throw new Error('GUI profile 与已确认九字段不一致');
   }
   validateNeutralWorkspace(values, current);
+  if (selection.interfaces.includes('nsh')) {
+    const vendor = '.agents/skills/desktop-add-nsh-adapter/assets/vendor/';
+    for (const name of ['nsh', 'nsh-design-guides']) {
+      const prefix = vendor + name + '/';
+      if (!current.has(prefix + 'SKILL.md')) throw new Error(`NSH 官方 Skill 来源缺失：${name}`);
+      for (const [relative, source] of current) {
+        if (!relative.startsWith(prefix)) continue;
+        const installed = '.agents/skills/' + name + '/' + relative.slice(prefix.length);
+        if (!current.get(installed)?.bytes.equals(source.bytes)) throw new Error(`NSH 官方 Skill 未完整安装：${installed}`);
+      }
+    }
+  }
   const seen = new Set();
   for (const entry of preparation.files) {
     if (!entry || typeof entry.path !== 'string' || seen.has(entry.path)) throw new Error('准备文件清单含非法或重复项');
@@ -126,6 +138,8 @@ export function validateFinalReferences(files, removedSkills) {
     const text = file.bytes.toString('utf8');
     if (/\.(?:md|yaml)$/u.test(relative)) {
       if ([...removedSkills].some(name => text.includes(`$${name}`) || text.includes(`.agents/skills/${name}/`))) throw new Error(`裁剪后仍有活动 Skill 路由：${relative}`);
+      // These byte-verified upstream docs carry links relative to nsh.dev.
+      if (/^\.agents\/skills\/(?:nsh\/references\/coding-guides|nsh-design-guides\/references\/design-guides)\.md$/u.test(relative)) continue;
       for (const match of text.matchAll(/\[[^\]\n]*\]\(([^)\n]+)\)/gu)) {
         const target = match[1].trim().replace(/^<|>$/gu, '').split('#')[0];
         if (!target || /^(?:[a-z][a-z0-9+.-]*:|\/)/iu.test(target) || target.includes('<') || target.includes('>')) continue;

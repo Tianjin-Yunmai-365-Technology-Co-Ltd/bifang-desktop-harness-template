@@ -202,7 +202,7 @@ test('instantiation_excludes_retired_interface_assets_from_its_snapshot', () => 
   assert.equal(includedSourcePath('.agents/skills/desktop-initialize-rust-project/assets/vendor/gpui-kit-skills/source.json'), false);
   assert.equal(includedSourcePath('.agents/skills/desktop-initialize-rust-project/scripts/ensure_gpui_kit_skills.mjs'), false);
   assert.equal(includedSourcePath('.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_tui.mjs'), false);
-  assert.equal(includedSourcePath('.agents/skills/desktop-add-nsh-adapter/scripts/run_nsh_desktop.mjs'), true);
+  assert.equal(includedSourcePath('.agents/skills/desktop-add-nsh-adapter/assets/vendor/nsh/SKILL.md'), true);
   assert.equal(includedSourcePath('.agents/skills/desktop-add-gui-adapter/SKILL.md'), true);
 });
 

@@ -13,9 +13,10 @@ export const SOURCE_ROOT = fs.realpathSync(fileURLToPath(new URL('../../../../',
 /** 明确标注为测试输入的确认用于验证协议本身，绝不作为真实用户创建授权。 */
 export function confirmedFixtureInput(target, framework = null, sourceRoot = SOURCE_ROOT) {
   const nsh = framework?.startsWith('nsh') ?? false;
-  const desktop = framework !== 'nsh-mobile-web';
+  const desktop = !['nsh-mobile-web', 'nsh-tui'].includes(framework);
+  const nshTargets = framework === 'nsh-tui' ? ['tui'] : framework === 'nsh-mobile-web' ? ['mobile', 'web'] : ['desktop'];
   const fields = { name_zh: '回归工具', name_en: 'Regression Tool', project_id: 'regression_tool', project_path: target, owner: 'Fixture Owner', interfaces: nsh ? ['nsh'] : framework ? ['gui'] : ['cli'] };
-  if (framework) Object.assign(fields, { ...(nsh ? { nsh_targets: framework === 'nsh-mobile-web' ? ['mobile', 'web'] : ['desktop'] } : { gui_framework: framework }), ...(desktop ? Object.fromEntries(GUI_FIELDS.map(key => [key, key === 'sidebar_mode' ? 'detailed' : 'disabled'])) : {}) });
+  if (framework) Object.assign(fields, { ...(nsh ? { nsh_targets: nshTargets } : { gui_framework: framework }), ...(desktop ? Object.fromEntries(GUI_FIELDS.map(key => [key, key === 'sidebar_mode' ? 'detailed' : 'disabled'])) : {}) });
   const form = { schemaVersion: 1, entry: 'instantiate', harnessRoot: sourceRoot, answers: Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, { value, source: 'user:测试夹具确认，非真实项目授权' }])) };
   const evaluation = evaluateInitializationForm(form);
   if (evaluation.stage !== 'review') throw new Error(`测试表单未完整：${evaluation.stage}`);
@@ -50,5 +51,11 @@ export function writeNeutralWorkspace(f) {
     write(`${member}/src/${member.endsWith('_core') ? 'lib' : 'main'}.rs`, member.endsWith('_core') ? '//! 中性核心夹具。\n/// 返回中性状态。\npub fn status() -> bool { false }\n' : '/// 测试夹具的适配器入口。\nfn main() {}\n');
   }
   if (values.gui_framework || values.nsh_targets?.includes('desktop')) write('docs/GUI_APP_PROFILE.md', `# GUI App Profile\n\n\`\`\`gui-initialization-config\n${GUI_FIELDS.map(key => `${key}: ${values[key]}`).join('\n')}\n\`\`\`\n`);
+  if (values.interfaces.includes('nsh')) {
+    for (const name of ['nsh', 'nsh-design-guides']) {
+      fs.cpSync(path.join(f.target, '.agents/skills/desktop-add-nsh-adapter/assets/vendor', name),
+        path.join(f.target, '.agents/skills', name), { recursive: true, errorOnExist: true, force: false });
+    }
+  }
   initialize(f.target);
 }

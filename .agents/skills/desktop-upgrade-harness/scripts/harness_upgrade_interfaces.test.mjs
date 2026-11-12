@@ -28,7 +28,7 @@ test("desktop_upgrade_rejects_retired_framework_without_mutation", (t) => {
 test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
   assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop", "mobile", "web"]\n`), { interfaces: ["nsh"], guiFramework: null, nshTargets: ["desktop", "mobile", "web"] });
   assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["gui"]\ngui-framework = "nsh"\n`), { interfaces: ["gui"], guiFramework: "nsh" });
-  assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`), /未知或重复目标/u);
+  assert.deepEqual(parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\nnsh-targets = ["tui"]\n`).nshTargets, ["tui"]);
   for (const suffix of ['nsh-targets = []', 'nsh-targets = ["desktop", "desktop"]', 'nsh-targets = ["unknown"]']) {
     assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["nsh"]\n${suffix}\n`), /Cargo nsh-targets/u);
   }
@@ -40,9 +40,9 @@ test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
 /** 升级拒绝与正式运行时不一致的依赖，即使项目声明了受支持的目标。 */
 test("nsh_upgrade_rejects_unpinned_runtime_dependencies", () => {
   const revision = "beeb9fc7707e0d4a195a4f7274f77b30e134c500";
-  const source = `${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop"]\n[workspace.dependencies]\nnsh-core = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.4.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n`;
-  assert.throws(() => parseInterfaceSelection(source), /正式 v0\.4\.0/u);
-  assert.throws(() => parseInterfaceSelection(source.replace(/^nsh-base.*$/mu, '')), /正式 v0\.4\.0/u);
+  const source = `${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop"]\n[workspace.dependencies]\nnsh-core = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n`;
+  assert.throws(() => parseInterfaceSelection(source), /正式 v0\.5\.0/u);
+  assert.throws(() => parseInterfaceSelection(source.replace(/^nsh-base.*$/mu, '')), /正式 v0\.5\.0/u);
 });
 
 /** 未知值、错类型、重复键和非法接口不能降级到默认值。 */
