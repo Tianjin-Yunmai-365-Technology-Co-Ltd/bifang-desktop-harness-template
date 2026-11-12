@@ -103,4 +103,4 @@ node .agents/skills/desktop-instantiate-project/scripts/resolve_project_target.m
 
 Harness 源只接收本表固定初始化字段与所选路径精确要求的身份选择。产品目的、输入/输出、业务规则、成功标准、产品页面/文案/数据、风险、副作用、远程地址、凭据、反馈/发布渠道、产物格式和自定义发布要求不属于表单。即使同时提供，也不得解析、记录、复制或实施；只说明超出模板阶段，要求完成实例化并切换到唯一 `targetRoot` 后通过 `$desktop-define-product` 重新提出，不复述或保存具体内容。
 
-NSH 扩展：顶层第四项为 `NSH：下一代全平台开发框架`，下设桌面、移动、Web、TUI；DESKTOP 固定派生 Tauri。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。TUI 无桌面 profile、Logo 或官方打包目标。
+NSH 扩展：顶层第四项为 `NSH：下一代全平台开发框架`，下设桌面、移动、Web、TUI；DESKTOP 固定派生 Tauri。仅 desktop 生成九字段桌面 profile，问询按本节条件顺序执行。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。TUI 无桌面 profile、Logo 或官方打包目标。

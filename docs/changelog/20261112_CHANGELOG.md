@@ -4,13 +4,13 @@
 
 ## 2026-11-12 变化
 
-- `HARNESS-NSH-WORKFLOW-STABILITY`（`required_version = pending`）：按能力依赖顺序收集 NSH 桌面问题，提前校验包身份，裁剪前逐目标校验运行证据。开发脚本使用官方目标名称与独立测试入口。组合项目保留资源布局打包，批次返回准确产物与签名元数据，支持官方架构、Android AAB 和 iOS IPA 选项。
+- `HARNESS-NSH-WORKFLOW-STABILITY`（`required_version = 202611121850`）：按能力依赖顺序收集 NSH 桌面问题，提前校验包身份，裁剪前逐目标校验运行证据。开发脚本使用官方目标名称与独立测试入口。组合项目保留资源布局打包，批次返回准确产物与签名元数据，支持官方架构、Android AAB 和 iOS IPA 选项。
 
-- `HARNESS-NSH-05-OFFICIAL`（`required_version = pending`）：新 NSH 项目固定官方 0.5.0。桌面以官方多窗口、托盘、单实例、URL Scheme 和打包替换自定义宿主；新增 TUI 运行与测试，不提供官方未实现的 TUI 打包；选择 NSH 自动安装项目本地官方编码及设计 Skills。见 [ADR-20261112-003](../adr/20261112_ADR.md)。
+- `HARNESS-NSH-05-OFFICIAL`（`required_version = 202611121850`）：新 NSH 项目固定官方 0.5.0。桌面以官方多窗口、托盘、单实例、URL Scheme 和打包替换自定义宿主；新增 TUI 运行与测试，不提供官方未实现的 TUI 打包；选择 NSH 自动安装项目本地官方编码及设计 Skills。见 [ADR-20261112-003](../adr/20261112_ADR.md)。
 
 ## 2026-11-12 移除
 
-- `HARNESS-RETIRE-TUI-GPUI-LEGACY`（`required_version = pending`）：移除剩余 TUI 预览工具、生成与打包代码。新下游和升级候选仅传播受支持的接口；退役工程条目退出来源锁，已有项目文件由原项目持有。该决定移除的是旧预览与独立适配器；正式 NSH TUI 以当日新条目为准。见 [ADR-20261112-002](../adr/20261112_ADR.md)。
+- `HARNESS-RETIRE-TUI-GPUI-LEGACY`（`required_version = 202611121850`）：移除剩余 TUI 预览工具、生成与打包代码。新下游和升级候选仅传播受支持的接口；退役工程条目退出来源锁，已有项目文件由原项目持有。该决定移除的是旧预览与独立适配器；正式 NSH TUI 以当日新条目为准。见 [ADR-20261112-002](../adr/20261112_ADR.md)。
 
 ## 2026-11-08 变化
 
@@ -68,7 +68,7 @@
 ## 当前能力与契约
 
 - 仓库边界与初始化：Harness 仅维护可复用工程及中性终端下游；CLI、MCP、DESKTOP、NSH 为顶层选择，默认 CLI，NSH 当前单独选择；先确认双语身份、唯一根、具体平台、NSH 子目标、策略和所选能力，再建立独立 Git 并裁剪派生入口。见 [项目入口](../../AGENTS.md) 与 [初始化 Skill](../../.agents/skills/desktop-instantiate-project/SKILL.md)。
-- 核心与接口：领域规则、用例和权威状态在 core；CLI 非交互机器协议与 MCP stdio 各自薄适配，DESKTOP 使用 Tauri，NSH 以独立薄适配器服务桌面、移动和 Web。文件/进程能力独立批准。见 [工程规则](../ENGINEERING_RULES.md)、[Rust 基线](../RUST_CLI_TEMPLATE.md) 和 [CLI 契约](../CLI_CONTRACT.md)。
+- 核心与接口：领域规则、用例和权威状态在 core；CLI 非交互机器协议与 MCP stdio 各自薄适配，DESKTOP 使用 Tauri，NSH 以独立薄适配器服务桌面、移动、Web 和 TUI。文件/进程能力独立批准。见 [工程规则](../ENGINEERING_RULES.md)、[Rust 基线](../RUST_CLI_TEMPLATE.md) 和 [CLI 契约](../CLI_CONTRACT.md)。
 - Task 与 Git：项目自动 Task 默认关闭，环境选择独立；真实身份、自主执行、所有权并行及 Local 串行遵守统一 Skill。Git 发布止于本地主分支/tag；冻结的发布后动作持续授权其所选后续路径，不恢复旧的双发布模式或自动资源清理。见 [Agent Policy](../AGENT_POLICY.md) 与 [Task 工作流](../../.agents/skills/desktop-task-workflow/SKILL.md)。
 - 依赖与工程门禁：兼容下界、最小特性、真实最低版本验证及 ignored/tracked 锁策略分别判断；标准用户全局工具只按初始化或真实环境失败恢复，项目依赖保持本地；上游自动化使用 Node 标准库且不向下游传播 Python 禁令。文件规模、中文声明注释和按事件记忆均以 [工程规则](../ENGINEERING_RULES.md) 为准。
 - GUI 与平台：DESKTOP 固定使用 Tauri，NSH 由顶层 `nsh-targets` 选择桌面、移动、Web、TUI，均为 Mixed TSX UI + 共享 Rust core；九字段 profile 只在 DESKTOP 或 NSH 桌面存在。NSH 桌面固定多窗口，托盘、单实例、深链接按选择使用官方 API；自启、通知和 OS 全局快捷键在中性模板关闭。双语、三态主题、页面和品牌资源按实际目标装配。各平台依赖、能力及打包路径见 [GUI 工程索引](../GUI_ENGINEERING.md) 和 [设计标准](../design_standards/README.md)。

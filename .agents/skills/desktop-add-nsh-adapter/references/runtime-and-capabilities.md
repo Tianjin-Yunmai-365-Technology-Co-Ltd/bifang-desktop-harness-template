@@ -5,7 +5,7 @@
 | `nsh-targets` | `target-platforms` | 官方运行与打包 |
 | --- | --- | --- |
 | desktop | Windows、macOS、Linux | `nsh run`；对应平台上的 `nsh package --target macos\|windows\|linux` |
-| mobile | Android、iOS | `nsh run --target android\|ios`；Android APK，iOS 模拟器或设备 app；正式 IPA 独立签名 |
+| mobile | Android、iOS | `nsh run --target android\|ios`；Android APK/AAB，iOS 模拟器或设备 app；正式 IPA 使用显式签名身份与描述文件 |
 | web | Web | `nsh run --target web`；`nsh package --target web` 输出静态站点 |
 | tui | Windows、macOS、Linux 的终端 | `nsh run --target tui`、`nsh test --target tui`；0.5.0 没有 TUI 打包目标 |
 

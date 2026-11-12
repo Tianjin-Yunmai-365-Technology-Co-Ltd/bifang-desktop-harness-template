@@ -8,7 +8,7 @@ NSH 专用路由：新下游顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` �
 | --- | --- | --- |
 | Tauri 依赖、插件与既有 core 增加 GUI | [$desktop-add-gui-adapter](../.agents/skills/desktop-add-gui-adapter/SKILL.md)、[$desktop-manage-dependencies](../.agents/skills/desktop-manage-dependencies/SKILL.md) | 按已批准范围接线与验证 |
 | Tauri 本地试包与发布候选 | [$desktop-build-tauri-local-install](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[$desktop-build-tauri-release](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 按平台与候选身份分派，具体路线见下表 |
-| NSH 共享 core、Mixed 薄适配器与运行时能力 | [$desktop-add-nsh-adapter](../.agents/skills/desktop-add-nsh-adapter/SKILL.md)、[运行时边界](../.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md) | desktop/mobile/Web/TUI 均为 TSX UI + Rust native module 调用共享 core；桌面固定自定义多窗口宿主，四项能力按选择接线，两项仍不可用 |
+| NSH 共享 core、Mixed 薄适配器与运行时能力 | [$desktop-add-nsh-adapter](../.agents/skills/desktop-add-nsh-adapter/SKILL.md)、[运行时边界](../.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md) | 四类目标共用 TSX 和 Rust core。桌面固定使用官方多窗口，按选择接入托盘、单实例与深链接。自启、通知与 OS 全局快捷键在中性模板固定关闭 |
 | NSH 桌面、移动与 Web 打包 | [$desktop-build-nsh-release](../.agents/skills/desktop-build-nsh-release/SKILL.md) | 目标逐项打包与取证；本机无法构建的目标保留 `Unverified` |
 | 最终候选验收 | [$desktop-verify-delivery](../.agents/skills/desktop-verify-delivery/SKILL.md)、[$desktop-test-final-artifact-e2e](../.agents/skills/desktop-test-final-artifact-e2e/SKILL.md) | 真实最终字节和目标宿主，构建通过不代替验收 |
 | Linux 宿主、工具链及能力边界 | 下文 Linux 问题索引与对应 Skill 引用 | 区分中性生成、独立接线、协议回归与目标运行证据 |
@@ -22,7 +22,8 @@ NSH 专用路由：新下游顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` �
 | macOS | [原生 DMG、签名与公证](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 原生 `.app` 归档 | 打包、签名、公证与真实窗口/安装行为分别取证 |
 | Windows | [原生 x64 NSIS 试包](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[正式候选及 macOS xwin](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 原生 ZIP | xwin 不证明 Windows 安装/运行；UAC、通知和登录项按真实宿主验证 |
 | Linux | [同架构 deb/AppImage 本地试包](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md)、[运行时](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | 原生 tar.gz | Tauri 本地试包不升级为正式候选 |
-| Android / iOS / Web | 不适用 | Android 开发签名 APK、iOS 本地 `.app`、Web 静态目录 | 渠道签名与目标设备/浏览器运行分别取证；本地 `.app` 不等于 IPA |
+| Android / iOS / Web | 不适用 | Android APK/AAB、iOS 模拟器或设备 `.app`、签名 IPA、Web 静态站点 | 渠道签名、目标设备和浏览器运行分别取证 |
+| TUI | 不适用 | 官方 `nsh run --target tui` 与 `nsh test --target tui` | 验证键盘操作和终端退出恢复。0.5.0 无打包目标 |
 
 未执行的原生构建、托管矩阵、签名和目标桌面验收仍为 `Unverified`，既有证据缺口见 [技术债](TECH_DEBT.md)。
 

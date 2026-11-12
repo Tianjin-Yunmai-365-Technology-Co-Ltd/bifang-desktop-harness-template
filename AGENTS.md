@@ -1,6 +1,6 @@
 # AGENTS.md
 
-NSH 是平级的“下一代全平台开发框架”。Cargo `interfaces = ["nsh"]`，`nsh-targets` 可选 desktop/mobile/web/tui，使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI。全目标采用官方 Mixed TSX/共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。旧 GUI/NSH 只读兼容。路由 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md`、`$desktop-build-nsh-release`。
+NSH 是平级的“下一代全平台开发框架”。Cargo `interfaces = ["nsh"]`，`nsh-targets` 可选 desktop/mobile/web/tui，使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI。全目标采用官方 Mixed TSX/共享 Rust core。仅 desktop 保存九字段桌面 profile，表单只询问适用项。官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。旧 GUI/NSH 只读兼容。路由 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md`、`$desktop-build-nsh-release`。
 
 ## 项目使命
 

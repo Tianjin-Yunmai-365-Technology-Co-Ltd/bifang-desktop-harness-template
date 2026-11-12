@@ -12,7 +12,20 @@ Bifang Desktop Harness Template
 
 DESKTOP 使用 Node.js/pnpm 工程工具，初始化通过 Tauri 专用结构检查和本机窗口检查；仅 Linux 且无 CLI 的 Desktop 项目首次发布时须选择推送 release 分支。
 
-NSH 可多选桌面、移动、Web、TUI 四类能力：桌面与 TUI 对应 Windows/macOS/Linux，移动对应 Android/iOS，Web 对应 Web。新项目使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI，四类目标都通过 Mixed TSX 调用共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。项目按所选目标生成开发及测试命令。iOS 模拟器开发使用 `dev:ios`，模拟器打包选择 `ios-simulator`。TUI 使用 `dev:tui` 和 `nsh:test:tui`，0.5.0 的官方打包器覆盖桌面、移动和 Web。已有 0.4.0 项目保留原运行链路。
+### NSH 项目
+
+NSH 可多选桌面、移动、Web、TUI。四类目标共用 Mixed TSX 和 Rust core，使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI。初始化会将同版本官方 `nsh`、`nsh-design-guides` 安装到项目的 `.agents/skills/`。
+
+| 目标 | 下游开发命令 | 官方打包目标 |
+| --- | --- | --- |
+| 桌面（Windows、macOS、Linux） | `npm run dev:desktop` | `windows`、`macos`、`linux`，使用对应宿主 |
+| 移动（Android、iOS） | `npm run dev:android`、`npm run dev:ios` | `android`（APK/AAB）、`ios-simulator`、`ios` |
+| Web | `npm run dev:web` | `web`（静态站点） |
+| TUI（Windows、macOS、Linux） | `npm run dev:tui`、`npm run nsh:test:tui` | 0.5.0 提供运行与测试 |
+
+NSH 桌面默认提供官方多窗口。表单按托盘、单实例、有条件的深链接、关于、赞助、侧栏模式询问。只有启用单实例才询问深链接。自启、通知和 OS 全局快捷键在中性模板固定关闭。仅含移动、Web 或 TUI 的项目跳过桌面配置和 Logo。
+
+从下游根目录运行 `npm run nsh:check` 和 `npm run nsh:test`。组合工程打包保留 Cargo 相对路径和应用资源，iOS 模拟器开发使用 `dev:ios`，打包使用 `ios-simulator`。已有 0.4.0 项目的迁移按项目单独处理。见 [NSH 运行时与能力](.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md) 和 [NSH 打包入口](.agents/skills/desktop-build-nsh-release/SKILL.md)。
 
 这个仓库不是一款可以直接安装的应用，也不包含任何具体产品的业务代码。它更像一套已经整理好的“开工方式”，适合用 AI Agent 持续开发专有、可商业化的小工具。
 
@@ -147,7 +160,7 @@ CLI、MCP 与 DESKTOP 可以单独或组合使用；当前 NSH 独立选择。�
 - 维护状态：Active
 - 中文名称：毕方桌面应用Harness模版
 - English name: Bifang Desktop Harness Template
-- 当前版本：v202611121721
+- 当前版本：v202611121850
 - 发布状态：以适用 Git 引用复核结果为准
 - 产品规格：Approved
 - 具体产品源码：不包含

@@ -14,6 +14,8 @@
 | 建立独立基线 | [Rust 初始化 Skill](../.agents/skills/desktop-initialize-rust-project/SKILL.md)、[本地提交身份 Skill](../.agents/skills/desktop-configure-git-commits/SKILL.md) | 在唯一目标根建立独立 `main`、唯一中性基线提交和干净工作区 |
 | 后续工程升级 | [升级 Skill](../.agents/skills/desktop-upgrade-harness/SKILL.md)、[所有权策略](../.agents/skills/desktop-upgrade-harness/references/ownership-policy.md) | 根据受保护 Cargo 选择和所有权清单预览适用候选，保护产品代码、策略、身份和记忆 |
 
+选择 NSH 时，表单由桌面、移动、Web 和 TUI 派生具体平台。桌面配置与 Logo 只适用于桌面目标。中性工作区会安装匹配版本的官方编码与设计 Skills，生成所选目标的开发和测试命令，并在裁剪前核对对应的运行证据。见 [NSH 运行时与能力](../.agents/skills/desktop-add-nsh-adapter/references/runtime-and-capabilities.md)。
+
 ## 资料如何随项目移动
 
 - [实例化文件选择](../.agents/skills/desktop-instantiate-project/scripts/instantiation_files.mjs) 决定初次固定复制范围；[裁剪](../.agents/skills/desktop-initialize-rust-project/scripts/instantiation_pruning.mjs) 决定终端保留集合；[升级接口筛选](../.agents/skills/desktop-upgrade-harness/scripts/harness_upgrade_interfaces.mjs) 与[所有权清单](../.agents/skills/desktop-upgrade-harness/references/ownership-manifest.json) 决定后续传播。改动路径或分类时须同时核对这四处和相应回归。
