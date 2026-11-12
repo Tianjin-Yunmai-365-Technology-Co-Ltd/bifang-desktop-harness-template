@@ -2,6 +2,30 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-11-12",
+      "version": "v202611121721",
+      "featureOptimizations": [
+        {
+          "zh-CN": "Desktop 统一使用 Tauri。选择 Desktop 后直接进入桌面配置，GPUI 工具链、脚手架、Skills、构建和验收入口已移除。",
+          "en-US": "Desktop now uses Tauri. Selecting Desktop opens its configuration directly. The GPUI toolchain, scaffolding, Skills, build and verification entry points have been removed."
+        },
+        {
+          "zh-CN": "创建指南集中说明环境检查、中性初始化、接口裁剪与独立 Git 基线的顺序，并给出 NSH 的对应步骤。",
+          "en-US": "The project creation guide documents the sequence for environment checks, neutral initialization, interface pruning and the independent Git baseline, with the corresponding NSH steps."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复切换到 CLI 或 MCP 后旧桌面答案误触发 NSH 问询的问题。项目准备现在使用表单确认的规范路径，并拒绝目标在确认后被重定向。",
+          "en-US": "Fixed stale Desktop answers triggering NSH questions after switching to CLI or MCP. Project preparation now uses the confirmed canonical path and rejects redirection after confirmation."
+        },
+        {
+          "zh-CN": "升级候选会拒绝上游专用入口与退役资产。显式使用 GPUI 的旧项目须先单独处理，再升级到本版。",
+          "en-US": "Upgrade candidates reject upstream-only entry points and retired assets. Existing projects that explicitly use GPUI require separate handling before upgrading to this version."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-11-08",
       "version": "v202611082001",
       "featureOptimizations": [
@@ -246,30 +270,6 @@
         {
           "zh-CN": "修正 Dialog 几何观察说明，区分 ElementId 路径与 debug selector。",
           "en-US": "Correct Dialog geometry guidance by distinguishing ElementId paths from debug selectors."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-11-05",
-      "version": "v202611051535",
-      "featureOptimizations": [
-        {
-          "zh-CN": "移除应用更新、强更与使用统计的模板能力、支持资产和候选门禁；保留权威版本、本地双语发布日志及既有下游实现保护。",
-          "en-US": "Removed app update, mandatory update and usage telemetry scaffolding, support assets and candidate gates; retained authoritative versions, local bilingual release notes and protection for existing downstream implementations."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "GPUI 写入前要求明确确认平台、能力、页面及侧栏，拒绝漏答和歧义关于页配置，避免未经确认生成内容。",
-          "en-US": "Require explicit confirmation of GPUI platforms, capabilities, pages and sidebar before writes, rejecting missing selections and ambiguous About page profiles."
-        },
-        {
-          "zh-CN": "三平台 CLI 候选流程严格核对持久接口与完整平台集合，在测试或构建前拒绝非法、重复或缺失选择。",
-          "en-US": "Validate persisted interfaces and the complete platform set for three-platform CLI candidates, rejecting invalid, duplicate or missing selections before tests or builds."
-        },
-        {
-          "zh-CN": "统一 CLI 默认选择、Tauri/GPUI 运行时与测试分流及工程记忆描述，清理退役统计条款和过期授权表述。",
-          "en-US": "Aligned CLI default selection, Tauri/GPUI runtime and test routing, and engineering records; removed retired telemetry clauses and stale authorization wording."
         }
       ]
     }

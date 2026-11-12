@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "0b7fb3c3e95dab2a5387d3636af08bd000dc7fdc",
-  "version": "202611082001",
-  "releaseDate": "2026-11-08",
-  "expectedTag": "v202611082001-20261108",
+  "sourceHead": "b6115c4595aaa9baa622f1d1be79e04b623d77c7",
+  "version": "202611121721",
+  "releaseDate": "2026-11-12",
+  "expectedTag": "v202611121721-20261112",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "be64a0deaa99665e46f41d57e049975b8bb89811",
-    "sourceHead": "0b7fb3c3e95dab2a5387d3636af08bd000dc7fdc",
-    "scopeDiffSha256": "3ecaba4c6ff4d5519656cab53de159de7791594793c0cbc6ab6e3116b64fca11",
-    "reviewedSourceCommit": "0b7fb3c3e95dab2a5387d3636af08bd000dc7fdc",
+    "scopeBase": "76f520202802a217d10d028ed410a0dd1d2a7230",
+    "sourceHead": "b6115c4595aaa9baa622f1d1be79e04b623d77c7",
+    "scopeDiffSha256": "9ffcc7a9299c08b9ec47fe490930eae800bcf0b4acc809f9825a4770179e9031",
+    "reviewedSourceCommit": "b6115c4595aaa9baa622f1d1be79e04b623d77c7",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "因 NSH TUI 停用与正式工具链统一涉及对外兼容而强制启用；复核上次发布至 sourceHead 的四条登记分支、行为、core/适配器边界、外部契约、职责规模及临时标记。1394 项 Node 测试与中性 Rust 资产 7 项通过；45 个提示属于建议行数或测试夹具 TODO，当前超建议行数文件职责仍集中。",
+    "evidenceSummary": "累计差异审查覆盖实例化、升级、发布路由及外部兼容契约。Desktop 固定 Tauri，显式 GPUI 项目在改写前阻断，Rust 差异为退役 GPUI 脚手架删除。已复核职责、文件规模和临时标记。Harness 硬门禁及发布审查通过，33 项非阻断提示已复核。实现提交的 Node 全套 1229 通过、17 跳过，后续升级专项 9 项通过。中性 Rust 模板格式、Clippy 与 7 项测试通过。",
     "reason": null,
     "remainingRisk": null
   }
