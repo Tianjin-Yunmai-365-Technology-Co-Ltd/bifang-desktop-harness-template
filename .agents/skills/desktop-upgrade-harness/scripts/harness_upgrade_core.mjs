@@ -82,6 +82,10 @@ export function buildPlan(sourceRoot, sourceVersion, sourceCommit, candidateRoot
     if (Object.hasOwn(candidateTree.nodes, relative)) problems.push(`候选不得传播上游专用检查器：${relative}`);
     if (Object.hasOwn(targetTree.nodes, relative)) problems.push(`目标须先移除旧版上游专用检查器：${relative}`);
   }
+  // 源总索引包含初始化入口，终端下游使用按实际保留项生成的地图。
+  for (const relative of [".agents/skills/README.md", ".agents/skills/desktop-curate-harness-memory"]) {
+    if (Object.hasOwn(candidateTree.nodes, relative)) problems.push(`候选不得传播上游专用 Skill 资产：${relative}`);
+  }
 
   for (const rawPath of REQUIRED_MANAGED_SOURCE_PATHS) {
     const relative = safeRelativePath(rawPath);

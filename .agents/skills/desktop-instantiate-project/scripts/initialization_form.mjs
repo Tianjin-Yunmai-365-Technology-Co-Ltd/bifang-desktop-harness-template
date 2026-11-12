@@ -150,8 +150,9 @@ export function evaluateInitializationForm(input) {
   if (gui) { values.gui_framework = "tauri"; sources.gui_framework = "derived:desktop"; }
   const desktop = gui || (nsh && values.nsh_targets.includes("desktop"));
   if (!desktop && [...GUI_FIELDS, "capability_setup_assistance"].some(id => Object.hasOwn(answers, id))) {
-    issues[gui ? "interfaces" : "nsh_targets"] = "未选择桌面能力却提供了桌面条件答案；请确认目标组合，或撤下旧桌面答案。";
-    return output(gui ? "base" : "nsh", [gui ? "interfaces" : "nsh_targets"]);
+    const questionId = nsh ? "nsh_targets" : "interfaces";
+    issues[questionId] = "未选择桌面能力却提供了桌面条件答案；请确认目标组合，或撤下旧桌面答案。";
+    return output(nsh ? "nsh" : "base", [questionId]);
   }
   for (const id of POLICY_FIELDS) { values[id] = POLICY_PRESET[id]; sources[id] = "default:initialization"; }
   values.post_release_action = "pending";

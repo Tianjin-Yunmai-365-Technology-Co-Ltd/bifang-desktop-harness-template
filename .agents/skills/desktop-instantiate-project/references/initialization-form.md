@@ -41,7 +41,7 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 |---|---|
 | `base` | 只展示 `questions` 中当前一个待补/待修正基础项，保留原编号；其余合法基础项不重问。 |
 | `translation` | 自动补齐 `translate` 指定名称并重算，不向用户加问。 |
-| `framework` / `nsh` / `gui` / `assistance` | 本轮只展示返回的一个问题，含原有选项、说明和 `issue`；等待明确答复。 |
+| `nsh` / `gui` / `assistance` | 本轮只展示返回的一个问题，含原有选项、说明和 `issue`；等待明确答复。 |
 | `review` | 展示下文规定的完整汇总，只询问是否按此创建；记录 `summaryDigest`。 |
 | `confirmed` | 仅说明当前汇总已有相匹配的显式确认；随后进入既有初始化门禁，不代表初始化成功。 |
 

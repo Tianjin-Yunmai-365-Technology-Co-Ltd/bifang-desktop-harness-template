@@ -25,7 +25,7 @@ DESKTOP 使用 Node.js/pnpm 工程工具，初始化通过 Tauri 专用结构检
 按以下顺序执行：
 
 1. 先完整读取 [`AGENTS.md`](AGENTS.md)，再完整读取 [`desktop-instantiate-project/SKILL.md`](.agents/skills/desktop-instantiate-project/SKILL.md) 与它指定的 [`initialization-form.md`](.agents/skills/desktop-instantiate-project/references/initialization-form.md)；后续只按这些入口渐进读取精确命中的事实源和 Skills。
-2. 按固定顺序逐项询问尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供，另一个可自动翻译）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型（CLI / MCP / DESKTOP / NSH；明确默认或跳过才使用 CLI）。每轮只问一个字段，已有合法答案不重问；程序类型与 NSH 能力可多选，优先通过复选控件点击并确认，宿主仅支持单选时逐项点击选择/不选择并确认集合。CLI、MCP 可组合，也可与 DESKTOP 组合；NSH 单选。程序类型确定后，NSH 只问能力并派生平台，其他类型默认 Windows/macOS/Linux 全平台；DESKTOP 再按表单补充框架和桌面配置。六项 Agent 策略直接使用固定默认值，不单独询问。`post_release_action` 初始化时保持 `pending`，首次发布前再询问并记录。
+2. 按固定顺序逐项询问尚未确定的基础字段：中文展示名、英文展示名（至少一个由用户提供，另一个可自动翻译）、ASCII `snake_case` 项目标识、项目路径、负责人和程序类型（CLI / MCP / DESKTOP / NSH；明确默认或跳过才使用 CLI）。每轮只问一个字段，已有合法答案不重问；程序类型与 NSH 能力可多选，优先通过复选控件点击并确认，宿主仅支持单选时逐项点击选择/不选择并确认集合。CLI、MCP 可组合，也可与 DESKTOP 组合；NSH 单选。程序类型确定后，NSH 只问能力并派生平台，其他类型默认 Windows/macOS/Linux 全平台；DESKTOP 自动采用 Tauri，再按表单补充桌面配置。六项 Agent 策略直接使用固定默认值，不单独询问。`post_release_action` 初始化时保持 `pending`，首次发布前再询问并记录。
 3. 使用仓库提供的路径解析器确定唯一目标根目录，并把双语名称来源、最终路径、平台、程序类型、策略以及适用的 GUI 配置汇总给用户。**用户确认完整汇总前保持零写入**：不得创建目录、复制文件、安装环境或初始化 Git。
 4. 确认后才验证 Harness 源、门禁 Git、按固定清单复制中性工程层、重写项目身份、安装所选接口、裁剪初始化专用入口，并在目标根建立新的独立 Git 仓库和唯一基线提交。不要复制源 `.git`、Harness 时间版本、历史 Product Spec/ADR/Changelog/Verification、远端或凭据。
 5. 初始化完成后，把解析后的目标目录作为唯一项目根和 Git 顶层；切换到该目录，再用 `$desktop-define-product` 提交产品目标，用 `$desktop-implement-change` 开始开发。产品需求不得提前写入本 Harness 源或中性脚手架。
@@ -152,7 +152,7 @@ CLI、MCP 与 DESKTOP 可以单独或组合使用；当前 NSH 独立选择。�
 - 产品规格：Approved
 - 具体产品源码：不包含
 
-Harness 版本的唯一事实来源是 [`Version.md`](Version.md)：仅在正式发布时按当前上海时区取 `YYYYMMDDHHMM`，日常修改不提升。模板版本和下游产品版本分开管理。登记分支合并到本地默认主分支、该提交的 `v{版本}-{YYYYMMDD}` 创建并复读成功后才是 `Released`。终端下游的后续动作按初始化或切换时持久确认的选择执行并检测；Harness 源的后续源码归档或推送由用户当次决定。
+Harness 版本的唯一事实来源是 [`Version.md`](Version.md)：仅在正式发布时按当前上海时区取 `YYYYMMDDHHMM`，日常修改不提升。模板版本和下游产品版本分开管理。登记分支合并到本地默认主分支、该提交的 `v{版本}-{YYYYMMDD}` 创建并复读成功后才是 `Released`。终端下游首次发布前确认并保存发布后动作，每次发布按当次冻结的动作执行并复核；Harness 源的后续源码归档或推送由用户当次决定。
 
 ## 项目结构
 

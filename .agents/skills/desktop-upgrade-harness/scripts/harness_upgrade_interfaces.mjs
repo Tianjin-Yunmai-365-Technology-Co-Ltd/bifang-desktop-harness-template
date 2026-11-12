@@ -192,8 +192,13 @@ export function readInterfaceSelection(root) {
 /** 接口条件资产仅按受保护 Cargo 选择适用，不能由候选目录反向决定框架。 */
 export function inapplicableGuiCandidate(relative, selection) {
   // 旧候选即使带有历史所有权声明，也不能重新传播退役的桌面资产。
-  if (/^\.agents\/skills\/(?:desktop-[^/]*-gpui-[^/]+|gpui-kit(?:-design-guides)?)(?:\/|$)/u.test(relative)
-      || relative === "docs/design_standards/gpui_gui.md") return true;
+  if (/^\.agents\/skills\/(?:desktop-add-tui-adapter|desktop-[^/]*-gpui-[^/]+|gpui-kit(?:-design-guides)?)(?:\/|$)/u.test(relative)
+      || [
+        "docs/design_standards/gpui_gui.md",
+        ".agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh",
+        ".agents/skills/desktop-check-development-environment/scripts/linux_gpui_dependencies.test.mjs",
+        ".agents/skills/desktop-upgrade-harness/references/gpui-ownership.md",
+      ].includes(relative)) return true;
   const nsh = selection.interfaces.includes("nsh") || selection.guiFramework === "nsh";
   const desktopGraphics = selection.interfaces.includes("gui") || nsh && (!selection.nshTargets || selection.nshTargets.includes("desktop"));
   const cli = selection.interfaces.includes("cli");

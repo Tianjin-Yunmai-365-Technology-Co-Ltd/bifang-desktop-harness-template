@@ -78,6 +78,30 @@ test('target_collision_and_symlink_do_not_overwrite_existing_data', t => {
   assert.equal(fs.lstatSync(f.target).isSymbolicLink(), true);
 });
 
+/** 已确认的父目录别名使用规范路径，重指向后必须重新确认。 */
+test('confirmed_parent_alias_uses_canonical_target_and_rejects_retargeting', t => {
+  const f = fixture(t);
+  const destination = path.join(f.parent, 'projects');
+  const other = path.join(f.parent, 'other');
+  const alias = path.join(f.parent, 'alias');
+  fs.mkdirSync(destination);
+  fs.mkdirSync(other);
+  try { fs.symlinkSync(destination, alias, 'dir'); } catch (error) {
+    if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) return t.skip(`宿主不支持目录符号链接：${error.code}`);
+    throw error;
+  }
+  const input = confirmedFixtureInput(alias);
+  const plan = planInstantiation(input);
+  assert.equal(plan.targetRoot, path.join(destination, 'regression_tool'));
+  fs.unlinkSync(alias);
+  fs.symlinkSync(other, alias, 'dir');
+  assert.throws(() => prepareInstantiation(input, plan.planDigest), /确认/u);
+  assert.deepEqual(fs.readdirSync(other), []);
+  fs.unlinkSync(alias);
+  fs.symlinkSync(destination, alias, 'dir');
+  assert.equal(prepareInstantiation(input, plan.planDigest).targetRoot, plan.targetRoot);
+});
+
 /** 在源内创建目标仍只使用写入前固定索引，不把目标或父 Git 复制进目标。 */
 test('nested_target_and_source_drift_are_bound_without_parent_git_mutation', t => {
   const f = fixture(t);

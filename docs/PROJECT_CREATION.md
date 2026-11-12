@@ -6,9 +6,10 @@
 |---|---|---|
 | 识别源与范围 | [根入口](../AGENTS.md)、[实例化 Skill](../.agents/skills/desktop-instantiate-project/SKILL.md) | 区分 Harness 源与终端下游；产品需求留待下游根目录处理 |
 | 收集与确认 | [唯一表单合同](../.agents/skills/desktop-instantiate-project/references/initialization-form.md)、`initialization_form.mjs`、[目标路径解析器](../.agents/skills/desktop-instantiate-project/scripts/resolve_project_target.mjs) | 固定字段、条件选择、唯一目标根与绑定确认的汇总；确认前零写入 |
+| 检查源与开发环境 | [源验证入口](../scripts/validate_harness.mjs)、[环境门禁 Skill](../.agents/skills/desktop-check-development-environment/SKILL.md) | 完整汇总确认后验证 Harness，再按已选接口检查环境，记录 `gate.git.status/version/change`，通过后才准备目标 |
 | 冻结并准备工程层 | [确定性准备合同](../.agents/skills/desktop-instantiate-project/references/deterministic-instantiation.md)、`instantiate_project.mjs`、`instantiation_files.mjs` | 从受管源文件生成计划，再按同一摘要复制、重置身份和策略；尚未完成初始化 |
 | 建立中性工作区 | [Rust 初始化 Skill](../.agents/skills/desktop-initialize-rust-project/SKILL.md) 与实际选择的 [接口 Skill 索引](../.agents/skills/README.md) | 共享 core、所选薄适配器、Cargo 平台/接口事实、适用桌面配置与版本状态 |
-| 检查真实脚手架 | [Rust 初始化 Skill](../.agents/skills/desktop-initialize-rust-project/SKILL.md)、所选 Tauri/NSH 初始化 E2E Skill | 相关非空测试和适用本机调试构建/Computer Use 结果；脚手架结果不等于产品候选验收 |
+| 检查真实脚手架 | [Rust 初始化 Skill](../.agents/skills/desktop-initialize-rust-project/SKILL.md)、[Tauri 初始化 E2E](../.agents/skills/desktop-test-gui-initialization-e2e/SKILL.md) 或 [NSH 初始化 E2E](../.agents/skills/desktop-test-nsh-initialization-e2e/SKILL.md) | 相关非空测试和适用本机调试构建/Computer Use 结果；脚手架结果不等于产品候选验收 |
 | 裁剪为终端项目 | [确定性裁剪合同](../.agents/skills/desktop-instantiate-project/references/deterministic-instantiation.md)、`finalize_instantiation.mjs`、`instantiation_pruning.mjs` | 删除一次性入口和未选能力，重建与实际保留 Skills 一致的下游 `AGENTS.md`；仍为 pre-Git |
 | 建立独立基线 | [Rust 初始化 Skill](../.agents/skills/desktop-initialize-rust-project/SKILL.md)、[本地提交身份 Skill](../.agents/skills/desktop-configure-git-commits/SKILL.md) | 在唯一目标根建立独立 `main`、唯一中性基线提交和干净工作区 |
 | 后续工程升级 | [升级 Skill](../.agents/skills/desktop-upgrade-harness/SKILL.md)、[所有权策略](../.agents/skills/desktop-upgrade-harness/references/ownership-policy.md) | 根据受保护 Cargo 选择和所有权清单预览适用候选，保护产品代码、策略、身份和记忆 |

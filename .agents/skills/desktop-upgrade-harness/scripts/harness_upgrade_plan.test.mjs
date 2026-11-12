@@ -92,6 +92,18 @@ test("target scan prunes ignored generated files unless the plan requires them",
   assert.equal(Object.hasOwn(scanTree(f.target, { targetTree: true, retainPaths: ["node_modules/pkg/needed.txt"] }).files, "node_modules/pkg/needed.txt"), true);
 });
 
+test("source-only memory curation cannot be copied by an upgrade", (t) => {
+  const f = new HarnessUpgradeFixture(t);
+  const skill = ".agents/skills/desktop-curate-harness-memory/SKILL.md";
+  f.write(f.candidate, skill, "source-only memory curation");
+  const catalog = ".agents/skills/README.md";
+  f.write(f.candidate, catalog, "upstream Skill index");
+  const problems = f.plan(2).problems;
+  assert.ok(problems.some(problem => problem.includes("候选不得传播上游专用 Skill") && problem.includes("desktop-curate-harness-memory")));
+  assert.ok(problems.some(problem => problem.includes("候选不得传播上游专用 Skill") && problem.includes(catalog)));
+  assert.equal(fs.existsSync(path.join(f.target, skill)), false);
+});
+
 test("source-only checker is rejected from candidate and retired from an old target", (t) => {
   const f = new HarnessUpgradeFixture(t);
   const checker = ".agents/skills/desktop-implement-change/scripts/check_no_python.mjs";

@@ -99,10 +99,19 @@ test("legacy_tauri_and_non_gui_plans_enforce_gui_applicability", (t) => {
   f.write(f.target, "Cargo.toml", `${METADATA}interfaces = ["gui"]\n`);
   f.write(f.candidate, TAURI, "tauri engineering skill\n");
   assert.equal(f.plan().gui_framework, "tauri");
-  const retired = ".agents/skills/desktop-add-gpui-adapter/SKILL.md";
-  f.write(f.candidate, retired, "retired engineering skill\n");
-  assert.ok(f.plan(2).problems.some(problem => problem.includes(retired)));
-  fs.rmSync(path.join(f.candidate, retired));
+  const retired = [
+    ".agents/skills/desktop-add-gpui-adapter/SKILL.md",
+    ".agents/skills/desktop-add-tui-adapter/SKILL.md",
+    ".agents/skills/desktop-check-development-environment/scripts/linux-gpui-dependencies.sh",
+    ".agents/skills/desktop-check-development-environment/scripts/linux_gpui_dependencies.test.mjs",
+    ".agents/skills/desktop-upgrade-harness/references/gpui-ownership.md",
+  ];
+  for (const relative of retired) f.write(f.candidate, relative, "retired engineering asset\n");
+  const problems = f.plan(2).problems;
+  for (const relative of retired) {
+    assert.ok(problems.some(problem => problem.includes(relative)), relative);
+    fs.rmSync(path.join(f.candidate, relative));
+  }
   f.write(f.target, "Cargo.toml", `${METADATA}interfaces = ["cli"]\n`);
   assert.ok(f.plan(2).problems.some((problem) => problem.includes(TAURI)));
 });

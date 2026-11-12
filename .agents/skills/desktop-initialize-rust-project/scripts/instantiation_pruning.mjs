@@ -49,7 +49,6 @@ export function validatePreparation(preparation, current) {
     const file = current.get(entry.path);
     if (!file) throw new Error(`准备后的受管文件缺失，须先复核：${entry.path}`);
     if (file.sha256 !== entry.sha256 || file.mode !== entry.mode) {
-      const sourceSkills = preparation.files.filter(item => /^\.agents\/skills\/[^/]+\/SKILL\.md$/u.test(item.path)).map(item => item.path.split('/')[2]);
       throw new Error(`准备后的受管文件漂移，须先复核：${entry.path}`);
     }
   }

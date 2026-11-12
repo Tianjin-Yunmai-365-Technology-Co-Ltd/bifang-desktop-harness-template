@@ -16,7 +16,7 @@ function validateInput(input) {
   if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/u.test(date) || new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date) throw new Error('须提供真实确认日期 confirmedAt');
   const evaluated = evaluateInitializationForm(input.form);
   if (input.form.entry !== 'instantiate' || evaluated.stage !== 'confirmed') throw new Error('必须先取得当前完整实例化汇总的真实用户确认');
-  assertOrdinaryPath(evaluated.summary.target.projectPathInput, true);
+  // 表单已解析父目录别名并拒绝最终目标链接，写入只使用绑定在摘要中的规范路径。
   assertOrdinaryPath(evaluated.summary.target.targetRoot, true);
   return evaluated;
 }

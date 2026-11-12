@@ -87,6 +87,21 @@ test("nsh_mobile_web_skip_desktop_profile_and_reject_stale_answers", () => fixtu
   delete input.answers.nsh_targets;assert.equal(evaluate().questions[0].id,"nsh_targets");
 }));
 
+/** 切到 CLI 或 MCP 后，残留的桌面答案应由程序类型问题纠正。 */
+test("non_desktop_interfaces_with_stale_desktop_answers_stay_in_base", () => fixture(({ input, set, base, evaluate }) => {
+  base();
+  for (const interfaces of [["cli"], ["mcp"], ["cli", "mcp"]]) {
+    set("interfaces", interfaces);
+    set("sidebar_mode", "compact");
+    const result = evaluate();
+    assert.equal(result.stage, "base");
+    assert.equal(result.questions[0].id, "interfaces");
+    assert.match(result.questions[0].issue, /撤下旧桌面答案/u);
+    delete input.answers.sidebar_mode;
+    assert.equal(evaluate().stage, "review");
+  }
+}));
+
 /** TUI 不再提供可选项，旧答案不能绕过正式工具链选择。 */
 test("nsh_tui_is_unavailable_in_initialization", () => fixture(({input,set,nsh,evaluate}) => {
   nsh(["tui"]);

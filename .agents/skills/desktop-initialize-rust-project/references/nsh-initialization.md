@@ -8,7 +8,7 @@
 
 ## 工程与测试
 
-中性 core 建立后使用 NSH adapter 的 add-only helper；纯净工程回归可用源专用 `scripts/create_nsh_workspace.mjs`，但它不能代替完整实例化的复制、身份、策略和 Git 收尾。desktop 复用已选择的 Logo；工程临时夹具必须标记中性。运行非空 Rust workspace、NSH check/test 与 [$desktop-test-nsh-initialization-e2e](../../desktop-test-nsh-initialization-e2e/SKILL.md) 后才可裁剪；不得把 NSH runner 的临时嵌套 workspace 当成产品根。
+先建立仅含共享 core 的工作区，写入已确认的 `target-platforms` 和单行 `interfaces = []`，保留 core 的异步 `scaffold_status` API。`nsh-targets`、`gui-framework` 和 `docs/GUI_APP_PROFILE.md` 保持缺席。随后由 NSH adapter 的 add-only helper 写入 `interfaces = ["nsh"]`、`nsh-targets`、适用的九字段 profile 与 adapter；纯净工程回归可用源专用 `scripts/create_nsh_workspace.mjs`，但它不能代替完整实例化的复制、身份、策略和 Git 收尾。desktop 复用已选择的 Logo；工程临时夹具必须标记中性。运行非空 Rust workspace、NSH check/test 与 [$desktop-test-nsh-initialization-e2e](../../desktop-test-nsh-initialization-e2e/SKILL.md) 后才可裁剪；不得把 NSH runner 的临时嵌套 workspace 当成产品根。
 
 ## 返回中央流程
 

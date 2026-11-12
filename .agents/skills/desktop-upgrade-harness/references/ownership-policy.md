@@ -24,7 +24,7 @@
 
 ## 升级前事实检查
 
-`docs/AGENT_POLICY.md` 继续是受保护的下游事实。已有 schema 4 正文若未合并默认主分支、release 和 tag 同步规则，须在目标项目保留 frontmatter 与自定义规则迁移正文，再 inspect/check，无需重选；升级器不代写 protected 正文。第 4 步只读记录发布后动作状态：旧 `schema_version: 3` 且缺少 `post_release_action` 表示需要补选；`schema_version: 4` 或 `schema_version: 5` 只接受 `local_package` 或 `push_release_branch`。重复/缺失字段、未知 schema 或非法值是冲突，不能推断为默认项，也不能宣布升级完成。
+`docs/AGENT_POLICY.md` 继续是受保护的下游事实。已有 schema 4 正文若未合并默认主分支、release 和 tag 同步规则，须在目标项目保留 frontmatter 与自定义规则迁移正文，再 inspect/check，无需重选；升级器不代写 protected 正文。第 4 步只读记录发布后动作状态：旧 `schema_version: 3` 且缺少 `post_release_action` 表示需要补选；已确认的 schema 4/5 值为 `local_package` 或 `push_release_branch`，schema 5 另允许 `pending` 留待首次发布。重复/缺失字段、未知 schema 或非法值是冲突，不能推断为默认项，也不能宣布升级完成。
 
 同时只读解析目标根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]` 下 `dependency-lock-policy` 字段：缺省或 `"ignored"` 沿用忽略锁文件的工程分支，显式 `"tracked"` 走锁文件受跟踪与冻结解析分支；未知值、错误类型或重复键失败关闭。`tracked` 须核对根及 `rust-test-manifests` 指出的每个独立工作区 `Cargo.lock`，以及已选 Tauri GUI 根的 `pnpm-lock.yaml`，均为真实文件、受 Git 跟踪且未被忽略。候选中的通用规则和 Skill 应保留两条分支，并按目标的实际接口与工作区路径渲染；不得以源默认策略覆盖目标的显式选择。根 Cargo 元数据、`.gitignore` 和项目锁文件均为目标受保护事实，升级器 `plan|apply|record` 不修改它们；目标需要首次选择或修复 `tracked` 时，由下游在独立开发范围内显式调整并验证后再继续记录基线。
 
@@ -57,7 +57,7 @@
 3. 使用下游展示名、snake_case/kebab-case 标识、crate 路径、接口选择和已批准例外完成渲染。
 4. 来自通过自身验证器、Git 工作区干净且 `HEAD`/`Version.md` 与计划声明一致的明确 Harness 版本和提交。
 5. 位于目标仓库之外的任务专用目录，且不含符号链接或特殊文件。
-6. 源 Harness 存在无需身份渲染的必需 `managed` 传播文件时，候选必须包含内容摘要一致的结果；当前包括行数、Rust 中文注释与 core-first 检查器及各自专属测试；上游专用 `check_no_python.mjs` 及其测试必须从候选排除，旧目标中对应文件须经审查后移除，以及 `$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试，遗漏或内容过期都会阻断计划与基线记录。
+6. 源 Harness 存在无需身份渲染的必需 `managed` 传播文件时，候选必须包含内容摘要一致的结果；当前包括行数、Rust 中文注释与 core-first 检查器及各自专属测试；上游的 Skills 总索引、`$desktop-curate-harness-memory` 目录及上游专用 `check_no_python.mjs` 与其测试必须从候选排除，旧目标中对应文件须经审查后移除，以及 `$desktop-manage-git-lifecycle` 的完整 Skill、helper 与测试，遗漏或内容过期都会阻断计划与基线记录。
 
 ## 永久保护
 
