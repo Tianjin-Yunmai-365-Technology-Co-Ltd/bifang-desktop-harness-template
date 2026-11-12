@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "b6115c4595aaa9baa622f1d1be79e04b623d77c7",
-  "version": "202611121721",
+  "sourceHead": "ad8da6172fb1a35cf30d2e9a244e70995696a8e2",
+  "version": "202611121850",
   "releaseDate": "2026-11-12",
-  "expectedTag": "v202611121721-20261112",
+  "expectedTag": "v202611121850-20261112",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "76f520202802a217d10d028ed410a0dd1d2a7230",
-    "sourceHead": "b6115c4595aaa9baa622f1d1be79e04b623d77c7",
-    "scopeDiffSha256": "9ffcc7a9299c08b9ec47fe490930eae800bcf0b4acc809f9825a4770179e9031",
-    "reviewedSourceCommit": "b6115c4595aaa9baa622f1d1be79e04b623d77c7",
+    "scopeBase": "5c71d55cceb1c12f3d916ca02a04ecd1f09ae998",
+    "sourceHead": "ad8da6172fb1a35cf30d2e9a244e70995696a8e2",
+    "scopeDiffSha256": "97714a03c0dc4afe23660b2a403ab1c9c6f699ca62910c53733293331ab6708f",
+    "reviewedSourceCommit": "ad8da6172fb1a35cf30d2e9a244e70995696a8e2",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "累计差异审查覆盖实例化、升级、发布路由及外部兼容契约。Desktop 固定 Tauri，显式 GPUI 项目在改写前阻断，Rust 差异为退役 GPUI 脚手架删除。已复核职责、文件规模和临时标记。Harness 硬门禁及发布审查通过，33 项非阻断提示已复核。实现提交的 Node 全套 1229 通过、17 跳过，后续升级专项 9 项通过。中性 Rust 模板格式、Clippy 与 7 项测试通过。",
+    "evidenceSummary": "复核全部登记分支的累计差异，核对 NSH 初始化与打包行为、Mixed 适配器到共享 core 的委托、旧 GPUI 与独立 TUI 迁移契约、文件职责与规模、临时标记。Harness 发布审查通过，36 项非阻断提示已复核，唯一临时标记来自测试夹具。发布及验证器回归 181 项和中性 Rust 7 项通过。NSH 相关实际试包与专项回归已有记录，既有 Tauri 间歇失败及 Linux 上游限制已记入技术债。",
     "reason": null,
     "remainingRisk": null
   }

@@ -3,6 +3,38 @@
   "releases": [
     {
       "releaseDate": "2026-11-12",
+      "version": "v202611121850",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新建 NSH 项目固定使用官方 0.5.0，自动安装同版本编码与设计 Skills。桌面、移动、Web 和 TUI 共用 Mixed TSX 与 Rust core。",
+          "en-US": "New NSH projects pin official 0.5.0 and install the matching coding and design skills. Desktop, mobile, web, and TUI share Mixed TSX and the Rust core."
+        },
+        {
+          "zh-CN": "桌面使用官方多窗口、托盘、单实例和深链接，初始化按能力依赖询问并核对所选目标的运行证据。",
+          "en-US": "Desktop uses official multi-window, tray, single-instance, and deep-link support. Initialization asks about capabilities in dependency order and checks runtime evidence for the selected targets."
+        },
+        {
+          "zh-CN": "桌面、移动和 Web 统一使用官方打包器，支持 Android APK/AAB、iOS 模拟器包和显式签名 IPA。TUI 通过官方命令运行和测试。",
+          "en-US": "Desktop, mobile, and web use the official packager, including Android APK/AAB, iOS simulator apps, and explicitly signed IPA. TUI uses the official run and test commands."
+        },
+        {
+          "zh-CN": "移除旧 GPUI 与独立 TUI 工程入口。已有项目的旧配置需要在原项目中迁移。",
+          "en-US": "Removed the legacy GPUI and standalone TUI workflows. Existing projects with those configurations require migration in their own repositories."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "修复 NSH 组合项目打包时的资源路径丢失、iOS 模拟器开发目标和交叉编译 SDK 头文件解析。",
+          "en-US": "Fixed lost resource paths when packaging combined NSH projects, the iOS simulator development target, and SDK header resolution during cross-compilation."
+        },
+        {
+          "zh-CN": "NSH 接线失败后可安全重试，回滚仅清理本次生成的内容并保留并发写入。",
+          "en-US": "NSH adapter setup can be retried after a failure. Rollback removes files created by that attempt and preserves concurrent writes."
+        }
+      ]
+    },
+    {
+      "releaseDate": "2026-11-12",
       "version": "v202611121721",
       "featureOptimizations": [
         {
@@ -246,30 +278,6 @@
         {
           "zh-CN": "清除退役更新、统计执行合同和远程追踪依赖候选，保留历史验证事实。",
           "en-US": "Remove retired update and statistics execution contracts and remote tracing dependency candidates while preserving historical verification facts."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-11-05",
-      "version": "v202611051654",
-      "featureOptimizations": [
-        {
-          "zh-CN": "补充 GPUI Kit 0.9.0 的 API、依赖与 vendor 联合迁移参考，并接入工程索引。",
-          "en-US": "Add GPUI Kit 0.9.0 references for APIs, dependencies, and coordinated vendor migrations to the engineering index."
-        },
-        {
-          "zh-CN": "公开 Windows 开发循环的后代进程回收限制，明确后续原生验证条件。",
-          "en-US": "Document descendant process cleanup limitations in the Windows development loop and the conditions for native verification."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "对齐中性初始化后的产品定义与接口复用顺序，移除升级和技术债流程中强制创建 Todo 的旧描述。",
-          "en-US": "Align product definition and interface reuse with neutral initialization, and remove outdated mandatory Todo wording from upgrade and technical debt workflows."
-        },
-        {
-          "zh-CN": "修正 Dialog 几何观察说明，区分 ElementId 路径与 debug selector。",
-          "en-US": "Correct Dialog geometry guidance by distinguishing ElementId paths from debug selectors."
         }
       ]
     }
