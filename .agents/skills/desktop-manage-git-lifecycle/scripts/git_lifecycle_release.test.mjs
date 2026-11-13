@@ -55,8 +55,8 @@ function configurePostReleasePolicy(item, repository, policy) {
   item.git(repository, "commit", "--quiet", "-m", "chore: record post-release choice");
 }
 
-/** 创建本地候选并把 schema v3 上下文提交到登记分支。 */
-function candidate(item, { remote = true, worktree = null, version = "1.2.3", date = "20260909", reviewSelection = "disabled",
+/** 创建本地候选并把 发布上下文提交到登记分支。 */
+function candidate(item, { remote = true, worktree = null, version = "1.2.3", date = "20260909", channel = "release", reviewSelection = "disabled",
   postReleasePolicy = { schema: 4, action: "push_release_branch" } } = {}) {
   const initialized = item.initializeRepository({ remote });
   const repository = initialized.repository;
@@ -64,7 +64,7 @@ function candidate(item, { remote = true, worktree = null, version = "1.2.3", da
   const source = worktree ?? repository;
   const branch = item.helper(source, ["start", "--summary", "release-flow"]).payload.branch;
   item.commitFile(source, "candidate.txt", "candidate\n");
-  const context = item.prepareReleaseContext(source, { version, date, reviewSelection });
+  const context = item.prepareReleaseContext(source, { version, date, channel, reviewSelection });
   return { ...initialized, source, branch, context, version, date };
 }
 
@@ -74,6 +74,42 @@ function releaseArgs(value) {
     "--release-context-sha256", value.context.digest,
   ];
 }
+
+scenario("beta_push_uses_the_committed_channel_and_preserves_release_branch", (item) => {
+  const value = candidate(item, { channel: "beta" });
+  const baseline = item.git(value.bare, "rev-parse", "refs/heads/main").stdout.trim();
+  item.git(value.bare, "update-ref", "refs/heads/release", baseline);
+  assert.equal(item.helper(value.repository, releaseArgs(value)).payload.releaseChannel, "beta");
+  item.git(value.bare, "symbolic-ref", "HEAD", "refs/heads/release");
+  assert.equal(item.helper(value.repository, ["push-release", "--remote", "origin"], { success: false }).payload.code,
+    "remote-release-conflict");
+  assert.equal(item.git(value.bare, "for-each-ref", "--format=%(refname)", "refs/heads/beta", "refs/tags").stdout, "");
+  item.git(value.bare, "symbolic-ref", "HEAD", "refs/heads/main");
+  const pushed = item.helper(value.repository, ["push-release", "--remote", "origin"]).payload;
+  assert.equal(pushed.branch, "beta");
+  assert.equal(item.git(value.bare, "rev-parse", "refs/heads/beta", "refs/tags/" + pushed.tag).stdout.trim(),
+    [pushed.head, pushed.head].join("\n"));
+  assert.equal(item.git(value.bare, "rev-parse", "refs/heads/release").stdout.trim(), baseline);
+  assert.equal(item.helper(value.repository, ["push-release", "--remote", "origin"]).payload.status, "already-pushed");
+});
+
+scenario("new_release_requires_a_channel_before_writing_state_or_refs", (item) => {
+  const value = candidate(item, { remote: false });
+  const path = join(value.repository, ".harness/release-context.json");
+  const context = JSON.parse(readFileSync(path, "utf8"));
+  context.schemaVersion = 3;
+  delete context.releaseChannel;
+  const bytes = canonicalBytes(context);
+  writeFileSync(path, bytes);
+  item.git(value.repository, "add", ".harness/release-context.json");
+  item.git(value.repository, "commit", "--quiet", "-m", "chore: fixture legacy release context");
+  value.context.digest = createHash("sha256").update(bytes).digest("hex");
+  const before = item.state(value.repository);
+  const rejected = item.helper(value.repository, releaseArgs(value), { success: false }).payload;
+  assert.equal(rejected.code, "release-channel-required");
+  assert.deepEqual(item.state(value.repository), before);
+  assert.equal(item.git(value.repository, "tag", "--list").stdout, "");
+});
 
 scenario("release_rejects_out_of_range_or_prerelease_version_before_any_merge", (item) => {
   const value = candidate(item);

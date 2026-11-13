@@ -187,13 +187,13 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     "function reviewedReleaseMetadata(", "function verifyReviewedFinalHead(",
     'module.verifyReviewScope(repository.root, value)',
     'if (state.cycle === null && state.lastRelease !== null)', 'if (!validRemote(remote))',
-    'const RELEASE_BRANCH = "release";', "function assertNoLocalReleaseCaseVariant(", "function remoteReleaseRefs(",
-    "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag))",
+    'function readCommittedReleaseContext(repository, head)', "function assertNoLocalReleaseCaseVariant(", "function remoteReleaseRefs(",
+    "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag, branch))",
     "export async function commandRelease(", "export function commandPushRelease(", 'state.pendingPublish = { head, targets:',
     '["push", target.remote, `${head}:refs/heads/${target.branch}`]',
     '["push", remote, last.head + ":refs/heads/" + branch]',
     '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]',
-    '["update-ref", "refs/heads/release", head, expected]',
+    '["update-ref", `refs/heads/${channel}`, head, expected]',
     "const postReleaseAction = harnessSource ? null : configuredPostReleaseAction(sourceRepository)",
     "function isHarnessSourceRelease(",
     "if (last.postReleaseAction === null && !isHarnessSourceRelease(repository, last))",
@@ -251,7 +251,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
   requireContract(errors, paths.contextHelper, [
     'export const CONTEXT_RELATIVE_PATH = ".harness/release-context.json"', "export function validBranchName(",
     '["check-ref-format", "--branch", args.defaultBranch]',
-    "value.schemaVersion !== 3", '"schemaVersion", "sourceHead", "version", "releaseDate"',
+    "![3, 4].includes(value.schemaVersion)", '"schemaVersion", "sourceHead", "version", "releaseDate"',
     "export function validateContext(", "export function canonicalBytes(", "export function verifyReviewScope(",
     'const expectedTag = `v${value.version}-${compactDate}`',
   ], "Git lifecycle contract");
@@ -322,7 +322,7 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     ], "local context default initialization sequence");
     requireOrder(errors, release, [
       "state.cycle.pendingRelease =", "postReleaseAction,", "saveState(repository, state)",
-      "return completePendingRelease(repository, state, args, reviewed)",
+      "await completePendingRelease(repository, state, args, reviewed)",
     ], "context-bound pending-before-release sequence");
     requireOrder(errors, functionSource(publication, "releaseContextBinding"), [
       "raw = readFileSync(path)", "module.validateContext(value)", "module.canonicalBytes(value)",
@@ -347,26 +347,28 @@ export function validateGitLifecycleContract(errors, overrides = {}) {
     const postReleasePush = functionSource(publication, "commandPushRelease");
     requireOrder(errors, postReleasePush, [
       "const last = state.lastRelease", "if (last.postReleaseAction === null && !isHarnessSourceRelease(repository, last))",
-      'if (last.postReleaseAction !== null && last.postReleaseAction !== "push_release_branch")', "const branch = RELEASE_BRANCH",
+      'if (last.postReleaseAction !== null && last.postReleaseAction !== "push_release_branch")',
       "const checkoutBranch = currentBranchOrNone(repository)",
       "const checkoutHead = currentHead(repository)", "localTagTarget(",
-      "assertNoLocalReleaseCaseVariant(repository)", "remoteReleaseRefs(repository, remote, last.tag)",
-      "ensureLocalReleaseBranch(repository, state, last.head)",
+      "readCommittedReleaseContext(repository, last.head)", "digest !== last.releaseContextSha256",
+      'const branch = context.releaseChannel ?? "release"',
+      "assertNoLocalReleaseCaseVariant(repository, branch)", "remoteReleaseRefs(repository, remote, last.tag, branch)",
+      "ensureLocalReleaseBranch(repository, state, last.head, branch)",
       '["push", remote, last.head + ":refs/heads/" + defaultBranch]', "remoteBranchOid(",
       '["push", remote, last.head + ":refs/heads/" + branch]',
       "remoteBranchOid(", '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]',
-      "remoteTagTarget(", "remoteReleaseRefs(repository, remote, last.tag)", "requireClean(repository)",
+      "remoteTagTarget(", "remoteReleaseRefs(repository, remote, last.tag, branch)", "requireClean(repository)",
       "currentBranchOrNone(repository) !== checkoutBranch", "currentHead(repository) !== checkoutHead",
-      "localTagTarget(repository, last.tag) !== last.head", "localReleaseBranchTarget(repository) !== last.head",
+      "localTagTarget(repository, last.tag) !== last.head", "localReleaseBranchTarget(repository, branch) !== last.head",
     ], "independent released-head-and-tag push sequence");
     const localReleaseBranch = functionSource(publication, "ensureLocalReleaseBranch");
     requireOrder(errors, localReleaseBranch, [
-      "const previous = localReleaseBranchTarget(repository)",
+      "const previous = localReleaseBranchTarget(repository, channel)",
       '["merge-base", "--is-ancestor", previous, head]',
-      "state.releasedResources.some((released) => released.head === previous)",
-      "worktreeRecords(repository).some((record) => record.branch === RELEASE_BRANCH)",
-      '["update-ref", "refs/heads/release", head, expected]',
-      "localReleaseBranchTarget(repository) !== head",
+      "isVerifiedHistoricalReleaseHead(repository, state, previous, channel)",
+      "worktreeRecords(repository).some((record) => record.branch === channel)",
+      '["update-ref", `refs/heads/${channel}`, head, expected]',
+      "localReleaseBranchTarget(repository, channel) !== head",
     ], "local release branch provenance and compare-and-swap sequence");
     if (postReleasePush.split("localTagTarget(repository, last.tag)").length - 1 !== 2) {
       fail(errors, "post-release push must check the frozen local tag before and after push");

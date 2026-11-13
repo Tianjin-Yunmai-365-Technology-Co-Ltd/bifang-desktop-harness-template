@@ -55,7 +55,7 @@ DESKTOP（Cargo `gui`）固定使用 Tauri 2、React 和 Mantine。新项目直�
 - 规格不明确且不同答案会改变产品边界时停止并确认；普通实现细节不新增范围会议。模板硬规则确需例外时，按 `docs/ENGINEERING_RULES.md` 写入当日 ADR 后再继续。
 - Core-first 是硬规则：接口/宿主无关的业务规则、值域、跨字段关系、状态转换与稳定错误属于 core；CLI/MCP/DESKTOP/NSH 是薄层，薄层按职责判断。详细归属、依赖、异步、日志、GUI 交互和测试规则只在相关任务中读取 `docs/ENGINEERING_RULES.md` 与 `docs/RUST_CLI_TEMPLATE.md`。
 - 已初始化下游的版本只通过 `$desktop-manage-version` 管理；根 `Cargo.toml` 是当前版本事实源，`.harness/version-state.json` 是受保护的周期/去重状态。分类（`feature`/`bug-fix`/`record-reconciliation`）、周期、`0..99` base-100 进位、Major 上限与含 `100` 值失败关闭的规则，唯一来源是 `docs/RELEASE.md` 与该 Skill。Harness 自身版本只取 `Version.md`，仅在正式发布时按上海时区 `YYYYMMDDHHMM` 确定；`Released` 只由登记分支合并后的默认主分支与本地 tag 精确复核判定。
-- Harness 源与终端下游的新功能或独立 Bug 修复在写入前通过 `$desktop-manage-git-lifecycle` 自动创建并切换到独立 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支。用户明确说“发布”时，受管流程复核并提交本次范围，把登记分支普通合并到本地默认主分支并创建复读 `v{版本}-{YYYYMMDD}`，即完成 Git 发布；`release` 必须传已跟踪发布上下文的 `--release-context-sha256 <sha256>`，不 fetch、push、打包或删除登记资源。下游在发布开始时冻结已确认的 `post_release_action` 并按快照执行；Harness 源的后续归档或推送由用户当次决定。`push_release_branch` 的路径、字段语义与“不设保护分支/线性/lease 门禁、不使用大写 `Release`”等负面保证，唯一来源是 `docs/AGENT_POLICY.md` 与该 Skill；后续失败不改变本地 Git 发布事实，流程不创建/配置远端或凭据。
+- Harness 源与终端下游的新功能或独立 Bug 修复在写入前通过 `$desktop-manage-git-lifecycle` 自动创建并切换到独立 `feature-{ascii-kebab摘要}-{YYYYMMDD}` 分支。用户明确说“发布”时，先确认 Release 或 Beta，受管流程复核并提交本次范围，把登记分支普通合并到本地默认主分支并创建复读 `v{版本}-{YYYYMMDD}`，即完成 Git 发布；`release` 必须传已跟踪发布上下文的 `--release-context-sha256 <sha256>`，不 fetch、push、打包或删除登记资源。下游在发布开始时冻结已确认的 `post_release_action` 并按快照执行；Harness 源的后续归档或推送由用户当次决定。`push_release_branch` 的路径、字段语义与“不设保护分支/线性/lease 门禁、不使用大写 `Release`”等负面保证，唯一来源是 `docs/AGENT_POLICY.md` 与该 Skill；后续失败不改变本地 Git 发布事实，流程不创建/配置远端或凭据。
 - 对产出物声称“完成”“可用”或“已验证”必须基于真实产物的可观察结果；Mock、stub、源码片段、占位页面、中性 scaffold 或开发预览不能冒充候选验收。人工批准也不能把失败或未执行改判为通过。
 - Product Spec、ADR、Changelog、Product Status、Work Plan 与 Verification 只由各自独立事件触发；Git 发布事实由本地主分支与 tag 复核，候选构建/E2E/验收/就绪复核只写忽略的 `release/` 原子证据，渠道分发或回顾审计各按独立事件写适用 tracked 记录。普通维护不写占位，范围外问题写入 `docs/TECH_DEBT.md`。
 - 仅当前 Harness 上游工程的工程自动化使用 Node.js 标准库 `.mjs` helper，禁止 Python 源码、解释器、包管理器、虚拟环境、第三方包和运行步骤；新增或修改自动化、依赖清单、workflow 或环境门禁时运行 `node .agents/skills/desktop-implement-change/scripts/check_no_python.mjs --root .`。该禁令及检查器不得随创建或升级传播到终端下游；下游按自身需求选择脚本语言，并遵守项目本地显式依赖与不得假设全局第三方包的规则。
@@ -87,7 +87,7 @@ DESKTOP（Cargo `gui`）固定使用 Tauri 2、React 和 Mantine。新项目直�
 | 构建、版本与发布 | `docs/RELEASE.md`；Harness 当前版本另取 `Version.md` | 显式构建或发布 |
 | 验证方式、候选证据与人工复核 | `docs/VERIFICATION.md`；活动候选读 `release/`，已发布/回顾性事实才读精确证据卷 | E2E、完整验收、发布或审计 |
 | Git 安装、local 身份、模板与提交消息 | `$desktop-check-development-environment`、`$desktop-configure-git-commits` 及其引用 | 环境失败恢复、初始化门禁或实际提交 |
-| 开发分支、主分支推送、版本 tag、发布后 `release` 分支与已登记资源保留 | `docs/AGENT_POLICY.md`、Git common-dir 生命周期清单、`$desktop-manage-git-lifecycle` | 新功能/Bug 修复、用户明确推送或发布 |
+| 开发分支、主分支推送、版本 tag、发布后渠道分支与已登记资源保留 | `docs/AGENT_POLICY.md`、Git common-dir 生命周期清单、`$desktop-manage-git-lifecycle` | 新功能/Bug 修复、用户明确推送或发布 |
 | 已知限制与技术债 | `docs/TECH_DEBT.md` | 发现范围外问题或复核既有限制 |
 | 下游 Harness 来源与升级 | `.harness/upstream-lock.json`、`$desktop-upgrade-harness` | 仅升级下游工程层 |
 | 商业许可 | `LICENSE.zh-CN.md`、`LICENSE.en.md` | 实例化、身份改名、分发或许可任务 |

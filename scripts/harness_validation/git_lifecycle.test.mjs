@@ -107,7 +107,7 @@ test("push-release rejects option-like remote names", () => {
 
 test("push-release verifies all remote refs after the tag update", () => {
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag))", "confirmedBranch = last.head; confirmedTag = last.head"), "Git lifecycle contract missing");
+    "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag, branch))", "confirmedBranch = last.head; confirmedTag = last.head"), "Git lifecycle contract missing");
 });
 
 test("push-release requires default branch synchronization and final drift checks", () => {
@@ -121,20 +121,20 @@ test("push-release requires default branch synchronization and final drift check
 
 test("push-release targets the fixed release branch", () => {
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    "const branch = RELEASE_BRANCH", 'const branch = remoteDefaultBranch(repository, remote)'),
+    'const branch = context.releaseChannel ?? "release"', 'const branch = remoteDefaultBranch(repository, remote)'),
   "independent released-head-and-tag push sequence");
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    'const RELEASE_BRANCH = "release";', 'const RELEASE_BRANCH = "Release";'),
+    'function readCommittedReleaseContext(repository, head)', 'const RELEASE_BRANCH = "Release";'),
   "Git lifecycle contract");
 });
 
 test("local release branch must retain recorded provenance and use compare-and-swap", () => {
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    "state.releasedResources.some((released) => released.head === previous)", "true"),
+    "isVerifiedHistoricalReleaseHead(repository, state, previous, channel)", "true"),
   "local release branch provenance and compare-and-swap sequence");
   expectErrors(validateMutation("publication", GIT_LIFECYCLE_PUBLICATION,
-    '["update-ref", "refs/heads/release", head, expected]',
-    '["update-ref", "refs/heads/release", head]'),
+    '["update-ref", `refs/heads/${channel}`, head, expected]',
+    '["update-ref", `refs/heads/${channel}`, head]'),
   "local release branch provenance and compare-and-swap sequence");
 });
 

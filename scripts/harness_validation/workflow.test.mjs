@@ -59,9 +59,9 @@ const workflowMutations = [
   ["arbitrary command input", "      version:\n", "      arbitrary_command:\n        type: string\n      version:\n", "inputs must be exactly"],
   ["matrix fail-fast enabled", "      fail-fast: false\n", "      fail-fast: true\n", "forbidden candidate behavior"],
   ["mutable checkout action", "actions/checkout@11d5960a326750d5838078e36cf38b85af677262", "actions/checkout@v4", "action-step allowlist"],
-  ["checkout points at source input", "          ref: release\n", "          ref: ${{ inputs.source_commit }}\n", "forbidden candidate behavior"],
-  ["checkout points at advertised default", "          ref: release\n", "          ref: ${{ github.event.repository.default_branch }}\n", "forbidden candidate behavior"],
-  ["candidate attempts a remote push", "          ref: release\n", "          ref: release\n          git push origin release\n", "forbidden candidate behavior"],
+  ["checkout points at source input", "          ref: ${{ github.ref }}\n", "          ref: ${{ inputs.source_commit }}\n", "forbidden candidate behavior"],
+  ["checkout points at advertised default", "          ref: ${{ github.ref }}\n", "          ref: ${{ github.event.repository.default_branch }}\n", "forbidden candidate behavior"],
+  ["candidate attempts a remote push", "          ref: ${{ github.ref }}\n", "          ref: ${{ github.ref }}\n          git push origin release\n", "forbidden candidate behavior"],
   ["shallow checkout", "          fetch-depth: 0\n", "          fetch-depth: 1\n", "fetch-depth: 0"],
   ["missing Node setup version", "          node-version: lts/*\n", "          node-version: 24.20.0\n", "runtime setup"],
   ["format gate injected into build", "          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "          cargo fmt --all -- --check\n          cargo test --workspace --all-targets --all-features \"${lock_args[@]}\"\n", "forbidden candidate behavior"],
@@ -128,12 +128,12 @@ for (const [name, fragment, replacement] of candidateHelperMutations) {
 }
 
 const contextHelperMutations = [
-  ["named checkout", "runner must check out the named release branch at source_commit", "checkout accepted"],
+  ["named checkout", "runner must check out the named release or beta branch at source_commit", "checkout accepted"],
   ["tracked context bytes", "working release context bytes do not match source_commit", "context accepted"],
   ["host-verified digest", "release context digest does not match the host-verified input", "digest accepted"],
-  ["fetched remote release branch", "fetched origin release branch does not equal source_commit", "remote accepted"],
-  ["remote release branch", "`refs/remotes/origin/${RELEASE_BRANCH}`", '"refs/remotes/origin/main"'],
-  ["separate local default branch", "releaseDefaultBranch: normalized.defaultBranch", "releaseDefaultBranch: RELEASE_BRANCH"],
+  ["fetched remote release branch", "fetched origin ${releaseChannel} branch does not equal source_commit", "remote accepted"],
+  ["remote release branch", "`refs/remotes/origin/${releaseChannel}`", '"refs/remotes/origin/main"'],
+  ["separate local default branch", "releaseDefaultBranch: normalized.defaultBranch", "releaseDefaultBranch: releaseChannel"],
   ["release tag", "`refs/tags/${normalized.expectedTag}`", '"refs/tags/latest"'],
 ];
 
@@ -240,6 +240,7 @@ test("write-manifest binds real archive bytes, release review, build E2E, and si
     const contextDigest = "b".repeat(64);
     fs.writeFileSync(snapshot, `${JSON.stringify({
       sourceCommit: "a".repeat(40), releaseContextSha256: contextDigest,
+      releaseChannel: "release", remoteReleaseBranch: "release",
       version: "1.2.3", expectedTag: "v1.2.3-20260923",
       releaseReview: { selection: "disabled", status: "Not run", reason: "fixture", remainingRisk: "fixture-risk" },
     })}\n`, "utf8");
@@ -248,7 +249,7 @@ test("write-manifest binds real archive bytes, release review, build E2E, and si
       env: {
         GITHUB_WORKSPACE: fixture.root, CANDIDATE_ARCHIVE: fixture.archive,
         CANDIDATE_STAGE: fixture.stage, PRODUCT_NAME: "example-tool", VERSION: "1.2.3",
-        SOURCE_COMMIT: "a".repeat(40), BUILD_RUN_ID: "fixture-1", E2E_SELECTION: "disabled",
+        SOURCE_COMMIT: "a".repeat(40), HARNESS_RELEASE_CHANNEL: "release", BUILD_RUN_ID: "fixture-1", E2E_SELECTION: "disabled",
         RUNNER_OS: "Linux", RUNNER_ARCH: "X64", SIGNING_STATUS: "signed",
         SIGNING_REASON: "configured-hook-succeeded", SIGNING_EVIDENCE: "configured-hook-verify-exit-0",
         RELEASE_NOTES_SHA256: createHash("sha256").update(releaseNotes).digest("hex"),

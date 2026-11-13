@@ -10,6 +10,8 @@ description: 独立构建 NSH 桌面、Android、iOS、Web 包；区分本地工
 - `local`：允许未发布源码，完整非空 workspace 测试、NSH 检查与真实渲染树测试后打包到忽略的 `target/nsh-packaging/`；不安装/启动，不消费候选 E2E，不创建发布事实。
 - `candidate`：`$desktop-manage-version check --phase build`（构建不得提升版本）、clean 已发布默认主分支/tag/上下文及双语日志。构建前复用当前明确 E2E 选择，否则询问一次；当前请求明确全流程测试则启用。最终包后才进入 `$desktop-verify-delivery`；pending 与 Unverified 不等于 accepted。
 
+本地试包将 `HARNESS_RELEASE_CHANNEL` 设为 `dev`。候选将已验证的 `releaseChannel` 传给测试与打包进程并写入 manifest。Beta 在打包副本给展示名和启动标题加 ` Beta`，给应用 ID 加 `.beta`；程序文件名由官方打包器按平台从名称派生。生成的应用使用 `appInfo()` 的实际名称与 ID 为双语标题保留 Beta 后缀。已有下游若自行设置窗口标题，在准备发布的开发提交中先把动态标题迁移到这一路径。
+
 ```sh
 node .agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs --root . --mode local --target macos
 node .agents/skills/desktop-build-nsh-release/scripts/build_nsh_release.mjs --root . --mode candidate --target web --e2e enabled
@@ -21,7 +23,7 @@ helper：`scripts/build_nsh_release.mjs --root <根> --mode local|candidate --ta
 
 生成到唯一暂存目录，测试后、打包后复核源码与资源快照，拒绝中途漂移；不覆盖旧批次。候选根 `release/<buildRun>/` 的完整 `buildRun` 为 `nsh-<target>-<uuid>`，其中包含官方包、release-notes.json、双语许可证和 manifest。关于页的“更新日志”按钮展示编译进应用的双语内容：helper 先从已校验的 schema v2 根日志按最新在前、两类各最多十条渲染到暂存文本，再用 `HARNESS_RELEASE_NOTES_ZH_PATH` 与 `HARNESS_RELEASE_NOTES_EN_PATH` 两个短路径通知 NSH 适配器的标准库 `build.rs` 复制到 `OUT_DIR`，Rust 通过 `include_str!` 嵌入；本地试包写入无已发布日志占位。外层 sidecar 的字节与根日志一致，但 sidecar 不是 NSH 内部资源；最终 E2E 必须实际点击按钮并对照同一候选内容。manifest 列出实际所有文件摘要、源码、工具版本、目标、签名边界和 E2E 选择，正式候选初始 `milestoneAcceptance: pending`、`runtimeVerification: Unverified`。
 
-通用 Git 发布仍由 `$desktop-prepare-release` 完成本地 merge/tag；本 Skill 不提交、不推送、不改版本。Git 发布后的 `local_package` 先运行生命周期 `check-post-release --action local_package`，再由 `$desktop-switch-post-release-action` 的只读 `route` 返回本次唯一 `target`，以该目标调用 `candidate` 并复核当前批次真实产物、摘要和 manifest。成功形成一个候选即可完成本次本地打包动作；其 `pending` 不代表验收或其他平台完成。失败时不自动改选目标，只有用户明确要求另一个已选且本机可构建的目标才用 `route --interface <接口> --target <目标>` 验证。`dependency-lock-policy = "tracked"` 时生成的 NSH 运行时 workspace 尚不能传播锁，动作选择就应拒绝 `local_package`，本 helper 仍在编译前失败关闭。远程构建必须另行复核已推送 release 分支/tag。
+通用 Git 发布仍由 `$desktop-prepare-release` 完成本地 merge/tag；本 Skill 不提交、不推送、不改版本。Git 发布后的 `local_package` 先运行生命周期 `check-post-release --action local_package`，再由 `$desktop-switch-post-release-action` 的只读 `route` 返回本次唯一 `target`，以该目标调用 `candidate` 并复核当前批次真实产物、摘要和 manifest。成功形成一个候选即可完成本次本地打包动作；其 `pending` 不代表验收或其他平台完成。失败时不自动改选目标，只有用户明确要求另一个已选且本机可构建的目标才用 `route --interface <接口> --target <目标>` 验证。`dependency-lock-policy = "tracked"` 时生成的 NSH 运行时 workspace 尚不能传播锁，动作选择就应拒绝 `local_package`，本 helper 仍在编译前失败关闭。远程构建必须另行复核已推送的渠道分支/tag。
 
 NSH 正式 0.5.0 生成的 runtime workspace 尚未验证可传递 `--locked`；当前 helper 对 dependency-lock-policy=tracked 在任何编译前失败关闭。默认 ignored 保持正常解析；不得私自修改项目锁策略。
 

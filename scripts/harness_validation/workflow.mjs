@@ -98,17 +98,18 @@ export function validateReleaseContextHelper(errors, helper = RELEASE_CONTEXT_HE
   const text = validateHelper(errors, helper, [
     'const CONTEXT_PATH = ".harness/release-context.json"',
     'const HELPER_PATH = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs"',
-    'const RELEASE_BRANCH = "release"',
+    'const releaseChannel = normalized.releaseChannel ?? "release"',
+    "ref !== `refs/heads/${releaseChannel}`",
     "export async function calculateSnapshot(",
-    "runner must check out the named release branch at source_commit",
+    "runner must check out the named release or beta branch at source_commit",
     "working release context bytes do not match source_commit",
     "release context digest does not match the host-verified input",
-    "fetched origin release branch does not equal source_commit",
+    "fetched origin ${releaseChannel} branch does not equal source_commit",
     "fetched release tag does not equal source_commit",
-    "`refs/remotes/origin/${RELEASE_BRANCH}`",
+    "`refs/remotes/origin/${releaseChannel}`",
     "`refs/tags/${normalized.expectedTag}`",
     "releaseContextSha256: digest",
-    "remoteReleaseBranch: RELEASE_BRANCH",
+    "remoteReleaseBranch: releaseChannel",
     "releaseDefaultBranch: normalized.defaultBranch",
     '["capture", "verify"].includes',
     "release context changed between build checks",
@@ -126,7 +127,8 @@ export function validateReleaseContextHelper(errors, helper = RELEASE_CONTEXT_HE
 export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKFLOW_HELPER) {
   const text = validateHelper(errors, helper, [
     "const MINIMUM_NODE = [24, 0, 0]",
-    'const RELEASE_BRANCH = "release"',
+    'environment("HARNESS_RELEASE_CHANNEL")',
+    "snapshot.releaseChannel !== channel",
     "function verifyCheckout(",
     "function readMsrv(",
     "function checkLockPolicy(",
@@ -137,7 +139,7 @@ export function validateCandidateWorkflowHelper(errors, helper = CANDIDATE_WORKF
     "function writeManifest(",
     "function commitCandidate(",
     "source_commit 必须是由小写十六进制字符组成的 40 字符 SHA",
-    "必须检出具名 release 分支",
+    "必须检出与渠道相同的具名分支",
     "release-notes.json 必须是非符号链接普通文件",
     "未发现测试",
     "测试后源码提交或 clean 状态发生变化",
@@ -233,7 +235,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     "release_context_sha256:", "RELEASE_CONTEXT_SHA256: ${{ inputs.release_context_sha256 }}",
     "RELEASE_CONTEXT_SNAPSHOT: ${{ runner.temp }}/release-context-snapshot.json",
     CHECKOUT_USE, SETUP_NODE_USE, UPLOAD_USE, "node-version: lts/*", "check-latest: true",
-    "ref: release", "fetch-depth: 0", "persist-credentials: false",
+    "ref: ${{ github.ref }}", "HARNESS_RELEASE_CHANNEL: ${{ github.ref_name }}", "fetch-depth: 0", "persist-credentials: false",
     "release_candidate_workflow.mjs check-node-runtime", "release_candidate_workflow.mjs verify-checkout",
     "verify_release_context.mjs capture", "verify_release_context.mjs verify",
     "release_candidate_workflow.mjs read-msrv", "release_candidate_workflow.mjs verify-version",
@@ -336,7 +338,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
   }
 
   const checkout = new Set(stepBlock({ uses: CHECKOUT_USE }).map((line) => line.trim()));
-  for (const fragment of ["ref: release", "fetch-depth: 0", "persist-credentials: false"]) {
+  for (const fragment of ["ref: ${{ github.ref }}", "fetch-depth: 0", "persist-credentials: false"]) {
     if (!checkout.has(fragment)) fail(errors, `workflow checkout must use the release branch with full credential-free history: ${fragment}`);
   }
   const setup = new Set(stepBlock({ uses: SETUP_NODE_USE }).map((line) => line.trim()));
@@ -344,7 +346,7 @@ export function validateWorkflow(errors, workflow = WORKFLOW) {
     if (!setup.has(fragment)) fail(errors, `workflow runtime setup missing: ${fragment}`);
   }
   const preflight = stepBlock({ name: "确认已授权候选预检" }).join("\n");
-  for (const fragment of ["inputs.confirm_candidate_build", '"$E2E_SELECTION" != "enabled"', '"$E2E_SELECTION" != "disabled"']) {
+  for (const fragment of ["inputs.confirm_candidate_build", '"$GITHUB_REF" != "refs/heads/release"', '"$GITHUB_REF" != "refs/heads/beta"', '"$E2E_SELECTION" != "enabled"', '"$E2E_SELECTION" != "disabled"']) {
     if (!preflight.includes(fragment)) fail(errors, `workflow candidate preflight missing: ${fragment}`);
   }
   const contextHelper = ".agents/skills/desktop-prepare-cross-platform-release/scripts/verify_release_context.mjs";

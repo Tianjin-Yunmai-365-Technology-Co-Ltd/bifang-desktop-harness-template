@@ -41,7 +41,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env:
-      PRODUCT_NAME: example-tool
+      HARNESS_RELEASE_CHANNEL: ${{ github.ref_name }}
       VERSION: ${{ inputs.version }}
       SOURCE_COMMIT: ${{ inputs.source_commit }}
       RELEASE_CONTEXT_SHA256: ${{ inputs.release_context_sha256 }}
@@ -62,9 +62,13 @@ jobs:
             echo "::error::e2e_selection 必须是 enabled 或 disabled。"
             exit 1
           fi
+          if [[ "$GITHUB_REF" != "refs/heads/release" && "$GITHUB_REF" != "refs/heads/beta" ]]; then
+            echo "::error::请选择 release 或 beta 分支。"
+            exit 1
+          fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: release
+          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -131,7 +135,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          binary="target/release/${PRODUCT_NAME}"
+          binary="target/release/${CANDIDATE_BINARY}"
+          if [[ "$CANDIDATE_BINARY" != "$PRODUCT_NAME" ]]; then
+            cp "target/release/${PRODUCT_NAME}" "$binary"
+          fi
           hook=".release-signing/sign-candidate.sh"
           status="unsigned"
           reason="hook-not-configured"
@@ -165,7 +172,10 @@ jobs:
         if: runner.os == 'Windows' && success()
         shell: pwsh
         run: |
-          $binary = "target/release/$env:PRODUCT_NAME.exe"
+          $binary = "target/release/$env:CANDIDATE_BINARY.exe"
+          if ($env:CANDIDATE_BINARY -ne $env:PRODUCT_NAME) {
+            Copy-Item -LiteralPath "target/release/$env:PRODUCT_NAME.exe" -Destination $binary -ErrorAction Stop
+          }
           $hook = ".release-signing/sign-candidate.ps1"
           $status = "unsigned"
           $reason = "hook-not-configured"
@@ -196,14 +206,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          binary="target/release/${PRODUCT_NAME}"
+          binary="target/release/${CANDIDATE_BINARY}"
           test -f "$binary"
           platform="$(printf '%s' "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')"
           arch="$(printf '%s' "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')"
-          archive="${PRODUCT_NAME}-v${VERSION}-${platform}-${arch}.tar.gz"
+          archive="${CANDIDATE_BINARY}-v${VERSION}-${platform}-${arch}.tar.gz"
           stage="$(mktemp -d "${GITHUB_WORKSPACE}/../.${PRODUCT_NAME}.release-candidate.XXXXXX")"
           chmod 700 "$stage"
-          tar -czf "${stage}/${archive}" -C target/release "$PRODUCT_NAME" -C "$GITHUB_WORKSPACE" release-notes.json
+          tar -czf "${stage}/${archive}" -C target/release "$CANDIDATE_BINARY" -C "$GITHUB_WORKSPACE" release-notes.json
           if command -v sha256sum >/dev/null 2>&1; then
             (cd "$stage" && sha256sum "$archive" > "${archive}.sha256")
           else
@@ -215,11 +225,11 @@ jobs:
         if: runner.os == 'Windows' && success()
         shell: pwsh
         run: |
-          $binary = "target/release/$env:PRODUCT_NAME.exe"
+          $binary = "target/release/$env:CANDIDATE_BINARY.exe"
           if (-not (Test-Path -LiteralPath $binary -PathType Leaf)) { throw "缺少发布二进制文件：$binary" }
           $platform = $env:RUNNER_OS.ToLowerInvariant()
           $arch = $env:RUNNER_ARCH.ToLowerInvariant()
-          $archive = "$env:PRODUCT_NAME-v$env:VERSION-$platform-$arch.zip"
+          $archive = "$env:CANDIDATE_BINARY-v$env:VERSION-$platform-$arch.zip"
           $stage = Join-Path (Split-Path -Parent $env:GITHUB_WORKSPACE) (".$env:PRODUCT_NAME.release-candidate." + [Guid]::NewGuid().ToString("N"))
           [IO.Directory]::CreateDirectory($stage) | Out-Null
           Compress-Archive -LiteralPath @($binary, "release-notes.json") -DestinationPath (Join-Path $stage $archive)

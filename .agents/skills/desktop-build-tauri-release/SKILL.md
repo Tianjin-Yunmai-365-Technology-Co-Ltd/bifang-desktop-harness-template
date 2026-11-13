@@ -9,6 +9,14 @@ description: 从 clean HEAD 构建下游 Tauri 2 GUI 发布候选；支持 macOS
 
 仅供本机安装检查的试包转到 `$desktop-build-tauri-local-install`；已完成 Git 发布后，用户另行请求可分发候选打包，或本次发布冻结了用户已确认的 `post_release_action: local_package`，才进入本 Skill。正式候选的 E2E 选择在本次请求已明确 `enabled`/`disabled` 时直接复用，否则在任何测试或编译前询问用户一次；`e2e_hint` 只提供建议默认值。当前候选目标包含 macOS 时 `macosSigningSelection` 必须精确为 `enabled | disabled`；不含 macOS 时为 `not-applicable`。这些候选构建只核对既有版本，构建不得提升版本。
 
+从已验证上下文读取 `releaseChannel`，在测试、构建与签名命令的进程环境设置 `HARNESS_RELEASE_CHANNEL`，并把同值写入 manifest。完成发布目录预检后按目标运行：
+
+```text
+node .agents/skills/desktop-build-tauri-release/scripts/tauri_channel_config.mjs --project-root . --gui-root <相对路径> --platform <macos|windows> --cargo-package <实际 GUI Cargo package 名称> --cargo-binary <实际 Cargo 主二进制名称，不含扩展名>
+```
+
+把返回的非空 `configPath` 作为所有候选构建命令的最后一个 `--config <configPath>`（位于 Cargo 的 `--` 分隔符之前）。Beta 使用 ` Beta` 的产品与启动标题后缀、`-beta` 的主程序后缀及 `.beta` 的应用 ID；在独立的忽略目录设置本次 `CARGO_TARGET_DIR`，并从该目录发现候选。动态标题必须消费有效的 Tauri `package_info().name`，已自定义标题的项目按相同渠道保留 Beta 后缀。候选完成或失败后清除本次临时配置。
+
 ## 按需资料
 
 先从根 Cargo 与当前请求确定实际候选目标和构建路线，仅读取命中行的引用；多路线取并集。签名适用性取决于候选目标，不能仅因宿主是 macOS 而启用。

@@ -122,7 +122,7 @@ export function lifecycleFixture() {
   };
   const prepareReleaseContext = (
     repository,
-    { version, date, defaultBranch = "main", summary = "发布上下文测试", reviewSelection = "disabled" },
+    { version, date, defaultBranch = "main", channel = "release", summary = "发布上下文测试", reviewSelection = "disabled" },
   ) => {
     const sourceHead = git(repository, "rev-parse", "HEAD").stdout.trim();
     const scopeBase = git(repository, "rev-list", "--max-parents=0", "HEAD").stdout.trim();
@@ -144,6 +144,7 @@ export function lifecycleFixture() {
       "--version", version,
       "--release-date", `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)}`,
       "--default-branch", defaultBranch,
+      "--channel", channel,
       "--review-selection", reviewSelection,
       "--scope-base", scopeBase,
       "--scope-diff-sha256", scopeDiffSha256,

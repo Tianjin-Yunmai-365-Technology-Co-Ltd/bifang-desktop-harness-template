@@ -10,7 +10,7 @@ function isWithin(root, file) {
 }
 
 /** NSH 只打包应用根内的静态资源，必须复制工作区布局，不能用跨目录入口或链接。 */
-export function prepareNshPortableEntry(root, member, stage) {
+export function prepareNshPortableEntry(root, member, stage, { portable = true, betaIdentity } = {}) {
   const relative = path.relative(root, member);
   if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
     throw new Error('NSH app must belong to its workspace');
@@ -43,19 +43,25 @@ export function prepareNshPortableEntry(root, member, stage) {
   const entry = path.join(workspace, relative);
   const configFile = path.join(entry, 'nsh.json');
   const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-  if (config.rust !== '.' || Object.hasOwn(config, 'root')) throw new Error('combined NSH project requires a Mixed app');
-  if (config.capabilities != null) {
+  if (portable && (config.rust !== '.' || Object.hasOwn(config, 'root'))) throw new Error('combined NSH project requires a Mixed app');
+  if (portable && config.capabilities != null) {
     if (typeof config.capabilities !== 'object' || Array.isArray(config.capabilities)) throw new Error('invalid NSH capabilities');
     delete config.capabilities.windows;
     // An explicit empty object denies all capabilities. Omitting the field grants all by default.
   }
-  delete config.singleInstance;
-  delete config.window;
-  // The generated scheme is desktop-only. Product-specific schemes may also serve Android or iOS.
-  if (Array.isArray(config.schemes)) {
+  if (portable) {
+    delete config.singleInstance;
+    delete config.window;
+  }
+  // 便携目标只移除脚手架生成的桌面协议。
+  if (portable && Array.isArray(config.schemes)) {
     const generatedScheme = 'app-' + path.basename(member, '_nsh').replaceAll('_', '-');
     config.schemes = config.schemes.filter(scheme => scheme !== generatedScheme);
     if (!config.schemes.length) delete config.schemes;
+  }
+  if (betaIdentity) {
+    Object.assign(config, betaIdentity);
+    if (config.window) config.window.title = config.window.title ? config.window.title + ' Beta' : config.name;
   }
   fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
   return entry;

@@ -233,15 +233,15 @@
 
 ## 退役接口发布记录原文
 
-旧条目中的日期 ADR 链接保留发布时的路径。退役决定正文现见 [ADR 历史归档](../adr/ADR_history.md)。
+旧条目的文字和版本绑定保留发布时的记录。退役决定正文见 [ADR 历史归档](../adr/ADR_history.md)，仍有效的决定见 [当前 ADR 快照](../adr/20261113_ADR.md)。
 
 
-- `HARNESS-REMOVE-GPUI`（`required_version = 202611121721`）：Desktop 统一使用 Tauri，选择 Desktop 后直接进入桌面配置。移除 GPUI 脚手架、Skills、Kit 快照、Linux 工具链、构建和验收路由；显式声明 GPUI 的旧工程不会被自动当作 Tauri 升级。见 [ADR-20261112-001](../adr/20261112_ADR.md)。
+- `HARNESS-REMOVE-GPUI`（`required_version = 202611121721`）：Desktop 统一使用 Tauri，选择 Desktop 后直接进入桌面配置。移除 GPUI 脚手架、Skills、Kit 快照、Linux 工具链、构建和验收路由；显式声明 GPUI 的旧工程不会被自动当作 Tauri 升级。见 [ADR-20261112-001](../adr/ADR_history.md)。
 
-- `HARNESS-CHANGE-NSH-TUI-PAUSE`（`required_version = 202611082001`，仅正式发布时取号）：新 NSH 工程只接受桌面、移动、Web，统一绑定正式 v0.4.0 固定提交与匹配 CLI；TUI 选择和旧元数据在初始化、接入、运行、升级及构建时失败关闭。此前已发布的 `main` 预览接线不再作为当前能力，也不会自动改写已有下游；恢复 TUI 须另行确认同源工具链与真实运行、打包证据。见 [ADR-20261108-005](../adr/20261112_ADR.md)。
+- `HARNESS-CHANGE-NSH-TUI-PAUSE`（`required_version = 202611082001`，仅正式发布时取号）：新 NSH 工程只接受桌面、移动、Web，统一绑定正式 v0.4.0 固定提交与匹配 CLI；TUI 选择和旧元数据在初始化、接入、运行、升级及构建时失败关闭。此前已发布的 `main` 预览接线不再作为当前能力，也不会自动改写已有下游；恢复 TUI 须另行确认同源工具链与真实运行、打包证据。见 [ADR-20261108-005](../adr/ADR_history.md)。
 
-- `HARNESS-FEAT-NSH-TUI-PREVIEW`（`required_version = 202611081358`，仅正式发布时取号）：NSH 内部 `tui` 子目标接受所选 macOS/Windows/Linux，支持纯 TUI 与 `desktop+tui` 的 Mixed TSX/Rust core 生成；含 TUI 的新工程固定官方 main 提交并检查 CLI/Cargo 同源，提供独立终端运行、测试、桌面宿主能力隔离和本机预览归档。未选 TUI 的新 NSH 工程继续固定正式 v0.4.0。正式 0.4.0 CLI 无 TUI 目标，预览提交尚无 TUI release runner/package，正式候选与含 TUI 的发布后本地打包仍拒绝；真实终端和跨系统结果按实际执行记录，不从生成器测试推断。见 [ADR-20261107-004](../adr/20261112_ADR.md)。
+- `HARNESS-FEAT-NSH-TUI-PREVIEW`（`required_version = 202611081358`，仅正式发布时取号）：NSH 内部 `tui` 子目标接受所选 macOS/Windows/Linux，支持纯 TUI 与 `desktop+tui` 的 Mixed TSX/Rust core 生成；含 TUI 的新工程固定官方 main 提交并检查 CLI/Cargo 同源，提供独立终端运行、测试、桌面宿主能力隔离和本机预览归档。未选 TUI 的新 NSH 工程继续固定正式 v0.4.0。正式 0.4.0 CLI 无 TUI 目标，预览提交尚无 TUI release runner/package，正式候选与含 TUI 的发布后本地打包仍拒绝；真实终端和跨系统结果按实际执行记录，不从生成器测试推断。见 [ADR-20261107-004](../adr/ADR_history.md)。
 
-- `HARNESS-REMOVE-TUI`（`required_version = 202611070300`）：永久移除独立 Ratatui TUI 程序类型、适配器 Skill、依赖候选及构建/验收路由；顶层 `interfaces = ["tui"]` 仍非法。旧下游的独立 TUI 工程资产仍受保护，升级须先在目标项目单独迁移，不能静默删代码。新 NSH 内部 `tui` 子目标属于上面的固定预览路线，见 [ADR-20261107-001](../adr/20261112_ADR.md)。
+- `HARNESS-REMOVE-TUI`（`required_version = 202611070300`）：永久移除独立 Ratatui TUI 程序类型、适配器 Skill、依赖候选及构建/验收路由；顶层 `interfaces = ["tui"]` 仍非法。旧下游的独立 TUI 工程资产仍受保护，升级须先在目标项目单独迁移，不能静默删代码。新 NSH 内部 `tui` 子目标属于上面的固定预览路线，见 [ADR-20261107-001](../adr/ADR_history.md)。
 
 - `HARNESS-GPUI-ENGINEERING-KNOWLEDGE`（`required_version = 202610201054`）：旧快照记录了当时的 GPUI 依赖、兼容、性能及三平台打包知识；现已退役，可从历史发布提交查阅。2026-10-20 正式发布将既有变化绑定到该时间版本，未重写历史验证事实。

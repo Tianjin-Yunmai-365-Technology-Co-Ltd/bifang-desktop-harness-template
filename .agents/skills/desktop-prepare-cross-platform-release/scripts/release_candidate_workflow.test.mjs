@@ -90,8 +90,10 @@ test("check_lock_policy_defaults_to_ignored_and_rejects_missing_tracked_lock", (
   }
 });
 
-test("checkout_uses_release_branch_full_history_and_no_persisted_credentials", () => {
-  assert.ok(text.includes("ref: release"));
+test("checkout_uses_the_dispatched_channel_with_full_history_and_no_persisted_credentials", () => {
+  assert.ok(text.includes("ref: ${{ github.ref }}"));
+  assert.ok(text.includes("HARNESS_RELEASE_CHANNEL: ${{ github.ref_name }}"));
+  assert.ok(text.includes('"$GITHUB_REF" != "refs/heads/release" && "$GITHUB_REF" != "refs/heads/beta"'));
   assert.ok(!text.includes("github.event.repository.default_branch"));
   assert.ok(text.includes("fetch-depth: 0"));
   assert.ok(text.includes("persist-credentials: false"));

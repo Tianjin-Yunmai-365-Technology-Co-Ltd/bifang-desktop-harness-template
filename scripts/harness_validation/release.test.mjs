@@ -84,10 +84,10 @@ const buildCases = [
   ["per-candidate E2E choice", "buildSkill", BUILD_RELEASE_SKILL, "本次请求已明确 `enabled`/`disabled` 时直接复用"],
   ["workflow context capture", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "verify_release_context.mjs capture"],
   ["workflow context reverify", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "verify_release_context.mjs verify"],
-  ["release branch checkout", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "ref: release"],
+  ["release branch checkout", "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, "ref: ${{ github.ref }}"],
   ["worktree byte binding", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "working release context bytes do not match source_commit"],
-  ["fetched provider release branch", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "fetched origin release branch does not equal source_commit"],
-  ["fetched release branch ref", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "`refs/remotes/origin/${RELEASE_BRANCH}`"],
+  ["fetched provider release branch", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "fetched origin ${releaseChannel} branch does not equal source_commit"],
+  ["fetched release branch ref", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "`refs/remotes/origin/${releaseChannel}`"],
   ["separate local release branch identity", "crossPlatformContextHelper", CROSS_PLATFORM_RELEASE_CONTEXT_HELPER, "releaseDefaultBranch: normalized.defaultBranch"],
   ["collection second context verification", "collectSkill", COLLECT_RELEASE_SKILL, "在触碰目标目录前第二次运行发布上下文 `verify`"],
 ];
@@ -100,7 +100,7 @@ for (const [name, option, source, fragment] of buildCases) {
 
 test("release build rejects a restored advertised-default checkout", () => {
   const source = fs.readFileSync(CROSS_PLATFORM_RELEASE_WORKFLOW, "utf8");
-  const contents = source.replace("ref: release", "ref: ${{ github.event.repository.default_branch }}");
+  const contents = source.replace("ref: ${{ github.ref }}", "ref: ${{ github.event.repository.default_branch }}");
   assert.notEqual(contents, source);
   expectErrors(validateContents(validateBuildSkillContract, "crossPlatformWorkflow", CROSS_PLATFORM_RELEASE_WORKFLOW, contents), "advertised remote default branch");
 });
@@ -140,9 +140,9 @@ for (const [name, option, source, fragment] of selectionCases) {
   });
 }
 
-test("release context requires schema v3, default branch, and review result", () => {
+test("release context requires channel-aware schema, default branch, and review result", () => {
   for (const fragment of [
-    "value.schemaVersion !== 3",
+    "![3, 4].includes(value.schemaVersion)",
     '"expectedTag", "defaultBranch", "releaseReview"',
     "releaseReview: validateReleaseReview(value.releaseReview, sourceHead)",
   ]) {

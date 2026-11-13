@@ -14,10 +14,12 @@ DESKTOP 候选使用 Tauri 的前端测试、资源定位及相应打包 helper�
 ## 准入
 
 1. 只接受发布/渠道要求、用户明确要求完整验收，或当前构建已明确选择 E2E `enabled` 的请求。读取 Product Spec、当前构建记录、`docs/AGENT_POLICY.md`、`docs/ENGINEERING_RULES.md`、相关 ADR、验证/发布规则和适用接口 Skill。
-2. 要求存在与批准场景、40 字符源码提交、版本/构建标识和当前环境绑定的完整真实产物、校验和及 manifest。先运行发布上下文 `verify`，要求工作树 clean、当前具名分支是上下文默认主分支、本地主分支与 `expectedTag` 都指向当前 HEAD，且 tracked `.harness/release-context.json` 字节和 schema 有效。manifest `sourceCommit` 必须等于该 HEAD，`releaseContextSha256` 与发布审查字段必须逐字段来自上下文；E2E 和 macOS 签名选择必须来自本次构建的 manifest 及其证据，并在验收中保持不变。三平台提供方候选还要求其构建记录证明发布后独立推送已完成、远端小写 `release` 分支/tag 在构建时与源码提交一致；验收前再只读复核远端两条 ref。缺少上下文、HEAD/ref/tag 漂移或 manifest 自行改写选择都拒绝。随后运行版本检查，并要求候选/manifest/上下文版本相同；验收不得提升版本。该验证包含发布审查的来源与允许变化绑定，不额外要求线性历史或特定合并形态。
+2. 要求存在与批准场景、40 字符源码提交、版本/构建标识和当前环境绑定的完整真实产物、校验和及 manifest。先运行发布上下文 `verify`，要求工作树 clean、当前具名分支是上下文默认主分支、本地主分支与 `expectedTag` 都指向当前 HEAD，且 tracked `.harness/release-context.json` 字节和 schema 有效。manifest `sourceCommit` 必须等于该 HEAD，`releaseContextSha256` 与发布审查字段必须逐字段来自上下文；E2E 和 macOS 签名选择必须来自本次构建的 manifest 及其证据，并在验收中保持不变。三平台提供方候选还要求其构建记录证明发布后独立推送已完成、远端小写渠道分支/tag 在构建时与源码提交一致；验收前再只读复核远端两条 ref。缺少上下文、HEAD/ref/tag 漂移或 manifest 自行改写选择都拒绝。随后运行版本检查，并要求候选/manifest/上下文版本相同；验收不得提升版本。该验证包含发布审查的来源与允许变化绑定，不额外要求线性历史或特定合并形态。
 3. 当前存在用户要求的活动 Work Plan 时，相关 Todo 必须全部 `done`；没有 Work Plan 不阻断验收。
 
 ## 工作流程
+
+候选的 `releaseChannel` 必须与发布上下文一致。旧清单省略该字段时只可作为旧 schema 3 的 Release 证据。远程候选复核 `refs/heads/<releaseChannel>` 与 tag。
 
 1. 明确核心成功路径、最高风险失败路径、真实输入/输出和可观察结果，区分外部前置项与产品逻辑。
 2. 核对当前构建已经运行项目全部非空单元测试。Rust 证据必须覆盖 workspace/all-targets/all-features 的完整测试；Tauri GUI 还必须覆盖完整前端单元测试套件。只有源码提交、候选构建身份与对应测试证据完全匹配时才复用该证据；任何变化都必须返回构建 Skill 重建，不在验收中重复一套隐式构建流程。
@@ -27,7 +29,7 @@ DESKTOP 候选使用 Tauri 的前端测试、资源定位及相应打包 helper�
    - `enabled`：只接受 `reviewStatus: passed`、结构化 `reviewEvidence` 和 `reviewedSourceCommit`，且它们逐字段等于发布上下文。`sourceHead` 描述审查终点，manifest `sourceCommit` 描述合并后被主分支和 tag 指向的候选；核对 `sourceHead` 为候选 `sourceCommit` 的祖先，并确认审查后只改变两份冻结发布元数据；不要求线性历史或特定合并形态。
    - `disabled`：只有不存在安全、隐私、不可逆操作、对外兼容契约或产品/渠道审查硬要求时才接受 `reviewStatus: Not run`、非空 `reviewReason`/`reviewRemainingRisk`，并要求 `reviewEvidence` 与 `reviewedSourceCommit` 缺席。
 6. E2E 为 `enabled` 或硬要求时调用 `$desktop-test-final-artifact-e2e`；含 GUI 且 `about_page = enabled` 时，必须从真实候选打开关于页和“更新日志”，对照已核验的候选资源确认当前版本、近十版、固定两类与单个小写 `v`，不能用注入数组或源码夹具代替；禁用时确认路由、入口与运行时命令缺席。E2E 为 `disabled` 时记录 `Not run` 和剩余风险。需要凭据、生产数据、支付、发布或不可逆副作用时仍须独立授权。
-7. 全部真实检查、E2E 和必需人工结论完成后，先确定整组唯一结论，但在写入验收状态前再次运行发布上下文 `verify`；要求当前 HEAD、`releaseContextSha256`、`releaseReview` 与准入快照逐字段相等，且全部 manifest 的 `sourceCommit` 都等于 HEAD。三平台矩阵另复核远端小写 `release` 分支/tag；当前构建的 `e2eSelection` 和适用 `candidateSelections` 只与准入时已核验的构建证据比较，不能从发布上下文补取。然后重新计算全部最终制品、相邻摘要、manifest 声明、包内关键资源和 `release/` 精确集合。任一漂移都拒绝状态写入并返回重建/重验。
+7. 全部真实检查、E2E 和必需人工结论完成后，先确定整组唯一结论，但在写入验收状态前再次运行发布上下文 `verify`；要求当前 HEAD、`releaseContextSha256`、`releaseReview` 与准入快照逐字段相等，且全部 manifest 的 `sourceCommit` 都等于 HEAD。三平台矩阵另复核远端小写渠道分支/tag；当前构建的 `e2eSelection` 和适用 `candidateSelections` 只与准入时已核验的构建证据比较，不能从发布上下文补取。然后重新计算全部最终制品、相邻摘要、manifest 声明、包内关键资源和 `release/` 精确集合。任一漂移都拒绝状态写入并返回重建/重验。
 
 8. 只在以上尾检查通过后，于项目根同级、同一文件系统的唯一 staging 复制当前 `release/` 精确集合；在 staging 内原子写入全部 manifests 的同一整组 `milestoneAcceptance` 结论及结构化证据，再复算所有摘要、资源绑定和精确文件集。整组必须同为 `accepted`、`rejected` 或 `pending`，不得混合。复验成功后才目录级原子替换 `release/`；失败保留原集合。验收证据只写忽略的 `release/`，不得在 tracked 源码中补写项目记忆或占位记录。
 

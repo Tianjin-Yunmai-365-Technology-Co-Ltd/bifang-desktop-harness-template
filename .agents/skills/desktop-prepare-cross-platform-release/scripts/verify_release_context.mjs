@@ -22,7 +22,6 @@ const OID_PATTERN = /^[0-9a-f]{40}$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const CONTEXT_PATH = ".harness/release-context.json";
 const HELPER_PATH = ".agents/skills/desktop-prepare-release/scripts/release_context.mjs";
-const RELEASE_BRANCH = "release";
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
 /** 表示所取源码或已 fetch 的远端 ref 不符合已完成的本地 Git 发布。 */
@@ -93,10 +92,10 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest) {
   const gitRoot = realpathSync(runGit(root, ["rev-parse", "--show-toplevel"]).stdout.toString("utf8").trim());
   if (gitRoot !== root) throw new ContextVerificationError("project root must be the independent Git top level");
   const head = runGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]).stdout.toString("utf8").trim();
-  const branchResult = runGit(root, ["symbolic-ref", "--quiet", "--short", "HEAD"], { check: false });
-  const branch = branchResult.stdout.toString("utf8").trim();
-  if (head !== sourceCommit || branchResult.returncode !== 0 || branch !== RELEASE_BRANCH) {
-    throw new ContextVerificationError("runner must check out the named release branch at source_commit");
+  const branchResult = runGit(root, ["symbolic-ref", "--quiet", "HEAD"], { check: false });
+  const ref = branchResult.stdout.toString("utf8").trim();
+  if (head !== sourceCommit || branchResult.returncode !== 0 || !["refs/heads/release", "refs/heads/beta"].includes(ref)) {
+    throw new ContextVerificationError("runner must check out the named release or beta branch at source_commit");
   }
   if (runGit(root, ["status", "--porcelain=v1", "--untracked-files=all"]).stdout.length !== 0) {
     throw new ContextVerificationError("runner worktree must remain clean");
@@ -128,8 +127,10 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest) {
     if (error instanceof ContextVerificationError) throw error;
     throw new ContextVerificationError(`release context failed schema or review scope validation: ${error.message}`);
   }
-  if (resolveRef(root, `refs/remotes/origin/${RELEASE_BRANCH}`) !== sourceCommit) {
-    throw new ContextVerificationError("fetched origin release branch does not equal source_commit");
+  const releaseChannel = normalized.releaseChannel ?? "release";
+  if (ref !== `refs/heads/${releaseChannel}`) throw new ContextVerificationError("checkout does not match the frozen release channel");
+  if (resolveRef(root, `refs/remotes/origin/${releaseChannel}`) !== sourceCommit) {
+    throw new ContextVerificationError(`fetched origin ${releaseChannel} branch does not equal source_commit`);
   }
   if (resolveRef(root, `refs/tags/${normalized.expectedTag}`) !== sourceCommit) {
     throw new ContextVerificationError("fetched release tag does not equal source_commit");
@@ -137,7 +138,8 @@ export async function calculateSnapshot(root, sourceCommit, expectedDigest) {
   return {
     sourceCommit,
     releaseContextSha256: digest,
-    remoteReleaseBranch: RELEASE_BRANCH,
+    releaseChannel,
+    remoteReleaseBranch: releaseChannel,
     releaseDefaultBranch: normalized.defaultBranch,
     version: normalized.version,
     expectedTag: normalized.expectedTag,

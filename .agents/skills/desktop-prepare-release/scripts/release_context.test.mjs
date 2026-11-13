@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -94,13 +95,14 @@ function fixture({ harness = false } = {}) {
   git("commit", "--quiet", "-m", "feat: prepare source");
   const sourceHead = git("rev-parse", "HEAD").stdout.trim();
   const scopeHash = scopeDiffSha256(root, baseline, sourceHead, env);
-  const writeContext = (extra = [], version = "1.2.3", reviewSelection = "disabled") => invoke(
+  const writeContext = (extra = [], version = "1.2.3", reviewSelection = "disabled", channel = "release") => invoke(
     "write",
     "--project-root", root,
     "--source-head", sourceHead,
     "--version", version,
     "--release-date", "2026-09-09",
     "--default-branch", "main",
+    "--channel", channel,
     "--review-selection", reviewSelection,
     "--scope-base", baseline,
     "--scope-diff-sha256", scopeHash,
@@ -168,9 +170,10 @@ withFixture("write_derives_tag_and_canonical_context", (item) => {
   );
   assert.equal(checked.status, 0, checked.stderr);
   const context = JSON.parse(readFileSync(join(item.root, ".harness/release-context.json"), "utf8"));
-  assert.equal(context.schemaVersion, 3);
+  assert.equal(context.schemaVersion, 4);
+  assert.equal(context.releaseChannel, "release");
   assert.deepEqual(Object.keys(context), [
-    "schemaVersion", "sourceHead", "version", "releaseDate", "expectedTag", "defaultBranch", "releaseReview",
+    "schemaVersion", "sourceHead", "version", "releaseDate", "expectedTag", "defaultBranch", "releaseChannel", "releaseReview",
   ]);
   assert.equal(context.sourceHead, item.sourceHead);
   assert.equal(context.defaultBranch, "main");
@@ -248,6 +251,25 @@ withFixture("schema_v2_release_context_is_rejected_without_silent_migration", (i
   const rejected = item.invoke("check", "--project-root", item.root);
   assert.equal(rejected.status, 1);
   assert.match(rejected.stderr, /fields or schemaVersion/);
+});
+
+withFixture("legacy_context_keeps_its_digest_and_dev_cannot_be_published", (item) => {
+  const path = join(item.root, ".harness/release-context.json");
+  assert.equal(item.writeContext([], "1.2.3", "disabled", "dev").status, 2);
+  assert.equal(existsSync(path), false);
+  assert.equal(item.writeContext([], "1.2.3", "disabled", "beta").status, 0);
+  const value = JSON.parse(readFileSync(path, "utf8"));
+  assert.equal(value.releaseChannel, "beta");
+  delete value.releaseChannel;
+  value.schemaVersion = 3;
+  const legacy = Buffer.from(JSON.stringify(value, null, 2) + "\n");
+  writeFileSync(path, legacy);
+  const checked = item.invoke("check", "--project-root", item.root);
+  assert.equal(checked.status, 0, checked.stderr);
+  const checkedContext = JSON.parse(checked.stdout);
+  assert.equal(checkedContext.releaseChannel, "release");
+  assert.equal(checkedContext.releaseContextSha256, createHash("sha256").update(legacy).digest("hex"));
+  assert.deepEqual(readFileSync(path), legacy);
 });
 
 withFixture("write_uses_explicit_branch_without_accessing_remote", (item) => {

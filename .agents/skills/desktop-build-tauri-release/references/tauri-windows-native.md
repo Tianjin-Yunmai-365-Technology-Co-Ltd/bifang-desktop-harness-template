@@ -4,6 +4,8 @@
 
 ## Windows 原生 x64 NSIS
 
+使用主 Skill 确定的 `HARNESS_RELEASE_CHANNEL`。Beta 在基础发布配置后追加当次 `--config <configPath>`，并从本次隔离的 Cargo 输出根发现制品。
+
 - Tauri 官方 Windows 安装器文档规定，在 Windows 原生宿主运行 `tauri build` 会构建并打包 Windows 应用；`--bundles nsis` 可把格式收窄为 NSIS，`--target x86_64-pc-windows-msvc` 明确绑定 x64 MSVC 目标。
 - 原生路线直接使用项目本地 Tauri CLI，不传 `--runner cargo-xwin`。`cargo-xwin` 只属于 macOS/Linux 交叉回退，不能出现在 Windows 原生命令中。
 - 发布候选必须显式合并 `src-tauri/tauri.release.conf.json`；仅供本机检查的开发试包则不合并发布配置，并显式使用 `--no-sign`，避免误用项目签名配置。

@@ -26,4 +26,4 @@
 
 ## 最终 DMG 检查
 
-11. 对 macOS 最终 DMG，在所有会改变字节的布局写入、签名、公证和 stapling 完成后先运行 `scripts/verify-dmg-layout.sh <final-dmg> <project-root>/release-notes.json`；它必须只读挂载最终字节并确认非空 `.DS_Store`、`.background/background.png`、唯一顶层 `.app`、指向 `/Applications` 的拖拽目标，以及唯一 `.app/Contents/Resources/release-notes.json` 与根事实逐字节一致。若挂载要求接受 SLA，必须取得独立人工授权，helper 不得自动接受。检查失败时本次构建失败。
+11. 对 macOS 最终 DMG，在所有会改变字节的布局写入、签名、公证和 stapling 完成后先运行 `scripts/verify-dmg-layout.sh <final-dmg> <project-root>/release-notes.json`；它必须只读挂载最终字节并确认非空 `.DS_Store`、`.background/background.png`、唯一顶层 `.app`、指向 `/Applications` 的拖拽目标，以及唯一 `.app/Contents/Resources/release-notes.json` 与根事实逐字节一致。Beta 还要从最终 DMG 内的应用检查 `Contents/Info.plist` 中的 `CFBundleDisplayName`、`CFBundleIdentifier`、`CFBundleExecutable` 与渠道配置一致。自定义 plist 若覆盖这些值，先修正项目打包配置并重新形成候选。若挂载要求接受 SLA，必须取得独立人工授权，helper 不得自动接受。检查失败时本次构建失败。

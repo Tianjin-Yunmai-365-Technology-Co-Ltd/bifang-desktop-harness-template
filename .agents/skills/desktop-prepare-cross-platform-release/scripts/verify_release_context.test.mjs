@@ -63,7 +63,7 @@ function run(command, args, options = {}) {
 }
 
 /** 建立默认分支停留在旧提交、release 与 tag 指向发布提交的隔离仓库。 */
-function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disabled", tamperScopeHash = false } = {}) {
+function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disabled", tamperScopeHash = false, channel = "release" } = {}) {
   const temporary = mkdtempSync(join(tmpdir(), "verify-release-context-"));
   const root = join(temporary, "project");
   const remote = join(temporary, "remote.git");
@@ -105,6 +105,7 @@ function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disable
     "--source-head", sourceHead,
     "--version", "1.2.3",
     "--release-date", "2026-09-09",
+    "--channel", channel,
     "--default-branch", "trunk",
     "--review-selection", reviewSelection,
     "--scope-base", baseline,
@@ -127,8 +128,8 @@ function fixture({ repositoryDefaultBranch = "trunk", reviewSelection = "disable
   git("add", ".harness/release-context.json");
   git("commit", "--quiet", "-m", "chore(release): record context");
   const head = git("rev-parse", "HEAD").stdout.trim();
-  git("switch", "--quiet", "-c", "release");
-  git("push", "--quiet", "origin", "HEAD:refs/heads/release");
+  git("switch", "--quiet", "-c", channel);
+  git("push", "--quiet", "origin", "HEAD:refs/heads/" + channel);
   git("tag", "v1.2.3-20260909");
   git("push", "--quiet", "origin", "refs/tags/v1.2.3-20260909");
   const contextPath = join(root, ".harness/release-context.json");
@@ -304,6 +305,21 @@ test("tag_drift_after_capture_is_rejected_before_manifest", () => {
     const result = item.invoke("verify");
     assert.equal(result.status, 1);
     assert.match(result.stderr, /fetched release tag does not equal source_commit/);
+  } finally {
+    rmSync(item.temporary, { recursive: true, force: true });
+  }
+});
+
+test("candidate Beta checks its own remote ref and rejects a Release checkout", () => {
+  const item = fixture({ channel: "beta" });
+  try {
+    item.git("tag", "beta", item.baseline);
+    const captured = item.invoke("capture");
+    assert.equal(captured.status, 0, captured.stderr);
+    assert.equal(JSON.parse(readFileSync(item.snapshot, "utf8")).releaseChannel, "beta");
+    assert.equal(item.invoke("verify").status, 0);
+    item.git("switch", "--quiet", "-c", "release");
+    assert.match(item.invoke("verify").stderr, /frozen release channel/);
   } finally {
     rmSync(item.temporary, { recursive: true, force: true });
   }

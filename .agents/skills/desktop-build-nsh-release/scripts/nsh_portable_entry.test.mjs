@@ -34,4 +34,13 @@ test('portable_entry_keeps_mixed_core_without_registering_desktop_schemes', t =>
   assert.equal(fs.readFileSync(path.join(entry, '..', 'node_modules/portable-fixture/index.js'), 'utf8'), 'export const ready = true;');
   if (process.platform !== 'win32') assert.equal(fs.readlinkSync(path.join(entry, '..', 'node_modules/linked-fixture')), 'portable-fixture');
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(gui, 'nsh.json'), 'utf8')), original);
+
+  const betaStage = path.join(root, 'target', 'beta');
+  fs.mkdirSync(betaStage);
+  const betaIdentity = { name: 'Example Beta', id: 'com.example.tool.beta' };
+  const betaEntry = prepareNshPortableEntry(root, gui, betaStage, { portable: false, betaIdentity });
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(betaEntry, 'nsh.json'), 'utf8')), {
+    ...original, ...betaIdentity, window: { ...original.window, title: 'Example Beta' },
+  });
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(gui, 'nsh.json'), 'utf8')), original);
 });

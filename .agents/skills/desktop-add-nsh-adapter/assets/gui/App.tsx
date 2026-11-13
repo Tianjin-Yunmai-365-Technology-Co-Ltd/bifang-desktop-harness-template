@@ -1,4 +1,4 @@
-import { colorScheme, effect, locale, mount, platform, safeArea, Scroll, setColorScheme, signal, Storage, Text, View, windowSize, type JSX } from "nsh";
+import { appInfo, colorScheme, effect, locale, mount, platform, safeArea, Scroll, setColorScheme, signal, Storage, Text, View, windowSize, type JSX } from "nsh";
 import { Button as BaseButton, Radio, RadioGroup } from "nsh/base";
 import { Action, HomeContent, nativeDesktop } from "./App.shared";
 import { tr, type Language } from "./translations";
@@ -180,7 +180,9 @@ function App(props: { secondary?: boolean } = {}) {
     if (!nativeDesktop) return tokens.sidebarFallback;
     return shortBrand() ? tokens.sidebarCompact : tokens.sidebar;
   };
-  const title = () => language() === "zh" ? NAME_ZH : NAME_EN;
+  const identity = appInfo();
+  const beta = !identity.development && identity.id?.endsWith(".beta") && identity.name?.endsWith(" Beta");
+  const title = () => (language() === "zh" ? NAME_ZH : NAME_EN) + (beta ? " Beta" : "");
   const colors = () => palette(colorScheme());
 
   if (!props.secondary) {

@@ -129,7 +129,7 @@ const ENGINEERING_ENTRIES = [
     "schema_version: 5", "task_worktrees:", "superpowers:", "user_owned_tasks:", "固定初始化默认值确定性物化六项", "parallel_worktree_subagents:", "acceptance_smoke:", "e2e_hint:",
     "post_release_action: pending", "`local_package`", "`push_release_branch`", "$desktop-switch-post-release-action",
     "日常开发直接实施", "显式发布候选构建必须为当前候选解析一次 E2E 选择",
-    "`$desktop-prepare-release` 把本次版本、日期、默认主分支、预期 tag、源码身份和审查结果写入 `.harness/release-context.json`",
+    "`$desktop-prepare-release` 把本次版本、日期、默认主分支、预期 tag、源码身份、发布渠道和审查结果写入 `.harness/release-context.json`",
     "未来偏好保存在本文件；下游 Git 发布开始时将当次 `postReleaseAction` 冻结", "候选选择只进入候选证据，不反写已发布源码",
   ]],
   ["productSpec", [
@@ -187,7 +187,7 @@ const STREAMLINED_ENTRIES = [
   ["agentsEntrypoint", ["每次开工先读取用户级", "$desktop-task-workflow", "默认关闭"]],
   ["handoffSkill", ["用户级 `AGENTS.md`","$desktop-task-workflow","关闭时在当前聊天恢复","沿原身份、结果和冻结环境主动修复","无需重复人工审批"]],
   ["readme", ["日常开发直接使用 `$desktop-implement-change`","只增加并运行本次变更需要的单元/回归测试","不自动增加计划、全仓检查、构建、E2E 或验收","Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag","首次发布前先询问并记录 `post_release_action`","未来可用 `$desktop-switch-post-release-action` 切换","候选须运行全部非空单元测试","不自动更新项目记忆","## Task 与工作树","$desktop-task-workflow","只有项目开启才自动创建左侧 Task 子树","不改变永久选择","独立 Worktree","并行创建和执行","同一 Local cwd","不额外等待人工 BOUND 批准","本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据","普通 Windows 本地安装试包是开发制品","不要求发布日志或 clean HEAD","构建事实只写入适用产物位置和最终回复"]],
-  ["agentPolicy", ["decision_mode: reuse_then_infer_then_ask","## 用户可见 Task 开关、粒度与创建门禁","$desktop-task-workflow","user_owned_tasks","task_worktrees","固定初始化默认值","日常开发直接实施","显式发布候选构建必须为当前候选解析一次 E2E 选择","E2E 选择只对终端下游发布候选有效","本地开发试包不消费 E2E 选择","只写忽略的 `release/` 原子证据及最终回复","不得反向批准活动候选","未来偏好保存在本文件；下游 Git 发布开始时将当次 `postReleaseAction` 冻结","终端下游的候选构建复核已发布的本地主分支与 tag","候选选择只进入候选证据","## 开发分支与主分支发布生命周期","`feature-{ascii-kebab-summary}-{YYYYMMDD}`","`--also-remote`","允许普通 merge commit","Git common dir 下的 `agent-first-harness/git-lifecycle.json`","这里没有分支保护、活动叶子、分支级单写入者、严格线性历史、fast-forward-only、lease、atomic push","候选 E2E、完整验收、`pending` → `accepted` 和就绪复核","默认主分支与本地 tag 精确指向同一最终 HEAD 并复读成功","e2e_hint` 只提供建议默认值","用户明确说“发布”时","`pendingPublish` 中冻结的 HEAD、目标顺序与进度","多远端推送不是原子操作","推送失败也不撤销已完成的本地 Git 发布","小写 `release` 仅是 `push_release_branch` 后续路径的源码分支"]],
+  ["agentPolicy", ["decision_mode: reuse_then_infer_then_ask","## 用户可见 Task 开关、粒度与创建门禁","$desktop-task-workflow","user_owned_tasks","task_worktrees","固定初始化默认值","日常开发直接实施","显式发布候选构建必须为当前候选解析一次 E2E 选择","E2E 选择只对终端下游发布候选有效","本地开发试包不消费 E2E 选择","只写忽略的 `release/` 原子证据及最终回复","不得反向批准活动候选","未来偏好保存在本文件；下游 Git 发布开始时将当次 `postReleaseAction` 冻结","终端下游的候选构建复核已发布的本地主分支与 tag","候选选择只进入候选证据","## 开发分支与主分支发布生命周期","`feature-{ascii-kebab-summary}-{YYYYMMDD}`","`--also-remote`","允许普通 merge commit","Git common dir 下的 `agent-first-harness/git-lifecycle.json`","这里没有分支保护、活动叶子、分支级单写入者、严格线性历史、fast-forward-only、lease、atomic push","候选 E2E、完整验收、`pending` → `accepted` 和就绪复核","默认主分支与本地 tag 精确指向同一最终 HEAD 并复读成功","e2e_hint` 只提供建议默认值","用户明确说“发布”时","`pendingPublish` 中冻结的 HEAD、目标顺序与进度","多远端推送不是原子操作","推送失败也不撤销已完成的本地 Git 发布","小写 `release` 和 `beta` 是 `push_release_branch` 后续路径的源码分支"]],
   ["planSkill", [
     "只在持久计划能解决真实协调问题时建立 Todo", "多步骤、多模块、中等风险、可并行或 Agent 偏好本身不构成准入",
     "日常开发直接交给 `$desktop-implement-change`", "日常计划不得自行增加这些步骤", "不得在执行时静默追加全仓检查、构建或验收",
@@ -239,7 +239,7 @@ const STREAMLINED_ENTRIES = [
     "name: desktop-manage-git-lifecycle", "创建本地分支不要求配置远端", "即使处于 detached HEAD 也可直接开始",
     "创建本地分支不要求配置远端", "--also-remote <name>", "`pendingPublish` 中临时保存冻结目标与确认进度",
     "不参与 fetch、merge、release、tag 或清理", "普通 `git merge --no-edit -m <中文合并消息>`", "`v{version}-{YYYYMMDD}`", "`release` 只在本地默认主分支", "不设置租约、原子推送或保护分支门禁",
-    "本地 `refs/heads/release`", "远端 `refs/heads/release`",
+    "本地 `refs/heads/<releaseChannel>`", "远端 `refs/heads/<releaseChannel>`",
   ]],
   ["switchPostReleaseSkill", [
     "name: desktop-switch-post-release-action", "`local_package`", "`push_release_branch`",
@@ -285,7 +285,7 @@ const STREAMLINED_ENTRIES = [
   ]],
   ["crossPlatformReleaseSkill", ["e2e_selection", "cargo test --workspace --all-targets --all-features", "不得自动追加格式、lint 或其他开发门禁", "e2eSelection", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "矩阵本身不得运行 E2E"]],
   ["collectReleaseSkill", ["e2eSelection", "发布上下文 `verify`", "锁定 clean 当前 HEAD、`releaseContextSha256`", "候选选择则与原始构建 manifest 及声明的构建证据一致", "再次运行发布上下文 `verify`", "不重新构建、签名、执行或发布候选", "收集过程绝不得自行启动冒烟/E2E", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification"]],
-  ["prepareReleaseSkill", ["本地默认主分支和版本 tag 指向同一最终提交后，Git 发布即结束", "上下文只冻结版本、日期、默认主分支、预期 tag、源码身份与审查结论", "不保存推送模式、远端、候选签名或打包选择", "不访问远端、不推送、不打包", "读取生命周期记录里该次冻结的 `postReleaseAction`，执行并检测后续路径", "`push-release --remote <name>`", "整个下游发布后流程只有所选路径实际通过才算完成"]],
+  ["prepareReleaseSkill", ["本地默认主分支和版本 tag 指向同一最终提交后，Git 发布即结束", "上下文只冻结版本、日期、默认主分支、预期 tag、源码身份、发布渠道与审查结论", "不保存推送模式、远端、候选签名或打包选择", "不访问远端、不推送、不打包", "读取生命周期记录里该次冻结的 `postReleaseAction`，执行并检测后续路径", "`push-release --remote <name>`", "整个下游发布后流程只有所选路径实际通过才算完成"]],
   ["engineeringRules", [
     "### 5.3 开发、构建与完整验收", "日常开发统一直接实施，只运行本次变更需要的相关非空单元/回归测试",
     "显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择", "构建必须运行项目全部非空单元测试",
@@ -295,7 +295,7 @@ const STREAMLINED_ENTRIES = [
     "普通构建不为它增加独立步骤",
   ]],
   ["release", [
-    "## Git 发布后构建与完整验收", "随后必须按 `post_release_action` 完成被选中的本地打包或远端 `release` 分支推送",
+    "## Git 发布后构建与完整验收", "随后必须按 `post_release_action` 完成被选中的本地打包或远端渠道分支推送",
     "读取本次发布冻结的 `postReleaseAction` 并执行所选后续路径", "该次构建单独解析 E2E 和 GUI 签名选择",
     "候选构建在清理目录、测试或编译前，以及写 manifest 前", "E2E 和适用签名选择在现有构建动作中解析并写入候选证据",
     "运行全部非空单元测试", "构建请求、执行、重试、测试结果、产物路径/摘要/签名状态",

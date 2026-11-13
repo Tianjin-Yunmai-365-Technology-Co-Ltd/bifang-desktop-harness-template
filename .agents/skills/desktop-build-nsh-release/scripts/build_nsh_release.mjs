@@ -229,7 +229,9 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
   if(mode==='candidate' && e2e==='disabled' && [e2eReason,e2eRisk].some(value=>typeof value!=='string' || !value.trim())) throw new Error('disabled E2E requires reason and remaining risk');
   if(readDependencyLockPolicy(root)==='tracked') throw new Error('NSH generated runtime workspace does not propagate tracked locks; packaging is blocked until a frozen resolution route is implemented');
   safeOutputPath(root,path.join(root,'target'));safeOutputPath(root,path.join(root,'release'));
-  const testEnv = releaseNoteBuildInputs(null, null).env;
+  const context = mode === 'candidate' ? checkContext({projectRoot:root},{published:true}) : null;
+  const releaseChannel = context?.releaseChannel ?? 'dev';
+  const testEnv = { ...releaseNoteBuildInputs(null, null).env, HARNESS_RELEASE_CHANNEL: releaseChannel };
   delete testEnv.NSH_KEYSTORE_PASSWORD;
   const metadata=JSON.parse(run('cargo',['metadata','--no-deps','--format-version','1'],root,testEnv,true));
   const facts=packageFacts(root,metadata,target);
@@ -251,10 +253,9 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
         dependencies.some(dep => dep.source !== source)) throw new Error('NSH app dependencies must resolve to the pinned official runtime');
   }
   const packageOptions = resolveNshPackageOptions(root, target, packageInput);
-  let context=null,notes=null;
+  let notes=null;
   if(fs.existsSync(path.join(root,'.harness/version-state.json'))) checkVersion(root,'build');
-  if(mode==='candidate') {
-    context=checkContext({projectRoot:root},{published:true});
+  if(context) {
     notes=loadDocument(path.join(root,'release-notes.json'));
     if(!notes || context.version!==facts.version || notes.releases[0].version!==`v${facts.version}`) throw new Error('candidate version mismatch');
   }
@@ -269,6 +270,13 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
   if (config.version !== facts.version) throw new Error('nsh.json version must match the Cargo member version');
   if (config.build !== undefined && (!Number.isInteger(config.build) || config.build < 1 || config.build > 0xffffffff)) {
     throw new Error('nsh.json build must be a positive 32-bit package build number');
+  }
+  const betaIdentity = releaseChannel === 'beta' ? { name: config.name + ' Beta', id: config.id + '.beta' } : null;
+  if (betaIdentity) {
+    if (!validNshIdentity('nameZh', betaIdentity.name) || betaIdentity.id.length > 240) {
+      throw new Error('NSH Beta application name or id exceeds the packaging limit');
+    }
+    Object.assign(config, betaIdentity);
   }
   const iosIdentity = target === 'ios' || target === 'ios-simulator' ? iosPackagingIdentity(config.name) : null;
   if (iosIdentity?.changed && packageOptions.bundleFormat === 'ipa') {
@@ -291,14 +299,16 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
     if (sourceSnapshot(root) !== before) throw new Error('source changed during tests');
 
     const {env, temporary} = releaseNoteBuildInputs(stage, notes, packageOptions.env);
+    env.HARNESS_RELEASE_CHANNEL = releaseChannel;
     addNshIosBindgenSdk(target, env, sdk => run('xcrun', ['--sdk',sdk,'--show-sdk-path'], root, env, true));
     const portable = modernDesktop && ['android','ios','ios-simulator','web'].includes(target);
-    const entry = portable ? prepareNshPortableEntry(root, facts.gui, stage) : facts.gui;
-    if (portable && !env.CARGO_TARGET_DIR) env.CARGO_TARGET_DIR = safeOutputPath(root, path.join(root, 'target/nsh-runtime'));
+    const staged = portable || Boolean(betaIdentity);
+    const entry = staged ? prepareNshPortableEntry(root, facts.gui, stage, { portable, betaIdentity }) : facts.gui;
+    if (staged && !env.CARGO_TARGET_DIR) env.CARGO_TARGET_DIR = safeOutputPath(root, path.join(root, 'target/nsh-runtime'));
     const packageRoot = path.join(stage, 'package');
     run('nsh', ['package','--target',target,'--out',packageRoot,'--app-version',facts.version,
       ...(iosIdentity?.changed ? ['--name',iosIdentity.packageName] : []), ...packageOptions.args], entry, env);
-    if (portable) fs.rmSync(path.join(stage, 'portable-source'), {recursive:true});
+    if (staged) fs.rmSync(path.join(stage, 'portable-source'), {recursive:true});
     for (const file of temporary) fs.unlinkSync(file);
     if (iosIdentity?.changed) {
       const app = restoreIosDisplayIdentity(packageRoot, iosIdentity);
@@ -324,7 +334,7 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
     const manifest = {
       schemaVersion:1, project:facts.policy['project-id'], interface:facts.modern?'nsh':'gui',
       ...(facts.modern ? {nshTargets:facts.policy['nsh-targets']} : {guiFramework:'nsh'}),
-      mode, target, platform:target==='ios-simulator'?'ios':target, host:process.platform,
+      mode, releaseChannel, target, platform:target==='ios-simulator'?'ios':target, host:process.platform,
       hostArch:process.arch, arch:packageOptions.arch ?? (target==='web'?'wasm32':target==='android'?androidArch:['ios','ios-simulator'].includes(target)?'arm64':process.arch),
       ...(abis ? {androidAbis:abis} : {}),
       buildMode:['web','android','ios','ios-simulator'].includes(target) || packageOptions.arch && packageOptions.arch !== process.arch ? 'cross' : 'native',
@@ -358,6 +368,6 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
 }
 
 if(process.argv[1] && import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href) {
-  try {const {values}=parseArgs({options:{root:{type:'string',default:'.'},mode:{type:'string',default:'local'},target:{type:'string'},e2e:{type:'string'},'e2e-reason':{type:'string'},'e2e-risk':{type:'string'},arch:{type:'string'},abi:{type:'string',multiple:true},format:{type:'string'},sign:{type:'string'},profile:{type:'string'},keystore:{type:'string'},'key-alias':{type:'string'},'asset-url':{type:'string'}}});const result=buildNshRelease({...values,e2eReason:values['e2e-reason'],e2eRisk:values['e2e-risk'],keyAlias:values['key-alias'],assetUrl:values['asset-url']});process.stdout.write(JSON.stringify({output:result.output,manifest:result.manifest,buildRun:result.buildRun,bundleFormat:result.bundleFormat,webRoot:result.webRoot,mode:result.mode,target:result.target,version:result.version,artifact:result.artifact,sha256:result.sha256,unitTests:result.unitTests})+'\n');}
+  try {const {values}=parseArgs({options:{root:{type:'string',default:'.'},mode:{type:'string',default:'local'},target:{type:'string'},e2e:{type:'string'},'e2e-reason':{type:'string'},'e2e-risk':{type:'string'},arch:{type:'string'},abi:{type:'string',multiple:true},format:{type:'string'},sign:{type:'string'},profile:{type:'string'},keystore:{type:'string'},'key-alias':{type:'string'},'asset-url':{type:'string'}}});const result=buildNshRelease({...values,e2eReason:values['e2e-reason'],e2eRisk:values['e2e-risk'],keyAlias:values['key-alias'],assetUrl:values['asset-url']});process.stdout.write(JSON.stringify({output:result.output,manifest:result.manifest,buildRun:result.buildRun,bundleFormat:result.bundleFormat,webRoot:result.webRoot,mode:result.mode,releaseChannel:result.releaseChannel,target:result.target,version:result.version,artifact:result.artifact,sha256:result.sha256,unitTests:result.unitTests})+'\n');}
   catch(error){process.stderr.write(`NSH build: ${error.message}\n`);process.exitCode=1;}
 }

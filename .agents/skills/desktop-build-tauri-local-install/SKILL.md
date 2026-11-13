@@ -7,6 +7,8 @@ description: 在 Windows 原生宿主构建 Tauri 2 x64 NSIS 试包，或在 Lin
 
 为开发中的 Tauri GUI 生成明确非发布、非候选的本地试包：Windows 原生宿主产出 x64 NSIS，Linux 原生宿主产出与宿主同架构的 deb 与 AppImage。用户只说“构建”“打包”“首次安装试一下”或“本地安装包”，且没有明确提出发布、候选、分发或交付时，使用本 Skill；不得把该意图升级为 `$desktop-prepare-release` 或 `$desktop-build-tauri-release`。
 
+本地开发试包的测试与打包命令使用 `HARNESS_RELEASE_CHANNEL=dev`。
+
 ## 工作流程
 
 1. 读取根 `Cargo.toml` 的 `[workspace.metadata.agent-first-harness]`，要求 `target-platforms` 包含当前要构建的 `windows` 或 `linux`（每次只构建当前宿主平台），`interfaces` 包含 `gui`；缺失、空数组、非法值或与请求冲突时停止，不从旧对话、目录名或当前宿主猜测。要求当前宿主为原生 Windows x64，或原生 Linux GNU x64/ARM64，项目根是独立 Git 顶层目录、存在可解析 HEAD、从 `gui-root` 解析的真实 GUI 根目录（未声明时为 `<project-id>_gui`）、前端 `package.json` 和项目本地 Tauri CLI。记录 HEAD 与 `git status --porcelain=v1 --untracked-files=all` 是否为空；允许从 dirty 工作树生成本地试包，但必须在结果中明确列出 `sourceTreeState: dirty` 和不可复现风险，不得自动暂存、提交、清理或改写用户变化。

@@ -2,6 +2,8 @@
 
 本文件是 [构建 Skill](../SKILL.md) 的条件执行合同；`scripts/` 路径均相对该 Skill 根目录。共享的选择冻结、版本、测试、锁策略、manifest 与原子提交仍按主流程执行。
 
+签名构建沿用主 Skill 的 `HARNESS_RELEASE_CHANNEL` 和发布配置。Beta 在基础发布配置后追加当次 `--config <configPath>`，再用最终应用的身份签名与公证。
+
 ## macOS Developer ID 直接分发
 
 - 签名意图先于测试、可用性探测和 bundle。只有产品/渠道已有批准的持久签名与公证配置、用户在当前请求主动要求，或渠道明确要求时，`macosSigningSelection` 才为 `enabled`；其他情况固定为 `disabled/not-requested`，直接以显式 `--no-sign` DMG 命令打包且不得探测本机身份、凭据或 Keychain profile。机器上恰好存在条件不等于用户设置过签名。

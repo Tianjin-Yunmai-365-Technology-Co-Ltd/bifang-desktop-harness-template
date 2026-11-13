@@ -132,7 +132,7 @@ export function validateBuildSkillContract(errors, overrides = {}) {
   };
   const required = new Map([
     [paths.buildSkill, [
-      "`$desktop-prepare-cross-platform-release`", "明确请求远端矩阵时另复核已推送的 release 分支与 tag",
+      "`$desktop-prepare-cross-platform-release`", "明确请求远端矩阵时另复核已推送的渠道分支与 tag",
       "在执行任何单元测试或构建命令前", "release_notes.mjs check --file release-notes.json --expected-version",
       "不得计算、提升版本或重置正式发布周期", "本次请求已明确 `enabled`/`disabled` 时直接复用",
       "cargo test --workspace --all-targets --all-features", "不得在构建名义下自动追加格式、lint",
@@ -143,7 +143,7 @@ export function validateBuildSkillContract(errors, overrides = {}) {
     ]],
     [paths.crossPlatformSkill, [
       "默认 `$desktop-build-rust-release` 路线", "fail-fast: false", "release_notes.mjs check --file release-notes.json",
-      "远端小写 `release` 分支和版本 tag",
+      "远端小写渠道分支（`release` 或 `beta`）和版本 tag",
       "verify_dispatch_readiness.mjs",
       "cargo test --workspace --all-targets --all-features", "原子隔离旧目录", "必须尝试签名并验证",
       "固定 `confirm_candidate_build`、`version`、`source_commit`、`release_context_sha256` 和 `e2e_selection` 输入",
@@ -153,16 +153,16 @@ export function validateBuildSkillContract(errors, overrides = {}) {
     ]],
     [paths.crossPlatformWorkflow, [
       "release_context_sha256:", "RELEASE_CONTEXT_SHA256: ${{ inputs.release_context_sha256 }}",
-      "ref: release", "fetch-depth: 0", "persist-credentials: false",
+      "ref: ${{ github.ref }}", "fetch-depth: 0", "persist-credentials: false",
       "verify_release_context.mjs capture", "verify_release_context.mjs verify",
       "release_candidate_workflow.mjs write-manifest", "release_candidate_workflow.mjs commit-candidate",
       '${GITHUB_WORKSPACE}/../.${PRODUCT_NAME}.release-candidate.XXXXXX', "Split-Path -Parent $env:GITHUB_WORKSPACE",
     ]],
     [paths.crossPlatformContextHelper, [
-      "export async function calculateSnapshot(", "runner must check out the named release branch at source_commit",
+      "export async function calculateSnapshot(", "runner must check out the named release or beta branch at source_commit",
       "working release context bytes do not match source_commit", "release context digest does not match the host-verified input",
-      "releaseDefaultBranch: normalized.defaultBranch", "fetched origin release branch does not equal source_commit",
-      "remoteReleaseBranch: RELEASE_BRANCH", "`refs/remotes/origin/${RELEASE_BRANCH}`",
+      "releaseDefaultBranch: normalized.defaultBranch", "fetched origin ${releaseChannel} branch does not equal source_commit",
+      "remoteReleaseBranch: releaseChannel", "`refs/remotes/origin/${releaseChannel}`",
       "`refs/tags/${normalized.expectedTag}`",
       "sourceCommit", "releaseContextSha256: digest", "releaseReview",
       "release context changed between build checks",
@@ -333,7 +333,7 @@ export function validateReleaseSelectionContract(errors, overrides = {}) {
     [paths.lifecycleSkill, ["`publish` 要求可解析主远端", "`release` 必须接收 `--release-context-sha256 <sha256>`",
       "`v{version}-{YYYYMMDD}`", "tracked `.harness/release-context.json`", "任何合并或创建 tag 前", "不设置租约、原子推送或保护分支门禁"]],
     [paths.contextHelper, [
-      'export const CONTEXT_RELATIVE_PATH = ".harness/release-context.json"', "value.schemaVersion !== 3",
+      'export const CONTEXT_RELATIVE_PATH = ".harness/release-context.json"', "![3, 4].includes(value.schemaVersion)",
       '"expectedTag", "defaultBranch", "releaseReview"', "const expectedTag = `v${value.version}-${compactDate}`",
       "releaseReview: validateReleaseReview(value.releaseReview, sourceHead)",
       "export function writeContext(", "export function checkContext(", "value.defaultBranch",
@@ -353,7 +353,7 @@ export function validateReleaseSelectionContract(errors, overrides = {}) {
       "在写入验收状态前再次运行发布上下文 `verify`", "在 staging 内原子写入全部 manifests", "目录级原子替换 `release/`"]],
     [paths.e2eSkill, ["`disabled/not-requested` 或实际 unsigned 必须在读取权限前失败", "不能以 E2E `disabled` 或 `Unverified` 绕过", "不写 tracked Verification"]],
     [paths.releaseDoc, ["`.harness/release-context.json`", "重试必须沿用同一上下文及最终 HEAD", "macOS 默认 unsigned",
-      "候选构建在清理目录、测试或编译前", "使用远程 provider 时另复核已推送的远端 `release` 分支/tag"]],
+      "候选构建在清理目录、测试或编译前", "使用远程 provider 时另复核已推送的远端渠道分支/tag"]],
     [paths.verificationDoc, ["非必要语义审查只读取当前发布 manifest 的 `reviewSelection`", "安全、隐私、不可逆操作、对外兼容契约或产品/渠道硬要求不能被关闭"]],
   ]);
   validateFragmentContract(errors, required, { label: "release selection contract", syntaxCheck: [paths.contextHelper, paths.contextTests] });
@@ -443,8 +443,8 @@ export function validateReleaseGitContract(errors, overrides = {}) {
       "export async function commandRelease(", "await verifyHarnessVersionStamp(repository, identity.version)",
       "export function commandPushRelease(", "state.releasedResources.push({",
       'if (state.cycle === null && state.lastRelease !== null)', 'if (!validRemote(remote))',
-      "const branch = RELEASE_BRANCH", "assertNoLocalReleaseCaseVariant(repository)",
-      "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag))",
+      'const branch = context.releaseChannel ?? "release"', "assertNoLocalReleaseCaseVariant(repository, branch)",
+      "defaultHead: confirmedDefaultHead } = remoteReleaseRefs(repository, remote, last.tag, branch))",
       '["push", remote, last.head + ":refs/heads/" + branch]', '["push", remote, "refs/tags/" + last.tag + ":refs/tags/" + last.tag]']],
     [paths.lifecycleCore, ["export function resolveAdditionalRemoteTargets(", "export function mergeRegisteredBranches(", "export function remoteBranchOid(",
       'createHash("sha256").update(contextBlob.stdout).digest("hex") !== last.releaseContextSha256']],
@@ -462,7 +462,7 @@ export function validateReleaseGitContract(errors, overrides = {}) {
       "`release --version <version> --date YYYYMMDD --release-context-sha256 <sha256>`", "两者一致即完成 Git 发布", "全过程不 fetch、push、打包或删除登记分支和 Worktree",
       "`push-release --remote <name>`", "后续路径失败不撤销本地 Git 发布", "不设置保护分支、严格线性"]],
     [paths.readme, ["$desktop-manage-git-lifecycle", "自动创建本地开发分支", "合并本地默认主分支并创建、复读版本 tag",
-      "首次发布前询问并记录发布后动作", "把已发布的固定 HEAD 放到本地小写 `release` 分支"]],
+      "首次发布前询问并记录发布后动作", "把已发布的固定 HEAD 放到本地小写渠道分支"]],
   ]);
   validateFragmentContract(errors, required, {
     label: "release Git contract", syntaxCheck: [RELEASE_GIT_HELPER, RELEASE_GIT_HELPER_TESTS, paths.lifecycleScript, paths.lifecycleCore, paths.lifecycleTests, paths.lifecycleReleaseTests, paths.publicationTests],

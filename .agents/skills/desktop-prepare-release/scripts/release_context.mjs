@@ -258,8 +258,13 @@ export function validateContext(value) {
     "schemaVersion", "sourceHead", "version", "releaseDate",
     "expectedTag", "defaultBranch", "releaseReview",
   ];
-  if (!hasExactKeys(value, required) || value.schemaVersion !== 3) {
+  const hasChannel = value?.schemaVersion === 4;
+  if (hasChannel) required.push("releaseChannel");
+  if (!hasExactKeys(value, required) || ![3, 4].includes(value.schemaVersion)) {
     throw new ReleaseContextError("release context fields or schemaVersion are invalid");
+  }
+  if (hasChannel && !["release", "beta"].includes(value.releaseChannel)) {
+    throw new ReleaseContextError("releaseChannel must be release or beta");
   }
   const sourceHead = validateOid(value.sourceHead, "sourceHead");
   if (typeof value.version !== "string" || !VERSION_PATTERN.test(value.version) || value.version.slice(0, 1).toLowerCase() === "v") {
@@ -280,13 +285,18 @@ export function validateContext(value) {
   if (!validBranchName(value.defaultBranch)) {
     throw new ReleaseContextError("defaultBranch is invalid");
   }
+  const branch = value.defaultBranch.toLowerCase();
+  if (hasChannel && ["release", "beta"].includes(branch) && value.defaultBranch !== value.releaseChannel) {
+    throw new ReleaseContextError("defaultBranch conflicts with the selected release channel");
+  }
   return {
-    schemaVersion: 3,
+    schemaVersion: value.schemaVersion,
     sourceHead,
     version: value.version,
     releaseDate: value.releaseDate,
     expectedTag,
     defaultBranch: value.defaultBranch,
+    ...(hasChannel ? { releaseChannel: value.releaseChannel } : {}),
     releaseReview: validateReleaseReview(value.releaseReview, sourceHead),
   };
 }
@@ -519,12 +529,13 @@ export function writeContext(args) {
   const defaultBranch = args.defaultBranch;
   localRefOid(root, `refs/heads/${defaultBranch}`);
   const value = validateContext({
-    schemaVersion: 3,
+    schemaVersion: 4,
     sourceHead: args.sourceHead,
     version: args.version,
     releaseDate: args.releaseDate,
     expectedTag: `v${args.version}-${args.releaseDate.replaceAll("-", "")}`,
     defaultBranch,
+    releaseChannel: args.channel,
     releaseReview: buildReview(args),
   });
   verifyReviewScope(root, value);
@@ -545,6 +556,7 @@ export function writeContext(args) {
     sourceHead: value.sourceHead,
     expectedTag: value.expectedTag,
     defaultBranch: value.defaultBranch,
+    releaseChannel: value.releaseChannel,
     releaseContextSha256: createHash("sha256").update(payload).digest("hex"),
   };
 }
@@ -566,6 +578,7 @@ export function checkContext(args, { published }) {
     path: CONTEXT_RELATIVE_PATH,
     releaseContextSha256: digest,
     ...value,
+    releaseChannel: value.releaseChannel ?? "release",
   };
   if (!published) return result;
   const head = runGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]).stdout.trim();
@@ -606,7 +619,7 @@ export function parseArguments(argv) {
   const commonCheck = new Set(["projectRoot", "expectedSha256", "expectedVersion", "expectedHead"]);
   const allowed = command === "write" ? new Set([
     "projectRoot", "sourceHead", "version", "releaseDate",
-    "defaultBranch", "reviewSelection", "scopeBase", "scopeDiffSha256",
+    "defaultBranch", "channel", "reviewSelection", "scopeBase", "scopeDiffSha256",
     "reviewEvidenceSummary", "reviewReason", "reviewRemainingRisk",
   ]) : commonCheck;
   const args = { command };
@@ -615,6 +628,7 @@ export function parseArguments(argv) {
     if (!token.startsWith("--")) throw Object.assign(new Error("unrecognized arguments"), { cliExit: 2 });
     const name = optionName(token);
     if (!allowed.has(name)) throw Object.assign(new Error(`unrecognized arguments: ${token}`), { cliExit: 2 });
+    if (name === "channel" && args[name] !== undefined) throw Object.assign(new Error(`duplicate argument: ${token}`), { cliExit: 2 });
     if (index + 1 >= argv.length || argv[index + 1].startsWith("--")) {
       throw Object.assign(new Error(`argument ${token}: expected one argument`), { cliExit: 2 });
     }
@@ -623,13 +637,16 @@ export function parseArguments(argv) {
   }
   if (command === "write") {
     const required = [
-      "projectRoot", "sourceHead", "version", "releaseDate", "defaultBranch",
+      "projectRoot", "sourceHead", "version", "releaseDate", "defaultBranch", "channel",
       "reviewSelection", "scopeBase", "scopeDiffSha256",
     ];
     const missing = required.filter((field) => args[field] === undefined);
     if (missing.length > 0) throw Object.assign(new Error("the following arguments are required"), { cliExit: 2 });
     if (!["enabled", "disabled"].includes(args.reviewSelection)) {
       throw Object.assign(new Error("invalid choice for --review-selection"), { cliExit: 2 });
+    }
+    if (!["release", "beta"].includes(args.channel)) {
+      throw Object.assign(new Error("invalid choice for --channel"), { cliExit: 2 });
     }
   } else if (args.projectRoot === undefined) {
     throw Object.assign(new Error("the following arguments are required: --project-root"), { cliExit: 2 });

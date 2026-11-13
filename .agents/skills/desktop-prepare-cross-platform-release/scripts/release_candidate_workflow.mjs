@@ -22,7 +22,6 @@ import { fileURLToPath } from "node:url";
 import { assertDependencyLocks } from "../../desktop-implement-change/scripts/project_lock_policy.mjs";
 
 const OID_PATTERN = /^[0-9a-f]{40}$/;
-const RELEASE_BRANCH = "release";
 const MINIMUM_NODE = [24, 0, 0];
 const UTF8_DECODER = new TextDecoder("utf-8", { fatal: true });
 
@@ -91,9 +90,10 @@ function verifyCheckout() {
   if (!OID_PATTERN.test(expected)) throw new WorkflowError("source_commit 必须是由小写十六进制字符组成的 40 字符 SHA");
   const observed = run("git", ["rev-parse", "HEAD"]).stdout.trim();
   if (observed !== expected) throw new WorkflowError(`检出源码不匹配：预期=${expected}，实际=${observed}`);
-  const branch = run("git", ["symbolic-ref", "--quiet", "--short", "HEAD"]).stdout.trim();
-  if (branch !== RELEASE_BRANCH) {
-    throw new WorkflowError(`必须检出具名 release 分支：实际=${JSON.stringify(branch)}`);
+  const ref = run("git", ["symbolic-ref", "--quiet", "HEAD"]).stdout.trim();
+  const channel = environment("HARNESS_RELEASE_CHANNEL");
+  if (!["release", "beta"].includes(channel) || ref !== `refs/heads/${channel}`) {
+    throw new WorkflowError(`必须检出与渠道相同的具名分支：实际=${JSON.stringify(ref)}`);
   }
   if (run("git", ["status", "--porcelain=v1", "--untracked-files=all"]).stdout.length) {
     throw new WorkflowError("检出后的工作树不 clean");
@@ -177,13 +177,22 @@ export function validateMatrixSelection(metadata, runnerOs) {
 function verifyVersion() {
   const metadata = JSON.parse(run("cargo", ["metadata", "--format-version", "1", "--no-deps", ...cargoLockArgs()]).stdout);
   validateMatrixSelection(metadata, environment("RUNNER_OS"));
-  const product = environment("PRODUCT_NAME");
-  const versions = [...new Set(metadata.packages
-    .filter((pkg) => pkg.targets.some((target) => target.name === product && target.kind.includes("bin")))
-    .map((pkg) => pkg.version))];
-  if (versions.length !== 1 || versions[0] !== environment("VERSION")) {
-    throw new WorkflowError(`候选版本不匹配：Cargo=${JSON.stringify(versions.sort())}，输入=${environment("VERSION")}`);
+  const projectId = metadata.metadata["agent-first-harness"]["project-id"];
+  if (typeof projectId !== "string" || !/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/u.test(projectId)) {
+    throw new WorkflowError("缺少合法 project-id");
   }
+  const cliPackage = metadata.packages.find(pkg => metadata.workspace_members.includes(pkg.id) && pkg.name === projectId + "_cli");
+  const binaries = cliPackage?.targets.filter(target => target.kind.includes("bin")) ?? [];
+  const product = cliPackage?.default_run ?? (binaries.length === 1 ? binaries[0].name : cliPackage?.name);
+  if (!binaries.some(target => target.name === product) || !/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/u.test(product)) {
+    throw new WorkflowError("无法确定 CLI 软件包的主二进制");
+  }
+  if (cliPackage.version !== environment("VERSION")) {
+    throw new WorkflowError(`候选版本不匹配：Cargo=${cliPackage.version}，输入=${environment("VERSION")}`);
+  }
+  const channel = environment("HARNESS_RELEASE_CHANNEL");
+  if (!["release", "beta"].includes(channel)) throw new WorkflowError("发布渠道必须为 release 或 beta");
+  appendGithubFile("GITHUB_ENV", { PRODUCT_NAME: product, CANDIDATE_BINARY: channel === "beta" ? product + "-beta" : product });
 }
 
 /** 验证并冻结发布更新日志摘要。 */
@@ -355,6 +364,10 @@ function writeManifest() {
   if (snapshot.version !== environment("VERSION")) throw new WorkflowError("发布上下文版本与候选版本不一致");
   const tagDate = String(snapshot.expectedTag ?? "").split("-").at(-1);
   if (snapshot.expectedTag !== `v${environment("VERSION")}-${tagDate}`) throw new WorkflowError("发布上下文 tag 与候选版本不一致");
+  const channel = environment("HARNESS_RELEASE_CHANNEL");
+  if (!["release", "beta"].includes(channel) || snapshot.releaseChannel !== channel || snapshot.remoteReleaseBranch !== channel) {
+    throw new WorkflowError("发布上下文快照与候选渠道不一致");
+  }
   const review = snapshot.releaseReview;
   const rustc = run("rustc", ["-vV"]).stdout.split(/\r?\n/);
   const target = rustc.find((line) => line.startsWith("host:"))?.split(":", 2)[1]?.trim();
@@ -375,6 +388,8 @@ function writeManifest() {
     e2eSelection: environment("E2E_SELECTION"),
     releaseContextSha256: snapshot.releaseContextSha256,
     releaseTag: snapshot.expectedTag,
+    releaseChannel: channel,
+    remoteReleaseBranch: channel,
     releaseReview: review,
     reviewSelection: review.selection,
     reviewStatus: review.status,

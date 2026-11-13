@@ -69,7 +69,7 @@ NSH 桌面默认提供官方多窗口。表单按托盘、单实例、有条件�
 ## 它不会替你决定什么
 
 - 不会猜测产品要解决什么问题，也不会把中性脚手架当成已经完成的产品。
-- 不会创建或配置远端或凭据，不会强制推送、通配扫描分支、上传制品或操作生产环境。Git 发布命令不访问远端，也不删除登记的分支或 Worktree。发布后执行已确认的动作；选择提交远程时非强制同步目标远端默认主分支、小写 `release` 分支与同一 tag，并逐项及最终联合复读。发布前的普通 `publish` 仍可在你逐一授权后向多个已配置远端推送同一冻结 HEAD，它不创建 tag。
+- 不会创建或配置远端或凭据，不会强制推送、通配扫描分支、上传制品或操作生产环境。Git 发布命令不访问远端，也不删除登记的分支或 Worktree。发布后执行已确认的动作；选择提交远程时非强制同步目标远端默认主分支、小写渠道分支与同一 tag，并逐项及最终联合复读。发布前的普通 `publish` 仍可在你逐一授权后向多个已配置远端推送同一冻结 HEAD，它不创建 tag。
 - 不会为了“以后可能用到”预先加入业务、依赖或复杂架构。
 - 不会绕过安全、隐私、商业许可和分发渠道的硬要求。
 
@@ -105,8 +105,8 @@ NSH 桌面默认提供官方多窗口。表单按托盘、单实例、有条件�
 - NSH 的普通“构建/打包”：使用 `$desktop-build-nsh-release` 的 `local` 模式，按已确认目标生成开发试包；发布候选使用 `candidate` 模式。
 - Tauri 的“在 Windows 或 Linux 上打一个本地安装试包”或普通“构建/打包”：使用 `$desktop-build-tauri-local-install`；它允许基于当前工作树生成未签名 NSIS，或同架构 deb/AppImage，只供本机检查，不提交、不生成发布日志、不写 `release/`，也不询问 E2E 选择。
 - “发布”：使用 `$desktop-prepare-release` 整理本次范围、按当前上海时间取得 Harness 版本（下游使用语义化版本门禁）、提交源码和发布上下文，再由 `$desktop-manage-git-lifecycle release` 合并本地默认主分支并创建、复读版本 tag。`--release-context-sha256 <sha256>` 绑定已跟踪上下文；Git 发布完成后执行并检测持久选择的后续动作。
-- “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写 `release` 分支，依次同步远端 advertised 默认主分支、同名 release 分支和 tag，逐项及最终联合复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
-- “本地打包”后续路径：在已有 Git 发布完成后只对当前宿主确定的一个已选接口/目标使用 `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-nsh-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。NSH 候选按目标保存在独立 `release/` 批次，其他目标另行构建与验收。跨平台远程 provider 另要求远端 `release` 分支与 tag 已复读为同一 HEAD。
+- “提交远程”后续路径：使用 `push-release --remote <name>` 把已发布的固定 HEAD 放到本地小写渠道分支（`release` 或 `beta`），依次同步远端 advertised 默认主分支、同名渠道分支和 tag，逐项及最终联合复读；即使已开始下一开发周期，也不重新合并或计算发布提交。
+- “本地打包”后续路径：在已有 Git 发布完成后只对当前宿主确定的一个已选接口/目标使用 `$desktop-build-rust-release`、`$desktop-build-tauri-release` 或 `$desktop-build-nsh-release`；构建入口只读消费发布上下文，在该次构建解析 E2E 和适用 macOS 签名选择。NSH 候选按目标保存在独立 `release/` 批次，其他目标另行构建与验收。跨平台远程 provider 另要求远端渠道分支与 tag 已复读为同一 HEAD。
 - 普通“构建/打包/本地试包”不会自动升级为 Git 发布，不提交、推送或修改主分支；Git 发布后的所选动作仍单独遵守对应流程门禁。
 - “完整验收这个候选”：使用 `$desktop-verify-delivery` 检查真实产物。
 - “把这个项目升级到新版 Harness”：使用 `$desktop-upgrade-harness`，先预览差异再应用。
@@ -116,9 +116,11 @@ NSH 桌面默认提供官方多窗口。表单按托盘、单实例、有条件�
 
 ## 开发与构建边界
 
-日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。首次发布前先询问并记录 `post_release_action`，发布开始时冻结已确认选择，随后按本次快照对一个本机目标执行正式候选打包，或向远端默认主分支与 `release` 分支推送同一已发布提交及 tag，并检测所选路径；未来可用 `$desktop-switch-post-release-action` 切换，旧发布继续按旧快照。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
+日常开发阶段为 `dev`。每次发布选择 Release 或 Beta，渠道、远端分支及环境变量见 [发布渠道](docs/RELEASE.md#发布渠道)。
 
-显式候选构建只接受已有 clean 默认主分支和精确版本 tag；构建入口只读验证并消费 `.harness/release-context.json`，本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据。远程跨平台 provider 另要求远端 `release` 分支与 tag 已复读为同一已发布 HEAD。候选须运行全部非空单元测试。普通 Windows 本地安装试包是开发制品，不要求发布日志或 clean HEAD。构建事实只写入适用产物位置和最终回复，不自动更新项目记忆。普通 GUI 页面状态在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页使用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
+日常开发直接使用 `$desktop-implement-change`，只增加并运行本次变更需要的单元/回归测试；新功能或独立 Bug 修复首次写入前创建受管 feature 分支。Git 发布只整理并提交代码、合并本地默认主分支及创建并复读 tag。首次发布前先询问并记录 `post_release_action`，发布开始时冻结已确认选择，随后按本次快照对一个本机目标执行正式候选打包，或向远端默认主分支与所选渠道分支推送同一已发布提交及 tag，并检测所选路径；未来可用 `$desktop-switch-post-release-action` 切换，旧发布继续按旧快照。下游下一周期先从已发布主分支/tag 建新分支，并在首个新改动前调用 `finalize-release`。随后对新改动先判断是否疑似新需求：疑似新需求优先按 `feature` 提升 Minor；确认没有新需求的问题修复或用户可感知优化按新稳定 ID 的 `bug-fix` 提升 Patch；经证据确认的记录冲突使用 `record-reconciliation` 独立提升 Minor。行为保持的重构、文档和内部清理不提升版本，也不自动增加计划、全仓检查、构建、E2E 或验收。
+
+显式候选构建只接受已有 clean 默认主分支和精确版本 tag；构建入口只读验证并消费 `.harness/release-context.json`，本次另行解析 E2E 和适用签名选择，把选择与结果写入候选证据。远程跨平台 provider 另要求远端渠道分支与 tag 已复读为同一已发布 HEAD。候选须运行全部非空单元测试。普通 Windows 本地安装试包是开发制品，不要求发布日志或 clean HEAD。构建事实只写入适用产物位置和最终回复，不自动更新项目记忆。普通 GUI 页面状态在当前进程跨路由保留；命中 `$mantine-list-view` 的列表页使用类型化 URL、当前标签页 sessionStorage、Query-only 行数据与本地列偏好，并按成功总页数纠正越界。按钮、链接和开关由自身处理动作，父级容器不得代理子动作。
 
 Core-first 是强制规则：值域、跨字段关系、业务默认值和可复用状态转换进入 shared core；CLI/MCP/DESKTOP/NSH 只负责各自协议、展示和系统能力。系统托盘、窗口、通知和登录项等宿主机制留在适用 adapter，但其业务效果仍调用 core。维护者运行 `node scripts/run_harness_tests.mjs` 执行非空回归，并以 `node scripts/validate_harness.mjs` 检查 Harness 硬门禁。
 
