@@ -4,7 +4,7 @@
 
 ## 2026-11-13 变化
 
-- `HARNESS-RELEASE-CHANNELS`（`required_version = pending`）：日常开发使用 `dev`。每次发布选择 Release 或 Beta，推送和候选构建读取冻结的渠道。Beta 使用独立的名称、标题、应用 ID 和同名发布分支；构建环境提供 `HARNESS_RELEASE_CHANNEL`。见 [ADR-20261113-001](../adr/20261113_ADR.md)。
+- `HARNESS-RELEASE-CHANNELS`（`required_version = pending`）：下游日常开发使用 `dev`，每次发布选择 Release 或 Beta，推送和候选构建读取冻结的渠道。Beta 使用独立的名称、标题、应用 ID 和同名发布分支；构建环境提供 `HARNESS_RELEASE_CHANNEL`。Harness 源沿用固定的 `release` 分支。见 [ADR-20261113-001](../adr/20261113_ADR.md)。
 
 ## 2026-11-12 变化
 

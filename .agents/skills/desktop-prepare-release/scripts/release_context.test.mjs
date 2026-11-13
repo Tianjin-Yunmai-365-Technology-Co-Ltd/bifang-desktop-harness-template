@@ -95,14 +95,14 @@ function fixture({ harness = false } = {}) {
   git("commit", "--quiet", "-m", "feat: prepare source");
   const sourceHead = git("rev-parse", "HEAD").stdout.trim();
   const scopeHash = scopeDiffSha256(root, baseline, sourceHead, env);
-  const writeContext = (extra = [], version = "1.2.3", reviewSelection = "disabled", channel = "release") => invoke(
+  const writeContext = (extra = [], version = "1.2.3", reviewSelection = "disabled", channel = harness ? null : "release") => invoke(
     "write",
     "--project-root", root,
     "--source-head", sourceHead,
     "--version", version,
     "--release-date", "2026-09-09",
     "--default-branch", "main",
-    "--channel", channel,
+    ...(channel === null ? [] : ["--channel", channel]),
     "--review-selection", reviewSelection,
     "--scope-base", baseline,
     "--scope-diff-sha256", scopeHash,
@@ -255,6 +255,9 @@ withFixture("schema_v2_release_context_is_rejected_without_silent_migration", (i
 
 withFixture("legacy_context_keeps_its_digest_and_dev_cannot_be_published", (item) => {
   const path = join(item.root, ".harness/release-context.json");
+  const missing = item.writeContext([], "1.2.3", "disabled", null);
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /Downstream release requires --channel/);
   assert.equal(item.writeContext([], "1.2.3", "disabled", "dev").status, 2);
   assert.equal(existsSync(path), false);
   assert.equal(item.writeContext([], "1.2.3", "disabled", "beta").status, 0);
@@ -495,7 +498,15 @@ withFixture("check_rejects_invalid_utf8", (item) => {
 });
 
 withFixture("harness_context_uses_version_md_timestamp_and_git_tag", (item) => {
+  const path = join(item.root, ".harness/release-context.json");
+  const rejected = item.writeContext([], "202609090930", "disabled", "beta");
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stderr, /Harness source releases use the release branch/);
+  assert.equal(existsSync(path), false);
   const { head, digest } = item.commitAndTag({ version: "202609090930" });
+  const context = JSON.parse(readFileSync(path, "utf8"));
+  assert.equal(context.schemaVersion, 3);
+  assert.equal(Object.hasOwn(context, "releaseChannel"), false);
   const verified = item.invoke(
     "verify", "--project-root", item.root,
     "--expected-version", "202609090930",
@@ -503,7 +514,9 @@ withFixture("harness_context_uses_version_md_timestamp_and_git_tag", (item) => {
     "--expected-head", head,
   );
   assert.equal(verified.status, 0, verified.stderr);
-  assert.equal(JSON.parse(verified.stdout).expectedTag, "v202609090930-20260909");
+  const output = JSON.parse(verified.stdout);
+  assert.equal(output.expectedTag, "v202609090930-20260909");
+  assert.equal(output.releaseChannel, "release");
 }, { harness: true });
 
 withFixture("harness_write_rejects_any_version_other_than_version_md", (item) => {

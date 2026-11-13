@@ -257,16 +257,40 @@ scenario("harness_release_accepts_managed_timestamp_stamp", (item) => {
   item.git(repository, "add", "Version.md");
   item.git(repository, "commit", "--quiet", "-m", "chore: stamp Harness release version");
   const date = version.slice(0, 8);
-  const context = item.prepareReleaseContext(repository, { version, date });
+  const context = item.prepareReleaseContext(repository, { version, date, channel: null });
+  const path = join(repository, ".harness/release-context.json");
+  const stableBytes = readFileSync(path);
+  const beta = JSON.parse(stableBytes);
+  beta.schemaVersion = 4;
+  beta.releaseChannel = "beta";
+  writeFileSync(path, canonicalBytes(beta));
+  item.git(repository, "add", ".harness/release-context.json");
+  item.git(repository, "commit", "--quiet", "-m", "test: forge Harness Beta context");
+  const before = item.state(repository);
+  const main = item.git(repository, "rev-parse", "refs/heads/main").stdout;
+  const tag = `v${version}-${date}`;
+  const digest = createHash("sha256").update(readFileSync(path)).digest("hex");
+  const rejected = item.helper(repository, ["release", "--version", version, "--date", date,
+    "--release-context-sha256", digest], { success: false }).payload;
+  assert.equal(rejected.code, "release-context-invalid");
+  assert.deepEqual(item.state(repository), before);
+  assert.equal(item.git(repository, "rev-parse", "refs/heads/main").stdout, main);
+  assert.equal(item.gitUnchecked(repository, "show-ref", "--verify", "--quiet", `refs/tags/${tag}`).status, 1);
+  writeFileSync(path, stableBytes);
+  item.git(repository, "add", ".harness/release-context.json");
+  item.git(repository, "commit", "--quiet", "-m", "test: restore Harness release context");
   const released = item.helper(repository, ["release", "--version", version, "--date", date,
     "--release-context-sha256", context.digest]).payload;
   assert.equal(released.status, "released");
   assert.equal(released.tag, `v${version}-${date}`);
+  assert.equal(released.releaseChannel, "release");
   assert.equal(item.state(repository).lastRelease.postReleaseAction, null);
   const pushed = item.helper(repository, ["push-release", "--remote", "origin"]).payload;
   assert.equal(pushed.status, "release-pushed");
+  assert.equal(pushed.branch, "release");
   assert.equal(pushed.head, released.head);
   assert.equal(item.git(repository, "ls-remote", "--heads", "origin", "refs/heads/release").stdout.split("\t")[0], released.head);
+  assert.equal(item.git(repository, "ls-remote", "--heads", "origin", "refs/heads/beta").stdout, "");
   assert.equal(item.git(repository, "ls-remote", "--tags", "origin", `refs/tags/${released.tag}`).stdout.split("\t")[0], released.head);
 });
 

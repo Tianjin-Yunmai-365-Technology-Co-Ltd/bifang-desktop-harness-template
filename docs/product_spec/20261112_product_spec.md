@@ -89,7 +89,7 @@
 ### 发布后远端主分支与渠道同步
 
 - `change_id = HARNESS-CHANGE-POST-RELEASE-SYNC-DEFAULT-BRANCH`；`required_version = 202610081442`（正式发布时物化）。
-- `push_release_branch` 仍是已确认的发布后动作。每次 `push-release --remote <name>` 在任何 push 前解析该远端 advertised 默认主分支，并将它、本次选定的小写 `release` 或 `beta` 分支和版本 tag 依次非强制推送为同一已发布 HEAD；逐项确认后最终联合复读，默认分支名也不得在本次调用中漂移。
+- `push_release_branch` 仍是已确认的发布后动作。每次 `push-release --remote <name>` 在任何 push 前解析该远端 advertised 默认主分支，并将它、下游本次选定的小写 `release` 或 `beta` 分支（Harness 源固定为 `release`）和版本 tag 依次非强制推送为同一已发布 HEAD；逐项确认后最终联合复读，默认分支名也不得在本次调用中漂移。
 - 默认主分支缺失、HEAD 无有效 symbolic ref、渠道分支大小写变体或 tag 冲突时零 push 失败。分支分叉由非强制推送拒绝，不 fetch/merge 或重算已发布 HEAD；部分成功必须说明已确认和未尝试范围。无跨调用的目标 journal，重试重新解析具名远端默认主分支。
 - 多个远端须逐一授权并分别执行。失败不撤销本地 Git 发布，也不能报告该远端路径完成。当前状态文档引用 `Version.md` 和发布上下文，历史最低所需版本与过去发布证据原样保留。
 
@@ -122,7 +122,7 @@
 - 可选远端 Git 发布历史标识：`HARNESS-FEAT-OPTIONAL-REMOTE-GIT-RELEASE`；`required_version = 202609141917`，其 `gitPublication` 双模式已被本次唯一 Git 发布决定取代，远端操作改为发布后的独立用户请求。
 - 初始化仍只创建无远端的本地主分支基线。远端由用户或外部系统另行配置，但新功能和独立 Bug 修复的本地开发分支创建不依赖远端。`$desktop-manage-git-lifecycle start` 自动建立并切换 `feature-{ascii-kebab-summary}-{YYYYMMDD}`，日期取 `Asia/Shanghai`，碰撞时追加稳定递增后缀，同一工作幂等复用。
 - Git common dir 的 `agent-first-harness/git-lifecycle.json` 使用 schema v4，精确登记本周期分支、Worktree、pending、已发布版本/tag/最终 HEAD/默认主分支及当次冻结的发布后动作。合法且静止的 v2/v3 状态可迁移；有未完成推送或发布的旧状态失败关闭。`release` 不清理已登记资源；`releasedResources` 保留其精确身份。发布前 `publish` 的未完成多远端推送仍由 `pendingPublish` 冻结 HEAD、目标顺序和确认进度。并行写入只要求文件所有权不重叠，允许普通 merge commit，不设置线性、fast-forward-only、lease 或 atomic push 门禁。
-- 用户在发布前明确“推送”时，`publish` 普通合并登记分支并推送、复读主远端，按逐一授权可另推补充远端；不创建 tag。明确“发布”时，`release` 接收 `--release-context-sha256 <sha256>`，在任何副作用前复核上下文及 version/date/expectedTag/defaultBranch，普通合并本地默认主分支，创建并复读指向最终 HEAD 的本地 tag 即结束。对下游项目，发布开始时冻结 `post_release_action`，发布后按该次快照执行现有本地打包，或用 `push-release` 把同一 HEAD 放到本地小写渠道分支（`release` 或 `beta`）并同步远端默认主分支、release 和 tag；Harness 源按用户当次授权选择后续动作。所选结果必须复核。发布不自动清理资源。
+- 用户在发布前明确“推送”时，`publish` 普通合并登记分支并推送、复读主远端，按逐一授权可另推补充远端；不创建 tag。明确“发布”时，`release` 接收 `--release-context-sha256 <sha256>`，在任何副作用前复核上下文及 version/date/expectedTag/defaultBranch，普通合并本地默认主分支，创建并复读指向最终 HEAD 的本地 tag 即结束。对下游项目，发布开始时冻结 `post_release_action`，发布后按该次快照执行现有本地打包，或用 `push-release` 把同一 HEAD 放到本地小写渠道分支（`release` 或 `beta`）并同步远端默认主分支、同名渠道分支和 tag；Harness 源按用户当次授权选择后续动作。所选结果必须复核。发布不自动清理资源。
 - `release` 可从关联 Task Worktree 发起，但必须先在调用 Worktree 校验当前 HEAD 的上下文 blob 与 working bytes，再路由主 Worktree；本地整合后，最终 HEAD 中同一路径 blob 仍须等于传入摘要，不能先切换后误读旧上下文。
 
 ### Tauri GUI 官方插件 Skills、两项 Rust-only 固定基线与九字段选择

@@ -270,6 +270,9 @@ export function validateContext(value) {
   if (typeof value.version !== "string" || !VERSION_PATTERN.test(value.version) || value.version.slice(0, 1).toLowerCase() === "v") {
     throw new ReleaseContextError("version must be non-empty, safe, and omit the v prefix");
   }
+  if (/^\d{12}$/u.test(value.version) && value.releaseChannel === "beta") {
+    throw new ReleaseContextError("Harness source releases use the release branch");
+  }
   if (typeof value.releaseDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.releaseDate)) {
     throw new ReleaseContextError("releaseDate must use YYYY-MM-DD");
   }
@@ -513,11 +516,17 @@ function atomicWrite(path, payload) {
 export function writeContext(args) {
   const root = resolveRoot(args.projectRoot);
   assertHarnessVersionBinding(root, args.version, { requireStamp: true });
-  if (isHarnessSource(root)) {
+  const harnessSource = isHarnessSource(root);
+  if (harnessSource) {
+    if (args.channel !== undefined && args.channel !== "release") {
+      throw new ReleaseContextError("Harness source releases use the release branch");
+    }
     const previousTaggedVersion = latestHarnessTagVersion(root);
     if (previousTaggedVersion !== null && args.version <= previousTaggedVersion) {
       throw new ReleaseContextError(`Harness release version must be newer than tagged version ${previousTaggedVersion}`);
     }
+  } else if (args.channel === undefined) {
+    throw new ReleaseContextError("Downstream release requires --channel release or beta");
   }
   const head = runGit(root, ["rev-parse", "--verify", "HEAD^{commit}"]).stdout.trim();
   if (head !== args.sourceHead) {
@@ -529,13 +538,13 @@ export function writeContext(args) {
   const defaultBranch = args.defaultBranch;
   localRefOid(root, `refs/heads/${defaultBranch}`);
   const value = validateContext({
-    schemaVersion: 4,
+    schemaVersion: harnessSource ? 3 : 4,
     sourceHead: args.sourceHead,
     version: args.version,
     releaseDate: args.releaseDate,
     expectedTag: `v${args.version}-${args.releaseDate.replaceAll("-", "")}`,
     defaultBranch,
-    releaseChannel: args.channel,
+    ...(harnessSource ? {} : { releaseChannel: args.channel }),
     releaseReview: buildReview(args),
   });
   verifyReviewScope(root, value);
@@ -556,7 +565,7 @@ export function writeContext(args) {
     sourceHead: value.sourceHead,
     expectedTag: value.expectedTag,
     defaultBranch: value.defaultBranch,
-    releaseChannel: value.releaseChannel,
+    ...(value.releaseChannel === undefined ? {} : { releaseChannel: value.releaseChannel }),
     releaseContextSha256: createHash("sha256").update(payload).digest("hex"),
   };
 }
@@ -637,7 +646,7 @@ export function parseArguments(argv) {
   }
   if (command === "write") {
     const required = [
-      "projectRoot", "sourceHead", "version", "releaseDate", "defaultBranch", "channel",
+      "projectRoot", "sourceHead", "version", "releaseDate", "defaultBranch",
       "reviewSelection", "scopeBase", "scopeDiffSha256",
     ];
     const missing = required.filter((field) => args[field] === undefined);
@@ -645,7 +654,7 @@ export function parseArguments(argv) {
     if (!["enabled", "disabled"].includes(args.reviewSelection)) {
       throw Object.assign(new Error("invalid choice for --review-selection"), { cliExit: 2 });
     }
-    if (!["release", "beta"].includes(args.channel)) {
+    if (args.channel !== undefined && !["release", "beta"].includes(args.channel)) {
       throw Object.assign(new Error("invalid choice for --channel"), { cliExit: 2 });
     }
   } else if (args.projectRoot === undefined) {

@@ -42,13 +42,15 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 ## 发布渠道
 
+渠道选择适用于已初始化的下游项目。Harness 源发布沿用时间版本和 schema 3 上下文，省略 `--channel`，发布后推送固定使用小写 `release` 分支。
+
 | 阶段或渠道 | `HARNESS_RELEASE_CHANNEL` | 应用身份 | 远端渠道分支 |
 | --- | --- | --- | --- |
 | 日常开发和本地试包 | `dev`（未设置时的开发默认值） | 基础身份 | |
 | Release | `release` | 基础身份 | `release` |
 | Beta | `beta` | 展示名和标题加 ` Beta`，程序名使用 Beta 后缀，应用 ID 加 `.beta` | `beta` |
 
-每次发布由用户选择 Release 或 Beta。发布准备使用 `release_context.mjs write --channel <release|beta>` 写入 schema 4 的 `releaseChannel`；旧 schema 3 按 Release 读取并保留原始字节和摘要。两种渠道共用现有递增版本和 tag 格式。开发和候选流程按各自阶段向构建进程传递环境变量；正式候选以已验证发布上下文为准，并在 manifest 记录 `releaseChannel`。CLI 只应用程序文件名后缀 `-beta`，Tauri 使用 `-beta` 主程序后缀，NSH 由官方打包器按平台从 Beta 名称派生程序文件名。应用动态设置标题时须读取实际打包身份。直接执行开发命令时，代码可把未设置的变量按 `dev` 读取；需要子进程显式取得该值时，POSIX 用 `HARNESS_RELEASE_CHANNEL=dev <command>`，PowerShell 先设置 `$env:HARNESS_RELEASE_CHANNEL = "dev"`。
+下游每次发布由用户选择 Release 或 Beta。发布准备使用 `release_context.mjs write --channel <release|beta>` 写入 schema 4 的 `releaseChannel`；旧 schema 3 按 Release 读取并保留原始字节和摘要。两种渠道共用现有递增版本和 tag 格式。开发和候选流程按各自阶段向构建进程传递环境变量；正式候选以已验证发布上下文为准，并在 manifest 记录 `releaseChannel`。CLI 只应用程序文件名后缀 `-beta`，Tauri 使用 `-beta` 主程序后缀，NSH 由官方打包器按平台从 Beta 名称派生程序文件名。应用动态设置标题时须读取实际打包身份。直接执行开发命令时，代码可把未设置的变量按 `dev` 读取；需要子进程显式取得该值时，POSIX 用 `HARNESS_RELEASE_CHANNEL=dev <command>`，PowerShell 先设置 `$env:HARNESS_RELEASE_CHANNEL = "dev"`。
 
 ## Git 发布生命周期与制品目录
 
@@ -58,7 +60,7 @@ Harness 模板使用上海时区（`Asia/Shanghai`）的 12 位时间版本 `YYY
 
 跨远端推送不是原子操作；后续目标失败时必须如实说明可能已经成功的前序范围、当前失败目标或阶段，以及后续目标可能尚未尝试，不能回滚或掩盖已经成功的远端。使用相同目标参数幂等重试时，只沿用 `pendingPublish` 中的冻结 HEAD 与进度，不重新解析默认分支、fetch、merge 或计算新 HEAD；已确认目标漂移会停止。push 非零退出只表示结果无法确认，除非远端复读已精确命中冻结 HEAD。流程不创建/配置远端或凭据。
 
-用户明确说“发布”时，`$desktop-prepare-release` 复核本次源码、测试和必要记录，提交源码/治理变化及已触发 Changelog，冻结 `sourceHead`。在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 `.harness/release-context.json`，把且只把这两个文件作为发布元数据提交。上下文固定 `sourceHead`、版本、上海日期、预期 tag、默认主分支、渠道和审查结论；`release` 必须传入精确 `--release-context-sha256 <sha256>`，并在任何 Git 副作用前校验调用 Worktree 中的文件字节与提交 blob。整合得到最终 HEAD 后、创建 tag 前再次校验上下文 blob 和版本事实：Harness 的 `Version.md` 须匹配受管取号凭证，下游 Cargo 与受保护周期目标须匹配上下文版本，防止后继分支覆盖已冻结版本。
+用户明确说“发布”时，`$desktop-prepare-release` 复核本次源码、测试和必要记录，提交源码/治理变化及已触发 Changelog，冻结 `sourceHead`。在当前 HEAD 仍等于该值时生成双语 `release-notes.json` 与 `.harness/release-context.json`，把且只把这两个文件作为发布元数据提交。上下文固定 `sourceHead`、版本、上海日期、预期 tag、默认主分支和审查结论；下游另冻结渠道；`release` 必须传入精确 `--release-context-sha256 <sha256>`，并在任何 Git 副作用前校验调用 Worktree 中的文件字节与提交 blob。整合得到最终 HEAD 后、创建 tag 前再次校验上下文 blob 和版本事实：Harness 的 `Version.md` 须匹配受管取号凭证，下游 Cargo 与受保护周期目标须匹配上下文版本，防止后继分支覆盖已冻结版本。
 
 `release --version <version> --date YYYYMMDD --release-context-sha256 <sha256>` 普通合并全部登记分支到本地默认主分支，冻结最终 HEAD，创建或复用 `v{version}-{YYYYMMDD}`，并复读 tag 与主分支 HEAD。两者一致即完成 Git 发布。全过程不 fetch、push、打包或删除登记分支和 Worktree；登记资源保留以便用户决定后续处理。同名 tag 指向其他提交、脏工作区、缺失分支、合并冲突或上下文漂移都会失败关闭；重试必须沿用同一上下文及最终 HEAD。
 

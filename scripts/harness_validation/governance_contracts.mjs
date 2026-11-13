@@ -285,7 +285,7 @@ const STREAMLINED_ENTRIES = [
   ]],
   ["crossPlatformReleaseSkill", ["e2e_selection", "cargo test --workspace --all-targets --all-features", "不得自动追加格式、lint 或其他开发门禁", "e2eSelection", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification", "矩阵本身不得运行 E2E"]],
   ["collectReleaseSkill", ["e2eSelection", "发布上下文 `verify`", "锁定 clean 当前 HEAD、`releaseContextSha256`", "候选选择则与原始构建 manifest 及声明的构建证据一致", "再次运行发布上下文 `verify`", "不重新构建、签名、执行或发布候选", "收集过程绝不得自行启动冒烟/E2E", "不得创建或更新 Product Spec、ADR、Changelog、Product Status、Work Plan 或 Verification"]],
-  ["prepareReleaseSkill", ["本地默认主分支和版本 tag 指向同一最终提交后，Git 发布即结束", "上下文只冻结版本、日期、默认主分支、预期 tag、源码身份、发布渠道与审查结论", "不保存推送模式、远端、候选签名或打包选择", "不访问远端、不推送、不打包", "读取生命周期记录里该次冻结的 `postReleaseAction`，执行并检测后续路径", "`push-release --remote <name>`", "整个下游发布后流程只有所选路径实际通过才算完成"]],
+  ["prepareReleaseSkill", ["本地默认主分支和版本 tag 指向同一最终提交后，Git 发布即结束", "上下文只冻结版本、日期、默认主分支、预期 tag、源码身份与审查结论，下游另冻结发布渠道", "不保存推送模式、远端、候选签名或打包选择", "不访问远端、不推送、不打包", "读取生命周期记录里该次冻结的 `postReleaseAction`，执行并检测后续路径", "`push-release --remote <name>`", "整个下游发布后流程只有所选路径实际通过才算完成"]],
   ["engineeringRules", [
     "### 5.3 开发、构建与完整验收", "日常开发统一直接实施，只运行本次变更需要的相关非空单元/回归测试",
     "显式发布候选构建在任何测试或编译前解析当前候选的 E2E 选择", "构建必须运行项目全部非空单元测试",

@@ -144,7 +144,7 @@ export function lifecycleFixture() {
       "--version", version,
       "--release-date", `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)}`,
       "--default-branch", defaultBranch,
-      "--channel", channel,
+      ...(channel === null ? [] : ["--channel", channel]),
       "--review-selection", reviewSelection,
       "--scope-base", scopeBase,
       "--scope-diff-sha256", scopeDiffSha256,

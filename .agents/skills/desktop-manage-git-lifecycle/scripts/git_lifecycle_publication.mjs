@@ -497,6 +497,9 @@ export async function commandRelease(repository, args) {
   requireClean(repository);
   const context = await releaseContextBinding(repository, args.releaseContextSha256, identity);
   const harnessSource = await verifyHarnessVersionStamp(repository, identity.version);
+  if (harnessSource && context.releaseChannel === "beta") {
+    throw new LifecycleError("release-context-invalid", "Harness source releases use the release branch.");
+  }
   const state = loadState(repository);
   const reviewed = reviewedReleaseMetadata(repository, context, state);
   if (state.pendingPublish !== null) throw new LifecycleError("publish-in-progress", "A publication must finish before release.");
@@ -532,7 +535,7 @@ export async function commandRelease(repository, args) {
       preservedBranches: [], preservedWorktrees: [],
     };
   }
-  if (context.releaseChannel === undefined) {
+  if (!harnessSource && context.releaseChannel === undefined) {
     throw new LifecycleError("release-channel-required", "A new release must explicitly select release or beta.");
   }
   // 下游新发布必须高于最近一次 Git 发布，不能以新日期 tag 重发同一或更低版本；Harness 时间版本由取号凭证约束。
@@ -556,7 +559,7 @@ export async function commandRelease(repository, args) {
     postReleaseAction,
   };
   saveState(repository, state);
-  return { ...await completePendingRelease(repository, state, args, reviewed), releaseChannel: context.releaseChannel };
+  return { ...await completePendingRelease(repository, state, args, reviewed), releaseChannel: context.releaseChannel ?? "release" };
 }
 
 /** Harness 源按当次用户请求推送，须由已发布提交中的时间版本和初始化入口共同证明身份。 */
