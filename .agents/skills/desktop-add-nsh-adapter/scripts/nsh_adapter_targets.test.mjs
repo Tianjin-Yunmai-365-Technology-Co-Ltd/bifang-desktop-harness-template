@@ -10,10 +10,10 @@ const profile = Object.freeze({
 const base = { projectId: 'sample_tool', nameZh: '示例工具', nameEn: 'Sample Tool', owner: 'test-owner' };
 
 /** 未选择 TUI 的工程不暴露终端入口。 */
-test('supported NSH targets use only the released v0.5.0 runtime and scripts', () => {
+test('supported NSH targets use only the released v0.5.1 runtime and scripts', () => {
   const desktop = { ...base, targetPlatforms: ['macos'], nshTargets: ['desktop'], profile };
   const mobileWeb = { ...base, targetPlatforms: ['android', 'web'], nshTargets: ['mobile', 'web'] };
-  assert.equal(NSH_REVISION, 'f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1');
+  assert.equal(NSH_REVISION, '224d9a795c7ac9d10d75750de9351adac5549675');
   for (const options of [desktop, mobileWeb]) {
     assert.equal(nshRevisionForTargets(options.nshTargets), NSH_REVISION);
     assert.match(nshDependencies(options), new RegExp(NSH_REVISION, 'u'));

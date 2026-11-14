@@ -12,7 +12,7 @@ import { BASE_FIELDS, DESKTOP_FIELDS, GUI_FIELDS, NSH_PLATFORM_ORDER, NSH_TARGET
 const NSH_DESKTOP_QUESTIONS = ["system_tray", "single_instance", "deep_link", "about_page", "sponsor_page", "sidebar_mode"];
 const NSH_FIXED_OFF_HELP = {
   system_notification: "NSH 提供官方通知 API，由下游按产品需求及目标平台接入。",
-  autostart: "NSH 0.5.0 尚无官方开机自启 API。",
+  autostart: "NSH 0.5.1 尚无官方开机自启 API。",
   global_shortcut: "NSH 提供官方全局快捷键 API，由下游按实际动作及目标平台接入。",
 };
 const NSH_FIXED_OFF = Object.keys(NSH_FIXED_OFF_HELP);

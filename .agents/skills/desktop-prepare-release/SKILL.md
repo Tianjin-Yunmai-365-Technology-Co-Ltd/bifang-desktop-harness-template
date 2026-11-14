@@ -45,6 +45,6 @@ description: 整理并验证当前源码，提交发布元数据，合并本地�
 
 ### NSH 路由
 
-根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。正式 0.5.0 helper 使用匹配 CLI 生成所选 desktop 原生包、Android APK/AAB、iOS 设备或模拟器 app、Web 静态站点。Android 默认使用开发签名，iOS 模拟器使用临时签名。渠道签名与 IPA 由同一 helper 消费本次明确选择的官方签名参数。本机不可构建目标如实阻断。TUI 只提供官方运行和终端测试。
+根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 独立使用 `$desktop-build-nsh-release`；旧 `interfaces = ["gui"]` 且 `gui-framework = "nsh"` 仅按既有工程读取。复用通用本地 Git 发布、版本、双语日志和 release 上下文。NSH 打包 helper 使用项目固定版本对应的 CLI 生成所选 desktop 原生包、Android APK/AAB、iOS 设备或模拟器 app、Web 静态站点。Android 默认使用开发签名，iOS 模拟器使用临时签名。渠道签名与 IPA 由同一 helper 消费本次明确选择的官方签名参数。本机不可构建目标如实阻断。TUI 只提供官方运行和终端测试。
 
 NSH 最终候选证据在忽略的 release 批次目录，校验 manifest 列出的包、sidecar 日志和许可证字节及摘要；sidecar 不冒充内部资源。E2E 在最终包形成后使用真实目标宿主/设备或 Web 静态站点；每个目标独立取证，pending/Unverified 不能升级 accepted。初始化中性壳层测试不替代产品验收。

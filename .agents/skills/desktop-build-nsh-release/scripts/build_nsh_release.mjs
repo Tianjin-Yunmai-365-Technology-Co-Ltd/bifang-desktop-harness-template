@@ -10,7 +10,7 @@ import { checkContext } from '../../desktop-prepare-release/scripts/release_cont
 import { loadDocument,renderDocument } from '../../desktop-prepare-release/scripts/release_notes.mjs';
 import { check as checkVersion } from '../../desktop-manage-version/scripts/version_gate.mjs';
 import { readDependencyLockPolicy } from '../../desktop-implement-change/scripts/project_lock_policy.mjs';
-import { NSH_STABLE_VERSION, nshRevisionForTargets, validNshIdentity, validateNshPlatforms } from '../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs';
+import { NSH_RELEASE_REVISIONS, nshRevisionForTargets, validNshIdentity, validateNshPlatforms } from '../../desktop-add-nsh-adapter/scripts/nsh_runtime_revision.mjs';
 import { iosPackagingIdentity,restoreIosDisplayIdentity } from './nsh_ios_identity.mjs';
 import { NSH_BUILD_CACHE_NAMES, prepareNshPortableEntry } from './nsh_portable_entry.mjs';
 
@@ -21,9 +21,9 @@ const NSH_UPSTREAM = 'https://github.com/longbridge/nsh.git';
 
 /** 仅允许受支持目标使用相同正式提交的 CLI 与 Cargo 运行时。 */
 export function assertNshToolchain(root,selected,cliVersion) {
-  const expectedRevision = nshRevisionForTargets(selected);
+  nshRevisionForTargets(selected);
   const manifest=fs.readFileSync(path.join(root,'Cargo.toml'),'utf8');
-  const revisions=new Map();
+  const dependencies=new Map();
   let dependencySection=false;
   for(const line of manifest.split(/\r?\n/u)) {
     if(/^\s*\[.+\]\s*(?:#.*)?$/u.test(line)) {
@@ -35,17 +35,20 @@ export function assertNshToolchain(root,selected,cliVersion) {
     const entry=/^\s*(nsh-[a-z0-9_-]+)\s*=\s*\{([^}]*)\}\s*(?:#.*)?$/u.exec(line);
     if(nshKey && !entry) throw new Error(`${nshKey} requires a pinned official NSH Git runtime`);
     if(!entry) continue;
-    if(revisions.has(entry[1])) throw new Error(`duplicate ${entry[1]} runtime dependency`);
+    if(dependencies.has(entry[1])) throw new Error(`duplicate ${entry[1]} runtime dependency`);
     const git=/\bgit\s*=\s*"([^"]+)"/u.exec(entry[2])?.[1];
+    const version=/\bversion\s*=\s*"([^"]+)"/u.exec(entry[2])?.[1];
     const rev=/\brev\s*=\s*"([0-9a-f]{40})"/u.exec(entry[2])?.[1];
-    if(git!==NSH_UPSTREAM || !rev) throw new Error(`${entry[1]} requires a pinned official NSH Git runtime`);
-    revisions.set(entry[1],rev);
+    if(git!==NSH_UPSTREAM || !version || !rev) throw new Error(`${entry[1]} requires a pinned official NSH Git runtime`);
+    dependencies.set(entry[1],{version,rev});
   }
-  const core=revisions.get('nsh-core'),base=revisions.get('nsh-base');
-  if(!core || !base || core!==base || [...revisions.values()].some(value=>value!==core)) throw new Error('NSH runtime dependency revisions must all match');
-  if(core!==expectedRevision) throw new Error('NSH targets require the pinned official v' + NSH_STABLE_VERSION + ' stable runtime');
-  if(cliVersion.trim()!==`nsh ${NSH_STABLE_VERSION} (${core.slice(0,7)})`) throw new Error('NSH CLI and Cargo runtime revision do not match');
-  return core;
+  const core=dependencies.get('nsh-core');
+  if(!core || !dependencies.has('nsh-base') || [...dependencies.values()].some(dep=>dep.version!==core.version || dep.rev!==core.rev)) {
+    throw new Error('NSH runtime dependency versions and revisions must all match');
+  }
+  if(NSH_RELEASE_REVISIONS[core.version]!==core.rev) throw new Error('NSH targets require a pinned official stable runtime');
+  if(cliVersion.trim()!==`nsh ${core.version} (${core.rev.slice(0,7)})`) throw new Error('NSH CLI and Cargo runtime revision do not match');
+  return core.rev;
 }
 /** 输出只能落在真实项目目录，拒绝链接目录和已有批次覆盖。 */
 export function safeOutputPath(root,file) {
@@ -280,7 +283,7 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
   }
   const iosIdentity = target === 'ios' || target === 'ios-simulator' ? iosPackagingIdentity(config.name) : null;
   if (iosIdentity?.changed && packageOptions.bundleFormat === 'ipa') {
-    throw new Error('NSH 0.5.0 cannot sign this iOS name: its executable would collide with the nsh resources directory');
+    throw new Error('NSH cannot sign this iOS name: its executable would collide with the nsh resources directory');
   }
 
   const before = sourceSnapshot(root);
@@ -304,7 +307,6 @@ export function buildNshRelease({root,mode='local',target,e2e,e2eReason,e2eRisk,
     const portable = modernDesktop && ['android','ios','ios-simulator','web'].includes(target);
     const staged = portable || Boolean(betaIdentity);
     const entry = staged ? prepareNshPortableEntry(root, facts.gui, stage, { portable, betaIdentity }) : facts.gui;
-    if (staged && !env.CARGO_TARGET_DIR) env.CARGO_TARGET_DIR = safeOutputPath(root, path.join(root, 'target/nsh-runtime'));
     const packageRoot = path.join(stage, 'package');
     run('nsh', ['package','--target',target,'--out',packageRoot,'--app-version',facts.version,
       ...(iosIdentity?.changed ? ['--name',iosIdentity.packageName] : []), ...packageOptions.args], entry, env);

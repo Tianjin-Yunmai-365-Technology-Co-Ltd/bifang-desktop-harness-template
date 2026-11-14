@@ -37,12 +37,23 @@ test("top_level_nsh_targets_are_parsed_without_gui_framework", () => {
   assert.throws(() => parseInterfaceSelection(`${METADATA}interfaces = ["cli", "nsh"]\nnsh-targets = ["desktop"]\n`), /独立顶层接口/u);
 });
 
-/** 升级拒绝与正式运行时不一致的依赖，即使项目声明了受支持的目标。 */
-test("nsh_upgrade_rejects_unpinned_runtime_dependencies", () => {
-  const revision = "beeb9fc7707e0d4a195a4f7274f77b30e134c500";
-  const source = `${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop"]\n[workspace.dependencies]\nnsh-core = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n`;
-  assert.throws(() => parseInterfaceSelection(source), /正式 v0\.5\.0/u);
-  assert.throws(() => parseInterfaceSelection(source.replace(/^nsh-base.*$/mu, '')), /正式 v0\.5\.0/u);
+/** 工程升级兼容两个正式版本，拒绝预览、错配和混装。 */
+test("nsh_upgrade_requires_one_supported_runtime_revision", () => {
+  const latest = dependency("0.5.1", "224d9a795c7ac9d10d75750de9351adac5549675");
+  const previous = dependency("0.5.0", "f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1");
+  const preview = dependency("0.5.1", "beeb9fc7707e0d4a195a4f7274f77b30e134c500");
+  const source = (core, base) => `${METADATA}interfaces = ["nsh"]\nnsh-targets = ["desktop"]\n[workspace.dependencies]\nnsh-core = ${core}\nnsh-base = ${base}\n`;
+
+  function dependency(version, revision) {
+    return `{ version = "${version}", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }`;
+  }
+
+  assert.deepEqual(parseInterfaceSelection(source(latest, latest)).nshTargets, ["desktop"]);
+  assert.deepEqual(parseInterfaceSelection(source(previous, previous)).nshTargets, ["desktop"]);
+  assert.throws(() => parseInterfaceSelection(source(preview, preview)), /正式版固定提交/u);
+  assert.throws(() => parseInterfaceSelection(source(latest, previous)), /正式版固定提交/u);
+  const wrongVersion = latest.replace('"0.5.1"', '"0.5.0"');
+  assert.throws(() => parseInterfaceSelection(source(wrongVersion, wrongVersion)), /正式版固定提交/u);
 });
 
 /** 未知值、错类型、重复键和非法接口不能降级到默认值。 */

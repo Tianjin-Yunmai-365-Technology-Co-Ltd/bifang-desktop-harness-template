@@ -65,7 +65,7 @@ node .agents/skills/desktop-instantiate-project/scripts/initialization_form.mjs 
 
 基础字段顺序依次为 `name_zh`、`name_en`、`project_id`、`project_path`、`owner`、`interfaces`；已确认一个展示名称时，另一个自动翻译并在汇总确认。程序类型选项为 CLI、MCP、DESKTOP（技术值 `gui`）、NSH，NSH 展示说明固定为“下一代全平台开发框架”。CLI/MCP/DESKTOP 的 `target_platforms` 固定派生为 `windows, macos, linux`，来源 `default:all_desktop_platforms`；NSH 只问 `nsh_targets` 并派生平台，不写入 `gui-framework`。DESKTOP 的汇总固定派生 `gui_framework: tauri`（来源 `derived:desktop`），写入 Cargo 的 `gui-framework`。不询问框架；旧表单的合法 Tauri 答案只作兼容输入，其他显式框架值失败关闭。
 
-`nsh_targets` 为可多选的 `desktop`、`mobile`、`web`、`tui`，是 NSH 平台选择的唯一输入。`desktop` 和 `tui` 都派生完整 Windows/macOS/Linux 集合；`mobile` 派生 Android/iOS，`web` 派生 Web。派生的非空 `target_platforms` 与来源 `derived:nsh_targets` 进入完整汇总，确认后才写入 Cargo。若旧一轮已提供显式 `target_platforms`，任何程序类型都忽略旧答案并按当前默认或能力重新计算，不再展示系统平台问题。全部 NSH 依赖使用正式 v0.5.0 固定提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI。NSH 当前只支持单独选择，不能与 CLI、MCP 或 DESKTOP 同时实例化。
+`nsh_targets` 为可多选的 `desktop`、`mobile`、`web`、`tui`，是 NSH 平台选择的唯一输入。`desktop` 和 `tui` 都派生完整 Windows/macOS/Linux 集合；`mobile` 派生 Android/iOS，`web` 派生 Web。派生的非空 `target_platforms` 与来源 `derived:nsh_targets` 进入完整汇总，确认后才写入 Cargo。若旧一轮已提供显式 `target_platforms`，任何程序类型都忽略旧答案并按当前默认或能力重新计算，不再展示系统平台问题。全部 NSH 依赖使用正式 v0.5.1 固定提交 `224d9a795c7ac9d10d75750de9351adac5549675` 与匹配 CLI。NSH 当前只支持单独选择，不能与 CLI、MCP 或 DESKTOP 同时实例化。
 
 NSH 的双语展示名要能作为官方包文件名，长度、保留名称和路径字符在汇总前检查。项目标识最多 64 个 ASCII 字符，负责人最多 200 个字符，身份字段首尾不得留空白。
 

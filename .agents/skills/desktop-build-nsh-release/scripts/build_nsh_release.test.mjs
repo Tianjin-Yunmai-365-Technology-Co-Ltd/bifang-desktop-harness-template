@@ -30,20 +30,26 @@ test('package_facts_accepts_top_level_nsh_and_legacy_gui_nsh',()=>fixture(root=>
   assert.throws(()=>packageFacts(root,invalidLegacy,'macos'),/requires NSH workspace/u);
 }));
 
-/** 所有受支持目标绑定正式版 Git pin，拒绝预览、旧 CLI 与混合依赖。 */
+/** 新旧正式版均要求版本、提交及 CLI 精确匹配。 */
 test('nsh_toolchain_requires_matching_released_cli_and_runtime',()=>fixture(root=>{
   const preview='beeb9fc7707e0d4a195a4f7274f77b30e134c500';
-  const stable='f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1';
-  const manifest=revision=>`[workspace]\nmembers = []\n[workspace.dependencies]\nnsh-core = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\nnsh-base = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }\n[workspace.metadata.agent-first-harness]\ninterfaces = ["nsh"]\n`;
+  const stable='224d9a795c7ac9d10d75750de9351adac5549675';
+  const previous='f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1';
+  const dependency=(version,revision)=>`{ version = "${version}", git = "https://github.com/longbridge/nsh.git", rev = "${revision}" }`;
+  const manifest=(revision,version='0.5.1')=>`[workspace]\nmembers = []\n[workspace.dependencies]\nnsh-core = ${dependency(version,revision)}\nnsh-base = ${dependency(version,revision)}\n[workspace.metadata.agent-first-harness]\ninterfaces = ["nsh"]\n`;
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview));
-  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.0 (beeb9fc)'),/pinned official v0\.5\.0 stable runtime/u);
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.1 (beeb9fc)'),/pinned official stable runtime/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable));
-  assert.equal(assertNshToolchain(root,['web'],'nsh 0.5.0 (f4d68f7)'),stable);
-  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.0 (beeb9fc)'),/do not match/u);
-  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview).replace(`nsh-base = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${preview}" }`,''));
+  assert.equal(assertNshToolchain(root,['web'],'nsh 0.5.1 (224d9a7)'),stable);
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.0 (f4d68f7)'),/do not match/u);
+  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(previous,'0.5.0'));
+  assert.equal(assertNshToolchain(root,['web'],'nsh 0.5.0 (f4d68f7)'),previous);
+  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable,'0.5.0'));
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.1 (224d9a7)'),/pinned official stable runtime/u);
+  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable).replace(/^nsh-base.*$/mu,''));
   assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.0 (f4d68f7)'),/must all match/u);
-  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview).replace('[workspace.metadata.agent-first-harness]',`nsh-engine = { version = "0.5.0", git = "https://github.com/longbridge/nsh.git", rev = "${stable}" }\n[workspace.metadata.agent-first-harness]`));
-  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.0 (f4d68f7)'),/must all match/u);
+  fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable).replace('[workspace.metadata.agent-first-harness]',`nsh-engine = ${dependency('0.5.0',previous)}\n[workspace.metadata.agent-first-harness]`));
+  assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.1 (224d9a7)'),/must all match/u);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(preview).replace('[workspace.metadata.agent-first-harness]','nsh-engine = { workspace = true }\n[workspace.metadata.agent-first-harness]'));
   assert.throws(()=>assertNshToolchain(root,['web'],'nsh 0.5.0 (f4d68f7)'),/pinned official NSH Git runtime/u);
 }));
@@ -64,7 +70,7 @@ test('legacy_gui_nsh_build_requires_released_cargo_pin',()=>fixture(root=>{
   const invoke=()=>spawnSync(process.execPath,[script,'--root',root,'--target','web'],{cwd:root,env,encoding:'utf8',timeout:30_000});
   const blocked=invoke();
   assert.equal(blocked.status,1,blocked.stderr);
-  assert.match(blocked.stderr,/pinned official v0\.5\.0 stable runtime/u);
+  assert.match(blocked.stderr,/pinned official stable runtime/u);
   assert.equal(fs.existsSync(marker),false);
   fs.writeFileSync(path.join(root,'Cargo.toml'),manifest(stable));
   fs.mkdirSync(path.join(root,'sample_tool_gui'));

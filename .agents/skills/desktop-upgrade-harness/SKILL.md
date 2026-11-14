@@ -79,4 +79,4 @@ description: 在已初始化或首次接入的既有下游项目中安全更新�
 
 另报告退役清理选择是本次确认还是复用记忆、实际删除/保留项及偏好是否已记录。工程清理不代表已移除下游产品代码中的更新/统计能力；若发现产品实现或旧发布密钥门禁，应列明文件、依赖、配置和验证范围，单独取得目标项目明确授权，再走 `$desktop-implement-change`，不得改写真实发布历史、导出或删除凭据。
 
-NSH 工程选择：新下游以顶层 `interfaces = ["nsh"]` 和 `nsh-targets` 保存 desktop/mobile/web/tui 子目标，可按锁策略与目标选择 local_package，并保留 adapter/build 专用 Skills、运行时知识和共享支持页资产。旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容；未选 NSH 时裁掉专属能力。0.4.0 自定义宿主工程或其他不受支持的接口、框架、目标须先在原项目迁移并验证，再接入新版工程层；纯 TUI 无本地打包路线。升级不会改写 Cargo 选择。NSH 初始化 E2E 与仅初始化阶段的 wrapper 不传播；仅 desktop 保留适用的 profile、支持页工程入口。策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。
+NSH 工程选择：新下游以顶层 `interfaces = ["nsh"]` 和 `nsh-targets` 保存 desktop/mobile/web/tui 子目标，可按锁策略与目标选择 local_package，并保留 adapter/build 专用 Skills、运行时知识和共享支持页资产。旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容；未选 NSH 时裁掉专属能力。0.4.0 自定义宿主工程或其他不受支持的接口、框架、目标须先在原项目迁移并验证，再接入新版工程层；纯 TUI 无本地打包路线。正式 v0.5.0 与 v0.5.1 均可接入新版工程层，Cargo 保留项目原有的版本和提交。NSH 初始化 E2E 与仅初始化阶段的 wrapper 不传播；仅 desktop 保留适用的 profile、支持页工程入口。策略、产品源码及签名仍按既有保护规则保留。升级不会把声明支持改写为验证通过。

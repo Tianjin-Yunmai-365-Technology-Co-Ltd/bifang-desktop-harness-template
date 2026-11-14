@@ -14,7 +14,7 @@ post_release_action: pending
 
 # Agent 运行策略
 
-NSH 专用路由：新项目的根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 记录桌面、移动、Web、TUI 子目标，全部 NSH 依赖固定到正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1`，全局 CLI 须匹配短 SHA `f4d68f7`。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。仅桌面子目标保存九字段桌面配置，问询由统一表单派生；能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
+NSH 专用路由：新项目的根 Cargo `interfaces = ["nsh"]` 与 `nsh-targets` 记录桌面、移动、Web、TUI 子目标，全部 NSH 依赖固定到正式 v0.5.1 提交 `224d9a795c7ac9d10d75750de9351adac5549675`，全局 CLI 须匹配短 SHA `224d9a7`。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。仅桌面子目标保存九字段桌面配置，问询由统一表单派生；能力边界以 NSH Skill 的 `references/runtime-and-capabilities.md` 为准。
 
 本文件是下游项目 Agent 能力、用户可见 Task 自动拆分、候选冒烟偏好、构建 E2E 建议默认值和发布后动作的唯一持久事实来源。新初始化固定物化六项能力默认值，不单独询问；完成初始化的下游六项能力选择只能是 `enabled` 或 `disabled`，`confirmed_by`、`confirmed_at` 记录完整汇总的真实确认来源和日期。新下游的 schema 5 允许 `post_release_action: pending` 留到首次发布前明确选择并记录；未选择时 Git 发布门禁失败关闭。Git 发布固定在本地默认主分支与 tag 完成；下游随后按当次已冻结的发布后动作执行并复核。Harness 源的 `pending` 不阻断 Harness 自身的 Git 发布。
 

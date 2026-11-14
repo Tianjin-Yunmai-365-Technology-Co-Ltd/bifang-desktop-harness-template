@@ -1,6 +1,6 @@
 # 客户端工程方案索引
 
-NSH 专用路由：新下游顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` 和具体 `target-platforms`，仅支持 desktop/mobile/web/tui，并统一正式 v0.5.0 固定提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI。旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；桌面九项配置仅适用于 desktop。能力与打包边界见 NSH Skill 的 `references/runtime-and-capabilities.md`。
+NSH 专用路由：新下游顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` 和具体 `target-platforms`，仅支持 desktop/mobile/web/tui，并统一正式 v0.5.1 固定提交 `224d9a795c7ac9d10d75750de9351adac5549675` 与匹配 CLI。旧 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。NSH 使用 `$desktop-add-nsh-adapter`、`docs/design_standards/nsh_gui.md` 与 `$desktop-build-nsh-release`；桌面九项配置仅适用于 desktop。能力与打包边界见 NSH Skill 的 `references/runtime-and-capabilities.md`。
 
 本文按任务组织 DESKTOP 与 NSH 的依赖版本、实现方案、性能和打包知识。根 Cargo 决定实际框架/接口/目标/版本；中性 renderer、已有产品接线与目标运行证据分别判断。普通实现只读命中主题，不自动初始化、升级依赖、跑基准或构建。
 
@@ -23,7 +23,7 @@ NSH 专用路由：新下游顶层 `interfaces = ["nsh"]` 配合 `nsh-targets` �
 | Windows | [原生 x64 NSIS 试包](../.agents/skills/desktop-build-tauri-local-install/SKILL.md)、[正式候选及 macOS xwin](../.agents/skills/desktop-build-tauri-release/SKILL.md) | 原生 ZIP | xwin 不证明 Windows 安装/运行；UAC、通知和登录项按真实宿主验证 |
 | Linux | [同架构 deb/AppImage 本地试包](../.agents/skills/desktop-build-tauri-local-install/references/tauri-linux.md)、[运行时](../.agents/skills/desktop-add-gui-adapter/references/linux-runtime.md) | 原生 tar.gz | Tauri 本地试包不升级为正式候选 |
 | Android / iOS / Web | 不适用 | Android APK/AAB、iOS 模拟器或设备 `.app`、签名 IPA、Web 静态站点 | 渠道签名、目标设备和浏览器运行分别取证 |
-| TUI | 不适用 | 官方 `nsh run --target tui` 与 `nsh test --target tui` | 验证键盘操作和终端退出恢复。0.5.0 无打包目标 |
+| TUI | 不适用 | 官方 `nsh run --target tui` 与 `nsh test --target tui` | 验证键盘操作和终端退出恢复。0.5.1 无打包目标 |
 
 未执行的原生构建、托管矩阵、签名和目标桌面验收仍为 `Unverified`，既有证据缺口见 [技术债](TECH_DEBT.md)。
 

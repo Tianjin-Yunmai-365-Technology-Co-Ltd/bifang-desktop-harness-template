@@ -71,7 +71,7 @@ description: 只收集 Harness 创建终端下游所需的固定初始化信息�
 
 ## 顶层 NSH 初始化分派
 
-NSH：下一代全平台开发框架，是与 CLI、MCP、DESKTOP 平级的单独接口。表单只问 desktop/mobile/web/tui，自动派生对应系统平台集合；使用正式 v0.5.0 提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1` 与匹配 CLI。按 `$desktop-add-nsh-adapter` 的运行时引用生成 Mixed TSX 与共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。
+NSH：下一代全平台开发框架，是与 CLI、MCP、DESKTOP 平级的单独接口。表单只问 desktop/mobile/web/tui，自动派生对应系统平台集合；使用正式 v0.5.1 提交 `224d9a795c7ac9d10d75750de9351adac5549675` 与匹配 CLI。按 `$desktop-add-nsh-adapter` 的运行时引用生成 Mixed TSX 与共享 Rust core。仅 desktop 询问九项桌面 profile：官方多窗口固定提供；托盘、单实例、深链接按选择接入，深链接要求单实例；自启、通知与 OS 全局快捷键在中性模板固定关闭。选择 NSH 时，官方 `nsh`、`nsh-design-guides` 随脚手架自动安装到项目 `.agents/skills/`。
 
 中性 core 建立后运行 add-only helper；纯净工程回归可调用初始化器 `scripts/create_nsh_workspace.mjs`（仅源专用 wrapper，不能代替完整实例化的复制/重置/策略/Git 收尾）。选择 NSH desktop 时复用选定 Logo；工程临时夹具标记中性。运行非空 Rust workspace、所选目标的 NSH check/test 与 `$desktop-test-nsh-initialization-e2e` 后才裁剪：保留 NSH adapter/build，仅 desktop 保留共享支持页资产，删除 Tauri/Mantine 专属 Skills；保留通用生命周期、版本、发布、验收与升级规则。NSH 制品由自己的构建 Skill 校验，裁掉扁平制品收集 Skill。删除初始化器及本次 NSH 初始化 E2E，改写地图与失效引用，再创建独立 main 唯一基线。不得把 NSH runner 的临时嵌套 workspace 当产品根。
 

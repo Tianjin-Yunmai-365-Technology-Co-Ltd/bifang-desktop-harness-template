@@ -1,6 +1,6 @@
 # NSH GUI 标准
 
-`standard_id = nsh-gui-common-v1`，新项目匹配根 Cargo `interfaces = ["nsh"]`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。`nsh-targets` 仅支持 desktop/mobile/web/tui；统一正式 0.5.0 固定提交 `f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1`。
+`standard_id = nsh-gui-common-v1`，新项目匹配根 Cargo `interfaces = ["nsh"]`；既有 `interfaces = ["gui"]`、`gui-framework = "nsh"` 保留读取兼容。`nsh-targets` 仅支持 desktop/mobile/web/tui；统一正式 0.5.1 固定提交 `224d9a795c7ac9d10d75750de9351adac5549675`。
 
 desktop、mobile、Web 图形目标先应用 [共用基座](ui_foundation.md)。三类目标均使用 Mixed 模式：TSX 组件、NSH `nsh/base` 语义控件、reactive signal 和 Rust native module；共享业务规则留在 Rust core。颜色、字号、间距和断点集中在 TSX Token。TSX 是 NSH 自有运行时，不套用 Tauri CSS、Mantine、React hooks 合同。
 
@@ -10,4 +10,4 @@ desktop 子目标使用左侧栏和固定多窗口，并处理九字段桌面 pr
 
 desktop/mobile/Web 的设置页共用一致的页面宽度、节奏与语义控件：语言和主题分成有标题、说明的卡片区域，用 `nsh/base` 单选组呈现当前选择、键盘焦点及切换状态。桌面关于页按联系信息、更新日志和免责声明分区，保留多段声明与双语内容；更新日志折叠状态可操作。桌面赞助页按项目已有品牌资料、档位与支付媒体生成，档位突出插图、名称、价格和权益；内容宽度扣除侧栏及滚动容器内边距，随窗口在一至三列回流，二维码在窄窗口不被裁切。三页的字号、间距、圆角和断点由共用 Token 控制，不在页面里散布独立常数；生成的文案、作者、金额与媒体只取当前项目已确认资料，不把示例项目内容写入模板。
 
-桌面多窗口与菜单使用官方 `nsh/desktop`，托盘关闭隐藏由 `WindowRef` 与 `Tray` 接线，单实例和 URL Scheme 由官方应用配置注册。深链接只消费固定恢复 URL，不承担产品导航。初始化用真实 Rust/NSH 测试及对应目标宿主验证。终端以 `platform.idiom === "terminal"` 进入紧凑布局，不应用桌面侧栏、菜单和 Logo；按项目官方 `nsh-design-guides` 与 [NSH TUI 指南](https://github.com/longbridge/nsh/blob/v0.5.0/website/docs/tui.md) 检查键盘操作和 Cell 布局。
+桌面多窗口与菜单使用官方 `nsh/desktop`，托盘关闭隐藏由 `WindowRef` 与 `Tray` 接线，单实例和 URL Scheme 由官方应用配置注册。深链接只消费固定恢复 URL，不承担产品导航。初始化用真实 Rust/NSH 测试及对应目标宿主验证。终端以 `platform.idiom === "terminal"` 进入紧凑布局，不应用桌面侧栏、菜单和 Logo；按项目官方 `nsh-design-guides` 与 [NSH TUI 指南](https://github.com/longbridge/nsh/blob/v0.5.1/website/docs/tui.md) 检查键盘操作和 Cell 布局。

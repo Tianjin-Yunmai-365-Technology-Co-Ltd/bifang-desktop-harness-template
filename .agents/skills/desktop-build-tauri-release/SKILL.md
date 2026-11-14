@@ -15,7 +15,7 @@ description: 从 clean HEAD 构建下游 Tauri 2 GUI 发布候选；支持 macOS
 node .agents/skills/desktop-build-tauri-release/scripts/tauri_channel_config.mjs --project-root . --gui-root <相对路径> --platform <macos|windows> --cargo-package <实际 GUI Cargo package 名称> --cargo-binary <实际 Cargo 主二进制名称，不含扩展名>
 ```
 
-把返回的非空 `configPath` 作为所有候选构建命令的最后一个 `--config <configPath>`（位于 Cargo 的 `--` 分隔符之前）。Beta 使用 ` Beta` 的产品与启动标题后缀、`-beta` 的主程序后缀及 `.beta` 的应用 ID；在独立的忽略目录设置本次 `CARGO_TARGET_DIR`，并从该目录发现候选。动态标题必须消费有效的 Tauri `package_info().name`，已自定义标题的项目按相同渠道保留 Beta 后缀。候选完成或失败后清除本次临时配置。
+把返回的非空 `configPath` 作为所有候选构建命令的最后一个 `--config <configPath>`（位于 Cargo 的 `--` 分隔符之前）。Beta 使用 ` Beta` 的产品与启动标题后缀、`-beta` 的主程序后缀及 `.beta` 的应用 ID。沿用 Cargo 已配置的共享目标目录，按本次构建的目标、版本和 Beta 制品名核对输出。动态标题必须消费有效的 Tauri `package_info().name`，已自定义标题的项目按相同渠道保留 Beta 后缀。候选完成或失败后清除本次临时配置。
 
 ## 按需资料
 

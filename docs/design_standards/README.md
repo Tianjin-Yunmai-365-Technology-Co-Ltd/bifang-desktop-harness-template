@@ -26,7 +26,7 @@
 
 所有图形界面先遵守共用基座。图形专项文档只映射相容的框架机制、组件行为和状态合同。图形 Token 语义由基座定义，各应用的实际值只在中央主题 Token 模块维护，专项文档不再并列规定颜色、字号、圆角或展示尺寸。
 
-DESKTOP 固定使用 Tauri，既有 GUI 缺失 `gui-framework` 时也按 Tauri 读取。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；仅 desktop/mobile/web/tui 可用，统一正式 0.5.0 工具链。NSH 图形目标在共用基座之上叠加专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 NSH。
+DESKTOP 固定使用 Tauri，既有 GUI 缺失 `gui-framework` 时也按 Tauri 读取。NSH 作为平级接口读取 `nsh-targets`，不写 `gui-framework`；仅 desktop/mobile/web/tui 可用，统一正式 0.5.1 工具链。NSH 图形目标在共用基座之上叠加专项标准；Tauri 的 AppShell、Mantine 列表、WebView、Tabler React 与 CSS 接线不适用于 NSH。
 
 ## 变更治理
 

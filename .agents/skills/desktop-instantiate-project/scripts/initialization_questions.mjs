@@ -50,9 +50,9 @@ export function summaryNotices(values) {
     notices.push("Tauri 使用 desktop-add-gui-adapter 与 desktop-test-gui-initialization-e2e；system-locale/window-state/dialog 是三项固定基线，主窗口精确 dialog:default 不授权通用文件读写。发布候选打包使用 desktop-build-tauri-release。");
     if (values.deep_link === "enabled") notices.push(`深链接只恢复主窗口：app-${values.project_id.replaceAll("_", "-")}://restore；单实例已启用。`);
   } else if (nsh) {
-    notices.push("NSH 目标平台仅由所选能力自动确定：桌面对应 Windows、macOS、Linux 全部系统，移动对应 Android、iOS，Web 对应 Web，TUI 对应 Windows、macOS、Linux 的终端；请核对本汇总中的具体平台。所有已选能力使用正式 v0.5.0 工具链。");
+    notices.push("NSH 目标平台仅由所选能力自动确定：桌面对应 Windows、macOS、Linux 全部系统，移动对应 Android、iOS，Web 对应 Web，TUI 对应 Windows、macOS、Linux 的终端；请核对本汇总中的具体平台。所有已选能力使用正式 v0.5.1 工具链。");
     notices.push(`NSH 是独立程序类型；已选能力：${values.nsh_targets.join('、')}。TSX 界面通过 Mixed 原生模块调用共享 Rust core；初始化使用 desktop-add-nsh-adapter 与 desktop-test-nsh-initialization-e2e，并自动安装项目本地官方 NSH 编码与设计 Skills。`,
-      "NSH 桌面、Android、iOS 与 Web 使用官方打包器；TUI 使用官方运行和测试命令，0.5.0 未提供 TUI 打包；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
+      "NSH 桌面、Android、iOS 与 Web 使用官方打包器；TUI 使用官方运行和测试命令，0.5.1 未提供 TUI 打包；正式 IPA 须另行完成签名和渠道流程，原生工具链与真实设备验证分别按目标执行，不宣称跨平台已验证。");
     if (values.nsh_targets.includes("desktop")) notices.push("NSH 桌面默认提供官方多窗口。选择单实例后可继续选择深链接。自启、系统通知和 OS 全局快捷键在中性模板中关闭。");
   }
   if (values.interfaces.includes("cli") && gui) notices.push("CLI 与 GUI 组合分别使用对应打包 Skill 生成真实产物，不互相冒充。");

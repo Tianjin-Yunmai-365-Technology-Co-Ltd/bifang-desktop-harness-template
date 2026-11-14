@@ -1,6 +1,10 @@
-/** 当前仅支持正式发布的 NSH 0.5.0 运行时。 */
-export const NSH_STABLE_VERSION = '0.5.0';
-export const NSH_STABLE_REVISION = 'f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1';
+/** 新项目使用的正式 NSH 运行时。 */
+export const NSH_STABLE_VERSION = '0.5.1';
+export const NSH_STABLE_REVISION = '224d9a795c7ac9d10d75750de9351adac5549675';
+export const NSH_RELEASE_REVISIONS = Object.freeze({
+  '0.5.0': 'f4d68f7f9f31eb7b3ecc8a4cbc31096d5c6238a1',
+  [NSH_STABLE_VERSION]: NSH_STABLE_REVISION,
+});
 export const NSH_TARGETS = Object.freeze(['desktop', 'mobile', 'web', 'tui']);
 export const NSH_PLATFORMS = Object.freeze(['windows', 'macos', 'linux', 'android', 'ios', 'web']);
 const desktopPlatforms = Object.freeze(['windows', 'macos', 'linux']);

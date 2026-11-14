@@ -24,7 +24,8 @@
 | LIM-028 | Codex Task setup 缺少可用的 `clientThreadId` 对账或取消桥 | `create_thread` 可能只返回尚不能传给 thread 工具的 `clientThreadId`；当前可用工具不能用它查询、取消或直接取得最终 `threadId`，宿主 setup 若不晋升会留下 queued Task/Worktree | Harness 以一次派发、`SETUP_PENDING` 有界返回、禁止重复创建/代执行和用户明确要求后才用 `list_threads` 对账缓解；待 Codex 提供稳定查询/取消接口后增加有界恢复路径和真实卡死回归 | Mitigated |
 | LIM-029 | Windows 原生完整文件系统回归曾以平台名称预判两个夹具 | 换行文件名与符号链接 Node 回归先真实创建对象，只在宿主返回明确不支持或权限错误时按精确原因 skip；创建成功必须确认真实 symlink 并继续执行原断言，生产门禁语义未放宽 | 在标准非管理员 Windows 与具备符号链接权限的 Windows CI 各运行一次完整 Node 套件，保留能力差异证据 | Mitigated；2026-09-23 平台预判冲突已解决，Windows 原生复验 Not run |
 | LIM-031 | Tauri deb 原生与完整元数据证据待补 | 已实现 deb/checksum/inspection 整组目录提交、旧集合保留、1 MiB 流式 hash、dpkg 五分钟/16 MiB 预算及 CLI 中断清理；相关回归已有通过记录。macOS 上 Tauri 后代进程超时回归出现间歇失败，单项复跑可通过。当前仍仅适用可信本机输出及默认 target 布局，payload 比较不证明 uid/gid、硬链接拓扑、xattr/ACL，macOS 上未执行真实 dpkg 链路 | 在 Linux 原生执行保留的实际解包/重打包/规范化闭环；扩展特殊 ownership、候选或不可信包处理前另补元数据与安全取证，不把当前集合提交视为安装/运行或断电持久性证明 | Mitigated；2026-11-06 工程缺陷已修复，Linux 原生复验 Not run |
-| LIM-032 | NSH 0.5.0 Linux 执行文件名与资源目录冲突 | 上游把展示名过滤为 ASCII 执行文件名。如果结果为 `nsh`，Linux 打包会尝试把可执行文件写到已创建的 `nsh/` 资源目录。源码路径已确认，Linux 原生复验待补。见 [官方打包源码](https://github.com/longbridge/nsh/blob/v0.5.0/crates/nsh-cli/src/package.rs#L1297-L1302) | Linux 打包前使用过滤后不为 `nsh` 的展示名，待上游修复后在 Linux 原生复验 | Open |
+| LIM-032 | NSH 0.5.1 Linux 执行文件名与资源目录冲突 | 上游把展示名过滤为 ASCII 执行文件名。如果结果为 `nsh`，Linux 打包会尝试把可执行文件写到已创建的 `nsh/` 资源目录。源码路径已确认，Linux 原生复验待补。见 [官方打包源码](https://github.com/longbridge/nsh/blob/v0.5.1/crates/nsh-cli/src/package.rs#L1301-L1306) | Linux 打包前使用过滤后不为 `nsh` 的展示名，待上游修复后在 Linux 原生复验 | Open |
+| LIM-033 | NSH Release 与 Beta 共享桌面 URL Scheme | Beta 打包隔离应用 ID 和展示名。启用深链接时，它沿用 Release 的 `schemes` 配置；两渠道同机安装时可能争用同一协议注册 | 让各渠道使用独立的协议注册与恢复 URL，再原生验证同机安装后的冷启动和运行中分发 | Open |
 
 ## 记录规则
 

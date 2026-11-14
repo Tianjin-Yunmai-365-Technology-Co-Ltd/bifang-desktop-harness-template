@@ -1,4 +1,4 @@
-/** NSH 0.5.0 iOS 的执行文件与资源目录在大小写不敏感宿主上的冲突修复。 */
+/** NSH iOS 的执行文件与资源目录在大小写不敏感宿主上的冲突修复。 */
 import fs from 'node:fs';
 import path from 'node:path';
 

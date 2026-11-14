@@ -1,10 +1,14 @@
-# 2026-11-13 变更记录
+# 2026-11-14 变更记录
 
 本文件承接既有变更与历史版本绑定。退役接口的发布记录见[历史原文](CHANGELOG_history.md)。
 
+## 2026-11-14 变化
+
+- `HARNESS-NSH-051-RUNTIME`（`required_version = 202611142116`）：新 NSH 项目使用官方 0.5.1 Cargo 提交与匹配 CLI，更新运行时和平台知识。已有正式 0.5.0 项目继续按其固定版本和 CLI 打包或升级 Harness。两套官方 Skills 已核对与 0.5.1 发行内容逐字节一致。
+
 ## 2026-11-13 变化
 
-- `HARNESS-RELEASE-CHANNELS`（`required_version = pending`）：下游日常开发使用 `dev`，每次发布选择 Release 或 Beta，推送和候选构建读取冻结的渠道。Beta 使用独立的名称、标题、应用 ID 和同名发布分支；构建环境提供 `HARNESS_RELEASE_CHANNEL`。Harness 源沿用固定的 `release` 分支。见 [ADR-20261113-001](../adr/20261113_ADR.md)。
+- `HARNESS-RELEASE-CHANNELS`（`required_version = 202611142116`）：下游日常开发使用 `dev`，每次发布选择 Release 或 Beta，推送和候选构建读取冻结的渠道。Beta 使用独立的名称、标题、应用 ID 和同名发布分支；构建环境提供 `HARNESS_RELEASE_CHANNEL`。Harness 源沿用固定的 `release` 分支。见 [ADR-20261113-001](../adr/20261113_ADR.md)。
 
 ## 2026-11-12 变化
 

@@ -24,7 +24,7 @@ description: 只解析 Harness 所需初始化选择并建立中性 Rust 下游�
 接口含 DESKTOP（Cargo `gui`）或 NSH 时，严格复用 [唯一表单合同](../desktop-instantiate-project/references/initialization-form.md) 与 `initialization_form.mjs` 的结果；本入口不另定义提问顺序或默认触发。新 DESKTOP 自动将 `tauri` 写入根 Cargo `gui-framework`，旧 GUI 缺失时兼容 Tauri；新 NSH 写入 `interfaces = ["nsh"]`、`nsh-targets` 与具体 `target-platforms`，不写框架。九字段 profile 对 DESKTOP 始终适用，对 NSH 仅随 desktop 子目标适用。
 
 - `tauri`：完整读取 [Tauri 初始化接线](references/tauri-initialization.md)，执行已确认九项配置对应的 GUI 依赖、插件、Logo/DMG、支持页和 `$desktop-test-gui-initialization-e2e`。
-- 顶层 `nsh`：分派 `$desktop-add-nsh-adapter` 并完整读取 [NSH 初始化接线](references/nsh-initialization.md)。desktop/mobile/web/tui 映射已选具体平台，统一正式 0.5.0 固定提交和匹配 CLI。打包边界以 NSH 构建 Skill 为准。此路径不执行 Tauri 专属步骤。
+- 顶层 `nsh`：分派 `$desktop-add-nsh-adapter` 并完整读取 [NSH 初始化接线](references/nsh-initialization.md)。desktop/mobile/web/tui 映射已选具体平台，统一正式 0.5.1 固定提交和匹配 CLI。打包边界以 NSH 构建 Skill 为准。此路径不执行 Tauri 专属步骤。
 - `local_package` 只在含 CLI，或已选 desktop、mobile 或 web 的顶层 NSH，或 Tauri GUI 目标含 macOS/Windows 时合法。NSH 受跟踪锁策略另按发布动作 Skill 限制；不含 CLI 的仅 Linux Tauri GUI 也必须明确选 `push_release_branch`。CLI 组合保留各接口独立打包边界，不把 GUI 包冒充 CLI 产物。初始化只保留打包能力，不执行候选构建。
 
 以下“GUI”中的插件、WebView、React/Mantine/Jotai、Tauri图标/DMG、Tauri E2E 与 Tauri Skill 保留要求均只针对 `gui-framework = "tauri"`；core-first、目标/接口事实、独立仓库、身份选择、版本和无业务边界适用于 DESKTOP 与 NSH；九字段结构对 NSH 仅随 desktop 子目标适用。框架细节只读上方命中的初始化引用与 adapter Skill。

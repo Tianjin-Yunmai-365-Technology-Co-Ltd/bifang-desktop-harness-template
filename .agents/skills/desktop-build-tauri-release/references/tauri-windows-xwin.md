@@ -4,7 +4,7 @@
 
 ## macOS→Windows x64
 
-使用主 Skill 确定的 `HARNESS_RELEASE_CHANNEL`。Beta 在基础发布配置后追加 Windows 目标的 `--config <configPath>`，并从本次隔离的 Cargo 输出根发现制品。
+使用主 Skill 确定的 `HARNESS_RELEASE_CHANNEL`。Beta 在基础发布配置后追加 Windows 目标的 `--config <configPath>`，并从Cargo 已配置的共享目标目录发现制品。
 
 - Tauri 官方把 Linux/macOS 上的 Windows 交叉构建定义为带限制的兜底路线；它只支持 NSIS，WiX/MSI 只能在 Windows 生成。
 - macOS 需要 Homebrew 提供 NSIS 与 LLVM/LLD，并把 `$(brew --prefix llvm)/bin` 放入构建 PATH。
