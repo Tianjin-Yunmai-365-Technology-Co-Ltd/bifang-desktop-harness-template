@@ -1,17 +1,17 @@
 {
   "schemaVersion": 3,
-  "sourceHead": "ad8da6172fb1a35cf30d2e9a244e70995696a8e2",
-  "version": "202611121850",
-  "releaseDate": "2026-11-12",
-  "expectedTag": "v202611121850-20261112",
+  "sourceHead": "f7d8bad4ea03e8d70c02d2b6951584546ab5a42e",
+  "version": "202611142116",
+  "releaseDate": "2026-11-14",
+  "expectedTag": "v202611142116-20261114",
   "defaultBranch": "master",
   "releaseReview": {
     "selection": "enabled",
     "status": "passed",
-    "scopeBase": "5c71d55cceb1c12f3d916ca02a04ecd1f09ae998",
-    "sourceHead": "ad8da6172fb1a35cf30d2e9a244e70995696a8e2",
-    "scopeDiffSha256": "97714a03c0dc4afe23660b2a403ab1c9c6f699ca62910c53733293331ab6708f",
-    "reviewedSourceCommit": "ad8da6172fb1a35cf30d2e9a244e70995696a8e2",
+    "scopeBase": "7094db3dc370984a492900cf6b10ab69d8de39f9",
+    "sourceHead": "f7d8bad4ea03e8d70c02d2b6951584546ab5a42e",
+    "scopeDiffSha256": "699e174de0064c8ad82c3d81c9d8875cad87a3e6a4d23185c85b5c33e0a9e00c",
+    "reviewedSourceCommit": "f7d8bad4ea03e8d70c02d2b6951584546ab5a42e",
     "checks": [
       "behavior-correctness",
       "core-adapter-boundary",
@@ -19,7 +19,7 @@
       "responsibility-and-size",
       "temporary-markers"
     ],
-    "evidenceSummary": "复核全部登记分支的累计差异，核对 NSH 初始化与打包行为、Mixed 适配器到共享 core 的委托、旧 GPUI 与独立 TUI 迁移契约、文件职责与规模、临时标记。Harness 发布审查通过，36 项非阻断提示已复核，唯一临时标记来自测试夹具。发布及验证器回归 181 项和中性 Rust 7 项通过。NSH 相关实际试包与专项回归已有记录，既有 Tauri 间歇失败及 Linux 上游限制已记入技术债。",
+    "evidenceSummary": "已复核累计差异、core/adapter 职责和下游渠道与旧 NSH 契约。官方 NSH 标签与 vendored Skills 已核对，专项、全量 Harness 及 Rust 中性资产检查通过。发布审查的行数与测试内标记提示均不阻断。",
     "reason": null,
     "remainingRisk": null
   }

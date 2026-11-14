@@ -2,6 +2,26 @@
   "schemaVersion": 2,
   "releases": [
     {
+      "releaseDate": "2026-11-14",
+      "version": "v202611142116",
+      "featureOptimizations": [
+        {
+          "zh-CN": "新建 NSH 工程固定官方 0.5.1 和匹配 CLI，并同步依赖及平台资料。已有 0.5.0 工程可按原固定版本构建和升级 Harness。",
+          "en-US": "New NSH projects pin official 0.5.1 and its matching CLI. Dependency and platform documentation is updated. Existing 0.5.0 projects can build and upgrade Harness with their original pins."
+        },
+        {
+          "zh-CN": "下游可按次选择 Release 或 Beta。推送与打包共用冻结的渠道，Beta 使用独立的应用名称、ID 和发布分支。",
+          "en-US": "Downstream projects can choose Release or Beta per publication. Push and packaging share the recorded channel. Beta uses a separate app name, ID, and release branch."
+        }
+      ],
+      "bugFixes": [
+        {
+          "zh-CN": "将渠道问询和上下文限制在下游发布。Harness 继续使用固定 release 分支，既有发布上下文仍可读取。",
+          "en-US": "Require channel selection and channel metadata only for downstream publications. Harness continues to use the release branch, and existing release contexts remain readable."
+        }
+      ]
+    },
+    {
       "releaseDate": "2026-11-12",
       "version": "v202611121850",
       "featureOptimizations": [
@@ -258,26 +278,6 @@
         {
           "zh-CN": "在写入工作区前格式化生成的 Rust，并补齐框架元数据的 NSH 文档声明。",
           "en-US": "Format generated Rust before writing the workspace and include NSH in the documented GUI framework values."
-        }
-      ]
-    },
-    {
-      "releaseDate": "2026-11-06",
-      "version": "v202611060921",
-      "featureOptimizations": [
-        {
-          "zh-CN": "下游升级首次确认并记忆退役工程资产的清理或保留选择。",
-          "en-US": "Remember each downstream project’s confirmed choice to remove or preserve retired engineering assets."
-        }
-      ],
-      "bugFixes": [
-        {
-          "zh-CN": "发现旧来源锁未登记的退役文件；清理未完成时拒绝记录升级完成。",
-          "en-US": "Detect retired files absent from legacy source locks and prevent upgrades from being recorded as complete before cleanup finishes."
-        },
-        {
-          "zh-CN": "清除退役更新、统计执行合同和远程追踪依赖候选，保留历史验证事实。",
-          "en-US": "Remove retired update and statistics execution contracts and remote tracing dependency candidates while preserving historical verification facts."
         }
       ]
     }
